@@ -14,7 +14,7 @@ const designSystemRoot = process.env.WEB_SOLID_DESIGN_SYSTEM_ROOT
 export default defineConfig({
   plugins: [
     tailwindcss(),
-    fileRoutes(),
+    fileRoutes({ httpMethods: true }),
     {
       name: "web-solid-design-system-boundary",
       configResolved(config) {
@@ -40,6 +40,7 @@ export default defineConfig({
     dedupe: ["solid-js", "@solidjs/web"],
     alias: {
       "pirate-solid-design-system": designSystemRoot,
+      "solid-js/web": "@solidjs/web",
       "@": path.resolve(designSystemRoot, "src"),
     },
   },

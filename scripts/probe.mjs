@@ -58,13 +58,60 @@ check("HNS apex redirects", apex.status === 307, String(apex.status));
 check("HNS redirect targets app host", (apex.headers.get("location") ?? "").includes("app.example.hns"));
 const host = await get("/seam/host", { headers: { host: "app.example.hns" } });
 check("app host serves", host.status === 200, String(host.status));
-check("host surface header is app", host.headers.get("x-seam-host-surface") === "app");
+check("host surface header is sovereign app", host.headers.get("x-seam-host-surface") === "sovereign-app");
 const binding = await get("/seam/binding", { headers: { host: "app.example.hns" } });
 const bindingText = await binding.text();
 check("service-binding route serves", binding.status === 200, String(binding.status));
 check("service-binding round trip identifies public worker", bindingText.includes("pirate-web-solid-public"));
 check("service-binding route returns JSON payload", binding.headers.get("content-type")?.includes("text/html") === false || bindingText.includes("upstream"));
 check("adapter returns streamed-capable response", root.body.length > 0);
+
+const htmlRoutes = [
+  ["home route", "/", 'data-route-path="/"', 'data-layout="app-shell"'],
+  ["community route", "/c/demo", 'data-route-path="/c/:slug"', 'data-layout="app-shell"'],
+  ["community threads route", "/c/demo/threads", 'data-route-path="/c/:slug/threads"', 'data-layout="app-shell"'],
+  ["post route", "/p/demo-post", 'data-route-path="/p/:id"', 'data-layout="app-shell"'],
+  ["profile route", "/u/demo-user", 'data-route-path="/u/:handle"', 'data-layout="app-shell"'],
+  ["settings route", "/settings", 'data-route-path="/settings"', 'data-layout="app-shell"'],
+  ["settings child route", "/settings/profile", 'data-route-path="/settings/profile"', 'data-layout="app-shell"'],
+  ["auth bare route", "/auth", 'data-route-path="/auth"', 'data-layout="bare"'],
+  ["embed bare route", "/embed", 'data-route-path="/embed"', 'data-layout="bare"'],
+  ["telegram bare route", "/telegram", 'data-route-path="/telegram"', 'data-layout="bare"'],
+  ["host seam route", "/seam/host", 'data-route-path="/seam/host"'],
+  ["binding seam route", "/seam/binding", 'data-route-path="/seam/binding"'],
+];
+for (const [name, path, marker, layout] of htmlRoutes) {
+  const response = await get(path, { headers: { host: "app.example.hns" } });
+  const body = await response.text();
+  check(`${name} serves SSR`, response.status === 200 && body.includes(marker), `${response.status}`);
+  if (layout) check(`${name} uses expected layout`, body.includes(layout));
+}
+
+const api = await get("/api/health", { headers: { host: "app.example.hns", accept: "application/json" } });
+const apiBody = await api.text();
+check("API route serves JSON", api.status === 200 && api.headers.get("content-type")?.includes("application/json") === true, `${api.status}`);
+check("API route returns health payload", apiBody.includes('"route":"health"'));
+
+const notFound = await get("/route-that-does-not-exist", { headers: { host: "app.example.hns" } });
+const notFoundBody = await notFound.text();
+check("catch-all route returns SSR 404", notFound.status === 404, String(notFound.status));
+check("catch-all route renders not-found marker", notFoundBody.includes('data-route-status="404"'));
+
+const importedRoot = await get("/c/demo/threads", { headers: { host: "example.hns" } });
+check("imported sovereign root without forwarding metadata is deliberate 404", importedRoot.status === 404);
+check("imported sovereign root exposes route outcome", importedRoot.headers.get("x-solid-route-outcome") === "sovereign-forwarding-metadata-required");
+const forwardedHost = await get("/seam/host", {
+  headers: {
+    host: "example.hns",
+    "x-pirate-hns-trusted-forwarder": "1",
+    "x-pirate-hns-community-id": "demo",
+    "x-pirate-hns-community-route": "demo",
+  },
+});
+const forwardedHostBody = await forwardedHost.text();
+check("forwarded sovereign route serves", forwardedHost.status === 200, String(forwardedHost.status));
+check("forwarded host context reaches routes", forwardedHostBody.includes('data-host-surface="sovereign-apex"') && forwardedHostBody.includes("host-community-slug: <!--$-->demo"));
+check("forwarded metadata is exposed", forwardedHostBody.includes('data-forwarding-metadata="1"') && forwardedHostBody.includes("forwarding-metadata: <!--$-->present"));
 
 for (const result of checks) console.log(`${result.ok ? "PASS" : "FAIL"} ${result.name}${result.detail ? ` (${result.detail})` : ""}`);
 const failures = checks.filter(result => !result.ok);

@@ -1,0 +1,40 @@
+import { Meta, Link, Title } from "@solidjs/meta";
+import { createSignal, Loading } from "solid-js";
+import { pageRoutes } from "virtual:file-routes";
+import { Button } from "../../design-system";
+import { useHostContext } from "../../lib/host-context";
+
+export default function HomeRoute() {
+  const [count, setCount] = createSignal(0);
+  const [streamed] = createSignal(
+    () => new Promise<string>(resolve => setTimeout(() => resolve("stream-complete"), 80)),
+    { ssrSource: "server" },
+  );
+  const host = useHostContext();
+
+  return (
+    <main data-route-path="/">
+      <Title>Home · Pirate Web</Title>
+      <Meta name="description" content="Pirate Web video feed" />
+      <Meta property="og:title" content="Pirate Web" />
+      <Meta property="og:type" content="website" />
+      <Link rel="canonical" href="/" />
+      <h1>Pirate Web Solid shell</h1>
+      <p id="seam-host">host-surface: {host.surface}</p>
+      <p id="host-community-slug">host-community-slug: {host.communitySlug ?? "none"}</p>
+      <p id="route-manifest">filesystem-routing routes: {pageRoutes.length}</p>
+      <Button id="hydration-button" type="button" onClick={() => setCount(value => value + 1)}>
+        hydration-count: {count()}
+      </Button>
+      <Loading fallback={<p id="stream-fallback">streaming-shell</p>}>
+        <p id="stream-result">{streamed()}</p>
+      </Loading>
+      <nav aria-label="Seam probes">
+        <a href="/seam/host">host seam</a>
+        <a href="/seam/binding">binding seam</a>
+        <a href="/p/demo-post">post route</a>
+        <a href="/u/demo-user">profile route</a>
+      </nav>
+    </main>
+  );
+}
