@@ -1,6 +1,7 @@
 import { createSignal, Loading } from "solid-js";
 import { getRequestEvent } from "@solidjs/web";
 import { pageRoutes } from "virtual:file-routes";
+import { Button } from "./design-system";
 import "./index.css";
 
 export default function App() {
@@ -22,9 +23,9 @@ export default function App() {
       <h1>Pirate Web Solid shell</h1>
       <p id="seam-host">host-surface: {seamHost}</p>
       <p id="route-manifest">filesystem-routing routes: {Object.keys(pageRoutes).length}</p>
-      <button id="hydration-button" type="button" onClick={() => setCount(value => value + 1)}>
+      <Button id="hydration-button" type="button" onClick={() => setCount(value => value + 1)}>
         hydration-count: {count()}
-      </button>
+      </Button>
       <Loading fallback={<p id="stream-fallback">streaming-shell</p>}>
         <p id="stream-result">{streamed()}</p>
       </Loading>

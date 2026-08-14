@@ -1,3 +1,35 @@
+diff --git a/node_modules/@kobalte/core/.bun-tag-214ead3b4bbc1f87 b/.bun-tag-214ead3b4bbc1f87
+new file mode 100644
+index 0000000000000000000000000000000000000000..e69de29bb2d1d6434b8b29ae775ad8c2e48c5391
+diff --git a/node_modules/@kobalte/core/.bun-tag-5c895e4f2f156b09 b/.bun-tag-5c895e4f2f156b09
+new file mode 100644
+index 0000000000000000000000000000000000000000..e69de29bb2d1d6434b8b29ae775ad8c2e48c5391
+diff --git a/node_modules/@kobalte/core/.bun-tag-87edff11b3b1158b b/.bun-tag-87edff11b3b1158b
+new file mode 100644
+index 0000000000000000000000000000000000000000..e69de29bb2d1d6434b8b29ae775ad8c2e48c5391
+diff --git a/dist/button/DvspU6cJ.jsx b/dist/button/DvspU6cJ.jsx
+index 5000f2871ccda16662437b482ecb25609fa1fd2f..7189927a236ba17d91767067b60276c32a3e81db 100644
+--- a/dist/button/DvspU6cJ.jsx
++++ b/dist/button/DvspU6cJ.jsx
+@@ -36,7 +36,7 @@ function isButton(element) {
+ function ButtonRoot(props) {
+ 	const [ref, setRef] = createSignal(void 0, { ownedWrite: true });
+ 	const mergedProps = merge({ type: "button" }, props);
+-	const others = omit(mergedProps, "ref", "type", "disabled");
++	const others = omit(mergedProps, "ref", "type", "disabled", "children", "as");
+ 	const tagName = createTagName(ref, () => "button");
+ 	const isNativeButton = createMemo(() => {
+ 		const elementTagName = tagName();
+@@ -52,7 +52,8 @@ function ButtonRoot(props) {
+ 	const isNativeLink = createMemo(() => {
+ 		return tagName() === "a" && ref()?.getAttribute("href") != null;
+ 	});
+-	return <Polymorphic as="button" ref={[setRef, mergedProps.ref]} type={isNativeButton() || isNativeInput() ? mergedProps.type : void 0} role={!isNativeButton() && !isNativeLink() ? "button" : void 0} tabindex={!isNativeButton() && !isNativeLink() && !mergedProps.disabled ? 0 : void 0} disabled={isNativeButton() || isNativeInput() ? mergedProps.disabled : void 0} aria-disabled={!isNativeButton() && !isNativeInput() && mergedProps.disabled ? "true" : void 0} data-disabled={mergedProps.disabled ? "" : void 0} {...others} />;
++	if (mergedProps.as && mergedProps.as !== "button") return <Polymorphic as={mergedProps.as} ref={[setRef, mergedProps.ref]} type={isNativeButton() || isNativeInput() ? mergedProps.type : void 0} role={!isNativeButton() && !isNativeLink() ? "button" : void 0} tabindex={!isNativeButton() && !isNativeLink() && !mergedProps.disabled ? 0 : void 0} disabled={isNativeButton() || isNativeInput() ? mergedProps.disabled : void 0} aria-disabled={!isNativeButton() && !isNativeInput() && mergedProps.disabled ? "true" : void 0} data-disabled={mergedProps.disabled ? "" : void 0} {...others}>{mergedProps.children}</Polymorphic>;
++	return <button {...others} type={mergedProps.type} disabled={mergedProps.disabled}>{mergedProps.children}</button>;
+ }
+ //#endregion
+ //#region src/button/index.tsx
 diff --git a/dist/create-list-state/CgkAj-2j.jsx b/dist/create-list-state/CgkAj-2j.jsx
 index 459d60819480f18a86c3b292291761620c37ffad..4facabee801fd50f0287ebddcc4f4d9272225ddc 100644
 --- a/dist/create-list-state/CgkAj-2j.jsx
@@ -20,3 +52,32 @@ index 459d60819480f18a86c3b292291761620c37ffad..4facabee801fd50f0287ebddcc4f4d92
  	const selectionMode = () => access(mergedProps.selectionMode);
  	const disallowEmptySelection = () => access(mergedProps.disallowEmptySelection) ?? false;
  	const setSelectedKeys = (keys) => {
+diff --git a/dist/polymorphic/index.jsx b/dist/polymorphic/index.jsx
+index 0a0891f3cbb8704639ccf0fa979179117c26505a..1b0fd378f2317dcfed732f357335764ddbe6874f 100644
+--- a/dist/polymorphic/index.jsx
++++ b/dist/polymorphic/index.jsx
+@@ -5,9 +5,9 @@ import { Dynamic } from "@solidjs/web";
+ * A utility component that render its `as` prop.
+ */
+ function Polymorphic(props) {
+-	const others = omit(props, "as");
++	const others = omit(props, "as", "children");
+ 	if (!untrack(() => props.as)) throw new Error("[kobalte]: Polymorphic is missing the required `as` prop.");
+-	return <Dynamic {...others} component={props.as} />;
++	return <Dynamic {...others} component={props.as}>{props.children}</Dynamic>;
+ }
+ //#endregion
+ export { Polymorphic };
+diff --git a/dist/slider/DP6fmlOK.jsx b/dist/slider/DP6fmlOK.jsx
+index 99232b6df91ac600326db388fdd42a96e396c343..9e970b682f7b0d87ab27ea578b429b61bb8215ca 100644
+--- a/dist/slider/DP6fmlOK.jsx
++++ b/dist/slider/DP6fmlOK.jsx
+@@ -118,7 +118,7 @@ function SliderThumb(props) {
+ 			<Polymorphic as="span" ref={[setRef, mergedProps.ref]} role="slider" id={fieldProps.id()} tabindex={context.state.isDisabled() ? void 0 : 0} style={combineStyle({
+ 		display: value() === void 0 ? "none" : void 0,
+ 		position: "absolute",
+-		[context.startEdge()]: `calc(${position() * 100}%)`,
++		[context.startEdge()]: value() === void 0 ? void 0 : `calc(${position() * 100}%)`,
+ 		transform: transform(),
+ 		"touch-action": "none"
+ 	}, mergedProps.style)} aria-valuetext={context.state.getThumbValueLabel(index())} aria-valuemin={context.minValue()} aria-valuenow={value()} aria-valuemax={context.maxValue()} aria-orientation={context.state.orientation()} aria-label={fieldProps.ariaLabel()} aria-labelledby={fieldProps.ariaLabelledBy()} aria-describedby={fieldProps.ariaDescribedBy()} onKeyDown={onKeyDown} onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onFocus={onFocus} onBlur={onBlur} {...context.dataset()} {...others} />
