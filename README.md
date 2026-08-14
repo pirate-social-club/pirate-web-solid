@@ -48,14 +48,14 @@ rtk env PLAYWRIGHT_BROWSERS_PATH=./.playwright-browsers bunx playwright install 
 rtk bun run build
 rtk bun run check-solid-runtime
 rtk bun run preview -- --port 4173
-rtk env SEAM_BASE_URL=http://127.0.0.1:4173 bun run probe
-rtk env SEAM_BASE_URL=http://127.0.0.1:4173 bun run stream-check
-rtk env PLAYWRIGHT_BROWSERS_PATH=./.playwright-browsers WEB_SOLID_BASE_URL=http://127.0.0.1:4173 bun run hydration-check
+rtk env SEAM_BASE_URL=http://127.0.0.1:4173 PLAYWRIGHT_BROWSERS_PATH=./.playwright-browsers WEB_SOLID_BASE_URL=http://127.0.0.1:4173 bun run verify
 ```
 
-The hydration check renders the real design-system Button, not a native
-placeholder. Stop the foreground preview after verification. No shared
-Cloudflare resource may be deployed by the bootstrap.
+`build` runs the runtime/patch guard through `prebuild`. `verify` is the
+single focused shell gate: it checks the runtime and patch, all 16 seam probes,
+streaming, and browser hydration of the real design-system Button. Run it while
+the foreground preview is active, then stop that preview. No shared Cloudflare
+resource may be deployed by the bootstrap.
 
 ## Scope
 
