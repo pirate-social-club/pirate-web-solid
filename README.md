@@ -22,17 +22,22 @@ owns the permanent probes and hydration regression gate.
 ## Design-system linkage
 
 The app consumes the unpublished `../solid-storybook-poc` repository through a
-fixed `file:` dependency named `pirate-solid-design-system`. Components are
-imported only through `src/design-system.ts`; copying component files into this
+Bun workspace dependency named `pirate-solid-design-system`. The workspace
+entry is deliberate: a clean `rtk bun install` resolves the design system's
+Solid peer dependencies from this app instead of creating a second runtime in
+the linked package. The design-system package is exact-pinned at `0.2.0` in
+its own `package.json` and in the workspace lockfile. Components are imported
+only through `src/design-system.ts`; copying component files into this
 repository is forbidden. The app imports the design system's Tailwind v4 token
 layer and uses the same Tailwind Vite pipeline.
 
 Vite aliases and `resolve.dedupe` force `solid-js` and `@solidjs/web` to the
 app's single runtime instance. The design-system package exposes those two
 exact versions as peer dependencies, and its Kobalte Button uses the pinned
-Solid 2 hydration patch. Run `rtk bun run check-solid-runtime` before declaring
-hydration green; the check intentionally fails if the linked package has local
-Solid copies.
+Solid 2 hydration patch. Run `rtk bun run check-solid-runtime` after every
+clean install and before declaring hydration green; the check intentionally
+fails if the linked package has local Solid copies, the Kobalte version drifts,
+or the patch no longer appears in the built package.
 
 ## Verification
 

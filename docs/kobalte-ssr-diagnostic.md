@@ -1,7 +1,7 @@
 # Kobalte SSR and design-system boundary diagnostic
 
-Status: **GREEN for the real Button/M1 integration gate; Batch 1 still requires
-the design-system package's focused SSR/component checks.**
+Status: **GREEN for the real Button/M1 integration gate; Batch 2 is gated on
+portalled-overlay and compound-form app fixtures.**
 
 Date: 2026-08-14
 
@@ -32,20 +32,39 @@ changing the dirty canonical checkout:
 
 ## Required fix sequence
 
-1. In the design-system repository, move exact `solid-js` and `@solidjs/web`
-   `2.0.0-rc.0` entries from `dependencies` to `peerDependencies`, remove its
-   local installed copies, and reinstall.
-2. Apply the pinned Kobalte patch in the design-system package. The default
+1. In the design-system repository, keep exact `solid-js` and `@solidjs/web`
+   `2.0.0-rc.0` entries in `peerDependencies` only. Link the package through
+   the app's Bun workspace so a clean install cannot create a second runtime.
+2. Apply the pinned Kobalte patch in the design-system package. The exact
+   `@kobalte/core@2.0.0-alpha.0` pin and patch path must remain in both package
+   manifests/lockfiles. The default
    Button must render the native element directly; custom polymorphic `as`
    remains on the original path. The design-system Button must pass children
    directly; it may use `omit(...)` for ordinary attribute forwarding once the
    Kobalte default path is patched.
-3. Link that normalized package into this app and run
+3. Run
    `rtk bun run check-solid-runtime`. It must report one runtime or fail.
-4. Replace the native placeholder in the app hydration test with the real
+   It also verifies the exact Kobalte version and fails loudly if the patched
+   Button output is absent after installation.
+4. Keep the real
    design-system Button. Run the build, 16 seam probes, streaming check, and
    Playwright hydration click-through under enforced CSP.
-5. Only after that passes may Batch 1 component work begin.
+5. Before Batch 2 closes, add one portalled overlay and one compound form
+   control to the app-level hydration gate. See
+   `app-component-hydration-gate.md`.
+
+## Patch ownership and tripwire
+
+Current state: **one patch file, two behavioral areas** — Solid 2 signal
+compatibility in Kobalte internals and the default Button hydration path. The
+patch is reproducible through Bun's `patchedDependencies` entry and is exact
+pinned to `@kobalte/core@2.0.0-alpha.0`; the app runtime check verifies that the
+patched output is present after install. The proposed upstream report is
+prepared in `kobalte-solid2-upstream-issue.md` and has not been filed
+externally.
+
+Count distinct behavioral Kobalte patches, not changed lines. At three, reopen
+the Ark UI comparison before expanding the catalog further.
 
 The app-side guard, diagnostic markup, Kobalte patch, and real Button gate are
 committed separately from the unrelated engagement work in the design-system

@@ -3,6 +3,7 @@
   "private": true,
   "type": "module",
   "packageManager": "bun@1.3.5",
+  "workspaces": ["../solid-storybook-poc"],
   "engines": {
     "node": ">=24.0.0"
   },
@@ -20,7 +21,7 @@
     "@solidjs/web": "2.0.0-rc.0",
     "class-variance-authority": "0.7.1",
     "filesystem-routing": "0.2.1",
-    "pirate-solid-design-system": "file:../solid-storybook-poc",
+    "pirate-solid-design-system": "workspace:*",
     "solid-js": "2.0.0-rc.0",
     "tailwind-merge": "3.6.0"
   },
