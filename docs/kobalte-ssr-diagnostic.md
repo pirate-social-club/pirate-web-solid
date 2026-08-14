@@ -37,8 +37,9 @@ changing the dirty canonical checkout:
    local installed copies, and reinstall.
 2. Apply the pinned Kobalte patch in the design-system package. The default
    Button must render the native element directly; custom polymorphic `as`
-   remains on the original path. Keep the design-system Button wrapper free of
-   component prop spreads and pass children directly.
+   remains on the original path. The design-system Button must pass children
+   directly; it may use `omit(...)` for ordinary attribute forwarding once the
+   Kobalte default path is patched.
 3. Link that normalized package into this app and run
    `rtk bun run check-solid-runtime`. It must report one runtime or fail.
 4. Replace the native placeholder in the app hydration test with the real
