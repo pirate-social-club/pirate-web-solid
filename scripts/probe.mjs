@@ -1,6 +1,6 @@
 import http from "node:http";
 
-const base = process.env.SEAM_BASE_URL ?? "http://127.0.0.1:8787";
+const base = process.env.SEAM_BASE_URL ?? "http://localhost:8787";
 
 function get(path, init = {}) {
   const url = new URL(path, base);
@@ -52,6 +52,10 @@ const scripts = [...html.matchAll(/<script\b[^>]*>/gi)].map(match => match[0]);
 check("SSR emitted script exists", scripts.length > 0, `${scripts.length} scripts`);
 check("every SSR script carries nonce", scripts.every(script => script.includes(`nonce="${nonce}"`)));
 check("hydration control is present", html.includes("id=\"hydration-button\""));
+check("SSR API data is visible", html.includes('id="api-version" data-api-status="success"') && html.includes("API status: <!--$-->api"));
+check("API query cache is serialized", html.includes('queryKey:$R') && html.includes('"api","version"'));
+check("portalled overlay fixture is SSR-marked", html.includes('id="hydration-dialog-open"') && html.includes('aria-haspopup="dialog"'));
+check("compound form fixture is SSR-marked", html.includes('id="hydration-display-name"') && html.includes('id="hydration-display-name-description"'));
 
 const apex = await get("/", { redirect: "manual", headers: { host: "example.hns" } });
 check("HNS apex redirects", apex.status === 307, String(apex.status));
@@ -91,6 +95,16 @@ const api = await get("/api/health", { headers: { host: "app.example.hns", accep
 const apiBody = await api.text();
 check("API route serves JSON", api.status === 200 && api.headers.get("content-type")?.includes("application/json") === true, `${api.status}`);
 check("API route returns health payload", apiBody.includes('"route":"health"'));
+
+const api404 = await get("/seam/api?status=404", { headers: { host: "app.example.hns" } });
+const api404Body = await api404.text();
+check("API 404 maps to SSR route 404", api404.status === 404 && api404Body.includes('data-api-error="404"'));
+const api500 = await get("/seam/api?status=500", { headers: { host: "app.example.hns" } });
+const api500Body = await api500.text();
+check("API 5xx maps to error boundary", api500.status === 500 && api500Body.includes('data-api-error="boundary"'));
+const apiFeed = await get("/seam/api?feed=1", { headers: { host: "app.example.hns" } });
+const apiFeedBody = await apiFeed.text();
+check("Worker SSR fetches public feed endpoint", apiFeed.status === 200 && apiFeedBody.includes('data-api-feed="success"'));
 
 const notFound = await get("/route-that-does-not-exist", { headers: { host: "app.example.hns" } });
 const notFoundBody = await notFound.text();

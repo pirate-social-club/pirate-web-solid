@@ -3,6 +3,7 @@ import { createAPIHandler } from "filesystem-routing/api";
 import { getRequestEvent } from "@solidjs/web";
 import { env } from "cloudflare:workers";
 import type { HostContext, HostSurface } from "./lib/host-context";
+import { createApiClient } from "./lib/api/client";
 
 function makeNonce(): string {
   const bytes = new Uint8Array(18);
@@ -22,6 +23,10 @@ function classifyHost(host: string): HostSurface {
 
 function hostName(host: string): string {
   return host.split(":", 1)[0].toLowerCase().replace(/\.+$/u, "");
+}
+
+function isLocalHost(hostname: string): boolean {
+  return hostname === "localhost" || hostname === "127.0.0.1" || hostname.startsWith("127.");
 }
 
 function deriveCommunitySlug(host: string, request: Request): string | null {
@@ -57,9 +62,25 @@ async function seamMiddleware(request: Request, next: () => Promise<Response>) {
   const hostContext = makeHostContext(request);
   const surface = hostContext.surface;
   const url = new URL(request.url);
+  const hostname = hostName(request.headers.get("host") ?? url.hostname);
   event.locals.cspNonce = nonce;
   event.locals.hostContext = hostContext;
   event.locals.seamHost = surface;
+  // The preview Worker has no local API Worker. Keep the resolver's local
+  // contract intact, but route the read-only M1 smoke request to production.
+  if (isLocalHost(hostname)) event.locals.apiOrigin = "https://api.pirate.sc";
+
+  if (url.pathname === "/seam/api" && url.searchParams.get("feed") === "1") {
+    const feed = await createApiClient({ request }).getJson<unknown>(
+      "/feed/home/videos/public?locale=en&sort=best",
+    );
+    const items = Array.isArray(feed)
+      ? feed.length
+      : feed && typeof feed === "object" && "items" in feed && Array.isArray(feed.items)
+        ? feed.items.length
+        : 0;
+    event.locals.apiFeedResult = { ok: true, itemCount: items };
+  }
 
   if (surface === "sovereign-apex" && url.pathname === "/") {
     const target = new URL(request.url);

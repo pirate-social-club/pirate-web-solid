@@ -24,6 +24,8 @@ declare module "@solidjs/web" {
     bindingResult?: string;
     routeStatus?: number;
     seamHost?: HostSurface;
+    apiOrigin?: string;
+    apiFeedResult?: { ok: boolean; itemCount: number };
   }
 }
 
