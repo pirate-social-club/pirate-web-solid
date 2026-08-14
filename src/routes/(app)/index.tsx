@@ -2,6 +2,7 @@ import { Meta, Link, Title } from "@solidjs/meta";
 import { useQuery } from "@tanstack/solid-query";
 import { createSignal, Loading } from "solid-js";
 import { pageRoutes } from "virtual:file-routes";
+import PublicVideoFeed from "../../components/public-video-feed";
 import {
   Button,
   Dialog,
@@ -76,6 +77,7 @@ export default function HomeRoute() {
       <Loading fallback={<p id="stream-fallback">streaming-shell</p>}>
         <p id="stream-result">{streamed()}</p>
       </Loading>
+      <PublicVideoFeed />
       <nav aria-label="Seam probes">
         <a href="/seam/host">host seam</a>
         <a href="/seam/binding">binding seam</a>

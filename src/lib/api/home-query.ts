@@ -11,5 +11,6 @@ export function createApiVersionQuery(request?: Request) {
       createApiClient({ request: serverRequest }).getVersion(),
     staleTime: 60_000,
     retry: false,
+    throwOnError: false,
   };
 }

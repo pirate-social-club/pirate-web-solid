@@ -37,6 +37,16 @@ try {
   }
   if (!(await apiVersion.textContent()).includes("api")) throw new Error("SSR API data is not visible in the streamed HTML");
 
+  const feed = page.locator("#public-video-feed");
+  await feed.waitFor({ state: "attached" });
+  if (await feed.getAttribute("data-feed-status") !== "ready") throw new Error("SSR public video feed did not resolve");
+  const feedItems = page.locator("[data-feed-item-id]");
+  if (await feedItems.count() < 1) throw new Error("SSR public video feed returned no video cards");
+  if (await page.locator("[data-feed-item-id] video[controls]").count() !== await feedItems.count()) {
+    throw new Error("Every public feed card must expose reachable native video controls");
+  }
+  if (await page.locator('[data-feed-active="true"]').count() !== 1) throw new Error("Feed must have exactly one active item");
+
   const button = page.locator("#hydration-button");
   const before = await button.textContent();
   const markup = await button.evaluate(element => element.outerHTML);
@@ -62,6 +72,12 @@ try {
   await displayName.fill("Gate test");
   if (await displayName.inputValue() !== "Gate test") throw new Error("TextField controlled value did not update");
   if (apiVersionRequests !== 0) throw new Error(`Hydrated API query refetched ${apiVersionRequests} time(s)`);
+
+  if (await feedItems.count() > 1) {
+    await feedItems.nth(1).scrollIntoViewIfNeeded();
+    await page.waitForTimeout(100);
+    if (await page.locator('[data-feed-active="true"]').count() !== 1) throw new Error("Feed changed to more than one active item");
+  }
 
   const threadsLink = page.locator('a[href="/c/demo/threads"]').first();
   await threadsLink.click();

@@ -29,18 +29,27 @@ export interface ApiClientOptions {
   request?: Request;
   fetchImpl?: typeof fetch;
   authForwarder?: ApiAuthForwarder;
+  timeoutMs?: number;
 }
 
 export function createApiClient(options: ApiClientOptions = {}) {
   const fetchImpl = options.fetchImpl ?? fetch;
   const authForwarder = options.authForwarder ?? createStubApiAuthForwarder();
+  const timeoutMs = options.timeoutMs ?? 4_000;
 
   async function getJson<T>(pathname: string): Promise<T> {
-    const response = await fetchImpl(resolveApiUrl(pathname, options.request), {
-      headers: authForwarder.headersForApi(options.request),
-    });
-    assertApiResponse(response, pathname);
-    return (await response.json()) as T;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const response = await fetchImpl(resolveApiUrl(pathname, options.request), {
+        headers: authForwarder.headersForApi(options.request),
+        signal: controller.signal,
+      });
+      assertApiResponse(response, pathname);
+      return (await response.json()) as T;
+    } finally {
+      clearTimeout(timeout);
+    }
   }
 
   return {

@@ -86,13 +86,37 @@ TanStack Solid Query serializes the server cache through the Solid stream, with
 the existing nonce applied to every serialization/late-patch script. The
 browser gate asserts the API marker is present in SSR HTML and that hydration,
 navigation, and refresh cause zero `/__version` refetches. `/seam/api?feed=1`
-also exercises a public feed read as a Worker subrequest; it is deliberately
-not part of the Home payload until the product query contract is defined.
+also exercises the same public feed read as a Worker subrequest; the Home feed
+uses the normalized query contract described below.
 
 The app hydration gate uses the real linked design-system Button, Kobalte
 Dialog (portal, open/close, focus), and TextField (label/description wiring and
 controlled value updates). Every fixture is SSR-rendered under the strict CSP
 and exercised by project-local Playwright; native stand-ins are not accepted.
+
+## Public video feed
+
+The Home route now renders the first page of the unauthenticated public video
+feed from `/feed/home/videos/public` during SSR. The response is normalized at
+the API boundary: keyset cursors stay strings (PG `NUMERIC` values must never
+pass through JavaScript number arithmetic), and one accidental `usr_usr_`
+author prefix is reduced to `usr_`. Subsequent pages use the same query key
+with the cursor and are loaded on demand; duplicate post IDs are discarded.
+
+The feed uses native HTML video as the first player implementation. This is a
+framework-neutral, SSR-safe choice while the Vidstack web-component boundary
+is evaluated; no custom-element registration runs during server rendering.
+Each card has native controls and captions metadata, uses an
+`IntersectionObserver` to select one active item, pauses all other videos, and
+preloads the next card. Arrow Up/Down moves between cards, and reduced-motion
+preferences disable smooth scrolling and autoplay. The current item and
+scroll position are cached in session storage so returning to Home restores
+the feed without an additional initial query; TanStack Query retains the page
+cache for five minutes.
+
+Like is intentionally rendered through the `RequireSession` seam as a
+disabled signed-out action. M2 supplies the real session exchange and action
+handlers; this milestone performs no writes to the API.
 
 ## Verification
 
@@ -116,7 +140,7 @@ shared Cloudflare resource may be deployed by the bootstrap.
 
 ## Scope
 
-M1 contains only the shell, placeholder routes, seam and API routes, middleware,
-Worker adapter, probes, design-system boundary, and a stub Privy adapter at
-`src/lib/auth/privy.ts`. Login UI, relay calls, feature routes, and the catalog
-port belong to later milestones.
+M3 adds the public Home video feed and its read-only API seam. Login UI, relay
+calls, and write actions remain M2 work. The design-system catalog continues to
+be owned by `solid-storybook-poc`; app code imports it only through
+`src/design-system.ts`.

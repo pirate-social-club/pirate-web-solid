@@ -56,6 +56,9 @@ check("SSR API data is visible", html.includes('id="api-version" data-api-status
 check("API query cache is serialized", html.includes('queryKey:$R') && html.includes('"api","version"'));
 check("portalled overlay fixture is SSR-marked", html.includes('id="hydration-dialog-open"') && html.includes('aria-haspopup="dialog"'));
 check("compound form fixture is SSR-marked", html.includes('id="hydration-display-name"') && html.includes('id="hydration-display-name-description"'));
+check("public video feed is SSR-marked", html.includes('id="public-video-feed"') && html.includes('data-feed-status="ready"'));
+check("public feed includes a video item", html.includes('data-feed-item-id="') && html.includes("<video"));
+check("public feed preserves cursor-safe API data", html.includes("data-feed-active="));
 
 const apex = await get("/", { redirect: "manual", headers: { host: "example.hns" } });
 check("HNS apex redirects", apex.status === 307, String(apex.status));
