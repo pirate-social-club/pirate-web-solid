@@ -16,7 +16,7 @@ index 5000f2871ccda16662437b482ecb25609fa1fd2f..7189927a236ba17d91767067b60276c3
  	const [ref, setRef] = createSignal(void 0, { ownedWrite: true });
  	const mergedProps = merge({ type: "button" }, props);
 -	const others = omit(mergedProps, "ref", "type", "disabled");
-+	const others = omit(mergedProps, "ref", "type", "disabled", "children", "as");
++	const others = omit(mergedProps, "ref", "type", "disabled", "children", "as"); // Upstream issue: https://github.com/kobaltedev/kobalte/issues/717
  	const tagName = createTagName(ref, () => "button");
  	const isNativeButton = createMemo(() => {
  		const elementTagName = tagName();
