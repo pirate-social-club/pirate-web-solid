@@ -1,0 +1,22 @@
+diff --git a/dist/create-list-state/CgkAj-2j.jsx b/dist/create-list-state/CgkAj-2j.jsx
+index 459d60819480f18a86c3b292291761620c37ffad..4facabee801fd50f0287ebddcc4f4d9272225ddc 100644
+--- a/dist/create-list-state/CgkAj-2j.jsx
++++ b/dist/create-list-state/CgkAj-2j.jsx
+@@ -65,7 +65,7 @@ function createMultipleSelectionState(props) {
+ 		selectionBehavior: "toggle"
+ 	}, props);
+ 	const [isFocused, setFocused] = createSignal(false);
+-	const [focusedKey, setFocusedKey] = createSignal();
++	const [focusedKey, setFocusedKey] = createSignal(undefined, { ownedWrite: true });
+ 	const [selectedKeys, _setSelectedKeys] = createControllableSelectionSignal({
+ 		value: createMemo(() => {
+ 			const selection = access(mergedProps.selectedKeys);
+@@ -79,7 +79,7 @@ function createMultipleSelectionState(props) {
+ 		}),
+ 		onChange: (value) => mergedProps.onSelectionChange?.(value)
+ 	});
+-	const [selectionBehavior, setSelectionBehavior] = createSignal(access(mergedProps.selectionBehavior));
++	const [selectionBehavior, setSelectionBehavior] = createSignal(access(mergedProps.selectionBehavior), { ownedWrite: true });
+ 	const selectionMode = () => access(mergedProps.selectionMode);
+ 	const disallowEmptySelection = () => access(mergedProps.disallowEmptySelection) ?? false;
+ 	const setSelectedKeys = (keys) => {

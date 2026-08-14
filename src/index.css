@@ -1,0 +1,20 @@
+@import "tailwindcss";
+@import "pirate-solid-design-system/src/styles/tokens.css";
+@source "../../solid-storybook-poc/src";
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    @apply bg-background;
+    min-height: 100%;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    min-height: 100dvh;
+    font-family: var(--font-sans);
+  }
+}

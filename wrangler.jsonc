@@ -1,0 +1,11 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "pirate-web-solid",
+  "compatibility_date": "2026-08-13",
+  "compatibility_flags": ["nodejs_compat"],
+  "main": "./src/worker.ts",
+  "assets": { "directory": "./dist/client", "binding": "ASSETS" },
+  "services": [
+    { "binding": "PUBLIC", "service": "pirate-web-solid-public" }
+  ]
+}
