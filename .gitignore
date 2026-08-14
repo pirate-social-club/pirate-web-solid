@@ -3,4 +3,9 @@ dist/
 .playwright-browsers/
 .wrangler/
 .tmp/
+.env
+.env.*
+!.env.example
+.dev.vars
+.dev.vars.*
 
