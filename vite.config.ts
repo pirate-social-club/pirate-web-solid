@@ -7,7 +7,9 @@ import { defineConfig } from "vite";
 import solid from "@solidjs/vite-plugin";
 
 const appRoot = fileURLToPath(new URL(".", import.meta.url));
-const designSystemRoot = path.resolve(appRoot, "../solid-storybook-poc");
+const designSystemRoot = process.env.WEB_SOLID_DESIGN_SYSTEM_ROOT
+  ? path.resolve(process.env.WEB_SOLID_DESIGN_SYSTEM_ROOT)
+  : path.resolve(appRoot, "../solid-storybook-poc");
 
 export default defineConfig({
   plugins: [

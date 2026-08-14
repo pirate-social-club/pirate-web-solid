@@ -28,9 +28,10 @@ try {
 
   const button = page.locator("#hydration-button");
   const before = await button.textContent();
+  const markup = await button.evaluate(element => element.outerHTML);
   await button.click();
   const after = await button.textContent();
-  if (before === after) throw new Error(`Hydration did not update state: ${before}; ${violations.join(" | ") || "no browser diagnostics"}`);
+  if (before === after) throw new Error(`Hydration did not update state: ${before}; markup=${markup}; ${violations.join(" | ") || "no browser diagnostics"}`);
   if (violations.length) throw new Error(`Browser console errors: ${violations.join(" | ")}`);
 
   console.log(JSON.stringify({ ok: true, before, after, nonceLength: nonce.length }));
