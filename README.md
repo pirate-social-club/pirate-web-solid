@@ -28,10 +28,11 @@ repository is forbidden. The app imports the design system's Tailwind v4 token
 layer and uses the same Tailwind Vite pipeline.
 
 Vite aliases and `resolve.dedupe` force `solid-js` and `@solidjs/web` to the
-app's single runtime instance. Run `rtk bun run check-solid-runtime` before
-declaring hydration green. The design-system package must eventually expose
-those two packages as peer dependencies; this app does not modify that
-repository.
+app's single runtime instance. The design-system package exposes those two
+exact versions as peer dependencies, and its Kobalte Button uses the pinned
+Solid 2 hydration patch. Run `rtk bun run check-solid-runtime` before declaring
+hydration green; the check intentionally fails if the linked package has local
+Solid copies.
 
 ## Verification
 
@@ -47,8 +48,9 @@ rtk env SEAM_BASE_URL=http://127.0.0.1:4173 bun run stream-check
 rtk env PLAYWRIGHT_BROWSERS_PATH=./.playwright-browsers WEB_SOLID_BASE_URL=http://127.0.0.1:4173 bun run hydration-check
 ```
 
-Stop the foreground preview after verification. No shared Cloudflare resource
-may be deployed by the bootstrap.
+The hydration check renders the real design-system Button, not a native
+placeholder. Stop the foreground preview after verification. No shared
+Cloudflare resource may be deployed by the bootstrap.
 
 ## Scope
 
