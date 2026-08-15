@@ -123,7 +123,15 @@ try {
   }
   if (await page.locator('[data-feed-active="true"]').count() !== 1) throw new Error("Feed must have exactly one active item");
 
-  await page.locator("#app-root[data-hydrated='true']").waitFor({ state: "attached" });
+  try {
+    await page.locator("#app-root[data-hydrated='true']").waitFor({ state: "attached" });
+  } catch (error) {
+    await flushConsoleDiagnostics();
+    throw new Error(`Hydration did not reach the ready marker: ${error.message}; fixtures=${JSON.stringify(mediaFixtures)}; ${violations.join(" | ") || "no browser diagnostics"}`);
+  }
+  if (await page.locator("#app-route-fallback").count() !== 0) {
+    throw new Error("App route loading fallback remained after hydration");
+  }
   const hydrationButtonCount = await page.locator("#hydration-button").count();
   if (hydrationButtonCount !== 1) {
     throw new Error(`Hydration button must have exactly one DOM instance: ${hydrationButtonCount}`);

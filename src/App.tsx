@@ -3,6 +3,7 @@ import { createRouter } from "@solidjs/router";
 import { fileRoutes } from "@solidjs/router/fs";
 import { QueryClientProvider } from "@tanstack/solid-query";
 import { pageRoutes } from "virtual:file-routes";
+import { Loading } from "solid-js";
 import { HostContextProvider, readHostContext } from "./lib/host-context";
 import { createAppQueryClient } from "./lib/query-client";
 import "./index.css";
@@ -19,7 +20,9 @@ export default function App() {
         <Head>
           <Title>Pirate Web</Title>
         </Head>
-        <Router>{props => props.children}</Router>
+        <Loading fallback={<p id="app-route-fallback">loading app route</p>}>
+          <Router>{props => props.children}</Router>
+        </Loading>
       </QueryClientProvider>
     </HostContextProvider>
   );
