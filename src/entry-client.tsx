@@ -1,4 +1,9 @@
 import { hydrate } from "@solidjs/web";
+import { sharedConfig } from "solid-js";
 import App from "./App";
 
-hydrate(() => <App />, document.getElementById("app-root")!, { renderId: "2" });
+const root = document.getElementById("app-root")!;
+hydrate(() => <App />, root, { renderId: "2" });
+sharedConfig.onHydrationEnd?.(() => {
+  root.dataset.hydrated = "true";
+});

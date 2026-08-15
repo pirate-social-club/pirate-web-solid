@@ -1,6 +1,38 @@
 import { chromium } from "playwright";
 
 const base = process.env.WEB_SOLID_BASE_URL ?? "http://localhost:4173";
+const posterFixture = Buffer.from(
+  "iVBORw0KGgoAAAANSUhEUgAAAAIAAAACAQAAAABazTCJAAAAIGNIUk0AAHomAACAhAAA+gAAAIDoAAB1MAAA6mAAADqYAAAXcJy6UTwAAAACYktHRAAB3YoTpAAAAAd0SU1FB+oIDxQKC2UK830AAAAldEVYdGRhdGU6Y3JlYXRlADIwMjYtMDgtMTVUMjA6MTA6MTErMDA6MDDADiflAAAAJXRFWHRkYXRlOm1vZGlmeQAyMDI2LTA4LTE1VDIwOjEwOjExKzAwOjAwsVOfWQAAACh0RVh0ZGF0YTp0aW1lc3RhbXAAMjAyNi0wOC0xNVQyMDoxMDoxMSswMDowMOZGvoYAAAAMSURBVAjXY2BgYAAAAAQAASc0JwoAAAAASUVORK5CYII=",
+  "base64",
+);
+const videoFixture = Buffer.from(
+  [
+    "AAAAIGZ0eXBpc29tAAACAGlzb21pc28yYXZjMW1wNDEAAAN2bW9vdgAAAGxtdmhkAAAAAAAAAAAAAAAAAAAD6AAAAMgAAQAAAQAA",
+    "AAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAABAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAgAA",
+    "AqF0cmFrAAAAXHRraGQAAAADAAAAAAAAAAAAAAABAAAAAAAAAMgAAAAAAAAAAAAAAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAABAAAA",
+    "AAAAAAAAAAAAAABAAAAAAAIAAAACAAAAAAAkZWR0cwAAABxlbHN0AAAAAAAAAAEAAADIAAAEAAABAAAAAAIZbWRpYQAAACBtZGhk",
+    "AAAAAAAAAAAAAAAAAAAyAAAACgBVxAAAAAAALWhkbHIAAAAAAAAAAHZpZGUAAAAAAAAAAAAAAABWaWRlb0hhbmRsZXIAAAABxG1p",
+    "bmYAAAAUdm1oZAAAAAEAAAAAAAAAAAAAACRkaW5mAAAAHGRyZWYAAAAAAAAAAQAAAAx1cmwgAAAAAQAAAYRzdGJsAAAAwHN0c2QA",
+    "AAAAAAAAAQAAALBhdmMxAAAAAAAAAAEAAAAAAAAAAAAAAAAAAAAAAAIAAgBIAAAASAAAAAAAAAABFExhdmM2My4xLjEwMSBsaWJ4",
+    "MjY0AAAAAAAAAAAAAAAAGP//AAAANmF2Y0MBZAAK/+EAGWdkAAqs2V+IiMBEAAADAAQAAAMAyDxIllgBAAZo6+PLIsD9+PgAAAAA",
+    "EHBhc3AAAAABAAAAAQAAABRidHJ0AAAAAAAAdkgAAAAAAAAAGHN0dHMAAAAAAAAAAQAAAAUAAAIAAAAAFHN0c3MAAAAAAAAAAQAA",
+    "AAEAAAA4Y3R0cwAAAAAAAAAFAAAAAQAABAAAAAABAAAKAAAAAAEAAAQAAAAAAQAAAAAAAAABAAACAAAAABxzdHNjAAAAAAAAAAEA",
+    "AAABAAAABQAAAAEAAAAoc3RzegAAAAAAAAAAAAAABQAAAsUAAAAMAAAADAAAAAwAAAAMAAAAFHN0Y28AAAAAAAAAAQAAA6YAAABh",
+    "dWR0YQAAAFltZXRhAAAAAAAAACFoZGxyAAAAAAAAAABtZGlyYXBwbAAAAAAAAAAAAAAAACxpbHN0AAAAJKl0b28AAAAcZGF0YQAA",
+    "AAEAAAAATGF2ZjYzLjEuMTAxAAAACGZyZWUAAAL9bWRhdAAAAq4GBf//qtxF6b3m2Ui3lizYINkj7u94MjY0IC0gY29yZSAxNjUg",
+    "cjMyMjIgYjM1NjA1YSAtIEguMjY0L01QRUctNCBBVkMgY29kZWMgLSBDb3B5bGVmdCAyMDAzLTIwMjUgLSBodHRwOi8vd3d3LnZp",
+    "ZGVvbGFuLm9yZy94MjY0Lmh0bWwgLSBvcHRpb25zOiBjYWJhYz0xIHJlZj0zIGRlYmxvY2s9MTowOjAgYW5hbHlzZT0weDM6MHgx",
+    "MTMgbWU9aGV4IHN1Ym1lPTcgcHN5PTEgcHN5X3JkPTEuMDA6MC4wMCBtaXhlZF9yZWY9MSBtZV9yYW5nZT0xNiBjaHJvbWFfbWU9",
+    "MSB0cmVsbGlzPTEgOHg4ZGN0PTEgY3FtPTAgZGVhZHpvbmU9MjEsMTEgZmFzdF9wc2tpcD0xIGNocm9tYV9xcF9vZmZzZXQ9LTIg",
+    "dGhyZWFkcz0xIGxvb2thaGVhZF90aHJlYWRzPTEgc2xpY2VkX3RocmVhZHM9MCBucj0wIGRlY2ltYXRlPTEgaW50ZXJsYWNlZD0w",
+    "IGJsdXJheV9jb21wYXQ9MCBjb25zdHJhaW5lZF9pbnRyYT0wIGJmcmFtZXM9MyBiX3B5cmFtaWQ9MiBiX2FkYXB0PTEgYl9iaWFz",
+    "PTAgZGlyZWN0PTEgd2VpZ2h0Yj0xIG9wZW5fZ29wPTAgd2VpZ2h0cD0yIGtleWludD0yNTAga2V5aW50X21pbj0yNSBzY2VuZWN1",
+    "dD00MCBpbnRyYV9yZWZyZXNoPTAgcmNfbG9va2FoZWFkPTQwIHJjPWNyZiBtYnRyZWU9MSBjcmY9MjMuMCBxY29tcD0wLjYwIHFw",
+    "bWluPTAgcXBtYXg9NjkgcXBzdGVwPTQgaXBfcmF0aW89MS40MCBhcT0xOjEuMDAAgAAAAA9liIQAM//+9uy+BTYUyMEAAAAIQZok",
+    "bEK//sAAAAAIQZ5CeIX/wYEAAAAIAZ5hdEK/xIAAAAAIAZ5jakK/xIE=",
+  ].join(""),
+  "base64",
+);
 const browser = await chromium.launch({
   headless: true,
   executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE,
@@ -8,8 +40,40 @@ const browser = await chromium.launch({
 
 try {
   const page = await browser.newPage();
+  const navigationUrl = new URL(base).href;
+  const posterUrl = new URL("/__hydration-fixture/poster.png", base).href;
+  const videoUrl = new URL("/__hydration-fixture/video.mp4", base).href;
   const violations = [];
+  const mediaFixtures = { posters: 0, videos: 0 };
   let apiVersionRequests = 0;
+  await page.route("**/*", async route => {
+    const request = route.request();
+    const url = new URL(route.request().url());
+    if (request.isNavigationRequest() && request.url() === navigationUrl) {
+      const response = await route.fetch();
+      let body = (await response.body()).toString("utf8");
+      body = body
+        .replace(/https:\/\/psc\.myfilebase\.com\/[^"'\s<]+/g, posterUrl)
+        .replace(/https:\/\/api\.pirate\.sc\/[^"'\s<]+\/content/g, videoUrl);
+      const headers = { ...response.headers() };
+      delete headers["content-length"];
+      delete headers["content-encoding"];
+      delete headers["transfer-encoding"];
+      await route.fulfill({ response, body, headers });
+      return;
+    }
+    if (url.pathname === "/__hydration-fixture/poster.png") {
+      mediaFixtures.posters += 1;
+      await route.fulfill({ status: 200, contentType: "image/png", body: posterFixture });
+      return;
+    }
+    if (url.pathname === "/__hydration-fixture/video.mp4") {
+      mediaFixtures.videos += 1;
+      await route.fulfill({ status: 200, contentType: "video/mp4", body: videoFixture });
+      return;
+    }
+    await route.continue();
+  });
   page.on("console", message => {
     if (message.type() === "error") violations.push(`console: ${message.text()}`);
   });
@@ -47,12 +111,13 @@ try {
   }
   if (await page.locator('[data-feed-active="true"]').count() !== 1) throw new Error("Feed must have exactly one active item");
 
+  await page.locator("#app-root[data-hydrated='true']").waitFor({ state: "attached" });
   const button = page.locator("#hydration-button");
   const before = await button.textContent();
   const markup = await button.evaluate(element => element.outerHTML);
   await button.click();
   const after = await button.textContent();
-  if (before === after) throw new Error(`Hydration did not update state: ${before}; markup=${markup}; ${violations.join(" | ") || "no browser diagnostics"}`);
+  if (before === after) throw new Error(`Hydration did not update state: ${before}; markup=${markup}; fixtures=${JSON.stringify(mediaFixtures)}; ${violations.join(" | ") || "no browser diagnostics"}`);
 
   const dialogTrigger = page.locator("#hydration-dialog-open");
   await dialogTrigger.click();
@@ -106,7 +171,7 @@ try {
   if (apiVersionRequests !== 0) throw new Error(`API query refetched during navigation/refresh (${apiVersionRequests})`);
   if (violations.length) throw new Error(`Browser console errors: ${violations.join(" | ")}`);
 
-  console.log(JSON.stringify({ ok: true, before, after, navigated: "/c/demo/threads", nonceLength: nonce.length, apiVersionRequests, overlay: true, form: true }));
+  console.log(JSON.stringify({ ok: true, before, after, navigated: "/c/demo/threads", nonceLength: nonce.length, apiVersionRequests, overlay: true, form: true, mediaFixtures, violations }));
 } finally {
   await browser.close();
 }
