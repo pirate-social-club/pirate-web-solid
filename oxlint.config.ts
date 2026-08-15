@@ -32,6 +32,7 @@ export default defineConfig({
         "anti-slop/no-shape-in-symbol-names": "warn",
         "anti-slop/no-object-parameters": "off",
         "anti-slop/no-conditional-empty-object-spread": "warn",
+        // The existing seam uses a short-circuit assignment; it is outside this policy's scope.
         "no-unused-expressions": "off",
       },
     },

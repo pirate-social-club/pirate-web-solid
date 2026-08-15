@@ -1,6 +1,6 @@
 @import "tailwindcss";
 @import "pirate-solid-design-system/src/styles/tokens.css";
-@source "../../solid-storybook-poc/src";
+@source "../../pirate-solid-design-system/src";
 
 @layer base {
   * {

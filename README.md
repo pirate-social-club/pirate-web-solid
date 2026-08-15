@@ -23,10 +23,11 @@ owns the permanent probes and hydration regression gate.
 
 ## Design-system linkage
 
-The app consumes the unpublished `../solid-storybook-poc` repository through a
-Bun workspace dependency named `pirate-solid-design-system`. The workspace
-entry is deliberate: a clean `rtk bun install` resolves the design system's
-Solid peer dependencies from this app instead of creating a second runtime in
+The app consumes the unpublished `../pirate-solid-design-system` repository
+through a Bun workspace dependency named `pirate-solid-design-system`. The
+workspace entry is deliberate: a clean `rtk bun install` resolves the design
+system's Solid peer dependencies from this app instead of creating a second
+runtime in
 the linked package. The design-system package is exact-pinned at `0.2.0` in
 its own `package.json` and in the workspace lockfile. Components are imported
 only through `src/design-system.ts`; copying component files into this
@@ -142,5 +143,5 @@ shared Cloudflare resource may be deployed by the bootstrap.
 
 M3 adds the public Home video feed and its read-only API seam. Login UI, relay
 calls, and write actions remain M2 work. The design-system catalog continues to
-be owned by `solid-storybook-poc`; app code imports it only through
+be owned by `pirate-solid-design-system`; app code imports it only through
 `src/design-system.ts`.
