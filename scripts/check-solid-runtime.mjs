@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 const appRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const designSystemRoot = process.env.WEB_SOLID_DESIGN_SYSTEM_ROOT
   ? resolve(process.env.WEB_SOLID_DESIGN_SYSTEM_ROOT)
-  : resolve(appRoot, "../solid-storybook-poc");
+  : resolve(appRoot, "../pirate-solid-design-system");
 const appRequire = createRequire(resolve(appRoot, "package.json"));
 
 function packageRoot(specifier) {
