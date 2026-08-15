@@ -112,6 +112,10 @@ try {
   if (await page.locator('[data-feed-active="true"]').count() !== 1) throw new Error("Feed must have exactly one active item");
 
   await page.locator("#app-root[data-hydrated='true']").waitFor({ state: "attached" });
+  const hydrationButtonCount = await page.locator("#hydration-button").count();
+  if (hydrationButtonCount !== 1) {
+    throw new Error(`Hydration button must have exactly one DOM instance: ${hydrationButtonCount}`);
+  }
   const button = page.locator("#hydration-button");
   const before = await button.textContent();
   const markup = await button.evaluate(element => element.outerHTML);
