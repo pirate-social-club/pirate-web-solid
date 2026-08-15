@@ -44,6 +44,7 @@ try {
   const posterUrl = new URL("/__hydration-fixture/poster.png", base).href;
   const videoUrl = new URL("/__hydration-fixture/video.mp4", base).href;
   const violations = [];
+  const pendingConsoleDiagnostics = [];
   const mediaFixtures = { posters: 0, videos: 0 };
   let apiVersionRequests = 0;
   await page.route("**/*", async route => {
@@ -74,10 +75,21 @@ try {
     }
     await route.continue();
   });
+  const flushConsoleDiagnostics = async () => {
+    while (pendingConsoleDiagnostics.length) {
+      await Promise.all(pendingConsoleDiagnostics.splice(0));
+    }
+  };
   page.on("console", message => {
-    if (message.type() === "error") violations.push(`console: ${message.text()}`);
+    if (message.type() !== "error") return;
+    pendingConsoleDiagnostics.push((async () => {
+      const args = await Promise.all(message.args().map(arg => arg.evaluate(value => (
+        value instanceof Error ? value.stack ?? String(value) : String(value)
+      ))));
+      violations.push(`console: ${message.text()} args=${args.join(" | ")}`);
+    })());
   });
-  page.on("pageerror", error => violations.push(`pageerror: ${error.message}`));
+  page.on("pageerror", error => violations.push(`pageerror: ${error.stack ?? error.message}`));
   page.on("requestfailed", request => violations.push(`request: ${request.url()} ${request.failure()?.errorText ?? "failed"}`));
   page.on("request", request => {
     if (new URL(request.url()).pathname === "/__version") apiVersionRequests += 1;
@@ -121,6 +133,7 @@ try {
   const markup = await button.evaluate(element => element.outerHTML);
   await button.click();
   const after = await button.textContent();
+  await flushConsoleDiagnostics();
   if (before === after) throw new Error(`Hydration did not update state: ${before}; markup=${markup}; fixtures=${JSON.stringify(mediaFixtures)}; ${violations.join(" | ") || "no browser diagnostics"}`);
 
   const dialogTrigger = page.locator("#hydration-dialog-open");
@@ -173,6 +186,7 @@ try {
   await page.locator('[data-route-path="/c/:slug/threads"]').waitFor({ state: "attached" });
   if (await page.locator('[data-route-path="/c/:slug/threads"]').count() !== 1) throw new Error("Dynamic route did not survive refresh");
   if (apiVersionRequests !== 0) throw new Error(`API query refetched during navigation/refresh (${apiVersionRequests})`);
+  await flushConsoleDiagnostics();
   if (violations.length) throw new Error(`Browser console errors: ${violations.join(" | ")}`);
 
   console.log(JSON.stringify({ ok: true, before, after, navigated: "/c/demo/threads", nonceLength: nonce.length, apiVersionRequests, overlay: true, form: true, mediaFixtures, violations }));
