@@ -51,6 +51,7 @@ export function createApiClient(options: ApiClientOptions = {}) {
         signal: controller.signal,
       });
       assertApiResponse(response, pathname);
+      // SAFETY: The generic type is the caller-supplied contract for this endpoint's JSON body.
       return (await response.json()) as T;
     } finally {
       clearTimeout(timeout);

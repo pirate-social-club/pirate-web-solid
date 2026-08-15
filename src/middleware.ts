@@ -121,6 +121,7 @@ async function seamMiddleware(request: Request, next: () => Promise<Response>) {
   }
 
   if (url.pathname === "/seam/binding") {
+    // SAFETY: Cloudflare supplies the PUBLIC service binding on the worker environment; local absence is modeled as optional.
     const binding = (env as { PUBLIC?: Fetcher }).PUBLIC;
     if (!binding) {
       event.locals.bindingResult = JSON.stringify({ ok: false, error: "PUBLIC binding missing" });

@@ -28,6 +28,7 @@ type FeedPosition = { activeId: string | null; scrollTop: number };
 function readPosition(): FeedPosition {
   if (typeof window === "undefined") return { activeId: null, scrollTop: 0 };
   try {
+    // SAFETY: sessionStorage contains only the feed position written by writePosition; the partial type matches its optional persisted fields.
     const parsed = JSON.parse(window.sessionStorage.getItem(FEED_CACHE_KEY) ?? "null") as Partial<FeedPosition> | null;
     return {
       activeId: typeof parsed?.activeId === "string" ? parsed.activeId : null,
