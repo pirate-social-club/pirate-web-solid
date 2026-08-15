@@ -18,7 +18,8 @@
     "hydration-check": "node scripts/hydration-check.mjs",
     "check-solid-runtime": "node scripts/check-solid-runtime.mjs",
     "lint": "oxlint src workers",
-    "verify": "tsc --noEmit -p tsconfig.json && bun run lint && node scripts/check-solid-runtime.mjs && bun test src/lib/api/origin.test.ts && node scripts/probe.mjs && node scripts/stream-check.mjs && node scripts/hydration-check.mjs"
+    "verify": "tsc --noEmit -p tsconfig.json && bun run lint && node scripts/check-solid-runtime.mjs && bun test src/lib/api/origin.test.ts",
+    "verify:live": "node scripts/probe.mjs && node scripts/stream-check.mjs && node scripts/hydration-check.mjs"
   },
   "dependencies": {
     "@kobalte/core": "2.0.0-alpha.0",

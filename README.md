@@ -121,23 +121,32 @@ handlers; this milestone performs no writes to the API.
 
 ## Verification
 
-Install the project-local browser, then run one foreground preview at a time:
+The offline gate requires no server, network, or browser:
 
 ```bash
-rtk env PLAYWRIGHT_BROWSERS_PATH=./.playwright-browsers bunx playwright install chromium
-rtk bun run build
-rtk bun run check-solid-runtime
-rtk bun run preview -- --port 4173
-rtk env SEAM_BASE_URL=http://localhost:4173 PLAYWRIGHT_BROWSERS_PATH=./.playwright-browsers WEB_SOLID_BASE_URL=http://localhost:4173 bun run verify
+bun run verify
 ```
 
-`build` runs the runtime/patch guard through `prebuild`. `verify` is the
-single focused shell gate: it checks the runtime and patch, resolver tests,
-the Worker API data seam, routing, API error mapping, host-context, layout, and
-not-found probes, streaming, and browser hydration of the real design-system
-Button/Dialog/TextField plus a dynamic client navigation.
-Run it while the foreground preview is active, then stop that preview. No
-shared Cloudflare resource may be deployed by the bootstrap.
+The live gate requires a foreground preview and a project-local browser. The
+probe falls back to `http://localhost:8787`, while `stream-check.mjs` falls
+back to `http://127.0.0.1:4173/` and `hydration-check.mjs` falls back to
+`http://localhost:4173`. For one local preview on port 4173, set
+`SEAM_BASE_URL` for both seam scripts and `WEB_SOLID_BASE_URL` for hydration:
+
+```bash
+PLAYWRIGHT_BROWSERS_PATH=./.playwright-browsers bunx playwright install chromium
+bun run build
+bun run preview -- --port 4173
+SEAM_BASE_URL=http://localhost:4173 \
+WEB_SOLID_BASE_URL=http://localhost:4173 \
+PLAYWRIGHT_BROWSERS_PATH=./.playwright-browsers \
+bun run verify:live
+```
+
+Set `WEB_SOLID_DESIGN_SYSTEM_ROOT` to override the local design-system path.
+Set `PLAYWRIGHT_CHROMIUM_EXECUTABLE` to use a specific Chromium binary.
+Run the live gate while the foreground preview is active, then stop that
+preview. No shared Cloudflare resource may be deployed by the bootstrap.
 
 ## Scope
 
