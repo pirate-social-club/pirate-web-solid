@@ -55,7 +55,7 @@ export default function PublicVideoFeed() {
   const [activeId, setActiveId] = createSignal<string | null>(firstPage.data?.items[0]?.post.post.id ?? null);
   const [reducedMotion, setReducedMotion] = createSignal(false);
   const [isLoadingMore, setIsLoadingMore] = createSignal(false);
-  let feed!: HTMLDivElement;
+  let feed!: HTMLElement;
   const cards = new Map<string, HTMLElement>();
   const videos = new Map<string, HTMLVideoElement>();
 
@@ -164,7 +164,7 @@ export default function PublicVideoFeed() {
 
   return (
     <section
-      ref={feed}
+      ref={element => { feed = element; }}
       id="public-video-feed"
       data-feed-status={firstPage.isSuccess ? "ready" : firstPage.isError ? "error" : "loading"}
       data-active-video={activeId() ?? "none"}
@@ -205,7 +205,7 @@ export default function PublicVideoFeed() {
                 aria-label={`${video.title} video`}
                 aria-describedby={`video-caption-${id}`}
               >
-                <track kind="captions" label="Video description" srcLang="en" />
+                <track kind="captions" label="Video description" srclang="en" />
               </video>
               <div class="public-video-card__scrim">
                 <h2>{video.title}</h2>

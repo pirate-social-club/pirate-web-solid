@@ -59,6 +59,7 @@ function makeHostContext(request: Request): HostContext {
 
 async function seamMiddleware(request: Request, next: () => Promise<Response>) {
   const event = getRequestEvent();
+  if (!event) return next();
   const nonce = makeNonce();
   const hostContext = makeHostContext(request);
   const surface = hostContext.surface;

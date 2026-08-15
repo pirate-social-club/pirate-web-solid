@@ -1,5 +1,5 @@
 import { getRequestEvent } from "@solidjs/web";
-import { createApiClient } from "./client";
+import { createApiClient, type FetchImpl } from "./client";
 
 export interface PublicVideoMedia {
   mime_type?: string | null;
@@ -75,8 +75,8 @@ function requestForFeed(): Request | undefined {
   return new Request(url);
 }
 
-function fetchWithTimeout(timeoutMs = 4_000): typeof fetch {
-  return async (input, init) => {
+function fetchWithTimeout(timeoutMs = 4_000): FetchImpl {
+  return async (input, init): Promise<Response> => {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
     try {
