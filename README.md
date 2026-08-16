@@ -148,6 +148,23 @@ Set `PLAYWRIGHT_CHROMIUM_EXECUTABLE` to use a specific Chromium binary.
 Run the live gate while the foreground preview is active, then stop that
 preview. No shared Cloudflare resource may be deployed by the bootstrap.
 
+## Open follow-ups
+
+The live hydration gate remains intentionally red pending
+[SolidJS issue #3000](https://github.com/solidjs/solid/issues/3000). The
+following independent items remain open:
+
+- `scripts/check-solid-runtime.mjs` checks `solid-js` and `@solidjs/web`, but
+  not `@solidjs/signals` or execution-time module identity. Widen the guard
+  after deciding which runtime identity property it should assert.
+- Decide whether remote media should receive explicit `img-src`/`media-src`
+  CSP origins or whether media should be proxied through the app origin. CSP
+  also blocks `@vite/client`, so dev hydration coverage may need its own
+  dev-only exemption.
+- The canonical `api-next` checkout was dirty when `workspace-check` ran.
+  Decide whether that work should be preserved or discarded; it is unrelated
+  to this repository's verification and hydration work.
+
 ## Scope
 
 M3 adds the public Home video feed and its read-only API seam. Login UI, relay
