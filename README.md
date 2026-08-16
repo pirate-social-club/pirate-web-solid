@@ -161,10 +161,6 @@ following independent items remain open:
   CSP origins or whether media should be proxied through the app origin. CSP
   also blocks `@vite/client`, so dev hydration coverage may need its own
   dev-only exemption.
-- The canonical `api-next` checkout was dirty when `workspace-check` ran.
-  Decide whether that work should be preserved or discarded; it is unrelated
-  to this repository's verification and hydration work.
-
 ## Scope
 
 M3 adds the public Home video feed and its read-only API seam. Login UI, relay
