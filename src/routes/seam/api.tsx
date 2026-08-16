@@ -1,5 +1,5 @@
 import { getRequestEvent } from "@solidjs/web";
-import type { JSX } from "solid-js";
+import type { JSX } from "@solidjs/web";
 import { RenderErrorBoundary } from "../../lib/render-boundary";
 import { assertApiResponse, isApiRequestError, type ApiRequestError } from "../../lib/api/client";
 

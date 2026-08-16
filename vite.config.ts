@@ -9,7 +9,7 @@ import solid from "@solidjs/vite-plugin";
 const appRoot = fileURLToPath(new URL(".", import.meta.url));
 const designSystemRoot = process.env.WEB_SOLID_DESIGN_SYSTEM_ROOT
   ? path.resolve(process.env.WEB_SOLID_DESIGN_SYSTEM_ROOT)
-  : path.resolve(appRoot, "../solid-storybook-poc");
+  : path.resolve(appRoot, "../pirate-solid-design-system");
 
 export default defineConfig({
   plugins: [

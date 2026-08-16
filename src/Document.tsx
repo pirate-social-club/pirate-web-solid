@@ -1,12 +1,12 @@
-import { getRequestEvent, HydrationScript } from "@solidjs/web";
+import { getRequestEvent, HydrationScript, type JSX } from "@solidjs/web";
 
-export default function Document(props: { children: unknown; clientEntry?: string }) {
+export default function Document(props: { children: JSX.Element; clientEntry?: string }) {
   const event = getRequestEvent();
   const nonce = event?.locals?.cspNonce;
   const hostContext = event?.locals?.hostContext;
   const clientNonce = typeof document === "undefined"
     ? nonce
-    : document.querySelector("script[nonce]")?.nonce ?? undefined;
+    : document.querySelector<HTMLScriptElement>("script[nonce]")?.nonce ?? undefined;
   const clientEntry = props.clientEntry ?? (typeof document === "undefined"
     ? undefined
     : [...document.scripts].find(script => script.dataset.solidEntry)?.src);

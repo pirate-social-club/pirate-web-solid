@@ -1,5 +1,5 @@
 import { getRequestEvent } from "@solidjs/web";
-import { createApiClient } from "./client";
+import { createApiClient, type FetchImpl } from "./client";
 
 export interface PublicVideoMedia {
   mime_type?: string | null;
@@ -75,8 +75,8 @@ function requestForFeed(): Request | undefined {
   return new Request(url);
 }
 
-function fetchWithTimeout(timeoutMs = 4_000): typeof fetch {
-  return async (input, init) => {
+function fetchWithTimeout(timeoutMs = 4_000): FetchImpl {
+  return async (input, init): Promise<Response> => {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
     try {
@@ -89,11 +89,14 @@ function fetchWithTimeout(timeoutMs = 4_000): typeof fetch {
 
 export function normalizePublicVideoFeed(input: unknown): PublicVideoFeedPage {
   if (!input || typeof input !== "object") throw new Error("Invalid public video feed response");
+  // SAFETY: The boundary parser only reads these optional fields as unknown before validating their contents.
   const payload = input as { items?: unknown; next_cursor?: unknown };
   const items = Array.isArray(payload.items)
     ? payload.items.filter((item): item is PublicVideoFeedItem => {
       if (!item || typeof item !== "object") return false;
+      // SAFETY: The object check above establishes that reading the optional post field is safe at this boundary.
       const post = (item as { post?: unknown }).post;
+      // SAFETY: The post object check above establishes that reading its optional nested post field is safe.
       return Boolean(post && typeof post === "object" && (post as { post?: unknown }).post);
     }).map(item => {
       const post = item.post.post;
@@ -122,6 +125,7 @@ export async function fetchPublicVideoFeed(cursor: string | null = null): Promis
 }
 
 export function createPublicVideoFeedQuery(cursor: string | null = null) {
+  // SAFETY: seamMiddleware populates this request-local value before SSR query creation; the field is optional for client renders.
   const initialData = cursor === null ? getRequestEvent()?.locals?.publicVideoFeed as PublicVideoFeedPage | undefined : undefined;
   return {
     queryKey: publicVideoFeedKey(cursor),

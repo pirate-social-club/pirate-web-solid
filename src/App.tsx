@@ -18,8 +18,8 @@ export default function App() {
       <QueryClientProvider client={queryClient}>
         <Head>
           <Title>Pirate Web</Title>
-          <Router>{props => props.children}</Router>
         </Head>
+        <Router>{props => props.children}</Router>
       </QueryClientProvider>
     </HostContextProvider>
   );

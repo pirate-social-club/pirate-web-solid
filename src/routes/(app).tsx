@@ -1,4 +1,4 @@
-import { type JSX } from "solid-js";
+import { type JSX } from "@solidjs/web";
 import type { RouteSectionProps } from "@solidjs/router";
 import { useHostContext } from "../lib/host-context";
 import { RenderErrorBoundary } from "../lib/render-boundary";

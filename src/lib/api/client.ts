@@ -25,9 +25,14 @@ export function assertApiResponse(response: Response, pathname: string): void {
   if (!response.ok) throw new ApiRequestError(response.status, pathname);
 }
 
+export type FetchImpl = (
+  input: Parameters<typeof fetch>[0],
+  init?: Parameters<typeof fetch>[1],
+) => Promise<Response>;
+
 export interface ApiClientOptions {
   request?: Request;
-  fetchImpl?: typeof fetch;
+  fetchImpl?: FetchImpl;
   authForwarder?: ApiAuthForwarder;
   timeoutMs?: number;
 }
@@ -46,6 +51,7 @@ export function createApiClient(options: ApiClientOptions = {}) {
         signal: controller.signal,
       });
       assertApiResponse(response, pathname);
+      // SAFETY: The generic type is the caller-supplied contract for this endpoint's JSON body.
       return (await response.json()) as T;
     } finally {
       clearTimeout(timeout);
