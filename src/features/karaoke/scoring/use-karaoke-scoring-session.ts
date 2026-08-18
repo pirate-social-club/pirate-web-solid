@@ -1,4 +1,4 @@
-import { createEffect, createSignal, onCleanup, type Accessor } from "solid-js";
+import { createEffect, createSignal, type Accessor } from "solid-js";
 import type { ScorableKaraokeLine } from "../runtime";
 import type { ApiKaraokeSession } from "../runtime/api-contracts";
 import { createBrowserMicCaptureDeps } from "../capture/karaoke-mic-capture-browser";
@@ -55,36 +55,39 @@ export function useKaraokeScoring(
   const [state, setState] = createSignal<KaraokeScoringState | null>(null);
   let currentController: KaraokeScoringController | null = null;
 
-  createEffect(() => {
-    if (!options.enabled) {
-      currentController = null;
-      setState(null);
-      return;
-    }
+  createEffect(
+    () => options.enabled,
+    (enabled) => {
+      if (!enabled) {
+        currentController = null;
+        setState(null);
+        return;
+      }
 
-    const controller = createKaraokeScoringController({
-      communityId: options.communityId,
-      createCaptureEngine: ({ onChunk, onError }) =>
-        new KaraokeMicCapture({
-          deps: createBrowserMicCaptureDeps(options.workletModuleUrl ?? resolveWorkletModuleUrl()),
-          onChunk,
-          onError,
-        }),
-      createKaraokeSession: ({ idempotencyKey, signal }) =>
-        options.createKaraokeSession(options.communityId, options.postId, idempotencyKey, signal),
-      postId: options.postId,
-      scorableLines: options.scorableLines,
-    });
-    currentController = controller;
-    setState(controller.getState());
-    const unsubscribe = controller.subscribe(setState);
+      const controller = createKaraokeScoringController({
+        communityId: options.communityId,
+        createCaptureEngine: ({ onChunk, onError }) =>
+          new KaraokeMicCapture({
+            deps: createBrowserMicCaptureDeps(options.workletModuleUrl ?? resolveWorkletModuleUrl()),
+            onChunk,
+            onError,
+          }),
+        createKaraokeSession: ({ idempotencyKey, signal }) =>
+          options.createKaraokeSession(options.communityId, options.postId, idempotencyKey, signal),
+        postId: options.postId,
+        scorableLines: options.scorableLines,
+      });
+      currentController = controller;
+      setState(controller.getState());
+      const unsubscribe = controller.subscribe(setState);
 
-    onCleanup(() => {
-      unsubscribe();
-      controller.dispose();
-      if (currentController === controller) currentController = null;
-    });
-  });
+      return () => {
+        unsubscribe();
+        controller.dispose();
+        if (currentController === controller) currentController = null;
+      };
+    },
+  );
 
   const controls: KaraokeScoringControls = {
     abort: (code) => currentController?.abort(code),
