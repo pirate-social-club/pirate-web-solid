@@ -1,0 +1,64 @@
+{
+  "version": 1,
+  "catalog": "standalone-product-storybook-foundation",
+  "sourcePolicy": "The web/solid paths are historical read-only references. No runtime, build, or workspace dependency is retained.",
+  "storybookDependencyBoundary": "The root product catalog is Solid plus a11y only. packages/solid-ui has an independent package Storybook and retains its own Docs/MDX dependencies; those are not in the product Worker graph.",
+  "entries": [
+    {
+      "sourcePath": "web/solid/src/storybook-smoke.stories.tsx",
+      "targetPath": "src/storybook-smoke.stories.tsx",
+      "sourceSha256": "831ba4e4739cfb5182a691dc6f4c5176ae8faf58f4f8d3b3be1edf5850134cb9",
+      "targetSha256": "7b68473416620454f5ef28f5a7810da312c656e9b290c7fdebf44bae3bf4f6c1",
+      "disposition": "adapted",
+      "note": "Standalone-owned canary; wording and boundary comment updated, imports remain local."
+    },
+    {
+      "sourcePath": "web/solid/.storybook/main.ts",
+      "targetPath": ".storybook/main.ts",
+      "sourceSha256": "3a89141acdb5085e4cae956b508c5a18b54f43ee96ca599e474a8c05c08a4e57",
+      "targetSha256": "237ce0acaced15fa51cb8c05a898eb1a2132204a53d7b59b64be198d2d4f2b86",
+      "disposition": "adapted",
+      "note": "Standalone root story glob and local watch exclusions; a11y-only addon, no React Docs/MDX manager dependency, and no source checkout is loaded."
+    },
+    {
+      "sourcePath": "web/solid/.storybook/preview.tsx",
+      "targetPath": ".storybook/preview.tsx",
+      "sourceSha256": "36582a833b5f5131954da678506c9877122a9b7dd137601dbe504d9fe5a5fb2c",
+      "targetSha256": "0a3685025cb3d5833ae25d812772da5eef8c19d252720c79f5b713d276124103",
+      "disposition": "adapted",
+      "note": "Reimplemented against standalone ui-locale-core; removed persisted locale/localStorage behavior and legacy provider import."
+    },
+    {
+      "sourcePath": "web/solid/.storybook/vite.config.ts",
+      "targetPath": ".storybook/vite.config.ts",
+      "sourceSha256": "4a649b1be070adf0eb09018e1c7a05030354137bbeb1dc57d50930cdfdd3b184",
+      "targetSha256": "820b8bfef1be97d12a82c049ac808bb91f367f45de053c2b8a0368b2c1e79831",
+      "disposition": "adapted",
+      "note": "Alias resolves to this repository's packages/solid-ui; production Worker and historical app are excluded."
+    },
+    {
+      "sourcePath": "pirate-web-solid/src/index.css",
+      "targetPath": "src/index.css",
+      "sourceSha256": "db6ccb6d6791382fd671462093bda2c5d8b52fd02b7e287d5315d14a8f51b882",
+      "targetSha256": "db6ccb6d6791382fd671462093bda2c5d8b52fd02b7e287d5315d14a8f51b882",
+      "disposition": "retained",
+      "note": "Existing standalone Tailwind token/style entry; imported by the Storybook preview."
+    },
+    {
+      "sourcePath": "standalone-owned",
+      "targetPath": "src/lib/ui-locale.tsx",
+      "sourceSha256": null,
+      "targetSha256": "f0830b85bf0e7e7ae7bfa4b576afbd3c7a40a23dead2f35f49925113723d7db6",
+      "disposition": "reimplemented",
+      "note": "In-memory locale context for standalone stories; deliberately has no storage, auth, or legacy API behavior."
+    }
+  ],
+  "evidence": {
+    "storybookBuild": "passed (Solid framework plus a11y addon; no Docs/MDX addon)",
+    "productionGraphScan": "passed: 355 standalone source files and 74 Worker assets; zero React imports/runtime dependencies or legacy references",
+    "typecheck": "passed",
+    "lint": "passed with pre-existing warnings",
+    "browserAxe": "runtime-pending; browser harness was not run in this tranche",
+    "determinism": "not claimed; no byte-identical Storybook output assertion"
+  }
+}
