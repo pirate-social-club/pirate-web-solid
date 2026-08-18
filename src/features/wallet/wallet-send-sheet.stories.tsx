@@ -25,9 +25,32 @@ function StoryRender(props: WalletSendSheetProps) {
 export const AssetNetwork: Story = { args: { step: "asset" }, render: (args) => <StoryRender {...args} /> };
 export const Mobile: Story = { args: { forceMobile: true, step: "asset" }, parameters: { viewport: { defaultViewport: "mobile1" } }, render: (args) => <StoryRender {...args} /> };
 export const InvalidAddress: Story = { args: { defaultRecipient: "0x123", step: "asset" }, render: (args) => <StoryRender {...args} /> };
-export const Pending: Story = { args: { amount: "100", step: "pending" }, render: (args) => <StoryRender {...args} /> };
-export const Success: Story = { args: { amount: "100", step: "success", txHash: "0x4b6c1234567890abcdef" }, render: (args) => <StoryRender {...args} /> };
-export const Error: Story = { args: { amount: "100", step: "error", errorMessage: "Transaction failed. Try again." }, render: (args) => <StoryRender {...args} /> };
+export const Pending: Story = {
+  args: { amount: "100", step: "pending" },
+  render: (args) => <StoryRender {...args} />,
+  play: async () => {
+    const dialog = await within(document.body).findByRole("dialog", { name: "Send tokens" });
+    await expect(within(dialog).getByRole("status")).toHaveTextContent("Sending transaction");
+  },
+};
+export const Success: Story = {
+  args: { amount: "100", step: "success", txHash: "0x4b6c1234567890abcdef" },
+  render: (args) => <StoryRender {...args} />,
+  play: async () => {
+    const dialog = await within(document.body).findByRole("dialog", { name: "Send tokens" });
+    await expect(within(dialog).getByRole("status")).toHaveTextContent("Transaction submitted");
+    await expect(within(dialog).getByRole("button", { name: "Close send sheet" })).toBeVisible();
+  },
+};
+export const Error: Story = {
+  args: { amount: "100", step: "error", errorMessage: "Transaction failed. Try again." },
+  render: (args) => <StoryRender {...args} />,
+  play: async () => {
+    const dialog = await within(document.body).findByRole("dialog", { name: "Send tokens" });
+    await expect(within(dialog).getByRole("alert")).toHaveTextContent("Transaction failed");
+    await expect(within(dialog).getByRole("button", { name: "Try again" })).toBeVisible();
+  },
+};
 
 export const FullFlow: Story = {
   args: { defaultRecipient: "", step: "asset", onConfirm: fn() },

@@ -1,5 +1,6 @@
 import { createEffect, createSignal } from "solid-js";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
+import { expect, userEvent, within } from "storybook/test";
 
 import { fiveChainSections, sharedWalletAddress } from "./wallet-flow-fixtures";
 import { WalletReceiveSheet } from "./wallet-receive-sheet";
@@ -23,6 +24,15 @@ function StoryRender(props: WalletReceiveSheetProps) {
 
 export const DefaultDesktop: Story = { render: (args) => <StoryRender {...args} /> };
 export const DefaultMobile: Story = { args: { forceMobile: true }, parameters: { viewport: { defaultViewport: "mobile1" } }, render: (args) => <StoryRender {...args} /> };
-export const ChainSwitched: Story = { args: { defaultChainId: "story" }, render: (args) => <StoryRender {...args} /> };
+export const ChainSwitched: Story = {
+  args: { defaultChainId: "story" },
+  render: (args) => <StoryRender {...args} />,
+  play: async () => {
+    const dialog = await within(document.body).findByRole("dialog", { name: "Receive tokens" });
+    await expect(within(dialog).getByText("Story Aeneid address")).toBeInTheDocument();
+    await userEvent.click(within(dialog).getByRole("button", { name: /Base Sepolia/ }));
+    await expect(within(dialog).getByText("Base Sepolia address")).toBeInTheDocument();
+  },
+};
 export const AllChainsSameAddress: Story = { args: { defaultChainId: "base" }, render: (args) => <StoryRender {...args} /> };
 export const EmptyNoWallet: Story = { args: { chainSections: fiveChainSections.map((section) => ({ ...section, walletAddress: null })), walletAddress: null }, render: (args) => <StoryRender {...args} /> };

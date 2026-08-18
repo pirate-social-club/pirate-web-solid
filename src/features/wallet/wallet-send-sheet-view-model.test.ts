@@ -180,4 +180,24 @@ describe("wallet send sheet view model", () => {
     expect(succeeded.statusMessage).toBe("Transaction submitted.");
     expect(succeeded.txHashLabel).toBe("0xc74e...3abc");
   });
+
+  test("does not retain a selected asset when the controlled chain sections change", () => {
+    const props = makeProps({ defaultAssetId: "base:base-usdc" });
+    const form = makeForm({
+      amount: "10",
+      assetId: "base:base-usdc",
+      recipient: VALID_RECIPIENT,
+      submitAttempted: true,
+    });
+    const initial = buildWalletSendSheetView(props, form);
+    const changed = buildWalletSendSheetView({
+      ...props,
+      chainSections: fiveChainSections.filter((section) => section.chainId === "ethereum"),
+    }, form);
+
+    expect(initial.selectedAsset?.token.id).toBe("base-usdc");
+    expect(changed.selectedAsset).toBeNull();
+    expect(changed.amountError).toBe("Choose an asset first.");
+    expect(changed.canSubmit).toBe(false);
+  });
 });
