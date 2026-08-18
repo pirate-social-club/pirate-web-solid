@@ -5,7 +5,6 @@ import {
   Card,
   CardContent,
   CardHeader,
-  CardTitle,
   IconArrowDown,
   IconArrowUp,
   IconWallet,
@@ -176,7 +175,7 @@ export function WalletHub(props: WalletHubProps) {
 
       <Card>
         <CardHeader>
-          <CardTitle>Assets</CardTitle>
+          <Type as="h2" variant="h3">Assets</Type>
         </CardHeader>
         <CardContent class="flex flex-col gap-4">
           <Show
@@ -202,7 +201,7 @@ export function WalletHub(props: WalletHubProps) {
       <Show when={view().recentActivity.length > 0}>
         <Card>
           <CardHeader class="flex-row items-center justify-between space-y-0">
-            <CardTitle>Recent activity</CardTitle>
+            <Type as="h2" variant="h3">Recent activity</Type>
             <Button
               variant="ghost"
               size="sm"

@@ -1,4 +1,4 @@
-import { createMemo, createSignal, For, Show } from "solid-js";
+import { createEffect, createMemo, createSignal, For, Show } from "solid-js";
 
 import {
   Button,
@@ -13,13 +13,28 @@ import {
   SheetTitle,
   Type,
 } from "../../design-system";
-import { buildWalletReceiveSheetView } from "./wallet-receive-sheet-view-model";
+import { buildWalletReceiveSheetView, resolveReceiveChainId } from "./wallet-receive-sheet-view-model";
 import type { WalletReceiveSheetProps } from "./wallet-receive-sheet.types";
 import type { WalletHubChainId } from "./wallet-hub.types";
 
 export function WalletReceiveSheet(props: WalletReceiveSheetProps) {
-  const [selectedChainId, setSelectedChainId] = createSignal<WalletHubChainId | undefined>();
+  const [selectedChainId, setSelectedChainId] = createSignal<WalletHubChainId | undefined>(resolveReceiveChainId(props));
   const [copied, setCopied] = createSignal(false);
+
+  createEffect(
+    () => ({
+      chainSections: props.chainSections,
+      defaultChainId: props.defaultChainId,
+      open: props.open,
+      walletAddress: props.walletAddress,
+    }),
+    (next) => {
+      if (!next.open) return;
+      setSelectedChainId(resolveReceiveChainId({ ...props, ...next }));
+      setCopied(false);
+    },
+  );
+
   const view = createMemo(() => buildWalletReceiveSheetView(props, selectedChainId()));
 
   const selectChain = (chainId: WalletHubChainId) => {
@@ -42,7 +57,7 @@ export function WalletReceiveSheet(props: WalletReceiveSheetProps) {
     <Sheet open={props.open} onOpenChange={props.onOpenChange}>
       <SheetContent
         side={props.forceMobile ? "bottom" : "right"}
-        class="flex flex-col"
+        class="flex max-h-[88dvh] min-h-0 flex-col overflow-y-auto"
         aria-label="Receive tokens"
       >
         <SheetHeader>
@@ -104,6 +119,9 @@ export function WalletReceiveSheet(props: WalletReceiveSheetProps) {
         <SheetFooter>
           <Button variant="secondary" onClick={() => props.onOpenChange(false)}>Done</Button>
         </SheetFooter>
+        <Show when={copied()}>
+          <Type aria-live="polite" class="sr-only" variant="caption">Address copied</Type>
+        </Show>
       </SheetContent>
     </Sheet>
   );
