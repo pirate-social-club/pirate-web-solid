@@ -1,0 +1,26 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.5
+      - run: bun install --frozen-lockfile
+      - run: bun run verify
+      - name: Build staging Worker artifact
+        run: bun run build
+        env:
+          CLOUDFLARE_ENV: staging
+          NODE_OPTIONS: --max-old-space-size=3072
+      - name: Wrangler dry run
+        run: bunx wrangler deploy --dry-run --config dist/ssr/wrangler.json
+        env:
+          NODE_OPTIONS: --max-old-space-size=3072
