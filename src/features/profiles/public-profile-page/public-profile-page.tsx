@@ -1,5 +1,6 @@
 import { Link, Meta, Title } from "@solidjs/meta";
-import { httpHeader, httpStatus, getRequestEvent } from "@solidjs/web";
+import type { Navigator } from "@solidjs/router";
+import { getRequestEvent } from "@solidjs/web";
 import { Loading, Show, For, createEffect, createMemo, untrack } from "solid-js";
 import { createPublicApiClient } from "../../../api/client.ts";
 import { resolveRequestUiLocale } from "../../../lib/ui-locale-core.ts";
@@ -14,6 +15,8 @@ import {
 export interface PublicProfilePageProps {
   readonly handle: string;
   readonly client?: PublicProfileClient;
+  readonly data?: PublicProfileViewState | PromiseLike<PublicProfileViewState>;
+  readonly navigate?: Navigator;
 }
 
 function requestOrigin(): string | undefined {
@@ -68,8 +71,6 @@ function MessageState(props: { readonly state: PublicProfileViewState }) {
   const heading = () => state.kind === "invalid"
     ? copy.invalid
     : state.kind === "not-found" ? copy.notFound : copy.error;
-  httpStatus(state.status, state.kind === "invalid" ? "Bad Request" : state.kind === "not-found" ? "Not Found" : "Bad Gateway");
-  httpHeader("Cache-Control", "no-store");
   return (
     <main data-profile-state={state.kind}>
       <Title>{heading()}</Title>
@@ -79,7 +80,7 @@ function MessageState(props: { readonly state: PublicProfileViewState }) {
   );
 }
 
-function SuccessState(props: { readonly state: PublicProfileSuccess }) {
+function SuccessState(props: { readonly state: PublicProfileSuccess; readonly navigate?: Navigator }) {
   const copy = profileCopy();
   const state = untrack(() => props.state);
   const displayName = () => state.profile.displayName ?? `@${state.profile.handle}`;
@@ -88,11 +89,6 @@ function SuccessState(props: { readonly state: PublicProfileSuccess }) {
     : interpolateMessage(copy.defaultDescription, { name: `@${state.profile.handle}` });
   const canonicalUrl = () => absolutePath(state.canonicalPath);
   const title = () => interpolateMessage(copy.title, { handle: state.profile.handle });
-
-  httpStatus(state.isCanonical ? 200 : 302, state.isCanonical ? undefined : "Found");
-  httpHeader("Cache-Control", "public, max-age=60, s-maxage=300");
-  httpHeader("Vary", "Accept-Language");
-  if (!state.isCanonical) httpHeader("Location", canonicalUrl());
 
   return (
     <main data-profile-state={state.isCanonical ? "success" : "alias"}>
@@ -131,44 +127,57 @@ function SuccessState(props: { readonly state: PublicProfileSuccess }) {
         </Show>
       </section>
       <Show when={!state.isCanonical}>
-        <AliasRedirect state={state} />
+        <AliasRedirect state={state} navigate={props.navigate} />
       </Show>
     </main>
   );
 }
 
-function AliasRedirect(props: { readonly state: PublicProfileSuccess }) {
+function AliasRedirect(props: { readonly state: PublicProfileSuccess; readonly navigate?: Navigator }) {
   const state = untrack(() => props.state);
   createEffect(
     () => state.canonicalPath,
     canonicalPath => {
       if (typeof window !== "undefined" && window.location.pathname !== canonicalPath) {
-        window.history.replaceState(window.history.state, "", canonicalPath);
+        if (props.navigate) props.navigate(canonicalPath, { replace: true, scroll: false });
+        else window.history.replaceState(window.history.state, "", canonicalPath);
       }
     },
   );
   return <p role="status">{`Redirecting to ${state.canonicalHandle}`}</p>;
 }
 
-function ProfileState(props: { readonly state: PublicProfileViewState }) {
+function ProfileState(props: { readonly state: PublicProfileViewState; readonly navigate?: Navigator }) {
   const success = () => props.state.kind === "success" ? props.state : undefined;
   return (
     <Show
       when={success()}
       fallback={<MessageState state={props.state} />}
     >
-      {state => <SuccessState state={state()} />}
+      {state => <SuccessState state={state()} navigate={props.navigate} />}
     </Show>
   );
 }
 
-export default function PublicProfilePage(props: PublicProfilePageProps) {
+function ProfileData(props: PublicProfilePageProps) {
   const client = props.client ?? defaultClient();
-  const state = createMemo(() => loadPublicProfile(client, props.handle));
+  // Keep the response head open until the request result has settled. Solid's
+  // stream renderer otherwise commits the shell (and its default 200) while
+  // this boundary is still showing its loading fallback, making late status
+  // and cache-policy writes ineffective for SSR errors and aliases.
+  const state = createMemo(
+    () => props.data ?? loadPublicProfile(client, props.handle),
+    { deferStream: true },
+  );
+
+  return <ProfileState state={state()} navigate={props.navigate} />;
+}
+
+export default function PublicProfilePage(props: PublicProfilePageProps) {
 
   return (
     <Loading fallback={<LoadingState />}>
-      <ProfileState state={state()} />
+      <ProfileData {...props} />
     </Loading>
   );
 }

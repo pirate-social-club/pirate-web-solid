@@ -1,5 +1,9 @@
 import { describe, expect, test, vi } from "vitest";
 import type { GetPublicProfilesHandleResponse } from "@pirate/api-client";
+import { createRequestEvent, renderToString } from "@solidjs/web";
+import { provideRequestEvent } from "@solidjs/web/storage";
+import { preloadPublicProfile } from "../../../routes/u/[handle].tsx";
+import PublicProfilePage from "./public-profile-page.tsx";
 import {
   buildCommunityPath,
   buildPublicProfilePath,
@@ -8,6 +12,8 @@ import {
   normalizePirateHandle,
   projectPublicProfile,
 } from "./public-profile-page.model";
+
+type ProfileClient = Parameters<typeof PublicProfilePage>[0]["client"];
 
 const response = (overrides: Partial<GetPublicProfilesHandleResponse> = {}): GetPublicProfilesHandleResponse => ({
   profile: {
@@ -38,6 +44,39 @@ const response = (overrides: Partial<GetPublicProfilesHandleResponse> = {}): Get
   ],
   ...overrides,
 });
+
+function delayedClient(result: GetPublicProfilesHandleResponse | unknown, delay = 10): ProfileClient {
+  return {
+    get_publicProfilesHandle: async () => {
+      await new Promise(resolve => setTimeout(resolve, delay));
+      if (result instanceof Error || (typeof result === "object" && result !== null && ("status" in result || "_tag" in result))) {
+        throw result;
+      }
+      // SAFETY: fixtures passed to this helper are contract-shaped responses unless marked as errors above.
+      return result as GetPublicProfilesHandleResponse;
+    },
+  };
+}
+
+async function renderProfileResponse(handle: string, client: ProfileClient) {
+  const event = createRequestEvent(new Request(`https://pirate.test/u/${handle}`));
+  return provideRequestEvent(event, async () => {
+    const data = await preloadPublicProfile(handle, client);
+    // Rendering starts only after preload has committed the response policy;
+    // this mirrors the file-route preload/head ordering without coupling the
+    // response test to Solid's streaming transport internals.
+    const body = renderToString(() => "profile");
+    return {
+      response: new Response(body, {
+        status: event.response.status,
+        statusText: event.response.statusText,
+        headers: event.response.headers,
+      }),
+      body,
+      data,
+    };
+  });
+}
 
 describe("public profile model", () => {
   test("normalizes the same ASCII handle forms as api-next", () => {
@@ -125,5 +164,53 @@ describe("public profile model", () => {
     });
     const result = await loadPublicProfile({ get_publicProfilesHandle: get }, "@CAPTAIN-ONE.PIRATE");
     expect(result.kind).toBe("success");
+  });
+
+  test("commits canonical SSR status, cache policy, Vary, metadata, and redaction", async () => {
+    const rendered = await renderProfileResponse("captain-one", delayedClient(response()));
+    expect(rendered.response.status).toBe(200);
+    expect(rendered.response.headers.get("cache-control")).toBe("public, max-age=60, s-maxage=300");
+    expect(rendered.response.headers.get("vary")).toBe("Accept-Language");
+    expect(rendered.data).toMatchObject({
+      kind: "success",
+      canonicalPath: "/u/captain-one.pirate",
+      isCanonical: true,
+    });
+    expect(JSON.stringify(rendered.data)).not.toContain("profile-secret-id");
+  });
+
+  test("commits invalid, missing, and unavailable SSR responses before the stream head", async () => {
+    const invalid = await renderProfileResponse("bad_handle", delayedClient(response()));
+    expect(invalid.response.status).toBe(400);
+    expect(invalid.response.headers.get("cache-control")).toBe("no-store");
+
+    const missing = await renderProfileResponse("missing", delayedClient({ status: 404, message: "raw-secret" }));
+    expect(missing.response.status).toBe(404);
+    expect(missing.response.headers.get("cache-control")).toBe("no-store");
+    expect(JSON.stringify(missing.data)).not.toContain("raw-secret");
+
+    const unavailable = await renderProfileResponse(
+      "captain-one",
+      delayedClient({ _tag: "ApiClientProtocolError", message: "credential=raw-secret" }),
+    );
+    expect(unavailable.response.status).toBe(502);
+    expect(unavailable.response.headers.get("cache-control")).toBe("no-store");
+    expect(JSON.stringify(unavailable.data)).not.toContain("credential");
+    expect(JSON.stringify(unavailable.data)).not.toContain("raw-secret");
+  });
+
+  test("commits alias SSR redirects with Location and canonical metadata", async () => {
+    const rendered = await renderProfileResponse(
+      "old-name",
+      delayedClient(response({ requested_handle_label: "old-name.pirate", is_canonical: false })),
+    );
+    expect(rendered.response.status).toBe(302);
+    expect(rendered.response.headers.get("location")).toBe("https://pirate.test/u/captain-one.pirate");
+    expect(rendered.response.headers.get("cache-control")).toBe("public, max-age=60, s-maxage=300");
+    expect(rendered.data).toMatchObject({
+      kind: "success",
+      canonicalPath: "/u/captain-one.pirate",
+      isCanonical: false,
+    });
   });
 });
