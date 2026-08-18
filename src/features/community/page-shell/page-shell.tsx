@@ -36,7 +36,7 @@ export function CommunityPageShell(props: CommunityPageShellProps) {
   });
 
   return (
-    <div class={props.mobile ? "w-full bg-primary" : "mx-auto w-full max-w-6xl bg-primary"} data-community-page>
+    <div class={props.mobile ? "w-full bg-background" : "mx-auto w-full max-w-6xl bg-background"} data-community-page>
       <header class="flex flex-col gap-4 border-b border-border-soft p-5 md:p-8">
         <div class="flex items-start gap-4">
           <CommunityAvatar communityId={community().handle} displayName={community().name} size="lg" />
