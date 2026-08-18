@@ -86,12 +86,7 @@ export {
   Scrubber,
 } from "@pirate/web-solid-ui";
 export {
-  Avatar,
   AuthRequiredRouteState,
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
   ErrorState,
   RouteLoadFailureState,
   RouteLoadingState,

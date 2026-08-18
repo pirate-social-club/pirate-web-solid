@@ -16,19 +16,19 @@ export function ratingTierForScore(score: number): RatingTier {
   return "miss";
 }
 
-const RATING_LABEL: Record<RatingTier, string> = {
+const RATING_LABEL = {
   perfect: "Perfect",
   great: "Great",
   good: "Good",
   miss: "Miss",
-};
+} satisfies Record<RatingTier, string>;
 
-const RATING_TONE: Record<RatingTier, KaraokeLineRating["tone"]> = {
+const RATING_TONE = {
   perfect: "success",
   great: "info",
   good: "warning",
   miss: "destructive",
-};
+} satisfies Record<RatingTier, KaraokeLineRating["tone"]>;
 
 export interface KaraokeFeedback {
   runningScore: number;
