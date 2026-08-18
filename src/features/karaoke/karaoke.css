@@ -1,0 +1,9 @@
+.karaoke-stage { position: relative; min-height: 24rem; overflow: hidden; }
+.karaoke-stage-lines { position: absolute; inset: 50% 0 auto; display: flex; width: 100%; max-width: 56rem; margin: auto; transform: translateY(-50%); flex-direction: column; gap: 2rem; padding: 1rem; text-align: center; }
+.karaoke-line { margin: 0 auto; max-width: 48rem; overflow-wrap: anywhere; text-wrap: balance; }
+.karaoke-line-cue, .karaoke-line-next { color: var(--muted-foreground); }
+.karaoke-line-next { opacity: .82; }
+.karaoke-token { position: relative; display: inline-block; color: var(--foreground); white-space: pre-wrap; }
+.karaoke-token[data-token-state="complete"] { color: var(--warning); }
+.karaoke-token-fill { position: absolute; inset: 0 auto 0 0; overflow: hidden; color: var(--warning); white-space: nowrap; pointer-events: none; }
+@media (max-width: 480px) { .karaoke-stage { min-height: 20rem; } .karaoke-stage-lines { gap: 1.5rem; padding-inline: .75rem; } }
