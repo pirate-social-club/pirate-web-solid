@@ -22,7 +22,8 @@
       ],
       "vars": {
         "API_NEXT_ORIGIN": "https://api-next-staging.pirate.sc",
-        "VERIFICATION_UI_ENABLED": "false"
+        "VERIFICATION_UI_ENABLED": "true",
+        "PRIVY_APP_ID": "cmsw5pis300b80cladbxx7bsr"
       }
     }
   }
