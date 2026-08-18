@@ -46,6 +46,11 @@ export interface TextFieldInputProps
   extends KTextFieldInputProps,
     VariantProps<typeof inputVariants> {
   class?: string;
+  autocomplete?: string;
+  disabled?: boolean;
+  inputmode?: string;
+  placeholder?: string;
+  spellcheck?: boolean;
 }
 
 export function TextFieldInput(props: TextFieldInputProps) {
