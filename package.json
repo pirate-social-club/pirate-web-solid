@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "packageManager": "bun@1.3.5",
-  "workspaces": ["../pirate-solid-design-system"],
+  "workspaces": ["packages/solid-ui"],
   "engines": {
     "node": ">=24.0.0"
   },
@@ -17,8 +17,9 @@
     "stream-check": "node scripts/stream-check.mjs",
     "hydration-check": "node scripts/hydration-check.mjs",
     "check-solid-runtime": "node scripts/check-solid-runtime.mjs",
-    "lint": "oxlint src workers",
-    "verify": "tsc --noEmit -p tsconfig.json && bun run lint && node scripts/check-solid-runtime.mjs && bun test src/lib/api/origin.test.ts",
+    "lint": "oxlint src",
+    "generate-worker-types": "wrangler types",
+    "verify": "bun run generate-worker-types && tsc --noEmit -p tsconfig.json && bun run lint && node scripts/check-solid-runtime.mjs && bun test src/lib/api/origin.test.ts && bun run --cwd packages/solid-ui typecheck && bun run --cwd packages/solid-ui test",
     "verify:live": "node scripts/probe.mjs && node scripts/stream-check.mjs && node scripts/hydration-check.mjs"
   },
   "dependencies": {
@@ -29,13 +30,12 @@
     "@tanstack/solid-query": "6.0.0-rc.0",
     "class-variance-authority": "0.7.1",
     "filesystem-routing": "0.2.1",
-    "pirate-solid-design-system": "workspace:*",
+    "@pirate/web-solid-ui": "workspace:*",
     "solid-js": "2.0.0-rc.0",
     "tailwind-merge": "3.6.0"
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "1.52.1",
-    "@cloudflare/workers-types": "5.20260813.1",
     "@oxlint/plugins": "1.78.0",
     "@solidjs/vite-plugin": "3.0.0-next.27",
     "@tailwindcss/vite": "4.3.3",

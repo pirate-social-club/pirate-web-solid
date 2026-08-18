@@ -80,7 +80,6 @@ export default function HomeRoute() {
       <PublicVideoFeed />
       <nav aria-label="Seam probes">
         <a href="/seam/host">host seam</a>
-        <a href="/seam/binding">binding seam</a>
         <a href="/p/demo-post">post route</a>
         <a href="/u/demo-user">profile route</a>
       </nav>

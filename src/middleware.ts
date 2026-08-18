@@ -1,7 +1,6 @@
 import routes from "virtual:file-routes";
 import { createAPIHandler } from "filesystem-routing/api";
 import { getRequestEvent } from "@solidjs/web";
-import { env } from "cloudflare:workers";
 import type { HostContext, HostSurface } from "./lib/host-context";
 import { createApiClient } from "./lib/api/client";
 import { normalizePublicVideoFeed } from "./lib/api/public-feed";
@@ -118,17 +117,6 @@ async function seamMiddleware(request: Request, next: () => Promise<Response>) {
         "x-solid-route-outcome": "sovereign-forwarding-metadata-required",
       },
     });
-  }
-
-  if (url.pathname === "/seam/binding") {
-    // SAFETY: Cloudflare supplies the PUBLIC service binding on the worker environment; local absence is modeled as optional.
-    const binding = (env as { PUBLIC?: Fetcher }).PUBLIC;
-    if (!binding) {
-      event.locals.bindingResult = JSON.stringify({ ok: false, error: "PUBLIC binding missing" });
-    } else {
-      const upstream = await binding.fetch("https://public.internal/seam/ping");
-      event.locals.bindingResult = JSON.stringify({ ok: true, upstream: await upstream.json() });
-    }
   }
 
   const response = await next();

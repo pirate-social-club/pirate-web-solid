@@ -1,10 +1,10 @@
 // Explicit package boundary: product UI imports catalog primitives here and
-// never reaches through the design-system implementation from route code.
+// never reaches through the package implementation from route code.
 export {
   Button,
   buttonVariants,
   type ButtonProps,
-} from "pirate-solid-design-system/src/components/actions/button/button";
+} from "@pirate/web-solid-ui";
 export {
   Dialog,
   DialogContent,
@@ -12,10 +12,10 @@ export {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "pirate-solid-design-system/src/components/overlays/dialog/dialog";
+} from "@pirate/web-solid-ui";
 export {
   TextField,
   TextFieldDescription,
   TextFieldInput,
   TextFieldLabel,
-} from "pirate-solid-design-system/src/components/forms/text-field/text-field";
+} from "@pirate/web-solid-ui";

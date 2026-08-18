@@ -66,11 +66,6 @@ check("HNS redirect targets app host", (apex.headers.get("location") ?? "").incl
 const host = await get("/seam/host", { headers: { host: "app.example.hns" } });
 check("app host serves", host.status === 200, String(host.status));
 check("host surface header is sovereign app", host.headers.get("x-seam-host-surface") === "sovereign-app");
-const binding = await get("/seam/binding", { headers: { host: "app.example.hns" } });
-const bindingText = await binding.text();
-check("service-binding route serves", binding.status === 200, String(binding.status));
-check("service-binding round trip identifies public worker", bindingText.includes("pirate-web-solid-public"));
-check("service-binding route returns JSON payload", binding.headers.get("content-type")?.includes("text/html") === false || bindingText.includes("upstream"));
 check("adapter returns streamed-capable response", root.body.length > 0);
 
 const htmlRoutes = [
@@ -85,7 +80,6 @@ const htmlRoutes = [
   ["embed bare route", "/embed", 'data-route-path="/embed"', 'data-layout="bare"'],
   ["telegram bare route", "/telegram", 'data-route-path="/telegram"', 'data-layout="bare"'],
   ["host seam route", "/seam/host", 'data-route-path="/seam/host"'],
-  ["binding seam route", "/seam/binding", 'data-route-path="/seam/binding"'],
 ];
 for (const [name, path, marker, layout] of htmlRoutes) {
   const response = await get(path, { headers: { host: "app.example.hns" } });

@@ -7,9 +7,7 @@ import { defineConfig } from "vite";
 import solid from "@solidjs/vite-plugin";
 
 const appRoot = fileURLToPath(new URL(".", import.meta.url));
-const designSystemRoot = process.env.WEB_SOLID_DESIGN_SYSTEM_ROOT
-  ? path.resolve(process.env.WEB_SOLID_DESIGN_SYSTEM_ROOT)
-  : path.resolve(appRoot, "../pirate-solid-design-system");
+const solidUiRoot = path.resolve(appRoot, "packages/solid-ui");
 
 export default defineConfig({
   plugins: [
@@ -25,7 +23,6 @@ export default defineConfig({
     },
     cloudflare({
       viteEnvironment: { name: "ssr" },
-      auxiliaryWorkers: [{ configPath: "./workers/public/wrangler.jsonc" }],
     }),
     solid({
       ssr: true,
@@ -39,14 +36,8 @@ export default defineConfig({
   resolve: {
     dedupe: ["solid-js", "@solidjs/web"],
     alias: {
-      "pirate-solid-design-system": designSystemRoot,
+      "@": path.resolve(solidUiRoot, "src"),
       "solid-js/web": "@solidjs/web",
-      "@": path.resolve(designSystemRoot, "src"),
-    },
-  },
-  server: {
-    fs: {
-      allow: [appRoot, designSystemRoot],
     },
   },
   preview: {

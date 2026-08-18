@@ -4,9 +4,7 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const appRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const designSystemRoot = process.env.WEB_SOLID_DESIGN_SYSTEM_ROOT
-  ? resolve(process.env.WEB_SOLID_DESIGN_SYSTEM_ROOT)
-  : resolve(appRoot, "../pirate-solid-design-system");
+const designSystemRoot = resolve(appRoot, "packages/solid-ui");
 const appRequire = createRequire(resolve(appRoot, "package.json"));
 
 function packageRoot(specifier) {
@@ -95,5 +93,5 @@ console.log(JSON.stringify({
   kobalteVersion: kobaltePackage.version,
   kobaltePatch: true,
   dedupe: ["solid-js", "@solidjs/web"],
-  note: "Vite aliases force the linked design-system source to the app runtime; peer dependency normalization remains a design-system-owned prerequisite.",
+  note: "The internal solid-ui package is resolved from this repository and shares the app's deduped Solid runtime.",
 }, null, 2));

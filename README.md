@@ -11,7 +11,7 @@ The shell carries the verified arrangement from `solid2-seam-poc`:
 - authored `Document` with per-request CSP nonce;
 - `#app-root` plus client `hydrate(..., { renderId: "2" })`;
 - Worker adapter forwarding non-assets to `handleRequest`;
-- ASSETS and PUBLIC service-binding topology;
+- a single direct Worker with the ASSETS binding;
 - HNS apex redirect and app-host classification;
 - streaming SSR through the Worker adapter; and
 - authored server entry passing the built asset manifest to streaming SSR; and
@@ -21,25 +21,21 @@ The shell carries the verified arrangement from `solid2-seam-poc`:
 The `solid2-seam-poc` repository remains the evidence source; this repository
 owns the permanent probes and hydration regression gate.
 
-## Design-system linkage
+## Solid UI package
 
-The app consumes the unpublished `../pirate-solid-design-system` repository
-through a Bun workspace dependency named `pirate-solid-design-system`. The
-workspace entry is deliberate: a clean `rtk bun install` resolves the design
-system's Solid peer dependencies from this app instead of creating a second
-runtime in
-the linked package. The design-system package is exact-pinned at `0.2.0` in
-its own `package.json` and in the workspace lockfile. Components are imported
-only through `src/design-system.ts`; copying component files into this
-repository is forbidden. The app imports the design system's Tailwind v4 token
-layer and uses the same Tailwind Vite pipeline.
+The app owns its UI catalog in `packages/solid-ui`, published internally as
+`@pirate/web-solid-ui` through a Bun workspace dependency. A clean
+`bun install --frozen-lockfile` resolves the package and its Solid peer
+dependencies from this repository, with no sibling-repository or external
+filesystem alias. Components are imported only through `src/design-system.ts`;
+the package's Tailwind v4 token layer is consumed by the app's Vite pipeline.
 
 Vite aliases and `resolve.dedupe` force `solid-js` and `@solidjs/web` to the
-app's single runtime instance. The design-system package exposes those two
+app's single runtime instance. The solid-ui package exposes those two
 exact versions as peer dependencies, and its Kobalte Button uses the pinned
 Solid 2 hydration patch. Run `rtk bun run check-solid-runtime` after every
 clean install and before declaring hydration green; the check intentionally
-fails if the linked package has local Solid copies, the Kobalte version drifts,
+fails if the internal package has local Solid copies, the Kobalte version drifts,
 or the patch no longer appears in the built package.
 
 ## Routing and data
@@ -90,7 +86,7 @@ navigation, and refresh cause zero `/__version` refetches. `/seam/api?feed=1`
 also exercises the same public feed read as a Worker subrequest; the Home feed
 uses the normalized query contract described below.
 
-The app hydration gate uses the real linked design-system Button, Kobalte
+The app hydration gate uses the real internal solid-ui Button, Kobalte
 Dialog (portal, open/close, focus), and TextField (label/description wiring and
 controlled value updates). Every fixture is SSR-rendered under the strict CSP
 and exercised by project-local Playwright; native stand-ins are not accepted.
@@ -143,7 +139,6 @@ PLAYWRIGHT_BROWSERS_PATH=./.playwright-browsers \
 bun run verify:live
 ```
 
-Set `WEB_SOLID_DESIGN_SYSTEM_ROOT` to override the local design-system path.
 Set `PLAYWRIGHT_CHROMIUM_EXECUTABLE` to use a specific Chromium binary.
 Run the live gate while the foreground preview is active, then stop that
 preview. No shared Cloudflare resource may be deployed by the bootstrap.
@@ -164,6 +159,5 @@ following independent items remain open:
 ## Scope
 
 M3 adds the public Home video feed and its read-only API seam. Login UI, relay
-calls, and write actions remain M2 work. The design-system catalog continues to
-be owned by `pirate-solid-design-system`; app code imports it only through
-`src/design-system.ts`.
+calls, and write actions remain M2 work. The solid-ui catalog is owned by
+`packages/solid-ui`; app code imports it only through `src/design-system.ts`.

@@ -5,7 +5,9 @@
     "moduleResolution": "Bundler",
     "baseUrl": ".",
     "paths": {
-      "@/*": ["node_modules/pirate-solid-design-system/src/*"],
+      "@/*": ["packages/solid-ui/src/*"],
+      "@pirate/web-solid-ui": ["packages/solid-ui/src/index.tsx"],
+      "@pirate/web-solid-ui/*": ["packages/solid-ui/src/*"],
       "@kobalte/core/*": ["node_modules/@kobalte/core/dist/*"],
       "@solidjs/web": ["node_modules/@solidjs/web"],
       "@solidjs/web/jsx-dev-runtime": ["node_modules/@solidjs/web/types/jsx.d.ts"],
@@ -21,7 +23,7 @@
     "strict": true,
     "allowJs": false,
     "skipLibCheck": true,
-    "types": ["@cloudflare/workers-types", "vite/client", "bun"]
+    "types": ["vite/client", "bun"]
   },
-  "include": ["src", "workers", "vite.config.ts", "scripts"]
+  "include": ["src", "vite.config.ts", "scripts", "worker-configuration.d.ts"]
 }

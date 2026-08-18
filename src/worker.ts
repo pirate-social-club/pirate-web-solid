@@ -3,7 +3,7 @@
 import { handleRequest } from "virtual:solid-ssr-handler";
 
 export default {
-  async fetch(request: Request, env: { ASSETS: Fetcher }): Promise<Response> {
+  async fetch(request: Request, env: Env): Promise<Response> {
     if (new URL(request.url).pathname.startsWith("/assets/") && env.ASSETS) {
       return env.ASSETS.fetch(request);
     }

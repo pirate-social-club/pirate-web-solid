@@ -1,6 +1,6 @@
 @import "tailwindcss";
-@import "pirate-solid-design-system/src/styles/tokens.css";
-@source "../../pirate-solid-design-system/src";
+@import "@pirate/web-solid-ui/styles/tokens.css";
+@source "../packages/solid-ui/src";
 
 @layer base {
   * {

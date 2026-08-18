@@ -21,7 +21,6 @@ declare module "@solidjs/web" {
   interface RequestEventLocals {
     hostContext?: HostContext;
     cspNonce?: string;
-    bindingResult?: string;
     routeStatus?: number;
     seamHost?: HostSurface;
     apiOrigin?: string;
