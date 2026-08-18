@@ -1,4 +1,5 @@
 import type { Storage } from "@privy-io/js-sdk-core";
+import { ApiClientError } from "@pirate/api-client";
 import { createSessionApiClient, readCsrfCookie } from "./client.ts";
 import type { VerificationPublicConfig } from "./verification-config.ts";
 
@@ -28,6 +29,32 @@ interface PrivyAccessTokenProof {
   type: "privy_access_token";
   privy_access_token: string;
   privy_identity_token?: string;
+}
+
+export class PrivyIdentityBootstrapRequired extends Error {
+  constructor(readonly sourceUserId: string) {
+    super("identity_bootstrap_required");
+    this.name = "PrivyIdentityBootstrapRequired";
+  }
+}
+
+function accessTokenSubject(token: string): string | undefined {
+  try {
+    const payload = token.split(".")[1];
+    if (payload === undefined) return undefined;
+    const base64 = payload.replaceAll("-", "+").replaceAll("_", "/");
+    const decoded: unknown = JSON.parse(
+      atob(`${base64}${"=".repeat((4 - (base64.length % 4)) % 4)}`),
+    );
+    if (decoded === null || typeof decoded !== "object" || Array.isArray(decoded)) return undefined;
+    // SAFETY: the object boundary above is checked before reading the optional dynamic claim.
+    const subject = (decoded as { readonly sub?: unknown }).sub;
+    return typeof subject === "string" && /^did:privy:[A-Za-z0-9._:-]+$/u.test(subject)
+      ? subject
+      : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 async function defaultPrivyFactory(config: VerificationPublicConfig, storage: Storage): Promise<PrivyAuthClient> {
@@ -84,6 +111,12 @@ export async function createPrivySessionExchange(
       try {
         await exchange(accessToken);
         terminal = true;
+      } catch (error) {
+        const sourceUserId = accessTokenSubject(accessToken);
+        if (error instanceof ApiClientError && error.status === 401 && sourceUserId !== undefined) {
+          throw new PrivyIdentityBootstrapRequired(sourceUserId);
+        }
+        throw error;
       } finally {
         storage.clear();
       }

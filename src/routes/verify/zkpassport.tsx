@@ -1,7 +1,11 @@
 import { Title } from "@solidjs/meta";
 import { Show, createEffect, createSignal, onCleanup } from "solid-js";
 import { Button, TextField, TextFieldInput, TextFieldLabel } from "../../design-system";
-import { createPrivySessionExchange, type PrivySessionExchange } from "../../api/privy-session.ts";
+import {
+  PrivyIdentityBootstrapRequired,
+  createPrivySessionExchange,
+  type PrivySessionExchange,
+} from "../../api/privy-session.ts";
 import { fetchVerificationConfig } from "../../api/verification-config.ts";
 import {
   ZkPassportClientError,
@@ -14,6 +18,9 @@ type Phase = "loading" | "email" | "code" | "ready" | "ceremony" | "complete" | 
 const CEREMONY_TIMEOUT_MS = 15 * 60 * 1000;
 
 function safeMessage(error: unknown): string {
+  if (error instanceof PrivyIdentityBootstrapRequired) {
+    return `Staging account bootstrap required: ${error.sourceUserId}`;
+  }
   if (error instanceof ZkPassportClientError) {
     if (error.code === "submission_too_large") return "The proof exceeded the staging upload limit.";
     if (error.code === "ceremony_cancelled") return "The ceremony expired. Start a fresh one.";
