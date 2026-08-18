@@ -19,3 +19,20 @@ export {
   TextFieldInput,
   TextFieldLabel,
 } from "@pirate/web-solid-ui";
+export {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@pirate/web-solid-ui";
+export {
+  Separator,
+  Type,
+} from "@pirate/web-solid-ui";
+export {
+  IconArrowDown,
+  IconArrowUp,
+  IconWallet,
+} from "@pirate/web-solid-ui";
