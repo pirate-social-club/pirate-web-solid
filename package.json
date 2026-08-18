@@ -24,11 +24,12 @@
   },
   "dependencies": {
     "@pirate/api-client": "file:vendor/api-client/pirate-api-client-0.4.0.tgz",
+    "@pirate/web-solid-ui": "workspace:*",
     "@solidjs/meta": "1.0.0-next.2",
     "@solidjs/router": "2.0.0-next.16",
     "@solidjs/web": "2.0.0-rc.0",
+    "@zkpassport/sdk": "0.14.2",
     "filesystem-routing": "0.2.1",
-    "@pirate/web-solid-ui": "workspace:*",
     "solid-js": "2.0.0-rc.0"
   },
   "devDependencies": {
