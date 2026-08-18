@@ -12,6 +12,8 @@
     "build": "vite build",
     "storybook": "storybook dev -p 6006 --disable-telemetry",
     "build-storybook": "storybook build",
+    "storybook:a11y": "node scripts/storybook-a11y-sweep.mjs",
+    "test:storybook:a11y": "bun test scripts/storybook-a11y-sweep.test.mjs",
     "check-product-graph": "node scripts/check-product-graph.mjs --require-build",
     "test:api": "vitest run --config vitest.api.config.ts src/api",
     "dev": "vite dev --host 0.0.0.0",
