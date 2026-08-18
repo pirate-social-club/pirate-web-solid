@@ -8,7 +8,7 @@
     "packagePath": "packages/core"
   },
   "build": {
-    "command": "pnpm install --frozen-lockfile --filter @kobalte/core... && pnpm --filter @kobalte/core build && apply packages/solid-ui/patches/@kobalte%2Fcore@2.0.0-alpha.0.patch && pnpm pack --pack-destination <output>",
+    "command": "pnpm install --frozen-lockfile --filter @kobalte/core... && pnpm --filter @kobalte/core build && git apply --whitespace=nowarn < packages/solid-ui/patches/@kobalte%2Fcore@2.0.0-alpha.0.patch && pnpm pack --pack-destination <output>",
     "packageManager": "pnpm@11.20.0",
     "patch": {
       "path": "packages/solid-ui/patches/@kobalte%2Fcore@2.0.0-alpha.0.patch",

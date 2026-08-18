@@ -10,6 +10,7 @@
   "scripts": {
     "prebuild": "node scripts/check-solid-runtime.mjs",
     "build": "vite build",
+    "test:api": "vitest run --config vitest.api.config.ts src/api",
     "dev": "vite dev --host 0.0.0.0",
     "preview": "vite preview --host 0.0.0.0",
     "probe": "node scripts/probe.mjs",
@@ -18,10 +19,11 @@
     "check-solid-runtime": "node scripts/check-solid-runtime.mjs",
     "lint": "oxlint src",
     "generate-worker-types": "wrangler types",
-    "verify": "bun run generate-worker-types && tsc --noEmit -p tsconfig.json && bun run lint && node scripts/check-solid-runtime.mjs && bun run --cwd packages/solid-ui typecheck && bun run --cwd packages/solid-ui test",
+    "verify": "bun run generate-worker-types && tsc --noEmit -p tsconfig.json && bun run test:api && bun run lint && node scripts/check-solid-runtime.mjs && bun run --cwd packages/solid-ui typecheck && bun run --cwd packages/solid-ui test",
     "verify:live": "node scripts/probe.mjs && node scripts/stream-check.mjs && node scripts/hydration-check.mjs"
   },
   "dependencies": {
+    "@pirate/api-client": "file:vendor/api-client/pirate-api-client-0.4.0.tgz",
     "@solidjs/meta": "1.0.0-next.2",
     "@solidjs/router": "2.0.0-next.16",
     "@solidjs/web": "2.0.0-rc.0",
@@ -41,7 +43,8 @@
     "tailwindcss": "4.3.3",
     "typescript": "5.9.3",
     "vite": "8.2.1",
-    "wrangler": "4.123.0"
+    "wrangler": "4.123.0",
+    "vitest": "4.1.10"
   },
   "patchedDependencies": {
     "jsdom@30.0.0": "packages/solid-ui/patches/jsdom@30.0.0.patch"
