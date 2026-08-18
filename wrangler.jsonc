@@ -1,9 +1,29 @@
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
   "name": "pirate-web-solid",
+  "account_id": "ff375d61cdc0c5dc946837f3e37725e0",
   "compatibility_date": "2026-08-13",
   "compatibility_flags": ["nodejs_compat", "enable_request_signal"],
   "main": "./src/worker.ts",
   "assets": { "directory": "./dist/client", "binding": "ASSETS" },
-  "vars": { "API_NEXT_ORIGIN": "http://127.0.0.1:8788" }
+  "vars": {
+    "API_NEXT_ORIGIN": "http://127.0.0.1:8788",
+    "VERIFICATION_UI_ENABLED": "false"
+  },
+  "env": {
+    "staging": {
+      "name": "pirate-web-solid-staging",
+      "workers_dev": false,
+      "routes": [
+        {
+          "pattern": "web-next-staging.pirate.sc",
+          "custom_domain": true
+        }
+      ],
+      "vars": {
+        "API_NEXT_ORIGIN": "https://api-next-staging.pirate.sc",
+        "VERIFICATION_UI_ENABLED": "false"
+      }
+    }
+  }
 }
