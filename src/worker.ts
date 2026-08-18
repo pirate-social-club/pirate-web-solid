@@ -20,6 +20,8 @@ export default {
     if (pathname.startsWith("/assets/") && env.ASSETS) {
       return env.ASSETS.fetch(request);
     }
-    return handleRequest(request);
+    return handleRequest(request, {
+      context: { API_NEXT_ORIGIN: env.API_NEXT_ORIGIN },
+    });
   },
 };

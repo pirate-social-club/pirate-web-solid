@@ -1,11 +1,13 @@
-import { useNavigate, type Navigator, type RouteProps } from "@solidjs/router";
+import { query, useNavigate, type Navigator, type RouteProps } from "@solidjs/router";
 import { defineFileRoute } from "@solidjs/router/fs";
 import { getRequestEvent, httpHeader, httpStatus } from "@solidjs/web";
 import { createPublicApiClient } from "../../api/client.ts";
 import { loadPublicProfile, normalizePirateHandle, type PublicProfileClient, type PublicProfileViewState } from "../../features/profiles/public-profile-page/public-profile-page.model.ts";
 import PublicProfilePage from "../../features/profiles/public-profile-page/public-profile-page.tsx";
-
-const PUBLIC_PROFILE_CACHE_CONTROL = "public, max-age=60, s-maxage=300";
+import {
+  publicProfileResponsePolicy,
+  type PublicProfilePreflight,
+} from "../../features/profiles/public-profile-page/public-profile-preflight.ts";
 
 function requestOrigin(): string | undefined {
   const event = getRequestEvent();
@@ -13,23 +15,13 @@ function requestOrigin(): string | undefined {
   return typeof location === "undefined" ? undefined : location.origin;
 }
 
-function absolutePath(path: string): string {
-  const origin = requestOrigin();
-  return origin === undefined ? path : new URL(path, origin).toString();
-}
-
 /** Commit the complete response policy while the SSR response is still open. */
 export function commitPublicProfileResponse(state: PublicProfileViewState): void {
-  if (state.kind !== "success") {
-    httpStatus(state.status, state.kind === "invalid" ? "Bad Request" : state.kind === "not-found" ? "Not Found" : "Bad Gateway");
-    httpHeader("Cache-Control", "no-store");
-    return;
-  }
-
-  httpStatus(state.isCanonical ? 200 : 302, state.isCanonical ? undefined : "Found");
-  httpHeader("Cache-Control", PUBLIC_PROFILE_CACHE_CONTROL);
-  httpHeader("Vary", "Accept-Language");
-  if (!state.isCanonical) httpHeader("Location", absolutePath(state.canonicalPath));
+  const event = getRequestEvent();
+  if (event === undefined) return;
+  const policy = publicProfileResponsePolicy(event.request, state);
+  httpStatus(policy.status, policy.statusText);
+  policy.headers.forEach((value, name) => httpHeader(name, value));
 }
 
 /** Resolve route data before the route component can stream its document head. */
@@ -50,8 +42,22 @@ export async function preloadPublicProfile(
   return state;
 }
 
+const queryPublicProfile = query(
+  async (handle: string): Promise<PublicProfileViewState> => loadPublicProfile(createPublicApiClient({ origin: requestOrigin() }), handle),
+  "public-profile",
+);
+
 export const route = defineFileRoute("/u/:handle", {
-  preload: ({ params }) => preloadPublicProfile(params.handle),
+  preload: ({ params }) => {
+    // SAFETY: entry-server is the sole writer for this request-local key and
+    // stores only a validated PublicProfilePreflight.
+    const settled = getRequestEvent()?.locals.publicProfilePreflight as PublicProfilePreflight | undefined;
+    if (settled?.requestedHandle === params.handle) return settled.state;
+    return queryPublicProfile(params.handle).then(state => {
+      commitPublicProfileResponse(state);
+      return state;
+    });
+  },
 });
 
 export default function PublicProfileRoute(props: RouteProps<typeof route>) {

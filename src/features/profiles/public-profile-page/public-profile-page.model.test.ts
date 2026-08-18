@@ -178,7 +178,7 @@ describe("public profile model", () => {
   test("commits canonical SSR status, cache policy, Vary, metadata, and redaction", async () => {
     const rendered = await renderProfileResponse("captain-one", delayedClient(response()));
     expect(rendered.response.status).toBe(200);
-    expect(rendered.response.headers.get("cache-control")).toBe("public, max-age=60, s-maxage=300");
+    expect(rendered.response.headers.get("cache-control")).toBe("no-store");
     expect(rendered.response.headers.get("vary")).toBe("Accept-Language");
     expect(rendered.data).toMatchObject({
       kind: "success",
@@ -219,7 +219,7 @@ describe("public profile model", () => {
     );
     expect(rendered.response.status).toBe(302);
     expect(rendered.response.headers.get("location")).toBe("https://pirate.test/u/captain-one.pirate");
-    expect(rendered.response.headers.get("cache-control")).toBe("public, max-age=60, s-maxage=300");
+    expect(rendered.response.headers.get("cache-control")).toBe("no-store");
     expect(rendered.data).toMatchObject({
       kind: "success",
       canonicalPath: "/u/captain-one.pirate",

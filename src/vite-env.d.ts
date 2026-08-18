@@ -7,5 +7,11 @@ declare module "virtual:solid-manifest" {
 }
 
 declare module "virtual:solid-ssr-handler" {
-  export function handleRequest(request: Request): Promise<Response>;
+  export interface SolidSsrHandlerOptions {
+    readonly context?: Readonly<{
+      readonly API_NEXT_ORIGIN?: string;
+    }>;
+  }
+
+  export function handleRequest(request: Request, options?: SolidSsrHandlerOptions): Promise<Response>;
 }

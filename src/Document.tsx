@@ -1,4 +1,9 @@
 import { getRequestEvent, HydrationScript, type JSX } from "@solidjs/web";
+import {
+  resolveLocaleDirection,
+  resolveLocaleLanguageTag,
+  resolveRequestUiLocale,
+} from "./lib/ui-locale-core.ts";
 
 export default function Document(props: { children: JSX.Element; clientEntry?: string }) {
   const event = getRequestEvent();
@@ -9,8 +14,17 @@ export default function Document(props: { children: JSX.Element; clientEntry?: s
   const clientEntry = props.clientEntry ?? (typeof document === "undefined"
     ? undefined
     : [...document.scripts].find(script => script.dataset.solidEntry)?.src);
+  const locale = event === undefined
+    ? resolveRequestUiLocale(
+      new URL(typeof location === "undefined" ? "https://pirate.invalid/" : location.href),
+      typeof navigator === "undefined" ? undefined : navigator.language,
+    )
+    : resolveRequestUiLocale(
+      new URL(event.request.url),
+      event.request.headers.get("accept-language"),
+    );
   return (
-    <html lang="en">
+    <html lang={resolveLocaleLanguageTag(locale)} dir={resolveLocaleDirection(locale)}>
       <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
