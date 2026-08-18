@@ -76,4 +76,18 @@ export {
   Skeleton,
   Spinner,
   Switch,
+  IconCaretLeft,
+  IconCaretRight,
+  IconMicrophone,
+  IconMusicNote,
+  IconPause,
+  IconPlay,
+  MediaControlButton,
+  Scrubber,
+} from "@pirate/web-solid-ui";
+export {
+  AuthRequiredRouteState,
+  ErrorState,
+  RouteLoadFailureState,
+  RouteLoadingState,
 } from "@pirate/web-solid-ui";

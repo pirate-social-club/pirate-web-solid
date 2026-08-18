@@ -59,3 +59,7 @@ Storybook, Worker build, SSR/hydration, api-next provenance, session/cookie,
 CSRF, and dependency-audit gates appropriate to the tranche. A copied parity
 row is not accepted until its evidence level is recorded; the historical
 119/177 figure includes at least one runtime-pending row.
+
+The app Storybook (`bun run storybook`, port 6006; `bun run build-storybook`)
+owns only app stories under `src/`; the design-system catalog remains at
+`packages/solid-ui` on port 6007.

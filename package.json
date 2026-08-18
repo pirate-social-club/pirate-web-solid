@@ -10,7 +10,7 @@
   "scripts": {
     "prebuild": "node scripts/check-solid-runtime.mjs",
     "build": "vite build",
-    "storybook": "storybook dev -p 6008 --disable-telemetry",
+    "storybook": "storybook dev -p 6006 --disable-telemetry",
     "build-storybook": "storybook build",
     "check-product-graph": "node scripts/check-product-graph.mjs --require-build",
     "test:api": "vitest run --config vitest.api.config.ts src/api",
@@ -19,6 +19,7 @@
     "probe": "node scripts/probe.mjs",
     "stream-check": "node scripts/stream-check.mjs",
     "hydration-check": "node scripts/hydration-check.mjs",
+    "karaoke-route-check": "node scripts/karaoke-route-check.mjs",
     "check-solid-runtime": "node scripts/check-solid-runtime.mjs",
     "lint": "oxlint src",
     "generate-worker-types": "wrangler types",
@@ -40,8 +41,9 @@
   "devDependencies": {
     "@cloudflare/vite-plugin": "1.52.1",
     "@oxlint/plugins": "1.78.0",
-    "@solidjs/vite-plugin": "3.0.0-next.27",
     "@storybook/addon-a11y": "10.5.8",
+    "@storybook/addon-docs": "10.5.8",
+    "@solidjs/vite-plugin": "3.0.0-next.27",
     "@tailwindcss/vite": "4.3.3",
     "@types/bun": "1.3.14",
     "@types/node": "24.3.0",

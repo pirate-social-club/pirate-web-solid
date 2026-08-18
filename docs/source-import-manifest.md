@@ -97,3 +97,25 @@ The imported paths were additionally scanned for forbidden imports and
 runtime coupling before commit. Dependency installation and the standalone
 package/config rewrite remain separate tranches, so repository-wide compile
 and runtime gates are not claimed by this source-preservation commit.
+
+## Karaoke route integration follow-ups
+
+The production karaoke route tranche is complete, but these shell-owned
+integration points remain intentionally deferred until the corresponding
+product lanes exist:
+
+1. Mount `VideoFeedKaraokeCta` from the eventual feed-item component. The
+   capability/reward model and navigation callback are implemented and tested;
+   there is no feed-item renderer in the standalone shell yet.
+2. Connect the `pirate:connect` event to the shell's authentication flow. The
+   karaoke sign-in states dispatch this event, but the shell currently has no
+   auth listener.
+3. Add the `/p/:postId` post route so the karaoke surface's Exit action has a
+   real destination instead of the current 404.
+4. Make karaoke payload loading react to in-place `postId` changes, preferably
+   through the app's eventual route-loader/data boundary rather than a
+   setup-only `queueMicrotask` fetch.
+
+Items 1–3 share the missing feed/auth/post shell dependencies. None should be
+addressed by weakening the karaoke route's current public-read or
+authenticated-session boundaries.
