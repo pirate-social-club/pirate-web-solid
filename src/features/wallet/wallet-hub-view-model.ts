@@ -30,6 +30,8 @@ export interface WalletHubView {
     supportingLabel?: string;
   };
   connected: boolean;
+  /** Computed fiat label per `${chainId}:${tokenId}`, including usdPrice-derived values. */
+  fiatByTokenId: Record<string, string | null>;
   isEmpty: boolean;
   laterSections: WalletHubChainSection[];
   readySections: WalletHubChainSection[];
@@ -55,10 +57,10 @@ function hasAnyToken(sections: WalletHubChainSection[]): boolean {
   return sections.some((section) => section.tokens.length > 0);
 }
 
-function resolveTotalBalanceLabel(props: WalletHubProps): string | null {
+function resolveTotalBalanceLabel(props: WalletHubProps, readySections: WalletHubChainSection[]): string | null {
   if (props.totalBalanceUsd != null) return props.totalBalanceUsd;
-  if (!hasAnyToken(props.chainSections)) return null;
-  return formatTotalBalanceUsd(props.chainSections);
+  if (!hasAnyToken(readySections)) return null;
+  return formatTotalBalanceUsd(readySections);
 }
 
 function resolveRewardsView(summary: WalletHubRewardsSummary | undefined): WalletHubRewardsView | undefined {
@@ -102,16 +104,23 @@ export function buildWalletHubView(props: WalletHubProps): WalletHubView {
       }
     : undefined;
 
+  const assetRows = buildWalletAssetRows(readySections);
+  const fiatByTokenId: Record<string, string | null> = {};
+  for (const row of assetRows) {
+    fiatByTokenId[row.id] = row.fiatValue;
+  }
+
   return {
     title: props.title ?? "Wallet",
     connected,
     isEmpty,
     readySections,
     laterSections,
-    assetRows: buildWalletAssetRows(readySections),
+    assetRows,
+    fiatByTokenId,
     recentActivity: props.recentActivity ?? [],
-    totalBalanceLabel: resolveTotalBalanceLabel(props),
-    walletLabel: formatWalletAddressLabel(props.walletAddress),
+    totalBalanceLabel: resolveTotalBalanceLabel(props, readySections),
+    walletLabel: props.walletLabel ?? formatWalletAddressLabel(props.walletAddress),
     claim,
     rewards: resolveRewardsView(props.rewardsSummary),
     actions: {

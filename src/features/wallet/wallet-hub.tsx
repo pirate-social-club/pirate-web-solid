@@ -15,7 +15,10 @@ import {
 import { buildWalletHubView } from "./wallet-hub-view-model";
 import type { WalletHubChainSection, WalletHubProps } from "./wallet-hub.types";
 
-function ChainSection(props: { section: WalletHubChainSection }) {
+function ChainSection(props: {
+  fiatByTokenId: Record<string, string | null>;
+  section: WalletHubChainSection;
+}) {
   return (
     <section aria-label={props.section.title} class="flex flex-col gap-2">
       <div class="flex items-baseline justify-between gap-2">
@@ -27,20 +30,23 @@ function ChainSection(props: { section: WalletHubChainSection }) {
       <Show when={props.section.availability === "ready"}>
         <ul class="flex flex-col divide-y divide-border-soft">
           <For each={props.section.tokens}>
-            {(token) => (
-              <li class="flex items-center justify-between gap-3 py-3">
-                <div class="flex min-w-0 flex-col">
-                  <Type variant="body-strong">{token.symbol}</Type>
-                  <Type variant="caption" class="truncate">{token.name}</Type>
-                </div>
-                <div class="flex shrink-0 flex-col items-end">
-                  <Type variant="body-strong">{token.balance ?? "0"}</Type>
-                  <Show when={token.fiatValue}>
-                    {(fiatValue) => <Type variant="caption">{fiatValue()}</Type>}
-                  </Show>
-                </div>
-              </li>
-            )}
+            {(token) => {
+              const fiatValue = () => props.fiatByTokenId[`${props.section.chainId}:${token.id}`];
+              return (
+                <li class="flex items-center justify-between gap-3 py-3">
+                  <div class="flex min-w-0 flex-col">
+                    <Type variant="body-strong">{token.symbol}</Type>
+                    <Type variant="caption" class="truncate">{token.name}</Type>
+                  </div>
+                  <div class="flex shrink-0 flex-col items-end">
+                    <Type variant="body-strong">{token.balance ?? "0"}</Type>
+                    <Show when={fiatValue()}>
+                      {(value) => <Type variant="caption">{value()}</Type>}
+                    </Show>
+                  </div>
+                </li>
+              );
+            }}
           </For>
         </ul>
       </Show>
@@ -173,11 +179,11 @@ export function WalletHub(props: WalletHubProps) {
             }
           >
             <For each={view().readySections}>
-              {(section) => <ChainSection section={section} />}
+              {(section) => <ChainSection section={section} fiatByTokenId={view().fiatByTokenId} />}
             </For>
           </Show>
           <For each={view().laterSections}>
-            {(section) => <ChainSection section={section} />}
+            {(section) => <ChainSection section={section} fiatByTokenId={view().fiatByTokenId} />}
           </For>
         </CardContent>
       </Card>

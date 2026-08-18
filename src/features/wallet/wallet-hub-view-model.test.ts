@@ -71,6 +71,61 @@ describe("wallet hub view model", () => {
     expect(view.readySections.map((section) => section.chainId)).not.toContain("solana");
   });
 
+  test("excludes later-chain balances from the computed total", () => {
+    const ready: WalletHubChainSection = {
+      chainId: "ethereum",
+      title: "Ethereum Sepolia",
+      availability: "ready",
+      tokens: [{ id: "eth", symbol: "ETH", name: "Ether", balance: "2", usdPrice: 10 }],
+    };
+    const laterWithTokens: WalletHubChainSection = {
+      chainId: "solana",
+      title: "Solana",
+      availability: "later",
+      tokens: [{ id: "sol", symbol: "SOL", name: "Solana", balance: "5", usdPrice: 100 }],
+    };
+    const view = buildWalletHubView({
+      chainSections: [ready, laterWithTokens],
+      walletAddress: sharedWalletAddress,
+    });
+
+    expect(view.totalBalanceLabel).toBe("$20.00");
+    expect(view.assetRows.map((row) => row.id)).toEqual(["ethereum:eth"]);
+  });
+
+  test("computes fiat labels for usdPrice-only tokens", () => {
+    const view = buildWalletHubView({
+      chainSections: [{
+        chainId: "ethereum",
+        title: "Ethereum Sepolia",
+        availability: "ready",
+        tokens: [
+          { id: "eth", symbol: "ETH", name: "Ether", balance: "2", usdPrice: 10 },
+          { id: "usdc", symbol: "USDC", name: "USD Coin", balance: "5", fiatValue: "$5.00" },
+        ],
+      }],
+      walletAddress: sharedWalletAddress,
+    });
+
+    expect(view.fiatByTokenId["ethereum:eth"]).toBe("$20.00");
+    expect(view.fiatByTokenId["ethereum:usdc"]).toBe("$5.00");
+  });
+
+  test("honors an explicit walletLabel over the derived address label", () => {
+    const explicit = buildWalletHubView({
+      chainSections: fiveChainSections,
+      walletAddress: sharedWalletAddress,
+      walletLabel: "t42.pirate.id",
+    });
+    expect(explicit.walletLabel).toBe("t42.pirate.id");
+
+    const derived = buildWalletHubView({
+      chainSections: fiveChainSections,
+      walletAddress: sharedWalletAddress,
+    });
+    expect(derived.walletLabel).toBe("0xc74e…3abc");
+  });
+
   test("reflects unconnected wallet state", () => {
     const view = buildWalletHubView({ chainSections: fiveChainSections });
 
