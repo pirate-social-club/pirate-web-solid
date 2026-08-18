@@ -16,6 +16,7 @@ export {
 export {
   TextField,
   TextFieldDescription,
+  TextFieldErrorMessage,
   TextFieldInput,
   TextFieldLabel,
 } from "@pirate/web-solid-ui";
@@ -34,5 +35,16 @@ export {
 export {
   IconArrowDown,
   IconArrowUp,
+  IconCheck,
+  IconCopy,
   IconWallet,
 } from "@pirate/web-solid-ui";
+export {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from "@pirate/web-solid-ui";
+export { cn } from "@pirate/web-solid-ui";
