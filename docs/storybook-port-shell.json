@@ -1,0 +1,53 @@
+{
+  "version": 1,
+  "catalog": "standalone-product-storybook-shell",
+  "source": {
+    "repository": "pirate-workspace/web",
+    "ref": "002fba933ba913f99ec0ef758f4aa63aff78015f",
+    "policy": "Historical web source is read-only. The target is framework-pure Solid, offline, deterministic, and owned by the standalone app."
+  },
+  "scope": {
+    "storyFamilies": 6,
+    "featureRoot": "src/features/shell/**",
+    "sharedPrerequisites": [
+      "src/features/shell/content-rail-shell/content-rail-shell.tsx",
+      "src/features/shell/page-shell/page-shell.tsx",
+      "src/features/shell/app-shell-chrome/app-shell-chrome.tsx"
+    ],
+    "newPaths": 14,
+    "provenancePolicy": "Every imported or adapted source path has a SHA-256 row; standalone model and focused-test rows cite the historical shell story as their adaptation reference.",
+    "sourceHashVerification": "Each source SHA-256 was computed from `git -C /media/t42/codedrive/Code/pirate-workspace/web show 002fba933ba913f99ec0ef758f4aa63aff78015f:<sourcePath> | sha256sum`; target hashes were checked against final worktree bytes."
+  },
+  "entries": [
+    { "sourcePath": "src/app/shell/stories/app-shell.stories.tsx", "targetPath": "src/features/shell/app-shell/app-shell.stories.tsx", "sourceSha256": "7827394dd3a8431ab1262d88a57976b318fc782ef340fbaddd4dffc5eb8cae8f", "targetSha256": "b9e7ec19ae7660a0e775fc3450ea3777f9c403a38da23794eed5e2f8be3888b1", "disposition": "adapted" },
+    { "sourcePath": "src/app/shell/app-shell.tsx", "targetPath": "src/features/shell/app-shell/app-shell.tsx", "sourceSha256": "027ef1403d1217953da0171437e9540d12fd1593b955b3ce624943c5b4a7dc8e", "targetSha256": "3510b03ff6d799738386d5f27750ca0dce0061ebd97a743ae7e1feb65614c3d8", "disposition": "adapted", "note": "Standalone AppShell owns host callbacks; historical header and route fallback behavior are reconciled into the Solid closure." },
+    { "sourcePath": "src/components/compositions/app/app-shell-chrome/stories/app-shell-chrome.stories.tsx", "targetPath": "src/features/shell/app-shell-chrome/app-shell-chrome.stories.tsx", "sourceSha256": "28a6654da6635c0e0d07f44b4bb9a09d529e5c87b5733b557425379ca59a3f84", "targetSha256": "14ae01f5261f32b9beff4f183898eda5a7e6280d11bf26e90d11b260bb107560", "disposition": "adapted" },
+    { "sourcePath": "src/components/compositions/app/app-shell-chrome/app-header.tsx", "targetPath": "src/features/shell/app-shell-chrome/app-shell-chrome.tsx", "sourceSha256": "7a2143d4290bdbf1e1cb6580ab595ec403e3c0bb9851d0a209fdbad69900f34f", "targetSha256": "e12f850a2518cc54fe5b8a0e1a8fcc8440122cb8f508103482356e47ba445af3", "disposition": "adapted", "note": "AppHeader, MobileFooterNav, and MobilePageHeader are consolidated into one Solid-owned closure." },
+    { "sourcePath": "src/components/compositions/app/app-sidebar/stories/app-sidebar.stories.tsx", "targetPath": "src/features/shell/app-sidebar/app-sidebar.stories.tsx", "sourceSha256": "73a432c520dc7a0e9f00e283a82484e428a765a796ee08fe4c7a4709a269afcc", "targetSha256": "a92e0cc413622478c4259e66ddbdbb97ecdbad80ad47f5707f885df6bf92f4bb", "disposition": "adapted" },
+    { "sourcePath": "src/components/compositions/app/app-sidebar/app-sidebar.tsx", "targetPath": "src/features/shell/app-sidebar/app-sidebar.tsx", "sourceSha256": "f910f875d7014f23fcbe84107bb2f90e068112dcc7d5ad5dfa11fbf4beb1931c", "targetSha256": "a69507ea5469153daa5602754e65d43848b73eea0982d0cae0406ca538de69e3", "disposition": "adapted" },
+    { "sourcePath": "src/components/compositions/app/content-rail-shell/stories/content-rail-shell.stories.tsx", "targetPath": "src/features/shell/content-rail-shell/content-rail-shell.stories.tsx", "sourceSha256": "c0815e523bca3d488858289da101a4adbf32ff170c2d9e81c85ade231e55d0ea", "targetSha256": "e98f7b6dd1844095d322c98afd54db6c07d0e07f9a0e771690f78de46764205c", "disposition": "adapted" },
+    { "sourcePath": "src/components/compositions/app/content-rail-shell/content-rail-shell.tsx", "targetPath": "src/features/shell/content-rail-shell/content-rail-shell.tsx", "sourceSha256": "d567afd1f3d80e154304406c08437633926062783bda5af31ed9d3478191fc12", "targetSha256": "61dedefdd8a91091b96e526ab5e82c63987f89244080637322b0526ae80bc884", "disposition": "adapted" },
+    { "sourcePath": "src/components/compositions/app/mobile-route-shell/stories/mobile-route-shell.stories.tsx", "targetPath": "src/features/shell/mobile-route-shell/mobile-route-shell.stories.tsx", "sourceSha256": "458148f94be32f0f0add451413f9a98fcd255b3f3e46bcee7e4b1230cbde1d1e", "targetSha256": "d6acd0f8b3ea0b69eb911b243bc9927e6e4241d1f323c63bba8a48643c6461c4", "disposition": "adapted" },
+    { "sourcePath": "src/components/compositions/app/mobile-route-shell/mobile-route-shell.tsx", "targetPath": "src/features/shell/mobile-route-shell/mobile-route-shell.tsx", "sourceSha256": "df8f1ec8c7c995ed22cce117eec07ed216f7156cc3f4f3fbfd2d68b00dd71a68", "targetSha256": "c1c626a83d5ece025c1a99a27080bd4d4f043461dc14a31c3886214eb1ded0f2", "disposition": "adapted" },
+    { "sourcePath": "src/components/compositions/app/page-shell/stories/page-shell.stories.tsx", "targetPath": "src/features/shell/page-shell/page-shell.stories.tsx", "sourceSha256": "7920cf93d6dd9490cf6c29f0d27a893e796033b03e29fb7c03af50c5f114a302", "targetSha256": "b7628c8aa7f3400f4a9703b0da53c69c54dd51a3b16c8e016c9e1801c7ac1500", "disposition": "adapted" },
+    { "sourcePath": "src/components/compositions/app/page-shell/page-shell.tsx", "targetPath": "src/features/shell/page-shell/page-shell.tsx", "sourceSha256": "89cc7eb5a5887190f88877cceec5a882684abb3e2649fa1c050487dc574e0a2d", "targetSha256": "f0132b1d8896afa4ec467e8f6c582ba28b40fa08fe6d55cc48765e546d147935", "disposition": "adapted" },
+    { "sourcePath": "src/app/shell/stories/app-shell.stories.tsx", "targetPath": "src/features/shell/shell-model.ts", "sourceSha256": "7827394dd3a8431ab1262d88a57976b318fc782ef340fbaddd4dffc5eb8cae8f", "targetSha256": "dbb91c62472aa2518d74e1295d7dcbc589c1c1614c63accbbae7a88084353a62", "disposition": "adapted", "note": "Deterministic standalone route/count helpers extracted from shell story behavior." },
+    { "sourcePath": "src/app/shell/stories/app-shell.stories.tsx", "targetPath": "src/features/shell/shell.test.ts", "sourceSha256": "7827394dd3a8431ab1262d88a57976b318fc782ef340fbaddd4dffc5eb8cae8f", "targetSha256": "3e85b5e53939752d5401f1e248bb5ff781903abd9111ef2fc449433e65eefa30", "disposition": "adapted", "note": "Focused pure-model and SSR icon/ARIA assertions; no browser, auth, storage, or network fixtures." }
+  ],
+  "reconciliation": {
+    "removed": ["React imports", "legacy session store", "locale/API runtime calls", "sidebar provider dependency", "network/version probes", "browser persistence"],
+    "fixturePolicy": "Inline current clean-slate wording and stable fixtures only; all actions are no-op or host callbacks."
+  },
+  "evidence": {
+    "focusedModelTests": "passed: 4 tests, 11 expect calls, including SSR icon/ARIA assertion",
+    "typescript": "passed: bunx tsc --noEmit -p tsconfig.json",
+    "lint": "passed for src/features/shell; repository command retains existing warnings outside this tranche",
+    "storybookBuild": "passed: Storybook static build",
+    "productionBuild": "passed: Vite client and SSR build",
+    "productGraphRequireBuild": "passed: 431 production source files, 74 Worker assets, 0 React runtime dependencies",
+    "browserAxe": "pending; browser harness not available in this tranche",
+    "sourceBoundaryScan": "passed: no React/runtime API/localStorage/legacy-origin imports in src/features/shell",
+    "provenanceHashes": "passed: all 14 source objects resolve at ref 002fba933ba913f99ec0ef758f4aa63aff78015f and all target SHA-256 rows match final files",
+    "hostCallbacks": "passed: AppShell exposes and forwards navigation callbacks; wallet/profile story exercises both action surfaces"
+  }
+}

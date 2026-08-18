@@ -1,0 +1,57 @@
+/** @jsxImportSource @solidjs/web */
+import { For, Show } from "solid-js";
+import type { JSX } from "@solidjs/web";
+
+import { Avatar, IconList, Type, cn } from "../../../design-system";
+
+export interface SidebarItem {
+  id: string;
+  label: string;
+  icon?: JSX.Element;
+  badge?: string;
+}
+
+export interface SidebarSection {
+  id: string;
+  label: string;
+  items: readonly SidebarItem[];
+  defaultOpen?: boolean;
+}
+
+export interface AppSidebarProps {
+  activeItemId?: string;
+  appearance?: "default" | "media";
+  brandLabel?: string;
+  homeAriaLabel?: string;
+  primaryItems?: readonly SidebarItem[];
+  resourceItems?: readonly SidebarItem[];
+  resourcesLabel?: string;
+  sections?: readonly SidebarSection[];
+  class?: string;
+  collapsed?: boolean;
+  mediaAction?: JSX.Element;
+  onHomeClick?: () => void;
+  onNavigate?: (id: string) => void;
+}
+
+function SidebarLink(props: { item: SidebarItem; active?: boolean; onNavigate?: (id: string) => void }) {
+  return <button aria-current={props.active ? "page" : undefined} class={cn("flex w-full items-center gap-3 rounded-lg px-3 py-2 text-start text-muted-foreground hover:bg-muted hover:text-foreground", props.active && "bg-muted text-foreground")} onClick={() => props.onNavigate?.(props.item.id)} type="button"><Show when={props.item.icon} fallback={<IconList class="size-5" />}>{props.item.icon}</Show><span class="min-w-0 flex-1 truncate">{props.item.label}</span><Show when={props.item.badge}><span class="rounded-full bg-primary/15 px-1.5 text-xs text-primary">{props.item.badge}</span></Show></button>;
+}
+
+export function AppSidebar(props: AppSidebarProps) {
+  const sections = () => props.sections ?? [];
+  return <aside aria-label={props.brandLabel ?? "Pirate navigation"} class={cn("flex min-h-screen w-72 shrink-0 flex-col border-e border-border-soft bg-sidebar p-4 text-sidebar-foreground", props.appearance === "media" && "bg-black text-white", props.collapsed && "w-20 px-2", props.class)}>
+    <button aria-label={props.homeAriaLabel ?? "Go to home"} class="mb-5 flex items-center gap-3 rounded-lg px-2 py-2 text-start focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" onClick={props.onHomeClick} type="button"><span aria-hidden="true" class="grid size-9 place-items-center rounded-full border border-border-soft font-semibold">P</span><Show when={!props.collapsed}><Type as="span" variant="h4">{props.brandLabel ?? "PIRATE"}</Type></Show></button>
+    <Show when={props.mediaAction && !props.collapsed}><div class="mb-4">{props.mediaAction}</div></Show>
+    <nav class="flex min-h-0 flex-1 flex-col gap-5">
+      <Show when={props.primaryItems?.length}><div class="flex flex-col gap-1"><For each={props.primaryItems}>{(item) => <SidebarLink active={props.activeItemId === item.id} item={item} onNavigate={props.onNavigate} />}</For></div></Show>
+      <For each={sections()}>{(section) => <section aria-labelledby={`sidebar-${section.id}`}><Show when={!props.collapsed}><Type as="h2" class="px-3 pb-1 text-xs font-semibold uppercase tracking-wide text-sidebar-foreground/60">{section.label}</Type></Show><div class="flex flex-col gap-1"><For each={section.items}>{(item) => <SidebarLink active={props.activeItemId === item.id} item={item} onNavigate={props.onNavigate} />}</For></div></section>}</For>
+      <Show when={props.resourceItems?.length}><section aria-labelledby="sidebar-resources"><Show when={!props.collapsed}><Type as="h2" class="px-3 pb-1 text-xs font-semibold uppercase tracking-wide text-sidebar-foreground/60">{props.resourcesLabel ?? "Resources"}</Type></Show><div class="flex flex-col gap-1"><For each={props.resourceItems}>{(item) => <SidebarLink active={props.activeItemId === item.id} item={item} onNavigate={props.onNavigate} />}</For></div></section></Show>
+    </nav>
+    <Show when={!props.collapsed}><div class="mt-5 flex items-center gap-3 border-t border-border-soft pt-4"><Avatar fallback="Story Pirate" fallbackSeed="story-pirate" size="sm" /><div class="min-w-0"><Type as="div" variant="body-strong" class="truncate">story.pirate</Type><Type as="div" variant="caption">Offline fixture</Type></div></div></Show>
+  </aside>;
+}
+
+export function SidebarContent(props: { children: JSX.Element; class?: string }) {
+  return <main class={cn("min-h-screen min-w-0 flex-1 bg-background", props.class)}>{props.children}</main>;
+}
