@@ -1,6 +1,5 @@
-// Nationality badge helpers. The React version resolves country names through
-// a curated dataset (src/lib/countries); the Solid port uses Intl.DisplayNames
-// directly, which covers the alpha-2 codes these helpers accept.
+// Nationality badge helpers use Intl.DisplayNames for the alpha-2 country
+// codes accepted by this module.
 
 function getCountryDisplayName(
   countryCode: string,

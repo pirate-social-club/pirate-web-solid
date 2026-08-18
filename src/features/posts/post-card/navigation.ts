@@ -1,5 +1,5 @@
-// Card-level navigation policy, extracted from the React post-card.tsx so the
-// guards and the pointer-drag suppression are pure and directly testable.
+// Card-level navigation policy. The guards and pointer-drag suppression stay
+// framework-independent and directly testable.
 
 /** Elements inside the card that own their own activation. */
 const POST_CARD_INTERACTIVE_SELECTOR =

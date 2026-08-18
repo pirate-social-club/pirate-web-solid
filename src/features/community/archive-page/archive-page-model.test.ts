@@ -7,7 +7,7 @@ import {
 } from "./archive-page-model";
 
 describe("archive page model", () => {
-  test("keeps the React contract copy and four deterministic effects", () => {
+  test("keeps the product copy and four deterministic effects", () => {
     expect(archiveCopy.title).toBe("Danger zone");
     expect(archiveCopy.effects).toEqual([
       "Hides the community from discovery and search.",

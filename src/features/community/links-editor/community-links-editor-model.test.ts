@@ -26,7 +26,7 @@ describe("community links editor model", () => {
     expect(linkSaveDisabled([{ id: "link-1", label: "", platform: "spotify", url: "https://example.com" }])).toBe(false);
   });
 
-  test("preserves the React platform enum and ordering", () => {
+  test("preserves the product platform enum and ordering", () => {
     expect(PLATFORM_OPTIONS.map((option) => option.label)).toEqual([
       "Website", "Spotify", "YouTube", "Instagram", "X", "Discord", "TikTok",
       "Apple Music", "Bandcamp", "SoundCloud", "MusicBrainz", "Genius", "Wikipedia", "Other",

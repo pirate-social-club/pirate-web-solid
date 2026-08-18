@@ -1,5 +1,4 @@
-// Video poster frame extraction, ported verbatim from the React
-// video-poster-frame.ts. Framework-free DOM/canvas code; only `dataUrlToBlob`
+// Framework-independent video poster frame extraction. Only `dataUrlToBlob`
 // is exercised by the offline unit tests.
 
 export type ExtractedVideoPosterFrame = {
