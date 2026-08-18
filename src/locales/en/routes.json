@@ -1,0 +1,112 @@
+{
+  "home": {
+    "title": "Home · Pirate Web",
+    "description": "Pirate Web video feed",
+    "heading": "Pirate Web Solid shell"
+  },
+  "profile": {
+    "title": "@{handle} · Pirate Web",
+    "heading": "Profile: @{handle}",
+    "loading": "Loading profile",
+    "invalid": "That profile handle is not valid.",
+    "notFound": "This profile could not be found.",
+    "error": "This profile is temporarily unavailable.",
+    "emptyCommunities": "No communities created yet.",
+    "createdCommunities": "Created communities",
+    "createdCommunityPluralDescription": "{name} created {count} communities on Pirate Web.",
+    "createdCommunitySingularDescription": "{name} created 1 community on Pirate Web.",
+    "defaultDescription": "Public profile for {name} on Pirate Web.",
+    "openCommunity": "Open {name}"
+  },
+  "settings": {
+    "booking": {
+      "sectionTitle": "Paid 1:1 bookings",
+      "intro": "Let people book paid 1:1 video sessions with you. Set your availability and price, then turn on Bookable to become bookable from your profile link.",
+      "timezoneLabel": "Timezone",
+      "durationLabel": "Session length",
+      "durationMinutes": "{count} minutes",
+      "basePriceLabel": "Base price (USDC)",
+      "saveSettings": "Save",
+      "weeklyAvailabilityTitle": "Weekly availability",
+      "noAvailability": "No availability yet — add a recurring weekly window below.",
+      "rangeSeparator": "to",
+      "addAvailability": "Add",
+      "variablePricingTitle": "Variable pricing",
+      "noPriceRules": "Base price applies to every available slot.",
+      "addPriceRule": "Add",
+      "allDays": "All days",
+      "anyTime": "Any",
+      "exceptionsTitle": "One-off exceptions",
+      "noExceptions": "Recurring availability applies as-is.",
+      "exceptionBlock": "Block",
+      "exceptionOpen": "Open",
+      "addException": "Add",
+      "cancellationTitle": "Cancellation policy",
+      "cancellationCopy": "Bookers receive a full refund when they cancel at least 24 hours before the session starts. Cancellations made less than 24 hours before the session are non-refundable. If you (the host) cancel or do not attend, the booker receives a full refund.",
+      "publishTitleLive": "Your bookings are live",
+      "publishTitleIdle": "Publish your bookings",
+      "publishBlockedNote": "Set up your app wallet to receive payouts.",
+      "publishLiveNote": "Anyone with your profile link can book an available slot.",
+      "publishReadyNote": "You're ready — publish to let people book you.",
+      "unpublish": "Unpublish",
+      "publish": "Publish bookings",
+      "navLabel": "Bookings",
+      "navDescription": "Set your paid 1:1 schedule, pricing, and availability.",
+      "remove": "Remove",
+      "bookableLabel": "Bookable",
+      "bookableOnHint": "People can book you. Turn off to pause without losing your schedule.",
+      "bookableOffHint": "You're not bookable yet — turn on when you're ready.",
+      "bookableNoAvailability": "Bookable is on, but you're not visible yet — add weekly availability below to appear in search and feed.",
+      "autosaveNote": "Changes save automatically.",
+      "savingNote": "Saving…"
+    }
+  },
+  "joinRequest": {
+    "title": "Request to join",
+    "description": "Tell the moderators why you want to join. Include links or proof that show you are eligible.",
+    "submittedTitle": "Request submitted",
+    "submittedDescription": "The moderators will review your request.",
+    "messageOptional": "Message (Optional)",
+    "whyJoinPlaceholder": "Why {communityName}?",
+    "submit": "Submit",
+    "done": "Done"
+  },
+  "moderation": {
+    "rules": {
+      "title": "Rules",
+      "description": "Rules set the expectations for members and visitors in your community.",
+      "addRule": "Add rule",
+      "namePlaceholder": "Rule name",
+      "maxChars100": "Max characters 100",
+      "descriptionPlaceholder": "Description",
+      "maxChars500": "Max characters 500",
+      "reportingTitle": "Reporting",
+      "reportingDescription": "Users or mods can select a report reason when reporting content.",
+      "reportReasonPlaceholder": "Report reason",
+      "reportReasonHint": "By default, this is the same as your rule name.",
+      "emptyState": "No rules yet.",
+      "defaultRule1Title": "Respect others and be civil",
+      "defaultRule1Body": "No harassment, hate speech, or toxic behavior. Treat all contributors and members with kindness.",
+      "defaultRule2Title": "No spam",
+      "defaultRule2Body": "Excessive promotion, spam, or advertising of any kind is not allowed."
+    },
+    "links": {
+      "title": "Links",
+      "addLink": "Add link",
+      "platformLabel": "Platform",
+      "labelLabel": "Label",
+      "displayNamePlaceholder": "Display name",
+      "urlLabel": "URL",
+      "urlPlaceholder": "https://",
+      "emptyState": "No links yet."
+    },
+    "saveFooter": {
+      "defaultSaveLabel": "Save"
+    }
+  },
+  "notFound": {
+    "title": "Not found",
+    "description": "The requested route does not exist.",
+    "returnHome": "Return home"
+  }
+}

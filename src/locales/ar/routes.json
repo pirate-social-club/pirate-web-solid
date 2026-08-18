@@ -1,0 +1,112 @@
+{
+  "home": {
+    "title": "الرئيسية · بايرت ويب",
+    "description": "موجز فيديو بايرت ويب",
+    "heading": "واجهة بايرت ويب"
+  },
+  "profile": {
+    "title": "@{handle} · بايرت ويب",
+    "heading": "الملف الشخصي: @{handle}",
+    "loading": "جارٍ تحميل الملف الشخصي",
+    "invalid": "اسم الملف الشخصي غير صالح.",
+    "notFound": "تعذر العثور على هذا الملف الشخصي.",
+    "error": "الملف الشخصي غير متاح مؤقتًا.",
+    "emptyCommunities": "لم يتم إنشاء مجتمعات بعد.",
+    "createdCommunities": "المجتمعات التي تم إنشاؤها",
+    "createdCommunityPluralDescription": "أنشأ {name} عدد {count} من المجتمعات على Pirate Web.",
+    "createdCommunitySingularDescription": "أنشأ {name} مجتمعًا واحدًا على Pirate Web.",
+    "defaultDescription": "الملف الشخصي العام لـ {name} على Pirate Web.",
+    "openCommunity": "فتح {name}"
+  },
+  "settings": {
+    "booking": {
+      "sectionTitle": "حجوزات 1:1 مدفوعة",
+      "intro": "اسمح للأشخاص بحجز جلسات فيديو 1:1 مدفوعة معك. حدد توافرك وسعرك، ثم فعّل قابلية الحجز ليتمكنوا من حجزك من رابط ملفك الشخصي.",
+      "timezoneLabel": "المنطقة الزمنية",
+      "durationLabel": "مدة الجلسة",
+      "durationMinutes": "{count} دقيقة",
+      "basePriceLabel": "السعر الأساسي (USDC)",
+      "saveSettings": "حفظ",
+      "weeklyAvailabilityTitle": "التوافر الأسبوعي",
+      "noAvailability": "لا يوجد توافر بعد — أضف فترة أسبوعية متكررة أدناه.",
+      "rangeSeparator": "إلى",
+      "addAvailability": "إضافة",
+      "variablePricingTitle": "تسعير متغير",
+      "noPriceRules": "ينطبق السعر الأساسي على كل وقت متاح.",
+      "addPriceRule": "إضافة",
+      "allDays": "كل الأيام",
+      "anyTime": "أي وقت",
+      "exceptionsTitle": "استثناءات لمرة واحدة",
+      "noExceptions": "ينطبق التوافر المتكرر كما هو.",
+      "exceptionBlock": "حظر",
+      "exceptionOpen": "فتح",
+      "addException": "إضافة",
+      "cancellationTitle": "سياسة الإلغاء",
+      "cancellationCopy": "يحصل الحاجزون الذين يلغون خلال 24 ساعة من الحجز على استرداد كامل؛ أما الإلغاءات اللاحقة فلا تُرد. إذا ألغيت أنت (المضيف) أو لم تحضر، يحصل الحاجز على استرداد كامل.",
+      "publishTitleLive": "حجوزاتك مفعّلة",
+      "publishTitleIdle": "انشر حجوزاتك",
+      "publishBlockedNote": "أعدّ محفظة التطبيق لتلقي المدفوعات.",
+      "publishLiveNote": "يمكن لأي شخص لديه رابط ملفك الشخصي حجز وقت متاح.",
+      "publishReadyNote": "أنت جاهز — انشر ليتمكن الأشخاص من حجزك.",
+      "unpublish": "إلغاء النشر",
+      "publish": "نشر الحجوزات",
+      "navLabel": "الحجوزات",
+      "navDescription": "حدّد جدول جلسات 1:1 المدفوعة والتسعير والتوافر.",
+      "remove": "إزالة",
+      "bookableLabel": "قابل للحجز",
+      "bookableOnHint": "يمكن للأشخاص حجزك. أوقفه مؤقتًا دون فقدان جدولك.",
+      "bookableOffHint": "لست قابلًا للحجز بعد — فعّله عندما تكون جاهزًا.",
+      "bookableNoAvailability": "الحجز مفعّل، لكنك غير مرئي بعد — أضف توافرًا أسبوعيًا أدناه لتظهر في البحث والخلاصة.",
+      "autosaveNote": "تُحفظ التغييرات تلقائيًا.",
+      "savingNote": "جارٍ الحفظ…"
+    }
+  },
+  "joinRequest": {
+    "title": "طلب الانضمام",
+    "description": "أخبر المشرفين لماذا تريد الانضمام.",
+    "submittedTitle": "تم إرسال الطلب",
+    "submittedDescription": "سيراجع المشرفون طلبك.",
+    "messageOptional": "الرسالة (اختيارية)",
+    "whyJoinPlaceholder": "لماذا {communityName}؟",
+    "submit": "إرسال",
+    "done": "تم"
+  },
+  "moderation": {
+    "rules": {
+      "title": "القواعد",
+      "description": "تحدد القواعد التوقعات للأعضاء والزوار في مجتمعك.",
+      "addRule": "إضافة قاعدة",
+      "namePlaceholder": "اسم القاعدة",
+      "maxChars100": "الحد الأقصى 100 حرف",
+      "descriptionPlaceholder": "الوصف",
+      "maxChars500": "الحد الأقصى 500 حرف",
+      "reportingTitle": "الإبلاغ",
+      "reportingDescription": "يمكن للمستخدمين أو المشرفين اختيار سبب إبلاغ عند الإبلاغ عن محتوى.",
+      "reportReasonPlaceholder": "سبب الإبلاغ",
+      "reportReasonHint": "افتراضيًا، هذا هو نفس اسم قاعدتك.",
+      "emptyState": "لا توجد قواعد بعد.",
+      "defaultRule1Title": "احترام الآخرين والالتزام بالأدب",
+      "defaultRule1Body": "لا تحرش ولا خطاب كراهية ولا سلوك سامي. عامل جميع المساهمين والأعضاء بلطف.",
+      "defaultRule2Title": "لا رسائل مزعجة",
+      "defaultRule2Body": "الإفراط في الترويج والرسائل المزعجة والإعلانات غير مسموح به بأي شكل."
+    },
+    "links": {
+      "title": "الروابط",
+      "addLink": "أضف رابطًا",
+      "platformLabel": "المنصة",
+      "labelLabel": "التسمية",
+      "displayNamePlaceholder": "اسم العرض",
+      "urlLabel": "الرابط",
+      "urlPlaceholder": "https://",
+      "emptyState": "لا توجد روابط بعد."
+    },
+    "saveFooter": {
+      "defaultSaveLabel": "حفظ"
+    }
+  },
+  "notFound": {
+    "title": "غير موجود",
+    "description": "المسار المطلوب غير موجود.",
+    "returnHome": "العودة إلى الرئيسية"
+  }
+}

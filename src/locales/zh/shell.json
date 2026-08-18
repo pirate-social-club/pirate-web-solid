@@ -1,0 +1,11 @@
+{
+  "appName": "Pirate Web",
+  "navigation": {
+    "home": "首页",
+    "community": "社区",
+    "settings": "设置"
+  },
+  "error": {
+    "title": "应用界面暂不可用"
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "appName": "Pirate Web",
+  "navigation": {
+    "home": "Home",
+    "community": "Community",
+    "settings": "Settings"
+  },
+  "error": {
+    "title": "App shell unavailable"
+  }
+}

@@ -1,4 +1,4 @@
-# Solid UI source import manifest
+# Standalone Solid source import manifest
 
 This document records the source-preservation tranche for the standalone
 clean-slate application. The imported files are preserved as source only; they
@@ -57,3 +57,43 @@ The excluded source lockfile contains Storybook/MDX transitive React entries
 (`@mdx-js/react`, Storybook's React DOM shim, and related React packages).
 Those lock-only references were not imported and are distinct from source
 imports.
+
+## Framework-pure app tranche
+
+The second preservation tranche imports 106 framework-pure files from the
+same immutable source ref's `solid` tree. The exact source-relative allowlist
+is checked in at `docs/app-source-import-allowlist.txt`.
+
+Included:
+
+- 84 feature model, type, and model-test files for bookings, communities,
+  posts, profiles, and wallet flows.
+- Nine framework-pure library and library-test files.
+- Twelve locale source/generated files and the locale generator.
+
+Excluded from this tranche are the app shell and entries, routes, components,
+API and authentication adapters, Worker and middleware, package/build/deploy
+configuration, Storybook configuration, and any source containing service
+bindings, HMAC forwarding, bearer forwarding, browser `localStorage` auth,
+workspace aliases, or legacy assumptions. In particular,
+`src/features/privacy-policy.ts` is excluded because its source reaches into
+the old application tree.
+
+These files are preserved as source only. They do not alter the current app,
+dependency graph, Worker, API transport, or deployment configuration.
+
+Verification:
+
+- Source `solid` tree: `527974f2496d56c6e966790222343a68fd6748b9`
+- Included files compared byte-for-byte: 106
+- Source normalized content-list SHA-256:
+  `7dc7b52d8ccd9d0aa987a944204b35b96dab9e973845cfa8f499c012e4b5f89c`
+- Target normalized content-list SHA-256:
+  `7dc7b52d8ccd9d0aa987a944204b35b96dab9e973845cfa8f499c012e4b5f89c`
+- Deterministic source archive SHA-256:
+  `87eb387a0c47e6686cff9030f996013b7429a82a00f582e2a303ba46aad4a1f3`
+
+The imported paths were additionally scanned for forbidden imports and
+runtime coupling before commit. Dependency installation and the standalone
+package/config rewrite remain separate tranches, so repository-wide compile
+and runtime gates are not claimed by this source-preservation commit.

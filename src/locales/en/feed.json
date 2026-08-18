@@ -1,0 +1,18 @@
+{
+  "label": "Public video feed",
+  "fallbackTitle": "Public video",
+  "fallbackAuthor": "public creator",
+  "videoLabel": "{title} video",
+  "videoDescription": "Video description",
+  "videoBy": "Video by {author}",
+  "byAuthor": "by {author}",
+  "unavailable": "The public video feed is unavailable.",
+  "empty": "No public videos are available yet.",
+  "likeRequiresSession": "Like · connect to act",
+  "pause": "Pause",
+  "play": "Play",
+  "loadingMore": "Loading more",
+  "retry": "Retry",
+  "loadMore": "Load more videos",
+  "paginationError": "More videos could not be loaded."
+}

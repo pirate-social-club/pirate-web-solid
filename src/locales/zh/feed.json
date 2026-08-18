@@ -1,0 +1,18 @@
+{
+  "label": "公开视频动态",
+  "fallbackTitle": "公开视频",
+  "fallbackAuthor": "公开视频作者",
+  "videoLabel": "{title} 视频",
+  "videoDescription": "视频描述",
+  "videoBy": "{author} 的视频",
+  "byAuthor": "作者：{author}",
+  "unavailable": "公开视频动态暂不可用。",
+  "empty": "暂时没有公开视频。",
+  "likeRequiresSession": "点赞 · 登录后操作",
+  "pause": "暂停",
+  "play": "播放",
+  "loadingMore": "正在加载更多",
+  "retry": "重试",
+  "loadMore": "加载更多视频",
+  "paginationError": "无法加载更多视频。"
+}

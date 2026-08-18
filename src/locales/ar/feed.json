@@ -1,0 +1,18 @@
+{
+  "label": "موجز الفيديو العام",
+  "fallbackTitle": "فيديو عام",
+  "fallbackAuthor": "منشئ عام",
+  "videoLabel": "فيديو {title}",
+  "videoDescription": "وصف الفيديو",
+  "videoBy": "فيديو بواسطة {author}",
+  "byAuthor": "بواسطة {author}",
+  "unavailable": "موجز الفيديو العام غير متاح.",
+  "empty": "لا توجد فيديوهات عامة حتى الآن.",
+  "likeRequiresSession": "إعجاب · اتصل للتفاعل",
+  "pause": "إيقاف مؤقت",
+  "play": "تشغيل",
+  "loadingMore": "جارٍ تحميل المزيد",
+  "retry": "إعادة المحاولة",
+  "loadMore": "تحميل المزيد من الفيديوهات",
+  "paginationError": "تعذر تحميل المزيد من الفيديوهات."
+}

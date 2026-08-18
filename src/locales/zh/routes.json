@@ -1,0 +1,112 @@
+{
+  "home": {
+    "title": "首页 · Pirate Web",
+    "description": "Pirate Web 视频动态",
+    "heading": "Pirate Web Solid 界面"
+  },
+  "profile": {
+    "title": "@{handle} · Pirate Web",
+    "heading": "个人资料：@{handle}",
+    "loading": "正在加载个人资料",
+    "invalid": "该个人资料句柄无效。",
+    "notFound": "找不到该个人资料。",
+    "error": "该个人资料暂时不可用。",
+    "emptyCommunities": "尚未创建社区。",
+    "createdCommunities": "已创建的社区",
+    "createdCommunityPluralDescription": "{name} 在 Pirate Web 创建了 {count} 个社区。",
+    "createdCommunitySingularDescription": "{name} 在 Pirate Web 创建了 1 个社区。",
+    "defaultDescription": "{name} 在 Pirate Web 的公开个人资料。",
+    "openCommunity": "打开 {name}"
+  },
+  "settings": {
+    "booking": {
+      "sectionTitle": "付费 1:1 预约",
+      "intro": "让人们预约与你进行付费 1:1 视频会话。设置可预约时间和价格，然后开启“可预约”，即可通过你的个人资料链接接受预约。",
+      "timezoneLabel": "时区",
+      "durationLabel": "会话时长",
+      "durationMinutes": "{count} 分钟",
+      "basePriceLabel": "基础价格 (USDC)",
+      "saveSettings": "保存",
+      "weeklyAvailabilityTitle": "每周可预约时间",
+      "noAvailability": "还没有可预约时间 — 在下方添加一个每周重复时段。",
+      "rangeSeparator": "至",
+      "addAvailability": "添加",
+      "variablePricingTitle": "浮动定价",
+      "noPriceRules": "基础价格适用于所有可预约时段。",
+      "addPriceRule": "添加",
+      "allDays": "所有日期",
+      "anyTime": "任意时间",
+      "exceptionsTitle": "一次性例外",
+      "noExceptions": "重复可预约时间将照常适用。",
+      "exceptionBlock": "屏蔽",
+      "exceptionOpen": "开放",
+      "addException": "添加",
+      "cancellationTitle": "取消政策",
+      "cancellationCopy": "预约者在预约后 24 小时内取消可获得全额退款；之后取消不予退款。如果你（主持人）取消或未出席，预约者将获得全额退款。",
+      "publishTitleLive": "你的预约已上线",
+      "publishTitleIdle": "发布你的预约",
+      "publishBlockedNote": "设置你的应用钱包以接收款项。",
+      "publishLiveNote": "拥有你个人资料链接的任何人都可以预约可用时段。",
+      "publishReadyNote": "你已准备好 — 发布后人们就可以预约你。",
+      "unpublish": "取消发布",
+      "publish": "发布预约",
+      "navLabel": "预约",
+      "navDescription": "设置你的付费 1:1 日程、价格和可预约时间。",
+      "remove": "移除",
+      "bookableLabel": "可预约",
+      "bookableOnHint": "人们可以预约你。关闭后可暂停预约，且不会丢失你的日程。",
+      "bookableOffHint": "你还不可预约 — 准备好后再开启。",
+      "bookableNoAvailability": "可预约已开启，但你还不会显示 — 在下方添加每周重复时段，才会出现在搜索和动态中。",
+      "autosaveNote": "更改会自动保存。",
+      "savingNote": "正在保存…"
+    }
+  },
+  "joinRequest": {
+    "title": "申请加入",
+    "description": "告诉版主你为什么想加入。",
+    "submittedTitle": "申请已提交",
+    "submittedDescription": "版主将审核你的申请。",
+    "messageOptional": "留言（可选）",
+    "whyJoinPlaceholder": "为什么想加入 {communityName}？",
+    "submit": "提交",
+    "done": "完成"
+  },
+  "moderation": {
+    "rules": {
+      "title": "规则",
+      "description": "规则为社区中的成员和访客设定期望。",
+      "addRule": "添加规则",
+      "namePlaceholder": "规则名称",
+      "maxChars100": "最多 100 个字符",
+      "descriptionPlaceholder": "描述",
+      "maxChars500": "最多 500 个字符",
+      "reportingTitle": "举报",
+      "reportingDescription": "用户或版主在举报内容时可以选择举报原因。",
+      "reportReasonPlaceholder": "举报原因",
+      "reportReasonHint": "默认情况下，这与你的规则名称相同。",
+      "emptyState": "还没有规则。",
+      "defaultRule1Title": "尊重他人，文明交流",
+      "defaultRule1Body": "禁止骚扰、仇恨言论或任何有害行为。请友善对待所有贡献者和成员。",
+      "defaultRule2Title": "禁止垃圾信息",
+      "defaultRule2Body": "不允许任何形式的过度推广、垃圾信息或广告。"
+    },
+    "links": {
+      "title": "链接",
+      "addLink": "添加链接",
+      "platformLabel": "平台",
+      "labelLabel": "标签",
+      "displayNamePlaceholder": "显示名称",
+      "urlLabel": "链接",
+      "urlPlaceholder": "https://",
+      "emptyState": "还没有链接。"
+    },
+    "saveFooter": {
+      "defaultSaveLabel": "保存"
+    }
+  },
+  "notFound": {
+    "title": "未找到",
+    "description": "请求的页面不存在。",
+    "returnHome": "返回首页"
+  }
+}
