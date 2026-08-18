@@ -48,7 +48,12 @@ export default defineConfig({
       // The runtime is a reviewed framework-neutral port from the legacy package;
       // preserve its validated parser/reducer implementation and test fixtures
       // byte-for-byte while it is owned by the Solid app.
-      files: ["src/features/karaoke/runtime/**/*"],
+      files: [
+        "src/features/karaoke/runtime/**/*",
+        "src/features/karaoke/capture/**/*",
+        "src/features/karaoke/scoring/karaoke-scoring-controller*",
+        "src/features/karaoke/karaoke-session-bridge*",
+      ],
       rules: {
         "anti-slop/no-chained-type-assertions": "off",
         "anti-slop/no-widen-then-assert": "off",

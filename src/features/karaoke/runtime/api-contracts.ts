@@ -34,6 +34,28 @@ export interface ApiKaraokeSession {
   scoring_policy: ApiKaraokeScoringPolicy;
 }
 
+export interface ApiKaraokeScoringDiagnostics {
+  timing_calibration: {
+    state: "calibrated" | "uncalibrated";
+    reason: "insufficient_evidence" | "offset_out_of_range" | "incoherent_residuals" | null;
+    offset_ms: number;
+    raw_offset_ms: number;
+    residual_spread_ms: number;
+    measured_line_count: number;
+    matched_word_count: number;
+  };
+  line_diagnostics: Array<{
+    line_id: string;
+    finalized_reason: "line_end" | "asr_final" | "timeout" | "seek" | "session_end" | "provider_failed";
+    recognized_word_count: number;
+    score: number;
+    text_score: number;
+    timing_score: number | null;
+    confidence_score: number | null;
+    median_signed_delta_ms: number | null;
+  }>;
+}
+
 export interface ApiKaraokeAttempt {
   id: string;
   object: "karaoke_attempt";
@@ -59,6 +81,8 @@ export interface ApiKaraokeAttempt {
   activity_date: string;
   completed_at: string;
   created_at: string;
+  /** TODO(karaoke): render these diagnostics when the Solid UI supports them. */
+  scoring_diagnostics?: ApiKaraokeScoringDiagnostics | null;
 }
 
 /** Converts the api-next session response to the framework-neutral runtime shape. */

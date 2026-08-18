@@ -47,6 +47,7 @@ export { toKaraokeSessionDescriptor } from "./api-contracts";
 
 export type {
   ApiKaraokeAttempt,
+  ApiKaraokeScoringDiagnostics,
   ApiKaraokeScoringPolicy,
   ApiKaraokeScoringPolicyDisabled,
   ApiKaraokeScoringPolicyEnabled,
