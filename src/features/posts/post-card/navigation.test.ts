@@ -7,10 +7,16 @@ import {
   shouldHandleCardKeydown,
 } from "./navigation";
 
-const plainTarget = { closest: () => null } as unknown as EventTarget;
-const interactiveTarget = {
+type ClosestTarget = EventTarget & { closest: (selector: string) => Element | null };
+
+// SAFETY: fixtures intentionally provide only the EventTarget surface consumed by the guard.
+const plainTarget: ClosestTarget = Object.assign(new EventTarget(), {
+  closest: () => null,
+});
+// SAFETY: the interactive fixture models Element.closest without requiring a browser DOM.
+const interactiveTarget: ClosestTarget = Object.assign(new EventTarget(), {
   closest: (selector: string) => (selector.includes("button") ? ({} as Element) : null),
-} as unknown as EventTarget;
+});
 
 function clickEvent(overrides: Partial<Parameters<typeof shouldHandleCardClick>[0]> = {}) {
   return {
@@ -100,4 +106,3 @@ describe("normalizeUrlForComparison", () => {
     expect(normalizeUrlForComparison("not a url/")).toBe("not a url");
   });
 });
-

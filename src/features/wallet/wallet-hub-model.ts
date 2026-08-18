@@ -73,9 +73,9 @@ const preferredChainOrder: WalletHubChainId[] = [
   "ethereum", "base", "optimism", "story", "tempo", "bitcoin", "solana", "cosmos",
 ];
 
-const symbolOrder: Record<string, number> = {
+const symbolOrder = {
   ETH: 0, IP: 1, WIP: 2, USDC: 3, USDT: 4, DAI: 5, WBTC: 6, LINK: 7, BTC: 8, SOL: 9, PATHUSD: 10,
-};
+} as const;
 
 function compareAssets(a: { symbol: string; fiatValue?: string | null; totalFiatValue?: string | null }, b: { symbol: string; fiatValue?: string | null; totalFiatValue?: string | null }): number {
   const aSymbol = a.symbol.toUpperCase();
@@ -92,7 +92,11 @@ function compareAssets(a: { symbol: string; fiatValue?: string | null; totalFiat
   if (Number.isFinite(aFiat) && Number.isFinite(bFiat) && aFiat !== bFiat) return bFiat - aFiat;
   if (Number.isFinite(aFiat)) return -1;
   if (Number.isFinite(bFiat)) return 1;
-  return (symbolOrder[aSymbol] ?? 100) - (symbolOrder[bSymbol] ?? 100) || a.symbol.localeCompare(b.symbol);
+  // SAFETY: unknown symbols intentionally fall through to the default order.
+  const aOrder = symbolOrder[aSymbol as keyof typeof symbolOrder] ?? 100;
+  // SAFETY: unknown symbols intentionally fall through to the default order.
+  const bOrder = symbolOrder[bSymbol as keyof typeof symbolOrder] ?? 100;
+  return aOrder - bOrder || a.symbol.localeCompare(b.symbol);
 }
 
 export function buildGroupedAssets(chainSections: WalletHubChainSection[]): GroupedAsset[] {

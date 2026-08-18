@@ -1,10 +1,10 @@
 import http from "node:http";
 
-const url = new URL(process.env.SEAM_BASE_URL ?? "http://127.0.0.1:4173/");
+const url = new URL(process.env.SOLID_BASE_URL ?? "http://127.0.0.1:4173/");
 const started = performance.now();
 const chunks = [];
 await new Promise((resolve, reject) => {
-  const request = http.request({ hostname: url.hostname, port: url.port, path: url.pathname, headers: { host: "app.example.hns" } }, response => {
+  const request = http.request({ hostname: url.hostname, port: url.port, path: url.pathname }, response => {
     response.on("data", chunk => chunks.push({ at: performance.now() - started, bytes: chunk.length }));
     response.on("end", resolve);
   });

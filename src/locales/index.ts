@@ -35,9 +35,16 @@ function pseudoExpand(input: string): string {
 }
 
 function pseudoizeValue<T>(value: T): T {
-  if (typeof value === "string") return pseudoExpand(value) as T;
-  if (Array.isArray(value)) return value.map(pseudoizeValue) as T;
+  if (typeof value === "string") {
+    // SAFETY: this branch preserves the caller's scalar catalog shape while replacing only its string value.
+    return pseudoExpand(value) as T;
+  }
+  if (Array.isArray(value)) {
+    // SAFETY: catalog arrays are recursively transformed without changing their nesting shape.
+    return value.map(pseudoizeValue) as T;
+  }
   if (value && typeof value === "object") {
+    // SAFETY: generated locale objects are recursively transformed with the same keys and shape.
     return Object.fromEntries(
       Object.entries(value).map(([key, nested]) => [key, pseudoizeValue(nested)]),
     ) as T;
@@ -50,8 +57,10 @@ export function getLocaleMessages<N extends LocaleNamespace>(
   namespace: N,
 ): NamespaceMessages<N> {
   if (locale === "pseudo") {
+    // SAFETY: the generated English namespace is the source shape for pseudo locale messages.
     return pseudoizeValue(GENERATED_LOCALE_CATALOGS.en[namespace]) as NamespaceMessages<N>;
   }
+  // SAFETY: locale is narrowed to a real generated catalog before indexing its namespace.
   return GENERATED_LOCALE_CATALOGS[locale as RealLocaleCode][namespace] as NamespaceMessages<N>;
 }
 

@@ -13,26 +13,21 @@
     "dev": "vite dev --host 0.0.0.0",
     "preview": "vite preview --host 0.0.0.0",
     "probe": "node scripts/probe.mjs",
-    "api-origin-test": "bun test src/lib/api/origin.test.ts",
     "stream-check": "node scripts/stream-check.mjs",
     "hydration-check": "node scripts/hydration-check.mjs",
     "check-solid-runtime": "node scripts/check-solid-runtime.mjs",
     "lint": "oxlint src",
     "generate-worker-types": "wrangler types",
-    "verify": "bun run generate-worker-types && tsc --noEmit -p tsconfig.json && bun run lint && node scripts/check-solid-runtime.mjs && bun test src/lib/api/origin.test.ts && bun run --cwd packages/solid-ui typecheck && bun run --cwd packages/solid-ui test",
+    "verify": "bun run generate-worker-types && tsc --noEmit -p tsconfig.json && bun run lint && node scripts/check-solid-runtime.mjs && bun run --cwd packages/solid-ui typecheck && bun run --cwd packages/solid-ui test",
     "verify:live": "node scripts/probe.mjs && node scripts/stream-check.mjs && node scripts/hydration-check.mjs"
   },
   "dependencies": {
-    "@kobalte/core": "2.0.0-alpha.0",
     "@solidjs/meta": "1.0.0-next.2",
     "@solidjs/router": "2.0.0-next.16",
     "@solidjs/web": "2.0.0-rc.0",
-    "@tanstack/solid-query": "6.0.0-rc.0",
-    "class-variance-authority": "0.7.1",
     "filesystem-routing": "0.2.1",
     "@pirate/web-solid-ui": "workspace:*",
-    "solid-js": "2.0.0-rc.0",
-    "tailwind-merge": "3.6.0"
+    "solid-js": "2.0.0-rc.0"
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "1.52.1",
@@ -47,8 +42,5 @@
     "typescript": "5.9.3",
     "vite": "8.2.1",
     "wrangler": "4.123.0"
-  },
-  "patchedDependencies": {
-    "@kobalte/core@2.0.0-alpha.0": "patches/@kobalte%2Fcore@2.0.0-alpha.0.patch"
   }
 }

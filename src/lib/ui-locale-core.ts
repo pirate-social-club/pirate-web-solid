@@ -6,6 +6,7 @@ export type UiDirection = "ltr" | "rtl";
 export type UiPlacement = "left" | "right" | "start" | "end";
 
 export function isUiLocaleCode(value: string): value is UiLocaleCode {
+  // SAFETY: this readonly list is the complete runtime locale contract.
   return (SUPPORTED_UI_LOCALES as readonly string[]).includes(value);
 }
 

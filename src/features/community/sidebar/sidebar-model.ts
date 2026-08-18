@@ -21,7 +21,7 @@ export interface SidebarReferenceLink {
 }
 
 export function orderedGates(gates: readonly SidebarGate[]): SidebarGate[] {
-  const rank: Record<GateStatus, number> = { unmet: 0, unknown: 1, met: 2 };
+  const rank = { unmet: 0, unknown: 1, met: 2 } as const;
   return [...gates].sort((left, right) => rank[left.status] - rank[right.status]);
 }
 

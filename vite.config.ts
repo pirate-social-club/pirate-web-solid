@@ -12,7 +12,7 @@ const solidUiRoot = path.resolve(appRoot, "packages/solid-ui");
 export default defineConfig({
   plugins: [
     tailwindcss(),
-    fileRoutes({ httpMethods: true }),
+    fileRoutes(),
     {
       name: "web-solid-design-system-boundary",
       configResolved(config) {

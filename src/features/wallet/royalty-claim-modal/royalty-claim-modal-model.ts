@@ -2,6 +2,10 @@ import type { RoyaltyClaimModalState, RoyaltyClaimState } from "./royalty-claim-
 
 export const DEFAULT_CLAIMABLE_WIP_WEI = "12450000000000000000";
 export const DEFAULT_WALLET_ADDRESS = "0x742d35Cc6634C0532925a3b844Bc454e4438f44e";
+export interface RoyaltyPrimaryAction {
+  disabled: boolean;
+  label: string;
+}
 
 export function formatWipAmount(wei: string | null | undefined): string {
   if (!wei) return "0";
@@ -48,7 +52,7 @@ export function isRoyaltyClaimBusy(status: RoyaltyClaimModalState): boolean {
 export function royaltyPrimaryAction(
   state: RoyaltyClaimState,
   walletAddress: string | null | undefined,
-): { disabled: boolean; label: string } {
+): RoyaltyPrimaryAction {
   if (!walletAddress) return { disabled: false, label: "Connect wallet" };
   if (state.status === "preparing") return { disabled: true, label: "Preparing claim" };
   if (state.status === "signing") return { disabled: true, label: "Confirm in wallet" };

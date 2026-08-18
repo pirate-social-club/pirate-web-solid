@@ -20,6 +20,7 @@ export interface CardClickEventLike extends CardActivationEventLike {
 
 function targetIsInteractive(target: EventTarget | null): boolean {
   // Duck-typed so the guard is testable without a DOM.
+  // SAFETY: card activation receives DOM EventTargets at runtime; this optional method is the only DOM capability read.
   const closest = (target as Element | null)?.closest;
   if (typeof closest !== "function") return false;
   return Boolean(closest.call(target, POST_CARD_INTERACTIVE_SELECTOR));

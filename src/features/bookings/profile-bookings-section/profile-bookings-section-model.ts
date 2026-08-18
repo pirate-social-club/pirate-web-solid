@@ -15,9 +15,9 @@ export interface ProfileBookingsValues {
 
 export interface ProfileBookingsSectionState {
   values: ProfileBookingsValues;
-  rules: AvailabilityRuleDraft[];
-  priceRules: PriceRuleDraft[];
-  exceptions: AvailabilityExceptionDraft[];
+  rules: readonly AvailabilityRuleDraft[];
+  priceRules: readonly PriceRuleDraft[];
+  exceptions: readonly AvailabilityExceptionDraft[];
   bookable: boolean;
   payoutReady: boolean;
   busy: boolean;

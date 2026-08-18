@@ -1,5 +1,5 @@
 import { createRequire } from "node:module";
-import { existsSync, readFileSync, readdirSync, realpathSync } from "node:fs";
+import { existsSync, readFileSync, realpathSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -72,17 +72,6 @@ if (kobaltePackage.version !== expectedKobalteVersion) {
   throw new Error(`Kobalte must remain pinned to ${expectedKobalteVersion}; found ${kobaltePackage.version}`);
 }
 
-const buttonBuildFiles = readdirSync(resolve(kobalteRoot, "dist/button"))
-  .filter((file) => file.endsWith(".jsx"));
-const buttonBuild = buttonBuildFiles
-  .map((file) => readFileSync(resolve(kobalteRoot, "dist/button", file), "utf8"))
-  .find((source) => source.includes("function ButtonRoot"));
-const nativeButtonPatch = "return <button {...others} type={mergedProps.type} disabled={mergedProps.disabled}>{mergedProps.children}</button>;";
-const polymorphicGuard = "if (mergedProps.as && mergedProps.as !== \"button\")";
-if (!buttonBuild || !buttonBuild.includes(nativeButtonPatch) || !buttonBuild.includes(polymorphicGuard)) {
-  throw new Error("Kobalte Solid 2 hydration patch is missing or did not apply");
-}
-
 console.log(JSON.stringify({
   appSolid,
   appWeb,
@@ -91,7 +80,7 @@ console.log(JSON.stringify({
   designWeb,
   peerNormalized,
   kobalteVersion: kobaltePackage.version,
-  kobaltePatch: true,
+  kobaltePatch: false,
   dedupe: ["solid-js", "@solidjs/web"],
   note: "The internal solid-ui package is resolved from this repository and shares the app's deduped Solid runtime.",
 }, null, 2));

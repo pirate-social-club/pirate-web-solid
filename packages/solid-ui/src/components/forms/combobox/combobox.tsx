@@ -77,8 +77,8 @@ export function Combobox<Option>(props: ComboboxProps<Option>) {
       optionTextValue: props.optionLabel,
       optionLabel: props.optionLabel,
       optionDisabled: props.optionDisabled,
-      value: selectedOption(),
-      defaultValue: defaultOption(),
+      value: (selectedOption() == null ? null : [selectedOption()!]) as unknown as Option | null,
+      defaultValue: (defaultOption() == null ? undefined : [defaultOption()!]) as unknown as Option | undefined,
       onChange: (option: Option | Option[] | null) => {
         const first = Array.isArray(option) ? option[0] : option;
         props.onChange?.(

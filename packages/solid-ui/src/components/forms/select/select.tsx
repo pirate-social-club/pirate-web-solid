@@ -91,8 +91,8 @@ export function Select<Option>(props: SelectProps<Option>) {
       optionValue: props.optionValue,
       optionTextValue: props.optionLabel,
       optionDisabled: props.optionDisabled,
-      value: selectedOption(),
-      defaultValue: defaultOption(),
+      value: (selectedOption() == null ? null : [selectedOption()!]) as unknown as Option | null,
+      defaultValue: (defaultOption() == null ? undefined : [defaultOption()!]) as unknown as Option | undefined,
       onChange: (option: Option | Option[] | null) => {
         const first = Array.isArray(option) ? option[0] : option;
         props.onChange?.(

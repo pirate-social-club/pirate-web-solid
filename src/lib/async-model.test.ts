@@ -7,7 +7,7 @@ function PendingRead() {
   return value();
 }
 
-function FailingRead() {
+function FailingRead(): never {
   throw new Error("boom");
 }
 
@@ -29,9 +29,10 @@ describe("Solid async model boundaries", () => {
   test("exposes an Errored reset action for recovery", () => {
     let resetSeen = false;
     const html = renderToString(() => createComponent(Errored, {
-      fallback: (error: () => Error, reset: () => void) => {
+      fallback: (error, reset) => {
         resetSeen = typeof reset === "function";
-        return `error=${error().message};retry`;
+        const value = error();
+        return `error=${value instanceof Error ? value.message : String(value)};retry`;
       },
       get children() { return createComponent(FailingRead, {}); },
     }));

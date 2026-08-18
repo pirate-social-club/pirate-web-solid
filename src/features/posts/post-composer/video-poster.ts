@@ -12,6 +12,12 @@ type VideoPosterFrameOptions = {
   maxWidth?: number;
 };
 
+type DrawnPosterFrame = {
+  canvas: HTMLCanvasElement;
+  height: number;
+  width: number;
+};
+
 function parsePosterFrameSeconds(value: string | undefined): number {
   const parsed = Number.parseFloat(String(value ?? "0"));
   return Number.isFinite(parsed) && parsed > 0 ? parsed : 0;
@@ -85,7 +91,7 @@ function candidateSeconds(duration: number, selectedSeconds: number): number[] {
 function drawPosterFrame(
   video: HTMLVideoElement,
   maxWidth: number | undefined,
-): { canvas: HTMLCanvasElement; height: number; width: number } {
+): DrawnPosterFrame {
   const sourceWidth = video.videoWidth;
   const sourceHeight = video.videoHeight;
   if (sourceWidth <= 0 || sourceHeight <= 0) {

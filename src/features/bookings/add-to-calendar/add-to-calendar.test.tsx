@@ -20,7 +20,7 @@ const nativeDescriptors = {
 function restoreGlobal(name: keyof typeof nativeDescriptors) {
   const descriptor = nativeDescriptors[name];
   if (descriptor) Object.defineProperty(globalThis, name, descriptor);
-  else delete (globalThis as Record<string, unknown>)[name];
+  else Reflect.deleteProperty(globalThis, name);
 }
 
 afterEach(() => {

@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 
 import { groupBookingManagementItems, managementToneClass, type BookingManagementItem } from "./booking-management-view-model";
 
-const item = (section: BookingManagementItem["section"], id = section): BookingManagementItem => ({
+const item = (section: BookingManagementItem["section"], id: string = section): BookingManagementItem => ({
   id, counterpartyName: "Amira Hassan", counterpartyHandle: "amira.pirate", sessionTimeLabel: "6 PM", amountLabel: "50.00 USDC", statusLabel: "Confirmed", statusDetail: "Booked", statusTone: "success", section,
 });
 

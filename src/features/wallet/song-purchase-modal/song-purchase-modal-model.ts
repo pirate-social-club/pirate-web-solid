@@ -1,17 +1,19 @@
 import type { SongPurchaseModalState } from "./song-purchase-modal.types";
 
-export function formatSavingsPercent(value: number): string {
-  return Number.isInteger(value) ? value.toString() : value.toFixed(1);
-}
-
-export function stateDefaults(state: SongPurchaseModalState | undefined): {
+export interface SongPurchaseViewState {
   confirmedDiscountPercent: number | null;
   error: string | null;
   forceMobile: boolean;
   processing: boolean;
   selfVerificationSavingsPercent: number | null;
   vinylReleaseAvailable: boolean;
-} {
+}
+
+export function formatSavingsPercent(value: number): string {
+  return Number.isInteger(value) ? value.toString() : value.toFixed(1);
+}
+
+export function stateDefaults(state: SongPurchaseModalState | undefined): SongPurchaseViewState {
   switch (state) {
     case "mobile":
       return { confirmedDiscountPercent: null, error: null, forceMobile: true, processing: false, selfVerificationSavingsPercent: 20, vinylReleaseAvailable: false };

@@ -1,163 +1,54 @@
 # Pirate Web Solid
 
-Solid 2 RC start-mode application shell for Cloudflare Workers. This is a
-standalone repository; it is not the React Web repository and it does not
-contain product feature routes yet.
+Standalone SolidJS shell for a direct Cloudflare Worker. This repository owns
+its source, internal `packages/solid-ui` workspace, Worker entrypoint, and
+dependency graph. It has no product API, authentication, external origin, or
+route-dispatch fallback; those belong to a later same-origin `/api` proxy lane.
 
-## Locked foundation
+## Runtime boundary
 
-The shell carries the verified arrangement from `solid2-seam-poc`:
+- `src/worker.ts` is the only Worker entrypoint.
+- The only Cloudflare binding is `ASSETS`.
+- `worker-configuration.d.ts` is generated from `wrangler.jsonc` by Wrangler;
+  rerun `bun run generate-worker-types` after configuration changes.
+- SSR and hydration are authored in `src/entry-server.tsx`,
+  `src/entry-client.tsx`, and `src/Document.tsx`.
+- The UI catalog is owned by `packages/solid-ui` and consumed as the internal
+  `@pirate/web-solid-ui` workspace package.
 
-- authored `Document` with per-request CSP nonce;
-- `#app-root` plus client `hydrate(..., { renderId: "2" })`;
-- Worker adapter forwarding non-assets to `handleRequest`;
-- a single direct Worker with the ASSETS binding;
-- HNS apex redirect and app-host classification;
-- streaming SSR through the Worker adapter; and
-- authored server entry passing the built asset manifest to streaming SSR; and
-- filesystem-routing manifest consumed by Solid Router 2 for the application,
-  bare-surface, community, settings, seam, API, and not-found routes.
-
-The `solid2-seam-poc` repository remains the evidence source; this repository
-owns the permanent probes and hydration regression gate.
-
-## Solid UI package
-
-The app owns its UI catalog in `packages/solid-ui`, published internally as
-`@pirate/web-solid-ui` through a Bun workspace dependency. A clean
-`bun install --frozen-lockfile` resolves the package and its Solid peer
-dependencies from this repository, with no sibling-repository or external
-filesystem alias. Components are imported only through `src/design-system.ts`;
-the package's Tailwind v4 token layer is consumed by the app's Vite pipeline.
-
-Vite aliases and `resolve.dedupe` force `solid-js` and `@solidjs/web` to the
-app's single runtime instance. The solid-ui package exposes those two
-exact versions as peer dependencies, and its Kobalte Button uses the pinned
-Solid 2 hydration patch. Run `rtk bun run check-solid-runtime` after every
-clean install and before declaring hydration green; the check intentionally
-fails if the internal package has local Solid copies, the Kobalte version drifts,
-or the patch no longer appears in the built package.
-
-## Routing and data
-
-The app uses `@solidjs/router@2.0.0-next.16` with
-`filesystem-routing@0.2.1`. The route tree is created once in `App.tsx` from
-the `virtual:file-routes` manifest; layouts stay outside `Document.tsx`, so
-the `#app-root` and `renderId: "2"` hydration boundary cannot move. The same
-tree serves canonical and sovereign host surfaces. Solid Router is selected
-because it consumes the already-proven filesystem route manifest. TanStack
-Router remains a future option only if typed search parameters become a real
-requirement.
-
-Middleware exposes a `HostContext` to every route:
-`surface` is `canonical`, `sovereign-app`, or `sovereign-apex`;
-`communitySlug` is the trusted forwarded slug or derived HNS label;
-`importedRoot` identifies sovereign apex requests; and
-`forwardingMetadataPresent` records whether the trusted forwarder supplied
-required metadata. A sovereign apex request without forwarding metadata
-returns the deliberate `404` outcome
-`sovereign-forwarding-metadata-required`; it must not fall through to an
-accidental router not-found.
-
-`@tanstack/solid-query@6.0.0-rc.0` is provided per app render through a
-`QueryClientProvider`. Route-level preload/query work is the default
-convention; page entry components should not start uncoordinated fetches.
-Query keys and cache policy follow the existing TanStack mental model. API
-list routes use keyset-cursor pagination, not offset pagination; cursor shape
-is a known API integration trap and must be captured in the query contract
-before a feature route is added. Metadata uses the Solid 2-compatible
-`@solidjs/meta@1.0.0-next.2` API (`Head`, `Title`, `Meta`, and `Link`).
-
-The API data seam is framework-neutral and lives under `src/lib/api/`. Hostname
-resolution mirrors the existing Web resolver: canonical, sovereign-app, and
-imported sovereign hosts resolve to `https://api.pirate.sc`, staging hosts to
-`https://api-staging.pirate.sc`, and local hosts retain the local API origin.
-The preview middleware temporarily overrides only local read-only smoke fetches
-to the production public API because no local API Worker runs in this repo.
-`createStubApiAuthForwarder` forwards an explicit `Authorization` header only;
-the `/auth/session/exchange` implementation and cookie/session policy are M2
-work and must not be invented in the shell.
-
-The Home route proves streaming SSR data with the public `__version` endpoint.
-TanStack Solid Query serializes the server cache through the Solid stream, with
-the existing nonce applied to every serialization/late-patch script. The
-browser gate asserts the API marker is present in SSR HTML and that hydration,
-navigation, and refresh cause zero `/__version` refetches. `/seam/api?feed=1`
-also exercises the same public feed read as a Worker subrequest; the Home feed
-uses the normalized query contract described below.
-
-The app hydration gate uses the real internal solid-ui Button, Kobalte
-Dialog (portal, open/close, focus), and TextField (label/description wiring and
-controlled value updates). Every fixture is SSR-rendered under the strict CSP
-and exercised by project-local Playwright; native stand-ins are not accepted.
-
-## Public video feed
-
-The Home route now renders the first page of the unauthenticated public video
-feed from `/feed/home/videos/public` during SSR. The response is normalized at
-the API boundary: keyset cursors stay strings (PG `NUMERIC` values must never
-pass through JavaScript number arithmetic), and one accidental `usr_usr_`
-author prefix is reduced to `usr_`. Subsequent pages use the same query key
-with the cursor and are loaded on demand; duplicate post IDs are discarded.
-
-The feed uses native HTML video as the first player implementation. This is a
-framework-neutral, SSR-safe choice while the Vidstack web-component boundary
-is evaluated; no custom-element registration runs during server rendering.
-Each card has native controls and captions metadata, uses an
-`IntersectionObserver` to select one active item, pauses all other videos, and
-preloads the next card. Arrow Up/Down moves between cards, and reduced-motion
-preferences disable smooth scrolling and autoplay. The current item and
-scroll position are cached in session storage so returning to Home restores
-the feed without an additional initial query; TanStack Query retains the page
-cache for five minutes.
-
-Like is intentionally rendered through the `RequireSession` seam as a
-disabled signed-out action. M2 supplies the real session exchange and action
-handlers; this milestone performs no writes to the API.
+The shell intentionally renders only a root route with internal Button, Dialog,
+and TextField hydration fixtures. No API or auth behavior is implied by the
+shell.
 
 ## Verification
 
-The offline gate requires no server, network, or browser:
+Offline checks:
 
 ```bash
+bun install --frozen-lockfile
 bun run verify
+bun run build
+bunx wrangler deploy --dry-run --config dist/ssr/wrangler.json
 ```
 
-The live gate requires a foreground preview and a project-local browser. The
-probe falls back to `http://localhost:8787`, while `stream-check.mjs` falls
-back to `http://127.0.0.1:4173/` and `hydration-check.mjs` falls back to
-`http://localhost:4173`. For one local preview on port 4173, set
-`SEAM_BASE_URL` for both seam scripts and `WEB_SOLID_BASE_URL` for hydration:
+`verify` regenerates Worker types, typechecks the app and solid-ui package,
+runs the scoped lint and unit gates, checks the Solid runtime identity, and
+runs the solid-ui tests. The dry run is local validation only and must report
+`env.ASSETS` as the sole binding.
+
+The current Solid UI suite has an upstream Kobalte `2.0.0-alpha.0` / Solid 2
+RC incompatibility in development-mode overlay focus restoration and reactive
+state writes; the failing tests are retained in the gate rather than skipped.
+
+For local browser checks, install a project-local Chromium, build, and start a
+foreground preview:
 
 ```bash
 PLAYWRIGHT_BROWSERS_PATH=./.playwright-browsers bunx playwright install chromium
 bun run build
 bun run preview -- --port 4173
-SEAM_BASE_URL=http://localhost:4173 \
-WEB_SOLID_BASE_URL=http://localhost:4173 \
-PLAYWRIGHT_BROWSERS_PATH=./.playwright-browsers \
-bun run verify:live
+SOLID_BASE_URL=http://localhost:4173 bun run verify:live
 ```
 
-Set `PLAYWRIGHT_CHROMIUM_EXECUTABLE` to use a specific Chromium binary.
-Run the live gate while the foreground preview is active, then stop that
-preview. No shared Cloudflare resource may be deployed by the bootstrap.
-
-## Open follow-ups
-
-The live hydration gate remains intentionally red pending
-[SolidJS issue #3000](https://github.com/solidjs/solid/issues/3000). The
-following independent items remain open:
-
-- `scripts/check-solid-runtime.mjs` checks `solid-js` and `@solidjs/web`, but
-  not `@solidjs/signals` or execution-time module identity. Widen the guard
-  after deciding which runtime identity property it should assert.
-- Decide whether remote media should receive explicit `img-src`/`media-src`
-  CSP origins or whether media should be proxied through the app origin. CSP
-  also blocks `@vite/client`, so dev hydration coverage may need its own
-  dev-only exemption.
-## Scope
-
-M3 adds the public Home video feed and its read-only API seam. Login UI, relay
-calls, and write actions remain M2 work. The solid-ui catalog is owned by
-`packages/solid-ui`; app code imports it only through `src/design-system.ts`.
+`verify:live` runs the SSR stream probe and the hydration fixture check. Set
+`PLAYWRIGHT_CHROMIUM_EXECUTABLE` when using an existing local Chromium binary.
