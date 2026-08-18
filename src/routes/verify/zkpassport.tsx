@@ -36,15 +36,16 @@ export default function ZkPassportVerificationRoute() {
   let timeout: ReturnType<typeof setTimeout> | undefined;
   let mounted = true;
 
-  let initialized = false;
-  createEffect(() => {
-    if (initialized || typeof window === "undefined") return;
-    initialized = true;
-    void fetchVerificationConfig().then(async config => {
-      auth = await createPrivySessionExchange(config);
-      setPhase("email");
-    }).catch(() => setPhase("unavailable"));
-  });
+  createEffect(
+    () => true,
+    () => {
+      if (typeof window === "undefined") return;
+      void fetchVerificationConfig().then(async config => {
+        auth = await createPrivySessionExchange(config);
+        setPhase("email");
+      }).catch(() => setPhase("unavailable"));
+    },
+  );
 
   onCleanup(() => {
     mounted = false;
