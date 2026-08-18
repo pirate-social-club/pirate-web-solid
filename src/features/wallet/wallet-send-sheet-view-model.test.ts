@@ -46,6 +46,22 @@ describe("wallet send sheet view model", () => {
     expect(view.assets.find((asset) => asset.id === "tempo:tempo-pathusd")?.balance).toBe("1,204.11");
   });
 
+  test("computes fiat labels for usdPrice-only assets", () => {
+    const sections: WalletHubChainSection[] = [{
+      chainId: "ethereum",
+      title: "Ethereum Sepolia",
+      availability: "ready",
+      tokens: [
+        { id: "eth", symbol: "ETH", name: "Ether", balance: "2", usdPrice: 10 },
+        { id: "usdc", symbol: "USDC", name: "USD Coin", balance: "5", fiatValue: "$5.00" },
+      ],
+    }];
+    const view = buildWalletSendSheetView(makeProps({ chainSections: sections }), makeForm());
+
+    expect(view.assets.find((asset) => asset.id === "ethereum:eth")?.fiatLabel).toBe("$20.00");
+    expect(view.assets.find((asset) => asset.id === "ethereum:usdc")?.fiatLabel).toBe("$5.00");
+  });
+
   test("reports an empty asset list when every balance is zero", () => {
     const view = buildWalletSendSheetView(
       makeProps({

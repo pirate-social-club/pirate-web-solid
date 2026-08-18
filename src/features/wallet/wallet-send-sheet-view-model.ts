@@ -1,3 +1,4 @@
+import { formatUsdValue } from "./wallet-hub-model";
 import {
   formatShortAddress,
   getSendableAssets,
@@ -74,7 +75,7 @@ export function buildWalletSendSheetView(
       chainTitle: asset.chainTitle,
       symbol: asset.token.symbol,
       balance: asset.token.balance ?? "0",
-      fiatLabel: asset.token.fiatValue ?? null,
+      fiatLabel: asset.token.fiatValue ?? formatUsdValue(asset.token),
       selected: selectedAsset != null && sendAssetId(asset) === sendAssetId(selectedAsset),
     })),
     hasAssets: assets.length > 0,

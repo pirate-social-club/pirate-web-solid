@@ -49,7 +49,7 @@ function sumFiatValues(values: (string | null | undefined)[]): string | null {
   return total === 0 ? null : usdFormatter.format(total);
 }
 
-function formatUsdValue(token: WalletHubToken): string | null {
+export function formatUsdValue(token: WalletHubToken): string | null {
   if (token.fiatValue) return token.fiatValue;
   if (!token.balance || typeof token.usdPrice !== "number") return null;
   const balance = Number.parseFloat(token.balance.replace(/,/g, ""));
