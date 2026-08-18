@@ -1,4 +1,4 @@
-import { Show } from "solid-js";
+import { Show, createMemo } from "solid-js";
 
 import { AvailabilityCalendar } from "../availability-calendar/availability-calendar";
 import { Button, Card, Type, cn } from "../../../design-system";
@@ -59,6 +59,7 @@ function ViewerBookPanel(props: ProfileBookPanelViewerProps) {
 }
 
 export function ProfileBookPanel(props: ProfileBookPanelProps) {
-  if (props.mode === "owner") return <OwnerBookPanel {...props} />;
-  return <ViewerBookPanel {...props} />;
+  const isOwner = createMemo(() => props.mode === "owner");
+  // SAFETY: the discriminated `mode` prop is the same invariant used to select each branch.
+  return <Show when={isOwner()} fallback={<ViewerBookPanel {...(props as ProfileBookPanelViewerProps)} />}><OwnerBookPanel {...(props as ProfileBookPanelOwnerProps)} /></Show>;
 }
