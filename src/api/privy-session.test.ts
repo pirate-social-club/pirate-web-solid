@@ -14,7 +14,6 @@ describe("Privy session exchange", () => {
           auth: { email: { sendCode: async () => ({ success: true }), loginWithCode: async () => undefined } },
           initialize: async () => undefined,
           getAccessToken: async () => "access-token",
-          getIdentityToken: async () => "identity-token",
         };
       },
       exchange: async (access, identity) => { exchanged = [access, identity]; },
@@ -22,7 +21,7 @@ describe("Privy session exchange", () => {
     });
     await auth.sendCode("person@example.test");
     await auth.loginWithCode("person@example.test", "123456");
-    expect(exchanged).toEqual(["access-token", "identity-token"]);
+    expect(exchanged).toEqual(["access-token", undefined]);
     expect(storage?.getKeys()).toEqual([]);
   });
 
@@ -32,7 +31,6 @@ describe("Privy session exchange", () => {
         auth: { email: { sendCode: async () => ({ success: true }), loginWithCode: async () => undefined } },
         initialize: async () => undefined,
         getAccessToken: async () => "access-token",
-        getIdentityToken: async () => null,
       }),
       exchange: async () => undefined,
       csrf: () => undefined,

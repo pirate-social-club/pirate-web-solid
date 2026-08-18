@@ -20,7 +20,6 @@ interface PrivyAuthClient {
   } };
   initialize(): Promise<void>;
   getAccessToken(): Promise<string | null>;
-  getIdentityToken(): Promise<string | null>;
 }
 
 type PrivyFactory = (config: VerificationPublicConfig, storage: Storage) => Promise<PrivyAuthClient>;
@@ -42,7 +41,6 @@ async function defaultPrivyFactory(config: VerificationPublicConfig, storage: St
     } },
     initialize: () => client.initialize(),
     getAccessToken: () => client.getAccessToken(),
-    getIdentityToken: () => client.getIdentityToken(),
   };
 }
 
@@ -82,10 +80,9 @@ export async function createPrivySessionExchange(
       if (terminal) throw new Error("auth_expired");
       await client.auth.email.loginWithCode(email, code);
       const accessToken = await client.getAccessToken();
-      const identityToken = await client.getIdentityToken();
       if (accessToken === null || accessToken.length === 0) throw new Error("auth_failed");
       try {
-        await exchange(accessToken, identityToken ?? undefined);
+        await exchange(accessToken);
         terminal = true;
       } finally {
         storage.clear();
