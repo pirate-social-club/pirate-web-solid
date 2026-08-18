@@ -1,7 +1,10 @@
 import { describe, expect, test, vi } from "vitest";
 import type { GetPublicProfilesHandleResponse } from "@pirate/api-client";
-import { createRequestEvent, renderToString } from "@solidjs/web";
+import { createRouter, type RouteProps } from "@solidjs/router";
+import { createRequestEvent, createSSRResponse, renderToStream } from "@solidjs/web";
+import { createComponent } from "solid-js";
 import { provideRequestEvent } from "@solidjs/web/storage";
+import Document from "../../../Document.tsx";
 import { preloadPublicProfile } from "../../../routes/u/[handle].tsx";
 import PublicProfilePage from "./public-profile-page.tsx";
 import {
@@ -11,6 +14,7 @@ import {
   mapPublicProfileError,
   normalizePirateHandle,
   projectPublicProfile,
+  type PublicProfileViewState,
 } from "./public-profile-page.model";
 
 type ProfileClient = Parameters<typeof PublicProfilePage>[0]["client"];
@@ -61,20 +65,25 @@ function delayedClient(result: GetPublicProfilesHandleResponse | unknown, delay 
 async function renderProfileResponse(handle: string, client: ProfileClient) {
   const event = createRequestEvent(new Request(`https://pirate.test/u/${handle}`));
   return provideRequestEvent(event, async () => {
-    const data = await preloadPublicProfile(handle, client);
-    // Rendering starts only after preload has committed the response policy;
-    // this mirrors the file-route preload/head ordering without coupling the
-    // response test to Solid's streaming transport internals.
-    const body = renderToString(() => "profile");
-    return {
-      response: new Response(body, {
-        status: event.response.status,
-        statusText: event.response.statusText,
-        headers: event.response.headers,
-      }),
-      body,
-      data,
-    };
+    let data: PublicProfileViewState | undefined;
+    const router = createRouter({
+      routes: [{
+        path: "/u/:handle",
+        preload: async ({ params }) => data = await preloadPublicProfile(params.handle, client),
+        component: (props: object) => {
+          // SAFETY: the router invokes this component with the route-section shape for /u/:handle.
+          const routeProps = props as RouteProps<"/u/:handle", PublicProfileViewState | PromiseLike<PublicProfileViewState>>;
+          return createComponent(PublicProfilePage, { handle: routeProps.params.handle ?? "", data: routeProps.data });
+        },
+      }],
+    });
+    const stream = renderToStream(() => createComponent(Document, {
+      get children() {
+        return createComponent(router, { children: routerProps => routerProps.children });
+      },
+    }));
+    const response = await createSSRResponse(stream, event);
+    return { response, body: await response.text(), data: data! };
   });
 }
 
@@ -176,6 +185,7 @@ describe("public profile model", () => {
       canonicalPath: "/u/captain-one.pirate",
       isCanonical: true,
     });
+    expect(rendered.body).not.toContain("profile-secret-id");
     expect(JSON.stringify(rendered.data)).not.toContain("profile-secret-id");
   });
 
@@ -187,6 +197,7 @@ describe("public profile model", () => {
     const missing = await renderProfileResponse("missing", delayedClient({ status: 404, message: "raw-secret" }));
     expect(missing.response.status).toBe(404);
     expect(missing.response.headers.get("cache-control")).toBe("no-store");
+    expect(missing.body).not.toContain("raw-secret");
     expect(JSON.stringify(missing.data)).not.toContain("raw-secret");
 
     const unavailable = await renderProfileResponse(
@@ -195,6 +206,8 @@ describe("public profile model", () => {
     );
     expect(unavailable.response.status).toBe(502);
     expect(unavailable.response.headers.get("cache-control")).toBe("no-store");
+    expect(unavailable.body).not.toContain("credential");
+    expect(unavailable.body).not.toContain("raw-secret");
     expect(JSON.stringify(unavailable.data)).not.toContain("credential");
     expect(JSON.stringify(unavailable.data)).not.toContain("raw-secret");
   });
