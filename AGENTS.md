@@ -1,27 +1,53 @@
-# Pirate Web Solid — Agent Notes
+# Pirate Web Solid — Agent Rules
 
-This checkout is a frozen archival migration source. The permanent
-implementation lives under `web/solid/`; do not use this repository for new
-implementation work or repairs. Preserve its history as migration evidence.
+## Authoritative product boundary
 
-## Repository boundary
+This repository is the standalone Pirate SolidJS application. Together with
+`api-next`, it is one of the only two target product systems. It owns its
+source, packages, dependency graph, Worker entrypoint, configuration, CI,
+release workflow, and deployment.
 
-This is a standalone Git repository beside `web/`, not a package inside the
-Web repository. The two repositories have independent history, dependencies,
-and release workflows.
+No production code, configuration, contract, test fixture, or deployment may
+depend on the React application, the legacy API, or their repositories. Reject
+dual-write, old/new token interoperability, legacy JWKS trust, legacy response
+compatibility, request-level fallback, strangler dispatch, route allowlists,
+shared service bindings, compatibility shims, and localStorage authentication.
+
+Historical repositories may be inspected read-only. Framework-pure Solid
+components, stories, tests, assets, and generic security/platform helpers may
+be copied after dependency review; copied code becomes owned here and must not
+retain workspace links, imports, runtime calls, or deployment coupling to its
+source.
+
+## Runtime
+
+- The public Worker directly owns all Solid routes. There is no outer React
+  dispatcher and no React fallback.
+- The only product API is api-next. Staging uses
+  `https://api-next-staging.pirate.sc`; never use `api-staging.pirate.sc` as a
+  product origin or JWKS source.
+- Authentication is direct between this app and api-next through an HttpOnly,
+  Secure, host-only session cookie. Writes require exact Origin and CSRF
+  protection. Never persist application bearer tokens in localStorage.
+- Secrets are bindings, never source or checked-in configuration. No deploy,
+  binding mutation, secret provisioning, or remote push without explicit human
+  authorization.
 
 ## Change policy
 
-- Do not edit, stage, commit, or push this checkout for ordinary feature work.
-- Any archival change requires explicit coordinator authorization, a named
-  purpose, and a preservation checkpoint before the change.
-- Do not repair the historical `../solid-storybook-poc` dependency or use this
-  checkout as an implementation lane.
-- New Solid application work belongs in `web/solid/`; design-system work
-  belongs in `pirate-solid-design-system/`.
+- One writer per worktree. Feature work uses named branches and linked
+  worktrees; the canonical checkout is integration-owned.
+- Preserve the pre-clean-slate tree at
+  `refs/archive/pre-clean-slate-20260818`; do not rewrite or delete it.
+- Import work in reviewable tranches with a source manifest and hash evidence.
+  Exclude React, dispatcher, route-migration, legacy-origin, and compatibility
+  files even when they are adjacent to useful Solid code.
+- Use exact pathspecs for commits; never blanket-stage unrelated work.
 
 ## Verification
 
-Use read-only Git and workspace checks for inspection. Do not install
-dependencies, start servers, or run product builds here unless an authorized
-archival investigation specifically requires it.
+Run the smallest focused tests first, then the standalone type, lint, unit,
+Storybook, Worker build, SSR/hydration, api-next provenance, session/cookie,
+CSRF, and dependency-audit gates appropriate to the tranche. A copied parity
+row is not accepted until its evidence level is recorded; the historical
+119/177 figure includes at least one runtime-pending row.
