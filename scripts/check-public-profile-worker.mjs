@@ -107,6 +107,14 @@ try {
   assert.equal(encoded.response.status, 200);
   assert.match(await encoded.response.text(), /data-profile-state="success"/u);
 
+  const chinese = await requestProfile("/u/captain-one?lang=zh", url => {
+    assert.equal(url.pathname, "/public-profiles/captain-one");
+    return json(profile());
+  });
+  assert.equal(chinese.calls, 1);
+  assert.equal(chinese.response.status, 200);
+  assert.match(await chinese.response.text(), /<html[^>]* lang="zh-CN" dir="ltr">/u);
+
   const invalid = await requestProfile("/u/bad_handle", () => {
     throw new Error("invalid handles must not call api-next");
   });
@@ -143,6 +151,7 @@ try {
   console.log(JSON.stringify({
     canonical: { status: 200, calls: canonical.calls },
     encoded: { status: 200, calls: encoded.calls },
+    chinese: { status: 200, calls: chinese.calls },
     invalid: { status: 400, calls: invalid.calls },
     missing: { status: 404, calls: missing.calls },
     broken: { status: 502, calls: broken.calls },
