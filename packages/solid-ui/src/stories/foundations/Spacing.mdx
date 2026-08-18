@@ -1,0 +1,30 @@
+import { Meta } from "@storybook/addon-docs/blocks";
+
+<Meta title="Foundations/Spacing & Sizing" />
+
+# Spacing & Sizing
+
+Use the standard Tailwind spacing scale (`w-48`, `gap-3`, `p-6`) and semantic
+size tokens. Reserved arbitrary values are limited to the documented
+exceptions.
+
+## Tokens
+
+| Token | Value | Use |
+| --- | --- | --- |
+| `--header-height` | `4.5rem` | app chrome height: `h-[var(--header-height)]`, `top-[var(--header-height)]` |
+| `--page-gutter-x` | `1rem` | page horizontal padding (mobile) |
+| `--page-gutter-x-md` | `1.25rem` | page horizontal padding (md) |
+| `--page-gutter-x-lg` | `2rem` | page horizontal padding (lg) |
+
+The `PageContainer` pattern applies the gutter tokens so pages do not repeat
+them.
+
+## Rules
+
+- 1px dividers are `h-px` / `w-px`, not `h-[1px]` / `w-[1px]`.
+- Prefer scale values over one-offs (`max-w-5xl` over `max-w-[64rem]`).
+- Allowed arbitrary values: viewport math (`calc(100dvh - ...)`), safe-area
+  insets (`env(safe-area-inset-*)`), and character-based text widths
+  (`max-w-[72ch]`).
+- Character-based sizes (`size-*`) keep icon buttons circular at every size.

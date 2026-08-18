@@ -1,0 +1,37 @@
+import { Meta } from "@storybook/addon-docs/blocks";
+
+<Meta title="Foundations/Typography" />
+
+# Typography
+
+All text renders through the [Type component](/?path=/docs/components-data-display-type--docs)
+or a component recipe built on `typeVariants`. Never apply free `text-*`,
+`font-*`, `leading-*`, or `tracking-*` utilities directly in compositions or
+pages.
+
+## Scale
+
+| Variant | Recipe |
+| --- | --- |
+| `display` | `text-4xl font-bold tracking-tight md:text-5xl` |
+| `h1` | `text-3xl font-semibold tracking-tight` |
+| `h2` | `text-2xl font-semibold tracking-tight` |
+| `h3` | `text-xl font-semibold tracking-tight` |
+| `h4` | `text-lg font-semibold tracking-tight` |
+| `body` | `text-base font-normal leading-6` (the default) |
+| `body-strong` | `text-base font-semibold leading-6` |
+| `label` | `text-base font-medium leading-tight` |
+| `caption` | `text-base font-normal leading-5 text-muted-foreground` |
+| `overline` | `text-base font-medium uppercase tracking-[0.03em] text-muted-foreground` |
+
+Body copy is always `text-base` (16px). Captions and overlines dim through
+`text-muted-foreground` rather than through smaller sizes.
+
+## Rules
+
+- `<Type as="h2">` changes the element, never the recipe; heading levels in
+  the DOM follow the page outline.
+- Heading variants carry `text-foreground`; accent colors for text are only
+  `--primary-text` and `--destructive-text` (see Foundations/Color).
+- `Label` and `CardTitle`/`CardDescription` build on `typeVariants` rather
+  than restating recipes.

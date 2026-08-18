@@ -1,0 +1,34 @@
+import { Meta } from "@storybook/addon-docs/blocks";
+
+<Meta title="Foundations/Radius & Elevation" />
+
+# Radius & Elevation
+
+Corner rounding and elevation come from tokens, not arbitrary values.
+
+## Radius
+
+| Token | Value | Typical use |
+| --- | --- | --- |
+| `--radius-sm` | `4px` | small chips |
+| `--radius-md` | `8px` | skeleton, tooltip |
+| `--radius-lg` | `12px` | cards, menus |
+| `--radius-xl` | `14px` | dialogs, toasts |
+| `--radius-2xl` | `16px` | large surfaces |
+| `--radius-3xl` | `24px` | page shells |
+| `--radius-full` | `9999px` | pills, icon buttons |
+
+Use the token form (`rounded-[var(--radius-lg)]`) rather than literal
+`rounded-[12px]`.
+
+## Elevation
+
+| Token | Value | Use |
+| --- | --- | --- |
+| `--shadow-sm` | `0 8px 22px rgb(0 0 0 / 0.06)` | buttons |
+| `--shadow-md` | `0 12px 30px rgb(0 0 0 / 0.08)` | cards, menus, tooltips |
+| `--shadow-lg` | `0 18px 44px rgb(0 0 0 / 0.16)` | toasts |
+| `--shadow-xl` | `0 24px 80px rgb(0 0 0 / 0.18)` | dialogs |
+
+Apply shadows with the token utilities (`shadow-md`) or explicit token
+references (`shadow-[var(--shadow-md)]`); never one-off rgba values.

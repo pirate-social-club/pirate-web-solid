@@ -1,0 +1,44 @@
+import { Meta } from "@storybook/addon-docs/blocks";
+
+<Meta title="Foundations/Color" />
+
+# Color
+
+Colors come from **semantic tokens only** — never hardcoded hex, rgb, hsl, or
+arbitrary Tailwind color values in component markup. Tokens are defined in
+`src/styles/tokens.css` for the dark theme (`:root`) and the light theme
+(`.light`), and are exposed to Tailwind utilities through the `@theme inline`
+mapping.
+
+## Role split: solid vs text
+
+Foreground text and solid fills are separate roles. A fill token such as
+`--primary` is allowed to sit next to white text; the same value is **not**
+allowed as text on a page, card, or popover surface. Use the matching
+`-text` token there.
+
+| Token | Dark | Light | Role |
+| --- | --- | --- | --- |
+| `--background` | `oklch(0.18 0 0)` | `oklch(0.98 0.002 250)` | page |
+| `--card` / `--popover` | `oklch(0.22 0 0)` / `oklch(0.24 0 0)` | `oklch(1 0 0)` | surface |
+| `--foreground` | `oklch(0.87 0.004 250)` | `oklch(0.21 0.01 250)` | primary text |
+| `--muted-foreground` | `oklch(0.65 0.01 250)` | `oklch(0.55 0.01 250)` | secondary text |
+| `--primary` | `oklch(0.55 0.2 29)` | `oklch(0.53 0.19 29)` | brand fill |
+| `--primary-foreground` | `oklch(1 0 0)` | `oklch(1 0 0)` | text on brand fill |
+| `--primary-text` | `oklch(0.7 0.17 29)` | `oklch(0.5 0.18 29)` | brand text on surfaces |
+| `--destructive` | `oklch(0.58 0.21 25)` | `oklch(0.25 0.02 250)` | destructive fill |
+| `--destructive-text` | `oklch(0.7 0.17 25)` | `oklch(0.25 0.02 250)` | destructive text |
+| `--border` / `--border-soft` | `oklch(0.3 0.004 250)` / `oklch(0.26 0 0)` | `oklch(0.88 0.005 250)` / `oklch(0.92 0.003 250)` | dividers, outlines |
+| `--warning` / `--success` / `--info` | accent roles, shown as dots, borders, and text where contrast allows | | |
+| `--primary-hover` / `--destructive-hover` | `oklch(0.48 0.2 29)` / `oklch(0.5 0.21 25)` | mix toward `--foreground` | hover fills, AA-checked |
+| `--card-hover` | mix of `--card` toward `--foreground` | mix of `--card` toward `--foreground` | hover on card surfaces |
+| `--ring` | follows `--primary` per theme | | focus ring |
+
+Both themes meet WCAG AA: every text/background pair in the catalog is at
+least 4.5:1 and every component/boundary pair at least 3:1, including hover
+states (via `--primary-hover` / `--destructive-hover` / `--card-hover`).
+Dark-theme hover fills are explicit same-hue shades — a mix toward the dark
+`--background` would kill the hue, so they are not derived that way.
+Dark-theme values deliberately differ from the React reference, whose
+`--primary` fails with white text; see the Phase B findings for the parity
+flag.

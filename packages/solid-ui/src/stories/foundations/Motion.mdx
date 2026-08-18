@@ -1,0 +1,24 @@
+import { Meta } from "@storybook/addon-docs/blocks";
+
+<Meta title="Foundations/Motion" />
+
+# Motion
+
+Motion is functional, not decorative: transitions mark state changes on
+interactive surfaces, and continuous animation marks progress.
+
+## Rules
+
+- Interactive surfaces transition `color`, `box-shadow`, and
+  `background-color` only — never layout properties.
+- Continuous motion is reserved for progress: `Spinner` rotates and
+  `Skeleton` pulses. Neither animates layout.
+- Every animated utility is paired with its reduced-motion counterpart:
+  `motion-reduce:transition-none`, `motion-reduce:animate-none`. Respecting
+  `prefers-reduced-motion` is part of the accessibility contract.
+- Overlays may add enter/exit transitions in a later batch through the
+  animation foundation; until then dialogs, menus, and tooltips appear and
+  disappear without animation.
+
+If a new component needs an animation not covered here, add the
+reduced-motion pairing in the same change.

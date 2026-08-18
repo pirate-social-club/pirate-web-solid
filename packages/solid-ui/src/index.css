@@ -1,0 +1,27 @@
+@import "tailwindcss";
+@import "./styles/tokens.css";
+
+@custom-variant light (&:is(.light *));
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    @apply bg-background;
+    min-height: 100%;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    min-height: 100dvh;
+    font-family: var(--font-sans);
+  }
+
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  [role="tab"]:not([aria-disabled="true"]) {
+    cursor: pointer;
+  }
+}

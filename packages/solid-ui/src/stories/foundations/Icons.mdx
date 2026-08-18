@@ -1,0 +1,30 @@
+import { Meta } from "@storybook/addon-docs/blocks";
+
+<Meta title="Foundations/Icons" />
+
+# Icons
+
+Icons come from one source: `src/components/media/icons.tsx`. Every icon is a
+decorative SVG by default (`aria-hidden="true"`) and inherits `currentColor`
+so surface color tokens decide its color.
+
+## Rules
+
+- Import the icon component directly; never duplicate an inline SVG in a
+  component. If an icon is missing, add it once to the icon module.
+- An icon-only control always has an accessible name from its own
+  `aria-label`, an overlay part, or a wrapping label; the icon itself stays
+  decorative.
+- Sizes use the spacing scale (`size-4`, `size-5`) and shrink inside flex
+  containers.
+- Loading indicators are **not** icons: use the `Spinner` component, which
+  owns the `role="status"` semantics.
+- Icons that convey meaning beyond decoration (status glyphs next to text)
+  pair with visible or accessible text rather than carrying `aria-label` on
+  the SVG.
+
+Current set: `IconX`, `IconCheck`, `IconArrowUp`, `IconArrowDown`,
+`IconChatCircle`, `IconPlay`, `IconPause`, `IconMusicNote`, `IconCopy`. The
+catalog grows as components need glyphs; adopting an external icon library
+is a dependency decision that replaces this module wholesale, not per
+component.
