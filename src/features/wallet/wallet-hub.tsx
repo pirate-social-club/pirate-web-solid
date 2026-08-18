@@ -1,4 +1,4 @@
-import { createMemo, For, Show } from "solid-js";
+import { createMemo, createSignal, For, Show } from "solid-js";
 
 import {
   Button,
@@ -56,6 +56,17 @@ function ChainSection(props: {
 
 export function WalletHub(props: WalletHubProps) {
   const view = createMemo(() => buildWalletHubView(props));
+  const [receiveOpen, setReceiveOpen] = createSignal(false);
+  const [sendOpen, setSendOpen] = createSignal(false);
+
+  const openReceive = () => {
+    if (props.renderReceiveSheet) setReceiveOpen(true);
+    view().actions.receive.onSelect?.();
+  };
+  const openSend = () => {
+    if (props.renderSendSheet) setSendOpen(true);
+    view().actions.send.onSelect?.();
+  };
 
   return (
     <div
@@ -94,7 +105,7 @@ export function WalletHub(props: WalletHubProps) {
             class="flex-1"
             leadingIcon={<IconArrowDown class="size-[18px]" />}
             disabled={view().actions.receive.disabled}
-            onClick={() => view().actions.receive.onSelect?.()}
+            onClick={openReceive}
           >
             {view().actions.receive.label}
           </Button>
@@ -103,7 +114,7 @@ export function WalletHub(props: WalletHubProps) {
             variant="outline"
             leadingIcon={<IconArrowUp class="size-[18px]" />}
             disabled={view().actions.send.disabled}
-            onClick={() => view().actions.send.onSelect?.()}
+            onClick={openSend}
           >
             {view().actions.send.label}
           </Button>
@@ -224,6 +235,13 @@ export function WalletHub(props: WalletHubProps) {
             </ul>
           </CardContent>
         </Card>
+      </Show>
+
+      <Show when={props.renderReceiveSheet}>
+        {(render) => render()({ open: receiveOpen(), onOpenChange: setReceiveOpen })}
+      </Show>
+      <Show when={props.renderSendSheet}>
+        {(render) => render()({ open: sendOpen(), onOpenChange: setSendOpen })}
       </Show>
     </div>
   );

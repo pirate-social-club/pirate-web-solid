@@ -285,6 +285,30 @@ describe("wallet hub view model", () => {
     expect(view.claim?.action.disabled).toBe(true);
   });
 
+  test("keeps the hub usable when sheet render callbacks are absent", () => {
+    const view = buildWalletHubView({
+      chainSections: fiveChainSections,
+      walletAddress: sharedWalletAddress,
+    });
+
+    expect(view.actions.receive.disabled).toBe(true);
+    expect(view.actions.receive.onSelect).toBeUndefined();
+    expect(view.actions.send.disabled).toBe(true);
+    expect(view.actions.send.onSelect).toBeUndefined();
+  });
+
+  test("enables receive and send when sheet render callbacks host the sheets", () => {
+    const view = buildWalletHubView({
+      chainSections: fiveChainSections,
+      walletAddress: sharedWalletAddress,
+      renderReceiveSheet: () => null,
+      renderSendSheet: () => null,
+    });
+
+    expect(view.actions.receive.disabled).toBe(false);
+    expect(view.actions.send.disabled).toBe(false);
+  });
+
   test("formats wallet addresses defensively", () => {
     expect(formatWalletAddressLabel(null)).toBe("No wallet connected");
     expect(formatWalletAddressLabel(undefined)).toBe("No wallet connected");

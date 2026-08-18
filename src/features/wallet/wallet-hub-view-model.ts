@@ -131,12 +131,12 @@ export function buildWalletHubView(props: WalletHubProps): WalletHubView {
         onSelect: props.onChangeWallet,
       },
       receive: {
-        disabled: !props.onReceive,
+        disabled: !props.onReceive && !props.renderReceiveSheet,
         label: "Receive",
         onSelect: props.onReceive,
       },
       send: {
-        disabled: !props.onSend || isEmpty,
+        disabled: (!props.onSend && !props.renderSendSheet) || isEmpty,
         label: "Send",
         onSelect: props.onSend,
       },
