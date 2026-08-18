@@ -25,11 +25,13 @@
   "dependencies": {
     "@pirate/api-client": "file:vendor/api-client/pirate-api-client-0.4.0.tgz",
     "@pirate/web-solid-ui": "workspace:*",
+    "@privy-io/js-sdk-core": "0.70.0",
     "@solidjs/meta": "1.0.0-next.2",
     "@solidjs/router": "2.0.0-next.16",
     "@solidjs/web": "2.0.0-rc.0",
     "@zkpassport/sdk": "0.14.2",
     "filesystem-routing": "0.2.1",
+    "qrcode": "1.5.4",
     "solid-js": "2.0.0-rc.0"
   },
   "devDependencies": {
@@ -39,13 +41,14 @@
     "@tailwindcss/vite": "4.3.3",
     "@types/bun": "1.3.14",
     "@types/node": "24.3.0",
+    "@types/qrcode": "1.5.6",
     "oxlint": "1.78.0",
     "playwright": "1.60.0",
     "tailwindcss": "4.3.3",
     "typescript": "5.9.3",
     "vite": "8.2.1",
-    "wrangler": "4.123.0",
-    "vitest": "4.1.10"
+    "vitest": "4.1.10",
+    "wrangler": "4.123.0"
   },
   "patchedDependencies": {
     "jsdom@30.0.0": "packages/solid-ui/patches/jsdom@30.0.0.patch"

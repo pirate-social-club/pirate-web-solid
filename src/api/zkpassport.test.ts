@@ -180,6 +180,7 @@ describe("ZKPassport ceremony", () => {
       apiClient: {
         post_verificationSessions: start,
         post_verificationSessionsProofSessionIdComplete: vi.fn(),
+      // SAFETY: the fake implements exactly the generated methods consumed here.
       } as never,
       csrfToken: "csrf-token",
     })).rejects.toMatchObject({ code: "browser_required" });
@@ -252,6 +253,7 @@ describe("ZKPassport ceremony", () => {
     const callbackState = callbacks();
     const built = builderResult(callbackState);
     const complete = vi.fn();
+    const cancelRequest = vi.fn();
     const ceremony = await createZkPassportCeremony({
       // SAFETY: the fake implements exactly the two generated methods consumed by the ceremony.
       apiClient: {
@@ -261,7 +263,8 @@ describe("ZKPassport ceremony", () => {
       csrfToken: "csrf-token",
       idempotencyKey: () => "idem-2",
       loadSdk: async () => () => ({
-        async request() { return queryBuilder(built.result).builder; }
+        async request() { return queryBuilder(built.result).builder; },
+        cancelRequest,
       }),
     });
     callbackState.proof?.({ proof: "x".repeat(MAX_REQUEST_BODY_BYTES) });
@@ -275,6 +278,7 @@ describe("ZKPassport ceremony", () => {
     });
     await expect(ceremony.completion).rejects.toMatchObject({ code: "submission_too_large" });
     expect(complete).not.toHaveBeenCalled();
+    expect(cancelRequest).toHaveBeenCalledWith("request-1");
   });
 
   it("maps provider rejection without retaining or submitting proofs", async () => {
@@ -373,6 +377,33 @@ describe("ZKPassport ceremony", () => {
     });
     for (let index = 0; index < 65; index += 1) callbackState.proof?.({ index });
     await expect(ceremony.completion).rejects.toMatchObject({ code: "proof_count_invalid" });
+    expect(complete).not.toHaveBeenCalled();
+  });
+
+  it("cancels the provider bridge and makes cancellation terminal", async () => {
+    const callbackState = callbacks();
+    const built = builderResult(callbackState);
+    const cancelRequest = vi.fn();
+    const complete = vi.fn();
+    const ceremony = await createZkPassportCeremony({
+      // SAFETY: the fake implements exactly the generated methods consumed here.
+      apiClient: {
+        post_verificationSessions: vi.fn(async () => presentation()),
+        post_verificationSessionsProofSessionIdComplete: complete,
+      } as never,
+      csrfToken: "csrf-token",
+      loadSdk: async () => () => ({
+        async request() { return queryBuilder(built.result).builder; },
+        cancelRequest,
+      }),
+    });
+    callbackState.proof?.({ proof: "private" });
+    ceremony.cancel();
+    ceremony.cancel();
+    callbackState.result?.({ verified: true, result: validQueryResult() });
+    await expect(ceremony.completion).rejects.toMatchObject({ code: "ceremony_cancelled" });
+    expect(cancelRequest).toHaveBeenCalledTimes(1);
+    expect(cancelRequest).toHaveBeenCalledWith("request-1");
     expect(complete).not.toHaveBeenCalled();
   });
 });

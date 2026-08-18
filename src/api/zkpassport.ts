@@ -15,6 +15,7 @@ export type ZkPassportClientErrorCode =
   | "query_mismatch"
   | "proof_rejected"
   | "proof_generation_failed"
+  | "ceremony_cancelled"
   | "proof_count_invalid"
   | "submission_too_large";
 
@@ -103,6 +104,7 @@ export interface ZkPassportQueryBuilder {
 
 export interface ZkPassportSdk {
   request(options: ZkPassportRequest & { readonly logo: string }): Promise<ZkPassportQueryBuilder>;
+  cancelRequest?(requestId: string): void;
 }
 
 export type ZkPassportSdkFactory = (domain: string) => ZkPassportSdk;
@@ -133,6 +135,7 @@ export interface ZkPassportCeremony {
   readonly requestId: string;
   readonly url: string;
   readonly completion: Promise<ZkPassportCompletion>;
+  cancel(): void;
 }
 
 function invalidPresentation(): never {
@@ -370,6 +373,7 @@ async function defaultSdkLoader(): Promise<ZkPassportSdkFactory> {
         // here; all provider query values and the compiled query are checked locally.
         return providerBuilder as ZkPassportQueryBuilder;
       },
+      cancelRequest: (requestId) => sdk.cancelRequest(requestId),
     };
   };
 }
@@ -449,6 +453,12 @@ export async function createZkPassportCeremony(
 
   const proofs: ZkPassportProofResult[] = [];
   let terminal = false;
+  let bridgeCleaned = false;
+  const cleanupBridge = () => {
+    if (bridgeCleaned) return;
+    bridgeCleaned = true;
+    try { sdk.cancelRequest?.(compiled.requestId); } catch { /* cleanup is best-effort */ }
+  };
   let resolveCompletion!: (value: ZkPassportCompletion) => void;
   let rejectCompletion!: (reason: ZkPassportClientError | unknown) => void;
   const completion = new Promise<ZkPassportCompletion>((resolve, reject) => {
@@ -461,6 +471,7 @@ export async function createZkPassportCeremony(
     if (proofs.length >= 64) {
       terminal = true;
       proofs.length = 0;
+      cleanupBridge();
       rejectCompletion(new ZkPassportClientError("proof_count_invalid"));
       return;
     }
@@ -470,6 +481,7 @@ export async function createZkPassportCeremony(
     if (terminal) return;
     terminal = true;
     proofs.length = 0;
+    cleanupBridge();
     rejectCompletion(new ZkPassportClientError("proof_rejected"));
   });
   compiled.onError(() => {
@@ -479,11 +491,13 @@ export async function createZkPassportCeremony(
     // cannot turn that partial set into an acceptable ceremony.
     terminal = true;
     proofs.length = 0;
+    cleanupBridge();
     rejectCompletion(new ZkPassportClientError("proof_generation_failed"));
   });
   compiled.onResult((response) => {
     if (terminal) return;
     terminal = true;
+    cleanupBridge();
     if (proofs.length === 0 || proofs.length > 64) {
       proofs.length = 0;
       rejectCompletion(new ZkPassportClientError("proof_count_invalid"));
@@ -533,10 +547,19 @@ export async function createZkPassportCeremony(
     );
   });
 
+  const cancel = () => {
+    if (terminal) return;
+    terminal = true;
+    proofs.length = 0;
+    cleanupBridge();
+    rejectCompletion(new ZkPassportClientError("ceremony_cancelled"));
+  };
+
   return {
     proofSessionId: presentation.proofSessionId,
     requestId: compiled.requestId,
     url: compiled.url,
     completion,
+    cancel,
   };
 }
