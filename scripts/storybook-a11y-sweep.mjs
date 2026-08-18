@@ -44,6 +44,7 @@ const CHANNEL_EVENTS = [
  * @property {string|null} storyStatus
  * @property {number} elapsedMs
  * @property {object|null} panel
+ * @property {{ storyFinished: object|null; events: Array<object> }} raw
  * @property {object|null} error
  */
 
@@ -66,6 +67,17 @@ function countOf(value, key) {
   return Array.isArray(value?.[key]) ? value[key].length : null;
 }
 
+function eventStoryId(event) {
+  if (typeof event?.storyId === "string") return event.storyId;
+  if (typeof event?.payload?.storyId === "string") return event.payload.storyId;
+  return null;
+}
+
+function eventsForStory(events, storyId) {
+  if (!storyId) return events;
+  return events.filter((event) => eventStoryId(event) === storyId);
+}
+
 function hasEvent(events, name) {
   return events.some((event) => event?.name === name);
 }
@@ -75,10 +87,11 @@ function hasEvent(events, name) {
  * shell, a missing reporter, or malformed reporter data as a pass.
  *
  * @param {unknown} payload
- * @param {Array<{ name: string; payload?: unknown }>} [events]
+ * @param {Array<{ name: string; storyId?: string|null; payload?: unknown }>} [events]
+ * @param {string|null} [storyId]
  * @returns {{ axe: AxeResult; interaction: InteractionResult; storyStatus: string|null }}
  */
-export function classifyStoryFinished(payload, events = []) {
+export function classifyStoryFinished(payload, events = [], storyId = null) {
   if (!isRecord(payload)) {
     return {
       axe: { status: "indeterminate", reason: "missing_story_finished_payload", violations: null, passes: null, incomplete: null },
@@ -87,12 +100,13 @@ export function classifyStoryFinished(payload, events = []) {
     };
   }
 
+  const storyEvents = eventsForStory(events, storyId);
   const reporters = Array.isArray(payload.reporters) ? payload.reporters : [];
   const a11yReporter = reporters.find(isA11yReporter);
   const a11yResult = a11yReporter?.result;
   const nonA11yFailure = reporters.some((reporter) => reporter?.type !== "a11y" && reporter?.status === "failed");
-  const playFailure = hasEvent(events, "playFunctionThrewException") || hasEvent(events, "unhandledErrorsWhilePlaying");
-  const renderFailure = hasEvent(events, "storyErrored") || hasEvent(events, "storyThrewException");
+  const playFailure = hasEvent(storyEvents, "playFunctionThrewException") || hasEvent(storyEvents, "unhandledErrorsWhilePlaying");
+  const renderFailure = hasEvent(storyEvents, "storyErrored") || hasEvent(storyEvents, "storyThrewException");
 
   /** @type {AxeResult} */
   let axe;
@@ -151,7 +165,9 @@ export function classifyStoryTimeout(payload = undefined) {
  * Storybook can emit storyFinished, including for very fast stories.
  */
 const CHANNEL_INIT_SCRIPT = ({ eventNames }) => {
-  const state = { channelReady: false, events: [] };
+  const path = new URL(globalThis.location.href).searchParams.get("path") ?? "";
+  const activeStoryId = path.startsWith("/story/") ? decodeURIComponent(path.slice("/story/".length)) : null;
+  const state = { channelReady: false, activeStoryId, events: [] };
   Object.defineProperty(globalThis, "__STORYBOOK_A11Y_SWEEP__", {
     configurable: true,
     value: state,
@@ -164,7 +180,12 @@ const CHANNEL_INIT_SCRIPT = ({ eventNames }) => {
     state.channelReady = true;
     for (const name of eventNames) {
       candidate.on(name, (payload) => {
-        state.events.push({ name, payload, at: Date.now() });
+        state.events.push({
+          name,
+          payload,
+          storyId: typeof payload?.storyId === "string" ? payload.storyId : state.activeStoryId,
+          at: Date.now(),
+        });
       });
     }
   };
@@ -175,8 +196,9 @@ const CHANNEL_INIT_SCRIPT = ({ eventNames }) => {
     set: attach,
   });
 
-  state.reset = () => {
+  state.beginStory = (storyId) => {
     state.channelReady = Boolean(channel);
+    state.activeStoryId = storyId;
     state.events = [];
   };
 };
@@ -265,16 +287,24 @@ function storyUrl(baseUrl, id) {
 }
 
 async function waitForStoryFinished(page, storyId, timeoutMs) {
-  await page.waitForFunction(
-    (id) => globalThis.__STORYBOOK_A11Y_SWEEP__?.channelReady === true && globalThis.__STORYBOOK_A11Y_SWEEP__.events.some((event) => event.name === "storyFinished" && event.payload?.storyId === id),
-    storyId,
-    { timeout: timeoutMs },
-  );
+  try {
+    await page.waitForFunction(
+      (id) => globalThis.__STORYBOOK_A11Y_SWEEP__?.channelReady === true && globalThis.__STORYBOOK_A11Y_SWEEP__.events.some((event) => event.name === "storyFinished" && event.storyId === id && event.payload?.storyId === id),
+      storyId,
+      { timeout: timeoutMs },
+    );
+  } catch (error) {
+    error.channelEvents = await page.evaluate((id) => {
+      const state = globalThis.__STORYBOOK_A11Y_SWEEP__;
+      return state?.events?.filter((event) => event.storyId === id) ?? [];
+    }, storyId).catch(() => []);
+    throw error;
+  }
   return page.evaluate((id) => {
     const state = globalThis.__STORYBOOK_A11Y_SWEEP__;
-    const matching = state.events.filter((event) => event.name === "storyFinished" && event.payload?.storyId === id);
+    const matching = state.events.filter((event) => event.name === "storyFinished" && event.storyId === id && event.payload?.storyId === id);
     const finish = matching.at(-1);
-    return { payload: finish?.payload ?? null, events: state.events };
+    return { payload: finish?.payload ?? null, events: state.events.filter((event) => event.storyId === id) };
   }, storyId);
 }
 
@@ -312,16 +342,17 @@ async function runOnce(options, attempt) {
         // A page can retain the manager channel across a same-document story
         // change. Clear prior events so a previous play failure cannot poison
         // the next story's independent interaction result.
-        await page.evaluate(() => globalThis.__STORYBOOK_A11Y_SWEEP__?.reset?.());
+        await page.evaluate((storyId) => globalThis.__STORYBOOK_A11Y_SWEEP__?.beginStory?.(storyId), story.id);
         await page.goto(storyUrl(options.baseUrl, story.id), { waitUntil: "domcontentloaded" });
         ({ payload, events } = await waitForStoryFinished(page, story.id, options.storyTimeoutMs));
       } catch (caught) {
         error = { name: caught?.name ?? "Error", message: String(caught?.message ?? caught) };
+        events = Array.isArray(caught?.channelEvents) ? caught.channelEvents : [];
       }
 
       const classified = error
         ? classifyStoryTimeout()
-        : classifyStoryFinished(payload, events);
+        : classifyStoryFinished(payload, events, story.id);
       const panel = await panelEvidence(page).catch(() => ({ hasViolationCount: false, hasPassCount: false, hasIncompleteCount: false, bare: true }));
       results.push({
         recordType: "story",
@@ -333,6 +364,7 @@ async function runOnce(options, attempt) {
         storyStatus: classified.storyStatus,
         elapsedMs: Date.now() - startedAt,
         panel,
+        raw: { storyFinished: payload, events },
         error,
       });
     }
@@ -350,17 +382,18 @@ async function runOnce(options, attempt) {
     catalogFileCount: new Set(catalog.map((entry) => entry.importPath).filter(Boolean)).size,
     selectedStoryCount: stories.length,
     selectedFileCount: new Set(stories.map((entry) => entry.importPath).filter(Boolean)).size,
-    startedAt: new Date().toISOString(),
+    startedAt: options.sweepStartedAt ?? new Date().toISOString(),
     results,
   };
 }
 
-function isRetryableStartupError(error) {
+export function isRetryableStartupError(error) {
   const message = String(error?.message ?? error);
-  return /ECONNREFUSED|Storybook index|browser|Target page|launch|timeout/i.test(message);
+  if (/story_finished_timeout/i.test(message)) return false;
+  return /ECONNREFUSED|ECONNRESET|ENOTFOUND|ETIMEDOUT|EAI_AGAIN|fetch failed|failed to fetch|abort(?:ed)?|Storybook index|browser|Target page|launch|timeout/i.test(message);
 }
 
-function summarize(run) {
+export function summarize(run) {
   const results = run.results ?? [];
   const count = (predicate) => results.filter(predicate).length;
   const axePass = count((result) => result.axe.status === "pass");
@@ -376,7 +409,8 @@ function summarize(run) {
     "Storybook axe/interaction sweep",
     `Base URL: ${run.baseUrl}`,
     `Catalog: ${run.catalogFileCount} files / ${run.catalogStoryCount} stories; selected ${run.selectedFileCount} files / ${run.selectedStoryCount} stories`,
-    `Axe: ${axePass} pass, ${axeFail} violation-fail, ${axeIndeterminate} indeterminate; ${incomplete} incomplete checks`,
+    `Axe: ${axePass} pass, ${axeFail} violation-fail, ${axeIndeterminate} indeterminate`,
+    `Axe incomplete checks: ${incomplete} (reported separately; not violations or indeterminate)`,
     `Interactions: ${interactionPass} pass, ${interactionFail} fail, ${interactionIndeterminate} indeterminate`,
     `Panel evidence: ${count((result) => result.panel?.bare)} bare/no-counter result(s) (diagnostic only; never a pass)`,
     `Exit: ${exitCode === 0 ? "PASS" : "FAIL"}`,
@@ -406,6 +440,8 @@ async function writeOutputs(run, options, summary) {
   return { ledgerPath, summaryPath };
 }
 
+export { writeOutputs };
+
 function helpText() {
   return `Usage: node scripts/storybook-a11y-sweep.mjs [options]
 
@@ -422,14 +458,18 @@ Options:
 `;
 }
 
-export async function runSweep(options) {
+export async function runSweep(options, execute = runOnce) {
+  const executionOptions = options.sweepStartedAt ? options : { ...options, sweepStartedAt: new Date().toISOString() };
   let lastError;
-  for (let attempt = 0; attempt <= options.retryCount; attempt += 1) {
+  for (let attempt = 0; attempt <= executionOptions.retryCount; attempt += 1) {
     try {
-      return await runOnce(options, attempt);
+      return await execute(executionOptions, attempt);
     } catch (error) {
       lastError = error;
-      if (attempt >= options.retryCount || !isRetryableStartupError(error)) throw error;
+      if (attempt >= executionOptions.retryCount || !isRetryableStartupError(error)) {
+        if (isRecord(error)) error.attempt = attempt;
+        throw error;
+      }
     }
   }
   throw lastError;
@@ -442,6 +482,7 @@ async function main() {
     return 0;
   }
 
+  options.sweepStartedAt = new Date().toISOString();
   let run;
   try {
     run = await runSweep(options);
@@ -449,12 +490,13 @@ async function main() {
     run = {
       recordType: "run",
       runId: `storybook-a11y-startup-${new Date().toISOString().replace(/[:.]/g, "-")}`,
-      attempt: options.retryCount,
+      attempt: Number.isInteger(error?.attempt) ? error.attempt : 0,
       baseUrl: options.baseUrl,
       catalogStoryCount: 0,
       catalogFileCount: 0,
       selectedStoryCount: 0,
       selectedFileCount: 0,
+      startedAt: options.sweepStartedAt,
       results: [],
       startupError: { name: error?.name ?? "Error", message: String(error?.message ?? error) },
     };
