@@ -1,0 +1,518 @@
+{
+  "version": 1,
+  "catalog": "standalone-product-storybook-bookings",
+  "source": {
+    "repository": "pirate-workspace/web/solid",
+    "ref": "002fba933ba913f99ec0ef758f4aa63aff78015f",
+    "policy": "Historical source is read-only; no runtime, build, workspace, React, legacy API, or compatibility coupling is retained."
+  },
+  "scope": {
+    "stories": 15,
+    "featureRoot": "src/features/bookings/**",
+    "sharedPrerequisites": [
+      "src/features/bookings/booking-format.ts",
+      "src/features/bookings/view-models.ts",
+      "src/features/bookings/feed-booking-sheet/feed-booking-sheet-model.ts",
+      "src/features/bookings/feed-booking-sheet/feed-booking-sheet.tsx",
+      "src/features/bookings/slot-picker/slot-picker-model.ts",
+      "src/features/bookings/slot-picker/slot-picker.tsx",
+      "src/features/posts/feed-side-panel/feed-side-panel-model.ts",
+      "src/features/posts/feed-side-panel/feed-side-panel.tsx"
+    ]
+  },
+  "reconciliation": {
+    "removedFixtureIds": [
+      "legacy_unknown"
+    ],
+    "replacementFixtureId": "completed_unconfirmed",
+    "fixturePolicy": "Deterministic offline fixtures only; neutral current contract identifiers and wording."
+  },
+  "entries": [
+    {
+      "sourcePath": "web/solid/src/features/bookings/add-to-calendar/add-to-calendar.stories.tsx",
+      "targetPath": "src/features/bookings/add-to-calendar/add-to-calendar.stories.tsx",
+      "sourceSha256": "08f95212996c3d5126ee169e0d242c3a4552cbd8bc00b6d6a927a5c2b2d8a4b2",
+      "targetSha256": "08f95212996c3d5126ee169e0d242c3a4552cbd8bc00b6d6a927a5c2b2d8a4b2",
+      "disposition": "copied"
+    },
+    {
+      "sourcePath": "web/solid/src/features/bookings/add-to-calendar/add-to-calendar.test.tsx",
+      "targetPath": "src/features/bookings/add-to-calendar/add-to-calendar.test.tsx",
+      "sourceSha256": "5658693cea31e2bd983c141aabda72ecf047eef037edd9daa8b1689ce01e2e0a",
+      "targetSha256": "e6fdb8af0293e9ea8e28b6f349e9bf9e19877917b5b4e7e431fceacac298662c",
+      "disposition": "adapted"
+    },
+    {
+      "sourcePath": "web/solid/src/features/bookings/add-to-calendar/add-to-calendar.tsx",
+      "targetPath": "src/features/bookings/add-to-calendar/add-to-calendar.tsx",
+      "sourceSha256": "46111c3a274b837035a47b16e70cc8c21ce5922174cbb16efc68cd37a83e78e6",
+      "targetSha256": "46111c3a274b837035a47b16e70cc8c21ce5922174cbb16efc68cd37a83e78e6",
+      "disposition": "copied"
+    },
+    {
+      "sourcePath": "web/solid/src/features/bookings/add-to-calendar/calendar-file.ts",
+      "targetPath": "src/features/bookings/add-to-calendar/calendar-file.ts",
+      "sourceSha256": "4dfb3b70bac202df37c5e7587ec4e2af3e9fb8e72bb3fd18abfaa95d7a9f5154",
+      "targetSha256": "4dfb3b70bac202df37c5e7587ec4e2af3e9fb8e72bb3fd18abfaa95d7a9f5154",
+      "disposition": "copied"
+    },
+    {
+      "sourcePath": "web/solid/src/features/bookings/availability-calendar/availability-calendar-model.ts",
+      "targetPath": "src/features/bookings/availability-calendar/availability-calendar-model.ts",
+      "sourceSha256": "74b705ac4a149def7147c650fd09ca8f5f5205233077ff797d79ceef6ec84960",
+      "targetSha256": "74b705ac4a149def7147c650fd09ca8f5f5205233077ff797d79ceef6ec84960",
+      "disposition": "copied"
+    },
+    {
+      "sourcePath": "web/solid/src/features/bookings/availability-calendar/availability-calendar.stories.tsx",
+      "targetPath": "src/features/bookings/availability-calendar/availability-calendar.stories.tsx",
+      "sourceSha256": "c01ed9248b3ebc6cf12cb503e99a46ff38160316425cbbca24b1bb768233e315",
+      "targetSha256": "c01ed9248b3ebc6cf12cb503e99a46ff38160316425cbbca24b1bb768233e315",
+      "disposition": "copied"
+    },
+    {
+      "sourcePath": "web/solid/src/features/bookings/availability-calendar/availability-calendar.test.ts",
+      "targetPath": "src/features/bookings/availability-calendar/availability-calendar.test.ts",
+      "sourceSha256": "3ebbb13840e09448abde284eaa9d72ba964740e54527c63f224a41f4c16fd5f8",
+      "targetSha256": "5ee6c75eaf2a4a61cd3462322c27044e59d6806d61280403e7bd198fbe6c92b3",
+      "disposition": "adapted"
+    },
+    {
+      "sourcePath": "web/solid/src/features/bookings/availability-calendar/availability-calendar.tsx",
+      "targetPath": "src/features/bookings/availability-calendar/availability-calendar.tsx",
+      "sourceSha256": "1dcfe64020532a3b51bc96dd3e105711b385b7d1b1ed22ff565c5c952948c895",
+      "targetSha256": "1dcfe64020532a3b51bc96dd3e105711b385b7d1b1ed22ff565c5c952948c895",
+      "disposition": "copied"
+    },
+    {
+      "sourcePath": "web/solid/src/features/bookings/booking-cancellation-dialog/booking-cancellation-dialog-model.ts",
+      "targetPath": "src/features/bookings/booking-cancellation-dialog/booking-cancellation-dialog-model.ts",
+      "sourceSha256": "1074f528845ee82e94aac52d46bb87b5b00f6f0a4863193be71ee206269e2394",
+      "targetSha256": "1074f528845ee82e94aac52d46bb87b5b00f6f0a4863193be71ee206269e2394",
+      "disposition": "copied"
+    },
+    {
+      "sourcePath": "web/solid/src/features/bookings/booking-cancellation-dialog/booking-cancellation-dialog.stories.tsx",
+      "targetPath": "src/features/bookings/booking-cancellation-dialog/booking-cancellation-dialog.stories.tsx",
+      "sourceSha256": "a79dd036487f569c0acd0281dad6920c6aabb39fa510b1c741f6e9784592a832",
+      "targetSha256": "a79dd036487f569c0acd0281dad6920c6aabb39fa510b1c741f6e9784592a832",
+      "disposition": "copied"
+    },
+    {
+      "sourcePath": "web/solid/src/features/bookings/booking-cancellation-dialog/booking-cancellation-dialog.test.ts",
+      "targetPath": "src/features/bookings/booking-cancellation-dialog/booking-cancellation-dialog.test.ts",
+      "sourceSha256": "a41cbcb3128650f98f588f8a12ec9101fb379dd994101f13f75e9953c80d5dad",
+      "targetSha256": "a41cbcb3128650f98f588f8a12ec9101fb379dd994101f13f75e9953c80d5dad",
+      "disposition": "copied"
+    },
+    {
+      "sourcePath": "web/solid/src/features/bookings/booking-cancellation-dialog/booking-cancellation-dialog.tsx",
+      "targetPath": "src/features/bookings/booking-cancellation-dialog/booking-cancellation-dialog.tsx",
+      "sourceSha256": "12b6832a378c67178987dd2339123f321e394a8cbecf95c59fc62f827671a1b5",
+      "targetSha256": "12b6832a378c67178987dd2339123f321e394a8cbecf95c59fc62f827671a1b5",
+      "disposition": "copied"
+    },
+    {
+      "sourcePath": "web/solid/src/features/bookings/booking-checkout/booking-checkout-model.ts",
+      "targetPath": "src/features/bookings/booking-checkout/booking-checkout-model.ts",
+      "sourceSha256": "84b8640b49c8c9251027974ad398c168265b41859884f23ab681df8a2f5c5428",
+      "targetSha256": "84b8640b49c8c9251027974ad398c168265b41859884f23ab681df8a2f5c5428",
+      "disposition": "copied"
+    },
+    {
+      "sourcePath": "web/solid/src/features/bookings/booking-checkout/booking-checkout.stories.tsx",
+      "targetPath": "src/features/bookings/booking-checkout/booking-checkout.stories.tsx",
+      "sourceSha256": "d464799e670d6041369b1217c4b76f0902a04563dfc214d5c3349a9fc7536ccc",
+      "targetSha256": "d464799e670d6041369b1217c4b76f0902a04563dfc214d5c3349a9fc7536ccc",
+      "disposition": "copied"
+    },
+    {
+      "sourcePath": "web/solid/src/features/bookings/booking-checkout/booking-checkout.test.ts",
+      "targetPath": "src/features/bookings/booking-checkout/booking-checkout.test.ts",
+      "sourceSha256": "bb4406ab1a5a6ea0111af8460931bd76e08316347fff9d138ccfa4cfe5e59cf6",
+      "targetSha256": "bb4406ab1a5a6ea0111af8460931bd76e08316347fff9d138ccfa4cfe5e59cf6",
+      "disposition": "copied"
+    },
+    {
+      "sourcePath": "web/solid/src/features/bookings/booking-checkout/booking-checkout.tsx",
+      "targetPath": "src/features/bookings/booking-checkout/booking-checkout.tsx",
+      "sourceSha256": "a4ee3f932f6747069b9b45786e1ab5842b0c5911e6ee6d417ce7902b376b6d6f",
+      "targetSha256": "a4ee3f932f6747069b9b45786e1ab5842b0c5911e6ee6d417ce7902b376b6d6f",
+      "disposition": "copied"
+    },
+    {
+      "sourcePath": "web/solid/src/features/bookings/booking-format.test.ts",
+      "targetPath": "src/features/bookings/booking-format.test.ts",
+      "sourceSha256": "0c4976fa3e04c17f47f3098a8ec1e776968d9c338e33a9946926a93c75fbb7d2",
+      "targetSha256": "0c4976fa3e04c17f47f3098a8ec1e776968d9c338e33a9946926a93c75fbb7d2",
+      "disposition": "copied"
+    },
+    {
+      "sourcePath": "web/solid/src/features/bookings/booking-format.ts",
+      "targetPath": "src/features/bookings/booking-format.ts",
+      "sourceSha256": "20ce65e6d6efe3171d5689cbac92120e9be246b8616c81741ed8690572994b73",
+      "targetSha256": "20ce65e6d6efe3171d5689cbac92120e9be246b8616c81741ed8690572994b73",
+      "disposition": "copied"
+    },
+    {
+      "sourcePath": "web/solid/src/features/bookings/booking-management-view/booking-management-view-model.ts",
+      "targetPath": "src/features/bookings/booking-management-view/booking-management-view-model.ts",
+      "sourceSha256": "e63bbb54b961585e888383fe663f74a0f00fe2b269b8dd9d8f09f58ca58bc94b",
+      "targetSha256": "e63bbb54b961585e888383fe663f74a0f00fe2b269b8dd9d8f09f58ca58bc94b",
+      "disposition": "copied"
+    },
+    {
+      "sourcePath": "web/solid/src/features/bookings/booking-management-view/booking-management-view.stories.tsx",
+      "targetPath": "src/features/bookings/booking-management-view/booking-management-view.stories.tsx",
+      "sourceSha256": "776948156200ed68e2bb40e773a3928a15aae36a56a52bd4e881e1d31afcf087",
+      "targetSha256": "db2bdfb05452acc4d63301a8749ddfcf44f96d441835c5cd2d3c899d4a3d657d",
+      "disposition": "adapted"
+    },
+    {
+      "sourcePath": "web/solid/src/features/bookings/booking-management-view/booking-management-view.test.ts",
+      "targetPath": "src/features/bookings/booking-management-view/booking-management-view.test.ts",
+      "sourceSha256": "6f7f55d219a2985fd7333a9779952c71ff90abbda642fe4f12110848b029dc13",
+      "targetSha256": "20870e92cb40b11bd0944b9d28d748b4b69d54568ceea8f876cc9ace750ff431",
+      "disposition": "adapted"
+    },
+    {
+      "sourcePath": "web/solid/src/features/bookings/booking-management-view/booking-management-view.tsx",
+      "targetPath": "src/features/bookings/booking-management-view/booking-management-view.tsx",
+      "sourceSha256": "97ee8ae5230837605643ccf24c9868a8e6d466b6cd114de4314ea0798521f632",
+      "targetSha256": "97ee8ae5230837605643ccf24c9868a8e6d466b6cd114de4314ea0798521f632",
+      "disposition": "copied"
+    },
+    {
+      "sourcePath": "web/solid/src/features/bookings/booking-management-view/booking-rendered.test.tsx",
+      "targetPath": "src/features/bookings/booking-management-view/booking-rendered.test.tsx",
+      "sourceSha256": "495c3bb3e4653014b1c49043c47c8a2a2c7f3ddc07c9cd8b3346bef5ca9b31d2",
+      "targetSha256": "d5245b1f09bdc25f676e36b551ff55d3aa2db67885c78e1950c5abf6abb66c1c",
+      "disposition": "adapted"
+    },
+    {
+      "sourcePath": "web/solid/src/features/bookings/booking-session-controls/booking-session-controls-model.ts",
+      "targetPath": "src/features/bookings/booking-session-controls/booking-session-controls-model.ts",
+      "sourceSha256": "631acf9c501b46d5a4582fc9b398fc34d9c1ba6fc7616a85d2538c34d2a5f68b",
+      "targetSha256": "631acf9c501b46d5a4582fc9b398fc34d9c1ba6fc7616a85d2538c34d2a5f68b",
+      "disposition": "copied"
+    },
+    {
+      "sourcePath": "web/solid/src/features/bookings/booking-session-controls/booking-session-controls.stories.tsx",
+      "targetPath": "src/features/bookings/booking-session-controls/booking-session-controls.stories.tsx",
+      "sourceSha256": "b97fea147b74b4b71ce4e69dd1e9368dba01d22a7c7575d4c4a130de8d086c76",
+      "targetSha256": "b97fea147b74b4b71ce4e69dd1e9368dba01d22a7c7575d4c4a130de8d086c76",
+      "disposition": "copied"
+    },
+    {
+      "sourcePath": "web/solid/src/features/bookings/booking-session-controls/booking-session-controls.test.ts",
+      "targetPath": "src/features/bookings/booking-session-controls/booking-session-controls.test.ts",
+      "sourceSha256": "71689ff60874c2e50321a7ada3e21dac49919653d003ea74e8fb5a73946914b7",
+      "targetSha256": "71689ff60874c2e50321a7ada3e21dac49919653d003ea74e8fb5a73946914b7",
+      "disposition": "copied"
+    },
+    {
+      "sourcePath": "web/solid/src/features/bookings/booking-session-controls/booking-session-controls.tsx",
+      "targetPath": "src/features/bookings/booking-session-controls/booking-session-controls.tsx",
+      "sourceSha256": "67f73a876834a9a9a87ea630049e31acc434f1f3ad16e60cb9689a59711dd2d7",
+      "targetSha256": "67f73a876834a9a9a87ea630049e31acc434f1f3ad16e60cb9689a59711dd2d7",
+      "disposition": "copied"
+    },
+    {
+      "sourcePath": "web/solid/src/features/bookings/booking-status-card/booking-status-card-model.ts",
+      "targetPath": "src/features/bookings/booking-status-card/booking-status-card-model.ts",
+      "sourceSha256": "4ff9abe4a0c20c1e337e861c950b4d0b995ab61e82df64d0d75a6849a39d567a",
+      "targetSha256": "4ff9abe4a0c20c1e337e861c950b4d0b995ab61e82df64d0d75a6849a39d567a",
+      "disposition": "copied"
+    },
+    {
+      "sourcePath": "web/solid/src/features/bookings/booking-status-card/booking-status-card.stories.tsx",
+      "targetPath": "src/features/bookings/booking-status-card/booking-status-card.stories.tsx",
+      "sourceSha256": "913c8988cec747cef8525efd02f60cbd9038774777ff81a036cad3923a55d7e4",
+      "targetSha256": "b0226a500be870db891a2e9ca92e09db406295698eb9dd02ba2d68a68f0d93a3",
+      "disposition": "adapted"
+    },
+    {
+      "sourcePath": "web/solid/src/features/bookings/booking-status-card/booking-status-card.test.ts",
+      "targetPath": "src/features/bookings/booking-status-card/booking-status-card.test.ts",
+      "sourceSha256": "d46843c5c15fc0ca22f86f6b0da83b695f50b76613dfe552b1a1ee9322fe69b2",
+      "targetSha256": "d46843c5c15fc0ca22f86f6b0da83b695f50b76613dfe552b1a1ee9322fe69b2",
+      "disposition": "copied"
+    },
+    {
+      "sourcePath": "web/solid/src/features/bookings/booking-status-card/booking-status-card.tsx",
+      "targetPath": "src/features/bookings/booking-status-card/booking-status-card.tsx",
+      "sourceSha256": "2691a06c21a3f5a604e1e28b5bb53f94bb7bb0f5fd994c193d1b18c31c0a7869",
+      "targetSha256": "e3827ea1a68c5aef083d026b19c345f8b0da814f9c51c5ff62d10871c4b4b9a9",
+      "disposition": "adapted"
+    },
+    {
+      "sourcePath": "web/solid/src/features/bookings/booking-summary/booking-summary-model.ts",
+      "targetPath": "src/features/bookings/booking-summary/booking-summary-model.ts",
+      "sourceSha256": "92da7d3043ff5fa119a865f4a3dcea008544845e5feef9c50431d4a165319a80",
+      "targetSha256": "92da7d3043ff5fa119a865f4a3dcea008544845e5feef9c50431d4a165319a80",
+      "disposition": "copied"
+    },
+    {
+      "sourcePath": "web/solid/src/features/bookings/booking-summary/booking-summary.stories.tsx",
+      "targetPath": "src/features/bookings/booking-summary/booking-summary.stories.tsx",
+      "sourceSha256": "ec286d4380ae2773fb5a3c205e2a43a4d258a82116cbaea66a3995b71b116de0",
+      "targetSha256": "ec286d4380ae2773fb5a3c205e2a43a4d258a82116cbaea66a3995b71b116de0",
+      "disposition": "copied"
+    },
+    {
+      "sourcePath": "web/solid/src/features/bookings/booking-summary/booking-summary.test.ts",
+      "targetPath": "src/features/bookings/booking-summary/booking-summary.test.ts",
+      "sourceSha256": "2de454f7af02c3c51dd8bb3277db3defa4f8b483e815ab951058e013b1710c8c",
+      "targetSha256": "2de454f7af02c3c51dd8bb3277db3defa4f8b483e815ab951058e013b1710c8c",
+      "disposition": "copied"
+    },
+    {
+      "sourcePath": "web/solid/src/features/bookings/booking-summary/booking-summary.tsx",
+      "targetPath": "src/features/bookings/booking-summary/booking-summary.tsx",
+      "sourceSha256": "0dccded0c48ce86e2db81e84a4d6a2b3f4df2403bb7caa3580003f377cecc53c",
+      "targetSha256": "0dccded0c48ce86e2db81e84a4d6a2b3f4df2403bb7caa3580003f377cecc53c",
+      "disposition": "copied"
+    },
+    {
+      "sourcePath": "web/solid/src/features/bookings/bookings-list/bookings-list-model.ts",
+      "targetPath": "src/features/bookings/bookings-list/bookings-list-model.ts",
+      "sourceSha256": "3db9f0b6ef4ea813b33d1040df4014c3f6ca2b03107309d1e07126daac4f898f",
+      "targetSha256": "3db9f0b6ef4ea813b33d1040df4014c3f6ca2b03107309d1e07126daac4f898f",
+      "disposition": "copied"
+    },
+    {
+      "sourcePath": "web/solid/src/features/bookings/bookings-list/bookings-list.stories.tsx",
+      "targetPath": "src/features/bookings/bookings-list/bookings-list.stories.tsx",
+      "sourceSha256": "1e1316df8ee14eebfe7dc68e1da61f73f754654b05828297ad670e05864ef44b",
+      "targetSha256": "1e1316df8ee14eebfe7dc68e1da61f73f754654b05828297ad670e05864ef44b",
+      "disposition": "copied"
+    },
+    {
+      "sourcePath": "web/solid/src/features/bookings/bookings-list/bookings-list.test.ts",
+      "targetPath": "src/features/bookings/bookings-list/bookings-list.test.ts",
+      "sourceSha256": "ae24fc98f318a46dcc2749dcc0185904b43d853f0a3d20f8872c66a402c8298d",
+      "targetSha256": "ae24fc98f318a46dcc2749dcc0185904b43d853f0a3d20f8872c66a402c8298d",
+      "disposition": "copied"
+    },
+    {
+      "sourcePath": "web/solid/src/features/bookings/bookings-list/bookings-list.tsx",
+      "targetPath": "src/features/bookings/bookings-list/bookings-list.tsx",
+      "sourceSha256": "95a852e5455a2bd59988166668f24f9db2fe07941178dea959f210d388308702",
+      "targetSha256": "95a852e5455a2bd59988166668f24f9db2fe07941178dea959f210d388308702",
+      "disposition": "copied"
+    },
+    {
+      "sourcePath": "web/solid/src/features/bookings/feed-booking-sheet/feed-booking-sheet-model.test.ts",
+      "targetPath": "src/features/bookings/feed-booking-sheet/feed-booking-sheet-model.test.ts",
+      "sourceSha256": "be922f9e6397e4b2efd8f2ac72f1ef39e5d611f3a344080d772076438878eebf",
+      "targetSha256": "be922f9e6397e4b2efd8f2ac72f1ef39e5d611f3a344080d772076438878eebf",
+      "disposition": "copied"
+    },
+    {
+      "sourcePath": "web/solid/src/features/bookings/feed-booking-sheet/feed-booking-sheet-model.ts",
+      "targetPath": "src/features/bookings/feed-booking-sheet/feed-booking-sheet-model.ts",
+      "sourceSha256": "07826c23fdc51a50084a893b8b978f071476faf15cd812cb751e719508277c50",
+      "targetSha256": "07826c23fdc51a50084a893b8b978f071476faf15cd812cb751e719508277c50",
+      "disposition": "copied"
+    },
+    {
+      "sourcePath": "web/solid/src/features/bookings/feed-booking-sheet/feed-booking-sheet.stories.tsx",
+      "targetPath": "src/features/bookings/feed-booking-sheet/feed-booking-sheet.stories.tsx",
+      "sourceSha256": "eb3e549e4635d68da26596e16d768a61ae310a6cfe12dc53d88e5d875fa6bf9e",
+      "targetSha256": "eb3e549e4635d68da26596e16d768a61ae310a6cfe12dc53d88e5d875fa6bf9e",
+      "disposition": "copied"
+    },
+    {
+      "sourcePath": "web/solid/src/features/bookings/feed-booking-sheet/feed-booking-sheet.tsx",
+      "targetPath": "src/features/bookings/feed-booking-sheet/feed-booking-sheet.tsx",
+      "sourceSha256": "046567b24d74a0a1de4c2e0e1a43186716e824e6aaa62881d8ce22da9b61d1b1",
+      "targetSha256": "046567b24d74a0a1de4c2e0e1a43186716e824e6aaa62881d8ce22da9b61d1b1",
+      "disposition": "copied"
+    },
+    {
+      "sourcePath": "web/solid/src/features/bookings/host-availability-editor/host-availability-editor-model.ts",
+      "targetPath": "src/features/bookings/host-availability-editor/host-availability-editor-model.ts",
+      "sourceSha256": "3e9868b9143881a51b023b6c5a97929e54e43359a287dc6b9397efad06bf108c",
+      "targetSha256": "3e9868b9143881a51b023b6c5a97929e54e43359a287dc6b9397efad06bf108c",
+      "disposition": "copied"
+    },
+    {
+      "sourcePath": "web/solid/src/features/bookings/host-availability-editor/host-availability-editor.stories.tsx",
+      "targetPath": "src/features/bookings/host-availability-editor/host-availability-editor.stories.tsx",
+      "sourceSha256": "e0fa22679e795d14ae0b64d5f40593d5697657798cd29c0fd7d86752fa5ab71c",
+      "targetSha256": "3675110645be934205d3ac8815e7269a458540dc7ad3b87bf91eff3237283445",
+      "disposition": "adapted"
+    },
+    {
+      "sourcePath": "web/solid/src/features/bookings/host-availability-editor/host-availability-editor.test.ts",
+      "targetPath": "src/features/bookings/host-availability-editor/host-availability-editor.test.ts",
+      "sourceSha256": "4e62f4f78d74e7638f8ae74f7da5ba87b64966ee1ec13a9d29562a9ef945b54d",
+      "targetSha256": "4e62f4f78d74e7638f8ae74f7da5ba87b64966ee1ec13a9d29562a9ef945b54d",
+      "disposition": "copied"
+    },
+    {
+      "sourcePath": "web/solid/src/features/bookings/host-availability-editor/host-availability-editor.tsx",
+      "targetPath": "src/features/bookings/host-availability-editor/host-availability-editor.tsx",
+      "sourceSha256": "e23ea391df0fe6dfbda5ef6c3ceea9df00c543c1f22d6a2d70477bcd6a496928",
+      "targetSha256": "ca0c7f53f731893e06a12af0af255eaa4a9f3a14cdf022e78a36876feb39d6a0",
+      "disposition": "adapted"
+    },
+    {
+      "sourcePath": "web/solid/src/features/bookings/host-booking-page/host-booking-page.stories.tsx",
+      "targetPath": "src/features/bookings/host-booking-page/host-booking-page.stories.tsx",
+      "sourceSha256": "e75ebebd252d6b7991188ab5d0b591e0ac825f6f5cc666c3f470e27976f4818e",
+      "targetSha256": "e75ebebd252d6b7991188ab5d0b591e0ac825f6f5cc666c3f470e27976f4818e",
+      "disposition": "copied"
+    },
+    {
+      "sourcePath": "web/solid/src/features/bookings/host-booking-page/host-booking-page.test.ts",
+      "targetPath": "src/features/bookings/host-booking-page/host-booking-page.test.ts",
+      "sourceSha256": "5a975e914c8d06787283979876963caa15b227ca344ffb2864109fcf269b8694",
+      "targetSha256": "5a975e914c8d06787283979876963caa15b227ca344ffb2864109fcf269b8694",
+      "disposition": "copied"
+    },
+    {
+      "sourcePath": "web/solid/src/features/bookings/host-booking-page/host-booking-page.tsx",
+      "targetPath": "src/features/bookings/host-booking-page/host-booking-page.tsx",
+      "sourceSha256": "f08966b16102f2d32800ddd1178334f324ad5291aee3a105b2a4f016a1752971",
+      "targetSha256": "f08966b16102f2d32800ddd1178334f324ad5291aee3a105b2a4f016a1752971",
+      "disposition": "copied"
+    },
+    {
+      "sourcePath": "web/solid/src/features/bookings/profile-book-panel/profile-book-panel-model.ts",
+      "targetPath": "src/features/bookings/profile-book-panel/profile-book-panel-model.ts",
+      "sourceSha256": "e68b9be34439a3921e559bfc10b9617c872d271f6b73713c5596d8466984bcda",
+      "targetSha256": "e68b9be34439a3921e559bfc10b9617c872d271f6b73713c5596d8466984bcda",
+      "disposition": "copied"
+    },
+    {
+      "sourcePath": "web/solid/src/features/bookings/profile-book-panel/profile-book-panel.stories.tsx",
+      "targetPath": "src/features/bookings/profile-book-panel/profile-book-panel.stories.tsx",
+      "sourceSha256": "068899a319e752b7e5b3986c73a77adbf45453da7668354ca7457a1e1dad9c15",
+      "targetSha256": "068899a319e752b7e5b3986c73a77adbf45453da7668354ca7457a1e1dad9c15",
+      "disposition": "copied"
+    },
+    {
+      "sourcePath": "web/solid/src/features/bookings/profile-book-panel/profile-book-panel.test.ts",
+      "targetPath": "src/features/bookings/profile-book-panel/profile-book-panel.test.ts",
+      "sourceSha256": "d6226e5f34f126263b6bb3dbe3c3283f87bfd9742dc00acf9db6c8c374ce0cf5",
+      "targetSha256": "d6226e5f34f126263b6bb3dbe3c3283f87bfd9742dc00acf9db6c8c374ce0cf5",
+      "disposition": "copied"
+    },
+    {
+      "sourcePath": "web/solid/src/features/bookings/profile-book-panel/profile-book-panel.tsx",
+      "targetPath": "src/features/bookings/profile-book-panel/profile-book-panel.tsx",
+      "sourceSha256": "8280de6649dc8605a342c87bac5088ae4c134239903186da9eac78ab4e515a8b",
+      "targetSha256": "61f59dbb2ec6445414767c6f11551cac30e096a96eebbe4803e0de19e6923203",
+      "disposition": "adapted"
+    },
+    {
+      "sourcePath": "web/solid/src/features/bookings/profile-bookings-section/profile-bookings-section-model.test.ts",
+      "targetPath": "src/features/bookings/profile-bookings-section/profile-bookings-section-model.test.ts",
+      "sourceSha256": "c5a62a2fec78c892226ffaae0f3832f35e56b0189d9f2268f97a22b5f0f639d2",
+      "targetSha256": "c5a62a2fec78c892226ffaae0f3832f35e56b0189d9f2268f97a22b5f0f639d2",
+      "disposition": "copied"
+    },
+    {
+      "sourcePath": "web/solid/src/features/bookings/profile-bookings-section/profile-bookings-section-model.ts",
+      "targetPath": "src/features/bookings/profile-bookings-section/profile-bookings-section-model.ts",
+      "sourceSha256": "6fa0e5598ad5f8af796598d1cee2cabbc995d1a69822e18309cb27c1cb533129",
+      "targetSha256": "066d7ed1a092c254057b32176a4268b9ceadd7a50397a3dcb07afbbc6c27040f",
+      "disposition": "adapted"
+    },
+    {
+      "sourcePath": "web/solid/src/features/bookings/profile-bookings-section/profile-bookings-section-rendered.test.tsx",
+      "targetPath": "src/features/bookings/profile-bookings-section/profile-bookings-section-rendered.test.tsx",
+      "sourceSha256": "7cccacfa6625ed3359fa7a584f6cc7aa8291bb5a0a628a45895c848db3e17ec2",
+      "targetSha256": "a4ed2654de87d3f2b179b711303633449a525118fb382363aec4775b93a0e5df",
+      "disposition": "adapted"
+    },
+    {
+      "sourcePath": "web/solid/src/features/bookings/profile-bookings-section/profile-bookings-section-ssr.test.tsx",
+      "targetPath": "src/features/bookings/profile-bookings-section/profile-bookings-section-ssr.test.tsx",
+      "sourceSha256": "a28da8d01e124311333e43bf9fb70f9a45b8d910a4e1b561cd0ea134bc989a36",
+      "targetSha256": "d9264f0824b6b410ca32b562bb76902dc0c7ac59de563f4c4dfa62eff0ca4d3b",
+      "disposition": "adapted"
+    },
+    {
+      "sourcePath": "web/solid/src/features/bookings/profile-bookings-section/profile-bookings-section.stories.tsx",
+      "targetPath": "src/features/bookings/profile-bookings-section/profile-bookings-section.stories.tsx",
+      "sourceSha256": "805a6fa8f3d369d03795bdcdec0285ac78e4fa302394d15dbd74da963f5d806a",
+      "targetSha256": "805a6fa8f3d369d03795bdcdec0285ac78e4fa302394d15dbd74da963f5d806a",
+      "disposition": "copied"
+    },
+    {
+      "sourcePath": "web/solid/src/features/bookings/profile-bookings-section/profile-bookings-section.tsx",
+      "targetPath": "src/features/bookings/profile-bookings-section/profile-bookings-section.tsx",
+      "sourceSha256": "25679931006664db557d2826193f1336512902cda71a05ce3b642ddf5a91fd88",
+      "targetSha256": "18ba741e7d091fea9eb954c9922d5ed5805ed30bad99f7f24e0aac5c7b1cbfdf",
+      "disposition": "adapted"
+    },
+    {
+      "sourcePath": "web/solid/src/features/bookings/slot-picker/slot-picker-model.ts",
+      "targetPath": "src/features/bookings/slot-picker/slot-picker-model.ts",
+      "sourceSha256": "e5eba97a3903a487855c11df5762c6b553b11801dc8809e875c5b4b3ee86b21a",
+      "targetSha256": "e5eba97a3903a487855c11df5762c6b553b11801dc8809e875c5b4b3ee86b21a",
+      "disposition": "copied"
+    },
+    {
+      "sourcePath": "web/solid/src/features/bookings/slot-picker/slot-picker.stories.tsx",
+      "targetPath": "src/features/bookings/slot-picker/slot-picker.stories.tsx",
+      "sourceSha256": "78b2925f14d47653f45683a217ec63889bfdc5e715f315e81553e31ae45a4d1f",
+      "targetSha256": "78b2925f14d47653f45683a217ec63889bfdc5e715f315e81553e31ae45a4d1f",
+      "disposition": "copied"
+    },
+    {
+      "sourcePath": "web/solid/src/features/bookings/slot-picker/slot-picker.test.tsx",
+      "targetPath": "src/features/bookings/slot-picker/slot-picker.test.tsx",
+      "sourceSha256": "59bd23c1728b13d0c3fb700dd49c4f3d5f101f53f5723422b218d3be6da4c55f",
+      "targetSha256": "59bd23c1728b13d0c3fb700dd49c4f3d5f101f53f5723422b218d3be6da4c55f",
+      "disposition": "copied"
+    },
+    {
+      "sourcePath": "web/solid/src/features/bookings/slot-picker/slot-picker.tsx",
+      "targetPath": "src/features/bookings/slot-picker/slot-picker.tsx",
+      "sourceSha256": "6d5c97155b4461ce4b89ba2df6846c9ce4157fc2c761f2a960c1e857f533a8f7",
+      "targetSha256": "6d5c97155b4461ce4b89ba2df6846c9ce4157fc2c761f2a960c1e857f533a8f7",
+      "disposition": "copied"
+    },
+    {
+      "sourcePath": "web/solid/src/features/bookings/view-models.ts",
+      "targetPath": "src/features/bookings/view-models.ts",
+      "sourceSha256": "42aa09fc621c3499db34f5e3e2dba76c432a5add8f019ccccdb2420d4f9d89e4",
+      "targetSha256": "42aa09fc621c3499db34f5e3e2dba76c432a5add8f019ccccdb2420d4f9d89e4",
+      "disposition": "copied"
+    },
+    {
+      "sourcePath": "web/solid/src/features/posts/feed-side-panel/feed-side-panel-model.test.ts",
+      "targetPath": "src/features/posts/feed-side-panel/feed-side-panel-model.test.ts",
+      "sourceSha256": "869867da3713c165b7fb85d940f1ae3f49add2655805beb447dc5d6541b02292",
+      "targetSha256": "869867da3713c165b7fb85d940f1ae3f49add2655805beb447dc5d6541b02292",
+      "disposition": "copied"
+    },
+    {
+      "sourcePath": "web/solid/src/features/posts/feed-side-panel/feed-side-panel-model.ts",
+      "targetPath": "src/features/posts/feed-side-panel/feed-side-panel-model.ts",
+      "sourceSha256": "c02f11c4d62c09f1b76914f3cc5c53f5b5c325c86e90498d861d128242641ad4",
+      "targetSha256": "c02f11c4d62c09f1b76914f3cc5c53f5b5c325c86e90498d861d128242641ad4",
+      "disposition": "copied"
+    },
+    {
+      "sourcePath": "web/solid/src/features/posts/feed-side-panel/feed-side-panel.tsx",
+      "targetPath": "src/features/posts/feed-side-panel/feed-side-panel.tsx",
+      "sourceSha256": "2c5482dd79edbc4a69f25b511c3126ff13ed18ae0fe55e97dca1d2c2c864ad05",
+      "targetSha256": "2c5482dd79edbc4a69f25b511c3126ff13ed18ae0fe55e97dca1d2c2c864ad05",
+      "disposition": "copied"
+    }
+  ],
+  "evidence": {
+    "focusedModelAndRenderTests": "passed: 61 tests, 249 expect calls across the 20-file focused suite",
+    "lint": "passed for the full src scope with existing warnings",
+    "typescript": "passed after rebasing onto the standalone facade expansion",
+    "storybookBuild": "passed (309 modules transformed; storybook-static emitted)",
+    "productionBuild": "passed (standalone Vite client and SSR build)",
+    "productGraph": "passed with --require-build (399 production files, 74 Worker assets, 0 React runtime dependencies)",
+    "browserAxe": "pending",
+    "sourceBoundaryScan": "passed for this scope"
+  }
+}
