@@ -117,7 +117,7 @@ export function CommunityJoinRequestModal(props: CommunityJoinRequestModalProps)
                     {joinRequestNoteCount(note())}/{MAX_NOTE_LENGTH}
                   </Type>
                 </div>
-                <Textarea ref={noteInput} disabled={props.submitting} id={noteId()} maxlength={MAX_NOTE_LENGTH}
+                <Textarea ref={(element) => { noteInput = element; }} disabled={props.submitting} id={noteId()} maxlength={MAX_NOTE_LENGTH}
                   onInput={(event) => setNote(limitJoinRequestNote(event.currentTarget.value))}
                   placeholder={interpolateMessage(copy().whyJoinPlaceholder, { communityName: props.communityName })}
                   rows={5}

@@ -37,7 +37,7 @@ function JoinRequestStory(props: Pick<CommunityJoinRequestModalProps, "initialNo
   return (
     <div class="min-h-[680px] bg-background p-6 text-foreground" dir="rtl">
       <Show when={!open()}>
-        <button ref={opener} id="join-request-reopen" onClick={reopen} type="button">Reopen request</button>
+        <button ref={(element) => { opener = element; }} id="join-request-reopen" onClick={reopen} type="button">Reopen request</button>
       </Show>
       <CommunityJoinRequestModal
         communityName="Signal Room"
@@ -73,6 +73,8 @@ export const Default: Story = {
     const canvas = within(canvasElement);
     const dialog = await within(document.body).findByRole("dialog");
     const note = within(dialog).getByRole("textbox", { name: "Message (Optional)" });
+    await expect(dialog).toHaveAttribute("dir", "rtl");
+    await expect(note).toHaveAttribute("dir", "auto");
     await expect(note).toHaveFocus();
     await userEvent.type(note, "  I would like to contribute to Signal Room.  ");
     await expect(within(dialog).getByText("46/500")).toBeInTheDocument();
