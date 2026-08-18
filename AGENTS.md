@@ -37,6 +37,14 @@ source.
 
 - One writer per worktree. Feature work uses named branches and linked
   worktrees; the canonical checkout is integration-owned.
+- Every non-coordinator agent or Codex session must be launched with filesystem
+  write scope restricted to its assigned linked worktree; expose the canonical
+  checkout read-only. Only the integration coordinator may receive canonical
+  write scope, and a session's launch directory does not establish ownership.
+- The only active workspace root is
+  `/media/t42/codedrive/Code/pirate-workspace`. The similarly named
+  `/home/t42/Documents/pirate-workspace` tree is historical reference material,
+  never a task root or write target.
 - Preserve the pre-clean-slate tree at
   `refs/archive/pre-clean-slate-20260818`; do not rewrite or delete it.
 - Import work in reviewable tranches with a source manifest and hash evidence.
