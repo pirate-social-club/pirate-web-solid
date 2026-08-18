@@ -77,17 +77,14 @@ export function Combobox<Option>(props: ComboboxProps<Option>) {
       optionTextValue: props.optionLabel,
       optionLabel: props.optionLabel,
       optionDisabled: props.optionDisabled,
-      value: (selectedOption() == null ? null : [selectedOption()!]) as unknown as Option | null,
-      defaultValue: (defaultOption() == null ? undefined : [defaultOption()!]) as unknown as Option | undefined,
+      value: selectedOption(),
+      defaultValue: defaultOption(),
       onChange: (option: Option | Option[] | null) => {
         const first = Array.isArray(option) ? option[0] : option;
-        props.onChange?.(
-          first == null ? null : props.optionValue(first),
-        );
+        props.onChange?.(first == null ? null : props.optionValue(first));
       },
       placeholder: props.placeholder,
       disabled: props.disabled,
-      multiple: false,
       itemComponent: ComboboxItem,
     }) as const;
 

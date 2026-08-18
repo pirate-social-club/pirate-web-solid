@@ -36,9 +36,14 @@ runs the scoped lint and unit gates, checks the Solid runtime identity, and
 runs the solid-ui tests. The dry run is local validation only and must report
 `env.ASSETS` as the sole binding.
 
-The current Solid UI suite has an upstream Kobalte `2.0.0-alpha.0` / Solid 2
-RC incompatibility in development-mode overlay focus restoration and reactive
-state writes; the failing tests are retained in the gate rather than skipped.
+The Solid UI suite consumes an integrity-pinned tarball built from the official
+Kobalte `solid2` branch at commit
+`a892187065cf7e0d07e91db02310bd28a5619236`; the source, build, and SHA-512
+evidence are recorded in `vendor/kobalte-core-provenance.json`. The runtime
+check resolves this package from `packages/solid-ui` and verifies the vendored
+build. The jsdom test harness pins `30.0.0` with a narrow null-resolution patch;
+its deterministic geometry fixture is exercised by the Scrubber tests. No UI
+tests are skipped.
 
 For local browser checks, install a project-local Chromium, build, and start a
 foreground preview:

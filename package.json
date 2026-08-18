@@ -42,5 +42,8 @@
     "typescript": "5.9.3",
     "vite": "8.2.1",
     "wrangler": "4.123.0"
+  },
+  "patchedDependencies": {
+    "jsdom@30.0.0": "packages/solid-ui/patches/jsdom@30.0.0.patch"
   }
 }

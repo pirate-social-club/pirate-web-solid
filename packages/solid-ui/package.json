@@ -16,7 +16,7 @@
     "build-storybook": "storybook build"
   },
   "dependencies": {
-    "@kobalte/core": "2.0.0-alpha.0",
+    "@kobalte/core": "file:../../vendor/kobalte-core-2.0.0-alpha.0-a892187065cf7e0d07e91db02310bd28a5619236-patched.tgz",
     "class-variance-authority": "0.7.1",
     "tailwind-merge": "3.6.0"
   },
@@ -29,7 +29,7 @@
     "@testing-library/user-event": "14.6.4",
     "@types/node": "26.2.0",
     "axe-core": "4.13.0",
-    "jsdom": "30.0.1",
+    "jsdom": "30.0.0",
     "remark-gfm": "4.0.1",
     "storybook": "10.5.8",
     "storybook-solidjs-vite": "10.6.0",
