@@ -84,6 +84,7 @@ async function readBoundedBody(body: ReadableStream<Uint8Array>, signal: AbortSi
     throw error;
   } finally {
     signal.removeEventListener("abort", onAbort);
+    reader.releaseLock();
   }
 }
 
@@ -164,7 +165,9 @@ export async function proxyApiRequest(
 
     timeout = timeoutSignal(request, options.timeoutMs ?? API_PROXY_TIMEOUT_MS);
     const headers = safeRequestHeaders(request);
-    const body = await bodyFor(request, timeout.signal);
+    // Keep the same interrupt race around bounded body preflight and fetch:
+    // a client disconnect or timeout must settle a stalled request body too.
+    const body = await Promise.race([bodyFor(request, timeout.signal), timeout.interrupt]);
     const upstream = await Promise.race([
       (options.fetchImpl ?? fetch)(target, {
       method: request.method,
@@ -187,24 +190,37 @@ export async function proxyApiRequest(
     // Keep the timeout and abort signal alive while a streamed upstream body
     // is consumed. The response remains streaming; no body is buffered.
     const reader = upstream.body.getReader();
+    let released = false;
+    const release = (): void => {
+      if (!released) {
+        released = true;
+        reader.releaseLock();
+      }
+    };
     const bodyStream = new ReadableStream<Uint8Array>({
       async pull(controller) {
         try {
           const next = await reader.read();
           if (next.done) {
             timeout?.finish();
+            release();
             controller.close();
           } else {
             controller.enqueue(next.value);
           }
         } catch (error) {
           timeout?.finish();
+          release();
           controller.error(error);
         }
       },
       async cancel(reason) {
-        timeout?.finish();
-        await reader.cancel(reason);
+        try {
+          await reader.cancel(reason);
+        } finally {
+          timeout?.finish();
+          release();
+        }
       },
     });
     return new Response(bodyStream, {

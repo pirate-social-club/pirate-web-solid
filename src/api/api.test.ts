@@ -23,8 +23,13 @@ function postRequest(body: ReadableStream<Uint8Array>, signal?: AbortSignal): Re
     // Bun/Node requires half duplex when constructing a Request from a stream.
     duplex: "half",
   };
-  if (signal !== undefined) init.signal = signal;
-  return new Request("https://solid.test/api/upload", init);
+  const request = new Request("https://solid.test/api/upload", init);
+  if (signal !== undefined) {
+    // Keep the synthetic request signal independent from Bun's automatic
+    // body cancellation so this test observes the proxy's cleanup path.
+    Object.defineProperty(request, "signal", { configurable: true, value: signal });
+  }
+  return request;
 }
 
 describe("same-origin API transport", () => {
@@ -166,6 +171,26 @@ describe("same-origin API transport", () => {
     expect((await network.json() as { error: { code: string } }).error.code).toBe("provider_unavailable");
   });
 
+  it("maps a stalled request body timeout without an unhandled rejection", async () => {
+    let cancelled = false;
+    let fetchCalls = 0;
+    const request = postRequest(new ReadableStream({
+      cancel() {
+        cancelled = true;
+      },
+    }));
+    const response = await proxyApiRequest(request, { API_NEXT_ORIGIN: origin }, {
+      timeoutMs: 1,
+      fetchImpl: async () => {
+        fetchCalls += 1;
+        return new Response("unexpected");
+      },
+    });
+    expect(response.status).toBe(502);
+    expect(fetchCalls).toBe(0);
+    expect(cancelled).toBe(true);
+  });
+
   it("propagates caller abort instead of converting it into a proxy error", async () => {
     const controller = new AbortController();
     const request = new Request("https://solid.test/api/abort", { signal: controller.signal });
@@ -176,6 +201,28 @@ describe("same-origin API transport", () => {
     });
     controller.abort(new DOMException("cancelled", "AbortError"));
     await expect(pending).rejects.toMatchObject({ name: "AbortError" });
+  });
+
+  it("propagates caller abort during body preflight without an unhandled rejection", async () => {
+    const controller = new AbortController();
+    let cancelled = false;
+    let fetchCalls = 0;
+    const request = postRequest(new ReadableStream({
+      cancel() {
+        cancelled = true;
+      },
+    }), controller.signal);
+    const pending = proxyApiRequest(request, { API_NEXT_ORIGIN: origin }, {
+      fetchImpl: async () => {
+        fetchCalls += 1;
+        return new Response("unexpected");
+      },
+    });
+    await Promise.resolve();
+    controller.abort(new DOMException("cancelled", "AbortError"));
+    await expect(pending).rejects.toMatchObject({ name: "AbortError" });
+    expect(fetchCalls).toBe(0);
+    expect(cancelled).toBe(true);
   });
 
   it("rewrites generated public calls and keeps session CSRF request scoped", async () => {
