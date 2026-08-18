@@ -20,15 +20,19 @@ export type PublicProfileResponsePolicy = Readonly<{
   readonly headers: Headers;
 }>;
 
+/** Decode one router/path segment without letting malformed escapes throw. */
+export function decodePublicProfileRouteParam(value: string): string {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
+  }
+}
+
 /** Return the one decoded route parameter for an exact `/u/:handle` path. */
 export function publicProfileHandleFromRequest(request: Request): string | undefined {
   const match = /^\/u\/([^/]+)$/u.exec(new URL(request.url).pathname);
-  if (match?.[1] === undefined) return undefined;
-  try {
-    return decodeURIComponent(match[1]);
-  } catch {
-    return match[1];
-  }
+  return match?.[1] === undefined ? undefined : decodePublicProfileRouteParam(match[1]);
 }
 
 /**

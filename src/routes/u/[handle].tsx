@@ -5,6 +5,7 @@ import { createPublicApiClient } from "../../api/client.ts";
 import { loadPublicProfile, normalizePirateHandle, type PublicProfileClient, type PublicProfileViewState } from "../../features/profiles/public-profile-page/public-profile-page.model.ts";
 import PublicProfilePage from "../../features/profiles/public-profile-page/public-profile-page.tsx";
 import {
+  decodePublicProfileRouteParam,
   publicProfileResponsePolicy,
   type PublicProfilePreflight,
 } from "../../features/profiles/public-profile-page/public-profile-preflight.ts";
@@ -49,11 +50,12 @@ const queryPublicProfile = query(
 
 export const route = defineFileRoute("/u/:handle", {
   preload: ({ params }) => {
+    const decodedHandle = decodePublicProfileRouteParam(params.handle);
     // SAFETY: entry-server is the sole writer for this request-local key and
     // stores only a validated PublicProfilePreflight.
     const settled = getRequestEvent()?.locals.publicProfilePreflight as PublicProfilePreflight | undefined;
-    if (settled?.requestedHandle === params.handle) return settled.state;
-    return queryPublicProfile(params.handle).then(state => {
+    if (settled?.requestedHandle === decodedHandle) return settled.state;
+    return queryPublicProfile(decodedHandle).then(state => {
       commitPublicProfileResponse(state);
       return state;
     });

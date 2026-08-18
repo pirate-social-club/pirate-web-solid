@@ -99,6 +99,14 @@ try {
   }
   for (const marker of secretMarkers) assert.equal(canonicalHtml.includes(marker), false, `leaked ${marker}`);
 
+  const encoded = await requestProfile("/u/captain%2Done", url => {
+    assert.equal(url.pathname, "/public-profiles/captain-one");
+    return json(profile());
+  });
+  assert.equal(encoded.calls, 1);
+  assert.equal(encoded.response.status, 200);
+  assert.match(await encoded.response.text(), /data-profile-state="success"/u);
+
   const invalid = await requestProfile("/u/bad_handle", () => {
     throw new Error("invalid handles must not call api-next");
   });
@@ -134,6 +142,7 @@ try {
 
   console.log(JSON.stringify({
     canonical: { status: 200, calls: canonical.calls },
+    encoded: { status: 200, calls: encoded.calls },
     invalid: { status: 400, calls: invalid.calls },
     missing: { status: 404, calls: missing.calls },
     broken: { status: 502, calls: broken.calls },

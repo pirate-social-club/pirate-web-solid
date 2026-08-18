@@ -1,4 +1,4 @@
-import { describe, expect, test, vi } from "vitest";
+import { describe, expect, mock, test } from "bun:test";
 import {
   publicProfileHandleFromRequest,
   publicProfileResponsePolicy,
@@ -40,7 +40,7 @@ describe("public profile preflight", () => {
   });
 
   test("rejects an invalid handle without touching api-next", async () => {
-    const fetchImpl = vi.fn<Parameters<typeof resolvePublicProfilePreflight>[2] & {}>();
+    const fetchImpl = mock(async () => new Response());
     const result = await resolvePublicProfilePreflight(
       new Request("https://pirate.test/u/bad_handle", { headers: { cookie: "private=secret" } }),
       "https://api-next.test",
@@ -51,7 +51,7 @@ describe("public profile preflight", () => {
   });
 
   test("calls the configured api-next origin once without incoming credentials", async () => {
-    const fetchImpl = vi.fn<NonNullable<Parameters<typeof resolvePublicProfilePreflight>[2]>>(async (input, init) => {
+    const fetchImpl = mock<NonNullable<Parameters<typeof resolvePublicProfilePreflight>[2]>>(async (input, init) => {
       expect(new URL(input instanceof Request ? input.url : input.toString()).toString()).toBe(
         "https://api-next.test/public-profiles/captain-one",
       );
