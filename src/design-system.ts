@@ -16,6 +16,35 @@ export {
 export {
   TextField,
   TextFieldDescription,
+  TextFieldErrorMessage,
   TextFieldInput,
   TextFieldLabel,
 } from "@pirate/web-solid-ui";
+export {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@pirate/web-solid-ui";
+export {
+  Separator,
+  Type,
+} from "@pirate/web-solid-ui";
+export {
+  IconArrowDown,
+  IconArrowUp,
+  IconCheck,
+  IconCopy,
+  IconWallet,
+} from "@pirate/web-solid-ui";
+export {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from "@pirate/web-solid-ui";
+export { cn } from "@pirate/web-solid-ui";

@@ -1,3 +1,4 @@
+import { formatUsdValue } from "./wallet-hub-model";
 import type { WalletHubChainId, WalletHubChainSection } from "./wallet-hub.types";
 
 function parseFiatValue(value: string | null | undefined): number {
@@ -6,8 +7,12 @@ function parseFiatValue(value: string | null | undefined): number {
   return Number.isFinite(parsed) ? parsed : 0;
 }
 
+function tokenFiatAmount(token: WalletHubChainSection["tokens"][number]): number {
+  return parseFiatValue(token.fiatValue ?? formatUsdValue(token));
+}
+
 export function chainFiatTotal(section: WalletHubChainSection): number {
-  return section.tokens.reduce((total, token) => total + parseFiatValue(token.fiatValue), 0);
+  return section.tokens.reduce((total, token) => total + tokenFiatAmount(token), 0);
 }
 
 export function formatFiatTotal(section: WalletHubChainSection): string {

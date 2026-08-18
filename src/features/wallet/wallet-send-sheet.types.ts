@@ -8,7 +8,7 @@ export interface WalletSendAsset {
   token: WalletHubToken;
 }
 
-interface WalletSendConfirmState {
+export interface WalletSendConfirmState {
   amount: string;
   asset: WalletSendAsset;
   recipient: string;

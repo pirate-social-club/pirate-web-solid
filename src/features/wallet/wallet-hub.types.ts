@@ -1,3 +1,5 @@
+import type { JSX } from "@solidjs/web";
+
 export type WalletHubChainId =
   | "ethereum"
   | "base"
@@ -46,6 +48,11 @@ export interface WalletHubRewardsSummary {
   supportingLabel?: string;
 }
 
+export interface WalletHubSheetControls {
+  onOpenChange: (open: boolean) => void;
+  open: boolean;
+}
+
 export interface WalletHubProps {
   variant?: "route" | "embedded";
   title?: string;
@@ -61,6 +68,10 @@ export interface WalletHubProps {
   onReceive?: () => void;
   onSend?: () => void;
   onViewActivity?: () => void;
+  /** Render callback hosting the controlled receive sheet; the hub owns its open state. */
+  renderReceiveSheet?: (controls: WalletHubSheetControls) => JSX.Element;
+  /** Render callback hosting the controlled send sheet; the hub owns its open state. */
+  renderSendSheet?: (controls: WalletHubSheetControls) => JSX.Element;
   rewardsSummary?: WalletHubRewardsSummary;
   chainSections: WalletHubChainSection[];
   recentActivity?: WalletHubActivityItem[];

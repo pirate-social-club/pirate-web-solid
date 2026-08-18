@@ -22,6 +22,29 @@ describe("wallet receive sheet model", () => {
     expect(formatFiatTotal(sections[1]!)).toBe("$608.82");
   });
 
+  test("includes usdPrice-only tokens in chain totals and default-chain selection", () => {
+    const sections = [
+      {
+        chainId: "ethereum" as const,
+        title: "Ethereum Sepolia",
+        availability: "ready" as const,
+        walletAddress: sharedWalletAddress,
+        tokens: [{ id: "eth", symbol: "ETH", name: "Ether", balance: "2", usdPrice: 10 }],
+      },
+      {
+        chainId: "base" as const,
+        title: "Base Sepolia",
+        availability: "ready" as const,
+        walletAddress: sharedWalletAddress,
+        tokens: [{ id: "usdc", symbol: "USDC", name: "USD Coin", balance: "5", fiatValue: "$5.00" }],
+      },
+    ];
+
+    expect(chainFiatTotal(sections[0]!)).toBe(20);
+    expect(formatFiatTotal(sections[0]!)).toBe("$20.00");
+    expect(getDefaultReceiveChainId(sections)).toBe("ethereum");
+  });
+
   test("truncates only the visual address label", () => {
     expect(truncateReceiveAddress(sharedWalletAddress)).toBe("0xc74e2d06...873abc");
   });
