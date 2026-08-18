@@ -9,3 +9,4 @@ storybook-static/
 !.env.example
 .dev.vars
 .dev.vars.*
+storybook-static/

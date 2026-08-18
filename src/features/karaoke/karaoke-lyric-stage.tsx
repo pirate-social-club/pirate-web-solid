@@ -6,9 +6,20 @@ import "./karaoke.css";
 
 export type { KaraokeStageLine, KaraokeStageToken } from "./lyric-transform";
 
+export type KaraokeRatingTone = "success" | "info" | "warning" | "destructive";
+
+export interface KaraokeLineRating {
+  lineId: string;
+  key: string;
+  label: string;
+  points: number;
+  tone: KaraokeRatingTone;
+}
+
 export interface KaraokeLyricStageProps {
   lines: readonly KaraokeStageLine[];
   currentTimeMs: number;
+  rating?: KaraokeLineRating | null;
   primed?: boolean;
 }
 
@@ -46,6 +57,14 @@ export function KaraokeLyricStage(props: KaraokeLyricStageProps) {
   const visible = () => displayLines(props.lines, props.currentTimeMs);
   return (
     <div aria-live="off" class="karaoke-stage">
+      <Show keyed when={props.rating}>
+        {(rating) => (
+          <div class="karaoke-stage-rating" data-rating-tone={rating.tone}>
+            <span class="karaoke-stage-rating-label">{rating.label}</span>
+            <span class="karaoke-stage-rating-points">+{rating.points}</span>
+          </div>
+        )}
+      </Show>
       <div class="karaoke-stage-lines">
         <Show when={visible().activeLine}>
           {(line) => <Line currentTimeMs={props.currentTimeMs} line={line()} mode="active" />}

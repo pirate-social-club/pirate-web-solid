@@ -98,7 +98,7 @@ const preview: Preview = {
         { name: "light", value: "#ffffff" },
       ],
     },
-    layout: "centered",
+    layout: "fullscreen",
     options: {
       storySort: {
         order: ["App", "Foundations"],

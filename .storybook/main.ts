@@ -1,10 +1,11 @@
+import tailwindcss from "@tailwindcss/vite";
 import type { StorybookConfig } from "storybook-solidjs-vite";
 
 const config: StorybookConfig = {
-  stories: ["../src/**/*.stories.@(ts|tsx)"],
-  // The product catalog intentionally uses only the Solid framework and
-  // a11y addon. Storybook's dev-only manager is not part of Worker assets.
-  addons: ["@storybook/addon-a11y"],
+  // This catalog is the app Storybook (port 6006). The design-system
+  // Storybook at packages/solid-ui/.storybook owns the primitive stories.
+  stories: ["../src/**/*.stories.@(js|jsx|mjs|ts|tsx)"],
+  addons: ["@storybook/addon-docs", "@storybook/addon-a11y"],
   framework: {
     name: "storybook-solidjs-vite",
     options: {
@@ -22,6 +23,7 @@ const config: StorybookConfig = {
         ignored: ["**/.tmp/**", "**/worktrees/**"],
       },
     },
+    plugins: [...(viteConfig.plugins ?? []), tailwindcss()],
   }),
 };
 

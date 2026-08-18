@@ -12,6 +12,7 @@ import { createKaraokeApiClient, type ApiSongKaraokePayload, type KaraokeApiClie
 import { isKaraokeAuthError, loadKaraokeLeaderboard, loadKaraokePayload, type LoadedKaraokeLeaderboard } from "./karaoke-route-model";
 import { toScorableKaraokeLines } from "./karaoke-stage-bridge";
 import { toKaraokeStageLines } from "./lyric-transform";
+import { deriveKaraokeFeedback } from "./karaoke-scoring-feedback";
 import { useKaraokeScoring } from "./scoring/use-karaoke-scoring-session";
 import type { RawKaraokeLine } from "./lyric-transform";
 
@@ -62,6 +63,7 @@ function LoadedKaraokeSession(props: { payload: ApiSongKaraokePayload; postId: s
   );
 
   const scoringState = () => scoring.state();
+  const feedback = () => deriveKaraokeFeedback(scoringState());
 
   return (
     <Show
@@ -77,7 +79,6 @@ function LoadedKaraokeSession(props: { payload: ApiSongKaraokePayload; postId: s
     >
       <Title>{props.payload.title ? `${props.payload.title} · Karaoke` : "Karaoke"}</Title>
       <KaraokePracticeSurface
-        artistName={props.payload.artist_name ?? undefined}
         artworkSrc={props.payload.artwork_src ?? undefined}
         instrumentalAudioUrl={props.payload.instrumental_audio_url ?? undefined}
         lines={lines()}
@@ -91,6 +92,7 @@ function LoadedKaraokeSession(props: { payload: ApiSongKaraokePayload; postId: s
           scoring.controls.start(songMs);
         } : undefined}
         onTimeChange={(songMs) => scoring.controls.noteTime(songMs)}
+        rating={feedback().rating}
         singingStatus={scoringState()?.status ?? "idle"}
         title={props.payload.title ?? "Karaoke"}
       />

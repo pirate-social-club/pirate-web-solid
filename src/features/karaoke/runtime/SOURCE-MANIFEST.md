@@ -65,3 +65,25 @@ logic with only ownership/import and api-next type changes:
 `scoring/use-karaoke-scoring-session.ts` is intentionally a new Solid edge
 wrapper, not a React copy. It owns only Solid lifecycle/signals and browser
 factory construction; the controller remains framework-neutral.
+
+## App-level Storybook tranche (2026-08-18, app-original)
+
+This tranche is app-original work: no source or fixture was copied from the
+legacy React app or the legacy repository, so there are no parity hashes to
+record. Added:
+
+- App Storybook bootstrap (`.storybook/main.ts`, `.storybook/preview.tsx`,
+  `storybook` / `build-storybook` scripts) pinned to the same
+  `storybook@10.5.8` / `storybook-solidjs-vite@10.6.0` /
+  `@storybook/addon-docs@10.5.8` / `@storybook/addon-a11y@10.5.8` versions as
+  `packages/solid-ui`.
+- Co-located karaoke stories: `karaoke-practice-surface.stories.tsx`,
+  `karaoke-leaderboard.stories.tsx`, `karaoke-route-states.stories.tsx`,
+  `karaoke-route-view.stories.tsx`, with shared offline fixtures in
+  `karaoke-story-fixtures.ts`.
+
+All states are prop/fixture-driven: stories stub the `KaraokeApiClient` seam
+(the same approach as `karaoke-api.test.ts` / `karaoke-route-model.test.ts`)
+and never reach fetch, the mic, WebSocket, or real timers. Gate evidence:
+`build-storybook`, `verify` (type, lint, solid-ui typecheck+tests), focused
+`bun test src/features/karaoke` (220 pass), and `bun run build` all pass.

@@ -1,38 +1,31 @@
 import { createEffect, createSignal, onCleanup, Show } from "solid-js";
 import {
   Button,
-  IconCaretLeft,
-  IconMusicNote,
-  IconPause,
-  IconPlay,
-  MediaControlButton,
-  Scrubber,
+  IconMicrophone,
   Spinner,
   Type,
 } from "../../design-system";
+import { ActivityProgressHeader } from "../activity/activity-progress-header";
 import { getLyricDurationMs } from "./karaoke-timing";
 import { KaraokeLyricStage } from "./karaoke-lyric-stage";
-import type { KaraokeStageLine } from "./lyric-transform";
+import type { KaraokeLineRating, KaraokeStageLine } from "./karaoke-lyric-stage";
 
 export interface KaraokePracticeSurfaceProps {
   title: string;
-  artistName?: string;
   artworkSrc?: string;
   instrumentalAudioUrl?: string;
   lines: readonly KaraokeStageLine[];
+  rewardLabel?: string;
+  rating?: KaraokeLineRating | null;
   onExit?: () => void;
   onStartSinging?: (songMs: number) => void;
   singingStatus?: "idle" | "requesting-mic" | "connecting" | "reconnecting" | "active" | "finishing" | "ended" | "error";
   onTimeChange?: (songMs: number) => void;
+  /** Internal playback lifecycle notifications for scoring; no visible controls. */
   onPlay?: (songMs: number) => void;
   onPause?: (songMs: number) => void;
   onSeek?: (songMs: number) => void;
   onFinish?: (songMs: number) => void;
-}
-
-function formatTime(milliseconds: number) {
-  const seconds = Math.max(0, Math.round(milliseconds / 1000));
-  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
 }
 
 interface AudioElementRef {
@@ -45,6 +38,7 @@ export function KaraokePracticeSurface(props: KaraokePracticeSurfaceProps) {
   const [durationMs, setDurationMs] = createSignal(getLyricDurationMs(props.lines));
   const [isPlaying, setIsPlaying] = createSignal(false);
   const [isLoading, setIsLoading] = createSignal(Boolean(props.instrumentalAudioUrl));
+  let pendingPlay = false;
   const firstLineStartMs = props.lines[0]?.startMs ?? Number.POSITIVE_INFINITY;
 
   const syncTime = () => {
@@ -52,35 +46,36 @@ export function KaraokePracticeSurface(props: KaraokePracticeSurfaceProps) {
     setCurrentTimeMs(songMs);
     props.onTimeChange?.(songMs);
   };
-  const togglePlayback = () => {
-    const audio = audioRef.current;
-    if (!audio) return;
-    if (audio.paused) void audio.play();
-    else audio.pause();
-  };
-  const seek = (value: number) => {
-    if (audioRef.current) audioRef.current.currentTime = value / 1000;
-    props.onSeek?.(value);
-  };
-
   createEffect(
     () => props.instrumentalAudioUrl,
     (instrumentalAudioUrl) => {
       if (!instrumentalAudioUrl) setIsLoading(false);
     },
   );
+  createEffect(
+    () => props.singingStatus,
+    (singingStatus) => {
+      if (singingStatus !== "active") {
+        if (singingStatus === "idle" || singingStatus === "ended" || singingStatus === "error") pendingPlay = false;
+        return;
+      }
+      if (!pendingPlay) return;
+      pendingPlay = false;
+      const audio = audioRef.current;
+      if (audio && !isPlaying()) void audio.play().catch(() => setIsPlaying(false));
+    },
+  );
   onCleanup(() => audioRef.current?.pause());
 
   return (
     <section aria-label={props.title} class="flex h-dvh w-full flex-col overflow-hidden bg-background text-foreground">
-      <header class="flex items-center gap-3 border-b border-border-soft px-4 py-2.5 sm:px-6">
-        <Button aria-label="Exit karaoke" leadingIcon={<IconCaretLeft class="size-5" />} onClick={props.onExit} size="icon" variant="ghost" />
-        <div class="min-w-0 flex-1 text-center">
-          <Type as="h1" class="truncate" variant="h3">{props.title}</Type>
-          <Show when={props.artistName}><Type as="p" class="truncate" variant="caption">{props.artistName}</Type></Show>
-        </div>
-        <div class="size-10" />
-      </header>
+      <ActivityProgressHeader
+        exitLabel="Exit karaoke"
+        onExit={props.onExit}
+        progressMax={durationMs()}
+        progressValue={currentTimeMs()}
+        rewardLabel={props.rewardLabel}
+      />
       <div class="relative min-h-0 flex-1 overflow-hidden">
         <Show when={props.artworkSrc}>
           <img alt="" aria-hidden="true" class="pointer-events-none absolute inset-0 size-full scale-110 object-cover opacity-20 blur-2xl" src={props.artworkSrc} />
@@ -96,12 +91,13 @@ export function KaraokePracticeSurface(props: KaraokePracticeSurfaceProps) {
                 currentTimeMs={currentTimeMs()}
                 lines={props.lines}
                 primed={!isPlaying() && currentTimeMs() <= firstLineStartMs}
+                rating={props.rating}
               />
             </Show>
           </Show>
         </div>
       </div>
-      <footer class="border-t border-border-soft px-4 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-4 sm:px-6">
+      <footer class="border-t border-border-soft bg-background/95 px-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-4 backdrop-blur-xl sm:px-6">
         <audio
           ref={(element) => { audioRef.current = element; }}
           preload="metadata"
@@ -119,21 +115,15 @@ export function KaraokePracticeSurface(props: KaraokePracticeSurfaceProps) {
           onPlay={() => { setIsPlaying(true); props.onPlay?.(currentTimeMs()); }}
           onTimeUpdate={syncTime}
         />
-        <div class="mx-auto flex w-full max-w-3xl items-center gap-3">
-          <MediaControlButton aria-label={isPlaying() ? "Pause" : "Play"} intent="default" onClick={togglePlayback} size="md">
-            {isPlaying() ? <IconPause class="size-5" /> : <IconPlay class="size-5" />}
-          </MediaControlButton>
-          <div class="min-w-0 flex-1">
-            <Scrubber ariaLabel="Karaoke playback position" ariaValueText={`${formatTime(currentTimeMs())} of ${formatTime(durationMs())}`} max={durationMs()} onChange={seek} value={currentTimeMs()} />
-            <div class="mt-1 flex justify-between"><Type as="span" variant="caption">{formatTime(currentTimeMs())}</Type><Type as="span" variant="caption">{formatTime(durationMs())}</Type></div>
-          </div>
-          <IconMusicNote class="size-5 shrink-0 text-muted-foreground" />
+        <div class="mx-auto w-full max-w-3xl">
           <Show when={props.onStartSinging}>
             <Button
+              class="w-full"
               disabled={props.singingStatus === "active" || props.singingStatus === "requesting-mic" || props.singingStatus === "connecting" || props.singingStatus === "reconnecting"}
+              leadingIcon={<IconMicrophone class="size-5" />}
               loading={props.singingStatus === "requesting-mic" || props.singingStatus === "connecting" || props.singingStatus === "reconnecting"}
-              onClick={() => props.onStartSinging?.(currentTimeMs())}
-              size="sm"
+              onClick={() => { pendingPlay = true; props.onStartSinging?.(currentTimeMs()); }}
+              size="lg"
             >
               {props.singingStatus === "active" ? "Listening" : props.singingStatus === "ended" ? "Sing again" : "Start singing"}
             </Button>

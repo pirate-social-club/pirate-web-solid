@@ -1,0 +1,57 @@
+import type { Meta, StoryObj } from "storybook-solidjs-vite";
+
+import {
+  AuthRequiredRouteState,
+  RouteLoadFailureState,
+  RouteLoadingState,
+} from "../../design-system";
+
+const meta = {
+  title: "Features/Karaoke/RouteStates",
+  parameters: {
+    docs: {
+      description: {
+        component:
+          "Route-level states the karaoke routes render while the payload or leaderboard is in flight, failed, or gated behind sign-in. The copy matches karaoke-route-view.tsx.",
+      },
+    },
+  },
+} satisfies Meta;
+
+export default meta;
+
+type Story = StoryObj<typeof meta>;
+
+export const Loading: Story = {
+  render: () => <RouteLoadingState height="public" label="Loading karaoke" />,
+};
+
+export const LoadFailure: Story = {
+  render: () => (
+    <RouteLoadFailureState
+      description="We couldn't load karaoke for this song."
+      onGoHome={() => {}}
+      onRetry={() => {}}
+      title="Karaoke unavailable"
+    />
+  ),
+};
+
+export const AuthRequired: Story = {
+  render: () => (
+    <AuthRequiredRouteState
+      ctaLabel="Sign in to sing"
+      description="This song is available to everyone, but recording a scored take requires an account."
+      onConnect={() => {}}
+      title="Sign in to sing"
+    />
+  ),
+  parameters: {
+    docs: {
+      description: {
+        story:
+          "Shown when session creation answers 401 after Start singing, or when the signed-out visitor opens the leaderboard route.",
+      },
+    },
+  },
+};

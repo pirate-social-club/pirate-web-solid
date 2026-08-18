@@ -6,4 +6,12 @@
 .karaoke-token { position: relative; display: inline-block; color: var(--foreground); white-space: pre-wrap; }
 .karaoke-token[data-token-state="complete"] { color: var(--warning); }
 .karaoke-token-fill { position: absolute; inset: 0 auto 0 0; overflow: hidden; color: var(--warning); white-space: nowrap; pointer-events: none; }
+.karaoke-stage-rating { position: absolute; left: 50%; top: calc(50% - 3.25rem); z-index: 1; display: flex; flex-direction: column; align-items: center; gap: .125rem; padding: .5rem 1.25rem; border-radius: var(--radius-xl); pointer-events: none; text-align: center; transform: translate(-50%, -50%); animation: karaoke-rating-pop 1.6s cubic-bezier(.22, 1, .36, 1) forwards; }
+.karaoke-stage-rating-label { font-family: var(--font-sans); font-size: 1.5rem; font-weight: 800; letter-spacing: .04em; line-height: 1; text-transform: uppercase; }
+.karaoke-stage-rating-points { font-family: var(--font-sans); font-size: 1rem; font-weight: 700; line-height: 1; }
+.karaoke-stage-rating[data-rating-tone="success"] { color: var(--success); text-shadow: 0 0 1.5rem color-mix(in oklab, var(--success) 45%, transparent); }
+.karaoke-stage-rating[data-rating-tone="info"] { color: var(--info); text-shadow: 0 0 1.5rem color-mix(in oklab, var(--info) 45%, transparent); }
+.karaoke-stage-rating[data-rating-tone="warning"] { color: var(--warning); text-shadow: 0 0 1.5rem color-mix(in oklab, var(--warning) 45%, transparent); }
+.karaoke-stage-rating[data-rating-tone="destructive"] { color: var(--destructive); text-shadow: 0 0 1.5rem color-mix(in oklab, var(--destructive) 45%, transparent); }
+@keyframes karaoke-rating-pop { 0% { opacity: 0; transform: translate(-50%, -30%) scale(.7); } 18% { opacity: 1; transform: translate(-50%, -50%) scale(1.08); } 30% { transform: translate(-50%, -50%) scale(1); } 72% { opacity: 1; transform: translate(-50%, -55%) scale(1); } 100% { opacity: 0; transform: translate(-50%, -75%) scale(.96); } }
 @media (max-width: 480px) { .karaoke-stage { min-height: 20rem; } .karaoke-stage-lines { gap: 1.5rem; padding-inline: .75rem; } }
