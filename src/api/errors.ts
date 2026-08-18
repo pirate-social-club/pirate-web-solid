@@ -6,8 +6,7 @@
 export type ApiTransportErrorCode =
   | "bad_request"
   | "internal_error"
-  | "provider_unavailable"
-  | "funding_confirmation_timeout";
+  | "provider_unavailable";
 
 export class ApiTransportError extends Error {
   readonly code: ApiTransportErrorCode;
@@ -36,9 +35,6 @@ export const internalError = (message = "Internal server error"): ApiTransportEr
 
 export const upstreamUnavailable = (): ApiTransportError =>
   new ApiTransportError("provider_unavailable", 502, true, "API unavailable");
-
-export const upstreamTimedOut = (): ApiTransportError =>
-  new ApiTransportError("funding_confirmation_timeout", 504, true, "API request timed out");
 
 export interface ApiErrorEnvelope {
   readonly error: {

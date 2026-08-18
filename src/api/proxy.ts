@@ -2,7 +2,6 @@ import {
   ApiTransportError,
   badRequest,
   errorResponse,
-  upstreamTimedOut,
   upstreamUnavailable,
 } from "./errors.ts";
 import {
@@ -27,53 +26,72 @@ export interface ApiProxyOptions {
   readonly timeoutMs?: number;
 }
 
-function contentLength(request: Request): number | undefined {
+function validateContentLength(request: Request): void {
   const value = request.headers.get("content-length");
-  if (value === null) return undefined;
+  if (value === null) return;
   if (!/^(?:0|[1-9][0-9]*)$/u.test(value)) throw badRequest("Invalid request body");
   const parsed = Number(value);
   if (!Number.isSafeInteger(parsed) || parsed > MAX_REQUEST_BODY_BYTES) {
     throw badRequest("Request body is too large");
   }
-  return parsed;
 }
 
-function boundedBody(body: ReadableStream<Uint8Array>, signal: AbortSignal): ReadableStream<Uint8Array> {
+/**
+ * Read at most the deliberately small request cap before starting the
+ * upstream fetch. A streaming request body otherwise lets fetch return an
+ * early response before its body has discovered an oversized or failed
+ * chunk, which could incorrectly turn the request into a successful proxy
+ * response. The bounded buffer is at most 1 MiB and is then sent as the
+ * upstream request body.
+ */
+async function readBoundedBody(body: ReadableStream<Uint8Array>, signal: AbortSignal): Promise<Uint8Array<ArrayBuffer>> {
   const reader = body.getReader();
+  const buffer = new Uint8Array(new ArrayBuffer(MAX_REQUEST_BODY_BYTES));
   let size = 0;
-  return new ReadableStream<Uint8Array>({
-    async pull(controller) {
-      if (signal.aborted) {
-        await reader.cancel(signal.reason);
-        controller.error(signal.reason);
-        return;
-      }
-      try {
-        const next = await reader.read();
-        if (next.done) {
-          controller.close();
-          return;
-        }
-        size += next.value.byteLength;
-        if (size > MAX_REQUEST_BODY_BYTES) {
-          await reader.cancel();
-          controller.error(badRequest("Request body is too large"));
-          return;
-        }
-        controller.enqueue(next.value);
-      } catch (error) {
-        controller.error(error);
-      }
-    },
-    async cancel(reason) {
-      await reader.cancel(reason);
-    },
+  let rejectAbort: ((reason?: unknown) => void) | undefined;
+  const abortPromise = new Promise<never>((_resolve, reject) => {
+    rejectAbort = reject;
   });
+  // The synchronous already-aborted path can reject before the read race is
+  // installed; keep that intentional rejection from becoming unhandled.
+  void abortPromise.catch(() => undefined);
+  const onAbort = (): void => {
+    const reason = signal.reason ?? new DOMException("The operation was aborted", "AbortError");
+    rejectAbort?.(reason);
+    // Reject the read race before cancelling the reader, since cancel() may
+    // resolve a pending read as { done: true }.
+    void reader.cancel(reason).catch(() => undefined);
+  };
+  if (signal.aborted) onAbort();
+  else signal.addEventListener("abort", onAbort, { once: true });
+
+  try {
+    while (true) {
+      if (signal.aborted) throw signal.reason ?? new DOMException("The operation was aborted", "AbortError");
+      const next = await Promise.race([reader.read(), abortPromise]);
+      if (next.done) {
+        return buffer.slice(0, size);
+      }
+      if (next.value.byteLength > MAX_REQUEST_BODY_BYTES - size) {
+        await reader.cancel();
+        throw badRequest("Request body is too large");
+      }
+      buffer.set(next.value, size);
+      size += next.value.byteLength;
+    }
+  } catch (error) {
+    await reader.cancel(error).catch(() => undefined);
+    throw error;
+  } finally {
+    signal.removeEventListener("abort", onAbort);
+  }
 }
 
-function bodyFor(request: Request, signal: AbortSignal): BodyInit | undefined {
+async function bodyFor(request: Request, signal: AbortSignal): Promise<BodyInit | undefined> {
   if (request.body === null || request.method === "GET" || request.method === "HEAD") return undefined;
-  return boundedBody(request.body, signal);
+  // Blob is a Fetch-standard BodyInit across Workers and Bun; it keeps the
+  // preflighted payload bounded without relying on Node-only Buffer types.
+  return new Blob([await readBoundedBody(request.body, signal)]);
 }
 
 interface TimeoutSignal {
@@ -120,9 +138,9 @@ function timeoutSignal(request: Request, timeoutMs: number): TimeoutSignal {
   };
 }
 
-function localFailureResponse(error: unknown, didTimeout: boolean): Response {
+function localFailureResponse(error: unknown): Response {
   if (error instanceof ApiTransportError) return errorResponse(error);
-  return errorResponse(didTimeout ? upstreamTimedOut() : upstreamUnavailable());
+  return errorResponse(upstreamUnavailable());
 }
 
 /**
@@ -139,14 +157,14 @@ export async function proxyApiRequest(
     const origin = apiNextOriginOrError(environment.API_NEXT_ORIGIN);
     const requestUrl = new URL(request.url);
     const target = upstreamUrl(requestUrl, origin);
-    contentLength(request);
+    validateContentLength(request);
     if (!cookieHeaderWithinLimits(request.headers.get("cookie"))) {
       throw badRequest("Cookie header is too large");
     }
 
     timeout = timeoutSignal(request, options.timeoutMs ?? API_PROXY_TIMEOUT_MS);
     const headers = safeRequestHeaders(request);
-    const body = bodyFor(request, timeout.signal);
+    const body = await bodyFor(request, timeout.signal);
     const upstream = await Promise.race([
       (options.fetchImpl ?? fetch)(target, {
       method: request.method,
@@ -197,10 +215,10 @@ export async function proxyApiRequest(
   } catch (error) {
     timeout?.finish();
     if (request.signal.aborted && !timeout?.didTimeout()) throw error;
-    return localFailureResponse(error, timeout?.didTimeout() === true);
+    return localFailureResponse(error);
   }
 }
 
 export function apiErrorForTests(error: unknown): Response {
-  return localFailureResponse(error, false);
+  return localFailureResponse(error);
 }

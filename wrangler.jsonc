@@ -2,7 +2,7 @@
   "$schema": "./node_modules/wrangler/config-schema.json",
   "name": "pirate-web-solid",
   "compatibility_date": "2026-08-13",
-  "compatibility_flags": ["nodejs_compat"],
+  "compatibility_flags": ["nodejs_compat", "enable_request_signal"],
   "main": "./src/worker.ts",
   "assets": { "directory": "./dist/client", "binding": "ASSETS" },
   "vars": { "API_NEXT_ORIGIN": "http://127.0.0.1:8788" }

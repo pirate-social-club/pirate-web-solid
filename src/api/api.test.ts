@@ -16,6 +16,17 @@ import {
 
 const origin = "https://api.test";
 
+function postRequest(body: ReadableStream<Uint8Array>, signal?: AbortSignal): Request {
+  const init: RequestInit & { duplex: "half" } = {
+    method: "POST",
+    body,
+    // Bun/Node requires half duplex when constructing a Request from a stream.
+    duplex: "half",
+  };
+  if (signal !== undefined) init.signal = signal;
+  return new Request("https://solid.test/api/upload", init);
+}
+
 describe("same-origin API transport", () => {
   it("validates origins without inventing a product hostname", () => {
     expect(validateApiNextOrigin("http://127.0.0.1:8788").origin).toBe("http://127.0.0.1:8788");
@@ -72,7 +83,7 @@ describe("same-origin API transport", () => {
     let calls = 0;
     const fetchImpl = async (): Promise<Response> => {
       calls += 1;
-      return new Response("never");
+      return new Response("accepted");
     };
     const tooLarge = new Request("https://solid.test/api/upload", {
       method: "POST",
@@ -84,6 +95,36 @@ describe("same-origin API transport", () => {
     // SAFETY: the transport's local error response is its fixed v2 envelope.
     expect((await bodyResponse.json() as { error: { code: string } }).error.code).toBe("bad_request");
     expect(calls).toBe(0);
+
+    const oversizedChunk = postRequest(new ReadableStream({
+      start(controller) {
+        controller.enqueue(new Uint8Array(MAX_REQUEST_BODY_BYTES + 1));
+        controller.close();
+      },
+    }));
+    const earlyResponse = await proxyApiRequest(oversizedChunk, { API_NEXT_ORIGIN: origin }, { fetchImpl });
+    expect(earlyResponse.status).toBe(400);
+    expect(calls).toBe(0);
+
+    const exactlyAtLimit = postRequest(new ReadableStream({
+      start(controller) {
+        controller.enqueue(new Uint8Array(MAX_REQUEST_BODY_BYTES - 1));
+        controller.enqueue(new Uint8Array(1));
+        controller.close();
+      },
+    }));
+    const accepted = await proxyApiRequest(exactlyAtLimit, { API_NEXT_ORIGIN: origin }, { fetchImpl });
+    expect(accepted.status).toBe(200);
+    expect(calls).toBe(1);
+
+    const streamFailure = postRequest(new ReadableStream({
+      pull(controller) {
+        controller.error(new Error("body stream failed"));
+      },
+    }));
+    const failedResponse = await proxyApiRequest(streamFailure, { API_NEXT_ORIGIN: origin }, { fetchImpl });
+    expect(failedResponse.status).toBe(502);
+    expect(calls).toBe(1);
     expect(cookieHeaderWithinLimits("a=" + "x".repeat(MAX_COOKIE_HEADER_BYTES))).toBe(false);
   });
 
@@ -111,9 +152,9 @@ describe("same-origin API transport", () => {
       { API_NEXT_ORIGIN: origin },
       { timeoutMs: 1, fetchImpl: () => new Promise<Response>(() => {}) },
     );
-    expect(timeout.status).toBe(504);
+    expect(timeout.status).toBe(502);
     // SAFETY: the transport's local error response is its fixed v2 envelope.
-    expect((await timeout.json() as { error: { code: string; retryable: boolean } }).error).toMatchObject({ code: "funding_confirmation_timeout", retryable: true });
+    expect((await timeout.json() as { error: { code: string; retryable: boolean } }).error).toMatchObject({ code: "provider_unavailable", retryable: true });
 
     const network = await proxyApiRequest(
       new Request("https://solid.test/api/down"),
