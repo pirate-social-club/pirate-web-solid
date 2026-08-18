@@ -1,0 +1,111 @@
+{
+  "version": 1,
+  "catalog": "standalone-product-storybook-wallet",
+  "source": {
+    "repository": "pirate-workspace/web",
+    "ref": "002fba933ba913f99ec0ef758f4aa63aff78015f",
+    "policy": "Historical Solid source is read-only. Wallet stories and their two missing modal surfaces are independently owned by the standalone app after contract, package-boundary, and accessibility review."
+  },
+  "scope": {
+    "stories": 5,
+    "featureRoot": "src/features/wallet/**",
+    "newPaths": 9,
+    "sharedPrerequisites": [
+      "src/features/wallet/wallet-hub.tsx",
+      "src/features/wallet/wallet-send-sheet.tsx",
+      "src/features/wallet/wallet-receive-sheet.tsx",
+      "src/features/wallet/wallet-flow-fixtures.ts",
+      "src/features/shell/page-shell/page-shell.tsx"
+    ],
+    "provenancePolicy": "Every imported or adapted source path has a SHA-256 row. Source paths are repository-relative solid/src/... paths and hashes are computed from git show at the declared immutable web ref; target hashes are computed from final standalone worktree bytes."
+  },
+  "entries": [
+    {
+      "sourcePath": "solid/src/features/wallet/wallet-hub.stories.tsx",
+      "targetPath": "src/features/wallet/wallet-hub.stories.tsx",
+      "sourceSha256": "5739bca0e699d02f1dd7af683257bf1dc48890db5295352df80097ba575ab3c9",
+      "targetSha256": "259854b425939a8e9d6053ad8400c9a34bec2d3494c7733efb94fb7b61dbaa62",
+      "disposition": "adapted",
+      "note": "Uses the standalone shell and current route-neutral WalletHub/send/receive contracts with deterministic five-chain fixtures."
+    },
+    {
+      "sourcePath": "solid/src/features/wallet/wallet-send-sheet.stories.tsx",
+      "targetPath": "src/features/wallet/wallet-send-sheet.stories.tsx",
+      "sourceSha256": "2583507e63c168e6a50674af02522c43ca9cdb9afba44f45ac6f130b4b5386eb",
+      "targetSha256": "392af9abc7d110869fa64685f29fc2b0df78814638ceb1a2932d9070094459f6",
+      "disposition": "adapted",
+      "note": "Reconciles the historical multi-step play to the current callback-only send-sheet contract and accessible form labels."
+    },
+    {
+      "sourcePath": "solid/src/features/wallet/wallet-receive-sheet.stories.tsx",
+      "targetPath": "src/features/wallet/wallet-receive-sheet.stories.tsx",
+      "sourceSha256": "ff2a47a26769c2d6c79caff32d1f7419fa5050aec3c2661578feefaa86fafad2",
+      "targetSha256": "60b2efce804b82b984639e5f2f75f5bb637d72291a762bb0339015e7e49ffad2",
+      "disposition": "adapted",
+      "note": "Keeps chain switching, unavailable-wallet, and mobile variants offline and deterministic."
+    },
+    {
+      "sourcePath": "solid/src/features/wallet/song-purchase-modal/song-purchase-modal.stories.tsx",
+      "targetPath": "src/features/wallet/song-purchase-modal/song-purchase-modal.stories.tsx",
+      "sourceSha256": "f784d82b7ae3e4fce5004ccd2eab5fe17290815bf0d9bf7f8ba86a468b2f9edb",
+      "targetSha256": "1aa3ee4139094d0858d5601a3a8f68362c2c771dcfb9456e5e05754019f7064b",
+      "disposition": "adapted",
+      "note": "Uses standalone Dialog primitives and callback-only purchase confirmation."
+    },
+    {
+      "sourcePath": "solid/src/features/wallet/royalty-claim-modal/royalty-claim-modal.stories.tsx",
+      "targetPath": "src/features/wallet/royalty-claim-modal/royalty-claim-modal.stories.tsx",
+      "sourceSha256": "62517b997aa19053fca895bb33a8a2b82251e0e91e5756f89181f2c5d3a6d751",
+      "targetSha256": "3ad293fea31003f70f1c81aea19e2561d775c0c052bad3e575963c40447dc9f3",
+      "disposition": "adapted",
+      "note": "Retains ready, no-wallet, pending, success, error, and mobile states against the standalone royalty contract."
+    },
+    {
+      "sourcePath": "solid/src/features/wallet/song-purchase-modal/song-purchase-modal.tsx",
+      "targetPath": "src/features/wallet/song-purchase-modal/song-purchase-modal.tsx",
+      "sourceSha256": "7f27f3bd82f88ec05bb36945295fc7e06717529f5c483d1536d40778d0df1c47",
+      "targetSha256": "40255291e524eac014b54b5faa21e763a7dfe23592751e16a569f4bc713048ed",
+      "disposition": "adapted",
+      "note": "Reimplemented with standalone Dialog/catalog primitives; no locale, network, auth, persistence, or legacy API behavior."
+    },
+    {
+      "sourcePath": "solid/src/features/wallet/royalty-claim-modal/royalty-claim-modal.tsx",
+      "targetPath": "src/features/wallet/royalty-claim-modal/royalty-claim-modal.tsx",
+      "sourceSha256": "7a8e3a20ec37a9a57651616a37a623af3a53effb6a922b34e5a951f6e60c9e06",
+      "targetSha256": "24a1eb99995bd8cf90cbb1ff6378c926109f8a5068639f40b7fe5a21891598b2",
+      "disposition": "adapted",
+      "note": "Reimplemented with standalone Dialog/catalog primitives and deterministic callback/state presentation."
+    },
+    {
+      "sourcePath": "solid/src/features/wallet/song-purchase-modal/song-purchase-modal-ssr.test.tsx",
+      "targetPath": "src/features/wallet/song-purchase-modal/song-purchase-modal-ssr.test.tsx",
+      "sourceSha256": "dfd1db33660fafb4e9ae19c6c59cd65cee0fae5064b041fdad93ddb665126715",
+      "targetSha256": "540dde12821d17a91341156076b26433e5f6ec7fe496cc9eafc065a6ada00c96",
+      "disposition": "adapted",
+      "note": "SSR test uses structural local catalog mocks and verifies purchase, discount, processing, vinyl, and error semantics."
+    },
+    {
+      "sourcePath": "solid/src/features/wallet/royalty-claim-modal/royalty-claim-modal-ssr.test.tsx",
+      "targetPath": "src/features/wallet/royalty-claim-modal/royalty-claim-modal-ssr.test.tsx",
+      "sourceSha256": "ffd1e99f1559124d48fc41bdf86d4ef3dbc2daf3a8eb6736e114a7fc720a1de5",
+      "targetSha256": "03ec14129130672a20f1a76f7611eb3226b0ea408f26b70f60068ea509565ee3",
+      "disposition": "adapted",
+      "note": "SSR test verifies wallet, pending, success, error, and accessible switch/action semantics without browser or network dependencies."
+    }
+  ],
+  "reconciliation": {
+    "removed": ["React imports", "legacy API/runtime calls", "locale runtime calls", "wallet/network/auth side effects", "historical step-flow labels not present in current send contract"],
+    "fixturePolicy": "All story data is inline or imported from the standalone deterministic wallet-flow-fixtures module. No timers, randomness, network, auth, localStorage, or compatibility fixtures are used."
+  },
+  "evidence": {
+    "focusedWalletTests": "passed: existing wallet model/view-model tests plus 4 new modal SSR tests",
+    "typescript": "passed: bunx tsc --noEmit -p tsconfig.json",
+    "lint": "passed with existing anti-slop warnings in wallet files; no errors",
+    "storybookBuild": "pending",
+    "productionBuild": "pending",
+    "productGraphRequireBuild": "pending",
+    "browserAxe": "pending; browser harness not run in this tranche",
+    "provenanceHashes": "passed: all 9 repository-relative solid/src/... source objects resolve via git show at web ref 002fba933ba913f99ec0ef758f4aa63aff78015f and target SHA-256 rows match final files",
+    "determinism": "passed by construction: fixtures and callbacks are inline; no timers, randomness, network, auth, storage, or legacy imports are retained"
+  }
+}
