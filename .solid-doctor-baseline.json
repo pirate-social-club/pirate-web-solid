@@ -1,0 +1,33 @@
+{
+  "version": 2,
+  "findings": [
+    "solid/no-top-level-reactive-read|packages/solid-ui/src/components/forms/combobox/combobox.tsx|38|16|Reactive value \"props.item\" is read in ComboboxItem's component body outside a tracking scope.",
+    "solid/no-top-level-reactive-read|packages/solid-ui/src/components/forms/select/select.tsx|51|16|Reactive value \"props.item\" is read in SelectItem's component body outside a tracking scope.",
+    "solid/no-top-level-reactive-read|packages/solid-ui/src/patterns/layout/stack-page-shell/stack-page-shell.tsx|27|5|Reactive value \"props.description\" is read in StackPageShell's component body outside a tracking scope.",
+    "solid/no-top-level-reactive-read|src/Document.tsx|14|23|Reactive value \"props.clientEntry\" is read in Document's component body outside a tracking scope.",
+    "solid/no-top-level-reactive-read|src/features/karaoke/karaoke-practice-surface.tsx|42|28|Reactive value \"props.lines[0]?.startMs\" is read in KaraokePracticeSurface's component body outside a tracking scope.",
+    "solid/no-top-level-reactive-read|src/features/karaoke/karaoke-route-view.tsx|47|23|Reactive value \"props.payload.community\" is read in LoadedKaraokeSession's component body outside a tracking scope.",
+    "solid/no-top-level-reactive-read|src/features/karaoke/karaoke-route-view.tsx|51|37|Reactive accessor \"scorableLines\" is read in LoadedKaraokeSession's component body outside a tracking scope.",
+    "solid/no-top-level-reactive-read|src/features/karaoke/karaoke-route-view.tsx|52|13|Reactive value \"props.postId\" is read in LoadedKaraokeSession's component body outside a tracking scope.",
+    "solid/no-top-level-reactive-read|src/features/karaoke/karaoke-route-view.tsx|53|20|Reactive accessor \"scorableLines\" is read in LoadedKaraokeSession's component body outside a tracking scope.",
+    "solid/no-top-level-reactive-read|src/features/karaoke/karaoke-route-view.tsx|104|18|Reactive value \"props.client\" is read in KaraokeSessionRouteView's component body outside a tracking scope.",
+    "solid/no-top-level-reactive-read|src/features/karaoke/karaoke-route-view.tsx|128|18|Reactive value \"props.client\" is read in KaraokeLeaderboardRouteView's component body outside a tracking scope.",
+    "solid/no-top-level-reactive-read|src/features/profiles/public-profile-page/public-profile-page.tsx|163|18|Reactive value \"props.client\" is read in ProfileData's component body outside a tracking scope.",
+    "solid/no-top-level-reactive-read|src/features/shell/app-shell-chrome/app-shell-chrome.tsx|68|11|Reactive value \"props.item\" is read in NavIcon's component body outside a tracking scope."
+  ],
+  "stableFindings": [
+    "solid/no-top-level-reactive-read|packages/solid-ui/src/components/forms/combobox/combobox.tsx|42c5aecb41b96290",
+    "solid/no-top-level-reactive-read|packages/solid-ui/src/components/forms/select/select.tsx|42c5aecb41b96290",
+    "solid/no-top-level-reactive-read|packages/solid-ui/src/patterns/layout/stack-page-shell/stack-page-shell.tsx|11db7c4d06fe3598",
+    "solid/no-top-level-reactive-read|src/Document.tsx|2a1232fb1ff89b7d",
+    "solid/no-top-level-reactive-read|src/features/karaoke/karaoke-practice-surface.tsx|59273b78b862cc5a",
+    "solid/no-top-level-reactive-read|src/features/karaoke/karaoke-route-view.tsx|a616df51b68b249c",
+    "solid/no-top-level-reactive-read|src/features/karaoke/karaoke-route-view.tsx|87b4ab5b595d1814",
+    "solid/no-top-level-reactive-read|src/features/karaoke/karaoke-route-view.tsx|97c0f578b7dcc1b8",
+    "solid/no-top-level-reactive-read|src/features/karaoke/karaoke-route-view.tsx|87b4ab5b595d1814",
+    "solid/no-top-level-reactive-read|src/features/karaoke/karaoke-route-view.tsx|ed10a0bb9b47d106",
+    "solid/no-top-level-reactive-read|src/features/karaoke/karaoke-route-view.tsx|ed10a0bb9b47d106",
+    "solid/no-top-level-reactive-read|src/features/profiles/public-profile-page/public-profile-page.tsx|ed10a0bb9b47d106",
+    "solid/no-top-level-reactive-read|src/features/shell/app-shell-chrome/app-shell-chrome.tsx|42c5aecb41b96290"
+  ]
+}

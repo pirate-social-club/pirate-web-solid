@@ -33,8 +33,29 @@ bunx wrangler deploy --dry-run --config dist/ssr/wrangler.json
 
 `verify` regenerates Worker types, typechecks the app and solid-ui package,
 runs the scoped lint and unit gates, checks the Solid runtime identity, and
-runs the solid-ui tests. The dry run is local validation only and must report
-`env.ASSETS` as the sole binding.
+runs the solid-ui tests, followed by the advisory Solid Doctor scan. Solid
+Doctor is pinned as a dev dependency and uses the committed baseline to keep
+known findings quiet while surfacing new ones. Storybook fixtures are ignored
+because they intentionally exercise read-once component props. The doctor scan
+returns a non-zero status only for error-severity findings.
+
+For pull requests, run the doctor in diff mode; run a full scan on the main
+branch so transitive client-reachability changes are not hidden:
+
+```bash
+bun run check:solid-doctor
+bunx solid-doctor . --diff base...head
+```
+
+When a finding is intentionally accepted, review it and update the baseline
+explicitly:
+
+```bash
+bunx solid-doctor . --write-baseline .solid-doctor-baseline.json
+```
+
+The dry run is local validation only and must report `env.ASSETS` as the sole
+binding.
 
 The Solid UI suite consumes an integrity-pinned tarball built from the official
 Kobalte `solid2` branch at commit

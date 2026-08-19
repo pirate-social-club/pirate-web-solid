@@ -23,9 +23,10 @@
     "hydration-check": "node scripts/hydration-check.mjs",
     "karaoke-route-check": "node scripts/karaoke-route-check.mjs",
     "check-solid-runtime": "node scripts/check-solid-runtime.mjs",
+    "check:solid-doctor": "solid-doctor . --baseline .solid-doctor-baseline.json",
     "lint": "oxlint src",
     "generate-worker-types": "wrangler types",
-    "verify": "bun run generate-worker-types && tsc --noEmit -p tsconfig.json && bun run test:api && bun run lint && node scripts/check-solid-runtime.mjs && bun run --cwd packages/solid-ui typecheck && bun run --cwd packages/solid-ui test",
+    "verify": "bun run generate-worker-types && tsc --noEmit -p tsconfig.json && bun run test:api && bun run lint && node scripts/check-solid-runtime.mjs && bun run --cwd packages/solid-ui typecheck && bun run --cwd packages/solid-ui test && bun run check:solid-doctor",
     "verify:live": "node scripts/probe.mjs && node scripts/stream-check.mjs && node scripts/hydration-check.mjs"
   },
   "dependencies": {
@@ -52,6 +53,7 @@
     "@types/qrcode": "1.5.6",
     "oxlint": "1.78.0",
     "playwright": "1.60.0",
+    "solid-doctor": "0.1.0",
     "storybook": "10.5.8",
     "storybook-solidjs-vite": "10.6.0",
     "tailwindcss": "4.3.3",
