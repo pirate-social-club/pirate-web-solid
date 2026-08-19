@@ -22,7 +22,6 @@ export function CommunityThreadView(props: CommunityThreadViewProps) {
   const [draft, setDraft] = createSignal("");
   const [busy, setBusy] = createSignal(false);
   const [error, setError] = createSignal("");
-  const commentsLabel = () => `${props.thread.post.commentCount ?? comments().length} comments`;
 
   const beginReply = (commentId: string) => {
     const comment = comments().find(item => item.id === commentId);
@@ -93,12 +92,7 @@ export function CommunityThreadView(props: CommunityThreadViewProps) {
         </CardContent>
       </Card>
 
-      <section class="mt-6" aria-labelledby="community-thread-comments-heading">
-        <div class="flex items-baseline justify-between gap-4 border-b border-border-soft pb-3">
-          <Type as="h2" variant="h2" id="community-thread-comments-heading">Comments</Type>
-          <Type variant="caption">{commentsLabel()}</Type>
-        </div>
-
+      <section class="mt-6" aria-label="Comments">
         <div class="mt-4">
           <CommunityCommentComposer
             busy={busy()}

@@ -21,6 +21,10 @@ export {
   TextFieldLabel,
 } from "@pirate/web-solid-ui";
 export {
+  Textarea,
+  type TextareaProps,
+} from "@pirate/web-solid-ui";
+export {
   Card,
   CardContent,
   CardDescription,

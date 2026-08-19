@@ -35,11 +35,12 @@ describe("CommunityThreadView", () => {
     expect(container.querySelector("[data-community-post-id='review-community-thread-1']")).not.toBeNull();
     expect(container.querySelector("[data-community-comment-id='review-comment-1']")).not.toBeNull();
     expect(container.querySelector("[data-community-comment-id='review-comment-1-1']")).not.toBeNull();
-    expect(container.textContent).toContain("Comments");
     expect(container.textContent).toContain("deckhand");
     expect(container.querySelector('a[href="/c/tameimpala/threads"]')).not.toBeNull();
     expect(container.querySelector('[data-community-comment-composer]')).not.toBeNull();
     expect(container.querySelector('textarea[aria-label="Write a comment"]')).not.toBeNull();
+    expect(container.textContent).not.toContain("Join the conversation");
+    expect(container.textContent).not.toContain("Markdown formatting is supported.");
 
     const reply = Array.from(container.querySelectorAll("button")).find(button => button.textContent?.trim() === "Reply");
     reply?.click();
@@ -72,7 +73,7 @@ describe("CommunityThreadView", () => {
     textarea.dispatchEvent(new Event("input", { bubbles: true }));
     await Promise.resolve();
 
-    const submit = Array.from(container.querySelectorAll("button")).find(button => button.textContent?.trim() === "Post comment");
+    const submit = Array.from(container.querySelectorAll("button")).find(button => button.textContent?.trim() === "Post");
     submit?.click();
     await Promise.resolve();
 

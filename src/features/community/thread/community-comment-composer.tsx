@@ -1,7 +1,7 @@
 /** @jsxImportSource @solidjs/web */
 import { Show } from "solid-js";
 
-import { Button, FormattedTextarea, Type } from "../../../design-system";
+import { Button, Textarea, Type } from "../../../design-system";
 import type { CommunityComment } from "./community-thread-model.ts";
 
 export interface CommunityCommentComposerProps {
@@ -17,39 +17,31 @@ export interface CommunityCommentComposerProps {
 
 export function CommunityCommentComposer(props: CommunityCommentComposerProps) {
   const replyingTo = () => props.replyTo ?? null;
-  const actionLabel = () => replyingTo() ? "Post reply" : "Post comment";
 
   return (
     <section
-      aria-labelledby="community-comment-composer-heading"
+      aria-label="Comment composer"
       class="rounded-2xl border border-border-soft bg-card p-4"
       data-community-comment-composer
     >
-      <div class="mb-3 flex items-center justify-between gap-3">
-        <div class="min-w-0">
-          <Type as="h3" variant="h4" id="community-comment-composer-heading">
-            {replyingTo() ? "Reply to this comment" : "Join the conversation"}
-          </Type>
-          <Show when={replyingTo()}>
-            {(comment) => (
-              <Type variant="caption" class="mt-1 block truncate text-muted-foreground">
-                Replying to {comment().authorHandle ?? comment().authorName}
-              </Type>
-            )}
-          </Show>
-        </div>
-        <Show when={replyingTo()}>
-          <Button
-            class="shrink-0 cursor-pointer"
-            onClick={props.onCancelReply}
-            size="sm"
-            type="button"
-            variant="ghost"
-          >
-            Cancel reply
-          </Button>
-        </Show>
-      </div>
+      <Show when={replyingTo()}>
+        {(comment) => (
+          <div class="mb-3 flex items-center justify-between gap-3">
+            <Type variant="caption" class="min-w-0 truncate text-muted-foreground">
+              Replying to {comment().authorHandle ?? comment().authorName}
+            </Type>
+            <Button
+              class="shrink-0 cursor-pointer"
+              onClick={props.onCancelReply}
+              size="sm"
+              type="button"
+              variant="ghost"
+            >
+              Cancel reply
+            </Button>
+          </div>
+        )}
+      </Show>
 
       <form
         onSubmit={(event) => {
@@ -58,20 +50,22 @@ export function CommunityCommentComposer(props: CommunityCommentComposerProps) {
         }}
       >
         <Show keyed when={replyingTo()} fallback={
-          <FormattedTextarea
+          <Textarea
             aria-label="Write a comment"
+            class="min-h-28"
             disabled={props.disabled || props.busy}
             id="community-thread-comment-composer"
-            onChange={props.onChange}
+            onInput={(event) => props.onChange(event.currentTarget.value)}
             placeholder="Add a comment..."
             value={props.value}
           />
         }>
-          <FormattedTextarea
+          <Textarea
             aria-label="Write a reply"
+            class="min-h-28"
             disabled={props.disabled || props.busy}
             id="community-thread-comment-composer"
-            onChange={props.onChange}
+            onInput={(event) => props.onChange(event.currentTarget.value)}
             placeholder="Write a reply"
             value={props.value}
           />
@@ -80,13 +74,12 @@ export function CommunityCommentComposer(props: CommunityCommentComposerProps) {
           {(error) => <Type as="p" variant="caption" class="mt-2 text-destructive-text" role="alert">{error()}</Type>}
         </Show>
         <div class="mt-3 flex items-center justify-between gap-3">
-          <Type variant="caption" class="text-muted-foreground">Markdown formatting is supported.</Type>
           <Button
             class="cursor-pointer"
             disabled={props.disabled || props.busy || props.value.trim().length === 0}
             type="submit"
           >
-            {props.busy ? "Posting…" : actionLabel()}
+            {props.busy ? "Posting…" : "Post"}
           </Button>
         </div>
       </form>
