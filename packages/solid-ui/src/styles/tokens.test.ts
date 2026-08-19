@@ -1,7 +1,8 @@
-import { describe, expect, it } from "bun:test";
+import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
+import path from "node:path";
 
-const tokens = readFileSync(new URL("./tokens.css", import.meta.url), "utf8");
+const tokens = readFileSync(path.resolve("src/styles/tokens.css"), "utf8");
 
 describe("sidebar theme tokens", () => {
   it("defines dark, light, and Tailwind mappings for the complete sidebar family", () => {
