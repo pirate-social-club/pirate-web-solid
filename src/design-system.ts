@@ -28,6 +28,10 @@ export {
   CardHeader,
   CardTitle,
 } from "@pirate/web-solid-ui";
+export {
+  FormattedTextarea,
+  type FormattedTextareaProps,
+} from "@pirate/web-solid-ui";
 export { Separator, Type } from "@pirate/web-solid-ui";
 export {
   IconArrowDown,

@@ -28,7 +28,7 @@ afterEach(() => {
 });
 
 describe("CommunityThreadView", () => {
-  test("renders a linked-back root post and nested reusable comments", () => {
+  test("renders a linked-back root post and nested reusable comments", async () => {
     const container = render(() => <CommunityThreadView thread={communityThreadReviewPage} />);
 
     expect(container.querySelector("[data-community-thread-page]")).not.toBeNull();
@@ -38,6 +38,16 @@ describe("CommunityThreadView", () => {
     expect(container.textContent).toContain("Comments");
     expect(container.textContent).toContain("deckhand");
     expect(container.querySelector('a[href="/c/tameimpala/threads"]')).not.toBeNull();
+    expect(container.querySelector('[data-community-comment-composer]')).not.toBeNull();
+    expect(container.querySelector('textarea[aria-label="Write a comment"]')).not.toBeNull();
+
+    const reply = Array.from(container.querySelectorAll("button")).find(button => button.textContent?.trim() === "Reply");
+    reply?.click();
+    await Promise.resolve();
+
+    expect(container.querySelector('textarea[aria-label="Write a reply"]')).not.toBeNull();
+    expect(container.textContent).toContain("Replying to deckhand");
+    expect(container.textContent).toContain("Cancel reply");
   });
 
   test("renders the locked and unavailable states without inventing comments", () => {
@@ -49,5 +59,23 @@ describe("CommunityThreadView", () => {
 
     expect(container.textContent).toContain("Comments are not available yet.");
     expect(container.querySelector("[data-community-comment-id]")).toBeNull();
+  });
+
+  test("posts a local fixture comment from the shared composer", async () => {
+    const container = render(() => (
+      <CommunityThreadView allowLocalCommentSubmit thread={communityThreadReviewPage} />
+    ));
+    const textarea = container.querySelector<HTMLTextAreaElement>('textarea[aria-label="Write a comment"]');
+    expect(textarea).not.toBeNull();
+    if (textarea === null) throw new Error("comment composer textarea missing");
+    textarea.value = "A new thought for the listening guide.";
+    textarea.dispatchEvent(new Event("input", { bubbles: true }));
+    await Promise.resolve();
+
+    const submit = Array.from(container.querySelectorAll("button")).find(button => button.textContent?.trim() === "Post comment");
+    submit?.click();
+    await Promise.resolve();
+
+    expect(container.textContent).toContain("A new thought for the listening guide.");
   });
 });

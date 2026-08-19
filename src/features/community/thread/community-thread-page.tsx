@@ -2,8 +2,9 @@
 import { getRequestEvent } from "@solidjs/web";
 import { createEffect, createSignal, onCleanup, Show } from "solid-js";
 import { Title } from "@solidjs/meta";
+import type { PirateApiClient } from "@pirate/api-client";
 
-import { createPublicApiClient } from "../../../api/client.ts";
+import { createPublicApiClient, createSessionApiClient } from "../../../api/client.ts";
 import { Spinner, Type } from "../../../design-system";
 import { MediaShell } from "../../shell/media-shell/media-shell.tsx";
 import { communityThreadReviewPage } from "./community-thread-fixtures.ts";
@@ -15,7 +16,10 @@ export interface CommunityThreadPageProps {
   readonly postId: string;
   readonly client?: CommunityThreadClient;
   readonly data?: CommunityThread;
+  readonly replyClient?: CommunityReplyClient;
 }
+
+export type CommunityReplyClient = Pick<PirateApiClient, "post_commentsCommentIdReplies">;
 
 function isLocalThreadReviewRequest(): boolean {
   const event = getRequestEvent();
@@ -55,6 +59,24 @@ function requestOrigin(): string | undefined {
   return typeof location === "undefined" ? undefined : location.origin;
 }
 
+async function submitReply(
+  client: CommunityReplyClient,
+  body: string,
+  parentId: string | null,
+): Promise<void> {
+  if (parentId === null) {
+    throw new Error("Top-level comment publishing is not available yet.");
+  }
+  await client.post_commentsCommentIdReplies({
+    path: { commentId: parentId },
+    body: {
+      body,
+      authorship_mode: "human_direct",
+      identity_mode: "public",
+    },
+  });
+}
+
 export function CommunityThreadPage(props: CommunityThreadPageProps) {
   const reviewFixture = isLocalThreadReviewRequest();
   const initial = props.data ?? (reviewFixture ? communityThreadReviewPage : undefined);
@@ -87,7 +109,13 @@ export function CommunityThreadPage(props: CommunityThreadPageProps) {
           {(ready) => (
             <>
               <Title>{ready().post.title} · Pirate</Title>
-              <CommunityThreadView thread={ready()} />
+              <CommunityThreadView
+                allowLocalCommentSubmit={reviewFixture}
+                onSubmitComment={reviewFixture
+                  ? undefined
+                  : (body, parentId) => submitReply(props.replyClient ?? createSessionApiClient(), body, parentId)}
+                thread={ready()}
+              />
             </>
           )}
         </Show>
