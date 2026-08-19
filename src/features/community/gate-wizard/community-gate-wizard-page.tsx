@@ -19,7 +19,7 @@ import {
 import { GateCheckConfigForm } from "./gate-check-config-forms";
 import { createGateWizardCopyAccessor, type GateWizardCopy } from "./gate-wizard-copy";
 
-export const GATE_WIZARD_STEPS = ["membership", "invite", "checks", "review"] as const;
+export const GATE_WIZARD_STEPS = ["membership", "checks", "review"] as const;
 export type GateWizardStep = (typeof GATE_WIZARD_STEPS)[number];
 
 export interface CommunityGateWizardPageProps {
@@ -44,8 +44,6 @@ function requirementText(copy: GateWizardCopy, requirement: CompiledGateRequirem
   switch (requirement.requirement) {
     case "human-verification":
       return labels.humanVerification;
-    case "invite":
-      return labels.invite;
     case "age-minimum":
       return labels.ageMinimum;
     case "nationality-allowed":
@@ -89,8 +87,7 @@ export function CommunityGateWizardPage(props: CommunityGateWizardPageProps) {
   const requirements = () => compiled().accessPaths[0]?.requirements ?? [];
   const checkRequirements = () =>
     requirements().filter(
-      (requirement) =>
-        requirement.requirement !== "human-verification" && requirement.requirement !== "invite",
+      (requirement) => requirement.requirement !== "human-verification",
     );
 
   const updateDraft = (next: GateWizardDraft) => props.onDraftChange?.(next);
@@ -165,33 +162,6 @@ export function CommunityGateWizardPage(props: CommunityGateWizardPageProps) {
         </div>
       </Show>
 
-      <Show when={step() === "invite"}>
-        <div class="space-y-4">
-          <div class="space-y-1">
-            <Type as="h2" variant="h2">{copy().invite.heading}</Type>
-            <Type as="p" variant="caption">{copy().invite.description}</Type>
-          </div>
-          <div class="grid gap-3 sm:grid-cols-2" role="radiogroup" aria-label={copy().invite.heading}>
-            <OptionCard
-              aria-checked={props.draft.inviteRule === "open" ? "true" : "false"}
-              role="radio"
-              selected={props.draft.inviteRule === "open"}
-              title={copy().invite.openTitle}
-              description={copy().invite.openDescription}
-              onClick={() => updateDraft({ ...props.draft, inviteRule: "open" })}
-            />
-            <OptionCard
-              aria-checked={props.draft.inviteRule === "invite-required" ? "true" : "false"}
-              role="radio"
-              selected={props.draft.inviteRule === "invite-required"}
-              title={copy().invite.inviteRequiredTitle}
-              description={copy().invite.inviteRequiredDescription}
-              onClick={() => updateDraft({ ...props.draft, inviteRule: "invite-required" })}
-            />
-          </div>
-        </div>
-      </Show>
-
       <Show when={step() === "checks"}>
         <div class="space-y-4">
           <div class="space-y-1">
@@ -237,18 +207,6 @@ export function CommunityGateWizardPage(props: CommunityGateWizardPageProps) {
               );
             }}
           </For>
-          <Show when={props.draft.checks.length === 0}>
-            <Type
-              as="p"
-              class="rounded-[var(--radius-xl)] border border-dashed border-border-soft bg-card px-5 py-6 text-center"
-              variant="caption"
-            >
-              {copy().checks.noneSelected}
-            </Type>
-          </Show>
-          <Type as="p" class="rounded-[var(--radius-xl)] bg-muted/40 px-4 py-3" variant="caption">
-            {copy().checks.engagementNote}
-          </Type>
         </div>
       </Show>
 
@@ -258,21 +216,13 @@ export function CommunityGateWizardPage(props: CommunityGateWizardPageProps) {
             <Type as="h2" variant="h2">{copy().review.heading}</Type>
             <Type as="p" variant="caption">{copy().review.description}</Type>
           </div>
-          <div class="grid gap-3 rounded-[var(--radius-2_5xl)] border border-border-soft bg-card p-5 sm:grid-cols-2">
+          <div class="rounded-[var(--radius-2_5xl)] border border-border-soft bg-card p-5">
             <div class="space-y-1">
               <Type as="div" variant="label">{copy().review.whoCanJoin}</Type>
               <Type as="p" variant="body">
                 {props.draft.membershipMode === "humans-only"
                   ? copy().membership.humansOnlyTitle
                   : copy().membership.humansAndBotsTitle}
-              </Type>
-            </div>
-            <div class="space-y-1">
-              <Type as="div" variant="label">{copy().review.invitation}</Type>
-              <Type as="p" variant="body">
-                {props.draft.inviteRule === "invite-required"
-                  ? copy().invite.inviteRequiredTitle
-                  : copy().invite.openTitle}
               </Type>
             </div>
           </div>
@@ -300,9 +250,6 @@ export function CommunityGateWizardPage(props: CommunityGateWizardPageProps) {
               </ul>
             </Show>
           </div>
-          <Type as="p" class="text-muted-foreground" variant="caption">
-            {copy().review.engagementNotice}
-          </Type>
         </div>
       </Show>
 

@@ -41,8 +41,7 @@ export const GENERATED_LOCALE_CATALOGS = {
               "label": "رصيد الرموز"
             }
           },
-          "description": "يجب على الأعضاء اجتياز كل شرط تختاره، ولا توجد هنا صيغة «أحد هذه».",
-          "engagementNote": "من يمكنه التفاعل — النشر والتعليق والتصويت — إعداد منفصل بعد الإنشاء.",
+          "description": "يجب على الجميع استيفاء كل شرط تختاره.",
           "gender": {
             "emptyError": "اختر علامة واحدة على الأقل.",
             "heading": "أي العلامات؟",
@@ -88,7 +87,6 @@ export const GENERATED_LOCALE_CATALOGS = {
             "subjectLabel": "المقتنى",
             "subjectPlaceholder": "مثال: لاعب أو شخصية أو علامة تجارية"
           },
-          "noneSelected": "لم يتم اختيار أي شروط. يمكن لأي شخص يجتاز الخطوات أعلاه الانضمام.",
           "passportScore": {
             "error": "أدخل نتيجة صحيحة من 0 إلى 100.",
             "heading": "الحد الأدنى للنتيجة؟",
@@ -105,17 +103,9 @@ export const GENERATED_LOCALE_CATALOGS = {
             "heading": "أي أصل، وكم المبلغ؟"
           }
         },
-        "description": "حدد من يمكنه الانضمام. تأتي قواعد النشر والتعليق والتصويت لاحقًا.",
-        "invite": {
-          "description": "يجتمع شرط الدعوة مع شروط العضوية معًا.",
-          "heading": "هل يحتاج الأعضاء إلى دعوة؟",
-          "inviteRequiredDescription": "لا يمكن الانضمام إلا للأشخاص المدعوين.",
-          "inviteRequiredTitle": "الدعوة مطلوبة",
-          "openDescription": "لا حاجة إلى دعوة.",
-          "openTitle": "يمكن لأي شخص الانضمام"
-        },
+        "description": "اختر من يمكنه الانضمام إلى مجتمعك.",
         "membership": {
-          "description": "ينطبق التحقق البشري على العضوية فقط، ولا يحدد أبدًا من يمكنه النشر أو التعليق أو التصويت.",
+          "description": "يتحقق الأعضاء من أنهم بشر قبل الانضمام.",
           "heading": "من يمكنه الانضمام؟",
           "humansAndBotsDescription": "لا يُطلب التحقق البشري للانضمام.",
           "humansAndBotsTitle": "البشر والروبوتات",
@@ -127,10 +117,8 @@ export const GENERATED_LOCALE_CATALOGS = {
           "allRequirementsNote": "يجب على الجميع استيفاء كل شرط اخترته.",
           "checksLabel": "شروط إضافية",
           "description": "إليك ما سيحتاج الأشخاص إليه للانضمام.",
-          "engagementNotice": "تُضبط قواعد التفاعل للنشر والتعليق والتصويت بشكل منفصل.",
           "heading": "هل أنت مستعد لإنشاء مجتمعك؟",
-          "invitation": "الدعوات",
-          "noChecksNote": "لم يتم اختيار شروط إضافية. يمكن الانضمام بناءً على الخيارات أعلاه.",
+          "noChecksNote": "لا توجد شروط إضافية.",
           "requirements": {
             "ageMinimum": "العمر 18 عامًا على الأقل",
             "assetOwnership": "يحمل {amount} أو أكثر من {asset}",
@@ -138,7 +126,6 @@ export const GENERATED_LOCALE_CATALOGS = {
             "genderMarker": "علامة الجنس: {markers}",
             "humanVerification": "تحقق بشري",
             "inventoryMatch": "يمتلك {quantity} أو أكثر من {category}: {subject}",
-            "invite": "دعوة",
             "nationalityAllowed": "مستند من: {countries}",
             "reputationScore": "نقاط Gitcoin Passport بمقدار {score} أو أكثر"
           },
@@ -146,7 +133,6 @@ export const GENERATED_LOCALE_CATALOGS = {
         },
         "steps": {
           "checks": "الشروط",
-          "invite": "الدعوة",
           "membership": "العضوية",
           "review": "المراجعة"
         },
@@ -336,8 +322,7 @@ export const GENERATED_LOCALE_CATALOGS = {
               "label": "Token balance"
             }
           },
-          "description": "Members must pass every check you select. There is no either/or logic here.",
-          "engagementNote": "Who can engage — posting, commenting, and voting — is a separate setting after creation.",
+          "description": "Everyone must pass every check you select.",
           "gender": {
             "emptyError": "Select at least one marker.",
             "heading": "Which markers?",
@@ -383,7 +368,6 @@ export const GENERATED_LOCALE_CATALOGS = {
             "subjectLabel": "Collectible",
             "subjectPlaceholder": "e.g. a player, character, or brand"
           },
-          "noneSelected": "No checks selected. Anyone who passes the steps above can join.",
           "passportScore": {
             "error": "Enter a whole score from 0 to 100.",
             "heading": "Minimum score?",
@@ -400,17 +384,9 @@ export const GENERATED_LOCALE_CATALOGS = {
             "heading": "Which asset, and how much?"
           }
         },
-        "description": "Set who can join. Posting, commenting, and voting rules come later.",
-        "invite": {
-          "description": "An invitation requirement combines with the membership checks.",
-          "heading": "Do members need an invitation?",
-          "inviteRequiredDescription": "Only invited people can join.",
-          "inviteRequiredTitle": "Invitation required",
-          "openDescription": "No invitation is needed.",
-          "openTitle": "Anyone may join"
-        },
+        "description": "Choose who can join your community.",
         "membership": {
-          "description": "Human verification applies to membership only. It never decides who can post, comment, or vote.",
+          "description": "Members verify they are human before they join.",
           "heading": "Who can join?",
           "humansAndBotsDescription": "No human verification is required to join.",
           "humansAndBotsTitle": "Humans and bots",
@@ -422,10 +398,8 @@ export const GENERATED_LOCALE_CATALOGS = {
           "allRequirementsNote": "Everyone must meet every check you selected.",
           "checksLabel": "Extra checks",
           "description": "Here’s what people will need to join.",
-          "engagementNotice": "Posting, commenting, and voting settings are separate.",
           "heading": "Ready to create your community?",
-          "invitation": "Invitations",
-          "noChecksNote": "No extra checks selected. People can join based on the choices above.",
+          "noChecksNote": "None.",
           "requirements": {
             "ageMinimum": "At least 18 years old",
             "assetOwnership": "Holds {amount} or more of {asset}",
@@ -433,7 +407,6 @@ export const GENERATED_LOCALE_CATALOGS = {
             "genderMarker": "Gender marker: {markers}",
             "humanVerification": "Verified human",
             "inventoryMatch": "Owns {quantity} or more {category}: {subject}",
-            "invite": "Invitation",
             "nationalityAllowed": "Document from: {countries}",
             "reputationScore": "Gitcoin Passport score of {score} or more"
           },
@@ -441,7 +414,6 @@ export const GENERATED_LOCALE_CATALOGS = {
         },
         "steps": {
           "checks": "Checks",
-          "invite": "Invite",
           "membership": "Membership",
           "review": "Review"
         },
@@ -631,8 +603,7 @@ export const GENERATED_LOCALE_CATALOGS = {
               "label": "代币余额"
             }
           },
-          "description": "成员必须通过你选择的每一项条件，这里没有“任选其一”的逻辑。",
-          "engagementNote": "谁能互动——发帖、评论和投票——是创建后的独立设置。",
+          "description": "每个人都必须满足你选择的所有条件。",
           "gender": {
             "emptyError": "请至少选择一个标记。",
             "heading": "哪些标记？",
@@ -678,7 +649,6 @@ export const GENERATED_LOCALE_CATALOGS = {
             "subjectLabel": "藏品",
             "subjectPlaceholder": "例如球员、角色或品牌"
           },
-          "noneSelected": "未选择任何条件。通过上述步骤的任何人都可以加入。",
           "passportScore": {
             "error": "请输入 0 到 100 之间的整数。",
             "heading": "最低分数？",
@@ -695,17 +665,9 @@ export const GENERATED_LOCALE_CATALOGS = {
             "heading": "哪个资产，多少数量？"
           }
         },
-        "description": "设置谁可以加入。发帖、评论和投票规则稍后配置。",
-        "invite": {
-          "description": "邀请要求与成员条件同时生效。",
-          "heading": "成员需要邀请吗？",
-          "inviteRequiredDescription": "只有受邀请的人才能加入。",
-          "inviteRequiredTitle": "需要邀请",
-          "openDescription": "无需邀请。",
-          "openTitle": "任何人都可以加入"
-        },
+        "description": "选择谁可以加入你的社区。",
         "membership": {
-          "description": "真人验证仅适用于成员资格，绝不决定谁可以发帖、评论或投票。",
+          "description": "成员加入前需验证自己是真人。",
           "heading": "谁可以加入？",
           "humansAndBotsDescription": "加入无需真人验证。",
           "humansAndBotsTitle": "真人和机器人",
@@ -717,10 +679,8 @@ export const GENERATED_LOCALE_CATALOGS = {
           "allRequirementsNote": "每个人都必须满足你选择的所有条件。",
           "checksLabel": "额外条件",
           "description": "以下是人们加入时需要满足的条件。",
-          "engagementNotice": "发帖、评论和投票的互动规则将单独配置。",
           "heading": "准备创建你的社区了吗？",
-          "invitation": "邀请",
-          "noChecksNote": "未选择额外条件。人们可以根据上面的选择加入。",
+          "noChecksNote": "没有额外条件。",
           "requirements": {
             "ageMinimum": "年满 18 岁",
             "assetOwnership": "持有 {amount} 或更多 {asset}",
@@ -728,7 +688,6 @@ export const GENERATED_LOCALE_CATALOGS = {
             "genderMarker": "性别标记：{markers}",
             "humanVerification": "真人验证",
             "inventoryMatch": "持有 {quantity} 个或更多 {category}：{subject}",
-            "invite": "邀请",
             "nationalityAllowed": "证件来自：{countries}",
             "reputationScore": "Gitcoin Passport 分数不低于 {score}"
           },
@@ -736,7 +695,6 @@ export const GENERATED_LOCALE_CATALOGS = {
         },
         "steps": {
           "checks": "条件",
-          "invite": "邀请",
           "membership": "成员资格",
           "review": "确认"
         },

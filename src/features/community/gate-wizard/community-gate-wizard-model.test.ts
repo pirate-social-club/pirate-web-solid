@@ -132,10 +132,7 @@ describe("gate check completeness", () => {
 
 describe("compiled gate policy", () => {
   test("compiles one implicit-AND access path in a stable order", () => {
-    let draft: GateWizardDraft = {
-      ...createDefaultGateWizardDraft(),
-      inviteRule: "invite-required",
-    };
+    let draft: GateWizardDraft = createDefaultGateWizardDraft();
     draft = toggleGateCheck(draft, "nationality", "exploration");
     draft = replaceGateCheck(draft, { kind: "nationality", allowedCountries: ["JP", "DE"] });
     draft = toggleGateCheck(draft, "age18", "exploration");
@@ -147,7 +144,6 @@ describe("compiled gate policy", () => {
           operator: "and",
           requirements: [
             { requirement: "human-verification" },
-            { requirement: "invite" },
             { requirement: "age-minimum", minimumAge: 18 },
             { requirement: "nationality-allowed", allowedCountries: ["DE", "JP"] },
           ],

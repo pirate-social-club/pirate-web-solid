@@ -15,7 +15,7 @@ import {
 function GateWizardStory(props: {
   catalogMode?: "production" | "exploration";
   initialDraft?: GateWizardDraft;
-  initialStep?: "membership" | "invite" | "checks" | "review";
+  initialStep?: "membership" | "checks" | "review";
 }) {
   const [draft, setDraft] = createSignal(untrack(() => props.initialDraft ?? createDefaultGateWizardDraft()));
   const [finished, setFinished] = createSignal(0);
@@ -51,10 +51,7 @@ export const Exploration: Story = {
     // Step 1: membership mode.
     await userEvent.click(canvas.getByRole("radio", { name: /^Humans and bots\b/ }));
     await userEvent.click(canvas.getByRole("button", { name: "Continue" }));
-    // Step 2: invite rule.
-    await userEvent.click(canvas.getByRole("radio", { name: /^Invitation required\b/ }));
-    await userEvent.click(canvas.getByRole("button", { name: "Continue" }));
-    // Step 3: checks with implicit AND.
+    // Step 2: checks with implicit AND.
     await userEvent.click(canvas.getByRole("checkbox", { name: "Adults only (18+)" }));
     await userEvent.click(canvas.getByRole("checkbox", { name: "Nationality" }));
     await expect(canvas.getByRole("button", { name: "Continue" })).toBeDisabled();
@@ -62,17 +59,14 @@ export const Exploration: Story = {
     await userEvent.click(canvas.getByRole("checkbox", { name: "Japan" }));
     await expect(canvas.getByRole("button", { name: "Continue" })).toBeEnabled();
     await userEvent.click(canvas.getByRole("button", { name: "Continue" }));
-    // Step 4: review is a plain-language summary.
+    // Step 3: review is a plain-language summary.
     await expect(canvas.getByText("Who can join")).toBeInTheDocument();
     await expect(canvas.getByText("Humans and bots")).toBeInTheDocument();
-    await expect(canvas.getByText("Invitations")).toBeInTheDocument();
-    await expect(canvas.getByText("Invitation required")).toBeInTheDocument();
     await expect(canvas.getByText("Extra checks")).toBeInTheDocument();
     await expect(canvas.getByText("At least 18 years old")).toBeInTheDocument();
     await expect(canvas.getByText(/Japan/)).toBeInTheDocument();
     await userEvent.click(canvas.getByRole("button", { name: "Create community" }));
     await expect(canvas.getByText("Finished 1 times")).toBeInTheDocument();
-    await userEvent.click(canvas.getByRole("button", { name: "Back" }));
     await userEvent.click(canvas.getByRole("button", { name: "Back" }));
     await userEvent.click(canvas.getByRole("button", { name: "Back" }));
     await expect(canvas.getByText("Who can join?")).toBeInTheDocument();
@@ -86,27 +80,6 @@ export const ProductionCatalog: Story = {
     const canvas = within(canvasElement);
     await expect(canvas.getByText("Who can join?")).toBeInTheDocument();
     await expect(canvas.getByRole("radio", { name: /^Humans only\b/ })).toBeChecked();
-    await expect(canvas.getByRole("button", { name: "Continue" })).toBeEnabled();
-  },
-};
-
-export const ProductionInvite: Story = {
-  args: {
-    catalogMode: "production",
-    draft: createDefaultGateWizardDraft(),
-    initialStep: "invite",
-  },
-  render: (args) => (
-    <GateWizardStory
-      catalogMode={args.catalogMode}
-      initialDraft={args.draft}
-      initialStep={args.initialStep}
-    />
-  ),
-  play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement);
-    await expect(canvas.getByText("Do members need an invitation?")).toBeInTheDocument();
-    await expect(canvas.getByRole("button", { name: "Back" })).toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: "Continue" })).toBeEnabled();
   },
 };
@@ -165,7 +138,6 @@ export const ProductionReview: Story = {
 
 function createShowcaseDraft(): GateWizardDraft {
   let draft = createDefaultGateWizardDraft();
-  draft = { ...draft, inviteRule: "invite-required" };
   draft = toggleGateCheck(draft, "age18", "exploration");
   draft = replaceGateCheck(draft, { kind: "nationality", allowedCountries: ["JP", "DE"] });
   draft = replaceGateCheck(draft, { kind: "gender", allowedMarkers: ["M", "F"] });
@@ -222,8 +194,6 @@ export const ReviewShowcase: Story = {
     const canvas = within(canvasElement);
     await expect(canvas.getByText("Who can join")).toBeInTheDocument();
     await expect(canvas.getByText("Humans only")).toBeInTheDocument();
-    await expect(canvas.getByText("Invitations")).toBeInTheDocument();
-    await expect(canvas.getByText("Invitation required")).toBeInTheDocument();
     await expect(canvas.getByText("Extra checks")).toBeInTheDocument();
     await expect(canvas.getByText("At least 18 years old")).toBeInTheDocument();
     await expect(canvas.getByText("Document from: Germany, Japan")).toBeInTheDocument();

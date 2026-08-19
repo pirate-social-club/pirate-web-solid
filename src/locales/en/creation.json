@@ -1,35 +1,24 @@
 {
   "gateWizard": {
     "title": "Create your community",
-    "description": "Set who can join. Posting, commenting, and voting rules come later.",
+    "description": "Choose who can join your community.",
     "progress": "Step {current} of {total} · {step}",
     "steps": {
       "membership": "Membership",
-      "invite": "Invite",
       "checks": "Checks",
       "review": "Review"
     },
     "membership": {
       "heading": "Who can join?",
-      "description": "Human verification applies to membership only. It never decides who can post, comment, or vote.",
+      "description": "Members verify they are human before they join.",
       "humansOnlyTitle": "Humans only",
       "humansOnlyDescription": "Members verify they are human before they join.",
       "humansAndBotsTitle": "Humans and bots",
       "humansAndBotsDescription": "No human verification is required to join."
     },
-    "invite": {
-      "heading": "Do members need an invitation?",
-      "description": "An invitation requirement combines with the membership checks.",
-      "openTitle": "Anyone may join",
-      "openDescription": "No invitation is needed.",
-      "inviteRequiredTitle": "Invitation required",
-      "inviteRequiredDescription": "Only invited people can join."
-    },
     "checks": {
       "heading": "Which checks should members pass?",
-      "description": "Members must pass every check you select. There is no either/or logic here.",
-      "noneSelected": "No checks selected. Anyone who passes the steps above can join.",
-      "engagementNote": "Who can engage — posting, commenting, and voting — is a separate setting after creation.",
+      "description": "Everyone must pass every check you select.",
       "capability": {
         "availableNow": "Available now",
         "designHold": "Policy model pending",
@@ -126,14 +115,11 @@
       "heading": "Ready to create your community?",
       "description": "Here’s what people will need to join.",
       "whoCanJoin": "Who can join",
-      "invitation": "Invitations",
       "checksLabel": "Extra checks",
       "allRequirementsNote": "Everyone must meet every check you selected.",
-      "noChecksNote": "No extra checks selected. People can join based on the choices above.",
-      "engagementNotice": "Posting, commenting, and voting settings are separate.",
+      "noChecksNote": "None.",
       "requirements": {
         "humanVerification": "Verified human",
-        "invite": "Invitation",
         "ageMinimum": "At least 18 years old",
         "nationalityAllowed": "Document from: {countries}",
         "genderMarker": "Gender marker: {markers}",

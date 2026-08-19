@@ -1,35 +1,24 @@
 {
   "gateWizard": {
     "title": "أنشئ مجتمعك",
-    "description": "حدد من يمكنه الانضمام. تأتي قواعد النشر والتعليق والتصويت لاحقًا.",
+    "description": "اختر من يمكنه الانضمام إلى مجتمعك.",
     "progress": "الخطوة {current} من {total} · {step}",
     "steps": {
       "membership": "العضوية",
-      "invite": "الدعوة",
       "checks": "الشروط",
       "review": "المراجعة"
     },
     "membership": {
       "heading": "من يمكنه الانضمام؟",
-      "description": "ينطبق التحقق البشري على العضوية فقط، ولا يحدد أبدًا من يمكنه النشر أو التعليق أو التصويت.",
+      "description": "يتحقق الأعضاء من أنهم بشر قبل الانضمام.",
       "humansOnlyTitle": "البشر فقط",
       "humansOnlyDescription": "يتحقق الأعضاء من أنهم بشر قبل الانضمام.",
       "humansAndBotsTitle": "البشر والروبوتات",
       "humansAndBotsDescription": "لا يُطلب التحقق البشري للانضمام."
     },
-    "invite": {
-      "heading": "هل يحتاج الأعضاء إلى دعوة؟",
-      "description": "يجتمع شرط الدعوة مع شروط العضوية معًا.",
-      "openTitle": "يمكن لأي شخص الانضمام",
-      "openDescription": "لا حاجة إلى دعوة.",
-      "inviteRequiredTitle": "الدعوة مطلوبة",
-      "inviteRequiredDescription": "لا يمكن الانضمام إلا للأشخاص المدعوين."
-    },
     "checks": {
       "heading": "ما الشروط التي يجب أن يستوفيها الأعضاء؟",
-      "description": "يجب على الأعضاء اجتياز كل شرط تختاره، ولا توجد هنا صيغة «أحد هذه».",
-      "noneSelected": "لم يتم اختيار أي شروط. يمكن لأي شخص يجتاز الخطوات أعلاه الانضمام.",
-      "engagementNote": "من يمكنه التفاعل — النشر والتعليق والتصويت — إعداد منفصل بعد الإنشاء.",
+      "description": "يجب على الجميع استيفاء كل شرط تختاره.",
       "capability": {
         "availableNow": "متاح الآن",
         "designHold": "بانتظار نموذج السياسة",
@@ -126,14 +115,11 @@
       "heading": "هل أنت مستعد لإنشاء مجتمعك؟",
       "description": "إليك ما سيحتاج الأشخاص إليه للانضمام.",
       "whoCanJoin": "من يمكنه الانضمام",
-      "invitation": "الدعوات",
       "checksLabel": "شروط إضافية",
       "allRequirementsNote": "يجب على الجميع استيفاء كل شرط اخترته.",
-      "noChecksNote": "لم يتم اختيار شروط إضافية. يمكن الانضمام بناءً على الخيارات أعلاه.",
-      "engagementNotice": "تُضبط قواعد التفاعل للنشر والتعليق والتصويت بشكل منفصل.",
+      "noChecksNote": "لا توجد شروط إضافية.",
       "requirements": {
         "humanVerification": "تحقق بشري",
-        "invite": "دعوة",
         "ageMinimum": "العمر 18 عامًا على الأقل",
         "nationalityAllowed": "مستند من: {countries}",
         "genderMarker": "علامة الجنس: {markers}",

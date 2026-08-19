@@ -1,35 +1,24 @@
 {
   "gateWizard": {
     "title": "创建你的社区",
-    "description": "设置谁可以加入。发帖、评论和投票规则稍后配置。",
+    "description": "选择谁可以加入你的社区。",
     "progress": "第 {current} 步，共 {total} 步 · {step}",
     "steps": {
       "membership": "成员资格",
-      "invite": "邀请",
       "checks": "条件",
       "review": "确认"
     },
     "membership": {
       "heading": "谁可以加入？",
-      "description": "真人验证仅适用于成员资格，绝不决定谁可以发帖、评论或投票。",
+      "description": "成员加入前需验证自己是真人。",
       "humansOnlyTitle": "仅限真人",
       "humansOnlyDescription": "成员加入前需验证自己是真人。",
       "humansAndBotsTitle": "真人和机器人",
       "humansAndBotsDescription": "加入无需真人验证。"
     },
-    "invite": {
-      "heading": "成员需要邀请吗？",
-      "description": "邀请要求与成员条件同时生效。",
-      "openTitle": "任何人都可以加入",
-      "openDescription": "无需邀请。",
-      "inviteRequiredTitle": "需要邀请",
-      "inviteRequiredDescription": "只有受邀请的人才能加入。"
-    },
     "checks": {
       "heading": "成员需要通过哪些条件？",
-      "description": "成员必须通过你选择的每一项条件，这里没有“任选其一”的逻辑。",
-      "noneSelected": "未选择任何条件。通过上述步骤的任何人都可以加入。",
-      "engagementNote": "谁能互动——发帖、评论和投票——是创建后的独立设置。",
+      "description": "每个人都必须满足你选择的所有条件。",
       "capability": {
         "availableNow": "现已可用",
         "designHold": "策略模型待定",
@@ -126,14 +115,11 @@
       "heading": "准备创建你的社区了吗？",
       "description": "以下是人们加入时需要满足的条件。",
       "whoCanJoin": "谁可以加入",
-      "invitation": "邀请",
       "checksLabel": "额外条件",
       "allRequirementsNote": "每个人都必须满足你选择的所有条件。",
-      "noChecksNote": "未选择额外条件。人们可以根据上面的选择加入。",
-      "engagementNotice": "发帖、评论和投票的互动规则将单独配置。",
+      "noChecksNote": "没有额外条件。",
       "requirements": {
         "humanVerification": "真人验证",
-        "invite": "邀请",
         "ageMinimum": "年满 18 岁",
         "nationalityAllowed": "证件来自：{countries}",
         "genderMarker": "性别标记：{markers}",

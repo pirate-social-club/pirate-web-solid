@@ -52,7 +52,6 @@ export function isGateCheckSelectable(
 }
 
 export type GateWizardMembershipMode = "humans-only" | "humans-and-bots";
-export type GateWizardInviteRule = "open" | "invite-required";
 export type GenderMarker = "M" | "F";
 
 export type NftCheckConfig =
@@ -69,7 +68,6 @@ export type GateWizardCheck =
 
 export type GateWizardDraft = {
   membershipMode: GateWizardMembershipMode;
-  inviteRule: GateWizardInviteRule;
   checks: GateWizardCheck[];
 };
 
@@ -89,7 +87,7 @@ const MAINNET_CONTRACT_PATTERN = /^0x[0-9a-fA-F]{40}$/;
 const CAIP19_ASSET_PATTERN = /^eip155:1\/erc20:0x[0-9a-fA-F]{40}$/;
 
 export function createDefaultGateWizardDraft(): GateWizardDraft {
-  return { membershipMode: "humans-only", inviteRule: "open", checks: [] };
+  return { membershipMode: "humans-only", checks: [] };
 }
 
 function sortGateWizardChecks(checks: GateWizardCheck[]): GateWizardCheck[] {
@@ -203,7 +201,6 @@ export function draftIncludesExplorationChecks(draft: GateWizardDraft): boolean 
 
 export type CompiledGateRequirement =
   | { requirement: "human-verification" }
-  | { requirement: "invite" }
   | { requirement: "age-minimum"; minimumAge: 18 }
   | { requirement: "nationality-allowed"; allowedCountries: string[] }
   | { requirement: "gender-marker"; allowedMarkers: GenderMarker[] }
@@ -225,9 +222,6 @@ export function compileGateWizardDraft(draft: GateWizardDraft): CompiledGatePoli
   const requirements: CompiledGateRequirement[] = [];
   if (draft.membershipMode === "humans-only") {
     requirements.push({ requirement: "human-verification" });
-  }
-  if (draft.inviteRule === "invite-required") {
-    requirements.push({ requirement: "invite" });
   }
   for (const check of sortGateWizardChecks(draft.checks)) {
     switch (check.kind) {
