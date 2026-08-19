@@ -116,7 +116,7 @@ function ManagementCard(props: {
 
 function LoadingState(props: { label: string }) {
   return (
-    <div aria-label={props.label} class="flex flex-col gap-3">
+    <div aria-busy="true" aria-label={props.label} class="flex flex-col gap-3" role="status">
       <For each={["loading-1", "loading-2"]}>
         {(key) => <Card data-loading-key={key}><CardContent class="flex gap-3 p-5"><Skeleton class="size-11 rounded-full" /><div class="flex flex-1 flex-col gap-2"><Skeleton class="h-5 w-36" /><Skeleton class="h-5 w-52" /><Skeleton class="h-5 w-28" /></div></CardContent></Card>}
       </For>
@@ -142,7 +142,7 @@ export function BookingManagementView(props: BookingManagementViewProps) {
         <Card><CardContent class="flex flex-col items-start gap-4 p-6"><div class="flex flex-col gap-1"><Type variant="body-strong">{copy().signedOutTitle}</Type><Type variant="caption">{copy().signedOutDetail}</Type></div><Button onClick={props.onSignIn}>{copy().signIn}</Button></CardContent></Card>
       </Show>
       <Show when={props.state === "error"}>
-        <Card><CardContent class="flex flex-col items-start gap-4 p-6"><div class="flex flex-col gap-1"><Type class="text-destructive" variant="body-strong">{copy().errorTitle}</Type><Type variant="caption">{props.errorMessage ?? copy().errorDetail}</Type></div><Button onClick={props.onRetry} variant="outline">{copy().retry}</Button></CardContent></Card>
+        <Card><CardContent class="flex flex-col items-start gap-4 p-6"><div class="flex flex-col gap-1"><Type class="text-destructive-text" variant="body-strong">{copy().errorTitle}</Type><Type variant="caption">{props.errorMessage ?? copy().errorDetail}</Type></div><Button onClick={props.onRetry} variant="outline">{copy().retry}</Button></CardContent></Card>
       </Show>
       <Show when={props.state === "empty"}>
         <Card><CardContent class="flex flex-col gap-1 p-6"><Type variant="body-strong">{copy().emptyTitle}</Type><Type variant="caption">{props.role === "booker" ? copy().emptyBookerDetail : copy().emptyHostDetail}</Type></CardContent></Card>
