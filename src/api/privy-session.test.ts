@@ -2,6 +2,25 @@ import { describe, expect, it } from "vitest";
 import { MemoryOnlyStorage, createPrivySessionExchange } from "./privy-session.ts";
 
 describe("Privy session exchange", () => {
+  it("exposes headless OAuth initiation through the session adapter", async () => {
+    const auth = await createPrivySessionExchange({ enabled: true, privyAppId: "app" }, {
+      createPrivy: async () => ({
+        auth: {
+          email: { sendCode: async () => ({ success: true }), loginWithCode: async () => undefined },
+          oauth: {
+            generateURL: async provider => ({ url: `https://accounts.example/${provider}` }),
+            loginWithCode: async () => undefined,
+          },
+        },
+        initialize: async () => undefined,
+        getAccessToken: async () => "access-token",
+      }),
+      csrf: () => "csrf",
+    });
+
+    await expect(auth.beginOAuth("google", "https://pirate.example/auth/sign-in")).resolves.toBe("https://accounts.example/google");
+  });
+
   it("keeps SDK state in memory and clears it after exchanging", async () => {
     let storage: MemoryOnlyStorage | undefined;
     let exchanged: readonly [string, string | undefined] | undefined;

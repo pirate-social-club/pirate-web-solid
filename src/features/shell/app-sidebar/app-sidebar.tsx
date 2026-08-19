@@ -2,7 +2,7 @@
 import { For, Show } from "solid-js";
 import type { JSX } from "@solidjs/web";
 
-import { Avatar, IconList, Type, cn } from "../../../design-system";
+import { IconList, Type, cn } from "../../../design-system";
 
 export interface SidebarItem {
   id: string;
@@ -30,6 +30,7 @@ export interface AppSidebarProps {
   class?: string;
   collapsed?: boolean;
   mediaAction?: JSX.Element;
+  footer?: JSX.Element;
   onHomeClick?: () => void;
   onNavigate?: (id: string) => void;
 }
@@ -48,7 +49,7 @@ export function AppSidebar(props: AppSidebarProps) {
       <For each={sections()}>{(section) => <section aria-labelledby={`sidebar-${section.id}`}><Show when={!props.collapsed}><Type as="h2" class="px-3 pb-1 text-xs font-semibold uppercase tracking-wide text-sidebar-foreground">{section.label}</Type></Show><div class="flex flex-col gap-1"><For each={section.items}>{(item) => <SidebarLink active={props.activeItemId === item.id} item={item} onNavigate={props.onNavigate} />}</For></div></section>}</For>
       <Show when={props.resourceItems?.length}><section aria-labelledby="sidebar-resources"><Show when={!props.collapsed}><Type as="h2" class="px-3 pb-1 text-xs font-semibold uppercase tracking-wide text-sidebar-foreground">{props.resourcesLabel ?? "Resources"}</Type></Show><div class="flex flex-col gap-1"><For each={props.resourceItems}>{(item) => <SidebarLink active={props.activeItemId === item.id} item={item} onNavigate={props.onNavigate} />}</For></div></section></Show>
     </nav>
-    <Show when={!props.collapsed}><div class="mt-5 flex items-center gap-3 border-t border-sidebar-border pt-4"><Avatar fallback="Story Pirate" fallbackSeed="story-pirate" size="sm" /><div class="min-w-0"><Type as="div" variant="body-strong" class="truncate text-sidebar-foreground">story.pirate</Type><Type as="div" variant="caption" class="text-sidebar-foreground">Offline fixture</Type></div></div></Show>
+    <Show when={props.footer && !props.collapsed}><div class="mt-5 border-t border-sidebar-border pt-4">{props.footer}</div></Show>
   </aside>;
 }
 

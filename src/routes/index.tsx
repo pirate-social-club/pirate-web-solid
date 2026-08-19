@@ -18,6 +18,7 @@ import {
 } from "../design-system";
 import HomeFeed, { type HomeFeedProps } from "../features/posts/feed/home-feed.tsx";
 import PublicFeed, { type PublicFeedProps } from "../features/posts/feed/public-feed.tsx";
+import { MediaShell } from "../features/shell/media-shell/media-shell.tsx";
 
 export interface HomeRouteProps {
   /** Test seam; production resolves the host-only api-next session cookie. */
@@ -42,7 +43,7 @@ function HydrationFixtures() {
   const [displayName, setDisplayName] = createSignal("");
 
   return (
-    <aside data-hydration-fixtures>
+    <aside class="fixed -left-[10000px] top-0 size-px overflow-hidden" data-hydration-fixtures>
       <Title>Pirate Web</Title>
       <h1>Pirate Web Solid shell</h1>
       <p>A standalone Solid runtime is ready for future product lanes.</p>
@@ -102,16 +103,18 @@ export default function HomeRoute(props: HomeRouteProps = {}) {
   );
 
   return (
-    <div data-route-path="/" data-home-session={session()}>
-      <Show
-        when={session() === "authenticated"}
-        fallback={<PublicFeed client={props.publicClient} data={props.publicData} />}
-      >
-        <HomeFeed client={props.homeClient} data={props.homeData} />
-      </Show>
-      <Show when={hydrationFixtures}>
-        <HydrationFixtures />
-      </Show>
-    </div>
+    <MediaShell activeItemId="home" signedIn={session() === "authenticated"}>
+      <div data-route-path="/" data-home-session={session()}>
+        <Show
+          when={session() === "authenticated"}
+          fallback={<PublicFeed client={props.publicClient} data={props.publicData} />}
+        >
+          <HomeFeed client={props.homeClient} data={props.homeData} />
+        </Show>
+        <Show when={hydrationFixtures}>
+          <HydrationFixtures />
+        </Show>
+      </div>
+    </MediaShell>
   );
 }

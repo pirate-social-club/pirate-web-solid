@@ -1,4 +1,4 @@
-import type { Storage } from "@privy-io/js-sdk-core";
+import type { ExternalWallet, Storage } from "@privy-io/js-sdk-core";
 import { ApiClientError } from "@pirate/api-client";
 import { createSessionApiClient, readCsrfCookie } from "./client.ts";
 import type { VerificationPublicConfig } from "./verification-config.ts";
@@ -18,6 +18,12 @@ interface PrivyAuthClient {
   readonly auth: { readonly email: {
     sendCode(email: string): Promise<{ success: boolean }>;
     loginWithCode(email: string, code: string): Promise<void>;
+  }; readonly oauth?: {
+    generateURL(provider: OAuthProvider, redirectURI: string): Promise<{ url: string }>;
+    loginWithCode(authorizationCode: string, returnedStateCode: string, provider: OAuthProvider): Promise<void>;
+  }; readonly siwe?: {
+    init(wallet: ExternalWallet, domain: string, uri: string): Promise<{ message: string }>;
+    loginWithSiwe(signature: string, wallet: ExternalWallet, message: string): Promise<void>;
   } };
   initialize(): Promise<void>;
   getAccessToken(): Promise<string | null>;
@@ -65,6 +71,16 @@ async function defaultPrivyFactory(config: VerificationPublicConfig, storage: St
     auth: { email: {
       sendCode: email => client.auth.email.sendCode(email),
       loginWithCode: async (email, code) => { await client.auth.email.loginWithCode(email, code); },
+    }, oauth: {
+      generateURL: (provider, redirectURI) => client.auth.oauth.generateURL(provider, redirectURI),
+      loginWithCode: async (authorizationCode, returnedStateCode, provider) => {
+        await client.auth.oauth.loginWithCode(authorizationCode, returnedStateCode, provider);
+      },
+    }, siwe: {
+      init: (wallet, domain, uri) => client.auth.siwe.init(wallet, domain, uri),
+      loginWithSiwe: async (signature, wallet, message) => {
+        await client.auth.siwe.loginWithSiwe(signature, wallet, message);
+      },
     } },
     initialize: () => client.initialize(),
     getAccessToken: () => client.getAccessToken(),
@@ -74,7 +90,41 @@ async function defaultPrivyFactory(config: VerificationPublicConfig, storage: St
 export interface PrivySessionExchange {
   sendCode(email: string): Promise<void>;
   loginWithCode(email: string, code: string): Promise<void>;
+  beginOAuth(provider: OAuthProvider, redirectURI: string): Promise<string>;
+  completeOAuth(provider: OAuthProvider, authorizationCode: string, returnedStateCode: string): Promise<void>;
+  loginWithWallet(): Promise<void>;
+  /** Complete first-time account provisioning after an exchange 401. */
+  register(): Promise<void>;
   clear(): void;
+}
+
+export type OAuthProvider = "google" | "twitter";
+
+interface EthereumProvider {
+  request(args: { method: string; params?: readonly unknown[] }): Promise<unknown>;
+}
+
+function browserEthereumProvider(): EthereumProvider {
+  if (typeof window === "undefined") throw new Error("browser_required");
+  const candidate = (window as Window & { ethereum?: unknown }).ethereum;
+  if (candidate === null || typeof candidate !== "object" || !("request" in candidate)) {
+    throw new Error("wallet_unavailable");
+  }
+  const request = (candidate as { request?: unknown }).request;
+  if (typeof request !== "function") throw new Error("wallet_unavailable");
+  return candidate as EthereumProvider;
+}
+
+function stringValue(value: unknown, failure: string): string {
+  if (typeof value !== "string" || value.length === 0) throw new Error(failure);
+  return value;
+}
+
+function chainId(value: unknown): string {
+  const raw = stringValue(value, "wallet_unavailable");
+  const numeric = Number.parseInt(raw, raw.startsWith("0x") ? 16 : 10);
+  if (!Number.isSafeInteger(numeric) || numeric <= 0) throw new Error("wallet_unavailable");
+  return `eip155:${numeric}`;
 }
 
 export async function createPrivySessionExchange(
@@ -82,6 +132,7 @@ export async function createPrivySessionExchange(
   dependencies: {
     readonly createPrivy?: PrivyFactory;
     readonly exchange?: (accessToken: string, identityToken?: string) => Promise<void>;
+    readonly register?: (accessToken: string) => Promise<void>;
     readonly csrf?: () => string | undefined;
   } = {},
 ): Promise<PrivySessionExchange> {
@@ -89,6 +140,7 @@ export async function createPrivySessionExchange(
   const client = await (dependencies.createPrivy ?? defaultPrivyFactory)(config, storage);
   await client.initialize();
   let terminal = false;
+  let pendingRegistrationToken: string | undefined;
   const exchange = dependencies.exchange ?? (async (accessToken, identityToken) => {
     const proof: PrivyAccessTokenProof = {
         type: "privy_access_token",
@@ -97,6 +149,27 @@ export async function createPrivySessionExchange(
     if (identityToken !== undefined) proof.privy_identity_token = identityToken;
     await createSessionApiClient().post_authSessionExchange({ body: { proof } });
   });
+  const register = dependencies.register ?? (async (accessToken: string) => {
+    await createSessionApiClient().post_authRegister({ body: { privy_access_token: accessToken } });
+  });
+  const establishSession = async () => {
+    const accessToken = await client.getAccessToken();
+    if (accessToken === null || accessToken.length === 0) throw new Error("auth_failed");
+    try {
+      await exchange(accessToken);
+      terminal = true;
+    } catch (error) {
+      const sourceUserId = accessTokenSubject(accessToken);
+      if (error instanceof ApiClientError && error.status === 401 && sourceUserId !== undefined) {
+        pendingRegistrationToken = accessToken;
+        throw new PrivyIdentityBootstrapRequired(sourceUserId);
+      }
+      throw error;
+    } finally {
+      storage.clear();
+    }
+    if ((dependencies.csrf ?? readCsrfCookie)() === undefined) throw new Error("session_failed");
+  };
   return {
     async sendCode(email) {
       if (terminal) throw new Error("auth_expired");
@@ -106,22 +179,56 @@ export async function createPrivySessionExchange(
     async loginWithCode(email, code) {
       if (terminal) throw new Error("auth_expired");
       await client.auth.email.loginWithCode(email, code);
-      const accessToken = await client.getAccessToken();
-      if (accessToken === null || accessToken.length === 0) throw new Error("auth_failed");
-      try {
-        await exchange(accessToken);
-        terminal = true;
-      } catch (error) {
-        const sourceUserId = accessTokenSubject(accessToken);
-        if (error instanceof ApiClientError && error.status === 401 && sourceUserId !== undefined) {
-          throw new PrivyIdentityBootstrapRequired(sourceUserId);
-        }
-        throw error;
-      } finally {
-        storage.clear();
-      }
+      await establishSession();
+    },
+    async beginOAuth(provider, redirectURI) {
+      if (terminal) throw new Error("auth_expired");
+      const oauth = client.auth.oauth;
+      if (oauth === undefined) throw new Error("oauth_unavailable");
+      const response = await oauth.generateURL(provider, redirectURI);
+      return stringValue(response.url, "oauth_unavailable");
+    },
+    async completeOAuth(provider, authorizationCode, returnedStateCode) {
+      if (terminal) throw new Error("auth_expired");
+      const oauth = client.auth.oauth;
+      if (oauth === undefined) throw new Error("oauth_unavailable");
+      await oauth.loginWithCode(
+        stringValue(authorizationCode, "auth_failed"),
+        stringValue(returnedStateCode, "auth_failed"),
+        provider,
+      );
+      await establishSession();
+    },
+    async loginWithWallet() {
+      if (terminal) throw new Error("auth_expired");
+      const siwe = client.auth.siwe;
+      if (siwe === undefined) throw new Error("wallet_unavailable");
+      const provider = browserEthereumProvider();
+      const accounts = await provider.request({ method: "eth_requestAccounts" });
+      if (!Array.isArray(accounts) || accounts.length === 0) throw new Error("wallet_unavailable");
+      const address = stringValue(accounts[0], "wallet_unavailable");
+      const wallet: ExternalWallet = {
+        address,
+        chainId: chainId(await provider.request({ method: "eth_chainId" })),
+        connectorType: "injected",
+      };
+      const initialized = await siwe.init(wallet, window.location.host, window.location.origin);
+      const signature = stringValue(
+        await provider.request({ method: "personal_sign", params: [initialized.message, address] }),
+        "wallet_auth_failed",
+      );
+      await siwe.loginWithSiwe(signature, wallet, initialized.message);
+      await establishSession();
+    },
+    async register() {
+      if (terminal) throw new Error("auth_expired");
+      const accessToken = pendingRegistrationToken;
+      if (accessToken === undefined) throw new Error("registration_unavailable");
+      await register(accessToken);
+      pendingRegistrationToken = undefined;
+      terminal = true;
       if ((dependencies.csrf ?? readCsrfCookie)() === undefined) throw new Error("session_failed");
     },
-    clear() { terminal = true; storage.clear(); },
+    clear() { terminal = true; pendingRegistrationToken = undefined; storage.clear(); },
   };
 }
