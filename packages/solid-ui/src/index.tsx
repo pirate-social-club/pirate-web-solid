@@ -316,6 +316,10 @@ export {
   type CommentPillProps,
 } from "./patterns/engagement/comment-pill/comment-pill";
 export {
+  SharePill,
+  type SharePillProps,
+} from "./patterns/engagement/share-pill/share-pill";
+export {
   CommunityAvatar,
   buildDefaultCommunityAvatarSrc,
   resolveCommunityAvatarSrc,

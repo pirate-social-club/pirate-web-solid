@@ -1,7 +1,7 @@
 /** @jsxImportSource @solidjs/web */
 import { Show } from "solid-js";
 
-import { Avatar, Type } from "@pirate/web-solid-ui";
+import { Avatar, CommentPill, SharePill, Type, VotePill } from "@pirate/web-solid-ui";
 import type { CommunityPost } from "./page-shell-model";
 
 export interface CommunityPostCardProps {
@@ -15,9 +15,16 @@ function postDate(post: CommunityPost): string {
   return post.publishedLabel ?? post.publishedAt.slice(0, 10);
 }
 
+function profileHref(handle: string): string {
+  return `/u/${handle.trim().replace(/^u\//i, "").replace(/^@/, "")}`;
+}
+
 export function CommunityPostCard(props: CommunityPostCardProps) {
   const authorName = () => props.post.authorName ?? "Community member";
   const authorHandle = () => props.post.authorHandle ?? authorName();
+  const handleVote = (direction: "up" | "down" | null) => {
+    if (direction !== null) props.onVote?.(props.post.id, direction);
+  };
 
   return (
     <article
@@ -25,20 +32,22 @@ export function CommunityPostCard(props: CommunityPostCardProps) {
       data-community-post-id={props.post.id}
     >
       <header class="flex items-center gap-3">
-        <Avatar
-          fallback={authorName()}
-          size="sm"
-          src={props.post.authorAvatarSrc}
-        />
+        <a aria-label={`Open ${authorHandle()}'s profile`} class="cursor-pointer rounded-full" href={profileHref(authorHandle())}>
+          <Avatar
+            fallback={authorName()}
+            size="sm"
+            src={props.post.authorAvatarSrc}
+          />
+        </a>
         <div class="min-w-0 flex-1">
           <Type as="div" variant="label" class="truncate">
-            {authorHandle()}
+            <a class="cursor-pointer hover:underline" href={profileHref(authorHandle())}>{authorHandle()}</a>
             <Type as="span" variant="caption" class="ml-2">· {postDate(props.post)}</Type>
           </Type>
         </div>
         <button
           aria-label={`More options for ${props.post.title}`}
-          class="rounded-full px-2 py-1 text-lg leading-none text-muted-foreground hover:bg-muted"
+          class="cursor-pointer rounded-full px-2 py-1 text-lg leading-none text-muted-foreground hover:bg-muted"
           onClick={() => undefined}
           type="button"
         >
@@ -46,13 +55,13 @@ export function CommunityPostCard(props: CommunityPostCardProps) {
         </button>
       </header>
 
-      <button
-        class="mt-3 block w-full text-left"
+      <a
+        class="mt-3 block w-full cursor-pointer text-left hover:underline"
+        href={props.post.postHref ?? `/p/${props.post.id}`}
         onClick={() => props.onOpen?.(props.post.id)}
-        type="button"
       >
         <Type as="h3" variant="h3" class="leading-7">{props.post.title}</Type>
-      </button>
+      </a>
 
       <Show when={props.post.body}>
         <Type as="p" variant="body" class="mt-2 whitespace-pre-line">{props.post.body}</Type>
@@ -70,30 +79,14 @@ export function CommunityPostCard(props: CommunityPostCardProps) {
       </Show>
 
       <footer class="mt-4 flex flex-wrap items-center gap-2" aria-label="Post activity">
-        <button
-          aria-label={`Upvote ${props.post.title}`}
-          class="rounded-full border border-border-soft px-3 py-1.5 text-sm text-muted-foreground hover:bg-muted"
-          onClick={() => props.onVote?.(props.post.id, "up")}
-          type="button"
-        >
-          ↑ {props.post.score}
-        </button>
-        <button
-          aria-label={`Comment on ${props.post.title}`}
-          class="rounded-full border border-border-soft px-3 py-1.5 text-sm text-muted-foreground hover:bg-muted"
-          onClick={() => props.onOpen?.(props.post.id)}
-          type="button"
-        >
-          ◌ {props.post.commentCount ?? 0}
-        </button>
-        <button
-          aria-label={`Share ${props.post.title}`}
-          class="rounded-full border border-border-soft px-3 py-1.5 text-sm text-muted-foreground hover:bg-muted"
-          onClick={() => props.onShare?.(props.post.id)}
-          type="button"
-        >
-          Share
-        </button>
+        <VotePill
+          allowClear
+          onVote={props.onVote ? handleVote : undefined}
+          score={props.post.score}
+          viewerVote={props.post.viewerVote}
+        />
+        <CommentPill count={props.post.commentCount ?? 0} onComment={() => props.onOpen?.(props.post.id)} />
+        <SharePill onShare={() => props.onShare?.(props.post.id)} />
       </footer>
     </article>
   );

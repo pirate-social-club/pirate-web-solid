@@ -14,8 +14,10 @@ import {
   IconMaskHappy,
   IconShield,
   IconWallet,
+  ResponsiveOptionSelect,
   Separator,
   Type,
+  type ResponsiveOptionSelectOption,
 } from "@pirate/web-solid-ui";
 import { CommunityPostCard } from "./community-post-card";
 import {
@@ -26,7 +28,6 @@ import {
   type CommunityGate,
   type CommunityData,
   type CommunitySort,
-  type CommunitySurface,
 } from "./page-shell-model";
 
 export interface CommunityPageShellProps {
@@ -37,9 +38,6 @@ export interface CommunityPageShellProps {
   joined: boolean;
   canJoin?: boolean;
   showCreatePost?: boolean;
-  showWatchTab?: boolean;
-  activeSurface?: CommunitySurface;
-  onSurfaceChange?: (surface: CommunitySurface) => void;
   onFollowToggle?: () => void;
   onJoin?: () => void;
   onCreatePost?: () => void;
@@ -50,34 +48,32 @@ export interface CommunityPageShellProps {
 
 function tabClass(active: boolean): string {
   return active
-    ? "border-b-2 border-primary px-1 py-3 text-foreground"
-    : "border-b-2 border-transparent px-1 py-3 text-muted-foreground hover:text-foreground";
+    ? "cursor-pointer border-b-2 border-primary px-1 py-3 text-foreground"
+    : "cursor-pointer border-b-2 border-transparent px-1 py-3 text-muted-foreground hover:text-foreground";
 }
 
 function parseCommunitySort(value: string): CommunitySort {
   return value === "new" || value === "top" ? value : "best";
 }
 
+const communitySortOptions: readonly ResponsiveOptionSelectOption[] = [
+  { label: "Best", value: "best" },
+  { label: "New", value: "new" },
+  { label: "Top", value: "top" },
+];
+
 export function CommunityPageShell(props: CommunityPageShellProps) {
   const [sort, setSort] = createSignal<CommunitySort>("best");
   const [tab, setTab] = createSignal<"feed" | "about">("feed");
-  const [surface, setSurface] = createSignal<CommunitySurface>(props.activeSurface ?? "threads");
   const community = () => props.community;
-  const showWatchTab = () => props.showWatchTab ?? community().videoFeedEnabled === true;
   const sortedPosts = createMemo(() => sortCommunityPosts(community().posts, sort()));
   const expandedGates = createMemo(() => (community().gates ?? []).flatMap(expandGate));
   const hasPosts = () => !props.empty && sortedPosts().length > 0;
-
-  const changeSurface = (next: CommunitySurface) => {
-    props.onSurfaceChange?.(next);
-    if (props.onSurfaceChange) setSurface(next);
-  };
 
   return (
     <section
       class={props.mobile ? "w-full bg-background" : "mx-auto w-full max-w-6xl bg-background"}
       data-community-page
-      data-community-surface={surface()}
     >
       <header class="overflow-hidden rounded-[var(--radius-3xl)] border border-border-soft bg-card shadow-[var(--shadow-md)]">
         <div class="relative h-48 overflow-hidden bg-gradient-to-br from-teal-900 via-slate-800 to-indigo-950 md:h-72">
@@ -127,30 +123,27 @@ export function CommunityPageShell(props: CommunityPageShellProps) {
         </div>
       </header>
 
-      <nav aria-label="Community surfaces" class="mt-4 flex items-center gap-7 border-b border-border-soft px-1">
-        <Show when={showWatchTab()}>
-          <button class={tabClass(surface() === "videos")} onClick={() => changeSurface("videos")} type="button">Watch</button>
-        </Show>
-        <button class={tabClass(surface() === "threads")} onClick={() => changeSurface("threads")} type="button">Threads</button>
-      </nav>
-
       <div class="mt-4 flex items-center gap-6 border-b border-border-soft px-1 md:hidden">
         <button class={tab() === "feed" ? tabClass(true) : tabClass(false)} onClick={() => setTab("feed")} type="button">Feed</button>
         <button class={tab() === "about" ? tabClass(true) : tabClass(false)} onClick={() => setTab("about")} type="button">About</button>
       </div>
 
       <div class="grid gap-6 py-4 md:grid-cols-[minmax(0,1fr)_18rem] md:py-6">
-        <main class={tab() === "about" ? "hidden md:block" : "min-w-0"} aria-label="Community feed">
-          <div class="mb-3 flex items-center justify-between gap-3 px-1">
-            <Type as="h2" variant="h2">Threads</Type>
-            <label class="flex items-center gap-2">
+        <main class={tab() === "about" ? "hidden md:block" : "min-w-0"} aria-label="Community posts">
+          <div class="mb-3 flex justify-end px-1">
+            <div class="flex items-center gap-2">
               <Type as="span" variant="label">Sort</Type>
-              <select aria-label="Sort community feed" class="rounded-full border border-border-soft bg-card px-3 py-2 text-sm" onChange={(event) => setSort(parseCommunitySort(event.currentTarget.value))} value={sort()}>
-                <option value="best">Best</option>
-                <option value="new">New</option>
-                <option value="top">Top</option>
-              </select>
-            </label>
+              <ResponsiveOptionSelect
+                ariaLabel="Sort community feed"
+                class="w-auto"
+                drawerTitle="Sort community feed"
+                onValueChange={(value) => setSort(parseCommunitySort(value))}
+                options={communitySortOptions}
+                selectAlign="end"
+                triggerClass="min-w-28"
+                value={sort()}
+              />
+            </div>
           </div>
           <Show
             when={hasPosts()}

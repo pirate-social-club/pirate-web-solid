@@ -62,8 +62,8 @@ describe("CommunityPageShell", () => {
     expect(container.querySelector("[data-community-page]")).not.toBeNull();
     expect(container.querySelector("[data-community-post-id='post-1']")).not.toBeNull();
     expect(container.textContent).toContain("Ella Alexandra");
-    expect(container.textContent).toContain("Watch");
-    expect(container.textContent).toContain("Threads");
+    expect(container.textContent).not.toContain("Watch");
+    expect(container.textContent).not.toContain("Threads");
     expect(container.textContent).toContain("Gimme that girl talk");
     expect(container.textContent).toContain("ellaalexandra.pirate");
     expect(container.textContent).toContain("Owner");
@@ -71,10 +71,10 @@ describe("CommunityPageShell", () => {
     expect(container.textContent).toContain("ZKPassport proof");
     expect(container.textContent).toContain("Community rules");
     expect(container.querySelectorAll("details")).toHaveLength(2);
+    expect(container.querySelector('[aria-label="Sort community feed"]')).not.toBeNull();
   });
 
-  test("emits surface and post actions", () => {
-    const onSurfaceChange = vi.fn();
+  test("links posts and emits post actions", () => {
     const onPostOpen = vi.fn();
     const container = render(() => (
       <CommunityPageShell
@@ -82,16 +82,13 @@ describe("CommunityPageShell", () => {
         following={false}
         joined={true}
         onPostOpen={onPostOpen}
-        onSurfaceChange={onSurfaceChange}
         showCreatePost
       />
     ));
 
-    const buttons = Array.from(container.querySelectorAll("button"));
-    buttons.find(button => button.textContent === "Watch")?.click();
-    buttons.find(button => button.textContent?.includes("Gimme that girl talk"))?.click();
+    const postLink = container.querySelector<HTMLAnchorElement>('a[href="/p/post-1"]');
+    postLink?.click();
 
-    expect(onSurfaceChange).toHaveBeenCalledWith("videos");
     expect(onPostOpen).toHaveBeenCalledWith("post-1");
   });
 });

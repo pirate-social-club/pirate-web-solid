@@ -58,9 +58,9 @@ export function VotePill(props: VotePillProps) {
 
   const className = createMemo(() =>
     cn(
-      "inline-grid items-center gap-0 transition-colors",
-      (props.size ?? "default") === "default" && "h-11 grid-cols-[2.5rem_2rem_2.5rem] px-1",
-      (props.size ?? "default") === "compact" && "h-9 grid-cols-[2rem_1.75rem_2rem] px-0.5",
+      "inline-grid items-center gap-0 overflow-hidden transition-colors",
+      (props.size ?? "default") === "default" && "h-11 grid-cols-[2.5rem_2rem_2.5rem]",
+      (props.size ?? "default") === "compact" && "h-9 grid-cols-[2rem_1.75rem_2rem]",
       (props.variant ?? "pill") === "pill" && [
         "rounded-full border border-border-soft bg-background",
         props.viewerVote === "up" && "border-primary/18 bg-primary/6",
@@ -78,8 +78,7 @@ export function VotePill(props: VotePillProps) {
         aria-label={props.upvoteLabel ?? "Upvote"}
         aria-pressed={props.viewerVote === "up" ? "true" : "false"}
         class={cn(
-          "inline-flex items-center justify-center justify-self-center rounded-full transition-colors",
-          (props.size ?? "default") === "default" ? "size-10" : "size-8",
+          "inline-flex h-full w-full cursor-pointer items-center justify-center transition-colors disabled:cursor-not-allowed rounded-s-full",
           props.viewerVote === "up"
             ? "text-primary-text hover:bg-primary/10"
             : "text-muted-foreground hover:bg-muted-foreground/10 hover:text-foreground",
@@ -112,8 +111,7 @@ export function VotePill(props: VotePillProps) {
         aria-label={props.downvoteLabel ?? "Downvote"}
         aria-pressed={props.viewerVote === "down" ? "true" : "false"}
         class={cn(
-          "inline-flex items-center justify-center justify-self-center rounded-full transition-colors",
-          (props.size ?? "default") === "default" ? "size-10" : "size-8",
+          "inline-flex h-full w-full cursor-pointer items-center justify-center transition-colors disabled:cursor-not-allowed rounded-e-full",
           props.viewerVote === "down"
             ? "text-destructive-text hover:bg-destructive/10"
             : "text-muted-foreground hover:bg-muted-foreground/10 hover:text-foreground",

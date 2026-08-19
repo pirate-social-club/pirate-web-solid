@@ -107,6 +107,7 @@ function mapPost(item: GetPublicCommunityThreadsResponse["items"][number]): Comm
   const title = post.title ?? post.caption ?? humanize(post.post_type);
   const body = post.body ?? post.caption ?? post.anonymous_label ?? "";
   const authorHandle = post.author_public_handle ?? post.author_user ?? undefined;
+  const viewerVote = item.viewer_vote === 1 ? "up" : item.viewer_vote === -1 ? "down" : null;
   return {
     id: post.id,
     title,
@@ -117,6 +118,7 @@ function mapPost(item: GetPublicCommunityThreadsResponse["items"][number]): Comm
     ...(authorHandle ? { authorHandle } : {}),
     ...(firstAssetSrc(post.media_refs) ? { mediaSrc: firstAssetSrc(post.media_refs) } : {}),
     commentCount: finiteNumber(item.comment_count),
+    viewerVote,
     postHref: `/p/${post.id}`,
   };
 }

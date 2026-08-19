@@ -22,6 +22,7 @@ export interface CommunityPost {
   authorHandle?: string;
   authorAvatarSrc?: string;
   commentCount?: number;
+  viewerVote?: "up" | "down" | null;
   mediaSrc?: string;
   mediaAlt?: string;
   postHref?: string;
