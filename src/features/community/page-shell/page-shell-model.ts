@@ -6,6 +6,9 @@ export type CommunitySurface = "threads" | "videos";
 export interface CommunityGate {
   label: string;
   status: "met" | "unmet" | "unknown";
+  gateType?: string;
+  detail?: string;
+  acceptedProviders?: readonly string[];
 }
 
 export interface CommunityPost {

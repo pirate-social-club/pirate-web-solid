@@ -93,7 +93,7 @@ describe("community threads adapter", () => {
       mediaSrc: "/thread-image.png",
       commentCount: 4,
     });
-    expect(page.community.gates).toEqual([{ label: "age over 18", status: "unknown" }]);
+    expect(page.community.gates).toEqual([{ label: "Age over 18", gateType: "age_over_18", status: "unknown" }]);
     expect(page.community.rules).toEqual([{ title: "Be useful", body: "Add signal.", position: 1 }]);
     expect(page.nextCursor).toBe("cursor-2");
     expect(page.joined).toBe(false);

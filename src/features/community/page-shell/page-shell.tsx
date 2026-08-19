@@ -1,14 +1,29 @@
 /** @jsxImportSource @solidjs/web */
 import { For, Show, createMemo, createSignal } from "solid-js";
 
-import { Avatar, Button, Card, CardContent, CommunityAvatar, Separator, Type } from "@pirate/web-solid-ui";
+import {
+  Avatar,
+  Button,
+  Card,
+  CardContent,
+  CommunityAvatar,
+  IconCalendar,
+  IconCaretDown,
+  IconCheckCircle,
+  IconGlobe,
+  IconMaskHappy,
+  IconShield,
+  IconWallet,
+  Separator,
+  Type,
+} from "@pirate/web-solid-ui";
 import { CommunityPostCard } from "./community-post-card";
 import {
-  gateSummary,
   orderedCommunityRules,
   orderedReferenceLinks,
   safeCommunityHref,
   sortCommunityPosts,
+  type CommunityGate,
   type CommunityData,
   type CommunitySort,
   type CommunitySurface,
@@ -50,6 +65,7 @@ export function CommunityPageShell(props: CommunityPageShellProps) {
   const community = () => props.community;
   const showWatchTab = () => props.showWatchTab ?? community().videoFeedEnabled === true;
   const sortedPosts = createMemo(() => sortCommunityPosts(community().posts, sort()));
+  const expandedGates = createMemo(() => (community().gates ?? []).flatMap(expandGate));
   const hasPosts = () => !props.empty && sortedPosts().length > 0;
 
   const changeSurface = (next: CommunitySurface) => {
@@ -93,20 +109,21 @@ export function CommunityPageShell(props: CommunityPageShellProps) {
             </div>
 
             <div class="flex flex-wrap items-center gap-3" aria-label="Community actions">
-              <Button onClick={() => props.onFollowToggle?.()} variant={props.following ? "secondary" : "default"}>
-                {props.following ? "Following" : "Follow"}
-              </Button>
-              <Show when={props.canJoin !== false}>
-                <Button disabled={props.joined} onClick={() => props.onJoin?.()} variant="secondary">
-                  {props.joined ? "Joined" : "Join"}
+              <div class="flex w-full max-w-xs gap-3 md:w-auto">
+                <Button class="w-32" onClick={() => props.onFollowToggle?.()} variant={props.following ? "secondary" : "default"}>
+                  {props.following ? "Following" : "Follow"}
                 </Button>
-              </Show>
+                <Show when={props.canJoin !== false}>
+                  <Button class="w-32" disabled={props.joined} onClick={() => props.onJoin?.()} variant="secondary">
+                    {props.joined ? "Joined" : "Join"}
+                  </Button>
+                </Show>
+              </div>
               <Show when={props.joined || props.showCreatePost}>
                 <Button onClick={() => props.onCreatePost?.()} variant="secondary">Create Post</Button>
               </Show>
             </div>
           </div>
-          <Type as="p" variant="body" class="mt-4 max-w-2xl text-muted-foreground">{community().description}</Type>
         </div>
       </header>
 
@@ -170,6 +187,8 @@ export function CommunityPageShell(props: CommunityPageShellProps) {
                 </div>
               </div>
 
+              <Type as="p" variant="body" class="text-muted-foreground">{community().description}</Type>
+
               <div class="grid grid-cols-2 gap-4">
                 <div><Type as="div" variant="h3">{community().followers.toLocaleString("en-US")}</Type><Type variant="caption">Followers</Type></div>
                 <div><Type as="div" variant="h3">{community().members.toLocaleString("en-US")}</Type><Type variant="caption">Citizens</Type></div>
@@ -179,19 +198,47 @@ export function CommunityPageShell(props: CommunityPageShellProps) {
                 {(owner) => <div class="flex flex-col gap-2"><Type variant="label">Owner</Type><div class="flex items-center gap-3"><AvatarHolder holder={owner()} /></div></div>}
               </Show>
 
-              <Show when={community().gates?.length}>
-                <div class="flex flex-col gap-2">
-                  <Type variant="label">Gates</Type>
-                  <Type variant="caption">{gateSummary(community().gates ?? [], community().gateMode ?? "unknown")}</Type>
-                  <ul class="flex flex-col gap-2">
-                    <For each={community().gates}>{(gate) => <li class="flex items-center justify-between gap-3 border-t border-border-soft pt-2"><Type variant="body">{gate.label}</Type><Type variant="caption">{gate.status}</Type></li>}</For>
-                  </ul>
-                </div>
+              <Show when={expandedGates().length > 0}>
+                <details class="border-t border-border-soft pt-4" open>
+                  <summary class="flex cursor-pointer list-none items-center justify-between gap-3 [&::-webkit-details-marker]:hidden">
+                    <Type variant="label">Gates</Type>
+                    <IconCaretDown aria-hidden="true" class="size-4 text-muted-foreground" />
+                  </summary>
+                  <div class="mt-3 flex flex-col gap-3">
+                    <Type as="p" variant="caption">
+                      {gateJoinCopy(community().gateMode ?? "unknown", expandedGates().length)}
+                    </Type>
+                    <ul class="flex flex-col">
+                      <For each={expandedGates()}>
+                        {(gate, index) => (
+                          <li class="flex min-h-11 items-center gap-3 border-b border-border-soft/70 py-2.5 last:border-b-0">
+                            <div class="grid size-9 shrink-0 place-items-center"><GateIcon gateType={gate.gateType} provider={gate.provider} /></div>
+                            <div class="min-w-0 flex-1 [overflow-wrap:anywhere]">
+                              <Type as="span" class="block" variant="body-strong">{gate.label}</Type>
+                              <Show when={gate.detail}><Type as="span" class="block text-muted-foreground" variant="caption">{gate.detail}</Type></Show>
+                            </div>
+                            <div class="grid size-6 shrink-0 place-items-center">
+                              <Show when={community().gateMode === "any" && index() < expandedGates().length - 1} fallback={<GateStatusMark status={gate.status} />}>
+                                <Type as="span" class="text-muted-foreground/60" variant="caption">OR</Type>
+                              </Show>
+                            </div>
+                          </li>
+                        )}
+                      </For>
+                    </ul>
+                  </div>
+                </details>
               </Show>
 
               <Show when={community().rules?.length}>
                 <Separator />
-                <div class="flex flex-col gap-3"><Type variant="label">Community rules</Type><ol class="flex flex-col gap-3"><For each={orderedCommunityRules(community().rules ?? [])}>{(rule) => <li><Type as="div" variant="body-strong">{rule.title}</Type><Type variant="caption">{rule.body}</Type></li>}</For></ol></div>
+                <details class="flex flex-col gap-3" open>
+                  <summary class="flex cursor-pointer list-none items-center justify-between gap-3 [&::-webkit-details-marker]:hidden">
+                    <Type variant="label">Community rules</Type>
+                    <IconCaretDown aria-hidden="true" class="size-4 text-muted-foreground" />
+                  </summary>
+                  <ol class="flex flex-col gap-3 pt-2"><For each={orderedCommunityRules(community().rules ?? [])}>{(rule, index) => <li class="flex gap-3"><Type as="span" class="shrink-0 tabular-nums text-muted-foreground/60" variant="body">{index() + 1}</Type><div><Type as="div" variant="body-strong">{rule.title}</Type><Type variant="caption">{rule.body}</Type></div></li>}</For></ol>
+                </details>
               </Show>
 
               <Show when={community().referenceLinks?.length}>
@@ -214,7 +261,62 @@ function AvatarHolder(props: { holder: { displayName: string; handle: string; av
         size="sm"
         src={props.holder.avatarSrc}
       />
-      <div class="min-w-0"><Type as="div" variant="label" class="truncate">{props.holder.displayName}</Type><Type variant="caption">{props.holder.handle}</Type></div>
+      <Type as="div" variant="label" class="truncate">{pirateHandle(props.holder.handle)}</Type>
     </>
   );
+}
+
+interface ExpandedGate {
+  label: string;
+  provider?: string;
+  detail?: string;
+  gateType?: string;
+  status: "met" | "unmet" | "unknown";
+}
+
+function expandGate(gate: CommunityGate): ExpandedGate[] {
+  const providers = gate.acceptedProviders ?? [];
+  if (providers.length === 0) return [{ label: gate.label, detail: gate.detail, gateType: gate.gateType, status: gate.status }];
+  return providers.map((provider) => ({
+    label: providerLabel(provider),
+    provider,
+    gateType: gate.gateType,
+    status: gate.status,
+  }));
+}
+
+function providerLabel(provider: string): string {
+  switch (provider) {
+    case "self": return "Self.xyz ID proof";
+    case "zkpassport": return "ZKPassport proof";
+    case "very": return "Palm scan";
+    case "passport": return "Human Passport proof";
+    default: return provider;
+  }
+}
+
+function gateJoinCopy(mode: "all" | "any" | "unknown", count: number): string {
+  if (mode === "any") return "To join this community, one of the following is required:";
+  if (mode === "all") return "To join this community, all of the following are required:";
+  return count === 1 ? "To join this community, the following is required:" : "To join this community, the following are required:";
+}
+
+function GateIcon(props: { gateType?: string; provider?: string }) {
+  if (props.gateType === "age_over_18" || props.gateType === "minimum_age") return <IconCalendar aria-hidden="true" class="size-5 text-muted-foreground" />;
+  if (props.gateType === "nationality") return <IconGlobe aria-hidden="true" class="size-5 text-muted-foreground" />;
+  if (props.gateType === "wallet_score" || props.gateType === "asset_balance" || props.gateType === "erc721_holding" || props.gateType === "erc721_inventory_match") return <IconWallet aria-hidden="true" class="size-5 text-muted-foreground" />;
+  if (props.gateType === "unique_human") return <IconMaskHappy aria-hidden="true" class="size-5 text-muted-foreground" />;
+  return props.provider === "self" || props.provider === "zkpassport" ? <IconShield aria-hidden="true" class="size-5 text-muted-foreground" /> : <IconShield aria-hidden="true" class="size-5 text-muted-foreground" />;
+}
+
+function GateStatusMark(props: { status: "met" | "unmet" | "unknown" }) {
+  return props.status === "met"
+    ? <IconCheckCircle aria-label="Requirement met" class="size-5 text-success" />
+    : <span aria-label={props.status === "unmet" ? "Requirement needs action" : "Requirement status unknown"} class="size-5 rounded-full border border-muted-foreground/60" />;
+}
+
+function pirateHandle(handle: string): string {
+  const normalized = handle.trim().replace(/^u\//i, "").replace(/^@/, "");
+  if (!normalized) return "pirate";
+  return normalized.includes(".") ? normalized : `${normalized}.pirate`;
 }

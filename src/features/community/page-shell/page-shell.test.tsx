@@ -35,7 +35,10 @@ const community: CommunityData = {
   followers: 25,
   bannerSrc: "/community-banner.png",
   videoFeedEnabled: true,
+  gateMode: "any",
+  gates: [{ label: "Unique human proof", gateType: "unique_human", acceptedProviders: ["self", "zkpassport"], status: "unknown" }],
   owner: { displayName: "ellaalexandra.pirate", handle: "ellaalexandra.pirate", role: "owner" },
+  rules: [{ title: "Be constructive", body: "Keep the conversation useful.", position: 1 }],
   posts: [{
     authorHandle: "ellaalexandra.pirate",
     authorName: "Ella Alexandra",
@@ -64,6 +67,10 @@ describe("CommunityPageShell", () => {
     expect(container.textContent).toContain("Gimme that girl talk");
     expect(container.textContent).toContain("ellaalexandra.pirate");
     expect(container.textContent).toContain("Owner");
+    expect(container.textContent).toContain("Self.xyz ID proof");
+    expect(container.textContent).toContain("ZKPassport proof");
+    expect(container.textContent).toContain("Community rules");
+    expect(container.querySelectorAll("details")).toHaveLength(2);
   });
 
   test("emits surface and post actions", () => {

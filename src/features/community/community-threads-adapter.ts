@@ -70,9 +70,27 @@ function mapRules(response: GetPublicCommunityThreadsResponse): readonly Communi
 
 function mapGates(response: GetPublicCommunityThreadsResponse): readonly CommunityGate[] {
   return response.community.membership_gate_summaries.map(gate => ({
-    label: humanize(gate.gate_type),
+    label: gateLabel(gate.gate_type, gate.required_minimum_age, gate.minimum_score),
+    gateType: gate.gate_type,
+    ...(gate.accepted_providers && gate.accepted_providers.length > 0
+      ? { acceptedProviders: gate.accepted_providers }
+      : {}),
     status: "unknown",
   }));
+}
+
+function gateLabel(gateType: string, minimumAge: number | string | null | undefined, minimumScore: number | string | null | undefined): string {
+  switch (gateType) {
+    case "age_over_18": return "Age over 18";
+    case "minimum_age": return `Minimum age ${minimumAge ?? "requirement"}`;
+    case "unique_human": return "Unique human proof";
+    case "wallet_score": return `Passport score ${minimumScore ?? "requirement"}`;
+    case "altcha_pow": return "Proof of work";
+    case "erc721_holding": return "Collectible ownership";
+    case "erc721_inventory_match": return "Collectible inventory";
+    case "asset_balance": return "Asset balance";
+    default: return humanize(gateType);
+  }
 }
 
 function mapReferenceLinks(response: GetPublicCommunityThreadsResponse): readonly CommunityReferenceLink[] {
@@ -171,6 +189,8 @@ export const communityReviewPage: CommunityThreadsPage = {
     bannerSrc: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1600 420'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop stop-color='%231d6a51'/%3E%3Cstop offset='.58' stop-color='%230d4d5c'/%3E%3Cstop offset='1' stop-color='%231e2348'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='1600' height='420' fill='url(%23g)'/%3E%3Cpath d='M0 285C260 210 470 220 720 280s520 75 880-55v195H0z' fill='rgba(255,255,255,.1)'/%3E%3C/svg%3E",
     videoFeedEnabled: true,
     owner: { displayName: "Deckhand", handle: "deckhand", role: "owner" },
+    gateMode: "any",
+    gates: [{ label: "Unique human proof", gateType: "unique_human", acceptedProviders: ["self", "zkpassport"], status: "unknown" }],
     posts: [
       {
         authorName: "Tame Impala voice",
