@@ -55,11 +55,13 @@ export const Error: Story = {
 export const FullFlow: Story = {
   args: { defaultRecipient: "", step: "asset", onConfirm: fn() },
   render: (args) => <StoryRender {...args} />,
-  play: async ({ args, canvasElement }) => {
-    const canvas = within(canvasElement);
-    await userEvent.type(canvas.getByPlaceholderText("0x…"), sharedWalletAddress);
-    await userEvent.type(canvas.getByPlaceholderText("0.0"), "100");
-    await userEvent.click(canvas.getByRole("button", { name: "Review and send" }));
+  play: async ({ args }) => {
+    // SheetContent is portaled to document.body by Kobalte. Querying the
+    // canvas misses the form even though the story rendered successfully.
+    const dialog = await within(document.body).findByRole("dialog", { name: "Send tokens" });
+    await userEvent.type(within(dialog).getByPlaceholderText("0x…"), sharedWalletAddress);
+    await userEvent.type(within(dialog).getByPlaceholderText("0.0"), "100");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Review and send" }));
     await expect(args.onConfirm).toHaveBeenCalledWith(expect.objectContaining({ amount: "100", recipient: sharedWalletAddress }));
   },
 };
