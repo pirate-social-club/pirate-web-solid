@@ -325,6 +325,7 @@ export {
   MediaActions,
   MediaPost,
   VerticalFeed,
+  fixturePosts,
   type HapticKind,
   type MediaActionsProps,
   type MediaPostData,

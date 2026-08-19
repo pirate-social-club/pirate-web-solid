@@ -97,3 +97,9 @@ export {
   RouteLoadFailureState,
   RouteLoadingState,
 } from "@pirate/web-solid-ui";
+export {
+  VerticalFeed,
+  fixturePosts,
+  type MediaPostData,
+  type VerticalFeedProps,
+} from "@pirate/web-solid-ui";

@@ -29,7 +29,6 @@ function item(caption: string): VideoHomeReviewItem {
     id: `video-${caption.toLowerCase().replaceAll(" ", "-")}`,
     communityId: "community-1",
     location: "Harbor",
-    palette: "linear-gradient(145deg, #f97316, #172554)",
     publisher: { handle: "captain-one", kind: "profile" },
     caption,
     commentCount: 0,
