@@ -169,6 +169,16 @@ describe("AvailabilityCalendar rendered branches", () => {
     expect(html.match(/<button\b/gu)).toHaveLength(2);
   });
 
+  test("keeps unavailable read-only slot text at semantic contrast without opacity", () => {
+    const html = renderCalendar([
+      slot("2026-09-21T09:00:00Z", "2026-09-21T09:30:00Z"),
+      slot("2026-09-21T10:00:00Z", "2026-09-21T10:30:00Z", 5000, false),
+    ]);
+
+    expect(html).toContain("bg-surface-skeleton text-card-foreground");
+    expect(html).not.toContain("bg-surface-skeleton opacity-50");
+  });
+
   test("renders callback-only continuation as a button", () => {
     const html = renderCalendar(UNIFORM, {
       onSelectSlot: () => undefined,

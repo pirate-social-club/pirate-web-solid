@@ -67,6 +67,17 @@ describe("B9 rendered branches and semantics", () => {
     expect(html).toContain('aria-label="Booking role"');
   });
 
+  test("exposes loading as a status and keeps the error heading readable", () => {
+    const loading = renderToString(() => createComponent(BookingManagementView, { role: "booker", state: "loading" }));
+    const failure = renderToString(() => createComponent(BookingManagementView, { role: "booker", state: "error" }));
+
+    expect(loading).toContain('role="status"');
+    expect(loading).toContain('aria-busy="true"');
+    expect(loading).toContain('aria-label="Loading bookings"');
+    expect(failure).toContain("text-destructive-text");
+    expect(failure).not.toContain('class="text-destructive"');
+  });
+
   test("threads copy overrides through management and session labels", () => {
     const management = renderToString(() => createComponent(BookingManagementView, {
       copy: { roleLabel: "Booking perspective", signedOutTitle: "Custom sign-in", signIn: "Enter" },

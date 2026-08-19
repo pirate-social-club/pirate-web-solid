@@ -153,7 +153,7 @@ export function AvailabilityCalendar(props: AvailabilityCalendarProps) {
                           ? isSelected()
                             ? "border-primary bg-primary text-primary-foreground"
                             : "border-border-soft bg-card hover:bg-card/85"
-                          : "border-border-soft bg-surface-skeleton opacity-50",
+                          : "border-border-soft bg-surface-skeleton text-card-foreground",
                       );
 
                       return (
