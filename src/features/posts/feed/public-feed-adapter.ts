@@ -67,6 +67,8 @@ export interface PublicFeedPage {
   readonly nextCursor: string | null;
 }
 
+export type FeedPage = PublicFeedPage;
+
 export interface PublicFeedRequestOptions {
   readonly client?: PublicFeedClient;
   readonly cursor?: string | null;
@@ -188,7 +190,7 @@ function normalizeFeedItem(value: unknown): PublicFeedItem | null {
   };
 }
 
-export function normalizePublicFeed(value: unknown): PublicFeedPage {
+export function normalizeFeedPage(value: unknown): FeedPage {
   if (!isRecord(value)) throw new Error("Invalid public feed response");
   const items = Array.isArray(value.items)
     ? value.items.flatMap(item => {
@@ -208,6 +210,9 @@ export function normalizePublicFeed(value: unknown): PublicFeedPage {
     nextCursor: normalizeKeysetCursor(value.next_cursor),
   };
 }
+
+/** Backward-compatible name for the signed-out adapter's boundary tests. */
+export const normalizePublicFeed = normalizeFeedPage;
 
 function resolveRequestOrigin(options: Pick<PublicFeedRequestOptions, "origin" | "request">): string | URL | undefined {
   if (options.origin !== undefined) return options.origin;
@@ -243,5 +248,5 @@ export async function fetchPublicFeedPage(options: PublicFeedRequestOptions = {}
     fetchImpl: boundedFetch(options.fetchImpl ?? fetch, options.timeoutMs ?? 4_000),
   });
   const response: GetFeedHomePublicResponse = await client.get_feedHomePublic({ query });
-  return normalizePublicFeed(response);
+  return normalizeFeedPage(response);
 }

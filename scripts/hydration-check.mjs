@@ -11,7 +11,9 @@ try {
   const errors = [];
   page.on("console", message => { if (message.type() === "error") errors.push(`console: ${message.text()}`); });
   page.on("pageerror", error => errors.push(`pageerror: ${error.message}`));
-  const response = await page.goto(base, { waitUntil: "networkidle" });
+  const hydrationUrl = new URL(base);
+  hydrationUrl.searchParams.set("hydration", "1");
+  const response = await page.goto(hydrationUrl, { waitUntil: "networkidle" });
   if (!response?.ok()) throw new Error(`SSR page returned ${response?.status()}`);
   const csp = response.headers()["content-security-policy"] ?? "";
   const nonce = csp.match(/nonce-([^']+)/)?.[1];

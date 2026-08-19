@@ -33,6 +33,17 @@ source.
   binding mutation, secret provisioning, or remote push without explicit human
   authorization.
 
+### Home route session upgrade
+
+The `/` route is public-first: it renders `PublicFeed` immediately for
+anonymous discovery, then resolves the host-only api-next session cookie in the
+browser. A successful resolution swaps the route to `HomeFeed`; while the
+resolution is pending, after an anonymous result, or after a resolution error,
+the public surface remains visible. `PublicFeed` must stay credential-free and
+`HomeFeed` must use the existing `GetHomeFeed` contract with same-origin
+credentials. This is an intentional route-level upgrade, not a cursor,
+projection, or API compatibility change.
+
 ## Change policy
 
 - One writer per worktree. Feature work uses named branches and linked

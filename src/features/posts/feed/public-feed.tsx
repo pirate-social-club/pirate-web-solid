@@ -10,14 +10,39 @@ import {
   fetchPublicFeedPage,
   type PublicFeedClient,
   type PublicFeedItem,
-  type PublicFeedPage as PublicFeedPageData,
+  type FeedPage,
 } from "./public-feed-adapter.ts";
 
 export interface PublicFeedProps {
   readonly client?: PublicFeedClient;
-  readonly data?: PublicFeedPageData | PromiseLike<PublicFeedPageData>;
+  readonly data?: FeedPage | PromiseLike<FeedPage>;
   readonly locale?: UiLocaleCode;
   readonly sort?: FeedSort;
+}
+
+export interface FeedPageLoaderOptions {
+  readonly cursor?: string | null;
+  readonly locale: UiLocaleCode;
+  readonly sort: FeedSort;
+}
+
+export type FeedPageLoader = (options: FeedPageLoaderOptions) => Promise<FeedPage>;
+
+export interface FeedCopy {
+  readonly title: string;
+  readonly subtitle: string;
+  readonly loadingLabel: string;
+  readonly unavailableTitle: string;
+  readonly unavailableMessage: string;
+  readonly emptyMessage: string;
+}
+
+export interface FeedSurfaceProps {
+  readonly data?: FeedPage | PromiseLike<FeedPage>;
+  readonly locale?: UiLocaleCode;
+  readonly sort?: FeedSort;
+  readonly loadPage: FeedPageLoader;
+  readonly copy: FeedCopy;
 }
 
 function requestOrigin(): string | undefined {
@@ -60,22 +85,22 @@ function displayBody(item: PublicFeedItem): string | null {
   return item.body ?? item.caption;
 }
 
-function FeedLoadingState() {
+function FeedLoadingState(props: { readonly copy: FeedCopy }) {
   return (
     <main aria-busy="true" data-feed-state="loading">
-      <Title>Public feed</Title>
-      <h1>Public feed</h1>
-      <div role="status"><Spinner label="Loading public feed" /></div>
+      <Title>{props.copy.title}</Title>
+      <h1>{props.copy.title}</h1>
+      <div role="status"><Spinner label={props.copy.loadingLabel} /></div>
     </main>
   );
 }
 
-function FeedErrorState() {
+function FeedErrorState(props: { readonly copy: FeedCopy }) {
   return (
     <main data-feed-state="error">
-      <Title>Public feed unavailable</Title>
-      <h1>Public feed unavailable</h1>
-      <p role="alert">The public feed is temporarily unavailable.</p>
+      <Title>{props.copy.unavailableTitle}</Title>
+      <h1>{props.copy.unavailableTitle}</h1>
+      <p role="alert">{props.copy.unavailableMessage}</p>
     </main>
   );
 }
@@ -112,10 +137,11 @@ function FeedItemCard(props: { readonly item: PublicFeedItem }) {
 }
 
 function FeedResults(props: {
-  readonly client: PublicFeedClient;
-  readonly initial: PublicFeedPageData;
+  readonly loadPage: FeedPageLoader;
+  readonly initial: FeedPage;
   readonly locale: UiLocaleCode;
   readonly sort: FeedSort;
+  readonly copy: FeedCopy;
 }) {
   const initial = untrack(() => props.initial);
   const [items, setItems] = createSignal<readonly PublicFeedItem[]>(initial.items);
@@ -129,7 +155,7 @@ function FeedResults(props: {
     setLoadingMore(true);
     setLoadMoreError(false);
     try {
-      const page = await fetchPublicFeedPage({ client: props.client, cursor, locale: props.locale, sort: props.sort });
+      const page = await props.loadPage({ cursor, locale: props.locale, sort: props.sort });
       setItems(previous => [...previous, ...page.items]);
       setNextCursor(page.nextCursor);
     } catch {
@@ -141,15 +167,15 @@ function FeedResults(props: {
 
   return (
     <main data-feed-state={items().length === 0 ? "empty" : "ready"}>
-      <Title>Public feed</Title>
+      <Title>{props.copy.title}</Title>
       <header class="mb-5 flex flex-wrap items-end justify-between gap-3">
         <div>
-          <Type as="h1" variant="h1">Public feed</Type>
-          <Type variant="caption">Signed-out community posts</Type>
+          <Type as="h1" variant="h1">{props.copy.title}</Type>
+          <Type variant="caption">{props.copy.subtitle}</Type>
         </div>
         <Type variant="label">{props.sort}</Type>
       </header>
-      <Show when={items().length > 0} fallback={<Card><CardContent class="p-6"><Type variant="body">No public posts are available yet.</Type></CardContent></Card>}>
+      <Show when={items().length > 0} fallback={<Card><CardContent class="p-6"><Type variant="body">{props.copy.emptyMessage}</Type></CardContent></Card>}>
         <div class="flex flex-col gap-4" data-feed-list>
           <For each={items()}>{item => <FeedItemCard item={item} />}</For>
         </div>
@@ -168,24 +194,39 @@ function FeedResults(props: {
   );
 }
 
-function FeedData(props: PublicFeedProps) {
+export function FeedSurface(props: FeedSurfaceProps) {
   const locale = props.locale ?? requestLocale();
   const sort = props.sort ?? "best";
-  const client = props.client ?? defaultClient();
   const data = createMemo(
-    () => props.data ?? fetchPublicFeedPage({ client, locale, sort }),
+    () => props.data ?? props.loadPage({ locale, sort }),
     { deferStream: true },
   );
-  return <FeedResults client={client} initial={data()} locale={locale} sort={sort} />;
-}
-
-/** Route-neutral public feed surface; the home-route cutover remains separate. */
-export default function PublicFeed(props: PublicFeedProps) {
   return (
-    <Errored fallback={() => <FeedErrorState />}>
-      <Loading fallback={<FeedLoadingState />}>
-        <FeedData {...props} />
+    <Errored fallback={() => <FeedErrorState copy={props.copy} />}>
+      <Loading fallback={<FeedLoadingState copy={props.copy} />}>
+        <FeedResults loadPage={props.loadPage} initial={data()} locale={locale} sort={sort} copy={props.copy} />
       </Loading>
     </Errored>
   );
+}
+
+const PUBLIC_FEED_COPY: FeedCopy = {
+  title: "Public feed",
+  subtitle: "Signed-out community posts",
+  loadingLabel: "Loading public feed",
+  unavailableTitle: "Public feed unavailable",
+  unavailableMessage: "The public feed is temporarily unavailable.",
+  emptyMessage: "No public posts are available yet.",
+};
+
+/** Route-neutral public feed surface. */
+export default function PublicFeed(props: PublicFeedProps) {
+  const client = props.client ?? defaultClient();
+  return <FeedSurface
+    data={props.data}
+    locale={props.locale}
+    sort={props.sort}
+    copy={PUBLIC_FEED_COPY}
+    loadPage={({ cursor, locale, sort }) => fetchPublicFeedPage({ client, cursor, locale, sort })}
+  />;
 }

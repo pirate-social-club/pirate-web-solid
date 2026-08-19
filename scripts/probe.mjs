@@ -19,7 +19,7 @@ function get(path) {
   });
 }
 
-const response = await get("/");
+const response = await get("/?hydration=1");
 const csp = response.headers.get("content-security-policy") ?? "";
 const nonce = csp.match(/nonce-([^']+)/)?.[1] ?? "";
 const scripts = [...response.text.matchAll(/<script\b[^>]*>/gi)].map(match => match[0]);
