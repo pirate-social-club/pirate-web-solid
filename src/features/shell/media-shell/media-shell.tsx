@@ -136,7 +136,7 @@ export function MediaShell(props: MediaShellProps) {
           <div class="mx-auto min-h-screen w-full max-w-5xl px-4 py-5 md:px-8 md:py-8">
             {props.children}
           </div>
-          <MobileFooterNav forceMobile activeItem="home" onHomeClick={goHome} />
+          <MobileFooterNav class="md:hidden" forceMobile activeItem="home" onHomeClick={goHome} />
         </SidebarContent>
       </div>
       <SignInDialog open={authOpen()} onAuthenticated={completeAuth} onOpenChange={setAuthOpen} />
