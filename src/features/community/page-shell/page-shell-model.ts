@@ -1,6 +1,7 @@
 export type GateMode = "all" | "any" | "unknown";
 
 export type CommunitySort = "best" | "new" | "top";
+export type CommunitySurface = "threads" | "videos";
 
 export interface CommunityGate {
   label: string;
@@ -13,6 +14,21 @@ export interface CommunityPost {
   body: string;
   score: number;
   publishedAt: string;
+  publishedLabel?: string;
+  authorName?: string;
+  authorHandle?: string;
+  authorAvatarSrc?: string;
+  commentCount?: number;
+  mediaSrc?: string;
+  mediaAlt?: string;
+  postHref?: string;
+}
+
+export interface CommunityRoleHolder {
+  displayName: string;
+  handle: string;
+  avatarSrc?: string;
+  role?: "owner" | "admin" | "moderator";
 }
 
 export interface CommunityRule {
@@ -34,6 +50,13 @@ export interface CommunityData {
   members: number;
   followers: number;
   posts: readonly CommunityPost[];
+  avatarSrc?: string;
+  bannerSrc?: string;
+  defaultSurface?: CommunitySurface;
+  videoFeedEnabled?: boolean;
+  membershipMode?: "open" | "request" | "gated";
+  owner?: CommunityRoleHolder;
+  moderators?: readonly CommunityRoleHolder[];
   gates?: readonly CommunityGate[];
   gateMode?: GateMode;
   rules?: readonly CommunityRule[];

@@ -10,12 +10,15 @@ function response(): GetPublicCommunityThreadsResponse {
   // SAFETY: this fixture contains the generated response fields exercised by the adapter tests.
   return {
     community: {
-      id: "com_harbor",
+      id: "com_tame_impala",
       object: "community_preview",
-      route_slug: "harbor",
-      display_name: "Harbor",
+      route_slug: "tameimpala",
+      display_name: "Tame Impala",
       description: "Coastal ideas.",
-      avatar_ref: null,
+      avatar_ref: "/community-avatar.png",
+      banner_ref: "/community-banner.png",
+      default_surface: "threads",
+      video_feed_enabled: true,
       membership_mode: "open",
       human_verification_lane: null,
       membership_gate_summaries: [{ gate_type: "age_over_18" }],
@@ -24,6 +27,7 @@ function response(): GetPublicCommunityThreadsResponse {
       moderators: [],
       member_count: 12,
       follower_count: 34,
+      owner: { user: "user-1", display_name: "Deckhand", handle: "deckhand", avatar_ref: "/deckhand.png", role: "owner" },
       viewer_membership_status: "not_member",
       viewer_following: false,
       created: 1_700_000_000,
@@ -33,10 +37,11 @@ function response(): GetPublicCommunityThreadsResponse {
         post: {
           id: "post-1",
           object: "post",
-          community: "com_harbor",
+          community: "com_tame_impala",
           authorship_mode: "human_direct",
           identity_mode: "anonymous",
-          anonymous_label: "Harbor voice",
+          anonymous_label: "Tame Impala voice",
+          media_refs: ["/thread-image.png"],
           post_type: "text",
           status: "published",
           visibility: "public",
@@ -51,6 +56,7 @@ function response(): GetPublicCommunityThreadsResponse {
         thread_snapshot: null,
         upvote_count: 9,
         downvote_count: 2,
+        comment_count: 4,
         like_count: 9,
         viewer_vote: null,
         viewer_reaction_kinds: [],
@@ -69,17 +75,23 @@ describe("community threads adapter", () => {
     const page = mapCommunityThreadsPage(response());
 
     expect(page.community).toMatchObject({
-      name: "Harbor",
-      handle: "c/harbor",
+      name: "Tame Impala",
+      handle: "c/tameimpala",
       description: "Coastal ideas.",
       members: 12,
       followers: 34,
+      avatarSrc: "/community-avatar.png",
+      bannerSrc: "/community-banner.png",
+      videoFeedEnabled: true,
+      owner: { displayName: "Deckhand", handle: "deckhand", avatarSrc: "/deckhand.png", role: "owner" },
     });
     expect(page.community.posts[0]).toMatchObject({
       id: "post-1",
       title: "First thread",
       body: "A useful beginning.",
       score: 7,
+      mediaSrc: "/thread-image.png",
+      commentCount: 4,
     });
     expect(page.community.gates).toEqual([{ label: "age over 18", status: "unknown" }]);
     expect(page.community.rules).toEqual([{ title: "Be useful", body: "Add signal.", position: 1 }]);
@@ -93,15 +105,15 @@ describe("community threads adapter", () => {
     const getFeed = vi.fn(async () => response());
     const page = await fetchCommunityThreadsPage({
       client: { get_publicCommunitiesCommunityRefFeed: getFeed },
-      communityRef: "harbor",
+      communityRef: "tameimpala",
       locale: "en-US",
       cursor: "cursor-1",
     });
 
     expect(getFeed).toHaveBeenCalledWith({
-      path: { communityRef: "harbor" },
+      path: { communityRef: "tameimpala" },
       query: { cursor: "cursor-1", locale: "en-US", sort: "new", surface: "threads" },
     });
-    expect(page.community.name).toBe("Harbor");
+    expect(page.community.name).toBe("Tame Impala");
   });
 });

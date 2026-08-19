@@ -10,15 +10,18 @@ import {
 import { CommunityPageShell, type CommunityPageShellProps } from "./page-shell";
 
 const infinity: CommunityData = {
-  name: "Infinity", handle: "c/infinity", description: "To infinity and beyond", members: 1_270, followers: 18_400, posts: [],
+  name: "Infinity", handle: "c/infinity", description: "To infinity and beyond", members: 1_270, followers: 18_400, posts: [], videoFeedEnabled: false,
 };
 
 const tameImpala: CommunityData = {
   name: "Tame Impala", handle: "c/tameimpala", description: "Albums, deep cuts, live sessions, and production talk.", members: 48_231, followers: 92_100,
+  bannerSrc: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 1600 420'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' y1='0' x2='1' y2='1'%3E%3Cstop stop-color='%231b6b52'/%3E%3Cstop offset='.55' stop-color='%230d4855'/%3E%3Cstop offset='1' stop-color='%231d2147'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='1600' height='420' fill='url(%23g)'/%3E%3Cellipse cx='1160' cy='20' rx='420' ry='180' fill='rgba(255,255,255,.1)'/%3E%3Cpath d='M0 290C250 220 470 220 720 280s510 80 880-50v190H0z' fill='rgba(255,255,255,.1)'/%3E%3C/svg%3E",
+  videoFeedEnabled: true,
+  owner: { displayName: "Kevin Parker", handle: "kevinparker", role: "owner" },
   posts: [
-    { body: "The live arrangement left more room for the final chorus.", id: "live-arrangement", publishedAt: "2026-08-16", score: 18, title: "What is the best Tame Impala live arrangement?" },
-    { body: "A synth patch from the latest tour, with the filter settings included.", id: "synth-patch", publishedAt: "2026-08-15", score: 42, title: "Share a synth patch from the latest tour." },
-    { body: "Weekly listening thread: Currents side B.", id: "listening-thread", publishedAt: "2026-08-14", score: 9, title: "Weekly listening thread" },
+    { authorHandle: "tameimpala.pirate", authorName: "Tame Impala", body: "The live arrangement left more room for the final chorus.", commentCount: 21, id: "live-arrangement", publishedAt: "2026-08-16", publishedLabel: "2w", score: 18, title: "What is the best Tame Impala live arrangement?", mediaSrc: "/poster-1.jpg" },
+    { authorHandle: "synthhead", authorName: "Synthhead", body: "A synth patch from the latest tour, with the filter settings included.", commentCount: 8, id: "synth-patch", publishedAt: "2026-08-15", publishedLabel: "2w", score: 42, title: "Share a synth patch from the latest tour." },
+    { authorHandle: "currentsclub", authorName: "Currents Club", body: "Weekly listening thread: Currents side B.", commentCount: 14, id: "listening-thread", publishedAt: "2026-08-14", publishedLabel: "3w", score: 9, title: "Weekly listening thread" },
   ],
   referenceLinks: [{ href: "https://open.spotify.com/artist/example", label: "Spotify", position: 1 }, { href: "https://tameimpala.com", label: "Official site", position: 2 }],
   rules: [{ body: "Memes belong in the weekly discussion thread.", position: 1, title: "Keep posts on topic" }, { body: "Use the appropriate flair when posting.", position: 2, title: "Flair your posts" }],

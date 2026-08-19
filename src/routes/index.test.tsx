@@ -28,9 +28,9 @@ function item(caption: string): VideoHomeReviewItem {
   return {
     id: `video-${caption.toLowerCase().replaceAll(" ", "-")}`,
     communityId: "community-1",
-    communityName: "Harbor",
-    location: "Harbor",
-    publisher: { handle: "harbor", href: "/c/harbor", kind: "community" },
+    communityName: "Tame Impala",
+    location: "Tame Impala",
+    publisher: { handle: "tameimpala", href: "/c/tameimpala", kind: "community" },
     caption,
     commentCount: 0,
     likeCount: 1,
