@@ -9,6 +9,7 @@ test("wallet hub keeps a valid heading hierarchy after the accepted review recov
   const hub = source("wallet-hub.tsx");
 
   expect(hub).not.toContain("<CardTitle>");
+  expect(hub).toContain('<Type variant="h2" as="h1">{view().title}</Type>');
   expect(hub).toContain('<Type as="h2" variant="h3">Assets</Type>');
   expect(hub).toContain('<Type as="h2" variant="h3">Recent activity</Type>');
 });
@@ -39,4 +40,13 @@ test("wallet send and receive reset props through tracked effects", () => {
   expect(receive).toContain("defaultChainId: props.defaultChainId");
   expect(receive).toContain("walletAddress: props.walletAddress");
   expect(receive).toContain("setCopied(false)");
+});
+
+test("wallet send full-flow play queries the portaled sheet", () => {
+  const story = source("wallet-send-sheet.stories.tsx");
+
+  expect(story).toContain('within(document.body).findByRole("dialog", { name: "Send tokens" })');
+  expect(story).toContain("within(dialog).getByPlaceholderText");
+  expect(story).toContain('within(dialog).getByRole("button", { name: "Review and send" })');
+  expect(story).not.toContain("within(canvasElement)");
 });
