@@ -451,6 +451,20 @@ export function IconCaretDown(props: IconProps) {
   );
 }
 
+export function IconCaretUp(props: IconProps) {
+  return (
+    <svg
+      aria-hidden="true"
+      class={props.class}
+      fill="currentColor"
+      viewBox="0 0 24 24"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <path d="M6 15l6-6 6 6" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" />
+    </svg>
+  );
+}
+
 export function IconCaretLeft(props: IconProps) {
   return (
     <svg

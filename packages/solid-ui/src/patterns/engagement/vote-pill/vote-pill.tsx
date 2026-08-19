@@ -1,6 +1,6 @@
 import { createMemo, createSignal, Show, untrack } from "solid-js";
 
-import { IconArrowDown, IconArrowUp } from "@/components/media/icons";
+import { IconCaretDown, IconCaretUp } from "@/components/media/icons";
 import { Spinner } from "@/components/feedback/spinner/spinner";
 import { cn } from "@/lib/cn";
 
@@ -59,8 +59,8 @@ export function VotePill(props: VotePillProps) {
   const className = createMemo(() =>
     cn(
       "inline-grid items-center gap-0 overflow-hidden transition-colors",
-      (props.size ?? "default") === "default" && "h-11 grid-cols-[2.5rem_2rem_2.5rem]",
-      (props.size ?? "default") === "compact" && "h-9 grid-cols-[2rem_1.75rem_2rem]",
+      (props.size ?? "default") === "default" && "h-11 grid-cols-[2.75rem_2rem_2.75rem]",
+      (props.size ?? "default") === "compact" && "h-9 grid-cols-[2.25rem_1.75rem_2.25rem]",
       (props.variant ?? "pill") === "pill" && [
         "rounded-full border border-border-soft bg-background",
         props.viewerVote === "up" && "border-primary/18 bg-primary/6",
@@ -78,7 +78,7 @@ export function VotePill(props: VotePillProps) {
         aria-label={props.upvoteLabel ?? "Upvote"}
         aria-pressed={props.viewerVote === "up" ? "true" : "false"}
         class={cn(
-          "inline-flex h-full w-full cursor-pointer items-center justify-center transition-colors disabled:cursor-not-allowed rounded-s-full",
+          "inline-flex h-full w-full cursor-pointer items-center justify-center rounded-full transition-colors disabled:cursor-not-allowed",
           props.viewerVote === "up"
             ? "text-primary-text hover:bg-primary/10"
             : "text-muted-foreground hover:bg-muted-foreground/10 hover:text-foreground",
@@ -91,7 +91,7 @@ export function VotePill(props: VotePillProps) {
           when={pendingDirection() !== "up"}
           fallback={<Spinner class={(props.size ?? "default") === "default" ? "size-5" : "size-4"} decorative />}
         >
-          <IconArrowUp class={(props.size ?? "default") === "default" ? "size-[23px]" : "size-[20px]"} />
+          <IconCaretUp class={(props.size ?? "default") === "default" ? "size-5" : "size-4"} />
         </Show>
       </button>
 
@@ -111,7 +111,7 @@ export function VotePill(props: VotePillProps) {
         aria-label={props.downvoteLabel ?? "Downvote"}
         aria-pressed={props.viewerVote === "down" ? "true" : "false"}
         class={cn(
-          "inline-flex h-full w-full cursor-pointer items-center justify-center transition-colors disabled:cursor-not-allowed rounded-e-full",
+          "inline-flex h-full w-full cursor-pointer items-center justify-center rounded-full transition-colors disabled:cursor-not-allowed",
           props.viewerVote === "down"
             ? "text-destructive-text hover:bg-destructive/10"
             : "text-muted-foreground hover:bg-muted-foreground/10 hover:text-foreground",
@@ -124,7 +124,7 @@ export function VotePill(props: VotePillProps) {
           when={pendingDirection() !== "down"}
           fallback={<Spinner class={(props.size ?? "default") === "default" ? "size-5" : "size-4"} decorative />}
         >
-          <IconArrowDown class={(props.size ?? "default") === "default" ? "size-[23px]" : "size-[20px]"} />
+          <IconCaretDown class={(props.size ?? "default") === "default" ? "size-5" : "size-4"} />
         </Show>
       </button>
     </div>

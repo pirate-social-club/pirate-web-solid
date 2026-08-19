@@ -131,19 +131,16 @@ export function CommunityPageShell(props: CommunityPageShellProps) {
       <div class="grid gap-6 py-4 md:grid-cols-[minmax(0,1fr)_18rem] md:py-6">
         <main class={tab() === "about" ? "hidden md:block" : "min-w-0"} aria-label="Community posts">
           <div class="mb-3 flex justify-end px-1">
-            <div class="flex items-center gap-2">
-              <Type as="span" variant="label">Sort</Type>
-              <ResponsiveOptionSelect
-                ariaLabel="Sort community feed"
-                class="w-auto"
-                drawerTitle="Sort community feed"
-                onValueChange={(value) => setSort(parseCommunitySort(value))}
-                options={communitySortOptions}
-                selectAlign="end"
-                triggerClass="min-w-28"
-                value={sort()}
-              />
-            </div>
+            <ResponsiveOptionSelect
+              ariaLabel="Sort community feed"
+              class="w-auto"
+              drawerTitle="Sort community feed"
+              onValueChange={(value) => setSort(parseCommunitySort(value))}
+              options={communitySortOptions}
+              selectAlign="end"
+              triggerClass="min-w-28"
+              value={sort()}
+            />
           </div>
           <Show
             when={hasPosts()}

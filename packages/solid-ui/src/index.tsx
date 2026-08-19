@@ -202,6 +202,7 @@ export {
   IconCaretDown,
   IconCaretLeft,
   IconCaretRight,
+  IconCaretUp,
   IconChatCircle,
   IconCheck,
   IconCheckCircle,

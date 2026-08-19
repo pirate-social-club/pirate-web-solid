@@ -5,7 +5,7 @@ import {
 import type { JSX } from "@solidjs/web";
 import { createMemo, type Component } from "solid-js";
 
-import { IconArrowDown, IconCheck } from "@/components/media/icons";
+import { IconCaretDown, IconCheck } from "@/components/media/icons";
 import { cn } from "@/lib/cn";
 
 export interface SelectProps<Option> {
@@ -72,6 +72,24 @@ function SelectItem(
  * RadioGroup would dominate the screen.
  */
 export function Select<Option>(props: SelectProps<Option>) {
+  const openScrollPosition = { left: 0, top: 0, captured: false };
+
+  const captureScrollPosition = (open: boolean) => {
+    if (!open || typeof window === "undefined") return;
+    openScrollPosition.left = window.scrollX;
+    openScrollPosition.top = window.scrollY;
+    openScrollPosition.captured = true;
+  };
+
+  const restoreScrollPosition = () => {
+    if (!openScrollPosition.captured || typeof window === "undefined") return;
+    const { left, top } = openScrollPosition;
+    openScrollPosition.captured = false;
+    window.requestAnimationFrame(() => {
+      window.scrollTo({ behavior: "auto", left, top });
+    });
+  };
+
   const className = createMemo(() =>
     cn("flex w-full flex-col gap-1.5", props.class),
   );
@@ -96,11 +114,16 @@ export function Select<Option>(props: SelectProps<Option>) {
       onChange: (option: Option | Option[] | null) => {
         const first = Array.isArray(option) ? option[0] : option;
         props.onChange?.(first == null ? null : props.optionValue(first));
+        restoreScrollPosition();
       },
       placeholder: props.placeholder,
       disabled: props.disabled,
       name: props.name,
       placement: props.placement,
+      onOpenChange: (open: boolean) => {
+        captureScrollPosition(open);
+        if (!open) restoreScrollPosition();
+      },
       itemComponent: ((itemProps: SelectRootItemComponentProps<Option>) => (
         <SelectItem
           {...itemProps}
@@ -128,7 +151,7 @@ export function Select<Option>(props: SelectProps<Option>) {
           }
         </KSelect.Value>
         <KSelect.Icon class="group ms-2 shrink-0 text-muted-foreground">
-          <IconArrowDown class="size-4 transition-transform group-data-[expanded]:rotate-180" />
+          <IconCaretDown class="size-4 transition-transform group-data-[expanded]:rotate-180" />
         </KSelect.Icon>
       </KSelect.Trigger>
       <KSelect.Portal>
