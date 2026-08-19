@@ -6,7 +6,9 @@ import {
   Button,
   IconBell,
   IconBroadcast,
+  IconFire,
   IconHouse,
+  IconList,
   IconMagnifyingGlass,
   IconMicrophone,
   IconMusicNote,
@@ -21,6 +23,8 @@ import { AppSidebar, SidebarContent, type SidebarItem, type SidebarSection } fro
 
 export type MediaShellRoute =
   | "home"
+  | "feed"
+  | "popular"
   | "search"
   | "live"
   | "communities"
@@ -34,11 +38,14 @@ export interface MediaShellProps {
   readonly activeItemId?: MediaShellRoute;
   readonly signedIn?: boolean;
   readonly class?: string;
+  readonly fullBleed?: boolean;
 }
 
 function routeFor(id: string): string | undefined {
   switch (id) {
     case "home": return "/";
+    case "feed": return "/feed";
+    case "popular": return "/popular";
     case "search": return "/search";
     case "live": return "/live";
     case "communities": return "/communities";
@@ -75,6 +82,14 @@ export function MediaShell(props: MediaShellProps) {
     { id: "live", label: "Live", icon: <IconBroadcast class="size-5" /> },
   ];
   const sections: readonly SidebarSection[] = [
+    {
+      id: "discover",
+      label: "Discover",
+      items: [
+        { id: "feed", label: "Threads", icon: <IconList class="size-5" /> },
+        { id: "popular", label: "Popular", icon: <IconFire class="size-5" /> },
+      ],
+    },
     {
       id: "community",
       label: "Community",
@@ -134,7 +149,7 @@ export function MediaShell(props: MediaShellProps) {
             showWalletAction={false}
           />
         </div>
-        <div class="mx-auto min-h-screen w-full max-w-5xl px-4 py-5 md:px-8 md:py-8">{props.children}</div>
+        <div class={props.fullBleed ? "min-h-screen w-full" : "mx-auto min-h-screen w-full max-w-5xl px-4 py-5 md:px-8 md:py-8"}>{props.children}</div>
         <MobileFooterNav class="md:hidden" forceMobile activeItem="home" onHomeClick={goHome} />
       </SidebarContent>
     </div>

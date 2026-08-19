@@ -5,7 +5,7 @@ import type { JSX } from "@solidjs/web";
 
 import HomeRoute from "./index.tsx";
 import type { SessionResolution } from "../api/session.ts";
-import type { FeedPage } from "../features/posts/feed/public-feed-adapter.ts";
+import type { VideoHomeReviewItem } from "../features/posts/video-feed/video-home-fixtures.ts";
 
 const disposers: Array<() => void> = [];
 
@@ -24,43 +24,19 @@ function render(ui: () => JSX.Element): HTMLElement {
   return container;
 }
 
-function page(title: string): FeedPage {
+function item(caption: string): VideoHomeReviewItem {
   return {
-    items: [{
-      id: `post-${title.toLowerCase().replaceAll(" ", "-")}`,
-      communityId: "community-1",
-      communityName: "Harbor",
-      communityRouteSlug: "harbor",
-      communityAvatarRef: null,
-      authorUser: "user-1",
-      authorPublicHandle: "captain-one",
-      anonymousLabel: null,
-      identityMode: "public",
-      authorshipMode: "human_direct",
-      postType: "text",
-      status: "published",
-      visibility: "public",
-      title,
-      body: `${title} body`,
-      caption: null,
-      createdAt: "2025-08-09T13:20:00.000Z",
-      mediaRefs: [],
-      analysisState: "allow",
-      contentSafetyState: "safe",
-      ageGatePolicy: "none",
-      upvoteCount: 1,
-      downvoteCount: 0,
-      likeCount: 1,
-      commentCount: 0,
-      viewerVote: null,
-      translationState: "same_language",
-      machineTranslated: false,
-      translatedTitle: null,
-      translatedBody: null,
-      translatedCaption: null,
-    }],
-    topCommunities: [],
-    nextCursor: null,
+    id: `video-${caption.toLowerCase().replaceAll(" ", "-")}`,
+    communityId: "community-1",
+    location: "Harbor",
+    palette: "linear-gradient(145deg, #f97316, #172554)",
+    publisher: { handle: "captain-one", kind: "profile" },
+    caption,
+    commentCount: 0,
+    likeCount: 1,
+    karaoke: "unavailable",
+    study: "unknown",
+    media: { orientation: "portrait" },
   };
 }
 
@@ -70,62 +46,54 @@ afterEach(() => {
   document.head.replaceChildren();
 });
 
-describe("public-first home route", () => {
-  test("resolving session keeps public discovery visible", () => {
+describe("video home route", () => {
+  test("resolving session keeps the video home visible", () => {
     const pending = new Promise<SessionResolution>(() => {});
     const container = render(() => (
       <HomeRoute
         resolveSession={() => pending}
-        publicData={page("Public discovery")}
-        homeData={page("Personal home")}
+        items={[item("Public discovery")]}
       />
     ));
 
     expect(container.querySelector("[data-home-session='resolving']")).not.toBeNull();
     expect(container.textContent).toContain("Public discovery");
-    expect(container.textContent).not.toContain("Personal home");
   });
 
   test("anonymous resolution stays on the public feed", async () => {
     const container = render(() => (
       <HomeRoute
         resolveSession={async () => "anonymous"}
-        publicData={page("Public discovery")}
-        homeData={page("Personal home")}
+        items={[item("Public discovery")]}
       />
     ));
 
     await vi.waitFor(() => expect(container.querySelector("[data-home-session='anonymous']")).not.toBeNull());
     expect(container.textContent).toContain("Public discovery");
-    expect(container.textContent).not.toContain("Personal home");
   });
 
   test("session resolution failures settle on the public feed", async () => {
     const container = render(() => (
       <HomeRoute
         resolveSession={async () => { throw new Error("api unavailable"); }}
-        publicData={page("Public discovery")}
-        homeData={page("Personal home")}
+        items={[item("Public discovery")]}
       />
     ));
 
     await vi.waitFor(() => expect(container.querySelector("[data-home-session='anonymous']")).not.toBeNull());
     expect(container.textContent).toContain("Public discovery");
-    expect(container.textContent).not.toContain("Personal home");
   });
 
-  test("authenticated resolution swaps public discovery for home", async () => {
+  test("authenticated resolution keeps the same global video surface", async () => {
     const container = render(() => (
       <HomeRoute
         resolveSession={async () => "authenticated"}
-        publicData={page("Public discovery")}
-        homeData={page("Personal home")}
+        items={[item("Global video home")]}
       />
     ));
 
     await vi.waitFor(() => expect(container.querySelector("[data-home-session='authenticated']")).not.toBeNull());
-    expect(container.textContent).toContain("Personal home");
-    expect(container.textContent).not.toContain("Public discovery");
-    expect(container.querySelector("[data-feed-item-id='post-personal-home']")).not.toBeNull();
+    expect(container.textContent).toContain("Global video home");
+    expect(container.querySelector("[data-video-home-state='ready']")).not.toBeNull();
   });
 });

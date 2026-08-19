@@ -20,7 +20,8 @@ export default defineConfig({
     // The app still has Bun-native .tsx suites; they are intentionally not
     // loaded by Vitest. Add a suite here once it imports Vitest's API.
     include: [
-      "src/routes/index.test.tsx",
+    "src/routes/index.test.tsx",
+    "src/routes/feed.test.tsx",
       "src/features/posts/feed/public-feed.test.tsx",
       "src/features/posts/post-composer/create-post-dialog.test.tsx",
       "src/features/profiles/public-profile-page/public-profile-page.test.tsx",

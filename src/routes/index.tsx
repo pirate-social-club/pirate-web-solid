@@ -16,18 +16,14 @@ import {
   TextFieldInput,
   TextFieldLabel,
 } from "../design-system";
-import HomeFeed, { type HomeFeedProps } from "../features/posts/feed/home-feed.tsx";
-import PublicFeed, { type PublicFeedProps } from "../features/posts/feed/public-feed.tsx";
-import { publicFeedReviewPage } from "../features/posts/feed/public-feed-fixtures.ts";
+import VideoHome from "../features/posts/video-feed/video-home.tsx";
+import { videoHomeReviewItems, type VideoHomeReviewItem } from "../features/posts/video-feed/video-home-fixtures.ts";
 import { MediaShell } from "../features/shell/media-shell/media-shell.tsx";
 
 export interface HomeRouteProps {
   /** Test seam; production resolves the host-only api-next session cookie. */
   readonly resolveSession?: () => Promise<SessionResolution>;
-  readonly publicData?: PublicFeedProps["data"];
-  readonly publicClient?: PublicFeedProps["client"];
-  readonly homeData?: HomeFeedProps["data"];
-  readonly homeClient?: HomeFeedProps["client"];
+  readonly items?: readonly VideoHomeReviewItem[];
 }
 
 type HomeRouteSession = "resolving" | SessionResolution;
@@ -38,14 +34,14 @@ function isHydrationFixtureRequest(): boolean {
   return typeof location !== "undefined" && new URL(location.href).searchParams.get("hydration") === "1";
 }
 
-function isLocalFeedReviewRequest(): boolean {
+function isLocalVideoReviewRequest(): boolean {
   const event = getRequestEvent();
   const url = event !== undefined
     ? new URL(event.request.url)
     : typeof location !== "undefined" ? new URL(location.href) : undefined;
   return url !== undefined
     && (url.hostname === "localhost" || url.hostname === "127.0.0.1")
-    && url.searchParams.get("fixture") === "feed";
+    && url.searchParams.get("fixture") === "video";
 }
 
 function HydrationFixtures() {
@@ -89,16 +85,15 @@ function HydrationFixtures() {
 }
 
 /**
- * Public-first home route: discovery is visible immediately, then an
- * authenticated session upgrades the surface to the signed-in home feed.
- * Session failures stay on the public surface so auth infrastructure cannot
- * turn anonymous discovery into a blank or blocked home page.
+ * Root home route: the global homepage is the video surface. Session state is
+ * still resolved for shell/auth affordances, while real video data waits for
+ * the api-next video-feed contract tranche.
  */
 export default function HomeRoute(props: HomeRouteProps = {}) {
   const [session, setSession] = createSignal<HomeRouteSession>("resolving");
   const hydrationFixtures = isHydrationFixtureRequest();
-  const reviewFixture = isLocalFeedReviewRequest();
-  const publicData = props.publicData ?? (reviewFixture ? publicFeedReviewPage : undefined);
+  const reviewFixture = isLocalVideoReviewRequest();
+  const items = props.items ?? (reviewFixture ? videoHomeReviewItems : undefined);
 
   createEffect(
     () => true,
@@ -116,14 +111,9 @@ export default function HomeRoute(props: HomeRouteProps = {}) {
   );
 
   return (
-    <MediaShell activeItemId="home" signedIn={session() === "authenticated"}>
+    <MediaShell activeItemId="home" fullBleed signedIn={session() === "authenticated"}>
       <div data-route-path="/" data-home-session={session()}>
-        <Show
-          when={session() === "authenticated"}
-          fallback={<PublicFeed client={props.publicClient} data={publicData} />}
-        >
-          <HomeFeed client={props.homeClient} data={props.homeData} />
-        </Show>
+        <VideoHome items={items} />
         <Show when={hydrationFixtures}>
           <HydrationFixtures />
         </Show>
