@@ -6,6 +6,7 @@ import type { CommunityPost } from "./page-shell-model";
 
 export interface CommunityPostCardProps {
   post: CommunityPost;
+  titleHref?: string | null;
   onOpen?: (postId: string) => void;
   onShare?: (postId: string) => void;
   onVote?: (postId: string, direction: "up" | "down") => void;
@@ -22,6 +23,7 @@ function profileHref(handle: string): string {
 export function CommunityPostCard(props: CommunityPostCardProps) {
   const authorName = () => props.post.authorName ?? "Community member";
   const authorHandle = () => props.post.authorHandle ?? authorName();
+  const titleHref = () => props.titleHref === null ? null : props.titleHref ?? props.post.postHref ?? `/p/${props.post.id}`;
   const handleVote = (direction: "up" | "down" | null) => {
     if (direction !== null) props.onVote?.(props.post.id, direction);
   };
@@ -55,13 +57,20 @@ export function CommunityPostCard(props: CommunityPostCardProps) {
         </button>
       </header>
 
-      <a
-        class="mt-3 block w-full cursor-pointer text-left hover:underline"
-        href={props.post.postHref ?? `/p/${props.post.id}`}
-        onClick={() => props.onOpen?.(props.post.id)}
+      <Show
+        when={titleHref()}
+        fallback={<Type as="h3" variant="h3" class="mt-3 leading-7">{props.post.title}</Type>}
       >
-        <Type as="h3" variant="h3" class="leading-7">{props.post.title}</Type>
-      </a>
+        {(href) => (
+          <a
+            class="mt-3 block w-full cursor-pointer text-left hover:underline"
+            href={href()}
+            onClick={() => props.onOpen?.(props.post.id)}
+          >
+            <Type as="h3" variant="h3" class="leading-7">{props.post.title}</Type>
+          </a>
+        )}
+      </Show>
 
       <Show when={props.post.body}>
         <Type as="p" variant="body" class="mt-2 whitespace-pre-line">{props.post.body}</Type>

@@ -24,6 +24,7 @@ export default defineConfig({
       "src/routes/feed.test.tsx",
       "src/features/community/community-threads-adapter.test.ts",
       "src/features/community/page-shell/page-shell.test.tsx",
+      "src/features/community/thread/community-thread-view.test.tsx",
       "src/features/posts/feed/public-feed.test.tsx",
       "src/features/posts/post-composer/create-post-dialog.test.tsx",
       "src/features/profiles/public-profile-page/public-profile-page.test.tsx",

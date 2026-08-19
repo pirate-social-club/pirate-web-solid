@@ -75,16 +75,16 @@ export function Select<Option>(props: SelectProps<Option>) {
   const openScrollPosition = { left: 0, top: 0, captured: false };
 
   const captureScrollPosition = (open: boolean) => {
-    if (!open || typeof window === "undefined") return;
+    if (!open || openScrollPosition.captured || typeof window === "undefined") return;
     openScrollPosition.left = window.scrollX;
     openScrollPosition.top = window.scrollY;
     openScrollPosition.captured = true;
   };
 
-  const restoreScrollPosition = () => {
+  const restoreScrollPosition = (clear = true) => {
     if (!openScrollPosition.captured || typeof window === "undefined") return;
     const { left, top } = openScrollPosition;
-    openScrollPosition.captured = false;
+    if (clear) openScrollPosition.captured = false;
     window.requestAnimationFrame(() => {
       window.scrollTo({ behavior: "auto", left, top });
     });
@@ -122,7 +122,8 @@ export function Select<Option>(props: SelectProps<Option>) {
       placement: props.placement,
       onOpenChange: (open: boolean) => {
         captureScrollPosition(open);
-        if (!open) restoreScrollPosition();
+        if (open) restoreScrollPosition(false);
+        else restoreScrollPosition();
       },
       itemComponent: ((itemProps: SelectRootItemComponentProps<Option>) => (
         <SelectItem
@@ -140,6 +141,12 @@ export function Select<Option>(props: SelectProps<Option>) {
           "flex h-11 w-full cursor-pointer items-center justify-between rounded-full border border-input bg-background px-4 py-2 text-base shadow-sm transition-[color,box-shadow,border-color] data-disabled:cursor-not-allowed data-disabled:opacity-50 data-expanded:border-border data-expanded:ring-1 data-expanded:ring-border-soft data-[placeholder-shown]:text-muted-foreground",
           props.triggerClass,
         )}
+        onKeyDown={(event) => {
+          if (event.key === " " || event.key === "Enter" || event.key === "ArrowDown" || event.key === "ArrowUp") {
+            captureScrollPosition(true);
+          }
+        }}
+        onPointerDown={() => captureScrollPosition(true)}
       >
         <KSelect.Value<Option> class="truncate">
           {(state) =>
