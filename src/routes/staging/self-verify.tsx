@@ -25,13 +25,10 @@ const POLL_INTERVAL_MS = 5_000;
 
 /** Renders the Self universal link as a canvas QR; no image CSP change needed. */
 function QrCanvas(props: { readonly value: string }) {
-  let canvas: HTMLCanvasElement | undefined;
-  createEffect(() => {
-    const value = props.value;
-    if (canvas === undefined) return;
-    void import("qrcode").then(qr => qr.toCanvas(canvas, value, { width: 280, margin: 1 }));
-  });
-  return <canvas ref={canvas} aria-label="Self verification QR code" role="img" />;
+  const draw = (canvas: HTMLCanvasElement) => {
+    void import("qrcode").then(qr => qr.toCanvas(canvas, props.value, { width: 280, margin: 1 }));
+  };
+  return <canvas ref={draw} aria-label="Self verification QR code" role="img" />;
 }
 
 export default function StagingSelfVerifyRoute() {
