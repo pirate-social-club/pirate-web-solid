@@ -38,7 +38,9 @@ describe("CommunityThreadView", () => {
     expect(container.textContent).toContain("deckhand");
     expect(container.querySelector('a[href="/c/tameimpala/threads"]')).not.toBeNull();
     expect(container.querySelector('[data-community-comment-composer]')).not.toBeNull();
-    expect(container.querySelector('textarea[aria-label="Write a comment"]')).not.toBeNull();
+    const collapsedTextarea = container.querySelector<HTMLTextAreaElement>('textarea[aria-label="Write a comment"]');
+    expect(collapsedTextarea).not.toBeNull();
+    expect(collapsedTextarea?.className).toContain("h-11");
     expect(container.textContent).not.toContain("Join the conversation");
     expect(container.textContent).not.toContain("Markdown formatting is supported.");
 
@@ -69,6 +71,8 @@ describe("CommunityThreadView", () => {
     const textarea = container.querySelector<HTMLTextAreaElement>('textarea[aria-label="Write a comment"]');
     expect(textarea).not.toBeNull();
     if (textarea === null) throw new Error("comment composer textarea missing");
+    textarea.focus();
+    await Promise.resolve();
     textarea.value = "A new thought for the listening guide.";
     textarea.dispatchEvent(new Event("input", { bubbles: true }));
     await Promise.resolve();
