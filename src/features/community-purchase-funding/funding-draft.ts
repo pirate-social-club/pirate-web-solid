@@ -2,8 +2,7 @@
  * Reload-safe, non-authentication state for the M3 community-purchase quote.
  *
  * This module deliberately stops at the quote boundary. `begin` is still
- * uncomposed on api-next, and the generated 0.8.0 client intake is a separate
- * release decision. The persisted draft is therefore useful now without
+ * uncomposed on api-next, so the persisted draft is useful now without
  * inventing an admission or wallet-transaction side effect.
  */
 
@@ -156,6 +155,13 @@ function parseQuote(value: unknown): CommunityPurchaseFundingQuote | null {
         funding,
       }
     : null;
+}
+
+/** Runtime-narrows the generated client's response before it enters UI state. */
+export function decodeCommunityPurchaseFundingQuote(
+  value: unknown,
+): CommunityPurchaseFundingQuote | null {
+  return parseQuote(value);
 }
 
 function decodeDraft(value: unknown): CommunityPurchaseFundingDraft | null {

@@ -23,6 +23,8 @@ export default defineConfig({
       "src/routes/index.test.tsx",
       "src/features/posts/feed/public-feed.test.tsx",
       "src/features/profiles/public-profile-page/public-profile-page.test.tsx",
+      "src/features/community-purchase-funding/funding-api.test.ts",
+      "src/features/community-purchase-funding/community-purchase-funding-quote.test.tsx",
     ],
   },
 });

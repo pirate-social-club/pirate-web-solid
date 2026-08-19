@@ -17,21 +17,33 @@ storage-backed controller that:
 - rejects malformed, mismatched, oversized, or expired local state; and
 - never stores authentication material.
 
-Focused tests cover all of those cases.
+The quote boundary is now wired through the immutable
+`@pirate/api-client@0.8.0` package:
+
+- `createCommunityPurchaseFundingClient` sends only `community_id` and
+  `listing_id`, adding the shared session credentials and CSRF header;
+- `CommunityPurchaseFundingQuote` displays only server-returned terms and the
+  exact-replay state; and
+- a remount restores an unexpired quote without another request, while an
+  expired draft offers an explicit refresh action.
+
+Focused tests cover the controller, adapter, and UI behavior.
 
 ## Explicit boundaries
 
-- The client package remains `@pirate/api-client@0.7.0` until a separately
-  reviewed `0.8.0` intake and release-ledger entry is authorized.
-- No handwritten network call is introduced to bypass the generated client.
+- The client package is the separately reviewed immutable
+  `@pirate/api-client@0.8.0` intake; no handwritten network call bypasses the
+  generated client.
 - `begin` remains uncomposed and no wallet transaction or funding effect is
   initiated by this lane.
-- A later slice must wire the generated quote endpoint, then add the
-  operation/late-claim state machine only after the backend admission contract
-  is authorized.
+- This lane is route-neutral: a future listing surface must provide the
+  community/listing identities before the component is mounted into product
+  navigation. It does not invent a listing route or browser-authored economics.
+- The operation/late-claim state machine remains out of scope until the backend
+  admission contract is separately authorized.
 
 ## Acceptance evidence so far
 
-- focused controller tests: 3 passing, 11 assertions;
+- focused controller, adapter, and UI tests: 17 passing app tests;
 - no deployment, secret, route, or external state change;
 - source is based on the merged Solid Doctor `main` baseline.
