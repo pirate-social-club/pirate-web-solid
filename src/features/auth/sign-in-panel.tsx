@@ -9,7 +9,7 @@ import {
   type PrivySessionExchange,
 } from "../../api/privy-session.ts";
 import { fetchVerificationConfig } from "../../api/verification-config.ts";
-import { Button, TextField, TextFieldDescription, TextFieldInput, TextFieldLabel, Type } from "../../design-system";
+import { Button, IconWallet, TextField, TextFieldDescription, TextFieldInput, TextFieldLabel, Type } from "../../design-system";
 
 type AuthPhase = "loading" | "choose" | "email" | "code" | "register" | "working" | "signed-in" | "unavailable";
 
@@ -162,22 +162,35 @@ export function SignInPanel(props: SignInPanelProps): JSX.Element {
 
   return (
     <div data-auth-panel class={`flex flex-col gap-5 ${props.class ?? ""}`}>
-      <Show when={phase() === "loading"}><p role="status">Loading secure sign-in…</p></Show>
-      <Show when={phase() === "unavailable"}><p role="alert">Sign-in is not enabled on this environment yet.</p></Show>
-      <Show when={phase() === "choose"}>
-        <div class="grid gap-2">
-          <Button type="button" disabled={busy()} onClick={() => void beginOAuth("google")}>Continue with Google</Button>
-          <Button type="button" disabled={busy()} onClick={() => void beginOAuth("twitter")}>Continue with X / Twitter</Button>
-          <Button type="button" disabled={busy()} onClick={() => void loginWithWallet()}>Continue with wallet</Button>
-          <Button type="button" disabled={busy()} onClick={() => { setMessage(""); setPhase("email"); }}>Continue with email</Button>
+      <Show when={phase() === "loading"}>
+        <div class="rounded-2xl border border-border-soft bg-muted/30 p-4" role="status">
+          <div class="mb-2 h-3 w-28 animate-pulse rounded-full bg-muted" />
+          <div class="h-3 w-48 animate-pulse rounded-full bg-muted" />
+          <span class="sr-only">Loading secure sign-in…</span>
         </div>
-        <Type as="p" variant="caption">Privy handles the identity ceremony; Pirate receives only a same-origin session cookie.</Type>
+      </Show>
+      <Show when={phase() === "unavailable"}>
+        <div class="rounded-2xl border border-border-soft bg-muted/30 p-4" role="alert">
+          <Type as="p" variant="label">Sign-in is unavailable here</Type>
+          <Type as="p" variant="body" class="mt-1 text-muted-foreground">This local preview is not connected to the Privy staging configuration yet.</Type>
+        </div>
+      </Show>
+      <Show when={phase() === "choose"}>
+        <div class="grid gap-2.5">
+          <Type as="p" variant="body" class="mb-1 text-muted-foreground">Choose how you want to continue.</Type>
+          <Button class="h-12 w-full justify-start rounded-xl" type="button" disabled={busy()} onClick={() => void beginOAuth("google")}><span class="grid size-7 place-items-center rounded-full bg-white text-sm font-bold text-black">G</span>Continue with Google</Button>
+          <Button class="h-12 w-full justify-start rounded-xl" variant="outline" type="button" disabled={busy()} onClick={() => void beginOAuth("twitter")}><span class="grid size-7 place-items-center rounded-full bg-foreground text-sm font-bold text-background">𝕏</span>Continue with X / Twitter</Button>
+          <Button class="h-12 w-full justify-start rounded-xl" variant="outline" type="button" disabled={busy()} onClick={() => void loginWithWallet()}><IconWallet class="size-6" />Continue with an existing wallet</Button>
+          <Button class="h-12 w-full justify-start rounded-xl" variant="outline" type="button" disabled={busy()} onClick={() => { setMessage(""); setPhase("email"); }}><span class="grid size-7 place-items-center rounded-full border border-border text-sm font-semibold">@</span>Continue with email</Button>
+        </div>
+        <Type as="p" variant="caption" class="border-t border-border-soft pt-4 text-muted-foreground">Privy handles the identity ceremony. Pirate receives only a same-origin session cookie.</Type>
       </Show>
       <Show when={phase() === "email"}>
+        <Type as="p" variant="body" class="text-muted-foreground">We’ll send a one-time code to your email.</Type>
         <TextField name="email" value={email()} onChange={setEmail}>
           <TextFieldLabel>Email</TextFieldLabel>
           <TextFieldInput autocomplete="email" inputmode="email" />
-          <TextFieldDescription>We’ll send a one-time code. Your browser keeps no bearer token.</TextFieldDescription>
+          <TextFieldDescription>Your browser keeps no bearer token.</TextFieldDescription>
         </TextField>
         <div class="flex gap-2">
           <Button type="button" variant="outline" onClick={() => setPhase("choose")}>Back</Button>
@@ -203,7 +216,7 @@ export function SignInPanel(props: SignInPanelProps): JSX.Element {
         <p role="status">You’re signed in. Continue to the home feed.</p>
         <a class="font-semibold underline" href="/">Open home</a>
       </Show>
-      <Show when={message().length > 0 && phase() !== "register"}><p role="alert">{message()}</p></Show>
+      <Show when={message().length > 0 && phase() !== "register" && phase() !== "unavailable"}><p class="rounded-xl border border-destructive/30 bg-destructive/10 p-3 text-sm" role="alert">{message()}</p></Show>
     </div>
   );
 }

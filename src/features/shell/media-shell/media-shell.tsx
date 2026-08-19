@@ -2,8 +2,20 @@
 import type { JSX } from "@solidjs/web";
 import { Show, createSignal } from "solid-js";
 
-import { Type } from "../../../design-system";
+import {
+  Button,
+  IconBell,
+  IconBroadcast,
+  IconHouse,
+  IconMagnifyingGlass,
+  IconMicrophone,
+  IconMusicNote,
+  IconPlus,
+  IconUsersThree,
+  Type,
+} from "../../../design-system";
 import { SignInDialog } from "../../auth/sign-in-dialog.tsx";
+import { CreatePostDialog } from "../../posts/post-composer/create-post-dialog.tsx";
 import { AppHeader, MobileFooterNav } from "../app-shell-chrome/app-shell-chrome";
 import { AppSidebar, SidebarContent, type SidebarItem, type SidebarSection } from "../app-sidebar/app-sidebar";
 
@@ -23,31 +35,6 @@ export interface MediaShellProps {
   readonly signedIn?: boolean;
   readonly class?: string;
 }
-
-const primaryItems: readonly SidebarItem[] = [
-  { id: "home", label: "Home" },
-  { id: "search", label: "Search" },
-  { id: "live", label: "Live" },
-];
-
-const sections: readonly SidebarSection[] = [
-  {
-    id: "community",
-    label: "Community",
-    items: [
-      { id: "communities", label: "Communities" },
-      { id: "activity", label: "Activity" },
-    ],
-  },
-  {
-    id: "create",
-    label: "Create",
-    items: [
-      { id: "karaoke", label: "Karaoke" },
-      { id: "study", label: "Study" },
-    ],
-  },
-];
 
 function routeFor(id: string): string | undefined {
   switch (id) {
@@ -82,9 +69,37 @@ function SidebarFooter(props: { readonly signedIn: () => boolean; readonly onSig
 export function MediaShell(props: MediaShellProps) {
   const signedIn = () => props.signedIn === true;
   const activeItem = () => props.activeItemId ?? "home";
+  const primaryItems: readonly SidebarItem[] = [
+    { id: "home", label: "Home", icon: <IconHouse class="size-5" /> },
+    { id: "search", label: "Search", icon: <IconMagnifyingGlass class="size-5" /> },
+    { id: "live", label: "Live", icon: <IconBroadcast class="size-5" /> },
+  ];
+  const sections: readonly SidebarSection[] = [
+    {
+      id: "community",
+      label: "Community",
+      items: [
+        { id: "communities", label: "Communities", icon: <IconUsersThree class="size-5" /> },
+        { id: "activity", label: "Activity", icon: <IconBell class="size-5" /> },
+      ],
+    },
+    {
+      id: "create",
+      label: "Create",
+      items: [
+        { id: "karaoke", label: "Karaoke", icon: <IconMicrophone class="size-5" /> },
+        { id: "study", label: "Study", icon: <IconMusicNote class="size-5" /> },
+      ],
+    },
+  ];
   const goHome = () => navigate("home");
   const [authOpen, setAuthOpen] = createSignal(false);
+  const [composerOpen, setComposerOpen] = createSignal(false);
   const openAuth = () => setAuthOpen(true);
+  const openComposer = () => {
+    if (signedIn()) setComposerOpen(true);
+    else openAuth();
+  };
   const completeAuth = () => {
     setAuthOpen(false);
     navigate("home");
@@ -103,6 +118,7 @@ export function MediaShell(props: MediaShellProps) {
         onNavigate={navigate}
         primaryItems={primaryItems}
         sections={sections}
+        mediaAction={<Button class="w-full rounded-xl bg-white text-black hover:bg-white/90" onClick={openComposer}><IconPlus class="size-5" />Create post</Button>}
       />
       <SidebarContent class="min-h-screen bg-background pb-20 md:pb-0">
         <div class="md:hidden">
@@ -123,5 +139,6 @@ export function MediaShell(props: MediaShellProps) {
       </SidebarContent>
     </div>
     <SignInDialog open={authOpen()} onAuthenticated={completeAuth} onOpenChange={setAuthOpen} />
+    <CreatePostDialog open={composerOpen()} onOpenChange={setComposerOpen} />
   </div>;
 }

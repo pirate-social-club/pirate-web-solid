@@ -18,6 +18,7 @@ import {
 } from "../design-system";
 import HomeFeed, { type HomeFeedProps } from "../features/posts/feed/home-feed.tsx";
 import PublicFeed, { type PublicFeedProps } from "../features/posts/feed/public-feed.tsx";
+import { publicFeedReviewPage } from "../features/posts/feed/public-feed-fixtures.ts";
 import { MediaShell } from "../features/shell/media-shell/media-shell.tsx";
 
 export interface HomeRouteProps {
@@ -35,6 +36,16 @@ function isHydrationFixtureRequest(): boolean {
   const event = getRequestEvent();
   if (event !== undefined) return new URL(event.request.url).searchParams.get("hydration") === "1";
   return typeof location !== "undefined" && new URL(location.href).searchParams.get("hydration") === "1";
+}
+
+function isLocalFeedReviewRequest(): boolean {
+  const event = getRequestEvent();
+  const url = event !== undefined
+    ? new URL(event.request.url)
+    : typeof location !== "undefined" ? new URL(location.href) : undefined;
+  return url !== undefined
+    && (url.hostname === "localhost" || url.hostname === "127.0.0.1")
+    && url.searchParams.get("fixture") === "feed";
 }
 
 function HydrationFixtures() {
@@ -86,6 +97,8 @@ function HydrationFixtures() {
 export default function HomeRoute(props: HomeRouteProps = {}) {
   const [session, setSession] = createSignal<HomeRouteSession>("resolving");
   const hydrationFixtures = isHydrationFixtureRequest();
+  const reviewFixture = isLocalFeedReviewRequest();
+  const publicData = props.publicData ?? (reviewFixture ? publicFeedReviewPage : undefined);
 
   createEffect(
     () => true,
@@ -107,7 +120,7 @@ export default function HomeRoute(props: HomeRouteProps = {}) {
       <div data-route-path="/" data-home-session={session()}>
         <Show
           when={session() === "authenticated"}
-          fallback={<PublicFeed client={props.publicClient} data={props.publicData} />}
+          fallback={<PublicFeed client={props.publicClient} data={publicData} />}
         >
           <HomeFeed client={props.homeClient} data={props.homeData} />
         </Show>

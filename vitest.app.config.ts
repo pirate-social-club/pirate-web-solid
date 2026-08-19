@@ -22,6 +22,7 @@ export default defineConfig({
     include: [
       "src/routes/index.test.tsx",
       "src/features/posts/feed/public-feed.test.tsx",
+      "src/features/posts/post-composer/create-post-dialog.test.tsx",
       "src/features/profiles/public-profile-page/public-profile-page.test.tsx",
     ],
   },
