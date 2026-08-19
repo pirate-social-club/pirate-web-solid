@@ -15,6 +15,7 @@ type Phase =
   | "unavailable"
   | "signin-email"
   | "signin-code"
+  | "bootstrap"
   | "ready"
   | "launching"
   | "present"
@@ -37,6 +38,7 @@ export default function StagingSelfVerifyRoute() {
   const [phase, setPhase] = createSignal<Phase>("loading");
   const [email, setEmail] = createSignal("");
   const [code, setCode] = createSignal("");
+  const [busy, setBusy] = createSignal(false);
   const [message, setMessage] = createSignal("");
   const [launch, setLaunch] = createSignal<SelfLaunchPresentation>();
   let verificationConfig: Awaited<ReturnType<typeof fetchVerificationConfig>> | undefined;
@@ -47,6 +49,7 @@ export default function StagingSelfVerifyRoute() {
   onCleanup(() => {
     mounted = false;
     if (pollTimer !== undefined) clearInterval(pollTimer);
+    auth?.clear();
   });
 
   const beginPolling = (expiresAt: string) => {
@@ -90,6 +93,7 @@ export default function StagingSelfVerifyRoute() {
   const signIn = async () => {
     if (verificationConfig === undefined) return;
     auth ??= await createPrivySessionExchange(verificationConfig);
+    setBusy(true);
     setMessage("");
     try {
       if (phase() === "signin-email") {
@@ -101,12 +105,27 @@ export default function StagingSelfVerifyRoute() {
       }
     } catch (error) {
       if (mounted) {
-        setMessage(
-          error instanceof PrivyIdentityBootstrapRequired
-            ? "This account needs identity bootstrap first."
-            : "Sign-in failed. Check the email and code.",
-        );
+        if (error instanceof PrivyIdentityBootstrapRequired) {
+          setMessage("This Privy account is not registered in Pirate yet. Create its staging identity once to continue.");
+          setPhase("bootstrap");
+        } else setMessage("Sign-in failed. Check the email and code.");
       }
+    } finally {
+      if (mounted) setBusy(false);
+    }
+  };
+
+  const bootstrap = async () => {
+    if (auth === undefined) return;
+    setBusy(true);
+    setMessage("");
+    try {
+      await auth.register();
+      if (mounted) setPhase("ready");
+    } catch {
+      if (mounted) setMessage("Could not create the staging identity. Start sign-in again and retry.");
+    } finally {
+      if (mounted) setBusy(false);
     }
   };
 
@@ -163,14 +182,29 @@ export default function StagingSelfVerifyRoute() {
               </TextField>
             </Show>
             <Button type="button" onClick={() => void signIn()}>
-              {phase() === "signin-email" ? "Send login code" : "Sign in"}
+              {busy() ? "Working…" : phase() === "signin-email" ? "Send login code" : "Sign in"}
+            </Button>
+          </CardContent>
+        </Card>
+      </Show>
+
+      <Show when={phase() === "bootstrap"}>
+        <Card>
+          <CardHeader>
+            <CardTitle>Create staging identity</CardTitle>
+            <CardDescription>This is a one-time local Pirate account for the signed-in Privy test account.</CardDescription>
+          </CardHeader>
+          <CardContent class="space-y-4">
+            <FormNote>{message() || "Continue to create the identity used by this staging ceremony."}</FormNote>
+            <Button type="button" loading={busy()} onClick={() => void bootstrap()}>
+              Create staging identity
             </Button>
           </CardContent>
         </Card>
       </Show>
 
       <Show when={phase() === "ready" || phase() === "launching"}>
-        <Button type="button" loading={phase() === "launching"} onClick={() => void start()}>
+        <Button type="button" loading={phase() === "launching" || busy()} onClick={() => void start()}>
           Start document verification
         </Button>
       </Show>
