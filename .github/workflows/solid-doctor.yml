@@ -21,4 +21,4 @@ jobs:
         with:
           node-version: 22
       - name: Run Solid Doctor
-        run: npx --yes solid-doctor@latest --diff "${{ github.event.pull_request.base.sha }}...${{ github.event.pull_request.head.sha }}" --target 2
+        run: npx --yes solid-doctor@0.1.0 --diff "${{ github.event.pull_request.base.sha }}...${{ github.event.pull_request.head.sha }}" --target 2
