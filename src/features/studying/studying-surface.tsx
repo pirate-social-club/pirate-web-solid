@@ -4,6 +4,7 @@ import type { JSX } from "@solidjs/web";
 import {
   Button,
   cn,
+  createMediaQuery,
   IconArrowsClockwise,
   IconCheckCircle,
   IconCrown,
@@ -148,12 +149,12 @@ function SayItBackState(props: { state: Extract<StudyingSurfaceState, { kind: "s
               when={props.state.revealReference}
               fallback={<IconArrowsClockwise class="size-6 shrink-0 text-muted-foreground" />}
             >
-              <IconWarningCircle class="size-6 shrink-0 text-destructive" />
+              <IconWarningCircle class="size-6 shrink-0 text-destructive-text" />
             </Show>
             <div class="min-w-0">
               <Type
                 as="p"
-                class={props.state.revealReference ? "text-destructive" : "text-muted-foreground"}
+                class={props.state.revealReference ? "text-destructive-text" : "text-muted-foreground"}
                 variant="caption"
               >
                 {props.state.revealReference
@@ -170,7 +171,7 @@ function SayItBackState(props: { state: Extract<StudyingSurfaceState, { kind: "s
         </div>
       </Show>
       <Show when={props.state.submitError}>
-        <Type as="p" class="text-destructive" role="alert" variant="caption">
+        <Type as="p" class="text-destructive-text" role="alert" variant="caption">
           {props.state.submitError}
         </Type>
       </Show>
@@ -230,7 +231,7 @@ function MultipleChoiceState(props: {
                         <span class={cn("size-5 shrink-0 rounded-full border", selected() ? "border-foreground bg-foreground" : "border-border")} />
                       )}
                     >
-                      <IconX class="size-6 shrink-0 text-destructive" />
+                      <IconX class="size-6 shrink-0 text-destructive-text" />
                     </Show>
                   )}
                 >
@@ -243,7 +244,7 @@ function MultipleChoiceState(props: {
       </div>
 
       <Show when={props.state.submitError}>
-        <Type as="p" class="text-destructive" role="alert" variant="caption">
+        <Type as="p" class="text-destructive-text" role="alert" variant="caption">
           {props.state.submitError}
         </Type>
       </Show>
@@ -252,17 +253,7 @@ function MultipleChoiceState(props: {
 }
 
 function usePrefersReducedMotion(): () => boolean {
-  const [reducedMotion, setReducedMotion] = createSignal(false);
-
-  if (typeof window !== "undefined" && typeof window.matchMedia === "function") {
-    const media = window.matchMedia("(prefers-reduced-motion: reduce)");
-    const sync = () => setReducedMotion(media.matches);
-    sync();
-    media.addEventListener("change", sync);
-    onCleanup(() => media.removeEventListener("change", sync));
-  }
-
-  return reducedMotion;
+  return createMediaQuery("(prefers-reduced-motion: reduce)");
 }
 
 function StreakSlotNumber(props: { currentStreak: number; previousStreak: number }) {
