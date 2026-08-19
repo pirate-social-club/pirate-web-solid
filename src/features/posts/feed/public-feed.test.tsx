@@ -84,6 +84,17 @@ describe("PublicFeed", () => {
     expect(container.textContent).toContain("No public posts are available yet.");
   });
 
+  test("renders an explicit unavailable state when the feed request fails", async () => {
+    let rejectData: (reason: unknown) => void = () => undefined;
+    const data = new Promise<FeedPage>((_, reject) => { rejectData = reject; });
+    const container = render(() => <PublicFeed data={data} />);
+    rejectData(new Error("api unavailable"));
+
+    await vi.waitFor(() => expect(container.querySelector("[data-feed-state='error']")).not.toBeNull());
+    expect(container.textContent).toContain("Public feed unavailable");
+    expect(container.textContent).toContain("The public feed is temporarily unavailable.");
+  });
+
   test("loads the next page with the opaque cursor", async () => {
     let requestedCursor: string | null = null;
     const client = {

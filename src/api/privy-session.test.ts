@@ -1,4 +1,5 @@
 import { ApiClientError } from "@pirate/api-client";
+import type { ExternalWallet } from "@privy-io/js-sdk-core";
 import { describe, expect, it, vi } from "vitest";
 import { MemoryOnlyStorage, createPrivySessionExchange } from "./privy-session.ts";
 
@@ -120,8 +121,8 @@ describe("Privy session exchange", () => {
       configurable: true,
       value: { location: browserLocation, ethereum: { request } },
     });
-    let initializedWallet: unknown;
-    let signed: readonly [string, unknown, string] | undefined;
+    let initializedWallet: { readonly wallet: ExternalWallet; readonly domain: string; readonly uri: string } | undefined;
+    let signed: readonly [string, ExternalWallet, string] | undefined;
     let exchanged: string | undefined;
     try {
       const auth = await createPrivySessionExchange({ enabled: true, privyAppId: "app" }, {

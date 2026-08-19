@@ -100,6 +100,20 @@ describe("public-first home route", () => {
     expect(container.textContent).not.toContain("Personal home");
   });
 
+  test("session resolution failures settle on the public feed", async () => {
+    const container = render(() => (
+      <HomeRoute
+        resolveSession={async () => { throw new Error("api unavailable"); }}
+        publicData={page("Public discovery")}
+        homeData={page("Personal home")}
+      />
+    ));
+
+    await vi.waitFor(() => expect(container.querySelector("[data-home-session='anonymous']")).not.toBeNull());
+    expect(container.textContent).toContain("Public discovery");
+    expect(container.textContent).not.toContain("Personal home");
+  });
+
   test("authenticated resolution swaps public discovery for home", async () => {
     const container = render(() => (
       <HomeRoute

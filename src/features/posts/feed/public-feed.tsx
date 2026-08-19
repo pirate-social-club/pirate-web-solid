@@ -1,6 +1,6 @@
 import { Title } from "@solidjs/meta";
-import { Loading, Show, For, getRequestEvent } from "@solidjs/web";
-import { createMemo, createSignal, Errored, untrack } from "solid-js";
+import { Show, For, getRequestEvent } from "@solidjs/web";
+import { createEffect, createSignal, onCleanup, untrack } from "solid-js";
 
 import { createPublicApiClient } from "../../../api/client.ts";
 import { Button, Card, CardContent, Spinner, Type } from "../../../design-system";
@@ -88,7 +88,6 @@ function displayBody(item: PublicFeedItem): string | null {
 function FeedLoadingState(props: { readonly copy: FeedCopy }) {
   return (
     <main aria-busy="true" data-feed-state="loading">
-      <Title>{props.copy.title}</Title>
       <h1>{props.copy.title}</h1>
       <div role="status"><Spinner label={props.copy.loadingLabel} /></div>
     </main>
@@ -98,10 +97,37 @@ function FeedLoadingState(props: { readonly copy: FeedCopy }) {
 function FeedErrorState(props: { readonly copy: FeedCopy }) {
   return (
     <main data-feed-state="error">
-      <Title>{props.copy.unavailableTitle}</Title>
       <h1>{props.copy.unavailableTitle}</h1>
       <p role="alert">{props.copy.unavailableMessage}</p>
     </main>
+  );
+}
+
+interface FeedReadyResult {
+  readonly status: "ready";
+  readonly page: FeedPage;
+}
+
+interface FeedErrorResult {
+  readonly status: "error";
+}
+
+type FeedLoadResult = FeedReadyResult | FeedErrorResult;
+
+function FeedResult(props: {
+  readonly result: FeedLoadResult;
+  readonly loadPage: FeedPageLoader;
+  readonly locale: UiLocaleCode;
+  readonly sort: FeedSort;
+  readonly copy: FeedCopy;
+}) {
+  return (
+    <Show
+      when={props.result.status === "ready" ? props.result : undefined}
+      fallback={<FeedErrorState copy={props.copy} />}
+    >
+      {(ready) => <FeedResults loadPage={props.loadPage} initial={ready().page} locale={props.locale} sort={props.sort} copy={props.copy} />}
+    </Show>
   );
 }
 
@@ -197,16 +223,40 @@ function FeedResults(props: {
 export function FeedSurface(props: FeedSurfaceProps) {
   const locale = props.locale ?? requestLocale();
   const sort = props.sort ?? "best";
-  const data = createMemo(
-    () => props.data ?? props.loadPage({ locale, sort }),
-    { deferStream: true },
+  const provided = props.data;
+  const initialResult: FeedLoadResult | undefined = provided !== undefined && !("then" in provided)
+    ? { status: "ready", page: provided }
+    : undefined;
+  const [result, setResult] = createSignal<FeedLoadResult | undefined>(initialResult);
+  const [loading, setLoading] = createSignal(initialResult === undefined);
+
+  // Keep the no-data production request after hydration so an API rejection
+  // cannot be serialized into the SSR stream and change the client first tree.
+  createEffect(
+    () => initialResult,
+    () => {
+      if (initialResult !== undefined || typeof window === "undefined") return;
+      let active = true;
+      const settle = (next: FeedLoadResult) => {
+        if (!active) return;
+        setResult(next);
+        setLoading(false);
+      };
+      try {
+        void Promise.resolve(provided ?? props.loadPage({ locale, sort }))
+          .then(page => settle({ status: "ready", page }))
+          .catch(() => settle({ status: "error" }));
+      } catch {
+        settle({ status: "error" });
+      }
+      onCleanup(() => { active = false; });
+    },
   );
+
   return (
-    <Errored fallback={() => <FeedErrorState copy={props.copy} />}>
-      <Loading fallback={<FeedLoadingState copy={props.copy} />}>
-        <FeedResults loadPage={props.loadPage} initial={data()} locale={locale} sort={sort} copy={props.copy} />
-      </Loading>
-    </Errored>
+    <Show when={!loading()} fallback={<FeedLoadingState copy={props.copy} />}>
+      <FeedResult result={result() ?? { status: "error" }} loadPage={props.loadPage} locale={locale} sort={sort} copy={props.copy} />
+    </Show>
   );
 }
 
