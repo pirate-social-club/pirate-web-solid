@@ -50,35 +50,83 @@ export const Exploration: Story = {
     const canvas = within(canvasElement);
     // Step 1: membership mode.
     await userEvent.click(canvas.getByRole("radio", { name: /^Humans and bots\b/ }));
-    await userEvent.click(canvas.getByRole("button", { name: "Next" }));
+    await userEvent.click(canvas.getByRole("button", { name: "Continue" }));
     // Step 2: invite rule.
     await userEvent.click(canvas.getByRole("radio", { name: /^Invitation required\b/ }));
-    await userEvent.click(canvas.getByRole("button", { name: "Next" }));
+    await userEvent.click(canvas.getByRole("button", { name: "Continue" }));
     // Step 3: checks with implicit AND.
     await userEvent.click(canvas.getByRole("checkbox", { name: "Adults only (18+)" }));
     await userEvent.click(canvas.getByRole("checkbox", { name: "Nationality" }));
-    await expect(canvas.getByRole("button", { name: "Next" })).toBeDisabled();
+    await expect(canvas.getByRole("button", { name: "Continue" })).toBeDisabled();
+    await userEvent.type(canvas.getByRole("textbox", { name: "Search countries" }), "Japan");
     await userEvent.click(canvas.getByRole("checkbox", { name: "Japan" }));
-    await expect(canvas.getByRole("button", { name: "Next" })).toBeEnabled();
-    await userEvent.click(canvas.getByRole("button", { name: "Next" }));
-    // Step 4: review renders one implicit-AND access path.
-    await expect(canvas.getByText("Access path 1")).toBeInTheDocument();
-    await expect(canvas.getByText("Invitation")).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: "Continue" })).toBeEnabled();
+    await userEvent.click(canvas.getByRole("button", { name: "Continue" }));
+    // Step 4: review is a plain-language summary.
+    await expect(canvas.getByText("Who can join")).toBeInTheDocument();
+    await expect(canvas.getByText("Humans and bots")).toBeInTheDocument();
+    await expect(canvas.getByText("Invitations")).toBeInTheDocument();
+    await expect(canvas.getByText("Invitation required")).toBeInTheDocument();
+    await expect(canvas.getByText("Extra checks")).toBeInTheDocument();
     await expect(canvas.getByText("At least 18 years old")).toBeInTheDocument();
     await expect(canvas.getByText(/Japan/)).toBeInTheDocument();
-    await userEvent.click(canvas.getByRole("button", { name: "Finish" }));
+    await userEvent.click(canvas.getByRole("button", { name: "Create community" }));
     await expect(canvas.getByText("Finished 1 times")).toBeInTheDocument();
+    await userEvent.click(canvas.getByRole("button", { name: "Back" }));
+    await userEvent.click(canvas.getByRole("button", { name: "Back" }));
+    await userEvent.click(canvas.getByRole("button", { name: "Back" }));
+    await expect(canvas.getByText("Who can join?")).toBeInTheDocument();
   },
 };
 
 export const ProductionCatalog: Story = {
   args: { catalogMode: "production", draft: createDefaultGateWizardDraft() },
-  globals: { direction: "rtl" },
   render: (args) => <GateWizardStory catalogMode={args.catalogMode} initialDraft={args.draft} />,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await userEvent.click(canvas.getByRole("button", { name: "Next" }));
-    await userEvent.click(canvas.getByRole("button", { name: "Next" }));
+    await expect(canvas.getByText("Who can join?")).toBeInTheDocument();
+    await expect(canvas.getByRole("radio", { name: /^Humans only\b/ })).toBeChecked();
+    await expect(canvas.getByRole("button", { name: "Continue" })).toBeEnabled();
+  },
+};
+
+export const ProductionInvite: Story = {
+  args: {
+    catalogMode: "production",
+    draft: createDefaultGateWizardDraft(),
+    initialStep: "invite",
+  },
+  render: (args) => (
+    <GateWizardStory
+      catalogMode={args.catalogMode}
+      initialDraft={args.draft}
+      initialStep={args.initialStep}
+    />
+  ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByText("Do members need an invitation?")).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: "Back" })).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: "Continue" })).toBeEnabled();
+  },
+};
+
+export const ProductionChecks: Story = {
+  args: {
+    catalogMode: "production",
+    draft: createDefaultGateWizardDraft(),
+    initialStep: "checks",
+  },
+  render: (args) => (
+    <GateWizardStory
+      catalogMode={args.catalogMode}
+      initialDraft={args.draft}
+      initialStep={args.initialStep}
+    />
+  ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByText("Which checks should members pass?")).toBeInTheDocument();
     // Design-hold checks stay visible but disabled until the policy model lands.
     await expect(canvas.getByRole("checkbox", { name: "Nationality" })).toBeDisabled();
     await expect(canvas.getAllByText("Coming later").length).toBeGreaterThan(0);
@@ -86,10 +134,31 @@ export const ProductionCatalog: Story = {
     await expect(canvas.queryByRole("checkbox", { name: "NFT" })).toBeNull();
     await expect(canvas.queryByRole("checkbox", { name: "Token balance" })).toBeNull();
     await expect(canvas.queryByRole("checkbox", { name: "Passport score" })).toBeNull();
-    await userEvent.click(canvas.getByRole("checkbox", { name: "Adults only (18+)" }));
-    await userEvent.click(canvas.getByRole("button", { name: "Next" }));
-    await expect(canvas.getByText("Access path 1")).toBeInTheDocument();
-    await expect(canvas.getByText("Verified human")).toBeInTheDocument();
+  },
+};
+
+function createProductionReviewDraft(): GateWizardDraft {
+  return toggleGateCheck(createDefaultGateWizardDraft(), "age18", "production");
+}
+
+export const ProductionReview: Story = {
+  args: {
+    catalogMode: "production",
+    draft: createProductionReviewDraft(),
+    initialStep: "review",
+  },
+  render: (args) => (
+    <GateWizardStory
+      catalogMode={args.catalogMode}
+      initialDraft={args.draft}
+      initialStep={args.initialStep}
+    />
+  ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByText("Ready to create your community?")).toBeInTheDocument();
+    await expect(canvas.getByText("Who can join")).toBeInTheDocument();
+    await expect(canvas.getByText("Extra checks")).toBeInTheDocument();
     await expect(canvas.getByText("At least 18 years old")).toBeInTheDocument();
   },
 };
@@ -136,7 +205,7 @@ export const ChecksShowcase: Story = {
     // Capability labels are always visible next to non-available checks.
     await expect(canvas.getAllByText("Policy model pending").length).toBeGreaterThan(0);
     await expect(canvas.getAllByText(/Exploration — not backed by api-next yet/).length).toBeGreaterThan(0);
-    await expect(canvas.getByRole("button", { name: "Next" })).toBeEnabled();
+    await expect(canvas.getByRole("button", { name: "Continue" })).toBeEnabled();
   },
 };
 
@@ -151,9 +220,11 @@ export const ReviewShowcase: Story = {
   ),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(canvas.getByText("Access path 1")).toBeInTheDocument();
-    await expect(canvas.getByText("Verified human")).toBeInTheDocument();
-    await expect(canvas.getByText("Invitation")).toBeInTheDocument();
+    await expect(canvas.getByText("Who can join")).toBeInTheDocument();
+    await expect(canvas.getByText("Humans only")).toBeInTheDocument();
+    await expect(canvas.getByText("Invitations")).toBeInTheDocument();
+    await expect(canvas.getByText("Invitation required")).toBeInTheDocument();
+    await expect(canvas.getByText("Extra checks")).toBeInTheDocument();
     await expect(canvas.getByText("At least 18 years old")).toBeInTheDocument();
     await expect(canvas.getByText("Document from: Germany, Japan")).toBeInTheDocument();
     await expect(canvas.getByText("Gender marker: M, F")).toBeInTheDocument();
@@ -161,8 +232,5 @@ export const ReviewShowcase: Story = {
       canvas.getByText("Owns 2 or more Trading card: Pirate rookie card"),
     ).toBeInTheDocument();
     await expect(canvas.getByText(/Gitcoin Passport score of 20 or more/)).toBeInTheDocument();
-    await expect(canvas.getByText("This draft includes exploration checks that api-next does not support yet.")).toBeInTheDocument();
-    // The compiled policy preview is a story-owned artifact, not an api-next contract.
-    await expect(canvas.getByText(/"accessPaths"/)).toBeInTheDocument();
   },
 };

@@ -5,8 +5,8 @@ export const GENERATED_LOCALE_CATALOGS = {
       "gateWizard": {
         "actions": {
           "back": "رجوع",
-          "finish": "إنهاء",
-          "next": "التالي"
+          "finish": "إنشاء المجتمع",
+          "next": "متابعة"
         },
         "checks": {
           "capability": {
@@ -66,7 +66,11 @@ export const GENERATED_LOCALE_CATALOGS = {
               "US": "الولايات المتحدة"
             },
             "emptyError": "اختر دولة واحدة على الأقل.",
-            "heading": "أي الدول؟"
+            "heading": "أي الدول؟",
+            "noResults": "لم يتم العثور على دول.",
+            "searchHint": "ابحث لإضافة دولة.",
+            "searchLabel": "ابحث عن دولة",
+            "searchPlaceholder": "اكتب اسم الدولة"
           },
           "nft": {
             "categoryLabel": "الفئة",
@@ -118,14 +122,15 @@ export const GENERATED_LOCALE_CATALOGS = {
           "humansOnlyDescription": "يتحقق الأعضاء من أنهم بشر قبل الانضمام.",
           "humansOnlyTitle": "البشر فقط"
         },
+        "progress": "الخطوة {current} من {total} · {step}",
         "review": {
-          "andNote": "يجب استيفاء كل الشرط.",
-          "compiledLabel": "سياسة البوابة المُجمَّعة (معاينة مملوكة للقصة)",
+          "allRequirementsNote": "يجب على الجميع استيفاء كل شرط اخترته.",
+          "checksLabel": "شروط إضافية",
+          "description": "إليك ما سيحتاج الأشخاص إليه للانضمام.",
           "engagementNotice": "تُضبط قواعد التفاعل للنشر والتعليق والتصويت بشكل منفصل.",
-          "explorationNotice": "يتضمن هذا المسودة شروط استكشاف لا يدعمها api-next بعد.",
-          "heading": "راجع العضوية",
-          "openNote": "لا شروط — يمكن لأي شخص يستطيع الانضمام إلى المنصة أن يصبح عضوًا.",
-          "pathLabel": "مسار الوصول 1",
+          "heading": "هل أنت مستعد لإنشاء مجتمعك؟",
+          "invitation": "الدعوات",
+          "noChecksNote": "لم يتم اختيار شروط إضافية. يمكن الانضمام بناءً على الخيارات أعلاه.",
           "requirements": {
             "ageMinimum": "العمر 18 عامًا على الأقل",
             "assetOwnership": "يحمل {amount} أو أكثر من {asset}",
@@ -136,7 +141,8 @@ export const GENERATED_LOCALE_CATALOGS = {
             "invite": "دعوة",
             "nationalityAllowed": "مستند من: {countries}",
             "reputationScore": "نقاط Gitcoin Passport بمقدار {score} أو أكثر"
-          }
+          },
+          "whoCanJoin": "من يمكنه الانضمام"
         },
         "steps": {
           "checks": "الشروط",
@@ -294,8 +300,8 @@ export const GENERATED_LOCALE_CATALOGS = {
       "gateWizard": {
         "actions": {
           "back": "Back",
-          "finish": "Finish",
-          "next": "Next"
+          "finish": "Create community",
+          "next": "Continue"
         },
         "checks": {
           "capability": {
@@ -355,7 +361,11 @@ export const GENERATED_LOCALE_CATALOGS = {
               "US": "United States"
             },
             "emptyError": "Select at least one country.",
-            "heading": "Which countries?"
+            "heading": "Which countries?",
+            "noResults": "No countries found.",
+            "searchHint": "Search to add a country.",
+            "searchLabel": "Search countries",
+            "searchPlaceholder": "Type a country name"
           },
           "nft": {
             "categoryLabel": "Category",
@@ -407,14 +417,15 @@ export const GENERATED_LOCALE_CATALOGS = {
           "humansOnlyDescription": "Members verify they are human before they join.",
           "humansOnlyTitle": "Humans only"
         },
+        "progress": "Step {current} of {total} · {step}",
         "review": {
-          "andNote": "Every requirement must pass.",
-          "compiledLabel": "Compiled gate policy (story-owned preview)",
-          "engagementNotice": "Engagement rules for posting, commenting, and voting are configured separately.",
-          "explorationNotice": "This draft includes exploration checks that api-next does not support yet.",
-          "heading": "Review membership",
-          "openNote": "No requirements — anyone who can join the platform may become a member.",
-          "pathLabel": "Access path 1",
+          "allRequirementsNote": "Everyone must meet every check you selected.",
+          "checksLabel": "Extra checks",
+          "description": "Here’s what people will need to join.",
+          "engagementNotice": "Posting, commenting, and voting settings are separate.",
+          "heading": "Ready to create your community?",
+          "invitation": "Invitations",
+          "noChecksNote": "No extra checks selected. People can join based on the choices above.",
           "requirements": {
             "ageMinimum": "At least 18 years old",
             "assetOwnership": "Holds {amount} or more of {asset}",
@@ -425,7 +436,8 @@ export const GENERATED_LOCALE_CATALOGS = {
             "invite": "Invitation",
             "nationalityAllowed": "Document from: {countries}",
             "reputationScore": "Gitcoin Passport score of {score} or more"
-          }
+          },
+          "whoCanJoin": "Who can join"
         },
         "steps": {
           "checks": "Checks",
@@ -583,8 +595,8 @@ export const GENERATED_LOCALE_CATALOGS = {
       "gateWizard": {
         "actions": {
           "back": "上一步",
-          "finish": "完成",
-          "next": "下一步"
+          "finish": "创建社区",
+          "next": "继续"
         },
         "checks": {
           "capability": {
@@ -644,7 +656,11 @@ export const GENERATED_LOCALE_CATALOGS = {
               "US": "美国"
             },
             "emptyError": "请至少选择一个国家/地区。",
-            "heading": "哪些国家/地区？"
+            "heading": "哪些国家/地区？",
+            "noResults": "未找到国家/地区。",
+            "searchHint": "搜索以添加国家/地区。",
+            "searchLabel": "搜索国家/地区",
+            "searchPlaceholder": "输入国家/地区名称"
           },
           "nft": {
             "categoryLabel": "类别",
@@ -696,14 +712,15 @@ export const GENERATED_LOCALE_CATALOGS = {
           "humansOnlyDescription": "成员加入前需验证自己是真人。",
           "humansOnlyTitle": "仅限真人"
         },
+        "progress": "第 {current} 步，共 {total} 步 · {step}",
         "review": {
-          "andNote": "每项条件都必须满足。",
-          "compiledLabel": "编译后的门槛策略（Story 专属预览）",
+          "allRequirementsNote": "每个人都必须满足你选择的所有条件。",
+          "checksLabel": "额外条件",
+          "description": "以下是人们加入时需要满足的条件。",
           "engagementNotice": "发帖、评论和投票的互动规则将单独配置。",
-          "explorationNotice": "此草案包含 api-next 尚不支持的探索性条件。",
-          "heading": "确认成员资格",
-          "openNote": "没有任何条件——平台上可加入的任何人都可以成为成员。",
-          "pathLabel": "加入路径 1",
+          "heading": "准备创建你的社区了吗？",
+          "invitation": "邀请",
+          "noChecksNote": "未选择额外条件。人们可以根据上面的选择加入。",
           "requirements": {
             "ageMinimum": "年满 18 岁",
             "assetOwnership": "持有 {amount} 或更多 {asset}",
@@ -714,7 +731,8 @@ export const GENERATED_LOCALE_CATALOGS = {
             "invite": "邀请",
             "nationalityAllowed": "证件来自：{countries}",
             "reputationScore": "Gitcoin Passport 分数不低于 {score}"
-          }
+          },
+          "whoCanJoin": "谁可以加入"
         },
         "steps": {
           "checks": "条件",

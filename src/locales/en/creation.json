@@ -2,6 +2,7 @@
   "gateWizard": {
     "title": "Create your community",
     "description": "Set who can join. Posting, commenting, and voting rules come later.",
+    "progress": "Step {current} of {total} · {step}",
     "steps": {
       "membership": "Membership",
       "invite": "Invite",
@@ -63,6 +64,10 @@
       },
       "nationality": {
         "heading": "Which countries?",
+        "searchLabel": "Search countries",
+        "searchPlaceholder": "Type a country name",
+        "searchHint": "Search to add a country.",
+        "noResults": "No countries found.",
         "emptyError": "Select at least one country.",
         "countries": {
           "US": "United States",
@@ -118,13 +123,14 @@
       }
     },
     "review": {
-      "heading": "Review membership",
-      "pathLabel": "Access path 1",
-      "andNote": "Every requirement must pass.",
-      "openNote": "No requirements — anyone who can join the platform may become a member.",
-      "compiledLabel": "Compiled gate policy (story-owned preview)",
-      "explorationNotice": "This draft includes exploration checks that api-next does not support yet.",
-      "engagementNotice": "Engagement rules for posting, commenting, and voting are configured separately.",
+      "heading": "Ready to create your community?",
+      "description": "Here’s what people will need to join.",
+      "whoCanJoin": "Who can join",
+      "invitation": "Invitations",
+      "checksLabel": "Extra checks",
+      "allRequirementsNote": "Everyone must meet every check you selected.",
+      "noChecksNote": "No extra checks selected. People can join based on the choices above.",
+      "engagementNotice": "Posting, commenting, and voting settings are separate.",
       "requirements": {
         "humanVerification": "Verified human",
         "invite": "Invitation",
@@ -139,8 +145,8 @@
     },
     "actions": {
       "back": "Back",
-      "next": "Next",
-      "finish": "Finish"
+      "next": "Continue",
+      "finish": "Create community"
     }
   }
 }

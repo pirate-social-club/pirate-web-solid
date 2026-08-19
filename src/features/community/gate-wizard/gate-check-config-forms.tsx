@@ -1,4 +1,4 @@
-import { For, Show } from "solid-js";
+import { For, Show, createMemo, createSignal } from "solid-js";
 
 import {
   Button,
@@ -28,6 +28,7 @@ type PassportScoreCheck = Extract<GateWizardCheck, { kind: "passport_score" }>;
 const configCardClass = "space-y-4 rounded-[var(--radius-2_5xl)] border border-border-soft bg-card p-5";
 const errorClass = "text-sm text-destructive-text";
 const chipsClass = "grid grid-cols-2 gap-2 sm:grid-cols-3";
+const countryDisplayNames = new Intl.DisplayNames(["en"], { type: "region" });
 
 function clampCount(value: string, min: number, max: number): number {
   const parsed = Number(value);
@@ -45,12 +46,24 @@ function NationalityConfigForm(props: {
   onReplace: (check: GateWizardCheck) => void;
 }) {
   const copy = () => props.copy().checks.nationality;
+  const [searchQuery, setSearchQuery] = createSignal("");
   const countryName = (code: string) => {
-    // SAFETY: the generated catalog keys are exactly NATIONALITY_COUNTRY_OPTIONS;
-    // the Record view exists only so an unknown code falls back to the code itself.
+    // SAFETY: locale country catalogs are string-keyed maps; unknown ISO codes
+    // fall back to Intl.DisplayNames below.
     const countries = copy().countries as Record<string, string>;
-    return countries[code] ?? code;
+    return countries[code] ?? countryDisplayNames.of(code) ?? code;
   };
+  const filteredCountries = createMemo(() => {
+    const query = searchQuery().trim().toLocaleLowerCase();
+    if (query === "") {
+      return NATIONALITY_COUNTRY_OPTIONS.filter((code) =>
+        props.check.allowedCountries.includes(code),
+      );
+    }
+    return NATIONALITY_COUNTRY_OPTIONS.filter((code) =>
+      (countryName(code) + " " + code).toLocaleLowerCase().includes(query),
+    );
+  });
   const toggleCountry = (code: string, selected: boolean) => {
     const allowedCountries = selected
       ? [...props.check.allowedCountries, code]
@@ -60,20 +73,42 @@ function NationalityConfigForm(props: {
   return (
     <div class={configCardClass} data-gate-check-config="nationality">
       <Type as="div" variant="label">{copy().heading}</Type>
-      <div class={chipsClass} role="group" aria-label={copy().heading}>
-        <For each={NATIONALITY_COUNTRY_OPTIONS}>
-          {(code) => (
-            <label class="flex cursor-pointer items-center gap-2 rounded-[var(--radius-lg)] border border-border-soft bg-background px-3 py-2">
-              <Checkbox
-                aria-label={countryName(code)}
-                checked={props.check.allowedCountries.includes(code)}
-                onChange={(next) => toggleCountry(code, next === true)}
-              />
-              <span class="text-sm">{countryName(code)}</span>
-            </label>
-          )}
-        </For>
+      <div class="space-y-2">
+        <FormFieldLabel htmlFor="gate-nationality-search" label={copy().searchLabel} />
+        <Input
+          id="gate-nationality-search"
+          onInput={(event) => setSearchQuery(event.currentTarget.value)}
+          placeholder={copy().searchPlaceholder}
+          value={searchQuery()}
+        />
       </div>
+      <Show
+        when={filteredCountries().length > 0}
+        fallback={
+          <Type as="p" variant="caption">
+            {searchQuery().trim() === "" ? copy().searchHint : copy().noResults}
+          </Type>
+        }
+      >
+        <div
+          class={`${chipsClass} max-h-72 overflow-y-auto rounded-[var(--radius-lg)] border border-border-soft p-2`}
+          role="group"
+          aria-label={copy().heading}
+        >
+          <For each={filteredCountries()}>
+            {(code) => (
+              <label class="flex cursor-pointer items-center gap-2 rounded-[var(--radius-lg)] border border-border-soft bg-background px-3 py-2">
+                <Checkbox
+                  aria-label={countryName(code)}
+                  checked={props.check.allowedCountries.includes(code)}
+                  onChange={(next) => toggleCountry(code, next === true)}
+                />
+                <span class="text-sm">{countryName(code)}</span>
+              </label>
+            )}
+          </For>
+        </div>
+      </Show>
       <Show when={props.check.allowedCountries.length === 0}>
         <ConfigError message={copy().emptyError} />
       </Show>

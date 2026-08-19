@@ -2,6 +2,7 @@
   "gateWizard": {
     "title": "创建你的社区",
     "description": "设置谁可以加入。发帖、评论和投票规则稍后配置。",
+    "progress": "第 {current} 步，共 {total} 步 · {step}",
     "steps": {
       "membership": "成员资格",
       "invite": "邀请",
@@ -63,6 +64,10 @@
       },
       "nationality": {
         "heading": "哪些国家/地区？",
+        "searchLabel": "搜索国家/地区",
+        "searchPlaceholder": "输入国家/地区名称",
+        "searchHint": "搜索以添加国家/地区。",
+        "noResults": "未找到国家/地区。",
         "emptyError": "请至少选择一个国家/地区。",
         "countries": {
           "US": "美国",
@@ -118,12 +123,13 @@
       }
     },
     "review": {
-      "heading": "确认成员资格",
-      "pathLabel": "加入路径 1",
-      "andNote": "每项条件都必须满足。",
-      "openNote": "没有任何条件——平台上可加入的任何人都可以成为成员。",
-      "compiledLabel": "编译后的门槛策略（Story 专属预览）",
-      "explorationNotice": "此草案包含 api-next 尚不支持的探索性条件。",
+      "heading": "准备创建你的社区了吗？",
+      "description": "以下是人们加入时需要满足的条件。",
+      "whoCanJoin": "谁可以加入",
+      "invitation": "邀请",
+      "checksLabel": "额外条件",
+      "allRequirementsNote": "每个人都必须满足你选择的所有条件。",
+      "noChecksNote": "未选择额外条件。人们可以根据上面的选择加入。",
       "engagementNotice": "发帖、评论和投票的互动规则将单独配置。",
       "requirements": {
         "humanVerification": "真人验证",
@@ -139,8 +145,8 @@
     },
     "actions": {
       "back": "上一步",
-      "next": "下一步",
-      "finish": "完成"
+      "next": "继续",
+      "finish": "创建社区"
     }
   }
 }

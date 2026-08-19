@@ -6,7 +6,6 @@ import { interpolateMessage } from "../../../locales";
 import { useUiLocale } from "../../../lib/ui-locale";
 import {
   compileGateWizardDraft,
-  draftIncludesExplorationChecks,
   incompleteGateCheckKinds,
   isGateCheckSelectable,
   replaceGateCheck,
@@ -34,10 +33,10 @@ export interface CommunityGateWizardPageProps {
 }
 
 function countryName(copy: GateWizardCopy, code: string): string {
-  // SAFETY: the generated catalog keys are exactly NATIONALITY_COUNTRY_OPTIONS;
-  // the Record view exists only so an unknown code falls back to the code itself.
+  // SAFETY: locale country catalogs are string-keyed maps; unknown ISO codes
+  // fall back to Intl.DisplayNames below.
   const countries = copy.checks.nationality.countries as Record<string, string>;
-  return countries[code] ?? code;
+  return countries[code] ?? new Intl.DisplayNames(["en"], { type: "region" }).of(code) ?? code;
 }
 
 function requirementText(copy: GateWizardCopy, requirement: CompiledGateRequirement): string {
@@ -88,6 +87,11 @@ export function CommunityGateWizardPage(props: CommunityGateWizardPageProps) {
   const [step, setStep] = createSignal<GateWizardStep>(props.initialStep ?? "membership");
   const compiled = createMemo(() => compileGateWizardDraft(props.draft));
   const requirements = () => compiled().accessPaths[0]?.requirements ?? [];
+  const checkRequirements = () =>
+    requirements().filter(
+      (requirement) =>
+        requirement.requirement !== "human-verification" && requirement.requirement !== "invite",
+    );
 
   const updateDraft = (next: GateWizardDraft) => props.onDraftChange?.(next);
   const stepIndex = () => GATE_WIZARD_STEPS.indexOf(step());
@@ -121,29 +125,18 @@ export function CommunityGateWizardPage(props: CommunityGateWizardPageProps) {
         <Type as="p" variant="caption">{copy().description}</Type>
       </div>
 
-      <ol aria-label={copy().title} class="flex flex-wrap items-center gap-2">
-        <For each={GATE_WIZARD_STEPS}>
-          {(stepId, index) => (
-            <li class="flex items-center gap-2">
-              <Show when={index() > 0}>
-                <span aria-hidden="true" class="text-muted-foreground/50">—</span>
-              </Show>
-              <span
-                aria-current={step() === stepId ? "step" : undefined}
-                class={cn(
-                  "flex items-center gap-2 rounded-full border px-3 py-1 text-sm",
-                  step() === stepId
-                    ? "border-primary bg-primary-subtle font-semibold"
-                    : "border-border-soft text-muted-foreground",
-                )}
-              >
-                <span class="tabular-nums">{index() + 1}</span>
-                {copy().steps[stepId]}
-              </span>
-            </li>
-          )}
-        </For>
-      </ol>
+      <div class="flex items-center justify-between gap-3 border-b border-border-soft pb-3">
+        <Show when={stepIndex() > 0} fallback={<span />}>
+          <Button onClick={goBack} size="sm" variant="ghost">{copy().actions.back}</Button>
+        </Show>
+        <Type as="p" class="text-end text-muted-foreground" variant="caption">
+          {interpolateMessage(copy().progress, {
+            current: stepIndex() + 1,
+            total: GATE_WIZARD_STEPS.length,
+            step: copy().steps[step()],
+          })}
+        </Type>
+      </div>
 
       <Show when={step() === "membership"}>
         <div class="space-y-4">
@@ -263,21 +256,38 @@ export function CommunityGateWizardPage(props: CommunityGateWizardPageProps) {
         <div class="space-y-4">
           <div class="space-y-1">
             <Type as="h2" variant="h2">{copy().review.heading}</Type>
+            <Type as="p" variant="caption">{copy().review.description}</Type>
+          </div>
+          <div class="grid gap-3 rounded-[var(--radius-2_5xl)] border border-border-soft bg-card p-5 sm:grid-cols-2">
+            <div class="space-y-1">
+              <Type as="div" variant="label">{copy().review.whoCanJoin}</Type>
+              <Type as="p" variant="body">
+                {props.draft.membershipMode === "humans-only"
+                  ? copy().membership.humansOnlyTitle
+                  : copy().membership.humansAndBotsTitle}
+              </Type>
+            </div>
+            <div class="space-y-1">
+              <Type as="div" variant="label">{copy().review.invitation}</Type>
+              <Type as="p" variant="body">
+                {props.draft.inviteRule === "invite-required"
+                  ? copy().invite.inviteRequiredTitle
+                  : copy().invite.openTitle}
+              </Type>
+            </div>
           </div>
           <div
             class="space-y-3 rounded-[var(--radius-2_5xl)] border border-border-soft bg-card p-5"
-            data-gate-review-path
+            data-gate-review-checks
           >
-            <div class="flex flex-wrap items-center justify-between gap-2">
-              <Type as="div" variant="label">{copy().review.pathLabel}</Type>
-              <Type as="div" variant="caption">{copy().review.andNote}</Type>
-            </div>
+            <Type as="div" variant="label">{copy().review.checksLabel}</Type>
             <Show
-              when={requirements().length > 0}
-              fallback={<Type as="p" variant="caption">{copy().review.openNote}</Type>}
+              when={checkRequirements().length > 0}
+              fallback={<Type as="p" variant="caption">{copy().review.noChecksNote}</Type>}
             >
-              <ul class="space-y-2" aria-label={copy().review.pathLabel}>
-                <For each={requirements()}>
+              <Type as="p" variant="caption">{copy().review.allRequirementsNote}</Type>
+              <ul class="space-y-2" aria-label={copy().review.checksLabel}>
+                <For each={checkRequirements()}>
                   {(requirement) => (
                     <li class="flex items-start gap-2">
                       <IconCheck class="mt-1 size-4 shrink-0 text-primary" />
@@ -290,27 +300,13 @@ export function CommunityGateWizardPage(props: CommunityGateWizardPageProps) {
               </ul>
             </Show>
           </div>
-          <Show when={draftIncludesExplorationChecks(props.draft)}>
-            <Type as="p" class="text-warning" variant="caption">
-              {copy().review.explorationNotice}
-            </Type>
-          </Show>
           <Type as="p" class="text-muted-foreground" variant="caption">
             {copy().review.engagementNotice}
           </Type>
-          <div class="space-y-2" data-gate-compiled-policy>
-            <Type as="div" variant="label">{copy().review.compiledLabel}</Type>
-            <pre class="overflow-x-auto rounded-[var(--radius-xl)] border border-border-soft bg-muted/40 p-4 text-xs leading-5">
-              {JSON.stringify(compiled(), null, 2)}
-            </pre>
-          </div>
         </div>
       </Show>
 
-      <div class="flex items-center justify-between gap-3">
-        <Show when={step() !== "membership"} fallback={<span />}>
-          <Button onClick={goBack} variant="ghost">{copy().actions.back}</Button>
-        </Show>
+      <div class="flex justify-end">
         <Button disabled={!canAdvance()} onClick={goNext}>
           {step() === "review" ? copy().actions.finish : copy().actions.next}
         </Button>
