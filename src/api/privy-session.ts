@@ -101,17 +101,21 @@ export interface PrivySessionExchange {
 export type OAuthProvider = "google" | "twitter";
 
 interface EthereumProvider {
+  // oxlint-disable-next-line anti-slop/no-unknown-returns -- EIP-1193 providers return protocol-specific JSON-RPC values.
   request(args: { method: string; params?: readonly unknown[] }): Promise<unknown>;
 }
 
 function browserEthereumProvider(): EthereumProvider {
   if (typeof window === "undefined") throw new Error("browser_required");
+  // SAFETY: browser globals are inspected before narrowing to the optional ethereum property.
   const candidate = (window as Window & { ethereum?: unknown }).ethereum;
   if (candidate === null || typeof candidate !== "object" || !("request" in candidate)) {
     throw new Error("wallet_unavailable");
   }
+  // SAFETY: the request property is checked for function shape immediately below.
   const request = (candidate as { request?: unknown }).request;
   if (typeof request !== "function") throw new Error("wallet_unavailable");
+  // SAFETY: candidate has a callable request member validated immediately above.
   return candidate as EthereumProvider;
 }
 
