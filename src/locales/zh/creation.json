@@ -1,20 +1,11 @@
 {
   "gateWizard": {
     "title": "创建你的社区",
-    "description": "选择谁可以加入你的社区。",
+    "description": "选择成员必须通过的条件。需要进行真人验证。",
     "progress": "第 {current} 步，共 {total} 步 · {step}",
     "steps": {
-      "membership": "成员资格",
       "checks": "条件",
       "review": "确认"
-    },
-    "membership": {
-      "heading": "谁可以加入？",
-      "description": "成员加入前需验证自己是真人。",
-      "humansOnlyTitle": "仅限真人",
-      "humansOnlyDescription": "成员加入前需验证自己是真人。",
-      "humansAndBotsTitle": "真人和机器人",
-      "humansAndBotsDescription": "加入无需真人验证。"
     },
     "checks": {
       "heading": "成员需要通过哪些条件？",
@@ -115,6 +106,7 @@
       "heading": "准备创建你的社区了吗？",
       "description": "以下是人们加入时需要满足的条件。",
       "whoCanJoin": "谁可以加入",
+      "humansOnly": "仅限真人",
       "checksLabel": "额外条件",
       "allRequirementsNote": "每个人都必须满足你选择的所有条件。",
       "noChecksNote": "没有额外条件。",

@@ -152,14 +152,13 @@ describe("compiled gate policy", () => {
     });
   });
 
-  test("open humans-and-bots draft compiles to an empty requirement path", () => {
-    const draft: GateWizardDraft = {
-      ...createDefaultGateWizardDraft(),
-      membershipMode: "humans-and-bots",
-    };
+  test("always compiles a human-verification baseline", () => {
+    const draft: GateWizardDraft = createDefaultGateWizardDraft();
     const compiled = compileGateWizardDraft(draft);
     expect(compiled.accessPaths).toHaveLength(1);
-    expect(compiled.accessPaths[0].requirements).toEqual([]);
+    expect(compiled.accessPaths[0].requirements).toEqual([
+      { requirement: "human-verification" },
+    ]);
   });
 
   test("flags drafts that include exploration-only checks", () => {

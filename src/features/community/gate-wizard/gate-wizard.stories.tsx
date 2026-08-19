@@ -15,7 +15,7 @@ import {
 function GateWizardStory(props: {
   catalogMode?: "production" | "exploration";
   initialDraft?: GateWizardDraft;
-  initialStep?: "membership" | "checks" | "review";
+  initialStep?: "checks" | "review";
 }) {
   const [draft, setDraft] = createSignal(untrack(() => props.initialDraft ?? createDefaultGateWizardDraft()));
   const [finished, setFinished] = createSignal(0);
@@ -48,10 +48,7 @@ export const Exploration: Story = {
   render: (args) => <GateWizardStory catalogMode={args.catalogMode} initialDraft={args.draft} />,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    // Step 1: membership mode.
-    await userEvent.click(canvas.getByRole("radio", { name: /^Humans and bots\b/ }));
-    await userEvent.click(canvas.getByRole("button", { name: "Continue" }));
-    // Step 2: checks with implicit AND.
+    // Step 1: checks with implicit AND and a human-only baseline.
     await userEvent.click(canvas.getByRole("checkbox", { name: "Adults only (18+)" }));
     await userEvent.click(canvas.getByRole("checkbox", { name: "Nationality" }));
     await expect(canvas.getByRole("button", { name: "Continue" })).toBeDisabled();
@@ -59,17 +56,16 @@ export const Exploration: Story = {
     await userEvent.click(canvas.getByRole("checkbox", { name: "Japan" }));
     await expect(canvas.getByRole("button", { name: "Continue" })).toBeEnabled();
     await userEvent.click(canvas.getByRole("button", { name: "Continue" }));
-    // Step 3: review is a plain-language summary.
+    // Step 2: review is a plain-language summary.
     await expect(canvas.getByText("Who can join")).toBeInTheDocument();
-    await expect(canvas.getByText("Humans and bots")).toBeInTheDocument();
+    await expect(canvas.getByText("Humans only")).toBeInTheDocument();
     await expect(canvas.getByText("Extra checks")).toBeInTheDocument();
     await expect(canvas.getByText("At least 18 years old")).toBeInTheDocument();
     await expect(canvas.getByText(/Japan/)).toBeInTheDocument();
     await userEvent.click(canvas.getByRole("button", { name: "Create community" }));
     await expect(canvas.getByText("Finished 1 times")).toBeInTheDocument();
     await userEvent.click(canvas.getByRole("button", { name: "Back" }));
-    await userEvent.click(canvas.getByRole("button", { name: "Back" }));
-    await expect(canvas.getByText("Who can join?")).toBeInTheDocument();
+    await expect(canvas.getByText("Which checks should members pass?")).toBeInTheDocument();
   },
 };
 
@@ -78,35 +74,11 @@ export const ProductionCatalog: Story = {
   render: (args) => <GateWizardStory catalogMode={args.catalogMode} initialDraft={args.draft} />,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(canvas.getByText("Who can join?")).toBeInTheDocument();
-    await expect(canvas.getByRole("radio", { name: /^Humans only\b/ })).toBeChecked();
-    await expect(canvas.getByRole("button", { name: "Continue" })).toBeEnabled();
-  },
-};
-
-export const ProductionChecks: Story = {
-  args: {
-    catalogMode: "production",
-    draft: createDefaultGateWizardDraft(),
-    initialStep: "checks",
-  },
-  render: (args) => (
-    <GateWizardStory
-      catalogMode={args.catalogMode}
-      initialDraft={args.draft}
-      initialStep={args.initialStep}
-    />
-  ),
-  play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement);
     await expect(canvas.getByText("Which checks should members pass?")).toBeInTheDocument();
-    // Design-hold checks stay visible but disabled until the policy model lands.
+    await expect(canvas.getByRole("checkbox", { name: "Adults only (18+)" })).toBeEnabled();
     await expect(canvas.getByRole("checkbox", { name: "Nationality" })).toBeDisabled();
-    await expect(canvas.getAllByText("Coming later").length).toBeGreaterThan(0);
-    // Exploration-only checks are omitted entirely from the production catalog.
     await expect(canvas.queryByRole("checkbox", { name: "NFT" })).toBeNull();
-    await expect(canvas.queryByRole("checkbox", { name: "Token balance" })).toBeNull();
-    await expect(canvas.queryByRole("checkbox", { name: "Passport score" })).toBeNull();
+    await expect(canvas.getByRole("button", { name: "Continue" })).toBeEnabled();
   },
 };
 
@@ -131,6 +103,7 @@ export const ProductionReview: Story = {
     const canvas = within(canvasElement);
     await expect(canvas.getByText("Ready to create your community?")).toBeInTheDocument();
     await expect(canvas.getByText("Who can join")).toBeInTheDocument();
+    await expect(canvas.getByText("Humans only")).toBeInTheDocument();
     await expect(canvas.getByText("Extra checks")).toBeInTheDocument();
     await expect(canvas.getByText("At least 18 years old")).toBeInTheDocument();
   },

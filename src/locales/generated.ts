@@ -103,21 +103,14 @@ export const GENERATED_LOCALE_CATALOGS = {
             "heading": "أي أصل، وكم المبلغ؟"
           }
         },
-        "description": "اختر من يمكنه الانضمام إلى مجتمعك.",
-        "membership": {
-          "description": "يتحقق الأعضاء من أنهم بشر قبل الانضمام.",
-          "heading": "من يمكنه الانضمام؟",
-          "humansAndBotsDescription": "لا يُطلب التحقق البشري للانضمام.",
-          "humansAndBotsTitle": "البشر والروبوتات",
-          "humansOnlyDescription": "يتحقق الأعضاء من أنهم بشر قبل الانضمام.",
-          "humansOnlyTitle": "البشر فقط"
-        },
+        "description": "اختر الشروط التي يجب على الأعضاء استيفاؤها. التحقق البشري مطلوب.",
         "progress": "الخطوة {current} من {total} · {step}",
         "review": {
           "allRequirementsNote": "يجب على الجميع استيفاء كل شرط اخترته.",
           "checksLabel": "شروط إضافية",
           "description": "إليك ما سيحتاج الأشخاص إليه للانضمام.",
           "heading": "هل أنت مستعد لإنشاء مجتمعك؟",
+          "humansOnly": "البشر فقط",
           "noChecksNote": "لا توجد شروط إضافية.",
           "requirements": {
             "ageMinimum": "العمر 18 عامًا على الأقل",
@@ -133,7 +126,6 @@ export const GENERATED_LOCALE_CATALOGS = {
         },
         "steps": {
           "checks": "الشروط",
-          "membership": "العضوية",
           "review": "المراجعة"
         },
         "title": "أنشئ مجتمعك"
@@ -384,21 +376,14 @@ export const GENERATED_LOCALE_CATALOGS = {
             "heading": "Which asset, and how much?"
           }
         },
-        "description": "Choose who can join your community.",
-        "membership": {
-          "description": "Members verify they are human before they join.",
-          "heading": "Who can join?",
-          "humansAndBotsDescription": "No human verification is required to join.",
-          "humansAndBotsTitle": "Humans and bots",
-          "humansOnlyDescription": "Members verify they are human before they join.",
-          "humansOnlyTitle": "Humans only"
-        },
+        "description": "Choose the checks members must pass. Human verification is required.",
         "progress": "Step {current} of {total} · {step}",
         "review": {
           "allRequirementsNote": "Everyone must meet every check you selected.",
           "checksLabel": "Extra checks",
           "description": "Here’s what people will need to join.",
           "heading": "Ready to create your community?",
+          "humansOnly": "Humans only",
           "noChecksNote": "None.",
           "requirements": {
             "ageMinimum": "At least 18 years old",
@@ -414,7 +399,6 @@ export const GENERATED_LOCALE_CATALOGS = {
         },
         "steps": {
           "checks": "Checks",
-          "membership": "Membership",
           "review": "Review"
         },
         "title": "Create your community"
@@ -665,21 +649,14 @@ export const GENERATED_LOCALE_CATALOGS = {
             "heading": "哪个资产，多少数量？"
           }
         },
-        "description": "选择谁可以加入你的社区。",
-        "membership": {
-          "description": "成员加入前需验证自己是真人。",
-          "heading": "谁可以加入？",
-          "humansAndBotsDescription": "加入无需真人验证。",
-          "humansAndBotsTitle": "真人和机器人",
-          "humansOnlyDescription": "成员加入前需验证自己是真人。",
-          "humansOnlyTitle": "仅限真人"
-        },
+        "description": "选择成员必须通过的条件。需要进行真人验证。",
         "progress": "第 {current} 步，共 {total} 步 · {step}",
         "review": {
           "allRequirementsNote": "每个人都必须满足你选择的所有条件。",
           "checksLabel": "额外条件",
           "description": "以下是人们加入时需要满足的条件。",
           "heading": "准备创建你的社区了吗？",
+          "humansOnly": "仅限真人",
           "noChecksNote": "没有额外条件。",
           "requirements": {
             "ageMinimum": "年满 18 岁",
@@ -695,7 +672,6 @@ export const GENERATED_LOCALE_CATALOGS = {
         },
         "steps": {
           "checks": "条件",
-          "membership": "成员资格",
           "review": "确认"
         },
         "title": "创建你的社区"

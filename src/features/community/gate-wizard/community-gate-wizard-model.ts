@@ -51,7 +51,6 @@ export function isGateCheckSelectable(
   return mode === "exploration" || entry.capability === "available";
 }
 
-export type GateWizardMembershipMode = "humans-only" | "humans-and-bots";
 export type GenderMarker = "M" | "F";
 
 export type NftCheckConfig =
@@ -67,7 +66,6 @@ export type GateWizardCheck =
   | { kind: "passport_score"; minimumScore: number };
 
 export type GateWizardDraft = {
-  membershipMode: GateWizardMembershipMode;
   checks: GateWizardCheck[];
 };
 
@@ -87,7 +85,7 @@ const MAINNET_CONTRACT_PATTERN = /^0x[0-9a-fA-F]{40}$/;
 const CAIP19_ASSET_PATTERN = /^eip155:1\/erc20:0x[0-9a-fA-F]{40}$/;
 
 export function createDefaultGateWizardDraft(): GateWizardDraft {
-  return { membershipMode: "humans-only", checks: [] };
+  return { checks: [] };
 }
 
 function sortGateWizardChecks(checks: GateWizardCheck[]): GateWizardCheck[] {
@@ -219,10 +217,7 @@ export type CompiledGatePolicy = {
 };
 
 export function compileGateWizardDraft(draft: GateWizardDraft): CompiledGatePolicy {
-  const requirements: CompiledGateRequirement[] = [];
-  if (draft.membershipMode === "humans-only") {
-    requirements.push({ requirement: "human-verification" });
-  }
+  const requirements: CompiledGateRequirement[] = [{ requirement: "human-verification" }];
   for (const check of sortGateWizardChecks(draft.checks)) {
     switch (check.kind) {
       case "age18":

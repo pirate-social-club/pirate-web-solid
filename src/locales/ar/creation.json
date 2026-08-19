@@ -1,20 +1,11 @@
 {
   "gateWizard": {
     "title": "أنشئ مجتمعك",
-    "description": "اختر من يمكنه الانضمام إلى مجتمعك.",
+    "description": "اختر الشروط التي يجب على الأعضاء استيفاؤها. التحقق البشري مطلوب.",
     "progress": "الخطوة {current} من {total} · {step}",
     "steps": {
-      "membership": "العضوية",
       "checks": "الشروط",
       "review": "المراجعة"
-    },
-    "membership": {
-      "heading": "من يمكنه الانضمام؟",
-      "description": "يتحقق الأعضاء من أنهم بشر قبل الانضمام.",
-      "humansOnlyTitle": "البشر فقط",
-      "humansOnlyDescription": "يتحقق الأعضاء من أنهم بشر قبل الانضمام.",
-      "humansAndBotsTitle": "البشر والروبوتات",
-      "humansAndBotsDescription": "لا يُطلب التحقق البشري للانضمام."
     },
     "checks": {
       "heading": "ما الشروط التي يجب أن يستوفيها الأعضاء؟",
@@ -115,6 +106,7 @@
       "heading": "هل أنت مستعد لإنشاء مجتمعك؟",
       "description": "إليك ما سيحتاج الأشخاص إليه للانضمام.",
       "whoCanJoin": "من يمكنه الانضمام",
+      "humansOnly": "البشر فقط",
       "checksLabel": "شروط إضافية",
       "allRequirementsNote": "يجب على الجميع استيفاء كل شرط اخترته.",
       "noChecksNote": "لا توجد شروط إضافية.",

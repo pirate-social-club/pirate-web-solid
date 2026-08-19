@@ -1,6 +1,6 @@
 import { For, Show, createMemo, createSignal } from "solid-js";
 
-import { Button, CheckboxCard, IconCheck, OptionCard, Type, cn } from "@pirate/web-solid-ui";
+import { Button, CheckboxCard, IconCheck, Type, cn } from "@pirate/web-solid-ui";
 
 import { interpolateMessage } from "../../../locales";
 import { useUiLocale } from "../../../lib/ui-locale";
@@ -19,7 +19,7 @@ import {
 import { GateCheckConfigForm } from "./gate-check-config-forms";
 import { createGateWizardCopyAccessor, type GateWizardCopy } from "./gate-wizard-copy";
 
-export const GATE_WIZARD_STEPS = ["membership", "checks", "review"] as const;
+export const GATE_WIZARD_STEPS = ["checks", "review"] as const;
 export type GateWizardStep = (typeof GATE_WIZARD_STEPS)[number];
 
 export interface CommunityGateWizardPageProps {
@@ -82,7 +82,7 @@ export function CommunityGateWizardPage(props: CommunityGateWizardPageProps) {
   const locale = () => useUiLocale();
   const copy = createGateWizardCopyAccessor(locale);
   const catalogMode = () => props.catalogMode ?? "exploration";
-  const [step, setStep] = createSignal<GateWizardStep>(props.initialStep ?? "membership");
+  const [step, setStep] = createSignal<GateWizardStep>(props.initialStep ?? "checks");
   const compiled = createMemo(() => compileGateWizardDraft(props.draft));
   const requirements = () => compiled().accessPaths[0]?.requirements ?? [];
   const checkRequirements = () =>
@@ -134,33 +134,6 @@ export function CommunityGateWizardPage(props: CommunityGateWizardPageProps) {
           })}
         </Type>
       </div>
-
-      <Show when={step() === "membership"}>
-        <div class="space-y-4">
-          <div class="space-y-1">
-            <Type as="h2" variant="h2">{copy().membership.heading}</Type>
-            <Type as="p" variant="caption">{copy().membership.description}</Type>
-          </div>
-          <div class="grid gap-3 sm:grid-cols-2" role="radiogroup" aria-label={copy().membership.heading}>
-            <OptionCard
-              aria-checked={props.draft.membershipMode === "humans-only" ? "true" : "false"}
-              role="radio"
-              selected={props.draft.membershipMode === "humans-only"}
-              title={copy().membership.humansOnlyTitle}
-              description={copy().membership.humansOnlyDescription}
-              onClick={() => updateDraft({ ...props.draft, membershipMode: "humans-only" })}
-            />
-            <OptionCard
-              aria-checked={props.draft.membershipMode === "humans-and-bots" ? "true" : "false"}
-              role="radio"
-              selected={props.draft.membershipMode === "humans-and-bots"}
-              title={copy().membership.humansAndBotsTitle}
-              description={copy().membership.humansAndBotsDescription}
-              onClick={() => updateDraft({ ...props.draft, membershipMode: "humans-and-bots" })}
-            />
-          </div>
-        </div>
-      </Show>
 
       <Show when={step() === "checks"}>
         <div class="space-y-4">
@@ -219,11 +192,7 @@ export function CommunityGateWizardPage(props: CommunityGateWizardPageProps) {
           <div class="rounded-[var(--radius-2_5xl)] border border-border-soft bg-card p-5">
             <div class="space-y-1">
               <Type as="div" variant="label">{copy().review.whoCanJoin}</Type>
-              <Type as="p" variant="body">
-                {props.draft.membershipMode === "humans-only"
-                  ? copy().membership.humansOnlyTitle
-                  : copy().membership.humansAndBotsTitle}
-              </Type>
+              <Type as="p" variant="body">{copy().review.humansOnly}</Type>
             </div>
           </div>
           <div

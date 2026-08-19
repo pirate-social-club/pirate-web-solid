@@ -1,20 +1,11 @@
 {
   "gateWizard": {
     "title": "Create your community",
-    "description": "Choose who can join your community.",
+    "description": "Choose the checks members must pass. Human verification is required.",
     "progress": "Step {current} of {total} · {step}",
     "steps": {
-      "membership": "Membership",
       "checks": "Checks",
       "review": "Review"
-    },
-    "membership": {
-      "heading": "Who can join?",
-      "description": "Members verify they are human before they join.",
-      "humansOnlyTitle": "Humans only",
-      "humansOnlyDescription": "Members verify they are human before they join.",
-      "humansAndBotsTitle": "Humans and bots",
-      "humansAndBotsDescription": "No human verification is required to join."
     },
     "checks": {
       "heading": "Which checks should members pass?",
@@ -115,6 +106,7 @@
       "heading": "Ready to create your community?",
       "description": "Here’s what people will need to join.",
       "whoCanJoin": "Who can join",
+      "humansOnly": "Humans only",
       "checksLabel": "Extra checks",
       "allRequirementsNote": "Everyone must meet every check you selected.",
       "noChecksNote": "None.",
