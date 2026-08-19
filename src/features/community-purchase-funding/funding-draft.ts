@@ -60,62 +60,114 @@ export type FundingDraftState =
 
 const MAX_STORAGE_BYTES = 32 * 1024;
 
-function isRecord(value: unknown): value is Record<string, unknown> {
+function isObject(value: unknown): value is object {
   return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+type PropertyValue = string | number | boolean | object | null | undefined;
+
+function property(value: object, key: string): PropertyValue {
+  const candidate: unknown = Object.getOwnPropertyDescriptor(value, key)?.value;
+  if (
+    candidate === null ||
+    candidate === undefined ||
+    typeof candidate === "string" ||
+    typeof candidate === "number" ||
+    typeof candidate === "boolean" ||
+    typeof candidate === "object"
+  ) {
+    return candidate;
+  }
+  return undefined;
 }
 
 function nonEmpty(value: unknown): value is string {
   return typeof value === "string" && value.length > 0 && value.length <= 4_096;
 }
 
-function isIntent(value: unknown): value is CommunityPurchaseFundingIntent {
-  return isRecord(value) && nonEmpty(value.community_id) && nonEmpty(value.listing_id);
+function integer(value: unknown): value is number {
+  return typeof value === "number" && Number.isInteger(value);
 }
 
-function isTerms(value: unknown): value is CommunityPurchaseFundingTerms {
-  return (
-    isRecord(value) &&
-    Number.isInteger(value.chain_id) &&
-    nonEmpty(value.token_contract) &&
-    value.token_decimals === 6 &&
-    nonEmpty(value.sender) &&
-    nonEmpty(value.recipient) &&
-    /^[1-9][0-9]*$/u.test(String(value.amount_atomic)) &&
-    Number.isInteger(value.required_confirmations)
-  );
+function parseIntent(value: unknown): CommunityPurchaseFundingIntent | null {
+  if (!isObject(value)) return null;
+  const communityId = property(value, "community_id");
+  const listingId = property(value, "listing_id");
+  return nonEmpty(communityId) && nonEmpty(listingId)
+    ? { community_id: communityId, listing_id: listingId }
+    : null;
 }
 
-function isQuote(value: unknown): value is CommunityPurchaseFundingQuote {
-  return (
-    isRecord(value) &&
-    nonEmpty(value.quote_id) &&
-    nonEmpty(value.community_id) &&
-    nonEmpty(value.listing_id) &&
-    Number.isInteger(value.policy_version) &&
-    nonEmpty(value.quoted_at) &&
-    nonEmpty(value.expires_at) &&
-    typeof value.replayed === "boolean" &&
-    isTerms(value.funding)
-  );
+function parseTerms(value: unknown): CommunityPurchaseFundingTerms | null {
+  if (!isObject(value)) return null;
+  const chainId = property(value, "chain_id");
+  const tokenContract = property(value, "token_contract");
+  const tokenDecimals = property(value, "token_decimals");
+  const sender = property(value, "sender");
+  const recipient = property(value, "recipient");
+  const amountAtomic = property(value, "amount_atomic");
+  const requiredConfirmations = property(value, "required_confirmations");
+  return integer(chainId) &&
+    nonEmpty(tokenContract) &&
+    tokenDecimals === 6 &&
+    nonEmpty(sender) &&
+    nonEmpty(recipient) &&
+    typeof amountAtomic === "string" &&
+    /^[1-9][0-9]*$/u.test(amountAtomic) &&
+    integer(requiredConfirmations)
+    ? {
+        chain_id: chainId,
+        token_contract: tokenContract,
+        token_decimals: 6,
+        sender,
+        recipient,
+        amount_atomic: amountAtomic,
+        required_confirmations: requiredConfirmations,
+      }
+    : null;
+}
+
+function parseQuote(value: unknown): CommunityPurchaseFundingQuote | null {
+  if (!isObject(value)) return null;
+  const quoteId = property(value, "quote_id");
+  const communityId = property(value, "community_id");
+  const listingId = property(value, "listing_id");
+  const policyVersion = property(value, "policy_version");
+  const quotedAt = property(value, "quoted_at");
+  const expiresAt = property(value, "expires_at");
+  const replayed = property(value, "replayed");
+  const funding = parseTerms(property(value, "funding"));
+  return nonEmpty(quoteId) &&
+    nonEmpty(communityId) &&
+    nonEmpty(listingId) &&
+    integer(policyVersion) &&
+    nonEmpty(quotedAt) &&
+    nonEmpty(expiresAt) &&
+    typeof replayed === "boolean" &&
+    funding !== null
+    ? {
+        quote_id: quoteId,
+        community_id: communityId,
+        listing_id: listingId,
+        policy_version: policyVersion,
+        quoted_at: quotedAt,
+        expires_at: expiresAt,
+        replayed,
+        funding,
+      }
+    : null;
 }
 
 function decodeDraft(value: unknown): CommunityPurchaseFundingDraft | null {
-  if (
-    !isRecord(value) ||
-    value.version !== 1 ||
-    !isIntent(value.intent) ||
-    !isQuote(value.quote) ||
-    !nonEmpty(value.saved_at)
-  ) {
+  if (!isObject(value) || property(value, "version") !== 1) return null;
+  const intent = parseIntent(property(value, "intent"));
+  const quote = parseQuote(property(value, "quote"));
+  const savedAt = property(value, "saved_at");
+  if (intent === null || quote === null || !nonEmpty(savedAt)) return null;
+  if (quote.community_id !== intent.community_id || quote.listing_id !== intent.listing_id) {
     return null;
   }
-  if (
-    value.quote.community_id !== value.intent.community_id ||
-    value.quote.listing_id !== value.intent.listing_id
-  ) {
-    return null;
-  }
-  return value as unknown as CommunityPurchaseFundingDraft;
+  return { version: 1, intent, quote, saved_at: savedAt };
 }
 
 function sameIntent(
@@ -183,7 +235,16 @@ export class CommunityPurchaseFundingDraftController {
       quote,
       saved_at: new Date(this.now()).toISOString(),
     };
-    this.storage.setItem(COMMUNITY_PURCHASE_FUNDING_DRAFT_KEY, JSON.stringify(draft));
+    // Local persistence is a reload aid, not part of the server transaction.
+    // A quota/full/private-mode storage failure must not make a successfully
+    // created server quote look like an API failure. Keep it in memory for the
+    // current page; a later reload can safely retry via exact replay.
+    try {
+      this.storage.setItem(COMMUNITY_PURCHASE_FUNDING_DRAFT_KEY, JSON.stringify(draft));
+    } catch {
+      // Deliberately best-effort; no auth or economic data is written anywhere
+      // else as a fallback.
+    }
     this.draft = draft;
     return quote;
   }

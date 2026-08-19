@@ -83,10 +83,57 @@ describe("CommunityPurchaseFundingDraftController", () => {
     expect(calls).toBe(2);
   });
 
+  test("keeps a successful quote usable when local persistence is unavailable", async () => {
+    let calls = 0;
+    const failingStorage: FundingDraftStorage = {
+      getItem: () => null,
+      setItem: () => { throw new Error("storage quota exceeded"); },
+      removeItem: () => undefined,
+    };
+    const client = {
+      createQuote: async () => {
+        calls += 1;
+        return { ...QUOTE, replayed: calls > 1 };
+      },
+    };
+    const currentPage = new CommunityPurchaseFundingDraftController({
+      storage: failingStorage,
+      client,
+      now: () => Date.parse("2026-08-19T10:01:00.000Z"),
+    });
+    await expect(currentPage.createOrResumeQuote(INTENT)).resolves.toMatchObject({ quote_id: "quote_1" });
+    expect(currentPage.state()).toMatchObject({ kind: "ready" });
+
+    const afterReload = new CommunityPurchaseFundingDraftController({
+      storage: failingStorage,
+      client,
+      now: () => Date.parse("2026-08-19T10:02:00.000Z"),
+    });
+    await expect(afterReload.createOrResumeQuote(INTENT)).resolves.toMatchObject({ replayed: true });
+    expect(calls).toBe(2);
+  });
+
   test("discards malformed, mismatched, oversized, and expired drafts", () => {
     const malformed = storage(JSON.stringify({ version: 1, intent: INTENT }));
     expect(new CommunityPurchaseFundingDraftController({
       storage: malformed,
+      client: { createQuote: async () => QUOTE },
+    }).state()).toEqual({ kind: "empty" });
+
+    const mismatched = storage(JSON.stringify({
+      version: 1,
+      intent: INTENT,
+      quote: { ...QUOTE, community_id: "different-community" },
+      saved_at: "2026-08-19T09:00:00.000Z",
+    }));
+    expect(new CommunityPurchaseFundingDraftController({
+      storage: mismatched,
+      client: { createQuote: async () => QUOTE },
+    }).state()).toEqual({ kind: "empty" });
+
+    const oversized = storage("x".repeat(32 * 1024 + 1));
+    expect(new CommunityPurchaseFundingDraftController({
+      storage: oversized,
       client: { createQuote: async () => QUOTE },
     }).state()).toEqual({ kind: "empty" });
 
