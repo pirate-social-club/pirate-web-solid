@@ -23,7 +23,10 @@
       "vars": {
         "API_NEXT_ORIGIN": "https://api-next-staging.pirate.sc",
         "VERIFICATION_UI_ENABLED": "true",
-        "PRIVY_APP_ID": "cmsw5pis300b80cladbxx7bsr"
+        "PRIVY_APP_ID": "cmsw5pis300b80cladbxx7bsr",
+        "FUNDING_HARNESS_ENABLED": "true",
+        "FUNDING_HARNESS_COMMUNITY_ID": "staging-commerce-raw",
+        "FUNDING_HARNESS_LISTING_ID": "staging-listing-raw-1"
       }
     }
   }
