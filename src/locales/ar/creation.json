@@ -1,0 +1,146 @@
+{
+  "gateWizard": {
+    "title": "أنشئ مجتمعك",
+    "description": "حدد من يمكنه الانضمام. تأتي قواعد النشر والتعليق والتصويت لاحقًا.",
+    "steps": {
+      "membership": "العضوية",
+      "invite": "الدعوة",
+      "checks": "الشروط",
+      "review": "المراجعة"
+    },
+    "membership": {
+      "heading": "من يمكنه الانضمام؟",
+      "description": "ينطبق التحقق البشري على العضوية فقط، ولا يحدد أبدًا من يمكنه النشر أو التعليق أو التصويت.",
+      "humansOnlyTitle": "البشر فقط",
+      "humansOnlyDescription": "يتحقق الأعضاء من أنهم بشر قبل الانضمام.",
+      "humansAndBotsTitle": "البشر والروبوتات",
+      "humansAndBotsDescription": "لا يُطلب التحقق البشري للانضمام."
+    },
+    "invite": {
+      "heading": "هل يحتاج الأعضاء إلى دعوة؟",
+      "description": "يجتمع شرط الدعوة مع شروط العضوية معًا.",
+      "openTitle": "يمكن لأي شخص الانضمام",
+      "openDescription": "لا حاجة إلى دعوة.",
+      "inviteRequiredTitle": "الدعوة مطلوبة",
+      "inviteRequiredDescription": "لا يمكن الانضمام إلا للأشخاص المدعوين."
+    },
+    "checks": {
+      "heading": "ما الشروط التي يجب أن يستوفيها الأعضاء؟",
+      "description": "يجب على الأعضاء اجتياز كل شرط تختاره، ولا توجد هنا صيغة «أحد هذه».",
+      "noneSelected": "لم يتم اختيار أي شروط. يمكن لأي شخص يجتاز الخطوات أعلاه الانضمام.",
+      "engagementNote": "من يمكنه التفاعل — النشر والتعليق والتصويت — إعداد منفصل بعد الإنشاء.",
+      "capability": {
+        "availableNow": "متاح الآن",
+        "designHold": "بانتظار نموذج السياسة",
+        "exploration": "استكشاف — غير مدعوم في api-next بعد",
+        "comingLater": "قريبًا"
+      },
+      "catalog": {
+        "age18": {
+          "label": "للبالغين فقط (+18)",
+          "description": "يجب أن يكون عمر الأعضاء 18 عامًا على الأقل."
+        },
+        "nationality": {
+          "label": "الجنسية",
+          "description": "يثبت الأعضاء حيازة مستند من بلد تسمح به."
+        },
+        "gender": {
+          "label": "علامة الجنس في المستند",
+          "description": "يثبت الأعضاء حيازة مستند يحمل علامة تسمح بها."
+        },
+        "nft": {
+          "label": "رمز NFT",
+          "description": "يمتلك الأعضاء مجموعة NFT أو قطعة مقتنيات محددة."
+        },
+        "token_balance": {
+          "label": "رصيد الرموز",
+          "description": "يحتفظ الأعضاء بحد أدنى من رصيد أصل رقمي."
+        },
+        "passport_score": {
+          "label": "نتيجة Passport",
+          "description": "يحقق الأعضاء حدًا أدنى من نقاط Gitcoin Passport."
+        }
+      },
+      "nationality": {
+        "heading": "أي الدول؟",
+        "emptyError": "اختر دولة واحدة على الأقل.",
+        "countries": {
+          "US": "الولايات المتحدة",
+          "CA": "كندا",
+          "MX": "المكسيك",
+          "GB": "المملكة المتحدة",
+          "DE": "ألمانيا",
+          "FR": "فرنسا",
+          "BR": "البرازيل",
+          "JP": "اليابان",
+          "CN": "الصين",
+          "IN": "الهند",
+          "AU": "أستراليا",
+          "EG": "مصر"
+        }
+      },
+      "gender": {
+        "heading": "أي العلامات؟",
+        "emptyError": "اختر علامة واحدة على الأقل.",
+        "markerM": "M — علامة ذكر",
+        "markerF": "F — علامة أنثى"
+      },
+      "nft": {
+        "heading": "شرط NFT",
+        "modeCollection": "مجموعة NFT",
+        "modeCollectible": "قطعة مقتنيات محددة",
+        "contractLabel": "عنوان العقد",
+        "contractPlaceholder": "0x…",
+        "contractError": "أدخل عنوان عقد على الشبكة الرئيسية يبدأ بـ 0x.",
+        "minCountLabel": "الحد الأدنى للمملوك",
+        "categoryLabel": "الفئة",
+        "categoryTradingCard": "بطاقة تجارية",
+        "categoryWatch": "ساعة",
+        "subjectLabel": "المقتنى",
+        "subjectPlaceholder": "مثال: لاعب أو شخصية أو علامة تجارية",
+        "subjectError": "سمِّ المقتنى.",
+        "minQuantityLabel": "الحد الأدنى للكمية"
+      },
+      "tokenBalance": {
+        "heading": "أي أصل، وكم المبلغ؟",
+        "assetLabel": "الأصل",
+        "assetPlaceholder": "eip155:1/erc20:0x…",
+        "assetError": "أدخل معرف أصل مثل eip155:1/erc20:0x…",
+        "amountLabel": "الحد الأدنى للرصيد",
+        "amountPlaceholder": "100",
+        "amountError": "أدخل مبلغًا أكبر من صفر."
+      },
+      "passportScore": {
+        "heading": "الحد الأدنى للنتيجة؟",
+        "label": "الحد الأدنى لنقاط Gitcoin Passport",
+        "hint": "من 0 إلى 100.",
+        "error": "أدخل نتيجة صحيحة من 0 إلى 100."
+      }
+    },
+    "review": {
+      "heading": "راجع العضوية",
+      "pathLabel": "مسار الوصول 1",
+      "andNote": "يجب استيفاء كل الشرط.",
+      "openNote": "لا شروط — يمكن لأي شخص يستطيع الانضمام إلى المنصة أن يصبح عضوًا.",
+      "compiledLabel": "سياسة البوابة المُجمَّعة (معاينة مملوكة للقصة)",
+      "explorationNotice": "يتضمن هذا المسودة شروط استكشاف لا يدعمها api-next بعد.",
+      "engagementNotice": "تُضبط قواعد التفاعل للنشر والتعليق والتصويت بشكل منفصل.",
+      "requirements": {
+        "humanVerification": "تحقق بشري",
+        "invite": "دعوة",
+        "ageMinimum": "العمر 18 عامًا على الأقل",
+        "nationalityAllowed": "مستند من: {countries}",
+        "genderMarker": "علامة الجنس: {markers}",
+        "erc721Collection": "يمتلك {count} أو أكثر من {contract}",
+        "inventoryMatch": "يمتلك {quantity} أو أكثر من {category}: {subject}",
+        "assetOwnership": "يحمل {amount} أو أكثر من {asset}",
+        "reputationScore": "نقاط Gitcoin Passport بمقدار {score} أو أكثر"
+      }
+    },
+    "actions": {
+      "back": "رجوع",
+      "next": "التالي",
+      "finish": "إنهاء"
+    }
+  }
+}

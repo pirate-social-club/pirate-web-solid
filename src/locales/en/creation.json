@@ -1,0 +1,146 @@
+{
+  "gateWizard": {
+    "title": "Create your community",
+    "description": "Set who can join. Posting, commenting, and voting rules come later.",
+    "steps": {
+      "membership": "Membership",
+      "invite": "Invite",
+      "checks": "Checks",
+      "review": "Review"
+    },
+    "membership": {
+      "heading": "Who can join?",
+      "description": "Human verification applies to membership only. It never decides who can post, comment, or vote.",
+      "humansOnlyTitle": "Humans only",
+      "humansOnlyDescription": "Members verify they are human before they join.",
+      "humansAndBotsTitle": "Humans and bots",
+      "humansAndBotsDescription": "No human verification is required to join."
+    },
+    "invite": {
+      "heading": "Do members need an invitation?",
+      "description": "An invitation requirement combines with the membership checks.",
+      "openTitle": "Anyone may join",
+      "openDescription": "No invitation is needed.",
+      "inviteRequiredTitle": "Invitation required",
+      "inviteRequiredDescription": "Only invited people can join."
+    },
+    "checks": {
+      "heading": "Which checks should members pass?",
+      "description": "Members must pass every check you select. There is no either/or logic here.",
+      "noneSelected": "No checks selected. Anyone who passes the steps above can join.",
+      "engagementNote": "Who can engage — posting, commenting, and voting — is a separate setting after creation.",
+      "capability": {
+        "availableNow": "Available now",
+        "designHold": "Policy model pending",
+        "exploration": "Exploration — not backed by api-next yet",
+        "comingLater": "Coming later"
+      },
+      "catalog": {
+        "age18": {
+          "label": "Adults only (18+)",
+          "description": "Members must be at least 18 years old."
+        },
+        "nationality": {
+          "label": "Nationality",
+          "description": "Members prove a document from a country you allow."
+        },
+        "gender": {
+          "label": "Document gender marker",
+          "description": "Members prove a document with a marker you allow."
+        },
+        "nft": {
+          "label": "NFT",
+          "description": "Members own an NFT collection or a specific collectible."
+        },
+        "token_balance": {
+          "label": "Token balance",
+          "description": "Members hold a minimum balance of an asset."
+        },
+        "passport_score": {
+          "label": "Passport score",
+          "description": "Members meet a Gitcoin Passport score threshold."
+        }
+      },
+      "nationality": {
+        "heading": "Which countries?",
+        "emptyError": "Select at least one country.",
+        "countries": {
+          "US": "United States",
+          "CA": "Canada",
+          "MX": "Mexico",
+          "GB": "United Kingdom",
+          "DE": "Germany",
+          "FR": "France",
+          "BR": "Brazil",
+          "JP": "Japan",
+          "CN": "China",
+          "IN": "India",
+          "AU": "Australia",
+          "EG": "Egypt"
+        }
+      },
+      "gender": {
+        "heading": "Which markers?",
+        "emptyError": "Select at least one marker.",
+        "markerM": "M — male marker",
+        "markerF": "F — female marker"
+      },
+      "nft": {
+        "heading": "NFT requirement",
+        "modeCollection": "An NFT collection",
+        "modeCollectible": "A specific collectible",
+        "contractLabel": "Contract address",
+        "contractPlaceholder": "0x…",
+        "contractError": "Enter a mainnet contract address starting with 0x.",
+        "minCountLabel": "Minimum owned",
+        "categoryLabel": "Category",
+        "categoryTradingCard": "Trading card",
+        "categoryWatch": "Watch",
+        "subjectLabel": "Collectible",
+        "subjectPlaceholder": "e.g. a player, character, or brand",
+        "subjectError": "Name the collectible.",
+        "minQuantityLabel": "Minimum quantity"
+      },
+      "tokenBalance": {
+        "heading": "Which asset, and how much?",
+        "assetLabel": "Asset",
+        "assetPlaceholder": "eip155:1/erc20:0x…",
+        "assetError": "Enter an asset id like eip155:1/erc20:0x…",
+        "amountLabel": "Minimum balance",
+        "amountPlaceholder": "100",
+        "amountError": "Enter an amount greater than zero."
+      },
+      "passportScore": {
+        "heading": "Minimum score?",
+        "label": "Minimum Gitcoin Passport score",
+        "hint": "From 0 to 100.",
+        "error": "Enter a whole score from 0 to 100."
+      }
+    },
+    "review": {
+      "heading": "Review membership",
+      "pathLabel": "Access path 1",
+      "andNote": "Every requirement must pass.",
+      "openNote": "No requirements — anyone who can join the platform may become a member.",
+      "compiledLabel": "Compiled gate policy (story-owned preview)",
+      "explorationNotice": "This draft includes exploration checks that api-next does not support yet.",
+      "engagementNotice": "Engagement rules for posting, commenting, and voting are configured separately.",
+      "requirements": {
+        "humanVerification": "Verified human",
+        "invite": "Invitation",
+        "ageMinimum": "At least 18 years old",
+        "nationalityAllowed": "Document from: {countries}",
+        "genderMarker": "Gender marker: {markers}",
+        "erc721Collection": "Owns {count} or more from {contract}",
+        "inventoryMatch": "Owns {quantity} or more {category}: {subject}",
+        "assetOwnership": "Holds {amount} or more of {asset}",
+        "reputationScore": "Gitcoin Passport score of {score} or more"
+      }
+    },
+    "actions": {
+      "back": "Back",
+      "next": "Next",
+      "finish": "Finish"
+    }
+  }
+}

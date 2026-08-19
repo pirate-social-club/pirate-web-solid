@@ -1,0 +1,146 @@
+{
+  "gateWizard": {
+    "title": "创建你的社区",
+    "description": "设置谁可以加入。发帖、评论和投票规则稍后配置。",
+    "steps": {
+      "membership": "成员资格",
+      "invite": "邀请",
+      "checks": "条件",
+      "review": "确认"
+    },
+    "membership": {
+      "heading": "谁可以加入？",
+      "description": "真人验证仅适用于成员资格，绝不决定谁可以发帖、评论或投票。",
+      "humansOnlyTitle": "仅限真人",
+      "humansOnlyDescription": "成员加入前需验证自己是真人。",
+      "humansAndBotsTitle": "真人和机器人",
+      "humansAndBotsDescription": "加入无需真人验证。"
+    },
+    "invite": {
+      "heading": "成员需要邀请吗？",
+      "description": "邀请要求与成员条件同时生效。",
+      "openTitle": "任何人都可以加入",
+      "openDescription": "无需邀请。",
+      "inviteRequiredTitle": "需要邀请",
+      "inviteRequiredDescription": "只有受邀请的人才能加入。"
+    },
+    "checks": {
+      "heading": "成员需要通过哪些条件？",
+      "description": "成员必须通过你选择的每一项条件，这里没有“任选其一”的逻辑。",
+      "noneSelected": "未选择任何条件。通过上述步骤的任何人都可以加入。",
+      "engagementNote": "谁能互动——发帖、评论和投票——是创建后的独立设置。",
+      "capability": {
+        "availableNow": "现已可用",
+        "designHold": "策略模型待定",
+        "exploration": "探索性——api-next 尚不支持",
+        "comingLater": "即将推出"
+      },
+      "catalog": {
+        "age18": {
+          "label": "仅限成年人（18+）",
+          "description": "成员必须年满 18 岁。"
+        },
+        "nationality": {
+          "label": "国籍",
+          "description": "成员需证明持有你允许的国家/地区的证件。"
+        },
+        "gender": {
+          "label": "证件性别标记",
+          "description": "成员需证明持有带有你允许的标记的证件。"
+        },
+        "nft": {
+          "label": "NFT",
+          "description": "成员拥有一个 NFT 收藏集或特定藏品。"
+        },
+        "token_balance": {
+          "label": "代币余额",
+          "description": "成员持有某资产的最低余额。"
+        },
+        "passport_score": {
+          "label": "Passport 分数",
+          "description": "成员达到 Gitcoin Passport 分数门槛。"
+        }
+      },
+      "nationality": {
+        "heading": "哪些国家/地区？",
+        "emptyError": "请至少选择一个国家/地区。",
+        "countries": {
+          "US": "美国",
+          "CA": "加拿大",
+          "MX": "墨西哥",
+          "GB": "英国",
+          "DE": "德国",
+          "FR": "法国",
+          "BR": "巴西",
+          "JP": "日本",
+          "CN": "中国",
+          "IN": "印度",
+          "AU": "澳大利亚",
+          "EG": "埃及"
+        }
+      },
+      "gender": {
+        "heading": "哪些标记？",
+        "emptyError": "请至少选择一个标记。",
+        "markerM": "M — 男性标记",
+        "markerF": "F — 女性标记"
+      },
+      "nft": {
+        "heading": "NFT 条件",
+        "modeCollection": "一个 NFT 收藏集",
+        "modeCollectible": "特定藏品",
+        "contractLabel": "合约地址",
+        "contractPlaceholder": "0x…",
+        "contractError": "请输入以 0x 开头的主网合约地址。",
+        "minCountLabel": "最少持有数量",
+        "categoryLabel": "类别",
+        "categoryTradingCard": "交易卡",
+        "categoryWatch": "腕表",
+        "subjectLabel": "藏品",
+        "subjectPlaceholder": "例如球员、角色或品牌",
+        "subjectError": "请填写藏品名称。",
+        "minQuantityLabel": "最少数量"
+      },
+      "tokenBalance": {
+        "heading": "哪个资产，多少数量？",
+        "assetLabel": "资产",
+        "assetPlaceholder": "eip155:1/erc20:0x…",
+        "assetError": "请输入形如 eip155:1/erc20:0x… 的资产 ID。",
+        "amountLabel": "最低余额",
+        "amountPlaceholder": "100",
+        "amountError": "请输入大于零的数量。"
+      },
+      "passportScore": {
+        "heading": "最低分数？",
+        "label": "最低 Gitcoin Passport 分数",
+        "hint": "0 到 100。",
+        "error": "请输入 0 到 100 之间的整数。"
+      }
+    },
+    "review": {
+      "heading": "确认成员资格",
+      "pathLabel": "加入路径 1",
+      "andNote": "每项条件都必须满足。",
+      "openNote": "没有任何条件——平台上可加入的任何人都可以成为成员。",
+      "compiledLabel": "编译后的门槛策略（Story 专属预览）",
+      "explorationNotice": "此草案包含 api-next 尚不支持的探索性条件。",
+      "engagementNotice": "发帖、评论和投票的互动规则将单独配置。",
+      "requirements": {
+        "humanVerification": "真人验证",
+        "invite": "邀请",
+        "ageMinimum": "年满 18 岁",
+        "nationalityAllowed": "证件来自：{countries}",
+        "genderMarker": "性别标记：{markers}",
+        "erc721Collection": "持有 {contract} 的 {count} 个或更多",
+        "inventoryMatch": "持有 {quantity} 个或更多 {category}：{subject}",
+        "assetOwnership": "持有 {amount} 或更多 {asset}",
+        "reputationScore": "Gitcoin Passport 分数不低于 {score}"
+      }
+    },
+    "actions": {
+      "back": "上一步",
+      "next": "下一步",
+      "finish": "完成"
+    }
+  }
+}
