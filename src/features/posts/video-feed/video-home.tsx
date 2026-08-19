@@ -18,6 +18,11 @@ function toMediaPost(item: VideoHomeReviewItem): MediaPostData {
     videoUrl: item.media.src,
     posterUrl: item.media.posterSrc,
     authorName: item.publisher.handle,
+    publisherHref: item.publisher.href,
+    publisherKind: item.publisher.kind,
+    ...(item.publisher.kind === "community"
+      ? { publisherLabel: `c/${item.publisher.handle}` }
+      : {}),
     caption: item.caption,
     title: item.song?.title,
     artist: item.song?.artist,
@@ -56,7 +61,12 @@ export default function VideoHome(props: VideoHomeProps) {
           feedLabel="Pirate video home"
           hasMobileFooter
           muted={muted()}
-          onAuthorClick={() => {}}
+          onAuthorClick={(id) => {
+            const href = posts().find(post => post.id === id)?.publisherHref;
+            if (href?.startsWith("/") && !href.startsWith("//") && typeof window !== "undefined") {
+              window.location.assign(href);
+            }
+          }}
           onFollowClick={(id) => updatePost(id, post => ({ ...post, isFollowing: !post.isFollowing }))}
           onLikeClick={(id) => updatePost(id, post => ({
             ...post,

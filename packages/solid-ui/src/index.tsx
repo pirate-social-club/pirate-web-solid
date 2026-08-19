@@ -330,6 +330,7 @@ export {
   type MediaActionsProps,
   type MediaPostData,
   type MediaPostProps,
+  type MediaPublisherKind,
   type VerticalFeedProps,
   type VideoPlayerProps,
 } from "./patterns/engagement/vertical-feed";

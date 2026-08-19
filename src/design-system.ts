@@ -101,5 +101,6 @@ export {
   VerticalFeed,
   fixturePosts,
   type MediaPostData,
+  type MediaPublisherKind,
   type VerticalFeedProps,
 } from "@pirate/web-solid-ui";

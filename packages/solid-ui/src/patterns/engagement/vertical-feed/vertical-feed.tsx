@@ -152,6 +152,7 @@ export function VerticalFeed(props: VerticalFeedProps) {
                   videoUrl={post().videoUrl}
                   posterUrl={post().posterUrl}
                   authorName={post().authorName}
+                  publisherLabel={post().publisherLabel}
                   authorAvatarUrl={post().authorAvatarUrl}
                   caption={post().caption}
                   title={post().title}

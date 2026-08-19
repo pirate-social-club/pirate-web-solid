@@ -9,6 +9,9 @@
  */
 export type HapticKind = "light" | "double";
 
+/** Identity kind for the publisher chrome rendered by the host feed. */
+export type MediaPublisherKind = "profile" | "community";
+
 /** One item in a vertical media feed. */
 export interface MediaPostData {
   id: string;
@@ -18,6 +21,12 @@ export interface MediaPostData {
   posterUrl?: string;
   /** Display handle of the post author (rendered as @authorName). */
   authorName: string;
+  /** Optional host-owned destination identity, such as /u/... or /c/.... */
+  publisherHref?: string;
+  /** Render community identities as c/... rather than @.... */
+  publisherKind?: MediaPublisherKind;
+  /** Optional already-formatted identity label for the overlay and aria text. */
+  publisherLabel?: string;
   authorAvatarUrl?: string;
   /** Caption text shown under the author name. */
   caption?: string;
@@ -48,6 +57,7 @@ export interface VideoPlayerProps {
 
 export interface MediaActionsProps {
   authorName: string;
+  publisherLabel?: string;
   authorAvatarUrl?: string;
   isFollowing?: boolean;
   isLiked: boolean;

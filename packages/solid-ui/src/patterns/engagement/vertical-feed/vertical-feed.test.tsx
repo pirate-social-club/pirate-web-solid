@@ -93,6 +93,24 @@ describe("VerticalFeed", () => {
     expect(view.getAllByRole("button", { name: "Like video" })).toHaveLength(4);
   });
 
+  it("renders community identities with c/ labels and destinations", () => {
+    const communityPost = { ...testPosts[0], publisherLabel: "c/harbor" };
+    const container = render(() => (
+      <VerticalFeed
+        posts={[communityPost]}
+        onAuthorClick={vi.fn()}
+        onFollowClick={vi.fn()}
+      />
+    ));
+    flush();
+
+    const view = within(container);
+    expect(view.getAllByText("c/harbor").length).toBeGreaterThan(0);
+    expect(view.getAllByRole("button", { name: "Open c/harbor" })).not.toHaveLength(0);
+    expect(view.getAllByRole("button", { name: "Follow c/harbor" })).not.toHaveLength(0);
+    expect(view.queryByText("@wavemaker")).not.toBeInTheDocument();
+  });
+
   it("hides action buttons whose callbacks are absent, except mute", () => {
     const container = render(() => (
       <VerticalFeed posts={testPosts} onLikeClick={vi.fn()} />

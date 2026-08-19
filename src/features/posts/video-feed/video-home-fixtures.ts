@@ -2,27 +2,31 @@ import { fixturePosts } from "../../../design-system";
 import type { VideoFeedItem } from "./video-feed.types";
 
 export interface VideoHomeReviewItem extends VideoFeedItem {
+  readonly communityName: string;
   readonly location: string;
 }
 
 const metadata = [
   {
     communityId: "review-community-harbor",
+    communityName: "Harbor",
     location: "Harbor",
-    handle: "harbor",
+    routeSlug: "harbor",
     href: "/c/harbor",
   },
   {
     communityId: "review-community-builders",
+    communityName: "Builders",
     location: "Builders",
-    handle: "deckhand",
-    href: "/u/deckhand",
+    routeSlug: "builders",
+    href: "/c/builders",
   },
   {
     communityId: "review-community-karaoke",
+    communityName: "Karaoke Club",
     location: "Karaoke Club",
-    handle: "story-pirate",
-    href: "/u/story-pirate",
+    routeSlug: "karaoke-club",
+    href: "/c/karaoke-club",
   },
 ] as const;
 
@@ -32,8 +36,9 @@ export const videoHomeReviewItems: readonly VideoHomeReviewItem[] = fixturePosts
   return {
     id: `review-video-${post.id}`,
     communityId: details.communityId,
+    communityName: details.communityName,
     location: details.location,
-    publisher: { handle: details.handle, href: details.href, kind: "profile" },
+    publisher: { handle: details.routeSlug, href: details.href, kind: "community" },
     caption: post.caption,
     commentCount: index === 0 ? 84 : index === 1 ? 31 : 56,
     likeCount: post.likeCount,

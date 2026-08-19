@@ -123,6 +123,7 @@ export function MediaPost(props: MediaPostProps) {
       : safeAreaBottom;
 
   const hasSoundtrack = () => !!(props.title || props.artist);
+  const publisherLabel = () => props.publisherLabel ?? `@${props.authorName}`;
 
   return (
     <div
@@ -152,7 +153,7 @@ export function MediaPost(props: MediaPostProps) {
             when={props.onAuthorClick}
             fallback={
               <span class="text-lg font-semibold text-primary-foreground drop-shadow-lg">
-                @{props.authorName}
+                {publisherLabel()}
               </span>
             }
           >
@@ -161,7 +162,7 @@ export function MediaPost(props: MediaPostProps) {
               class="pointer-events-auto cursor-pointer text-lg font-semibold text-primary-foreground drop-shadow-lg hover:underline"
               onClick={() => props.onAuthorClick?.()}
             >
-              @{props.authorName}
+              {publisherLabel()}
             </button>
           </Show>
           <Show when={props.caption}>
@@ -205,9 +206,9 @@ export function MediaPost(props: MediaPostProps) {
         >
         <Show
           when={props.onAuthorClick}
-          fallback={
-            <span class="text-lg font-semibold text-primary-foreground drop-shadow-lg">
-              @{props.authorName}
+            fallback={
+              <span class="text-lg font-semibold text-primary-foreground drop-shadow-lg">
+              {publisherLabel()}
             </span>
           }
         >
@@ -216,7 +217,7 @@ export function MediaPost(props: MediaPostProps) {
             class="pointer-events-auto cursor-pointer text-lg font-semibold text-primary-foreground drop-shadow-lg hover:underline"
             onClick={() => props.onAuthorClick?.()}
           >
-            @{props.authorName}
+            {publisherLabel()}
           </button>
         </Show>
         <Show when={props.caption}>
@@ -257,6 +258,7 @@ export function MediaPost(props: MediaPostProps) {
         >
         <MediaActions
           authorName={props.authorName}
+          publisherLabel={props.publisherLabel}
           authorAvatarUrl={props.authorAvatarUrl}
           isFollowing={props.isFollowing}
           isLiked={props.isLiked ?? false}
@@ -279,6 +281,7 @@ export function MediaPost(props: MediaPostProps) {
         <div class="absolute left-[calc(50%+25vh+20px)] top-1/2 z-40 -translate-y-1/2 max-md:hidden">
         <MediaActions
           authorName={props.authorName}
+          publisherLabel={props.publisherLabel}
           authorAvatarUrl={props.authorAvatarUrl}
           isFollowing={props.isFollowing}
           isLiked={props.isLiked ?? false}

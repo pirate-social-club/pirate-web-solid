@@ -123,6 +123,12 @@ function IconPlus(props: IconProps) {
  * except mute, which is local playback state and stays always visible.
  */
 export function MediaActions(props: MediaActionsProps) {
+  const authorAriaLabel = () =>
+    props.publisherLabel !== undefined
+      ? `Open ${props.publisherLabel}`
+      : `View ${props.authorName}'s profile`;
+  const followAriaLabel = () =>
+    `Follow ${props.publisherLabel ?? props.authorName}`;
   const iconButtonClass =
     "rounded-full p-3 transition-colors max-md:bg-transparent md:bg-black/30 md:backdrop-blur-sm md:hover:bg-black/40";
 
@@ -154,7 +160,7 @@ export function MediaActions(props: MediaActionsProps) {
         <div class="relative">
           <button
             type="button"
-            aria-label={`View ${props.authorName}'s profile`}
+            aria-label={authorAriaLabel()}
             class="cursor-pointer"
             onClick={(event) => {
               event.stopPropagation();
@@ -170,7 +176,7 @@ export function MediaActions(props: MediaActionsProps) {
           <Show when={!props.isFollowing && props.onFollowClick}>
             <button
               type="button"
-              aria-label={`Follow ${props.authorName}`}
+              aria-label={followAriaLabel()}
               class="absolute -bottom-2 left-1/2 flex size-5 -translate-x-1/2 cursor-pointer items-center justify-center rounded-full bg-primary transition-colors hover:bg-primary-hover"
               onClick={(event) => {
                 event.stopPropagation();
