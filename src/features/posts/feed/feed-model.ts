@@ -19,6 +19,7 @@ export interface Page<T> {
   nextCursor: string | null;
 }
 
+/** Story/fixture model only; production pagination uses the API's opaque keyset cursor. */
 export function sortFeedItems(items: readonly FeedItem[], sort: FeedSort): FeedItem[] {
   return [...items].sort((left, right) => {
     if (sort === "new") return right.publishedAt.localeCompare(left.publishedAt);
