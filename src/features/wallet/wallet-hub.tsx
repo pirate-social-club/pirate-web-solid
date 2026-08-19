@@ -66,6 +66,8 @@ export function WalletHub(props: WalletHubProps) {
     if (props.renderSendSheet) setSendOpen(true);
     view().actions.send.onSelect?.();
   };
+  const receiveSheet = createMemo(() => props.renderReceiveSheet?.({ open: receiveOpen(), onOpenChange: setReceiveOpen }));
+  const sendSheet = createMemo(() => props.renderSendSheet?.({ open: sendOpen(), onOpenChange: setSendOpen }));
 
   return (
     <div
@@ -236,12 +238,8 @@ export function WalletHub(props: WalletHubProps) {
         </Card>
       </Show>
 
-      <Show when={props.renderReceiveSheet}>
-        {(render) => render()({ open: receiveOpen(), onOpenChange: setReceiveOpen })}
-      </Show>
-      <Show when={props.renderSendSheet}>
-        {(render) => render()({ open: sendOpen(), onOpenChange: setSendOpen })}
-      </Show>
+      {receiveSheet()}
+      {sendSheet()}
     </div>
   );
 }
