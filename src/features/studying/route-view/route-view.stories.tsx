@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 
-import { StudyingRouteView } from "./studying-route-view";
+import { StudyingRouteView } from "../studying-route-view";
 import {
   createAuthRequiredClient,
   createFailingClient,
@@ -8,10 +8,10 @@ import {
   createStoryRecorder,
   storyPostId,
   storyWrongAttempt,
-} from "./studying-story-fixtures";
+} from "../studying-story-fixtures";
 
 const meta = {
-  title: "Features/Studying/RouteView",
+  title: "App/Studying/RouteView",
   parameters: {
     layout: "fullscreen",
     docs: {

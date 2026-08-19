@@ -47,7 +47,7 @@ function ModalShell(shellProps: {
 
   return (
     <div class="flex min-h-[720px] items-center justify-center bg-background p-6">
-      {!open() ? <Button onClick={() => setOpen(true)}>Reopen modal</Button> : null}
+      {!open() ? <Button onClick={() => setOpen(true)}>Reopen</Button> : null}
       <Modal forceMobile={shellProps.forceMobile} onOpenChange={setOpen} open={open()}>
         <ModalContent
           class={
@@ -104,7 +104,7 @@ export const DesktopDialog: Story = {
     await userEvent.keyboard("{Escape}");
     await expect(within(document.body).queryByRole("dialog")).toBeNull();
     const reopen = await within(document.body).findByRole("button", {
-      name: "Reopen modal",
+      name: "Reopen",
     });
     await userEvent.click(reopen);
     await expect(

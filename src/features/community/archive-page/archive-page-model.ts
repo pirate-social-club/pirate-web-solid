@@ -15,14 +15,14 @@ export const archiveCopy = {
     "Blocks new posts, comments, joins, listings, live rooms, and purchases.",
     "Keeps all existing content, members, and settings intact for restore.",
   ],
-  archiveAction: "Archive community",
+  archiveAction: "Archive",
   confirmTitle: "Archive this community?",
   confirmBody: "Members won't be able to post, join, or buy while it's archived. You can unarchive it later.",
-  confirmAction: "Yes, archive",
+  confirmAction: "Archive",
   cancelAction: "Cancel",
   archivedTitle: "This community is archived",
   archivedBody: "It's hidden from discovery and new activity is blocked. Restore it to bring it back online.",
-  unarchiveAction: "Unarchive community",
+  unarchiveAction: "Unarchive",
 } as const;
 
 export const isArchiveSaving = (state: CommunityArchiveSubmitState): boolean => state.kind === "saving";

@@ -51,7 +51,7 @@ export function CommunityPageShell(props: CommunityPageShellProps) {
           <Show when={props.canJoin !== false}>
             <Button disabled={props.joined} onClick={() => props.onJoin?.()} variant="secondary">{props.joined ? "Joined" : "Join"}</Button>
           </Show>
-          <Show when={props.joined || props.showCreatePost}><Button>Create Post</Button></Show>
+          <Show when={props.joined || props.showCreatePost}><Button>Create</Button></Show>
         </div>
         <div class="flex items-center gap-4 border-t border-border-soft pt-3 md:hidden">
           <button class={tab() === "feed" ? "text-foreground underline underline-offset-4" : "text-muted-foreground"} onClick={() => setTab("feed")} type="button"><Type as="span" variant="label">Feed</Type></button>

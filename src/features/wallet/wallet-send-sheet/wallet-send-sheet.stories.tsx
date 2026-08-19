@@ -2,12 +2,12 @@ import { createEffect, createSignal } from "solid-js";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import { expect, fn, userEvent, within } from "storybook/test";
 
-import { fiveChainSections, sharedWalletAddress } from "./wallet-flow-fixtures";
-import { WalletSendSheet } from "./wallet-send-sheet";
-import type { WalletSendSheetProps } from "./wallet-send-sheet.types";
+import { fiveChainSections, sharedWalletAddress } from "../wallet-flow-fixtures";
+import { WalletSendSheet } from "../wallet-send-sheet";
+import type { WalletSendSheetProps } from "../wallet-send-sheet.types";
 
 const meta = {
-  title: "Compositions/Wallet/WalletSendSheet",
+  title: "App/Wallet/WalletSendSheet",
   component: WalletSendSheet,
   args: { chainSections: fiveChainSections, defaultAssetId: "base:base-usdc", defaultRecipient: sharedWalletAddress, feeLabel: "~$0.01", onOpenChange: () => undefined, open: true },
   parameters: { layout: "fullscreen" },
@@ -29,7 +29,7 @@ export const Pending: Story = {
   args: { amount: "100", step: "pending" },
   render: (args) => <StoryRender {...args} />,
   play: async () => {
-    const dialog = await within(document.body).findByRole("dialog", { name: "Send tokens" });
+    const dialog = await within(document.body).findByRole("dialog", { name: "Sending" });
     await expect(within(dialog).getByRole("status")).toHaveTextContent("Sending transaction");
   },
 };
@@ -37,18 +37,18 @@ export const Success: Story = {
   args: { amount: "100", step: "success", txHash: "0x4b6c1234567890abcdef" },
   render: (args) => <StoryRender {...args} />,
   play: async () => {
-    const dialog = await within(document.body).findByRole("dialog", { name: "Send tokens" });
+    const dialog = await within(document.body).findByRole("dialog", { name: "Complete" });
     await expect(within(dialog).getByRole("status")).toHaveTextContent("Transaction submitted");
-    await expect(within(dialog).getByRole("button", { name: "Close send sheet" })).toBeVisible();
+    await expect(within(dialog).getByText("Close", { exact: true })).toBeVisible();
   },
 };
 export const Error: Story = {
   args: { amount: "100", step: "error", errorMessage: "Transaction failed. Try again." },
   render: (args) => <StoryRender {...args} />,
   play: async () => {
-    const dialog = await within(document.body).findByRole("dialog", { name: "Send tokens" });
+    const dialog = await within(document.body).findByRole("dialog", { name: "Failed" });
     await expect(within(dialog).getByRole("alert")).toHaveTextContent("Transaction failed");
-    await expect(within(dialog).getByRole("button", { name: "Try again" })).toBeVisible();
+    await expect(within(dialog).getByRole("button", { name: "Retry" })).toBeVisible();
   },
 };
 
@@ -56,12 +56,14 @@ export const FullFlow: Story = {
   args: { defaultRecipient: "", step: "asset", onConfirm: fn() },
   render: (args) => <StoryRender {...args} />,
   play: async ({ args }) => {
-    // SheetContent is portaled to document.body by Kobalte. Querying the
-    // canvas misses the form even though the story rendered successfully.
-    const dialog = await within(document.body).findByRole("dialog", { name: "Send tokens" });
+    const body = within(document.body);
+    const dialog = await body.findByRole("dialog", { name: "Send" });
+    await userEvent.click(within(dialog).getByRole("button", { name: "Select USDC on Base Sepolia" }));
     await userEvent.type(within(dialog).getByPlaceholderText("0x…"), sharedWalletAddress);
-    await userEvent.type(within(dialog).getByPlaceholderText("0.0"), "100");
-    await userEvent.click(within(dialog).getByRole("button", { name: "Review and send" }));
+    await userEvent.click(within(dialog).getByRole("button", { name: "Continue" }));
+    await userEvent.type(within(dialog).getByPlaceholderText("0.00"), "100");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Review" }));
+    await userEvent.click(within(dialog).getByRole("button", { name: "Send" }));
     await expect(args.onConfirm).toHaveBeenCalledWith(expect.objectContaining({ amount: "100", recipient: sharedWalletAddress }));
   },
 };

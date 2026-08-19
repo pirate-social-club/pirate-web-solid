@@ -29,7 +29,7 @@ describe("wallet hub view model", () => {
     expect(view.connected).toBe(true);
     expect(view.isEmpty).toBe(false);
     expect(view.totalBalanceLabel).toBe("$3,059.89");
-    expect(view.walletLabel).toBe("0xc74e…3abc");
+    expect(view.walletLabel).toBeNull();
     expect(view.readySections).toHaveLength(5);
     expect(view.laterSections).toHaveLength(0);
     expect(view.assetRows.map((row) => row.id)).toEqual([
@@ -123,7 +123,7 @@ describe("wallet hub view model", () => {
       chainSections: fiveChainSections,
       walletAddress: sharedWalletAddress,
     });
-    expect(derived.walletLabel).toBe("0xc74e…3abc");
+    expect(derived.walletLabel).toBeNull();
   });
 
   test("reflects unconnected wallet state", () => {
@@ -180,18 +180,17 @@ describe("wallet hub view model", () => {
     expect(onSend).toHaveBeenCalledTimes(1);
   });
 
-  test("exposes a precise claim action with sales count", () => {
+  test("exposes a dollar-denominated claim action", () => {
     const onClaim = mock(() => {});
     const view = buildWalletHubView({
       chainSections: fiveChainSections,
       walletAddress: sharedWalletAddress,
       claimableWipWei: "12450000000000000000",
-      claimableSalesCount: 3,
       onClaim,
     });
 
-    expect(view.claim?.amountLabel).toBe("12.45 WIP");
-    expect(view.claim?.supportingLabel).toBe("3 sales");
+    expect(view.claim?.amountLabel).toBe("$12.45");
+    expect(view.claim?.supportingLabel).toBeUndefined();
     expect(view.claim?.action.disabled).toBe(false);
     view.claim?.action.onSelect?.();
     expect(onClaim).toHaveBeenCalledTimes(1);
@@ -203,12 +202,11 @@ describe("wallet hub view model", () => {
       chainSections: fiveChainSections,
       walletAddress: sharedWalletAddress,
       claimableWipWei: "12450000000000000000",
-      claimableSalesCount: 1,
       claimLoading: true,
       onClaim,
     });
 
-    expect(view.claim?.supportingLabel).toBe("1 sale");
+    expect(view.claim?.supportingLabel).toBeUndefined();
     expect(view.claim?.action.label).toBe("Claiming…");
     expect(view.claim?.action.disabled).toBe(true);
     expect(view.claim?.action.pending).toBe(true);
@@ -230,7 +228,7 @@ describe("wallet hub view model", () => {
       rewardsSummary: {
         actionLabel: "Claim rewards",
         amountLabel: "4.20",
-        assetLabel: "WIP",
+        assetLabel: "",
         supportingLabel: "Epoch 12",
         pending: true,
         onAction,
@@ -245,7 +243,7 @@ describe("wallet hub view model", () => {
       rewardsSummary: {
         actionLabel: "Claim rewards",
         amountLabel: "4.20",
-        assetLabel: "WIP",
+        assetLabel: "",
         onAction,
       },
     });
@@ -257,8 +255,8 @@ describe("wallet hub view model", () => {
   test("drives the activity action and keeps activity items in order", () => {
     const onViewActivity = mock(() => {});
     const recentActivity = [
-      { id: "a1", title: "Royalty claimed", amount: "+12.45 WIP", timestamp: "2026-08-01" },
-      { id: "a2", title: "Sent USDC", amount: "-10 USDC" },
+      { id: "a1", title: "Royalty claimed", amount: "+$12.45", timestamp: "2026-08-01" },
+      { id: "a2", title: "Money sent", amount: "-$10.00" },
     ];
     const view = buildWalletHubView({
       chainSections: fiveChainSections,

@@ -129,24 +129,25 @@ export function RouteLoadFailureState(props: RouteLoadFailureStateProps) {
   return (
     <section class="flex min-w-0 flex-1 flex-col justify-center">
       <div class="mx-auto w-full max-w-3xl px-1 py-2 md:px-6 md:py-8">
-        <ErrorState
-          action={
-            <div class="flex w-full flex-row gap-3">
-              <Button class="h-12 flex-1" onClick={() => props.onRetry?.()} size="lg">
-                {props.retryLabel ?? "Try Again"}
-              </Button>
-              <Button
-                class="h-12 flex-1"
-                onClick={() => props.onGoHome?.()}
-                size="lg"
-                variant="secondary"
-              >
-                {props.goHomeLabel ?? "Go Home"}
-              </Button>
-            </div>
-          }
+        <StatusCard
           description={props.description}
           title={props.title}
+          tone="warning"
+          actions={
+            <div class="flex w-full justify-end gap-3 md:w-auto">
+              <Show when={props.onRetry}>
+                <Button onClick={() => props.onRetry?.()} size="sm">
+                  {props.retryLabel ?? "Retry"}
+                </Button>
+              </Show>
+              <Show when={props.onGoHome}>
+                <Button onClick={() => props.onGoHome?.()} size="sm" variant="secondary">
+                  {props.goHomeLabel ?? "Home"}
+                </Button>
+              </Show>
+            </div>
+          }
+          flatOnMobile
         />
       </div>
     </section>
@@ -171,7 +172,7 @@ export function RootAppErrorState(props: RootAppErrorStateProps) {
             size="lg"
             variant="secondary"
           >
-            {props.homeLabel ?? "Go Home"}
+            {props.homeLabel ?? "Home"}
           </Button>
         }
         description={props.description}
@@ -228,7 +229,6 @@ export interface AuthRequiredRouteStateProps {
   hideTitleOnMobile?: boolean;
   illustration?: JSX.Element;
   onConnect?: () => void;
-  signInLabel?: string;
   unavailableTitle?: string;
 }
 
@@ -249,7 +249,7 @@ export function AuthRequiredRouteState(props: AuthRequiredRouteStateProps) {
         <StackPageShell
           headerVariant="plain"
           hideTitleOnMobile={props.hideTitleOnMobile}
-          title={props.title}
+          title={props.illustration ? props.title : ""}
         >
           <Show
             when={authState() === "ready"}
@@ -266,14 +266,14 @@ export function AuthRequiredRouteState(props: AuthRequiredRouteStateProps) {
               when={props.illustration}
               fallback={
                 <StatusCard
-                  title={props.signInLabel ?? "Sign in"}
+                  title={props.headline ?? props.title}
                   description={props.description}
                   flatOnMobile
                   tone="warning"
                   actions={
                     props.onConnect ? (
                       <Button loading={props.busy} onClick={() => props.onConnect?.()}>
-                        {props.signInLabel ?? "Sign in"}
+                        {props.ctaLabel ?? "Sign in"}
                       </Button>
                     ) : undefined
                   }

@@ -10,13 +10,13 @@ import {
   TextField,
   TextFieldInput,
   TextFieldLabel,
-} from "./design-system";
+} from "../design-system";
 
 // Pipeline canary for the standalone app catalog: proves the Solid transform,
 // Tailwind tokens, design-system facade, and locale/theme decorators work
 // without reaching into the historical React application.
 const meta = {
-  title: "App/Foundations/Storybook Smoke",
+  title: "QA/StorybookSmoke",
   parameters: {
     layout: "centered",
   },

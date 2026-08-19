@@ -57,8 +57,11 @@ describe("route states", () => {
       />
     ));
 
-    await user.click(within(container).getByRole("button", { name: "Try Again" }));
-    await user.click(within(container).getByRole("button", { name: "Go Home" }));
+    expect(within(container).queryByRole("img")).toBeNull();
+    expect(within(container).getByRole("button", { name: "Retry" })).toBeVisible();
+    expect(within(container).getByRole("button", { name: "Home" })).toBeVisible();
+    await user.click(within(container).getByRole("button", { name: "Retry" }));
+    await user.click(within(container).getByRole("button", { name: "Home" }));
     expect(calls).toEqual(["retry", "home"]);
   });
 
@@ -95,6 +98,24 @@ describe("route states", () => {
     ));
 
     await user.click(within(container).getByRole("button", { name: "Connect" }));
+    expect(connects).toBe(1);
+  });
+
+  it("keeps the plain auth state to one message and one action", async () => {
+    const user = userEvent.setup();
+    let connects = 0;
+    const container = render(() => (
+      <AuthRequiredRouteState
+        ctaLabel="Sign in"
+        description="Continue your lesson after signing in."
+        onConnect={() => (connects += 1)}
+        title="Sign in to study"
+      />
+    ));
+
+    expect(within(container).queryByRole("heading")).toBeNull();
+    expect(within(container).getByText("Sign in to study")).toBeVisible();
+    await user.click(within(container).getByRole("button", { name: "Sign in" }));
     expect(connects).toBe(1);
   });
 

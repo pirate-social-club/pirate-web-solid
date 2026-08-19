@@ -16,10 +16,10 @@ export interface CopyFieldProps
 }
 
 /**
- * CopyField - a read-only value row with a copy button that writes the value
- * to the clipboard and confirms with a check mark for two seconds. Use it for
- * addresses, invite codes, and IDs. The host is responsible for clipboard
- * availability errors.
+ * CopyField - a read-only, selectable value row with an icon-only copy button
+ * that writes the value to the clipboard and confirms with a check mark for
+ * two seconds. Use it for addresses, invite codes, and IDs. The host is
+ * responsible for clipboard availability errors.
  */
 export function CopyField(props: CopyFieldProps) {
   const className = createMemo(() =>
@@ -61,6 +61,9 @@ export function CopyField(props: CopyFieldProps) {
         class="my-1 size-9 shrink-0"
         onClick={handleCopy}
         size="icon"
+        title={
+          copied() ? `${props.copyLabel ?? "value"} copied` : `Copy ${props.copyLabel ?? "value"}`
+        }
         variant="secondary"
       >
         <Show

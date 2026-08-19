@@ -99,8 +99,8 @@ describe("B9 rendered branches and semantics", () => {
     const session = renderToString(() => createComponent(BookingSessionControls, { attendanceHealth: "degraded", counterpartyName: "Amira Hassan", onLeave: () => undefined, state: "ready-to-settle", viewerRole: "host" }));
     expect(checkout).toContain("That slot was released");
     expect(session).toContain("Attendance reporting interrupted");
-    expect(session).toContain("Finish session");
-    expect(session).toContain("Report attendance issue");
+    expect(session).toContain("Finish");
+    expect(session).toContain("Report");
   });
 
   test("keeps list selection buttons, editor minimums, and profile/host branches accessible", () => {
@@ -116,11 +116,11 @@ describe("B9 rendered branches and semantics", () => {
     expect(editor).toContain('aria-label="Mon availability"');
     expect(editor).toContain('min="5"');
     expect(editor).toContain('min="1"');
-    expect(host).toContain("Book a session");
-    expect(profile).toContain("Set up bookings");
+    expect(host).toContain("Book");
+    expect(profile).toContain("Schedule");
     expect(profileViewer).toContain('data-profile-book-panel="viewer"');
     expect(profileViewer).toContain("09:00 AM");
-    expect(profileViewer).not.toContain("Set up bookings");
+    expect(profileViewer).not.toContain("Schedule");
   });
 });
 

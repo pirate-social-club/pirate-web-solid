@@ -1,4 +1,3 @@
-import { formatWipAmount } from "./royalty-claim-modal/royalty-claim-modal-model";
 import { buildWalletAssetRows, formatTotalBalanceUsd, type WalletHubAssetRow } from "./wallet-hub-model";
 import type {
   WalletHubActivityItem,
@@ -12,6 +11,19 @@ export interface WalletHubActionView {
   label: string;
   pending?: boolean;
   onSelect?: () => void;
+}
+
+function formatWipAmount(wei: string | null | undefined): string {
+  if (!wei) return "0";
+  try {
+    const value = BigInt(wei);
+    const base = 10n ** 18n;
+    const whole = value / base;
+    const fraction = (value % base).toString().padStart(18, "0").slice(0, 6).replace(/0+$/u, "");
+    return fraction ? `${whole.toString()}.${fraction}` : whole.toString();
+  } catch {
+    return "0";
+  }
 }
 
 export interface WalletHubRewardsView {
@@ -39,7 +51,7 @@ export interface WalletHubView {
   rewards?: WalletHubRewardsView;
   title: string;
   totalBalanceLabel: string | null;
-  walletLabel: string;
+  walletLabel: string | null;
   actions: {
     changeWallet: WalletHubActionView;
     receive: WalletHubActionView;
@@ -91,13 +103,10 @@ export function buildWalletHubView(props: WalletHubProps): WalletHubView {
 
   const claim = props.claimableWipWei != null
     ? {
-        amountLabel: `${formatWipAmount(props.claimableWipWei)} WIP`,
-        supportingLabel: props.claimableSalesCount != null
-          ? `${props.claimableSalesCount} ${props.claimableSalesCount === 1 ? "sale" : "sales"}`
-          : undefined,
+        amountLabel: `$${formatWipAmount(props.claimableWipWei)}`,
         action: {
           disabled: claimLoading || !props.onClaim,
-          label: claimLoading ? "Claiming…" : "Claim royalties",
+          label: claimLoading ? "Claiming…" : "Claim",
           pending: claimLoading,
           onSelect: props.onClaim,
         },
@@ -120,7 +129,7 @@ export function buildWalletHubView(props: WalletHubProps): WalletHubView {
     fiatByTokenId,
     recentActivity: props.recentActivity ?? [],
     totalBalanceLabel: resolveTotalBalanceLabel(props, readySections),
-    walletLabel: props.walletLabel ?? formatWalletAddressLabel(props.walletAddress),
+    walletLabel: props.walletLabel ?? (props.walletAddress ? null : "No wallet connected"),
     claim,
     rewards: resolveRewardsView(props.rewardsSummary),
     actions: {

@@ -50,7 +50,7 @@ describe("ProfileBookPanel rendered semantics", () => {
     }));
     expect(html).toContain('data-profile-book-panel="viewer"');
     expect(html).toContain("09:00 AM");
-    expect(html).not.toContain("Set up bookings");
+    expect(html).not.toContain("Schedule");
   });
 
   test("keeps the owner empty state accessible in SSR", () => {
@@ -62,7 +62,7 @@ describe("ProfileBookPanel rendered semantics", () => {
       slots: [],
       viewerTimezone: "Europe/Vienna",
     }));
-    expect(html).toContain("Set up bookings");
+    expect(html).toContain("Schedule");
     expect(html).not.toContain('data-profile-book-panel="viewer"');
   });
 });

@@ -60,9 +60,9 @@ interface BookingManagementViewCopy {
 const defaultBookingManagementViewCopy: BookingManagementViewCopy = {
   title: "Bookings", roleLabel: "Booking role", asBooker: "As booker", asHost: "As host",
   upcoming: "Upcoming", review: "Needs review", past: "Past", cancelled: "Cancelled",
-  join: "Join session", rejoin: "Rejoin session", addToCalendar: "Add to calendar", cancel: "Cancel booking",
+  join: "Join", rejoin: "Rejoin", addToCalendar: "Add", cancel: "Cancel",
   loading: "Loading bookings", signedOutTitle: "Sign in to view your bookings", signedOutDetail: "Your upcoming and past sessions appear here.", signIn: "Sign in",
-  errorTitle: "Bookings could not be loaded", errorDetail: "Try again in a moment.", retry: "Try again",
+  errorTitle: "Bookings could not be loaded", errorDetail: "Try again in a moment.", retry: "Retry",
   emptyTitle: "No bookings yet", emptyBookerDetail: "Booked sessions will appear here.", emptyHostDetail: "Sessions booked with you will appear here.",
 };
 

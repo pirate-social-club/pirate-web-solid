@@ -16,7 +16,7 @@ function RulesEditorStory(props: { initialRules: RuleDraft[] }) {
   return <main class="mx-auto w-full max-w-5xl p-4 md:p-8" dir="rtl"><CommunityRulesEditorPage onRulesChange={setRules} onSave={() => setSaved((current) => current + 1)} rules={rules()} /><Type aria-live="polite" class="sr-only" variant="caption">Saved {saved()} times</Type></main>;
 }
 
-const meta = { title: "Compositions/Community/Moderation/Rules", component: CommunityRulesEditorPage, parameters: { layout: "fullscreen", a11y: { test: "error" } } } satisfies Meta<typeof CommunityRulesEditorPage>;
+const meta = { title: "App/Community/Moderation/RulesEditor", component: CommunityRulesEditorPage, parameters: { layout: "fullscreen", a11y: { test: "error" } } } satisfies Meta<typeof CommunityRulesEditorPage>;
 export default meta;
 type Story = StoryObj<typeof meta>;
 
@@ -26,7 +26,7 @@ export const Default: Story = {
   render: (args) => <RulesEditorStory initialRules={args.rules} />,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await userEvent.click(canvas.getByRole("button", { name: "Add rule" }));
+    await userEvent.click(canvas.getByRole("button", { name: "Add" }));
     const title = canvas.getByPlaceholderText("Rule name");
     await expect(title).toHaveFocus();
     await expect(canvas.getByRole("button", { name: "Save rule" })).toBeDisabled();
@@ -47,7 +47,7 @@ export const Blank: Story = {
     const canvas = within(canvasElement);
     const save = canvas.getByRole("button", { name: "Save" });
     await expect(save).not.toBeDisabled();
-    await userEvent.click(canvas.getByRole("button", { name: "Add rule" }));
+    await userEvent.click(canvas.getByRole("button", { name: "Add" }));
     await expect(canvas.getByPlaceholderText("Rule name")).toHaveFocus();
     await userEvent.click(canvas.getByRole("button", { name: "Cancel" }));
     await expect(canvas.getByText("No rules yet.")).toBeInTheDocument();

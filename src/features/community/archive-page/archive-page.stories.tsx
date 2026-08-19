@@ -57,7 +57,7 @@ function ArchiveStory(props: CommunityArchivePageProps) {
 }
 
 const meta = {
-  title: "Compositions/Community/Moderation/ArchivePage",
+  title: "App/Community/Moderation/ArchivePage",
   component: CommunityArchivePage,
   parameters: { layout: "fullscreen", a11y: { test: "error" } },
 } satisfies Meta<typeof CommunityArchivePage>;
@@ -71,22 +71,22 @@ export const Active: Story = {
   render: (args) => <ArchiveStory {...args} />,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    const archive = canvas.getByRole("button", { name: "Archive community" });
+    const archive = canvas.getByRole("button", { name: "Archive" });
     await userEvent.click(archive);
-    await expect(canvas.getByRole("button", { name: "Yes, archive" })).toHaveFocus();
+    await expect(canvas.getByRole("button", { name: "Archive" })).toHaveFocus();
     await userEvent.click(canvas.getByRole("button", { name: "Cancel" }));
-    await expect(canvas.getByRole("button", { name: "Archive community" })).toHaveFocus();
-    await userEvent.click(canvas.getByRole("button", { name: "Archive community" }));
-    await userEvent.click(canvas.getByRole("button", { name: "Yes, archive" }));
-    await expect(canvas.getByRole("button", { name: "Yes, archive" })).toBeDisabled();
-    await expect(canvas.getByRole("button", { name: "Yes, archive" })).toHaveAttribute("aria-busy", "true");
+    await expect(canvas.getByRole("button", { name: "Archive" })).toHaveFocus();
+    await userEvent.click(canvas.getByRole("button", { name: "Archive" }));
+    await userEvent.click(canvas.getByRole("button", { name: "Archive" }));
+    await expect(canvas.getByRole("button", { name: "Archive" })).toBeDisabled();
+    await expect(canvas.getByRole("button", { name: "Archive" })).toHaveAttribute("aria-busy", "true");
     await userEvent.click(canvas.getByRole("button", { name: "Complete archive transition" }));
     await expect(canvas.getByText("This community is archived")).toBeInTheDocument();
     await expect(canvas.getByText("Archived 1 times; Restored 0 times")).toBeInTheDocument();
-    await expect(canvas.getByRole("button", { name: "Unarchive community" })).toHaveFocus();
-    await userEvent.click(canvas.getByRole("button", { name: "Unarchive community" }));
-    await expect(canvas.getByRole("button", { name: "Unarchive community" })).toBeDisabled();
-    await expect(canvas.getByRole("button", { name: "Unarchive community" })).toHaveAttribute("aria-busy", "true");
+    await expect(canvas.getByRole("button", { name: "Unarchive" })).toHaveFocus();
+    await userEvent.click(canvas.getByRole("button", { name: "Unarchive" }));
+    await expect(canvas.getByRole("button", { name: "Unarchive" })).toBeDisabled();
+    await expect(canvas.getByRole("button", { name: "Unarchive" })).toHaveAttribute("aria-busy", "true");
     await userEvent.click(canvas.getByRole("button", { name: "Complete unarchive transition" }));
     await expect(canvas.getByText("Danger zone")).toBeInTheDocument();
     await expect(canvas.getByText("Archived 1 times; Restored 1 times")).toBeInTheDocument();
@@ -100,8 +100,8 @@ export const Archived: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(canvas.getByRole("heading", { name: "This community is archived" })).toBeInTheDocument();
-    await userEvent.click(canvas.getByRole("button", { name: "Unarchive community" }));
-    await expect(canvas.getByRole("button", { name: "Unarchive community" })).toBeDisabled();
+    await userEvent.click(canvas.getByRole("button", { name: "Unarchive" }));
+    await expect(canvas.getByRole("button", { name: "Unarchive" })).toBeDisabled();
     await userEvent.click(canvas.getByRole("button", { name: "Complete unarchive transition" }));
     await expect(canvas.getByRole("heading", { name: "What archiving does" })).toBeInTheDocument();
   },
@@ -112,7 +112,7 @@ export const Saving: Story = {
   globals: { direction: "rtl" },
   render: (args) => <ArchiveStory {...args} />,
   play: async ({ canvasElement }) => {
-    await expect(within(canvasElement).getByRole("button", { name: "Archive community" })).toBeDisabled();
+    await expect(within(canvasElement).getByRole("button", { name: "Archive" })).toBeDisabled();
   },
 };
 
@@ -123,7 +123,7 @@ export const Error: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(canvas.getByRole("alert")).toHaveTextContent("Couldn't archive the community. Try again.");
-    await expect(canvas.getByRole("button", { name: "Archive community" })).toBeEnabled();
+    await expect(canvas.getByRole("button", { name: "Archive" })).toBeEnabled();
   },
 };
 
@@ -135,7 +135,7 @@ export const Mobile: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(canvas.getByRole("heading", { name: "Danger zone" })).toBeInTheDocument();
-    await userEvent.click(canvas.getByRole("button", { name: "Archive community" }));
-    await expect(canvas.getByRole("button", { name: "Yes, archive" })).toBeInTheDocument();
+    await userEvent.click(canvas.getByRole("button", { name: "Archive" }));
+    await expect(canvas.getByRole("button", { name: "Archive" })).toBeInTheDocument();
   },
 };

@@ -8,7 +8,7 @@ import { HostAvailabilityEditor, type AvailabilityExceptionDraft, type Availabil
 const rules: AvailabilityRuleDraft[] = [{ id: "rule-1", byWeekday: [1, 2, 3, 4, 5], startLocal: "09:00", endLocal: "17:00", slotDurationMinutes: 30 }, { id: "rule-2", byWeekday: [0, 6], startLocal: "10:00", endLocal: "14:00", slotDurationMinutes: 30 }];
 const priceRules: PriceRuleDraft[] = [{ id: "price-1", matchWeekday: [1, 2, 3, 4, 5], startLocal: "09:00", endLocal: "12:00", priceCents: 6000 }];
 const exceptions: AvailabilityExceptionDraft[] = [{ id: "exc-1", kind: "block", startUtc: "2026-07-04T00:00:00Z", endUtc: "2026-07-04T23:59:59Z" }];
-const meta = { title: "Compositions/Bookings/HostAvailabilityEditor", component: HostAvailabilityEditor, args: { rules: [], priceRules: [], exceptions: [] }, parameters: { layout: "fullscreen", a11y: { test: "error" } } } satisfies Meta<typeof HostAvailabilityEditor>;
+const meta = { title: "App/Bookings/HostAvailabilityEditor", component: HostAvailabilityEditor, args: { rules: [], priceRules: [], exceptions: [] }, parameters: { layout: "fullscreen", a11y: { test: "error" } } } satisfies Meta<typeof HostAvailabilityEditor>;
 export default meta;
 type Story = StoryObj<typeof meta>;
 const frame = (children: JSX.Element): JSX.Element => <div class="mx-auto w-full max-w-2xl p-4">{children}</div>;

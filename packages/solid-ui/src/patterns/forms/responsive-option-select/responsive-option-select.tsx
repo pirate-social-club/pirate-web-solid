@@ -1,5 +1,5 @@
 import type { JSX } from "@solidjs/web";
-import { createSignal, For, Show } from "solid-js";
+import { createMemo, createSignal, For, Show } from "solid-js";
 
 import { Button } from "@/components/actions/button/button";
 import { pillButtonVariants } from "@/components/actions/pill-button/pill-button";
@@ -73,6 +73,7 @@ function OptionDetail(props: { option: ResponsiveOptionSelectOption }) {
  */
 export function ResponsiveOptionSelect(props: ResponsiveOptionSelectProps) {
   const [drawerOpen, setDrawerOpen] = createSignal(false);
+  const desktopOptions = createMemo(() => [...props.options]);
 
   const activeOption = () =>
     props.options.find((option) => option.value === props.value);
@@ -158,7 +159,7 @@ export function ResponsiveOptionSelect(props: ResponsiveOptionSelectProps) {
             optionDisabled={(option) => Boolean(option.disabled)}
             optionLabel={(option) => option.label}
             optionValue={(option) => option.value}
-            options={[...props.options]}
+            options={desktopOptions()}
             placement={placement()}
             placeholder={props.placeholder ? <span>{props.placeholder}</span> : undefined}
             renderOption={(option) => <OptionDetail option={option} />}

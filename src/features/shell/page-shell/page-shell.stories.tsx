@@ -4,7 +4,7 @@ import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import { Card, Type } from "../../../design-system";
 import { FullBleedMobileListSection, PublicRoutePage, StandardRoutePage, StandaloneMobilePage } from "./page-shell";
 
-const meta = { title: "Compositions/App/PageShell", parameters: { layout: "fullscreen" } } satisfies Meta;
+const meta = { title: "App/Shell/PageShell", parameters: { layout: "fullscreen" } } satisfies Meta;
 export default meta;
 type Story = StoryObj<typeof meta>;
 
@@ -15,4 +15,3 @@ export const StandardRouteMobile: Story = { parameters: { viewport: { defaultVie
 export const StandaloneMobile: Story = { parameters: { viewport: { defaultViewport: "mobile1" } }, render: () => <StandaloneMobilePage title="Settings" onBack={() => undefined}><div class="flex flex-1 flex-col gap-4 px-[var(--page-gutter-x)] py-4"><Card class="p-5"><Type variant="body">Standalone mobile page content.</Type></Card></div></StandaloneMobilePage> };
 export const PublicRouteDesktop: Story = { render: () => <PublicRoutePage><div class="flex flex-col gap-4 py-6"><Card class="p-5"><Type variant="body">Public route content.</Type></Card></div></PublicRoutePage> };
 export const PublicRouteMobile: Story = { parameters: { viewport: { defaultViewport: "mobile1" } }, render: () => <PublicRoutePage><div class="flex flex-col gap-4 py-6"><Card class="p-5"><Type variant="body">Public route content.</Type></Card></div></PublicRoutePage> };
-

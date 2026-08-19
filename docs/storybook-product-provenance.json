@@ -6,9 +6,9 @@
   "entries": [
     {
       "sourcePath": "web/solid/src/storybook-smoke.stories.tsx",
-      "targetPath": "src/storybook-smoke.stories.tsx",
+      "targetPath": "src/qa/storybook-smoke.stories.tsx",
       "sourceSha256": "831ba4e4739cfb5182a691dc6f4c5176ae8faf58f4f8d3b3be1edf5850134cb9",
-      "targetSha256": "7b68473416620454f5ef28f5a7810da312c656e9b290c7fdebf44bae3bf4f6c1",
+      "targetSha256": "92e89c52f683996c0f607ae2ee8eec33270dd64a4a0f531fa36dfca99cafb6b2",
       "disposition": "adapted",
       "note": "Standalone-owned canary; wording and boundary comment updated, imports remain local."
     },

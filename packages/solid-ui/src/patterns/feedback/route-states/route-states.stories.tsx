@@ -77,7 +77,9 @@ export const EmptyFeedMobile: Story = {
 export const AuthRequired: Story = {
   render: () => (
     <AuthRequiredRouteState
+      ctaLabel="Sign in"
       description="Sign in to view your inbox."
+      onConnect={() => {}}
       title="Inbox"
     />
   ),
@@ -136,8 +138,8 @@ export const Error: Story = {
       image={fixtureGhostImage}
       action={
         <div class="flex w-full flex-row gap-3">
-          <Button class="h-12 flex-1" size="lg">Try Again</Button>
-          <Button class="h-12 flex-1" size="lg" variant="secondary">Go Home</Button>
+          <Button class="h-12 flex-1" size="lg">Retry</Button>
+          <Button class="h-12 flex-1" size="lg" variant="secondary">Home</Button>
         </div>
       }
       description="We could not load this page. It may have been removed or you may be offline."
@@ -153,8 +155,8 @@ export const ErrorMobile: Story = {
       image={fixtureGhostImage}
       action={
         <div class="flex w-full flex-row gap-3">
-          <Button class="h-12 flex-1" size="lg">Try Again</Button>
-          <Button class="h-12 flex-1" size="lg" variant="secondary">Go Home</Button>
+          <Button class="h-12 flex-1" size="lg">Retry</Button>
+          <Button class="h-12 flex-1" size="lg" variant="secondary">Home</Button>
         </div>
       }
       description="We could not load this page. It may have been removed or you may be offline."
@@ -197,7 +199,7 @@ export const RootAppError: Story = {
     <RootAppErrorState
       title="Something went wrong?"
       description="The app failed to initialize. Please try reloading the page."
-      homeLabel="Go Home"
+      homeLabel="Home"
     />
   ),
 };
@@ -208,7 +210,7 @@ export const RootAppErrorMobile: Story = {
     <RootAppErrorState
       title="Something went wrong?"
       description="The app failed to initialize. Please try reloading the page."
-      homeLabel="Go Home"
+      homeLabel="Home"
     />
   ),
 };

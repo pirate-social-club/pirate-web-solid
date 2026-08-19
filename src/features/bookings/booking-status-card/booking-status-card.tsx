@@ -72,7 +72,7 @@ export function BookingStatusCard(props: BookingStatusCardProps) {
               onClick={props.onJoin}
               size="lg"
             >
-              {props.state === "live" ? "Rejoin session" : "Join session"}
+              {props.state === "live" ? "Rejoin" : "Join"}
             </Button>
             <Show when={!props.canJoinSession && props.joinDisabledReason}>
               <Type variant="caption">{props.joinDisabledReason}</Type>
@@ -82,13 +82,13 @@ export function BookingStatusCard(props: BookingStatusCardProps) {
 
         <Show when={actions().addToCalendar}>
           <Button class="w-full" onClick={props.onAddToCalendar} variant="secondary">
-            Add to calendar
+            Add
           </Button>
         </Show>
 
         <Show when={actions().cancel}>
           <Button class="w-full" onClick={props.onCancel} variant="ghost">
-            Cancel booking
+            Cancel
           </Button>
         </Show>
       </CardContent>

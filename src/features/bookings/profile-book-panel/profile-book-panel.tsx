@@ -31,9 +31,9 @@ export type ProfileBookPanelProps = ProfileBookPanelViewerProps | ProfileBookPan
 
 function OwnerBookPanel(props: ProfileBookPanelOwnerProps) {
   return (
-    <Show when={props.configured} fallback={<Card class={cn("flex flex-col gap-4 border-border bg-card p-5 shadow-none", props.class)}><Type variant="body">Set up a schedule so people can book time with you.</Type><Button onClick={props.onEdit}>Set up bookings</Button></Card>}>
+    <Show when={props.configured} fallback={<Card class={cn("flex flex-col gap-4 border-border bg-card p-5 shadow-none", props.class)}><Type variant="body">Set up a schedule so people can book time with you.</Type><Button onClick={props.onEdit}>Schedule</Button></Card>}>
       <div class={cn("flex flex-col gap-4", props.class)} data-profile-book-panel="owner-configured">
-        <div class="flex items-center justify-between gap-3"><Type as="h2" variant="h3">Your availability</Type><Button onClick={props.onEdit} size="sm" variant="outline">Edit schedule</Button></div>
+        <div class="flex items-center justify-between gap-3"><Type as="h2" variant="h3">Your availability</Type><Button onClick={props.onEdit} size="sm" variant="outline">Edit</Button></div>
         <Show when={!props.loading} fallback={<Type variant="caption">Loading availability…</Type>}>
           <Show when={props.slots.length > 0} fallback={<Type variant="caption">{profileBookEmptyLabel("owner")}</Type>}>
             <Type variant="caption">{sessionFactsLine(props.slots, props.viewerTimezone, props.basePriceCents)}</Type>

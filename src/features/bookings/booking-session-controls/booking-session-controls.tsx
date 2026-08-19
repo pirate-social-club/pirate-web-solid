@@ -42,7 +42,7 @@ const defaultBookingSessionControlsCopy: BookingSessionControlsCopy = {
   degradedDetail: "Stay in the session while we retry. Your video call can continue.", retryingDetail: "Your presence is being retried automatically.",
   sessionWith: "Session with {name}", paymentUnlocks: "Payment actions unlock after the scheduled session ends.", leave: "Leave session",
   sessionEnded: "Scheduled session ended", attendanceDetermines: "Attendance records determine the payout or refund.",
-  finish: "Finish session", report: "Report attendance issue", checking: "Checking attendance", checkingDetail: "Keep this page open while the outcome is confirmed.",
+  finish: "Finish", report: "Report", checking: "Checking attendance", checkingDetail: "Keep this page open while the outcome is confirmed.",
   confirmed: "Session outcome confirmed", confirmedDetail: "The final payment status is available in your bookings.",
 };
 

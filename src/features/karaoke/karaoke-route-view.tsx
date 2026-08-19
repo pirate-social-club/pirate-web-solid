@@ -70,7 +70,7 @@ function LoadedKaraokeSession(props: { payload: ApiSongKaraokePayload; postId: s
       when={!authError()}
       fallback={
         <AuthRequiredRouteState
-          ctaLabel="Sign in to sing"
+          ctaLabel="Sign in"
           description="This song is available to everyone, but recording a scored take requires an account."
           onConnect={requestSignIn}
           title="Sign in to sing"
@@ -153,7 +153,7 @@ export function KaraokeLeaderboardRouteView(props: KaraokeLeaderboardRouteViewPr
             fallback={<RouteLoadFailureState description={errorMessage(loadError(), "We couldn't load the karaoke leaderboard.")} onGoHome={() => { window.location.href = "/"; }} onRetry={load} title="Leaderboard unavailable" />}
           >
             <AuthRequiredRouteState
-              ctaLabel="Sign in to view scores"
+              ctaLabel="Sign in"
               description="Karaoke scores are available to signed-in community members."
               onConnect={requestSignIn}
               title="Sign in to view scores"

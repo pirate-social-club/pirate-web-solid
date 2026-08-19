@@ -1,10 +1,10 @@
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 
-import { KaraokePracticeSurface } from "./karaoke-practice-surface";
-import { storyStageLines } from "./karaoke-story-fixtures";
+import { KaraokePracticeSurface } from "../karaoke-practice-surface";
+import { storyStageLines } from "../karaoke-story-fixtures";
 
 const meta = {
-  title: "Features/Karaoke/PracticeSurface",
+  title: "App/Karaoke/PracticeSurface",
   component: KaraokePracticeSurface,
   parameters: {
     docs: {

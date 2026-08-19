@@ -359,8 +359,8 @@ export function StudyingRouteView(props: StudyingRouteViewProps) {
       when={!authRequired()}
       fallback={(
         <AuthRequiredRouteState
-          ctaLabel="Sign in to study"
-          description="Study packs follow the song's community. Sign in to pick up your lesson and streak."
+          ctaLabel="Sign in"
+          description="Continue your lesson and streak after signing in."
           onConnect={props.onConnect ?? requestSignIn}
           title="Sign in to study"
         />

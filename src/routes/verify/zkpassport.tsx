@@ -118,7 +118,7 @@ export default function ZkPassportVerificationRoute() {
         <TextField name="email" value={email()} onChange={setEmail}>
           <TextFieldLabel>Email</TextFieldLabel><TextFieldInput />
         </TextField>
-        <Button type="button" disabled={busy()} onClick={() => void sendCode()}>Send login code</Button>
+        <Button type="button" disabled={busy()} onClick={() => void sendCode()}>Send</Button>
       </Show>
       <Show when={phase() === "code"}>
         <TextField name="code" value={code()} onChange={setCode}>
@@ -127,7 +127,7 @@ export default function ZkPassportVerificationRoute() {
         <Button type="button" disabled={busy()} onClick={() => void authenticate()}>Sign in</Button>
       </Show>
       <Show when={phase() === "ready"}>
-        <Button type="button" disabled={busy()} onClick={() => void startCeremony()}>Start age-18 proof</Button>
+        <Button type="button" disabled={busy()} onClick={() => void startCeremony()}>Start</Button>
       </Show>
       <Show when={phase() === "ceremony"}>
         <p role="status">Scan this code with ZKPassport, or open it on this phone.</p>

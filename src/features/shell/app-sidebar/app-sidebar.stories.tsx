@@ -10,7 +10,7 @@ const sections: SidebarSection[] = [
 ];
 const primary = [{ id: "home", label: "Home" }, { id: "search", label: "Search" }];
 const resources = [{ id: "docs", label: "Documentation" }, { id: "help", label: "Help center" }];
-const meta = { title: "Compositions/App/AppSidebar", parameters: { layout: "fullscreen" } } satisfies Meta;
+const meta = { title: "App/Shell/AppSidebar", parameters: { layout: "fullscreen" } } satisfies Meta;
 export default meta;
 type Story = StoryObj<typeof meta>;
 
@@ -21,4 +21,3 @@ export const DesktopShellWithAction: Story = { render: () => <div class="flex mi
 export const CollapsedIconRail: Story = { render: () => <div class="flex min-h-screen"><AppSidebar collapsed primaryItems={primary} sections={sections} /><Content label="Collapsed icon rail" /></div> };
 export const CommunitiesOverflowing: Story = { render: () => <div class="flex min-h-screen"><AppSidebar brandLabel="PIRATE" primaryItems={primary} sections={[{ id: "communities", label: "Communities", items: Array.from({ length: 8 }, (_, index) => ({ id: `community-${index}`, label: `c/community-${index}` })) }]} /><Content label="Community list at the visible cap" /></div> };
 export const MobileShell: Story = { parameters: { viewport: { defaultViewport: "mobile1" } }, render: () => <div class="flex min-h-screen"><AppSidebar class="hidden md:flex" brandLabel="PIRATE" primaryItems={primary} sections={sections} /><Content label="Mobile content shell" /></div> };
-

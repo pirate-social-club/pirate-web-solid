@@ -27,7 +27,7 @@ export function HostBookingPage(props: HostBookingPageProps) {
         <Show when={props.introVideoSrc}><div class="flex flex-col gap-2"><Type variant="label">Intro video</Type><video aria-label={`Intro video from ${props.name}`} class="aspect-video w-full rounded-[var(--radius-md)] border border-border-soft bg-foreground" controls preload="metadata" src={props.introVideoSrc} /></div></Show>
       </CardContent></Card>
       <Show when={props.availabilityPreview}><div class="flex flex-col gap-3"><Type as="h2" variant="h3">Availability</Type>{props.availabilityPreview}</div></Show>
-      <div class="sticky bottom-4 z-10 flex justify-center sm:static sm:z-auto"><Button class="w-full sm:w-auto" onClick={props.onBookSession} size="lg">Book a session</Button></div>
+      <div class="sticky bottom-4 z-10 flex justify-center sm:static sm:z-auto"><Button class="w-full sm:w-auto" onClick={props.onBookSession} size="lg">Book</Button></div>
     </div>
   );
 }

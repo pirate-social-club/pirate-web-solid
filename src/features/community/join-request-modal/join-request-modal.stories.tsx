@@ -37,7 +37,7 @@ function JoinRequestStory(props: Pick<CommunityJoinRequestModalProps, "initialNo
   return (
     <div class="min-h-[680px] bg-background p-6 text-foreground" dir="rtl">
       <Show when={!open()}>
-        <button ref={(element) => { opener = element; }} id="join-request-reopen" onClick={reopen} type="button">Reopen request</button>
+        <button ref={(element) => { opener = element; }} id="join-request-reopen" onClick={reopen} type="button">Reopen</button>
       </Show>
       <CommunityJoinRequestModal
         communityName="Signal Room"
@@ -56,7 +56,7 @@ function JoinRequestStory(props: Pick<CommunityJoinRequestModalProps, "initialNo
 }
 
 const meta = {
-  title: "Compositions/Community/JoinRequestModal",
+  title: "App/Community/JoinRequestModal",
   component: CommunityJoinRequestModal,
   args: { communityName: "Signal Room", onOpenChange: () => undefined, onSubmit: () => undefined, open: true },
   parameters: { layout: "fullscreen", a11y: { test: "error" } },
@@ -82,7 +82,7 @@ export const Default: Story = {
     await expect(within(document.body).getByRole("heading", { name: "Request submitted" })).toBeInTheDocument();
     await userEvent.click(within(document.body).getByRole("button", { name: "Done" }));
     await expect(within(document.body).queryByRole("dialog")).toBeNull();
-    await expect(canvas.getByRole("button", { name: "Reopen request" })).toHaveFocus();
+    await expect(canvas.getByRole("button", { name: "Reopen" })).toHaveFocus();
   },
 };
 

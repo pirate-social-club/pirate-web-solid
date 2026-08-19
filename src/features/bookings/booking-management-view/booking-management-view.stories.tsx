@@ -13,7 +13,7 @@ const items: BookingManagementItem[] = [
   { id: "cancelled", counterpartyName: "Nora Ibrahim", counterpartyHandle: "nora.eth", sessionTimeLabel: "7–7:30 PM, July 3", amountLabel: "50.00 USDC", statusLabel: "Cancelled — no refund", statusDetail: "The free-cancellation window had ended.", statusTone: "muted", section: "cancelled" },
 ];
 
-const meta = { title: "Compositions/Bookings/BookingManagementView", component: BookingManagementView, parameters: { layout: "fullscreen", a11y: { test: "error" } } } satisfies Meta<typeof BookingManagementView>;
+const meta = { title: "App/Bookings/BookingManagementView", component: BookingManagementView, parameters: { layout: "fullscreen", a11y: { test: "error" } } } satisfies Meta<typeof BookingManagementView>;
 export default meta;
 type Story = StoryObj<typeof meta>;
 const args = { onAddToCalendar: () => {}, onCancel: () => {}, onJoin: () => {}, onRetry: () => {}, onRoleChange: () => {}, onSignIn: () => {}, role: "booker" as const };
@@ -25,7 +25,7 @@ function InteractiveManagement(props: { items?: BookingManagementItem[]; state: 
   return <div class="flex flex-col gap-3"><BookingManagementView errorMessage={props.errorMessage} items={props.items} onAddToCalendar={(item) => setAction(`calendar:${item.id}`)} onCancel={(item) => setAction(`cancel:${item.id}`)} onJoin={(item) => setAction(`join:${item.id}`)} onRetry={() => setAction("retry")} onRoleChange={setRole} onSignIn={() => setAction("sign-in")} role={role()} state={props.state} /><Type aria-live="polite" variant="caption">{action()}</Type></div>;
 }
 
-export const Booker: Story = { args: { ...args, items, state: "ready" }, render: () => <InteractiveManagement items={items} state="ready" />, play: async ({ canvasElement }) => { const canvas = within(canvasElement); const host = canvas.getByRole("button", { name: "As host" }); await userEvent.click(host); await expect(host).toHaveAttribute("aria-pressed", "true"); await userEvent.click(canvas.getByRole("button", { name: "Rejoin session" })); await expect(canvas.getByText("join:live")).toBeInTheDocument(); await userEvent.click(canvas.getAllByRole("button", { name: "Add to calendar" })[0]!); await expect(canvas.getByText("calendar:live")).toBeInTheDocument(); await userEvent.click(canvas.getByRole("button", { name: "Cancel booking" })); await expect(canvas.getByText("cancel:confirmed")).toBeInTheDocument(); } };
+export const Booker: Story = { args: { ...args, items, state: "ready" }, render: () => <InteractiveManagement items={items} state="ready" />, play: async ({ canvasElement }) => { const canvas = within(canvasElement); const host = canvas.getByRole("button", { name: "As host" }); await userEvent.click(host); await expect(host).toHaveAttribute("aria-pressed", "true"); await userEvent.click(canvas.getByRole("button", { name: "Rejoin" })); await expect(canvas.getByText("join:live")).toBeInTheDocument(); await userEvent.click(canvas.getAllByRole("button", { name: "Add" })[0]!); await expect(canvas.getByText("calendar:live")).toBeInTheDocument(); await userEvent.click(canvas.getByRole("button", { name: "Cancel" })); await expect(canvas.getByText("cancel:confirmed")).toBeInTheDocument(); } };
 export const Host: Story = { args: { ...args, items: hostItems, role: "host", state: "ready" } };
 const terminalItems: BookingManagementItem[] = [
   { ...items[3]!, id: "completed_paid", counterpartyName: "Mateo Silva", statusLabel: "Completed", statusDetail: "Host payout completed.", statusTone: "muted" },
@@ -38,6 +38,6 @@ const terminalItems: BookingManagementItem[] = [
 export const TerminalOutcomes: Story = { args: { ...args, items: terminalItems, state: "ready" } };
 export const Loading: Story = { args: { ...args, state: "loading" } };
 export const Empty: Story = { args: { ...args, state: "empty" } };
-export const Failure: Story = { args: { ...args, state: "error", errorMessage: "The connection timed out." }, render: () => <InteractiveManagement state="error" errorMessage="The connection timed out." />, play: async ({ canvasElement }) => { const canvas = within(canvasElement); await userEvent.click(canvas.getByRole("button", { name: "Try again" })); await expect(canvas.getByText("retry")).toBeInTheDocument(); } };
+export const Failure: Story = { args: { ...args, state: "error", errorMessage: "The connection timed out." }, render: () => <InteractiveManagement state="error" errorMessage="The connection timed out." />, play: async ({ canvasElement }) => { const canvas = within(canvasElement); await userEvent.click(canvas.getByRole("button", { name: "Retry" })); await expect(canvas.getByText("retry")).toBeInTheDocument(); } };
 export const SignedOut: Story = { args: { ...args, state: "signed-out" }, render: () => <InteractiveManagement state="signed-out" />, play: async ({ canvasElement }) => { const canvas = within(canvasElement); await userEvent.click(canvas.getByRole("button", { name: "Sign in" })); await expect(canvas.getByText("sign-in")).toBeInTheDocument(); } };
 export const Mobile: Story = { args: { ...args, items, state: "ready" }, globals: { direction: "rtl" }, parameters: { viewport: { defaultViewport: "mobile1" } } };

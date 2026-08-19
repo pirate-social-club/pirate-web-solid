@@ -44,7 +44,7 @@ function MembershipRequestsStory(props: { initialRequests: MembershipRequestSumm
 }
 
 const meta = {
-  title: "Compositions/Community/Moderation/MembershipRequestsPage",
+  title: "App/Community/Moderation/MembershipRequestsPage",
   component: CommunityMembershipRequestsPage,
   parameters: { layout: "fullscreen", a11y: { test: "error" } },
 } satisfies Meta<typeof CommunityMembershipRequestsPage>;

@@ -1,14 +1,14 @@
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 
-import type { StudyingSurfaceState } from "./studying-model";
-import { StudyingSurface, type StudyingSurfaceProps } from "./studying-surface";
+import type { StudyingSurfaceState } from "../studying-model";
+import { StudyingSurface, type StudyingSurfaceProps } from "../studying-surface";
 import {
   storyMultipleChoiceExercise,
   storySayItBackExercise,
-} from "./studying-story-fixtures";
+} from "../studying-story-fixtures";
 
 const meta = {
-  title: "Features/Studying/Surface",
+  title: "App/Studying/Surface",
   parameters: {
     layout: "fullscreen",
     docs: {

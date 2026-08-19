@@ -1,25 +1,26 @@
-import { createEffect, createMemo, createSignal, For, Show } from "solid-js";
+import { createEffect, createMemo, createSignal, onCleanup, Show } from "solid-js";
 
 import {
   Button,
-  cn,
   IconCheck,
   IconCopy,
-  Sheet,
-  SheetContent,
-  SheetDescription,
-  SheetFooter,
-  SheetHeader,
-  SheetTitle,
+  Modal,
+  ModalContent,
+  ModalDescription,
+  ModalHeader,
+  ModalTitle,
+  ResponsiveOptionSelect,
   Type,
 } from "../../design-system";
 import { buildWalletReceiveSheetView, resolveReceiveChainId } from "./wallet-receive-sheet-view-model";
 import type { WalletReceiveSheetProps } from "./wallet-receive-sheet.types";
 import type { WalletHubChainId } from "./wallet-hub.types";
+import { ChainIcon } from "./wallet-visuals";
 
 export function WalletReceiveSheet(props: WalletReceiveSheetProps) {
   const [selectedChainId, setSelectedChainId] = createSignal<WalletHubChainId | undefined>(resolveReceiveChainId(props));
   const [copied, setCopied] = createSignal(false);
+  const [qrDataUrl, setQrDataUrl] = createSignal("");
 
   createEffect(
     () => ({
@@ -36,11 +37,46 @@ export function WalletReceiveSheet(props: WalletReceiveSheetProps) {
   );
 
   const view = createMemo(() => buildWalletReceiveSheetView(props, selectedChainId()));
+  const receiveChains = createMemo(() => buildWalletReceiveSheetView(props).chains);
+  const networkOptions = createMemo(() =>
+    receiveChains().map((chain) => ({
+      description: chain.fiatLabel,
+      disabled: chain.disabled,
+      disabledReason: chain.note,
+      icon: <ChainIcon chainId={chain.chainId} class="size-8" />,
+      label: chain.title,
+      value: chain.chainId,
+    })),
+  );
 
   const selectChain = (chainId: WalletHubChainId) => {
     setCopied(false);
     setSelectedChainId(chainId);
   };
+
+  createEffect(
+    () => ({ address: view().address, chainId: view().selectedChainId }),
+    (next) => {
+      if (!next.address || !next.chainId) {
+        setQrDataUrl("");
+        return;
+      }
+
+      let active = true;
+      setQrDataUrl("");
+      void import("qrcode").then(async ({ default: QRCode }) => {
+        const dataUrl = await QRCode.toDataURL(`${next.chainId}:${next.address}`, {
+          errorCorrectionLevel: "M",
+          margin: 2,
+          width: 240,
+        });
+        if (active) setQrDataUrl(dataUrl);
+      }).catch(() => {
+        if (active) setQrDataUrl("");
+      });
+      onCleanup(() => { active = false; });
+    },
+  );
 
   const copyAddress = async () => {
     const address = view().address;
@@ -54,75 +90,74 @@ export function WalletReceiveSheet(props: WalletReceiveSheetProps) {
   };
 
   return (
-    <Sheet open={props.open} onOpenChange={props.onOpenChange}>
-      <SheetContent
-        side={props.forceMobile ? "bottom" : "right"}
-        class="flex max-h-[88dvh] min-h-0 flex-col overflow-y-auto"
-        aria-label="Receive tokens"
+    <Modal forceMobile={props.forceMobile} open={props.open} onOpenChange={props.onOpenChange}>
+      <ModalContent
+        mobileSide="bottom"
+        class="flex max-h-[88dvh] min-h-0 w-full flex-col overflow-y-auto rounded-t-[var(--radius-3xl)] border-x-0 border-b-0 px-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] pt-4 md:w-[min(100%-2rem,34rem)] md:max-w-[34rem] md:rounded-[var(--radius-xl)] md:border md:p-7"
       >
-        <SheetHeader>
-          <SheetTitle>Receive</SheetTitle>
-          <SheetDescription>
-            Choose a chain and share your address to receive tokens.
-          </SheetDescription>
-        </SheetHeader>
-
-        <ul class="flex flex-col gap-1" aria-label="Chains">
-          <For each={view().chains}>
-            {(chain) => (
-              <li>
-                <button
-                  type="button"
-                  class={cn(
-                    "flex w-full items-center justify-between gap-3 rounded-[var(--radius-md)] px-3 py-2 text-start transition-colors",
-                    chain.selected ? "bg-primary-subtle text-primary-text" : "hover:bg-muted",
-                    chain.disabled && "cursor-not-allowed opacity-50",
-                  )}
-                  disabled={chain.disabled}
-                  aria-pressed={chain.selected ? "true" : "false"}
-                  onClick={() => selectChain(chain.chainId)}
-                >
-                  <span class="flex min-w-0 flex-col">
-                    <Type variant="body-strong">{chain.title}</Type>
-                    <Show when={chain.note}>
-                      {(note) => <Type variant="caption">{note()}</Type>}
-                    </Show>
-                  </span>
-                  <Type variant="caption" class="shrink-0">{chain.fiatLabel}</Type>
-                </button>
-              </li>
-            )}
-          </For>
-        </ul>
+        <div class="mx-auto mb-4 h-1.5 w-12 shrink-0 rounded-full bg-muted-foreground/60 md:hidden" aria-hidden="true" />
+        <ModalHeader class="pe-10 text-start">
+          <ModalTitle>Receive</ModalTitle>
+          <ModalDescription>Choose the network before sharing your wallet address.</ModalDescription>
+        </ModalHeader>
 
         <Show
-          when={view().address}
+          when={view().address && view().selectedChainId}
           fallback={
-            <Type variant="caption">No address is available for the supported chains yet.</Type>
+            <div class="mt-6 rounded-[var(--radius-md)] border border-border-soft bg-muted/20 p-5 text-center">
+              <Type as="p" variant="body-strong">No wallet connected</Type>
+              <Type as="p" variant="body" class="mt-1 text-muted-foreground">Connect a wallet before receiving assets.</Type>
+            </div>
           }
         >
-          <div class="flex flex-col gap-2 rounded-[var(--radius-md)] border border-border-soft p-4">
-            <Type variant="overline">{view().selectedTitle} address</Type>
-            <Type variant="body" class="break-all">{view().addressLabel}</Type>
-            <Button
-              variant="outline"
-              size="sm"
-              class="self-start"
-              leadingIcon={copied() ? <IconCheck class="size-4" /> : <IconCopy class="size-4" />}
-              onClick={() => void copyAddress()}
-            >
-              {copied() ? "Copied" : "Copy address"}
-            </Button>
+          <div class="mt-6 flex flex-col gap-5">
+            <div class="flex items-center justify-between gap-4">
+              <Type variant="body" class="text-muted-foreground">Network</Type>
+              <ResponsiveOptionSelect
+                ariaLabel="Receive network"
+                class="w-full min-w-0 shrink-0 md:w-60"
+                drawerTitle="Receive network"
+                onValueChange={(value) => selectChain(value as WalletHubChainId)}
+                options={networkOptions()}
+                selectAlign="end"
+                triggerContent={
+                  <span class="flex min-w-0 items-center gap-2">
+                    <ChainIcon chainId={view().selectedChainId!} class="size-5" />
+                    <span class="truncate">{view().selectedTitle}</span>
+                  </span>
+                }
+                value={view().selectedChainId}
+              />
+            </div>
+
+            <div class="flex items-center gap-2 rounded-[var(--radius-md)] border border-border-soft bg-muted/20 p-3">
+              <Type variant="body" class="min-w-0 flex-1 cursor-text break-all select-all font-mono">{view().address}</Type>
+              <Button
+                aria-label={copied() ? "Address copied" : "Copy address"}
+                class="size-9 shrink-0"
+                onClick={() => void copyAddress()}
+                size="icon"
+                title={copied() ? "Address copied" : "Copy address"}
+                variant="outline"
+              >
+                {copied() ? <IconCheck class="size-4" /> : <IconCopy class="size-4" />}
+              </Button>
+            </div>
+
+            <div class={`${props.forceMobile ? "hidden" : "hidden md:grid"} mx-auto size-52 place-items-center rounded-[var(--radius-md)] border border-border-soft bg-white p-4`}>
+              <Show
+                when={qrDataUrl()}
+                fallback={<div aria-hidden="true" class="size-full rounded-[var(--radius-sm)] bg-muted/30" />}
+              >
+                {(qr) => <img alt={`QR code for ${view().selectedTitle}`} class="size-full" src={qr()} />}
+              </Show>
+            </div>
           </div>
         </Show>
-
-        <SheetFooter>
-          <Button variant="secondary" onClick={() => props.onOpenChange(false)}>Done</Button>
-        </SheetFooter>
         <Show when={copied()}>
           <Type aria-live="polite" class="sr-only" variant="caption">Address copied</Type>
         </Show>
-      </SheetContent>
-    </Sheet>
+      </ModalContent>
+    </Modal>
   );
 }

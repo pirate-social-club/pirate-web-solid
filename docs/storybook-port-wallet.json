@@ -22,25 +22,25 @@
   "entries": [
     {
       "sourcePath": "solid/src/features/wallet/wallet-hub.stories.tsx",
-      "targetPath": "src/features/wallet/wallet-hub.stories.tsx",
+      "targetPath": "src/features/wallet/wallet-hub/wallet-hub.stories.tsx",
       "sourceSha256": "5739bca0e699d02f1dd7af683257bf1dc48890db5295352df80097ba575ab3c9",
-      "targetSha256": "259854b425939a8e9d6053ad8400c9a34bec2d3494c7733efb94fb7b61dbaa62",
+      "targetSha256": "4658716157ac9baa4f0246778ed56451e4e507eeceeefc2e264ffbdbf17d466f",
       "disposition": "adapted",
       "note": "Uses the standalone shell and current route-neutral WalletHub/send/receive contracts with deterministic five-chain fixtures."
     },
     {
       "sourcePath": "solid/src/features/wallet/wallet-send-sheet.stories.tsx",
-      "targetPath": "src/features/wallet/wallet-send-sheet.stories.tsx",
+      "targetPath": "src/features/wallet/wallet-send-sheet/wallet-send-sheet.stories.tsx",
       "sourceSha256": "2583507e63c168e6a50674af02522c43ca9cdb9afba44f45ac6f130b4b5386eb",
-      "targetSha256": "392af9abc7d110869fa64685f29fc2b0df78814638ceb1a2932d9070094459f6",
+      "targetSha256": "356f748a31655d2e51b84e81f3ba7f4814c65f28f6083091388f224d11ad1a29",
       "disposition": "adapted",
       "note": "Reconciles the historical multi-step play to the current callback-only send-sheet contract and accessible form labels."
     },
     {
       "sourcePath": "solid/src/features/wallet/wallet-receive-sheet.stories.tsx",
-      "targetPath": "src/features/wallet/wallet-receive-sheet.stories.tsx",
+      "targetPath": "src/features/wallet/wallet-receive-sheet/wallet-receive-sheet.stories.tsx",
       "sourceSha256": "ff2a47a26769c2d6c79caff32d1f7419fa5050aec3c2661578feefaa86fafad2",
-      "targetSha256": "60b2efce804b82b984639e5f2f75f5bb637d72291a762bb0339015e7e49ffad2",
+      "targetSha256": "3a7bab8fcce72dc7d63ea72455d0e0fdf268e41a89d75f01a1787034957a45ca",
       "disposition": "adapted",
       "note": "Keeps chain switching, unavailable-wallet, and mobile variants offline and deterministic."
     },

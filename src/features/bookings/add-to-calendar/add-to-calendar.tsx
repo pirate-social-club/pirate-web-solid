@@ -20,7 +20,7 @@ export function AddToCalendar(props: AddToCalendarProps) {
 
   return (
     <Button class={cn(props.class)} onClick={onClick} variant="secondary">
-      Add to calendar
+      Add
     </Button>
   );
 }

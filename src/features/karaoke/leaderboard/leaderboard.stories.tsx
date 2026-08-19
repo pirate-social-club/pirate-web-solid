@@ -1,10 +1,10 @@
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 
-import { KaraokeLeaderboard } from "./karaoke-leaderboard";
-import { storyEmptyLeaderboard, storyLeaderboard } from "./karaoke-story-fixtures";
+import { KaraokeLeaderboard } from "../karaoke-leaderboard";
+import { storyEmptyLeaderboard, storyLeaderboard } from "../karaoke-story-fixtures";
 
 const meta = {
-  title: "Features/Karaoke/Leaderboard",
+  title: "App/Karaoke/Leaderboard",
   component: KaraokeLeaderboard,
   parameters: {
     docs: {

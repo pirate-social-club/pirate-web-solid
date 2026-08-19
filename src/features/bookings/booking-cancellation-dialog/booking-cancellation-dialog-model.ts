@@ -31,8 +31,8 @@ export const defaultBookingCancellationDialogCopy: BookingCancellationDialogCopy
   acknowledgement: "I understand I will not receive a refund.",
   cutoffEnded: "The free-cancellation window ended {time}.",
   genericError: "The booking could not be cancelled. Try again.",
-  keepBooking: "Keep booking",
-  confirm: "Confirm cancellation",
+  keepBooking: "Keep",
+  confirm: "Cancel",
 };
 
 export function fillBookingCancellationCopy(template: string, values: Record<string, string>): string {

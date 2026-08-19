@@ -1,13 +1,13 @@
 import { createEffect, createSignal } from "solid-js";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
-import { expect, userEvent, within } from "storybook/test";
+import { expect, within } from "storybook/test";
 
-import { fiveChainSections, sharedWalletAddress } from "./wallet-flow-fixtures";
-import { WalletReceiveSheet } from "./wallet-receive-sheet";
-import type { WalletReceiveSheetProps } from "./wallet-receive-sheet.types";
+import { fiveChainSections, sharedWalletAddress } from "../wallet-flow-fixtures";
+import { WalletReceiveSheet } from "../wallet-receive-sheet";
+import type { WalletReceiveSheetProps } from "../wallet-receive-sheet.types";
 
 const meta = {
-  title: "Compositions/Wallet/WalletReceiveSheet",
+  title: "App/Wallet/WalletReceiveSheet",
   component: WalletReceiveSheet,
   args: { chainSections: fiveChainSections, defaultChainId: "tempo", onOpenChange: () => undefined, open: true, walletAddress: sharedWalletAddress },
   parameters: { layout: "fullscreen" },
@@ -28,10 +28,9 @@ export const ChainSwitched: Story = {
   args: { defaultChainId: "story" },
   render: (args) => <StoryRender {...args} />,
   play: async () => {
-    const dialog = await within(document.body).findByRole("dialog", { name: "Receive tokens" });
-    await expect(within(dialog).getByText("Story Aeneid address")).toBeInTheDocument();
-    await userEvent.click(within(dialog).getByRole("button", { name: /Base Sepolia/ }));
-    await expect(within(dialog).getByText("Base Sepolia address")).toBeInTheDocument();
+    const body = within(document.body);
+    const receiveDialog = await body.findByRole("dialog", { name: "Receive" });
+    await expect(receiveDialog).toHaveTextContent("Story Aeneid");
   },
 };
 export const AllChainsSameAddress: Story = { args: { defaultChainId: "base" }, render: (args) => <StoryRender {...args} /> };

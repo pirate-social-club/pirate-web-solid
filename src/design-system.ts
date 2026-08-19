@@ -44,6 +44,21 @@ export {
   SheetHeader,
   SheetTitle,
 } from "@pirate/web-solid-ui";
+export {
+  Modal,
+  ModalContent,
+  ModalDescription,
+  ModalFooter,
+  ModalHeader,
+  ModalTitle,
+  type ModalContentProps,
+  type ModalProps,
+} from "@pirate/web-solid-ui";
+export {
+  ResponsiveOptionSelect,
+  type ResponsiveOptionSelectOption,
+  type ResponsiveOptionSelectProps,
+} from "@pirate/web-solid-ui";
 export { cn } from "@pirate/web-solid-ui";
 export { createMediaQuery } from "@pirate/web-solid-ui";
 export {

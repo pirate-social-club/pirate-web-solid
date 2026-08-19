@@ -134,7 +134,7 @@ export function Select<Option>(props: SelectProps<Option>) {
       <KSelect.Portal>
         <KSelect.Content
           class={cn(
-            "z-50 max-w-[var(--kb-popper-anchor-width)] min-w-32 overflow-hidden rounded-[var(--radius-lg)] border border-border bg-popover p-1 text-popover-foreground shadow-md",
+            "z-50 min-w-64 max-w-[calc(100vw-2rem)] overflow-hidden rounded-[var(--radius-lg)] border border-border bg-popover p-1 text-popover-foreground shadow-md",
             props.contentClass,
           )}
         >

@@ -101,7 +101,7 @@ const preview: Preview = {
     layout: "fullscreen",
     options: {
       storySort: {
-        order: ["App", "Foundations"],
+        order: ["App", "Foundations", "Components", "Patterns", "QA"],
       },
     },
   },

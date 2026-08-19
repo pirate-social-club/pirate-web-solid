@@ -62,7 +62,7 @@ export function BookingCheckout(props: BookingCheckoutProps) {
         </Show>
 
         <Show when={props.phase === "conflict" && props.onReleaseHold}>
-          <Button onClick={props.onReleaseHold} variant="secondary">Back to slots</Button>
+          <Button onClick={props.onReleaseHold} variant="secondary">Back</Button>
         </Show>
       </CardContent>
     </Card>

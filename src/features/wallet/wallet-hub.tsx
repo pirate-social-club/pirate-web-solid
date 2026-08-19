@@ -12,44 +12,22 @@ import {
   Type,
 } from "../../design-system";
 import { buildWalletHubView } from "./wallet-hub-view-model";
-import type { WalletHubChainSection, WalletHubProps } from "./wallet-hub.types";
+import type { WalletHubAssetRow } from "./wallet-hub-model";
+import type { WalletHubProps } from "./wallet-hub.types";
+import { TokenChainIcon } from "./wallet-visuals";
 
-function ChainSection(props: {
-  fiatByTokenId: Record<string, string | null>;
-  section: WalletHubChainSection;
-}) {
+function AssetRow(props: { asset: WalletHubAssetRow }) {
   return (
-    <section aria-label={props.section.title} class="flex flex-col gap-2">
-      <div class="flex items-baseline justify-between gap-2">
-        <Type variant="overline">{props.section.title}</Type>
-        <Show when={props.section.availability === "later"}>
-          <Type variant="caption">{props.section.note ?? "Available later"}</Type>
-        </Show>
+    <li class="flex items-center gap-3 border-b border-border-soft px-1 py-3 last:border-b-0">
+      <TokenChainIcon asset={props.asset} />
+      <div class="min-w-0 flex-1">
+        <Type as="div" variant="body-strong">{props.asset.symbol}</Type>
       </div>
-      <Show when={props.section.availability === "ready"}>
-        <ul class="flex flex-col divide-y divide-border-soft">
-          <For each={props.section.tokens}>
-            {(token) => {
-              const fiatValue = () => props.fiatByTokenId[`${props.section.chainId}:${token.id}`];
-              return (
-                <li class="flex items-center justify-between gap-3 py-3">
-                  <div class="flex min-w-0 flex-col">
-                    <Type variant="body-strong">{token.symbol}</Type>
-                    <Type variant="caption" class="truncate">{token.name}</Type>
-                  </div>
-                  <div class="flex shrink-0 flex-col items-end">
-                    <Type variant="body-strong">{token.balance ?? "0"}</Type>
-                    <Show when={fiatValue()}>
-                      {(value) => <Type variant="caption">{value()}</Type>}
-                    </Show>
-                  </div>
-                </li>
-              );
-            }}
-          </For>
-        </ul>
-      </Show>
-    </section>
+      <div class="min-w-[5.5rem] shrink-0 text-end">
+        <Type as="div" variant="body" class="tabular-nums">{props.asset.balance}</Type>
+        <Type as="div" variant="caption" class="tabular-nums">{props.asset.fiatValue ?? "$0.00"}</Type>
+      </div>
+    </li>
   );
 }
 
@@ -78,26 +56,32 @@ export function WalletHub(props: WalletHubProps) {
       <header class="flex items-center justify-between gap-3">
         <Type variant="h2" as="h1">{view().title}</Type>
         <div class="flex items-center gap-2">
-          <span class="inline-flex items-center gap-1.5 text-base text-muted-foreground">
-            <IconWallet class="size-[18px]" />
-            {view().walletLabel}
-          </span>
-          <Button
-            variant="ghost"
-            size="sm"
-            disabled={view().actions.changeWallet.disabled}
-            loading={view().actions.changeWallet.pending}
-            onClick={() => view().actions.changeWallet.onSelect?.()}
-          >
-            {view().actions.changeWallet.label}
-          </Button>
+          <Show when={view().walletLabel}>
+            {(walletLabel) => (
+              <span class="inline-flex items-center gap-1.5 text-base text-muted-foreground">
+                <IconWallet class="size-[18px]" />
+                {walletLabel()}
+              </span>
+            )}
+          </Show>
+          <Show when={props.onChangeWallet || props.walletActionsPending}>
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled={view().actions.changeWallet.disabled}
+              loading={view().actions.changeWallet.pending}
+              onClick={() => view().actions.changeWallet.onSelect?.()}
+            >
+              {view().actions.changeWallet.label}
+            </Button>
+          </Show>
         </div>
       </header>
 
       <Card>
         <CardHeader>
           <Type variant="overline">Total balance</Type>
-          <Type variant="display" as="p">
+          <Type variant="h1" as="p">
             {view().totalBalanceLabel ?? "—"}
           </Type>
         </CardHeader>
@@ -122,96 +106,73 @@ export function WalletHub(props: WalletHubProps) {
         </CardContent>
       </Card>
 
-      <Show when={view().claim}>
-        {(claim) => (
-          <Card>
-            <CardContent class="flex items-center justify-between gap-3 p-6">
-              <div class="flex min-w-0 flex-col">
-                <Type variant="overline">Claimable royalties</Type>
-                <Type variant="body-strong">{claim().amountLabel}</Type>
-                <Show when={claim().supportingLabel}>
-                  {(supporting) => <Type variant="caption">{supporting()}</Type>}
-                </Show>
-              </div>
-              <Button
-                disabled={claim().action.disabled}
-                loading={claim().action.pending}
-                onClick={() => claim().action.onSelect?.()}
-              >
-                {claim().action.label}
-              </Button>
-            </CardContent>
-          </Card>
-        )}
-      </Show>
+      <div class="grid gap-4 md:grid-cols-2">
+        <Show when={view().claim}>
+          {(claim) => (
+            <Card>
+              <CardContent class="flex flex-col justify-center gap-3 p-6">
+                <Type variant="overline">Royalties</Type>
+                <Type variant="h1" as="p">{claim().amountLabel}</Type>
+                <Button
+                  disabled={claim().action.disabled}
+                  loading={claim().action.pending}
+                  onClick={() => claim().action.onSelect?.()}
+                >
+                  {claim().action.label}
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+        </Show>
 
-      <Show when={view().rewards}>
-        {(rewards) => (
-          <Card>
-            <CardContent class="flex items-center justify-between gap-3 p-6">
-              <div class="flex min-w-0 flex-col">
+        <Show when={view().rewards}>
+          {(rewards) => (
+            <Card>
+              <CardContent class="flex flex-col justify-center gap-3 p-6">
                 <Type variant="overline">Rewards</Type>
-                <Type variant="body-strong">
-                  {rewards().amountLabel} {rewards().assetLabel}
-                </Type>
-                <Show when={rewards().supportingLabel}>
-                  {(supporting) => <Type variant="caption">{supporting()}</Type>}
+                <Type variant="h1" as="p">{rewards().amountLabel}</Type>
+                <Show when={rewards().action}>
+                  {(action) => (
+                    <Button
+                      variant="secondary"
+                      disabled={action().disabled}
+                      loading={action().pending}
+                      onClick={() => action().onSelect?.()}
+                    >
+                      {action().label}
+                    </Button>
+                  )}
                 </Show>
-              </div>
-              <Show when={rewards().action}>
-                {(action) => (
-                  <Button
-                    variant="secondary"
-                    disabled={action().disabled}
-                    loading={action().pending}
-                    onClick={() => action().onSelect?.()}
-                  >
-                    {action().label}
-                  </Button>
-                )}
-              </Show>
-            </CardContent>
-          </Card>
-        )}
-      </Show>
+              </CardContent>
+            </Card>
+          )}
+        </Show>
+      </div>
 
       <Card>
-        <CardHeader>
+        <CardHeader class="flex-row items-center justify-between space-y-0">
           <Type as="h2" variant="h3">Assets</Type>
         </CardHeader>
-        <CardContent class="flex flex-col gap-4">
+        <CardContent class="p-4 pt-0">
           <Show
-            when={!view().isEmpty}
+            when={view().assetRows.length > 0}
             fallback={
               <Type variant="caption">
-                {view().connected
-                  ? "No assets yet. Receive tokens to get started."
-                  : "Connect a wallet to see your assets."}
+                {view().connected ? "No assets yet." : "Connect a wallet to see your assets."}
               </Type>
             }
           >
-            <For each={view().readySections}>
-              {(section) => <ChainSection section={section} fiatByTokenId={view().fiatByTokenId} />}
-            </For>
+            <ul class="flex flex-col">
+              <For each={view().assetRows}>{(asset) => <AssetRow asset={asset} />}</For>
+            </ul>
           </Show>
-          <For each={view().laterSections}>
-            {(section) => <ChainSection section={section} fiatByTokenId={view().fiatByTokenId} />}
-          </For>
         </CardContent>
       </Card>
 
       <Show when={view().recentActivity.length > 0}>
         <Card>
-          <CardHeader class="flex-row items-center justify-between space-y-0">
+          <CardHeader>
             <Type as="h2" variant="h3">Recent activity</Type>
-            <Button
-              variant="ghost"
-              size="sm"
-              disabled={view().actions.viewActivity.disabled}
-              onClick={() => view().actions.viewActivity.onSelect?.()}
-            >
-              {view().actions.viewActivity.label}
-            </Button>
           </CardHeader>
           <CardContent>
             <ul class="flex flex-col">

@@ -18,13 +18,14 @@ test("wallet send keeps the accepted bounded and terminal interaction semantics"
   const send = source("wallet-send-sheet.tsx");
 
   expect(send).toContain("max-h-[88dvh]");
-  expect(send).toContain('class="flex max-h-48 flex-col gap-1 overflow-y-auto"');
+  expect(send).toContain("max-h-[min(48dvh,24rem)]");
+  expect(send).toContain("overflow-y-auto");
   expect(send).toContain("tabindex={0}");
   expect(send).toContain('aria-live="polite"');
   expect(send).toContain('role="status"');
   expect(send).toContain('aria-live="assertive"');
   expect(send).toContain('role="alert"');
-  expect(send).toContain(">Try again</Button>");
+  expect(send).toContain(">Retry</Button>");
   expect(send).toContain("setSubmitAttempted(false)");
 });
 
@@ -35,18 +36,18 @@ test("wallet send and receive reset props through tracked effects", () => {
   expect(send).toContain("amount: props.amount");
   expect(send).toContain("defaultAsset: defaultAsset()");
   expect(send).toContain("open: props.open");
-  expect(send).toContain("setLocalStep(undefined)");
+  expect(send).toContain('setLocalStep(next.step ?? "asset")');
   expect(receive).toContain("chainSections: props.chainSections");
   expect(receive).toContain("defaultChainId: props.defaultChainId");
   expect(receive).toContain("walletAddress: props.walletAddress");
   expect(receive).toContain("setCopied(false)");
 });
 
-test("wallet send full-flow play queries the portaled sheet", () => {
-  const story = source("wallet-send-sheet.stories.tsx");
+test("wallet send full-flow play queries the portaled modal", () => {
+  const story = readFileSync(new URL("./wallet-send-sheet/wallet-send-sheet.stories.tsx", import.meta.url), "utf8");
 
-  expect(story).toContain('within(document.body).findByRole("dialog", { name: "Send tokens" })');
+  expect(story).toContain('findByRole("dialog", { name: "Send" })');
   expect(story).toContain("within(dialog).getByPlaceholderText");
-  expect(story).toContain('within(dialog).getByRole("button", { name: "Review and send" })');
+  expect(story).toContain('within(dialog).getByRole("button", { name: "Send" })');
   expect(story).not.toContain("within(canvasElement)");
 });

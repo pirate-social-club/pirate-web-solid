@@ -25,7 +25,7 @@ export function CommunitySidebar(props: CommunitySidebarProps) {
 }
 
 const base: CommunitySidebarProps = { displayName: "Infinity", description: "To infinity and beyond", followers: 18_400, members: 1_270, mode: "unknown", referenceLinks: [{ href: "https://example.com/community", label: "Community site", position: 1 }, { href: "https://example.com/rules", label: "Full rules", position: 2 }], rules: [{ body: "Keep discussion constructive.", position: 1, title: "Be constructive" }, { body: "Use a descriptive flair.", position: 2, title: "Flair posts" }] };
-const meta = { title: "Compositions/Community/Sidebar", component: CommunitySidebar, args: base, parameters: { layout: "centered" } } satisfies Meta<typeof CommunitySidebar>;
+const meta = { title: "App/Community/Sidebar", component: CommunitySidebar, args: base, parameters: { layout: "centered" } } satisfies Meta<typeof CommunitySidebar>;
 export default meta;
 type Story = StoryObj<typeof meta>;
 export const Default: Story = { render: () => <CommunitySidebar {...base} gates={[]} /> };

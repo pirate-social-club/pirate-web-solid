@@ -1,15 +1,15 @@
 import { createRouter, memoryHistory } from "@solidjs/router";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 
-import type { ApiKaraokeSession } from "./karaoke-session-bridge";
-import { KaraokeApiError } from "./karaoke-session-bridge";
-import { KaraokeLeaderboardRouteView, KaraokeSessionRouteView } from "./karaoke-route-view";
+import type { ApiKaraokeSession } from "../karaoke-session-bridge";
+import { KaraokeApiError } from "../karaoke-session-bridge";
+import { KaraokeLeaderboardRouteView, KaraokeSessionRouteView } from "../karaoke-route-view";
 import {
   storyKaraokeClient,
   storyLeaderboard,
   storyPayload,
   storyPostId,
-} from "./karaoke-story-fixtures";
+} from "../karaoke-story-fixtures";
 
 // The route views call useNavigate, so stories mount them under an in-memory
 // router. Navigation writes to memory history only — no browser URL, no
@@ -20,7 +20,7 @@ const StoryRouter = createRouter({
 });
 
 const meta = {
-  title: "Features/Karaoke/RouteView",
+  title: "App/Karaoke/RouteView",
   decorators: [(Story) => <StoryRouter>{() => <Story />}</StoryRouter>],
   parameters: {
     docs: {

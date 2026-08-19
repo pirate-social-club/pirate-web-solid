@@ -18,7 +18,7 @@ const baseArgs: SongPurchaseModalProps = {
 };
 
 const meta = {
-  title: "Compositions/Wallet/SongPurchaseModal",
+  title: "App/Wallet/SongPurchaseModal",
   component: SongPurchaseModal,
   args: baseArgs,
   parameters: { layout: "centered", a11y: { test: "error" } },

@@ -61,5 +61,14 @@ row is not accepted until its evidence level is recorded; the historical
 119/177 figure includes at least one runtime-pending row.
 
 The app Storybook (`bun run storybook`, port 6006; `bun run build-storybook`)
-owns only app stories under `src/`; the design-system catalog remains at
-`packages/solid-ui` on port 6007.
+is the unified SolidJS review catalog: it owns app stories under `src/`, the
+app-owned design-system stories and foundation docs under `packages/solid-ui`,
+and excludes React and legacy migration trees. The package retains its own
+port-6007 Storybook scripts for isolated package development and CI.
+
+Story taxonomy is intentionally small and stable: `App/<domain>/<subject>` for
+product stories, `Foundations` for token and design-language docs, `Components`
+and `Patterns` for the design-system package, and `QA` for catalog fixtures.
+App stories should be co-located under `src/features/<domain>/<subject>/` when
+they represent one subject; shared domain fixtures may remain at the domain
+root. Storybook leaf names match the subject/component name.

@@ -180,7 +180,7 @@ export const GENERATED_LOCALE_CATALOGS = {
       },
       "moderation": {
         "links": {
-          "addLink": "Add link",
+          "addLink": "Add",
           "displayNamePlaceholder": "Display name",
           "emptyState": "No links yet.",
           "labelLabel": "Label",
@@ -190,7 +190,7 @@ export const GENERATED_LOCALE_CATALOGS = {
           "urlPlaceholder": "https://"
         },
         "rules": {
-          "addRule": "Add rule",
+          "addRule": "Add",
           "defaultRule1Body": "No harassment, hate speech, or toxic behavior. Treat all contributors and members with kindness.",
           "defaultRule1Title": "Respect others and be civil",
           "defaultRule2Body": "Excessive promotion, spam, or advertising of any kind is not allowed.",

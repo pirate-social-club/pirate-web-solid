@@ -72,7 +72,7 @@ function InteractiveProfileBookings(
 }
 
 const meta = {
-  title: "Compositions/Bookings/ProfileBookingsSection",
+  title: "App/Bookings/ProfileBookingsSection",
   component: ProfileBookingsSection,
   parameters: { layout: "fullscreen", a11y: { test: "error" } },
 } satisfies Meta<typeof ProfileBookingsSection>;

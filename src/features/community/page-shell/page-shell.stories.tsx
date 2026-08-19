@@ -37,7 +37,7 @@ function StoryCommunityPageShell(props: StoryCommunityPageShellProps) {
 }
 
 const meta = {
-  title: "Compositions/Community/PageShell",
+  title: "App/Community/PageShell",
   component: CommunityPageShell,
   args: { community: tameImpala, following: false, joined: false },
   parameters: { layout: "fullscreen" },

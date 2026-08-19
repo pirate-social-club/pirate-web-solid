@@ -8,9 +8,9 @@ parity. The recovery audit found omitted accepted hunks and the first browser
 sweep produced 111 explicit axe passes, 12 failures, and 60 indeterminate
 results across 183 exports. Counts are evidence, not a pass gate.
 
-## Foundation
+## QA
 
-- `src/storybook-smoke.stories.tsx`
+- `src/qa/storybook-smoke.stories.tsx`
 
 ## Bookings
 
@@ -56,6 +56,6 @@ results across 183 exports. Counts are evidence, not a pass gate.
 
 - `src/features/wallet/royalty-claim-modal/royalty-claim-modal.stories.tsx`
 - `src/features/wallet/song-purchase-modal/song-purchase-modal.stories.tsx`
-- `src/features/wallet/wallet-hub.stories.tsx`
-- `src/features/wallet/wallet-receive-sheet.stories.tsx`
-- `src/features/wallet/wallet-send-sheet.stories.tsx`
+- `src/features/wallet/wallet-hub/wallet-hub.stories.tsx`
+- `src/features/wallet/wallet-receive-sheet/wallet-receive-sheet.stories.tsx`
+- `src/features/wallet/wallet-send-sheet/wallet-send-sheet.stories.tsx`

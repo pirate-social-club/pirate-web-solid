@@ -4,10 +4,10 @@ import {
   AuthRequiredRouteState,
   RouteLoadFailureState,
   RouteLoadingState,
-} from "../../design-system";
+} from "../../../design-system";
 
 const meta = {
-  title: "Features/Karaoke/RouteStates",
+  title: "App/Karaoke/RouteStates",
   parameters: {
     docs: {
       description: {
@@ -40,7 +40,7 @@ export const LoadFailure: Story = {
 export const AuthRequired: Story = {
   render: () => (
     <AuthRequiredRouteState
-      ctaLabel="Sign in to sing"
+      ctaLabel="Sign in"
       description="This song is available to everyone, but recording a scored take requires an account."
       onConnect={() => {}}
       title="Sign in to sing"

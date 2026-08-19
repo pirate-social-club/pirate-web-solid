@@ -36,7 +36,7 @@ function LinksEditorStory(props: { initialLinks: CommunityLinkEditorItem[] }) {
 }
 
 const meta = {
-  title: "Compositions/Community/Moderation/Links",
+  title: "App/Community/Moderation/LinksEditor",
   component: CommunityLinksEditorPage,
   parameters: { layout: "fullscreen", a11y: { test: "error" } },
 } satisfies Meta<typeof CommunityLinksEditorPage>;
@@ -59,7 +59,7 @@ export const Default: Story = {
     await userEvent.type(firstUrl, "https://open.spotify.com/artist/community");
     await userEvent.selectOptions(firstPlatform, "youtube");
     await expect(firstPlatform).toHaveValue("youtube");
-    await userEvent.click(canvas.getByRole("button", { name: "Add link" }));
+    await userEvent.click(canvas.getByRole("button", { name: "Add" }));
     const url = canvas.getAllByLabelText("URL").at(-1)!;
     await expect(canvas.getByRole("button", { name: "Save" })).toBeDisabled();
     const newLabel = canvas.getAllByLabelText("Label").at(-1)!;
@@ -79,7 +79,7 @@ export const Blank: Story = {
     const canvas = within(canvasElement);
     const save = canvas.getByRole("button", { name: "Save" });
     await expect(save).not.toBeDisabled();
-    await userEvent.click(canvas.getByRole("button", { name: "Add link" }));
+    await userEvent.click(canvas.getByRole("button", { name: "Add" }));
     await expect(save).toBeDisabled();
     await userEvent.type(canvas.getByLabelText("URL"), "https://example.com");
     await expect(save).not.toBeDisabled();

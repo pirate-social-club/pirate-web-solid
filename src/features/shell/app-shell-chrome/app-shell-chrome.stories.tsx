@@ -5,7 +5,7 @@ import { Type } from "../../../design-system";
 import { AppHeader, MobileFooterNav } from "./app-shell-chrome";
 
 const labels = { createLabel: "Create", homeAriaLabel: "Go to home", notificationsAriaLabel: "Notifications", openNavigationAriaLabel: "Open navigation", profileAriaLabel: "Open profile", walletAriaLabel: "Wallet" };
-const meta = { title: "Compositions/App/AppShellChrome", parameters: { layout: "fullscreen" } } satisfies Meta;
+const meta = { title: "App/Shell/AppShellChrome", parameters: { layout: "fullscreen" } } satisfies Meta;
 export default meta;
 type Story = StoryObj<typeof meta>;
 
@@ -17,4 +17,3 @@ export const MobileHeader: Story = { parameters: { viewport: { defaultViewport: 
 export const MobileMediaOverlayHeader: Story = { parameters: { viewport: { defaultViewport: "mobile1" } }, render: () => <div class="relative min-h-screen bg-gradient-to-br from-muted to-card"><AppHeader forceMobile hideMobileBrand labels={labels} mobileAppearance="media-overlay" mobileCenterContent={<Type as="span" variant="h4">Pirate</Type>} /><Body>Media overlay keeps controls legible over video</Body></div> };
 export const MobileFooter: Story = { parameters: { viewport: { defaultViewport: "mobile1" } }, render: () => <div class="min-h-screen bg-background px-3 pb-28 pt-6"><Body>Mobile footer navigation</Body><MobileFooterNav forceMobile labels={{ home: "Home", wallet: "Wallet", chat: "Chat", inbox: "Inbox", profile: "Profile", primaryNavAriaLabel: "Primary navigation" }} /></div> };
 export const MobileFooterWithNotifications: Story = { parameters: { viewport: { defaultViewport: "mobile1" } }, render: () => <div class="min-h-screen bg-background px-3 pb-28 pt-6"><Body>Mobile footer with unread inbox</Body><MobileFooterNav forceMobile labels={{ home: "Home", wallet: "Wallet", chat: "Chat", inbox: "Inbox", profile: "Profile", primaryNavAriaLabel: "Primary navigation" }} unreadInboxCount={12} /></div> };
-

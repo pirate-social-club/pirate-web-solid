@@ -59,7 +59,7 @@ function DialogStory(props: Omit<BookingCancellationDialogProps, "open" | "onOpe
   return (
     <>
       <Show when={!open()}>
-        <Button onClick={() => setOpen(true)}>Open cancellation review</Button>
+        <Button onClick={() => setOpen(true)}>Open</Button>
       </Show>
       <BookingCancellationDialog
         {...props}
