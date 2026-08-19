@@ -5,7 +5,6 @@ import {
   Card,
   CardContent,
   CardHeader,
-  CardTitle,
   IconCaretLeft,
   Type,
 } from "../../design-system";
@@ -49,7 +48,7 @@ export function KaraokeLeaderboard(props: KaraokeLeaderboardProps) {
 
         <Card>
           <CardHeader>
-            <CardTitle>Leaderboard</CardTitle>
+            <Type as="h2" variant="h3">Leaderboard</Type>
             <Type as="p" class="text-muted-foreground" variant="caption">
               {props.leaderboard.total_ranked === 0 ? "No eligible scores yet" : `${props.leaderboard.total_ranked} ranked singer${props.leaderboard.total_ranked === 1 ? "" : "s"}`}
             </Type>
@@ -68,7 +67,7 @@ export function KaraokeLeaderboard(props: KaraokeLeaderboardProps) {
                         <span class="w-8 text-center font-semibold tabular-nums text-muted-foreground">{entry.rank}</span>
                         <Avatar fallback={name} fallbackSeed={entry.identity.handle ?? String(entry.rank)} size="sm" src={entry.identity.visibility === "visible" ? entry.identity.avatar_ref ?? undefined : undefined} />
                         <span class="min-w-0 flex-1 truncate">{name}{entry.is_viewer ? " · you" : ""}</span>
-                        <span class="font-semibold tabular-nums text-primary">{scoreLabel(entry.score)}</span>
+                        <span class="font-semibold tabular-nums text-primary-text">{scoreLabel(entry.score)}</span>
                       </li>
                     );
                   }}

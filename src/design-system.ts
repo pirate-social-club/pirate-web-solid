@@ -45,6 +45,7 @@ export {
   SheetTitle,
 } from "@pirate/web-solid-ui";
 export { cn } from "@pirate/web-solid-ui";
+export { createMediaQuery } from "@pirate/web-solid-ui";
 export {
   Avatar,
   Checkbox,
