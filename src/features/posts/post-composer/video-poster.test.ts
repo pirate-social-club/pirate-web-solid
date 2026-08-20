@@ -17,4 +17,3 @@ describe("dataUrlToBlob", () => {
     expect(await blob.text()).toBe("hello poster");
   });
 });
-
