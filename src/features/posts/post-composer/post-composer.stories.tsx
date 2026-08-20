@@ -2,7 +2,7 @@ import { createSignal } from "solid-js";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 
 import { PostComposer } from "./post-composer";
-import { baseComposer, communityItems } from "./story-fixtures";
+import { baseComposer } from "./story-fixtures";
 import { ComposerFrame, InteractiveComposer } from "./story-helpers";
 import type { AuthorAgeGatePolicy, ComposerAudienceState } from "./types";
 
@@ -15,7 +15,7 @@ const meta = {
     docs: {
       description: {
         component:
-          "The post composer port. Host-owned identity, community selection, upload, and submit callbacks are represented with deterministic Storybook fixtures.",
+          "The post composer port. Host-owned identity, upload, and submit callbacks are represented with deterministic Storybook fixtures.",
       },
     },
   },
@@ -70,47 +70,6 @@ export const DragAndDrop: Story = {
         {...baseComposer}
         titleValue="Try dragging a file here"
         textBodyValue="Drop an image, video, audio file, or downloadable document onto the composer."
-      />
-    </ComposerFrame>
-  ),
-};
-
-export const CommunityPicker: Story = {
-  name: "Community picker",
-  render: () => (
-    <ComposerFrame>
-      <PostComposer
-        {...baseComposer}
-        communityPickerItems={communityItems}
-        onSelectCommunity={() => undefined}
-      />
-    </ComposerFrame>
-  ),
-};
-
-export const CommunityContext: Story = {
-  name: "Community / Locked context",
-  render: () => (
-    <ComposerFrame>
-      <PostComposer
-        {...baseComposer}
-        communityLocked
-        communityPickerItems={communityItems}
-        onSelectCommunity={() => undefined}
-      />
-    </ComposerFrame>
-  ),
-};
-
-export const SovereignContext: Story = {
-  name: "Community / Sovereign context",
-  render: () => (
-    <ComposerFrame>
-      <PostComposer
-        {...baseComposer}
-        communityPickerItems={communityItems}
-        onSelectCommunity={() => undefined}
-        sovereignCommunityId="com_yeezy"
       />
     </ComposerFrame>
   ),

@@ -67,11 +67,6 @@ export const QualifiersDropdown: Story = {
   render: () => <ComposerFrame><PostComposer {...baseComposer} identity={{ ...baseComposer.identity, identityMode: "anonymous", selectedQualifierIds: ["qlf_unique_human", "qlf_age_over_18"] }} /></ComposerFrame>,
 };
 
-export const GateSuppressesQualifier: Story = {
-  name: "Gate suppresses qualifier",
-  render: () => <ComposerFrame><PostComposer {...baseComposer} clubName="c/us-politics" identity={{ ...baseComposer.identity, identityMode: "anonymous", helpText: "Community-required qualifiers are hidden here." }} /></ComposerFrame>,
-};
-
 export const AnonymousWithoutDisclosure: Story = {
   name: "Anonymous without qualifier disclosure",
   render: () => (
@@ -90,16 +85,6 @@ export const AnonymousWithoutDisclosure: Story = {
       />
     </ComposerFrame>
   ),
-};
-
-export const CommunityInRestrictedCommunity: Story = {
-  name: "Community / Restricted",
-  render: () => <ComposerFrame><PostComposer {...baseComposer} clubName="c/us-politics" audience={{ visibility: "members_only", publicOptionEnabled: false }} /></ComposerFrame>,
-};
-
-export const CommunityInPublicCommunity: Story = {
-  name: "Community / Public with members-only option",
-  render: () => <ComposerFrame><PostComposer {...baseComposer} clubName="c/industry-whispers" audience={{ visibility: "members_only", publicOptionEnabled: true }} /></ComposerFrame>,
 };
 
 export const RTL: Story = {

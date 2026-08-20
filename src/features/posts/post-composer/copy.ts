@@ -31,10 +31,7 @@ export interface ComposerCopy {
     replace: string;
   };
   common: {
-    chooseCommunity: string;
     loading: string;
-    noRecentCommunities: string;
-    searchCommunities: string;
   };
   derivative: {
     acceptSourceTerms: string;
@@ -142,10 +139,7 @@ export const defaultComposerCopy: ComposerCopy = {
     replace: "Replace",
   },
   common: {
-    chooseCommunity: "Choose a community",
     loading: "Loading...",
-    noRecentCommunities: "No recent communities.",
-    searchCommunities: "Search communities",
   },
   derivative: {
     acceptSourceTerms: "I accept these remix terms.",

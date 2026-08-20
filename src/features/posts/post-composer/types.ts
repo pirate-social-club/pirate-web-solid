@@ -31,12 +31,6 @@ export interface VideoDetailsState {
   thumbnail: ComposerUploadValue;
 }
 
-export interface CommunityPickerItem {
-  communityId: string;
-  displayName: string;
-  avatarSrc?: string | null;
-}
-
 export type SongMode = "original" | "remix";
 
 export type AssetLicensePresetId = "non-commercial" | "commercial-use" | "commercial-remix";
@@ -374,17 +368,7 @@ interface PostComposerSubmitState {
 }
 
 export interface PostComposerProps extends Partial<PostComposerDraftState>, PostComposerDraftActions {
-  clubName: string;
-  clubAvatarSrc?: string;
   onClose?: () => void;
-  // Sovereign deployments already fix the destination for the whole app.
-  sovereignCommunityId?: string;
-  // Community-context composing (community TLD page): the pill renders
-  // static with no picker because the URL fixes the single community.
-  communityLocked?: boolean;
-  communityPickerItems?: CommunityPickerItem[];
-  communityPickerEmptyLabel?: string;
-  onSelectCommunity?: (communityId: string) => void;
   // Community policy: enabling 18+ requires an explicit confirmation step.
   ageGateConfirmationRequired?: boolean;
   availableTabs?: ComposerTab[];

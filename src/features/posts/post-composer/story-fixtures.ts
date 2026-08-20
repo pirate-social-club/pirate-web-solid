@@ -1,7 +1,6 @@
 import type { PostComposerProps, SubmitProgress } from "./types";
 
 export const baseComposer: PostComposerProps = {
-  clubName: "c/yeezy",
   mode: "text",
   availableTabs: ["text", "image", "video", "link", "song", "live", "file"],
   canCreateSongPost: true,
@@ -41,12 +40,6 @@ export const baseComposer: PostComposerProps = {
     onSubmit: () => undefined,
   },
 };
-
-export const communityItems = [
-  { communityId: "c/yeezy", displayName: "c/yeezy" },
-  { communityId: "c/music", displayName: "c/music" },
-  { communityId: "c/builders", displayName: "c/builders" },
-];
 
 function progress(input: Partial<SubmitProgress> & Pick<SubmitProgress, "phase" | "label">): SubmitProgress {
   return {
