@@ -1,47 +1,66 @@
+import { Dynamic } from "@solidjs/web";
+import type { Component } from "solid-js";
+
 import {
   BadgedCircle,
-  Type,
+  NetworkBase,
+  NetworkBitcoin,
+  NetworkEthereum,
+  NetworkOptimism,
+  NetworkTempo,
+  TokenBTC,
+  TokenDAI,
+  TokenETH,
+  TokenLINK,
+  TokenSOL,
+  TokenUSDC,
+  TokenUSDT,
+  type Web3IconProps,
   cn,
 } from "../../design-system";
 import type { WalletHubChainId, WalletHubToken } from "./wallet-hub.types";
 
-import baseIconUrl from "../../assets/wallet-icons/base.png";
 import cosmosIconUrl from "../../assets/wallet-icons/cosmos.png";
-import ethereumIconUrl from "../../assets/wallet-icons/ethereum.png";
 import ipIconUrl from "../../assets/wallet-icons/ip.png";
-import optimismIconUrl from "../../assets/wallet-icons/optimism.png";
 import sentinelIconUrl from "../../assets/wallet-icons/sentinel.png";
 import solanaIconUrl from "../../assets/wallet-icons/solana.png";
 import storyIconUrl from "../../assets/wallet-icons/story.png";
-import tempoIconUrl from "../../assets/wallet-icons/tempo.png";
-import usdcIconUrl from "../../assets/wallet-icons/usdc.png";
-import usdtIconUrl from "../../assets/wallet-icons/usdt.png";
+
+type Web3IconComponent = Component<Web3IconProps>;
 
 const LOCAL_TOKEN_ICON_BY_SYMBOL = new Map([
   ["ATOM", cosmosIconUrl],
-  ["ETH", ethereumIconUrl],
   ["IP", ipIconUrl],
   ["P2P", sentinelIconUrl],
-  ["USDC", usdcIconUrl],
-  ["USDT", usdtIconUrl],
-  ["WETH", ethereumIconUrl],
 ]);
 
 const LOCAL_CHAIN_ICON_BY_CHAIN_ID = new Map<WalletHubChainId, string>([
-  ["base", baseIconUrl],
   ["cosmos", cosmosIconUrl],
-  ["ethereum", ethereumIconUrl],
-  ["optimism", optimismIconUrl],
   ["solana", solanaIconUrl],
   ["story", storyIconUrl],
-  ["tempo", tempoIconUrl],
+]);
+
+const WEB3_TOKEN_ICON_BY_SYMBOL = new Map<string, Web3IconComponent>([
+  ["BTC", TokenBTC],
+  ["DAI", TokenDAI],
+  ["ETH", TokenETH],
+  ["LINK", TokenLINK],
+  ["SOL", TokenSOL],
+  ["USDC", TokenUSDC],
+  ["USDT", TokenUSDT],
+  ["WBTC", TokenBTC],
+  ["WETH", TokenETH],
+]);
+
+const WEB3_CHAIN_ICON_BY_CHAIN_ID = new Map<WalletHubChainId, Web3IconComponent>([
+  ["base", NetworkBase],
+  ["bitcoin", NetworkBitcoin],
+  ["ethereum", NetworkEthereum],
+  ["optimism", NetworkOptimism],
+  ["tempo", NetworkTempo],
 ]);
 
 const fallbackColors = new Map([
-  ["BTC", "#f7931a"],
-  ["DAI", "#f5ac37"],
-  ["LINK", "#2a5ada"],
-  ["SOL", "#14b8a6"],
   ["PATHUSD", "#334155"],
 ]);
 
@@ -91,8 +110,11 @@ export function ChainIcon(props: {
   class?: string;
   framed?: boolean;
 }) {
+  const web3Icon = WEB3_CHAIN_ICON_BY_CHAIN_ID.get(props.chainId);
   const iconUrl = LOCAL_CHAIN_ICON_BY_CHAIN_ID.get(props.chainId);
-  const content = iconUrl
+  const content = web3Icon
+    ? <Dynamic component={web3Icon} class="size-[74%]" />
+    : iconUrl
     ? <LocalIcon class="size-[74%]" src={iconUrl} />
     : <WalletIconFallback class="size-[74%]" label={chainLabels.get(props.chainId) ?? props.chainId} />;
 
@@ -111,13 +133,18 @@ export function TokenChainIcon(props: {
   size?: "sm" | "md";
 }) {
   const symbol = props.token.symbol.toUpperCase();
+  const web3Icon = WEB3_TOKEN_ICON_BY_SYMBOL.get(symbol);
   const iconUrl = LOCAL_TOKEN_ICON_BY_SYMBOL.get(symbol);
   const isSmall = props.size === "sm";
   const circleClass = isSmall ? "size-10" : "size-12";
   const iconClass = isSmall ? "size-7" : "size-8";
   const icon = (
     <span class={cn("grid place-items-center overflow-hidden rounded-full border border-border bg-white p-1", circleClass)}>
-      {iconUrl ? <LocalIcon class={iconClass} src={iconUrl} /> : <WalletIconFallback class={iconClass} label={symbol} />}
+      {web3Icon
+        ? <Dynamic component={web3Icon} class={iconClass} />
+        : iconUrl
+          ? <LocalIcon class={iconClass} src={iconUrl} />
+          : <WalletIconFallback class={iconClass} label={symbol} />}
     </span>
   );
 

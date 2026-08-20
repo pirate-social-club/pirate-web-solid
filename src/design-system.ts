@@ -30,6 +30,21 @@ export {
 } from "@pirate/web-solid-ui";
 export { Separator, Type } from "@pirate/web-solid-ui";
 export {
+  NetworkBase,
+  NetworkBitcoin,
+  NetworkEthereum,
+  NetworkOptimism,
+  NetworkTempo,
+  TokenBTC,
+  TokenDAI,
+  TokenETH,
+  TokenLINK,
+  TokenSOL,
+  TokenUSDC,
+  TokenUSDT,
+  type Web3IconProps,
+} from "@pirate/web-solid-ui";
+export {
   IconArrowDown,
   IconArrowUp,
   IconCheck,
