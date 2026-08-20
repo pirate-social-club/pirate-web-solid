@@ -73,9 +73,10 @@ const preferredChainOrder: WalletHubChainId[] = [
   "ethereum", "base", "optimism", "story", "tempo", "bitcoin", "solana", "cosmos",
 ];
 
-const symbolOrder = {
-  ETH: 0, IP: 1, "$DATA": 2, USDC: 3, USDT: 4, DAI: 5, WBTC: 6, LINK: 7, BTC: 8, SOL: 9, PATHUSD: 10,
-} as const;
+const symbolOrder = new Map([
+  ["ETH", 0], ["IP", 1], ["$DATA", 2], ["USDC", 3], ["USDT", 4], ["DAI", 5],
+  ["WBTC", 6], ["LINK", 7], ["BTC", 8], ["SOL", 9], ["PATHUSD", 10],
+]);
 
 function compareAssets(a: { symbol: string; fiatValue?: string | null; totalFiatValue?: string | null }, b: { symbol: string; fiatValue?: string | null; totalFiatValue?: string | null }): number {
   const aSymbol = a.symbol.toUpperCase();
@@ -85,8 +86,8 @@ function compareAssets(a: { symbol: string; fiatValue?: string | null; totalFiat
   if (aTop && !bTop) return -1;
   if (!aTop && bTop) return 1;
   if (aTop && bTop) {
-    const topOrder = { IP: 0, "$DATA": 1 } as const;
-    return (topOrder[aSymbol as keyof typeof topOrder] ?? 2) - (topOrder[bSymbol as keyof typeof topOrder] ?? 2);
+    const topOrder = new Map([["IP", 0], ["$DATA", 1]]);
+    return (topOrder.get(aSymbol) ?? 2) - (topOrder.get(bSymbol) ?? 2);
   }
   const aValue = a.fiatValue ?? a.totalFiatValue ?? null;
   const bValue = b.fiatValue ?? b.totalFiatValue ?? null;
@@ -95,10 +96,8 @@ function compareAssets(a: { symbol: string; fiatValue?: string | null; totalFiat
   if (Number.isFinite(aFiat) && Number.isFinite(bFiat) && aFiat !== bFiat) return bFiat - aFiat;
   if (Number.isFinite(aFiat)) return -1;
   if (Number.isFinite(bFiat)) return 1;
-  // SAFETY: unknown symbols intentionally fall through to the default order.
-  const aOrder = symbolOrder[aSymbol as keyof typeof symbolOrder] ?? 100;
-  // SAFETY: unknown symbols intentionally fall through to the default order.
-  const bOrder = symbolOrder[bSymbol as keyof typeof symbolOrder] ?? 100;
+  const aOrder = symbolOrder.get(aSymbol) ?? 100;
+  const bOrder = symbolOrder.get(bSymbol) ?? 100;
   return aOrder - bOrder || a.symbol.localeCompare(b.symbol);
 }
 

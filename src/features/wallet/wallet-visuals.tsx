@@ -17,44 +17,44 @@ import tempoIconUrl from "../../assets/wallet-icons/tempo.png";
 import usdcIconUrl from "../../assets/wallet-icons/usdc.png";
 import usdtIconUrl from "../../assets/wallet-icons/usdt.png";
 
-const LOCAL_TOKEN_ICON_BY_SYMBOL: Partial<Record<string, string>> = {
-  ATOM: cosmosIconUrl,
-  ETH: ethereumIconUrl,
-  IP: ipIconUrl,
-  P2P: sentinelIconUrl,
-  USDC: usdcIconUrl,
-  USDT: usdtIconUrl,
-  WETH: ethereumIconUrl,
-};
+const LOCAL_TOKEN_ICON_BY_SYMBOL = new Map([
+  ["ATOM", cosmosIconUrl],
+  ["ETH", ethereumIconUrl],
+  ["IP", ipIconUrl],
+  ["P2P", sentinelIconUrl],
+  ["USDC", usdcIconUrl],
+  ["USDT", usdtIconUrl],
+  ["WETH", ethereumIconUrl],
+]);
 
-const LOCAL_CHAIN_ICON_BY_CHAIN_ID: Partial<Record<WalletHubChainId, string>> = {
-  base: baseIconUrl,
-  cosmos: cosmosIconUrl,
-  ethereum: ethereumIconUrl,
-  optimism: optimismIconUrl,
-  solana: solanaIconUrl,
-  story: storyIconUrl,
-  tempo: tempoIconUrl,
-};
+const LOCAL_CHAIN_ICON_BY_CHAIN_ID = new Map<WalletHubChainId, string>([
+  ["base", baseIconUrl],
+  ["cosmos", cosmosIconUrl],
+  ["ethereum", ethereumIconUrl],
+  ["optimism", optimismIconUrl],
+  ["solana", solanaIconUrl],
+  ["story", storyIconUrl],
+  ["tempo", tempoIconUrl],
+]);
 
-const fallbackColors: Record<string, string> = {
-  BTC: "#f7931a",
-  DAI: "#f5ac37",
-  LINK: "#2a5ada",
-  SOL: "#14b8a6",
-  PATHUSD: "#334155",
-};
+const fallbackColors = new Map([
+  ["BTC", "#f7931a"],
+  ["DAI", "#f5ac37"],
+  ["LINK", "#2a5ada"],
+  ["SOL", "#14b8a6"],
+  ["PATHUSD", "#334155"],
+]);
 
-const chainLabels: Record<WalletHubChainId, string> = {
-  bitcoin: "BTC",
-  cosmos: "ATOM",
-  ethereum: "ETH",
-  base: "BASE",
-  optimism: "OP",
-  solana: "SOL",
-  story: "IP",
-  tempo: "T",
-};
+const chainLabels = new Map<WalletHubChainId, string>([
+  ["bitcoin", "BTC"],
+  ["cosmos", "ATOM"],
+  ["ethereum", "ETH"],
+  ["base", "BASE"],
+  ["optimism", "OP"],
+  ["solana", "SOL"],
+  ["story", "IP"],
+  ["tempo", "T"],
+]);
 
 function VisualMark(props: { color: string; label: string; class?: string }) {
   return (
@@ -82,7 +82,7 @@ function LocalIcon(props: { class?: string; src: string }) {
 
 function WalletIconFallback(props: { label: string; class?: string }) {
   const symbol = props.label.toUpperCase();
-  const color = fallbackColors[symbol] ?? "#64748b";
+  const color = fallbackColors.get(symbol) ?? "#64748b";
   return <VisualMark class={props.class} color={color} label={symbol.slice(0, 4)} />;
 }
 
@@ -91,10 +91,10 @@ export function ChainIcon(props: {
   class?: string;
   framed?: boolean;
 }) {
-  const iconUrl = LOCAL_CHAIN_ICON_BY_CHAIN_ID[props.chainId];
+  const iconUrl = LOCAL_CHAIN_ICON_BY_CHAIN_ID.get(props.chainId);
   const content = iconUrl
     ? <LocalIcon class="size-[74%]" src={iconUrl} />
-    : <WalletIconFallback class="size-[74%]" label={chainLabels[props.chainId]} />;
+    : <WalletIconFallback class="size-[74%]" label={chainLabels.get(props.chainId) ?? props.chainId} />;
 
   if (props.framed === false) {
     return <span class={cn("grid shrink-0 place-items-center", props.class)}>{content}</span>;
@@ -111,7 +111,7 @@ export function TokenChainIcon(props: {
   size?: "sm" | "md";
 }) {
   const symbol = props.token.symbol.toUpperCase();
-  const iconUrl = LOCAL_TOKEN_ICON_BY_SYMBOL[symbol];
+  const iconUrl = LOCAL_TOKEN_ICON_BY_SYMBOL.get(symbol);
   const isSmall = props.size === "sm";
   const circleClass = isSmall ? "size-10" : "size-12";
   const iconClass = isSmall ? "size-7" : "size-8";

@@ -56,5 +56,6 @@ results across 183 exports. Counts are evidence, not a pass gate.
 
 - `src/features/wallet/song-purchase-modal/song-purchase-modal.stories.tsx`
 - `src/features/wallet/wallet-hub.stories.tsx`
+- `src/features/wallet/wallet-visuals.tsx`
 - `src/features/wallet/wallet-receive-sheet.stories.tsx`
 - `src/features/wallet/wallet-send-sheet.stories.tsx`
