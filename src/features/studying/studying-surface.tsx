@@ -262,15 +262,18 @@ function StreakSlotNumber(props: { currentStreak: number; previousStreak: number
   const shouldAnimate = () => props.currentStreak > props.previousStreak && !prefersReducedMotion();
   const [advanced, setAdvanced] = createSignal(false);
 
-  createEffect(() => {
-    if (!shouldAnimate()) {
+  createEffect(
+    () => shouldAnimate(),
+    (animate) => {
+      if (!animate) {
+        setAdvanced(false);
+        return;
+      }
       setAdvanced(false);
-      return;
-    }
-    setAdvanced(false);
-    const timeout = window.setTimeout(() => setAdvanced(true), startDelayMs);
-    onCleanup(() => window.clearTimeout(timeout));
-  });
+      const timeout = window.setTimeout(() => setAdvanced(true), startDelayMs);
+      onCleanup(() => window.clearTimeout(timeout));
+    },
+  );
 
   return (
     <Show

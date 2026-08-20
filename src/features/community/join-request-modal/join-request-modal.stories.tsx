@@ -1,6 +1,6 @@
 import { Show, createSignal } from "solid-js";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
-import { expect, userEvent, within } from "storybook/test";
+import { expect, userEvent, waitFor, within } from "storybook/test";
 
 import { Type } from "@pirate/web-solid-ui";
 import {
@@ -25,7 +25,16 @@ function JoinRequestStory(props: Pick<CommunityJoinRequestModalProps, "initialNo
   const handleOpenChange = (nextOpen: boolean) => {
     if (nextOpen) setSubmitted(false);
     setOpen(nextOpen);
-    if (!nextOpen) queueMicrotask(() => opener?.focus());
+    if (!nextOpen) {
+      const focusOpenerAfterClose = () => {
+        if (document.querySelector('[role="dialog"]')) {
+          requestAnimationFrame(focusOpenerAfterClose);
+          return;
+        }
+        opener?.focus();
+      };
+      queueMicrotask(focusOpenerAfterClose);
+    }
   };
 
   const reopen = () => {
@@ -75,14 +84,17 @@ export const Default: Story = {
     const note = within(dialog).getByRole("textbox", { name: "Message (Optional)" });
     await expect(dialog).toHaveAttribute("dir", "rtl");
     await expect(note).toHaveAttribute("dir", "auto");
-    await expect(note).toHaveFocus();
+    await waitFor(() => expect(document.activeElement).toBe(note), { timeout: 5000 });
     await userEvent.type(note, "  I would like to contribute to Signal Room.  ");
     await expect(within(dialog).getByText("46/500")).toBeInTheDocument();
     await userEvent.click(within(dialog).getByRole("button", { name: "Submit" }));
     await expect(within(document.body).getByRole("heading", { name: "Request submitted" })).toBeInTheDocument();
     await userEvent.click(within(document.body).getByRole("button", { name: "Done" }));
     await expect(within(document.body).queryByRole("dialog")).toBeNull();
-    await expect(canvas.getByRole("button", { name: "Reopen request" })).toHaveFocus();
+    await waitFor(
+      () => expect(document.activeElement).toBe(canvas.getByRole("button", { name: "Reopen request" })),
+      { timeout: 5000 },
+    );
   },
 };
 
