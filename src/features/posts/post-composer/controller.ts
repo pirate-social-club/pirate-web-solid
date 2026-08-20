@@ -662,17 +662,6 @@ export function createPostComposerController(
       get regionalPricingPreview() { return regionalPricingPreview(); },
       updateMonetizationState,
     },
-    community: {
-      get avatarSrc() { return props.clubAvatarSrc; },
-      get emptyLabel() { return props.communityPickerEmptyLabel ?? copy.common.noRecentCommunities; },
-      get items() { return props.communityPickerItems; },
-      get locked() { return props.communityLocked === true; },
-      get name() { return props.clubName; },
-      get onSelect() { return props.onSelectCommunity; },
-      get sovereign() { return Boolean(props.sovereignCommunityId); },
-      pickerSearchPlaceholder: copy.common.searchCommunities,
-      pickerTitle: copy.common.chooseCommunity,
-    },
     copy,
     fields: {
       get captionValue() { return captionValue(); },
