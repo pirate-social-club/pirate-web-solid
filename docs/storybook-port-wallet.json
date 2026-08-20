@@ -174,7 +174,7 @@
     "focusedWalletTests": "passed: 54 wallet, sheet, contract, and purchase modal tests",
     "typescript": "passed: bunx tsc --noEmit -p tsconfig.json",
     "lint": "passed with existing repository warnings; no errors",
-    "storybookBuild": "wallet-only catalog passed; full catalog blocked by pre-existing parser error in src/features/posts/feed/public-feed.tsx at 15263..15270, file unchanged in this lane",
+    "storybookBuild": "passed: canonical full catalog with 1948 modules transformed and public-feed story included; Solid component docgen disabled because its meta pass crashes on public-feed.tsx while the normal Solid/Vite transform is valid",
     "productionBuild": "pending",
     "productGraphRequireBuild": "pending",
     "browserAxe": "formal axe sweep pending; isolated browser runtime confirmed all eight WalletHub stories and six purchase-modal states render",
