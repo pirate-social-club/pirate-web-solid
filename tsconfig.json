@@ -24,7 +24,7 @@
     "strict": true,
     "allowJs": false,
     "skipLibCheck": true,
-    "types": ["vite/client", "bun"]
+    "types": ["vite/client", "bun-types"]
   },
   "include": ["src", "vite.config.ts", "scripts", ".storybook", "worker-configuration.d.ts"]
 }
