@@ -14,6 +14,8 @@ export type PostComposerEvent =
   | { readonly type: "manual_review" }
   | { readonly type: "blocked" }
   | { readonly type: "failure"; readonly message: string }
+  | { readonly type: "cancel" }
+  | { readonly type: "timeout"; readonly message?: string }
   | { readonly type: "retry" }
   | { readonly type: "edit" };
 
@@ -41,6 +43,12 @@ export function reducePostComposerState(
       return state.status === "submitting" ? { status: "blocked" } : state;
     case "failure":
       return state.status === "submitting" ? { status: "failure", message: event.message } : state;
+    case "cancel":
+      return state.status === "submitting" ? { status: "editing" } : state;
+    case "timeout":
+      return state.status === "submitting"
+        ? { status: "failure", message: event.message ?? "The request timed out. Try again." }
+        : state;
     case "retry":
       return state.status === "failure" ? { status: "submitting" } : state;
     case "edit":
