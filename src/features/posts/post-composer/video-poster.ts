@@ -1,4 +1,5 @@
-// Framework-independent video poster frame extraction. Only `dataUrlToBlob`
+// Video poster frame extraction, ported verbatim from the React
+// video-poster-frame.ts. Framework-free DOM/canvas code; only `dataUrlToBlob`
 // is exercised by the offline unit tests.
 
 export type ExtractedVideoPosterFrame = {
@@ -10,12 +11,6 @@ export type ExtractedVideoPosterFrame = {
 
 type VideoPosterFrameOptions = {
   maxWidth?: number;
-};
-
-type DrawnPosterFrame = {
-  canvas: HTMLCanvasElement;
-  height: number;
-  width: number;
 };
 
 function parsePosterFrameSeconds(value: string | undefined): number {
@@ -88,10 +83,16 @@ function candidateSeconds(duration: number, selectedSeconds: number): number[] {
   }, [])));
 }
 
+interface PosterFrame {
+  canvas: HTMLCanvasElement;
+  height: number;
+  width: number;
+}
+
 function drawPosterFrame(
   video: HTMLVideoElement,
   maxWidth: number | undefined,
-): DrawnPosterFrame {
+): PosterFrame {
   const sourceWidth = video.videoWidth;
   const sourceHeight = video.videoHeight;
   if (sourceWidth <= 0 || sourceHeight <= 0) {

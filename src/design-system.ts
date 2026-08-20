@@ -60,7 +60,42 @@ export {
   SheetTitle,
 } from "@pirate/web-solid-ui";
 export { cn } from "@pirate/web-solid-ui";
-export { createMediaQuery } from "@pirate/web-solid-ui";
+export { createIsMobile, createMediaQuery } from "@pirate/web-solid-ui";
+export {
+  Chip,
+  Combobox,
+  FormSectionHeading,
+  Modal,
+  ModalContent,
+  ModalDescription,
+  ModalFooter,
+  ModalHeader,
+  ModalTitle,
+  ModalTrigger,
+  PillButton,
+  RadioIndicator,
+  Select,
+  Tabs,
+  TabsList,
+  TabsTrigger,
+  Textarea,
+  pillButtonVariants,
+} from "@pirate/web-solid-ui";
+export {
+  IconArrowSquareOut,
+  IconCalendarBlank,
+  IconCaretDown,
+  IconFileText,
+  IconGlobe,
+  IconImage,
+  IconLink,
+  IconMapPin,
+  IconMaskHappy,
+  IconRobot,
+  IconShield,
+  IconTrash,
+  IconUploadSimple,
+} from "@pirate/web-solid-ui";
 export {
   Avatar,
   Checkbox,

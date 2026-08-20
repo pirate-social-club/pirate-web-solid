@@ -1,4 +1,5 @@
-// Framework-independent embedded audio artwork (ID3 APIC/PIC) extraction.
+// Embedded audio artwork (ID3 APIC/PIC) extraction, ported verbatim from the
+// React post-composer-audio-artwork.ts. Framework-free byte parsing.
 
 export type EmbeddedArtwork = {
   data: Uint8Array;
