@@ -4,12 +4,12 @@
   "source": {
     "repository": "pirate-workspace/web",
     "ref": "002fba933ba913f99ec0ef758f4aa63aff78015f",
-    "policy": "Historical Solid source is read-only. Wallet stories and their two missing modal surfaces are independently owned by the standalone app after contract, package-boundary, and accessibility review."
+    "policy": "Historical Solid source is read-only. Wallet stories and the remaining purchase modal are independently owned by the standalone app after contract, package-boundary, and accessibility review."
   },
   "scope": {
-    "stories": 5,
+    "stories": 4,
     "featureRoot": "src/features/wallet/**",
-    "newPaths": 9,
+    "newPaths": 6,
     "sharedPrerequisites": [
       "src/features/wallet/wallet-hub.tsx",
       "src/features/wallet/wallet-send-sheet.tsx",
@@ -53,14 +53,6 @@
       "note": "Uses standalone Dialog primitives and callback-only purchase confirmation."
     },
     {
-      "sourcePath": "solid/src/features/wallet/royalty-claim-modal/royalty-claim-modal.stories.tsx",
-      "targetPath": "src/features/wallet/royalty-claim-modal/royalty-claim-modal.stories.tsx",
-      "sourceSha256": "62517b997aa19053fca895bb33a8a2b82251e0e91e5756f89181f2c5d3a6d751",
-      "targetSha256": "3ad293fea31003f70f1c81aea19e2561d775c0c052bad3e575963c40447dc9f3",
-      "disposition": "adapted",
-      "note": "Retains ready, no-wallet, pending, success, error, and mobile states against the standalone royalty contract."
-    },
-    {
       "sourcePath": "solid/src/features/wallet/song-purchase-modal/song-purchase-modal.tsx",
       "targetPath": "src/features/wallet/song-purchase-modal/song-purchase-modal.tsx",
       "sourceSha256": "7f27f3bd82f88ec05bb36945295fc7e06717529f5c483d1536d40778d0df1c47",
@@ -69,28 +61,12 @@
       "note": "Reimplemented with standalone Dialog/catalog primitives; no locale, network, auth, persistence, or legacy API behavior."
     },
     {
-      "sourcePath": "solid/src/features/wallet/royalty-claim-modal/royalty-claim-modal.tsx",
-      "targetPath": "src/features/wallet/royalty-claim-modal/royalty-claim-modal.tsx",
-      "sourceSha256": "7a8e3a20ec37a9a57651616a37a623af3a53effb6a922b34e5a951f6e60c9e06",
-      "targetSha256": "24a1eb99995bd8cf90cbb1ff6378c926109f8a5068639f40b7fe5a21891598b2",
-      "disposition": "adapted",
-      "note": "Reimplemented with standalone Dialog/catalog primitives and deterministic callback/state presentation."
-    },
-    {
       "sourcePath": "solid/src/features/wallet/song-purchase-modal/song-purchase-modal-ssr.test.tsx",
       "targetPath": "src/features/wallet/song-purchase-modal/song-purchase-modal-ssr.test.tsx",
       "sourceSha256": "dfd1db33660fafb4e9ae19c6c59cd65cee0fae5064b041fdad93ddb665126715",
       "targetSha256": "540dde12821d17a91341156076b26433e5f6ec7fe496cc9eafc065a6ada00c96",
       "disposition": "adapted",
       "note": "SSR test uses structural local catalog mocks and verifies purchase, discount, processing, vinyl, and error semantics."
-    },
-    {
-      "sourcePath": "solid/src/features/wallet/royalty-claim-modal/royalty-claim-modal-ssr.test.tsx",
-      "targetPath": "src/features/wallet/royalty-claim-modal/royalty-claim-modal-ssr.test.tsx",
-      "sourceSha256": "ffd1e99f1559124d48fc41bdf86d4ef3dbc2daf3a8eb6736e114a7fc720a1de5",
-      "targetSha256": "03ec14129130672a20f1a76f7611eb3226b0ea408f26b70f60068ea509565ee3",
-      "disposition": "adapted",
-      "note": "SSR test verifies wallet, pending, success, error, and accessible switch/action semantics without browser or network dependencies."
     }
   ],
   "reconciliation": {
@@ -98,14 +74,14 @@
     "fixturePolicy": "All story data is inline or imported from the standalone deterministic wallet-flow-fixtures module. No timers, randomness, network, auth, localStorage, or compatibility fixtures are used."
   },
   "evidence": {
-    "focusedWalletTests": "passed: existing wallet model/view-model tests plus 4 new modal SSR tests",
+    "focusedWalletTests": "pending after removal of the obsolete royalty confirmation modal",
     "typescript": "passed: bunx tsc --noEmit -p tsconfig.json",
     "lint": "passed with existing anti-slop warnings in wallet files; no errors",
     "storybookBuild": "pending",
     "productionBuild": "pending",
     "productGraphRequireBuild": "pending",
     "browserAxe": "pending; browser harness not run in this tranche",
-    "provenanceHashes": "passed: all 9 repository-relative solid/src/... source objects resolve via git show at web ref 002fba933ba913f99ec0ef758f4aa63aff78015f and target SHA-256 rows match final files",
+    "provenanceHashes": "pending after removal of the obsolete royalty confirmation modal",
     "determinism": "passed by construction: fixtures and callbacks are inline; no timers, randomness, network, auth, storage, or legacy imports are retained"
   }
 }

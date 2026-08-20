@@ -33,7 +33,7 @@ describe("wallet hub view model", () => {
     expect(view.readySections).toHaveLength(5);
     expect(view.laterSections).toHaveLength(0);
     expect(view.assetRows.map((row) => row.id)).toEqual([
-      "story:ip", "story:wip", "tempo:tempo-pathusd", "optimism:op-eth", "base:base-usdc",
+      "story:ip", "story:data", "tempo:tempo-pathusd", "optimism:op-eth", "base:base-usdc",
       "ethereum:eth", "base:base-eth", "ethereum:usdc-eth",
     ]);
   });
@@ -185,12 +185,12 @@ describe("wallet hub view model", () => {
     const view = buildWalletHubView({
       chainSections: fiveChainSections,
       walletAddress: sharedWalletAddress,
-      claimableWipWei: "12450000000000000000",
+      claimableDataWei: "12450000000000000000",
       claimableSalesCount: 3,
       onClaim,
     });
 
-    expect(view.claim?.amountLabel).toBe("12.45 WIP");
+    expect(view.claim?.amountLabel).toBe("12.45 $DATA");
     expect(view.claim?.supportingLabel).toBe("3 sales");
     expect(view.claim?.action.disabled).toBe(false);
     view.claim?.action.onSelect?.();
@@ -202,7 +202,7 @@ describe("wallet hub view model", () => {
     const view = buildWalletHubView({
       chainSections: fiveChainSections,
       walletAddress: sharedWalletAddress,
-      claimableWipWei: "12450000000000000000",
+      claimableDataWei: "12450000000000000000",
       claimableSalesCount: 1,
       claimLoading: true,
       onClaim,
@@ -230,7 +230,7 @@ describe("wallet hub view model", () => {
       rewardsSummary: {
         actionLabel: "Claim rewards",
         amountLabel: "4.20",
-        assetLabel: "WIP",
+        assetLabel: "$DATA",
         supportingLabel: "Epoch 12",
         pending: true,
         onAction,
@@ -245,7 +245,7 @@ describe("wallet hub view model", () => {
       rewardsSummary: {
         actionLabel: "Claim rewards",
         amountLabel: "4.20",
-        assetLabel: "WIP",
+        assetLabel: "$DATA",
         onAction,
       },
     });
@@ -257,7 +257,7 @@ describe("wallet hub view model", () => {
   test("drives the activity action and keeps activity items in order", () => {
     const onViewActivity = mock(() => {});
     const recentActivity = [
-      { id: "a1", title: "Royalty claimed", amount: "+12.45 WIP", timestamp: "2026-08-01" },
+      { id: "a1", title: "Royalty claimed", amount: "+12.45 $DATA", timestamp: "2026-08-01" },
       { id: "a2", title: "Sent USDC", amount: "-10 USDC" },
     ];
     const view = buildWalletHubView({
@@ -276,7 +276,7 @@ describe("wallet hub view model", () => {
     const view = buildWalletHubView({
       chainSections: fiveChainSections,
       walletAddress: sharedWalletAddress,
-      claimableWipWei: "12450000000000000000",
+      claimableDataWei: "12450000000000000000",
     });
 
     expect(view.actions.receive.disabled).toBe(true);

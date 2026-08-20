@@ -47,7 +47,6 @@ const { SongPurchaseModal } = await import("./song-purchase-modal");
 
 describe("song purchase modal rendered and SSR states", () => {
   const base = {
-    fundingAssetLabel: "USDC on Base Sepolia",
     onOpenChange: () => undefined,
     open: true,
     priceLabel: "$3.99",
@@ -56,10 +55,10 @@ describe("song purchase modal rendered and SSR states", () => {
 
   test("renders purchase summary and callback-only primary action", () => {
     const html = renderToString(() => createComponent(SongPurchaseModal, { ...base, state: "desktop" }));
-    expect(html).toContain("Unlock song");
-    expect(html).toContain("Buy full access to Midnight Waves.");
-    expect(html).toContain("USDC on Base Sepolia");
-    expect(html).toContain("Unlock for $3.99");
+    expect(html).toContain("Midnight Waves");
+    expect(html).toContain("Get a downloadable copy of this song.");
+    expect(html).toContain("Buy for $3.99");
+    expect(html).not.toContain("USDC");
     expect(html).toContain("Save up to 20% with Self.xyz");
   });
 

@@ -37,5 +37,5 @@ export function selfVerificationLabel(value: number | null | undefined): string 
 }
 
 export function purchaseButtonLabel(priceLabel: string, processing: boolean): string {
-  return processing ? "Processing purchase" : `Unlock for ${priceLabel}`;
+  return processing ? "Processing purchase" : `Buy for ${priceLabel}`;
 }

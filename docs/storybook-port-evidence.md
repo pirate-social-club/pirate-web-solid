@@ -54,7 +54,6 @@ results across 183 exports. Counts are evidence, not a pass gate.
 
 ## Wallet
 
-- `src/features/wallet/royalty-claim-modal/royalty-claim-modal.stories.tsx`
 - `src/features/wallet/song-purchase-modal/song-purchase-modal.stories.tsx`
 - `src/features/wallet/wallet-hub.stories.tsx`
 - `src/features/wallet/wallet-receive-sheet.stories.tsx`

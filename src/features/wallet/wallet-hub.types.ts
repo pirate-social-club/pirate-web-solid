@@ -61,7 +61,7 @@ export interface WalletHubProps {
   walletActionsPending?: boolean;
   onChangeWallet?: () => void;
   totalBalanceUsd?: string | null;
-  claimableWipWei?: string;
+  claimableDataWei?: string;
   claimableSalesCount?: number;
   claimLoading?: boolean;
   onClaim?: () => void;

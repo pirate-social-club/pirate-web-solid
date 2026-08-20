@@ -74,17 +74,20 @@ const preferredChainOrder: WalletHubChainId[] = [
 ];
 
 const symbolOrder = {
-  ETH: 0, IP: 1, WIP: 2, USDC: 3, USDT: 4, DAI: 5, WBTC: 6, LINK: 7, BTC: 8, SOL: 9, PATHUSD: 10,
+  ETH: 0, IP: 1, "$DATA": 2, USDC: 3, USDT: 4, DAI: 5, WBTC: 6, LINK: 7, BTC: 8, SOL: 9, PATHUSD: 10,
 } as const;
 
 function compareAssets(a: { symbol: string; fiatValue?: string | null; totalFiatValue?: string | null }, b: { symbol: string; fiatValue?: string | null; totalFiatValue?: string | null }): number {
   const aSymbol = a.symbol.toUpperCase();
   const bSymbol = b.symbol.toUpperCase();
-  const aTop = aSymbol === "IP" || aSymbol === "WIP";
-  const bTop = bSymbol === "IP" || bSymbol === "WIP";
+  const aTop = aSymbol === "IP" || aSymbol === "$DATA";
+  const bTop = bSymbol === "IP" || bSymbol === "$DATA";
   if (aTop && !bTop) return -1;
   if (!aTop && bTop) return 1;
-  if (aTop && bTop) return aSymbol === "IP" ? -1 : 1;
+  if (aTop && bTop) {
+    const topOrder = { IP: 0, "$DATA": 1 } as const;
+    return (topOrder[aSymbol as keyof typeof topOrder] ?? 2) - (topOrder[bSymbol as keyof typeof topOrder] ?? 2);
+  }
   const aValue = a.fiatValue ?? a.totalFiatValue ?? null;
   const bValue = b.fiatValue ?? b.totalFiatValue ?? null;
   const aFiat = aValue ? Number.parseFloat(aValue.replace(/[$,]/g, "")) : Number.NaN;

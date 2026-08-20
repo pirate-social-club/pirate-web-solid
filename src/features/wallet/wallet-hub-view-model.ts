@@ -1,4 +1,3 @@
-import { formatWipAmount } from "./royalty-claim-modal/royalty-claim-modal-model";
 import { buildWalletAssetRows, formatTotalBalanceUsd, type WalletHubAssetRow } from "./wallet-hub-model";
 import type {
   WalletHubActivityItem,
@@ -6,6 +5,19 @@ import type {
   WalletHubProps,
   WalletHubRewardsSummary,
 } from "./wallet-hub.types";
+
+function formatDataAmount(wei: string | null | undefined): string {
+  if (!wei) return "0";
+  try {
+    const value = BigInt(wei);
+    const base = 10n ** 18n;
+    const whole = value / base;
+    const fraction = (value % base).toString().padStart(18, "0").slice(0, 6).replace(/0+$/u, "");
+    return fraction ? `${whole}.${fraction}` : whole.toString();
+  } catch {
+    return "0";
+  }
+}
 
 export interface WalletHubActionView {
   disabled: boolean;
@@ -89,15 +101,15 @@ export function buildWalletHubView(props: WalletHubProps): WalletHubView {
   const isEmpty = !hasAnyToken(readySections);
   const claimLoading = props.claimLoading === true;
 
-  const claim = props.claimableWipWei != null
+  const claim = props.claimableDataWei != null
     ? {
-        amountLabel: `${formatWipAmount(props.claimableWipWei)} WIP`,
+        amountLabel: `${formatDataAmount(props.claimableDataWei)} $DATA`,
         supportingLabel: props.claimableSalesCount != null
           ? `${props.claimableSalesCount} ${props.claimableSalesCount === 1 ? "sale" : "sales"}`
           : undefined,
         action: {
           disabled: claimLoading || !props.onClaim,
-          label: claimLoading ? "Claiming…" : "Claim royalties",
+          label: claimLoading ? "Claiming…" : "Claim",
           pending: claimLoading,
           onSelect: props.onClaim,
         },

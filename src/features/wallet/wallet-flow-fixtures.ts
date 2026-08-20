@@ -25,7 +25,7 @@ export const fiveChainSections: WalletHubChainSection[] = [
     chainId: "story", title: "Story Aeneid", availability: "ready", walletAddress: sharedWalletAddress,
     tokens: [
       { id: "ip", symbol: "IP", name: "IP", balance: "96.40", fiatValue: "$173.52" },
-      { id: "wip", symbol: "WIP", name: "Wrapped IP", balance: "18.20", fiatValue: "$32.76" },
+      { id: "data", symbol: "$DATA", name: "DATA", balance: "18.20", fiatValue: "$32.76" },
     ],
   },
   {
