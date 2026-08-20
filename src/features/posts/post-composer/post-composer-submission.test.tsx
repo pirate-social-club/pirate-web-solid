@@ -56,6 +56,17 @@ describe("post composer state", () => {
     const failure = reducePostComposerState(submittingState(), { type: "failure", message: "Try again." });
     expect(reducePostComposerState(failure, { type: "retry" })).toEqual({ status: "submitting" });
   });
+
+  test("can cancel a submission without reporting a terminal outcome", () => {
+    expect(reducePostComposerState(submittingState(), { type: "cancel" })).toEqual({ status: "editing" });
+  });
+
+  test("turns a timed-out submission into a retryable failure", () => {
+    expect(reducePostComposerState(submittingState(), { type: "timeout" })).toEqual({
+      status: "failure",
+      message: "The request timed out. Try again.",
+    });
+  });
 });
 
 describe("PostComposerSubmission", () => {
