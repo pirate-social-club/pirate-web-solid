@@ -7,7 +7,6 @@ import { SongPurchaseModal } from "./song-purchase-modal";
 import type { SongPurchaseModalProps } from "./song-purchase-modal.types";
 
 const baseArgs: SongPurchaseModalProps = {
-  fundingAssetLabel: "USDC on Base Sepolia",
   onConfirm: () => undefined,
   onOpenChange: () => undefined,
   onSelfVerificationClick: () => undefined,
@@ -41,7 +40,7 @@ export const Desktop: Story = {
   args: { onConfirm: fn() },
   render: (args) => <ModalStory {...args} state="desktop" />,
   play: async ({ args }) => {
-    const confirm = within(document.body).getByRole("button", { name: "Unlock for $3.99" });
+    const confirm = within(document.body).getByRole("button", { name: "Buy for $3.99" });
     await expect(confirm).toBeEnabled();
     await userEvent.click(confirm);
     await expect(args.onConfirm).toHaveBeenCalled();

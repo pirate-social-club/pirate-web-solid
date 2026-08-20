@@ -20,7 +20,7 @@ The selected IDs for the runtime gate are:
   `compositions-app-appsidebar--communities-overflowing`, and
   `compositions-app-appsidebar--mobile-shell`.
 - WalletHub: `compositions-wallet-wallethub--default`, `--deferred`,
-  `--empty-activity`, `--mobile`, `--bounties`, `--bounties-mobile`,
+  `--empty-assets`, `--mobile`, `--bounties`, `--bounties-mobile`,
   `--with-send-receive-sheets`, and `--with-sheets-mobile`.
 - WalletSendSheet: `compositions-wallet-walletsendsheet--asset-network`,
   `--mobile`, `--invalid-address`, `--pending`, `--success`, `--error`, and

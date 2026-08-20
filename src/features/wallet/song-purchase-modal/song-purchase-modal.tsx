@@ -30,8 +30,6 @@ function SummaryRow(props: { label: string; value: string }) {
 
 export function SongPurchaseModal(props: SongPurchaseModalProps) {
   const defaults = () => stateDefaults(props.state);
-  const assetLabel = () => props.assetLabel ?? "song";
-  const displayTitle = () => props.assetTitle ?? props.songTitle;
   const confirmedDiscountPercent = () => props.confirmedDiscountPercent ?? defaults().confirmedDiscountPercent;
   const processing = () => props.processing ?? defaults().processing;
   const error = () => props.error ?? defaults().error;
@@ -46,13 +44,8 @@ export function SongPurchaseModal(props: SongPurchaseModalProps) {
     <Dialog onOpenChange={props.onOpenChange} open={props.open}>
       <DialogContent class="flex max-h-[90vh] flex-col overflow-y-auto px-5 pb-6 pt-5 sm:max-w-2xl sm:px-8 sm:pb-8 sm:pt-8">
         <DialogHeader class="space-y-5 pe-10 text-start">
-          <div class="flex items-center gap-4">
-            <span aria-hidden="true" class="grid size-16 shrink-0 place-items-center rounded-full border border-border-soft bg-muted/45 text-foreground">
-              <Type variant="h2">{assetLabel() === "video" ? "▶" : "♪"}</Type>
-            </span>
-            <DialogTitle class="min-w-0">Unlock {assetLabel()}</DialogTitle>
-          </div>
-          <DialogDescription class="w-full text-foreground">Buy full access to {displayTitle()}.</DialogDescription>
+          <DialogTitle>{props.songTitle}</DialogTitle>
+          <DialogDescription class="w-full text-foreground">Get a downloadable copy of this song.</DialogDescription>
         </DialogHeader>
 
         <div class="mt-8 space-y-6">
@@ -61,7 +54,6 @@ export function SongPurchaseModal(props: SongPurchaseModalProps) {
             <Show when={hasConfirmedDiscount()}>
               <SummaryRow label="Self.xyz discount" value={`${formatSavingsPercent(confirmedDiscountPercent() ?? 0)}% off`} />
             </Show>
-            <SummaryRow label="Pay with" value={props.fundingAssetLabel} />
           </div>
 
           <Show when={vinylReleaseAvailable()}>

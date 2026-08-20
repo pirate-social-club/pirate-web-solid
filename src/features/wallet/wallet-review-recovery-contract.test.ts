@@ -11,7 +11,7 @@ test("wallet hub keeps a valid heading hierarchy after the accepted review recov
   expect(hub).not.toContain("<CardTitle>");
   expect(hub).toContain('<Type variant="h2" as="h1">{view().title}</Type>');
   expect(hub).toContain('<Type as="h2" variant="h3">Assets</Type>');
-  expect(hub).toContain('<Type as="h2" variant="h3">Recent activity</Type>');
+  expect(hub).not.toContain("Recent activity");
 });
 
 test("wallet send keeps the accepted bounded and terminal interaction semantics", () => {

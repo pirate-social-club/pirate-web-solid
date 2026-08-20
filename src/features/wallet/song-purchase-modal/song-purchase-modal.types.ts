@@ -7,12 +7,9 @@ export type SongPurchaseModalState =
   | "error";
 
 export interface SongPurchaseModalProps {
-  assetLabel?: "song" | "video" | "file" | "ticket" | "replay" | "asset";
-  assetTitle?: string;
   confirmedDiscountPercent?: number | null;
   error?: string | null;
   forceMobile?: boolean;
-  fundingAssetLabel: string;
   onConfirm?: () => void;
   onOpenChange: (open: boolean) => void;
   onSelfVerificationClick?: () => void;

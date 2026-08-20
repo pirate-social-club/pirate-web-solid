@@ -3,7 +3,7 @@ import { render as solidRender } from "@solidjs/web";
 import { createRoot } from "solid-js";
 import type { JSX } from "@solidjs/web";
 
-import PublicFeed from "./public-feed";
+import { PublicFeed } from "./public-feed";
 import type { FeedPage as PublicFeedPage } from "./public-feed-adapter";
 
 const disposers: Array<() => void> = [];

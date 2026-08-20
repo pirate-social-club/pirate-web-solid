@@ -7,7 +7,7 @@ Kobalte `Sheet` boundary.
 
 | Accepted source | Final disposition in standalone |
 | --- | --- |
-| `e1ff72b7` wallet heading corrections | Adapted. `CardTitle` is removed from the wallet hub's Assets and Recent activity sections; each section now uses an explicit `h2` while the hub title remains the page `h1`. The richer source wallet view is intentionally not copied because standalone owns a different route-neutral hub contract. |
+| `e1ff72b7` wallet heading corrections | Adapted. `CardTitle` is removed from the wallet hub's Assets section, which uses an explicit `h2` while the hub title remains the page `h1`. The source Activity section was intentionally removed from the standalone contract. |
 | `936ac657` terminal send states | Adapted. The standalone send model's existing `pending`, `success`, and `error` steps now render bounded-sheet terminal branches with status/alert live regions, icon semantics, a transaction hash, close, and retry actions. The reviewed source's multi-step Modal UI is intentionally inapplicable to the existing Kobalte Sheet contract. |
 | `936ac657` bounded modal/sheet scrolling and focusability | Adapted. `SheetContent` has a viewport-height bound and keyboard-focusable overflow region; the asset list's bounded overflow region is also focusable. |
 | `d8fe49a5` tracked send reset effect | Adapted. Opening the sheet or receiving new controlled defaults resets the standalone form and local terminal state through a tracked Solid effect. |

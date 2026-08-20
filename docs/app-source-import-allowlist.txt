@@ -66,9 +66,6 @@ src/features/profiles/edit-profile-form/edit-profile-form.model.test.ts
 src/features/profiles/edit-profile-form/edit-profile-form.types.ts
 src/features/profiles/public-agent-page/public-agent-page.model.ts
 src/features/profiles/public-agent-page/public-agent-page.test.ts
-src/features/wallet/royalty-claim-modal/royalty-claim-modal-model.ts
-src/features/wallet/royalty-claim-modal/royalty-claim-modal-model.test.ts
-src/features/wallet/royalty-claim-modal/royalty-claim-modal.types.ts
 src/features/wallet/song-purchase-modal/song-purchase-modal-model.ts
 src/features/wallet/song-purchase-modal/song-purchase-modal-model.test.ts
 src/features/wallet/song-purchase-modal/song-purchase-modal.types.ts

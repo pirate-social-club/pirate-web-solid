@@ -189,6 +189,21 @@ export {
   type MediaControlButtonProps,
 } from "./components/media/media-control-button/media-control-button";
 export {
+  NetworkBase,
+  NetworkBitcoin,
+  NetworkEthereum,
+  NetworkOptimism,
+  NetworkTempo,
+  TokenBTC,
+  TokenDAI,
+  TokenETH,
+  TokenLINK,
+  TokenSOL,
+  TokenUSDC,
+  TokenUSDT,
+  type Web3IconProps,
+} from "./components/media/web3-icons";
+export {
   IconArrowDown,
   IconArrowLeft,
   IconArrowRight,

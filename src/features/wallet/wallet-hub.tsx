@@ -8,11 +8,11 @@ import {
   IconArrowDown,
   IconArrowUp,
   IconWallet,
-  Separator,
   Type,
 } from "../../design-system";
 import { buildWalletHubView } from "./wallet-hub-view-model";
 import type { WalletHubChainSection, WalletHubProps } from "./wallet-hub.types";
+import { TokenChainIcon } from "./wallet-visuals";
 
 function ChainSection(props: {
   fiatByTokenId: Record<string, string | null>;
@@ -33,9 +33,12 @@ function ChainSection(props: {
               const fiatValue = () => props.fiatByTokenId[`${props.section.chainId}:${token.id}`];
               return (
                 <li class="flex items-center justify-between gap-3 py-3">
-                  <div class="flex min-w-0 flex-col">
-                    <Type variant="body-strong">{token.symbol}</Type>
-                    <Type variant="caption" class="truncate">{token.name}</Type>
+                  <div class="flex min-w-0 items-center gap-3">
+                    <TokenChainIcon chainId={props.section.chainId} chainLabel={props.section.title} showChainBadge token={token} size="sm" />
+                    <div class="flex min-w-0 flex-col">
+                      <Type variant="body-strong">{token.symbol}</Type>
+                      <Type variant="caption" class="truncate">{token.name}</Type>
+                    </div>
                   </div>
                   <div class="flex shrink-0 flex-col items-end">
                     <Type variant="body-strong">{token.balance ?? "0"}</Type>
@@ -199,44 +202,6 @@ export function WalletHub(props: WalletHubProps) {
           </For>
         </CardContent>
       </Card>
-
-      <Show when={view().recentActivity.length > 0}>
-        <Card>
-          <CardHeader class="flex-row items-center justify-between space-y-0">
-            <Type as="h2" variant="h3">Recent activity</Type>
-            <Button
-              variant="ghost"
-              size="sm"
-              disabled={view().actions.viewActivity.disabled}
-              onClick={() => view().actions.viewActivity.onSelect?.()}
-            >
-              {view().actions.viewActivity.label}
-            </Button>
-          </CardHeader>
-          <CardContent>
-            <ul class="flex flex-col">
-              <For each={view().recentActivity}>
-                {(item, index) => (
-                  <li>
-                    <Show when={index() > 0}>
-                      <Separator />
-                    </Show>
-                    <div class="flex items-center justify-between gap-3 py-3">
-                      <div class="flex min-w-0 flex-col">
-                        <Type variant="body">{item.title}</Type>
-                        <Show when={item.timestamp}>
-                          {(timestamp) => <Type variant="caption">{timestamp()}</Type>}
-                        </Show>
-                      </div>
-                      <Type variant="body-strong" class="shrink-0">{item.amount}</Type>
-                    </div>
-                  </li>
-                )}
-              </For>
-            </ul>
-          </CardContent>
-        </Card>
-      </Show>
 
       {receiveSheet()}
       {sendSheet()}

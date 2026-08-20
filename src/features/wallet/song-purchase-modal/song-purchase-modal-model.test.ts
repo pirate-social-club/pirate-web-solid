@@ -25,7 +25,7 @@ describe("song purchase modal model", () => {
   });
 
   test("keeps confirm action callback-only", () => {
-    expect(purchaseButtonLabel("$3.99", false)).toBe("Unlock for $3.99");
+    expect(purchaseButtonLabel("$3.99", false)).toBe("Buy for $3.99");
     expect(purchaseButtonLabel("$3.99", true)).toBe("Processing purchase");
   });
 });

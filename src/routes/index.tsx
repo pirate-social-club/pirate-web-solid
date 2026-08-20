@@ -17,7 +17,7 @@ import {
   TextFieldLabel,
 } from "../design-system";
 import HomeFeed, { type HomeFeedProps } from "../features/posts/feed/home-feed.tsx";
-import PublicFeed, { type PublicFeedProps } from "../features/posts/feed/public-feed.tsx";
+import { PublicFeed, type PublicFeedProps } from "../features/posts/feed/public-feed.tsx";
 import { publicFeedReviewPage } from "../features/posts/feed/public-feed-fixtures.ts";
 import { MediaShell } from "../features/shell/media-shell/media-shell.tsx";
 

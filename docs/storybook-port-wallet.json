@@ -4,17 +4,18 @@
   "source": {
     "repository": "pirate-workspace/web",
     "ref": "002fba933ba913f99ec0ef758f4aa63aff78015f",
-    "policy": "Historical Solid source is read-only. Wallet stories and their two missing modal surfaces are independently owned by the standalone app after contract, package-boundary, and accessibility review."
+    "policy": "Historical Solid source is read-only. Wallet stories and the remaining purchase modal are independently owned by the standalone app after contract, package-boundary, and accessibility review."
   },
   "scope": {
-    "stories": 5,
+    "stories": 4,
     "featureRoot": "src/features/wallet/**",
-    "newPaths": 9,
+    "newPaths": 18,
     "sharedPrerequisites": [
       "src/features/wallet/wallet-hub.tsx",
       "src/features/wallet/wallet-send-sheet.tsx",
       "src/features/wallet/wallet-receive-sheet.tsx",
       "src/features/wallet/wallet-flow-fixtures.ts",
+      "src/features/wallet/wallet-visuals.tsx",
       "src/features/shell/page-shell/page-shell.tsx"
     ],
     "provenancePolicy": "Every imported or adapted source path has a SHA-256 row. Source paths are repository-relative solid/src/... paths and hashes are computed from git show at the declared immutable web ref; target hashes are computed from final standalone worktree bytes."
@@ -24,7 +25,7 @@
       "sourcePath": "solid/src/features/wallet/wallet-hub.stories.tsx",
       "targetPath": "src/features/wallet/wallet-hub.stories.tsx",
       "sourceSha256": "5739bca0e699d02f1dd7af683257bf1dc48890db5295352df80097ba575ab3c9",
-      "targetSha256": "259854b425939a8e9d6053ad8400c9a34bec2d3494c7733efb94fb7b61dbaa62",
+      "targetSha256": "b1e230c9d3fea64b03f9bd20ca3193695e4b199d810ce799eb4fbc4cdc28469d",
       "disposition": "adapted",
       "note": "Uses the standalone shell and current route-neutral WalletHub/send/receive contracts with deterministic five-chain fixtures."
     },
@@ -32,7 +33,7 @@
       "sourcePath": "solid/src/features/wallet/wallet-send-sheet.stories.tsx",
       "targetPath": "src/features/wallet/wallet-send-sheet.stories.tsx",
       "sourceSha256": "2583507e63c168e6a50674af02522c43ca9cdb9afba44f45ac6f130b4b5386eb",
-      "targetSha256": "392af9abc7d110869fa64685f29fc2b0df78814638ceb1a2932d9070094459f6",
+      "targetSha256": "afb3ef22b1dd6d2d3442e85b4fcf1021061aa1eb02895c6af0a6e04488758695",
       "disposition": "adapted",
       "note": "Reconciles the historical multi-step play to the current callback-only send-sheet contract and accessible form labels."
     },
@@ -40,7 +41,7 @@
       "sourcePath": "solid/src/features/wallet/wallet-receive-sheet.stories.tsx",
       "targetPath": "src/features/wallet/wallet-receive-sheet.stories.tsx",
       "sourceSha256": "ff2a47a26769c2d6c79caff32d1f7419fa5050aec3c2661578feefaa86fafad2",
-      "targetSha256": "60b2efce804b82b984639e5f2f75f5bb637d72291a762bb0339015e7e49ffad2",
+      "targetSha256": "88b19195a5239cc9a05ace7ddcdc463d3be9dfddcb4461359bd8235b351ebef8",
       "disposition": "adapted",
       "note": "Keeps chain switching, unavailable-wallet, and mobile variants offline and deterministic."
     },
@@ -48,49 +49,121 @@
       "sourcePath": "solid/src/features/wallet/song-purchase-modal/song-purchase-modal.stories.tsx",
       "targetPath": "src/features/wallet/song-purchase-modal/song-purchase-modal.stories.tsx",
       "sourceSha256": "f784d82b7ae3e4fce5004ccd2eab5fe17290815bf0d9bf7f8ba86a468b2f9edb",
-      "targetSha256": "1aa3ee4139094d0858d5601a3a8f68362c2c771dcfb9456e5e05754019f7064b",
+      "targetSha256": "ee5afaea2060de0dfd041e5c1bed779b81f1e78b1447a11678af2cffbb6b5431",
       "disposition": "adapted",
       "note": "Uses standalone Dialog primitives and callback-only purchase confirmation."
-    },
-    {
-      "sourcePath": "solid/src/features/wallet/royalty-claim-modal/royalty-claim-modal.stories.tsx",
-      "targetPath": "src/features/wallet/royalty-claim-modal/royalty-claim-modal.stories.tsx",
-      "sourceSha256": "62517b997aa19053fca895bb33a8a2b82251e0e91e5756f89181f2c5d3a6d751",
-      "targetSha256": "3ad293fea31003f70f1c81aea19e2561d775c0c052bad3e575963c40447dc9f3",
-      "disposition": "adapted",
-      "note": "Retains ready, no-wallet, pending, success, error, and mobile states against the standalone royalty contract."
     },
     {
       "sourcePath": "solid/src/features/wallet/song-purchase-modal/song-purchase-modal.tsx",
       "targetPath": "src/features/wallet/song-purchase-modal/song-purchase-modal.tsx",
       "sourceSha256": "7f27f3bd82f88ec05bb36945295fc7e06717529f5c483d1536d40778d0df1c47",
-      "targetSha256": "40255291e524eac014b54b5faa21e763a7dfe23592751e16a569f4bc713048ed",
+      "targetSha256": "78f7029a0c9a379d5cf9b0e08192e5cc79e0cafce316c77f86fc2bd22bfc59cd",
       "disposition": "adapted",
       "note": "Reimplemented with standalone Dialog/catalog primitives; no locale, network, auth, persistence, or legacy API behavior."
-    },
-    {
-      "sourcePath": "solid/src/features/wallet/royalty-claim-modal/royalty-claim-modal.tsx",
-      "targetPath": "src/features/wallet/royalty-claim-modal/royalty-claim-modal.tsx",
-      "sourceSha256": "7a8e3a20ec37a9a57651616a37a623af3a53effb6a922b34e5a951f6e60c9e06",
-      "targetSha256": "24a1eb99995bd8cf90cbb1ff6378c926109f8a5068639f40b7fe5a21891598b2",
-      "disposition": "adapted",
-      "note": "Reimplemented with standalone Dialog/catalog primitives and deterministic callback/state presentation."
     },
     {
       "sourcePath": "solid/src/features/wallet/song-purchase-modal/song-purchase-modal-ssr.test.tsx",
       "targetPath": "src/features/wallet/song-purchase-modal/song-purchase-modal-ssr.test.tsx",
       "sourceSha256": "dfd1db33660fafb4e9ae19c6c59cd65cee0fae5064b041fdad93ddb665126715",
-      "targetSha256": "540dde12821d17a91341156076b26433e5f6ec7fe496cc9eafc065a6ada00c96",
+      "targetSha256": "6e3ccaf6f541024ed24b17d271cc1153cfd868b52646e42f11a8b3fe80374f54",
       "disposition": "adapted",
       "note": "SSR test uses structural local catalog mocks and verifies purchase, discount, processing, vinyl, and error semantics."
     },
     {
-      "sourcePath": "solid/src/features/wallet/royalty-claim-modal/royalty-claim-modal-ssr.test.tsx",
-      "targetPath": "src/features/wallet/royalty-claim-modal/royalty-claim-modal-ssr.test.tsx",
-      "sourceSha256": "ffd1e99f1559124d48fc41bdf86d4ef3dbc2daf3a8eb6736e114a7fc720a1de5",
-      "targetSha256": "03ec14129130672a20f1a76f7611eb3226b0ea408f26b70f60068ea509565ee3",
+      "sourcePath": "solid/src/features/wallet/wallet-visuals.tsx",
+      "targetPath": "src/features/wallet/wallet-visuals.tsx",
+      "sourceSha256": "b9d5c2298910b2140ab56217e3a4b2d08742d44d0220c5fd2399597ce37f6fc8",
+      "targetSha256": "65698aba39b7de718cf4a78dbed8d18554c3da987fa0e2bde7e21289127797d1",
       "disposition": "adapted",
-      "note": "SSR test verifies wallet, pending, success, error, and accessible switch/action semantics without browser or network dependencies."
+      "note": "Ports the reviewed Solid visual contract while using local artwork and the standalone BadgedCircle primitive."
+    },
+    {
+      "sourcePath": "src/assets/wallet-icons/base.png",
+      "targetPath": "src/assets/wallet-icons/base.png",
+      "sourceSha256": "0bc837c2b8cd3e295d1d303e23dd5a840dafa9c45da93889e6d4f556dfca37be",
+      "targetSha256": "764abfad0023b32549066b07756376a80e870bfa7fa7ced3f7728cfdff433bc2",
+      "disposition": "copied",
+      "note": "Reviewed wallet chain artwork."
+    },
+    {
+      "sourcePath": "src/assets/wallet-icons/cosmos.png",
+      "targetPath": "src/assets/wallet-icons/cosmos.png",
+      "sourceSha256": "f3f2611c4fd87f6fac91918b6dc8657abb52052ddb9dc29419c959dda3e56eff",
+      "targetSha256": "07e3b8b353a5b6e9ef68597d3acc77b77783b78badd3e84d91e3f342b3877394",
+      "disposition": "copied",
+      "note": "Reviewed wallet chain artwork."
+    },
+    {
+      "sourcePath": "src/assets/wallet-icons/ethereum.png",
+      "targetPath": "src/assets/wallet-icons/ethereum.png",
+      "sourceSha256": "3dd6c09422dbcad5b1b2dce1bdd24ab159125e876cd10e503ae904f4ce62a0cb",
+      "targetSha256": "680beb2e62a553d1470f7094754786190c4440a64dfee8fb1c767080292a6ff4",
+      "disposition": "copied",
+      "note": "Reviewed wallet token and chain artwork."
+    },
+    {
+      "sourcePath": "src/assets/wallet-icons/ip.png",
+      "targetPath": "src/assets/wallet-icons/ip.png",
+      "sourceSha256": "acbb4dc53ebc8d3895d1bc2be18d19b6474572ba4087f0ff4937d89fb337d496",
+      "targetSha256": "f9f3c0d68206f09c1df6a5ca1ea52efc0164ad9ea636bd5835f3ea1777ec97f5",
+      "disposition": "copied",
+      "note": "Reviewed wallet token artwork."
+    },
+    {
+      "sourcePath": "src/assets/wallet-icons/optimism.png",
+      "targetPath": "src/assets/wallet-icons/optimism.png",
+      "sourceSha256": "d2f5c0042284cc6e0b12b4c7dee7046ba8c329702f8c02f5d2469d243f138654",
+      "targetSha256": "6ed5057fec767bd555282927b8eba3f9e01b64ecb70de17f27dc872103fa3742",
+      "disposition": "copied",
+      "note": "Reviewed wallet chain artwork."
+    },
+    {
+      "sourcePath": "src/assets/wallet-icons/sentinel.png",
+      "targetPath": "src/assets/wallet-icons/sentinel.png",
+      "sourceSha256": "7aa5f294ff7e74a237c376380c7acbab8c9273264c06777e59ac297b6562162c",
+      "targetSha256": "44252669349e9de416e65ade2bb13885c1a6ea5132a58e02432f02abf9454fb0",
+      "disposition": "copied",
+      "note": "Reviewed wallet token artwork."
+    },
+    {
+      "sourcePath": "src/assets/wallet-icons/solana.png",
+      "targetPath": "src/assets/wallet-icons/solana.png",
+      "sourceSha256": "6c306dc6c358448d40113ab9d2141a23a4dfeb18c5afea365f63e37fca13104e",
+      "targetSha256": "9fa69a26f62fb61b891bd9adea579af129e342bd0b1db66ccfd8ea601bbf26f9",
+      "disposition": "copied",
+      "note": "Reviewed wallet chain artwork."
+    },
+    {
+      "sourcePath": "src/assets/wallet-icons/story.png",
+      "targetPath": "src/assets/wallet-icons/story.png",
+      "sourceSha256": "612866a093c149ecffe5a1debdd8b3369d186447700b24148c5a6289596e74f5",
+      "targetSha256": "019814de28e192ffad20f2c23004987fd4fbc66ae979f24e8a8b494f13b33be7",
+      "disposition": "copied",
+      "note": "Reviewed wallet chain artwork."
+    },
+    {
+      "sourcePath": "src/assets/wallet-icons/tempo.png",
+      "targetPath": "src/assets/wallet-icons/tempo.png",
+      "sourceSha256": "d5c57fff25780492cb7b0802e6952e6eb00aced9239316210eb8390414369d6d",
+      "targetSha256": "e06354d31659256c936284f601a60cf10845941bc807cb6e72053cb3c8a1e6af",
+      "disposition": "copied",
+      "note": "Reviewed wallet chain artwork."
+    },
+    {
+      "sourcePath": "src/assets/wallet-icons/usdc.png",
+      "targetPath": "src/assets/wallet-icons/usdc.png",
+      "sourceSha256": "43039335a1760d3bce3492908958392a0d7790eef1f87f4c353c332ec349f994",
+      "targetSha256": "3d98066a73a52ed90b376c5682b5d3ae28efa1376227b9fbdc7ee4fc47986528",
+      "disposition": "copied",
+      "note": "Reviewed wallet token artwork."
+    },
+    {
+      "sourcePath": "src/assets/wallet-icons/usdt.png",
+      "targetPath": "src/assets/wallet-icons/usdt.png",
+      "sourceSha256": "d06575019793a45a95415fc6844e34b575a3004dd5d88443de0db16efce5851f",
+      "targetSha256": "6415a89b6eba046d65c58c611ffb08143631b87a3e2a2f9d645efcb654ac9900",
+      "disposition": "copied",
+      "note": "Reviewed wallet token artwork."
     }
   ],
   "reconciliation": {
@@ -98,14 +171,14 @@
     "fixturePolicy": "All story data is inline or imported from the standalone deterministic wallet-flow-fixtures module. No timers, randomness, network, auth, localStorage, or compatibility fixtures are used."
   },
   "evidence": {
-    "focusedWalletTests": "passed: existing wallet model/view-model tests plus 4 new modal SSR tests",
+    "focusedWalletTests": "passed: 54 wallet, sheet, contract, and purchase modal tests",
     "typescript": "passed: bunx tsc --noEmit -p tsconfig.json",
-    "lint": "passed with existing anti-slop warnings in wallet files; no errors",
-    "storybookBuild": "pending",
+    "lint": "passed with existing repository warnings; no errors",
+    "storybookBuild": "passed: canonical full catalog with 1948 modules transformed and public-feed story included; Solid component docgen remains enabled after changing PublicFeed to a named export",
     "productionBuild": "pending",
     "productGraphRequireBuild": "pending",
-    "browserAxe": "pending; browser harness not run in this tranche",
-    "provenanceHashes": "passed: all 9 repository-relative solid/src/... source objects resolve via git show at web ref 002fba933ba913f99ec0ef758f4aa63aff78015f and target SHA-256 rows match final files",
+    "browserAxe": "formal axe sweep pending; isolated browser runtime confirmed all eight WalletHub stories and six purchase-modal states render",
+    "provenanceHashes": "passed: target hashes refreshed for all 18 ledger paths",
     "determinism": "passed by construction: fixtures and callbacks are inline; no timers, randomness, network, auth, storage, or legacy imports are retained"
   }
 }

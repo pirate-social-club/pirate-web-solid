@@ -1,7 +1,7 @@
 /** @jsxImportSource @solidjs/web */
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 
-import PublicFeed from "./public-feed";
+import { PublicFeed } from "./public-feed";
 import { publicFeedReviewPage } from "./public-feed-fixtures";
 import { MediaShell } from "../../shell/media-shell/media-shell";
 
