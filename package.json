@@ -12,6 +12,8 @@
     "build": "vite build",
     "storybook": "storybook dev -p 6006 --disable-telemetry",
     "build-storybook": "storybook build",
+    "generate:web3-icons": "bun scripts/generate-web3-icons.ts",
+    "check:web3-icons": "bun scripts/generate-web3-icons.ts --check",
     "storybook:a11y": "node scripts/storybook-a11y-sweep.mjs",
     "test:storybook:a11y": "bun test scripts/storybook-a11y-sweep.test.mjs",
     "check-product-graph": "node scripts/check-product-graph.mjs --require-build",
@@ -27,7 +29,7 @@
     "check:solid-doctor": "solid-doctor . --baseline .solid-doctor-baseline.json",
     "lint": "oxlint src",
     "generate-worker-types": "wrangler types",
-    "verify": "bun run generate-worker-types && bun run tsc --noEmit -p tsconfig.json && bun run test:api && bun run test:app && bun run lint && node scripts/check-solid-runtime.mjs && bun run --cwd packages/solid-ui typecheck && bun run --cwd packages/solid-ui test && bun run check:solid-doctor",
+    "verify": "bun run generate-worker-types && bun run tsc --noEmit -p tsconfig.json && bun run test:api && bun run test:app && bun run lint && node scripts/check-solid-runtime.mjs && bun run check:web3-icons && bun run --cwd packages/solid-ui typecheck && bun run --cwd packages/solid-ui test && bun run check:solid-doctor",
     "verify:live": "node scripts/probe.mjs && node scripts/stream-check.mjs && node scripts/hydration-check.mjs"
   },
   "dependencies": {
@@ -53,6 +55,7 @@
     "bun-types": "1.4.0",
     "@types/node": "24.3.0",
     "@types/qrcode": "1.5.6",
+    "@web3icons/react": "4.1.17",
     "oxlint": "1.78.0",
     "playwright": "1.60.0",
     "solid-doctor": "0.1.0",
