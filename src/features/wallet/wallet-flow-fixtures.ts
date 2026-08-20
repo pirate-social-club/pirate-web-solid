@@ -2,6 +2,11 @@ import type { WalletHubChainSection } from "./wallet-hub.types";
 
 export const sharedWalletAddress = "0xc74e2d06c9a7e304817b3c177b91e0c1f4873abc";
 
+export const solanaChainSection: WalletHubChainSection = {
+  chainId: "solana", title: "Solana", availability: "ready", walletAddress: sharedWalletAddress,
+  tokens: [{ id: "sol", symbol: "SOL", name: "Solana", balance: "5.00", fiatValue: "$500.00" }],
+};
+
 export const fiveChainSections: WalletHubChainSection[] = [
   {
     chainId: "ethereum", title: "Ethereum Sepolia", availability: "ready", walletAddress: sharedWalletAddress,
