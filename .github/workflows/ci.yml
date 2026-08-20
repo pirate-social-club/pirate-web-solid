@@ -24,3 +24,23 @@ jobs:
         run: bunx wrangler deploy --dry-run --config dist/ssr/wrangler.json
         env:
           NODE_OPTIONS: --max-old-space-size=3072
+      - name: Install Chromium for Storybook audit
+        run: bunx playwright install --with-deps chromium
+      - name: Build Storybook
+        run: bun run build-storybook
+      - name: Audit Storybook accessibility and interactions
+        run: |
+          python3 -m http.server 6006 --directory storybook-static > "$RUNNER_TEMP/storybook-server.log" 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+          sleep 1
+          curl --fail --silent --show-error --retry 30 --retry-delay 1 --retry-connrefused http://127.0.0.1:6006/index.json > /dev/null
+          bun run storybook:a11y
+      - name: Upload Storybook audit evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: storybook-a11y-${{ github.run_id }}
+          path: .tmp/storybook-a11y/
+          if-no-files-found: ignore
+          retention-days: 7

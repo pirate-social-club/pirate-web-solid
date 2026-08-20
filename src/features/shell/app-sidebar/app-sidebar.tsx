@@ -54,5 +54,5 @@ export function AppSidebar(props: AppSidebarProps) {
 }
 
 export function SidebarContent(props: { children: JSX.Element; class?: string }) {
-  return <main class={cn("min-h-screen min-w-0 flex-1 bg-background", props.class)}>{props.children}</main>;
+  return <div class={cn("min-h-screen min-w-0 flex-1 bg-background", props.class)}>{props.children}</div>;
 }
