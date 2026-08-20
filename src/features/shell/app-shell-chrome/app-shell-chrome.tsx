@@ -91,7 +91,7 @@ export function AppHeader(props: AppHeaderProps) {
       type="button"
     >
       <span aria-hidden="true" class="grid size-10 place-items-center rounded-full border border-border-soft bg-card text-lg font-semibold">P</span>
-      <Type as="span" variant="h3" class="font-display tracking-wide">PIRATE</Type>
+      <Type as="span" variant="h3" class="tracking-wide">PIRATE</Type>
     </button>
   );
 

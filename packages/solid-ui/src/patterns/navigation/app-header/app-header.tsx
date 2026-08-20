@@ -267,7 +267,7 @@ export function AppHeader(props: AppHeaderProps) {
       type="button"
     >
       <PirateBrandMark class="size-11 shrink-0" />
-      <Type as="span" variant="h3" class="truncate font-display tracking-wide">
+      <Type as="span" variant="h3" class="truncate tracking-wide">
         PIRATE
       </Type>
     </button>
