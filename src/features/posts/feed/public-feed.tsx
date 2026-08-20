@@ -270,7 +270,7 @@ const PUBLIC_FEED_COPY: FeedCopy = {
 };
 
 /** Route-neutral public feed surface. */
-export default function PublicFeed(props: PublicFeedProps) {
+export function PublicFeed(props: PublicFeedProps) {
   const client = props.client ?? defaultClient();
   return <FeedSurface
     data={props.data}
