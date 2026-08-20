@@ -12,17 +12,11 @@ import { WalletSendSheet } from "./wallet-send-sheet";
 const baseArgs: WalletHubProps = {
   claimableDataWei: "12450000000000000000",
   claimableSalesCount: 2,
-  walletLabel: "View your money and recent activity.",
+  walletLabel: "View your money.",
   walletAddress: sharedWalletAddress,
   totalBalanceUsd: "$27,910.97",
   onReceive: () => undefined,
   onSend: () => undefined,
-  onViewActivity: () => undefined,
-  recentActivity: [
-    { id: "act-1", title: "Midnight Waves sold", amount: "+$6.20 $DATA", timestamp: "6m" },
-    { id: "act-2", title: "Basement Session sold", amount: "+$4.00 $DATA", timestamp: "48m" },
-    { id: "act-3", title: "Claim confirmed", amount: "$10.20 $DATA", timestamp: "1h" },
-  ],
   chainSections: fiveChainSections,
 };
 
@@ -44,8 +38,7 @@ export const Default: Story = { render: (args) => <StoryFrame><WalletHub {...arg
 
 export const Deferred: Story = {
   args: {
-    walletLabel: "View your money and recent activity.",
-    recentActivity: [{ id: "act-1", title: "Midnight Waves sold", amount: "+$6.20 $DATA", timestamp: "6m" }],
+    walletLabel: "View your money.",
     chainSections: [
       { chainId: "ethereum", title: "Ethereum", availability: "ready", tokens: [{ id: "eth", symbol: "ETH", name: "Ether", balance: "0.82" }, { id: "usdc-eth", symbol: "USDC", name: "USD Coin", balance: "96.00" }] },
       { chainId: "base", title: "Base", availability: "ready", tokens: [] },
@@ -57,7 +50,7 @@ export const Deferred: Story = {
   render: (args) => <StoryFrame><WalletHub {...args} /></StoryFrame>,
 };
 
-export const EmptyActivity: Story = { args: { recentActivity: [] }, render: (args) => <StoryFrame><WalletHub {...args} /></StoryFrame> };
+export const EmptyAssets: Story = { args: { chainSections: [], claimableDataWei: undefined, claimableSalesCount: undefined, totalBalanceUsd: null }, render: (args) => <StoryFrame><WalletHub {...args} /></StoryFrame> };
 export const Mobile: Story = { parameters: { viewport: { defaultViewport: "mobile1" } }, render: (args) => <StoryFrame><WalletHub {...args} /></StoryFrame> };
 export const Bounties: Story = { args: { rewardsSummary: { actionLabel: "Claim", amountLabel: "$1.00", assetLabel: "", onAction: () => undefined } }, render: (args) => <StoryFrame><WalletHub {...args} /></StoryFrame> };
 export const BountiesMobile: Story = { args: Bounties.args, parameters: { viewport: { defaultViewport: "mobile1" } }, render: (args) => <StoryFrame><WalletHub {...args} /></StoryFrame> };

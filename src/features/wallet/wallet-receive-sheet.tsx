@@ -16,6 +16,7 @@ import {
 import { buildWalletReceiveSheetView, resolveReceiveChainId } from "./wallet-receive-sheet-view-model";
 import type { WalletReceiveSheetProps } from "./wallet-receive-sheet.types";
 import type { WalletHubChainId } from "./wallet-hub.types";
+import { ChainIcon } from "./wallet-visuals";
 
 export function WalletReceiveSheet(props: WalletReceiveSheetProps) {
   const [selectedChainId, setSelectedChainId] = createSignal<WalletHubChainId | undefined>(resolveReceiveChainId(props));
@@ -82,11 +83,14 @@ export function WalletReceiveSheet(props: WalletReceiveSheetProps) {
                   aria-pressed={chain.selected ? "true" : "false"}
                   onClick={() => selectChain(chain.chainId)}
                 >
-                  <span class="flex min-w-0 flex-col">
-                    <Type variant="body-strong">{chain.title}</Type>
-                    <Show when={chain.note}>
-                      {(note) => <Type variant="caption">{note()}</Type>}
-                    </Show>
+                  <span class="flex min-w-0 items-center gap-3">
+                    <ChainIcon chainId={chain.chainId} class="size-8" />
+                    <span class="flex min-w-0 flex-col">
+                      <Type variant="body-strong">{chain.title}</Type>
+                      <Show when={chain.note}>
+                        {(note) => <Type variant="caption">{note()}</Type>}
+                      </Show>
+                    </span>
                   </span>
                   <Type variant="caption" class="shrink-0">{chain.fiatLabel}</Type>
                 </button>

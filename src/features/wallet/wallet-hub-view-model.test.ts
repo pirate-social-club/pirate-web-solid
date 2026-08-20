@@ -254,24 +254,6 @@ describe("wallet hub view model", () => {
     expect(onAction).toHaveBeenCalledTimes(1);
   });
 
-  test("drives the activity action and keeps activity items in order", () => {
-    const onViewActivity = mock(() => {});
-    const recentActivity = [
-      { id: "a1", title: "Royalty claimed", amount: "+12.45 $DATA", timestamp: "2026-08-01" },
-      { id: "a2", title: "Sent USDC", amount: "-10 USDC" },
-    ];
-    const view = buildWalletHubView({
-      chainSections: fiveChainSections,
-      walletAddress: sharedWalletAddress,
-      recentActivity,
-      onViewActivity,
-    });
-
-    expect(view.recentActivity).toEqual(recentActivity);
-    view.actions.viewActivity.onSelect?.();
-    expect(onViewActivity).toHaveBeenCalledTimes(1);
-  });
-
   test("disables actions whose callbacks are absent", () => {
     const view = buildWalletHubView({
       chainSections: fiveChainSections,
@@ -281,7 +263,6 @@ describe("wallet hub view model", () => {
 
     expect(view.actions.receive.disabled).toBe(true);
     expect(view.actions.send.disabled).toBe(true);
-    expect(view.actions.viewActivity.disabled).toBe(true);
     expect(view.claim?.action.disabled).toBe(true);
   });
 

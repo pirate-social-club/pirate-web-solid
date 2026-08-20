@@ -1,6 +1,5 @@
 import { buildWalletAssetRows, formatTotalBalanceUsd, type WalletHubAssetRow } from "./wallet-hub-model";
 import type {
-  WalletHubActivityItem,
   WalletHubChainSection,
   WalletHubProps,
   WalletHubRewardsSummary,
@@ -47,7 +46,6 @@ export interface WalletHubView {
   isEmpty: boolean;
   laterSections: WalletHubChainSection[];
   readySections: WalletHubChainSection[];
-  recentActivity: WalletHubActivityItem[];
   rewards?: WalletHubRewardsView;
   title: string;
   totalBalanceLabel: string | null;
@@ -56,7 +54,6 @@ export interface WalletHubView {
     changeWallet: WalletHubActionView;
     receive: WalletHubActionView;
     send: WalletHubActionView;
-    viewActivity: WalletHubActionView;
   };
 }
 
@@ -130,7 +127,6 @@ export function buildWalletHubView(props: WalletHubProps): WalletHubView {
     laterSections,
     assetRows,
     fiatByTokenId,
-    recentActivity: props.recentActivity ?? [],
     totalBalanceLabel: resolveTotalBalanceLabel(props, readySections),
     walletLabel: props.walletLabel ?? formatWalletAddressLabel(props.walletAddress),
     claim,
@@ -151,11 +147,6 @@ export function buildWalletHubView(props: WalletHubProps): WalletHubView {
         disabled: (!props.onSend && !props.renderSendSheet) || isEmpty,
         label: "Send",
         onSelect: props.onSend,
-      },
-      viewActivity: {
-        disabled: !props.onViewActivity,
-        label: "View activity",
-        onSelect: props.onViewActivity,
       },
     },
   };

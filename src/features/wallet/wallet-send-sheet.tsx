@@ -27,6 +27,7 @@ import {
 } from "./wallet-send-sheet-view-model";
 import { getSendableAssets } from "./wallet-send-sheet-model";
 import type { WalletSendSheetProps } from "./wallet-send-sheet.types";
+import { TokenChainIcon } from "./wallet-visuals";
 
 export function WalletSendSheet(props: WalletSendSheetProps) {
   const defaultAsset = createMemo(() => {
@@ -108,9 +109,12 @@ export function WalletSendSheet(props: WalletSendSheetProps) {
                         disabled={view().pending}
                         onClick={() => setAssetId(asset.id)}
                       >
-                        <span class="flex min-w-0 flex-col">
-                          <Type variant="body-strong">{asset.symbol}</Type>
-                          <Type variant="caption">{asset.chainTitle}</Type>
+                        <span class="flex min-w-0 items-center gap-3">
+                          <TokenChainIcon chainId={asset.chainId} chainLabel={asset.chainTitle} showChainBadge size="sm" token={{ name: asset.symbol, symbol: asset.symbol }} />
+                          <span class="flex min-w-0 flex-col">
+                            <Type variant="body-strong">{asset.symbol}</Type>
+                            <Type variant="caption">{asset.chainTitle}</Type>
+                          </span>
                         </span>
                         <span class="flex shrink-0 flex-col items-end">
                           <Type variant="body">{asset.balance}</Type>
