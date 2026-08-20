@@ -3,7 +3,7 @@ import type { JSX } from "@solidjs/web";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 
 import { StandardRoutePage } from "../shell/page-shell/page-shell";
-import { fiveChainSections, sharedWalletAddress } from "./wallet-flow-fixtures";
+import { fiveChainSections, sharedWalletAddress, solanaChainSection } from "./wallet-flow-fixtures";
 import { WalletHub } from "./wallet-hub";
 import type { WalletHubProps } from "./wallet-hub.types";
 import { WalletReceiveSheet } from "./wallet-receive-sheet";
@@ -35,6 +35,11 @@ function StoryFrame(props: { children: JSX.Element }) {
 }
 
 export const Default: Story = { render: (args) => <StoryFrame><WalletHub {...args} /></StoryFrame> };
+
+export const SolanaHolding: Story = {
+  args: { chainSections: [...fiveChainSections, solanaChainSection] },
+  render: (args) => <StoryFrame><WalletHub {...args} /></StoryFrame>,
+};
 
 export const Deferred: Story = {
   args: {
