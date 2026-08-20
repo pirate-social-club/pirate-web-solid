@@ -174,10 +174,10 @@
     "focusedWalletTests": "passed: 54 wallet, sheet, contract, and purchase modal tests",
     "typescript": "passed: bunx tsc --noEmit -p tsconfig.json",
     "lint": "passed with existing repository warnings; no errors",
-    "storybookBuild": "blocked by pre-existing parser error in src/features/posts/feed/public-feed.tsx at 15263..15270; file unchanged in this lane",
+    "storybookBuild": "wallet-only catalog passed; full catalog blocked by pre-existing parser error in src/features/posts/feed/public-feed.tsx at 15263..15270, file unchanged in this lane",
     "productionBuild": "pending",
     "productGraphRequireBuild": "pending",
-    "browserAxe": "pending; browser harness not run in this tranche",
+    "browserAxe": "formal axe sweep pending; isolated browser runtime confirmed all eight WalletHub stories and six purchase-modal states render",
     "provenanceHashes": "passed: target hashes refreshed for all 18 ledger paths",
     "determinism": "passed by construction: fixtures and callbacks are inline; no timers, randomness, network, auth, storage, or legacy imports are retained"
   }
