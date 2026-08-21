@@ -406,6 +406,22 @@ describe("pending text submission", () => {
     expect(dispatchedKeys).toEqual(["key-1", "key-new"]);
   });
 
+  test.each([404, 413, 422])("does not make HTTP %s discardable in session", async status => {
+    const storage = createMemoryPendingSubmissionStorage();
+    const coordinator = new TextSubmissionCoordinator({
+      storage,
+      transport: {
+        read: async () => null,
+        dispatch: async () => { throw new TextSubmissionServerRejectionError(status, "unprocessable", true); },
+      },
+      createPendingRequestId: () => "pending-non-definitive-rejection",
+    });
+    await expect(coordinator.submit(titledRequest)).rejects.toBeInstanceOf(TextSubmissionServerRejectionError);
+    expect(coordinator.state).toEqual({ status: "reconciling", pending_request_id: "pending-non-definitive-rejection" });
+    await expect(coordinator.discardRejectedRequest()).rejects.toThrow("Only a definitively rejected request");
+    expect(await storage.load("pending-non-definitive-rejection")).not.toBeNull();
+  });
+
   test.each([
     [400, "bad_request"],
     [403, "membership_required"],

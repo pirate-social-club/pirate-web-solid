@@ -3,6 +3,7 @@ import type { JSX } from "@solidjs/web";
 import { Show } from "solid-js";
 
 import { Button } from "../../../design-system";
+import { isDiscardablePendingSubmissionIssue } from "./pending-submission";
 import type { PostComposerState } from "./post-composer-state";
 
 function hasReconciliationIssue(state: PostComposerState): boolean {
@@ -59,7 +60,7 @@ export function PostComposerSubmission(props: PostComposerSubmissionProps): JSX.
   const isRetryableFailure = () => props.state.status === "transport_failure";
   const isReplayBlocked = () => hasReconciliationIssue(props.state);
   const isDiscardableRejection = () => props.state.status === "reconciling"
-    && (props.state.issue?.kind === "server_rejection" || props.state.issue?.kind === "idempotency_conflict");
+    && isDiscardablePendingSubmissionIssue(props.state.issue);
   const isStorageConflict = () => props.state.status === "reconciling" && props.state.issue?.kind === "storage_conflict";
 
   return (

@@ -17,6 +17,8 @@ import {
   type PendingSubmissionStorage,
   createDefaultPendingSubmissionStorage,
   createPendingSubmissionEnvelope,
+  isDiscardablePendingSubmissionIssue,
+  isDefinitiveServerRejectionStatus,
 } from "./pending-submission";
 import {
   initialPostComposerState,
@@ -145,7 +147,7 @@ function decodeDefinitiveServerRejection(status: number, value: unknown): Defini
 }
 
 function isDefinitiveServerRejection(error: TextSubmissionServerRejectionError): error is TextSubmissionServerRejectionError & { readonly status: 400 | 403 } {
-  return error.definitive && (error.status === 400 || error.status === 403);
+  return error.definitive && isDefinitiveServerRejectionStatus(error.status);
 }
 
 /**
@@ -592,7 +594,7 @@ export class TextSubmissionCoordinator {
     if (
       this.pending === null
       || state.status !== "reconciling"
-      || (state.issue?.kind !== "server_rejection" && state.issue?.kind !== "idempotency_conflict")
+      || !isDiscardablePendingSubmissionIssue(state.issue)
     ) {
       throw new Error("Only a definitively rejected request may be discarded");
     }

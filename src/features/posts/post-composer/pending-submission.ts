@@ -12,6 +12,7 @@ export const PENDING_SUBMISSION_VERSION = "pending-submission-v1" as const;
 export const PENDING_SUBMISSION_RECORD_VERSION = "pending-submission-record-v1" as const;
 export const PENDING_SUBMISSION_CONTENT_TYPE = "application/json" as const;
 export const MAX_PENDING_BODY_BYTES = 1_048_576;
+export type DefinitiveServerRejectionStatus = 400 | 403;
 
 export interface PendingSubmissionEnvelopeV1 {
   readonly version: typeof PENDING_SUBMISSION_VERSION;
@@ -29,7 +30,7 @@ export interface PendingSubmissionEnvelopeV1 {
 /** Persisted only beside the exact request envelope, never in its body. */
 export type PendingSubmissionIssue =
   | { readonly kind: "idempotency_conflict"; readonly submission_id: string }
-  | { readonly kind: "server_rejection"; readonly status: 400 | 403; readonly code: string };
+  | { readonly kind: "server_rejection"; readonly status: DefinitiveServerRejectionStatus; readonly code: string };
 
 export interface PendingSubmissionRecordMetadata {
   readonly issue?: PendingSubmissionIssue;
@@ -61,6 +62,10 @@ export class PendingSubmissionStorageConflictError extends Error {
   }
 }
 
+export function isDefinitiveServerRejectionStatus(value: unknown): value is DefinitiveServerRejectionStatus {
+  return value === 400 || value === 403;
+}
+
 function isPendingIssue(value: unknown): value is PendingSubmissionIssue {
   if (typeof value !== "object" || value === null || Array.isArray(value)) return false;
   // SAFETY: the preceding branch establishes a non-array object before the
@@ -70,9 +75,14 @@ function isPendingIssue(value: unknown): value is PendingSubmissionIssue {
     return typeof issue.submission_id === "string" && issue.submission_id.length > 0;
   }
   return issue.kind === "server_rejection"
-    && (issue.status === 400 || issue.status === 403)
+    && isDefinitiveServerRejectionStatus(issue.status)
     && typeof issue.code === "string"
     && issue.code.length > 0;
+}
+
+/** Only the closed, durable issue set may unlock discard-and-edit recovery. */
+export function isDiscardablePendingSubmissionIssue(value: unknown): value is PendingSubmissionIssue {
+  return isPendingIssue(value);
 }
 
 function decodeRecordMetadata(value: unknown): PendingSubmissionRecordMetadata {
