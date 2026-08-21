@@ -1,4 +1,5 @@
-import { readCsrfCookie, sessionRequestOptions } from "../../../api/client.ts";
+import { createApiClient, readCsrfCookie, sessionRequestOptions } from "../../../api/client.ts";
+import { ApiClientError } from "@pirate/api-client";
 import {
   decodeTextContentSubmission,
   type TextContentSubmissionV1,
@@ -86,11 +87,6 @@ function resolveOrigin(origin: string | URL | undefined): string {
   throw new AmbiguousTextSubmissionError("A browser origin is required for text submission");
 }
 
-interface RawConflictPayload {
-  readonly _tag?: unknown;
-  readonly submission_id?: unknown;
-}
-
 interface RawWireObject {
   readonly error?: unknown;
   readonly code?: unknown;
@@ -115,13 +111,32 @@ async function readJson(response: Response): Promise<JsonPayload> {
   return value;
 }
 
-function isConflictPayload(value: unknown): value is RawConflictPayload {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
+function hasExactKeys(value: object, keys: readonly string[]): boolean {
+  const actual = Object.keys(value);
+  return actual.length === keys.length && keys.every(key => Object.prototype.hasOwnProperty.call(value, key));
 }
 
+/**
+ * The generated client owns this operation's error schema. POST remains
+ * handwritten for exact-byte replay, so this is the same strict discriminator
+ * applied locally to its 409 response. The old top-level `_tag` shape is not a
+ * wire contract and is intentionally ambiguous.
+ */
 function conflictSubmissionId(value: unknown): string | null {
-  if (!isConflictPayload(value) || Object.keys(value).some(key => key !== "_tag" && key !== "submission_id") || Object.keys(value).length !== 2 || value._tag !== "idempotency_conflict" || typeof value.submission_id !== "string" || value.submission_id === "") return null;
-  return value.submission_id;
+  if (!isRecord(value) || !Object.prototype.hasOwnProperty.call(value, "error")) return null;
+  if (!(hasExactKeys(value, ["error"]) || hasExactKeys(value, ["error", "request_id"]))) return null;
+  if (value.request_id !== undefined && typeof value.request_id !== "string") return null;
+  if (!isRecord(value.error)) return null;
+  const error = value.error;
+  if (!hasExactKeys(error, ["code", "message", "retryable", "details"])) return null;
+  if (error.code !== "conflict" || typeof error.message !== "string" || error.message === "" || error.retryable !== false) return null;
+  if (!isRecord(error.details)) return null;
+  // SAFETY: isRecord above established a non-null, non-array object; this
+  // closed view only names the two discriminator fields checked immediately below.
+  const details = error.details as { readonly reason_code?: unknown; readonly submission_id?: unknown };
+  if (!hasExactKeys(details, ["reason_code", "submission_id"])) return null;
+  if (details.reason_code !== "idempotency_conflict" || typeof details.submission_id !== "string" || details.submission_id === "") return null;
+  return details.submission_id;
 }
 
 type DefinitiveServerRejectionCode = "bad_request" | "membership_required" | "gate_unsatisfied";
@@ -151,9 +166,9 @@ function isDefinitiveServerRejection(error: TextSubmissionServerRejectionError):
 }
 
 /**
- * Narrow same-origin adapter used until the generated client contains the
- * ratified text contract. It sends the retained bytes verbatim on every try.
- * The POST and GET paths must remain identical to the future generated client:
+ * Narrow same-origin adapter for exact-byte POST replay. The generated client
+ * owns GET URL construction, status/error handling, and response validation.
+ * POST and GET paths are both the api-next contract paths:
  * /api/communities/:id/posts and /api/text-content-submissions/:id.
  */
 export function createSameOriginTextSubmissionTransport(
@@ -231,39 +246,23 @@ export function createSameOriginTextSubmissionTransport(
     },
     async read(submissionId) {
       const origin = resolveOrigin(options.origin);
-      const path = assertSafeSameOriginPath(`/api/text-content-submissions/${encodeURIComponent(submissionId)}`);
       const csrf = readCsrfCookie();
       const headers = new Headers({ accept: "application/json" });
       const requestOptions = csrf === undefined
         ? { credentials: "same-origin" as const, headers }
         : sessionRequestOptions(csrf, { credentials: "same-origin", headers });
-      // SAFETY: sessionRequestOptions returns the generated client's readonly
-      // header tuple shape; Headers accepts the same string-pair values.
-      const requestHeaders = new Headers(requestOptions.headers as HeadersInit);
-      let response: Response;
       try {
-        const target = new URL(path, origin);
-        if (target.origin !== origin) throw new AmbiguousTextSubmissionError("Text submission path escaped its origin");
-        response = await fetchImpl(target, {
-          method: "GET",
-          credentials: requestOptions.credentials,
-          headers: requestHeaders,
-        });
+        const generated = createApiClient({ origin, fetchImpl });
+        const snapshot = await generated.get_textContentSubmissionsSubmissionId(
+          { path: { submissionId } },
+          requestOptions,
+        );
+        return decodeTextContentSubmission(snapshot);
       } catch (error) {
-        if (error instanceof TextSubmissionServerRejectionError || error instanceof AmbiguousTextSubmissionError) throw error;
+        if (error instanceof ApiClientError && error.status === 404) return null;
+        if (error instanceof AmbiguousTextSubmissionError) throw error;
         throw new AmbiguousTextSubmissionError(error instanceof Error ? error.message : "Network result is uncertain");
       }
-      if (response.status === 404) return null;
-      if (response.status >= 200 && response.status < 300 && response.status !== 200) {
-        throw new AmbiguousTextSubmissionError(`Text submission read returned unexpected HTTP ${response.status}`);
-      }
-      if (response.status >= 400 && response.status < 500) {
-        throw new AmbiguousTextSubmissionError(`Text submission read returned HTTP ${response.status}`);
-      }
-      if (!response.ok) throw new AmbiguousTextSubmissionError(`Text submission read returned HTTP ${response.status}`);
-      let payload: ReturnType<typeof readJson> extends Promise<infer T> ? T : never;
-      try { payload = await readJson(response); } catch { throw new AmbiguousTextSubmissionError("Text submission read returned malformed JSON"); }
-      try { return decodeTextContentSubmission(payload); } catch { throw new AmbiguousTextSubmissionError("Text submission read returned a malformed success"); }
     },
   };
 }

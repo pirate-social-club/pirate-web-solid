@@ -94,15 +94,40 @@ describe("same-origin text transport", () => {
     await expect(transport.dispatch(await envelope())).rejects.toThrow("malformed JSON");
   });
 
-  test("parses only the closed conflict and 400/403 rejection shapes", async () => {
+  test("parses only the strict wire conflict and 400/403 rejection shapes", async () => {
     const conflict = createSameOriginTextSubmissionTransport({
       origin: "https://pirate.test",
       fetchImpl: async () => new Response(JSON.stringify({ _tag: "idempotency_conflict", submission_id: "sub-existing" }), { status: 409 }),
     });
-    await expect(conflict.dispatch(await envelope())).rejects.toMatchObject({
+    await expect(conflict.dispatch(await envelope())).rejects.toMatchObject({ name: "AmbiguousTextSubmissionError" });
+    const typedConflict = createSameOriginTextSubmissionTransport({
+      origin: "https://pirate.test",
+      fetchImpl: async () => new Response(JSON.stringify({
+        error: {
+          code: "conflict",
+          message: "Idempotency key was already used",
+          retryable: false,
+          details: { reason_code: "idempotency_conflict", submission_id: "sub-existing" },
+        },
+        request_id: "request-1",
+      }), { status: 409 }),
+    });
+    await expect(typedConflict.dispatch(await envelope())).rejects.toMatchObject({
       name: "IdempotencyConflictError",
       submission_id: "sub-existing",
     } satisfies Partial<IdempotencyConflictError>);
+    const malformedConflict = createSameOriginTextSubmissionTransport({
+      origin: "https://pirate.test",
+      fetchImpl: async () => new Response(JSON.stringify({
+        error: {
+          code: "conflict",
+          message: "Idempotency key was already used",
+          retryable: false,
+          details: { reason_code: "idempotency_conflict", submission_id: "sub-existing", extra: true },
+        },
+      }), { status: 409 }),
+    });
+    await expect(malformedConflict.dispatch(await envelope())).rejects.toMatchObject({ name: "AmbiguousTextSubmissionError" });
     const badRequest = createSameOriginTextSubmissionTransport({
       origin: "https://pirate.test",
       fetchImpl: async () => new Response(JSON.stringify({ error: { code: "bad_request", message: "invalid", retryable: false } }), { status: 400 }),
@@ -130,6 +155,17 @@ describe("same-origin text transport", () => {
     });
     await expect(transport.read("sub-known")).resolves.toEqual(snapshot);
     expect(requests).toEqual(["/api/text-content-submissions/sub-known"]);
+  });
+
+  test("maps the generated GET client's declared 404 to no snapshot", async () => {
+    const transport = createSameOriginTextSubmissionTransport({
+      origin: "https://pirate.test",
+      fetchImpl: async () => new Response(JSON.stringify({
+        error: { code: "not_found", message: "missing", retryable: false },
+        request_id: "request-404",
+      }), { status: 404 }),
+    });
+    await expect(transport.read("sub-missing")).resolves.toBeNull();
   });
 
   test.each([201, 202])("rejects GET HTTP %s instead of accepting a non-200 snapshot", async status => {
