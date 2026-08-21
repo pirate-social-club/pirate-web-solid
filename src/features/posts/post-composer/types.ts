@@ -387,4 +387,9 @@ export interface PostComposerProps extends Partial<PostComposerDraftState>, Post
   // Storybook-only seed for reviewing a specific composer panel. Production
   // callers leave panels closed and open them from the composer controls.
   initialOpenPanel?: "access-and-rights" | "visibility";
+  // Storybook-only seeds for reviewing a specific expanded rights row, the
+  // visibility age-gate confirmation screen, and the required post sheet.
+  initialRightsSection?: "rights" | "license" | "payout";
+  initialVisibilityConfirming?: boolean;
+  initialRequiredSheetOpen?: boolean;
 }

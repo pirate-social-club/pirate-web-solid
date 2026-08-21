@@ -395,8 +395,6 @@ export function createPostComposerController(
     fileUploadPresent: Boolean(fileState().upload),
   });
   const songTitleMissing = () => activeTab() === "song" && !songState().title?.trim();
-  const songGenreMissing = () => activeTab() === "song" && !songState().genre?.trim();
-  const songLanguageMissing = () => activeTab() === "song" && !songState().primaryLanguage?.trim();
   const songAudioMissing = () => activeTab() === "song"
     && !songState().primaryAudioUpload
     && !songState().primaryAudioLabel?.trim();
@@ -404,9 +402,7 @@ export function createPostComposerController(
     props.ageGateConfirmationRequired === true && ageGatePolicyState() !== "18_plus";
   const requiresPostSheet = () => Boolean(
     ageGateConfirmationPending()
-      || songTitleMissing()
-      || songGenreMissing()
-      || songLanguageMissing(),
+      || songTitleMissing(),
   );
   const postDisabled = () => basePostDisabled()
     || contentBlocked()
@@ -746,8 +742,6 @@ export function createPostComposerController(
       get draftCanSubmit() { return draftCanSubmit(); },
       get requiresPostSheet() { return requiresPostSheet(); },
       get songAudioMissing() { return songAudioMissing(); },
-      get songGenreMissing() { return songGenreMissing(); },
-      get songLanguageMissing() { return songLanguageMissing(); },
       get songTitleMissing() { return songTitleMissing(); },
     },
     tabs: {

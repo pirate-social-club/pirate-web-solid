@@ -17,11 +17,12 @@ type Story = StoryObj<typeof meta>;
 
 const song = {
   title: "Midnight Waves",
-  genre: "Electronic",
-  primaryLanguage: "English",
   primaryAudioLabel: "midnight-waves.mp3",
   coverLabel: "midnight-waves-cover.svg",
 };
+
+const mobileGlobals = { viewport: { value: "mobile1", isRotated: false } };
+
 export const Original: Story = {
   name: "Original",
   render: () => (
@@ -41,7 +42,7 @@ export const Original: Story = {
 export const Mobile: Story = {
   ...Original,
   name: "Mobile",
-  globals: { viewport: { value: "mobile1", isRotated: false } },
+  globals: mobileGlobals,
 };
 
 export const RemixSource: Story = {
@@ -71,22 +72,6 @@ export const RemixSource: Story = {
   ),
 };
 
-export const LicenseSettings: Story = {
-  name: "License and royalties",
-  render: () => (
-    <ComposerFrame>
-      <PostComposer
-        {...baseComposer}
-        mode="song"
-        song={song}
-        license={{ presetId: "commercial-remix", commercialRevSharePct: 10 }}
-        monetization={{ visible: true, priceUsd: "4.99", regionalPricingAvailable: true }}
-        initialOpenPanel="access-and-rights"
-      />
-    </ComposerFrame>
-  ),
-};
-
 function songVariant(overrides: Partial<PostComposerProps>) {
   return (
     <ComposerFrame>
@@ -94,21 +79,6 @@ function songVariant(overrides: Partial<PostComposerProps>) {
     </ComposerFrame>
   );
 }
-
-export const LicenseNonCommercial: Story = {
-  name: "License / Non-commercial remixing",
-  render: () => songVariant({ license: { presetId: "non-commercial" }, initialOpenPanel: "access-and-rights" }),
-};
-
-export const LicenseCommercialUse: Story = {
-  name: "License / Commercial use",
-  render: () => songVariant({ license: { presetId: "commercial-use" }, monetization: { visible: true, priceUsd: "4.99" }, initialOpenPanel: "access-and-rights" }),
-};
-
-export const LicenseCommercialRemix: Story = {
-  name: "License / Commercial remix",
-  render: () => songVariant({ license: { presetId: "commercial-remix", commercialRevSharePct: 10 }, initialOpenPanel: "access-and-rights" }),
-};
 
 const remixSource = { id: "asset-sunset", title: "Sunset Driver", subtitle: "lena-wave.pirate" };
 
@@ -178,27 +148,89 @@ export const PostPublished: Story = {
   render: () => songVariant({ submit: { canPost: true, progress: { phase: "done", label: "Post published", currentIndex: 5, totalSteps: 5, display: "activity" } } }),
 };
 
-export const PaidUnlock: Story = {
-  name: "Access / Paid unlock",
-  render: () => songVariant({ monetization: { visible: true, priceUsd: "4.99" }, license: { presetId: "commercial-use" }, initialOpenPanel: "access-and-rights" }),
+export const VisibilityModalOpen: Story = {
+  name: "Visibility / Modal open",
+  render: () => songVariant({ initialOpenPanel: "visibility" }),
 };
 
-export const RoyaltySplitMultiRecipient: Story = {
-  name: "Royalties / Multiple recipients",
-  render: () => songVariant({ royaltySplit: { allocations: [{ id: "creator", recipientKind: "creator", sharePct: 70 }, { id: "collaborator", recipientKind: "collaborator", sharePct: 30 }] }, initialOpenPanel: "access-and-rights" }),
+export const VisibilityModalOpenMobile: Story = {
+  ...VisibilityModalOpen,
+  name: "Visibility / Modal open (mobile)",
+  globals: mobileGlobals,
 };
 
-export const PaidUnlockWithVinyl: Story = {
-  name: "Access / Paid unlock with vinyl",
-  render: () => songVariant({ monetization: { visible: true, priceUsd: "9.99", vinylReleaseUrl: "https://elasticstage.com/release" }, initialOpenPanel: "access-and-rights" }),
+export const VisibilityAgeGateConfirm: Story = {
+  name: "Visibility / Age gate confirmation",
+  render: () => songVariant({
+    ageGateConfirmationRequired: true,
+    initialOpenPanel: "visibility",
+    initialVisibilityConfirming: true,
+  }),
 };
 
-export const PaidUnlockRegionalPricing: Story = {
-  name: "Access / Regional pricing",
-  render: () => songVariant({ monetization: { visible: true, priceUsd: "4.99", regionalPricingAvailable: true, regionalPricingEnabled: true }, regionalPricingPreview: { defaultTierKey: "high", tiers: [{ tierKey: "high", displayName: "High income", adjustmentType: "multiplier", adjustmentValue: 1, countryCodes: ["US", "GB"] }, { tierKey: "standard", displayName: "Standard", adjustmentType: "multiplier", adjustmentValue: 0.65, countryCodes: ["BR", "GE"] }] }, initialOpenPanel: "access-and-rights" }),
+export const VisibilityAgeGateConfirmMobile: Story = {
+  ...VisibilityAgeGateConfirm,
+  name: "Visibility / Age gate confirmation (mobile)",
+  globals: mobileGlobals,
+};
+
+export const RightsSummaryCollapsed: Story = {
+  name: "Rights / Summary collapsed",
+  render: () => songVariant({ initialOpenPanel: "access-and-rights" }),
+};
+
+export const RightsSummaryCollapsedMobile: Story = {
+  ...RightsSummaryCollapsed,
+  name: "Rights / Summary collapsed (mobile)",
+  globals: mobileGlobals,
+};
+
+export const RightsLicenseExpanded: Story = {
+  name: "Rights / License expanded",
+  render: () => songVariant({ initialOpenPanel: "access-and-rights", initialRightsSection: "license" }),
+};
+
+export const RightsLicenseExpandedMobile: Story = {
+  ...RightsLicenseExpanded,
+  name: "Rights / License expanded (mobile)",
+  globals: mobileGlobals,
+};
+
+export const RightsPayoutExpanded: Story = {
+  name: "Rights / Payout expanded",
+  render: () => songVariant({
+    initialOpenPanel: "access-and-rights",
+    initialRightsSection: "payout",
+    royaltySplit: { allocations: [{ id: "creator", recipientKind: "creator", sharePct: 70 }, { id: "collaborator", recipientKind: "collaborator", sharePct: 30 }] },
+  }),
+};
+
+export const RightsPayoutExpandedMobile: Story = {
+  ...RightsPayoutExpanded,
+  name: "Rights / Payout expanded (mobile)",
+  globals: mobileGlobals,
+};
+
+export const RequiredSheetTitleOnly: Story = {
+  name: "Required / Title only",
+  render: () => songVariant({
+    song: { primaryAudioLabel: "midnight-waves.mp3" },
+    initialRequiredSheetOpen: true,
+  }),
+};
+
+export const RequiredSheetTitleOnlyMobile: Story = {
+  ...RequiredSheetTitleOnly,
+  name: "Required / Title only (mobile)",
+  globals: mobileGlobals,
 };
 
 export const WithCharityContribution: Story = {
   name: "Charity / Contribution",
-  render: () => songVariant({ monetization: { visible: true, priceUsd: "4.99" }, charityPartner: { partnerId: "partner-1", displayName: "Community Arts Fund" }, charityContribution: { percentagePct: 5, userConfigured: true }, initialOpenPanel: "access-and-rights" }),
+  render: () => songVariant({
+    charityPartner: { partnerId: "partner-1", displayName: "Community Arts Fund" },
+    charityContribution: { percentagePct: 5, userConfigured: true },
+    initialOpenPanel: "access-and-rights",
+    initialRightsSection: "payout",
+  }),
 };

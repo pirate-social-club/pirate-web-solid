@@ -27,6 +27,7 @@ import { PostComposerEventSection } from "./event-section";
 import { LiveTabContent } from "./live-tab";
 import { PostComposerSettingsHub } from "./settings-hub";
 import { PostComposerPublishControls } from "./publish-controls";
+import { buildRightsSummary, PostComposerRightsSheet } from "./rights-sheet";
 import {
   createKeyboardBottomOffset,
   createObjectUrl,
@@ -99,6 +100,8 @@ function attachmentFor(
 export function PostComposerWriteStep(props: {
   controller: PostComposerController;
   initialOpenPanel?: "access-and-rights" | "visibility";
+  initialRightsSection?: "rights" | "license" | "payout";
+  initialVisibilityConfirming?: boolean;
 }) {
   const controller = props.controller;
   const imagePreview = createObjectUrl(() => controller.media.activeImageUpload);
@@ -213,26 +216,46 @@ export function PostComposerWriteStep(props: {
       <div class="flex flex-wrap items-center gap-2">
         <PostComposerPublishControls
           controller={controller}
+          initialConfirming={props.initialVisibilityConfirming}
           initialOpen={props.initialOpenPanel === "visibility"}
         />
         <Show when={showAccessRights()}>
           <Modal open={accessOpen()} onOpenChange={setAccessOpen}>
             <ModalTrigger
-              aria-label={controller.copy.publishChips.accessRightsTitle}
+              aria-label={controller.tabs.activeTab === "song"
+                ? buildRightsSummary(controller)
+                : controller.copy.publishChips.accessRightsTitle}
               class="inline-flex h-11 items-center gap-2 rounded-full border border-border-soft bg-card px-3.5 text-foreground outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring"
             >
               <IconLock class="size-4" />
-              <Type as="span" variant="label">{controller.copy.publishChips.accessRightsTitle}</Type>
+              <Type as="span" variant="label">
+                {controller.tabs.activeTab === "song"
+                  ? buildRightsSummary(controller)
+                  : controller.copy.publishChips.accessRightsTitle}
+              </Type>
             </ModalTrigger>
             <ModalContent
-              class="max-h-[88dvh] overflow-y-auto rounded-t-[var(--radius-3xl)] px-0 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-4 sm:rounded-[var(--radius-xl)] sm:p-0"
+              class="max-h-[88dvh] overflow-y-auto rounded-t-[var(--radius-3xl)] px-0 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-4 sm:rounded-[var(--radius-xl)] sm:pb-6 sm:pt-6"
               mobileSide="bottom"
             >
               <div aria-hidden="true" class="mx-auto mb-4 h-1 w-12 rounded-full bg-muted sm:hidden" />
               <ModalHeader class="px-4 pe-12 text-start">
-                <ModalTitle>{controller.copy.publishChips.accessRightsTitle}</ModalTitle>
+                <ModalTitle>
+                  {controller.tabs.activeTab === "song"
+                    ? controller.copy.rights.title
+                    : controller.copy.publishChips.accessRightsTitle}
+                </ModalTitle>
               </ModalHeader>
-              <PostComposerSettingsHub controller={controller} />
+              <Show
+                when={controller.tabs.activeTab === "song"}
+                fallback={<PostComposerSettingsHub controller={controller} />}
+              >
+                <PostComposerRightsSheet
+                  controller={controller}
+                  initialSection={props.initialRightsSection}
+                  onDone={() => setAccessOpen(false)}
+                />
+              </Show>
             </ModalContent>
           </Modal>
         </Show>
@@ -280,7 +303,7 @@ export function PostComposerWriteStep(props: {
       <Inputs />
       <Modal open={moreOpen()} onOpenChange={setMoreOpen}>
         <ModalContent
-          class="rounded-t-[var(--radius-3xl)] px-0 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-4 sm:rounded-[var(--radius-xl)] sm:p-0"
+          class="rounded-t-[var(--radius-3xl)] px-0 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-4 sm:rounded-[var(--radius-xl)] sm:pb-6 sm:pt-6"
           mobileSide="bottom"
         >
           <div aria-hidden="true" class="mx-auto mb-4 h-1 w-12 rounded-full bg-muted sm:hidden" />

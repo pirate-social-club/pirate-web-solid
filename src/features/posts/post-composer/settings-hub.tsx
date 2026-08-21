@@ -80,10 +80,6 @@ function settingsCopy(controller: PostComposerController) {
     paidUnlockTitle,
     priceLabel,
     pricePlaceholder: copy.placeholders.unlockPrice,
-    previewStartLabel: copy.fields.previewStartSeconds,
-    previewStartPlaceholder: copy.placeholders.previewStartSeconds,
-    vinylReleaseUrlLabel: copy.fields.vinylReleaseUrl ?? "ElasticStage vinyl URL",
-    vinylReleaseUrlPlaceholder: copy.placeholders.vinylReleaseUrl ?? "https://elasticstage.com/artist/releases/release-singleep",
     regionalPricingLabel: copy.access.useRegionalPricing,
     licenseLabel: tabs.activeTab === "song" && controller.primary.activeSongMode === "remix"
       ? copy.derivative.licenseNewRemixTerms
@@ -170,22 +166,10 @@ export function PostComposerSettingsHub(props: {
             });
           }
         }}
-        onPreviewStartSecondsChange={(previewStartSeconds) =>
-          controller.song.update((current) => ({
-            ...current,
-            previewStartSeconds,
-          }))
-        }
         onRegionalPricingChange={(regionalPricingEnabled) =>
           controller.commerce.updateMonetizationState((current) => ({
             ...current,
             regionalPricingEnabled,
-          }))
-        }
-        onVinylReleaseUrlChange={(vinylReleaseUrl) =>
-          controller.commerce.updateMonetizationState((current) => ({
-            ...current,
-            vinylReleaseUrl,
           }))
         }
         onRoyaltyPercentChange={(value) =>
@@ -203,7 +187,6 @@ export function PostComposerSettingsHub(props: {
           }))
         }
         price={controller.commerce.monetizationState.priceUsd ?? ""}
-        previewStartSeconds={controller.song.state.previewStartSeconds ?? "0"}
         publicAvatarSrc={controller.identity.publicAvatarSrc ?? undefined}
         publicAvatarSeed={controller.identity.publicAvatarSeed ?? undefined}
         publicIdentityInitials={publicInitials(publicHandle())}
@@ -234,7 +217,6 @@ export function PostComposerSettingsHub(props: {
         showAnonymousIdentity={showAnonymousIdentity()}
         showPostBasics={false}
         visibility={controller.audience.state.visibility === "members_only" ? "community" : "public"}
-        vinylReleaseUrl={controller.commerce.monetizationState.vinylReleaseUrl ?? ""}
       />
     </CardContent>
   );

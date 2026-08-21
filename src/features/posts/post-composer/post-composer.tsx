@@ -10,7 +10,7 @@ import { PostComposerWriteStep } from "./write-step";
 
 export function PostComposer(props: PostComposerProps) {
   const controller = createPostComposerController(props, { isMobile: createIsMobile() });
-  const [requiredSheetOpen, setRequiredSheetOpen] = createSignal(false);
+  const [requiredSheetOpen, setRequiredSheetOpen] = createSignal(props.initialRequiredSheetOpen ?? false);
 
   const requestPost = () => {
     if (controller.requirements.requiresPostSheet) {
@@ -44,10 +44,20 @@ export function PostComposer(props: PostComposerProps) {
 
       <Show when={controller.isMobile()} fallback={
         <Card class="overflow-hidden bg-card shadow-none">
-          <PostComposerWriteStep controller={controller} initialOpenPanel={props.initialOpenPanel} />
+          <PostComposerWriteStep
+            controller={controller}
+            initialOpenPanel={props.initialOpenPanel}
+            initialRightsSection={props.initialRightsSection}
+            initialVisibilityConfirming={props.initialVisibilityConfirming}
+          />
         </Card>
       }>
-        <PostComposerWriteStep controller={controller} initialOpenPanel={props.initialOpenPanel} />
+        <PostComposerWriteStep
+          controller={controller}
+          initialOpenPanel={props.initialOpenPanel}
+          initialRightsSection={props.initialRightsSection}
+          initialVisibilityConfirming={props.initialVisibilityConfirming}
+        />
       </Show>
 
       <PostComposerRequiredSheet

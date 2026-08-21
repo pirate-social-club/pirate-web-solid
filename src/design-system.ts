@@ -136,6 +136,8 @@ export {
   IconX,
   Input,
   MediaControlButton,
+  OptionCard,
+  type OptionCardProps,
   Scrubber,
   Skeleton,
   Spinner,

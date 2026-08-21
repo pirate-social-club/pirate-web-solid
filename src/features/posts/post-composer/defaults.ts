@@ -50,30 +50,12 @@ export const anonymousEligibleTabs: ComposerTab[] = ["text", "image", "video", "
 
 export const noneLanguageValue = "__none__";
 
-export const songGenreOptions = [
-  "Electronic",
-  "Hip-hop",
-  "Pop",
-  "R&B",
-  "Rock",
-  "Ambient",
-] as const;
-
-export const songLanguageOptions = [
-  "English",
-  "Spanish",
-  "French",
-  "Japanese",
-  "Korean",
-  "Portuguese",
-] as const;
-
 export function defaultSongState(song?: SongComposerState): SongComposerState {
   return {
     title: song?.title ?? "",
-    genre: song?.genre ?? "Electronic",
+    genre: song?.genre,
     geniusAnnotationsUrl: song?.geniusAnnotationsUrl ?? "",
-    primaryLanguage: song?.primaryLanguage ?? "English",
+    primaryLanguage: song?.primaryLanguage,
     secondaryLanguage: song?.secondaryLanguage ?? "",
     primaryAudioUpload: song?.primaryAudioUpload ?? null,
     primaryAudioLabel: song?.primaryAudioLabel,

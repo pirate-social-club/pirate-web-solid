@@ -58,6 +58,7 @@ export interface ComposerCopy {
   publishChips: {
     accessRightsTitle: string;
     ageGate: string;
+    ageGateDescription: string;
     ageGateTitle: string;
     ageGateConfirm: string;
     ageGateConfirmCancel: string;
@@ -65,8 +66,23 @@ export interface ComposerCopy {
     audienceTitle: string;
     audienceMembersOnly: string;
     audiencePublic: string;
-    noAgeGate: string;
+    done: string;
     visibilityTitle: string;
+  };
+  rights: {
+    title: string;
+    rightsLabel: string;
+    original: string;
+    remix: string;
+    licenseLabel: string;
+    licenseTitles: Record<string, string>;
+    licenseDescriptions: Record<string, string>;
+    payoutLabel: string;
+    payoutSolo: string;
+    payoutSplit: (count: number) => string;
+    change: string;
+    addCollaborator: string;
+    done: string;
   };
   identity: {
     addQualifiers: string;
@@ -167,8 +183,6 @@ export const defaultComposerCopy: ComposerCopy = {
     song: "Song",
     unlockPriceUsd: "Unlock price (USD)",
     vocalStem: "Vocal stem",
-    previewStartSeconds: "30-second preview starts at",
-    vinylReleaseUrl: "ElasticStage vinyl URL",
   },
   identity: {
     addQualifiers: "Add qualifiers",
@@ -185,6 +199,7 @@ export const defaultComposerCopy: ComposerCopy = {
   publishChips: {
     accessRightsTitle: "Access & rights",
     ageGate: "18+",
+    ageGateDescription: "Require age verification",
     ageGateTitle: "Age gate",
     ageGateConfirm: "Mark 18+",
     ageGateConfirmCancel: "Cancel",
@@ -192,8 +207,31 @@ export const defaultComposerCopy: ComposerCopy = {
     audienceTitle: "Who can see this?",
     audienceMembersOnly: "Members only",
     audiencePublic: "Public",
-    noAgeGate: "No age gate",
+    done: "Done",
     visibilityTitle: "Visibility",
+  },
+  rights: {
+    title: "Rights",
+    rightsLabel: "Rights",
+    original: "Original",
+    remix: "Remix",
+    licenseLabel: "License",
+    licenseTitles: {
+      "non-commercial": "Free remixes, credit me",
+      "commercial-use": "Sell it as-is, credit me, no remixes",
+      "commercial-remix": "Sell it and remix it, credit me",
+    },
+    licenseDescriptions: {
+      "non-commercial": "Others can remix for free with credit.",
+      "commercial-use": "Others can sell as-is with credit; no remixes.",
+      "commercial-remix": "Others can sell and remix with credit.",
+    },
+    payoutLabel: "Payout",
+    payoutSolo: "You keep 100%",
+    payoutSplit: (count) => `Split with ${count} collaborator${count === 1 ? "" : "s"}`,
+    change: "Change",
+    addCollaborator: "Add collaborator",
+    done: "Done",
   },
   labels: {
     source: "Source",
@@ -255,8 +293,6 @@ export const defaultComposerCopy: ComposerCopy = {
     sourceTrackSearch: "Search remix-eligible source tracks",
     title: "Title",
     unlockPrice: "0",
-    previewStartSeconds: "0",
-    vinylReleaseUrl: "https://elasticstage.com/artist/releases/release-singleep",
   },
   requiredFieldsLegend: "Required fields are marked with *",
   sections: {

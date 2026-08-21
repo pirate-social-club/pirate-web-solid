@@ -1,9 +1,11 @@
 // Settings step sections (identity, visibility, age gate, access/pricing,
 // license, royalty split), ported from the React
-// post-composer-settings-sections.tsx.
+// post-composer-settings-sections.tsx. The song path no longer renders the
+// v1-unavailable commerce controls (paid unlock, price, preview start, vinyl,
+// regional pricing); license and royalty remain because they are part of the
+// ratified SongAuthorInputV1 bundle.
 
 import { For, Show } from "solid-js";
-import type { JSX } from "@solidjs/web";
 
 import {
   Avatar,
@@ -13,13 +15,13 @@ import {
   IconMaskHappy,
   IconUsersThree,
   Input,
-  RadioIndicator,
+  OptionCard,
   Type,
 } from "../../../design-system";
 import { cn } from "../../../design-system";
 import { RegionalPricingPreviewDialog } from "./regional-pricing";
 import { RoyaltySplitEditor } from "./royalty-split-editor";
-import { normalizePriceInput, normalizeRoyaltyInput, normalizeSecondsInput } from "./utils";
+import { normalizePriceInput, normalizeRoyaltyInput } from "./utils";
 import type {
   AssetLicensePresetId,
   AssetRoyaltySplitState,
@@ -42,10 +44,6 @@ export interface PostComposerSettingsSectionsCopy {
   paidUnlockTitle: string;
   priceLabel: string;
   pricePlaceholder: string;
-  previewStartLabel: string;
-  previewStartPlaceholder: string;
-  vinylReleaseUrlLabel: string;
-  vinylReleaseUrlPlaceholder: string;
   regionalPricingLabel: string;
   licenseLabel: string;
   licenseLabels: Record<AssetLicensePresetId, string>;
@@ -70,15 +68,12 @@ export interface PostComposerSettingsSectionsProps {
   onIdentityChange: (value: "pseudonym" | "anonymous") => void;
   onLicenseChange: (value: AssetLicensePresetId) => void;
   onPriceChange: (value: string, nextAccess?: "free" | "paid") => void;
-  onPreviewStartSecondsChange?: (value: string) => void;
   onRegionalPricingChange?: (value: boolean) => void;
   onCharityContributionChange?: (updater: (current: CharityContributionState) => CharityContributionState) => void;
   onRoyaltySplitChange?: (value: AssetRoyaltySplitState) => void;
   onRoyaltyPercentChange: (value: string) => void;
-  onVinylReleaseUrlChange?: (value: string) => void;
   onVisibilityChange: (value: "public" | "community") => void;
   price: string;
-  previewStartSeconds?: string;
   publicAvatarSeed?: string;
   publicAvatarSrc?: string;
   publicIdentityLabel?: string;
@@ -95,7 +90,6 @@ export interface PostComposerSettingsSectionsProps {
   showAnonymousIdentity?: boolean;
   showPostBasics?: boolean;
   visibility: "public" | "community";
-  vinylReleaseUrl?: string;
   onAgentIdentitySelect?: () => void;
 }
 
@@ -111,10 +105,6 @@ const defaultCopy: PostComposerSettingsSectionsCopy = {
   paidUnlockTitle: "Paid unlock",
   priceLabel: "Price",
   pricePlaceholder: "0",
-  previewStartLabel: "30-second preview starts at",
-  previewStartPlaceholder: "0",
-  vinylReleaseUrlLabel: "ElasticStage vinyl URL",
-  vinylReleaseUrlPlaceholder: "https://elasticstage.com/artist/releases/release-singleep",
   regionalPricingLabel: "Use community regional pricing",
   licenseLabel: "License",
   licenseLabels: {
@@ -131,45 +121,6 @@ const defaultCopy: PostComposerSettingsSectionsCopy = {
   royaltyPlaceholder: "15",
 };
 
-function OptionRow(props: {
-  checked: boolean;
-  description?: string;
-  icon?: JSX.Element;
-  onClick: () => void;
-  title: string;
-}) {
-  return (
-    <button
-      class={cn(
-        "grid w-full grid-cols-[1fr_auto] items-center gap-4 rounded-[var(--radius-lg)] border p-4 text-start",
-        props.icon && "grid-cols-[auto_1fr_auto]",
-        props.checked ? "border-primary bg-primary-subtle" : "border-border-soft bg-card",
-      )}
-      onClick={props.onClick}
-      type="button"
-    >
-      <Show when={props.icon}>
-        {(icon) => (
-          <span class="grid size-11 place-items-center rounded-full bg-background text-foreground">
-            {icon()}
-          </span>
-        )}
-      </Show>
-      <span class="min-w-0 space-y-1">
-        <Type as="span" variant="body-strong" class="block break-words">
-          {props.title}
-        </Type>
-        <Show when={props.description}>
-          <Type as="span" variant="body" class="block text-muted-foreground">
-            {props.description}
-          </Type>
-        </Show>
-      </span>
-      <RadioIndicator checked={props.checked} />
-    </button>
-  );
-}
-
 export function PostComposerSettingsSections(props: PostComposerSettingsSectionsProps) {
   const copy = (): PostComposerSettingsSectionsCopy => ({
     ...defaultCopy,
@@ -185,12 +136,11 @@ export function PostComposerSettingsSections(props: PostComposerSettingsSections
   });
 
   const isLiveAttachment = () => props.attachment?.kind === "live";
-  const showAccess = () => Boolean(props.attachment && (
-    props.attachment.kind === "song"
-    || props.attachment.kind === "video"
+  const showPricing = () => Boolean(props.attachment && (
+    props.attachment.kind === "video"
     || (isLiveAttachment() && props.access === "paid")
   ));
-  const showPaidFields = () => props.access === "paid" && showAccess();
+  const showPaidFields = () => props.access === "paid" && showPricing();
   const shouldShowLicenseFields = () => props.showLicenseFields ?? (showPaidFields() && !isLiveAttachment());
   const canPreviewRegionalPricing = () => Boolean(props.regionalPricingPreview?.tiers.length);
   const agentIdentityDescription = () => props.agentIdentityDescription ?? "Post from your agent identity";
@@ -206,8 +156,8 @@ export function PostComposerSettingsSections(props: PostComposerSettingsSections
           <Type as="h2" variant="h3" class="text-muted-foreground">
             {copy().postAsTitle}
           </Type>
-          <OptionRow
-            checked={props.identity === "pseudonym" && !props.agentIdentitySelected}
+          <OptionCard
+            selected={props.identity === "pseudonym" && !props.agentIdentitySelected}
             description={copy().publicIdentityDescription}
             icon={
               <Avatar
@@ -221,8 +171,8 @@ export function PostComposerSettingsSections(props: PostComposerSettingsSections
             title={publicIdentityLabel()}
           />
           <Show when={showAnonymousIdentity()}>
-            <OptionRow
-              checked={props.identity === "anonymous" && !props.agentIdentitySelected}
+            <OptionCard
+              selected={props.identity === "anonymous" && !props.agentIdentitySelected}
               description={copy().anonymousIdentityDescription}
               icon={<IconMaskHappy class="size-6" />}
               onClick={() => props.onIdentityChange("anonymous")}
@@ -230,8 +180,8 @@ export function PostComposerSettingsSections(props: PostComposerSettingsSections
             />
           </Show>
           <Show when={props.agentIdentityLabel && props.onAgentIdentitySelect}>
-            <OptionRow
-              checked={props.agentIdentitySelected === true}
+            <OptionCard
+              selected={props.agentIdentitySelected === true}
               description={agentIdentityDescription()}
               icon={<span class="text-base font-bold">AI</span>}
               onClick={() => props.onAgentIdentitySelect?.()}
@@ -244,14 +194,14 @@ export function PostComposerSettingsSections(props: PostComposerSettingsSections
           <Type as="h2" variant="h3" class="text-muted-foreground">
             {copy().visibilityTitle}
           </Type>
-          <OptionRow
-            checked={props.visibility === "public"}
+          <OptionCard
+            selected={props.visibility === "public"}
             icon={<IconGlobe class="size-6" />}
             onClick={() => props.onVisibilityChange("public")}
             title={copy().publicVisibilityLabel}
           />
-          <OptionRow
-            checked={props.visibility === "community"}
+          <OptionCard
+            selected={props.visibility === "community"}
             icon={<IconUsersThree class="size-6" />}
             onClick={() => props.onVisibilityChange("community")}
             title={copy().communityVisibilityLabel}
@@ -275,7 +225,7 @@ export function PostComposerSettingsSections(props: PostComposerSettingsSections
         </section>
       </Show>
 
-      <Show when={showAccess()}>
+      <Show when={showPricing()}>
         <section class="space-y-3">
           <div class="space-y-4 rounded-[var(--radius-lg)] border border-border-soft bg-card p-4">
             <Show when={!isLiveAttachment()}>
@@ -310,38 +260,7 @@ export function PostComposerSettingsSections(props: PostComposerSettingsSections
                     />
                   </div>
                 </label>
-                <Show when={props.attachment?.kind === "song" && props.onPreviewStartSecondsChange}>
-                  <label class="block space-y-2">
-                    <Type as="span" variant="body-strong">
-                      {copy().previewStartLabel}
-                    </Type>
-                    <div class="grid grid-cols-[1fr_auto] items-center rounded-[var(--radius-lg)] border border-border-soft bg-background px-4">
-                      <Input
-                        class="h-14 rounded-none border-0 bg-transparent px-0 text-lg shadow-none focus-visible:ring-0"
-                        inputmode="numeric"
-                        onChange={(event) => props.onPreviewStartSecondsChange?.(normalizeSecondsInput(event.currentTarget.value))}
-                        placeholder={copy().previewStartPlaceholder}
-                        value={props.previewStartSeconds ?? ""}
-                      />
-                      <span class="text-base font-semibold text-muted-foreground">s</span>
-                    </div>
-                  </label>
-                </Show>
               </div>
-            </Show>
-            <Show when={props.attachment?.kind === "song" && props.onVinylReleaseUrlChange}>
-              <label class="block space-y-2">
-                <Type as="span" variant="body-strong">
-                  {copy().vinylReleaseUrlLabel}
-                </Type>
-                <Input
-                  class="h-14 rounded-[var(--radius-lg)] border-border-soft bg-background text-base"
-                  inputmode="url"
-                  onChange={(event) => props.onVinylReleaseUrlChange?.(event.currentTarget.value)}
-                  placeholder={copy().vinylReleaseUrlPlaceholder}
-                  value={props.vinylReleaseUrl ?? ""}
-                />
-              </label>
             </Show>
             <Show when={showPaidFields() && props.regionalPricingAvailable && props.onRegionalPricingChange}>
               <div class="space-y-2">
@@ -366,55 +285,61 @@ export function PostComposerSettingsSections(props: PostComposerSettingsSections
               </div>
             </Show>
           </div>
-          <Show when={shouldShowLicenseFields()}>
-            <div class="space-y-4 rounded-[var(--radius-lg)] border border-border-soft bg-card p-4">
-              <div class="space-y-3">
-                <Type as="div" variant="body-strong">
-                  {copy().licenseLabel}
-                </Type>
-                <For each={(["non-commercial", "commercial-use", "commercial-remix"] as const)}>
-                  {(preset) => (
-                    <OptionRow
-                      checked={props.license === preset}
-                      description={copy().licenseDescriptions[preset]}
-                      onClick={() => props.onLicenseChange(preset)}
-                      title={copy().licenseLabels[preset]}
-                    />
-                  )}
-                </For>
-              </div>
-              <Show when={props.license === "commercial-remix"}>
-                <label class="block space-y-2">
-                  <Type as="span" variant="body-strong">
-                    {copy().royaltyLabel}
-                  </Type>
-                  <div class="grid grid-cols-[1fr_auto] items-center rounded-[var(--radius-lg)] border border-border-soft bg-background px-4">
-                    <Input
-                      aria-label={copy().royaltyLabel}
-                      class="h-14 rounded-none border-0 bg-transparent px-0 text-lg shadow-none focus-visible:ring-0"
-                      inputmode="numeric"
-                      max={100}
-                      min={0}
-                      onChange={(event) => props.onRoyaltyPercentChange(normalizeRoyaltyInput(event.currentTarget.value))}
-                      placeholder={copy().royaltyPlaceholder}
-                      type="number"
-                      value={props.royaltyPercent}
-                    />
-                    <span class="text-base font-semibold text-muted-foreground">%</span>
-                  </div>
-                </label>
-              </Show>
+        </section>
+      </Show>
+
+      <Show when={shouldShowLicenseFields()}>
+        <section class="space-y-3">
+          <div class="space-y-4 rounded-[var(--radius-lg)] border border-border-soft bg-card p-4">
+            <div class="space-y-3">
+              <Type as="div" variant="body-strong">
+                {copy().licenseLabel}
+              </Type>
+              <For each={(["non-commercial", "commercial-use", "commercial-remix"] as const)}>
+                {(preset) => (
+                  <OptionCard
+                    selected={props.license === preset}
+                    description={copy().licenseDescriptions[preset]}
+                    onClick={() => props.onLicenseChange(preset)}
+                    title={copy().licenseLabels[preset]}
+                  />
+                )}
+              </For>
             </div>
-          </Show>
-          <Show when={props.showRoyaltySplit && props.royaltySplit && props.onRoyaltySplitChange}>
-            <RoyaltySplitEditor
-              charityContribution={props.charityContribution}
-              charityPartner={props.charityPartner}
-              onChange={props.onRoyaltySplitChange!}
-              onCharityContributionChange={props.onCharityContributionChange}
-              value={props.royaltySplit!}
-            />
-          </Show>
+            <Show when={props.license === "commercial-remix"}>
+              <label class="block space-y-2">
+                <Type as="span" variant="body-strong">
+                  {copy().royaltyLabel}
+                </Type>
+                <div class="grid grid-cols-[1fr_auto] items-center rounded-[var(--radius-lg)] border border-border-soft bg-background px-4">
+                  <Input
+                    aria-label={copy().royaltyLabel}
+                    class="h-14 rounded-none border-0 bg-transparent px-0 text-lg shadow-none focus-visible:ring-0"
+                    inputmode="numeric"
+                    max={100}
+                    min={0}
+                    onChange={(event) => props.onRoyaltyPercentChange(normalizeRoyaltyInput(event.currentTarget.value))}
+                    placeholder={copy().royaltyPlaceholder}
+                    type="number"
+                    value={props.royaltyPercent}
+                  />
+                  <span class="text-base font-semibold text-muted-foreground">%</span>
+                </div>
+              </label>
+            </Show>
+          </div>
+        </section>
+      </Show>
+
+      <Show when={props.showRoyaltySplit && props.royaltySplit && props.onRoyaltySplitChange}>
+        <section class="space-y-3">
+          <RoyaltySplitEditor
+            charityContribution={props.charityContribution}
+            charityPartner={props.charityPartner}
+            onChange={props.onRoyaltySplitChange!}
+            onCharityContributionChange={props.onCharityContributionChange}
+            value={props.royaltySplit!}
+          />
         </section>
       </Show>
     </div>

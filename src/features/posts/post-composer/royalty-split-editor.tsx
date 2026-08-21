@@ -44,6 +44,7 @@ export function RoyaltySplitEditor(props: {
   onChange: (value: AssetRoyaltySplitState) => void;
   onCharityContributionChange?: (updater: (current: CharityContributionState) => CharityContributionState) => void;
   value: AssetRoyaltySplitState;
+  addLabel?: string;
 }) {
   // Raw per-row percent input while editing, so intermediate values like "9."
   // or "9.7" are preserved instead of being rounded on every keystroke.
@@ -301,7 +302,7 @@ export function RoyaltySplitEditor(props: {
         }}
         variant="outline"
       >
-        Add wallet
+        {props.addLabel ?? "Add wallet"}
       </Button>
 
       <Show
@@ -315,11 +316,7 @@ export function RoyaltySplitEditor(props: {
                 fallback={
                   <Show
                     when={totalSharePct() !== 100}
-                    fallback={
-                      <Type as="p" variant="caption" class="text-muted-foreground">
-                        The split becomes fixed when the asset is registered on Story.
-                      </Type>
-                    }
+                    fallback={null}
                   >
                     <Type as="p" variant="caption" class="text-destructive">
                       Sale proceeds must total 100% before publishing.

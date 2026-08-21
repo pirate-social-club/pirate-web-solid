@@ -3,56 +3,27 @@ import { Show, createSignal } from "solid-js";
 import {
   Button,
   IconGlobe,
-  IconShield,
-  IconUsersThree,
+  IconLock,
   Modal,
   ModalContent,
   ModalHeader,
   ModalTitle,
   ModalTrigger,
-  RadioIndicator,
+  OptionCard,
+  Switch,
   Type,
 } from "../../../design-system";
-import { cn } from "../../../design-system";
 
 import type { PostComposerController } from "./controller";
-
-function ChoiceRow(props: {
-  checked: boolean;
-  icon: "globe" | "members" | "shield";
-  label: string;
-  onSelect: () => void;
-}) {
-  return (
-    <button
-      aria-pressed={props.checked ? "true" : "false"}
-      class={cn(
-        "grid w-full grid-cols-[2.75rem_1fr_auto] items-center gap-3 border-b border-border-soft px-4 py-3 text-start outline-none transition-colors hover:bg-muted focus-visible:bg-muted focus-visible:ring-2 focus-visible:ring-ring",
-        props.checked && "bg-primary-subtle",
-      )}
-      onClick={props.onSelect}
-      type="button"
-    >
-      <span class="grid size-11 place-items-center rounded-full bg-background text-foreground">
-        {props.icon === "globe"
-          ? <IconGlobe class="size-5" />
-          : props.icon === "members"
-            ? <IconUsersThree class="size-5" />
-            : <IconShield class="size-5" />}
-      </span>
-      <Type as="span" variant="body-strong">{props.label}</Type>
-      <RadioIndicator checked={props.checked} />
-    </button>
-  );
-}
 
 function VisibilityControl(props: {
   controller: PostComposerController;
   initialOpen?: boolean;
+  initialConfirming?: boolean;
 }) {
   const controller = props.controller;
   const [open, setOpen] = createSignal(props.initialOpen ?? false);
-  const [confirming, setConfirming] = createSignal(false);
+  const [confirming, setConfirming] = createSignal(props.initialConfirming ?? false);
   const isPublic = () => controller.audience.state.visibility === "public";
   const isAgeGated = () => controller.audience.ageGatePolicy === "18_plus";
   const audienceLabel = () => isPublic()
@@ -68,19 +39,17 @@ function VisibilityControl(props: {
   };
   const updateVisibility = (visibility: "members_only" | "public") => {
     controller.audience.update((current) => ({ ...current, visibility }));
-    close();
   };
-  const selectNone = () => {
-    controller.audience.setAgeGatePolicy("none");
-    close();
-  };
-  const selectAgeGate = () => {
+  const toggleAgeGate = (checked: boolean) => {
+    if (!checked) {
+      controller.audience.setAgeGatePolicy("none");
+      return;
+    }
     if (controller.audience.ageGateConfirmationRequired) {
       setConfirming(true);
       return;
     }
     controller.audience.setAgeGatePolicy("18_plus");
-    close();
   };
   const confirmAgeGate = () => {
     controller.audience.setAgeGatePolicy("18_plus");
@@ -99,11 +68,11 @@ function VisibilityControl(props: {
         aria-label={`${controller.copy.publishChips.visibilityTitle}: ${label()}`}
         class="inline-flex h-11 min-w-0 items-center gap-2 rounded-full border border-border-soft bg-card px-3.5 text-foreground outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring"
       >
-        {isPublic() ? <IconGlobe class="size-4" /> : <IconUsersThree class="size-4" />}
+        {isPublic() ? <IconGlobe class="size-4" /> : <IconLock class="size-4" />}
         <Type as="span" variant="label" class="truncate">{label()}</Type>
       </ModalTrigger>
       <ModalContent
-        class="max-h-[88dvh] overflow-y-auto rounded-t-[var(--radius-3xl)] px-0 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-4 sm:rounded-[var(--radius-xl)] sm:p-0"
+        class="max-h-[88dvh] overflow-y-auto rounded-t-[var(--radius-3xl)] px-0 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-4 sm:rounded-[var(--radius-xl)] sm:pb-6 sm:pt-6"
         mobileSide="bottom"
       >
         <div aria-hidden="true" class="mx-auto mb-4 h-1 w-12 rounded-full bg-muted sm:hidden" />
@@ -134,24 +103,24 @@ function VisibilityControl(props: {
                 fallback={
                   <div class="flex min-h-14 items-center gap-3 rounded-[var(--radius-lg)] border border-border-soft bg-card px-4 py-3.5">
                     <span class="grid size-11 place-items-center rounded-full bg-background text-foreground">
-                      <IconUsersThree class="size-5" />
+                      <IconLock class="size-5" />
                     </span>
                     <Type as="span" variant="body-strong">{audienceLabel()}</Type>
                   </div>
                 }
               >
-                <div class="overflow-hidden rounded-[var(--radius-lg)] border border-border-soft">
-                  <ChoiceRow
-                    checked={isPublic()}
-                    icon="globe"
-                    label={controller.copy.publishChips.audiencePublic}
-                    onSelect={() => updateVisibility("public")}
+                <div class="space-y-2">
+                  <OptionCard
+                    icon={<IconGlobe class="size-6" />}
+                    onClick={() => updateVisibility("public")}
+                    selected={isPublic()}
+                    title={controller.copy.publishChips.audiencePublic}
                   />
-                  <ChoiceRow
-                    checked={!isPublic()}
-                    icon="members"
-                    label={controller.copy.publishChips.audienceMembersOnly}
-                    onSelect={() => updateVisibility("members_only")}
+                  <OptionCard
+                    icon={<IconLock class="size-6" />}
+                    onClick={() => updateVisibility("members_only")}
+                    selected={!isPublic()}
+                    title={controller.copy.publishChips.audienceMembersOnly}
                   />
                 </div>
               </Show>
@@ -161,21 +130,23 @@ function VisibilityControl(props: {
             </section>
             <section class="space-y-3">
               <Type as="h3" variant="body-strong">{controller.copy.publishChips.ageGateTitle}</Type>
-              <div class="overflow-hidden rounded-[var(--radius-lg)] border border-border-soft">
-                <ChoiceRow
-                  checked={!isAgeGated()}
-                  icon="shield"
-                  label={controller.copy.publishChips.noAgeGate}
-                  onSelect={selectNone}
-                />
-                <ChoiceRow
+              <div class="flex items-center justify-between gap-4 rounded-[var(--radius-lg)] border border-border-soft bg-card p-4">
+                <div class="space-y-1">
+                  <Type as="div" variant="body-strong">{controller.copy.publishChips.ageGate}</Type>
+                  <Type as="p" variant="caption" class="text-muted-foreground">
+                    {controller.copy.publishChips.ageGateDescription}
+                  </Type>
+                </div>
+                <Switch
+                  aria-label={controller.copy.publishChips.ageGate}
                   checked={isAgeGated()}
-                  icon="shield"
-                  label={controller.copy.publishChips.ageGate}
-                  onSelect={selectAgeGate}
+                  onChange={toggleAgeGate}
                 />
               </div>
             </section>
+            <Button class="w-full" onClick={close} size="lg">
+              {controller.copy.publishChips.done}
+            </Button>
           </div>
         </Show>
       </ModalContent>
@@ -186,6 +157,13 @@ function VisibilityControl(props: {
 export function PostComposerPublishControls(props: {
   controller: PostComposerController;
   initialOpen?: boolean;
+  initialConfirming?: boolean;
 }) {
-  return <VisibilityControl controller={props.controller} initialOpen={props.initialOpen} />;
+  return (
+    <VisibilityControl
+      controller={props.controller}
+      initialConfirming={props.initialConfirming}
+      initialOpen={props.initialOpen}
+    />
+  );
 }

@@ -7,11 +7,9 @@ import {
   ModalContent,
   ModalHeader,
   ModalTitle,
-  Select,
   Type,
 } from "../../../design-system";
 import type { PostComposerController } from "./controller";
-import { songGenreOptions, songLanguageOptions } from "./defaults";
 import { FieldLabel } from "./fields";
 
 export function PostComposerRequiredSheet(props: {
@@ -51,40 +49,6 @@ export function PostComposerRequiredSheet(props: {
                     onChange={(event) => controller.song.update((current) => ({ ...current, title: event.currentTarget.value }))}
                     placeholder="Track title"
                     value={controller.song.state.title ?? ""}
-                  />
-                </div>
-              </Show>
-
-              <Show when={controller.requirements.songGenreMissing}>
-                <div>
-                  <FieldLabel label={controller.copy.fields.genre} required />
-                  <Select<string>
-                    aria-label={controller.copy.fields.genre}
-                    onChange={(value) => {
-                      if (value) controller.song.update((current) => ({ ...current, genre: value }));
-                    }}
-                    optionLabel={(option) => option}
-                    optionValue={(option) => option}
-                    options={[...songGenreOptions]}
-                    placeholder={controller.copy.placeholders.selectGenre}
-                    value={controller.song.state.genre}
-                  />
-                </div>
-              </Show>
-
-              <Show when={controller.requirements.songLanguageMissing}>
-                <div>
-                  <FieldLabel label={controller.copy.fields.primaryLanguage} required />
-                  <Select<string>
-                    aria-label={controller.copy.fields.primaryLanguage}
-                    onChange={(value) => {
-                      if (value) controller.song.update((current) => ({ ...current, primaryLanguage: value }));
-                    }}
-                    optionLabel={(option) => option}
-                    optionValue={(option) => option}
-                    options={[...songLanguageOptions]}
-                    placeholder={controller.copy.placeholders.selectLanguage}
-                    value={controller.song.state.primaryLanguage}
                   />
                 </div>
               </Show>
