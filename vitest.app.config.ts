@@ -29,6 +29,7 @@ export default defineConfig({
       "src/features/posts/post-composer/pending-submission.test.ts",
       "src/features/posts/post-composer/text-submission-transport.test.ts",
       "src/features/profiles/public-profile-page/public-profile-page.test.tsx",
+      "src/middleware.test.ts",
     ],
   },
 });
