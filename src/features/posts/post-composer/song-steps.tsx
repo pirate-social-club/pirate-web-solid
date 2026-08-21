@@ -1,12 +1,21 @@
-// Song steps 2-4. Lyrics (step 2) is implemented; Rights and Review remain
-// placeholders until their content lands after the Lyrics milestone review.
+// Song steps 2-4. Lyrics (step 2) and Rights (step 3) are implemented;
+// Review (step 4) remains a placeholder until it lands after the Rights
+// milestone review.
 
-import { Show, type ParentProps } from "solid-js";
+import { For, Show, type ParentProps } from "solid-js";
 
-import { CardContent, Switch, Type } from "../../../design-system";
+import { CardContent, OptionCard, Switch, Type } from "../../../design-system";
 import { cn } from "../../../design-system";
-import { LabeledTextarea, UploadField } from "./fields";
 import type { PostComposerController } from "./controller";
+import { PostComposerDerivativeSection } from "./derivative-section";
+import { FieldLabel, LabeledTextarea, UploadField } from "./fields";
+import type { AssetLicensePresetId } from "./types";
+
+const licensePresets: AssetLicensePresetId[] = [
+  "non-commercial",
+  "commercial-use",
+  "commercial-remix",
+];
 
 function StepCard(props: ParentProps<{
   controller: PostComposerController;
@@ -33,7 +42,6 @@ export function SongLyricsStep(props: { controller: PostComposerController }) {
 
   const setInstrumental = (on: boolean) => {
     controller.song.update((current) => ({ ...current, isInstrumental: on }));
-    if (on) controller.fields.onLyricsValueChange?.("");
   };
 
   return (
@@ -114,6 +122,62 @@ export function SongLyricsStep(props: { controller: PostComposerController }) {
   );
 }
 
+export function SongRightsStep(props: { controller: PostComposerController }) {
+  const controller = props.controller;
+  const mode = () => controller.primary.activeSongMode;
+  const license = () => controller.license.state.presetId;
+
+  const selectLicense = (preset: AssetLicensePresetId) => {
+    controller.license.update((current) => ({
+      presetId: preset,
+      commercialRevSharePct: preset === "commercial-remix"
+        ? current.commercialRevSharePct ?? 10
+        : undefined,
+    }));
+  };
+
+  return (
+    <StepCard controller={controller} title={controller.copy.steps.rights}>
+      <section class="space-y-3">
+        <FieldLabel label={controller.copy.rights.songKindLabel} />
+        <OptionCard
+          onClick={() => controller.primary.handleSongModeChange("original")}
+          selected={mode() === "original"}
+          title={controller.copy.songModes.original}
+        />
+        <OptionCard
+          onClick={() => controller.primary.handleSongModeChange("remix")}
+          selected={mode() === "remix"}
+          title={controller.copy.songModes.remix}
+        />
+        <Show when={mode() === "remix"}>
+          <PostComposerDerivativeSection
+            copy={controller.copy}
+            derivativePickerKey={controller.primary.derivativePickerKey}
+            derivativeSearchResults={controller.primary.derivativeSearchResults}
+            derivativeState={controller.primary.derivativeState}
+            onAdvancePicker={controller.advanceDerivativePicker}
+            updateDerivativeState={controller.primary.updateDerivativeState}
+          />
+        </Show>
+      </section>
+
+      <section class="space-y-3">
+        <FieldLabel label={controller.copy.rights.licenseSheetTitle} />
+        <For each={licensePresets}>
+          {(preset) => (
+            <OptionCard
+              onClick={() => selectLicense(preset)}
+              selected={license() === preset}
+              title={controller.copy.rights.licenseTitles[preset]}
+            />
+          )}
+        </For>
+      </section>
+    </StepCard>
+  );
+}
+
 function PlaceholderStep(props: {
   controller: PostComposerController;
   title: string;
@@ -126,16 +190,6 @@ function PlaceholderStep(props: {
         <Type as="p" variant="caption" class="text-muted-foreground">{props.note}</Type>
       </div>
     </CardContent>
-  );
-}
-
-export function SongRightsStep(props: { controller: PostComposerController }) {
-  return (
-    <PlaceholderStep
-      controller={props.controller}
-      note="Original or remix with the source picker, then license as three option cards land here."
-      title={props.controller.copy.steps.rights}
-    />
   );
 }
 

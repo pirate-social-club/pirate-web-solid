@@ -72,19 +72,14 @@ export interface ComposerCopy {
     visibilityTitle: string;
   };
   rights: {
+    songKindLabel: string;
     licenseSheetTitle: string;
     licenseTitles: Record<string, string>;
-    licenseChipLabels: Record<string, string>;
     payoutLabel: string;
     payoutSolo: string;
     payoutSplit: (count: number) => string;
     done: string;
     addCollaborators: string;
-    original: string;
-    markAsRemix: string;
-    remixOf: (title: string) => string;
-    change: string;
-    remixSourceTitle: string;
   };
   identity: {
     addQualifiers: string;
@@ -133,8 +128,8 @@ export const defaultComposerCopy: ComposerCopy = {
   },
   lyrics: {
     instrumentalToggle: "Instrumental — no lyrics",
-    instrumentalToggleNote: "Skip lyrics for an instrumental track.",
-    stemNote: "The instrumental stem enables Sing. Stems don't submit yet.",
+    instrumentalToggleNote: "An instrumental has no lyrics, so Sing won't be available for it.",
+    stemNote: "Sing needs lyrics. The instrumental stem is what plays behind them. Stems don't submit yet.",
   },
   audience: {
     community: "Community",
@@ -220,27 +215,18 @@ export const defaultComposerCopy: ComposerCopy = {
     visibilityTitle: "Visibility",
   },
   rights: {
+    songKindLabel: "This song is",
     licenseSheetTitle: "Others can",
     licenseTitles: {
       "non-commercial": "Others can remix it, not sell it",
       "commercial-use": "Use it commercially, not remix it",
       "commercial-remix": "Remix it and sell it, 10% to me",
     },
-    licenseChipLabels: {
-      "non-commercial": "Remixes OK",
-      "commercial-use": "Commercial, no remix",
-      "commercial-remix": "Remix & sell, 10% to me",
-    },
     payoutLabel: "Payout",
     payoutSolo: "You keep 100%",
     payoutSplit: (count) => `Split with ${count} collaborator${count === 1 ? "" : "s"}`,
     done: "Done",
     addCollaborators: "Add collaborators",
-    original: "Original",
-    markAsRemix: "Mark as remix",
-    remixOf: (title) => `Remix of ${title}`,
-    change: "Change",
-    remixSourceTitle: "Remix source",
   },
   labels: {
     source: "Source",
