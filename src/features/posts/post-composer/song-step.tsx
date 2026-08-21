@@ -7,16 +7,17 @@ import { createSignal, Show } from "solid-js";
 
 import {
   CardContent,
-  FormNote,
+  IconImage,
   IconMusicNote,
   IconUploadSimple,
+  IconX,
   Input,
   Type,
 } from "../../../design-system";
 import { cn } from "../../../design-system";
 import { extractEmbeddedAudioTitleBytes } from "./audio-artwork";
 import { PostComposerAttachmentCard } from "./attachment-card";
-import { FieldLabel, UploadField } from "./fields";
+import { FieldLabel } from "./fields";
 import { createObjectUrl } from "./media-hooks";
 import type { PostComposerController } from "./controller";
 import type { AttachmentState } from "./types";
@@ -35,6 +36,7 @@ export function SongStep(props: { controller: PostComposerController }) {
   const [dragging, setDragging] = createSignal(false);
   let dragCounter = 0;
   let audioInput: HTMLInputElement | undefined;
+  let coverInput: HTMLInputElement | undefined;
 
   const attachment = (): AttachmentState => {
     const upload = song().primaryAudioUpload;
@@ -81,6 +83,15 @@ export function SongStep(props: { controller: PostComposerController }) {
     }));
   };
 
+  const removeCover = () => {
+    controller.song.update((state) => ({
+      ...state,
+      coverLabel: undefined,
+      coverSource: undefined,
+      coverUpload: null,
+    }));
+  };
+
   return (
     <CardContent
       class={cn(
@@ -123,7 +134,7 @@ export function SongStep(props: { controller: PostComposerController }) {
               type="button"
             >
               <IconMusicNote class="size-8" />
-              <Type as="span" variant="body-strong">Choose a song to publish</Type>
+              <Type as="span" variant="body-strong">Add audio</Type>
             </button>
           }
         >
@@ -136,39 +147,59 @@ export function SongStep(props: { controller: PostComposerController }) {
         </Show>
       </section>
 
-      <section class="space-y-4">
-        <UploadField
+      <section class="space-y-3">
+        <FieldLabel label={controller.copy.fields.coverArt} />
+        <Show
+          when={coverPreview()}
+          fallback={
+            <button
+              class="grid aspect-square w-32 cursor-pointer place-items-center rounded-[var(--radius-lg)] border-2 border-dashed border-border-soft text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              onClick={() => coverInput?.click()}
+              type="button"
+            >
+              <div class="flex flex-col items-center gap-2">
+                <IconImage class="size-6" />
+                <Type as="span" variant="caption">Add</Type>
+              </div>
+            </button>
+          }
+        >
+          {(url) => (
+            <div class="relative w-32">
+              <img
+                alt=""
+                class="aspect-square w-32 rounded-[var(--radius-lg)] border border-border-soft object-cover"
+                src={url()}
+              />
+              <button
+                aria-label="Remove cover"
+                class="absolute right-2 top-2 grid size-8 cursor-pointer place-items-center rounded-full bg-background/85 text-foreground shadow-sm transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                onClick={removeCover}
+                type="button"
+              >
+                <IconX class="size-4" />
+              </button>
+            </div>
+          )}
+        </Show>
+        <input
           accept={acceptedImageMimeTypes}
-          artworkHelp="Embedded artwork is used if no cover is chosen."
-          label={controller.copy.fields.coverArt}
-          onChange={(files) =>
+          aria-label={controller.copy.fields.coverArt}
+          class="sr-only"
+          onChange={(event) => {
+            const files = event.currentTarget.files;
             controller.song.update((current) => ({
               ...current,
               coverLabel: files?.[0]?.name ?? current.coverLabel,
               coverSource: files?.[0] ? "upload" : undefined,
               coverUpload: files?.[0] ?? null,
-            }))
-          }
-          onClear={() =>
-            controller.song.update((current) => ({
-              ...current,
-              coverLabel: undefined,
-              coverSource: undefined,
-              coverUpload: null,
-            }))
-          }
-          previewUrl={coverPreview()}
-          selectedLabel={song().coverUpload?.name ?? song().coverLabel}
-          variant="artwork"
+            }));
+            event.currentTarget.value = "";
+          }}
+          ref={coverInput}
+          type="file"
         />
       </section>
-
-      <Show when={!song().primaryAudioUpload}>
-        <FormNote class="flex items-center gap-2" tone="warning">
-          <IconMusicNote class="size-4 shrink-0" />
-          Choose a song to publish.
-        </FormNote>
-      </Show>
 
       <input
         accept="audio/*"

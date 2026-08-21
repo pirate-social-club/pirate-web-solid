@@ -263,9 +263,6 @@ export function PostComposerAttachmentCard(props: {
                     <Type as="span" variant="body-strong" class="block truncate">
                       {song().label === "No audio selected" ? "Audio file" : song().label}
                     </Type>
-                    <Type as="span" variant="body" class="block truncate text-muted-foreground">
-                      Replace
-                    </Type>
                   </span>
                 </button>
                 <button
