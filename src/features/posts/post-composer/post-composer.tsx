@@ -3,8 +3,8 @@ import { Show } from "solid-js";
 import { Card, IconButton, IconX, createIsMobile, cn } from "../../../design-system";
 import { PostComposerIdentityControl } from "./identity-control";
 import { PublishButton } from "./submit-actions";
-import { PostComposerStepFooter } from "./step-footer";
-import { SongTrackStep } from "./song-track-step";
+import { PostComposerStepFooter, PostComposerStepIndicator } from "./step-footer";
+import { SongStep } from "./song-step";
 import { SongLyricsStep, SongReviewStep, SongRightsStep } from "./song-steps";
 import { createPostComposerController } from "./controller";
 import type { PostComposerProps } from "./types";
@@ -18,7 +18,7 @@ export function PostComposer(props: PostComposerProps) {
 
   const stepContent = () => {
     const step = controller.step.current;
-    if (step === "track") return <SongTrackStep controller={controller} />;
+    if (step === "song") return <SongStep controller={controller} />;
     if (step === "lyrics") return <SongLyricsStep controller={controller} />;
     if (step === "rights") return <SongRightsStep controller={controller} />;
     if (step === "review") return <SongReviewStep controller={controller} />;
@@ -43,16 +43,22 @@ export function PostComposer(props: PostComposerProps) {
         <Show when={controller.identity.identity?.visible !== false}>
           <PostComposerIdentityControl class="max-w-[min(15rem,calc(100vw-9rem))]" controller={controller} />
         </Show>
-        <Show when={!isMultiStep()}>
-          <PublishButton
-            class="h-11 min-w-0 px-4"
-            compact={controller.isMobile()}
-            controller={controller}
-            label={controller.copy.actions.post}
-            onClick={requestPost}
-          />
-        </Show>
+      <Show when={!isMultiStep()}>
+        <PublishButton
+          class="h-11 min-w-0 px-4"
+          compact={controller.isMobile()}
+          controller={controller}
+          label={controller.copy.actions.post}
+          onClick={requestPost}
+        />
+      </Show>
       </header>
+
+      <Show when={controller.tabs.activeTab === "song"}>
+        <div class="px-1">
+          <PostComposerStepIndicator controller={controller} />
+        </div>
+      </Show>
 
       <Show when={controller.isMobile()} fallback={
         <Card class="overflow-hidden bg-card shadow-none">

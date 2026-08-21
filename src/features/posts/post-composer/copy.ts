@@ -5,12 +5,21 @@
 // individual groups via `PostComposerProps.copy` later if a localized catalog
 // lands; stories always use these defaults so they stay deterministic.
 
+import type { ComposerStep } from "./types";
+
 export interface ComposerCopy {
   actions: {
     back: string;
     continue: string;
     post: string;
     publish: string;
+    nextTo: (step: string) => string;
+  };
+  steps: Record<ComposerStep, string>;
+  lyrics: {
+    instrumentalToggle: string;
+    instrumentalToggleNote: string;
+    stemNote: string;
   };
   audience: {
     community: string;
@@ -112,6 +121,20 @@ export const defaultComposerCopy: ComposerCopy = {
     continue: "Continue",
     post: "Post",
     publish: "Publish",
+    nextTo: (step) => `Next: ${step}`,
+  },
+  steps: {
+    write: "Write",
+    song: "Song",
+    lyrics: "Lyrics",
+    rights: "Rights",
+    review: "Review",
+    details: "Details",
+  },
+  lyrics: {
+    instrumentalToggle: "Instrumental — no lyrics",
+    instrumentalToggleNote: "Skip lyrics for an instrumental track.",
+    stemNote: "The instrumental stem enables Sing. Stems don't submit yet.",
   },
   audience: {
     community: "Community",

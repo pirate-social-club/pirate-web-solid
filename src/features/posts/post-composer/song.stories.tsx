@@ -52,14 +52,14 @@ export const Mobile: Story = {
   globals: mobileGlobals,
 };
 
-export const StepTrack: Story = {
-  name: "Step 1 / Track",
-  render: () => songVariant({ initialStep: "track" }),
+export const StepSong: Story = {
+  name: "Step 1 / Song",
+  render: () => songVariant({ initialStep: "song" }),
 };
 
-export const StepTrackMobile: Story = {
-  ...StepTrack,
-  name: "Step 1 / Track (mobile)",
+export const StepSongMobile: Story = {
+  ...StepSong,
+  name: "Step 1 / Song (mobile)",
   globals: mobileGlobals,
 };
 

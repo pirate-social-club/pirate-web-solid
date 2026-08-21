@@ -1,7 +1,7 @@
-// Song Track step (song step 1 of 4): title (prefilled from ID3 or the
-// filename), the audio card, and cover art. The audio file is the only hard
-// requirement; title is prefilled and editable. Next stays disabled until an
-// audio file is present.
+// Song step (song step 1 of 4): title (prefilled from ID3 or the filename),
+// the audio card, and cover art. The audio file is the only hard requirement;
+// title is prefilled and editable. Next stays disabled until an audio file is
+// present.
 
 import { createSignal, Show } from "solid-js";
 
@@ -28,7 +28,7 @@ function titleFromFilename(name: string): string {
   return (index > 0 ? name.slice(0, index) : name).trim();
 }
 
-export function SongTrackStep(props: { controller: PostComposerController }) {
+export function SongStep(props: { controller: PostComposerController }) {
   const controller = props.controller;
   const song = () => controller.song.state;
   const coverPreview = createObjectUrl(() => song().coverUpload);

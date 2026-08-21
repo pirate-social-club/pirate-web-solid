@@ -6,7 +6,7 @@ import { isLiveVisibilityAllowedForAccess } from "./invariants";
 // The ordered step list for a track. Text/image/link/file/live are a single
 // write step; video adds details; song is the full four-step authoring flow.
 export function stepsForTab(tab: ComposerTab): ComposerStep[] {
-  if (tab === "song") return ["track", "lyrics", "rights", "review"];
+  if (tab === "song") return ["song", "lyrics", "rights", "review"];
   if (tab === "video") return ["write", "details"];
   return ["write"];
 }

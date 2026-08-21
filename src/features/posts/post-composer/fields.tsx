@@ -154,6 +154,7 @@ export function LabeledTextarea(props: {
   labelTextClass?: string;
   variant?: "default" | "flat";
   required?: boolean;
+  disabled?: boolean;
   htmlFor?: string;
 }) {
   return (
@@ -167,6 +168,7 @@ export function LabeledTextarea(props: {
       />
       <Textarea
         class={props.class}
+        disabled={props.disabled}
         id={props.htmlFor}
         onChange={(event) => props.onChange?.(event.currentTarget.value)}
         placeholder={props.placeholder}

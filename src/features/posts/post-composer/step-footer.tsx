@@ -4,11 +4,52 @@
 // final step posts.
 
 import { Portal } from "@solidjs/web";
-import { Show } from "solid-js";
+import { For, Show } from "solid-js";
 
 import { Button, CardFooter, FormNote } from "../../../design-system";
+import { cn } from "../../../design-system";
 import type { PostComposerController } from "./controller";
 import { getNextComposerStep, getPreviousComposerStep } from "./utils";
+
+// Step indicator for the song flow: position and names, with names clickable
+// once the first step (Song) is satisfied, since no later step is a hard gate.
+export function PostComposerStepIndicator(props: {
+  controller: PostComposerController;
+}) {
+  const controller = props.controller;
+  const canJump = () => !controller.requirements.songAudioMissing;
+
+  return (
+    <nav aria-label="Steps" class="flex flex-wrap items-center gap-x-1 gap-y-1">
+      <For each={controller.step.list}>
+        {(step, index) => {
+          const isCurrent = () => step === controller.step.current;
+          const clickable = () => canJump() || isCurrent();
+          return (
+            <>
+              <Show when={index() > 0}>
+                <span class="select-none text-muted-foreground" aria-hidden="true">·</span>
+              </Show>
+              <button
+                aria-current={isCurrent() ? "step" : undefined}
+                class={cn(
+                  "rounded-full px-2 py-1 text-base transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                  isCurrent() ? "font-semibold text-foreground" : "text-muted-foreground hover:text-foreground",
+                  !clickable() && "cursor-default opacity-60 hover:text-muted-foreground",
+                )}
+                disabled={!clickable()}
+                onClick={() => controller.step.set(step)}
+                type="button"
+              >
+                {controller.copy.steps[step] ?? step}
+              </button>
+            </>
+          );
+        }}
+      </For>
+    </nav>
+  );
+}
 
 export function PostComposerStepFooter(props: {
   controller: PostComposerController;
@@ -19,7 +60,7 @@ export function PostComposerStepFooter(props: {
   const tab = () => controller.tabs.activeTab;
 
   const canAdvance = () => {
-    if (controller.step.current === "track") {
+    if (controller.step.current === "song") {
       return !controller.requirements.songAudioMissing;
     }
     return true;
@@ -46,7 +87,10 @@ export function PostComposerStepFooter(props: {
       when={isLast()}
       fallback={
         <Button disabled={!canAdvance()} onClick={goNext} size="lg">
-          {controller.copy.actions.continue}
+          {controller.copy.actions.nextTo(
+            controller.copy.steps[getNextComposerStep(controller.step.current, tab())]
+              ?? getNextComposerStep(controller.step.current, tab()),
+          )}
         </Button>
       }
     >

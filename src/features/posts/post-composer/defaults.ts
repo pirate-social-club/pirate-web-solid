@@ -69,6 +69,7 @@ export function defaultSongState(song?: SongComposerState): SongComposerState {
     instrumentalAudioLabel: song?.instrumentalAudioLabel,
     vocalAudioUpload: song?.vocalAudioUpload ?? null,
     vocalAudioLabel: song?.vocalAudioLabel,
+    isInstrumental: song?.isInstrumental ?? false,
   };
 }
 

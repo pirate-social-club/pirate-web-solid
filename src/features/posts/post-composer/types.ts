@@ -13,9 +13,9 @@ import type { PostCardEventPlace } from "./post-card-preview-types";
 export type ComposerTab = "text" | "image" | "video" | "link" | "song" | "live" | "file";
 
 // Per-track authoring steps. Text/image/link/file/live resolve to a single
-// "write" step (no wizard); video adds a details step; song spans track,
+// "write" step (no wizard); video adds a details step; song spans song,
 // lyrics, rights, and review.
-export type ComposerStep = "write" | "details" | "track" | "lyrics" | "rights" | "review";
+export type ComposerStep = "write" | "details" | "song" | "lyrics" | "rights" | "review";
 
 export type AttachmentKind = "link" | "image" | "video" | "song" | "live" | "file";
 export type ComposerToolbarAction = AttachmentKind | "event";
@@ -190,6 +190,7 @@ export interface SongComposerState {
   instrumentalAudioLabel?: string;
   vocalAudioUpload?: File | null;
   vocalAudioLabel?: string;
+  isInstrumental?: boolean;
 }
 
 export interface AssetLicenseState {
