@@ -76,7 +76,6 @@ export interface ComposerCopy {
     remixOf: (title: string) => string;
     change: string;
     remixSourceTitle: string;
-    remixLegalNote: string;
   };
   identity: {
     addQualifiers: string;
@@ -219,7 +218,6 @@ export const defaultComposerCopy: ComposerCopy = {
     remixOf: (title) => `Remix of ${title}`,
     change: "Change",
     remixSourceTitle: "Remix source",
-    remixLegalNote: "By posting a remix you confirm you have the right to use the source track.",
   },
   labels: {
     source: "Source",

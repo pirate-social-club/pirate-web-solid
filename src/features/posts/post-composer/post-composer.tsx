@@ -1,6 +1,6 @@
 import { createSignal, Show } from "solid-js";
 
-import { Card, IconButton, IconX, Type, createIsMobile, cn } from "../../../design-system";
+import { Card, IconButton, IconX, createIsMobile, cn } from "../../../design-system";
 import { PostComposerIdentityControl } from "./identity-control";
 import { PostComposerRequiredSheet } from "./required-post-sheet";
 import { PublishButton } from "./submit-actions";
@@ -41,12 +41,6 @@ export function PostComposer(props: PostComposerProps) {
           onClick={requestPost}
         />
       </header>
-
-      <Show when={controller.primary.activeSongMode === "remix" && (controller.primary.derivativeState?.references?.length ?? 0) > 0}>
-        <Type as="p" variant="caption" class="px-1 text-muted-foreground">
-          {controller.copy.rights.remixLegalNote}
-        </Type>
-      </Show>
 
       <Show when={controller.isMobile()} fallback={
         <Card class="overflow-hidden bg-card shadow-none">
