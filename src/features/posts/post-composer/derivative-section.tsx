@@ -4,8 +4,6 @@
 import { For, Show } from "solid-js";
 
 import {
-  Checkbox,
-  CheckboxLabel,
   createIsMobile,
   FormSectionHeading,
   Tabs,
@@ -27,7 +25,6 @@ export type DerivativeStateUpdater = (
 ) => void;
 
 export interface DerivativeSectionLabels {
-  acceptTermsLabel?: string;
   emptyLabel?: string;
   placeholder?: string;
   searchAriaLabel?: string;
@@ -44,12 +41,12 @@ export function PostComposerDerivativeSection(props: {
   updateDerivativeState: DerivativeStateUpdater;
 }) {
   const isMobile = createIsMobile();
-  const sourceTermsAcceptedId = "derivative-source-terms-accepted";
   const searchError = () => props.derivativeState?.searchError?.trim() || null;
   const searchLoading = () => !searchError() && (
     props.derivativeState?.searchLoading === true
     || props.derivativeState?.searchResults === undefined
   );
+  const hasReferences = () => (props.derivativeState?.references?.length ?? 0) > 0;
 
   return (
     <Show when={props.derivativeState?.visible}>
@@ -57,7 +54,7 @@ export function PostComposerDerivativeSection(props: {
         <FormSectionHeading title={props.labels?.sectionTitle ?? props.copy.sections.sourceTrack} />
         <SearchReferencePicker
           ariaLabel={props.labels?.searchAriaLabel ?? props.copy.derivative.searchSourceTracks}
-          emptyLabel={searchError() ?? props.labels?.emptyLabel ?? props.copy.empty.noSourceTracks}
+          emptyLabel={searchError() ?? (!hasReferences() ? (props.labels?.emptyLabel ?? props.copy.empty.noMatches) : undefined)}
           items={props.derivativeSearchResults}
           loading={searchLoading()}
           loadingLabel={props.copy.common.loading}
@@ -111,24 +108,6 @@ export function PostComposerDerivativeSection(props: {
                 />
               )}
             </For>
-          </div>
-        </Show>
-        <Show when={props.derivativeState?.references?.length}>
-          <div class={cn("flex items-start gap-2 px-1 py-1", isMobile() && "px-0")}>
-            <Checkbox
-              checked={props.derivativeState?.sourceTermsAccepted === true}
-              class="mt-0.5"
-              id={sourceTermsAcceptedId}
-              onChange={(next) =>
-                props.updateDerivativeState((current) => current
-                  ? { ...current, sourceTermsAccepted: next === true }
-                  : current)
-              }
-            >
-              <CheckboxLabel class="text-muted-foreground">
-                {props.labels?.acceptTermsLabel ?? props.copy.derivative.acceptSourceTerms}
-              </CheckboxLabel>
-            </Checkbox>
           </div>
         </Show>
       </section>

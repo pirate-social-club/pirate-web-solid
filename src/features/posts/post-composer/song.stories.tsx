@@ -79,46 +79,21 @@ function songVariant(overrides: Partial<PostComposerProps>) {
   );
 }
 
-const remixSource = { id: "asset-sunset", title: "Sunset Driver", subtitle: "lena-wave.pirate" };
-
-function remixState(sourceTermsAccepted: boolean) {
-  return {
-    visible: true,
-    required: true,
-    trigger: "remix" as const,
-    searchResults: [remixSource],
-    references: [remixSource],
-    sourceTermsAccepted,
-    licenseSummary: { sourceLicense: "Commercial remix", upstreamRoyaltyPct: 10, newRemixTerms: "Commercial remix, 10%" },
-  };
-}
-
 const remixSources = [
   { id: "asset-sunset", title: "Sunset Driver", subtitle: "lena-wave.pirate" },
   { id: "asset-waves", title: "Wave Racer", subtitle: "clyeezy.pirate" },
 ];
 
-function remixStateMulti(sourceTermsAccepted: boolean) {
+function remixStateMulti() {
   return {
     visible: true,
     required: true,
     trigger: "remix" as const,
     searchResults: remixSources,
     references: remixSources,
-    sourceTermsAccepted,
     licenseSummary: { sourceLicense: "Commercial remix", upstreamRoyaltyPct: 10, newRemixTerms: "Commercial remix, 10%" },
   };
 }
-
-export const RemixSourceTermsBlocked: Story = {
-  name: "Rights / Source terms blocked",
-  render: () => songVariant({ songMode: "remix", derivativeStep: remixState(false) }),
-};
-
-export const RemixSourceTermsAccepted: Story = {
-  name: "Rights / Source terms accepted",
-  render: () => songVariant({ songMode: "remix", derivativeStep: remixState(true) }),
-};
 
 export const RemixSwitchedBackToOriginal: Story = {
   name: "Rights / Switched back to original",
@@ -175,25 +150,14 @@ export const VisibilityModalOpenMobile: Story = {
   globals: mobileGlobals,
 };
 
-export const RightsSummaryCollapsed: Story = {
-  name: "Rights / Summary collapsed",
+export const RightsSummary: Story = {
+  name: "Rights / Summary",
   render: () => songVariant({ initialOpenPanel: "access-and-rights" }),
 };
 
-export const RightsSummaryCollapsedMobile: Story = {
-  ...RightsSummaryCollapsed,
-  name: "Rights / Summary collapsed (mobile)",
-  globals: mobileGlobals,
-};
-
-export const RightsLicenseExpanded: Story = {
-  name: "Rights / License expanded",
-  render: () => songVariant({ initialOpenPanel: "access-and-rights", initialRightsSection: "license" }),
-};
-
-export const RightsLicenseExpandedMobile: Story = {
-  ...RightsLicenseExpanded,
-  name: "Rights / License expanded (mobile)",
+export const RightsSummaryMobile: Story = {
+  ...RightsSummary,
+  name: "Rights / Summary (mobile)",
   globals: mobileGlobals,
 };
 
@@ -202,7 +166,11 @@ export const RightsPayoutExpanded: Story = {
   render: () => songVariant({
     initialOpenPanel: "access-and-rights",
     initialRightsSection: "payout",
-    royaltySplit: { allocations: [{ id: "creator", recipientKind: "creator", sharePct: 70 }, { id: "collaborator", recipientKind: "collaborator", sharePct: 30 }] },
+    royaltySplit: { allocations: [
+      { id: "creator", recipientKind: "creator", sharePct: 70 },
+      { id: "collaborator-1", recipientKind: "collaborator", recipientId: "profile-sunset", displayHandle: "lena-wave.pirate", sharePct: 30 },
+    ] },
+    onResolveCollaboratorHandle: async () => null,
   }),
 };
 
@@ -212,13 +180,27 @@ export const RightsPayoutExpandedMobile: Story = {
   globals: mobileGlobals,
 };
 
+export const RightsPayoutAddByHandleNotFound: Story = {
+  name: "Rights / Payout add by handle (not found)",
+  render: () => songVariant({
+    initialOpenPanel: "access-and-rights",
+    initialRightsSection: "payout",
+    onResolveCollaboratorHandle: async () => null,
+  }),
+};
+
+export const RightsPayoutAddByHandleNotFoundMobile: Story = {
+  ...RightsPayoutAddByHandleNotFound,
+  name: "Rights / Payout add by handle (not found, mobile)",
+  globals: mobileGlobals,
+};
+
 export const RightsRemixTwoSources: Story = {
   name: "Rights / Remix with two sources",
   render: () => songVariant({
     songMode: "remix",
-    derivativeStep: remixStateMulti(true),
+    derivativeStep: remixStateMulti(),
     initialOpenPanel: "access-and-rights",
-    initialRightsSection: "rights",
   }),
 };
 

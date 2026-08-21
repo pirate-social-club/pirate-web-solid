@@ -1,16 +1,19 @@
-// Song rights sheet: the modal body for the song path, reduced to three
-// summary rows (rights declaration, license, payout). Rights and license
-// expand inline; payout pushes a sub-sheet (payout-sheet.tsx) because it is a
-// real form. Commerce controls stay out of the song path in v1.
+// Song rights sheet: the modal body for the song path. "This song is" and
+// "Others can" are standard ResponsiveOptionSelect fields (popover on desktop,
+// bottom sheet on mobile). Payout is a chevron row that pushes the payout
+// sub-sheet. The remix source picker renders under the "This song is" field.
+// Commerce controls stay out of the song path in v1.
 
-import { createSignal, For, Show, type ParentProps } from "solid-js";
+import { Show, createSignal, type ParentProps } from "solid-js";
 
 import {
   Button,
+  IconCaretRight,
   ModalHeader,
   ModalTitle,
-  OptionCard,
+  ResponsiveOptionSelect,
   Type,
+  type ResponsiveOptionSelectOption,
 } from "../../../design-system";
 import type { PostComposerController } from "./controller";
 import { PostComposerDerivativeSection } from "./derivative-section";
@@ -44,38 +47,42 @@ export function buildRightsSummary(controller: PostComposerController): string {
   return `${rightsPart} · ${licensePart} · ${payoutSummary(controller)}`;
 }
 
-type InlineSection = "rights" | "license";
-
 export function PostComposerRightsSheet(props: {
   controller: PostComposerController;
-  initialSection?: InlineSection | "payout";
+  initialSection?: "payout";
   onDone: () => void;
 }) {
   const controller = props.controller;
   const copy = () => controller.copy.rights;
-  const [expanded, setExpanded] = createSignal<InlineSection | null>(
-    props.initialSection === "rights" || props.initialSection === "license"
-      ? props.initialSection
-      : null,
-  );
   const [view, setView] = createSignal<"summary" | "payout">(
     props.initialSection === "payout" ? "payout" : "summary",
   );
   const mode = () => controller.primary.activeSongMode;
   const license = () => controller.license.state.presetId;
 
-  const toggle = (section: InlineSection) => {
-    setExpanded((current) => (current === section ? null : section));
+  const songModeOptions = (): ResponsiveOptionSelectOption[] => [
+    { value: "original", label: copy().original },
+    { value: "remix", label: copy().remix },
+  ];
+  const licenseOptions = (): ResponsiveOptionSelectOption[] =>
+    licensePresets.map((preset) => ({
+      value: preset,
+      label: copy().licenseTitles[preset],
+    }));
+
+  const selectSongMode = (value: string) => {
+    controller.primary.handleSongModeChange(value === "remix" ? "remix" : "original");
   };
 
-  const selectLicense = (preset: AssetLicensePresetId) => {
+  const selectLicense = (value: string) => {
+    const preset = licensePresets.find((candidate) => candidate === value);
+    if (!preset) return;
     controller.license.update((current) => ({
       presetId: preset,
       commercialRevSharePct: preset === "commercial-remix"
         ? current.commercialRevSharePct ?? 10
         : undefined,
     }));
-    setExpanded(null);
   };
 
   return (
@@ -93,69 +100,55 @@ export function PostComposerRightsSheet(props: {
         <ModalTitle>{copy().title}</ModalTitle>
       </ModalHeader>
 
-      <div class="space-y-3 px-4 pb-4 pt-5">
-        <SummaryRow
-          changeLabel={copy().change}
-          doneLabel={copy().done}
-          expanded={expanded() === "rights"}
-          label={copy().rightsLabel}
-          onToggle={() => toggle("rights")}
-          value={mode() === "remix" ? copy().remix : copy().original}
-        >
-          <div class="space-y-2">
-            <OptionCard
-              onClick={() => controller.primary.handleSongModeChange("original")}
-              selected={mode() === "original"}
-              title={copy().original}
-            />
-            <OptionCard
-              onClick={() => controller.primary.handleSongModeChange("remix")}
-              selected={mode() === "remix"}
-              title={copy().remix}
-            />
-            <Show when={mode() === "remix"}>
-              <PostComposerDerivativeSection
-                copy={controller.copy}
-                derivativePickerKey={controller.primary.derivativePickerKey}
-                derivativeSearchResults={controller.primary.derivativeSearchResults}
-                derivativeState={controller.primary.derivativeState}
-                onAdvancePicker={controller.advanceDerivativePicker}
-                updateDerivativeState={controller.primary.updateDerivativeState}
-              />
-            </Show>
-          </div>
-        </SummaryRow>
+      <div class="space-y-5 px-4 pb-4 pt-5">
+        <Field label={copy().thisSongIs}>
+          <ResponsiveOptionSelect
+            ariaLabel={copy().thisSongIs}
+            drawerTitle={copy().thisSongIs}
+            onValueChange={selectSongMode}
+            options={songModeOptions()}
+            value={mode()}
+          />
+        </Field>
 
-        <SummaryRow
-          changeLabel={copy().change}
-          doneLabel={copy().done}
-          expanded={expanded() === "license"}
-          label={copy().licenseLabel}
-          onToggle={() => toggle("license")}
-          value={copy().licenseTitles[license()] ?? license()}
-        >
-          <div class="space-y-2">
-            <For each={licensePresets}>
-              {(preset) => (
-                <OptionCard
-                  description={copy().licenseDescriptions[preset]}
-                  onClick={() => selectLicense(preset)}
-                  selected={license() === preset}
-                  title={copy().licenseTitles[preset]}
-                />
-              )}
-            </For>
-          </div>
-        </SummaryRow>
+        <Show when={mode() === "remix"}>
+          <PostComposerDerivativeSection
+            copy={controller.copy}
+            derivativePickerKey={controller.primary.derivativePickerKey}
+            derivativeSearchResults={controller.primary.derivativeSearchResults}
+            derivativeState={controller.primary.derivativeState}
+            onAdvancePicker={controller.advanceDerivativePicker}
+            updateDerivativeState={controller.primary.updateDerivativeState}
+          />
+        </Show>
 
-        <SummaryRow
-          changeLabel={copy().change}
-          doneLabel={copy().done}
-          expanded={false}
-          label={copy().payoutLabel}
-          onToggle={() => setView("payout")}
-          value={payoutSummary(controller)}
-        />
+        <Field label={copy().othersCan}>
+          <ResponsiveOptionSelect
+            ariaLabel={copy().othersCan}
+            drawerTitle={copy().othersCan}
+            onValueChange={selectLicense}
+            options={licenseOptions()}
+            value={license()}
+          />
+        </Field>
+
+        <button
+          class="flex w-full items-center justify-between gap-3 rounded-[var(--radius-lg)] border border-border-soft bg-card px-4 py-3 text-start outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring"
+          onClick={() => setView("payout")}
+          type="button"
+        >
+          <div class="min-w-0 space-y-0.5">
+            <Type as="div" variant="caption" class="text-muted-foreground">{copy().payoutLabel}</Type>
+            <Type as="div" variant="body-strong" class="truncate">{payoutSummary(controller)}</Type>
+          </div>
+          <IconCaretRight class="size-5 shrink-0 text-muted-foreground" />
+        </button>
+
+        <Show when={mode() === "remix"}>
+          <Type as="p" variant="caption" class="text-muted-foreground">
+            {copy().remixLegalNote}
+          </Type>
+        </Show>
 
         <Button class="w-full" onClick={props.onDone} size="lg">
           {copy().done}
@@ -165,33 +158,11 @@ export function PostComposerRightsSheet(props: {
   );
 }
 
-function SummaryRow(props: ParentProps<{
-  changeLabel: string;
-  doneLabel: string;
-  expanded: boolean;
-  label: string;
-  onToggle: () => void;
-  value: string;
-}>) {
+function Field(props: ParentProps<{ label: string }>) {
   return (
-    <div class="rounded-[var(--radius-lg)] border border-border-soft bg-card">
-      <button
-        aria-expanded={props.expanded ? "true" : "false"}
-        class="flex w-full items-center justify-between gap-3 px-4 py-3 text-start outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring"
-        onClick={props.onToggle}
-        type="button"
-      >
-        <div class="min-w-0 space-y-0.5">
-          <Type as="div" variant="caption" class="text-muted-foreground">{props.label}</Type>
-          <Type as="div" variant="body-strong" class="truncate">{props.value}</Type>
-        </div>
-        <Type as="span" variant="label" class="shrink-0 text-primary">
-          {props.expanded ? props.doneLabel : props.changeLabel}
-        </Type>
-      </button>
-      <Show when={props.expanded}>
-        <div class="border-t border-border-soft p-4">{props.children}</div>
-      </Show>
+    <div class="space-y-2">
+      <Type as="div" variant="caption" class="text-muted-foreground">{props.label}</Type>
+      {props.children}
     </div>
   );
 }

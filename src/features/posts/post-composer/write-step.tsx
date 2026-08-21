@@ -101,7 +101,7 @@ function attachmentFor(
 export function PostComposerWriteStep(props: {
   controller: PostComposerController;
   initialOpenPanel?: "access-and-rights" | "visibility";
-  initialRightsSection?: "rights" | "license" | "payout";
+  initialRightsSection?: "payout";
 }) {
   const controller = props.controller;
   const imagePreview = createObjectUrl(() => controller.media.activeImageUpload);

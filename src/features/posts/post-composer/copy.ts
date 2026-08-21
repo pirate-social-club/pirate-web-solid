@@ -34,16 +34,15 @@ export interface ComposerCopy {
     loading: string;
   };
   derivative: {
-    acceptSourceTerms: string;
     licenseNewRemixTerms: string;
     searchSourceTracks: string;
   };
   empty: {
     noOptionalQualifiers: string;
     noQualifiers: string;
+    noMatches: string;
     noReferences: string;
     noSongs: string;
-    noSourceTracks: string;
   };
   fields: Record<string, string>;
   identitySheet: {
@@ -65,18 +64,16 @@ export interface ComposerCopy {
   };
   rights: {
     title: string;
-    rightsLabel: string;
+    thisSongIs: string;
+    othersCan: string;
     original: string;
     remix: string;
-    licenseLabel: string;
     licenseTitles: Record<string, string>;
-    licenseDescriptions: Record<string, string>;
     payoutLabel: string;
     payoutSolo: string;
     payoutSplit: (count: number) => string;
-    change: string;
-    addCollaborator: string;
     done: string;
+    remixLegalNote: string;
   };
   identity: {
     addQualifiers: string;
@@ -152,16 +149,15 @@ export const defaultComposerCopy: ComposerCopy = {
     loading: "Loading...",
   },
   derivative: {
-    acceptSourceTerms: "I accept these remix terms.",
     licenseNewRemixTerms: "New remix terms",
     searchSourceTracks: "Search remix-eligible source tracks",
   },
   empty: {
     noOptionalQualifiers: "No optional qualifiers are available for this community.",
     noQualifiers: "No qualifiers found.",
+    noMatches: "No matches",
     noReferences: "No remix sources attached yet.",
     noSongs: "No songs found.",
-    noSourceTracks: "No remix-eligible source tracks yet. Songs appear here after Story registration completes.",
   },
   fields: {
     canvasVideo: "Canvas video (9:16)",
@@ -200,26 +196,20 @@ export const defaultComposerCopy: ComposerCopy = {
   },
   rights: {
     title: "Rights",
-    rightsLabel: "Rights",
+    thisSongIs: "This song is",
+    othersCan: "Others can",
     original: "Original",
     remix: "Remix",
-    licenseLabel: "License",
     licenseTitles: {
-      "non-commercial": "Free remixes, credit me",
-      "commercial-use": "Sell it as-is, credit me, no remixes",
-      "commercial-remix": "Sell it and remix it, credit me",
-    },
-    licenseDescriptions: {
-      "non-commercial": "Others can remix for free with credit.",
-      "commercial-use": "Others can sell as-is with credit; no remixes.",
-      "commercial-remix": "Others can sell and remix with credit.",
+      "non-commercial": "Remix it, not sell it",
+      "commercial-use": "Use it commercially, not remix it",
+      "commercial-remix": "Remix it and sell it (10% to me)",
     },
     payoutLabel: "Payout",
     payoutSolo: "You keep 100%",
     payoutSplit: (count) => `Split with ${count} collaborator${count === 1 ? "" : "s"}`,
-    change: "Change",
-    addCollaborator: "Add collaborator",
     done: "Done",
+    remixLegalNote: "By posting a remix you confirm you have the right to use the source track.",
   },
   labels: {
     source: "Source",

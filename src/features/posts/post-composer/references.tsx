@@ -123,7 +123,7 @@ export { dedupeReferences };
 
 export function SearchReferencePicker(props: {
   ariaLabel: string;
-  emptyLabel: string;
+  emptyLabel?: string;
   items: ComposerReference[];
   loading?: boolean;
   onSelect: (item: ComposerReference) => void;
@@ -150,7 +150,7 @@ export function SearchReferencePicker(props: {
       <Show when={props.loading}>
         <FormNote>{props.loadingLabel ?? "Loading..."}</FormNote>
       </Show>
-      <Show when={!props.loading && props.items.length === 0}>
+      <Show when={!props.loading && props.items.length === 0 && props.emptyLabel}>
         <FormNote>{props.emptyLabel}</FormNote>
       </Show>
     </div>

@@ -1,12 +1,13 @@
 // Song payout sub-sheet: the pushed editor behind the Payout summary row.
-// Recipients are people first (handle search is the primary add path); raw
-// wallet addresses live behind the Advanced disclosure as the fallback. The
-// percent inputs only appear once there is more than one recipient, and
+// Collaborators are added by handle — the only contract-valid path, since
+// royalty_allocations[].recipient_id is a platform identity, not a wallet.
+// The percent inputs only appear once there is more than one recipient, and
 // charity is a single switch row rather than a recipient in the grid.
 
 import { createSignal, For, Show } from "solid-js";
 
 import {
+  Avatar,
   Button,
   IconArrowLeft,
   IconButton,
@@ -19,7 +20,11 @@ import {
 } from "../../../design-system";
 import { defaultCharityContributionPct } from "./defaults";
 import type { PostComposerController } from "./controller";
-import type { AssetRoyaltySplitState } from "./types";
+
+function handleInitials(handle: string): string {
+  const stem = handle.replace(/^@/, "").replace(/\.pirate$/, "").trim();
+  return stem.slice(0, 2).toUpperCase() || "?";
+}
 
 export function PayoutSheet(props: {
   controller: PostComposerController;
@@ -28,8 +33,9 @@ export function PayoutSheet(props: {
 }) {
   const controller = props.controller;
   const copy = () => controller.copy.rights;
-  const [advancedOpen, setAdvancedOpen] = createSignal(false);
   const [handleQuery, setHandleQuery] = createSignal("");
+  const [resolveError, setResolveError] = createSignal<string | null>(null);
+  const [resolving, setResolving] = createSignal(false);
   const [percentDrafts, setPercentDrafts] = createSignal<Record<string, string>>({});
 
   const partner = () => controller.charity.partner;
@@ -67,39 +73,55 @@ export function PayoutSheet(props: {
     }));
   };
 
-  const updateWallet = (id: string, walletAddress: string) => {
-    controller.royaltySplit.update(() => ({
-      allocations: allocations().map((a) => (a.id === id ? { ...a, walletAddress } : a)),
-    }));
-  };
-
   const removeCollaborator = (id: string) => {
     controller.royaltySplit.update(() => ({
       allocations: allocations().filter((a) => a.id !== id),
     }));
   };
 
-  const addWalletCollaborator = () => {
-    controller.royaltySplit.update(() => ({
-      allocations: [
-        ...allocations(),
-        {
-          id: `collaborator-${allocations().length}-${Date.now()}`,
-          recipientKind: "collaborator",
-          walletAddress: "",
-          sharePct: 0,
-        },
-      ],
-    }));
+  const addByHandle = async () => {
+    const handle = handleQuery().trim();
+    if (!handle) return;
+    const resolveHandle = controller.collaborator.resolveHandle;
+    if (!resolveHandle) return;
+    setResolveError(null);
+    setResolving(true);
+    try {
+      const collaborator = await resolveHandle(handle);
+      if (!collaborator) {
+        setResolveError("No one with that handle.");
+        return;
+      }
+      const pool = 100 - charityPct();
+      const newCount = allocations().length + 1;
+      const baseShare = Math.floor((pool / newCount) * 100) / 100;
+      const remainder = Math.round((pool - baseShare * (newCount - 1)) * 100) / 100;
+      controller.royaltySplit.update(() => ({
+        allocations: [
+          ...allocations().map((a) => ({ ...a, sharePct: baseShare })),
+          {
+            id: `collaborator-${Date.now()}`,
+            recipientKind: "collaborator",
+            recipientId: collaborator.profileId,
+            displayHandle: collaborator.handle,
+            avatarRef: collaborator.avatarRef,
+            sharePct: remainder,
+          },
+        ],
+      }));
+      setHandleQuery("");
+    } finally {
+      setResolving(false);
+    }
   };
 
-  const percentValue = (allocation: AssetRoyaltySplitState["allocations"][number]) =>
+  const percentValue = (allocation: { id: string; sharePct: number }) =>
     percentDrafts()[allocation.id] ?? String(allocation.sharePct);
 
   return (
     <div>
-      <ModalHeader class="pe-12 text-start">
-        <div class="-ms-2 flex items-center gap-1">
+      <ModalHeader class="px-4 pe-12 text-start">
+        <div class="flex items-center gap-1">
           <IconButton aria-label="Back to rights" onClick={props.onBack} variant="ghost">
             <IconArrowLeft class="size-5" />
           </IconButton>
@@ -121,71 +143,63 @@ export function PayoutSheet(props: {
           </div>
         </Show>
 
-        <section class="space-y-2">
-          <Type as="h3" variant="body-strong">Recipients</Type>
-          <RecipientRow
-            label="You"
-            onPercentChange={hasCollaborators() ? (raw) => updateShare(creator()!.id, raw) : undefined}
-            percentValue={hasCollaborators() ? percentValue(creator()!) : `${creator()?.sharePct ?? 100}%`}
-          />
-          <For each={collaborators()}>
-            {(allocation, index) => (
-              <RecipientRow
-                label={`Collaborator ${index() + 1}`}
-                onPercentChange={(raw) => updateShare(allocation.id, raw)}
-                onRemove={() => removeCollaborator(allocation.id)}
-                percentValue={percentValue(allocation)}
-              />
-            )}
-          </For>
-        </section>
+        <Show
+          when={hasCollaborators()}
+          fallback={
+            <Type as="p" variant="caption" class="text-muted-foreground">
+              Add a collaborator to split sales.
+            </Type>
+          }
+        >
+          <section class="space-y-2">
+            <Type as="h3" variant="body-strong">Recipients</Type>
+            <RecipientRow
+              label="You"
+              onPercentChange={(raw) => updateShare(creator()!.id, raw)}
+              percentValue={percentValue(creator()!)}
+            />
+            <For each={collaborators()}>
+              {(allocation, index) => (
+                <RecipientRow
+                  avatarRef={allocation.avatarRef}
+                  handle={allocation.displayHandle}
+                  label={allocation.displayHandle ?? `Collaborator ${index() + 1}`}
+                  onPercentChange={(raw) => updateShare(allocation.id, raw)}
+                  onRemove={() => removeCollaborator(allocation.id)}
+                  percentValue={percentValue(allocation)}
+                />
+              )}
+            </For>
+          </section>
+        </Show>
 
         <div class="space-y-2">
-          <Input
-            aria-label="Add collaborator by handle"
-            onChange={(event) => setHandleQuery(event.currentTarget.value)}
-            placeholder="Add collaborator by handle"
-            value={handleQuery()}
-          />
-        </div>
-
-        <div class="rounded-[var(--radius-lg)] border border-border-soft bg-card">
-          <button
-            aria-expanded={advancedOpen() ? "true" : "false"}
-            class="flex w-full items-center justify-between gap-3 px-4 py-3 text-start outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring"
-            onClick={() => setAdvancedOpen((current) => !current)}
-            type="button"
-          >
-            <Type as="span" variant="body-strong">Advanced</Type>
-            <Type as="span" variant="label" class="text-muted-foreground">
-              {advancedOpen() ? "Hide" : "Show"}
+          <div class="flex items-center gap-2">
+            <Input
+              aria-label="Add collaborator by handle"
+              onChange={(event) => setHandleQuery(event.currentTarget.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.preventDefault();
+                  void addByHandle();
+                }
+              }}
+              placeholder="Add collaborator by handle"
+              value={handleQuery()}
+            />
+            <Button
+              class="shrink-0"
+              loading={resolving()}
+              onClick={() => void addByHandle()}
+              variant="outline"
+            >
+              Add
+            </Button>
+          </div>
+          <Show when={resolveError()}>
+            <Type as="p" variant="caption" class="text-destructive">
+              {resolveError()}
             </Type>
-          </button>
-          <Show when={advancedOpen()}>
-            <div class="space-y-3 border-t border-border-soft p-4">
-              <For each={allocations()}>
-                {(allocation) => (
-                  <Show
-                    when={allocation.recipientKind === "creator"}
-                    fallback={
-                      <Input
-                        aria-label="Wallet address"
-                        onChange={(event) => updateWallet(allocation.id, event.currentTarget.value)}
-                        placeholder="0x…"
-                        value={allocation.walletAddress ?? ""}
-                      />
-                    }
-                  >
-                    <Type as="p" variant="caption" class="text-muted-foreground">
-                      Your share pays out to your primary wallet on your profile.
-                    </Type>
-                  </Show>
-                )}
-              </For>
-              <Button class="w-full" onClick={addWalletCollaborator} variant="outline">
-                Add wallet address
-              </Button>
-            </div>
           </Show>
         </div>
 
@@ -198,20 +212,39 @@ export function PayoutSheet(props: {
 }
 
 function RecipientRow(props: {
+  avatarRef?: string | null;
+  handle?: string;
   label: string;
   onPercentChange?: (raw: string) => void;
   onRemove?: () => void;
   percentValue: string;
 }) {
   return (
-    <div class="flex items-center justify-between gap-3 rounded-[var(--radius-lg)] border border-border-soft bg-card p-4">
-      <Type as="span" variant="body-strong" class="min-w-0 truncate">{props.label}</Type>
+    <div class="flex items-center justify-between gap-3 rounded-[var(--radius-lg)] border border-border-soft bg-card p-3">
+      <div class="flex min-w-0 flex-1 items-center gap-3">
+        <Show
+          when={props.handle}
+          fallback={
+            <span class="grid size-10 shrink-0 place-items-center rounded-full bg-muted text-foreground">
+              You
+            </span>
+          }
+        >
+          <Avatar
+            fallback={handleInitials(props.handle!)}
+            fallbackSeed={props.handle}
+            size="md"
+            src={props.avatarRef?.trim() || undefined}
+          />
+        </Show>
+        <Type as="span" variant="body-strong" class="min-w-0 truncate">{props.label}</Type>
+      </div>
       <div class="flex shrink-0 items-center gap-2">
         <Show
           when={props.onPercentChange}
           fallback={
             <Type as="span" variant="body-strong" class="tabular-nums text-muted-foreground">
-              {props.percentValue}
+              {props.percentValue}%
             </Type>
           }
         >

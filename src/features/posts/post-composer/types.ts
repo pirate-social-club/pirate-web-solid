@@ -197,10 +197,20 @@ interface AssetRoyaltyAllocation {
   recipientKind: "creator" | "collaborator";
   walletAddress?: string;
   sharePct: number;
+  recipientId?: string;
+  displayHandle?: string;
+  avatarRef?: string | null;
 }
 
 export interface AssetRoyaltySplitState {
   allocations: AssetRoyaltyAllocation[];
+}
+
+export interface ComposerCollaborator {
+  profileId: string;
+  handle: string;
+  displayName?: string | null;
+  avatarRef?: string | null;
 }
 
 export interface VideoComposerState {
@@ -379,6 +389,7 @@ export interface PostComposerProps extends Partial<PostComposerDraftState>, Post
   submit?: PostComposerSubmitState;
   regionalPricingPreview?: RegionalPricingPreview | null;
   onSearchEventPlaces?: (query: string) => Promise<ComposerEventPlace[]>;
+  onResolveCollaboratorHandle?: (handle: string) => Promise<ComposerCollaborator | null>;
   onSubmit?: () => void;
   submitDisabled?: boolean;
   submitError?: string | null;
@@ -387,8 +398,8 @@ export interface PostComposerProps extends Partial<PostComposerDraftState>, Post
   // Storybook-only seed for reviewing a specific composer panel. Production
   // callers leave panels closed and open them from the composer controls.
   initialOpenPanel?: "access-and-rights" | "visibility";
-  // Storybook-only seeds for reviewing a specific expanded rights row and the
-  // required post sheet.
-  initialRightsSection?: "rights" | "license" | "payout";
+  // Storybook-only seeds for reviewing the payout sub-sheet and the required
+  // post sheet.
+  initialRightsSection?: "payout";
   initialRequiredSheetOpen?: boolean;
 }

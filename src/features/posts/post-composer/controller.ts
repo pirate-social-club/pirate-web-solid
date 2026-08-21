@@ -375,14 +375,7 @@ export function createPostComposerController(
   const derivativeMissingRefs = () => Boolean(
     derivativeRequiresRefs() && !(derivativeState()?.references?.length),
   );
-  const derivativeHasReferences = () => (derivativeState()?.references?.length ?? 0) > 0;
-  const derivativeMissingSourceTermsAcceptance = () => Boolean(
-    derivativeState()?.visible
-    && (derivativeRequiresRefs() || derivativeHasReferences())
-    && derivativeHasReferences()
-    && derivativeState()?.sourceTermsAccepted !== true,
-  );
-  const contentBlocked = () => derivativeMissingRefs() || derivativeMissingSourceTermsAcceptance();
+  const contentBlocked = () => derivativeMissingRefs();
   const draftCanSubmit = () => canAdvanceComposerWriteStep({
     body: textBodyValue(),
     imageUploadPresent: Boolean(activeImageUpload()),
@@ -712,6 +705,9 @@ export function createPostComposerController(
       get searchPlaces() { return props.onSearchEventPlaces; },
       get state() { return eventState(); },
       update: setEventStateWithCallback,
+    },
+    collaborator: {
+      get resolveHandle() { return props.onResolveCollaboratorHandle; },
     },
     generic: {
       get file() { return fileState(); },
