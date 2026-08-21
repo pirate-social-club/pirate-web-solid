@@ -4,9 +4,11 @@
 import { Show } from "solid-js";
 
 import { Input, Type } from "../../../design-system";
+import { FieldLabel } from "./fields";
 import type { DownloadFileComposerState } from "./types";
 
 const DOWNLOAD_ACCEPT = ".csv,.tsv,.txt,.json,text/csv,text/tab-separated-values,text/plain,application/json";
+const DOWNLOAD_INPUT_ID = "post-composer-downloadable-file";
 
 export function PostComposerGenericAssetFields(props: {
   file: DownloadFileComposerState;
@@ -15,13 +17,14 @@ export function PostComposerGenericAssetFields(props: {
   return (
     <section class="space-y-3 rounded-[var(--radius-lg)] border border-border-soft bg-muted/30 p-4">
       <div>
-        <Type as="p" variant="body-strong">Downloadable file</Type>
+        <FieldLabel htmlFor={DOWNLOAD_INPUT_ID} label="Downloadable file" />
         <Type as="p" variant="body" class="text-muted-foreground">
           CSV, TSV, TXT, and JSON files are scanned before publication. Locked delivery keeps plaintext available to the platform for rescanning.
         </Type>
       </div>
       <Input
         accept={DOWNLOAD_ACCEPT}
+        id={DOWNLOAD_INPUT_ID}
         onChange={(event) => {
           const next = event.currentTarget.files?.[0] ?? null;
           props.onFileChange({ upload: next, label: next?.name });

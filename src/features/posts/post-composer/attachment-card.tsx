@@ -77,16 +77,7 @@ function VideoAttachmentPreview(props: {
         "group relative cursor-pointer overflow-hidden rounded-[var(--radius-xl)] border border-border-soft bg-black",
         aspectRatioStyle() ? frameClassName() : "aspect-video w-full",
       )}
-      onClick={() => void togglePlayback()}
-      onKeyDown={(event) => {
-        if (event.key === "Enter" || event.key === " ") {
-          event.preventDefault();
-          void togglePlayback();
-        }
-      }}
-      role="button"
       style={aspectRatioStyle()}
-      tabindex={0}
     >
       <Show
         when={props.attachment.previewUrl}
@@ -131,18 +122,21 @@ function VideoAttachmentPreview(props: {
         />
       </Show>
 
-      <div
+      <button
+        aria-label={isPlaying() ? "Pause video" : "Play video"}
         class={cn(
-          "absolute inset-0 grid place-items-center bg-black/10 transition-[background-color,opacity] group-hover:bg-black/20 group-hover:opacity-100 group-focus-visible:opacity-100",
+          "absolute inset-0 grid cursor-pointer place-items-center border-0 bg-black/10 p-0 transition-[background-color,opacity] group-hover:bg-black/20 group-hover:opacity-100 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
           isPlaying() ? "opacity-0" : "opacity-100",
         )}
+        onClick={() => void togglePlayback()}
+        type="button"
       >
         <span class="grid size-14 place-items-center rounded-full bg-background/85 text-foreground shadow-sm backdrop-blur">
           <Show when={isPlaying()} fallback={<IconPlay class="ms-1 size-7" />}>
             <IconPause class="size-7" />
           </Show>
         </span>
-      </div>
+      </button>
       <button
         aria-label="Remove video"
         class="absolute right-3 top-3 grid size-10 cursor-pointer place-items-center rounded-full bg-background/85 text-foreground shadow-sm backdrop-blur transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
@@ -253,39 +247,33 @@ export function PostComposerAttachmentCard(props: {
           <Show when={attachmentOfKind(attachment(), "song")}>
             {(song) => (
               <div
-                class="grid min-h-16 w-full grid-cols-[auto_1fr_auto] items-center gap-3 rounded-[var(--radius-lg)] border border-border-soft bg-card px-4 py-3 text-start"
-                onClick={() => props.onReplace?.("song")}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter" || event.key === " ") {
-                    event.preventDefault();
-                    props.onReplace?.("song");
-                  }
-                }}
-                role="button"
-                tabindex={0}
+                class="grid min-h-16 w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-[var(--radius-lg)] border border-border-soft bg-card px-4 py-3"
               >
-                <span class="grid size-12 place-items-center overflow-hidden rounded-[var(--radius-md)] bg-background text-muted-foreground">
-                  <Show when={song().artworkUrl} fallback={<IconMusicNote class="size-6" />}>
-                    {(artworkUrl) => (
-                      <img alt="" class="size-full object-cover" src={artworkUrl()} />
-                    )}
-                  </Show>
-                </span>
-                <span class="min-w-0">
-                  <Type as="span" variant="body-strong" class="block truncate">
-                    {song().label === "No audio selected" ? "Audio file" : song().label}
-                  </Type>
-                  <Type as="span" variant="body" class="block truncate text-muted-foreground">
-                    Replace
-                  </Type>
-                </span>
+                <button
+                  class="flex min-w-0 cursor-pointer items-center gap-3 border-0 bg-transparent p-0 text-start text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  onClick={() => props.onReplace?.("song")}
+                  type="button"
+                >
+                  <span class="grid size-12 shrink-0 place-items-center overflow-hidden rounded-[var(--radius-md)] bg-background text-muted-foreground">
+                    <Show when={song().artworkUrl} fallback={<IconMusicNote class="size-6" />}>
+                      {(artworkUrl) => (
+                        <img alt="" class="size-full object-cover" src={artworkUrl()} />
+                      )}
+                    </Show>
+                  </span>
+                  <span class="min-w-0">
+                    <Type as="span" variant="body-strong" class="block truncate">
+                      {song().label === "No audio selected" ? "Audio file" : song().label}
+                    </Type>
+                    <Type as="span" variant="body" class="block truncate text-muted-foreground">
+                      Replace
+                    </Type>
+                  </span>
+                </button>
                 <button
                   aria-label="Remove audio"
                   class="grid size-10 cursor-pointer place-items-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    props.onRemove();
-                  }}
+                  onClick={props.onRemove}
                   type="button"
                 >
                   <IconX class="size-5" />

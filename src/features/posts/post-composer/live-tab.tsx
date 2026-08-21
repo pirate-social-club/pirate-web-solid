@@ -129,9 +129,10 @@ export function LiveTabContent(props: {
 
         <Show when={scheduleForLater()}>
           <div>
-            <FieldLabel label={props.copy.live.startTime} />
+            <FieldLabel htmlFor="post-composer-live-start-time" label={props.copy.live.startTime} />
             <Input
               class="h-10"
+              id="post-composer-live-start-time"
               onChange={(event) => onLiveChange({ ...live(), scheduleAt: event.currentTarget.value, scheduleForLater: true })}
               type="datetime-local"
               value={scheduleInputValue(live().scheduleAt)}
@@ -346,6 +347,7 @@ export function LiveTabContent(props: {
                   </div>
                   <div class="flex items-center gap-2">
                     <Input
+                      aria-label={`${alloc.role === "host" ? props.copy.live.hostLabel : props.copy.live.guestLabel} percentage`}
                       class="h-10 w-20 text-center"
                       max={100}
                       min={0}

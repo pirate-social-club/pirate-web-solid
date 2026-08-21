@@ -390,6 +390,7 @@ export function PostComposerSettingsSections(props: PostComposerSettingsSections
                   </Type>
                   <div class="grid grid-cols-[1fr_auto] items-center rounded-[var(--radius-lg)] border border-border-soft bg-background px-4">
                     <Input
+                      aria-label={copy().royaltyLabel}
                       class="h-14 rounded-none border-0 bg-transparent px-0 text-lg shadow-none focus-visible:ring-0"
                       inputmode="numeric"
                       max={100}
