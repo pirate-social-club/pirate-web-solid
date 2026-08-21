@@ -136,4 +136,3 @@ describe("extractEmbeddedAudioArtworkBytes", () => {
     expect(extractEmbeddedAudioArtworkBytes(new Uint8Array([0xff, 0xfb, 0x90, 0x64]))).toBeNull();
   });
 });
-
