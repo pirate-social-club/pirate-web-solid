@@ -1,5 +1,5 @@
 import type { TextContentSubmissionV1 } from "./text-submission-contract";
-import type { PendingSubmissionIssue } from "./pending-submission";
+import { isDiscardablePendingSubmissionIssue, type PendingSubmissionIssue } from "./pending-submission";
 
 export type TransportFailureReason = "local_validation_failed" | "serialization_failed" | "durable_storage_failed";
 
@@ -112,7 +112,7 @@ export function reducePostComposerState(
         : state;
     case "discard_rejected_request":
       return state.status === "reconciling"
-          && (state.issue?.kind === "server_rejection" || state.issue?.kind === "idempotency_conflict")
+          && isDiscardablePendingSubmissionIssue(state.issue)
         ? { status: "editing" }
         : state;
     case "retry_requested":
