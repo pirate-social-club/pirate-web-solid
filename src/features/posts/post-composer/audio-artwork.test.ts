@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { extractEmbeddedAudioArtworkBytes } from "./audio-artwork";
+import { extractEmbeddedAudioArtworkBytes, extractEmbeddedAudioTitleBytes } from "./audio-artwork";
 
 function textBytes(value: string): number[] {
   return Array.from(new TextEncoder().encode(value));
@@ -110,6 +110,72 @@ function id3v24ApicTag(imageBytes: number[]): Uint8Array {
   ]);
 }
 
+function utf16Bytes(value: string, littleEndian: boolean): number[] {
+  const bytes: number[] = [];
+  for (const char of value) {
+    const unit = char.charCodeAt(0);
+    const low = unit & 0xff;
+    const high = (unit >> 8) & 0xff;
+    bytes.push(littleEndian ? low : high, littleEndian ? high : low);
+  }
+  return bytes;
+}
+
+function id3v22Tt2Tag(frameBody: number[]): Uint8Array {
+  const frame = [
+    ...textBytes("TT2"),
+    ...uint24Bytes(frameBody.length),
+    ...frameBody,
+  ];
+
+  return new Uint8Array([
+    ...textBytes("ID3"),
+    2,
+    0,
+    0,
+    ...synchsafeBytes(frame.length),
+    ...frame,
+  ]);
+}
+
+function id3v23Tit2Tag(frameBody: number[]): Uint8Array {
+  const frame = [
+    ...textBytes("TIT2"),
+    ...uint32Bytes(frameBody.length),
+    0,
+    0,
+    ...frameBody,
+  ];
+
+  return new Uint8Array([
+    ...textBytes("ID3"),
+    3,
+    0,
+    0,
+    ...synchsafeBytes(frame.length),
+    ...frame,
+  ]);
+}
+
+function id3v24Tit2Tag(frameBody: number[]): Uint8Array {
+  const frame = [
+    ...textBytes("TIT2"),
+    ...synchsafeBytes(frameBody.length),
+    0,
+    0,
+    ...frameBody,
+  ];
+
+  return new Uint8Array([
+    ...textBytes("ID3"),
+    4,
+    0,
+    0,
+    ...synchsafeBytes(frame.length),
+    ...frame,
+  ]);
+}
+
 describe("extractEmbeddedAudioArtworkBytes", () => {
   test("extracts PIC image bytes from an ID3v2.2 tag", () => {
     const artwork = extractEmbeddedAudioArtworkBytes(id3v22PicTag([0xff, 0xd8, 0xff, 0xe0]));
@@ -134,5 +200,73 @@ describe("extractEmbeddedAudioArtworkBytes", () => {
 
   test("returns null when no ID3 artwork is present", () => {
     expect(extractEmbeddedAudioArtworkBytes(new Uint8Array([0xff, 0xfb, 0x90, 0x64]))).toBeNull();
+  });
+});
+
+describe("extractEmbeddedAudioTitleBytes", () => {
+  test("decodes an ISO-8859-1 TIT2 frame from an ID3v2.3 tag", () => {
+    const title = extractEmbeddedAudioTitleBytes(id3v23Tit2Tag([
+      0,
+      ...textBytes("Midnight Drive"),
+      0,
+    ]));
+
+    expect(title).toBe("Midnight Drive");
+  });
+
+  test("stops at the terminator and ignores trailing frame bytes", () => {
+    const title = extractEmbeddedAudioTitleBytes(id3v23Tit2Tag([
+      0,
+      ...textBytes("Slow Burn"),
+      0,
+      ...textBytes("trailing-junk"),
+    ]));
+
+    expect(title).toBe("Slow Burn");
+  });
+
+  test("decodes a UTF-8 TIT2 frame from an ID3v2.4 tag", () => {
+    const title = extractEmbeddedAudioTitleBytes(id3v24Tit2Tag([
+      3,
+      ...textBytes("Café Lovers"),
+    ]));
+
+    expect(title).toBe("Café Lovers");
+  });
+
+  test("decodes a UTF-16 little-endian TT2 frame with BOM from an ID3v2.2 tag", () => {
+    const title = extractEmbeddedAudioTitleBytes(id3v22Tt2Tag([
+      1,
+      0xff,
+      0xfe,
+      ...utf16Bytes("Neon Sky", true),
+      0,
+      0,
+    ]));
+
+    expect(title).toBe("Neon Sky");
+  });
+
+  test("decodes a UTF-16 big-endian TIT2 frame without BOM", () => {
+    const title = extractEmbeddedAudioTitleBytes(id3v23Tit2Tag([
+      2,
+      ...utf16Bytes("AB", false),
+      0,
+      0,
+    ]));
+
+    expect(title).toBe("AB");
+  });
+
+  test("returns null when the tag has no title frame", () => {
+    expect(extractEmbeddedAudioTitleBytes(id3v23ApicTag([0x89, 0x50, 0x4e, 0x47]))).toBeNull();
+  });
+
+  test("returns null when no ID3 tag is present", () => {
+    expect(extractEmbeddedAudioTitleBytes(new Uint8Array([0xff, 0xfb, 0x90, 0x64]))).toBeNull();
+  });
+
+  test("returns null for a blank title frame", () => {
+    expect(extractEmbeddedAudioTitleBytes(id3v24Tit2Tag([3, 32, 32]))).toBeNull();
   });
 });
