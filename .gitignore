@@ -1,5 +1,5 @@
-node_modules/
 .radicle/
+node_modules/
 dist/
 storybook-static/
 .playwright-browsers/
