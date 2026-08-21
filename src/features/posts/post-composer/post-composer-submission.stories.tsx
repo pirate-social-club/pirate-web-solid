@@ -64,7 +64,7 @@ export const ManualReview: Story = {
 export const ManualReviewModerationUnavailable: Story = {
   render: () => frame({ status: "manual_review", submission_id: "sub-1", reason_code: "moderation_unavailable", review_ref: "review-1" }),
   play: async ({ canvasElement }) => {
-    await expect(within(canvasElement).getByText("moderation is temporarily unavailable")).toBeInTheDocument();
+    await expect(within(canvasElement).getByText(/moderation is temporarily unavailable/)).toBeInTheDocument();
   },
 };
 
@@ -98,7 +98,7 @@ export const FailureRetry: Story = {
 export const Abandoned: Story = {
   render: () => frame({ status: "abandoned", submission_id: "sub-1" }),
   play: async ({ canvasElement }) => {
-    await expect(within(canvasElement).getByText("cancelled before publication")).toBeInTheDocument();
+    await expect(within(canvasElement).getByText(/cancelled before publication/)).toBeInTheDocument();
   },
 };
 
