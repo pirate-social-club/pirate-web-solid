@@ -1,9 +1,15 @@
 /** @jsxImportSource @solidjs/web */
 import type { JSX } from "@solidjs/web";
 import { createSignal, Show } from "solid-js";
-import type { PostCommunitiesCommunityIdPostsInput, PirateApiClient } from "@pirate/api-client";
 
-import { createSessionApiClient } from "../../../api/client.ts";
+import type { PendingSubmissionStorage } from "./pending-submission";
+import { PostComposerSubmission } from "./post-composer-submission";
+import { initialPostComposerState, type PostComposerState } from "./post-composer-state";
+import {
+  createTextSubmissionCoordinator,
+  type TextSubmissionTransport,
+} from "./text-submission-transport";
+import type { TextContentSubmissionRequestEnvelopeV1 } from "./text-submission-contract";
 import {
   Button,
   Dialog,
@@ -19,8 +25,6 @@ import {
   Type,
 } from "../../../design-system";
 
-export type CreatePostClient = Pick<PirateApiClient, "post_communitiesCommunityIdPosts">;
-
 export interface CreatePostDraft {
   readonly communityId: string;
   readonly title: string;
@@ -29,7 +33,7 @@ export interface CreatePostDraft {
 }
 
 /** Keep request construction pure so the contract boundary is easy to test. */
-export function buildCreatePostRequest(draft: CreatePostDraft): PostCommunitiesCommunityIdPostsInput {
+export function buildCreatePostRequest(draft: CreatePostDraft): TextContentSubmissionRequestEnvelopeV1 {
   return {
     path: { communityId: draft.communityId.trim() },
     body: {
@@ -38,7 +42,6 @@ export function buildCreatePostRequest(draft: CreatePostDraft): PostCommunitiesC
       authorship_mode: "human_direct",
       identity_mode: "public",
       visibility: "public",
-      publish_mode: "async",
       title: draft.title.trim() === "" ? null : draft.title.trim(),
       body: draft.body.trim(),
     },
@@ -54,23 +57,61 @@ export interface CreatePostDialogProps {
   readonly open: boolean;
   readonly onOpenChange: (open: boolean) => void;
   readonly onPublished?: () => void;
-  readonly client?: CreatePostClient;
+  readonly storage?: PendingSubmissionStorage;
+  readonly transport?: TextSubmissionTransport;
+  readonly origin?: string | URL;
+  readonly fetchImpl?: typeof fetch;
 }
 
 export function CreatePostDialog(props: CreatePostDialogProps): JSX.Element {
   const [communityId, setCommunityId] = createSignal("");
   const [title, setTitle] = createSignal("");
   const [body, setBody] = createSignal("");
-  const [busy, setBusy] = createSignal(false);
   const [error, setError] = createSignal("");
-  const [published, setPublished] = createSignal(false);
+  const [state, setState] = createSignal<PostComposerState>(initialPostComposerState);
+  const coordinator = createTextSubmissionCoordinator({
+    storage: props.storage,
+    transport: props.transport,
+    origin: props.origin,
+    fetchImpl: props.fetchImpl,
+    onStateChange: setState,
+  });
+
+  void coordinator.restore().catch(() => {
+    setState({ status: "transport_failure", reason: "durable_storage_failed" });
+  });
 
   function close(open: boolean): void {
     if (!open) {
       setError("");
-      setPublished(false);
+      if (state().status === "published" || state().status === "manual_review" || state().status === "blocked" || state().status === "abandoned") {
+        coordinator.startNewDraft();
+        setCommunityId("");
+        setTitle("");
+        setBody("");
+      }
     }
     props.onOpenChange(open);
+  }
+
+  function startNewDraft(): void {
+    coordinator.startNewDraft();
+    setCommunityId("");
+    setTitle("");
+    setBody("");
+    setError("");
+  }
+
+  async function discardAndEdit(): Promise<void> {
+    setError("");
+    try {
+      const draft = await coordinator.discardRejectedRequest();
+      setCommunityId(draft.communityId);
+      setTitle(draft.title);
+      setBody(draft.body);
+    } catch (discardError) {
+      setError(discardError instanceof Error ? discardError.message : "The saved request could not be discarded safely.");
+    }
   }
 
   async function submit(): Promise<void> {
@@ -80,22 +121,37 @@ export function CreatePostDialog(props: CreatePostDialogProps): JSX.Element {
       setError("Choose a community and write something before publishing.");
       return;
     }
-    setBusy(true);
     setError("");
     try {
-      const client = props.client ?? createSessionApiClient();
-      await client.post_communitiesCommunityIdPosts(buildCreatePostRequest({
+      const snapshot = await coordinator.submit(buildCreatePostRequest({
         communityId: community,
         title: title(),
         body: content,
         idempotencyKey: createIdempotencyKey(),
       }));
-      setPublished(true);
-      props.onPublished?.();
+      if (snapshot.status === "published") props.onPublished?.();
+    } catch (submissionError) {
+      if (coordinator.state.status === "transport_failure") {
+        setError("Your post could not be prepared for safe retry.");
+      } else if (coordinator.state.status === "reconciling") {
+        setError("The request result is uncertain; the saved request can be checked again safely.");
+      } else if (submissionError instanceof Error) {
+        setError(submissionError.message);
+      }
+    }
+  }
+
+  async function retry(): Promise<void> {
+    setError("");
+    try {
+      if (state().status === "reconciling") {
+        const snapshot = await coordinator.reconcile();
+        if (snapshot.status === "published") props.onPublished?.();
+      } else {
+        await submit();
+      }
     } catch {
-      setError("Your post could not be submitted yet. Check the community ID and try again.");
-    } finally {
-      setBusy(false);
+      if (coordinator.state.status === "reconciling") setError("The request result is still uncertain. Try checking again.");
     }
   }
 
@@ -129,14 +185,27 @@ export function CreatePostDialog(props: CreatePostDialogProps): JSX.Element {
               />
             </label>
             <Show when={error().length > 0}><p class="rounded-xl border border-destructive/30 bg-destructive/10 p-3 text-sm" role="alert">{error()}</p></Show>
-            <Show when={published()}><p class="rounded-xl border border-primary/30 bg-primary/10 p-3 text-sm" role="status">Post submitted. The feed will show it after api-next finishes processing.</p></Show>
+            <Show when={state().status !== "editing"}>
+              <PostComposerSubmission
+                onDiscardAndEdit={() => void discardAndEdit()}
+                onNewDraft={startNewDraft}
+                onRetry={() => void retry()}
+                onResolveOldest={() => { coordinator.resolveOldestPending(); }}
+                state={state()}
+              />
+            </Show>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={() => close(false)}>Cancel</Button>
-              <Button type="submit" disabled={busy()}>{busy() ? "Publishing…" : "Publish post"}</Button>
+              <Button
+                type="submit"
+                disabled={state().status !== "editing"}
+              >
+                {state().status === "submitting" ? "Submitting…" : "Publish post"}
+              </Button>
             </DialogFooter>
           </form>
         </Show>
-        <Type as="p" variant="caption" class="text-muted-foreground">Your post uses a same-origin session and the existing community post contract.</Type>
+        <Type as="p" variant="caption" class="text-muted-foreground">Your post uses a same-origin session and the frozen text submission contract.</Type>
       </DialogContent>
     </Dialog>
   );
