@@ -23,6 +23,14 @@ const song = {
 
 const mobileGlobals = { viewport: { value: "mobile1", isRotated: false } };
 
+function songVariant(overrides: Partial<PostComposerProps>) {
+  return (
+    <ComposerFrame>
+      <PostComposer {...baseComposer} mode="song" song={song} {...overrides} />
+    </ComposerFrame>
+  );
+}
+
 export const Original: Story = {
   name: "Original",
   render: () => (
@@ -44,56 +52,49 @@ export const Mobile: Story = {
   globals: mobileGlobals,
 };
 
-export const RemixSource: Story = {
-  name: "Remix / Source and terms",
-  render: () => (
-    <ComposerFrame>
-      <InteractiveComposer
-        {...baseComposer}
-        mode="song"
-        songMode="remix"
-        song={song}
-        derivativeStep={{
-          visible: true,
-          required: true,
-          trigger: "remix",
-          searchResults: [{ id: "asset-sunset", title: "Sunset Driver", subtitle: "lena-wave.pirate" }],
-          references: [{ id: "asset-sunset", title: "Sunset Driver", subtitle: "lena-wave.pirate" }],
-          sourceTermsAccepted: true,
-          licenseSummary: {
-            sourceLicense: "Commercial remix",
-            upstreamRoyaltyPct: 10,
-            newRemixTerms: "Commercial remix, 10%",
-          },
-        }}
-      />
-    </ComposerFrame>
-  ),
+export const StepTrack: Story = {
+  name: "Step 1 / Track",
+  render: () => songVariant({ initialStep: "track" }),
 };
 
-function songVariant(overrides: Partial<PostComposerProps>) {
-  return (
-    <ComposerFrame>
-      <PostComposer {...baseComposer} mode="song" song={song} {...overrides} />
-    </ComposerFrame>
-  );
-}
+export const StepTrackMobile: Story = {
+  ...StepTrack,
+  name: "Step 1 / Track (mobile)",
+  globals: mobileGlobals,
+};
 
-const remixSources = [
-  { id: "asset-sunset", title: "Sunset Driver", subtitle: "lena-wave.pirate" },
-  { id: "asset-waves", title: "Wave Racer", subtitle: "clyeezy.pirate" },
-];
+export const StepLyrics: Story = {
+  name: "Step 2 / Lyrics",
+  render: () => songVariant({ initialStep: "lyrics" }),
+};
 
-function remixStateMulti() {
-  return {
-    visible: true,
-    required: true,
-    trigger: "remix" as const,
-    searchResults: remixSources,
-    references: remixSources,
-    licenseSummary: { sourceLicense: "Commercial remix", upstreamRoyaltyPct: 10, newRemixTerms: "Commercial remix, 10%" },
-  };
-}
+export const StepLyricsMobile: Story = {
+  ...StepLyrics,
+  name: "Step 2 / Lyrics (mobile)",
+  globals: mobileGlobals,
+};
+
+export const StepRights: Story = {
+  name: "Step 3 / Rights",
+  render: () => songVariant({ initialStep: "rights" }),
+};
+
+export const StepRightsMobile: Story = {
+  ...StepRights,
+  name: "Step 3 / Rights (mobile)",
+  globals: mobileGlobals,
+};
+
+export const StepReview: Story = {
+  name: "Step 4 / Review",
+  render: () => songVariant({ initialStep: "review" }),
+};
+
+export const StepReviewMobile: Story = {
+  ...StepReview,
+  name: "Step 4 / Review (mobile)",
+  globals: mobileGlobals,
+};
 
 export const AnalysisMatch: Story = {
   name: "Analysis / Similarity match",
@@ -132,92 +133,4 @@ export const RetryableFailure: Story = {
 export const PostPublished: Story = {
   name: "Submitting / Post published",
   render: () => songVariant({ submit: { canPost: true, progress: { phase: "done", label: "Post published", currentIndex: 5, totalSteps: 5, display: "activity" } } }),
-};
-
-export const VisibilityModalOpen: Story = {
-  name: "Visibility / Modal open",
-  render: () => songVariant({ initialOpenPanel: "visibility" }),
-};
-
-export const VisibilityModalOpenMobile: Story = {
-  ...VisibilityModalOpen,
-  name: "Visibility / Modal open (mobile)",
-  globals: mobileGlobals,
-};
-
-export const LicenseSheetOpen: Story = {
-  name: "License / Sheet open",
-  render: () => songVariant({ initialOpenPanel: "license" }),
-};
-
-export const LicenseSheetOpenMobile: Story = {
-  ...LicenseSheetOpen,
-  name: "License / Sheet open (mobile)",
-  globals: mobileGlobals,
-};
-
-export const CollaboratorsSheet: Story = {
-  name: "Collaborators / Sheet",
-  render: () => songVariant({
-    initialOpenPanel: "collaborators",
-    royaltySplit: { allocations: [
-      { id: "creator", recipientKind: "creator", sharePct: 70 },
-      { id: "collaborator-1", recipientKind: "collaborator", recipientId: "profile-sunset", displayHandle: "lena-wave.pirate", sharePct: 30 },
-    ] },
-    onResolveCollaboratorHandle: async () => null,
-  }),
-};
-
-export const CollaboratorsSheetMobile: Story = {
-  ...CollaboratorsSheet,
-  name: "Collaborators / Sheet (mobile)",
-  globals: mobileGlobals,
-};
-
-export const SongCardMarkAsRemix: Story = {
-  name: "Song card / Mark as remix",
-  render: () => songVariant({ initialRemixSourceOpen: false }),
-};
-
-export const SongCardMarkAsRemixMobile: Story = {
-  ...SongCardMarkAsRemix,
-  name: "Song card / Mark as remix (mobile)",
-  globals: mobileGlobals,
-};
-
-export const SongCardRemixSelected: Story = {
-  name: "Song card / Remix selected",
-  render: () => songVariant({
-    songMode: "remix",
-    derivativeStep: remixStateMulti(),
-  }),
-};
-
-export const SongCardRemixSelectedMobile: Story = {
-  ...SongCardRemixSelected,
-  name: "Song card / Remix selected (mobile)",
-  globals: mobileGlobals,
-};
-
-export const RequiredSheetTitleOnly: Story = {
-  name: "Required / Title only",
-  render: () => songVariant({
-    song: { primaryAudioLabel: "midnight-waves.mp3" },
-    initialRequiredSheetOpen: true,
-  }),
-};
-
-export const RequiredSheetTitleOnlyMobile: Story = {
-  ...RequiredSheetTitleOnly,
-  name: "Required / Title only (mobile)",
-  globals: mobileGlobals,
-};
-
-export const WithCharityContribution: Story = {
-  name: "Charity / Contribution",
-  render: () => songVariant({
-    charityPartner: { partnerId: "partner-1", displayName: "Community Arts Fund" },
-    charityContribution: { percentagePct: 5, userConfigured: true },
-    initialOpenPanel: "collaborators",
-  }),
 };

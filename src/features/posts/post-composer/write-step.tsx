@@ -1,12 +1,8 @@
 import { createEffect, createSignal, Show } from "solid-js";
 
 import {
-  ActionMenu,
   CardContent,
-  FormNote,
-  IconDotsThree,
   IconLock,
-  IconMusicNote,
   IconUploadSimple,
   Input,
   Modal,
@@ -26,11 +22,8 @@ import {
 } from "./attachment-bar";
 import { PostComposerAttachmentCard } from "./attachment-card";
 import { attachmentActions, overflowMobileAttachmentActions, primaryMobileAttachmentActions } from "./defaults";
-import { PostComposerDerivativeSection } from "./derivative-section";
 import { PostComposerEventSection } from "./event-section";
-import { PostComposerLicenseControl } from "./license-control";
 import { LiveTabContent } from "./live-tab";
-import { PayoutSheet } from "./payout-sheet";
 import { PostComposerSettingsHub } from "./settings-hub";
 import { PostComposerPublishControls } from "./publish-controls";
 import {
@@ -104,8 +97,7 @@ function attachmentFor(
 
 export function PostComposerWriteStep(props: {
   controller: PostComposerController;
-  initialOpenPanel?: "access-and-rights" | "visibility" | "license" | "collaborators";
-  initialRemixSourceOpen?: boolean;
+  initialOpenPanel?: "access-and-rights" | "visibility";
 }) {
   const controller = props.controller;
   const imagePreview = createObjectUrl(() => controller.media.activeImageUpload);
@@ -118,8 +110,6 @@ export function PostComposerWriteStep(props: {
   const keyboardOffset = createKeyboardBottomOffset();
   const [activeTool, setActiveTool] = createSignal<ComposerToolbarAction | null>(null);
   const [accessOpen, setAccessOpen] = createSignal(props.initialOpenPanel === "access-and-rights");
-  const [collaboratorsOpen, setCollaboratorsOpen] = createSignal(props.initialOpenPanel === "collaborators");
-  const [remixSourceOpen, setRemixSourceOpen] = createSignal(props.initialRemixSourceOpen ?? false);
   const [moreOpen, setMoreOpen] = createSignal(false);
   const [dragging, setDragging] = createSignal(false);
   let dragCounter = 0;
@@ -128,22 +118,7 @@ export function PostComposerWriteStep(props: {
   let songInput: HTMLInputElement | undefined;
   let fileInput: HTMLInputElement | undefined;
 
-  const isSong = () => controller.tabs.activeTab === "song";
   const showAccessRights = () => ["video", "live"].includes(controller.tabs.activeTab);
-  const remixSource = () => controller.primary.derivativeState?.references?.[0];
-  const songRemixLabel = () => {
-    if (controller.primary.activeSongMode === "remix" && remixSource()) {
-      return `${controller.copy.rights.remixOf(remixSource()!.title)} · ${controller.copy.rights.change}`;
-    }
-    return `${controller.copy.rights.original} · ${controller.copy.rights.markAsRemix}`;
-  };
-
-  const openRemixSource = () => {
-    if (controller.primary.activeSongMode !== "remix") {
-      controller.primary.handleSongModeChange("remix");
-    }
-    setRemixSourceOpen(true);
-  };
 
   createEffect(
     () => detectedVideoAspectRatio(),
@@ -239,19 +214,6 @@ export function PostComposerWriteStep(props: {
           controller={controller}
           initialOpen={props.initialOpenPanel === "visibility"}
         />
-        <Show when={isSong()}>
-          <PostComposerLicenseControl
-            controller={controller}
-            initialOpen={props.initialOpenPanel === "license"}
-          />
-          <ActionMenu
-            label="More options"
-            triggerClass="size-11 rounded-full border border-border-soft bg-card text-foreground hover:bg-card-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            triggerContent={<IconDotsThree class="size-5" />}
-            items={[{ key: "collaborators", label: controller.copy.rights.addCollaborators }]}
-            onAction={(key) => { if (key === "collaborators") setCollaboratorsOpen(true); }}
-          />
-        </Show>
         <Show when={showAccessRights()}>
           <Modal open={accessOpen()} onOpenChange={setAccessOpen}>
             <ModalTrigger
@@ -280,54 +242,8 @@ export function PostComposerWriteStep(props: {
         onChange={(next) => { if (next?.kind === "link") { controller.fields.onLinkUrlValueChange?.(next.url); controller.tabs.onTabChange("link"); } }}
         onRemove={removeAttachment}
         onReplace={selectAttachment}
-        onSongRemixClick={isSong() ? openRemixSource : undefined}
-        songRemixLabel={isSong() ? songRemixLabel() : undefined}
       />
 
-      <Show when={isSong()}>
-        <Modal open={remixSourceOpen()} onOpenChange={setRemixSourceOpen}>
-          <ModalContent
-            class="max-h-[88dvh] overflow-y-auto rounded-t-[var(--radius-3xl)] px-0 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-4 sm:rounded-[var(--radius-xl)] sm:pb-6 sm:pt-6"
-            mobileSide="bottom"
-          >
-            <div aria-hidden="true" class="mx-auto mb-4 h-1 w-12 rounded-full bg-muted sm:hidden" />
-            <ModalHeader class="px-4 pe-12 text-start">
-              <ModalTitle>{controller.copy.rights.remixSourceTitle}</ModalTitle>
-            </ModalHeader>
-            <div class="px-4 pt-5">
-              <PostComposerDerivativeSection
-                copy={controller.copy}
-                derivativePickerKey={controller.primary.derivativePickerKey}
-                derivativeSearchResults={controller.primary.derivativeSearchResults}
-                derivativeState={controller.primary.derivativeState}
-                onAdvancePicker={controller.advanceDerivativePicker}
-                updateDerivativeState={controller.primary.updateDerivativeState}
-              />
-            </div>
-          </ModalContent>
-        </Modal>
-      </Show>
-
-      <Show when={isSong()}>
-        <Modal open={collaboratorsOpen()} onOpenChange={setCollaboratorsOpen}>
-          <ModalContent
-            class="max-h-[88dvh] overflow-y-auto rounded-t-[var(--radius-3xl)] px-0 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-4 sm:rounded-[var(--radius-xl)] sm:pb-6 sm:pt-6"
-            mobileSide="bottom"
-          >
-            <div aria-hidden="true" class="mx-auto mb-4 h-1 w-12 rounded-full bg-muted sm:hidden" />
-            <PayoutSheet
-              controller={controller}
-              onDone={() => setCollaboratorsOpen(false)}
-            />
-          </ModalContent>
-        </Modal>
-      </Show>
-      <Show when={controller.tabs.activeTab === "song" && controller.requirements.songAudioMissing}>
-        <FormNote class="flex items-center gap-2" tone="warning">
-          <IconMusicNote class="size-4 shrink-0" />
-          Choose a song from the toolbar to publish.
-        </FormNote>
-      </Show>
       <Show when={controller.tabs.activeTab === "file"}><PostComposerGenericAssetFields file={controller.generic.file} onFileChange={controller.generic.setFile} /></Show>
       <Textarea class={cn("resize-none text-xl leading-relaxed", mobile ? "min-h-[38dvh] rounded-none border-0 bg-transparent p-0 shadow-none focus-visible:ring-0" : "min-h-36")} onChange={(event) => updateBody(controller, event.currentTarget.value)} placeholder={attachment() ? controller.copy.placeholders.optional : controller.copy.placeholders.body} value={bodyValue(controller)} />
       <Show when={controller.tabs.activeTab === "live"} fallback={<Show when={controller.tabs.activeTab !== "song" && controller.event.state.enabled}><PostComposerEventSection event={controller.event.state} onChange={controller.event.update} onSearchPlaces={controller.event.searchPlaces} /></Show>}>

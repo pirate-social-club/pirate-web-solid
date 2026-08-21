@@ -1,23 +1,33 @@
-import { createSignal, Show } from "solid-js";
+import { Show } from "solid-js";
 
 import { Card, IconButton, IconX, createIsMobile, cn } from "../../../design-system";
 import { PostComposerIdentityControl } from "./identity-control";
-import { PostComposerRequiredSheet } from "./required-post-sheet";
 import { PublishButton } from "./submit-actions";
+import { PostComposerStepFooter } from "./step-footer";
+import { SongTrackStep } from "./song-track-step";
+import { SongLyricsStep, SongReviewStep, SongRightsStep } from "./song-steps";
 import { createPostComposerController } from "./controller";
 import type { PostComposerProps } from "./types";
 import { PostComposerWriteStep } from "./write-step";
 
 export function PostComposer(props: PostComposerProps) {
   const controller = createPostComposerController(props, { isMobile: createIsMobile() });
-  const [requiredSheetOpen, setRequiredSheetOpen] = createSignal(props.initialRequiredSheetOpen ?? false);
+  const isMultiStep = () => controller.step.list.length > 1;
 
-  const requestPost = () => {
-    if (controller.requirements.requiresPostSheet) {
-      setRequiredSheetOpen(true);
-      return;
-    }
-    controller.submit.onSubmit?.();
+  const requestPost = () => controller.submit.onSubmit?.();
+
+  const stepContent = () => {
+    const step = controller.step.current;
+    if (step === "track") return <SongTrackStep controller={controller} />;
+    if (step === "lyrics") return <SongLyricsStep controller={controller} />;
+    if (step === "rights") return <SongRightsStep controller={controller} />;
+    if (step === "review") return <SongReviewStep controller={controller} />;
+    return (
+      <PostComposerWriteStep
+        controller={controller}
+        initialOpenPanel={props.initialOpenPanel}
+      />
+    );
   };
 
   return (
@@ -33,36 +43,31 @@ export function PostComposer(props: PostComposerProps) {
         <Show when={controller.identity.identity?.visible !== false}>
           <PostComposerIdentityControl class="max-w-[min(15rem,calc(100vw-9rem))]" controller={controller} />
         </Show>
-        <PublishButton
-          class="h-11 min-w-0 px-4"
-          compact={controller.isMobile()}
-          controller={controller}
-          label={controller.copy.actions.post}
-          onClick={requestPost}
-        />
+        <Show when={!isMultiStep()}>
+          <PublishButton
+            class="h-11 min-w-0 px-4"
+            compact={controller.isMobile()}
+            controller={controller}
+            label={controller.copy.actions.post}
+            onClick={requestPost}
+          />
+        </Show>
       </header>
 
       <Show when={controller.isMobile()} fallback={
         <Card class="overflow-hidden bg-card shadow-none">
-          <PostComposerWriteStep
-            controller={controller}
-            initialOpenPanel={props.initialOpenPanel}
-            initialRemixSourceOpen={props.initialRemixSourceOpen}
-          />
+          {stepContent()}
+          <Show when={isMultiStep()}>
+            <PostComposerStepFooter controller={controller} />
+          </Show>
         </Card>
       }>
-        <PostComposerWriteStep
-          controller={controller}
-          initialOpenPanel={props.initialOpenPanel}
-          initialRemixSourceOpen={props.initialRemixSourceOpen}
-        />
+        {stepContent()}
+        <Show when={isMultiStep()}>
+          <div class="h-24" aria-hidden="true" />
+          <PostComposerStepFooter controller={controller} />
+        </Show>
       </Show>
-
-      <PostComposerRequiredSheet
-        controller={controller}
-        onOpenChange={setRequiredSheetOpen}
-        open={requiredSheetOpen()}
-      />
     </div>
   );
 }

@@ -33,7 +33,7 @@ import {
   shouldForcePublicIdentityForAuthor,
   shouldForcePublicIdentityForTab,
 } from "./invariants";
-import { canAdvanceComposerWriteStep } from "./utils";
+import { canAdvanceComposerWriteStep, stepsForTab } from "./utils";
 import { deriveDerivativeSearchResults } from "./reference-model";
 import type {
   AssetLicenseState,
@@ -44,6 +44,7 @@ import type {
   ComposerAudienceState,
   ComposerEventState,
   ComposerIdentityState,
+  ComposerStep,
   ComposerTab,
   DerivativeStepState,
   DownloadFileComposerState,
@@ -143,6 +144,9 @@ export function createPostComposerController(
   const visibleTabs = () => availableTabs().filter((tab) => tab !== "song" || canCreateSongPost());
 
   const [activeTab, setActiveTab] = createSignal<ComposerTab>(visibleTabs()[0] ?? "text");
+  const [step, setStep] = createSignal<ComposerStep>(
+    props.initialStep ?? stepsForTab(visibleTabs()[0] ?? "text")[0]!,
+  );
   const [uncontrolledTitleValue, setUncontrolledTitleValue] = createSignal(providedTitleValue());
   const [uncontrolledTextBodyValue, setUncontrolledTextBodyValue] = createSignal(providedTextBodyValue());
   const [uncontrolledCaptionValue, setUncontrolledCaptionValue] = createSignal(providedCaptionValue());
@@ -391,7 +395,6 @@ export function createPostComposerController(
   const songAudioMissing = () => activeTab() === "song"
     && !songState().primaryAudioUpload
     && !songState().primaryAudioLabel?.trim();
-  const requiresPostSheet = () => songTitleMissing();
   const postDisabled = () => basePostDisabled()
     || contentBlocked()
     || songAudioMissing()
@@ -508,6 +511,16 @@ export function createPostComposerController(
         return;
       }
       setActiveTab(tabs[0] ?? "text");
+    },
+  );
+
+  // Reset the step to the first step whenever the active tab changes, so a
+  // track switch never lands mid-wizard on another track's step list.
+  createEffect(
+    () => activeTab(),
+    (tab) => {
+      const steps = stepsForTab(tab);
+      setStep((current) => (steps.includes(current) ? current : steps[0]!));
     },
   );
 
@@ -729,7 +742,6 @@ export function createPostComposerController(
     },
     requirements: {
       get draftCanSubmit() { return draftCanSubmit(); },
-      get requiresPostSheet() { return requiresPostSheet(); },
       get songAudioMissing() { return songAudioMissing(); },
       get songTitleMissing() { return songTitleMissing(); },
     },
@@ -741,6 +753,16 @@ export function createPostComposerController(
         onModeChange()?.(nextTab);
       },
       get visibleTabs() { return visibleTabs(); },
+    },
+    step: {
+      get current() { return step(); },
+      get list() { return stepsForTab(activeTab()); },
+      get isFirst() { return step() === stepsForTab(activeTab())[0]; },
+      get isLast() {
+        const steps = stepsForTab(activeTab());
+        return step() === steps[steps.length - 1];
+      },
+      set: setStep,
     },
     advanceDerivativePicker: () => setDerivativePickerKey((current) => current + 1),
   };

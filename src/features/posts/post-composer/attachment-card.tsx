@@ -5,7 +5,6 @@
 import { createEffect, createSignal, Show } from "solid-js";
 
 import {
-  IconCaretRight,
   IconFileText,
   IconImage,
   IconMusicNote,
@@ -158,8 +157,6 @@ export function PostComposerAttachmentCard(props: {
   onChange: (next: AttachmentState) => void;
   onRemove: () => void;
   onReplace?: (kind: AttachmentKind) => void;
-  songRemixLabel?: string;
-  onSongRemixClick?: () => void;
 }) {
   let linkInputRef: HTMLInputElement | undefined;
 
@@ -249,52 +246,36 @@ export function PostComposerAttachmentCard(props: {
 
           <Show when={attachmentOfKind(attachment(), "song")}>
             {(song) => (
-              <div class="rounded-[var(--radius-lg)] border border-border-soft bg-card">
-                <div
-                  class="grid min-h-16 w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-4 py-3"
+              <div class="grid min-h-16 w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-[var(--radius-lg)] border border-border-soft bg-card px-4 py-3">
+                <button
+                  class="flex min-w-0 cursor-pointer items-center gap-3 border-0 bg-transparent p-0 text-start text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  onClick={() => props.onReplace?.("song")}
+                  type="button"
                 >
-                  <button
-                    class="flex min-w-0 cursor-pointer items-center gap-3 border-0 bg-transparent p-0 text-start text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    onClick={() => props.onReplace?.("song")}
-                    type="button"
-                  >
-                    <span class="grid size-12 shrink-0 place-items-center overflow-hidden rounded-[var(--radius-md)] bg-background text-muted-foreground">
-                      <Show when={song().artworkUrl} fallback={<IconMusicNote class="size-6" />}>
-                        {(artworkUrl) => (
-                          <img alt="" class="size-full object-cover" src={artworkUrl()} />
-                        )}
-                      </Show>
-                    </span>
-                    <span class="min-w-0">
-                      <Type as="span" variant="body-strong" class="block truncate">
-                        {song().label === "No audio selected" ? "Audio file" : song().label}
-                      </Type>
-                      <Type as="span" variant="body" class="block truncate text-muted-foreground">
-                        Replace
-                      </Type>
-                    </span>
-                  </button>
-                  <button
-                    aria-label="Remove audio"
-                    class="grid size-10 cursor-pointer place-items-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    onClick={props.onRemove}
-                    type="button"
-                  >
-                    <IconX class="size-5" />
-                  </button>
-                </div>
-                <Show when={props.songRemixLabel && props.onSongRemixClick}>
-                  <button
-                    class="flex w-full cursor-pointer items-center justify-between gap-3 border-t border-border-soft px-4 py-2.5 text-start transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    onClick={props.onSongRemixClick}
-                    type="button"
-                  >
-                    <Type as="span" variant="caption" class="text-muted-foreground">
-                      {props.songRemixLabel}
+                  <span class="grid size-12 shrink-0 place-items-center overflow-hidden rounded-[var(--radius-md)] bg-background text-muted-foreground">
+                    <Show when={song().artworkUrl} fallback={<IconMusicNote class="size-6" />}>
+                      {(artworkUrl) => (
+                        <img alt="" class="size-full object-cover" src={artworkUrl()} />
+                      )}
+                    </Show>
+                  </span>
+                  <span class="min-w-0">
+                    <Type as="span" variant="body-strong" class="block truncate">
+                      {song().label === "No audio selected" ? "Audio file" : song().label}
                     </Type>
-                    <IconCaretRight class="size-4 shrink-0 text-muted-foreground" />
-                  </button>
-                </Show>
+                    <Type as="span" variant="body" class="block truncate text-muted-foreground">
+                      Replace
+                    </Type>
+                  </span>
+                </button>
+                <button
+                  aria-label="Remove audio"
+                  class="grid size-10 cursor-pointer place-items-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  onClick={props.onRemove}
+                  type="button"
+                >
+                  <IconX class="size-5" />
+                </button>
               </div>
             )}
           </Show>

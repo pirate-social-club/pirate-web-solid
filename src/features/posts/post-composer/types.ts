@@ -12,6 +12,11 @@ import type { PostCardEventPlace } from "./post-card-preview-types";
 
 export type ComposerTab = "text" | "image" | "video" | "link" | "song" | "live" | "file";
 
+// Per-track authoring steps. Text/image/link/file/live resolve to a single
+// "write" step (no wizard); video adds a details step; song spans track,
+// lyrics, rights, and review.
+export type ComposerStep = "write" | "details" | "track" | "lyrics" | "rights" | "review";
+
 export type AttachmentKind = "link" | "image" | "video" | "song" | "live" | "file";
 export type ComposerToolbarAction = AttachmentKind | "event";
 
@@ -395,11 +400,9 @@ export interface PostComposerProps extends Partial<PostComposerDraftState>, Post
   submitError?: string | null;
   submitLabel?: string;
   submitLoading?: boolean;
-  // Storybook-only seed for reviewing a specific composer panel. Production
-  // callers leave panels closed and open them from the composer controls.
-  initialOpenPanel?: "access-and-rights" | "visibility" | "license" | "collaborators";
-  // Storybook-only seeds for reviewing the remix source sheet and the required
-  // post sheet.
-  initialRemixSourceOpen?: boolean;
-  initialRequiredSheetOpen?: boolean;
+  // Storybook-only seed for reviewing a specific composer panel or step.
+  // Production callers leave panels closed and open them from the composer
+  // controls; the step defaults to the first step of the track.
+  initialOpenPanel?: "access-and-rights" | "visibility";
+  initialStep?: ComposerStep;
 }

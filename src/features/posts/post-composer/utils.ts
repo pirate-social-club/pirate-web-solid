@@ -1,7 +1,27 @@
 // Pure composer helpers ported from the React post-composer-utils.ts.
 
-import type { ComposerTab, LiveComposerState } from "./types";
+import type { ComposerStep, ComposerTab, LiveComposerState } from "./types";
 import { isLiveVisibilityAllowedForAccess } from "./invariants";
+
+// The ordered step list for a track. Text/image/link/file/live are a single
+// write step; video adds details; song is the full four-step authoring flow.
+export function stepsForTab(tab: ComposerTab): ComposerStep[] {
+  if (tab === "song") return ["track", "lyrics", "rights", "review"];
+  if (tab === "video") return ["write", "details"];
+  return ["write"];
+}
+
+export function getNextComposerStep(current: ComposerStep, tab: ComposerTab): ComposerStep {
+  const steps = stepsForTab(tab);
+  const index = steps.indexOf(current);
+  return index >= 0 && index < steps.length - 1 ? steps[index + 1]! : current;
+}
+
+export function getPreviousComposerStep(current: ComposerStep, tab: ComposerTab): ComposerStep | undefined {
+  const steps = stepsForTab(tab);
+  const index = steps.indexOf(current);
+  return index > 0 ? steps[index - 1] : undefined;
+}
 
 export function isValidHttpUrl(value: string) {
   return normalizeHttpUrl(value) !== null;
