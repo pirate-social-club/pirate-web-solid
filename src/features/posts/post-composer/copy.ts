@@ -63,16 +63,19 @@ export interface ComposerCopy {
     visibilityTitle: string;
   };
   rights: {
-    title: string;
-    thisSongIs: string;
-    othersCan: string;
-    original: string;
-    remix: string;
+    licenseSheetTitle: string;
     licenseTitles: Record<string, string>;
+    licenseChipLabels: Record<string, string>;
     payoutLabel: string;
     payoutSolo: string;
     payoutSplit: (count: number) => string;
     done: string;
+    addCollaborators: string;
+    original: string;
+    markAsRemix: string;
+    remixOf: (title: string) => string;
+    change: string;
+    remixSourceTitle: string;
     remixLegalNote: string;
   };
   identity: {
@@ -195,20 +198,27 @@ export const defaultComposerCopy: ComposerCopy = {
     visibilityTitle: "Visibility",
   },
   rights: {
-    title: "Rights",
-    thisSongIs: "This song is",
-    othersCan: "Others can",
-    original: "Original",
-    remix: "Remix",
+    licenseSheetTitle: "Others can",
     licenseTitles: {
-      "non-commercial": "Remix it, not sell it",
+      "non-commercial": "Others can remix it, not sell it",
       "commercial-use": "Use it commercially, not remix it",
-      "commercial-remix": "Remix it and sell it (10% to me)",
+      "commercial-remix": "Remix it and sell it, 10% to me",
+    },
+    licenseChipLabels: {
+      "non-commercial": "Remixes OK",
+      "commercial-use": "Commercial, no remix",
+      "commercial-remix": "Remix & sell, 10% to me",
     },
     payoutLabel: "Payout",
     payoutSolo: "You keep 100%",
     payoutSplit: (count) => `Split with ${count} collaborator${count === 1 ? "" : "s"}`,
     done: "Done",
+    addCollaborators: "Add collaborators",
+    original: "Original",
+    markAsRemix: "Mark as remix",
+    remixOf: (title) => `Remix of ${title}`,
+    change: "Change",
+    remixSourceTitle: "Remix source",
     remixLegalNote: "By posting a remix you confirm you have the right to use the source track.",
   },
   labels: {

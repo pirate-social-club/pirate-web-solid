@@ -95,11 +95,6 @@ function remixStateMulti() {
   };
 }
 
-export const RemixSwitchedBackToOriginal: Story = {
-  name: "Rights / Switched back to original",
-  render: () => songVariant({ songMode: "original" }),
-};
-
 export const AnalysisMatch: Story = {
   name: "Analysis / Similarity match",
   render: () => songVariant({ submitError: "Your upload is too similar to an existing song." }),
@@ -150,22 +145,21 @@ export const VisibilityModalOpenMobile: Story = {
   globals: mobileGlobals,
 };
 
-export const RightsSummary: Story = {
-  name: "Rights / Summary",
-  render: () => songVariant({ initialOpenPanel: "access-and-rights" }),
+export const LicenseSheetOpen: Story = {
+  name: "License / Sheet open",
+  render: () => songVariant({ initialOpenPanel: "license" }),
 };
 
-export const RightsSummaryMobile: Story = {
-  ...RightsSummary,
-  name: "Rights / Summary (mobile)",
+export const LicenseSheetOpenMobile: Story = {
+  ...LicenseSheetOpen,
+  name: "License / Sheet open (mobile)",
   globals: mobileGlobals,
 };
 
-export const RightsPayoutExpanded: Story = {
-  name: "Rights / Payout expanded",
+export const CollaboratorsSheet: Story = {
+  name: "Collaborators / Sheet",
   render: () => songVariant({
-    initialOpenPanel: "access-and-rights",
-    initialRightsSection: "payout",
+    initialOpenPanel: "collaborators",
     royaltySplit: { allocations: [
       { id: "creator", recipientKind: "creator", sharePct: 70 },
       { id: "collaborator-1", recipientKind: "collaborator", recipientId: "profile-sunset", displayHandle: "lena-wave.pirate", sharePct: 30 },
@@ -174,34 +168,35 @@ export const RightsPayoutExpanded: Story = {
   }),
 };
 
-export const RightsPayoutExpandedMobile: Story = {
-  ...RightsPayoutExpanded,
-  name: "Rights / Payout expanded (mobile)",
+export const CollaboratorsSheetMobile: Story = {
+  ...CollaboratorsSheet,
+  name: "Collaborators / Sheet (mobile)",
   globals: mobileGlobals,
 };
 
-export const RightsPayoutAddByHandleNotFound: Story = {
-  name: "Rights / Payout add by handle (not found)",
-  render: () => songVariant({
-    initialOpenPanel: "access-and-rights",
-    initialRightsSection: "payout",
-    onResolveCollaboratorHandle: async () => null,
-  }),
+export const SongCardMarkAsRemix: Story = {
+  name: "Song card / Mark as remix",
+  render: () => songVariant({ initialRemixSourceOpen: false }),
 };
 
-export const RightsPayoutAddByHandleNotFoundMobile: Story = {
-  ...RightsPayoutAddByHandleNotFound,
-  name: "Rights / Payout add by handle (not found, mobile)",
+export const SongCardMarkAsRemixMobile: Story = {
+  ...SongCardMarkAsRemix,
+  name: "Song card / Mark as remix (mobile)",
   globals: mobileGlobals,
 };
 
-export const RightsRemixTwoSources: Story = {
-  name: "Rights / Remix with two sources",
+export const SongCardRemixSelected: Story = {
+  name: "Song card / Remix selected",
   render: () => songVariant({
     songMode: "remix",
     derivativeStep: remixStateMulti(),
-    initialOpenPanel: "access-and-rights",
   }),
+};
+
+export const SongCardRemixSelectedMobile: Story = {
+  ...SongCardRemixSelected,
+  name: "Song card / Remix selected (mobile)",
+  globals: mobileGlobals,
 };
 
 export const RequiredSheetTitleOnly: Story = {
@@ -223,7 +218,6 @@ export const WithCharityContribution: Story = {
   render: () => songVariant({
     charityPartner: { partnerId: "partner-1", displayName: "Community Arts Fund" },
     charityContribution: { percentagePct: 5, userConfigured: true },
-    initialOpenPanel: "access-and-rights",
-    initialRightsSection: "payout",
+    initialOpenPanel: "collaborators",
   }),
 };

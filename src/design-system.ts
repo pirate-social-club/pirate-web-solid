@@ -62,6 +62,8 @@ export {
 export { cn } from "@pirate/web-solid-ui";
 export { createIsMobile, createMediaQuery } from "@pirate/web-solid-ui";
 export {
+  ActionMenu,
+  type ActionMenuItem,
   Chip,
   Combobox,
   FormSectionHeading,

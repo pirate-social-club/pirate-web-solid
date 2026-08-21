@@ -397,9 +397,9 @@ export interface PostComposerProps extends Partial<PostComposerDraftState>, Post
   submitLoading?: boolean;
   // Storybook-only seed for reviewing a specific composer panel. Production
   // callers leave panels closed and open them from the composer controls.
-  initialOpenPanel?: "access-and-rights" | "visibility";
-  // Storybook-only seeds for reviewing the payout sub-sheet and the required
+  initialOpenPanel?: "access-and-rights" | "visibility" | "license" | "collaborators";
+  // Storybook-only seeds for reviewing the remix source sheet and the required
   // post sheet.
-  initialRightsSection?: "payout";
+  initialRemixSourceOpen?: boolean;
   initialRequiredSheetOpen?: boolean;
 }

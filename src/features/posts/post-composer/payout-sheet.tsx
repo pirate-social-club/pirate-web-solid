@@ -1,15 +1,14 @@
-// Song payout sub-sheet: the pushed editor behind the Payout summary row.
-// Collaborators are added by handle — the only contract-valid path, since
-// royalty_allocations[].recipient_id is a platform identity, not a wallet.
-// The percent inputs only appear once there is more than one recipient, and
-// charity is a single switch row rather than a recipient in the grid.
+// Song collaborators sheet: opened standalone from the "more" menu. A real
+// form, so it keeps its own Done. Collaborators are added by handle — the
+// only contract-valid path, since royalty_allocations[].recipient_id is a
+// platform identity, not a wallet. Percent inputs only appear once there is
+// more than one recipient, and charity is a single switch row.
 
 import { createSignal, For, Show } from "solid-js";
 
 import {
   Avatar,
   Button,
-  IconArrowLeft,
   IconButton,
   IconTrash,
   Input,
@@ -28,7 +27,6 @@ function handleInitials(handle: string): string {
 
 export function PayoutSheet(props: {
   controller: PostComposerController;
-  onBack: () => void;
   onDone: () => void;
 }) {
   const controller = props.controller;
@@ -121,12 +119,7 @@ export function PayoutSheet(props: {
   return (
     <div>
       <ModalHeader class="px-4 pe-12 text-start">
-        <div class="flex items-center gap-1">
-          <IconButton aria-label="Back to rights" onClick={props.onBack} variant="ghost">
-            <IconArrowLeft class="size-5" />
-          </IconButton>
-          <ModalTitle>{copy().payoutLabel}</ModalTitle>
-        </div>
+        <ModalTitle>{copy().payoutLabel}</ModalTitle>
       </ModalHeader>
 
       <div class="space-y-5 px-4 pb-4 pt-2">
