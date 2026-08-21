@@ -10,7 +10,7 @@
   "scripts": {
     "prebuild": "node scripts/check-solid-runtime.mjs",
     "build": "vite build",
-    "storybook": "storybook dev -p 6006 --disable-telemetry",
+    "storybook": "storybook dev -p ${STORYBOOK_PORT:-6006} --disable-telemetry",
     "build-storybook": "storybook build",
     "generate:web3-icons": "bun scripts/generate-web3-icons.ts",
     "check:web3-icons": "bun scripts/generate-web3-icons.ts --check",
