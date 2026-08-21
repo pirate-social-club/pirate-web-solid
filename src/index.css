@@ -17,4 +17,10 @@
     min-height: 100dvh;
     font-family: var(--font-sans);
   }
+
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  [role="tab"]:not([aria-disabled="true"]) {
+    cursor: pointer;
+  }
 }

@@ -11,7 +11,9 @@ import {
   ModalTrigger,
   OptionCard,
   Type,
+  pillButtonVariants,
 } from "../../../design-system";
+import { cn } from "../../../design-system";
 
 import type { PostComposerController } from "./controller";
 
@@ -35,7 +37,7 @@ function VisibilityControl(props: {
     <Modal open={open()} onOpenChange={setOpen}>
       <ModalTrigger
         aria-label={`${controller.copy.publishChips.visibilityTitle}: ${audienceLabel()}`}
-        class="inline-flex h-11 min-w-0 items-center gap-2 rounded-full border border-border-soft bg-card px-3.5 text-foreground outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring"
+        class={cn(pillButtonVariants({ tone: "default" }), "h-11 min-w-0 gap-2 px-3.5 text-foreground")}
       >
         {isPublic() ? <IconGlobe class="size-4" /> : <IconLock class="size-4" />}
         <Type as="span" variant="label" class="truncate">{audienceLabel()}</Type>

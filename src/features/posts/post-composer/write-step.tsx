@@ -14,6 +14,7 @@ import {
   ModalTrigger,
   Textarea,
   Type,
+  pillButtonVariants,
 } from "../../../design-system";
 import { cn } from "../../../design-system";
 import { PostComposerGenericAssetFields } from "./generic-asset-fields";
@@ -223,7 +224,7 @@ export function PostComposerWriteStep(props: {
               aria-label={controller.tabs.activeTab === "song"
                 ? buildRightsSummary(controller)
                 : controller.copy.publishChips.accessRightsTitle}
-              class="inline-flex h-11 items-center gap-2 rounded-full border border-border-soft bg-card px-3.5 text-foreground outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring"
+              class={cn(pillButtonVariants({ tone: "default" }), "h-11 min-w-0 gap-2 px-3.5 text-foreground")}
             >
               <IconLock class="size-4" />
               <Type as="span" variant="label">
