@@ -4,7 +4,7 @@ import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import { PostComposer } from "./post-composer";
 import { baseComposer } from "./story-fixtures";
 import { ComposerFrame, InteractiveComposer } from "./story-helpers";
-import type { AuthorAgeGatePolicy, ComposerAudienceState } from "./types";
+import type { ComposerAudienceState } from "./types";
 
 const meta = {
   title: "App/Posts/PostComposer",
@@ -25,23 +25,15 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 function PublishControlsStory(props: {
-  ageGateConfirmationRequired?: boolean;
-  initialAgeGatePolicy?: AuthorAgeGatePolicy;
   initialAudience?: ComposerAudienceState;
 }) {
-  const [ageGatePolicy, setAgeGatePolicy] = createSignal<AuthorAgeGatePolicy>(
-    props.initialAgeGatePolicy ?? "none",
-  );
   const [audience, setAudience] = createSignal<ComposerAudienceState | undefined>(props.initialAudience);
 
   return (
     <ComposerFrame>
       <PostComposer
         {...baseComposer}
-        ageGateConfirmationRequired={props.ageGateConfirmationRequired}
-        ageGatePolicy={ageGatePolicy()}
         audience={audience()}
-        onAgeGatePolicyChange={setAgeGatePolicy}
         onAudienceChange={setAudience}
       />
     </ComposerFrame>
@@ -102,23 +94,6 @@ export const MembersOnly: Story = {
         publicOptionDisabledReason: "This community limits posts to members.",
       }}
     />
-  ),
-};
-
-export const AgeGatedPublish: Story = {
-  name: "Age gate / Publish review",
-  render: () => (
-    <PublishControlsStory
-      initialAgeGatePolicy="18_plus"
-      initialAudience={{ visibility: "public", publicOptionEnabled: true }}
-    />
-  ),
-};
-
-export const AgeGateConfirmation: Story = {
-  name: "Age gate / Confirmation required",
-  render: () => (
-    <PublishControlsStory ageGateConfirmationRequired />
   ),
 };
 

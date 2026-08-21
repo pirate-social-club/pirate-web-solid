@@ -180,11 +180,6 @@ export const RoyaltySplitMultiRecipient: Story = {
   render: () => videoVariant({ monetization: { visible: true, priceUsd: "4.99" }, royaltySplit: { allocations: [{ id: "creator", recipientKind: "creator", sharePct: 70 }, { id: "collaborator", recipientKind: "collaborator", sharePct: 30 }] } }),
 };
 
-export const ExplicitContentSetting: Story = {
-  name: "Publish / Explicit content",
-  render: () => videoVariant({ ageGatePolicy: "18_plus" }),
-};
-
 export const PaidUnlockLicenseNonCommercial: Story = {
   name: "License / Non-commercial",
   render: () => videoVariant({ monetization: { visible: true, priceUsd: "4.99" }, license: { presetId: "non-commercial" } }),

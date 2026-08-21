@@ -398,12 +398,7 @@ export function createPostComposerController(
   const songAudioMissing = () => activeTab() === "song"
     && !songState().primaryAudioUpload
     && !songState().primaryAudioLabel?.trim();
-  const ageGateConfirmationPending = () =>
-    props.ageGateConfirmationRequired === true && ageGatePolicyState() !== "18_plus";
-  const requiresPostSheet = () => Boolean(
-    ageGateConfirmationPending()
-      || songTitleMissing(),
-  );
+  const requiresPostSheet = () => songTitleMissing();
   const postDisabled = () => basePostDisabled()
     || contentBlocked()
     || songAudioMissing()
@@ -642,7 +637,6 @@ export function createPostComposerController(
 
   return {
     audience: {
-      get ageGateConfirmationRequired() { return props.ageGateConfirmationRequired === true; },
       get ageGatePolicy() { return ageGatePolicyState(); },
       setAgeGatePolicy: setAgeGatePolicyWithCallback,
       get state() { return audienceState(); },
@@ -738,7 +732,6 @@ export function createPostComposerController(
       get progress() { return submitProgress(); },
     },
     requirements: {
-      get ageGateConfirmationPending() { return ageGateConfirmationPending(); },
       get draftCanSubmit() { return draftCanSubmit(); },
       get requiresPostSheet() { return requiresPostSheet(); },
       get songAudioMissing() { return songAudioMissing(); },

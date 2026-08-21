@@ -48,7 +48,6 @@ export function PostComposer(props: PostComposerProps) {
             controller={controller}
             initialOpenPanel={props.initialOpenPanel}
             initialRightsSection={props.initialRightsSection}
-            initialVisibilityConfirming={props.initialVisibilityConfirming}
           />
         </Card>
       }>
@@ -56,7 +55,6 @@ export function PostComposer(props: PostComposerProps) {
           controller={controller}
           initialOpenPanel={props.initialOpenPanel}
           initialRightsSection={props.initialRightsSection}
-          initialVisibilityConfirming={props.initialVisibilityConfirming}
         />
       </Show>
 

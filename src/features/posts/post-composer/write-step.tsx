@@ -101,7 +101,6 @@ export function PostComposerWriteStep(props: {
   controller: PostComposerController;
   initialOpenPanel?: "access-and-rights" | "visibility";
   initialRightsSection?: "rights" | "license" | "payout";
-  initialVisibilityConfirming?: boolean;
 }) {
   const controller = props.controller;
   const imagePreview = createObjectUrl(() => controller.media.activeImageUpload);
@@ -216,7 +215,6 @@ export function PostComposerWriteStep(props: {
       <div class="flex flex-wrap items-center gap-2">
         <PostComposerPublishControls
           controller={controller}
-          initialConfirming={props.initialVisibilityConfirming}
           initialOpen={props.initialOpenPanel === "visibility"}
         />
         <Show when={showAccessRights()}>
@@ -239,16 +237,16 @@ export function PostComposerWriteStep(props: {
               mobileSide="bottom"
             >
               <div aria-hidden="true" class="mx-auto mb-4 h-1 w-12 rounded-full bg-muted sm:hidden" />
-              <ModalHeader class="px-4 pe-12 text-start">
-                <ModalTitle>
-                  {controller.tabs.activeTab === "song"
-                    ? controller.copy.rights.title
-                    : controller.copy.publishChips.accessRightsTitle}
-                </ModalTitle>
-              </ModalHeader>
               <Show
                 when={controller.tabs.activeTab === "song"}
-                fallback={<PostComposerSettingsHub controller={controller} />}
+                fallback={
+                  <>
+                    <ModalHeader class="px-4 pe-12 text-start">
+                      <ModalTitle>{controller.copy.publishChips.accessRightsTitle}</ModalTitle>
+                    </ModalHeader>
+                    <PostComposerSettingsHub controller={controller} />
+                  </>
+                }
               >
                 <PostComposerRightsSheet
                   controller={controller}

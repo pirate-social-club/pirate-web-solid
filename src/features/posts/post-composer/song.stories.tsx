@@ -30,7 +30,6 @@ export const Original: Story = {
       <InteractiveComposer
         {...baseComposer}
         mode="song"
-        songMode="original"
         song={song}
         titleValue="Midnight Waves"
         lyricsValue="Meet me in the red light / carry the chorus through the floor..."
@@ -89,6 +88,23 @@ function remixState(sourceTermsAccepted: boolean) {
     trigger: "remix" as const,
     searchResults: [remixSource],
     references: [remixSource],
+    sourceTermsAccepted,
+    licenseSummary: { sourceLicense: "Commercial remix", upstreamRoyaltyPct: 10, newRemixTerms: "Commercial remix, 10%" },
+  };
+}
+
+const remixSources = [
+  { id: "asset-sunset", title: "Sunset Driver", subtitle: "lena-wave.pirate" },
+  { id: "asset-waves", title: "Wave Racer", subtitle: "clyeezy.pirate" },
+];
+
+function remixStateMulti(sourceTermsAccepted: boolean) {
+  return {
+    visible: true,
+    required: true,
+    trigger: "remix" as const,
+    searchResults: remixSources,
+    references: remixSources,
     sourceTermsAccepted,
     licenseSummary: { sourceLicense: "Commercial remix", upstreamRoyaltyPct: 10, newRemixTerms: "Commercial remix, 10%" },
   };
@@ -159,21 +175,6 @@ export const VisibilityModalOpenMobile: Story = {
   globals: mobileGlobals,
 };
 
-export const VisibilityAgeGateConfirm: Story = {
-  name: "Visibility / Age gate confirmation",
-  render: () => songVariant({
-    ageGateConfirmationRequired: true,
-    initialOpenPanel: "visibility",
-    initialVisibilityConfirming: true,
-  }),
-};
-
-export const VisibilityAgeGateConfirmMobile: Story = {
-  ...VisibilityAgeGateConfirm,
-  name: "Visibility / Age gate confirmation (mobile)",
-  globals: mobileGlobals,
-};
-
 export const RightsSummaryCollapsed: Story = {
   name: "Rights / Summary collapsed",
   render: () => songVariant({ initialOpenPanel: "access-and-rights" }),
@@ -209,6 +210,16 @@ export const RightsPayoutExpandedMobile: Story = {
   ...RightsPayoutExpanded,
   name: "Rights / Payout expanded (mobile)",
   globals: mobileGlobals,
+};
+
+export const RightsRemixTwoSources: Story = {
+  name: "Rights / Remix with two sources",
+  render: () => songVariant({
+    songMode: "remix",
+    derivativeStep: remixStateMulti(true),
+    initialOpenPanel: "access-and-rights",
+    initialRightsSection: "rights",
+  }),
 };
 
 export const RequiredSheetTitleOnly: Story = {

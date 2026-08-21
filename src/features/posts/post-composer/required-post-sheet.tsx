@@ -56,20 +56,6 @@ export function PostComposerRequiredSheet(props: {
             </section>
           </Show>
 
-          <Show when={controller.requirements.ageGateConfirmationPending}>
-            <section class="space-y-3 border-t border-border-soft pt-5">
-              <div>
-                <Type as="h3" variant="body-strong">18+ confirmation</Type>
-                <Type as="p" variant="caption" class="mt-1 text-muted-foreground">
-                  This community requires an explicit age marking before this post can be published.
-                </Type>
-              </div>
-              <Button onClick={() => controller.audience.setAgeGatePolicy("18_plus")}>
-                Mark 18+
-              </Button>
-            </section>
-          </Show>
-
           <Button
             class="w-full"
             disabled={!canPost() || controller.submit.loading}

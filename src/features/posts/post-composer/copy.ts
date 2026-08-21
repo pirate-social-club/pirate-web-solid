@@ -57,12 +57,6 @@ export interface ComposerCopy {
   };
   publishChips: {
     accessRightsTitle: string;
-    ageGate: string;
-    ageGateDescription: string;
-    ageGateTitle: string;
-    ageGateConfirm: string;
-    ageGateConfirmCancel: string;
-    ageGateConfirmTitle: string;
     audienceTitle: string;
     audienceMembersOnly: string;
     audiencePublic: string;
@@ -198,12 +192,6 @@ export const defaultComposerCopy: ComposerCopy = {
   },
   publishChips: {
     accessRightsTitle: "Access & rights",
-    ageGate: "18+",
-    ageGateDescription: "Require age verification",
-    ageGateTitle: "Age gate",
-    ageGateConfirm: "Mark 18+",
-    ageGateConfirmCancel: "Cancel",
-    ageGateConfirmTitle: "This community requires confirmation to mark posts 18+.",
     audienceTitle: "Who can see this?",
     audienceMembersOnly: "Members only",
     audiencePublic: "Public",

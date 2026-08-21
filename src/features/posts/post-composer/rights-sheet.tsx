@@ -1,15 +1,20 @@
-// Song rights sheet: the "Access & rights" modal for the song path, reworked
-// into a sheet of three summary rows (rights declaration, license, payout)
-// with an inline Change editor each, plus a Done footer. Commerce controls
-// stay out of the song path in v1; the license and royalty rows remain
-// because they are part of SongAuthorInputV1.
+// Song rights sheet: the modal body for the song path, reduced to three
+// summary rows (rights declaration, license, payout). Rights and license
+// expand inline; payout pushes a sub-sheet (payout-sheet.tsx) because it is a
+// real form. Commerce controls stay out of the song path in v1.
 
 import { createSignal, For, Show, type ParentProps } from "solid-js";
 
-import { Button, OptionCard, Type } from "../../../design-system";
+import {
+  Button,
+  ModalHeader,
+  ModalTitle,
+  OptionCard,
+  Type,
+} from "../../../design-system";
 import type { PostComposerController } from "./controller";
 import { PostComposerDerivativeSection } from "./derivative-section";
-import { RoyaltySplitEditor } from "./royalty-split-editor";
+import { PayoutSheet } from "./payout-sheet";
 import type { AssetLicensePresetId } from "./types";
 
 const licensePresets: AssetLicensePresetId[] = [
@@ -39,20 +44,27 @@ export function buildRightsSummary(controller: PostComposerController): string {
   return `${rightsPart} · ${licensePart} · ${payoutSummary(controller)}`;
 }
 
-type Section = "rights" | "license" | "payout" | null;
+type InlineSection = "rights" | "license";
 
 export function PostComposerRightsSheet(props: {
   controller: PostComposerController;
-  initialSection?: Section;
+  initialSection?: InlineSection | "payout";
   onDone: () => void;
 }) {
   const controller = props.controller;
   const copy = () => controller.copy.rights;
-  const [expanded, setExpanded] = createSignal<Section>(props.initialSection ?? null);
+  const [expanded, setExpanded] = createSignal<InlineSection | null>(
+    props.initialSection === "rights" || props.initialSection === "license"
+      ? props.initialSection
+      : null,
+  );
+  const [view, setView] = createSignal<"summary" | "payout">(
+    props.initialSection === "payout" ? "payout" : "summary",
+  );
   const mode = () => controller.primary.activeSongMode;
   const license = () => controller.license.state.presetId;
 
-  const toggle = (section: Exclude<Section, null>) => {
+  const toggle = (section: InlineSection) => {
     setExpanded((current) => (current === section ? null : section));
   };
 
@@ -67,83 +79,89 @@ export function PostComposerRightsSheet(props: {
   };
 
   return (
-    <div class="space-y-3 px-4 pb-4 pt-5">
-      <SummaryRow
-        changeLabel={copy().change}
-        doneLabel={copy().done}
-        expanded={expanded() === "rights"}
-        label={copy().rightsLabel}
-        onToggle={() => toggle("rights")}
-        value={mode() === "remix" ? copy().remix : copy().original}
-      >
-        <div class="space-y-2">
-          <OptionCard
-            onClick={() => controller.primary.handleSongModeChange("original")}
-            selected={mode() === "original"}
-            title={copy().original}
-          />
-          <OptionCard
-            onClick={() => controller.primary.handleSongModeChange("remix")}
-            selected={mode() === "remix"}
-            title={copy().remix}
-          />
-          <Show when={mode() === "remix"}>
-            <PostComposerDerivativeSection
-              copy={controller.copy}
-              derivativePickerKey={controller.primary.derivativePickerKey}
-              derivativeSearchResults={controller.primary.derivativeSearchResults}
-              derivativeState={controller.primary.derivativeState}
-              onAdvancePicker={controller.advanceDerivativePicker}
-              updateDerivativeState={controller.primary.updateDerivativeState}
-            />
-          </Show>
-        </div>
-      </SummaryRow>
-
-      <SummaryRow
-        changeLabel={copy().change}
-        doneLabel={copy().done}
-        expanded={expanded() === "license"}
-        label={copy().licenseLabel}
-        onToggle={() => toggle("license")}
-        value={copy().licenseTitles[license()] ?? license()}
-      >
-        <div class="space-y-2">
-          <For each={licensePresets}>
-            {(preset) => (
-              <OptionCard
-                description={copy().licenseDescriptions[preset]}
-                onClick={() => selectLicense(preset)}
-                selected={license() === preset}
-                title={copy().licenseTitles[preset]}
-              />
-            )}
-          </For>
-        </div>
-      </SummaryRow>
-
-      <SummaryRow
-        changeLabel={copy().change}
-        doneLabel={copy().done}
-        expanded={expanded() === "payout"}
-        label={copy().payoutLabel}
-        onToggle={() => toggle("payout")}
-        value={payoutSummary(controller)}
-      >
-        <RoyaltySplitEditor
-          addLabel={copy().addCollaborator}
-          charityContribution={controller.charity.state}
-          charityPartner={controller.charity.partner}
-          onChange={(value) => controller.royaltySplit.update(() => value)}
-          onCharityContributionChange={controller.charity.update}
-          value={controller.royaltySplit.state}
+    <Show
+      when={view() === "summary"}
+      fallback={
+        <PayoutSheet
+          controller={controller}
+          onBack={() => setView("summary")}
+          onDone={props.onDone}
         />
-      </SummaryRow>
+      }
+    >
+      <ModalHeader class="px-4 pe-12 text-start">
+        <ModalTitle>{copy().title}</ModalTitle>
+      </ModalHeader>
 
-      <Button class="w-full" onClick={props.onDone} size="lg">
-        {copy().done}
-      </Button>
-    </div>
+      <div class="space-y-3 px-4 pb-4 pt-5">
+        <SummaryRow
+          changeLabel={copy().change}
+          doneLabel={copy().done}
+          expanded={expanded() === "rights"}
+          label={copy().rightsLabel}
+          onToggle={() => toggle("rights")}
+          value={mode() === "remix" ? copy().remix : copy().original}
+        >
+          <div class="space-y-2">
+            <OptionCard
+              onClick={() => controller.primary.handleSongModeChange("original")}
+              selected={mode() === "original"}
+              title={copy().original}
+            />
+            <OptionCard
+              onClick={() => controller.primary.handleSongModeChange("remix")}
+              selected={mode() === "remix"}
+              title={copy().remix}
+            />
+            <Show when={mode() === "remix"}>
+              <PostComposerDerivativeSection
+                copy={controller.copy}
+                derivativePickerKey={controller.primary.derivativePickerKey}
+                derivativeSearchResults={controller.primary.derivativeSearchResults}
+                derivativeState={controller.primary.derivativeState}
+                onAdvancePicker={controller.advanceDerivativePicker}
+                updateDerivativeState={controller.primary.updateDerivativeState}
+              />
+            </Show>
+          </div>
+        </SummaryRow>
+
+        <SummaryRow
+          changeLabel={copy().change}
+          doneLabel={copy().done}
+          expanded={expanded() === "license"}
+          label={copy().licenseLabel}
+          onToggle={() => toggle("license")}
+          value={copy().licenseTitles[license()] ?? license()}
+        >
+          <div class="space-y-2">
+            <For each={licensePresets}>
+              {(preset) => (
+                <OptionCard
+                  description={copy().licenseDescriptions[preset]}
+                  onClick={() => selectLicense(preset)}
+                  selected={license() === preset}
+                  title={copy().licenseTitles[preset]}
+                />
+              )}
+            </For>
+          </div>
+        </SummaryRow>
+
+        <SummaryRow
+          changeLabel={copy().change}
+          doneLabel={copy().done}
+          expanded={false}
+          label={copy().payoutLabel}
+          onToggle={() => setView("payout")}
+          value={payoutSummary(controller)}
+        />
+
+        <Button class="w-full" onClick={props.onDone} size="lg">
+          {copy().done}
+        </Button>
+      </div>
+    </Show>
   );
 }
 
