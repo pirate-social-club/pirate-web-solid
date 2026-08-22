@@ -25,7 +25,9 @@ export function securityPolicy(pathname: string, nonce: string): string {
   return verificationRoute
     ? `default-src 'self'; script-src 'nonce-${nonce}' 'strict-dynamic' 'wasm-unsafe-eval'; img-src 'self' data:; frame-src https://auth.privy.io https://challenges.cloudflare.com; connect-src 'self' https://auth.privy.io wss://bridge.zkpassport.id https://certificates.zkpassport.id https://circuits2.zkpassport.id https://ipfs.zkpassport.id https://eth-sepolia.g.alchemy.com; worker-src 'self' blob:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'`
     : veryRoute
-      ? `default-src 'self'; script-src 'nonce-${nonce}' 'strict-dynamic'; img-src 'self' data:; frame-src https://auth.privy.io; connect-src 'self' https://auth.privy.io; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'`
+      // Route-scoped compatibility exception: pinned @veryai/widget 1.0.22
+      // injects its bundled stylesheet at runtime, which requires unsafe-inline.
+      ? `default-src 'self'; script-src 'nonce-${nonce}' 'strict-dynamic'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://assets.very.org; frame-src https://auth.privy.io; connect-src 'self' https://auth.privy.io https://bridge.very.org https://verify.very.org; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'`
       : signInRoute
         ? `default-src 'self'; script-src 'nonce-${nonce}' 'strict-dynamic'; img-src 'self' data: https://auth.privy.io; frame-src https://auth.privy.io; connect-src 'self' https://auth.privy.io; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'`
         : `default-src 'self'; script-src 'nonce-${nonce}' 'strict-dynamic'; frame-src https://auth.privy.io; connect-src 'self' https://auth.privy.io; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'`;

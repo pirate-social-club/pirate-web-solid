@@ -12,9 +12,11 @@ describe("security policy", () => {
 
   test("allows Privy sign-in and data QR images on the Very route", () => {
     const policy = securityPolicy("/verify/very", "nonce-value");
-    expect(policy).toContain("img-src 'self' data:");
+    expect(policy).toContain("style-src 'self' 'unsafe-inline'");
+    expect(policy).toContain("img-src 'self' data: https://assets.very.org");
     expect(policy).toContain("frame-src https://auth.privy.io");
-    expect(policy).toContain("connect-src 'self' https://auth.privy.io");
+    expect(policy).toContain("connect-src 'self' https://auth.privy.io https://bridge.very.org https://verify.very.org");
+    expect(policy).not.toContain("wss://bridge.very.org");
   });
 
   test("allows Privy on ordinary routes without widening other origins", () => {

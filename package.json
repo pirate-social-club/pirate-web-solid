@@ -39,9 +39,11 @@
     "@solidjs/meta": "1.0.0-next.2",
     "@solidjs/router": "2.0.0-next.16",
     "@solidjs/web": "2.0.0-rc.0",
+    "@veryai/widget": "1.0.22",
     "@zkpassport/sdk": "0.14.2",
     "filesystem-routing": "0.2.1",
     "qrcode": "1.5.4",
+    "qr-code-styling": "1.9.2",
     "solid-js": "2.0.0-rc.0"
   },
   "devDependencies": {
@@ -69,6 +71,7 @@
     "wrangler": "4.123.0"
   },
   "patchedDependencies": {
-    "jsdom@30.0.0": "packages/solid-ui/patches/jsdom@30.0.0.patch"
+    "jsdom@30.0.0": "packages/solid-ui/patches/jsdom@30.0.0.patch",
+    "@veryai/widget@1.0.22": "patches/@veryai%2Fwidget@1.0.22.patch"
   }
 }

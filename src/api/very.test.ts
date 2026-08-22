@@ -182,6 +182,42 @@ describe("Very web ceremony", () => {
     expect(complete).toHaveBeenCalledTimes(1);
   });
 
+  it("submits the desktop widget result only as an opaque provider payload reference", async () => {
+    // SAFETY: this test deliberately supplies the browser guard used by the client adapter.
+    globalThis.window = {} as Window & typeof globalThis;
+    const complete = vi.fn(async () => ({
+      proof_session_id: proofSessionId,
+      status: "completed" as const,
+      replayed: false,
+    }));
+    const ceremony = await createVeryWebCeremony({
+      intentId: "join-intent-widget-1",
+      // SAFETY: this fake implements exactly the two generated methods used by the client adapter.
+      apiClient: {
+        post_verificationSessions: vi.fn(async () => pendingStart()),
+        post_verificationSessionsProofSessionIdComplete: complete,
+      } as never,
+      csrfToken: "csrf-token",
+      idempotencyKey: () => "very-widget-idem-1",
+    });
+
+    await expect(ceremony.completeWithWidget("opaque-provider-proof")).resolves.toEqual({
+      proofSessionId,
+      status: "completed",
+      replayed: false,
+    });
+    expect(complete).toHaveBeenCalledWith(
+      {
+        path: { proofSessionId },
+        body: {
+          idempotency_key: "very-widget-idem-1",
+          payload: { mode: "widget", proof: "opaque-provider-proof" },
+        },
+      },
+      expect.objectContaining({ credentials: "same-origin" }),
+    );
+  });
+
   it("does not start during SSR", async () => {
     const start = vi.fn();
     await expect(createVeryWebCeremony({
