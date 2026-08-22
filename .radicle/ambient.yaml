@@ -91,6 +91,8 @@ plan:
       # Oxlint's JavaScript-plugin transfer reserves a 4-GiB virtual arena.
       # The image disables memory overcommit, so reserve it only for this gate
       # and restore the image policy before continuing.
+      # Temporary workaround: remove when oxc#20331/oxc#20513 no longer require
+      # relaxing overcommit for JavaScript plugins on constrained Linux guests.
       original_overcommit="$(sysctl -n vm.overcommit_memory)"
       sysctl -w vm.overcommit_memory=1
       /tmp/run-verification-gate 05-lint bun run lint
@@ -120,6 +122,8 @@ plan:
       cd /ci/src
       # Keep Vitest's assertion set intact while allowing for the constrained
       # guest: one interaction test crossed the 5s default at 5.2s.
+      # GitHub retains Vitest's 5s default, so a Radicle-green test taking
+      # between 5s and 10s can still fail there.
       /tmp/run-verification-gate 09-solid-ui-test bun run --cwd packages/solid-ui test -- --testTimeout=10000
   - action: shell
     shell: |
