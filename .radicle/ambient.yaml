@@ -1,27 +1,36 @@
-# pirate-web-solid Radicle CI plan — v1 dependency-free smoke gate.
+# pirate-web-solid Radicle CI plan — v2 dependency-acquiring gate.
 #
-# Intentionally minimal: it proves the new-RID path end-to-end (broker filter
-# -> Ambient guest -> Run/Finished COB) without waiting on the signed
-# dependency artifact lane. Real checks land as a later commit to this file.
+# Runs the real install + verify surface in an isolated Ambient guest. The
+# pre_plan downloads a checksum-pinned Bun and populates a Bun install cache
+# via bun_get; the plan phase installs offline and runs `verify`.
 #
-# Deliberately absent from v1:
-# - pre_plan / bun_get: the deployed bun_get output shape (registry tarballs
-#   plus a manifest.tsv) was rejected by the project's own probe — Bun 1.4.0
-#   cannot consume it as an install cache (docs/ci/ambient-bun-dependency-
-#   artifact.md). Dependency acquisition waits on the signed artifact lane.
-# - the real `verify` script and its typecheck/test/lint surface all need
-#   node_modules, so every real check is blocked on the same dependency lane.
+# Scope is deliberately narrower than the GitHub workflow. A green Radicle
+# run is not equivalent to a green GitHub run until these are closed:
+# - Storybook/Playwright: GitHub runs `bunx playwright install --with-deps
+#   chromium` (a browser download plus apt system packages) and then the
+#   Storybook a11y audit. The plan VM is network-isolated, so neither runs
+#   until Chromium is delivered through a pre_plan action.
+# - build + wrangler: `bun run build` is self-contained and can be added next;
+#   `bunx wrangler deploy --dry-run` is untested here and may reach out for
+#   compatibility data, so it stays out until verified.
 
-pre_plan: []
+pre_plan:
+  - action: http_get
+    items:
+      - url: https://github.com/oven-sh/bun/releases/download/bun-v1.4.0/bun-linux-x64.zip
+        filename: bun-linux-x64.zip
+        checksum: sha256:2d03fb5fb83ac8b567aca0a281b2ce1a1a19d488f56c2968d88c3f25e92fe452
+  - action: bun_get
+    bun_zip: bun-linux-x64.zip
 
 plan:
   - action: shell
     shell: |
       set -euo pipefail
-      test -d /ci/src
-      test -f /ci/src/package.json
-      test -f /ci/src/bun.lock
-      grep -Fq '"name": "pirate-web-solid"' /ci/src/package.json
-      echo 'pirate-web-solid source snapshot verified at /ci/src'
+      export PATH=/ci/deps/bun-linux-x64:$PATH
+      export BUN_INSTALL_CACHE_DIR=/ci/deps/bun/default
+      cd /ci/src
+      bun install --frozen-lockfile --offline
+      bun run verify
 
 post_plan: []
