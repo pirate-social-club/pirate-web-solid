@@ -11,6 +11,7 @@ const VERY_WEB_PROTOCOL = "very-widget" as const;
 const VERY_WEB_VERSION = "1" as const;
 const VERY_WEB_POLL_INTERVAL_MS = 3_000;
 const VERY_WEB_MAX_STRING_LENGTH = 16_384;
+const VERY_WEB_MAX_PROVIDER_PAYLOAD_REF_LENGTH = 1_048_576;
 
 export type VeryWebClientErrorCode =
   | "browser_required"
@@ -76,7 +77,8 @@ export type VeryWebCeremony = Readonly<{
   proofSessionId: string;
   presentation: VeryWebPresentation | undefined;
   initialCompletion: VeryWebCompletion | undefined;
-  completeWithWidget: (proof: string) => Promise<VeryWebCompletion>;
+  /** Complete with the provider result as an opaque server-owned reference. */
+  completeWithWidget: (providerPayloadRef: string) => Promise<VeryWebCompletion>;
   pollBridge: () => Promise<VeryWebCompletion>;
   cancel: () => void;
 }>;
@@ -108,6 +110,10 @@ function boundedString(value: unknown, maximum = VERY_WEB_MAX_STRING_LENGTH): st
     return invalidPresentation();
   }
   return value;
+}
+
+function opaqueProviderPayloadRef(value: unknown): string {
+  return boundedString(value, VERY_WEB_MAX_PROVIDER_PAYLOAD_REF_LENGTH);
 }
 
 function futureInstant(value: unknown): string {
@@ -313,7 +319,9 @@ export async function createVeryWebCeremony(
   let cancelled = false;
   let terminal = false;
   let idempotencyKey: string | undefined;
-  const complete = async (payload: Readonly<{ mode: "bridge" } | { mode: "widget"; proof: string }>) => {
+  const complete = async (
+    payload: Readonly<{ mode: "bridge" } | { mode: "widget"; proof: string }>,
+  ) => {
     if (cancelled) throw new VeryWebClientError("ceremony_cancelled");
     if (terminal) throw new VeryWebClientError("ceremony_cancelled");
     if (Date.parse(parsed.presentation.expiresAt) <= Date.now()) {
@@ -352,7 +360,8 @@ export async function createVeryWebCeremony(
     proofSessionId: parsed.presentation.proofSessionId,
     presentation: parsed.presentation,
     initialCompletion: undefined,
-    completeWithWidget: (proof) => complete({ mode: "widget", proof }),
+    completeWithWidget: (providerPayloadRef) =>
+      complete({ mode: "widget", proof: opaqueProviderPayloadRef(providerPayloadRef) }),
     pollBridge: () => complete({ mode: "bridge" }),
     cancel: () => {
       cancelled = true;

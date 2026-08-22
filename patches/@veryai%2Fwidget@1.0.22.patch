@@ -1,0 +1,187 @@
+diff --git a/build/index.d.ts b/build/index.d.ts
+index b49fe3d33120bbc1a488d25477ebbd2f7a60fc60..5dffc90b6912568d5f29827aa1a37efaf02d0f8b 100644
+--- a/build/index.d.ts
++++ b/build/index.d.ts
+@@ -1,5 +1,3 @@
+-import React$1 from 'react';
+-
+ interface IVeryWidgetConfig {
+     appId: string;
+     context: string;
+@@ -44,22 +42,6 @@ declare class VeryWidgetVanilla {
+ }
+ declare function createVeryWidget(config: IVeryWidgetConfig): VeryWidgetVanilla;
+ 
+-interface IWidgetProps {
+-    children?: ({ open }: {
+-        open: () => void;
+-    }) => React.ReactNode;
+-    className?: string;
+-    appId: string;
+-    context: string;
+-    typeId: string;
+-    query: string;
+-    verifyUrl?: string;
+-    onSuccess: (proof: string) => void;
+-    theme?: "default" | "light" | "dark";
+-}
+-
+-declare const VeryWidget: React$1.FC<IWidgetProps>;
+-
+ interface IUseVeryWidgetConfig {
+     appId: string;
+     context: string;
+@@ -94,4 +76,4 @@ declare const useVeryWidget: (config: IUseVeryWidgetConfig) => {
+     destroy: () => void;
+ };
+ 
+-export { type IUseVeryWidgetConfig, type IVeryWidgetConfig, type IVeryWidgetState, VeryWidget, VeryWidgetVanilla, createVeryWidget, useVeryWidget };
++export { type IUseVeryWidgetConfig, type IVeryWidgetConfig, type IVeryWidgetState, VeryWidgetVanilla, createVeryWidget, useVeryWidget };
+diff --git a/build/index.js b/build/index.js
+index 1a6c6bb0e367b947f2d13a4d07e4a5037c5b55d9..576eb8f6e2a48d5883406700b7a8b818385743fe 100644
+--- a/build/index.js
++++ b/build/index.js
+@@ -29,7 +29,6 @@ var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: tru
+ // src/index.ts
+ var index_exports = {};
+ __export(index_exports, {
+-  VeryWidget: () => VeryWidget,
+   VeryWidgetVanilla: () => VeryWidgetVanilla,
+   createVeryWidget: () => createVeryWidget,
+   useVeryWidget: () => useVeryWidget
+@@ -460,7 +459,6 @@ var VeryWidgetVanilla = class {
+       }
+       try {
+         const res = await getSessionStatus(this.session.sessionId);
+-        console.log("sessionId= ", this.session?.sessionId, "status = ", res);
+         if (res.status === "error") {
+           this.config.onError?.(res.userMessage);
+           this.updateState({
+@@ -561,49 +559,6 @@ function createVeryWidget(config) {
+   return new VeryWidgetVanilla(config);
+ }
+ 
+-// src/adapters/react/index.tsx
+-var import_react = require("react");
+-var import_jsx_runtime = require("react/jsx-runtime");
+-var VeryWidget = ({
+-  children,
+-  className,
+-  appId,
+-  context,
+-  typeId,
+-  query,
+-  verifyUrl,
+-  onSuccess,
+-  theme = "default"
+-}) => {
+-  const widgetRef = (0, import_react.useRef)(null);
+-  (0, import_react.useEffect)(() => {
+-    const config = {
+-      appId,
+-      context,
+-      typeId,
+-      query,
+-      verifyUrl,
+-      onSuccess,
+-      theme
+-    };
+-    widgetRef.current = createVeryWidget(config);
+-    return () => {
+-      if (widgetRef.current) {
+-        widgetRef.current.destroy();
+-      }
+-    };
+-  }, [appId, context, typeId, query, verifyUrl, onSuccess, theme]);
+-  const handleOpen = () => {
+-    if (widgetRef.current) {
+-      widgetRef.current.open();
+-    }
+-  };
+-  if (children) {
+-    return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className, children: children({ open: handleOpen }) });
+-  }
+-  return /* @__PURE__ */ (0, import_jsx_runtime.jsx)("div", { className, children: /* @__PURE__ */ (0, import_jsx_runtime.jsx)("button", { onClick: handleOpen, children: "Verify with VeryAI" }) });
+-};
+-
+ // src/adapters/vue/index.ts
+ var useVeryWidget = (config) => {
+   let widgetInstance = null;
+@@ -649,7 +604,6 @@ var useVeryWidget = (config) => {
+ };
+ // Annotate the CommonJS export names for ESM import in node:
+ 0 && (module.exports = {
+-  VeryWidget,
+   VeryWidgetVanilla,
+   createVeryWidget,
+   useVeryWidget
+diff --git a/build/index.mjs b/build/index.mjs
+index 04a22fda51327cb6ce58cd341b2b7060c71fc7ce..253604cb1b8507b107da4552df4c0cf878a595b1 100644
+--- a/build/index.mjs
++++ b/build/index.mjs
+@@ -422,7 +422,6 @@ var VeryWidgetVanilla = class {
+       }
+       try {
+         const res = await getSessionStatus(this.session.sessionId);
+-        console.log("sessionId= ", this.session?.sessionId, "status = ", res);
+         if (res.status === "error") {
+           this.config.onError?.(res.userMessage);
+           this.updateState({
+@@ -523,49 +522,6 @@ function createVeryWidget(config) {
+   return new VeryWidgetVanilla(config);
+ }
+ 
+-// src/adapters/react/index.tsx
+-import { useEffect, useRef } from "react";
+-import { jsx } from "react/jsx-runtime";
+-var VeryWidget = ({
+-  children,
+-  className,
+-  appId,
+-  context,
+-  typeId,
+-  query,
+-  verifyUrl,
+-  onSuccess,
+-  theme = "default"
+-}) => {
+-  const widgetRef = useRef(null);
+-  useEffect(() => {
+-    const config = {
+-      appId,
+-      context,
+-      typeId,
+-      query,
+-      verifyUrl,
+-      onSuccess,
+-      theme
+-    };
+-    widgetRef.current = createVeryWidget(config);
+-    return () => {
+-      if (widgetRef.current) {
+-        widgetRef.current.destroy();
+-      }
+-    };
+-  }, [appId, context, typeId, query, verifyUrl, onSuccess, theme]);
+-  const handleOpen = () => {
+-    if (widgetRef.current) {
+-      widgetRef.current.open();
+-    }
+-  };
+-  if (children) {
+-    return /* @__PURE__ */ jsx("div", { className, children: children({ open: handleOpen }) });
+-  }
+-  return /* @__PURE__ */ jsx("div", { className, children: /* @__PURE__ */ jsx("button", { onClick: handleOpen, children: "Verify with VeryAI" }) });
+-};
+-
+ // src/adapters/vue/index.ts
+ var useVeryWidget = (config) => {
+   let widgetInstance = null;
+@@ -610,7 +566,6 @@ var useVeryWidget = (config) => {
+   };
+ };
+ export {
+-  VeryWidget,
+   VeryWidgetVanilla,
+   createVeryWidget,
+   useVeryWidget
