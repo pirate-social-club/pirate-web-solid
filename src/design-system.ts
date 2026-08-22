@@ -143,6 +143,11 @@ export {
 } from "@pirate/web-solid-ui";
 export { BadgedCircle } from "@pirate/web-solid-ui";
 export {
+  CommentPill,
+  FormattedTextarea,
+  VotePill,
+} from "@pirate/web-solid-ui";
+export {
   AuthRequiredRouteState,
   ErrorState,
   RouteLoadFailureState,

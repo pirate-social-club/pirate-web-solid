@@ -4,6 +4,7 @@ import { createRoot } from "solid-js";
 import type { JSX } from "@solidjs/web";
 
 import { PublicFeed } from "./public-feed";
+import HomeFeed from "./home-feed.tsx";
 import type { FeedPage as PublicFeedPage } from "./public-feed-adapter";
 
 const disposers: Array<() => void> = [];
@@ -112,5 +113,15 @@ describe("PublicFeed", () => {
     container.querySelector("button")?.click();
     await vi.waitFor(() => expect(requestedCursor).toBe("900719925474099312345"));
     await vi.waitFor(() => expect(container.querySelector("button")).toBeNull());
+  });
+});
+
+describe("HomeFeed engagement", () => {
+  test("adds viewer controls only to the authenticated surface", async () => {
+    const container = render(() => <HomeFeed data={page} />);
+    await vi.waitFor(() => expect(container.querySelector("[data-feed-state='ready']")).not.toBeNull());
+    expect(container.querySelector("[data-post-engagement-controls][data-viewer-control]")).not.toBeNull();
+    expect(container.querySelector("button[aria-label='Upvote']")).not.toBeNull();
+    expect(container.querySelector("button[aria-label='Comments (5)']")).not.toBeNull();
   });
 });

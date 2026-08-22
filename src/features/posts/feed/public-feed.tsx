@@ -1,4 +1,5 @@
 import { Title } from "@solidjs/meta";
+import type { JSX } from "@solidjs/web";
 import { Show, For, getRequestEvent } from "@solidjs/web";
 import { createEffect, createSignal, onCleanup, untrack } from "solid-js";
 
@@ -6,6 +7,9 @@ import { createPublicApiClient } from "../../../api/client.ts";
 import { Button, Card, CardContent, Spinner, Type } from "../../../design-system";
 import { resolveRequestUiLocale, type UiLocaleCode } from "../../../lib/ui-locale-core.ts";
 import type { FeedSort } from "./feed-model.ts";
+import type { PostEngagementTransport } from "../post-engagement/post-engagement-api.ts";
+import type { CommentThreadItem } from "../post-engagement/post-engagement-model.ts";
+import { PostEngagement } from "../post-engagement/post-engagement.tsx";
 import {
   fetchPublicFeedPage,
   type PublicFeedClient,
@@ -43,6 +47,14 @@ export interface FeedSurfaceProps {
   readonly sort?: FeedSort;
   readonly loadPage: FeedPageLoader;
   readonly copy: FeedCopy;
+  readonly engagement?: FeedEngagementOptions;
+}
+
+export interface FeedEngagementOptions {
+  readonly canModerate?: boolean;
+  readonly generateIdempotencyKey?: () => string;
+  readonly initialCommentsForPost?: (postId: string) => readonly CommentThreadItem[];
+  readonly transport?: PostEngagementTransport;
 }
 
 function requestOrigin(): string | undefined {
@@ -120,21 +132,25 @@ function FeedResult(props: {
   readonly locale: UiLocaleCode;
   readonly sort: FeedSort;
   readonly copy: FeedCopy;
+  readonly engagement?: FeedEngagementOptions;
 }) {
   return (
     <Show
       when={props.result.status === "ready" ? props.result : undefined}
       fallback={<FeedErrorState copy={props.copy} />}
     >
-      {(ready) => <FeedResults loadPage={props.loadPage} initial={ready().page} locale={props.locale} sort={props.sort} copy={props.copy} />}
+      {(ready) => <FeedResults engagement={props.engagement} loadPage={props.loadPage} initial={ready().page} locale={props.locale} sort={props.sort} copy={props.copy} />}
     </Show>
   );
 }
 
-function FeedItemCard(props: { readonly item: PublicFeedItem }) {
+function FeedItemCard(props: {
+  readonly engagement?: FeedEngagementOptions;
+  readonly item: PublicFeedItem;
+}) {
   const title = () => displayTitle(props.item);
   const body = () => displayBody(props.item);
-  return (
+  const card = (controls?: JSX.Element) => (
     <article data-feed-item-id={props.item.id}>
       <Card>
         <CardContent class="flex flex-col gap-3 p-5">
@@ -156,9 +172,21 @@ function FeedItemCard(props: { readonly item: PublicFeedItem }) {
             <Type variant="caption">{props.item.commentCount === null ? "Comments unavailable" : `${props.item.commentCount} comments`}</Type>
             <Type variant="caption">{props.item.postType}</Type>
           </div>
+          {controls}
         </CardContent>
       </Card>
     </article>
+  );
+  return (
+    <Show when={props.engagement} fallback={card()}>
+      {(engagement) => <PostEngagement
+        canModerate={engagement().canModerate}
+        generateIdempotencyKey={engagement().generateIdempotencyKey}
+        initialComments={engagement().initialCommentsForPost?.(props.item.id)}
+        post={props.item}
+        transport={engagement().transport}
+      >{card}</PostEngagement>}
+    </Show>
   );
 }
 
@@ -168,6 +196,7 @@ function FeedResults(props: {
   readonly locale: UiLocaleCode;
   readonly sort: FeedSort;
   readonly copy: FeedCopy;
+  readonly engagement?: FeedEngagementOptions;
 }) {
   const initial = untrack(() => props.initial);
   const [items, setItems] = createSignal<readonly PublicFeedItem[]>(initial.items);
@@ -203,7 +232,7 @@ function FeedResults(props: {
       </header>
       <Show when={items().length > 0} fallback={<Card><CardContent class="p-6"><Type variant="body">{props.copy.emptyMessage}</Type></CardContent></Card>}>
         <div class="flex flex-col gap-4" data-feed-list>
-          <For each={items()}>{item => <FeedItemCard item={item} />}</For>
+          <For each={items()}>{item => <FeedItemCard engagement={props.engagement} item={item} />}</For>
         </div>
       </Show>
       <Show when={nextCursor()}>
@@ -255,7 +284,7 @@ export function FeedSurface(props: FeedSurfaceProps) {
 
   return (
     <Show when={!loading()} fallback={<FeedLoadingState copy={props.copy} />}>
-      <FeedResult result={result() ?? { status: "error" }} loadPage={props.loadPage} locale={locale} sort={sort} copy={props.copy} />
+      <FeedResult engagement={props.engagement} result={result() ?? { status: "error" }} loadPage={props.loadPage} locale={locale} sort={sort} copy={props.copy} />
     </Show>
   );
 }

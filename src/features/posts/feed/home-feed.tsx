@@ -1,4 +1,8 @@
-import { FeedSurface, type FeedSurfaceProps } from "./public-feed.tsx";
+import {
+  FeedSurface,
+  type FeedEngagementOptions,
+  type FeedSurfaceProps,
+} from "./public-feed.tsx";
 import { fetchHomeFeedPage, type HomeFeedClient } from "./home-feed-adapter.ts";
 
 export interface HomeFeedProps {
@@ -6,6 +10,7 @@ export interface HomeFeedProps {
   readonly data?: FeedSurfaceProps["data"];
   readonly locale?: FeedSurfaceProps["locale"];
   readonly sort?: FeedSurfaceProps["sort"];
+  readonly engagement?: FeedEngagementOptions | false;
 }
 
 const HOME_FEED_COPY = {
@@ -24,6 +29,7 @@ export default function HomeFeed(props: HomeFeedProps) {
     locale={props.locale}
     sort={props.sort}
     copy={HOME_FEED_COPY}
+    engagement={props.engagement === false ? undefined : props.engagement ?? {}}
     loadPage={({ cursor, locale, sort }) => fetchHomeFeedPage({ client: props.client, cursor, locale, sort })}
   />;
 }
