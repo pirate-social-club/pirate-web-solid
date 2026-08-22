@@ -22,7 +22,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24.14.0
       - name: Run Solid Doctor
         run: npx --yes solid-doctor@0.1.0 . --diff "${{ github.event.pull_request.base.sha }}...${{ github.event.pull_request.head.sha }}" --baseline .solid-doctor-baseline.json --target 2
 
@@ -38,6 +38,6 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24.14.0
       - name: Run Solid Doctor
         run: npx --yes solid-doctor@0.1.0 . --baseline .solid-doctor-baseline.json --target 2

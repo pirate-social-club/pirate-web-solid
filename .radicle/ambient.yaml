@@ -1,8 +1,11 @@
-# pirate-web-solid Radicle CI plan — v2 dependency-acquiring gate.
+# pirate-web-solid Radicle CI plan — v3 pinned-runtime verification gates.
 #
-# Runs the real install + verify surface in an isolated Ambient guest. The
-# pre_plan downloads a checksum-pinned Bun and populates a Bun install cache
-# via bun_get; the plan phase installs offline and runs `verify`.
+# Runs the real install + verification surface in an isolated Ambient guest.
+# The pre_plan downloads checksum-pinned Bun and Node distributions and
+# populates a Bun install cache via bun_get. The plan installs offline and
+# exposes every verification gate as a separate action. Ambient 0.16 stops a
+# plan at the first failed action, so each gate records its command status and
+# a final summary action fails the job after every gate has had a chance to run.
 #
 # Scope is deliberately narrower than the GitHub workflow. A green Radicle
 # run is not equivalent to a green GitHub run until these are closed:
@@ -20,6 +23,9 @@ pre_plan:
       - url: https://github.com/oven-sh/bun/releases/download/bun-v1.4.0/bun-linux-x64.zip
         filename: bun-linux-x64.zip
         checksum: sha256:2d03fb5fb83ac8b567aca0a281b2ce1a1a19d488f56c2968d88c3f25e92fe452
+      - url: https://nodejs.org/dist/v24.14.0/node-v24.14.0-linux-x64.tar.gz
+        filename: node-v24.14.0-linux-x64.tar.gz
+        checksum: sha256:dbf5b8665dec15e59e6359a517fefb47b23fdb9152d8def975b9bca3dfc6d355
   - action: bun_get
     bun_zip: bun-linux-x64.zip
 
@@ -27,10 +33,128 @@ plan:
   - action: shell
     shell: |
       set -euo pipefail
-      export PATH=/ci/deps/bun-linux-x64:$PATH
+      tar -xzf /ci/deps/node-v24.14.0-linux-x64.tar.gz -C /tmp
+      export PATH=/tmp/node-v24.14.0-linux-x64/bin:/ci/deps/bun-linux-x64:$PATH
       export BUN_INSTALL_CACHE_DIR=/ci/deps/bun/default
       cd /ci/src
+      test "$(node --version)" = v24.14.0
+      test "$(bun --version)" = 1.4.0
       bun install --frozen-lockfile --offline
-      bun run verify
+      cat > /tmp/run-verification-gate <<'EOF'
+      #!/bin/bash
+      set -uo pipefail
+      gate="$1"
+      shift
+      printf '\n=== verification gate: %s ===\n' "$gate"
+      set +e
+      "$@"
+      status="$?"
+      set -e
+      printf '%s\n' "$status" > "/tmp/ambient-verification-$gate.status"
+      if [ "$status" -eq 0 ]; then
+        printf 'PASS: %s\n' "$gate"
+      else
+        printf 'FAIL: %s (exit %s)\n' "$gate" "$status"
+      fi
+      exit 0
+      EOF
+      chmod 0755 /tmp/run-verification-gate
+  - action: shell
+    shell: |
+      set -euo pipefail
+      export PATH=/tmp/node-v24.14.0-linux-x64/bin:/ci/deps/bun-linux-x64:$PATH
+      cd /ci/src
+      /tmp/run-verification-gate 01-generate-worker-types bun run generate-worker-types
+  - action: shell
+    shell: |
+      set -euo pipefail
+      export PATH=/tmp/node-v24.14.0-linux-x64/bin:/ci/deps/bun-linux-x64:$PATH
+      cd /ci/src
+      /tmp/run-verification-gate 02-tsc bun run tsc --noEmit -p tsconfig.json
+  - action: shell
+    shell: |
+      set -euo pipefail
+      export PATH=/tmp/node-v24.14.0-linux-x64/bin:/ci/deps/bun-linux-x64:$PATH
+      cd /ci/src
+      /tmp/run-verification-gate 03-test-api bun run test:api
+  - action: shell
+    shell: |
+      set -euo pipefail
+      export PATH=/tmp/node-v24.14.0-linux-x64/bin:/ci/deps/bun-linux-x64:$PATH
+      cd /ci/src
+      /tmp/run-verification-gate 04-test-app bun run test:app
+  - action: shell
+    shell: |
+      set -euo pipefail
+      export PATH=/tmp/node-v24.14.0-linux-x64/bin:/ci/deps/bun-linux-x64:$PATH
+      cd /ci/src
+      # Oxlint's JavaScript-plugin transfer reserves a 4-GiB virtual arena.
+      # The image disables memory overcommit, so reserve it only for this gate
+      # and restore the image policy before continuing.
+      original_overcommit="$(sysctl -n vm.overcommit_memory)"
+      sysctl -w vm.overcommit_memory=1
+      /tmp/run-verification-gate 05-lint bun run lint
+      sysctl -w "vm.overcommit_memory=$original_overcommit"
+  - action: shell
+    shell: |
+      set -euo pipefail
+      export PATH=/tmp/node-v24.14.0-linux-x64/bin:/ci/deps/bun-linux-x64:$PATH
+      cd /ci/src
+      /tmp/run-verification-gate 06-solid-runtime node scripts/check-solid-runtime.mjs
+  - action: shell
+    shell: |
+      set -euo pipefail
+      export PATH=/tmp/node-v24.14.0-linux-x64/bin:/ci/deps/bun-linux-x64:$PATH
+      cd /ci/src
+      /tmp/run-verification-gate 07-web3-icons bun run check:web3-icons
+  - action: shell
+    shell: |
+      set -euo pipefail
+      export PATH=/tmp/node-v24.14.0-linux-x64/bin:/ci/deps/bun-linux-x64:$PATH
+      cd /ci/src
+      /tmp/run-verification-gate 08-solid-ui-typecheck bun run --cwd packages/solid-ui typecheck
+  - action: shell
+    shell: |
+      set -euo pipefail
+      export PATH=/tmp/node-v24.14.0-linux-x64/bin:/ci/deps/bun-linux-x64:$PATH
+      cd /ci/src
+      # Keep Vitest's assertion set intact while allowing for the constrained
+      # guest: one interaction test crossed the 5s default at 5.2s.
+      /tmp/run-verification-gate 09-solid-ui-test bun run --cwd packages/solid-ui test -- --testTimeout=10000
+  - action: shell
+    shell: |
+      set -euo pipefail
+      export PATH=/tmp/node-v24.14.0-linux-x64/bin:/ci/deps/bun-linux-x64:$PATH
+      cd /ci/src
+      /tmp/run-verification-gate 10-solid-doctor bun run check:solid-doctor
+  - action: shell
+    shell: |
+      set -euo pipefail
+      failed=0
+      for gate in \
+        01-generate-worker-types \
+        02-tsc \
+        03-test-api \
+        04-test-app \
+        05-lint \
+        06-solid-runtime \
+        07-web3-icons \
+        08-solid-ui-typecheck \
+        09-solid-ui-test \
+        10-solid-doctor
+      do
+        status="$(cat "/tmp/ambient-verification-$gate.status")"
+        if [ "$status" -eq 0 ]; then
+          printf 'PASS: %s\n' "$gate"
+        else
+          printf 'FAIL: %s (exit %s)\n' "$gate" "$status"
+          failed=1
+        fi
+      done
+      if [ "$failed" -ne 0 ]; then
+        echo 'one or more verification gates failed'
+        exit 1
+      fi
+      echo 'all verification gates passed'
 
 post_plan: []
