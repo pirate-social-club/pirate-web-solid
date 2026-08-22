@@ -9,7 +9,7 @@
   },
   "scripts": {
     "prebuild": "node scripts/check-solid-runtime.mjs",
-    "build": "vite build",
+    "build": "vite build && node scripts/prune-solid-ssr-optional-assets.mjs",
     "storybook": "storybook dev -p ${STORYBOOK_PORT:-6006} --disable-telemetry",
     "build-storybook": "storybook build",
     "generate:web3-icons": "bun scripts/generate-web3-icons.ts",

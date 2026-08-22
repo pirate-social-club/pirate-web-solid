@@ -21,6 +21,7 @@ export default defineConfig({
     // loaded by Vitest. Add a suite here once it imports Vitest's API.
     include: [
       "src/routes/index.test.tsx",
+      "src/routes/verify/very.test.tsx",
       "src/features/posts/feed/public-feed.test.tsx",
       "src/features/posts/post-composer/create-post-dialog.test.tsx",
       "src/features/posts/post-composer/post-composer-submission.test.tsx",

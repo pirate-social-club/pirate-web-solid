@@ -58,3 +58,14 @@ export {
   type ZkPassportQueryResult,
   type ZkPassportSdkFactory,
 } from "./zkpassport.ts";
+export {
+  VERY_WEB_POLL_INTERVAL_MS,
+  VERY_WEB_PROVIDER_ID,
+  VeryWebClientError,
+  createVeryWebCeremony,
+  parseVeryWebPresentation,
+  type CreateVeryWebCeremonyOptions,
+  type VeryWebCeremony,
+  type VeryWebCompletion,
+  type VeryWebPresentation,
+} from "./very.ts";
