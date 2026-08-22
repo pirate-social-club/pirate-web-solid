@@ -11,8 +11,8 @@ import {
   submittingComment,
 } from "./post-engagement-model.ts";
 
-function conflict(name: "IdempotencyConflict" | "PostVoteIdempotencyConflict", identity: string) {
-  const identityKey = name === "IdempotencyConflict" ? "submission_id" : "action_id";
+function conflict(name: "Conflict" | "IdempotencyConflict" | "PostVoteIdempotencyConflict", identity: string) {
+  const identityKey = name === "PostVoteIdempotencyConflict" ? "action_id" : "submission_id";
   return new ApiClientError(
     { status: 409, code: "conflict", name, retryable: false },
     {
@@ -52,7 +52,19 @@ describe("post engagement model", () => {
       case_ref: "case-1",
       action: "hide",
       target_status: "hidden",
-    }).state).toBe("hidden");
+    })).toMatchObject({ state: "hidden", caseRef: "case-1" });
+    expect(applyModerationOutcome({ ...held, state: "published" }, {
+      action_id: "action-3",
+      case_ref: "case-1",
+      action: "dismiss",
+      target_status: "published",
+    })).toMatchObject({ state: "published", caseRef: null, lastModerationAction: "dismiss" });
+    expect(applyModerationOutcome(held, {
+      action_id: "action-4",
+      case_ref: "case-1",
+      action: "dismiss",
+      target_status: "held",
+    })).toMatchObject({ state: "manual_review", caseRef: "case-1", lastModerationAction: "dismiss" });
   });
 
   test("enforces depth eight and maintains reply and vote aggregates", () => {
@@ -65,7 +77,7 @@ describe("post engagement model", () => {
   });
 
   test("preserves typed conflict identity for comment and vote retries", () => {
-    expect(mapEngagementIssue(conflict("IdempotencyConflict", "submission-1"))).toEqual({
+    expect(mapEngagementIssue(conflict("Conflict", "submission-1"))).toEqual({
       kind: "idempotency_conflict",
       identity: "submission-1",
     });
@@ -73,5 +85,18 @@ describe("post engagement model", () => {
       kind: "idempotency_conflict",
       identity: "action-1",
     });
+  });
+
+  test.each([
+    ["comments_locked", "CommentsLocked", "comments_locked"],
+    ["membership_required", "MembershipRequired", "membership_required"],
+    ["not_found", "NotFound", "not_found"],
+    ["reply_depth_exceeded", "ReplyDepthExceeded", "reply_depth_exceeded"],
+  ] as const)("maps %s without collapsing its declared state", (code, name, kind) => {
+    const error = new ApiClientError(
+      { status: code === "reply_depth_exceeded" ? 400 : code === "not_found" ? 404 : 403, code, name, retryable: false },
+      { error: { code, message: code, retryable: false } },
+    );
+    expect(mapEngagementIssue(error)).toEqual({ kind });
   });
 });

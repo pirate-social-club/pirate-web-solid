@@ -25,6 +25,7 @@ export default defineConfig({
       "src/features/posts/feed/public-feed.test.tsx",
       "src/features/posts/post-engagement/post-engagement-api.test.ts",
       "src/features/posts/post-engagement/post-engagement-model.test.ts",
+      "src/features/posts/post-engagement/post-engagement-pending.test.ts",
       "src/features/posts/post-engagement/post-engagement.test.tsx",
       "src/features/posts/post-composer/create-post-dialog.test.tsx",
       "src/features/posts/post-composer/post-composer-submission.test.tsx",

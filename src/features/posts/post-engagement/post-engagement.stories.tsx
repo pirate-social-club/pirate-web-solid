@@ -6,20 +6,38 @@ import { expect, userEvent, within } from "storybook/test";
 import { Card, CardContent, Type } from "../../../design-system.ts";
 import type { PostEngagementTransport } from "./post-engagement-api.ts";
 import type { CommentDisplayState, CommentThreadItem } from "./post-engagement-model.ts";
+import { createMemoryPendingEngagementStorage, decodePendingEngagementAction } from "./post-engagement-pending.ts";
 import { PostEngagement } from "./post-engagement.tsx";
 
 const noopTransport: PostEngagementTransport = {
   createComment: async () => { throw new Error("Story does not submit comments"); },
   createReply: async () => { throw new Error("Story does not submit replies"); },
-  reportComment: async (_commentId, _reason, key) => ({ report_id: key, case_ref: "case-story", status: "open" }),
-  moderateCase: async (caseRef, action, key) => ({
-    action_id: key,
-    case_ref: caseRef,
-    action,
-    target_status: action === "approve" || action === "restore" ? "published" : action === "dismiss" ? "held" : action === "hide" ? "hidden" : "removed",
-  }),
-  castVote: async (postId, value) => ({ post_id: postId, value, upvote_count: value === 1 ? 19 : 18, downvote_count: value === -1 ? 2 : 1 }),
-  clearVote: async postId => ({ post_id: postId, value: 0, upvote_count: 18, downvote_count: 1 }),
+  reportComment: async envelope => {
+    const action = await decodePendingEngagementAction(envelope);
+    if (action.kind !== "report") throw new Error("expected report action");
+    return { report_id: action.idempotencyKey, case_ref: "case-story", status: "open" };
+  },
+  moderateCase: async envelope => {
+    const action = await decodePendingEngagementAction(envelope);
+    if (action.kind !== "moderate") throw new Error("expected moderation action");
+    return {
+      action_id: action.idempotencyKey,
+      case_ref: action.caseRef,
+      action: action.action,
+      target_status: action.action === "approve" || action.action === "restore" || action.action === "dismiss" ? "published" : action.action === "hide" ? "hidden" : "removed",
+    };
+  },
+  castVote: async envelope => {
+    const action = await decodePendingEngagementAction(envelope);
+    if (action.kind !== "vote") throw new Error("expected vote action");
+    return { post_id: action.postId, value: action.value };
+  },
+  clearVote: async envelope => {
+    const action = await decodePendingEngagementAction(envelope);
+    if (action.kind !== "clear_vote") throw new Error("expected clear vote action");
+    return { post_id: action.postId, value: 0 };
+  },
+  readSubmission: async () => { throw new Error("Story does not read submissions"); },
 };
 
 const states: readonly CommentDisplayState[] = [
@@ -53,6 +71,7 @@ function frame(viewerVote: -1 | 1 | null, transport: PostEngagementTransport = n
         canModerate
         generateIdempotencyKey={() => "story-action-key"}
         initialComments={initialComments}
+        pendingStorage={createMemoryPendingEngagementStorage()}
         post={{ id: "story-post", upvoteCount: 18, downvoteCount: 1, commentCount: 7, viewerVote }}
         transport={transport}
       >

@@ -6,6 +6,7 @@ import {
   type PirateApiClient,
   type ReportCommentResponse,
   type CastPostVoteResponse,
+  type GetTextContentSubmissionResponse,
 } from "@pirate/api-client";
 
 import {
@@ -13,6 +14,15 @@ import {
   readCsrfCookie,
   sessionRequestOptions,
 } from "../../../api/client.ts";
+import type { ApiFetch } from "../../../api/proxy.ts";
+import {
+  decodePendingEngagementAction,
+  type PendingEngagementAction,
+} from "./post-engagement-pending.ts";
+import {
+  pendingBodyBytes,
+  type PendingSubmissionEnvelopeV1,
+} from "../post-composer/pending-submission.ts";
 
 export type CommentReportReason =
   | "spam"
@@ -31,12 +41,13 @@ export type CommentModerationAction =
   | "restore";
 
 export interface PostEngagementTransport {
-  createComment(postId: string, body: string, idempotencyKey: string): Promise<CreateCommentResponse>;
-  createReply(commentId: string, body: string, idempotencyKey: string): Promise<CreateCommentReplyResponse>;
-  reportComment(commentId: string, reasonCode: CommentReportReason, idempotencyKey: string): Promise<ReportCommentResponse>;
-  moderateCase(caseRef: string, action: CommentModerationAction, idempotencyKey: string): Promise<ModerateCaseActionResponse>;
-  castVote(postId: string, value: -1 | 1, idempotencyKey: string): Promise<CastPostVoteResponse>;
-  clearVote(postId: string, idempotencyKey: string): Promise<ClearPostVoteResponse>;
+  createComment(envelope: PendingSubmissionEnvelopeV1): Promise<CreateCommentResponse>;
+  createReply(envelope: PendingSubmissionEnvelopeV1): Promise<CreateCommentReplyResponse>;
+  reportComment(envelope: PendingSubmissionEnvelopeV1): Promise<ReportCommentResponse>;
+  moderateCase(envelope: PendingSubmissionEnvelopeV1): Promise<ModerateCaseActionResponse>;
+  castVote(envelope: PendingSubmissionEnvelopeV1): Promise<CastPostVoteResponse>;
+  clearVote(envelope: PendingSubmissionEnvelopeV1): Promise<ClearPostVoteResponse>;
+  readSubmission(submissionId: string): Promise<GetTextContentSubmissionResponse>;
 }
 
 export type PostEngagementClient = Pick<
@@ -47,11 +58,14 @@ export type PostEngagementClient = Pick<
   | "post_moderationCasesCaseRefActions"
   | "post_postsPostIdVote"
   | "post_postsPostIdClearVote"
+  | "get_textContentSubmissionsSubmissionId"
 >;
 
 export interface PostEngagementTransportOptions {
   readonly client?: PostEngagementClient;
   readonly csrfToken?: () => string | undefined;
+  readonly fetchImpl?: ApiFetch;
+  readonly origin?: string | URL;
 }
 
 export class PostEngagementLocalError extends Error {
@@ -70,6 +84,35 @@ function requestOptions(options: PostEngagementTransportOptions) {
   return sessionRequestOptions(csrfToken);
 }
 
+function expectedAction<T extends PendingEngagementAction["kind"]>(
+  action: PendingEngagementAction,
+  kind: T,
+): Extract<PendingEngagementAction, { readonly kind: T }> {
+  if (action.kind !== kind) throw new Error(`Pending engagement action must be ${kind}`);
+  // SAFETY: the discriminant equality above narrows the closed action union to T.
+  return action as Extract<PendingEngagementAction, { readonly kind: T }>;
+}
+
+function clientForEnvelope(
+  options: PostEngagementTransportOptions,
+  envelope: PendingSubmissionEnvelopeV1,
+): PostEngagementClient {
+  if (options.client !== undefined) return options.client;
+  const body = pendingBodyBytes(envelope);
+  const fetchImpl = options.fetchImpl ?? fetch;
+  const exactBodyFetch: ApiFetch = (input, init = {}) => fetchImpl(input, {
+    ...init,
+    // The generated operation still owns URL construction and response/error
+    // decoding; this adapter replaces its rebuilt JSON with retained bytes.
+    body: body.slice().buffer,
+  });
+  return createSessionApiClient({ origin: options.origin, fetchImpl: exactBodyFetch });
+}
+
+function ordinaryClient(options: PostEngagementTransportOptions): PostEngagementClient {
+  return options.client ?? createSessionApiClient({ origin: options.origin, fetchImpl: options.fetchImpl });
+}
+
 /**
  * Generated-client transport for authenticated post engagement. Client and
  * cookie resolution stay lazy so SSR never reads browser state while merely
@@ -78,31 +121,52 @@ function requestOptions(options: PostEngagementTransportOptions) {
 export function createPostEngagementTransport(
   options: PostEngagementTransportOptions = {},
 ): PostEngagementTransport {
-  const client = () => options.client ?? createSessionApiClient();
   return {
-    createComment: async (postId, body, idempotencyKey) => client().post_postsPostIdComments({
-      path: { postId },
-      body: { idempotency_key: idempotencyKey, body },
-    }, requestOptions(options)),
-    createReply: async (commentId, body, idempotencyKey) => client().post_commentsCommentIdReplies({
-      path: { commentId },
-      body: { idempotency_key: idempotencyKey, body },
-    }, requestOptions(options)),
-    reportComment: async (commentId, reasonCode, idempotencyKey) => client().post_commentsCommentIdReports({
-      path: { commentId },
-      body: { idempotency_key: idempotencyKey, reason_code: reasonCode },
-    }, requestOptions(options)),
-    moderateCase: async (caseRef, action, idempotencyKey) => client().post_moderationCasesCaseRefActions({
-      path: { caseRef },
-      body: { idempotency_key: idempotencyKey, action },
-    }, requestOptions(options)),
-    castVote: async (postId, value, idempotencyKey) => client().post_postsPostIdVote({
-      path: { postId },
-      body: { idempotency_key: idempotencyKey, value },
-    }, requestOptions(options)),
-    clearVote: async (postId, idempotencyKey) => client().post_postsPostIdClearVote({
-      path: { postId },
-      body: { idempotency_key: idempotencyKey },
-    }, requestOptions(options)),
+    async createComment(envelope) {
+      const action = expectedAction(await decodePendingEngagementAction(envelope), "comment");
+      return clientForEnvelope(options, envelope).post_postsPostIdComments({
+        path: { postId: action.postId },
+        body: { idempotency_key: action.idempotencyKey, body: action.body },
+      }, requestOptions(options));
+    },
+    async createReply(envelope) {
+      const action = expectedAction(await decodePendingEngagementAction(envelope), "reply");
+      return clientForEnvelope(options, envelope).post_commentsCommentIdReplies({
+        path: { commentId: action.commentId },
+        body: { idempotency_key: action.idempotencyKey, body: action.body },
+      }, requestOptions(options));
+    },
+    async reportComment(envelope) {
+      const action = expectedAction(await decodePendingEngagementAction(envelope), "report");
+      return clientForEnvelope(options, envelope).post_commentsCommentIdReports({
+        path: { commentId: action.commentId },
+        body: { idempotency_key: action.idempotencyKey, reason_code: action.reasonCode },
+      }, requestOptions(options));
+    },
+    async moderateCase(envelope) {
+      const action = expectedAction(await decodePendingEngagementAction(envelope), "moderate");
+      return clientForEnvelope(options, envelope).post_moderationCasesCaseRefActions({
+        path: { caseRef: action.caseRef },
+        body: { idempotency_key: action.idempotencyKey, action: action.action },
+      }, requestOptions(options));
+    },
+    async castVote(envelope) {
+      const action = expectedAction(await decodePendingEngagementAction(envelope), "vote");
+      return clientForEnvelope(options, envelope).post_postsPostIdVote({
+        path: { postId: action.postId },
+        body: { idempotency_key: action.idempotencyKey, value: action.value },
+      }, requestOptions(options));
+    },
+    async clearVote(envelope) {
+      const action = expectedAction(await decodePendingEngagementAction(envelope), "clear_vote");
+      return clientForEnvelope(options, envelope).post_postsPostIdClearVote({
+        path: { postId: action.postId },
+        body: { idempotency_key: action.idempotencyKey },
+      }, requestOptions(options));
+    },
+    readSubmission: submissionId => ordinaryClient(options).get_textContentSubmissionsSubmissionId(
+      { path: { submissionId } },
+      { credentials: "same-origin" },
+    ),
   };
 }

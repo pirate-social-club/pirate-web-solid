@@ -27,6 +27,8 @@ jobs:
         run: bunx wrangler deploy --dry-run --config dist/ssr/wrangler.json
         env:
           NODE_OPTIONS: --max-old-space-size=3072
+      - name: Check post-engagement Worker proxy transport
+        run: bun run post-engagement-check
       - name: Read Playwright version
         id: playwright
         run: echo "version=$(bunx playwright --version | awk '{print $NF}')" >> "$GITHUB_OUTPUT"

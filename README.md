@@ -2,13 +2,14 @@
 
 Standalone SolidJS shell for a direct Cloudflare Worker. This repository owns
 its source, internal `packages/solid-ui` workspace, Worker entrypoint, and
-dependency graph. It has no product API, authentication, external origin, or
-route-dispatch fallback; those belong to a later same-origin `/api` proxy lane.
+dependency graph. Its Worker owns the same-origin `/api` proxy to api-next and
+the browser uses host-only session cookies plus double-submit CSRF for writes.
 
 ## Runtime boundary
 
 - `src/worker.ts` is the only Worker entrypoint.
-- The only Cloudflare binding is `ASSETS`.
+- Cloudflare bindings and environment-specific api-next origins are declared in
+  `wrangler.jsonc`; secrets are provisioned bindings, never source values.
 - `worker-configuration.d.ts` is generated from `wrangler.jsonc` by Wrangler;
   rerun `bun run generate-worker-types` after configuration changes.
 - SSR and hydration are authored in `src/entry-server.tsx`,
@@ -16,9 +17,8 @@ route-dispatch fallback; those belong to a later same-origin `/api` proxy lane.
 - The UI catalog is owned by `packages/solid-ui` and consumed as the internal
   `@pirate/web-solid-ui` workspace package.
 
-The shell intentionally renders only a root route with internal Button, Dialog,
-and TextField hydration fixtures. No API or auth behavior is implied by the
-shell.
+The root route is public-first and upgrades to the authenticated home feed only
+after resolving the api-next session. Signed-out surfaces remain credential-free.
 
 ## Verification
 
@@ -29,6 +29,7 @@ bun install --frozen-lockfile
 bun run verify
 bun run build
 bunx wrangler deploy --dry-run --config dist/ssr/wrangler.json
+bun run post-engagement-check
 ```
 
 `verify` regenerates Worker types, typechecks the app and solid-ui package,
@@ -54,8 +55,10 @@ explicitly:
 bunx solid-doctor . --write-baseline .solid-doctor-baseline.json
 ```
 
-The dry run is local validation only and must report `env.ASSETS` as the sole
-binding.
+The dry run is local validation only. `post-engagement-check` is a proxy
+transport check: it proves the six engagement writes traverse the actual Solid
+Worker `/api` boundary with exact paths, bodies, cookies, Origin, and CSRF
+headers; component behavior is covered by app and Storybook tests.
 
 The Solid UI suite consumes an integrity-pinned tarball built from the official
 Kobalte `solid2` branch at commit

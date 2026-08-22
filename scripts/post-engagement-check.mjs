@@ -1,4 +1,5 @@
 import { spawn } from "node:child_process";
+import { once } from "node:events";
 import { createServer } from "node:http";
 import { request as playwrightRequest } from "playwright";
 
@@ -57,11 +58,11 @@ function responseFor(pathname, body) {
   };
   if (pathname === "/posts/post-e2e/vote") return {
     status: 200,
-    body: { post_id: "post-e2e", value: -1, upvote_count: 4, downvote_count: 2 },
+    body: { post_id: "post-e2e", value: -1 },
   };
-  if (pathname === "/posts/post-e2e/vote/clear") return {
+  if (pathname === "/posts/post-e2e/clear_vote") return {
     status: 200,
-    body: { post_id: "post-e2e", value: 0, upvote_count: 4, downvote_count: 1 },
+    body: { post_id: "post-e2e", value: 0 },
   };
   return { status: 404, body: { error: { code: "not_found", message: "not found", retryable: false } } };
 }
@@ -96,10 +97,12 @@ async function listen(server, port) {
   });
 }
 
-async function waitForWorker(child, timeoutMs = 60_000) {
+async function waitForWorker(child, readSpawnError, timeoutMs = 60_000) {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
     if (child.exitCode !== null) throw new Error(`Solid dev Worker exited with ${child.exitCode}`);
+    const spawnError = readSpawnError();
+    if (spawnError !== undefined) throw spawnError;
     try {
       const response = await fetch(`${solidOrigin}/api/health`);
       if (response.ok) return;
@@ -111,26 +114,36 @@ async function waitForWorker(child, timeoutMs = 60_000) {
   throw new Error("Solid dev Worker did not become ready");
 }
 
-function stop(child) {
-  if (child.exitCode === null) child.kill("SIGTERM");
+async function stop(child) {
+  if (child.exitCode !== null) return;
+  child.kill("SIGTERM");
+  await Promise.race([once(child, "exit"), new Promise(resolve => setTimeout(resolve, 5_000))]);
+  if (child.exitCode === null) {
+    child.kill("SIGKILL");
+    await once(child, "exit");
+  }
 }
 
 function assert(condition, message) {
   if (!condition) throw new Error(message);
 }
 
-await listen(upstream, apiPort);
-const worker = spawn("bun", ["x", "vite", "dev", "--host", "127.0.0.1", "--port", String(solidPort), "--strictPort"], {
-  cwd: new URL("..", import.meta.url),
-  env: { ...process.env, NO_COLOR: "1" },
-  stdio: ["ignore", "pipe", "pipe"],
-});
+let worker;
 let workerLog = "";
-worker.stdout.on("data", chunk => { workerLog += chunk.toString(); });
-worker.stderr.on("data", chunk => { workerLog += chunk.toString(); });
+let workerSpawnError;
+const appendWorkerLog = chunk => { workerLog = `${workerLog}${chunk.toString()}`.slice(-64 * 1024); };
 
 try {
-  await waitForWorker(worker);
+  await listen(upstream, apiPort);
+  worker = spawn("bun", ["x", "vite", "dev", "--host", "127.0.0.1", "--port", String(solidPort), "--strictPort"], {
+    cwd: new URL("..", import.meta.url),
+    env: { ...process.env, NO_COLOR: "1" },
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+  worker.once("error", error => { workerSpawnError = error; });
+  worker.stdout.on("data", appendWorkerLog);
+  worker.stderr.on("data", appendWorkerLog);
+  await waitForWorker(worker, () => workerSpawnError);
   const api = await playwrightRequest.newContext({
     baseURL: solidOrigin,
     extraHTTPHeaders: {
@@ -146,7 +159,7 @@ try {
       ["/api/comments/comment-e2e/reports", { idempotency_key: "report-key", reason_code: "spam" }, 201],
       ["/api/moderation/cases/case-e2e/actions", { idempotency_key: "action-key", action: "approve" }, 200],
       ["/api/posts/post-e2e/vote", { idempotency_key: "vote-key", value: -1 }, 200],
-      ["/api/posts/post-e2e/vote/clear", { idempotency_key: "clear-key" }, 200],
+      ["/api/posts/post-e2e/clear_vote", { idempotency_key: "clear-key" }, 200],
     ];
     for (const [path, data, status] of calls) {
       const response = await api.post(path, { data });
@@ -165,14 +178,17 @@ try {
     assert(request.csrf === "csrf-e2e", `${request.pathname} did not preserve CSRF`);
     assert(request.cookie === expectedCookie, `${request.pathname} did not preserve session cookies`);
   }
-  assert(requests[0]?.body?.idempotency_key === "comment-key", "comment body changed in proxy");
-  assert(requests[4]?.body?.value === -1, "vote body changed in proxy");
-  assert(requests[5]?.body && !("value" in requests[5].body), "clear vote body gained a value field");
+  assert(JSON.stringify(requests[0]?.body) === JSON.stringify({ idempotency_key: "comment-key", body: "Comment through Worker" }), "comment body changed in proxy");
+  assert(JSON.stringify(requests[1]?.body) === JSON.stringify({ idempotency_key: "reply-key", body: "Reply through Worker" }), "reply body changed in proxy");
+  assert(JSON.stringify(requests[2]?.body) === JSON.stringify({ idempotency_key: "report-key", reason_code: "spam" }), "report body changed in proxy");
+  assert(JSON.stringify(requests[3]?.body) === JSON.stringify({ idempotency_key: "action-key", action: "approve" }), "moderation body changed in proxy");
+  assert(JSON.stringify(requests[4]?.body) === JSON.stringify({ idempotency_key: "vote-key", value: -1 }), "vote body changed in proxy");
+  assert(JSON.stringify(requests[5]?.body) === JSON.stringify({ idempotency_key: "clear-key" }), "clear vote body changed in proxy");
   console.log(JSON.stringify({ ok: true, requests: requests.map(request => request.pathname), origin: solidOrigin, csrf: true, cookies: true }));
 } catch (error) {
   if (workerLog) process.stderr.write(workerLog);
   throw error;
 } finally {
-  stop(worker);
-  await new Promise(resolve => upstream.close(resolve));
+  if (worker !== undefined) await stop(worker);
+  if (upstream.listening) await new Promise(resolve => upstream.close(resolve));
 }

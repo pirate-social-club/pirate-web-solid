@@ -2,12 +2,13 @@ import {
   ApiClientError,
   type CreateCommentReplyResponse,
   type CreateCommentResponse,
+  type GetTextContentSubmissionResponse,
   type ModerateCaseActionResponse,
 } from "@pirate/api-client";
 
 import { PostEngagementLocalError } from "./post-engagement-api.ts";
 
-export type CommentSubmissionResponse = CreateCommentResponse | CreateCommentReplyResponse;
+export type CommentSubmissionResponse = CreateCommentResponse | CreateCommentReplyResponse | GetTextContentSubmissionResponse;
 
 export type CommentDisplayState =
   | "submitting"
@@ -44,17 +45,19 @@ export type EngagementIssue =
   | { readonly kind: "rate_limited"; readonly retryAfterSeconds: number | undefined }
   | { readonly kind: "conflict" }
   | { readonly kind: "bad_request" }
+  | { readonly kind: "pending_action" }
+  | { readonly kind: "durable_storage_failed" }
   | { readonly kind: "unavailable" };
 
 export function mapEngagementIssue(error: unknown): EngagementIssue {
   if (error instanceof PostEngagementLocalError) return { kind: "csrf_missing" };
   if (!(error instanceof ApiClientError)) return { kind: "unavailable" };
-  if (error.declaredName === "IdempotencyConflict") {
-    const identity = error.details?.submission_id;
-    return { kind: "idempotency_conflict", identity: typeof identity === "string" && identity !== "" ? identity : null };
-  }
-  if (error.declaredName === "PostVoteIdempotencyConflict") {
-    const identity = error.details?.action_id;
+  if (
+    error.code === "conflict"
+    && error.retryable === false
+    && error.details?.reason_code === "idempotency_conflict"
+  ) {
+    const identity = error.details.submission_id ?? error.details.action_id;
     return { kind: "idempotency_conflict", identity: typeof identity === "string" && identity !== "" ? identity : null };
   }
   switch (error.code) {
@@ -86,6 +89,8 @@ export function engagementIssueMessage(issue: EngagementIssue): string {
       : "Too many actions. Try again shortly.";
     case "conflict": return "The comment changed before this action completed. Refresh and try again.";
     case "bad_request": return "Check the comment and try again.";
+    case "pending_action": return "Resolve or retry the saved action before starting a different one.";
+    case "durable_storage_failed": return "This action was not sent because its retry record could not be saved.";
     case "unavailable": return "The action could not be confirmed. Retrying will reuse the same action key.";
   }
 }
@@ -130,25 +135,31 @@ export function applyModerationOutcome(
   item: CommentThreadItem,
   outcome: ModerateCaseActionResponse,
 ): CommentThreadItem {
-  const state: CommentDisplayState = outcome.action === "hide"
-    ? "hidden"
-    : outcome.action === "remove"
-      ? "removed"
-      : outcome.action === "restore"
-        ? "restored"
-        : outcome.action === "approve"
-          ? "published"
-          : "manual_review";
+  const state: CommentDisplayState = outcome.target_status === "held"
+    ? "manual_review"
+    : outcome.target_status === "hidden"
+      ? "hidden"
+      : outcome.target_status === "removed"
+        ? "removed"
+        : outcome.action === "restore"
+          ? "restored"
+          : "published";
   return {
     ...item,
     state,
-    caseRef: null,
+    caseRef: outcome.target_status === "held" || outcome.target_status === "hidden" || outcome.target_status === "removed"
+      ? outcome.case_ref
+      : null,
     lastModerationAction: outcome.action,
   };
 }
 
+export function isCommentAddressable(item: CommentThreadItem): boolean {
+  return !item.id.startsWith("pending:") && !item.id.startsWith("submission:");
+}
+
 export function canReplyToComment(item: CommentThreadItem): boolean {
-  return (item.state === "published" || item.state === "restored") && item.depth < 8;
+  return isCommentAddressable(item) && (item.state === "published" || item.state === "restored") && item.depth < 8;
 }
 
 export function commentCountsAsPublished(item: CommentThreadItem): boolean {
