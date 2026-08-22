@@ -15,8 +15,8 @@ import type {
   CommentReportReason,
 } from "./post-engagement-api.ts";
 
-const PENDING_ENGAGEMENT_RECORD_VERSION = "pending-engagement-record-v1" as const;
-const PENDING_ENGAGEMENT_DB_NAME = "pirate-post-engagement-v1";
+const PENDING_ENGAGEMENT_RECORD_VERSION = "pending-engagement-record-v2" as const;
+const PENDING_ENGAGEMENT_DB_NAME = "pirate-post-engagement-v2";
 const PENDING_ENGAGEMENT_STORE_NAME = "pending-actions";
 
 export type PendingEngagementAction =
@@ -33,6 +33,8 @@ export type PendingEngagementIssue =
 
 export interface PendingEngagementRecord {
   readonly version: typeof PENDING_ENGAGEMENT_RECORD_VERSION;
+  readonly principal_id: string;
+  readonly post_id: string;
   readonly slot: string;
   readonly action_kind: PendingEngagementAction["kind"];
   readonly envelope: PendingSubmissionEnvelopeV1;
@@ -41,6 +43,7 @@ export interface PendingEngagementRecord {
 
 export interface PendingEngagementStorage {
   readonly load: (slot: string) => Promise<PendingEngagementRecord | null>;
+  readonly listForPost: (principalId: string, postId: string) => Promise<readonly PendingEngagementRecord[]>;
   readonly saveNew: (record: PendingEngagementRecord) => Promise<void>;
   readonly save: (record: PendingEngagementRecord) => Promise<void>;
   readonly remove: (slot: string) => Promise<void>;
@@ -48,6 +51,12 @@ export interface PendingEngagementStorage {
 
 export interface MemoryPendingEngagementBacking {
   readonly records: Map<string, PendingEngagementRecord>;
+}
+
+export interface PendingEngagementContext {
+  readonly principalId: string;
+  readonly postId: string;
+  readonly createdAt?: string;
 }
 
 export class PendingEngagementError extends Error {
@@ -170,69 +179,81 @@ export async function decodePendingEngagementAction(
   throw new PendingEngagementError("Pending engagement path and body do not form a declared action");
 }
 
-export function commentSubmissionSlot(postId: string): string {
-  return `post:${postId}:comment-submission`;
+function scopedPostSlot(principalId: string, postId: string): string {
+  return `principal:${encodeURIComponent(requiredString(principalId, "principalId"))}:post:${encodeURIComponent(requiredString(postId, "postId"))}`;
 }
 
-export function postVoteSlot(postId: string): string {
-  return `post:${postId}:vote`;
+export function commentSubmissionSlot(principalId: string, postId: string): string {
+  return `${scopedPostSlot(principalId, postId)}:comment-submission`;
 }
 
-export function commentReportSlot(commentId: string): string {
-  return `comment:${commentId}:report`;
+export function postVoteSlot(principalId: string, postId: string): string {
+  return `${scopedPostSlot(principalId, postId)}:vote`;
 }
 
-export function moderationCaseSlot(caseRef: string): string {
-  return `case:${caseRef}:moderation`;
+export function commentReportSlot(principalId: string, postId: string, commentId: string): string {
+  return `${scopedPostSlot(principalId, postId)}:comment:${encodeURIComponent(requiredString(commentId, "commentId"))}:report`;
 }
 
-function actionRequest(action: PendingEngagementAction): PendingEngagementRequest {
+export function moderationCaseSlot(principalId: string, postId: string, caseRef: string): string {
+  return `${scopedPostSlot(principalId, postId)}:case:${encodeURIComponent(requiredString(caseRef, "caseRef"))}:moderation`;
+}
+
+function actionRequest(action: PendingEngagementAction, context: PendingEngagementContext): PendingEngagementRequest {
   switch (action.kind) {
-    case "comment": return {
-      slot: commentSubmissionSlot(action.postId),
-      path: `/api/posts/${encodeURIComponent(action.postId)}/comments`,
-      body: { idempotency_key: action.idempotencyKey, body: action.body },
-    };
+    case "comment": {
+      if (action.postId !== context.postId) throw new PendingEngagementError("Pending comment post does not match its storage scope");
+      return {
+        slot: commentSubmissionSlot(context.principalId, context.postId),
+        path: `/api/posts/${encodeURIComponent(action.postId)}/comments`,
+        body: { idempotency_key: action.idempotencyKey, body: action.body },
+      };
+    }
     case "reply": return {
-      slot: commentSubmissionSlot(action.commentId),
+      slot: commentSubmissionSlot(context.principalId, context.postId),
       path: `/api/comments/${encodeURIComponent(action.commentId)}/replies`,
       body: { idempotency_key: action.idempotencyKey, body: action.body },
     };
     case "report": return {
-      slot: commentReportSlot(action.commentId),
+      slot: commentReportSlot(context.principalId, context.postId, action.commentId),
       path: `/api/comments/${encodeURIComponent(action.commentId)}/reports`,
       body: { idempotency_key: action.idempotencyKey, reason_code: action.reasonCode },
     };
     case "moderate": return {
-      slot: moderationCaseSlot(action.caseRef),
+      slot: moderationCaseSlot(context.principalId, context.postId, action.caseRef),
       path: `/api/moderation/cases/${encodeURIComponent(action.caseRef)}/actions`,
       body: { idempotency_key: action.idempotencyKey, action: action.action },
     };
-    case "vote": return {
-      slot: postVoteSlot(action.postId),
-      path: `/api/posts/${encodeURIComponent(action.postId)}/vote`,
-      body: { idempotency_key: action.idempotencyKey, value: action.value },
-    };
-    case "clear_vote": return {
-      slot: postVoteSlot(action.postId),
-      path: `/api/posts/${encodeURIComponent(action.postId)}/clear_vote`,
-      body: { idempotency_key: action.idempotencyKey },
-    };
+    case "vote": {
+      if (action.postId !== context.postId) throw new PendingEngagementError("Pending vote post does not match its storage scope");
+      return {
+        slot: postVoteSlot(context.principalId, context.postId),
+        path: `/api/posts/${encodeURIComponent(action.postId)}/vote`,
+        body: { idempotency_key: action.idempotencyKey, value: action.value },
+      };
+    }
+    case "clear_vote": {
+      if (action.postId !== context.postId) throw new PendingEngagementError("Pending clear-vote post does not match its storage scope");
+      return {
+        slot: postVoteSlot(context.principalId, context.postId),
+        path: `/api/posts/${encodeURIComponent(action.postId)}/clear_vote`,
+        body: { idempotency_key: action.idempotencyKey },
+      };
+    }
   }
 }
 
 export async function createPendingEngagementRecord(
   action: PendingEngagementAction,
-  createdAt = new Date().toISOString(),
-  slotOverride?: string,
+  context: PendingEngagementContext,
 ): Promise<PendingEngagementRecord> {
-  const request = actionRequest(action);
-  const slot = slotOverride ?? request.slot;
-  if (slot === "") throw new PendingEngagementError("Pending engagement slot is empty");
+  const principalId = requiredString(context.principalId, "principalId");
+  const postId = requiredString(context.postId, "postId");
+  const request = actionRequest(action, { principalId, postId });
   const bytes = new TextEncoder().encode(JSON.stringify(request.body));
   const envelope: PendingSubmissionEnvelopeV1 = {
     version: PENDING_SUBMISSION_VERSION,
-    pending_request_id: slot,
+    pending_request_id: request.slot,
     idempotency_key: action.idempotencyKey,
     method: "POST",
     same_origin_path: assertSafeSameOriginPath(request.path),
@@ -240,12 +261,14 @@ export async function createPendingEngagementRecord(
     body_utf8_base64url: bytesToBase64Url(bytes),
     body_sha256: await sha256Hex(bytes),
     submission_id: null,
-    created_at: createdAt,
+    created_at: context.createdAt ?? new Date().toISOString(),
   };
   await validatePendingSubmissionEnvelope(envelope);
   return {
     version: PENDING_ENGAGEMENT_RECORD_VERSION,
-    slot,
+    principal_id: principalId,
+    post_id: postId,
+    slot: request.slot,
     action_kind: action.kind,
     envelope,
   };
@@ -255,12 +278,22 @@ async function validateRecord(value: unknown): Promise<PendingEngagementRecord> 
   if (typeof value !== "object" || value === null || Array.isArray(value)) throw new PendingEngagementError("Invalid pending engagement record");
   // SAFETY: the record representation was checked before its closed fields are parsed below.
   const raw = value as Partial<PendingEngagementRecord>;
-  if (raw.version !== PENDING_ENGAGEMENT_RECORD_VERSION || typeof raw.slot !== "string" || raw.slot === "" || raw.envelope === undefined) {
+  if (
+    raw.version !== PENDING_ENGAGEMENT_RECORD_VERSION
+    || typeof raw.principal_id !== "string"
+    || raw.principal_id === ""
+    || typeof raw.post_id !== "string"
+    || raw.post_id === ""
+    || typeof raw.slot !== "string"
+    || raw.slot === ""
+    || raw.envelope === undefined
+  ) {
     throw new PendingEngagementError("Unsupported pending engagement record");
   }
   const envelope = await validatePendingSubmissionEnvelope(raw.envelope);
   const action = await decodePendingEngagementAction(envelope);
-  if (raw.slot !== envelope.pending_request_id || raw.action_kind !== action.kind) {
+  const expectedSlot = actionRequest(action, { principalId: raw.principal_id, postId: raw.post_id }).slot;
+  if (raw.slot !== envelope.pending_request_id || raw.slot !== expectedSlot || raw.action_kind !== action.kind) {
     throw new PendingEngagementError("Pending engagement record identity does not match its envelope");
   }
   const issue = raw.issue;
@@ -275,6 +308,8 @@ async function validateRecord(value: unknown): Promise<PendingEngagementRecord> 
   }
   return {
     version: PENDING_ENGAGEMENT_RECORD_VERSION,
+    principal_id: raw.principal_id,
+    post_id: raw.post_id,
     slot: raw.slot,
     action_kind: action.kind,
     envelope,
@@ -290,6 +325,12 @@ export function createMemoryPendingEngagementStorage(
     async load(slot) {
       const value = backing.records.get(slot);
       return value === undefined ? null : validateRecord(value);
+    },
+    async listForPost(principalId, postId) {
+      const records = await Promise.all([...backing.records.values()].map(validateRecord));
+      return records
+        .filter(record => record.principal_id === principalId && record.post_id === postId)
+        .sort((left, right) => left.envelope.created_at.localeCompare(right.envelope.created_at));
     },
     async saveNew(record) {
       const decoded = await validateRecord(record);
@@ -331,6 +372,13 @@ export function createIndexedDbPendingEngagementStorage(indexedDb: IDBFactory = 
     async load(slot) {
       const value = await request<unknown>("readonly", store => store.get(slot));
       return value === undefined ? null : validateRecord(value);
+    },
+    async listForPost(principalId, postId) {
+      const values = await request<unknown[]>("readonly", store => store.getAll());
+      const records = await Promise.all(values.map(validateRecord));
+      return records
+        .filter(record => record.principal_id === principalId && record.post_id === postId)
+        .sort((left, right) => left.envelope.created_at.localeCompare(right.envelope.created_at));
     },
     async saveNew(record) {
       const decoded = await validateRecord(record);

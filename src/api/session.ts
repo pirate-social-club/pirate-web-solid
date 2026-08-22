@@ -2,7 +2,12 @@ import { ApiClientError, type PirateApiClient } from "@pirate/api-client";
 import { createSessionApiClient } from "./client.ts";
 import type { ApiFetch } from "./proxy.ts";
 
-export type SessionResolution = "anonymous" | "authenticated";
+export interface AuthenticatedSession {
+  readonly status: "authenticated";
+  readonly userId: string;
+}
+
+export type SessionResolution = "anonymous" | AuthenticatedSession;
 export type SessionResolutionClient = Pick<PirateApiClient, "get_usersMe">;
 
 export interface SessionResolutionOptions {
@@ -35,8 +40,8 @@ export async function resolveSession(options: SessionResolutionOptions = {}): Pr
     fetchImpl: boundedFetch(options.fetchImpl ?? fetch, options.timeoutMs ?? 4_000),
   });
   try {
-    await client.get_usersMe(undefined);
-    return "authenticated";
+    const user = await client.get_usersMe(undefined);
+    return { status: "authenticated", userId: user.id };
   } catch (error) {
     if (error instanceof ApiClientError && error.status === 401) return "anonymous";
     throw error;

@@ -51,6 +51,7 @@ export interface FeedSurfaceProps {
 }
 
 export interface FeedEngagementOptions {
+  readonly principalId: string;
   readonly canModerate?: boolean;
   readonly generateIdempotencyKey?: () => string;
   readonly initialCommentsForPost?: (postId: string) => readonly CommentThreadItem[];
@@ -184,6 +185,7 @@ function FeedItemCard(props: {
         generateIdempotencyKey={engagement().generateIdempotencyKey}
         initialComments={engagement().initialCommentsForPost?.(props.item.id)}
         post={props.item}
+        principalId={engagement().principalId}
         transport={engagement().transport}
       >{card}</PostEngagement>}
     </Show>

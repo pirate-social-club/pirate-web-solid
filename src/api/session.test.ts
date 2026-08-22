@@ -17,13 +17,13 @@ describe("browser session resolution", () => {
       client: {
         get_usersMe: candidate => {
           input = candidate;
-          // SAFETY: the resolver only needs a successful promise; it never reads the response.
-          return Promise.resolve({} as never);
+          // SAFETY: the resolver reads only the generated response id.
+          return Promise.resolve({ id: "user-1" } as never);
         },
       },
     });
 
-    expect(result).toBe("authenticated");
+    expect(result).toEqual({ status: "authenticated", userId: "user-1" });
     expect(input).toBeUndefined();
   });
 

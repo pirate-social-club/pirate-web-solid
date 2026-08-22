@@ -117,7 +117,7 @@ describe("public-first home route", () => {
   test("authenticated resolution swaps public discovery for home", async () => {
     const container = render(() => (
       <HomeRoute
-        resolveSession={async () => "authenticated"}
+        resolveSession={async () => ({ status: "authenticated", userId: "user-1" })}
         publicData={page("Public discovery")}
         homeData={page("Personal home")}
       />

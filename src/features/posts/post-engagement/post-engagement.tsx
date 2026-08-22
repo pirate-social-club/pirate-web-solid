@@ -56,6 +56,7 @@ export interface PostEngagementPost {
 
 export interface PostEngagementProps {
   readonly post: PostEngagementPost;
+  readonly principalId: string;
   readonly transport?: PostEngagementTransport;
   readonly initialComments?: readonly CommentThreadItem[];
   readonly canModerate?: boolean;
@@ -107,7 +108,7 @@ function visibleCommentBody(item: CommentThreadItem): string {
 
 function unavailablePendingStorage(): PendingEngagementStorage {
   const unavailable = async (): Promise<never> => { throw new Error("Durable pending storage is unavailable"); };
-  return { load: unavailable, saveNew: unavailable, save: unavailable, remove: unavailable };
+  return { load: unavailable, listForPost: unavailable, saveNew: unavailable, save: unavailable, remove: unavailable };
 }
 
 function sameIntent(left: PendingEngagementAction, right: PendingEngagementAction): boolean {
@@ -171,6 +172,8 @@ export function PostEngagement(props: PostEngagementProps) {
   const [submissionBusy, setSubmissionBusy] = createSignal(false);
   const [issue, setIssue] = createSignal<EngagementIssue>();
   const [discardableRecord, setDiscardableRecord] = createSignal<PendingEngagementRecord>();
+  const [retainedRecord, setRetainedRecord] = createSignal<PendingEngagementRecord>();
+  const [retainedBusy, setRetainedBusy] = createSignal(false);
   const [reportReason, setReportReason] = createSignal<CommentReportReason>("spam");
   const [actionBusyId, setActionBusyId] = createSignal<string>();
 
@@ -182,6 +185,15 @@ export function PostEngagement(props: PostEngagementProps) {
   });
 
   const updateDraft = (value: string) => setDraft(value);
+
+  const refreshRetainedRecords = async (): Promise<void> => {
+    const records = await pendingStorage.listForPost(props.principalId, props.post.id);
+    const rejected = records.find(record => record.issue !== undefined);
+    setDiscardableRecord(rejected);
+    setRetainedRecord(rejected === undefined
+      ? records.find(record => record.issue === undefined)
+      : undefined);
+  };
 
   const openComments = () => {
     setPanelOpen(true);
@@ -211,12 +223,16 @@ export function PostEngagement(props: PostEngagementProps) {
         }
         const retained = await decodePendingEngagementAction(existing.envelope);
         if (!sameIntent(retained, createAction(retained.idempotencyKey))) {
+          setRetainedRecord(existing);
           setIssue({ kind: "pending_action" });
           return null;
         }
         return existing;
       }
-      const record = await createPendingEngagementRecord(createAction(generateKey()), undefined, slot);
+      const record = await createPendingEngagementRecord(createAction(generateKey()), {
+        principalId: props.principalId,
+        postId: props.post.id,
+      });
       try {
         await pendingStorage.saveNew(record);
         return record;
@@ -230,6 +246,7 @@ export function PostEngagement(props: PostEngagementProps) {
         }
         const retained = await decodePendingEngagementAction(winner.envelope);
         if (!sameIntent(retained, createAction(retained.idempotencyKey))) {
+          setRetainedRecord(winner);
           setIssue({ kind: "pending_action" });
           return null;
         }
@@ -244,7 +261,10 @@ export function PostEngagement(props: PostEngagementProps) {
   const retainFailure = async (record: PendingEngagementRecord, error: unknown): Promise<void> => {
     const projected = mapEngagementIssue(error);
     setIssue(projected);
-    if (!(error instanceof ApiClientError) || error.retryable || error.status < 400 || error.status >= 500) return;
+    setRetainedRecord(record);
+    if (!(error instanceof ApiClientError) || error.retryable) return;
+    const definitiveRejection = projected.kind === "idempotency_conflict" || error.status === 400 || error.status === 403;
+    if (!definitiveRejection) return;
     const retainedIssue: PendingEngagementIssue = projected.kind === "idempotency_conflict"
       ? { kind: "idempotency_conflict", identity: projected.identity }
       : { kind: "server_rejection", status: error.status, code: error.code };
@@ -252,6 +272,7 @@ export function PostEngagement(props: PostEngagementProps) {
     try {
       await pendingStorage.save(rejected);
       setDiscardableRecord(rejected);
+      setRetainedRecord(undefined);
     } catch {
       setIssue({ kind: "durable_storage_failed" });
     }
@@ -265,6 +286,13 @@ export function PostEngagement(props: PostEngagementProps) {
       // replay that stored result; cleanup failure must not erase the result.
     }
     if (discardableRecord()?.slot === record.slot) setDiscardableRecord(undefined);
+    if (retainedRecord()?.slot === record.slot) setRetainedRecord(undefined);
+    try {
+      await refreshRetainedRecords();
+    } catch {
+      // The successful response remains authoritative even when discovery of
+      // another retained action has to wait for the next component mount.
+    }
   };
 
   const discardRejected = async (): Promise<void> => {
@@ -274,6 +302,7 @@ export function PostEngagement(props: PostEngagementProps) {
       await pendingStorage.remove(record.slot);
       setDiscardableRecord(undefined);
       setIssue(undefined);
+      await refreshRetainedRecords();
     } catch {
       setIssue({ kind: "durable_storage_failed" });
     }
@@ -283,27 +312,18 @@ export function PostEngagement(props: PostEngagementProps) {
     () => true,
     () => { void (async () => {
       try {
-        const slots = [
-          commentSubmissionSlot(props.post.id),
-          postVoteSlot(props.post.id),
-          ...initial.comments.flatMap(item => [
-            commentReportSlot(item.id),
-            ...(item.caseRef === null ? [] : [moderationCaseSlot(item.caseRef)]),
-          ]),
-        ];
-        const records = (await Promise.all(slots.map(slot => pendingStorage.load(slot))))
-          .filter((record): record is PendingEngagementRecord => record !== null);
+        const records = await pendingStorage.listForPost(props.principalId, props.post.id);
         const decoded = await Promise.all(records.map(async record => ({
           record,
           action: await decodePendingEngagementAction(record.envelope),
         })));
-        const pendingSubmission = records.find(record => record.slot === commentSubmissionSlot(props.post.id));
+        const pendingSubmission = records.find(record => record.slot === commentSubmissionSlot(props.principalId, props.post.id));
         if (pendingSubmission !== undefined) {
           const action = await decodePendingEngagementAction(pendingSubmission.envelope);
-          if (action.kind === "comment") {
+          if (action.kind === "comment" && draft() === "") {
             setComposeTarget({ kind: "comment" });
             setDraft(action.body);
-          } else if (action.kind === "reply" && comments().some(item => item.id === action.commentId)) {
+          } else if (action.kind === "reply" && draft() === "" && comments().some(item => item.id === action.commentId)) {
             setComposeTarget({ kind: "reply", parentId: action.commentId });
             setDraft(action.body);
           }
@@ -317,6 +337,9 @@ export function PostEngagement(props: PostEngagementProps) {
         if (rejected?.issue !== undefined) {
           setDiscardableRecord(rejected);
           setIssue(issueFromPending(rejected.issue));
+        } else {
+          const retained = records.find(record => record.issue === undefined);
+          if (retained !== undefined) setRetainedRecord(retained);
         }
       } catch {
         setIssue({ kind: "durable_storage_failed" });
@@ -337,7 +360,7 @@ export function PostEngagement(props: PostEngagementProps) {
     const parentId = parent?.id ?? null;
     setSubmissionBusy(true);
     setIssue(undefined);
-    const slot = commentSubmissionSlot(props.post.id);
+    const slot = commentSubmissionSlot(props.principalId, props.post.id);
     const record = await prepareRecord(slot, key => parent
       ? { kind: "reply", commentId: parent.id, body, idempotencyKey: key }
       : { kind: "comment", postId: props.post.id, body, idempotencyKey: key });
@@ -376,7 +399,7 @@ export function PostEngagement(props: PostEngagementProps) {
     const value: -1 | 1 | null = direction === "up" ? 1 : direction === "down" ? -1 : null;
     setVoteBusy(true);
     setIssue(undefined);
-    const record = await prepareRecord(postVoteSlot(props.post.id), key => value === null
+    const record = await prepareRecord(postVoteSlot(props.principalId, props.post.id), key => value === null
       ? { kind: "clear_vote", postId: props.post.id, idempotencyKey: key }
       : { kind: "vote", postId: props.post.id, value, idempotencyKey: key });
     if (record === null) {
@@ -403,7 +426,7 @@ export function PostEngagement(props: PostEngagementProps) {
     if (actionBusyId() || !commentCountsAsPublished(item) || !isCommentAddressable(item)) return;
     setActionBusyId(item.id);
     setIssue(undefined);
-    const record = await prepareRecord(commentReportSlot(item.id), key => ({
+    const record = await prepareRecord(commentReportSlot(props.principalId, props.post.id, item.id), key => ({
       kind: "report",
       commentId: item.id,
       reasonCode: reportReason(),
@@ -430,7 +453,7 @@ export function PostEngagement(props: PostEngagementProps) {
     if (actionBusyId() || !item.caseRef) return;
     setActionBusyId(item.id);
     setIssue(undefined);
-    const record = await prepareRecord(moderationCaseSlot(item.caseRef), key => ({
+    const record = await prepareRecord(moderationCaseSlot(props.principalId, props.post.id, item.caseRef), key => ({
       kind: "moderate",
       caseRef: item.caseRef ?? "",
       action,
@@ -482,13 +505,96 @@ export function PostEngagement(props: PostEngagementProps) {
       const refreshed = settledComment(item, snapshot);
       setComments(items => items.map(comment => comment.id === item.id ? refreshed : comment));
       if (item.caseRef !== null) {
-        const retained = await pendingStorage.load(moderationCaseSlot(item.caseRef));
+        const retained = await pendingStorage.load(moderationCaseSlot(props.principalId, props.post.id, item.caseRef));
         if (retained !== null) await resolveRecord(retained);
       }
     } catch (error) {
       setIssue(mapEngagementIssue(error));
     } finally {
       setActionBusyId(undefined);
+    }
+  };
+
+  const retryRetained = async (): Promise<void> => {
+    const record = retainedRecord();
+    if (record === undefined || retainedBusy()) return;
+    setRetainedBusy(true);
+    setIssue(undefined);
+    try {
+      const action = await decodePendingEngagementAction(record.envelope);
+      switch (action.kind) {
+        case "comment":
+        case "reply": {
+          const parent = action.kind === "reply"
+            ? comments().find(item => item.id === action.commentId)
+            : undefined;
+          const pending = submittingComment(
+            action.body,
+            parent === undefined ? 0 : parent.depth + 1,
+            parent?.id ?? null,
+            action.idempotencyKey,
+          );
+          const response = action.kind === "reply"
+            ? await transport.createReply(record.envelope)
+            : await transport.createComment(record.envelope);
+          const settled = settledComment(pending, response);
+          if (action.kind === "comment" || parent !== undefined) {
+            setComments(items => {
+              let next = [...items.filter(item => item.id !== pending.id), settled];
+              if (settled.state === "published" && parent !== undefined) {
+                next = [...adjustReplyCount(next, parent.id, 1)];
+              }
+              return next;
+            });
+          }
+          if (settled.state === "published") setCommentCount(value => value + 1);
+          break;
+        }
+        case "report": {
+          const response = await transport.reportComment(record.envelope);
+          setComments(items => items.map(item => item.id === action.commentId
+            ? { ...item, caseRef: response.case_ref, reportState: response.status }
+            : item));
+          break;
+        }
+        case "moderate": {
+          const response = await transport.moderateCase(record.envelope);
+          const current = comments().find(item => item.caseRef === action.caseRef);
+          if (current !== undefined) {
+            let nextItem = applyModerationOutcome(current, response);
+            if (current.state === "manual_review" && current.submissionId !== null && response.target_status === "published") {
+              const snapshot = await transport.readSubmission(current.submissionId);
+              nextItem = { ...settledComment(nextItem, snapshot), lastModerationAction: response.action };
+            }
+            const countDelta = Number(commentCountsAsPublished(nextItem)) - Number(commentCountsAsPublished(current));
+            setComments(items => {
+              const updated = items.map(item => item.id === current.id ? nextItem : item);
+              return current.parentId && countDelta !== 0
+                ? adjustReplyCount(updated, current.parentId, countDelta > 0 ? 1 : -1)
+                : updated;
+            });
+            if (countDelta !== 0) setCommentCount(value => Math.max(0, value + countDelta));
+          }
+          break;
+        }
+        case "vote": {
+          const response = await transport.castVote(record.envelope);
+          setScore(current => nextVoteScore(current, viewerVote(), response.value));
+          setViewerVote(response.value);
+          break;
+        }
+        case "clear_vote": {
+          await transport.clearVote(record.envelope);
+          setScore(current => nextVoteScore(current, viewerVote(), null));
+          setViewerVote(null);
+          break;
+        }
+      }
+      await resolveRecord(record);
+    } catch (error) {
+      await retainFailure(record, error);
+    } finally {
+      setRetainedBusy(false);
     }
   };
 
@@ -507,6 +613,9 @@ export function PostEngagement(props: PostEngagementProps) {
       </Show>
       <Show when={discardableRecord()?.issue && !panelOpen()}>
         <Button onClick={() => void discardRejected()} size="sm" type="button" variant="outline">Discard rejected action</Button>
+      </Show>
+      <Show when={retainedRecord() && !panelOpen()}>
+        <Button disabled={retainedBusy()} onClick={() => void retryRetained()} size="sm" type="button" variant="outline">Retry retained request</Button>
       </Show>
     </div>
   );
@@ -610,6 +719,9 @@ export function PostEngagement(props: PostEngagementProps) {
           </Show>
           <Show when={discardableRecord()?.issue}>
             <Button class="mt-2" onClick={() => void discardRejected()} size="sm" type="button" variant="outline">Discard rejected action</Button>
+          </Show>
+          <Show when={retainedRecord()}>
+            <Button class="mt-2" disabled={retainedBusy()} onClick={() => void retryRetained()} size="sm" type="button" variant="outline">Retry retained request</Button>
           </Show>
         </div>
       </div>

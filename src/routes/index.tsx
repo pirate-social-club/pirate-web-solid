@@ -99,6 +99,13 @@ export default function HomeRoute(props: HomeRouteProps = {}) {
   const hydrationFixtures = isHydrationFixtureRequest();
   const reviewFixture = isLocalFeedReviewRequest();
   const publicData = props.publicData ?? (reviewFixture ? publicFeedReviewPage : undefined);
+  const authenticatedSession = () => {
+    const current = session();
+    return current === "resolving" || current === "anonymous" ? undefined : current;
+  };
+  const sessionStatus = () => session() === "resolving"
+    ? "resolving"
+    : session() === "anonymous" ? "anonymous" : "authenticated";
 
   createEffect(
     () => true,
@@ -116,13 +123,17 @@ export default function HomeRoute(props: HomeRouteProps = {}) {
   );
 
   return (
-    <MediaShell activeItemId="home" signedIn={session() === "authenticated"}>
-      <div data-route-path="/" data-home-session={session()}>
+    <MediaShell activeItemId="home" signedIn={authenticatedSession() !== undefined}>
+      <div data-route-path="/" data-home-session={sessionStatus()}>
         <Show
-          when={session() === "authenticated"}
+          when={authenticatedSession()}
           fallback={<PublicFeed client={props.publicClient} data={publicData} />}
         >
-          <HomeFeed client={props.homeClient} data={props.homeData} />
+          {(authenticated) => <HomeFeed
+            client={props.homeClient}
+            data={props.homeData}
+            engagement={{ principalId: authenticated().userId }}
+          />}
         </Show>
         <Show when={hydrationFixtures}>
           <HydrationFixtures />

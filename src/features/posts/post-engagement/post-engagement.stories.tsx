@@ -69,7 +69,8 @@ function frame(viewerVote: -1 | 1 | null, transport: PostEngagementTransport = n
     <div class="mx-auto max-w-3xl p-6">
       <PostEngagement
         canModerate
-        generateIdempotencyKey={() => "story-action-key"}
+        principalId="storybook-viewer"
+        generateIdempotencyKey={() => crypto.randomUUID()}
         initialComments={initialComments}
         pendingStorage={createMemoryPendingEngagementStorage()}
         post={{ id: "story-post", upvoteCount: 18, downvoteCount: 1, commentCount: 7, viewerVote }}

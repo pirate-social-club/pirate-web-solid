@@ -5,7 +5,12 @@ import { createRoot } from "solid-js";
 import { afterEach, describe, expect, test, vi } from "vitest";
 
 import type { PostEngagementTransport } from "./post-engagement-api.ts";
-import { createMemoryPendingEngagementStorage, decodePendingEngagementAction } from "./post-engagement-pending.ts";
+import {
+  commentSubmissionSlot,
+  createMemoryPendingEngagementStorage,
+  createPendingEngagementRecord,
+  decodePendingEngagementAction,
+} from "./post-engagement-pending.ts";
 import { PostEngagement } from "./post-engagement.tsx";
 
 const disposers: Array<() => void> = [];
@@ -80,6 +85,7 @@ describe("PostEngagement", () => {
       generateIdempotencyKey={generateKey}
       pendingStorage={pendingStorage}
       post={{ id: "post-1", upvoteCount: 3, downvoteCount: 1, commentCount: 0, viewerVote: null }}
+      principalId="user-1"
       transport={transportFixture(createComment)}
     />);
 
@@ -99,6 +105,7 @@ describe("PostEngagement", () => {
       generateIdempotencyKey={generateKey}
       pendingStorage={pendingStorage}
       post={{ id: "post-1", upvoteCount: 3, downvoteCount: 1, commentCount: 0, viewerVote: null }}
+      principalId="user-1"
       transport={transportFixture(createComment)}
     />);
     button("Comments (0)").click();
@@ -116,6 +123,40 @@ describe("PostEngagement", () => {
     expect(createComment.mock.calls[1]?.[0]).toEqual(createComment.mock.calls[0]?.[0]);
     expect(generateKey).toHaveBeenCalledTimes(1);
     expect(button("Comments (1)")).toBeTruthy();
+  });
+
+  test("does not overwrite text entered while durable reload discovery is pending", async () => {
+    const baseStorage = createMemoryPendingEngagementStorage();
+    await baseStorage.saveNew(await createPendingEngagementRecord({
+      kind: "comment",
+      postId: "post-1",
+      body: "Older retained text",
+      idempotencyKey: "retained-key",
+    }, { principalId: "user-1", postId: "post-1" }));
+    let releaseDiscovery: () => void = () => {};
+    const discovery = new Promise<void>(resolve => { releaseDiscovery = resolve; });
+    const pendingStorage = {
+      ...baseStorage,
+      async listForPost(principalId: string, postId: string) {
+        await discovery;
+        return baseStorage.listForPost(principalId, postId);
+      },
+    };
+    render(() => <PostEngagement
+      pendingStorage={pendingStorage}
+      post={{ id: "post-1", upvoteCount: 0, downvoteCount: 0, commentCount: 0, viewerVote: null }}
+      principalId="user-1"
+      transport={transportFixture(vi.fn())}
+    />);
+    button("Comments (0)").click();
+    await vi.waitFor(() => expect(document.querySelector("textarea[aria-label='Write a comment']")).not.toBeNull());
+    const textarea = document.querySelector("textarea[aria-label='Write a comment']");
+    if (!(textarea instanceof HTMLTextAreaElement)) throw new Error("comment textarea missing");
+    textarea.value = "Newly typed text";
+    textarea.dispatchEvent(new InputEvent("input", { bubbles: true }));
+    releaseDiscovery();
+    await vi.waitFor(() => expect(button("Retry retained request")).toBeTruthy());
+    expect(textarea.value).toBe("Newly typed text");
   });
 
   test("mints a new comment key only after explicit rejected-action discard", async () => {
@@ -147,6 +188,7 @@ describe("PostEngagement", () => {
       generateIdempotencyKey={() => keys.shift() ?? "unexpected"}
       pendingStorage={pendingStorage}
       post={{ id: "post-1", upvoteCount: 0, downvoteCount: 0, commentCount: 0, viewerVote: null }}
+      principalId="user-1"
       transport={transportFixture(createComment)}
     />);
 
@@ -164,7 +206,7 @@ describe("PostEngagement", () => {
     expect(createComment).toHaveBeenCalledTimes(1);
 
     button("Discard rejected action").click();
-    await vi.waitFor(async () => expect(await pendingStorage.load("post:post-1:comment-submission")).toBeNull());
+    await vi.waitFor(async () => expect(await pendingStorage.load(commentSubmissionSlot("user-1", "post-1"))).toBeNull());
     if (![...document.querySelectorAll("button")].some(candidate => candidate.textContent?.trim() === "Post comment")) {
       button("Comments (0)").click();
       await vi.waitFor(() => expect(button("Post comment")).toBeTruthy());
@@ -182,6 +224,7 @@ describe("PostEngagement", () => {
       generateIdempotencyKey={() => keys.shift() ?? "unexpected"}
       pendingStorage={createMemoryPendingEngagementStorage()}
       post={{ id: "post-1", upvoteCount: 3, downvoteCount: 1, commentCount: 0, viewerVote: null }}
+      principalId="user-1"
       transport={transport}
     />);
 
@@ -215,6 +258,7 @@ describe("PostEngagement", () => {
       generateIdempotencyKey={generateKey}
       pendingStorage={createMemoryPendingEngagementStorage()}
       post={{ id: "post-1", upvoteCount: 3, downvoteCount: 1, commentCount: 0, viewerVote: null }}
+      principalId="user-1"
       transport={transport}
     />);
 
@@ -230,6 +274,132 @@ describe("PostEngagement", () => {
     const second = vi.mocked(transport.castVote).mock.calls[1]?.[0];
     expect(second).toEqual(first);
     expect(generateKey).toHaveBeenCalledTimes(1);
+  });
+
+  test("refuses edited comment bytes while an unresolved request retains its original key", async () => {
+    const createComment = vi.fn(async (_envelope: Parameters<PostEngagementTransport["createComment"]>[0]) => {
+      throw new Error("connection lost");
+    });
+    const generateKey = vi.fn(() => "stable-edit-key");
+    render(() => <PostEngagement
+      generateIdempotencyKey={generateKey}
+      pendingStorage={createMemoryPendingEngagementStorage()}
+      post={{ id: "post-1", upvoteCount: 0, downvoteCount: 0, commentCount: 0, viewerVote: null }}
+      principalId="user-1"
+      transport={transportFixture(createComment)}
+    />);
+
+    button("Comments (0)").click();
+    await vi.waitFor(() => expect(document.querySelector("textarea[aria-label='Write a comment']")).not.toBeNull());
+    const textarea = document.querySelector("textarea[aria-label='Write a comment']");
+    if (!(textarea instanceof HTMLTextAreaElement)) throw new Error("comment textarea missing");
+    textarea.value = "Original request";
+    textarea.dispatchEvent(new InputEvent("input", { bubbles: true }));
+    await vi.waitFor(() => expect(button("Post comment").disabled).toBe(false));
+    button("Post comment").click();
+    await vi.waitFor(() => expect(button("Retry retained request")).toBeTruthy());
+    textarea.value = "Edited request";
+    textarea.dispatchEvent(new InputEvent("input", { bubbles: true }));
+    button("Post comment").click();
+    await new Promise(resolve => setTimeout(resolve, 0));
+    expect(createComment).toHaveBeenCalledTimes(1);
+    expect(generateKey).toHaveBeenCalledTimes(1);
+    expect(await decodePendingEngagementAction(createComment.mock.calls[0]?.[0])).toMatchObject({
+      body: "Original request",
+      idempotencyKey: "stable-edit-key",
+    });
+  });
+
+  test("replays a retained reply after reload without a preloaded parent", async () => {
+    const createReply = vi.fn()
+      .mockRejectedValueOnce(new Error("connection lost"))
+      .mockResolvedValueOnce({
+        submission_id: "submission-reply",
+        href: "/comments/reply-1",
+        surface: "reply",
+        status: "published",
+        result: { decision: "allow", reason_code: null },
+        published_resource: { kind: "comment", comment_id: "reply-1", href: "/comments/reply-1" },
+        review_ref: null,
+        created_at: "2026-08-23T00:00:00.000Z",
+        updated_at: "2026-08-23T00:00:00.000Z",
+      });
+    const transport = { ...transportFixture(vi.fn()), createReply };
+    const pendingStorage = createMemoryPendingEngagementStorage();
+    const generateKey = vi.fn(() => "stable-reply-key");
+    const parent = {
+      id: "comment-parent",
+      submissionId: "submission-parent",
+      parentId: null,
+      body: "Parent",
+      depth: 0,
+      replyCount: 0,
+      state: "published" as const,
+      caseRef: null,
+      href: "/comments/comment-parent",
+    };
+    render(() => <PostEngagement
+      generateIdempotencyKey={generateKey}
+      initialComments={[parent]}
+      pendingStorage={pendingStorage}
+      post={{ id: "post-1", upvoteCount: 0, downvoteCount: 0, commentCount: 1, viewerVote: null }}
+      principalId="user-1"
+      transport={transport}
+    />);
+    button("Comments (1)").click();
+    await vi.waitFor(() => expect(button("Reply")).toBeTruthy());
+    button("Reply").click();
+    await vi.waitFor(() => expect(document.querySelector("textarea[aria-label='Write a reply']")).not.toBeNull());
+    const textarea = document.querySelector("textarea[aria-label='Write a reply']");
+    if (!(textarea instanceof HTMLTextAreaElement)) throw new Error("reply textarea missing");
+    textarea.value = "Durable reply";
+    textarea.dispatchEvent(new InputEvent("input", { bubbles: true }));
+    await vi.waitFor(() => expect(button("Post reply").disabled).toBe(false));
+    button("Post reply").click();
+    await vi.waitFor(() => expect(button("Retry retained request")).toBeTruthy());
+
+    disposers.pop()?.();
+    render(() => <PostEngagement
+      generateIdempotencyKey={generateKey}
+      pendingStorage={pendingStorage}
+      post={{ id: "post-1", upvoteCount: 0, downvoteCount: 0, commentCount: 1, viewerVote: null }}
+      principalId="user-1"
+      transport={transport}
+    />);
+    await vi.waitFor(() => expect(button("Retry retained request")).toBeTruthy());
+    button("Retry retained request").click();
+    await vi.waitFor(() => expect(button("Comments (2)")).toBeTruthy());
+    expect(createReply).toHaveBeenCalledTimes(2);
+    expect(createReply.mock.calls[1]?.[0]).toEqual(createReply.mock.calls[0]?.[0]);
+    expect(generateKey).toHaveBeenCalledTimes(1);
+    expect(await pendingStorage.listForPost("user-1", "post-1")).toEqual([]);
+  });
+
+  test("keeps an unauthorized request retryable instead of persisting a discard-only rejection", async () => {
+    const createComment = vi.fn(async () => { throw new ApiClientError(
+      { status: 401, code: "auth_error", name: "AuthError", retryable: false },
+      { error: { code: "auth_error", message: "sign in", retryable: false } },
+    ); });
+    const storage = createMemoryPendingEngagementStorage();
+    render(() => <PostEngagement
+      generateIdempotencyKey={() => "auth-key"}
+      pendingStorage={storage}
+      post={{ id: "post-1", upvoteCount: 0, downvoteCount: 0, commentCount: 0, viewerVote: null }}
+      principalId="user-1"
+      transport={transportFixture(createComment)}
+    />);
+    button("Comments (0)").click();
+    await vi.waitFor(() => expect(document.querySelector("textarea[aria-label='Write a comment']")).not.toBeNull());
+    const textarea = document.querySelector("textarea[aria-label='Write a comment']");
+    if (!(textarea instanceof HTMLTextAreaElement)) throw new Error("comment textarea missing");
+    textarea.value = "Retry after sign-in";
+    textarea.dispatchEvent(new InputEvent("input", { bubbles: true }));
+    await vi.waitFor(() => expect(button("Post comment").disabled).toBe(false));
+    button("Post comment").click();
+    await vi.waitFor(() => expect(button("Retry retained request")).toBeTruthy());
+    expect([...document.querySelectorAll("button")].some(candidate => candidate.textContent?.trim() === "Discard rejected action")).toBe(false);
+    const retained = await storage.load(commentSubmissionSlot("user-1", "post-1"));
+    expect(retained?.issue).toBeUndefined();
   });
 
   test("reads back an approved held comment before exposing addressable actions", async () => {
@@ -272,6 +442,7 @@ describe("PostEngagement", () => {
       }]}
       pendingStorage={createMemoryPendingEngagementStorage()}
       post={{ id: "post-1", upvoteCount: 3, downvoteCount: 1, commentCount: 0, viewerVote: null }}
+      principalId="user-1"
       transport={transport}
     />);
 
@@ -318,6 +489,7 @@ describe("PostEngagement", () => {
         href: "/comments/comment-1",
       }]}
       post={{ id: "post-1", upvoteCount: 3, downvoteCount: 1, commentCount: 1, viewerVote: null }}
+      principalId="user-1"
       transport={transport}
     />);
 
@@ -354,6 +526,7 @@ describe("PostEngagement", () => {
     const props = {
       generateIdempotencyKey: generateKey,
       pendingStorage,
+      principalId: "user-1",
       initialComments: [{
         id: "comment-1",
         submissionId: "submission-1",

@@ -3,7 +3,6 @@ import {
   type CreateCommentReplyResponse,
   type CreateCommentResponse,
   type ModerateCaseActionResponse,
-  type PirateApiClient,
   type ReportCommentResponse,
   type CastPostVoteResponse,
   type GetTextContentSubmissionResponse,
@@ -50,19 +49,7 @@ export interface PostEngagementTransport {
   readSubmission(submissionId: string): Promise<GetTextContentSubmissionResponse>;
 }
 
-export type PostEngagementClient = Pick<
-  PirateApiClient,
-  | "post_postsPostIdComments"
-  | "post_commentsCommentIdReplies"
-  | "post_commentsCommentIdReports"
-  | "post_moderationCasesCaseRefActions"
-  | "post_postsPostIdVote"
-  | "post_postsPostIdClearVote"
-  | "get_textContentSubmissionsSubmissionId"
->;
-
 export interface PostEngagementTransportOptions {
-  readonly client?: PostEngagementClient;
   readonly csrfToken?: () => string | undefined;
   readonly fetchImpl?: ApiFetch;
   readonly origin?: string | URL;
@@ -96,8 +83,7 @@ function expectedAction<T extends PendingEngagementAction["kind"]>(
 function clientForEnvelope(
   options: PostEngagementTransportOptions,
   envelope: PendingSubmissionEnvelopeV1,
-): PostEngagementClient {
-  if (options.client !== undefined) return options.client;
+) {
   const body = pendingBodyBytes(envelope);
   const fetchImpl = options.fetchImpl ?? fetch;
   const exactBodyFetch: ApiFetch = (input, init = {}) => fetchImpl(input, {
@@ -109,8 +95,8 @@ function clientForEnvelope(
   return createSessionApiClient({ origin: options.origin, fetchImpl: exactBodyFetch });
 }
 
-function ordinaryClient(options: PostEngagementTransportOptions): PostEngagementClient {
-  return options.client ?? createSessionApiClient({ origin: options.origin, fetchImpl: options.fetchImpl });
+function ordinaryClient(options: PostEngagementTransportOptions) {
+  return createSessionApiClient({ origin: options.origin, fetchImpl: options.fetchImpl });
 }
 
 /**

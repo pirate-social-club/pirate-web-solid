@@ -29,7 +29,7 @@ export default function HomeFeed(props: HomeFeedProps) {
     locale={props.locale}
     sort={props.sort}
     copy={HOME_FEED_COPY}
-    engagement={props.engagement === false ? undefined : props.engagement ?? {}}
+    engagement={props.engagement === false ? undefined : props.engagement}
     loadPage={({ cursor, locale, sort }) => fetchHomeFeedPage({ client: props.client, cursor, locale, sort })}
   />;
 }
