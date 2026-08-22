@@ -4,11 +4,12 @@
 // final step posts.
 
 import { Portal } from "@solidjs/web";
-import { For, Show } from "solid-js";
+import { For, Show, createEffect } from "solid-js";
 
 import { Button, CardFooter, FormNote } from "../../../design-system";
 import { cn } from "../../../design-system";
 import type { PostComposerController } from "./controller";
+import { animateComposerBarEnter } from "./composer-motion";
 import { getNextComposerStep, getPreviousComposerStep } from "./utils";
 
 // Step indicator for the song flow: position and names, with names clickable
@@ -33,7 +34,8 @@ export function PostComposerStepIndicator(props: {
               <button
                 aria-current={isCurrent() ? "step" : undefined}
                 class={cn(
-                  "rounded-full px-2 py-1 text-base transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                  "rounded-full px-2 py-1 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                  controller.isMobile() ? "text-base" : "text-lg",
                   isCurrent() ? "font-semibold text-foreground" : "text-muted-foreground hover:text-foreground",
                   !clickable() && "cursor-default opacity-60 hover:text-muted-foreground",
                 )}
@@ -55,6 +57,17 @@ export function PostComposerStepFooter(props: {
   controller: PostComposerController;
 }) {
   const controller = props.controller;
+  let mobileBar: HTMLDivElement | undefined;
+  let entered = false;
+  createEffect(
+    () => mobileBar,
+    (nextBar) => {
+      if (!entered && nextBar) {
+        animateComposerBarEnter(nextBar);
+        entered = true;
+      }
+    },
+  );
   const isFirst = () => controller.step.isFirst;
   const isLast = () => controller.step.isLast;
   const tab = () => controller.tabs.activeTab;
@@ -101,14 +114,14 @@ export function PostComposerStepFooter(props: {
   );
 
   const desktop = (
-    <CardFooter class="justify-between gap-3 border-t border-border-soft p-5">
+    <CardFooter class="justify-between gap-3 border-t border-border-soft px-8 py-5">
       {back()}
       {forward()}
     </CardFooter>
   );
 
   const mobile = (
-    <div class="fixed inset-x-0 bottom-0 z-20 border-t border-border-soft bg-background/95 px-4 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-3 backdrop-blur-xl">
+    <div class="fixed inset-x-0 bottom-0 z-20 border-t border-border-soft bg-background/95 px-4 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-3 backdrop-blur-xl" ref={mobileBar}>
       <div class="flex items-center gap-3">
         {back()}
         <div class="min-w-0 flex-1">{forward()}</div>

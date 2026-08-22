@@ -1,3 +1,4 @@
+import type { JSX } from "@solidjs/web";
 import { createEffect, createSignal, Show } from "solid-js";
 
 import {
@@ -18,6 +19,7 @@ import { cn } from "../../../design-system";
 import { PostComposerGenericAssetFields } from "./generic-asset-fields";
 import {
   PostComposerDesktopAttachmentToolbar,
+  PostComposerDesktopToolbarIcons,
   PostComposerMobileAttachmentBar,
 } from "./attachment-bar";
 import { PostComposerAttachmentCard } from "./attachment-card";
@@ -25,7 +27,6 @@ import { attachmentActions, overflowMobileAttachmentActions, primaryMobileAttach
 import { PostComposerEventSection } from "./event-section";
 import { LiveTabContent } from "./live-tab";
 import { PostComposerSettingsHub } from "./settings-hub";
-import { PostComposerPublishControls } from "./publish-controls";
 import {
   createKeyboardBottomOffset,
   createObjectUrl,
@@ -97,7 +98,8 @@ function attachmentFor(
 
 export function PostComposerWriteStep(props: {
   controller: PostComposerController;
-  initialOpenPanel?: "access-and-rights" | "visibility";
+  children?: JSX.Element;
+  initialOpenPanel?: "access-and-rights";
 }) {
   const controller = props.controller;
   const imagePreview = createObjectUrl(() => controller.media.activeImageUpload);
@@ -195,26 +197,28 @@ export function PostComposerWriteStep(props: {
 
   const body = (mobile: boolean) => (
     <>
-      <div class="flex items-start gap-3">
-        <Show when={!mobile} fallback={
-          <Input
-            class="h-auto min-w-0 flex-1 px-0 py-0 text-3xl font-semibold leading-tight shadow-none focus-visible:border-transparent focus-visible:ring-0"
-            maxlength={300}
-            onChange={(event) => controller.fields.onTitleValueChange?.(event.currentTarget.value)}
-            placeholder={controller.copy.placeholders.title}
-            variant="flat"
-            value={controller.fields.titleValue}
-          />
-        }>
-          <Input maxlength={300} onChange={(event) => controller.fields.onTitleValueChange?.(event.currentTarget.value)} placeholder="Title*" size="title" value={controller.fields.titleValue} />
-        </Show>
-      </div>
-      <div class="flex flex-wrap items-center gap-2">
-        <PostComposerPublishControls
-          controller={controller}
-          initialOpen={props.initialOpenPanel === "visibility"}
+      <Show when={mobile} fallback={
+        <Input
+          class="h-auto min-w-0 px-0 py-0 text-3xl leading-tight tracking-tight"
+          maxlength={300}
+          onChange={(event) => controller.fields.onTitleValueChange?.(event.currentTarget.value)}
+          placeholder={controller.copy.placeholders.title}
+          size="title"
+          value={controller.fields.titleValue}
+          variant="flat"
         />
-        <Show when={showAccessRights()}>
+      }>
+        <Input
+          class="h-auto min-w-0 flex-1 px-0 py-0 text-2xl font-semibold leading-tight shadow-none focus-visible:border-transparent focus-visible:ring-0"
+          maxlength={300}
+          onChange={(event) => controller.fields.onTitleValueChange?.(event.currentTarget.value)}
+          placeholder={controller.copy.placeholders.title}
+          variant="flat"
+          value={controller.fields.titleValue}
+        />
+      </Show>
+      <Show when={showAccessRights()}>
+        <div class="flex flex-wrap items-center gap-2">
           <Modal open={accessOpen()} onOpenChange={setAccessOpen}>
             <ModalTrigger
               aria-label={controller.copy.publishChips.accessRightsTitle}
@@ -234,8 +238,8 @@ export function PostComposerWriteStep(props: {
               <PostComposerSettingsHub controller={controller} />
             </ModalContent>
           </Modal>
-        </Show>
-      </div>
+        </div>
+      </Show>
 
       <PostComposerAttachmentCard
         attachment={attachment()}
@@ -245,7 +249,7 @@ export function PostComposerWriteStep(props: {
       />
 
       <Show when={controller.tabs.activeTab === "file"}><PostComposerGenericAssetFields file={controller.generic.file} onFileChange={controller.generic.setFile} /></Show>
-      <Textarea class={cn("resize-none text-xl leading-relaxed", mobile ? "min-h-[38dvh] rounded-none border-0 bg-transparent p-0 shadow-none focus-visible:ring-0" : "min-h-36")} onChange={(event) => updateBody(controller, event.currentTarget.value)} placeholder={attachment() ? controller.copy.placeholders.optional : controller.copy.placeholders.body} value={bodyValue(controller)} />
+      <Textarea class={cn("resize-none text-lg leading-relaxed", mobile ? "text-xl min-h-[38dvh] rounded-none border-0 bg-transparent p-0 shadow-none focus-visible:ring-0" : "min-h-48 rounded-none border-0 bg-transparent px-0 shadow-none focus-visible:ring-0")} onChange={(event) => updateBody(controller, event.currentTarget.value)} placeholder={attachment() ? controller.copy.placeholders.optional : controller.copy.placeholders.body} value={bodyValue(controller)} />
       <Show when={controller.tabs.activeTab === "live"} fallback={<Show when={controller.tabs.activeTab !== "song" && controller.event.state.enabled}><PostComposerEventSection event={controller.event.state} onChange={controller.event.update} onSearchPlaces={controller.event.searchPlaces} /></Show>}>
         <LiveTabContent copy={controller.copy} live={controller.primary.liveState} onLiveChange={controller.primary.setLiveState} />
       </Show>
@@ -255,14 +259,21 @@ export function PostComposerWriteStep(props: {
   return (
     <>
       <Show when={controller.isMobile()} fallback={
-      <CardContent class={cn("relative space-y-5 p-6", dragging() && "overflow-hidden")} onDragEnter={(event) => { event.preventDefault(); dragCounter += 1; setDragging(true); }} onDragOver={(event) => event.preventDefault()} onDragLeave={(event) => { event.preventDefault(); dragCounter -= 1; if (dragCounter <= 0) setDragging(false); }} onDrop={drop}>
-        <Show when={dragging()}><div class="absolute inset-0 z-10 grid place-items-center rounded-[var(--radius-lg)] border-2 border-dashed border-primary bg-primary-subtle/80"><div class="flex flex-col items-center gap-3"><IconUploadSimple class="size-10 text-primary" /><Type as="p" variant="body-strong" class="text-primary">Drop a file to attach it</Type></div></div></Show>
-        {body(false)}
-        <PostComposerDesktopAttachmentToolbar actions={attachmentActions} activeKind={activeTool() ?? attachment()?.kind ?? null} onSelect={selectAttachment} />
-        <Inputs />
-      </CardContent>
-    }>
-      <div class="space-y-4 px-0 pb-24 pt-1" style={{ "padding-bottom": `${96 + keyboardOffset()}px` }}>{body(true)}</div>
+        <>
+          <CardContent class={cn("relative space-y-4 p-8", dragging() && "overflow-hidden")} onDragEnter={(event) => { event.preventDefault(); dragCounter += 1; setDragging(true); }} onDragOver={(event) => event.preventDefault()} onDragLeave={(event) => { event.preventDefault(); dragCounter -= 1; if (dragCounter <= 0) setDragging(false); }} onDrop={drop}>
+            <Show when={dragging()}><div class="absolute inset-0 z-10 grid place-items-center rounded-[var(--radius-lg)] border-2 border-dashed border-primary bg-primary-subtle/80"><div class="flex flex-col items-center gap-3"><IconUploadSimple class="size-10 text-primary" /><Type as="p" variant="body-strong" class="text-primary">Drop a file to attach it</Type></div></div></Show>
+            {body(false)}
+            <Inputs />
+          </CardContent>
+          <div class="flex items-center gap-3 border-t border-border-soft px-8 py-4">
+            <PostComposerDesktopToolbarIcons actions={attachmentActions} activeKind={activeTool() ?? attachment()?.kind ?? null} onSelect={selectAttachment} />
+            <Show when={props.children}>
+              <div class="ms-auto min-w-0">{props.children}</div>
+            </Show>
+          </div>
+        </>
+      }>
+      <div class="space-y-2 px-0 pt-1" style={{ "padding-bottom": `${96 + keyboardOffset()}px` }}>{body(true)}</div>
       <Show when={controller.event.state.enabled && controller.tabs.activeTab !== "song" && controller.tabs.activeTab !== "live"}>
         <div class="flex flex-wrap gap-2 px-1" aria-label="Selected post options">
           <Type as="span" variant="caption" class="text-muted-foreground">

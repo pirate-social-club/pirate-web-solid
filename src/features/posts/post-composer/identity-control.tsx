@@ -10,26 +10,57 @@ import {
   ModalHeader,
   ModalTitle,
   ModalTrigger,
-  pillButtonVariants,
   RadioIndicator,
   Type,
 } from "../../../design-system";
 import { cn } from "../../../design-system";
 
 import type { PostComposerController } from "./controller";
+import { composerPillTriggerClass, composerRowTriggerClass } from "./composer-pills";
+import { PostComposerPublishControls } from "./publish-controls";
 
 function publicInitials(handle: string) {
   const chunks = handle.replace(/^@/, "").trim().split(/[-.\s_]+/).filter(Boolean);
-  if (chunks.length === 0) return "me";
-  if (chunks.length === 1) return chunks[0]!.slice(0, 2).toLowerCase();
-  return `${chunks[0]![0] ?? ""}${chunks[1]![0] ?? ""}`.toLowerCase();
+  return chunks[0]?.slice(0, 1).toUpperCase() || "?";
+}
+
+export function PostComposerIdentityAvatar(props: {
+  class?: string;
+  controller: PostComposerController;
+}) {
+  const controller = props.controller;
+  const identity = () => controller.identity.identity;
+  const publicLabel = () => identity()?.publicHandle ?? "name.pirate";
+  const isAgent = () => controller.identity.authorMode === "agent";
+  const isAnonymous = () => !isAgent() && controller.identity.identityMode === "anonymous";
+
+  return (
+    <Show
+      when={!isAgent()}
+      fallback={<span class={cn("grid place-items-center rounded-full bg-background text-foreground ring-1 ring-border-soft", props.class)}><IconRobot class="size-5" /></span>}
+    >
+      <Show
+        when={!isAnonymous()}
+        fallback={<span class={cn("grid place-items-center rounded-full bg-background text-foreground ring-1 ring-border-soft", props.class)}><IconMaskHappy class="size-5" /></span>}
+      >
+        <Avatar
+          class={cn("bg-card ring-1 ring-border-soft", props.class)}
+          fallback={publicInitials(publicLabel())}
+          fallbackSeed={identity()?.publicAvatarSeed ?? publicLabel()}
+          src={identity()?.publicAvatarSrc ?? undefined}
+        />
+      </Show>
+    </Show>
+  );
 }
 
 export function PostComposerIdentityControl(props: {
   class?: string;
   controller: PostComposerController;
+  variant?: "pill" | "row";
 }) {
   const controller = props.controller;
+  const row = () => props.variant === "row";
   const [open, setOpen] = createSignal(false);
   const identity = () => controller.identity.identity;
   const publicLabel = () => identity()?.publicHandle ?? "name.pirate";
@@ -77,25 +108,6 @@ export function PostComposerIdentityControl(props: {
         : [...selected, qualifierId],
     );
   };
-
-  const IdentityAvatar = (avatarProps: { class?: string }) => (
-    <Show
-      when={!isAgent()}
-      fallback={<span class={cn("grid place-items-center rounded-full bg-background text-foreground", avatarProps.class)}><IconRobot class="size-5" /></span>}
-    >
-      <Show
-        when={!isAnonymous()}
-        fallback={<span class={cn("grid place-items-center rounded-full bg-background text-foreground", avatarProps.class)}><IconMaskHappy class="size-5" /></span>}
-      >
-        <Avatar
-          class={cn("border-0", avatarProps.class)}
-          fallback={publicInitials(publicLabel())}
-          fallbackSeed={identity()?.publicAvatarSeed ?? undefined}
-          src={identity()?.publicAvatarSrc ?? undefined}
-        />
-      </Show>
-    </Show>
-  );
 
   const Option = (optionProps: {
     checked: boolean;
@@ -145,16 +157,19 @@ export function PostComposerIdentityControl(props: {
             qualifierLabel(),
           ].filter(Boolean).join(", ")}
           class={cn(
-            pillButtonVariants({ tone: "default" }),
-            "h-11 min-w-0 justify-start gap-3 px-3.5 text-foreground",
+            row()
+              ? cn(composerRowTriggerClass, "max-w-full")
+              : cn(composerPillTriggerClass, "justify-start ps-2 pe-3 text-start"),
             props.class,
           )}
         >
-          <IdentityAvatar class="size-8 shrink-0" />
-          <span class="min-w-0 flex-1 text-start">
-            <Type as="span" variant="body-strong" class="block truncate">{triggerLabel()}</Type>
+          <Show when={!row()}>
+            <PostComposerIdentityAvatar class="size-7 shrink-0" controller={controller} />
+          </Show>
+          <span class="min-w-0 whitespace-nowrap">
+            <Type as="span" variant="body-strong" class={cn("block truncate", !controller.isMobile() && "text-lg")}>{triggerLabel()}</Type>
           </span>
-          <IconCaretDown class="size-4 shrink-0 text-muted-foreground" />
+          <IconCaretDown class={cn("shrink-0 text-muted-foreground", controller.isMobile() ? "size-4" : "size-5")} />
         </ModalTrigger>
         <ModalContent
           class="flex max-h-[80dvh] flex-col rounded-t-[var(--radius-3xl)] px-0 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-4 sm:rounded-[var(--radius-xl)] sm:pb-6 sm:pt-6"
@@ -227,6 +242,28 @@ export function PostComposerIdentityControl(props: {
           </div>
         </ModalContent>
       </Modal>
+    </Show>
+  );
+}
+
+export function PostComposerIdentityCluster(props: {
+  class?: string;
+  controller: PostComposerController;
+  initialOpen?: boolean;
+}) {
+  return (
+    <Show when={props.controller.identity.identity?.visible !== false}>
+      <div class={cn("flex items-center gap-4", props.class)}>
+        <PostComposerIdentityAvatar class="size-14 shrink-0" controller={props.controller} />
+        <div class="flex min-w-0 flex-col items-start">
+          <PostComposerIdentityControl class="max-w-full" controller={props.controller} variant="row" />
+          <PostComposerPublishControls
+            controller={props.controller}
+            initialOpen={props.initialOpen}
+            variant="row"
+          />
+        </div>
+      </div>
     </Show>
   );
 }

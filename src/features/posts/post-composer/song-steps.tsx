@@ -23,7 +23,7 @@ function StepCard(props: ParentProps<{
   note?: string;
 }>) {
   return (
-    <CardContent class={cn("space-y-6 p-5", props.controller.isMobile() && "px-0 pb-4 pt-1")}>
+    <CardContent class={cn("space-y-6 p-8", props.controller.isMobile() && "px-0 pb-4 pt-1")}>
       <div class="space-y-1">
         <Type as="h2" variant="h3" class="text-muted-foreground">{props.title}</Type>
         <Show when={props.note}>
@@ -184,7 +184,7 @@ function PlaceholderStep(props: {
   note: string;
 }) {
   return (
-    <CardContent class={cn("space-y-6 p-5", props.controller.isMobile() && "px-0 pb-4 pt-1")}>
+    <CardContent class={cn("space-y-6 p-8", props.controller.isMobile() && "px-0 pb-4 pt-1")}>
       <div class="space-y-1">
         <Type as="h2" variant="h3" class="text-muted-foreground">{props.title}</Type>
         <Type as="p" variant="caption" class="text-muted-foreground">{props.note}</Type>

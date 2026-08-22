@@ -95,7 +95,7 @@ export function SongStep(props: { controller: PostComposerController }) {
   return (
     <CardContent
       class={cn(
-        "relative space-y-6 p-5",
+        "relative space-y-6 p-8",
         controller.isMobile() && "px-0 pb-4 pt-1",
         dragging() && "overflow-hidden",
       )}

@@ -2,11 +2,12 @@
 // the React post-composer-attachment-bar.tsx. Icons are mapped from the pure
 // `AttachmentActionIcon` markers in defaults.ts.
 
-import { For, Show } from "solid-js";
+import { For, Show, createEffect } from "solid-js";
 import { Portal } from "@solidjs/web";
 
 import {
   Button,
+  IconButton,
   IconBroadcast,
   IconCalendarBlank,
   IconFileText,
@@ -19,6 +20,7 @@ import {
 import { cn } from "../../../design-system";
 import type { AttachmentAction, AttachmentActionIcon } from "./defaults";
 import type { ComposerToolbarAction } from "./types";
+import { animateComposerBarBottom, animateComposerBarEnter } from "./composer-motion";
 
 function AttachmentActionIconGlyph(props: { icon: AttachmentActionIcon }) {
   const className = "size-6";
@@ -47,9 +49,27 @@ export function PostComposerMobileAttachmentBar(props: {
   onSelect: (kind: ComposerToolbarAction) => void;
   bottomOffset?: number;
 }) {
-  const Bar = () => (
+  const Bar = () => {
+    let bar: HTMLDivElement | undefined;
+    let previousBottom = props.bottomOffset ?? 0;
+    let entered = false;
+
+    createEffect(
+      () => [bar, props.bottomOffset ?? 0] as const,
+      ([nextBar, nextBottom]) => {
+        if (!entered && nextBar) {
+          animateComposerBarEnter(nextBar);
+          entered = true;
+        }
+        animateComposerBarBottom(nextBar, previousBottom, nextBottom);
+        previousBottom = nextBottom;
+      },
+    );
+
+    return (
     <div
       class="fixed inset-x-0 z-30 border-t border-border-soft bg-background/95 px-5 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl"
+      ref={bar}
       style={{ bottom: `${props.bottomOffset ?? 0}px` }}
     >
       <div class="flex items-center justify-between py-3">
@@ -80,7 +100,8 @@ export function PostComposerMobileAttachmentBar(props: {
         </Show>
       </div>
     </div>
-  );
+    );
+  };
 
   if (typeof document === "undefined") return <Bar />;
 
@@ -104,6 +125,33 @@ export function PostComposerDesktopAttachmentToolbar(props: {
           >
             {action.label}
           </Button>
+        )}
+      </For>
+    </div>
+  );
+}
+
+export function PostComposerDesktopToolbarIcons(props: {
+  actions: AttachmentAction[];
+  activeKind: ComposerToolbarAction | null;
+  onSelect: (kind: ComposerToolbarAction) => void;
+}) {
+  return (
+    <div aria-label="Add to post" class="flex flex-wrap items-center gap-1">
+      <For each={props.actions}>
+        {(action) => (
+          <IconButton
+            aria-label={action.ariaLabel ?? action.label}
+            class={cn(
+              "rounded-xl text-muted-foreground hover:text-foreground",
+              props.activeKind === action.kind && "bg-muted text-foreground",
+            )}
+            onClick={() => props.onSelect(action.kind)}
+            title={action.ariaLabel ?? action.label}
+            variant="ghost"
+          >
+            <AttachmentActionIconGlyph icon={action.icon} />
+          </IconButton>
         )}
       </For>
     </div>

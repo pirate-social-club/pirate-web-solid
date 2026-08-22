@@ -8,7 +8,6 @@ import { Show } from "solid-js";
 import {
   Button,
   FormNote,
-  IconArrowUp,
 } from "../../../design-system";
 import type { PostComposerController } from "./controller";
 import { submitProgressFraction } from "./submit-progress";
@@ -76,7 +75,6 @@ function submitButtonContent(progress: SubmitProgress | null | undefined, fallba
 }
 
 export function PublishButton(props: {
-  compact?: boolean;
   controller: PostComposerController;
   class?: string;
   label?: string;
@@ -85,9 +83,8 @@ export function PublishButton(props: {
   const controller = props.controller;
   const submit = controller.submit;
   const publishLabel = () => props.label
-    ?? (controller.tabs.activeTab === "live" ? submit.label : controller.copy.actions.publish);
+    ?? submit.label;
   const showRing = () => Boolean(submit.loading && submit.progress && submit.progress.phase !== "done");
-  const compact = () => props.compact === true;
   const buttonLabel = () => submitButtonContent(submit.loading ? submit.progress : null, publishLabel());
 
   return (
@@ -97,17 +94,14 @@ export function PublishButton(props: {
       </Show>
       <SubmitProgressStatus progress={submit.progress} />
       <Button
-        aria-label={compact() ? buttonLabel() : undefined}
-        class={compact() ? "size-11 p-0" : props.class ?? "min-w-40 justify-center"}
+        class={props.class ?? "min-w-40 justify-center"}
         disabled={submit.disabled || submit.progress?.phase === "done"}
-        leadingIcon={showRing() ? <SubmitProgressRing progress={submit.progress!} /> : compact() ? <IconArrowUp class="size-5" /> : undefined}
+        leadingIcon={showRing() ? <SubmitProgressRing progress={submit.progress!} /> : undefined}
         loading={submit.loading && !submit.progress}
         onClick={() => (props.onClick ?? submit.onSubmit)?.()}
-        size={compact() ? "icon" : "lg"}
+        size="lg"
       >
-        <Show when={compact()} fallback={buttonLabel()}>
-          <span class="sr-only">{buttonLabel()}</span>
-        </Show>
+        {buttonLabel()}
       </Button>
     </div>
   );

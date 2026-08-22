@@ -1,7 +1,7 @@
 import { Show } from "solid-js";
 
 import { Card, IconButton, IconX, createIsMobile, cn } from "../../../design-system";
-import { PostComposerIdentityControl } from "./identity-control";
+import { PostComposerIdentityCluster } from "./identity-control";
 import { PublishButton } from "./submit-actions";
 import { PostComposerStepFooter, PostComposerStepIndicator } from "./step-footer";
 import { SongStep } from "./song-step";
@@ -25,49 +25,77 @@ export function PostComposer(props: PostComposerProps) {
     return (
       <PostComposerWriteStep
         controller={controller}
-        initialOpenPanel={props.initialOpenPanel}
-      />
+        initialOpenPanel={props.initialOpenPanel === "access-and-rights" ? "access-and-rights" : undefined}
+      >
+        <Show when={!isMultiStep()}>
+          <PublishButton
+            class="min-w-40"
+            controller={controller}
+            label={controller.copy.actions.post}
+            onClick={requestPost}
+          />
+        </Show>
+      </PostComposerWriteStep>
     );
   };
 
   return (
-    <div class={cn("w-full space-y-3 pt-2", controller.isMobile() && "space-y-2 pt-0")}>
-      <header class="flex min-h-12 items-center gap-2 px-1">
-        <IconButton
-          aria-label="Close composer"
-          onClick={() => props.onClose?.()}
-          variant="ghost"
-        >
-          <IconX class="size-5" />
-        </IconButton>
-        <Show when={controller.identity.identity?.visible !== false}>
-          <PostComposerIdentityControl class="max-w-[min(15rem,calc(100vw-9rem))]" controller={controller} />
-        </Show>
-      <Show when={!isMultiStep()}>
-        <PublishButton
-          class="h-11 min-w-0 px-4"
-          compact={controller.isMobile()}
-          controller={controller}
-          label={controller.copy.actions.post}
-          onClick={requestPost}
-        />
+    <div class={cn("w-full space-y-2", !controller.isMobile() && "pt-0")}>
+      <Show when={controller.isMobile() && !isMultiStep()}>
+        <header class="flex min-h-12 items-center justify-between gap-2 px-1">
+          <IconButton
+            aria-label="Close composer"
+            onClick={() => props.onClose?.()}
+            variant="ghost"
+          >
+            <IconX class="size-5" />
+          </IconButton>
+          <PublishButton
+            class="h-9 min-w-0 px-5"
+            controller={controller}
+            label={controller.copy.actions.post}
+            onClick={requestPost}
+          />
+        </header>
       </Show>
-      </header>
 
-      <Show when={controller.tabs.activeTab === "song"}>
+      <Show when={controller.isMobile() && controller.tabs.activeTab === "song"}>
         <div class="px-1">
           <PostComposerStepIndicator controller={controller} />
         </div>
       </Show>
 
       <Show when={controller.isMobile()} fallback={
-        <Card class="overflow-hidden bg-card shadow-none">
+        <Card class="relative mx-auto w-full max-w-3xl overflow-hidden bg-card shadow-none">
+          <IconButton
+            aria-label="Close composer"
+            class="absolute end-3 top-3 z-10"
+            onClick={() => props.onClose?.()}
+            variant="ghost"
+          >
+            <IconX class="size-6" />
+          </IconButton>
+          <Show when={controller.tabs.activeTab === "song"}>
+            <div class="px-8 pb-1 pt-4">
+              <PostComposerStepIndicator controller={controller} />
+            </div>
+          </Show>
+          <PostComposerIdentityCluster
+            class="pe-16 ps-8 pb-3 pt-5"
+            controller={controller}
+            initialOpen={props.initialOpenPanel === "visibility"}
+          />
           {stepContent()}
           <Show when={isMultiStep()}>
             <PostComposerStepFooter controller={controller} />
           </Show>
         </Card>
       }>
+        <PostComposerIdentityCluster
+          class="px-1 pb-1 pt-4"
+          controller={controller}
+          initialOpen={props.initialOpenPanel === "visibility"}
+        />
         {stepContent()}
         <Show when={isMultiStep()}>
           <div class="h-24" aria-hidden="true" />

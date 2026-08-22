@@ -43,6 +43,7 @@ export interface ComposerCopy {
     loading: string;
   };
   derivative: {
+    acceptSourceTerms: string;
     licenseNewRemixTerms: string;
     searchSourceTracks: string;
   };
@@ -169,6 +170,7 @@ export const defaultComposerCopy: ComposerCopy = {
     loading: "Loading...",
   },
   derivative: {
+    acceptSourceTerms: "I accept the source remix terms.",
     licenseNewRemixTerms: "New remix terms",
     searchSourceTracks: "Search remix-eligible source tracks",
   },

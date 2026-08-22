@@ -376,10 +376,17 @@ export function createPostComposerController(
       || (activeTab() === "video" && derivativeState()?.trigger === "uses_song")
     ),
   );
+  const derivativeHasReferences = () => (derivativeState()?.references?.length ?? 0) > 0;
   const derivativeMissingRefs = () => Boolean(
-    derivativeRequiresRefs() && !(derivativeState()?.references?.length),
+    derivativeRequiresRefs() && !derivativeHasReferences(),
   );
-  const contentBlocked = () => derivativeMissingRefs();
+  const derivativeMissingSourceTermsAcceptance = () => Boolean(
+    derivativeState()?.visible
+    && (derivativeRequiresRefs() || derivativeHasReferences())
+    && derivativeHasReferences()
+    && derivativeState()?.sourceTermsAccepted !== true,
+  );
+  const contentBlocked = () => derivativeMissingRefs() || derivativeMissingSourceTermsAcceptance();
   const draftCanSubmit = () => canAdvanceComposerWriteStep({
     body: textBodyValue(),
     imageUploadPresent: Boolean(activeImageUpload()),

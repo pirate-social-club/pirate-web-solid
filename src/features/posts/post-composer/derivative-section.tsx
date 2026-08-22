@@ -6,9 +6,11 @@ import { For, Show } from "solid-js";
 import {
   createIsMobile,
   FormSectionHeading,
+  Switch,
   Tabs,
   TabsList,
   TabsTrigger,
+  Type,
 } from "../../../design-system";
 import { cn } from "../../../design-system";
 import type { ComposerCopy } from "./copy";
@@ -109,6 +111,22 @@ export function PostComposerDerivativeSection(props: {
               )}
             </For>
           </div>
+        </Show>
+        <Show when={hasReferences()}>
+          <label class={cn(
+            "flex items-center justify-between gap-4 rounded-[var(--radius-lg)] px-4 py-3",
+            props.derivativeState?.sourceTermsAccepted ? "border border-border-soft bg-card" : "border-2 border-destructive/30 bg-destructive-subtle",
+            isMobile() && "px-0",
+          )}>
+            <Type as="span" variant="body-strong">{props.copy.derivative.acceptSourceTerms}</Type>
+            <Switch
+              aria-label={props.copy.derivative.acceptSourceTerms}
+              checked={props.derivativeState?.sourceTermsAccepted === true}
+              onChange={(checked) => {
+                props.updateDerivativeState((current) => current && { ...current, sourceTermsAccepted: checked });
+              }}
+            />
+          </label>
         </Show>
       </section>
     </Show>

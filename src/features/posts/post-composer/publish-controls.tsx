@@ -2,6 +2,7 @@ import { Show, createSignal } from "solid-js";
 
 import {
   Button,
+  IconCaretDown,
   IconGlobe,
   IconLock,
   Modal,
@@ -11,17 +12,19 @@ import {
   ModalTrigger,
   OptionCard,
   Type,
-  pillButtonVariants,
 } from "../../../design-system";
 import { cn } from "../../../design-system";
 
 import type { PostComposerController } from "./controller";
+import { composerPillTriggerClass, composerRowTriggerClass } from "./composer-pills";
 
 function VisibilityControl(props: {
   controller: PostComposerController;
   initialOpen?: boolean;
+  variant?: "pill" | "row";
 }) {
   const controller = props.controller;
+  const row = () => props.variant === "row";
   const [open, setOpen] = createSignal(props.initialOpen ?? false);
   const isPublic = () => controller.audience.state.visibility === "public";
   const audienceLabel = () => isPublic()
@@ -37,10 +40,23 @@ function VisibilityControl(props: {
     <Modal open={open()} onOpenChange={setOpen}>
       <ModalTrigger
         aria-label={`${controller.copy.publishChips.visibilityTitle}: ${audienceLabel()}`}
-        class={cn(pillButtonVariants({ tone: "default" }), "h-11 min-w-0 gap-2 px-3.5 text-foreground")}
+        class={cn(row()
+          ? composerRowTriggerClass
+          : cn(composerPillTriggerClass, "px-3.5"))}
       >
-        {isPublic() ? <IconGlobe class="size-4" /> : <IconLock class="size-4" />}
-        <Type as="span" variant="label" class="truncate">{audienceLabel()}</Type>
+        {isPublic()
+          ? <IconGlobe class={cn("size-4 shrink-0", row() && "text-muted-foreground", row() && !controller.isMobile() && "size-5")} />
+          : <IconLock class={cn("size-4 shrink-0", row() && "text-muted-foreground", row() && !controller.isMobile() && "size-5")}/>}
+        <Type
+          as="span"
+          class={cn("truncate", row() ? "text-muted-foreground" : "text-foreground", row() && !controller.isMobile() && "text-lg")}
+          variant={row() ? "caption" : "body-strong"}
+        >
+          {audienceLabel()}
+        </Type>
+        <Show when={row()}>
+          <IconCaretDown class={cn("shrink-0 text-muted-foreground", controller.isMobile() ? "size-4" : "size-5")} />
+        </Show>
       </ModalTrigger>
       <ModalContent
         class="max-h-[88dvh] overflow-y-auto rounded-t-[var(--radius-3xl)] px-0 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-4 sm:rounded-[var(--radius-xl)] sm:pb-6 sm:pt-6"
@@ -95,6 +111,13 @@ function VisibilityControl(props: {
 export function PostComposerPublishControls(props: {
   controller: PostComposerController;
   initialOpen?: boolean;
+  variant?: "pill" | "row";
 }) {
-  return <VisibilityControl controller={props.controller} initialOpen={props.initialOpen} />;
+  return (
+    <VisibilityControl
+      controller={props.controller}
+      initialOpen={props.initialOpen}
+      variant={props.variant}
+    />
+  );
 }

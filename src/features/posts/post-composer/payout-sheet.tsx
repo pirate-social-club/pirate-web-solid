@@ -52,9 +52,10 @@ export function PayoutSheet(props: {
       percentagePct: nextPct,
       userConfigured: true,
     }));
-    if (allocations().length === 1 && creator()) {
+    const creatorEntry = creator();
+    if (allocations().length === 1 && creatorEntry) {
       controller.royaltySplit.update(() => ({
-        allocations: [{ ...creator()!, sharePct: 100 - nextPct }],
+        allocations: [{ ...creatorEntry, sharePct: 100 - nextPct }],
       }));
     }
   };
