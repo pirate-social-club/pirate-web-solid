@@ -1,7 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  VERY_WEB_PROVIDER_ID,
   VeryWebClientError,
   createVeryWebCeremony,
+  parseVeryJoinEligibility,
   parseVeryWebPresentation,
 } from "./very.ts";
 
@@ -93,6 +95,49 @@ describe("Very web presentation", () => {
 });
 
 describe("Very web ceremony", () => {
+  it("resolves a community ID to the server-issued join intent", async () => {
+    // SAFETY: this test deliberately supplies the browser guard used by the client adapter.
+    globalThis.window = {} as Window & typeof globalThis;
+    const start = vi.fn(async () => pendingStart());
+    const eligibility = vi.fn(async () => ({
+      status: "verification_required" as const,
+      human_verification_lane: "very" as const,
+      next_action: {
+        kind: "start_verification" as const,
+        provider_id: VERY_WEB_PROVIDER_ID,
+        intent_id: "join-intent-from-server",
+      },
+    }));
+    const ceremony = await createVeryWebCeremony({
+      communityId: "community-gated-1",
+      // SAFETY: this fake implements exactly the three generated methods used by the client adapter.
+      apiClient: {
+        get_communitiesCommunityIdJoinEligibility: eligibility,
+        post_verificationSessions: start,
+        post_verificationSessionsProofSessionIdComplete: vi.fn(),
+      } as never,
+      csrfToken: "csrf-token",
+    });
+
+    expect(ceremony.presentation?.proofSessionId).toBe(proofSessionId);
+    expect(eligibility).toHaveBeenCalledWith(
+      { path: { communityId: "community-gated-1" } },
+      expect.objectContaining({ credentials: "same-origin" }),
+    );
+    expect(start).toHaveBeenCalledWith(
+      { body: { intent_id: "join-intent-from-server", provider_id: VERY_WEB_PROVIDER_ID } },
+      expect.objectContaining({ credentials: "same-origin" }),
+    );
+  });
+
+  it("fails closed when eligibility does not issue a Very verification intent", () => {
+    expect(() => parseVeryJoinEligibility({
+      status: "verification_required",
+      human_verification_lane: "self",
+      next_action: { kind: "start_verification", provider_id: "very.web", intent_id: "intent-1" },
+    })).toThrowError(expect.objectContaining({ code: "join_not_ready" }));
+  });
+
   it("starts with CSRF credentials and submits one idempotent server-side bridge completion", async () => {
     // SAFETY: this test deliberately supplies the browser guard used by the client adapter.
     globalThis.window = {} as Window & typeof globalThis;

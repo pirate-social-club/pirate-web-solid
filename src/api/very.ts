@@ -18,6 +18,7 @@ export type VeryWebClientErrorCode =
   | "invalid_presentation"
   | "ceremony_cancelled"
   | "ceremony_expired"
+  | "join_not_ready"
   | "provider_rejected"
   | "provider_unavailable";
 
@@ -55,11 +56,16 @@ export type VeryWebCompletion = Readonly<{
 
 type VerificationApiClient = Pick<
   PirateApiClient,
-  "post_verificationSessions" | "post_verificationSessionsProofSessionIdComplete"
+  | "get_communitiesCommunityIdJoinEligibility"
+  | "post_verificationSessions"
+  | "post_verificationSessionsProofSessionIdComplete"
 >;
 
 export type CreateVeryWebCeremonyOptions = Readonly<{
-  intentId: string;
+  /** Internal escape hatch for an already-resolved server intent. */
+  intentId?: string;
+  /** User-facing target; the server resolves its opaque join intent. */
+  communityId?: string;
   apiClient?: VerificationApiClient;
   csrfToken?: string;
   idempotencyKey?: () => string;
@@ -173,6 +179,20 @@ function parseQuery(value: unknown): string {
   return query;
 }
 
+export function parseVeryJoinEligibility(value: unknown): string {
+  const response = record(value);
+  const nextAction = record(response.next_action);
+  if (
+    response.status !== "verification_required" ||
+    response.human_verification_lane !== "very" ||
+    nextAction.kind !== "start_verification" ||
+    nextAction.provider_id !== VERY_WEB_PROVIDER_ID
+  ) {
+    throw new VeryWebClientError("join_not_ready");
+  }
+  return boundedString(nextAction.intent_id);
+}
+
 export function parseVeryWebPresentation(started: unknown):
   | { readonly kind: "pending"; readonly presentation: VeryWebPresentation }
   | { readonly kind: "completed"; readonly completion: VeryWebCompletion } {
@@ -245,15 +265,37 @@ export async function createVeryWebCeremony(
   options: CreateVeryWebCeremonyOptions,
 ): Promise<VeryWebCeremony> {
   if (typeof window === "undefined") throw new VeryWebClientError("browser_required");
-  if (options.intentId.trim() !== options.intentId || options.intentId.length === 0) {
+  const hasIntentId = options.intentId !== undefined;
+  const hasCommunityId = options.communityId !== undefined;
+  if (hasIntentId === hasCommunityId) {
+    throw new VeryWebClientError("invalid_presentation");
+  }
+  if (hasIntentId && (options.intentId?.trim() !== options.intentId || options.intentId.length === 0)) {
+    throw new VeryWebClientError("invalid_presentation");
+  }
+  if (hasCommunityId && (options.communityId?.trim() !== options.communityId || options.communityId.length === 0)) {
     throw new VeryWebClientError("invalid_presentation");
   }
   const csrfToken = options.csrfToken ?? readCsrfCookie();
   if (csrfToken === undefined) throw new VeryWebClientError("csrf_required");
   const requestOptions = sessionRequestOptions(csrfToken, options.requestOptions);
   const apiClient = options.apiClient ?? createSessionApiClient();
+  let intentId = options.intentId;
+  if (intentId === undefined && options.communityId !== undefined) {
+    try {
+      const eligibility = await apiClient.get_communitiesCommunityIdJoinEligibility(
+        { path: { communityId: options.communityId } },
+        requestOptions,
+      );
+      intentId = parseVeryJoinEligibility(eligibility);
+    } catch (error) {
+      if (error instanceof VeryWebClientError) throw error;
+      throw new VeryWebClientError("join_not_ready");
+    }
+  }
+  if (intentId === undefined) throw new VeryWebClientError("invalid_presentation");
   const started = await apiClient.post_verificationSessions(
-    { body: { intent_id: options.intentId, provider_id: VERY_WEB_PROVIDER_ID } },
+    { body: { intent_id: intentId, provider_id: VERY_WEB_PROVIDER_ID } },
     requestOptions,
   );
   const parsed = parseVeryWebPresentation(started);

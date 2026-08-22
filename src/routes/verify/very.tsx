@@ -24,6 +24,7 @@ function safeMessage(error: unknown): string {
       case "csrf_required": return "Sign in again before starting verification.";
       case "ceremony_expired": return "This ceremony expired. Start a fresh one.";
       case "ceremony_cancelled": return "The ceremony was cancelled. Start a fresh one.";
+      case "join_not_ready": return "That community is not currently ready for a Very verification.";
       case "provider_unavailable": return "Very is still processing the palm scan.";
       case "provider_rejected": return "Very rejected the verification. You can retry.";
       case "invalid_presentation": return "The server returned an invalid Very ceremony.";
@@ -33,9 +34,10 @@ function safeMessage(error: unknown): string {
   return "Very verification failed safely. Please retry.";
 }
 
-function initialIntentId(): string {
+function initialCommunityId(): string {
   if (typeof window === "undefined") return "";
-  return new URL(window.location.href).searchParams.get("intent_id") ?? "";
+  const params = new URL(window.location.href).searchParams;
+  return params.get("community_id") ?? params.get("communityId") ?? "";
 }
 
 function mobileRuntime(): boolean {
@@ -43,7 +45,7 @@ function mobileRuntime(): boolean {
 }
 
 export default function VeryVerificationRoute() {
-  const [intentId, setIntentId] = createSignal(initialIntentId());
+  const [communityId, setCommunityId] = createSignal(initialCommunityId());
   const [phase, setPhase] = createSignal<Phase>("idle");
   const [message, setMessage] = createSignal("");
   const [qr, setQr] = createSignal("");
@@ -60,9 +62,9 @@ export default function VeryVerificationRoute() {
   });
 
   async function startVery() {
-    const value = intentId().trim();
+    const value = communityId().trim();
     if (value === "") {
-      setMessage("Enter the server-issued community join intent ID.");
+      setMessage("Enter the gated community ID.");
       setPhase("error");
       return;
     }
@@ -74,7 +76,7 @@ export default function VeryVerificationRoute() {
     setPresentation(undefined);
     setPhase("starting");
     try {
-      const created = await createVeryWebCeremony({ intentId: value });
+      const created = await createVeryWebCeremony({ communityId: value });
       if (!active) {
         created.cancel();
         return;
@@ -155,11 +157,12 @@ export default function VeryVerificationRoute() {
       <p>Scan the QR code with the Very app on desktop, or open it directly on your phone.</p>
 
       <Show when={phase() === "idle" || phase() === "error"}>
-        <TextField name="intent-id" value={intentId()} onChange={setIntentId}>
-          <TextFieldLabel>Community join intent ID</TextFieldLabel>
+        <TextField name="community-id" value={communityId()} onChange={setCommunityId}>
+          <TextFieldLabel>Gated community ID</TextFieldLabel>
           <TextFieldInput autocomplete="off" />
           <TextFieldDescription>
-            Use the opaque intent ID supplied by the gated-community join flow.
+            Use the community ID from the gated-community join link. The server
+            resolves the one-time verification intent for you.
           </TextFieldDescription>
         </TextField>
         <Button type="button" disabled={busy()} onClick={() => void startVery()}>

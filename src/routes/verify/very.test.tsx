@@ -28,11 +28,12 @@ afterEach(() => {
 });
 
 describe("Very verification route", () => {
-  it("renders a guarded start screen for an opaque community join intent", () => {
+  it("renders a guarded start screen for a gated community", () => {
     const container = render(() => <VeryVerificationRoute />);
     expect(container.querySelector("[data-route-path='/verify/very']")).not.toBeNull();
     expect(container.textContent).toContain("Very palm verification");
-    expect(container.textContent).toContain("Community join intent ID");
+    expect(container.textContent).toContain("Gated community ID");
+    expect(container.textContent).toContain("server resolves the one-time verification intent");
     expect(container.textContent).toContain("Start palm verification");
   });
 });
