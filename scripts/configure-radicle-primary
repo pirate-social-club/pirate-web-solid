@@ -1,0 +1,55 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+expected_origin_url=${PUBLISH_MAIN_ORIGIN_URL:-https://github.com/pirate-social-club/pirate-web-solid.git}
+expected_rad_url=${PUBLISH_MAIN_RAD_URL:-rad://z8oQouP48Kq9CtNa62uf57VNBe8i}
+git_bin=${PUBLISH_MAIN_GIT:-git}
+mode=check
+
+usage() {
+  cat <<'USAGE'
+Usage: scripts/configure-radicle-primary [--check|--apply]
+
+--check  Verify that ordinary pushes through origin fail closed (default).
+--apply  Set origin's repository-local push URL to the literal no-push guard.
+USAGE
+}
+
+die() {
+  printf 'configure-radicle-primary: %s\n' "$*" >&2
+  exit 2
+}
+
+for arg in "$@"; do
+  case "$arg" in
+    --check) mode=check ;;
+    --apply) mode=apply ;;
+    --help|-h)
+      usage
+      exit 0
+      ;;
+    *) die "unknown argument: $arg" ;;
+  esac
+done
+
+root=$("$git_bin" rev-parse --show-toplevel 2>/dev/null) ||
+  die 'run this command from a pirate-web-solid checkout'
+cd "$root"
+
+origin_url=$("$git_bin" config --get remote.origin.url || true)
+rad_url=$("$git_bin" config --get remote.rad.url || true)
+[[ $origin_url == "$expected_origin_url" ]] ||
+  die "origin fetch URL must be $expected_origin_url"
+[[ $rad_url == "$expected_rad_url" ]] ||
+  die "rad fetch URL must be $expected_rad_url"
+
+if [[ $mode == apply ]]; then
+  "$git_bin" config --replace-all remote.origin.pushurl no-push
+fi
+
+mapfile -t push_urls < <("$git_bin" config --get-all remote.origin.pushurl || true)
+if [[ ${#push_urls[@]} -ne 1 || ${push_urls[0]:-} != no-push ]]; then
+  die 'origin push guard is absent; run scripts/configure-radicle-primary --apply'
+fi
+
+printf '%s\n' 'configure-radicle-primary: origin pushes fail closed through no-push'

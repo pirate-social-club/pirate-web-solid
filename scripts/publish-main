@@ -1,0 +1,131 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+expected_origin_url=${PUBLISH_MAIN_ORIGIN_URL:-https://github.com/pirate-social-club/pirate-web-solid.git}
+expected_rad_url=${PUBLISH_MAIN_RAD_URL:-rad://z8oQouP48Kq9CtNa62uf57VNBe8i}
+preferred_seed=${PUBLISH_MAIN_SEED:-z6MkeUhmbivWz5Uv87h9iT4tQk7xusZabMHCrjTKEGaCTUx4@94.103.168.209:8776}
+git_bin=${PUBLISH_MAIN_GIT:-git}
+rad_bin=${PUBLISH_MAIN_RAD:-rad}
+execute=no
+requested_sha=
+
+usage() {
+  cat <<'USAGE'
+Usage: scripts/publish-main --sha <full-commit-sha> [--dry-run|--execute]
+
+Validates one exact main commit, then advances Radicle first and mirrors the
+same SHA to GitHub. The default is --dry-run. --execute performs both pushes.
+USAGE
+}
+
+die() {
+  printf 'publish-main: %s\n' "$*" >&2
+  exit 2
+}
+
+while (($#)); do
+  case "$1" in
+    --sha)
+      (($# >= 2)) || die '--sha requires a value'
+      requested_sha=$2
+      shift 2
+      ;;
+    --dry-run)
+      execute=no
+      shift
+      ;;
+    --execute)
+      execute=yes
+      shift
+      ;;
+    --help|-h)
+      usage
+      exit 0
+      ;;
+    *) die "unknown argument: $1" ;;
+  esac
+done
+
+[[ $requested_sha =~ ^[0-9a-f]{40}$ ]] || die '--sha must be a full lowercase commit SHA'
+
+root=$("$git_bin" rev-parse --show-toplevel 2>/dev/null) ||
+  die 'run this command from a pirate-web-solid checkout'
+cd "$root"
+
+branch=$("$git_bin" symbolic-ref --quiet --short HEAD 2>/dev/null || true)
+[[ $branch == main ]] || die "checkout must be on main, found ${branch:-detached HEAD}"
+[[ -z $("$git_bin" status --porcelain=v1) ]] || die 'checkout must be clean'
+
+main_sha=$("$git_bin" rev-parse refs/heads/main)
+resolved_sha=$("$git_bin" rev-parse --verify "$requested_sha^{commit}" 2>/dev/null || true)
+[[ $resolved_sha == "$requested_sha" ]] || die 'requested SHA is not a local commit'
+[[ $main_sha == "$requested_sha" ]] || die "requested SHA must equal local main ($main_sha)"
+
+origin_url=$("$git_bin" config --get remote.origin.url || true)
+rad_url=$("$git_bin" config --get remote.rad.url || true)
+[[ $origin_url == "$expected_origin_url" ]] ||
+  die "origin fetch URL must be $expected_origin_url"
+[[ $rad_url == "$expected_rad_url" ]] ||
+  die "rad fetch URL must be $expected_rad_url"
+
+mapfile -t origin_push_urls < <("$git_bin" config --get-all remote.origin.pushurl || true)
+if [[ ${#origin_push_urls[@]} -ne 1 || ${origin_push_urls[0]:-} != no-push ]]; then
+  die 'origin push guard is absent; run scripts/configure-radicle-primary --apply'
+fi
+
+remote_head() {
+  local remote=$1
+  local output head ref
+  output=$("$git_bin" ls-remote "$remote" refs/heads/main) ||
+    die "cannot read main from $remote"
+  [[ $output != *$'\n'* ]] || die "$remote returned more than one main ref"
+  read -r head ref <<<"$output"
+  [[ $head =~ ^[0-9a-f]{40}$ && $ref == refs/heads/main ]] ||
+    die "$remote did not return exactly one main ref"
+  printf '%s' "$head"
+}
+
+origin_head=$(remote_head "$origin_url")
+rad_head=$(remote_head rad)
+
+for remote_state in "rad:$rad_head" "origin:$origin_head"; do
+  remote_name=${remote_state%%:*}
+  remote_sha=${remote_state#*:}
+  if ! "$git_bin" merge-base --is-ancestor "$remote_sha" "$requested_sha"; then
+    die "$remote_name main is not an ancestor of $requested_sha; refusing a non-fast-forward publication"
+  fi
+done
+
+if [[ $execute != yes ]]; then
+  printf 'publish-main: validated %s\n' "$requested_sha"
+  [[ $rad_head == "$requested_sha" ]] ||
+    printf 'publish-main: would push Radicle main %s -> %s\n' "$rad_head" "$requested_sha"
+  printf 'publish-main: would synchronize Radicle with %s\n' "$preferred_seed"
+  [[ $origin_head == "$requested_sha" ]] ||
+    printf 'publish-main: would mirror GitHub main %s -> %s\n' "$origin_head" "$requested_sha"
+  printf '%s\n' 'publish-main: dry run only; pass --execute after review'
+  exit 0
+fi
+
+if [[ $rad_head != "$requested_sha" ]]; then
+  "$git_bin" push -o sync rad "$requested_sha:refs/heads/main"
+fi
+
+"$rad_bin" sync --seed "$preferred_seed"
+
+observed_rad_head=$(remote_head rad)
+[[ $observed_rad_head == "$requested_sha" ]] ||
+  die "Radicle main is $observed_rad_head after synchronization; GitHub was not changed"
+
+if [[ $origin_head != "$requested_sha" ]]; then
+  "$git_bin" push "$origin_url" "$requested_sha:refs/heads/main"
+fi
+
+observed_origin_head=$(remote_head "$origin_url")
+observed_rad_head=$(remote_head rad)
+[[ $observed_rad_head == "$requested_sha" ]] ||
+  die "Radicle main moved to $observed_rad_head after publication"
+[[ $observed_origin_head == "$requested_sha" ]] ||
+  die "GitHub main is $observed_origin_head after publication"
+
+printf 'publish-main: Radicle and GitHub main are %s\n' "$requested_sha"

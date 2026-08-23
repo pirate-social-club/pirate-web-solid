@@ -81,3 +81,38 @@ SOLID_BASE_URL=http://localhost:4173 bun run verify:live
 
 `verify:live` runs the SSR stream probe and the hydration fixture check. Set
 `PLAYWRIGHT_CHROMIUM_EXECUTABLE` when using an existing local Chromium binary.
+
+## Main publication
+
+Radicle `main` is authoritative. GitHub `main` is its downstream release
+mirror. Configure every integration clone once:
+
+```bash
+scripts/configure-radicle-primary --apply
+scripts/configure-radicle-primary --check
+```
+
+This sets the repository-local `origin` push URL to the literal `no-push`, so
+an ordinary `git push origin` fails before contacting GitHub. Fetches from
+GitHub continue to use the public `origin` URL, and Radicle patch publication is
+unchanged.
+
+After integrating and reviewing `main`, validate the full commit SHA, then
+perform the explicitly confirmed publication:
+
+```bash
+scripts/publish-main --sha <full-commit-sha> --dry-run
+scripts/publish-main --sha <full-commit-sha> --execute
+```
+
+The command requires a clean `main` checkout, expected remote identities, the
+installed `no-push` guard, and fast-forward remote states. It advances Radicle,
+synchronizes the preferred seed, verifies Radicle's exact SHA, and only then
+pushes that SHA to GitHub through the validated fetch URL. If Radicle fails,
+GitHub is untouched. If the GitHub mirror fails, rerun the same command; it
+supports the safe state where Radicle is already ahead.
+
+The guard is clone-local. It does not block a GitHub web/API actor or a clone
+that has not installed it. Full enforcement still requires GitHub `main` to be
+mirror-only, with a dedicated mirroring identity and ordinary direct pushes
+denied.
