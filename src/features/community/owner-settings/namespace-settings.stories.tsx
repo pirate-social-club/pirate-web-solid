@@ -3,8 +3,9 @@ import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import { expect, fn, userEvent, within } from "storybook/test";
 
 import { CommunityNamespaceSettingsPanel } from "./community-namespace-settings-panel";
-import { hnsCompleteResource, namespaceIdempotencyKeys, namespaceState, unsupportedHnsRecords } from "./fake-owner-settings-port";
-import type { NamespaceNextAction } from "./owner-settings-model";
+import { createFakeNamespaceSettingsPort, hnsCompleteResource, namespaceIdempotencyKeys, namespaceState, unsupportedHnsRecords } from "./fake-owner-settings-port";
+import type { CommunityHnsWallet } from "./community-hns-wallet";
+import type { NamespaceNextAction, NamespaceSettingsSnapshot } from "./owner-settings-model";
 
 function argsFor(nextAction: NamespaceNextAction) {
   return {
@@ -58,6 +59,17 @@ export const ReadyToVerify: Story = {
   args: argsFor({ kind: "start_verification", family: "hns", root_label: "midnight" }),
 };
 
+export const SignOwnership: Story = {
+  args: {
+    ...argsFor({ kind: "sign_ownership", root_label: "midnight", message: '["pirate-hns-root-import-v1","storybook-session","midnight"]', expires_at: "2099-09-04T12:00:00.000Z" }),
+    wallet: {
+      isAvailable: () => true,
+      publishCompleteResource: async () => undefined,
+      signRootOwnership: async () => "storybook-name-signature",
+    },
+  },
+};
+
 export const CompleteResource: Story = {
   args: argsFor({ kind: "publish_resource", acknowledgement_required: true, replacement_semantics: "complete_resource", records: hnsCompleteResource }),
   play: async ({ canvasElement }) => {
@@ -73,8 +85,17 @@ export const UnsupportedRecordsBlocked: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(canvas.getByRole("alert")).toHaveTextContent("Unsupported records");
-    await expect(canvas.queryByRole("button", { name: "I published all records, check the chain" })).not.toBeInTheDocument();
+    await expect(canvas.queryByRole("button", { name: "I published all records manually" })).not.toBeInTheDocument();
   },
+};
+
+export const ReadyToActivate: Story = {
+  args: argsFor({
+    kind: "ready_to_activate",
+    app_host: "app.midnight",
+    publish_plan_sha256: "a".repeat(64),
+    readiness_result_sha256: "b".repeat(64),
+  }),
 };
 
 export const CheckingRecords: Story = {
@@ -134,5 +155,47 @@ export const Connected: Story = {
     const canvas = within(canvasElement);
     await expect(canvas.getByRole("heading", { name: "app.midnight" })).toBeInTheDocument();
     await expect(canvas.getByText((_, element) => element?.tagName === "P" && element.textContent === "Accessible at pirate.sc/c/midnight and app.midnight with Handshake.")).toBeInTheDocument();
+  },
+};
+
+export const CompleteBobWalletCeremony: Story = {
+  args: ConnectName.args,
+  render: (args) => {
+    const port = createFakeNamespaceSettingsPort();
+    const [rootLabel, setRootLabel] = createSignal("dankmemes");
+    const [snapshot, setSnapshot] = createSignal<NamespaceSettingsSnapshot>({
+      community_id: "community_dfb78906-4859-43d6-bc92-eec33bc3b4d5",
+      family: null,
+      generation: 1,
+      root_label: "",
+      next_action: { kind: "choose_namespace" },
+    });
+    const wallet: CommunityHnsWallet = {
+      isAvailable: () => true,
+      signRootOwnership: async () => "storybook-name-signature",
+      publishCompleteResource: async () => undefined,
+    };
+    return (
+      <CommunityNamespaceSettingsPanel
+        {...args}
+        draftRootLabel={rootLabel()}
+        idempotencyKeys={namespaceIdempotencyKeys("storybook-complete-bob-flow")}
+        onCommand={async (command) => setSnapshot(await port.execute(command))}
+        onDraftRootLabelChange={setRootLabel}
+        snapshot={snapshot()}
+        wallet={wallet}
+      />
+    );
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(canvas.getByRole("button", { name: "Continue" }));
+    await userEvent.click(await canvas.findByRole("button", { name: "Start verification" }));
+    await userEvent.click(await canvas.findByRole("button", { name: "Sign ownership with Bob Wallet" }));
+    await userEvent.click(await canvas.findByRole("button", { name: "Publish complete resource with Bob Wallet" }));
+    await userEvent.click(await canvas.findByRole("button", { name: "Check status" }));
+    await userEvent.click(await canvas.findByRole("button", { name: "Check status" }));
+    await userEvent.click(await canvas.findByRole("button", { name: "Activate community address" }));
+    await expect(await canvas.findByRole("heading", { name: "app.dankmemes" })).toBeInTheDocument();
   },
 };

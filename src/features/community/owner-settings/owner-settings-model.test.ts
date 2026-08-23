@@ -72,10 +72,17 @@ describe("owner settings model", () => {
       kind: "select_namespace",
       root_label: "midnight",
     });
-    const resource = await port.execute({
+    const proof = await port.execute({
       expected_generation: selected.generation,
       idempotency_key: keys.start_verification,
       kind: "start_verification",
+    });
+    expect(proof.next_action.kind).toBe("sign_ownership");
+    const resource = await port.execute({
+      expected_generation: proof.generation,
+      idempotency_key: keys.submit_name_signature,
+      kind: "submit_name_signature",
+      signature: "fixture-name-signature",
     });
 
     expect(resource.next_action.kind).toBe("publish_resource");
@@ -83,6 +90,33 @@ describe("owner settings model", () => {
       expect(resource.next_action.replacement_semantics).toBe("complete_resource");
       expect(resource.next_action.records.filter((record) => record.record_type === "DS")).toHaveLength(2);
       expect(resource.next_action.records.filter((record) => record.record_type === "NS").map((record) => record.value)).toEqual(["ns1.pirate.", "ns2.pirate."]);
+    }
+    const observing = await port.execute({
+      expected_generation: resource.generation,
+      idempotency_key: keys.acknowledge_complete_resource,
+      kind: "acknowledge_complete_resource",
+    });
+    const stillObserving = await port.execute({
+      expected_generation: observing.generation,
+      idempotency_key: keys.poll,
+      kind: "poll",
+    });
+    const ready = await port.execute({
+      expected_generation: stillObserving.generation,
+      idempotency_key: keys.poll,
+      kind: "poll",
+    });
+    expect(ready.next_action.kind).toBe("ready_to_activate");
+    if (ready.next_action.kind === "ready_to_activate") {
+      const activated = await port.execute({
+        acknowledged_complete_resource_replacement: true,
+        expected_generation: ready.generation,
+        idempotency_key: keys.activate,
+        kind: "activate",
+        publish_plan_sha256: ready.next_action.publish_plan_sha256,
+        readiness_result_sha256: ready.next_action.readiness_result_sha256,
+      });
+      expect(activated.next_action.kind).toBe("verified");
     }
     await expect(port.execute({
       expected_generation: initial.generation,

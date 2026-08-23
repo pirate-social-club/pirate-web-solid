@@ -1,4 +1,4 @@
-import { For, Show } from "solid-js";
+import { createSignal, For, Show } from "solid-js";
 
 import {
   Button,
@@ -23,6 +23,7 @@ import {
   type NamespaceSettingsCommandInput,
   type NamespaceSettingsSnapshot,
 } from "./owner-settings-model";
+import type { CommunityHnsWallet } from "./community-hns-wallet";
 
 export interface CommunityNamespaceSettingsPanelProps {
   busy?: boolean;
@@ -32,6 +33,7 @@ export interface CommunityNamespaceSettingsPanelProps {
   onDraftRootLabelChange: (rootLabel: string) => void;
   showHeading?: boolean;
   snapshot: NamespaceSettingsSnapshot;
+  wallet?: CommunityHnsWallet;
 }
 
 function command(
@@ -139,10 +141,31 @@ function failedAction(action: NamespaceNextAction): Extract<NamespaceNextAction,
   return action.kind === "failed" ? action : null;
 }
 
-function ServerDirectedAction(props: Pick<CommunityNamespaceSettingsPanelProps, "busy" | "idempotencyKeys" | "onCommand" | "showHeading" | "snapshot">) {
+function signAction(action: NamespaceNextAction): Extract<NamespaceNextAction, { kind: "sign_ownership" }> | null {
+  return action.kind === "sign_ownership" ? action : null;
+}
+
+function activationAction(action: NamespaceNextAction): Extract<NamespaceNextAction, { kind: "ready_to_activate" }> | null {
+  return action.kind === "ready_to_activate" ? action : null;
+}
+
+function ServerDirectedAction(props: Pick<CommunityNamespaceSettingsPanelProps, "busy" | "idempotencyKeys" | "onCommand" | "showHeading" | "snapshot" | "wallet">) {
   const action = () => props.snapshot.next_action;
+  const [walletBusy, setWalletBusy] = createSignal(false);
+  const [walletError, setWalletError] = createSignal<string | null>(null);
   const dispatch = (value: NamespaceSettingsCommandInput) => {
     props.onCommand(command(props.idempotencyKeys, props.snapshot, value));
+  };
+  const runWalletAction = async (failureMessage: string, operation: () => Promise<void>) => {
+    setWalletBusy(true);
+    setWalletError(null);
+    try {
+      await operation();
+    } catch {
+      setWalletError(failureMessage);
+    } finally {
+      setWalletBusy(false);
+    }
   };
 
   return (
@@ -154,6 +177,33 @@ function ServerDirectedAction(props: Pick<CommunityNamespaceSettingsPanelProps, 
           <Button loading={props.busy} onClick={() => dispatch({ kind: "start_verification" })}>Start verification</Button>
         </Card>
         <SecondaryAction idempotencyKeys={props.idempotencyKeys} onCommand={props.onCommand} snapshot={props.snapshot} />
+      </Show>
+
+      <Show when={signAction(action())}>
+        {(current) => (
+          <>
+            <Card class="space-y-4 p-5 md:p-6">
+              <Type as="h2" variant="h2">Prove ownership with Bob Wallet</Type>
+              <FormNote>Bob will ask you to sign a Pirate verification message with the key that owns .{current().root_label}. This does not broadcast a transaction or change the name.</FormNote>
+              <Show when={walletError()}><FormNote tone="warning">{walletError()}</FormNote></Show>
+              <Show
+                when={props.wallet?.isAvailable()}
+                fallback={<FormNote tone="warning">Bob Wallet was not detected. Open this page in the browser where the extension is installed.</FormNote>}
+              >
+                <Button
+                  loading={props.busy || walletBusy()}
+                  onClick={() => runWalletAction("Bob Wallet could not sign the verification message. Unlock Bob, confirm that it holds this name, and try again.", async () => {
+                    const signature = await props.wallet!.signRootOwnership(current().root_label, current().message);
+                    dispatch({ kind: "submit_name_signature", signature });
+                  })}
+                >
+                  Sign ownership with Bob Wallet
+                </Button>
+              </Show>
+            </Card>
+            <SecondaryAction idempotencyKeys={props.idempotencyKeys} onCommand={props.onCommand} snapshot={props.snapshot} />
+          </>
+        )}
       </Show>
 
       <Show when={publishAction(action())}>
@@ -182,9 +232,24 @@ function ServerDirectedAction(props: Pick<CommunityNamespaceSettingsPanelProps, 
             <div class="flex flex-wrap items-center justify-between gap-3">
               <SecondaryAction idempotencyKeys={props.idempotencyKeys} onCommand={props.onCommand} snapshot={props.snapshot} />
               <Show when={!hasUnsupportedNamespaceRecords(current())}>
-                <Button loading={props.busy} onClick={() => dispatch({ kind: "acknowledge_complete_resource" })}>I published all records, check the chain</Button>
+                <div class="flex flex-wrap gap-3">
+                  <Button loading={props.busy} onClick={() => dispatch({ kind: "acknowledge_complete_resource" })} variant="secondary">I published all records manually</Button>
+                  <Show when={props.wallet?.isAvailable() && current().records.every((record) => record.wallet_record)}>
+                    <Button
+                      loading={props.busy || walletBusy()}
+                      onClick={() => runWalletAction("Bob Wallet could not publish the update. You can retry or publish the complete record list manually.", async () => {
+                        const records = current().records.flatMap((record) => record.wallet_record ? [record.wallet_record] : []);
+                        await props.wallet!.publishCompleteResource(props.snapshot.root_label, records);
+                        dispatch({ kind: "acknowledge_complete_resource" });
+                      })}
+                    >
+                      Publish complete resource with Bob Wallet
+                    </Button>
+                  </Show>
+                </div>
               </Show>
             </div>
+            <Show when={walletError()}><FormNote tone="warning">{walletError()}</FormNote></Show>
           </>
         )}
       </Show>
@@ -210,6 +275,26 @@ function ServerDirectedAction(props: Pick<CommunityNamespaceSettingsPanelProps, 
               <Button loading={props.busy} onClick={() => dispatch({ kind: "poll" })}>Check status</Button>
             </div>
           </>
+        )}
+      </Show>
+
+      <Show when={activationAction(action())}>
+        {(current) => (
+          <Card class="space-y-4 border-success/40 p-5 md:p-6" role="status">
+            <div class="flex items-center gap-2"><IconCheckCircle class="size-5 text-success" /><Type as="h2" variant="h2">Records verified</Type></div>
+            <FormNote>The wallet update is secure and {current().app_host} is ready. Activation attaches this root to the community and enables handle issuance.</FormNote>
+            <Button
+              loading={props.busy}
+              onClick={() => dispatch({
+                kind: "activate",
+                acknowledged_complete_resource_replacement: true,
+                publish_plan_sha256: current().publish_plan_sha256,
+                readiness_result_sha256: current().readiness_result_sha256,
+              })}
+            >
+              Activate community address
+            </Button>
+          </Card>
         )}
       </Show>
 
@@ -281,7 +366,7 @@ export function CommunityNamespaceSettingsPanel(props: CommunityNamespaceSetting
 
   return (
     <section class="mx-auto flex w-full max-w-5xl flex-col gap-6 md:gap-8" data-community-namespace-settings>
-      <Show when={props.snapshot.next_action.kind === "choose_namespace"} fallback={<ServerDirectedAction busy={props.busy} idempotencyKeys={props.idempotencyKeys} onCommand={props.onCommand} showHeading={props.showHeading} snapshot={props.snapshot} />}>
+      <Show when={props.snapshot.next_action.kind === "choose_namespace"} fallback={<ServerDirectedAction busy={props.busy} idempotencyKeys={props.idempotencyKeys} onCommand={props.onCommand} showHeading={props.showHeading} snapshot={props.snapshot} wallet={props.wallet} />}>
         <div class="space-y-6">
           <Show when={props.showHeading !== false}><Type as="h2" responsiveSize="desktop4xl" variant="h1">Connect Name</Type></Show>
           <Card class="space-y-5 p-5 md:p-6">
