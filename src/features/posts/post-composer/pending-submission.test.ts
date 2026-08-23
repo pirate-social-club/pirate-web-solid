@@ -59,19 +59,21 @@ class FakeRequest {
 class FakeTransaction {
   readonly mode: IDBTransactionMode;
   readonly controller: FakeIndexedDbController;
+  readonly store: FakeStore;
   readonly error: DOMException | null = null;
   writePending = false;
   oncomplete: (() => void) | null = null;
   onerror: (() => void) | null = null;
   onabort: (() => void) | null = null;
 
-  constructor(mode: IDBTransactionMode, controller: FakeIndexedDbController) {
+  constructor(mode: IDBTransactionMode, controller: FakeIndexedDbController, store: FakeStore) {
     this.mode = mode;
     this.controller = controller;
+    this.store = store;
   }
 
   objectStore(): IDBObjectStore {
-    return asIdbObjectStore(this.controller.store);
+    return asIdbObjectStore(this.store);
   }
 
   abort(): void {
@@ -131,17 +133,19 @@ class FakeStore {
 
 class FakeDatabase {
   readonly controller: FakeIndexedDbController;
+  readonly store: FakeStore;
 
   constructor(controller: FakeIndexedDbController) {
     this.controller = controller;
+    this.store = new FakeStore(controller);
   }
 
   createObjectStore(): IDBObjectStore {
-    return asIdbObjectStore(this.controller.store);
+    return asIdbObjectStore(this.store);
   }
 
   transaction(mode: IDBTransactionMode): IDBTransaction {
-    const transaction = new FakeTransaction(mode, this.controller);
+    const transaction = new FakeTransaction(mode, this.controller, this.store);
     this.controller.transactions.push(transaction);
     return asIdbTransaction(transaction);
   }
@@ -150,19 +154,13 @@ class FakeDatabase {
 }
 
 class FakeIndexedDbController {
-  readonly store: FakeStore;
-  readonly database: FakeDatabase;
   readonly transactions: FakeTransaction[] = [];
   readonly openedDatabaseNames: string[] = [];
+  readonly databases = new Map<string, FakeDatabase>();
   private readonly pendingCommits: Array<{ transaction: FakeTransaction; commit: () => void }> = [];
 
   get hasPendingCommit(): boolean {
     return this.pendingCommits.length > 0;
-  }
-
-  constructor() {
-    this.store = new FakeStore(this);
-    this.database = new FakeDatabase(this);
   }
 
   queueRequest(request: FakeRequest, write: boolean, commit: () => void = () => {}): void {
@@ -195,12 +193,15 @@ class FakeIndexedDbController {
     const factory = {
       open: (name: string) => {
         this.openedDatabaseNames.push(name);
+        const existing = this.databases.get(name);
+        const database = existing ?? new FakeDatabase(this);
+        this.databases.set(name, database);
         const request = new FakeRequest();
         queueMicrotask(() => {
-          request.onupgradeneeded?.();
+          if (existing === undefined) request.onupgradeneeded?.();
           request.onsuccess?.();
         });
-        request.result = this.database;
+        request.result = database;
         return request;
       },
     };
@@ -234,7 +235,7 @@ describe("pending text submission", () => {
 
   test("does not use an in-memory browser fallback when IndexedDB is missing", () => {
     vi.stubGlobal("indexedDB", undefined);
-    expect(() => createDefaultPendingSubmissionStorage()).toThrow(PendingSubmissionError);
+    expect(() => createDefaultPendingSubmissionStorage("user-one")).toThrow(PendingSubmissionError);
     const coordinator = new TextSubmissionCoordinator({ transport: transportWith(snapshot) });
     expect(coordinator.state).toEqual({ status: "transport_failure", reason: "durable_storage_failed" });
     vi.unstubAllGlobals();
@@ -310,12 +311,26 @@ describe("pending text submission", () => {
     expect(controller.openedDatabaseNames.every(name => name.endsWith(":principal:user-one"))).toBe(true);
   });
 
-  test("uses different IndexedDB databases for different principals", async () => {
+  test("prevents one principal from loading or replaying another principal's IndexedDB record", async () => {
     const controller = new FakeIndexedDbController();
     const first = createIndexedDbPendingSubmissionStorage("user-one", controller.factory());
     const second = createIndexedDbPendingSubmissionStorage("user-two", controller.factory());
-    await first.loadAll();
-    await second.loadAll();
+    const envelope = await createPendingSubmissionEnvelope({
+      request,
+      pendingRequestId: "pending-principal-isolation",
+      createdAt: "2026-08-21T00:00:00Z",
+    });
+    const savePromise = first.save(envelope);
+    for (let index = 0; index < 20 && !controller.hasPendingCommit; index += 1) await new Promise<void>(resolve => setTimeout(resolve, 0));
+    expect(controller.hasPendingCommit).toBe(true);
+    controller.commitWrites();
+    await savePromise;
+
+    expect(await second.loadAll()).toEqual([]);
+    const restored = await first.loadAll();
+    expect(restored).toHaveLength(1);
+    expect(restored[0]?.pending_request_id).toBe("pending-principal-isolation");
+    expect(pendingBodyBytes(restored[0]!)).toEqual(pendingBodyBytes(envelope));
     expect(new Set(controller.openedDatabaseNames)).toEqual(new Set([
       "pirate-post-composer-v2:principal:user-one",
       "pirate-post-composer-v2:principal:user-two",

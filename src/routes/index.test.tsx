@@ -68,6 +68,7 @@ afterEach(() => {
   for (const dispose of disposers.splice(0)) dispose();
   document.body.replaceChildren();
   document.head.replaceChildren();
+  vi.unstubAllGlobals();
 });
 
 describe("public-first home route", () => {
@@ -127,5 +128,49 @@ describe("public-first home route", () => {
     expect(container.textContent).toContain("Personal home");
     expect(container.textContent).not.toContain("Public discovery");
     expect(container.querySelector("[data-feed-item-id='post-personal-home']")).not.toBeNull();
+  });
+
+  test("does not mount or open text-post storage for an anonymous session", async () => {
+    const open = vi.fn(() => { throw new Error("IndexedDB should remain unopened"); });
+    vi.stubGlobal("indexedDB", { open });
+    const container = render(() => (
+      <HomeRoute
+        resolveSession={async () => "anonymous"}
+        publicData={page("Public discovery")}
+      />
+    ));
+
+    expect(open).not.toHaveBeenCalled();
+    expect(document.body.querySelector("[role='dialog']")).toBeNull();
+    await vi.waitFor(() => expect(container.querySelector("[data-home-session='anonymous']")).not.toBeNull());
+    expect(open).not.toHaveBeenCalled();
+    expect(document.body.querySelector("[role='dialog']")).toBeNull();
+  });
+
+  test("mounts the text-post coordinator only after authentication supplies a principal", async () => {
+    const open = vi.fn((_name: string) => { throw new Error("fixture open proves coordinator mount"); });
+    vi.stubGlobal("indexedDB", { open });
+    let resolveSession!: (value: SessionResolution) => void;
+    const pending = new Promise<SessionResolution>(resolve => { resolveSession = resolve; });
+    const container = render(() => (
+      <HomeRoute
+        resolveSession={() => pending}
+        publicData={page("Public discovery")}
+        homeData={page("Personal home")}
+      />
+    ));
+
+    expect(container.querySelector("[data-home-session='resolving']")).not.toBeNull();
+    expect(open).not.toHaveBeenCalled();
+    expect(document.body.querySelector("[role='dialog']")).toBeNull();
+
+    resolveSession({ status: "authenticated", userId: "user-one" });
+    await vi.waitFor(() => expect(open).toHaveBeenCalled());
+    expect(open.mock.calls.some(([name]) => name === "pirate-post-composer-v2:principal:user-one")).toBe(true);
+    const createPost = [...container.querySelectorAll("button")]
+      .find(button => button.textContent?.includes("Create post"));
+    expect(createPost).toBeDefined();
+    createPost?.click();
+    await vi.waitFor(() => expect(document.body.querySelector("[role='dialog']")).not.toBeNull());
   });
 });

@@ -8,6 +8,7 @@ import solid from "@solidjs/vite-plugin";
 
 const appRoot = fileURLToPath(new URL(".", import.meta.url));
 const solidUiRoot = path.resolve(appRoot, "packages/solid-ui");
+const fixtureApiOrigin = process.env.SOLID_API_NEXT_FIXTURE_ORIGIN;
 
 export default defineConfig({
   plugins: [
@@ -23,6 +24,9 @@ export default defineConfig({
     },
     cloudflare({
       viteEnvironment: { name: "ssr" },
+      config: config => fixtureApiOrigin === undefined ? {} : {
+        vars: { ...config.vars, API_NEXT_ORIGIN: fixtureApiOrigin },
+      },
     }),
     solid({
       ssr: true,
