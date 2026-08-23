@@ -14,8 +14,11 @@
 #   Storybook a11y audit. The plan VM is network-isolated, so neither runs
 #   until Chromium is delivered through a pre_plan action.
 # Build and the repository-pinned Wrangler dry-run were both rehearsed with
-# Node 24.14.0 and Bun 1.4.0 in a network namespace with no route. The plan
-# invokes Wrangler through `bun run`, never `bunx`, so it cannot fetch a
+# Node 24.14.0 and Bun 1.4.0 in a network namespace with no route. Wrangler's
+# default banner and telemetry paths attempted DNS even though the dry-run did
+# not require their result. The pinned controls on gate 12 suppressed those
+# paths; a syscall trace then contained no Internet socket or DNS attempt. The
+# plan invokes Wrangler through `bun run`, never `bunx`, so it cannot fetch a
 # replacement package.
 
 pre_plan:
@@ -146,6 +149,9 @@ plan:
       export PATH=/tmp/node-v24.14.0-linux-x64/bin:/ci/deps/bun-linux-x64:$PATH
       export CI=1
       export NODE_OPTIONS=--max-old-space-size=3072
+      export WRANGLER_HIDE_BANNER=true
+      export WRANGLER_SEND_ERROR_REPORTS=false
+      export WRANGLER_SEND_METRICS=false
       cd /ci/src
       /tmp/run-verification-gate 12-wrangler-dry-run \
         bun run wrangler deploy --dry-run --config dist/ssr/wrangler.json
