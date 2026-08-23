@@ -3,7 +3,7 @@ import { once } from "node:events";
 import { createServer } from "node:http";
 import { chromium } from "playwright";
 
-const apiPort = 8788;
+const apiPort = 8789;
 const solidPort = 4182;
 const solidOrigin = `http://127.0.0.1:${solidPort}`;
 const requests = [];
@@ -219,6 +219,13 @@ async function runTerminalScenario(browser, community, expectedText) {
   try {
     const dialog = await openComposer(page, community, `Browser body for ${community}`);
     await dialog.getByText(expectedText, { exact: false }).waitFor({ state: "visible" });
+    if (community === "published") {
+      await dialog.getByRole("button", { name: "Cancel" }).click();
+      await page.getByRole("button", { name: "Create post" }).click();
+      const freshDialog = page.getByRole("dialog");
+      assert(await freshDialog.getByRole("button", { name: "Publish post" }).isEnabled(), "published close did not restore an editable draft");
+      assert(await freshDialog.locator("[data-post-composer-state]").count() === 0, "published close retained a terminal state");
+    }
   } finally {
     await context.close();
   }
@@ -234,7 +241,11 @@ try {
   await listen(upstream, apiPort);
   worker = spawn("bun", ["x", "vite", "dev", "--host", "127.0.0.1", "--port", String(solidPort), "--strictPort"], {
     cwd: new URL("..", import.meta.url),
-    env: { ...process.env, NO_COLOR: "1", API_NEXT_ORIGIN: `http://127.0.0.1:${apiPort}` },
+    env: {
+      ...process.env,
+      NO_COLOR: "1",
+      SOLID_API_NEXT_FIXTURE_ORIGIN: `http://127.0.0.1:${apiPort}`,
+    },
     stdio: ["ignore", "pipe", "pipe"],
   });
   worker.once("error", error => { workerSpawnError = error; });
@@ -247,7 +258,7 @@ try {
   await runTerminalScenario(browser, "published", "Post published.");
   await runTerminalScenario(browser, "manual-review", "awaiting review");
   await runTerminalScenario(browser, "blocked", "blocked by community policy");
-  await runTerminalScenario(browser, "conflict", "conflicts with an existing submission");
+  await runTerminalScenario(browser, "conflict", "conflicts with an existing submission (submission-conflict)");
 
   const { context, page } = await authenticatedPage(browser);
   try {
