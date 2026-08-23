@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { render as solidRender } from "@solidjs/web";
 import { createRoot } from "solid-js";
 import type { JSX } from "@solidjs/web";
@@ -37,6 +37,17 @@ const widgetHarness = {
 let widgetConfig: WidgetConfig | undefined;
 
 const disposers: Array<() => void> = [];
+
+beforeEach(() => {
+  vi.spyOn(veryApi, "resolveVeryCommunityAction").mockResolvedValue({
+    kind: "verify",
+    intentId: "community-join-intent-1",
+  });
+  vi.spyOn(veryApi, "joinVeryCommunity").mockImplementation(async ({ communityId }) => ({
+    communityId,
+    status: "joined",
+  }));
+});
 
 function render(ui: () => JSX.Element): HTMLElement {
   const container = document.createElement("div");
@@ -155,11 +166,139 @@ describe("Very verification route", () => {
 
     widgetConfig?.onSuccess("opaque-provider-payload-ref");
     widgetConfig?.onSuccess("duplicate-provider-payload-ref");
-    await vi.waitFor(() => expect(container.textContent).toContain("Verification complete"));
+    await vi.waitFor(() => expect(container.textContent).toContain("Community joined"));
     expect(completeWithWidget).toHaveBeenCalledTimes(1);
     expect(completeWithWidget).toHaveBeenCalledWith("opaque-provider-payload-ref");
+    expect(veryApi.joinVeryCommunity).toHaveBeenCalledWith({ communityId: "community-gated-1" });
     expect(widgetHarness.destroy).toHaveBeenCalledTimes(1);
     expect(cancel).not.toHaveBeenCalled();
+  });
+
+  it("joins immediately when an earlier proof already makes the community joinable", async () => {
+    window.history.replaceState(null, "", "/verify/very?community_id=community-gated-1");
+    vi.mocked(veryApi.resolveVeryCommunityAction).mockResolvedValue({ kind: "join" });
+    const createCeremony = vi.spyOn(veryApi, "createVeryWebCeremony");
+
+    const container = render(() => <VeryVerificationRoute />);
+    container.querySelector("button")?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+    await vi.waitFor(() => expect(container.textContent).toContain("Community joined"));
+    expect(veryApi.joinVeryCommunity).toHaveBeenCalledWith({ communityId: "community-gated-1" });
+    expect(createCeremony).not.toHaveBeenCalled();
+  });
+
+  it("waits on a server-reported pending ceremony without issuing another intent", async () => {
+    window.history.replaceState(null, "", "/verify/very?community_id=community-gated-1");
+    let resolveNextAction = (_action: veryApi.VeryCommunityAction) => {};
+    const nextAction = new Promise<veryApi.VeryCommunityAction>((resolve) => {
+      resolveNextAction = resolve;
+    });
+    vi.mocked(veryApi.resolveVeryCommunityAction)
+      .mockResolvedValueOnce({ kind: "wait", retryAfterMs: 1 })
+      .mockReturnValueOnce(nextAction);
+    const createCeremony = vi.spyOn(veryApi, "createVeryWebCeremony");
+
+    const container = render(() => <VeryVerificationRoute />);
+    container.querySelector("button")?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    await vi.waitFor(() => expect(container.textContent).toContain("prior Very ceremony is still pending"));
+    expect(createCeremony).not.toHaveBeenCalled();
+
+    resolveNextAction({ kind: "join" });
+    await vi.waitFor(() => expect(container.textContent).toContain("Community joined"));
+    expect(veryApi.resolveVeryCommunityAction).toHaveBeenCalledTimes(2);
+    expect(createCeremony).not.toHaveBeenCalled();
+  });
+
+  it("does not apply a delayed join result after the operation is cancelled", async () => {
+    window.history.replaceState(null, "", "/verify/very?community_id=community-gated-1");
+    vi.mocked(veryApi.resolveVeryCommunityAction).mockResolvedValue({ kind: "join" });
+    let resolveJoin = (_joined: veryApi.VeryCommunityJoin) => {};
+    vi.mocked(veryApi.joinVeryCommunity).mockReturnValue(new Promise((resolve) => {
+      resolveJoin = resolve;
+    }));
+
+    const container = render(() => <VeryVerificationRoute />);
+    container.querySelector("button")?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    await vi.waitFor(() => expect(container.textContent).toContain("Joining the community"));
+    const cancel = [...container.querySelectorAll("button")]
+      .find((button) => button.textContent === "Cancel");
+    cancel?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    resolveJoin({ communityId: "community-gated-1", status: "joined" });
+
+    await vi.waitFor(() => expect(container.textContent).toContain("Start palm verification"));
+    expect(container.textContent).not.toContain("Community joined");
+  });
+
+  it("does not let an old completion clean up a newer widget", async () => {
+    window.history.replaceState(null, "", "/verify/very?community_id=community-gated-1");
+    let resolveOldCompletion = (_completion: veryApi.VeryWebCompletion) => {};
+    const oldCompletion = new Promise<veryApi.VeryWebCompletion>((resolve) => {
+      resolveOldCompletion = resolve;
+    });
+    const presentation = (proofSessionId: string): veryApi.VeryWebPresentation => ({
+      proofSessionId,
+      expiresAt: "2099-08-20T12:05:00.000Z",
+      appId: "very-app-staging",
+      apiUrl: "https://bridge.very.org/api/v1",
+      context: "Veros - Palm Verification Timestamp",
+      typeId: "3",
+      query: JSON.stringify({ externalNullifier: "Pirate - Community Join" }),
+      verifyUrl: "https://verify.very.org/api/v1/verify",
+      mobileUri: `veros://verify?sessionId=${proofSessionId}&key=YWJj&action=verify`,
+      pollUrl: `/verification/sessions/${proofSessionId}/complete`,
+    });
+    vi.spyOn(veryApi, "createVeryWebCeremony")
+      .mockResolvedValueOnce({
+        proofSessionId: "proof-session-old",
+        presentation: presentation("proof-session-old"),
+        initialCompletion: undefined,
+        completeWithWidget: vi.fn(() => oldCompletion),
+        pollBridge: vi.fn(),
+        cancel: vi.fn(),
+      })
+      .mockResolvedValueOnce({
+        proofSessionId: "proof-session-new",
+        presentation: presentation("proof-session-new"),
+        initialCompletion: undefined,
+        completeWithWidget: vi.fn(),
+        pollBridge: vi.fn(),
+        cancel: vi.fn(),
+      });
+    widgetHarness.create.mockImplementation((config: WidgetConfig) => {
+      widgetConfig = config;
+      return {
+        open: () => {
+          const overlay = document.createElement("div");
+          overlay.className = "very-dialog-overlay";
+          document.body.appendChild(overlay);
+        },
+        destroy: () => {
+          widgetHarness.destroy();
+          document.querySelector(".very-dialog-overlay")?.remove();
+        },
+      };
+    });
+
+    const container = render(() => (
+      <VeryVerificationRoute loadWidget={async () => ({ createVeryWidget: widgetHarness.create })} />
+    ));
+    container.querySelector("button")?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    await vi.waitFor(() => expect(widgetHarness.create).toHaveBeenCalledTimes(1));
+    const oldWidgetConfig = widgetConfig;
+    oldWidgetConfig?.onSuccess("old-provider-payload");
+
+    const cancel = [...container.querySelectorAll("button")]
+      .find((button) => button.textContent === "Cancel");
+    cancel?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    await vi.waitFor(() => expect(container.textContent).toContain("Start palm verification"));
+    container.querySelector("button")?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    await vi.waitFor(() => expect(widgetHarness.create).toHaveBeenCalledTimes(2));
+    expect(widgetHarness.destroy).toHaveBeenCalledTimes(1);
+
+    resolveOldCompletion({ proofSessionId: "proof-session-old", status: "completed", replayed: false });
+    await new Promise<void>((resolve) => window.setTimeout(resolve, 0));
+    expect(widgetHarness.destroy).toHaveBeenCalledTimes(1);
+    expect(document.querySelector(".very-dialog-overlay")).not.toBeNull();
   });
 
   it("settles a widget dismissal without completing the server session", async () => {

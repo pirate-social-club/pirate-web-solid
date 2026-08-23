@@ -20,6 +20,7 @@ export type VeryWebClientErrorCode =
   | "ceremony_cancelled"
   | "ceremony_expired"
   | "join_not_ready"
+  | "join_failed"
   | "provider_rejected"
   | "provider_unavailable";
 
@@ -58,9 +59,34 @@ export type VeryWebCompletion = Readonly<{
 type VerificationApiClient = Pick<
   PirateApiClient,
   | "get_communitiesCommunityIdJoinEligibility"
+  | "post_communitiesCommunityIdJoin"
   | "post_verificationSessions"
   | "post_verificationSessionsProofSessionIdComplete"
 >;
+
+export type VeryCommunityAction = Readonly<
+  | { kind: "verify"; intentId: string }
+  | { kind: "join" }
+  | { kind: "joined" }
+  | { kind: "wait"; retryAfterMs: number }
+>;
+
+export type VeryCommunityJoin = Readonly<{
+  communityId: string;
+  status: "joined";
+}>;
+
+type VeryCommunityOptions = Readonly<{
+  communityId: string;
+  apiClient?: VerificationApiClient;
+  csrfToken?: string;
+  requestOptions?: PirateApiRequestOptions;
+}>;
+
+type VeryCommunityRequestContext = Readonly<{
+  apiClient: VerificationApiClient;
+  requestOptions: PirateApiRequestOptions;
+}>;
 
 export type CreateVeryWebCeremonyOptions = Readonly<{
   /** Internal escape hatch for an already-resolved server intent. */
@@ -197,6 +223,103 @@ export function parseVeryJoinEligibility(value: unknown): string {
     throw new VeryWebClientError("join_not_ready");
   }
   return boundedString(nextAction.intent_id);
+}
+
+export function parseVeryCommunityAction(value: unknown, communityId: string): VeryCommunityAction {
+  const response = record(value);
+  if (response.community !== communityId) throw new VeryWebClientError("join_not_ready");
+  const nextAction = record(response.next_action);
+  if (
+    response.status === "verification_required" &&
+    response.joinable_now === false &&
+    response.human_verification_lane === "very" &&
+    nextAction.kind === "start_verification" &&
+    nextAction.provider_id === VERY_WEB_PROVIDER_ID
+  ) {
+    return { kind: "verify", intentId: boundedString(nextAction.intent_id) };
+  }
+  if (
+    response.status === "joinable" &&
+    response.joinable_now === true &&
+    nextAction.kind === "join"
+  ) {
+    return { kind: "join" };
+  }
+  if (
+    response.status === "already_joined" &&
+    response.joinable_now === false &&
+    nextAction.kind === "none" &&
+    nextAction.reason === "already_joined"
+  ) {
+    return { kind: "joined" };
+  }
+  if (
+    response.status === "verification_required" &&
+    response.joinable_now === false &&
+    response.human_verification_lane === "very" &&
+    nextAction.kind === "wait" &&
+    nextAction.reason_code === "verification_pending"
+  ) {
+    const retryAfterSeconds = nextAction.retry_after_seconds;
+    const retryAfterMs = typeof retryAfterSeconds === "number" &&
+      Number.isFinite(retryAfterSeconds) &&
+      retryAfterSeconds > 0
+      ? Math.min(Math.ceil(retryAfterSeconds * 1_000), 30_000)
+      : VERY_WEB_POLL_INTERVAL_MS;
+    return { kind: "wait", retryAfterMs };
+  }
+  throw new VeryWebClientError("join_not_ready");
+}
+
+function veryCommunityRequest(options: VeryCommunityOptions): VeryCommunityRequestContext {
+  if (
+    typeof window === "undefined" ||
+    options.communityId.length === 0 ||
+    options.communityId.trim() !== options.communityId
+  ) {
+    throw new VeryWebClientError("invalid_presentation");
+  }
+  const csrfToken = options.csrfToken ?? readCsrfCookie();
+  if (csrfToken === undefined) throw new VeryWebClientError("csrf_required");
+  return {
+    apiClient: options.apiClient ?? createSessionApiClient(),
+    requestOptions: sessionRequestOptions(csrfToken, options.requestOptions),
+  };
+}
+
+export async function resolveVeryCommunityAction(
+  options: VeryCommunityOptions,
+): Promise<VeryCommunityAction> {
+  const { apiClient, requestOptions } = veryCommunityRequest(options);
+  try {
+    const eligibility = await apiClient.get_communitiesCommunityIdJoinEligibility(
+      { path: { communityId: options.communityId } },
+      requestOptions,
+    );
+    return parseVeryCommunityAction(eligibility, options.communityId);
+  } catch (error) {
+    if (error instanceof VeryWebClientError) throw error;
+    throw new VeryWebClientError("join_not_ready");
+  }
+}
+
+export async function joinVeryCommunity(
+  options: VeryCommunityOptions,
+): Promise<VeryCommunityJoin> {
+  const { apiClient, requestOptions } = veryCommunityRequest(options);
+  try {
+    const joined = await apiClient.post_communitiesCommunityIdJoin(
+      { path: { communityId: options.communityId } },
+      requestOptions,
+    );
+    if (joined.community !== options.communityId || joined.status !== "joined") {
+      throw new VeryWebClientError("join_failed");
+    }
+    return { communityId: joined.community, status: "joined" };
+  } catch (error) {
+    if (error instanceof VeryWebClientError) throw error;
+    throw new VeryWebClientError("join_failed");
+  }
 }
 
 export function parseVeryWebPresentation(started: unknown):

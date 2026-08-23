@@ -11,12 +11,14 @@ import {
   VERY_WEB_POLL_INTERVAL_MS,
   VeryWebClientError,
   createVeryWebCeremony,
+  joinVeryCommunity,
+  resolveVeryCommunityAction,
   type VeryWebCeremony,
   type VeryWebCompletion,
   type VeryWebPresentation,
 } from "../../api/very.ts";
 
-type Phase = "idle" | "starting" | "ready" | "polling" | "complete" | "error";
+type Phase = "idle" | "starting" | "waiting" | "ready" | "polling" | "joining" | "joined" | "error";
 
 type VeryWidget = Readonly<{
   open?: () => void;
@@ -57,6 +59,7 @@ function safeMessage(error: unknown): string {
       case "ceremony_expired": return "This ceremony expired. Start a fresh one.";
       case "ceremony_cancelled": return "The ceremony was cancelled. Start a fresh one.";
       case "join_not_ready": return "That community is not currently ready for a Very verification.";
+      case "join_failed": return "Palm verification succeeded, but joining the community failed. Retry the join.";
       case "provider_unavailable": return "Very is still processing the palm scan.";
       case "provider_rejected": return "Very rejected the verification. You can retry.";
       case "invalid_presentation": return "The server returned an invalid Very ceremony.";
@@ -83,13 +86,29 @@ export default function VeryVerificationRoute(props: Readonly<{ loadWidget?: Ver
   const [qr, setQr] = createSignal("");
   const [presentation, setPresentation] = createSignal<VeryWebPresentation>();
   const [completion, setCompletion] = createSignal<VeryWebCompletion>();
+  const [joinedCommunityId, setJoinedCommunityId] = createSignal("");
   const [busy, setBusy] = createSignal(false);
   let ceremony: VeryWebCeremony | undefined;
   let widget: VeryWidget | undefined;
   let widgetObserver: MutationObserver | undefined;
   let widgetSettled = false;
   let active = true;
-  let polling = false;
+  let operationEpoch = 0;
+  let pollingEpoch: number | undefined;
+
+  function operationIsCurrent(epoch: number, targetCommunityId: string): boolean {
+    return active && operationEpoch === epoch && communityId().trim() === targetCommunityId;
+  }
+
+  async function joinResolvedCommunity(targetCommunityId: string, epoch: number) {
+    if (!operationIsCurrent(epoch, targetCommunityId)) return;
+    setPhase("joining");
+    const joined = await joinVeryCommunity({ communityId: targetCommunityId });
+    if (!operationIsCurrent(epoch, targetCommunityId)) return;
+    setJoinedCommunityId(joined.communityId);
+    setMessage("");
+    setPhase("joined");
+  }
 
   function cleanupWidget() {
     widgetObserver?.disconnect();
@@ -102,6 +121,7 @@ export default function VeryVerificationRoute(props: Readonly<{ loadWidget?: Ver
 
   onCleanup(() => {
     active = false;
+    operationEpoch += 1;
     ceremony?.cancel();
     cleanupWidget();
   });
@@ -109,38 +129,47 @@ export default function VeryVerificationRoute(props: Readonly<{ loadWidget?: Ver
   async function completeWidget(
     currentCeremony: VeryWebCeremony,
     providerPayloadRef: string,
+    targetCommunityId: string,
+    epoch: number,
   ) {
-    if (!active || widgetSettled || ceremony !== currentCeremony) return;
+    if (!operationIsCurrent(epoch, targetCommunityId) || widgetSettled || ceremony !== currentCeremony) return;
     // Settle before crossing the async boundary so duplicate provider callbacks
     // cannot issue a second completion request or race dismissal cleanup.
     widgetSettled = true;
     try {
       const result = await currentCeremony.completeWithWidget(providerPayloadRef);
-      if (!active || ceremony !== currentCeremony) return;
+      if (!operationIsCurrent(epoch, targetCommunityId) || ceremony !== currentCeremony) return;
       setCompletion(result);
-      setPhase("complete");
+      await joinResolvedCommunity(targetCommunityId, epoch);
     } catch (error) {
-      if (!active || ceremony !== currentCeremony) return;
+      if (!operationIsCurrent(epoch, targetCommunityId) || ceremony !== currentCeremony) return;
       setMessage(safeMessage(error));
       setPhase("error");
     } finally {
-      cleanupWidget();
-      if (active && ceremony === currentCeremony) setBusy(false);
+      if (operationIsCurrent(epoch, targetCommunityId) && ceremony === currentCeremony) {
+        cleanupWidget();
+        setBusy(false);
+      }
     }
   }
 
-  function retainWidgetForRetry(currentCeremony: VeryWebCeremony) {
-    if (!active || widgetSettled || ceremony !== currentCeremony) return;
+  function retainWidgetForRetry(currentCeremony: VeryWebCeremony, targetCommunityId: string, epoch: number) {
+    if (!operationIsCurrent(epoch, targetCommunityId) || widgetSettled || ceremony !== currentCeremony) return;
     // @veryai/widget 1.0.22 renders its own retryable error state and its
     // Try Again action refreshes the bridge session with the same query.
     // Keep the server proof session and widget alive for that retry.
     setPhase("ready");
   }
 
-  async function openDesktopWidget(currentCeremony: VeryWebCeremony, source: VeryWebPresentation) {
+  async function openDesktopWidget(
+    currentCeremony: VeryWebCeremony,
+    source: VeryWebPresentation,
+    targetCommunityId: string,
+    epoch: number,
+  ) {
     widgetSettled = false;
     const { createVeryWidget } = await (props.loadWidget ?? loadVeryWidgetModule)();
-    if (!active || ceremony !== currentCeremony || widgetSettled) return;
+    if (!operationIsCurrent(epoch, targetCommunityId) || ceremony !== currentCeremony || widgetSettled) return;
     const instance = createVeryWidget({
       appId: source.appId,
       context: source.context,
@@ -148,10 +177,10 @@ export default function VeryVerificationRoute(props: Readonly<{ loadWidget?: Ver
       query: source.query,
       verifyUrl: source.verifyUrl,
       onSuccess: (providerPayloadRef: string) => {
-        void completeWidget(currentCeremony, providerPayloadRef);
+        void completeWidget(currentCeremony, providerPayloadRef, targetCommunityId, epoch);
       },
       onError: () => {
-        retainWidgetForRetry(currentCeremony);
+        retainWidgetForRetry(currentCeremony, targetCommunityId, epoch);
       },
       theme: "dark",
     });
@@ -160,7 +189,12 @@ export default function VeryVerificationRoute(props: Readonly<{ loadWidget?: Ver
     setPhase("ready");
     if (typeof MutationObserver !== "undefined" && typeof document !== "undefined") {
       const observer = new MutationObserver(() => {
-        if (widgetSettled || widget !== instance || document.querySelector(VERY_WIDGET_OVERLAY_SELECTOR)) {
+        if (
+          !operationIsCurrent(epoch, targetCommunityId) ||
+          widgetSettled ||
+          widget !== instance ||
+          document.querySelector(VERY_WIDGET_OVERLAY_SELECTOR)
+        ) {
           return;
         }
         // The widget has no dismissal callback. Overlay removal is the only
@@ -187,24 +221,47 @@ export default function VeryVerificationRoute(props: Readonly<{ loadWidget?: Ver
       setPhase("error");
       return;
     }
+    const epoch = operationEpoch + 1;
+    operationEpoch = epoch;
     ceremony?.cancel();
+    ceremony = undefined;
     cleanupWidget();
     setBusy(true);
     setMessage("");
     setQr("");
     setCompletion(undefined);
+    setJoinedCommunityId("");
     setPresentation(undefined);
     setPhase("starting");
     try {
-      const created = await createVeryWebCeremony({ communityId: value });
-      if (!active) {
+      let action = await resolveVeryCommunityAction({ communityId: value });
+      while (operationIsCurrent(epoch, value) && action.kind === "wait") {
+        const retryAfterMs = action.retryAfterMs;
+        setPhase("waiting");
+        await new Promise<void>((resolve) => window.setTimeout(resolve, retryAfterMs));
+        if (!operationIsCurrent(epoch, value)) return;
+        action = await resolveVeryCommunityAction({ communityId: value });
+      }
+      if (!operationIsCurrent(epoch, value)) return;
+      if (action.kind === "joined") {
+        setJoinedCommunityId(value);
+        setPhase("joined");
+        return;
+      }
+      if (action.kind === "join") {
+        await joinResolvedCommunity(value, epoch);
+        return;
+      }
+      if (action.kind !== "verify") throw new VeryWebClientError("join_not_ready");
+      const created = await createVeryWebCeremony({ intentId: action.intentId });
+      if (!operationIsCurrent(epoch, value)) {
         created.cancel();
         return;
       }
       ceremony = created;
       if (created.initialCompletion !== undefined) {
         setCompletion(created.initialCompletion);
-        setPhase("complete");
+        await joinResolvedCommunity(value, epoch);
         return;
       }
       if (created.presentation === undefined) throw new VeryWebClientError("invalid_presentation");
@@ -218,36 +275,38 @@ export default function VeryVerificationRoute(props: Readonly<{ loadWidget?: Ver
         }));
         setPhase("ready");
       } else {
-        await openDesktopWidget(created, created.presentation);
+        await openDesktopWidget(created, created.presentation, value, epoch);
       }
     } catch (error) {
-      if (!active) return;
+      if (!operationIsCurrent(epoch, value)) return;
       ceremony?.cancel();
       ceremony = undefined;
       cleanupWidget();
       setMessage(safeMessage(error));
       setPhase("error");
     } finally {
-      if (active) setBusy(false);
+      if (operationIsCurrent(epoch, value)) setBusy(false);
     }
   }
 
   async function pollUntilComplete() {
-    if (polling || ceremony === undefined) return;
+    if (pollingEpoch === operationEpoch || ceremony === undefined) return;
     const currentCeremony = ceremony;
-    polling = true;
+    const epoch = operationEpoch;
+    const targetCommunityId = communityId().trim();
+    pollingEpoch = epoch;
     setPhase("polling");
     setMessage("");
     try {
-      while (active && ceremony === currentCeremony) {
+      while (operationIsCurrent(epoch, targetCommunityId) && ceremony === currentCeremony) {
         try {
           const result = await currentCeremony.pollBridge();
-          if (!active || ceremony !== currentCeremony) return;
+          if (!operationIsCurrent(epoch, targetCommunityId) || ceremony !== currentCeremony) return;
           setCompletion(result);
-          setPhase("complete");
+          await joinResolvedCommunity(targetCommunityId, epoch);
           return;
         } catch (error) {
-          if (!active || ceremony !== currentCeremony) return;
+          if (!operationIsCurrent(epoch, targetCommunityId) || ceremony !== currentCeremony) return;
           if (!(error instanceof VeryWebClientError) || error.code !== "provider_unavailable") {
             throw error;
           }
@@ -255,11 +314,11 @@ export default function VeryVerificationRoute(props: Readonly<{ loadWidget?: Ver
         }
       }
     } catch (error) {
-      if (!active || ceremony !== currentCeremony) return;
+      if (!operationIsCurrent(epoch, targetCommunityId) || ceremony !== currentCeremony) return;
       setMessage(safeMessage(error));
       setPhase("error");
     } finally {
-      polling = false;
+      if (pollingEpoch === epoch) pollingEpoch = undefined;
     }
   }
 
@@ -271,13 +330,16 @@ export default function VeryVerificationRoute(props: Readonly<{ loadWidget?: Ver
   }
 
   function reset() {
+    operationEpoch += 1;
     ceremony?.cancel();
     ceremony = undefined;
     cleanupWidget();
     setQr("");
     setPresentation(undefined);
     setCompletion(undefined);
+    setJoinedCommunityId("");
     setMessage("");
+    setBusy(false);
     setPhase("idle");
   }
 
@@ -301,7 +363,14 @@ export default function VeryVerificationRoute(props: Readonly<{ loadWidget?: Ver
       </Show>
 
       <Show when={phase() === "starting"}>
-        <p role="status">Preparing a server-bound Very ceremony…</p>
+        <p role="status">Checking the gated-community join requirements…</p>
+      </Show>
+
+      <Show when={phase() === "waiting"}>
+        <section class="flex flex-col gap-3">
+          <p role="status">A prior Very ceremony is still pending. Waiting for it to complete or expire…</p>
+          <Button type="button" onClick={reset}>Cancel</Button>
+        </section>
       </Show>
 
       <Show when={phase() === "ready" && presentation() !== undefined}>
@@ -330,11 +399,21 @@ export default function VeryVerificationRoute(props: Readonly<{ loadWidget?: Ver
         <p role="status">Waiting for the server to receive the palm-scan result…</p>
       </Show>
 
-      <Show when={phase() === "complete" && completion() !== undefined}>
-        <section aria-label="Very verification complete" role="status" class="flex flex-col gap-3">
-          <h2 class="text-xl font-semibold">Verification complete</h2>
-          <p>{completion()?.replayed ? "This was an already-completed ceremony." : "The server accepted the palm-scan evidence."}</p>
-          <p class="break-all text-sm">Proof session: {completion()?.proofSessionId}</p>
+      <Show when={phase() === "joining"}>
+        <section class="flex flex-col gap-3">
+          <p role="status">The server accepted the palm-scan evidence. Joining the community…</p>
+          <Button type="button" onClick={reset}>Cancel</Button>
+        </section>
+      </Show>
+
+      <Show when={phase() === "joined" && joinedCommunityId().length > 0}>
+        <section aria-label="Community joined" role="status" class="flex flex-col gap-3">
+          <h2 class="text-xl font-semibold">Community joined</h2>
+          <p>Your Very proof was accepted and your membership is active.</p>
+          <p class="break-all text-sm">Community: {joinedCommunityId()}</p>
+          <Show when={completion() !== undefined}>
+            <p class="break-all text-sm">Proof session: {completion()?.proofSessionId}</p>
+          </Show>
           <Button type="button" onClick={reset}>Start another ceremony</Button>
         </section>
       </Show>

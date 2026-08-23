@@ -3,8 +3,11 @@ import {
   VERY_WEB_PROVIDER_ID,
   VeryWebClientError,
   createVeryWebCeremony,
+  joinVeryCommunity,
+  parseVeryCommunityAction,
   parseVeryJoinEligibility,
   parseVeryWebPresentation,
+  resolveVeryCommunityAction,
 } from "./very.ts";
 
 const proofSessionId = "proof-session-1";
@@ -95,6 +98,84 @@ describe("Very web presentation", () => {
 });
 
 describe("Very web ceremony", () => {
+  it("distinguishes verification, joinable, and already-joined community actions", () => {
+    expect(parseVeryCommunityAction({
+      community: "community-gated-1",
+      status: "verification_required",
+      joinable_now: false,
+      human_verification_lane: "very",
+      next_action: {
+        kind: "start_verification",
+        provider_id: VERY_WEB_PROVIDER_ID,
+        intent_id: "join-intent-from-server",
+      },
+    }, "community-gated-1")).toEqual({ kind: "verify", intentId: "join-intent-from-server" });
+    expect(parseVeryCommunityAction({
+      community: "community-gated-1",
+      status: "joinable",
+      joinable_now: true,
+      next_action: { kind: "join" },
+    }, "community-gated-1")).toEqual({ kind: "join" });
+    expect(parseVeryCommunityAction({
+      community: "community-gated-1",
+      status: "already_joined",
+      joinable_now: false,
+      next_action: { kind: "none", reason: "already_joined" },
+    }, "community-gated-1")).toEqual({ kind: "joined" });
+    expect(parseVeryCommunityAction({
+      community: "community-gated-1",
+      status: "verification_required",
+      joinable_now: false,
+      human_verification_lane: "very",
+      next_action: {
+        kind: "wait",
+        reason_code: "verification_pending",
+        retry_after_seconds: 2,
+      },
+    }, "community-gated-1")).toEqual({ kind: "wait", retryAfterMs: 2_000 });
+    expect(() => parseVeryCommunityAction({
+      community: "community-other",
+      status: "joinable",
+      joinable_now: true,
+      next_action: { kind: "join" },
+    }, "community-gated-1")).toThrowError(expect.objectContaining({ code: "join_not_ready" }));
+  });
+
+  it("reuses completed proof eligibility and joins through the authenticated endpoint", async () => {
+    // SAFETY: this test deliberately supplies the browser guard used by the client adapter.
+    globalThis.window = {} as Window & typeof globalThis;
+    const eligibility = vi.fn(async () => ({
+      community: "community-gated-1",
+      status: "joinable" as const,
+      joinable_now: true,
+      next_action: { kind: "join" as const },
+    }));
+    const join = vi.fn(async () => ({
+      community: "community-gated-1",
+      status: "joined" as const,
+    }));
+    // SAFETY: this fake implements the two generated methods used by these community helpers.
+    const apiClient = {
+      get_communitiesCommunityIdJoinEligibility: eligibility,
+      post_communitiesCommunityIdJoin: join,
+    } as never;
+
+    await expect(resolveVeryCommunityAction({
+      communityId: "community-gated-1",
+      apiClient,
+      csrfToken: "csrf-token",
+    })).resolves.toEqual({ kind: "join" });
+    await expect(joinVeryCommunity({
+      communityId: "community-gated-1",
+      apiClient,
+      csrfToken: "csrf-token",
+    })).resolves.toEqual({ communityId: "community-gated-1", status: "joined" });
+    expect(join).toHaveBeenCalledWith(
+      { path: { communityId: "community-gated-1" } },
+      expect.objectContaining({ credentials: "same-origin", headers: expect.any(Headers) }),
+    );
+  });
+
   it("resolves a community ID to the server-issued join intent", async () => {
     // SAFETY: this test deliberately supplies the browser guard used by the client adapter.
     globalThis.window = {} as Window & typeof globalThis;
