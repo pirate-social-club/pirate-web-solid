@@ -58,6 +58,12 @@ projection, or API compatibility change.
   never a task root or write target.
 - Preserve the pre-clean-slate tree at
   `refs/archive/pre-clean-slate-20260818`; do not rewrite or delete it.
+- Configure each integration clone with
+  `scripts/configure-radicle-primary --apply`. Advance `main` only through
+  `scripts/publish-main --sha <full-sha> --execute`: it publishes the exact
+  commit to Radicle first, synchronizes the preferred seed, and then mirrors
+  the same commit to GitHub. Ordinary `git push origin` publication is a
+  policy violation even when the local guard has not been installed.
 - Import work in reviewable tranches with a source manifest and hash evidence.
   Exclude React, dispatcher, route-migration, legacy-origin, and compatibility
   files even when they are adjacent to useful Solid code.
