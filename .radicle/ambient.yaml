@@ -1,4 +1,4 @@
-# pirate-web-solid Radicle CI plan — v3 pinned-runtime verification gates.
+# pirate-web-solid Radicle CI plan — v4 pinned-runtime verification gates.
 #
 # Runs the real install + verification surface in an isolated Ambient guest.
 # The pre_plan downloads checksum-pinned Bun and Node distributions and
@@ -9,10 +9,11 @@
 #
 # Scope is deliberately narrower than the GitHub workflow. A green Radicle
 # run is not equivalent to a green GitHub run until this is closed:
-# - Storybook/Playwright: GitHub runs `bunx playwright install --with-deps
-#   chromium` (a browser download plus apt system packages) and then the
-#   Storybook a11y audit. The plan VM is network-isolated, so neither runs
-#   until Chromium is delivered through a pre_plan action.
+# - Browser execution and Storybook: GitHub installs Chromium plus apt system
+#   packages, runs the text-post browser flow, and audits the built Storybook.
+#   The plan VM is network-isolated, so those checks wait until Chromium is
+#   delivered through a pre_plan action. Gate 13 does cover the repository's
+#   browser-free E2E typecheck and Playwright test discovery.
 # Build and the repository-pinned Wrangler dry-run were both rehearsed with
 # Node 24.14.0 and Bun 1.4.0 in a network namespace with no route. Wrangler's
 # default banner and telemetry paths attempted DNS even though the dry-run did
@@ -158,6 +159,12 @@ plan:
   - action: shell
     shell: |
       set -euo pipefail
+      export PATH=/tmp/node-v24.14.0-linux-x64/bin:/ci/deps/bun-linux-x64:$PATH
+      cd /ci/src
+      /tmp/run-verification-gate 13-e2e-list bun run check:e2e
+  - action: shell
+    shell: |
+      set -euo pipefail
       failed=0
       for gate in \
         01-generate-worker-types \
@@ -171,7 +178,8 @@ plan:
         09-solid-ui-test \
         10-solid-doctor \
         11-build \
-        12-wrangler-dry-run
+        12-wrangler-dry-run \
+        13-e2e-list
       do
         status="$(cat "/tmp/ambient-verification-$gate.status")"
         if [ "$status" -eq 0 ]; then
