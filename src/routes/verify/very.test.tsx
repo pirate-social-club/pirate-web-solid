@@ -73,6 +73,7 @@ describe("Very verification route", () => {
 
     expect(manifest).toMatchObject({ version: "1.0.22" });
     expect(widgetSource).toContain('this.overlay.className = "very-dialog-overlay"');
+    expect(widgetSource).toContain("createErrorElement(state.errorText, () => this.refresh())");
   });
 
   it("renders a guarded start screen for a gated community", () => {
@@ -84,7 +85,7 @@ describe("Very verification route", () => {
     expect(container.textContent).toContain("Start palm verification");
   });
 
-  it("opens the embedded widget on desktop and settles duplicate success once", async () => {
+  it("keeps the widget alive for provider retry and settles duplicate success once", async () => {
     window.history.replaceState(null, "", "/verify/very?community_id=community-gated-1");
     const completeWithWidget = vi.fn(async () => ({
       proofSessionId: "proof-session-1",
@@ -92,7 +93,7 @@ describe("Very verification route", () => {
       replayed: false,
     }));
     const cancel = vi.fn();
-    vi.spyOn(veryApi, "createVeryWebCeremony").mockResolvedValue({
+    const createCeremony = vi.spyOn(veryApi, "createVeryWebCeremony").mockResolvedValue({
       proofSessionId: "proof-session-1",
       presentation: {
         proofSessionId: "proof-session-1",
@@ -143,6 +144,14 @@ describe("Very verification route", () => {
       theme: "dark",
     }));
     expect(container.querySelector("img")).toBeNull();
+
+    widgetConfig?.onError?.("we couldn't find a match");
+    await vi.waitFor(() => expect(container.textContent).toContain("widget is open"));
+    expect(createCeremony).toHaveBeenCalledTimes(1);
+    expect(completeWithWidget).not.toHaveBeenCalled();
+    expect(cancel).not.toHaveBeenCalled();
+    expect(widgetHarness.destroy).not.toHaveBeenCalled();
+    expect(document.querySelector(".very-dialog-overlay")).not.toBeNull();
 
     widgetConfig?.onSuccess("opaque-provider-payload-ref");
     widgetConfig?.onSuccess("duplicate-provider-payload-ref");

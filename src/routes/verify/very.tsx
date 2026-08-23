@@ -129,14 +129,12 @@ export default function VeryVerificationRoute(props: Readonly<{ loadWidget?: Ver
     }
   }
 
-  function failWidget(currentCeremony: VeryWebCeremony, _error?: string) {
+  function retainWidgetForRetry(currentCeremony: VeryWebCeremony) {
     if (!active || widgetSettled || ceremony !== currentCeremony) return;
-    widgetSettled = true;
-    currentCeremony.cancel();
-    setMessage("Very verification failed. Start a fresh ceremony.");
-    setPhase("error");
-    setBusy(false);
-    cleanupWidget();
+    // @veryai/widget 1.0.22 renders its own retryable error state and its
+    // Try Again action refreshes the bridge session with the same query.
+    // Keep the server proof session and widget alive for that retry.
+    setPhase("ready");
   }
 
   async function openDesktopWidget(currentCeremony: VeryWebCeremony, source: VeryWebPresentation) {
@@ -152,8 +150,8 @@ export default function VeryVerificationRoute(props: Readonly<{ loadWidget?: Ver
       onSuccess: (providerPayloadRef: string) => {
         void completeWidget(currentCeremony, providerPayloadRef);
       },
-      onError: (error: string) => {
-        failWidget(currentCeremony, error);
+      onError: () => {
+        retainWidgetForRetry(currentCeremony);
       },
       theme: "dark",
     });
