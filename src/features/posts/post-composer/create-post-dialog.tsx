@@ -1,6 +1,6 @@
 /** @jsxImportSource @solidjs/web */
 import type { JSX } from "@solidjs/web";
-import { createSignal, Show } from "solid-js";
+import { createSignal, Show, untrack } from "solid-js";
 
 import type { PendingSubmissionStorage } from "./pending-submission";
 import { PostComposerSubmission } from "./post-composer-submission";
@@ -57,6 +57,7 @@ export interface CreatePostDialogProps {
   readonly open: boolean;
   readonly onOpenChange: (open: boolean) => void;
   readonly onPublished?: () => void;
+  readonly principalId?: string;
   readonly storage?: PendingSubmissionStorage;
   readonly transport?: TextSubmissionTransport;
   readonly origin?: string | URL;
@@ -69,13 +70,14 @@ export function CreatePostDialog(props: CreatePostDialogProps): JSX.Element {
   const [body, setBody] = createSignal("");
   const [error, setError] = createSignal("");
   const [state, setState] = createSignal<PostComposerState>(initialPostComposerState);
-  const coordinator = createTextSubmissionCoordinator({
+  const coordinator = untrack(() => createTextSubmissionCoordinator({
+    principalId: props.principalId,
     storage: props.storage,
     transport: props.transport,
     origin: props.origin,
     fetchImpl: props.fetchImpl,
     onStateChange: setState,
-  });
+  }));
 
   void coordinator.restore().catch(() => {
     setState({ status: "transport_failure", reason: "durable_storage_failed" });

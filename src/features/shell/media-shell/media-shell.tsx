@@ -33,6 +33,7 @@ export interface MediaShellProps {
   readonly children: JSX.Element;
   readonly activeItemId?: MediaShellRoute;
   readonly signedIn?: boolean;
+  readonly principalId?: string;
   readonly class?: string;
 }
 
@@ -139,6 +140,12 @@ export function MediaShell(props: MediaShellProps) {
       </SidebarContent>
     </div>
     <SignInDialog open={authOpen()} onAuthenticated={completeAuth} onOpenChange={setAuthOpen} />
-    <CreatePostDialog open={composerOpen()} onOpenChange={setComposerOpen} />
+    <Show when={props.principalId}>
+      {(principalId) => <CreatePostDialog
+        open={composerOpen()}
+        onOpenChange={setComposerOpen}
+        principalId={principalId()}
+      />}
+    </Show>
   </div>;
 }

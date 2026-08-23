@@ -40,6 +40,8 @@ jobs:
       # The cache stores browsers, not Linux system dependencies.
       - name: Install Chromium for Storybook audit
         run: bunx playwright install --with-deps chromium
+      - name: Check text-post browser flow through Worker proxy
+        run: bun run text-post-check
       - name: Build Storybook
         run: bun run build-storybook
       - name: Audit Storybook accessibility and interactions

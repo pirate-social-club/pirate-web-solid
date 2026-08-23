@@ -269,6 +269,7 @@ export function createSameOriginTextSubmissionTransport(
 
 export interface TextSubmissionCoordinatorOptions {
   readonly storage?: PendingSubmissionStorage;
+  readonly principalId?: string;
   readonly transport?: TextSubmissionTransport;
   readonly origin?: string | URL;
   readonly fetchImpl?: TextSubmissionFetch;
@@ -295,7 +296,7 @@ export class TextSubmissionCoordinator {
 
   constructor(options: TextSubmissionCoordinatorOptions = {}) {
     try {
-      this.storage = options.storage ?? createDefaultPendingSubmissionStorage();
+      this.storage = options.storage ?? createDefaultPendingSubmissionStorage(options.principalId);
     } catch {
       this.storage = {
         load: async () => { throw new PendingSubmissionError("Durable pending storage is unavailable"); },

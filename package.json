@@ -25,6 +25,7 @@
     "stream-check": "node scripts/stream-check.mjs",
     "hydration-check": "node scripts/hydration-check.mjs",
     "post-engagement-check": "node scripts/post-engagement-check.mjs",
+    "text-post-check": "node scripts/text-post-check.mjs",
     "karaoke-route-check": "node scripts/karaoke-route-check.mjs",
     "check-solid-runtime": "node scripts/check-solid-runtime.mjs",
     "check:solid-doctor": "solid-doctor . --baseline .solid-doctor-baseline.json",
