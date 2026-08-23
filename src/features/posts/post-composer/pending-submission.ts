@@ -12,7 +12,7 @@ export const PENDING_SUBMISSION_VERSION = "pending-submission-v1" as const;
 export const PENDING_SUBMISSION_RECORD_VERSION = "pending-submission-record-v1" as const;
 export const PENDING_SUBMISSION_CONTENT_TYPE = "application/json" as const;
 export const MAX_PENDING_BODY_BYTES = 1_048_576;
-export type DefinitiveServerRejectionStatus = 400 | 403;
+export type DefinitiveServerRejectionStatus = 400 | 403 | 404;
 
 export interface PendingSubmissionEnvelopeV1 {
   readonly version: typeof PENDING_SUBMISSION_VERSION;
@@ -63,7 +63,7 @@ export class PendingSubmissionStorageConflictError extends Error {
 }
 
 export function isDefinitiveServerRejectionStatus(value: unknown): value is DefinitiveServerRejectionStatus {
-  return value === 400 || value === 403;
+  return value === 400 || value === 403 || value === 404;
 }
 
 function isPendingIssue(value: unknown): value is PendingSubmissionIssue {

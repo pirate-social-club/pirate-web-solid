@@ -459,6 +459,7 @@ describe("pending text submission", () => {
   test.each([
     [400, "bad_request"],
     [403, "membership_required"],
+    [404, "not_found"],
   ] as const)("discards a definitive %s rejection and restores the exact draft", async (status, code) => {
     const storage = createMemoryPendingSubmissionStorage();
     const dispatchedKeys: string[] = [];
@@ -488,7 +489,7 @@ describe("pending text submission", () => {
     expect(dispatchedKeys).toEqual(["key-1", "key-new"]);
   });
 
-  test.each([404, 413, 422])("does not make HTTP %s discardable in session", async status => {
+  test.each([413, 422])("does not make HTTP %s discardable in session", async status => {
     const storage = createMemoryPendingSubmissionStorage();
     const coordinator = new TextSubmissionCoordinator({
       storage,
@@ -507,6 +508,7 @@ describe("pending text submission", () => {
   test.each([
     [400, "bad_request"],
     [403, "membership_required"],
+    [404, "not_found"],
   ] as const)("persists a definitive %s rejection and keeps it blocked after reload", async (status, code) => {
     const storage = createMemoryPendingSubmissionStorage();
     const rejected: TextSubmissionTransport = {

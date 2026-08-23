@@ -94,7 +94,7 @@ describe("same-origin text transport", () => {
     await expect(transport.dispatch(await envelope())).rejects.toThrow("malformed JSON");
   });
 
-  test("parses only the strict wire conflict and 400/403 rejection shapes", async () => {
+  test("parses only the strict wire conflict and 400/403/404 rejection shapes", async () => {
     const conflict = createSameOriginTextSubmissionTransport({
       origin: "https://pirate.test",
       fetchImpl: async () => new Response(JSON.stringify({ _tag: "idempotency_conflict", submission_id: "sub-existing" }), { status: 409 }),
@@ -137,6 +137,26 @@ describe("same-origin text transport", () => {
       status: 400,
       code: "bad_request",
     } satisfies Partial<TextSubmissionServerRejectionError>);
+    const notFound = createSameOriginTextSubmissionTransport({
+      origin: "https://pirate.test",
+      fetchImpl: async () => new Response(JSON.stringify({
+        error: { code: "not_found", message: "missing", retryable: false },
+        request_id: "request-404",
+      }), { status: 404 }),
+    });
+    await expect(notFound.dispatch(await envelope())).rejects.toMatchObject({
+      name: "TextSubmissionServerRejectionError",
+      status: 404,
+      code: "not_found",
+      definitive: true,
+    } satisfies Partial<TextSubmissionServerRejectionError>);
+    const mismatchedNotFound = createSameOriginTextSubmissionTransport({
+      origin: "https://pirate.test",
+      fetchImpl: async () => new Response(JSON.stringify({
+        error: { code: "bad_request", message: "invalid", retryable: false },
+      }), { status: 404 }),
+    });
+    await expect(mismatchedNotFound.dispatch(await envelope())).rejects.toMatchObject({ name: "AmbiguousTextSubmissionError" });
     const untyped = createSameOriginTextSubmissionTransport({
       origin: "https://pirate.test",
       fetchImpl: async () => new Response(JSON.stringify({ error: { code: "bad_request" } }), { status: 422 }),

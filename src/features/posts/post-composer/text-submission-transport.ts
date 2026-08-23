@@ -64,6 +64,7 @@ export class TextSubmissionServerRejectionError extends Error {
     this.definitive = definitive || (
       (status === 400 && code === "bad_request")
       || (status === 403 && (code === "membership_required" || code === "gate_unsatisfied"))
+      || (status === 404 && code === "not_found")
     );
   }
 }
@@ -139,14 +140,14 @@ function conflictSubmissionId(value: unknown): string | null {
   return details.submission_id;
 }
 
-type DefinitiveServerRejectionCode = "bad_request" | "membership_required" | "gate_unsatisfied";
+type DefinitiveServerRejectionCode = "bad_request" | "membership_required" | "gate_unsatisfied" | "not_found";
 
 function isRecord(value: unknown): value is RawWireObject {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function decodeDefinitiveServerRejection(status: number, value: unknown): DefinitiveServerRejectionCode | null {
-  if (status !== 400 && status !== 403) return null;
+  if (status !== 400 && status !== 403 && status !== 404) return null;
   if (!isRecord(value)) return null;
   const topLevelKeys = Object.keys(value);
   if (topLevelKeys.some(key => key !== "error" && key !== "request_id") || !Object.prototype.hasOwnProperty.call(value, "error")) return null;
@@ -158,10 +159,11 @@ function decodeDefinitiveServerRejection(status: number, value: unknown): Defini
   if (typeof error.code !== "string" || typeof error.message !== "string" || error.message === "" || error.retryable !== false) return null;
   if (error.details !== undefined && error.details !== null && !isRecord(error.details)) return null;
   if (status === 400) return error.code === "bad_request" ? error.code : null;
-  return error.code === "membership_required" || error.code === "gate_unsatisfied" ? error.code : null;
+  if (status === 403) return error.code === "membership_required" || error.code === "gate_unsatisfied" ? error.code : null;
+  return error.code === "not_found" ? error.code : null;
 }
 
-function isDefinitiveServerRejection(error: TextSubmissionServerRejectionError): error is TextSubmissionServerRejectionError & { readonly status: 400 | 403 } {
+function isDefinitiveServerRejection(error: TextSubmissionServerRejectionError): error is TextSubmissionServerRejectionError & { readonly status: 400 | 403 | 404 } {
   return error.definitive && isDefinitiveServerRejectionStatus(error.status);
 }
 
