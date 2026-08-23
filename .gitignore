@@ -5,6 +5,8 @@ storybook-static/
 .playwright-browsers/
 .wrangler/
 .tmp/
+playwright-report/
+test-results/
 .env
 .env.*
 !.env.example

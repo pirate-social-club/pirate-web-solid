@@ -19,6 +19,11 @@
     "check-product-graph": "node scripts/check-product-graph.mjs --require-build",
     "test:app": "vitest run --config vitest.app.config.ts",
     "test:api": "vitest run --config vitest.api.config.ts src/api",
+    "check:e2e": "tsc --noEmit -p e2e/tsconfig.json && playwright test -c e2e --list",
+    "test:e2e": "playwright test -c e2e --grep @staging-readonly",
+    "test:e2e:staging": "E2E_BASE_URL=https://web-next-staging.pirate.sc playwright test -c e2e --grep @staging-readonly",
+    "test:e2e:staging:mutating": "E2E_BASE_URL=https://web-next-staging.pirate.sc playwright test -c e2e --grep @staging-mutating",
+    "test:e2e:staging:manual": "E2E_BASE_URL=https://web-next-staging.pirate.sc playwright test -c e2e --grep @staging-manual",
     "dev": "vite dev --host 0.0.0.0",
     "preview": "vite preview --host 0.0.0.0",
     "probe": "node scripts/probe.mjs",
@@ -31,7 +36,7 @@
     "check:solid-doctor": "solid-doctor . --baseline .solid-doctor-baseline.json",
     "lint": "oxlint src",
     "generate-worker-types": "wrangler types",
-    "verify": "bun run generate-worker-types && bun run tsc --noEmit -p tsconfig.json && bun run test:api && bun run test:app && bun run lint && node scripts/check-solid-runtime.mjs && bun run check:web3-icons && bun run --cwd packages/solid-ui typecheck && bun run --cwd packages/solid-ui test && bun run check:solid-doctor",
+    "verify": "bun run generate-worker-types && bun run tsc --noEmit -p tsconfig.json && bun run check:e2e && bun run test:api && bun run test:app && bun run lint && node scripts/check-solid-runtime.mjs && bun run check:web3-icons && bun run --cwd packages/solid-ui typecheck && bun run --cwd packages/solid-ui test && bun run check:solid-doctor",
     "verify:live": "node scripts/probe.mjs && node scripts/stream-check.mjs && node scripts/hydration-check.mjs"
   },
   "dependencies": {
