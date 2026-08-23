@@ -409,14 +409,24 @@ export function createMemoryPendingSubmissionStorage(
   };
 }
 
-const PENDING_DB_NAME = "pirate-post-composer-v1";
+const PENDING_DB_NAME = "pirate-post-composer-v2";
 const PENDING_STORE_NAME = "pending-submissions";
+
+export function pendingSubmissionPrincipalScope(principalId: string): string {
+  const principal = principalId.trim();
+  if (principal === "" || principal.length > 512 || /[\u0000-\u001f\u007f]/u.test(principal)) {
+    throw new PendingSubmissionError("A valid principal is required for pending submission storage");
+  }
+  return `principal:${encodeURIComponent(principal)}`;
+}
 
 /** IndexedDB is same-origin browser storage; no authentication data is stored. */
 export function createIndexedDbPendingSubmissionStorage(
+  principalId: string,
   indexedDb?: IDBFactory,
 ): PendingSubmissionStorage {
   const factory = indexedDb ?? globalThis.indexedDB;
+  const databaseName = `${PENDING_DB_NAME}:${pendingSubmissionPrincipalScope(principalId)}`;
   function open(): Promise<IDBDatabase> {
     return new Promise((resolve, reject) => {
       if (factory === undefined) {
@@ -425,7 +435,7 @@ export function createIndexedDbPendingSubmissionStorage(
       }
       let request: IDBOpenDBRequest;
       try {
-        request = factory.open(PENDING_DB_NAME, 1);
+        request = factory.open(databaseName, 1);
       } catch (error) {
         reject(error);
         return;
@@ -565,8 +575,9 @@ export function createIndexedDbPendingSubmissionStorage(
   };
 }
 
-export function createDefaultPendingSubmissionStorage(): PendingSubmissionStorage {
+export function createDefaultPendingSubmissionStorage(principalId?: string): PendingSubmissionStorage {
   if (typeof window === "undefined") return createMemoryPendingSubmissionStorage();
+  if (principalId === undefined) throw new PendingSubmissionError("A principal is required for browser pending storage");
   if (typeof indexedDB === "undefined") throw new PendingSubmissionError("IndexedDB is unavailable in the browser");
-  return createIndexedDbPendingSubmissionStorage(indexedDB);
+  return createIndexedDbPendingSubmissionStorage(principalId, indexedDB);
 }

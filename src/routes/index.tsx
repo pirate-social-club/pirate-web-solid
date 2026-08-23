@@ -123,7 +123,11 @@ export default function HomeRoute(props: HomeRouteProps = {}) {
   );
 
   return (
-    <MediaShell activeItemId="home" signedIn={authenticatedSession() !== undefined}>
+    <MediaShell
+      activeItemId="home"
+      signedIn={authenticatedSession() !== undefined}
+      principalId={authenticatedSession()?.userId}
+    >
       <div data-route-path="/" data-home-session={sessionStatus()}>
         <Show
           when={authenticatedSession()}

@@ -7,8 +7,10 @@ import {
   createPendingSubmissionEnvelope,
   PendingSubmissionStorageConflictError,
   pendingBodyBytes,
+  pendingSubmissionPrincipalScope,
   PendingSubmissionError,
 } from "./pending-submission";
+import { bytesToBase64Url, sha256Hex } from "./text-submission-contract";
 import {
   IdempotencyConflictError,
   TextSubmissionCoordinator,
@@ -151,6 +153,7 @@ class FakeIndexedDbController {
   readonly store: FakeStore;
   readonly database: FakeDatabase;
   readonly transactions: FakeTransaction[] = [];
+  readonly openedDatabaseNames: string[] = [];
   private readonly pendingCommits: Array<{ transaction: FakeTransaction; commit: () => void }> = [];
 
   get hasPendingCommit(): boolean {
@@ -190,7 +193,8 @@ class FakeIndexedDbController {
 
   factory(): IDBFactory {
     const factory = {
-      open: () => {
+      open: (name: string) => {
+        this.openedDatabaseNames.push(name);
         const request = new FakeRequest();
         queueMicrotask(() => {
           request.onupgradeneeded?.();
@@ -223,6 +227,11 @@ function transportWith(...results: Array<"ambiguous" | typeof snapshot>): TextSu
 }
 
 describe("pending text submission", () => {
+  test("derives a closed principal scope for browser storage", () => {
+    expect(pendingSubmissionPrincipalScope(" user/one ")).toBe("principal:user%2Fone");
+    expect(() => pendingSubmissionPrincipalScope(" ")).toThrow(PendingSubmissionError);
+  });
+
   test("does not use an in-memory browser fallback when IndexedDB is missing", () => {
     vi.stubGlobal("indexedDB", undefined);
     expect(() => createDefaultPendingSubmissionStorage()).toThrow(PendingSubmissionError);
@@ -233,7 +242,7 @@ describe("pending text submission", () => {
 
   test("waits for IndexedDB transaction commit before allowing dispatch", async () => {
     const controller = new FakeIndexedDbController();
-    const storage = createIndexedDbPendingSubmissionStorage(controller.factory());
+    const storage = createIndexedDbPendingSubmissionStorage("user-one", controller.factory());
     const dispatch = vi.fn(async () => snapshot);
     const coordinator = new TextSubmissionCoordinator({
       storage,
@@ -253,6 +262,64 @@ describe("pending text submission", () => {
     expect(dispatch).toHaveBeenCalledOnce();
     controller.commitWrites();
     await submitPromise;
+  });
+
+  test("survives an IndexedDB reload in the same principal scope and resends exact noncanonical bytes", async () => {
+    const controller = new FakeIndexedDbController();
+    const rawBody = '{  "body":"Hello pirate", "visibility":"public", "identity_mode":"public", "authorship_mode":"human_direct", "post_type":"text", "title":null, "idempotency_key":"key-1" }';
+    const rawBytes = new TextEncoder().encode(rawBody);
+    const canonical = await createPendingSubmissionEnvelope({
+      request,
+      sameOriginPath: "/api/communities/community-1/posts",
+      pendingRequestId: "pending-idb-reload",
+      createdAt: "2026-08-21T00:00:00Z",
+    });
+    const envelope = {
+      ...canonical,
+      body_utf8_base64url: bytesToBase64Url(rawBytes),
+      body_sha256: await sha256Hex(rawBytes),
+    };
+    const firstSession = createIndexedDbPendingSubmissionStorage("user-one", controller.factory());
+    const savePromise = firstSession.save(envelope);
+    for (let index = 0; index < 20 && !controller.hasPendingCommit; index += 1) await new Promise<void>(resolve => setTimeout(resolve, 0));
+    expect(controller.hasPendingCommit).toBe(true);
+    controller.commitWrites();
+    await savePromise;
+
+    const calls: Uint8Array[] = [];
+    const secondSession = createIndexedDbPendingSubmissionStorage("user-one", controller.factory());
+    const reloaded = new TextSubmissionCoordinator({
+      storage: secondSession,
+      transport: {
+        read: async () => null,
+        dispatch: async retained => {
+          calls.push(pendingBodyBytes(retained));
+          return snapshot;
+        },
+      },
+    });
+    await reloaded.restore();
+    const reconcilePromise = reloaded.reconcile();
+    for (let index = 0; index < 20 && calls.length === 0; index += 1) await new Promise<void>(resolve => setTimeout(resolve, 0));
+    expect(calls).toHaveLength(1);
+    expect(new TextDecoder().decode(calls[0])).toBe(rawBody);
+    for (let index = 0; index < 20 && !controller.hasPendingCommit; index += 1) await new Promise<void>(resolve => setTimeout(resolve, 0));
+    expect(controller.hasPendingCommit).toBe(true);
+    controller.commitWrites();
+    await expect(reconcilePromise).resolves.toEqual(snapshot);
+    expect(controller.openedDatabaseNames.every(name => name.endsWith(":principal:user-one"))).toBe(true);
+  });
+
+  test("uses different IndexedDB databases for different principals", async () => {
+    const controller = new FakeIndexedDbController();
+    const first = createIndexedDbPendingSubmissionStorage("user-one", controller.factory());
+    const second = createIndexedDbPendingSubmissionStorage("user-two", controller.factory());
+    await first.loadAll();
+    await second.loadAll();
+    expect(new Set(controller.openedDatabaseNames)).toEqual(new Set([
+      "pirate-post-composer-v2:principal:user-one",
+      "pirate-post-composer-v2:principal:user-two",
+    ]));
   });
 
   test("admits exactly one of two concurrent distinct unresolved saves", async () => {
