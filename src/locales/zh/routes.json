@@ -18,6 +18,24 @@
     "defaultDescription": "{name} 在 Pirate Web 的公开个人资料。",
     "openCommunity": "打开 {name}"
   },
+  "community": {
+    "title": "{name} · Pirate Web",
+    "loading": "正在加载社区",
+    "invalid": "该社区路径无效。",
+    "notFound": "找不到该社区。",
+    "error": "该社区暂时不可用。",
+    "defaultDescription": "{name} 在 Pirate Web 的公开社区页面。",
+    "membership": "成员资格",
+    "membershipModes": {
+      "open": "开放",
+      "request": "申请加入",
+      "gated": "受限"
+    },
+    "members": "成员",
+    "followers": "关注者",
+    "rules": "社区规则",
+    "noRules": "没有公开规则。"
+  },
   "settings": {
     "booking": {
       "sectionTitle": "付费 1:1 预约",

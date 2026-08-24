@@ -18,6 +18,24 @@
     "defaultDescription": "الملف الشخصي العام لـ {name} على Pirate Web.",
     "openCommunity": "فتح {name}"
   },
+  "community": {
+    "title": "{name} · بايرت ويب",
+    "loading": "جارٍ تحميل المجتمع",
+    "invalid": "مسار المجتمع غير صالح.",
+    "notFound": "تعذر العثور على هذا المجتمع.",
+    "error": "هذا المجتمع غير متاح مؤقتًا.",
+    "defaultDescription": "صفحة المجتمع العامة لـ {name} على بايرت ويب.",
+    "membership": "العضوية",
+    "membershipModes": {
+      "open": "مفتوحة",
+      "request": "حسب الطلب",
+      "gated": "مقيّدة"
+    },
+    "members": "الأعضاء",
+    "followers": "المتابعون",
+    "rules": "قواعد المجتمع",
+    "noRules": "لا توجد قواعد عامة مدرجة."
+  },
   "settings": {
     "booking": {
       "sectionTitle": "حجوزات 1:1 مدفوعة",

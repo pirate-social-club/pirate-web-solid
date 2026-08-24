@@ -20,6 +20,24 @@ export const GENERATED_LOCALE_CATALOGS = {
       "videoLabel": "فيديو {title}"
     },
     "routes": {
+      "community": {
+        "defaultDescription": "صفحة المجتمع العامة لـ {name} على بايرت ويب.",
+        "error": "هذا المجتمع غير متاح مؤقتًا.",
+        "followers": "المتابعون",
+        "invalid": "مسار المجتمع غير صالح.",
+        "loading": "جارٍ تحميل المجتمع",
+        "members": "الأعضاء",
+        "membership": "العضوية",
+        "membershipModes": {
+          "gated": "مقيّدة",
+          "open": "مفتوحة",
+          "request": "حسب الطلب"
+        },
+        "noRules": "لا توجد قواعد عامة مدرجة.",
+        "notFound": "تعذر العثور على هذا المجتمع.",
+        "rules": "قواعد المجتمع",
+        "title": "{name} · بايرت ويب"
+      },
       "home": {
         "description": "موجز فيديو بايرت ويب",
         "heading": "واجهة بايرت ويب",
@@ -163,6 +181,24 @@ export const GENERATED_LOCALE_CATALOGS = {
       "videoLabel": "{title} video"
     },
     "routes": {
+      "community": {
+        "defaultDescription": "Public community page for {name} on Pirate Web.",
+        "error": "This community is temporarily unavailable.",
+        "followers": "Followers",
+        "invalid": "That community route is not valid.",
+        "loading": "Loading community",
+        "members": "Members",
+        "membership": "Membership",
+        "membershipModes": {
+          "gated": "Gated",
+          "open": "Open",
+          "request": "By request"
+        },
+        "noRules": "No public rules are listed.",
+        "notFound": "This community could not be found.",
+        "rules": "Community rules",
+        "title": "{name} · Pirate Web"
+      },
       "home": {
         "description": "Pirate Web video feed",
         "heading": "Pirate Web Solid shell",
@@ -306,6 +342,24 @@ export const GENERATED_LOCALE_CATALOGS = {
       "videoLabel": "{title} 视频"
     },
     "routes": {
+      "community": {
+        "defaultDescription": "{name} 在 Pirate Web 的公开社区页面。",
+        "error": "该社区暂时不可用。",
+        "followers": "关注者",
+        "invalid": "该社区路径无效。",
+        "loading": "正在加载社区",
+        "members": "成员",
+        "membership": "成员资格",
+        "membershipModes": {
+          "gated": "受限",
+          "open": "开放",
+          "request": "申请加入"
+        },
+        "noRules": "没有公开规则。",
+        "notFound": "找不到该社区。",
+        "rules": "社区规则",
+        "title": "{name} · Pirate Web"
+      },
       "home": {
         "description": "Pirate Web 视频动态",
         "heading": "Pirate Web Solid 界面",

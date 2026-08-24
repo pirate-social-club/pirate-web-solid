@@ -8,7 +8,7 @@
     "node": ">=24.0.0"
   },
   "scripts": {
-    "prebuild": "node scripts/check-solid-runtime.mjs",
+    "prebuild": "node scripts/check-solid-runtime.mjs && node scripts/check-api-client-provenance.mjs",
     "build": "vite build && node scripts/prune-solid-ssr-optional-assets.mjs",
     "storybook": "storybook dev -p ${STORYBOOK_PORT:-6006} --disable-telemetry",
     "build-storybook": "storybook build",
@@ -33,6 +33,7 @@
     "text-post-check": "node scripts/text-post-check.mjs",
     "karaoke-route-check": "node scripts/karaoke-route-check.mjs",
     "check-solid-runtime": "node scripts/check-solid-runtime.mjs",
+    "check-api-client-provenance": "node scripts/check-api-client-provenance.mjs",
     "check:solid-doctor": "solid-doctor . --baseline .solid-doctor-baseline.json",
     "configure:radicle-primary": "scripts/configure-radicle-primary",
     "publish:main": "scripts/publish-main",
@@ -40,11 +41,12 @@
     "test:production-config": "node scripts/production-config.test.mjs",
     "lint": "oxlint src",
     "generate-worker-types": "wrangler types",
-    "verify": "bun run generate-worker-types && bun run test:production-config && bun run tsc --noEmit -p tsconfig.json && bun run check:e2e && bun run test:api && bun run test:app && bun run lint && node scripts/check-solid-runtime.mjs && bun run check:web3-icons && bun run --cwd packages/solid-ui typecheck && bun run --cwd packages/solid-ui test && bun run check:solid-doctor",
+    "verify": "bun run generate-worker-types && bun run test:production-config && bun run tsc --noEmit -p tsconfig.json && bun run check:e2e && bun run test:api && bun run test:app && bun run lint && node scripts/check-solid-runtime.mjs && node scripts/check-api-client-provenance.mjs && bun run check:web3-icons && bun run --cwd packages/solid-ui typecheck && bun run --cwd packages/solid-ui test && bun run check:solid-doctor",
     "verify:live": "node scripts/probe.mjs && node scripts/stream-check.mjs && node scripts/hydration-check.mjs"
   },
   "dependencies": {
     "@pirate/api-client": "file:vendor/api-client/pirate-api-client-0.11.1.tgz",
+    "@pirate/api-client-community-route": "file:vendor/api-client/pirate-api-client-0.13.0.tgz",
     "@pirate/web-solid-ui": "workspace:*",
     "@privy-io/js-sdk-core": "0.70.0",
     "@solidjs/meta": "1.0.0-next.2",

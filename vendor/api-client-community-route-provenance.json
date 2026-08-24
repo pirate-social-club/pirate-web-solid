@@ -1,0 +1,11 @@
+{
+  "name": "@pirate/api-client-community-route",
+  "upstreamName": "@pirate/api-client",
+  "version": "0.13.0",
+  "artifact": "vendor/api-client/pirate-api-client-0.13.0.tgz",
+  "sha256": "a5c5ae5175ba35d27cfffa618b818a6b4f85029f5d63632435a90702a8e2872d",
+  "source": "api-next@967ace15980bebe26d26f1b902a476e3fcbff133:packages/api-client",
+  "openapiSha256": "ee63609517afda7c59d31c05631c5ccb61a1b0d8a9685b4f02b942ee2cdd9e4c",
+  "clientSha256": "473f56a9e8dd0b7208bb1f381546ef2e7a833318b9384c583f1ccb8470c76491",
+  "scope": ["get_cPathSegment", "get_communitiesCommunityIdPreview"]
+}

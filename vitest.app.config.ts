@@ -22,6 +22,8 @@ export default defineConfig({
     include: [
       "src/routes/index.test.tsx",
       "src/routes/verify/very.test.tsx",
+      "src/features/communities/community-page/community-page.model.test.ts",
+      "src/features/communities/community-page/community-page.test.tsx",
       "src/features/posts/feed/public-feed.test.tsx",
       "src/features/posts/post-engagement/post-engagement-api.test.ts",
       "src/features/posts/post-engagement/post-engagement-model.test.ts",

@@ -18,6 +18,24 @@
     "defaultDescription": "Public profile for {name} on Pirate Web.",
     "openCommunity": "Open {name}"
   },
+  "community": {
+    "title": "{name} · Pirate Web",
+    "loading": "Loading community",
+    "invalid": "That community route is not valid.",
+    "notFound": "This community could not be found.",
+    "error": "This community is temporarily unavailable.",
+    "defaultDescription": "Public community page for {name} on Pirate Web.",
+    "membership": "Membership",
+    "membershipModes": {
+      "open": "Open",
+      "request": "By request",
+      "gated": "Gated"
+    },
+    "members": "Members",
+    "followers": "Followers",
+    "rules": "Community rules",
+    "noRules": "No public rules are listed."
+  },
   "settings": {
     "booking": {
       "sectionTitle": "Paid 1:1 bookings",
