@@ -3,7 +3,7 @@ set -euo pipefail
 
 expected_origin_url=${PUBLISH_MAIN_ORIGIN_URL:-https://github.com/pirate-social-club/pirate-web-solid.git}
 expected_rad_url=${PUBLISH_MAIN_RAD_URL:-rad://z8oQouP48Kq9CtNa62uf57VNBe8i}
-preferred_seed=${PUBLISH_MAIN_SEED:-z6MkeUhmbivWz5Uv87h9iT4tQk7xusZabMHCrjTKEGaCTUx4@94.103.168.209:8776}
+preferred_seed=${PUBLISH_MAIN_SEED:-z6MkeUhmbivWz5Uv87h9iT4tQk7xusZabMHCrjTKEGaCTUx4}
 git_bin=${PUBLISH_MAIN_GIT:-git}
 rad_bin=${PUBLISH_MAIN_RAD:-rad}
 execute=no

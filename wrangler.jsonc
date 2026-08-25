@@ -26,6 +26,22 @@
         "VERIFICATION_UI_ENABLED": "true",
         "PRIVY_APP_ID": "cmsw5pis300b80cladbxx7bsr"
       }
+    },
+    "production": {
+      "name": "pirate-web-solid-production",
+      "workers_dev": true,
+      "preview_urls": false,
+      "routes": [
+        {
+          "pattern": "pirate.sc",
+          "custom_domain": true
+        }
+      ],
+      "vars": {
+        "API_NEXT_ORIGIN": "https://api-next.pirate.sc",
+        "VERIFICATION_UI_ENABLED": "true",
+        "PRIVY_APP_ID": "cmnbdx9xk00ty0clapn2q8pdj"
+      }
     }
   }
 }
