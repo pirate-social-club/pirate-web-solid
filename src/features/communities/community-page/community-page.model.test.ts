@@ -15,11 +15,11 @@ const hnsRoute = {
   community_id: communityId,
   canonical_route: {
     family: "hns",
-    root_label: "pirate",
-    root_label_display: "pirate",
-    path_segment: "app.pirate",
-    href: "/c/app.pirate",
-    app_host: "app.pirate",
+    root_label: "xn--pokmon-dva",
+    root_label_display: "pokémon",
+    path_segment: "xn--pokmon-dva",
+    href: "/c/xn--pokmon-dva",
+    app_host: "app.xn--pokmon-dva",
   },
 } as const satisfies GetCPathSegmentResponse;
 const opaqueRoute = {
@@ -70,25 +70,26 @@ const preview = {
 describe("community page model", () => {
   test("accepts the three disjoint canonical path families", () => {
     expect(normalizeCommunityPathSegment(communityId)).toBe(communityId);
-    expect(normalizeCommunityPathSegment("app.xn--pokmon-dva")).toBe("app.xn--pokmon-dva");
+    expect(normalizeCommunityPathSegment("xn--pokmon-dva")).toBe("xn--pokmon-dva");
+    expect(normalizeCommunityPathSegment("community_music")).toBe("community_music");
     expect(normalizeCommunityPathSegment("@music-room")).toBe("@music-room");
   });
 
   test("rejects ambiguous, decoded-separator, Unicode, and noncanonical inputs", () => {
-    for (const value of ["pirate", "app.test", "APP.pirate", "app.pirate/next", "app.pirate%2fnext", "app.🔥", "@bad--label", " community_x "]) {
+    for (const value of ["pirate", "test", "app.test", "APP.pirate", "xn--pokmon-dva/next", "xn--pokmon-dva%2fnext", "🔥", "@bad--label", " community_x "]) {
       expect(normalizeCommunityPathSegment(value), value).toBeNull();
     }
   });
 
   test("projects only canonical route and public preview fields", () => {
-    expect(projectCommunityPage(hnsRoute, preview, "app.pirate")).toEqual({
+    expect(projectCommunityPage(hnsRoute, preview, "xn--pokmon-dva")).toEqual({
       kind: "success",
       status: 200,
-      requestedPathSegment: "app.pirate",
-      canonicalPath: "/c/app.pirate",
+      requestedPathSegment: "xn--pokmon-dva",
+      canonicalPath: "/c/xn--pokmon-dva",
       communityId,
       routeFamily: "hns",
-      routeDisplay: "app.pirate",
+      routeDisplay: "pokémon",
       community: {
         displayName: "Pirate Harbor",
         description: "Public conversations.",
@@ -112,9 +113,11 @@ describe("community page model", () => {
   });
 
   test("fails closed on route, community, or family disagreement", () => {
-    expect(projectCommunityPage(hnsRoute, { ...preview, id: "community_other" }, "app.pirate")).toEqual({ kind: "unavailable", status: 502 });
-    expect(projectCommunityPage(hnsRoute, preview, "app.other")).toEqual({ kind: "unavailable", status: 502 });
-    expect(projectCommunityPage({ ...hnsRoute, canonical_route: { ...hnsRoute.canonical_route, family: "spaces", app_host: null } }, preview, "app.pirate")).toEqual({ kind: "unavailable", status: 502 });
+    expect(projectCommunityPage(hnsRoute, { ...preview, id: "community_other" }, "xn--pokmon-dva")).toEqual({ kind: "unavailable", status: 502 });
+    expect(projectCommunityPage(hnsRoute, preview, "other")).toEqual({ kind: "unavailable", status: 502 });
+    expect(projectCommunityPage({ ...hnsRoute, canonical_route: { ...hnsRoute.canonical_route, root_label: "other" } }, preview, "xn--pokmon-dva")).toEqual({ kind: "unavailable", status: 502 });
+    expect(projectCommunityPage({ ...hnsRoute, canonical_route: { ...hnsRoute.canonical_route, app_host: "app.other" } }, preview, "xn--pokmon-dva")).toEqual({ kind: "unavailable", status: 502 });
+    expect(projectCommunityPage({ ...hnsRoute, canonical_route: { ...hnsRoute.canonical_route, family: "spaces", app_host: null } }, preview, "xn--pokmon-dva")).toEqual({ kind: "unavailable", status: 502 });
   });
 
   test("resolves the route before requesting its public preview", async () => {
@@ -126,16 +129,16 @@ describe("community page model", () => {
     const state = await loadCommunityPage({
       get_cPathSegment: route,
       get_communitiesCommunityIdPreview: getPreview,
-    }, "app.pirate");
+    }, "xn--pokmon-dva");
     expect(state.kind).toBe("success");
-    expect(route).toHaveBeenCalledWith({ path: { path_segment: "app.pirate" } });
+    expect(route).toHaveBeenCalledWith({ path: { path_segment: "xn--pokmon-dva" } });
     expect(getPreview).toHaveBeenCalledTimes(1);
   });
 
   test("rejects invalid input before transport and redacts failures", async () => {
     const route = vi.fn();
     const getPreview = vi.fn();
-    await expect(loadCommunityPage({ get_cPathSegment: route, get_communitiesCommunityIdPreview: getPreview }, "app.pirate/next"))
+    await expect(loadCommunityPage({ get_cPathSegment: route, get_communitiesCommunityIdPreview: getPreview }, "xn--pokmon-dva/next"))
       .resolves.toEqual({ kind: "invalid", status: 400 });
     expect(route).not.toHaveBeenCalled();
     expect(mapCommunityPageError({ status: 404, message: "private detail" })).toEqual({ kind: "not-found", status: 404 });

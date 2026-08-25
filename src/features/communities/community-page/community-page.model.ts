@@ -37,7 +37,7 @@ const optionalCommunityId =
 const hnsRoot = /^[a-z0-9](?:[a-z0-9_-]{0,61}[a-z0-9])?$/u;
 const spacesRoot = /^[a-z0-9-]+$/u;
 const spacesPayload = /^[a-z0-9]+(?:-[a-z0-9]+)*$/u;
-const hnsBlacklist = new Set(["example", "invalid", "local", "localhost", "test"]);
+const hnsReservedRoots = new Set(["example", "invalid", "local", "localhost", "pirate", "test"]);
 const utf8 = new TextEncoder();
 
 /** Structural preflight only; api-next remains authoritative for ACE semantics. */
@@ -49,12 +49,6 @@ export function normalizeCommunityPathSegment(value: unknown): string | null {
   })) return null;
   if (value.includes("%") || value.includes("/") || value.includes("\\")) return null;
   if (optionalCommunityId.test(value)) return value;
-  if (value.startsWith("app.")) {
-    const root = value.slice(4);
-    return utf8.encode(root).byteLength <= 63 && hnsRoot.test(root) && !hnsBlacklist.has(root)
-      ? value
-      : null;
-  }
   if (value.startsWith("@")) {
     const root = value.slice(1);
     const payload = root.startsWith("xn--") && root.length > 4 ? root.slice(4) : root;
@@ -62,7 +56,9 @@ export function normalizeCommunityPathSegment(value: unknown): string | null {
       ? value
       : null;
   }
-  return null;
+  return utf8.encode(value).byteLength <= 63 && hnsRoot.test(value) && !hnsReservedRoots.has(value)
+    ? value
+    : null;
 }
 
 function finiteCount(value: unknown): number | null {
@@ -91,16 +87,22 @@ function routeIdentity(
   }
 
   const route = response.canonical_route;
+  const expectedFamily = requestedPathSegment.startsWith("@") ? "spaces" : "hns";
+  const expectedRoot = expectedFamily === "spaces"
+    ? requestedPathSegment.slice(1)
+    : requestedPathSegment;
   if (
     route.path_segment !== requestedPathSegment ||
     route.href !== `/c/${requestedPathSegment}` ||
-    (requestedPathSegment.startsWith("app.") && route.family !== "hns") ||
-    (requestedPathSegment.startsWith("@") && route.family !== "spaces")
+    route.family !== expectedFamily ||
+    route.root_label !== expectedRoot ||
+    (route.family === "hns" && route.app_host !== null && route.app_host !== `app.${expectedRoot}`) ||
+    (route.family === "spaces" && route.app_host !== null)
   ) return null;
   return {
     communityId: response.community_id,
     routeFamily: route.family,
-    routeDisplay: route.family === "hns" ? `app.${route.root_label_display}` : `@${route.root_label_display}`,
+    routeDisplay: route.family === "hns" ? route.root_label_display : `@${route.root_label_display}`,
   };
 }
 

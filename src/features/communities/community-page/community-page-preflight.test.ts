@@ -10,11 +10,11 @@ const route = {
   community_id: communityId,
   canonical_route: {
     family: "hns",
-    root_label: "pirate",
-    root_label_display: "pirate",
-    path_segment: "app.pirate",
-    href: "/c/app.pirate",
-    app_host: "app.pirate",
+    root_label: "xn--pokmon-dva",
+    root_label_display: "pokémon",
+    path_segment: "xn--pokmon-dva",
+    href: "/c/xn--pokmon-dva",
+    app_host: "app.xn--pokmon-dva",
   },
 };
 const preview = {
@@ -31,16 +31,16 @@ const preview = {
 
 describe("community page preflight", () => {
   test("extracts one route segment and decodes it exactly once", () => {
-    expect(communityPathSegmentFromRequest(new Request("https://pirate.test/c/app.pirate"))).toBe("app.pirate");
+    expect(communityPathSegmentFromRequest(new Request("https://pirate.test/c/xn--pokmon-dva"))).toBe("xn--pokmon-dva");
     expect(communityPathSegmentFromRequest(new Request("https://pirate.test/c/%40music"))).toBe("@music");
-    expect(communityPathSegmentFromRequest(new Request("https://pirate.test/c/app.pirate%252fnext"))).toBe("app.pirate%2fnext");
-    expect(communityPathSegmentFromRequest(new Request("https://pirate.test/c/app.pirate/next"))).toBeUndefined();
+    expect(communityPathSegmentFromRequest(new Request("https://pirate.test/c/xn--pokmon-dva%252fnext"))).toBe("xn--pokmon-dva%2fnext");
+    expect(communityPathSegmentFromRequest(new Request("https://pirate.test/c/xn--pokmon-dva/next"))).toBeUndefined();
   });
 
   test("rejects encoded separators without touching api-next", async () => {
     const fetchImpl = mock(async () => new Response());
     const result = await resolveCommunityPagePreflight(
-      new Request("https://pirate.test/c/app.pirate%252fnext"),
+      new Request("https://pirate.test/c/xn--pokmon-dva%252fnext"),
       "https://api-next.test",
       fetchImpl,
     );
@@ -64,14 +64,14 @@ describe("community page preflight", () => {
       });
     });
     const result = await resolveCommunityPagePreflight(
-      new Request("https://pirate.test/c/app.pirate", {
+      new Request("https://pirate.test/c/xn--pokmon-dva", {
         headers: { cookie: "private=secret", authorization: "Bearer secret", "x-csrf-token": "secret" },
       }),
       "https://api-next.test",
       fetchImpl,
     );
     expect(seen).toEqual([
-      "https://api-next.test/c/app.pirate",
+      "https://api-next.test/c/xn--pokmon-dva",
       `https://api-next.test/communities/${communityId}/preview`,
     ]);
     expect(result?.state).toMatchObject({ kind: "success", communityId, routeFamily: "hns" });
@@ -85,4 +85,3 @@ describe("community page preflight", () => {
     expect(communityPageResponsePolicy({ kind: "invalid", status: 400 }).headers.get("cache-control")).toBe("no-store");
   });
 });
-

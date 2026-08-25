@@ -13,11 +13,11 @@ const route: GetCPathSegmentResponse = {
   community_id: communityId,
   canonical_route: {
     family: "hns",
-    root_label: "pirate",
-    root_label_display: "pirate",
-    path_segment: "app.pirate",
-    href: "/c/app.pirate",
-    app_host: "app.pirate",
+    root_label: "xn--pokmon-dva",
+    root_label_display: "pokémon",
+    path_segment: "xn--pokmon-dva",
+    href: "/c/xn--pokmon-dva",
+    app_host: "app.xn--pokmon-dva",
   },
 };
 const preview: GetCommunitiesCommunityIdPreviewResponse = {
@@ -55,7 +55,7 @@ afterEach(() => {
 
 describe("CommunityPage", () => {
   test("renders the public community projection and canonical metadata", async () => {
-    const container = render(() => <CommunityPage pathSegment="app.pirate" client={{
+    const container = render(() => <CommunityPage pathSegment="xn--pokmon-dva" client={{
       get_cPathSegment: async () => route,
       get_communitiesCommunityIdPreview: async () => preview,
     }} />);
@@ -65,17 +65,17 @@ describe("CommunityPage", () => {
     expect(container.textContent).toContain("Public conversations.");
     expect(container.textContent).toContain("Respect");
     expect(container.querySelector("button, input, textarea, [data-viewer-control]")).toBeNull();
-    expect(document.head.querySelector("link[rel='canonical']")?.getAttribute("href")).toContain("/c/app.pirate");
+    expect(document.head.querySelector("link[rel='canonical']")?.getAttribute("href")).toContain("/c/xn--pokmon-dva");
   });
 
   test("renders redacted invalid and unavailable states", async () => {
-    const invalid = render(() => <CommunityPage pathSegment="app.pirate/next" client={{
+    const invalid = render(() => <CommunityPage pathSegment="xn--pokmon-dva/next" client={{
       get_cPathSegment: async () => route,
       get_communitiesCommunityIdPreview: async () => preview,
     }} />);
     await vi.waitFor(() => expect(invalid.querySelector("[data-community-state='invalid']")).not.toBeNull());
 
-    const unavailable = render(() => <CommunityPage pathSegment="app.pirate" client={{
+    const unavailable = render(() => <CommunityPage pathSegment="xn--pokmon-dva" client={{
       get_cPathSegment: async () => { throw { _tag: "ApiClientProtocolError", message: "credential=secret" }; },
       get_communitiesCommunityIdPreview: async () => preview,
     }} />);
