@@ -87,6 +87,7 @@ export {
   IconCaretDown,
   IconFileText,
   IconGlobe,
+  IconHandPalm,
   IconHeart,
   IconImage,
   IconLink,

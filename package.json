@@ -69,6 +69,7 @@
     "@solidjs/vite-plugin": "3.0.0-next.27",
     "@storybook/addon-a11y": "10.5.8",
     "@storybook/addon-docs": "10.5.8",
+    "@testing-library/jest-dom": "7.0.1",
     "@tailwindcss/vite": "4.3.3",
     "@testing-library/jest-dom": "7.0.1",
     "@types/node": "24.3.0",
@@ -78,7 +79,7 @@
     "oxlint": "1.78.0",
     "playwright": "1.60.0",
     "solid-doctor": "0.1.0",
-    "storybook": "10.5.8",
+    "storybook": "10.5.10",
     "storybook-solidjs-vite": "10.6.0",
     "tailwindcss": "4.3.3",
     "typescript": "5.9.3",
@@ -90,5 +91,9 @@
   "patchedDependencies": {
     "jsdom@30.0.0": "packages/solid-ui/patches/jsdom@30.0.0.patch",
     "@veryai/widget@1.0.22": "patches/@veryai%2Fwidget@1.0.22.patch"
+  },
+  "overrides": {
+    "@storybook/builder-vite": "10.5.10",
+    "@storybook/csf-plugin": "10.5.10"
   }
 }

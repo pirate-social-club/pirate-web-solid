@@ -1,4 +1,3 @@
-import tailwindcss from "@tailwindcss/vite";
 import type { StorybookConfig } from "storybook-solidjs-vite";
 
 const config: StorybookConfig = {
@@ -28,7 +27,6 @@ const config: StorybookConfig = {
         ignored: ["**/.tmp/**", "**/worktrees/**"],
       },
     },
-    plugins: [...(viteConfig.plugins ?? []), tailwindcss()],
   }),
 };
 

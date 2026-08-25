@@ -44,6 +44,14 @@ export function IconImage(props: IconProps) {
   );
 }
 
+export function IconHandPalm(props: IconProps) {
+  return (
+    <svg aria-hidden="true" class={props.class} fill="none" stroke="currentColor" stroke-width="1.9" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+      <path d="M8.2 11.2V6.7a1.4 1.4 0 0 1 2.8 0v3.2-5.1a1.4 1.4 0 0 1 2.8 0v5.1-4.2a1.4 1.4 0 0 1 2.8 0v5-2.5a1.4 1.4 0 0 1 2.8 0v5.3c0 4.4-2.8 7.5-7 7.5h-.8a6.6 6.6 0 0 1-5.8-3.5l-2.2-4a1.5 1.5 0 0 1 2.5-1.7l2.1 2.5v-3.1Z" stroke-linecap="round" stroke-linejoin="round" />
+    </svg>
+  );
+}
+
 export function IconMaskHappy(props: IconProps) {
   const iconProps = splitIconProps(props);
   return (

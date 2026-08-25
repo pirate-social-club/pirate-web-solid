@@ -229,6 +229,7 @@ export {
   IconFileText,
   IconFlag,
   IconGlobe,
+  IconHandPalm,
   IconHeart,
   IconHouse,
   IconImage,
