@@ -3,9 +3,12 @@
 import { handleRequest } from "virtual:solid-ssr-handler";
 import { proxyApiRequest } from "./api/index.ts";
 import { VERIFICATION_CONFIG_PATH, verificationConfigResponse } from "./api/verification-config.ts";
+import { disabledProductionHnsCommunityAppIngressCompositionV2 } from "./hns-ingress/index.ts";
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
+    const rejected = disabledProductionHnsCommunityAppIngressCompositionV2.rejectReservedHeaders(request);
+    if (rejected !== null) return rejected;
     const pathname = new URL(request.url).pathname;
     if (pathname === VERIFICATION_CONFIG_PATH) {
       return verificationConfigResponse(request, {
