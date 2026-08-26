@@ -48,6 +48,28 @@ function fakeExchange(overrides: Partial<PrivySessionExchange> = {}) {
   return exchange;
 }
 
+/**
+ * jsdom refuses a real navigation, so the assign call is replaced for the
+ * duration of the check and restored afterwards.
+ */
+async function withStubbedNavigation(assign: () => void, body: () => Promise<void>): Promise<void> {
+  const original = window.location;
+  Object.defineProperty(window, "location", {
+    configurable: true,
+    value: { ...original, assign, origin: original.origin, href: original.href },
+    writable: true,
+  });
+  try {
+    await body();
+  } finally {
+    Object.defineProperty(window, "location", {
+      configurable: true,
+      value: original,
+      writable: true,
+    });
+  }
+}
+
 function harness(options: {
   createExchange: () => Promise<PrivySessionExchange>;
   enabled?: () => boolean;
@@ -179,6 +201,53 @@ describe("sign-in session controller", () => {
     pending.resolve();
     await settle();
 
+    expect(session.state().phase).toBe("choose");
+  });
+
+  test("does not redirect for a provider ceremony the user dismissed", async () => {
+    const pending = deferred<string>();
+    const exchange = fakeExchange({ beginOAuth: vi.fn(() => pending.promise) });
+    const assign = vi.fn();
+    const [enabled, setEnabled] = createSignal(true);
+    const session = harness({ createExchange: async () => exchange, enabled });
+    await settle();
+
+    await withStubbedNavigation(assign, async () => {
+      session.chooseMethod("google");
+      flush();
+      expect(exchange.beginOAuth).toHaveBeenCalledTimes(1);
+
+      setEnabled(false);
+      flush();
+      pending.resolve("https://privy.example.test/authorize");
+      await settle();
+    });
+
+    expect(assign).not.toHaveBeenCalled();
+  });
+
+  test("reopening starts from loading and resolves to the method list again", async () => {
+    const [enabled, setEnabled] = createSignal(true);
+    const exchanges = [fakeExchange(), fakeExchange()];
+    const session = harness({
+      createExchange: async () => exchanges.shift() ?? fakeExchange(),
+      enabled,
+    });
+    await settle();
+
+    session.setEmail("operator@example.test");
+    flush();
+    session.chooseMethod("email");
+    flush();
+    expect(session.state().phase).toBe("email");
+
+    setEnabled(false);
+    flush();
+    setEnabled(true);
+    flush();
+    expect(session.state().phase).toBe("loading");
+
+    await settle();
     expect(session.state().phase).toBe("choose");
   });
 

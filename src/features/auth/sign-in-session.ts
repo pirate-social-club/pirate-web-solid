@@ -72,7 +72,13 @@ function oauthRedirect(provider: OAuthProvider): string {
  * exchange — is dropped instead of writing into a surface it no longer owns.
  */
 export function createSignInSession(options: SignInSessionOptions = {}): SignInSession {
-  const [state, setState] = createSignal<SignInState>(initialSignInState);
+  // The gate effect resets this synchronously on reopen, which is a write from
+  // an owned scope. That is deliberate here — the controller owns the phase —
+  // so the signal opts in rather than deferring the reset into a microtask and
+  // rendering the dismissed phase for a tick.
+  const [state, setState] = createSignal<SignInState>(initialSignInState, {
+    ownedWrite: true,
+  });
   let exchange: PrivySessionExchange | undefined;
   let generation = 0;
 
@@ -91,7 +97,10 @@ export function createSignInSession(options: SignInSessionOptions = {}): SignInS
   /**
    * Supersedes the current exchange: the generation advances so anything still
    * in flight resolves into a surface it no longer owns and is dropped, and the
-   * Privy client is released.
+   * Privy client is released. This suppresses our own state writes, navigation,
+   * and onAuthenticated callback; it cannot cancel work already running inside
+   * Privy, which has no cancellation of its own, so a dismissed ceremony may
+   * still complete server-side without the surface reacting to it.
    */
   const discard = () => {
     generation += 1;
@@ -111,6 +120,10 @@ export function createSignInSession(options: SignInSessionOptions = {}): SignInS
       discard();
       const runToken = generation;
       if (!enabled || typeof window === "undefined") return;
+      // A reopen starts from loading rather than whatever phase the surface was
+      // dismissed on, so the old email, code, or working step is never shown
+      // over an exchange that does not exist yet.
+      setState(initialSignInState);
 
       const load = options.createExchange
         ? options.createExchange()
@@ -157,14 +170,16 @@ export function createSignInSession(options: SignInSessionOptions = {}): SignInS
 
   /**
    * Runs one attempt against the exchange that is current when it starts.
-   * `settle` receives the success path; failures recover to `recovery`. Both
-   * are skipped when the attempt is no longer current.
+   * `settle` receives the operation's result on the success path; failures
+   * recover to `recovery`. Both are skipped when the attempt is no longer
+   * current, so every effect that follows an attempt — a state change, a
+   * navigation, the authenticated callback — is gated on the same check.
    */
-  const attempt = (
+  const attempt = <Result,>(
     phase: SignInPhase | undefined,
     recovery: SignInPhase,
-    operation: (handle: PrivySessionExchange) => Promise<void>,
-    settle?: () => void,
+    operation: (handle: PrivySessionExchange) => Promise<Result>,
+    settle?: (value: Result) => void,
   ) => {
     const handle = exchange;
     if (handle === undefined) return;
@@ -174,8 +189,8 @@ export function createSignInSession(options: SignInSessionOptions = {}): SignInS
 
     void (async () => {
       try {
-        await operation(handle);
-        if (stillCurrent()) settle?.();
+        const value = await operation(handle);
+        if (stillCurrent()) settle?.(value);
       } catch (error) {
         if (stillCurrent()) fail(error, recovery);
       }
@@ -196,11 +211,14 @@ export function createSignInSession(options: SignInSessionOptions = {}): SignInS
         attempt("working", "choose", (handle) => handle.loginWithWallet(), succeed);
         return;
       }
-      // The redirect leaves the page, so a successful begin has nothing to settle.
-      attempt("working", "choose", async (handle) => {
-        const url = await handle.beginOAuth(method, oauthRedirect(method));
-        window.location.assign(url);
-      });
+      // Navigating is the settlement, so it runs behind the same currency check
+      // as any state write: a dismissed ceremony must not redirect the page.
+      attempt(
+        "working",
+        "choose",
+        (handle) => handle.beginOAuth(method, oauthRedirect(method)),
+        (url) => { window.location.assign(url); },
+      );
     },
     register() {
       attempt(undefined, "register", (handle) => handle.register(), succeed);
