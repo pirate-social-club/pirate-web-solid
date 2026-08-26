@@ -120,6 +120,14 @@ describe("community handle storefront model", () => {
       .toBe("offering-exact");
     expect(selectHandleOffering([broad, exact], "long-name", "activation-1")?.offering_id)
       .toBe("offering-broad");
+    expect(selectHandleOffering(
+      [broad, exact],
+      "captain",
+      "activation-1",
+      "offering-broad",
+    )?.offering_id).toBe("offering-broad");
+    expect(selectHandleOffering([broad, exact], "short", "activation-1")?.offering_id)
+      .toBe("offering-broad");
     expect(initialHandleLabel([broad, exact], null, "offering-exact")).toBe("captain");
   });
 
@@ -213,6 +221,17 @@ describe("community handle storefront model", () => {
     }]);
     expect(JSON.stringify(projected)).not.toContain("0xprivate");
     expect(JSON.stringify(projected)).not.toContain("hd_wallet_index");
+
+    const firstPersona = response.personas[0];
+    const collidingId = "persona-sibling-abcdef";
+    const collisionAware = projectPersonaChoices({
+      personas: [firstPersona, {
+        ...firstPersona,
+        persona_id: collidingId,
+        profile: { ...firstPersona.profile, persona_id: collidingId, display_name: "Sibling" },
+      }],
+    });
+    expect(collisionAware.map(persona => persona.shortId)).toEqual(["…c-abcdef", "…g-abcdef"]);
   });
 
   test("loads the canonical community and every page of its public active offerings", async () => {

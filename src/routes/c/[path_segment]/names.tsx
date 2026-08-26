@@ -10,15 +10,15 @@ import {
   type HandleStorefrontPublicState,
 } from "../../../features/communities/handle-storefront/handle-storefront.model.ts";
 import { decodeCommunityRouteParam } from "../../../features/communities/community-page/community-page-preflight.ts";
+import {
+  communityCanonicalOrigin,
+  communityRequestOrigin,
+} from "../../../features/communities/community-page/community-page-origin.ts";
 
 function requestUrl(): URL | undefined {
   const event = getRequestEvent();
   if (event !== undefined) return new URL(event.request.url);
   return typeof location === "undefined" ? undefined : new URL(location.href);
-}
-
-function requestOrigin(): string | undefined {
-  return requestUrl()?.origin;
 }
 
 function containsControlCharacter(value: string): boolean {
@@ -47,12 +47,12 @@ export function commitHandleStorefrontResponse(state: HandleStorefrontPublicStat
 }
 
 const queryHandleStorefront = query(async (pathSegment: string) => {
-  const origin = requestOrigin();
+  const requestOrigin = communityRequestOrigin();
   const state = await loadHandleStorefrontPublic(
-    createPublicCommunityRouteClient({ origin }),
-    createPublicHandleSalesClient({ origin }),
+    createPublicCommunityRouteClient({ origin: requestOrigin }),
+    createPublicHandleSalesClient({ origin: requestOrigin }),
     pathSegment,
-    origin,
+    communityCanonicalOrigin(),
   );
   commitHandleStorefrontResponse(state);
   return state;
@@ -64,7 +64,7 @@ export const route = defineFileRoute("/c/:path_segment/names", {
 
 export default function CommunityNamesRoute(props: RouteProps<typeof route>) {
   return <HandleStorefront
-    pathSegment={props.params.path_segment}
+    pathSegment={decodeCommunityRouteParam(props.params.path_segment)}
     initialLabel={boundedSearchParam("label")}
     requestedOfferingId={boundedSearchParam("offering")}
     data={props.data}

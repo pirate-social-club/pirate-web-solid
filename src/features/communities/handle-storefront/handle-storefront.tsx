@@ -38,6 +38,10 @@ import { getLocaleMessages, interpolateMessage } from "../../../locales/index.ts
 import { SignInModal } from "../../auth/sign-in-modal.tsx";
 import { createSignInSession } from "../../auth/sign-in-session.ts";
 import {
+  communityCanonicalOrigin,
+  communityRequestOrigin,
+} from "../community-page/community-page-origin.ts";
+import {
   HandleStorefrontProtocolError,
   createHandleStorefrontAttemptKeys,
   runFreeHandleClaim,
@@ -77,20 +81,14 @@ type PersonaSessionState =
 
 type ClaimUiState =
   | Readonly<{ readonly kind: "idle" }>
-  | Readonly<{ readonly kind: "progress"; readonly progress: HandleStorefrontProgress }>
+  | Readonly<{
+      readonly kind: "progress";
+      readonly progress: HandleStorefrontProgress;
+      readonly expiresAt?: string;
+    }>
   | Readonly<{ readonly kind: "issued"; readonly identifier: string; readonly persona: string }>
   | Readonly<{ readonly kind: "pending" }>
   | Readonly<{ readonly kind: "error"; readonly message: string }>;
-
-function currentUrl(): URL | undefined {
-  const event = getRequestEvent();
-  if (event !== undefined) return new URL(event.request.url);
-  return typeof location === "undefined" ? undefined : new URL(location.href);
-}
-
-function requestOrigin(): string | undefined {
-  return currentUrl()?.origin;
-}
 
 function namesCopy() {
   const event = getRequestEvent();
@@ -111,7 +109,7 @@ function namesCopy() {
 }
 
 export function canonicalNamesUrl(state: HandleStorefrontPublicSuccess): string {
-  const path = `${state.community.canonicalPath}/names`;
+  const path = `/c/${state.community.communityId}/names`;
   try {
     return new URL(path, state.community.canonicalUrl).toString();
   } catch {
@@ -120,8 +118,21 @@ export function canonicalNamesUrl(state: HandleStorefrontPublicSuccess): string 
 }
 
 function isHnsServedOrigin(state: HandleStorefrontPublicSuccess): boolean {
-  if (typeof location === "undefined" || state.community.routeFamily !== "hns") return false;
-  return location.hostname === `app.${state.community.requestedPathSegment}`;
+  if (typeof location === "undefined") return false;
+  try {
+    return location.origin !== new URL(state.community.canonicalUrl).origin;
+  } catch {
+    const labels = location.hostname.split(".");
+    return labels.length === 2 && labels[0] === "app";
+  }
+}
+
+function canonicalOrigin(state: HandleStorefrontPublicSuccess): string | undefined {
+  try {
+    return new URL(state.community.canonicalUrl).origin;
+  } catch {
+    return undefined;
+  }
 }
 
 function LoadingState() {
@@ -153,15 +164,61 @@ function offeringBand(offering: SupportedHandleOffering | undefined) {
 
 function blockedMessage(reason: string, copy: ReturnType<typeof namesCopy>): string {
   switch (reason) {
+    case "persona_unavailable": return copy.personaUnavailable;
+    case "invalid_handle": return copy.invalidHandle;
     case "handle_unavailable": return copy.handleUnavailable;
+    case "platform_namespace_reserved": return copy.handleUnavailable;
+    case "evidence_required":
+    case "qualification_unsatisfied": return copy.eligibility;
+    case "quote_expired": return copy.quoteExpired;
+    case "reservation_expired": return copy.reservationExpired;
+    case "issuance_pending": return copy.pendingDescription;
+    case "issuance_failed": return copy.issuanceFailed;
+    case "not_offered": return copy.notOffered;
     case "account_grant_limit_reached": return copy.limitReached;
     case "public_linking_confirmation_required": return copy.linkRequired;
     case "offering_unavailable":
     case "offering_not_applicable":
-    case "not_offered":
     case "sale_namespace_inactive":
     case "dns_delegation_required": return copy.offeringChanged;
+    case "idempotency_conflict": return copy.retryFresh;
+    case "claim_blocked":
+    case "service_unavailable":
+    case "not_found":
+    case "paid_offerings_disabled": return copy.unavailable;
     default: return copy.unavailable;
+  }
+}
+
+function rejectionReason(error: unknown): string | undefined {
+  if (!(error instanceof ApiClientError)) return undefined;
+  const reason = error.details?.reason;
+  return typeof reason === "string" ? reason : undefined;
+}
+
+function effectiveOfferingId(error: unknown): string | undefined {
+  if (!(error instanceof ApiClientError)) return undefined;
+  const offeringId = error.details?.effective_offering_id;
+  return typeof offeringId === "string" && offeringId !== "" ? offeringId : undefined;
+}
+
+function shouldRotateAttemptKeys(error: unknown): boolean {
+  if (!(error instanceof ApiClientError)) return false;
+  if (error.status === 401 || error.status === 429) return true;
+  switch (rejectionReason(error)) {
+    case "public_linking_confirmation_required":
+    case "offering_unavailable":
+    case "invalid_handle":
+    case "handle_unavailable":
+    case "quote_expired":
+    case "reservation_expired":
+    case "idempotency_conflict":
+    case "not_offered":
+    case "offering_not_applicable":
+    case "account_grant_limit_reached":
+    case "sale_namespace_inactive":
+    case "dns_delegation_required": return true;
+    default: return false;
   }
 }
 
@@ -169,10 +226,18 @@ function apiFailureMessage(error: unknown, copy: ReturnType<typeof namesCopy>): 
   if (error instanceof ApiClientError) {
     if (error.status === 401) return copy.sessionExpired;
     if (error.status === 429) return copy.rateLimited;
-    const reason = error.details?.reason;
-    if (typeof reason === "string") return blockedMessage(reason, copy);
+    const reason = rejectionReason(error);
+    if (reason !== undefined) return blockedMessage(reason, copy);
   }
   return copy.unavailable;
+}
+
+function displayExpiry(value: string | undefined): string | undefined {
+  if (value === undefined) return undefined;
+  const milliseconds = Date.parse(value);
+  return Number.isFinite(milliseconds)
+    ? new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(milliseconds)
+    : undefined;
 }
 
 function progressMessage(progress: HandleStorefrontProgress, copy: ReturnType<typeof namesCopy>): string {
@@ -226,12 +291,22 @@ function BuyerPanel(props: {
   const initialLabelValue = untrack(() => props.initialLabel);
   const requestedOfferingId = untrack(() => props.requestedOfferingId);
   const readCsrf = untrack(() => props.readCsrf) ?? readHandleSalesCsrfCookie;
-  const client = untrack(() => props.sessionClient)
-    ?? createSessionHandleSalesClient({ origin: requestOrigin() });
+  const injectedClient = untrack(() => props.sessionClient);
+  const sessionOrigin = canonicalOrigin(state);
+  const client = injectedClient
+    ?? (sessionOrigin === undefined ? undefined : createSessionHandleSalesClient({ origin: sessionOrigin }));
+  if (client === undefined) {
+    return <Card data-handle-storefront-canonical-missing>
+      <CardContent class="p-6"><p role="alert">{copy.unavailable}</p></CardContent>
+    </Card>;
+  }
   const [session, setSession] = createSignal<PersonaSessionState>({ kind: "loading" });
   const namespaceChoices = projectSaleNamespaceChoices(state.offerings);
   const [selectedActivationId, setSelectedActivationId] = createSignal<string | null>(
     initialSaleNamespaceActivationId(state.offerings, requestedOfferingId),
+  );
+  const [preferredOfferingId, setPreferredOfferingId] = createSignal<string | null>(
+    requestedOfferingId ?? null,
   );
   const [selectedPersonaId, setSelectedPersonaId] = createSignal<string | null>(null);
   const [label, setLabel] = createSignal(initialHandleLabel(
@@ -252,6 +327,7 @@ function BuyerPanel(props: {
     state.offerings,
     label(),
     selectedActivationId(),
+    preferredOfferingId(),
   ));
   const selectedNamespace = createMemo(() => namespaceChoices.find(
     choice => choice.activationId === selectedActivationId(),
@@ -269,11 +345,11 @@ function BuyerPanel(props: {
   });
   const normalizedLabel = createMemo(() => normalizeDesiredHandleLabel(label()));
   const identifier = createMemo(() => {
-    const offering = activeOffering();
+    const namespace = selectedNamespace();
     const desired = normalizedLabel();
-    return offering === undefined || desired === null
+    return namespace === undefined || desired === null
       ? undefined
-      : `${desired}.${offering.display_root}`;
+      : `${desired}.${namespace.displayRoot}`;
   });
   const busy = createMemo(() => claimState().kind === "progress");
   const canClaim = createMemo(() =>
@@ -337,6 +413,7 @@ function BuyerPanel(props: {
   const selectNamespace = (activationId: string) => {
     if (busy()) return;
     setSelectedActivationId(activationId === "" ? null : activationId);
+    setPreferredOfferingId(null);
     setLinkConfirmed(false);
     setClaimState({ kind: "idle" });
   };
@@ -350,7 +427,9 @@ function BuyerPanel(props: {
     const persona = selectedPersona();
     const desiredLabel = normalizedLabel();
     if (offering === undefined || persona === undefined || desiredLabel === null || !linkConfirmed()) {
-      setClaimState({ kind: "error", message: copy.labelUnavailable });
+      setClaimState({ kind: "error", message: desiredLabel === null
+        ? copy.invalidHandle
+        : copy.unavailable });
       return;
     }
     const csrf = readCsrf();
@@ -378,7 +457,7 @@ function BuyerPanel(props: {
         desiredLabel,
         linkingConfirmed: true,
         keys: attemptKeys,
-        onProgress: progress => setClaimState({ kind: "progress", progress }),
+        onProgress: update => setClaimState({ kind: "progress", ...update }),
       });
       if (result.kind === "issued") {
         setClaimState({
@@ -390,13 +469,29 @@ function BuyerPanel(props: {
         setClaimState({ kind: "pending" });
       } else if (result.kind === "eligibility_required") {
         attemptKeys = undefined;
+        attemptSignature = undefined;
         setClaimState({ kind: "error", message: copy.eligibility });
       } else {
         attemptKeys = undefined;
+        attemptSignature = undefined;
         setClaimState({ kind: "error", message: blockedMessage(result.reason, copy) });
       }
     } catch (error: unknown) {
       if (controller.signal.aborted) return;
+      if (rejectionReason(error) === "offering_not_applicable") {
+        const offeringId = effectiveOfferingId(error);
+        const effective = offeringId === undefined
+          ? undefined
+          : state.offerings.find(candidate =>
+            candidate.offering_id === offeringId
+            && candidate.sale_namespace_activation_id === selectedActivationId(),
+          );
+        setPreferredOfferingId(effective?.offering_id ?? null);
+      }
+      if (shouldRotateAttemptKeys(error)) {
+        attemptKeys = undefined;
+        attemptSignature = undefined;
+      }
       const message = error instanceof HandleStorefrontProtocolError
         ? copy.unavailable
         : apiFailureMessage(error, copy);
@@ -415,8 +510,9 @@ function BuyerPanel(props: {
   });
   const currentProgress = createMemo(() => {
     const current = claimState();
-    return current.kind === "progress" ? current.progress : undefined;
+    return current.kind === "progress" ? current : undefined;
   });
+  const currentExpiry = createMemo(() => displayExpiry(currentProgress()?.expiresAt));
   const issuedClaim = createMemo(() => {
     const current = claimState();
     return current.kind === "issued" ? current : undefined;
@@ -543,14 +639,14 @@ function BuyerPanel(props: {
                     maxlength={63}
                     onInput={event => {
                       if (!busy()) {
-                        setLabel(event.currentTarget.value.toLowerCase());
+                        setLabel(event.currentTarget.value);
                         setClaimState({ kind: "idle" });
                       }
                     }}
                     placeholder={copy.labelPlaceholder}
                     spellcheck={false}
                     value={label()}
-                    aria-invalid={label() !== "" && activeOffering() === undefined ? "true" : undefined}
+                    aria-invalid={label() !== "" && normalizedLabel() === null ? "true" : undefined}
                   />
                   <Show when={exactOfferedIdentifier()}>
                     {exactIdentifier => <p class="text-base text-muted-foreground">{interpolateMessage(copy.labelExact, {
@@ -563,8 +659,8 @@ function BuyerPanel(props: {
                       max: band().max_label_length,
                     })}</p>}
                   </Show>
-                  <Show when={label() !== "" && activeOffering() === undefined}>
-                    <p class="text-base text-destructive-text">{copy.labelUnavailable}</p>
+                  <Show when={label() !== "" && normalizedLabel() === null}>
+                    <p class="text-base text-destructive-text">{copy.invalidHandle}</p>
                   </Show>
                 </div>
 
@@ -589,9 +685,14 @@ function BuyerPanel(props: {
                   onClick={() => void claim()}
                 >
                   {busy()
-                    ? progressMessage(currentProgress() ?? "confirming_link", copy)
+                    ? progressMessage(currentProgress()?.progress ?? "confirming_link", copy)
                     : interpolateMessage(copy.claim, { identifier: identifier() ?? copy.label })}
                 </Button>
+                <Show when={currentExpiry()}>
+                  {expiry => <p class="text-sm text-muted-foreground" aria-live="polite">
+                    {interpolateMessage(copy.expiresAt, { time: expiry() })}
+                  </p>}
+                </Show>
 
                 <Show when={issuedClaim()}>
                   {issued => <div role="status" class="rounded-xl bg-success/10 p-4" data-handle-claim-state="issued">
@@ -690,16 +791,16 @@ function StorefrontState(props: {
 }
 
 function StorefrontData(props: HandleStorefrontProps) {
-  const origin = requestOrigin();
-  const communityClient = createPublicCommunityRouteClient({ origin });
+  const requestOrigin = communityRequestOrigin();
+  const communityClient = createPublicCommunityRouteClient({ origin: requestOrigin });
   const publicClient = untrack(() => props.publicClient)
-    ?? createPublicHandleSalesClient({ origin });
+    ?? createPublicHandleSalesClient({ origin: requestOrigin });
   const state = createMemo(
     () => props.data ?? loadHandleStorefrontPublic(
       communityClient,
       publicClient,
       props.pathSegment,
-      origin,
+      communityCanonicalOrigin(),
     ),
     { deferStream: true },
   );

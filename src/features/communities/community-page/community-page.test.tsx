@@ -100,8 +100,9 @@ describe("CommunityPage", () => {
     expect(container.querySelector("button, input, textarea, [data-viewer-control]")).toBeNull();
     await vi.waitFor(() => expect(container.querySelector("[data-community-names-cta]")).not.toBeNull());
     expect(container.querySelector<HTMLAnchorElement>("[data-community-names-cta]")?.href)
-      .toContain("/c/xn--pokmon-dva/names");
-    expect(document.head.querySelector("link[rel='canonical']")?.getAttribute("href")).toContain("/c/xn--pokmon-dva");
+      .toContain(`/c/${communityId}/names`);
+    expect(document.head.querySelector("link[rel='canonical']")?.getAttribute("href"))
+      .toContain("/c/xn--pokmon-dva");
   });
 
   test("renders redacted invalid and unavailable states", async () => {

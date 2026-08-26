@@ -98,22 +98,27 @@ export function offeringAppliesToLabel(
     && length <= offering.label_scope.availability.max_label_length;
 }
 
-/** Mirrors only the public exact-before-broad precedence; api-next remains authoritative. */
+/** Pick a request context; api-next remains authoritative for effective-offering classification. */
 export function selectHandleOffering(
   offerings: readonly SupportedHandleOffering[],
   label: string,
   activationId: string | null,
+  requestedOfferingId?: string | null,
 ): SupportedHandleOffering | undefined {
   if (activationId === null) return undefined;
-  return offerings.find(offering =>
-    offering.sale_namespace_activation_id === activationId
-    && offering.label_scope.kind === "exact_label_v2"
+  const scoped = offerings.filter(offering => offering.sale_namespace_activation_id === activationId);
+  const requested = requestedOfferingId === undefined || requestedOfferingId === null
+    ? undefined
+    : scoped.find(offering => offering.offering_id === requestedOfferingId);
+  if (requested !== undefined) return requested;
+  return scoped.find(offering =>
+    offering.label_scope.kind === "exact_label_v2"
     && offeringAppliesToLabel(offering, label),
-  ) ?? offerings.find(offering =>
-    offering.sale_namespace_activation_id === activationId
-    && offering.label_scope.kind === "label_rule_v2"
+  ) ?? scoped.find(offering =>
+    offering.label_scope.kind === "label_rule_v2"
     && offeringAppliesToLabel(offering, label),
-  );
+  ) ?? scoped.find(offering => offering.label_scope.kind === "label_rule_v2")
+    ?? scoped[0];
 }
 
 export function projectSaleNamespaceChoices(
@@ -201,22 +206,32 @@ export function initialHandleLabel(
 }
 
 export function projectPersonaChoices(response: GetPersonasResponse): readonly PersonaChoice[] {
-  return response.personas.flatMap(persona => {
-    if (
-      persona.status !== "active"
-      || persona.persona_id === ""
-      || persona.profile.persona_id !== persona.persona_id
-    ) return [];
+  const eligible = response.personas.filter(persona =>
+    persona.status === "active"
+    && persona.persona_id !== ""
+    && persona.profile.persona_id === persona.persona_id,
+  );
+  const personas = [...new Map(eligible.map(persona => [persona.persona_id, persona])).values()];
+  const personaIds = personas.map(persona => persona.persona_id);
+  return personas.map(persona => {
     const displayName = persona.profile.display_name?.trim()
       || persona.profile.primary_public_handle?.trim()
       || "Unnamed persona";
-    return [{
+    let suffixLength = Math.min(6, persona.persona_id.length);
+    while (
+      suffixLength < persona.persona_id.length
+      && personaIds.some(candidate =>
+        candidate !== persona.persona_id
+        && candidate.endsWith(persona.persona_id.slice(-suffixLength)),
+      )
+    ) suffixLength += 1;
+    return {
       personaId: persona.persona_id,
       displayName,
       avatarRef: persona.profile.avatar_ref,
       primaryPublicHandle: persona.profile.primary_public_handle,
-      shortId: `…${persona.persona_id.slice(-6)}`,
-    }];
+      shortId: `…${persona.persona_id.slice(-suffixLength)}`,
+    };
   });
 }
 

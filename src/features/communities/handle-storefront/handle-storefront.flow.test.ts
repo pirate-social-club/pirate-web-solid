@@ -188,6 +188,21 @@ describe("free handle storefront flow", () => {
     } }, input(apiClient).requestOptions);
   });
 
+  test("surfaces each server expiry with the step that consumes it", async () => {
+    const apiClient = client(claim("issued"));
+    const progress: unknown[] = [];
+    await runFreeHandleClaim({
+      ...input(apiClient),
+      onProgress: update => progress.push(update),
+    });
+    expect(progress).toEqual([
+      { progress: "confirming_link" },
+      { progress: "quoting", expiresAt: confirmation.expires_at },
+      { progress: "reserving", expiresAt: quote.quote.expires_at },
+      { progress: "claiming", expiresAt: reservation.reservation.expires_at },
+    ]);
+  });
+
   test("polls a durable pending claim and validates the issued projection", async () => {
     const apiClient = client(claim("issuance_pending"));
     apiClient.get_handleClaimsClaimId = vi.fn(async () => claim("issued"));

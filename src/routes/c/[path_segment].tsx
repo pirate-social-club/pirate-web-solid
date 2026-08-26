@@ -14,12 +14,10 @@ import {
   decodeCommunityRouteParam,
   type CommunityPagePreflight,
 } from "../../features/communities/community-page/community-page-preflight.ts";
-
-function requestOrigin(): string | undefined {
-  const event = getRequestEvent();
-  if (event !== undefined) return new URL(event.request.url).origin;
-  return typeof location === "undefined" ? undefined : location.origin;
-}
+import {
+  communityCanonicalOrigin,
+  communityRequestOrigin,
+} from "../../features/communities/community-page/community-page-origin.ts";
 
 export function commitCommunityPageResponse(state: CommunityPageViewState): void {
   const event = getRequestEvent();
@@ -31,23 +29,23 @@ export function commitCommunityPageResponse(state: CommunityPageViewState): void
 
 export async function preloadCommunityPage(
   rawPathSegment: unknown,
-  client: CommunityRouteClient = createPublicCommunityRouteClient({ origin: requestOrigin() }),
+  client: CommunityRouteClient = createPublicCommunityRouteClient({ origin: communityRequestOrigin() }),
 ): Promise<CommunityPageViewState> {
   if (normalizeCommunityPathSegment(rawPathSegment) === null) {
     const state = { kind: "invalid", status: 400 } as const;
     commitCommunityPageResponse(state);
     return state;
   }
-  const state = await loadCommunityPage(client, rawPathSegment, requestOrigin());
+  const state = await loadCommunityPage(client, rawPathSegment, communityCanonicalOrigin());
   commitCommunityPageResponse(state);
   return state;
 }
 
 const queryCommunityPage = query(
   async (pathSegment: string) => loadCommunityPage(
-    createPublicCommunityRouteClient({ origin: requestOrigin() }),
+    createPublicCommunityRouteClient({ origin: communityRequestOrigin() }),
     pathSegment,
-    requestOrigin(),
+    communityCanonicalOrigin(),
   ),
   "community-page",
 );

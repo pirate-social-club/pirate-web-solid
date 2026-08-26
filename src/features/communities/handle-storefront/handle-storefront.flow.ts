@@ -20,6 +20,11 @@ export type HandleStorefrontProgress =
   | "claiming"
   | "waiting_for_issuance";
 
+export type HandleStorefrontProgressUpdate = Readonly<{
+  readonly progress: HandleStorefrontProgress;
+  readonly expiresAt?: string;
+}>;
+
 export type HandleStorefrontResult =
   | Readonly<{
       readonly kind: "issued";
@@ -56,7 +61,7 @@ export interface RunFreeHandleClaimInput {
   readonly desiredLabel: string;
   readonly linkingConfirmed: true;
   readonly keys: HandleStorefrontAttemptKeys;
-  readonly onProgress?: (progress: HandleStorefrontProgress) => void;
+  readonly onProgress?: (update: HandleStorefrontProgressUpdate) => void;
   readonly maxPolls?: number;
   readonly pollIntervalMs?: number;
   readonly sleep?: (milliseconds: number, signal?: AbortSignal) => Promise<void>;
@@ -238,7 +243,7 @@ function defaultSleep(milliseconds: number, signal?: AbortSignal): Promise<void>
 export async function runFreeHandleClaim(
   input: RunFreeHandleClaimInput,
 ): Promise<HandleStorefrontResult> {
-  input.onProgress?.("confirming_link");
+  input.onProgress?.({ progress: "confirming_link" });
   const confirmation = await input.client.post_handlePersonaLinkConfirmations({
     body: {
       idempotency_key: input.keys.confirmation,
@@ -249,7 +254,7 @@ export async function runFreeHandleClaim(
   }, input.requestOptions);
   validateConfirmation(confirmation, input);
 
-  input.onProgress?.("quoting");
+  input.onProgress?.({ progress: "quoting", expiresAt: confirmation.expires_at });
   const quoteResult = await input.client.post_handleQuotes({
     body: {
       idempotency_key: input.keys.quote,
@@ -267,7 +272,7 @@ export async function runFreeHandleClaim(
   }
   validateQuote(quoteResult, input);
 
-  input.onProgress?.("reserving");
+  input.onProgress?.({ progress: "reserving", expiresAt: quoteResult.quote.expires_at });
   const reservation = await input.client.post_handleReservations({
     body: {
       idempotency_key: input.keys.reservation,
@@ -278,7 +283,7 @@ export async function runFreeHandleClaim(
   }, input.requestOptions);
   validateReservation(reservation, quoteResult.quote);
 
-  input.onProgress?.("claiming");
+  input.onProgress?.({ progress: "claiming", expiresAt: reservation.reservation.expires_at });
   const submitted = await input.client.post_handleClaims({
     body: {
       idempotency_key: input.keys.claim,
@@ -296,7 +301,7 @@ export async function runFreeHandleClaim(
   const settled = resultFor(claim);
   if (settled !== undefined) return settled;
 
-  input.onProgress?.("waiting_for_issuance");
+  input.onProgress?.({ progress: "waiting_for_issuance" });
   const signal = input.requestOptions.signal;
   const sleep = input.sleep ?? defaultSleep;
   const maxPolls = input.maxPolls ?? 8;

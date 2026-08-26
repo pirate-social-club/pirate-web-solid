@@ -2,6 +2,8 @@ import { render as solidRender, type JSX } from "@solidjs/web";
 import { createRoot } from "solid-js";
 import { afterEach, describe, expect, test, vi } from "vitest";
 
+import { ApiClientError } from "@pirate/api-client-handle-sales";
+
 import type { SessionHandleSalesApiClient } from "../../../api/handle-sales-client.ts";
 import HandleStorefront, { canonicalNamesUrl } from "./handle-storefront.tsx";
 import type {
@@ -42,7 +44,10 @@ const offering = {
   created_at: "2026-08-26T12:00:00.000Z",
 } as const satisfies SupportedHandleOffering;
 
-function publicState(offerings: readonly SupportedHandleOffering[] = [offering]): HandleStorefrontPublicSuccess {
+function publicState(
+  offerings: readonly SupportedHandleOffering[] = [offering],
+  canonicalOrigin = location.origin,
+): HandleStorefrontPublicSuccess {
   return {
     kind: "success",
     status: 200,
@@ -51,7 +56,7 @@ function publicState(offerings: readonly SupportedHandleOffering[] = [offering])
       status: 200,
       requestedPathSegment: "charizard",
       canonicalPath: "/c/charizard",
-      canonicalUrl: "https://pirate.test/c/charizard",
+      canonicalUrl: `${canonicalOrigin}/c/charizard`,
       communityId,
       routeFamily: "hns",
       routeDisplay: "charizard",
@@ -193,6 +198,51 @@ function render(ui: () => JSX.Element): HTMLElement {
   return container;
 }
 
+function requestError(
+  reason: string,
+  effectiveOfferingId?: string,
+): ApiClientError {
+  const details = effectiveOfferingId === undefined
+    ? { reason }
+    : { reason, effective_offering_id: effectiveOfferingId };
+  return new ApiClientError({
+    status: 409,
+    code: "handle_request_rejected",
+    name: "HandleRequestRejected",
+    retryable: false,
+  }, {
+    error: {
+      code: "handle_request_rejected",
+      message: "redacted test error",
+      retryable: false,
+      details,
+    },
+  });
+}
+
+async function selectPersonaAndConfirm(container: HTMLElement): Promise<HTMLButtonElement> {
+  const radio = await vi.waitFor(() => {
+    const element = container.querySelector<HTMLInputElement>("input[type='radio']");
+    if (element === null) throw new Error("persona option is required");
+    return element;
+  });
+  radio.click();
+  const checkbox = container.querySelector<HTMLInputElement>("input[type='checkbox']");
+  await vi.waitFor(() => expect(checkbox?.disabled).toBe(false));
+  checkbox?.click();
+  return vi.waitFor(() => {
+    const button = [...container.querySelectorAll("button")]
+      .find(candidate => candidate.textContent?.includes("Claim longname.charizard"));
+    if (button === undefined || button.disabled) throw new Error("claim button is required");
+    return button;
+  });
+}
+
+function confirmationKey(client: SessionHandleSalesApiClient, ordinal: number): string | undefined {
+  return vi.mocked(client.post_handlePersonaLinkConfirmations).mock.calls[ordinal]?.[0]
+    .body.idempotency_key;
+}
+
 afterEach(() => {
   for (const dispose of disposers.splice(0)) dispose();
   document.head.replaceChildren();
@@ -292,6 +342,91 @@ describe("community handle storefront", () => {
   });
 
   test("pins the names route to the canonical WebPKI origin", () => {
-    expect(canonicalNamesUrl(publicState())).toBe("https://pirate.test/c/charizard/names");
+    expect(canonicalNamesUrl(publicState([offering], "https://pirate.test")))
+      .toBe(`https://pirate.test/c/${communityId}/names`);
+  });
+
+  test("never loads personas when the browser origin differs from canonical metadata", async () => {
+    const client = sessionClient();
+    const state = publicState([offering], "https://pirate.test");
+    const container = render(() => <HandleStorefront
+      pathSegment={communityId}
+      data={state}
+      sessionClient={client}
+      readCsrf={() => "csrf-token"}
+    />);
+
+    await vi.waitFor(() => expect(container.querySelector("[data-handle-storefront-canonical-only]"))
+      .not.toBeNull());
+    expect(client.get_personas).not.toHaveBeenCalled();
+    expect(container.querySelector("[data-handle-storefront-canonical-only] a")?.getAttribute("href"))
+      .toBe(`https://pirate.test/c/${communityId}/names`);
+  });
+
+  test("rotates all attempt keys after an expired quote", async () => {
+    const client = sessionClient();
+    vi.mocked(client.post_handleQuotes).mockRejectedValueOnce(requestError("quote_expired"));
+    const container = render(() => <HandleStorefront
+      pathSegment="charizard"
+      initialLabel="longname"
+      data={publicState()}
+      sessionClient={client}
+      readCsrf={() => "csrf-token"}
+    />);
+    const button = await selectPersonaAndConfirm(container);
+    button.click();
+    await vi.waitFor(() => expect(container.textContent).toContain("availability check expired"));
+    const firstKey = confirmationKey(client, 0);
+    button.click();
+    await vi.waitFor(() => expect(container.querySelector("[data-handle-claim-state='issued']"))
+      .not.toBeNull());
+    expect(confirmationKey(client, 1)).not.toBe(firstKey);
+  });
+
+  test("keeps attempt keys stable after an ambiguous network failure", async () => {
+    const client = sessionClient();
+    vi.mocked(client.post_handleQuotes).mockRejectedValueOnce(new Error("network unavailable"));
+    const container = render(() => <HandleStorefront
+      pathSegment="charizard"
+      initialLabel="longname"
+      data={publicState()}
+      sessionClient={client}
+      readCsrf={() => "csrf-token"}
+    />);
+    const button = await selectPersonaAndConfirm(container);
+    button.click();
+    await vi.waitFor(() => expect(container.textContent).toContain("could not be completed"));
+    const firstKey = confirmationKey(client, 0);
+    button.click();
+    await vi.waitFor(() => expect(container.querySelector("[data-handle-claim-state='issued']"))
+      .not.toBeNull());
+    expect(confirmationKey(client, 1)).toBe(firstKey);
+  });
+
+  test("uses the server-selected effective offering on a fresh retry", async () => {
+    const effectiveOffering = {
+      ...offering,
+      offering_id: "offering-2",
+      offering_hash: "offering-hash-2",
+    } as const satisfies SupportedHandleOffering;
+    const client = sessionClient();
+    vi.mocked(client.post_handleQuotes).mockRejectedValueOnce(requestError(
+      "offering_not_applicable",
+      effectiveOffering.offering_id,
+    ));
+    const container = render(() => <HandleStorefront
+      pathSegment="charizard"
+      initialLabel="longname"
+      data={publicState([offering, effectiveOffering])}
+      sessionClient={client}
+      readCsrf={() => "csrf-token"}
+    />);
+    const button = await selectPersonaAndConfirm(container);
+    button.click();
+    await vi.waitFor(() => expect(container.textContent).toContain("active offer changed"));
+    button.click();
+    await vi.waitFor(() => expect(client.post_handlePersonaLinkConfirmations).toHaveBeenCalledTimes(2));
+    expect(vi.mocked(client.post_handlePersonaLinkConfirmations).mock.calls[1]?.[0].body.offering_id)
+      .toBe(effectiveOffering.offering_id);
   });
 });

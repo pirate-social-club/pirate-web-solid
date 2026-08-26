@@ -16,18 +16,16 @@ import {
   type CommunityRouteClient,
 } from "./community-page.model.ts";
 import { hasActiveHandleStorefront } from "../handle-storefront/handle-storefront.model.ts";
+import {
+  communityCanonicalOrigin,
+  communityRequestOrigin,
+} from "./community-page-origin.ts";
 
 export interface CommunityPageProps {
   readonly pathSegment: string;
   readonly client?: CommunityRouteClient;
   readonly handleSalesClient?: PublicHandleSalesApiClient;
   readonly data?: CommunityPageViewState | PromiseLike<CommunityPageViewState>;
-}
-
-function requestOrigin(): string | undefined {
-  const event = getRequestEvent();
-  if (event !== undefined) return new URL(event.request.url).origin;
-  return typeof location === "undefined" ? undefined : location.origin;
 }
 
 function communityCopy() {
@@ -49,7 +47,7 @@ function communityCopy() {
 }
 
 function absolutePath(path: string): string {
-  const origin = requestOrigin();
+  const origin = communityCanonicalOrigin();
   return origin === undefined ? path : new URL(path, origin).toString();
 }
 
@@ -79,7 +77,7 @@ function MessageState(props: { readonly state: CommunityPageViewState }) {
 }
 
 function communityNamesUrl(state: CommunityPageSuccess): string {
-  const path = `${state.canonicalPath}/names`;
+  const path = `/c/${state.communityId}/names`;
   try {
     return new URL(path, state.canonicalUrl).toString();
   } catch {
@@ -176,11 +174,11 @@ function CommunityState(props: {
 
 function CommunityData(props: CommunityPageProps) {
   const client = untrack(() => props.client)
-    ?? createPublicCommunityRouteClient({ origin: requestOrigin() });
+    ?? createPublicCommunityRouteClient({ origin: communityRequestOrigin() });
   const handleSalesClient = untrack(() => props.handleSalesClient)
-    ?? createPublicHandleSalesClient({ origin: requestOrigin() });
+    ?? createPublicHandleSalesClient({ origin: communityRequestOrigin() });
   const state = createMemo(
-    () => props.data ?? loadCommunityPage(client, props.pathSegment, requestOrigin()),
+    () => props.data ?? loadCommunityPage(client, props.pathSegment, communityCanonicalOrigin()),
     { deferStream: true },
   );
   return <CommunityState state={state()} handleSalesClient={handleSalesClient} />;
