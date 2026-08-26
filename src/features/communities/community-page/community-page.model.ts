@@ -13,6 +13,7 @@ export type CommunityPageSuccess = Readonly<{
   readonly status: 200;
   readonly requestedPathSegment: string;
   readonly canonicalPath: string;
+  readonly canonicalUrl: string;
   readonly communityId: string;
   readonly routeFamily: "community_id" | "hns" | "spaces";
   readonly routeDisplay: string;
@@ -110,6 +111,7 @@ export function projectCommunityPage(
   route: GetCPathSegmentResponse,
   preview: GetCommunitiesCommunityIdPreviewResponse,
   requestedPathSegment: string,
+  canonicalOrigin?: string | URL,
 ): CommunityPageViewState {
   const identity = routeIdentity(route, requestedPathSegment);
   const displayName = preview.display_name.trim();
@@ -120,11 +122,15 @@ export function projectCommunityPage(
     displayName === ""
   ) return { kind: "unavailable", status: COMMUNITY_ROUTE_UNAVAILABLE_STATUS };
 
+  const canonicalPath = `/c/${requestedPathSegment}`;
   return {
     kind: "success",
     status: 200,
     requestedPathSegment,
-    canonicalPath: `/c/${requestedPathSegment}`,
+    canonicalPath,
+    canonicalUrl: canonicalOrigin === undefined
+      ? canonicalPath
+      : new URL(canonicalPath, canonicalOrigin).toString(),
     communityId: identity.communityId,
     routeFamily: identity.routeFamily,
     routeDisplay: identity.routeDisplay,
@@ -172,6 +178,7 @@ export function mapCommunityPageError(error: unknown): CommunityPageViewState {
 export async function loadCommunityPage(
   client: CommunityRouteClient,
   rawPathSegment: unknown,
+  canonicalOrigin?: string | URL,
 ): Promise<CommunityPageViewState> {
   const pathSegment = normalizeCommunityPathSegment(rawPathSegment);
   if (pathSegment === null) return { kind: "invalid", status: 400 };
@@ -181,7 +188,7 @@ export async function loadCommunityPage(
     const preview = await client.get_communitiesCommunityIdPreview({
       path: { communityId: route.community_id },
     });
-    return projectCommunityPage(route, preview, pathSegment);
+    return projectCommunityPage(route, preview, pathSegment, canonicalOrigin);
   } catch (error: unknown) {
     return mapCommunityPageError(error);
   }

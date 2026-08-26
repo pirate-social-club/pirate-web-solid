@@ -2,6 +2,11 @@ import { Link, Meta, Title } from "@solidjs/meta";
 import { getRequestEvent } from "@solidjs/web";
 import { For, Loading, Show, createMemo, untrack } from "solid-js";
 import { createPublicCommunityRouteClient } from "../../../api/community-route-client.ts";
+import {
+  createPublicHandleSalesClient,
+  type PublicHandleSalesApiClient,
+} from "../../../api/handle-sales-client.ts";
+import { buttonVariants } from "../../../design-system.ts";
 import { resolveRequestUiLocale } from "../../../lib/ui-locale-core.ts";
 import { getLocaleMessages, interpolateMessage } from "../../../locales/index.ts";
 import {
@@ -10,10 +15,12 @@ import {
   type CommunityPageViewState,
   type CommunityRouteClient,
 } from "./community-page.model.ts";
+import { hasActiveHandleStorefront } from "../handle-storefront/handle-storefront.model.ts";
 
 export interface CommunityPageProps {
   readonly pathSegment: string;
   readonly client?: CommunityRouteClient;
+  readonly handleSalesClient?: PublicHandleSalesApiClient;
   readonly data?: CommunityPageViewState | PromiseLike<CommunityPageViewState>;
 }
 
@@ -71,10 +78,46 @@ function MessageState(props: { readonly state: CommunityPageViewState }) {
   );
 }
 
-function SuccessState(props: { readonly state: CommunityPageSuccess }) {
+function communityNamesUrl(state: CommunityPageSuccess): string {
+  const path = `${state.canonicalPath}/names`;
+  try {
+    return new URL(path, state.canonicalUrl).toString();
+  } catch {
+    return path;
+  }
+}
+
+function CommunityNamesCta(props: {
+  readonly state: CommunityPageSuccess;
+  readonly client: PublicHandleSalesApiClient;
+}) {
+  const copy = communityCopy();
+  const available = createMemo(
+    () => hasActiveHandleStorefront(props.client, props.state.communityId),
+    { deferStream: true },
+  );
+  return <Loading fallback={null}>
+    <Show when={available()}>
+      <a
+        class={buttonVariants({ variant: "default" })}
+        data-community-names-cta
+        href={communityNamesUrl(props.state)}
+      >
+        {copy.namesCta}
+      </a>
+    </Show>
+  </Loading>;
+}
+
+function SuccessState(props: {
+  readonly state: CommunityPageSuccess;
+  readonly handleSalesClient: PublicHandleSalesApiClient;
+}) {
   const copy = communityCopy();
   const state = untrack(() => props.state);
-  const canonicalUrl = () => absolutePath(state.canonicalPath);
+  const canonicalUrl = () => state.canonicalUrl === state.canonicalPath
+    ? absolutePath(state.canonicalPath)
+    : state.canonicalUrl;
   const title = () => interpolateMessage(copy.title, { name: state.community.displayName });
   const description = () => state.community.description ??
     interpolateMessage(copy.defaultDescription, { name: state.community.displayName });
@@ -92,6 +135,7 @@ function SuccessState(props: { readonly state: CommunityPageSuccess }) {
       <Show when={state.community.description}>
         <p>{state.community.description}</p>
       </Show>
+      <CommunityNamesCta state={state} client={props.handleSalesClient} />
       <dl>
         <div>
           <dt>{copy.membership}</dt>
@@ -118,22 +162,28 @@ function SuccessState(props: { readonly state: CommunityPageSuccess }) {
   );
 }
 
-function CommunityState(props: { readonly state: CommunityPageViewState }) {
+function CommunityState(props: {
+  readonly state: CommunityPageViewState;
+  readonly handleSalesClient: PublicHandleSalesApiClient;
+}) {
   const success = () => props.state.kind === "success" ? props.state : undefined;
   return (
     <Show when={success()} fallback={<MessageState state={props.state} />}>
-      {state => <SuccessState state={state()} />}
+      {state => <SuccessState state={state()} handleSalesClient={props.handleSalesClient} />}
     </Show>
   );
 }
 
 function CommunityData(props: CommunityPageProps) {
-  const client = props.client ?? createPublicCommunityRouteClient({ origin: requestOrigin() });
+  const client = untrack(() => props.client)
+    ?? createPublicCommunityRouteClient({ origin: requestOrigin() });
+  const handleSalesClient = untrack(() => props.handleSalesClient)
+    ?? createPublicHandleSalesClient({ origin: requestOrigin() });
   const state = createMemo(
-    () => props.data ?? loadCommunityPage(client, props.pathSegment),
+    () => props.data ?? loadCommunityPage(client, props.pathSegment, requestOrigin()),
     { deferStream: true },
   );
-  return <CommunityState state={state()} />;
+  return <CommunityState state={state()} handleSalesClient={handleSalesClient} />;
 }
 
 export default function CommunityPage(props: CommunityPageProps) {

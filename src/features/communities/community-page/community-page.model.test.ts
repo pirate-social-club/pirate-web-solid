@@ -87,6 +87,7 @@ describe("community page model", () => {
       status: 200,
       requestedPathSegment: "xn--pokmon-dva",
       canonicalPath: "/c/xn--pokmon-dva",
+      canonicalUrl: "/c/xn--pokmon-dva",
       communityId,
       routeFamily: "hns",
       routeDisplay: "pokémon",
@@ -103,13 +104,17 @@ describe("community page model", () => {
       kind: "success",
       routeFamily: "community_id",
       canonicalPath: `/c/${communityId}`,
+      canonicalUrl: `/c/${communityId}`,
     });
     expect(projectCommunityPage(spacesRoute, preview, "@xn--4v8h")).toMatchObject({
       kind: "success",
       routeFamily: "spaces",
       routeDisplay: "@🔥",
       canonicalPath: "/c/@xn--4v8h",
+      canonicalUrl: "/c/@xn--4v8h",
     });
+    expect(projectCommunityPage(hnsRoute, preview, "xn--pokmon-dva", "https://pirate.test"))
+      .toMatchObject({ canonicalUrl: "https://pirate.test/c/xn--pokmon-dva" });
   });
 
   test("fails closed on route, community, or family disagreement", () => {

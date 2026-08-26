@@ -61,7 +61,7 @@ export async function resolveCommunityPagePreflight(
   const client = createPirateApiClient(`${origin.origin}/`, options);
   return {
     requestedPathSegment,
-    state: await loadCommunityPage(client, requestedPathSegment),
+    state: await loadCommunityPage(client, requestedPathSegment, new URL(request.url).origin),
   };
 }
 

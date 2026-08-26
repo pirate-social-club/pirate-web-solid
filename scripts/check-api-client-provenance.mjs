@@ -16,6 +16,19 @@ const clients = [
     provenance: "vendor/api-client-community-route-provenance.json",
     expectedScope: ["get_cPathSegment", "get_communitiesCommunityIdPreview"],
   },
+  {
+    dependency: "@pirate/api-client-handle-sales",
+    provenance: "vendor/api-client-handle-sales-provenance.json",
+    expectedScope: [
+      "get_communitiesCommunityIdHandleOfferings",
+      "get_personas",
+      "post_handlePersonaLinkConfirmations",
+      "post_handleQuotes",
+      "post_handleReservations",
+      "post_handleClaims",
+      "get_handleClaimsClaimId",
+    ],
+  },
 ];
 
 function readJson(path) {

@@ -38,7 +38,7 @@ export async function preloadCommunityPage(
     commitCommunityPageResponse(state);
     return state;
   }
-  const state = await loadCommunityPage(client, rawPathSegment);
+  const state = await loadCommunityPage(client, rawPathSegment, requestOrigin());
   commitCommunityPageResponse(state);
   return state;
 }
@@ -47,6 +47,7 @@ const queryCommunityPage = query(
   async (pathSegment: string) => loadCommunityPage(
     createPublicCommunityRouteClient({ origin: requestOrigin() }),
     pathSegment,
+    requestOrigin(),
   ),
   "community-page",
 );

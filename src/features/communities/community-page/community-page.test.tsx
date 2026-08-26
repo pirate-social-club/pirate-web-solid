@@ -58,6 +58,39 @@ describe("CommunityPage", () => {
     const container = render(() => <CommunityPage pathSegment="xn--pokmon-dva" client={{
       get_cPathSegment: async () => route,
       get_communitiesCommunityIdPreview: async () => preview,
+    }} handleSalesClient={{
+      get_communitiesCommunityIdHandleOfferings: async () => ({
+        items: [{
+          offering_id: "offering-public-1",
+          offering_revision: 1,
+          offering_hash: "offering-hash",
+          community_id: communityId,
+          family: "hns",
+          namespace_root: "xn--pokmon-dva",
+          display_root: "pokémon",
+          sale_namespace_activation_id: "activation-1",
+          sale_namespace_activation_generation: 1,
+          label_scope: {
+            kind: "label_rule_v2",
+            label_grammar_id: "hns_ascii_ldh_1_63_v1",
+            reserved_labels_id: "reserved-1",
+            reserved_labels_revision: 1,
+            reserved_labels_hash: "reserved-hash",
+            availability: { kind: "length_band_v1", min_label_length: 8, max_label_length: 32 },
+          },
+          allocation: { kind: "first_come_v1" },
+          max_active_grants_per_account: 1,
+          fulfillment: { kind: "hosted_persona_v1" },
+          qualification_policy: { kind: "none_v1", policy_id: "policy-1", policy_revision: 1, policy_hash: "policy-hash" },
+          pricing: { kind: "free_v1", pricing_id: "free-1", pricing_revision: 1, pricing_hash: "pricing-hash", atomic_amount: "0" },
+          issuance: { family: "hns", driver_id: "hosted-persona-local", driver_version: "1" },
+          quote_ttl_seconds: 120,
+          reservation_ttl_seconds: 300,
+          status: "active",
+          created_at: "2026-08-26T12:00:00.000Z",
+        }],
+        next_cursor: null,
+      }),
     }} />);
     await vi.waitFor(() => expect(container.querySelector("h1")?.textContent).toBe("Pirate Harbor"));
     expect(container.getAttribute("data-community-state")).toBeNull();
@@ -65,6 +98,9 @@ describe("CommunityPage", () => {
     expect(container.textContent).toContain("Public conversations.");
     expect(container.textContent).toContain("Respect");
     expect(container.querySelector("button, input, textarea, [data-viewer-control]")).toBeNull();
+    await vi.waitFor(() => expect(container.querySelector("[data-community-names-cta]")).not.toBeNull());
+    expect(container.querySelector<HTMLAnchorElement>("[data-community-names-cta]")?.href)
+      .toContain("/c/xn--pokmon-dva/names");
     expect(document.head.querySelector("link[rel='canonical']")?.getAttribute("href")).toContain("/c/xn--pokmon-dva");
   });
 
@@ -72,13 +108,13 @@ describe("CommunityPage", () => {
     const invalid = render(() => <CommunityPage pathSegment="xn--pokmon-dva/next" client={{
       get_cPathSegment: async () => route,
       get_communitiesCommunityIdPreview: async () => preview,
-    }} />);
+    }} handleSalesClient={{ get_communitiesCommunityIdHandleOfferings: async () => ({ items: [], next_cursor: null }) }} />);
     await vi.waitFor(() => expect(invalid.querySelector("[data-community-state='invalid']")).not.toBeNull());
 
     const unavailable = render(() => <CommunityPage pathSegment="xn--pokmon-dva" client={{
       get_cPathSegment: async () => { throw { _tag: "ApiClientProtocolError", message: "credential=secret" }; },
       get_communitiesCommunityIdPreview: async () => preview,
-    }} />);
+    }} handleSalesClient={{ get_communitiesCommunityIdHandleOfferings: async () => ({ items: [], next_cursor: null }) }} />);
     await vi.waitFor(() => expect(unavailable.querySelector("[data-community-state='unavailable']")).not.toBeNull());
     expect(unavailable.textContent).not.toContain("credential");
     expect(unavailable.textContent).not.toContain("secret");

@@ -7,6 +7,7 @@
       "dependencies": {
         "@pirate/api-client": "file:vendor/api-client/pirate-api-client-0.11.1.tgz",
         "@pirate/api-client-community-route": "file:vendor/api-client/pirate-api-client-0.13.0.tgz",
+        "@pirate/api-client-handle-sales": "file:vendor/api-client/pirate-api-client-0.21.0.tgz",
         "@pirate/web-solid-ui": "workspace:*",
         "@privy-io/js-sdk-core": "0.70.0",
         "@solidjs/meta": "1.0.0-next.2",
@@ -496,6 +497,8 @@
     "@pirate/api-client": ["@pirate/api-client@vendor/api-client/pirate-api-client-0.11.1.tgz", {}, "sha512-O4PrroI53Mx/vDJ8CCr2aG0Ms5kxjuaQdZRE5q0IRFfTymMWDP8wL1kWiEetNoRpkF60IY72HanQwYGAzMmuQA=="],
 
     "@pirate/api-client-community-route": ["@pirate/api-client@vendor/api-client/pirate-api-client-0.13.0.tgz", {}, "sha512-rZv0at4d5q7jyzaL/fREbiWdAo5aAOmf2iFM/eqAPDl4PPW29NvFsHmQDaSrZuOu1SKjh4Hr+PH+BPU7vFVZeg=="],
+
+    "@pirate/api-client-handle-sales": ["@pirate/api-client@vendor/api-client/pirate-api-client-0.21.0.tgz", {}, "sha512-G6kwurYFEgRHiwE99W5ktRnbfnYj5CY28mky+CTwvKXRVpyvUmXoLoaWLkLnu/vvG192mInhDiylpyKD3KHriQ=="],
 
     "@pirate/web-solid-ui": ["@pirate/web-solid-ui@workspace:packages/solid-ui"],
 
