@@ -3,10 +3,34 @@ import {
   type DisabledHnsCommunityAppIngressCompositionV2,
   type EnabledHnsCommunityAppIngressCompositionV2,
 } from "./composition.ts";
+import {
+  disabledProductionHnsHandlePersonaIngressCompositionV1,
+  type DisabledHnsHandlePersonaIngressCompositionV1,
+  type EnabledHnsHandlePersonaIngressCompositionV1,
+} from "./handle-composition.ts";
 
 export type HnsWorkerCompositionV2 =
   | EnabledHnsCommunityAppIngressCompositionV2
   | DisabledHnsCommunityAppIngressCompositionV2;
+
+export type HnsHandleWorkerCompositionV1 =
+  | EnabledHnsHandlePersonaIngressCompositionV1
+  | DisabledHnsHandlePersonaIngressCompositionV1;
+
+export async function routeHnsIngressRequest(input: {
+  readonly request: Request;
+  readonly community: HnsWorkerCompositionV2;
+  readonly handle: HnsHandleWorkerCompositionV1;
+  readonly ordinary: (request: Request) => Promise<Response>;
+}): Promise<Response> {
+  const origin = new URL(input.request.url).origin;
+  if (input.handle.enabled && origin === input.handle.ingressOrigin) return input.handle.fetch(input.request);
+  if (input.community.enabled && origin === input.community.ingressOrigin) return input.community.fetch(input.request);
+  const handleRejected = disabledProductionHnsHandlePersonaIngressCompositionV1.rejectReservedHeaders(input.request);
+  if (handleRejected !== null) return handleRejected;
+  const communityRejected = disabledProductionHnsCommunityAppIngressCompositionV2.rejectReservedHeaders(input.request);
+  return communityRejected ?? input.ordinary(input.request);
+}
 
 export async function routeHnsCommunityAppIngressRequest(input: {
   readonly request: Request;

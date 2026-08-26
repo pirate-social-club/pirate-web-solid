@@ -92,6 +92,7 @@ export type HnsIngressFailureReason =
   | "replayed"
   | "authority_unavailable"
   | "access_denied"
+  | "not_found"
   | "upstream_unavailable";
 
 export class HnsIngressFailure extends Error {

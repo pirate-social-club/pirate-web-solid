@@ -5,14 +5,19 @@ import { proxyApiRequest } from "./api/index.ts";
 import { VERIFICATION_CONFIG_PATH, verificationConfigResponse } from "./api/verification-config.ts";
 import {
   disabledProductionHnsCommunityAppIngressCompositionV2,
+  disabledProductionHnsHandlePersonaIngressCompositionV1,
   makeProductionHnsCommunityAppIngressCompositionV2,
-  routeHnsCommunityAppIngressRequest,
+  makeProductionHnsHandlePersonaIngressCompositionV1,
+  routeHnsIngressRequest,
+  type ProductionHnsHandlePersonaIngressCompositionV1,
   type ProductionHnsCommunityAppIngressCompositionV2,
 } from "./hns-ingress/index.ts";
+import { projectPersonaPublicProfile } from "./features/profiles/persona-public-profile/persona-public-profile.model.ts";
 
 export { HnsCommunityAppReplayStoreDO } from "./hns-ingress/replay-store-do.ts";
 
 const hnsCompositionByEnvironment = new WeakMap<object, ProductionHnsCommunityAppIngressCompositionV2>();
+const handleCompositionByEnvironment = new WeakMap<object, ProductionHnsHandlePersonaIngressCompositionV1>();
 
 async function hnsComposition(env: Env): Promise<ProductionHnsCommunityAppIngressCompositionV2> {
   const retained = hnsCompositionByEnvironment.get(env);
@@ -25,6 +30,33 @@ async function hnsComposition(env: Env): Promise<ProductionHnsCommunityAppIngres
     },
   });
   hnsCompositionByEnvironment.set(env, created);
+  return created;
+}
+
+async function handleComposition(env: Env): Promise<ProductionHnsHandlePersonaIngressCompositionV1> {
+  const retained = handleCompositionByEnvironment.get(env);
+  if (retained !== undefined) return retained;
+  const created = await makeProductionHnsHandlePersonaIngressCompositionV1({
+    env,
+    dispatch: {
+      ssr: (request, persona) => {
+        const state = projectPersonaPublicProfile(persona, persona.persona.persona_id);
+        if (state.kind !== "success") throw new Error("invalid public persona projection");
+        return handleRequest(request, {
+          context: {
+            API_NEXT_ORIGIN: env.API_NEXT_ORIGIN,
+            PERSONA_PUBLIC_PROFILE_PREFLIGHT: {
+              personaId: persona.persona.persona_id,
+              state,
+            },
+            CANONICAL_ASSET_ORIGIN: "https://pirate.sc",
+            DISABLE_HYDRATION: true,
+          },
+        });
+      },
+    },
+  });
+  handleCompositionByEnvironment.set(env, created);
   return created;
 }
 
@@ -57,22 +89,19 @@ async function ordinaryRequest(request: Request, env: Env): Promise<Response> {
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
-    if (new URL(request.url).origin !== env.HNS_COMMUNITY_APP_INGRESS_ORIGIN) {
-      return routeHnsCommunityAppIngressRequest({
-        request,
-        composition: disabledProductionHnsCommunityAppIngressCompositionV2,
-        ordinary: (ordinary) => ordinaryRequest(ordinary, env),
-      });
-    }
-    let composition: ProductionHnsCommunityAppIngressCompositionV2;
+    const origin = new URL(request.url).origin;
+    let community: ProductionHnsCommunityAppIngressCompositionV2 = disabledProductionHnsCommunityAppIngressCompositionV2;
+    let handle: ProductionHnsHandlePersonaIngressCompositionV1 = disabledProductionHnsHandlePersonaIngressCompositionV1;
     try {
-      composition = await hnsComposition(env);
+      if (origin === env.HNS_COMMUNITY_APP_INGRESS_ORIGIN) community = await hnsComposition(env);
+      if (origin === env.HNS_HANDLE_HOST_INGRESS_ORIGIN) handle = await handleComposition(env);
     } catch {
       return hnsAssemblyFailureResponse();
     }
-    return routeHnsCommunityAppIngressRequest({
+    return routeHnsIngressRequest({
       request,
-      composition,
+      community,
+      handle,
       ordinary: (ordinary) => ordinaryRequest(ordinary, env),
     });
   },

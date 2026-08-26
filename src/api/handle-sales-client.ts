@@ -12,6 +12,8 @@ export type PublicHandleSalesApiClient = Pick<
   "get_communitiesCommunityIdHandleOfferings"
 >;
 
+export type PublicPersonaApiClient = Pick<PirateApiClient, "get_publicPersonasPersonaId">;
+
 export type SessionHandleSalesApiClient = Pick<
   PirateApiClient,
   | "get_handleClaimsClaimId"
@@ -65,7 +67,7 @@ function createHandleSalesClient(
 
 export function createPublicHandleSalesClient(
   options: HandleSalesClientFactoryOptions = {},
-): PublicHandleSalesApiClient {
+): PublicHandleSalesApiClient & PublicPersonaApiClient {
   return createHandleSalesClient(options, { credentials: "omit" });
 }
 

@@ -12,13 +12,45 @@ import {
   resolvePublicProfilePreflight,
   type PublicProfilePreflight,
 } from "./features/profiles/public-profile-page/public-profile-preflight.ts";
+import {
+  personaPublicProfileResponsePolicy,
+  resolvePersonaPublicProfilePreflight,
+  type PersonaPublicProfilePreflight,
+} from "./features/profiles/persona-public-profile/persona-public-profile-preflight.ts";
 
 export async function render(
   request: Request,
-  context?: { readonly clientEntry?: string; readonly API_NEXT_ORIGIN?: string },
+  context?: {
+    readonly clientEntry?: string;
+    readonly API_NEXT_ORIGIN?: string;
+    readonly PERSONA_PUBLIC_PROFILE_PREFLIGHT?: PersonaPublicProfilePreflight;
+    readonly CANONICAL_ASSET_ORIGIN?: string;
+    readonly DISABLE_HYDRATION?: boolean;
+  },
 ) {
   const event = getRequestEvent();
   const nonce = event?.locals.cspNonce;
+  // SAFETY: Vite's runtime manifest includes the `_base` member used by the
+  // Solid asset resolver even though AssetManifest's public index signature
+  // omits it. Every chunk record is preserved; only that resolver base changes.
+  const renderManifest = (context?.CANONICAL_ASSET_ORIGIN === undefined
+    ? manifest
+    : { ...manifest, _base: `${new URL(context.CANONICAL_ASSET_ORIGIN).origin}/` }) as typeof manifest;
+  const personaPreflight = context?.PERSONA_PUBLIC_PROFILE_PREFLIGHT ??
+    await resolvePersonaPublicProfilePreflight(request, context?.API_NEXT_ORIGIN);
+  if (personaPreflight !== undefined) {
+    if (event !== undefined) {
+      // SAFETY: this request-local key is written and read only as the
+      // PersonaPublicProfilePreflight produced immediately above.
+      const locals = event.locals as typeof event.locals & {
+        personaPublicProfilePreflight?: PersonaPublicProfilePreflight;
+      };
+      locals.personaPublicProfilePreflight = personaPreflight;
+    }
+    const policy = personaPublicProfileResponsePolicy(personaPreflight.state);
+    httpStatus(policy.status, policy.statusText);
+    policy.headers.forEach((value, name) => httpHeader(name, value));
+  }
   const communityPreflight = await resolveCommunityPagePreflight(request, context?.API_NEXT_ORIGIN);
   if (communityPreflight !== undefined) {
     if (event !== undefined) {
@@ -51,7 +83,15 @@ export async function render(
     policy.headers.forEach((value, name) => httpHeader(name, value));
   }
   return renderToStream(
-    () => <Document clientEntry={context?.clientEntry}><App /></Document>,
-    { nonce, manifest },
+    () => (
+      <Document
+        clientEntry={context?.clientEntry}
+        canonicalAssetOrigin={context?.CANONICAL_ASSET_ORIGIN}
+        hydrate={context?.DISABLE_HYDRATION !== true}
+      >
+        <App />
+      </Document>
+    ),
+    { nonce, manifest: renderManifest },
   );
 }

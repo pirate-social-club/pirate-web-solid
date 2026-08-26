@@ -1,4 +1,4 @@
-# HNS community application ingress references
+# HNS Solid ingress references
 
 The Worker contains a production-capable external-community ingress graph, but
 base, staging, and production remain explicitly disabled. The declarations in
@@ -19,6 +19,25 @@ It must replace every unresolved HNS value in that environment and change
 Staging and production canonical origins, api-next origins, Access resources,
 Privy applications, gateway references, forwarder keys, and replay namespaces
 must never be mixed.
+
+The public community-handle composition is a separate, read-only graph. It is
+also disabled in every declared environment. It has no replay binding, browser
+session, API proxy credential, write path, or asset path. Its protected Solid
+boundary uses `HNS_HANDLE_HOST_INGRESS_ORIGIN`,
+`HNS_HANDLE_HOST_ACCESS_ISSUER`, `HNS_HANDLE_HOST_ACCESS_JWKS_URL`, and
+`HNS_HANDLE_HOST_ACCESS_AUDIENCE`. Canonical profile metadata and rendering
+use `HNS_HANDLE_HOST_CANONICAL_ORIGIN`, which v1 requires to be exactly
+`https://pirate.sc`.
+
+The handle composition reads public persona data anonymously from
+`HNS_HANDLE_HOST_PUBLIC_API_ORIGIN`. Its only protected api-next call is the
+current-authority endpoint selected by `HNS_HANDLE_HOST_AUTHORITY_ORIGIN` and
+`HNS_HANDLE_HOST_GATEWAY_DEPLOYMENT_REFERENCE`, using the secret bindings
+`HNS_HANDLE_HOST_AUTHORITY_ACCESS_CLIENT_ID` and
+`HNS_HANDLE_HOST_AUTHORITY_ACCESS_CLIENT_SECRET`. Enabling the graph requires
+all of those values in one reviewed deployment. The source configuration and
+this document create no Access application, service token, route, secret,
+deployment, DNS record, certificate, or HNS authority.
 
 The protected Solid ingress uses the nonsecret references
 `HNS_COMMUNITY_APP_INGRESS_ORIGIN`, `HNS_COMMUNITY_APP_ACCESS_ISSUER`,
