@@ -358,16 +358,12 @@ export class MediaSubmissionCoordinator {
     return result;
   }
 
-  async bindLyrics(lyrics: string, mode: "accept_asr" | "paste" | "correct"): Promise<MediaSubmissionSnapshot> {
+  async bindLyrics(lyrics: string, mode: "paste" | "correct"): Promise<MediaSubmissionSnapshot> {
     await this.reconcilePending();
     const snapshot = await this.refresh();
     if (snapshot === null || snapshot.audio_revision < 1 || terminal(snapshot)) throw new Error("Lyrics cannot be bound before audio finalization");
     let baseTranscriptRevision: number | null = null;
-    if (mode === "accept_asr") {
-      const suggestion = snapshot.lyrics_state.asr_suggestion;
-      if (suggestion.status !== "ready") throw new Error("An ASR suggestion is not ready");
-      baseTranscriptRevision = suggestion.transcript_revision;
-    } else if (mode === "correct" && snapshot.lyrics_state.current.status === "ready") {
+    if (mode === "correct" && snapshot.lyrics_state.current.status === "ready") {
       baseTranscriptRevision = snapshot.lyrics_state.current.base_transcript_revision;
     }
     const commandKey = this.createId();

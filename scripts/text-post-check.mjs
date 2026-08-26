@@ -41,6 +41,30 @@ function userFixture() {
   };
 }
 
+function personasFixture() {
+  return {
+    personas: [{
+      persona_id: "persona-text-e2e",
+      object: "persona",
+      status: "active",
+      profile: {
+        persona_id: "persona-text-e2e",
+        object: "persona_profile",
+        revision: 1,
+        display_name: "Text fixture persona",
+        avatar_ref: null,
+        cover_ref: null,
+        bio: null,
+        preferred_locale: null,
+        primary_public_handle: "text-fixture",
+      },
+      wallet_set: { evm: null },
+      created_at: "2026-08-26T00:00:00.000Z",
+      retired_at: null,
+    }],
+  };
+}
+
 function submission(status, community) {
   const base = {
     submission_id: `submission-${community}`,
@@ -82,9 +106,15 @@ const upstream = createServer(async (incoming, outgoing) => {
       return;
     }
     if (pathname === "/users/me") {
-      sessionRequests.push({ method: incoming.method, cookie: incoming.headers.cookie });
+      sessionRequests.push({ path: pathname, method: incoming.method, cookie: incoming.headers.cookie });
       outgoing.writeHead(200, { "content-type": "application/json" });
       outgoing.end(JSON.stringify(userFixture()));
+      return;
+    }
+    if (pathname === "/personas") {
+      sessionRequests.push({ path: pathname, method: incoming.method, cookie: incoming.headers.cookie });
+      outgoing.writeHead(200, { "content-type": "application/json" });
+      outgoing.end(JSON.stringify(personasFixture()));
       return;
     }
     const match = /^\/communities\/([^/]+)\/posts$/u.exec(pathname);
@@ -278,6 +308,12 @@ try {
   assert(lostAttempts.length === 2, `expected two lost-response attempts, received ${lostAttempts.length}`);
   assert(lostAttempts[0] === lostAttempts[1], "lost-response reload did not resend byte-identical JSON");
   assert(requests.length === 6, `expected six text POSTs, received ${requests.length}`);
+  assert(sessionRequests.some(request => request.path === "/users/me"), "session resolution skipped GET /users/me");
+  assert(sessionRequests.some(request => request.path === "/personas"), "session resolution skipped GET /personas");
+  for (const request of sessionRequests) {
+    assert(request.method === "GET", `${request.path} changed the session request method`);
+    assert(request.cookie?.includes("pirate_session_fixture=session-text-e2e"), `${request.path} lost the session cookie`);
+  }
   for (const request of requests) {
     assert(request.cookie?.includes("pirate_session_fixture=session-text-e2e"), `${request.community} lost the session cookie`);
     assert(request.csrf === "csrf-text-e2e", `${request.community} lost the CSRF header`);

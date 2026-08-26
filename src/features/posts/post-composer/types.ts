@@ -394,6 +394,8 @@ export interface PostComposerProps extends Partial<PostComposerDraftState>, Post
   submitError?: string | null;
   submitLabel?: string;
   submitLoading?: boolean;
+  // Set false when a production boundary retains its own validation and error copy.
+  validateDraftBeforeSubmit?: boolean;
   // Storybook-only seed for reviewing a specific composer panel. Production
   // callers leave panels closed and open them from the composer controls.
   initialOpenPanel?: "access-and-rights" | "visibility";

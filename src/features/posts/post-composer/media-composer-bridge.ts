@@ -69,7 +69,9 @@ export interface SongComposerSnapshotProjection {
 export function projectSnapshotIntoSongComposer(snapshot: MediaSubmissionSnapshot): SongComposerSnapshotProjection {
   const projection = projectSongAnalysis(snapshot).lyricsEditor;
   switch (projection.status) {
-    case "asr_ready": return { lyricsValue: projection.text, song: { lyricsEditorState: "ready" } };
+    // ASR is private safety evidence. Readiness unlocks an empty author-owned
+    // editor but never projects transcript text into the composer.
+    case "asr_ready": return { song: { lyricsEditorState: "ready" } };
     case "accepted": return { lyricsValue: projection.text, song: { lyricsEditorState: "ready" } };
     case "no_speech": return { song: { lyricsEditorState: "no_speech" } };
     case "unavailable": return { song: { lyricsEditorState: "unavailable" } };
@@ -78,16 +80,14 @@ export function projectSnapshotIntoSongComposer(snapshot: MediaSubmissionSnapsho
 }
 
 export async function submitComposerLyrics(
-  coordinator: MediaSubmissionCoordinator,
+  coordinator: Pick<MediaSubmissionCoordinator, "bindLyrics">,
   snapshot: MediaSubmissionSnapshot,
   lyrics: string,
 ): Promise<MediaSubmissionSnapshot> {
   const current = snapshot.lyrics_state.current;
   if (current.status === "ready" && current.text !== lyrics) return coordinator.bindLyrics(lyrics, "correct");
-  const suggestion = snapshot.lyrics_state.asr_suggestion;
-  if (current.status === "not_bound" && suggestion.status === "ready" && suggestion.text === lyrics) {
-    return coordinator.bindLyrics(lyrics, "accept_asr");
-  }
+  // First publication is always explicit author text, even if it happens to
+  // match the private transcript evidence byte-for-byte.
   if (current.status === "not_bound") return coordinator.bindLyrics(lyrics, "paste");
   return snapshot;
 }

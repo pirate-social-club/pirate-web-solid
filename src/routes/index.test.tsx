@@ -118,7 +118,7 @@ describe("public-first home route", () => {
   test("authenticated resolution swaps public discovery for home", async () => {
     const container = render(() => (
       <HomeRoute
-        resolveSession={async () => ({ status: "authenticated", userId: "user-1" })}
+        resolveSession={async () => ({ status: "authenticated", userId: "user-1", personas: [] })}
         publicData={page("Public discovery")}
         homeData={page("Personal home")}
       />
@@ -164,7 +164,7 @@ describe("public-first home route", () => {
     expect(open).not.toHaveBeenCalled();
     expect(document.body.querySelector("[role='dialog']")).toBeNull();
 
-    resolveSession({ status: "authenticated", userId: "user-one" });
+    resolveSession({ status: "authenticated", userId: "user-one", personas: [] });
     await vi.waitFor(() => expect(open).toHaveBeenCalled());
     expect(open.mock.calls.some(([name]) => name === "pirate-post-composer-v2:principal:user-one")).toBe(true);
     const createPost = [...container.querySelectorAll("button")]

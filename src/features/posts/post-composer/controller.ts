@@ -142,31 +142,35 @@ export function createPostComposerController(
 
   const visibleTabs = () => availableTabs().filter((tab) => tab !== "song" || canCreateSongPost());
 
-  const [activeTab, setActiveTab] = createSignal<ComposerTab>(visibleTabs()[0] ?? "text");
-  const [uncontrolledTitleValue, setUncontrolledTitleValue] = createSignal(providedTitleValue());
-  const [uncontrolledTextBodyValue, setUncontrolledTextBodyValue] = createSignal(providedTextBodyValue());
-  const [uncontrolledCaptionValue, setUncontrolledCaptionValue] = createSignal(providedCaptionValue());
-  const [uncontrolledLyricsValue, setUncontrolledLyricsValue] = createSignal(providedLyricsValue());
-  const [uncontrolledLinkUrlValue, setUncontrolledLinkUrlValue] = createSignal(providedLinkUrlValue());
-  const [uncontrolledLinkPreview, setUncontrolledLinkPreview] = createSignal(props.linkPreview);
+  // These signals synchronize controlled props from effect apply phases.
+  const [activeTab, setActiveTab] = createSignal<ComposerTab>(visibleTabs()[0] ?? "text", { ownedWrite: true });
+  const [uncontrolledTitleValue, setUncontrolledTitleValue] = createSignal(providedTitleValue(), { ownedWrite: true });
+  const [uncontrolledTextBodyValue, setUncontrolledTextBodyValue] = createSignal(providedTextBodyValue(), { ownedWrite: true });
+  const [uncontrolledCaptionValue, setUncontrolledCaptionValue] = createSignal(providedCaptionValue(), { ownedWrite: true });
+  const [uncontrolledLyricsValue, setUncontrolledLyricsValue] = createSignal(providedLyricsValue(), { ownedWrite: true });
+  const [uncontrolledLinkUrlValue, setUncontrolledLinkUrlValue] = createSignal(providedLinkUrlValue(), { ownedWrite: true });
+  const [uncontrolledLinkPreview, setUncontrolledLinkPreview] = createSignal(props.linkPreview, { ownedWrite: true });
   const [uncontrolledSongMode, setUncontrolledSongMode] = createSignal<SongMode>(songMode() ?? "original");
   const [uncontrolledSongState, setUncontrolledSongState] = createSignal<SongComposerState>(defaultSongState(song()));
   const [uncontrolledLicenseState, setUncontrolledLicenseState] = createSignal<AssetLicenseState>(defaultAssetLicenseState(license()));
   const [uncontrolledRoyaltySplitState, setUncontrolledRoyaltySplitState] = createSignal<AssetRoyaltySplitState>(
     defaultAssetRoyaltySplitState(royaltySplit(), props.currentPersonaId),
+    { ownedWrite: true },
   );
   const [uncontrolledVideoState, setUncontrolledVideoState] = createSignal<VideoComposerState>(defaultVideoState(video()));
   const [uncontrolledImageUpload, setUncontrolledImageUpload] = createSignal<File | null>(imageUpload() ?? null);
-  const [identityMode, setIdentityMode] = createSignal<IdentityMode>(identity()?.identityMode ?? "public");
-  const [authorMode, setAuthorMode] = createSignal<AuthorMode>(identity()?.authorMode ?? "human");
+  const [identityMode, setIdentityMode] = createSignal<IdentityMode>(identity()?.identityMode ?? "public", { ownedWrite: true });
+  const [authorMode, setAuthorMode] = createSignal<AuthorMode>(identity()?.authorMode ?? "human", { ownedWrite: true });
   const [selectedQualifierIds, setSelectedQualifierIds] = createSignal<string[]>(
     identity() ? deriveSelectedQualifierIds(identity()!) : [],
+    { ownedWrite: true },
   );
   const [uncontrolledMonetizationState, setUncontrolledMonetizationState] = createSignal<MonetizationState>(
     defaultMonetizationState(monetization()),
   );
   const [uncontrolledCharityContribution, setUncontrolledCharityContribution] = createSignal<CharityContributionState>(
     defaultCharityContributionState(charityContribution()),
+    { ownedWrite: true },
   );
   const [uncontrolledAudienceState, setUncontrolledAudienceState] = createSignal<ComposerAudienceState>(
     defaultAudienceState(audience()),
@@ -177,10 +181,10 @@ export function createPostComposerController(
   const [uncontrolledDerivativeState, setUncontrolledDerivativeState] = createSignal<DerivativeStepState | undefined>(
     derivativeStep(),
   );
-  const [derivativePickerKey, setDerivativePickerKey] = createSignal(0);
-  const [liveState, setLiveState] = createSignal<LiveComposerState>(defaultLiveComposerState(live()));
-  const [eventState, setEventState] = createSignal<ComposerEventState>(defaultEventState(event()));
-  const [prevRoomKind, setPrevRoomKind] = createSignal<LiveRoomKind>(liveState().roomKind);
+  const [derivativePickerKey, setDerivativePickerKey] = createSignal(0, { ownedWrite: true });
+  const [liveState, setLiveState] = createSignal<LiveComposerState>(defaultLiveComposerState(live()), { ownedWrite: true });
+  const [eventState, setEventState] = createSignal<ComposerEventState>(defaultEventState(event()), { ownedWrite: true });
+  const [prevRoomKind, setPrevRoomKind] = createSignal<LiveRoomKind>(liveState().roomKind, { ownedWrite: true });
   const [uncontrolledFileState, setUncontrolledFileState] = createSignal<DownloadFileComposerState>(
     defaultDownloadFileState(fileProp()),
   );
@@ -407,10 +411,12 @@ export function createPostComposerController(
       || songTitleMissing(),
   );
   const postDisabled = () => basePostDisabled()
-    || contentBlocked()
-    || songAudioMissing()
-    || ((activeTab() !== "song" && activeTab() !== "live") && !draftCanSubmit())
-    || (activeTab() === "live" && !draftCanSubmit());
+    || (props.validateDraftBeforeSubmit !== false && (
+      contentBlocked()
+      || songAudioMissing()
+      || ((activeTab() !== "song" && activeTab() !== "live") && !draftCanSubmit())
+      || (activeTab() === "live" && !draftCanSubmit())
+    ));
 
   const updateMonetizationState = (updater: (current: MonetizationState) => MonetizationState) => {
     const next = updater(monetizationState());

@@ -39,7 +39,7 @@ export function getMediaAspectRatioStyle(aspectRatio: number | undefined): { "as
 }
 
 export function createObjectUrl(file: Accessor<File | null | undefined>): Accessor<string | undefined> {
-  const [objectUrl, setObjectUrl] = createSignal<string | undefined>();
+  const [objectUrl, setObjectUrl] = createSignal<string | undefined>(undefined, { ownedWrite: true });
 
   createEffect(
     () => file(),
@@ -58,7 +58,7 @@ export function createObjectUrl(file: Accessor<File | null | undefined>): Access
 }
 
 export function createVideoSourceAspectRatio(src: Accessor<string | undefined>): Accessor<number | undefined> {
-  const [aspectRatio, setAspectRatio] = createSignal<number | undefined>();
+  const [aspectRatio, setAspectRatio] = createSignal<number | undefined>(undefined, { ownedWrite: true });
 
   createEffect(
     () => src(),
@@ -97,7 +97,7 @@ export function createVideoSourceAspectRatio(src: Accessor<string | undefined>):
 
 // First-frame poster for the write-step video attachment card.
 export function createVideoPosterUrl(file: Accessor<File | null | undefined>): Accessor<string | undefined> {
-  const [posterUrl, setPosterUrl] = createSignal<string | undefined>();
+  const [posterUrl, setPosterUrl] = createSignal<string | undefined>(undefined, { ownedWrite: true });
 
   createEffect(
     () => file(),
@@ -129,7 +129,7 @@ export function createVideoPosterFrameUrl(
   file: Accessor<File | null | undefined>,
   frameSeconds: Accessor<string | undefined>,
 ): Accessor<string | undefined> {
-  const [posterUrl, setPosterUrl] = createSignal<string | undefined>();
+  const [posterUrl, setPosterUrl] = createSignal<string | undefined>(undefined, { ownedWrite: true });
   let previousFile: File | null | undefined;
 
   createEffect(
@@ -164,7 +164,7 @@ export function createVideoPosterFrameUrl(
 }
 
 export function createKeyboardBottomOffset(): Accessor<number> {
-  const [offset, setOffset] = createSignal(0);
+  const [offset, setOffset] = createSignal(0, { ownedWrite: true });
 
   createEffect(
     () => typeof window === "undefined" ? null : window.visualViewport,
@@ -202,9 +202,9 @@ export interface LocalAudioPreview {
 // React useLocalAudioPreview.
 export function createLocalAudioPreview(src: Accessor<string | undefined>): LocalAudioPreview {
   const audio = typeof Audio === "undefined" ? null : new Audio();
-  const [state, setState] = createSignal<PlaybackState>("idle");
-  const [progressMs, setProgressMs] = createSignal(0);
-  const [durationMs, setDurationMs] = createSignal<number | undefined>();
+  const [state, setState] = createSignal<PlaybackState>("idle", { ownedWrite: true });
+  const [progressMs, setProgressMs] = createSignal(0, { ownedWrite: true });
+  const [durationMs, setDurationMs] = createSignal<number | undefined>(undefined, { ownedWrite: true });
 
   if (audio) {
     const handlePlay = () => setState("playing");

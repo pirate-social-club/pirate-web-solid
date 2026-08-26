@@ -5,10 +5,19 @@ import type { ApiFetch } from "./proxy.ts";
 export interface AuthenticatedSession {
   readonly status: "authenticated";
   readonly userId: string;
+  readonly personas: readonly ActivePersonaPublicProjection[];
+}
+
+/** Public persona fields retained by the shell after authenticated discovery. */
+export interface ActivePersonaPublicProjection {
+  readonly personaId: string;
+  readonly displayName: string | null;
+  readonly avatarRef: string | null;
+  readonly primaryPublicHandle: string | null;
 }
 
 export type SessionResolution = "anonymous" | AuthenticatedSession;
-export type SessionResolutionClient = Pick<PirateApiClient, "get_usersMe">;
+export type SessionResolutionClient = Pick<PirateApiClient, "get_usersMe" | "get_personas">;
 
 export interface SessionResolutionOptions {
   readonly client?: SessionResolutionClient;
@@ -41,7 +50,16 @@ export async function resolveSession(options: SessionResolutionOptions = {}): Pr
   });
   try {
     const user = await client.get_usersMe(undefined);
-    return { status: "authenticated", userId: user.id };
+    const response = await client.get_personas(undefined);
+    const personas = response.personas
+      .filter(persona => persona.status === "active")
+      .map(persona => ({
+        personaId: persona.persona_id,
+        displayName: persona.profile.display_name,
+        avatarRef: persona.profile.avatar_ref,
+        primaryPublicHandle: persona.profile.primary_public_handle,
+      }));
+    return { status: "authenticated", userId: user.id, personas };
   } catch (error) {
     if (error instanceof ApiClientError && error.status === 401) return "anonymous";
     throw error;

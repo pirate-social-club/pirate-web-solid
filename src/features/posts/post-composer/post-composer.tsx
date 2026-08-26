@@ -37,7 +37,7 @@ export function PostComposer(props: PostComposerProps) {
           class="h-11 min-w-0 px-4"
           compact={controller.isMobile()}
           controller={controller}
-          label={controller.copy.actions.post}
+          label={controller.submit.label}
           onClick={requestPost}
         />
       </header>

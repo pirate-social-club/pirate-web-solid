@@ -14,6 +14,7 @@ import {
   IconUsersThree,
   Type,
 } from "../../../design-system";
+import type { ActivePersonaPublicProjection } from "../../../api/session.ts";
 import { SignInModal } from "../../auth/sign-in-modal.tsx";
 import { createSignInSession } from "../../auth/sign-in-session.ts";
 import { CreatePostDialog } from "../../posts/post-composer/create-post-dialog.tsx";
@@ -35,6 +36,7 @@ export interface MediaShellProps {
   readonly activeItemId?: MediaShellRoute;
   readonly signedIn?: boolean;
   readonly principalId?: string;
+  readonly personas?: readonly ActivePersonaPublicProjection[];
   readonly class?: string;
 }
 
@@ -146,6 +148,7 @@ export function MediaShell(props: MediaShellProps) {
       {(principalId) => <CreatePostDialog
         open={composerOpen()}
         onOpenChange={setComposerOpen}
+        personas={props.personas ?? []}
         principalId={principalId()}
       />}
     </Show>
