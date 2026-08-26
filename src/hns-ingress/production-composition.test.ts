@@ -16,7 +16,7 @@ function enabledEnv(): ProductionHnsCommunityAppIngressEnvV2 {
     HNS_COMMUNITY_APP_ACCESS_ISSUER: "https://pirate-test.cloudflareaccess.com",
     HNS_COMMUNITY_APP_ACCESS_JWKS_URL: "https://pirate-test.cloudflareaccess.com/cdn-cgi/access/certs",
     HNS_COMMUNITY_APP_ACCESS_AUDIENCE: "solid-ingress-audience-01",
-    HNS_COMMUNITY_APP_AUTHORITY_ORIGIN: "https://authority-hns-ingress.test",
+    HNS_COMMUNITY_APP_AUTHORITY_ORIGIN: "https://api-hns-ingress.test",
     HNS_COMMUNITY_APP_GATEWAY_DEPLOYMENT_REFERENCE: "gateway-deployment-01",
     HNS_FORWARDER_V3_KEY_REGISTRY_REFERENCE: "solid-forwarder-keys",
     HNS_FORWARDER_V3_KEY_REGISTRY_VERSION: "2026-08-26-v1",
@@ -59,7 +59,7 @@ describe("production HNS ingress assembly", () => {
     expect(composition.enabled).toBe(false);
   });
 
-  it("assembles one exact protected origin with isolated credentials and durable replay", async () => {
+  it("assembles one shared protected origin with isolated credentials and durable replay", async () => {
     const composition = await makeProductionHnsCommunityAppIngressCompositionV2({
       env: enabledEnv(),
       dispatch,
@@ -83,10 +83,33 @@ describe("production HNS ingress assembly", () => {
       makeProductionHnsCommunityAppIngressCompositionV2({ env: reused, dispatch }),
     ).rejects.toMatchObject({ reason: "misconfigured" });
 
+    const reusedSecret = {
+      ...enabledEnv(),
+      HNS_COMMUNITY_APP_AUTHORITY_ACCESS_CLIENT_SECRET: "api-client-secret-01",
+    };
+    await expect(
+      makeProductionHnsCommunityAppIngressCompositionV2({ env: reusedSecret, dispatch }),
+    ).rejects.toMatchObject({ reason: "misconfigured" });
+
     const noncanonical = { ...enabledEnv(), HNS_FORWARDER_V3_FRESHNESS_WINDOW_SECONDS: "060" };
     await expect(
       makeProductionHnsCommunityAppIngressCompositionV2({ env: noncanonical, dispatch }),
     ).rejects.toMatchObject({ reason: "misconfigured" });
+  });
+
+  it("keeps the ingress origin distinct from every canonical and protected boundary", async () => {
+    for (const override of [
+      { HNS_COMMUNITY_APP_CANONICAL_ORIGIN: "https://solid-hns-ingress.test" },
+      { HNS_COMMUNITY_APP_API_ORIGIN: "https://solid-hns-ingress.test" },
+      { HNS_COMMUNITY_APP_AUTHORITY_ORIGIN: "https://solid-hns-ingress.test" },
+    ]) {
+      await expect(
+        makeProductionHnsCommunityAppIngressCompositionV2({
+          env: { ...enabledEnv(), ...override },
+          dispatch,
+        }),
+      ).rejects.toMatchObject({ reason: "misconfigured" });
+    }
   });
 
   it("redacts credential and registry material from configuration errors", async () => {

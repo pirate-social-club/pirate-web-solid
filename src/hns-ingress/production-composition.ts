@@ -111,8 +111,7 @@ export async function makeProductionHnsCommunityAppIngressCompositionV2(input: {
     if (
       ingressOrigin === canonicalOrigin ||
       ingressOrigin === apiOrigin ||
-      ingressOrigin === authorityOrigin ||
-      apiOrigin === authorityOrigin
+      ingressOrigin === authorityOrigin
     ) {
       throw new HnsIngressFailure("misconfigured");
     }

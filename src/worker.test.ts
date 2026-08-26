@@ -54,7 +54,7 @@ function resolveEnvironment(environment: ReturnType<typeof enabledMisconfiguredE
   environment.HNS_COMMUNITY_APP_ACCESS_JWKS_URL =
     "https://pirate-test.cloudflareaccess.com/cdn-cgi/access/certs";
   environment.HNS_COMMUNITY_APP_ACCESS_AUDIENCE = "solid-ingress-audience-01";
-  environment.HNS_COMMUNITY_APP_AUTHORITY_ORIGIN = "https://authority-hns-ingress.test";
+  environment.HNS_COMMUNITY_APP_AUTHORITY_ORIGIN = "https://api-hns-ingress.test";
   environment.HNS_COMMUNITY_APP_GATEWAY_DEPLOYMENT_REFERENCE = "gateway-deployment-01";
   environment.HNS_FORWARDER_V3_KEY_REGISTRY_REFERENCE = "solid-forwarder-keys";
   environment.HNS_FORWARDER_V3_KEY_REGISTRY_VERSION = "2026-08-26-v1";

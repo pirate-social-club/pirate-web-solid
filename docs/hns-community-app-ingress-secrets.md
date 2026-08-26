@@ -39,7 +39,11 @@ The private current-authority boundary uses
 `HNS_COMMUNITY_APP_GATEWAY_DEPLOYMENT_REFERENCE`, and the distinct secret
 bindings `HNS_COMMUNITY_APP_AUTHORITY_ACCESS_CLIENT_ID` and
 `HNS_COMMUNITY_APP_AUTHORITY_ACCESS_CLIENT_SECRET`. Runtime configuration
-rejects reuse of the protected-api token pair for this boundary.
+rejects reuse of either protected-api credential for this boundary. The API
+and current-authority paths may share one exact protected api-next origin and
+one pinned Access audience. Their service-token client ids and secrets remain
+pairwise different so Access policy can grant and revoke the two callers
+independently.
 
 Forwarder-v3 verification uses
 `HNS_FORWARDER_V3_KEY_REGISTRY_REFERENCE`,
