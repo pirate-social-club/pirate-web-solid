@@ -21,6 +21,7 @@ export default defineConfig({
     // loaded by Vitest. Add a suite here once it imports Vitest's API.
     include: [
       "src/routes/index.test.tsx",
+      "src/features/auth/sign-in-model.test.ts",
       "src/routes/verify/very.test.tsx",
       "src/features/communities/community-page/community-page.model.test.ts",
       "src/features/communities/community-page/community-page.test.tsx",

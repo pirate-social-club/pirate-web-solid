@@ -14,7 +14,8 @@ import {
   IconUsersThree,
   Type,
 } from "../../../design-system";
-import { SignInDialog } from "../../auth/sign-in-dialog.tsx";
+import { SignInModal } from "../../auth/sign-in-modal.tsx";
+import { createSignInSession } from "../../auth/sign-in-session.ts";
 import { CreatePostDialog } from "../../posts/post-composer/create-post-dialog.tsx";
 import { AppHeader, MobileFooterNav } from "../app-shell-chrome/app-shell-chrome";
 import { AppSidebar, SidebarContent, type SidebarItem, type SidebarSection } from "../app-sidebar/app-sidebar";
@@ -105,6 +106,7 @@ export function MediaShell(props: MediaShellProps) {
     setAuthOpen(false);
     navigate("home");
   };
+  const signInSession = createSignInSession({ enabled: authOpen, onAuthenticated: completeAuth });
 
   return <div data-media-shell data-shell-auth={signedIn() ? "authenticated" : "anonymous"} class={`min-h-screen bg-background text-foreground ${props.class ?? ""}`}>
     <div class="flex min-h-screen">
@@ -139,7 +141,7 @@ export function MediaShell(props: MediaShellProps) {
         <MobileFooterNav class="md:hidden" forceMobile activeItem="home" onHomeClick={goHome} />
       </SidebarContent>
     </div>
-    <SignInDialog open={authOpen()} onAuthenticated={completeAuth} onOpenChange={setAuthOpen} />
+    <SignInModal open={authOpen()} onOpenChange={setAuthOpen} session={signInSession} />
     <Show when={props.principalId}>
       {(principalId) => <CreatePostDialog
         open={composerOpen()}

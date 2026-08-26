@@ -141,7 +141,7 @@ export {
   Spinner,
   Switch,
 } from "@pirate/web-solid-ui";
-export { BadgedCircle } from "@pirate/web-solid-ui";
+export { BadgedCircle, PirateBrandMark } from "@pirate/web-solid-ui";
 export {
   CommentPill,
   FormattedTextarea,
