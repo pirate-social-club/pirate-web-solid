@@ -416,8 +416,20 @@ export {
   type FormSectionHeadingProps,
 } from "./patterns/forms/form-layout/form-layout";
 export {
+  ListRow,
+  listRowVariants,
+  type ListRowProps,
+} from "./patterns/forms/list-row/list-row";
+export {
+  MediaUploadField,
+  type MediaUploadFieldProps,
+  type MediaUploadFrame,
+} from "./patterns/forms/media-upload-field/media-upload-field";
+export {
   OptionCard,
+  OptionCardGroup,
   optionCardVariants,
+  type OptionCardGroupProps,
   type OptionCardProps,
 } from "./patterns/forms/option-card/option-card";
 export {

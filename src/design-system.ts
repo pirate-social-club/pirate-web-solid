@@ -65,6 +65,10 @@ export {
   Chip,
   Combobox,
   FormSectionHeading,
+  ListRow,
+  MediaUploadField,
+  OptionCard,
+  OptionCardGroup,
   Modal,
   ModalContent,
   ModalDescription,
@@ -104,6 +108,7 @@ export {
 export {
   Avatar,
   Checkbox,
+  CheckboxCard,
   CheckboxLabel,
   DialogFooter,
   FormFieldLabel,

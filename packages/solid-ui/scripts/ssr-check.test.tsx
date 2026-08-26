@@ -24,7 +24,7 @@ import {
 import { CheckboxCard } from "@/patterns/forms/checkbox-card/checkbox-card";
 import { CopyField } from "@/patterns/forms/copy-field/copy-field";
 import { FormFieldLabel } from "@/patterns/forms/form-layout/form-layout";
-import { OptionCard } from "@/patterns/forms/option-card/option-card";
+import { OptionCard, OptionCardGroup } from "@/patterns/forms/option-card/option-card";
 import {
   AlertDialog,
   AlertDialogContent,
@@ -390,7 +390,9 @@ describe("SSR smoke", () => {
             placeholder="Search songs"
           />
           <CheckboxCard title="Accept terms" />
-          <OptionCard title="Monthly" />
+          <OptionCardGroup label="Billing cadence" value="monthly">
+            <OptionCard title="Monthly" value="monthly" />
+          </OptionCardGroup>
           <FormFieldLabel htmlFor="name" label="Display name" />
           <CopyField value="0x1234" copyLabel="address" />
         </>

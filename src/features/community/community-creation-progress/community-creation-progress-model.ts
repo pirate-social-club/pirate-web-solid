@@ -1,3 +1,5 @@
+import type { GeneratedLocaleCatalogs } from "../../../locales/generated";
+
 export const CREATION_STATUSES = [
   "draft",
   "verification_required",
@@ -51,9 +53,11 @@ export interface HumanIdentityProgress {
 
 /**
  * A narrow projection of the full creation intent, shaped for the progress
- * view. It intentionally omits wire fields the UI does not render, including
- * the draft, canonical policy hash and revision, requirement_hash, persona role
- * presentation, and the committed resource payload.
+ * view. It carries `revision` because every mutating command needs it for
+ * optimistic concurrency, even though the number is never rendered. It omits
+ * wire fields the UI neither renders nor sends: the draft, the canonical policy
+ * hash, requirement_hash, persona role presentation, and the committed resource
+ * payload.
  */
 export interface CommunityCreationIntentView {
   intentId: string;
@@ -108,47 +112,32 @@ export function applyIntentUpdate(
   return { kind: "updated", intent: { ...intent, ...patch, revision: intent.revision + 1 } };
 }
 
-export const creationProgressCopy = {
-  title: "Community creation",
-  statusLabels: {
-    draft: "Draft",
-    verification_required: "Verify your identity",
-    commit_ready: "Ready to commit",
-    committed: "Community created",
-    quota_exceeded: "Creation blocked",
-    gate_unsupported: "Gate not supported",
-    expired: "Creation expired",
-    cancelled: "Creation cancelled",
-  } satisfies Record<CreationStatus, string>,
-  identityHeading: "Human identity",
-  identityStatusLabels: {
-    unmet: "Not verified",
-    pending: "Verification in progress",
-    satisfied: "Verified",
-    failed: "Verification failed",
-    expired: "Verification expired",
-  } satisfies Record<HumanIdentityStatus, string>,
-  providerLabel: "Provider",
-  generationLabel: "Attempt",
-  startVerification: "Start verification",
-  commit: "Commit community",
-  retry: "Retry",
-  viewCommunity: "View community",
-  waitReasonLabels: {
-    verification_pending: "Identity verification is still in progress.",
-    membership_pending: "Waiting for membership confirmation.",
-    operation_pending: "A background operation is still running.",
-    reconciliation_pending: "Reconciling your account.",
-  } satisfies Record<WaitReasonCode, string>,
-  retryAfterPrefix: "Retry in",
-  revisionPrefix: "Revision",
-  quotaExceededBody: "You've reached the limit of communities you can create.",
-  gateUnsupportedBody: "A selected gate isn't supported by the current provider.",
-  expiredBody: "This creation draft expired. Start a new community to continue.",
-  cancelledBody: "This creation was cancelled.",
-  committedBody: "Your community is live.",
-  staleTitle: "This creation changed",
-  staleBody: "The creation was updated by another action. Review the latest revision and try again.",
-  staleExpectedLabel: "You were editing revision",
-  staleLatestLabel: "the latest is revision",
-} as const;
+export type CreationProgressCopy = {
+  [Key in keyof GeneratedLocaleCatalogs["en"]["routes"]["communityCreationProgress"]]: string;
+};
+
+export const CREATION_STATUS_COPY_KEYS = {
+  draft: "statusDraft",
+  verification_required: "statusVerificationRequired",
+  commit_ready: "statusCommitReady",
+  committed: "statusCommitted",
+  quota_exceeded: "statusQuotaExceeded",
+  gate_unsupported: "statusGateUnsupported",
+  expired: "statusExpired",
+  cancelled: "statusCancelled",
+} as const satisfies Record<CreationStatus, keyof CreationProgressCopy>;
+
+export const HUMAN_IDENTITY_COPY_KEYS = {
+  unmet: "identityUnmet",
+  pending: "identityPending",
+  satisfied: "identitySatisfied",
+  failed: "identityFailed",
+  expired: "identityExpired",
+} as const satisfies Record<HumanIdentityStatus, keyof CreationProgressCopy>;
+
+export const WAIT_REASON_COPY_KEYS = {
+  verification_pending: "waitVerificationPending",
+  membership_pending: "waitMembershipPending",
+  operation_pending: "waitOperationPending",
+  reconciliation_pending: "waitReconciliationPending",
+} as const satisfies Record<WaitReasonCode, keyof CreationProgressCopy>;

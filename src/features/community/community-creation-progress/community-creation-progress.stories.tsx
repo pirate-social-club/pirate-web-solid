@@ -5,6 +5,7 @@ import { expect, userEvent, within } from "storybook/test";
 import { Type } from "@pirate/web-solid-ui";
 import {
   CommunityCreationProgressView,
+  type StartVerificationInput,
 } from "./community-creation-progress";
 import {
   createIntent,
@@ -35,8 +36,12 @@ function ProgressStory(props: { committing?: boolean; intent: CommunityCreationI
   const [attempts, setAttempts] = createSignal(0);
   const [viewed, setViewed] = createSignal(0);
   const [lastCommitRevision, setLastCommitRevision] = createSignal(0);
+  const [lastStart, setLastStart] = createSignal("none");
 
-  const startVerification = () => setAttempts((count) => count + 1);
+  const startVerification = (input: StartVerificationInput) => {
+    setLastStart(`${input.requirement}/${input.ceremonyIntentId}/gen${input.generation}/rev${input.expectedRevision}`);
+    setAttempts((count) => count + 1);
+  };
   const commit = (input: { intentId: string; expectedRevision: number }) => {
     setLastCommitRevision(input.expectedRevision);
     setIntent((current) => ({
@@ -65,7 +70,7 @@ function ProgressStory(props: { committing?: boolean; intent: CommunityCreationI
         staleRevision={stale() ? { expectedRevision: props.intent.revision - 1 } : null}
       />
       <Type aria-live="polite" class="sr-only" variant="caption">
-        Attempts {attempts()}; viewed {viewed()}; last commit revision {lastCommitRevision()}; revision {intent().revision}
+        {`Attempts ${attempts()}; viewed ${viewed()}; last commit revision ${lastCommitRevision()}; revision ${intent().revision}; last start ${lastStart()}`}
       </Type>
     </div>
   );
@@ -100,9 +105,10 @@ export const VerificationRequired: Story = {
   ),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(canvas.getByText("Verify your identity")).toBeInTheDocument();
+    await expect(canvas.getByText("Verify it's you")).toBeInTheDocument();
     await userEvent.click(canvas.getByRole("button", { name: "Start verification" }));
     await expect(canvas.getByText(/Attempts 1/)).toBeInTheDocument();
+    await expect(canvas.getByText(/last start human_identity\/ceremony_1\/gen1\/rev1/)).toBeInTheDocument();
   },
 };
 
@@ -135,7 +141,7 @@ export const CommitReady: Story = {
   ),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await userEvent.click(canvas.getByRole("button", { name: "Commit community" }));
+    await userEvent.click(canvas.getByRole("button", { name: "Create community" }));
     await expect(canvas.getByText("Your community is live.")).toBeInTheDocument();
     await expect(canvas.getByText(/last commit revision 1/)).toBeInTheDocument();
   },
@@ -154,7 +160,7 @@ export const Committing: Story = {
   ),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    const button = canvas.getByRole("button", { name: "Commit community" });
+    const button = canvas.getByRole("button", { name: "Create community" });
     await expect(button).toBeDisabled();
     await expect(button).toHaveAttribute("aria-busy", "true");
   },
@@ -205,7 +211,7 @@ export const BlockedGateUnsupported: Story = {
   ),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(canvas.getByText("A selected gate isn't supported by the current provider.")).toBeInTheDocument();
+    await expect(canvas.getByText("One of the requirements you chose isn't available right now.")).toBeInTheDocument();
   },
 };
 

@@ -1,68 +1,86 @@
 import { userEvent } from "@testing-library/user-event";
 import { within } from "@testing-library/dom";
+import { createSignal } from "solid-js";
 import { describe, expect, it, vi } from "vitest";
 
-import { OptionCard } from "./option-card";
+import { OptionCard, OptionCardGroup } from "./option-card";
 import { expectNoA11yViolations, render } from "@/test/test-utils";
 
-describe("OptionCard", () => {
-  it("renders a button with title and description", () => {
-    const container = render(() => (
-      <OptionCard title="Monthly" description="Billed every month." />
-    ));
+function renderGroup(options?: { disabled?: boolean; onChange?: (value: string) => void }) {
+  return render(() => {
+    const [value, setValue] = createSignal("monthly");
+    return (
+      <OptionCardGroup
+        label="Billing cadence"
+        onChange={(next) => {
+          setValue(next);
+          options?.onChange?.(next);
+        }}
+        value={value()}
+      >
+        <OptionCard description="Billed every week." title="Weekly" value="weekly" />
+        <OptionCard description="Billed every month." title="Monthly" value="monthly" />
+        <OptionCard
+          disabled={options?.disabled}
+          disabledHint={options?.disabled ? "Not available in your region." : undefined}
+          title="Yearly"
+          value="yearly"
+        />
+      </OptionCardGroup>
+    );
+  });
+}
 
-    const view = within(container);
-    expect(view.getByRole("button", { name: /Monthly/ })).toBeInTheDocument();
+describe("OptionCard", () => {
+  it("renders a named radiogroup of radios", () => {
+    const view = within(renderGroup());
+    expect(view.getByRole("radiogroup", { name: "Billing cadence" })).toBeInTheDocument();
+    expect(view.getAllByRole("radio")).toHaveLength(3);
     expect(view.getByText("Billed every month.")).toBeInTheDocument();
   });
 
-  it("fires the click callback and reflects the selected state", async () => {
+  it("reflects and changes the group's selected value", async () => {
     const user = userEvent.setup();
-    const onClick = vi.fn();
-    const container = render(() => (
-      <OptionCard title="Monthly" selected onClick={onClick} />
-    ));
+    const onChange = vi.fn();
+    const view = within(renderGroup({ onChange }));
 
-    expect(container.querySelector("[data-checked]")).not.toBeNull();
-
-    await user.click(within(container).getByRole("button"));
-    expect(onClick).toHaveBeenCalledTimes(1);
+    expect(view.getByRole("radio", { name: /Monthly/ })).toBeChecked();
+    await user.click(view.getByRole("radio", { name: /Weekly/ }));
+    expect(onChange).toHaveBeenCalledWith("weekly");
+    expect(view.getByRole("radio", { name: /Weekly/ })).toBeChecked();
   });
 
-  it("renders a leading icon with a trailing indicator", () => {
-    const container = render(() => (
-      <OptionCard title="Monthly" icon={<span>ICON</span>} selected />
-    ));
+  // The whole point of composing Kobalte's RadioGroup: one tab stop, arrow
+  // keys move and select, rather than hand-assigned ARIA on plain buttons.
+  it("is one tab stop with arrow-key selection", async () => {
+    const user = userEvent.setup();
+    const view = within(renderGroup());
 
-    expect(within(container).getByText("ICON")).toBeInTheDocument();
-    expect(container.querySelectorAll("[data-checked]").length).toBe(1);
+    await user.tab();
+    expect(view.getByRole("radio", { name: /Monthly/ })).toHaveFocus();
+
+    await user.keyboard("{ArrowDown}");
+    expect(view.getByRole("radio", { name: /Yearly/ })).toBeChecked();
+
+    await user.tab();
+    expect(view.getByRole("radio", { name: /Weekly/ })).not.toHaveFocus();
+    expect(view.getByRole("radio", { name: /Yearly/ })).not.toHaveFocus();
   });
 
-  it("supports the disabled state with a hint", async () => {
+  it("supports a disabled option with a hint", async () => {
     const user = userEvent.setup();
-    const onClick = vi.fn();
-    const container = render(() => (
-      <OptionCard
-        title="Yearly"
-        disabled
-        disabledHint="Not available in your region."
-        onClick={onClick}
-      />
-    ));
+    const onChange = vi.fn();
+    const view = within(renderGroup({ disabled: true, onChange }));
 
-    const view = within(container);
-    expect(view.getByRole("button")).toBeDisabled();
+    expect(view.getByRole("radio", { name: /Yearly/ })).toBeDisabled();
     expect(view.getByText("Not available in your region.")).toBeInTheDocument();
 
-    await user.click(view.getByRole("button"));
-    expect(onClick).not.toHaveBeenCalled();
+    await user.click(view.getByRole("radio", { name: /Yearly/ }));
+    expect(onChange).not.toHaveBeenCalled();
   });
 
   it("has no axe violations", async () => {
-    render(() => (
-      <OptionCard title="Monthly" description="Billed every month." />
-    ));
-
+    renderGroup();
     await expectNoA11yViolations();
   });
 });
