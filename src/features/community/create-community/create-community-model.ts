@@ -1,33 +1,27 @@
 import type { GeneratedLocaleCatalogs } from "../../../locales/generated";
 
 /**
- * Spec 010 §2 names the three join-policy choices offered during creation.
- * They describe who may join the community and are independent of the
- * creator's own `human_identity` requirement, which spec 012 §3 attaches to the
- * creation intent rather than to the community's gate policy.
- */
-export const JOIN_POLICY_CHOICES = ["everyone", "verified", "advanced"] as const;
-export type JoinPolicyChoice = (typeof JOIN_POLICY_CHOICES)[number];
-
-/**
  * A subset of api-next's `CompiledGateRequirement`
  * (packages/contracts/src/community-creation.ts): the members this client
- * knows how to compile, each shaped exactly as the contract declares it.
- * `minimumAge` is frozen at 18 there; only `minimumScore` is operator-chosen.
- * Do not widen a member here without changing the contract first.
+ * knows how to compile, each shaped exactly as the contract declares it. The
+ * wire union reserves more requirement kinds, but the creation client exposes
+ * only entries offered by the backend capability catalog.
  */
-export type GateRequirement =
-  | { requirement: "human-verification" }
-  | { requirement: "age-minimum"; minimumAge: 18 }
-  | { requirement: "reputation-score"; provider: "passport"; minimumScore: number };
+export type HumanVerificationRequirement = { requirement: "human-verification" };
+export type AdditionalGateRequirement = {
+  requirement: "reputation-score";
+  provider: "passport";
+  minimumScore: number;
+};
+export type GateRequirement = HumanVerificationRequirement | AdditionalGateRequirement;
 
 export type GateKind = GateRequirement["requirement"];
 
 /** The only requirement the client composes itself; it carries no parameters. */
-export const HUMAN_VERIFICATION: GateRequirement = { requirement: "human-verification" };
+export const HUMAN_VERIFICATION: HumanVerificationRequirement = { requirement: "human-verification" };
 
 /**
- * One advanced gate the server offers this operator, already configured.
+ * One additional gate the server offers this operator, already configured.
  *
  * The requirement arrives complete because the client has no way to choose a
  * minimum age or score: it would be inventing a threshold the operator never
@@ -35,8 +29,8 @@ export const HUMAN_VERIFICATION: GateRequirement = { requirement: "human-verific
  * rather than shown disabled, so an option only reaches the client once the
  * backend capability catalog offers it.
  */
-export interface AdvancedGateOption {
-  requirement: GateRequirement;
+export interface AdditionalGateOption {
+  requirement: AdditionalGateRequirement;
   label: string;
   description: string;
 }
@@ -49,26 +43,19 @@ export function gateKindOf(requirement: GateRequirement): GateKind {
  * Structural equality over the closed requirement union.
  *
  * Selection compares the whole configured value, not just the kind: a catalog
- * may offer "18 or older" and "21 or older" at once, and a resumed draft
- * holding 18+ must not light up a newly offered 21+ option while still
- * committing 18+.
+ * may offer Passport score 8+ and Passport score 20+ at once, and selecting
+ * one must not select or replace the other.
  */
-export function requirementsEqual(left: GateRequirement, right: GateRequirement): boolean {
-  switch (left.requirement) {
-    case "human-verification":
-      return right.requirement === "human-verification";
-    case "age-minimum":
-      return right.requirement === "age-minimum" && left.minimumAge === right.minimumAge;
-    case "reputation-score":
-      return right.requirement === "reputation-score"
-        && left.provider === right.provider
-        && left.minimumScore === right.minimumScore;
-  }
+export function requirementsEqual(
+  left: AdditionalGateRequirement,
+  right: AdditionalGateRequirement,
+): boolean {
+  return left.provider === right.provider && left.minimumScore === right.minimumScore;
 }
 
 export function hasRequirement(
-  requirements: readonly GateRequirement[],
-  requirement: GateRequirement,
+  requirements: readonly AdditionalGateRequirement[],
+  requirement: AdditionalGateRequirement,
 ): boolean {
   return requirements.some((entry) => requirementsEqual(entry, requirement));
 }
@@ -76,7 +63,7 @@ export function hasRequirement(
 export interface GateAccessPath {
   id: string;
   operator: "and";
-  requirements: GateRequirement[];
+  requirements: [HumanVerificationRequirement, ...AdditionalGateRequirement[]];
 }
 
 export interface GatePolicy {
@@ -84,34 +71,18 @@ export interface GatePolicy {
   accessPaths: [GateAccessPath];
 }
 
-export function compileGatePolicy(requirements: readonly GateRequirement[]): GatePolicy {
-  return {
-    version: 1,
-    accessPaths: [{ id: "default", operator: "and", requirements: [...requirements] }],
-  };
-}
-
 export function gateKindsOf(policy: GatePolicy): GateKind[] {
   return policy.accessPaths[0].requirements.map((requirement) => requirement.requirement);
 }
 
-/**
- * Compile the reviewed choice into the canonical policy. `everyone` carries no
- * requirements at all: an open community is not a verified one whose member
- * happens to have passed already.
- */
-export function compileJoinPolicy(
-  choice: JoinPolicyChoice,
-  advancedRequirements: readonly GateRequirement[] = [],
+/** Every community requires unique-human membership; other gates are additive. */
+export function compileMembershipPolicy(
+  additionalRequirements: readonly AdditionalGateRequirement[] = [],
 ): GatePolicy {
-  switch (choice) {
-    case "everyone":
-      return compileGatePolicy([]);
-    case "verified":
-      return compileGatePolicy([HUMAN_VERIFICATION]);
-    case "advanced":
-      return compileGatePolicy(advancedRequirements);
-  }
+  return {
+    version: 1,
+    accessPaths: [{ id: "default", operator: "and", requirements: [HUMAN_VERIFICATION, ...additionalRequirements] }],
+  };
 }
 
 export interface CreateCommunityDraft {
@@ -119,9 +90,8 @@ export interface CreateCommunityDraft {
   personaId: string;
   name: string;
   description: string | null;
-  joinPolicy: JoinPolicyChoice;
-  /** Configured requirements chosen from the offered catalog; advanced only. */
-  advancedRequirements: GateRequirement[];
+  /** Configured requirements appended to the mandatory human baseline. */
+  additionalRequirements: AdditionalGateRequirement[];
 }
 
 export function createEmptyDraft(personaId: string): CreateCommunityDraft {
@@ -129,8 +99,7 @@ export function createEmptyDraft(personaId: string): CreateCommunityDraft {
     personaId,
     name: "",
     description: null,
-    joinPolicy: "verified",
-    advancedRequirements: [],
+    additionalRequirements: [],
   };
 }
 
@@ -146,22 +115,16 @@ export function withDraftPersona(draft: CreateCommunityDraft, personaId: string)
   return { ...draft, personaId };
 }
 
-export function withJoinPolicy(draft: CreateCommunityDraft, choice: JoinPolicyChoice): CreateCommunityDraft {
-  return choice === "advanced"
-    ? { ...draft, joinPolicy: choice }
-    : { ...draft, joinPolicy: choice, advancedRequirements: [] };
-}
-
-export function withAdvancedRequirements(
+export function withAdditionalRequirements(
   draft: CreateCommunityDraft,
-  requirements: readonly GateRequirement[],
+  requirements: readonly AdditionalGateRequirement[],
 ): CreateCommunityDraft {
-  return { ...draft, joinPolicy: "advanced", advancedRequirements: [...requirements] };
+  return { ...draft, additionalRequirements: [...requirements] };
 }
 
 /** The policy this draft would commit, for review and for the commit payload. */
 export function draftGatePolicy(draft: CreateCommunityDraft): GatePolicy {
-  return compileJoinPolicy(draft.joinPolicy, draft.advancedRequirements);
+  return compileMembershipPolicy(draft.additionalRequirements);
 }
 
 export type CreateCommunityCopy = {
@@ -170,18 +133,13 @@ export type CreateCommunityCopy = {
 
 export interface DraftValidation {
   nameError: string | null;
-  advancedError: string | null;
   valid: boolean;
 }
 
 export function validateDraft(
-  draft: Pick<CreateCommunityDraft, "name" | "joinPolicy" | "advancedRequirements">,
+  draft: Pick<CreateCommunityDraft, "name">,
   copy: CreateCommunityCopy,
 ): DraftValidation {
   const nameError = draft.name.trim().length === 0 ? copy.nameRequired : null;
-  const advancedError =
-    draft.joinPolicy === "advanced" && draft.advancedRequirements.length === 0
-      ? copy.advancedEmpty
-      : null;
-  return { nameError, advancedError, valid: nameError === null && advancedError === null };
+  return { nameError, valid: nameError === null };
 }

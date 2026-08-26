@@ -39,15 +39,25 @@ export interface OperationPersonaControlProps {
 }
 
 /**
- * OperationPersonaControl - picks which persona performs an operation.
+ * OperationPersonaControl - the low-level persona picker: a labelled trigger
+ * and a list of the account's personas.
  *
- * This answers "who is doing this", which applies to creating a community,
- * configuring rewards, and any other account-level action. It is deliberately
- * not the post composer's identity control, which additionally chooses an
- * authorship mode (public, anonymous, agent) and anonymous qualifiers; those
- * are properties of a post, not of the acting persona. With a single persona
- * available the control still states who is acting, but does not offer a
- * choice.
+ * It is deliberately not the post composer's identity control. That control
+ * chooses an authorship mode per publication (public, anonymous, agent) plus
+ * anonymous qualifiers, and it changes what a single post reveals. This one
+ * only names a persona, and callers supply the label and the consequence.
+ *
+ * Callers must decide the semantics, because they differ sharply:
+ *
+ * - Posting asks who is authoring this one post, and the answer is reversible
+ *   by posting differently next time.
+ * - Community creation does not ask who is acting at all. Spec 014 §2 grants
+ *   the role to the account; the account merely designates which persona
+ *   presents that role publicly. That designation is not an operation actor,
+ *   and it should stay out of the way of creating the community.
+ *
+ * With fewer than two personas there is no choice to present; hosts should
+ * render nothing rather than state a persona the account cannot change.
  */
 export function OperationPersonaControl(props: OperationPersonaControlProps) {
   const [open, setOpen] = createSignal(false);

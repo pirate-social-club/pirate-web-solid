@@ -7,34 +7,21 @@ import { CreateCommunityView } from "./create-community";
 import {
   createEmptyDraft,
   draftGatePolicy,
-  withAdvancedRequirements,
+  withAdditionalRequirements,
   withDraftDescription,
   withDraftName,
-  withJoinPolicy,
-  type AdvancedGateOption,
+  type AdditionalGateOption,
   type CreateCommunityDraft,
 } from "./create-community-model";
 
 const personaId = "persona_1";
 
-const personas = [
-  { personaId, displayName: "Signal", publicHandle: "signal.pirate" },
-  { personaId: "persona_2", displayName: "Night Shift", publicHandle: "nightshift.pirate" },
-];
-
 /**
  * Stands in for the backend capability catalog. Production currently offers no
- * advanced gates, which is why most stories pass nothing and the Advanced
- * choice does not render at all. Each option arrives fully configured, and its
- * copy names the configured value rather than promising a control the client
- * does not have.
+ * additional gates, which is why most stories pass nothing and the optional
+ * section does not render at all. Each option arrives fully configured.
  */
-const advancedGateOptions: AdvancedGateOption[] = [
-  {
-    requirement: { requirement: "age-minimum", minimumAge: 18 },
-    label: "18 or older",
-    description: "Members must have a verified age of at least 18.",
-  },
+const additionalGateOptions: AdditionalGateOption[] = [
   {
     requirement: { requirement: "reputation-score", provider: "passport", minimumScore: 8 },
     label: "Passport score 8+",
@@ -48,10 +35,9 @@ const advancedGateOptions: AdvancedGateOption[] = [
 ];
 
 function CreateStory(props: {
-  advancedGateOptions?: AdvancedGateOption[];
+  additionalGateOptions?: AdditionalGateOption[];
   draft?: CreateCommunityDraft;
   submitting?: boolean;
-  withPersonas?: boolean;
 }) {
   const [draft, setDraft] = createSignal<CreateCommunityDraft>(
     props.draft ?? createEmptyDraft(personaId),
@@ -83,18 +69,15 @@ function CreateStory(props: {
   return (
     <div class="min-h-[720px] bg-background p-6 text-foreground">
       <CreateCommunityView
-        advancedGateOptions={props.advancedGateOptions}
+        additionalGateOptions={props.additionalGateOptions}
         avatarSrc={avatarSrc()}
         coverSrc={coverSrc()}
         draft={draft()}
-        onAdvancedRequirementsChange={(requirements) => setDraft((current) => withAdvancedRequirements(current, requirements))}
+        onAdditionalRequirementsChange={(requirements) => setDraft((current) => withAdditionalRequirements(current, requirements))}
         onAvatarChange={(file) => updatePreview("avatar", file)}
         onCoverChange={(file) => updatePreview("cover", file)}
         onDraftChange={(patch) => setDraft((current) => ({ ...current, ...patch }))}
-        onJoinPolicyChange={(choice) => setDraft((current) => withJoinPolicy(current, choice))}
-        onPersonaChange={(nextPersonaId) => setDraft((current) => ({ ...current, personaId: nextPersonaId }))}
         onSubmit={() => setSubmitCount((count) => count + 1)}
-        personas={props.withPersonas ? personas : undefined}
         submitting={props.submitting}
       />
       <Type aria-live="polite" class="sr-only" variant="caption">
@@ -125,10 +108,11 @@ export const Empty: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(canvas.getByRole("button", { name: "Create" })).toBeDisabled();
-    await expect(canvas.getByRole("radiogroup", { name: "Who can join?" })).toBeInTheDocument();
-    await expect(canvas.getByRole("radio", { name: /Everyone/ })).not.toBeChecked();
-    await expect(canvas.getByRole("radio", { name: /Verified people/ })).toBeChecked();
-    await expect(canvas.queryByRole("radio", { name: /Advanced requirements/ })).not.toBeInTheDocument();
+    await expect(canvas.getByText("Who can join")).toBeInTheDocument();
+    await expect(canvas.getByText("Palm scan")).toBeInTheDocument();
+    await expect(canvas.getByText(/Required · Members scan their palm/)).toBeInTheDocument();
+    await expect(canvas.queryByText("Additional requirements")).not.toBeInTheDocument();
+    await expect(canvas.queryByRole("checkbox")).not.toBeInTheDocument();
   },
 };
 
@@ -165,30 +149,16 @@ export const NameValidation: Story = {
   },
 };
 
-/** Spec 010 §2: Everyone is a real choice and commits an empty policy. */
-export const JoinPolicyEveryone: Story = {
-  render: () => <CreateStory draft={validDraft()} />,
-  play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement);
-    await userEvent.click(canvas.getByRole("radio", { name: /Everyone/ }));
-    await expect(canvas.getByRole("radio", { name: /Everyone/ })).toBeChecked();
-    await expect(canvas.getByText(/requirements 0/)).toBeInTheDocument();
-    await expect(canvas.getByRole("button", { name: "Create" })).toBeEnabled();
-  },
-};
-
-export const AdvancedRequirements: Story = {
+export const AdditionalRequirements: Story = {
   render: () => (
     <CreateStory
-      advancedGateOptions={advancedGateOptions}
-      draft={withJoinPolicy(validDraft(), "advanced")}
+      additionalGateOptions={additionalGateOptions}
+      draft={validDraft()}
     />
   ),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(canvas.getByRole("button", { name: "Create" })).toBeDisabled();
-    await expect(canvas.getByText("Select at least one requirement.")).toBeInTheDocument();
-    await userEvent.click(canvas.getByRole("checkbox", { name: "18 or older" }));
+    await expect(canvas.getByText("Additional requirements")).toBeInTheDocument();
     await expect(canvas.getByText(/requirements 1/)).toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: "Create" })).toBeEnabled();
 
@@ -199,15 +169,6 @@ export const AdvancedRequirements: Story = {
     await userEvent.click(canvas.getByRole("checkbox", { name: "Passport score 20+" }));
     await expect(canvas.getByRole("checkbox", { name: "Passport score 8+" })).toBeChecked();
     await expect(canvas.getByText(/requirements 3/)).toBeInTheDocument();
-  },
-};
-
-export const PersonaSelection: Story = {
-  render: () => <CreateStory draft={validDraft()} withPersonas />,
-  play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement);
-    await expect(canvas.getByText("Creating as")).toBeInTheDocument();
-    await expect(canvas.getByText("Signal")).toBeInTheDocument();
   },
 };
 
@@ -243,10 +204,10 @@ export const Submitting: Story = {
 
 export const Mobile: Story = {
   parameters: { viewport: { defaultViewport: "mobile1" } },
-  render: () => <CreateStory draft={validDraft()} withPersonas />,
+  render: () => <CreateStory draft={validDraft()} />,
 };
 
 export const Rtl: Story = {
   globals: { locale: "ar" },
-  render: () => <CreateStory draft={validDraft()} withPersonas />,
+  render: () => <CreateStory draft={validDraft()} />,
 };
