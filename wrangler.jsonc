@@ -6,9 +6,45 @@
   "compatibility_flags": ["nodejs_compat", "enable_request_signal"],
   "main": "./src/worker.ts",
   "assets": { "directory": "./dist/client", "binding": "ASSETS" },
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "HNS_COMMUNITY_APP_REPLAY",
+        "class_name": "HnsCommunityAppReplayStoreDO"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["HnsCommunityAppReplayStoreDO"]
+    }
+  ],
   "vars": {
     "API_NEXT_ORIGIN": "http://127.0.0.1:8788",
-    "VERIFICATION_UI_ENABLED": "false"
+    "VERIFICATION_UI_ENABLED": "false",
+    "HNS_COMMUNITY_APP_INGRESS_ENABLED": "false",
+    "HNS_COMMUNITY_APP_INGRESS_ORIGIN": "",
+    "HNS_COMMUNITY_APP_CANONICAL_ORIGIN": "",
+    "HNS_COMMUNITY_APP_API_ORIGIN": "",
+    "HNS_COMMUNITY_APP_ACCESS_ISSUER": "",
+    "HNS_COMMUNITY_APP_ACCESS_JWKS_URL": "",
+    "HNS_COMMUNITY_APP_ACCESS_AUDIENCE": "",
+    "HNS_COMMUNITY_APP_AUTHORITY_ORIGIN": "",
+    "HNS_COMMUNITY_APP_GATEWAY_DEPLOYMENT_REFERENCE": "",
+    "HNS_FORWARDER_V3_KEY_REGISTRY_REFERENCE": "",
+    "HNS_FORWARDER_V3_KEY_REGISTRY_VERSION": "",
+    "HNS_FORWARDER_V3_FRESHNESS_WINDOW_SECONDS": "0",
+    "HNS_FORWARDER_V3_FUTURE_CLOCK_SKEW_SECONDS": "-1"
+  },
+  "secrets": {
+    "required": [
+      "HNS_FORWARDER_V3_HMAC_KEY_REGISTRY",
+      "HNS_COMMUNITY_APP_API_ACCESS_CLIENT_ID",
+      "HNS_COMMUNITY_APP_API_ACCESS_CLIENT_SECRET",
+      "HNS_COMMUNITY_APP_AUTHORITY_ACCESS_CLIENT_ID",
+      "HNS_COMMUNITY_APP_AUTHORITY_ACCESS_CLIENT_SECRET"
+    ]
   },
   "env": {
     "staging": {
@@ -21,10 +57,40 @@
           "custom_domain": true
         }
       ],
+      "durable_objects": {
+        "bindings": [
+          {
+            "name": "HNS_COMMUNITY_APP_REPLAY",
+            "class_name": "HnsCommunityAppReplayStoreDO"
+          }
+        ]
+      },
       "vars": {
         "API_NEXT_ORIGIN": "https://api-next-staging.pirate.sc",
         "VERIFICATION_UI_ENABLED": "true",
-        "PRIVY_APP_ID": "cmsw5pis300b80cladbxx7bsr"
+        "PRIVY_APP_ID": "cmsw5pis300b80cladbxx7bsr",
+        "HNS_COMMUNITY_APP_INGRESS_ENABLED": "false",
+        "HNS_COMMUNITY_APP_INGRESS_ORIGIN": "",
+        "HNS_COMMUNITY_APP_CANONICAL_ORIGIN": "https://web-next-staging.pirate.sc",
+        "HNS_COMMUNITY_APP_API_ORIGIN": "",
+        "HNS_COMMUNITY_APP_ACCESS_ISSUER": "",
+        "HNS_COMMUNITY_APP_ACCESS_JWKS_URL": "",
+        "HNS_COMMUNITY_APP_ACCESS_AUDIENCE": "",
+        "HNS_COMMUNITY_APP_AUTHORITY_ORIGIN": "",
+        "HNS_COMMUNITY_APP_GATEWAY_DEPLOYMENT_REFERENCE": "",
+        "HNS_FORWARDER_V3_KEY_REGISTRY_REFERENCE": "",
+        "HNS_FORWARDER_V3_KEY_REGISTRY_VERSION": "",
+        "HNS_FORWARDER_V3_FRESHNESS_WINDOW_SECONDS": "0",
+        "HNS_FORWARDER_V3_FUTURE_CLOCK_SKEW_SECONDS": "-1"
+      },
+      "secrets": {
+        "required": [
+          "HNS_FORWARDER_V3_HMAC_KEY_REGISTRY",
+          "HNS_COMMUNITY_APP_API_ACCESS_CLIENT_ID",
+          "HNS_COMMUNITY_APP_API_ACCESS_CLIENT_SECRET",
+          "HNS_COMMUNITY_APP_AUTHORITY_ACCESS_CLIENT_ID",
+          "HNS_COMMUNITY_APP_AUTHORITY_ACCESS_CLIENT_SECRET"
+        ]
       }
     },
     "production": {
@@ -37,10 +103,40 @@
           "custom_domain": true
         }
       ],
+      "durable_objects": {
+        "bindings": [
+          {
+            "name": "HNS_COMMUNITY_APP_REPLAY",
+            "class_name": "HnsCommunityAppReplayStoreDO"
+          }
+        ]
+      },
       "vars": {
         "API_NEXT_ORIGIN": "https://api-next.pirate.sc",
         "VERIFICATION_UI_ENABLED": "true",
-        "PRIVY_APP_ID": "cmnbdx9xk00ty0clapn2q8pdj"
+        "PRIVY_APP_ID": "cmnbdx9xk00ty0clapn2q8pdj",
+        "HNS_COMMUNITY_APP_INGRESS_ENABLED": "false",
+        "HNS_COMMUNITY_APP_INGRESS_ORIGIN": "",
+        "HNS_COMMUNITY_APP_CANONICAL_ORIGIN": "https://pirate.sc",
+        "HNS_COMMUNITY_APP_API_ORIGIN": "",
+        "HNS_COMMUNITY_APP_ACCESS_ISSUER": "",
+        "HNS_COMMUNITY_APP_ACCESS_JWKS_URL": "",
+        "HNS_COMMUNITY_APP_ACCESS_AUDIENCE": "",
+        "HNS_COMMUNITY_APP_AUTHORITY_ORIGIN": "",
+        "HNS_COMMUNITY_APP_GATEWAY_DEPLOYMENT_REFERENCE": "",
+        "HNS_FORWARDER_V3_KEY_REGISTRY_REFERENCE": "",
+        "HNS_FORWARDER_V3_KEY_REGISTRY_VERSION": "",
+        "HNS_FORWARDER_V3_FRESHNESS_WINDOW_SECONDS": "0",
+        "HNS_FORWARDER_V3_FUTURE_CLOCK_SKEW_SECONDS": "-1"
+      },
+      "secrets": {
+        "required": [
+          "HNS_FORWARDER_V3_HMAC_KEY_REGISTRY",
+          "HNS_COMMUNITY_APP_API_ACCESS_CLIENT_ID",
+          "HNS_COMMUNITY_APP_API_ACCESS_CLIENT_SECRET",
+          "HNS_COMMUNITY_APP_AUTHORITY_ACCESS_CLIENT_ID",
+          "HNS_COMMUNITY_APP_AUTHORITY_ACCESS_CLIENT_SECRET"
+        ]
       }
     }
   }

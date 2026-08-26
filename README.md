@@ -10,6 +10,8 @@ the browser uses host-only session cookies plus double-submit CSRF for writes.
 - `src/worker.ts` is the only Worker entrypoint.
 - Cloudflare bindings and environment-specific api-next origins are declared in
   `wrangler.jsonc`; secrets are provisioned bindings, never source values.
+- The disabled-by-default external-community ingress and its credential
+  references are documented in `docs/hns-community-app-ingress-secrets.md`.
 - `worker-configuration.d.ts` is generated from `wrangler.jsonc` by Wrangler;
   rerun `bun run generate-worker-types` after configuration changes.
 - SSR and hydration are authored in `src/entry-server.tsx`,

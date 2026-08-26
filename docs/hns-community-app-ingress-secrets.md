@@ -1,0 +1,53 @@
+# HNS community application ingress references
+
+The Worker contains a production-capable external-community ingress graph, but
+base, staging, and production remain explicitly disabled. The declarations in
+`wrangler.jsonc` are references and fail-closed placeholders. They do not
+authorize provisioning, secret creation, binding changes, deployment, or a
+public host.
+
+The accepted operation plan must populate one environment as a single tuple.
+It must replace every unresolved HNS value in that environment and change
+`HNS_COMMUNITY_APP_INGRESS_ENABLED` only in the same reviewed deployment.
+Staging and production canonical origins, api-next origins, Access resources,
+Privy applications, gateway references, forwarder keys, and replay namespaces
+must never be mixed.
+
+The protected Solid ingress uses the nonsecret references
+`HNS_COMMUNITY_APP_INGRESS_ORIGIN`, `HNS_COMMUNITY_APP_ACCESS_ISSUER`,
+`HNS_COMMUNITY_APP_ACCESS_JWKS_URL`, and
+`HNS_COMMUNITY_APP_ACCESS_AUDIENCE`. The exact canonical rendering origin is
+`HNS_COMMUNITY_APP_CANONICAL_ORIGIN`.
+
+The protected api-next forwarding boundary uses
+`HNS_COMMUNITY_APP_API_ORIGIN` and the secret bindings
+`HNS_COMMUNITY_APP_API_ACCESS_CLIENT_ID` and
+`HNS_COMMUNITY_APP_API_ACCESS_CLIENT_SECRET`. It is deliberately separate from
+the ordinary browser-facing `API_NEXT_ORIGIN`.
+
+The private current-authority boundary uses
+`HNS_COMMUNITY_APP_AUTHORITY_ORIGIN`,
+`HNS_COMMUNITY_APP_GATEWAY_DEPLOYMENT_REFERENCE`, and the distinct secret
+bindings `HNS_COMMUNITY_APP_AUTHORITY_ACCESS_CLIENT_ID` and
+`HNS_COMMUNITY_APP_AUTHORITY_ACCESS_CLIENT_SECRET`. Runtime configuration
+rejects reuse of the protected-api token pair for this boundary.
+
+Forwarder-v3 verification uses
+`HNS_FORWARDER_V3_KEY_REGISTRY_REFERENCE`,
+`HNS_FORWARDER_V3_KEY_REGISTRY_VERSION`,
+`HNS_FORWARDER_V3_FRESHNESS_WINDOW_SECONDS`, and
+`HNS_FORWARDER_V3_FUTURE_CLOCK_SKEW_SECONDS`. Key bytes exist only in the
+`HNS_FORWARDER_V3_HMAC_KEY_REGISTRY` secret binding. The document must use the
+exact `pirate-hns-forwarder-v3-key-registry-v1` schema and match both declared
+registry identifiers.
+
+`HNS_COMMUNITY_APP_REPLAY` is a SQLite Durable Object binding. Its adapter
+uses the fixed Solid consumer scope
+`pirate:hns-forwarder-v3:pirate-web-solid-community-app:v1`, shards by key id,
+and retains an unsafe nonce through the complete forwarder freshness window.
+It is separate from the gateway and api-next replay consumers.
+
+Never retain secret values, key bytes, Access assertions, session cookies, or
+CSRF values in a plan, transcript, error, repository file, command line, or
+test fixture. The operation transcript records only binding names, resource
+references, versions, and redacted success or failure evidence.

@@ -31,6 +31,7 @@ export interface HnsApplicationDispatchV1 {
 
 export interface EnabledHnsCommunityAppIngressCompositionV2 {
   readonly enabled: true;
+  readonly ingressOrigin: string;
   readonly fetch: (request: Request) => Promise<Response>;
 }
 
@@ -142,6 +143,7 @@ export async function makeHnsCommunityAppIngressCompositionV2(options: {
 
   return Object.freeze({
     enabled: true as const,
+    ingressOrigin,
     fetch: async (request: Request): Promise<Response> => {
       try {
         if (new URL(request.url).origin !== ingressOrigin) throw new HnsIngressFailure("invalid_request");

@@ -26,6 +26,25 @@ export {
   type HnsApplicationDispatchV1,
 } from "./composition.ts";
 export {
+  HNS_FORWARDER_V3_KEY_REGISTRY_MAX_BYTES,
+  HNS_FORWARDER_V3_KEY_REGISTRY_SCHEMA,
+  parseHnsForwarderV3KeyRegistry,
+} from "./forwarder-key-registry.ts";
+export {
+  makeProductionHnsCommunityAppIngressCompositionV2,
+  type ProductionHnsCommunityAppIngressCompositionV2,
+  type ProductionHnsCommunityAppIngressEnvV2,
+} from "./production-composition.ts";
+export {
+  HNS_COMMUNITY_APP_SOLID_REPLAY_SCOPE,
+  makeDurableObjectHnsReplayStore,
+  type HnsReplayStoreNamespace,
+} from "./replay-store.ts";
+export {
+  routeHnsCommunityAppIngressRequest,
+  type HnsWorkerCompositionV2,
+} from "./worker-router.ts";
+export {
   cleanHnsApplicationHeaders,
   makeCleanHnsApplicationRequest,
   proxyVerifiedHnsApiRequest,
