@@ -51,14 +51,13 @@ export const initialSignInState: SignInState = {
  */
 export function signInMessage(error: unknown): string {
   if (error instanceof PrivyIdentityBootstrapRequired) {
-    return "That identity is ready for a new Pirate account.";
+    return "Create an account to continue.";
   }
   if (error instanceof Error) {
-    if (error.message === "wallet_unavailable") return "No injected wallet was found in this browser.";
-    if (error.message === "wallet_auth_failed") return "The wallet signature was not completed.";
-    if (error.message === "session_failed") return "The session cookie could not be established. Please try again.";
+    if (error.message === "wallet_unavailable") return "No wallet found.";
+    if (error.message === "wallet_auth_failed") return "Wallet sign-in failed.";
   }
-  return "Sign in failed safely. Please try again.";
+  return "Couldn’t sign in. Try again.";
 }
 
 export function isRegistrationRequired(error: unknown): boolean {

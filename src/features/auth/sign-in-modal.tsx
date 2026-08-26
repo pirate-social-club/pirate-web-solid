@@ -7,7 +7,6 @@ import {
   ModalDescription,
   ModalHeader,
   ModalTitle,
-  PirateBrandMark,
 } from "../../design-system";
 import { SignInView } from "./sign-in-view.tsx";
 import type { SignInSession } from "./sign-in-session.ts";
@@ -21,13 +20,13 @@ export interface SignInModalProps {
 }
 
 const registerCopy = {
-  title: "Create your Pirate account",
-  description: "One more step. Your identity is verified; this creates the account it belongs to.",
+  title: "Create account",
+  description: "Create an account to continue.",
 };
 
 const signInCopy = {
-  title: "Sign in to Pirate",
-  description: "Bring your identity into the community and keep your session private to this device.",
+  title: "Sign in",
+  description: "Choose a sign-in method.",
 };
 
 /**
@@ -45,20 +44,17 @@ export function SignInModal(props: SignInModalProps): JSX.Element {
         mobileSide="bottom"
       >
         <div class="contents">
-          <ModalHeader class="space-y-5 pe-10 text-start">
-            <div class="flex items-center gap-4">
-              <PirateBrandMark class="size-12 shrink-0" />
-              <ModalTitle class="min-w-0" leading="tight" variant="h2">
-                {copy().title}
-              </ModalTitle>
-            </div>
-            <ModalDescription class="w-full" leading="roomy" variant="caption">
+          <ModalHeader class="pe-10 text-start">
+            <ModalTitle leading="tight" variant="h2">
+              {copy().title}
+            </ModalTitle>
+            <ModalDescription class="sr-only">
               {copy().description}
             </ModalDescription>
           </ModalHeader>
 
           <SignInView
-            class="mt-8"
+            class="mt-6"
             onBack={props.session.back}
             onChooseMethod={props.session.chooseMethod}
             onCodeChange={props.session.setCode}

@@ -31,7 +31,7 @@ describe("sign-in phase model", () => {
     const failed = signInFailed(working, new Error("boom"), "choose");
     expect(failed.phase).toBe("choose");
     expect(failed.busy).toBe(false);
-    expect(failed.message).toBe("Sign in failed safely. Please try again.");
+    expect(failed.message).toBe("Couldn’t sign in. Try again.");
   });
 
   it("routes a first visit to register from any recovery phase", () => {
@@ -48,10 +48,10 @@ describe("sign-in phase model", () => {
   });
 
   it("maps known failures to safe text and everything else to the fallback", () => {
-    expect(signInMessage(new Error("wallet_unavailable"))).toBe("No injected wallet was found in this browser.");
-    expect(signInMessage(new Error("wallet_auth_failed"))).toBe("The wallet signature was not completed.");
-    expect(signInMessage(new Error("session_failed"))).toBe("The session cookie could not be established. Please try again.");
-    expect(signInMessage("privy_internal_detail")).toBe("Sign in failed safely. Please try again.");
+    expect(signInMessage(new Error("wallet_unavailable"))).toBe("No wallet found.");
+    expect(signInMessage(new Error("wallet_auth_failed"))).toBe("Wallet sign-in failed.");
+    expect(signInMessage(new Error("session_failed"))).toBe("Couldn’t sign in. Try again.");
+    expect(signInMessage("privy_internal_detail")).toBe("Couldn’t sign in. Try again.");
   });
 
   it("clears stale failure text when the user moves phase", () => {
@@ -86,7 +86,7 @@ describe("sign-in phase model", () => {
     expect(signInAlert(unavailable)).toBe("");
 
     const recoverable = signInFailed(signInReady(initialSignInState), new Error("boom"), "choose");
-    expect(signInAlert(recoverable)).toBe("Sign in failed safely. Please try again.");
+    expect(signInAlert(recoverable)).toBe("Couldn’t sign in. Try again.");
   });
 
   it("ends busy on success", () => {

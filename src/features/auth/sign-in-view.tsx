@@ -25,10 +25,10 @@ import {
 } from "./sign-in-model.ts";
 
 const methodLabel = {
-  google: "Continue with Google",
-  twitter: "Continue with X / Twitter",
-  wallet: "Continue with an existing wallet",
-  email: "Continue with email",
+  google: "Google",
+  twitter: "X",
+  wallet: "Wallet",
+  email: "Email",
 } satisfies Record<SignInMethod, string>;
 
 export interface SignInViewProps {
@@ -70,7 +70,6 @@ export function SignInView(props: SignInViewProps): JSX.Element {
       </Show>
 
       <Show when={phase() === "choose"}>
-        <Type as="p" variant="caption">Choose how you want to continue.</Type>
         <div class="flex flex-col gap-2.5">
           <For each={SIGN_IN_METHODS}>
             {(method) => (
@@ -86,9 +85,6 @@ export function SignInView(props: SignInViewProps): JSX.Element {
             )}
           </For>
         </div>
-        <FormNote class="border-t border-border-soft pt-4">
-          Privy handles the identity ceremony. Pirate receives only a same-origin session cookie.
-        </FormNote>
       </Show>
 
       <Show when={phase() === "email"}>
@@ -96,7 +92,7 @@ export function SignInView(props: SignInViewProps): JSX.Element {
           <TextField disabled={props.state.busy} name="email" onChange={props.onEmailChange} value={props.state.email}>
             <TextFieldLabel>Email</TextFieldLabel>
             <TextFieldInput autocomplete="email" inputmode="email" />
-            <TextFieldDescription>We’ll send a one-time code. Your browser keeps no bearer token.</TextFieldDescription>
+            <TextFieldDescription>We’ll send a one-time code.</TextFieldDescription>
           </TextField>
           <div class="flex flex-col gap-2">
             <Button class="h-14 w-full" disabled={!canSendCode(props.state)} loading={props.state.busy} type="submit">
@@ -125,20 +121,20 @@ export function SignInView(props: SignInViewProps): JSX.Element {
 
       <Show when={phase() === "register"}>
         <Type as="p" variant="body" role="status">
-          {props.state.message || "This is your first visit. Create your Pirate account to continue."}
+          {props.state.message || "Create an account to continue."}
         </Type>
         <Button class="h-14 w-full" loading={props.state.busy} onClick={props.onRegister}>
-          Create Pirate account
+          Create account
         </Button>
       </Show>
 
       <Show when={phase() === "working"}>
-        <Type as="p" variant="body" role="status">Completing secure sign-in…</Type>
+        <Type as="p" variant="body" role="status">Signing in…</Type>
       </Show>
 
       <Show when={phase() === "signed-in"}>
-        <Type as="p" variant="body" role="status">You’re signed in. Continue to the home feed.</Type>
-        <a class={cn(buttonVariants(), "h-14 w-full")} href="/">Open home</a>
+        <Type as="p" variant="body" role="status">You’re signed in.</Type>
+        <a class={cn(buttonVariants(), "h-14 w-full")} href="/">Continue</a>
       </Show>
 
       <Show when={alert().length > 0}>

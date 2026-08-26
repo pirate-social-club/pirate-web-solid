@@ -6,12 +6,12 @@ import { SignInPanel } from "../../features/auth/sign-in-panel.tsx";
 export default function SignInRoute() {
   return (
     <main data-route-path="/auth/sign-in" class="mx-auto flex min-h-screen w-full max-w-xl items-center px-5 py-10">
-      <Title>Sign in · Pirate</Title>
+      <Title>Sign in</Title>
       <Card class="w-full">
         <CardContent class="flex flex-col gap-6 p-6 md:p-8">
           <div>
-            <Type as="h1" variant="h1">Welcome to Pirate</Type>
-            <Type as="p" variant="body" class="mt-2 text-muted-foreground">Sign in with an identity method to follow communities, save posts, and publish.</Type>
+            <Type as="h1" variant="h1">Sign in</Type>
+            <Type as="p" variant="body" class="mt-2 text-muted-foreground">Choose a sign-in method.</Type>
           </div>
           <SignInPanel onAuthenticated={() => window.location.assign("/")} />
         </CardContent>

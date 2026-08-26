@@ -135,7 +135,7 @@ describe("sign-in session controller", () => {
 
     expect(exchange.completeOAuth).toHaveBeenCalledTimes(1);
     expect(session.state().phase).toBe("choose");
-    expect(session.state().message).toBe("Sign in failed safely. Please try again.");
+    expect(session.state().message).toBe("Couldn’t sign in. Try again.");
   });
 
   test("routes a first-visit provider return to register", async () => {

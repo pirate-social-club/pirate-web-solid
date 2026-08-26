@@ -92,12 +92,12 @@ export const Default: Story = {
   render: () => <SignInStory />,
   play: async () => {
     const dialog = await within(document.body).findByRole("dialog");
-    await expect(within(dialog).getByRole("heading", { name: "Sign in to Pirate" })).toBeInTheDocument();
+    await expect(within(dialog).getByRole("heading", { name: "Sign in" })).toBeInTheDocument();
     for (const label of [
-      "Continue with Google",
-      "Continue with X / Twitter",
-      "Continue with an existing wallet",
-      "Continue with email",
+      "Google",
+      "X",
+      "Wallet",
+      "Email",
     ]) {
       await expect(within(dialog).getByRole("button", { name: label })).toBeInTheDocument();
     }
@@ -109,8 +109,8 @@ export const MobileSheet: Story = {
   render: () => <SignInStory forceMobile />,
   play: async () => {
     const dialog = await within(document.body).findByRole("dialog");
-    await expect(within(dialog).getByRole("heading", { name: "Sign in to Pirate" })).toBeInTheDocument();
-    await expect(within(dialog).getByRole("button", { name: "Continue with email" })).toBeInTheDocument();
+    await expect(within(dialog).getByRole("heading", { name: "Sign in" })).toBeInTheDocument();
+    await expect(within(dialog).getByRole("button", { name: "Email" })).toBeInTheDocument();
   },
 };
 
@@ -119,7 +119,7 @@ export const EmailStep: Story = {
   render: () => <SignInStory />,
   play: async () => {
     const dialog = await within(document.body).findByRole("dialog");
-    await userEvent.click(within(dialog).getByRole("button", { name: "Continue with email" }));
+    await userEvent.click(within(dialog).getByRole("button", { name: "Email" }));
 
     const email = within(dialog).getByRole("textbox", { name: "Email" });
     const send = within(dialog).getByRole("button", { name: "Send login code" });
@@ -181,10 +181,10 @@ export const FirstVisit: Story = {
   ),
   play: async () => {
     const dialog = await within(document.body).findByRole("dialog");
-    await expect(within(dialog).getByRole("heading", { name: "Create your Pirate account" })).toBeInTheDocument();
-    await expect(within(dialog).getByText("That identity is ready for a new Pirate account.")).toBeInTheDocument();
-    await userEvent.click(within(dialog).getByRole("button", { name: "Create Pirate account" }));
-    await expect(within(dialog).getByRole("link", { name: "Open home" })).toBeInTheDocument();
+    await expect(within(dialog).getByRole("heading", { name: "Create account" })).toBeInTheDocument();
+    await expect(within(dialog).getByRole("status")).toHaveTextContent("Create an account to continue.");
+    await userEvent.click(within(dialog).getByRole("button", { name: "Create account" }));
+    await expect(within(dialog).getByRole("link", { name: "Continue" })).toBeInTheDocument();
   },
 };
 
@@ -200,9 +200,9 @@ export const FailedReturn: Story = {
   ),
   play: async () => {
     const dialog = await within(document.body).findByRole("dialog");
-    await expect(within(dialog).queryByText("Completing secure sign-in…")).toBeNull();
-    await expect(within(dialog).getByRole("button", { name: "Continue with Google" })).toBeEnabled();
-    await expect(within(dialog).getByText("Sign in failed safely. Please try again.")).toBeInTheDocument();
+    await expect(within(dialog).queryByText("Signing in…")).toBeNull();
+    await expect(within(dialog).getByRole("button", { name: "Google" })).toBeEnabled();
+    await expect(within(dialog).getByText("Couldn’t sign in. Try again.")).toBeInTheDocument();
   },
 };
 
@@ -211,8 +211,8 @@ export const Working: Story = {
   render: () => <SignInStory state={signInStarted(ready, "working")} />,
   play: async () => {
     const dialog = await within(document.body).findByRole("dialog");
-    await expect(within(dialog).getByText("Completing secure sign-in…")).toBeInTheDocument();
-    await expect(within(dialog).queryByRole("button", { name: "Continue with Google" })).toBeNull();
+    await expect(within(dialog).getByText("Signing in…")).toBeInTheDocument();
+    await expect(within(dialog).queryByRole("button", { name: "Google" })).toBeNull();
   },
 };
 
