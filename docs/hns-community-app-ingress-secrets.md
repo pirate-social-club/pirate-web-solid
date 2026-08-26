@@ -6,6 +6,13 @@ base, staging, and production remain explicitly disabled. The declarations in
 authorize provisioning, secret creation, binding changes, deployment, or a
 public host.
 
+The binding declaration is not side-effect-free once deployed. The first
+deployment carrying this configuration to an environment creates the
+`HNS_COMMUNITY_APP_REPLAY` namespace and applies SQLite migration `v1` even
+while ingress remains disabled. That first post-merge deployment is therefore
+a reviewed provisioning step in the accepted operation plan, not an unrelated
+application release.
+
 The accepted operation plan must populate one environment as a single tuple.
 It must replace every unresolved HNS value in that environment and change
 `HNS_COMMUNITY_APP_INGRESS_ENABLED` only in the same reviewed deployment.
@@ -17,7 +24,9 @@ The protected Solid ingress uses the nonsecret references
 `HNS_COMMUNITY_APP_INGRESS_ORIGIN`, `HNS_COMMUNITY_APP_ACCESS_ISSUER`,
 `HNS_COMMUNITY_APP_ACCESS_JWKS_URL`, and
 `HNS_COMMUNITY_APP_ACCESS_AUDIENCE`. The exact canonical rendering origin is
-`HNS_COMMUNITY_APP_CANONICAL_ORIGIN`.
+`HNS_COMMUNITY_APP_CANONICAL_ORIGIN`. Every origin value is the exact serialized
+`URL.origin`: HTTPS only, no credentials, port, path, query, fragment, or
+trailing slash. For example, `https://app.example/` is a misconfiguration.
 
 The protected api-next forwarding boundary uses
 `HNS_COMMUNITY_APP_API_ORIGIN` and the secret bindings
@@ -45,9 +54,15 @@ registry identifiers.
 uses the fixed Solid consumer scope
 `pirate:hns-forwarder-v3:pirate-web-solid-community-app:v1`, shards by key id,
 and retains an unsafe nonce through the complete forwarder freshness window.
-It is separate from the gateway and api-next replay consumers.
+It is separate from the gateway and api-next replay consumers. Expired rows
+are pruned only when another nonce is consumed in the same key-id shard. A
+retired key's untouched shard therefore retains its expired rows; the set is
+bounded by accepted unsafe requests during that key's active lifetime, but
+there is no automatic global cleanup. The operation plan must name that
+retention behavior and any later namespace cleanup or destruction ceremony.
 
-Never retain secret values, key bytes, Access assertions, session cookies, or
-CSRF values in a plan, transcript, error, repository file, command line, or
-test fixture. The operation transcript records only binding names, resource
-references, versions, and redacted success or failure evidence.
+Never retain real secret values, production key bytes, Access assertions,
+session cookies, or CSRF values in a plan, transcript, error, repository file,
+command line, or test fixture. The operation transcript records only binding
+names, resource references, versions, and redacted success or failure
+evidence.

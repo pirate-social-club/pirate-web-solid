@@ -18,7 +18,7 @@
     "test:storybook:a11y": "bun test scripts/storybook-a11y-sweep.test.mjs",
     "check-product-graph": "node scripts/check-product-graph.mjs --require-build",
     "test:app": "vitest run --config vitest.app.config.ts",
-    "test:api": "vitest run --config vitest.api.config.ts src/api src/hns-ingress",
+    "test:api": "vitest run --config vitest.api.config.ts src/api src/hns-ingress src/worker.test.ts",
     "check:e2e": "tsc --noEmit -p e2e/tsconfig.json && playwright test -c e2e --list",
     "test:e2e": "playwright test -c e2e --grep @staging-readonly",
     "test:e2e:staging": "E2E_BASE_URL=https://web-next-staging.pirate.sc playwright test -c e2e --grep @staging-readonly",
