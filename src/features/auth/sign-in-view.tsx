@@ -93,7 +93,7 @@ export function SignInView(props: SignInViewProps): JSX.Element {
 
       <Show when={phase() === "email"}>
         <form class="flex flex-col gap-6" onSubmit={(event) => { event.preventDefault(); props.onSendCode(); }}>
-          <TextField name="email" onChange={props.onEmailChange} value={props.state.email}>
+          <TextField disabled={props.state.busy} name="email" onChange={props.onEmailChange} value={props.state.email}>
             <TextFieldLabel>Email</TextFieldLabel>
             <TextFieldInput autocomplete="email" inputmode="email" />
             <TextFieldDescription>We’ll send a one-time code. Your browser keeps no bearer token.</TextFieldDescription>
@@ -102,14 +102,14 @@ export function SignInView(props: SignInViewProps): JSX.Element {
             <Button class="h-14 w-full" disabled={!canSendCode(props.state)} loading={props.state.busy} type="submit">
               Send login code
             </Button>
-            <Button class="h-14 w-full" onClick={props.onBack} variant="ghost">Back</Button>
+            <Button class="h-14 w-full" disabled={props.state.busy} onClick={props.onBack} variant="ghost">Back</Button>
           </div>
         </form>
       </Show>
 
       <Show when={phase() === "code"}>
         <form class="flex flex-col gap-6" onSubmit={(event) => { event.preventDefault(); props.onSubmitCode(); }}>
-          <TextField name="code" onChange={props.onCodeChange} value={props.state.code}>
+          <TextField disabled={props.state.busy} name="code" onChange={props.onCodeChange} value={props.state.code}>
             <TextFieldLabel>Login code</TextFieldLabel>
             <TextFieldInput autocomplete="one-time-code" inputmode="numeric" />
             <TextFieldDescription>Sent to {props.state.email}.</TextFieldDescription>
@@ -118,7 +118,7 @@ export function SignInView(props: SignInViewProps): JSX.Element {
             <Button class="h-14 w-full" disabled={!canSubmitCode(props.state)} loading={props.state.busy} type="submit">
               Sign in
             </Button>
-            <Button class="h-14 w-full" onClick={props.onBack} variant="ghost">Back</Button>
+            <Button class="h-14 w-full" disabled={props.state.busy} onClick={props.onBack} variant="ghost">Back</Button>
           </div>
         </form>
       </Show>

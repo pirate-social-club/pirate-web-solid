@@ -136,12 +136,41 @@ export const EmailStep: Story = {
 
 export const CodeStep: Story = {
   name: "Code step returns to email",
-  render: () => <SignInStory state={signInCodeSent(signInWithEmail(signInMoved(ready, "email"), "operator@example.test"))} />,
+  render: () => <SignInStory state={signInCodeSent(emailEntered)} />,
   play: async () => {
     const dialog = await within(document.body).findByRole("dialog");
     await expect(within(dialog).getByRole("button", { name: "Sign in" })).toBeDisabled();
     await userEvent.click(within(dialog).getByRole("button", { name: "Back" }));
     await expect(within(dialog).getByRole("textbox", { name: "Email" })).toHaveValue("operator@example.test");
+  },
+};
+
+const emailEntered = signInWithEmail(signInMoved(ready, "email"), "operator@example.test");
+
+/**
+ * A pending request must not leave the address or the way back live: editing the
+ * field would make the code step name an address the controller never used, and
+ * going back would strand the user until the request completed anyway.
+ */
+export const EmailBusy: Story = {
+  name: "Email step while sending",
+  render: () => <SignInStory state={signInStarted(emailEntered)} />,
+  play: async () => {
+    const dialog = await within(document.body).findByRole("dialog");
+    await expect(within(dialog).getByRole("textbox", { name: "Email" })).toBeDisabled();
+    await expect(within(dialog).getByRole("button", { name: "Back" })).toBeDisabled();
+    await expect(within(dialog).getByRole("button", { name: "Send login code" })).toHaveAttribute("aria-busy", "true");
+  },
+};
+
+export const CodeBusy: Story = {
+  name: "Code step while signing in",
+  render: () => <SignInStory state={signInStarted(signInWithCode(signInCodeSent(emailEntered), "123456"))} />,
+  play: async () => {
+    const dialog = await within(document.body).findByRole("dialog");
+    await expect(within(dialog).getByRole("textbox", { name: "Login code" })).toBeDisabled();
+    await expect(within(dialog).getByRole("button", { name: "Back" })).toBeDisabled();
+    await expect(within(dialog).getByRole("button", { name: "Sign in" })).toHaveAttribute("aria-busy", "true");
   },
 };
 
