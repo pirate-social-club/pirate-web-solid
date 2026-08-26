@@ -177,6 +177,16 @@ export const FailedReturn: Story = {
   },
 };
 
+export const Working: Story = {
+  name: "Completing a provider ceremony",
+  render: () => <SignInStory state={signInStarted(ready, "working")} />,
+  play: async () => {
+    const dialog = await within(document.body).findByRole("dialog");
+    await expect(within(dialog).getByText("Completing secure sign-in…")).toBeInTheDocument();
+    await expect(within(dialog).queryByRole("button", { name: "Continue with Google" })).toBeNull();
+  },
+};
+
 export const Unavailable: Story = {
   name: "Unavailable",
   render: () => <SignInStory state={signInUnavailable(initialSignInState, new Error("no config"))} />,

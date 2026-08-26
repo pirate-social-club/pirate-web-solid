@@ -18,6 +18,7 @@ import {
   signInWithCode,
   signInWithEmail,
   type SignInMethod,
+  type SignInPhase,
   type SignInState,
 } from "./sign-in-model.ts";
 
@@ -64,36 +65,66 @@ function oauthRedirect(provider: OAuthProvider): string {
  * Owns the Privy identity ceremony and drives the pure phase model. Every
  * failure path lands on a phase that still offers a control, so a failed OAuth
  * return can never leave the surface showing progress copy with no way out.
+ *
+ * Each attempt captures the exchange it started on together with a generation
+ * that advances whenever an exchange is adopted or discarded. A request that
+ * resolves after the user closed the surface — or after a reopen built a fresh
+ * exchange — is dropped instead of writing into a surface it no longer owns.
  */
 export function createSignInSession(options: SignInSessionOptions = {}): SignInSession {
   const [state, setState] = createSignal<SignInState>(initialSignInState);
   let exchange: PrivySessionExchange | undefined;
+  let generation = 0;
+
+  const isCurrent = (token: number, handle: PrivySessionExchange) =>
+    generation === token && exchange === handle;
 
   const succeed = () => {
     setState(signInSucceeded);
     options.onAuthenticated?.();
   };
 
-  const fail = (error: unknown, recovery: SignInState["phase"]) => {
+  const fail = (error: unknown, recovery: SignInPhase) => {
     setState((current) => signInFailed(current, error, recovery));
   };
+
+  /**
+   * Supersedes the current exchange: the generation advances so anything still
+   * in flight resolves into a surface it no longer owns and is dropped, and the
+   * Privy client is released.
+   */
+  const discard = () => {
+    generation += 1;
+    exchange?.clear();
+    exchange = undefined;
+  };
+
+  onCleanup(discard);
 
   createEffect(
     () => options.enabled?.() ?? true,
     (enabled) => {
+      // Runs on every re-run, including the one that observes the gate closing.
+      // A cleanup registered inside this effect would not: in this Solid
+      // version those run at disposal only, which would leak a client per
+      // open/close cycle and leave stale attempts looking current.
+      discard();
+      const runToken = generation;
       if (!enabled || typeof window === "undefined") return;
-      let active = true;
+
       const load = options.createExchange
         ? options.createExchange()
         : fetchVerificationConfig().then((config) => createPrivySessionExchange(config));
 
       void load
         .then(async (candidate) => {
-          if (!active) {
+          if (generation !== runToken) {
             candidate.clear();
             return;
           }
           exchange = candidate;
+          const stillCurrent = () => isCurrent(runToken, candidate);
+
           const params = new URL(window.location.href).searchParams;
           const authorizationCode = params.get("code");
           const returnedStateCode = params.get("state");
@@ -111,43 +142,44 @@ export function createSignInSession(options: SignInSessionOptions = {}): SignInS
           setState((current) => signInStarted(current, "working"));
           try {
             await candidate.completeOAuth(provider, authorizationCode, returnedStateCode);
-            succeed();
+            if (stillCurrent()) succeed();
           } catch (error) {
-            fail(error, "choose");
+            if (stillCurrent()) fail(error, "choose");
           }
         })
         .catch((error: unknown) => {
-          if (active) setState((current) => signInUnavailable(current, error));
+          if (generation === runToken) {
+            setState((current) => signInUnavailable(current, error));
+          }
         });
-
-      onCleanup(() => {
-        active = false;
-        exchange?.clear();
-        exchange = undefined;
-      });
     },
   );
 
-  const beginOAuth = async (provider: OAuthProvider) => {
-    if (exchange === undefined) return;
-    setState((current) => signInStarted(current, "working"));
-    try {
-      const url = await exchange.beginOAuth(provider, oauthRedirect(provider));
-      window.location.assign(url);
-    } catch (error) {
-      fail(error, "choose");
-    }
-  };
+  /**
+   * Runs one attempt against the exchange that is current when it starts.
+   * `settle` receives the success path; failures recover to `recovery`. Both
+   * are skipped when the attempt is no longer current.
+   */
+  const attempt = (
+    phase: SignInPhase | undefined,
+    recovery: SignInPhase,
+    operation: (handle: PrivySessionExchange) => Promise<void>,
+    settle?: () => void,
+  ) => {
+    const handle = exchange;
+    if (handle === undefined) return;
+    const token = generation;
+    const stillCurrent = () => isCurrent(token, handle);
+    setState((current) => signInStarted(current, phase));
 
-  const loginWithWallet = async () => {
-    if (exchange === undefined) return;
-    setState((current) => signInStarted(current, "working"));
-    try {
-      await exchange.loginWithWallet();
-      succeed();
-    } catch (error) {
-      fail(error, "choose");
-    }
+    void (async () => {
+      try {
+        await operation(handle);
+        if (stillCurrent()) settle?.();
+      } catch (error) {
+        if (stillCurrent()) fail(error, recovery);
+      }
+    })();
   };
 
   return {
@@ -161,38 +193,24 @@ export function createSignInSession(options: SignInSessionOptions = {}): SignInS
         return;
       }
       if (method === "wallet") {
-        void loginWithWallet();
+        attempt("working", "choose", (handle) => handle.loginWithWallet(), succeed);
         return;
       }
-      void beginOAuth(method);
+      // The redirect leaves the page, so a successful begin has nothing to settle.
+      attempt("working", "choose", async (handle) => {
+        const url = await handle.beginOAuth(method, oauthRedirect(method));
+        window.location.assign(url);
+      });
     },
     register() {
-      if (exchange === undefined) return;
-      const handle = exchange;
-      setState((current) => signInStarted(current));
-      void (async () => {
-        try {
-          await handle.register();
-          succeed();
-        } catch (error) {
-          fail(error, "register");
-        }
-      })();
+      attempt(undefined, "register", (handle) => handle.register(), succeed);
     },
     sendCode() {
-      if (exchange === undefined) return;
-      const handle = exchange;
       const address = state().email.trim();
       if (address.length === 0) return;
-      setState((current) => signInStarted(current));
-      void (async () => {
-        try {
-          await handle.sendCode(address);
-          setState(signInCodeSent);
-        } catch (error) {
-          fail(error, "email");
-        }
-      })();
+      attempt(undefined, "email", (handle) => handle.sendCode(address), () => {
+        setState(signInCodeSent);
+      });
     },
     setCode(code) {
       setState((current) => signInWithCode(current, code));
@@ -201,19 +219,14 @@ export function createSignInSession(options: SignInSessionOptions = {}): SignInS
       setState((current) => signInWithEmail(current, email));
     },
     submitCode() {
-      if (exchange === undefined) return;
-      const handle = exchange;
       const current = state();
       if (current.code.trim().length === 0) return;
-      setState((value) => signInStarted(value));
-      void (async () => {
-        try {
-          await handle.loginWithCode(current.email.trim(), current.code.trim());
-          succeed();
-        } catch (error) {
-          fail(error, "code");
-        }
-      })();
+      attempt(
+        undefined,
+        "code",
+        (handle) => handle.loginWithCode(current.email.trim(), current.code.trim()),
+        succeed,
+      );
     },
   };
 }
