@@ -99,6 +99,12 @@ function ordinaryClient(options: PostEngagementTransportOptions) {
   return createSessionApiClient({ origin: options.origin, fetchImpl: options.fetchImpl });
 }
 
+function personaIdFromEnvelope(envelope: PendingSubmissionEnvelopeV1): string {
+  const match = /^principal:([^:]+):post:/u.exec(envelope.pending_request_id);
+  if (match?.[1] === undefined) throw new Error("Pending engagement identity is missing");
+  return decodeURIComponent(match[1]);
+}
+
 /**
  * Generated-client transport for authenticated post engagement. Client and
  * cookie resolution stay lazy so SSR never reads browser state while merely
@@ -112,14 +118,14 @@ export function createPostEngagementTransport(
       const action = expectedAction(await decodePendingEngagementAction(envelope), "comment");
       return clientForEnvelope(options, envelope).post_postsPostIdComments({
         path: { postId: action.postId },
-        body: { idempotency_key: action.idempotencyKey, body: action.body },
+        body: { persona_id: personaIdFromEnvelope(envelope), idempotency_key: action.idempotencyKey, body: action.body },
       }, requestOptions(options));
     },
     async createReply(envelope) {
       const action = expectedAction(await decodePendingEngagementAction(envelope), "reply");
       return clientForEnvelope(options, envelope).post_commentsCommentIdReplies({
         path: { commentId: action.commentId },
-        body: { idempotency_key: action.idempotencyKey, body: action.body },
+        body: { persona_id: personaIdFromEnvelope(envelope), idempotency_key: action.idempotencyKey, body: action.body },
       }, requestOptions(options));
     },
     async reportComment(envelope) {

@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { extractEmbeddedAudioArtworkBytes } from "./audio-artwork";
+import { extractEmbeddedAudioArtworkBytes, extractEmbeddedAudioTitleBytes } from "./audio-artwork";
 
 function textBytes(value: string): number[] {
   return Array.from(new TextEncoder().encode(value));
@@ -110,6 +110,25 @@ function id3v24ApicTag(imageBytes: number[]): Uint8Array {
   ]);
 }
 
+function id3v23TitleTag(body: number[]): Uint8Array {
+  const frameBody = [3, ...body];
+  const frame = [
+    ...textBytes("TIT2"),
+    ...uint32Bytes(frameBody.length),
+    0,
+    0,
+    ...frameBody,
+  ];
+  return new Uint8Array([
+    ...textBytes("ID3"),
+    3,
+    0,
+    0,
+    ...synchsafeBytes(frame.length),
+    ...frame,
+  ]);
+}
+
 describe("extractEmbeddedAudioArtworkBytes", () => {
   test("extracts PIC image bytes from an ID3v2.2 tag", () => {
     const artwork = extractEmbeddedAudioArtworkBytes(id3v22PicTag([0xff, 0xd8, 0xff, 0xe0]));
@@ -134,5 +153,15 @@ describe("extractEmbeddedAudioArtworkBytes", () => {
 
   test("returns null when no ID3 artwork is present", () => {
     expect(extractEmbeddedAudioArtworkBytes(new Uint8Array([0xff, 0xfb, 0x90, 0x64]))).toBeNull();
+  });
+});
+
+describe("extractEmbeddedAudioTitleBytes", () => {
+  test("extracts and trims a UTF-8 TIT2 title", () => {
+    expect(extractEmbeddedAudioTitleBytes(id3v23TitleTag(textBytes("  Signal Fire  ")))).toBe("Signal Fire");
+  });
+
+  test("returns null when no ID3 title is present", () => {
+    expect(extractEmbeddedAudioTitleBytes(id3v23ApicTag([0x89, 0x50, 0x4e, 0x47]))).toBeNull();
   });
 });

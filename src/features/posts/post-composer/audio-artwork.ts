@@ -1,5 +1,6 @@
-// Embedded audio artwork (ID3 APIC/PIC) extraction, ported verbatim from the
-// React post-composer-audio-artwork.ts. Framework-free byte parsing.
+// Embedded audio metadata (ID3) extraction. Artwork parsing is ported from the
+// reviewed composer parser; title-frame extraction shares the same bounded
+// frame walk. Framework-free byte parsing.
 
 export type EmbeddedArtwork = {
   data: Uint8Array;
@@ -110,8 +111,12 @@ function parsePicFrame(frame: Uint8Array): EmbeddedArtwork | null {
   };
 }
 
-export function extractEmbeddedAudioArtworkBytes(bytes: Uint8Array): EmbeddedArtwork | null {
-  if (bytes.length < 10 || ascii(bytes, 0, 3) !== "ID3") return null;
+function* iterateId3Frames(bytes: Uint8Array): Generator<{
+  frame: Uint8Array;
+  id: string;
+  majorVersion: number;
+}> {
+  if (bytes.length < 10 || ascii(bytes, 0, 3) !== "ID3") return;
 
   const majorVersion = bytes[3]!;
   const tagSize = readSynchsafeInt(bytes, 6);
@@ -120,35 +125,89 @@ export function extractEmbeddedAudioArtworkBytes(bytes: Uint8Array): EmbeddedArt
 
   while (offset < tagEnd) {
     if (majorVersion === 2) {
-      if (offset + 6 > tagEnd) break;
+      if (offset + 6 > tagEnd) return;
       const frameId = ascii(bytes, offset, 3);
       const frameSize = readUint24(bytes, offset + 3);
       offset += 6;
-      if (!frameId.trim() || frameSize <= 0 || offset + frameSize > tagEnd) break;
-      if (frameId === "PIC") {
-        return parsePicFrame(bytes.slice(offset, offset + frameSize));
-      }
+      if (!frameId.trim() || frameSize <= 0 || offset + frameSize > tagEnd) return;
+      yield { frame: bytes.slice(offset, offset + frameSize), id: frameId, majorVersion };
       offset += frameSize;
       continue;
     }
 
-    if (offset + 10 > tagEnd) break;
+    if (offset + 10 > tagEnd) return;
     const frameId = ascii(bytes, offset, 4);
     const frameSize = majorVersion === 4
       ? readSynchsafeInt(bytes, offset + 4)
       : readUint32(bytes, offset + 4);
     offset += 10;
-    if (!frameId.trim() || frameSize <= 0 || offset + frameSize > tagEnd) break;
-    if (frameId === "APIC") {
-      return parseApicFrame(bytes.slice(offset, offset + frameSize));
-    }
+    if (!frameId.trim() || frameSize <= 0 || offset + frameSize > tagEnd) return;
+    yield { frame: bytes.slice(offset, offset + frameSize), id: frameId, majorVersion };
     offset += frameSize;
+  }
+}
+
+export function extractEmbeddedAudioArtworkBytes(bytes: Uint8Array): EmbeddedArtwork | null {
+  for (const { frame, id, majorVersion } of iterateId3Frames(bytes)) {
+    if (majorVersion === 2) {
+      if (id === "PIC") return parsePicFrame(frame);
+      continue;
+    }
+    if (id === "APIC") return parseApicFrame(frame);
   }
 
   return null;
 }
 
-async function extractEmbeddedAudioArtworkFile(file: File): Promise<File | null> {
+function decodeLatin1(bytes: Uint8Array): string {
+  let value = "";
+  for (let index = 0; index < bytes.length; index += 1) {
+    const code = bytes[index]!;
+    if (code === 0) break;
+    value += String.fromCharCode(code);
+  }
+  return value;
+}
+
+function decodeUtf16(bytes: Uint8Array, littleEndian: boolean): string {
+  let value = "";
+  for (let index = 0; index + 1 < bytes.length; index += 2) {
+    const unit = littleEndian
+      ? bytes[index]! | (bytes[index + 1]! << 8)
+      : (bytes[index]! << 8) | bytes[index + 1]!;
+    if (unit === 0) break;
+    value += String.fromCharCode(unit);
+  }
+  return value;
+}
+
+function decodeTextFrame(frame: Uint8Array): string | null {
+  if (frame.length < 1) return null;
+  const encoding = frame[0]!;
+  const body = frame.subarray(1);
+  if (encoding === 1) {
+    const hasBigEndianBom = body[0] === 0xfe && body[1] === 0xff;
+    const hasLittleEndianBom = body[0] === 0xff && body[1] === 0xfe;
+    return decodeUtf16(hasBigEndianBom || hasLittleEndianBom ? body.subarray(2) : body, !hasBigEndianBom);
+  }
+  if (encoding === 2) return decodeUtf16(body, false);
+  if (encoding === 3) {
+    const decoded = new TextDecoder("utf-8").decode(body);
+    const terminator = decoded.indexOf("\u0000");
+    return terminator === -1 ? decoded : decoded.slice(0, terminator);
+  }
+  return decodeLatin1(body);
+}
+
+export function extractEmbeddedAudioTitleBytes(bytes: Uint8Array): string | null {
+  for (const { frame, id, majorVersion } of iterateId3Frames(bytes)) {
+    if (majorVersion === 2 ? id === "TT2" : id === "TIT2") return decodeTextFrame(frame)?.trim() || null;
+  }
+
+  return null;
+}
+
+export async function extractEmbeddedAudioArtworkFile(file: File): Promise<File | null> {
   const bytes = new Uint8Array(await file.arrayBuffer());
   const artwork = extractEmbeddedAudioArtworkBytes(bytes);
 
@@ -163,4 +222,8 @@ async function extractEmbeddedAudioArtworkFile(file: File): Promise<File | null>
     `${fileBaseName(file.name)}-cover.${extension}`,
     { type: artwork.mimeType },
   );
+}
+
+export async function extractEmbeddedAudioTitle(file: File): Promise<string | null> {
+  return extractEmbeddedAudioTitleBytes(new Uint8Array(await file.arrayBuffer()));
 }

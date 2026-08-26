@@ -169,6 +169,9 @@ export interface LinkPreviewState {
 
 export interface SongComposerState {
   title?: string;
+  lyricsEditorState?: "hidden" | "waiting" | "ready" | "no_speech" | "unavailable";
+  detectedLanguage?: string;
+  detectedExplicitness?: "not_explicit" | "explicit" | "no_lyrics" | "uncertain" | "unavailable";
   genre?: string;
   geniusAnnotationsUrl?: string;
   primaryLanguage?: string;
@@ -189,13 +192,19 @@ export interface SongComposerState {
 
 export interface AssetLicenseState {
   presetId: AssetLicensePresetId;
+  commercialRevShareBps?: number;
+  /** @deprecated Story fixture compatibility only; never serialized. */
   commercialRevSharePct?: number;
 }
 
-interface AssetRoyaltyAllocation {
+export interface AssetRoyaltyAllocation {
   id: string;
   recipientKind: "creator" | "collaborator";
+  recipientId?: string;
+  shareBps?: number;
+  /** @deprecated Story fixture compatibility only; never serialized. */
   walletAddress?: string;
+  /** @deprecated Story fixture compatibility only; never serialized. */
   sharePct: number;
 }
 
@@ -373,6 +382,7 @@ export interface PostComposerProps extends Partial<PostComposerDraftState>, Post
   ageGateConfirmationRequired?: boolean;
   availableTabs?: ComposerTab[];
   canCreateSongPost?: boolean;
+  currentPersonaId?: string;
   currentUserWalletAddress?: string;
   draft?: PostComposerDraftState;
   actions?: PostComposerDraftActions;

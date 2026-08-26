@@ -153,7 +153,7 @@ export function createPostComposerController(
   const [uncontrolledSongState, setUncontrolledSongState] = createSignal<SongComposerState>(defaultSongState(song()));
   const [uncontrolledLicenseState, setUncontrolledLicenseState] = createSignal<AssetLicenseState>(defaultAssetLicenseState(license()));
   const [uncontrolledRoyaltySplitState, setUncontrolledRoyaltySplitState] = createSignal<AssetRoyaltySplitState>(
-    defaultAssetRoyaltySplitState(royaltySplit(), props.currentUserWalletAddress),
+    defaultAssetRoyaltySplitState(royaltySplit(), props.currentPersonaId),
   );
   const [uncontrolledVideoState, setUncontrolledVideoState] = createSignal<VideoComposerState>(defaultVideoState(video()));
   const [uncontrolledImageUpload, setUncontrolledImageUpload] = createSignal<File | null>(imageUpload() ?? null);
@@ -395,8 +395,8 @@ export function createPostComposerController(
     fileUploadPresent: Boolean(fileState().upload),
   });
   const songTitleMissing = () => activeTab() === "song" && !songState().title?.trim();
-  const songGenreMissing = () => activeTab() === "song" && !songState().genre?.trim();
-  const songLanguageMissing = () => activeTab() === "song" && !songState().primaryLanguage?.trim();
+  const songGenreMissing = () => false;
+  const songLanguageMissing = () => false;
   const songAudioMissing = () => activeTab() === "song"
     && !songState().primaryAudioUpload
     && !songState().primaryAudioLabel?.trim();
@@ -404,9 +404,7 @@ export function createPostComposerController(
     props.ageGateConfirmationRequired === true && ageGatePolicyState() !== "18_plus";
   const requiresPostSheet = () => Boolean(
     ageGateConfirmationPending()
-      || songTitleMissing()
-      || songGenreMissing()
-      || songLanguageMissing(),
+      || songTitleMissing(),
   );
   const postDisabled = () => basePostDisabled()
     || contentBlocked()
@@ -469,18 +467,18 @@ export function createPostComposerController(
 
   // --- Effects (prop sync + invariants), ported from the React useEffects. ---
 
-  // The wallet prop may be empty on first mount and load shortly after. Keep the
-  // untouched creator default in sync with it, while preserving any user edit.
+  // The public persona id may arrive after mount. Keep the untouched creator
+  // allocation bound to recipient identity; payout wallets are never input.
   createEffect(
-    () => [props.currentUserWalletAddress, royaltySplit()] as const,
-    ([wallet, controlledSplit]) => {
+    () => [props.currentPersonaId, royaltySplit()] as const,
+    ([personaId, controlledSplit]) => {
       if (controlledSplit !== undefined) return;
       const current = uncontrolledRoyaltySplitState();
       if (current.allocations.length !== 1) return;
       const [creator] = current.allocations;
       if (!creator || creator.recipientKind !== "creator") return;
-      if ((creator.walletAddress ?? "") === (wallet ?? "")) return;
-      setUncontrolledRoyaltySplitState({ allocations: [{ ...creator, walletAddress: wallet }] });
+      if ((creator.recipientId ?? "") === (personaId ?? "")) return;
+      setUncontrolledRoyaltySplitState({ allocations: [{ ...creator, recipientId: personaId }] });
     },
   );
 

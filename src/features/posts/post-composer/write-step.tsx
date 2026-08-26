@@ -27,6 +27,7 @@ import { PostComposerEventSection } from "./event-section";
 import { LiveTabContent } from "./live-tab";
 import { PostComposerSettingsHub } from "./settings-hub";
 import { PostComposerPublishControls } from "./publish-controls";
+import { extractEmbeddedAudioArtworkFile, extractEmbeddedAudioTitle } from "./audio-artwork";
 import {
   createKeyboardBottomOffset,
   createObjectUrl,
@@ -76,6 +77,19 @@ function updateBody(controller: PostComposerController, value: string) {
   } else {
     controller.fields.onTextBodyValueChange?.(value);
   }
+}
+
+function titleValue(controller: PostComposerController): string {
+  return controller.tabs.activeTab === "song" ? controller.song.state.title ?? "" : controller.fields.titleValue;
+}
+
+function updateTitle(controller: PostComposerController, value: string): void {
+  if (controller.tabs.activeTab === "song") {
+    controller.song.update(current => ({ ...current, title: value }));
+    controller.fields.onTitleValueChange?.(value);
+    return;
+  }
+  controller.fields.onTitleValueChange?.(value);
 }
 
 function attachmentFor(
@@ -156,7 +170,7 @@ export function PostComposerWriteStep(props: {
     setActiveTool(null);
   };
 
-  const handleFile = (file: File) => {
+  const handleFile = async (file: File) => {
     const kind = fileKind(file);
     if (!kind) return;
     if (kind === "image") {
@@ -164,7 +178,23 @@ export function PostComposerWriteStep(props: {
     } else if (kind === "video") {
       controller.media.updateVideoState((state) => ({ ...state, primaryVideoUpload: file, primaryVideoLabel: file.name, posterFrameSeconds: "0" }));
     } else if (kind === "song") {
-      controller.song.update((state) => ({ ...state, primaryAudioUpload: file, primaryAudioLabel: file.name, title: state.title?.trim() ? state.title : titleFromFilename(file.name) }));
+      const [embeddedTitle, embeddedArtwork] = await Promise.all([
+        extractEmbeddedAudioTitle(file),
+        extractEmbeddedAudioArtworkFile(file),
+      ]);
+      const title = embeddedTitle ?? titleFromFilename(file.name);
+      const selectedTitle = controller.song.state.title?.trim() ? controller.song.state.title : title;
+      controller.song.update((state) => ({
+        ...state,
+        primaryAudioUpload: file,
+        primaryAudioLabel: file.name,
+        title: selectedTitle,
+        coverUpload: embeddedArtwork,
+        coverLabel: embeddedArtwork?.name,
+        coverSource: embeddedArtwork ? "embedded" : undefined,
+        lyricsEditorState: "hidden",
+      }));
+      if (!controller.fields.titleValue.trim()) controller.fields.onTitleValueChange?.(selectedTitle);
     } else {
       controller.generic.setFile({ upload: file, label: file.name });
     }
@@ -173,7 +203,7 @@ export function PostComposerWriteStep(props: {
 
   const input = (kind: AttachmentKind, files: FileList | null) => {
     const file = files?.[0];
-    if (file) handleFile(file);
+    if (file) void handleFile(file);
     if (kind === "image" && imageInput) imageInput.value = "";
   };
 
@@ -182,7 +212,7 @@ export function PostComposerWriteStep(props: {
     dragCounter = 0;
     setDragging(false);
     const file = event.dataTransfer?.files?.[0];
-    if (file) handleFile(file);
+    if (file) void handleFile(file);
   };
 
   const Inputs = () => (
@@ -201,13 +231,13 @@ export function PostComposerWriteStep(props: {
           <Input
             class="h-auto min-w-0 flex-1 px-0 py-0 text-3xl font-semibold leading-tight shadow-none focus-visible:border-transparent focus-visible:ring-0"
             maxlength={300}
-            onChange={(event) => controller.fields.onTitleValueChange?.(event.currentTarget.value)}
+            onChange={(event) => updateTitle(controller, event.currentTarget.value)}
             placeholder={controller.copy.placeholders.title}
             variant="flat"
-            value={controller.fields.titleValue}
+            value={titleValue(controller)}
           />
         }>
-          <Input maxlength={300} onChange={(event) => controller.fields.onTitleValueChange?.(event.currentTarget.value)} placeholder="Title*" size="title" value={controller.fields.titleValue} />
+          <Input maxlength={300} onChange={(event) => updateTitle(controller, event.currentTarget.value)} placeholder="Title*" size="title" value={titleValue(controller)} />
         </Show>
       </div>
       <div class="flex flex-wrap items-center gap-2">
@@ -245,7 +275,33 @@ export function PostComposerWriteStep(props: {
         </FormNote>
       </Show>
       <Show when={controller.tabs.activeTab === "file"}><PostComposerGenericAssetFields file={controller.generic.file} onFileChange={controller.generic.setFile} /></Show>
-      <Textarea class={cn("resize-none text-xl leading-relaxed", mobile ? "min-h-[38dvh] rounded-none border-0 bg-transparent p-0 shadow-none focus-visible:ring-0" : "min-h-36")} onChange={(event) => updateBody(controller, event.currentTarget.value)} placeholder={attachment() ? controller.copy.placeholders.optional : controller.copy.placeholders.body} value={bodyValue(controller)} />
+      <Show when={controller.tabs.activeTab !== "song"}>
+        <Textarea class={cn("resize-none text-xl leading-relaxed", mobile ? "min-h-[38dvh] rounded-none border-0 bg-transparent p-0 shadow-none focus-visible:ring-0" : "min-h-36")} onChange={(event) => updateBody(controller, event.currentTarget.value)} placeholder={attachment() ? controller.copy.placeholders.optional : controller.copy.placeholders.body} value={bodyValue(controller)} />
+      </Show>
+      <Show when={controller.tabs.activeTab === "song" && controller.song.state.lyricsEditorState === "ready"}>
+        <label class="block space-y-2">
+          <Type as="span" variant="body-strong">Lyrics</Type>
+          <Textarea
+            aria-label="Lyrics"
+            class="min-h-52 resize-y"
+            onChange={(event) => controller.fields.onLyricsValueChange?.(event.currentTarget.value)}
+            placeholder="Review the transcript or paste corrected lyrics"
+            value={controller.fields.lyricsValue}
+          />
+        </label>
+      </Show>
+      <Show when={controller.tabs.activeTab === "song" && controller.song.state.lyricsEditorState === "no_speech"}>
+        <FormNote>No speech was detected. Lyrics are not required.</FormNote>
+      </Show>
+      <Show when={controller.tabs.activeTab === "song" && controller.song.state.lyricsEditorState === "unavailable"}>
+        <FormNote tone="warning">Speech analysis is unavailable. This song will require review.</FormNote>
+      </Show>
+      <Show when={controller.tabs.activeTab === "song" && (controller.song.state.detectedLanguage || controller.song.state.detectedExplicitness)}>
+        <div class="flex flex-wrap gap-2" aria-label="Server song analysis">
+          <Show when={controller.song.state.detectedLanguage}><Type as="span" variant="caption">Language: {controller.song.state.detectedLanguage}</Type></Show>
+          <Show when={controller.song.state.detectedExplicitness}><Type as="span" variant="caption">Lyrics: {controller.song.state.detectedExplicitness}</Type></Show>
+        </div>
+      </Show>
       <Show when={controller.tabs.activeTab === "live"} fallback={<Show when={controller.tabs.activeTab !== "song" && controller.event.state.enabled}><PostComposerEventSection event={controller.event.state} onChange={controller.event.update} onSearchPlaces={controller.event.searchPlaces} /></Show>}>
         <LiveTabContent copy={controller.copy} live={controller.primary.liveState} onLiveChange={controller.primary.setLiveState} />
       </Show>

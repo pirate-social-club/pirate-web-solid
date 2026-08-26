@@ -2,7 +2,9 @@
 // from the React post-composer-settings-hub.tsx.
 
 import { CardContent } from "../../../design-system";
+import { Show } from "solid-js";
 import { cn } from "../../../design-system";
+import { SongTermsEditor } from "../media-submission/song-terms-editor";
 import type { PostComposerController } from "./controller";
 import { shouldForcePublicIdentityForTab } from "./invariants";
 import { PostComposerSettingsSections } from "./settings-sections";
@@ -131,6 +133,7 @@ export function PostComposerSettingsHub(props: {
 
   return (
     <CardContent class={cn("space-y-8 p-5", controller.isMobile() && "px-0 pb-4 pt-1")}>
+      <Show when={controller.tabs.activeTab === "song"} fallback={
       <PostComposerSettingsSections
         access={accessFromController(controller)}
         agentIdentityDescription="Post from your agent identity"
@@ -236,6 +239,24 @@ export function PostComposerSettingsHub(props: {
         visibility={controller.audience.state.visibility === "members_only" ? "community" : "public"}
         vinylReleaseUrl={controller.commerce.monetizationState.vinylReleaseUrl ?? ""}
       />
+      }>
+        <SongTermsEditor
+          allocations={controller.royaltySplit.state}
+          commercialRevShareBps={controller.license.state.commercialRevShareBps ?? 1_000}
+          license={controller.license.state.presetId}
+          onAllocationsChange={(next) => controller.royaltySplit.update(() => next)}
+          onCommercialRevShareBpsChange={(commercialRevShareBps) => controller.license.update((current) => ({
+            ...current,
+            commercialRevShareBps,
+            commercialRevSharePct: undefined,
+          }))}
+          onLicenseChange={(presetId) => controller.license.update((current) => ({
+            presetId,
+            commercialRevShareBps: presetId === "commercial-remix" ? current.commercialRevShareBps ?? 1_000 : undefined,
+            commercialRevSharePct: undefined,
+          }))}
+        />
+      </Show>
     </CardContent>
   );
 }

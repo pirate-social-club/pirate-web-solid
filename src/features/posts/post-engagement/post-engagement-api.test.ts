@@ -16,7 +16,7 @@ const commentResponse = {
   updated_at: "2026-08-22T00:00:00.000Z",
 } as const;
 
-const context = { principalId: "user-1", postId: "post-1" } as const;
+const context = { principalId: "persona-1", postId: "post-1" } as const;
 
 describe("createPostEngagementTransport", () => {
   test("fails locally before calling the API when CSRF state is absent", async () => {

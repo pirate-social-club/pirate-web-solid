@@ -94,6 +94,9 @@ export function defaultAssetLicenseState(license?: AssetLicenseState): AssetLice
   const presetId = license?.presetId ?? "non-commercial";
   return {
     presetId,
+    commercialRevShareBps: presetId === "commercial-remix"
+      ? license?.commercialRevShareBps ?? (license?.commercialRevSharePct === undefined ? 1_000 : license.commercialRevSharePct * 100)
+      : undefined,
     commercialRevSharePct: presetId === "commercial-remix"
       ? license?.commercialRevSharePct ?? 10
       : undefined,
@@ -102,14 +105,15 @@ export function defaultAssetLicenseState(license?: AssetLicenseState): AssetLice
 
 export function defaultAssetRoyaltySplitState(
   royaltySplit?: AssetRoyaltySplitState,
-  currentUserWalletAddress?: string,
+  currentPersonaId?: string,
 ): AssetRoyaltySplitState {
   if (royaltySplit) return royaltySplit;
   return {
     allocations: [{
       id: "creator",
       recipientKind: "creator",
-      walletAddress: currentUserWalletAddress,
+      recipientId: currentPersonaId,
+      shareBps: 10_000,
       sharePct: 100,
     }],
   };

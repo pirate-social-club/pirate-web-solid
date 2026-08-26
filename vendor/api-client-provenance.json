@@ -1,9 +1,9 @@
 {
   "name": "@pirate/api-client",
-  "version": "0.11.1",
-  "artifact": "vendor/api-client/pirate-api-client-0.11.1.tgz",
-  "sha256": "dba66aa6c138ed97d9801c59e02df4157353046847aa14c44d6c764c0264e509",
-  "source": "api-next@fd268d2eeb9b0c7f3fac0f46ec94c690a9c4997f:packages/api-client",
-  "openapiSha256": "44029b7e36eea443f3ea95009b5225b51042d512c72cbdaa52c1ea5b6dcfef0d",
-  "clientSha256": "74559b056b9acc97d701b8d3312c6d1f0ff6faa5d76fd320f5ddd7704ef0408c"
+  "version": "0.20.0",
+  "artifact": "vendor/api-client/pirate-api-client-0.20.0.tgz",
+  "sha256": "18c089266d1751fe45ee173c22857ec8f8eebd11ffbca5b4448df8b56e0ee0e3",
+  "source": "api-next@6d0b1ff:packages/api-client",
+  "openapiSha256": "75a2ac40b4acdcae5745195b754a518efb4b2fe119ae9e8349d041904f77c4a8",
+  "clientSha256": "fc2401d89a45c58198c9c7a5f0f5c6ecb0e8ff8032ab0220bf5a9e98abd596c4"
 }

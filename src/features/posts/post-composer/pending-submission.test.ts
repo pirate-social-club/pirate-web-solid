@@ -17,6 +17,12 @@ import {
   TextSubmissionServerRejectionError,
   type TextSubmissionTransport,
 } from "./text-submission-transport";
+import {
+  createIndexedDbMediaSubmissionStorage,
+  createPersistedMediaCommand,
+  MEDIA_PENDING_VERSION,
+  type PendingMediaSubmissionV1,
+} from "../media-submission/pending";
 
 const request = {
   path: { communityId: "community-1" },
@@ -117,9 +123,11 @@ class FakeStore {
   put(value: unknown): IDBRequest {
     const request = new FakeRequest();
     // SAFETY: the test only calls put with the pending envelope key shape.
-    const record = value as { pending_request_id: string };
-    request.result = record.pending_request_id;
-    this.controller.queueRequest(request, true, () => this.records.set(record.pending_request_id, value));
+    const record = value as { pending_request_id?: string; draft_id?: string };
+    const key = record.pending_request_id ?? record.draft_id;
+    if (key === undefined) throw new Error("fake record key missing");
+    request.result = key;
+    this.controller.queueRequest(request, true, () => this.records.set(key, value));
     return asIdbRequest(request);
   }
 
@@ -134,6 +142,7 @@ class FakeStore {
 class FakeDatabase {
   readonly controller: FakeIndexedDbController;
   readonly store: FakeStore;
+  readonly objectStoreNames = { contains: () => true };
 
   constructor(controller: FakeIndexedDbController) {
     this.controller = controller;
@@ -715,5 +724,56 @@ describe("pending text submission", () => {
     const coordinator = new TextSubmissionCoordinator({ storage, transport: transportWith(snapshot) });
     await expect(coordinator.submit(request)).rejects.toThrow("quota");
     expect(coordinator.state).toEqual({ status: "transport_failure", reason: "durable_storage_failed" });
+  });
+});
+
+describe("pending media submission IndexedDB", () => {
+  test("commits the reservation, exact command bytes, revision, upload state, and snapshot before reload", async () => {
+    const controller = new FakeIndexedDbController();
+    const storage = createIndexedDbMediaSubmissionStorage("user-one", controller.factory());
+    const command = await createPersistedMediaCommand({
+      kind: "finalize",
+      idempotencyKey: "finalize-key",
+      sameOriginPath: "/api/media-post-submissions/sub-1/finalize",
+      body: { persona_id: "persona-1", idempotency_key: "finalize-key", expected_creation_revision: 2, reservation_id: "reservation-1" },
+    });
+    const record: PendingMediaSubmissionV1 = {
+      version: MEDIA_PENDING_VERSION,
+      draft_id: "draft-media-1",
+      principal_id: "user-one",
+      community_id: "community-1",
+      persona_id: "persona-1",
+      song_draft: { title: "Song title", song_type: "original" },
+      audio: { blob: new Blob([new Uint8Array([1, 2, 3])], { type: "audio/mpeg" }), name: "song.mp3", type: "audio/mpeg", size: 3, last_modified: 1 },
+      reservation: {
+        reservation_id: "reservation-1",
+        track: "song",
+        slot: "primary_audio",
+        status: "awaiting_upload",
+        upload: { method: "PUT", url: "https://upload.test/object", required_headers: [], expires_at: "2026-08-27T00:00:00Z" },
+      },
+      submission_id: "sub-1",
+      expected_creation_revision: 2,
+      upload_status: "uploaded",
+      snapshot: null,
+      commands: [command],
+      pending_command: command,
+      created_at: "2026-08-26T00:00:00Z",
+      updated_at: "2026-08-26T00:00:00Z",
+    };
+    let committed = false;
+    const save = storage.save(record).then(() => { committed = true; });
+    for (let index = 0; index < 20 && !controller.hasPendingCommit; index += 1) await new Promise<void>(resolve => setTimeout(resolve, 0));
+    expect(committed).toBe(false);
+    controller.commitWrites();
+    await save;
+    const restored = await createIndexedDbMediaSubmissionStorage("user-one", controller.factory()).loadAll();
+    expect(restored[0]).toMatchObject({
+      draft_id: "draft-media-1",
+      submission_id: "sub-1",
+      expected_creation_revision: 2,
+      upload_status: "uploaded",
+      pending_command: { idempotency_key: "finalize-key", body_sha256: command.body_sha256 },
+    });
   });
 });
