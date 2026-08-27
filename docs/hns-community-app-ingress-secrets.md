@@ -39,6 +39,14 @@ all of those values in one reviewed deployment. The source configuration and
 this document create no Access application, service token, route, secret,
 deployment, DNS record, certificate, or HNS authority.
 
+Wrangler 4.123 treats every name in `secrets.required` as a deployment gate.
+Because the production handle-host graph is disabled, its two authority
+credentials are omitted from the production required list so an unrelated
+community-app deployment does not require dormant secrets. Base and staging
+keep the declarations. A production handle-host activation must restore both
+names and provision their real values in the same separately reviewed
+ceremony; placeholder or shared credentials are prohibited.
+
 The protected Solid ingress uses the nonsecret references
 `HNS_COMMUNITY_APP_INGRESS_ORIGIN`, `HNS_COMMUNITY_APP_ACCESS_ISSUER`,
 `HNS_COMMUNITY_APP_ACCESS_JWKS_URL`, and

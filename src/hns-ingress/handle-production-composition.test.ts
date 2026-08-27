@@ -38,7 +38,11 @@ function environment(): ProductionHnsHandlePersonaIngressEnvV1 {
 
 describe("production handle-persona composition", () => {
   it("is inert before validating any unresolved dependency", async () => {
-    const env = { ...environment(), HNS_HANDLE_HOST_INGRESS_ENABLED: "false" };
+    const {
+      HNS_HANDLE_HOST_AUTHORITY_ACCESS_CLIENT_ID: _clientId,
+      HNS_HANDLE_HOST_AUTHORITY_ACCESS_CLIENT_SECRET: _clientSecret,
+      ...env
+    } = { ...environment(), HNS_HANDLE_HOST_INGRESS_ENABLED: "false" };
     env.HNS_FORWARDER_V3_HMAC_KEY_REGISTRY = "unresolved";
     await expect(makeProductionHnsHandlePersonaIngressCompositionV1({
       env,
@@ -57,6 +61,14 @@ describe("production handle-persona composition", () => {
     })).rejects.toMatchObject({ reason: "misconfigured" });
     await expect(makeProductionHnsHandlePersonaIngressCompositionV1({
       env: { ...environment(), HNS_HANDLE_HOST_CANONICAL_ORIGIN: "https://other.test" },
+      dispatch: { ssr: async () => new Response() },
+    })).rejects.toMatchObject({ reason: "misconfigured" });
+    await expect(makeProductionHnsHandlePersonaIngressCompositionV1({
+      env: { ...environment(), HNS_HANDLE_HOST_AUTHORITY_ACCESS_CLIENT_ID: undefined },
+      dispatch: { ssr: async () => new Response() },
+    })).rejects.toMatchObject({ reason: "misconfigured" });
+    await expect(makeProductionHnsHandlePersonaIngressCompositionV1({
+      env: { ...environment(), HNS_HANDLE_HOST_AUTHORITY_ACCESS_CLIENT_SECRET: undefined },
       dispatch: { ssr: async () => new Response() },
     })).rejects.toMatchObject({ reason: "misconfigured" });
   });

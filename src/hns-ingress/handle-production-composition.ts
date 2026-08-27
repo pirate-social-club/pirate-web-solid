@@ -34,8 +34,8 @@ export interface ProductionHnsHandlePersonaIngressEnvV1 {
   readonly HNS_FORWARDER_V3_FRESHNESS_WINDOW_SECONDS: string;
   readonly HNS_FORWARDER_V3_FUTURE_CLOCK_SKEW_SECONDS: string;
   readonly HNS_FORWARDER_V3_HMAC_KEY_REGISTRY: string;
-  readonly HNS_HANDLE_HOST_AUTHORITY_ACCESS_CLIENT_ID: string;
-  readonly HNS_HANDLE_HOST_AUTHORITY_ACCESS_CLIENT_SECRET: string;
+  readonly HNS_HANDLE_HOST_AUTHORITY_ACCESS_CLIENT_ID?: string;
+  readonly HNS_HANDLE_HOST_AUTHORITY_ACCESS_CLIENT_SECRET?: string;
 }
 
 function exactHttpsOrigin(value: string): string {
@@ -73,6 +73,16 @@ export async function makeProductionHnsHandlePersonaIngressCompositionV1(input: 
     const canonicalOrigin = exactHttpsOrigin(input.env.HNS_HANDLE_HOST_CANONICAL_ORIGIN);
     const publicApiOrigin = exactHttpsOrigin(input.env.HNS_HANDLE_HOST_PUBLIC_API_ORIGIN);
     const authorityOrigin = exactHttpsOrigin(input.env.HNS_HANDLE_HOST_AUTHORITY_ORIGIN);
+    const authorityAccessClientId = input.env.HNS_HANDLE_HOST_AUTHORITY_ACCESS_CLIENT_ID;
+    const authorityAccessClientSecret = input.env.HNS_HANDLE_HOST_AUTHORITY_ACCESS_CLIENT_SECRET;
+    if (
+      authorityAccessClientId === undefined ||
+      authorityAccessClientId.trim().length === 0 ||
+      authorityAccessClientSecret === undefined ||
+      authorityAccessClientSecret.trim().length === 0
+    ) {
+      throw new HnsIngressFailure("misconfigured");
+    }
     if (new Set([ingressOrigin, canonicalOrigin, publicApiOrigin]).size !== 3 || ingressOrigin === authorityOrigin) {
       throw new HnsIngressFailure("misconfigured");
     }
@@ -93,8 +103,8 @@ export async function makeProductionHnsHandlePersonaIngressCompositionV1(input: 
     });
     const authorityClient = makeHnsHandleAuthorityClientV1({
       origin: authorityOrigin,
-      accessClientId: input.env.HNS_HANDLE_HOST_AUTHORITY_ACCESS_CLIENT_ID,
-      accessClientSecret: input.env.HNS_HANDLE_HOST_AUTHORITY_ACCESS_CLIENT_SECRET,
+      accessClientId: authorityAccessClientId,
+      accessClientSecret: authorityAccessClientSecret,
       gatewayDeploymentReference: input.env.HNS_HANDLE_HOST_GATEWAY_DEPLOYMENT_REFERENCE,
       ...(input.authorityFetch === undefined ? {} : { fetchImpl: input.authorityFetch }),
     });

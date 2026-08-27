@@ -6,15 +6,18 @@ const workerSource = await readFile(new URL("../src/worker.ts", import.meta.url)
 const replaySource = await readFile(new URL("../src/hns-ingress/replay-store-sql.ts", import.meta.url), "utf8");
 const production = config.env?.production;
 const staging = config.env?.staging;
-const requiredSecrets = [
+const communityRequiredSecrets = [
   "HNS_FORWARDER_V3_HMAC_KEY_REGISTRY",
   "HNS_COMMUNITY_APP_API_ACCESS_CLIENT_ID",
   "HNS_COMMUNITY_APP_API_ACCESS_CLIENT_SECRET",
   "HNS_COMMUNITY_APP_AUTHORITY_ACCESS_CLIENT_ID",
   "HNS_COMMUNITY_APP_AUTHORITY_ACCESS_CLIENT_SECRET",
+];
+const handleRequiredSecrets = [
   "HNS_HANDLE_HOST_AUTHORITY_ACCESS_CLIENT_ID",
   "HNS_HANDLE_HOST_AUTHORITY_ACCESS_CLIENT_SECRET",
 ];
+const allRequiredSecrets = [...communityRequiredSecrets, ...handleRequiredSecrets];
 const replayBinding = [
   {
     name: "HNS_COMMUNITY_APP_REPLAY",
@@ -57,8 +60,11 @@ for (const environment of [config, staging, production]) {
   assert.equal(environment.vars.HNS_HANDLE_HOST_INGRESS_ENABLED, "false");
   for (const name of hnsVars) assert.equal(typeof environment.vars[name], "string", `${name} must be explicit`);
   assert.deepEqual(environment.durable_objects?.bindings, replayBinding);
-  assert.deepEqual(environment.secrets?.required, requiredSecrets);
 }
+
+assert.deepEqual(config.secrets?.required, allRequiredSecrets);
+assert.deepEqual(staging.secrets?.required, allRequiredSecrets);
+assert.deepEqual(production.secrets?.required, communityRequiredSecrets);
 
 assert.deepEqual(production.routes, [
   { pattern: "pirate.sc", custom_domain: true },
