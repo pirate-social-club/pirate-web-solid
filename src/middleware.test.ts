@@ -22,7 +22,8 @@ describe("security policy", () => {
   test("allows Privy on ordinary routes without widening other origins", () => {
     const policy = securityPolicy("/communities", "nonce-value");
     expect(policy).toContain("frame-src https://auth.privy.io");
-    expect(policy).toContain("connect-src 'self' https://auth.privy.io");
+    expect(policy).toContain("connect-src 'self' https://auth.privy.io https://08a4c22cf52e2ecae883e36f80a33f4a.r2.cloudflarestorage.com");
+    expect(policy).not.toContain("https://*.r2.cloudflarestorage.com");
     expect(policy).not.toContain("https://challenges.cloudflare.com");
   });
 
