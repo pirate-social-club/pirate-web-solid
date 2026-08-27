@@ -96,9 +96,14 @@ surface color tokens decide its color.
 - `IconSpeakerSlash`
 - `IconHeart`
 
-## Non-glyph visuals
+## Visual ownership boundary
 
-Progress rings use CSS, avatars, badges, and identity marks use HTML/CSS or
-existing raster assets, and wallet/brand marks use their generated or owned
-image assets. Generated Web3 brand SVGs are maintained by their own provenance
-gate; they are not product glyphs. Hand-authored inline SVGs are not permitted.
+- Interface glyphs come from the pinned Phosphor catalog and inherit the
+  surface's color; cataloged active-state icons use a generated fill variant.
+- Brand marks keep their own pinned source or owned image asset because their
+  identity is in the drawing itself. Web3 brand SVGs are maintained by the
+  separate provenance gate; they are not interface glyphs.
+- Data-derived identity marks, such as community initials, country codes, and
+  unknown wallet symbols, use HTML/CSS so their data remains visible without
+  hand-authored SVG.
+- Progress rings use CSS. Hand-authored inline SVGs are not permitted.
