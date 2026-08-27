@@ -60,12 +60,35 @@ for (const environment of [config, staging, production]) {
   assert.deepEqual(environment.secrets?.required, requiredSecrets);
 }
 
-assert.deepEqual(production.routes, [{ pattern: "pirate.sc", custom_domain: true }]);
+assert.deepEqual(production.routes, [
+  { pattern: "pirate.sc", custom_domain: true },
+  { pattern: "hns-community-ingress.pirate.sc", custom_domain: true },
+]);
 assert.equal(production.name, "pirate-web-solid-production");
 assert.equal(production.workers_dev, true);
 assert.equal(production.preview_urls, false);
 assert.equal(production.vars.API_NEXT_ORIGIN, "https://api-next.pirate.sc");
+assert.equal(production.vars.HNS_COMMUNITY_APP_INGRESS_ORIGIN, "https://hns-community-ingress.pirate.sc");
 assert.equal(production.vars.HNS_COMMUNITY_APP_CANONICAL_ORIGIN, "https://pirate.sc");
+assert.equal(production.vars.HNS_COMMUNITY_APP_API_ORIGIN, "https://hns-community-api.pirate.sc");
+assert.equal(production.vars.HNS_COMMUNITY_APP_ACCESS_ISSUER, "https://piratesocialclub.cloudflareaccess.com");
+assert.equal(
+  production.vars.HNS_COMMUNITY_APP_ACCESS_JWKS_URL,
+  "https://piratesocialclub.cloudflareaccess.com/cdn-cgi/access/certs",
+);
+assert.equal(
+  production.vars.HNS_COMMUNITY_APP_ACCESS_AUDIENCE,
+  "76194ec307b738b9939f3e5bd8cb2472bacbdb2565afa4e8aca7d46241db7ae8",
+);
+assert.equal(production.vars.HNS_COMMUNITY_APP_AUTHORITY_ORIGIN, "https://hns-community-api.pirate.sc");
+assert.equal(production.vars.HNS_COMMUNITY_APP_GATEWAY_DEPLOYMENT_REFERENCE, "");
+assert.equal(
+  production.vars.HNS_FORWARDER_V3_KEY_REGISTRY_REFERENCE,
+  "pirate:hns-forwarder-v3:production-community-app:v1",
+);
+assert.equal(production.vars.HNS_FORWARDER_V3_KEY_REGISTRY_VERSION, "2026-08-27-01");
+assert.equal(production.vars.HNS_FORWARDER_V3_FRESHNESS_WINDOW_SECONDS, "300");
+assert.equal(production.vars.HNS_FORWARDER_V3_FUTURE_CLOCK_SKEW_SECONDS, "5");
 assert.equal(production.vars.HNS_HANDLE_HOST_CANONICAL_ORIGIN, "https://pirate.sc");
 assert.equal(production.vars.HNS_HANDLE_HOST_PUBLIC_API_ORIGIN, "https://api-next.pirate.sc");
 assert.equal(production.vars.PRIVY_APP_ID, "cmnbdx9xk00ty0clapn2q8pdj");

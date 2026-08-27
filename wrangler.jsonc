@@ -123,6 +123,10 @@
         {
           "pattern": "pirate.sc",
           "custom_domain": true
+        },
+        {
+          "pattern": "hns-community-ingress.pirate.sc",
+          "custom_domain": true
         }
       ],
       "durable_objects": {
@@ -138,13 +142,13 @@
         "VERIFICATION_UI_ENABLED": "true",
         "PRIVY_APP_ID": "cmnbdx9xk00ty0clapn2q8pdj",
         "HNS_COMMUNITY_APP_INGRESS_ENABLED": "false",
-        "HNS_COMMUNITY_APP_INGRESS_ORIGIN": "",
+        "HNS_COMMUNITY_APP_INGRESS_ORIGIN": "https://hns-community-ingress.pirate.sc",
         "HNS_COMMUNITY_APP_CANONICAL_ORIGIN": "https://pirate.sc",
-        "HNS_COMMUNITY_APP_API_ORIGIN": "",
-        "HNS_COMMUNITY_APP_ACCESS_ISSUER": "",
-        "HNS_COMMUNITY_APP_ACCESS_JWKS_URL": "",
-        "HNS_COMMUNITY_APP_ACCESS_AUDIENCE": "",
-        "HNS_COMMUNITY_APP_AUTHORITY_ORIGIN": "",
+        "HNS_COMMUNITY_APP_API_ORIGIN": "https://hns-community-api.pirate.sc",
+        "HNS_COMMUNITY_APP_ACCESS_ISSUER": "https://piratesocialclub.cloudflareaccess.com",
+        "HNS_COMMUNITY_APP_ACCESS_JWKS_URL": "https://piratesocialclub.cloudflareaccess.com/cdn-cgi/access/certs",
+        "HNS_COMMUNITY_APP_ACCESS_AUDIENCE": "76194ec307b738b9939f3e5bd8cb2472bacbdb2565afa4e8aca7d46241db7ae8",
+        "HNS_COMMUNITY_APP_AUTHORITY_ORIGIN": "https://hns-community-api.pirate.sc",
         "HNS_COMMUNITY_APP_GATEWAY_DEPLOYMENT_REFERENCE": "",
         "HNS_HANDLE_HOST_INGRESS_ENABLED": "false",
         "HNS_HANDLE_HOST_INGRESS_ORIGIN": "",
@@ -155,10 +159,10 @@
         "HNS_HANDLE_HOST_ACCESS_AUDIENCE": "",
         "HNS_HANDLE_HOST_AUTHORITY_ORIGIN": "",
         "HNS_HANDLE_HOST_GATEWAY_DEPLOYMENT_REFERENCE": "",
-        "HNS_FORWARDER_V3_KEY_REGISTRY_REFERENCE": "",
-        "HNS_FORWARDER_V3_KEY_REGISTRY_VERSION": "",
-        "HNS_FORWARDER_V3_FRESHNESS_WINDOW_SECONDS": "0",
-        "HNS_FORWARDER_V3_FUTURE_CLOCK_SKEW_SECONDS": "-1"
+        "HNS_FORWARDER_V3_KEY_REGISTRY_REFERENCE": "pirate:hns-forwarder-v3:production-community-app:v1",
+        "HNS_FORWARDER_V3_KEY_REGISTRY_VERSION": "2026-08-27-01",
+        "HNS_FORWARDER_V3_FRESHNESS_WINDOW_SECONDS": "300",
+        "HNS_FORWARDER_V3_FUTURE_CLOCK_SKEW_SECONDS": "5"
       },
       "secrets": {
         "required": [
