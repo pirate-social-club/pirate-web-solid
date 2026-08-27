@@ -329,10 +329,18 @@ export class MediaSubmissionCoordinator {
     if (current.upload_status !== "uploaded") {
       await this.save({ ...current, upload_status: "uploading", updated_at: this.now() });
       this.setView({ status: "uploading", submissionId: snapshot.submission_id, bytesSent: 0, bytesTotal: current.audio.size });
-      await this.transport.upload(current.reservation, current.audio.blob, (sent, total) => {
-        this.setView({ status: "uploading", submissionId: snapshot!.submission_id, bytesSent: sent, bytesTotal: total });
-        onProgress?.(sent, total);
-      });
+      try {
+        await this.transport.upload(current.reservation, current.audio.blob, (sent, total) => {
+          this.setView({ status: "uploading", submissionId: snapshot!.submission_id, bytesSent: sent, bytesTotal: total });
+          onProgress?.(sent, total);
+        });
+      } catch (error) {
+        // The retained Blob and reservation make the same PUT retryable. Do
+        // not leave the composer in its transient progress-only state when a
+        // browser, CORS, or response failure makes the result ambiguous.
+        this.setView(projectMediaSubmission(snapshot));
+        throw error;
+      }
       await this.save({ ...this.requireRecord(), upload_status: "uploaded", updated_at: this.now() });
     }
     snapshot = await this.refresh();

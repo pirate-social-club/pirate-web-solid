@@ -45,6 +45,7 @@ class FakeTransport implements MediaSubmissionTransport {
   readonly commands: PersistedMediaCommand[] = [];
   ambiguousReserveOnce = false;
   ambiguousStartOnce = false;
+  ambiguousUploadOnce = false;
   ambiguousFinalizeOnce = false;
   conflictStartOnce = false;
   offline = false;
@@ -117,6 +118,10 @@ class FakeTransport implements MediaSubmissionTransport {
 
   async upload(_reservation: PostCommunitiesCommunityIdMediaUploadReservationsResponse, audio: Blob, onProgress?: (sent: number, total: number) => void): Promise<void> {
     this.events.push("upload");
+    if (this.ambiguousUploadOnce) {
+      this.ambiguousUploadOnce = false;
+      throw new AmbiguousMediaSubmissionError("upload failed before the browser observed a response");
+    }
     onProgress?.(audio.size, audio.size);
   }
 }
@@ -181,6 +186,24 @@ describe("media submission coordinator replay", () => {
     expect(transport.commands.filter(command => command.kind === "finalize")).toHaveLength(finalizeCount);
     expect(restored.currentRecord?.upload_status).toBe("sealed");
     expect(restored.state).toMatchObject({ status: "processing", phase: "analysis" });
+  });
+
+  test("returns an ambiguous browser upload to awaiting-upload so the retained PUT can be retried", async () => {
+    const storage = createMemoryMediaSubmissionStorage();
+    const transport = new FakeTransport();
+    const flow = coordinator(storage, transport, ["reserve-key", "start-key", "finalize-key"]);
+    await flow.begin(beginInput());
+    transport.ambiguousUploadOnce = true;
+
+    await expect(flow.uploadAndFinalize()).rejects.toBeInstanceOf(AmbiguousMediaSubmissionError);
+
+    expect(flow.state).toEqual({ status: "processing", submissionId: "sub-1", phase: "awaiting_upload" });
+    expect(flow.currentRecord?.upload_status).toBe("uploading");
+
+    const result = await flow.uploadAndFinalize();
+    expect(result).toMatchObject({ status: "processing", phase: "analysis", audio_revision: 1 });
+    expect(transport.events.filter(event => event === "upload")).toHaveLength(2);
+    expect(transport.commands.filter(command => command.kind === "finalize")).toHaveLength(1);
   });
 
   test("persists a typed idempotency conflict and never auto-rekeys it", async () => {

@@ -1,7 +1,23 @@
 import { describe, expect, test } from "bun:test";
 
 import { createPersistedMediaCommand } from "./pending";
-import { createSameOriginMediaSubmissionTransport } from "./transport";
+import {
+  AmbiguousMediaSubmissionError,
+  createSameOriginMediaSubmissionTransport,
+} from "./transport";
+
+const uploadReservation = {
+  reservation_id: "reservation-1",
+  track: "song",
+  slot: "primary_audio",
+  status: "awaiting_upload",
+  upload: {
+    method: "PUT",
+    url: "https://uploads.example/song",
+    required_headers: [{ name: "content-type", value: "audio/mpeg" }],
+    expires_at: "2026-08-27T00:00:00Z",
+  },
+} as const;
 
 describe("same-origin media submission transport", () => {
   test("sends session credentials and current CSRF state through the Worker API proxy", async () => {
@@ -45,31 +61,50 @@ describe("same-origin media submission transport", () => {
   });
 
   test("keeps opaque upload credentials out and forwards only required headers", async () => {
+    let seenUrl: string | undefined;
     let seen: RequestInit | undefined;
     const transport = createSameOriginMediaSubmissionTransport({
       origin: "https://solid.example",
-      fetchImpl: async (_input, init) => {
+      fetchImpl: async (input, init) => {
+        seenUrl = input.toString();
         seen = init;
         return new Response(null, { status: 200 });
       },
       csrfToken: () => "csrf-current",
     });
 
-    await transport.upload({
-      reservation_id: "reservation-1",
-      track: "song",
-      slot: "primary_audio",
-      status: "awaiting_upload",
-      upload: {
-        method: "PUT",
-        url: "https://uploads.example/song",
-        required_headers: [{ name: "content-type", value: "audio/mpeg" }],
-        expires_at: "2026-08-27T00:00:00Z",
-      },
-    }, new Blob([new Uint8Array([1, 2, 3])], { type: "audio/mpeg" }));
+    await transport.upload(uploadReservation,
+      new Blob([new Uint8Array([1, 2, 3])], { type: "audio/mpeg" }));
 
+    expect(seenUrl).toBe("https://uploads.example/song");
     expect(seen?.credentials).toBe("omit");
     expect(new Headers(seen?.headers).get("content-type")).toBe("audio/mpeg");
     expect(new Headers(seen?.headers).has("x-csrf-token")).toBe(false);
+  });
+
+  test("keeps browser and CORS-like upload failures ambiguous for retry", async () => {
+    const transport = createSameOriginMediaSubmissionTransport({
+      origin: "https://solid.example",
+      fetchImpl: async () => {
+        throw new TypeError("Failed to fetch");
+      },
+      csrfToken: () => "csrf-current",
+    });
+
+    await expect(transport.upload(uploadReservation,
+      new Blob([new Uint8Array([1, 2, 3])], { type: "audio/mpeg" })))
+      .rejects.toBeInstanceOf(AmbiguousMediaSubmissionError);
+  });
+
+  test("keeps a non-successful R2 response ambiguous for retry", async () => {
+    const transport = createSameOriginMediaSubmissionTransport({
+      origin: "https://solid.example",
+      fetchImpl: async () => new Response(null, { status: 503 }),
+      csrfToken: () => "csrf-current",
+    });
+
+    await expect(transport.upload(uploadReservation,
+      new Blob([new Uint8Array([1, 2, 3])], { type: "audio/mpeg" })))
+      .rejects.toBeInstanceOf(AmbiguousMediaSubmissionError);
   });
 });
