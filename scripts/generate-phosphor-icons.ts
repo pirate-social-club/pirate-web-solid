@@ -217,10 +217,10 @@ ${catalog}
 
 ## Non-glyph visuals
 
-Progress rings use CSS, avatars and illustrations use existing raster assets or
-HTML fallbacks, and wallet/brand marks use their generated or owned image
-assets. Generated Web3 brand SVGs are maintained by their own provenance gate;
-they are not product glyphs. Hand-authored inline SVGs are not permitted.
+Progress rings use CSS, avatars, badges, and identity marks use HTML/CSS or
+existing raster assets, and wallet/brand marks use their generated or owned
+image assets. Generated Web3 brand SVGs are maintained by their own provenance
+gate; they are not product glyphs. Hand-authored inline SVGs are not permitted.
 `;
 }
 

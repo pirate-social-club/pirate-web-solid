@@ -49,7 +49,7 @@ describe("AvatarBadge", () => {
     expect(within(container).queryByRole("img", { name: "Verified" })).toBeNull();
   });
 
-  it("uses the Phosphor flag icon when no artwork resolver is supplied", () => {
+  it("uses a deterministic HTML country-code mark when no artwork resolver is supplied", () => {
     const container = render(() => (
       <AvatarBadge
         badgeCountryCode="US"
@@ -61,7 +61,8 @@ describe("AvatarBadge", () => {
     const badge = within(container).getByRole("img", {
       name: "Verified United States nationality",
     });
-    expect(badge.querySelector("svg")).toBeInTheDocument();
+    expect(within(badge).getByText("US")).toBeInTheDocument();
+    expect(badge.querySelector("svg")).not.toBeInTheDocument();
     expect(badge.querySelector("img")).not.toBeInTheDocument();
   });
 

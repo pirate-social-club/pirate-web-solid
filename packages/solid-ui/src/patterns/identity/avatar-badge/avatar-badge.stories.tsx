@@ -12,7 +12,7 @@ const meta = {
     docs: {
       description: {
         component:
-          "Avatar with a corner verification badge. A valid two-letter badgeCountryCode renders the Phosphor Flag icon by default; flagUrlForCountryCode and badgeSrc remain explicit overrides for supplied artwork. Anything else renders the plain Avatar. Badge size, ring, and offset follow the avatar size unless overridden.",
+          "Avatar with a corner verification badge. A valid two-letter badgeCountryCode renders a deterministic HTML/CSS country-code mark by default; flagUrlForCountryCode and badgeSrc remain explicit overrides for supplied artwork. Anything else renders the plain Avatar. Badge size, ring, and offset follow the avatar size unless overridden.",
       },
     },
   },
@@ -68,21 +68,21 @@ export const ContextScale: Story = {
         <Type as="div" variant="label">Compact avatar</Type>
         <div class="flex items-center gap-3">
           <AvatarBadge badgeCountryCode="us" badgeLabel="Verified United States nationality" fallback="Post author" size="sm" />
-          <div class="text-base text-muted-foreground">36px avatar / 18px flag</div>
+          <div class="text-base text-muted-foreground">36px avatar / 18px badge</div>
         </div>
       </div>
       <div class="space-y-2">
         <Type as="div" variant="label">Post and thread</Type>
         <div class="flex items-center gap-3">
           <AvatarBadge badgeCountryCode="gb" badgeLabel="Verified United Kingdom nationality" fallback="Medium author" size="md" />
-          <div class="text-base text-muted-foreground">48px avatar / 22px flag</div>
+          <div class="text-base text-muted-foreground">48px avatar / 22px badge</div>
         </div>
       </div>
       <div class="space-y-2">
         <Type as="div" variant="label">Large identity</Type>
         <div class="flex items-center gap-3">
           <AvatarBadge badgeCountryCode="br" badgeLabel="Verified Brazil nationality" fallback="Large author" size="lg" />
-          <div class="text-base text-muted-foreground">56px avatar / 26px flag</div>
+          <div class="text-base text-muted-foreground">56px avatar / 26px badge</div>
         </div>
       </div>
       <div class="space-y-2">
@@ -96,7 +96,7 @@ export const ContextScale: Story = {
             fallback="Profile owner"
             size="lg"
           />
-          <div class="text-base text-muted-foreground">112px avatar / 42px flag</div>
+          <div class="text-base text-muted-foreground">112px avatar / 42px badge</div>
         </div>
       </div>
     </div>

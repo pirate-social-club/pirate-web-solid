@@ -3,7 +3,6 @@ import { Show } from "solid-js";
 
 import { Avatar } from "@/components/data-display/avatar/avatar";
 import { BadgedCircle } from "@/components/data-display/badged-circle/badged-circle";
-import { IconFlag } from "@/components/media/icons";
 import { cn } from "@/lib/cn";
 
 export type AvatarBadgeSize = "sm" | "md" | "lg";
@@ -28,6 +27,35 @@ function normalizeBadgeCountryCode(countryCode: string | null | undefined): stri
   return normalized && /^[a-z]{2}$/u.test(normalized) ? normalized : null;
 }
 
+const defaultBadgePalette = [
+  { accent: "#cc291f", bg: "#243f46", fg: "#d9f0f2" },
+  { accent: "#d6a321", bg: "#314936", fg: "#e2f3de" },
+  { accent: "#cc291f", bg: "#3f3a5f", fg: "#ece8ff" },
+] as const;
+
+function buildDefaultAvatarBadgeMark(countryCode: string): JSX.Element {
+  const normalized = countryCode.toUpperCase();
+  const hash = Array.from(normalized).reduce(
+    (total, character) => total + character.charCodeAt(0),
+    0,
+  );
+  const colors = defaultBadgePalette[hash % defaultBadgePalette.length]!;
+
+  return (
+    <span
+      aria-hidden="true"
+      class="relative grid size-full place-items-center overflow-hidden rounded-full text-[0.55rem] font-bold leading-none"
+      style={{ background: colors.bg, color: colors.fg }}
+    >
+      <span
+        class="absolute inset-x-0 bottom-0 h-2/5"
+        style={{ background: colors.accent }}
+      />
+      <span class="relative">{normalized}</span>
+    </span>
+  );
+}
+
 export function resolveAvatarBadgeSrc(input: { badgeSrc?: string | null; countryCode: string; flagUrlForCountryCode?: (countryCode: string) => string }): string | undefined {
   return input.badgeSrc?.trim() || input.flagUrlForCountryCode?.(input.countryCode) || undefined;
 }
@@ -44,8 +72,8 @@ export interface AvatarBadgeProps {
   fallbackSeed?: string;
   fallbackSrc?: string;
   /**
-   * Optional override for the Phosphor flag icon. Remote URLs are supported
-   * only when explicitly returned by this resolver.
+   * Optional override for the deterministic country-code mark. Remote URLs
+   * are supported only when explicitly returned by this resolver.
    */
   flagUrlForCountryCode?: (countryCode: string) => string;
   size?: AvatarBadgeSize;
@@ -54,10 +82,10 @@ export interface AvatarBadgeProps {
 
 /**
  * Avatar with a verification badge anchored to the corner. With a valid
- * two-letter badgeCountryCode the badge renders as a Phosphor flag icon unless
- * supplied artwork is explicitly resolved; without one the plain Avatar
- * renders. Sizing, ring width, and offset scale with the avatar size unless
- * overridden.
+ * two-letter badgeCountryCode the badge renders as a deterministic country
+ * code mark unless supplied artwork is explicitly resolved; without one the
+ * plain Avatar renders. Sizing, ring width, and offset scale with the avatar
+ * size unless overridden.
  */
 export function AvatarBadge(props: AvatarBadgeProps) {
   const normalizedCountryCode = () => normalizeBadgeCountryCode(props.badgeCountryCode);
@@ -92,7 +120,7 @@ export function AvatarBadge(props: AvatarBadgeProps) {
         badge={
           <Show
             when={resolvedBadgeSrc()}
-            fallback={<IconFlag class="size-full" />}
+            fallback={buildDefaultAvatarBadgeMark(normalizedCountryCode()!)}
           >
             {(url) => (
               <img

@@ -48,3 +48,16 @@ export const TwoSolanaInstances: Story = {
     for (const reference of references) expect(ids).toContain(reference);
   },
 };
+
+export const TokenIdentityFallback: Story = {
+  render: () => (
+    <div class="flex items-center gap-4 rounded-[var(--radius-lg)] border border-border-soft bg-card p-6">
+      <TokenChainIcon
+        chainId="ethereum"
+        showChainBadge={false}
+        size="md"
+        token={{ name: "PathUSD", symbol: "PATHUSD" }}
+      />
+    </div>
+  ),
+};

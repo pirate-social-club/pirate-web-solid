@@ -24,7 +24,7 @@ const meta = {
     docs: {
       description: {
         component:
-          "Community identity avatar. Resolves an explicit `avatarSrc`, or uses the Phosphor UsersThree icon as the local fallback. The `communityId` remains available to callers as the stable identity key.",
+          "Community identity avatar. Resolves an explicit `avatarSrc`, or uses a deterministic HTML/CSS identity mark derived from the stable community inputs.",
       },
     },
   },
