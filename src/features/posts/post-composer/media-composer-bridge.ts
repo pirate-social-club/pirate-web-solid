@@ -26,7 +26,7 @@ function bridgeAllocations(split: AssetRoyaltySplitState): readonly SongRoyaltyA
 
 /**
  * Starts the generated-client media flow from exactly one audio file. Terms
- * bind immediately after creation so ACR/ASR may run concurrently with the
+ * bind immediately after creation so ACR may run concurrently with the
  * non-text license command; upload completion still never implies publish.
  */
 export async function submitSongComposer(input: SongComposerBridgeInput): Promise<MediaSubmissionSnapshot> {
@@ -69,13 +69,9 @@ export interface SongComposerSnapshotProjection {
 export function projectSnapshotIntoSongComposer(snapshot: MediaSubmissionSnapshot): SongComposerSnapshotProjection {
   const projection = projectSongAnalysis(snapshot).lyricsEditor;
   switch (projection.status) {
-    // ASR is private safety evidence. Readiness unlocks an empty author-owned
-    // editor but never projects transcript text into the composer.
-    case "asr_ready": return { song: { lyricsEditorState: "ready" } };
+    case "ready": return { song: { lyricsEditorState: "ready" } };
     case "accepted": return { lyricsValue: projection.text, song: { lyricsEditorState: "ready" } };
-    case "no_speech": return { song: { lyricsEditorState: "no_speech" } };
-    case "unavailable": return { song: { lyricsEditorState: "unavailable" } };
-    case "waiting": return { song: { lyricsEditorState: "waiting" } };
+    case "no_lyrics": return { song: { lyricsEditorState: "no_lyrics" } };
   }
 }
 
@@ -86,8 +82,7 @@ export async function submitComposerLyrics(
 ): Promise<MediaSubmissionSnapshot> {
   const current = snapshot.lyrics_state.current;
   if (current.status === "ready" && current.text !== lyrics) return coordinator.bindLyrics(lyrics, "correct");
-  // First publication is always explicit author text, even if it happens to
-  // match the private transcript evidence byte-for-byte.
+  // The first lyrics revision is always explicit author text.
   if (current.status === "not_bound") return coordinator.bindLyrics(lyrics, "paste");
   return snapshot;
 }

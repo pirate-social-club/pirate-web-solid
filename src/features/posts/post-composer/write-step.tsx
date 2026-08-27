@@ -291,11 +291,8 @@ export function PostComposerWriteStep(props: {
           />
         </label>
       </Show>
-      <Show when={controller.tabs.activeTab === "song" && controller.song.state.lyricsEditorState === "no_speech"}>
-        <FormNote>No speech was detected. Lyrics are not required.</FormNote>
-      </Show>
-      <Show when={controller.tabs.activeTab === "song" && controller.song.state.lyricsEditorState === "unavailable"}>
-        <FormNote tone="warning">Speech analysis is unavailable. This song will require review.</FormNote>
+      <Show when={controller.tabs.activeTab === "song" && controller.song.state.lyricsEditorState === "no_lyrics"}>
+        <FormNote>This song has no published lyrics, so Karaoke and Study are unavailable.</FormNote>
       </Show>
       <Show when={controller.tabs.activeTab === "song" && (controller.song.state.detectedLanguage || controller.song.state.detectedExplicitness)}>
         <div class="flex flex-wrap gap-2" aria-label="Server song analysis">

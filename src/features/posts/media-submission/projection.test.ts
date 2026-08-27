@@ -11,7 +11,7 @@ function snapshot(patch: Partial<MediaSubmissionSnapshot>): MediaSubmissionSnaps
     track: "song",
     creation_revision: 2,
     audio_revision: 1,
-    lyrics_state: { asr_suggestion: { status: "pending" }, current: { status: "not_bound" } },
+    lyrics_state: { current: { status: "not_bound" } },
     updated_at: "2026-08-26T00:00:00Z",
     status: "processing",
     phase: "analysis",
@@ -34,15 +34,15 @@ describe("song media projections", () => {
     expect(projectMediaSubmission(snapshot({ status: "published", published_resource: { post_id: "post-1", href: "/posts/post-1" } }))).toMatchObject({ status: "published", postHref: "/posts/post-1" });
   });
 
-  test("projects ASR readiness without transcript text, accepted lyrics, and no_speech distinctly", () => {
+  test("projects an empty author editor, accepted lyrics, and no-lyrics publication distinctly", () => {
     expect(projectSongAnalysis(snapshot({
-      lyrics_state: { asr_suggestion: { status: "ready", transcript_revision: 4, text: "ASR words" }, current: { status: "not_bound" } },
-    }))).toEqual({ lyricsEditor: { status: "asr_ready", transcriptRevision: 4 } });
+      lyrics_state: { current: { status: "not_bound" } },
+    }))).toEqual({ lyricsEditor: { status: "ready" } });
     expect(projectSongAnalysis(snapshot({
-      lyrics_state: { asr_suggestion: { status: "ready", transcript_revision: 4, text: "ASR words" }, current: { status: "ready", text: "Correct words", lyrics_revision: 3, audio_revision: 1, base_transcript_revision: 4 } },
-    }))).toEqual({ lyricsEditor: { status: "accepted", text: "Correct words", lyricsRevision: 3, baseTranscriptRevision: 4 } });
+      lyrics_state: { current: { status: "ready", text: "Correct words", lyrics_revision: 3, audio_revision: 1 } },
+    }))).toEqual({ lyricsEditor: { status: "accepted", text: "Correct words", lyricsRevision: 3 } });
     expect(projectSongAnalysis(snapshot({
-      lyrics_state: { asr_suggestion: { status: "no_speech" }, current: { status: "no_lyrics" } },
-    }))).toEqual({ lyricsEditor: { status: "no_speech" } });
+      lyrics_state: { current: { status: "no_lyrics" } },
+    }))).toEqual({ lyricsEditor: { status: "no_lyrics" } });
   });
 });

@@ -168,14 +168,12 @@ export function buildSongLyricsInput(input: {
   readonly expectedCreationRevision: number;
   readonly expectedAudioRevision: number;
   readonly lyrics: string;
-  readonly baseTranscriptRevision: number | null;
 }): PostMediaPostSubmissionsSubmissionIdLyricsInput {
   if (input.lyrics.length === 0 || input.lyrics.length > 200_000 || new TextEncoder().encode(input.lyrics).byteLength > 800_000) {
     throw new SongSubmissionContractError("Lyrics must be non-empty and within the published text bounds");
   }
   if (!Number.isInteger(input.expectedCreationRevision) || input.expectedCreationRevision < 1
-    || !Number.isInteger(input.expectedAudioRevision) || input.expectedAudioRevision < 1
-    || (input.baseTranscriptRevision !== null && (!Number.isInteger(input.baseTranscriptRevision) || input.baseTranscriptRevision < 1))) {
+    || !Number.isInteger(input.expectedAudioRevision) || input.expectedAudioRevision < 1) {
     throw new SongSubmissionContractError("Lyrics revision fences must be positive integers");
   }
   return {
@@ -187,7 +185,6 @@ export function buildSongLyricsInput(input: {
       expected_creation_revision: input.expectedCreationRevision,
       expected_audio_revision: input.expectedAudioRevision,
       lyrics: input.lyrics,
-      base_transcript_revision: input.baseTranscriptRevision,
     },
   };
 }

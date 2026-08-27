@@ -358,14 +358,10 @@ export class MediaSubmissionCoordinator {
     return result;
   }
 
-  async bindLyrics(lyrics: string, mode: "paste" | "correct"): Promise<MediaSubmissionSnapshot> {
+  async bindLyrics(lyrics: string, _mode: "paste" | "correct"): Promise<MediaSubmissionSnapshot> {
     await this.reconcilePending();
     const snapshot = await this.refresh();
     if (snapshot === null || snapshot.audio_revision < 1 || terminal(snapshot)) throw new Error("Lyrics cannot be bound before audio finalization");
-    let baseTranscriptRevision: number | null = null;
-    if (mode === "correct" && snapshot.lyrics_state.current.status === "ready") {
-      baseTranscriptRevision = snapshot.lyrics_state.current.base_transcript_revision;
-    }
     const commandKey = this.createId();
     const generated = buildSongLyricsInput({
       submissionId: snapshot.submission_id,
@@ -374,7 +370,6 @@ export class MediaSubmissionCoordinator {
       expectedCreationRevision: snapshot.creation_revision,
       expectedAudioRevision: snapshot.audio_revision,
       lyrics,
-      baseTranscriptRevision,
     });
     const command = await createPersistedMediaCommand({
       kind: "lyrics",

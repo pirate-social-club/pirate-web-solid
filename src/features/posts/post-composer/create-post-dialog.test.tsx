@@ -65,7 +65,7 @@ function mediaSnapshot(patch: Partial<MediaSubmissionSnapshot> = {}): MediaSubmi
     track: "song",
     creation_revision: 1,
     audio_revision: 0,
-    lyrics_state: { asr_suggestion: { status: "pending" }, current: { status: "not_bound" } },
+    lyrics_state: { current: { status: "not_bound" } },
     updated_at: "2026-08-26T00:00:00Z",
     status: "processing",
     phase: "awaiting_upload",

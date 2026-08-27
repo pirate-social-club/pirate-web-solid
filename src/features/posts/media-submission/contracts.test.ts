@@ -73,8 +73,8 @@ describe("song media command contracts", () => {
       expectedCreationRevision: 3,
       expectedAudioRevision: 1,
       lyrics: "We sail at dawn",
-      baseTranscriptRevision: 2,
     });
-    expect(lyrics.body).toMatchObject({ version: "bind-song-lyrics-v1", base_transcript_revision: 2 });
+    expect(lyrics.body).toMatchObject({ version: "bind-song-lyrics-v1", lyrics: "We sail at dawn" });
+    expect("base_transcript_revision" in lyrics.body).toBe(false);
   });
 });

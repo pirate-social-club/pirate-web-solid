@@ -20,23 +20,20 @@ function snapshot(lyricsState: MediaSubmissionSnapshot["lyrics_state"]): MediaSu
 }
 
 describe("post composer media bridge", () => {
-  test("unlocks an empty lyrics editor without exposing private ASR text", () => {
+  test("unlocks an empty author-owned lyrics editor", () => {
     expect(projectSnapshotIntoSongComposer(snapshot({
-      asr_suggestion: { status: "ready", transcript_revision: 2, text: "ASR lyrics" },
       current: { status: "not_bound" },
     }))).toEqual({ song: { lyricsEditorState: "ready" } });
   });
 
-  test("keeps proven no_speech out of an editable lyrics requirement", () => {
+  test("keeps lyrics-free publication out of the editor", () => {
     expect(projectSnapshotIntoSongComposer(snapshot({
-      asr_suggestion: { status: "no_speech" },
       current: { status: "no_lyrics" },
-    }))).toEqual({ song: { lyricsEditorState: "no_speech" } });
+    }))).toEqual({ song: { lyricsEditorState: "no_lyrics" } });
   });
 
-  test("binds first author text as paste even when it matches private ASR evidence", async () => {
+  test("binds first author text as a paste", async () => {
     const source = snapshot({
-      asr_suggestion: { status: "ready", transcript_revision: 2, text: "Same words" },
       current: { status: "not_bound" },
     });
     const modes: string[] = [];

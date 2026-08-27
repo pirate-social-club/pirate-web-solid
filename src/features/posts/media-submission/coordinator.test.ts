@@ -22,7 +22,7 @@ function snapshot(patch: Partial<MediaSubmissionSnapshot> = {}): MediaSubmission
     track: "song",
     creation_revision: 1,
     audio_revision: 0,
-    lyrics_state: { asr_suggestion: { status: "pending" }, current: { status: "not_bound" } },
+    lyrics_state: { current: { status: "not_bound" } },
     updated_at: "2026-08-26T00:00:00Z",
     status: "processing",
     phase: "awaiting_upload",
@@ -35,7 +35,6 @@ function snapshot(patch: Partial<MediaSubmissionSnapshot> = {}): MediaSubmission
 
 interface DecodedTestCommand {
   readonly lyrics: string;
-  readonly base_transcript_revision: number | null;
   readonly commercial_rev_share_bps?: unknown;
   readonly royalty_allocations?: unknown;
 }
@@ -94,13 +93,11 @@ class FakeTransport implements MediaSubmissionTransport {
         creation_revision: this.snapshot.creation_revision + 1,
         audio_revision: 1,
         lyrics_state: {
-          asr_suggestion: { status: "ready", transcript_revision: 7, text: "ASR words" },
           current: {
             status: "ready",
             text: decoded.lyrics,
             lyrics_revision: this.snapshot.creation_revision,
             audio_revision: 1,
-            base_transcript_revision: decoded.base_transcript_revision,
           },
         },
       });
@@ -226,25 +223,26 @@ describe("media submission coordinator replay", () => {
     expect(JSON.stringify(body)).not.toContain("wallet");
   });
 
-  test("keeps ASR private while supporting pasted lyrics, corrections, no_speech refresh, and cancellation", async () => {
+  test("supports author-pasted lyrics, corrections, lyrics-free refresh, and cancellation", async () => {
     const storage = createMemoryMediaSubmissionStorage();
     const transport = new FakeTransport();
     const flow = coordinator(storage, transport, ["reserve-key", "start-key", "lyrics-paste", "lyrics-correct", "cancel-key"]);
     await flow.begin(beginInput());
-    transport.snapshot = snapshot({ audio_revision: 1, phase: "analysis", lyrics_state: { asr_suggestion: { status: "ready", transcript_revision: 7, text: "ASR words" }, current: { status: "not_bound" } } });
+    transport.snapshot = snapshot({ audio_revision: 1, phase: "analysis", lyrics_state: { current: { status: "not_bound" } } });
     await flow.bindLyrics("Pasted words", "paste");
     await flow.bindLyrics("Correct words", "correct");
     const lyricCommands = transport.commands.filter(command => command.kind === "lyrics");
-    const bases = await Promise.all(lyricCommands.map(async command => {
+    const lyricBodies = await Promise.all(lyricCommands.map(async command => {
       const value: unknown = JSON.parse(new TextDecoder().decode(await mediaCommandBody(command)));
       // SAFETY: mediaCommandBody verifies the retained generated-command bytes.
-      return (value as DecodedTestCommand).base_transcript_revision;
+      return value as DecodedTestCommand;
     }));
-    expect(bases).toEqual([null, null]);
+    expect(lyricBodies.map(body => body.lyrics)).toEqual(["Pasted words", "Correct words"]);
+    expect(lyricBodies.every(body => !("base_transcript_revision" in body))).toBe(true);
 
-    transport.snapshot = snapshot({ audio_revision: 1, phase: "analysis", lyrics_state: { asr_suggestion: { status: "no_speech" }, current: { status: "no_lyrics" } } });
+    transport.snapshot = snapshot({ audio_revision: 1, phase: "analysis", lyrics_state: { current: { status: "no_lyrics" } } });
     await flow.refresh();
-    expect(flow.currentRecord?.snapshot?.lyrics_state.asr_suggestion.status).toBe("no_speech");
+    expect(flow.currentRecord?.snapshot?.lyrics_state.current.status).toBe("no_lyrics");
 
     transport.snapshot = snapshot();
     await flow.cancel();

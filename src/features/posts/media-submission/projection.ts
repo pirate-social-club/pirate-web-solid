@@ -14,11 +14,9 @@ export type SongSubmissionView =
 
 export interface SongAnalysisProjection {
   readonly lyricsEditor:
-    | { readonly status: "waiting" }
-    | { readonly status: "asr_ready"; readonly transcriptRevision: number }
-    | { readonly status: "accepted"; readonly text: string; readonly lyricsRevision: number; readonly baseTranscriptRevision: number | null }
-    | { readonly status: "no_speech" }
-    | { readonly status: "unavailable" };
+    | { readonly status: "ready" }
+    | { readonly status: "accepted"; readonly text: string; readonly lyricsRevision: number }
+    | { readonly status: "no_lyrics" };
 }
 
 export function projectMediaSubmission(snapshot: MediaSubmissionSnapshot): SongSubmissionView {
@@ -56,22 +54,9 @@ export function projectSongAnalysis(snapshot: MediaSubmissionSnapshot): SongAnal
         status: "accepted",
         text: current.text,
         lyricsRevision: current.lyrics_revision,
-        baseTranscriptRevision: current.base_transcript_revision,
       },
     };
   }
-  if (current.status === "no_lyrics" || snapshot.lyrics_state.asr_suggestion.status === "no_speech") {
-    return { lyricsEditor: { status: "no_speech" } };
-  }
-  const suggestion = snapshot.lyrics_state.asr_suggestion;
-  if (suggestion.status === "ready") {
-    return {
-      lyricsEditor: {
-        status: "asr_ready",
-        transcriptRevision: suggestion.transcript_revision,
-      },
-    };
-  }
-  if (suggestion.status === "unavailable") return { lyricsEditor: { status: "unavailable" } };
-  return { lyricsEditor: { status: "waiting" } };
+  if (current.status === "no_lyrics") return { lyricsEditor: { status: "no_lyrics" } };
+  return { lyricsEditor: { status: "ready" } };
 }

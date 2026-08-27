@@ -169,7 +169,7 @@ export interface LinkPreviewState {
 
 export interface SongComposerState {
   title?: string;
-  lyricsEditorState?: "hidden" | "waiting" | "ready" | "no_speech" | "unavailable";
+  lyricsEditorState?: "hidden" | "ready" | "no_lyrics";
   detectedLanguage?: string;
   detectedExplicitness?: "not_explicit" | "explicit" | "no_lyrics" | "uncertain" | "unavailable";
   genre?: string;
