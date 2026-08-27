@@ -79,7 +79,7 @@ jobs:
         run: |
           set -euo pipefail
           bunx wrangler secret list --env production --config wrangler.jsonc --format json > "$RUNNER_TEMP/solid-secret-names.json"
-          node -e 'const rows=JSON.parse(await Bun.file(process.argv[1]).text()); const names=new Set(rows.map(row=>row.name)); const expected=["HNS_FORWARDER_V3_HMAC_KEY_REGISTRY","HNS_COMMUNITY_APP_API_ACCESS_CLIENT_ID","HNS_COMMUNITY_APP_API_ACCESS_CLIENT_SECRET","HNS_COMMUNITY_APP_AUTHORITY_ACCESS_CLIENT_ID","HNS_COMMUNITY_APP_AUTHORITY_ACCESS_CLIENT_SECRET"]; for (const name of expected) if (!names.has(name)) throw new Error(`required secret is absent: ${name}`);' "$RUNNER_TEMP/solid-secret-names.json"
+          node -e 'const rows=JSON.parse(require("node:fs").readFileSync(process.argv[1],"utf8")); const names=new Set(rows.map(row=>row.name)); const expected=["HNS_FORWARDER_V3_HMAC_KEY_REGISTRY","HNS_COMMUNITY_APP_API_ACCESS_CLIENT_ID","HNS_COMMUNITY_APP_API_ACCESS_CLIENT_SECRET","HNS_COMMUNITY_APP_AUTHORITY_ACCESS_CLIENT_ID","HNS_COMMUNITY_APP_AUTHORITY_ACCESS_CLIENT_SECRET"]; for (const name of expected) if (!names.has(name)) throw new Error(`required secret is absent: ${name}`);' "$RUNNER_TEMP/solid-secret-names.json"
       - name: Build exact production Worker
         env:
           CLOUDFLARE_ENV: production
