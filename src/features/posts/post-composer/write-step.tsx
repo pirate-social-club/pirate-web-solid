@@ -286,7 +286,7 @@ export function PostComposerWriteStep(props: {
             aria-label="Lyrics"
             class="min-h-52 resize-y"
             onChange={(event) => controller.fields.onLyricsValueChange?.(event.currentTarget.value)}
-            placeholder="Review the transcript or paste corrected lyrics"
+            placeholder="Write or paste the song lyrics"
             value={controller.fields.lyricsValue}
           />
         </label>

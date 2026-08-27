@@ -15,7 +15,7 @@ export type SongSubmissionView =
 export interface SongAnalysisProjection {
   readonly lyricsEditor:
     | { readonly status: "waiting" }
-    | { readonly status: "asr_ready"; readonly text: string; readonly transcriptRevision: number }
+    | { readonly status: "asr_ready"; readonly transcriptRevision: number }
     | { readonly status: "accepted"; readonly text: string; readonly lyricsRevision: number; readonly baseTranscriptRevision: number | null }
     | { readonly status: "no_speech" }
     | { readonly status: "unavailable" };
@@ -65,7 +65,12 @@ export function projectSongAnalysis(snapshot: MediaSubmissionSnapshot): SongAnal
   }
   const suggestion = snapshot.lyrics_state.asr_suggestion;
   if (suggestion.status === "ready") {
-    return { lyricsEditor: { status: "asr_ready", text: suggestion.text, transcriptRevision: suggestion.transcript_revision } };
+    return {
+      lyricsEditor: {
+        status: "asr_ready",
+        transcriptRevision: suggestion.transcript_revision,
+      },
+    };
   }
   if (suggestion.status === "unavailable") return { lyricsEditor: { status: "unavailable" } };
   return { lyricsEditor: { status: "waiting" } };
