@@ -14,37 +14,21 @@ import type { PostComposerController } from "./controller";
 import { submitProgressFraction } from "./submit-progress";
 import type { SubmitProgress } from "./types";
 
-// Determinate progress ring rendered inside the publish button in place of the
-// indeterminate Spinner while a submit runs. Same geometry as Spinner (24
-// viewBox, r=9, stroke 3) so the swap is visually seamless; the arc sweeps from
-// 12 o'clock by submitProgressFraction. A small floor keeps it from looking
-// empty at the start.
+// Determinate progress affordance rendered inside the publish button in place
+// of the indeterminate Phosphor Spinner while a submit runs. A small floor
+// keeps it from looking empty at the start.
 function SubmitProgressRing(props: {
   progress: SubmitProgress;
 }) {
   const fraction = () => submitProgressFraction(props.progress);
   const visualFraction = () => Math.max(0.04, Math.min(1, fraction()));
-  const radius = 9;
-  const circumference = 2 * Math.PI * radius;
+  const progressStyle = () => ({
+    "-webkit-mask-image": "radial-gradient(farthest-side, transparent calc(100% - 3px), black calc(100% - 3px))",
+    "background-image": `conic-gradient(currentColor ${visualFraction() * 100}%, color-mix(in srgb, currentColor 25%, transparent) 0)`,
+    "mask-image": "radial-gradient(farthest-side, transparent calc(100% - 3px), black calc(100% - 3px))",
+  });
 
-  return (
-    <span aria-hidden="true" class="inline-flex">
-      <svg aria-hidden="true" class="size-5 -rotate-90" fill="none" viewBox="0 0 24 24">
-        <circle cx="12" cy="12" opacity="0.25" r={radius} stroke="currentColor" stroke-width="3" />
-        <circle
-          class="transition-[stroke-dashoffset] duration-300 ease-out"
-          cx="12"
-          cy="12"
-          r={radius}
-          stroke="currentColor"
-          stroke-dasharray={String(circumference)}
-          stroke-dashoffset={String(circumference * (1 - visualFraction()))}
-          stroke-linecap="round"
-          stroke-width="3"
-        />
-      </svg>
-    </span>
-  );
+  return <span aria-hidden="true" class="inline-flex size-5 rounded-full" style={progressStyle()} />;
 }
 
 function SubmitProgressStatus(props: {

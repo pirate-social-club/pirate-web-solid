@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 
 import { expectNoA11yViolations, render } from "@/test/test-utils";
+import { IconX } from "@/components/media/icons";
 
 import { MobilePageHeader } from "./mobile-page-header";
 
@@ -36,7 +37,7 @@ describe("MobilePageHeader", () => {
     const container = render(() => (
       <MobilePageHeader
         closeAriaLabel="Dismiss"
-        closeIcon={<svg data-testid="custom-close" />}
+        closeIcon={<IconX data-testid="custom-close" />}
         onCloseClick={onCloseClick}
         title="Settings"
         trailingAction={<button type="button">Save</button>}

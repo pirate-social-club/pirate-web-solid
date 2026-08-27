@@ -15,7 +15,7 @@ describe("avatar image helpers", () => {
   it("marks renderable image urls", () => {
     expect(isRenderableImageSrc("https://pirate.test/avatar/avatar_1.png")).toBe(true);
     expect(isRenderableImageSrc("/avatar/avatar_1.png")).toBe(true);
-    expect(isRenderableImageSrc("data:image/svg+xml;base64,abc")).toBe(true);
+    expect(isRenderableImageSrc("data:image/png;base64,abc")).toBe(true);
     expect(isRenderableImageSrc("blob:http://localhost/avatar")).toBe(true);
     expect(isRenderableImageSrc("avatar.png")).toBe(true);
     expect(isRenderableImageSrc("ipfs://seed-avatar")).toBe(false);
@@ -25,7 +25,7 @@ describe("avatar image helpers", () => {
   it("skips data uris for retry", () => {
     expect(isRetryableImageSrc("https://pirate.test/avatar/avatar_1.png")).toBe(true);
     expect(isRetryableImageSrc("/avatar/avatar_1.png")).toBe(true);
-    expect(isRetryableImageSrc("data:image/svg+xml;base64,abc")).toBe(false);
+    expect(isRetryableImageSrc("data:image/png;base64,abc")).toBe(false);
     expect(isRetryableImageSrc("")).toBe(false);
   });
 

@@ -2,7 +2,14 @@ import { Show } from "solid-js";
 
 import { Avatar } from "@/components/data-display/avatar/avatar";
 import { Type } from "@/components/data-display/type/type";
-import { IconMusicNote } from "@/components/media/icons";
+import {
+  IconHeart,
+  IconMusicNote,
+  IconPlus,
+  IconShareNetwork,
+  IconSpeakerHigh,
+  IconSpeakerSlash,
+} from "@/components/media/icons";
 import { cn } from "@/lib/cn";
 
 import type { MediaActionsProps } from "./types";
@@ -16,104 +23,6 @@ function formatCount(count: number): string {
     return `${(count / 1_000).toFixed(1).replace(/\.0$/, "")}K`;
   }
   return count.toString();
-}
-
-interface IconProps {
-  class?: string;
-}
-
-function IconVolumeOn(props: IconProps) {
-  return (
-    <svg
-      aria-hidden="true"
-      class={props.class}
-      fill="currentColor"
-      viewBox="0 0 24 24"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <path d="M3 9.5v5a1 1 0 0 0 1 1h3.2l4.3 3.7A1 1 0 0 0 13 18.4V5.6a1 1 0 0 0-1.5-.8L7.2 8.5H4a1 1 0 0 0-1 1Z" />
-      <path
-        d="M16 8.7a4.7 4.7 0 0 1 0 6.6M18.4 6a8.4 8.4 0 0 1 0 12"
-        fill="none"
-        stroke="currentColor"
-        stroke-linecap="round"
-        stroke-width="2"
-      />
-    </svg>
-  );
-}
-
-function IconVolumeOff(props: IconProps) {
-  return (
-    <svg
-      aria-hidden="true"
-      class={props.class}
-      fill="currentColor"
-      viewBox="0 0 24 24"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <path d="M3 9.5v5a1 1 0 0 0 1 1h3.2l4.3 3.7A1 1 0 0 0 13 18.4V5.6a1 1 0 0 0-1.5-.8L7.2 8.5H4a1 1 0 0 0-1 1Z" />
-      <path
-        d="m16 9.5 5 5m0-5-5 5"
-        fill="none"
-        stroke="currentColor"
-        stroke-linecap="round"
-        stroke-width="2"
-      />
-    </svg>
-  );
-}
-
-function IconHeart(props: IconProps) {
-  return (
-    <svg
-      aria-hidden="true"
-      class={props.class}
-      fill="currentColor"
-      viewBox="0 0 24 24"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <path d="M12 20.7a1 1 0 0 1-.6-.2C6 16 2.5 12.6 2.5 8.9A4.6 4.6 0 0 1 7.1 4.3c1.8 0 3.5.9 4.9 2.6 1.4-1.7 3.1-2.6 4.9-2.6a4.6 4.6 0 0 1 4.6 4.6c0 3.7-3.5 7.1-8.9 11.6a1 1 0 0 1-.6.2Z" />
-    </svg>
-  );
-}
-
-function IconShare(props: IconProps) {
-  return (
-    <svg
-      aria-hidden="true"
-      class={props.class}
-      fill="none"
-      stroke="currentColor"
-      stroke-linecap="round"
-      stroke-linejoin="round"
-      stroke-width="2"
-      viewBox="0 0 24 24"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <circle cx="6" cy="12" r="2.5" />
-      <circle cx="18" cy="5.5" r="2.5" />
-      <circle cx="18" cy="18.5" r="2.5" />
-      <path d="m8.3 10.9 7.4-4M8.3 13.1l7.4 4" />
-    </svg>
-  );
-}
-
-function IconPlus(props: IconProps) {
-  return (
-    <svg
-      aria-hidden="true"
-      class={props.class}
-      fill="none"
-      stroke="currentColor"
-      stroke-linecap="round"
-      stroke-width="3"
-      viewBox="0 0 24 24"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <path d="M12 5v14M5 12h14" />
-    </svg>
-  );
 }
 
 /**
@@ -142,9 +51,9 @@ export function MediaActions(props: MediaActionsProps) {
         <div class={iconButtonClass}>
           <Show
             when={!props.isMuted}
-            fallback={<IconVolumeOff class="size-8 text-foreground md:size-7" />}
+            fallback={<IconSpeakerSlash class="size-8 text-foreground md:size-7" />}
           >
-            <IconVolumeOn class="size-8 text-foreground md:size-7" />
+            <IconSpeakerHigh class="size-8 text-foreground md:size-7" />
           </Show>
         </div>
       </button>
@@ -230,7 +139,7 @@ export function MediaActions(props: MediaActionsProps) {
           }}
         >
           <div class={iconButtonClass}>
-            <IconShare class="size-8 text-foreground md:size-7" />
+            <IconShareNetwork class="size-8 text-foreground md:size-7" />
           </div>
         </button>
       </Show>

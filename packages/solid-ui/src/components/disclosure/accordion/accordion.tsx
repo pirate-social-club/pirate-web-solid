@@ -7,6 +7,7 @@ import {
 } from "@kobalte/core/accordion";
 import { createMemo, omit, type ParentProps } from "solid-js";
 
+import { IconCaretDown } from "@/components/media/icons";
 import { cn } from "@/lib/cn";
 
 const Accordion = KAccordion;
@@ -59,19 +60,7 @@ function AccordionTrigger(props: ParentProps<AccordionTriggerProps>) {
   return (
     <KAccordion.Trigger class={className()} {...rest}>
       {props.children}
-      <svg
-        aria-hidden="true"
-        class="size-4 shrink-0 transition-transform duration-200 motion-reduce:transition-none group-data-[expanded]:rotate-180"
-        fill="none"
-        stroke="currentColor"
-        stroke-linecap="round"
-        stroke-linejoin="round"
-        stroke-width="2"
-        viewBox="0 0 24 24"
-        xmlns="http://www.w3.org/2000/svg"
-      >
-        <path d="m6 9 6 6 6-6" />
-      </svg>
+      <IconCaretDown class="size-4 shrink-0 transition-transform duration-200 motion-reduce:transition-none group-data-[expanded]:rotate-180" />
     </KAccordion.Trigger>
   );
 }

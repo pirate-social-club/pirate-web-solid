@@ -15,7 +15,7 @@ function element(tag: string, props: Record<string, unknown>) {
 }
 
 mock.module(designSystemPath, () => {
-  const icon = (props: Record<string, unknown>) => element("svg", props);
+  const icon = (props: Record<string, unknown>) => element("span", props);
   return {
     Avatar: (props: Record<string, unknown>) => element("span", props),
     IconArrowLeft: icon,
@@ -63,7 +63,7 @@ describe("shell model", () => {
     expect(resolveShellTitle("profile")).toBe("story.pirate");
   });
 
-  test("renders an accessible footer with real icon SVGs and unread labels", () => {
+  test("renders an accessible footer with icon slots and unread labels", () => {
     const html = renderToString(() => createComponent(MobileFooterNav, {
       forceMobile: true,
       labels: {
@@ -79,6 +79,6 @@ describe("shell model", () => {
 
     expect(html).toContain('aria-label="Primary navigation"');
     expect(html).toContain('aria-label="Inbox, 12"');
-    expect(html).toContain("<svg");
+    expect(html).toContain("<span");
   });
 });

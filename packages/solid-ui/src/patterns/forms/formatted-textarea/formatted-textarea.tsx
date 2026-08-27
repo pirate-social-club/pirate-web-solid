@@ -13,7 +13,7 @@ import {
   IconListBullets,
   IconListNumbers,
   IconQuote,
-} from "./toolbar-icons";
+} from "@/components/media/icons";
 
 export type FormattedTextareaToolbarAction =
   | "bold"

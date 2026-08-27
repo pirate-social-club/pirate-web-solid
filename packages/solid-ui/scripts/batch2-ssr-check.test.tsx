@@ -105,7 +105,7 @@ describe("Batch 2 SSR smoke", () => {
       renderHtml(() => (
         <CommunityAvatar communityId="cmt_atlas" displayName="Atlas Gardens" />
       )),
-    ).toContain('alt="Atlas Gardens"');
+    ).toContain('aria-label="Atlas Gardens"');
   });
 
   it("renders VotePill without browser APIs", () => {

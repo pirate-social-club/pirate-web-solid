@@ -3,6 +3,7 @@ import { screen, within } from "@testing-library/dom";
 import { describe, expect, it, vi } from "vitest";
 
 import { ActionMenu, type ActionMenuItem } from "./action-menu";
+import { IconDotsThree } from "@/components/media/icons";
 import { expectNoA11yViolations, render } from "@/test/test-utils";
 
 const items: ActionMenuItem[] = [
@@ -92,10 +93,10 @@ describe("ActionMenu trigger and item icons", () => {
     const user = userEvent.setup();
     const container = render(() => (
       <ActionMenu
-        items={[{ key: "download", label: "Download", icon: <svg data-testid="item-icon" /> }]}
+        items={[{ key: "download", label: "Download", icon: <IconDotsThree data-testid="item-icon" /> }]}
         label="Post options"
         triggerClass="size-9 rounded-full"
-        triggerContent={<svg data-testid="trigger-icon" />}
+        triggerContent={<IconDotsThree data-testid="trigger-icon" />}
       />
     ));
 

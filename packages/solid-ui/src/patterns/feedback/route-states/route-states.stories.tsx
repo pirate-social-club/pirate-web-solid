@@ -15,16 +15,10 @@ import {
   RouteMessageState,
 } from "./route-states";
 
-// Offline mascot fixture: a simple ghost glyph in place of the app mascot
-// artwork referenced by the production defaults.
-const fixtureGhostSvg = `data:image/svg+xml,${encodeURIComponent(
-  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><circle cx="32" cy="32" r="30" fill="#e2e8f0"/><circle cx="24" cy="28" r="4" fill="#334155"/><circle cx="40" cy="28" r="4" fill="#334155"/><path d="M22 42q10 8 20 0" stroke="#334155" stroke-width="3" fill="none" stroke-linecap="round"/></svg>',
-)}`;
-
 const fixtureGhostImage = {
   alt: "Fixture ghost",
-  src: fixtureGhostSvg,
-  srcSet: fixtureGhostSvg,
+  src: "/mascots/error-ghost-256.png",
+  srcSet: "/mascots/error-ghost-512.webp 2x, /mascots/error-ghost-256.webp 1x",
 };
 
 const meta = {
@@ -34,7 +28,7 @@ const meta = {
     docs: {
       description: {
         component:
-          "Route-level loading, empty, error, not-found, and auth-required screens. All recovery actions are callbacks and all copy is props; the React versions navigated and read the auth runtime directly, so the Solid ports take onGoHome/onRetry/onConnect and an authState prop. Stories pass an inline ghost fixture instead of the production /mascots artwork.",
+          "Route-level loading, empty, error, not-found, and auth-required screens. All recovery actions are callbacks and all copy is props; the React versions navigated and read the auth runtime directly, so the Solid ports take onGoHome/onRetry/onConnect and an authState prop. Stories use the same mascot image contract as production.",
       },
     },
   },

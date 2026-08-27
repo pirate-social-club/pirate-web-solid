@@ -14,11 +14,7 @@ import {
   ItemTitle,
 } from "./item";
 
-const artworkSrc =
-  "data:image/svg+xml;charset=utf-8," +
-  encodeURIComponent(
-    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48"><rect width="48" height="48" fill="oklch(0.55 0.2 29)"/><circle cx="24" cy="24" r="10" fill="oklch(0.87 0.004 250)"/></svg>`,
-  );
+const artworkSrc = "/mascots/error-ghost-256.png";
 
 const meta = {
   title: "Components/Data Display/Item",

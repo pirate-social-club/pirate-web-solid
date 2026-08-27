@@ -15,6 +15,7 @@ import {
   TokenSOL,
   TokenUSDC,
   TokenUSDT,
+  IconWallet,
   type Web3IconProps,
   cn,
 } from "../../design-system";
@@ -60,49 +61,12 @@ const WEB3_CHAIN_ICON_BY_CHAIN_ID = new Map<WalletHubChainId, Web3IconComponent>
   ["tempo", NetworkTempo],
 ]);
 
-const fallbackColors = new Map([
-  ["PATHUSD", "#334155"],
-]);
-
-const chainLabels = new Map<WalletHubChainId, string>([
-  ["bitcoin", "BTC"],
-  ["cosmos", "ATOM"],
-  ["ethereum", "ETH"],
-  ["base", "BASE"],
-  ["optimism", "OP"],
-  ["solana", "SOL"],
-  ["story", "IP"],
-  ["tempo", "T"],
-]);
-
-function VisualMark(props: { color: string; label: string; class?: string }) {
-  return (
-    <svg aria-hidden="true" class={props.class ?? "size-full"} fill="none" viewBox="0 0 32 32">
-      <circle cx="16" cy="16" fill={props.color} r="16" />
-      <text
-        dominant-baseline="central"
-        fill="#ffffff"
-        font-family="system-ui, sans-serif"
-        font-size={props.label.length > 3 ? "7" : "9"}
-        font-weight="700"
-        text-anchor="middle"
-        x="16"
-        y="16"
-      >
-        {props.label}
-      </text>
-    </svg>
-  );
-}
-
 function LocalIcon(props: { class?: string; src: string }) {
   return <img alt="" aria-hidden="true" class={cn("block size-full object-contain", props.class)} draggable={false} src={props.src} />;
 }
 
-function WalletIconFallback(props: { label: string; class?: string }) {
-  const symbol = props.label.toUpperCase();
-  const color = fallbackColors.get(symbol) ?? "#64748b";
-  return <VisualMark class={props.class} color={color} label={symbol.slice(0, 4)} />;
+function WalletIconFallback(props: { class?: string }) {
+  return <IconWallet aria-hidden="true" class={props.class ?? "size-full"} />;
 }
 
 export function ChainIcon(props: {
@@ -116,7 +80,7 @@ export function ChainIcon(props: {
     ? <Dynamic component={web3Icon} class="size-[74%]" />
     : iconUrl
     ? <LocalIcon class="size-[74%]" src={iconUrl} />
-    : <WalletIconFallback class="size-[74%]" label={chainLabels.get(props.chainId) ?? props.chainId} />;
+    : <WalletIconFallback class="size-[74%]" />;
 
   if (props.framed === false) {
     return <span class={cn("grid shrink-0 place-items-center", props.class)}>{content}</span>;
@@ -144,7 +108,7 @@ export function TokenChainIcon(props: {
         ? <Dynamic component={web3Icon} class={iconClass} />
         : iconUrl
           ? <LocalIcon class={iconClass} src={iconUrl} />
-          : <WalletIconFallback class={iconClass} label={symbol} />}
+          : <WalletIconFallback class={iconClass} />}
     </span>
   );
 

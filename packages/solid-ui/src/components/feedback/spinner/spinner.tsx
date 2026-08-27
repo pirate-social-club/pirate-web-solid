@@ -1,6 +1,7 @@
 import type { JSX } from "@solidjs/web";
 import { createMemo, omit } from "solid-js";
 
+import { IconArrowsClockwise } from "@/components/media/icons";
 import { cn } from "@/lib/cn";
 import { cva, type VariantProps } from "@/lib/recipe";
 
@@ -34,32 +35,24 @@ export function Spinner(props: SpinnerProps) {
   const className = createMemo(() =>
     cn(spinnerVariants({ size: props.size }), props.class),
   );
-  const rest = omit(props, "class", "size", "label", "decorative");
+  const rest = omit(
+    props,
+    "class",
+    "size",
+    "label",
+    "decorative",
+    "aria-hidden",
+    "aria-label",
+    "role",
+  );
 
   return (
-    <svg
-      aria-hidden={props.decorative ? "true" : undefined}
+    <IconArrowsClockwise
+      aria-hidden={props.decorative ? "true" : "false"}
       aria-label={props.decorative ? undefined : props.label ?? "Loading"}
       class={className()}
-      fill="none"
       role={props.decorative ? undefined : "status"}
-      viewBox="0 0 24 24"
       {...rest}
-    >
-      <circle
-        cx="12"
-        cy="12"
-        opacity="0.2"
-        r="9"
-        stroke="currentColor"
-        stroke-width="3"
-      />
-      <path
-        d="M21 12a9 9 0 0 0-9-9"
-        stroke="currentColor"
-        stroke-linecap="round"
-        stroke-width="3"
-      />
-    </svg>
+    />
   );
 }

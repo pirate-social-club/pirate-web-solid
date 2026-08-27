@@ -6,8 +6,8 @@ import { expectNoA11yViolations, render } from "@/test/test-utils";
 
 const image = {
   alt: "Confused pirate ghost",
-  src: "data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg'/%3E",
-  srcSet: "data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg'/%3E 1x",
+  src: "/mascots/error-ghost-256.png",
+  srcSet: "/mascots/error-ghost-512.webp 2x, /mascots/error-ghost-256.webp 1x",
 };
 
 describe("IllustratedState", () => {

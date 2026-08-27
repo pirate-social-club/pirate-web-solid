@@ -16,8 +16,8 @@ import {
 
 const fixtureGhostImage = {
   alt: "Fixture ghost",
-  src: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'/%3E",
-  srcSet: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg'/%3E",
+  src: "/mascots/error-ghost-256.png",
+  srcSet: "/mascots/error-ghost-512.webp 2x, /mascots/error-ghost-256.webp 1x",
 };
 
 describe("route states", () => {

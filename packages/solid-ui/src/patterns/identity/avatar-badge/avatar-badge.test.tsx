@@ -6,9 +6,7 @@ import { expectNoA11yViolations, render } from "@/test/test-utils";
 import { AvatarBadge } from "./avatar-badge";
 
 const fixtureFlag = (code: string) =>
-  `data:image/svg+xml,${encodeURIComponent(
-    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><circle cx="12" cy="12" r="12"/></svg>`,
-  )}#${code}`;
+  `/mascots/error-ghost-256.png#${code}`;
 
 describe("AvatarBadge", () => {
   it("renders the plain avatar without a valid country code", () => {
@@ -51,7 +49,7 @@ describe("AvatarBadge", () => {
     expect(within(container).queryByRole("img", { name: "Verified" })).toBeNull();
   });
 
-  it("uses deterministic local artwork when no resolver is supplied", () => {
+  it("uses the Phosphor flag icon when no artwork resolver is supplied", () => {
     const container = render(() => (
       <AvatarBadge
         badgeCountryCode="US"
@@ -63,9 +61,8 @@ describe("AvatarBadge", () => {
     const badge = within(container).getByRole("img", {
       name: "Verified United States nationality",
     });
-    const flag = badge.querySelector("img");
-    expect(flag?.getAttribute("src")).toMatch(/^data:image\/svg\+xml/);
-    expect(flag?.getAttribute("src")).not.toContain("https://");
+    expect(badge.querySelector("svg")).toBeInTheDocument();
+    expect(badge.querySelector("img")).not.toBeInTheDocument();
   });
 
   it("has no automated a11y violations", async () => {

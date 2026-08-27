@@ -229,11 +229,15 @@ export {
   IconFileText,
   IconFlag,
   IconGlobe,
+  IconHeart,
   IconHouse,
   IconImage,
   IconInfo,
   IconLink,
+  IconLinkSimple,
+  IconListBullets,
   IconList,
+  IconListNumbers,
   IconLock,
   IconMagnifyingGlass,
   IconMapPin,
@@ -244,11 +248,14 @@ export {
   IconPencil,
   IconPlay,
   IconPlus,
+  IconQuote,
   IconRobot,
   IconShareFat,
   IconShareNetwork,
   IconShield,
   IconSidebarSimple,
+  IconSpeakerHigh,
+  IconSpeakerSlash,
   IconSquare,
   IconTrash,
   IconTrendUp,
@@ -332,7 +339,6 @@ export {
 } from "./patterns/engagement/comment-pill/comment-pill";
 export {
   CommunityAvatar,
-  buildDefaultCommunityAvatarSrc,
   resolveCommunityAvatarSrc,
   type CommunityAvatarProps,
 } from "./patterns/engagement/community-avatar/community-avatar";
@@ -421,7 +427,6 @@ export {
 
 export {
   AvatarBadge,
-  buildDefaultAvatarBadgeSrc,
   resolveAvatarBadgeSrc,
   type AvatarBadgeProps,
   type AvatarBadgeSize,

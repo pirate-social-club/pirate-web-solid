@@ -4,13 +4,10 @@ import { expect, within } from "storybook/test";
 import { Button } from "@/components/actions/button/button";
 import { IllustratedState } from "./illustrated-state";
 
-const ghostSvg = encodeURIComponent(
-  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256"><rect width="256" height="256" fill="oklch(0.22 0 0)"/><path d="M128 56c-30 0-54 24-54 54v92l18-14 18 14 18-14 18 14 18-14 18 14v-92c0-30-24-54-54-54z" fill="oklch(0.65 0.01 250)"/><circle cx="104" cy="108" r="8" fill="oklch(0.22 0 0)"/><circle cx="152" cy="108" r="8" fill="oklch(0.22 0 0)"/></svg>`,
-);
 const errorGhost = {
   alt: "Confused pirate ghost",
-  src: `data:image/svg+xml;charset=utf-8,${ghostSvg}`,
-  srcSet: `data:image/svg+xml;charset=utf-8,${ghostSvg} 1x`,
+  src: "/mascots/error-ghost-256.png",
+  srcSet: "/mascots/error-ghost-512.webp 2x, /mascots/error-ghost-256.webp 1x",
 };
 
 const meta = {
