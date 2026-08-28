@@ -4,7 +4,7 @@ import {
   HNS_FORWARDER_HOST_HEADER,
   HNS_FORWARDER_V3_KEY_REGISTRY_SCHEMA,
 } from "./hns-ingress/index.ts";
-import worker from "./worker.ts";
+import worker, { applicationRequest } from "./worker.ts";
 
 const ingressOrigin = "https://solid-hns-ingress.test";
 const keyBase64Url = Buffer.from("0123456789abcdef0123456789abcdef").toString("base64url");
@@ -88,6 +88,17 @@ function resolveEnvironment(environment: ReturnType<typeof enabledMisconfiguredE
 }
 
 describe("Solid Worker HNS isolation", () => {
+  it("serves public verification configuration through verified application dispatch", async () => {
+    // SAFETY: the fixture defines every environment member read by this dispatch path.
+    const response = await applicationRequest(
+      new Request("https://pirate.sc/internal/verification/config"),
+      enabledMisconfiguredEnvironment() as never,
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({ enabled: true, privyAppId: "test-app-id" });
+  });
+
   it("keeps ordinary ICANN traffic available when enabled HNS assembly is misconfigured", async () => {
     const environment = enabledMisconfiguredEnvironment();
     const ordinary = await fetchWorker(

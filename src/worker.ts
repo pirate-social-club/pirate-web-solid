@@ -26,7 +26,7 @@ async function hnsComposition(env: Env): Promise<ProductionHnsCommunityAppIngres
     env,
     dispatch: {
       assets: (request) => env.ASSETS.fetch(request),
-      ssr: (request) => handleRequest(request, { context: { API_NEXT_ORIGIN: env.API_NEXT_ORIGIN } }),
+      ssr: (request) => applicationRequest(request, env),
     },
   });
   hnsCompositionByEnvironment.set(env, created);
@@ -67,7 +67,7 @@ function hnsAssemblyFailureResponse(): Response {
   });
 }
 
-async function ordinaryRequest(request: Request, env: Env): Promise<Response> {
+export async function applicationRequest(request: Request, env: Env): Promise<Response> {
   const pathname = new URL(request.url).pathname;
   if (pathname === VERIFICATION_CONFIG_PATH) {
     return verificationConfigResponse(request, {
@@ -76,15 +76,20 @@ async function ordinaryRequest(request: Request, env: Env): Promise<Response> {
       PRIVY_CLIENT_ID: "PRIVY_CLIENT_ID" in env ? String(env.PRIVY_CLIENT_ID) : undefined,
     });
   }
-  if (pathname === "/api" || pathname.startsWith("/api/")) {
-    return proxyApiRequest(request, env);
-  }
   if (pathname.startsWith("/assets/") && env.ASSETS) {
     return env.ASSETS.fetch(request);
   }
   return handleRequest(request, {
     context: { API_NEXT_ORIGIN: env.API_NEXT_ORIGIN },
   });
+}
+
+async function ordinaryRequest(request: Request, env: Env): Promise<Response> {
+  const pathname = new URL(request.url).pathname;
+  if (pathname === "/api" || pathname.startsWith("/api/")) {
+    return proxyApiRequest(request, env);
+  }
+  return applicationRequest(request, env);
 }
 
 export default {
