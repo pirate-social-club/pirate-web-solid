@@ -246,7 +246,14 @@ export async function createPrivySessionExchange(
   });
   const register = dependencies.register ?? (async (accessToken: string): Promise<RegistrationResult> => {
     return createSessionApiClient().post_authRegister({
-      body: { privy_access_token: accessToken },
+      body: {
+        privy_access_token: accessToken,
+        minimum_age_attestation: {
+          version: "minimum-age-attestation-v1",
+          minimum_age: 16,
+          affirmed: true,
+        },
+      } as { readonly privy_access_token: string },
     });
   });
   const prepareWallet = dependencies.prepareWallet ?? (async (personaId, idempotencyKey) => {
