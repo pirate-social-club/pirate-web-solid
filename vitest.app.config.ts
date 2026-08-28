@@ -20,6 +20,7 @@ export default defineConfig({
     // The app still has Bun-native .tsx suites; they are intentionally not
     // loaded by Vitest. Add a suite here once it imports Vitest's API.
     include: [
+      "src/hns-community-route-transform.test.ts",
       "src/routes/index.test.tsx",
       "src/features/auth/sign-in-model.test.ts",
       "src/features/auth/sign-in-session.test.ts",
