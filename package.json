@@ -47,7 +47,7 @@
     "verify:live": "node scripts/probe.mjs && node scripts/stream-check.mjs && node scripts/hydration-check.mjs"
   },
   "dependencies": {
-    "@pirate/api-client": "file:vendor/api-client/pirate-api-client-0.24.0.tgz",
+    "@pirate/api-client": "file:vendor/api-client/pirate-api-client-0.25.0.tgz",
     "@pirate/api-client-community-route": "file:vendor/api-client/pirate-api-client-0.13.0.tgz",
     "@pirate/api-client-handle-sales": "file:vendor/api-client/pirate-api-client-0.21.0.tgz",
     "@pirate/web-solid-ui": "workspace:*",
