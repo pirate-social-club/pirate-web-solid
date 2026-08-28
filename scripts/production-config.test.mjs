@@ -93,7 +93,7 @@ assert.equal(
 assert.equal(production.vars.HNS_COMMUNITY_APP_AUTHORITY_ORIGIN, "https://hns-community-api.pirate.sc");
 assert.equal(
   production.vars.HNS_COMMUNITY_APP_GATEWAY_DEPLOYMENT_REFERENCE,
-  "hns-community-app-gateway-sha256:c54da2556dd0bee1347db88af7e714bafd10fcb698d17d985900d36f5cabfc28",
+  "hns-community-app-gateway-sha256:c71dad926193c155b38e8a2363f722d7d729cf1813882b7ff4a96ba3d09a9e23",
 );
 assert.equal(
   production.vars.HNS_FORWARDER_V3_KEY_REGISTRY_REFERENCE,
