@@ -55,12 +55,16 @@ assert.deepEqual(config.migrations, [
   { tag: "v1", new_sqlite_classes: ["HnsCommunityAppReplayStoreDO"] },
 ]);
 
-for (const environment of [config, staging, production]) {
+for (const environment of [config, staging]) {
   assert.equal(environment.vars.HNS_COMMUNITY_APP_INGRESS_ENABLED, "false");
   assert.equal(environment.vars.HNS_HANDLE_HOST_INGRESS_ENABLED, "false");
   for (const name of hnsVars) assert.equal(typeof environment.vars[name], "string", `${name} must be explicit`);
   assert.deepEqual(environment.durable_objects?.bindings, replayBinding);
 }
+assert.equal(production.vars.HNS_COMMUNITY_APP_INGRESS_ENABLED, "true");
+assert.equal(production.vars.HNS_HANDLE_HOST_INGRESS_ENABLED, "false");
+for (const name of hnsVars) assert.equal(typeof production.vars[name], "string", `${name} must be explicit`);
+assert.deepEqual(production.durable_objects?.bindings, replayBinding);
 
 assert.deepEqual(config.secrets?.required, allRequiredSecrets);
 assert.deepEqual(staging.secrets?.required, allRequiredSecrets);
@@ -87,12 +91,15 @@ assert.equal(
   "76194ec307b738b9939f3e5bd8cb2472bacbdb2565afa4e8aca7d46241db7ae8",
 );
 assert.equal(production.vars.HNS_COMMUNITY_APP_AUTHORITY_ORIGIN, "https://hns-community-api.pirate.sc");
-assert.equal(production.vars.HNS_COMMUNITY_APP_GATEWAY_DEPLOYMENT_REFERENCE, "");
+assert.equal(
+  production.vars.HNS_COMMUNITY_APP_GATEWAY_DEPLOYMENT_REFERENCE,
+  "hns-community-app-gateway-sha256:f795fef30b7b24c9eb6081ded4d180f3f385d6d398b6e855c306a3a0831df1e5",
+);
 assert.equal(
   production.vars.HNS_FORWARDER_V3_KEY_REGISTRY_REFERENCE,
   "pirate:hns-forwarder-v3:production-community-app:v1",
 );
-assert.equal(production.vars.HNS_FORWARDER_V3_KEY_REGISTRY_VERSION, "2026-08-27-01");
+assert.equal(production.vars.HNS_FORWARDER_V3_KEY_REGISTRY_VERSION, "2026-08-28-01");
 assert.equal(production.vars.HNS_FORWARDER_V3_FRESHNESS_WINDOW_SECONDS, "300");
 assert.equal(production.vars.HNS_FORWARDER_V3_FUTURE_CLOCK_SKEW_SECONDS, "5");
 assert.equal(production.vars.HNS_HANDLE_HOST_CANONICAL_ORIGIN, "https://pirate.sc");
@@ -117,4 +124,4 @@ assert.match(replaySource, /nonce TEXT PRIMARY KEY/u);
 assert.match(replaySource, /INSERT OR IGNORE/u);
 assert.equal(JSON.stringify(config).includes("key_base64url"), false);
 assert.equal(JSON.stringify(config).includes("cf-access-client-secret-"), false);
-console.log("production-config: community and handle HNS ingress graphs declared and all live environments disabled");
+console.log("production-config: production community ingress enabled; other HNS graphs remain disabled");

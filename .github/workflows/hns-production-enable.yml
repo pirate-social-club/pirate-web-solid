@@ -1,0 +1,83 @@
+name: hns-production-enable
+
+on:
+  workflow_dispatch:
+    inputs:
+      expected_sha:
+        description: Exact main commit to deploy
+        required: true
+        type: string
+      confirmation:
+        description: Type enable-production-community
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hns-production-enable-solid
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          ref: ${{ inputs.expected_sha }}
+          persist-credentials: false
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
+        with:
+          bun-version: 1.4.0
+      - name: Verify exact enabled dispatch
+        env:
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+          CONFIRMATION: ${{ inputs.confirmation }}
+        run: |
+          set -euo pipefail
+          [[ "$GITHUB_REF" == "refs/heads/main" ]]
+          [[ "$EXPECTED_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$EXPECTED_SHA" == "$GITHUB_SHA" ]]
+          [[ "$CONFIRMATION" == "enable-production-community" ]]
+      - run: bun install --frozen-lockfile
+      - name: Verify production community graph
+        run: bun run test:production-config
+      - name: Verify secrets and canonical Solid before mutation
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --max-time 10 https://pirate.sc/ > /dev/null
+          bunx wrangler secret list --env production --config wrangler.jsonc --format json > "$RUNNER_TEMP/secrets.json"
+          node -e 'const rows=JSON.parse(require("node:fs").readFileSync(process.argv[1],"utf8"));const names=new Set(rows.map(row=>row.name));for(const name of ["HNS_FORWARDER_V3_HMAC_KEY_REGISTRY","HNS_COMMUNITY_APP_API_ACCESS_CLIENT_ID","HNS_COMMUNITY_APP_API_ACCESS_CLIENT_SECRET","HNS_COMMUNITY_APP_AUTHORITY_ACCESS_CLIENT_ID","HNS_COMMUNITY_APP_AUTHORITY_ACCESS_CLIENT_SECRET"])if(!names.has(name))throw new Error(`missing secret: ${name}`)' "$RUNNER_TEMP/secrets.json"
+      - name: Record rollback version
+        id: before
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          before="$(bunx wrangler deployments list --env production --config wrangler.jsonc --json | jq -r '.[-1].versions[] | select(.percentage == 100) | .version_id' | tail -1)"
+          [[ "$before" =~ ^[0-9a-f-]{36}$ ]]
+          echo "version=$before" >> "$GITHUB_OUTPUT"
+          echo "Rollback Worker version: \`$before\`" >> "$GITHUB_STEP_SUMMARY"
+      - name: Build and deploy enabled production Solid
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ENV: production
+          NODE_OPTIONS: --max-old-space-size=3072
+        run: |
+          set -euo pipefail
+          bun run build
+          bunx wrangler deploy --dry-run --config dist/ssr/wrangler.json --outdir "$RUNNER_TEMP/bundle"
+          bunx wrangler deploy --config dist/ssr/wrangler.json --message "HNS community enabled $GITHUB_SHA"
+      - name: Verify enabled production Solid
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          curl --fail --silent --show-error --max-time 10 https://pirate.sc/ > /dev/null
+          after="$(bunx wrangler deployments list --env production --config wrangler.jsonc --json | jq -r '.[-1].versions[] | select(.percentage == 100) | .version_id' | tail -1)"
+          [[ "$after" =~ ^[0-9a-f-]{36}$ ]]
+          test "$after" != "${{ steps.before.outputs.version }}"
+          echo "Enabled Worker version: \`$after\`" >> "$GITHUB_STEP_SUMMARY"
