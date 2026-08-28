@@ -39,6 +39,15 @@ interface PrivyAccessTokenProof {
   privy_identity_token?: string;
 }
 
+interface MinimumAgeRegistrationBody {
+  readonly privy_access_token: string;
+  readonly minimum_age_attestation: Readonly<{
+    version: "minimum-age-attestation-v1";
+    minimum_age: 16;
+    affirmed: true;
+  }>;
+}
+
 export class PrivyIdentityBootstrapRequired extends Error {
   constructor(readonly sourceUserId: string) {
     super("identity_bootstrap_required");
@@ -245,15 +254,16 @@ export async function createPrivySessionExchange(
     await createSessionApiClient().post_authSessionExchange({ body: { proof } });
   });
   const register = dependencies.register ?? (async (accessToken: string): Promise<RegistrationResult> => {
+    const body = {
+      privy_access_token: accessToken,
+      minimum_age_attestation: {
+        version: "minimum-age-attestation-v1",
+        minimum_age: 16,
+        affirmed: true,
+      },
+    } satisfies MinimumAgeRegistrationBody;
     return createSessionApiClient().post_authRegister({
-      body: {
-        privy_access_token: accessToken,
-        minimum_age_attestation: {
-          version: "minimum-age-attestation-v1",
-          minimum_age: 16,
-          affirmed: true,
-        },
-      } as { readonly privy_access_token: string },
+      body,
     });
   });
   const prepareWallet = dependencies.prepareWallet ?? (async (personaId, idempotencyKey) => {
