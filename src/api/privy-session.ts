@@ -1,5 +1,5 @@
 import type { ExternalWallet, Storage } from "@privy-io/js-sdk-core";
-import { ApiClientError } from "@pirate/api-client";
+import { ApiClientError, type PostAuthRegisterResponse } from "@pirate/api-client";
 import { createSessionApiClient, readCsrfCookie } from "./client.ts";
 import type { VerificationPublicConfig } from "./verification-config.ts";
 
@@ -27,6 +27,8 @@ interface PrivyAuthClient {
   } };
   initialize(): Promise<void>;
   getAccessToken(): Promise<string | null>;
+  ensureEmbeddedEthereumWallet?(walletIndex: number, idempotencyKey: string): Promise<void>;
+  dispose?(): void;
 }
 
 type PrivyFactory = (config: VerificationPublicConfig, storage: Storage) => Promise<PrivyAuthClient>;
@@ -65,8 +67,49 @@ function accessTokenSubject(token: string): string | undefined {
 
 async function defaultPrivyFactory(config: VerificationPublicConfig, storage: Storage): Promise<PrivyAuthClient> {
   if (typeof window === "undefined") throw new Error("browser_required");
-  const { default: Privy } = await import("@privy-io/js-sdk-core");
+  const {
+    default: Privy,
+    getAllUserEmbeddedEthereumWallets,
+    getEntropyDetailsFromAccount,
+  } = await import("@privy-io/js-sdk-core");
   const client = new Privy({ appId: config.privyAppId, clientId: config.privyClientId, storage });
+  let embeddedWalletFrame: HTMLIFrameElement | undefined;
+  let embeddedWalletListener: ((event: MessageEvent) => void) | undefined;
+  const ensureEmbeddedWalletBridge = () => {
+    if (embeddedWalletFrame !== undefined) return;
+    const frame = document.createElement("iframe");
+    frame.src = client.embeddedWallet.getURL();
+    frame.style.display = "none";
+    frame.setAttribute("aria-hidden", "true");
+    document.documentElement.appendChild(frame);
+    const target = frame.contentWindow;
+    if (target === null) {
+      frame.parentNode?.removeChild(frame);
+      throw new Error("wallet_creation_unavailable");
+    }
+    client.setMessagePoster({
+      postMessage: (message, targetOrigin, transfer) => {
+        target.postMessage(message, targetOrigin, transfer === undefined ? undefined : [transfer]);
+      },
+      reload: () => { target.location.reload(); },
+    });
+    const listener = (event: MessageEvent) => {
+      if (event.source !== target) return;
+      try {
+        const payload: unknown = typeof event.data === "string" ? JSON.parse(event.data) : event.data;
+        // SAFETY: only messages from Privy's exact iframe window reach this branch;
+        // the SDK validates the response event before settling a wallet request.
+        client.embeddedWallet.onMessage(
+          payload as Parameters<typeof client.embeddedWallet.onMessage>[0],
+        );
+      } catch {
+        // Ignore malformed cross-window data; Privy's typed responses settle the active request.
+      }
+    };
+    window.addEventListener("message", listener);
+    embeddedWalletFrame = frame;
+    embeddedWalletListener = listener;
+  };
   return {
     auth: { email: {
       sendCode: email => client.auth.email.sendCode(email),
@@ -84,8 +127,45 @@ async function defaultPrivyFactory(config: VerificationPublicConfig, storage: St
     } },
     initialize: () => client.initialize(),
     getAccessToken: () => client.getAccessToken(),
+    async ensureEmbeddedEthereumWallet(walletIndex, idempotencyKey) {
+      ensureEmbeddedWalletBridge();
+      let { user } = await client.user.get();
+      let wallets = getAllUserEmbeddedEthereumWallets(user);
+      if (wallets.some((wallet) => wallet.wallet_index === walletIndex)) return;
+
+      if (walletIndex === 0) {
+        await client.embeddedWallet.create({
+          idempotencyKey,
+        });
+      } else {
+        const root = wallets.find((wallet) => wallet.wallet_index === 0);
+        if (root === undefined) throw new Error("wallet_index_unavailable");
+        const entropy = getEntropyDetailsFromAccount(root);
+        await client.embeddedWallet.add({
+          chainType: "ethereum",
+          hdWalletIndex: walletIndex,
+          ...entropy,
+        });
+      }
+
+      ({ user } = await client.user.get());
+      wallets = getAllUserEmbeddedEthereumWallets(user);
+      if (!wallets.some((wallet) => wallet.wallet_index === walletIndex)) {
+        throw new Error("wallet_index_mismatch");
+      }
+    },
+    dispose() {
+      if (embeddedWalletListener !== undefined) {
+        window.removeEventListener("message", embeddedWalletListener);
+      }
+      embeddedWalletFrame?.parentNode?.removeChild(embeddedWalletFrame);
+      embeddedWalletListener = undefined;
+      embeddedWalletFrame = undefined;
+    },
   };
 }
+
+type RegistrationResult = PostAuthRegisterResponse;
 
 export interface PrivySessionExchange {
   sendCode(email: string): Promise<void>;
@@ -136,8 +216,17 @@ export async function createPrivySessionExchange(
   dependencies: {
     readonly createPrivy?: PrivyFactory;
     readonly exchange?: (accessToken: string, identityToken?: string) => Promise<void>;
-    readonly register?: (accessToken: string) => Promise<void>;
+    readonly register?: (accessToken: string) => Promise<RegistrationResult | void>;
+    readonly prepareWallet?: (personaId: string, idempotencyKey: string) => Promise<{
+      readonly persona_id: string;
+      readonly hd_wallet_index: number;
+      readonly status: "pending" | "active";
+    }>;
+    readonly confirmWallet?: (personaId: string, accessToken: string) => Promise<{
+      readonly hd_wallet_index: number;
+    }>;
     readonly csrf?: () => string | undefined;
+    readonly idempotencyKey?: () => string;
   } = {},
 ): Promise<PrivySessionExchange> {
   const storage = new MemoryOnlyStorage();
@@ -145,6 +234,7 @@ export async function createPrivySessionExchange(
   await client.initialize();
   let terminal = false;
   let pendingRegistrationToken: string | undefined;
+  let walletPreparationKey: string | undefined;
   const exchange = dependencies.exchange ?? (async (accessToken, identityToken) => {
     const proof: PrivyAccessTokenProof = {
         type: "privy_access_token",
@@ -153,8 +243,22 @@ export async function createPrivySessionExchange(
     if (identityToken !== undefined) proof.privy_identity_token = identityToken;
     await createSessionApiClient().post_authSessionExchange({ body: { proof } });
   });
-  const register = dependencies.register ?? (async (accessToken: string) => {
-    await createSessionApiClient().post_authRegister({ body: { privy_access_token: accessToken } });
+  const register = dependencies.register ?? (async (accessToken: string): Promise<RegistrationResult> => {
+    return createSessionApiClient().post_authRegister({
+      body: { privy_access_token: accessToken },
+    });
+  });
+  const prepareWallet = dependencies.prepareWallet ?? (async (personaId, idempotencyKey) => {
+    return createSessionApiClient().post_personasPersonaIdWalletsEvmPrepare({
+      body: { idempotency_key: idempotencyKey },
+      path: { personaId },
+    });
+  });
+  const confirmWallet = dependencies.confirmWallet ?? (async (personaId, accessToken) => {
+    return createSessionApiClient().post_personasPersonaIdWalletsEvmConfirm({
+      body: { proof: { type: "privy_access_token", privy_access_token: accessToken } },
+      path: { personaId },
+    });
   });
   const establishSession = async () => {
     const accessToken = await client.getAccessToken();
@@ -162,15 +266,16 @@ export async function createPrivySessionExchange(
     try {
       await exchange(accessToken);
       terminal = true;
+      storage.clear();
+      client.dispose?.();
     } catch (error) {
       const sourceUserId = accessTokenSubject(accessToken);
       if (error instanceof ApiClientError && error.status === 401 && sourceUserId !== undefined) {
         pendingRegistrationToken = accessToken;
         throw new PrivyIdentityBootstrapRequired(sourceUserId);
       }
-      throw error;
-    } finally {
       storage.clear();
+      throw error;
     }
     if ((dependencies.csrf ?? readCsrfCookie)() === undefined) throw new Error("session_failed");
   };
@@ -228,11 +333,48 @@ export async function createPrivySessionExchange(
       if (terminal) throw new Error("auth_expired");
       const accessToken = pendingRegistrationToken;
       if (accessToken === undefined) throw new Error("registration_unavailable");
-      await register(accessToken);
+      const registration = await register(accessToken);
+      if (
+        registration !== undefined &&
+        "status" in registration &&
+        registration.status === "wallet_setup_required"
+      ) {
+        if ((dependencies.csrf ?? readCsrfCookie)() === undefined) throw new Error("session_failed");
+        walletPreparationKey ??= (dependencies.idempotencyKey ?? (() => crypto.randomUUID()))();
+        const prepared = await prepareWallet(registration.wallet.persona_id, walletPreparationKey);
+        if (
+          prepared.persona_id !== registration.wallet.persona_id ||
+          prepared.hd_wallet_index !== registration.wallet.hd_wallet_index
+        ) {
+          throw new Error("wallet_index_mismatch");
+        }
+        if (prepared.status !== "active") {
+          const ensureWallet = client.ensureEmbeddedEthereumWallet;
+          if (ensureWallet === undefined) throw new Error("wallet_creation_unavailable");
+          await ensureWallet(prepared.hd_wallet_index, walletPreparationKey);
+          const currentAccessToken = await client.getAccessToken();
+          if (currentAccessToken === null || currentAccessToken.length === 0) {
+            throw new Error("auth_failed");
+          }
+          const confirmed = await confirmWallet(prepared.persona_id, currentAccessToken);
+          if (confirmed.hd_wallet_index !== prepared.hd_wallet_index) {
+            throw new Error("wallet_index_mismatch");
+          }
+        }
+      }
       pendingRegistrationToken = undefined;
+      walletPreparationKey = undefined;
       terminal = true;
       if ((dependencies.csrf ?? readCsrfCookie)() === undefined) throw new Error("session_failed");
+      storage.clear();
+      client.dispose?.();
     },
-    clear() { terminal = true; pendingRegistrationToken = undefined; storage.clear(); },
+    clear() {
+      terminal = true;
+      pendingRegistrationToken = undefined;
+      walletPreparationKey = undefined;
+      storage.clear();
+      client.dispose?.();
+    },
   };
 }
