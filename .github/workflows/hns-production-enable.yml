@@ -73,7 +73,7 @@ jobs:
           if (
             document.schema !== "pirate-hns-forwarder-v3-key-registry-v1" ||
             document.registry_reference !== "pirate:hns-forwarder-v3:production-community-app:v1" ||
-            document.registry_version !== "2026-08-28-01" ||
+            document.registry_version !== "2026-08-28-02" ||
             !Array.isArray(document.keys) ||
             document.keys.filter((key) => key?.signing_enabled === true).length !== 1
           ) throw new Error("forwarder registry shape mismatch");
