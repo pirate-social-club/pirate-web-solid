@@ -99,7 +99,7 @@ assert.equal(
   production.vars.HNS_FORWARDER_V3_KEY_REGISTRY_REFERENCE,
   "pirate:hns-forwarder-v3:production-community-app:v1",
 );
-assert.equal(production.vars.HNS_FORWARDER_V3_KEY_REGISTRY_VERSION, "2026-08-28-01");
+assert.equal(production.vars.HNS_FORWARDER_V3_KEY_REGISTRY_VERSION, "2026-08-28-02");
 assert.equal(production.vars.HNS_FORWARDER_V3_FRESHNESS_WINDOW_SECONDS, "300");
 assert.equal(production.vars.HNS_FORWARDER_V3_FUTURE_CLOCK_SKEW_SECONDS, "5");
 assert.equal(production.vars.HNS_HANDLE_HOST_CANONICAL_ORIGIN, "https://pirate.sc");
