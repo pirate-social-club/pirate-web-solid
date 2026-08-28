@@ -1,0 +1,92 @@
+name: hns-production-access-diagnostic
+
+on:
+  workflow_dispatch:
+    inputs:
+      expected_sha:
+        description: Exact main commit to diagnose
+        required: true
+        type: string
+      confirmation:
+        description: Type diagnose-production-community-access
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hns-production-access-diagnostic
+  cancel-in-progress: false
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          ref: ${{ inputs.expected_sha }}
+          persist-credentials: false
+      - name: Verify exact diagnostic dispatch
+        env:
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+          CONFIRMATION: ${{ inputs.confirmation }}
+        run: |
+          set -euo pipefail
+          [[ "$GITHUB_REF" == "refs/heads/main" ]]
+          [[ "$EXPECTED_SHA" =~ ^[0-9a-f]{40}$ ]]
+          [[ "$EXPECTED_SHA" == "$GITHUB_SHA" ]]
+          [[ "$CONFIRMATION" == "diagnose-production-community-access" ]]
+      - name: Probe both protected api-next admissions
+        env:
+          API_CLIENT_ID: ${{ secrets.HNS_COMMUNITY_APP_API_ACCESS_CLIENT_ID }}
+          API_CLIENT_SECRET: ${{ secrets.HNS_COMMUNITY_APP_API_ACCESS_CLIENT_SECRET }}
+          AUTHORITY_CLIENT_ID: ${{ secrets.HNS_COMMUNITY_APP_AUTHORITY_ACCESS_CLIENT_ID }}
+          AUTHORITY_CLIENT_SECRET: ${{ secrets.HNS_COMMUNITY_APP_AUTHORITY_ACCESS_CLIENT_SECRET }}
+        run: |
+          set -euo pipefail
+          set +x
+          [[ "$API_CLIENT_ID" =~ ^[0-9a-f]{32}\.access$ ]]
+          [[ "$AUTHORITY_CLIENT_ID" =~ ^[0-9a-f]{32}\.access$ ]]
+          [[ "$API_CLIENT_SECRET" =~ ^[A-Za-z0-9_-]{32,256}$ ]]
+          [[ "$AUTHORITY_CLIENT_SECRET" =~ ^[A-Za-z0-9_-]{32,256}$ ]]
+          tmp="$(mktemp -d)"
+          trap 'rm -rf "$tmp"' EXIT
+
+          classify() {
+            local label="$1"
+            local headers="$2"
+            local body="$3"
+            local metrics="$4"
+            local status elapsed size digest origin_marker mitigated
+            status="${metrics%%|*}"
+            metrics="${metrics#*|}"
+            elapsed="${metrics%%|*}"
+            size="$(wc -c < "$body" | tr -d ' ')"
+            digest="$(sha256sum "$body" | cut -d' ' -f1)"
+            if grep -Eiq '^x-request-id:' "$headers"; then origin_marker=worker; else origin_marker=edge; fi
+            if grep -Eiq '^cf-mitigated:' "$headers"; then mitigated=yes; else mitigated=no; fi
+            printf '%s status=%s boundary=%s elapsed_seconds=%s body_bytes=%s body_sha256=%s cf_mitigated=%s\n' \
+              "$label" "$status" "$origin_marker" "$elapsed" "$size" "$digest" "$mitigated"
+          }
+
+          api_metrics="$(curl --silent --show-error --max-time 5 --redirect-trusted --max-redirs 0 \
+            --dump-header "$tmp/api.headers" --output "$tmp/api.body" \
+            --write-out '%{http_code}|%{time_total}' \
+            -H "CF-Access-Client-Id: $API_CLIENT_ID" \
+            -H "CF-Access-Client-Secret: $API_CLIENT_SECRET" \
+            https://hns-community-api.pirate.sc/api/health || true)"
+          classify api "$tmp/api.headers" "$tmp/api.body" "$api_metrics"
+
+          authority_body='["pirate-hns-solid-host-authority-request-v2","app.xn--diagnostic-9za",["community_app_v1",["diagnostic-activation",1],"diagnostic-route",["operator_managed_route_v1","diagnostic-authority",1]],"hns-community-app-gateway-sha256:7141e351d4da5993a9fd42cf03e517200140679b2ad871b333108f0e8399c67c"]'
+          authority_metrics="$(curl --silent --show-error --max-time 5 --redirect-trusted --max-redirs 0 \
+            --dump-header "$tmp/authority.headers" --output "$tmp/authority.body" \
+            --write-out '%{http_code}|%{time_total}' \
+            -H 'Accept: application/json' -H 'Content-Type: application/json' \
+            -H "CF-Access-Client-Id: $AUTHORITY_CLIENT_ID" \
+            -H "CF-Access-Client-Secret: $AUTHORITY_CLIENT_SECRET" \
+            --data-binary "$authority_body" \
+            https://hns-community-api.pirate.sc/internal/hns/solid-host-authority/v2/resolve || true)"
+          classify authority "$tmp/authority.headers" "$tmp/authority.body" "$authority_metrics"
