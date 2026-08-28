@@ -395,6 +395,10 @@ export async function createPrivySessionExchange(
       const accessToken = pendingRegistrationToken;
       if (accessToken === undefined) throw new Error("registration_unavailable");
       await completeWalletSetup(accessToken, await register(accessToken));
+      // Wallet confirmation makes the persona product-ready. Replace the
+      // narrow setup session with the ordinary application session only after
+      // that durable transition succeeds.
+      await exchange(accessToken);
       finishSession();
     },
     clear() {
