@@ -1,6 +1,6 @@
 import type { ExternalWallet, Storage } from "@privy-io/js-sdk-core";
 import { ApiClientError, type PostAuthRegisterResponse } from "@pirate/api-client";
-import { createSessionApiClient, readCsrfCookie } from "./client.ts";
+import { createSessionApiClient, readCsrfCookie, sessionRequestOptions } from "./client.ts";
 import type { VerificationPublicConfig } from "./verification-config.ts";
 
 export class MemoryOnlyStorage implements Storage {
@@ -257,16 +257,20 @@ export async function createPrivySessionExchange(
     });
   });
   const prepareWallet = dependencies.prepareWallet ?? (async (personaId, idempotencyKey) => {
+    const csrf = readCsrfCookie();
+    if (csrf === undefined) throw new Error("session_failed");
     return createSessionApiClient().post_personasPersonaIdWalletsEvmPrepare({
       body: { idempotency_key: idempotencyKey },
       path: { personaId },
-    });
+    }, sessionRequestOptions(csrf));
   });
   const confirmWallet = dependencies.confirmWallet ?? (async (personaId, accessToken) => {
+    const csrf = readCsrfCookie();
+    if (csrf === undefined) throw new Error("session_failed");
     return createSessionApiClient().post_personasPersonaIdWalletsEvmConfirm({
       body: { proof: { type: "privy_access_token", privy_access_token: accessToken } },
       path: { personaId },
-    });
+    }, sessionRequestOptions(csrf));
   });
   const completeWalletSetup = async (
     accessToken: string,
@@ -390,12 +394,7 @@ export async function createPrivySessionExchange(
       if (terminal) throw new Error("auth_expired");
       const accessToken = pendingRegistrationToken;
       if (accessToken === undefined) throw new Error("registration_unavailable");
-      const registration = await register(accessToken);
-      // Registration creates the identity but deliberately does not mint an
-      // application session. Establish it before calling the protected wallet
-      // preparation and confirmation endpoints.
-      await exchange(accessToken);
-      await completeWalletSetup(accessToken, registration);
+      await completeWalletSetup(accessToken, await register(accessToken));
       finishSession();
     },
     clear() {
