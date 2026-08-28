@@ -65,13 +65,13 @@ jobs:
       - name: Build and deploy enabled production Solid
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ENV: production
           NODE_OPTIONS: --max-old-space-size=3072
         run: |
           set -euo pipefail
-          bun run build
-          bunx wrangler deploy --dry-run --config dist/ssr/wrangler.json --outdir "$RUNNER_TEMP/bundle"
-          bunx wrangler deploy --config dist/ssr/wrangler.json --message "HNS community enabled $GITHUB_SHA"
+          CLOUDFLARE_ENV=production bun run build
+          jq -e '.name == "pirate-web-solid-production" and (.env == null)' dist/ssr/wrangler.json > /dev/null
+          env -u CLOUDFLARE_ENV bunx wrangler deploy --dry-run --config dist/ssr/wrangler.json --outdir "$RUNNER_TEMP/bundle"
+          env -u CLOUDFLARE_ENV bunx wrangler deploy --config dist/ssr/wrangler.json --message "HNS community enabled $GITHUB_SHA"
       - name: Verify enabled production Solid
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
