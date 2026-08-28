@@ -66,7 +66,7 @@ jobs:
           node <<'NODE'
           const { createHash } = require("node:crypto");
           const registry = process.env.HNS_FORWARDER_V3_HMAC_KEY_REGISTRY ?? "";
-          const expectedDigest = "617c9b91cc06d58dbec372b5d5175c5864f8cb17ee114a413e81e33c8017764c";
+          const expectedDigest = "25783e305b2872e1112d2f3067b4261db73d47a3786afa9ee69ed01e0106c925";
           const digest = createHash("sha256").update(registry).digest("hex");
           if (digest !== expectedDigest) throw new Error("forwarder registry digest mismatch");
           const document = JSON.parse(registry);
