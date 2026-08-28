@@ -30,7 +30,7 @@ export const Pending: Story = {
   play: async ({ canvasElement }) => {
     const body = within(canvasElement.ownerDocument.body);
     const dialog = await body.findByRole("dialog", { name: "Send" }, { timeout: 5000 });
-    await expect(within(dialog).getByRole("status")).toHaveTextContent("Sending transaction");
+    await expect(within(dialog).getByText("Sending transaction…")).toBeVisible();
   },
 };
 export const Success: Story = {
