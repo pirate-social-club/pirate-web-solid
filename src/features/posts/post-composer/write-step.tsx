@@ -41,6 +41,7 @@ const imageExtensions = new Set(["jpg", "jpeg", "png", "gif", "webp", "bmp", "sv
 const videoExtensions = new Set(["mp4", "mov", "avi", "mkv", "webm", "flv", "wmv", "m4v", "3gp", "ts", "mts"]);
 const audioExtensions = new Set(["mp3", "wav", "flac", "aac", "ogg", "m4a", "wma", "aiff", "opus"]);
 const downloadExtensions = new Set(["csv", "tsv", "txt", "json"]);
+const mp3OnlyCopy = "Public-song v1 currently accepts MP3 only.";
 
 function fileExtension(name: string): string | null {
   const index = name.lastIndexOf(".");
@@ -58,6 +59,10 @@ function fileKind(file: File): AttachmentKind | null {
   if (audioExtensions.has(extension)) return "song";
   if (downloadExtensions.has(extension)) return "file";
   return null;
+}
+
+function isPublicSongMp3(file: File): boolean {
+  return file.type === "audio/mpeg" && fileExtension(file.name) === "mp3";
 }
 
 function titleFromFilename(name: string): string {
@@ -127,6 +132,7 @@ export function PostComposerWriteStep(props: {
   const [accessOpen, setAccessOpen] = createSignal(props.initialOpenPanel === "access-and-rights");
   const [moreOpen, setMoreOpen] = createSignal(false);
   const [dragging, setDragging] = createSignal(false);
+  const [songFileError, setSongFileError] = createSignal<string | null>(null);
   let dragCounter = 0;
   let imageInput: HTMLInputElement | undefined;
   let videoInput: HTMLInputElement | undefined;
@@ -178,6 +184,12 @@ export function PostComposerWriteStep(props: {
     } else if (kind === "video") {
       controller.media.updateVideoState((state) => ({ ...state, primaryVideoUpload: file, primaryVideoLabel: file.name, posterFrameSeconds: "0" }));
     } else if (kind === "song") {
+      if (!isPublicSongMp3(file)) {
+        setSongFileError(mp3OnlyCopy);
+        controller.tabs.onTabChange("song");
+        return;
+      }
+      setSongFileError(null);
       const [embeddedTitle, embeddedArtwork] = await Promise.all([
         extractEmbeddedAudioTitle(file),
         extractEmbeddedAudioArtworkFile(file),
@@ -203,8 +215,15 @@ export function PostComposerWriteStep(props: {
 
   const input = (kind: AttachmentKind, files: FileList | null) => {
     const file = files?.[0];
-    if (file) void handleFile(file);
+    if (file) {
+      if (kind === "song" && !isPublicSongMp3(file)) {
+        setSongFileError(mp3OnlyCopy);
+        controller.tabs.onTabChange("song");
+      }
+      else void handleFile(file);
+    }
     if (kind === "image" && imageInput) imageInput.value = "";
+    if (kind === "song" && songInput) songInput.value = "";
   };
 
   const drop = (event: DragEvent) => {
@@ -219,7 +238,7 @@ export function PostComposerWriteStep(props: {
     <>
       <input accept="image/*" aria-label="Upload image" class="sr-only" ref={imageInput} type="file" onChange={(event) => input("image", event.currentTarget.files)} />
       <input accept="video/*" aria-label="Upload video" class="sr-only" ref={videoInput} type="file" onChange={(event) => input("video", event.currentTarget.files)} />
-      <input accept="audio/*" aria-label="Upload audio" class="sr-only" ref={songInput} type="file" onChange={(event) => input("song", event.currentTarget.files)} />
+      <input accept=".mp3,audio/mpeg" aria-label="Upload audio" class="sr-only" ref={songInput} type="file" onChange={(event) => input("song", event.currentTarget.files)} />
       <input accept=".csv,.tsv,.txt,.json,text/csv,text/tab-separated-values,text/plain,application/json" aria-label="Upload downloadable file" class="sr-only" ref={fileInput} type="file" onChange={(event) => input("file", event.currentTarget.files)} />
     </>
   );
@@ -269,6 +288,9 @@ export function PostComposerWriteStep(props: {
         </Show>
       </div>
       <PostComposerAttachmentCard attachment={attachment()} onChange={(next) => { if (next?.kind === "link") { controller.fields.onLinkUrlValueChange?.(next.url); controller.tabs.onTabChange("link"); } }} onRemove={removeAttachment} onReplace={selectAttachment} />
+      <Show when={songFileError()}>
+        <FormNote tone="warning">{songFileError()}</FormNote>
+      </Show>
       <Show when={controller.tabs.activeTab === "song" && controller.requirements.songAudioMissing}>
         <FormNote class="flex items-center gap-2" tone="warning">
           <IconMusicNote class="size-4 shrink-0" />

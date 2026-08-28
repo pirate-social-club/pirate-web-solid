@@ -194,6 +194,37 @@ describe("create post request", () => {
     await vi.waitFor(() => expect(publish.disabled).toBe(false));
   });
 
+  test("rejects non-MP3 song files before reservation and accepts an uppercase MP3 filename", async () => {
+    const mediaTransport = new ProductionMediaTransport();
+    render(() => <CreatePostDialog
+      mediaStorage={createMemoryMediaSubmissionStorage()}
+      mediaTransport={mediaTransport}
+      onOpenChange={() => {}}
+      open
+      personas={[activePersona("persona-one", "Persona One")]}
+      principalId="account-one"
+      storage={createMemoryPendingSubmissionStorage()}
+    />);
+    await new Promise<void>(resolve => setTimeout(resolve, 0));
+
+    const audioInput = document.body.querySelector<HTMLInputElement>("input[aria-label='Upload audio']")!;
+    expect(audioInput.accept).toBe(".mp3,audio/mpeg");
+    const wav = new File([new Uint8Array([1])], "wrong.wav", { type: "audio/wav" });
+    Object.defineProperty(audioInput, "files", { configurable: true, value: [wav] });
+    audioInput.dispatchEvent(new Event("change", { bubbles: true }));
+
+    await vi.waitFor(() => expect(document.body.textContent).toContain("Public-song v1 currently accepts MP3 only."));
+    expect(mediaTransport.commands).toHaveLength(0);
+
+    const mp3 = new File([new Uint8Array([1])], "RIGHT.MP3", { type: "audio/mpeg" });
+    Object.defineProperty(audioInput, "files", { configurable: true, value: [mp3] });
+    audioInput.dispatchEvent(new Event("change", { bubbles: true }));
+
+    await vi.waitFor(() => expect(document.body.textContent).not.toContain("Public-song v1 currently accepts MP3 only."));
+    expect(document.body.textContent).toContain("RIGHT.MP3");
+    expect(mediaTransport.commands).toHaveLength(0);
+  });
+
   test("routes a production song through one durable reserve, start, terms, upload, and finalize flow", async () => {
     const mediaStorage = createMemoryMediaSubmissionStorage();
     const mediaTransport = new ProductionMediaTransport();
