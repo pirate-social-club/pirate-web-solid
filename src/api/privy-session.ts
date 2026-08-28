@@ -316,6 +316,18 @@ export async function createPrivySessionExchange(
       throw new Error("wallet_index_mismatch");
     }
   };
+  const registrationForEstablishedSession = async (accessToken: string) => {
+    try {
+      return await register(accessToken);
+    } catch (error) {
+      // A successful exchange already proved this Privy subject owns an
+      // existing Pirate account. Registration remains necessary to resume an
+      // interrupted wallet bootstrap, but an active account answers conflict
+      // because there is no bootstrap left to perform.
+      if (error instanceof ApiClientError && error.status === 409) return undefined;
+      throw error;
+    }
+  };
   const finishSession = () => {
     if ((dependencies.csrf ?? readCsrfCookie)() === undefined) throw new Error("session_failed");
     pendingRegistrationToken = undefined;
@@ -339,7 +351,7 @@ export async function createPrivySessionExchange(
       throw error;
     }
     try {
-      await completeWalletSetup(accessToken, await register(accessToken));
+      await completeWalletSetup(accessToken, await registrationForEstablishedSession(accessToken));
       finishSession();
     } catch (error) {
       if (pendingRegistrationToken !== undefined && sourceUserId !== undefined) {

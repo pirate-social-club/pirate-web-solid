@@ -222,6 +222,32 @@ describe("Privy session exchange", () => {
     expect(ensured).toEqual([2, 2]);
   });
 
+  it("keeps the established session when an active account rejects duplicate registration", async () => {
+    const conflict = new ApiClientError(
+      { status: 409, code: "conflict", name: "Conflict", retryable: false },
+      { error: { code: "conflict", message: "already registered", retryable: false } },
+    );
+    let exchanges = 0;
+    let registrations = 0;
+    const auth = await createPrivySessionExchange({ enabled: true, privyAppId: "app" }, {
+      createPrivy: async () => ({
+        auth: { email: { sendCode: async () => ({ success: true }), loginWithCode: async () => undefined } },
+        initialize: async () => undefined,
+        getAccessToken: async () => "returning-access-token",
+      }),
+      exchange: async () => { exchanges += 1; },
+      register: async () => {
+        registrations += 1;
+        throw conflict;
+      },
+      csrf: () => "csrf",
+    });
+
+    await expect(auth.loginWithCode("returning@example.test", "123456")).resolves.toBeUndefined();
+    expect(exchanges).toBe(1);
+    expect(registrations).toBe(1);
+  });
+
   it("retries a failed wallet creation with the same preparation identity", async () => {
     const accessToken = "header.eyJzdWIiOiJkaWQ6cHJpdnk6dGVzdC11c2VyIn0.signature";
     const unauthorized = new ApiClientError(
