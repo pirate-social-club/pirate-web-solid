@@ -79,6 +79,7 @@ async function defaultPrivyFactory(config: VerificationPublicConfig, storage: St
     if (embeddedWalletFrame !== undefined) return;
     const frame = document.createElement("iframe");
     frame.src = client.embeddedWallet.getURL();
+    const embeddedWalletOrigin = new URL(frame.src).origin;
     frame.style.display = "none";
     frame.setAttribute("aria-hidden", "true");
     document.documentElement.appendChild(frame);
@@ -94,7 +95,7 @@ async function defaultPrivyFactory(config: VerificationPublicConfig, storage: St
       reload: () => { target.location.reload(); },
     });
     const listener = (event: MessageEvent) => {
-      if (event.source !== target) return;
+      if (event.source !== target || event.origin !== embeddedWalletOrigin) return;
       try {
         const payload: unknown = typeof event.data === "string" ? JSON.parse(event.data) : event.data;
         // SAFETY: only messages from Privy's exact iframe window reach this branch;
@@ -260,16 +261,55 @@ export async function createPrivySessionExchange(
       path: { personaId },
     });
   });
+  const completeWalletSetup = async (
+    accessToken: string,
+    registration: RegistrationResult | void,
+  ) => {
+    if (
+      registration === undefined ||
+      !("status" in registration) ||
+      registration.status !== "wallet_setup_required"
+    ) return;
+
+    pendingRegistrationToken = accessToken;
+    if ((dependencies.csrf ?? readCsrfCookie)() === undefined) throw new Error("session_failed");
+    walletPreparationKey ??= (dependencies.idempotencyKey ?? (() => crypto.randomUUID()))();
+    const prepared = await prepareWallet(registration.wallet.persona_id, walletPreparationKey);
+    if (
+      prepared.persona_id !== registration.wallet.persona_id ||
+      prepared.hd_wallet_index !== registration.wallet.hd_wallet_index
+    ) {
+      throw new Error("wallet_index_mismatch");
+    }
+    if (prepared.status === "active") return;
+
+    const ensureWallet = client.ensureEmbeddedEthereumWallet;
+    if (ensureWallet === undefined) throw new Error("wallet_creation_unavailable");
+    await ensureWallet(prepared.hd_wallet_index, walletPreparationKey);
+    const currentAccessToken = await client.getAccessToken();
+    if (currentAccessToken === null || currentAccessToken.length === 0) {
+      throw new Error("auth_failed");
+    }
+    const confirmed = await confirmWallet(prepared.persona_id, currentAccessToken);
+    if (confirmed.hd_wallet_index !== prepared.hd_wallet_index) {
+      throw new Error("wallet_index_mismatch");
+    }
+  };
+  const finishSession = () => {
+    if ((dependencies.csrf ?? readCsrfCookie)() === undefined) throw new Error("session_failed");
+    pendingRegistrationToken = undefined;
+    walletPreparationKey = undefined;
+    terminal = true;
+    storage.clear();
+    client.dispose?.();
+  };
   const establishSession = async () => {
     const accessToken = await client.getAccessToken();
     if (accessToken === null || accessToken.length === 0) throw new Error("auth_failed");
+    const sourceUserId = accessTokenSubject(accessToken);
     try {
       await exchange(accessToken);
-      terminal = true;
-      storage.clear();
-      client.dispose?.();
     } catch (error) {
-      const sourceUserId = accessTokenSubject(accessToken);
       if (error instanceof ApiClientError && error.status === 401 && sourceUserId !== undefined) {
         pendingRegistrationToken = accessToken;
         throw new PrivyIdentityBootstrapRequired(sourceUserId);
@@ -277,7 +317,17 @@ export async function createPrivySessionExchange(
       storage.clear();
       throw error;
     }
-    if ((dependencies.csrf ?? readCsrfCookie)() === undefined) throw new Error("session_failed");
+    try {
+      await completeWalletSetup(accessToken, await register(accessToken));
+      finishSession();
+    } catch (error) {
+      if (pendingRegistrationToken !== undefined && sourceUserId !== undefined) {
+        throw new PrivyIdentityBootstrapRequired(sourceUserId);
+      }
+      storage.clear();
+      client.dispose?.();
+      throw error;
+    }
   };
   return {
     async sendCode(email) {
@@ -333,41 +383,8 @@ export async function createPrivySessionExchange(
       if (terminal) throw new Error("auth_expired");
       const accessToken = pendingRegistrationToken;
       if (accessToken === undefined) throw new Error("registration_unavailable");
-      const registration = await register(accessToken);
-      if (
-        registration !== undefined &&
-        "status" in registration &&
-        registration.status === "wallet_setup_required"
-      ) {
-        if ((dependencies.csrf ?? readCsrfCookie)() === undefined) throw new Error("session_failed");
-        walletPreparationKey ??= (dependencies.idempotencyKey ?? (() => crypto.randomUUID()))();
-        const prepared = await prepareWallet(registration.wallet.persona_id, walletPreparationKey);
-        if (
-          prepared.persona_id !== registration.wallet.persona_id ||
-          prepared.hd_wallet_index !== registration.wallet.hd_wallet_index
-        ) {
-          throw new Error("wallet_index_mismatch");
-        }
-        if (prepared.status !== "active") {
-          const ensureWallet = client.ensureEmbeddedEthereumWallet;
-          if (ensureWallet === undefined) throw new Error("wallet_creation_unavailable");
-          await ensureWallet(prepared.hd_wallet_index, walletPreparationKey);
-          const currentAccessToken = await client.getAccessToken();
-          if (currentAccessToken === null || currentAccessToken.length === 0) {
-            throw new Error("auth_failed");
-          }
-          const confirmed = await confirmWallet(prepared.persona_id, currentAccessToken);
-          if (confirmed.hd_wallet_index !== prepared.hd_wallet_index) {
-            throw new Error("wallet_index_mismatch");
-          }
-        }
-      }
-      pendingRegistrationToken = undefined;
-      walletPreparationKey = undefined;
-      terminal = true;
-      if ((dependencies.csrf ?? readCsrfCookie)() === undefined) throw new Error("session_failed");
-      storage.clear();
-      client.dispose?.();
+      await completeWalletSetup(accessToken, await register(accessToken));
+      finishSession();
     },
     clear() {
       terminal = true;
