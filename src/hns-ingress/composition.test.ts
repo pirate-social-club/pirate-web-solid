@@ -250,6 +250,27 @@ describe("interactive community application ingress composition", () => {
     expect(() => validatedHnsResponseHeaders(duplicate, 1)).toThrowError(/HNS ingress failed/u);
   });
 
+  it("strips the exact Cloudflare Access infrastructure cookie from API responses", () => {
+    const response = new Response("x");
+    response.headers.append(
+      "set-cookie",
+      "CF_Authorization=edge-token; Secure; HttpOnly; Path=/; SameSite=None",
+    );
+    response.headers.append(
+      "set-cookie",
+      "__Host-pirate_csrf=csrf; Secure; Path=/; SameSite=Lax",
+    );
+    const headers = validatedHnsResponseHeaders(response, 1);
+    expect(headers.get("set-cookie")).toBe(
+      "__Host-pirate_csrf=csrf; Secure; Path=/; SameSite=Lax",
+    );
+
+    const lookalike = new Response("x", {
+      headers: { "set-cookie": "cf_authorization=edge-token; Secure; Path=/; SameSite=Lax" },
+    });
+    expect(() => validatedHnsResponseHeaders(lookalike, 1)).toThrowError(/HNS ingress failed/u);
+  });
+
   it("keeps production disabled, rejects reserved headers, and fails partial composition", async () => {
     expect(disabledProductionHnsCommunityAppIngressCompositionV2.enabled).toBe(false);
     expect(

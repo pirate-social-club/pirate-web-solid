@@ -230,6 +230,10 @@ export function validatedHnsResponseHeaders(response: Response, bodyLength: numb
   const names = new Set<string>();
   for (const line of cookies) {
     const name = line.slice(0, line.indexOf("="));
+    // Cloudflare Access may mint this infrastructure cookie while admitting
+    // the service-token request. It is not application state and must never
+    // cross onto the community origin.
+    if (name === "CF_Authorization") continue;
     if (names.has(name)) throw new HnsIngressFailure("upstream_unavailable");
     names.add(name);
     headers.append("set-cookie", validateCookie(line));
