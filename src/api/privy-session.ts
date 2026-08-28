@@ -390,7 +390,12 @@ export async function createPrivySessionExchange(
       if (terminal) throw new Error("auth_expired");
       const accessToken = pendingRegistrationToken;
       if (accessToken === undefined) throw new Error("registration_unavailable");
-      await completeWalletSetup(accessToken, await register(accessToken));
+      const registration = await register(accessToken);
+      // Registration creates the identity but deliberately does not mint an
+      // application session. Establish it before calling the protected wallet
+      // preparation and confirmation endpoints.
+      await exchange(accessToken);
+      await completeWalletSetup(accessToken, registration);
       finishSession();
     },
     clear() {

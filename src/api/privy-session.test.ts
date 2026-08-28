@@ -8,6 +8,14 @@ import {
 } from "./privy-session.ts";
 
 describe("Privy session exchange", () => {
+  const rejectFirstExchange = (error: ApiClientError) => {
+    let calls = 0;
+    return vi.fn(async () => {
+      calls += 1;
+      if (calls === 1) throw error;
+    });
+  };
+
   it("exposes headless OAuth initiation through the session adapter", async () => {
     const auth = await createPrivySessionExchange({ enabled: true, privyAppId: "app" }, {
       createPrivy: async () => ({
@@ -103,7 +111,7 @@ describe("Privy session exchange", () => {
         initialize: async () => undefined,
         getAccessToken: async () => accessToken,
       }),
-      exchange: async () => { throw unauthorized; },
+      exchange: rejectFirstExchange(unauthorized),
       register: async token => { registered = token; },
       csrf: () => "csrf",
     });
@@ -138,7 +146,7 @@ describe("Privy session exchange", () => {
           ensureEmbeddedEthereumWallet: async index => { ensured.push(index); },
         };
       },
-      exchange: async () => { throw unauthorized; },
+      exchange: rejectFirstExchange(unauthorized),
       register: async () => ({
         status: "wallet_setup_required",
         wallet: {
@@ -232,7 +240,7 @@ describe("Privy session exchange", () => {
           if (creationAttempts === 1) throw new Error("wallet_rejected");
         },
       }),
-      exchange: async () => { throw unauthorized; },
+      exchange: rejectFirstExchange(unauthorized),
       register: async () => ({
         status: "wallet_setup_required",
         wallet: {
@@ -275,7 +283,7 @@ describe("Privy session exchange", () => {
         getAccessToken: async () => accessToken,
         ensureEmbeddedEthereumWallet: ensureWallet,
       }),
-      exchange: async () => { throw unauthorized; },
+      exchange: rejectFirstExchange(unauthorized),
       register: async () => ({
         status: "wallet_setup_required",
         wallet: {
