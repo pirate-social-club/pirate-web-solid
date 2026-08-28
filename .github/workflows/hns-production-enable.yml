@@ -53,6 +53,46 @@ jobs:
           curl --fail --silent --show-error --max-time 10 https://pirate.sc/ > /dev/null
           bunx wrangler secret list --env production --config wrangler.jsonc --format json > "$RUNNER_TEMP/secrets.json"
           node -e 'const rows=JSON.parse(require("node:fs").readFileSync(process.argv[1],"utf8"));const names=new Set(rows.map(row=>row.name));for(const name of ["HNS_FORWARDER_V3_HMAC_KEY_REGISTRY","HNS_COMMUNITY_APP_API_ACCESS_CLIENT_ID","HNS_COMMUNITY_APP_API_ACCESS_CLIENT_SECRET","HNS_COMMUNITY_APP_AUTHORITY_ACCESS_CLIENT_ID","HNS_COMMUNITY_APP_AUTHORITY_ACCESS_CLIENT_SECRET"])if(!names.has(name))throw new Error(`missing secret: ${name}`)' "$RUNNER_TEMP/secrets.json"
+      - name: Validate and reinstall production community secrets
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          HNS_FORWARDER_V3_HMAC_KEY_REGISTRY: ${{ secrets.HNS_FORWARDER_V3_HMAC_KEY_REGISTRY }}
+          HNS_COMMUNITY_APP_API_ACCESS_CLIENT_ID: ${{ secrets.HNS_COMMUNITY_APP_API_ACCESS_CLIENT_ID }}
+          HNS_COMMUNITY_APP_API_ACCESS_CLIENT_SECRET: ${{ secrets.HNS_COMMUNITY_APP_API_ACCESS_CLIENT_SECRET }}
+          HNS_COMMUNITY_APP_AUTHORITY_ACCESS_CLIENT_ID: ${{ secrets.HNS_COMMUNITY_APP_AUTHORITY_ACCESS_CLIENT_ID }}
+          HNS_COMMUNITY_APP_AUTHORITY_ACCESS_CLIENT_SECRET: ${{ secrets.HNS_COMMUNITY_APP_AUTHORITY_ACCESS_CLIENT_SECRET }}
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const { createHash } = require("node:crypto");
+          const registry = process.env.HNS_FORWARDER_V3_HMAC_KEY_REGISTRY ?? "";
+          const expectedDigest = "617c9b91cc06d58dbec372b5d5175c5864f8cb17ee114a413e81e33c8017764c";
+          const digest = createHash("sha256").update(registry).digest("hex");
+          if (digest !== expectedDigest) throw new Error("forwarder registry digest mismatch");
+          const document = JSON.parse(registry);
+          if (
+            document.schema !== "pirate-hns-forwarder-v3-key-registry-v1" ||
+            document.registry_reference !== "pirate:hns-forwarder-v3:production-community-app:v1" ||
+            document.registry_version !== "2026-08-28-01" ||
+            !Array.isArray(document.keys) ||
+            document.keys.filter((key) => key?.signing_enabled === true).length !== 1
+          ) throw new Error("forwarder registry shape mismatch");
+          const names = ["API", "AUTHORITY"];
+          const values = names.map((name) => ({
+            id: process.env[`HNS_COMMUNITY_APP_${name}_ACCESS_CLIENT_ID`] ?? "",
+            secret: process.env[`HNS_COMMUNITY_APP_${name}_ACCESS_CLIENT_SECRET`] ?? "",
+          }));
+          for (const value of values) {
+            if (!/^[0-9a-f]{32}\.access$/u.test(value.id)) throw new Error("Access client id is not a bare value");
+            if (!/^[A-Za-z0-9_-]{32,256}$/u.test(value.secret)) throw new Error("Access client secret is not a bare value");
+          }
+          if (values[0].id === values[1].id || values[0].secret === values[1].secret) {
+            throw new Error("API and authority Access credentials must be distinct");
+          }
+          console.log("production community secret shapes verified");
+          NODE
+          node -e 'process.stdout.write(JSON.stringify({HNS_FORWARDER_V3_HMAC_KEY_REGISTRY:process.env.HNS_FORWARDER_V3_HMAC_KEY_REGISTRY,HNS_COMMUNITY_APP_API_ACCESS_CLIENT_ID:process.env.HNS_COMMUNITY_APP_API_ACCESS_CLIENT_ID,HNS_COMMUNITY_APP_API_ACCESS_CLIENT_SECRET:process.env.HNS_COMMUNITY_APP_API_ACCESS_CLIENT_SECRET,HNS_COMMUNITY_APP_AUTHORITY_ACCESS_CLIENT_ID:process.env.HNS_COMMUNITY_APP_AUTHORITY_ACCESS_CLIENT_ID,HNS_COMMUNITY_APP_AUTHORITY_ACCESS_CLIENT_SECRET:process.env.HNS_COMMUNITY_APP_AUTHORITY_ACCESS_CLIENT_SECRET}))' |
+            bunx wrangler secret bulk --env production --config wrangler.jsonc
       - name: Record rollback version
         id: before
         env:
