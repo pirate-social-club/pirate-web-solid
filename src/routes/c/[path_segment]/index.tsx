@@ -1,23 +1,23 @@
 import { query, type RouteProps } from "@solidjs/router";
 import { defineFileRoute } from "@solidjs/router/fs";
 import { getRequestEvent, httpHeader, httpStatus } from "@solidjs/web";
-import { createPublicCommunityRouteClient } from "../../api/community-route-client.ts";
-import CommunityPage from "../../features/communities/community-page/community-page.tsx";
+import { createPublicCommunityRouteClient } from "../../../api/community-route-client.ts";
+import CommunityPage from "../../../features/communities/community-page/community-page.tsx";
 import {
   loadCommunityPage,
   normalizeCommunityPathSegment,
   type CommunityPageViewState,
   type CommunityRouteClient,
-} from "../../features/communities/community-page/community-page.model.ts";
+} from "../../../features/communities/community-page/community-page.model.ts";
 import {
   communityPageResponsePolicy,
   decodeCommunityRouteParam,
   type CommunityPagePreflight,
-} from "../../features/communities/community-page/community-page-preflight.ts";
+} from "../../../features/communities/community-page/community-page-preflight.ts";
 import {
   communityCanonicalOrigin,
   communityRequestOrigin,
-} from "../../features/communities/community-page/community-page-origin.ts";
+} from "../../../features/communities/community-page/community-page-origin.ts";
 
 export function commitCommunityPageResponse(state: CommunityPageViewState): void {
   const event = getRequestEvent();
