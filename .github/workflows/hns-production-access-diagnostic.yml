@@ -72,7 +72,9 @@ jobs:
               "$label" "$status" "$origin_marker" "$elapsed" "$size" "$digest" "$mitigated"
           }
 
-          api_metrics="$(curl --silent --show-error --max-time 5 --redirect-trusted --max-redirs 0 \
+          : > "$tmp/api.headers"
+          : > "$tmp/api.body"
+          api_metrics="$(curl --silent --show-error --max-time 5 \
             --dump-header "$tmp/api.headers" --output "$tmp/api.body" \
             --write-out '%{http_code}|%{time_total}' \
             -H "CF-Access-Client-Id: $API_CLIENT_ID" \
@@ -81,7 +83,9 @@ jobs:
           classify api "$tmp/api.headers" "$tmp/api.body" "$api_metrics"
 
           authority_body='["pirate-hns-solid-host-authority-request-v2","app.xn--diagnostic-9za",["community_app_v1",["diagnostic-activation",1],"diagnostic-route",["operator_managed_route_v1","diagnostic-authority",1]],"hns-community-app-gateway-sha256:7141e351d4da5993a9fd42cf03e517200140679b2ad871b333108f0e8399c67c"]'
-          authority_metrics="$(curl --silent --show-error --max-time 5 --redirect-trusted --max-redirs 0 \
+          : > "$tmp/authority.headers"
+          : > "$tmp/authority.body"
+          authority_metrics="$(curl --silent --show-error --max-time 5 \
             --dump-header "$tmp/authority.headers" --output "$tmp/authority.body" \
             --write-out '%{http_code}|%{time_total}' \
             -H 'Accept: application/json' -H 'Content-Type: application/json' \
