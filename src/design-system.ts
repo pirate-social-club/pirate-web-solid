@@ -1,6 +1,14 @@
 // Explicit package boundary: product UI imports catalog primitives here and
 // never reaches through the package implementation from route code.
 export {
+  ActionFooterShell,
+  type ActionFooterShellProps,
+} from "@pirate/web-solid-ui";
+export {
+  StatusCard,
+  type StatusCardProps,
+} from "@pirate/web-solid-ui";
+export {
   Button,
   buttonVariants,
   type ButtonProps,

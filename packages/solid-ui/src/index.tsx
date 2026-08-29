@@ -456,6 +456,10 @@ export {
   type PageContainerProps,
 } from "./patterns/layout/layout-shell/layout-shell";
 export {
+  ActionFooterShell,
+  type ActionFooterShellProps,
+} from "./patterns/layout/action-footer-shell/action-footer-shell";
+export {
   StackPageShell,
   type StackPageShellProps,
 } from "./patterns/layout/stack-page-shell/stack-page-shell";

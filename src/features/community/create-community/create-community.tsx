@@ -3,6 +3,7 @@
 import { For, Show, createSignal, createUniqueId } from "solid-js";
 
 import {
+  ActionFooterShell,
   Button,
   CheckboxCard,
   IconHandPalm,
@@ -83,15 +84,26 @@ export function CreateCommunityView(props: CreateCommunityProps) {
   };
 
   return (
-    <section
-      class={cn("mx-auto flex w-full max-w-2xl flex-col gap-6", props.class)}
+    <form
+      class={cn("h-full", props.class)}
       data-create-community
+      onSubmit={(event) => { event.preventDefault(); if (canSubmit()) props.onSubmit?.(); }}
     >
-      <header>
-        <Type as="h1" variant="h1">{copy().title}</Type>
-      </header>
-
-      <form class="flex flex-col gap-5" onSubmit={(event) => { event.preventDefault(); if (canSubmit()) props.onSubmit?.(); }}>
+      <ActionFooterShell
+        bodyClass="mx-auto flex w-full max-w-2xl flex-col gap-5 px-4 py-5"
+        footer={
+          <div class="mx-auto w-full max-w-2xl">
+            <Button class="h-14 w-full" disabled={!canSubmit()} loading={props.submitting} type="submit">
+              {copy().submit}
+            </Button>
+          </div>
+        }
+        header={
+          <div class="mx-auto w-full max-w-2xl px-4 py-4">
+            <Type as="h1" variant="h1">{copy().title}</Type>
+          </div>
+        }
+      >
         <MediaUploadField
           chooseLabel={copy().coverChoose}
           clearLabel={copy().removeImage}
@@ -186,13 +198,8 @@ export function CreateCommunityView(props: CreateCommunityProps) {
           </Show>
         </section>
 
-        <footer class="sticky bottom-0 z-10 -mx-1 border-t border-border-soft bg-background px-1 pb-4 pt-3" data-create-community-footer>
-          <Button class="h-14 w-full" disabled={!canSubmit()} loading={props.submitting} type="submit">
-            {copy().submit}
-          </Button>
-        </footer>
-      </form>
-    </section>
+      </ActionFooterShell>
+    </form>
   );
 }
 

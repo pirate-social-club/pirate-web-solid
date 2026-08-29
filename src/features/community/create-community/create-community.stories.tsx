@@ -68,7 +68,7 @@ function CreateStory(props: {
   });
 
   return (
-    <div class="min-h-[720px] bg-background p-6 text-foreground">
+    <div class="h-dvh bg-background text-foreground">
       <CreateCommunityView
         additionalGateOptions={props.additionalGateOptions}
         avatarSrc={avatarSrc()}
