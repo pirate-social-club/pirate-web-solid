@@ -15,6 +15,7 @@ const meta = {
     token: { name: "Solana", symbol: "SOL" },
   },
   parameters: {
+    layout: "fullscreen",
     docs: {
       description: {
         component:

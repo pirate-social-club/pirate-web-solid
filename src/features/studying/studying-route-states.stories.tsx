@@ -9,6 +9,7 @@ import {
 const meta = {
   title: "Screens/Studying/RouteStates",
   parameters: {
+    layout: "fullscreen",
     docs: {
       description: {
         component:

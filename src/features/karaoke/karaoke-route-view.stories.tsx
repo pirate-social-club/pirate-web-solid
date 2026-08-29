@@ -23,6 +23,7 @@ const meta = {
   title: "Screens/Karaoke/Route",
   decorators: [(Story) => <StoryRouter>{() => <Story />}</StoryRouter>],
   parameters: {
+    layout: "fullscreen",
     docs: {
       description: {
         component:

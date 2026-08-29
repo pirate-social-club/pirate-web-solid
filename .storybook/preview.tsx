@@ -1,5 +1,7 @@
 import type { Preview } from "storybook-solidjs-vite";
 import { createDecorator } from "storybook-solidjs-vite";
+import { DocsRenderer } from "@storybook/addon-docs";
+import { create } from "storybook/theming/create";
 
 import {
   UiLocaleProvider,
@@ -36,6 +38,64 @@ const withStandaloneEnvironment = createDecorator((Story, context) => {
     </UiLocaleProvider>
   );
 });
+
+const fontSans =
+  'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", "Noto Sans", "Noto Sans Arabic", "Noto Sans Hebrew", Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji"';
+const fontMono =
+  'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace';
+
+const createDocsTheme = (base: "dark" | "light") => {
+  const isDark = base === "dark";
+  return create({
+    base,
+    fontBase: fontSans,
+    fontCode: fontMono,
+    appBg: isDark ? "#121212" : "#f7f8fa",
+    appContentBg: isDark ? "#1b1b1b" : "#ffffff",
+    appPreviewBg: isDark ? "#121212" : "#f7f8fa",
+    appBorderColor: isDark ? "#2c2e30" : "#d5d8db",
+    appBorderRadius: 8,
+    textColor: isDark ? "#d2d4d7" : "#15191d",
+    textMutedColor: isDark ? "#8b9095" : "#6d7277",
+    textInverseColor: isDark ? "#15191d" : "#d2d4d7",
+    barBg: isDark ? "#1b1b1b" : "#ffffff",
+    barTextColor: isDark ? "#8b9095" : "#6d7277",
+    barSelectedColor: isDark ? "#7aa2ff" : "#2c5fd6",
+    inputBg: isDark ? "#1b1b1b" : "#ffffff",
+    inputBorder: isDark ? "#2c2e30" : "#d5d8db",
+    inputTextColor: isDark ? "#d2d4d7" : "#15191d",
+    inputBorderRadius: 6,
+    colorPrimary: isDark ? "#4f7ff0" : "#2c5fd6",
+    colorSecondary: isDark ? "#8b9095" : "#6d7277",
+  });
+};
+
+const docsThemeDark = createDocsTheme("dark");
+const docsThemeLight = createDocsTheme("light");
+
+class ThemedDocsRenderer extends DocsRenderer {
+  constructor() {
+    super();
+    const parentRender = this.render;
+    this.render = async (
+      context: Parameters<DocsRenderer["render"]>[0],
+      docsParameter: Parameters<DocsRenderer["render"]>[1],
+      element: Parameters<DocsRenderer["render"]>[2],
+    ) => {
+      const globals: Record<string, unknown> =
+        (context as { globals?: Record<string, unknown> }).globals ??
+        (context as {
+          store?: { userGlobals?: { globals?: Record<string, unknown> } };
+        }).store?.userGlobals?.globals ??
+        {};
+      const mode = (globals.theme as ThemeMode | undefined) ?? "dark";
+      const prefersDark = window.matchMedia?.("(prefers-color-scheme: dark)").matches ?? false;
+      const useDark = mode === "dark" || (mode === "system" && prefersDark);
+      docsParameter.theme = useDark ? docsThemeDark : docsThemeLight;
+      return parentRender(context, docsParameter, element);
+    };
+  }
+};
 
 const preview: Preview = {
   decorators: [withStandaloneEnvironment],
@@ -87,6 +147,9 @@ const preview: Preview = {
     locale: "en",
   },
   parameters: {
+    docs: {
+      renderer: () => new ThemedDocsRenderer(),
+    },
     a11y: {
       test: "error",
     },
@@ -98,10 +161,21 @@ const preview: Preview = {
         { name: "light", value: "#ffffff" },
       ],
     },
-    layout: "fullscreen",
+    layout: "centered",
     options: {
       storySort: {
-        order: ["Flows", "Screens", "Parts", "Foundations"],
+        order: [
+          "Flows",
+          "Screens",
+          "Parts",
+          "Foundations",
+          ["Color", "Typography", "Spacing & Sizing", "Radius & Elevation", "Icons", "Motion"],
+          "Components",
+          ["Actions", "Forms", "Overlays", "Disclosure", "Feedback", "Data Display", "Media"],
+          "Patterns",
+          ["Forms", "Overlays", "Feedback", "Identity", "Engagement", "Layout", "Navigation"],
+          "Internal",
+        ],
       },
     },
   },

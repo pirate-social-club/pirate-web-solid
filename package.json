@@ -70,6 +70,7 @@
     "@storybook/addon-a11y": "10.5.8",
     "@storybook/addon-docs": "10.5.8",
     "@testing-library/jest-dom": "7.0.1",
+    "remark-gfm": "4.0.1",
     "@tailwindcss/vite": "4.3.3",
     "@testing-library/jest-dom": "7.0.1",
     "@types/node": "24.3.0",

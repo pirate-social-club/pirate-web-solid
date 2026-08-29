@@ -16,7 +16,7 @@ import {
 // Tailwind tokens, design-system facade, and locale/theme decorators work
 // without reaching into the historical React application.
 const meta = {
-  title: "Foundations/Storybook Smoke",
+  title: "Internal/Storybook Smoke",
   parameters: {
     layout: "centered",
   },

@@ -7,6 +7,7 @@ const meta = {
   title: "Parts/Karaoke/Leaderboard",
   component: KaraokeLeaderboard,
   parameters: {
+    layout: "fullscreen",
     docs: {
       description: {
         component:

@@ -1,12 +1,15 @@
 # Storybook catalog hierarchy
 
-Two catalogs, and they do not overlap. The design-system catalog at
-`packages/solid-ui/.storybook` (port 6007) owns primitives and patterns under
-`Foundations`, `Components`, and `Patterns`. The app catalog at
-`.storybook` (port 6006) owns everything built on top of them and sorts its
-titles in this order:
+One catalog at `.storybook` (port 6006) holds everything: the app stories and
+the design-system package that backs them, so a token can be reviewed on its
+Foundations page and in the screens that use it without switching runners. It
+sorts titles in this order:
 
-    Flows / Screens / Parts / Foundations
+    Flows / Screens / Parts / Foundations / Components / Patterns / Internal
+
+`packages/solid-ui/.storybook` (port 6007) still runs the same design-system
+stories in isolation, with app code out of the Vite graph. It is a narrower
+view for working on primitives, not a second source of truth.
 
 The top segment says what the story *is*, not which feature it belongs to. The
 feature is always the second segment, so `Flows/Community/Create` and
@@ -24,10 +27,18 @@ render it directly, it is a screen.
 `Parts` is everything below screen level that belongs to a feature rather than
 the design system: sheets, dialogs, rails, sidebars, pickers, status cards.
 A component reusable across features belongs in `packages/solid-ui` and gets a
-`Patterns` story in the other catalog instead.
+`Patterns` story instead.
 
-`Foundations` in the app catalog holds only the smoke story. Colour, type,
-spacing, motion, radius, and icons are documented in the design-system catalog.
+`Foundations`, `Components` and `Patterns` belong to the design system in
+`packages/solid-ui`: the colour, type, spacing, motion, radius and icon docs,
+the primitives, and the cross-feature patterns. A component reusable across
+features belongs there rather than in `src/features`.
+
+`Internal` holds the catalog's own smoke story and nothing else.
+
+The global story layout is `centered`, which is what the design-system stories
+expect. A story that needs the full viewport sets `layout: "fullscreen"` on its
+meta, as the flows and shells do.
 
 ## Adding a story
 

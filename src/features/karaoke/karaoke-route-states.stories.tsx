@@ -9,6 +9,7 @@ import {
 const meta = {
   title: "Screens/Karaoke/RouteStates",
   parameters: {
+    layout: "fullscreen",
     docs: {
       description: {
         component:
