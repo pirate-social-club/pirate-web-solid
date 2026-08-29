@@ -93,7 +93,7 @@ const preview: Preview = {
     backgrounds: {
       default: "app-bg",
       values: [
-        { name: "app-bg", value: "oklch(0.18 0 0)" },
+        { name: "app-bg", value: "oklch(0.145 0 0)" },
         { name: "dark", value: "#09090b" },
         { name: "light", value: "#ffffff" },
       ],

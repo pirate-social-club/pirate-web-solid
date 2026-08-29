@@ -36,8 +36,8 @@ allowed as text on a page, card, or popover surface. Use the matching
 
 | Token | Dark | Light | Role |
 | --- | --- | --- | --- |
-| `--background` | `oklch(0.18 0 0)` | `oklch(0.98 0.002 250)` | page |
-| `--card` / `--popover` | `oklch(0.22 0 0)` / `oklch(0.24 0 0)` | `oklch(1 0 0)` | surface |
+| `--background` | `oklch(0.145 0 0)` (`neutral-950`) | `oklch(0.98 0.002 250)` | page |
+| `--card` / `--popover` | `oklch(0.205 0 0)` (`neutral-900`) / `oklch(0.235 0 0)` | `oklch(1 0 0)` | surface |
 | `--foreground` | `oklch(0.87 0.004 250)` | `oklch(0.21 0.01 250)` | primary text |
 | `--muted-foreground` | `oklch(0.65 0.01 250)` | `oklch(0.55 0.01 250)` | secondary text |
 | `--primary` | `oklch(0.546 0.245 262.881)` (Tailwind `blue-600`) | same | brand fill |
@@ -54,7 +54,7 @@ allowed as text on a page, card, or popover surface. Use the matching
 Both themes meet WCAG AA on text: every text/background pair in the catalog is
 at least 4.5:1, including white on the hover fills. Component and boundary
 pairs clear 3:1 with one documented exception: dark-theme `--primary-hover`
-(`blue-700`) sits at 2.76:1 against the dark page. A primary button is
+(`blue-700`) sits at 2.90:1 against the dark page. A primary button is
 identified by its white label at 6.82:1 rather than by its fill edge, so the
 exception is accepted rather than hand-tuned away — correcting it would mean
 leaving Tailwind's scale.
