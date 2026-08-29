@@ -1,4 +1,4 @@
-import type { JSX } from "@solidjs/web";
+import { Dynamic, type JSX } from "@solidjs/web";
 import { children as resolveChildren, createMemo, omit, type ParentProps } from "solid-js";
 
 import { typeVariants } from "@/components/data-display/type/type";
@@ -35,17 +35,31 @@ function CardHeader(props: ParentProps<JSX.HTMLAttributes<HTMLDivElement> & { cl
   );
 }
 
-function CardTitle(props: ParentProps<JSX.HTMLAttributes<HTMLHeadingElement> & { class?: string }>) {
+/**
+ * CardTitle - the card's heading. It renders h3 by default, which is right for
+ * a card nested under a section heading but skips a level on a page whose only
+ * ancestor heading is the h1. axe reports that as heading-order, so `as` lets
+ * the host place the card correctly in the document outline. The visual size
+ * is fixed regardless of level; only the semantics change.
+ */
+function CardTitle(
+  props: ParentProps<
+    JSX.HTMLAttributes<HTMLHeadingElement> & {
+      class?: string;
+      as?: "h2" | "h3" | "h4" | "h5" | "h6";
+    }
+  >,
+) {
   const content = resolveChildren(() => props.children);
   const className = createMemo(() =>
     cn(typeVariants({ variant: "h3" }), "text-balance", props.class),
   );
-  const rest = omit(props, "class", "children");
+  const rest = omit(props, "class", "children", "as");
 
   return (
-    <h3 class={className()} {...rest}>
+    <Dynamic component={props.as ?? "h3"} class={className()} {...rest}>
       {content()}
-    </h3>
+    </Dynamic>
   );
 }
 
