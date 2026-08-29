@@ -17,6 +17,12 @@ something is about to be destroyed. The study flow depends on this — a wrong
 answer is `--destructive` / `--destructive-text` and a correct one is
 `--success`, so red must never also read as "this is the main action".
 
+The blue is Tailwind's own `blue` scale, taken verbatim: `blue-600` as the
+fill in both themes, `blue-700` for hover, `blue-400` as brand text on dark
+surfaces and `blue-700` on light ones. Do not hand-tune these — a desaturated
+blue drifts toward indigo, which is what an earlier chroma of 0.2 did.
+`blue-500` is deliberately not the fill: white text on it reaches only 3.76:1.
+
 `--info` stays a separate blue at hue 250. It is close enough to `--primary`
 that it should be used for genuine informational accents only, never as a
 stand-in for the brand fill.
@@ -34,20 +40,24 @@ allowed as text on a page, card, or popover surface. Use the matching
 | `--card` / `--popover` | `oklch(0.22 0 0)` / `oklch(0.24 0 0)` | `oklch(1 0 0)` | surface |
 | `--foreground` | `oklch(0.87 0.004 250)` | `oklch(0.21 0.01 250)` | primary text |
 | `--muted-foreground` | `oklch(0.65 0.01 250)` | `oklch(0.55 0.01 250)` | secondary text |
-| `--primary` | `oklch(0.55 0.2 262)` | `oklch(0.53 0.19 262)` | brand fill |
+| `--primary` | `oklch(0.546 0.245 262.881)` (Tailwind `blue-600`) | same | brand fill |
 | `--primary-foreground` | `oklch(1 0 0)` | `oklch(1 0 0)` | text on brand fill |
-| `--primary-text` | `oklch(0.7 0.15 262)` | `oklch(0.5 0.18 262)` | brand text on surfaces |
+| `--primary-text` | `oklch(0.707 0.165 254.624)` (`blue-400`) | `oklch(0.488 0.243 264.376)` (`blue-700`) | brand text on surfaces |
 | `--destructive` | `oklch(0.58 0.21 25)` | `oklch(0.55 0.21 25)` | destructive fill |
 | `--destructive-text` | `oklch(0.7 0.17 25)` | `oklch(0.48 0.19 25)` | destructive text |
 | `--border` / `--border-soft` | `oklch(0.3 0.004 250)` / `oklch(0.26 0 0)` | `oklch(0.88 0.005 250)` / `oklch(0.92 0.003 250)` | dividers, outlines |
 | `--warning` / `--success` / `--info` | accent roles, shown as dots, borders, and text where contrast allows | | |
-| `--primary-hover` / `--destructive-hover` | `oklch(0.5 0.2 262)` / `oklch(0.5 0.21 25)` | mix toward `--foreground` | hover fills, AA-checked |
+| `--primary-hover` / `--destructive-hover` | `oklch(0.488 0.243 264.376)` (`blue-700`) / `oklch(0.5 0.21 25)` | mix toward `--foreground` | hover fills, AA-checked |
 | `--card-hover` | mix of `--card` toward `--foreground` | mix of `--card` toward `--foreground` | hover on card surfaces |
 | `--ring` | follows `--primary` per theme | | focus ring |
 
-Both themes meet WCAG AA: every text/background pair in the catalog is at
-least 4.5:1 and every component/boundary pair at least 3:1, including hover
-states (via `--primary-hover` / `--destructive-hover` / `--card-hover`).
+Both themes meet WCAG AA on text: every text/background pair in the catalog is
+at least 4.5:1, including white on the hover fills. Component and boundary
+pairs clear 3:1 with one documented exception: dark-theme `--primary-hover`
+(`blue-700`) sits at 2.76:1 against the dark page. A primary button is
+identified by its white label at 6.82:1 rather than by its fill edge, so the
+exception is accepted rather than hand-tuned away — correcting it would mean
+leaving Tailwind's scale.
 Dark-theme hover fills are explicit same-hue shades — a mix toward the dark
 `--background` would kill the hue, so they are not derived that way.
 Dark-theme values deliberately differ from the React reference, whose
