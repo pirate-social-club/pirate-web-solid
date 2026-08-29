@@ -79,6 +79,21 @@ describe("ActionFooterShell", () => {
     expect(body(container).className).toContain("overflow-y-auto");
   });
 
+  /**
+   * axe's scrollable-region-focusable: a body that scrolls but holds nothing
+   * focusable is unreachable by keyboard. Caught by the catalog sweep, not by
+   * these tests, since jsdom has neither layout nor axe.
+   */
+  it("keeps the scrolling body reachable by keyboard", () => {
+    const container = render(() => (
+      <ActionFooterShell footer={<button type="button">Create</button>}>
+        <p>Body content</p>
+      </ActionFooterShell>
+    ));
+
+    expect(body(container).getAttribute("tabindex")).toBe("0");
+  });
+
   it("fills the parent by default and the viewport on request", () => {
     const parent = render(() => (
       <ActionFooterShell footer={<button type="button">Create</button>}>

@@ -61,7 +61,16 @@ export function ActionFooterShell(props: ActionFooterShellProps) {
           {props.header}
         </div>
       </Show>
-      <div class={bodyClassName()} data-action-footer-shell-body>
+      {/*
+        A scrollable region must be reachable by keyboard. axe's
+        scrollable-region-focusable is satisfied either by the region being
+        focusable or by it containing focusable content, and the shell cannot
+        know which its children are, so it is always focusable. The cost is one
+        extra tab stop ahead of a body that already holds form controls, which
+        is the accepted trade for a body of static content being scrollable at
+        all.
+      */}
+      <div class={bodyClassName()} data-action-footer-shell-body tabindex="0">
         {props.children}
       </div>
       <div class={footerClassName()} data-action-footer-shell-footer>
