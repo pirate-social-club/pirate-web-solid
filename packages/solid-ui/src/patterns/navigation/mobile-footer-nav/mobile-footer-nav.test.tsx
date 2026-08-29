@@ -7,9 +7,11 @@ import { expectNoA11yViolations, render } from "@/test/test-utils";
 import { MobileFooterNav } from "./mobile-footer-nav";
 
 describe("MobileFooterNav", () => {
-  it("renders all five destinations in SSR-friendly markup", () => {
+  it("renders the four pen destinations in SSR-friendly markup", () => {
     const container = render(() => <MobileFooterNav activeItem="profile" />);
-    expect(within(container).getAllByRole("button")).toHaveLength(5);
+    const buttons = within(container).getAllByRole("button");
+    expect(buttons).toHaveLength(4);
+    expect(buttons.map((button) => button.getAttribute("aria-label"))).toEqual(["Home", "Learn", "Wallet", "Profile"]);
     expect(within(container).getByRole("button", { name: "Profile" })).toHaveAttribute("aria-current", "page");
   });
 
@@ -21,12 +23,10 @@ describe("MobileFooterNav", () => {
     expect(order).toEqual(["haptic", "home"]);
   });
 
-  it("normalizes and exposes unread counts accessibly", () => {
-    const container = render(() => <MobileFooterNav unreadChatCount={4.9} unreadInboxCount={128} />);
-    expect(within(container).getByRole("button", { name: "Chat, 4" })).toBeInTheDocument();
-    expect(within(container).getByRole("button", { name: "Inbox, 128" })).toBeInTheDocument();
-    expect(within(container).getByText("99+")).toHaveClass("notification-count-badge");
-    expect(within(container).getByRole("button", { name: "Home" })).toHaveClass("h-full", "w-full", "text-foreground");
+  it("marks only the active destination and renders currentColor icons", () => {
+    const container = render(() => <MobileFooterNav activeItem="learn" />);
+    expect(within(container).getByRole("button", { name: "Learn" })).toHaveClass("h-full", "w-full", "text-foreground");
+    expect(within(container).getByRole("button", { name: "Home" })).toHaveClass("text-muted-foreground");
     expect(within(container).getByRole("button", { name: "Home" }).querySelector('svg[fill="currentColor"]')).toBeInTheDocument();
   });
 

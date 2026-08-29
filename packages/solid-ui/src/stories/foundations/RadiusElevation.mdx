@@ -12,14 +12,20 @@ Corner rounding and elevation come from tokens, not arbitrary values.
 | --- | --- | --- |
 | `--radius-sm` | `4px` | small chips |
 | `--radius-md` | `8px` | skeleton, tooltip |
-| `--radius-lg` | `12px` | cards, menus |
+| `--radius-lg` | `12px` | buttons, text inputs, cards, menus |
 | `--radius-xl` | `14px` | dialogs, toasts |
 | `--radius-2xl` | `16px` | large surfaces |
 | `--radius-3xl` | `24px` | page shells |
-| `--radius-full` | `9999px` | pills, icon buttons |
+| `--radius-sheet` | `20px` | the leading corners of a bottom or top sheet |
+| `--radius-full` | `9999px` | pills, chips, icon buttons, avatars |
 
 Use the token form (`rounded-[var(--radius-lg)]`) rather than literal
 `rounded-[12px]`.
+
+Text buttons and text-entry surfaces are rounded to `--radius-lg`, not fully
+rounded. `--radius-full` is reserved for shapes that are genuinely circular or
+pill-shaped: avatars, icon buttons, chips, pill buttons, switches, radio
+indicators, progress tracks, and status dots.
 
 ## Elevation
 

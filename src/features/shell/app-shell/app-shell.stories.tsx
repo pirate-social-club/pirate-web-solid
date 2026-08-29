@@ -15,8 +15,7 @@ function StoryBody(props: { label: string }) {
 
 export const Desktop: Story = { render: () => <AppShell route="home"><StoryBody label="Desktop shell" /></AppShell> };
 export const MobileHeader: Story = { parameters: { viewport: { defaultViewport: "mobile1" } }, render: () => <AppShell forceMobile onBackClick={() => undefined} route="post"><StoryBody label="Mobile header with back affordance" /></AppShell> };
-export const MobileFooterWithNotifications: Story = { parameters: { viewport: { defaultViewport: "mobile1" } }, render: () => <AppShell forceMobile route="community" unreadNotificationCount={12}><StoryBody label="Mobile footer with notifications" /></AppShell> };
-export const MobileFooterWithChatNotification: Story = { parameters: { viewport: { defaultViewport: "mobile1" } }, render: () => <AppShell forceMobile route="community" unreadChatCount={1}><StoryBody label="Mobile footer with chat notification" /></AppShell> };
+export const MobileHeaderWithNotifications: Story = { parameters: { viewport: { defaultViewport: "mobile1" } }, render: () => <AppShell forceMobile route="community" unreadNotificationCount={12}><StoryBody label="Mobile header with unread notifications" /></AppShell> };
 function WalletAndProfileSurface() {
   const [lastAction, setLastAction] = createSignal("Choose Wallet or Profile");
   return <AppShell forceMobile onProfileClick={() => setLastAction("Profile selected")} onWalletClick={() => setLastAction("Wallet selected")} route="wallet"><div class="mx-auto max-w-3xl p-5"><Card class="p-6"><Type as="h1" variant="h2">Wallet and profile actions</Type><Type as="p" variant="caption" class="mt-2">{lastAction()}</Type></Card></div></AppShell>;

@@ -100,7 +100,7 @@ export function MediaUploadField(props: MediaUploadFieldProps) {
 
   const trigger = (
     <label
-      class="inline-flex h-10 cursor-pointer items-center gap-2 rounded-full border border-border-soft px-4 text-base font-semibold text-foreground transition-colors hover:border-primary/40 hover:bg-muted"
+      class="inline-flex h-10 cursor-pointer items-center gap-2 rounded-[var(--radius-lg)] border border-border-soft px-4 text-base font-semibold text-foreground transition-colors hover:border-primary/40 hover:bg-muted"
       for={inputId}
     >
       <IconImage class="size-4" />

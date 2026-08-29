@@ -14,7 +14,6 @@ export interface AppShellProps {
   forceMobile?: boolean;
   route?: ShellRoute;
   title?: string;
-  unreadChatCount?: number;
   unreadNotificationCount?: number;
   labels?: AppHeaderLabels;
   onBackClick?: () => void;
@@ -24,16 +23,15 @@ export interface AppShellProps {
   onNotificationsClick?: () => void;
   onProfileClick?: () => void;
   onWalletClick?: () => void;
-  onChatClick?: () => void;
-  onInboxClick?: () => void;
+  onLearnClick?: () => void;
 }
 
 export function AppShell(props: AppShellProps) {
   const title = () => props.title ?? resolveShellTitle(props.route ?? "home");
   return <div class={cn("min-h-screen w-full min-w-0 bg-background text-foreground", props.class)}>
     <AppHeader forceMobile={props.forceMobile} labels={props.labels} mobileCenterContent={<Show when={title()}><Type as="span" variant="h4">{title()}</Type></Show>} onBackClick={props.onBackClick} onCreateClick={props.onCreateClick} onHomeClick={props.onHomeClick} onMenuClick={props.onMenuClick} onNotificationsClick={props.onNotificationsClick} onProfileClick={props.onProfileClick} onWalletClick={props.onWalletClick} showWalletAction={props.route === "wallet"} unreadNotificationsCount={props.unreadNotificationCount} />
-    <main class={cn(props.forceMobile ? "min-h-screen pb-24 pt-[calc(env(safe-area-inset-top)+4.5rem)]" : "min-h-screen")}>{props.children}</main>
-    <MobileFooterNav forceMobile={props.forceMobile} activeItem={props.route === "profile" ? "profile" : props.route === "wallet" ? "wallet" : "home"} labels={{ home: "Home", wallet: "Wallet", chat: "Chat", inbox: "Inbox", profile: "Profile", primaryNavAriaLabel: "Primary navigation" }} onChatClick={props.onChatClick} onHomeClick={props.onHomeClick} onInboxClick={props.onInboxClick} onProfileClick={props.onProfileClick} onWalletClick={props.onWalletClick} unreadChatCount={props.unreadChatCount} unreadInboxCount={props.unreadNotificationCount} />
+    <main class={cn(props.forceMobile ? "min-h-screen pb-24 pt-[calc(env(safe-area-inset-top)+var(--header-height))]" : "min-h-screen")}>{props.children}</main>
+    <MobileFooterNav forceMobile={props.forceMobile} activeItem={props.route === "profile" ? "profile" : props.route === "wallet" ? "wallet" : "home"} labels={{ home: "Home", learn: "Learn", wallet: "Wallet", profile: "Profile", primaryNavAriaLabel: "Primary navigation" }} onHomeClick={props.onHomeClick} onLearnClick={props.onLearnClick} onProfileClick={props.onProfileClick} onWalletClick={props.onWalletClick} />
   </div>;
 }
 

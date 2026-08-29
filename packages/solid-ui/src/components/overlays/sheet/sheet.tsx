@@ -33,8 +33,8 @@ const sheetContentVariants = cva(
   {
     variants: {
       side: {
-        top: "inset-x-0 top-0 rounded-b-[var(--radius-xl)] border-b data-expanded:translate-y-0 data-closed:-translate-y-full",
-        bottom: "inset-x-0 bottom-0 rounded-t-[var(--radius-xl)] border-t data-expanded:translate-y-0 data-closed:translate-y-full",
+        top: "inset-x-0 top-0 rounded-b-[var(--radius-sheet)] border-b data-expanded:translate-y-0 data-closed:-translate-y-full",
+        bottom: "inset-x-0 bottom-0 rounded-t-[var(--radius-sheet)] border-t data-expanded:translate-y-0 data-closed:translate-y-full",
         left: "inset-y-0 start-0 h-full w-3/4 border-e sm:max-w-sm data-expanded:translate-x-0 data-closed:-translate-x-full",
         right: "inset-y-0 end-0 h-full w-3/4 border-s sm:max-w-sm data-expanded:translate-x-0 data-closed:translate-x-full",
       },

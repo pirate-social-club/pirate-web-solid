@@ -96,7 +96,7 @@ describe("ActionFooterShell", () => {
   });
 
   it("has no accessibility violations", async () => {
-    const container = render(() => (
+    render(() => (
       <ActionFooterShell
         header={<h1>Create community</h1>}
         footer={<button type="button">Create</button>}
@@ -105,6 +105,6 @@ describe("ActionFooterShell", () => {
       </ActionFooterShell>
     ));
 
-    await expectNoA11yViolations(container);
+    await expectNoA11yViolations();
   });
 });

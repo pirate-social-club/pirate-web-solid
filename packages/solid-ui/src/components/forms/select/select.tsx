@@ -114,7 +114,7 @@ export function Select<Option>(props: SelectProps<Option>) {
       <KSelect.Trigger
         aria-label={props["aria-label"]}
         class={cn(
-          "flex h-11 w-full cursor-pointer items-center justify-between rounded-full border border-input bg-background px-4 py-2 text-base shadow-sm transition-[color,box-shadow,border-color] data-disabled:cursor-not-allowed data-disabled:opacity-50 data-expanded:border-border data-expanded:ring-1 data-expanded:ring-border-soft data-[placeholder-shown]:text-muted-foreground",
+          "flex h-11 w-full cursor-pointer items-center justify-between rounded-[var(--radius-lg)] border border-input bg-background px-4 py-2 text-base shadow-sm transition-[color,box-shadow,border-color] data-disabled:cursor-not-allowed data-disabled:opacity-50 data-expanded:border-border data-expanded:ring-1 data-expanded:ring-border-soft data-[placeholder-shown]:text-muted-foreground",
           props.triggerClass,
         )}
       >

@@ -5,7 +5,7 @@ import { cn } from "@/lib/cn";
 import { cva, type VariantProps } from "@/lib/recipe";
 
 export const prefixInputVariants = cva(
-  "flex items-center overflow-hidden rounded-full border border-input bg-background shadow-sm transition-[color,box-shadow,border-color] focus-within:border-border focus-within:ring-1 focus-within:ring-border-soft has-disabled:cursor-not-allowed has-disabled:opacity-50",
+  "flex items-center overflow-hidden rounded-[var(--radius-lg)] border border-input bg-background shadow-sm transition-[color,box-shadow,border-color] focus-within:border-border focus-within:ring-1 focus-within:ring-border-soft has-disabled:cursor-not-allowed has-disabled:opacity-50",
   {
     variants: {
       size: {

@@ -174,3 +174,12 @@ export {
   RouteLoadFailureState,
   RouteLoadingState,
 } from "@pirate/web-solid-ui";
+export {
+  MobileFooterNav,
+  MobilePageHeader,
+  type FooterNavItemId,
+  type MobileFooterNavIcons,
+  type MobileFooterNavLabels,
+  type MobileFooterNavProps,
+  type MobilePageHeaderProps,
+} from "@pirate/web-solid-ui";

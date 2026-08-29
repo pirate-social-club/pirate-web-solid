@@ -319,8 +319,8 @@ describe("SSR smoke", () => {
 
   it("renders MobileFooterNav without browser APIs", () => {
     expect(
-      renderHtml(() => <MobileFooterNav activeItem="inbox" />),
-    ).toContain("Inbox");
+      renderHtml(() => <MobileFooterNav activeItem="learn" />),
+    ).toContain("Learn");
   });
 
   it("renders MobilePageHeader without browser APIs", () => {

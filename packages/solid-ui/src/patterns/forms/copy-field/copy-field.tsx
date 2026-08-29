@@ -24,7 +24,7 @@ export interface CopyFieldProps
 export function CopyField(props: CopyFieldProps) {
   const className = createMemo(() =>
     cn(
-      "flex h-16 w-full items-center gap-2 overflow-hidden rounded-full border border-input bg-background pe-2 ps-5 shadow-sm",
+      "flex h-16 w-full items-center gap-2 overflow-hidden rounded-[var(--radius-lg)] border border-input bg-background pe-2 ps-5 shadow-sm",
       props.class,
     ),
   );

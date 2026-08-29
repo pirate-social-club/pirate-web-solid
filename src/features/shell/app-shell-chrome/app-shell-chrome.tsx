@@ -1,23 +1,22 @@
 /** @jsxImportSource @solidjs/web */
-import { For, Show } from "solid-js";
+import { Show } from "solid-js";
 import type { JSX } from "@solidjs/web";
 
 import {
   Avatar,
+  MobileFooterNav as DesignSystemMobileFooterNav,
   IconArrowLeft,
   IconBell,
   IconButton,
-  IconChatCircle,
   IconHouse,
   IconList,
   IconPlus,
   IconSquare,
   IconWallet,
-  IconX,
   Type,
   cn,
 } from "../../../design-system";
-import { formatUnreadCount, normalizeUnreadCount, shellNavItems, type ShellNavItem } from "../shell-model";
+import { formatUnreadCount, normalizeUnreadCount, type ShellNavItem } from "../shell-model";
 
 export interface AppHeaderLabels {
   backAriaLabel?: string;
@@ -61,17 +60,6 @@ export interface AppHeaderProps {
 
 function CreateGlyph() {
   return <span aria-hidden="true" class="relative inline-flex size-5 items-center justify-center"><IconSquare class="size-5" /><IconPlus class="absolute size-3.5" /></span>;
-}
-
-function NavIcon(props: { item: ShellNavItem; class?: string }) {
-  const className = () => cn("size-6", props.class);
-  switch (props.item) {
-    case "home": return <IconHouse class={className()} />;
-    case "wallet": return <IconWallet class={className()} />;
-    case "chat": return <IconChatCircle class={className()} />;
-    case "inbox": return <IconBell class={className()} />;
-    case "profile": return <Avatar fallback="Story Pirate" fallbackSeed="story-pirate" size="sm" />;
-  }
 }
 
 export function AppHeader(props: AppHeaderProps) {
@@ -147,46 +135,48 @@ export function AppHeader(props: AppHeaderProps) {
   );
 }
 
+/**
+ * The shell's footer nav is the design-system pattern; this wrapper only keeps
+ * the shell's explicit `forceMobile` gating, which stories and SSR rely on,
+ * instead of the pattern's CSS breakpoint.
+ */
 export interface MobileFooterNavProps {
   activeItem?: ShellNavItem;
   avatarFallback?: string;
   class?: string;
   forceMobile?: boolean;
-  labels?: Partial<Record<ShellNavItem, string>> & { primaryNavAriaLabel?: string; inboxAriaLabel?: string };
+  labels?: Partial<Record<ShellNavItem, string>> & { primaryNavAriaLabel?: string };
   onHomeClick?: () => void;
-  onWalletClick?: () => void;
-  onChatClick?: () => void;
-  onInboxClick?: () => void;
+  onLearnClick?: () => void;
   onProfileClick?: () => void;
-  unreadChatCount?: number;
-  unreadInboxCount?: number;
+  onWalletClick?: () => void;
 }
 
 export function MobileFooterNav(props: MobileFooterNavProps) {
   const labels = () => props.labels ?? {};
-  const callback = (item: ShellNavItem) => ({ home: props.onHomeClick, wallet: props.onWalletClick, chat: props.onChatClick, inbox: props.onInboxClick, profile: props.onProfileClick })[item];
-  const count = (item: ShellNavItem) => item === "chat" ? normalizeUnreadCount(props.unreadChatCount) : item === "inbox" ? normalizeUnreadCount(props.unreadInboxCount) : 0;
-  return <Show when={props.forceMobile}>
-    <nav aria-label={labels().primaryNavAriaLabel ?? "Primary navigation"} class={cn("fixed inset-x-0 bottom-0 z-40 border-t border-border-soft bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-md", props.class)}>
-      <div class="grid h-16 grid-cols-5 items-center px-2">
-        <For each={shellNavItems}>{(item) => {
-          const unreadCount = () => count(item);
-          const label = () => labels()[item] ?? item;
-          return <button aria-current={props.activeItem === item ? "page" : undefined} aria-label={unreadCount() > 0 ? `${label()}, ${unreadCount()}` : label()} class={cn("relative mx-auto inline-flex size-12 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground", props.activeItem === item && "bg-primary/15 text-primary")} onClick={callback(item)} type="button"><NavIcon item={item} /><span class="sr-only">{label()}</span><Show when={unreadCount() > 0}><span aria-hidden="true" class="absolute end-1 top-1 rounded-full bg-primary px-1 text-[10px] text-primary-foreground">{formatUnreadCount(unreadCount())}</span></Show></button>;
-        }}</For>
-      </div>
-    </nav>
-  </Show>;
+  return (
+    <Show when={props.forceMobile}>
+      <DesignSystemMobileFooterNav
+        activeItem={props.activeItem}
+        avatarFallback={props.avatarFallback}
+        class={cn("md:block", props.class)}
+        labels={{
+          home: labels().home,
+          learn: labels().learn,
+          wallet: labels().wallet,
+          profile: labels().profile,
+          primaryNavAriaLabel: labels().primaryNavAriaLabel,
+        }}
+        onHomeClick={props.onHomeClick}
+        onLearnClick={props.onLearnClick}
+        onProfileClick={props.onProfileClick}
+        onWalletClick={props.onWalletClick}
+      />
+    </Show>
+  );
 }
 
-export interface MobilePageHeaderProps {
-  title: string;
-  class?: string;
-  onBackClick?: () => void;
-  onCloseClick?: () => void;
-  trailingAction?: JSX.Element;
-}
-
-export function MobilePageHeader(props: MobilePageHeaderProps) {
-  return <AppHeader class={props.class} forceMobile hideBrand mobileCenterContent={<Type as="span" variant="h4" class="truncate">{props.title}</Type>} mobileLeadingContent={<IconButton aria-label={props.onCloseClick ? "Close" : "Go back"} onClick={props.onCloseClick ?? props.onBackClick} variant="ghost"><Show when={props.onCloseClick} fallback={<IconArrowLeft class="size-6" />}><IconX class="size-6" /></Show></IconButton>} mobileTrailingContent={props.trailingAction} />;
-}
+export {
+  MobilePageHeader,
+  type MobilePageHeaderProps,
+} from "../../../design-system";

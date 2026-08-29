@@ -92,7 +92,7 @@ export function Combobox<Option>(props: ComboboxProps<Option>) {
     <KCombobox {...rootProps()} class={className()}>
       <KCombobox.Control
         class={cn(
-          "flex h-11 w-full items-center rounded-full border border-input bg-background px-4 shadow-sm transition-[color,box-shadow,border-color] focus-within:border-border focus-within:ring-1 focus-within:ring-border-soft data-disabled:cursor-not-allowed data-disabled:opacity-50",
+          "flex h-11 w-full items-center rounded-[var(--radius-lg)] border border-input bg-background px-4 shadow-sm transition-[color,box-shadow,border-color] focus-within:border-border focus-within:ring-1 focus-within:ring-border-soft data-disabled:cursor-not-allowed data-disabled:opacity-50",
           props.inputClass,
         )}
       >

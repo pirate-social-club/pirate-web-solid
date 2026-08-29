@@ -205,6 +205,7 @@ export {
 } from "./components/media/web3-icons";
 export {
   IconArrowDown,
+  IconArrowCounterClockwise,
   IconArrowLeft,
   IconArrowRight,
   IconArrowSquareOut,
@@ -228,6 +229,7 @@ export {
   IconFire,
   IconFileText,
   IconFlag,
+  IconGift,
   IconGlobe,
   IconHandPalm,
   IconHeart,
@@ -244,10 +246,12 @@ export {
   IconMapPin,
   IconMaskHappy,
   IconMicrophone,
+  IconMicrophoneStage,
   IconMusicNote,
   IconPause,
   IconPencil,
   IconPlay,
+  IconPlaylist,
   IconPlus,
   IconQuote,
   IconRobot,

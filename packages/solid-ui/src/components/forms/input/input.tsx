@@ -5,7 +5,7 @@ import { cn } from "@/lib/cn";
 import { cva, type VariantProps } from "@/lib/recipe";
 
 export const inputVariants = cva(
-  "flex w-full rounded-full border border-input bg-background px-4 text-base shadow-sm transition-[color,box-shadow,border-color] outline-none file:border-0 file:bg-transparent file:text-base file:text-foreground file:font-medium placeholder:text-muted-foreground focus-visible:border-border focus-visible:ring-1 focus-visible:ring-border-soft disabled:cursor-not-allowed disabled:opacity-50",
+  "flex w-full rounded-[var(--radius-lg)] border border-input bg-background px-4 text-base shadow-sm transition-[color,box-shadow,border-color] outline-none file:border-0 file:bg-transparent file:text-base file:text-foreground file:font-medium placeholder:text-muted-foreground focus-visible:border-border focus-visible:ring-1 focus-visible:ring-border-soft disabled:cursor-not-allowed disabled:opacity-50",
   {
     variants: {
       variant: {

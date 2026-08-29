@@ -1,14 +1,11 @@
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import { expect, within } from "storybook/test";
 
+import { demoAvatarImage } from "@/stories/lib/fixtures";
 import { StoryStack } from "@/stories/lib/story-layout";
 import { MediaUploadField } from "./media-upload-field";
 
-const artwork =
-  "data:image/svg+xml," +
-  encodeURIComponent(
-    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 40"><rect width="120" height="40" fill="#3b2f4a"/><circle cx="30" cy="20" r="12" fill="#d8434b"/></svg>`,
-  );
+const artwork = demoAvatarImage;
 
 const meta = {
   title: "Patterns/Forms/MediaUploadField",
