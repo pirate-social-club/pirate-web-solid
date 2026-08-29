@@ -9,14 +9,17 @@ const meta = {
   tags: ["autodocs"],
   args: {
     activeItem: "home",
+    // The viewport global is applied after the play function runs, so without
+    // this the nav is still md:hidden at play time and has no queryable roles.
+    forceMobile: true,
     onHomeClick: fn(),
     onLearnClick: fn(),
     onProfileClick: fn(),
     onWalletClick: fn(),
   },
   argTypes: { class: { table: { disable: true } }, icons: { table: { disable: true } }, labels: { table: { disable: true } } },
+  globals: { viewport: { value: "mobile1", isRotated: false } },
   parameters: {
-    viewport: { defaultViewport: "mobile1" },
     docs: { description: { component: "Callback-driven bottom navigation with the four product destinations: Home, Learn, Wallet and Profile. The component owns presentation and mobile CSS; the host owns routing, active-item resolution, labels, and haptic feedback. Injected icons receive an optional `filled` prop for active-state rendering; custom icons may ignore it." } },
   },
 } satisfies Meta<typeof MobileFooterNav>;

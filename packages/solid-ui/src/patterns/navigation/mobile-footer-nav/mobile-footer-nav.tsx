@@ -35,6 +35,12 @@ export interface MobileFooterNavProps {
   onHomeClick?: () => void;
   onLearnClick?: () => void;
   onProfileClick?: () => void;
+  /**
+   * Render at any width instead of only below md. The nav is display:none on a
+   * wide viewport, which makes it untestable and unpreviewable there; the same
+   * escape exists on AppHeader and OperationPersonaControl.
+   */
+  forceMobile?: boolean;
   onTapHaptic?: () => void;
   onWalletClick?: () => void;
   userAvatarSeed?: string | null;
@@ -66,7 +72,8 @@ export function MobileFooterNav(props: MobileFooterNavProps) {
     <nav
       aria-label={labels().primaryNavAriaLabel ?? "Primary navigation"}
       class={cn(
-        "fixed inset-x-0 bottom-0 z-40 border-t border-border-soft bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-md md:hidden",
+        "fixed inset-x-0 bottom-0 z-40 border-t border-border-soft bg-background/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-md",
+        !props.forceMobile && "md:hidden",
         props.class,
       )}
     >
