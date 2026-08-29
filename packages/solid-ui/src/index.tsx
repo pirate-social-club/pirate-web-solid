@@ -182,6 +182,10 @@ export {
   TextFieldLabel,
   type TextFieldInputProps,
 } from "./components/forms/text-field/text-field";
+export {
+  InputOTP,
+  type InputOTPProps,
+} from "./components/forms/input-otp/input-otp";
 
 export {
   MediaControlButton,

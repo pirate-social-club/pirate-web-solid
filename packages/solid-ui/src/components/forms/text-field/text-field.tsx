@@ -50,6 +50,7 @@ export interface TextFieldInputProps
   disabled?: boolean;
   inputmode?: string;
   placeholder?: string;
+  required?: boolean;
   spellcheck?: boolean;
 }
 

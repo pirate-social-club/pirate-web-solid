@@ -161,15 +161,18 @@ describe("sign-in session controller", () => {
 
   test("drops an attempt that completes after the surface was disabled", async () => {
     const pending = deferred<void>();
-    const exchange = fakeExchange({ loginWithWallet: vi.fn(() => pending.promise) });
+    const exchange = fakeExchange({ sendCode: vi.fn(() => pending.promise) });
     const onAuthenticated = vi.fn();
     const [enabled, setEnabled] = createSignal(true);
     const session = harness({ createExchange: async () => exchange, enabled, onAuthenticated });
     await settle();
 
-    session.chooseMethod("wallet");
+    session.setEmail("operator@example.test");
     flush();
-    expect(session.state().phase).toBe("working");
+    session.sendCode();
+    flush();
+    expect(session.state().phase).toBe("choose");
+    expect(session.state().busy).toBe(true);
 
     setEnabled(false);
     flush();
@@ -177,7 +180,7 @@ describe("sign-in session controller", () => {
     await settle();
 
     expect(onAuthenticated).not.toHaveBeenCalled();
-    expect(session.state().phase).toBe("working");
+    expect(session.state().phase).toBe("choose");
   });
 
   test("drops a stale attempt after the surface was reopened on a new exchange", async () => {
@@ -245,9 +248,7 @@ describe("sign-in session controller", () => {
 
     session.setEmail("operator@example.test");
     flush();
-    session.chooseMethod("email");
-    flush();
-    expect(session.state().phase).toBe("email");
+    expect(session.state().phase).toBe("choose");
 
     setEnabled(false);
     flush();

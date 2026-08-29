@@ -159,6 +159,7 @@ export {
   IconVideoCamera,
   IconWarningCircle,
   IconX,
+  InputOTP,
   Input,
   MediaControlButton,
   Scrubber,

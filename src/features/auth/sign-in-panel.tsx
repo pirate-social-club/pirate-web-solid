@@ -24,6 +24,7 @@ export function SignInPanel(props: SignInPanelProps): JSX.Element {
       onChooseMethod={session.chooseMethod}
       onCodeChange={session.setCode}
       onEmailChange={session.setEmail}
+      onResendCode={session.resendCode}
       onSendCode={session.sendCode}
       onSubmitCode={session.submitCode}
       state={session.state()}

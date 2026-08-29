@@ -7,6 +7,7 @@ import {
 } from "../../api/privy-session.ts";
 import { fetchVerificationConfig } from "../../api/verification-config.ts";
 import {
+  SIGN_IN_CODE_LENGTH,
   initialSignInState,
   signInCodeSent,
   isRegistrationRequired,
@@ -49,6 +50,7 @@ export interface SignInSession {
   readonly state: Accessor<SignInState>;
   back(): void;
   chooseMethod(method: SignInMethod): void;
+  resendCode(): void;
   sendCode(): void;
   setCode(code: string): void;
   setEmail(email: string): void;
@@ -207,17 +209,9 @@ export function createSignInSession(options: SignInSessionOptions = {}): SignInS
   return {
     state,
     back() {
-      setState((current) => signInMoved(current, current.phase === "code" ? "email" : "choose"));
+      setState((current) => signInMoved(current, "choose"));
     },
     chooseMethod(method) {
-      if (method === "email") {
-        setState((current) => signInMoved(current, "email"));
-        return;
-      }
-      if (method === "wallet") {
-        attempt("working", "choose", (handle) => handle.loginWithWallet(), succeed);
-        return;
-      }
       // Navigating is the settlement, so it runs behind the same currency check
       // as any state write: a dismissed ceremony must not redirect the page.
       attempt(
@@ -227,10 +221,17 @@ export function createSignInSession(options: SignInSessionOptions = {}): SignInS
         (url) => { window.location.assign(url); },
       );
     },
+    resendCode() {
+      const address = state().email.trim();
+      if (address.length === 0) return;
+      attempt(undefined, "code", (handle) => handle.sendCode(address), () => {
+        setState(signInCodeSent);
+      });
+    },
     sendCode() {
       const address = state().email.trim();
       if (address.length === 0) return;
-      attempt(undefined, "email", (handle) => handle.sendCode(address), () => {
+      attempt(undefined, "choose", (handle) => handle.sendCode(address), () => {
         setState(signInCodeSent);
       });
     },
@@ -242,7 +243,7 @@ export function createSignInSession(options: SignInSessionOptions = {}): SignInS
     },
     submitCode() {
       const current = state();
-      if (current.code.trim().length === 0) return;
+      if (current.code.trim().length !== SIGN_IN_CODE_LENGTH) return;
       attempt(
         undefined,
         "code",

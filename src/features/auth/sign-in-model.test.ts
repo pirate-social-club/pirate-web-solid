@@ -62,11 +62,11 @@ describe("sign-in phase model", () => {
   it("clears stale failure text when the user moves phase", () => {
     const failed = signInFailed(signInReady(initialSignInState), new Error("boom"), "choose");
     expect(failed.message).not.toBe("");
-    expect(signInMoved(failed, "email").message).toBe("");
+    expect(signInMoved(failed, "choose").message).toBe("");
   });
 
   it("gates the code request and the code submission on their own input", () => {
-    const chooseEmail = signInMoved(initialSignInState, "email");
+    const chooseEmail = signInMoved(initialSignInState, "choose");
     expect(canSendCode(chooseEmail)).toBe(false);
     expect(canSendCode(signInWithEmail(chooseEmail, "  "))).toBe(false);
 

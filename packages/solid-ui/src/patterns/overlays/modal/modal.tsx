@@ -75,12 +75,14 @@ export function Modal(props: ParentProps<ModalProps>) {
 }
 
 export interface ModalContentProps {
+  "aria-label"?: string;
   children?: JSX.Element;
   class?: string;
   dir?: "ltr" | "rtl" | "auto";
   hideCloseButton?: boolean;
   hideCloseButtonOnMobile?: boolean;
   mobileSide?: "top" | "bottom" | "left" | "right";
+  onOpenAutoFocus?: (event: Event) => void;
 }
 
 export function ModalContent(props: ParentProps<ModalContentProps>) {
@@ -92,15 +94,17 @@ export function ModalContent(props: ParentProps<ModalContentProps>) {
     <Show
       when={isMobile()}
       fallback={
-        <DialogContent dir={props.dir} class={props.class} hideCloseButton={shouldHideCloseButton()}>
+        <DialogContent aria-label={props["aria-label"]} dir={props.dir} class={props.class} hideCloseButton={shouldHideCloseButton()} onOpenAutoFocus={props.onOpenAutoFocus}>
           {props.children}
         </DialogContent>
       }
     >
       <SheetContent
+        aria-label={props["aria-label"]}
         dir={props.dir}
         class={props.class}
         hideCloseButton={shouldHideCloseButton()}
+        onOpenAutoFocus={props.onOpenAutoFocus}
         side={props.mobileSide ?? "bottom"}
       >
         {props.children}

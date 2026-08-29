@@ -4,9 +4,6 @@ import type { JSX } from "@solidjs/web";
 import {
   Modal,
   ModalContent,
-  ModalDescription,
-  ModalHeader,
-  ModalTitle,
 } from "../../design-system";
 import { SignInView } from "./sign-in-view.tsx";
 import type { SignInSession } from "./sign-in-session.ts";
@@ -20,8 +17,7 @@ export interface SignInModalProps {
 }
 
 const signInCopy = {
-  title: "Sign in",
-  description: "Choose a sign-in method.",
+  title: "Join Pirate",
 };
 
 /**
@@ -35,25 +31,21 @@ export function SignInModal(props: SignInModalProps): JSX.Element {
   return (
     <Modal forceMobile={props.forceMobile} onOpenChange={props.onOpenChange} open={props.open}>
       <ModalContent
-        class="flex max-h-[90vh] flex-col overflow-y-auto px-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] pt-5 sm:max-w-lg sm:px-8 sm:pb-8 sm:pt-8"
+        aria-label={copy().title}
+        class="min-h-[100dvh] max-h-[100dvh] overflow-y-auto rounded-t-[var(--radius-sheet)] border-border bg-background px-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] pt-4 sm:min-h-0 sm:max-h-[90vh] sm:max-w-lg sm:rounded-[var(--radius-xl)] sm:px-8 sm:pb-8 sm:pt-8"
+        hideCloseButton
         mobileSide="bottom"
+        onOpenAutoFocus={(event) => event.preventDefault()}
       >
-        <div class="contents">
-          <ModalHeader class="pe-10 text-start">
-            <ModalTitle leading="tight" variant="h2">
-              {copy().title}
-            </ModalTitle>
-            <ModalDescription class="sr-only">
-              {copy().description}
-            </ModalDescription>
-          </ModalHeader>
+        <div class="flex flex-col gap-6">
+          <div class="mx-auto h-1 w-9 rounded-full bg-border sm:hidden" />
 
           <SignInView
-            class="mt-6"
             onBack={props.session.back}
             onChooseMethod={props.session.chooseMethod}
             onCodeChange={props.session.setCode}
             onEmailChange={props.session.setEmail}
+            onResendCode={props.session.resendCode}
             onSendCode={props.session.sendCode}
             onSubmitCode={props.session.submitCode}
             state={props.session.state()}

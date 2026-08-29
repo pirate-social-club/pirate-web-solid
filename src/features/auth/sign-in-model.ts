@@ -9,21 +9,20 @@ import { PrivyIdentityBootstrapRequired } from "../../api/privy-session.ts";
 export type SignInPhase =
   | "loading"
   | "choose"
-  | "email"
   | "code"
   | "working"
   | "signed-in"
   | "unavailable";
 
 /** Identity methods offered on the choose phase, in presentation order. */
-export type SignInMethod = "google" | "twitter" | "wallet" | "email";
+export type SignInMethod = "google" | "twitter";
 
 export const SIGN_IN_METHODS: readonly SignInMethod[] = [
   "google",
   "twitter",
-  "wallet",
-  "email",
 ];
+
+export const SIGN_IN_CODE_LENGTH = 6;
 
 export interface SignInState {
   readonly phase: SignInPhase;
@@ -88,7 +87,7 @@ export function signInWithEmail(state: SignInState, email: string): SignInState 
 }
 
 export function signInWithCode(state: SignInState, code: string): SignInState {
-  return { ...state, code };
+  return { ...state, code: code.replace(/\D/gu, "").slice(0, SIGN_IN_CODE_LENGTH) };
 }
 
 /**
@@ -127,7 +126,7 @@ export function canSendCode(state: SignInState): boolean {
 }
 
 export function canSubmitCode(state: SignInState): boolean {
-  return !state.busy && state.code.trim().length > 0;
+  return !state.busy && state.code.trim().length === SIGN_IN_CODE_LENGTH;
 }
 
 /**
