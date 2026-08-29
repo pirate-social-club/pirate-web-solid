@@ -6,6 +6,8 @@ import {
   Button,
   FormNote,
   Skeleton,
+  Spinner,
+  StatusCard,
   TextField,
   TextFieldDescription,
   TextFieldInput,
@@ -63,9 +65,12 @@ export function SignInView(props: SignInViewProps): JSX.Element {
       </Show>
 
       <Show when={phase() === "unavailable"}>
-        <div class="flex flex-col gap-1 rounded-[var(--radius-lg)] border border-border-soft bg-muted/30 p-4" role="alert">
-          <Type as="p" variant="body-strong">Sign-in is unavailable here</Type>
-          <FormNote>{props.state.message}</FormNote>
+        <div role="alert">
+          <StatusCard
+            description={props.state.message}
+            title="Sign-in is unavailable here"
+            tone="destructive"
+          />
         </div>
       </Show>
 
@@ -129,7 +134,10 @@ export function SignInView(props: SignInViewProps): JSX.Element {
       </Show>
 
       <Show when={phase() === "working"}>
-        <Type as="p" variant="body" role="status">Signing in…</Type>
+        <div class="flex items-center gap-3" role="status">
+          <Spinner decorative size="sm" />
+          <Type as="p" variant="body">Signing in…</Type>
+        </div>
       </Show>
 
       <Show when={phase() === "signed-in"}>

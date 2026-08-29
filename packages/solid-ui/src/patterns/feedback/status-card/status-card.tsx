@@ -10,12 +10,17 @@ export interface StatusCardProps {
   actions?: JSX.Element;
   class?: string;
   flatOnMobile?: boolean;
-  tone?: "default" | "success" | "warning";
+  tone?: "default" | "success" | "warning" | "destructive";
 }
 
 /**
  * Inline status summary with an optional tone and action row. flatOnMobile
  * drops the card chrome on small viewports and restores it at md.
+ *
+ * Use the destructive tone for a terminal failure the user cannot retry away,
+ * such as a surface that is unavailable. For a failure attached to a control
+ * the user can act on again, use FormNote with tone="destructive" next to that
+ * control instead of a card.
  */
 export function StatusCard(props: StatusCardProps) {
   const tone = () => props.tone ?? "default";
@@ -24,13 +29,17 @@ export function StatusCard(props: StatusCardProps) {
       ? "border-success/20 bg-success/5"
       : tone() === "warning"
         ? "border-warning/20 bg-warning/5"
-        : "border-border-soft bg-card";
+        : tone() === "destructive"
+          ? "border-destructive/30 bg-destructive/10"
+          : "border-border-soft bg-card";
   const desktopToneClassName = () =>
     tone() === "success"
       ? "md:bg-success/5"
       : tone() === "warning"
         ? "md:bg-warning/5"
-        : "md:bg-card";
+        : tone() === "destructive"
+          ? "md:bg-destructive/10"
+          : "md:bg-card";
 
   return (
     <div
