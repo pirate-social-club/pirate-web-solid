@@ -78,7 +78,7 @@ function SignInStory(props: { forceMobile?: boolean; state?: SignInState }) {
 }
 
 const meta = {
-  title: "Compositions/Auth/SignInModal",
+  title: "Flows/Auth/SignIn",
   component: SignInModal,
   args: { onOpenChange: () => undefined, open: true, session: createStubSession(ready) },
   parameters: { layout: "fullscreen", a11y: { test: "error" } },

@@ -22,7 +22,7 @@ const quote: BookingQuotePreview = {
 };
 
 const meta = {
-  title: "Compositions/Bookings/BookingCheckout",
+  title: "Flows/Bookings/Checkout",
   component: BookingCheckout,
   args: { quote, viewerTimezone: "Europe/Vienna", phase: "holding" as const, holdExpiresAtUtc: "2026-06-22T12:08:30Z", nowUtc: "2026-06-22T12:00:00Z" },
   parameters: { layout: "centered", a11y: { test: "error" } },

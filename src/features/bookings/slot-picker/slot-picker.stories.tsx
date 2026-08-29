@@ -6,7 +6,7 @@ import type { ResolvedSlot } from "../view-models";
 import { SlotPicker } from "./slot-picker";
 
 const meta = {
-  title: "App/Bookings/SlotPicker",
+  title: "Parts/Bookings/SlotPicker",
   component: SlotPicker,
   args: {
     slots: [],

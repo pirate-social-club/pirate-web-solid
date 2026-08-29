@@ -15,7 +15,7 @@ const popularCommunities: readonly PopularCommunity[] = [
 export function PopularCommunitiesRail(props: { items: readonly PopularCommunity[]; title?: string; showFooter?: boolean }) {
   return <Card class="w-full" data-popular-communities><CardContent class="flex flex-col gap-4 p-4"><Type variant="h3">{props.title ?? "Popular right now"}</Type><nav aria-label={props.title ?? "Popular communities"}><ul class="flex flex-col gap-3"><For each={props.items}>{(item) => <li><a class="flex items-center gap-3 rounded-[var(--radius-md)] p-2 hover:bg-primary-subtle" href={item.href}><Avatar fallback={item.label.slice(2, 4).toUpperCase()} size="sm" /><span class="min-w-0 flex-1"><Type as="span" class="block truncate" variant="body-strong">{item.label}</Type><Type as="span" class="block" variant="caption">{item.followers.toLocaleString("en-US")} followers</Type></span></a></li>}</For></ul></nav><Show when={props.showFooter ?? true}><a class="text-foreground underline underline-offset-4" href="/communities"><Type as="span" variant="label">Browse all communities</Type></a></Show></CardContent></Card>;
 }
-const meta = { title: "Compositions/Community/PopularCommunitiesRail", component: PopularCommunitiesRail, args: { items: popularCommunities }, parameters: { layout: "centered" } } satisfies Meta<typeof PopularCommunitiesRail>;
+const meta = { title: "Parts/Community/PopularCommunitiesRail", component: PopularCommunitiesRail, args: { items: popularCommunities }, parameters: { layout: "centered" } } satisfies Meta<typeof PopularCommunitiesRail>;
 export default meta;
 type Story = StoryObj<typeof meta>;
 export const Default: Story = { render: () => <div class="w-80"><PopularCommunitiesRail items={popularCommunities} /></div> };

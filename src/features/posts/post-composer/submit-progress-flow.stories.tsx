@@ -62,7 +62,7 @@ function ShowProgress(props: { progress: SubmitProgress | null; mode: ComposerTa
 }
 
 const meta = {
-  title: "App/Posts/PostComposer/SubmitProgressFlow",
+  title: "Flows/Posts/SubmissionProgress",
   component: FlowDemo,
   parameters: { layout: "fullscreen" },
   argTypes: {

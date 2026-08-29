@@ -20,7 +20,7 @@ const StoryRouter = createRouter({
 });
 
 const meta = {
-  title: "Features/Karaoke/RouteView",
+  title: "Screens/Karaoke/Route",
   decorators: [(Story) => <StoryRouter>{() => <Story />}</StoryRouter>],
   parameters: {
     docs: {

@@ -7,7 +7,7 @@ import { WalletReceiveSheet } from "./wallet-receive-sheet";
 import type { WalletReceiveSheetProps } from "./wallet-receive-sheet.types";
 
 const meta = {
-  title: "Compositions/Wallet/WalletReceiveSheet",
+  title: "Parts/Wallet/ReceiveSheet",
   component: WalletReceiveSheet,
   args: { chainSections: fiveChainSections, defaultChainId: "tempo", onOpenChange: () => undefined, open: true, walletAddress: sharedWalletAddress },
   parameters: { layout: "fullscreen" },

@@ -4,7 +4,7 @@ import { KaraokePracticeSurface } from "./karaoke-practice-surface";
 import { storyStageLines } from "./karaoke-story-fixtures";
 
 const meta = {
-  title: "Features/Karaoke/PracticeSurface",
+  title: "Flows/Karaoke/Practice",
   component: KaraokePracticeSurface,
   parameters: {
     docs: {

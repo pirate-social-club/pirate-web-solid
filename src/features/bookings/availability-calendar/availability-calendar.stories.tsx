@@ -5,7 +5,7 @@ import type { ResolvedSlot } from "../view-models";
 import { AvailabilityCalendar } from "./availability-calendar";
 
 const meta = {
-  title: "App/Bookings/AvailabilityCalendar",
+  title: "Parts/Bookings/AvailabilityCalendar",
   component: AvailabilityCalendar,
   args: {
     slots: [],

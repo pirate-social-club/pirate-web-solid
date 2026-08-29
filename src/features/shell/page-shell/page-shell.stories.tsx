@@ -4,7 +4,7 @@ import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import { Card, Type } from "../../../design-system";
 import { FullBleedMobileListSection, PublicRoutePage, StandardRoutePage, StandaloneMobilePage } from "./page-shell";
 
-const meta = { title: "Compositions/App/PageShell", parameters: { layout: "fullscreen" } } satisfies Meta;
+const meta = { title: "Screens/Shell/PageShell", parameters: { layout: "fullscreen" } } satisfies Meta;
 export default meta;
 type Story = StoryObj<typeof meta>;
 

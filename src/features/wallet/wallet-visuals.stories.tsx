@@ -4,7 +4,7 @@ import { expect } from "storybook/test";
 import { TokenChainIcon } from "./wallet-visuals";
 
 const meta = {
-  title: "Compositions/Wallet/TokenChainIcon",
+  title: "Parts/Wallet/TokenChainIcon",
   component: TokenChainIcon,
   tags: ["autodocs"],
   args: {

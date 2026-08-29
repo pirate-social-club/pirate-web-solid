@@ -23,7 +23,7 @@ const longSlots: ResolvedSlot[] = [21, 22, 23, 24].flatMap((day) =>
 );
 
 const meta = {
-  title: "Compositions/Bookings/FeedBookingPanel",
+  title: "Parts/Bookings/FeedBookingPanel",
   component: FeedBookingSheetBody,
   parameters: { layout: "centered" },
 } satisfies Meta<typeof FeedBookingSheetBody>;

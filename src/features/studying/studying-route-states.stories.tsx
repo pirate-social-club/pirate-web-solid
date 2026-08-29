@@ -7,7 +7,7 @@ import {
 } from "../../design-system";
 
 const meta = {
-  title: "Features/Studying/RouteStates",
+  title: "Screens/Studying/RouteStates",
   parameters: {
     docs: {
       description: {

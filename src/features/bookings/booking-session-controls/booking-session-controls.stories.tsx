@@ -6,7 +6,7 @@ import { Type } from "../../../design-system";
 import { BookingSessionControls } from "./booking-session-controls";
 
 const meta = {
-  title: "Compositions/Bookings/BookingSessionControls",
+  title: "Parts/Bookings/BookingSessionControls",
   component: BookingSessionControls,
   args: { counterpartyName: "Amira Hassan", onComplete: () => {}, onLeave: () => {}, onReviewAttendance: () => {}, viewerRole: "host" as const },
   decorators: [(Story) => <div class="mx-auto w-full max-w-2xl p-4"><Story /></div>],

@@ -83,7 +83,7 @@ function frame(viewerVote: -1 | 1 | null, transport: PostEngagementTransport = n
 }
 
 const meta = {
-  title: "Compositions/Posts/PostEngagement",
+  title: "Parts/Posts/PostEngagement",
   parameters: { layout: "fullscreen" },
 } satisfies Meta;
 

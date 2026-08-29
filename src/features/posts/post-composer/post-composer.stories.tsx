@@ -7,7 +7,7 @@ import { ComposerFrame, InteractiveComposer } from "./story-helpers";
 import type { AuthorAgeGatePolicy, ComposerAudienceState } from "./types";
 
 const meta = {
-  title: "App/Posts/PostComposer",
+  title: "Parts/Posts/PostComposer",
   component: PostComposer,
   args: baseComposer,
   parameters: {

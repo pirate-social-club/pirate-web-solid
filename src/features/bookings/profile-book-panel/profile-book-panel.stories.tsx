@@ -11,7 +11,7 @@ const slots: ResolvedSlot[] = [
   { startUtc: "2026-09-21T10:00:00.000Z", endUtc: "2026-09-21T10:30:00.000Z", priceCents: 5000, available: true },
   { startUtc: "2026-09-22T14:00:00.000Z", endUtc: "2026-09-22T14:30:00.000Z", priceCents: 7500, available: true },
 ];
-const meta = { title: "Compositions/Bookings/ProfileBookPanel", component: ProfileBookPanel, parameters: { layout: "padded", a11y: { test: "error" } } } satisfies Meta<typeof ProfileBookPanel>;
+const meta = { title: "Parts/Bookings/ProfileBookPanel", component: ProfileBookPanel, parameters: { layout: "padded", a11y: { test: "error" } } } satisfies Meta<typeof ProfileBookPanel>;
 export default meta;
 type Story = StoryObj<typeof meta>;
 const base = { viewerTimezone: "Europe/Vienna" as const };

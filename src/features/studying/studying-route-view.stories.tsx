@@ -11,7 +11,7 @@ import {
 } from "./studying-story-fixtures";
 
 const meta = {
-  title: "Features/Studying/RouteView",
+  title: "Screens/Studying/Route",
   parameters: {
     layout: "fullscreen",
     docs: {

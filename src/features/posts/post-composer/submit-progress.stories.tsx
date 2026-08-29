@@ -6,7 +6,7 @@ import { ComposerFrame } from "./story-helpers";
 import type { ComposerTab, SubmitProgress } from "./types";
 
 const meta = {
-  title: "App/Posts/PostComposer/SubmitProgress",
+  title: "Parts/Posts/SubmitProgress",
   component: PostComposer,
   args: baseComposer,
   parameters: { layout: "fullscreen" },

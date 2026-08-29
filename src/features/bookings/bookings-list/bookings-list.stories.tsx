@@ -13,7 +13,7 @@ const upcoming: BookingListItem[] = [
 const past: BookingListItem[] = [{ id: "past-1", hostName: "Sofia Marin", hostPhotoSrc: null, startUtc: "2026-06-10T07:00:00Z", endUtc: "2026-06-10T07:30:00Z", state: "completed", priceCents: 9000 }];
 const cancelled: BookingListItem[] = [{ id: "cancelled-1", hostName: "Nora Ibrahim", hostPhotoSrc: null, startUtc: "2026-06-03T07:00:00Z", endUtc: "2026-06-03T07:30:00Z", state: "cancelled_by_booker", priceCents: 5000 }];
 
-const meta = { title: "Compositions/Bookings/BookingsList", component: BookingsList, args: { items: [], viewerTimezone: "Europe/Vienna" }, parameters: { layout: "fullscreen", a11y: { test: "error" } } } satisfies Meta<typeof BookingsList>;
+const meta = { title: "Parts/Bookings/BookingsList", component: BookingsList, args: { items: [], viewerTimezone: "Europe/Vienna" }, parameters: { layout: "fullscreen", a11y: { test: "error" } } } satisfies Meta<typeof BookingsList>;
 export default meta;
 type Story = StoryObj<typeof meta>;
 const frame = (items: BookingListItem[]): JSX.Element => <div class="mx-auto w-full max-w-2xl p-4"><BookingsList items={items} viewerTimezone="Europe/Vienna" onSelectBooking={() => {}} /></div>;

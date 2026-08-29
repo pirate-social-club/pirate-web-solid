@@ -7,7 +7,7 @@ import { WalletSendSheet } from "./wallet-send-sheet";
 import type { WalletSendSheetProps } from "./wallet-send-sheet.types";
 
 const meta = {
-  title: "Compositions/Wallet/WalletSendSheet",
+  title: "Parts/Wallet/SendSheet",
   component: WalletSendSheet,
   args: { chainSections: fiveChainSections, defaultAssetId: "base:base-usdc", defaultRecipient: sharedWalletAddress, feeLabel: "~$0.01", onOpenChange: () => undefined, open: true },
   parameters: { layout: "fullscreen" },

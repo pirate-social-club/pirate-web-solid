@@ -5,7 +5,7 @@ import { Type } from "../../../design-system";
 import { AppHeader, MobileFooterNav } from "./app-shell-chrome";
 
 const labels = { createLabel: "Create", homeAriaLabel: "Go to home", notificationsAriaLabel: "Notifications", openNavigationAriaLabel: "Open navigation", profileAriaLabel: "Open profile", walletAriaLabel: "Wallet" };
-const meta = { title: "Compositions/App/AppShellChrome", parameters: { layout: "fullscreen" } } satisfies Meta;
+const meta = { title: "Parts/Shell/AppShellChrome", parameters: { layout: "fullscreen" } } satisfies Meta;
 export default meta;
 type Story = StoryObj<typeof meta>;
 

@@ -7,7 +7,7 @@ import { baseComposer } from "./story-fixtures";
 import { ComposerFrame } from "./story-helpers";
 
 const meta = {
-  title: "App/Posts/PostComposer/File",
+  title: "Flows/Posts/FilePost",
   component: PostComposer,
   args: baseComposer,
   parameters: { layout: "fullscreen" },

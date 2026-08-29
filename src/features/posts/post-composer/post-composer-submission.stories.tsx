@@ -9,7 +9,7 @@ import {
 } from "./post-composer-state";
 
 const meta = {
-  title: "Compositions/Posts/PostComposerSubmission",
+  title: "Flows/Posts/Submission",
   component: PostComposerSubmission,
   args: { state: { status: "editing" as const } },
   parameters: { layout: "centered", a11y: { test: "error" } },

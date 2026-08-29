@@ -8,7 +8,7 @@ import { HostBookingPage } from "./host-booking-page";
 
 const profile = { name: "Amira Hassan", bio: "I help teams make complex product decisions with clarity and care.", topics: ["Product strategy", "Research", "Web3"], photoSrc: null, basePriceCents: 5000 };
 const preview = (text: string) => <div class="rounded-[var(--radius-lg)] border border-border-soft bg-card p-4 text-center"><Type variant="caption">{text}</Type></div>;
-const meta = { title: "Compositions/Bookings/HostBookingPage", component: HostBookingPage, args: profile, parameters: { layout: "fullscreen", a11y: { test: "error" } } } satisfies Meta<typeof HostBookingPage>;
+const meta = { title: "Screens/Bookings/HostBookingPage", component: HostBookingPage, args: profile, parameters: { layout: "fullscreen", a11y: { test: "error" } } } satisfies Meta<typeof HostBookingPage>;
 export default meta;
 type Story = StoryObj<typeof meta>;
 const frame = (children: JSX.Element): JSX.Element => <div class="mx-auto w-full max-w-2xl p-4">{children}</div>;

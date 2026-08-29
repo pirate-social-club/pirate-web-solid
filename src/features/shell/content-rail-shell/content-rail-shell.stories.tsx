@@ -5,7 +5,7 @@ import { Type } from "../../../design-system";
 import { ContentRailShell } from "./content-rail-shell";
 
 const panel = (label: string) => <div class="rounded-2xl border border-border-soft bg-card px-5 py-4"><Type variant="caption">{label}</Type></div>;
-const meta = { title: "Compositions/App/ContentRailShell", parameters: { layout: "fullscreen" } } satisfies Meta;
+const meta = { title: "Screens/Shell/ContentRailShell", parameters: { layout: "fullscreen" } } satisfies Meta;
 export default meta;
 type Story = StoryObj<typeof meta>;
 

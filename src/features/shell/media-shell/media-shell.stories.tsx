@@ -4,7 +4,7 @@ import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import { Card, CardContent, Type } from "../../../design-system";
 import { MediaShell } from "./media-shell";
 
-const meta = { title: "Compositions/App/MediaShell", parameters: { layout: "fullscreen" } } satisfies Meta;
+const meta = { title: "Screens/Shell/MediaShell", parameters: { layout: "fullscreen" } } satisfies Meta;
 export default meta;
 type Story = StoryObj<typeof meta>;
 

@@ -10,7 +10,7 @@ const sections: SidebarSection[] = [
 ];
 const primary = [{ id: "home", label: "Home" }, { id: "search", label: "Search" }];
 const resources = [{ id: "docs", label: "Documentation" }, { id: "help", label: "Help center" }];
-const meta = { title: "Compositions/App/AppSidebar", parameters: { layout: "fullscreen" } } satisfies Meta;
+const meta = { title: "Parts/Shell/AppSidebar", parameters: { layout: "fullscreen" } } satisfies Meta;
 export default meta;
 type Story = StoryObj<typeof meta>;
 

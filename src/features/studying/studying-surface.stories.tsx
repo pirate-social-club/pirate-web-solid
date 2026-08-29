@@ -8,7 +8,7 @@ import {
 } from "./studying-story-fixtures";
 
 const meta = {
-  title: "Features/Studying/Surface",
+  title: "Flows/Studying/Session",
   parameters: {
     layout: "fullscreen",
     docs: {

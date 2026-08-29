@@ -7,7 +7,7 @@ import {
 } from "../../design-system";
 
 const meta = {
-  title: "Features/Karaoke/RouteStates",
+  title: "Screens/Karaoke/RouteStates",
   parameters: {
     docs: {
       description: {

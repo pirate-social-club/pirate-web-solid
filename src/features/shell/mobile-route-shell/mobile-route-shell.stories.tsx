@@ -4,7 +4,7 @@ import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import { Button, Type } from "../../../design-system";
 import { MobileRouteShell } from "./mobile-route-shell";
 
-const meta = { title: "Compositions/App/MobileRouteShell", parameters: { layout: "fullscreen", viewport: { defaultViewport: "mobile2" } } } satisfies Meta;
+const meta = { title: "Screens/Shell/MobileRouteShell", parameters: { layout: "fullscreen", viewport: { defaultViewport: "mobile2" } } } satisfies Meta;
 export default meta;
 type Story = StoryObj<typeof meta>;
 

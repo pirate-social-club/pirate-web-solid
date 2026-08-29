@@ -5,7 +5,7 @@ import type { BookingState } from "../view-models";
 import { BookingStatusCard } from "./booking-status-card";
 
 const meta = {
-  title: "App/Bookings/BookingStatusCard",
+  title: "Parts/Bookings/BookingStatusCard",
   component: BookingStatusCard,
   args: {
     canJoinSession: false,

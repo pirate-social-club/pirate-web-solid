@@ -57,7 +57,7 @@ function ArchiveStory(props: CommunityArchivePageProps) {
 }
 
 const meta = {
-  title: "Compositions/Community/Moderation/ArchivePage",
+  title: "Screens/Community/Moderation/Archive",
   component: CommunityArchivePage,
   parameters: { layout: "fullscreen", a11y: { test: "error" } },
 } satisfies Meta<typeof CommunityArchivePage>;

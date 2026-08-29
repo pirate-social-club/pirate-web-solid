@@ -32,7 +32,7 @@ const hostCancellation: BookingCancellationPreview = {
 };
 
 const meta = {
-  title: "App/Bookings/BookingCancellationDialog",
+  title: "Parts/Bookings/BookingCancellationDialog",
   component: BookingCancellationDialog,
   args: {
     counterpartyName: "Amira Hassan",

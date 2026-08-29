@@ -6,7 +6,7 @@ import { baseComposer } from "./story-fixtures";
 import { ComposerFrame, InteractiveComposer } from "./story-helpers";
 
 const meta = {
-  title: "App/Posts/PostComposer/Video",
+  title: "Flows/Posts/VideoPost",
   component: PostComposer,
   args: baseComposer,
   parameters: { layout: "fullscreen" },

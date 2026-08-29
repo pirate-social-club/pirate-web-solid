@@ -26,7 +26,7 @@ function quote(priceCents: number, startUtc = "2026-07-01T07:00:00Z"): BookingQu
 }
 
 const meta = {
-  title: "App/Bookings/BookingSummary",
+  title: "Parts/Bookings/BookingSummary",
   component: BookingSummary,
   args: {
     quote: quote(5000),

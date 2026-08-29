@@ -16,7 +16,7 @@ function RulesEditorStory(props: { initialRules: RuleDraft[] }) {
   return <main class="mx-auto w-full max-w-5xl p-4 md:p-8" dir="rtl"><CommunityRulesEditorPage onRulesChange={setRules} onSave={() => setSaved((current) => current + 1)} rules={rules()} /><Type aria-live="polite" class="sr-only" variant="caption">Saved {saved()} times</Type></main>;
 }
 
-const meta = { title: "Compositions/Community/Moderation/Rules", component: CommunityRulesEditorPage, parameters: { layout: "fullscreen", a11y: { test: "error" } } } satisfies Meta<typeof CommunityRulesEditorPage>;
+const meta = { title: "Screens/Community/Moderation/Rules", component: CommunityRulesEditorPage, parameters: { layout: "fullscreen", a11y: { test: "error" } } } satisfies Meta<typeof CommunityRulesEditorPage>;
 export default meta;
 type Story = StoryObj<typeof meta>;
 

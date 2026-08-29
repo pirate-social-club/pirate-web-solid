@@ -13,7 +13,7 @@ const items: BookingManagementItem[] = [
   { id: "cancelled", counterpartyName: "Nora Ibrahim", counterpartyHandle: "nora.eth", sessionTimeLabel: "7–7:30 PM, July 3", amountLabel: "50.00 USDC", statusLabel: "Cancelled — no refund", statusDetail: "The free-cancellation window had ended.", statusTone: "muted", section: "cancelled" },
 ];
 
-const meta = { title: "Compositions/Bookings/BookingManagementView", component: BookingManagementView, parameters: { layout: "fullscreen", a11y: { test: "error" } } } satisfies Meta<typeof BookingManagementView>;
+const meta = { title: "Screens/Bookings/BookingManagement", component: BookingManagementView, parameters: { layout: "fullscreen", a11y: { test: "error" } } } satisfies Meta<typeof BookingManagementView>;
 export default meta;
 type Story = StoryObj<typeof meta>;
 const args = { onAddToCalendar: () => {}, onCancel: () => {}, onJoin: () => {}, onRetry: () => {}, onRoleChange: () => {}, onSignIn: () => {}, role: "booker" as const };

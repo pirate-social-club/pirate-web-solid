@@ -5,7 +5,7 @@ import { createSignal } from "solid-js";
 import { Card, Type } from "../../../design-system";
 import { AppShell, RootErrorState, RouteFallback as RouteFallbackState } from "./app-shell";
 
-const meta = { title: "App/Shell", parameters: { layout: "fullscreen" } } satisfies Meta;
+const meta = { title: "Screens/Shell/AppShell", parameters: { layout: "fullscreen" } } satisfies Meta;
 export default meta;
 type Story = StoryObj<typeof meta>;
 

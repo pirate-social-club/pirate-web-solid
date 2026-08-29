@@ -36,7 +36,7 @@ function LinksEditorStory(props: { initialLinks: CommunityLinkEditorItem[] }) {
 }
 
 const meta = {
-  title: "Compositions/Community/Moderation/Links",
+  title: "Screens/Community/Moderation/Links",
   component: CommunityLinksEditorPage,
   parameters: { layout: "fullscreen", a11y: { test: "error" } },
 } satisfies Meta<typeof CommunityLinksEditorPage>;

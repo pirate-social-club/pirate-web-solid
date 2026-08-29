@@ -21,7 +21,7 @@ const baseArgs: WalletHubProps = {
 };
 
 const meta = {
-  title: "Compositions/Wallet/WalletHub",
+  title: "Screens/Wallet/Hub",
   component: WalletHub,
   args: baseArgs,
   parameters: { layout: "fullscreen" },

@@ -4,7 +4,7 @@ import { KaraokeLeaderboard } from "./karaoke-leaderboard";
 import { storyEmptyLeaderboard, storyLeaderboard } from "./karaoke-story-fixtures";
 
 const meta = {
-  title: "Features/Karaoke/Leaderboard",
+  title: "Parts/Karaoke/Leaderboard",
   component: KaraokeLeaderboard,
   parameters: {
     docs: {

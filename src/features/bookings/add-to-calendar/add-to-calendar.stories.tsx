@@ -3,7 +3,7 @@ import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import { AddToCalendar } from "./add-to-calendar";
 
 const meta = {
-  title: "App/Bookings/AddToCalendar",
+  title: "Parts/Bookings/AddToCalendar",
   component: AddToCalendar,
   args: {
     bookingTitle: "English Conversation Practice",
