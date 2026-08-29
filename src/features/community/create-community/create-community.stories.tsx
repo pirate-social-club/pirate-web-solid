@@ -37,6 +37,7 @@ const additionalGateOptions: AdditionalGateOption[] = [
 function CreateStory(props: {
   additionalGateOptions?: AdditionalGateOption[];
   draft?: CreateCommunityDraft;
+  nameError?: string | null;
   submitting?: boolean;
 }) {
   const [draft, setDraft] = createSignal<CreateCommunityDraft>(
@@ -76,6 +77,7 @@ function CreateStory(props: {
         onAdditionalRequirementsChange={(requirements) => setDraft((current) => withAdditionalRequirements(current, requirements))}
         onAvatarChange={(file) => updatePreview("avatar", file)}
         onCoverChange={(file) => updatePreview("cover", file)}
+        nameError={props.nameError}
         onDraftChange={(patch) => setDraft((current) => ({ ...current, ...patch }))}
         onSubmit={() => setSubmitCount((count) => count + 1)}
         submitting={props.submitting}
@@ -97,7 +99,7 @@ const meta = {
   title: "Flows/Community/Create",
   component: CreateCommunityView,
   args: { draft: createEmptyDraft(personaId), onSubmit: () => undefined, onDraftChange: () => undefined },
-  parameters: { layout: "fullscreen" },
+  parameters: { layout: "fullscreen", a11y: { test: "error" } },
 } satisfies Meta<typeof CreateCommunityView>;
 
 export default meta;
@@ -210,4 +212,20 @@ export const Mobile: Story = {
 export const Rtl: Story = {
   globals: { locale: "ar" },
   render: () => <CreateStory draft={validDraft()} />,
+};
+
+export const RejectedCommit: Story = {
+  name: "Rejected commit stays retryable",
+  render: () => (
+    <CreateStory draft={validDraft()} nameError="That name is already taken." />
+  ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+
+    await expect(await canvas.findByText("That name is already taken.")).toBeInTheDocument();
+
+    const submit = canvas.getByRole("button", { name: "Create" });
+    await expect(submit).toBeEnabled();
+    await userEvent.click(submit);
+  },
 };
