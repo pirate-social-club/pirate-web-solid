@@ -52,6 +52,6 @@ export const CommunityWithPosts: Story = { render: () => <StoryCommunityPageShel
 export const PassportScoreGated: Story = { name: "States / Passport Score Gated", render: () => <StoryCommunityPageShell community={{ ...tameImpala, name: "Passport Score", description: "A community gated by Human Passport wallet reputation.", gates: [{ label: "Passport score 20+", status: "unmet" }], gateMode: "all" }} canJoin /> };
 export const GatesAndMode: Story = { name: "States / AND gates", render: () => <StoryCommunityPageShell community={gateCommunity("AND Gates", "all")} canJoin /> };
 export const GatesOrMode: Story = { name: "States / OR gates", render: () => <StoryCommunityPageShell community={gateCommunity("OR Gates", "any")} canJoin /> };
-export const CommunityViewportPreset: Story = { name: "Mobile / Feed header actions", parameters: { viewport: { defaultViewport: "mobile1" } }, render: () => <StoryCommunityPageShell community={tameImpala} mobile initialFollowing initialJoined /> };
+export const CommunityViewportPreset: Story = { name: "Mobile / Feed header actions", globals: { viewport: { value: "mobile1", isRotated: false } }, render: () => <StoryCommunityPageShell community={tameImpala} mobile initialFollowing initialJoined /> };
 export const FollowingNotCitizen: Story = { render: () => <StoryCommunityPageShell community={tameImpala} initialFollowing /> };
 export const CanFollowCannotJoin: Story = { render: () => <StoryCommunityPageShell community={infinity} canJoin={false} /> };

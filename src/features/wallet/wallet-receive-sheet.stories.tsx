@@ -22,7 +22,7 @@ function StoryRender(props: WalletReceiveSheetProps) {
 }
 
 export const DefaultDesktop: Story = { render: (args) => <StoryRender {...args} /> };
-export const DefaultMobile: Story = { args: { forceMobile: true }, parameters: { viewport: { defaultViewport: "mobile1" } }, render: (args) => <StoryRender {...args} /> };
+export const DefaultMobile: Story = { args: { forceMobile: true }, globals: { viewport: { value: "mobile1", isRotated: false } }, render: (args) => <StoryRender {...args} /> };
 export const ChainSwitched: Story = {
   args: { defaultChainId: "story" },
   render: (args) => <StoryRender {...args} />,

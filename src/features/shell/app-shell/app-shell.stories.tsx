@@ -14,13 +14,13 @@ function StoryBody(props: { label: string }) {
 }
 
 export const Desktop: Story = { render: () => <AppShell route="home"><StoryBody label="Desktop shell" /></AppShell> };
-export const MobileHeader: Story = { parameters: { viewport: { defaultViewport: "mobile1" } }, render: () => <AppShell forceMobile onBackClick={() => undefined} route="post"><StoryBody label="Mobile header with back affordance" /></AppShell> };
-export const MobileHeaderWithNotifications: Story = { parameters: { viewport: { defaultViewport: "mobile1" } }, render: () => <AppShell forceMobile route="community" unreadNotificationCount={12}><StoryBody label="Mobile header with unread notifications" /></AppShell> };
+export const MobileHeader: Story = { globals: { viewport: { value: "mobile1", isRotated: false } }, render: () => <AppShell forceMobile onBackClick={() => undefined} route="post"><StoryBody label="Mobile header with back affordance" /></AppShell> };
+export const MobileHeaderWithNotifications: Story = { globals: { viewport: { value: "mobile1", isRotated: false } }, render: () => <AppShell forceMobile route="community" unreadNotificationCount={12}><StoryBody label="Mobile header with unread notifications" /></AppShell> };
 function WalletAndProfileSurface() {
   const [lastAction, setLastAction] = createSignal("Choose Wallet or Profile");
   return <AppShell forceMobile onProfileClick={() => setLastAction("Profile selected")} onWalletClick={() => setLastAction("Wallet selected")} route="wallet"><div class="mx-auto max-w-3xl p-5"><Card class="p-6"><Type as="h1" variant="h2">Wallet and profile actions</Type><Type as="p" variant="caption" class="mt-2">{lastAction()}</Type></Card></div></AppShell>;
 }
 
-export const WalletAndProfileActions: Story = { parameters: { viewport: { defaultViewport: "mobile1" } }, render: () => <WalletAndProfileSurface /> };
+export const WalletAndProfileActions: Story = { globals: { viewport: { value: "mobile1", isRotated: false } }, render: () => <WalletAndProfileSurface /> };
 export const RouteFallback: Story = { render: () => <AppShell route="community"><div class="mx-auto max-w-3xl p-6"><RouteFallbackState /></div></AppShell> };
 export const RootError: Story = { render: () => <AppShell route="home"><RootErrorState /></AppShell> };

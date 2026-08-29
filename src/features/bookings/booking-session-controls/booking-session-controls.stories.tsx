@@ -27,5 +27,5 @@ export const HostAfterSession: Story = { args: { state: "ready-to-settle", viewe
 export const BookerAfterSession: Story = { args: { state: "ready-to-settle", viewerRole: "booker" } };
 export const CheckingAttendance: Story = { args: { state: "settling" } };
 export const OutcomeConfirmed: Story = { args: { state: "settled" } };
-export const MobileDegraded: Story = { args: { attendanceHealth: "degraded", state: "in-session" }, parameters: { viewport: { defaultViewport: "mobile1" } } };
-export const MobileAfterSession: Story = { args: { state: "ready-to-settle", viewerRole: "host" }, parameters: { viewport: { defaultViewport: "mobile1" } } };
+export const MobileDegraded: Story = { args: { attendanceHealth: "degraded", state: "in-session" }, globals: { viewport: { value: "mobile1", isRotated: false } } };
+export const MobileAfterSession: Story = { args: { state: "ready-to-settle", viewerRole: "host" }, globals: { viewport: { value: "mobile1", isRotated: false } } };

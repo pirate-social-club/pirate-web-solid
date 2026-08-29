@@ -129,8 +129,7 @@ export const Error: Story = {
 
 export const Mobile: Story = {
   args: { status: "active", submitState: { kind: "idle" } },
-  globals: { direction: "rtl" },
-  parameters: { viewport: { defaultViewport: "mobile1" } },
+  globals: { direction: "rtl", viewport: { value: "mobile1", isRotated: false } },
   render: (args) => <ArchiveStory {...args} />,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);

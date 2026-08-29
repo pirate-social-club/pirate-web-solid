@@ -30,4 +30,4 @@ function FeedPreview() {
 
 export const AnonymousDesktop: Story = { render: () => <MediaShell><FeedPreview /></MediaShell> };
 export const AuthenticatedDesktop: Story = { render: () => <MediaShell signedIn><FeedPreview /></MediaShell> };
-export const Mobile: Story = { parameters: { viewport: { defaultViewport: "mobile1" } }, render: () => <MediaShell><FeedPreview /></MediaShell> };
+export const Mobile: Story = { globals: { viewport: { value: "mobile1", isRotated: false } }, render: () => <MediaShell><FeedPreview /></MediaShell> };

@@ -171,7 +171,7 @@ export const PublishedWithoutAvailability: Story = {
 /** Narrow viewport: the controlled form remains keyboard and direction safe. */
 export const Mobile: Story = {
   args: storyArgs,
-  parameters: { viewport: { defaultViewport: "mobile1" } },
+  globals: { viewport: { value: "mobile1", isRotated: false } },
   render: () => (
     <InteractiveProfileBookings
       bookable

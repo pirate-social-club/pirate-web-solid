@@ -12,4 +12,4 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 export const WithPrimaryAction: Story = { render: () => <ActionCalloutPanel actionLabel="Verify to Join" description="Complete the ID check, then return to join." title="Verify your identity to join" /> };
 export const WithHelperLinks: Story = { render: () => <ActionCalloutPanel actionLabel="Verify to Join" helperLinks={["iOS App Store", "Google Play"]} title="Scan your palm to join" /> };
-export const Mobile: Story = { parameters: { viewport: { defaultViewport: "mobile1" } }, render: () => <ActionCalloutPanel actionLabel="Verify to Join" description="Complete the ID check, then return to join." mobile title="Verify your identity to join" /> };
+export const Mobile: Story = { globals: { viewport: { value: "mobile1", isRotated: false } }, render: () => <ActionCalloutPanel actionLabel="Verify to Join" description="Complete the ID check, then return to join." mobile title="Verify your identity to join" /> };

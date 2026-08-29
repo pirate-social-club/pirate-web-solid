@@ -46,7 +46,7 @@ export const Desktop: Story = {
     await expect(args.onConfirm).toHaveBeenCalled();
   },
 };
-export const Mobile: Story = { name: "Mobile / Confirm purchase", parameters: { viewport: { defaultViewport: "mobile1" } }, render: () => <ModalStory state="mobile" /> };
+export const Mobile: Story = { name: "Mobile / Confirm purchase", globals: { viewport: { value: "mobile1", isRotated: false } }, render: () => <ModalStory state="mobile" /> };
 export const Processing: Story = { name: "Desktop / Processing", render: () => <ModalStory state="processing" /> };
 export const Verified: Story = { name: "Desktop / Verified price", render: () => <ModalStory priceLabel="$3.19" state="verified" /> };
 export const VinylAvailable: Story = { name: "Desktop / Vinyl available", render: () => <ModalStory state="vinyl-available" /> };

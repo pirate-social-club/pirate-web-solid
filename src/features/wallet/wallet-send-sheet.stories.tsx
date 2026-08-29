@@ -22,7 +22,7 @@ function StoryRender(props: WalletSendSheetProps) {
 }
 
 export const AssetNetwork: Story = { args: { step: "asset" }, render: (args) => <StoryRender {...args} /> };
-export const Mobile: Story = { args: { forceMobile: true, step: "asset" }, parameters: { viewport: { defaultViewport: "mobile1" } }, render: (args) => <StoryRender {...args} /> };
+export const Mobile: Story = { args: { forceMobile: true, step: "asset" }, globals: { viewport: { value: "mobile1", isRotated: false } }, render: (args) => <StoryRender {...args} /> };
 export const InvalidAddress: Story = { args: { defaultRecipient: "0x123", step: "asset" }, render: (args) => <StoryRender {...args} /> };
 export const Pending: Story = {
   args: { amount: "100", step: "pending" },

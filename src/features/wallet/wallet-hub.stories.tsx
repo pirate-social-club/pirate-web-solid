@@ -56,9 +56,9 @@ export const Deferred: Story = {
 };
 
 export const EmptyAssets: Story = { args: { chainSections: [], claimableDataWei: undefined, claimableSalesCount: undefined, totalBalanceUsd: null }, render: (args) => <StoryFrame><WalletHub {...args} /></StoryFrame> };
-export const Mobile: Story = { parameters: { viewport: { defaultViewport: "mobile1" } }, render: (args) => <StoryFrame><WalletHub {...args} /></StoryFrame> };
+export const Mobile: Story = { globals: { viewport: { value: "mobile1", isRotated: false } }, render: (args) => <StoryFrame><WalletHub {...args} /></StoryFrame> };
 export const Bounties: Story = { args: { rewardsSummary: { actionLabel: "Claim", amountLabel: "$1.00", assetLabel: "", onAction: () => undefined } }, render: (args) => <StoryFrame><WalletHub {...args} /></StoryFrame> };
-export const BountiesMobile: Story = { args: Bounties.args, parameters: { viewport: { defaultViewport: "mobile1" } }, render: (args) => <StoryFrame><WalletHub {...args} /></StoryFrame> };
+export const BountiesMobile: Story = { args: Bounties.args, globals: { viewport: { value: "mobile1", isRotated: false } }, render: (args) => <StoryFrame><WalletHub {...args} /></StoryFrame> };
 
 function WalletHubWithSheets(props: { forceMobile?: boolean }) {
   const [walletAction, setWalletAction] = createSignal<"send" | "receive" | null>(null);
@@ -72,4 +72,4 @@ function WalletHubWithSheets(props: { forceMobile?: boolean }) {
 }
 
 export const WithSendReceiveSheets: Story = { render: () => <WalletHubWithSheets /> };
-export const WithSheetsMobile: Story = { parameters: { viewport: { defaultViewport: "mobile1" } }, render: () => <WalletHubWithSheets forceMobile /> };
+export const WithSheetsMobile: Story = { globals: { viewport: { value: "mobile1", isRotated: false } }, render: () => <WalletHubWithSheets forceMobile /> };

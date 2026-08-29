@@ -205,7 +205,7 @@ export const Submitting: Story = {
 };
 
 export const Mobile: Story = {
-  parameters: { viewport: { defaultViewport: "mobile1" } },
+  globals: { viewport: { value: "mobile1", isRotated: false } },
   render: () => <CreateStory draft={validDraft()} />,
 };
 
