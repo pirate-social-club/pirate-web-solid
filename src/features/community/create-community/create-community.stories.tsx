@@ -94,7 +94,7 @@ const validDraft = () =>
   );
 
 const meta = {
-  title: "Compositions/Community/CreateCommunity",
+  title: "Flows/Community/Create",
   component: CreateCommunityView,
   args: { draft: createEmptyDraft(personaId), onSubmit: () => undefined, onDraftChange: () => undefined },
   parameters: { layout: "fullscreen" },

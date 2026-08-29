@@ -77,7 +77,7 @@ function ProgressStory(props: { committing?: boolean; intent: CommunityCreationI
 }
 
 const meta = {
-  title: "Compositions/Community/CommunityCreationProgress",
+  title: "Flows/Community/CreationProgress",
   component: CommunityCreationProgressView,
   args: { intent: createIntent(), onStartVerification: () => undefined, onCommit: () => undefined, onRetry: () => undefined, onView: () => undefined },
   parameters: { layout: "fullscreen" },
