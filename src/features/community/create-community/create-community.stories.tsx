@@ -6,36 +6,14 @@ import { Type } from "@pirate/web-solid-ui";
 import { CreateCommunityView } from "./create-community";
 import {
   createEmptyDraft,
-  draftGatePolicy,
-  withAdditionalRequirements,
   withDraftDescription,
   withDraftName,
-  type AdditionalGateOption,
   type CreateCommunityDraft,
 } from "./create-community-model";
 
 const personaId = "persona_1";
 
-/**
- * Stands in for the backend capability catalog. Production currently offers no
- * additional gates, which is why most stories pass nothing and the optional
- * section does not render at all. Each option arrives fully configured.
- */
-const additionalGateOptions: AdditionalGateOption[] = [
-  {
-    requirement: { requirement: "reputation-score", provider: "passport", minimumScore: 8 },
-    label: "Passport score 8+",
-    description: "Members must have a Passport reputation score of at least 8.",
-  },
-  {
-    requirement: { requirement: "reputation-score", provider: "passport", minimumScore: 20 },
-    label: "Passport score 20+",
-    description: "Members must have a Passport reputation score of at least 20.",
-  },
-];
-
 function CreateStory(props: {
-  additionalGateOptions?: AdditionalGateOption[];
   draft?: CreateCommunityDraft;
   nameError?: string | null;
   submitting?: boolean;
@@ -70,11 +48,9 @@ function CreateStory(props: {
   return (
     <div class="h-dvh bg-background text-foreground">
       <CreateCommunityView
-        additionalGateOptions={props.additionalGateOptions}
         avatarSrc={avatarSrc()}
         coverSrc={coverSrc()}
         draft={draft()}
-        onAdditionalRequirementsChange={(requirements) => setDraft((current) => withAdditionalRequirements(current, requirements))}
         onAvatarChange={(file) => updatePreview("avatar", file)}
         onCoverChange={(file) => updatePreview("cover", file)}
         nameError={props.nameError}
@@ -83,7 +59,7 @@ function CreateStory(props: {
         submitting={props.submitting}
       />
       <Type aria-live="polite" class="sr-only" variant="caption">
-        {`Submitted ${submitCount()} times; requirements ${draftGatePolicy(draft()).accessPaths[0].requirements.length}`}
+        {`Submitted ${submitCount()} times`}
       </Type>
     </div>
   );
@@ -148,29 +124,6 @@ export const NameValidation: Story = {
     await expect(canvas.getByRole("button", { name: "Create" })).toBeDisabled();
     await expect(canvas.getByText("Name is required.")).toBeInTheDocument();
     await expect(name).toHaveAttribute("aria-invalid", "true");
-  },
-};
-
-export const AdditionalRequirements: Story = {
-  render: () => (
-    <CreateStory
-      additionalGateOptions={additionalGateOptions}
-      draft={validDraft()}
-    />
-  ),
-  play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement);
-    await expect(canvas.getByText("Additional requirements")).toBeInTheDocument();
-    await expect(canvas.getByText(/requirements 1/)).toBeInTheDocument();
-    await expect(canvas.getByRole("button", { name: "Create" })).toBeEnabled();
-
-    // Two configured options of the same kind are distinct choices: selecting
-    // score 8+ must not mark score 20+ selected, nor silently replace it.
-    await userEvent.click(canvas.getByRole("checkbox", { name: "Passport score 8+" }));
-    await expect(canvas.getByRole("checkbox", { name: "Passport score 20+" })).not.toBeChecked();
-    await userEvent.click(canvas.getByRole("checkbox", { name: "Passport score 20+" }));
-    await expect(canvas.getByRole("checkbox", { name: "Passport score 8+" })).toBeChecked();
-    await expect(canvas.getByText(/requirements 3/)).toBeInTheDocument();
   },
 };
 

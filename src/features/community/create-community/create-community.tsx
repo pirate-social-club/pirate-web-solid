@@ -32,12 +32,6 @@ import {
 export interface CreateCommunityProps {
   class?: string;
   draft: CreateCommunityDraft;
-  /**
-   * Advanced gates the backend capability catalog offers this operator. Spec
-   * 010 §2 hides unsupported gates in production, so an empty list hides the
-   * Advanced choice entirely rather than showing it disabled.
-   */
-  additionalGateOptions?: readonly AdditionalGateOption[];
   /** Server-supplied name error, e.g. a rejected commit. */
   nameError?: string | null;
   avatarSrc?: string | null;
@@ -45,7 +39,6 @@ export interface CreateCommunityProps {
   onAvatarChange?: (file: File | null) => void;
   onCoverChange?: (file: File | null) => void;
   onDraftChange?: (patch: Partial<CreateCommunityDraft>) => void;
-  onAdditionalRequirementsChange?: (requirements: AdditionalGateRequirement[]) => void;
   onSubmit?: () => void;
   submitting?: boolean;
   forceMobile?: boolean;
@@ -70,18 +63,7 @@ export function CreateCommunityView(props: CreateCommunityProps) {
   // Stay neutral until the field is touched or the server rejects it, rather
   // than telling the user an untouched empty field is already valid.
   const nameValidationState = () => (visibleNameError() ? "invalid" as const : nameTouched() ? "valid" as const : undefined);
-  const additionalOptions = () => props.additionalGateOptions ?? [];
   const canSubmit = () => validation().valid && !props.submitting;
-
-  const isSelected = (requirement: AdditionalGateRequirement) =>
-    hasRequirement(props.draft.additionalRequirements, requirement);
-
-  const toggleGate = (requirement: AdditionalGateRequirement, checked: boolean) => {
-    const without = props.draft.additionalRequirements.filter(
-      (entry) => !requirementsEqual(entry, requirement),
-    );
-    props.onAdditionalRequirementsChange?.(checked ? [...without, requirement] : without);
-  };
 
   return (
     <form
@@ -165,6 +147,11 @@ export function CreateCommunityView(props: CreateCommunityProps) {
           />
         </div>
 
+        {/*
+          Unique-human verification is the only gate offered at creation, and
+          it is stated rather than chosen: every community requires it, so a
+          control would imply an option that does not exist.
+        */}
         <section aria-labelledby={joinPolicyLabelId} class="flex flex-col gap-2" data-community-join-policy>
           <div class="mb-1" id={joinPolicyLabelId}>
             <Type as="span" variant="body-strong">{copy().joinPolicyTitle}</Type>
@@ -175,27 +162,6 @@ export function CreateCommunityView(props: CreateCommunityProps) {
             title={copy().humanVerificationTitle}
           />
 
-          <Show when={additionalOptions().length > 0}>
-            <fieldset class="mt-2 flex flex-col gap-2">
-              <legend class="mb-1">
-                <Type as="span" variant="label">{copy().additionalRequirementsTitle}</Type>
-              </legend>
-              <ul class="flex flex-col gap-2">
-                <For each={additionalOptions()}>
-                  {(option) => (
-                    <li>
-                      <CheckboxCard
-                        checked={isSelected(option.requirement)}
-                        description={option.description}
-                        onCheckedChange={(checked: boolean) => toggleGate(option.requirement, checked)}
-                        title={option.label}
-                      />
-                    </li>
-                  )}
-                </For>
-              </ul>
-            </fieldset>
-          </Show>
         </section>
 
       </ActionFooterShell>
