@@ -22,8 +22,8 @@
 @keyframes karaoke-rating-pop { 0% { opacity: 0; transform: translate(-50%, -30%) scale(.7); } 18% { opacity: 1; transform: translate(-50%, -50%) scale(1.08); } 30% { transform: translate(-50%, -50%) scale(1); } 72% { opacity: 1; transform: translate(-50%, -55%) scale(1); } 100% { opacity: 0; transform: translate(-50%, -75%) scale(.96); } }
 @media (max-width: 480px) {
   .karaoke-stage { min-height: 20rem; }
-  .karaoke-stage-lines { gap: 1.5rem; padding-inline: .75rem; }
-  /* text-3xl/text-2xl leave roughly ten characters per line at 320px. */
-  .karaoke-line { font-size: 1.5rem; line-height: 1.25; }
-  .karaoke-line-next { font-size: 1.125rem; }
+  .karaoke-stage-lines { gap: 1.625rem; padding-inline: 1rem; }
+  /* 28px active / 20px next is the reviewed mobile karaoke type scale. */
+  .karaoke-line { font-size: 1.75rem; line-height: 1.25; }
+  .karaoke-line-next { font-size: 1.25rem; }
 }

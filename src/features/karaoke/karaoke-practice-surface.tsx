@@ -1,7 +1,8 @@
 import { createEffect, createSignal, onCleanup, Show } from "solid-js";
 import {
   Button,
-  IconMicrophone,
+  IconArrowCounterClockwise,
+  IconMicrophoneStage,
   Spinner,
   Type,
 } from "../../design-system";
@@ -40,6 +41,7 @@ export function KaraokePracticeSurface(props: KaraokePracticeSurfaceProps) {
   const [isLoading, setIsLoading] = createSignal(Boolean(props.instrumentalAudioUrl));
   let pendingPlay = false;
   const firstLineStartMs = props.lines[0]?.startMs ?? Number.POSITIVE_INFINITY;
+  const ended = () => props.singingStatus === "ended";
 
   const syncTime = () => {
     const songMs = (audioRef.current?.currentTime ?? 0) * 1000;
@@ -118,14 +120,13 @@ export function KaraokePracticeSurface(props: KaraokePracticeSurfaceProps) {
         <div class="mx-auto w-full max-w-3xl">
           <Show when={props.onStartSinging}>
             <Button
-              class="w-full"
+              class="h-13 w-full"
               disabled={props.singingStatus === "active" || props.singingStatus === "requesting-mic" || props.singingStatus === "connecting" || props.singingStatus === "reconnecting"}
-              leadingIcon={<IconMicrophone class="size-5" />}
+              leadingIcon={ended() ? <IconArrowCounterClockwise class="size-5" /> : <IconMicrophoneStage class="size-5" />}
               loading={props.singingStatus === "requesting-mic" || props.singingStatus === "connecting" || props.singingStatus === "reconnecting"}
               onClick={() => { pendingPlay = true; props.onStartSinging?.(currentTimeMs()); }}
-              size="lg"
             >
-              {props.singingStatus === "active" ? "Listening" : props.singingStatus === "ended" ? "Sing again" : "Start singing"}
+              {props.singingStatus === "active" ? "Listening" : ended() ? "Karaoke again" : "Start karaoke"}
             </Button>
           </Show>
         </div>

@@ -10,7 +10,7 @@ const meta = {
     docs: {
       description: {
         component:
-          "Full-screen karaoke surface matching the activity layout: a reusable progress/reward header, lyric stage, and a single full-width singing action in the footer. Stories do not touch the mic, WebSocket sessions, or real audio.",
+          "Full-screen karaoke surface matching the reviewed mobile design: the shared activity progress header, an artwork-backed lyric stage, and one full-width action in the footer. Stories cover the designed states — primed, connecting, active, scoring feedback, ended and no-timed-lyrics — and do not touch the mic, WebSocket sessions, or real audio.",
       },
     },
   },
@@ -61,7 +61,7 @@ export const PausedPrimed: Story = {
     docs: {
       description: {
         story:
-          "Signed-in, paused before the first line: the cue line is primed and the Start singing action is available.",
+          "Signed-in, paused before the first line: the cue line is primed and the Start karaoke action is available.",
       },
     },
   },
@@ -78,7 +78,7 @@ export const ReadyToSing: Story = {
   parameters: {
     docs: {
       description: {
-        story: "A scoring session is live; the singing button flips to its disabled Listening state.",
+        story: "A scoring session is live; the action flips to its disabled Listening state.",
       },
     },
   },
@@ -102,6 +102,40 @@ export const ScoringFeedback: Story = {
     docs: {
       description: {
         story: "Live scoring feedback appears above the lyric stage as a rating and points earned for the latest line. The rating pop fades after about 2 seconds; reload the story to replay it.",
+      },
+    },
+  },
+};
+
+export const Connecting: Story = {
+  args: {
+    title: "Paper Moon",
+    lines: storyStageLines,
+    rewardLabel: "$0.40",
+    singingStatus: "connecting",
+    onStartSinging: () => {},
+  },
+  parameters: {
+    docs: {
+      description: {
+        story: "The mic has been granted and the scoring session is still opening; the action shows its busy state and stays disabled.",
+      },
+    },
+  },
+};
+
+export const Ended: Story = {
+  args: {
+    title: "Paper Moon",
+    lines: storyStageLines,
+    rewardLabel: "$0.40",
+    singingStatus: "ended",
+    onStartSinging: () => {},
+  },
+  parameters: {
+    docs: {
+      description: {
+        story: "The take is finished; the action becomes Karaoke again behind a restart mark so the singer can run the song back.",
       },
     },
   },
