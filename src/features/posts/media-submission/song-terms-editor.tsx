@@ -66,7 +66,7 @@ export function SongTermsEditor(props: {
             <Type as="h3" variant="body-strong">Creator allocation</Type>
             <Type as="p" variant="caption" class="text-muted-foreground">Recipient identities only. Wallets are resolved by the server.</Type>
           </div>
-          <Type as="span" variant="label" class={total() === 10_000 ? "text-primary" : "text-destructive"}>
+          <Type as="span" variant="label" class={total() === 10_000 ? "text-primary-text" : "text-destructive-text"}>
             {basisPointsToPercentText(Math.min(10_000, Math.max(0, total())))}%
           </Type>
         </div>
@@ -116,7 +116,7 @@ export function SongTermsEditor(props: {
           variant="outline"
         >Add collaborator</Button>
         <Show when={total() !== 10_000}>
-          <Type as="p" variant="caption" class="text-destructive">Allocations must total exactly 100%.</Type>
+          <Type as="p" variant="caption" class="text-destructive-text">Allocations must total exactly 100%.</Type>
         </Show>
       </section>
     </div>
