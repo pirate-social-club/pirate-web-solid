@@ -184,6 +184,8 @@ function CommunityData(props: CommunityPageProps) {
   return <CommunityState state={state()} handleSalesClient={handleSalesClient} />;
 }
 
-export default function CommunityPage(props: CommunityPageProps) {
+export function CommunityPage(props: CommunityPageProps) {
   return <Loading fallback={<LoadingState />}><CommunityData {...props} /></Loading>;
 }
+
+export default CommunityPage;

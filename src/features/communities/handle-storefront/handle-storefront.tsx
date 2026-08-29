@@ -532,7 +532,7 @@ function BuyerPanel(props: {
     <Show when={hnsServed()}>
       <Card data-handle-storefront-canonical-only>
         <CardHeader>
-          <CardTitle>{copy.continueCanonical}</CardTitle>
+          <CardTitle as="h2">{copy.continueCanonical}</CardTitle>
           <CardDescription>{copy.canonicalOnly}</CardDescription>
         </CardHeader>
         <CardContent>
@@ -551,7 +551,7 @@ function BuyerPanel(props: {
       <Show when={session().kind === "anonymous"}>
         <Card data-handle-storefront-auth="anonymous">
           <CardHeader>
-            <CardTitle>{copy.signInTitle}</CardTitle>
+            <CardTitle as="h2">{copy.signInTitle}</CardTitle>
             <CardDescription>{copy.signInDescription}</CardDescription>
           </CardHeader>
           <CardContent>
@@ -562,7 +562,7 @@ function BuyerPanel(props: {
 
       <Show when={session().kind === "error"}>
         <Card data-handle-storefront-auth="error">
-          <CardHeader><CardTitle>{copy.personasError}</CardTitle></CardHeader>
+          <CardHeader><CardTitle as="h2">{copy.personasError}</CardTitle></CardHeader>
           <CardContent><Button variant="outline" onClick={() => void loadPersonas()}>{copy.retry}</Button></CardContent>
         </Card>
       </Show>
@@ -571,7 +571,7 @@ function BuyerPanel(props: {
         {ready => <div class="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(20rem,0.8fr)]">
             <Card>
               <CardHeader>
-                <CardTitle>{copy.personaHeading}</CardTitle>
+                <CardTitle as="h2">{copy.personaHeading}</CardTitle>
                 <CardDescription>{copy.personaDescription}</CardDescription>
               </CardHeader>
               <CardContent class="flex flex-col gap-3">
@@ -599,7 +599,7 @@ function BuyerPanel(props: {
               <CardHeader>
                 <div class="flex items-start justify-between gap-3">
                   <div>
-                    <CardTitle>{selectedNamespace() === undefined
+                    <CardTitle as="h2">{selectedNamespace() === undefined
                       ? copy.headingMultiple
                       : interpolateMessage(copy.heading, { root: selectedNamespace()?.displayRoot ?? "" })}</CardTitle>
                     <CardDescription>{copy.intro}</CardDescription>
@@ -813,6 +813,8 @@ function StorefrontData(props: HandleStorefrontProps) {
   />;
 }
 
-export default function HandleStorefront(props: HandleStorefrontProps) {
+export function HandleStorefront(props: HandleStorefrontProps) {
   return <Loading fallback={<LoadingState />}><StorefrontData {...props} /></Loading>;
 }
+
+export default HandleStorefront;
