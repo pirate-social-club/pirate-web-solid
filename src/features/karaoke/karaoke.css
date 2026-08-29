@@ -1,6 +1,12 @@
 .karaoke-stage { position: relative; min-height: 24rem; overflow: hidden; }
 .karaoke-stage-lines { position: absolute; inset: 50% 0 auto; display: flex; width: 100%; max-width: 56rem; margin: auto; transform: translateY(-50%); flex-direction: column; gap: 2rem; padding: 1rem; text-align: center; }
-.karaoke-line { margin: 0 auto; max-width: 48rem; overflow-wrap: anywhere; text-wrap: balance; }
+/* width:100% is load-bearing. `margin: 0 auto` on a column flex item stops it
+   stretching, so without an explicit width the line is sized by its content.
+   `overflow-wrap: anywhere` then drives min-content to a single character and,
+   because each word is an inline-block token, the line collapses to one word
+   per row on a narrow viewport. `break-word` breaks only on real overflow and
+   leaves intrinsic sizing alone. */
+.karaoke-line { width: 100%; max-width: 48rem; margin-inline: auto; overflow-wrap: break-word; text-wrap: balance; }
 .karaoke-line-cue, .karaoke-line-next { color: var(--muted-foreground); }
 .karaoke-line-next { opacity: .82; }
 .karaoke-token { position: relative; display: inline-block; color: var(--foreground); white-space: pre-wrap; }
@@ -14,4 +20,10 @@
 .karaoke-stage-rating[data-rating-tone="warning"] { color: var(--warning); text-shadow: 0 0 1.5rem color-mix(in oklab, var(--warning) 45%, transparent); }
 .karaoke-stage-rating[data-rating-tone="destructive"] { color: var(--destructive); text-shadow: 0 0 1.5rem color-mix(in oklab, var(--destructive) 45%, transparent); }
 @keyframes karaoke-rating-pop { 0% { opacity: 0; transform: translate(-50%, -30%) scale(.7); } 18% { opacity: 1; transform: translate(-50%, -50%) scale(1.08); } 30% { transform: translate(-50%, -50%) scale(1); } 72% { opacity: 1; transform: translate(-50%, -55%) scale(1); } 100% { opacity: 0; transform: translate(-50%, -75%) scale(.96); } }
-@media (max-width: 480px) { .karaoke-stage { min-height: 20rem; } .karaoke-stage-lines { gap: 1.5rem; padding-inline: .75rem; } }
+@media (max-width: 480px) {
+  .karaoke-stage { min-height: 20rem; }
+  .karaoke-stage-lines { gap: 1.5rem; padding-inline: .75rem; }
+  /* text-3xl/text-2xl leave roughly ten characters per line at 320px. */
+  .karaoke-line { font-size: 1.5rem; line-height: 1.25; }
+  .karaoke-line-next { font-size: 1.125rem; }
+}
