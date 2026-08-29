@@ -30,7 +30,7 @@ export function StackedSectionNav(props: StackedSectionNavProps) {
         {(section) => (
           <section class={cn(props.mobileLayout ? "w-full space-y-2" : "space-y-2")}>
             {section.label ? (
-              <Type as="div" class={cn("text-muted-foreground/55", props.mobileLayout ? "px-4" : "px-1")} variant="overline">
+              <Type as="div" class={cn("text-muted-foreground", props.mobileLayout ? "px-4" : "px-1")} variant="overline">
                 {section.label}
               </Type>
             ) : null}

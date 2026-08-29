@@ -47,7 +47,7 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 const sectionLabelClassName =
-  "px-4 pb-1.5 pt-3 text-base font-normal uppercase tracking-[0.03em] text-sidebar-foreground/32 hover:no-underline";
+  "px-4 pb-1.5 pt-3 text-base font-normal uppercase tracking-[0.03em] text-sidebar-foreground hover:no-underline";
 
 const navRowClassName = "h-12 rounded-xl px-4 text-base font-medium";
 
