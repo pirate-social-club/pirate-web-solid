@@ -173,7 +173,7 @@ function ProfileData(props: PublicProfilePageProps) {
   return <ProfileState state={state()} navigate={props.navigate} />;
 }
 
-export default function PublicProfilePage(props: PublicProfilePageProps) {
+export function PublicProfilePage(props: PublicProfilePageProps) {
 
   return (
     <Loading fallback={<LoadingState />}>
@@ -181,3 +181,5 @@ export default function PublicProfilePage(props: PublicProfilePageProps) {
     </Loading>
   );
 }
+
+export default PublicProfilePage;

@@ -85,10 +85,12 @@ function PersonaData(props: PersonaPublicProfileProps) {
   return <PersonaState state={state()} />;
 }
 
-export default function PersonaPublicProfile(props: PersonaPublicProfileProps) {
+export function PersonaPublicProfile(props: PersonaPublicProfileProps) {
   return (
     <Loading fallback={<main aria-busy="true"><h1>Loading profile</h1></main>}>
       <PersonaData {...props} />
     </Loading>
   );
 }
+
+export default PersonaPublicProfile;
