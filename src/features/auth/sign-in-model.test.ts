@@ -34,12 +34,17 @@ describe("sign-in phase model", () => {
     expect(failed.message).toBe("Couldn’t sign in. Try again.");
   });
 
-  it("routes a first visit to register from any recovery phase", () => {
+  /**
+   * A first visit is not a failure and has no screen. The controller creates
+   * the account, so the model must leave the phase where it was rather than
+   * routing anywhere special.
+   */
+  it("keeps a first visit on its recovery phase instead of a register screen", () => {
     const working = signInStarted(signInReady(initialSignInState), "working");
     const bootstrap = new PrivyIdentityBootstrapRequired("did:privy:abc");
 
-    expect(signInFailed(working, bootstrap, "choose").phase).toBe("register");
-    expect(signInFailed(working, bootstrap, "code").phase).toBe("register");
+    expect(signInFailed(working, bootstrap, "choose").phase).toBe("choose");
+    expect(signInFailed(working, bootstrap, "code").phase).toBe("code");
   });
 
   it("returns a code failure to the code entry, not to the method list", () => {
@@ -75,18 +80,21 @@ describe("sign-in phase model", () => {
     expect(canSubmitCode(signInWithCode(sent, "123456"))).toBe(true);
   });
 
-  it("keeps the register and unavailable copy out of the error alert", () => {
-    const bootstrap = new PrivyIdentityBootstrapRequired("did:privy:abc");
-    const registering = signInFailed(signInReady(initialSignInState), bootstrap, "choose");
-    expect(registering.phase).toBe("register");
-    expect(signInAlert(registering)).toBe("");
-
+  /**
+   * Every failure reaches the inline alert, including the unavailable case: a
+   * terminal card with no controls behind it leaves nothing to act on.
+   */
+  it("surfaces every failure through the alert, with actionable unavailable copy", () => {
     const unavailable = signInUnavailable(initialSignInState, new Error("no config"));
     expect(unavailable.phase).toBe("unavailable");
-    expect(signInAlert(unavailable)).toBe("");
+    expect(signInAlert(unavailable)).toBe(
+      "Sign-in can’t start right now. Reload the page to try again.",
+    );
 
     const recoverable = signInFailed(signInReady(initialSignInState), new Error("boom"), "choose");
     expect(signInAlert(recoverable)).toBe("Couldn’t sign in. Try again.");
+
+    expect(signInAlert(initialSignInState)).toBe("");
   });
 
   it("ends busy on success", () => {

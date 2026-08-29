@@ -9,6 +9,7 @@ import { fetchVerificationConfig } from "../../api/verification-config.ts";
 import {
   initialSignInState,
   signInCodeSent,
+  isRegistrationRequired,
   signInFailed,
   signInMoved,
   signInReady,
@@ -48,7 +49,6 @@ export interface SignInSession {
   readonly state: Accessor<SignInState>;
   back(): void;
   chooseMethod(method: SignInMethod): void;
-  register(): void;
   sendCode(): void;
   setCode(code: string): void;
   setEmail(email: string): void;
@@ -91,6 +91,13 @@ export function createSignInSession(options: SignInSessionOptions = {}): SignInS
   };
 
   const fail = (error: unknown, recovery: SignInPhase) => {
+    if (isRegistrationRequired(error)) {
+      // A first visit has no account yet. Creating one needs no decision from
+      // the user, so it happens here instead of as a screen asking them to
+      // confirm something they have already chosen by signing in.
+      attempt(undefined, recovery, (handle) => handle.register(), succeed);
+      return;
+    }
     setState((current) => signInFailed(current, error, recovery));
   };
 
@@ -219,9 +226,6 @@ export function createSignInSession(options: SignInSessionOptions = {}): SignInS
         (handle) => handle.beginOAuth(method, oauthRedirect(method)),
         (url) => { window.location.assign(url); },
       );
-    },
-    register() {
-      attempt(undefined, "register", (handle) => handle.register(), succeed);
     },
     sendCode() {
       const address = state().email.trim();

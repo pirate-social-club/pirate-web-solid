@@ -38,9 +38,6 @@ function createStubSession(initial: SignInState): SignInSession {
       }
       setState((current) => signInStarted(current, "working"));
     },
-    register() {
-      setState((current) => signInSucceeded(current));
-    },
     sendCode() {
       setState(signInCodeSent);
     },
@@ -174,17 +171,21 @@ export const CodeBusy: Story = {
   },
 };
 
+/**
+ * A first visit has no account yet, but that is not a decision to put to the
+ * user: the controller creates one and carries on. There is no register
+ * screen, so the surface must stay on the method list rather than growing a
+ * step that asks them to confirm what signing in already chose.
+ */
 export const FirstVisit: Story = {
-  name: "First visit creates the account",
+  name: "First visit shows no extra step",
   render: () => (
     <SignInStory state={signInFailed(ready, new PrivyIdentityBootstrapRequired("did:privy:operator"), "choose")} />
   ),
   play: async () => {
     const dialog = await within(document.body).findByRole("dialog");
-    await expect(within(dialog).getByRole("heading", { name: "Create account" })).toBeInTheDocument();
-    await expect(within(dialog).getByRole("status")).toHaveTextContent("Create an account to continue.");
-    await userEvent.click(within(dialog).getByRole("button", { name: "Create account" }));
-    await expect(within(dialog).getByRole("link", { name: "Continue" })).toBeInTheDocument();
+    await expect(within(dialog).queryByRole("button", { name: "Create account" })).toBeNull();
+    await expect(within(dialog).getByRole("button", { name: "Email" })).toBeInTheDocument();
   },
 };
 

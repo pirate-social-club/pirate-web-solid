@@ -11,7 +11,6 @@ export type SignInPhase =
   | "choose"
   | "email"
   | "code"
-  | "register"
   | "working"
   | "signed-in"
   | "unavailable";
@@ -45,14 +44,12 @@ export const initialSignInState: SignInState = {
 };
 
 /**
- * Failure text that never leaks provider internals. Registration-required is
- * not a failure: it is the first-visit path into the register phase, and its
- * text reads as an invitation rather than an error.
+ * Failure text that never leaks provider internals.
+ *
+ * Registration-required is not a failure and never reaches here: a first visit
+ * simply has no account yet, and the controller creates one rather than asking.
  */
 export function signInMessage(error: unknown): string {
-  if (error instanceof PrivyIdentityBootstrapRequired) {
-    return "Create an account to continue.";
-  }
   if (error instanceof Error) {
     if (error.message === "wallet_unavailable") return "No wallet found.";
     if (error.message === "wallet_auth_failed") return "Wallet sign-in failed.";
@@ -71,7 +68,14 @@ export function signInReady(state: SignInState): SignInState {
 
 /** The exchange could not be created at all; no method can be offered. */
 export function signInUnavailable(state: SignInState, error: unknown): SignInState {
-  return { ...state, phase: "unavailable", busy: false, message: signInMessage(error) };
+  return {
+    ...state,
+    phase: "unavailable",
+    busy: false,
+    // The generic retry copy says nothing a user can act on. This names the
+    // condition and the one action that can change it.
+    message: "Sign-in can’t start right now. Reload the page to try again.",
+  };
 }
 
 /** Move to a phase the user chose, clearing any stale failure text. */
@@ -115,12 +119,7 @@ export function signInFailed(
   error: unknown,
   recovery: SignInPhase,
 ): SignInState {
-  return {
-    ...state,
-    phase: isRegistrationRequired(error) ? "register" : recovery,
-    busy: false,
-    message: signInMessage(error),
-  };
+  return { ...state, phase: recovery, busy: false, message: signInMessage(error) };
 }
 
 export function canSendCode(state: SignInState): boolean {
@@ -131,9 +130,11 @@ export function canSubmitCode(state: SignInState): boolean {
   return !state.busy && state.code.trim().length > 0;
 }
 
-/** Failure text belongs to the register phase's own copy, not the alert. */
+/**
+ * Every failure shows as the inline alert beside the controls that can retry
+ * it, including the unavailable case: a terminal card with no form behind it
+ * leaves the user nothing to act on.
+ */
 export function signInAlert(state: SignInState): string {
-  if (state.message.length === 0) return "";
-  if (state.phase === "register" || state.phase === "unavailable") return "";
   return state.message;
 }

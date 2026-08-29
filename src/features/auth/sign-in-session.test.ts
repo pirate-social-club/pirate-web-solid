@@ -138,17 +138,25 @@ describe("sign-in session controller", () => {
     expect(session.state().message).toBe("Couldn’t sign in. Try again.");
   });
 
-  test("routes a first-visit provider return to register", async () => {
+  /**
+   * A first visit has no account yet. That needs no decision from the user, so
+   * the controller registers and signs them in rather than presenting a step.
+   */
+  test("registers a first-visit provider return without asking", async () => {
     window.history.replaceState({}, "", "/auth/sign-in?provider=google&code=abc&state=xyz");
+    const register = vi.fn(async () => undefined);
     const exchange = fakeExchange({
       completeOAuth: vi.fn(async () => {
         throw new PrivyIdentityBootstrapRequired("did:privy:operator");
       }),
+      register,
     });
     const session = harness({ createExchange: async () => exchange });
     await settle();
+    await settle();
 
-    expect(session.state().phase).toBe("register");
+    expect(register).toHaveBeenCalledTimes(1);
+    expect(session.state().phase).toBe("signed-in");
   });
 
   test("drops an attempt that completes after the surface was disabled", async () => {
@@ -258,7 +266,6 @@ describe("sign-in session controller", () => {
     session.setEmail("operator@example.test");
     flush();
     session.sendCode();
-    session.register();
     session.submitCode();
     flush();
 

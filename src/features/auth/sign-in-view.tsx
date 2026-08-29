@@ -7,7 +7,6 @@ import {
   FormNote,
   Skeleton,
   Spinner,
-  StatusCard,
   TextField,
   TextFieldDescription,
   TextFieldInput,
@@ -40,7 +39,6 @@ export interface SignInViewProps {
   readonly onChooseMethod: (method: SignInMethod) => void;
   readonly onCodeChange: (code: string) => void;
   readonly onEmailChange: (email: string) => void;
-  readonly onRegister: () => void;
   readonly onSendCode: () => void;
   readonly onSubmitCode: () => void;
 }
@@ -64,23 +62,13 @@ export function SignInView(props: SignInViewProps): JSX.Element {
         </div>
       </Show>
 
-      <Show when={phase() === "unavailable"}>
-        <div role="alert">
-          <StatusCard
-            description={props.state.message}
-            title="Sign-in is unavailable here"
-            tone="destructive"
-          />
-        </div>
-      </Show>
-
-      <Show when={phase() === "choose"}>
+      <Show when={phase() === "choose" || phase() === "unavailable"}>
         <div class="flex flex-col gap-2.5">
           <For each={SIGN_IN_METHODS}>
             {(method) => (
               <Button
                 class="h-14 w-full justify-start"
-                disabled={props.state.busy}
+                disabled={props.state.busy || phase() === "unavailable"}
                 leadingIcon={<SignInMethodMark method={method} />}
                 onClick={() => props.onChooseMethod(method)}
                 variant="outline"
@@ -122,15 +110,6 @@ export function SignInView(props: SignInViewProps): JSX.Element {
             <Button class="h-14 w-full" disabled={props.state.busy} onClick={props.onBack} variant="ghost">Back</Button>
           </div>
         </form>
-      </Show>
-
-      <Show when={phase() === "register"}>
-        <Type as="p" variant="body" role="status">
-          {props.state.message || "Create an account to continue."}
-        </Type>
-        <Button class="h-14 w-full" loading={props.state.busy} onClick={props.onRegister}>
-          Create account
-        </Button>
       </Show>
 
       <Show when={phase() === "working"}>

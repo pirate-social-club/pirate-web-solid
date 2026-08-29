@@ -19,11 +19,6 @@ export interface SignInModalProps {
   readonly session: SignInSession;
 }
 
-const registerCopy = {
-  title: "Create account",
-  description: "Create an account to continue.",
-};
-
 const signInCopy = {
   title: "Sign in",
   description: "Choose a sign-in method.",
@@ -35,7 +30,7 @@ const signInCopy = {
  * the open state — so stories render any phase without a Privy exchange.
  */
 export function SignInModal(props: SignInModalProps): JSX.Element {
-  const copy = () => (props.session.state().phase === "register" ? registerCopy : signInCopy);
+  const copy = () => signInCopy;
 
   return (
     <Modal forceMobile={props.forceMobile} onOpenChange={props.onOpenChange} open={props.open}>
@@ -59,7 +54,6 @@ export function SignInModal(props: SignInModalProps): JSX.Element {
             onChooseMethod={props.session.chooseMethod}
             onCodeChange={props.session.setCode}
             onEmailChange={props.session.setEmail}
-            onRegister={props.session.register}
             onSendCode={props.session.sendCode}
             onSubmitCode={props.session.submitCode}
             state={props.session.state()}
