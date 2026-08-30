@@ -107,6 +107,58 @@ describe("CommunityPage", () => {
       .toContain("/c/xn--pokmon-dva");
   });
 
+  test("opens an authenticated composer scoped to the resolved community", async () => {
+    const resolveSession = vi.fn(async () => ({
+      status: "authenticated" as const,
+      userId: "account-one",
+      personas: [],
+    }));
+    const container = render(() => (
+      <CommunityPage
+        client={{
+          get_cPathSegment: async () => route,
+          get_communitiesCommunityIdPreview: async () => preview,
+        }}
+        handleSalesClient={{ get_communitiesCommunityIdHandleOfferings: async () => ({ items: [], next_cursor: null }) }}
+        pathSegment="xn--pokmon-dva"
+        resolveSession={resolveSession}
+      />
+    ));
+    await vi.waitFor(() => expect(container.querySelector("h1")?.textContent).toBe("Pirate Harbor"));
+    expect(resolveSession).not.toHaveBeenCalled();
+
+    const postHere = [...container.querySelectorAll<HTMLButtonElement>("button")]
+      .find(button => button.textContent?.trim() === "Post here")!;
+    postHere.click();
+
+    await vi.waitFor(() => expect(resolveSession).toHaveBeenCalledTimes(1));
+    await vi.waitFor(() => expect(document.body.textContent).toContain("Posting in Pirate Harbor"));
+    expect(document.body.querySelector("input[name='community-id']")).toBeNull();
+    expect(document.body.querySelector(`[data-community-context='${communityId}']`)).not.toBeNull();
+  });
+
+  test("opens sign-in instead of an unscoped composer for an anonymous visitor", async () => {
+    const container = render(() => (
+      <CommunityPage
+        client={{
+          get_cPathSegment: async () => route,
+          get_communitiesCommunityIdPreview: async () => preview,
+        }}
+        handleSalesClient={{ get_communitiesCommunityIdHandleOfferings: async () => ({ items: [], next_cursor: null }) }}
+        pathSegment="xn--pokmon-dva"
+        resolveSession={async () => "anonymous"}
+      />
+    ));
+    await vi.waitFor(() => expect(container.querySelector("h1")?.textContent).toBe("Pirate Harbor"));
+
+    const postHere = [...container.querySelectorAll<HTMLButtonElement>("button")]
+      .find(button => button.textContent?.trim() === "Post here")!;
+    postHere.click();
+
+    await vi.waitFor(() => expect(document.body.querySelector("[aria-label='Join Pirate']")).not.toBeNull());
+    expect(document.body.textContent).not.toContain("Posting in Pirate Harbor");
+  });
+
   test("renders redacted invalid and unavailable states", async () => {
     const invalid = render(() => <CommunityPage pathSegment="xn--pokmon-dva/next" client={{
       get_cPathSegment: async () => route,

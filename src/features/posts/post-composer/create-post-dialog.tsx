@@ -54,6 +54,11 @@ export interface CreatePostDraft {
   readonly idempotencyKey: string;
 }
 
+export interface PostCommunityContext {
+  readonly id: string;
+  readonly name: string;
+}
+
 /** Keep request construction pure so the contract boundary is easy to test. */
 export function buildCreatePostRequest(draft: CreatePostDraft): TextContentSubmissionRequestEnvelopeV1 {
   return {
@@ -115,6 +120,7 @@ function mediaStateMessage(view: SongSubmissionView): string {
 }
 
 export interface CreatePostDialogProps {
+  readonly communityContext?: PostCommunityContext;
   readonly open: boolean;
   readonly onOpenChange: (open: boolean) => void;
   readonly onPublished?: () => void;
@@ -132,7 +138,8 @@ export interface CreatePostDialogProps {
 export function CreatePostDialog(props: CreatePostDialogProps): JSX.Element {
   const personas = () => props.personas ?? [];
   const initialPersonaId = initialOperationPersonaId(personas());
-  const [communityId, setCommunityId] = createSignal("");
+  const contextualCommunityId = () => props.communityContext?.id.trim() ?? "";
+  const [communityId, setCommunityId] = createSignal(contextualCommunityId());
   const [title, setTitle] = createSignal("");
   const [body, setBody] = createSignal("");
   const [mode, setMode] = createSignal<ComposerTab>("text");
@@ -163,6 +170,11 @@ export function CreatePostDialog(props: CreatePostDialogProps): JSX.Element {
   const [mediaBusy, setMediaBusy] = createSignal(false);
   const mediaEnabled = props.principalId !== undefined && personas().length > 0;
   const [mediaRestoring, setMediaRestoring] = createSignal(mediaEnabled);
+
+  const communityContextConflict = () => contextualCommunityId() !== ""
+    && communityId().trim() !== ""
+    && communityId().trim() !== contextualCommunityId();
+  const resetCommunityId = () => setCommunityId(contextualCommunityId());
 
   const textCoordinator = createTextSubmissionCoordinator({
     principalId: props.principalId,
@@ -264,7 +276,7 @@ export function CreatePostDialog(props: CreatePostDialogProps): JSX.Element {
     setSelectedPersonaId(nextPersonaId);
     setMediaSnapshot(null);
     setMediaView({ status: "editing" });
-    setCommunityId("");
+    resetCommunityId();
     setTitle("");
     setError("");
   }
@@ -282,7 +294,7 @@ export function CreatePostDialog(props: CreatePostDialogProps): JSX.Element {
       const state = textState();
       if (state.status === "published" || state.status === "manual_review" || state.status === "blocked" || state.status === "abandoned") {
         textCoordinator.startNewDraft();
-        setCommunityId("");
+        resetCommunityId();
         setTitle("");
         setBody("");
       }
@@ -297,7 +309,7 @@ export function CreatePostDialog(props: CreatePostDialogProps): JSX.Element {
 
   function startNewTextDraft(): void {
     textCoordinator.startNewDraft();
-    setCommunityId("");
+    resetCommunityId();
     setTitle("");
     setBody("");
     setError("");
@@ -318,6 +330,10 @@ export function CreatePostDialog(props: CreatePostDialogProps): JSX.Element {
   async function submitText(): Promise<void> {
     const community = communityId().trim();
     const content = body().trim();
+    if (communityContextConflict()) {
+      setError("A retained submission belongs to another community. Resolve it from the global Create post action before posting here.");
+      return;
+    }
     if (community === "" || content === "") {
       setError("Choose a community and write something before publishing.");
       return;
@@ -378,6 +394,10 @@ export function CreatePostDialog(props: CreatePostDialogProps): JSX.Element {
     }
     if (community === "") {
       setError("Choose a community before publishing.");
+      return;
+    }
+    if (communityContextConflict()) {
+      setError("A retained submission belongs to another community. Resolve it from the global Create post action before posting here.");
       return;
     }
     const retained = mediaCoordinator.currentRecord;
@@ -482,9 +502,10 @@ export function CreatePostDialog(props: CreatePostDialogProps): JSX.Element {
     || mediaBusy()
     || !canContinueSongSubmit()
     || selectedActivePersonaId() === undefined
-    || communityId().trim() === "";
+    || communityId().trim() === ""
+    || communityContextConflict();
   const submitDisabled = () => mode() === "text"
-    ? textState().status !== "editing"
+    ? textState().status !== "editing" || communityId().trim() === "" || communityContextConflict()
     : mode() === "song" ? songSubmitDisabled() : true;
   const lyricsCanSave = () => {
     const snapshot = mediaSnapshot();
@@ -510,11 +531,32 @@ export function CreatePostDialog(props: CreatePostDialogProps): JSX.Element {
         </DialogHeader>
         <Show when={props.open}>
           <div class="grid gap-4">
-            <TextField name="community-id" value={communityId()} onChange={setCommunityId}>
-              <TextFieldLabel>Community ID</TextFieldLabel>
-              <TextFieldInput autocomplete="off" placeholder="The community identifier" />
-              <TextFieldDescription>Posts are community-scoped. A friendly community picker will replace this field.</TextFieldDescription>
-            </TextField>
+            <Show
+              when={props.communityContext}
+              fallback={(
+                <TextField name="community-id" value={communityId()} onChange={setCommunityId}>
+                  <TextFieldLabel>Community ID</TextFieldLabel>
+                  <TextFieldInput autocomplete="off" placeholder="The community identifier" />
+                  <TextFieldDescription>Posts are community-scoped. A friendly community picker will replace this field.</TextFieldDescription>
+                </TextField>
+              )}
+            >
+              {context => (
+                <Show
+                  when={!communityContextConflict()}
+                  fallback={(
+                    <FormNote tone="warning">
+                      A retained submission belongs to another community. Resolve it from the global Create post action before posting here.
+                    </FormNote>
+                  )}
+                >
+                  <div class="rounded-2xl border border-border-soft bg-card p-4" data-community-context={context().id}>
+                    <Type as="p" variant="label">Posting in {context().name}</Type>
+                    <Type as="p" class="mt-1" variant="caption">This community is selected from the page.</Type>
+                  </div>
+                </Show>
+              )}
+            </Show>
 
             <Show when={mode() === "song" && personas().length > 1}>
               <label class="grid gap-2 text-sm font-medium">

@@ -1,11 +1,16 @@
 import { Link, Meta, Title } from "@solidjs/meta";
 import { getRequestEvent } from "@solidjs/web";
-import { Loading, Show, createMemo, createSignal, untrack } from "solid-js";
+import { Loading, Show, createMemo, createSignal, onCleanup, untrack } from "solid-js";
 import { createPublicCommunityRouteClient } from "../../../api/community-route-client.ts";
 import {
   createPublicHandleSalesClient,
   type PublicHandleSalesApiClient,
 } from "../../../api/handle-sales-client.ts";
+import {
+  resolveSession as resolveApplicationSession,
+  type AuthenticatedSession,
+  type SessionResolution,
+} from "../../../api/session.ts";
 import {
   IconBell,
   IconHouse,
@@ -30,11 +35,15 @@ import { AppSidebar } from "../../shell/app-sidebar/app-sidebar.tsx";
 import { MobileFooterNav } from "../../shell/app-shell-chrome/app-shell-chrome.tsx";
 import { CommunityPageShell } from "../../community/page-shell/page-shell.tsx";
 import type { CommunityData } from "../../community/page-shell/page-shell-model.ts";
+import { SignInModal } from "../../auth/sign-in-modal.tsx";
+import { createSignInSession } from "../../auth/sign-in-session.ts";
+import { CreatePostDialog } from "../../posts/post-composer/create-post-dialog.tsx";
 
 export interface CommunityPageProps {
   readonly pathSegment: string;
   readonly client?: CommunityRouteClient;
   readonly handleSalesClient?: PublicHandleSalesApiClient;
+  readonly resolveSession?: () => Promise<SessionResolution>;
   readonly data?: CommunityPageViewState | PromiseLike<CommunityPageViewState>;
   readonly surfaceData?: Partial<CommunityData>;
 }
@@ -121,12 +130,24 @@ function CommunityNamesCta(props: {
 function SuccessState(props: {
   readonly state: CommunityPageSuccess;
   readonly handleSalesClient: PublicHandleSalesApiClient;
+  readonly resolveSession?: () => Promise<SessionResolution>;
   readonly surfaceData?: Partial<CommunityData>;
 }) {
   const copy = communityCopy();
   const state = untrack(() => props.state);
   const [following, setFollowing] = createSignal(false);
   const [joined, setJoined] = createSignal(false);
+  const [authOpen, setAuthOpen] = createSignal(false);
+  const [composerOpen, setComposerOpen] = createSignal(false);
+  const [postingBusy, setPostingBusy] = createSignal(false);
+  const [postingError, setPostingError] = createSignal("");
+  const [postingSession, setPostingSession] = createSignal<AuthenticatedSession>();
+  let active = true;
+  let sessionRequest = 0;
+  onCleanup(() => {
+    active = false;
+    sessionRequest += 1;
+  });
   const community = createMemo<CommunityData>(() => {
     const source = props.surfaceData ?? {};
     return {
@@ -151,6 +172,40 @@ function SuccessState(props: {
   const title = () => interpolateMessage(copy.title, { name: community().name });
   const description = () => community().description;
 
+  const openPostComposer = async (): Promise<void> => {
+    if (postingSession() !== undefined) {
+      setComposerOpen(true);
+      return;
+    }
+    if (postingBusy()) return;
+    const request = ++sessionRequest;
+    setPostingBusy(true);
+    setPostingError("");
+    try {
+      const resolved = await (props.resolveSession ?? resolveApplicationSession)();
+      if (!active || request !== sessionRequest) return;
+      if (resolved === "anonymous") {
+        setAuthOpen(true);
+        return;
+      }
+      setPostingSession(resolved);
+      setComposerOpen(true);
+    } catch {
+      if (!active || request !== sessionRequest) return;
+      setPostingError("We couldn't verify your session. Try opening the post composer again.");
+    } finally {
+      if (active && request === sessionRequest) setPostingBusy(false);
+    }
+  };
+  const completeAuthentication = () => {
+    setAuthOpen(false);
+    void openPostComposer();
+  };
+  const signInSession = createSignInSession({
+    enabled: authOpen,
+    onAuthenticated: completeAuthentication,
+  });
+
   return (
     <main data-community-state="success" data-community-route-family={state.routeFamily}>
       <Title>{title()}</Title>
@@ -174,11 +229,16 @@ function SuccessState(props: {
           <CommunityPageShell
             canJoin
             community={community()}
+            createPostBusy={postingBusy()}
             following={following()}
             joined={joined()}
+            onCreatePost={() => void openPostComposer()}
             onFollowToggle={() => setFollowing(value => !value)}
             onJoin={() => { setJoined(true); setFollowing(true); }}
           />
+          <Show when={postingError()}>
+            {message => <p class="mx-5 mt-4 text-sm text-destructive md:mx-8" role="alert">{message()}</p>}
+          </Show>
           <div class="md:hidden">
             <MobileFooterNav activeItem="home" forceMobile />
           </div>
@@ -189,6 +249,18 @@ function SuccessState(props: {
         <p>{copy.membership}: {copy.membershipModes[state.community.membershipMode]}</p>
         <CommunityNamesCta state={state} client={props.handleSalesClient} />
       </div>
+      <SignInModal open={authOpen()} onOpenChange={setAuthOpen} session={signInSession} />
+      <Show when={postingSession()}>
+        {session => (
+          <CreatePostDialog
+            communityContext={{ id: state.communityId, name: community().name }}
+            onOpenChange={setComposerOpen}
+            open={composerOpen()}
+            personas={session().personas}
+            principalId={session().userId}
+          />
+        )}
+      </Show>
     </main>
   );
 }
@@ -196,12 +268,20 @@ function SuccessState(props: {
 function CommunityState(props: {
   readonly state: CommunityPageViewState;
   readonly handleSalesClient: PublicHandleSalesApiClient;
+  readonly resolveSession?: () => Promise<SessionResolution>;
   readonly surfaceData?: Partial<CommunityData>;
 }) {
   const success = () => props.state.kind === "success" ? props.state : undefined;
   return (
     <Show when={success()} fallback={<MessageState state={props.state} />}>
-      {state => <SuccessState state={state()} handleSalesClient={props.handleSalesClient} surfaceData={props.surfaceData} />}
+      {state => (
+        <SuccessState
+          state={state()}
+          handleSalesClient={props.handleSalesClient}
+          resolveSession={props.resolveSession}
+          surfaceData={props.surfaceData}
+        />
+      )}
     </Show>
   );
 }
@@ -215,7 +295,14 @@ function CommunityData(props: CommunityPageProps) {
     () => props.data ?? loadCommunityPage(client, props.pathSegment, communityCanonicalOrigin()),
     { deferStream: true },
   );
-  return <CommunityState state={state()} handleSalesClient={handleSalesClient} surfaceData={props.surfaceData} />;
+  return (
+    <CommunityState
+      state={state()}
+      handleSalesClient={handleSalesClient}
+      resolveSession={props.resolveSession}
+      surfaceData={props.surfaceData}
+    />
+  );
 }
 
 export function CommunityPage(props: CommunityPageProps) {

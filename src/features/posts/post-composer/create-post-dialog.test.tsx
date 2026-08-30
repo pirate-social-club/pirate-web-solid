@@ -125,6 +125,27 @@ describe("create post request", () => {
     });
   });
 
+  test("uses the page community context without exposing or accepting a raw identifier", async () => {
+    render(() => (
+      <CreatePostDialog
+        communityContext={{ id: "community-contextual", name: "Pirate Harbor" }}
+        onOpenChange={() => {}}
+        open
+        storage={createMemoryPendingSubmissionStorage()}
+      />
+    ));
+    await new Promise<void>(resolve => setTimeout(resolve, 0));
+
+    expect(document.body.textContent).toContain("Posting in Pirate Harbor");
+    expect(document.body.querySelector("input[name='community-id']")).toBeNull();
+    expect(document.body.querySelector("[data-community-context='community-contextual']")).not.toBeNull();
+
+    const publishButtons = [...document.body.querySelectorAll<HTMLButtonElement>("button")]
+      .filter(button => button.textContent?.trim() === "Publish post");
+    expect(publishButtons).toHaveLength(1);
+    expect(publishButtons[0]?.disabled).toBe(false);
+  });
+
   test("keeps a pending envelope across dialog close and reopen", async () => {
     const storage = createMemoryPendingSubmissionStorage();
     await storage.save(await createPendingSubmissionEnvelope({

@@ -40,6 +40,8 @@ export interface CommunityPageShellProps {
   joined: boolean;
   onFollowToggle?: () => void;
   onJoin?: () => void;
+  onCreatePost?: () => void;
+  createPostBusy?: boolean;
   onBack?: () => void;
   onMore?: () => void;
   canJoin?: boolean;
@@ -254,7 +256,16 @@ export function CommunityPageShell(props: CommunityPageShellProps) {
               <Show when={props.canJoin !== false}>
                 <Button class="w-full md:w-auto" disabled={props.joined} onClick={() => props.onJoin?.()} variant={props.joined ? "secondary" : "default"}>{props.joined ? "Joined" : "Join"}</Button>
               </Show>
-              <Show when={props.joined || props.showCreatePost}><Button class="col-span-2 w-full md:w-auto" leadingIcon={<IconPlus class="size-4" />}>Post</Button></Show>
+              <Show when={props.joined || props.showCreatePost || props.onCreatePost !== undefined}>
+                <Button
+                  class="col-span-2 w-full md:w-auto"
+                  disabled={props.createPostBusy}
+                  leadingIcon={<IconPlus class="size-4" />}
+                  onClick={() => props.onCreatePost?.()}
+                >
+                  {props.createPostBusy ? "Opening…" : "Post here"}
+                </Button>
+              </Show>
             </div>
           </Show>
         </div>
