@@ -1,5 +1,9 @@
-import type { GetHomeFeedResponse, PirateApiClient } from "@pirate/api-client";
-import { createSessionApiClient } from "../../../api/client.ts";
+import {
+  createPirateApiClient,
+  type GetHomeFeedResponse,
+  type PirateApiClient,
+} from "@pirate/api-client-happy-path";
+import { createGeneratedApiClient } from "../../../api/client.ts";
 import type { ApiFetch } from "../../../api/proxy.ts";
 import { resolveLocaleLanguageTag, type UiLocaleCode } from "../../../lib/ui-locale-core.ts";
 import type { FeedSort } from "./feed-model.ts";
@@ -51,10 +55,14 @@ export async function fetchHomeFeedPage(options: HomeFeedRequestOptions = {}): P
     ...(options.timeRange ? { time_range: options.timeRange } : {}),
   };
 
-  const client = options.client ?? createSessionApiClient({
-    origin: resolveRequestOrigin(options),
-    fetchImpl: boundedFetch(options.fetchImpl ?? fetch, options.timeoutMs ?? 4_000),
-  });
+  const client = options.client ?? createGeneratedApiClient(
+    createPirateApiClient,
+    {
+      origin: resolveRequestOrigin(options),
+      fetchImpl: boundedFetch(options.fetchImpl ?? fetch, options.timeoutMs ?? 4_000),
+    },
+    { credentials: "same-origin" },
+  );
   const response: GetHomeFeedResponse = await client.get_feedHome({ query });
   return normalizeFeedPage(response);
 }

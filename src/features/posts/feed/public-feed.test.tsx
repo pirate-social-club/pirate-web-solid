@@ -5,7 +5,12 @@ import type { JSX } from "@solidjs/web";
 
 import { PublicFeed } from "./public-feed";
 import HomeFeed from "./home-feed.tsx";
-import type { FeedPage as PublicFeedPage } from "./public-feed-adapter";
+import { fetchHomeFeedPage } from "./home-feed-adapter.ts";
+import {
+  fetchPublicFeedPage,
+  type FeedPage as PublicFeedPage,
+} from "./public-feed-adapter";
+import { publicFeedStagingContractFixture } from "./public-feed-staging-contract.fixture.ts";
 
 const disposers: Array<() => void> = [];
 
@@ -69,6 +74,52 @@ const page: PublicFeedPage = {
 };
 
 describe("PublicFeed", () => {
+  test("accepts the sanitized staging shape through the generated client", async () => {
+    let request: { readonly credentials: RequestCredentials | undefined; readonly url: string } | undefined;
+    const result = await fetchPublicFeedPage({
+      origin: "https://solid.example",
+      fetchImpl: async (input, init) => {
+        request = {
+          credentials: init?.credentials,
+          url: input instanceof Request ? input.url : input.toString(),
+        };
+        return new Response(JSON.stringify(publicFeedStagingContractFixture), {
+          headers: { "content-type": "application/json" },
+          status: 200,
+        });
+      },
+    });
+
+    expect(request).toEqual({
+      credentials: "omit",
+      url: "https://solid.example/api/feed/home/public?locale=en&sort=best",
+    });
+    expect(result.items).toHaveLength(1);
+    expect(result.items[0]).toMatchObject({
+      id: "fixture-song-1",
+      postType: "song",
+      title: "Sanitized staging song",
+    });
+    expect(result.topCommunities).toHaveLength(1);
+  });
+
+  test("uses the same current schema for the authenticated home feed", async () => {
+    let credentials: RequestCredentials | undefined;
+    const result = await fetchHomeFeedPage({
+      origin: "https://solid.example",
+      fetchImpl: async (_input, init) => {
+        credentials = init?.credentials;
+        return new Response(JSON.stringify(publicFeedStagingContractFixture), {
+          headers: { "content-type": "application/json" },
+          status: 200,
+        });
+      },
+    });
+
+    expect(credentials).toBe("same-origin");
+    expect(result.items.map(item => item.id)).toEqual(["fixture-song-1"]);
+  });
+
   test("renders a truthful public item and has no viewer controls", async () => {
     const container = render(() => <PublicFeed data={page} />);
     await vi.waitFor(() => expect(container.querySelector("[data-feed-state='ready']")).not.toBeNull());

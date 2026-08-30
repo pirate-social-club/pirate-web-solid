@@ -25,6 +25,8 @@ const clients = [
       "patch_communityCreationIntentsIntentId",
       "post_communityCreationIntentsIntentIdCommit",
       "get_postsPostId",
+      "get_feedHomePublic",
+      "get_feedHome",
       "post_communitiesCommunityIdPostsPostIdKaraokeAttempts",
       "get_communitiesCommunityIdPostsPostIdKaraoke",
       "get_communitiesCommunityIdKaraokeAttemptsAttemptId",

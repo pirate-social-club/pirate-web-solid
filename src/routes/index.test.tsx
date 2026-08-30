@@ -6,6 +6,7 @@ import type { JSX } from "@solidjs/web";
 import HomeRoute from "./index.tsx";
 import type { SessionResolution } from "../api/session.ts";
 import type { FeedPage } from "../features/posts/feed/public-feed-adapter.ts";
+import { publicFeedStagingContractFixture } from "../features/posts/feed/public-feed-staging-contract.fixture.ts";
 
 const disposers: Array<() => void> = [];
 
@@ -72,6 +73,28 @@ afterEach(() => {
 });
 
 describe("public-first home route", () => {
+  test("renders the sanitized staging response through the production feed client", async () => {
+    const fetchImpl = vi.fn(async (input: RequestInfo | URL) => {
+      const url = new URL(input instanceof Request ? input.url : input.toString());
+      expect(url.pathname).toBe("/api/feed/home/public");
+      return new Response(JSON.stringify(publicFeedStagingContractFixture), {
+        headers: { "content-type": "application/json" },
+        status: 200,
+      });
+    });
+    vi.stubGlobal("fetch", fetchImpl);
+
+    const container = render(() => (
+      <HomeRoute resolveSession={async () => "anonymous"} />
+    ));
+
+    await vi.waitFor(() => expect(container.querySelector("[data-feed-state='ready']")).not.toBeNull());
+    expect(container.textContent).toContain("Sanitized staging song");
+    expect(container.querySelector("[data-feed-item-id='fixture-song-1']")).not.toBeNull();
+    expect(container.textContent).not.toContain("Public feed unavailable");
+    expect(fetchImpl).toHaveBeenCalledOnce();
+  });
+
   test("resolving session keeps public discovery visible", () => {
     const pending = new Promise<SessionResolution>(() => {});
     const container = render(() => (

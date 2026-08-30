@@ -1,8 +1,17 @@
-import type {
-  GetFeedHomePublicResponse,
-  PirateApiClient,
-} from "@pirate/api-client";
-import { createPublicApiClient } from "../../../api/client.ts";
+/*
+ * These feed operations intentionally use the newer reviewed client alias. The
+ * base client remains pinned for unrelated surfaces, but its older feed schema
+ * rejects api-next's nullable source hashes and age-locked projection items.
+ */
+import {
+  createPirateApiClient,
+  type GetFeedHomePublicResponse,
+  type PirateApiClient,
+} from "@pirate/api-client-happy-path";
+import {
+  createGeneratedApiClient,
+  type ApiClientFactoryOptions,
+} from "../../../api/client.ts";
 import {
   resolveLocaleLanguageTag,
   type UiLocaleCode,
@@ -11,6 +20,11 @@ import type { ApiFetch } from "../../../api/proxy.ts";
 import type { FeedSort } from "./feed-model.ts";
 
 export type PublicFeedClient = Pick<PirateApiClient, "get_feedHomePublic">;
+
+/** Use the reviewed client whose feed schema includes nullable hashes and age locks. */
+export function createPublicFeedClient(options: ApiClientFactoryOptions = {}): PublicFeedClient {
+  return createGeneratedApiClient(createPirateApiClient, options, { credentials: "omit" });
+}
 
 type JsonPrimitive = string | number | boolean | null;
 type JsonValue = JsonPrimitive | JsonValue[] | JsonRecord;
@@ -243,7 +257,7 @@ export async function fetchPublicFeedPage(options: PublicFeedRequestOptions = {}
     ...(options.timeRange ? { time_range: options.timeRange } : {}),
   };
 
-  const client = options.client ?? createPublicApiClient({
+  const client = options.client ?? createPublicFeedClient({
     origin: resolveRequestOrigin(options),
     fetchImpl: boundedFetch(options.fetchImpl ?? fetch, options.timeoutMs ?? 4_000),
   });

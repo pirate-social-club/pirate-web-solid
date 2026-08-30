@@ -3,7 +3,6 @@ import type { JSX } from "@solidjs/web";
 import { Show, For, getRequestEvent } from "@solidjs/web";
 import { createEffect, createSignal, onCleanup, untrack } from "solid-js";
 
-import { createPublicApiClient } from "../../../api/client.ts";
 import { Button, Card, CardContent, Spinner, Type, buttonVariants } from "../../../design-system";
 import { resolveRequestUiLocale, type UiLocaleCode } from "../../../lib/ui-locale-core.ts";
 import type { FeedSort } from "./feed-model.ts";
@@ -58,12 +57,6 @@ export interface FeedEngagementOptions {
   readonly transport?: PostEngagementTransport;
 }
 
-function requestOrigin(): string | undefined {
-  const event = getRequestEvent();
-  if (event !== undefined) return new URL(event.request.url).origin;
-  return typeof location === "undefined" ? undefined : location.origin;
-}
-
 function requestLocale(): UiLocaleCode {
   const event = getRequestEvent();
   if (event !== undefined) {
@@ -77,10 +70,6 @@ function requestLocale(): UiLocaleCode {
     new URL(location.href),
     typeof navigator === "undefined" ? undefined : navigator.language,
   );
-}
-
-function defaultClient(): PublicFeedClient {
-  return createPublicApiClient({ origin: requestOrigin() });
 }
 
 function displayAuthor(item: PublicFeedItem): string {
@@ -318,12 +307,11 @@ const PUBLIC_FEED_COPY: FeedCopy = {
 
 /** Route-neutral public feed surface. */
 export function PublicFeed(props: PublicFeedProps) {
-  const client = props.client ?? defaultClient();
   return <FeedSurface
     data={props.data}
     locale={props.locale}
     sort={props.sort}
     copy={PUBLIC_FEED_COPY}
-    loadPage={({ cursor, locale, sort }) => fetchPublicFeedPage({ client, cursor, locale, sort })}
+    loadPage={({ cursor, locale, sort }) => fetchPublicFeedPage({ client: props.client, cursor, locale, sort })}
   />;
 }
