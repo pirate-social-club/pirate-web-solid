@@ -10,14 +10,34 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
           node-version: 24.14.0
-      - uses: oven-sh/setup-bun@v2
+      - uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2.2.0
         with:
           bun-version: 1.4.0
       - run: bun install --frozen-lockfile
+      - name: Read Playwright version
+        id: playwright
+        run: echo "version=$(bun run playwright --version | awk '{print $NF}')" >> "$GITHUB_OUTPUT"
+      - name: Cache Playwright browsers
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-${{ runner.arch }}-playwright-chromium-${{ steps.playwright.outputs.version }}
+      # Iron is a step-level proxy. This frozen bootstrap and Playwright setup
+      # happen before activation so Playwright never invokes sudo through the
+      # proxy. The separate audit and Solid Doctor jobs cover frozen installs
+      # under Iron; all browser checks below run with Iron active.
+      - name: Pre-provision Chromium and system dependencies
+        run: bun run playwright install --with-deps chromium
+      - name: Start warn-only egress audit
+        uses: ironsh/iron-proxy-action@fa1fd82ec32396d044deba7040a6db576bec927a # v0.1.4
+        with:
+          version: 0.41.0
+          egress-rules: .github/egress/check.yml
+          warn: true
       - run: bun run verify
       - name: Build staging Worker artifact
         run: bun run build
@@ -25,22 +45,11 @@ jobs:
           CLOUDFLARE_ENV: staging
           NODE_OPTIONS: --max-old-space-size=3072
       - name: Wrangler dry run
-        run: bunx wrangler deploy --dry-run --config dist/ssr/wrangler.json
+        run: bun run wrangler deploy --dry-run --config dist/ssr/wrangler.json
         env:
           NODE_OPTIONS: --max-old-space-size=3072
       - name: Check post-engagement Worker proxy transport
         run: bun run post-engagement-check
-      - name: Read Playwright version
-        id: playwright
-        run: echo "version=$(bunx playwright --version | awk '{print $NF}')" >> "$GITHUB_OUTPUT"
-      - name: Cache Playwright browsers
-        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684
-        with:
-          path: ~/.cache/ms-playwright
-          key: ${{ runner.os }}-${{ runner.arch }}-playwright-chromium-${{ steps.playwright.outputs.version }}
-      # The cache stores browsers, not Linux system dependencies.
-      - name: Install Chromium for Storybook audit
-        run: bunx playwright install --with-deps chromium
       - name: Check text-post browser flow through Worker proxy
         run: bun run text-post-check
       - name: Build Storybook
@@ -55,9 +64,12 @@ jobs:
           bun run storybook:a11y
       - name: Upload Storybook audit evidence
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: storybook-a11y-${{ github.run_id }}
           path: .tmp/storybook-a11y/
           if-no-files-found: ignore
           retention-days: 7
+      - name: Show egress audit summary
+        if: always()
+        uses: ironsh/iron-proxy-action/summary@fa1fd82ec32396d044deba7040a6db576bec927a # v0.1.4

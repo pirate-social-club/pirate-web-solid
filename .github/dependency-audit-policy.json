@@ -1,0 +1,24 @@
+{
+  "globalThreshold": "high",
+  "requestPathThreshold": "moderate",
+  "requestPathPackages": [
+    "@kobalte/core",
+    "@pirate/api-client",
+    "@pirate/api-client-community-route",
+    "@pirate/api-client-handle-sales",
+    "@pirate/api-client-happy-path",
+    "@privy-io/js-sdk-core",
+    "@solidjs/meta",
+    "@solidjs/router",
+    "@solidjs/web",
+    "@veryai/widget",
+    "@zkpassport/sdk",
+    "class-variance-authority",
+    "filesystem-routing",
+    "qrcode",
+    "qr-code-styling",
+    "solid-js",
+    "tailwind-merge"
+  ],
+  "exceptions": []
+}
