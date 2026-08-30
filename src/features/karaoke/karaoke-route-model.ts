@@ -23,8 +23,10 @@ export async function loadKaraokeLeaderboard(
   client: KaraokeApiClient,
   postId: string,
   signal?: AbortSignal,
+  onPayload?: (payload: ApiSongKaraokePayload) => void,
 ): Promise<LoadedKaraokeLeaderboard> {
   const payload = await client.getPayload(postId, signal);
+  onPayload?.(payload);
   if (!payload.community) throw new Error("Karaoke leaderboard is not available for this song.");
   const leaderboard = await client.getLeaderboard({ communityId: payload.community, postId, signal });
   return { leaderboard, payload };

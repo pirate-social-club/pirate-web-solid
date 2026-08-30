@@ -1,12 +1,16 @@
 import { Show } from "solid-js";
 
-import { IconButton, IconCaretLeft, IconGift } from "../../design-system";
+import { cn, IconButton, IconCaretLeft, IconGift } from "../../design-system";
 
 export interface ActivityProgressHeaderProps {
   progressMax: number;
   progressValue: number;
   /** Reward value for this activity. Shown as the gift mark's accessible name. */
   rewardLabel?: string;
+  /** Uses the compact gift mark from the studying reference or the karaoke badge. */
+  rewardPresentation?: "badge" | "icon";
+  /** Uses the study green or karaoke warning progress treatment. */
+  progressTone?: "success" | "warning";
   onExit?: () => void;
   exitLabel?: string;
 }
@@ -19,6 +23,8 @@ function clampProgress(value: number, max: number): number {
 export function ActivityProgressHeader(props: ActivityProgressHeaderProps) {
   const value = () => clampProgress(props.progressValue, props.progressMax);
   const progressPercent = () => props.progressMax > 0 ? (value() / props.progressMax) * 100 : 0;
+  const rewardPresentation = () => props.rewardPresentation ?? "badge";
+  const progressTone = () => props.progressTone ?? "warning";
 
   return (
     <header class="grid min-h-14 grid-cols-[auto_minmax(0,1fr)] items-center gap-3 border-b border-border-soft px-4 py-2 sm:px-6">
@@ -30,7 +36,7 @@ export function ActivityProgressHeader(props: ActivityProgressHeaderProps) {
       >
         <IconCaretLeft class="size-5" />
       </IconButton>
-      <div class="flex h-7 min-w-0 items-center gap-2.5">
+      <div class={cn("flex h-9 min-w-0 flex-1 items-center", rewardPresentation() === "icon" && "gap-3")}>
         <div
           aria-label="Activity progress"
           aria-valuemax={props.progressMax}
@@ -40,15 +46,32 @@ export function ActivityProgressHeader(props: ActivityProgressHeaderProps) {
           role="progressbar"
         >
           <div
-            class="h-full rounded-full bg-success transition-[width] duration-300 ease-out motion-reduce:transition-none"
+            class={cn(
+              "h-full rounded-full transition-[width] duration-300 ease-out motion-reduce:transition-none",
+              progressTone() === "success" ? "bg-[#8fd19e]" : "bg-warning",
+            )}
             style={{ width: `${progressPercent()}%` }}
           />
         </div>
         <Show when={props.rewardLabel}>
           {(rewardLabel) => (
-            <span class="shrink-0 pe-0.5 ps-1 text-warning">
-              <IconGift aria-hidden="false" aria-label={rewardLabel()} class="size-[18px]" role="img" />
-            </span>
+            <Show
+              when={rewardPresentation() === "badge"}
+              fallback={(
+                <span aria-label={rewardLabel()} class="shrink-0 text-warning" role="img" title={rewardLabel()}>
+                  <IconGift aria-hidden="true" class="size-4" />
+                </span>
+              )}
+            >
+              <span
+                aria-label={rewardLabel()}
+                class="relative z-10 -ms-1.5 grid size-9 shrink-0 place-items-center rounded-full border-2 border-warning bg-warning text-white ring-2 ring-background"
+                role="img"
+                title={rewardLabel()}
+              >
+                <IconGift aria-hidden="true" class="size-5" />
+              </span>
+            </Show>
           )}
         </Show>
       </div>

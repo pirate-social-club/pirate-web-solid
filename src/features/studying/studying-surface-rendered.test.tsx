@@ -27,12 +27,15 @@ mock.module(designSystemPath, () => ({
   createMediaQuery: () => () => false,
   IconArrowsClockwise: primitive("svg"),
   IconCaretLeft: primitive("svg"),
+  IconCheck: primitive("svg"),
   IconCheckCircle: primitive("svg"),
   IconCrown: primitive("svg"),
   IconFire: primitive("svg"),
+  IconButton: primitive("button"),
+  IconGift: primitive("svg"),
   IconLock: primitive("svg"),
   IconMicrophone: primitive("svg"),
-  IconSquare: primitive("svg"),
+  IconStop: primitive("svg"),
   IconWarningCircle: primitive("svg"),
   IconX: primitive("svg"),
   Spinner: primitive("span"),
@@ -58,6 +61,11 @@ const wrongSpentState: StudyingSurfaceState = {
   willReturn: false,
 };
 
+const wrongRetryableState: StudyingSurfaceState = {
+  ...wrongSpentState,
+  revealReference: false,
+};
+
 const renderSurface = (state: StudyingSurfaceState) => renderToString(() => createComponent(StudyingSurface, {
   lessonProgress: { resolvedCount: 1, totalCount: 2 },
   state,
@@ -68,7 +76,17 @@ describe("StudyingSurface rendered semantics", () => {
     const html = renderSurface(wrongSpentState);
 
     expect(html).toContain("text-destructive-text");
+    expect(html).toContain(">Incorrect</p>");
+    expect(html).not.toContain("Let's come back to this");
+    expect(html).not.toContain("You said:");
     expect(html).not.toContain("text-destructive\">");
+  });
+
+  test("makes the retryable miss action explicit without adding commentary", () => {
+    const html = renderSurface(wrongRetryableState);
+
+    expect(html).toContain(">Incorrect — try again</p>");
+    expect(html).not.toContain("You said:");
   });
 
   test("keeps reduced-motion tracking delegated to the owned-write-safe helper", async () => {

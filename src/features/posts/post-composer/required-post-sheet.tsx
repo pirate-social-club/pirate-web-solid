@@ -47,7 +47,7 @@ export function PostComposerRequiredSheet(props: {
                   <Input
                     id="required-song-title"
                     onChange={(event) => controller.song.update((current) => ({ ...current, title: event.currentTarget.value }))}
-                    placeholder="Track title"
+                    placeholder="Song title"
                     value={controller.song.state.title ?? ""}
                   />
                 </div>

@@ -216,7 +216,7 @@ export function buildPostComposerPreviewContent({
   }
 
   if (attachment.kind === "song") {
-    const trackTitle = songTitle?.trim() || attachment.label || "Untitled track";
+    const resolvedSongTitle = songTitle?.trim() || attachment.label || "Untitled song";
     const normalizedVinylReleaseUrl = vinylReleaseUrl?.trim() || null;
     const isPaid = access === "paid";
     const previewStems = songStems
@@ -230,7 +230,7 @@ export function buildPostComposerPreviewContent({
 
     return {
       type: "song",
-      title: trackTitle,
+      title: resolvedSongTitle,
       caption: bodyText || undefined,
       artworkSrc: attachment.artworkUrl,
       accessMode,

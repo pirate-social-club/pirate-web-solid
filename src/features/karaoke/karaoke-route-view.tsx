@@ -1,13 +1,13 @@
 import { createEffect, createMemo, createSignal, Show } from "solid-js";
 import { useNavigate } from "@solidjs/router";
 import { Title } from "@solidjs/meta";
-import {
-  AuthRequiredRouteState,
-  RouteLoadFailureState,
-  RouteLoadingState,
-} from "../../design-system";
 import { KaraokePracticeSurface } from "./karaoke-practice-surface";
 import { KaraokeLeaderboard } from "./karaoke-leaderboard";
+import {
+  KaraokeAuthRequiredState,
+  KaraokeRouteLoadFailureState,
+  KaraokeRouteLoadingState,
+} from "./karaoke-route-states";
 import { createKaraokeApiClient, type ApiSongKaraokePayload, type KaraokeApiClient } from "./karaoke-api";
 import { isKaraokeAuthError, loadKaraokeLeaderboard, loadKaraokePayload, type LoadedKaraokeLeaderboard } from "./karaoke-route-model";
 import { toScorableKaraokeLines } from "./karaoke-stage-bridge";
@@ -69,10 +69,11 @@ function LoadedKaraokeSession(props: { payload: ApiSongKaraokePayload; postId: s
     <Show
       when={!authError()}
       fallback={
-        <AuthRequiredRouteState
-          ctaLabel="Sign in to sing"
+        <KaraokeAuthRequiredState
+          ctaLabel="Sign in"
           description="This song is available to everyone, but recording a scored take requires an account."
           onConnect={requestSignIn}
+          onExit={() => navigate(`/p/${encodeURIComponent(props.postId)}`)}
           title="Sign in to sing"
         />
       }
@@ -113,7 +114,7 @@ export function KaraokeSessionRouteView(props: KaraokeSessionRouteViewProps) {
   if (typeof window !== "undefined") queueMicrotask(load);
 
   return (
-    <Show when={payload()} fallback={<Show when={!loading()} fallback={<RouteLoadingState height="public" label="Loading karaoke" />}><RouteLoadFailureState description={errorMessage(loadError(), "We couldn't load karaoke for this song.")} onGoHome={() => { window.location.href = "/"; }} onRetry={load} title="Karaoke unavailable" /></Show>}>
+      <Show when={payload()} fallback={<Show when={!loading()} fallback={<KaraokeRouteLoadingState label="Loading karaoke" />}><KaraokeRouteLoadFailureState description={errorMessage(loadError(), "We couldn't load karaoke for this song.")} onGoHome={() => { window.location.href = "/"; }} onRetry={load} title="Karaoke unavailable" /></Show>}>
       {(loaded) => <LoadedKaraokeSession client={client} payload={loaded()} postId={props.postId} />}
     </Show>
   );
@@ -128,12 +129,13 @@ export function KaraokeLeaderboardRouteView(props: KaraokeLeaderboardRouteViewPr
   const client = props.client ?? createKaraokeApiClient();
   const navigate = useNavigate();
   const [result, setResult] = createSignal<LoadedKaraokeLeaderboard>();
+  const [loadedPayload, setLoadedPayload] = createSignal<ApiSongKaraokePayload>();
   const [loadError, setLoadError] = createSignal<unknown>(null);
   const [loading, setLoading] = createSignal(true);
   const load = () => {
     setLoading(true);
     setLoadError(null);
-    void loadKaraokeLeaderboard(client, props.postId)
+    void loadKaraokeLeaderboard(client, props.postId, undefined, setLoadedPayload)
       .then(setResult)
       .catch(setLoadError)
       .finally(() => setLoading(false));
@@ -146,16 +148,21 @@ export function KaraokeLeaderboardRouteView(props: KaraokeLeaderboardRouteViewPr
       fallback={
         <Show
           when={!loading()}
-          fallback={<RouteLoadingState height="public" label="Loading karaoke leaderboard" />}
+          fallback={<KaraokeRouteLoadingState label="Loading karaoke leaderboard" />}
         >
           <Show
             when={isKaraokeAuthError(loadError())}
-            fallback={<RouteLoadFailureState description={errorMessage(loadError(), "We couldn't load the karaoke leaderboard.")} onGoHome={() => { window.location.href = "/"; }} onRetry={load} title="Leaderboard unavailable" />}
+            fallback={<KaraokeRouteLoadFailureState description={errorMessage(loadError(), "We couldn't load the karaoke leaderboard.")} onGoHome={() => { window.location.href = "/"; }} onRetry={load} title="Leaderboard unavailable" />}
           >
-            <AuthRequiredRouteState
-              ctaLabel="Sign in to view scores"
+            <KaraokeAuthRequiredState
+              ctaLabel="Sign in"
               description="Karaoke scores are available to signed-in community members."
+              leaderboard
               onConnect={requestSignIn}
+              onExit={() => navigate(`/p/${encodeURIComponent(props.postId)}/karaoke`)}
+              artistName={loadedPayload()?.artist_name ?? undefined}
+              artworkSrc={loadedPayload()?.artwork_src ?? undefined}
+              songTitle={loadedPayload()?.title ?? undefined}
               title="Sign in to view scores"
             />
           </Show>

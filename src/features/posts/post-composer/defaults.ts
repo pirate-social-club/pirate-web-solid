@@ -41,6 +41,15 @@ export const primaryMobileAttachmentActions = attachmentActions.filter(({ kind }
   ["link", "image", "video", "song"].includes(kind),
 );
 
+/** The text composer follows the mobile reference's five visible tools. */
+export const textMobileAttachmentActions: AttachmentAction[] = [
+  { kind: "image", label: "Image", icon: "image" },
+  { kind: "video", label: "Video", icon: "video" },
+  { kind: "song", label: "Audio", icon: "song" },
+  { kind: "link", label: "Link", icon: "link" },
+  { ariaLabel: "Add date and place", kind: "event", label: "Calendar", icon: "event" },
+];
+
 export const overflowMobileAttachmentActions = attachmentActions.filter(({ kind }) =>
   ["file", "live", "event"].includes(kind),
 );

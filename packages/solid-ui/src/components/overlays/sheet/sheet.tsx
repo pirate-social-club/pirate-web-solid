@@ -54,8 +54,9 @@ export interface SheetContentProps
 }
 
 function SheetContent(props: ParentProps<SheetContentProps>) {
+  const side = props.side ?? "right";
   const className = createMemo(() =>
-    cn(sheetContentVariants({ side: props.side }), props.class),
+    cn(sheetContentVariants({ side }), `sheet-enter-${side}`, props.class),
   );
   const rest = omit(props, "class", "side", "hideCloseButton", "children");
 

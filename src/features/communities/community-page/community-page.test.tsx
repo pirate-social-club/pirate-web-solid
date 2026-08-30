@@ -95,9 +95,11 @@ describe("CommunityPage", () => {
     await vi.waitFor(() => expect(container.querySelector("h1")?.textContent).toBe("Pirate Harbor"));
     expect(container.getAttribute("data-community-state")).toBeNull();
     expect(container.querySelector("[data-community-state='success']")).not.toBeNull();
+    expect(container.querySelector("[data-community-page]")).not.toBeNull();
     expect(container.textContent).toContain("Public conversations.");
     expect(container.textContent).toContain("Respect");
-    expect(container.querySelector("button, input, textarea, [data-viewer-control]")).toBeNull();
+    expect(container.textContent).toContain("Feed");
+    expect(container.textContent).toContain("About Pirate Harbor");
     await vi.waitFor(() => expect(container.querySelector("[data-community-names-cta]")).not.toBeNull());
     expect(container.querySelector<HTMLAnchorElement>("[data-community-names-cta]")?.href)
       .toContain(`/c/${communityId}/names`);

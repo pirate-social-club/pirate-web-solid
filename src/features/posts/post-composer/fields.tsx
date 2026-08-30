@@ -1,6 +1,7 @@
 // Shared composer field primitives, ported from the React
 // post-composer-fields.tsx (FieldLabel, UploadField, LabeledTextarea).
 
+import type { JSX } from "@solidjs/web";
 import { Show } from "solid-js";
 
 import {
@@ -13,11 +14,12 @@ import { cn } from "../../../design-system";
 
 export function FieldLabel(props: {
   label: string;
-  counter?: string;
+  counter?: JSX.Element;
   class?: string;
   labelClass?: string;
   htmlFor?: string;
   required?: boolean;
+  tone?: "default" | "muted";
 }) {
   return (
     <FormFieldLabel
@@ -27,7 +29,30 @@ export function FieldLabel(props: {
       label={props.label}
       labelClass={props.labelClass}
       required={props.required}
+      tone={props.tone}
     />
+  );
+}
+
+export function PostComposerField(props: {
+  children: JSX.Element;
+  class?: string;
+  counter?: JSX.Element;
+  htmlFor?: string;
+  label: string;
+  tone?: "default" | "muted";
+}) {
+  return (
+    <div class={cn("grid gap-1.5", props.class)}>
+      <FieldLabel
+        class="mb-0"
+        counter={props.counter}
+        htmlFor={props.htmlFor}
+        label={props.label}
+        tone={props.tone}
+      />
+      {props.children}
+    </div>
   );
 }
 
@@ -59,7 +84,7 @@ export function UploadField(props: {
 
   return (
     <div class="block">
-      <FieldLabel htmlFor={inputId} label={props.label} required={props.required} />
+        <FieldLabel htmlFor={inputId} label={props.label} required={props.required} />
       <div class="flex items-stretch gap-2">
         <input
           accept={props.accept}

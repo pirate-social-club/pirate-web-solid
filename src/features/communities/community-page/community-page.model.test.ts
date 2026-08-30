@@ -94,6 +94,8 @@ describe("community page model", () => {
       community: {
         displayName: "Pirate Harbor",
         description: "Public conversations.",
+        avatarSrc: null,
+        bannerSrc: null,
         membershipMode: "open",
         memberCount: 12,
         followerCount: 20,

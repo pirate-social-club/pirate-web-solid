@@ -1,10 +1,7 @@
 import { For, Show } from "solid-js";
 import {
   Avatar,
-  Button,
-  Card,
-  CardContent,
-  CardHeader,
+  IconButton,
   IconCaretLeft,
   Type,
 } from "../../design-system";
@@ -30,53 +27,48 @@ function scoreLabel(score: number): string {
 
 export function KaraokeLeaderboard(props: KaraokeLeaderboardProps) {
   return (
-    <main class="min-h-dvh bg-background px-4 py-4 text-foreground sm:px-6 sm:py-8">
-      <div class="mx-auto w-full max-w-2xl">
-        <header class="mb-6 flex items-center gap-3">
-          <Button aria-label="Back to karaoke" leadingIcon={<IconCaretLeft class="size-5" />} onClick={props.onExit} size="icon" variant="ghost" />
-          <Show when={props.artworkSrc}>
-            <img alt="" aria-hidden="true" class="size-12 rounded-lg object-cover" src={props.artworkSrc} />
-          </Show>
-          <div class="min-w-0 flex-1">
-            <Type as="h1" class="truncate" variant="h2">{props.title}</Type>
-            <Type as="p" class="truncate text-muted-foreground" variant="body">{props.artistName ?? "Karaoke scores"}</Type>
+    <main class="min-h-dvh bg-background text-foreground">
+      <header class={`border-b border-border-soft ${props.artworkSrc ? "" : "min-h-[130px]"}`}>
+        <div class="flex h-14 items-center gap-3 px-4">
+          <IconButton aria-label="Back to karaoke" class="size-10 bg-secondary" onClick={props.onExit} variant="secondary">
+            <IconCaretLeft class="size-5" />
+          </IconButton>
+          <Type as="h1" variant="h3">Leaderboard</Type>
+        </div>
+        <Show when={props.artworkSrc}>
+          <div class="flex items-center gap-3 px-5 pb-3.5 pt-2">
+            <img alt="" aria-hidden="true" class="size-12 shrink-0 rounded-lg object-cover" src={props.artworkSrc} />
+            <div class="min-w-0">
+              <Type as="h2" class="truncate" variant="h4">{props.title}</Type>
+              <Type as="p" class="truncate text-muted-foreground" variant="body">{props.artistName ?? "Karaoke scores"}</Type>
+            </div>
           </div>
-          <Show when={props.onSing}>
-            <Button onClick={props.onSing} size="sm">Sing</Button>
-          </Show>
-        </header>
+        </Show>
+      </header>
 
-        <Card>
-          <CardHeader>
-            <Type as="h2" variant="h3">Leaderboard</Type>
-            <Type as="p" class="text-muted-foreground" variant="caption">
-              {props.leaderboard.total_ranked === 0 ? "No eligible scores yet" : `${props.leaderboard.total_ranked} ranked singer${props.leaderboard.total_ranked === 1 ? "" : "s"}`}
-            </Type>
-          </CardHeader>
-          <CardContent>
-            <Show
-              when={props.leaderboard.entries.length > 0}
-              fallback={<Type as="p" class="py-8 text-center text-muted-foreground" variant="body">Sing this song to claim the first score.</Type>}
-            >
-              <ol class="space-y-2" aria-label="Karaoke leaderboard">
-                <For each={props.leaderboard.entries}>
-                  {(entry) => {
-                    const name = displayName(entry);
-                    return (
-                      <li class={`flex items-center gap-3 rounded-lg border px-3 py-3 ${entry.is_viewer ? "border-primary/40 bg-primary/10" : "border-border-soft"}`}>
-                        <span class="w-8 text-center font-semibold tabular-nums text-muted-foreground">{entry.rank}</span>
-                        <Avatar fallback={name} fallbackSeed={entry.identity.handle ?? String(entry.rank)} size="sm" src={entry.identity.visibility === "visible" ? entry.identity.avatar_ref ?? undefined : undefined} />
-                        <span class="min-w-0 flex-1 truncate">{name}{entry.is_viewer ? " · you" : ""}</span>
-                        <span class="font-semibold tabular-nums text-primary-text">{scoreLabel(entry.score)}</span>
-                      </li>
-                    );
-                  }}
-                </For>
-              </ol>
-            </Show>
-          </CardContent>
-        </Card>
-      </div>
+      <Show
+        when={props.leaderboard.entries.length > 0}
+        fallback={<Type as="p" class="px-5 pt-6 text-center text-muted-foreground" variant="body">Sing this song to claim the first score.</Type>}
+      >
+        <ol aria-label="Karaoke leaderboard">
+          <For each={props.leaderboard.entries}>
+            {(entry) => {
+              const name = displayName(entry);
+              return (
+                <li class={`flex h-[58px] items-center gap-3 border-b border-border-soft px-5 ${entry.is_viewer ? "border-l-4 border-l-primary bg-primary/10 pl-4" : ""}`}>
+                  <span class="w-6 shrink-0 text-sm tabular-nums text-muted-foreground">#{entry.rank}</span>
+                  <Avatar class="size-8 text-sm" fallback={name} fallbackSeed={entry.identity.handle ?? String(entry.rank)} size="sm" src={entry.identity.visibility === "visible" ? entry.identity.avatar_ref ?? undefined : undefined} />
+                  <span class="min-w-0 flex-1 truncate text-sm font-semibold">
+                    {name}
+                    <Show when={entry.is_viewer}><span class="ms-2 text-xs font-semibold text-primary-text">You</span></Show>
+                  </span>
+                  <span class="text-sm font-semibold tabular-nums text-foreground">{scoreLabel(entry.score)}</span>
+                </li>
+              );
+            }}
+          </For>
+        </ol>
+      </Show>
     </main>
   );
 }

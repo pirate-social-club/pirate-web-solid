@@ -48,7 +48,7 @@ export function displayLines(lines: readonly KaraokeStageLine[], currentTimeMs: 
   const visibleIndex = activeIndex >= 0 ? activeIndex : heldIndex;
   return {
     activeLine: visibleIndex >= 0 ? lines[visibleIndex] : null,
-    cueLine: visibleIndex < 0 && nextIndex >= 0 ? lines[nextIndex] : null,
+    cueLine: visibleIndex === -1 && nextIndex >= 0 ? lines[nextIndex] : null,
     nextLine: visibleIndex >= 0 && nextIndex >= 0 ? lines[nextIndex] : null,
   };
 }

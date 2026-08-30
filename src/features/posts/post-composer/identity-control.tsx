@@ -10,6 +10,7 @@ import {
   ModalHeader,
   ModalTitle,
   ModalTrigger,
+  buttonVariants,
   pillButtonVariants,
   RadioIndicator,
   Type,
@@ -17,6 +18,7 @@ import {
 import { cn } from "../../../design-system";
 
 import type { PostComposerController } from "./controller";
+import { PostComposerSheetRadioGroup } from "./sheet-radio-group";
 
 function publicInitials(handle: string) {
   const chunks = handle.replace(/^@/, "").trim().split(/[-.\s_]+/).filter(Boolean);
@@ -28,6 +30,7 @@ function publicInitials(handle: string) {
 export function PostComposerIdentityControl(props: {
   class?: string;
   controller: PostComposerController;
+  presentation?: "pill" | "icon";
 }) {
   const controller = props.controller;
   const [open, setOpen] = createSignal(false);
@@ -97,136 +100,130 @@ export function PostComposerIdentityControl(props: {
     </Show>
   );
 
-  const Option = (optionProps: {
-    checked: boolean;
-    description: string;
-    icon: "agent" | "anonymous" | "public";
-    label: string;
-    onSelect: () => void;
-  }) => (
-    <button
-      aria-pressed={optionProps.checked ? "true" : "false"}
-      class={cn(
-        "grid w-full grid-cols-[2.75rem_1fr_auto] items-center gap-3 border-b border-border-soft px-4 py-3 text-start outline-none transition-colors hover:bg-muted focus-visible:bg-muted focus-visible:ring-2 focus-visible:ring-ring",
-        optionProps.checked && "bg-primary-subtle",
-      )}
-      onClick={optionProps.onSelect}
-      type="button"
+  const triggerAriaLabel = () => [
+    `${controller.copy.identitySheet.title}: ${triggerLabel()}`,
+    qualifierLabel(),
+  ].filter(Boolean).join(", ");
+  const IdentitySheetContent = () => (
+    <ModalContent
+      class="flex max-h-[80dvh] flex-col rounded-t-[var(--radius-3xl)] px-0 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-4 sm:rounded-[var(--radius-xl)] sm:p-0"
+      mobileSide="bottom"
     >
-      <Show
-        when={optionProps.icon === "public"}
-        fallback={
-          <span class="grid size-11 place-items-center rounded-full bg-background text-foreground">
-            {optionProps.icon === "agent" ? <IconRobot class="size-5" /> : <IconMaskHappy class="size-5" />}
-          </span>
-        }
-      >
-        <Avatar
-          class="size-11 border-0"
-          fallback={publicInitials(publicLabel())}
-          fallbackSeed={identity()?.publicAvatarSeed ?? undefined}
-          src={identity()?.publicAvatarSrc ?? undefined}
+      <div aria-hidden="true" class="mx-auto mb-4 h-1 w-12 rounded-full bg-muted sm:hidden" />
+      <ModalHeader class="px-4 pe-12 text-start">
+        <ModalTitle>{controller.copy.identitySheet.title}</ModalTitle>
+      </ModalHeader>
+      <div class="mt-4 min-h-0 overflow-y-auto border-t border-border-soft">
+        <PostComposerSheetRadioGroup
+          aria-label={controller.copy.identitySheet.title}
+          onChange={(value) => {
+            if (value === "anonymous") selectAnonymous();
+            else if (value === "agent") selectAgent();
+            else selectPublic();
+          }}
+          options={[
+            {
+              description: controller.copy.identitySheet.publicRowDescription,
+              icon: (
+                <Avatar
+                  class="size-11 border-0"
+                  fallback={publicInitials(publicLabel())}
+                  fallbackSeed={identity()?.publicAvatarSeed ?? undefined}
+                  src={identity()?.publicAvatarSrc ?? undefined}
+                />
+              ),
+              label: publicLabel(),
+              value: "public",
+            },
+            ...(canUseAnonymous()
+              ? [{
+                  description: identity()?.anonymousDescription ?? controller.copy.identitySheet.anonymousRowDescription,
+                  icon: <IconMaskHappy class="size-5" />,
+                  label: anonymousLabel(),
+                  value: "anonymous" as const,
+                }]
+              : []),
+            ...(agentLabel()
+              ? [{
+                  description: controller.copy.identitySheet.agentRowDescription,
+                  icon: <IconRobot class="size-5" />,
+                  label: agentLabel()!,
+                  value: "agent" as const,
+                }]
+              : []),
+          ]}
+          value={isAgent() ? "agent" : isAnonymous() ? "anonymous" : "public"}
         />
-      </Show>
-      <span class="min-w-0">
-        <Type as="span" variant="body-strong" class="block truncate">{optionProps.label}</Type>
-        <Type as="span" variant="caption" class="block text-muted-foreground">{optionProps.description}</Type>
-      </span>
-      <RadioIndicator checked={optionProps.checked} />
-    </button>
+        <Show when={canUseQualifiers()}>
+          <section class="space-y-2 px-4 py-4">
+            <Type as="h3" variant="body-strong">{controller.copy.identitySheet.qualifiersTitle}</Type>
+            <Type as="p" variant="caption" class="text-muted-foreground">{controller.copy.identitySheet.qualifiersApply}</Type>
+            <div class="space-y-2 pt-1">
+              <For each={qualifiers()}>
+                {(qualifier) => {
+                  const selected = () => controller.identity.selectedQualifierIds.includes(qualifier.qualifierId);
+                  return (
+                    <button
+                      aria-pressed={selected() ? "true" : "false"}
+                      class={cn(
+                        "flex w-full items-center justify-between gap-3 rounded-[var(--radius-lg)] border border-border-soft px-3 py-3 text-start outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring",
+                        selected() && "border-primary bg-primary-subtle",
+                      )}
+                      onClick={() => toggleQualifier(qualifier.qualifierId)}
+                      type="button"
+                    >
+                      <span class="min-w-0">
+                        <Type as="span" variant="body-strong" class="block">{qualifier.label}</Type>
+                        <Show when={qualifier.description}>
+                          {(description) => <Type as="span" variant="caption" class="block text-muted-foreground">{description()}</Type>}
+                        </Show>
+                      </span>
+                      <RadioIndicator checked={selected()} />
+                    </button>
+                  );
+                }}
+              </For>
+            </div>
+          </section>
+        </Show>
+      </div>
+    </ModalContent>
   );
 
   return (
     <Show when={identity()?.visible !== false}>
-      <Modal open={open()} onOpenChange={setOpen}>
-        <ModalTrigger
-          aria-label={[
-            `${controller.copy.identitySheet.title}: ${triggerLabel()}`,
-            qualifierLabel(),
-          ].filter(Boolean).join(", ")}
-          class={cn(
-            pillButtonVariants({ tone: "default" }),
-            "h-11 min-w-0 justify-start gap-3 px-3.5 text-foreground",
-            props.class,
-          )}
-        >
-          <IdentityAvatar class="size-8 shrink-0" />
-          <span class="min-w-0 flex-1 text-start">
-            <Type as="span" variant="body-strong" class="block truncate">{triggerLabel()}</Type>
-          </span>
-          <IconCaretDown class="size-4 shrink-0 text-muted-foreground" />
-        </ModalTrigger>
-        <ModalContent
-          class="flex max-h-[80dvh] flex-col rounded-t-[var(--radius-3xl)] px-0 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-4 sm:rounded-[var(--radius-xl)] sm:p-0"
-          mobileSide="bottom"
-        >
-          <div aria-hidden="true" class="mx-auto mb-4 h-1 w-12 rounded-full bg-muted sm:hidden" />
-          <ModalHeader class="px-4 pe-12 text-start">
-            <ModalTitle>{controller.copy.identitySheet.title}</ModalTitle>
-          </ModalHeader>
-          <div class="mt-4 min-h-0 overflow-y-auto border-t border-border-soft">
-            <Option
-              checked={!isAgent() && !isAnonymous()}
-              description={controller.copy.identitySheet.publicRowDescription}
-              icon="public"
-              label={publicLabel()}
-              onSelect={selectPublic}
-            />
-            <Show when={canUseAnonymous()}>
-              <Option
-                checked={isAnonymous()}
-                description={identity()?.anonymousDescription ?? controller.copy.identitySheet.anonymousRowDescription}
-                icon="anonymous"
-                label={anonymousLabel()}
-                onSelect={selectAnonymous}
-              />
-            </Show>
-            <Show when={agentLabel()}>
-              {(label) => (
-                <Option
-                  checked={isAgent()}
-                  description={controller.copy.identitySheet.agentRowDescription}
-                  icon="agent"
-                  label={label()}
-                  onSelect={selectAgent}
-                />
-              )}
-            </Show>
-            <Show when={canUseQualifiers()}>
-              <section class="space-y-2 px-4 py-4">
-                <Type as="h3" variant="body-strong">{controller.copy.identitySheet.qualifiersTitle}</Type>
-                <Type as="p" variant="caption" class="text-muted-foreground">{controller.copy.identitySheet.qualifiersApply}</Type>
-                <div class="space-y-2 pt-1">
-                  <For each={qualifiers()}>
-                    {(qualifier) => {
-                      const selected = () => controller.identity.selectedQualifierIds.includes(qualifier.qualifierId);
-                      return (
-                        <button
-                          aria-pressed={selected() ? "true" : "false"}
-                          class={cn(
-                            "flex w-full items-center justify-between gap-3 rounded-[var(--radius-lg)] border border-border-soft px-3 py-3 text-start outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring",
-                            selected() && "border-primary bg-primary-subtle",
-                          )}
-                          onClick={() => toggleQualifier(qualifier.qualifierId)}
-                          type="button"
-                        >
-                          <span class="min-w-0">
-                            <Type as="span" variant="body-strong" class="block">{qualifier.label}</Type>
-                            <Show when={qualifier.description}>
-                              {(description) => <Type as="span" variant="caption" class="block text-muted-foreground">{description()}</Type>}
-                            </Show>
-                          </span>
-                          <RadioIndicator checked={selected()} />
-                        </button>
-                      );
-                    }}
-                  </For>
-                </div>
-              </section>
-            </Show>
-          </div>
-        </ModalContent>
-      </Modal>
+      <Show
+        when={props.presentation === "icon"}
+        fallback={
+          <Modal open={open()} onOpenChange={setOpen}>
+            <ModalTrigger
+              aria-label={triggerAriaLabel()}
+              class={cn(pillButtonVariants({ tone: "default" }), "h-11 px-3.5", props.class)}
+            >
+              <IdentityAvatar class="size-8 shrink-0" />
+              <span class="min-w-0 flex-1 text-start">
+                <Type as="span" variant="body-strong" class="block truncate">{triggerLabel()}</Type>
+              </span>
+              <IconCaretDown class="size-4 shrink-0 text-muted-foreground" />
+            </ModalTrigger>
+            <IdentitySheetContent />
+          </Modal>
+        }
+      >
+        <Modal open={open()} onOpenChange={setOpen}>
+          <ModalTrigger
+            aria-label={triggerAriaLabel()}
+            class={cn(
+              buttonVariants({ variant: "secondary", size: "icon" }),
+              "size-10 p-0",
+              props.class,
+            )}
+          >
+            <IdentityAvatar class="size-10 shrink-0" />
+          </ModalTrigger>
+          <IdentitySheetContent />
+        </Modal>
+      </Show>
     </Show>
   );
 }

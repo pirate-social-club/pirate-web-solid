@@ -1,10 +1,10 @@
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 
 import {
-  AuthRequiredRouteState,
-  RouteLoadFailureState,
-  RouteLoadingState,
-} from "../../design-system";
+  StudyAuthRequiredState,
+  StudyRouteLoadFailureState,
+  StudyRouteLoadingState,
+} from "./studying-route-states";
 
 const meta = {
   title: "Screens/Studying/RouteStates",
@@ -24,12 +24,12 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const Loading: Story = {
-  render: () => <RouteLoadingState height="public" label="Loading study" />,
+  render: () => <StudyRouteLoadingState label="Loading study" />,
 };
 
 export const LoadFailure: Story = {
   render: () => (
-    <RouteLoadFailureState
+    <StudyRouteLoadFailureState
       description="We couldn't load this study session."
       onGoHome={() => {}}
       onRetry={() => {}}
@@ -40,8 +40,8 @@ export const LoadFailure: Story = {
 
 export const AuthRequired: Story = {
   render: () => (
-    <AuthRequiredRouteState
-      ctaLabel="Sign in to study"
+    <StudyAuthRequiredState
+      ctaLabel="Sign in"
       description="Study packs follow the song's community. Sign in to pick up your lesson and streak."
       onConnect={() => {}}
       title="Sign in to study"

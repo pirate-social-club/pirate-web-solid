@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 
 import { KaraokeLeaderboard } from "./karaoke-leaderboard";
-import { storyEmptyLeaderboard, storyLeaderboard } from "./karaoke-story-fixtures";
+import { storyArtworkSrc, storyEmptyLeaderboard, storyLeaderboard } from "./karaoke-story-fixtures";
 
 const meta = {
   title: "Parts/Karaoke/Leaderboard",
@@ -23,8 +23,9 @@ type Story = StoryObj<typeof meta>;
 
 export const RankedEntries: Story = {
   args: {
-    title: "Paper Moon",
-    artistName: "The Harborlights",
+    title: "Apocalypse Dreams",
+    artistName: "Tame Impala",
+    artworkSrc: storyArtworkSrc,
     leaderboard: storyLeaderboard,
     onExit: () => {},
     onSing: () => {},
@@ -33,8 +34,8 @@ export const RankedEntries: Story = {
 
 export const Empty: Story = {
   args: {
-    title: "Paper Moon",
-    artistName: "The Harborlights",
+    title: "Apocalypse Dreams",
+    artistName: "Tame Impala",
     leaderboard: storyEmptyLeaderboard,
     onExit: () => {},
     onSing: () => {},

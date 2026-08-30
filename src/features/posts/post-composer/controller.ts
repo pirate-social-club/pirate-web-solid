@@ -395,7 +395,7 @@ export function createPostComposerController(
     mode: activeTab(),
     songAudioUploadPresent: Boolean(songState().primaryAudioUpload),
     title: titleValue(),
-    videoUploadPresent: Boolean(videoState().primaryVideoUpload),
+    videoUploadPresent: Boolean(videoState().primaryVideoUpload || videoState().primaryVideoLabel?.trim()),
     fileUploadPresent: Boolean(fileState().upload),
   });
   const songTitleMissing = () => activeTab() === "song" && !songState().title?.trim();

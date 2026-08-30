@@ -1,10 +1,10 @@
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 
 import {
-  AuthRequiredRouteState,
-  RouteLoadFailureState,
-  RouteLoadingState,
-} from "../../design-system";
+  KaraokeAuthRequiredState,
+  KaraokeRouteLoadFailureState,
+  KaraokeRouteLoadingState,
+} from "./karaoke-route-states";
 
 const meta = {
   title: "Screens/Karaoke/RouteStates",
@@ -24,12 +24,12 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const Loading: Story = {
-  render: () => <RouteLoadingState height="public" label="Loading karaoke" />,
+  render: () => <KaraokeRouteLoadingState label="Loading karaoke" />,
 };
 
 export const LoadFailure: Story = {
   render: () => (
-    <RouteLoadFailureState
+    <KaraokeRouteLoadFailureState
       description="We couldn't load karaoke for this song."
       onGoHome={() => {}}
       onRetry={() => {}}
@@ -40,10 +40,11 @@ export const LoadFailure: Story = {
 
 export const AuthRequired: Story = {
   render: () => (
-    <AuthRequiredRouteState
-      ctaLabel="Sign in to sing"
+    <KaraokeAuthRequiredState
+      ctaLabel="Sign in"
       description="This song is available to everyone, but recording a scored take requires an account."
       onConnect={() => {}}
+      onExit={() => {}}
       title="Sign in to sing"
     />
   ),

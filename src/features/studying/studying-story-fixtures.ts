@@ -24,9 +24,9 @@ export const storySayItBackServerExercise: StudyingServerExercise = {
   type: "say_it_back",
   line_index: 0,
   max_attempts: 3,
-  prompt_text: "Sail away with me tonight",
-  reference_text: "Sail away with me tonight",
-  translation_text: "Navigue avec moi ce soir",
+  prompt_text: "Yo no sé por qué te fuiste tan temprano",
+  reference_text: "Yo no sé por qué te fuiste tan temprano",
+  translation_text: "I don't know why you left so early",
 };
 
 export const storyMultipleChoiceServerExercise: StudyingServerExercise = {
@@ -34,12 +34,13 @@ export const storyMultipleChoiceServerExercise: StudyingServerExercise = {
   type: "translation_choice",
   line_index: 1,
   max_attempts: 2,
-  prompt_text: "Under a paper moon",
+  prompt_text: "Yo no sé por qué te fuiste tan temprano",
   question: "What does this line mean?",
   options: [
-    { id: "opt-a", text: "Sous une lune de papier" },
-    { id: "opt-b", text: "Sur une mer de papier" },
-    { id: "opt-c", text: "Sous un soleil de plomb" },
+    { id: "opt-a", text: "I don't know why you left so early" },
+    { id: "opt-b", text: "I know exactly when you arrived" },
+    { id: "opt-c", text: "I never wanted you to stay here" },
+    { id: "opt-d", text: "I don't remember what you told me" },
   ],
 };
 
@@ -114,7 +115,7 @@ export function createFailingClient(message = "Connection lost while loading the
 }
 
 /** Recorder seam that never touches a real microphone. */
-export function createStoryRecorder(transcript = "Sail away with me tonight"): StudyingRecorder {
+export function createStoryRecorder(transcript = "Yo no sé por qué te fuiste tan temprano"): StudyingRecorder {
   return {
     start: async () => {},
     stop: async () => ({ transcript }),

@@ -1,9 +1,9 @@
 import { createEffect, createSignal, Show } from "solid-js";
 
 import {
+  Button,
   CardContent,
   FormNote,
-  IconLock,
   IconMusicNote,
   IconUploadSimple,
   Input,
@@ -11,22 +11,30 @@ import {
   ModalContent,
   ModalHeader,
   ModalTitle,
-  ModalTrigger,
   Textarea,
   Type,
 } from "../../../design-system";
 import { cn } from "../../../design-system";
+import { PostComposerAccessRightsControl } from "./access-rights-control";
+import { PostComposerBasicFields } from "./basic-fields";
 import { PostComposerGenericAssetFields } from "./generic-asset-fields";
 import {
   PostComposerDesktopAttachmentToolbar,
   PostComposerMobileAttachmentBar,
 } from "./attachment-bar";
 import { PostComposerAttachmentCard } from "./attachment-card";
-import { attachmentActions, overflowMobileAttachmentActions, primaryMobileAttachmentActions } from "./defaults";
+import {
+  attachmentActions,
+  overflowMobileAttachmentActions,
+  primaryMobileAttachmentActions,
+  textMobileAttachmentActions,
+} from "./defaults";
 import { PostComposerEventSection } from "./event-section";
+import { PostComposerDerivativeSection } from "./derivative-section";
+import { PostComposerSegmentedControl } from "./segmented-control";
 import { LiveTabContent } from "./live-tab";
-import { PostComposerSettingsHub } from "./settings-hub";
 import { PostComposerPublishControls } from "./publish-controls";
+import { VideoFramePicker } from "./video-frame-picker";
 import { extractEmbeddedAudioArtworkFile, extractEmbeddedAudioTitle } from "./audio-artwork";
 import {
   createKeyboardBottomOffset,
@@ -118,6 +126,7 @@ function attachmentFor(
 export function PostComposerWriteStep(props: {
   controller: PostComposerController;
   initialOpenPanel?: "access-and-rights" | "visibility";
+  structuredLayout?: "text" | "video";
 }) {
   const controller = props.controller;
   const imagePreview = createObjectUrl(() => controller.media.activeImageUpload);
@@ -129,7 +138,6 @@ export function PostComposerWriteStep(props: {
   const attachment = () => attachmentFor(controller, imagePreview(), videoPoster(), videoPreview(), videoAspectRatio(), songArtwork());
   const keyboardOffset = createKeyboardBottomOffset();
   const [activeTool, setActiveTool] = createSignal<ComposerToolbarAction | null>(null);
-  const [accessOpen, setAccessOpen] = createSignal(props.initialOpenPanel === "access-and-rights");
   const [moreOpen, setMoreOpen] = createSignal(false);
   const [dragging, setDragging] = createSignal(false);
   const [songFileError, setSongFileError] = createSignal<string | null>(null);
@@ -140,6 +148,7 @@ export function PostComposerWriteStep(props: {
   let fileInput: HTMLInputElement | undefined;
 
   const showAccessRights = () => ["song", "video", "live"].includes(controller.tabs.activeTab);
+  const structuredLayout = () => props.structuredLayout;
 
   createEffect(
     () => detectedVideoAspectRatio(),
@@ -168,7 +177,13 @@ export function PostComposerWriteStep(props: {
   const removeAttachment = () => {
     const current = attachment();
     if (current?.kind === "image") controller.media.setImageUpload(null);
-    if (current?.kind === "video") controller.media.updateVideoState((state) => ({ ...state, primaryVideoUpload: null, primaryVideoLabel: undefined, primaryVideoAspectRatio: undefined }));
+    if (current?.kind === "video") {
+      controller.media.updateVideoState((state) => ({ ...state, primaryVideoUpload: null, primaryVideoLabel: undefined, primaryVideoAspectRatio: undefined }));
+      if (structuredLayout() === "video") {
+        setActiveTool(null);
+        return;
+      }
+    }
     if (current?.kind === "song") controller.song.update((state) => ({ ...state, primaryAudioUpload: null, primaryAudioLabel: undefined }));
     if (current?.kind === "link") controller.fields.onLinkUrlValueChange?.("");
     if (current?.kind === "file") controller.generic.setFile({ upload: null, label: undefined });
@@ -243,6 +258,100 @@ export function PostComposerWriteStep(props: {
     </>
   );
 
+  const BasicFields = (fieldProps: { idPrefix: string }) => (
+    <PostComposerBasicFields
+      description={bodyValue(controller)}
+      descriptionPlaceholder={controller.copy.placeholders.body}
+      idPrefix={fieldProps.idPrefix}
+      onDescriptionChange={(value) => updateBody(controller, value)}
+      onTitleChange={(value) => updateTitle(controller, value)}
+      title={titleValue(controller)}
+      titlePlaceholder={controller.copy.placeholders.title}
+    />
+  );
+
+  const VideoStructuredBody = () => (
+    <>
+      <section class="space-y-3">
+        <Show
+          when={attachment()?.kind === "video"}
+          fallback={
+            <button
+              class="grid aspect-video w-full cursor-pointer place-items-center rounded-[var(--radius-xl)] border border-dashed border-border-soft bg-card text-muted-foreground outline-none transition-colors hover:border-primary/40 hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring"
+              onClick={() => videoInput?.click()}
+              type="button"
+            >
+              <span class="flex flex-col items-center gap-2">
+                <IconUploadSimple class="size-8" />
+                <Type as="span" variant="body-strong">Choose video</Type>
+              </span>
+            </button>
+          }
+        >
+          <PostComposerAttachmentCard
+            attachment={attachment()}
+            onChange={() => {}}
+            onRemove={removeAttachment}
+            onReplace={() => videoInput?.click()}
+          />
+          <div class="flex min-w-0 items-center justify-between gap-3">
+            <Type as="span" variant="caption" class="min-w-0 truncate text-muted-foreground">
+              {controller.media.videoState.primaryVideoUpload?.name ?? controller.media.videoState.primaryVideoLabel ?? "Video"}
+            </Type>
+            <Button onClick={() => videoInput?.click()} size="sm" variant="outline">Replace</Button>
+          </div>
+        </Show>
+      </section>
+
+      <BasicFields idPrefix="video-post" />
+
+      <section class="space-y-3">
+        <Type as="h2" variant="body-strong">Source</Type>
+        <PostComposerSegmentedControl
+          aria-label="Video source"
+          options={[
+            { label: "Original", value: "original" },
+            { label: "Remix", value: "uses_song" },
+          ]}
+          onChange={(value) => controller.primary.handleVideoSourceModeChange(value === "uses_song" ? "uses_song" : "original")}
+          value={controller.primary.activeVideoSourceMode}
+        />
+        <PostComposerDerivativeSection
+          copy={controller.copy}
+          derivativePickerKey={controller.primary.derivativePickerKey}
+          derivativeSearchResults={controller.primary.derivativeSearchResults}
+          derivativeState={controller.primary.derivativeState}
+          labels={{
+            acceptTermsLabel: "I accept the source song terms.",
+            emptyLabel: "No songs found.",
+            placeholder: "Search songs",
+            searchAriaLabel: "Search songs this video uses",
+            sectionTitle: "Remix source",
+          }}
+          onAdvancePicker={controller.advanceDerivativePicker}
+          updateDerivativeState={controller.primary.updateDerivativeState}
+        />
+      </section>
+
+      <Show when={controller.media.videoState.primaryVideoUpload}>
+        {(file) => (
+          <VideoFramePicker
+            copy={controller.copy}
+            file={file()}
+            frameSeconds={controller.media.videoState.posterFrameSeconds ?? "0"}
+            onFrameSecondsChange={(value) => controller.media.updateVideoState((current) => ({ ...current, posterFrameSeconds: value }))}
+          />
+        )}
+      </Show>
+
+      <PostComposerAccessRightsControl
+        controller={controller}
+        initialOpen={props.initialOpenPanel === "access-and-rights"}
+        presentation="row"
+      />
+    </>
+  );
+
   const body = (mobile: boolean) => (
     <>
       <div class="flex items-start gap-3">
@@ -266,25 +375,10 @@ export function PostComposerWriteStep(props: {
           initialOpen={props.initialOpenPanel === "visibility"}
         />
         <Show when={showAccessRights()}>
-          <Modal open={accessOpen()} onOpenChange={setAccessOpen}>
-            <ModalTrigger
-              aria-label={controller.copy.publishChips.accessRightsTitle}
-              class="inline-flex h-11 items-center gap-2 rounded-full border border-border-soft bg-card px-3.5 text-foreground outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              <IconLock class="size-4" />
-              <Type as="span" variant="label">{controller.copy.publishChips.accessRightsTitle}</Type>
-            </ModalTrigger>
-            <ModalContent
-              class="max-h-[88dvh] overflow-y-auto rounded-t-[var(--radius-3xl)] px-0 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-4 sm:rounded-[var(--radius-xl)] sm:p-0"
-              mobileSide="bottom"
-            >
-              <div aria-hidden="true" class="mx-auto mb-4 h-1 w-12 rounded-full bg-muted sm:hidden" />
-              <ModalHeader class="px-4 pe-12 text-start">
-                <ModalTitle>{controller.copy.publishChips.accessRightsTitle}</ModalTitle>
-              </ModalHeader>
-              <PostComposerSettingsHub controller={controller} />
-            </ModalContent>
-          </Modal>
+          <PostComposerAccessRightsControl
+            controller={controller}
+            initialOpen={props.initialOpenPanel === "access-and-rights"}
+          />
         </Show>
       </div>
       <PostComposerAttachmentCard attachment={attachment()} onChange={(next) => { if (next?.kind === "link") { controller.fields.onLinkUrlValueChange?.(next.url); controller.tabs.onTabChange("link"); } }} onRemove={removeAttachment} onReplace={selectAttachment} />
@@ -330,51 +424,83 @@ export function PostComposerWriteStep(props: {
 
   return (
     <>
-      <Show when={controller.isMobile()} fallback={
-      <CardContent class={cn("relative space-y-5 p-6", dragging() && "overflow-hidden")} onDragEnter={(event) => { event.preventDefault(); dragCounter += 1; setDragging(true); }} onDragOver={(event) => event.preventDefault()} onDragLeave={(event) => { event.preventDefault(); dragCounter -= 1; if (dragCounter <= 0) setDragging(false); }} onDrop={drop}>
-        <Show when={dragging()}><div class="absolute inset-0 z-10 grid place-items-center rounded-[var(--radius-lg)] border-2 border-dashed border-primary bg-primary-subtle/80"><div class="flex flex-col items-center gap-3"><IconUploadSimple class="size-10 text-primary" /><Type as="p" variant="body-strong" class="text-primary">Drop a file to attach it</Type></div></div></Show>
-        {body(false)}
-        <PostComposerDesktopAttachmentToolbar actions={attachmentActions} activeKind={activeTool() ?? attachment()?.kind ?? null} onSelect={selectAttachment} />
-        <Inputs />
-      </CardContent>
-    }>
-      <div class="space-y-4 px-0 pb-24 pt-1" style={{ "padding-bottom": `${96 + keyboardOffset()}px` }}>{body(true)}</div>
-      <Show when={controller.event.state.enabled && controller.tabs.activeTab !== "song" && controller.tabs.activeTab !== "live"}>
-        <div class="flex flex-wrap gap-2 px-1" aria-label="Selected post options">
-          <Type as="span" variant="caption" class="text-muted-foreground">
-            {controller.event.state.isOnline ? "Online event" : "Date and place"}
-          </Type>
-        </div>
-      </Show>
-      <PostComposerMobileAttachmentBar
-        actions={primaryMobileAttachmentActions}
-        activeKind={activeTool() ?? attachment()?.kind ?? null}
-        bottomOffset={keyboardOffset()}
-        onMore={() => setMoreOpen(true)}
-        onSelect={selectAttachment}
-      />
-      <Inputs />
-      <Modal open={moreOpen()} onOpenChange={setMoreOpen}>
-        <ModalContent
-          class="rounded-t-[var(--radius-3xl)] px-0 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-4 sm:rounded-[var(--radius-xl)] sm:p-0"
-          mobileSide="bottom"
-        >
-          <div aria-hidden="true" class="mx-auto mb-4 h-1 w-12 rounded-full bg-muted sm:hidden" />
-          <ModalHeader class="px-4 pe-12 text-start">
-            <ModalTitle>More post attachments</ModalTitle>
-          </ModalHeader>
-          <div class="space-y-2 px-4 pt-5">
-            <PostComposerDesktopAttachmentToolbar
-              actions={overflowMobileAttachmentActions}
+      <Show
+        when={structuredLayout()}
+        fallback={
+          <Show
+            when={controller.isMobile()}
+            fallback={
+              <CardContent class={cn("relative space-y-5 p-6", dragging() && "overflow-hidden")} onDragEnter={(event) => { event.preventDefault(); dragCounter += 1; setDragging(true); }} onDragOver={(event) => event.preventDefault()} onDragLeave={(event) => { event.preventDefault(); dragCounter -= 1; if (dragCounter <= 0) setDragging(false); }} onDrop={drop}>
+                <Show when={dragging()}><div class="absolute inset-0 z-10 grid place-items-center rounded-[var(--radius-lg)] border-2 border-dashed border-primary bg-primary-subtle/80"><div class="flex flex-col items-center gap-3"><IconUploadSimple class="size-10 text-primary" /><Type as="p" variant="body-strong" class="text-primary">Drop a file to attach it</Type></div></div></Show>
+                {body(false)}
+                <PostComposerDesktopAttachmentToolbar actions={attachmentActions} activeKind={activeTool() ?? attachment()?.kind ?? null} onSelect={selectAttachment} />
+                <Inputs />
+              </CardContent>
+            }
+          >
+            <div class="space-y-3 px-0 pb-24 pt-1" style={{ "padding-bottom": `${96 + keyboardOffset()}px` }}>{body(true)}</div>
+            <Show when={controller.event.state.enabled && controller.tabs.activeTab !== "song" && controller.tabs.activeTab !== "live"}>
+              <div class="flex flex-wrap gap-2 px-1" aria-label="Selected post options">
+                <Type as="span" variant="caption" class="text-muted-foreground">
+                  {controller.event.state.isOnline ? "Online event" : "Date and place"}
+                </Type>
+              </div>
+            </Show>
+            <PostComposerMobileAttachmentBar
+              actions={primaryMobileAttachmentActions}
               activeKind={activeTool() ?? attachment()?.kind ?? null}
-              onSelect={(kind) => {
-                setMoreOpen(false);
-                selectAttachment(kind);
-              }}
+              bottomOffset={keyboardOffset()}
+              onMore={() => setMoreOpen(true)}
+              onSelect={selectAttachment}
             />
-          </div>
-        </ModalContent>
-      </Modal>
+            <Inputs />
+            <Modal open={moreOpen()} onOpenChange={setMoreOpen}>
+              <ModalContent
+                class="rounded-t-[var(--radius-3xl)] px-0 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-4 sm:rounded-[var(--radius-xl)] sm:p-0"
+                mobileSide="bottom"
+              >
+                <div aria-hidden="true" class="mx-auto mb-4 h-1 w-12 rounded-full bg-muted sm:hidden" />
+                <ModalHeader class="px-4 pe-12 text-start">
+                  <ModalTitle>More post attachments</ModalTitle>
+                </ModalHeader>
+                <div class="space-y-2 px-4 pt-5">
+                  <PostComposerDesktopAttachmentToolbar
+                    actions={overflowMobileAttachmentActions}
+                    activeKind={activeTool() ?? attachment()?.kind ?? null}
+                    onSelect={(kind) => {
+                      setMoreOpen(false);
+                      selectAttachment(kind);
+                    }}
+                  />
+                </div>
+              </ModalContent>
+            </Modal>
+          </Show>
+        }
+      >
+        {(layout) => (
+          <>
+            <div class="space-y-5 px-6 pb-6 pt-6 sm:py-8">
+              <Show
+                when={layout() === "video"}
+                fallback={
+                  <>
+                    <BasicFields idPrefix="text-post" />
+                    <PostComposerMobileAttachmentBar
+                      actions={textMobileAttachmentActions}
+                      activeKind={activeTool() ?? attachment()?.kind ?? null}
+                      onSelect={selectAttachment}
+                      position="inline"
+                    />
+                  </>
+                }
+              >
+                <VideoStructuredBody />
+              </Show>
+            </div>
+            <Inputs />
+          </>
+        )}
       </Show>
     </>
   );

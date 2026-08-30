@@ -67,8 +67,8 @@ function CreateStory(props: {
 
 const validDraft = () =>
   withDraftDescription(
-    withDraftName(createEmptyDraft(personaId), "Signal Room"),
-    "A room for live signals and quiet listening.",
+    withDraftName(createEmptyDraft(personaId), "Night Shift"),
+    "A late-night space for music, ideas, and people building after dark.",
   );
 
 const meta = {
@@ -99,7 +99,7 @@ export const ValidDraft: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(canvas.getByRole("button", { name: "Create" })).toBeEnabled();
-    await expect(canvas.getByText(/requirements 1/)).toBeInTheDocument();
+    await expect(canvas.getByText("Palm scan")).toBeInTheDocument();
   },
 };
 

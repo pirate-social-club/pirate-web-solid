@@ -266,6 +266,7 @@ export {
   IconSpeakerHigh,
   IconSpeakerSlash,
   IconSquare,
+  IconStop,
   IconTrash,
   IconTrendUp,
   IconUploadSimple,

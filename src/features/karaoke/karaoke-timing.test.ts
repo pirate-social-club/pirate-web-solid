@@ -3,6 +3,7 @@ import { describe, expect, test } from "bun:test";
 import type { KaraokeStageLine } from "./karaoke-lyric-stage";
 import {
   clampKaraokeLinesToDuration,
+  displayLines,
   getLyricDurationMs,
   KARAOKE_LINE_HOLD_MS,
 } from "./karaoke-timing";
@@ -50,5 +51,29 @@ describe("clampKaraokeLinesToDuration", () => {
 
   test("drops lyrics that start after the audio has ended", () => {
     expect(clampKaraokeLinesToDuration([line(6_000, 8_000)], 5_000)).toEqual([]);
+  });
+});
+
+describe("displayLines", () => {
+  const lines = [
+    line(1_000, 4_000),
+    line(5_000, 8_000),
+    line(9_000, 12_000),
+  ];
+
+  test("keeps the active line and immediate next line visible during a line", () => {
+    const visible = displayLines(lines, 2_000);
+
+    expect(visible.activeLine).toBe(lines[0]);
+    expect(visible.cueLine).toBeNull();
+    expect(visible.nextLine).toBe(lines[1]);
+  });
+
+  test("shows only the first cue before playback starts", () => {
+    const visible = displayLines(lines, 0);
+
+    expect(visible.activeLine).toBeNull();
+    expect(visible.cueLine).toBe(lines[0]);
+    expect(visible.nextLine).toBeNull();
   });
 });

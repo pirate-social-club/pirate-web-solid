@@ -5,12 +5,19 @@ import { PostComposerIdentityControl } from "./identity-control";
 import { PostComposerRequiredSheet } from "./required-post-sheet";
 import { PublishButton } from "./submit-actions";
 import { createPostComposerController } from "./controller";
+import { PostComposerFormShell } from "./form-shell";
+import { SongUploadFlow } from "./song-upload-flow";
 import type { PostComposerProps } from "./types";
 import { PostComposerWriteStep } from "./write-step";
 
 export function PostComposer(props: PostComposerProps) {
   const controller = createPostComposerController(props, { isMobile: createIsMobile() });
   const [requiredSheetOpen, setRequiredSheetOpen] = createSignal(false);
+  const structuredMode = () => {
+    if (props.presentation === "embedded") return null;
+    const mode = controller.tabs.activeTab;
+    return mode === "text" || mode === "video" || mode === "song" ? mode : null;
+  };
 
   const requestPost = () => {
     if (controller.requirements.requiresPostSheet) {
@@ -21,33 +28,66 @@ export function PostComposer(props: PostComposerProps) {
   };
 
   return (
-    <div class={cn("w-full space-y-3 pt-2", controller.isMobile() && "space-y-2 pt-0")}>
-      <header class="flex min-h-12 items-center gap-2 px-1">
-        <IconButton
-          aria-label="Close composer"
-          onClick={() => props.onClose?.()}
-          variant="ghost"
-        >
-          <IconX class="size-5" />
-        </IconButton>
-        <Show when={controller.identity.identity?.visible !== false}>
-          <PostComposerIdentityControl class="max-w-[min(15rem,calc(100vw-9rem))]" controller={controller} />
-        </Show>
-        <PublishButton
-          class="h-11 min-w-0 px-4"
-          compact={controller.isMobile()}
-          controller={controller}
-          label={controller.submit.label}
-          onClick={requestPost}
-        />
-      </header>
+    <>
+      <Show
+        when={structuredMode()}
+        fallback={
+          <div class={cn("w-full space-y-3 pt-2", controller.isMobile() && "space-y-2 pt-0")}>
+            <header class="flex min-h-12 items-center gap-2 px-1">
+              <IconButton
+                aria-label="Close composer"
+                onClick={() => props.onClose?.()}
+                variant="ghost"
+              >
+                <IconX class="size-5" />
+              </IconButton>
+              <Show when={controller.identity.identity?.visible !== false}>
+                <PostComposerIdentityControl class="max-w-[min(15rem,calc(100vw-9rem))]" controller={controller} />
+              </Show>
+              <PublishButton
+                class="h-11 min-w-0 px-4"
+                compact={controller.isMobile()}
+                controller={controller}
+                label={controller.submit.label}
+                onClick={requestPost}
+              />
+            </header>
 
-      <Show when={controller.isMobile()} fallback={
-        <Card class="overflow-hidden bg-card shadow-none">
-          <PostComposerWriteStep controller={controller} initialOpenPanel={props.initialOpenPanel} />
-        </Card>
-      }>
-        <PostComposerWriteStep controller={controller} initialOpenPanel={props.initialOpenPanel} />
+            <Show when={controller.isMobile()} fallback={
+              <Card class="overflow-hidden bg-card shadow-none">
+                <PostComposerWriteStep controller={controller} initialOpenPanel={props.initialOpenPanel} />
+              </Card>
+            }>
+              <PostComposerWriteStep controller={controller} initialOpenPanel={props.initialOpenPanel} />
+            </Show>
+          </div>
+        }
+      >
+        {(mode) => (
+          <Show
+            when={mode() === "song"}
+            fallback={
+              <PostComposerFormShell
+                controller={controller}
+                onClose={() => props.onClose?.()}
+                onSubmit={requestPost}
+              >
+                <PostComposerWriteStep
+                  controller={controller}
+                  initialOpenPanel={props.initialOpenPanel}
+                  structuredLayout={mode() === "video" ? "video" : "text"}
+                />
+              </PostComposerFormShell>
+            }
+          >
+            <SongUploadFlow
+              controller={controller}
+              initialStep={props.initialSongStep}
+              onClose={() => props.onClose?.()}
+              onSubmit={requestPost}
+            />
+          </Show>
+        )}
       </Show>
 
       <PostComposerRequiredSheet
@@ -55,6 +95,6 @@ export function PostComposer(props: PostComposerProps) {
         onOpenChange={setRequiredSheetOpen}
         open={requiredSheetOpen()}
       />
-    </div>
+    </>
   );
 }

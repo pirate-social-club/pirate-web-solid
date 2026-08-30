@@ -132,7 +132,7 @@ function VideoAttachmentPreview(props: {
         type="button"
       >
         <span class="grid size-14 place-items-center rounded-full bg-background/85 text-foreground shadow-sm backdrop-blur">
-          <Show when={isPlaying()} fallback={<IconPlay class="ms-1 size-7" />}>
+          <Show when={isPlaying()} fallback={<IconPlay class="ms-1 size-7" filled />}>
             <IconPause class="size-7" />
           </Show>
         </span>

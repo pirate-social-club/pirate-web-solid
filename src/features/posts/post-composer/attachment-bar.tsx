@@ -46,19 +46,26 @@ export function PostComposerMobileAttachmentBar(props: {
   onMore?: () => void;
   onSelect: (kind: ComposerToolbarAction) => void;
   bottomOffset?: number;
+  position?: "fixed" | "inline";
 }) {
+  const inline = () => props.position === "inline";
   const Bar = () => (
     <div
-      class="fixed inset-x-0 z-30 border-t border-border-soft bg-background/95 px-5 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl"
-      style={{ bottom: `${props.bottomOffset ?? 0}px` }}
+      class={cn(
+        inline()
+          ? "w-full"
+          : "fixed inset-x-0 z-30 border-t border-border-soft bg-background/95 px-5 pb-[env(safe-area-inset-bottom)] backdrop-blur-xl",
+      )}
+      style={inline() ? undefined : { bottom: `${props.bottomOffset ?? 0}px` }}
     >
-      <div class="flex items-center justify-between py-3">
+      <div class={cn("flex items-center", inline() ? "justify-start gap-2.5 py-1" : "justify-between py-3")}>
         <For each={props.actions}>
           {(action) => (
             <button
               aria-label={action.ariaLabel ?? action.label}
               class={cn(
-                "grid size-11 cursor-pointer place-items-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                "grid cursor-pointer place-items-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                inline() ? "size-10 border border-border-soft bg-card" : "size-11",
                 props.activeKind === action.kind && "bg-muted text-foreground",
               )}
               onClick={() => props.onSelect(action.kind)}
@@ -68,7 +75,7 @@ export function PostComposerMobileAttachmentBar(props: {
             </button>
           )}
         </For>
-        <Show when={props.onMore}>
+        <Show when={props.onMore && !inline()}>
           <button
             aria-label="More post attachments"
             class="grid size-11 cursor-pointer place-items-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
@@ -82,7 +89,7 @@ export function PostComposerMobileAttachmentBar(props: {
     </div>
   );
 
-  if (typeof document === "undefined") return <Bar />;
+  if (inline() || typeof document === "undefined") return <Bar />;
 
   return <Portal><Bar /></Portal>;
 }
