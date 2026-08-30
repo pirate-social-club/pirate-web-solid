@@ -298,7 +298,7 @@ describe("footer derivation", () => {
   });
 
   test("per-appearance retry cap and percent clamp stay honest", () => {
-    expect(STUDY_MAX_ATTEMPTS_PER_APPEARANCE).toBe(2);
+    expect(STUDY_MAX_ATTEMPTS_PER_APPEARANCE).toBe(3);
     expect(clampPercent(120)).toBe(100);
     expect(clampPercent(-3)).toBe(0);
     expect(clampPercent(74.6)).toBe(75);

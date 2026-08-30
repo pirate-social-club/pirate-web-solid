@@ -1,11 +1,11 @@
 /** @jsxImportSource @solidjs/web */
 
-import { For, Show, createSignal, createUniqueId } from "solid-js";
+import type { JSX } from "@solidjs/web";
+import { Show, createSignal, createUniqueId } from "solid-js";
 
 import {
   ActionFooterShell,
   Button,
-  CheckboxCard,
   IconHandPalm,
   IconButton,
   IconX,
@@ -22,11 +22,7 @@ import {
 import { getLocaleMessages } from "../../../locales";
 import { useUiLocale } from "../../../lib/ui-locale";
 import {
-  hasRequirement,
-  requirementsEqual,
   validateDraft,
-  type AdditionalGateOption,
-  type AdditionalGateRequirement,
   type CreateCommunityCopy,
   type CreateCommunityDraft,
 } from "./create-community-model";
@@ -43,6 +39,9 @@ export interface CreateCommunityProps {
   onDraftChange?: (patch: Partial<CreateCommunityDraft>) => void;
   onSubmit?: () => void;
   onClose?: () => void;
+  personaControl?: JSX.Element;
+  /** Keep false in production until the community API can persist these assets. */
+  showMediaFields?: boolean;
   submitting?: boolean;
   forceMobile?: boolean;
 }
@@ -93,29 +92,33 @@ export function CreateCommunityView(props: CreateCommunityProps) {
           </div>
         }
       >
-        <MediaUploadField
-          chooseLabel={copy().coverChoose}
-          clearLabel={copy().removeImage}
-          hideLabel
-          label={copy().coverLabel}
-          onChange={props.onCoverChange}
-          onClear={() => props.onCoverChange?.(null)}
-          previewSrc={props.coverSrc}
-          replaceLabel={copy().coverReplace}
-          frame="banner"
-        />
+        <Show when={props.showMediaFields !== false}>
+          <MediaUploadField
+            chooseLabel={copy().coverChoose}
+            clearLabel={copy().removeImage}
+            hideLabel
+            label={copy().coverLabel}
+            onChange={props.onCoverChange}
+            onClear={() => props.onCoverChange?.(null)}
+            previewSrc={props.coverSrc}
+            replaceLabel={copy().coverReplace}
+            frame="banner"
+          />
 
-        <MediaUploadField
-          chooseLabel={copy().avatarChoose}
-          clearLabel={copy().removeImage}
-          fallbackLabel={initialsOf(props.draft.name)}
-          label={copy().avatarLabel}
-          onChange={props.onAvatarChange}
-          onClear={() => props.onAvatarChange?.(null)}
-          previewSrc={props.avatarSrc}
-          replaceLabel={copy().avatarReplace}
-          frame="circle"
-        />
+          <MediaUploadField
+            chooseLabel={copy().avatarChoose}
+            clearLabel={copy().removeImage}
+            fallbackLabel={initialsOf(props.draft.name)}
+            label={copy().avatarLabel}
+            onChange={props.onAvatarChange}
+            onClear={() => props.onAvatarChange?.(null)}
+            previewSrc={props.avatarSrc}
+            replaceLabel={copy().avatarReplace}
+            frame="circle"
+          />
+        </Show>
+
+        {props.personaControl}
 
         {/* Kobalte's TextField exposes no blur hook, so the wrapper marks the
             field touched when focus leaves it. */}

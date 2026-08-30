@@ -16,4 +16,15 @@ describe("community file-route structure", () => {
       { path: "/c/:path_segment/names", children: undefined },
     ]);
   });
+
+  test("exposes Study beside Karaoke on a song post", async () => {
+    const router = new PageFileSystemRouter({
+      dir: resolve("src/routes"),
+      extensions: ["js", "jsx", "ts", "tsx"],
+    });
+    const paths = buildRouteTree(await router.getRoutes()).map(route => route.path);
+
+    expect(paths).toContain("/p/:postId/karaoke/");
+    expect(paths).toContain("/p/:postId/study/");
+  });
 });

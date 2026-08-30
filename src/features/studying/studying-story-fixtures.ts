@@ -115,9 +115,13 @@ export function createFailingClient(message = "Connection lost while loading the
 }
 
 /** Recorder seam that never touches a real microphone. */
-export function createStoryRecorder(transcript = "Yo no sé por qué te fuiste tan temprano"): StudyingRecorder {
+export function createStoryRecorder(): StudyingRecorder {
   return {
     start: async () => {},
-    stop: async () => ({ transcript }),
+    stop: async () => ({
+      audio: new Blob([new Uint8Array([1, 2, 3])], { type: "audio/webm" }),
+      contentType: "audio/webm",
+      durationMs: 1_000,
+    }),
   };
 }

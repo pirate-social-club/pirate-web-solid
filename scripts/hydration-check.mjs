@@ -60,12 +60,10 @@ try {
 
   const signInButton = page.getByRole("button", { name: "Sign in" }).first();
   await signInButton.click();
-  const signInDialog = page.getByRole("dialog");
+  const signInDialog = page.getByRole("dialog", { name: "Join Pirate" });
   await signInDialog.waitFor({ state: "visible" });
-  if (await signInDialog.getByRole("heading", { name: "Sign in to Pirate" }).count() !== 1) {
-    throw new Error("Sign-in dialog did not render after hydration");
-  }
-  await signInDialog.getByRole("button", { name: "Close" }).click();
+  await signInDialog.getByRole("heading", { name: "Join Pirate" }).waitFor({ state: "visible" });
+  await page.keyboard.press("Escape");
   await signInDialog.waitFor({ state: "hidden" });
 
   const displayName = page.locator("#hydration-display-name");

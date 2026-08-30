@@ -10,6 +10,7 @@ import type {
 
 export interface StudyingLessonPayload {
   post_id: string;
+  correct_count?: number;
   title?: string;
   artwork_src?: string;
   locked?: boolean;
@@ -22,25 +23,38 @@ export interface StudyingLessonPayload {
   exercises: StudyingServerExercise[];
 }
 
-export interface StudyingAttemptInput {
+interface StudyingAttemptBase {
   attempt_number: number;
   exercise_id: string;
   idempotency_key: string;
-  selected_option_id?: string;
   session_id?: string;
-  transcript?: string;
-  type: "say_it_back" | "translation_choice";
 }
+
+export type StudyingAttemptInput =
+  | StudyingAttemptBase & {
+      audio: Blob;
+      audio_duration_ms: number;
+      content_type: "audio/webm" | "audio/ogg" | "audio/mp4" | "audio/wav";
+      type: "say_it_back";
+    }
+  | StudyingAttemptBase & {
+      selected_option_id: string;
+      type: "translation_choice";
+    };
 
 export interface StudyingClient {
   loadLesson: (postId: string, signal?: AbortSignal) => Promise<StudyingLessonPayload>;
   submitAttempt: (input: StudyingAttemptInput) => Promise<StudyingAttemptResult>;
 }
 
-/** Microphone seam: start capture, stop and hand back what was heard. */
+/** Microphone seam: start capture, then return the exact bounded audio bytes. */
 export interface StudyingRecorder {
   start: () => Promise<void>;
-  stop: () => Promise<{ transcript?: string }>;
+  stop: () => Promise<{
+    audio: Blob;
+    contentType: "audio/webm" | "audio/ogg" | "audio/mp4" | "audio/wav";
+    durationMs: number;
+  }>;
 }
 
 /** Rejection contract every studying client/recorder promise settles with. */

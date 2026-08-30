@@ -1,5 +1,14 @@
-import { RoutePlaceholder } from "../features/shell/route-placeholder.tsx";
+import { useNavigate, useSearchParams } from "@solidjs/router";
+import { CommunityCreationRouteView } from "../features/community/community-creation-route-view";
 
 export default function CommunitiesRoute() {
-  return <RoutePlaceholder activeItemId="communities" description="Find communities and follow the conversations that matter to you." path="/communities" title="Communities" />;
+  const navigate = useNavigate();
+  const [search] = useSearchParams();
+  const intentId = () => typeof search.intent_id === "string" ? search.intent_id : undefined;
+  return (
+    <CommunityCreationRouteView
+      intentId={intentId()}
+      navigate={(href, options) => navigate(href, options)}
+    />
+  );
 }

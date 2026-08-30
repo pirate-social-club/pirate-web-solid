@@ -101,11 +101,11 @@ try {
   const sessionResponse = await page.goto(`${base}/p/pst_test/karaoke`, { waitUntil: "networkidle" });
   if (!sessionResponse?.ok()) throw new Error(`session route returned ${sessionResponse?.status()}`);
   await page.waitForTimeout(1000);
-  if (await page.locator('section[aria-label="Hydration Song"]').count() === 0) {
+  if (await page.getByRole("heading", { name: "Hydration Song", level: 1 }).count() === 0) {
     throw new Error(`session did not load; requests=${requests.join(",")}; errors=${errors.join(" | ")}; body=${(await page.locator("body").innerText()).slice(0, 300)}`);
   }
   if (await page.title() !== "Hydration Song · Karaoke") throw new Error(`session title did not hydrate; title=${await page.title()}`);
-  await page.locator('section[aria-label="Hydration Song"]').waitFor();
+  await page.getByRole("heading", { name: "Hydration Song", level: 1 }).waitFor();
   if (await page.getByLabel("Sing it back").count() === 0) throw new Error("session lyrics did not hydrate");
 
   const leaderboardResponse = await page.goto(`${base}/p/pst_test/karaoke/leaderboard`, { waitUntil: "networkidle" });

@@ -85,6 +85,19 @@ describe("PublicFeed", () => {
     expect(container.textContent).toContain("No public posts are available yet.");
   });
 
+  test("links a published song to the production Study and Karaoke routes", async () => {
+    const item = page.items[0]!;
+    const songPage: PublicFeedPage = {
+      ...page,
+      items: [{ ...item, id: "post/song-1", postType: "song" }],
+    };
+    const container = render(() => <PublicFeed data={songPage} />);
+
+    await vi.waitFor(() => expect(container.querySelector("[aria-label='Song activities']")).not.toBeNull());
+    expect(container.querySelector("a[href='/p/post%2Fsong-1/study']")?.textContent).toContain("Study");
+    expect(container.querySelector("a[href='/p/post%2Fsong-1/karaoke']")?.textContent).toContain("Karaoke");
+  });
+
   test("renders an explicit unavailable state when the feed request fails", async () => {
     let rejectData: (reason: unknown) => void = () => undefined;
     const data = new Promise<FeedPage>((_, reject) => { rejectData = reject; });

@@ -99,6 +99,7 @@ export interface StudyingServerExercise {
 export interface StudyingAttemptResult {
   attempts_remaining?: number;
   correct_option_id?: string;
+  heard_transcript?: string;
   outcome?: "correct" | "incorrect";
   session?: {
     first_pass_correct_count?: number;
@@ -132,7 +133,7 @@ export interface StudyingLessonState {
  * spent in one sitting, so a miss returns for later review rather than
  * trapping the learner on a single line.
  */
-export const STUDY_MAX_ATTEMPTS_PER_APPEARANCE = 2;
+export const STUDY_MAX_ATTEMPTS_PER_APPEARANCE = 3;
 
 // A rejected attempt with one of these statuses means our cached view of the
 // session diverged from the server's: the card is spent, it is already

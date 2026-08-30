@@ -74,7 +74,7 @@ function LoadedStudyingLesson(props: StudyingRouteViewProps & {
 }) {
   const initialQueue = () => props.payload.exercises.map((_, index) => index);
   const [lesson, setLesson] = createSignal<StudyingLessonState>({
-    correctCount: 0,
+    correctCount: props.payload.correct_count ?? 0,
     exerciseQueue: initialQueue(),
     exercises: props.payload.exercises,
     presentationCounts: {},
@@ -82,7 +82,10 @@ function LoadedStudyingLesson(props: StudyingRouteViewProps & {
     servedCount: props.payload.served_count,
     surface: props.payload.exercises.length > 0
       ? exerciseSurface(props.payload.exercises[0]!)
-      : completeSurface({ correctCount: 0, totalCount: 0 }),
+      : completeSurface({
+          correctCount: props.payload.correct_count ?? 0,
+          totalCount: props.payload.served_count ?? 0,
+        }),
   });
   let divergenceRecoveries = 0;
   const idempotencyKeys = new Map<string, string>();
@@ -151,7 +154,10 @@ function LoadedStudyingLesson(props: StudyingRouteViewProps & {
                 ...surface.exercise,
                 correctOptionId: result.correct_option_id ?? surface.exercise.correctOptionId,
               },
-              canRetry: false,
+              attemptNumber: result.outcome === "incorrect" && (result.attempts_remaining ?? 0) > 0
+                ? surface.attemptNumber + 1
+                : surface.attemptNumber,
+              canRetry: result.outcome === "incorrect" && (result.attempts_remaining ?? 0) > 0,
               result: result.outcome === "correct" ? "correct" as const : "wrong" as const,
               submitting: false,
             },
@@ -171,8 +177,9 @@ function LoadedStudyingLesson(props: StudyingRouteViewProps & {
           lastAttemptResult: result,
           surface: {
             ...surface,
+            attemptNumber: spent ? surface.attemptNumber : surface.attemptNumber + 1,
             attemptsThisAppearance,
-            heardTranscript: input.transcript,
+            heardTranscript: result.heard_transcript,
             phase: "wrong" as const,
             revealReference: spent,
             willReturn: spent && current.exerciseQueue.length > 1,
@@ -230,6 +237,18 @@ function LoadedStudyingLesson(props: StudyingRouteViewProps & {
 
     if (surface.kind === "multiple_choice") {
       if (surface.result) {
+        if (surface.result === "wrong" && surface.canRetry) {
+          updateMultipleChoice(surface.exercise.id, (latest, current) => ({
+            ...current,
+            surface: {
+              ...latest,
+              canRetry: false,
+              result: undefined,
+              selectedOptionId: undefined,
+            },
+          }));
+          return;
+        }
         setLesson((current) => advanceLesson(current, surface.result!));
         return;
       }
@@ -292,13 +311,15 @@ function LoadedStudyingLesson(props: StudyingRouteViewProps & {
         ...current,
         surface: { ...latest, phase: "checking" as const },
       }));
-      void recorder.stop().then(({ transcript }) => {
+      void recorder.stop().then(({ audio, contentType, durationMs }) => {
         submitAttempt({
+          audio,
+          audio_duration_ms: durationMs,
           attempt_number: card.attemptNumber,
+          content_type: contentType,
           exercise_id: card.exercise.id,
           idempotency_key: attemptIdempotencyKey(card.exercise.id, card.attemptNumber),
           session_id: props.payload.session_id,
-          transcript,
           type: "say_it_back",
         });
       }).catch((rejection: StudyingAttemptRejection) => {

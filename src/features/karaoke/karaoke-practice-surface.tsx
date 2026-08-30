@@ -77,6 +77,7 @@ export function KaraokePracticeSurface(props: KaraokePracticeSurfaceProps) {
 
   return (
     <section aria-label={props.title} class="flex h-dvh w-full flex-col overflow-hidden bg-background text-foreground">
+      <h1 class="sr-only">{props.title}</h1>
       <ActivityProgressHeader
         exitLabel="Exit karaoke"
         onExit={props.onExit}

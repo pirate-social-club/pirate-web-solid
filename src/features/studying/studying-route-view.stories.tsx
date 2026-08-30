@@ -59,7 +59,7 @@ export const MissedAttempts: Story = {
       client={createStoryLessonClient({ submitAttempt: async (input) => storyWrongAttempt(input) })}
       onExit={noop}
       postId={storyPostId}
-      recorder={createStoryRecorder("Sail the way with me tonight")}
+      recorder={createStoryRecorder()}
       scheduleAdvance={immediateAdvance}
     />
   ),

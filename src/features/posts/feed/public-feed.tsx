@@ -4,7 +4,7 @@ import { Show, For, getRequestEvent } from "@solidjs/web";
 import { createEffect, createSignal, onCleanup, untrack } from "solid-js";
 
 import { createPublicApiClient } from "../../../api/client.ts";
-import { Button, Card, CardContent, Spinner, Type } from "../../../design-system";
+import { Button, Card, CardContent, Spinner, Type, buttonVariants } from "../../../design-system";
 import { resolveRequestUiLocale, type UiLocaleCode } from "../../../lib/ui-locale-core.ts";
 import type { FeedSort } from "./feed-model.ts";
 import type { PostEngagementTransport } from "../post-engagement/post-engagement-api.ts";
@@ -173,6 +173,22 @@ function FeedItemCard(props: {
             <Type variant="caption">{props.item.commentCount === null ? "Comments unavailable" : `${props.item.commentCount} comments`}</Type>
             <Type variant="caption">{props.item.postType}</Type>
           </div>
+          <Show when={props.item.postType === "song" && props.item.status === "published"}>
+            <nav aria-label="Song activities" class="flex flex-wrap gap-3">
+              <a
+                class={buttonVariants({ variant: "secondary" })}
+                href={`/p/${encodeURIComponent(props.item.id)}/study`}
+              >
+                Study
+              </a>
+              <a
+                class={buttonVariants({ variant: "secondary" })}
+                href={`/p/${encodeURIComponent(props.item.id)}/karaoke`}
+              >
+                Karaoke
+              </a>
+            </nav>
+          </Show>
           {controls}
         </CardContent>
       </Card>

@@ -1,4 +1,5 @@
 import { Show, createSignal, onCleanup } from "solid-js";
+import { getRequestEvent } from "@solidjs/web";
 
 import {
   Button,
@@ -18,7 +19,7 @@ import {
   type VeryWebPresentation,
 } from "../../api/very.ts";
 
-type Phase = "idle" | "starting" | "waiting" | "ready" | "polling" | "joining" | "joined" | "error";
+type Phase = "idle" | "starting" | "waiting" | "ready" | "polling" | "joining" | "joined" | "verified" | "error";
 
 type VeryWidget = Readonly<{
   open?: () => void;
@@ -69,10 +70,25 @@ function safeMessage(error: unknown): string {
   return "Very verification failed safely. Please retry.";
 }
 
+function routeUrl(): URL | undefined {
+  const event = getRequestEvent();
+  if (event) return new URL(event.request.url);
+  return typeof window === "undefined" ? undefined : new URL(window.location.href);
+}
+
 function initialCommunityId(): string {
-  if (typeof window === "undefined") return "";
-  const params = new URL(window.location.href).searchParams;
+  const params = routeUrl()?.searchParams;
+  if (!params) return "";
   return params.get("community_id") ?? params.get("communityId") ?? "";
+}
+
+function initialIntentId(): string {
+  return routeUrl()?.searchParams.get("intent_id")?.trim() ?? "";
+}
+
+function initialReturnTo(): string {
+  const value = routeUrl()?.searchParams.get("return_to") ?? "/";
+  return value.startsWith("/") && !value.startsWith("//") ? value : "/";
 }
 
 function mobileRuntime(): boolean {
@@ -81,6 +97,8 @@ function mobileRuntime(): boolean {
 
 export default function VeryVerificationRoute(props: Readonly<{ loadWidget?: VeryWidgetLoader }> = {}) {
   const [communityId, setCommunityId] = createSignal(initialCommunityId());
+  const ceremonyIntentId = initialIntentId();
+  const returnTo = initialReturnTo();
   const [phase, setPhase] = createSignal<Phase>("idle");
   const [message, setMessage] = createSignal("");
   const [qr, setQr] = createSignal("");
@@ -96,8 +114,10 @@ export default function VeryVerificationRoute(props: Readonly<{ loadWidget?: Ver
   let operationEpoch = 0;
   let pollingEpoch: number | undefined;
 
-  function operationIsCurrent(epoch: number, targetCommunityId: string): boolean {
-    return active && operationEpoch === epoch && communityId().trim() === targetCommunityId;
+  const operationTarget = () => ceremonyIntentId || communityId().trim();
+
+  function operationIsCurrent(epoch: number, target: string): boolean {
+    return active && operationEpoch === epoch && operationTarget() === target;
   }
 
   async function joinResolvedCommunity(targetCommunityId: string, epoch: number) {
@@ -108,6 +128,17 @@ export default function VeryVerificationRoute(props: Readonly<{ loadWidget?: Ver
     setJoinedCommunityId(joined.communityId);
     setMessage("");
     setPhase("joined");
+  }
+
+  async function finishVerification(result: VeryWebCompletion, target: string, epoch: number) {
+    if (!operationIsCurrent(epoch, target)) return;
+    setCompletion(result);
+    if (ceremonyIntentId) {
+      setMessage("");
+      setPhase("verified");
+      return;
+    }
+    await joinResolvedCommunity(target, epoch);
   }
 
   function cleanupWidget() {
@@ -139,8 +170,7 @@ export default function VeryVerificationRoute(props: Readonly<{ loadWidget?: Ver
     try {
       const result = await currentCeremony.completeWithWidget(providerPayloadRef);
       if (!operationIsCurrent(epoch, targetCommunityId) || ceremony !== currentCeremony) return;
-      setCompletion(result);
-      await joinResolvedCommunity(targetCommunityId, epoch);
+      await finishVerification(result, targetCommunityId, epoch);
     } catch (error) {
       if (!operationIsCurrent(epoch, targetCommunityId) || ceremony !== currentCeremony) return;
       setMessage(safeMessage(error));
@@ -215,7 +245,7 @@ export default function VeryVerificationRoute(props: Readonly<{ loadWidget?: Ver
   }
 
   async function startVery() {
-    const value = communityId().trim();
+    const value = operationTarget();
     if (value === "") {
       setMessage("Enter the gated community ID.");
       setPhase("error");
@@ -234,34 +264,37 @@ export default function VeryVerificationRoute(props: Readonly<{ loadWidget?: Ver
     setPresentation(undefined);
     setPhase("starting");
     try {
-      let action = await resolveVeryCommunityAction({ communityId: value });
-      while (operationIsCurrent(epoch, value) && action.kind === "wait") {
-        const retryAfterMs = action.retryAfterMs;
-        setPhase("waiting");
-        await new Promise<void>((resolve) => window.setTimeout(resolve, retryAfterMs));
+      let resolvedIntentId = ceremonyIntentId;
+      if (!resolvedIntentId) {
+        let action = await resolveVeryCommunityAction({ communityId: value });
+        while (operationIsCurrent(epoch, value) && action.kind === "wait") {
+          const retryAfterMs = action.retryAfterMs;
+          setPhase("waiting");
+          await new Promise<void>((resolve) => window.setTimeout(resolve, retryAfterMs));
+          if (!operationIsCurrent(epoch, value)) return;
+          action = await resolveVeryCommunityAction({ communityId: value });
+        }
         if (!operationIsCurrent(epoch, value)) return;
-        action = await resolveVeryCommunityAction({ communityId: value });
+        if (action.kind === "joined") {
+          setJoinedCommunityId(value);
+          setPhase("joined");
+          return;
+        }
+        if (action.kind === "join") {
+          await joinResolvedCommunity(value, epoch);
+          return;
+        }
+        if (action.kind !== "verify") throw new VeryWebClientError("join_not_ready");
+        resolvedIntentId = action.intentId;
       }
-      if (!operationIsCurrent(epoch, value)) return;
-      if (action.kind === "joined") {
-        setJoinedCommunityId(value);
-        setPhase("joined");
-        return;
-      }
-      if (action.kind === "join") {
-        await joinResolvedCommunity(value, epoch);
-        return;
-      }
-      if (action.kind !== "verify") throw new VeryWebClientError("join_not_ready");
-      const created = await createVeryWebCeremony({ intentId: action.intentId });
+      const created = await createVeryWebCeremony({ intentId: resolvedIntentId });
       if (!operationIsCurrent(epoch, value)) {
         created.cancel();
         return;
       }
       ceremony = created;
       if (created.initialCompletion !== undefined) {
-        setCompletion(created.initialCompletion);
-        await joinResolvedCommunity(value, epoch);
+        await finishVerification(created.initialCompletion, value, epoch);
         return;
       }
       if (created.presentation === undefined) throw new VeryWebClientError("invalid_presentation");
@@ -293,7 +326,7 @@ export default function VeryVerificationRoute(props: Readonly<{ loadWidget?: Ver
     if (pollingEpoch === operationEpoch || ceremony === undefined) return;
     const currentCeremony = ceremony;
     const epoch = operationEpoch;
-    const targetCommunityId = communityId().trim();
+    const targetCommunityId = operationTarget();
     pollingEpoch = epoch;
     setPhase("polling");
     setMessage("");
@@ -302,8 +335,7 @@ export default function VeryVerificationRoute(props: Readonly<{ loadWidget?: Ver
         try {
           const result = await currentCeremony.pollBridge();
           if (!operationIsCurrent(epoch, targetCommunityId) || ceremony !== currentCeremony) return;
-          setCompletion(result);
-          await joinResolvedCommunity(targetCommunityId, epoch);
+          await finishVerification(result, targetCommunityId, epoch);
           return;
         } catch (error) {
           if (!operationIsCurrent(epoch, targetCommunityId) || ceremony !== currentCeremony) return;
@@ -349,21 +381,25 @@ export default function VeryVerificationRoute(props: Readonly<{ loadWidget?: Ver
       <p>Scan the QR code with the Very app on desktop, or open it directly on your phone.</p>
 
       <Show when={phase() === "idle" || phase() === "error"}>
-        <TextField name="community-id" value={communityId()} onChange={setCommunityId}>
-          <TextFieldLabel>Gated community ID</TextFieldLabel>
-          <TextFieldInput autocomplete="off" />
-          <TextFieldDescription>
-            Use the community ID from the gated-community join link. The server
-            resolves the one-time verification intent for you.
-          </TextFieldDescription>
-        </TextField>
+        <Show when={!ceremonyIntentId}>
+          <TextField name="community-id" value={communityId()} onChange={setCommunityId}>
+            <TextFieldLabel>Gated community ID</TextFieldLabel>
+            <TextFieldInput autocomplete="off" />
+            <TextFieldDescription>
+              Use the community ID from the gated-community join link. The server
+              resolves the one-time verification intent for you.
+            </TextFieldDescription>
+          </TextField>
+        </Show>
         <Button type="button" disabled={busy()} onClick={() => void startVery()}>
           {busy() ? "Starting…" : "Start palm verification"}
         </Button>
       </Show>
 
       <Show when={phase() === "starting"}>
-        <p role="status">Checking the gated-community join requirements…</p>
+        <p role="status">
+          {ceremonyIntentId ? "Starting palm verification…" : "Checking the gated-community join requirements…"}
+        </p>
       </Show>
 
       <Show when={phase() === "waiting"}>
@@ -415,6 +451,17 @@ export default function VeryVerificationRoute(props: Readonly<{ loadWidget?: Ver
             <p class="break-all text-sm">Proof session: {completion()?.proofSessionId}</p>
           </Show>
           <Button type="button" onClick={reset}>Start another ceremony</Button>
+        </section>
+      </Show>
+
+      <Show when={phase() === "verified"}>
+        <section aria-label="Verification complete" role="status" class="flex flex-col gap-3">
+          <h2 class="text-xl font-semibold">Verification complete</h2>
+          <p>Your Very proof was accepted. Continue to finish the pending action.</p>
+          <Show when={completion() !== undefined}>
+            <p class="break-all text-sm">Proof session: {completion()?.proofSessionId}</p>
+          </Show>
+          <Button type="button" onClick={() => window.location.assign(returnTo)}>Continue</Button>
         </section>
       </Show>
 

@@ -96,6 +96,36 @@ describe("Very verification route", () => {
     expect(container.textContent).toContain("Start palm verification");
   });
 
+  it("uses a reserved creation intent directly and returns without joining", async () => {
+    window.history.replaceState(
+      null,
+      "",
+      "/verify/very?intent_id=creation-ceremony-1&return_to=%2Fcommunities%3Fintent_id%3Dcreation-1",
+    );
+    const createCeremony = vi.spyOn(veryApi, "createVeryWebCeremony").mockResolvedValue({
+      cancel: vi.fn(),
+      completeWithWidget: vi.fn(),
+      initialCompletion: {
+        proofSessionId: "proof-session-1",
+        replayed: true,
+        status: "completed",
+      },
+      pollBridge: vi.fn(),
+      presentation: undefined,
+      proofSessionId: "proof-session-1",
+    });
+
+    const container = render(() => <VeryVerificationRoute />);
+    expect(container.textContent).not.toContain("Gated community ID");
+    container.querySelector("button")?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+    await vi.waitFor(() => expect(container.textContent).toContain("Verification complete"));
+    expect(createCeremony).toHaveBeenCalledWith({ intentId: "creation-ceremony-1" });
+    expect(veryApi.resolveVeryCommunityAction).not.toHaveBeenCalled();
+    expect(veryApi.joinVeryCommunity).not.toHaveBeenCalled();
+    expect(container.textContent).toContain("Continue");
+  });
+
   it("keeps the widget alive for provider retry and settles duplicate success once", async () => {
     window.history.replaceState(null, "", "/verify/very?community_id=community-gated-1");
     const completeWithWidget = vi.fn(async () => ({
