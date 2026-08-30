@@ -45,6 +45,7 @@ export default defineConfig({
       "src/features/posts/post-composer/text-submission-transport.test.ts",
       "src/features/profiles/public-profile-page/public-profile-page.test.tsx",
       "src/features/profiles/persona-public-profile/persona-public-profile.test.tsx",
+      "src/features/shell/media-shell/media-shell.test.tsx",
       "src/features/studying/study-v2-api.test.ts",
       "src/features/studying/study-v2-route-view.test.tsx",
       "src/features/studying/study-v2-runtime-client.test.ts",

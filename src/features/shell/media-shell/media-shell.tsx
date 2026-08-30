@@ -9,7 +9,6 @@ import {
   IconHouse,
   IconMagnifyingGlass,
   IconMicrophone,
-  IconMusicNote,
   IconPlus,
   IconUsersThree,
   Type,
@@ -92,7 +91,6 @@ export function MediaShell(props: MediaShellProps) {
       label: "Create",
       items: [
         { id: "karaoke", label: "Karaoke", icon: <IconMicrophone class="size-5" /> },
-        { id: "study", label: "Study", icon: <IconMusicNote class="size-5" /> },
       ],
     },
   ];
