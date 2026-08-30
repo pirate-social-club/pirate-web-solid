@@ -24,8 +24,6 @@ const clients = [
       "get_communityCreationIntentsIntentId",
       "patch_communityCreationIntentsIntentId",
       "post_communityCreationIntentsIntentIdCommit",
-      "post_communityCreationIntentsIntentIdNamespaceOwnershipStart",
-      "post_communityCreationIntentsIntentIdNamespaceOwnershipPoll",
       "get_postsPostId",
       "post_communitiesCommunityIdPostsPostIdKaraokeAttempts",
       "get_communitiesCommunityIdPostsPostIdKaraoke",

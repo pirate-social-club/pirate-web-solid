@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 import { createEmptyDraft } from "./create-community/create-community-model";
 import {
   CommunityCreationApiError,

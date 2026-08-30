@@ -104,6 +104,7 @@ try {
   if (await page.locator('section[aria-label="Hydration Song"]').count() === 0) {
     throw new Error(`session did not load; requests=${requests.join(",")}; errors=${errors.join(" | ")}; body=${(await page.locator("body").innerText()).slice(0, 300)}`);
   }
+  if (await page.title() !== "Hydration Song · Karaoke") throw new Error(`session title did not hydrate; title=${await page.title()}`);
   await page.locator('section[aria-label="Hydration Song"]').waitFor();
   if (await page.getByLabel("Sing it back").count() === 0) throw new Error("session lyrics did not hydrate");
 
