@@ -37,7 +37,13 @@ async function handleComposition(env: Env): Promise<ProductionHnsHandlePersonaIn
   const retained = handleCompositionByEnvironment.get(env);
   if (retained !== undefined) return retained;
   const created = await makeProductionHnsHandlePersonaIngressCompositionV1({
-    env,
+    env: {
+      ...env,
+      HNS_HANDLE_HOST_AUTHORITY_ACCESS_CLIENT_ID:
+        env.HNS_COMMUNITY_APP_AUTHORITY_ACCESS_CLIENT_ID,
+      HNS_HANDLE_HOST_AUTHORITY_ACCESS_CLIENT_SECRET:
+        env.HNS_COMMUNITY_APP_AUTHORITY_ACCESS_CLIENT_SECRET,
+    },
     dispatch: {
       ssr: (request, persona) => {
         const state = projectPersonaPublicProfile(persona, persona.persona.persona_id);

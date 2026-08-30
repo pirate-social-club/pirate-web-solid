@@ -1,7 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { disabledProductionHnsCommunityAppIngressCompositionV2 } from "./composition.ts";
 import { disabledProductionHnsHandlePersonaIngressCompositionV1 } from "./handle-composition.ts";
-import { HNS_FORWARDER_HOST_HEADER } from "./wire.ts";
+import { encodeHnsHandleAuthorityHeader } from "./handle-wire.ts";
+import {
+  encodeHnsCommunityAuthorityHeader,
+  HNS_FORWARDER_AUTHORITY_HEADER,
+  HNS_FORWARDER_HOST_HEADER,
+} from "./wire.ts";
 import { routeHnsCommunityAppIngressRequest, routeHnsIngressRequest } from "./worker-router.ts";
 
 const enabled = {
@@ -53,6 +58,45 @@ describe("Worker HNS ingress router", () => {
       ordinary: async () => new Response("ordinary"),
     });
     expect(await other.text()).toBe("ordinary");
+  });
+
+  it("source-closes both profiles on the one protected Solid origin", async () => {
+    const ingressOrigin = "https://solid-hns-ingress.test";
+    const community = {
+      enabled: true as const,
+      ingressOrigin,
+      fetch: async () => new Response("community"),
+    };
+    const handle = {
+      enabled: true as const,
+      ingressOrigin,
+      fetch: async () => new Response("handle"),
+    };
+    const communityAuthority = encodeHnsCommunityAuthorityHeader([
+      "community_app_v1",
+      ["app-activation", 1],
+      "route-binding",
+      ["operator_managed_route_v1", "operator-activation", 1],
+    ]);
+    const handleAuthority = encodeHnsHandleAuthorityHeader([
+      "handle_persona_v1",
+      ["sale-activation", 1],
+      ["verified_namespace_v1", "evidence", 1],
+      ["grant", 1],
+      "persona",
+    ]);
+    const dispatch = async (authority: string) =>
+      routeHnsIngressRequest({
+        request: new Request(`${ingressOrigin}/`, {
+          headers: { [HNS_FORWARDER_AUTHORITY_HEADER]: authority },
+        }),
+        community,
+        handle,
+        ordinary: async () => new Response("ordinary"),
+      });
+    expect(await (await dispatch(communityAuthority)).text()).toBe("community");
+    expect(await (await dispatch(handleAuthority)).text()).toBe("handle");
+    expect((await dispatch("invalid")).status).toBe(400);
   });
 
   it("rejects reserved fields on canonical, preview, and workers.dev origins", async () => {

@@ -8,6 +8,11 @@ import {
   type DisabledHnsHandlePersonaIngressCompositionV1,
   type EnabledHnsHandlePersonaIngressCompositionV1,
 } from "./handle-composition.ts";
+import { decodeHnsHandleAuthorityHeader } from "./handle-wire.ts";
+import {
+  decodeHnsCommunityAuthorityHeader,
+  HNS_FORWARDER_AUTHORITY_HEADER,
+} from "./wire.ts";
 
 export type HnsWorkerCompositionV2 =
   | EnabledHnsCommunityAppIngressCompositionV2
@@ -24,6 +29,26 @@ export async function routeHnsIngressRequest(input: {
   readonly ordinary: (request: Request) => Promise<Response>;
 }): Promise<Response> {
   const origin = new URL(input.request.url).origin;
+  if (
+    input.handle.enabled &&
+    input.community.enabled &&
+    origin === input.handle.ingressOrigin &&
+    origin === input.community.ingressOrigin
+  ) {
+    const encodedAuthority = input.request.headers.get(HNS_FORWARDER_AUTHORITY_HEADER);
+    if (encodedAuthority === null) return new Response(null, { status: 400 });
+    try {
+      decodeHnsHandleAuthorityHeader(encodedAuthority);
+      return input.handle.fetch(input.request);
+    } catch {
+      try {
+        decodeHnsCommunityAuthorityHeader(encodedAuthority);
+        return input.community.fetch(input.request);
+      } catch {
+        return new Response(null, { status: 400 });
+      }
+    }
+  }
   if (input.handle.enabled && origin === input.handle.ingressOrigin) return input.handle.fetch(input.request);
   if (input.community.enabled && origin === input.community.ingressOrigin) return input.community.fetch(input.request);
   const handleRejected = disabledProductionHnsHandlePersonaIngressCompositionV1.rejectReservedHeaders(input.request);
