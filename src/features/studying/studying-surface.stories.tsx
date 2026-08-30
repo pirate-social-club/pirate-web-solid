@@ -27,7 +27,9 @@ export default meta;
 
 type Story = StoryObj<typeof meta>;
 
-const lessonProgress = { resolvedCount: 1, totalCount: 4 };
+const lessonProgress = { resolvedCount: 1, totalCount: 3 };
+const multipleChoiceProgress = { resolvedCount: 2, totalCount: 4 };
+const completeProgress = { resolvedCount: 14, totalCount: 14 };
 const noop = () => {};
 
 function surface(state: StudyingSurfaceState, extra: Partial<StudyingSurfaceProps> = {}) {
@@ -45,7 +47,7 @@ function surface(state: StudyingSurfaceState, extra: Partial<StudyingSurfaceProp
 }
 
 export const Locked: Story = {
-  render: surface({ kind: "locked", priceLabel: "$1.50" }),
+  render: surface({ kind: "locked", priceLabel: "$2.00" }, { rewardLabel: undefined }),
   parameters: {
     docs: {
       description: {
@@ -114,14 +116,14 @@ export const SayItBackWrongRetryable: Story = {
     attemptNumber: 1,
     attemptsThisAppearance: 1,
     exercise: storySayItBackExercise,
-    heardTranscript: "Sail the way with me tonight",
+    heardTranscript: "yo no se por que te fuiste",
     phase: "wrong",
   }),
   parameters: {
     docs: {
       description: {
         story:
-          "A retryable miss stays muted and shows only what speech-to-text heard — the prompt already is the expected answer.",
+          "A retryable miss reports Incorrect and keeps the learner on the same card.",
       },
     },
   },
@@ -133,7 +135,7 @@ export const SayItBackWrongSpentWillReturn: Story = {
     attemptNumber: 2,
     attemptsThisAppearance: 2,
     exercise: storySayItBackExercise,
-    heardTranscript: "Sail the way with me tonight",
+    heardTranscript: "yo no se por que",
     phase: "wrong",
     revealReference: true,
     willReturn: true,
@@ -142,7 +144,7 @@ export const SayItBackWrongSpentWillReturn: Story = {
     docs: {
       description: {
         story:
-          "Per-appearance attempts are spent, so the miss is final (destructive) and the card comes back later in this lesson.",
+          "A spent miss reports Incorrect with the final destructive treatment; the card comes back later in this lesson.",
       },
     },
   },
@@ -154,7 +156,7 @@ export const SayItBackWrongSpentFinal: Story = {
     attemptNumber: 3,
     attemptsThisAppearance: 2,
     exercise: storySayItBackExercise,
-    heardTranscript: "Sail the way with me tonight",
+    heardTranscript: "yo no se por que",
     phase: "wrong",
     revealReference: true,
     willReturn: false,
@@ -162,18 +164,21 @@ export const SayItBackWrongSpentFinal: Story = {
   parameters: {
     docs: {
       description: {
-        story: "The card is spent with nothing left to requeue into; the copy must not promise a return.",
+        story: "The card is spent with nothing left to requeue into; Incorrect is the only feedback copy.",
       },
     },
   },
 };
 
 export const MultipleChoiceIdle: Story = {
-  render: surface({
-    kind: "multiple_choice",
-    attemptNumber: 1,
-    exercise: storyMultipleChoiceExercise,
-  }),
+  render: surface(
+    {
+      kind: "multiple_choice",
+      attemptNumber: 1,
+      exercise: { ...storyMultipleChoiceExercise, question: "Translate:" },
+    },
+    { lessonProgress: multipleChoiceProgress },
+  ),
   parameters: {
     docs: {
       description: {
@@ -184,30 +189,36 @@ export const MultipleChoiceIdle: Story = {
 };
 
 export const MultipleChoiceSelected: Story = {
-  render: surface({
-    kind: "multiple_choice",
-    attemptNumber: 1,
-    exercise: storyMultipleChoiceExercise,
-    selectedOptionId: "opt-a",
-    submitting: true,
-  }),
+  render: surface(
+    {
+      kind: "multiple_choice",
+      attemptNumber: 1,
+      exercise: storyMultipleChoiceExercise,
+      selectedOptionId: "opt-a",
+      submitting: true,
+    },
+    { lessonProgress: multipleChoiceProgress },
+  ),
   parameters: {
     docs: {
       description: {
-        story: "Selection submitted; options lock while the attempt is recorded.",
+        story: "A tap submits immediately; options lock while the attempt is recorded, with no Check step.",
       },
     },
   },
 };
 
 export const MultipleChoiceCorrect: Story = {
-  render: surface({
-    kind: "multiple_choice",
-    attemptNumber: 1,
-    exercise: { ...storyMultipleChoiceExercise, correctOptionId: "opt-a" },
-    result: "correct",
-    selectedOptionId: "opt-a",
-  }),
+  render: surface(
+    {
+      kind: "multiple_choice",
+      attemptNumber: 1,
+      exercise: { ...storyMultipleChoiceExercise, correctOptionId: "opt-a" },
+      result: "correct",
+      selectedOptionId: "opt-a",
+    },
+    { lessonProgress: multipleChoiceProgress },
+  ),
   parameters: {
     docs: {
       description: {
@@ -218,13 +229,17 @@ export const MultipleChoiceCorrect: Story = {
 };
 
 export const MultipleChoiceWrong: Story = {
-  render: surface({
-    kind: "multiple_choice",
-    attemptNumber: 1,
-    exercise: { ...storyMultipleChoiceExercise, correctOptionId: "opt-a" },
-    result: "wrong",
-    selectedOptionId: "opt-b",
-  }),
+  render: surface(
+    {
+      kind: "multiple_choice",
+      attemptNumber: 1,
+      exercise: { ...storyMultipleChoiceExercise, correctOptionId: "opt-a" },
+      result: "wrong",
+      selectedOptionId: "opt-c",
+      canRetry: true,
+    },
+    { lessonProgress: multipleChoiceProgress },
+  ),
   parameters: {
     docs: {
       description: {
@@ -247,16 +262,29 @@ export const Complete: Story = {
   render: surface(
     {
       kind: "complete",
-      correctCount: 7,
-      scorePercent: 87.5,
-      totalCount: 8,
+      correctCount: 12,
+      scorePercent: 86,
+      totalCount: 14,
     },
-    { onStudyAgain: noop, onKaraoke: noop },
+    {
+      completeActionLabel: "Done",
+      lessonProgress: completeProgress,
+      onPrimaryAction: noop,
+      rewardSlot: (
+        <div class="mx-2 min-h-[74px] rounded-[var(--radius-xl)] bg-[#202326] px-4 py-3">
+          <p class="text-xs text-muted-foreground">Rewards earned</p>
+          <div class="mt-2 flex flex-wrap gap-2">
+            <span class="rounded-full border border-warning bg-background px-2 py-0.5 text-xs font-semibold text-warning">◉ +$0.30</span>
+            <span class="rounded-full border border-warning bg-background px-2 py-0.5 text-xs font-semibold text-warning">▣ Lotto ticket</span>
+          </div>
+        </div>
+      ),
+    },
   ),
   parameters: {
     docs: {
       description: {
-        story: "Session complete without a streak qualification; footer offers Study again / Karaoke.",
+        story: "Session complete without a streak qualification; the score, correct count, and earned rewards stay together.",
       },
     },
   },
@@ -266,26 +294,27 @@ export const CompleteStreakQualified: Story = {
   render: surface(
     {
       kind: "complete",
-      correctCount: 8,
+      correctCount: 12,
       nextReviewLabel: "tomorrow",
-      previousStreak: 4,
+      previousStreak: 7,
       scorePercent: 100,
       streak: {
-        currentStreak: 5,
+        currentStreak: 7,
         qualifiedToday: true,
-        studyAttemptsToday: 8,
-        studyCorrectCount: 8,
+        studyAttemptsToday: 14,
+        studyCorrectCount: 12,
         studyTargetCount: 10,
       },
-      totalCount: 8,
+      streakWeek: [true, true, true, true, false, false, false],
+      totalCount: 14,
     },
-    { onStudyAgain: noop },
+    { completeActionLabel: "Done", lessonProgress: completeProgress, onPrimaryAction: noop },
   ),
   parameters: {
     docs: {
       description: {
         story:
-          "Streak-qualified completion: the slot number rolls from the pre-session snapshot to the new streak, with the first-pass score below.",
+          "Streak-qualified completion: the streak total and weekday progress sit above the single Done action.",
       },
     },
   },
@@ -301,8 +330,9 @@ export const CompleteWithRewardSlot: Story = {
     },
     {
       onKaraoke: noop,
+      rewardLabel: undefined,
       rewardSlot: (
-        <div class="rounded-[var(--radius-xl)] border border-warning/30 bg-warning/10 px-4 py-3 text-center">
+        <div class="mx-2 min-h-[74px] rounded-[var(--radius-xl)] bg-[#202326] px-4 py-3 text-center">
           <span class="font-semibold text-warning">+25 $MOON earned for today's session</span>
         </div>
       ),

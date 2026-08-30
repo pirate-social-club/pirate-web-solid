@@ -76,6 +76,8 @@ export type StudyingSurfaceState =
       studyCorrectCount: number;
       studyTargetCount: number;
     };
+    /** Seven booleans, Monday through Sunday, for the streak completion view. */
+    streakWeek?: readonly boolean[];
     totalCount: number;
   };
 
@@ -189,12 +191,7 @@ export function primaryActionLabel(
 }
 
 export function primaryActionVariant(state: StudyingSurfaceState): "default" | "destructive" | "secondary" {
-  if (state.kind === "say_it_back") {
-    if (state.phase === "listening") return "secondary";
-    if (state.phase === "wrong") return "destructive";
-    return "default";
-  }
-  if (state.kind === "multiple_choice" && state.result === "wrong") return "destructive";
+  if (state.kind === "say_it_back" && state.phase === "listening") return "secondary";
   return "default";
 }
 

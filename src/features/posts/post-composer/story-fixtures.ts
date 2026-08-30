@@ -4,9 +4,9 @@ export const baseComposer: PostComposerProps = {
   mode: "text",
   availableTabs: ["text", "image", "video", "link", "song", "live", "file"],
   canCreateSongPost: true,
-  titleValue: "What is the best Ye opener?",
+  titleValue: "What is the best album opener?",
   textBodyValue:
-    "Looking back through the discography, there are so many iconic intro tracks. What is the best Ye opener?",
+    "Looking back through the discography, there are so many iconic intro tracks. Which one still holds up?",
   identity: {
     allowAnonymousIdentity: true,
     allowQualifiersOnAnonymousPosts: true,

@@ -7,6 +7,8 @@ import {
   Button,
   CheckboxCard,
   IconHandPalm,
+  IconButton,
+  IconX,
   ListRow,
   MediaUploadField,
   TextField,
@@ -40,6 +42,7 @@ export interface CreateCommunityProps {
   onCoverChange?: (file: File | null) => void;
   onDraftChange?: (patch: Partial<CreateCommunityDraft>) => void;
   onSubmit?: () => void;
+  onClose?: () => void;
   submitting?: boolean;
   forceMobile?: boolean;
 }
@@ -72,17 +75,21 @@ export function CreateCommunityView(props: CreateCommunityProps) {
       onSubmit={(event) => { event.preventDefault(); if (canSubmit()) props.onSubmit?.(); }}
     >
       <ActionFooterShell
-        bodyClass="mx-auto flex w-full max-w-2xl flex-col gap-5 px-4 py-5"
+        bodyClass="mx-auto flex w-full max-w-2xl flex-col gap-5 px-5 py-5"
         footer={
           <div class="mx-auto w-full max-w-2xl">
-            <Button class="h-14 w-full" disabled={!canSubmit()} loading={props.submitting} type="submit">
+            <Button class="h-11 w-full" disabled={!canSubmit()} loading={props.submitting} type="submit">
               {copy().submit}
             </Button>
           </div>
         }
+        footerClass="px-5 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-3"
         header={
-          <div class="mx-auto w-full max-w-2xl px-4 py-4">
-            <Type as="h1" variant="h1">{copy().title}</Type>
+          <div class="mx-auto flex w-full max-w-2xl items-center justify-between px-5 py-3">
+            <Type as="h1" class="text-lg" variant="h4">{copy().title}</Type>
+            <IconButton aria-label="Close" onClick={props.onClose} variant="ghost">
+              <IconX class="size-5" />
+            </IconButton>
           </div>
         }
       >

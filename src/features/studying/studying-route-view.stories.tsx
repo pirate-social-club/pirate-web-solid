@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
+import { expect, userEvent, within } from "storybook/test";
 
 import { StudyingRouteView } from "./studying-route-view";
 import {
@@ -69,6 +70,23 @@ export const MissedAttempts: Story = {
           "Every attempt misses: the first miss is retryable in place, the second spends the appearance and requeues the card behind the remaining lesson.",
       },
     },
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+
+    // First miss: stay on the same card and offer another recording.
+    await userEvent.click(await canvas.findByRole("button", { name: "Record" }));
+    await userEvent.click(await canvas.findByRole("button", { name: "Stop" }));
+    await expect(await canvas.findByText("Incorrect")).toBeInTheDocument();
+    await expect(await canvas.findByRole("button", { name: "Record" })).toBeInTheDocument();
+
+    // Second miss: spend this appearance and offer Continue into the requeued lesson.
+    await userEvent.click(await canvas.findByRole("button", { name: "Record" }));
+    await userEvent.click(await canvas.findByRole("button", { name: "Stop" }));
+    await expect(await canvas.findByRole("button", { name: "Continue" })).toBeInTheDocument();
+
+    await userEvent.click(await canvas.findByRole("button", { name: "Continue" }));
+    await expect(await canvas.findByText("What does this line mean?")).toBeInTheDocument();
   },
 };
 

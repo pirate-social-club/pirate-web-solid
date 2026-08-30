@@ -144,14 +144,14 @@ export const defaultComposerCopy: ComposerCopy = {
   derivative: {
     acceptSourceTerms: "I accept these remix terms.",
     licenseNewRemixTerms: "New remix terms",
-    searchSourceTracks: "Search remix-eligible source tracks",
+    searchSourceTracks: "Search remix-eligible source songs",
   },
   empty: {
     noOptionalQualifiers: "No optional qualifiers are available for this community.",
     noQualifiers: "No qualifiers found.",
     noReferences: "No remix sources attached yet.",
     noSongs: "No songs found.",
-    noSourceTracks: "No remix-eligible source tracks yet. Songs appear here after Story registration completes.",
+    noSourceTracks: "No remix-eligible source songs yet. Songs appear here after Story registration completes.",
   },
   fields: {
     canvasVideo: "Canvas video (9:16)",
@@ -252,7 +252,7 @@ export const defaultComposerCopy: ComposerCopy = {
     selectLanguage: "Select language",
     songSearch: "Search your uploaded songs",
     songTitle: "Song title",
-    sourceTrackSearch: "Search remix-eligible source tracks",
+    sourceTrackSearch: "Search remix-eligible source songs",
     title: "Title",
     unlockPrice: "0",
     previewStartSeconds: "0",
@@ -265,7 +265,7 @@ export const defaultComposerCopy: ComposerCopy = {
     license: "License",
   },
   setlist: {
-    cannotFindTrack: "Can't find the track?",
+    cannotFindTrack: "Can't find the song?",
     hideManualDetails: "Hide manual details",
     searchSongs: "Search songs for setlist item",
   },

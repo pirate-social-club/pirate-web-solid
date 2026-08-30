@@ -65,6 +65,7 @@ export function PublishButton(props: {
   class?: string;
   label?: string;
   onClick?: () => void;
+  size?: "default" | "lg";
 }) {
   const controller = props.controller;
   const submit = controller.submit;
@@ -87,7 +88,7 @@ export function PublishButton(props: {
         leadingIcon={showRing() ? <SubmitProgressRing progress={submit.progress!} /> : compact() ? <IconArrowUp class="size-5" /> : undefined}
         loading={submit.loading && !submit.progress}
         onClick={() => (props.onClick ?? submit.onSubmit)?.()}
-        size={compact() ? "icon" : "lg"}
+        size={compact() ? "icon" : props.size ?? "lg"}
       >
         <Show when={compact()} fallback={buttonLabel()}>
           <span class="sr-only">{buttonLabel()}</span>

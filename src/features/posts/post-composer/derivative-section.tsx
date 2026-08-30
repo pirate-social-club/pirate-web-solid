@@ -8,9 +8,6 @@ import {
   CheckboxLabel,
   createIsMobile,
   FormSectionHeading,
-  Tabs,
-  TabsList,
-  TabsTrigger,
 } from "../../../design-system";
 import { cn } from "../../../design-system";
 import type { ComposerCopy } from "./copy";
@@ -133,37 +130,5 @@ export function PostComposerDerivativeSection(props: {
         </Show>
       </section>
     </Show>
-  );
-}
-
-export interface SourceModeOption {
-  label: string;
-  value: string;
-}
-
-export function PostComposerSourceModeTabs(props: {
-  modes: SourceModeOption[];
-  onValueChange: (value: string) => void;
-  value: string;
-}) {
-  return (
-    <Tabs
-      class="w-full"
-      onChange={props.onValueChange}
-      value={props.value}
-    >
-      <TabsList class="grid h-auto w-full grid-cols-2 rounded-full border border-border-soft">
-        <For each={props.modes}>
-          {(mode) => (
-            <TabsTrigger
-              class="h-10 min-w-0 px-3 font-semibold"
-              value={mode.value}
-            >
-              {mode.label}
-            </TabsTrigger>
-          )}
-        </For>
-      </TabsList>
-    </Tabs>
   );
 }

@@ -570,6 +570,7 @@ export function CreatePostDialog(props: CreatePostDialogProps): JSX.Element {
                 setTitle(value);
                 if (mode() === "song") setSong(current => ({ ...current, title: value }));
               }}
+              presentation="embedded"
               royaltySplit={royaltySplit()}
               song={song()}
               songMode={songMode()}

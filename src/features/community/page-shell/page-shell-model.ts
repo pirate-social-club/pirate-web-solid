@@ -2,6 +2,8 @@ export type GateMode = "all" | "any" | "unknown";
 
 export type CommunitySort = "best" | "new" | "top";
 
+export type CommunityPostKind = "text" | "song";
+
 export interface CommunityGate {
   label: string;
   status: "met" | "unmet" | "unknown";
@@ -13,6 +15,18 @@ export interface CommunityPost {
   body: string;
   score: number;
   publishedAt: string;
+  authorHandle?: string;
+  authorAvatarSrc?: string | null;
+  kind?: CommunityPostKind;
+  mediaSrc?: string | null;
+  mediaTitle?: string;
+  mediaArtist?: string;
+  mediaDuration?: string;
+  mediaProgress?: number;
+  commentCount?: number;
+  rewardLabels?: readonly string[];
+  learnAvailable?: boolean;
+  karaokeAvailable?: boolean;
 }
 
 export interface CommunityRule {
@@ -28,9 +42,12 @@ export interface CommunityReferenceLink {
 }
 
 export interface CommunityData {
+  id?: string;
   name: string;
   handle: string;
   description: string;
+  avatarSrc?: string | null;
+  bannerSrc?: string | null;
   members: number;
   followers: number;
   posts: readonly CommunityPost[];

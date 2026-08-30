@@ -5,13 +5,13 @@ import {
   Button,
   cn,
   createMediaQuery,
-  IconArrowsClockwise,
+  IconCheck,
   IconCheckCircle,
   IconCrown,
   IconFire,
   IconLock,
   IconMicrophone,
-  IconSquare,
+  IconStop,
   IconWarningCircle,
   IconX,
   Spinner,
@@ -43,6 +43,8 @@ export interface StudyingSurfaceProps {
   onOptionSelect?: (optionId: string) => void;
   onPrimaryAction?: () => void;
   onStudyAgain?: () => void;
+  /** Overrides the completion CTA for a static state story or host surface. */
+  completeActionLabel?: string;
   /** Reward pill rendered into the header progress capsule. */
   rewardLabel?: string;
   /** Rich reward content shown below the header on the completion state. */
@@ -63,10 +65,10 @@ function ActivityFooter(props: {
 }) {
   return (
     <Show when={props.primaryLabel}>
-      <footer class="sticky bottom-0 z-10 border-t border-border-soft bg-background/95 px-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-4 backdrop-blur-xl sm:px-6">
+      <footer class="sticky bottom-0 z-10 border-t border-border-soft bg-background/95 px-4 pb-[calc(env(safe-area-inset-bottom)+1.5rem)] pt-4 backdrop-blur-xl sm:px-6">
         <div class={cn("mx-auto grid w-full max-w-3xl gap-3", props.secondaryLabel && "sm:grid-cols-2")}>
           <Button
-            class="w-full"
+            class="h-13 w-full"
             disabled={props.primaryDisabled}
             leadingIcon={props.primaryIcon}
             onClick={props.onPrimaryAction}
@@ -77,7 +79,7 @@ function ActivityFooter(props: {
           </Button>
           <Show when={props.secondaryLabel}>
             <Button
-              class="w-full"
+              class="h-13 w-full"
               leadingIcon={props.secondaryIcon}
               onClick={props.onSecondaryAction}
               size="lg"
@@ -89,6 +91,28 @@ function ActivityFooter(props: {
         </div>
       </footer>
     </Show>
+  );
+}
+
+/** Shared upper-aligned exercise prompt used by every interactive study type. */
+function StudyPrompt(props: {
+  instruction: string;
+  prompt: string;
+  promptClass?: string;
+}) {
+  return (
+    <div class="space-y-2">
+      <Type as="p" class="text-sm leading-5 text-muted-foreground" variant="caption">
+        {props.instruction}
+      </Type>
+      <Type
+        as="h2"
+        class={cn("font-bold leading-tight", props.promptClass ?? "text-3xl")}
+        dir="auto"
+      >
+        {props.prompt}
+      </Type>
+    </div>
   );
 }
 
@@ -117,55 +141,22 @@ function LockedState(props: { state: Extract<StudyingSurfaceState, { kind: "lock
 
 function SayItBackState(props: { state: Extract<StudyingSurfaceState, { kind: "say_it_back" }> }) {
   return (
-    <div class="mx-auto flex w-full max-w-3xl flex-1 flex-col justify-center gap-6 px-4 py-10 sm:px-6">
-      <div class="rounded-[var(--radius-2xl)] border border-border-soft bg-card p-6 shadow-sm sm:p-8">
-        <div class="mb-5 flex items-center gap-3 text-muted-foreground">
-          <IconMicrophone class="size-5" />
-          <Type as="span" variant="caption">Say it back</Type>
-        </div>
-        <Type as="p" class="text-balance text-3xl font-bold leading-tight sm:text-5xl" dir="auto">
-          {props.state.exercise.prompt}
-        </Type>
-      </div>
+    <div class="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 px-4 pb-10 pt-7 sm:px-6 sm:pt-10">
+      <StudyPrompt instruction="Say it back:" prompt={props.state.exercise.prompt} />
 
-      {/*
-        The prompt above IS the expected answer for say-it-back, so echoing it
-        back as "Correct answer:" says nothing the learner cannot already read.
-        The only new information is what speech-to-text actually heard, so that
-        is what a miss shows. A retryable miss stays muted; only a spent card
-        takes the destructive treatment, because red reads as final.
-      */}
+      {/* A miss reports the result only; the prompt already provides the target. */}
       <Show when={props.state.phase === "wrong"}>
         <div
           class={cn(
-            "rounded-[var(--radius-xl)] border p-4",
-            props.state.revealReference
-              ? "border-destructive/30 bg-destructive/10"
-              : "border-border-soft bg-muted",
+            "rounded-[var(--radius-xl)] border border-[#f0543f] bg-[#3a211d] p-4",
           )}
         >
           <div class="flex items-center gap-3">
-            <Show
-              when={props.state.revealReference}
-              fallback={<IconArrowsClockwise class="size-6 shrink-0 text-muted-foreground" />}
-            >
-              <IconWarningCircle class="size-6 shrink-0 text-destructive-text" />
-            </Show>
+            <IconWarningCircle class="size-6 shrink-0 text-[#f0543f]" />
             <div class="min-w-0">
-              <Type
-                as="p"
-                class={props.state.revealReference ? "text-destructive-text" : "text-muted-foreground"}
-                variant="caption"
-              >
-                {props.state.revealReference
-                  ? props.state.willReturn ? "Let's come back to this" : "Let's keep going"
-                  : "Not quite — try again"}
+              <Type as="p" class="text-base font-semibold leading-6 text-destructive-text" variant="body-strong">
+                {props.state.revealReference ? "Incorrect" : "Incorrect — try again"}
               </Type>
-              <Show when={props.state.heardTranscript}>
-                <Type as="p" class="text-muted-foreground" dir="auto" variant="body">
-                  {`Heard: ${props.state.heardTranscript}`}
-                </Type>
-              </Show>
             </div>
           </div>
         </div>
@@ -189,15 +180,12 @@ function MultipleChoiceState(props: {
   state: Extract<StudyingSurfaceState, { kind: "multiple_choice" }>;
 }) {
   return (
-    <div class="mx-auto flex w-full max-w-3xl flex-1 flex-col justify-center gap-6 px-4 py-10 sm:px-6">
-      <div>
-        <Type as="p" class="text-muted-foreground" variant="caption">
-          {props.state.exercise.question}
-        </Type>
-        <Type as="h2" class="mt-2 text-balance" dir="auto" variant="h2">
-          {props.state.exercise.prompt}
-        </Type>
-      </div>
+    <div class="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 px-4 pb-10 pt-7 sm:px-6 sm:pt-10">
+      <StudyPrompt
+        instruction={props.state.exercise.question}
+        prompt={props.state.exercise.prompt}
+        promptClass="text-xl"
+      />
 
       <div class="grid gap-3">
         <For each={props.state.exercise.options}>
@@ -210,16 +198,18 @@ function MultipleChoiceState(props: {
             return (
               <button
                 class={cn(
-                  "flex min-h-16 items-center justify-between gap-4 rounded-[var(--radius-xl)] border border-border-soft bg-card px-4 py-3 text-left transition-colors hover:bg-muted/50",
-                  selected() && !props.state.result && "border-foreground/30 bg-muted/70",
-                  revealCorrect() && "border-success/40 bg-success/10",
-                  revealWrong() && "border-destructive/40 bg-destructive/10",
+                  "flex min-h-16 items-center justify-between gap-4 rounded-[var(--radius-xl)] border border-border-soft bg-card px-4 py-3 text-left transition-[border-color,background-color]",
+                  !props.state.result && !props.state.submitting && "cursor-pointer hover:border-border",
+                  (props.state.result || props.state.submitting) && "cursor-default",
+                  selected() && !props.state.result && "border-[#4c8df6] bg-[#16202e]",
+                  revealCorrect() && "border-[#8fd19e] bg-[#1d2a22]",
+                  revealWrong() && "border-[#f0543f] bg-[#3a211d]",
                 )}
                 disabled={Boolean(props.state.result) || Boolean(props.state.submitting)}
                 onClick={() => props.onOptionSelect?.(option.id)}
                 type="button"
               >
-                <Type as="span" dir="auto" variant="body-strong">
+                <Type as="span" class="text-sm font-medium leading-5" dir="auto" variant="body-strong">
                   {option.text}
                 </Type>
                 <Show
@@ -228,14 +218,23 @@ function MultipleChoiceState(props: {
                     <Show
                       when={revealWrong()}
                       fallback={(
-                        <span class={cn("size-5 shrink-0 rounded-full border", selected() ? "border-foreground bg-foreground" : "border-border")} />
+                        <Show
+                          when={selected()}
+                          fallback={<span class="size-6 shrink-0 rounded-full border border-border" />}
+                        >
+                            <span class="grid size-6 shrink-0 place-items-center rounded-full bg-[#4c8df6] text-white">
+                            <IconCheck class="size-4" />
+                          </span>
+                        </Show>
                       )}
                     >
-                      <IconX class="size-6 shrink-0 text-destructive-text" />
+                      <IconX class="size-6 shrink-0 text-[#f0543f]" />
                     </Show>
                   )}
                 >
-                  <IconCheckCircle class="size-6 shrink-0 text-success" />
+                  <span class="grid size-6 shrink-0 place-items-center rounded-full bg-[#8fd19e] text-[#202326]">
+                    <IconCheck class="size-4" />
+                  </span>
                 </Show>
               </button>
             );
@@ -317,7 +316,7 @@ function StreakSlotNumber(props: { currentStreak: number; previousStreak: number
 
 function PerformanceStat(props: { label: string; value: string }) {
   return (
-    <div class="rounded-[var(--radius-xl)] bg-muted px-4 py-3 text-center">
+    <div class="text-center">
       <Type as="p" class="text-xl font-semibold tabular-nums" variant="body-strong">
         {props.value}
       </Type>
@@ -328,53 +327,86 @@ function PerformanceStat(props: { label: string; value: string }) {
   );
 }
 
-function CompleteState(props: { state: Extract<StudyingSurfaceState, { kind: "complete" }> }) {
+function WeekStrip(props: { days: readonly boolean[] }) {
+  const labels = ["M", "T", "W", "T", "F", "S", "S"];
+
+  return (
+    <div aria-label="Current week" class="mt-7 flex w-full max-w-xs justify-between">
+      <For each={labels}>
+        {(label, index) => (
+          <div class="flex flex-col items-center gap-2">
+            <Type as="span" class="text-muted-foreground" variant="caption">{label}</Type>
+            <span
+              class={cn(
+                "grid size-7 place-items-center rounded-full",
+                props.days[index()] ? "bg-warning text-background" : "border border-border text-muted-foreground",
+              )}
+            >
+              <Show when={props.days[index()]}>
+                <IconFire class="size-4" filled />
+              </Show>
+            </span>
+          </div>
+        )}
+      </For>
+    </div>
+  );
+}
+
+function CompleteState(props: {
+  rewardSlot?: JSX.Element;
+  state: Extract<StudyingSurfaceState, { kind: "complete" }>;
+}) {
   const score = () => clampPercent(props.state.scorePercent);
   const streak = () => props.state.streak;
   const previousStreak = () => previousStreakForAnimation(streak(), props.state.previousStreak);
+  const isStreak = () => Boolean(streak()?.qualifiedToday);
+  const week = () => props.state.streakWeek ?? [true, true, true, false, false, false, false];
 
   return (
     <div class="mx-auto flex w-full max-w-md flex-1 flex-col items-center justify-center gap-8 px-4 py-10 sm:px-6">
       <div class="text-center">
         <div class={cn(
           "mx-auto mb-5 grid size-24 place-items-center rounded-full",
-          streak()?.qualifiedToday ? "bg-warning/10 text-warning" : "bg-primary/10 text-primary",
+          isStreak() ? "bg-[#2e291d] text-warning" : "bg-[#16202e] text-[#4c8df6]",
         )}
         >
           <Show
-            when={streak()?.qualifiedToday}
+            when={isStreak()}
             fallback={<IconCrown class="size-14" />}
           >
-            <IconFire class="size-14" />
+            <IconFire class="size-14" filled />
           </Show>
         </div>
-        <Type as="p" class="text-lg font-semibold text-muted-foreground" variant="body">
-          {streak()?.qualifiedToday ? "Your streak" : "Session complete"}
-        </Type>
-        <Show
-          when={streak()?.qualifiedToday && previousStreak() !== undefined}
-          fallback={(
-            <Type as="h2" class="mt-1 text-7xl font-bold leading-none sm:text-8xl">
-              {`${score()}%`}
-            </Type>
-          )}
-        >
-          <StreakSlotNumber currentStreak={streak()!.currentStreak} previousStreak={previousStreak()!} />
-          <Type as="p" class="mt-3 font-semibold text-foreground" variant="body">
-            {`${score()}% first-pass score`}
+        <Show when={!isStreak()}>
+          <Type as="p" class="text-lg font-semibold text-muted-foreground" variant="body">
+            Session complete
           </Type>
+        </Show>
+        <Show when={isStreak()} fallback={(
+          <Type as="h2" class="mt-1 text-7xl font-bold leading-none sm:text-8xl">
+            {`${score()}%`}
+          </Type>
+        )}>
+          <Show
+            when={previousStreak() !== undefined}
+            fallback={<Type as="h2" class="mt-1 text-7xl font-bold leading-none sm:text-8xl">{streak()?.currentStreak}</Type>}
+          >
+            <StreakSlotNumber currentStreak={streak()!.currentStreak} previousStreak={previousStreak()!} />
+          </Show>
+          <Type as="p" class="mt-1 font-semibold text-foreground" variant="body">day streak</Type>
+          <WeekStrip days={week()} />
         </Show>
       </div>
 
-      <div class="w-full">
+      <Show when={!isStreak()}>
         <PerformanceStat label="Correct" value={`${props.state.correctCount}/${props.state.totalCount}`} />
-      </div>
-
-      <Show when={props.state.nextReviewLabel}>
-        <Type as="p" class="text-center text-muted-foreground" variant="caption">
-          {`Next review ${props.state.nextReviewLabel}`}
-        </Type>
       </Show>
+
+      <Show when={props.rewardSlot}>
+        <div class="w-full">{props.rewardSlot}</div>
+      </Show>
+
     </div>
   );
 }
@@ -394,6 +426,7 @@ function completeStateOf(state: StudyingSurfaceState) {
 
 function Body(props: {
   onOptionSelect?: (optionId: string) => void;
+  rewardSlot?: JSX.Element;
   state: StudyingSurfaceState;
 }) {
   return (
@@ -413,7 +446,7 @@ function Body(props: {
         )}
       </Show>
       <Show when={completeStateOf(props.state)}>
-        {(state) => <CompleteState state={state()} />}
+        {(state) => <CompleteState rewardSlot={props.rewardSlot} state={state()} />}
       </Show>
     </>
   );
@@ -422,7 +455,7 @@ function Body(props: {
 function primaryActionIcon(state: StudyingSurfaceState): JSX.Element {
   if (state.kind !== "say_it_back") return undefined;
   if (state.phase === "checking") return <Spinner class="size-5" />;
-  if (state.phase === "listening") return <IconSquare class="size-5" />;
+  if (state.phase === "listening") return <IconStop class="size-5" />;
   if (state.phase === "idle" || (state.phase === "wrong" && !state.revealReference)) {
     return <IconMicrophone class="size-5" />;
   }
@@ -432,19 +465,26 @@ function primaryActionIcon(state: StudyingSurfaceState): JSX.Element {
 export function StudyingSurface(props: StudyingSurfaceProps) {
   const complete = () => props.state.kind === "complete";
   const primaryLabel = () => complete()
-    ? props.onStudyAgain
-      ? "Study again"
-      : props.onKaraoke
-        ? "Karaoke"
-        : undefined
+    ? props.completeActionLabel
+      ?? (props.onStudyAgain
+        ? "Study again"
+        : props.onKaraoke
+          ? "Karaoke"
+          : undefined)
     : primaryActionLabel(props.state, props.sayItBackIdleLabel);
-  const primaryAction = () => complete() ? props.onStudyAgain ?? props.onKaraoke : props.onPrimaryAction;
+  const primaryAction = () => complete()
+    ? props.completeActionLabel
+      ? props.onPrimaryAction
+      : props.onStudyAgain ?? props.onKaraoke
+    : props.onPrimaryAction;
   const primaryIcon = () => complete()
-    ? props.onStudyAgain
+    ? props.completeActionLabel
       ? <IconCheckCircle class="size-5" />
-      : props.onKaraoke
-        ? <IconMicrophone class="size-5" />
-        : undefined
+      : props.onStudyAgain
+        ? <IconCheckCircle class="size-5" />
+        : props.onKaraoke
+          ? <IconMicrophone class="size-5" />
+          : undefined
     : primaryActionIcon(props.state);
   const secondaryLabel = () => complete() && props.onStudyAgain && props.onKaraoke ? "Karaoke" : undefined;
 
@@ -455,14 +495,11 @@ export function StudyingSurface(props: StudyingSurfaceProps) {
         onExit={props.onExit}
         progressMax={Math.max(0, props.lessonProgress?.totalCount ?? 0)}
         progressValue={Math.max(0, Math.min(props.lessonProgress?.totalCount ?? 0, props.lessonProgress?.resolvedCount ?? 0))}
-        rewardLabel={complete() ? undefined : props.rewardLabel}
+        progressTone="success"
+        rewardLabel={props.state.kind === "locked" ? undefined : props.rewardLabel}
+        rewardPresentation="badge"
       />
-      <Show when={complete() && props.rewardSlot}>
-        <div class="mx-auto w-full max-w-3xl px-4 pt-4 sm:px-6">
-          {props.rewardSlot}
-        </div>
-      </Show>
-      <Body onOptionSelect={props.onOptionSelect} state={props.state} />
+      <Body onOptionSelect={props.onOptionSelect} rewardSlot={props.rewardSlot} state={props.state} />
       <ActivityFooter
         onPrimaryAction={primaryAction()}
         onSecondaryAction={props.onKaraoke}

@@ -2,11 +2,6 @@ import { createSignal, Show } from "solid-js";
 import { Title } from "@solidjs/meta";
 
 import {
-  AuthRequiredRouteState,
-  RouteLoadFailureState,
-  RouteLoadingState,
-} from "../../design-system";
-import {
   advanceLesson,
   completeSurface,
   exerciseSurface,
@@ -29,12 +24,21 @@ import {
   type StudyingRecorder,
 } from "./studying-route-model";
 import { StudyingSurface } from "./studying-surface";
+import {
+  StudyAuthRequiredState,
+  StudyRouteLoadFailureState,
+  StudyRouteLoadingState,
+} from "./studying-route-states";
+import {
+  playStudyFeedbackSound,
+  preloadStudyFeedbackSounds,
+  unlockStudyFeedbackAudio,
+} from "./studying-feedback-audio";
 
 // Route-level view for the studying activity. All effectful work (payload
 // load, attempt submission, mic capture, the multiple-choice auto-advance
 // delay) is injected; the view only sequences the surface state machine.
-// Mirrors the legacy `study-route.tsx` controller minus Telegram handoff and
-// feedback audio, which are out of scope for this lane.
+// Mirrors the legacy `study-route.tsx` controller minus Telegram handoff.
 
 export interface StudyingRouteViewProps {
   postId: string;
@@ -124,6 +128,9 @@ function LoadedStudyingLesson(props: StudyingRouteViewProps & {
       // A landed attempt proves we are back in step with the server; spend the
       // recovery budget again only if we drift a second time.
       divergenceRecoveries = 0;
+      if (result.outcome) {
+        playStudyFeedbackSound(result.outcome === "correct" ? "correct" : "incorrect");
+      }
       if (input.type === "translation_choice") {
         updateMultipleChoice(exerciseId, (surface, current) => {
           if (result.outcome === "correct") {
@@ -244,6 +251,7 @@ function LoadedStudyingLesson(props: StudyingRouteViewProps & {
       // A retryable miss behaves exactly like idle: the footer already reads
       // "Record", so pressing it starts the recording rather than costing the
       // learner an extra tap to clear the banner first.
+      unlockStudyFeedbackAudio();
       const recorder = props.recorder;
       if (!recorder) {
         updateSayItBack(card.exercise.id, (latest, current) => ({
@@ -311,6 +319,7 @@ function LoadedStudyingLesson(props: StudyingRouteViewProps & {
     if (surface.kind !== "multiple_choice" || surface.result || surface.submitting) return;
     // Selecting an answer submits immediately, matching the legacy flow where
     // the tap unlocks feedback and records the attempt in one gesture.
+    unlockStudyFeedbackAudio();
     updateMultipleChoice(surface.exercise.id, (latest, current) => ({
       ...current,
       surface: { ...latest, selectedOptionId: optionId, submitError: undefined },
@@ -345,7 +354,10 @@ export function StudyingRouteView(props: StudyingRouteViewProps) {
     setLoading(true);
     setLoadError(null);
     void props.client.loadLesson(props.postId)
-      .then(setPayload)
+      .then((next) => {
+        if (!next.locked && next.exercises.length > 0) preloadStudyFeedbackSounds();
+        setPayload(next);
+      })
       .catch((rejection: StudyingAttemptRejection) => {
         if (isStudyingAuthError(rejection)) setAuthRequired(true);
         setLoadError(rejection);
@@ -358,10 +370,11 @@ export function StudyingRouteView(props: StudyingRouteViewProps) {
     <Show
       when={!authRequired()}
       fallback={(
-        <AuthRequiredRouteState
-          ctaLabel="Sign in to study"
+        <StudyAuthRequiredState
+          ctaLabel="Sign in"
           description="Study packs follow the song's community. Sign in to pick up your lesson and streak."
           onConnect={props.onConnect ?? requestSignIn}
+          onExit={props.onExit}
           title="Sign in to study"
         />
       )}
@@ -371,9 +384,9 @@ export function StudyingRouteView(props: StudyingRouteViewProps) {
         fallback={(
           <Show
             when={!loading()}
-            fallback={<RouteLoadingState height="public" label="Loading study" />}
+            fallback={<StudyRouteLoadingState label="Loading study" />}
           >
-            <RouteLoadFailureState
+            <StudyRouteLoadFailureState
               description={errorMessage(loadError(), "We couldn't load this study session.")}
               onGoHome={() => { window.location.href = "/"; }}
               onRetry={load}

@@ -378,6 +378,7 @@ interface PostComposerSubmitState {
 
 export interface PostComposerProps extends Partial<PostComposerDraftState>, PostComposerDraftActions {
   onClose?: () => void;
+  presentation?: "page" | "embedded";
   // Community policy: enabling 18+ requires an explicit confirmation step.
   ageGateConfirmationRequired?: boolean;
   availableTabs?: ComposerTab[];
@@ -399,4 +400,6 @@ export interface PostComposerProps extends Partial<PostComposerDraftState>, Post
   // Storybook-only seed for reviewing a specific composer panel. Production
   // callers leave panels closed and open them from the composer controls.
   initialOpenPanel?: "access-and-rights" | "visibility";
+  // Supports restoring a draft at a known step and focused Storybook review.
+  initialSongStep?: 1 | 2 | 3 | 4;
 }

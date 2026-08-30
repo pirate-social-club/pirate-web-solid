@@ -5,9 +5,47 @@ import { CommunityPage } from "./community-page";
 import type { CommunityPageSuccess, CommunityPageViewState } from "./community-page.model";
 
 const rules = [
-  { title: "Keep posts on topic", body: "Memes belong in the weekly discussion thread." },
-  { title: "Flair your posts", body: "Use the appropriate flair when posting." },
+  { title: "Keep posts on topic", body: "Memes belong in the weekly discussion thread.", position: 1 },
+  { title: "Flair your posts", body: "Use the appropriate flair when posting.", position: 2 },
 ];
+
+const surfaceData = {
+  name: "Tame Impala",
+  handle: "c/tameimpala",
+  description: "Albums, deep cuts, live sessions, and production talk.",
+  members: 48_231,
+  followers: 92_100,
+  posts: [
+    {
+      id: "apocalypse-dreams",
+      title: "Apocalypse Dreams",
+      body: "Apocalypse Dreams",
+      score: 128,
+      publishedAt: "2026-08-28T10:00:00.000Z",
+      authorHandle: "midnightwaves.pirate",
+      kind: "song" as const,
+      mediaTitle: "Apocalypse Dreams",
+      mediaArtist: "Tame Impala",
+      mediaDuration: "5:56",
+      mediaProgress: 62,
+      commentCount: 23,
+      rewardLabels: ["Learn due"],
+      learnAvailable: true,
+      karaokeAvailable: true,
+    },
+    {
+      id: "tour-arrangement",
+      title: "What is the best Tame Impala live arrangement?",
+      body: "The live arrangement left more room for the final chorus. Which version keeps you coming back?",
+      score: 42,
+      publishedAt: "2026-08-27T10:00:00.000Z",
+      authorHandle: "currents.pirate",
+      commentCount: 8,
+    },
+  ],
+  rules,
+  referenceLinks: [{ href: "https://tameimpala.com", label: "Official site", position: 1 }],
+};
 
 function success(
   overrides: Partial<CommunityPageSuccess> = {},
@@ -47,20 +85,21 @@ type Story = StoryObj<typeof meta>;
 
 export const Default: Story = {
   name: "Open community",
+  args: { surfaceData },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(canvas.getByRole("heading", { name: "Night Shift" })).toBeInTheDocument();
+    await expect(canvas.getByRole("heading", { name: "Tame Impala" })).toBeInTheDocument();
   },
 };
 
 export const RequestToJoin: Story = {
   name: "Request to join",
-  args: { data: success({}, { membershipMode: "request" }) },
+  args: { data: success({}, { membershipMode: "request" }), surfaceData },
 };
 
 export const Gated: Story = {
   name: "Gated",
-  args: { data: success({}, { membershipMode: "gated" }) },
+  args: { data: success({}, { membershipMode: "gated" }), surfaceData },
 };
 
 /** Counts are nullable, so the page must not render an empty statistic. */
@@ -104,5 +143,6 @@ export const Unavailable: Story = {
 
 export const Mobile: Story = {
   name: "Mobile",
+  args: { surfaceData },
   globals: { viewport: { value: "mobile1", isRotated: false } },
 };

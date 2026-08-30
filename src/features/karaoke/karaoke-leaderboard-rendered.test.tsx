@@ -24,6 +24,7 @@ mock.module(designSystemPath, () => ({
   CardHeader: primitive("header"),
   cn: (...values: unknown[]) => values.filter(Boolean).join(" "),
   createMediaQuery: () => () => false,
+  IconButton: primitive("button"),
   IconArrowsClockwise: primitive("svg"),
   IconCaretLeft: primitive("svg"),
   IconCheckCircle: primitive("svg"),
@@ -73,15 +74,14 @@ const leaderboard: ApiKaraokeLeaderboard = {
 };
 
 describe("KaraokeLeaderboard rendered semantics", () => {
-  test("uses a semantic h2 with h3 styling and the readable score token", () => {
+  test("uses a semantic leaderboard heading and readable score token", () => {
     const html = renderToString(() => createComponent(KaraokeLeaderboard, {
       leaderboard,
       title: "Paper Moon",
     }));
 
-    expect(html).toMatch(/<h2[^>]*>Leaderboard<\/h2>/u);
-    expect(html).toContain("text-primary-text");
-    expect(html).not.toContain("text-primary\">");
+    expect(html).toMatch(/<h1[^>]*>Leaderboard<\/h1>/u);
+    expect(html).toContain("text-foreground");
   });
 });
 

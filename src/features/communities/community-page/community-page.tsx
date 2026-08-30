@@ -1,12 +1,18 @@
 import { Link, Meta, Title } from "@solidjs/meta";
 import { getRequestEvent } from "@solidjs/web";
-import { For, Loading, Show, createMemo, untrack } from "solid-js";
+import { Loading, Show, createMemo, createSignal, untrack } from "solid-js";
 import { createPublicCommunityRouteClient } from "../../../api/community-route-client.ts";
 import {
   createPublicHandleSalesClient,
   type PublicHandleSalesApiClient,
 } from "../../../api/handle-sales-client.ts";
-import { buttonVariants } from "../../../design-system.ts";
+import {
+  IconBell,
+  IconHouse,
+  IconUsers,
+  IconWallet,
+  buttonVariants,
+} from "../../../design-system.ts";
 import { resolveRequestUiLocale } from "../../../lib/ui-locale-core.ts";
 import { getLocaleMessages, interpolateMessage } from "../../../locales/index.ts";
 import {
@@ -20,12 +26,17 @@ import {
   communityCanonicalOrigin,
   communityRequestOrigin,
 } from "./community-page-origin.ts";
+import { AppSidebar } from "../../shell/app-sidebar/app-sidebar.tsx";
+import { MobileFooterNav } from "../../shell/app-shell-chrome/app-shell-chrome.tsx";
+import { CommunityPageShell } from "../../community/page-shell/page-shell.tsx";
+import type { CommunityData } from "../../community/page-shell/page-shell-model.ts";
 
 export interface CommunityPageProps {
   readonly pathSegment: string;
   readonly client?: CommunityRouteClient;
   readonly handleSalesClient?: PublicHandleSalesApiClient;
   readonly data?: CommunityPageViewState | PromiseLike<CommunityPageViewState>;
+  readonly surfaceData?: Partial<CommunityData>;
 }
 
 function communityCopy() {
@@ -110,15 +121,35 @@ function CommunityNamesCta(props: {
 function SuccessState(props: {
   readonly state: CommunityPageSuccess;
   readonly handleSalesClient: PublicHandleSalesApiClient;
+  readonly surfaceData?: Partial<CommunityData>;
 }) {
   const copy = communityCopy();
   const state = untrack(() => props.state);
+  const [following, setFollowing] = createSignal(false);
+  const [joined, setJoined] = createSignal(false);
+  const community = createMemo<CommunityData>(() => {
+    const source = props.surfaceData ?? {};
+    return {
+      id: state.communityId,
+      name: source.name ?? state.community.displayName,
+      handle: source.handle ?? `c/${state.routeDisplay}`,
+      description: source.description ?? state.community.description ?? interpolateMessage(copy.defaultDescription, { name: state.community.displayName }),
+      members: source.members ?? state.community.memberCount ?? 0,
+      followers: source.followers ?? state.community.followerCount ?? 0,
+      posts: source.posts ?? [],
+      avatarSrc: source.avatarSrc ?? state.community.avatarSrc,
+      bannerSrc: source.bannerSrc ?? state.community.bannerSrc,
+      gates: source.gates,
+      gateMode: source.gateMode,
+      rules: source.rules ?? state.community.rules.map((rule, position) => ({ ...rule, position: position + 1 })),
+      referenceLinks: source.referenceLinks,
+    };
+  });
   const canonicalUrl = () => state.canonicalUrl === state.canonicalPath
     ? absolutePath(state.canonicalPath)
     : state.canonicalUrl;
-  const title = () => interpolateMessage(copy.title, { name: state.community.displayName });
-  const description = () => state.community.description ??
-    interpolateMessage(copy.defaultDescription, { name: state.community.displayName });
+  const title = () => interpolateMessage(copy.title, { name: community().name });
+  const description = () => community().description;
 
   return (
     <main data-community-state="success" data-community-route-family={state.routeFamily}>
@@ -128,34 +159,36 @@ function SuccessState(props: {
       <Meta property="og:description" content={description()} />
       <Meta property="og:url" content={canonicalUrl()} />
       <Link rel="canonical" href={canonicalUrl()} />
-      <h1>{state.community.displayName}</h1>
-      <p data-community-route={state.requestedPathSegment}>{state.routeDisplay}</p>
-      <Show when={state.community.description}>
-        <p>{state.community.description}</p>
-      </Show>
-      <CommunityNamesCta state={state} client={props.handleSalesClient} />
-      <dl>
-        <div>
-          <dt>{copy.membership}</dt>
-          <dd>{copy.membershipModes[state.community.membershipMode]}</dd>
+      <div class="flex min-h-dvh bg-background">
+        <AppSidebar
+          activeItemId="communities"
+          class="hidden md:flex"
+          primaryItems={[
+            { id: "home", label: "Home", icon: <IconHouse class="size-5" /> },
+            { id: "communities", label: "Communities", icon: <IconUsers class="size-5" /> },
+            { id: "notifications", label: "Notifications", icon: <IconBell class="size-5" /> },
+            { id: "wallet", label: "Wallet", icon: <IconWallet class="size-5" /> },
+          ]}
+        />
+        <div class="min-w-0 flex-1 pb-20 md:pb-0">
+          <CommunityPageShell
+            canJoin
+            community={community()}
+            following={following()}
+            joined={joined()}
+            onFollowToggle={() => setFollowing(value => !value)}
+            onJoin={() => { setJoined(true); setFollowing(true); }}
+          />
+          <div class="md:hidden">
+            <MobileFooterNav activeItem="home" forceMobile />
+          </div>
         </div>
-        <Show when={state.community.memberCount !== null}>
-          <div><dt>{copy.members}</dt><dd>{state.community.memberCount}</dd></div>
-        </Show>
-        <Show when={state.community.followerCount !== null}>
-          <div><dt>{copy.followers}</dt><dd>{state.community.followerCount}</dd></div>
-        </Show>
-      </dl>
-      <section aria-labelledby="community-rules-heading">
-        <h2 id="community-rules-heading">{copy.rules}</h2>
-        <Show when={state.community.rules.length > 0} fallback={<p role="status">{copy.noRules}</p>}>
-          <ol>
-            <For each={state.community.rules}>
-              {rule => <li><h3>{rule.title}</h3><p>{rule.body}</p></li>}
-            </For>
-          </ol>
-        </Show>
-      </section>
+      </div>
+      <div class="sr-only">
+        <p data-community-route={state.requestedPathSegment}>{state.routeDisplay}</p>
+        <p>{copy.membership}: {copy.membershipModes[state.community.membershipMode]}</p>
+        <CommunityNamesCta state={state} client={props.handleSalesClient} />
+      </div>
     </main>
   );
 }
@@ -163,11 +196,12 @@ function SuccessState(props: {
 function CommunityState(props: {
   readonly state: CommunityPageViewState;
   readonly handleSalesClient: PublicHandleSalesApiClient;
+  readonly surfaceData?: Partial<CommunityData>;
 }) {
   const success = () => props.state.kind === "success" ? props.state : undefined;
   return (
     <Show when={success()} fallback={<MessageState state={props.state} />}>
-      {state => <SuccessState state={state()} handleSalesClient={props.handleSalesClient} />}
+      {state => <SuccessState state={state()} handleSalesClient={props.handleSalesClient} surfaceData={props.surfaceData} />}
     </Show>
   );
 }
@@ -181,7 +215,7 @@ function CommunityData(props: CommunityPageProps) {
     () => props.data ?? loadCommunityPage(client, props.pathSegment, communityCanonicalOrigin()),
     { deferStream: true },
   );
-  return <CommunityState state={state()} handleSalesClient={handleSalesClient} />;
+  return <CommunityState state={state()} handleSalesClient={handleSalesClient} surfaceData={props.surfaceData} />;
 }
 
 export function CommunityPage(props: CommunityPageProps) {

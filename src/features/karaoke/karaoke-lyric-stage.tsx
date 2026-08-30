@@ -20,6 +20,8 @@ export interface KaraokeLyricStageProps {
   lines: readonly KaraokeStageLine[];
   currentTimeMs: number;
   rating?: KaraokeLineRating | null;
+  /** Keeps feedback visible in deterministic story renders; live feedback remains transient by default. */
+  ratingPersistent?: boolean;
   primed?: boolean;
 }
 
@@ -59,7 +61,7 @@ export function KaraokeLyricStage(props: KaraokeLyricStageProps) {
     <div aria-live="off" class="karaoke-stage">
       <Show keyed when={props.rating}>
         {(rating) => (
-          <div class="karaoke-stage-rating" data-rating-tone={rating.tone}>
+          <div class={`karaoke-stage-rating${props.ratingPersistent ? " karaoke-stage-rating-static" : ""}`} data-rating-tone={rating.tone}>
             <span class="karaoke-stage-rating-label">{rating.label}</span>
             <span class="karaoke-stage-rating-points">+{rating.points}</span>
           </div>

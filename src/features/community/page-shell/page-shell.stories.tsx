@@ -16,7 +16,8 @@ const infinity: CommunityData = {
 const tameImpala: CommunityData = {
   name: "Tame Impala", handle: "c/tameimpala", description: "Albums, deep cuts, live sessions, and production talk.", members: 48_231, followers: 92_100,
   posts: [
-    { body: "The live arrangement left more room for the final chorus.", id: "live-arrangement", publishedAt: "2026-08-16", score: 18, title: "What is the best Tame Impala live arrangement?" },
+    { authorHandle: "midnightwaves.pirate", body: "Apocalypse Dreams", commentCount: 23, id: "apocalypse-dreams", kind: "song", learnAvailable: true, karaokeAvailable: true, mediaArtist: "Tame Impala", mediaDuration: "5:56", mediaProgress: 62, mediaTitle: "Apocalypse Dreams", publishedAt: "2026-08-16", rewardLabels: ["Learn due"], score: 128, title: "Apocalypse Dreams" },
+    { body: "The live arrangement left more room for the final chorus.", id: "live-arrangement", publishedAt: "2026-08-15", score: 18, title: "What is the best Tame Impala live arrangement?" },
     { body: "A synth patch from the latest tour, with the filter settings included.", id: "synth-patch", publishedAt: "2026-08-15", score: 42, title: "Share a synth patch from the latest tour." },
     { body: "Weekly listening thread: Currents side B.", id: "listening-thread", publishedAt: "2026-08-14", score: 9, title: "Weekly listening thread" },
   ],

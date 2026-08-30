@@ -123,9 +123,9 @@ function initialState(): KaraokeScoringState {
 }
 
 /**
- * Maps a transport phase to a coarse UI status. "active" ("Listening…") is only
+ * Maps a transport phase to a coarse UI status. "active" is the live scoring
  * reported while the socket is actually live; once a live session drops, we show
- * "reconnecting" rather than pretending we're still listening.
+ * "reconnecting" rather than pretending we're still active.
  */
 function statusForPhase(phase: KaraokeClientPhase, hasBeenLive: boolean): KaraokeScoringStatus {
   switch (phase) {

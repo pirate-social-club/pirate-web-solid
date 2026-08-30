@@ -20,6 +20,8 @@ export type CommunityPageSuccess = Readonly<{
   readonly community: Readonly<{
     readonly displayName: string;
     readonly description: string | null;
+    readonly avatarSrc?: string | null;
+    readonly bannerSrc?: string | null;
     readonly membershipMode: "open" | "request" | "gated";
     readonly memberCount: number | null;
     readonly followerCount: number | null;
@@ -137,6 +139,8 @@ export function projectCommunityPage(
     community: {
       displayName,
       description: preview.description?.trim() || null,
+      avatarSrc: preview.avatar_ref ?? null,
+      bannerSrc: preview.banner_ref ?? null,
       membershipMode: preview.membership_mode,
       memberCount: finiteCount(preview.member_count),
       followerCount: finiteCount(preview.follower_count),

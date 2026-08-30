@@ -275,22 +275,23 @@ describe("footer derivation", () => {
     expect(primaryActionLabel(sayItBackSurface("wrong", { revealReference: true }))).toBe("Continue");
   });
 
-  test("multiple choice only offers a footer action after a result", () => {
+  test("multiple choice submits on selection and only offers a result action", () => {
     const base: Extract<StudyingSurfaceState, { kind: "multiple_choice" }> = {
       kind: "multiple_choice",
       attemptNumber: 1,
       exercise: toMultipleChoiceExercise(multipleChoice("ex-2")),
     };
     expect(primaryActionLabel(base)).toBeUndefined();
+    expect(primaryActionLabel({ ...base, selectedOptionId: "opt-a" })).toBeUndefined();
     expect(primaryActionLabel({ ...base, submitting: true })).toBe("Checking…");
     expect(primaryActionLabel({ ...base, result: "correct" })).toBe("Continue");
     expect(primaryActionLabel({ ...base, result: "wrong" })).toBe("Continue");
     expect(primaryActionLabel({ ...base, result: "wrong", canRetry: true })).toBe("Try again");
   });
 
-  test("variants and disabled states match the legacy mapping", () => {
+  test("variants and disabled states match the study reference", () => {
     expect(primaryActionVariant(sayItBackSurface("listening"))).toBe("secondary");
-    expect(primaryActionVariant(sayItBackSurface("wrong"))).toBe("destructive");
+    expect(primaryActionVariant(sayItBackSurface("wrong"))).toBe("default");
     expect(primaryActionVariant(sayItBackSurface("idle"))).toBe("default");
     expect(primaryActionDisabled(sayItBackSurface("checking"))).toBe(true);
     expect(primaryActionDisabled(sayItBackSurface("listening"))).toBe(false);

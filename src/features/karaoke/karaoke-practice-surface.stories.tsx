@@ -1,16 +1,17 @@
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 
 import { KaraokePracticeSurface } from "./karaoke-practice-surface";
-import { storyStageLines } from "./karaoke-story-fixtures";
+import { storyArtworkSrc, storyStageLines } from "./karaoke-story-fixtures";
 
 const meta = {
   title: "Flows/Karaoke/Practice",
   component: KaraokePracticeSurface,
   parameters: {
+    layout: "fullscreen",
     docs: {
       description: {
         component:
-          "Full-screen karaoke surface matching the reviewed mobile design: the shared activity progress header, an artwork-backed lyric stage, and one full-width action in the footer. Stories cover the designed states — primed, connecting, active, scoring feedback, ended and no-timed-lyrics — and do not touch the mic, WebSocket sessions, or real audio.",
+          "Full-screen karaoke surface matching the reviewed mobile design: the shared activity progress header, an artwork-backed lyric stage, and one full-width action before singing starts. Stories cover the designed states — primed, connecting, active, scoring feedback and ended — and do not touch the mic, WebSocket sessions, or real audio.",
       },
     },
   },
@@ -22,6 +23,7 @@ type Story = StoryObj<typeof meta>;
 
 export const PublicReadOnly: Story = {
   args: {
+    artworkSrc: storyArtworkSrc,
     title: "Paper Moon",
     lines: storyStageLines,
   },
@@ -35,22 +37,9 @@ export const PublicReadOnly: Story = {
   },
 };
 
-export const EmptyNoTimedLyrics: Story = {
-  args: {
-    title: "Paper Moon",
-    lines: [],
-  },
-  parameters: {
-    docs: {
-      description: {
-        story: "The song has no timed karaoke lines; the surface shows the empty state instead of the lyric stage.",
-      },
-    },
-  },
-};
-
 export const PausedPrimed: Story = {
   args: {
+    artworkSrc: storyArtworkSrc,
     title: "Paper Moon",
     lines: storyStageLines,
     rewardLabel: "$0.40",
@@ -69,16 +58,18 @@ export const PausedPrimed: Story = {
 
 export const ReadyToSing: Story = {
   args: {
+    artworkSrc: storyArtworkSrc,
     title: "Paper Moon",
     lines: storyStageLines,
+    initialDurationMs: 4800,
     rewardLabel: "$0.40",
-    singingStatus: "active",
+    singingStatus: "idle",
     onStartSinging: () => {},
   },
   parameters: {
     docs: {
       description: {
-        story: "A scoring session is live; the action flips to its disabled Listening state.",
+        story: "The song is ready to start: the reward milestone is attached to the progress track and the Start karaoke action is available.",
       },
     },
   },
@@ -86,22 +77,27 @@ export const ReadyToSing: Story = {
 
 export const ScoringFeedback: Story = {
   args: {
+    artworkSrc: storyArtworkSrc,
     title: "Paper Moon",
     lines: storyStageLines,
+    initialTimeMs: 2550,
+    initialDurationMs: 4800,
+    rewardLabel: "$0.40",
     rating: {
-      key: "line-1:0:0.84",
-      label: "Good",
+      key: "line-1:0:0.98",
+      label: "Perfect",
       lineId: "line-1",
-      points: 84,
-      tone: "warning",
+      points: 50,
+      tone: "success",
     },
+    ratingPersistent: true,
     singingStatus: "active",
     onStartSinging: () => {},
   },
   parameters: {
     docs: {
       description: {
-        story: "Live scoring feedback appears above the lyric stage as a rating and points earned for the latest line. The rating pop fades after about 2 seconds; reload the story to replay it.",
+        story: "An active scoring session keeps the latest rating and points visible for review; live sessions use the same feedback as a transient pop.",
       },
     },
   },
@@ -109,6 +105,7 @@ export const ScoringFeedback: Story = {
 
 export const Connecting: Story = {
   args: {
+    artworkSrc: storyArtworkSrc,
     title: "Paper Moon",
     lines: storyStageLines,
     rewardLabel: "$0.40",
@@ -126,7 +123,9 @@ export const Connecting: Story = {
 
 export const Ended: Story = {
   args: {
+    artworkSrc: storyArtworkSrc,
     title: "Paper Moon",
+    initialTimeMs: 13600,
     lines: storyStageLines,
     rewardLabel: "$0.40",
     singingStatus: "ended",

@@ -1,9 +1,20 @@
+import { createSignal } from "solid-js";
+import { expect, userEvent, within } from "storybook/test";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
-import type { PostComposerProps } from "./types";
 
 import { PostComposer } from "./post-composer";
 import { baseComposer } from "./story-fixtures";
-import { ComposerFrame, InteractiveComposer } from "./story-helpers";
+import { ComposerFrame } from "./story-helpers";
+import type {
+  AssetLicenseState,
+  AssetRoyaltySplitState,
+  ComposerReference,
+  DerivativeStepState,
+  MonetizationState,
+  PostComposerProps,
+  SongComposerState,
+  SongMode,
+} from "./types";
 
 const meta = {
   title: "Flows/Posts/SongPost",
@@ -15,190 +26,160 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-const song = {
+const initialSong: SongComposerState = {
   title: "Midnight Waves",
   genre: "Electronic",
   primaryLanguage: "English",
   primaryAudioLabel: "midnight-waves.mp3",
   coverLabel: "midnight-waves-cover.svg",
-};
-export const Original: Story = {
-  name: "Original",
-  render: () => (
-    <ComposerFrame>
-      <InteractiveComposer
-        {...baseComposer}
-        mode="song"
-        songMode="original"
-        song={song}
-        titleValue="Midnight Waves"
-        lyricsValue="Meet me in the red light / carry the chorus through the floor..."
-      />
-    </ComposerFrame>
-  ),
+  previewStartSeconds: "45",
 };
 
-export const Mobile: Story = {
-  ...Original,
-  name: "Mobile",
-  globals: { viewport: { value: "mobile1", isRotated: false } },
+const initialSplit: AssetRoyaltySplitState = {
+  allocations: [
+    { id: "creator", recipientKind: "creator", sharePct: 70 },
+    { id: "collaborator", recipientKind: "collaborator", walletAddress: "maya.eth", sharePct: 30 },
+  ],
 };
 
-export const RemixSource: Story = {
-  name: "Remix / Source and terms",
-  render: () => (
-    <ComposerFrame>
-      <InteractiveComposer
-        {...baseComposer}
-        mode="song"
-        songMode="remix"
-        song={song}
-        derivativeStep={{
-          visible: true,
-          required: true,
-          trigger: "remix",
-          searchResults: [{ id: "asset-sunset", title: "Sunset Driver", subtitle: "lena-wave.pirate" }],
-          references: [{ id: "asset-sunset", title: "Sunset Driver", subtitle: "lena-wave.pirate" }],
-          sourceTermsAccepted: true,
-          licenseSummary: {
-            sourceLicense: "Commercial remix",
-            upstreamRoyaltyPct: 10,
-            newRemixTerms: "Commercial remix, 10%",
-          },
-        }}
-      />
-    </ComposerFrame>
-  ),
-};
+const remixSources = [
+  { id: "neon-harbor", title: "Neon Harbor", subtitle: "maya.eth" },
+  { id: "afterglow", title: "Afterglow", subtitle: "nova.pirate" },
+] satisfies ComposerReference[];
 
-export const LicenseSettings: Story = {
-  name: "License and royalties",
-  render: () => (
+function remixStep(references: ComposerReference[], query = ""): DerivativeStepState {
+  return {
+    visible: true,
+    required: true,
+    trigger: "remix",
+    query,
+    searchResults: remixSources,
+    references,
+    sourceTermsAccepted: true,
+  };
+}
+
+function StatefulSongFlow(props: {
+  derivativeStep?: DerivativeStepState;
+  initialStep?: 1 | 2 | 3 | 4;
+  license?: AssetLicenseState;
+  monetization?: MonetizationState;
+  royaltySplit?: AssetRoyaltySplitState;
+  songMode?: SongMode;
+  submit?: PostComposerProps["submit"];
+}) {
+  const [song, setSong] = createSignal(initialSong);
+  const [lyrics, setLyrics] = createSignal("Meet me in the red light / carry the chorus through the floor...");
+  const [monetization, setMonetization] = createSignal<MonetizationState>(props.monetization ?? { visible: true, priceUsd: "4.99" });
+  const [license, setLicense] = createSignal<AssetLicenseState>(props.license ?? { presetId: "commercial-remix", commercialRevSharePct: 15 });
+  const [royaltySplit, setRoyaltySplit] = createSignal<AssetRoyaltySplitState>(props.royaltySplit ?? initialSplit);
+  const [songMode, setSongMode] = createSignal<SongMode>(props.songMode ?? "original");
+  const [derivativeStep, setDerivativeStep] = createSignal<DerivativeStepState | undefined>(props.derivativeStep);
+
+  return (
     <ComposerFrame>
       <PostComposer
         {...baseComposer}
+        derivativeStep={derivativeStep()}
+        initialSongStep={props.initialStep}
+        license={license()}
+        lyricsValue={lyrics()}
         mode="song"
-        song={song}
-        license={{ presetId: "commercial-remix", commercialRevSharePct: 10 }}
-        monetization={{ visible: true, priceUsd: "4.99", regionalPricingAvailable: true }}
-        initialOpenPanel="access-and-rights"
+        monetization={monetization()}
+        onDerivativeStepChange={setDerivativeStep}
+        onLicenseChange={setLicense}
+        onLyricsValueChange={setLyrics}
+        onMonetizationChange={setMonetization}
+        onRoyaltySplitChange={setRoyaltySplit}
+        onSongChange={setSong}
+        onSongModeChange={setSongMode}
+        royaltySplit={royaltySplit()}
+        song={song()}
+        songMode={songMode()}
+        submit={props.submit ?? baseComposer.submit}
       />
-    </ComposerFrame>
-  ),
-};
-
-function songVariant(overrides: Partial<PostComposerProps>) {
-  return (
-    <ComposerFrame>
-      <PostComposer {...baseComposer} mode="song" song={song} {...overrides} />
     </ComposerFrame>
   );
 }
 
-export const LicenseNonCommercial: Story = {
-  name: "License / Non-commercial remixing",
-  render: () => songVariant({ license: { presetId: "non-commercial" }, initialOpenPanel: "access-and-rights" }),
+export const Mobile: Story = {
+  name: "Song / Mobile",
+  render: () => <StatefulSongFlow initialStep={1} />,
 };
 
-export const LicenseCommercialUse: Story = {
-  name: "License / Commercial use",
-  render: () => songVariant({ license: { presetId: "commercial-use" }, monetization: { visible: true, priceUsd: "4.99" }, initialOpenPanel: "access-and-rights" }),
+export const Pricing: Story = {
+  name: "2. Pricing",
+  render: () => <StatefulSongFlow initialStep={2} />,
 };
 
-export const LicenseCommercialRemix: Story = {
-  name: "License / Commercial remix",
-  render: () => songVariant({ license: { presetId: "commercial-remix", commercialRevSharePct: 10 }, initialOpenPanel: "access-and-rights" }),
+export const Royalties: Story = {
+  name: "3. Royalties / Original",
+  render: () => <StatefulSongFlow initialStep={3} />,
 };
 
-const remixSource = { id: "asset-sunset", title: "Sunset Driver", subtitle: "lena-wave.pirate" };
-
-function remixState(sourceTermsAccepted: boolean) {
-  return {
-    visible: true,
-    required: true,
-    trigger: "remix" as const,
-    searchResults: [remixSource],
-    references: [remixSource],
-    sourceTermsAccepted,
-    licenseSummary: { sourceLicense: "Commercial remix", upstreamRoyaltyPct: 10, newRemixTerms: "Commercial remix, 10%" },
-  };
-}
-
-export const RemixSourceTermsBlocked: Story = {
-  name: "Rights / Source terms blocked",
-  render: () => songVariant({ songMode: "remix", derivativeStep: remixState(false) }),
+export const RoyaltiesRemix: Story = {
+  name: "3. Royalties / Remix / 2 sources",
+  render: () => (
+    <StatefulSongFlow
+      derivativeStep={remixStep(remixSources)}
+      initialStep={3}
+      royaltySplit={{ allocations: [{ id: "creator", recipientKind: "creator", sharePct: 100 }] }}
+      songMode="remix"
+    />
+  ),
 };
 
-export const RemixSourceTermsAccepted: Story = {
-  name: "Rights / Source terms accepted",
-  render: () => songVariant({ songMode: "remix", derivativeStep: remixState(true) }),
+export const RoyaltiesRemixOneSource: Story = {
+  name: "3. Royalties / Remix / 1 source",
+  render: () => (
+    <StatefulSongFlow
+      derivativeStep={remixStep([remixSources[0]!])}
+      initialStep={3}
+      royaltySplit={{ allocations: [{ id: "creator", recipientKind: "creator", sharePct: 100 }] }}
+      songMode="remix"
+    />
+  ),
 };
 
-export const RemixSwitchedBackToOriginal: Story = {
-  name: "Rights / Switched back to original",
-  render: () => songVariant({ songMode: "original" }),
+export const RoyaltiesRemixSearch: Story = {
+  name: "3. Royalties / Remix / Search results",
+  render: () => (
+    <StatefulSongFlow
+      derivativeStep={remixStep([remixSources[0]!], "after")}
+      initialStep={3}
+      royaltySplit={{ allocations: [{ id: "creator", recipientKind: "creator", sharePct: 100 }] }}
+      songMode="remix"
+    />
+  ),
 };
 
-export const AnalysisMatch: Story = {
-  name: "Analysis / Similarity match",
-  render: () => songVariant({ submitError: "Your upload is too similar to an existing song." }),
+export const Review: Story = {
+  name: "Review and post",
+  render: () => <StatefulSongFlow initialStep={4} />,
 };
 
-function submittingSong(progress: PostComposerProps["submit"]) {
-  return songVariant({ submit: { ...progress, canPost: true, loading: true } });
-}
+export const EnteredFromTextPost: Story = {
+  name: "Entry / Audio selected in text post",
+  render: () => <ComposerFrame><PostComposer {...baseComposer} /></ComposerFrame>,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const file = new File([new Uint8Array([0x49, 0x44, 0x33])], "midnight-waves.mp3", { type: "audio/mpeg" });
+    await userEvent.upload(canvas.getByLabelText("Upload audio"), file);
+    await expect(canvas.getByRole("heading", { name: "Song" })).toBeVisible();
+    await expect(canvas.getByRole("textbox", { name: "Song title" })).toHaveValue("midnight-waves");
+  },
+};
 
-export const SubmittingUploadingAudio: Story = {
+export const Uploading: Story = {
   name: "Submitting / Uploading audio",
-  render: () => submittingSong({ progress: { phase: "uploading_media", label: "Uploading audio", detail: "42%", currentIndex: 1, totalSteps: 5, display: "pipeline" } }),
-};
-
-export const SubmittingAnalyzingRights: Story = {
-  name: "Submitting / Analyzing rights",
-  render: () => submittingSong({ progress: { phase: "checking_rights", label: "Checking rights", currentIndex: 4, totalSteps: 5, display: "pipeline" } }),
-};
-
-export const SubmittingGeneratingPreview: Story = {
-  name: "Submitting / Generating preview",
-  render: () => submittingSong({ progress: { phase: "processing_media", label: "Preparing preview", currentIndex: 3, totalSteps: 5, display: "pipeline" } }),
-};
-
-export const SubmittingCreatingListing: Story = {
-  name: "Submitting / Creating listing",
-  render: () => submittingSong({ progress: { phase: "creating_listing", label: "Creating listing", currentIndex: 5, totalSteps: 6, display: "pipeline" } }),
-};
-
-export const RetryableFailure: Story = {
-  name: "Submitting / Retryable failure",
-  render: () => songVariant({ submit: { canPost: true, error: "The audio service is unavailable. Try again.", label: "Retry post" } }),
-};
-
-export const PostPublished: Story = {
-  name: "Submitting / Post published",
-  render: () => songVariant({ submit: { canPost: true, progress: { phase: "done", label: "Post published", currentIndex: 5, totalSteps: 5, display: "activity" } } }),
-};
-
-export const PaidUnlock: Story = {
-  name: "Access / Paid unlock",
-  render: () => songVariant({ monetization: { visible: true, priceUsd: "4.99" }, license: { presetId: "commercial-use" }, initialOpenPanel: "access-and-rights" }),
-};
-
-export const RoyaltySplitMultiRecipient: Story = {
-  name: "Royalties / Multiple recipients",
-  render: () => songVariant({ royaltySplit: { allocations: [{ id: "creator", recipientKind: "creator", sharePct: 70 }, { id: "collaborator", recipientKind: "collaborator", sharePct: 30 }] }, initialOpenPanel: "access-and-rights" }),
-};
-
-export const PaidUnlockWithVinyl: Story = {
-  name: "Access / Paid unlock with vinyl",
-  render: () => songVariant({ monetization: { visible: true, priceUsd: "9.99", vinylReleaseUrl: "https://elasticstage.com/release" }, initialOpenPanel: "access-and-rights" }),
-};
-
-export const PaidUnlockRegionalPricing: Story = {
-  name: "Access / Regional pricing",
-  render: () => songVariant({ monetization: { visible: true, priceUsd: "4.99", regionalPricingAvailable: true, regionalPricingEnabled: true }, regionalPricingPreview: { defaultTierKey: "high", tiers: [{ tierKey: "high", displayName: "High income", adjustmentType: "multiplier", adjustmentValue: 1, countryCodes: ["US", "GB"] }, { tierKey: "standard", displayName: "Standard", adjustmentType: "multiplier", adjustmentValue: 0.65, countryCodes: ["BR", "GE"] }] }, initialOpenPanel: "access-and-rights" }),
-};
-
-export const WithCharityContribution: Story = {
-  name: "Charity / Contribution",
-  render: () => songVariant({ monetization: { visible: true, priceUsd: "4.99" }, charityPartner: { partnerId: "partner-1", displayName: "Community Arts Fund" }, charityContribution: { percentagePct: 5, userConfigured: true }, initialOpenPanel: "access-and-rights" }),
+  render: () => (
+    <StatefulSongFlow
+      initialStep={4}
+      submit={{
+        canPost: true,
+        loading: true,
+        progress: { phase: "uploading_media", label: "Uploading audio", detail: "42%", currentIndex: 1, totalSteps: 5, display: "pipeline" },
+      }}
+    />
+  ),
 };

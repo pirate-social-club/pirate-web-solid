@@ -350,7 +350,7 @@ export const GENERATED_LOCALE_CATALOGS = {
       "createCommunity": {
         "additionalRequirementsTitle": "Additional requirements",
         "avatarChoose": "Choose image",
-        "avatarLabel": "Community avatar",
+        "avatarLabel": "Avatar",
         "avatarReplace": "Replace image",
         "coverChoose": "Add cover",
         "coverLabel": "Cover image",
