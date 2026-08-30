@@ -44,6 +44,11 @@ authored it as a reusable activity header.
 
 ## App-original rows (no copied source)
 
+- `study-v2-api.ts`, `study-v2-api.test.ts` — generated api-next 0.38 Study
+  availability, generation, session, exact choice, raw-audio answer, readback,
+  and learner-audio deletion transport. The adapter is authored for this app,
+  sends protected writes through the same-origin `/api` boundary with CSRF,
+  and has no legacy application runtime source.
 - `studying-route-model.ts` — client/recorder seam interfaces and auth-error
   helpers, modeled on the karaoke lane's route-model idiom but authored here.
 - `studying-story-fixtures.ts` — Storybook fixtures (mirrors test shapes).
@@ -59,5 +64,7 @@ authored it as a reusable activity header.
 
 React-coupled legacy code that stays behind: MediaRecorder/getUserMedia
 capture, Telegram voice-message handoff, feedback audio (AudioContext),
-API-client wiring, streak leaderboard/chip components, visibility-change
-refetch. See `docs/studying-storybook-audit.md` for the full inventory.
+streak leaderboard/chip components, visibility-change refetch. Generated
+Study v2 API wiring is now app-owned above; browser capture and the visual
+controller migration remain excluded. See `docs/studying-storybook-audit.md`
+for the full inventory.

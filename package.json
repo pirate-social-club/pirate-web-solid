@@ -51,6 +51,7 @@
   "dependencies": {
     "@pirate/api-client": "file:vendor/api-client/pirate-api-client-0.25.0.tgz",
     "@pirate/api-client-community-route": "file:vendor/api-client/pirate-api-client-0.13.0.tgz",
+    "@pirate/api-client-happy-path": "file:vendor/api-client/pirate-api-client-0.38.0.tgz",
     "@pirate/api-client-handle-sales": "file:vendor/api-client/pirate-api-client-0.21.0.tgz",
     "@pirate/web-solid-ui": "workspace:*",
     "@privy-io/js-sdk-core": "0.70.0",

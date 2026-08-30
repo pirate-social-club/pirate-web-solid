@@ -1,6 +1,7 @@
 import {
   createPirateApiClient,
   type PirateApiClient,
+  type PirateApiClientOptions,
   type PirateApiRequestOptions,
 } from "@pirate/api-client";
 import { sameOrigin } from "./origin.ts";
@@ -13,6 +14,11 @@ export interface ApiClientFactoryOptions {
   readonly origin?: string | URL;
   readonly fetchImpl?: ApiFetch;
 }
+
+export type GeneratedApiClientFactory<Client> = (
+  baseUrl: string,
+  options: PirateApiClientOptions,
+) => Client;
 
 function resolveOrigin(origin: string | URL | undefined): string {
   if (origin !== undefined) return sameOrigin(origin);
@@ -52,10 +58,11 @@ export function rewriteGeneratedClientUrl(input: RequestInfo | URL, origin: stri
   return rewritten;
 }
 
-export function createApiClient(
+export function createGeneratedApiClient<Client>(
+  factory: GeneratedApiClientFactory<Client>,
   options: ApiClientFactoryOptions = {},
   requestOptions: PirateApiRequestOptions = {},
-): PirateApiClient {
+): Client {
   const origin = resolveOrigin(options.origin);
   const fetchImpl = options.fetchImpl ?? fetch;
   const rewriteFetchImplementation: ApiFetch = async (input, init) => {
@@ -65,10 +72,17 @@ export function createApiClient(
   // SAFETY: The generated client uses the standard fetch call signature; the
   // Worker/Bun-specific optional fetch members are not used by the adapter.
   const rewriteFetch = rewriteFetchImplementation as typeof fetch;
-  return createPirateApiClient(`${origin}/`, {
+  return factory(`${origin}/`, {
     ...requestOptions,
     fetchImpl: rewriteFetch,
   });
+}
+
+export function createApiClient(
+  options: ApiClientFactoryOptions = {},
+  requestOptions: PirateApiRequestOptions = {},
+): PirateApiClient {
+  return createGeneratedApiClient(createPirateApiClient, options, requestOptions);
 }
 
 export function createPublicApiClient(options: ApiClientFactoryOptions = {}): PirateApiClient {

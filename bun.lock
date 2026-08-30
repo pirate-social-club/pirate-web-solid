@@ -8,6 +8,7 @@
         "@pirate/api-client": "file:vendor/api-client/pirate-api-client-0.25.0.tgz",
         "@pirate/api-client-community-route": "file:vendor/api-client/pirate-api-client-0.13.0.tgz",
         "@pirate/api-client-handle-sales": "file:vendor/api-client/pirate-api-client-0.21.0.tgz",
+        "@pirate/api-client-happy-path": "file:vendor/api-client/pirate-api-client-0.38.0.tgz",
         "@pirate/web-solid-ui": "workspace:*",
         "@privy-io/js-sdk-core": "0.70.0",
         "@solidjs/meta": "1.0.0-next.2",
@@ -28,7 +29,6 @@
         "@storybook/addon-a11y": "10.5.8",
         "@storybook/addon-docs": "10.5.8",
         "@tailwindcss/vite": "4.3.3",
-        "@testing-library/jest-dom": "7.0.1",
         "@testing-library/jest-dom": "7.0.1",
         "@types/node": "24.3.0",
         "@types/qrcode": "1.5.6",
@@ -508,6 +508,8 @@
     "@pirate/api-client-community-route": ["@pirate/api-client@vendor/api-client/pirate-api-client-0.13.0.tgz", {}, "sha512-rZv0at4d5q7jyzaL/fREbiWdAo5aAOmf2iFM/eqAPDl4PPW29NvFsHmQDaSrZuOu1SKjh4Hr+PH+BPU7vFVZeg=="],
 
     "@pirate/api-client-handle-sales": ["@pirate/api-client@vendor/api-client/pirate-api-client-0.21.0.tgz", {}, "sha512-G6kwurYFEgRHiwE99W5ktRnbfnYj5CY28mky+CTwvKXRVpyvUmXoLoaWLkLnu/vvG192mInhDiylpyKD3KHriQ=="],
+
+    "@pirate/api-client-happy-path": ["@pirate/api-client@vendor/api-client/pirate-api-client-0.38.0.tgz", {}, "sha512-UEqlvjyOpFggH6jnkMs+akGvoyFAUWX6Kuxz7mPhjSzI4MgmceC24O+GLOlxGGtzzAbiu27PPbZbCIeOJfVGhg=="],
 
     "@pirate/web-solid-ui": ["@pirate/web-solid-ui@workspace:packages/solid-ui"],
 

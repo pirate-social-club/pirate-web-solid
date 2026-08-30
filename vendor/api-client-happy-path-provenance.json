@@ -1,0 +1,28 @@
+{
+  "name": "@pirate/api-client-happy-path",
+  "version": "0.38.0",
+  "artifact": "vendor/api-client/pirate-api-client-0.38.0.tgz",
+  "sha256": "9c2d2867f91640d7774b9e981b179b1fcf80a68c9889d7cf2a2b20d65b18f4a6",
+  "source": "api-next@4924180:packages/api-client",
+  "openapiSha256": "033d8dec9a39974f887e370fe987da30968bb6fe7213f9173ecb68ff5a9c712b",
+  "clientSha256": "863bec51f414ddf9ad2883e725c9a757a0be5985f785740a5b510d18a8c2970f",
+  "scope": [
+    "post_communityCreationIntents",
+    "get_communityCreationIntentsIntentId",
+    "patch_communityCreationIntentsIntentId",
+    "post_communityCreationIntentsIntentIdCommit",
+    "post_communityCreationIntentsIntentIdNamespaceOwnershipStart",
+    "post_communityCreationIntentsIntentIdNamespaceOwnershipPoll",
+    "get_postsPostId",
+    "post_communitiesCommunityIdPostsPostIdKaraokeAttempts",
+    "get_communitiesCommunityIdPostsPostIdKaraoke",
+    "get_communitiesCommunityIdKaraokeAttemptsAttemptId",
+    "get_communitiesCommunityIdPostsPostIdKaraokeLeaderboard",
+    "delete_usersMeLearnerAudio",
+    "get_communitiesCommunityIdPostsPostIdStudyV2",
+    "post_communitiesCommunityIdPostsPostIdStudyV2Generations",
+    "post_communitiesCommunityIdPostsPostIdStudyV2Sessions",
+    "get_communitiesCommunityIdStudyV2SessionsSessionId",
+    "post_communitiesCommunityIdStudyV2SessionsSessionIdItemsSessionItemIdAnswers"
+  ]
+}

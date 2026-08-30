@@ -6,13 +6,42 @@ const browser = await chromium.launch({
   executablePath: process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE,
 });
 
+const postDetail = {
+  post: {
+    id: "pst_test",
+    object: "post",
+    community: "com_test",
+    authorship_mode: "human_direct",
+    identity_mode: "public",
+    post_type: "song",
+    status: "published",
+    visibility: "public",
+    analysis_state: "allow",
+    content_safety_state: "safe",
+    age_gate_policy: "none",
+    created: 1,
+  },
+  thread_snapshot: null,
+  upvote_count: 0,
+  downvote_count: 0,
+  like_count: 0,
+  viewer_vote: null,
+  viewer_reaction_kinds: [],
+  resolved_locale: "en",
+  translation_state: "same_language",
+  machine_translated: false,
+  source_hash: null,
+};
+
 const payload = {
-  id: "bundle-1",
+  state: "ready",
   object: "song_karaoke_payload",
-  post: "pst_test",
-  community: "com_test",
+  post_id: "pst_test",
+  community_id: "com_test",
   title: "Hydration Song",
-  artist_name: "Test Artist",
+  karaoke_revision_id: "rev-1",
+  playback_audio: { kind: "full_mix", ref: "/assets/hydration-song.wav" },
+  playback_kind: "full_mix",
   karaoke_lines: [{
     id: "line-1",
     index: 0,
@@ -61,16 +90,21 @@ try {
     const headers = { ...response.headers(), "content-security-policy": "default-src 'self'; connect-src *; script-src 'nonce-" + (response.headers()["content-security-policy"]?.match(/nonce-([^']+)/)?.[1] ?? "") + "' 'strict-dynamic'; object-src 'none'; base-uri 'none'" };
     await route.fulfill({ response, headers });
   });
-  await page.route("**/public-posts/pst_test/karaoke", route => route.fulfill({ json: payload }));
+  await page.route("**/api/posts/pst_test", route => route.fulfill({ json: postDetail }));
+  await page.route("**/api/communities/com_test/posts/pst_test/karaoke", route => route.fulfill({ json: payload }));
   await page.route("**/communities/com_test/posts/pst_test/karaoke/leaderboard**", route => route.fulfill({ json: leaderboard }));
+  await page.route("**/assets/hydration-song.wav", route => route.fulfill({
+    body: Buffer.from("UklGRiQAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQAAAAA=", "base64"),
+    contentType: "audio/wav",
+  }));
 
   const sessionResponse = await page.goto(`${base}/p/pst_test/karaoke`, { waitUntil: "networkidle" });
   if (!sessionResponse?.ok()) throw new Error(`session route returned ${sessionResponse?.status()}`);
   await page.waitForTimeout(1000);
-  if (await page.getByRole("heading", { name: "Hydration Song" }).count() === 0) {
+  if (await page.locator('section[aria-label="Hydration Song"]').count() === 0) {
     throw new Error(`session did not load; requests=${requests.join(",")}; errors=${errors.join(" | ")}; body=${(await page.locator("body").innerText()).slice(0, 300)}`);
   }
-  await page.getByRole("heading", { name: "Hydration Song" }).waitFor();
+  await page.locator('section[aria-label="Hydration Song"]').waitFor();
   if (await page.getByLabel("Sing it back").count() === 0) throw new Error("session lyrics did not hydrate");
 
   const leaderboardResponse = await page.goto(`${base}/p/pst_test/karaoke/leaderboard`, { waitUntil: "networkidle" });
