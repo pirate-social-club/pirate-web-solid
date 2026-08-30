@@ -1,5 +1,6 @@
 import { createSignal, Show } from "solid-js";
 import { Title } from "@solidjs/meta";
+import { requestGlobalSignIn } from "../auth/global-sign-in-host";
 
 import {
   advanceLesson,
@@ -59,12 +60,6 @@ type MultipleChoiceSurfaceState = Extract<StudyingSurfaceState, { kind: "multipl
 function defaultScheduleAdvance(run: () => void): void {
   if (typeof window === "undefined") return;
   window.setTimeout(run, 700);
-}
-
-function requestSignIn(): void {
-  if (typeof window !== "undefined") {
-    window.dispatchEvent(new CustomEvent("pirate:connect"));
-  }
 }
 
 function LoadedStudyingLesson(props: StudyingRouteViewProps & {
@@ -394,7 +389,7 @@ export function StudyingRouteView(props: StudyingRouteViewProps) {
         <StudyAuthRequiredState
           ctaLabel="Sign in"
           description="Study packs follow the song's community. Sign in to pick up your lesson and streak."
-          onConnect={props.onConnect ?? requestSignIn}
+          onConnect={props.onConnect ?? requestGlobalSignIn}
           onExit={props.onExit}
           title="Sign in to study"
         />

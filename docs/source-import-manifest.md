@@ -107,15 +107,13 @@ product lanes exist:
 1. Mount `VideoFeedKaraokeCta` from the eventual feed-item component. The
    capability/reward model and navigation callback are implemented and tested;
    there is no feed-item renderer in the standalone shell yet.
-2. Connect the `pirate:connect` event to the shell's authentication flow. The
-   karaoke sign-in states dispatch this event, but the shell currently has no
-   auth listener.
-3. Add the `/p/:postId` post route so the karaoke surface's Exit action has a
+2. Add the `/p/:postId` post route so the karaoke surface's Exit action has a
    real destination instead of the current 404.
-4. Make karaoke payload loading react to in-place `postId` changes, preferably
+3. Make karaoke payload loading react to in-place `postId` changes, preferably
    through the app's eventual route-loader/data boundary rather than a
    setup-only `queueMicrotask` fetch.
 
-Items 1–3 share the missing feed/auth/post shell dependencies. None should be
-addressed by weakening the karaoke route's current public-read or
-authenticated-session boundaries.
+The app-level `GlobalSignInHost` now owns the `pirate:connect` event and reloads
+the active protected route after the HttpOnly session is established. The
+remaining items should not be addressed by weakening the karaoke route's
+current public-read or authenticated-session boundaries.

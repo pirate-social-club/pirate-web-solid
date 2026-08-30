@@ -3,6 +3,7 @@ import { Show, createEffect, createSignal, onCleanup } from "solid-js";
 
 import { resolveSession, type AuthenticatedSession, type SessionResolution } from "../../api/session";
 import { Button, FormNote, Type } from "../../design-system";
+import { requestGlobalSignIn } from "../auth/global-sign-in-host";
 import { OperationPersonaControl } from "../identity/operation-persona-control/operation-persona-control";
 import {
   createStudyV2Api,
@@ -172,9 +173,6 @@ export function StudyV2RouteView(props: StudyV2RouteViewProps) {
     }
   };
 
-  const requestSignIn = () => {
-    if (typeof window !== "undefined") window.dispatchEvent(new CustomEvent("pirate:connect"));
-  };
   const failureState = () => {
     const current = state();
     return current.kind === "failed" || current.kind === "unavailable" ? current : undefined;
@@ -195,7 +193,7 @@ export function StudyV2RouteView(props: StudyV2RouteViewProps) {
         <Show when={state().kind !== "auth-required"} fallback={(
           <StudyAuthRequiredState
             description="Study packs follow the song's community. Sign in to start a lesson."
-            onConnect={requestSignIn}
+            onConnect={requestGlobalSignIn}
             onExit={() => navigate("/")}
             title="Sign in to study"
           />

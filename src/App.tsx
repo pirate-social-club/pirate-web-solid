@@ -3,6 +3,7 @@ import { fileRoutes } from "@solidjs/router/fs";
 import { Loading } from "solid-js";
 import { getRequestEvent } from "@solidjs/web";
 import { pageRoutes } from "virtual:file-routes";
+import { GlobalSignInHost } from "./features/auth/global-sign-in-host.tsx";
 import { transformDirectHnsCommunityRootPath } from "./hns-community-route-transform.ts";
 import "./index.css";
 
@@ -20,6 +21,7 @@ export default function App() {
   return (
     <Loading fallback={null}>
       <Router url={serverUrl}>{props => props.children}</Router>
+      <GlobalSignInHost />
     </Loading>
   );
 }

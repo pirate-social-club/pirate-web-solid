@@ -6,6 +6,7 @@ import { afterEach, describe, expect, test, vi } from "vitest";
 import type { CommunityCreationApi } from "./community-creation-api";
 import { CommunityCreationRouteView } from "./community-creation-route-view";
 import { createIntent } from "./community-creation-progress/community-creation-progress-model";
+import { GlobalSignInHost } from "../auth/global-sign-in-host";
 
 const disposers: Array<() => void> = [];
 
@@ -42,12 +43,17 @@ afterEach(() => {
 
 describe("Community creation production route", () => {
   test("requires a signed-in session", async () => {
-    const container = render(() => (
+    const container = render(() => <>
+      <GlobalSignInHost reload={() => {}} />
       <CommunityCreationRouteView api={api()} resolveSession={async () => "anonymous"} />
-    ));
+    </>);
 
     await vi.waitFor(() => expect(container.textContent).toContain("Sign in to create a community"));
     expect(container.querySelector("[data-create-community]")).toBeNull();
+    const signIn = [...container.querySelectorAll<HTMLButtonElement>("button")]
+      .find(button => button.textContent?.trim() === "Sign in")!;
+    signIn.click();
+    await vi.waitFor(() => expect(document.body.querySelector("[aria-label='Join Pirate']")).not.toBeNull());
   });
 
   test("reuses the creation form while withholding unsupported media controls", async () => {
