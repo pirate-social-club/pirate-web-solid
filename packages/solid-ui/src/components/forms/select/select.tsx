@@ -3,7 +3,7 @@ import {
   type SelectRootItemComponentProps,
 } from "@kobalte/core/select";
 import type { JSX } from "@solidjs/web";
-import { createMemo, type Component } from "solid-js";
+import { createMemo, Show, type Component } from "solid-js";
 
 import { IconArrowDown, IconCheck } from "@/components/media/icons";
 import { cn } from "@/lib/cn";
@@ -141,7 +141,9 @@ export function Select<Option>(props: SelectProps<Option>) {
           <KSelect.Listbox class="max-h-80 overflow-y-auto py-0 outline-none" />
         </KSelect.Content>
       </KSelect.Portal>
-      <KSelect.HiddenSelect name={props.name} />
+      <Show when={props.name}>
+        <KSelect.HiddenSelect name={props.name} />
+      </Show>
     </KSelect>
   );
 }

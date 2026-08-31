@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
-import { expect, userEvent, within } from "storybook/test";
+import { expect, spyOn, userEvent, within } from "storybook/test";
 
 import { CopyField } from "./copy-field";
 
@@ -35,11 +35,17 @@ export const Default: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     const button = canvas.getByRole("button", { name: "Copy address" });
+    const writeText = spyOn(navigator.clipboard, "writeText").mockResolvedValue();
 
-    await userEvent.click(button);
-    await expect(
-      canvas.getByRole("button", { name: "address copied" }),
-    ).toBeInTheDocument();
+    try {
+      await userEvent.click(button);
+      await expect(writeText).toHaveBeenCalledWith("0x1234567890abcdef");
+      await expect(
+        canvas.getByRole("button", { name: "address copied" }),
+      ).toBeInTheDocument();
+    } finally {
+      writeText.mockRestore();
+    }
   },
 };
 

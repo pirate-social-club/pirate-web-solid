@@ -22,6 +22,7 @@ describe("Select", () => {
     const container = render(() => (
       <Select
         aria-label="Sort order"
+        name="sort"
         options={sortOptions}
         optionValue={optionValue}
         optionLabel={optionLabel}
@@ -31,7 +32,7 @@ describe("Select", () => {
 
     const view = within(container);
     expect(view.getByRole("button", { name: "Sort order" })).toBeInTheDocument();
-    expect(container.querySelector("select")).toBeInTheDocument();
+    expect(container.querySelector('select[name="sort"]')).toBeInTheDocument();
   });
 
   it("shows the placeholder while no option is selected", () => {

@@ -56,7 +56,7 @@ export const Default: Story = {
     await userEvent.type(input, "45");
     await userEvent.tab();
 
-    await expect(input).toHaveValue("45");
+    await expect(input).toHaveValue(45);
   },
 };
 

@@ -28,6 +28,7 @@ export function Separator(props: SeparatorProps) {
       orientation={orientation()}
       role={props.decorative === false ? undefined : "none"}
       {...rest}
+      aria-orientation={props.decorative === false && orientation() === "vertical" ? "vertical" : undefined}
     />
   );
 }

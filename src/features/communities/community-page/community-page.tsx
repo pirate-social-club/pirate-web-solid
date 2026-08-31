@@ -211,7 +211,7 @@ function SuccessState(props: {
   });
 
   return (
-    <main data-community-state="success" data-community-route-family={state.routeFamily}>
+    <div data-community-state="success" data-community-route-family={state.routeFamily}>
       <Title>{title()}</Title>
       <Meta name="description" content={description()} />
       <Meta property="og:title" content={title()} />
@@ -265,7 +265,7 @@ function SuccessState(props: {
           />
         )}
       </Show>
-    </main>
+    </div>
   );
 }
 

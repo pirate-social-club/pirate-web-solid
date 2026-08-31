@@ -88,22 +88,14 @@ export const Default: Story = {
       body.getByRole("button", { name: "Save" }),
     ).toBeVisible();
 
-    await expect(document.activeElement).toBe(
-      body.getByRole("button", { name: "Close" }),
-    );
+    await expect(body.getByRole("button", { name: "Cancel" })).toHaveFocus();
 
     await userEvent.tab();
-    await expect(document.activeElement).toBe(
-      body.getByRole("button", { name: "Cancel" }),
-    );
+    await expect(body.getByRole("button", { name: "Save" })).toHaveFocus();
     await userEvent.tab();
-    await expect(document.activeElement).toBe(
-      body.getByRole("button", { name: "Save" }),
-    );
+    await expect(body.getByRole("button", { name: "Close" })).toHaveFocus();
     await userEvent.tab();
-    await expect(document.activeElement).toBe(
-      body.getByRole("button", { name: "Close" }),
-    );
+    await expect(body.getByRole("button", { name: "Cancel" })).toHaveFocus();
 
     await userEvent.keyboard("{Escape}");
     await expect(body.queryByRole("dialog")).not.toBeInTheDocument();

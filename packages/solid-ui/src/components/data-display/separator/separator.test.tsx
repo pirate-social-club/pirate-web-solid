@@ -18,13 +18,14 @@ describe("Separator", () => {
 
     const separator = container.querySelector("hr");
     expect(separator).toHaveAttribute("data-orientation", "vertical");
-    expect(separator).toHaveAttribute("aria-orientation", "vertical");
+    expect(separator).not.toHaveAttribute("aria-orientation");
   });
 
   it("exposes separator semantics when decorative is false", () => {
-    const container = render(() => <Separator decorative={false} />);
+    const container = render(() => <Separator decorative={false} orientation="vertical" />);
 
     expect(container.querySelector("hr")).not.toHaveAttribute("role", "none");
+    expect(container.querySelector("hr")).toHaveAttribute("aria-orientation", "vertical");
   });
 
   it("has no axe violations", async () => {
