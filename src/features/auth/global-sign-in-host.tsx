@@ -15,7 +15,10 @@ export function requestGlobalSignIn(): void {
   }
 }
 
-/** Starts the memory-only identity client while a sign-in trigger has intent. */
+/**
+ * Starts the memory-only identity client after focus or pointer-down intent.
+ * Callers must not use passive hover alone to contact the identity provider.
+ */
 export function prepareGlobalSignIn(): void {
   prepareSignIn();
 }

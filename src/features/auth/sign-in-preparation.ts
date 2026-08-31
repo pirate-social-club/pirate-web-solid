@@ -23,7 +23,10 @@ export interface SignInPreparationOptions {
 }
 
 export interface SignInPreparation {
-  /** Starts preparation without surfacing a rejected promise to an event handler. */
+  /**
+   * Starts preparation without surfacing a rejected promise to an event
+   * handler. Production callers use focus or pointer-down, never passive hover.
+   */
   prepare(): void;
   /** Adopts the intent-prepared exchange, or builds one when no intent ran first. */
   acquire(): Promise<PrivySessionExchange>;

@@ -556,7 +556,7 @@ function BuyerPanel(props: {
             <CardDescription>{copy.signInDescription}</CardDescription>
           </CardHeader>
           <CardContent>
-            <Button onClick={() => setAuthOpen(true)} onFocus={prepareSignIn} onPointerDown={prepareSignIn} onPointerEnter={prepareSignIn}>{copy.signIn}</Button>
+            <Button onClick={() => setAuthOpen(true)} onFocus={prepareSignIn} onPointerDown={prepareSignIn}>{copy.signIn}</Button>
           </CardContent>
         </Card>
       </Show>

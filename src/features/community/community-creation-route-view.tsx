@@ -182,7 +182,7 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
               <Type as="p" class="text-muted-foreground" variant="body">
                 Community ownership is attached to your signed-in account and public persona.
               </Type>
-              <Button onClick={requestGlobalSignIn} onFocus={prepareGlobalSignIn} onPointerDown={prepareGlobalSignIn} onPointerEnter={prepareGlobalSignIn}>Sign in</Button>
+              <Button onClick={requestGlobalSignIn} onFocus={prepareGlobalSignIn} onPointerDown={prepareGlobalSignIn}>Sign in</Button>
             </CardContent></Card>
           </div>
         )}>

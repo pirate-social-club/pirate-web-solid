@@ -109,7 +109,7 @@ export function StudyAuthRequiredState(props: StudyAuthRequiredStateProps) {
           {props.description}
         </Type>
         <Show when={props.onConnect}>
-          <Button class="mt-4 h-11 w-[120px]" onClick={() => props.onConnect?.()} onFocus={props.onConnectIntent} onPointerDown={props.onConnectIntent} onPointerEnter={props.onConnectIntent}>
+          <Button class="mt-4 h-11 w-[120px]" onClick={() => props.onConnect?.()} onFocus={props.onConnectIntent} onPointerDown={props.onConnectIntent}>
             {props.ctaLabel ?? "Sign in"}
           </Button>
         </Show>
