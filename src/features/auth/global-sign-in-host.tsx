@@ -1,5 +1,5 @@
 /** @jsxImportSource @solidjs/web */
-import { createEffect, createSignal, onCleanup } from "solid-js";
+import { createSignal, onCleanup } from "solid-js";
 
 import type { PrivySessionExchange } from "../../api/privy-session.ts";
 import { SignInModal } from "./sign-in-modal.tsx";
@@ -51,20 +51,13 @@ export function GlobalSignInHost(props: GlobalSignInHostProps = {}) {
     onAuthenticated: completeAuthentication,
   });
   const openSignIn = () => setOpen(true);
-  let listening = false;
-
-  createEffect(
-    () => true,
-    () => {
-      if (listening || typeof window === "undefined") return;
-      listening = true;
-      window.addEventListener(GLOBAL_SIGN_IN_EVENT, openSignIn);
-    },
-  );
+  const listening = typeof window !== "undefined";
+  // Install during component setup. A deferred effect leaves a small window
+  // where a hydrated route can dispatch the sign-in request before the global
+  // host is listening, dropping the user's first click.
+  if (listening) window.addEventListener(GLOBAL_SIGN_IN_EVENT, openSignIn);
   onCleanup(() => {
-    if (listening && typeof window !== "undefined") {
-      window.removeEventListener(GLOBAL_SIGN_IN_EVENT, openSignIn);
-    }
+    if (listening) window.removeEventListener(GLOBAL_SIGN_IN_EVENT, openSignIn);
   });
 
   return <SignInModal onOpenChange={setOpen} open={open()} session={session} />;

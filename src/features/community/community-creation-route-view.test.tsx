@@ -7,7 +7,7 @@ import type { PrivySessionExchange } from "../../api/privy-session.ts";
 import type { CommunityCreationApi } from "./community-creation-api";
 import { CommunityCreationRouteView } from "./community-creation-route-view";
 import { createIntent } from "./community-creation-progress/community-creation-progress-model";
-import { GlobalSignInHost } from "../auth/global-sign-in-host";
+import { GlobalSignInHost, requestGlobalSignIn } from "../auth/global-sign-in-host";
 
 const disposers: Array<() => void> = [];
 
@@ -55,6 +55,16 @@ afterEach(() => {
 });
 
 describe("Community creation production route", () => {
+  test("accepts the first global sign-in request during component setup", async () => {
+    render(() => <GlobalSignInHost createExchange={async () => signInExchange()} reload={() => {}} />);
+
+    requestGlobalSignIn();
+
+    await vi.waitFor(() => {
+      expect(document.body.querySelector("[aria-label='Join Pirate']")).not.toBeNull();
+    });
+  });
+
   test("keeps the application shell visible while account context resolves", () => {
     const container = render(() => (
       <CommunityCreationRouteView
