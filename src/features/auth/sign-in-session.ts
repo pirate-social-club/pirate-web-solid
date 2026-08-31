@@ -1,11 +1,9 @@
 import { createEffect, createSignal, onCleanup, type Accessor } from "solid-js";
 
 import {
-  createPrivySessionExchange,
   type OAuthProvider,
   type PrivySessionExchange,
 } from "../../api/privy-session.ts";
-import { fetchVerificationConfig } from "../../api/verification-config.ts";
 import {
   SIGN_IN_CODE_LENGTH,
   initialSignInState,
@@ -23,6 +21,7 @@ import {
   type SignInPhase,
   type SignInState,
 } from "./sign-in-model.ts";
+import { acquireSignInExchange } from "./sign-in-preparation.ts";
 
 export interface SignInSessionOptions {
   /**
@@ -136,7 +135,7 @@ export function createSignInSession(options: SignInSessionOptions = {}): SignInS
 
       const load = options.createExchange
         ? options.createExchange()
-        : fetchVerificationConfig().then((config) => createPrivySessionExchange(config));
+        : acquireSignInExchange();
 
       void load
         .then(async (candidate) => {

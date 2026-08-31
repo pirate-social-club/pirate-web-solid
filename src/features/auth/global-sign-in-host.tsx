@@ -1,7 +1,9 @@
 /** @jsxImportSource @solidjs/web */
 import { createEffect, createSignal, onCleanup } from "solid-js";
 
+import type { PrivySessionExchange } from "../../api/privy-session.ts";
 import { SignInModal } from "./sign-in-modal.tsx";
+import { prepareSignIn } from "./sign-in-preparation.ts";
 import { createSignInSession } from "./sign-in-session.ts";
 
 export const GLOBAL_SIGN_IN_EVENT = "pirate:connect";
@@ -13,7 +15,13 @@ export function requestGlobalSignIn(): void {
   }
 }
 
+/** Starts the memory-only identity client while a sign-in trigger has intent. */
+export function prepareGlobalSignIn(): void {
+  prepareSignIn();
+}
+
 export interface GlobalSignInHostProps {
+  readonly createExchange?: () => Promise<PrivySessionExchange>;
   readonly reload?: () => void;
 }
 
@@ -30,6 +38,7 @@ export function GlobalSignInHost(props: GlobalSignInHostProps = {}) {
     else if (typeof window !== "undefined") window.location.reload();
   };
   const session = createSignInSession({
+    createExchange: props.createExchange,
     enabled: open,
     onAuthenticated: completeAuthentication,
   });

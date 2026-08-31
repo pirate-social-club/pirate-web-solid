@@ -3,12 +3,25 @@ import { render as solidRender } from "@solidjs/web";
 import { createRoot } from "solid-js";
 import { afterEach, describe, expect, test, vi } from "vitest";
 
+import type { PrivySessionExchange } from "../../api/privy-session.ts";
 import type { CommunityCreationApi } from "./community-creation-api";
 import { CommunityCreationRouteView } from "./community-creation-route-view";
 import { createIntent } from "./community-creation-progress/community-creation-progress-model";
 import { GlobalSignInHost } from "../auth/global-sign-in-host";
 
 const disposers: Array<() => void> = [];
+
+function signInExchange(): PrivySessionExchange {
+  return {
+    beginOAuth: async () => "https://privy.example.test/authorize",
+    clear: () => {},
+    completeOAuth: async () => undefined,
+    loginWithCode: async () => undefined,
+    loginWithWallet: async () => undefined,
+    register: async () => undefined,
+    sendCode: async () => undefined,
+  };
+}
 
 function render(ui: () => JSX.Element): HTMLElement {
   const container = document.createElement("div");
@@ -44,7 +57,7 @@ afterEach(() => {
 describe("Community creation production route", () => {
   test("requires a signed-in session", async () => {
     const container = render(() => <>
-      <GlobalSignInHost reload={() => {}} />
+      <GlobalSignInHost createExchange={async () => signInExchange()} reload={() => {}} />
       <CommunityCreationRouteView api={api()} resolveSession={async () => "anonymous"} />
     </>);
 

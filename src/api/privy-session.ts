@@ -33,6 +33,26 @@ interface PrivyAuthClient {
 
 type PrivyFactory = (config: VerificationPublicConfig, storage: Storage) => Promise<PrivyAuthClient>;
 
+type PrivySdk = typeof import("@privy-io/js-sdk-core");
+
+let privySdkPromise: Promise<PrivySdk> | undefined;
+
+/**
+ * Starts the browser-only Privy chunk before the sign-in surface needs it.
+ * The module loader already caches successful imports; retaining the promise
+ * also coalesces concurrent intent signals and permits a retry after failure.
+ */
+export function preloadPrivySdk(): Promise<PrivySdk> {
+  const existing = privySdkPromise;
+  if (existing !== undefined) return existing;
+  const pending = import("@privy-io/js-sdk-core");
+  privySdkPromise = pending;
+  void pending.catch(() => {
+    if (privySdkPromise === pending) privySdkPromise = undefined;
+  });
+  return pending;
+}
+
 interface PrivyAccessTokenProof {
   type: "privy_access_token";
   privy_access_token: string;
@@ -80,7 +100,7 @@ async function defaultPrivyFactory(config: VerificationPublicConfig, storage: St
     default: Privy,
     getAllUserEmbeddedEthereumWallets,
     getEntropyDetailsFromAccount,
-  } = await import("@privy-io/js-sdk-core");
+  } = await preloadPrivySdk();
   const client = new Privy({ appId: config.privyAppId, clientId: config.privyClientId, storage });
   let embeddedWalletFrame: HTMLIFrameElement | undefined;
   let embeddedWalletListener: ((event: MessageEvent) => void) | undefined;

@@ -1,6 +1,6 @@
 import { createSignal, Show } from "solid-js";
 import { Title } from "@solidjs/meta";
-import { requestGlobalSignIn } from "../auth/global-sign-in-host";
+import { prepareGlobalSignIn, requestGlobalSignIn } from "../auth/global-sign-in-host";
 
 import {
   advanceLesson,
@@ -390,6 +390,7 @@ export function StudyingRouteView(props: StudyingRouteViewProps) {
           ctaLabel="Sign in"
           description="Study packs follow the song's community. Sign in to pick up your lesson and streak."
           onConnect={props.onConnect ?? requestGlobalSignIn}
+          onConnectIntent={props.onConnect === undefined ? prepareGlobalSignIn : undefined}
           onExit={props.onExit}
           title="Sign in to study"
         />

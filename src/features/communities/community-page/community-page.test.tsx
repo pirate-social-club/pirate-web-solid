@@ -5,9 +5,22 @@ import type {
 import { render as solidRender, type JSX } from "@solidjs/web";
 import { createRoot } from "solid-js";
 import { afterEach, describe, expect, test, vi } from "vitest";
+import type { PrivySessionExchange } from "../../../api/privy-session.ts";
 import CommunityPage from "./community-page.tsx";
 
 const disposers: Array<() => void> = [];
+
+function signInExchange(): PrivySessionExchange {
+  return {
+    beginOAuth: async () => "https://privy.example.test/authorize",
+    clear: () => {},
+    completeOAuth: async () => undefined,
+    loginWithCode: async () => undefined,
+    loginWithWallet: async () => undefined,
+    register: async () => undefined,
+    sendCode: async () => undefined,
+  };
+}
 const communityId = "community_123e4567-e89b-42d3-a456-426614174000";
 const route: GetCPathSegmentResponse = {
   community_id: communityId,
@@ -146,6 +159,7 @@ describe("CommunityPage", () => {
         }}
         handleSalesClient={{ get_communitiesCommunityIdHandleOfferings: async () => ({ items: [], next_cursor: null }) }}
         pathSegment="xn--pokmon-dva"
+        createSignInExchange={async () => signInExchange()}
         resolveSession={async () => "anonymous"}
       />
     ));

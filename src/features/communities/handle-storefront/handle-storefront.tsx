@@ -36,6 +36,7 @@ import {
 import { resolveRequestUiLocale } from "../../../lib/ui-locale-core.ts";
 import { getLocaleMessages, interpolateMessage } from "../../../locales/index.ts";
 import { SignInModal } from "../../auth/sign-in-modal.tsx";
+import { prepareSignIn } from "../../auth/sign-in-preparation.ts";
 import { createSignInSession } from "../../auth/sign-in-session.ts";
 import {
   communityCanonicalOrigin,
@@ -555,7 +556,7 @@ function BuyerPanel(props: {
             <CardDescription>{copy.signInDescription}</CardDescription>
           </CardHeader>
           <CardContent>
-            <Button onClick={() => setAuthOpen(true)}>{copy.signIn}</Button>
+            <Button onClick={() => setAuthOpen(true)} onFocus={prepareSignIn} onPointerDown={prepareSignIn} onPointerEnter={prepareSignIn}>{copy.signIn}</Button>
           </CardContent>
         </Card>
       </Show>

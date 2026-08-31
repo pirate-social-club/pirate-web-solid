@@ -35,6 +35,7 @@ import { AppSidebar } from "../../shell/app-sidebar/app-sidebar.tsx";
 import { MobileFooterNav } from "../../shell/app-shell-chrome/app-shell-chrome.tsx";
 import { CommunityPageShell } from "../../community/page-shell/page-shell.tsx";
 import type { CommunityData } from "../../community/page-shell/page-shell-model.ts";
+import type { PrivySessionExchange } from "../../../api/privy-session.ts";
 import { SignInModal } from "../../auth/sign-in-modal.tsx";
 import { createSignInSession } from "../../auth/sign-in-session.ts";
 import { CreatePostDialog } from "../../posts/post-composer/create-post-dialog.tsx";
@@ -42,6 +43,7 @@ import { CreatePostDialog } from "../../posts/post-composer/create-post-dialog.t
 export interface CommunityPageProps {
   readonly pathSegment: string;
   readonly client?: CommunityRouteClient;
+  readonly createSignInExchange?: () => Promise<PrivySessionExchange>;
   readonly handleSalesClient?: PublicHandleSalesApiClient;
   readonly resolveSession?: () => Promise<SessionResolution>;
   readonly data?: CommunityPageViewState | PromiseLike<CommunityPageViewState>;
@@ -128,6 +130,7 @@ function CommunityNamesCta(props: {
 }
 
 function SuccessState(props: {
+  readonly createSignInExchange?: () => Promise<PrivySessionExchange>;
   readonly state: CommunityPageSuccess;
   readonly handleSalesClient: PublicHandleSalesApiClient;
   readonly resolveSession?: () => Promise<SessionResolution>;
@@ -202,6 +205,7 @@ function SuccessState(props: {
     void openPostComposer();
   };
   const signInSession = createSignInSession({
+    createExchange: props.createSignInExchange,
     enabled: authOpen,
     onAuthenticated: completeAuthentication,
   });
@@ -266,6 +270,7 @@ function SuccessState(props: {
 }
 
 function CommunityState(props: {
+  readonly createSignInExchange?: () => Promise<PrivySessionExchange>;
   readonly state: CommunityPageViewState;
   readonly handleSalesClient: PublicHandleSalesApiClient;
   readonly resolveSession?: () => Promise<SessionResolution>;
@@ -276,6 +281,7 @@ function CommunityState(props: {
     <Show when={success()} fallback={<MessageState state={props.state} />}>
       {state => (
         <SuccessState
+          createSignInExchange={props.createSignInExchange}
           state={state()}
           handleSalesClient={props.handleSalesClient}
           resolveSession={props.resolveSession}
@@ -297,6 +303,7 @@ function CommunityData(props: CommunityPageProps) {
   );
   return (
     <CommunityState
+      createSignInExchange={props.createSignInExchange}
       state={state()}
       handleSalesClient={handleSalesClient}
       resolveSession={props.resolveSession}
