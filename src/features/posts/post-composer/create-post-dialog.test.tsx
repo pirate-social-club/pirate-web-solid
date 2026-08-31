@@ -143,7 +143,12 @@ describe("create post request", () => {
     const publishButtons = [...document.body.querySelectorAll<HTMLButtonElement>("button")]
       .filter(button => button.textContent?.trim() === "Publish post");
     expect(publishButtons).toHaveLength(1);
-    expect(publishButtons[0]?.disabled).toBe(false);
+    expect(publishButtons[0]?.disabled).toBe(true);
+
+    const body = document.body.querySelector<HTMLTextAreaElement>("#create-post-body")!;
+    body.value = "A contextual post";
+    body.dispatchEvent(new InputEvent("input", { bubbles: true }));
+    await vi.waitFor(() => expect(publishButtons[0]?.disabled).toBe(false));
   });
 
   test("keeps a pending envelope across dialog close and reopen", async () => {

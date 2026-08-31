@@ -360,13 +360,13 @@ export function PostComposerWriteStep(props: {
             aria-label="Title"
             class="h-auto min-w-0 flex-1 px-0 py-0 text-3xl font-semibold leading-tight shadow-none focus-visible:border-transparent focus-visible:ring-0"
             maxlength={300}
-            onChange={(event) => updateTitle(controller, event.currentTarget.value)}
+            onInput={(event) => updateTitle(controller, event.currentTarget.value)}
             placeholder={controller.copy.placeholders.title}
             variant="flat"
             value={titleValue(controller)}
           />
         }>
-          <Input aria-label="Title" maxlength={300} onChange={(event) => updateTitle(controller, event.currentTarget.value)} placeholder="Title*" size="title" value={titleValue(controller)} />
+          <Input aria-label="Title" maxlength={300} onInput={(event) => updateTitle(controller, event.currentTarget.value)} placeholder="Title*" size="title" value={titleValue(controller)} />
         </Show>
       </div>
       <div class="flex flex-wrap items-center gap-2">
@@ -393,7 +393,7 @@ export function PostComposerWriteStep(props: {
       </Show>
       <Show when={controller.tabs.activeTab === "file"}><PostComposerGenericAssetFields file={controller.generic.file} onFileChange={controller.generic.setFile} /></Show>
       <Show when={controller.tabs.activeTab !== "song"}>
-        <Textarea aria-label="Post" id="create-post-body" class={cn("resize-none text-xl leading-relaxed", mobile ? "min-h-[38dvh] rounded-none border-0 bg-transparent p-0 shadow-none focus-visible:ring-0" : "min-h-36")} onChange={(event) => updateBody(controller, event.currentTarget.value)} placeholder={attachment() ? controller.copy.placeholders.optional : controller.copy.placeholders.body} value={bodyValue(controller)} />
+        <Textarea aria-label="Post" id="create-post-body" class={cn("resize-none text-xl leading-relaxed", mobile ? "min-h-[38dvh] rounded-none border-0 bg-transparent p-0 shadow-none focus-visible:ring-0" : "min-h-36")} onInput={(event) => updateBody(controller, event.currentTarget.value)} placeholder={attachment() ? controller.copy.placeholders.optional : controller.copy.placeholders.body} value={bodyValue(controller)} />
       </Show>
       <Show when={controller.tabs.activeTab === "song" && controller.song.state.lyricsEditorState === "ready"}>
         <label class="block space-y-2">

@@ -24,7 +24,7 @@ export function PostComposerBasicFields(props: {
           class="h-12 rounded-[var(--radius-xl)] bg-card px-3.5 text-base"
           id={titleId}
           maxlength={300}
-          onChange={(event) => props.onTitleChange(event.currentTarget.value)}
+          onInput={(event) => props.onTitleChange(event.currentTarget.value)}
           placeholder={props.titlePlaceholder}
           value={props.title}
         />
@@ -39,7 +39,7 @@ export function PostComposerBasicFields(props: {
             class="min-h-[200px] resize-none rounded-[var(--radius-xl)] bg-card px-3.5 pb-10 pt-3.5 text-base leading-6"
             id={descriptionId}
             maxlength={500}
-            onChange={(event) => props.onDescriptionChange(event.currentTarget.value)}
+            onInput={(event) => props.onDescriptionChange(event.currentTarget.value)}
             placeholder={props.descriptionPlaceholder}
             value={props.description}
           />

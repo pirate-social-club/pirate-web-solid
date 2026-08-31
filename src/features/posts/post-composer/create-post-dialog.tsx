@@ -505,7 +505,10 @@ export function CreatePostDialog(props: CreatePostDialogProps): JSX.Element {
     || communityId().trim() === ""
     || communityContextConflict();
   const submitDisabled = () => mode() === "text"
-    ? textState().status !== "editing" || communityId().trim() === "" || communityContextConflict()
+    ? textState().status !== "editing"
+      || communityId().trim() === ""
+      || body().trim() === ""
+      || communityContextConflict()
     : mode() === "song" ? songSubmitDisabled() : true;
   const lyricsCanSave = () => {
     const snapshot = mediaSnapshot();
@@ -606,7 +609,6 @@ export function CreatePostDialog(props: CreatePostDialogProps): JSX.Element {
                 if (next.title !== undefined) setTitle(next.title);
               }}
               onSongModeChange={setSongMode}
-              onSubmit={submit}
               onTextBodyValueChange={setBody}
               onTitleValueChange={value => {
                 setTitle(value);
@@ -616,10 +618,13 @@ export function CreatePostDialog(props: CreatePostDialogProps): JSX.Element {
               royaltySplit={royaltySplit()}
               song={song()}
               songMode={songMode()}
-              submitDisabled={submitDisabled()}
-              submitError={error() || null}
-              submitLoading={mode() === "song" ? mediaBusy() || mediaRestoring() : textState().status === "submitting"}
-              submitLabel={mode() === "song" ? "Publish song" : "Publish post"}
+              submit={{
+                get disabled() { return submitDisabled(); },
+                get error() { return error() || null; },
+                get label() { return mode() === "song" ? "Publish song" : "Publish post"; },
+                get loading() { return mode() === "song" ? mediaBusy() || mediaRestoring() : textState().status === "submitting"; },
+                onSubmit: submit,
+              }}
               textBodyValue={body()}
               titleValue={title()}
               validateDraftBeforeSubmit={mode() !== "text"}
