@@ -26,5 +26,6 @@
     "skipLibCheck": true,
     "types": ["vite/client", "bun-types"]
   },
-  "include": ["src", "vite.config.ts", "scripts", ".storybook", "worker-configuration.d.ts"]
+  "include": ["src", "vite.config.ts", "scripts", ".storybook", "worker-configuration.d.ts"],
+  "exclude": ["scripts/dependency-audit.ts", "scripts/dependency-audit.test.ts"]
 }

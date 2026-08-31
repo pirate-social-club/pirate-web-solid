@@ -1,0 +1,5 @@
+# Observed with Iron Proxy 0.41.0 on 2026-08-30. GitHub destinations are
+# covered by the pinned action's built-in GitHub rules.
+domains:
+  - sparrow.cloudflare.com
+  - workers.cloudflare.com
