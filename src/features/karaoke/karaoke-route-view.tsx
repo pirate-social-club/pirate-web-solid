@@ -15,7 +15,7 @@ import { toKaraokeStageLines } from "./lyric-transform";
 import { deriveKaraokeFeedback } from "./karaoke-scoring-feedback";
 import { useKaraokeScoring } from "./scoring/use-karaoke-scoring-session";
 import type { RawKaraokeLine } from "./lyric-transform";
-import { prepareGlobalSignIn, requestGlobalSignIn } from "../auth/global-sign-in-host";
+import { preloadGlobalSignInAssets, prepareGlobalSignIn, requestGlobalSignIn } from "../auth/global-sign-in-host";
 
 function errorMessage(error: unknown, fallback: string): string {
   return error instanceof Error && error.message.trim() ? error.message : fallback;
@@ -69,6 +69,7 @@ function LoadedKaraokeSession(props: { payload: ApiSongKaraokePayload; postId: s
           description="This song is available to everyone, but recording a scored take requires an account."
           onConnect={requestGlobalSignIn}
           onConnectIntent={prepareGlobalSignIn}
+          onConnectPreload={preloadGlobalSignInAssets}
           onExit={() => navigate(`/p/${encodeURIComponent(props.postId)}`)}
           title="Sign in to sing"
         />
@@ -156,6 +157,7 @@ export function KaraokeLeaderboardRouteView(props: KaraokeLeaderboardRouteViewPr
               leaderboard
               onConnect={requestGlobalSignIn}
               onConnectIntent={prepareGlobalSignIn}
+              onConnectPreload={preloadGlobalSignInAssets}
               onExit={() => navigate(`/p/${encodeURIComponent(props.postId)}/karaoke`)}
               artistName={loadedPayload()?.artist_name ?? undefined}
               artworkSrc={loadedPayload()?.artwork_src ?? undefined}

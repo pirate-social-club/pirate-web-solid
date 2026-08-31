@@ -1,6 +1,6 @@
 import { createSignal, Show } from "solid-js";
 import { Title } from "@solidjs/meta";
-import { prepareGlobalSignIn, requestGlobalSignIn } from "../auth/global-sign-in-host";
+import { preloadGlobalSignInAssets, prepareGlobalSignIn, requestGlobalSignIn } from "../auth/global-sign-in-host";
 
 import {
   advanceLesson,
@@ -391,6 +391,7 @@ export function StudyingRouteView(props: StudyingRouteViewProps) {
           description="Study packs follow the song's community. Sign in to pick up your lesson and streak."
           onConnect={props.onConnect ?? requestGlobalSignIn}
           onConnectIntent={props.onConnect === undefined ? prepareGlobalSignIn : undefined}
+          onConnectPreload={props.onConnect === undefined ? preloadGlobalSignInAssets : undefined}
           onExit={props.onExit}
           title="Sign in to study"
         />

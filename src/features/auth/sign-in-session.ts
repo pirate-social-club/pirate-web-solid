@@ -62,6 +62,25 @@ function oauthRedirect(provider: OAuthProvider): string {
   return redirect.toString();
 }
 
+interface OAuthReturn {
+  readonly authorizationCode: string;
+  readonly provider: OAuthProvider;
+  readonly returnedStateCode: string;
+}
+
+function oauthReturn(): OAuthReturn | undefined {
+  const params = new URL(window.location.href).searchParams;
+  const authorizationCode = params.get("code");
+  const returnedStateCode = params.get("state");
+  const provider = params.get("provider");
+  if (
+    (provider !== "google" && provider !== "twitter") ||
+    authorizationCode === null ||
+    returnedStateCode === null
+  ) return undefined;
+  return { authorizationCode, provider, returnedStateCode };
+}
+
 /**
  * Owns the Privy identity ceremony and drives the pure phase model. Every
  * failure path lands on a phase that still offers a control, so a failed OAuth
@@ -81,10 +100,13 @@ export function createSignInSession(options: SignInSessionOptions = {}): SignInS
     ownedWrite: true,
   });
   let exchange: PrivySessionExchange | undefined;
+  let exchangeLoad: Promise<PrivySessionExchange> | undefined;
   let generation = 0;
 
   const isCurrent = (token: number, handle: PrivySessionExchange) =>
     generation === token && exchange === handle;
+  const isLoadCurrent = (token: number, load: Promise<PrivySessionExchange>) =>
+    generation === token && exchangeLoad === load;
 
   const succeed = () => {
     setState(signInSucceeded);
@@ -114,6 +136,7 @@ export function createSignInSession(options: SignInSessionOptions = {}): SignInS
     generation += 1;
     exchange?.clear();
     exchange = undefined;
+    exchangeLoad = undefined;
   };
 
   onCleanup(discard);
@@ -128,48 +151,43 @@ export function createSignInSession(options: SignInSessionOptions = {}): SignInS
       discard();
       const runToken = generation;
       if (!enabled || typeof window === "undefined") return;
-      // A reopen starts from loading rather than whatever phase the surface was
-      // dismissed on, so the old email, code, or working step is never shown
-      // over an exchange that does not exist yet.
-      setState(initialSignInState);
+      // The method form needs no Privy handle. Show it immediately and let the
+      // first operation await initialization; provider returns remain a
+      // dedicated working phase because they resume without another choice.
+      const returnedOAuth = oauthReturn();
+      setState(returnedOAuth === undefined
+        ? signInReady(initialSignInState)
+        : signInStarted(initialSignInState, "working"));
 
       const load = options.createExchange
         ? options.createExchange()
         : acquireSignInExchange();
+      exchangeLoad = load;
 
       void load
         .then(async (candidate) => {
-          if (generation !== runToken) {
+          if (!isLoadCurrent(runToken, load)) {
             candidate.clear();
             return;
           }
           exchange = candidate;
           const stillCurrent = () => isCurrent(runToken, candidate);
 
-          const params = new URL(window.location.href).searchParams;
-          const authorizationCode = params.get("code");
-          const returnedStateCode = params.get("state");
-          const provider = params.get("provider");
-          const isOAuthReturn =
-            (provider === "google" || provider === "twitter") &&
-            authorizationCode !== null &&
-            returnedStateCode !== null;
+          if (returnedOAuth === undefined) return;
 
-          if (!isOAuthReturn) {
-            setState(signInReady);
-            return;
-          }
-
-          setState((current) => signInStarted(current, "working"));
           try {
-            await candidate.completeOAuth(provider, authorizationCode, returnedStateCode);
+            await candidate.completeOAuth(
+              returnedOAuth.provider,
+              returnedOAuth.authorizationCode,
+              returnedOAuth.returnedStateCode,
+            );
             if (stillCurrent()) succeed();
           } catch (error) {
             if (stillCurrent()) fail(error, "choose");
           }
         })
         .catch((error: unknown) => {
-          if (generation === runToken) {
+          if (isLoadCurrent(runToken, load)) {
             setState((current) => signInUnavailable(current, error));
           }
         });
@@ -177,7 +195,9 @@ export function createSignInSession(options: SignInSessionOptions = {}): SignInS
   );
 
   /**
-   * Runs one attempt against the exchange that is current when it starts.
+   * Runs one attempt against the exchange load that is current when it starts.
+   * The visible form can therefore collect intent while initialization is in
+   * flight; its first submission shows busy state and awaits the same promise.
    * `settle` receives the operation's result on the success path; failures
    * recover to `recovery`. Both are skipped when the attempt is no longer
    * current, so every effect that follows an attempt — a state change, a
@@ -189,13 +209,22 @@ export function createSignInSession(options: SignInSessionOptions = {}): SignInS
     operation: (handle: PrivySessionExchange) => Promise<Result>,
     settle?: (value: Result) => void,
   ) => {
-    const handle = exchange;
-    if (handle === undefined) return;
+    const load = exchangeLoad;
+    if (load === undefined) return;
     const token = generation;
-    const stillCurrent = () => isCurrent(token, handle);
     setState((current) => signInStarted(current, phase));
 
     void (async () => {
+      let handle: PrivySessionExchange;
+      try {
+        handle = await load;
+      } catch {
+        // The owning load handler moves the surface to unavailable.
+        return;
+      }
+      if (!isLoadCurrent(token, load)) return;
+      exchange ??= handle;
+      const stillCurrent = () => isCurrent(token, handle);
       try {
         const value = await operation(handle);
         if (stillCurrent()) settle?.(value);

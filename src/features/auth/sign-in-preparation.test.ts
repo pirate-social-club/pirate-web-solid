@@ -42,20 +42,39 @@ afterEach(() => {
 });
 
 describe("sign-in intent preparation", () => {
-  test("starts config and SDK work together and lets the modal adopt that exchange", async () => {
+  test("preloads same-origin assets without creating an exchange", async () => {
     const configLoad = deferred<VerificationPublicConfig>();
     const sdkLoad = deferred<void>();
-    const exchange = fakeExchange();
-    const createExchange = vi.fn(async () => exchange);
+    const createExchange = vi.fn(async () => fakeExchange());
     const fetchConfig = vi.fn(() => configLoad.promise);
     const preloadSdk = vi.fn(() => sdkLoad.promise);
     const preparation = createSignInPreparation({ createExchange, fetchConfig, preloadSdk });
 
-    preparation.prepare();
+    preparation.preload();
 
     expect(fetchConfig).toHaveBeenCalledTimes(1);
     expect(preloadSdk).toHaveBeenCalledTimes(1);
     expect(createExchange).not.toHaveBeenCalled();
+
+    configLoad.resolve(config);
+    sdkLoad.resolve();
+    await Promise.all([configLoad.promise, sdkLoad.promise]);
+
+    expect(createExchange).not.toHaveBeenCalled();
+  });
+
+  test("lets committed intent and the modal share one prepared exchange", async () => {
+    const configLoad = deferred<VerificationPublicConfig>();
+    const sdkLoad = deferred<void>();
+    const exchange = fakeExchange();
+    const createExchange = vi.fn(async () => exchange);
+    const preparation = createSignInPreparation({
+      createExchange,
+      fetchConfig: () => configLoad.promise,
+      preloadSdk: () => sdkLoad.promise,
+    });
+
+    preparation.prepare();
 
     const acquired = preparation.acquire();
     configLoad.resolve(config);
@@ -66,19 +85,21 @@ describe("sign-in intent preparation", () => {
     expect(createExchange).toHaveBeenCalledWith(config);
   });
 
-  test("memoizes public config across exchanges within the page", async () => {
+  test("memoizes public config and SDK assets across exchanges within the page", async () => {
     const fetchConfig = vi.fn(async () => config);
+    const preloadSdk = vi.fn(async () => undefined);
     const createExchange = vi.fn(async () => fakeExchange());
     const preparation = createSignInPreparation({
       createExchange,
       fetchConfig,
-      preloadSdk: async () => undefined,
+      preloadSdk,
     });
 
     await preparation.acquire();
     await preparation.acquire();
 
     expect(fetchConfig).toHaveBeenCalledOnce();
+    expect(preloadSdk).toHaveBeenCalledOnce();
     expect(createExchange).toHaveBeenCalledTimes(2);
   });
 

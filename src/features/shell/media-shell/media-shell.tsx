@@ -15,7 +15,7 @@ import {
 } from "../../../design-system";
 import type { ActivePersonaPublicProjection } from "../../../api/session.ts";
 import { SignInModal } from "../../auth/sign-in-modal.tsx";
-import { prepareSignIn } from "../../auth/sign-in-preparation.ts";
+import { preloadSignInAssets, prepareSignIn } from "../../auth/sign-in-preparation.ts";
 import { createSignInSession } from "../../auth/sign-in-session.ts";
 import { CreatePostDialog } from "../../posts/post-composer/create-post-dialog.tsx";
 import { AppHeader, MobileFooterNav } from "../app-shell-chrome/app-shell-chrome";
@@ -63,7 +63,7 @@ function SidebarFooter(props: { readonly signedIn: () => boolean; readonly onSig
   return <div class="flex flex-col gap-3">
     <div class="text-base font-semibold leading-6 text-white">{props.signedIn() ? "Your Pirate" : "Join Pirate"}</div>
     <div class="text-base font-normal leading-5 text-white/60">{props.signedIn() ? "Session active" : "Save, follow, and post"}</div>
-    <Show when={props.signedIn()} fallback={<button type="button" onClick={props.onSignIn} onFocus={prepareSignIn} onPointerDown={prepareSignIn} class="block w-full rounded-lg bg-white px-3 py-2 text-center text-sm font-semibold text-black hover:bg-white/90">Sign in</button>}>
+    <Show when={props.signedIn()} fallback={<button type="button" onClick={props.onSignIn} onFocus={prepareSignIn} onPointerDown={prepareSignIn} onPointerEnter={preloadSignInAssets} class="block w-full rounded-lg bg-white px-3 py-2 text-center text-sm font-semibold text-black hover:bg-white/90">Sign in</button>}>
       <a href="/settings" class="block rounded-lg border border-white/20 px-3 py-2 text-center text-sm font-semibold text-white hover:bg-white/10">Account settings</a>
     </Show>
   </div>;
@@ -131,7 +131,7 @@ export function MediaShell(props: MediaShellProps) {
             hideBrand
             mobileAppearance="media-overlay"
             mobileCenterContent={<Type as="span" variant="h4" class="text-white">PIRATE</Type>}
-            mobileTrailingContent={signedIn() ? undefined : <button type="button" onClick={openAuth} onFocus={prepareSignIn} onPointerDown={prepareSignIn} class="px-2 text-sm font-semibold text-white">Sign in</button>}
+            mobileTrailingContent={signedIn() ? undefined : <button type="button" onClick={openAuth} onFocus={prepareSignIn} onPointerDown={prepareSignIn} onPointerEnter={preloadSignInAssets} class="px-2 text-sm font-semibold text-white">Sign in</button>}
             onHomeClick={goHome}
             showNotificationsAction={false}
             showProfileAction={false}

@@ -60,7 +60,7 @@ export function isRegistrationRequired(error: unknown): boolean {
   return error instanceof PrivyIdentityBootstrapRequired;
 }
 
-/** The exchange resolved; offer the identity methods. */
+/** Offer identity methods while the controller prepares their exchange. */
 export function signInReady(state: SignInState): SignInState {
   return { ...state, phase: "choose", busy: false };
 }

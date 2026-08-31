@@ -51,6 +51,7 @@ export interface KaraokeAuthRequiredStateProps {
   leaderboard?: boolean;
   onConnect?: () => void;
   onConnectIntent?: () => void;
+  onConnectPreload?: () => void;
   onExit?: () => void;
   songTitle?: string;
   title: string;
@@ -79,7 +80,7 @@ export function KaraokeAuthRequiredState(props: KaraokeAuthRequiredStateProps) {
       <div class={props.leaderboard ? "flex flex-col items-center px-5 pt-5 text-center" : "px-5 pt-5"}>
         <Type as="h2" class={props.leaderboard ? "sr-only" : "text-base font-semibold"} variant="body">Sign in</Type>
         <Type as="p" class={props.leaderboard ? "max-w-[300px] text-[15px] leading-5 text-muted-foreground" : "mt-1 max-w-[350px] text-[15px] text-muted-foreground"} variant="body">{props.description}</Type>
-        <Button class={props.leaderboard ? "mt-4 h-11 w-[90px]" : "mt-3 h-11 w-[120px]"} loading={false} onClick={() => props.onConnect?.()} onFocus={props.onConnectIntent} onPointerDown={props.onConnectIntent} size="lg">
+        <Button class={props.leaderboard ? "mt-4 h-11 w-[90px]" : "mt-3 h-11 w-[120px]"} loading={false} onClick={() => props.onConnect?.()} onFocus={props.onConnectIntent} onPointerDown={props.onConnectIntent} onPointerEnter={props.onConnectPreload} size="lg">
           {props.ctaLabel ?? "Sign in"}
         </Button>
       </div>

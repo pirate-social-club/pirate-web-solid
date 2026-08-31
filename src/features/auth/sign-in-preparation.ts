@@ -23,9 +23,11 @@ export interface SignInPreparationOptions {
 }
 
 export interface SignInPreparation {
+  /** Warms same-origin config and SDK assets without creating a Privy client. */
+  preload(): void;
   /**
-   * Starts preparation without surfacing a rejected promise to an event
-   * handler. Production callers use focus or pointer-down, never passive hover.
+   * Initializes a memory-only exchange without surfacing a rejected promise to
+   * an event handler. Production callers use focus or pointer-down.
    */
   prepare(): void;
   /** Adopts the intent-prepared exchange, or builds one when no intent ran first. */
@@ -46,6 +48,7 @@ export function createSignInPreparation(
   const loadSdk = options.preloadSdk ?? (async () => { await preloadPrivySdk(); });
   const lifetimeMs = options.lifetimeMs ?? PREPARED_EXCHANGE_LIFETIME_MS;
   let configPromise: Promise<VerificationPublicConfig> | undefined;
+  let sdkPromise: Promise<void> | undefined;
   let prepared: PreparedExchange | undefined;
 
   const config = (): Promise<VerificationPublicConfig> => {
@@ -59,9 +62,24 @@ export function createSignInPreparation(
     return pending;
   };
 
+  const sdk = (): Promise<void> => {
+    const existing = sdkPromise;
+    if (existing !== undefined) return existing;
+    const pending = loadSdk();
+    sdkPromise = pending;
+    void pending.catch(() => {
+      if (sdkPromise === pending) sdkPromise = undefined;
+    });
+    return pending;
+  };
+
+  const assets = async (): Promise<VerificationPublicConfig> => {
+    const [verificationConfig] = await Promise.all([config(), sdk()]);
+    return verificationConfig;
+  };
+
   const build = async (): Promise<PrivySessionExchange> => {
-    const [verificationConfig] = await Promise.all([config(), loadSdk()]);
-    return createExchange(verificationConfig);
+    return createExchange(await assets());
   };
 
   const start = (): PreparedExchange => {
@@ -83,6 +101,9 @@ export function createSignInPreparation(
   };
 
   return {
+    preload() {
+      void assets().catch(() => undefined);
+    },
     prepare() {
       prepared ??= start();
     },
@@ -96,6 +117,10 @@ export function createSignInPreparation(
 }
 
 const defaultSignInPreparation = createSignInPreparation();
+
+export function preloadSignInAssets(): void {
+  if (globalThis.window !== undefined) defaultSignInPreparation.preload();
+}
 
 export function prepareSignIn(): void {
   if (globalThis.window !== undefined) defaultSignInPreparation.prepare();

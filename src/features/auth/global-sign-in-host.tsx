@@ -3,7 +3,7 @@ import { createEffect, createSignal, onCleanup } from "solid-js";
 
 import type { PrivySessionExchange } from "../../api/privy-session.ts";
 import { SignInModal } from "./sign-in-modal.tsx";
-import { prepareSignIn } from "./sign-in-preparation.ts";
+import { preloadSignInAssets, prepareSignIn } from "./sign-in-preparation.ts";
 import { createSignInSession } from "./sign-in-session.ts";
 
 export const GLOBAL_SIGN_IN_EVENT = "pirate:connect";
@@ -21,6 +21,11 @@ export function requestGlobalSignIn(): void {
  */
 export function prepareGlobalSignIn(): void {
   prepareSignIn();
+}
+
+/** Warms same-origin sign-in assets without creating or contacting a client. */
+export function preloadGlobalSignInAssets(): void {
+  preloadSignInAssets();
 }
 
 export interface GlobalSignInHostProps {

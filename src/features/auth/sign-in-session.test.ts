@@ -97,13 +97,47 @@ describe("sign-in session controller", () => {
     expect(session.state().phase).toBe("loading");
   });
 
-  test("builds one exchange when enabled and resolves to the method list", async () => {
+  test("builds one exchange when enabled and keeps the method list ready", async () => {
     const createExchange = vi.fn(async () => fakeExchange());
     const session = harness({ createExchange });
+    expect(session.state().phase).toBe("choose");
     await settle();
 
     expect(createExchange).toHaveBeenCalledTimes(1);
     expect(session.state().phase).toBe("choose");
+  });
+
+  test("renders methods before exchange initialization resolves", async () => {
+    const pending = deferred<PrivySessionExchange>();
+    const session = harness({ createExchange: () => pending.promise });
+
+    expect(session.state().phase).toBe("choose");
+    expect(session.state().busy).toBe(false);
+
+    pending.resolve(fakeExchange());
+    await settle();
+    expect(session.state().phase).toBe("choose");
+  });
+
+  test("lets email entry overlap initialization and awaits it on submit", async () => {
+    const pending = deferred<PrivySessionExchange>();
+    const exchange = fakeExchange();
+    const session = harness({ createExchange: () => pending.promise });
+
+    session.setEmail("operator@example.test");
+    flush();
+    session.sendCode();
+    flush();
+
+    expect(session.state().phase).toBe("choose");
+    expect(session.state().busy).toBe(true);
+    expect(exchange.sendCode).not.toHaveBeenCalled();
+
+    pending.resolve(exchange);
+    await settle();
+
+    expect(exchange.sendCode).toHaveBeenCalledWith("operator@example.test");
+    expect(session.state().phase).toBe("code");
   });
 
   test("clears the exchange when the surface is disabled again", async () => {
@@ -120,9 +154,24 @@ describe("sign-in session controller", () => {
 
   test("reports an unavailable surface when the exchange cannot be built", async () => {
     const session = harness({ createExchange: async () => { throw new Error("no config"); } });
+    expect(session.state().phase).toBe("choose");
     await settle();
 
     expect(session.state().phase).toBe("unavailable");
+  });
+
+  test("clears an exchange that resolves after the surface was dismissed", async () => {
+    const pending = deferred<PrivySessionExchange>();
+    const exchange = fakeExchange();
+    const [enabled, setEnabled] = createSignal(true);
+    harness({ createExchange: () => pending.promise, enabled });
+
+    setEnabled(false);
+    flush();
+    pending.resolve(exchange);
+    await settle();
+
+    expect(exchange.clear).toHaveBeenCalledOnce();
   });
 
   test("returns a failed provider return to the method list", async () => {
@@ -199,6 +248,7 @@ describe("sign-in session controller", () => {
     flush();
     session.sendCode();
     flush();
+    await settle();
     expect(first.sendCode).toHaveBeenCalledTimes(1);
 
     setEnabled(false);
@@ -226,6 +276,7 @@ describe("sign-in session controller", () => {
     await withStubbedNavigation(assign, async () => {
       session.chooseMethod("google");
       flush();
+      await settle();
       expect(exchange.beginOAuth).toHaveBeenCalledTimes(1);
 
       setEnabled(false);
@@ -237,7 +288,7 @@ describe("sign-in session controller", () => {
     expect(assign).not.toHaveBeenCalled();
   });
 
-  test("reopening starts from loading and resolves to the method list again", async () => {
+  test("reopening resets directly to a fresh method list", async () => {
     const [enabled, setEnabled] = createSignal(true);
     const exchanges = [fakeExchange(), fakeExchange()];
     const session = harness({
@@ -254,7 +305,7 @@ describe("sign-in session controller", () => {
     flush();
     setEnabled(true);
     flush();
-    expect(session.state().phase).toBe("loading");
+    expect(session.state().phase).toBe("choose");
 
     await settle();
     expect(session.state().phase).toBe("choose");

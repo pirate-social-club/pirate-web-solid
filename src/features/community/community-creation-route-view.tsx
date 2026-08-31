@@ -3,7 +3,7 @@ import { Show, createEffect, createSignal, onCleanup } from "solid-js";
 
 import { resolveSession, type AuthenticatedSession, type SessionResolution } from "../../api/session";
 import { Button, Card, CardContent, FormNote, Spinner, Type } from "../../design-system";
-import { prepareGlobalSignIn, requestGlobalSignIn } from "../auth/global-sign-in-host";
+import { preloadGlobalSignInAssets, prepareGlobalSignIn, requestGlobalSignIn } from "../auth/global-sign-in-host";
 import { OperationPersonaControl } from "../identity/operation-persona-control/operation-persona-control";
 import {
   CommunityCreationApiError,
@@ -182,7 +182,7 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
               <Type as="p" class="text-muted-foreground" variant="body">
                 Community ownership is attached to your signed-in account and public persona.
               </Type>
-              <Button onClick={requestGlobalSignIn} onFocus={prepareGlobalSignIn} onPointerDown={prepareGlobalSignIn}>Sign in</Button>
+              <Button onClick={requestGlobalSignIn} onFocus={prepareGlobalSignIn} onPointerDown={prepareGlobalSignIn} onPointerEnter={preloadGlobalSignInAssets}>Sign in</Button>
             </CardContent></Card>
           </div>
         )}>
