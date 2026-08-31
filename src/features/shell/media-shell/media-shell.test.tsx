@@ -36,6 +36,7 @@ describe("Media shell production navigation", () => {
     expect(navigationLabels).toContain("Create community");
     expect(navigationLabels).not.toContain("Study");
     expect(navigationLabels).toContain("Karaoke");
+    expect(container.querySelector("header button[aria-label='Create community']")).not.toBeNull();
     expect(container.textContent).not.toContain("Create post");
   });
 });

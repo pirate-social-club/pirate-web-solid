@@ -119,6 +119,16 @@ export function MediaShell(props: MediaShellProps) {
             hideBrand
             mobileAppearance="media-overlay"
             mobileCenterContent={<Type as="span" variant="h4" class="text-white">PIRATE</Type>}
+            mobileLeadingContent={
+              <button
+                aria-label="Create community"
+                class="inline-flex size-10 items-center justify-center rounded-full text-white hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+                onClick={() => navigate("communities")}
+                type="button"
+              >
+                <IconUsersThree class="size-6" />
+              </button>
+            }
             mobileTrailingContent={signedIn() ? undefined : <button type="button" onClick={openAuth} onFocus={prepareSignIn} onPointerDown={prepareSignIn} onPointerEnter={preloadSignInAssets} class="px-2 text-sm font-semibold text-white">Sign in</button>}
             onHomeClick={goHome}
             showNotificationsAction={false}
