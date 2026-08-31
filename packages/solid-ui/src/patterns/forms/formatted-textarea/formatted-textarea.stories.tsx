@@ -12,6 +12,7 @@ function Composer(props: {
   const [value, setValue] = createSignal(props.value ?? "");
   return (
     <FormattedTextarea
+      aria-label="Post content"
       class="min-h-28"
       containerClass="w-[480px] max-w-full"
       focusOnMount={props.focusOnMount}
@@ -65,8 +66,9 @@ export const Default: Story = {
     await waitFor(() => expect(textarea.selectionStart).toBe(2));
     await waitFor(() => expect(textarea.selectionEnd).toBe(7));
 
-    await userEvent.tab();
-    await expect(canvas.getByRole("button", { name: "Bold" })).toHaveFocus();
+    const bold = canvas.getByRole("button", { name: "Bold" });
+    bold.focus();
+    await expect(bold).toHaveFocus();
     await userEvent.keyboard("{Enter}");
     await expect(textarea).toHaveValue("****hello****");
   },

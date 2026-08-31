@@ -165,7 +165,7 @@ export const EnteredFromTextPost: Story = {
     const canvas = within(canvasElement);
     const file = new File([new Uint8Array([0x49, 0x44, 0x33])], "midnight-waves.mp3", { type: "audio/mpeg" });
     await userEvent.upload(canvas.getByLabelText("Upload audio"), file);
-    await expect(canvas.getByRole("heading", { name: "Song" })).toBeVisible();
+    await expect(await canvas.findByRole("heading", { name: "Song" })).toBeVisible();
     await expect(canvas.getByRole("textbox", { name: "Song title" })).toHaveValue("midnight-waves");
   },
 };

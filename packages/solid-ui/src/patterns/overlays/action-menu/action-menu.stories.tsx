@@ -118,5 +118,7 @@ export const Variants: Story = {
     await userEvent.click(shuffle);
     await expect(args.onCheckedChange).toHaveBeenCalledWith("shuffle", false);
     await expect(body.getByRole("menu")).toBeVisible();
+    await userEvent.keyboard("{Escape}");
+    await waitFor(() => expect(body.queryByRole("menu")).not.toBeInTheDocument());
   },
 };

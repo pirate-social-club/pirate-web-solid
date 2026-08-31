@@ -2,7 +2,7 @@ import {
   Combobox as KCombobox,
   type ComboboxRootItemComponentProps,
 } from "@kobalte/core/combobox";
-import { createMemo } from "solid-js";
+import { createMemo, Show } from "solid-js";
 
 import { IconArrowDown, IconCheck } from "@/components/media/icons";
 import { cn } from "@/lib/cn";
@@ -32,6 +32,8 @@ export interface ComboboxProps<Option> {
   contentClass?: string;
   /** Accessible name for the combobox input. */
   "aria-label"?: string;
+  /** Native form name. A hidden select is only needed for named form fields. */
+  name?: string;
 }
 
 function ComboboxItem(props: ComboboxRootItemComponentProps<unknown>) {
@@ -85,6 +87,7 @@ export function Combobox<Option>(props: ComboboxProps<Option>) {
       },
       placeholder: props.placeholder,
       disabled: props.disabled,
+      name: props.name,
       itemComponent: ComboboxItem,
     }) as const;
 
@@ -114,7 +117,9 @@ export function Combobox<Option>(props: ComboboxProps<Option>) {
           <KCombobox.Listbox class="max-h-80 overflow-y-auto py-0 outline-none" />
         </KCombobox.Content>
       </KCombobox.Portal>
-      <KCombobox.HiddenSelect />
+      <Show when={props.name}>
+        <KCombobox.HiddenSelect name={props.name} />
+      </Show>
     </KCombobox>
   );
 }

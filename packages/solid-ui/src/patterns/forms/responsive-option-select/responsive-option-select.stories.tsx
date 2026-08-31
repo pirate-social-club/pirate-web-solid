@@ -1,6 +1,6 @@
 import { createSignal } from "solid-js";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
-import { expect, userEvent, within } from "storybook/test";
+import { expect, userEvent, waitFor, within } from "storybook/test";
 
 import {
   ResponsiveOptionSelect,
@@ -83,12 +83,12 @@ export const Interactive: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     // Desktop viewport: the pill select is the visible control.
-    const trigger = canvas.getAllByRole("combobox", { name: "Sort feed" })[0];
+    const trigger = canvas.getByRole("button", { name: "Sort feed" });
     await expect(trigger).toBeVisible();
     await userEvent.click(trigger);
     const listbox = await within(document.body).findByRole("listbox");
     await expect(listbox).toBeVisible();
     await userEvent.click(within(listbox).getByRole("option", { name: "New" }));
-    await expect(trigger).toHaveTextContent("New");
+    await waitFor(() => expect(trigger).toHaveTextContent("New"));
   },
 };

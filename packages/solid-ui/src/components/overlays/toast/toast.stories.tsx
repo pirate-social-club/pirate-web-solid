@@ -89,15 +89,18 @@ export const Variants: Story = {
     const body = within(document.body);
 
     toast.clear();
-    for (const name of ["Success", "Error", "Warning", "Info", "With description"]) {
-      await userEvent.click(canvas.getByRole("button", { name }));
+    for (const [button, title] of [
+      ["Success", "Song added to your list"],
+      ["Error", "Payment failed"],
+      ["Warning", "Low balance"],
+      ["Info", "Update available"],
+    ] as const) {
+      await userEvent.click(canvas.getByRole("button", { name: button }));
+      await expect(await body.findByText(title)).toBeVisible();
+      toast.clear();
     }
-
-    await expect(await body.findByText("Song added to your list")).toBeVisible();
-    await expect(body.getByText("Payment failed")).toBeVisible();
-    await expect(body.getByText("Low balance")).toBeVisible();
-    await expect(body.getByText("Update available")).toBeVisible();
-    await expect(body.getByText("New follower")).toBeVisible();
+    await userEvent.click(canvas.getByRole("button", { name: "With description" }));
+    await expect(await body.findByText("New follower")).toBeVisible();
     await expect(body.getByText("Someone started following you.")).toBeVisible();
     toast.clear();
   },

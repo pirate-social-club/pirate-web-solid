@@ -71,7 +71,8 @@ export const Variants: Story = {
     const canvas = within(canvasElement);
 
     await expect(canvas.getByText("Decorative")).toBeVisible();
-    const named = canvas.getByRole("img", { name: "Pirate" });
-    await expect(named).toHaveAttribute("alt", "Pirate");
+    const named = canvas.getAllByRole("img", { name: "Pirate" });
+    await expect(named).toHaveLength(2);
+    for (const mark of named) await expect(mark).toHaveAttribute("alt", "Pirate");
   },
 };

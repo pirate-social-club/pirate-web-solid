@@ -63,7 +63,9 @@ export const Interactive: Story = {
     const [active, setActive] = createSignal("Profile");
     const item = (label: string) => ({
       label,
-      active: active() === label,
+      get active() {
+        return active() === label;
+      },
       onSelect: () => setActive(label),
     });
     return (

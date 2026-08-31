@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
-import { expect, fn, userEvent, within } from "storybook/test";
+import { expect, fn, userEvent, waitFor, within } from "storybook/test";
 
 import { controlledRender } from "@/stories/lib/controlled";
 import {
@@ -82,7 +82,7 @@ export const Default: Story = {
     await userEvent.click(option);
 
     await expect(args.onChange).toHaveBeenCalledWith("top");
-    await expect(input).toHaveValue("Top rated");
+    await waitFor(() => expect(input).toHaveValue("Top rated"));
   },
 };
 

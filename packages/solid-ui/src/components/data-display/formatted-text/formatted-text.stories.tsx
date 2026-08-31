@@ -56,9 +56,10 @@ export const Default: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
 
-    await expect(canvas.getByRole("heading", { level: 2, name: /Community guidelines/ })).toBeVisible();
-    await expect(canvas.getByText("Assume good intent")).toBeVisible();
-    await expect(canvas.getByText("report posts that")).toBeVisible();
+    await expect(canvas.getByRole("heading", { level: 3, name: /Community guidelines/ })).toBeVisible();
+    const paragraph = canvas.getByText("Assume good intent").closest("p");
+    if (!paragraph) throw new Error("Formatted guideline paragraph is missing");
+    await expect(paragraph).toHaveTextContent(/report posts that break/);
     await expect(canvas.getByText("break")).toBeVisible();
 
     const link = canvas.getByRole("link", { name: "Full guidelines" });
@@ -101,7 +102,7 @@ export const RightToLeft: Story = {
     const canvas = within(canvasElement);
 
     await expect(document.documentElement).toHaveAttribute("dir", "rtl");
-    await expect(canvas.getByRole("heading", { level: 2, name: "مرحبا بالعالم" })).toBeVisible();
+    await expect(canvas.getByRole("heading", { level: 3, name: "مرحبا بالعالم" })).toBeVisible();
     await expect(canvas.getByText("العنصر الأول")).toBeVisible();
   },
 };

@@ -132,7 +132,9 @@ export const Default: Story = {
   render: () => <SidebarStoryFrame />,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    const trigger = canvas.getByRole("button", { name: "Toggle sidebar" });
+    const contentHeader = canvas.getByText("Content area").closest("header");
+    if (!contentHeader) throw new Error("Content header is missing");
+    const trigger = within(contentHeader).getByRole("button", { name: "Toggle sidebar" });
     const sidebar = canvasElement.querySelector("[data-side]");
     await expect(sidebar).toHaveAttribute("data-state", "expanded");
     await userEvent.click(trigger);

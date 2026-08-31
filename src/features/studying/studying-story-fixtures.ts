@@ -79,7 +79,7 @@ export function storyCorrectAttempt(input: StudyingAttemptInput) {
 
 export function storyWrongAttempt(input: StudyingAttemptInput) {
   return {
-    attempts_remaining: 1,
+    attempts_remaining: Math.max(0, 2 - input.attempt_number),
     correct_option_id: input.type === "translation_choice" ? "opt-a" : undefined,
     outcome: "incorrect" as const,
     session: { status: "active" },

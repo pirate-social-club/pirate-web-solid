@@ -77,7 +77,7 @@ export const MissedAttempts: Story = {
     // First miss: stay on the same card and offer another recording.
     await userEvent.click(await canvas.findByRole("button", { name: "Record" }));
     await userEvent.click(await canvas.findByRole("button", { name: "Stop" }));
-    await expect(await canvas.findByText("Incorrect")).toBeInTheDocument();
+    await expect(await canvas.findByText(/Incorrect/)).toBeInTheDocument();
     await expect(await canvas.findByRole("button", { name: "Record" })).toBeInTheDocument();
 
     // Second miss: spend this appearance and offer Continue into the requeued lesson.

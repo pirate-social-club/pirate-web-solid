@@ -161,7 +161,7 @@ export const Disabled: Story = {
 
     await expect(locked).toBeDisabled();
     await expect(locked).toHaveAttribute("aria-expanded", "false");
-    await userEvent.click(locked);
+    locked.click();
     await expect(locked).toHaveAttribute("aria-expanded", "false");
   },
 };

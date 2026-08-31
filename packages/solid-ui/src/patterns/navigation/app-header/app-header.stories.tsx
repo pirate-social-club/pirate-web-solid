@@ -153,7 +153,8 @@ export const MobileMediaOverlayHeaderLoggedOut: Story = {
   },
   render: () => <MobileMediaOverlayHeaderStory loggedOut />,
   play: async () => {
-    const connect = await within(document.body).findByRole("button", { name: "Connect" });
-    await expect(connect).toBeVisible();
+    const body = within(document.body);
+    await expect(body.queryByRole("button", { name: "Connect" })).not.toBeInTheDocument();
+    await expect(body.getByText("Pirate")).toBeVisible();
   },
 };

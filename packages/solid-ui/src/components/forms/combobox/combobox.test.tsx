@@ -22,6 +22,7 @@ describe("Combobox", () => {
     const container = render(() => (
       <Combobox
         aria-label="Pick a song"
+        name="song"
         options={songOptions}
         optionValue={optionValue}
         optionLabel={optionLabel}
@@ -31,7 +32,7 @@ describe("Combobox", () => {
 
     const view = within(container);
     expect(view.getByRole("combobox", { name: "Pick a song" })).toBeInTheDocument();
-    expect(container.querySelector("select")).toBeInTheDocument();
+    expect(container.querySelector('select[name="song"]')).toBeInTheDocument();
   });
 
   it("opens the listbox and commits a picked option", async () => {
