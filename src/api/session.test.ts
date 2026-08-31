@@ -1,7 +1,7 @@
 import { ApiClientError } from "@pirate/api-client";
-import { describe, expect, test } from "vitest";
+import { describe, expect, test, vi } from "vitest";
 
-import { resolveSession } from "./session.ts";
+import { resolveAccountSession, resolveSession } from "./session.ts";
 
 function authError(status: number): ApiClientError {
   return new ApiClientError(
@@ -11,6 +11,21 @@ function authError(status: number): ApiClientError {
 }
 
 describe("browser session resolution", () => {
+  test("resolves the home shell from the account without waiting for personas", async () => {
+    const getPersonas = vi.fn(async () => { throw new Error("persona projection unavailable"); });
+    const result = await resolveAccountSession({
+      client: {
+        get_usersMe: async () => {
+          // SAFETY: the account-only resolver reads only the generated response id.
+          return { id: "user-1" } as never;
+        },
+      },
+    });
+
+    expect(result).toEqual({ status: "authenticated", userId: "user-1" });
+    expect(getPersonas).not.toHaveBeenCalled();
+  });
+
   test("returns authenticated when the session endpoint succeeds", async () => {
     let input: undefined | unknown = "not-called";
     const result = await resolveSession({

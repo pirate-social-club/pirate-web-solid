@@ -14,6 +14,7 @@ import { CommunityCreationProgressView } from "./community-creation-progress/com
 import type { CommunityCreationIntentView } from "./community-creation-progress/community-creation-progress-model";
 import { CreateCommunityView } from "./create-community/create-community";
 import { createEmptyDraft, type CreateCommunityDraft } from "./create-community/create-community-model";
+import { MediaShell } from "../shell/media-shell/media-shell";
 
 type RouteSession = "resolving" | "failed" | SessionResolution;
 
@@ -130,7 +131,7 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
       });
       if (!active) return;
       setIntent(created);
-      navigate(`/communities?intent_id=${encodeURIComponent(created.intentId)}`, { replace: true });
+      navigate(`/communities/new?intent_id=${encodeURIComponent(created.intentId)}`, { replace: true });
     } catch (error) {
       if (active) setMessage(safeError(error, "Could not create this community draft. Try again."));
     } finally {
@@ -168,15 +169,19 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
   const personas = () => currentSession()?.personas ?? [];
 
   return (
-    <main data-route-path="/communities" class="min-h-dvh bg-background text-foreground">
+    <MediaShell activeItemId="communities" signedIn={currentSession() !== undefined}>
+      <main data-route-path="/communities/new" class="min-h-[24rem] bg-background text-foreground">
       <Title>Create community · Pirate</Title>
       <Show when={session() !== "resolving"} fallback={(
-        <div aria-label="Loading community creation" class="grid h-dvh place-items-center" role="status">
-          <Spinner class="size-6" decorative />
+        <div aria-label="Loading community creation" class="grid min-h-[24rem] place-items-center" role="status">
+          <div class="flex items-center gap-3 text-muted-foreground">
+            <Spinner class="size-5" decorative />
+            <Type as="span" variant="body">Preparing community creation…</Type>
+          </div>
         </div>
       )}>
         <Show when={session() !== "anonymous" && session() !== "failed"} fallback={(
-          <div class="mx-auto flex min-h-dvh max-w-xl items-center px-5">
+          <div class="mx-auto flex min-h-[24rem] max-w-xl items-center px-5">
             <Card class="w-full"><CardContent class="space-y-4 p-6">
               <Type as="h1" variant="h2">Sign in to create a community</Type>
               <Type as="p" class="text-muted-foreground" variant="body">
@@ -187,7 +192,7 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
           </div>
         )}>
           <Show when={personas().length > 0} fallback={(
-            <div class="mx-auto flex min-h-dvh max-w-xl items-center px-5">
+            <div class="mx-auto flex min-h-[24rem] max-w-xl items-center px-5">
               <Card class="w-full"><CardContent class="space-y-4 p-6">
                 <Type as="h1" variant="h2">Create a persona first</Type>
                 <Type as="p" class="text-muted-foreground" variant="body">
@@ -241,7 +246,7 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
                     onCommit={({ expectedRevision, intentId }) => void commit(expectedRevision, intentId)}
                     onRetry={() => void loadIntent(currentIntent().intentId)}
                     onStartVerification={({ ceremonyIntentId, intentId }) => navigate(
-                      `/verify/very?intent_id=${encodeURIComponent(ceremonyIntentId)}&return_to=${encodeURIComponent(`/communities?intent_id=${intentId}`)}`,
+                      `/verify/very?intent_id=${encodeURIComponent(ceremonyIntentId)}&return_to=${encodeURIComponent(`/communities/new?intent_id=${intentId}`)}`,
                     )}
                     onView={() => currentIntent().committedHref && navigate(currentIntent().committedHref!)}
                   />
@@ -251,6 +256,7 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
           </Show>
         </Show>
       </Show>
-    </main>
+      </main>
+    </MediaShell>
   );
 }

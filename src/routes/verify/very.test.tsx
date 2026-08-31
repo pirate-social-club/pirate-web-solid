@@ -100,7 +100,7 @@ describe("Very verification route", () => {
     window.history.replaceState(
       null,
       "",
-      "/verify/very?intent_id=creation-ceremony-1&return_to=%2Fcommunities%3Fintent_id%3Dcreation-1",
+      "/verify/very?intent_id=creation-ceremony-1&return_to=%2Fcommunities%2Fnew%3Fintent_id%3Dcreation-1",
     );
     const createCeremony = vi.spyOn(veryApi, "createVeryWebCeremony").mockResolvedValue({
       cancel: vi.fn(),

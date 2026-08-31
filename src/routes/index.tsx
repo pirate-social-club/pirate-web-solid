@@ -2,7 +2,10 @@ import { Title } from "@solidjs/meta";
 import { getRequestEvent } from "@solidjs/web";
 import { Show, createEffect, createSignal, onCleanup } from "solid-js";
 
-import { resolveSession, type SessionResolution } from "../api/session.ts";
+import {
+  resolveAccountSession,
+  type AccountSessionResolution,
+} from "../api/session.ts";
 import {
   Button,
   Dialog,
@@ -23,14 +26,14 @@ import { MediaShell } from "../features/shell/media-shell/media-shell.tsx";
 
 export interface HomeRouteProps {
   /** Test seam; production resolves the host-only api-next session cookie. */
-  readonly resolveSession?: () => Promise<SessionResolution>;
+  readonly resolveSession?: () => Promise<AccountSessionResolution>;
   readonly publicData?: PublicFeedProps["data"];
   readonly publicClient?: PublicFeedProps["client"];
   readonly homeData?: HomeFeedProps["data"];
   readonly homeClient?: HomeFeedProps["client"];
 }
 
-type HomeRouteSession = "resolving" | SessionResolution;
+type HomeRouteSession = "resolving" | AccountSessionResolution;
 
 function isHydrationFixtureRequest(): boolean {
   const event = getRequestEvent();
@@ -111,7 +114,7 @@ export default function HomeRoute(props: HomeRouteProps = {}) {
     () => true,
     () => {
       let active = true;
-      void (props.resolveSession ?? resolveSession)()
+      void (props.resolveSession ?? resolveAccountSession)()
         .then(result => {
           if (active) setSession(result);
         })

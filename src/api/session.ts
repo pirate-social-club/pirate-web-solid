@@ -8,6 +8,8 @@ export interface AuthenticatedSession {
   readonly personas: readonly ActivePersonaPublicProjection[];
 }
 
+export type AuthenticatedAccountSession = Pick<AuthenticatedSession, "status" | "userId">;
+
 /** Public persona fields retained by the shell after authenticated discovery. */
 export interface ActivePersonaPublicProjection {
   readonly personaId: string;
@@ -17,6 +19,8 @@ export interface ActivePersonaPublicProjection {
 }
 
 export type SessionResolution = "anonymous" | AuthenticatedSession;
+export type AccountSessionResolution = "anonymous" | AuthenticatedAccountSession;
+export type AccountSessionResolutionClient = Pick<PirateApiClient, "get_usersMe">;
 export type SessionResolutionClient = Pick<PirateApiClient, "get_usersMe" | "get_personas">;
 
 export interface SessionResolutionOptions {
@@ -24,6 +28,10 @@ export interface SessionResolutionOptions {
   readonly origin?: string | URL;
   readonly fetchImpl?: ApiFetch;
   readonly timeoutMs?: number;
+}
+
+export interface AccountSessionResolutionOptions extends Omit<SessionResolutionOptions, "client"> {
+  readonly client?: AccountSessionResolutionClient;
 }
 
 function boundedFetch(fetchImpl: ApiFetch, timeoutMs: number): ApiFetch {
@@ -60,6 +68,23 @@ export async function resolveSession(options: SessionResolutionOptions = {}): Pr
         primaryPublicHandle: persona.profile.primary_public_handle,
       }));
     return { status: "authenticated", userId: user.id, personas };
+  } catch (error) {
+    if (error instanceof ApiClientError && error.status === 401) return "anonymous";
+    throw error;
+  }
+}
+
+/** Resolve only account authentication for surfaces that do not need personas. */
+export async function resolveAccountSession(
+  options: AccountSessionResolutionOptions = {},
+): Promise<AccountSessionResolution> {
+  const client = options.client ?? createSessionApiClient({
+    origin: options.origin,
+    fetchImpl: boundedFetch(options.fetchImpl ?? fetch, options.timeoutMs ?? 4_000),
+  });
+  try {
+    const user = await client.get_usersMe(undefined);
+    return { status: "authenticated", userId: user.id };
   } catch (error) {
     if (error instanceof ApiClientError && error.status === 401) return "anonymous";
     throw error;

@@ -4,7 +4,7 @@ import { createRoot } from "solid-js";
 import type { JSX } from "@solidjs/web";
 
 import HomeRoute from "./index.tsx";
-import type { SessionResolution } from "../api/session.ts";
+import type { AccountSessionResolution } from "../api/session.ts";
 import type { FeedPage } from "../features/posts/feed/public-feed-adapter.ts";
 import { publicFeedStagingContractFixture } from "../features/posts/feed/public-feed-staging-contract.fixture.ts";
 
@@ -96,7 +96,7 @@ describe("public-first home route", () => {
   });
 
   test("resolving session keeps public discovery visible", () => {
-    const pending = new Promise<SessionResolution>(() => {});
+    const pending = new Promise<AccountSessionResolution>(() => {});
     const container = render(() => (
       <HomeRoute
         resolveSession={() => pending}
@@ -173,8 +173,8 @@ describe("public-first home route", () => {
   test("keeps post creation contextual after authentication", async () => {
     const open = vi.fn((_name: string) => { throw new Error("Fixture storage is unavailable"); });
     vi.stubGlobal("indexedDB", { open });
-    let resolveSession!: (value: SessionResolution) => void;
-    const pending = new Promise<SessionResolution>(resolve => { resolveSession = resolve; });
+    let resolveSession!: (value: AccountSessionResolution) => void;
+    const pending = new Promise<AccountSessionResolution>(resolve => { resolveSession = resolve; });
     const container = render(() => (
       <HomeRoute
         resolveSession={() => pending}
@@ -187,7 +187,7 @@ describe("public-first home route", () => {
     expect(open.mock.calls.some(([name]) => String(name).startsWith("pirate-post-composer-v2:"))).toBe(false);
     expect(document.body.querySelector("[role='dialog']")).toBeNull();
 
-    resolveSession({ status: "authenticated", userId: "user-one", personas: [] });
+    resolveSession({ status: "authenticated", userId: "user-one" });
     await vi.waitFor(() => expect(container.querySelector("[data-home-session='authenticated']")).not.toBeNull());
     expect(open.mock.calls.some(([name]) => String(name).startsWith("pirate-post-composer-v2:"))).toBe(false);
     expect(container.textContent).not.toContain("Create post");

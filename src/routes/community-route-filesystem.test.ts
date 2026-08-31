@@ -27,4 +27,15 @@ describe("community file-route structure", () => {
     expect(paths).toContain("/p/:postId/karaoke/");
     expect(paths).toContain("/p/:postId/study/");
   });
+
+  test("gives community creation its own new route", async () => {
+    const router = new PageFileSystemRouter({
+      dir: resolve("src/routes"),
+      extensions: ["js", "jsx", "ts", "tsx"],
+    });
+    const paths = buildRouteTree(await router.getRoutes()).map(route => route.path);
+
+    expect(paths).toContain("/communities/");
+    expect(paths).toContain("/communities/new");
+  });
 });

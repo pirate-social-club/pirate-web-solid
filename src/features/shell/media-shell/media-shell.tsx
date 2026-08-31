@@ -39,7 +39,7 @@ function routeFor(id: string): string | undefined {
     case "home": return "/";
     case "search": return "/search";
     case "live": return "/live";
-    case "communities": return "/communities";
+    case "communities": return "/communities/new";
     case "activity": return "/activity";
     case "karaoke": return "/karaoke";
     case "study": return "/study";

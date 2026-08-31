@@ -55,6 +55,20 @@ afterEach(() => {
 });
 
 describe("Community creation production route", () => {
+  test("keeps the application shell visible while account context resolves", () => {
+    const container = render(() => (
+      <CommunityCreationRouteView
+        api={api()}
+        resolveSession={() => new Promise(() => {})}
+      />
+    ));
+
+    expect(container.querySelector("[data-media-shell]")).not.toBeNull();
+    expect(container.querySelector("[data-route-path='/communities/new']")).not.toBeNull();
+    expect(container.querySelector("[aria-label='Loading community creation']")).not.toBeNull();
+    expect(container.querySelector(".h-dvh")).toBeNull();
+  });
+
   test("requires a signed-in session", async () => {
     const container = render(() => <>
       <GlobalSignInHost createExchange={async () => signInExchange()} reload={() => {}} />
@@ -87,6 +101,7 @@ describe("Community creation production route", () => {
     ));
 
     await vi.waitFor(() => expect(container.querySelector("[data-create-community]")).not.toBeNull());
+    expect(container.querySelector("[data-shell-auth='authenticated']")).not.toBeNull();
     expect(container.textContent).toContain("Community profile");
     expect(container.querySelector("input[type='file']")).toBeNull();
     expect(container.textContent).toContain("Palm scan");
@@ -121,10 +136,11 @@ describe("Community creation production route", () => {
       />
     ));
 
-    await vi.waitFor(() => expect(container.textContent).toContain("Create community"));
-    const commitButton = Array.from(container.querySelectorAll("button"))
-      .find((button) => button.textContent?.trim() === "Create community");
-    commitButton?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    await vi.waitFor(() => expect(container.querySelector("[data-community-creation-progress]")).not.toBeNull());
+    const route = container.querySelector("[data-route-path='/communities/new']")!;
+    const commitButton = route.querySelector<HTMLButtonElement>("[data-community-creation-progress] button")!;
+    expect(commitButton.textContent?.trim()).toBe("Create community");
+    commitButton.click();
 
     await vi.waitFor(() => expect(container.textContent).toContain("This creation changed"));
     expect(commitIntent).toHaveBeenCalledWith(expect.objectContaining({ expectedRevision: 1 }));
