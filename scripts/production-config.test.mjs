@@ -93,7 +93,7 @@ assert.equal(
 assert.equal(production.vars.HNS_COMMUNITY_APP_AUTHORITY_ORIGIN, "https://hns-community-api.pirate.sc");
 assert.equal(
   production.vars.HNS_COMMUNITY_APP_GATEWAY_DEPLOYMENT_REFERENCE,
-  "hns-community-app-handle-gateway-sha256:75c3b2183d9ea99c4f07ac811d98b72e7206018950425e01c1644820834a2754",
+  "hns-community-app-handle-gateway-sha256:cf0b23b60c8a4cb9a6ef18ef985eb01597977bc7ab19b8b478198bab8b1daf3e",
 );
 assert.equal(
   production.vars.HNS_FORWARDER_V3_KEY_REGISTRY_REFERENCE,
@@ -117,7 +117,7 @@ assert.equal(
 assert.equal(production.vars.HNS_HANDLE_HOST_AUTHORITY_ORIGIN, "https://hns-community-api.pirate.sc");
 assert.equal(
   production.vars.HNS_HANDLE_HOST_GATEWAY_DEPLOYMENT_REFERENCE,
-  "hns-community-app-handle-gateway-sha256:75c3b2183d9ea99c4f07ac811d98b72e7206018950425e01c1644820834a2754",
+  "hns-community-app-handle-gateway-sha256:cf0b23b60c8a4cb9a6ef18ef985eb01597977bc7ab19b8b478198bab8b1daf3e",
 );
 assert.equal(
   production.vars.HNS_HANDLE_HOST_GATEWAY_DEPLOYMENT_REFERENCE,
