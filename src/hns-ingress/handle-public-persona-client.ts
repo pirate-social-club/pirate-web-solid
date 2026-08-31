@@ -78,14 +78,14 @@ function exactGrantCount(
     grant.community_id === authority.communityId &&
     grant.owner_persona.persona_id === authority.ownerPersonaId &&
     grant.sale_namespace_activation_id === tuple[1][0] &&
-    grant.sale_namespace_activation_generation === tuple[1][1] &&
+    grant.sale_namespace_activation_generation <= tuple[1][1] &&
     grant.fulfillment.kind === "hosted_persona_v1" &&
     grant.handle.family === "hns" &&
     grant.handle.namespace_root === authority.canonicalRoot &&
     grant.handle.handle_label === authority.canonicalHandleLabel &&
     grant.host.kind === "available" &&
     grant.host.normalized_host === authority.normalizedHost &&
-    grant.host.sale_namespace_activation_generation === tuple[1][1] &&
+    grant.host.sale_namespace_activation_generation === grant.sale_namespace_activation_generation &&
     grant.host.grant_generation === tuple[3][1]
   ).length;
 }
