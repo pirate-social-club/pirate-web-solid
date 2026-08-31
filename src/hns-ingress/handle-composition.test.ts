@@ -133,10 +133,13 @@ describe("public handle-persona HNS composition", () => {
       },
     });
     const response = await ingress.fetch(await signedRequest("GET", {
+      accept: "*/*",
       "accept-encoding": "br, gzip",
       "content-length": "0",
       "cf-worker": "gateway.pirate.sc",
       "cf-ray": "transport-only",
+      cookie: `CF_Authorization=${"a".repeat(32)}.${"b".repeat(32)}.${"c".repeat(32)}`,
+      "user-agent": "Bun/1.3.14",
       "x-forwarded-proto": "https",
     }));
     expect(accessCalls).toBe(1);
@@ -169,7 +172,18 @@ describe("public handle-persona HNS composition", () => {
   it("rejects browser fields, alternate routes, generation races, and partial composition", async () => {
     let accessCalls = 0;
     const ingress = await composition({ onAccess: () => { accessCalls += 1; } });
-    expect((await ingress.fetch(await signedRequest("GET", { accept: "text/html" }))).status).toBe(421);
+    const invalidTransportHeaders: readonly Record<string, string>[] = [
+      { accept: "text/html" },
+      { "user-agent": "Mozilla/5.0" },
+      { cookie: "session=browser" },
+      {
+        cookie:
+          `CF_Authorization=${"a".repeat(32)}.${"b".repeat(32)}.${"c".repeat(32)}; session=browser`,
+      },
+    ];
+    for (const extra of invalidTransportHeaders) {
+      expect((await ingress.fetch(await signedRequest("GET", extra))).status).toBe(421);
+    }
     expect(accessCalls).toBe(0);
     const alternate = new Request(`${ingressOrigin}/p/persona_public_01`, { headers: (await signedRequest()).headers });
     expect((await ingress.fetch(alternate)).status).toBe(421);

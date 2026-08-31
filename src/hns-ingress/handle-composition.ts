@@ -54,6 +54,9 @@ const requiredIncomingHeaders = new Set<string>([
 const cloudflareTransportHeaders = new Set([
   "accept-encoding", "cdn-loop", "connection", "content-length", "x-forwarded-for", "x-forwarded-proto", "x-real-ip",
 ]);
+const bunUserAgentPattern = /^Bun\/[0-9]+\.[0-9]+\.[0-9]+$/u;
+const cloudflareAccessCookiePattern =
+  /^CF_Authorization=[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/u;
 const safeResponseHeaders = new Set([
   "content-type", "content-language", "content-encoding", "etag", "last-modified",
   "content-security-policy", "content-security-policy-report-only", "referrer-policy",
@@ -95,7 +98,10 @@ function validateClosedHeaders(headers: Headers): void {
     bytes += encoder.encode(name).byteLength + encoder.encode(value).byteLength;
     const lower = name.toLowerCase();
     const platformAdded = cloudflareTransportHeaders.has(lower) ||
-      (lower.startsWith("cf-") && !lower.startsWith("cf-access-"));
+      (lower.startsWith("cf-") && !lower.startsWith("cf-access-")) ||
+      (lower === "accept" && value === "*/*") ||
+      (lower === "user-agent" && bunUserAgentPattern.test(value)) ||
+      (lower === "cookie" && cloudflareAccessCookiePattern.test(value));
     if ((!requiredIncomingHeaders.has(lower) && !platformAdded) || count > HNS_PROFILE_MAX_REQUEST_FIELDS ||
       bytes > HNS_PROFILE_MAX_REQUEST_HEADER_BYTES) throw new HnsIngressFailure("invalid_request");
   }
