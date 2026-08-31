@@ -139,6 +139,7 @@ describe("public handle-persona HNS composition", () => {
       "cf-worker": "gateway.pirate.sc",
       "cf-ray": "transport-only",
       cookie: `CF_Authorization=${"a".repeat(32)}.${"b".repeat(32)}.${"c".repeat(32)}`,
+      host: new URL(ingressOrigin).host,
       "user-agent": "Bun/1.3.14",
       "x-forwarded-proto": "https",
     }));
@@ -175,6 +176,7 @@ describe("public handle-persona HNS composition", () => {
     const invalidTransportHeaders: readonly Record<string, string>[] = [
       { accept: "text/html" },
       { "user-agent": "Mozilla/5.0" },
+      { host: "attacker.example" },
       { cookie: "session=browser" },
       {
         cookie:

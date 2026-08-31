@@ -90,7 +90,7 @@ function assertion(headers: Headers): string {
   return value;
 }
 
-function validateClosedHeaders(headers: Headers): void {
+function validateClosedHeaders(headers: Headers, ingressHost: string): void {
   let count = 0;
   let bytes = 0;
   for (const [name, value] of headers) {
@@ -101,7 +101,8 @@ function validateClosedHeaders(headers: Headers): void {
       (lower.startsWith("cf-") && !lower.startsWith("cf-access-")) ||
       (lower === "accept" && value === "*/*") ||
       (lower === "user-agent" && bunUserAgentPattern.test(value)) ||
-      (lower === "cookie" && cloudflareAccessCookiePattern.test(value));
+      (lower === "cookie" && cloudflareAccessCookiePattern.test(value)) ||
+      (lower === "host" && value === ingressHost);
     if ((!requiredIncomingHeaders.has(lower) && !platformAdded) || count > HNS_PROFILE_MAX_REQUEST_FIELDS ||
       bytes > HNS_PROFILE_MAX_REQUEST_HEADER_BYTES) throw new HnsIngressFailure("invalid_request");
   }
@@ -179,6 +180,7 @@ export async function makeHnsHandlePersonaIngressCompositionV1(options: {
   readonly dispatch: HnsHandlePersonaDispatchV1;
 }): Promise<EnabledHnsHandlePersonaIngressCompositionV1> {
   const ingressOrigin = exactHttpsOrigin(options.ingressOrigin);
+  const ingressHost = new URL(ingressOrigin).host;
   const canonicalOrigin = exactHttpsOrigin(options.canonicalOrigin);
   if (
     canonicalOrigin !== "https://pirate.sc" || ingressOrigin === canonicalOrigin ||
@@ -199,7 +201,7 @@ export async function makeHnsHandlePersonaIngressCompositionV1(options: {
     fetch: async (request: Request): Promise<Response> => {
       try {
         if (new URL(request.url).origin !== ingressOrigin) throw new HnsIngressFailure("invalid_request");
-        validateClosedHeaders(request.headers);
+        validateClosedHeaders(request.headers, ingressHost);
         await options.accessJwtValidator.verify(assertion(request.headers), request.signal);
         const envelope = readHnsHandleForwarderEnvelopeV3(request);
         const bodyBytes = await readEmptyBody(request);
