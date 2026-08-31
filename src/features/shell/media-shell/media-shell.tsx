@@ -3,21 +3,17 @@ import type { JSX } from "@solidjs/web";
 import { Show, createSignal } from "solid-js";
 
 import {
-  Button,
   IconBell,
   IconBroadcast,
   IconHouse,
   IconMagnifyingGlass,
   IconMicrophone,
-  IconPlus,
   IconUsersThree,
   Type,
 } from "../../../design-system";
-import type { ActivePersonaPublicProjection } from "../../../api/session.ts";
 import { SignInModal } from "../../auth/sign-in-modal.tsx";
 import { preloadSignInAssets, prepareSignIn } from "../../auth/sign-in-preparation.ts";
 import { createSignInSession } from "../../auth/sign-in-session.ts";
-import { CreatePostDialog } from "../../posts/post-composer/create-post-dialog.tsx";
 import { AppHeader, MobileFooterNav } from "../app-shell-chrome/app-shell-chrome";
 import { AppSidebar, SidebarContent, type SidebarItem, type SidebarSection } from "../app-sidebar/app-sidebar";
 
@@ -35,8 +31,6 @@ export interface MediaShellProps {
   readonly children: JSX.Element;
   readonly activeItemId?: MediaShellRoute;
   readonly signedIn?: boolean;
-  readonly principalId?: string;
-  readonly personas?: readonly ActivePersonaPublicProjection[];
   readonly class?: string;
 }
 
@@ -83,7 +77,6 @@ export function MediaShell(props: MediaShellProps) {
       id: "community",
       label: "Community",
       items: [
-        { id: "communities", label: "Communities", icon: <IconUsersThree class="size-5" /> },
         { id: "activity", label: "Activity", icon: <IconBell class="size-5" /> },
       ],
     },
@@ -91,18 +84,14 @@ export function MediaShell(props: MediaShellProps) {
       id: "create",
       label: "Create",
       items: [
+        { id: "communities", label: "Create community", icon: <IconUsersThree class="size-5" /> },
         { id: "karaoke", label: "Karaoke", icon: <IconMicrophone class="size-5" /> },
       ],
     },
   ];
   const goHome = () => navigate("home");
   const [authOpen, setAuthOpen] = createSignal(false);
-  const [composerOpen, setComposerOpen] = createSignal(false);
   const openAuth = () => setAuthOpen(true);
-  const openComposer = () => {
-    if (signedIn()) setComposerOpen(true);
-    else openAuth();
-  };
   const completeAuth = () => {
     setAuthOpen(false);
     navigate("home");
@@ -122,7 +111,6 @@ export function MediaShell(props: MediaShellProps) {
         onNavigate={navigate}
         primaryItems={primaryItems}
         sections={sections}
-        mediaAction={<Button class="w-full rounded-xl bg-white text-black hover:bg-white/90" onClick={openComposer}><IconPlus class="size-5" />Create post</Button>}
       />
       <SidebarContent class="min-h-screen bg-background pb-20 md:pb-0">
         <div class="md:hidden">
@@ -143,13 +131,5 @@ export function MediaShell(props: MediaShellProps) {
       </SidebarContent>
     </div>
     <SignInModal open={authOpen()} onOpenChange={setAuthOpen} session={signInSession} />
-    <Show when={props.principalId}>
-      {(principalId) => <CreatePostDialog
-        open={composerOpen()}
-        onOpenChange={setComposerOpen}
-        personas={props.personas ?? []}
-        principalId={principalId()}
-      />}
-    </Show>
   </div>;
 }

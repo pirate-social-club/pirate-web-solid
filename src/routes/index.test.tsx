@@ -170,8 +170,8 @@ describe("public-first home route", () => {
     expect(document.body.querySelector("[role='dialog']")).toBeNull();
   });
 
-  test("mounts the text-post coordinator only after authentication supplies a principal", async () => {
-    const open = vi.fn((_name: string) => { throw new Error("fixture open proves coordinator mount"); });
+  test("keeps post creation contextual after authentication", async () => {
+    const open = vi.fn((_name: string) => { throw new Error("Fixture storage is unavailable"); });
     vi.stubGlobal("indexedDB", { open });
     let resolveSession!: (value: SessionResolution) => void;
     const pending = new Promise<SessionResolution>(resolve => { resolveSession = resolve; });
@@ -184,16 +184,14 @@ describe("public-first home route", () => {
     ));
 
     expect(container.querySelector("[data-home-session='resolving']")).not.toBeNull();
-    expect(open).not.toHaveBeenCalled();
+    expect(open.mock.calls.some(([name]) => String(name).startsWith("pirate-post-composer-v2:"))).toBe(false);
     expect(document.body.querySelector("[role='dialog']")).toBeNull();
 
     resolveSession({ status: "authenticated", userId: "user-one", personas: [] });
-    await vi.waitFor(() => expect(open).toHaveBeenCalled());
-    expect(open.mock.calls.some(([name]) => name === "pirate-post-composer-v2:principal:user-one")).toBe(true);
-    const createPost = [...container.querySelectorAll("button")]
-      .find(button => button.textContent?.includes("Create post"));
-    expect(createPost).toBeDefined();
-    createPost?.click();
-    await vi.waitFor(() => expect(document.body.querySelector("[role='dialog']")).not.toBeNull());
+    await vi.waitFor(() => expect(container.querySelector("[data-home-session='authenticated']")).not.toBeNull());
+    expect(open.mock.calls.some(([name]) => String(name).startsWith("pirate-post-composer-v2:"))).toBe(false);
+    expect(container.textContent).not.toContain("Create post");
+    expect(container.textContent).toContain("Create community");
+    expect(document.body.querySelector("[role='dialog']")).toBeNull();
   });
 });

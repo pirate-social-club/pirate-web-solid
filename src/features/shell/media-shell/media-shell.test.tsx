@@ -28,12 +28,14 @@ afterEach(() => {
 });
 
 describe("Media shell production navigation", () => {
-  test("does not advertise the placeholder Study discovery route", () => {
+  test("offers community creation without advertising global post or placeholder Study actions", () => {
     const container = render(() => <MediaShell><main>Current route</main></MediaShell>);
     const navigationLabels = Array.from(container.querySelectorAll("nav button"))
       .map((button) => button.textContent?.trim());
 
+    expect(navigationLabels).toContain("Create community");
     expect(navigationLabels).not.toContain("Study");
     expect(navigationLabels).toContain("Karaoke");
+    expect(container.textContent).not.toContain("Create post");
   });
 });
