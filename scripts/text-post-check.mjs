@@ -297,6 +297,7 @@ async function openComposer(page, community, body) {
   assert(communityId !== undefined, `missing fixture community id for ${community}`);
   await page.goto(`${solidOrigin}/c/${communityId}`, { waitUntil: "domcontentloaded" });
   await page.locator("#app-root[data-hydrated='true']").waitFor({ state: "attached" });
+  await page.waitForLoadState("networkidle");
   await page.getByRole("button", { name: "Post here" }).click();
   const dialog = page.getByRole("dialog");
   await dialog.waitFor({ state: "visible" });
@@ -365,6 +366,7 @@ try {
     await dialog.getByText("Checking whether your post was accepted", { exact: false }).waitFor({ state: "visible" });
     await page.reload({ waitUntil: "domcontentloaded" });
     await page.locator("#app-root[data-hydrated='true']").waitFor({ state: "attached" });
+    await page.waitForLoadState("networkidle");
     await page.getByRole("button", { name: "Post here" }).click();
     dialog = page.getByRole("dialog");
     await dialog.getByRole("button", { name: "Check again" }).waitFor({ state: "visible" });
