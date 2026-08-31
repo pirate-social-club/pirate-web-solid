@@ -253,7 +253,12 @@ async function runTerminalScenario(browser, community, expectedText) {
       await dialog.getByRole("button", { name: "Cancel" }).click();
       await page.getByRole("button", { name: "Create post" }).click();
       const freshDialog = page.getByRole("dialog");
-      assert(await freshDialog.getByRole("button", { name: "Publish post" }).isEnabled(), "published close did not restore an editable draft");
+      const freshCommunity = freshDialog.getByLabel("Community ID");
+      const freshPublish = freshDialog.getByRole("button", { name: "Publish post" });
+      assert(await freshCommunity.isEditable(), "published close did not restore an editable draft");
+      assert(await freshPublish.isDisabled(), "fresh draft allowed publishing without a community");
+      await freshCommunity.fill("published-next");
+      assert(await freshPublish.isEnabled(), "fresh draft did not become publishable after choosing a community");
       assert(await freshDialog.locator("[data-post-composer-state]").count() === 0, "published close retained a terminal state");
     }
   } finally {
