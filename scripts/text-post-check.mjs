@@ -299,7 +299,7 @@ async function openComposer(page, community, body) {
   await page.getByRole("button", { name: "Post here" }).click();
   const dialog = page.getByRole("dialog");
   assert(await dialog.getByLabel("Community ID").count() === 0, "contextual composer exposed the raw Community ID field");
-  await dialog.getByText("Posting in Text fixture community", { exact: true }).waitFor({ state: "visible" });
+  await dialog.locator(`[data-community-context="${communityId}"]`).waitFor({ state: "visible" });
   await dialog.getByLabel("Title").fill(`Fixture ${community}`);
   await dialog.getByLabel("Post", { exact: true }).fill(body);
   await dialog.getByRole("button", { name: "Publish post" }).click();
