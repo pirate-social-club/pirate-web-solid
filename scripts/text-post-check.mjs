@@ -9,6 +9,14 @@ const solidOrigin = `http://127.0.0.1:${solidPort}`;
 const requests = [];
 const lostAttempts = [];
 const sessionRequests = [];
+const communityIds = {
+  "published": "community_123e4567-e89b-42d3-a456-426614174001",
+  "manual-review": "community_123e4567-e89b-42d3-a456-426614174002",
+  "blocked": "community_123e4567-e89b-42d3-a456-426614174003",
+  "conflict": "community_123e4567-e89b-42d3-a456-426614174004",
+  "lost-response": "community_123e4567-e89b-42d3-a456-426614174005",
+};
+const communitiesById = new Map(Object.entries(communityIds).map(([name, id]) => [id, name]));
 
 function assert(condition, message) {
   if (!condition) throw new Error(message);
@@ -65,6 +73,42 @@ function personasFixture() {
   };
 }
 
+function communityRouteFixture(communityId) {
+  return {
+    authority_version: "optional_route_v2",
+    community_id: communityId,
+    href: `/c/${communityId}`,
+    canonical_route: null,
+    persona_role_presentation: {
+      role: "owner",
+      persona: {
+        persona_id: "persona-text-e2e",
+        object: "persona",
+        display_name: "Text fixture persona",
+        avatar_ref: null,
+        primary_public_handle: "text-fixture",
+      },
+    },
+  };
+}
+
+function communityPreviewFixture(communityId) {
+  return {
+    id: communityId,
+    object: "community_preview",
+    display_name: "Text fixture community",
+    description: "Contextual posting fixture.",
+    membership_mode: "open",
+    human_verification_lane: null,
+    member_count: 1,
+    follower_count: 1,
+    moderators: [],
+    membership_gate_summaries: [],
+    rules: [],
+    created: 1_777_000_000,
+  };
+}
+
 function submission(status, community) {
   const base = {
     submission_id: `submission-${community}`,
@@ -117,9 +161,23 @@ const upstream = createServer(async (incoming, outgoing) => {
       outgoing.end(JSON.stringify(personasFixture()));
       return;
     }
+    const communityRouteMatch = /^\/c\/(community_[^/]+)$/u.exec(pathname);
+    if (incoming.method === "GET" && communityRouteMatch?.[1] !== undefined && communitiesById.has(communityRouteMatch[1])) {
+      outgoing.writeHead(200, { "content-type": "application/json" });
+      outgoing.end(JSON.stringify(communityRouteFixture(communityRouteMatch[1])));
+      return;
+    }
+    const communityPreviewMatch = /^\/communities\/(community_[^/]+)\/preview$/u.exec(pathname);
+    if (incoming.method === "GET" && communityPreviewMatch?.[1] !== undefined && communitiesById.has(communityPreviewMatch[1])) {
+      outgoing.writeHead(200, { "content-type": "application/json" });
+      outgoing.end(JSON.stringify(communityPreviewFixture(communityPreviewMatch[1])));
+      return;
+    }
     const match = /^\/communities\/([^/]+)\/posts$/u.exec(pathname);
     if (incoming.method === "POST" && match?.[1] !== undefined) {
-      const community = decodeURIComponent(match[1]);
+      const communityId = decodeURIComponent(match[1]);
+      const community = communitiesById.get(communityId);
+      assert(community !== undefined, `unknown fixture community ${communityId}`);
       requests.push({
         community,
         bodyText,
@@ -235,9 +293,13 @@ async function authenticatedPage(browser) {
 }
 
 async function openComposer(page, community, body) {
-  await page.getByRole("button", { name: "Create post" }).click();
+  const communityId = communityIds[community];
+  assert(communityId !== undefined, `missing fixture community id for ${community}`);
+  await page.goto(`${solidOrigin}/c/${communityId}`, { waitUntil: "domcontentloaded" });
+  await page.getByRole("button", { name: "Post here" }).click();
   const dialog = page.getByRole("dialog");
-  await dialog.getByLabel("Community ID").fill(community);
+  assert(await dialog.getByLabel("Community ID").count() === 0, "contextual composer exposed the raw Community ID field");
+  await dialog.getByText("Posting in Text fixture community", { exact: true }).waitFor({ state: "visible" });
   await dialog.getByLabel("Title").fill(`Fixture ${community}`);
   await dialog.getByLabel("Post", { exact: true }).fill(body);
   await dialog.getByRole("button", { name: "Publish post" }).click();
@@ -251,14 +313,14 @@ async function runTerminalScenario(browser, community, expectedText) {
     await dialog.getByText(expectedText, { exact: false }).waitFor({ state: "visible" });
     if (community === "published") {
       await dialog.getByRole("button", { name: "Cancel" }).click();
-      await page.getByRole("button", { name: "Create post" }).click();
+      await page.getByRole("button", { name: "Post here" }).click();
       const freshDialog = page.getByRole("dialog");
-      const freshCommunity = freshDialog.getByLabel("Community ID");
       const freshPublish = freshDialog.getByRole("button", { name: "Publish post" });
-      assert(await freshCommunity.isEditable(), "published close did not restore an editable draft");
-      assert(await freshPublish.isDisabled(), "fresh draft allowed publishing without a community");
-      await freshCommunity.fill("published-next");
-      assert(await freshPublish.isEnabled(), "fresh draft did not become publishable after choosing a community");
+      assert(await freshDialog.getByLabel("Community ID").count() === 0, "fresh contextual draft exposed the raw Community ID field");
+      assert(await freshPublish.isDisabled(), "fresh contextual draft allowed publishing without content");
+      await freshDialog.getByLabel("Title").fill("Fresh contextual draft");
+      await freshDialog.getByLabel("Post", { exact: true }).fill("Fresh contextual body");
+      assert(await freshPublish.isEnabled(), "fresh contextual draft did not become publishable with content");
       assert(await freshDialog.locator("[data-post-composer-state]").count() === 0, "published close retained a terminal state");
     }
   } finally {
@@ -300,8 +362,7 @@ try {
     let dialog = await openComposer(page, "lost-response", "Exact lost response body");
     await dialog.getByText("Checking whether your post was accepted", { exact: false }).waitFor({ state: "visible" });
     await page.reload({ waitUntil: "domcontentloaded" });
-    await page.locator("[data-home-session='authenticated']").waitFor({ state: "attached" });
-    await page.getByRole("button", { name: "Create post" }).click();
+    await page.getByRole("button", { name: "Post here" }).click();
     dialog = page.getByRole("dialog");
     await dialog.getByRole("button", { name: "Check again" }).waitFor({ state: "visible" });
     await dialog.getByRole("button", { name: "Check again" }).click();
