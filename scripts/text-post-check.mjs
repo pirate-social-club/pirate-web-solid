@@ -296,8 +296,10 @@ async function openComposer(page, community, body) {
   const communityId = communityIds[community];
   assert(communityId !== undefined, `missing fixture community id for ${community}`);
   await page.goto(`${solidOrigin}/c/${communityId}`, { waitUntil: "domcontentloaded" });
+  await page.locator("#app-root[data-hydrated='true']").waitFor({ state: "attached" });
   await page.getByRole("button", { name: "Post here" }).click();
   const dialog = page.getByRole("dialog");
+  await dialog.waitFor({ state: "visible" });
   assert(await dialog.getByLabel("Community ID").count() === 0, "contextual composer exposed the raw Community ID field");
   await dialog.locator(`[data-community-context="${communityId}"]`).waitFor({ state: "visible" });
   await dialog.getByLabel("Title").fill(`Fixture ${community}`);
@@ -362,6 +364,7 @@ try {
     let dialog = await openComposer(page, "lost-response", "Exact lost response body");
     await dialog.getByText("Checking whether your post was accepted", { exact: false }).waitFor({ state: "visible" });
     await page.reload({ waitUntil: "domcontentloaded" });
+    await page.locator("#app-root[data-hydrated='true']").waitFor({ state: "attached" });
     await page.getByRole("button", { name: "Post here" }).click();
     dialog = page.getByRole("dialog");
     await dialog.getByRole("button", { name: "Check again" }).waitFor({ state: "visible" });
