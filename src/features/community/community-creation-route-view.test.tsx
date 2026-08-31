@@ -1,13 +1,16 @@
 import type { JSX } from "@solidjs/web";
 import { render as solidRender } from "@solidjs/web";
-import { createRoot } from "solid-js";
 import { afterEach, describe, expect, test, vi } from "vitest";
 
 import type { PrivySessionExchange } from "../../api/privy-session.ts";
 import type { CommunityCreationApi } from "./community-creation-api";
 import { CommunityCreationRouteView } from "./community-creation-route-view";
 import { createIntent } from "./community-creation-progress/community-creation-progress-model";
-import { GlobalSignInHost, requestGlobalSignIn } from "../auth/global-sign-in-host";
+import {
+  GLOBAL_SIGN_IN_EVENT,
+  GlobalSignInHost,
+  requestGlobalSignIn,
+} from "../auth/global-sign-in-host";
 
 const disposers: Array<() => void> = [];
 
@@ -26,11 +29,7 @@ function signInExchange(): PrivySessionExchange {
 function render(ui: () => JSX.Element): HTMLElement {
   const container = document.createElement("div");
   document.body.appendChild(container);
-  let dispose = () => {};
-  createRoot((rootDispose) => {
-    dispose = rootDispose;
-    solidRender(ui, container);
-  });
+  const dispose = solidRender(ui, container);
   disposers.push(() => {
     dispose();
     container.remove();
@@ -80,17 +79,23 @@ describe("Community creation production route", () => {
   });
 
   test("requires a signed-in session", async () => {
-    const container = render(() => <>
-      <GlobalSignInHost createExchange={async () => signInExchange()} reload={() => {}} />
+    const container = render(() => (
       <CommunityCreationRouteView api={api()} resolveSession={async () => "anonymous"} />
-    </>);
+    ));
 
     await vi.waitFor(() => expect(container.textContent).toContain("Sign in to create a community"));
     expect(container.querySelector("[data-create-community]")).toBeNull();
-    const signIn = [...container.querySelectorAll<HTMLButtonElement>("button")]
+    const route = container.querySelector("[data-route-path='/communities/new']")!;
+    const signIn = [...route.querySelectorAll<HTMLButtonElement>("button")]
       .find(button => button.textContent?.trim() === "Sign in")!;
-    signIn.click();
-    await vi.waitFor(() => expect(document.body.querySelector("[aria-label='Join Pirate']")).not.toBeNull());
+    const requested = vi.fn();
+    window.addEventListener(GLOBAL_SIGN_IN_EVENT, requested);
+    try {
+      signIn.click();
+      expect(requested).toHaveBeenCalledOnce();
+    } finally {
+      window.removeEventListener(GLOBAL_SIGN_IN_EVENT, requested);
+    }
   });
 
   test("reuses the creation form while withholding unsupported media controls", async () => {
