@@ -56,12 +56,6 @@ function isDestructiveAction(action: CommunityModerationCaseAction): boolean {
   return action === "reject" || action === "hide";
 }
 
-function caseSourceLabel(source: CommunityModerationCase["source"]): string {
-  if (source === "automatic") return "Flagged by Pirate";
-  if (source === "member_report") return "Reported by member";
-  return "Reported and flagged";
-}
-
 function caseCategorySummary(detail?: CommunityModerationCaseDetail): string {
   const value = (detail?.evidence.matched_categories ?? []).map(categoryLabel).join(", ");
   return value ? `${value.charAt(0).toUpperCase()}${value.slice(1)}` : "";
@@ -80,6 +74,7 @@ interface CommunityModerationPanelStateProps {
   capabilities: CommunityModerationCapabilities;
   errorMessage?: string;
   loading?: boolean;
+  showHeading?: boolean;
 }
 
 export interface CommunityModerationQueuePanelProps extends CommunityModerationPanelStateProps {
@@ -113,7 +108,7 @@ function CaseCard(props: Pick<CommunityModerationQueuePanelProps, "actionBusy" |
   const categorySummary = () => caseCategorySummary(props.detail);
   return (
     <Card class="flex flex-col gap-5 p-5 md:p-6">
-      <Type as="p" class="text-muted-foreground" variant="caption">{caseSourceLabel(props.item.source)}<Show when={categorySummary()}> · {categorySummary()}</Show></Type>
+      <Show when={categorySummary()}><Type as="p" class="text-muted-foreground" variant="caption">{categorySummary()}</Type></Show>
       <Show when={textPreview()} fallback={props.detail?.preview.kind === "locked"
         ? <div class="grid min-h-32 place-items-center rounded-[var(--radius-xl)] border border-border-soft bg-muted/30 p-5 text-center"><div><IconLock class="mx-auto mb-2 size-6" /><Type as="p" variant="body-strong">18+ preview locked</Type><Type as="p" class="mt-1 text-muted-foreground" variant="caption">This account cannot view adult-rated content.</Type></div></div>
         : <FormNote>Content preview unavailable.</FormNote>
@@ -137,7 +132,7 @@ function CaseQueue(props: CommunityModerationQueuePanelProps) {
   return (
     <section aria-label="Moderation cases" class="flex flex-col gap-4 pb-24 md:pb-0">
       <div class="flex items-center justify-between gap-4">
-        <Type as="h3" variant="h3">Cases</Type>
+        <Show when={props.showHeading !== false}><Type as="h2" variant="h2">Moderation queue</Type></Show>
         <div class="flex rounded-[var(--radius-lg)] bg-muted p-1" role="group" aria-label="Case status">
           <For each={["open", "hidden"] as const}>{(view) => <button class={cn("cursor-pointer rounded-[var(--radius-md)] px-3 py-1.5 text-sm font-semibold capitalize transition-colors", props.caseView === view ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")} onClick={() => props.onCaseViewChange?.(view)} type="button">{view}</button>}</For>
         </div>
@@ -188,7 +183,6 @@ function PolicyEditor(props: Pick<CommunityModerationPolicyPanelProps, "capabili
 export function CommunityModerationQueuePanel(props: CommunityModerationQueuePanelProps) {
   return (
     <div class="flex flex-col gap-5">
-      <div><Type as="h2" variant="h2">Moderation queue</Type><Type as="p" class="mt-1 text-muted-foreground" variant="body">Review posts and comments that need moderator attention.</Type></div>
       <Show when={!props.errorMessage} fallback={<Card class="p-6"><FormNote tone="destructive">{props.errorMessage}</FormNote></Card>}>
         <Show when={!props.loading} fallback={<Card class="grid min-h-64 place-items-center" role="status"><div class="flex items-center gap-3"><Spinner class="size-5" /><Type variant="body">Loading queue…</Type></div></Card>}>
           <CaseQueue {...props} />
@@ -201,7 +195,7 @@ export function CommunityModerationQueuePanel(props: CommunityModerationQueuePan
 export function CommunityModerationPolicyPanel(props: CommunityModerationPolicyPanelProps) {
   return (
     <div class="flex flex-col gap-5">
-      <div><Type as="h2" variant="h2">Content policy</Type><Type as="p" class="mt-1 text-muted-foreground" variant="body">Set what is allowed, reviewed or blocked in this community.</Type></div>
+      <Show when={props.showHeading !== false}><div><Type as="h2" variant="h2">Content policy</Type><Type as="p" class="mt-1 text-muted-foreground" variant="body">Set what is allowed, reviewed or blocked in this community.</Type></div></Show>
       <Show when={!props.errorMessage} fallback={<Card class="p-6"><FormNote tone="destructive">{props.errorMessage}</FormNote></Card>}>
         <Show when={!props.loading} fallback={<Card class="grid min-h-64 place-items-center" role="status"><div class="flex items-center gap-3"><Spinner class="size-5" /><Type variant="body">Loading policy…</Type></div></Card>}>
           <PolicyEditor {...props} />

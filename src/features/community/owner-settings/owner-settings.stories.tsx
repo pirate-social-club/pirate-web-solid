@@ -127,6 +127,7 @@ function OwnerSettingsHappyPath(props: { initialSection?: OwnerSettingsSection }
             onSave={saveProfile}
             saveDisabled={!dirtySections().includes("profile")}
             saveLoading={profileSaving()}
+            showHeading={false}
           />
         </Match>
         <Match when={active() === "namespace"}>
@@ -135,6 +136,7 @@ function OwnerSettingsHappyPath(props: { initialSection?: OwnerSettingsSection }
             idempotencyKeys={namespaceIdempotencyKeys("storybook-connected")}
             onCommand={() => undefined}
             onDraftRootLabelChange={() => undefined}
+            showHeading={false}
             snapshot={namespaceState({
               kind: "verified",
               canonical_route: "https://app.midnight/",
@@ -167,6 +169,7 @@ function OwnerSettingsHappyPath(props: { initialSection?: OwnerSettingsSection }
             details={OPEN_MODERATION_CASE_DETAILS}
             onCaseAction={(input) => setSavedMessage(`Moderation action: ${input.body.action}`)}
             onCaseViewChange={() => undefined}
+            showHeading={false}
           />
         </Match>
         <Match when={active() === "content_policy"}>
@@ -180,6 +183,7 @@ function OwnerSettingsHappyPath(props: { initialSection?: OwnerSettingsSection }
             policy={MODERATION_POLICY}
             policyDecisions={policyDecisions()}
             policyDirty={policyDirty()}
+            showHeading={false}
           />
         </Match>
         <Match when={active() === "archive"}><CommunityArchivePage onArchive={() => setArchiveStatus("archived")} onUnarchive={() => setArchiveStatus("active")} status={archiveStatus()} submitState={{ kind: "idle" }} /></Match>

@@ -5,7 +5,6 @@ import {
   AppHeader,
   Button,
   Card,
-  CommunityAvatar,
   FlatTabBar,
   FlatTabButton,
   IconCrown,
@@ -53,6 +52,17 @@ export function CommunityOwnerSettingsShell(props: CommunityOwnerSettingsShellPr
   const groups = () => visibleOwnerSettingsGroups(props.access);
   const dirty = () => new Set(props.dirtySections ?? []);
   const activeLabel = () => groups().flatMap((group) => group.items).find((item) => item.section === props.activeSection)?.label ?? "Settings";
+  const activeTitle = () => ({
+    profile: "Community profile",
+    namespace: "Community address",
+    names: "Names",
+    rules: "Rules",
+    links: "Links",
+    membership_requests: "Membership requests",
+    moderation_queue: "Moderation queue",
+    content_policy: "Content policy",
+    archive: "Archive community",
+  } satisfies Record<OwnerSettingsSection, string>)[props.activeSection];
   const iconBySection = {
     profile: <IconUsers class="size-5" />,
     namespace: <IconGlobe class="size-5" />,
@@ -100,15 +110,7 @@ export function CommunityOwnerSettingsShell(props: CommunityOwnerSettingsShellPr
               avatarFallback={props.communityName}
               forceMobile
               hideBrand
-              mobileCenterContent={<Type as="span" variant="h4">Owner settings</Type>}
-              mobileTrailingContent={
-                <CommunityAvatar
-                  avatarSrc={props.avatarUrl ?? undefined}
-                  communityId={props.communityName}
-                  displayName={props.communityName}
-                  size="sm"
-                />
-              }
+              mobileCenterContent={<Type as="span" variant="h4">{activeTitle()}</Type>}
               onBackClick={() => props.onSectionChange("profile")}
               showCreateAction={false}
               showNotificationsAction={false}
@@ -117,17 +119,8 @@ export function CommunityOwnerSettingsShell(props: CommunityOwnerSettingsShellPr
           </div>
 
           <header class="hidden border-b border-border-soft bg-background md:block">
-            <div class="mx-auto flex w-full max-w-6xl items-center gap-4 px-8 py-5">
-              <CommunityAvatar
-                avatarSrc={props.avatarUrl ?? undefined}
-                communityId={props.communityName}
-                displayName={props.communityName}
-                size="md"
-              />
-              <div class="min-w-0">
-                <Type as="p" class="truncate" variant="body-strong">{props.communityName}</Type>
-                <Type as="h1" class="truncate" variant="h2">Owner settings</Type>
-              </div>
+            <div class="mx-auto w-full max-w-6xl px-8 py-5">
+              <Type as="h1" class="truncate" variant="h2">{activeTitle()}</Type>
             </div>
           </header>
 

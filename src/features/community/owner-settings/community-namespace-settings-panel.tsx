@@ -30,6 +30,7 @@ export interface CommunityNamespaceSettingsPanelProps {
   idempotencyKeys: NamespaceCommandIdempotencyKeys;
   onCommand: (command: NamespaceSettingsCommand) => void;
   onDraftRootLabelChange: (rootLabel: string) => void;
+  showHeading?: boolean;
   snapshot: NamespaceSettingsSnapshot;
 }
 
@@ -138,7 +139,7 @@ function failedAction(action: NamespaceNextAction): Extract<NamespaceNextAction,
   return action.kind === "failed" ? action : null;
 }
 
-function ServerDirectedAction(props: Pick<CommunityNamespaceSettingsPanelProps, "busy" | "idempotencyKeys" | "onCommand" | "snapshot">) {
+function ServerDirectedAction(props: Pick<CommunityNamespaceSettingsPanelProps, "busy" | "idempotencyKeys" | "onCommand" | "showHeading" | "snapshot">) {
   const action = () => props.snapshot.next_action;
   const dispatch = (value: NamespaceSettingsCommandInput) => {
     props.onCommand(command(props.idempotencyKeys, props.snapshot, value));
@@ -236,7 +237,7 @@ function ServerDirectedAction(props: Pick<CommunityNamespaceSettingsPanelProps, 
       <Show when={verifiedAction(action())}>
         {(current) => (
           <div class="space-y-2">
-            <Type as="h2" responsiveSize="desktop4xl" variant="h1">Community address</Type>
+            <Show when={props.showHeading !== false}><Type as="h2" responsiveSize="desktop4xl" variant="h1">Community address</Type></Show>
             <ConnectedNameCard action={current()} />
           </div>
         )}
@@ -280,9 +281,9 @@ export function CommunityNamespaceSettingsPanel(props: CommunityNamespaceSetting
 
   return (
     <section class="mx-auto flex w-full max-w-5xl flex-col gap-6 md:gap-8" data-community-namespace-settings>
-      <Show when={props.snapshot.next_action.kind === "choose_namespace"} fallback={<ServerDirectedAction busy={props.busy} idempotencyKeys={props.idempotencyKeys} onCommand={props.onCommand} snapshot={props.snapshot} />}>
+      <Show when={props.snapshot.next_action.kind === "choose_namespace"} fallback={<ServerDirectedAction busy={props.busy} idempotencyKeys={props.idempotencyKeys} onCommand={props.onCommand} showHeading={props.showHeading} snapshot={props.snapshot} />}>
         <div class="space-y-6">
-          <Type as="h2" responsiveSize="desktop4xl" variant="h1">Connect Name</Type>
+          <Show when={props.showHeading !== false}><Type as="h2" responsiveSize="desktop4xl" variant="h1">Connect Name</Type></Show>
           <Card class="space-y-5 p-5 md:p-6">
             <div class="space-y-2">
               <FormFieldLabel htmlFor="community-hns-name" label="Handshake root" required />
