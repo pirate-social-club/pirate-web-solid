@@ -58,7 +58,7 @@ function ReadyNamesCard(props: Pick<CommunityNamesSettingsPanelProps, "busy" | "
   const offering = () => broadOffering()?.offering;
   const activationStatus = () => saleNamespace()?.activation.status;
   const ineffectiveReason = () => {
-    if (activationStatus() === "pending") return undefined;
+    if (activationStatus() === "pending" || activationStatus() === "revoked") return undefined;
     const namespaceEffectiveness = saleNamespace()?.effectiveness;
     if (namespaceEffectiveness?.kind === "ineffective_v1") return namespaceEffectiveness.reason;
     const offeringEffectiveness = broadOffering()?.effectiveness;
@@ -80,6 +80,7 @@ function ReadyNamesCard(props: Pick<CommunityNamesSettingsPanelProps, "busy" | "
 
       <Show when={ineffectiveReason()}>{(reason) => <FormNote tone="warning">{ineffectiveCopy(reason())}</FormNote>}</Show>
       <Show when={activationStatus() === "pending"}><FormNote>Name hosting is being prepared.</FormNote></Show>
+      <Show when={activationStatus() === "revoked"}><FormNote tone="warning">Names are no longer enabled for this namespace.</FormNote></Show>
 
       <Show when={!offering() && (activationStatus() === undefined || activationStatus() === "active")}>
         <Button class="self-start" loading={props.busy === "enable_names"} onClick={() => props.onCommand?.({ candidate: props.candidate, kind: "enable_names" })}>Enable names</Button>
