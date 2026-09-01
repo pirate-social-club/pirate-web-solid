@@ -1,5 +1,7 @@
+import { createSignal } from "solid-js";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import { fn } from "storybook/test";
+import type { CommunityModerationCaseView } from "./community-moderation-settings-model";
 import { CommunityModerationQueuePanel, type CommunityModerationQueuePanelProps } from "./community-moderation-settings-panel";
 import {
   EMPTY_MODERATION_CASES,
@@ -33,7 +35,21 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-export const Default: Story = {};
+function InteractiveQueue(props: CommunityModerationQueuePanelProps) {
+  const [view, setView] = createSignal<CommunityModerationCaseView>(props.caseView);
+  const hidden = () => view() === "hidden";
+  return (
+    <CommunityModerationQueuePanel
+      {...props}
+      cases={hidden() ? HIDDEN_MODERATION_CASES : OPEN_MODERATION_CASES}
+      caseView={view()}
+      details={hidden() ? HIDDEN_MODERATION_CASE_DETAILS : OPEN_MODERATION_CASE_DETAILS}
+      onCaseViewChange={setView}
+    />
+  );
+}
+
+export const Default: Story = { render: (args) => <InteractiveQueue {...args} /> };
 export const Empty: Story = { args: { cases: EMPTY_MODERATION_CASES, details: [] } };
 export const HiddenCases: Story = { args: { cases: HIDDEN_MODERATION_CASES, caseView: "hidden", details: HIDDEN_MODERATION_CASE_DETAILS } };
 export const LockedPreview: Story = { args: { cases: { ...OPEN_MODERATION_CASES, items: [LOCKED_MODERATION_CASE_DETAIL.case] }, details: [LOCKED_MODERATION_CASE_DETAIL] } };

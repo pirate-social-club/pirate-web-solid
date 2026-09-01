@@ -9,11 +9,11 @@ import { CommunityMembershipRequestsPage, type MembershipRequestSummary } from "
 import { CommunityRulesEditorPage, type RuleDraft } from "../rules-editor/community-rules-editor-page";
 import { CommunityNamespaceSettingsPanel } from "./community-namespace-settings-panel";
 import { CommunityModerationPolicyPanel, CommunityModerationQueuePanel } from "./community-moderation-settings-panel";
-import { MODERATION_POLICY, MODERATION_VIEW_AND_ACT, OPEN_MODERATION_CASE_DETAILS, OPEN_MODERATION_CASES } from "./community-moderation-settings-fixtures";
+import { HIDDEN_MODERATION_CASE_DETAILS, HIDDEN_MODERATION_CASES, MODERATION_POLICY, MODERATION_VIEW_AND_ACT, OPEN_MODERATION_CASE_DETAILS, OPEN_MODERATION_CASES } from "./community-moderation-settings-fixtures";
 import { CommunityOwnerSettingsShell } from "./community-owner-settings-shell";
 import { CommunityProfileSettingsPanel } from "./community-profile-settings-panel";
 import { createFakeProfileSettingsPort, namespaceIdempotencyKeys, namespaceState } from "./fake-owner-settings-port";
-import { moderationPolicyDecisions, type CommunityModerationPolicyDecision } from "./community-moderation-settings-model";
+import { moderationPolicyDecisions, type CommunityModerationCaseView, type CommunityModerationPolicyDecision } from "./community-moderation-settings-model";
 import type {
   CommunityProfileDraft,
   OwnerSettingsAccess,
@@ -78,6 +78,7 @@ function OwnerSettingsHappyPath(props: { initialSection?: OwnerSettingsSection }
   const [links, setLinks] = createSignal(INITIAL_LINKS);
   const [requests, setRequests] = createSignal(INITIAL_REQUESTS);
   const [archiveStatus, setArchiveStatus] = createSignal<"active" | "archived">("active");
+  const [caseView, setCaseView] = createSignal<CommunityModerationCaseView>("open");
   const [policyDecisions, setPolicyDecisions] = createSignal(moderationPolicyDecisions(MODERATION_POLICY));
   const [policyDirty, setPolicyDirty] = createSignal(false);
   const [savedMessage, setSavedMessage] = createSignal("");
@@ -164,11 +165,11 @@ function OwnerSettingsHappyPath(props: { initialSection?: OwnerSettingsSection }
           <CommunityModerationQueuePanel
             capabilities={MODERATION_VIEW_AND_ACT}
             caseActionIdempotencyKey={(caseRef) => `storybook-shell-action-${caseRef}`}
-            cases={OPEN_MODERATION_CASES}
-            caseView="open"
-            details={OPEN_MODERATION_CASE_DETAILS}
+            cases={caseView() === "hidden" ? HIDDEN_MODERATION_CASES : OPEN_MODERATION_CASES}
+            caseView={caseView()}
+            details={caseView() === "hidden" ? HIDDEN_MODERATION_CASE_DETAILS : OPEN_MODERATION_CASE_DETAILS}
             onCaseAction={(input) => setSavedMessage(`Moderation action: ${input.body.action}`)}
-            onCaseViewChange={() => undefined}
+            onCaseViewChange={setCaseView}
             showHeading={false}
           />
         </Match>
@@ -252,6 +253,13 @@ export const ExistingPanelsMounted: Story = {
 export const ModerationQueueMounted: Story = {
   args: { access: FULL_ACCESS, activeSection: "moderation_queue", children: null, communityName: "Midnight Waves", onSectionChange: () => undefined },
   render: () => <OwnerSettingsHappyPath initialSection="moderation_queue" />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(canvas.getByRole("button", { name: "Taken down" }));
+    await expect(canvas.getByRole("button", { name: "Restore" })).toBeInTheDocument();
+    await userEvent.click(canvas.getByRole("button", { name: "Needs review" }));
+    await expect(canvas.getByRole("button", { name: "Publish" })).toBeInTheDocument();
+  },
 };
 
 export const ContentPolicyMounted: Story = {

@@ -61,6 +61,16 @@ function caseCategorySummary(detail?: CommunityModerationCaseDetail): string {
   return value ? `${value.charAt(0).toUpperCase()}${value.slice(1)}` : "";
 }
 
+function caseViewLabel(view: CommunityModerationCaseView): string {
+  return view === "open" ? "Needs review" : "Taken down";
+}
+
+function emptyCaseViewCopy(view: CommunityModerationCaseView): Readonly<{ body: string; title: string }> {
+  return view === "open"
+    ? { body: "New reports will appear here.", title: "Nothing needs review" }
+    : { body: "Content you take down will appear here so it can be restored.", title: "Nothing has been taken down" };
+}
+
 function caseActionLabel(action: CommunityModerationCaseAction, status: CommunityModerationCase["target_status"]): string {
   if (status === "held") {
     if (action === "approve_as_general") return "Publish";
@@ -129,15 +139,16 @@ function CaseCard(props: Pick<CommunityModerationQueuePanelProps, "actionBusy" |
 
 function CaseQueue(props: CommunityModerationQueuePanelProps) {
   const detailFor = (caseRef: string) => props.details.find((detail) => detail.case.case_ref === caseRef);
+  const emptyCopy = () => emptyCaseViewCopy(props.caseView);
   return (
     <section aria-label="Moderation cases" class="flex flex-col gap-4 pb-24 md:pb-0">
       <div class="flex items-center justify-between gap-4">
         <Show when={props.showHeading !== false}><Type as="h2" variant="h2">Moderation queue</Type></Show>
         <div class="flex rounded-[var(--radius-lg)] bg-muted p-1" role="group" aria-label="Case status">
-          <For each={["open", "hidden"] as const}>{(view) => <button class={cn("cursor-pointer rounded-[var(--radius-md)] px-3 py-1.5 text-sm font-semibold capitalize transition-colors", props.caseView === view ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")} onClick={() => props.onCaseViewChange?.(view)} type="button">{view}</button>}</For>
+          <For each={["open", "hidden"] as const}>{(view) => <button class={cn("cursor-pointer rounded-[var(--radius-md)] px-3 py-1.5 text-sm font-semibold transition-colors", props.caseView === view ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")} onClick={() => props.onCaseViewChange?.(view)} type="button">{caseViewLabel(view)}</button>}</For>
         </div>
       </div>
-      <Show when={props.cases.items.length > 0} fallback={<Card class="p-8 text-center"><Type as="p" variant="body-strong">No {props.caseView} cases</Type><Type as="p" class="mt-1 text-muted-foreground" variant="caption">New reports and automated holds will appear here.</Type></Card>}>
+      <Show when={props.cases.items.length > 0} fallback={<Card class="p-8 text-center"><Type as="p" variant="body-strong">{emptyCopy().title}</Type><Type as="p" class="mt-1 text-muted-foreground" variant="caption">{emptyCopy().body}</Type></Card>}>
         <div class="flex flex-col gap-4"><For each={props.cases.items}>{(item) => <CaseCard {...props} detail={detailFor(item.case_ref)} item={item} />}</For></div>
       </Show>
     </section>
