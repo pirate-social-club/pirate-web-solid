@@ -18,7 +18,7 @@ export type OwnerSettingsCapability =
   | "community.moderation.manage"
   | "community.archive.write";
 
-export type OwnerSettingsAccess = Readonly<Record<OwnerSettingsCapability, boolean>>;
+export type OwnerSettingsAccess = Readonly<Partial<Record<OwnerSettingsCapability, boolean>>>;
 
 export type OwnerSettingsNavItem = Readonly<{
   capability: OwnerSettingsCapability;
@@ -90,23 +90,72 @@ export type CommunityProfileSettingsPort = Readonly<{
   }>) => Promise<CommunityProfileSnapshot>;
 }>;
 
-export type ConnectedCommunityName = Readonly<{
-  address: string;
-  fallbackAddress: string;
-  fallbackLabel: string;
-  label: string;
+export type NamespaceFamily = "hns";
+
+export type NamespaceResourceRecord = Readonly<{
+  record_type: string;
+  supported: boolean;
+  value: string;
 }>;
 
-export type HnsAddState = Readonly<{
-  kind:
-    | "enter_name"
-    | "records_ready"
-    | "checking_records"
-    | "records_not_found"
-    | "txt_mismatch"
-    | "verifier_unavailable"
-    | "expired";
-  nameservers?: ReadonlyArray<string>;
-  rootLabel: string;
-  txtRecord?: string;
+export type NamespaceNextAction =
+  | Readonly<{ kind: "choose_namespace" }>
+  | Readonly<{ family: NamespaceFamily; kind: "start_verification"; root_label: string }>
+  | Readonly<{
+      acknowledgement_required: true;
+      kind: "publish_resource";
+      records: ReadonlyArray<NamespaceResourceRecord>;
+      replacement_semantics: "complete_resource";
+    }>
+  | Readonly<{
+      kind: "wait";
+      reason_code: "verification_pending" | "provider_unavailable" | "tree_commitment_pending" | "delegation_insecure";
+      retry_after_seconds: number;
+    }>
+  | Readonly<{
+      kind: "repair";
+      missing_records?: ReadonlyArray<NamespaceResourceRecord>;
+      reason_code: "challenge_mismatch" | "resource_mismatch" | "dnssec_failure" | "delegation_failure";
+      unexpected_records?: ReadonlyArray<NamespaceResourceRecord>;
+    }>
+  | Readonly<{
+      canonical_route: string;
+      canonical_route_label: string;
+      fallback_route: string;
+      fallback_route_label: string;
+      kind: "verified";
+    }>
+  | Readonly<{ kind: "failed"; reason_code: string; retryable: boolean }>
+  | Readonly<{ kind: "expired" }>;
+
+export type NamespaceSettingsSnapshot = Readonly<{
+  community_id: string;
+  family: NamespaceFamily | null;
+  generation: number;
+  next_action: NamespaceNextAction;
+  root_label: string;
 }>;
+
+type NamespaceCommandFence = Readonly<{
+  expected_generation: number;
+  idempotency_key: string;
+}>;
+
+export type NamespaceSettingsCommandInput =
+  | Readonly<{ family: NamespaceFamily; kind: "select_namespace"; root_label: string }>
+  | Readonly<{ kind: "start_verification" }>
+  | Readonly<{ kind: "acknowledge_complete_resource" }>
+  | Readonly<{ kind: "poll" }>
+  | Readonly<{ kind: "restart" }>
+  | Readonly<{ kind: "change_namespace" }>;
+
+export type NamespaceSettingsCommand = NamespaceCommandFence & NamespaceSettingsCommandInput;
+
+export type CommunityNamespaceSettingsPort = Readonly<{
+  execute: (command: NamespaceSettingsCommand) => Promise<NamespaceSettingsSnapshot>;
+  read: () => Promise<NamespaceSettingsSnapshot>;
+}>;
+
+export function hasUnsupportedNamespaceRecords(action: NamespaceNextAction): boolean {
+  return action.kind === "publish_resource" && action.records.some((record) => !record.supported);
+}

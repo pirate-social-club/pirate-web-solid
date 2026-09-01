@@ -10,7 +10,7 @@ import { CommunityRulesEditorPage, type RuleDraft } from "../rules-editor/commun
 import { CommunityNamespaceSettingsPanel } from "./community-namespace-settings-panel";
 import { CommunityOwnerSettingsShell } from "./community-owner-settings-shell";
 import { CommunityProfileSettingsPanel } from "./community-profile-settings-panel";
-import { createFakeProfileSettingsPort } from "./fake-owner-settings-port";
+import { createFakeProfileSettingsPort, namespaceState } from "./fake-owner-settings-port";
 import type {
   CommunityProfileDraft,
   OwnerSettingsAccess,
@@ -125,12 +125,16 @@ function OwnerSettingsHappyPath(props: { initialSection?: OwnerSettingsSection }
         </Match>
         <Match when={active() === "namespace"}>
           <CommunityNamespaceSettingsPanel
-            connectedName={{
-              address: "https://app.midnight/",
-              fallbackAddress: "https://pirate.sc/c/midnight",
-              fallbackLabel: "pirate.sc/c/midnight",
-              label: "app.midnight",
-            }}
+            draftRootLabel="midnight"
+            onCommand={() => undefined}
+            onDraftRootLabelChange={() => undefined}
+            snapshot={namespaceState({
+              kind: "verified",
+              canonical_route: "https://app.midnight/",
+              canonical_route_label: "app.midnight",
+              fallback_route: "https://pirate.sc/c/midnight",
+              fallback_route_label: "pirate.sc/c/midnight",
+            })}
           />
         </Match>
         <Match when={active() === "names"}><PlaceholderPanel body="Member names and seller management stay a separate workflow from namespace ownership." title="Names" /></Match>
