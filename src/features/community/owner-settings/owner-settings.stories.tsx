@@ -10,12 +10,9 @@ import { CommunityRulesEditorPage, type RuleDraft } from "../rules-editor/commun
 import { CommunityNamespaceSettingsPanel } from "./community-namespace-settings-panel";
 import { CommunityOwnerSettingsShell } from "./community-owner-settings-shell";
 import { CommunityProfileSettingsPanel } from "./community-profile-settings-panel";
-import { createFakeNamespaceSettingsPort, createFakeProfileSettingsPort } from "./fake-owner-settings-port";
+import { createFakeProfileSettingsPort } from "./fake-owner-settings-port";
 import type {
   CommunityProfileDraft,
-  NamespaceFamily,
-  NamespaceSettingsCommand,
-  NamespaceSettingsSnapshot,
   OwnerSettingsAccess,
   OwnerSettingsSection,
 } from "./owner-settings-model";
@@ -68,22 +65,11 @@ function PlaceholderPanel(props: { body: string; title: string }) {
 
 function OwnerSettingsHappyPath(props: { initialSection?: OwnerSettingsSection }) {
   const profilePort = createFakeProfileSettingsPort(INITIAL_PROFILE);
-  const namespacePort = createFakeNamespaceSettingsPort();
   const [active, setActive] = createSignal<OwnerSettingsSection>(props.initialSection ?? "namespace");
   const [profile, setProfile] = createSignal(INITIAL_PROFILE);
   const [savedProfile, setSavedProfile] = createSignal(INITIAL_PROFILE);
   const [profileRevision, setProfileRevision] = createSignal(7);
   const [profileSaving, setProfileSaving] = createSignal(false);
-  const [namespaceSnapshot, setNamespaceSnapshot] = createSignal<NamespaceSettingsSnapshot>({
-    community_id: "community_fixture",
-    family: null,
-    generation: 1,
-    root_label: "",
-    next_action: { kind: "choose_namespace" as const },
-  });
-  const [namespaceFamily, setNamespaceFamily] = createSignal<NamespaceFamily>("hns");
-  const [namespaceRoot, setNamespaceRoot] = createSignal("infinity");
-  const [namespaceBusy, setNamespaceBusy] = createSignal(false);
   const [rules, setRules] = createSignal(INITIAL_RULES);
   const [links, setLinks] = createSignal(INITIAL_LINKS);
   const [requests, setRequests] = createSignal(INITIAL_REQUESTS);
@@ -110,15 +96,6 @@ function OwnerSettingsHappyPath(props: { initialSection?: OwnerSettingsSection }
       setProfileSaving(false);
     }
   };
-  const executeNamespace = async (command: NamespaceSettingsCommand) => {
-    setNamespaceBusy(true);
-    try {
-      setNamespaceSnapshot(await namespacePort.execute(command));
-    } finally {
-      setNamespaceBusy(false);
-    }
-  };
-
   return (
     <CommunityOwnerSettingsShell
       access={FULL_ACCESS}
@@ -133,12 +110,11 @@ function OwnerSettingsHappyPath(props: { initialSection?: OwnerSettingsSection }
         </Match>
         <Match when={active() === "namespace"}>
           <CommunityNamespaceSettingsPanel
-            busy={namespaceBusy()}
-            draftFamily={namespaceFamily()}
-            draftRootLabel={namespaceRoot()}
-            onCommand={executeNamespace}
-            onDraftChange={(draft) => { setNamespaceFamily(draft.family); setNamespaceRoot(draft.root_label); }}
-            snapshot={namespaceSnapshot()}
+            connectedName={{
+              address: "https://midnight/",
+              label: "midnight/",
+              providerLabel: "Connected with Handshake",
+            }}
           />
         </Match>
         <Match when={active() === "names"}><PlaceholderPanel body="Member names and seller management stay a separate workflow from namespace ownership." title="Names" /></Match>
@@ -172,21 +148,14 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-export const NamespaceHappyPath: Story = {
+export const ConnectedNamespace: Story = {
   args: { access: FULL_ACCESS, activeSection: "namespace", children: null, communityName: "Midnight Waves", onSectionChange: () => undefined },
   render: () => <OwnerSettingsHappyPath />,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(canvas.getByRole("heading", { name: "Namespace" })).toBeInTheDocument();
-    await userEvent.click(canvas.getByRole("button", { name: "Continue" }));
-    await userEvent.click(await canvas.findByRole("button", { name: "Start verification" }));
-    await expect(await canvas.findByText("Publish this complete resource")).toBeInTheDocument();
-    await userEvent.click(canvas.getByRole("button", { name: "I published all records, check the chain" }));
-    await expect(await canvas.findByText("Transaction confirmed")).toBeInTheDocument();
-    await userEvent.click(canvas.getByRole("button", { name: "Check status" }));
-    await expect(await canvas.findByText("Records confirmed")).toBeInTheDocument();
-    await userEvent.click(canvas.getByRole("button", { name: "Check status" }));
-    await expect(await canvas.findByText("Namespace verified")).toBeInTheDocument();
+    await expect(canvas.getByRole("heading", { name: "Community address" })).toBeInTheDocument();
+    await expect(canvas.getByRole("heading", { name: "midnight/" })).toBeInTheDocument();
+    await expect(canvas.getByText("Connected")).toBeInTheDocument();
   },
 };
 
