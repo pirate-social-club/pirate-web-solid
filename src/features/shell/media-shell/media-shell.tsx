@@ -31,6 +31,8 @@ export interface MediaShellProps {
   readonly children: JSX.Element;
   readonly activeItemId?: MediaShellRoute;
   readonly signedIn?: boolean;
+  /** Let route content own the viewport for immersive media surfaces. */
+  readonly immersive?: boolean;
   readonly class?: string;
 }
 
@@ -112,7 +114,7 @@ export function MediaShell(props: MediaShellProps) {
         primaryItems={primaryItems}
         sections={sections}
       />
-      <SidebarContent class="min-h-screen bg-background pb-20 md:pb-0">
+      <SidebarContent class={props.immersive ? "h-[100dvh] overflow-hidden bg-black md:h-screen" : "min-h-screen bg-background pb-20 md:pb-0"}>
         <div class="md:hidden">
           <AppHeader
             forceMobile
@@ -136,7 +138,7 @@ export function MediaShell(props: MediaShellProps) {
             showWalletAction={false}
           />
         </div>
-        <div class="mx-auto min-h-screen w-full max-w-5xl px-4 py-5 md:px-8 md:py-8">{props.children}</div>
+        <div class={props.immersive ? "h-[100dvh] w-full md:h-screen" : "mx-auto min-h-screen w-full max-w-5xl px-4 py-5 md:px-8 md:py-8"}>{props.children}</div>
         <MobileFooterNav class="md:hidden" forceMobile activeItem="home" onHomeClick={goHome} />
       </SidebarContent>
     </div>

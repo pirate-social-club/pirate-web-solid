@@ -41,6 +41,10 @@ import { SignInModal } from "../../auth/sign-in-modal.tsx";
 import { createSignInSession } from "../../auth/sign-in-session.ts";
 import { CreatePostDialog } from "../../posts/post-composer/create-post-dialog.tsx";
 import { createCommunityModerationSettingsApi } from "../../community/owner-settings/community-moderation-settings-api.ts";
+import {
+  loadCommunityThreadPage,
+  type CommunityThreadPage,
+} from "./community-thread-feed-api.ts";
 
 export interface CommunityPageProps {
   readonly pathSegment: string;
@@ -52,6 +56,7 @@ export interface CommunityPageProps {
   readonly navigate?: (href: string) => void;
   readonly data?: CommunityPageViewState | PromiseLike<CommunityPageViewState>;
   readonly surfaceData?: Partial<CommunityData>;
+  readonly loadThreads?: (communityId: string) => Promise<CommunityThreadPage>;
 }
 
 function communityCopy() {
@@ -141,6 +146,7 @@ function SuccessState(props: {
   readonly resolveOwnerSettingsAccess?: (communityId: string) => Promise<boolean>;
   readonly navigate?: (href: string) => void;
   readonly surfaceData?: Partial<CommunityData>;
+  readonly loadThreads?: (communityId: string) => Promise<CommunityThreadPage>;
 }) {
   const copy = communityCopy();
   const state = untrack(() => props.state);
@@ -152,6 +158,8 @@ function SuccessState(props: {
   const [postingError, setPostingError] = createSignal("");
   const [postingSession, setPostingSession] = createSignal<AuthenticatedSession>();
   const [canManage, setCanManage] = createSignal(false);
+  const [threadPosts, setThreadPosts] = createSignal<CommunityData["posts"]>([]);
+  const [threadState, setThreadState] = createSignal<"idle" | "loading" | "ready" | "error">("idle");
   let active = true;
   let sessionRequest = 0;
   onCleanup(() => {
@@ -167,7 +175,7 @@ function SuccessState(props: {
       description: source.description ?? state.community.description ?? interpolateMessage(copy.defaultDescription, { name: state.community.displayName }),
       members: source.members ?? state.community.memberCount ?? 0,
       followers: source.followers ?? state.community.followerCount ?? 0,
-      posts: source.posts ?? [],
+      posts: source.posts ?? threadPosts(),
       avatarSrc: source.avatarSrc ?? state.community.avatarSrc,
       bannerSrc: source.bannerSrc ?? state.community.bannerSrc,
       gates: source.gates,
@@ -205,6 +213,24 @@ function SuccessState(props: {
         void resolveAccess(communityId)
           .then((allowed) => { if (active) setCanManage(allowed); })
           .catch(() => { if (active) setCanManage(false); });
+      });
+    },
+  );
+
+  createEffect(
+    () => state.communityId,
+    (communityId) => {
+      if (props.surfaceData?.posts !== undefined) return;
+      setThreadState("loading");
+      const load = props.loadThreads ?? ((id: string) => loadCommunityThreadPage({ communityRef: id }));
+      queueMicrotask(() => {
+        void load(communityId)
+          .then(page => {
+            if (!active) return;
+            setThreadPosts(page.posts);
+            setThreadState("ready");
+          })
+          .catch(() => { if (active) setThreadState("error"); });
       });
     },
   );
@@ -277,6 +303,8 @@ function SuccessState(props: {
             createPostBusy={postingBusy()}
             following={following()}
             joined={joined()}
+            postsError={threadState() === "error"}
+            postsLoading={threadState() === "loading"}
             onCreatePost={() => void openPostComposer()}
             onFollowToggle={() => setFollowing(value => !value)}
             onJoin={() => { setJoined(true); setFollowing(true); }}
@@ -327,6 +355,7 @@ function CommunityState(props: {
   readonly resolveOwnerSettingsAccess?: (communityId: string) => Promise<boolean>;
   readonly navigate?: (href: string) => void;
   readonly surfaceData?: Partial<CommunityData>;
+  readonly loadThreads?: (communityId: string) => Promise<CommunityThreadPage>;
 }) {
   const success = () => props.state.kind === "success" ? props.state : undefined;
   return (
@@ -340,6 +369,7 @@ function CommunityState(props: {
           resolveOwnerSettingsAccess={props.resolveOwnerSettingsAccess}
           navigate={props.navigate}
           surfaceData={props.surfaceData}
+          loadThreads={props.loadThreads}
         />
       )}
     </Show>
@@ -364,6 +394,7 @@ function CommunityData(props: CommunityPageProps) {
       resolveOwnerSettingsAccess={props.resolveOwnerSettingsAccess}
       navigate={props.navigate}
       surfaceData={props.surfaceData}
+      loadThreads={props.loadThreads}
     />
   );
 }

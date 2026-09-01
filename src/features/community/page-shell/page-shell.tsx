@@ -49,6 +49,8 @@ export interface CommunityPageShellProps {
   canJoin?: boolean;
   showCreatePost?: boolean;
   readOnly?: boolean;
+  postsLoading?: boolean;
+  postsError?: boolean;
 }
 
 type CommunityTab = "feed" | "songs" | "leaderboard" | "about";
@@ -301,10 +303,14 @@ export function CommunityPageShell(props: CommunityPageShellProps) {
                 </select>
               </label>
             </div>
-            <Show when={!props.empty && sortedPosts().length > 0} fallback={<Card><CardContent class="p-6"><Type variant="body">No posts in this community yet.</Type></CardContent></Card>}>
+            <Show when={!props.postsLoading} fallback={<Card><CardContent class="p-6"><Type aria-live="polite" role="status" variant="body">Loading community posts…</Type></CardContent></Card>}>
+              <Show when={!props.postsError} fallback={<Card><CardContent class="p-6"><Type role="alert" variant="body">Community posts are temporarily unavailable.</Type></CardContent></Card>}>
+                <Show when={!props.empty && sortedPosts().length > 0} fallback={<Card><CardContent class="p-6"><Type variant="body">No posts in this community yet.</Type></CardContent></Card>}>
               <div class="flex flex-col">
                 <For each={sortedPosts()}>{post => <FeedPost post={post} />}</For>
               </div>
+                </Show>
+              </Show>
             </Show>
           </Show>
           <Show when={tab() === "songs"}>

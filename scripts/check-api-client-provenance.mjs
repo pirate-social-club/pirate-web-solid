@@ -27,6 +27,7 @@ const clients = [
       "get_postsPostId",
       "get_feedHomePublic",
       "get_feedHome",
+      "get_publicCommunitiesCommunityRefFeed",
       "post_communitiesCommunityIdPostsPostIdKaraokeAttempts",
       "get_communitiesCommunityIdPostsPostIdKaraoke",
       "get_communitiesCommunityIdKaraokeAttemptsAttemptId",

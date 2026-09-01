@@ -38,14 +38,14 @@ function page(title: string): FeedPage {
       anonymousLabel: null,
       identityMode: "public",
       authorshipMode: "human_direct",
-      postType: "text",
+      postType: "video",
       status: "published",
       visibility: "public",
       title,
       body: `${title} body`,
       caption: null,
       createdAt: "2025-08-09T13:20:00.000Z",
-      mediaRefs: [],
+      mediaRefs: [{ playback_url: `https://media.pirate.test/${title.toLowerCase().replaceAll(" ", "-")}.mp4` }],
       analysisState: "allow",
       contentSafetyState: "safe",
       ageGatePolicy: "none",
@@ -88,14 +88,13 @@ describe("public-first home route", () => {
       <HomeRoute resolveSession={async () => "anonymous"} />
     ));
 
-    await vi.waitFor(() => expect(container.querySelector("[data-feed-state='ready']")).not.toBeNull());
-    expect(container.textContent).toContain("Sanitized staging song");
-    expect(container.querySelector("[data-feed-item-id='fixture-song-1']")).not.toBeNull();
-    expect(container.textContent).not.toContain("Public feed unavailable");
+    await vi.waitFor(() => expect(container.querySelector("[data-video-feed-state='ready']")).not.toBeNull());
+    expect(container.textContent).toContain("No videos yet");
+    expect(container.textContent).not.toContain("Video feed unavailable");
     expect(fetchImpl).toHaveBeenCalledOnce();
   });
 
-  test("resolving session keeps public discovery visible", () => {
+  test("resolving session keeps public discovery visible", async () => {
     const pending = new Promise<AccountSessionResolution>(() => {});
     const container = render(() => (
       <HomeRoute
@@ -106,8 +105,26 @@ describe("public-first home route", () => {
     ));
 
     expect(container.querySelector("[data-home-session='resolving']")).not.toBeNull();
-    expect(container.textContent).toContain("Public discovery");
+    await vi.waitFor(() => expect(container.textContent).toContain("Public discovery"));
     expect(container.textContent).not.toContain("Personal home");
+  });
+
+  test("publisher clicks preserve the legacy public-profile destination", async () => {
+    const navigate = vi.fn();
+    const container = render(() => (
+      <HomeRoute
+        navigate={navigate}
+        resolveSession={async () => "anonymous"}
+        publicData={page("Public discovery")}
+      />
+    ));
+
+    await vi.waitFor(() => expect(container.textContent).toContain("Public discovery"));
+    const publisher = [...container.querySelectorAll("button")]
+      .find(button => button.textContent?.includes("@captain-one"));
+    expect(publisher).toBeDefined();
+    publisher?.click();
+    expect(navigate).toHaveBeenCalledWith("/u/captain-one");
   });
 
   test("anonymous resolution stays on the public feed", async () => {
@@ -150,7 +167,7 @@ describe("public-first home route", () => {
     await vi.waitFor(() => expect(container.querySelector("[data-home-session='authenticated']")).not.toBeNull());
     expect(container.textContent).toContain("Personal home");
     expect(container.textContent).not.toContain("Public discovery");
-    expect(container.querySelector("[data-feed-item-id='post-personal-home']")).not.toBeNull();
+    expect(container.querySelector("video[src='https://media.pirate.test/personal-home.mp4']")).not.toBeNull();
   });
 
   test("does not mount or open text-post storage for an anonymous session", async () => {

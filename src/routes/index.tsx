@@ -19,9 +19,13 @@ import {
   TextFieldInput,
   TextFieldLabel,
 } from "../design-system";
-import HomeFeed, { type HomeFeedProps } from "../features/posts/feed/home-feed.tsx";
-import { PublicFeed, type PublicFeedProps } from "../features/posts/feed/public-feed.tsx";
+import type { HomeFeedProps } from "../features/posts/feed/home-feed.tsx";
+import { fetchHomeFeedPage } from "../features/posts/feed/home-feed-adapter.ts";
+import type { PublicFeedProps } from "../features/posts/feed/public-feed.tsx";
+import { fetchPublicFeedPage } from "../features/posts/feed/public-feed-adapter.ts";
 import { publicFeedReviewPage } from "../features/posts/feed/public-feed-fixtures.ts";
+import { HomeVideoFeed } from "../features/posts/video-feed/home-video-feed.tsx";
+import type { HomeVideoFeedProps } from "../features/posts/video-feed/home-video-feed.tsx";
 import { MediaShell } from "../features/shell/media-shell/media-shell.tsx";
 
 export interface HomeRouteProps {
@@ -31,6 +35,7 @@ export interface HomeRouteProps {
   readonly publicClient?: PublicFeedProps["client"];
   readonly homeData?: HomeFeedProps["data"];
   readonly homeClient?: HomeFeedProps["client"];
+  readonly navigate?: HomeVideoFeedProps["navigate"];
 }
 
 type HomeRouteSession = "resolving" | AccountSessionResolution;
@@ -128,18 +133,23 @@ export default function HomeRoute(props: HomeRouteProps = {}) {
   return (
     <MediaShell
       activeItemId="home"
+      immersive
       signedIn={authenticatedSession() !== undefined}
     >
       <div data-route-path="/" data-home-session={sessionStatus()}>
         <Show
           when={authenticatedSession()}
-          fallback={<PublicFeed client={props.publicClient} data={publicData} />}
-        >
-          {(authenticated) => <HomeFeed
-            client={props.homeClient}
-            data={props.homeData}
-            engagement={{ principalId: authenticated().userId }}
+          fallback={<HomeVideoFeed
+            data={publicData}
+            loadPage={({ cursor, locale, sort }) => fetchPublicFeedPage({ client: props.publicClient, cursor, locale, sort })}
+            navigate={props.navigate}
           />}
+        >
+          <HomeVideoFeed
+            data={props.homeData}
+            loadPage={({ cursor, locale, sort }) => fetchHomeFeedPage({ client: props.homeClient, cursor, locale, sort })}
+            navigate={props.navigate}
+          />
         </Show>
         <Show when={hydrationFixtures}>
           <HydrationFixtures />

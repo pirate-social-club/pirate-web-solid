@@ -1,4 +1,5 @@
 import type { PublicFeedPage } from "./public-feed-adapter.ts";
+import reviewVideoUrl from "../../../../packages/solid-ui/src/patterns/engagement/vertical-feed/fixtures/clip-1.mp4";
 
 /**
  * Deliberately local review data. It gives the shell a useful visual state
@@ -17,14 +18,14 @@ export const publicFeedReviewPage: PublicFeedPage = {
       anonymousLabel: "Harbor voice",
       identityMode: "anonymous",
       authorshipMode: "human_direct",
-      postType: "text",
+      postType: "video",
       status: "published",
       visibility: "public",
       title: "A sovereign town square",
       body: "The public feed is where communities find one another: ideas, questions, songs, and small moments worth sharing.",
-      caption: null,
+      caption: "A sovereign town square for communities, creators, and the moments worth sharing.",
       createdAt: "2026-08-19T09:20:00.000Z",
-      mediaRefs: [],
+      mediaRefs: [reviewVideoUrl],
       analysisState: "allow",
       contentSafetyState: "safe",
       ageGatePolicy: "none",

@@ -8,7 +8,7 @@
         "@pirate/api-client": "file:vendor/api-client/pirate-api-client-0.25.0.tgz",
         "@pirate/api-client-community-route": "file:vendor/api-client/pirate-api-client-0.13.0.tgz",
         "@pirate/api-client-handle-sales": "file:vendor/api-client/pirate-api-client-0.21.0.tgz",
-        "@pirate/api-client-happy-path": "file:vendor/api-client/pirate-api-client-0.44.0.tgz",
+        "@pirate/api-client-happy-path": "file:vendor/api-client/pirate-api-client-0.48.0.tgz",
         "@pirate/web-solid-ui": "workspace:*",
         "@privy-io/js-sdk-core": "0.70.0",
         "@solidjs/meta": "1.0.0-next.2",
@@ -509,7 +509,7 @@
 
     "@pirate/api-client-handle-sales": ["@pirate/api-client@vendor/api-client/pirate-api-client-0.21.0.tgz", {}, "sha512-G6kwurYFEgRHiwE99W5ktRnbfnYj5CY28mky+CTwvKXRVpyvUmXoLoaWLkLnu/vvG192mInhDiylpyKD3KHriQ=="],
 
-    "@pirate/api-client-happy-path": ["@pirate/api-client@vendor/api-client/pirate-api-client-0.44.0.tgz", {}, "sha512-8EmSqHqY2D+ZRQJieiwD23bvhPxjUbsK3ES17uJaSplRG5NBvzE66+W5QsO+qALz3JsCsvTkP+QIkzLIdpi9Yg=="],
+    "@pirate/api-client-happy-path": ["@pirate/api-client@vendor/api-client/pirate-api-client-0.48.0.tgz", {}, "sha512-jmHIFD5w+R8J3BGZ2n1yRigyKUi4fahi0s+0fk1Okfr9PpgTl0W7C9ErUzjiusOqy6v1lnPQ8MvuHpZ5Lx5eMw=="],
 
     "@pirate/web-solid-ui": ["@pirate/web-solid-ui@workspace:packages/solid-ui"],
 

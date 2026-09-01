@@ -67,6 +67,37 @@ afterEach(() => {
 });
 
 describe("CommunityPage", () => {
+  test("loads real Community threads into the Reddit-style feed", async () => {
+    const loadThreads = vi.fn(async () => ({
+      posts: [{
+        id: "thread-1",
+        title: "Welcome aboard",
+        body: "This came from the public Community feed.",
+        score: 7,
+        publishedAt: "2026-09-01T18:00:00.000Z",
+        authorHandle: "captain-one.pirate",
+        commentCount: 4,
+      }],
+      nextCursor: null,
+    }));
+    const container = render(() => (
+      <CommunityPage
+        client={{
+          get_cPathSegment: async () => route,
+          get_communitiesCommunityIdPreview: async () => preview,
+        }}
+        handleSalesClient={{ get_communitiesCommunityIdHandleOfferings: async () => ({ items: [], next_cursor: null }) }}
+        loadThreads={loadThreads}
+        pathSegment="xn--pokmon-dva"
+      />
+    ));
+
+    await vi.waitFor(() => expect(container.textContent).toContain("Welcome aboard"));
+    expect(container.textContent).toContain("This came from the public Community feed.");
+    expect(container.querySelector("[data-community-post='thread-1']")).not.toBeNull();
+    expect(loadThreads).toHaveBeenCalledWith(communityId);
+  });
+
   test("renders the public community projection and canonical metadata", async () => {
     const container = render(() => <CommunityPage pathSegment="xn--pokmon-dva" client={{
       get_cPathSegment: async () => route,
