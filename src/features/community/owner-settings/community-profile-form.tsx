@@ -35,7 +35,7 @@ export function CommunityProfileForm(props: CommunityProfileFormProps) {
       <MediaUploadField
         chooseLabel="Add cover photo"
         clearLabel="Remove cover photo"
-        description="A wide image works best."
+        description="Use a 4:1 image. Recommended size: 1600 × 400 px."
         frame="banner"
         label="Cover photo"
         onChange={props.onCoverChange}

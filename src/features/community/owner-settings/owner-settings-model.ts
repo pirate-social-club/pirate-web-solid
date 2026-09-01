@@ -95,3 +95,16 @@ export type ConnectedCommunityName = Readonly<{
   label: string;
   providerLabel: string;
 }>;
+
+export type HnsAddState = Readonly<{
+  kind:
+    | "enter_name"
+    | "wallet_action"
+    | "transaction_pending"
+    | "tree_commitment_pending"
+    | "secure_connection_pending"
+    | "records_mismatch"
+    | "verifier_unavailable"
+    | "expired";
+  rootLabel: string;
+}>;
