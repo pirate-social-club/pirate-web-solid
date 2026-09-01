@@ -41,6 +41,7 @@ const NO_ACCESS: OwnerSettingsAccess = {
 
 const INITIAL_PROFILE: CommunityProfileDraft = {
   avatar_url: null,
+  cover_url: null,
   description: "A home for independent musicians, listeners and open-web builders.",
   display_name: "Midnight Waves",
 };
@@ -106,7 +107,21 @@ function OwnerSettingsHappyPath(props: { initialSection?: OwnerSettingsSection }
     >
       <Switch>
         <Match when={active() === "profile"}>
-          <CommunityProfileSettingsPanel draft={profile()} onChange={setProfile} onSave={saveProfile} saveDisabled={!dirtySections().includes("profile")} saveLoading={profileSaving()} />
+          <CommunityProfileSettingsPanel
+            draft={profile()}
+            onAvatarChange={(file) => setProfile((current) => ({
+              ...current,
+              avatar_url: file ? URL.createObjectURL(file) : null,
+            }))}
+            onChange={setProfile}
+            onCoverChange={(file) => setProfile((current) => ({
+              ...current,
+              cover_url: file ? URL.createObjectURL(file) : null,
+            }))}
+            onSave={saveProfile}
+            saveDisabled={!dirtySections().includes("profile")}
+            saveLoading={profileSaving()}
+          />
         </Match>
         <Match when={active() === "namespace"}>
           <CommunityNamespaceSettingsPanel
@@ -157,6 +172,11 @@ export const ConnectedNamespace: Story = {
     await expect(canvas.getByRole("heading", { name: "midnight/" })).toBeInTheDocument();
     await expect(canvas.getByText("Connected")).toBeInTheDocument();
   },
+};
+
+export const ProfileDefault: Story = {
+  args: { access: FULL_ACCESS, activeSection: "profile", children: null, communityName: "Midnight Waves", onSectionChange: () => undefined },
+  render: () => <OwnerSettingsHappyPath initialSection="profile" />,
 };
 
 export const ProfileDirtySave: Story = {

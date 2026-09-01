@@ -70,6 +70,7 @@ export function firstVisibleOwnerSettingsSection(access: OwnerSettingsAccess): O
 
 export type CommunityProfileDraft = Readonly<{
   avatar_url: string | null;
+  cover_url: string | null;
   description: string;
   display_name: string;
 }>;
