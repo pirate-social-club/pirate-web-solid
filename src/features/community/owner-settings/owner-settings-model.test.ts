@@ -41,6 +41,14 @@ describe("owner settings model", () => {
     expect(firstVisibleOwnerSettingsSection({ "community.namespace.write": true })).toBe("namespace");
   });
 
+  it("keeps the moderation queue and content policy as separate destinations", () => {
+    const groups = visibleOwnerSettingsGroups({ "community.moderation.manage": true });
+    expect(groups.map((group) => ({ label: group.label, sections: group.items.map((item) => item.section) }))).toEqual([
+      { label: "Moderation", sections: ["moderation_queue"] },
+      { label: "Access and safety", sections: ["content_policy"] },
+    ]);
+  });
+
   it("blocks complete-resource publication when any record is unsupported", () => {
     expect(hasUnsupportedNamespaceRecords({
       kind: "publish_resource",

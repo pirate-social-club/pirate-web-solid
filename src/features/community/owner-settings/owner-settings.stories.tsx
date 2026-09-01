@@ -8,12 +8,12 @@ import { CommunityLinksEditorPage, createEmptyCommunityLinkEditorItem, type Comm
 import { CommunityMembershipRequestsPage, type MembershipRequestSummary } from "../membership-requests-page/community-membership-requests-page";
 import { CommunityRulesEditorPage, type RuleDraft } from "../rules-editor/community-rules-editor-page";
 import { CommunityNamespaceSettingsPanel } from "./community-namespace-settings-panel";
-import { CommunityModerationSettingsPanel } from "./community-moderation-settings-panel";
+import { CommunityModerationPolicyPanel, CommunityModerationQueuePanel } from "./community-moderation-settings-panel";
 import { MODERATION_CASE_DETAIL, MODERATION_POLICY, MODERATION_VIEW_AND_ACT, OPEN_MODERATION_CASES } from "./community-moderation-settings-fixtures";
 import { CommunityOwnerSettingsShell } from "./community-owner-settings-shell";
 import { CommunityProfileSettingsPanel } from "./community-profile-settings-panel";
 import { createFakeProfileSettingsPort, namespaceIdempotencyKeys, namespaceState } from "./fake-owner-settings-port";
-import { moderationPolicyDecisions, type CommunityModerationPane, type CommunityModerationPolicyDecision } from "./community-moderation-settings-model";
+import { moderationPolicyDecisions, type CommunityModerationPolicyDecision } from "./community-moderation-settings-model";
 import type {
   CommunityProfileDraft,
   OwnerSettingsAccess,
@@ -78,13 +78,13 @@ function OwnerSettingsHappyPath(props: { initialSection?: OwnerSettingsSection }
   const [links, setLinks] = createSignal(INITIAL_LINKS);
   const [requests, setRequests] = createSignal(INITIAL_REQUESTS);
   const [archiveStatus, setArchiveStatus] = createSignal<"active" | "archived">("active");
-  const [moderationPane, setModerationPane] = createSignal<CommunityModerationPane>("cases");
   const [policyDecisions, setPolicyDecisions] = createSignal(moderationPolicyDecisions(MODERATION_POLICY));
   const [policyDirty, setPolicyDirty] = createSignal(false);
   const [savedMessage, setSavedMessage] = createSignal("");
   const dirtySections = createMemo<ReadonlyArray<OwnerSettingsSection>>(() => {
     const dirty: OwnerSettingsSection[] = [];
     if (JSON.stringify(profile()) !== JSON.stringify(savedProfile())) dirty.push("profile");
+    if (policyDirty()) dirty.push("content_policy");
     return dirty;
   });
 
@@ -158,8 +158,8 @@ function OwnerSettingsHappyPath(props: { initialSection?: OwnerSettingsSection }
         <Match when={active() === "membership_requests"}>
           <CommunityMembershipRequestsPage onApprove={(request) => setRequests((current) => current.filter((item) => item.id !== request.id))} onReject={(request) => setRequests((current) => current.filter((item) => item.id !== request.id))} requests={requests()} />
         </Match>
-        <Match when={active() === "moderation"}>
-          <CommunityModerationSettingsPanel
+        <Match when={active() === "moderation_queue"}>
+          <CommunityModerationQueuePanel
             capabilities={MODERATION_VIEW_AND_ACT}
             caseActionIdempotencyKey="storybook-shell-case-action"
             cases={OPEN_MODERATION_CASES}
@@ -168,13 +168,16 @@ function OwnerSettingsHappyPath(props: { initialSection?: OwnerSettingsSection }
             onCaseAction={(input) => setSavedMessage(`Moderation action: ${input.body.action}`)}
             onCaseSelect={() => undefined}
             onCaseViewChange={() => undefined}
-            onPaneChange={setModerationPane}
+          />
+        </Match>
+        <Match when={active() === "content_policy"}>
+          <CommunityModerationPolicyPanel
+            capabilities={MODERATION_VIEW_AND_ACT}
             onPolicyDecisionChange={(category, decision: CommunityModerationPolicyDecision) => {
               setPolicyDecisions((current) => ({ ...current, [category]: decision }));
               setPolicyDirty(true);
             }}
             onPolicySave={() => { setPolicyDirty(false); setSavedMessage("Moderation policy saved"); }}
-            pane={moderationPane()}
             policy={MODERATION_POLICY}
             policyDecisions={policyDecisions()}
             policyDirty={policyDirty()}
@@ -243,9 +246,14 @@ export const ExistingPanelsMounted: Story = {
   },
 };
 
-export const ModerationMounted: Story = {
-  args: { access: FULL_ACCESS, activeSection: "moderation", children: null, communityName: "Midnight Waves", onSectionChange: () => undefined },
-  render: () => <OwnerSettingsHappyPath initialSection="moderation" />,
+export const ModerationQueueMounted: Story = {
+  args: { access: FULL_ACCESS, activeSection: "moderation_queue", children: null, communityName: "Midnight Waves", onSectionChange: () => undefined },
+  render: () => <OwnerSettingsHappyPath initialSection="moderation_queue" />,
+};
+
+export const ContentPolicyMounted: Story = {
+  args: { access: FULL_ACCESS, activeSection: "content_policy", children: null, communityName: "Midnight Waves", onSectionChange: () => undefined },
+  render: () => <OwnerSettingsHappyPath initialSection="content_policy" />,
 };
 
 export const CapabilityGated: Story = {

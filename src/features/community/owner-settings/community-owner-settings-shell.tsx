@@ -9,6 +9,7 @@ import {
   FlatTabBar,
   FlatTabButton,
   IconCrown,
+  IconFlag,
   IconGlobe,
   IconLink,
   IconListNumbers,
@@ -59,7 +60,8 @@ export function CommunityOwnerSettingsShell(props: CommunityOwnerSettingsShellPr
     rules: <IconListNumbers class="size-5" />,
     links: <IconLink class="size-5" />,
     membership_requests: <IconUsersThree class="size-5" />,
-    moderation: <IconShield class="size-5" />,
+    moderation_queue: <IconFlag class="size-5" />,
+    content_policy: <IconShield class="size-5" />,
     archive: <IconTrash class="size-5" />,
   } satisfies Record<OwnerSettingsSection, JSX.Element>;
   const sidebarSections = (): readonly SidebarSection[] => groups().map((group) => ({

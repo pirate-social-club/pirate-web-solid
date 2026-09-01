@@ -2,8 +2,6 @@ import { For, Show } from "solid-js";
 import {
   Button,
   Card,
-  FlatTabBar,
-  FlatTabButton,
   FormNote,
   IconFileText,
   IconLock,
@@ -23,7 +21,6 @@ import {
   type CommunityModerationCaseDetail,
   type CommunityModerationCaseList,
   type CommunityModerationCaseView,
-  type CommunityModerationPane,
   type CommunityModerationPolicy,
   type CommunityModerationPolicyCategory,
   type CommunityModerationPolicyDecision,
@@ -59,29 +56,33 @@ function isDestructiveAction(action: CommunityModerationCaseAction): boolean {
   return action === "reject" || action === "hide";
 }
 
-export interface CommunityModerationSettingsPanelProps {
-  actionBusy?: CommunityModerationCaseAction;
+interface CommunityModerationPanelStateProps {
   capabilities: CommunityModerationCapabilities;
+  errorMessage?: string;
+  loading?: boolean;
+}
+
+export interface CommunityModerationQueuePanelProps extends CommunityModerationPanelStateProps {
+  actionBusy?: CommunityModerationCaseAction;
   caseActionIdempotencyKey: string;
   cases: CommunityModerationCaseList;
   caseView: CommunityModerationCaseView;
   detail?: CommunityModerationCaseDetail;
-  errorMessage?: string;
-  loading?: boolean;
   onCaseAction?: (input: CommunityModerationCaseActionInput) => void;
   onCaseSelect?: (caseRef: string) => void;
   onCaseViewChange?: (view: CommunityModerationCaseView) => void;
-  onPaneChange?: (pane: CommunityModerationPane) => void;
+}
+
+export interface CommunityModerationPolicyPanelProps extends CommunityModerationPanelStateProps {
   onPolicyDecisionChange?: (category: CommunityModerationPolicyCategory, decision: CommunityModerationPolicyDecision) => void;
   onPolicySave?: (input: CommunityModerationPolicyUpdateInput) => void;
-  pane: CommunityModerationPane;
   policy: CommunityModerationPolicy;
   policyDecisions: CommunityModerationPolicyDecisions;
   policyDirty?: boolean;
   policySaving?: boolean;
 }
 
-function CaseQueue(props: Pick<CommunityModerationSettingsPanelProps, "actionBusy" | "capabilities" | "caseActionIdempotencyKey" | "cases" | "caseView" | "detail" | "onCaseAction" | "onCaseSelect" | "onCaseViewChange">) {
+function CaseQueue(props: Pick<CommunityModerationQueuePanelProps, "actionBusy" | "capabilities" | "caseActionIdempotencyKey" | "cases" | "caseView" | "detail" | "onCaseAction" | "onCaseSelect" | "onCaseViewChange">) {
   return (
     <section aria-label="Moderation cases" class="grid gap-4 lg:grid-cols-[minmax(16rem,0.8fr)_minmax(0,1.4fr)]">
       <Card class="overflow-hidden">
@@ -124,7 +125,7 @@ function CaseQueue(props: Pick<CommunityModerationSettingsPanelProps, "actionBus
   );
 }
 
-function CaseDetail(props: Pick<CommunityModerationSettingsPanelProps, "actionBusy" | "capabilities" | "caseActionIdempotencyKey" | "detail" | "onCaseAction">) {
+function CaseDetail(props: Pick<CommunityModerationQueuePanelProps, "actionBusy" | "capabilities" | "caseActionIdempotencyKey" | "detail" | "onCaseAction">) {
   const canAct = () => canActOnCommunityModeration(props.capabilities);
   const act = (action: CommunityModerationCaseAction) => {
     if (!props.detail) return;
@@ -163,12 +164,12 @@ function CaseDetail(props: Pick<CommunityModerationSettingsPanelProps, "actionBu
   );
 }
 
-function PolicyEditor(props: Pick<CommunityModerationSettingsPanelProps, "capabilities" | "onPolicyDecisionChange" | "onPolicySave" | "policy" | "policyDecisions" | "policyDirty" | "policySaving">) {
+function PolicyEditor(props: Pick<CommunityModerationPolicyPanelProps, "capabilities" | "onPolicyDecisionChange" | "onPolicySave" | "policy" | "policyDecisions" | "policyDirty" | "policySaving">) {
   const canAct = () => canActOnCommunityModeration(props.capabilities);
   return (
     <section aria-label="Moderation policy" class="flex flex-col gap-4">
       <Card class="overflow-hidden">
-        <div class="border-b border-border-soft p-5 md:p-6"><Type as="h3" variant="h3">Content policy</Type><Type as="p" class="mt-1 text-muted-foreground" variant="body">Choose what is allowed, reviewed, or blocked in this community.</Type></div>
+        <div class="border-b border-border-soft p-5 md:p-6"><Type as="h3" variant="h3">Policy categories</Type><Type as="p" class="mt-1 text-muted-foreground" variant="body">Choose what is allowed, reviewed or blocked.</Type></div>
         <div class="divide-y divide-border-soft">
           <For each={props.policy.categories}>{(item) => (
             <div class="grid gap-3 p-4 md:grid-cols-[minmax(0,1fr)_13rem] md:items-center md:px-6">
@@ -199,17 +200,26 @@ function PolicyEditor(props: Pick<CommunityModerationSettingsPanelProps, "capabi
   );
 }
 
-export function CommunityModerationSettingsPanel(props: CommunityModerationSettingsPanelProps) {
+export function CommunityModerationQueuePanel(props: CommunityModerationQueuePanelProps) {
   return (
     <div class="flex flex-col gap-5">
-      <div><Type as="h2" variant="h2">Moderation</Type><Type as="p" class="mt-1 text-muted-foreground" variant="body">Review reported content and set the community policy.</Type></div>
-      <FlatTabBar columns={2}>
-        <FlatTabButton active={props.pane === "cases"} onClick={() => props.onPaneChange?.("cases")}>Cases</FlatTabButton>
-        <FlatTabButton active={props.pane === "policy"} onClick={() => props.onPaneChange?.("policy")}>Policy</FlatTabButton>
-      </FlatTabBar>
+      <div><Type as="h2" variant="h2">Moderation queue</Type><Type as="p" class="mt-1 text-muted-foreground" variant="body">Review posts and comments that need moderator attention.</Type></div>
       <Show when={!props.errorMessage} fallback={<Card class="p-6"><FormNote tone="destructive">{props.errorMessage}</FormNote></Card>}>
-        <Show when={!props.loading} fallback={<Card class="grid min-h-64 place-items-center" role="status"><div class="flex items-center gap-3"><Spinner class="size-5" /><Type variant="body">Loading moderation…</Type></div></Card>}>
-          <Show when={props.pane === "cases"} fallback={<PolicyEditor {...props} />}><CaseQueue {...props} /></Show>
+        <Show when={!props.loading} fallback={<Card class="grid min-h-64 place-items-center" role="status"><div class="flex items-center gap-3"><Spinner class="size-5" /><Type variant="body">Loading queue…</Type></div></Card>}>
+          <CaseQueue {...props} />
+        </Show>
+      </Show>
+    </div>
+  );
+}
+
+export function CommunityModerationPolicyPanel(props: CommunityModerationPolicyPanelProps) {
+  return (
+    <div class="flex flex-col gap-5">
+      <div><Type as="h2" variant="h2">Content policy</Type><Type as="p" class="mt-1 text-muted-foreground" variant="body">Set what is allowed, reviewed or blocked in this community.</Type></div>
+      <Show when={!props.errorMessage} fallback={<Card class="p-6"><FormNote tone="destructive">{props.errorMessage}</FormNote></Card>}>
+        <Show when={!props.loading} fallback={<Card class="grid min-h-64 place-items-center" role="status"><div class="flex items-center gap-3"><Spinner class="size-5" /><Type variant="body">Loading policy…</Type></div></Card>}>
+          <PolicyEditor {...props} />
         </Show>
       </Show>
     </div>

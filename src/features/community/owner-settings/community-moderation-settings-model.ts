@@ -30,8 +30,6 @@ export type CommunityModerationPolicyCategory = CommunityModerationPolicy["categ
 export type CommunityModerationPolicyDecision = CommunityModerationPolicy["categories"][number]["community_decision"];
 export type CommunityModerationPolicyDecisions = PutCommunitiesCommunityIdModerationPolicyInput["body"]["decisions"];
 export type CommunityModerationPolicyUpdateInput = PutCommunitiesCommunityIdModerationPolicyInput;
-export type CommunityModerationPane = "cases" | "policy";
-
 export const COMMUNITY_MODERATION_CATEGORIES: ReadonlyArray<CommunityModerationPolicyCategory> = [
   "harassment",
   "harassment/threatening",
