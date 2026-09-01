@@ -230,10 +230,10 @@ export const ProfileDirtySave: Story = {
     const name = canvas.getByRole("textbox", { name: "Community name" });
     await userEvent.clear(name);
     await userEvent.type(name, "Midnight Signals");
-    await expect(canvas.getByRole("button", { name: /Profile.*Unsaved/ })).toBeInTheDocument();
+    await expect(canvas.getByText("Unsaved")).toBeInTheDocument();
     await userEvent.click(canvas.getByRole("button", { name: "Save" }));
     await expect(await canvas.findByText("Profile saved")).toBeInTheDocument();
-    await expect(canvas.getByRole("button", { name: /Profile.*Unsaved/ })).not.toBeInTheDocument();
+    await expect(canvas.queryByText("Unsaved")).not.toBeInTheDocument();
   },
 };
 

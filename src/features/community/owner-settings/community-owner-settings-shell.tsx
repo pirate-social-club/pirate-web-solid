@@ -136,6 +136,9 @@ export function CommunityOwnerSettingsShell(props: CommunityOwnerSettingsShellPr
           </Show>
 
           <section aria-label={activeLabel()} class="mx-auto min-w-0 max-w-6xl px-4 py-6 pt-24 md:px-8 md:py-8">
+            <Show when={groups().length > 0 && status() === "ready"}>
+              <Type as="h2" class="sr-only" variant="h2">{activeTitle()} settings</Type>
+            </Show>
             <Show
               when={groups().length > 0}
               fallback={

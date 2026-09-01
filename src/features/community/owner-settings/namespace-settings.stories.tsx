@@ -133,6 +133,6 @@ export const Connected: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(canvas.getByRole("heading", { name: "app.midnight" })).toBeInTheDocument();
-    await expect(canvas.getByText(/Accessible at pirate\.sc\/c\/midnight and app\.midnight with Handshake\./)).toBeInTheDocument();
+    await expect(canvas.getByText((_, element) => element?.tagName === "P" && element.textContent === "Accessible at pirate.sc/c/midnight and app.midnight with Handshake.")).toBeInTheDocument();
   },
 };
