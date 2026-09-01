@@ -8,9 +8,12 @@ import { CommunityLinksEditorPage, createEmptyCommunityLinkEditorItem, type Comm
 import { CommunityMembershipRequestsPage, type MembershipRequestSummary } from "../membership-requests-page/community-membership-requests-page";
 import { CommunityRulesEditorPage, type RuleDraft } from "../rules-editor/community-rules-editor-page";
 import { CommunityNamespaceSettingsPanel } from "./community-namespace-settings-panel";
+import { CommunityModerationSettingsPanel } from "./community-moderation-settings-panel";
+import { MODERATION_CASE_DETAIL, MODERATION_POLICY, MODERATION_VIEW_AND_ACT, OPEN_MODERATION_CASES } from "./community-moderation-settings-fixtures";
 import { CommunityOwnerSettingsShell } from "./community-owner-settings-shell";
 import { CommunityProfileSettingsPanel } from "./community-profile-settings-panel";
 import { createFakeProfileSettingsPort, namespaceIdempotencyKeys, namespaceState } from "./fake-owner-settings-port";
+import { moderationPolicyDecisions, type CommunityModerationPane, type CommunityModerationPolicyDecision } from "./community-moderation-settings-model";
 import type {
   CommunityProfileDraft,
   OwnerSettingsAccess,
@@ -75,6 +78,9 @@ function OwnerSettingsHappyPath(props: { initialSection?: OwnerSettingsSection }
   const [links, setLinks] = createSignal(INITIAL_LINKS);
   const [requests, setRequests] = createSignal(INITIAL_REQUESTS);
   const [archiveStatus, setArchiveStatus] = createSignal<"active" | "archived">("active");
+  const [moderationPane, setModerationPane] = createSignal<CommunityModerationPane>("cases");
+  const [policyDecisions, setPolicyDecisions] = createSignal(moderationPolicyDecisions(MODERATION_POLICY));
+  const [policyDirty, setPolicyDirty] = createSignal(false);
   const [savedMessage, setSavedMessage] = createSignal("");
   const dirtySections = createMemo<ReadonlyArray<OwnerSettingsSection>>(() => {
     const dirty: OwnerSettingsSection[] = [];
@@ -152,7 +158,28 @@ function OwnerSettingsHappyPath(props: { initialSection?: OwnerSettingsSection }
         <Match when={active() === "membership_requests"}>
           <CommunityMembershipRequestsPage onApprove={(request) => setRequests((current) => current.filter((item) => item.id !== request.id))} onReject={(request) => setRequests((current) => current.filter((item) => item.id !== request.id))} requests={requests()} />
         </Match>
-        <Match when={active() === "moderation"}><PlaceholderPanel body="Case queue and policy are capability-gated here, but remain distinct from community settings saves." title="Moderation" /></Match>
+        <Match when={active() === "moderation"}>
+          <CommunityModerationSettingsPanel
+            capabilities={MODERATION_VIEW_AND_ACT}
+            caseActionIdempotencyKey="storybook-shell-case-action"
+            cases={OPEN_MODERATION_CASES}
+            caseView="open"
+            detail={MODERATION_CASE_DETAIL}
+            onCaseAction={(input) => setSavedMessage(`Moderation action: ${input.body.action}`)}
+            onCaseSelect={() => undefined}
+            onCaseViewChange={() => undefined}
+            onPaneChange={setModerationPane}
+            onPolicyDecisionChange={(category, decision: CommunityModerationPolicyDecision) => {
+              setPolicyDecisions((current) => ({ ...current, [category]: decision }));
+              setPolicyDirty(true);
+            }}
+            onPolicySave={() => { setPolicyDirty(false); setSavedMessage("Moderation policy saved"); }}
+            pane={moderationPane()}
+            policy={MODERATION_POLICY}
+            policyDecisions={policyDecisions()}
+            policyDirty={policyDirty()}
+          />
+        </Match>
         <Match when={active() === "archive"}><CommunityArchivePage onArchive={() => setArchiveStatus("archived")} onUnarchive={() => setArchiveStatus("active")} status={archiveStatus()} submitState={{ kind: "idle" }} /></Match>
       </Switch>
       <Show when={savedMessage()}><Type aria-live="polite" class="sr-only" variant="caption">{savedMessage()}</Type></Show>
@@ -214,6 +241,11 @@ export const ExistingPanelsMounted: Story = {
     await userEvent.click(canvas.getByRole("button", { name: /Archive/ }));
     await expect(canvas.getByRole("heading", { name: "Danger zone" })).toBeInTheDocument();
   },
+};
+
+export const ModerationMounted: Story = {
+  args: { access: FULL_ACCESS, activeSection: "moderation", children: null, communityName: "Midnight Waves", onSectionChange: () => undefined },
+  render: () => <OwnerSettingsHappyPath initialSection="moderation" />,
 };
 
 export const CapabilityGated: Story = {
