@@ -149,6 +149,8 @@ export type NamespaceSettingsCommandInput =
   | Readonly<{ kind: "restart" }>
   | Readonly<{ kind: "change_namespace" }>;
 
+export type NamespaceCommandIdempotencyKeys = Readonly<Record<NamespaceSettingsCommandInput["kind"], string>>;
+
 export type NamespaceSettingsCommand = NamespaceCommandFence & NamespaceSettingsCommandInput;
 
 export type CommunityNamespaceSettingsPort = Readonly<{

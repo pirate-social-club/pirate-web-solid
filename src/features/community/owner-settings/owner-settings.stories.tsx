@@ -10,7 +10,7 @@ import { CommunityRulesEditorPage, type RuleDraft } from "../rules-editor/commun
 import { CommunityNamespaceSettingsPanel } from "./community-namespace-settings-panel";
 import { CommunityOwnerSettingsShell } from "./community-owner-settings-shell";
 import { CommunityProfileSettingsPanel } from "./community-profile-settings-panel";
-import { createFakeProfileSettingsPort, namespaceState } from "./fake-owner-settings-port";
+import { createFakeProfileSettingsPort, namespaceIdempotencyKeys, namespaceState } from "./fake-owner-settings-port";
 import type {
   CommunityProfileDraft,
   OwnerSettingsAccess,
@@ -126,6 +126,7 @@ function OwnerSettingsHappyPath(props: { initialSection?: OwnerSettingsSection }
         <Match when={active() === "namespace"}>
           <CommunityNamespaceSettingsPanel
             draftRootLabel="midnight"
+            idempotencyKeys={namespaceIdempotencyKeys("storybook-connected")}
             onCommand={() => undefined}
             onDraftRootLabelChange={() => undefined}
             snapshot={namespaceState({

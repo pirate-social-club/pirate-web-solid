@@ -16,6 +16,7 @@ import {
 } from "@pirate/web-solid-ui";
 import {
   hasUnsupportedNamespaceRecords,
+  type NamespaceCommandIdempotencyKeys,
   type NamespaceNextAction,
   type NamespaceResourceRecord,
   type NamespaceSettingsCommand,
@@ -26,23 +27,21 @@ import {
 export interface CommunityNamespaceSettingsPanelProps {
   busy?: boolean;
   draftRootLabel: string;
+  idempotencyKeys: NamespaceCommandIdempotencyKeys;
   onCommand: (command: NamespaceSettingsCommand) => void;
   onDraftRootLabelChange: (rootLabel: string) => void;
   snapshot: NamespaceSettingsSnapshot;
 }
 
-function idempotencyKey(): string {
-  return globalThis.crypto?.randomUUID?.() ?? `namespace-${Date.now()}`;
-}
-
 function command(
+  idempotencyKeys: NamespaceCommandIdempotencyKeys,
   snapshot: NamespaceSettingsSnapshot,
   value: NamespaceSettingsCommandInput,
 ): NamespaceSettingsCommand {
   return {
     ...value,
     expected_generation: snapshot.generation,
-    idempotency_key: idempotencyKey(),
+    idempotency_key: idempotencyKeys[value.kind],
   };
 }
 
@@ -78,7 +77,7 @@ function NamespaceRecordList(props: { records: ReadonlyArray<NamespaceResourceRe
                 <span class="rounded-full bg-warning/10 px-2 py-0.5 text-xs font-semibold text-warning">Unsupported</span>
               </Show>
             </div>
-            <CopyField copyLabel={`${record.record_type} record`} value={record.value} wrap />
+            <CopyField class="h-auto min-h-16 py-3" copyLabel={`${record.record_type} record`} value={record.value} wrap />
           </div>
         )}
       </For>
@@ -111,9 +110,9 @@ function ConnectedNameCard(props: { action: Extract<NamespaceNextAction, { kind:
   );
 }
 
-function SecondaryAction(props: Pick<CommunityNamespaceSettingsPanelProps, "onCommand" | "snapshot">) {
+function SecondaryAction(props: Pick<CommunityNamespaceSettingsPanelProps, "idempotencyKeys" | "onCommand" | "snapshot">) {
   return (
-    <Button onClick={() => props.onCommand(command(props.snapshot, { kind: "change_namespace" }))} variant="secondary">
+    <Button onClick={() => props.onCommand(command(props.idempotencyKeys, props.snapshot, { kind: "change_namespace" }))} variant="secondary">
       Use a different namespace
     </Button>
   );
@@ -139,10 +138,10 @@ function failedAction(action: NamespaceNextAction): Extract<NamespaceNextAction,
   return action.kind === "failed" ? action : null;
 }
 
-function ServerDirectedAction(props: Pick<CommunityNamespaceSettingsPanelProps, "busy" | "onCommand" | "snapshot">) {
+function ServerDirectedAction(props: Pick<CommunityNamespaceSettingsPanelProps, "busy" | "idempotencyKeys" | "onCommand" | "snapshot">) {
   const action = () => props.snapshot.next_action;
   const dispatch = (value: NamespaceSettingsCommandInput) => {
-    props.onCommand(command(props.snapshot, value));
+    props.onCommand(command(props.idempotencyKeys, props.snapshot, value));
   };
 
   return (
@@ -153,7 +152,7 @@ function ServerDirectedAction(props: Pick<CommunityNamespaceSettingsPanelProps, 
           <FormNote>The server will prepare the complete Handshake resource for this name.</FormNote>
           <Button loading={props.busy} onClick={() => dispatch({ kind: "start_verification" })}>Start verification</Button>
         </Card>
-        <SecondaryAction onCommand={props.onCommand} snapshot={props.snapshot} />
+        <SecondaryAction idempotencyKeys={props.idempotencyKeys} onCommand={props.onCommand} snapshot={props.snapshot} />
       </Show>
 
       <Show when={publishAction(action())}>
@@ -180,7 +179,7 @@ function ServerDirectedAction(props: Pick<CommunityNamespaceSettingsPanelProps, 
               <NamespaceRecordList records={current().records} />
             </Card>
             <div class="flex flex-wrap items-center justify-between gap-3">
-              <SecondaryAction onCommand={props.onCommand} snapshot={props.snapshot} />
+              <SecondaryAction idempotencyKeys={props.idempotencyKeys} onCommand={props.onCommand} snapshot={props.snapshot} />
               <Show when={!hasUnsupportedNamespaceRecords(current())}>
                 <Button loading={props.busy} onClick={() => dispatch({ kind: "acknowledge_complete_resource" })}>I published all records, check the chain</Button>
               </Show>
@@ -206,7 +205,7 @@ function ServerDirectedAction(props: Pick<CommunityNamespaceSettingsPanelProps, 
               <Type as="p" class="text-muted-foreground" variant="caption">Retry after {current().retry_after_seconds} seconds.</Type>
             </Card>
             <div class="flex flex-wrap items-center justify-between gap-3">
-              <SecondaryAction onCommand={props.onCommand} snapshot={props.snapshot} />
+              <SecondaryAction idempotencyKeys={props.idempotencyKeys} onCommand={props.onCommand} snapshot={props.snapshot} />
               <Button loading={props.busy} onClick={() => dispatch({ kind: "poll" })}>Check status</Button>
             </div>
           </>
@@ -227,7 +226,7 @@ function ServerDirectedAction(props: Pick<CommunityNamespaceSettingsPanelProps, 
               </Show>
             </Card>
             <div class="flex flex-wrap items-center justify-between gap-3">
-              <SecondaryAction onCommand={props.onCommand} snapshot={props.snapshot} />
+              <SecondaryAction idempotencyKeys={props.idempotencyKeys} onCommand={props.onCommand} snapshot={props.snapshot} />
               <Button loading={props.busy} onClick={() => dispatch({ kind: "poll" })}>Check again</Button>
             </div>
           </>
@@ -251,7 +250,7 @@ function ServerDirectedAction(props: Pick<CommunityNamespaceSettingsPanelProps, 
               <FormNote tone="warning">{current().reason_code.replaceAll("_", " ")}</FormNote>
             </Card>
             <div class="flex flex-wrap items-center justify-between gap-3">
-              <SecondaryAction onCommand={props.onCommand} snapshot={props.snapshot} />
+              <SecondaryAction idempotencyKeys={props.idempotencyKeys} onCommand={props.onCommand} snapshot={props.snapshot} />
               <Show when={current().retryable}><Button onClick={() => dispatch({ kind: "restart" })}>Try a new verification</Button></Show>
             </div>
           </>
@@ -264,7 +263,7 @@ function ServerDirectedAction(props: Pick<CommunityNamespaceSettingsPanelProps, 
           <FormNote tone="warning">Generate a fresh server challenge before publishing anything.</FormNote>
         </Card>
         <div class="flex flex-wrap items-center justify-between gap-3">
-          <SecondaryAction onCommand={props.onCommand} snapshot={props.snapshot} />
+          <SecondaryAction idempotencyKeys={props.idempotencyKeys} onCommand={props.onCommand} snapshot={props.snapshot} />
           <Button onClick={() => dispatch({ kind: "restart" })}>Get a new record list</Button>
         </div>
       </Show>
@@ -273,7 +272,7 @@ function ServerDirectedAction(props: Pick<CommunityNamespaceSettingsPanelProps, 
 }
 
 export function CommunityNamespaceSettingsPanel(props: CommunityNamespaceSettingsPanelProps) {
-  const submitNamespace = () => props.onCommand(command(props.snapshot, {
+  const submitNamespace = () => props.onCommand(command(props.idempotencyKeys, props.snapshot, {
     family: "hns",
     kind: "select_namespace",
     root_label: props.draftRootLabel,
@@ -281,7 +280,7 @@ export function CommunityNamespaceSettingsPanel(props: CommunityNamespaceSetting
 
   return (
     <section class="mx-auto flex w-full max-w-5xl flex-col gap-6 md:gap-8" data-community-namespace-settings>
-      <Show when={props.snapshot.next_action.kind === "choose_namespace"} fallback={<ServerDirectedAction busy={props.busy} onCommand={props.onCommand} snapshot={props.snapshot} />}>
+      <Show when={props.snapshot.next_action.kind === "choose_namespace"} fallback={<ServerDirectedAction busy={props.busy} idempotencyKeys={props.idempotencyKeys} onCommand={props.onCommand} snapshot={props.snapshot} />}>
         <div class="space-y-6">
           <Type as="h2" responsiveSize="desktop4xl" variant="h1">Connect Name</Type>
           <Card class="space-y-5 p-5 md:p-6">

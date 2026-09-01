@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { createFakeNamespaceSettingsPort } from "./fake-owner-settings-port";
+import { createFakeNamespaceSettingsPort, namespaceIdempotencyKeys } from "./fake-owner-settings-port";
 import {
   firstVisibleOwnerSettingsSection,
   hasUnsupportedNamespaceRecords,
@@ -47,7 +47,7 @@ describe("owner settings model", () => {
       acknowledgement_required: true,
       replacement_semantics: "complete_resource",
       records: [
-        { record_type: "NS", value: "ns1.pirate.sc.", supported: true },
+        { record_type: "NS", value: "ns1.pirate.", supported: true },
         { record_type: "TLSA", value: "3 1 1 fixture", supported: false },
       ],
     })).toBe(true);
@@ -56,28 +56,30 @@ describe("owner settings model", () => {
 
   it("fences namespace commands and returns a complete HNS resource", async () => {
     const port = createFakeNamespaceSettingsPort();
+    const keys = namespaceIdempotencyKeys("midnight-operation");
     const initial = await port.read();
     const selected = await port.execute({
       expected_generation: initial.generation,
       family: "hns",
-      idempotency_key: "select-midnight",
+      idempotency_key: keys.select_namespace,
       kind: "select_namespace",
       root_label: "midnight",
     });
     const resource = await port.execute({
       expected_generation: selected.generation,
-      idempotency_key: "start-midnight",
+      idempotency_key: keys.start_verification,
       kind: "start_verification",
     });
 
     expect(resource.next_action.kind).toBe("publish_resource");
     if (resource.next_action.kind === "publish_resource") {
       expect(resource.next_action.replacement_semantics).toBe("complete_resource");
-      expect(resource.next_action.records.some((record) => record.record_type === "DS")).toBe(true);
+      expect(resource.next_action.records.filter((record) => record.record_type === "DS")).toHaveLength(2);
+      expect(resource.next_action.records.filter((record) => record.record_type === "NS").map((record) => record.value)).toEqual(["ns1.pirate.", "ns2.pirate."]);
     }
     await expect(port.execute({
       expected_generation: initial.generation,
-      idempotency_key: "stale-poll",
+      idempotency_key: keys.poll,
       kind: "poll",
     })).rejects.toThrow("namespace_generation_conflict");
   });

@@ -2,22 +2,35 @@ import type {
   CommunityNamespaceSettingsPort,
   CommunityProfileDraft,
   CommunityProfileSettingsPort,
+  NamespaceCommandIdempotencyKeys,
   NamespaceFamily,
   NamespaceResourceRecord,
   NamespaceSettingsSnapshot,
 } from "./owner-settings-model";
 
 const HNS_COMPLETE_RESOURCE: ReadonlyArray<NamespaceResourceRecord> = [
-  { record_type: "NS", value: "ns1.pirate.sc.", supported: true },
-  { record_type: "NS", value: "ns2.pirate.sc.", supported: true },
+  { record_type: "NS", value: "ns1.pirate.", supported: true },
+  { record_type: "NS", value: "ns2.pirate.", supported: true },
   { record_type: "TXT", value: "pirate-verification=storybook-session", supported: true },
-  { record_type: "DS", value: "49194 13 2 C74E61F29F60B98EB8A31C8A6286C1F45F418A26A42EB92C332176EA875CFDF2", supported: true },
+  { record_type: "DS", value: "10875 13 2 ba5d84ad6e3e7ec452a569ee2e6c447ba2b9b533de65c58e59f2f0b7f0773045", supported: true },
+  { record_type: "DS", value: "10875 13 4 fde2c7af467092476b5572f9ac43fbbbbe82f63f7c785af984dc5884a2dae0384519dea6982fdbd19c375756b4ebaf70", supported: true },
 ];
 
 export const unsupportedHnsRecords: ReadonlyArray<NamespaceResourceRecord> = [
   ...HNS_COMPLETE_RESOURCE,
   { record_type: "TLSA", value: "3 1 1 2A8F…", supported: false },
 ];
+
+export function namespaceIdempotencyKeys(operationId: string): NamespaceCommandIdempotencyKeys {
+  return {
+    acknowledge_complete_resource: `${operationId}-acknowledge-complete-resource`,
+    change_namespace: `${operationId}-change-namespace`,
+    poll: `${operationId}-poll`,
+    restart: `${operationId}-restart`,
+    select_namespace: `${operationId}-select-namespace`,
+    start_verification: `${operationId}-start-verification`,
+  };
+}
 
 export function createFakeProfileSettingsPort(initial: CommunityProfileDraft): CommunityProfileSettingsPort {
   let revision = 7;

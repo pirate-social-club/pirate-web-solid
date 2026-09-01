@@ -3,12 +3,13 @@ import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import { expect, fn, userEvent, within } from "storybook/test";
 
 import { CommunityNamespaceSettingsPanel } from "./community-namespace-settings-panel";
-import { hnsCompleteResource, namespaceState, unsupportedHnsRecords } from "./fake-owner-settings-port";
+import { hnsCompleteResource, namespaceIdempotencyKeys, namespaceState, unsupportedHnsRecords } from "./fake-owner-settings-port";
 import type { NamespaceNextAction } from "./owner-settings-model";
 
 function argsFor(nextAction: NamespaceNextAction) {
   return {
     draftRootLabel: "midnight",
+    idempotencyKeys: namespaceIdempotencyKeys(`storybook-${nextAction.kind}`),
     onCommand: fn(),
     onDraftRootLabelChange: fn(),
     snapshot: namespaceState(nextAction),
@@ -28,6 +29,7 @@ type Story = StoryObj<typeof meta>;
 export const ConnectName: Story = {
   args: {
     draftRootLabel: "midnight",
+    idempotencyKeys: namespaceIdempotencyKeys("storybook-connect-name"),
     onCommand: fn(),
     onDraftRootLabelChange: fn(),
     snapshot: { community_id: "community_fixture", family: null, generation: 1, root_label: "", next_action: { kind: "choose_namespace" } },
@@ -39,13 +41,16 @@ export const ConnectName: Story = {
   play: async ({ args, canvasElement }) => {
     const canvas = within(canvasElement);
     await userEvent.click(canvas.getByRole("button", { name: "Continue" }));
-    await expect(args.onCommand).toHaveBeenCalledWith(expect.objectContaining({
+    await userEvent.click(canvas.getByRole("button", { name: "Continue" }));
+    const expectedCommand = expect.objectContaining({
       expected_generation: 1,
       family: "hns",
-      idempotency_key: expect.any(String),
+      idempotency_key: "storybook-connect-name-select-namespace",
       kind: "select_namespace",
       root_label: "midnight",
-    }));
+    });
+    await expect(args.onCommand).toHaveBeenNthCalledWith(1, expectedCommand);
+    await expect(args.onCommand).toHaveBeenNthCalledWith(2, expectedCommand);
   },
 };
 
@@ -59,7 +64,7 @@ export const CompleteResource: Story = {
     const canvas = within(canvasElement);
     await expect(canvas.getByText("Publish this complete resource")).toBeInTheDocument();
     await expect(canvas.getByText(/replaces the complete resource/)).toBeInTheDocument();
-    await expect(canvas.getAllByText("DS")).toHaveLength(1);
+    await expect(canvas.getAllByText("DS")).toHaveLength(2);
   },
 };
 
