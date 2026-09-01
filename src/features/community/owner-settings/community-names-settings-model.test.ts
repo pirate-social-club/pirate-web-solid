@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { NAMES_ACTIVE, NAMES_READY } from "./community-names-settings-fixtures";
-import { broadNamesOfferingInput, namesOfferingRevisionInput, saleNamespaceActivationInput } from "./community-names-settings-model";
+import { NAMES_ACTIVE, NAMES_READY, NAMES_SUSPENDED } from "./community-names-settings-fixtures";
+import {
+  broadNamesOfferingInput,
+  namesOfferingRevisionInput,
+  ownerSettingsAccessFromNamesSnapshot,
+  saleNamespaceActivationInput,
+  saleNamespaceRevisionInput,
+} from "./community-names-settings-model";
 
 describe("community names settings model", () => {
   it("uses the ready candidate's authority and generation fences", () => {
@@ -44,5 +50,33 @@ describe("community names settings model", () => {
     expect(command.body.terms.expected_sale_namespace_activation_generation).toBe(2);
     expect(command.body.terms.label_scope).toMatchObject({ expected_reserved_labels_revision: 4 });
     expect(command.body.requested_status).toBe("paused");
+  });
+
+  it("reuses every namespace authority fence when resuming hosting", () => {
+    const activation = NAMES_SUSPENDED.saleNamespaces[0]!.activation;
+    expect(saleNamespaceRevisionInput({
+      activation,
+      communityId: "community_midnight",
+      idempotencyKey: "resume-hosting-1",
+      status: "active",
+    })).toEqual({
+      path: { communityId: "community_midnight", activationId: "sale_namespace_midnight" },
+      body: {
+        idempotency_key: "resume-hosting-1",
+        expected_sale_namespace_activation_hash: "sale-namespace-hash-3",
+        requested_status: "active",
+        namespace_authority_reference: "namespace_authority_midnight",
+        expected_namespace_authority_generation: 7,
+        dns_zone_activation_id: "dns_zone_midnight",
+        expected_dns_zone_activation_generation: 3,
+        dedicated_root_replacement_confirmed: true,
+      },
+    });
+  });
+
+  it("grants only Names navigation after the owner-only management read succeeds", () => {
+    expect(ownerSettingsAccessFromNamesSnapshot(NAMES_READY)).toEqual({
+      "community.names.manage": true,
+    });
   });
 });

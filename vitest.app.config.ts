@@ -32,6 +32,8 @@ export default defineConfig({
       "src/features/auth/sign-in-session.test.ts",
       "src/features/community/community-creation-api.test.ts",
       "src/features/community/community-creation-route-view.test.tsx",
+      "src/features/community/owner-settings/community-names-settings-api.test.ts",
+      "src/features/community/owner-settings/community-names-settings-controller.test.tsx",
       "src/features/community/owner-settings/community-names-settings-model.test.ts",
       "src/features/community/owner-settings/community-moderation-settings-api.test.ts",
       "src/features/community/owner-settings/community-moderation-settings-controller.test.tsx",

@@ -81,15 +81,23 @@ function ReadyNamesCard(props: Pick<CommunityNamesSettingsPanelProps, "busy" | "
       <Show when={ineffectiveReason()}>{(reason) => <FormNote tone="warning">{ineffectiveCopy(reason())}</FormNote>}</Show>
       <Show when={activationStatus() === "pending"}><FormNote>Name hosting is being prepared.</FormNote></Show>
       <Show when={activationStatus() === "revoked"}><FormNote tone="warning">Names are no longer enabled for this namespace.</FormNote></Show>
+      <Show when={activationStatus() === "suspended" && saleNamespace() !== undefined}>
+        <Button
+          class="self-start"
+          disabled={props.busy !== undefined}
+          loading={props.busy === "resume_name_hosting"}
+          onClick={() => props.onCommand?.({ activation: saleNamespace()!.activation, kind: "resume_name_hosting" })}
+        >Resume name hosting</Button>
+      </Show>
 
       <Show when={!offering() && (activationStatus() === undefined || activationStatus() === "active")}>
-        <Button class="self-start" loading={props.busy === "enable_names"} onClick={() => props.onCommand?.({ candidate: props.candidate, kind: "enable_names" })}>Enable names</Button>
+        <Button class="self-start" disabled={props.busy !== undefined} loading={props.busy === "enable_names"} onClick={() => props.onCommand?.({ candidate: props.candidate, kind: "enable_names" })}>Enable names</Button>
       </Show>
       <Show when={offering()?.status === "active" && !ineffectiveReason()}>
-        <Button class="self-start" loading={props.busy === "pause_names"} onClick={() => command("pause_names")} variant="secondary">Pause names</Button>
+        <Button class="self-start" disabled={props.busy !== undefined} loading={props.busy === "pause_names"} onClick={() => command("pause_names")} variant="secondary">Pause names</Button>
       </Show>
       <Show when={offering()?.status === "paused"}>
-        <Button class="self-start" loading={props.busy === "resume_names"} onClick={() => command("resume_names")}>Resume names</Button>
+        <Button class="self-start" disabled={props.busy !== undefined} loading={props.busy === "resume_names"} onClick={() => command("resume_names")}>Resume names</Button>
       </Show>
     </Card>
   );
@@ -103,8 +111,8 @@ export function CommunityNamesSettingsPanel(props: CommunityNamesSettingsPanelPr
         <Type as="p" class="text-muted-foreground" variant="body">Offer free names under a connected Handshake namespace.</Type>
       </div></Show>
 
-      <Show when={!props.errorMessage} fallback={<Card class="p-6"><FormNote tone="destructive">{props.errorMessage}</FormNote></Card>}>
-        <Show when={!props.loading} fallback={<Card class="grid min-h-64 place-items-center" role="status"><div class="flex items-center gap-3"><Spinner class="size-5" /><Type variant="body">Loading names…</Type></div></Card>}>
+      <Show when={props.errorMessage}><FormNote tone="destructive">{props.errorMessage}</FormNote></Show>
+      <Show when={!props.loading} fallback={<Card class="grid min-h-64 place-items-center" role="status"><div class="flex items-center gap-3"><Spinner class="size-5" /><Type variant="body">Loading names…</Type></div></Card>}>
           <Show when={props.snapshot.context.sale_namespace_candidates.length > 0} fallback={
             <Card class="space-y-4 p-6">
               <Type as="p" variant="body-strong">No namespace is currently available for community names.</Type>
@@ -118,7 +126,6 @@ export function CommunityNamesSettingsPanel(props: CommunityNamesSettingsPanelPr
               }</For>
             </div>
           </Show>
-        </Show>
       </Show>
     </section>
   );

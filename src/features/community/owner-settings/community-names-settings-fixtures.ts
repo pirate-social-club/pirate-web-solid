@@ -116,6 +116,21 @@ export const NAMES_REVOKED: CommunityNamesManagementSnapshot = {
   }],
   offerings: [],
 };
+export const NAMES_SUSPENDED: CommunityNamesManagementSnapshot = {
+  context: READY_CONTEXT,
+  saleNamespaces: [{
+    ...ACTIVE_SALE_NAMESPACE,
+    activation: {
+      ...ACTIVE_SALE_NAMESPACE.activation,
+      sale_namespace_activation_generation: 3,
+      sale_namespace_activation_hash: "sale-namespace-hash-3",
+      status: "suspended",
+      suspended_at: "2026-09-01T11:00:00Z",
+    },
+    effectiveness: { kind: "ineffective_v1", reason: "activation_inactive" },
+  }],
+  offerings: [ACTIVE_OFFERING],
+};
 export const NAMES_PAUSED: CommunityNamesManagementSnapshot = {
   context: READY_CONTEXT,
   saleNamespaces: [ACTIVE_SALE_NAMESPACE],

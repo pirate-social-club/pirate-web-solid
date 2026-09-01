@@ -6,7 +6,9 @@ import type {
   PostCommunitiesCommunityIdHandleOfferingsInput,
   PostCommunitiesCommunityIdHandleOfferingsOfferingIdRevisionsInput,
   PostCommunitiesCommunityIdHandleSaleNamespacesInput,
+  PostCommunitiesCommunityIdHandleSaleNamespacesActivationIdRevisionsInput,
 } from "@pirate/api-client-happy-path";
+import type { OwnerSettingsAccess } from "./owner-settings-model";
 
 export type CommunityNamesManagementPort = Pick<
   PirateApiClient,
@@ -23,7 +25,12 @@ export type CommunityNamesManagementContext = GetCommunitiesCommunityIdHandleSal
 export type CommunityNamesCandidate = CommunityNamesManagementContext["sale_namespace_candidates"][number];
 export type CommunityNamesReadyCandidate = Extract<CommunityNamesCandidate, { readonly kind: "ready_v1" }>;
 export type CommunityNamesSaleNamespace = GetCommunitiesCommunityIdHandleSalesManagementSaleNamespacesResponse["items"][number];
+export type CommunityNamesSaleNamespaceActivation = CommunityNamesSaleNamespace["activation"];
 export type CommunityNamesOffering = GetCommunitiesCommunityIdHandleSalesManagementOfferingsResponse["items"][number];
+export type CommunityNamesSaleNamespaceActivationInput = PostCommunitiesCommunityIdHandleSaleNamespacesInput;
+export type CommunityNamesSaleNamespaceRevisionInput = PostCommunitiesCommunityIdHandleSaleNamespacesActivationIdRevisionsInput;
+export type CommunityNamesOfferingCreateInput = PostCommunitiesCommunityIdHandleOfferingsInput;
+export type CommunityNamesOfferingRevisionInput = PostCommunitiesCommunityIdHandleOfferingsOfferingIdRevisionsInput;
 
 export type CommunityNamesManagementSnapshot = Readonly<{
   context: CommunityNamesManagementContext;
@@ -34,7 +41,15 @@ export type CommunityNamesManagementSnapshot = Readonly<{
 export type CommunityNamesSettingsCommand =
   | Readonly<{ candidate: CommunityNamesReadyCandidate; kind: "enable_names" }>
   | Readonly<{ kind: "pause_names"; offering: CommunityNamesOffering["offering"] }>
-  | Readonly<{ kind: "resume_names"; offering: CommunityNamesOffering["offering"] }>;
+  | Readonly<{ kind: "resume_names"; offering: CommunityNamesOffering["offering"] }>
+  | Readonly<{ activation: CommunityNamesSaleNamespaceActivation; kind: "resume_name_hosting" }>;
+
+/** A successful owner-only management read is the server-issued Names authority signal. */
+export function ownerSettingsAccessFromNamesSnapshot(
+  _snapshot: CommunityNamesManagementSnapshot,
+): OwnerSettingsAccess {
+  return { "community.names.manage": true };
+}
 
 export function saleNamespaceActivationInput(input: {
   candidate: CommunityNamesReadyCandidate;
@@ -136,6 +151,30 @@ export function namesOfferingRevisionInput(input: {
       expected_offering_hash: input.offering.offering_hash,
       requested_status: input.status,
       terms: offeringTerms(input.offering),
+    },
+  };
+}
+
+export function saleNamespaceRevisionInput(input: {
+  activation: CommunityNamesSaleNamespaceActivation;
+  communityId: string;
+  idempotencyKey: string;
+  status: "active" | "suspended" | "revoked";
+}): PostCommunitiesCommunityIdHandleSaleNamespacesActivationIdRevisionsInput {
+  return {
+    path: {
+      communityId: input.communityId,
+      activationId: input.activation.sale_namespace_activation_id,
+    },
+    body: {
+      idempotency_key: input.idempotencyKey,
+      expected_sale_namespace_activation_hash: input.activation.sale_namespace_activation_hash,
+      requested_status: input.status,
+      namespace_authority_reference: input.activation.namespace_authority.namespace_authority_reference,
+      expected_namespace_authority_generation: input.activation.namespace_authority.namespace_authority_generation,
+      dns_zone_activation_id: input.activation.serving.dns_zone_activation_id,
+      expected_dns_zone_activation_generation: input.activation.serving.dns_zone_activation_generation,
+      dedicated_root_replacement_confirmed: true,
     },
   };
 }
