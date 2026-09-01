@@ -95,18 +95,18 @@ export type ConnectedCommunityName = Readonly<{
   fallbackAddress: string;
   fallbackLabel: string;
   label: string;
-  providerLabel: string;
 }>;
 
 export type HnsAddState = Readonly<{
   kind:
     | "enter_name"
-    | "wallet_action"
-    | "transaction_pending"
-    | "tree_commitment_pending"
-    | "secure_connection_pending"
-    | "records_mismatch"
+    | "records_ready"
+    | "checking_records"
+    | "records_not_found"
+    | "txt_mismatch"
     | "verifier_unavailable"
     | "expired";
+  nameservers?: ReadonlyArray<string>;
   rootLabel: string;
+  txtRecord?: string;
 }>;

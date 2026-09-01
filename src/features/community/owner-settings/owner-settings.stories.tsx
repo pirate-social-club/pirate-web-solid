@@ -130,7 +130,6 @@ function OwnerSettingsHappyPath(props: { initialSection?: OwnerSettingsSection }
               fallbackAddress: "https://pirate.sc/c/midnight",
               fallbackLabel: "pirate.sc/c/midnight",
               label: "app.midnight",
-              providerLabel: "Connected with Handshake",
             }}
           />
         </Match>

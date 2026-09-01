@@ -1,8 +1,9 @@
-import { Show } from "solid-js";
+import { For, Show } from "solid-js";
 
 import {
   Button,
   Card,
+  CopyField,
   FormFieldLabel,
   FormNote,
   IconCheckCircle,
@@ -37,7 +38,7 @@ function ConnectedNameCard(props: { connectedName: ConnectedCommunityName }) {
             </span>
           </div>
           <Type as="p" class="text-muted-foreground" variant="body">
-            {props.connectedName.providerLabel} · <a class="underline underline-offset-4" href={props.connectedName.fallbackAddress}>{props.connectedName.fallbackLabel}</a>
+            Accessible at <a class="underline underline-offset-4" href={props.connectedName.fallbackAddress}>{props.connectedName.fallbackLabel}</a> and <a class="underline underline-offset-4" href={props.connectedName.address}>{props.connectedName.label}</a> with Handshake.
           </Type>
         </div>
       </div>
@@ -48,83 +49,80 @@ function ConnectedNameCard(props: { connectedName: ConnectedCommunityName }) {
   );
 }
 
-function HnsAddStateCard(props: { onAction?: () => void; state: HnsAddState }) {
-  const name = () => `${props.state.rootLabel}/`;
+function HnsRecords(props: { onAction?: () => void; state: HnsAddState }) {
+  const status = () => {
+    switch (props.state.kind) {
+      case "checking_records": return { busy: true, message: "Checking records..." };
+      case "records_not_found": return { busy: false, message: "Records not found." };
+      case "txt_mismatch": return { busy: false, message: "TXT record does not match." };
+      case "verifier_unavailable": return { busy: false, message: "Verifier unavailable. Try again." };
+      case "expired": return { busy: false, message: "Verification expired. Generate a new challenge." };
+      default: return null;
+    }
+  };
+  const primaryLabel = () => {
+    switch (props.state.kind) {
+      case "records_not_found": return "Check setup";
+      case "expired": return "Get a new record list";
+      case "txt_mismatch":
+      case "verifier_unavailable": return "Check again";
+      default: return "Verify";
+    }
+  };
 
   return (
-    <Show
-      when={props.state.kind !== "enter_name"}
-      fallback={
-        <Card class="space-y-5 p-5 md:p-6">
-          <Type as="h2" variant="h2">Add Handshake name</Type>
+    <div class="space-y-4">
+      <Card class="space-y-4 p-5 md:p-6">
+        <Type as="h2" variant="h2">Add records</Type>
+        <Show when={(props.state.nameservers?.length ?? 0) > 0}>
           <div class="space-y-2">
-            <FormFieldLabel htmlFor="community-hns-name" label="Handshake name" required />
-            <div class="flex items-center gap-2">
-              <Input id="community-hns-name" value={props.state.rootLabel} />
-              <span class="text-lg text-muted-foreground">/</span>
-            </div>
-            <FormNote>app.{props.state.rootLabel} · pirate.sc/c/{props.state.rootLabel}</FormNote>
+            <Type as="div" variant="caption">NS</Type>
+            <For each={props.state.nameservers}>{(value) => <CopyField copyLabel="nameserver" value={value} />}</For>
           </div>
-          <Button onClick={props.onAction}>Continue</Button>
-        </Card>
-      }
-    >
-      <Show when={props.state.kind === "wallet_action"}>
-        <Card class="space-y-5 p-5 md:p-6">
-          <Type as="h2" variant="h2">Update {name()} in your wallet</Type>
-          <FormNote tone="warning">Review and publish the prepared DNS update.</FormNote>
-          <Button onClick={props.onAction}>Open wallet</Button>
-        </Card>
-      </Show>
+        </Show>
+        <Show when={props.state.txtRecord}>
+          {(value) => (
+            <div class="space-y-2">
+              <Type as="div" variant="caption">TXT</Type>
+              <CopyField copyLabel="TXT record" value={value()} wrap />
+            </div>
+          )}
+        </Show>
+        <Show when={status()}>
+          {(current) => (
+            <div class="flex items-center gap-2" role={current().busy ? "status" : "alert"}>
+              <Show when={current().busy} fallback={<IconWarningCircle class="size-4 text-warning" />}>
+                <Spinner size="sm" />
+              </Show>
+              <Type as="p" class={current().busy ? "text-muted-foreground" : "text-warning"} variant="caption">{current().message}</Type>
+            </div>
+          )}
+        </Show>
+      </Card>
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <Button onClick={props.onAction} variant="secondary">Use a different namespace</Button>
+        <Button loading={props.state.kind === "checking_records"} onClick={props.onAction}>{primaryLabel()}</Button>
+      </div>
+    </div>
+  );
+}
 
-      <Show when={props.state.kind === "transaction_pending"}>
-        <Card class="space-y-4 p-5 md:p-6" role="status">
-          <div class="flex items-center gap-3"><Spinner size="sm" /><Type as="h2" variant="h2">Waiting for wallet</Type></div>
-          <FormNote>Publish the prepared update for {name()}.</FormNote>
-          <Button onClick={props.onAction} variant="secondary">Check again</Button>
-        </Card>
-      </Show>
-
-      <Show when={props.state.kind === "tree_commitment_pending"}>
-        <Card class="space-y-4 p-5 md:p-6" role="status">
-          <div class="flex items-center gap-3"><Spinner size="sm" /><Type as="h2" variant="h2">Confirming on Handshake</Type></div>
-          <FormNote>The wallet transaction was found and is awaiting confirmation.</FormNote>
-          <Button onClick={props.onAction} variant="secondary">Check again</Button>
-        </Card>
-      </Show>
-
-      <Show when={props.state.kind === "secure_connection_pending"}>
-        <Card class="space-y-4 p-5 md:p-6" role="status">
-          <div class="flex items-center gap-3"><Spinner size="sm" /><Type as="h2" variant="h2">Connecting {name()}</Type></div>
-          <FormNote>Handshake confirmed the update. Secure routing is coming online.</FormNote>
-          <Button onClick={props.onAction} variant="secondary">Check again</Button>
-        </Card>
-      </Show>
-
-      <Show when={props.state.kind === "records_mismatch"}>
-        <Card class="space-y-4 border-warning/50 p-5 md:p-6" role="alert">
-          <div class="flex items-center gap-3"><IconWarningCircle class="size-5 text-warning" /><Type as="h2" variant="h2">Wallet update does not match</Type></div>
-          <FormNote tone="warning">Review the prepared update for {name()} and publish it again.</FormNote>
-          <Button onClick={props.onAction}>Review wallet update</Button>
-        </Card>
-      </Show>
-
-      <Show when={props.state.kind === "verifier_unavailable"}>
-        <Card class="space-y-4 border-warning/50 p-5 md:p-6" role="alert">
-          <div class="flex items-center gap-3"><IconWarningCircle class="size-5 text-warning" /><Type as="h2" variant="h2">Cannot check {name()}</Type></div>
-          <FormNote tone="warning">Your wallet transaction is not affected.</FormNote>
-          <Button onClick={props.onAction} variant="secondary">Try again</Button>
-        </Card>
-      </Show>
-
-      <Show when={props.state.kind === "expired"}>
-        <Card class="space-y-4 border-warning/50 p-5 md:p-6" role="alert">
-          <div class="flex items-center gap-3"><IconWarningCircle class="size-5 text-warning" /><Type as="h2" variant="h2">Connection expired</Type></div>
-          <FormNote tone="warning">Start again to prepare a fresh update for {name()}.</FormNote>
-          <Button onClick={props.onAction}>Start again</Button>
-        </Card>
-      </Show>
-    </Show>
+function ConnectName(props: { onAction?: () => void; state: HnsAddState }) {
+  return (
+    <div class="space-y-6">
+      <Type as="h2" responsiveSize="desktop4xl" variant="h1">Connect Name</Type>
+      <Card class="space-y-5 p-5 md:p-6">
+        <div class="space-y-2">
+          <FormFieldLabel htmlFor="community-hns-name" label="Handshake root" required />
+          <div class="flex items-center gap-2">
+            <span class="text-2xl font-bold">.</span>
+            <Input id="community-hns-name" value={props.state.rootLabel} />
+          </div>
+          <FormNote>Route: pirate.sc/c/{props.state.rootLabel}</FormNote>
+        </div>
+        <Button onClick={props.onAction}>Continue</Button>
+      </Card>
+    </div>
   );
 }
 
@@ -132,12 +130,18 @@ export function CommunityNamespaceSettingsPanel(props: CommunityNamespaceSetting
   return (
     <section class="mx-auto flex w-full max-w-5xl flex-col gap-6 md:gap-8" data-community-namespace-settings>
       <Show when={props.hnsAddState}>
-        {(state) => <HnsAddStateCard onAction={props.onAction} state={state()} />}
+        {(state) => (
+          <Show
+            when={state().kind === "enter_name"}
+            fallback={<HnsRecords onAction={props.onAction} state={state()} />}
+          >
+            <ConnectName onAction={props.onAction} state={state()} />
+          </Show>
+        )}
       </Show>
       <Show when={!props.hnsAddState && props.connectedName}>
         <div class="space-y-2">
           <Type as="h2" responsiveSize="desktop4xl" variant="h1">Community address</Type>
-          <Type as="p" class="max-w-2xl text-muted-foreground" variant="body">The name people can use to open this community.</Type>
         </div>
         <ConnectedNameCard connectedName={props.connectedName!} />
       </Show>
