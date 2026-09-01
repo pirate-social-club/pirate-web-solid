@@ -89,7 +89,7 @@ interface CommunityModerationPanelStateProps {
 
 export interface CommunityModerationQueuePanelProps extends CommunityModerationPanelStateProps {
   actionBusy?: Readonly<{ action: CommunityModerationCaseAction; caseRef: string }>;
-  caseActionIdempotencyKey: (caseRef: string) => string;
+  caseActionIdempotencyKey: (caseRef: string, action: CommunityModerationCaseAction) => string;
   cases: CommunityModerationCaseList;
   caseView: CommunityModerationCaseView;
   details: ReadonlyArray<CommunityModerationCaseDetail>;
@@ -109,7 +109,7 @@ export interface CommunityModerationPolicyPanelProps extends CommunityModeration
 function CaseCard(props: Pick<CommunityModerationQueuePanelProps, "actionBusy" | "capabilities" | "caseActionIdempotencyKey" | "onCaseAction"> & { detail?: CommunityModerationCaseDetail; item: CommunityModerationCase }) {
   const canAct = () => canActOnCommunityModeration(props.capabilities);
   const act = (action: CommunityModerationCaseAction) => {
-    props.onCaseAction?.(moderationCaseActionInput({ action, case: props.item, idempotencyKey: props.caseActionIdempotencyKey(props.item.case_ref) }));
+    props.onCaseAction?.(moderationCaseActionInput({ action, case: props.item, idempotencyKey: props.caseActionIdempotencyKey(props.item.case_ref, action) }));
   };
   const textPreview = (): Extract<CommunityModerationCaseDetail["preview"], { kind: "text" }> | undefined => {
     const preview = props.detail?.preview;

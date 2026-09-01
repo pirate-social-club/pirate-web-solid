@@ -16,7 +16,7 @@ import {
 
 const baseArgs: CommunityModerationQueuePanelProps = {
   capabilities: MODERATION_VIEW_AND_ACT,
-  caseActionIdempotencyKey: (caseRef) => `storybook-action-${caseRef}`,
+  caseActionIdempotencyKey: (caseRef, action) => `storybook-action-${caseRef}-${action}`,
   cases: OPEN_MODERATION_CASES,
   caseView: "open",
   details: OPEN_MODERATION_CASE_DETAILS,

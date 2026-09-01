@@ -7,6 +7,7 @@ import type {
   PostModerationCasesCaseRefActionsInput,
   PutCommunitiesCommunityIdModerationPolicyInput,
 } from "@pirate/api-client-happy-path";
+import type { OwnerSettingsAccess } from "./owner-settings-model";
 
 export type CommunityModerationPort = Pick<
   PirateApiClient,
@@ -52,6 +53,15 @@ export function canViewCommunityModeration(capabilities: CommunityModerationCapa
 
 export function canActOnCommunityModeration(capabilities: CommunityModerationCapabilities): boolean {
   return capabilities.includes("moderation.act");
+}
+
+/** Map only server-issued moderation authority; unsupported owner writes remain absent. */
+export function ownerSettingsAccessFromModerationCapabilities(
+  capabilities: CommunityModerationCapabilities,
+): OwnerSettingsAccess {
+  return canViewCommunityModeration(capabilities)
+    ? { "community.moderation.manage": true }
+    : {};
 }
 
 export function moderationPolicyDecisions(policy: CommunityModerationPolicy): CommunityModerationPolicyDecisions {

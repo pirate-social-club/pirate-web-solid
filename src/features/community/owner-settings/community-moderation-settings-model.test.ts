@@ -7,6 +7,7 @@ import {
   moderationCaseActionInput,
   moderationPolicyDecisions,
   moderationPolicyUpdateInput,
+  ownerSettingsAccessFromModerationCapabilities,
 } from "./community-moderation-settings-model";
 
 describe("community moderation settings model", () => {
@@ -14,6 +15,13 @@ describe("community moderation settings model", () => {
     expect(canViewCommunityModeration(MODERATION_VIEW_ONLY)).toBe(true);
     expect(canActOnCommunityModeration(MODERATION_VIEW_ONLY)).toBe(false);
     expect(canActOnCommunityModeration(MODERATION_VIEW_AND_ACT)).toBe(true);
+  });
+
+  it("maps only server-issued moderation access into the owner settings shell", () => {
+    expect(ownerSettingsAccessFromModerationCapabilities(MODERATION_VIEW_ONLY)).toEqual({
+      "community.moderation.manage": true,
+    });
+    expect(ownerSettingsAccessFromModerationCapabilities([])).toEqual({});
   });
 
   it("builds the generated v2 action command with a stable fence", () => {
