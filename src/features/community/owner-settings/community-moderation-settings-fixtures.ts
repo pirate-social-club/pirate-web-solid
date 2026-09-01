@@ -91,6 +91,32 @@ export const MODERATION_CASE_DETAIL: CommunityModerationCaseDetail = {
   },
 };
 
+export const SECOND_MODERATION_CASE_DETAIL: CommunityModerationCaseDetail = {
+  object: "community_moderation_case",
+  case: CASES[1]!,
+  preview: {
+    kind: "text",
+    title: null,
+    body: "This comment was reported by a member for a personal attack in an otherwise constructive discussion.",
+  },
+  evidence: {
+    ...MODERATION_CASE_DETAIL.evidence,
+    matched_categories: ["harassment"],
+    provider_scores: { harassment: 0.63 },
+  },
+};
+
+export const OPEN_MODERATION_CASE_DETAILS: ReadonlyArray<CommunityModerationCaseDetail> = [
+  MODERATION_CASE_DETAIL,
+  SECOND_MODERATION_CASE_DETAIL,
+];
+
+export const HIDDEN_MODERATION_CASE_DETAILS: ReadonlyArray<CommunityModerationCaseDetail> = [{
+  ...SECOND_MODERATION_CASE_DETAIL,
+  case: HIDDEN_MODERATION_CASES.items[0]!,
+  preview: { kind: "text", title: null, body: "This comment is hidden. Restore it if it no longer violates community policy." },
+}];
+
 export const LOCKED_MODERATION_CASE_DETAIL: CommunityModerationCaseDetail = {
   ...MODERATION_CASE_DETAIL,
   case: { ...CASES[0]!, resulting_content_rating: "adult_18" },

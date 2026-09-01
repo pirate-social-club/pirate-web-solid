@@ -9,7 +9,7 @@ import { CommunityMembershipRequestsPage, type MembershipRequestSummary } from "
 import { CommunityRulesEditorPage, type RuleDraft } from "../rules-editor/community-rules-editor-page";
 import { CommunityNamespaceSettingsPanel } from "./community-namespace-settings-panel";
 import { CommunityModerationPolicyPanel, CommunityModerationQueuePanel } from "./community-moderation-settings-panel";
-import { MODERATION_CASE_DETAIL, MODERATION_POLICY, MODERATION_VIEW_AND_ACT, OPEN_MODERATION_CASES } from "./community-moderation-settings-fixtures";
+import { MODERATION_POLICY, MODERATION_VIEW_AND_ACT, OPEN_MODERATION_CASE_DETAILS, OPEN_MODERATION_CASES } from "./community-moderation-settings-fixtures";
 import { CommunityOwnerSettingsShell } from "./community-owner-settings-shell";
 import { CommunityProfileSettingsPanel } from "./community-profile-settings-panel";
 import { createFakeProfileSettingsPort, namespaceIdempotencyKeys, namespaceState } from "./fake-owner-settings-port";
@@ -161,12 +161,11 @@ function OwnerSettingsHappyPath(props: { initialSection?: OwnerSettingsSection }
         <Match when={active() === "moderation_queue"}>
           <CommunityModerationQueuePanel
             capabilities={MODERATION_VIEW_AND_ACT}
-            caseActionIdempotencyKey="storybook-shell-case-action"
+            caseActionIdempotencyKey={(caseRef) => `storybook-shell-action-${caseRef}`}
             cases={OPEN_MODERATION_CASES}
             caseView="open"
-            detail={MODERATION_CASE_DETAIL}
+            details={OPEN_MODERATION_CASE_DETAILS}
             onCaseAction={(input) => setSavedMessage(`Moderation action: ${input.body.action}`)}
-            onCaseSelect={() => undefined}
             onCaseViewChange={() => undefined}
           />
         </Match>

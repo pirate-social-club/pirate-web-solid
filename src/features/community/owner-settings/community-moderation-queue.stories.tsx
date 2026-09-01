@@ -4,21 +4,21 @@ import { CommunityModerationQueuePanel, type CommunityModerationQueuePanelProps 
 import {
   EMPTY_MODERATION_CASES,
   HIDDEN_MODERATION_CASES,
+  HIDDEN_MODERATION_CASE_DETAILS,
   LOCKED_MODERATION_CASE_DETAIL,
-  MODERATION_CASE_DETAIL,
   MODERATION_VIEW_AND_ACT,
   MODERATION_VIEW_ONLY,
+  OPEN_MODERATION_CASE_DETAILS,
   OPEN_MODERATION_CASES,
 } from "./community-moderation-settings-fixtures";
 
 const baseArgs: CommunityModerationQueuePanelProps = {
   capabilities: MODERATION_VIEW_AND_ACT,
-  caseActionIdempotencyKey: "storybook-case-action-1042",
+  caseActionIdempotencyKey: (caseRef) => `storybook-action-${caseRef}`,
   cases: OPEN_MODERATION_CASES,
   caseView: "open",
-  detail: MODERATION_CASE_DETAIL,
+  details: OPEN_MODERATION_CASE_DETAILS,
   onCaseAction: fn(),
-  onCaseSelect: fn(),
   onCaseViewChange: fn(),
 };
 
@@ -34,10 +34,10 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const Default: Story = {};
-export const Empty: Story = { args: { cases: EMPTY_MODERATION_CASES, detail: undefined } };
-export const HiddenCases: Story = { args: { cases: HIDDEN_MODERATION_CASES, caseView: "hidden", detail: undefined } };
-export const LockedPreview: Story = { args: { detail: LOCKED_MODERATION_CASE_DETAIL } };
+export const Empty: Story = { args: { cases: EMPTY_MODERATION_CASES, details: [] } };
+export const HiddenCases: Story = { args: { cases: HIDDEN_MODERATION_CASES, caseView: "hidden", details: HIDDEN_MODERATION_CASE_DETAILS } };
+export const LockedPreview: Story = { args: { cases: { ...OPEN_MODERATION_CASES, items: [LOCKED_MODERATION_CASE_DETAIL.case] }, details: [LOCKED_MODERATION_CASE_DETAIL] } };
 export const ViewOnly: Story = { args: { capabilities: MODERATION_VIEW_ONLY } };
-export const ActionPending: Story = { args: { actionBusy: "reject" } };
+export const ActionPending: Story = { args: { actionBusy: { action: "reject", caseRef: "case_report_1042" } } };
 export const Loading: Story = { args: { loading: true } };
 export const Error: Story = { args: { errorMessage: "Moderation cases could not be loaded." } };
