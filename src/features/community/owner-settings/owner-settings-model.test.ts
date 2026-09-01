@@ -14,7 +14,6 @@ const PROFILE_ONLY: OwnerSettingsAccess = {
   "community.names.manage": false,
   "community.rules.write": false,
   "community.links.write": false,
-  "community.membership_requests.decide": false,
   "community.moderation.manage": false,
   "community.archive.write": false,
 };

@@ -5,7 +5,6 @@ import { expect, userEvent, within } from "storybook/test";
 import { Card, Type } from "@pirate/web-solid-ui";
 import { CommunityArchivePage } from "../archive-page/community-archive-page";
 import { CommunityLinksEditorPage, createEmptyCommunityLinkEditorItem, type CommunityLinkEditorItem } from "../links-editor/community-links-editor-page";
-import { CommunityMembershipRequestsPage, type MembershipRequestSummary } from "../membership-requests-page/community-membership-requests-page";
 import { CommunityRulesEditorPage, type RuleDraft } from "../rules-editor/community-rules-editor-page";
 import { CommunityNamespaceSettingsPanel } from "./community-namespace-settings-panel";
 import { CommunityModerationPolicyPanel, CommunityModerationQueuePanel } from "./community-moderation-settings-panel";
@@ -26,7 +25,6 @@ const FULL_ACCESS: OwnerSettingsAccess = {
   "community.names.manage": true,
   "community.rules.write": true,
   "community.links.write": true,
-  "community.membership_requests.decide": true,
   "community.moderation.manage": true,
   "community.archive.write": true,
 };
@@ -37,7 +35,6 @@ const NO_ACCESS: OwnerSettingsAccess = {
   "community.names.manage": false,
   "community.rules.write": false,
   "community.links.write": false,
-  "community.membership_requests.decide": false,
   "community.moderation.manage": false,
   "community.archive.write": false,
 };
@@ -59,10 +56,6 @@ const INITIAL_LINKS: CommunityLinkEditorItem[] = [
   { id: "link-2", label: "Bandcamp", platform: "bandcamp", url: "https://midnight.example/music" },
 ];
 
-const INITIAL_REQUESTS: MembershipRequestSummary[] = [
-  { id: "request-1", object: "membership_request_summary", community: "community_fixture", applicant_user: "user_1", applicant_handle: "signal.pirate", status: "pending", note: "I release field recordings and would love to contribute.", created: 1_787_900_000 },
-];
-
 function PlaceholderPanel(props: { body: string; title: string }) {
   return <Card class="p-6"><Type as="h2" variant="h2">{props.title}</Type><Type as="p" class="mt-2 text-muted-foreground" variant="body">{props.body}</Type></Card>;
 }
@@ -76,7 +69,6 @@ function OwnerSettingsHappyPath(props: { access?: OwnerSettingsAccess; initialSe
   const [profileSaving, setProfileSaving] = createSignal(false);
   const [rules, setRules] = createSignal(INITIAL_RULES);
   const [links, setLinks] = createSignal(INITIAL_LINKS);
-  const [requests, setRequests] = createSignal(INITIAL_REQUESTS);
   const [archiveStatus, setArchiveStatus] = createSignal<"active" | "archived">("active");
   const [caseView, setCaseView] = createSignal<CommunityModerationCaseView>("open");
   const [policyDecisions, setPolicyDecisions] = createSignal(moderationPolicyDecisions(MODERATION_POLICY));
@@ -158,9 +150,6 @@ function OwnerSettingsHappyPath(props: { access?: OwnerSettingsAccess; initialSe
             onSave={() => setSavedMessage("Links saved")}
             showHeading={false}
           />
-        </Match>
-        <Match when={active() === "membership_requests"}>
-          <CommunityMembershipRequestsPage onApprove={(request) => setRequests((current) => current.filter((item) => item.id !== request.id))} onReject={(request) => setRequests((current) => current.filter((item) => item.id !== request.id))} requests={requests()} showHeading={false} />
         </Match>
         <Match when={active() === "moderation_queue"}>
           <CommunityModerationQueuePanel
@@ -244,8 +233,6 @@ export const ExistingPanelsMounted: Story = {
     await expect(canvas.getByRole("heading", { name: "Rules" })).toBeInTheDocument();
     await userEvent.click(canvas.getByRole("button", { name: /Links/ }));
     await expect(canvas.getByRole("heading", { name: "Links" })).toBeInTheDocument();
-    await userEvent.click(canvas.getByRole("button", { name: /Requests/ }));
-    await expect(canvas.getByRole("heading", { name: "Requests" })).toBeInTheDocument();
     await userEvent.click(canvas.getByRole("button", { name: /Archive/ }));
     await expect(canvas.getByRole("heading", { name: "Archive community" })).toBeInTheDocument();
   },

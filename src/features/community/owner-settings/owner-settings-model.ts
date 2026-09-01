@@ -4,7 +4,6 @@ export type OwnerSettingsSection =
   | "names"
   | "rules"
   | "links"
-  | "membership_requests"
   | "moderation_queue"
   | "content_policy"
   | "archive";
@@ -15,7 +14,6 @@ export type OwnerSettingsCapability =
   | "community.names.manage"
   | "community.rules.write"
   | "community.links.write"
-  | "community.membership_requests.decide"
   | "community.moderation.manage"
   | "community.archive.write";
 
@@ -53,7 +51,6 @@ const OWNER_SETTINGS_GROUPS: ReadonlyArray<OwnerSettingsNavGroup> = [
   {
     label: "Access and safety",
     items: [
-      { section: "membership_requests", capability: "community.membership_requests.decide", label: "Requests", description: "Approve or reject membership" },
       { section: "content_policy", capability: "community.moderation.manage", label: "Content policy", description: "What is allowed, reviewed or blocked" },
     ],
   },
