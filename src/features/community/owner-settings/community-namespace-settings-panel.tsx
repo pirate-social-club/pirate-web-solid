@@ -9,7 +9,7 @@ import {
   IconCheckCircle,
   IconGlobe,
   IconWarningCircle,
-  Input,
+  PrefixInput,
   Spinner,
   Type,
   buttonVariants,
@@ -114,10 +114,14 @@ function ConnectName(props: { onAction?: () => void; state: HnsAddState }) {
       <Card class="space-y-5 p-5 md:p-6">
         <div class="space-y-2">
           <FormFieldLabel htmlFor="community-hns-name" label="Handshake root" required />
-          <div class="flex items-center gap-2">
-            <span class="text-2xl font-bold">.</span>
-            <Input id="community-hns-name" value={props.state.rootLabel} />
-          </div>
+          <PrefixInput
+            class="h-16"
+            id="community-hns-name"
+            placeholder="infinity"
+            prefix="."
+            prefixClass="pb-1 text-3xl font-bold"
+            value={props.state.rootLabel}
+          />
           <FormNote>Route: pirate.sc/c/{props.state.rootLabel}</FormNote>
         </div>
         <Button onClick={props.onAction}>Continue</Button>
