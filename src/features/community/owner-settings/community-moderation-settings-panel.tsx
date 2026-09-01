@@ -192,7 +192,7 @@ function PolicyEditor(props: Pick<CommunityModerationSettingsPanelProps, "capabi
           loading={props.policySaving}
           onSave={() => props.onPolicySave?.(moderationPolicyUpdateInput({ decisions: props.policyDecisions, policy: props.policy }))}
           primaryLabel="Save policy"
-          secondaryAction={<Type as="p" class="text-muted-foreground" variant="caption">Platform rules cannot be loosened.</Type>}
+          secondaryAction={<Type as="p" class="text-muted-foreground" variant="caption">Changes apply going forward; existing content is not reviewed again. Platform rules cannot be loosened.</Type>}
         />
       </Show>
     </section>
