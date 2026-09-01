@@ -52,14 +52,16 @@ export const Expired: Story = {
 export const Step4Connected: Story = {
   args: {
     connectedName: {
-      address: "https://midnight/",
-      label: "midnight/",
+      address: "https://app.midnight/",
+      fallbackAddress: "https://pirate.sc/c/midnight",
+      fallbackLabel: "pirate.sc/c/midnight",
+      label: "app.midnight",
       providerLabel: "Connected with Handshake",
     },
   },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(canvas.getByRole("heading", { name: "midnight/" })).toBeInTheDocument();
+    await expect(canvas.getByRole("heading", { name: "app.midnight" })).toBeInTheDocument();
     await expect(canvas.getByText("Connected")).toBeInTheDocument();
   },
 };

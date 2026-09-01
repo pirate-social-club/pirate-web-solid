@@ -92,6 +92,8 @@ export type CommunityProfileSettingsPort = Readonly<{
 
 export type ConnectedCommunityName = Readonly<{
   address: string;
+  fallbackAddress: string;
+  fallbackLabel: string;
   label: string;
   providerLabel: string;
 }>;
