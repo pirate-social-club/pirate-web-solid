@@ -44,7 +44,7 @@ authored it as a reusable activity header.
 
 ## App-original rows (no copied source)
 
-- `study-v2-api.ts`, `study-v2-api.test.ts` — generated api-next 0.38 Study
+- `study-v2-api.ts`, `study-v2-api.test.ts` — generated api-next 0.44 Study
   availability, generation, session, exact choice, raw-audio answer, readback,
   and learner-audio deletion transport. The adapter is authored for this app,
   sends protected writes through the same-origin `/api` boundary with CSRF,

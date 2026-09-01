@@ -1,11 +1,11 @@
 {
   "name": "@pirate/api-client-happy-path",
-  "version": "0.38.0",
-  "artifact": "vendor/api-client/pirate-api-client-0.38.0.tgz",
-  "sha256": "9c2d2867f91640d7774b9e981b179b1fcf80a68c9889d7cf2a2b20d65b18f4a6",
-  "source": "api-next@4924180:packages/api-client",
-  "openapiSha256": "033d8dec9a39974f887e370fe987da30968bb6fe7213f9173ecb68ff5a9c712b",
-  "clientSha256": "863bec51f414ddf9ad2883e725c9a757a0be5985f785740a5b510d18a8c2970f",
+  "version": "0.44.0",
+  "artifact": "vendor/api-client/pirate-api-client-0.44.0.tgz",
+  "sha256": "c45933d5eb56af4cccb05010fdf38ae46205e903fe367c3f806244bd8dd3f468",
+  "source": "api-next@74c8dfb51f48756aa5c719914a4e35e3b35a6724:packages/api-client",
+  "openapiSha256": "1314a5787441f6e7355fd097140b889afc58e5c84accadf3b71e7121c8f382bd",
+  "clientSha256": "3f7e4c0c47f82d381c6a1f5a410d2255b4cbb1c0875995e0dcf4aa4254f869e0",
   "scope": [
     "post_communityCreationIntents",
     "get_communityCreationIntentsIntentId",

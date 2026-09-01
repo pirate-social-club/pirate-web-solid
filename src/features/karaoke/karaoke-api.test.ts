@@ -57,7 +57,14 @@ const session = {
   object: "karaoke_session",
   persona_id: "persona-1",
   protocol_version: 1,
-  scoring_policy: { kind: "disabled" },
+  scoring_policy: {
+    kind: "enabled",
+    model: "scribe_v2_realtime",
+    platform_retention: "private_learning",
+    provider: "elevenlabs",
+    provider_retention: "stored",
+    voice_coach_enabled: false,
+  },
   session_expires_at: 3_000,
   token_expires_at: 2_000,
   websocket_url: "wss://ws.test/session-1",
@@ -176,7 +183,10 @@ describe("createKaraokeApiClient", () => {
       communityId: "com_1",
       idempotencyKey: "key-1",
       postId: "pst_1",
-    })).resolves.toMatchObject({ id: "session-1", scoring_policy: { kind: "disabled" } });
+    })).resolves.toMatchObject({
+      id: "session-1",
+      scoring_policy: { kind: "enabled", retention: "stored" },
+    });
     expect(requests[0]?.request.method).toBe("POST");
     expect(requests[0]?.request.url).toBe("https://web.test/api/communities/com_1/posts/pst_1/karaoke/attempts");
     expect(requests[0]?.request.headers.get("idempotency-key")).toBe("key-1");

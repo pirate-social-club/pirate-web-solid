@@ -15,7 +15,7 @@ export interface ApiKaraokeScoringPolicyEnabled {
   kind: "enabled";
   provider: "assistant" | "elevenlabs" | "mistral" | "openai";
   model: string;
-  retention: "not_stored";
+  retention: "not_stored" | "stored";
   voice_coach_enabled?: boolean;
 }
 

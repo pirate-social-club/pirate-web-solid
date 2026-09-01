@@ -106,6 +106,7 @@ describe("Study v2 runtime client", () => {
         extra: [],
         heard_transcript: "Sing the line",
         kind: "transcript_diff" as const,
+        match_kind: "phonetic" as const,
         matched: [],
         missing: [],
         policy_revision: "feedback-v1",
