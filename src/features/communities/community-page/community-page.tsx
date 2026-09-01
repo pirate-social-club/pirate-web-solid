@@ -1,6 +1,6 @@
 import { Link, Meta, Title } from "@solidjs/meta";
 import { getRequestEvent } from "@solidjs/web";
-import { Loading, Show, createMemo, createSignal, onCleanup, untrack } from "solid-js";
+import { Loading, Show, createEffect, createMemo, createSignal, onCleanup, untrack } from "solid-js";
 import { createPublicCommunityRouteClient } from "../../../api/community-route-client.ts";
 import {
   createPublicHandleSalesClient,
@@ -15,6 +15,7 @@ import {
   IconBell,
   IconHouse,
   IconUsers,
+  IconShield,
   IconWallet,
   buttonVariants,
 } from "../../../design-system.ts";
@@ -39,6 +40,7 @@ import type { PrivySessionExchange } from "../../../api/privy-session.ts";
 import { SignInModal } from "../../auth/sign-in-modal.tsx";
 import { createSignInSession } from "../../auth/sign-in-session.ts";
 import { CreatePostDialog } from "../../posts/post-composer/create-post-dialog.tsx";
+import { createCommunityModerationSettingsApi } from "../../community/owner-settings/community-moderation-settings-api.ts";
 
 export interface CommunityPageProps {
   readonly pathSegment: string;
@@ -46,6 +48,8 @@ export interface CommunityPageProps {
   readonly createSignInExchange?: () => Promise<PrivySessionExchange>;
   readonly handleSalesClient?: PublicHandleSalesApiClient;
   readonly resolveSession?: () => Promise<SessionResolution>;
+  readonly resolveOwnerSettingsAccess?: (communityId: string) => Promise<boolean>;
+  readonly navigate?: (href: string) => void;
   readonly data?: CommunityPageViewState | PromiseLike<CommunityPageViewState>;
   readonly surfaceData?: Partial<CommunityData>;
 }
@@ -58,11 +62,11 @@ function communityCopy() {
       "routes",
     ).community;
   }
-  if (typeof location === "undefined") return getLocaleMessages("en", "routes").community;
+  if (globalThis.location === undefined) return getLocaleMessages("en", "routes").community;
   return getLocaleMessages(
     resolveRequestUiLocale(
       new URL(location.href),
-      typeof navigator === "undefined" ? undefined : navigator.language,
+      globalThis.navigator?.language,
     ),
     "routes",
   ).community;
@@ -134,6 +138,8 @@ function SuccessState(props: {
   readonly state: CommunityPageSuccess;
   readonly handleSalesClient: PublicHandleSalesApiClient;
   readonly resolveSession?: () => Promise<SessionResolution>;
+  readonly resolveOwnerSettingsAccess?: (communityId: string) => Promise<boolean>;
+  readonly navigate?: (href: string) => void;
   readonly surfaceData?: Partial<CommunityData>;
 }) {
   const copy = communityCopy();
@@ -145,6 +151,7 @@ function SuccessState(props: {
   const [postingBusy, setPostingBusy] = createSignal(false);
   const [postingError, setPostingError] = createSignal("");
   const [postingSession, setPostingSession] = createSignal<AuthenticatedSession>();
+  const [canManage, setCanManage] = createSignal(false);
   let active = true;
   let sessionRequest = 0;
   onCleanup(() => {
@@ -174,6 +181,33 @@ function SuccessState(props: {
     : state.canonicalUrl;
   const title = () => interpolateMessage(copy.title, { name: community().name });
   const description = () => community().description;
+  const settingsHref = () => `${state.canonicalPath}/settings/names`;
+  const navigate = (href: string) => {
+    if (props.navigate) props.navigate(href);
+    else globalThis.location?.assign(href);
+  };
+  const navigateApp = (id: string) => {
+    if (id === "community-settings") navigate(settingsHref());
+    else if (id === "home") navigate("/");
+    else if (id === "communities") navigate("/communities/new");
+    else if (id === "notifications") navigate("/activity");
+    else navigate("/settings");
+  };
+
+  createEffect(
+    () => state.communityId,
+    (communityId) => {
+      const resolveAccess = props.resolveOwnerSettingsAccess ?? (async (id: string) => {
+        const capabilities = await createCommunityModerationSettingsApi().getCapabilities({ communityId: id });
+        return capabilities.includes("moderation.view");
+      });
+      queueMicrotask(() => {
+        void resolveAccess(communityId)
+          .then((allowed) => { if (active) setCanManage(allowed); })
+          .catch(() => { if (active) setCanManage(false); });
+      });
+    },
+  );
 
   const openPostComposer = async (): Promise<void> => {
     if (postingSession() !== undefined) {
@@ -222,12 +256,19 @@ function SuccessState(props: {
         <AppSidebar
           activeItemId="communities"
           class="hidden md:flex"
+          onHomeClick={() => navigate("/")}
+          onNavigate={navigateApp}
           primaryItems={[
             { id: "home", label: "Home", icon: <IconHouse class="size-5" /> },
             { id: "communities", label: "Communities", icon: <IconUsers class="size-5" /> },
             { id: "notifications", label: "Notifications", icon: <IconBell class="size-5" /> },
             { id: "wallet", label: "Wallet", icon: <IconWallet class="size-5" /> },
           ]}
+          sections={canManage() ? [{
+            id: "manage",
+            label: "Manage",
+            items: [{ id: "community-settings", label: "Community settings", icon: <IconShield class="size-5" /> }],
+          }] : []}
         />
         <div class="min-w-0 flex-1 pb-20 md:pb-0">
           <CommunityPageShell
@@ -239,12 +280,21 @@ function SuccessState(props: {
             onCreatePost={() => void openPostComposer()}
             onFollowToggle={() => setFollowing(value => !value)}
             onJoin={() => { setJoined(true); setFollowing(true); }}
+            onManage={canManage() ? () => navigate(settingsHref()) : undefined}
           />
           <Show when={postingError()}>
             {message => <p class="mx-5 mt-4 text-sm text-destructive md:mx-8" role="alert">{message()}</p>}
           </Show>
           <div class="md:hidden">
-            <MobileFooterNav activeItem="home" forceMobile />
+            <MobileFooterNav
+              activeItem="learn"
+              forceMobile
+              labels={{ learn: "Community", learnAriaLabel: `Open ${community().name}` }}
+              onHomeClick={() => navigate("/")}
+              onLearnClick={() => navigate(state.canonicalPath)}
+              onProfileClick={() => navigate("/settings")}
+              onWalletClick={() => navigate("/settings")}
+            />
           </div>
         </div>
       </div>
@@ -274,6 +324,8 @@ function CommunityState(props: {
   readonly state: CommunityPageViewState;
   readonly handleSalesClient: PublicHandleSalesApiClient;
   readonly resolveSession?: () => Promise<SessionResolution>;
+  readonly resolveOwnerSettingsAccess?: (communityId: string) => Promise<boolean>;
+  readonly navigate?: (href: string) => void;
   readonly surfaceData?: Partial<CommunityData>;
 }) {
   const success = () => props.state.kind === "success" ? props.state : undefined;
@@ -285,6 +337,8 @@ function CommunityState(props: {
           state={state()}
           handleSalesClient={props.handleSalesClient}
           resolveSession={props.resolveSession}
+          resolveOwnerSettingsAccess={props.resolveOwnerSettingsAccess}
+          navigate={props.navigate}
           surfaceData={props.surfaceData}
         />
       )}
@@ -307,6 +361,8 @@ function CommunityData(props: CommunityPageProps) {
       state={state()}
       handleSalesClient={handleSalesClient}
       resolveSession={props.resolveSession}
+      resolveOwnerSettingsAccess={props.resolveOwnerSettingsAccess}
+      navigate={props.navigate}
       surfaceData={props.surfaceData}
     />
   );

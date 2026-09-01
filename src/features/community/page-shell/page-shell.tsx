@@ -16,6 +16,7 @@ import {
   IconMusicNote,
   IconPlay,
   IconPlus,
+  IconShield,
   IconButton,
   MediaControlButton,
   Separator,
@@ -40,6 +41,7 @@ export interface CommunityPageShellProps {
   joined: boolean;
   onFollowToggle?: () => void;
   onJoin?: () => void;
+  onManage?: () => void;
   onCreatePost?: () => void;
   createPostBusy?: boolean;
   onBack?: () => void;
@@ -265,6 +267,14 @@ export function CommunityPageShell(props: CommunityPageShellProps) {
                 >
                   {props.createPostBusy ? "Opening…" : "Post here"}
                 </Button>
+              </Show>
+              <Show when={props.onManage}>
+                <Button
+                  class="col-span-2 w-full md:w-auto"
+                  leadingIcon={<IconShield class="size-4" />}
+                  onClick={() => props.onManage?.()}
+                  variant="secondary"
+                >Manage</Button>
               </Show>
             </div>
           </Show>

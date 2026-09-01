@@ -116,7 +116,9 @@ export function CommunityNamesSettingsPanel(props: CommunityNamesSettingsPanelPr
           <Show when={props.snapshot.context.sale_namespace_candidates.length > 0} fallback={
             <Card class="space-y-4 p-6">
               <Type as="p" variant="body-strong">No namespace is currently available for community names.</Type>
-              <Button onClick={props.onReviewAddress} variant="secondary">Review address</Button>
+              <Show when={props.onReviewAddress} fallback={<FormNote>Connecting a new community address is not available yet.</FormNote>}>
+                <Button onClick={props.onReviewAddress} variant="secondary">Review address</Button>
+              </Show>
             </Card>
           }>
             <div class="flex flex-col gap-4">

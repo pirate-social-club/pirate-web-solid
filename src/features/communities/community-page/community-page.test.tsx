@@ -150,6 +150,38 @@ describe("CommunityPage", () => {
     expect(document.body.querySelector(`[data-community-context='${communityId}']`)).not.toBeNull();
   });
 
+  test("reveals owner management on the community page and wires desktop and mobile navigation", async () => {
+    const navigate = vi.fn();
+    const resolveOwnerSettingsAccess = vi.fn(async () => true);
+    const container = render(() => (
+      <CommunityPage
+        client={{
+          get_cPathSegment: async () => route,
+          get_communitiesCommunityIdPreview: async () => preview,
+        }}
+        handleSalesClient={{ get_communitiesCommunityIdHandleOfferings: async () => ({ items: [], next_cursor: null }) }}
+        navigate={navigate}
+        pathSegment="xn--pokmon-dva"
+        resolveOwnerSettingsAccess={resolveOwnerSettingsAccess}
+      />
+    ));
+
+    await vi.waitFor(() => expect(container.textContent).toContain("Manage"));
+    expect(resolveOwnerSettingsAccess).toHaveBeenCalledWith(communityId);
+    expect(container.textContent).toContain("Community settings");
+    const manage = [...container.querySelectorAll<HTMLButtonElement>("button")]
+      .find(button => button.textContent?.trim() === "Manage");
+    expect(manage).toBeDefined();
+    manage!.click();
+    expect(navigate).toHaveBeenCalledWith("/c/xn--pokmon-dva/settings/names");
+
+    const mobileNav = container.querySelector("nav[aria-label='Primary navigation']");
+    const community = mobileNav?.querySelector<HTMLButtonElement>("button[aria-label='Open Pirate Harbor']");
+    expect(community?.getAttribute("aria-current")).toBe("page");
+    mobileNav?.querySelector<HTMLButtonElement>("button[aria-label='Home']")?.click();
+    expect(navigate).toHaveBeenCalledWith("/");
+  });
+
   test("opens sign-in instead of an unscoped composer for an anonymous visitor", async () => {
     const container = render(() => (
       <CommunityPage

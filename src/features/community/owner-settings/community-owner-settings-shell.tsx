@@ -42,7 +42,11 @@ export interface CommunityOwnerSettingsShellProps {
   dirtySections?: ReadonlyArray<OwnerSettingsSection>;
   errorMessage?: string;
   onRetry?: () => void;
+  onCommunityClick?: () => void;
+  onHomeClick?: () => void;
+  onProfileClick?: () => void;
   onSectionChange: (section: OwnerSettingsSection) => void;
+  onWalletClick?: () => void;
   status?: "ready" | "loading" | "empty" | "error";
 }
 
@@ -95,7 +99,7 @@ export function CommunityOwnerSettingsShell(props: CommunityOwnerSettingsShellPr
             brandLabel={props.communityName}
             class="sticky top-0 hidden h-dvh md:flex"
             homeAriaLabel="Open community profile settings"
-            onHomeClick={() => props.onSectionChange("profile")}
+            onHomeClick={props.onCommunityClick}
             onNavigate={selectSection}
             sections={sidebarSections()}
           />
@@ -108,7 +112,7 @@ export function CommunityOwnerSettingsShell(props: CommunityOwnerSettingsShellPr
               forceMobile
               hideBrand
               mobileCenterContent={<Type as="span" variant="h4">{activeTitle()}</Type>}
-              onBackClick={() => props.onSectionChange("profile")}
+              onBackClick={props.onCommunityClick}
               showCreateAction={false}
               showNotificationsAction={false}
               showProfileAction={false}
@@ -174,9 +178,14 @@ export function CommunityOwnerSettingsShell(props: CommunityOwnerSettingsShellPr
 
           <div class="md:hidden">
             <MobileFooterNav
-              activeItem="profile"
+              activeItem="learn"
               avatarFallback={props.communityName}
               forceMobile
+              labels={{ learn: "Community", learnAriaLabel: `Open ${props.communityName}` }}
+              onHomeClick={props.onHomeClick}
+              onLearnClick={props.onCommunityClick}
+              onProfileClick={props.onProfileClick}
+              onWalletClick={props.onWalletClick}
               userAvatarSrc={props.avatarUrl ?? undefined}
             />
           </div>

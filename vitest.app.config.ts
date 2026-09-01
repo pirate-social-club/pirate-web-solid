@@ -25,6 +25,7 @@ export default defineConfig({
     // loaded by Vitest. Add a suite here once it imports Vitest's API.
     include: [
       "src/hns-community-route-transform.test.ts",
+      "src/routes/community-owner-settings-route.test.ts",
       "src/routes/community-route-filesystem.test.ts",
       "src/routes/index.test.tsx",
       "src/features/auth/sign-in-model.test.ts",
@@ -39,6 +40,8 @@ export default defineConfig({
       "src/features/community/owner-settings/community-moderation-settings-controller.test.tsx",
       "src/features/community/owner-settings/community-moderation-settings-model.test.ts",
       "src/features/community/owner-settings/owner-settings-model.test.ts",
+      "src/features/community/owner-settings/owner-settings-route-model.test.ts",
+      "src/features/community/owner-settings/owner-settings-route-view.test.tsx",
       "src/features/communities/community-page/community-page.model.test.ts",
       "src/features/communities/community-page/community-page.test.tsx",
       "src/features/communities/handle-storefront/handle-storefront.flow.test.ts",

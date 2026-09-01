@@ -8,7 +8,6 @@ import {
   IconArrowLeft,
   IconBell,
   IconButton,
-  IconHouse,
   IconList,
   IconPlus,
   IconSquare,
@@ -145,7 +144,12 @@ export interface MobileFooterNavProps {
   avatarFallback?: string;
   class?: string;
   forceMobile?: boolean;
-  labels?: Partial<Record<ShellNavItem, string>> & { primaryNavAriaLabel?: string };
+  labels?: Partial<Record<ShellNavItem, string>> & {
+    learnAriaLabel?: string;
+    primaryNavAriaLabel?: string;
+    profileAriaLabel?: string;
+    walletAriaLabel?: string;
+  };
   onHomeClick?: () => void;
   onLearnClick?: () => void;
   onProfileClick?: () => void;
@@ -163,8 +167,11 @@ export function MobileFooterNav(props: MobileFooterNavProps) {
         labels={{
           home: labels().home,
           learn: labels().learn,
+          learnAriaLabel: labels().learnAriaLabel,
           wallet: labels().wallet,
+          walletAriaLabel: labels().walletAriaLabel,
           profile: labels().profile,
+          profileAriaLabel: labels().profileAriaLabel,
           primaryNavAriaLabel: labels().primaryNavAriaLabel,
         }}
         onHomeClick={props.onHomeClick}

@@ -14,6 +14,7 @@ describe("community file-route structure", () => {
     expect(communityRoutes.map(route => ({ path: route.path, children: route.children }))).toEqual([
       { path: "/c/:path_segment/", children: undefined },
       { path: "/c/:path_segment/names", children: undefined },
+      { path: "/c/:path_segment/settings/:section", children: undefined },
     ]);
   });
 
