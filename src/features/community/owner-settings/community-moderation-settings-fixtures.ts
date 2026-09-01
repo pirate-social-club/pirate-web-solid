@@ -72,7 +72,7 @@ export const MODERATION_CASE_DETAIL: CommunityModerationCaseDetail = {
   preview: {
     kind: "text",
     title: "Field recordings from the eastern breakwater",
-    body: "A member reported the closing paragraph. Review the post in context before choosing an action.",
+    body: "Recorded at low tide with a contact mic on the eastern rail. Headphones recommended.",
   },
   evidence: {
     matched_categories: ["harassment"],
@@ -97,7 +97,7 @@ export const SECOND_MODERATION_CASE_DETAIL: CommunityModerationCaseDetail = {
   preview: {
     kind: "text",
     title: null,
-    body: "This comment was reported by a member for a personal attack in an otherwise constructive discussion.",
+    body: "Calling this a field recording is generous. You clearly have no idea what you're doing.",
   },
   evidence: {
     ...MODERATION_CASE_DETAIL.evidence,

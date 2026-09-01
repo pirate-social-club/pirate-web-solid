@@ -34,7 +34,7 @@ const DECISIONS: ReadonlyArray<{ label: string; value: CommunityModerationPolicy
   { label: "Block", value: "block" },
 ];
 
-const ACTION_LABELS = {
+const DEFAULT_ACTION_LABELS = {
   approve_as_general: "Approve",
   approve_as_adult_18: "Approve as 18+",
   reject: "Reject",
@@ -60,6 +60,20 @@ function caseSourceLabel(source: CommunityModerationCase["source"]): string {
   if (source === "automatic") return "Flagged by Pirate";
   if (source === "member_report") return "Reported by member";
   return "Reported and flagged";
+}
+
+function caseCategorySummary(detail?: CommunityModerationCaseDetail): string {
+  const value = (detail?.evidence.matched_categories ?? []).map(categoryLabel).join(", ");
+  return value ? `${value.charAt(0).toUpperCase()}${value.slice(1)}` : "";
+}
+
+function caseActionLabel(action: CommunityModerationCaseAction, status: CommunityModerationCase["target_status"]): string {
+  if (status === "held") {
+    if (action === "approve_as_general") return "Publish";
+    if (action === "approve_as_adult_18") return "Publish as 18+";
+    if (action === "reject") return "Don't publish";
+  }
+  return DEFAULT_ACTION_LABELS[action];
 }
 
 interface CommunityModerationPanelStateProps {
@@ -96,26 +110,21 @@ function CaseCard(props: Pick<CommunityModerationQueuePanelProps, "actionBusy" |
     const preview = props.detail?.preview;
     return preview?.kind === "text" ? preview : undefined;
   };
+  const categorySummary = () => caseCategorySummary(props.detail);
   return (
     <Card class="flex flex-col gap-5 p-5 md:p-6">
-      <div class="flex items-start justify-between gap-4">
-        <div class="min-w-0"><Type as="p" variant="body-strong">{props.item.target_type.replaceAll("_", " ")}</Type><Type as="p" class="text-muted-foreground" variant="caption">{caseSourceLabel(props.item.source)}</Type></div>
-        <span class="rounded-full bg-muted px-2 py-1 text-xs font-semibold capitalize text-muted-foreground">{props.item.target_status}</span>
-      </div>
+      <Type as="p" class="text-muted-foreground" variant="caption">{caseSourceLabel(props.item.source)}<Show when={categorySummary()}> · {categorySummary()}</Show></Type>
       <Show when={textPreview()} fallback={props.detail?.preview.kind === "locked"
         ? <div class="grid min-h-32 place-items-center rounded-[var(--radius-xl)] border border-border-soft bg-muted/30 p-5 text-center"><div><IconLock class="mx-auto mb-2 size-6" /><Type as="p" variant="body-strong">18+ preview locked</Type><Type as="p" class="mt-1 text-muted-foreground" variant="caption">This account cannot view adult-rated content.</Type></div></div>
         : <FormNote>Content preview unavailable.</FormNote>
       }>
         {(preview) => <div><Show when={preview().title}><Type as="h3" variant="h3">{preview().title}</Type></Show><Show when={preview().body}><Type as="p" class="mt-2 whitespace-pre-wrap" variant="body">{preview().body}</Type></Show></div>}
       </Show>
-      <Show when={(props.detail?.evidence.matched_categories.length ?? 0) > 0}>
-        <div class="flex flex-wrap gap-2"><For each={props.detail?.evidence.matched_categories ?? []}>{(category) => <span class="rounded-full bg-warning-subtle px-2.5 py-1 text-sm font-medium">{categoryLabel(category)}</span>}</For></div>
-      </Show>
       <Show when={canAct()} fallback={<FormNote>View only. Moderation actions require the moderation.act capability.</FormNote>}>
         <div class="flex flex-wrap gap-2 border-t border-border-soft pt-5">
           <For each={props.item.permitted_actions}>{(action) => {
             const busy = () => props.actionBusy?.caseRef === props.item.case_ref && props.actionBusy.action === action;
-            return <Button disabled={Boolean(props.actionBusy)} loading={busy()} onClick={() => act(action)} size="sm" variant={isDestructiveAction(action) ? "destructive" : "secondary"}>{ACTION_LABELS[action]}</Button>;
+            return <Button disabled={Boolean(props.actionBusy)} loading={busy()} onClick={() => act(action)} size="sm" variant={isDestructiveAction(action) ? "destructive" : "secondary"}>{caseActionLabel(action, props.item.target_status)}</Button>;
           }}</For>
         </div>
       </Show>
@@ -126,7 +135,7 @@ function CaseCard(props: Pick<CommunityModerationQueuePanelProps, "actionBusy" |
 function CaseQueue(props: CommunityModerationQueuePanelProps) {
   const detailFor = (caseRef: string) => props.details.find((detail) => detail.case.case_ref === caseRef);
   return (
-    <section aria-label="Moderation cases" class="flex flex-col gap-4">
+    <section aria-label="Moderation cases" class="flex flex-col gap-4 pb-24 md:pb-0">
       <div class="flex items-center justify-between gap-4">
         <Type as="h3" variant="h3">Cases</Type>
         <div class="flex rounded-[var(--radius-lg)] bg-muted p-1" role="group" aria-label="Case status">
