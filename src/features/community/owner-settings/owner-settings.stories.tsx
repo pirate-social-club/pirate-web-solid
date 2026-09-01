@@ -1,0 +1,238 @@
+import { Match, Show, Switch, createMemo, createSignal } from "solid-js";
+import type { Meta, StoryObj } from "storybook-solidjs-vite";
+import { expect, userEvent, within } from "storybook/test";
+
+import { Card, Type } from "@pirate/web-solid-ui";
+import { CommunityArchivePage } from "../archive-page/community-archive-page";
+import { CommunityLinksEditorPage, createEmptyCommunityLinkEditorItem, type CommunityLinkEditorItem } from "../links-editor/community-links-editor-page";
+import { CommunityMembershipRequestsPage, type MembershipRequestSummary } from "../membership-requests-page/community-membership-requests-page";
+import { CommunityRulesEditorPage, type RuleDraft } from "../rules-editor/community-rules-editor-page";
+import { CommunityNamespaceSettingsPanel } from "./community-namespace-settings-panel";
+import { CommunityOwnerSettingsShell } from "./community-owner-settings-shell";
+import { CommunityProfileSettingsPanel } from "./community-profile-settings-panel";
+import { createFakeNamespaceSettingsPort, createFakeProfileSettingsPort } from "./fake-owner-settings-port";
+import type {
+  CommunityProfileDraft,
+  NamespaceFamily,
+  NamespaceSettingsCommand,
+  NamespaceSettingsSnapshot,
+  OwnerSettingsAccess,
+  OwnerSettingsSection,
+} from "./owner-settings-model";
+
+const FULL_ACCESS: OwnerSettingsAccess = {
+  "community.profile.write": true,
+  "community.namespace.write": true,
+  "community.names.manage": true,
+  "community.rules.write": true,
+  "community.links.write": true,
+  "community.membership_requests.decide": true,
+  "community.moderation.manage": true,
+  "community.archive.write": true,
+};
+
+const NO_ACCESS: OwnerSettingsAccess = {
+  "community.profile.write": false,
+  "community.namespace.write": false,
+  "community.names.manage": false,
+  "community.rules.write": false,
+  "community.links.write": false,
+  "community.membership_requests.decide": false,
+  "community.moderation.manage": false,
+  "community.archive.write": false,
+};
+
+const INITIAL_PROFILE: CommunityProfileDraft = {
+  avatar_url: null,
+  description: "A home for independent musicians, listeners and open-web builders.",
+  display_name: "Midnight Waves",
+};
+
+const INITIAL_RULES: RuleDraft[] = [
+  { id: "rule-1", existingRuleId: "rule-1", title: "Be constructive", body: "Critique the work, never the person.", reportReason: "Unconstructive conduct" },
+  { id: "rule-2", existingRuleId: "rule-2", title: "No spam", body: "Share work with context and participate beyond promotion.", reportReason: "Spam" },
+];
+
+const INITIAL_LINKS: CommunityLinkEditorItem[] = [
+  { id: "link-1", label: "Website", platform: "official_website", url: "https://midnight.example" },
+  { id: "link-2", label: "Bandcamp", platform: "bandcamp", url: "https://midnight.example/music" },
+];
+
+const INITIAL_REQUESTS: MembershipRequestSummary[] = [
+  { id: "request-1", object: "membership_request_summary", community: "community_fixture", applicant_user: "user_1", applicant_handle: "signal.pirate", status: "pending", note: "I release field recordings and would love to contribute.", created: 1_787_900_000 },
+];
+
+function PlaceholderPanel(props: { body: string; title: string }) {
+  return <Card class="p-6"><Type as="h2" variant="h2">{props.title}</Type><Type as="p" class="mt-2 text-muted-foreground" variant="body">{props.body}</Type></Card>;
+}
+
+function OwnerSettingsHappyPath(props: { initialSection?: OwnerSettingsSection }) {
+  const profilePort = createFakeProfileSettingsPort(INITIAL_PROFILE);
+  const namespacePort = createFakeNamespaceSettingsPort();
+  const [active, setActive] = createSignal<OwnerSettingsSection>(props.initialSection ?? "namespace");
+  const [profile, setProfile] = createSignal(INITIAL_PROFILE);
+  const [savedProfile, setSavedProfile] = createSignal(INITIAL_PROFILE);
+  const [profileRevision, setProfileRevision] = createSignal(7);
+  const [profileSaving, setProfileSaving] = createSignal(false);
+  const [namespaceSnapshot, setNamespaceSnapshot] = createSignal<NamespaceSettingsSnapshot>({
+    community_id: "community_fixture",
+    family: null,
+    generation: 1,
+    root_label: "",
+    next_action: { kind: "choose_namespace" as const },
+  });
+  const [namespaceFamily, setNamespaceFamily] = createSignal<NamespaceFamily>("hns");
+  const [namespaceRoot, setNamespaceRoot] = createSignal("infinity");
+  const [namespaceBusy, setNamespaceBusy] = createSignal(false);
+  const [rules, setRules] = createSignal(INITIAL_RULES);
+  const [links, setLinks] = createSignal(INITIAL_LINKS);
+  const [requests, setRequests] = createSignal(INITIAL_REQUESTS);
+  const [archiveStatus, setArchiveStatus] = createSignal<"active" | "archived">("active");
+  const [savedMessage, setSavedMessage] = createSignal("");
+  const dirtySections = createMemo<ReadonlyArray<OwnerSettingsSection>>(() => {
+    const dirty: OwnerSettingsSection[] = [];
+    if (JSON.stringify(profile()) !== JSON.stringify(savedProfile())) dirty.push("profile");
+    return dirty;
+  });
+
+  const saveProfile = async () => {
+    setProfileSaving(true);
+    try {
+      const result = await profilePort.save({
+        expected_revision: profileRevision(),
+        idempotency_key: "storybook-profile-save",
+        profile: profile(),
+      });
+      setProfileRevision(result.revision);
+      setSavedProfile(result.profile);
+      setSavedMessage("Profile saved");
+    } finally {
+      setProfileSaving(false);
+    }
+  };
+  const executeNamespace = async (command: NamespaceSettingsCommand) => {
+    setNamespaceBusy(true);
+    try {
+      setNamespaceSnapshot(await namespacePort.execute(command));
+    } finally {
+      setNamespaceBusy(false);
+    }
+  };
+
+  return (
+    <CommunityOwnerSettingsShell
+      access={FULL_ACCESS}
+      activeSection={active()}
+      communityName={profile().display_name}
+      dirtySections={dirtySections()}
+      onSectionChange={setActive}
+    >
+      <Switch>
+        <Match when={active() === "profile"}>
+          <CommunityProfileSettingsPanel draft={profile()} onChange={setProfile} onSave={saveProfile} saveDisabled={!dirtySections().includes("profile")} saveLoading={profileSaving()} />
+        </Match>
+        <Match when={active() === "namespace"}>
+          <CommunityNamespaceSettingsPanel
+            busy={namespaceBusy()}
+            draftFamily={namespaceFamily()}
+            draftRootLabel={namespaceRoot()}
+            onCommand={executeNamespace}
+            onDraftChange={(draft) => { setNamespaceFamily(draft.family); setNamespaceRoot(draft.root_label); }}
+            snapshot={namespaceSnapshot()}
+          />
+        </Match>
+        <Match when={active() === "names"}><PlaceholderPanel body="Member names and seller management stay a separate workflow from namespace ownership." title="Names" /></Match>
+        <Match when={active() === "rules"}><CommunityRulesEditorPage rules={rules()} onRulesChange={setRules} onSave={() => setSavedMessage("Rules saved")} /></Match>
+        <Match when={active() === "links"}>
+          <CommunityLinksEditorPage
+            links={links()}
+            onAddLink={() => setLinks((current) => [...current, createEmptyCommunityLinkEditorItem(current.map((link) => link.id))])}
+            onLinkChange={(id, patch) => setLinks((current) => current.map((link) => link.id === id ? { ...link, ...patch } : link))}
+            onRemoveLink={(id) => setLinks((current) => current.filter((link) => link.id !== id))}
+            onSave={() => setSavedMessage("Links saved")}
+          />
+        </Match>
+        <Match when={active() === "membership_requests"}>
+          <CommunityMembershipRequestsPage onApprove={(request) => setRequests((current) => current.filter((item) => item.id !== request.id))} onReject={(request) => setRequests((current) => current.filter((item) => item.id !== request.id))} requests={requests()} />
+        </Match>
+        <Match when={active() === "moderation"}><PlaceholderPanel body="Case queue and policy are capability-gated here, but remain distinct from community settings saves." title="Moderation" /></Match>
+        <Match when={active() === "archive"}><CommunityArchivePage onArchive={() => setArchiveStatus("archived")} onUnarchive={() => setArchiveStatus("active")} status={archiveStatus()} submitState={{ kind: "idle" }} /></Match>
+      </Switch>
+      <Show when={savedMessage()}><Type aria-live="polite" class="sr-only" variant="caption">{savedMessage()}</Type></Show>
+    </CommunityOwnerSettingsShell>
+  );
+}
+
+const meta = {
+  title: "Screens/Community/OwnerSettings/Shell",
+  component: CommunityOwnerSettingsShell,
+  parameters: { layout: "fullscreen", a11y: { test: "error" } },
+} satisfies Meta<typeof CommunityOwnerSettingsShell>;
+
+export default meta;
+type Story = StoryObj<typeof meta>;
+
+export const NamespaceHappyPath: Story = {
+  args: { access: FULL_ACCESS, activeSection: "namespace", children: null, communityName: "Midnight Waves", onSectionChange: () => undefined },
+  render: () => <OwnerSettingsHappyPath />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByRole("heading", { name: "Namespace" })).toBeInTheDocument();
+    await userEvent.click(canvas.getByRole("button", { name: "Continue" }));
+    await userEvent.click(await canvas.findByRole("button", { name: "Start verification" }));
+    await expect(await canvas.findByText("Publish this complete resource")).toBeInTheDocument();
+    await userEvent.click(canvas.getByRole("button", { name: "I published all records, check the chain" }));
+    await expect(await canvas.findByText("Transaction confirmed")).toBeInTheDocument();
+    await userEvent.click(canvas.getByRole("button", { name: "Check status" }));
+    await expect(await canvas.findByText("Records confirmed")).toBeInTheDocument();
+    await userEvent.click(canvas.getByRole("button", { name: "Check status" }));
+    await expect(await canvas.findByText("Namespace verified")).toBeInTheDocument();
+  },
+};
+
+export const ProfileDirtySave: Story = {
+  args: { access: FULL_ACCESS, activeSection: "profile", children: null, communityName: "Midnight Waves", onSectionChange: () => undefined },
+  render: () => <OwnerSettingsHappyPath initialSection="profile" />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const name = canvas.getByRole("textbox", { name: "Community name" });
+    await userEvent.clear(name);
+    await userEvent.type(name, "Midnight Signals");
+    await expect(canvas.getByRole("button", { name: /Profile.*Unsaved/ })).toBeInTheDocument();
+    await userEvent.click(canvas.getByRole("button", { name: "Save" }));
+    await expect(await canvas.findByText("Profile saved")).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: /Profile.*Unsaved/ })).not.toBeInTheDocument();
+  },
+};
+
+export const ExistingPanelsMounted: Story = {
+  args: { access: FULL_ACCESS, activeSection: "namespace", children: null, communityName: "Midnight Waves", onSectionChange: () => undefined },
+  render: () => <OwnerSettingsHappyPath />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(canvas.getByRole("button", { name: /Rules/ }));
+    await expect(canvas.getByRole("heading", { name: "Rules" })).toBeInTheDocument();
+    await userEvent.click(canvas.getByRole("button", { name: /Links/ }));
+    await expect(canvas.getByRole("heading", { name: "Links" })).toBeInTheDocument();
+    await userEvent.click(canvas.getByRole("button", { name: /Requests/ }));
+    await expect(canvas.getByRole("heading", { name: "Requests" })).toBeInTheDocument();
+    await userEvent.click(canvas.getByRole("button", { name: /Archive/ }));
+    await expect(canvas.getByRole("heading", { name: "Danger zone" })).toBeInTheDocument();
+  },
+};
+
+export const CapabilityGated: Story = {
+  args: { access: { ...FULL_ACCESS, "community.names.manage": false, "community.moderation.manage": false }, activeSection: "profile", children: <PlaceholderPanel body="Only permitted sections are shown." title="Profile" />, communityName: "Midnight Waves", onSectionChange: () => undefined },
+};
+
+export const Loading: Story = {
+  args: { access: FULL_ACCESS, activeSection: "profile", children: null, communityName: "Midnight Waves", onSectionChange: () => undefined, status: "loading" },
+};
+
+export const Error: Story = {
+  args: { access: FULL_ACCESS, activeSection: "profile", children: null, communityName: "Midnight Waves", errorMessage: "The settings revision could not be read.", onRetry: () => undefined, onSectionChange: () => undefined, status: "error" },
+};
+
+export const NoCapabilities: Story = {
+  args: { access: NO_ACCESS, activeSection: "profile", children: null, communityName: "Midnight Waves", onSectionChange: () => undefined },
+};

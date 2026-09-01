@@ -1,0 +1,146 @@
+export type OwnerSettingsSection =
+  | "profile"
+  | "namespace"
+  | "names"
+  | "rules"
+  | "links"
+  | "membership_requests"
+  | "moderation"
+  | "archive";
+
+export type OwnerSettingsCapability =
+  | "community.profile.write"
+  | "community.namespace.write"
+  | "community.names.manage"
+  | "community.rules.write"
+  | "community.links.write"
+  | "community.membership_requests.decide"
+  | "community.moderation.manage"
+  | "community.archive.write";
+
+export type OwnerSettingsAccess = Readonly<Record<OwnerSettingsCapability, boolean>>;
+
+export type OwnerSettingsNavItem = Readonly<{
+  capability: OwnerSettingsCapability;
+  description: string;
+  label: string;
+  section: OwnerSettingsSection;
+}>;
+
+export type OwnerSettingsNavGroup = Readonly<{
+  label: string;
+  items: ReadonlyArray<OwnerSettingsNavItem>;
+}>;
+
+const OWNER_SETTINGS_GROUPS: ReadonlyArray<OwnerSettingsNavGroup> = [
+  {
+    label: "Community",
+    items: [
+      { section: "profile", capability: "community.profile.write", label: "Profile", description: "Name, description and artwork" },
+      { section: "namespace", capability: "community.namespace.write", label: "Namespace", description: "HNS, Spaces and DNS ownership" },
+      { section: "names", capability: "community.names.manage", label: "Names", description: "Member names and selling" },
+      { section: "rules", capability: "community.rules.write", label: "Rules", description: "Member expectations" },
+      { section: "links", capability: "community.links.write", label: "Links", description: "Community reference links" },
+    ],
+  },
+  {
+    label: "Access and safety",
+    items: [
+      { section: "membership_requests", capability: "community.membership_requests.decide", label: "Requests", description: "Approve or reject membership" },
+      { section: "moderation", capability: "community.moderation.manage", label: "Moderation", description: "Cases, policy and actions" },
+    ],
+  },
+  {
+    label: "Danger zone",
+    items: [
+      { section: "archive", capability: "community.archive.write", label: "Archive", description: "Hide or restore this community" },
+    ],
+  },
+];
+
+export function visibleOwnerSettingsGroups(access: OwnerSettingsAccess): ReadonlyArray<OwnerSettingsNavGroup> {
+  return OWNER_SETTINGS_GROUPS
+    .map((group) => ({ ...group, items: group.items.filter((item) => access[item.capability]) }))
+    .filter((group) => group.items.length > 0);
+}
+
+export function firstVisibleOwnerSettingsSection(access: OwnerSettingsAccess): OwnerSettingsSection | null {
+  return visibleOwnerSettingsGroups(access)[0]?.items[0]?.section ?? null;
+}
+
+export type CommunityProfileDraft = Readonly<{
+  avatar_url: string | null;
+  description: string;
+  display_name: string;
+}>;
+
+export type CommunityProfileSnapshot = Readonly<{
+  community_id: string;
+  revision: number;
+  profile: CommunityProfileDraft;
+}>;
+
+export type CommunityProfileSettingsPort = Readonly<{
+  read: () => Promise<CommunityProfileSnapshot>;
+  save: (command: Readonly<{
+    expected_revision: number;
+    idempotency_key: string;
+    profile: CommunityProfileDraft;
+  }>) => Promise<CommunityProfileSnapshot>;
+}>;
+
+export type NamespaceFamily = "hns" | "spaces";
+
+export type NamespaceResourceRecord = Readonly<{
+  record_type: string;
+  value: string;
+  supported: boolean;
+}>;
+
+export type NamespaceNextAction =
+  | Readonly<{ kind: "choose_namespace" }>
+  | Readonly<{ kind: "start_verification"; family: NamespaceFamily; root_label: string }>
+  | Readonly<{
+      kind: "publish_resource";
+      acknowledgement_required: true;
+      replacement_semantics: "complete_resource";
+      records: ReadonlyArray<NamespaceResourceRecord>;
+    }>
+  | Readonly<{
+      kind: "wait";
+      reason_code: "verification_pending" | "provider_unavailable" | "tree_commitment_pending" | "delegation_insecure";
+      retry_after_seconds: number;
+    }>
+  | Readonly<{
+      kind: "repair";
+      reason_code: "challenge_mismatch" | "resource_mismatch" | "dnssec_failure" | "delegation_failure";
+      missing_records?: ReadonlyArray<NamespaceResourceRecord>;
+      unexpected_records?: ReadonlyArray<NamespaceResourceRecord>;
+    }>
+  | Readonly<{ kind: "verified"; canonical_route: string }>
+  | Readonly<{ kind: "failed"; reason_code: string; retryable: boolean }>
+  | Readonly<{ kind: "expired" }>;
+
+export type NamespaceSettingsSnapshot = Readonly<{
+  community_id: string;
+  family: NamespaceFamily | null;
+  generation: number;
+  next_action: NamespaceNextAction;
+  root_label: string;
+}>;
+
+export type NamespaceSettingsCommand =
+  | Readonly<{ kind: "select_namespace"; family: NamespaceFamily; root_label: string }>
+  | Readonly<{ kind: "start_verification"; idempotency_key: string }>
+  | Readonly<{ kind: "acknowledge_complete_resource"; idempotency_key: string }>
+  | Readonly<{ kind: "poll"; expected_generation: number; idempotency_key: string }>
+  | Readonly<{ kind: "restart"; expected_generation: number; idempotency_key: string }>;
+
+export type CommunityNamespaceSettingsPort = Readonly<{
+  read: () => Promise<NamespaceSettingsSnapshot>;
+  execute: (command: NamespaceSettingsCommand) => Promise<NamespaceSettingsSnapshot>;
+}>;
+
+export function hasUnsupportedNamespaceRecords(action: NamespaceNextAction): boolean {
+  return action.kind === "publish_resource" && action.records.some((record) => !record.supported);
+}
