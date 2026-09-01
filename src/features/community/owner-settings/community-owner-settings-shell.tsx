@@ -54,7 +54,7 @@ export function CommunityOwnerSettingsShell(props: CommunityOwnerSettingsShellPr
   const activeTitle = () => ({
     profile: "Community profile",
     namespace: "Community address",
-    names: "Names",
+    names: "Community names",
     rules: "Rules",
     links: "Links",
     moderation_queue: "Moderation queue",

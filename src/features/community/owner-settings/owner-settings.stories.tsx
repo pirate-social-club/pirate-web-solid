@@ -7,6 +7,8 @@ import { CommunityArchivePage } from "../archive-page/community-archive-page";
 import { CommunityLinksEditorPage, createEmptyCommunityLinkEditorItem, type CommunityLinkEditorItem } from "../links-editor/community-links-editor-page";
 import { CommunityRulesEditorPage, type RuleDraft } from "../rules-editor/community-rules-editor-page";
 import { CommunityNamespaceSettingsPanel } from "./community-namespace-settings-panel";
+import { CommunityNamesSettingsPanel } from "./community-names-settings-panel";
+import { NAMES_ACTIVE, NAMES_PAUSED } from "./community-names-settings-fixtures";
 import { CommunityModerationPolicyPanel, CommunityModerationQueuePanel } from "./community-moderation-settings-panel";
 import { HIDDEN_MODERATION_CASE_DETAILS, HIDDEN_MODERATION_CASES, MODERATION_POLICY, MODERATION_VIEW_AND_ACT, OPEN_MODERATION_CASE_DETAILS, OPEN_MODERATION_CASES } from "./community-moderation-settings-fixtures";
 import { CommunityOwnerSettingsShell } from "./community-owner-settings-shell";
@@ -70,6 +72,7 @@ function OwnerSettingsHappyPath(props: { access?: OwnerSettingsAccess; initialSe
   const [rules, setRules] = createSignal(INITIAL_RULES);
   const [links, setLinks] = createSignal(INITIAL_LINKS);
   const [archiveStatus, setArchiveStatus] = createSignal<"active" | "archived">("active");
+  const [namesSnapshot, setNamesSnapshot] = createSignal(NAMES_ACTIVE);
   const [caseView, setCaseView] = createSignal<CommunityModerationCaseView>("open");
   const [policyDecisions, setPolicyDecisions] = createSignal(moderationPolicyDecisions(MODERATION_POLICY));
   const [policyDirty, setPolicyDirty] = createSignal(false);
@@ -139,7 +142,17 @@ function OwnerSettingsHappyPath(props: { access?: OwnerSettingsAccess; initialSe
             })}
           />
         </Match>
-        <Match when={active() === "names"}><PlaceholderPanel body="Member names and seller management stay a separate workflow from namespace ownership." title="Names" /></Match>
+        <Match when={active() === "names"}>
+          <CommunityNamesSettingsPanel
+            onCommand={(command) => {
+              setNamesSnapshot(command.kind === "pause_names" ? NAMES_PAUSED : NAMES_ACTIVE);
+              setSavedMessage(`Names action: ${command.kind}`);
+            }}
+            onReviewAddress={() => setActive("namespace")}
+            showHeading={false}
+            snapshot={namesSnapshot()}
+          />
+        </Match>
         <Match when={active() === "rules"}><CommunityRulesEditorPage rules={rules()} onRulesChange={setRules} onSave={() => setSavedMessage("Rules saved")} showHeading={false} /></Match>
         <Match when={active() === "links"}>
           <CommunityLinksEditorPage
@@ -233,6 +246,8 @@ export const ExistingPanelsMounted: Story = {
     await expect(canvas.getByRole("heading", { name: "Rules" })).toBeInTheDocument();
     await userEvent.click(canvas.getByRole("button", { name: /Links/ }));
     await expect(canvas.getByRole("heading", { name: "Links" })).toBeInTheDocument();
+    await userEvent.click(canvas.getByRole("button", { name: /Names/ }));
+    await expect(canvas.getByRole("heading", { name: "Community names" })).toBeInTheDocument();
     await userEvent.click(canvas.getByRole("button", { name: /Archive/ }));
     await expect(canvas.getByRole("heading", { name: "Archive community" })).toBeInTheDocument();
   },
