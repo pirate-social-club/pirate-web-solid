@@ -34,6 +34,7 @@ export interface CommunityLinksEditorPageProps {
   onRemoveLink?: (id: string) => void;
   onSave?: () => void;
   saveDisabled?: boolean;
+  showHeading?: boolean;
   saveLoading?: boolean;
 }
 
@@ -120,9 +121,9 @@ export function CommunityLinksEditorPage(props: CommunityLinksEditorPageProps) {
   return (
     <section class={cn("mx-auto flex w-full max-w-5xl flex-col gap-6 md:gap-8", props.class)} data-community-links-editor>
       <div class="flex flex-col gap-4 md:flex-row md:items-start md:justify-between md:gap-6">
-        <div class="min-w-0">
+        <Show when={props.showHeading !== false}><div class="min-w-0">
           <Type as="h1" responsiveSize="desktop4xl" variant="h1">{copy().title}</Type>
-        </div>
+        </div></Show>
         <Button class="w-full sm:w-auto" onClick={props.onAddLink} variant="secondary">
           <IconPlus class="size-5" />
           {copy().addLink}

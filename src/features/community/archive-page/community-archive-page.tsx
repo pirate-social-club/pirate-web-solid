@@ -17,6 +17,7 @@ export interface CommunityArchivePageProps {
   submitState: CommunityArchiveSubmitState;
   onArchive?: () => void;
   onUnarchive?: () => void;
+  showHeading?: boolean;
 }
 
 export function CommunityArchivePage(props: CommunityArchivePageProps) {
@@ -52,10 +53,10 @@ export function CommunityArchivePage(props: CommunityArchivePageProps) {
 
   return (
     <section class={cn("mx-auto flex w-full max-w-5xl flex-col gap-6 md:gap-8", props.class, props.className)} data-community-archive>
-      <div class="space-y-2">
+      <Show when={props.showHeading !== false}><div class="space-y-2">
         <Type as="h1" responsiveSize="desktop4xl" variant="h1" class="text-destructive">{archiveCopy.title}</Type>
         <FormNote>{archiveCopy.intro}</FormNote>
-      </div>
+      </div></Show>
 
       <Show
         when={props.status === "active"}

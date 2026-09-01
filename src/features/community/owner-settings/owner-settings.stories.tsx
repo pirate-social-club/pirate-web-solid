@@ -67,7 +67,7 @@ function PlaceholderPanel(props: { body: string; title: string }) {
   return <Card class="p-6"><Type as="h2" variant="h2">{props.title}</Type><Type as="p" class="mt-2 text-muted-foreground" variant="body">{props.body}</Type></Card>;
 }
 
-function OwnerSettingsHappyPath(props: { initialSection?: OwnerSettingsSection }) {
+function OwnerSettingsHappyPath(props: { access?: OwnerSettingsAccess; initialSection?: OwnerSettingsSection }) {
   const profilePort = createFakeProfileSettingsPort(INITIAL_PROFILE);
   const [active, setActive] = createSignal<OwnerSettingsSection>(props.initialSection ?? "namespace");
   const [profile, setProfile] = createSignal(INITIAL_PROFILE);
@@ -106,7 +106,7 @@ function OwnerSettingsHappyPath(props: { initialSection?: OwnerSettingsSection }
   };
   return (
     <CommunityOwnerSettingsShell
-      access={FULL_ACCESS}
+      access={props.access ?? FULL_ACCESS}
       activeSection={active()}
       communityName={profile().display_name}
       dirtySections={dirtySections()}
@@ -148,7 +148,7 @@ function OwnerSettingsHappyPath(props: { initialSection?: OwnerSettingsSection }
           />
         </Match>
         <Match when={active() === "names"}><PlaceholderPanel body="Member names and seller management stay a separate workflow from namespace ownership." title="Names" /></Match>
-        <Match when={active() === "rules"}><CommunityRulesEditorPage rules={rules()} onRulesChange={setRules} onSave={() => setSavedMessage("Rules saved")} /></Match>
+        <Match when={active() === "rules"}><CommunityRulesEditorPage rules={rules()} onRulesChange={setRules} onSave={() => setSavedMessage("Rules saved")} showHeading={false} /></Match>
         <Match when={active() === "links"}>
           <CommunityLinksEditorPage
             links={links()}
@@ -156,10 +156,11 @@ function OwnerSettingsHappyPath(props: { initialSection?: OwnerSettingsSection }
             onLinkChange={(id, patch) => setLinks((current) => current.map((link) => link.id === id ? { ...link, ...patch } : link))}
             onRemoveLink={(id) => setLinks((current) => current.filter((link) => link.id !== id))}
             onSave={() => setSavedMessage("Links saved")}
+            showHeading={false}
           />
         </Match>
         <Match when={active() === "membership_requests"}>
-          <CommunityMembershipRequestsPage onApprove={(request) => setRequests((current) => current.filter((item) => item.id !== request.id))} onReject={(request) => setRequests((current) => current.filter((item) => item.id !== request.id))} requests={requests()} />
+          <CommunityMembershipRequestsPage onApprove={(request) => setRequests((current) => current.filter((item) => item.id !== request.id))} onReject={(request) => setRequests((current) => current.filter((item) => item.id !== request.id))} requests={requests()} showHeading={false} />
         </Match>
         <Match when={active() === "moderation_queue"}>
           <CommunityModerationQueuePanel
@@ -187,7 +188,7 @@ function OwnerSettingsHappyPath(props: { initialSection?: OwnerSettingsSection }
             showHeading={false}
           />
         </Match>
-        <Match when={active() === "archive"}><CommunityArchivePage onArchive={() => setArchiveStatus("archived")} onUnarchive={() => setArchiveStatus("active")} status={archiveStatus()} submitState={{ kind: "idle" }} /></Match>
+        <Match when={active() === "archive"}><CommunityArchivePage onArchive={() => setArchiveStatus("archived")} onUnarchive={() => setArchiveStatus("active")} showHeading={false} status={archiveStatus()} submitState={{ kind: "idle" }} /></Match>
       </Switch>
       <Show when={savedMessage()}><Type aria-live="polite" class="sr-only" variant="caption">{savedMessage()}</Type></Show>
     </CommunityOwnerSettingsShell>
@@ -246,7 +247,7 @@ export const ExistingPanelsMounted: Story = {
     await userEvent.click(canvas.getByRole("button", { name: /Requests/ }));
     await expect(canvas.getByRole("heading", { name: "Requests" })).toBeInTheDocument();
     await userEvent.click(canvas.getByRole("button", { name: /Archive/ }));
-    await expect(canvas.getByRole("heading", { name: "Danger zone" })).toBeInTheDocument();
+    await expect(canvas.getByRole("heading", { name: "Archive community" })).toBeInTheDocument();
   },
 };
 
@@ -269,6 +270,7 @@ export const ContentPolicyMounted: Story = {
 
 export const CapabilityGated: Story = {
   args: { access: { ...FULL_ACCESS, "community.names.manage": false, "community.moderation.manage": false }, activeSection: "profile", children: <PlaceholderPanel body="Only permitted sections are shown." title="Profile" />, communityName: "Midnight Waves", onSectionChange: () => undefined },
+  render: () => <OwnerSettingsHappyPath access={{ ...FULL_ACCESS, "community.names.manage": false, "community.moderation.manage": false }} initialSection="profile" />,
 };
 
 export const Loading: Story = {

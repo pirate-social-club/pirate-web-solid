@@ -35,6 +35,7 @@ export interface CommunityRulesEditorPageProps {
   onRulesChange?: (rules: RuleDraft[]) => void;
   onSave?: () => void;
   saveDisabled?: boolean;
+  showHeading?: boolean;
   saveLoading?: boolean;
 }
 
@@ -187,10 +188,10 @@ export function CommunityRulesEditorPage(props: CommunityRulesEditorPageProps) {
   return (
     <section class={cn("mx-auto flex w-full max-w-5xl flex-col gap-6 md:gap-8", props.class)} data-community-rules-editor>
       <div class="flex items-center justify-between gap-4">
-        <div class="min-w-0 space-y-1">
-          <Type as="h1" responsiveSize="desktop4xl" variant="h1">{copy().title}</Type>
-          <Type as="p" variant="caption">{copy().description}</Type>
-        </div>
+        <Show when={props.showHeading !== false}><div class="min-w-0 space-y-1">
+            <Type as="h1" responsiveSize="desktop4xl" variant="h1">{copy().title}</Type>
+            <Type as="p" variant="caption">{copy().description}</Type>
+          </div></Show>
         <Button class="shrink-0" id="community-rules-add" onClick={addRule} variant="secondary">
           <IconPlus class="size-5" />
           {copy().addRule}

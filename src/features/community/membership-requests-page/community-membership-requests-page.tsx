@@ -25,6 +25,7 @@ export interface CommunityMembershipRequestsPageProps {
   onReject: (request: MembershipRequestSummary) => void;
   processingRequestId?: string | null;
   requests: MembershipRequestSummary[];
+  showHeading?: boolean;
 }
 
 function MembershipRequestApplicantContent(props: {
@@ -141,12 +142,12 @@ export function CommunityMembershipRequestsPage(props: CommunityMembershipReques
 
   return (
     <section class="flex min-w-0 flex-col gap-6" data-membership-requests-page>
-      <div class="space-y-2">
+      <Show when={props.showHeading !== false}><div class="space-y-2">
         <Type as="h1" variant="h2">Requests</Type>
         <Type as="p" class="max-w-2xl text-muted-foreground" variant="body">
           Review who can join this community.
         </Type>
-      </div>
+      </div></Show>
 
       <Card class="overflow-hidden">
         <Show
