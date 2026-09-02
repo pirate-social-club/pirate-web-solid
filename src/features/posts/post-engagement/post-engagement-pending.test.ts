@@ -10,6 +10,7 @@ import {
   createPendingEngagementRecord,
   decodePendingEngagementAction,
   PendingEngagementConflictError,
+  PendingEngagementError,
   postVoteSlot,
 } from "./post-engagement-pending.ts";
 
@@ -136,6 +137,56 @@ async function waitForPendingCommit(controller: FakeIndexedDbController): Promis
 }
 
 describe("pending post engagement", () => {
+  test.each([
+    "approve_as_general",
+    "approve_as_adult_18",
+    "reject",
+    "dismiss_report",
+    "hide",
+    "raise_rating_to_adult_18",
+    "restore",
+  ] as const)("round-trips the versioned %s moderation command", async (action) => {
+    const record = await createPendingEngagementRecord({
+      kind: "moderate",
+      caseRef: "case-1",
+      action,
+      expectedCaseRevision: 12,
+      idempotencyKey: `key-${action}`,
+    }, context);
+
+    expect(await decodePendingEngagementAction(record.envelope)).toEqual({
+      kind: "moderate",
+      caseRef: "case-1",
+      action,
+      expectedCaseRevision: 12,
+      idempotencyKey: `key-${action}`,
+    });
+    expect(JSON.parse(new TextDecoder().decode(pendingBodyBytes(record.envelope)))).toEqual({
+      version: "moderation-case-action-v2",
+      idempotency_key: `key-${action}`,
+      expected_case_revision: 12,
+      action,
+    });
+  });
+
+  test("rejects an unversioned moderation body", async () => {
+    const record = await createPendingEngagementRecord({
+      kind: "moderate",
+      caseRef: "case-1",
+      action: "hide",
+      expectedCaseRevision: 4,
+      idempotencyKey: "key-hide",
+    }, context);
+    const bytes = new TextEncoder().encode(JSON.stringify({ idempotency_key: "key-hide", action: "hide" }));
+    const envelope = {
+      ...record.envelope,
+      body_utf8_base64url: bytesToBase64Url(bytes),
+      body_sha256: await sha256Hex(bytes),
+    };
+
+    await expect(decodePendingEngagementAction(envelope)).rejects.toBeInstanceOf(PendingEngagementError);
+  });
+
   test("retains one serialized comment body and key byte-for-byte across reload", async () => {
     const backing = { records: new Map() };
     const firstSession = createMemoryPendingEngagementStorage(backing);

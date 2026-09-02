@@ -1,12 +1,14 @@
 import {
-  ApiClientError,
   type CreateCommentReplyResponse,
   type CreateCommentResponse,
   type GetTextContentSubmissionResponse,
-  type ModerateCaseActionResponse,
 } from "@pirate/api-client";
 
-import { PostEngagementLocalError } from "./post-engagement-api.ts";
+import {
+  PostEngagementLocalError,
+  isPostEngagementApiClientError,
+  type CommentModerationResponse,
+} from "./post-engagement-api.ts";
 
 export type CommentSubmissionResponse = CreateCommentResponse | CreateCommentReplyResponse | GetTextContentSubmissionResponse;
 
@@ -30,7 +32,7 @@ export interface CommentThreadItem {
   readonly caseRef: string | null;
   readonly href: string | null;
   readonly reportState?: "open" | "coalesced";
-  readonly lastModerationAction?: ModerateCaseActionResponse["action"];
+  readonly lastModerationAction?: CommentModerationResponse["action"];
 }
 
 export type EngagementIssue =
@@ -44,6 +46,7 @@ export type EngagementIssue =
   | { readonly kind: "idempotency_conflict"; readonly identity: string | null }
   | { readonly kind: "rate_limited"; readonly retryAfterSeconds: number | undefined }
   | { readonly kind: "conflict" }
+  | { readonly kind: "moderation_changed" }
   | { readonly kind: "bad_request" }
   | { readonly kind: "pending_action" }
   | { readonly kind: "durable_storage_failed" }
@@ -51,7 +54,7 @@ export type EngagementIssue =
 
 export function mapEngagementIssue(error: unknown): EngagementIssue {
   if (error instanceof PostEngagementLocalError) return { kind: "csrf_missing" };
-  if (!(error instanceof ApiClientError)) return { kind: "unavailable" };
+  if (!isPostEngagementApiClientError(error)) return { kind: "unavailable" };
   if (
     error.code === "conflict"
     && error.retryable === false
@@ -88,6 +91,7 @@ export function engagementIssueMessage(issue: EngagementIssue): string {
       ? `Try again in ${issue.retryAfterSeconds} seconds.`
       : "Too many actions. Try again shortly.";
     case "conflict": return "The comment changed before this action completed. Refresh and try again.";
+    case "moderation_changed": return "The moderation case changed. Review its current state and try again.";
     case "bad_request": return "Check the comment and try again.";
     case "pending_action": return "Resolve or retry the saved action before starting a different one.";
     case "durable_storage_failed": return "This action was not sent because its retry record could not be saved.";
@@ -133,21 +137,21 @@ export function settledComment(
 
 export function applyModerationOutcome(
   item: CommentThreadItem,
-  outcome: ModerateCaseActionResponse,
+  outcome: CommentModerationResponse,
 ): CommentThreadItem {
   const state: CommentDisplayState = outcome.target_status === "held"
     ? "manual_review"
     : outcome.target_status === "hidden"
       ? "hidden"
-      : outcome.target_status === "removed"
-        ? "removed"
+      : outcome.target_status === "blocked"
+        ? "blocked"
         : outcome.action === "restore"
           ? "restored"
           : "published";
   return {
     ...item,
     state,
-    caseRef: outcome.target_status === "held" || outcome.target_status === "hidden" || outcome.target_status === "removed"
+    caseRef: outcome.target_status === "held" || outcome.target_status === "hidden" || outcome.target_status === "blocked"
       ? outcome.case_ref
       : null,
     lastModerationAction: outcome.action,

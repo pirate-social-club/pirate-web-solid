@@ -1,5 +1,4 @@
 import type { JSX } from "@solidjs/web";
-import { ApiClientError } from "@pirate/api-client";
 import { For, Show, createEffect, createMemo, createSignal, untrack } from "solid-js";
 
 import {
@@ -17,6 +16,7 @@ import {
   type CommentReportReason,
   type PostEngagementTransport,
   createPostEngagementTransport,
+  isPostEngagementApiClientError,
 } from "./post-engagement-api.ts";
 import {
   type CommentThreadItem,
@@ -57,6 +57,7 @@ export interface PostEngagementPost {
 export interface PostEngagementProps {
   readonly post: PostEngagementPost;
   readonly principalId: string;
+  readonly communityId?: string;
   readonly transport?: PostEngagementTransport;
   readonly initialComments?: readonly CommentThreadItem[];
   readonly canModerate?: boolean;
@@ -91,7 +92,7 @@ function commentStateLabel(item: CommentThreadItem): string {
   switch (item.state) {
     case "submitting": return "Submitting";
     case "published": return "Published";
-    case "manual_review": return item.lastModerationAction === "dismiss" ? "Review dismissed" : "Held for review";
+    case "manual_review": return "Held for review";
     case "blocked": return "Blocked by policy";
     case "hidden": return "Hidden";
     case "removed": return "Removed";
@@ -116,7 +117,10 @@ function sameIntent(left: PendingEngagementAction, right: PendingEngagementActio
     case "comment": return right.kind === "comment" && left.postId === right.postId && left.body === right.body;
     case "reply": return right.kind === "reply" && left.commentId === right.commentId && left.body === right.body;
     case "report": return right.kind === "report" && left.commentId === right.commentId && left.reasonCode === right.reasonCode;
-    case "moderate": return right.kind === "moderate" && left.caseRef === right.caseRef && left.action === right.action;
+    case "moderate": return right.kind === "moderate"
+      && left.caseRef === right.caseRef
+      && left.action === right.action
+      && left.expectedCaseRevision === right.expectedCaseRevision;
     case "vote": return right.kind === "vote" && left.postId === right.postId && left.value === right.value;
     case "clear_vote": return right.kind === "clear_vote" && left.postId === right.postId;
   }
@@ -262,7 +266,17 @@ export function PostEngagement(props: PostEngagementProps) {
     const projected = mapEngagementIssue(error);
     setIssue(projected);
     setRetainedRecord(record);
-    if (!(error instanceof ApiClientError) || error.retryable) return;
+    if (!isPostEngagementApiClientError(error) || error.retryable) return;
+    if (record.action_kind === "moderate" && projected.kind === "conflict") {
+      setIssue({ kind: "moderation_changed" });
+      try {
+        await pendingStorage.remove(record.slot);
+        setRetainedRecord(undefined);
+      } catch {
+        setIssue({ kind: "durable_storage_failed" });
+      }
+      return;
+    }
     const definitiveRejection = projected.kind === "idempotency_conflict" || error.status === 400 || error.status === 403;
     if (!definitiveRejection) return;
     const retainedIssue: PendingEngagementIssue = projected.kind === "idempotency_conflict"
@@ -450,13 +464,38 @@ export function PostEngagement(props: PostEngagementProps) {
   };
 
   const moderate = async (item: CommentThreadItem, action: CommentModerationAction) => {
-    if (actionBusyId() || !item.caseRef) return;
+    if (actionBusyId() || !item.caseRef || !props.communityId) return;
     setActionBusyId(item.id);
     setIssue(undefined);
+    let expectedCaseRevision: number;
+    try {
+      const detail = await transport.readModerationCase(props.communityId, item.caseRef);
+      const moderationCase = detail.case;
+      if (
+        moderationCase.case_ref !== item.caseRef
+        || moderationCase.community_id !== props.communityId
+        || (moderationCase.target_type !== "comment" && moderationCase.target_type !== "reply")
+        || (moderationCase.target_id !== null && moderationCase.target_id !== item.id)
+        || !moderationCase.permitted_actions.includes(action)
+        || typeof moderationCase.case_revision !== "number"
+        || !Number.isSafeInteger(moderationCase.case_revision)
+        || moderationCase.case_revision < 1
+      ) {
+        setIssue({ kind: "moderation_changed" });
+        setActionBusyId(undefined);
+        return;
+      }
+      expectedCaseRevision = moderationCase.case_revision;
+    } catch (error) {
+      setIssue(mapEngagementIssue(error));
+      setActionBusyId(undefined);
+      return;
+    }
     const record = await prepareRecord(moderationCaseSlot(props.principalId, props.post.id, item.caseRef), key => ({
       kind: "moderate",
       caseRef: item.caseRef ?? "",
       action,
+      expectedCaseRevision,
       idempotencyKey: key,
     }));
     if (record === null) {
@@ -662,16 +701,16 @@ export function PostEngagement(props: PostEngagementProps) {
                       <Show when={commentCountsAsPublished(item) && !isCommentAddressable(item) && item.submissionId !== null}>
                         <Button disabled={actionBusyId() === item.id} onClick={() => void refreshComment(item)} size="sm" type="button" variant="outline">Refresh comment</Button>
                       </Show>
-                      <Show when={props.canModerate && item.caseRef}>
+                      <Show when={props.canModerate && props.communityId && item.caseRef}>
                         <Show when={item.state === "manual_review"}>
-                          <Button disabled={actionBusyId() === item.id} onClick={() => void moderate(item, "approve")} size="sm" type="button">Approve</Button>
+                          <Button disabled={actionBusyId() === item.id} onClick={() => void moderate(item, "approve_as_general")} size="sm" type="button">Approve</Button>
+                          <Button disabled={actionBusyId() === item.id} onClick={() => void moderate(item, "reject")} size="sm" type="button" variant="outline">Reject</Button>
                         </Show>
                         <Show when={item.state === "published" || item.state === "restored"}>
-                          <Button disabled={actionBusyId() === item.id} onClick={() => void moderate(item, "dismiss")} size="sm" type="button" variant="ghost">Dismiss report</Button>
+                          <Button disabled={actionBusyId() === item.id} onClick={() => void moderate(item, "dismiss_report")} size="sm" type="button" variant="ghost">Dismiss report</Button>
                           <Button disabled={actionBusyId() === item.id} onClick={() => void moderate(item, "hide")} size="sm" type="button" variant="outline">Hide</Button>
-                          <Button disabled={actionBusyId() === item.id} onClick={() => void moderate(item, "remove")} size="sm" type="button" variant="outline">Remove</Button>
                         </Show>
-                        <Show when={item.state === "hidden" || item.state === "removed"}>
+                        <Show when={item.state === "hidden" || item.state === "blocked"}>
                           <Button disabled={actionBusyId() === item.id} onClick={() => void moderate(item, "restore")} size="sm" type="button">Restore</Button>
                         </Show>
                       </Show>

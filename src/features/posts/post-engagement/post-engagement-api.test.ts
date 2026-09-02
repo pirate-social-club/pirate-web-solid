@@ -1,5 +1,6 @@
 import { describe, expect, test, vi } from "vitest";
 
+import { SECOND_MODERATION_CASE_DETAIL } from "../../community/owner-settings/community-moderation-settings-fixtures.ts";
 import { bytesToBase64Url, sha256Hex } from "../post-composer/text-submission-contract.ts";
 import { createPostEngagementTransport } from "./post-engagement-api.ts";
 import { createPendingEngagementRecord } from "./post-engagement-pending.ts";
@@ -19,6 +20,25 @@ const commentResponse = {
 const context = { principalId: "persona-1", postId: "post-1" } as const;
 
 describe("createPostEngagementTransport", () => {
+  test("reads the authoritative community case detail through the current client", async () => {
+    let requestedUrl = "";
+    const fetchImpl = vi.fn(async (input: RequestInfo | URL) => {
+      requestedUrl = input.toString();
+      return new Response(JSON.stringify(SECOND_MODERATION_CASE_DETAIL), {
+        headers: { "content-type": "application/json" },
+        status: 200,
+      });
+    });
+    const transport = createPostEngagementTransport({ origin: "https://solid.example", fetchImpl });
+
+    await expect(transport.readModerationCase("community_midnight", "case_report_1038"))
+      .resolves.toEqual(SECOND_MODERATION_CASE_DETAIL);
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    expect(requestedUrl).toBe(
+      "https://solid.example/api/communities/community_midnight/moderation/cases/case_report_1038",
+    );
+  });
+
   test("fails locally before calling the API when CSRF state is absent", async () => {
     const fetchImpl = vi.fn();
     const transport = createPostEngagementTransport({ fetchImpl, csrfToken: () => undefined });
@@ -41,7 +61,7 @@ describe("createPostEngagementTransport", () => {
         : url.endsWith("/comments/comment-1/reports")
           ? { report_id: "report-1", case_ref: "case-1", status: "open" as const }
           : url.endsWith("/moderation/cases/case-1/actions")
-            ? { action_id: "action-1", case_ref: "case-1", action: "hide" as const, target_status: "hidden" as const }
+            ? { version: "moderation-case-action-result-v2" as const, action_id: "action-1", case_ref: "case-1", action: "hide" as const, target_status: "hidden" as const }
             : url.endsWith("/posts/post-1/vote")
               ? { post_id: "post-1", value: -1 as const }
               : url.endsWith("/posts/post-1/clear_vote")
@@ -72,7 +92,7 @@ describe("createPostEngagementTransport", () => {
     };
     const reply = await createPendingEngagementRecord({ kind: "reply", commentId: "comment-1", body: "Exact reply", idempotencyKey: "key-reply" }, context);
     const report = await createPendingEngagementRecord({ kind: "report", commentId: "comment-1", reasonCode: "spam", idempotencyKey: "key-report" }, context);
-    const moderate = await createPendingEngagementRecord({ kind: "moderate", caseRef: "case-1", action: "hide", idempotencyKey: "key-action" }, context);
+    const moderate = await createPendingEngagementRecord({ kind: "moderate", caseRef: "case-1", action: "hide", expectedCaseRevision: 7, idempotencyKey: "key-action" }, context);
     const vote = await createPendingEngagementRecord({ kind: "vote", postId: "post-1", value: -1, idempotencyKey: "key-vote" }, context);
     const clearVote = await createPendingEngagementRecord({ kind: "clear_vote", postId: "post-1", idempotencyKey: "key-clear" }, context);
 
@@ -86,7 +106,7 @@ describe("createPostEngagementTransport", () => {
       { url: "https://solid.example/api/posts/post-1/comments", body: rawComment },
       { url: "https://solid.example/api/comments/comment-1/replies", body: "{\"idempotency_key\":\"key-reply\",\"body\":\"Exact reply\"}" },
       { url: "https://solid.example/api/comments/comment-1/reports", body: "{\"idempotency_key\":\"key-report\",\"reason_code\":\"spam\"}" },
-      { url: "https://solid.example/api/moderation/cases/case-1/actions", body: "{\"idempotency_key\":\"key-action\",\"action\":\"hide\"}" },
+      { url: "https://solid.example/api/moderation/cases/case-1/actions", body: "{\"version\":\"moderation-case-action-v2\",\"idempotency_key\":\"key-action\",\"expected_case_revision\":7,\"action\":\"hide\"}" },
       { url: "https://solid.example/api/posts/post-1/vote", body: "{\"idempotency_key\":\"key-vote\",\"value\":-1}" },
       { url: "https://solid.example/api/posts/post-1/clear_vote", body: "{\"idempotency_key\":\"key-clear\"}" },
     ]);

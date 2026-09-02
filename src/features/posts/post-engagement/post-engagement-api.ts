@@ -1,14 +1,22 @@
 import {
+  ApiClientError as PrimaryApiClientError,
   type ClearPostVoteResponse,
   type CreateCommentReplyResponse,
   type CreateCommentResponse,
-  type ModerateCaseActionResponse,
   type ReportCommentResponse,
   type CastPostVoteResponse,
   type GetTextContentSubmissionResponse,
 } from "@pirate/api-client";
+import {
+  ApiClientError as HappyPathApiClientError,
+  createPirateApiClient,
+  type GetCommunitiesCommunityIdModerationCasesCaseRefResponse,
+  type PostModerationCasesCaseRefActionsInput,
+  type PostModerationCasesCaseRefActionsResponse,
+} from "@pirate/api-client-happy-path";
 
 import {
+  createGeneratedApiClient,
   createSessionApiClient,
   readCsrfCookie,
   sessionRequestOptions,
@@ -32,18 +40,21 @@ export type CommentReportReason =
   | "misleading"
   | "other";
 
-export type CommentModerationAction =
-  | "approve"
-  | "dismiss"
-  | "hide"
-  | "remove"
-  | "restore";
+export type CommentModerationAction = PostModerationCasesCaseRefActionsInput["body"]["action"];
+export type CommentModerationCaseDetail = GetCommunitiesCommunityIdModerationCasesCaseRefResponse;
+export type CommentModerationResponse = PostModerationCasesCaseRefActionsResponse;
+export type PostEngagementApiClientError = PrimaryApiClientError | HappyPathApiClientError;
+
+export function isPostEngagementApiClientError(error: unknown): error is PostEngagementApiClientError {
+  return error instanceof PrimaryApiClientError || error instanceof HappyPathApiClientError;
+}
 
 export interface PostEngagementTransport {
   createComment(envelope: PendingSubmissionEnvelopeV1): Promise<CreateCommentResponse>;
   createReply(envelope: PendingSubmissionEnvelopeV1): Promise<CreateCommentReplyResponse>;
   reportComment(envelope: PendingSubmissionEnvelopeV1): Promise<ReportCommentResponse>;
-  moderateCase(envelope: PendingSubmissionEnvelopeV1): Promise<ModerateCaseActionResponse>;
+  readModerationCase(communityId: string, caseRef: string): Promise<CommentModerationCaseDetail>;
+  moderateCase(envelope: PendingSubmissionEnvelopeV1): Promise<CommentModerationResponse>;
   castVote(envelope: PendingSubmissionEnvelopeV1): Promise<CastPostVoteResponse>;
   clearVote(envelope: PendingSubmissionEnvelopeV1): Promise<ClearPostVoteResponse>;
   readSubmission(submissionId: string): Promise<GetTextContentSubmissionResponse>;
@@ -95,8 +106,33 @@ function clientForEnvelope(
   return createSessionApiClient({ origin: options.origin, fetchImpl: exactBodyFetch });
 }
 
+function happyPathClientForEnvelope(
+  options: PostEngagementTransportOptions,
+  envelope: PendingSubmissionEnvelopeV1,
+) {
+  const body = pendingBodyBytes(envelope);
+  const fetchImpl = options.fetchImpl ?? fetch;
+  const exactBodyFetch: ApiFetch = (input, init = {}) => fetchImpl(input, {
+    ...init,
+    body: body.slice().buffer,
+  });
+  return createGeneratedApiClient(
+    createPirateApiClient,
+    { origin: options.origin, fetchImpl: exactBodyFetch },
+    { credentials: "same-origin" },
+  );
+}
+
 function ordinaryClient(options: PostEngagementTransportOptions) {
   return createSessionApiClient({ origin: options.origin, fetchImpl: options.fetchImpl });
+}
+
+function ordinaryHappyPathClient(options: PostEngagementTransportOptions) {
+  return createGeneratedApiClient(
+    createPirateApiClient,
+    { origin: options.origin, fetchImpl: options.fetchImpl },
+    { credentials: "same-origin" },
+  );
 }
 
 function personaIdFromEnvelope(envelope: PendingSubmissionEnvelopeV1): string {
@@ -135,11 +171,21 @@ export function createPostEngagementTransport(
         body: { idempotency_key: action.idempotencyKey, reason_code: action.reasonCode },
       }, requestOptions(options));
     },
+    readModerationCase(communityId, caseRef) {
+      return ordinaryHappyPathClient(options).get_communitiesCommunityIdModerationCasesCaseRef({
+        path: { communityId, caseRef },
+      }, { credentials: "same-origin" });
+    },
     async moderateCase(envelope) {
       const action = expectedAction(await decodePendingEngagementAction(envelope), "moderate");
-      return clientForEnvelope(options, envelope).post_moderationCasesCaseRefActions({
+      return happyPathClientForEnvelope(options, envelope).post_moderationCasesCaseRefActions({
         path: { caseRef: action.caseRef },
-        body: { idempotency_key: action.idempotencyKey, action: action.action },
+        body: {
+          version: "moderation-case-action-v2",
+          idempotency_key: action.idempotencyKey,
+          expected_case_revision: action.expectedCaseRevision,
+          action: action.action,
+        },
       }, requestOptions(options));
     },
     async castVote(envelope) {

@@ -1,15 +1,18 @@
 import type { JSX } from "@solidjs/web";
 import { render as solidRender } from "@solidjs/web";
 import { ApiClientError } from "@pirate/api-client";
+import { ApiClientError as HappyPathApiClientError } from "@pirate/api-client-happy-path";
 import { createRoot } from "solid-js";
 import { afterEach, describe, expect, test, vi } from "vitest";
 
+import { SECOND_MODERATION_CASE_DETAIL } from "../../community/owner-settings/community-moderation-settings-fixtures.ts";
 import type { PostEngagementTransport } from "./post-engagement-api.ts";
 import {
   commentSubmissionSlot,
   createMemoryPendingEngagementStorage,
   createPendingEngagementRecord,
   decodePendingEngagementAction,
+  moderationCaseSlot,
 } from "./post-engagement-pending.ts";
 import { PostEngagement } from "./post-engagement.tsx";
 
@@ -43,6 +46,7 @@ function transportFixture(createComment: PostEngagementTransport["createComment"
     createComment,
     createReply: vi.fn(),
     reportComment: vi.fn(),
+    readModerationCase: vi.fn(async () => { throw new Error("moderation case read not configured"); }),
     moderateCase: vi.fn(),
     castVote: vi.fn(async envelope => {
       const action = await decodePendingEngagementAction(envelope);
@@ -402,14 +406,57 @@ describe("PostEngagement", () => {
     expect(retained?.issue).toBeUndefined();
   });
 
+  test("does not expose moderation writes to a view-only surface", async () => {
+    window.scrollTo = vi.fn();
+    const transport = transportFixture(vi.fn());
+    render(() => <PostEngagement
+      communityId="community-1"
+      initialComments={[{
+        id: "comment-1",
+        submissionId: "submission-1",
+        parentId: null,
+        body: "Reported comment",
+        depth: 0,
+        replyCount: 0,
+        state: "published",
+        caseRef: "case-1",
+        href: "/comments/comment-1",
+      }]}
+      pendingStorage={createMemoryPendingEngagementStorage()}
+      post={{ id: "post-1", upvoteCount: 0, downvoteCount: 0, commentCount: 1, viewerVote: null }}
+      principalId="user-1"
+      transport={transport}
+    />);
+
+    button("Comments (1)").click();
+    await vi.waitFor(() => expect(document.querySelector("[data-comment-id='comment-1']")).not.toBeNull());
+    expect([...document.querySelectorAll("button")].some(candidate => candidate.textContent?.trim() === "Hide")).toBe(false);
+    expect(transport.readModerationCase).not.toHaveBeenCalled();
+    expect(transport.moderateCase).not.toHaveBeenCalled();
+  });
+
   test("reads back an approved held comment before exposing addressable actions", async () => {
     window.scrollTo = vi.fn();
     const transport = {
       ...transportFixture(vi.fn()),
+      readModerationCase: vi.fn(async (communityId: string, caseRef: string) => ({
+        ...SECOND_MODERATION_CASE_DETAIL,
+        case: {
+          ...SECOND_MODERATION_CASE_DETAIL.case,
+          community_id: communityId,
+          case_ref: caseRef,
+          target_type: "comment" as const,
+          target_id: null,
+          target_status: "held" as const,
+          case_revision: 5,
+          permitted_actions: ["approve_as_general" as const, "reject" as const],
+        },
+      })),
       moderateCase: vi.fn(async (_envelope: Parameters<PostEngagementTransport["moderateCase"]>[0]) => ({
+        version: "moderation-case-action-result-v2" as const,
         action_id: "approve-action",
         case_ref: "case-held",
-        action: "approve" as const,
+        action: "approve_as_general" as const,
         target_status: "published" as const,
       })),
       readSubmission: vi.fn()
@@ -428,6 +475,7 @@ describe("PostEngagement", () => {
     };
     render(() => <PostEngagement
       canModerate
+      communityId="community-1"
       generateIdempotencyKey={() => "approve-key"}
       initialComments={[{
         id: "submission:submission-held",
@@ -465,7 +513,21 @@ describe("PostEngagement", () => {
     const transport = {
       ...transportFixture(vi.fn()),
       reportComment: vi.fn(async (_envelope: Parameters<PostEngagementTransport["reportComment"]>[0]) => ({ report_id: "report-1", case_ref: "case-1", status: "open" as const })),
+      readModerationCase: vi.fn(async (communityId: string, caseRef: string) => ({
+        ...SECOND_MODERATION_CASE_DETAIL,
+        case: {
+          ...SECOND_MODERATION_CASE_DETAIL.case,
+          community_id: communityId,
+          case_ref: caseRef,
+          target_type: "comment" as const,
+          target_id: "comment-1",
+          target_status: "published" as const,
+          case_revision: 3,
+          permitted_actions: ["dismiss_report" as const, "hide" as const],
+        },
+      })),
       moderateCase: vi.fn(async (_envelope: Parameters<PostEngagementTransport["moderateCase"]>[0]) => ({
+        version: "moderation-case-action-result-v2" as const,
         action_id: "action-1",
         case_ref: "case-1",
         action: "hide" as const,
@@ -475,6 +537,7 @@ describe("PostEngagement", () => {
     const keys = ["report-key", "moderation-key"];
     render(() => <PostEngagement
       canModerate
+      communityId="community-1"
       generateIdempotencyKey={() => keys.shift() ?? "unexpected"}
       pendingStorage={createMemoryPendingEngagementStorage()}
       initialComments={[{
@@ -511,8 +574,79 @@ describe("PostEngagement", () => {
     const moderationEnvelope = vi.mocked(transport.moderateCase).mock.calls[0]?.[0];
     if (moderationEnvelope === undefined) throw new Error("moderation envelope missing");
     expect(await decodePendingEngagementAction(moderationEnvelope)).toMatchObject({
-      kind: "moderate", caseRef: "case-1", action: "hide", idempotencyKey: "moderation-key",
+      kind: "moderate", caseRef: "case-1", action: "hide", expectedCaseRevision: 3, idempotencyKey: "moderation-key",
     });
+  });
+
+  test("drops a stale moderation command and fetches a fresh case revision before retry", async () => {
+    window.scrollTo = vi.fn();
+    const pendingStorage = createMemoryPendingEngagementStorage();
+    const revisions = [3, 4];
+    const transport = {
+      ...transportFixture(vi.fn()),
+      readModerationCase: vi.fn(async (communityId: string, caseRef: string) => ({
+        ...SECOND_MODERATION_CASE_DETAIL,
+        case: {
+          ...SECOND_MODERATION_CASE_DETAIL.case,
+          community_id: communityId,
+          case_ref: caseRef,
+          target_type: "comment" as const,
+          target_id: "comment-1",
+          target_status: "published" as const,
+          case_revision: revisions.shift() ?? 4,
+          permitted_actions: ["hide" as const],
+        },
+      })),
+      moderateCase: vi.fn()
+        .mockRejectedValueOnce(new HappyPathApiClientError(
+          { status: 409, code: "conflict", name: "Conflict", retryable: false },
+          { error: { code: "conflict", message: "Moderation operation conflicts with current state", retryable: false } },
+        ))
+        .mockResolvedValueOnce({
+          version: "moderation-case-action-result-v2" as const,
+          action_id: "action-fresh",
+          case_ref: "case-1",
+          action: "hide" as const,
+          target_status: "hidden" as const,
+        }),
+    };
+    const keys = ["stale-key", "fresh-key"];
+    render(() => <PostEngagement
+      canModerate
+      communityId="community-1"
+      generateIdempotencyKey={() => keys.shift() ?? "unexpected"}
+      initialComments={[{
+        id: "comment-1",
+        submissionId: "submission-1",
+        parentId: null,
+        body: "Visible comment",
+        depth: 0,
+        replyCount: 0,
+        state: "published",
+        caseRef: "case-1",
+        href: "/comments/comment-1",
+      }]}
+      pendingStorage={pendingStorage}
+      post={{ id: "post-1", upvoteCount: 0, downvoteCount: 0, commentCount: 1, viewerVote: null }}
+      principalId="user-1"
+      transport={transport}
+    />);
+
+    button("Comments (1)").click();
+    await vi.waitFor(() => expect(button("Hide")).toBeTruthy());
+    button("Hide").click();
+    await vi.waitFor(() => expect(document.body.textContent).toContain("The moderation case changed"));
+    await vi.waitFor(() => expect(button("Hide").disabled).toBe(false));
+    await expect(pendingStorage.load(moderationCaseSlot("user-1", "post-1", "case-1"))).resolves.toBeNull();
+
+    button("Hide").click();
+    await vi.waitFor(() => expect(document.querySelector("[data-comment-state='hidden']")).not.toBeNull());
+    expect(transport.readModerationCase).toHaveBeenCalledTimes(2);
+    expect(transport.moderateCase).toHaveBeenCalledTimes(2);
+    const first = await decodePendingEngagementAction(transport.moderateCase.mock.calls[0]![0]);
+    const second = await decodePendingEngagementAction(transport.moderateCase.mock.calls[1]![0]);
+    expect(first).toMatchObject({ expectedCaseRevision: 3, idempotencyKey: "stale-key" });
+    expect(second).toMatchObject({ expectedCaseRevision: 4, idempotencyKey: "fresh-key" });
   });
 
   test("restores and replays a pending report with the same reason, bytes, and key", async () => {

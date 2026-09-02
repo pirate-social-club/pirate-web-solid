@@ -4,6 +4,7 @@ import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import { expect, userEvent, within } from "storybook/test";
 
 import { Card, CardContent, Type } from "../../../design-system.ts";
+import { SECOND_MODERATION_CASE_DETAIL } from "../../community/owner-settings/community-moderation-settings-fixtures.ts";
 import type { PostEngagementTransport } from "./post-engagement-api.ts";
 import type { CommentDisplayState, CommentThreadItem } from "./post-engagement-model.ts";
 import { createMemoryPendingEngagementStorage, decodePendingEngagementAction } from "./post-engagement-pending.ts";
@@ -17,14 +18,25 @@ const noopTransport: PostEngagementTransport = {
     if (action.kind !== "report") throw new Error("expected report action");
     return { report_id: action.idempotencyKey, case_ref: "case-story", status: "open" };
   },
+  readModerationCase: async (communityId, caseRef) => ({
+    ...SECOND_MODERATION_CASE_DETAIL,
+    case: {
+      ...SECOND_MODERATION_CASE_DETAIL.case,
+      community_id: communityId,
+      case_ref: caseRef,
+      target_type: "comment",
+      permitted_actions: ["approve_as_general", "reject", "dismiss_report", "hide", "restore"],
+    },
+  }),
   moderateCase: async envelope => {
     const action = await decodePendingEngagementAction(envelope);
     if (action.kind !== "moderate") throw new Error("expected moderation action");
     return {
+      version: "moderation-case-action-result-v2",
       action_id: action.idempotencyKey,
       case_ref: action.caseRef,
       action: action.action,
-      target_status: action.action === "approve" || action.action === "restore" || action.action === "dismiss" ? "published" : action.action === "hide" ? "hidden" : "removed",
+      target_status: action.action === "hide" ? "hidden" : action.action === "reject" ? "blocked" : "published",
     };
   },
   castVote: async envelope => {
@@ -69,6 +81,7 @@ function frame(viewerVote: -1 | 1 | null, transport: PostEngagementTransport = n
     <div class="mx-auto max-w-3xl p-6">
       <PostEngagement
         canModerate
+        communityId="community-story"
         principalId="storybook-viewer"
         generateIdempotencyKey={() => crypto.randomUUID()}
         initialComments={initialComments}

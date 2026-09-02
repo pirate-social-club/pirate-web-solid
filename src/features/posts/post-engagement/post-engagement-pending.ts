@@ -23,7 +23,7 @@ export type PendingEngagementAction =
   | { readonly kind: "comment"; readonly postId: string; readonly body: string; readonly idempotencyKey: string }
   | { readonly kind: "reply"; readonly commentId: string; readonly body: string; readonly idempotencyKey: string }
   | { readonly kind: "report"; readonly commentId: string; readonly reasonCode: CommentReportReason; readonly idempotencyKey: string }
-  | { readonly kind: "moderate"; readonly caseRef: string; readonly action: CommentModerationAction; readonly idempotencyKey: string }
+  | { readonly kind: "moderate"; readonly caseRef: string; readonly action: CommentModerationAction; readonly expectedCaseRevision: number; readonly idempotencyKey: string }
   | { readonly kind: "vote"; readonly postId: string; readonly value: -1 | 1; readonly idempotencyKey: string }
   | { readonly kind: "clear_vote"; readonly postId: string; readonly idempotencyKey: string };
 
@@ -77,20 +77,22 @@ export class PendingEngagementConflictError extends PendingEngagementError {
 }
 
 const REPORT_REASONS = ["spam", "harassment", "hate", "sexual_content", "graphic_content", "misleading", "other"] as const;
-const MODERATION_ACTIONS = ["approve", "dismiss", "hide", "remove", "restore"] as const;
+const MODERATION_ACTIONS = ["approve_as_general", "approve_as_adult_18", "reject", "dismiss_report", "hide", "raise_rating_to_adult_18", "restore"] as const;
 
 interface RawPendingEngagementBody {
   readonly idempotency_key?: unknown;
+  readonly version?: unknown;
   readonly body?: unknown;
   readonly reason_code?: unknown;
   readonly action?: unknown;
+  readonly expected_case_revision?: unknown;
   readonly value?: unknown;
 }
 
 type PendingEngagementWireBody =
   | { readonly idempotency_key: string; readonly body: string }
   | { readonly idempotency_key: string; readonly reason_code: CommentReportReason }
-  | { readonly idempotency_key: string; readonly action: CommentModerationAction }
+  | { readonly version: "moderation-case-action-v2"; readonly idempotency_key: string; readonly expected_case_revision: number; readonly action: CommentModerationAction }
   | { readonly idempotency_key: string; readonly value: -1 | 1 }
   | { readonly idempotency_key: string };
 
@@ -107,6 +109,13 @@ function exactObject(value: RawPendingEngagementBody, keys: readonly string[]): 
 
 function requiredString(value: unknown, field: string): string {
   if (typeof value !== "string" || value === "") throw new PendingEngagementError(`Invalid pending engagement field: ${field}`);
+  return value;
+}
+
+function requiredCaseRevision(value: unknown): number {
+  if (typeof value !== "number" || !Number.isSafeInteger(value) || value < 0) {
+    throw new PendingEngagementError("Invalid pending engagement field: expected_case_revision");
+  }
   return value;
 }
 
@@ -163,10 +172,17 @@ export async function decodePendingEngagementAction(
     return { kind: "report", commentId: reportCommentId, reasonCode, idempotencyKey };
   }
   const caseRef = matchPath(envelope.same_origin_path, /^\/api\/moderation\/cases\/([^/]+)\/actions$/u, "caseRef");
-  if (caseRef !== null && exactObject(body, ["idempotency_key", "action"])) {
+  if (caseRef !== null && exactObject(body, ["version", "idempotency_key", "expected_case_revision", "action"])) {
+    if (body.version !== "moderation-case-action-v2") throw new PendingEngagementError("Invalid pending engagement field: version");
     const action = MODERATION_ACTIONS.find(candidate => candidate === body.action);
     if (action === undefined) throw new PendingEngagementError("Invalid pending engagement field: action");
-    return { kind: "moderate", caseRef, action, idempotencyKey };
+    return {
+      kind: "moderate",
+      caseRef,
+      action,
+      expectedCaseRevision: requiredCaseRevision(body.expected_case_revision),
+      idempotencyKey,
+    };
   }
   const votePostId = matchPath(envelope.same_origin_path, /^\/api\/posts\/([^/]+)\/vote$/u, "postId");
   if (votePostId !== null && exactObject(body, ["idempotency_key", "value"]) && (body.value === -1 || body.value === 1)) {
@@ -222,7 +238,12 @@ function actionRequest(action: PendingEngagementAction, context: PendingEngageme
     case "moderate": return {
       slot: moderationCaseSlot(context.principalId, context.postId, action.caseRef),
       path: `/api/moderation/cases/${encodeURIComponent(action.caseRef)}/actions`,
-      body: { idempotency_key: action.idempotencyKey, action: action.action },
+      body: {
+        version: "moderation-case-action-v2",
+        idempotency_key: action.idempotencyKey,
+        expected_case_revision: action.expectedCaseRevision,
+        action: action.action,
+      },
     };
     case "vote": {
       if (action.postId !== context.postId) throw new PendingEngagementError("Pending vote post does not match its storage scope");

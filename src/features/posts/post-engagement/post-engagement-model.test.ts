@@ -42,29 +42,33 @@ describe("post engagement model", () => {
     });
     expect(held).toMatchObject({ id: "submission:submission-1", state: "manual_review", caseRef: "case-1" });
     expect(applyModerationOutcome(held, {
+      version: "moderation-case-action-result-v2",
       action_id: "action-1",
       case_ref: "case-1",
-      action: "approve",
+      action: "approve_as_general",
       target_status: "published",
-    })).toMatchObject({ state: "published", caseRef: null, lastModerationAction: "approve" });
+    })).toMatchObject({ state: "published", caseRef: null, lastModerationAction: "approve_as_general" });
     expect(applyModerationOutcome({ ...held, state: "published" }, {
+      version: "moderation-case-action-result-v2",
       action_id: "action-2",
       case_ref: "case-1",
       action: "hide",
       target_status: "hidden",
     })).toMatchObject({ state: "hidden", caseRef: "case-1" });
     expect(applyModerationOutcome({ ...held, state: "published" }, {
+      version: "moderation-case-action-result-v2",
       action_id: "action-3",
       case_ref: "case-1",
-      action: "dismiss",
+      action: "dismiss_report",
       target_status: "published",
-    })).toMatchObject({ state: "published", caseRef: null, lastModerationAction: "dismiss" });
+    })).toMatchObject({ state: "published", caseRef: null, lastModerationAction: "dismiss_report" });
     expect(applyModerationOutcome(held, {
+      version: "moderation-case-action-result-v2",
       action_id: "action-4",
       case_ref: "case-1",
-      action: "dismiss",
-      target_status: "held",
-    })).toMatchObject({ state: "manual_review", caseRef: "case-1", lastModerationAction: "dismiss" });
+      action: "reject",
+      target_status: "blocked",
+    })).toMatchObject({ state: "blocked", caseRef: "case-1", lastModerationAction: "reject" });
   });
 
   test("enforces depth eight and maintains reply and vote aggregates", () => {

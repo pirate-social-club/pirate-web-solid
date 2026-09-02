@@ -187,6 +187,7 @@ function FeedItemCard(props: {
     <Show when={props.engagement} fallback={card()}>
       {(engagement) => <PostEngagement
         canModerate={engagement().canModerate}
+        communityId={props.item.communityId}
         generateIdempotencyKey={engagement().generateIdempotencyKey}
         initialComments={engagement().initialCommentsForPost?.(props.item.id)}
         post={props.item}
