@@ -1,4 +1,4 @@
-# Video capture capability spike — checkpoint 2
+# Video capture capability spike — checkpoint 3
 
 Recorded 2026-09-02. This checkpoint is local, credential-free, and does not
 contain physical mobile-device evidence.
@@ -145,6 +145,8 @@ Run the automated checkpoint with:
       src/features/posts/video-capture-spike/video-capture-model.test.ts
     bun run tsc --noEmit -p tsconfig.json
     bunx oxlint src/features/posts/video-capture-spike
+    bun run lint
+    bun run test:app
     bun run build-storybook
     git diff --check
 
@@ -153,10 +155,25 @@ recording, or copyrighted recording is part of this checkpoint.
 
 ## Checkpoint gates
 
-The focused Vitest command passed 25 tests. TypeScript, changed-path oxlint,
-and `git diff --check` passed with no output. The full `bun run
-build-storybook` gate was retried under a 60-second hard cap. It reached Vite's
-`transforming` phase and then exited 124 when the cap sent SIGTERM; it emitted
-no module-resolution or Mediabunny/AAC-worker error before the timeout. The
-full catalog build remains pending, and no passing Storybook-build claim is
-made.
+The branch was rebased without conflicts onto local `main` at `95070a3`. Range
+comparison showed all three spike commits remained patch-identical.
+
+The focused Vitest command passed 25 of 25 tests in 3.92 seconds. Changed-path
+oxlint passed in 0.76 seconds. Full `bun run lint` passed in 1.91 seconds with
+repository warnings and no errors. `git diff --check` passed with no output.
+The previously capped Storybook check was replaced with an uncapped run:
+`bun run build-storybook` completed successfully in 92.74 seconds. The capture
+story, Mediabunny adapter, and optional AAC worker all resolved in the built
+catalog.
+
+Two repository-wide gates are not green on the rebased baseline. `bun run tsc
+--noEmit -p tsconfig.json` exited 2 in 16.13 seconds on missing or incompatible
+generated-client symbols used by community moderation, karaoke, public feed,
+post engagement, and Study code. It reported no capture-spike file error. `bun
+run test:app` exited 1 in 22.26 seconds: 315 of 331 tests passed and 16 failed
+across six suites in those same generated-client consumers. The failures are
+outside this task's paths and were not changed or suppressed here.
+
+Physical-device acceptance remains blocked on owner-operated,
+current-supported iOS Safari and Android Chrome devices. This checkpoint did
+not attempt or simulate that evidence.
