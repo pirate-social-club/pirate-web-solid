@@ -31,7 +31,7 @@ export function resolveApplicationChrome(pathname: string): ApplicationChromePol
   const community = first === "c" || first === "communities";
   const profile = first === "u" || (first === "p" && !karaoke && !study);
 
-  if (first === "auth" || first === "verify") {
+  if (first === "auth" || first === "verify" || first === "terms" || first === "privacy") {
     return { activeItemId: "home", mobileActiveItem: "home", mobileTitle: "Pirate", mode: "bare" };
   }
   if (segments.length === 0) {

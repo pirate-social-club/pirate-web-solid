@@ -2,7 +2,6 @@ import { Show, createSignal } from "solid-js";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import { expect, userEvent, within } from "storybook/test";
 
-import { PrivyIdentityBootstrapRequired } from "../../api/privy-session.ts";
 import { SignInModal } from "./sign-in-modal.tsx";
 import type { SignInSession } from "./sign-in-session.ts";
 import {
@@ -11,11 +10,13 @@ import {
   signInFailed,
   signInMoved,
   signInReady,
+  signInRegistrationRequired,
   signInStarted,
   signInSucceeded,
   signInUnavailable,
   signInWithCode,
   signInWithEmail,
+  signInWithMinimumAgeAffirmation,
   type SignInState,
 } from "./sign-in-model.ts";
 
@@ -47,7 +48,13 @@ function createStubSession(initial: SignInState, walletAvailable = false): SignI
     setEmail(email) {
       setState((current) => signInWithEmail(current, email));
     },
+    setMinimumAgeAffirmed(affirmed) {
+      setState((current) => signInWithMinimumAgeAffirmation(current, affirmed));
+    },
     submitCode() {
+      setState(signInSucceeded);
+    },
+    submitRegistration() {
       setState(signInSucceeded);
     },
   };
@@ -179,21 +186,27 @@ export const CodeBusy: Story = {
   },
 };
 
-/**
- * A first visit has no account yet, but that is not a decision to put to the
- * user: the controller creates one and carries on. There is no register
- * screen, so the surface stays on the method list.
- */
 export const FirstVisit: Story = {
-  name: "First visit shows no extra step",
+  name: "First visit requires age declaration",
+  render: () => <SignInStory state={signInRegistrationRequired(ready)} />,
+  play: async () => {
+    const dialog = await within(document.body).findByRole("dialog");
+    await expect(within(dialog).getByRole("heading", { name: "Finish creating your account" })).toBeInTheDocument();
+    await expect(within(dialog).getByRole("checkbox", { name: "I confirm that I am at least 16 years old." })).not.toBeChecked();
+    await expect(within(dialog).getByRole("button", { name: "Create account" })).toBeDisabled();
+    await expect(within(dialog).getByText(/not identity or document verification/)).toBeInTheDocument();
+  },
+};
+
+export const FirstVisitDeclared: Story = {
+  name: "First visit with declaration",
   render: () => (
-    <SignInStory state={signInFailed(ready, new PrivyIdentityBootstrapRequired("did:privy:operator"), "choose")} />
+    <SignInStory state={signInWithMinimumAgeAffirmation(signInRegistrationRequired(ready), true)} />
   ),
   play: async () => {
     const dialog = await within(document.body).findByRole("dialog");
-    await expect(within(dialog).queryByRole("button", { name: "Create account" })).toBeNull();
-    await expect(within(dialog).queryByRole("button", { name: /Wallet/ })).toBeNull();
-    await expect(within(dialog).getByRole("button", { name: "Continue with Google" })).toBeInTheDocument();
+    await expect(within(dialog).getByRole("checkbox", { name: "I confirm that I am at least 16 years old." })).toBeChecked();
+    await expect(within(dialog).getByRole("button", { name: "Create account" })).toBeEnabled();
   },
 };
 

@@ -7,6 +7,12 @@ import {
   createPrivySessionExchange,
 } from "./privy-session.ts";
 
+const minimumAgeAffirmation = {
+  version: "minimum-age-attestation-v1",
+  minimum_age: 16,
+  affirmed: true,
+} as const;
+
 describe("Privy session exchange", () => {
   const rejectFirstExchange = (error: ApiClientError) => {
     let calls = 0;
@@ -100,7 +106,10 @@ describe("Privy session exchange", () => {
 
   it("offers explicit registration after a valid Privy identity is not provisioned", async () => {
     const accessToken = "header.eyJzdWIiOiJkaWQ6cHJpdnk6dGVzdC11c2VyIn0.signature";
-    let registered: string | undefined;
+    let registered: Readonly<{
+      privy_access_token: string;
+      minimum_age_attestation: typeof minimumAgeAffirmation;
+    }> | undefined;
     const unauthorized = new ApiClientError(
       { status: 401, code: "auth_error", name: "AuthError", retryable: false },
       { error: { code: "auth_error", message: "not registered", retryable: false } },
@@ -112,7 +121,7 @@ describe("Privy session exchange", () => {
         getAccessToken: async () => accessToken,
       }),
       exchange: rejectFirstExchange(unauthorized),
-      register: async token => { registered = token; },
+      register: async body => { registered = body; },
       csrf: () => "csrf",
     });
 
@@ -120,8 +129,11 @@ describe("Privy session exchange", () => {
       name: "PrivyIdentityBootstrapRequired",
       sourceUserId: "did:privy:test-user",
     });
-    await auth.register();
-    expect(registered).toBe(accessToken);
+    await auth.register(minimumAgeAffirmation);
+    expect(registered).toEqual({
+      privy_access_token: accessToken,
+      minimum_age_attestation: minimumAgeAffirmation,
+    });
   });
 
   it("provisions the exact reserved embedded wallet before completing registration", async () => {
@@ -173,7 +185,7 @@ describe("Privy session exchange", () => {
       PrivyIdentityBootstrapRequired,
     );
     expect(storage?.getKeys()).toEqual(["privy-session"]);
-    await auth.register();
+    await auth.register(minimumAgeAffirmation);
 
     expect(prepared).toEqual([["persona-1", "wallet-prepare-key"]]);
     expect(ensured).toEqual([3]);
@@ -194,17 +206,7 @@ describe("Privy session exchange", () => {
           if (ensured.length === 1) throw new Error("wallet_interrupted");
         },
       }),
-      exchange: async () => undefined,
-      register: async () => ({
-        status: "wallet_setup_required",
-        wallet: {
-          persona_id: "persona-returning",
-          chain_account_kind: "evm",
-          hd_wallet_index: 2,
-          status: "pending",
-          assignment: null,
-        },
-      }),
+      exchange: async () => ({ personaId: "persona-returning" }),
       prepareWallet: async () => ({
         persona_id: "persona-returning",
         hd_wallet_index: 2,
@@ -215,37 +217,40 @@ describe("Privy session exchange", () => {
       csrf: () => "csrf",
     });
 
-    await expect(auth.loginWithCode("returning@example.test", "123456")).rejects.toBeInstanceOf(
-      PrivyIdentityBootstrapRequired,
-    );
-    await expect(auth.register()).resolves.toBeUndefined();
+    await expect(auth.loginWithCode("returning@example.test", "123456")).rejects.toThrow("wallet_interrupted");
+    await expect(auth.loginWithCode("returning@example.test", "123456")).resolves.toBeUndefined();
     expect(ensured).toEqual([2, 2]);
   });
 
-  it("keeps the established session when an active account rejects duplicate registration", async () => {
-    const conflict = new ApiClientError(
-      { status: 409, code: "conflict", name: "Conflict", retryable: false },
-      { error: { code: "conflict", message: "already registered", retryable: false } },
-    );
+  it("does not send a registration assertion for an established account", async () => {
     let exchanges = 0;
-    let registrations = 0;
+    const register = vi.fn(async () => undefined);
     const auth = await createPrivySessionExchange({ enabled: true, privyAppId: "app" }, {
       createPrivy: async () => ({
         auth: { email: { sendCode: async () => ({ success: true }), loginWithCode: async () => undefined } },
         initialize: async () => undefined,
         getAccessToken: async () => "returning-access-token",
       }),
-      exchange: async () => { exchanges += 1; },
-      register: async () => {
-        registrations += 1;
-        throw conflict;
-      },
+      exchange: async () => { exchanges += 1; return { personaId: "persona-returning" }; },
+      register,
+      prepareWallet: async () => ({
+        persona_id: "persona-returning",
+        chain_account_kind: "evm",
+        hd_wallet_index: 2,
+        status: "active",
+        assignment: {
+          chain_account_kind: "evm",
+          hd_wallet_index: 2,
+          address: "0x0000000000000000000000000000000000000002",
+          assigned_at: "2026-09-02T00:00:00.000Z",
+        },
+      }),
       csrf: () => "csrf",
     });
 
     await expect(auth.loginWithCode("returning@example.test", "123456")).resolves.toBeUndefined();
     expect(exchanges).toBe(1);
-    expect(registrations).toBe(1);
+    expect(register).not.toHaveBeenCalled();
   });
 
   it("retries a failed wallet creation with the same preparation identity", async () => {
@@ -289,8 +294,8 @@ describe("Privy session exchange", () => {
     await expect(auth.loginWithCode("person@example.test", "123456")).rejects.toBeInstanceOf(
       PrivyIdentityBootstrapRequired,
     );
-    await expect(auth.register()).rejects.toThrow("wallet_rejected");
-    await expect(auth.register()).resolves.toBeUndefined();
+    await expect(auth.register(minimumAgeAffirmation)).rejects.toThrow("wallet_rejected");
+    await expect(auth.register(minimumAgeAffirmation)).resolves.toBeUndefined();
     expect(preparationKeys).toEqual(["stable-wallet-prepare-key", "stable-wallet-prepare-key"]);
     expect(creationAttempts).toBe(2);
   });
@@ -331,7 +336,7 @@ describe("Privy session exchange", () => {
     await expect(auth.loginWithCode("person@example.test", "123456")).rejects.toBeInstanceOf(
       PrivyIdentityBootstrapRequired,
     );
-    await expect(auth.register()).rejects.toThrow("wallet_index_mismatch");
+    await expect(auth.register(minimumAgeAffirmation)).rejects.toThrow("wallet_index_mismatch");
     expect(ensureWallet).not.toHaveBeenCalled();
   });
 

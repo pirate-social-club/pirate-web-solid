@@ -165,7 +165,7 @@ describe("sign-in session controller", () => {
     expect(session.state().phase).toBe("signed-in");
   });
 
-  test("registers a first-visit wallet identity through the ordinary bootstrap", async () => {
+  test("registers a first-visit wallet identity only after explicit affirmation", async () => {
     const register = vi.fn(async () => undefined);
     const session = harness({
       createExchange: async () => fakeExchange({
@@ -181,9 +181,27 @@ describe("sign-in session controller", () => {
     session.chooseMethod("wallet");
     flush();
     await settle();
+
+    expect(register).not.toHaveBeenCalled();
+    expect(session.state().phase).toBe("registration");
+    expect(session.state().minimumAgeAffirmed).toBe(false);
+
+    session.submitRegistration();
+    flush();
+    await settle();
+    expect(register).not.toHaveBeenCalled();
+
+    session.setMinimumAgeAffirmed(true);
+    flush();
+    session.submitRegistration();
+    flush();
     await settle();
 
-    expect(register).toHaveBeenCalledOnce();
+    expect(register).toHaveBeenCalledWith({
+      version: "minimum-age-attestation-v1",
+      minimum_age: 16,
+      affirmed: true,
+    });
     expect(session.state().phase).toBe("signed-in");
   });
 
@@ -272,11 +290,7 @@ describe("sign-in session controller", () => {
     expect(session.state().message).toBe("Couldn’t sign in. Try again.");
   });
 
-  /**
-   * A first visit has no account yet. That needs no decision from the user, so
-   * the controller registers and signs them in rather than presenting a step.
-   */
-  test("registers a first-visit provider return without asking", async () => {
+  test("holds a first-visit provider return for explicit affirmation", async () => {
     window.history.replaceState({}, "", "/auth/sign-in?provider=google&code=abc&state=xyz");
     const register = vi.fn(async () => undefined);
     const exchange = fakeExchange({
@@ -287,9 +301,21 @@ describe("sign-in session controller", () => {
     });
     const session = harness({ createExchange: async () => exchange });
     await settle();
+
+    expect(register).not.toHaveBeenCalled();
+    expect(session.state().phase).toBe("registration");
+
+    session.setMinimumAgeAffirmed(true);
+    flush();
+    session.submitRegistration();
+    flush();
     await settle();
 
-    expect(register).toHaveBeenCalledTimes(1);
+    expect(register).toHaveBeenCalledWith({
+      version: "minimum-age-attestation-v1",
+      minimum_age: 16,
+      affirmed: true,
+    });
     expect(session.state().phase).toBe("signed-in");
   });
 

@@ -45,9 +45,11 @@ export function SignInModal(props: SignInModalProps): JSX.Element {
             onChooseMethod={props.session.chooseMethod}
             onCodeChange={props.session.setCode}
             onEmailChange={props.session.setEmail}
+            onMinimumAgeAffirmedChange={props.session.setMinimumAgeAffirmed}
             onResendCode={props.session.resendCode}
             onSendCode={props.session.sendCode}
             onSubmitCode={props.session.submitCode}
+            onSubmitRegistration={props.session.submitRegistration}
             state={props.session.state()}
             walletAvailable={props.session.walletAvailable()}
           />

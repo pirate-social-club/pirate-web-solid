@@ -2,22 +2,26 @@ import { createEffect, createSignal, onCleanup, type Accessor } from "solid-js";
 
 import {
   hasInjectedEthereumProvider,
+  type MinimumAgeAffirmation,
   type OAuthProvider,
   type PrivySessionExchange,
 } from "../../api/privy-session.ts";
 import {
   SIGN_IN_CODE_LENGTH,
   initialSignInState,
+  canSubmitRegistration,
   signInCodeSent,
   isRegistrationRequired,
   signInFailed,
   signInMoved,
   signInReady,
+  signInRegistrationRequired,
   signInStarted,
   signInSucceeded,
   signInUnavailable,
   signInWithCode,
   signInWithEmail,
+  signInWithMinimumAgeAffirmation,
   type SignInMethod,
   type SignInPhase,
   type SignInState,
@@ -57,7 +61,9 @@ export interface SignInSession {
   sendCode(): void;
   setCode(code: string): void;
   setEmail(email: string): void;
+  setMinimumAgeAffirmed(affirmed: boolean): void;
   submitCode(): void;
+  submitRegistration(): void;
 }
 
 function oauthRedirect(provider: OAuthProvider): string {
@@ -122,10 +128,7 @@ export function createSignInSession(options: SignInSessionOptions = {}): SignInS
 
   const fail = (error: unknown, recovery: SignInPhase) => {
     if (isRegistrationRequired(error)) {
-      // A first visit has no account yet. Creating one needs no decision from
-      // the user, so it happens here instead of as a screen asking them to
-      // confirm something they have already chosen by signing in.
-      attempt(undefined, recovery, (handle) => handle.register(), succeed);
+      setState(signInRegistrationRequired);
       return;
     }
     setState((current) => signInFailed(current, error, recovery));
@@ -286,6 +289,9 @@ export function createSignInSession(options: SignInSessionOptions = {}): SignInS
     setEmail(email) {
       setState((current) => signInWithEmail(current, email));
     },
+    setMinimumAgeAffirmed(affirmed) {
+      setState((current) => signInWithMinimumAgeAffirmation(current, affirmed));
+    },
     submitCode() {
       const current = state();
       if (current.code.trim().length !== SIGN_IN_CODE_LENGTH) return;
@@ -293,6 +299,21 @@ export function createSignInSession(options: SignInSessionOptions = {}): SignInS
         undefined,
         "code",
         (handle) => handle.loginWithCode(current.email.trim(), current.code.trim()),
+        succeed,
+      );
+    },
+    submitRegistration() {
+      const current = state();
+      if (!canSubmitRegistration(current)) return;
+      const affirmation: MinimumAgeAffirmation = {
+        version: "minimum-age-attestation-v1",
+        minimum_age: 16,
+        affirmed: true,
+      };
+      attempt(
+        undefined,
+        "registration",
+        (handle) => handle.register(affirmation),
         succeed,
       );
     },

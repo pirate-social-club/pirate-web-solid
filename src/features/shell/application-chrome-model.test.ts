@@ -10,6 +10,8 @@ describe("application chrome policy", () => {
   test("leaves authentication and verification ceremonies bare", () => {
     expect(resolveApplicationChrome("/auth/sign-in").mode).toBe("bare");
     expect(resolveApplicationChrome("/verify/very").mode).toBe("bare");
+    expect(resolveApplicationChrome("/terms").mode).toBe("bare");
+    expect(resolveApplicationChrome("/privacy").mode).toBe("bare");
   });
 
   test("maps Community and per-post learning routes into shared navigation", () => {

@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { PrivyIdentityBootstrapRequired } from "../../api/privy-session.ts";
 import {
   canSendCode,
   canSubmitCode,
+  canSubmitRegistration,
   initialSignInState,
   signInAlert,
   signInCodeSent,
@@ -11,11 +11,13 @@ import {
   signInMessage,
   signInMoved,
   signInReady,
+  signInRegistrationRequired,
   signInStarted,
   signInSucceeded,
   signInUnavailable,
   signInWithCode,
   signInWithEmail,
+  signInWithMinimumAgeAffirmation,
 } from "./sign-in-model.ts";
 
 describe("sign-in phase model", () => {
@@ -34,17 +36,15 @@ describe("sign-in phase model", () => {
     expect(failed.message).toBe("Couldn’t sign in. Try again.");
   });
 
-  /**
-   * A first visit is not a failure and has no screen. The controller creates
-   * the account, so the model must leave the phase where it was rather than
-   * routing anywhere special.
-   */
-  it("keeps a first visit on its recovery phase instead of a register screen", () => {
+  it("requires an unchecked explicit declaration for first registration", () => {
     const working = signInStarted(signInReady(initialSignInState), "working");
-    const bootstrap = new PrivyIdentityBootstrapRequired("did:privy:abc");
+    const registration = signInRegistrationRequired(working);
 
-    expect(signInFailed(working, bootstrap, "choose").phase).toBe("choose");
-    expect(signInFailed(working, bootstrap, "code").phase).toBe("code");
+    expect(registration.phase).toBe("registration");
+    expect(registration.minimumAgeAffirmed).toBe(false);
+    expect(canSubmitRegistration(registration)).toBe(false);
+    expect(canSubmitRegistration(signInWithMinimumAgeAffirmation(registration, true))).toBe(true);
+    expect(canSubmitRegistration(signInStarted(signInWithMinimumAgeAffirmation(registration, true)))).toBe(false);
   });
 
   it("returns a code failure to the code entry, not to the method list", () => {
