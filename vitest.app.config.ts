@@ -63,6 +63,7 @@ export default defineConfig({
       "src/features/posts/post-composer/text-submission-contract.test.ts",
       "src/features/posts/post-composer/pending-submission.test.ts",
       "src/features/posts/post-composer/text-submission-transport.test.ts",
+      "src/features/posts/video-capture-spike/video-capture-model.test.ts",
       "src/features/profiles/public-profile-page/public-profile-page.test.tsx",
       "src/features/profiles/persona-public-profile/persona-public-profile.test.tsx",
       "src/features/shell/media-shell/media-shell.test.tsx",

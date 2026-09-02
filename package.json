@@ -65,6 +65,7 @@
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "1.52.1",
+    "@mediabunny/aac-encoder": "1.55.5",
     "@oxlint/plugins": "1.78.0",
     "@phosphor-icons/core": "2.1.1",
     "@solidjs/vite-plugin": "3.0.0-next.27",
@@ -76,6 +77,7 @@
     "@types/qrcode": "1.5.6",
     "@web3icons/react": "4.1.17",
     "bun-types": "1.4.0",
+    "mediabunny": "1.55.5",
     "oxlint": "1.78.0",
     "playwright": "1.60.0",
     "remark-gfm": "4.0.1",
