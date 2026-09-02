@@ -28,13 +28,15 @@ import {
 } from "./sign-in-model.ts";
 
 const methodLabel = {
-  google: "Google",
-  twitter: "X",
+  google: "Continue with Google",
+  twitter: "Continue with X",
+  wallet: "Connect wallet",
 } satisfies Record<SignInMethod, string>;
 
 export interface SignInViewProps {
   readonly class?: string;
   readonly state: SignInState;
+  readonly walletAvailable: boolean;
   readonly onBack: () => void;
   readonly onChooseMethod: (method: SignInMethod) => void;
   readonly onCodeChange: (code: string) => void;
@@ -75,6 +77,9 @@ function ChooseHeader(): JSX.Element {
 export function SignInView(props: SignInViewProps): JSX.Element {
   const phase = () => props.state.phase;
   const alert = () => signInAlert(props.state);
+  const methods = () => SIGN_IN_METHODS.filter(
+    (method) => method !== "wallet" || props.walletAvailable,
+  );
 
   return (
     <div class={cn("flex flex-col", props.class)} data-auth-panel>
@@ -91,7 +96,7 @@ export function SignInView(props: SignInViewProps): JSX.Element {
           <ChooseHeader />
 
           <div class="mt-5 flex flex-col gap-2.5">
-            <For each={SIGN_IN_METHODS}>
+            <For each={methods()}>
               {(method) => (
                 <Button
                   class="h-12 w-full text-sm font-medium hover:bg-card/85"
@@ -100,10 +105,15 @@ export function SignInView(props: SignInViewProps): JSX.Element {
                   onClick={() => props.onChooseMethod(method)}
                   variant="outline"
                 >
-                  Continue with {methodLabel[method]}
+                  {methodLabel[method]}
                 </Button>
               )}
             </For>
+            <Show when={props.walletAvailable}>
+              <Type as="p" variant="caption" class="px-2 text-center text-xs leading-4">
+                Your login wallet stays separate from your Pirate persona wallet.
+              </Type>
+            </Show>
           </div>
 
           <div class="mt-6 flex items-center gap-3 text-xs text-muted-foreground" aria-hidden="true">

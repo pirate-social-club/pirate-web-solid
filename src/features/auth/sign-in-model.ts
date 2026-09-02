@@ -15,11 +15,12 @@ export type SignInPhase =
   | "unavailable";
 
 /** Identity methods offered on the choose phase, in presentation order. */
-export type SignInMethod = "google" | "twitter";
+export type SignInMethod = "google" | "twitter" | "wallet";
 
 export const SIGN_IN_METHODS: readonly SignInMethod[] = [
   "google",
   "twitter",
+  "wallet",
 ];
 
 export const SIGN_IN_CODE_LENGTH = 6;

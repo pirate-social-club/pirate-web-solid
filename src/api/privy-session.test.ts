@@ -388,4 +388,66 @@ describe("Privy session exchange", () => {
       Reflect.deleteProperty(globalThis, "window");
     }
   });
+
+  it("fails closed when no injected wallet is present", async () => {
+    Object.defineProperty(globalThis, "window", {
+      configurable: true,
+      value: { location: { host: "localhost", origin: "http://localhost" } },
+    });
+    try {
+      const auth = await createPrivySessionExchange({ enabled: true, privyAppId: "app" }, {
+        createPrivy: async () => ({
+          auth: {
+            email: { sendCode: async () => ({ success: true }), loginWithCode: async () => undefined },
+            siwe: {
+              init: async () => ({ message: "sign this message" }),
+              loginWithSiwe: async () => undefined,
+            },
+          },
+          initialize: async () => undefined,
+          getAccessToken: async () => "wallet-access-token",
+        }),
+        exchange: async () => undefined,
+        csrf: () => "csrf",
+      });
+
+      await expect(auth.loginWithWallet()).rejects.toThrow("wallet_unavailable");
+    } finally {
+      Reflect.deleteProperty(globalThis, "window");
+    }
+  });
+
+  it("normalizes an injected-wallet signature rejection", async () => {
+    const request = vi.fn(async ({ method }: { method: string }) => {
+      if (method === "eth_requestAccounts") return ["0x0000000000000000000000000000000000000001"];
+      if (method === "eth_chainId") return "0x1";
+      if (method === "personal_sign") throw new Error("provider detail must stay private");
+      throw new Error(`unexpected_${method}`);
+    });
+    Object.defineProperty(globalThis, "window", {
+      configurable: true,
+      value: { location: { host: "localhost", origin: "http://localhost" }, ethereum: { request } },
+    });
+    try {
+      const auth = await createPrivySessionExchange({ enabled: true, privyAppId: "app" }, {
+        createPrivy: async () => ({
+          auth: {
+            email: { sendCode: async () => ({ success: true }), loginWithCode: async () => undefined },
+            siwe: {
+              init: async () => ({ message: "sign this message" }),
+              loginWithSiwe: async () => undefined,
+            },
+          },
+          initialize: async () => undefined,
+          getAccessToken: async () => "wallet-access-token",
+        }),
+        exchange: async () => undefined,
+        csrf: () => "csrf",
+      });
+
+      await expect(auth.loginWithWallet()).rejects.toThrow("wallet_auth_failed");
+    } finally {
+      Reflect.deleteProperty(globalThis, "window");
+    }
+  });
 });

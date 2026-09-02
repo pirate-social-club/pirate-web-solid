@@ -1,6 +1,7 @@
 import { createEffect, createSignal, onCleanup, type Accessor } from "solid-js";
 
 import {
+  hasInjectedEthereumProvider,
   type OAuthProvider,
   type PrivySessionExchange,
 } from "../../api/privy-session.ts";
@@ -43,10 +44,13 @@ export interface SignInSessionOptions {
    * is what the /auth/sign-in deep link wants.
    */
   readonly enabled?: () => boolean;
+  /** Test seam for the browser's injected EIP-1193 provider discovery. */
+  readonly walletAvailable?: () => boolean;
 }
 
 export interface SignInSession {
   readonly state: Accessor<SignInState>;
+  readonly walletAvailable: Accessor<boolean>;
   back(): void;
   chooseMethod(method: SignInMethod): void;
   resendCode(): void;
@@ -99,6 +103,9 @@ export function createSignInSession(options: SignInSessionOptions = {}): SignInS
   const [state, setState] = createSignal<SignInState>(initialSignInState, {
     ownedWrite: true,
   });
+  const [walletAvailable, setWalletAvailable] = createSignal(false, {
+    ownedWrite: true,
+  });
   let exchange: PrivySessionExchange | undefined;
   let exchangeLoad: Promise<PrivySessionExchange> | undefined;
   let generation = 0;
@@ -149,8 +156,13 @@ export function createSignInSession(options: SignInSessionOptions = {}): SignInS
       // version those run at disposal only, which would leak a client per
       // open/close cycle and leave stale attempts looking current.
       discard();
+      setWalletAvailable(false);
       const runToken = generation;
       if (!enabled || typeof window === "undefined") return;
+      // Sample after hydration and whenever the surface opens. This keeps the
+      // server and first client render identical while still discovering an
+      // extension that injected before the user opened the sign-in surface.
+      setWalletAvailable(options.walletAvailable?.() ?? hasInjectedEthereumProvider());
       // The method form needs no Privy handle. Show it immediately and let the
       // first operation await initialization; provider returns remain a
       // dedicated working phase because they resume without another choice.
@@ -236,10 +248,15 @@ export function createSignInSession(options: SignInSessionOptions = {}): SignInS
 
   return {
     state,
+    walletAvailable,
     back() {
       setState((current) => signInMoved(current, "choose"));
     },
     chooseMethod(method) {
+      if (method === "wallet") {
+        attempt("working", "choose", (handle) => handle.loginWithWallet(), succeed);
+        return;
+      }
       // Navigating is the settlement, so it runs behind the same currency check
       // as any state write: a dismissed ceremony must not redirect the page.
       attempt(

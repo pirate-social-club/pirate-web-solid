@@ -6,6 +6,7 @@ import type { SignInMethod } from "./sign-in-model.ts";
 const letterMark = {
   google: "G",
   twitter: "X",
+  wallet: "W",
 } satisfies Record<SignInMethod, string>;
 
 export function SignInMethodMark(props: { method: SignInMethod }): JSX.Element {

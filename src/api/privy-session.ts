@@ -215,18 +215,32 @@ interface EthereumProvider {
   request(args: { method: string; params?: readonly unknown[] }): Promise<unknown>;
 }
 
+function isEthereumProvider(candidate: unknown): candidate is EthereumProvider {
+  if (candidate === null || typeof candidate !== "object" || !("request" in candidate)) {
+    return false;
+  }
+  // SAFETY: candidate is narrowed to an object with a request property above.
+  return typeof (candidate as { request?: unknown }).request === "function";
+}
+
+/**
+ * Reports whether the browser currently exposes an injected EIP-1193 wallet.
+ * This is a presentation guard, not authority: the provider is validated again
+ * when the user starts SIWE so disappearance between render and click fails
+ * closed.
+ */
+export function hasInjectedEthereumProvider(): boolean {
+  if (typeof window === "undefined") return false;
+  // SAFETY: browser globals are inspected before narrowing the optional property.
+  return isEthereumProvider((window as Window & { ethereum?: unknown }).ethereum);
+}
+
 function browserEthereumProvider(): EthereumProvider {
   if (typeof window === "undefined") throw new Error("browser_required");
   // SAFETY: browser globals are inspected before narrowing to the optional ethereum property.
   const candidate = (window as Window & { ethereum?: unknown }).ethereum;
-  if (candidate === null || typeof candidate !== "object" || !("request" in candidate)) {
-    throw new Error("wallet_unavailable");
-  }
-  // SAFETY: the request property is checked for function shape immediately below.
-  const request = (candidate as { request?: unknown }).request;
-  if (typeof request !== "function") throw new Error("wallet_unavailable");
-  // SAFETY: candidate has a callable request member validated immediately above.
-  return candidate as EthereumProvider;
+  if (!isEthereumProvider(candidate)) throw new Error("wallet_unavailable");
+  return candidate;
 }
 
 function stringValue(value: unknown, failure: string): string {
@@ -416,20 +430,25 @@ export async function createPrivySessionExchange(
       const siwe = client.auth.siwe;
       if (siwe === undefined) throw new Error("wallet_unavailable");
       const provider = browserEthereumProvider();
-      const accounts = await provider.request({ method: "eth_requestAccounts" });
-      if (!Array.isArray(accounts) || accounts.length === 0) throw new Error("wallet_unavailable");
-      const address = stringValue(accounts[0], "wallet_unavailable");
-      const wallet: ExternalWallet = {
-        address,
-        chainId: chainId(await provider.request({ method: "eth_chainId" })),
-        connectorType: "injected",
-      };
-      const initialized = await siwe.init(wallet, window.location.host, window.location.origin);
-      const signature = stringValue(
-        await provider.request({ method: "personal_sign", params: [initialized.message, address] }),
-        "wallet_auth_failed",
-      );
-      await siwe.loginWithSiwe(signature, wallet, initialized.message);
+      try {
+        const accounts = await provider.request({ method: "eth_requestAccounts" });
+        if (!Array.isArray(accounts) || accounts.length === 0) throw new Error("wallet_unavailable");
+        const address = stringValue(accounts[0], "wallet_unavailable");
+        const wallet: ExternalWallet = {
+          address,
+          chainId: chainId(await provider.request({ method: "eth_chainId" })),
+          connectorType: "injected",
+        };
+        const initialized = await siwe.init(wallet, window.location.host, window.location.origin);
+        const signature = stringValue(
+          await provider.request({ method: "personal_sign", params: [initialized.message, address] }),
+          "wallet_auth_failed",
+        );
+        await siwe.loginWithSiwe(signature, wallet, initialized.message);
+      } catch (error) {
+        if (error instanceof Error && error.message === "wallet_unavailable") throw error;
+        throw new Error("wallet_auth_failed");
+      }
       await establishSession();
     },
     async register() {

@@ -28,6 +28,7 @@ export function SignInPanel(props: SignInPanelProps): JSX.Element {
       onSendCode={session.sendCode}
       onSubmitCode={session.submitCode}
       state={session.state()}
+      walletAvailable={session.walletAvailable()}
     />
   );
 }

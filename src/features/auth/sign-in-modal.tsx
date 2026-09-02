@@ -49,6 +49,7 @@ export function SignInModal(props: SignInModalProps): JSX.Element {
             onSendCode={props.session.sendCode}
             onSubmitCode={props.session.submitCode}
             state={props.session.state()}
+            walletAvailable={props.session.walletAvailable()}
           />
         </div>
       </ModalContent>

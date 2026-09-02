@@ -24,10 +24,11 @@ import {
  * so every story is the production view over production transitions and the
  * catalog never reaches the network.
  */
-function createStubSession(initial: SignInState): SignInSession {
+function createStubSession(initial: SignInState, walletAvailable = false): SignInSession {
   const [state, setState] = createSignal(initial);
   return {
     state,
+    walletAvailable: () => walletAvailable,
     back() {
       setState((current) => signInMoved(current, "choose"));
     },
@@ -55,9 +56,9 @@ function createStubSession(initial: SignInState): SignInSession {
 const ready = signInReady(initialSignInState);
 const emailEntered = signInWithEmail(ready, "operator@example.test");
 
-function SignInStory(props: { forceMobile?: boolean; state?: SignInState }) {
+function SignInStory(props: { forceMobile?: boolean; state?: SignInState; walletAvailable?: boolean }) {
   const [open, setOpen] = createSignal(true);
-  const session = createStubSession(props.state ?? ready);
+  const session = createStubSession(props.state ?? ready, props.walletAvailable);
 
   return (
     <div class="min-h-[760px] bg-background p-6 text-foreground">
@@ -107,6 +108,18 @@ export const MobileSheet: Story = {
     await expect(within(dialog).getByRole("heading", { name: "Join Pirate" })).toBeInTheDocument();
     await expect(within(dialog).getByText("Share music. Find your people.")).toBeInTheDocument();
     await expect(within(dialog).getByText(/By continuing, you agree to the/)).toBeInTheDocument();
+  },
+};
+
+export const InjectedWallet: Story = {
+  name: "Injected wallet available",
+  render: () => <SignInStory walletAvailable />,
+  play: async () => {
+    const dialog = await within(document.body).findByRole("dialog");
+    await expect(within(dialog).getByRole("button", { name: "Connect wallet" })).toBeEnabled();
+    await expect(within(dialog).getByText(
+      "Your login wallet stays separate from your Pirate persona wallet.",
+    )).toBeInTheDocument();
   },
 };
 
