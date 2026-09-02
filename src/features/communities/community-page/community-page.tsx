@@ -12,11 +12,6 @@ import {
   type SessionResolution,
 } from "../../../api/session.ts";
 import {
-  IconBell,
-  IconHouse,
-  IconUsers,
-  IconShield,
-  IconWallet,
   buttonVariants,
 } from "../../../design-system.ts";
 import { resolveRequestUiLocale } from "../../../lib/ui-locale-core.ts";
@@ -32,8 +27,6 @@ import {
   communityCanonicalOrigin,
   communityRequestOrigin,
 } from "./community-page-origin.ts";
-import { AppSidebar } from "../../shell/app-sidebar/app-sidebar.tsx";
-import { MobileFooterNav } from "../../shell/app-shell-chrome/app-shell-chrome.tsx";
 import { CommunityPageShell } from "../../community/page-shell/page-shell.tsx";
 import type { CommunityData } from "../../community/page-shell/page-shell-model.ts";
 import type { PrivySessionExchange } from "../../../api/privy-session.ts";
@@ -194,13 +187,6 @@ function SuccessState(props: {
     if (props.navigate) props.navigate(href);
     else globalThis.location?.assign(href);
   };
-  const navigateApp = (id: string) => {
-    if (id === "community-settings") navigate(settingsHref());
-    else if (id === "home") navigate("/");
-    else if (id === "communities") navigate("/communities/new");
-    else if (id === "notifications") navigate("/activity");
-    else navigate("/settings");
-  };
 
   createEffect(
     () => state.communityId,
@@ -278,25 +264,7 @@ function SuccessState(props: {
       <Meta property="og:description" content={description()} />
       <Meta property="og:url" content={canonicalUrl()} />
       <Link rel="canonical" href={canonicalUrl()} />
-      <div class="flex min-h-dvh bg-background">
-        <AppSidebar
-          activeItemId="communities"
-          class="hidden md:flex"
-          onHomeClick={() => navigate("/")}
-          onNavigate={navigateApp}
-          primaryItems={[
-            { id: "home", label: "Home", icon: <IconHouse class="size-5" /> },
-            { id: "communities", label: "Communities", icon: <IconUsers class="size-5" /> },
-            { id: "notifications", label: "Notifications", icon: <IconBell class="size-5" /> },
-            { id: "wallet", label: "Wallet", icon: <IconWallet class="size-5" /> },
-          ]}
-          sections={canManage() ? [{
-            id: "manage",
-            label: "Manage",
-            items: [{ id: "community-settings", label: "Community settings", icon: <IconShield class="size-5" /> }],
-          }] : []}
-        />
-        <div class="min-w-0 flex-1 pb-20 md:pb-0">
+      <div class="min-h-[calc(100dvh-4rem)] bg-background">
           <CommunityPageShell
             canJoin
             community={community()}
@@ -313,18 +281,6 @@ function SuccessState(props: {
           <Show when={postingError()}>
             {message => <p class="mx-5 mt-4 text-sm text-destructive md:mx-8" role="alert">{message()}</p>}
           </Show>
-          <div class="md:hidden">
-            <MobileFooterNav
-              activeItem="learn"
-              forceMobile
-              labels={{ learn: "Community", learnAriaLabel: `Open ${community().name}` }}
-              onHomeClick={() => navigate("/")}
-              onLearnClick={() => navigate(state.canonicalPath)}
-              onProfileClick={() => navigate("/settings")}
-              onWalletClick={() => navigate("/settings")}
-            />
-          </div>
-        </div>
       </div>
       <div class="sr-only">
         <p data-community-route={state.requestedPathSegment}>{state.routeDisplay}</p>

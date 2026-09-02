@@ -36,7 +36,7 @@ function Success(props: { readonly state: PersonaPublicProfileSuccess }) {
     return reference === null ? undefined : canonicalMediaUrl(reference);
   };
   return (
-    <main data-persona-profile-state="success" data-persona-id={persona().persona_id}>
+    <main class="mx-auto w-full max-w-5xl px-4 py-8 md:px-8" data-persona-profile-state="success" data-persona-id={persona().persona_id}>
       <Title>{name()}</Title>
       <Meta name="description" content={description()} />
       <Meta property="og:title" content={name()} />
@@ -68,7 +68,7 @@ function PersonaState(props: { readonly state: PersonaPublicProfileState }) {
     <Show
       when={success()}
       fallback={(
-        <main data-persona-profile-state={props.state.kind}>
+        <main class="mx-auto w-full max-w-5xl px-4 py-8 md:px-8" data-persona-profile-state={props.state.kind}>
           <Title>Profile unavailable</Title>
           <h1>Profile unavailable</h1>
           <p role="alert">{failureCopy(props.state)}</p>
@@ -87,7 +87,7 @@ function PersonaData(props: PersonaPublicProfileProps) {
 
 export function PersonaPublicProfile(props: PersonaPublicProfileProps) {
   return (
-    <Loading fallback={<main aria-busy="true"><h1>Loading profile</h1></main>}>
+    <Loading fallback={<main aria-busy="true" class="mx-auto w-full max-w-5xl px-4 py-8 md:px-8"><h1>Loading profile</h1></main>}>
       <PersonaData {...props} />
     </Loading>
   );

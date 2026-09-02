@@ -64,7 +64,7 @@ describe("Community creation production route", () => {
     });
   });
 
-  test("keeps the application shell visible while account context resolves", () => {
+  test("leaves application chrome to the root while account context resolves", () => {
     const container = render(() => (
       <CommunityCreationRouteView
         api={api()}
@@ -72,7 +72,7 @@ describe("Community creation production route", () => {
       />
     ));
 
-    expect(container.querySelector("[data-media-shell]")).not.toBeNull();
+    expect(container.querySelector("[data-media-shell]")).toBeNull();
     expect(container.querySelector("[data-route-path='/communities/new']")).not.toBeNull();
     expect(container.querySelector("[aria-label='Loading community creation']")).not.toBeNull();
     expect(container.querySelector(".h-dvh")).toBeNull();
@@ -116,7 +116,6 @@ describe("Community creation production route", () => {
     ));
 
     await vi.waitFor(() => expect(container.querySelector("[data-create-community]")).not.toBeNull());
-    expect(container.querySelector("[data-shell-auth='authenticated']")).not.toBeNull();
     expect(container.textContent).toContain("Community profile");
     expect(container.querySelector("input[type='file']")).toBeNull();
     expect(container.textContent).toContain("Palm scan");

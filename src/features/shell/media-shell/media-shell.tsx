@@ -1,37 +1,39 @@
 /** @jsxImportSource @solidjs/web */
 import type { JSX } from "@solidjs/web";
-import { Show, createSignal } from "solid-js";
+import { Show } from "solid-js";
 
 import {
+  Button,
   IconBell,
   IconBroadcast,
   IconHouse,
+  IconButton,
   IconMagnifyingGlass,
   IconMicrophone,
   IconUsersThree,
   Type,
 } from "../../../design-system";
-import { SignInModal } from "../../auth/sign-in-modal.tsx";
-import { preloadSignInAssets, prepareSignIn } from "../../auth/sign-in-preparation.ts";
-import { createSignInSession } from "../../auth/sign-in-session.ts";
+import {
+  preloadGlobalSignInAssets,
+  prepareGlobalSignIn,
+  requestGlobalSignIn,
+} from "../../auth/global-sign-in-host.tsx";
+import type { ApplicationChromeMode, ApplicationChromeRoute } from "../application-chrome-model.ts";
 import { AppHeader, MobileFooterNav } from "../app-shell-chrome/app-shell-chrome";
 import { AppSidebar, SidebarContent, type SidebarItem, type SidebarSection } from "../app-sidebar/app-sidebar";
+import type { ShellNavItem } from "../shell-model.ts";
 
-export type MediaShellRoute =
-  | "home"
-  | "search"
-  | "live"
-  | "communities"
-  | "karaoke"
-  | "study"
-  | "activity"
-  | "settings";
+export type MediaShellRoute = ApplicationChromeRoute;
 
 export interface MediaShellProps {
   readonly children: JSX.Element;
   readonly activeItemId?: MediaShellRoute;
+  readonly mobileActiveItem?: ShellNavItem;
+  readonly mobileTitle?: string;
+  readonly mode?: ApplicationChromeMode;
+  readonly navigate?: (href: string) => void;
   readonly signedIn?: boolean;
-  /** Let route content own the viewport for immersive media surfaces. */
+  /** Compatibility seam for existing stories; `mode="immersive"` is canonical. */
   readonly immersive?: boolean;
   readonly class?: string;
 }
@@ -50,25 +52,30 @@ function routeFor(id: string): string | undefined {
   }
 }
 
-function navigate(id: string): void {
+function navigate(id: string, navigateTo?: (href: string) => void): void {
   const path = routeFor(id);
-  if (path !== undefined && typeof window !== "undefined") window.location.assign(path);
+  if (path === undefined) return;
+  if (navigateTo) navigateTo(path);
+  else if (typeof window !== "undefined") window.location.assign(path);
 }
 
 function SidebarFooter(props: { readonly signedIn: () => boolean; readonly onSignIn: () => void }) {
   return <div class="flex flex-col gap-3">
     <div class="text-base font-semibold leading-6 text-white">{props.signedIn() ? "Your Pirate" : "Join Pirate"}</div>
     <div class="text-base font-normal leading-5 text-white/60">{props.signedIn() ? "Session active" : "Save, follow, and post"}</div>
-    <Show when={props.signedIn()} fallback={<button type="button" onClick={props.onSignIn} onFocus={prepareSignIn} onPointerDown={prepareSignIn} onPointerEnter={preloadSignInAssets} class="block w-full rounded-lg bg-white px-3 py-2 text-center text-sm font-semibold text-black hover:bg-white/90">Sign in</button>}>
+    <Show when={props.signedIn()} fallback={<Button type="button" onClick={props.onSignIn} onFocus={prepareGlobalSignIn} onPointerDown={prepareGlobalSignIn} onPointerEnter={preloadGlobalSignInAssets} class="w-full bg-white text-black hover:bg-white/90">Sign in</Button>}>
       <a href="/settings" class="block rounded-lg border border-white/20 px-3 py-2 text-center text-sm font-semibold text-white hover:bg-white/10">Account settings</a>
     </Show>
   </div>;
 }
 
-/** Shared desktop-first media shell; route content remains owned by each feature. */
-export function MediaShell(props: MediaShellProps) {
+/** One application-chrome owner; route content retains only feature layout. */
+export function ApplicationChrome(props: MediaShellProps) {
   const signedIn = () => props.signedIn === true;
   const activeItem = () => props.activeItemId ?? "home";
+  const mode = () => props.mode ?? (props.immersive ? "immersive" : "standard");
+  const immersive = () => mode() === "immersive";
+  const navigateById = (id: string) => navigate(id, props.navigate);
   const primaryItems: readonly SidebarItem[] = [
     { id: "home", label: "Home", icon: <IconHouse class="size-5" /> },
     { id: "search", label: "Search", icon: <IconMagnifyingGlass class="size-5" /> },
@@ -91,57 +98,54 @@ export function MediaShell(props: MediaShellProps) {
       ],
     },
   ];
-  const goHome = () => navigate("home");
-  const [authOpen, setAuthOpen] = createSignal(false);
-  const openAuth = () => setAuthOpen(true);
-  const completeAuth = () => {
-    setAuthOpen(false);
-    navigate("home");
-  };
-  const signInSession = createSignInSession({ enabled: authOpen, onAuthenticated: completeAuth });
+  const goHome = () => navigateById("home");
+  const goProfile = () => navigateById("settings");
 
-  return <div data-media-shell data-shell-auth={signedIn() ? "authenticated" : "anonymous"} class={`min-h-screen bg-background text-foreground ${props.class ?? ""}`}>
+  return <Show when={mode() !== "bare"} fallback={props.children}><div data-application-chrome data-media-shell data-shell-mode={mode()} data-shell-auth={signedIn() ? "authenticated" : "anonymous"} class={`min-h-screen bg-background text-foreground ${props.class ?? ""}`}>
     <div class="flex min-h-screen">
       <AppSidebar
         activeItemId={activeItem()}
         appearance="media"
         brandLabel="PIRATE"
         class="sticky top-0 hidden h-screen md:flex"
-        footer={<SidebarFooter onSignIn={openAuth} signedIn={() => signedIn()} />}
+        footer={<SidebarFooter onSignIn={requestGlobalSignIn} signedIn={() => signedIn()} />}
         homeAriaLabel="Go to Pirate home"
         onHomeClick={goHome}
-        onNavigate={navigate}
+        onNavigate={navigateById}
         primaryItems={primaryItems}
         sections={sections}
       />
-      <SidebarContent class={props.immersive ? "h-[100dvh] overflow-hidden bg-black md:h-screen" : "min-h-screen bg-background pb-20 md:pb-0"}>
+      <SidebarContent class={immersive() ? "h-[100dvh] overflow-hidden bg-black md:h-screen" : "min-h-[100dvh] bg-background pb-20 md:min-h-screen md:pb-0"}>
         <div class="md:hidden">
           <AppHeader
             forceMobile
             hideBrand
-            mobileAppearance="media-overlay"
-            mobileCenterContent={<Type as="span" variant="h4" class="text-white">PIRATE</Type>}
+            mobileAppearance={immersive() ? "media-overlay" : "default"}
+            mobileCenterContent={<Type as="span" variant="h4" class={immersive() ? "text-white" : undefined}>{props.mobileTitle ?? "PIRATE"}</Type>}
             mobileLeadingContent={
-              <button
-                aria-label="Create community"
-                class="inline-flex size-10 items-center justify-center rounded-full text-white hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
-                onClick={() => navigate("communities")}
-                type="button"
+              <IconButton
+                aria-label={immersive() ? "Create community" : "Go home"}
+                class={immersive() ? "text-white hover:bg-white/10 focus-visible:ring-white" : undefined}
+                onClick={immersive() ? () => navigateById("communities") : goHome}
+                variant="ghost"
               >
-                <IconUsersThree class="size-6" />
-              </button>
+                <Show when={immersive()} fallback={<IconHouse class="size-6" />}><IconUsersThree class="size-6" /></Show>
+              </IconButton>
             }
-            mobileTrailingContent={signedIn() ? undefined : <button type="button" onClick={openAuth} onFocus={prepareSignIn} onPointerDown={prepareSignIn} onPointerEnter={preloadSignInAssets} class="px-2 text-sm font-semibold text-white">Sign in</button>}
+            mobileTrailingContent={signedIn() ? undefined : <Button type="button" onClick={requestGlobalSignIn} onFocus={prepareGlobalSignIn} onPointerDown={prepareGlobalSignIn} onPointerEnter={preloadGlobalSignInAssets} class={immersive() ? "text-white" : undefined} size="sm" variant="ghost">Sign in</Button>}
             onHomeClick={goHome}
+            onProfileClick={goProfile}
             showNotificationsAction={false}
-            showProfileAction={false}
+            showProfileAction={signedIn()}
             showWalletAction={false}
           />
         </div>
-        <div class={props.immersive ? "h-[100dvh] w-full md:h-screen" : "mx-auto min-h-screen w-full max-w-5xl px-4 py-5 md:px-8 md:py-8"}>{props.children}</div>
-        <MobileFooterNav class="md:hidden" forceMobile activeItem="home" onHomeClick={goHome} />
+        <div class={immersive() ? "h-[100dvh] w-full md:h-screen" : "min-h-[100dvh] w-full pt-[calc(env(safe-area-inset-top)+4rem)] md:min-h-screen md:pt-0"}>{props.children}</div>
+        <MobileFooterNav class="md:hidden" forceMobile activeItem={props.mobileActiveItem ?? "home"} onHomeClick={goHome} onLearnClick={() => navigateById("study")} onProfileClick={goProfile} onWalletClick={() => navigateById("settings")} />
       </SidebarContent>
     </div>
-    <SignInModal open={authOpen()} onOpenChange={setAuthOpen} session={signInSession} />
-  </div>;
+  </div></Show>;
 }
+
+/** Story and compatibility export; production mounts `ApplicationChrome` once. */
+export const MediaShell = ApplicationChrome;

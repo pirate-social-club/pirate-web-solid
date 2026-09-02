@@ -8,7 +8,7 @@ import { createSignInSession } from "./sign-in-session.ts";
 
 export const GLOBAL_SIGN_IN_EVENT = "pirate:connect";
 
-/** Opens the app-owned sign-in ceremony from a route that is not inside MediaShell. */
+/** Opens the single app-owned sign-in ceremony from route or chrome controls. */
 export function requestGlobalSignIn(): void {
   if (typeof window !== "undefined") {
     window.dispatchEvent(new CustomEvent(GLOBAL_SIGN_IN_EVENT));

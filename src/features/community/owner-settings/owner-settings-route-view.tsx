@@ -90,13 +90,9 @@ function ResolvedOwnerSettingsRouteView(props: ResolvedOwnerSettingsRouteViewPro
             <CommunityOwnerSettingsShell
               access={state().access}
               activeSection={section()}
-              avatarUrl={state().avatarUrl}
               communityName={state().communityName}
               onCommunityClick={() => props.navigate(state().communityPath)}
-              onHomeClick={() => props.navigate("/")}
-              onProfileClick={() => props.navigate("/settings")}
               onSectionChange={(next) => props.navigate(`${state().communityPath}/settings/${next}`)}
-              onWalletClick={() => props.navigate("/settings")}
             >
               <Show when={section() === "names"}>
                 <CommunityNamesSettingsController

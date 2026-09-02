@@ -1,9 +1,9 @@
 import type { JSX } from "@solidjs/web";
 import { render as solidRender } from "@solidjs/web";
 import { createRoot } from "solid-js";
-import { afterEach, describe, expect, test } from "vitest";
+import { afterEach, describe, expect, test, vi } from "vitest";
 
-import { MediaShell } from "./media-shell";
+import { ApplicationChrome } from "./media-shell";
 
 const disposers: Array<() => void> = [];
 
@@ -29,14 +29,33 @@ afterEach(() => {
 
 describe("Media shell production navigation", () => {
   test("offers community creation without advertising global post or placeholder Study actions", () => {
-    const container = render(() => <MediaShell><main>Current route</main></MediaShell>);
+    const container = render(() => <ApplicationChrome><main>Current route</main></ApplicationChrome>);
     const navigationLabels = Array.from(container.querySelectorAll("nav button"))
       .map((button) => button.textContent?.trim());
 
     expect(navigationLabels).toContain("Create community");
     expect(navigationLabels).not.toContain("Study");
     expect(navigationLabels).toContain("Karaoke");
-    expect(container.querySelector("header button[aria-label='Create community']")).not.toBeNull();
+    expect(container.querySelector("header button[aria-label='Go home']")).not.toBeNull();
     expect(container.textContent).not.toContain("Create post");
+  });
+
+  test("keeps immersive controls and mobile selection inside the same chrome owner", () => {
+    const navigate = vi.fn();
+    const container = render(() => (
+      <ApplicationChrome mobileActiveItem="learn" mode="immersive" navigate={navigate}>
+        <main>Video route</main>
+      </ApplicationChrome>
+    ));
+
+    container.querySelector<HTMLButtonElement>("header button[aria-label='Create community']")?.click();
+    expect(navigate).toHaveBeenCalledWith("/communities/new");
+    expect(container.querySelector("nav[aria-label='Primary navigation'] button[aria-current='page']")?.textContent).toContain("Learn");
+  });
+
+  test("renders ceremony routes without application chrome", () => {
+    const container = render(() => <ApplicationChrome mode="bare"><main data-ceremony>Verify</main></ApplicationChrome>);
+    expect(container.querySelector("[data-application-chrome]")).toBeNull();
+    expect(container.querySelector("[data-ceremony]")).not.toBeNull();
   });
 });

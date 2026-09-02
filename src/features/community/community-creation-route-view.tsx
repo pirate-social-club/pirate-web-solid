@@ -14,7 +14,6 @@ import { CommunityCreationProgressView } from "./community-creation-progress/com
 import type { CommunityCreationIntentView } from "./community-creation-progress/community-creation-progress-model";
 import { CreateCommunityView } from "./create-community/create-community";
 import { createEmptyDraft, type CreateCommunityDraft } from "./create-community/create-community-model";
-import { MediaShell } from "../shell/media-shell/media-shell";
 
 type RouteSession = "resolving" | "failed" | SessionResolution;
 
@@ -169,8 +168,7 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
   const personas = () => currentSession()?.personas ?? [];
 
   return (
-    <MediaShell activeItemId="communities" signedIn={currentSession() !== undefined}>
-      <main data-route-path="/communities/new" class="min-h-[24rem] bg-background text-foreground">
+    <main data-route-path="/communities/new" class="min-h-[calc(100dvh-4rem)] bg-background text-foreground">
       <Title>Create community · Pirate</Title>
       <Show when={session() !== "resolving"} fallback={(
         <div aria-label="Loading community creation" class="grid min-h-[24rem] place-items-center" role="status">
@@ -256,7 +254,6 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
           </Show>
         </Show>
       </Show>
-      </main>
-    </MediaShell>
+    </main>
   );
 }

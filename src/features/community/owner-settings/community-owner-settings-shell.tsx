@@ -2,29 +2,14 @@ import type { JSX } from "@solidjs/web";
 import { For, Show } from "solid-js";
 
 import {
-  AppHeader,
   Button,
   Card,
   FlatTabBar,
   FlatTabButton,
-  IconCrown,
-  IconFlag,
-  IconGlobe,
-  IconLink,
-  IconListNumbers,
-  IconShield,
-  IconTrash,
-  IconUsers,
-  MobileFooterNav,
   Spinner,
   Type,
   cn,
 } from "@pirate/web-solid-ui";
-import {
-  AppSidebar,
-  SidebarContent,
-  type SidebarSection,
-} from "../../shell/app-sidebar/app-sidebar";
 import {
   firstVisibleOwnerSettingsSection,
   visibleOwnerSettingsGroups,
@@ -35,7 +20,6 @@ import {
 export interface CommunityOwnerSettingsShellProps {
   access: OwnerSettingsAccess;
   activeSection: OwnerSettingsSection;
-  avatarUrl?: string | null;
   children: JSX.Element;
   class?: string;
   communityName: string;
@@ -43,10 +27,7 @@ export interface CommunityOwnerSettingsShellProps {
   errorMessage?: string;
   onRetry?: () => void;
   onCommunityClick?: () => void;
-  onHomeClick?: () => void;
-  onProfileClick?: () => void;
   onSectionChange: (section: OwnerSettingsSection) => void;
-  onWalletClick?: () => void;
   status?: "ready" | "loading" | "empty" | "error";
 }
 
@@ -65,81 +46,38 @@ export function CommunityOwnerSettingsShell(props: CommunityOwnerSettingsShellPr
     content_policy: "Content policy",
     archive: "Archive community",
   } satisfies Record<OwnerSettingsSection, string>)[props.activeSection];
-  const iconBySection = {
-    profile: <IconUsers class="size-5" />,
-    namespace: <IconGlobe class="size-5" />,
-    names: <IconCrown class="size-5" />,
-    rules: <IconListNumbers class="size-5" />,
-    links: <IconLink class="size-5" />,
-    moderation_queue: <IconFlag class="size-5" />,
-    content_policy: <IconShield class="size-5" />,
-    archive: <IconTrash class="size-5" />,
-  } satisfies Record<OwnerSettingsSection, JSX.Element>;
-  const sidebarSections = (): readonly SidebarSection[] => groups().map((group) => ({
-    id: group.label.toLowerCase().replaceAll(" ", "-"),
-    label: group.label,
-    items: group.items.map((item) => ({
-      badge: dirty().has(item.section) ? "Unsaved" : undefined,
-      icon: iconBySection[item.section],
-      id: item.section,
-      label: item.label,
-    })),
-  }));
-  const selectSection = (id: string) => {
-    const selected = groups().flatMap((group) => group.items).find((item) => item.section === id);
-    if (selected) props.onSectionChange(selected.section);
-  };
 
   return (
-    <main class={cn("min-h-screen bg-background", props.class)} data-owner-settings-shell>
-      <div class="flex min-h-screen">
-        <Show when={groups().length > 0}>
-          <AppSidebar
-            activeItemId={props.activeSection}
-            brandLabel={props.communityName}
-            class="sticky top-0 hidden h-dvh md:flex"
-            homeAriaLabel="Open community profile settings"
-            onHomeClick={props.onCommunityClick}
-            onNavigate={selectSection}
-            sections={sidebarSections()}
-          />
-        </Show>
-
-        <SidebarContent class="min-h-screen bg-muted/20 pb-20 md:pb-0">
-          <div class="md:hidden">
-            <AppHeader
-              avatarFallback={props.communityName}
-              forceMobile
-              hideBrand
-              mobileCenterContent={<Type as="span" variant="h4">{activeTitle()}</Type>}
-              onBackClick={props.onCommunityClick}
-              showCreateAction={false}
-              showNotificationsAction={false}
-              showProfileAction={false}
-            />
+    <main class={cn("min-h-[calc(100dvh-4rem)] bg-muted/20", props.class)} data-owner-settings-shell>
+      <header class="border-b border-border-soft bg-background">
+        <div class="mx-auto flex w-full max-w-6xl items-center justify-between gap-4 px-4 py-5 md:px-8">
+          <div class="min-w-0">
+            <Type as="p" class="truncate text-muted-foreground" variant="caption">{props.communityName}</Type>
+            <Type as="h1" class="truncate" variant="h2">{activeTitle()}</Type>
           </div>
-
-          <header class="hidden border-b border-border-soft bg-background md:block">
-            <div class="mx-auto w-full max-w-6xl px-8 py-5">
-              <Type as="h1" class="truncate" variant="h2">{activeTitle()}</Type>
-            </div>
-          </header>
-
-          <Show when={groups().length > 0}>
-            <nav aria-label="Owner settings sections" class="sticky top-16 z-20 border-b border-border-soft bg-background/95 px-4 backdrop-blur-md md:hidden">
-              <FlatTabBar>
-                <For each={groups().flatMap((group) => group.items)}>
-                  {(item) => (
-                    <FlatTabButton active={item.section === props.activeSection} onClick={() => props.onSectionChange(item.section)}>
-                      {item.label}{dirty().has(item.section) ? " •" : ""}
-                    </FlatTabButton>
-                  )}
-                </For>
-              </FlatTabBar>
-            </nav>
+          <Show when={props.onCommunityClick}>
+            <Button onClick={props.onCommunityClick} variant="outline">View community</Button>
           </Show>
+        </div>
+      </header>
 
-          <section aria-label={activeLabel()} class="mx-auto min-w-0 max-w-6xl px-4 py-6 pt-24 md:px-8 md:py-8">
+      <Show when={groups().length > 0}>
+        <nav aria-label="Owner settings sections" class="sticky top-16 z-20 border-b border-border-soft bg-background/95 px-4 backdrop-blur-md md:top-0 md:px-8">
+          <div class="mx-auto w-full max-w-6xl">
+            <FlatTabBar>
+              <For each={groups().flatMap((group) => group.items)}>
+                {(item) => (
+                  <FlatTabButton active={item.section === props.activeSection} onClick={() => props.onSectionChange(item.section)}>
+                    {item.label}{dirty().has(item.section) ? " •" : ""}
+                  </FlatTabButton>
+                )}
+              </For>
+            </FlatTabBar>
+          </div>
+        </nav>
+      </Show>
+
+      <section aria-label={activeLabel()} class="mx-auto min-w-0 max-w-6xl px-4 py-6 md:px-8 md:py-8">
             <Show when={groups().length > 0 && status() === "ready"}>
               <Type as="h2" class="sr-only" variant="h2">{activeTitle()} settings</Type>
             </Show>
@@ -174,23 +112,7 @@ export function CommunityOwnerSettingsShell(props: CommunityOwnerSettingsShellPr
                 </Card>
               </Show>
             </Show>
-          </section>
-
-          <div class="md:hidden">
-            <MobileFooterNav
-              activeItem="learn"
-              avatarFallback={props.communityName}
-              forceMobile
-              labels={{ learn: "Community", learnAriaLabel: `Open ${props.communityName}` }}
-              onHomeClick={props.onHomeClick}
-              onLearnClick={props.onCommunityClick}
-              onProfileClick={props.onProfileClick}
-              onWalletClick={props.onWalletClick}
-              userAvatarSrc={props.avatarUrl ?? undefined}
-            />
-          </div>
-        </SidebarContent>
-      </div>
+      </section>
     </main>
   );
 }

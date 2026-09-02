@@ -26,7 +26,7 @@ import { fetchPublicFeedPage } from "../features/posts/feed/public-feed-adapter.
 import { publicFeedReviewPage } from "../features/posts/feed/public-feed-fixtures.ts";
 import { HomeVideoFeed } from "../features/posts/video-feed/home-video-feed.tsx";
 import type { HomeVideoFeedProps } from "../features/posts/video-feed/home-video-feed.tsx";
-import { MediaShell } from "../features/shell/media-shell/media-shell.tsx";
+import { useApplicationSession } from "../features/shell/application-session.tsx";
 
 export interface HomeRouteProps {
   /** Test seam; production resolves the host-only api-next session cookie. */
@@ -104,6 +104,7 @@ function HydrationFixtures() {
  */
 export default function HomeRoute(props: HomeRouteProps = {}) {
   const [session, setSession] = createSignal<HomeRouteSession>("resolving");
+  const applicationSession = useApplicationSession();
   const hydrationFixtures = isHydrationFixtureRequest();
   const reviewFixture = isLocalFeedReviewRequest();
   const publicData = props.publicData ?? (reviewFixture ? publicFeedReviewPage : undefined);
@@ -116,8 +117,18 @@ export default function HomeRoute(props: HomeRouteProps = {}) {
     : session() === "anonymous" ? "anonymous" : "authenticated";
 
   createEffect(
+    () => applicationSession?.(),
+    (resolved) => {
+      if (props.resolveSession === undefined && resolved !== undefined && resolved !== "resolving") {
+        setSession(resolved);
+      }
+    },
+  );
+
+  createEffect(
     () => true,
     () => {
+      if (applicationSession() !== undefined && props.resolveSession === undefined) return;
       let active = true;
       void (props.resolveSession ?? resolveAccountSession)()
         .then(result => {
@@ -131,12 +142,7 @@ export default function HomeRoute(props: HomeRouteProps = {}) {
   );
 
   return (
-    <MediaShell
-      activeItemId="home"
-      immersive
-      signedIn={authenticatedSession() !== undefined}
-    >
-      <div data-route-path="/" data-home-session={sessionStatus()}>
+    <div data-route-path="/" data-home-session={sessionStatus()}>
         <Show
           when={authenticatedSession()}
           fallback={<HomeVideoFeed
@@ -154,7 +160,6 @@ export default function HomeRoute(props: HomeRouteProps = {}) {
         <Show when={hydrationFixtures}>
           <HydrationFixtures />
         </Show>
-      </div>
-    </MediaShell>
+    </div>
   );
 }

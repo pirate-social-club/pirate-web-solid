@@ -7,7 +7,6 @@ const meta = {
   title: "Parts/Shell/RoutePlaceholder",
   component: RoutePlaceholder,
   args: {
-    activeItemId: "home",
     description: "Browse and join the communities you follow.",
     path: "/communities",
     title: "Communities",

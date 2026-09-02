@@ -187,7 +187,7 @@ describe("public-first home route", () => {
     expect(document.body.querySelector("[role='dialog']")).toBeNull();
   });
 
-  test("keeps post creation contextual after authentication", async () => {
+  test("keeps route-local creation controls out of the authenticated video surface", async () => {
     const open = vi.fn((_name: string) => { throw new Error("Fixture storage is unavailable"); });
     vi.stubGlobal("indexedDB", { open });
     let resolveSession!: (value: AccountSessionResolution) => void;
@@ -208,7 +208,7 @@ describe("public-first home route", () => {
     await vi.waitFor(() => expect(container.querySelector("[data-home-session='authenticated']")).not.toBeNull());
     expect(open.mock.calls.some(([name]) => String(name).startsWith("pirate-post-composer-v2:"))).toBe(false);
     expect(container.textContent).not.toContain("Create post");
-    expect(container.textContent).toContain("Create community");
+    expect(container.textContent).not.toContain("Create community");
     expect(document.body.querySelector("[role='dialog']")).toBeNull();
   });
 });

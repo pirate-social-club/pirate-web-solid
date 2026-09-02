@@ -2,7 +2,7 @@
 import { Show } from "solid-js";
 import type { JSX } from "@solidjs/web";
 
-import { Type, cn } from "../../../design-system";
+import { Button, Type, cn } from "../../../design-system";
 import { AppHeader, MobileFooterNav, type AppHeaderLabels } from "../app-shell-chrome/app-shell-chrome";
 import { resolveShellTitle } from "../shell-model";
 
@@ -40,5 +40,5 @@ export function RouteFallback() {
 }
 
 export function RootErrorState(props: { onHome?: () => void }) {
-  return <section aria-live="polite" class="mx-auto flex min-h-64 max-w-xl flex-col items-center justify-center gap-4 px-6 text-center"><Type as="h1" variant="h2">We hit a temporary problem</Type><Type variant="body">This page did not finish loading. Try returning home and opening it again.</Type><button class="rounded-lg border border-border-soft px-4 py-2 underline-offset-4 hover:underline" onClick={props.onHome} type="button">Return home</button></section>;
+  return <section aria-live="polite" class="mx-auto flex min-h-64 max-w-xl flex-col items-center justify-center gap-4 px-6 text-center"><Type as="h1" variant="h2">We hit a temporary problem</Type><Type variant="body">This page did not finish loading. Try returning home and opening it again.</Type><Button onClick={props.onHome} type="button" variant="outline">Return home</Button></section>;
 }

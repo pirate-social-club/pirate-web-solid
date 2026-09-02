@@ -55,7 +55,7 @@ function absolutePath(path: string): string {
 function LoadingState() {
   const copy = profileCopy();
   return (
-    <main aria-busy="true" aria-live="polite" data-profile-state="loading">
+    <main aria-busy="true" aria-live="polite" class="mx-auto w-full max-w-5xl px-4 py-8 md:px-8" data-profile-state="loading">
       <h1>{copy.loading}</h1>
       <p role="status">{copy.loading}</p>
     </main>
@@ -72,7 +72,7 @@ function MessageState(props: { readonly state: PublicProfileViewState }) {
     ? copy.invalid
     : state.kind === "not-found" ? copy.notFound : copy.error;
   return (
-    <main data-profile-state={state.kind}>
+    <main class="mx-auto w-full max-w-5xl px-4 py-8 md:px-8" data-profile-state={state.kind}>
       <Title>{heading()}</Title>
       <h1>{heading()}</h1>
       <p role="alert">{message()}</p>
@@ -91,7 +91,7 @@ function SuccessState(props: { readonly state: PublicProfileSuccess; readonly na
   const title = () => interpolateMessage(copy.title, { handle: state.profile.handle });
 
   return (
-    <main data-profile-state={state.isCanonical ? "success" : "alias"}>
+    <main class="mx-auto w-full max-w-5xl px-4 py-8 md:px-8" data-profile-state={state.isCanonical ? "success" : "alias"}>
       <Title>{title()}</Title>
       <Meta name="description" content={description()} />
       <Meta property="og:title" content={title()} />
