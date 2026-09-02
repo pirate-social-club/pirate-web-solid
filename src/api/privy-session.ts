@@ -293,8 +293,9 @@ function walletAddress(value: unknown): string {
  * Privy parses the SIWE message address strictly and rejects an otherwise
  * valid signature over a noncanonical one, so the provider's account is
  * validated and EIP-55 canonicalized before it can reach any nonce or
- * signature request. Malformed and mischecksummed results fail closed as an
- * authentication failure.
+ * signature request. Structurally malformed results fail closed as an
+ * authentication failure; noncanonical casing, including a wrong mixed-case
+ * checksum, is normalized to the canonical form.
  */
 function checksummedWalletAddress(value: unknown): string {
   try {
