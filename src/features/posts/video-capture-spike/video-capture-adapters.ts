@@ -11,8 +11,10 @@ import {
 
 import { inspectFinalizedVideo, type VideoCaptureInspection } from "./video-capture-inspector";
 import {
+  deriveLocalCopyPathHint,
   selectConstrainedBaselineProfile,
   type ConstrainedBaselineCaptureProfile,
+  type LocalCopyPathHint,
 } from "./video-capture-model";
 
 export type CaptureResult = {
@@ -21,17 +23,19 @@ export type CaptureResult = {
   finalizationMs: number;
   videoEncoderConfig: VideoEncoderConfig | null;
   requestedVideoProfile: ConstrainedBaselineCaptureProfile | null;
+  profileEvidence: null | {
+    authority: "advisory_evidence_only";
+    exactRequestedProfile: boolean;
+    requestedCodecString: string;
+    observedCodecString: string | null;
+    observedLevel: string | null;
+    observedConstrainedBaseline: boolean | null;
+  };
   videoTrackSettings: MediaTrackSettings;
   audioTrackSettings: MediaTrackSettings | null;
   audioEncoder: "none" | "native-aac" | "polyfilled-aac" | "mediarecorder-opus";
   inspection: VideoCaptureInspection;
-  localCopyPathHint: {
-    authority: "advisory_client_only";
-    verdict: "copy_target" | "transcode_required";
-    exactConstrainedBaselineProfile: boolean;
-    noFrameReordering: boolean;
-    reasons: readonly string[];
-  };
+  localCopyPathHint: LocalCopyPathHint;
 };
 
 export type CaptureSession = {
@@ -147,6 +151,8 @@ export async function startMediabunnyCapture(
     format: new Mp4OutputFormat({ fastStart: "fragmented", minimumFragmentDuration: 1 }),
   });
   let videoEncoderConfig: VideoEncoderConfig | null = null;
+  // Harness-only: production must surface a typed encoder failure immediately
+  // instead of deferring this out-of-band error until the author presses Stop.
   let sourceError: Error | undefined;
   const videoSource = new MediaStreamVideoTrackSource(videoTrack, {
     codec: "avc",
@@ -190,30 +196,30 @@ export async function startMediabunnyCapture(
         const recorderMimeType = await output.getMimeType();
         const blob = new Blob([target.buffer], { type: recorderMimeType });
         const inspection = await inspectFinalizedVideo(blob);
-        const exactConstrainedBaselineProfile = inspection.video.codecParameter?.toLowerCase()
+        const exactRequestedProfile = inspection.video.codecParameter?.toLowerCase()
           === requestedVideoProfile.fullCodecString;
-        const noFrameReordering = inspection.reordering.verdict === "no_reordering";
-        const reasons = [
-          ...(!exactConstrainedBaselineProfile ? ["Finalized AVC profile differs from the exact request."] : []),
-          ...(!noFrameReordering ? ["Finalized packets do not prove no-frame-reordering."] : []),
-        ];
         return {
           blob,
           recorderMimeType,
           finalizationMs: Math.round(performance.now() - finalizeStartedAt),
           videoEncoderConfig,
           requestedVideoProfile,
+          profileEvidence: {
+            authority: "advisory_evidence_only",
+            exactRequestedProfile,
+            requestedCodecString: requestedVideoProfile.fullCodecString,
+            observedCodecString: inspection.video.codecParameter,
+            observedLevel: inspection.video.avcProfile?.level ?? null,
+            observedConstrainedBaseline: inspection.video.avcProfile?.constrainedBaseline ?? null,
+          },
           videoTrackSettings,
           audioTrackSettings,
           audioEncoder,
           inspection,
-          localCopyPathHint: {
-            authority: "advisory_client_only",
-            verdict: reasons.length === 0 ? "copy_target" : "transcode_required",
-            exactConstrainedBaselineProfile,
-            noFrameReordering,
-            reasons,
-          },
+          localCopyPathHint: deriveLocalCopyPathHint(
+            inspection.video.codec,
+            inspection.reordering,
+          ),
         };
       } finally {
         release();
@@ -284,17 +290,15 @@ export function startMediaRecorderFallback(stream: MediaStream): CaptureSession 
                 finalizationMs: Math.round(performance.now() - finalizeStartedAt),
                 videoEncoderConfig: null,
                 requestedVideoProfile: null,
+                profileEvidence: null,
                 videoTrackSettings,
                 audioTrackSettings,
                 audioEncoder: audioTrackSettings ? "mediarecorder-opus" : "none",
                 inspection,
-                localCopyPathHint: {
-                  authority: "advisory_client_only",
-                  verdict: "transcode_required",
-                  exactConstrainedBaselineProfile: false,
-                  noFrameReordering: inspection.reordering.verdict === "no_reordering",
-                  reasons: ["The MediaRecorder WebM fallback always requires server transcode."],
-                },
+                localCopyPathHint: deriveLocalCopyPathHint(
+                  inspection.video.codec,
+                  inspection.reordering,
+                ),
               });
             } catch (error) {
               reject(error);

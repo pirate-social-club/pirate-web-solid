@@ -45,6 +45,25 @@ export type PacketReorderingEvidence = {
   note: string;
 };
 
+export type AvcCodecProfileEvidence = {
+  codecString: string;
+  sampleEntry: "avc1" | "avc3";
+  profileIdc: number;
+  constraintFlagsHex: string;
+  levelIdc: number;
+  level: string;
+  constrainedBaseline: boolean;
+};
+
+export type LocalCopyPathHint = {
+  authority: "advisory_client_only";
+  verdict: "copy_target" | "transcode_required";
+  h264: boolean;
+  packetOrderProvesNoReordering: boolean;
+  probeReorderCapacity: number | null;
+  reasons: readonly string[];
+};
+
 const AVC_LEVEL_LIMITS = [
   { level: "3.0", levelHex: "1e", maxMacroblocksPerFrame: 1_620, maxMacroblocksPerSecond: 40_500 },
   { level: "3.1", levelHex: "1f", maxMacroblocksPerFrame: 3_600, maxMacroblocksPerSecond: 108_000 },
@@ -77,6 +96,57 @@ export function selectConstrainedBaselineProfile(
     level: selected.level,
     macroblocksPerFrame,
     macroblocksPerSecond,
+  };
+}
+
+/** Parses the RFC 6381 AVC profile/constraint/level bytes without treating them as copy authority. */
+export function parseAvcCodecProfile(codecString: string | null): AvcCodecProfileEvidence | null {
+  if (!codecString) return null;
+  const match = /^(avc1|avc3)\.([0-9a-f]{6})$/i.exec(codecString.trim());
+  if (!match) return null;
+  const packed = match[2]!;
+  const profileIdc = Number.parseInt(packed.slice(0, 2), 16);
+  const constraintFlags = Number.parseInt(packed.slice(2, 4), 16);
+  const levelIdc = Number.parseInt(packed.slice(4, 6), 16);
+  return {
+    codecString: codecString.trim().toLowerCase(),
+    sampleEntry: match[1]!.toLowerCase() === "avc1" ? "avc1" : "avc3",
+    profileIdc,
+    constraintFlagsHex: packed.slice(2, 4).toLowerCase(),
+    levelIdc,
+    level: (levelIdc / 10).toFixed(1),
+    constrainedBaseline: profileIdc === 0x42 && (constraintFlags & 0x40) !== 0,
+  };
+}
+
+/**
+ * Produces only a client hint. Exact profile/level mismatch is evidence, not a
+ * copy fence; the trusted server probe makes the publication decision.
+ */
+export function deriveLocalCopyPathHint(
+  videoCodec: string | null,
+  packetReordering: PacketReorderingEvidence,
+  probeReorderCapacity: number | null = null,
+): LocalCopyPathHint {
+  if (probeReorderCapacity !== null && (!Number.isInteger(probeReorderCapacity) || probeReorderCapacity < 0)) {
+    throw new Error("Probe reorder capacity must be a non-negative integer or null.");
+  }
+  const h264 = videoCodec === "avc";
+  const packetOrderProvesNoReordering = packetReordering.verdict === "no_reordering";
+  const reasons = [
+    ...(!h264 ? ["The finalized video codec is not H.264."] : []),
+    ...(!packetOrderProvesNoReordering ? ["Finalized packet order does not prove no frame reordering."] : []),
+    ...(probeReorderCapacity !== null && probeReorderCapacity > 0
+      ? ["Trusted probe reports nonzero reorder capacity."]
+      : []),
+  ];
+  return {
+    authority: "advisory_client_only",
+    verdict: reasons.length === 0 ? "copy_target" : "transcode_required",
+    h264,
+    packetOrderProvesNoReordering,
+    probeReorderCapacity,
+    reasons,
   };
 }
 
@@ -219,6 +289,7 @@ export function keyframeTimestampsUs(packets: readonly VideoPacketFact[]): reado
 }
 
 export function snapStartToKeyframeUs(packets: readonly VideoPacketFact[], requestedStartUs: number): number {
+  if (!Number.isInteger(requestedStartUs) || requestedStartUs < 0) throw new Error("Invalid requested start.");
   const candidates = keyframeTimestampsUs(packets).filter((timestamp) => timestamp <= requestedStartUs);
   const snapped = candidates.at(-1);
   if (snapped === undefined) throw new Error("No emitted keyframe exists at or before the requested start.");

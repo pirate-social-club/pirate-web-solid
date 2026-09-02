@@ -5,11 +5,16 @@ import {
   Input,
 } from "mediabunny";
 
-import type { PacketReorderingEvidence, VideoPacketFact } from "./video-capture-model";
+import type {
+  AvcCodecProfileEvidence,
+  PacketReorderingEvidence,
+  VideoPacketFact,
+} from "./video-capture-model";
 import {
   analyzePacketReordering,
   maximumKeyframeGapUs,
   normalizeVideoMimeType,
+  parseAvcCodecProfile,
 } from "./video-capture-model";
 
 export type VideoCaptureInspection = {
@@ -20,6 +25,7 @@ export type VideoCaptureInspection = {
   video: {
     codec: string | null;
     codecParameter: string | null;
+    avcProfile: AvcCodecProfileEvidence | null;
     codedWidth: number;
     codedHeight: number;
     displayWidth: number;
@@ -59,6 +65,7 @@ export async function inspectFinalizedVideo(blob: Blob): Promise<VideoCaptureIns
       });
     }
 
+    const videoCodecParameter = await videoTrack.getCodecParameterString();
     return {
       byteLength: blob.size,
       observedBlobType: blob.type,
@@ -66,7 +73,8 @@ export async function inspectFinalizedVideo(blob: Blob): Promise<VideoCaptureIns
       durationUs: Math.round((await input.computeDuration()) * 1_000_000),
       video: {
         codec: await videoTrack.getCodec(),
-        codecParameter: await videoTrack.getCodecParameterString(),
+        codecParameter: videoCodecParameter,
+        avcProfile: parseAvcCodecProfile(videoCodecParameter),
         codedWidth: await videoTrack.getCodedWidth(),
         codedHeight: await videoTrack.getCodedHeight(),
         displayWidth: await videoTrack.getDisplayWidth(),

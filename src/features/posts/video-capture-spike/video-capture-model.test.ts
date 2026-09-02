@@ -2,9 +2,11 @@ import { describe, expect, test } from "vitest";
 
 import {
   analyzePacketReordering,
+  deriveLocalCopyPathHint,
   deriveCopyPreview,
   maximumKeyframeGapUs,
   normalizeVideoMimeType,
+  parseAvcCodecProfile,
   selectConstrainedBaselineProfile,
   snapStartToKeyframeUs,
   type VideoPacketFact,
@@ -48,6 +50,8 @@ describe("copy-target preview", () => {
 
   test("snaps start to an emitted keyframe and preserves decode ordering", () => {
     expect(snapStartToKeyframeUs(packets, 1_010_000)).toBe(1_000_000);
+    expect(snapStartToKeyframeUs(packets, 1_999_999)).toBe(1_000_000);
+    expect(snapStartToKeyframeUs(packets, 1_000_000)).toBe(1_000_000);
     expect(deriveCopyPreview(packets, 0, 120_000)).toEqual({
       sourceStartUs: 0,
       requestedEndUs: 120_000,
@@ -122,5 +126,69 @@ describe("Constrained Baseline capture matrix", () => {
 
   test("rejects a track beyond the frozen spike matrix", () => {
     expect(() => selectConstrainedBaselineProfile(2160, 3840, 30)).toThrow("exceeds");
+  });
+
+  test("preserves actual RFC 6381 profile and level as evidence", () => {
+    expect(parseAvcCodecProfile("avc1.42E01F")).toEqual({
+      codecString: "avc1.42e01f",
+      sampleEntry: "avc1",
+      profileIdc: 66,
+      constraintFlagsHex: "e0",
+      levelIdc: 31,
+      level: "3.1",
+      constrainedBaseline: true,
+    });
+    expect(parseAvcCodecProfile("avc1.640028")).toMatchObject({
+      level: "4.0",
+      constrainedBaseline: false,
+    });
+    expect(parseAvcCodecProfile("vp09.00.10.08")).toBeNull();
+  });
+});
+
+describe("local copy-path hint", () => {
+  const monotonicPackets: readonly VideoPacketFact[] = [
+    { sequenceNumber: 0, timestampUs: 0, durationUs: 33_333, type: "key", byteLength: 100 },
+    { sequenceNumber: 1, timestampUs: 33_333, durationUs: 33_333, type: "delta", byteLength: 50 },
+  ];
+  const reorderedPackets: readonly VideoPacketFact[] = [
+    monotonicPackets[0]!,
+    { ...monotonicPackets[1]!, sequenceNumber: 1, timestampUs: 66_666 },
+    { ...monotonicPackets[1]!, sequenceNumber: 2, timestampUs: 33_333 },
+  ];
+
+  test("uses only H.264 and proved packet order for a local copy target", () => {
+    expect(deriveLocalCopyPathHint("avc", analyzePacketReordering(monotonicPackets))).toMatchObject({
+      verdict: "copy_target",
+      h264: true,
+      packetOrderProvesNoReordering: true,
+      probeReorderCapacity: null,
+    });
+  });
+
+  test("keeps requested profile mismatch outside copy-path eligibility", () => {
+    const observedProfile = parseAvcCodecProfile("avc1.640028");
+    expect(observedProfile?.constrainedBaseline).toBe(false);
+    expect(deriveLocalCopyPathHint("avc", analyzePacketReordering(monotonicPackets)).verdict)
+      .toBe("copy_target");
+  });
+
+  test("demotes reordered, indeterminate, and non-H.264 files", () => {
+    expect(deriveLocalCopyPathHint("avc", analyzePacketReordering(reorderedPackets)).verdict)
+      .toBe("transcode_required");
+    expect(deriveLocalCopyPathHint("avc", analyzePacketReordering([])).verdict)
+      .toBe("transcode_required");
+    expect(deriveLocalCopyPathHint("vp9", analyzePacketReordering(monotonicPackets)).verdict)
+      .toBe("transcode_required");
+  });
+
+  test("conservatively demotes nonzero trusted-probe reorder capacity", () => {
+    const packetEvidence = analyzePacketReordering(monotonicPackets);
+    expect(deriveLocalCopyPathHint("avc", packetEvidence, 0).verdict).toBe("copy_target");
+    expect(deriveLocalCopyPathHint("avc", packetEvidence, 1)).toMatchObject({
+      verdict: "transcode_required",
+      packetOrderProvesNoReordering: true,
+      probeReorderCapacity: 1,
+    });
   });
 });
