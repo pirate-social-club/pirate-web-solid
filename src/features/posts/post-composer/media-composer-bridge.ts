@@ -67,6 +67,7 @@ export interface SongComposerSnapshotProjection {
 }
 
 export function projectSnapshotIntoSongComposer(snapshot: MediaSubmissionSnapshot): SongComposerSnapshotProjection {
+  if (snapshot.audio_revision < 1) return { song: { lyricsEditorState: "hidden" } };
   const projection = projectSongAnalysis(snapshot).lyricsEditor;
   switch (projection.status) {
     case "ready": return { song: { lyricsEditorState: "ready" } };

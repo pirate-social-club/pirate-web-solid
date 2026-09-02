@@ -136,6 +136,10 @@ class HeldFinalizeTransport extends FakeTransport {
     this.markFinalizeStarted = resolve;
   });
 
+  constructor(private readonly returnStaleFinalizeResponse = false) {
+    super();
+  }
+
   releaseFinalize(): void {
     this.releaseFinalization();
   }
@@ -153,6 +157,7 @@ class HeldFinalizeTransport extends FakeTransport {
       lyrics_state: started.lyrics_state,
       phase: "analysis",
     });
+    const staleResponse = this.snapshot;
     this.markFinalizeStarted();
     await this.finalizationReleased;
     const current = this.snapshot;
@@ -163,7 +168,7 @@ class HeldFinalizeTransport extends FakeTransport {
       lyrics_state: current.lyrics_state,
       published_resource: { post_id: "post-1", href: "/posts/post-1" },
     });
-    return this.snapshot;
+    return this.returnStaleFinalizeResponse ? staleResponse : this.snapshot;
   }
 }
 
@@ -226,6 +231,36 @@ describe("media submission coordinator replay", () => {
     await restored.restore("draft-1");
     expect(transport.commands.filter(command => command.kind === "lyrics")).toHaveLength(1);
     expect(restored.currentRecord?.pending_command).toBeNull();
+  });
+
+  test("returns the retained lyrics snapshot when finalize responds with stale state", async () => {
+    const storage = createMemoryMediaSubmissionStorage();
+    const transport = new HeldFinalizeTransport(true);
+    const observed: MediaSubmissionSnapshot[] = [];
+    let idIndex = 0;
+    const ids = ["reserve-key", "start-key", "finalize-key", "lyrics-key"];
+    const flow = new MediaSubmissionCoordinator({
+      storage,
+      transport,
+      createId: () => ids[idIndex++] ?? `unused-${idIndex}`,
+      now: () => "2026-08-26T00:00:00Z",
+      onSnapshotChange: value => observed.push(value),
+    });
+    await flow.begin(beginInput());
+
+    const finalization = flow.uploadAndFinalize();
+    await transport.finalizeStarted;
+    await new Promise<void>(resolve => setTimeout(resolve, 300));
+    await flow.bindLyrics("Newest reviewed words", "paste");
+    transport.releaseFinalize();
+
+    const retained = await finalization;
+    expect(retained).toMatchObject({
+      creation_revision: 2,
+      lyrics_state: { current: { status: "ready", text: "Newest reviewed words" } },
+    });
+    expect(flow.currentRecord?.snapshot).toEqual(retained);
+    expect(observed.at(-1)).toEqual(retained);
   });
 
   test("does not reopen a published no-lyrics submission", async () => {

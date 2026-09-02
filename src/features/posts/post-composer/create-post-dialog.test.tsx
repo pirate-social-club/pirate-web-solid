@@ -401,30 +401,34 @@ describe("create post request", () => {
     Object.defineProperty(audioInput, "files", { configurable: true, value: [audio] });
     audioInput.dispatchEvent(new Event("change", { bubbles: true }));
 
-    let publish!: HTMLButtonElement;
-    await vi.waitFor(() => {
-      publish = [...document.body.querySelectorAll<HTMLButtonElement>("button")]
+    const publish = await vi.waitFor(() => {
+      const candidate = [...document.body.querySelectorAll<HTMLButtonElement>("button")]
         .find(button => button.textContent?.trim() === "Publish song")!;
-      expect(publish).toBeDefined();
-      expect(publish.disabled).toBe(false);
+      expect(candidate).toBeInstanceOf(HTMLButtonElement);
+      expect(candidate.disabled).toBe(false);
+      return candidate;
     });
     publish.click();
     await mediaTransport.finalizeStarted;
+    expect(document.body.querySelector("textarea[placeholder='Write or paste the song lyrics']")).toBeNull();
+    expect([...document.body.querySelectorAll<HTMLButtonElement>("button")]
+      .find(button => button.textContent?.trim() === "Save reviewed lyrics")).toBeUndefined();
+    expect(mediaTransport.commands.filter(command => command.kind === "finalize")).toHaveLength(1);
 
-    let lyrics!: HTMLTextAreaElement;
-    await vi.waitFor(() => {
-      lyrics = document.body.querySelector<HTMLTextAreaElement>("textarea[placeholder='Write or paste the song lyrics']")!;
-      expect(lyrics).toBeDefined();
+    const lyrics = await vi.waitFor(() => {
+      const candidate = document.body.querySelector<HTMLTextAreaElement>("textarea[placeholder='Write or paste the song lyrics']");
+      expect(candidate).toBeInstanceOf(HTMLTextAreaElement);
+      return candidate!;
     }, { timeout: 1_000 });
     lyrics.value = "Reviewed words";
     lyrics.dispatchEvent(new Event("change", { bubbles: true }));
 
-    let saveLyrics!: HTMLButtonElement;
-    await vi.waitFor(() => {
-      saveLyrics = [...document.body.querySelectorAll<HTMLButtonElement>("button")]
+    const saveLyrics = await vi.waitFor(() => {
+      const candidate = [...document.body.querySelectorAll<HTMLButtonElement>("button")]
         .find(button => button.textContent?.trim() === "Save reviewed lyrics")!;
-      expect(saveLyrics).toBeDefined();
-      expect(saveLyrics.disabled).toBe(false);
+      expect(candidate).toBeInstanceOf(HTMLButtonElement);
+      expect(candidate.disabled).toBe(false);
+      return candidate;
     });
     expect(publish.disabled).toBe(true);
     saveLyrics.click();

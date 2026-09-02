@@ -515,7 +515,13 @@ export function CreatePostDialog(props: CreatePostDialogProps): JSX.Element {
     : mode() === "song" ? songSubmitDisabled() : true;
   const lyricsCanSave = () => {
     const snapshot = mediaSnapshot();
-    if (snapshot === null || lyrics().length === 0 || lyricsBusy()) return false;
+    if (snapshot === null
+      || snapshot.audio_revision < 1
+      || snapshot.status === "published"
+      || snapshot.status === "blocked"
+      || snapshot.status === "abandoned"
+      || lyrics().length === 0
+      || lyricsBusy()) return false;
     const current = snapshot.lyrics_state.current;
     return current.status === "not_bound" || (current.status === "ready" && current.text !== lyrics());
   };

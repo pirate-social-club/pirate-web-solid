@@ -218,7 +218,11 @@ export class MediaSubmissionCoordinator {
     );
     while (true) {
       const outcome = await Promise.race([settled, finalizeObservationTick()]);
-      if (outcome.kind === "result") return outcome.result;
+      if (outcome.kind === "result") {
+        return snapshotResult(outcome.result)
+          ? this.requireRecord().snapshot ?? outcome.result
+          : outcome.result;
+      }
       if (outcome.kind === "error") throw outcome.error;
 
       const current = this.requireRecord();
@@ -227,7 +231,12 @@ export class MediaSubmissionCoordinator {
         const observed = await this.transport.read(current.submission_id);
         if (observed === null) continue;
         await this.saveSnapshot(observed, this.requireRecord().pending_command);
-        if (observed.audio_revision >= 1 || terminal(observed)) return finalization;
+        if (observed.audio_revision >= 1 || terminal(observed)) {
+          const result = await finalization;
+          return snapshotResult(result)
+            ? this.requireRecord().snapshot ?? result
+            : result;
+        }
       } catch {
         // The authoritative finalize request owns the result. A transient
         // observation failure cannot replace or cancel that retained command.
