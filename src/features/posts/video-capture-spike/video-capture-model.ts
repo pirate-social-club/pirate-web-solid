@@ -23,6 +23,114 @@ export type CopyPreview = {
   packetSequenceNumbers: readonly number[];
 };
 
+export type ConstrainedBaselineCaptureProfile = {
+  width: number;
+  height: number;
+  frameRate: number;
+  fullCodecString: "avc1.42e01e" | "avc1.42e01f" | "avc1.42e028";
+  level: "3.0" | "3.1" | "4.0";
+  macroblocksPerFrame: number;
+  macroblocksPerSecond: number;
+};
+
+export type PacketReorderingEvidence = {
+  verdict: "no_reordering" | "reordering_present" | "indeterminate";
+  hasFrameReordering: boolean | null;
+  sequenceNumbersDefined: boolean;
+  sequenceNumbersUnique: boolean;
+  presentationTimestampRegressionsInDecodeOrder: number;
+  duplicatePresentationTimestamps: number;
+  decodeOrderSequenceNumbers: readonly number[];
+  presentationOrderSequenceNumbers: readonly number[];
+  note: string;
+};
+
+const AVC_LEVEL_LIMITS = [
+  { level: "3.0", levelHex: "1e", maxMacroblocksPerFrame: 1_620, maxMacroblocksPerSecond: 40_500 },
+  { level: "3.1", levelHex: "1f", maxMacroblocksPerFrame: 3_600, maxMacroblocksPerSecond: 108_000 },
+  { level: "4.0", levelHex: "28", maxMacroblocksPerFrame: 8_192, maxMacroblocksPerSecond: 245_760 },
+] as const;
+
+/** Chooses the lowest bounded AVC level for the actual camera dimensions and frame rate. */
+export function selectConstrainedBaselineProfile(
+  width: number,
+  height: number,
+  frameRate: number,
+): ConstrainedBaselineCaptureProfile {
+  if (![width, height].every((value) => Number.isInteger(value) && value > 0)) {
+    throw new Error("Capture dimensions must be positive integers.");
+  }
+  if (!Number.isFinite(frameRate) || frameRate <= 0) throw new Error("Capture frame rate must be positive.");
+  const macroblocksPerFrame = Math.ceil(width / 16) * Math.ceil(height / 16);
+  const macroblocksPerSecond = Math.ceil(macroblocksPerFrame * frameRate);
+  const selected = AVC_LEVEL_LIMITS.find((candidate) => (
+    macroblocksPerFrame <= candidate.maxMacroblocksPerFrame
+    && macroblocksPerSecond <= candidate.maxMacroblocksPerSecond
+  ));
+  if (!selected) throw new Error("The camera track exceeds the bounded Constrained Baseline capture matrix.");
+
+  return {
+    width,
+    height,
+    frameRate,
+    fullCodecString: `avc1.42e0${selected.levelHex}`,
+    level: selected.level,
+    macroblocksPerFrame,
+    macroblocksPerSecond,
+  };
+}
+
+/** Derives B-frame/reordering evidence from Mediabunny decode sequence numbers and packet PTS. */
+export function analyzePacketReordering(packets: readonly VideoPacketFact[]): PacketReorderingEvidence {
+  const sequenceNumbersDefined = packets.length > 0 && packets.every((packet) => packet.sequenceNumber >= 0);
+  const sequenceNumbersUnique = new Set(packets.map((packet) => packet.sequenceNumber)).size === packets.length;
+  if (!sequenceNumbersDefined || !sequenceNumbersUnique) {
+    return {
+      verdict: "indeterminate",
+      hasFrameReordering: null,
+      sequenceNumbersDefined,
+      sequenceNumbersUnique,
+      presentationTimestampRegressionsInDecodeOrder: 0,
+      duplicatePresentationTimestamps: 0,
+      decodeOrderSequenceNumbers: [],
+      presentationOrderSequenceNumbers: [],
+      note: "No-frame-reordering cannot be proved without decode-order sequence numbers.",
+    };
+  }
+
+  const decodeOrder = packets.slice().sort((left, right) => left.sequenceNumber - right.sequenceNumber);
+  const presentationOrder = packets.slice().sort((left, right) => (
+    left.timestampUs - right.timestampUs || left.sequenceNumber - right.sequenceNumber
+  ));
+  let regressions = 0;
+  const duplicatePresentationTimestamps = packets.length
+    - new Set(packets.map((packet) => packet.timestampUs)).size;
+  for (let index = 1; index < decodeOrder.length; index += 1) {
+    if (decodeOrder[index]!.timestampUs < decodeOrder[index - 1]!.timestampUs) regressions += 1;
+  }
+  const hasFrameReordering = regressions > 0;
+  const verdict = duplicatePresentationTimestamps > 0
+    ? "indeterminate"
+    : hasFrameReordering ? "reordering_present" : "no_reordering";
+  return {
+    verdict,
+    hasFrameReordering: verdict === "indeterminate" ? null : hasFrameReordering,
+    sequenceNumbersDefined,
+    sequenceNumbersUnique,
+    presentationTimestampRegressionsInDecodeOrder: regressions,
+    duplicatePresentationTimestamps,
+    decodeOrderSequenceNumbers: decodeOrder.map((packet) => packet.sequenceNumber),
+    presentationOrderSequenceNumbers: presentationOrder.map((packet) => packet.sequenceNumber),
+    note: "Mediabunny exposes decode order as sequenceNumber and PTS as timestamp; it does not expose source DTS.",
+  };
+}
+
+export function maximumKeyframeGapUs(packets: readonly VideoPacketFact[]): number | null {
+  const timestamps = keyframeTimestampsUs(packets);
+  if (timestamps.length < 2) return null;
+  return Math.max(...timestamps.slice(1).map((timestamp, index) => timestamp - timestamps[index]!));
+}
+
 function codecFamily(token: string): VideoSourceCodec | undefined {
   const normalized = token.trim().toLowerCase();
   const prefix = normalized.split(".", 1)[0] ?? normalized;

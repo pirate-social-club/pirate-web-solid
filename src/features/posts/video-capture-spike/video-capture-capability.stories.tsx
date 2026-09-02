@@ -26,10 +26,14 @@ function CaptureCapabilityHarness() {
     if (previousUrl) URL.revokeObjectURL(previousUrl);
     setPreviewUrl(URL.createObjectURL(capture.blob));
     const packets = capture.inspection.packets;
-    const requestedStartUs = Math.min(1_100_000, Math.max(0, capture.inspection.durationUs - 500_000));
-    const sourceStartUs = snapStartToKeyframeUs(packets, requestedStartUs);
-    const availableUs = capture.inspection.durationUs - sourceStartUs;
-    const copyPreview = deriveCopyPreview(packets, sourceStartUs, Math.max(1, availableUs));
+    const copyPreview = capture.localCopyPathHint.verdict === "copy_target"
+      ? (() => {
+          const requestedStartUs = Math.min(1_100_000, Math.max(0, capture.inspection.durationUs - 500_000));
+          const sourceStartUs = snapStartToKeyframeUs(packets, requestedStartUs);
+          const availableUs = capture.inspection.durationUs - sourceStartUs;
+          return deriveCopyPreview(packets, sourceStartUs, Math.max(1, availableUs));
+        })()
+      : { unavailable: true, reasons: capture.localCopyPathHint.reasons };
     setResult(JSON.stringify({
       userAgent: navigator.userAgent,
       trackSettings: "Captured at start; inspect browser developer output for device-specific labels.",
@@ -38,10 +42,12 @@ function CaptureCapabilityHarness() {
       exactFinalByteLength: capture.blob.size,
       finalizationMs: capture.finalizationMs,
       videoEncoderConfig: capture.videoEncoderConfig,
+      requestedVideoProfile: capture.requestedVideoProfile,
       videoTrackSettings: capture.videoTrackSettings,
       audioTrackSettings: capture.audioTrackSettings,
       audioEncoder: capture.audioEncoder,
       inspection: capture.inspection,
+      localCopyPathHint: capture.localCopyPathHint,
       copyPreview,
     }, null, 2));
     setStatus("Finalized locally; nothing was uploaded.");

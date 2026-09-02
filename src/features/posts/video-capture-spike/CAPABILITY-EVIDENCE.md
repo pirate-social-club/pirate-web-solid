@@ -1,4 +1,4 @@
-# Video capture capability spike — checkpoint 1
+# Video capture capability spike — checkpoint 2
 
 Recorded 2026-09-02. This checkpoint is local, credential-free, and does not
 contain physical mobile-device evidence.
@@ -28,6 +28,10 @@ synthetic visual material and silence or generated non-copyrighted guide audio.
 It must record browser and OS versions, exact `MediaRecorder.mimeType`, final
 Blob type, emitted encoder configuration, track settings, packet facts, start
 and finalize latency, and the required lifecycle/performance matrix.
+
+The physical run must also preserve the actual finalized AVC codec parameter,
+the decode-order sequence numbers, presentation timestamps, reordering verdict,
+and measured maximum keyframe gap. A capability predicate is not that evidence.
 
 ## Findings that do not require a physical device
 
@@ -66,6 +70,42 @@ preview mismatch tolerance should be one emitted frame duration plus 1 ms for
 timestamp conversion; physical variable-frame-rate fixtures must confirm or
 replace that recommendation.
 
+## Copy-target profile checkpoint
+
+The workspace owner settled copy eligibility as server-probed
+no-frame-reordering. A reordered stream, an indeterminate packet order, or an
+exact-profile mismatch is `transcode_required`; the client does not attempt to
+make B-frame packet copy safe.
+
+The preferred adapter no longer asks for generic AVC. It requests the exact
+RFC 6381 Constrained Baseline profile and selects the lowest bounded level from
+the actual camera dimensions and frame rate. The current spike matrix is:
+
+| Dimensions and rate | Macroblocks/frame | Macroblocks/second | Candidate |
+| --- | ---: | ---: | --- |
+| 640 × 480 at 30 fps | 1,200 | 36,000 | `avc1.42e01e` (Level 3.0) |
+| 720 × 1280 at 30 fps | 3,600 | 108,000 | `avc1.42e01f` (Level 3.1) |
+| 1080 × 1920 at 30 fps | 8,160 | 244,800 | `avc1.42e028` (Level 4.0) |
+
+A source above these bounded Level 4.0 limits is rejected by this candidate.
+Level choice remains evidence-based: the physical run must show that the
+requested resolution is actually granted and that the finalized track reports
+the exact profile. A browser that silently emits another AVC profile demotes to
+transcode.
+
+Mediabunny's packet `sequenceNumber` represents decode order and packet
+`timestamp` represents PTS. Its browser API does not expose source DTS. The
+harness now records both decode and presentation order, counts PTS regressions
+in decode order, and reports frame reordering as true, false, or indeterminate.
+It does not claim to parse H.264 slice types or expose FFmpeg's `has_b_frames`
+field. Only defined unique sequence numbers with strictly increasing PTS
+produce `no_reordering`.
+
+The adapter still requests realtime latency, hardware preference, and a
+one-second keyframe interval. All three are hints. The harness reports the
+encoder configuration and measured maximum emitted keyframe gap; only the
+finalized file and physical performance run determine viability.
+
 Fragmented MP4 is used only to make local capture/finalization bounded. The
 complete Blob and exact byte length exist before any future reservation. Live
 upload and unknown-size multipart behavior are absent by construction.
@@ -91,8 +131,10 @@ recording, or copyrighted recording is part of this checkpoint.
 
 ## Checkpoint gates
 
-The focused Vitest command passed 13 tests. TypeScript, changed-path oxlint,
+The focused Vitest command passed 20 tests. TypeScript, changed-path oxlint,
 and `git diff --check` passed with no output. The full `bun run
-build-storybook` gate reached `Building preview` but did not complete after
-roughly two minutes on the contended workspace host, so it was interrupted and
-remains pending. No passing Storybook-build claim is made.
+build-storybook` gate was retried under a 60-second hard cap. It reached Vite's
+`transforming` phase and then exited 124 when the cap sent SIGTERM; it emitted
+no module-resolution or Mediabunny/AAC-worker error before the timeout. The
+full catalog build remains pending, and no passing Storybook-build claim is
+made.

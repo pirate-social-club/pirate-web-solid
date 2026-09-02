@@ -10,16 +10,28 @@ import {
 } from "mediabunny";
 
 import { inspectFinalizedVideo, type VideoCaptureInspection } from "./video-capture-inspector";
+import {
+  selectConstrainedBaselineProfile,
+  type ConstrainedBaselineCaptureProfile,
+} from "./video-capture-model";
 
 export type CaptureResult = {
   blob: Blob;
   recorderMimeType: string;
   finalizationMs: number;
   videoEncoderConfig: VideoEncoderConfig | null;
+  requestedVideoProfile: ConstrainedBaselineCaptureProfile | null;
   videoTrackSettings: MediaTrackSettings;
   audioTrackSettings: MediaTrackSettings | null;
   audioEncoder: "none" | "native-aac" | "polyfilled-aac" | "mediarecorder-opus";
   inspection: VideoCaptureInspection;
+  localCopyPathHint: {
+    authority: "advisory_client_only";
+    verdict: "copy_target" | "transcode_required";
+    exactConstrainedBaselineProfile: boolean;
+    noFrameReordering: boolean;
+    reasons: readonly string[];
+  };
 };
 
 export type CaptureSession = {
@@ -32,6 +44,10 @@ export type PreferredCapability = {
   cameraApi: boolean;
   webCodecs: boolean;
   avcEncode: boolean;
+  profileMatrix: readonly {
+    profile: ConstrainedBaselineCaptureProfile;
+    supported: boolean;
+  }[];
   nativeAacEncode: boolean;
   note: string;
 };
@@ -41,13 +57,22 @@ const AUDIO_QUALITY = new Quality({ bitrate: 128_000 });
 
 export async function probePreferredCapability(): Promise<PreferredCapability> {
   const webCodecs = "VideoEncoder" in globalThis;
-  const avcEncode = await canEncodeVideo("avc", {
-    width: 720,
-    height: 1280,
-    quality: VIDEO_QUALITY,
-    hardwareAcceleration: "prefer-hardware",
-    latencyMode: "realtime",
-  });
+  const profileMatrix = await Promise.all([
+    selectConstrainedBaselineProfile(640, 480, 30),
+    selectConstrainedBaselineProfile(720, 1280, 30),
+    selectConstrainedBaselineProfile(1080, 1920, 30),
+  ].map(async (profile) => ({
+    profile,
+    supported: await canEncodeVideo("avc", {
+      width: profile.width,
+      height: profile.height,
+      quality: VIDEO_QUALITY,
+      fullCodecString: profile.fullCodecString,
+      hardwareAcceleration: "prefer-hardware",
+      latencyMode: "realtime",
+    }),
+  })));
+  const avcEncode = profileMatrix.find((entry) => entry.profile.width === 720)?.supported ?? false;
   const nativeAacEncode = "AudioEncoder" in globalThis && await canEncodeAudio("aac", {
     numberOfChannels: 1,
     sampleRate: 48_000,
@@ -58,8 +83,9 @@ export async function probePreferredCapability(): Promise<PreferredCapability> {
     cameraApi: Boolean(globalThis.navigator?.mediaDevices?.getUserMedia),
     webCodecs,
     avcEncode,
+    profileMatrix,
     nativeAacEncode,
-    note: "prefer-hardware is a request, not proof of which encoder the browser selected.",
+    note: "The exact profile, prefer-hardware, realtime latency, and one-second keyframe interval are requests; only finalized-file inspection is evidence.",
   };
 }
 
@@ -75,10 +101,16 @@ export async function startMediabunnyCapture(
   const audioTrackSettings = audioTrack?.getSettings() ?? null;
   const audioChannels = audioTrackSettings?.channelCount ?? 1;
   const audioSampleRate = audioTrackSettings?.sampleRate ?? 48_000;
+  const requestedVideoProfile = selectConstrainedBaselineProfile(
+    videoTrackSettings.width ?? 720,
+    videoTrackSettings.height ?? 1280,
+    videoTrackSettings.frameRate ?? 30,
+  );
   if (!await canEncodeVideo("avc", {
-    width: videoTrackSettings.width ?? 720,
-    height: videoTrackSettings.height ?? 1280,
+    width: requestedVideoProfile.width,
+    height: requestedVideoProfile.height,
     quality: VIDEO_QUALITY,
+    fullCodecString: requestedVideoProfile.fullCodecString,
     hardwareAcceleration: "prefer-hardware",
     latencyMode: "realtime",
   })) {
@@ -119,6 +151,7 @@ export async function startMediabunnyCapture(
   const videoSource = new MediaStreamVideoTrackSource(videoTrack, {
     codec: "avc",
     quality: VIDEO_QUALITY,
+    fullCodecString: requestedVideoProfile.fullCodecString,
     keyFrameInterval: 1,
     hardwareAcceleration: "prefer-hardware",
     latencyMode: "realtime",
@@ -157,15 +190,30 @@ export async function startMediabunnyCapture(
         const recorderMimeType = await output.getMimeType();
         const blob = new Blob([target.buffer], { type: recorderMimeType });
         const inspection = await inspectFinalizedVideo(blob);
+        const exactConstrainedBaselineProfile = inspection.video.codecParameter?.toLowerCase()
+          === requestedVideoProfile.fullCodecString;
+        const noFrameReordering = inspection.reordering.verdict === "no_reordering";
+        const reasons = [
+          ...(!exactConstrainedBaselineProfile ? ["Finalized AVC profile differs from the exact request."] : []),
+          ...(!noFrameReordering ? ["Finalized packets do not prove no-frame-reordering."] : []),
+        ];
         return {
           blob,
           recorderMimeType,
           finalizationMs: Math.round(performance.now() - finalizeStartedAt),
           videoEncoderConfig,
+          requestedVideoProfile,
           videoTrackSettings,
           audioTrackSettings,
           audioEncoder,
           inspection,
+          localCopyPathHint: {
+            authority: "advisory_client_only",
+            verdict: reasons.length === 0 ? "copy_target" : "transcode_required",
+            exactConstrainedBaselineProfile,
+            noFrameReordering,
+            reasons,
+          },
         };
       } finally {
         release();
@@ -235,10 +283,18 @@ export function startMediaRecorderFallback(stream: MediaStream): CaptureSession 
                 recorderMimeType,
                 finalizationMs: Math.round(performance.now() - finalizeStartedAt),
                 videoEncoderConfig: null,
+                requestedVideoProfile: null,
                 videoTrackSettings,
                 audioTrackSettings,
                 audioEncoder: audioTrackSettings ? "mediarecorder-opus" : "none",
                 inspection,
+                localCopyPathHint: {
+                  authority: "advisory_client_only",
+                  verdict: "transcode_required",
+                  exactConstrainedBaselineProfile: false,
+                  noFrameReordering: inspection.reordering.verdict === "no_reordering",
+                  reasons: ["The MediaRecorder WebM fallback always requires server transcode."],
+                },
               });
             } catch (error) {
               reject(error);

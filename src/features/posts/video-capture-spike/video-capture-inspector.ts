@@ -5,8 +5,12 @@ import {
   Input,
 } from "mediabunny";
 
-import type { VideoPacketFact } from "./video-capture-model";
-import { normalizeVideoMimeType } from "./video-capture-model";
+import type { PacketReorderingEvidence, VideoPacketFact } from "./video-capture-model";
+import {
+  analyzePacketReordering,
+  maximumKeyframeGapUs,
+  normalizeVideoMimeType,
+} from "./video-capture-model";
 
 export type VideoCaptureInspection = {
   byteLength: number;
@@ -29,6 +33,8 @@ export type VideoCaptureInspection = {
     sampleRate: number;
   };
   packets: readonly VideoPacketFact[];
+  reordering: PacketReorderingEvidence;
+  maximumKeyframeGapUs: number | null;
 };
 
 /** Locally re-opens finalized bytes and records probed facts; it is not server authority. */
@@ -76,6 +82,8 @@ export async function inspectFinalizedVideo(blob: Blob): Promise<VideoCaptureIns
           }
         : null,
       packets,
+      reordering: analyzePacketReordering(packets),
+      maximumKeyframeGapUs: maximumKeyframeGapUs(packets),
     };
   } finally {
     input.dispose();

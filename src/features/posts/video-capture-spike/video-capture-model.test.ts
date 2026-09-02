@@ -1,8 +1,11 @@
 import { describe, expect, test } from "vitest";
 
 import {
+  analyzePacketReordering,
   deriveCopyPreview,
+  maximumKeyframeGapUs,
   normalizeVideoMimeType,
+  selectConstrainedBaselineProfile,
   snapStartToKeyframeUs,
   type VideoPacketFact,
 } from "./video-capture-model";
@@ -64,5 +67,60 @@ describe("copy-target preview", () => {
 
   test("requires an exact emitted keyframe start", () => {
     expect(() => deriveCopyPreview(packets, 1_000_001, 50_000)).toThrow("emitted keyframe");
+  });
+
+  test("detects presentation reordering in decode order", () => {
+    expect(analyzePacketReordering(packets)).toMatchObject({
+      verdict: "reordering_present",
+      hasFrameReordering: true,
+      presentationTimestampRegressionsInDecodeOrder: 1,
+      decodeOrderSequenceNumbers: [0, 1, 2, 3, 4, 5],
+      presentationOrderSequenceNumbers: [0, 2, 1, 3, 4, 5],
+    });
+  });
+
+  test("proves no reordering only with defined sequence numbers and monotonic PTS", () => {
+    const monotonic = packets.slice(0, 1).concat([
+      { ...packets[2]!, sequenceNumber: 1 },
+      { ...packets[1]!, sequenceNumber: 2 },
+    ]);
+    expect(analyzePacketReordering(monotonic)).toMatchObject({
+      verdict: "no_reordering",
+      hasFrameReordering: false,
+      presentationTimestampRegressionsInDecodeOrder: 0,
+    });
+    expect(analyzePacketReordering([{ ...packets[0]!, sequenceNumber: -1 }])).toMatchObject({
+      verdict: "indeterminate",
+      hasFrameReordering: null,
+    });
+    expect(analyzePacketReordering([
+      packets[0]!,
+      { ...packets[1]!, timestampUs: packets[0]!.timestampUs },
+    ])).toMatchObject({
+      verdict: "indeterminate",
+      duplicatePresentationTimestamps: 1,
+    });
+  });
+
+  test("measures the actual maximum keyframe gap", () => {
+    expect(maximumKeyframeGapUs(packets)).toBe(1_000_000);
+    expect(maximumKeyframeGapUs(packets.slice(0, 1))).toBeNull();
+  });
+});
+
+describe("Constrained Baseline capture matrix", () => {
+  test.each([
+    [640, 480, 30, "3.0", "avc1.42e01e"],
+    [720, 1280, 30, "3.1", "avc1.42e01f"],
+    [1080, 1920, 30, "4.0", "avc1.42e028"],
+  ] as const)("selects the lowest bounded level for %sx%s at %s fps", (width, height, frameRate, level, codec) => {
+    expect(selectConstrainedBaselineProfile(width, height, frameRate)).toMatchObject({
+      level,
+      fullCodecString: codec,
+    });
+  });
+
+  test("rejects a track beyond the frozen spike matrix", () => {
+    expect(() => selectConstrainedBaselineProfile(2160, 3840, 30)).toThrow("exceeds");
   });
 });
