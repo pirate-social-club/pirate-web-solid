@@ -1,7 +1,7 @@
 import {
   createPirateApiClient,
   type GetPublicPersonasPersonaIdResponse,
-} from "@pirate/api-client-handle-sales";
+} from "@pirate/api-client-happy-path";
 import { projectPersonaPublicProfile } from "../features/profiles/persona-public-profile/persona-public-profile.model.ts";
 import {
   HNS_HANDLE_PUBLIC_PERSONA_DEADLINE_MS,

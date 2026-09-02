@@ -1,7 +1,7 @@
 import type {
   GetCPathSegmentResponse,
   GetCommunitiesCommunityIdPreviewResponse,
-} from "@pirate/api-client-community-route";
+} from "@pirate/api-client-happy-path";
 import type { CommunityRouteApiClient } from "../../../api/community-route-client.ts";
 
 export const COMMUNITY_ROUTE_UNAVAILABLE_STATUS = 502 as const;

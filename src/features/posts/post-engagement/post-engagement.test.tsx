@@ -1,7 +1,6 @@
 import type { JSX } from "@solidjs/web";
 import { render as solidRender } from "@solidjs/web";
-import { ApiClientError } from "@pirate/api-client";
-import { ApiClientError as HappyPathApiClientError } from "@pirate/api-client-happy-path";
+import { ApiClientError } from "@pirate/api-client-happy-path";
 import { createRoot } from "solid-js";
 import { afterEach, describe, expect, test, vi } from "vitest";
 
@@ -598,7 +597,7 @@ describe("PostEngagement", () => {
         },
       })),
       moderateCase: vi.fn()
-        .mockRejectedValueOnce(new HappyPathApiClientError(
+        .mockRejectedValueOnce(new ApiClientError(
           { status: 409, code: "conflict", name: "Conflict", retryable: false },
           { error: { code: "conflict", message: "Moderation operation conflicts with current state", retryable: false } },
         ))

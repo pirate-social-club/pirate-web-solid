@@ -1,7 +1,7 @@
 import type {
   GetCommunitiesCommunityIdHandleOfferingsResponse,
   GetPersonasResponse,
-} from "@pirate/api-client-handle-sales";
+} from "@pirate/api-client-happy-path";
 
 import type { PublicHandleSalesApiClient } from "../../../api/handle-sales-client.ts";
 import {

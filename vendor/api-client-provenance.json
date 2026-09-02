@@ -1,9 +1,0 @@
-{
-  "name": "@pirate/api-client",
-  "version": "0.25.0",
-  "artifact": "vendor/api-client/pirate-api-client-0.25.0.tgz",
-  "sha256": "1d10384bdea723b7a788c2d7af377fde9f067216e2a01b308a55ab3e7c99597c",
-  "source": "api-next@73a1255:packages/api-client",
-  "openapiSha256": "dccaf3cf3dcfb46dfa3bffc3539cd870d10fdf59a5f570f75721fc24c4ccf6fa",
-  "clientSha256": "1368abc8e0461f03e54eb79996eb1847e29becfc3fbb6f5404eb1662aa5a0ed8"
-}

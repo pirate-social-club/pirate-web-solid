@@ -1,5 +1,5 @@
 /** @jsxImportSource @solidjs/web */
-import { ApiClientError } from "@pirate/api-client";
+import { ApiClientError } from "@pirate/api-client-happy-path";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import { expect, userEvent, within } from "storybook/test";
 

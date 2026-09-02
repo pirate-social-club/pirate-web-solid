@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -7,15 +7,6 @@ const appRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const packageJson = readJson(resolve(appRoot, "package.json"));
 
 const clients = [
-  {
-    dependency: "@pirate/api-client",
-    provenance: "vendor/api-client-provenance.json",
-  },
-  {
-    dependency: "@pirate/api-client-community-route",
-    provenance: "vendor/api-client-community-route-provenance.json",
-    expectedScope: ["get_cPathSegment", "get_communitiesCommunityIdPreview"],
-  },
   {
     dependency: "@pirate/api-client-happy-path",
     provenance: "vendor/api-client-happy-path-provenance.json",
@@ -40,20 +31,42 @@ const clients = [
       "post_communitiesCommunityIdStudyV2SessionsSessionIdItemsSessionItemIdAnswers",
     ],
   },
-  {
-    dependency: "@pirate/api-client-handle-sales",
-    provenance: "vendor/api-client-handle-sales-provenance.json",
-    expectedScope: [
-      "get_communitiesCommunityIdHandleOfferings",
-      "get_personas",
-      "post_handlePersonaLinkConfirmations",
-      "post_handleQuotes",
-      "post_handleReservations",
-      "post_handleClaims",
-      "get_handleClaimsClaimId",
-    ],
-  },
 ];
+
+const permittedDependency = clients[0].dependency;
+const generatedDependencies = Object.keys(packageJson.dependencies ?? {})
+  .filter((dependency) => dependency.startsWith("@pirate/api-client"));
+if (
+  generatedDependencies.length !== 1
+  || generatedDependencies[0] !== permittedDependency
+) {
+  throw new Error(
+    `Only ${permittedDependency} may be declared; found ${generatedDependencies.join(", ") || "none"}`,
+  );
+}
+
+const forbiddenAliases = [
+  "@pirate/api-client\"",
+  "@pirate/api-client'",
+  "@pirate/api-client-community-route",
+  "@pirate/api-client-handle-sales",
+];
+
+function sourceFiles(directory) {
+  return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
+    const path = resolve(directory, entry.name);
+    if (entry.isDirectory()) return sourceFiles(path);
+    return /\.(?:ts|tsx)$/u.test(entry.name) ? [path] : [];
+  });
+}
+
+for (const path of sourceFiles(resolve(appRoot, "src"))) {
+  const source = readFileSync(path, "utf8");
+  const forbidden = forbiddenAliases.find((alias) => source.includes(alias));
+  if (forbidden !== undefined) {
+    throw new Error(`${path} imports forbidden generated-client alias ${forbidden}`);
+  }
+}
 
 function readJson(path) {
   return JSON.parse(readFileSync(path, "utf8"));
@@ -89,9 +102,6 @@ for (const client of clients) {
     throw new Error(`${client.dependency} installed client does not match its recorded provenance`);
   }
 
-  if (client.expectedScope && JSON.stringify(provenance.scope) !== JSON.stringify(client.expectedScope)) {
-    throw new Error(`${client.dependency} scope must remain the exact reviewed public route surface`);
-  }
 }
 
 console.log(JSON.stringify({

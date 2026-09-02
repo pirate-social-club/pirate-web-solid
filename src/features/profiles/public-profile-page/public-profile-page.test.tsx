@@ -1,5 +1,5 @@
 import { describe, expect, afterEach, test, vi } from "vitest";
-import type { GetPublicProfilesHandleResponse } from "@pirate/api-client";
+import type { GetPublicProfilesHandleResponse } from "@pirate/api-client-happy-path";
 import { render as solidRender } from "@solidjs/web";
 import type { JSX } from "@solidjs/web";
 import { createRoot } from "solid-js";

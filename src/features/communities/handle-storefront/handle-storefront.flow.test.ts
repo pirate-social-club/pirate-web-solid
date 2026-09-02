@@ -3,7 +3,7 @@ import type {
   PostHandlePersonaLinkConfirmationsResponse,
   PostHandleQuotesResponse,
   PostHandleReservationsResponse,
-} from "@pirate/api-client-handle-sales";
+} from "@pirate/api-client-happy-path";
 import { describe, expect, test, vi } from "vitest";
 
 import type { SessionHandleSalesApiClient } from "../../../api/handle-sales-client.ts";

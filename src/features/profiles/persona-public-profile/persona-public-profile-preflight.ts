@@ -1,4 +1,4 @@
-import { createPirateApiClient, type PirateApiClientOptions } from "@pirate/api-client-handle-sales";
+import { createPirateApiClient, type PirateApiClientOptions } from "@pirate/api-client-happy-path";
 import { validateApiNextOrigin } from "../../../api/origin.ts";
 import type { ApiFetch } from "../../../api/proxy.ts";
 import {

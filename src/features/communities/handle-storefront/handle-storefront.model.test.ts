@@ -1,12 +1,10 @@
 import type {
   GetCommunitiesCommunityIdHandleOfferingsInput,
   GetCommunitiesCommunityIdHandleOfferingsResponse,
-  GetPersonasResponse,
-} from "@pirate/api-client-handle-sales";
-import type {
   GetCPathSegmentResponse,
   GetCommunitiesCommunityIdPreviewResponse,
-} from "@pirate/api-client-community-route";
+  GetPersonasResponse,
+} from "@pirate/api-client-happy-path";
 import { describe, expect, test, vi } from "vitest";
 
 import {

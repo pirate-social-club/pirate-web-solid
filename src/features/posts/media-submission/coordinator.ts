@@ -2,7 +2,7 @@ import type {
   PostMediaPostSubmissionsSubmissionIdCancelInput,
   PostMediaPostSubmissionsSubmissionIdFinalizeInput,
   PostMediaPostSubmissionsSubmissionIdRetryInput,
-} from "@pirate/api-client";
+} from "@pirate/api-client-happy-path";
 import { base64UrlToBytes } from "../post-composer/text-submission-contract";
 import {
   buildReserveSongAudioInput,

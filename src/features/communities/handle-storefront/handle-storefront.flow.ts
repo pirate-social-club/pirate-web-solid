@@ -5,7 +5,7 @@ import type {
   PostHandlePersonaLinkConfirmationsResponse,
   PostHandleQuotesResponse,
   PostHandleReservationsResponse,
-} from "@pirate/api-client-handle-sales";
+} from "@pirate/api-client-happy-path";
 
 import type { SessionHandleSalesApiClient } from "../../../api/handle-sales-client.ts";
 import type { SupportedHandleOffering } from "./handle-storefront.model.ts";

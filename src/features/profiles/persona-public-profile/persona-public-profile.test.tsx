@@ -1,4 +1,4 @@
-import type { GetPublicPersonasPersonaIdResponse } from "@pirate/api-client-handle-sales";
+import type { GetPublicPersonasPersonaIdResponse } from "@pirate/api-client-happy-path";
 import { render as solidRender } from "@solidjs/web";
 import { createRoot } from "solid-js";
 import { afterEach, describe, expect, it, vi } from "vitest";

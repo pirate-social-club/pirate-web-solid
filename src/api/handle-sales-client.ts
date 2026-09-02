@@ -2,7 +2,7 @@ import {
   createPirateApiClient,
   type PirateApiClient,
   type PirateApiRequestOptions,
-} from "@pirate/api-client-handle-sales";
+} from "@pirate/api-client-happy-path";
 
 import { sameOrigin } from "./origin.ts";
 import type { ApiFetch } from "./proxy.ts";

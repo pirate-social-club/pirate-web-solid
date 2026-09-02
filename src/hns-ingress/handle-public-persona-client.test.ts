@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { GetPublicPersonasPersonaIdResponse } from "@pirate/api-client-handle-sales";
+import type { GetPublicPersonasPersonaIdResponse } from "@pirate/api-client-happy-path";
 import {
   makeHnsPublicPersonaClientV1,
   type HnsHandleAuthorityResolutionV1,

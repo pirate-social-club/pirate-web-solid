@@ -67,6 +67,18 @@ be accepted by the 0.48 runtime validator but rejected by the corresponding
 0.25 validator, or vice versa, on this operation set. There is no confirmed
 runtime drift and therefore no repair task or drift fixture to register.
 
-This result removes the runtime-validator gate for a separate consolidation
-change. It does not itself rewrite imports, remove tarballs, weaken generated
-validation, or authorize publication.
+The comparison is reproducible from the pre-consolidation checkout with:
+
+```text
+node scripts/check-api-client-runtime-tables.mjs --compare \
+  node_modules/@pirate/api-client/src/generated/client.ts \
+  node_modules/@pirate/api-client-happy-path/src/generated/client.ts
+```
+
+After consolidation, `bun run check:api-client-runtime-tables` verifies the
+retained digest against the single installed 0.48 client and is part of both
+the production prebuild and full verification gates.
+
+This result removed the runtime-validator gate for consolidation. The
+subsequent consolidation rewrites imports and removes superseded artifacts but
+does not weaken generated validation.

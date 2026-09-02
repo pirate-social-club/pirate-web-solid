@@ -1,4 +1,4 @@
-import type { GetPublicPersonasPersonaIdResponse } from "@pirate/api-client-handle-sales";
+import type { GetPublicPersonasPersonaIdResponse } from "@pirate/api-client-happy-path";
 import type { AccessJwtValidatorV1 } from "./access-jwt.ts";
 import type { HnsHandleAuthorityClientV1 } from "./handle-authority-client.ts";
 import type { HnsPublicPersonaClientV1 } from "./handle-public-persona-client.ts";

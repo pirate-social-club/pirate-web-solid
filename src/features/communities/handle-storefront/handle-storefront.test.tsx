@@ -2,7 +2,7 @@ import { render as solidRender, type JSX } from "@solidjs/web";
 import { createRoot } from "solid-js";
 import { afterEach, describe, expect, test, vi } from "vitest";
 
-import { ApiClientError } from "@pirate/api-client-handle-sales";
+import { ApiClientError } from "@pirate/api-client-happy-path";
 
 import type { SessionHandleSalesApiClient } from "../../../api/handle-sales-client.ts";
 import HandleStorefront, { canonicalNamesUrl } from "./handle-storefront.tsx";

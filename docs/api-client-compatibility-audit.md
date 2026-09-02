@@ -1,4 +1,4 @@
-# Generated API-client compatibility audit
+# Historical generated API-client compatibility audit
 
 This audit compares the four generated clients pinned by the Solid application
 at checkpoint `9ad7a9fe3e0ba9a152538ca375abc0a3566fc6c4`. It answers whether
@@ -10,6 +10,12 @@ The follow-up runtime-validator audit at checkpoint
 `1646102ae4dd41a14a32f450ecd3f55849f97dc0` confirms that the moderation V2
 blocker is resolved and that the remaining primary-client runtime tables are
 identical to 0.48. See `docs/api-client-runtime-validator-audit.md`.
+
+The consolidation that followed rewrote every source consumer to
+`@pirate/api-client-happy-path`, removed the three superseded dependency aliases
+and their 0.13, 0.21 and 0.25 artifacts, and made the runtime-table digest a
+retained prebuild and verification gate. The inventory below describes the
+pre-consolidation state used to prove that removal safe.
 
 ## Pinned clients and consumers
 
@@ -25,9 +31,10 @@ pinned tarballs. All operation and exported type names from 0.13, 0.21, and
 0.25 still exist in 0.48. Name preservation alone is not the compatibility
 proof: 122 declarations changed since 0.13, 66 since 0.21, and 65 since 0.25.
 
-The compile proof in `tsconfig.api-client-compatibility.json` now remaps the
+The compile proof in `tsconfig.api-client-compatibility.json` remapped the
 primary, community-route, and handle-sales aliases to the pinned 0.48 package.
-The entire application compiles under that mapping.
+The entire application compiled under that mapping before the obsolete alias
+map was removed.
 
 ## Community-route result
 
@@ -89,21 +96,21 @@ incompatibility.
 ## Required sequence
 
 The moderation migration, all-alias compile, and primary runtime-validator
-audit are now green. A separate reviewed implementation may consolidate the
-three older aliases onto 0.48 and remove their tarballs and provenance entries.
-The existing provenance checker stays in force until that rewrite lands.
+audit passed. The subsequent consolidation moved all consumers onto 0.48 and
+kept the provenance checker in force for that single artifact.
 
 ## Verification commands
 
-The passing safe-alias proof is:
+The pre-consolidation all-alias proof was:
 
 ```text
 bun run tsc --noEmit -p tsconfig.api-client-compatibility.json
 ```
 
-The ordinary provenance and application gates remain:
+The retained runtime, provenance and application gates are:
 
 ```text
 node scripts/check-api-client-provenance.mjs
+node scripts/check-api-client-runtime-tables.mjs
 bun run tsc --noEmit -p tsconfig.json
 ```

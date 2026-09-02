@@ -1,14 +1,11 @@
 import {
-  ApiClientError as PrimaryApiClientError,
+  ApiClientError,
   type ClearPostVoteResponse,
   type CreateCommentReplyResponse,
   type CreateCommentResponse,
   type ReportCommentResponse,
   type CastPostVoteResponse,
   type GetTextContentSubmissionResponse,
-} from "@pirate/api-client";
-import {
-  ApiClientError as HappyPathApiClientError,
   createPirateApiClient,
   type GetCommunitiesCommunityIdModerationCasesCaseRefResponse,
   type PostModerationCasesCaseRefActionsInput,
@@ -43,10 +40,10 @@ export type CommentReportReason =
 export type CommentModerationAction = PostModerationCasesCaseRefActionsInput["body"]["action"];
 export type CommentModerationCaseDetail = GetCommunitiesCommunityIdModerationCasesCaseRefResponse;
 export type CommentModerationResponse = PostModerationCasesCaseRefActionsResponse;
-export type PostEngagementApiClientError = PrimaryApiClientError | HappyPathApiClientError;
+export type PostEngagementApiClientError = ApiClientError;
 
 export function isPostEngagementApiClientError(error: unknown): error is PostEngagementApiClientError {
-  return error instanceof PrimaryApiClientError || error instanceof HappyPathApiClientError;
+  return error instanceof ApiClientError;
 }
 
 export interface PostEngagementTransport {

@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { ApiClientError, type PostCommunitiesCommunityIdMediaUploadReservationsResponse } from "@pirate/api-client";
+import { ApiClientError, type PostCommunitiesCommunityIdMediaUploadReservationsResponse } from "@pirate/api-client-happy-path";
 import type { MediaSubmissionSnapshot } from "./contracts";
 import { MediaSubmissionCoordinator } from "./coordinator";
 import { createMemoryMediaSubmissionStorage, mediaCommandBody, type PersistedMediaCommand } from "./pending";

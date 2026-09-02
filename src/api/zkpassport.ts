@@ -1,4 +1,4 @@
-import type { PirateApiClient, PirateApiRequestOptions } from "@pirate/api-client";
+import type { PirateApiClient, PirateApiRequestOptions } from "@pirate/api-client-happy-path";
 import type { ProofResult, QueryResult } from "@zkpassport/sdk";
 import { createSessionApiClient, readCsrfCookie, sessionRequestOptions } from "./client.ts";
 import { MAX_REQUEST_BODY_BYTES } from "./headers.ts";

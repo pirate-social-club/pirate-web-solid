@@ -1,4 +1,4 @@
-import { ApiClientError } from "@pirate/api-client-handle-sales";
+import { ApiClientError } from "@pirate/api-client-happy-path";
 import { Link, Meta, Title } from "@solidjs/meta";
 import { getRequestEvent } from "@solidjs/web";
 import {

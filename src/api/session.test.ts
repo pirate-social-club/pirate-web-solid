@@ -1,4 +1,4 @@
-import { ApiClientError } from "@pirate/api-client";
+import { ApiClientError } from "@pirate/api-client-happy-path";
 import { describe, expect, test, vi } from "vitest";
 
 import { resolveAccountSession, resolveSession } from "./session.ts";

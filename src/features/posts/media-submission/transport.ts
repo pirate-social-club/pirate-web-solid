@@ -9,7 +9,7 @@ import {
   type PostMediaPostSubmissionsSubmissionIdLyricsInput,
   type PostMediaPostSubmissionsSubmissionIdRetryInput,
   type PostMediaPostSubmissionsSubmissionIdTermsInput,
-} from "@pirate/api-client";
+} from "@pirate/api-client-happy-path";
 import { createApiClient, readCsrfCookie, sessionRequestOptions } from "../../../api/client";
 import type { ApiFetch } from "../../../api/proxy";
 import type { MediaSubmissionSnapshot } from "./contracts";
