@@ -323,6 +323,38 @@ type WalletLoginStage =
   | "siwe_authenticate"
   | "session_exchange";
 
+/**
+ * Everything a wallet-login failure may state about itself: where it stopped,
+ * and the two non-sensitive fields the error carriers on this path agree on.
+ * A message, signature, token, or address is never admitted.
+ */
+interface WalletLoginDiagnostic {
+  stage: WalletLoginStage;
+  status?: number;
+  code?: string;
+}
+
+/**
+ * Privy rejects a nonconforming SIWE message with its own `PrivyApiError`
+ * (`status`, `code`), while api-next throws `ApiClientError` (`status`), so
+ * reading either class by identity would drop exactly the failure this path
+ * exists to explain. The read is structural on purpose: the Privy package
+ * ships parallel CommonJS and ESM builds, and an `instanceof` check against a
+ * second bundled copy silently yields false.
+ */
+function walletLoginDiagnostic(stage: WalletLoginStage, error: unknown): WalletLoginDiagnostic {
+  // SAFETY: an optional structural read of two primitives at the provider
+  // boundary. Neither field is trusted, and a non-conforming value is dropped
+  // rather than reported.
+  const carrier: { status?: unknown; code?: unknown } = typeof error === "object" && error !== null ? error : {};
+  const diagnostic: WalletLoginDiagnostic = { stage };
+  if (typeof carrier.status === "number") diagnostic.status = carrier.status;
+  // A taxonomy code is a fixed provider enum such as `invalid_data`. The bound
+  // keeps an arbitrary string from turning a marker into a payload.
+  if (typeof carrier.code === "string" && carrier.code.length <= 64) diagnostic.code = carrier.code;
+  return diagnostic;
+}
+
 export async function createPrivySessionExchange(
   config: VerificationPublicConfig,
   dependencies: {
@@ -452,11 +484,11 @@ export async function createPrivySessionExchange(
         dependencies.reportWalletLoginStage(stage, error);
         return;
       }
-      // Only the stage and a numeric status are recorded; provider payloads,
-      // messages, signatures, tokens, and addresses never enter diagnostics.
-      const status = error instanceof ApiClientError ? error.status : undefined;
+      // Only the stage, a numeric status, and a bounded taxonomy code are
+      // recorded; provider payloads, messages, signatures, tokens, and
+      // addresses never enter diagnostics.
       // oxlint-disable-next-line no-console -- a stage marker keeps wallet failures diagnosable without payload detail.
-      console.warn("wallet_login_stage_failed", { stage, status });
+      console.warn("wallet_login_stage_failed", walletLoginDiagnostic(stage, error));
     } catch {
       // Diagnostics are best-effort and must never replace the surfaced failure.
     }

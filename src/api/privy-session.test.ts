@@ -571,6 +571,97 @@ describe("Privy session exchange", () => {
     }
   });
 
+  it("records the Privy transport status when SIWE authentication is rejected", async () => {
+    // Privy rejects a nonconforming SIWE message with its own error class, not
+    // with the Pirate api-next client error. The default reporter must still
+    // capture the status, or the exact failure this path exists to explain
+    // would be logged as `undefined`.
+    class PrivySiweRejection extends Error {
+      readonly status = 422;
+      readonly code = "invalid_data";
+      constructor() {
+        super("Invalid SIWE message and/or signature");
+        this.name = "PrivyApiError";
+      }
+    }
+    const request = vi.fn(async ({ method }: { method: string }) => {
+      if (method === "eth_requestAccounts") return ["0x0000000000000000000000000000000000000001"];
+      if (method === "eth_chainId") return "0x1";
+      if (method === "personal_sign") return "0xsignature";
+      throw new Error(`unexpected_${method}`);
+    });
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    Object.defineProperty(globalThis, "window", {
+      configurable: true,
+      value: { location: { host: "localhost", origin: "http://localhost" }, ethereum: { request } },
+    });
+    try {
+      const auth = await createPrivySessionExchange({ enabled: true, privyAppId: "app" }, {
+        createPrivy: async () => ({
+          auth: {
+            email: { sendCode: async () => ({ success: true }), loginWithCode: async () => undefined },
+            siwe: {
+              init: async () => ({ message: "localhost wants you to sign in..." }),
+              loginWithSiwe: async () => { throw new PrivySiweRejection(); },
+            },
+          },
+          initialize: async () => undefined,
+          getAccessToken: async () => "wallet-access-token",
+        }),
+        exchange: async () => undefined,
+        csrf: () => "csrf",
+      });
+
+      await expect(auth.loginWithWallet()).rejects.toThrow("Invalid SIWE message and/or signature");
+      expect(warn).toHaveBeenCalledWith("wallet_login_stage_failed", {
+        stage: "siwe_authenticate",
+        status: 422,
+        code: "invalid_data",
+      });
+    } finally {
+      warn.mockRestore();
+      Reflect.deleteProperty(globalThis, "window");
+    }
+  });
+
+  it("keeps an unclassified wallet-login failure to its stage marker alone", async () => {
+    // A plain provider or network error carries no status. The marker must
+    // still localize the stage without inventing transport detail.
+    const request = vi.fn(async ({ method }: { method: string }) => {
+      if (method === "eth_requestAccounts") return ["0x0000000000000000000000000000000000000001"];
+      if (method === "eth_chainId") return "0x1";
+      throw new Error(`unexpected_${method}`);
+    });
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    Object.defineProperty(globalThis, "window", {
+      configurable: true,
+      value: { location: { host: "localhost", origin: "http://localhost" }, ethereum: { request } },
+    });
+    try {
+      const auth = await createPrivySessionExchange({ enabled: true, privyAppId: "app" }, {
+        createPrivy: async () => ({
+          auth: {
+            email: { sendCode: async () => ({ success: true }), loginWithCode: async () => undefined },
+            siwe: {
+              init: async () => { throw new Error("network_down"); },
+              loginWithSiwe: async () => undefined,
+            },
+          },
+          initialize: async () => undefined,
+          getAccessToken: async () => "wallet-access-token",
+        }),
+        exchange: async () => undefined,
+        csrf: () => "csrf",
+      });
+
+      await expect(auth.loginWithWallet()).rejects.toThrow("network_down");
+      expect(warn).toHaveBeenCalledWith("wallet_login_stage_failed", { stage: "siwe_init" });
+    } finally {
+      warn.mockRestore();
+      Reflect.deleteProperty(globalThis, "window");
+    }
+  });
+
   it("fails closed when no injected wallet is present", async () => {
     Object.defineProperty(globalThis, "window", {
       configurable: true,
