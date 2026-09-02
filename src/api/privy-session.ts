@@ -215,6 +215,28 @@ interface EthereumProvider {
   request(args: { method: string; params?: readonly unknown[] }): Promise<unknown>;
 }
 
+function ethereumProviderErrorCode(error: unknown): number | undefined {
+  if (error === null || typeof error !== "object" || !("code" in error)) return undefined;
+  // SAFETY: the property is read only after the object and property-existence checks above.
+  const code = (error as { readonly code?: unknown }).code;
+  return typeof code === "number" ? code : undefined;
+}
+
+async function requestEthereumProvider<Result>(
+  provider: EthereumProvider,
+  args: { readonly method: string; readonly params?: readonly unknown[] },
+  failure: "wallet_unavailable" | "wallet_auth_failed",
+  parse: (value: unknown) => Result,
+): Promise<Result> {
+  try {
+    return parse(await provider.request(args));
+  } catch (error) {
+    if (error instanceof Error && error.message === "wallet_unavailable") throw error;
+    const message = ethereumProviderErrorCode(error) === 4001 ? "wallet_auth_rejected" : failure;
+    throw new Error(message, { cause: error });
+  }
+}
+
 function isEthereumProvider(candidate: unknown): candidate is EthereumProvider {
   if (candidate === null || typeof candidate !== "object" || !("request" in candidate)) {
     return false;
@@ -253,6 +275,15 @@ function chainId(value: unknown): string {
   const numeric = Number.parseInt(raw, raw.startsWith("0x") ? 16 : 10);
   if (!Number.isSafeInteger(numeric) || numeric <= 0) throw new Error("wallet_unavailable");
   return `eip155:${numeric}`;
+}
+
+function walletAddress(value: unknown): string {
+  if (!Array.isArray(value) || value.length === 0) throw new Error("wallet_unavailable");
+  return stringValue(value[0], "wallet_unavailable");
+}
+
+function walletSignature(value: unknown): string {
+  return stringValue(value, "wallet_auth_failed");
 }
 
 export async function createPrivySessionExchange(
@@ -430,25 +461,25 @@ export async function createPrivySessionExchange(
       const siwe = client.auth.siwe;
       if (siwe === undefined) throw new Error("wallet_unavailable");
       const provider = browserEthereumProvider();
-      try {
-        const accounts = await provider.request({ method: "eth_requestAccounts" });
-        if (!Array.isArray(accounts) || accounts.length === 0) throw new Error("wallet_unavailable");
-        const address = stringValue(accounts[0], "wallet_unavailable");
-        const wallet: ExternalWallet = {
-          address,
-          chainId: chainId(await provider.request({ method: "eth_chainId" })),
-          connectorType: "injected",
-        };
-        const initialized = await siwe.init(wallet, window.location.host, window.location.origin);
-        const signature = stringValue(
-          await provider.request({ method: "personal_sign", params: [initialized.message, address] }),
-          "wallet_auth_failed",
-        );
-        await siwe.loginWithSiwe(signature, wallet, initialized.message);
-      } catch (error) {
-        if (error instanceof Error && error.message === "wallet_unavailable") throw error;
-        throw new Error("wallet_auth_failed");
-      }
+      const address = await requestEthereumProvider(
+        provider,
+        { method: "eth_requestAccounts" },
+        "wallet_auth_failed",
+        walletAddress,
+      );
+      const wallet: ExternalWallet = {
+        address,
+        chainId: await requestEthereumProvider(provider, { method: "eth_chainId" }, "wallet_unavailable", chainId),
+        connectorType: "injected",
+      };
+      const initialized = await siwe.init(wallet, window.location.host, window.location.origin);
+      const signature = await requestEthereumProvider(
+        provider,
+        { method: "personal_sign", params: [initialized.message, address] },
+        "wallet_auth_failed",
+        walletSignature,
+      );
+      await siwe.loginWithSiwe(signature, wallet, initialized.message);
       await establishSession();
     },
     async register() {

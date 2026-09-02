@@ -54,6 +54,7 @@ describe("sign-in phase model", () => {
 
   it("maps known failures to safe text and everything else to the fallback", () => {
     expect(signInMessage(new Error("wallet_unavailable"))).toBe("No wallet found.");
+    expect(signInMessage(new Error("wallet_auth_rejected"))).toBe("Wallet request cancelled.");
     expect(signInMessage(new Error("wallet_auth_failed"))).toBe("Wallet sign-in failed.");
     expect(signInMessage(new Error("session_failed"))).toBe("Couldn’t sign in. Try again.");
     expect(signInMessage("privy_internal_detail")).toBe("Couldn’t sign in. Try again.");

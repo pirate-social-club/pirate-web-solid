@@ -52,6 +52,7 @@ export const initialSignInState: SignInState = {
 export function signInMessage(error: unknown): string {
   if (error instanceof Error) {
     if (error.message === "wallet_unavailable") return "No wallet found.";
+    if (error.message === "wallet_auth_rejected") return "Wallet request cancelled.";
     if (error.message === "wallet_auth_failed") return "Wallet sign-in failed.";
   }
   return "Couldn’t sign in. Try again.";

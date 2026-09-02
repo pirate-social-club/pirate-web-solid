@@ -450,4 +450,71 @@ describe("Privy session exchange", () => {
       Reflect.deleteProperty(globalThis, "window");
     }
   });
+
+  it("distinguishes an injected-wallet cancellation", async () => {
+    const request = vi.fn(async ({ method }: { method: string }) => {
+      if (method === "eth_requestAccounts") {
+        throw Object.assign(new Error("provider detail must stay private"), { code: 4001 });
+      }
+      throw new Error(`unexpected_${method}`);
+    });
+    Object.defineProperty(globalThis, "window", {
+      configurable: true,
+      value: { location: { host: "localhost", origin: "http://localhost" }, ethereum: { request } },
+    });
+    try {
+      const auth = await createPrivySessionExchange({ enabled: true, privyAppId: "app" }, {
+        createPrivy: async () => ({
+          auth: {
+            email: { sendCode: async () => ({ success: true }), loginWithCode: async () => undefined },
+            siwe: {
+              init: async () => ({ message: "sign this message" }),
+              loginWithSiwe: async () => undefined,
+            },
+          },
+          initialize: async () => undefined,
+          getAccessToken: async () => "wallet-access-token",
+        }),
+        exchange: async () => undefined,
+        csrf: () => "csrf",
+      });
+
+      await expect(auth.loginWithWallet()).rejects.toThrow("wallet_auth_rejected");
+    } finally {
+      Reflect.deleteProperty(globalThis, "window");
+    }
+  });
+
+  it("preserves a Privy SIWE infrastructure failure", async () => {
+    const request = vi.fn(async ({ method }: { method: string }) => {
+      if (method === "eth_requestAccounts") return ["0x0000000000000000000000000000000000000001"];
+      if (method === "eth_chainId") return "0x1";
+      throw new Error(`unexpected_${method}`);
+    });
+    Object.defineProperty(globalThis, "window", {
+      configurable: true,
+      value: { location: { host: "localhost", origin: "http://localhost" }, ethereum: { request } },
+    });
+    try {
+      const auth = await createPrivySessionExchange({ enabled: true, privyAppId: "app" }, {
+        createPrivy: async () => ({
+          auth: {
+            email: { sendCode: async () => ({ success: true }), loginWithCode: async () => undefined },
+            siwe: {
+              init: async () => { throw new Error("privy_origin_configuration_failed"); },
+              loginWithSiwe: async () => undefined,
+            },
+          },
+          initialize: async () => undefined,
+          getAccessToken: async () => "wallet-access-token",
+        }),
+        exchange: async () => undefined,
+        csrf: () => "csrf",
+      });
+
+      await expect(auth.loginWithWallet()).rejects.toThrow("privy_origin_configuration_failed");
+    } finally {
+      Reflect.deleteProperty(globalThis, "window");
+    }
+  });
 });
