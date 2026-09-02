@@ -59,9 +59,10 @@
     "@veryai/widget": "1.0.22",
     "@zkpassport/sdk": "0.14.2",
     "filesystem-routing": "0.2.1",
-    "qrcode": "1.5.4",
     "qr-code-styling": "1.9.2",
-    "solid-js": "2.0.0-rc.0"
+    "qrcode": "1.5.4",
+    "solid-js": "2.0.0-rc.0",
+    "viem": "2.55.15"
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "1.52.1",
