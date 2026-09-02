@@ -98,6 +98,55 @@ describe("Community creation production route", () => {
     }
   });
 
+  test("names the unavailable state when session resolution fails and recovers on retry", async () => {
+    let attempt = 0;
+    const container = render(() => (
+      <CommunityCreationRouteView
+        api={api()}
+        resolveSession={async () => {
+          attempt += 1;
+          if (attempt === 1) throw new Error("network");
+          return "anonymous";
+        }}
+      />
+    ));
+
+    const route = () => container.querySelector("[data-route-path='/communities/new']")!;
+    await vi.waitFor(() => expect(route().getAttribute("data-creation-state")).toBe("unavailable"));
+    expect(container.textContent).toContain("Community creation is unavailable");
+    expect(container.textContent).not.toContain("Sign in to create a community");
+
+    const retry = [...route().querySelectorAll<HTMLButtonElement>("button")]
+      .find(button => button.textContent?.trim() === "Try again")!;
+    retry.click();
+
+    await vi.waitFor(() => expect(route().getAttribute("data-creation-state")).toBe("signed-out"));
+    expect(attempt).toBe(2);
+  });
+
+  test("names the persona-required state for an account without an active persona", async () => {
+    const container = render(() => (
+      <CommunityCreationRouteView
+        api={api()}
+        resolveSession={async () => ({ personas: [], status: "authenticated", userId: "user-1" })}
+      />
+    ));
+
+    const route = () => container.querySelector("[data-route-path='/communities/new']")!;
+    await vi.waitFor(() => expect(route().getAttribute("data-creation-state")).toBe("persona-required"));
+    expect(container.textContent).toContain("Create a persona first");
+  });
+
+  test("leaves the resolving fallback for every settled session outcome", async () => {
+    const container = render(() => (
+      <CommunityCreationRouteView api={api()} resolveSession={async () => "anonymous"} />
+    ));
+
+    const route = () => container.querySelector("[data-route-path='/communities/new']")!;
+    await vi.waitFor(() => expect(route().getAttribute("data-creation-state")).not.toBe("resolving"));
+    expect(container.textContent).not.toContain("Preparing community creation");
+  });
+
   test("reuses the creation form while withholding unsupported media controls", async () => {
     const container = render(() => (
       <CommunityCreationRouteView

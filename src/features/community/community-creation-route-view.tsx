@@ -85,11 +85,7 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
     }
   };
 
-  createEffect(
-    () => typeof window !== "undefined",
-    (isBrowser) => {
-    if (!isBrowser || sessionStarted) return;
-    sessionStarted = true;
+  const startSessionResolution = () => {
     void (props.resolveSession ?? resolveSession)()
       .then((result) => {
         if (!active) return;
@@ -103,6 +99,19 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
       .catch(() => {
         if (active) setSession("failed");
       });
+  };
+
+  const retrySessionResolution = () => {
+    setSession("resolving");
+    startSessionResolution();
+  };
+
+  createEffect(
+    () => typeof window !== "undefined",
+    (isBrowser) => {
+    if (!isBrowser || sessionStarted) return;
+    sessionStarted = true;
+    startSessionResolution();
     },
   );
 
@@ -166,11 +175,23 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
 
   const currentSession = () => signedIn(session());
   const personas = () => currentSession()?.personas ?? [];
+  /**
+   * The route must always settle on one named state. `resolving` is only the
+   * pre-hydration value, so a stuck spinner is observable as a defect rather
+   * than an indefinite loading surface.
+   */
+  const creationState = (): "persona-required" | "ready" | "resolving" | "signed-out" | "unavailable" => {
+    const current = session();
+    if (current === "resolving") return "resolving";
+    if (current === "failed") return "unavailable";
+    if (current === "anonymous") return "signed-out";
+    return personas().length > 0 ? "ready" : "persona-required";
+  };
 
   return (
-    <main data-route-path="/communities/new" class="min-h-[calc(100dvh-4rem)] bg-background text-foreground">
+    <main data-creation-state={creationState()} data-route-path="/communities/new" class="min-h-[calc(100dvh-4rem)] bg-background text-foreground">
       <Title>Create community · Pirate</Title>
-      <Show when={session() !== "resolving"} fallback={(
+      <Show when={creationState() !== "resolving"} fallback={(
         <div aria-label="Loading community creation" class="grid min-h-[24rem] place-items-center" role="status">
           <div class="flex items-center gap-3 text-muted-foreground">
             <Spinner class="size-5" decorative />
@@ -178,7 +199,18 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
           </div>
         </div>
       )}>
-        <Show when={session() !== "anonymous" && session() !== "failed"} fallback={(
+        <Show when={creationState() !== "unavailable"} fallback={(
+          <div class="mx-auto flex min-h-[24rem] max-w-xl items-center px-5">
+            <Card class="w-full"><CardContent class="space-y-4 p-6">
+              <Type as="h1" variant="h2">Community creation is unavailable</Type>
+              <Type as="p" class="text-muted-foreground" variant="body">
+                Your session could not be checked. This is usually temporary.
+              </Type>
+              <Button onClick={retrySessionResolution}>Try again</Button>
+            </CardContent></Card>
+          </div>
+        )}>
+        <Show when={creationState() !== "signed-out"} fallback={(
           <div class="mx-auto flex min-h-[24rem] max-w-xl items-center px-5">
             <Card class="w-full"><CardContent class="space-y-4 p-6">
               <Type as="h1" variant="h2">Sign in to create a community</Type>
@@ -189,7 +221,7 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
             </CardContent></Card>
           </div>
         )}>
-          <Show when={personas().length > 0} fallback={(
+          <Show when={creationState() === "ready"} fallback={(
             <div class="mx-auto flex min-h-[24rem] max-w-xl items-center px-5">
               <Card class="w-full"><CardContent class="space-y-4 p-6">
                 <Type as="h1" variant="h2">Create a persona first</Type>
@@ -261,6 +293,7 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
               )}
             </Show>
           </Show>
+        </Show>
         </Show>
       </Show>
     </main>

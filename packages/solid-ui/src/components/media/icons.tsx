@@ -2,7 +2,7 @@
 /* Source: @phosphor-icons/core@2.1.1. */
 /* Source digest: 0f5e90483d0d3efa8b4056ba289df23e01d7c23c2a2a8a8d423b0317f99e1839. */
 
-import { Show } from "solid-js";
+import { Show, omit } from "solid-js";
 
 import type { JSX } from "@solidjs/web";
 
@@ -12,9 +12,17 @@ type IconProps = Omit<JSX.SvgSVGAttributes<SVGSVGElement>, "class" | "aria-hidde
   filled?: boolean;
 };
 
+// Props stay lazy. Destructuring an icon's props reads every caller getter
+// during setup, which allocates caller memos out of order and desynchronises
+// the hydration id sequence for later siblings.
 function splitIconProps(props: IconProps) {
-  const { "aria-hidden": ariaHidden, class: className, filled, ...rest } = props;
-  return { ariaHidden, className, filled, rest };
+  const rest = omit(props, "aria-hidden", "class", "filled");
+  return {
+    get ariaHidden() { return props["aria-hidden"]; },
+    get className() { return props.class; },
+    get filled() { return props.filled; },
+    rest,
+  };
 }
 
 export function IconX(props: IconProps) {
