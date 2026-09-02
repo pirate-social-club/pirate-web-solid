@@ -1,0 +1,24 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["packages/solid-ui/src/*"],
+      "@pirate/web-solid-ui": ["packages/solid-ui/src/index.tsx"],
+      "@pirate/web-solid-ui/*": ["packages/solid-ui/src/*"],
+      "@pirate/api-client": ["node_modules/@pirate/api-client/src/index.ts"],
+      "@pirate/api-client-community-route": ["node_modules/@pirate/api-client-happy-path/src/index.ts"],
+      "@pirate/api-client-handle-sales": ["node_modules/@pirate/api-client-happy-path/src/index.ts"],
+      "@pirate/api-client-happy-path": ["node_modules/@pirate/api-client-happy-path/src/index.ts"],
+      "@kobalte/core/*": ["node_modules/@kobalte/core/dist/*"],
+      "@solidjs/web": ["node_modules/@solidjs/web"],
+      "@solidjs/web/jsx-dev-runtime": ["node_modules/@solidjs/web/types/jsx.d.ts"],
+      "@solidjs/web/jsx-runtime": ["node_modules/@solidjs/web/types/jsx.d.ts"],
+      "@solidjs/web/*": ["node_modules/@solidjs/web/*"],
+      "class-variance-authority": ["node_modules/class-variance-authority"],
+      "solid-js": ["node_modules/solid-js"],
+      "solid-js/*": ["node_modules/solid-js/*"],
+      "tailwind-merge": ["node_modules/tailwind-merge"]
+    }
+  }
+}
