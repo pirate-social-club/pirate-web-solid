@@ -168,6 +168,7 @@ export function CreatePostDialog(props: CreatePostDialogProps): JSX.Element {
   const [mediaView, setMediaView] = createSignal<SongSubmissionView>({ status: "editing" });
   const [mediaSnapshot, setMediaSnapshot] = createSignal<MediaSubmissionSnapshot | null>(null);
   const [mediaBusy, setMediaBusy] = createSignal(false);
+  const [lyricsBusy, setLyricsBusy] = createSignal(false);
   const mediaEnabled = props.principalId !== undefined && personas().length > 0;
   const [mediaRestoring, setMediaRestoring] = createSignal(mediaEnabled);
 
@@ -192,14 +193,16 @@ export function CreatePostDialog(props: CreatePostDialogProps): JSX.Element {
     origin: props.origin,
     fetchImpl: props.fetchImpl,
     onStateChange: setMediaView,
+    onSnapshotChange: applySnapshot,
   });
 
   function applySnapshot(snapshot: MediaSubmissionSnapshot): void {
+    const wasPublished = mediaSnapshot()?.status === "published";
     setMediaSnapshot(snapshot);
     const projection = projectSnapshotIntoSongComposer(snapshot);
     setSong(current => ({ ...current, ...projection.song }));
     if (projection.lyricsValue !== undefined) setLyrics(projection.lyricsValue);
-    if (snapshot.status === "published") props.onPublished?.();
+    if (snapshot.status === "published" && !wasPublished) props.onPublished?.();
   }
 
   void textCoordinator.restore().catch(() => {
@@ -445,13 +448,13 @@ export function CreatePostDialog(props: CreatePostDialogProps): JSX.Element {
     const snapshot = mediaSnapshot();
     if (mediaCoordinator === undefined || snapshot === null) return;
     setError("");
-    setMediaBusy(true);
+    setLyricsBusy(true);
     try {
       applySnapshot(await submitComposerLyrics(mediaCoordinator, snapshot, lyrics()));
     } catch (lyricsError) {
       setError(lyricsError instanceof Error ? lyricsError.message : "The reviewed lyrics could not be saved safely.");
     } finally {
-      setMediaBusy(false);
+      setLyricsBusy(false);
     }
   }
 
@@ -512,7 +515,7 @@ export function CreatePostDialog(props: CreatePostDialogProps): JSX.Element {
     : mode() === "song" ? songSubmitDisabled() : true;
   const lyricsCanSave = () => {
     const snapshot = mediaSnapshot();
-    if (snapshot === null || lyrics().length === 0 || mediaBusy()) return false;
+    if (snapshot === null || lyrics().length === 0 || lyricsBusy()) return false;
     const current = snapshot.lyrics_state.current;
     return current.status === "not_bound" || (current.status === "ready" && current.text !== lyrics());
   };
@@ -664,7 +667,7 @@ export function CreatePostDialog(props: CreatePostDialogProps): JSX.Element {
                   <Button disabled={mediaBusy()} type="button" variant="outline" onClick={() => void retrySong()}>Retry processing</Button>
                 </Show>
                 <Show when={lyricsCanSave()}>
-                  <Button disabled={mediaBusy()} type="button" onClick={() => void saveLyrics()}>Save reviewed lyrics</Button>
+                  <Button disabled={lyricsBusy()} type="button" onClick={() => void saveLyrics()}>Save reviewed lyrics</Button>
                 </Show>
                 <Show when={terminalMediaView(mediaView())}>
                   <Button disabled={mediaBusy()} type="button" variant="outline" onClick={() => void discardTerminalSong()}>Start a new post</Button>

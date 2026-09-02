@@ -126,6 +126,47 @@ class FakeTransport implements MediaSubmissionTransport {
   }
 }
 
+class HeldFinalizeTransport extends FakeTransport {
+  private releaseFinalization!: () => void;
+  readonly finalizationReleased = new Promise<void>(resolve => {
+    this.releaseFinalization = resolve;
+  });
+  private markFinalizeStarted!: () => void;
+  readonly finalizeStarted = new Promise<void>(resolve => {
+    this.markFinalizeStarted = resolve;
+  });
+
+  releaseFinalize(): void {
+    this.releaseFinalization();
+  }
+
+  override async dispatch(command: PersistedMediaCommand): Promise<MediaCommandResult> {
+    if (command.kind !== "finalize") return super.dispatch(command);
+    this.events.push("dispatch:finalize");
+    this.commands.push(command);
+    if (this.snapshot === null) throw new Error("missing server submission");
+    const started = this.snapshot;
+    this.snapshot = snapshot({
+      status: "processing",
+      creation_revision: started.creation_revision,
+      audio_revision: 1,
+      lyrics_state: started.lyrics_state,
+      phase: "analysis",
+    });
+    this.markFinalizeStarted();
+    await this.finalizationReleased;
+    const current = this.snapshot;
+    this.snapshot = snapshot({
+      status: "published",
+      creation_revision: current.creation_revision,
+      audio_revision: current.audio_revision,
+      lyrics_state: current.lyrics_state,
+      published_resource: { post_id: "post-1", href: "/posts/post-1" },
+    });
+    return this.snapshot;
+  }
+}
+
 function coordinator(storage: ReturnType<typeof createMemoryMediaSubmissionStorage>, transport: FakeTransport, ids: string[]) {
   let index = 0;
   return new MediaSubmissionCoordinator({
@@ -147,6 +188,64 @@ const beginInput = () => ({
 });
 
 describe("media submission coordinator replay", () => {
+  test("binds reviewed lyrics once while finalization remains in flight", async () => {
+    const storage = createMemoryMediaSubmissionStorage();
+    const transport = new HeldFinalizeTransport();
+    const observed: MediaSubmissionSnapshot[] = [];
+    let idIndex = 0;
+    const ids = ["reserve-key", "start-key", "finalize-key", "lyrics-key"];
+    const flow = new MediaSubmissionCoordinator({
+      storage,
+      transport,
+      createId: () => ids[idIndex++] ?? `unused-${idIndex}`,
+      now: () => "2026-08-26T00:00:00Z",
+      onSnapshotChange: value => observed.push(value),
+    });
+    await flow.begin(beginInput());
+
+    const finalization = flow.uploadAndFinalize();
+    await transport.finalizeStarted;
+    await new Promise<void>(resolve => setTimeout(resolve, 300));
+    expect(observed.some(value => value.audio_revision === 1)).toBe(true);
+
+    const lyrics = await flow.bindLyrics("Reviewed words", "paste");
+    expect(lyrics.lyrics_state.current).toMatchObject({
+      status: "ready",
+      text: "Reviewed words",
+    });
+    expect(transport.commands.filter(command => command.kind === "lyrics")).toHaveLength(1);
+
+    transport.releaseFinalize();
+    const published = await finalization;
+    expect(published).toMatchObject({
+      status: "published",
+      lyrics_state: { current: { status: "ready", text: "Reviewed words" } },
+    });
+
+    const restored = coordinator(storage, transport, ["must-not-be-used"]);
+    await restored.restore("draft-1");
+    expect(transport.commands.filter(command => command.kind === "lyrics")).toHaveLength(1);
+    expect(restored.currentRecord?.pending_command).toBeNull();
+  });
+
+  test("does not reopen a published no-lyrics submission", async () => {
+    const storage = createMemoryMediaSubmissionStorage();
+    const transport = new FakeTransport();
+    const flow = coordinator(storage, transport, ["reserve-key", "start-key", "lyrics-key"]);
+    await flow.begin(beginInput());
+    transport.snapshot = snapshot({
+      audio_revision: 1,
+      lyrics_state: { current: { status: "no_lyrics" } },
+      status: "published",
+      published_resource: { post_id: "post-1", href: "/posts/post-1" },
+    });
+
+    await expect(flow.bindLyrics("Too late", "paste")).rejects.toThrow(
+      "Lyrics cannot be bound before audio finalization",
+    );
+    expect(transport.commands.filter(command => command.kind === "lyrics")).toHaveLength(0);
+  });
+
   test("replays one retained reservation key and continues the durable start after reconnect", async () => {
     const storage = createMemoryMediaSubmissionStorage();
     const transport = new FakeTransport();
