@@ -1,7 +1,7 @@
 import type {
   GetPublicPersonasPersonaIdResponse,
   PirateApiClient,
-} from "@pirate/api-client-happy-path";
+} from "@pirate/api-client";
 
 export const CANONICAL_PUBLIC_ORIGIN = "https://pirate.sc" as const;
 

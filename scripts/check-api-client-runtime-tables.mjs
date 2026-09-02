@@ -6,7 +6,7 @@ import { fileURLToPath } from "node:url";
 const appRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const currentClient = resolve(
   appRoot,
-  "node_modules/@pirate/api-client-happy-path/src/generated/client.ts",
+  "node_modules/@pirate/api-client/src/generated/client.ts",
 );
 const expectedDigest = "a4a802bb5f01962b0500ac7e0a6863c6d1bc364142bbcf204cc2f34d613a4433";
 

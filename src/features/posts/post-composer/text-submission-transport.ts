@@ -1,5 +1,5 @@
 import { createApiClient, readCsrfCookie, sessionRequestOptions } from "../../../api/client.ts";
-import { ApiClientError } from "@pirate/api-client-happy-path";
+import { ApiClientError } from "@pirate/api-client";
 import {
   decodeTextContentSubmission,
   type TextContentSubmissionV1,

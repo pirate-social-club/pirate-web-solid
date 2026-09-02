@@ -6,7 +6,7 @@ import {
   type GetCommunitiesCommunityIdPostsPostIdKaraokeResponse,
   type PirateApiClient,
   type PostCommunitiesCommunityIdPostsPostIdKaraokeAttemptsResponse,
-} from "@pirate/api-client-happy-path";
+} from "@pirate/api-client";
 import {
   createGeneratedApiClient,
   readCsrfCookie,

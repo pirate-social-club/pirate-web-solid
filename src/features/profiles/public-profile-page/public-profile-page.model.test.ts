@@ -1,5 +1,5 @@
 import { describe, expect, test, vi } from "vitest";
-import type { GetPublicProfilesHandleResponse } from "@pirate/api-client-happy-path";
+import type { GetPublicProfilesHandleResponse } from "@pirate/api-client";
 import { createRouter, type RouteProps } from "@solidjs/router";
 import { createRequestEvent, createSSRResponse, renderToStream } from "@solidjs/web";
 import { createComponent } from "solid-js";

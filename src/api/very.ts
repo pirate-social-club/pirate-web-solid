@@ -1,4 +1,4 @@
-import type { PirateApiClient, PirateApiRequestOptions } from "@pirate/api-client-happy-path";
+import type { PirateApiClient, PirateApiRequestOptions } from "@pirate/api-client";
 
 import {
   createSessionApiClient,

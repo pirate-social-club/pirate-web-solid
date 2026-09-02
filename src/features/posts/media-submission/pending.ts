@@ -1,4 +1,4 @@
-import type { PostCommunitiesCommunityIdMediaUploadReservationsResponse } from "@pirate/api-client-happy-path";
+import type { PostCommunitiesCommunityIdMediaUploadReservationsResponse } from "@pirate/api-client";
 import {
   base64UrlToBytes,
   bytesToBase64Url,

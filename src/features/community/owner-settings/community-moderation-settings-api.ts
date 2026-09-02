@@ -1,4 +1,4 @@
-import { createPirateApiClient } from "@pirate/api-client-happy-path";
+import { createPirateApiClient } from "@pirate/api-client";
 
 import {
   createGeneratedApiClient,

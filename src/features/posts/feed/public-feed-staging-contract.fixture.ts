@@ -1,4 +1,4 @@
-import type { GetFeedHomePublicResponse } from "@pirate/api-client-happy-path";
+import type { GetFeedHomePublicResponse } from "@pirate/api-client";
 
 /**
  * Sanitized from the staging response that exposed the 0.25 client drift.

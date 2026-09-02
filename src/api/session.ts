@@ -1,4 +1,4 @@
-import { ApiClientError, type PirateApiClient } from "@pirate/api-client-happy-path";
+import { ApiClientError, type PirateApiClient } from "@pirate/api-client";
 import { createSessionApiClient } from "./client.ts";
 import type { ApiFetch } from "./proxy.ts";
 

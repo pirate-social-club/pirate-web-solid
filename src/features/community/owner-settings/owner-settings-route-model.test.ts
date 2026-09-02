@@ -1,4 +1,4 @@
-import { ApiClientError } from "@pirate/api-client-happy-path";
+import { ApiClientError } from "@pirate/api-client";
 import { describe, expect, test, vi } from "vitest";
 
 import { NAMES_READY } from "./community-names-settings-fixtures";

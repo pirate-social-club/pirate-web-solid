@@ -1,5 +1,5 @@
 {
-  "name": "@pirate/api-client-happy-path",
+  "name": "@pirate/api-client",
   "version": "0.48.0",
   "artifact": "vendor/api-client/pirate-api-client-0.48.0.tgz",
   "sha256": "97c394cc707544ae0ff86da5fbc15617e24019d5504232dec0c629e87c3db168",

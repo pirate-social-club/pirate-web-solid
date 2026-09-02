@@ -7,7 +7,7 @@ import {
   createPirateApiClient,
   type GetFeedHomePublicResponse,
   type PirateApiClient,
-} from "@pirate/api-client-happy-path";
+} from "@pirate/api-client";
 import {
   createGeneratedApiClient,
   type ApiClientFactoryOptions,

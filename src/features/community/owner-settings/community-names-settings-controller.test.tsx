@@ -1,6 +1,6 @@
 import { render as solidRender, type JSX } from "@solidjs/web";
 import { createRoot } from "solid-js";
-import { ApiClientError } from "@pirate/api-client-happy-path";
+import { ApiClientError } from "@pirate/api-client";
 import { afterEach, describe, expect, test, vi } from "vitest";
 
 import type { CommunityNamesSettingsApi } from "./community-names-settings-api";

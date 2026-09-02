@@ -1,4 +1,4 @@
-import { ApiClientError } from "@pirate/api-client-happy-path";
+import { ApiClientError } from "@pirate/api-client";
 
 import type { CommunityRouteClient } from "../../communities/community-page/community-page.model";
 import { loadCommunityPage } from "../../communities/community-page/community-page.model";

@@ -3,7 +3,7 @@ import {
   ApiClientError,
   type GetPersonasResponse,
   type PostAuthRegisterResponse,
-} from "@pirate/api-client-happy-path";
+} from "@pirate/api-client";
 import { createSessionApiClient, readCsrfCookie, sessionRequestOptions } from "./client.ts";
 import type { VerificationPublicConfig } from "./verification-config.ts";
 

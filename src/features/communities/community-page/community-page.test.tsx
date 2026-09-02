@@ -1,7 +1,7 @@
 import type {
   GetCPathSegmentResponse,
   GetCommunitiesCommunityIdPreviewResponse,
-} from "@pirate/api-client-happy-path";
+} from "@pirate/api-client";
 import { render as solidRender, type JSX } from "@solidjs/web";
 import { createRoot } from "solid-js";
 import { afterEach, describe, expect, test, vi } from "vitest";

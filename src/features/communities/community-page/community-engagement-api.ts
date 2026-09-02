@@ -3,7 +3,7 @@ import {
   type GetCommunitiesCommunityIdJoinEligibilityResponse,
   type PirateApiClient,
   type PirateApiRequestOptions,
-} from "@pirate/api-client-happy-path";
+} from "@pirate/api-client";
 
 import {
   createGeneratedApiClient,

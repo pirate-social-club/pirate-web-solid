@@ -1,4 +1,4 @@
-import type { GetCPathSegmentResponse } from "@pirate/api-client-happy-path";
+import type { GetCPathSegmentResponse } from "@pirate/api-client";
 import { describe, expect, test, vi } from "vitest";
 import { createPublicCommunityRouteClient } from "./community-route-client.ts";
 

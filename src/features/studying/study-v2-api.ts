@@ -7,7 +7,7 @@ import {
   type PostCommunitiesCommunityIdPostsPostIdStudyV2GenerationsResponse,
   type PostCommunitiesCommunityIdPostsPostIdStudyV2SessionsResponse,
   type PostCommunitiesCommunityIdStudyV2SessionsSessionIdItemsSessionItemIdAnswersResponse,
-} from "@pirate/api-client-happy-path";
+} from "@pirate/api-client";
 import {
   createGeneratedApiClient,
   readCsrfCookie,

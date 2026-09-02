@@ -1,4 +1,4 @@
-import { ApiClientError } from "@pirate/api-client-happy-path";
+import { ApiClientError } from "@pirate/api-client";
 import { describe, expect, test } from "vitest";
 
 import {

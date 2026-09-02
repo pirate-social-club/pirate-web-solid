@@ -4,7 +4,7 @@ import type {
   GetCPathSegmentResponse,
   GetCommunitiesCommunityIdPreviewResponse,
   GetPersonasResponse,
-} from "@pirate/api-client-happy-path";
+} from "@pirate/api-client";
 import { describe, expect, test, vi } from "vitest";
 
 import {

@@ -10,7 +10,7 @@ import {
   type GetCommunitiesCommunityIdModerationCasesCaseRefResponse,
   type PostModerationCasesCaseRefActionsInput,
   type PostModerationCasesCaseRefActionsResponse,
-} from "@pirate/api-client-happy-path";
+} from "@pirate/api-client";
 
 import {
   createGeneratedApiClient,

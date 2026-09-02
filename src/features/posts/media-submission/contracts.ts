@@ -4,7 +4,7 @@ import type {
   PostCommunitiesCommunityIdMediaUploadReservationsInput,
   PostMediaPostSubmissionsSubmissionIdLyricsInput,
   PostMediaPostSubmissionsSubmissionIdTermsInput,
-} from "@pirate/api-client-happy-path";
+} from "@pirate/api-client";
 
 export type MediaSubmissionSnapshot = GetMediaPostSubmissionsSubmissionIdResponse;
 export type SongLicensePreset = "non-commercial" | "commercial-use" | "commercial-remix";

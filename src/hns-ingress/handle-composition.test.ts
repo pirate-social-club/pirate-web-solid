@@ -1,5 +1,5 @@
 import { createHmac } from "node:crypto";
-import type { GetPublicPersonasPersonaIdResponse } from "@pirate/api-client-happy-path";
+import type { GetPublicPersonasPersonaIdResponse } from "@pirate/api-client";
 import { describe, expect, it } from "vitest";
 import {
   CF_ACCESS_ASSERTION_HEADER,

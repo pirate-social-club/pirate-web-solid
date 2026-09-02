@@ -7,7 +7,7 @@ import type {
   PostCommunitiesCommunityIdHandleOfferingsOfferingIdRevisionsInput,
   PostCommunitiesCommunityIdHandleSaleNamespacesInput,
   PostCommunitiesCommunityIdHandleSaleNamespacesActivationIdRevisionsInput,
-} from "@pirate/api-client-happy-path";
+} from "@pirate/api-client";
 import type { OwnerSettingsAccess } from "./owner-settings-model";
 
 export type CommunityNamesManagementPort = Pick<

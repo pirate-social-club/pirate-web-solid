@@ -1,7 +1,7 @@
 import type {
   GetCPathSegmentResponse,
   GetCommunitiesCommunityIdPreviewResponse,
-} from "@pirate/api-client-happy-path";
+} from "@pirate/api-client";
 import { describe, expect, test, vi } from "vitest";
 import {
   loadCommunityPage,

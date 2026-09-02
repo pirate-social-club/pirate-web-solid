@@ -6,7 +6,7 @@ import type {
   PirateApiClient,
   PostModerationCasesCaseRefActionsInput,
   PutCommunitiesCommunityIdModerationPolicyInput,
-} from "@pirate/api-client-happy-path";
+} from "@pirate/api-client";
 import type { OwnerSettingsAccess } from "./owner-settings-model";
 
 export type CommunityModerationPort = Pick<

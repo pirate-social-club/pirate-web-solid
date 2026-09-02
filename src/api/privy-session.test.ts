@@ -1,4 +1,4 @@
-import { ApiClientError, type GetPersonasResponse } from "@pirate/api-client-happy-path";
+import { ApiClientError, type GetPersonasResponse } from "@pirate/api-client";
 import type { ExternalWallet } from "@privy-io/js-sdk-core";
 import { describe, expect, it, vi } from "vitest";
 import {

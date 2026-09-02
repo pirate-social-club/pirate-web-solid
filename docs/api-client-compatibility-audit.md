@@ -12,7 +12,7 @@ blocker is resolved and that the remaining primary-client runtime tables are
 identical to 0.48. See `docs/api-client-runtime-validator-audit.md`.
 
 The consolidation that followed rewrote every source consumer to
-`@pirate/api-client-happy-path`, removed the three superseded dependency aliases
+`@pirate/api-client`, removed the three superseded dependency aliases
 and their 0.13, 0.21 and 0.25 artifacts, and made the runtime-table digest a
 retained prebuild and verification gate. The inventory below describes the
 pre-consolidation state used to prove that removal safe.

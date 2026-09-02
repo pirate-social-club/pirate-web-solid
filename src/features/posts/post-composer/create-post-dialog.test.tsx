@@ -4,7 +4,7 @@ import { render as solidRender } from "@solidjs/web";
 import { createRoot, createSignal } from "solid-js";
 import type { JSX } from "@solidjs/web";
 
-import type { PostCommunitiesCommunityIdMediaUploadReservationsResponse } from "@pirate/api-client-happy-path";
+import type { PostCommunitiesCommunityIdMediaUploadReservationsResponse } from "@pirate/api-client";
 
 import type { ActivePersonaPublicProjection } from "../../../api/session";
 import type { MediaSubmissionSnapshot } from "../media-submission/contracts";

@@ -3,11 +3,11 @@ import {
   type PirateApiClient,
   type PirateApiClientOptions,
   type PirateApiRequestOptions,
-} from "@pirate/api-client-happy-path";
+} from "@pirate/api-client";
 import { sameOrigin } from "./origin.ts";
 import type { ApiFetch } from "./proxy.ts";
 
-export type { PirateApiClient, PirateApiClientOptions, PirateApiRequestOptions } from "@pirate/api-client-happy-path";
+export type { PirateApiClient, PirateApiClientOptions, PirateApiRequestOptions } from "@pirate/api-client";
 
 export interface ApiClientFactoryOptions {
   /** The current Solid request origin. SSR callers must pass this explicitly. */

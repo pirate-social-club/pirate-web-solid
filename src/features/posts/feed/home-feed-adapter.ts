@@ -2,7 +2,7 @@ import {
   createPirateApiClient,
   type GetHomeFeedResponse,
   type PirateApiClient,
-} from "@pirate/api-client-happy-path";
+} from "@pirate/api-client";
 import { createGeneratedApiClient } from "../../../api/client.ts";
 import type { ApiFetch } from "../../../api/proxy.ts";
 import { resolveLocaleLanguageTag, type UiLocaleCode } from "../../../lib/ui-locale-core.ts";

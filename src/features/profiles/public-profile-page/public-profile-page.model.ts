@@ -1,4 +1,4 @@
-import type { GetPublicProfilesHandleResponse, PirateApiClient } from "@pirate/api-client-happy-path";
+import type { GetPublicProfilesHandleResponse, PirateApiClient } from "@pirate/api-client";
 
 export const PUBLIC_PROFILE_UNAVAILABLE_STATUS = 502 as const;
 

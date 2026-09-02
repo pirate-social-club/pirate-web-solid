@@ -8,8 +8,8 @@ const packageJson = readJson(resolve(appRoot, "package.json"));
 
 const clients = [
   {
-    dependency: "@pirate/api-client-happy-path",
-    provenance: "vendor/api-client-happy-path-provenance.json",
+    dependency: "@pirate/api-client",
+    provenance: "vendor/api-client-provenance.json",
     expectedScope: [
       "post_communityCreationIntents",
       "get_communityCreationIntentsIntentId",
@@ -45,12 +45,7 @@ if (
   );
 }
 
-const forbiddenAliases = [
-  "@pirate/api-client\"",
-  "@pirate/api-client'",
-  "@pirate/api-client-community-route",
-  "@pirate/api-client-handle-sales",
-];
+const generatedClientSpecifier = /["'](@pirate\/api-client[^"']*)["']/gu;
 
 function sourceFiles(directory) {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
@@ -62,9 +57,10 @@ function sourceFiles(directory) {
 
 for (const path of sourceFiles(resolve(appRoot, "src"))) {
   const source = readFileSync(path, "utf8");
-  const forbidden = forbiddenAliases.find((alias) => source.includes(alias));
-  if (forbidden !== undefined) {
-    throw new Error(`${path} imports forbidden generated-client alias ${forbidden}`);
+  for (const match of source.matchAll(generatedClientSpecifier)) {
+    if (match[1] !== permittedDependency) {
+      throw new Error(`${path} imports forbidden generated-client alias ${match[1]}`);
+    }
   }
 }
 

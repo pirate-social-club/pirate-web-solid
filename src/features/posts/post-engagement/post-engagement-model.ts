@@ -2,7 +2,7 @@ import {
   type CreateCommentReplyResponse,
   type CreateCommentResponse,
   type GetTextContentSubmissionResponse,
-} from "@pirate/api-client-happy-path";
+} from "@pirate/api-client";
 
 import {
   PostEngagementLocalError,

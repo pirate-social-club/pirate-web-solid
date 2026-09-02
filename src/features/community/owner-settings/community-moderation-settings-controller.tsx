@@ -1,6 +1,6 @@
 import { Show, createEffect, createSignal, onCleanup } from "solid-js";
 import { Button, Card, FormNote, Spinner, Type } from "@pirate/web-solid-ui";
-import { ApiClientError } from "@pirate/api-client-happy-path";
+import { ApiClientError } from "@pirate/api-client";
 
 import {
   createCommunityModerationSettingsApi,

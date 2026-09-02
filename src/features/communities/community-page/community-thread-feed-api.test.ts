@@ -1,4 +1,4 @@
-import type { GetPublicCommunitiesCommunityRefFeedResponse } from "@pirate/api-client-happy-path";
+import type { GetPublicCommunitiesCommunityRefFeedResponse } from "@pirate/api-client";
 import { describe, expect, test, vi } from "vitest";
 
 import {

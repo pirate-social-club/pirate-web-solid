@@ -3,7 +3,7 @@ import {
   type GetCommunityCreationIntentsIntentIdResponse,
   type PirateApiClient,
   type PostCommunityCreationIntentsResponse,
-} from "@pirate/api-client-happy-path";
+} from "@pirate/api-client";
 import {
   createGeneratedApiClient,
   readCsrfCookie,
