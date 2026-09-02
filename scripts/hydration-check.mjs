@@ -10,8 +10,14 @@ const browser = await chromium.launch({
 try {
   const page = await browser.newPage();
   const errors = [];
+  let anonymousSessionProbe = false;
   page.on("console", message => { if (message.type() === "error") errors.push(`console: ${message.text()}`); });
   page.on("pageerror", error => errors.push(`pageerror: ${error.message}`));
+  page.on("response", response => {
+    if (response.status() === 401 && new URL(response.url()).pathname === "/api/users/me") {
+      anonymousSessionProbe = true;
+    }
+  });
   if (apiDown) {
     await page.route("**/api/feed/**", route => route.fulfill({
       status: 503,
@@ -38,11 +44,11 @@ try {
 
   await page.locator("#app-root[data-hydrated='true']").waitFor({ state: "attached" });
   if (apiDown) {
-    await page.locator("[data-feed-state='error']").waitFor({ state: "visible" });
+    await page.locator("[data-video-feed-state='error']").waitFor({ state: "visible" });
   }
-  const feedState = page.locator("[data-feed-state]").first();
+  const feedState = page.locator("[data-video-feed-state]").first();
   await feedState.waitFor({ state: "visible" });
-  const renderedFeedState = await feedState.getAttribute("data-feed-state");
+  const renderedFeedState = await feedState.getAttribute("data-video-feed-state");
   if (apiDown && renderedFeedState !== "error") throw new Error(`API-down feed state was ${renderedFeedState}`);
   const button = page.locator("#hydration-button");
   const before = await button.textContent();
@@ -75,6 +81,7 @@ try {
   if (await displayName.inputValue() !== "Gate test") throw new Error("TextField value did not update");
   const unexpectedErrors = errors.filter(error => !(
     (apiDown && error.includes("Failed to load resource: the server responded with a status of 503"))
+    || (anonymousSessionProbe && error.includes("Failed to load resource: the server responded with a status of 401"))
     || error.includes("Failed to load resource: the server responded with a status of 404")
   ));
   if (unexpectedErrors.length) throw new Error(`Browser errors: ${unexpectedErrors.join(" | ")}`);

@@ -31,6 +31,14 @@ export interface AppSidebarProps {
   collapsed?: boolean;
   mediaAction?: JSX.Element;
   footer?: JSX.Element;
+  footerTitle?: string;
+  footerDetail?: string;
+  footerActionLabel?: string;
+  footerActionHref?: string;
+  onFooterAction?: () => void;
+  onFooterActionFocus?: () => void;
+  onFooterActionPointerDown?: () => void;
+  onFooterActionPointerEnter?: () => void;
   onHomeClick?: () => void;
   onNavigate?: (id: string) => void;
 }
@@ -49,7 +57,27 @@ export function AppSidebar(props: AppSidebarProps) {
       <For each={sections()}>{(section) => <section aria-labelledby={`sidebar-${section.id}`}><Show when={!props.collapsed}><Type as="h2" class="px-3 pb-1 text-xs font-semibold uppercase tracking-wide text-sidebar-foreground" id={`sidebar-${section.id}`}>{section.label}</Type></Show><div class="flex flex-col gap-1"><For each={section.items}>{(item) => <SidebarLink active={props.activeItemId === item.id} item={item} onNavigate={props.onNavigate} />}</For></div></section>}</For>
       <Show when={props.resourceItems?.length}><section aria-labelledby="sidebar-resources"><Show when={!props.collapsed}><Type as="h2" class="px-3 pb-1 text-xs font-semibold uppercase tracking-wide text-sidebar-foreground" id="sidebar-resources">{props.resourcesLabel ?? "Resources"}</Type></Show><div class="flex flex-col gap-1"><For each={props.resourceItems}>{(item) => <SidebarLink active={props.activeItemId === item.id} item={item} onNavigate={props.onNavigate} />}</For></div></section></Show>
     </nav>
-    <Show when={props.footer && !props.collapsed}><div class="mt-5 border-t border-sidebar-border pt-4">{props.footer}</div></Show>
+    <Show when={!props.collapsed && (props.footer !== undefined || props.footerTitle !== undefined)}>
+      <div class="mt-5 border-t border-sidebar-border pt-4">
+        {props.footer}
+        <Show when={props.footerTitle !== undefined}>
+          <div class="flex flex-col gap-3">
+            <div class="text-base font-semibold leading-6 text-white">{props.footerTitle}</div>
+            <div class="text-base font-normal leading-5 text-white/60">{props.footerDetail}</div>
+            <button
+              class="block w-full cursor-pointer rounded-lg bg-white px-3 py-2 text-center text-sm font-semibold text-black hover:bg-white/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+              hidden={props.footerActionHref !== undefined}
+              onClick={props.onFooterAction}
+              onFocus={props.onFooterActionFocus}
+              onPointerDown={props.onFooterActionPointerDown}
+              onPointerEnter={props.onFooterActionPointerEnter}
+              type="button"
+            >{props.footerActionLabel}</button>
+            <a class="block rounded-lg border border-white/20 px-3 py-2 text-center text-sm font-semibold text-white hover:bg-white/10" hidden={props.footerActionHref === undefined} href={props.footerActionHref}>{props.footerActionLabel}</a>
+          </div>
+        </Show>
+      </div>
+    </Show>
   </aside>;
 }
 
