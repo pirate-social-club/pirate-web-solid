@@ -9,19 +9,16 @@ import {
 import {
   SIGN_IN_CODE_LENGTH,
   initialSignInState,
-  canSubmitRegistration,
   signInCodeSent,
   isRegistrationRequired,
   signInFailed,
   signInMoved,
   signInReady,
-  signInRegistrationRequired,
   signInStarted,
   signInSucceeded,
   signInUnavailable,
   signInWithCode,
   signInWithEmail,
-  signInWithMinimumAgeAffirmation,
   type SignInMethod,
   type SignInPhase,
   type SignInState,
@@ -61,10 +58,19 @@ export interface SignInSession {
   sendCode(): void;
   setCode(code: string): void;
   setEmail(email: string): void;
-  setMinimumAgeAffirmed(affirmed: boolean): void;
   submitCode(): void;
-  submitRegistration(): void;
 }
+
+/**
+ * The declaration carried by the primary sign-in action. Its notice states the
+ * same terms in the same words, so pressing that control is the user's
+ * affirmation; there is no second surface to collect it again.
+ */
+const MINIMUM_AGE_AFFIRMATION: MinimumAgeAffirmation = {
+  version: "minimum-age-attestation-v1",
+  minimum_age: 16,
+  affirmed: true,
+};
 
 function oauthRedirect(provider: OAuthProvider): string {
   const redirect = new URL("/auth/sign-in", window.location.origin);
@@ -126,9 +132,34 @@ export function createSignInSession(options: SignInSessionOptions = {}): SignInS
     options.onAuthenticated?.();
   };
 
-  const fail = (error: unknown, recovery: SignInPhase) => {
-    if (isRegistrationRequired(error)) {
-      setState(signInRegistrationRequired);
+  /**
+   * `bootstrap: "register"` marks an authentication attempt, whose
+   * registration-required rejection is the ordinary first visit rather than a
+   * failure: the provider authenticated an identity that has no Pirate account
+   * yet, and the action the user already pressed carried the declaration, so
+   * registration continues without a second surface.
+   *
+   * The registration attempt itself passes `"reject"`. Nothing else may claim
+   * to need bootstrapping once bootstrapping is what is running, so the same
+   * rejection surfacing from `register` is a real failure and is shown. Without
+   * that distinction a `register` that reported registration-required would
+   * re-enter itself for as long as the provider kept saying so.
+   */
+  const fail = (
+    error: unknown,
+    recovery: SignInPhase,
+    bootstrap: "register" | "reject",
+  ) => {
+    if (bootstrap === "register" && isRegistrationRequired(error)) {
+      // `attempt` is declared below and only ever reached from inside one, so
+      // it is initialized by the time this runs.
+      attempt(
+        "working",
+        recovery,
+        (handle) => handle.register(MINIMUM_AGE_AFFIRMATION),
+        succeed,
+        "reject",
+      );
       return;
     }
     setState((current) => signInFailed(current, error, recovery));
@@ -198,7 +229,7 @@ export function createSignInSession(options: SignInSessionOptions = {}): SignInS
             );
             if (stillCurrent()) succeed();
           } catch (error) {
-            if (stillCurrent()) fail(error, "choose");
+            if (stillCurrent()) fail(error, "choose", "register");
           }
         })
         .catch((error: unknown) => {
@@ -217,12 +248,15 @@ export function createSignInSession(options: SignInSessionOptions = {}): SignInS
    * recover to `recovery`. Both are skipped when the attempt is no longer
    * current, so every effect that follows an attempt — a state change, a
    * navigation, the authenticated callback — is gated on the same check.
+   * `bootstrap` says whether a registration-required rejection from this
+   * operation should register inline; see `fail`.
    */
   const attempt = <Result,>(
     phase: SignInPhase | undefined,
     recovery: SignInPhase,
     operation: (handle: PrivySessionExchange) => Promise<Result>,
     settle?: (value: Result) => void,
+    bootstrap: "register" | "reject" = "register",
   ) => {
     const load = exchangeLoad;
     if (load === undefined) return;
@@ -244,7 +278,7 @@ export function createSignInSession(options: SignInSessionOptions = {}): SignInS
         const value = await operation(handle);
         if (stillCurrent()) settle?.(value);
       } catch (error) {
-        if (stillCurrent()) fail(error, recovery);
+        if (stillCurrent()) fail(error, recovery, bootstrap);
       }
     })();
   };
@@ -289,9 +323,6 @@ export function createSignInSession(options: SignInSessionOptions = {}): SignInS
     setEmail(email) {
       setState((current) => signInWithEmail(current, email));
     },
-    setMinimumAgeAffirmed(affirmed) {
-      setState((current) => signInWithMinimumAgeAffirmation(current, affirmed));
-    },
     submitCode() {
       const current = state();
       if (current.code.trim().length !== SIGN_IN_CODE_LENGTH) return;
@@ -299,21 +330,6 @@ export function createSignInSession(options: SignInSessionOptions = {}): SignInS
         undefined,
         "code",
         (handle) => handle.loginWithCode(current.email.trim(), current.code.trim()),
-        succeed,
-      );
-    },
-    submitRegistration() {
-      const current = state();
-      if (!canSubmitRegistration(current)) return;
-      const affirmation: MinimumAgeAffirmation = {
-        version: "minimum-age-attestation-v1",
-        minimum_age: 16,
-        affirmed: true,
-      };
-      attempt(
-        undefined,
-        "registration",
-        (handle) => handle.register(affirmation),
         succeed,
       );
     },

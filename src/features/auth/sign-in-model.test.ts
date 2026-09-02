@@ -3,21 +3,19 @@ import { describe, expect, it } from "vitest";
 import {
   canSendCode,
   canSubmitCode,
-  canSubmitRegistration,
   initialSignInState,
+  type SignInState,
   signInAlert,
   signInCodeSent,
   signInFailed,
   signInMessage,
   signInMoved,
   signInReady,
-  signInRegistrationRequired,
   signInStarted,
   signInSucceeded,
   signInUnavailable,
   signInWithCode,
   signInWithEmail,
-  signInWithMinimumAgeAffirmation,
 } from "./sign-in-model.ts";
 
 describe("sign-in phase model", () => {
@@ -36,15 +34,20 @@ describe("sign-in phase model", () => {
     expect(failed.message).toBe("Couldn’t sign in. Try again.");
   });
 
-  it("requires an unchecked explicit declaration for first registration", () => {
-    const working = signInStarted(signInReady(initialSignInState), "working");
-    const registration = signInRegistrationRequired(working);
+  it("has no registration phase to route a first visit into", () => {
+    // Registration is not a surface. A first visit is handled by the session,
+    // which registers under the declaration the primary action already carried.
+    const phases: SignInState["phase"][] = [
+      "loading",
+      "choose",
+      "code",
+      "working",
+      "signed-in",
+      "unavailable",
+    ];
 
-    expect(registration.phase).toBe("registration");
-    expect(registration.minimumAgeAffirmed).toBe(false);
-    expect(canSubmitRegistration(registration)).toBe(false);
-    expect(canSubmitRegistration(signInWithMinimumAgeAffirmation(registration, true))).toBe(true);
-    expect(canSubmitRegistration(signInStarted(signInWithMinimumAgeAffirmation(registration, true)))).toBe(false);
+    expect(phases).not.toContain("registration");
+    expect(Object.keys(initialSignInState)).not.toContain("minimumAgeAffirmed");
   });
 
   it("returns a code failure to the code entry, not to the method list", () => {

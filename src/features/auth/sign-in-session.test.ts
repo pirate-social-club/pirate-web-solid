@@ -165,7 +165,7 @@ describe("sign-in session controller", () => {
     expect(session.state().phase).toBe("signed-in");
   });
 
-  test("registers a first-visit wallet identity only after explicit affirmation", async () => {
+  test("registers a first-visit wallet identity without a second step", async () => {
     const register = vi.fn(async () => undefined);
     const session = harness({
       createExchange: async () => fakeExchange({
@@ -182,27 +182,95 @@ describe("sign-in session controller", () => {
     flush();
     await settle();
 
-    expect(register).not.toHaveBeenCalled();
-    expect(session.state().phase).toBe("registration");
-    expect(session.state().minimumAgeAffirmed).toBe(false);
-
-    session.submitRegistration();
-    flush();
-    await settle();
-    expect(register).not.toHaveBeenCalled();
-
-    session.setMinimumAgeAffirmed(true);
-    flush();
-    session.submitRegistration();
-    flush();
-    await settle();
-
+    // The declaration rode on the action the user already pressed, so the
+    // identity registers straight through to a session with no further input.
     expect(register).toHaveBeenCalledWith({
       version: "minimum-age-attestation-v1",
       minimum_age: 16,
       affirmed: true,
     });
     expect(session.state().phase).toBe("signed-in");
+  });
+
+  test("recovers to the originating phase when inline registration fails", async () => {
+    const session = harness({
+      createExchange: async () => fakeExchange({
+        loginWithWallet: vi.fn(async () => {
+          throw new PrivyIdentityBootstrapRequired("did:privy:wallet-user");
+        }),
+        register: vi.fn(async () => { throw new Error("registration_unavailable"); }),
+      }),
+      walletAvailable: () => true,
+    });
+    await settle();
+
+    session.chooseMethod("wallet");
+    flush();
+    await settle();
+
+    // A registration that cannot complete must not strand the surface on the
+    // progress phase; it returns to the method list with its error shown.
+    expect(session.state().phase).toBe("choose");
+    expect(session.state().message.length).toBeGreaterThan(0);
+  });
+
+  test("registers a first-visit email-code identity without a second step", async () => {
+    const register = vi.fn(async () => undefined);
+    const session = harness({
+      createExchange: async () => fakeExchange({
+        loginWithCode: vi.fn(async () => {
+          throw new PrivyIdentityBootstrapRequired("did:privy:code-user");
+        }),
+        register,
+      }),
+    });
+    await settle();
+
+    session.setEmail("operator@example.test");
+    flush();
+    session.sendCode();
+    await settle();
+    session.setCode("123456");
+    flush();
+    session.submitCode();
+    flush();
+    await settle();
+
+    // The third authentication method reaches the same inline path as the
+    // wallet and the provider return.
+    expect(register).toHaveBeenCalledWith({
+      version: "minimum-age-attestation-v1",
+      minimum_age: 16,
+      affirmed: true,
+    });
+    expect(session.state().phase).toBe("signed-in");
+  });
+
+  test("does not re-register when registration itself reports bootstrap", async () => {
+    // Guards an unbounded retry: `register` rejecting with the same
+    // registration-required error must be shown as a failure, not treated as a
+    // fresh first visit that registers again.
+    const register = vi.fn(async () => {
+      throw new PrivyIdentityBootstrapRequired("did:privy:wallet-user");
+    });
+    const session = harness({
+      createExchange: async () => fakeExchange({
+        loginWithWallet: vi.fn(async () => {
+          throw new PrivyIdentityBootstrapRequired("did:privy:wallet-user");
+        }),
+        register,
+      }),
+      walletAvailable: () => true,
+    });
+    await settle();
+
+    session.chooseMethod("wallet");
+    flush();
+    await settle();
+
+    expect(register).toHaveBeenCalledTimes(1);
+    expect(session.state().phase).toBe("choose");
+    expect(session.state().busy).toBe(false);
   });
 
   test("returns wallet rejection to the usable method list", async () => {
@@ -290,7 +358,7 @@ describe("sign-in session controller", () => {
     expect(session.state().message).toBe("Couldn’t sign in. Try again.");
   });
 
-  test("holds a first-visit provider return for explicit affirmation", async () => {
+  test("registers a first-visit provider return without a second step", async () => {
     window.history.replaceState({}, "", "/auth/sign-in?provider=google&code=abc&state=xyz");
     const register = vi.fn(async () => undefined);
     const exchange = fakeExchange({
@@ -302,15 +370,8 @@ describe("sign-in session controller", () => {
     const session = harness({ createExchange: async () => exchange });
     await settle();
 
-    expect(register).not.toHaveBeenCalled();
-    expect(session.state().phase).toBe("registration");
-
-    session.setMinimumAgeAffirmed(true);
-    flush();
-    session.submitRegistration();
-    flush();
-    await settle();
-
+    // An OAuth return lands on the same inline path as the wallet and code
+    // methods: no interstitial, straight to a session.
     expect(register).toHaveBeenCalledWith({
       version: "minimum-age-attestation-v1",
       minimum_age: 16,

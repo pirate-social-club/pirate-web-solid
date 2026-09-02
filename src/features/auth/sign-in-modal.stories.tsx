@@ -10,13 +10,11 @@ import {
   signInFailed,
   signInMoved,
   signInReady,
-  signInRegistrationRequired,
   signInStarted,
   signInSucceeded,
   signInUnavailable,
   signInWithCode,
   signInWithEmail,
-  signInWithMinimumAgeAffirmation,
   type SignInState,
 } from "./sign-in-model.ts";
 
@@ -48,13 +46,7 @@ function createStubSession(initial: SignInState, walletAvailable = false): SignI
     setEmail(email) {
       setState((current) => signInWithEmail(current, email));
     },
-    setMinimumAgeAffirmed(affirmed) {
-      setState((current) => signInWithMinimumAgeAffirmation(current, affirmed));
-    },
     submitCode() {
-      setState(signInSucceeded);
-    },
-    submitRegistration() {
       setState(signInSucceeded);
     },
   };
@@ -187,26 +179,19 @@ export const CodeBusy: Story = {
 };
 
 export const FirstVisit: Story = {
-  name: "First visit requires age declaration",
-  render: () => <SignInStory state={signInRegistrationRequired(ready)} />,
+  name: "First visit declares inline",
+  render: () => <SignInStory state={ready} />,
   play: async () => {
+    // Registration carries no surface of its own. The declaration lives on the
+    // primary action, so a first visit never sees a second step.
     const dialog = await within(document.body).findByRole("dialog");
-    await expect(within(dialog).getByRole("heading", { name: "Finish creating your account" })).toBeInTheDocument();
-    await expect(within(dialog).getByRole("checkbox", { name: "I confirm that I am at least 16 years old." })).not.toBeChecked();
-    await expect(within(dialog).getByRole("button", { name: "Create account" })).toBeDisabled();
-    await expect(within(dialog).getByText(/not identity or document verification/)).toBeInTheDocument();
-  },
-};
-
-export const FirstVisitDeclared: Story = {
-  name: "First visit with declaration",
-  render: () => (
-    <SignInStory state={signInWithMinimumAgeAffirmation(signInRegistrationRequired(ready), true)} />
-  ),
-  play: async () => {
-    const dialog = await within(document.body).findByRole("dialog");
-    await expect(within(dialog).getByRole("checkbox", { name: "I confirm that I am at least 16 years old." })).toBeChecked();
-    await expect(within(dialog).getByRole("button", { name: "Create account" })).toBeEnabled();
+    await expect(
+      within(dialog).getByText(/you confirm you are at least 16 years old/),
+    ).toBeInTheDocument();
+    await expect(
+      within(dialog).queryByRole("heading", { name: "Finish creating your account" }),
+    ).not.toBeInTheDocument();
+    await expect(within(dialog).queryByRole("checkbox")).not.toBeInTheDocument();
   },
 };
 
