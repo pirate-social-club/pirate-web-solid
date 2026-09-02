@@ -86,9 +86,9 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
   };
 
   createEffect(
-    () => true,
-    () => {
-    if (sessionStarted || typeof window === "undefined") return;
+    () => typeof window !== "undefined",
+    (isBrowser) => {
+    if (!isBrowser || sessionStarted) return;
     sessionStarted = true;
     void (props.resolveSession ?? resolveSession)()
       .then((result) => {

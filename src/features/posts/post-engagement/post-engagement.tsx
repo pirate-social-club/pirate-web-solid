@@ -56,7 +56,10 @@ export interface PostEngagementPost {
 
 export interface PostEngagementProps {
   readonly post: PostEngagementPost;
+  /** Account-scoped durable-storage identity; never serialized as persona_id. */
   readonly principalId: string;
+  /** Explicit operation persona serialized only for persona-authored commands. */
+  readonly personaId: string;
   readonly communityId?: string;
   readonly transport?: PostEngagementTransport;
   readonly initialComments?: readonly CommentThreadItem[];
@@ -114,8 +117,8 @@ function unavailablePendingStorage(): PendingEngagementStorage {
 
 function sameIntent(left: PendingEngagementAction, right: PendingEngagementAction): boolean {
   switch (left.kind) {
-    case "comment": return right.kind === "comment" && left.postId === right.postId && left.body === right.body;
-    case "reply": return right.kind === "reply" && left.commentId === right.commentId && left.body === right.body;
+    case "comment": return right.kind === "comment" && left.postId === right.postId && left.personaId === right.personaId && left.body === right.body;
+    case "reply": return right.kind === "reply" && left.commentId === right.commentId && left.personaId === right.personaId && left.body === right.body;
     case "report": return right.kind === "report" && left.commentId === right.commentId && left.reasonCode === right.reasonCode;
     case "moderate": return right.kind === "moderate"
       && left.caseRef === right.caseRef
@@ -376,8 +379,8 @@ export function PostEngagement(props: PostEngagementProps) {
     setIssue(undefined);
     const slot = commentSubmissionSlot(props.principalId, props.post.id);
     const record = await prepareRecord(slot, key => parent
-      ? { kind: "reply", commentId: parent.id, body, idempotencyKey: key }
-      : { kind: "comment", postId: props.post.id, body, idempotencyKey: key });
+      ? { kind: "reply", commentId: parent.id, personaId: props.personaId, body, idempotencyKey: key }
+      : { kind: "comment", postId: props.post.id, personaId: props.personaId, body, idempotencyKey: key });
     if (record === null) {
       setSubmissionBusy(false);
       return;

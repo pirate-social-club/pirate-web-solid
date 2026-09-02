@@ -26,6 +26,13 @@ import {
 import { CommunityPageShell } from "../../community/page-shell/page-shell.tsx";
 import type { CommunityData } from "../../community/page-shell/page-shell-model.ts";
 import { CreatePostDialog } from "../../posts/post-composer/create-post-dialog.tsx";
+import {
+  PostEngagement,
+  type PostEngagementPost,
+} from "../../posts/post-engagement/post-engagement.tsx";
+import type { PostEngagementTransport } from "../../posts/post-engagement/post-engagement-api.ts";
+import type { MediaSubmissionStorage } from "../../posts/media-submission/pending.ts";
+import { OperationPersonaControl } from "../../identity/operation-persona-control/operation-persona-control.tsx";
 import { createCommunityModerationSettingsApi } from "../../community/owner-settings/community-moderation-settings-api.ts";
 import {
   loadCommunityThreadPage,
@@ -48,6 +55,8 @@ export interface CommunityPageProps {
   readonly data?: CommunityPageViewState | PromiseLike<CommunityPageViewState>;
   readonly surfaceData?: Partial<CommunityData>;
   readonly loadThreads?: (communityId: string) => Promise<CommunityThreadPage>;
+  readonly postEngagementTransport?: PostEngagementTransport;
+  readonly postComposerMediaStorage?: MediaSubmissionStorage;
 }
 
 function communityCopy() {
@@ -138,6 +147,8 @@ function SuccessState(props: {
   readonly navigate?: (href: string) => void;
   readonly surfaceData?: Partial<CommunityData>;
   readonly loadThreads?: (communityId: string) => Promise<CommunityThreadPage>;
+  readonly postEngagementTransport?: PostEngagementTransport;
+  readonly postComposerMediaStorage?: MediaSubmissionStorage;
 }) {
   const copy = communityCopy();
   const state = untrack(() => props.state);
@@ -148,6 +159,7 @@ function SuccessState(props: {
   const [canManage, setCanManage] = createSignal(false);
   const [threadPosts, setThreadPosts] = createSignal<CommunityData["posts"]>([]);
   const [threadState, setThreadState] = createSignal<"idle" | "loading" | "ready" | "error">("idle");
+  const [selectedPersonaId, setSelectedPersonaId] = createSignal<string>();
   let active = true;
   onCleanup(() => {
     active = false;
@@ -206,6 +218,19 @@ function SuccessState(props: {
   );
 
   createEffect(
+    () => engagement.postingSession(),
+    (session) => {
+      if (session === undefined) {
+        setSelectedPersonaId(undefined);
+        return;
+      }
+      const current = selectedPersonaId();
+      if (current !== undefined && session.personas.some(persona => persona.personaId === current)) return;
+      setSelectedPersonaId(session.personas.length === 1 ? session.personas[0]!.personaId : undefined);
+    },
+  );
+
+  createEffect(
     () => state.communityId,
     (communityId) => {
       if (props.surfaceData?.posts !== undefined) return;
@@ -238,6 +263,21 @@ function SuccessState(props: {
     }
   };
 
+  const personaOptions = () => engagement.postingSession()?.personas.map(persona => ({
+    avatarSrc: persona.avatarRef,
+    displayName: persona.displayName ?? persona.primaryPublicHandle ?? persona.personaId,
+    personaId: persona.personaId,
+    publicHandle: persona.primaryPublicHandle,
+  })) ?? [];
+
+  const engagementPost = (post: CommunityData["posts"][number]): PostEngagementPost => ({
+    id: post.id,
+    upvoteCount: Math.max(0, post.score),
+    downvoteCount: Math.max(0, -post.score),
+    commentCount: post.commentCount ?? 0,
+    viewerVote: null,
+  });
+
   return (
     <div data-community-state="success" data-community-route-family={state.routeFamily}>
       <Title>{title()}</Title>
@@ -259,6 +299,31 @@ function SuccessState(props: {
             joined={engagement.joined()}
             postsError={threadState() === "error"}
             postsLoading={threadState() === "loading"}
+            personaControl={personaOptions().length > 0 ? (
+              <OperationPersonaControl
+                label="Commenting as"
+                onSelect={setSelectedPersonaId}
+                personas={personaOptions()}
+                selectedPersonaId={selectedPersonaId()}
+              />
+            ) : undefined}
+            renderPost={(post, render) => {
+              const session = engagement.postingSession();
+              if (session === undefined) return render();
+              return (
+                <Show when={selectedPersonaId()} fallback={render()} keyed>
+                  {personaId => (
+                    <PostEngagement
+                      communityId={state.communityId}
+                      personaId={personaId}
+                      post={engagementPost(post)}
+                      principalId={session.userId}
+                      transport={props.postEngagementTransport}
+                    >{controls => render(controls)}</PostEngagement>
+                  )}
+                </Show>
+              );
+            }}
             onCreatePost={() => void openPostComposer()}
             onFollowToggle={() => void engagement.followToggle()}
             onJoin={() => void engagement.joinCommunity()}
@@ -284,6 +349,7 @@ function SuccessState(props: {
             open={composerOpen()}
             personas={session().personas}
             principalId={session().userId}
+            mediaStorage={props.postComposerMediaStorage}
           />
         )}
       </Show>
@@ -300,6 +366,8 @@ function CommunityState(props: {
   readonly navigate?: (href: string) => void;
   readonly surfaceData?: Partial<CommunityData>;
   readonly loadThreads?: (communityId: string) => Promise<CommunityThreadPage>;
+  readonly postEngagementTransport?: PostEngagementTransport;
+  readonly postComposerMediaStorage?: MediaSubmissionStorage;
 }) {
   const success = () => props.state.kind === "success" ? props.state : undefined;
   return (
@@ -314,6 +382,8 @@ function CommunityState(props: {
           navigate={props.navigate}
           surfaceData={props.surfaceData}
           loadThreads={props.loadThreads}
+          postEngagementTransport={props.postEngagementTransport}
+          postComposerMediaStorage={props.postComposerMediaStorage}
         />
       )}
     </Show>
@@ -341,6 +411,8 @@ function CommunityData(props: CommunityPageProps) {
       navigate={props.navigate}
       surfaceData={props.surfaceData}
       loadThreads={props.loadThreads}
+      postEngagementTransport={props.postEngagementTransport}
+      postComposerMediaStorage={props.postComposerMediaStorage}
     />
   );
 }

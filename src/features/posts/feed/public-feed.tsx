@@ -50,7 +50,10 @@ export interface FeedSurfaceProps {
 }
 
 export interface FeedEngagementOptions {
+  /** Account-scoped durable-storage identity. */
   readonly principalId: string;
+  /** Persona selected for comment and reply authorship. */
+  readonly personaId: string;
   readonly canModerate?: boolean;
   readonly generateIdempotencyKey?: () => string;
   readonly initialCommentsForPost?: (postId: string) => readonly CommentThreadItem[];
@@ -192,6 +195,7 @@ function FeedItemCard(props: {
         initialComments={engagement().initialCommentsForPost?.(props.item.id)}
         post={props.item}
         principalId={engagement().principalId}
+        personaId={engagement().personaId}
         transport={engagement().transport}
       >{card}</PostEngagement>}
     </Show>

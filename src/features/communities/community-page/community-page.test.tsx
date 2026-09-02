@@ -6,6 +6,7 @@ import { render as solidRender, type JSX } from "@solidjs/web";
 import { createRoot } from "solid-js";
 import { afterEach, describe, expect, test, vi } from "vitest";
 import type { CommunityEngagementApi } from "./community-engagement-api.ts";
+import { createMemoryMediaSubmissionStorage } from "../../posts/media-submission/pending.ts";
 import CommunityPage from "./community-page.tsx";
 
 const disposers: Array<() => void> = [];
@@ -96,6 +97,52 @@ describe("CommunityPage", () => {
     expect(container.textContent).toContain("This came from the public Community feed.");
     expect(container.querySelector("[data-community-post='thread-1']")).not.toBeNull();
     expect(loadThreads).toHaveBeenCalledWith(communityId);
+  });
+
+  test("requires an explicit persona before mounting persona-authored engagement", async () => {
+    const container = render(() => (
+      <CommunityPage
+        client={{
+          get_cPathSegment: async () => route,
+          get_communitiesCommunityIdPreview: async () => preview,
+        }}
+        engagementApi={engagementApi()}
+        handleSalesClient={{ get_communitiesCommunityIdHandleOfferings: async () => ({ items: [], next_cursor: null }) }}
+        loadThreads={async () => ({
+          posts: [{
+            id: "thread-persona",
+            title: "Choose your voice",
+            body: "Persona selection owns comment authorship.",
+            score: 2,
+            publishedAt: "2026-09-01T18:00:00.000Z",
+            commentCount: 4,
+          }],
+          nextCursor: null,
+        })}
+        pathSegment="xn--pokmon-dva"
+        postComposerMediaStorage={createMemoryMediaSubmissionStorage()}
+        resolveSession={async () => ({
+          status: "authenticated",
+          userId: "usr-account-one",
+          personas: [
+            { personaId: "persona-one", displayName: "Persona One", avatarRef: null, primaryPublicHandle: "one.pirate" },
+            { personaId: "persona-two", displayName: "Persona Two", avatarRef: null, primaryPublicHandle: "two.pirate" },
+          ],
+        })}
+      />
+    ));
+
+    await vi.waitFor(() => expect(container.querySelector("[data-operation-persona]")).not.toBeNull());
+    expect(container.querySelector("button[aria-label='Comments (4)']")).toBeNull();
+    expect(container.querySelector("button[aria-label='Open 4 comments']")).not.toBeNull();
+
+    container.querySelector<HTMLButtonElement>("[data-operation-persona] button")!.click();
+    await vi.waitFor(() => expect(document.body.textContent).toContain("Persona Two"));
+    const personaTwo = document.body.querySelector<HTMLInputElement>("input[value='persona-two']");
+    expect(personaTwo).not.toBeNull();
+    personaTwo!.click();
+
+    await vi.waitFor(() => expect(container.querySelector("button[aria-label='Comments (4)']")).not.toBeNull());
   });
 
   test("renders the public community projection and canonical metadata", async () => {

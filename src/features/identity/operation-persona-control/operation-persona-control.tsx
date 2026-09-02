@@ -32,7 +32,7 @@ export interface OperationPersonaControlProps {
   /** Visible label naming the operation, e.g. "Creating as". */
   label: string;
   personas: readonly OperationPersona[];
-  selectedPersonaId: string;
+  selectedPersonaId?: string;
   onSelect?: (personaId: string) => void;
   disabled?: boolean;
   forceMobile?: boolean;
@@ -62,8 +62,7 @@ export interface OperationPersonaControlProps {
 export function OperationPersonaControl(props: OperationPersonaControlProps) {
   const [open, setOpen] = createSignal(false);
   const selected = () =>
-    props.personas.find((persona) => persona.personaId === props.selectedPersonaId)
-      ?? props.personas[0];
+    props.personas.find((persona) => persona.personaId === props.selectedPersonaId);
   const canChoose = () => !props.disabled && props.personas.length > 1;
 
   const identity = (persona: OperationPersona | undefined) => (

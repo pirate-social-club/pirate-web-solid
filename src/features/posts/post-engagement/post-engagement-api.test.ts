@@ -17,7 +17,7 @@ const commentResponse = {
   updated_at: "2026-08-22T00:00:00.000Z",
 } as const;
 
-const context = { principalId: "persona-1", postId: "post-1" } as const;
+const context = { principalId: "usr-account-1", postId: "post-1" } as const;
 
 describe("createPostEngagementTransport", () => {
   test("reads the authoritative community case detail through the current client", async () => {
@@ -43,7 +43,7 @@ describe("createPostEngagementTransport", () => {
     const fetchImpl = vi.fn();
     const transport = createPostEngagementTransport({ fetchImpl, csrfToken: () => undefined });
 
-    const envelope = (await createPendingEngagementRecord({ kind: "comment", postId: "post-1", body: "First", idempotencyKey: "key-comment" }, context)).envelope;
+    const envelope = (await createPendingEngagementRecord({ kind: "comment", postId: "post-1", personaId: "persona-1", body: "First", idempotencyKey: "key-comment" }, context)).envelope;
     await expect(transport.createComment(envelope)).rejects.toMatchObject({
       code: "csrf_missing",
     });
@@ -80,17 +80,21 @@ describe("createPostEngagementTransport", () => {
     const comment = await createPendingEngagementRecord({
       kind: "comment",
       postId: "post-1",
+      personaId: "persona-1",
       body: "First  with retained spacing",
       idempotencyKey: "key-comment",
     }, context);
-    const rawComment = '{\n  "body" : "First  with retained spacing",\n  "idempotency_key" : "key-comment"\n}';
+    const rawComment = '{\n  "persona_id" : "persona-1",\n  "body" : "First  with retained spacing",\n  "idempotency_key" : "key-comment"\n}';
     const rawCommentBytes = new TextEncoder().encode(rawComment);
+    expect(comment.slot).toContain("principal:usr-account-1:");
+    expect(rawComment).toContain('"persona_id" : "persona-1"');
+    expect(rawComment).not.toContain("usr-account-1");
     const exactCommentEnvelope = {
       ...comment.envelope,
       body_utf8_base64url: bytesToBase64Url(rawCommentBytes),
       body_sha256: await sha256Hex(rawCommentBytes),
     };
-    const reply = await createPendingEngagementRecord({ kind: "reply", commentId: "comment-1", body: "Exact reply", idempotencyKey: "key-reply" }, context);
+    const reply = await createPendingEngagementRecord({ kind: "reply", commentId: "comment-1", personaId: "persona-1", body: "Exact reply", idempotencyKey: "key-reply" }, context);
     const report = await createPendingEngagementRecord({ kind: "report", commentId: "comment-1", reasonCode: "spam", idempotencyKey: "key-report" }, context);
     const moderate = await createPendingEngagementRecord({ kind: "moderate", caseRef: "case-1", action: "hide", expectedCaseRevision: 7, idempotencyKey: "key-action" }, context);
     const vote = await createPendingEngagementRecord({ kind: "vote", postId: "post-1", value: -1, idempotencyKey: "key-vote" }, context);
@@ -104,7 +108,7 @@ describe("createPostEngagementTransport", () => {
     await transport.clearVote(clearVote.envelope);
     expect(seen).toEqual([
       { url: "https://solid.example/api/posts/post-1/comments", body: rawComment },
-      { url: "https://solid.example/api/comments/comment-1/replies", body: "{\"idempotency_key\":\"key-reply\",\"body\":\"Exact reply\"}" },
+      { url: "https://solid.example/api/comments/comment-1/replies", body: "{\"persona_id\":\"persona-1\",\"idempotency_key\":\"key-reply\",\"body\":\"Exact reply\"}" },
       { url: "https://solid.example/api/comments/comment-1/reports", body: "{\"idempotency_key\":\"key-report\",\"reason_code\":\"spam\"}" },
       { url: "https://solid.example/api/moderation/cases/case-1/actions", body: "{\"version\":\"moderation-case-action-v2\",\"idempotency_key\":\"key-action\",\"expected_case_revision\":7,\"action\":\"hide\"}" },
       { url: "https://solid.example/api/posts/post-1/vote", body: "{\"idempotency_key\":\"key-vote\",\"value\":-1}" },

@@ -182,7 +182,7 @@ describe("PublicFeed", () => {
 
 describe("HomeFeed engagement", () => {
   test("adds viewer controls only to the authenticated surface", async () => {
-    const container = render(() => <HomeFeed data={page} engagement={{ principalId: "user-1" }} />);
+    const container = render(() => <HomeFeed data={page} engagement={{ principalId: "user-1", personaId: "persona-1" }} />);
     await vi.waitFor(() => expect(container.querySelector("[data-feed-state='ready']")).not.toBeNull());
     expect(container.querySelector("[data-post-engagement-controls][data-viewer-control]")).not.toBeNull();
     expect(container.querySelector("button[aria-label='Upvote']")).not.toBeNull();

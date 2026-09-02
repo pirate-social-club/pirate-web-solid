@@ -83,6 +83,7 @@ function frame(viewerVote: -1 | 1 | null, transport: PostEngagementTransport = n
         canModerate
         communityId="community-story"
         principalId="storybook-viewer"
+        personaId="persona-story"
         generateIdempotencyKey={() => crypto.randomUUID()}
         initialComments={initialComments}
         pendingStorage={createMemoryPendingEngagementStorage()}

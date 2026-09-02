@@ -15,13 +15,13 @@ import type {
   CommentReportReason,
 } from "./post-engagement-api.ts";
 
-const PENDING_ENGAGEMENT_RECORD_VERSION = "pending-engagement-record-v2" as const;
-const PENDING_ENGAGEMENT_DB_NAME = "pirate-post-engagement-v2";
+const PENDING_ENGAGEMENT_RECORD_VERSION = "pending-engagement-record-v3" as const;
+const PENDING_ENGAGEMENT_DB_NAME = "pirate-post-engagement-v3";
 const PENDING_ENGAGEMENT_STORE_NAME = "pending-actions";
 
 export type PendingEngagementAction =
-  | { readonly kind: "comment"; readonly postId: string; readonly body: string; readonly idempotencyKey: string }
-  | { readonly kind: "reply"; readonly commentId: string; readonly body: string; readonly idempotencyKey: string }
+  | { readonly kind: "comment"; readonly postId: string; readonly personaId: string; readonly body: string; readonly idempotencyKey: string }
+  | { readonly kind: "reply"; readonly commentId: string; readonly personaId: string; readonly body: string; readonly idempotencyKey: string }
   | { readonly kind: "report"; readonly commentId: string; readonly reasonCode: CommentReportReason; readonly idempotencyKey: string }
   | { readonly kind: "moderate"; readonly caseRef: string; readonly action: CommentModerationAction; readonly expectedCaseRevision: number; readonly idempotencyKey: string }
   | { readonly kind: "vote"; readonly postId: string; readonly value: -1 | 1; readonly idempotencyKey: string }
@@ -81,6 +81,7 @@ const MODERATION_ACTIONS = ["approve_as_general", "approve_as_adult_18", "reject
 
 interface RawPendingEngagementBody {
   readonly idempotency_key?: unknown;
+  readonly persona_id?: unknown;
   readonly version?: unknown;
   readonly body?: unknown;
   readonly reason_code?: unknown;
@@ -90,7 +91,7 @@ interface RawPendingEngagementBody {
 }
 
 type PendingEngagementWireBody =
-  | { readonly idempotency_key: string; readonly body: string }
+  | { readonly persona_id: string; readonly idempotency_key: string; readonly body: string }
   | { readonly idempotency_key: string; readonly reason_code: CommentReportReason }
   | { readonly version: "moderation-case-action-v2"; readonly idempotency_key: string; readonly expected_case_revision: number; readonly action: CommentModerationAction }
   | { readonly idempotency_key: string; readonly value: -1 | 1 }
@@ -158,12 +159,24 @@ export async function decodePendingEngagementAction(
   }
 
   const commentPostId = matchPath(envelope.same_origin_path, /^\/api\/posts\/([^/]+)\/comments$/u, "postId");
-  if (commentPostId !== null && exactObject(body, ["idempotency_key", "body"])) {
-    return { kind: "comment", postId: commentPostId, body: requiredString(body.body, "body"), idempotencyKey };
+  if (commentPostId !== null && exactObject(body, ["persona_id", "idempotency_key", "body"])) {
+    return {
+      kind: "comment",
+      postId: commentPostId,
+      personaId: requiredString(body.persona_id, "persona_id"),
+      body: requiredString(body.body, "body"),
+      idempotencyKey,
+    };
   }
   const replyCommentId = matchPath(envelope.same_origin_path, /^\/api\/comments\/([^/]+)\/replies$/u, "commentId");
-  if (replyCommentId !== null && exactObject(body, ["idempotency_key", "body"])) {
-    return { kind: "reply", commentId: replyCommentId, body: requiredString(body.body, "body"), idempotencyKey };
+  if (replyCommentId !== null && exactObject(body, ["persona_id", "idempotency_key", "body"])) {
+    return {
+      kind: "reply",
+      commentId: replyCommentId,
+      personaId: requiredString(body.persona_id, "persona_id"),
+      body: requiredString(body.body, "body"),
+      idempotencyKey,
+    };
   }
   const reportCommentId = matchPath(envelope.same_origin_path, /^\/api\/comments\/([^/]+)\/reports$/u, "commentId");
   if (reportCommentId !== null && exactObject(body, ["idempotency_key", "reason_code"])) {
@@ -222,13 +235,13 @@ function actionRequest(action: PendingEngagementAction, context: PendingEngageme
       return {
         slot: commentSubmissionSlot(context.principalId, context.postId),
         path: `/api/posts/${encodeURIComponent(action.postId)}/comments`,
-        body: { idempotency_key: action.idempotencyKey, body: action.body },
+        body: { persona_id: action.personaId, idempotency_key: action.idempotencyKey, body: action.body },
       };
     }
     case "reply": return {
       slot: commentSubmissionSlot(context.principalId, context.postId),
       path: `/api/comments/${encodeURIComponent(action.commentId)}/replies`,
-      body: { idempotency_key: action.idempotencyKey, body: action.body },
+      body: { persona_id: action.personaId, idempotency_key: action.idempotencyKey, body: action.body },
     };
     case "report": return {
       slot: commentReportSlot(context.principalId, context.postId, action.commentId),

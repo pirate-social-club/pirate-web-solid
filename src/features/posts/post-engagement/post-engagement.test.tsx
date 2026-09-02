@@ -13,9 +13,16 @@ import {
   decodePendingEngagementAction,
   moderationCaseSlot,
 } from "./post-engagement-pending.ts";
-import { PostEngagement } from "./post-engagement.tsx";
+import {
+  PostEngagement as PostEngagementComponent,
+  type PostEngagementProps,
+} from "./post-engagement.tsx";
 
 const disposers: Array<() => void> = [];
+
+function PostEngagement(props: Omit<PostEngagementProps, "personaId"> & { readonly personaId?: string }) {
+  return <PostEngagementComponent {...props} personaId={props.personaId ?? "persona-1"} />;
+}
 
 function render(ui: () => JSX.Element): HTMLElement {
   const container = document.createElement("div");
@@ -121,7 +128,7 @@ describe("PostEngagement", () => {
     await vi.waitFor(() => expect(document.querySelector("[data-comment-state='published']")?.textContent).toContain("A durable comment"));
     const firstAction = await decodePendingEngagementAction(createComment.mock.calls[0]?.[0]);
     const secondAction = await decodePendingEngagementAction(createComment.mock.calls[1]?.[0]);
-    expect(firstAction).toEqual({ kind: "comment", postId: "post-1", body: "A durable comment", idempotencyKey: "stable-comment-key" });
+    expect(firstAction).toEqual({ kind: "comment", postId: "post-1", personaId: "persona-1", body: "A durable comment", idempotencyKey: "stable-comment-key" });
     expect(secondAction).toEqual(firstAction);
     expect(createComment.mock.calls[1]?.[0]).toEqual(createComment.mock.calls[0]?.[0]);
     expect(generateKey).toHaveBeenCalledTimes(1);
@@ -133,6 +140,7 @@ describe("PostEngagement", () => {
     await baseStorage.saveNew(await createPendingEngagementRecord({
       kind: "comment",
       postId: "post-1",
+      personaId: "persona-1",
       body: "Older retained text",
       idempotencyKey: "retained-key",
     }, { principalId: "user-1", postId: "post-1" }));

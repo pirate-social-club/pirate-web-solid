@@ -1,4 +1,5 @@
 /** @jsxImportSource @solidjs/web */
+import type { JSX } from "@solidjs/web";
 import { For, Show, createMemo, createSignal } from "solid-js";
 
 import {
@@ -55,6 +56,11 @@ export interface CommunityPageShellProps {
   readOnly?: boolean;
   postsLoading?: boolean;
   postsError?: boolean;
+  personaControl?: JSX.Element;
+  renderPost?: (
+    post: CommunityPost,
+    render: (actions?: JSX.Element) => JSX.Element,
+  ) => JSX.Element;
 }
 
 type CommunityTab = "feed" | "songs" | "leaderboard" | "about";
@@ -73,20 +79,24 @@ function postTimestamp(value: string): string {
   return `${Math.max(1, days)}d ago`;
 }
 
-function PostActions(props: { post: CommunityPost }) {
+function PostActions(props: { post: CommunityPost; engagementControls?: JSX.Element }) {
   return (
     <div class="flex flex-wrap items-center gap-2 pt-1" aria-label="Post actions">
-      <button aria-label={`Upvote post, ${props.post.score} points`} class="inline-flex h-9 items-center gap-1 rounded-full border border-border-soft px-3 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground" type="button">
-        <IconArrowUp class="size-4" />
-        <span>{props.post.score}</span>
-      </button>
-      <button aria-label="Downvote post" class="inline-flex size-9 items-center justify-center rounded-full border border-border-soft text-muted-foreground transition-colors hover:bg-muted hover:text-foreground" type="button">
-        <IconArrowDown class="size-4" />
-      </button>
-      <button aria-label={`Open ${props.post.commentCount ?? 0} comments`} class="inline-flex h-9 items-center gap-2 rounded-full border border-border-soft px-3 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground" type="button">
-        <IconChatCircle class="size-4" />
-        <span>{props.post.commentCount ?? 0}</span>
-      </button>
+      <Show when={props.engagementControls} fallback={
+        <>
+          <button aria-label={`Upvote post, ${props.post.score} points`} class="inline-flex h-9 items-center gap-1 rounded-full border border-border-soft px-3 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground" type="button">
+            <IconArrowUp class="size-4" />
+            <span>{props.post.score}</span>
+          </button>
+          <button aria-label="Downvote post" class="inline-flex size-9 items-center justify-center rounded-full border border-border-soft text-muted-foreground transition-colors hover:bg-muted hover:text-foreground" type="button">
+            <IconArrowDown class="size-4" />
+          </button>
+          <button aria-label={`Open ${props.post.commentCount ?? 0} comments`} class="inline-flex h-9 items-center gap-2 rounded-full border border-border-soft px-3 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground" type="button">
+            <IconChatCircle class="size-4" />
+            <span>{props.post.commentCount ?? 0}</span>
+          </button>
+        </>
+      }>{controls => controls()}</Show>
       <Show when={props.post.learnAvailable}>
         <Button class="h-9 rounded-full px-4" size="sm" variant="secondary">Learn</Button>
       </Show>
@@ -130,7 +140,7 @@ function SongPost(props: { post: CommunityPost }) {
   );
 }
 
-function FeedPost(props: { post: CommunityPost }) {
+function FeedPost(props: { post: CommunityPost; actions?: JSX.Element }) {
   const author = () => props.post.authorHandle ?? "midnightwaves.pirate";
   return (
     <article class="flex flex-col gap-3 border-b border-border-soft px-0 py-5 first:pt-0 last:border-b-0" data-community-post={props.post.id}>
@@ -156,7 +166,7 @@ function FeedPost(props: { post: CommunityPost }) {
         <Show when={props.post.body}><Type variant="h3">{props.post.body}</Type></Show>
         <SongPost post={props.post} />
       </Show>
-      <PostActions post={props.post} />
+      <PostActions engagementControls={props.actions} post={props.post} />
     </article>
   );
 }
@@ -238,6 +248,10 @@ export function CommunityPageShell(props: CommunityPageShellProps) {
     return sortCommunityPosts(community().posts, communitySort);
   });
   const songs = createMemo(() => sortedPosts().filter(post => post.kind === "song"));
+  const renderPost = (post: CommunityPost) => {
+    const render = (actions?: JSX.Element) => <FeedPost actions={actions} post={post} />;
+    return props.renderPost?.(post, render) ?? render();
+  };
 
   return (
     <div class={props.mobile ? "w-full max-w-[24.375rem] bg-background" : "mx-auto w-full max-w-6xl bg-background"} data-community-page>
@@ -307,11 +321,14 @@ export function CommunityPageShell(props: CommunityPageShellProps) {
                 </select>
               </label>
             </div>
+            <Show when={props.personaControl}>
+              <div class="mb-4 flex justify-end">{props.personaControl}</div>
+            </Show>
             <Show when={!props.postsLoading} fallback={<Card><CardContent class="p-6"><Type aria-live="polite" role="status" variant="body">Loading community posts…</Type></CardContent></Card>}>
               <Show when={!props.postsError} fallback={<Card><CardContent class="p-6"><Type role="alert" variant="body">Community posts are temporarily unavailable.</Type></CardContent></Card>}>
                 <Show when={!props.empty && sortedPosts().length > 0} fallback={<Card><CardContent class="p-6"><Type variant="body">No posts in this community yet.</Type></CardContent></Card>}>
               <div class="flex flex-col">
-                <For each={sortedPosts()}>{post => <FeedPost post={post} />}</For>
+                <For each={sortedPosts()}>{post => renderPost(post)}</For>
               </div>
                 </Show>
               </Show>
@@ -320,7 +337,7 @@ export function CommunityPageShell(props: CommunityPageShellProps) {
           <Show when={tab() === "songs"}>
             <div class="mb-5"><Type variant="h2">Songs</Type></div>
             <Show when={songs().length > 0} fallback={<Card><CardContent class="p-6"><Type variant="body">No songs in this community yet.</Type></CardContent></Card>}>
-              <div class="flex flex-col"><For each={songs()}>{post => <FeedPost post={post} />}</For></div>
+              <div class="flex flex-col"><For each={songs()}>{post => renderPost(post)}</For></div>
             </Show>
           </Show>
           <Show when={tab() === "leaderboard"}>

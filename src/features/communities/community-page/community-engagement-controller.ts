@@ -55,6 +55,7 @@ export function createCommunityEngagementController(
   const [accountAuthenticated, setAccountAuthenticated] = createSignal(false);
   let active = true;
   let actionInFlight = false;
+  let fullSessionStarted = false;
   let sessionRequest = 0;
   let viewerRequest = 0;
 
@@ -100,6 +101,22 @@ export function createCommunityEngagementController(
     applyAccountSession(resolved);
   };
 
+  const hydrateFullSession = () => {
+    if (fullSessionStarted || postingSession() !== undefined) return;
+    fullSessionStarted = true;
+    const request = ++sessionRequest;
+    void (options.resolveSession ?? resolveApplicationSession)()
+      .then(result => {
+        if (!active || request !== sessionRequest) return;
+        if (result !== "anonymous") applyFullSession(result);
+      })
+      .catch(() => {
+        if (active && request === sessionRequest) {
+          setError("We couldn't load your active personas. Retry before commenting or posting.");
+        }
+      });
+  };
+
   createEffect(
     () => applicationSession(),
     (resolved) => {
@@ -111,7 +128,10 @@ export function createCommunityEngagementController(
           .catch(() => { if (active && request === sessionRequest) setError("We couldn't verify your session."); });
         return;
       }
-      if (resolved !== "resolving") applyAccountSession(resolved);
+      if (resolved !== "resolving") {
+        applyAccountSession(resolved);
+        if (resolved !== "anonymous") hydrateFullSession();
+      }
     },
   );
 

@@ -193,6 +193,7 @@ describe("pending post engagement", () => {
     const record = await createPendingEngagementRecord({
       kind: "comment",
       postId: "post-1",
+      personaId: "persona-1",
       body: "Keep  spacing and punctuation!",
       idempotencyKey: "comment-key",
     }, context);
@@ -207,6 +208,7 @@ describe("pending post engagement", () => {
     expect(await decodePendingEngagementAction(restored.envelope)).toEqual({
       kind: "comment",
       postId: "post-1",
+      personaId: "persona-1",
       body: "Keep  spacing and punctuation!",
       idempotencyKey: "comment-key",
     });
@@ -215,7 +217,7 @@ describe("pending post engagement", () => {
   test("isolates retained actions by authenticated principal", async () => {
     const storage = createMemoryPendingEngagementStorage();
     await storage.saveNew(await createPendingEngagementRecord({
-      kind: "comment", postId: "post-1", body: "Private retry", idempotencyKey: "key-1",
+      kind: "comment", postId: "post-1", personaId: "persona-1", body: "Private retry", idempotencyKey: "key-1",
     }, context));
     expect(await storage.listForPost("user-1", "post-1")).toHaveLength(1);
     expect(await storage.listForPost("user-2", "post-1")).toEqual([]);
@@ -234,9 +236,9 @@ describe("pending post engagement", () => {
   test("survives an IndexedDB reload and resends noncanonical JSON bytes exactly", async () => {
     const controller = new FakeIndexedDbController();
     const original = await createPendingEngagementRecord({
-      kind: "comment", postId: "post-1", body: "Exact  body", idempotencyKey: "idb-key",
+      kind: "comment", postId: "post-1", personaId: "persona-1", body: "Exact  body", idempotencyKey: "idb-key",
     }, context);
-    const raw = '{\n  "body" : "Exact  body",\n  "idempotency_key" : "idb-key"\n}';
+    const raw = '{\n  "persona_id" : "persona-1",\n  "body" : "Exact  body",\n  "idempotency_key" : "idb-key"\n}';
     const bytes = new TextEncoder().encode(raw);
     const record = {
       ...original,
