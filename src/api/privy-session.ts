@@ -4,6 +4,7 @@ import {
   type GetPersonasResponse,
   type PostAuthRegisterResponse,
 } from "@pirate/api-client";
+import { getAddress } from "viem";
 import { createSessionApiClient, readCsrfCookie, sessionRequestOptions } from "./client.ts";
 import type { VerificationPublicConfig } from "./verification-config.ts";
 
@@ -288,9 +289,38 @@ function walletAddress(value: unknown): string {
   return stringValue(value[0], "wallet_unavailable");
 }
 
+/**
+ * Privy parses the SIWE message address strictly and rejects an otherwise
+ * valid signature over a noncanonical one, so the provider's account is
+ * validated and EIP-55 canonicalized before it can reach any nonce or
+ * signature request. Malformed and mischecksummed results fail closed as an
+ * authentication failure.
+ */
+function checksummedWalletAddress(value: unknown): string {
+  try {
+    return getAddress(walletAddress(value));
+  } catch (error) {
+    if (error instanceof Error && error.message === "wallet_unavailable") throw error;
+    throw new Error("wallet_auth_failed", { cause: error });
+  }
+}
+
 function walletSignature(value: unknown): string {
   return stringValue(value, "wallet_auth_failed");
 }
+
+/**
+ * Named progress points of the injected-wallet login. A stage marker lets a
+ * provider or Privy failure localize in diagnostics without ever recording
+ * the message, signature, token, or address it carried.
+ */
+type WalletLoginStage =
+  | "provider_accounts"
+  | "provider_chain"
+  | "siwe_init"
+  | "siwe_signature"
+  | "siwe_authenticate"
+  | "session_exchange";
 
 export async function createPrivySessionExchange(
   config: VerificationPublicConfig,
@@ -313,6 +343,7 @@ export async function createPrivySessionExchange(
     readonly csrf?: () => string | undefined;
     readonly idempotencyKey?: () => string;
     readonly reportWalletResumeError?: (error: unknown, personaId?: string) => void;
+    readonly reportWalletLoginStage?: (stage: WalletLoginStage, error: unknown) => void;
   } = {},
 ): Promise<PrivySessionExchange> {
   const storage = new MemoryOnlyStorage();
@@ -414,6 +445,21 @@ export async function createPrivySessionExchange(
       // Diagnostics are also best-effort and must never turn recovery into an auth failure.
     }
   };
+  const reportWalletLoginStage = (stage: WalletLoginStage, error: unknown) => {
+    try {
+      if (dependencies.reportWalletLoginStage !== undefined) {
+        dependencies.reportWalletLoginStage(stage, error);
+        return;
+      }
+      // Only the stage and a numeric status are recorded; provider payloads,
+      // messages, signatures, tokens, and addresses never enter diagnostics.
+      const status = error instanceof ApiClientError ? error.status : undefined;
+      // oxlint-disable-next-line no-console -- a stage marker keeps wallet failures diagnosable without payload detail.
+      console.warn("wallet_login_stage_failed", { stage, status });
+    } catch {
+      // Diagnostics are best-effort and must never replace the surfaced failure.
+    }
+  };
   const resumeExistingWallets = async (accessToken: string) => {
     let response: GetPersonasResponse;
     try {
@@ -499,26 +545,37 @@ export async function createPrivySessionExchange(
       const siwe = client.auth.siwe;
       if (siwe === undefined) throw new Error("wallet_unavailable");
       const provider = browserEthereumProvider();
-      const address = await requestEthereumProvider(
-        provider,
-        { method: "eth_requestAccounts" },
-        "wallet_auth_failed",
-        walletAddress,
-      );
-      const wallet: ExternalWallet = {
-        address,
-        chainId: await requestEthereumProvider(provider, { method: "eth_chainId" }, "wallet_unavailable", chainId),
-        connectorType: "injected",
-      };
-      const initialized = await siwe.init(wallet, window.location.host, window.location.origin);
-      const signature = await requestEthereumProvider(
-        provider,
-        { method: "personal_sign", params: [initialized.message, address] },
-        "wallet_auth_failed",
-        walletSignature,
-      );
-      await siwe.loginWithSiwe(signature, wallet, initialized.message);
-      await establishSession();
+      let stage: WalletLoginStage = "provider_accounts";
+      try {
+        const address = await requestEthereumProvider(
+          provider,
+          { method: "eth_requestAccounts" },
+          "wallet_auth_failed",
+          checksummedWalletAddress,
+        );
+        stage = "provider_chain";
+        const wallet: ExternalWallet = {
+          address,
+          chainId: await requestEthereumProvider(provider, { method: "eth_chainId" }, "wallet_unavailable", chainId),
+          connectorType: "injected",
+        };
+        stage = "siwe_init";
+        const initialized = await siwe.init(wallet, window.location.host, window.location.origin);
+        stage = "siwe_signature";
+        const signature = await requestEthereumProvider(
+          provider,
+          { method: "personal_sign", params: [initialized.message, address] },
+          "wallet_auth_failed",
+          walletSignature,
+        );
+        stage = "siwe_authenticate";
+        await siwe.loginWithSiwe(signature, wallet, initialized.message);
+        stage = "session_exchange";
+        await establishSession();
+      } catch (error) {
+        reportWalletLoginStage(stage, error);
+        throw error;
+      }
     },
     async register(affirmation) {
       if (terminal) throw new Error("auth_expired");

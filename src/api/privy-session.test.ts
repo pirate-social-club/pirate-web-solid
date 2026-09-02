@@ -454,6 +454,123 @@ describe("Privy session exchange", () => {
     }
   });
 
+  it("canonicalizes a lowercase injected address at both signing boundaries", async () => {
+    const request = vi.fn(async ({ method }: { method: string; params?: readonly unknown[] }) => {
+      if (method === "eth_requestAccounts") return ["0x43bba97370b00e9930994ea427daee400846617b"];
+      if (method === "eth_chainId") return "0x1";
+      if (method === "personal_sign") return "0xsignature";
+      throw new Error(`unexpected_${method}`);
+    });
+    Object.defineProperty(globalThis, "window", {
+      configurable: true,
+      value: { location: { host: "localhost", origin: "http://localhost" }, ethereum: { request } },
+    });
+    let initializedAddress: string | undefined;
+    let authenticatedAddress: string | undefined;
+    try {
+      const auth = await createPrivySessionExchange({ enabled: true, privyAppId: "app" }, {
+        createPrivy: async () => ({
+          auth: {
+            email: { sendCode: async () => ({ success: true }), loginWithCode: async () => undefined },
+            siwe: {
+              init: async wallet => {
+                initializedAddress = wallet.address;
+                return { message: "sign this message" };
+              },
+              loginWithSiwe: async (_signature, wallet) => { authenticatedAddress = wallet.address; },
+            },
+          },
+          initialize: async () => undefined,
+          getAccessToken: async () => "wallet-access-token",
+        }),
+        exchange: async () => undefined,
+        listPersonas: noPersonas,
+        csrf: () => "csrf",
+      });
+
+      await auth.loginWithWallet();
+      const checksummed = "0x43bbA97370B00E9930994EA427DAEE400846617B";
+      expect(initializedAddress).toBe(checksummed);
+      const signing = request.mock.calls.find(([{ method }]) => method === "personal_sign");
+      expect(signing?.[0].params).toEqual(["sign this message", checksummed]);
+      expect(authenticatedAddress).toBe(checksummed);
+    } finally {
+      Reflect.deleteProperty(globalThis, "window");
+    }
+  });
+
+  it("fails closed on a malformed injected address before any nonce or signature request", async () => {
+    for (const address of ["not-an-address", "0x43bba97370b00e9930994ea427daee400846617"]) {
+      const request = vi.fn(async ({ method }: { method: string }) => {
+        if (method === "eth_requestAccounts") return [address];
+        throw new Error(`unexpected_${method}`);
+      });
+      const init = vi.fn(async () => ({ message: "sign this message" }));
+      Object.defineProperty(globalThis, "window", {
+        configurable: true,
+        value: { location: { host: "localhost", origin: "http://localhost" }, ethereum: { request } },
+      });
+      try {
+        const auth = await createPrivySessionExchange({ enabled: true, privyAppId: "app" }, {
+          createPrivy: async () => ({
+            auth: {
+              email: { sendCode: async () => ({ success: true }), loginWithCode: async () => undefined },
+              siwe: { init, loginWithSiwe: async () => undefined },
+            },
+            initialize: async () => undefined,
+            getAccessToken: async () => "wallet-access-token",
+          }),
+          exchange: async () => undefined,
+          csrf: () => "csrf",
+        });
+
+        await expect(auth.loginWithWallet()).rejects.toThrow("wallet_auth_failed");
+        expect(request.mock.calls).toHaveLength(1);
+        expect(request.mock.calls[0][0].method).toBe("eth_requestAccounts");
+        expect(init).not.toHaveBeenCalled();
+      } finally {
+        Reflect.deleteProperty(globalThis, "window");
+      }
+    }
+  });
+
+  it("reports the failing wallet-login stage without replacing its failure", async () => {
+    const request = vi.fn(async ({ method }: { method: string }) => {
+      if (method === "eth_requestAccounts") return ["0x0000000000000000000000000000000000000001"];
+      if (method === "eth_chainId") return "0x1";
+      throw new Error(`unexpected_${method}`);
+    });
+    const reportWalletLoginStage = vi.fn();
+    Object.defineProperty(globalThis, "window", {
+      configurable: true,
+      value: { location: { host: "localhost", origin: "http://localhost" }, ethereum: { request } },
+    });
+    try {
+      const auth = await createPrivySessionExchange({ enabled: true, privyAppId: "app" }, {
+        createPrivy: async () => ({
+          auth: {
+            email: { sendCode: async () => ({ success: true }), loginWithCode: async () => undefined },
+            siwe: {
+              init: async () => { throw new Error("privy_invalid_siwe"); },
+              loginWithSiwe: async () => undefined,
+            },
+          },
+          initialize: async () => undefined,
+          getAccessToken: async () => "wallet-access-token",
+        }),
+        exchange: async () => undefined,
+        csrf: () => "csrf",
+        reportWalletLoginStage,
+      });
+
+      await expect(auth.loginWithWallet()).rejects.toThrow("privy_invalid_siwe");
+      expect(reportWalletLoginStage).toHaveBeenCalledTimes(1);
+      expect(reportWalletLoginStage).toHaveBeenCalledWith("siwe_init", expect.any(Error));
+    } finally {
+      Reflect.deleteProperty(globalThis, "window");
+    }
+  });
+
   it("fails closed when no injected wallet is present", async () => {
     Object.defineProperty(globalThis, "window", {
       configurable: true,
