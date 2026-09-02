@@ -160,4 +160,55 @@ describe("Community creation production route", () => {
     expect(commitIntent).toHaveBeenCalledWith(expect.objectContaining({ expectedRevision: 1 }));
     expect(getIntent).toHaveBeenCalledTimes(2);
   });
+
+  test("carries every server-issued creation fence to the Very route", async () => {
+    const verification = createIntent({
+      intentId: "creation-1",
+      nextAction: {
+        kind: "start_verification",
+        creationIntentId: "creation-1",
+        ceremonyIntentId: "ceremony-1",
+        providerId: "very.web",
+        requirement: "human_identity",
+        generation: 3,
+      },
+      revision: 7,
+      status: "verification_required",
+    });
+    const navigate = vi.fn();
+    const container = render(() => (
+      <CommunityCreationRouteView
+        api={api({ getIntent: async () => verification })}
+        intentId="creation-1"
+        navigate={navigate}
+        resolveSession={async () => ({
+          personas: [{
+            avatarRef: null,
+            displayName: "Harbor Host",
+            personaId: "persona-1",
+            primaryPublicHandle: "harbor-host",
+          }],
+          status: "authenticated",
+          userId: "user-1",
+        })}
+      />
+    ));
+
+    await vi.waitFor(() => expect(container.querySelector("[data-community-creation-progress]")).not.toBeNull());
+    const start = container.querySelector<HTMLButtonElement>("[data-community-creation-progress] button")!;
+    start.click();
+
+    expect(navigate).toHaveBeenCalledTimes(1);
+    const target = new URL(navigate.mock.calls[0]![0], "https://solid.invalid");
+    expect(target.pathname).toBe("/verify/very");
+    expect(Object.fromEntries(target.searchParams)).toEqual({
+      creation_intent_id: "creation-1",
+      ceremony_intent_id: "ceremony-1",
+      provider_id: "very.web",
+      requirement: "human_identity",
+      generation: "3",
+      expected_revision: "7",
+      return_to: "/communities/new?intent_id=creation-1",
+    });
+  });
 });

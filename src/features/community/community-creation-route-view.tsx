@@ -243,9 +243,18 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
                     staleRevision={staleRevision()}
                     onCommit={({ expectedRevision, intentId }) => void commit(expectedRevision, intentId)}
                     onRetry={() => void loadIntent(currentIntent().intentId)}
-                    onStartVerification={({ ceremonyIntentId, intentId }) => navigate(
-                      `/verify/very?intent_id=${encodeURIComponent(ceremonyIntentId)}&return_to=${encodeURIComponent(`/communities/new?intent_id=${intentId}`)}`,
-                    )}
+                    onStartVerification={({ ceremonyIntentId, expectedRevision, generation, intentId, providerId, requirement }) => {
+                      const params = new URLSearchParams({
+                        creation_intent_id: intentId,
+                        ceremony_intent_id: ceremonyIntentId,
+                        provider_id: providerId,
+                        requirement,
+                        generation: String(generation),
+                        expected_revision: String(expectedRevision),
+                        return_to: `/communities/new?intent_id=${intentId}`,
+                      });
+                      navigate(`/verify/very?${params.toString()}`);
+                    }}
                     onView={() => currentIntent().committedHref && navigate(currentIntent().committedHref!)}
                   />
                 </div>

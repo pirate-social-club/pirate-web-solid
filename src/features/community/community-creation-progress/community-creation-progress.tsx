@@ -29,6 +29,7 @@ export interface StartVerificationInput {
   expectedRevision: number;
   requirement: "human_identity";
   ceremonyIntentId: string;
+  providerId: string;
   generation: number;
 }
 
@@ -65,6 +66,7 @@ export function CommunityCreationProgressView(props: CommunityCreationProgressPr
             expectedRevision: props.intent.revision,
             requirement: action.requirement,
             ceremonyIntentId: action.ceremonyIntentId,
+            providerId: action.providerId,
             generation: action.generation,
           })}>
             {copy().startVerification}

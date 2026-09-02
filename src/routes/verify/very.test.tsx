@@ -100,7 +100,7 @@ describe("Very verification route", () => {
     window.history.replaceState(
       null,
       "",
-      "/verify/very?intent_id=creation-ceremony-1&return_to=%2Fcommunities%2Fnew%3Fintent_id%3Dcreation-1",
+      "/verify/very?creation_intent_id=creation-1&ceremony_intent_id=creation-ceremony-1&provider_id=very.web&requirement=human_identity&generation=3&expected_revision=7&return_to=%2Fcommunities%2Fnew%3Fintent_id%3Dcreation-1",
     );
     const createCeremony = vi.spyOn(veryApi, "createVeryWebCeremony").mockResolvedValue({
       cancel: vi.fn(),
@@ -120,10 +120,33 @@ describe("Very verification route", () => {
     container.querySelector("button")?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
 
     await vi.waitFor(() => expect(container.textContent).toContain("Verification complete"));
-    expect(createCeremony).toHaveBeenCalledWith({ intentId: "creation-ceremony-1" });
+    expect(createCeremony).toHaveBeenCalledWith({
+      creation: {
+        creationIntentId: "creation-1",
+        ceremonyIntentId: "creation-ceremony-1",
+        providerId: "very.web",
+        requirement: "human_identity",
+        generation: 3,
+        expectedRevision: 7,
+      },
+    });
     expect(veryApi.resolveVeryCommunityAction).not.toHaveBeenCalled();
     expect(veryApi.joinVeryCommunity).not.toHaveBeenCalled();
     expect(container.textContent).toContain("Continue");
+  });
+
+  it("rejects an incomplete or legacy creation target without resolving a join", () => {
+    window.history.replaceState(null, "", "/verify/very?intent_id=creation-ceremony-1");
+    const createCeremony = vi.spyOn(veryApi, "createVeryWebCeremony");
+
+    const container = render(() => <VeryVerificationRoute />);
+
+    expect(container.textContent).toContain("creation verification link is invalid");
+    expect(container.textContent).not.toContain("Gated community ID");
+    expect(container.textContent).not.toContain("Start palm verification");
+    expect(createCeremony).not.toHaveBeenCalled();
+    expect(veryApi.resolveVeryCommunityAction).not.toHaveBeenCalled();
+    expect(veryApi.joinVeryCommunity).not.toHaveBeenCalled();
   });
 
   it("keeps the widget alive for provider retry and settles duplicate success once", async () => {

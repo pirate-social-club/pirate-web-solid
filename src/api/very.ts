@@ -1,4 +1,8 @@
-import type { PirateApiClient, PirateApiRequestOptions } from "@pirate/api-client";
+import type {
+  PirateApiClient,
+  PirateApiRequestOptions,
+  PostVerificationSessionsInput,
+} from "@pirate/api-client";
 
 import {
   createSessionApiClient,
@@ -76,6 +80,15 @@ export type VeryCommunityJoin = Readonly<{
   status: "joined";
 }>;
 
+export type VeryCreationTarget = Readonly<{
+  creationIntentId: string;
+  ceremonyIntentId: string;
+  providerId: typeof VERY_WEB_PROVIDER_ID;
+  requirement: "human_identity";
+  generation: number;
+  expectedRevision: number;
+}>;
+
 type VeryCommunityOptions = Readonly<{
   communityId: string;
   apiClient?: VerificationApiClient;
@@ -89,10 +102,12 @@ type VeryCommunityRequestContext = Readonly<{
 }>;
 
 export type CreateVeryWebCeremonyOptions = Readonly<{
-  /** Internal escape hatch for an already-resolved server intent. */
+  /** Internal escape hatch for an already-resolved Community join intent. */
   intentId?: string;
   /** User-facing target; the server resolves its opaque join intent. */
   communityId?: string;
+  /** Server-issued Community creation fences for the creation union branch. */
+  creation?: VeryCreationTarget;
   apiClient?: VerificationApiClient;
   csrfToken?: string;
   idempotencyKey?: () => string;
@@ -390,19 +405,38 @@ function providerUnavailable(error: unknown): boolean {
   );
 }
 
+function validCreationTarget(target: VeryCreationTarget): boolean {
+  return (
+    target.creationIntentId.length > 0 &&
+    target.creationIntentId.trim() === target.creationIntentId &&
+    target.ceremonyIntentId.length > 0 &&
+    target.ceremonyIntentId.trim() === target.ceremonyIntentId &&
+    target.providerId === VERY_WEB_PROVIDER_ID &&
+    target.requirement === "human_identity" &&
+    Number.isSafeInteger(target.generation) &&
+    target.generation > 0 &&
+    Number.isSafeInteger(target.expectedRevision) &&
+    target.expectedRevision > 0
+  );
+}
+
 export async function createVeryWebCeremony(
   options: CreateVeryWebCeremonyOptions,
 ): Promise<VeryWebCeremony> {
   if (typeof window === "undefined") throw new VeryWebClientError("browser_required");
   const hasIntentId = options.intentId !== undefined;
   const hasCommunityId = options.communityId !== undefined;
-  if (hasIntentId === hasCommunityId) {
+  const hasCreation = options.creation !== undefined;
+  if (Number(hasIntentId) + Number(hasCommunityId) + Number(hasCreation) !== 1) {
     throw new VeryWebClientError("invalid_presentation");
   }
   if (hasIntentId && (options.intentId?.trim() !== options.intentId || options.intentId.length === 0)) {
     throw new VeryWebClientError("invalid_presentation");
   }
   if (hasCommunityId && (options.communityId?.trim() !== options.communityId || options.communityId.length === 0)) {
+    throw new VeryWebClientError("invalid_presentation");
+  }
+  if (options.creation !== undefined && !validCreationTarget(options.creation)) {
     throw new VeryWebClientError("invalid_presentation");
   }
   const csrfToken = options.csrfToken ?? readCsrfCookie();
@@ -422,9 +456,22 @@ export async function createVeryWebCeremony(
       throw new VeryWebClientError("join_not_ready");
     }
   }
-  if (intentId === undefined) throw new VeryWebClientError("invalid_presentation");
+  const startBody: PostVerificationSessionsInput["body"] = options.creation === undefined
+    ? {
+        intent_id: intentId ?? invalidPresentation(),
+        provider_id: VERY_WEB_PROVIDER_ID,
+      }
+    : {
+        provider_id: options.creation.providerId,
+        creation_intent_id: options.creation.creationIntentId,
+        ceremony_intent_id: options.creation.ceremonyIntentId,
+        requirement: options.creation.requirement,
+        generation: options.creation.generation,
+        expected_revision: options.creation.expectedRevision,
+        idempotency_key: (options.idempotencyKey ?? (() => crypto.randomUUID()))(),
+      };
   const started = await apiClient.post_verificationSessions(
-    { body: { intent_id: intentId, provider_id: VERY_WEB_PROVIDER_ID } },
+    { body: startBody },
     requestOptions,
   );
   const parsed = parseVeryWebPresentation(started);

@@ -17,6 +17,7 @@ import {
   type VeryWebCeremony,
   type VeryWebCompletion,
   type VeryWebPresentation,
+  type VeryCreationTarget,
 } from "../../api/very.ts";
 
 type Phase = "idle" | "starting" | "waiting" | "ready" | "polling" | "joining" | "joined" | "verified" | "error";
@@ -82,8 +83,52 @@ function initialCommunityId(): string {
   return params.get("community_id") ?? params.get("communityId") ?? "";
 }
 
-function initialIntentId(): string {
-  return routeUrl()?.searchParams.get("intent_id")?.trim() ?? "";
+function positiveInteger(value: string | null): number | undefined {
+  if (value === null || !/^[1-9]\d*$/u.test(value)) return undefined;
+  const parsed = Number(value);
+  return Number.isSafeInteger(parsed) ? parsed : undefined;
+}
+
+function initialCreationTarget(): VeryCreationTarget | "invalid" | undefined {
+  const params = routeUrl()?.searchParams;
+  if (!params) return undefined;
+  const creationKeys = [
+    "intent_id",
+    "creation_intent_id",
+    "ceremony_intent_id",
+    "provider_id",
+    "requirement",
+    "generation",
+    "expected_revision",
+  ] as const;
+  if (!creationKeys.some((key) => params.has(key))) return undefined;
+  if (params.has("intent_id")) return "invalid";
+
+  const creationIntentId = params.get("creation_intent_id") ?? "";
+  const ceremonyIntentId = params.get("ceremony_intent_id") ?? "";
+  const providerId = params.get("provider_id");
+  const requirement = params.get("requirement");
+  const generation = positiveInteger(params.get("generation"));
+  const expectedRevision = positiveInteger(params.get("expected_revision"));
+  if (
+    creationIntentId.length === 0 ||
+    creationIntentId.trim() !== creationIntentId ||
+    ceremonyIntentId.length === 0 ||
+    ceremonyIntentId.trim() !== ceremonyIntentId ||
+    providerId !== "very.web" ||
+    requirement !== "human_identity" ||
+    generation === undefined ||
+    expectedRevision === undefined
+  ) return "invalid";
+
+  return {
+    creationIntentId,
+    ceremonyIntentId,
+    providerId,
+    requirement,
+    generation,
+    expectedRevision,
+  };
 }
 
 function initialReturnTo(): string {
@@ -97,10 +142,14 @@ function mobileRuntime(): boolean {
 
 export default function VeryVerificationRoute(props: Readonly<{ loadWidget?: VeryWidgetLoader }> = {}) {
   const [communityId, setCommunityId] = createSignal(initialCommunityId());
-  const ceremonyIntentId = initialIntentId();
+  const parsedCreationTarget = initialCreationTarget();
+  const creationTarget = parsedCreationTarget === "invalid" ? undefined : parsedCreationTarget;
+  const invalidCreationTarget = parsedCreationTarget === "invalid";
   const returnTo = initialReturnTo();
-  const [phase, setPhase] = createSignal<Phase>("idle");
-  const [message, setMessage] = createSignal("");
+  const [phase, setPhase] = createSignal<Phase>(invalidCreationTarget ? "error" : "idle");
+  const [message, setMessage] = createSignal(
+    invalidCreationTarget ? "This Community creation verification link is invalid. Return to the creation page and retry." : "",
+  );
   const [qr, setQr] = createSignal("");
   const [presentation, setPresentation] = createSignal<VeryWebPresentation>();
   const [completion, setCompletion] = createSignal<VeryWebCompletion>();
@@ -114,7 +163,7 @@ export default function VeryVerificationRoute(props: Readonly<{ loadWidget?: Ver
   let operationEpoch = 0;
   let pollingEpoch: number | undefined;
 
-  const operationTarget = () => ceremonyIntentId || communityId().trim();
+  const operationTarget = () => creationTarget?.ceremonyIntentId ?? communityId().trim();
 
   function operationIsCurrent(epoch: number, target: string): boolean {
     return active && operationEpoch === epoch && operationTarget() === target;
@@ -133,7 +182,7 @@ export default function VeryVerificationRoute(props: Readonly<{ loadWidget?: Ver
   async function finishVerification(result: VeryWebCompletion, target: string, epoch: number) {
     if (!operationIsCurrent(epoch, target)) return;
     setCompletion(result);
-    if (ceremonyIntentId) {
+    if (creationTarget !== undefined) {
       setMessage("");
       setPhase("verified");
       return;
@@ -264,8 +313,10 @@ export default function VeryVerificationRoute(props: Readonly<{ loadWidget?: Ver
     setPresentation(undefined);
     setPhase("starting");
     try {
-      let resolvedIntentId = ceremonyIntentId;
-      if (!resolvedIntentId) {
+      let created: VeryWebCeremony;
+      if (creationTarget !== undefined) {
+        created = await createVeryWebCeremony({ creation: creationTarget });
+      } else {
         let action = await resolveVeryCommunityAction({ communityId: value });
         while (operationIsCurrent(epoch, value) && action.kind === "wait") {
           const retryAfterMs = action.retryAfterMs;
@@ -285,9 +336,8 @@ export default function VeryVerificationRoute(props: Readonly<{ loadWidget?: Ver
           return;
         }
         if (action.kind !== "verify") throw new VeryWebClientError("join_not_ready");
-        resolvedIntentId = action.intentId;
+        created = await createVeryWebCeremony({ intentId: action.intentId });
       }
-      const created = await createVeryWebCeremony({ intentId: resolvedIntentId });
       if (!operationIsCurrent(epoch, value)) {
         created.cancel();
         return;
@@ -381,24 +431,26 @@ export default function VeryVerificationRoute(props: Readonly<{ loadWidget?: Ver
       <p>Scan the QR code with the Very app on desktop, or open it directly on your phone.</p>
 
       <Show when={phase() === "idle" || phase() === "error"}>
-        <Show when={!ceremonyIntentId}>
-          <TextField name="community-id" value={communityId()} onChange={setCommunityId}>
-            <TextFieldLabel>Gated community ID</TextFieldLabel>
-            <TextFieldInput autocomplete="off" />
-            <TextFieldDescription>
-              Use the community ID from the gated-community join link. The server
-              resolves the one-time verification intent for you.
-            </TextFieldDescription>
-          </TextField>
+        <Show when={!invalidCreationTarget}>
+          <Show when={creationTarget === undefined}>
+            <TextField name="community-id" value={communityId()} onChange={setCommunityId}>
+              <TextFieldLabel>Gated community ID</TextFieldLabel>
+              <TextFieldInput autocomplete="off" />
+              <TextFieldDescription>
+                Use the community ID from the gated-community join link. The server
+                resolves the one-time verification intent for you.
+              </TextFieldDescription>
+            </TextField>
+          </Show>
+          <Button type="button" disabled={busy()} onClick={() => void startVery()}>
+            {busy() ? "Starting…" : "Start palm verification"}
+          </Button>
         </Show>
-        <Button type="button" disabled={busy()} onClick={() => void startVery()}>
-          {busy() ? "Starting…" : "Start palm verification"}
-        </Button>
       </Show>
 
       <Show when={phase() === "starting"}>
         <p role="status">
-          {ceremonyIntentId ? "Starting palm verification…" : "Checking the gated-community join requirements…"}
+          {creationTarget !== undefined ? "Starting palm verification…" : "Checking the gated-community join requirements…"}
         </p>
       </Show>
 

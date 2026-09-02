@@ -211,6 +211,68 @@ describe("Very web ceremony", () => {
     );
   });
 
+  it("posts the complete Community creation union body through the real adapter", async () => {
+    // SAFETY: this test deliberately supplies the browser guard used by the client adapter.
+    globalThis.window = {} as Window & typeof globalThis;
+    const start = vi.fn(async () => pendingStart());
+    const ceremony = await createVeryWebCeremony({
+      creation: {
+        creationIntentId: "creation-intent-1",
+        ceremonyIntentId: "creation-ceremony-1",
+        providerId: VERY_WEB_PROVIDER_ID,
+        requirement: "human_identity",
+        generation: 3,
+        expectedRevision: 7,
+      },
+      // SAFETY: this fake implements exactly the generated methods used by the adapter.
+      apiClient: {
+        post_verificationSessions: start,
+        post_verificationSessionsProofSessionIdComplete: vi.fn(),
+      } as never,
+      csrfToken: "csrf-token",
+      idempotencyKey: () => "creation-start-idem-1",
+    });
+
+    expect(ceremony.presentation?.proofSessionId).toBe(proofSessionId);
+    expect(start).toHaveBeenCalledWith(
+      {
+        body: {
+          provider_id: VERY_WEB_PROVIDER_ID,
+          creation_intent_id: "creation-intent-1",
+          ceremony_intent_id: "creation-ceremony-1",
+          requirement: "human_identity",
+          generation: 3,
+          expected_revision: 7,
+          idempotency_key: "creation-start-idem-1",
+        },
+      },
+      expect.objectContaining({ credentials: "same-origin", headers: expect.any(Headers) }),
+    );
+  });
+
+  it("rejects a malformed Community creation target before calling the API", async () => {
+    // SAFETY: this test deliberately supplies the browser guard used by the client adapter.
+    globalThis.window = {} as Window & typeof globalThis;
+    const start = vi.fn();
+    await expect(createVeryWebCeremony({
+      creation: {
+        creationIntentId: "creation-intent-1",
+        ceremonyIntentId: "creation-ceremony-1",
+        providerId: VERY_WEB_PROVIDER_ID,
+        requirement: "human_identity",
+        generation: 0,
+        expectedRevision: 7,
+      },
+      // SAFETY: this fake implements exactly the generated methods inspected before validation exits.
+      apiClient: {
+        post_verificationSessions: start,
+        post_verificationSessionsProofSessionIdComplete: vi.fn(),
+      } as never,
+      csrfToken: "csrf-token",
+    })).rejects.toMatchObject({ code: "invalid_presentation" });
+    expect(start).not.toHaveBeenCalled();
+  });
+
   it("fails closed when eligibility does not issue a Very verification intent", () => {
     expect(() => parseVeryJoinEligibility({
       status: "verification_required",
