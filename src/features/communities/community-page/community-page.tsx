@@ -6,11 +6,7 @@ import {
   createPublicHandleSalesClient,
   type PublicHandleSalesApiClient,
 } from "../../../api/handle-sales-client.ts";
-import {
-  resolveSession as resolveApplicationSession,
-  type AuthenticatedSession,
-  type SessionResolution,
-} from "../../../api/session.ts";
+import type { SessionResolution } from "../../../api/session.ts";
 import {
   buttonVariants,
 } from "../../../design-system.ts";
@@ -29,20 +25,22 @@ import {
 } from "./community-page-origin.ts";
 import { CommunityPageShell } from "../../community/page-shell/page-shell.tsx";
 import type { CommunityData } from "../../community/page-shell/page-shell-model.ts";
-import type { PrivySessionExchange } from "../../../api/privy-session.ts";
-import { SignInModal } from "../../auth/sign-in-modal.tsx";
-import { createSignInSession } from "../../auth/sign-in-session.ts";
 import { CreatePostDialog } from "../../posts/post-composer/create-post-dialog.tsx";
 import { createCommunityModerationSettingsApi } from "../../community/owner-settings/community-moderation-settings-api.ts";
 import {
   loadCommunityThreadPage,
   type CommunityThreadPage,
 } from "./community-thread-feed-api.ts";
+import {
+  createCommunityEngagementApi,
+  type CommunityEngagementApi,
+} from "./community-engagement-api.ts";
+import { createCommunityEngagementController } from "./community-engagement-controller.ts";
 
 export interface CommunityPageProps {
   readonly pathSegment: string;
   readonly client?: CommunityRouteClient;
-  readonly createSignInExchange?: () => Promise<PrivySessionExchange>;
+  readonly engagementApi?: CommunityEngagementApi;
   readonly handleSalesClient?: PublicHandleSalesApiClient;
   readonly resolveSession?: () => Promise<SessionResolution>;
   readonly resolveOwnerSettingsAccess?: (communityId: string) => Promise<boolean>;
@@ -132,7 +130,7 @@ function CommunityNamesCta(props: {
 }
 
 function SuccessState(props: {
-  readonly createSignInExchange?: () => Promise<PrivySessionExchange>;
+  readonly engagementApi: CommunityEngagementApi;
   readonly state: CommunityPageSuccess;
   readonly handleSalesClient: PublicHandleSalesApiClient;
   readonly resolveSession?: () => Promise<SessionResolution>;
@@ -143,21 +141,29 @@ function SuccessState(props: {
 }) {
   const copy = communityCopy();
   const state = untrack(() => props.state);
-  const [following, setFollowing] = createSignal(false);
-  const [joined, setJoined] = createSignal(false);
-  const [authOpen, setAuthOpen] = createSignal(false);
+  const engagementApi = untrack(() => props.engagementApi);
+  const resolveSession = untrack(() => props.resolveSession);
   const [composerOpen, setComposerOpen] = createSignal(false);
   const [postingBusy, setPostingBusy] = createSignal(false);
-  const [postingError, setPostingError] = createSignal("");
-  const [postingSession, setPostingSession] = createSignal<AuthenticatedSession>();
   const [canManage, setCanManage] = createSignal(false);
   const [threadPosts, setThreadPosts] = createSignal<CommunityData["posts"]>([]);
   const [threadState, setThreadState] = createSignal<"idle" | "loading" | "ready" | "error">("idle");
   let active = true;
-  let sessionRequest = 0;
   onCleanup(() => {
     active = false;
-    sessionRequest += 1;
+  });
+  const navigate = (href: string) => {
+    if (props.navigate) props.navigate(href);
+    else globalThis.location?.assign(href);
+  };
+  const engagement = createCommunityEngagementController({
+    api: engagementApi,
+    communityId: state.communityId,
+    initialFollowerCount: state.community.followerCount ?? 0,
+    membershipMode: state.community.membershipMode,
+    navigate,
+    resolveSession,
+    returnTo: state.canonicalPath,
   });
   const community = createMemo<CommunityData>(() => {
     const source = props.surfaceData ?? {};
@@ -167,7 +173,7 @@ function SuccessState(props: {
       handle: source.handle ?? `c/${state.routeDisplay}`,
       description: source.description ?? state.community.description ?? interpolateMessage(copy.defaultDescription, { name: state.community.displayName }),
       members: source.members ?? state.community.memberCount ?? 0,
-      followers: source.followers ?? state.community.followerCount ?? 0,
+      followers: source.followers ?? engagement.followerCount(),
       posts: source.posts ?? threadPosts(),
       avatarSrc: source.avatarSrc ?? state.community.avatarSrc,
       bannerSrc: source.bannerSrc ?? state.community.bannerSrc,
@@ -183,10 +189,6 @@ function SuccessState(props: {
   const title = () => interpolateMessage(copy.title, { name: community().name });
   const description = () => community().description;
   const settingsHref = () => `${state.canonicalPath}/settings/names`;
-  const navigate = (href: string) => {
-    if (props.navigate) props.navigate(href);
-    else globalThis.location?.assign(href);
-  };
 
   createEffect(
     () => state.communityId,
@@ -222,39 +224,19 @@ function SuccessState(props: {
   );
 
   const openPostComposer = async (): Promise<void> => {
-    if (postingSession() !== undefined) {
+    if (engagement.postingSession() !== undefined) {
       setComposerOpen(true);
       return;
     }
     if (postingBusy()) return;
-    const request = ++sessionRequest;
     setPostingBusy(true);
-    setPostingError("");
     try {
-      const resolved = await (props.resolveSession ?? resolveApplicationSession)();
-      if (!active || request !== sessionRequest) return;
-      if (resolved === "anonymous") {
-        setAuthOpen(true);
-        return;
-      }
-      setPostingSession(resolved);
-      setComposerOpen(true);
-    } catch {
-      if (!active || request !== sessionRequest) return;
-      setPostingError("We couldn't verify your session. Try opening the post composer again.");
+      const resolved = await engagement.resolvePostingSession();
+      if (active && resolved !== undefined) setComposerOpen(true);
     } finally {
-      if (active && request === sessionRequest) setPostingBusy(false);
+      if (active) setPostingBusy(false);
     }
   };
-  const completeAuthentication = () => {
-    setAuthOpen(false);
-    void openPostComposer();
-  };
-  const signInSession = createSignInSession({
-    createExchange: props.createSignInExchange,
-    enabled: authOpen,
-    onAuthenticated: completeAuthentication,
-  });
 
   return (
     <div data-community-state="success" data-community-route-family={state.routeFamily}>
@@ -269,16 +251,23 @@ function SuccessState(props: {
             canJoin
             community={community()}
             createPostBusy={postingBusy()}
-            following={following()}
-            joined={joined()}
+            followBusy={engagement.followBusy()}
+            following={engagement.following()}
+            joinBusy={engagement.joinBusy()}
+            joinDisabled={engagement.joinDisabled()}
+            joinLabel={engagement.joinLabel()}
+            joined={engagement.joined()}
             postsError={threadState() === "error"}
             postsLoading={threadState() === "loading"}
             onCreatePost={() => void openPostComposer()}
-            onFollowToggle={() => setFollowing(value => !value)}
-            onJoin={() => { setJoined(true); setFollowing(true); }}
+            onFollowToggle={() => void engagement.followToggle()}
+            onJoin={() => void engagement.joinCommunity()}
             onManage={canManage() ? () => navigate(settingsHref()) : undefined}
           />
-          <Show when={postingError()}>
+          <Show when={engagement.message()}>
+            {message => <p class="mx-5 mt-4 text-sm text-muted-foreground md:mx-8" role="status">{message()}</p>}
+          </Show>
+          <Show when={engagement.error()}>
             {message => <p class="mx-5 mt-4 text-sm text-destructive md:mx-8" role="alert">{message()}</p>}
           </Show>
       </div>
@@ -287,8 +276,7 @@ function SuccessState(props: {
         <p>{copy.membership}: {copy.membershipModes[state.community.membershipMode]}</p>
         <CommunityNamesCta state={state} client={props.handleSalesClient} />
       </div>
-      <SignInModal open={authOpen()} onOpenChange={setAuthOpen} session={signInSession} />
-      <Show when={postingSession()}>
+      <Show when={engagement.postingSession()}>
         {session => (
           <CreatePostDialog
             communityContext={{ id: state.communityId, name: community().name }}
@@ -304,7 +292,7 @@ function SuccessState(props: {
 }
 
 function CommunityState(props: {
-  readonly createSignInExchange?: () => Promise<PrivySessionExchange>;
+  readonly engagementApi: CommunityEngagementApi;
   readonly state: CommunityPageViewState;
   readonly handleSalesClient: PublicHandleSalesApiClient;
   readonly resolveSession?: () => Promise<SessionResolution>;
@@ -318,7 +306,7 @@ function CommunityState(props: {
     <Show when={success()} fallback={<MessageState state={props.state} />}>
       {state => (
         <SuccessState
-          createSignInExchange={props.createSignInExchange}
+          engagementApi={props.engagementApi}
           state={state()}
           handleSalesClient={props.handleSalesClient}
           resolveSession={props.resolveSession}
@@ -337,13 +325,15 @@ function CommunityData(props: CommunityPageProps) {
     ?? createPublicCommunityRouteClient({ origin: communityRequestOrigin() });
   const handleSalesClient = untrack(() => props.handleSalesClient)
     ?? createPublicHandleSalesClient({ origin: communityRequestOrigin() });
+  const engagementApi = untrack(() => props.engagementApi)
+    ?? createCommunityEngagementApi({ origin: communityRequestOrigin() });
   const state = createMemo(
     () => props.data ?? loadCommunityPage(client, props.pathSegment, communityCanonicalOrigin()),
     { deferStream: true },
   );
   return (
     <CommunityState
-      createSignInExchange={props.createSignInExchange}
+      engagementApi={engagementApi}
       state={state()}
       handleSalesClient={handleSalesClient}
       resolveSession={props.resolveSession}

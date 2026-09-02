@@ -41,6 +41,10 @@ export interface CommunityPageShellProps {
   joined: boolean;
   onFollowToggle?: () => void;
   onJoin?: () => void;
+  followBusy?: boolean;
+  joinBusy?: boolean;
+  joinDisabled?: boolean;
+  joinLabel?: string;
   onManage?: () => void;
   onCreatePost?: () => void;
   createPostBusy?: boolean;
@@ -256,9 +260,9 @@ export function CommunityPageShell(props: CommunityPageShellProps) {
           </div>
           <Show when={props.readOnly !== true}>
             <div class="mt-3 grid grid-cols-2 gap-2 md:mt-0 md:flex md:shrink-0 md:flex-wrap" aria-label="Community actions">
-              <Button class="w-full md:w-auto" onClick={() => props.onFollowToggle?.()} variant={props.following ? "secondary" : "outline"}>{props.following ? "Following" : "Follow"}</Button>
+              <Button class="w-full md:w-auto" disabled={props.followBusy} onClick={() => props.onFollowToggle?.()} variant={props.following ? "secondary" : "outline"}>{props.followBusy ? "Saving…" : props.following ? "Following" : "Follow"}</Button>
               <Show when={props.canJoin !== false}>
-                <Button class="w-full md:w-auto" disabled={props.joined} onClick={() => props.onJoin?.()} variant={props.joined ? "secondary" : "default"}>{props.joined ? "Joined" : "Join"}</Button>
+                <Button class="w-full md:w-auto" disabled={props.joined || props.joinBusy || props.joinDisabled} onClick={() => props.onJoin?.()} variant={props.joined ? "secondary" : "default"}>{props.joinBusy ? "Checking…" : props.joined ? "Joined" : props.joinLabel ?? "Join"}</Button>
               </Show>
               <Show when={props.joined || props.showCreatePost || props.onCreatePost !== undefined}>
                 <Button

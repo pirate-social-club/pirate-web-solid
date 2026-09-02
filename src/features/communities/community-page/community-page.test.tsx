@@ -5,22 +5,11 @@ import type {
 import { render as solidRender, type JSX } from "@solidjs/web";
 import { createRoot } from "solid-js";
 import { afterEach, describe, expect, test, vi } from "vitest";
-import type { PrivySessionExchange } from "../../../api/privy-session.ts";
+import type { CommunityEngagementApi } from "./community-engagement-api.ts";
 import CommunityPage from "./community-page.tsx";
 
 const disposers: Array<() => void> = [];
 
-function signInExchange(): PrivySessionExchange {
-  return {
-    beginOAuth: async () => "https://privy.example.test/authorize",
-    clear: () => {},
-    completeOAuth: async () => undefined,
-    loginWithCode: async () => undefined,
-    loginWithWallet: async () => undefined,
-    register: async () => undefined,
-    sendCode: async () => undefined,
-  };
-}
 const communityId = "community_123e4567-e89b-42d3-a456-426614174000";
 const route: GetCPathSegmentResponse = {
   community_id: communityId,
@@ -47,6 +36,17 @@ const preview: GetCommunitiesCommunityIdPreviewResponse = {
   rules: [{ id: "rule-1", object: "community_rule", title: "Respect", body: "Be kind.", report_reason: "abuse", position: 1, status: "active" }],
   created: 1_700_000_000,
 };
+
+function engagementApi(overrides: Partial<CommunityEngagementApi> = {}): CommunityEngagementApi {
+  return {
+    readViewerState: vi.fn(async () => ({ membership: "not_member" as const, following: false, followerCount: 20 })),
+    resolveJoinAction: vi.fn(async () => ({ kind: "join" as const })),
+    join: vi.fn(async () => ({ status: "joined" as const })),
+    follow: vi.fn(async () => ({ following: true, followerCount: 21 })),
+    unfollow: vi.fn(async () => ({ following: false, followerCount: 20 })),
+    ...overrides,
+  };
+}
 
 function render(ui: () => JSX.Element): HTMLElement {
   const container = document.createElement("div");
@@ -163,22 +163,226 @@ describe("CommunityPage", () => {
           get_cPathSegment: async () => route,
           get_communitiesCommunityIdPreview: async () => preview,
         }}
+        engagementApi={engagementApi()}
         handleSalesClient={{ get_communitiesCommunityIdHandleOfferings: async () => ({ items: [], next_cursor: null }) }}
         pathSegment="xn--pokmon-dva"
         resolveSession={resolveSession}
       />
     ));
     await vi.waitFor(() => expect(container.querySelector("h1")?.textContent).toBe("Pirate Harbor"));
-    expect(resolveSession).not.toHaveBeenCalled();
+    await vi.waitFor(() => expect(resolveSession).toHaveBeenCalledTimes(1));
 
     const postHere = [...container.querySelectorAll<HTMLButtonElement>("button")]
       .find(button => button.textContent?.trim() === "Post here")!;
     postHere.click();
 
-    await vi.waitFor(() => expect(resolveSession).toHaveBeenCalledTimes(1));
+    expect(resolveSession).toHaveBeenCalledTimes(1);
     await vi.waitFor(() => expect(document.body.textContent).toContain("Posting in Pirate Harbor"));
     expect(document.body.querySelector("input[name='community-id']")).toBeNull();
     expect(document.body.querySelector(`[data-community-context='${communityId}']`)).not.toBeNull();
+  });
+
+  test("joins an open Community only after the server confirms membership", async () => {
+    const api = engagementApi();
+    const container = render(() => (
+      <CommunityPage
+        client={{
+          get_cPathSegment: async () => route,
+          get_communitiesCommunityIdPreview: async () => preview,
+        }}
+        engagementApi={api}
+        handleSalesClient={{ get_communitiesCommunityIdHandleOfferings: async () => ({ items: [], next_cursor: null }) }}
+        pathSegment="xn--pokmon-dva"
+        resolveSession={async () => ({ status: "authenticated", userId: "account-one", personas: [] })}
+      />
+    ));
+    await vi.waitFor(() => expect(api.readViewerState).toHaveBeenCalledWith(communityId));
+    const join = [...container.querySelectorAll<HTMLButtonElement>("button")]
+      .find(button => button.textContent?.trim() === "Join")!;
+    join.click();
+    await vi.waitFor(() => expect(api.join).toHaveBeenCalledWith(communityId));
+    await vi.waitFor(() => expect(container.textContent).toContain("Joined this Community."));
+    expect(join.textContent).toBe("Joined");
+  });
+
+  test("shows a requested membership as pending instead of joined", async () => {
+    const api = engagementApi({
+      resolveJoinAction: vi.fn(async () => ({ kind: "request" as const })),
+      join: vi.fn(async () => ({ status: "requested" as const })),
+    });
+    const container = render(() => (
+      <CommunityPage
+        client={{ get_cPathSegment: async () => route, get_communitiesCommunityIdPreview: async () => ({ ...preview, membership_mode: "request" }) }}
+        engagementApi={api}
+        handleSalesClient={{ get_communitiesCommunityIdHandleOfferings: async () => ({ items: [], next_cursor: null }) }}
+        pathSegment="xn--pokmon-dva"
+        resolveSession={async () => ({ status: "authenticated", userId: "account-one", personas: [] })}
+      />
+    ));
+    await vi.waitFor(() => expect(api.readViewerState).toHaveBeenCalled());
+    const request = [...container.querySelectorAll<HTMLButtonElement>("button")]
+      .find(button => button.textContent?.trim() === "Request to join")!;
+    request.click();
+    await vi.waitFor(() => expect(container.textContent).toContain("Membership request sent."));
+    expect(request.textContent).toBe("Request pending");
+    expect(request.disabled).toBe(true);
+  });
+
+  test("initializes an existing member from the authenticated preview", async () => {
+    const api = engagementApi({
+      readViewerState: vi.fn(async () => ({ membership: "member" as const, following: true, followerCount: 21 })),
+    });
+    const container = render(() => (
+      <CommunityPage
+        client={{ get_cPathSegment: async () => route, get_communitiesCommunityIdPreview: async () => preview }}
+        engagementApi={api}
+        handleSalesClient={{ get_communitiesCommunityIdHandleOfferings: async () => ({ items: [], next_cursor: null }) }}
+        pathSegment="xn--pokmon-dva"
+        resolveSession={async () => ({ status: "authenticated", userId: "account-one", personas: [] })}
+      />
+    ));
+    await vi.waitFor(() => expect(container.textContent).toContain("21 followers"));
+    const joined = [...container.querySelectorAll<HTMLButtonElement>("button")]
+      .find(button => button.textContent?.trim() === "Joined")!;
+    expect(joined.disabled).toBe(true);
+    expect(container.textContent).toContain("Post here");
+    expect(api.resolveJoinAction).not.toHaveBeenCalled();
+  });
+
+  test("hands a Very-gated join to the existing verification route", async () => {
+    const navigate = vi.fn();
+    const api = engagementApi({
+      resolveJoinAction: vi.fn(async () => ({ kind: "verify" as const, providerId: "very.web", intentId: "server-intent-1" })),
+    });
+    const container = render(() => (
+      <CommunityPage
+        client={{ get_cPathSegment: async () => route, get_communitiesCommunityIdPreview: async () => ({ ...preview, membership_mode: "gated", human_verification_lane: "very" }) }}
+        engagementApi={api}
+        handleSalesClient={{ get_communitiesCommunityIdHandleOfferings: async () => ({ items: [], next_cursor: null }) }}
+        navigate={navigate}
+        pathSegment="xn--pokmon-dva"
+        resolveSession={async () => ({ status: "authenticated", userId: "account-one", personas: [] })}
+      />
+    ));
+    await vi.waitFor(() => expect(api.readViewerState).toHaveBeenCalled());
+    [...container.querySelectorAll<HTMLButtonElement>("button")]
+      .find(button => button.textContent?.trim() === "Verify to join")!
+      .click();
+    await vi.waitFor(() => expect(navigate).toHaveBeenCalledWith(
+      `/verify/very?community_id=${encodeURIComponent(communityId)}&return_to=%2Fc%2Fxn--pokmon-dva`,
+    ));
+    expect(api.join).not.toHaveBeenCalled();
+  });
+
+  test("follows and unfollows using the server-returned follower count", async () => {
+    const api = engagementApi();
+    const container = render(() => (
+      <CommunityPage
+        client={{ get_cPathSegment: async () => route, get_communitiesCommunityIdPreview: async () => preview }}
+        engagementApi={api}
+        handleSalesClient={{ get_communitiesCommunityIdHandleOfferings: async () => ({ items: [], next_cursor: null }) }}
+        pathSegment="xn--pokmon-dva"
+        resolveSession={async () => ({ status: "authenticated", userId: "account-one", personas: [] })}
+      />
+    ));
+    await vi.waitFor(() => expect(api.readViewerState).toHaveBeenCalled());
+    const follow = [...container.querySelectorAll<HTMLButtonElement>("button")]
+      .find(button => button.textContent?.trim() === "Follow")!;
+    follow.click();
+    await vi.waitFor(() => expect(follow.textContent).toBe("Following"));
+    expect(container.textContent).toContain("21 followers");
+    follow.click();
+    await vi.waitFor(() => expect(follow.textContent).toBe("Follow"));
+    expect(container.textContent).toContain("20 followers");
+  });
+
+  test("coalesces rapid follow clicks into one server write", async () => {
+    let settleFollow!: (value: { following: true; followerCount: number }) => void;
+    const pendingFollow = new Promise<{ following: true; followerCount: number }>(resolve => { settleFollow = resolve; });
+    const followWrite = vi.fn(() => pendingFollow);
+    const api = engagementApi({ follow: followWrite });
+    const container = render(() => (
+      <CommunityPage
+        client={{ get_cPathSegment: async () => route, get_communitiesCommunityIdPreview: async () => preview }}
+        engagementApi={api}
+        handleSalesClient={{ get_communitiesCommunityIdHandleOfferings: async () => ({ items: [], next_cursor: null }) }}
+        pathSegment="xn--pokmon-dva"
+        resolveSession={async () => ({ status: "authenticated", userId: "account-one", personas: [] })}
+      />
+    ));
+    await vi.waitFor(() => expect(api.readViewerState).toHaveBeenCalled());
+    const follow = [...container.querySelectorAll<HTMLButtonElement>("button")]
+      .find(button => button.textContent?.trim() === "Follow")!;
+    follow.click();
+    follow.click();
+    await vi.waitFor(() => expect(followWrite).toHaveBeenCalledTimes(1));
+    settleFollow({ following: true, followerCount: 21 });
+    await vi.waitFor(() => expect(follow.textContent).toBe("Following"));
+  });
+
+  test("keeps engagement state unchanged when a server write fails", async () => {
+    const api = engagementApi({ follow: vi.fn(async () => { throw new Error("private failure"); }) });
+    const container = render(() => (
+      <CommunityPage
+        client={{ get_cPathSegment: async () => route, get_communitiesCommunityIdPreview: async () => preview }}
+        engagementApi={api}
+        handleSalesClient={{ get_communitiesCommunityIdHandleOfferings: async () => ({ items: [], next_cursor: null }) }}
+        pathSegment="xn--pokmon-dva"
+        resolveSession={async () => ({ status: "authenticated", userId: "account-one", personas: [] })}
+      />
+    ));
+    await vi.waitFor(() => expect(api.readViewerState).toHaveBeenCalled());
+    const follow = [...container.querySelectorAll<HTMLButtonElement>("button")]
+      .find(button => button.textContent?.trim() === "Follow")!;
+    follow.click();
+    await vi.waitFor(() => expect(container.textContent).toContain("We couldn't update your follow. Nothing changed."));
+    expect(follow.textContent).toBe("Follow");
+    expect(container.textContent).not.toContain("private failure");
+  });
+
+  test("sends anonymous follow intent to the app-owned sign-in ceremony without writing", async () => {
+    const signInRequested = vi.fn();
+    window.addEventListener("pirate:connect", signInRequested);
+    const api = engagementApi();
+    const container = render(() => (
+      <CommunityPage
+        client={{ get_cPathSegment: async () => route, get_communitiesCommunityIdPreview: async () => preview }}
+        engagementApi={api}
+        handleSalesClient={{ get_communitiesCommunityIdHandleOfferings: async () => ({ items: [], next_cursor: null }) }}
+        pathSegment="xn--pokmon-dva"
+        resolveSession={async () => "anonymous"}
+      />
+    ));
+    await vi.waitFor(() => expect(container.querySelector("h1")?.textContent).toBe("Pirate Harbor"));
+    [...container.querySelectorAll<HTMLButtonElement>("button")]
+      .find(button => button.textContent?.trim() === "Follow")!
+      .click();
+    await vi.waitFor(() => expect(signInRequested).toHaveBeenCalledTimes(1));
+    expect(api.follow).not.toHaveBeenCalled();
+    expect(api.unfollow).not.toHaveBeenCalled();
+    window.removeEventListener("pirate:connect", signInRequested);
+  });
+
+  test("does not guess follow direction when authenticated viewer state is unavailable", async () => {
+    const readViewerState = vi.fn(async () => { throw new Error("private read failure"); });
+    const api = engagementApi({ readViewerState });
+    const container = render(() => (
+      <CommunityPage
+        client={{ get_cPathSegment: async () => route, get_communitiesCommunityIdPreview: async () => preview }}
+        engagementApi={api}
+        handleSalesClient={{ get_communitiesCommunityIdHandleOfferings: async () => ({ items: [], next_cursor: null }) }}
+        pathSegment="xn--pokmon-dva"
+        resolveSession={async () => ({ status: "authenticated", userId: "account-one", personas: [] })}
+      />
+    ));
+    await vi.waitFor(() => expect(container.textContent).toContain("Retry an action to check again."));
+    [...container.querySelectorAll<HTMLButtonElement>("button")]
+      .find(button => button.textContent?.trim() === "Follow")!
+      .click();
+    await vi.waitFor(() => expect(readViewerState).toHaveBeenCalledTimes(2));
+    expect(api.follow).not.toHaveBeenCalled();
+    expect(api.unfollow).not.toHaveBeenCalled();
+    expect(container.textContent).not.toContain("private read failure");
   });
 
   test("reveals owner management without assembling route-local application chrome", async () => {
@@ -210,6 +414,8 @@ describe("CommunityPage", () => {
   });
 
   test("opens sign-in instead of an unscoped composer for an anonymous visitor", async () => {
+    const signInRequested = vi.fn();
+    window.addEventListener("pirate:connect", signInRequested);
     const container = render(() => (
       <CommunityPage
         client={{
@@ -218,7 +424,6 @@ describe("CommunityPage", () => {
         }}
         handleSalesClient={{ get_communitiesCommunityIdHandleOfferings: async () => ({ items: [], next_cursor: null }) }}
         pathSegment="xn--pokmon-dva"
-        createSignInExchange={async () => signInExchange()}
         resolveSession={async () => "anonymous"}
       />
     ));
@@ -228,8 +433,9 @@ describe("CommunityPage", () => {
       .find(button => button.textContent?.trim() === "Post here")!;
     postHere.click();
 
-    await vi.waitFor(() => expect(document.body.querySelector("[aria-label='Join Pirate']")).not.toBeNull());
+    await vi.waitFor(() => expect(signInRequested).toHaveBeenCalledTimes(1));
     expect(document.body.textContent).not.toContain("Posting in Pirate Harbor");
+    window.removeEventListener("pirate:connect", signInRequested);
   });
 
   test("renders redacted invalid and unavailable states", async () => {
