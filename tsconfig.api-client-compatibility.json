@@ -6,7 +6,7 @@
       "@/*": ["packages/solid-ui/src/*"],
       "@pirate/web-solid-ui": ["packages/solid-ui/src/index.tsx"],
       "@pirate/web-solid-ui/*": ["packages/solid-ui/src/*"],
-      "@pirate/api-client": ["node_modules/@pirate/api-client/src/index.ts"],
+      "@pirate/api-client": ["node_modules/@pirate/api-client-happy-path/src/index.ts"],
       "@pirate/api-client-community-route": ["node_modules/@pirate/api-client-happy-path/src/index.ts"],
       "@pirate/api-client-handle-sales": ["node_modules/@pirate/api-client-happy-path/src/index.ts"],
       "@pirate/api-client-happy-path": ["node_modules/@pirate/api-client-happy-path/src/index.ts"],
