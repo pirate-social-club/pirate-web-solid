@@ -59,16 +59,6 @@ function navigate(id: string, navigateTo?: (href: string) => void): void {
   else if (typeof window !== "undefined") window.location.assign(path);
 }
 
-function SidebarFooter(props: { readonly signedIn: () => boolean; readonly onSignIn: () => void }) {
-  return <div class="flex flex-col gap-3">
-    <div class="text-base font-semibold leading-6 text-white">{props.signedIn() ? "Your Pirate" : "Join Pirate"}</div>
-    <div class="text-base font-normal leading-5 text-white/60">{props.signedIn() ? "Session active" : "Save, follow, and post"}</div>
-    <Show when={props.signedIn()} fallback={<Button type="button" onClick={props.onSignIn} onFocus={prepareGlobalSignIn} onPointerDown={prepareGlobalSignIn} onPointerEnter={preloadGlobalSignInAssets} class="w-full bg-white text-black hover:bg-white/90">Sign in</Button>}>
-      <a href="/settings" class="block rounded-lg border border-white/20 px-3 py-2 text-center text-sm font-semibold text-white hover:bg-white/10">Account settings</a>
-    </Show>
-  </div>;
-}
-
 /** One application-chrome owner; route content retains only feature layout. */
 export function ApplicationChrome(props: MediaShellProps) {
   const signedIn = () => props.signedIn === true;
@@ -108,8 +98,15 @@ export function ApplicationChrome(props: MediaShellProps) {
         appearance="media"
         brandLabel="PIRATE"
         class="sticky top-0 hidden h-screen md:flex"
-        footer={<SidebarFooter onSignIn={requestGlobalSignIn} signedIn={() => signedIn()} />}
+        footerActionHref={signedIn() ? "/settings" : undefined}
+        footerActionLabel={signedIn() ? "Account settings" : "Sign in"}
+        footerDetail={signedIn() ? "Session active" : "Save, follow, and post"}
+        footerTitle={signedIn() ? "Your Pirate" : "Join Pirate"}
         homeAriaLabel="Go to Pirate home"
+        onFooterAction={requestGlobalSignIn}
+        onFooterActionFocus={prepareGlobalSignIn}
+        onFooterActionPointerDown={prepareGlobalSignIn}
+        onFooterActionPointerEnter={preloadGlobalSignInAssets}
         onHomeClick={goHome}
         onNavigate={navigateById}
         primaryItems={primaryItems}

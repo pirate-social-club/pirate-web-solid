@@ -28,6 +28,19 @@ afterEach(() => {
 });
 
 describe("Media shell production navigation", () => {
+  test("dispatches the global sign-in request from anonymous application chrome", () => {
+    const signInRequested = vi.fn();
+    window.addEventListener("pirate:connect", signInRequested, { once: true });
+    const container = render(() => <ApplicationChrome><main>Current route</main></ApplicationChrome>);
+
+    const signIn = Array.from(container.querySelectorAll<HTMLButtonElement>("button"))
+      .find(button => button.textContent?.trim() === "Sign in");
+    signIn?.click();
+
+    expect(signIn).toBeDefined();
+    expect(signInRequested).toHaveBeenCalledOnce();
+  });
+
   test("offers community creation without advertising global post or placeholder Study actions", () => {
     const container = render(() => <ApplicationChrome><main>Current route</main></ApplicationChrome>);
     const navigationLabels = Array.from(container.querySelectorAll("nav button"))

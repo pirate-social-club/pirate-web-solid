@@ -49,6 +49,12 @@ test.describe("staging route smoke", { tag: "@staging-readonly" }, () => {
     });
   }
 
+  test("homepage sign-in control opens the global ceremony", async ({ page }) => {
+    await page.goto("/", { waitUntil: "domcontentloaded" });
+    await page.getByRole("button", { name: "Sign in", exact: true }).first().click();
+    await expect(page.getByRole("dialog", { name: "Join Pirate" })).toBeVisible();
+  });
+
   test("route CSPs retain the verification origins", async ({ request }) => {
     const very = await request.get("/verify/very");
     expect(very.status()).toBe(200);
