@@ -1,4 +1,4 @@
-import { ApiClientError } from "@pirate/api-client";
+import { ApiClientError, type GetPersonasResponse } from "@pirate/api-client";
 import type { ExternalWallet } from "@privy-io/js-sdk-core";
 import { describe, expect, it, vi } from "vitest";
 import {
@@ -12,6 +12,33 @@ const minimumAgeAffirmation = {
   minimum_age: 16,
   affirmed: true,
 } as const;
+
+const noPersonas = async (): Promise<GetPersonasResponse> => ({ personas: [] });
+
+function persona(
+  personaId: string,
+  wallet: GetPersonasResponse["personas"][number]["wallet_set"]["evm"] = null,
+): GetPersonasResponse["personas"][number] {
+  return {
+    persona_id: personaId,
+    object: "persona",
+    status: "active",
+    profile: {
+      persona_id: personaId,
+      object: "persona_profile",
+      revision: 1,
+      display_name: null,
+      avatar_ref: null,
+      cover_ref: null,
+      bio: null,
+      preferred_locale: null,
+      primary_public_handle: null,
+    },
+    wallet_set: { evm: wallet },
+    created_at: "2026-09-02T00:00:00.000Z",
+    retired_at: null,
+  };
+}
 
 describe("Privy session exchange", () => {
   const rejectFirstExchange = (error: ApiClientError) => {
@@ -57,6 +84,7 @@ describe("Privy session exchange", () => {
         getAccessToken: async () => "oauth-access-token",
       }),
       exchange: async accessToken => { exchanged = accessToken; },
+      listPersonas: noPersonas,
       register: async () => undefined,
       csrf: () => "csrf",
     });
@@ -81,6 +109,7 @@ describe("Privy session exchange", () => {
         };
       },
       exchange: async (access, identity) => { exchanged = [access, identity]; },
+      listPersonas: noPersonas,
       register: async () => undefined,
       csrf: () => "csrf",
     });
@@ -98,6 +127,7 @@ describe("Privy session exchange", () => {
         getAccessToken: async () => "access-token",
       }),
       exchange: async () => undefined,
+      listPersonas: noPersonas,
       register: async () => undefined,
       csrf: () => undefined,
     });
@@ -121,6 +151,7 @@ describe("Privy session exchange", () => {
         getAccessToken: async () => accessToken,
       }),
       exchange: rejectFirstExchange(unauthorized),
+      listPersonas: noPersonas,
       register: async body => { registered = body; },
       csrf: () => "csrf",
     });
@@ -159,6 +190,7 @@ describe("Privy session exchange", () => {
         };
       },
       exchange: rejectFirstExchange(unauthorized),
+      listPersonas: noPersonas,
       register: async () => ({
         status: "wallet_setup_required",
         wallet: {
@@ -193,64 +225,89 @@ describe("Privy session exchange", () => {
     expect(storage?.getKeys()).toEqual([]);
   });
 
-  it("recovers an already-registered persona whose wallet setup is still pending", async () => {
+  it("recovers a handle-free persona whose wallet setup is still pending", async () => {
     const accessToken = "header.eyJzdWIiOiJkaWQ6cHJpdnk6cmV0dXJuaW5nLXVzZXIifQ.signature";
     const ensured: number[] = [];
+    const confirmed: string[] = [];
     const auth = await createPrivySessionExchange({ enabled: true, privyAppId: "app" }, {
       createPrivy: async () => ({
         auth: { email: { sendCode: async () => ({ success: true }), loginWithCode: async () => undefined } },
         initialize: async () => undefined,
         getAccessToken: async () => accessToken,
-        ensureEmbeddedEthereumWallet: async index => {
-          ensured.push(index);
-          if (ensured.length === 1) throw new Error("wallet_interrupted");
-        },
+        ensureEmbeddedEthereumWallet: async index => { ensured.push(index); },
       }),
-      exchange: async () => ({ personaId: "persona-returning" }),
+      exchange: async () => undefined,
+      listPersonas: async () => ({ personas: [persona("persona-returning")] }),
       prepareWallet: async () => ({
         persona_id: "persona-returning",
         hd_wallet_index: 2,
         status: "pending",
       }),
-      confirmWallet: async () => ({ hd_wallet_index: 2 }),
+      confirmWallet: async (personaId) => {
+        confirmed.push(personaId);
+        return { hd_wallet_index: 2 };
+      },
       idempotencyKey: () => "returning-wallet-key",
       csrf: () => "csrf",
     });
 
-    await expect(auth.loginWithCode("returning@example.test", "123456")).rejects.toThrow("wallet_interrupted");
     await expect(auth.loginWithCode("returning@example.test", "123456")).resolves.toBeUndefined();
-    expect(ensured).toEqual([2, 2]);
+    expect(ensured).toEqual([2]);
+    expect(confirmed).toEqual(["persona-returning"]);
+  });
+
+  it("keeps an established session when existing-wallet recovery fails", async () => {
+    const recoveryFailure = new ApiClientError(
+      { status: 404, code: "not_found", name: "NotFound", retryable: false },
+      { error: { code: "not_found", message: "wallet reservation missing", retryable: false } },
+    );
+    const reportWalletResumeError = vi.fn();
+    const dispose = vi.fn();
+    const auth = await createPrivySessionExchange({ enabled: true, privyAppId: "app" }, {
+      createPrivy: async () => ({
+        auth: { email: { sendCode: async () => ({ success: true }), loginWithCode: async () => undefined } },
+        initialize: async () => undefined,
+        getAccessToken: async () => "returning-access-token",
+        dispose,
+      }),
+      exchange: async () => undefined,
+      listPersonas: async () => ({ personas: [persona("persona-walletless")] }),
+      prepareWallet: async () => { throw recoveryFailure; },
+      reportWalletResumeError,
+      csrf: () => "csrf",
+    });
+
+    await expect(auth.loginWithCode("returning@example.test", "123456")).resolves.toBeUndefined();
+    expect(reportWalletResumeError).toHaveBeenCalledWith(recoveryFailure, "persona-walletless");
+    expect(dispose).toHaveBeenCalledOnce();
   });
 
   it("does not send a registration assertion for an established account", async () => {
     let exchanges = 0;
     const register = vi.fn(async () => undefined);
+    const prepareWallet = vi.fn();
     const auth = await createPrivySessionExchange({ enabled: true, privyAppId: "app" }, {
       createPrivy: async () => ({
         auth: { email: { sendCode: async () => ({ success: true }), loginWithCode: async () => undefined } },
         initialize: async () => undefined,
         getAccessToken: async () => "returning-access-token",
       }),
-      exchange: async () => { exchanges += 1; return { personaId: "persona-returning" }; },
-      register,
-      prepareWallet: async () => ({
-        persona_id: "persona-returning",
+      exchange: async () => { exchanges += 1; },
+      listPersonas: async () => ({ personas: [persona("persona-returning", {
         chain_account_kind: "evm",
         hd_wallet_index: 2,
-        status: "active",
-        assignment: {
-          chain_account_kind: "evm",
-          hd_wallet_index: 2,
-          address: "0x0000000000000000000000000000000000000002",
-          assigned_at: "2026-09-02T00:00:00.000Z",
-        },
-      }),
+        address: "0x0000000000000000000000000000000000000002",
+        assigned_at: "2026-09-02T00:00:00.000Z",
+      })] }),
+      register,
+      prepareWallet,
       csrf: () => "csrf",
     });
 
     await expect(auth.loginWithCode("returning@example.test", "123456")).resolves.toBeUndefined();
     expect(exchanges).toBe(1);
     expect(register).not.toHaveBeenCalled();
+    expect(prepareWallet).not.toHaveBeenCalled();
   });
 
   it("retries a failed wallet creation with the same preparation identity", async () => {
@@ -272,6 +329,7 @@ describe("Privy session exchange", () => {
         },
       }),
       exchange: rejectFirstExchange(unauthorized),
+      listPersonas: noPersonas,
       register: async () => ({
         status: "wallet_setup_required",
         wallet: {
@@ -315,6 +373,7 @@ describe("Privy session exchange", () => {
         ensureEmbeddedEthereumWallet: ensureWallet,
       }),
       exchange: rejectFirstExchange(unauthorized),
+      listPersonas: noPersonas,
       register: async () => ({
         status: "wallet_setup_required",
         wallet: {
@@ -372,6 +431,7 @@ describe("Privy session exchange", () => {
           getAccessToken: async () => "wallet-access-token",
         }),
         exchange: async accessToken => { exchanged = accessToken; },
+        listPersonas: noPersonas,
         register: async () => undefined,
         csrf: () => "csrf",
       });

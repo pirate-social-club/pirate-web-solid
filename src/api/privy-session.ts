@@ -1,5 +1,9 @@
 import type { ExternalWallet, Storage } from "@privy-io/js-sdk-core";
-import { ApiClientError, type PostAuthRegisterResponse } from "@pirate/api-client";
+import {
+  ApiClientError,
+  type GetPersonasResponse,
+  type PostAuthRegisterResponse,
+} from "@pirate/api-client";
 import { createSessionApiClient, readCsrfCookie, sessionRequestOptions } from "./client.ts";
 import type { VerificationPublicConfig } from "./verification-config.ts";
 
@@ -199,10 +203,6 @@ async function defaultPrivyFactory(config: VerificationPublicConfig, storage: St
 
 type RegistrationResult = PostAuthRegisterResponse;
 
-interface EstablishedSession {
-  readonly personaId?: string;
-}
-
 export interface PrivySessionExchange {
   sendCode(email: string): Promise<void>;
   loginWithCode(email: string, code: string): Promise<void>;
@@ -299,7 +299,8 @@ export async function createPrivySessionExchange(
     readonly exchange?: (
       accessToken: string,
       identityToken?: string,
-    ) => Promise<EstablishedSession | void>;
+    ) => Promise<void>;
+    readonly listPersonas?: () => Promise<GetPersonasResponse>;
     readonly register?: (body: MinimumAgeRegistrationBody) => Promise<RegistrationResult | void>;
     readonly prepareWallet?: (personaId: string, idempotencyKey: string) => Promise<{
       readonly persona_id: string;
@@ -311,6 +312,7 @@ export async function createPrivySessionExchange(
     }>;
     readonly csrf?: () => string | undefined;
     readonly idempotencyKey?: () => string;
+    readonly reportWalletResumeError?: (error: unknown, personaId?: string) => void;
   } = {},
 ): Promise<PrivySessionExchange> {
   const storage = new MemoryOnlyStorage();
@@ -318,16 +320,17 @@ export async function createPrivySessionExchange(
   await client.initialize();
   let terminal = false;
   let pendingRegistrationToken: string | undefined;
-  let walletPreparationKey: string | undefined;
+  const walletPreparationKeys = new Map<string, string>();
   const exchange = dependencies.exchange ?? (async (accessToken, identityToken) => {
     const proof: PrivyAccessTokenProof = {
         type: "privy_access_token",
         privy_access_token: accessToken,
     };
     if (identityToken !== undefined) proof.privy_identity_token = identityToken;
-    const response = await createSessionApiClient().post_authSessionExchange({ body: { proof } });
-    const personaId = response.profile.global_handle.owner_persona_id;
-    return typeof personaId === "string" ? { personaId } : {};
+    await createSessionApiClient().post_authSessionExchange({ body: { proof } });
+  });
+  const listPersonas = dependencies.listPersonas ?? (async () => {
+    return createSessionApiClient().get_personas(undefined);
   });
   const register = dependencies.register ?? (async (
     body: MinimumAgeRegistrationBody,
@@ -361,7 +364,7 @@ export async function createPrivySessionExchange(
 
     const ensureWallet = client.ensureEmbeddedEthereumWallet;
     if (ensureWallet === undefined) throw new Error("wallet_creation_unavailable");
-    const preparationKey = walletPreparationKey;
+    const preparationKey = walletPreparationKeys.get(prepared.persona_id);
     if (preparationKey === undefined) throw new Error("wallet_creation_unavailable");
     await ensureWallet(prepared.hd_wallet_index, preparationKey);
     const currentAccessToken = await client.getAccessToken();
@@ -374,8 +377,12 @@ export async function createPrivySessionExchange(
     }
   };
   const prepareExistingWallet = async (personaId: string) => {
-    walletPreparationKey ??= (dependencies.idempotencyKey ?? (() => crypto.randomUUID()))();
-    return prepareWallet(personaId, walletPreparationKey);
+    let preparationKey = walletPreparationKeys.get(personaId);
+    if (preparationKey === undefined) {
+      preparationKey = (dependencies.idempotencyKey ?? (() => crypto.randomUUID()))();
+      walletPreparationKeys.set(personaId, preparationKey);
+    }
+    return prepareWallet(personaId, preparationKey);
   };
   const completeRegistrationWalletSetup = async (
     accessToken: string,
@@ -393,10 +400,44 @@ export async function createPrivySessionExchange(
     ) throw new Error("wallet_index_mismatch");
     await activatePreparedWallet(accessToken, prepared);
   };
+  const reportWalletResumeError = (error: unknown, personaId?: string) => {
+    try {
+      if (dependencies.reportWalletResumeError !== undefined) {
+        dependencies.reportWalletResumeError(error, personaId);
+        return;
+      }
+      const reason = error instanceof Error ? error.message : "unknown_error";
+      const status = error instanceof ApiClientError ? error.status : undefined;
+      // oxlint-disable-next-line no-console -- optional recovery must remain diagnosable without failing sign-in.
+      console.warn("wallet_resume_failed", { personaId, reason, status });
+    } catch {
+      // Diagnostics are also best-effort and must never turn recovery into an auth failure.
+    }
+  };
+  const resumeExistingWallets = async (accessToken: string) => {
+    let response: GetPersonasResponse;
+    try {
+      response = await listPersonas();
+    } catch (error) {
+      reportWalletResumeError(error);
+      return;
+    }
+    for (const persona of response.personas) {
+      if (persona.status !== "active" || persona.wallet_set.evm !== null) continue;
+      try {
+        await activatePreparedWallet(
+          accessToken,
+          await prepareExistingWallet(persona.persona_id),
+        );
+      } catch (error) {
+        reportWalletResumeError(error, persona.persona_id);
+      }
+    }
+  };
   const finishSession = () => {
     if ((dependencies.csrf ?? readCsrfCookie)() === undefined) throw new Error("session_failed");
     pendingRegistrationToken = undefined;
-    walletPreparationKey = undefined;
+    walletPreparationKeys.clear();
     terminal = true;
     storage.clear();
     client.dispose?.();
@@ -405,9 +446,8 @@ export async function createPrivySessionExchange(
     const accessToken = await client.getAccessToken();
     if (accessToken === null || accessToken.length === 0) throw new Error("auth_failed");
     const sourceUserId = accessTokenSubject(accessToken);
-    let established: EstablishedSession | void;
     try {
-      established = await exchange(accessToken);
+      await exchange(accessToken);
     } catch (error) {
       if (error instanceof ApiClientError && error.status === 401 && sourceUserId !== undefined) {
         pendingRegistrationToken = accessToken;
@@ -417,9 +457,7 @@ export async function createPrivySessionExchange(
       throw error;
     }
     try {
-      if (established?.personaId !== undefined) {
-        await activatePreparedWallet(accessToken, await prepareExistingWallet(established.personaId));
-      }
+      await resumeExistingWallets(accessToken);
       finishSession();
     } catch (error) {
       storage.clear();
@@ -500,7 +538,7 @@ export async function createPrivySessionExchange(
     clear() {
       terminal = true;
       pendingRegistrationToken = undefined;
-      walletPreparationKey = undefined;
+      walletPreparationKeys.clear();
       storage.clear();
       client.dispose?.();
     },
