@@ -5,8 +5,6 @@ import { afterEach, describe, expect, test, vi } from "vitest";
 import {
   initialSignInState,
   signInReady,
-  signInRegistrationRequired,
-  signInWithMinimumAgeAffirmation,
   type SignInState,
 } from "./sign-in-model.ts";
 import { SignInView } from "./sign-in-view.tsx";
@@ -28,46 +26,32 @@ afterEach(() => {
   document.body.replaceChildren();
 });
 
-function registrationView(state: SignInState): JSX.Element {
+function signInView(state: SignInState): JSX.Element {
   return (
     <SignInView
       onBack={vi.fn()}
       onChooseMethod={vi.fn()}
       onCodeChange={vi.fn()}
       onEmailChange={vi.fn()}
-      onMinimumAgeAffirmedChange={vi.fn()}
       onResendCode={vi.fn()}
       onSendCode={vi.fn()}
       onSubmitCode={vi.fn()}
-      onSubmitRegistration={vi.fn()}
       state={state}
       walletAvailable={false}
     />
   );
 }
 
-describe("first-registration declaration view", () => {
-  const registration = signInRegistrationRequired(signInReady(initialSignInState));
+describe("sign-in declaration", () => {
+  test("states the declaration on the primary action and offers no second step", () => {
+    // The account-creation interstitial was removed: the same commitment is
+    // made by pressing the primary control, under the notice beside it.
+    const container = render(() => signInView(signInReady(initialSignInState)));
 
-  test("starts unchecked and blocks account creation", () => {
-    const container = render(() => registrationView(registration));
-    const checkbox = container.querySelector<HTMLInputElement>("input[type='checkbox']");
-    const submit = [...container.querySelectorAll("button")]
-      .find(button => button.textContent?.includes("Create account"));
-
-    expect(checkbox?.checked).toBe(false);
-    expect(submit?.disabled).toBe(true);
-    expect(container.textContent).toContain("not identity or document verification");
-  });
-
-  test("enables account creation only for the affirmed controlled state", () => {
-    const affirmed = signInWithMinimumAgeAffirmation(registration, true);
-    const container = render(() => registrationView(affirmed));
-    const checkbox = container.querySelector<HTMLInputElement>("input[type='checkbox']");
-    const submit = [...container.querySelectorAll("button")]
-      .find(button => button.textContent?.includes("Create account"));
-
-    expect(checkbox?.checked).toBe(true);
-    expect(submit?.disabled).toBe(false);
+    expect(container.textContent).toContain("you confirm you are at least 16 years old");
+    expect(container.querySelector("input[type='checkbox']")).toBeNull();
+    expect([...container.querySelectorAll("button")]
+      .some(button => button.textContent?.includes("Create account"))).toBe(false);
+    expect(container.textContent).not.toContain("Finish creating your account");
   });
 });

@@ -10,7 +10,6 @@ export type SignInPhase =
   | "loading"
   | "choose"
   | "code"
-  | "registration"
   | "working"
   | "signed-in"
   | "unavailable";
@@ -30,8 +29,6 @@ export interface SignInState {
   readonly phase: SignInPhase;
   readonly email: string;
   readonly code: string;
-  /** Explicit self-attestation collected only for first registration. */
-  readonly minimumAgeAffirmed: boolean;
   /** An attempt is in flight; controls disable and the CTA spinner. */
   readonly busy: boolean;
   /** User-safe failure text. Never carries provider or token detail. */
@@ -42,7 +39,6 @@ export const initialSignInState: SignInState = {
   phase: "loading",
   email: "",
   code: "",
-  minimumAgeAffirmed: false,
   busy: false,
   message: "",
 };
@@ -51,7 +47,7 @@ export const initialSignInState: SignInState = {
  * Failure text that never leaks provider internals.
  *
  * Registration-required is not a failure and never reaches here: a first visit
- * moves to the explicit registration declaration instead.
+ * registers directly under the declaration the primary action carried.
  */
 export function signInMessage(error: unknown): string {
   if (error instanceof Error) {
@@ -96,23 +92,6 @@ export function signInWithCode(state: SignInState, code: string): SignInState {
   return { ...state, code: code.replace(/\D/gu, "").slice(0, SIGN_IN_CODE_LENGTH) };
 }
 
-export function signInRegistrationRequired(state: SignInState): SignInState {
-  return {
-    ...state,
-    phase: "registration",
-    minimumAgeAffirmed: false,
-    busy: false,
-    message: "",
-  };
-}
-
-export function signInWithMinimumAgeAffirmation(
-  state: SignInState,
-  affirmed: boolean,
-): SignInState {
-  return { ...state, minimumAgeAffirmed: affirmed };
-}
-
 /**
  * An attempt started. `phase` is passed only for attempts that take over the
  * surface, such as an OAuth redirect; in-place attempts keep their phase and
@@ -150,10 +129,6 @@ export function canSendCode(state: SignInState): boolean {
 
 export function canSubmitCode(state: SignInState): boolean {
   return !state.busy && state.code.trim().length === SIGN_IN_CODE_LENGTH;
-}
-
-export function canSubmitRegistration(state: SignInState): boolean {
-  return state.phase === "registration" && state.minimumAgeAffirmed && !state.busy;
 }
 
 /**

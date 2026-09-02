@@ -9,19 +9,16 @@ import {
 import {
   SIGN_IN_CODE_LENGTH,
   initialSignInState,
-  canSubmitRegistration,
   signInCodeSent,
   isRegistrationRequired,
   signInFailed,
   signInMoved,
   signInReady,
-  signInRegistrationRequired,
   signInStarted,
   signInSucceeded,
   signInUnavailable,
   signInWithCode,
   signInWithEmail,
-  signInWithMinimumAgeAffirmation,
   type SignInMethod,
   type SignInPhase,
   type SignInState,
@@ -61,10 +58,19 @@ export interface SignInSession {
   sendCode(): void;
   setCode(code: string): void;
   setEmail(email: string): void;
-  setMinimumAgeAffirmed(affirmed: boolean): void;
   submitCode(): void;
-  submitRegistration(): void;
 }
+
+/**
+ * The declaration carried by the primary sign-in action. Its notice states the
+ * same terms in the same words, so pressing that control is the user's
+ * affirmation; there is no second surface to collect it again.
+ */
+const MINIMUM_AGE_AFFIRMATION: MinimumAgeAffirmation = {
+  version: "minimum-age-attestation-v1",
+  minimum_age: 16,
+  affirmed: true,
+};
 
 function oauthRedirect(provider: OAuthProvider): string {
   const redirect = new URL("/auth/sign-in", window.location.origin);
@@ -128,7 +134,13 @@ export function createSignInSession(options: SignInSessionOptions = {}): SignInS
 
   const fail = (error: unknown, recovery: SignInPhase) => {
     if (isRegistrationRequired(error)) {
-      setState(signInRegistrationRequired);
+      // The provider authenticated an identity that has no Pirate account yet.
+      // That is the ordinary first visit, not a failure, and the action the
+      // user already pressed carried the declaration, so registration
+      // continues here instead of asking again on a second surface.
+      // `attempt` is declared below and only ever reached from inside one, so
+      // it is initialized by the time this runs.
+      attempt("working", recovery, (handle) => handle.register(MINIMUM_AGE_AFFIRMATION), succeed);
       return;
     }
     setState((current) => signInFailed(current, error, recovery));
@@ -289,9 +301,6 @@ export function createSignInSession(options: SignInSessionOptions = {}): SignInS
     setEmail(email) {
       setState((current) => signInWithEmail(current, email));
     },
-    setMinimumAgeAffirmed(affirmed) {
-      setState((current) => signInWithMinimumAgeAffirmation(current, affirmed));
-    },
     submitCode() {
       const current = state();
       if (current.code.trim().length !== SIGN_IN_CODE_LENGTH) return;
@@ -299,21 +308,6 @@ export function createSignInSession(options: SignInSessionOptions = {}): SignInS
         undefined,
         "code",
         (handle) => handle.loginWithCode(current.email.trim(), current.code.trim()),
-        succeed,
-      );
-    },
-    submitRegistration() {
-      const current = state();
-      if (!canSubmitRegistration(current)) return;
-      const affirmation: MinimumAgeAffirmation = {
-        version: "minimum-age-attestation-v1",
-        minimum_age: 16,
-        affirmed: true,
-      };
-      attempt(
-        undefined,
-        "registration",
-        (handle) => handle.register(affirmation),
         succeed,
       );
     },

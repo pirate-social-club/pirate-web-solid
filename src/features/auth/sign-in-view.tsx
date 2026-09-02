@@ -4,8 +4,6 @@ import { For, Show } from "solid-js";
 
 import {
   Button,
-  Checkbox,
-  CheckboxLabel,
   FormNote,
   IconArrowLeft,
   IconButton,
@@ -24,7 +22,6 @@ import {
   SIGN_IN_CODE_LENGTH,
   SIGN_IN_METHODS,
   canSubmitCode,
-  canSubmitRegistration,
   signInAlert,
   type SignInMethod,
   type SignInState,
@@ -44,11 +41,9 @@ export interface SignInViewProps {
   readonly onChooseMethod: (method: SignInMethod) => void;
   readonly onCodeChange: (code: string) => void;
   readonly onEmailChange: (email: string) => void;
-  readonly onMinimumAgeAffirmedChange: (affirmed: boolean) => void;
   readonly onResendCode: () => void;
   readonly onSendCode: () => void;
   readonly onSubmitCode: () => void;
-  readonly onSubmitRegistration: () => void;
 }
 
 function AuthBrandMark(): JSX.Element {
@@ -152,7 +147,7 @@ export function SignInView(props: SignInViewProps): JSX.Element {
           </form>
 
           <Type as="p" variant="caption" class="mt-5 text-center text-xs leading-4">
-            By continuing, you agree to the <a class="text-foreground underline underline-offset-2" href="/terms">Terms</a> and <a class="text-foreground underline underline-offset-2" href="/privacy">Privacy Policy</a>.
+            By continuing, you confirm you are at least 16 years old and agree to the <a class="text-foreground underline underline-offset-2" href="/terms">Terms</a> and <a class="text-foreground underline underline-offset-2" href="/privacy">Privacy Policy</a>.
           </Type>
         </div>
       </Show>
@@ -195,48 +190,6 @@ export function SignInView(props: SignInViewProps): JSX.Element {
           >
             Didn’t get it? <span class="font-semibold text-foreground">Resend code</span>
           </button>
-        </div>
-      </Show>
-
-      <Show when={phase() === "registration"}>
-        <div class="flex flex-col pt-1.5">
-          <IconButton aria-label="Back" class="size-10 self-start bg-muted" disabled={props.state.busy} onClick={props.onBack} variant="secondary">
-            <IconArrowLeft class="size-5" />
-          </IconButton>
-
-          <div class="mt-5 flex flex-col items-center text-center">
-            <Type as="h1" variant="h2" class="leading-7">Finish creating your account</Type>
-            <Type as="p" variant="caption" class="mt-2 text-sm leading-5">
-              This is a self-declaration for registration, not identity or document verification.
-            </Type>
-          </div>
-
-          <form
-            class="mt-6 flex flex-col gap-5"
-            onSubmit={(event) => { event.preventDefault(); props.onSubmitRegistration(); }}
-          >
-            <Checkbox
-              checked={props.state.minimumAgeAffirmed}
-              disabled={props.state.busy}
-              onChange={props.onMinimumAgeAffirmedChange}
-            >
-              <CheckboxLabel class="text-sm leading-5">
-                I confirm that I am at least 16 years old.
-              </CheckboxLabel>
-            </Checkbox>
-            <Button
-              class="h-12 w-full text-sm font-medium"
-              disabled={!canSubmitRegistration(props.state)}
-              loading={props.state.busy}
-              type="submit"
-            >
-              Create account
-            </Button>
-          </form>
-
-          <Type as="p" variant="caption" class="mt-5 text-center text-xs leading-4">
-            By creating an account, you agree to the <a class="text-foreground underline underline-offset-2" href="/terms">Terms</a> and <a class="text-foreground underline underline-offset-2" href="/privacy">Privacy Policy</a>.
-          </Type>
         </div>
       </Show>
 
