@@ -132,15 +132,34 @@ export function createSignInSession(options: SignInSessionOptions = {}): SignInS
     options.onAuthenticated?.();
   };
 
-  const fail = (error: unknown, recovery: SignInPhase) => {
-    if (isRegistrationRequired(error)) {
-      // The provider authenticated an identity that has no Pirate account yet.
-      // That is the ordinary first visit, not a failure, and the action the
-      // user already pressed carried the declaration, so registration
-      // continues here instead of asking again on a second surface.
+  /**
+   * `bootstrap: "register"` marks an authentication attempt, whose
+   * registration-required rejection is the ordinary first visit rather than a
+   * failure: the provider authenticated an identity that has no Pirate account
+   * yet, and the action the user already pressed carried the declaration, so
+   * registration continues without a second surface.
+   *
+   * The registration attempt itself passes `"reject"`. Nothing else may claim
+   * to need bootstrapping once bootstrapping is what is running, so the same
+   * rejection surfacing from `register` is a real failure and is shown. Without
+   * that distinction a `register` that reported registration-required would
+   * re-enter itself for as long as the provider kept saying so.
+   */
+  const fail = (
+    error: unknown,
+    recovery: SignInPhase,
+    bootstrap: "register" | "reject",
+  ) => {
+    if (bootstrap === "register" && isRegistrationRequired(error)) {
       // `attempt` is declared below and only ever reached from inside one, so
       // it is initialized by the time this runs.
-      attempt("working", recovery, (handle) => handle.register(MINIMUM_AGE_AFFIRMATION), succeed);
+      attempt(
+        "working",
+        recovery,
+        (handle) => handle.register(MINIMUM_AGE_AFFIRMATION),
+        succeed,
+        "reject",
+      );
       return;
     }
     setState((current) => signInFailed(current, error, recovery));
@@ -210,7 +229,7 @@ export function createSignInSession(options: SignInSessionOptions = {}): SignInS
             );
             if (stillCurrent()) succeed();
           } catch (error) {
-            if (stillCurrent()) fail(error, "choose");
+            if (stillCurrent()) fail(error, "choose", "register");
           }
         })
         .catch((error: unknown) => {
@@ -229,12 +248,15 @@ export function createSignInSession(options: SignInSessionOptions = {}): SignInS
    * recover to `recovery`. Both are skipped when the attempt is no longer
    * current, so every effect that follows an attempt — a state change, a
    * navigation, the authenticated callback — is gated on the same check.
+   * `bootstrap` says whether a registration-required rejection from this
+   * operation should register inline; see `fail`.
    */
   const attempt = <Result,>(
     phase: SignInPhase | undefined,
     recovery: SignInPhase,
     operation: (handle: PrivySessionExchange) => Promise<Result>,
     settle?: (value: Result) => void,
+    bootstrap: "register" | "reject" = "register",
   ) => {
     const load = exchangeLoad;
     if (load === undefined) return;
@@ -256,7 +278,7 @@ export function createSignInSession(options: SignInSessionOptions = {}): SignInS
         const value = await operation(handle);
         if (stillCurrent()) settle?.(value);
       } catch (error) {
-        if (stillCurrent()) fail(error, recovery);
+        if (stillCurrent()) fail(error, recovery, bootstrap);
       }
     })();
   };
