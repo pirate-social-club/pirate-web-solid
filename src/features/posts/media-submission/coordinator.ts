@@ -56,10 +56,12 @@ export interface MediaSubmissionCoordinatorOptions {
   readonly createId?: () => string;
   readonly now?: () => string;
   readonly onStateChange?: (view: SongSubmissionView) => void;
+  readonly onSnapshotChange?: (snapshot: MediaSubmissionSnapshot) => void;
 }
 
 interface RevisionCommandBody {
   readonly expected_creation_revision?: number;
+  readonly lyrics?: unknown;
 }
 
 function randomId(): string {
@@ -75,6 +77,14 @@ function terminal(snapshot: MediaSubmissionSnapshot): boolean {
   return snapshot.status === "published" || snapshot.status === "blocked" || snapshot.status === "abandoned";
 }
 
+const FINALIZE_OBSERVATION_INTERVAL_MS = 250;
+
+function finalizeObservationTick(): Promise<{ readonly kind: "tick" }> {
+  return new Promise(resolve => {
+    setTimeout(() => resolve({ kind: "tick" }), FINALIZE_OBSERVATION_INTERVAL_MS);
+  });
+}
+
 export class MediaSubmissionCoordinator {
   readonly storage: MediaSubmissionStorage;
   readonly transport: MediaSubmissionTransport;
@@ -83,6 +93,7 @@ export class MediaSubmissionCoordinator {
   private readonly createId: () => string;
   private readonly now: () => string;
   private readonly onStateChange?: (view: SongSubmissionView) => void;
+  private readonly onSnapshotChange?: (snapshot: MediaSubmissionSnapshot) => void;
 
   constructor(options: MediaSubmissionCoordinatorOptions = {}) {
     this.storage = options.storage ?? createDefaultMediaSubmissionStorage(options.principalId);
@@ -90,6 +101,7 @@ export class MediaSubmissionCoordinator {
     this.createId = options.createId ?? randomId;
     this.now = options.now ?? (() => new Date().toISOString());
     this.onStateChange = options.onStateChange;
+    this.onSnapshotChange = options.onSnapshotChange;
   }
 
   get currentRecord(): PendingMediaSubmissionV1 | null { return this.record; }
@@ -112,17 +124,26 @@ export class MediaSubmissionCoordinator {
 
   private async saveSnapshot(snapshot: MediaSubmissionSnapshot, pendingCommand: PersistedMediaCommand | null = null): Promise<void> {
     const current = this.requireRecord();
-    const sealed = snapshot.status !== "processing" || snapshot.phase !== "awaiting_upload";
+    const retainedSnapshot = !terminal(snapshot)
+      && snapshot.lyrics_state.current.status !== "no_lyrics"
+      && current.snapshot !== null
+      && (current.snapshot.creation_revision > snapshot.creation_revision
+        || (current.snapshot.creation_revision === snapshot.creation_revision
+          && current.snapshot.audio_revision > snapshot.audio_revision))
+      ? current.snapshot
+      : snapshot;
+    const sealed = retainedSnapshot.status !== "processing" || retainedSnapshot.phase !== "awaiting_upload";
     await this.save({
       ...current,
-      submission_id: snapshot.submission_id,
-      expected_creation_revision: snapshot.creation_revision,
+      submission_id: retainedSnapshot.submission_id,
+      expected_creation_revision: retainedSnapshot.creation_revision,
       upload_status: sealed ? "sealed" : current.upload_status,
-      snapshot,
+      snapshot: retainedSnapshot,
       pending_command: pendingCommand,
       updated_at: this.now(),
     });
-    this.setView(projectMediaSubmission(snapshot));
+    this.onSnapshotChange?.(retainedSnapshot);
+    this.setView(projectMediaSubmission(retainedSnapshot));
   }
 
   private commandAlreadyReflected(command: PersistedMediaCommand, snapshot: MediaSubmissionSnapshot): boolean {
@@ -130,7 +151,14 @@ export class MediaSubmissionCoordinator {
     const expected = typeof commandBody.expected_creation_revision === "number" ? commandBody.expected_creation_revision : null;
     if (command.kind === "finalize") return snapshot.status !== "processing" || snapshot.phase !== "awaiting_upload";
     if (command.kind === "cancel") return snapshot.status === "abandoned" || terminal(snapshot);
-    if (command.kind === "retry" || command.kind === "terms" || command.kind === "lyrics") {
+    if (command.kind === "lyrics") {
+      return expected !== null
+        && typeof commandBody.lyrics === "string"
+        && snapshot.creation_revision > expected
+        && snapshot.lyrics_state.current.status === "ready"
+        && snapshot.lyrics_state.current.text === commandBody.lyrics;
+    }
+    if (command.kind === "retry" || command.kind === "terms") {
       return expected !== null && snapshot.creation_revision > expected;
     }
     return command.kind === "start";
@@ -172,8 +200,48 @@ export class MediaSubmissionCoordinator {
       }
       throw error;
     }
-    if (snapshotResult(result)) await this.saveSnapshot(result);
+    if (snapshotResult(result)) {
+      const pending = this.requireRecord().pending_command;
+      await this.saveSnapshot(
+        result,
+        pending?.body_sha256 === command.body_sha256 ? null : pending,
+      );
+    }
     return result;
+  }
+
+  private async dispatchFinalize(command: PersistedMediaCommand): Promise<MediaCommandResult> {
+    const finalization = this.dispatch(command);
+    const settled = finalization.then(
+      result => ({ kind: "result" as const, result }),
+      error => ({ kind: "error" as const, error }),
+    );
+    while (true) {
+      const outcome = await Promise.race([settled, finalizeObservationTick()]);
+      if (outcome.kind === "result") {
+        return snapshotResult(outcome.result)
+          ? this.requireRecord().snapshot ?? outcome.result
+          : outcome.result;
+      }
+      if (outcome.kind === "error") throw outcome.error;
+
+      const current = this.requireRecord();
+      if (current.submission_id === null) continue;
+      try {
+        const observed = await this.transport.read(current.submission_id);
+        if (observed === null) continue;
+        await this.saveSnapshot(observed, this.requireRecord().pending_command);
+        if (observed.audio_revision >= 1 || terminal(observed)) {
+          const result = await finalization;
+          return snapshotResult(result)
+            ? this.requireRecord().snapshot ?? result
+            : result;
+        }
+      } catch {
+        // The authoritative finalize request owns the result. A transient
+        // observation failure cannot replace or cancel that retained command.
+      }
+    }
   }
 
   private async reconcilePending(): Promise<void> {
@@ -361,7 +429,7 @@ export class MediaSubmissionCoordinator {
       sameOriginPath: `/api/media-post-submissions/${encodeURIComponent(snapshot.submission_id)}/finalize`,
       body: generated.body,
     });
-    const result = await this.dispatch(command);
+    const result = await this.dispatchFinalize(command);
     if (!snapshotResult(result)) throw new Error("Finalize command returned an upload reservation");
     return result;
   }
