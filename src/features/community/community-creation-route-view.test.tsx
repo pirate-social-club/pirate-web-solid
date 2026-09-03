@@ -3,6 +3,7 @@ import { render as solidRender } from "@solidjs/web";
 import { afterEach, describe, expect, test, vi } from "vitest";
 
 import type { PrivySessionExchange } from "../../api/privy-session.ts";
+import { refreshSession } from "../../api/session.ts";
 import type { CommunityCreationApi } from "./community-creation-api";
 import { CommunityCreationRouteView } from "./community-creation-route-view";
 import { createIntent } from "./community-creation-progress/community-creation-progress-model";
@@ -55,7 +56,7 @@ afterEach(() => {
 
 describe("Community creation production route", () => {
   test("accepts the first global sign-in request during component setup", async () => {
-    render(() => <GlobalSignInHost createExchange={async () => signInExchange()} reload={() => {}} />);
+    render(() => <GlobalSignInHost createExchange={async () => signInExchange()} refresh={() => {}} />);
 
     requestGlobalSignIn();
 
@@ -145,6 +146,33 @@ describe("Community creation production route", () => {
     const route = () => container.querySelector("[data-route-path='/communities/new']")!;
     await vi.waitFor(() => expect(route().getAttribute("data-creation-state")).not.toBe("resolving"));
     expect(container.textContent).not.toContain("Preparing community creation");
+  });
+
+  test("re-resolves the mounted route after sign-in refresh without navigation", async () => {
+    let authenticated = false;
+    const resolveSession = vi.fn(async () => authenticated ? ({
+      personas: [{
+        avatarRef: null,
+        displayName: "Harbor Host",
+        personaId: "persona-1",
+        primaryPublicHandle: "harbor-host",
+      }],
+      status: "authenticated" as const,
+      userId: "user-1",
+    }) : "anonymous" as const);
+    const container = render(() => (
+      <CommunityCreationRouteView api={api()} resolveSession={resolveSession} />
+    ));
+
+    const route = () => container.querySelector("[data-route-path='/communities/new']")!;
+    await vi.waitFor(() => expect(route().getAttribute("data-creation-state")).toBe("signed-out"));
+
+    authenticated = true;
+    refreshSession();
+
+    await vi.waitFor(() => expect(route().getAttribute("data-creation-state")).toBe("ready"));
+    expect(resolveSession).toHaveBeenCalledTimes(2);
+    expect(container.querySelector("[data-create-community]")).not.toBeNull();
   });
 
   test("reuses the creation form while withholding unsupported media controls", async () => {

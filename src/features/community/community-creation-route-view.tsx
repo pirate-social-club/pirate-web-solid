@@ -1,7 +1,13 @@
 import { Title } from "@solidjs/meta";
 import { Show, createEffect, createSignal, onCleanup } from "solid-js";
 
-import { resolveSession, type AuthenticatedSession, type SessionResolution } from "../../api/session";
+import {
+  onSessionRefreshed,
+  refreshSession,
+  resolveSession,
+  type AuthenticatedSession,
+  type SessionResolution,
+} from "../../api/session";
 import { Button, Card, CardContent, FormNote, Spinner, Type } from "../../design-system";
 import { preloadGlobalSignInAssets, prepareGlobalSignIn, requestGlobalSignIn } from "../auth/global-sign-in-host";
 import { OperationPersonaControl } from "../identity/operation-persona-control/operation-persona-control";
@@ -56,6 +62,7 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
   const commandKeys = new Map<string, string>();
   let active = true;
   let sessionStarted = false;
+  let sessionRequest = 0;
 
   const navigate = (href: string, options?: { replace?: boolean }) => {
     if (props.navigate) {
@@ -86,9 +93,10 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
   };
 
   const startSessionResolution = () => {
+    const request = ++sessionRequest;
     void (props.resolveSession ?? resolveSession)()
       .then((result) => {
-        if (!active) return;
+        if (!active || request !== sessionRequest) return;
         setSession(result);
         if (result !== "anonymous" && result.personas.length > 0) {
           setDraft(createEmptyDraft(result.personas[0]!.personaId));
@@ -97,13 +105,15 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
         }
       })
       .catch(() => {
-        if (active) setSession("failed");
+        if (active && request === sessionRequest) setSession("failed");
       });
   };
 
   const retrySessionResolution = () => {
     setSession("resolving");
-    startSessionResolution();
+    // Dropping the store notifies this route and the application shell. Their
+    // subscribers then coalesce onto the same fresh account request.
+    refreshSession();
   };
 
   createEffect(
@@ -114,6 +124,13 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
     startSessionResolution();
     },
   );
+
+  if (typeof window !== "undefined") {
+    onCleanup(onSessionRefreshed(() => {
+      setSession("resolving");
+      startSessionResolution();
+    }));
+  }
 
   onCleanup(() => { active = false; });
 

@@ -82,6 +82,13 @@ try {
   // The community creation route hydrates from SSR HTML and must settle on a
   // named state. A hydration fault there halts the reactive system, so the
   // route keeps its server-rendered spinner and never calls the session API.
+  // The shell and the creation route share one coalesced session resolution,
+  // so exactly one anonymous users/me probe may leave this page. The counter
+  // is attached before the navigation so it observes every request.
+  let usersMeRequests = 0;
+  page.on("request", request => {
+    if (new URL(request.url()).pathname === "/api/users/me") usersMeRequests += 1;
+  });
   const creationResponse = await page.goto(new URL("/communities/new", base).toString(), { waitUntil: "networkidle" });
   if (!creationResponse?.ok()) throw new Error(`Creation SSR page returned ${creationResponse?.status()}`);
   await page.locator("#app-root[data-hydrated='true']").waitFor({ state: "attached" });
@@ -95,6 +102,9 @@ try {
   }
   if (creationState === null) throw new Error("Creation route reported no state");
   if (creationState === "resolving") throw new Error("Creation route never left its loading fallback");
+  if (usersMeRequests !== 1) {
+    throw new Error(`Creation page issued ${usersMeRequests} users/me requests; the shared session store must issue exactly one`);
+  }
 
   const unexpectedErrors = errors.filter(error => !(
     (apiDown && error.includes("Failed to load resource: the server responded with a status of 503"))
@@ -102,7 +112,7 @@ try {
     || error.includes("Failed to load resource: the server responded with a status of 404")
   ));
   if (unexpectedErrors.length) throw new Error(`Browser errors: ${unexpectedErrors.join(" | ")}`);
-  console.log(JSON.stringify({ ok: true, before, after, nonceLength: nonce.length, feedState: renderedFeedState, overlay: true, signInDialog: true, form: true, creationState, apiDown }));
+  console.log(JSON.stringify({ ok: true, before, after, nonceLength: nonce.length, feedState: renderedFeedState, overlay: true, signInDialog: true, form: true, creationState, usersMeRequests, apiDown }));
 } finally {
   await browser.close();
 }

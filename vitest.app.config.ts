@@ -29,6 +29,7 @@ export default defineConfig({
       "src/routes/community-route-filesystem.test.ts",
       "src/routes/index.test.tsx",
       "src/routes/legal-routes.test.tsx",
+      "src/features/auth/global-sign-in-host.test.tsx",
       "src/features/auth/sign-in-model.test.ts",
       "src/features/auth/sign-in-preparation.test.ts",
       "src/features/auth/sign-in-session.test.ts",

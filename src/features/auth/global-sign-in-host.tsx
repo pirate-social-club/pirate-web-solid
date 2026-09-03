@@ -2,6 +2,7 @@
 import { createSignal, onCleanup } from "solid-js";
 
 import type { PrivySessionExchange } from "../../api/privy-session.ts";
+import { refreshSession } from "../../api/session.ts";
 import { SignInModal } from "./sign-in-modal.tsx";
 import { preloadSignInAssets, prepareSignIn } from "./sign-in-preparation.ts";
 import { createSignInSession } from "./sign-in-session.ts";
@@ -30,20 +31,21 @@ export function preloadGlobalSignInAssets(): void {
 
 export interface GlobalSignInHostProps {
   readonly createExchange?: () => Promise<PrivySessionExchange>;
-  readonly reload?: () => void;
+  readonly refresh?: () => void;
 }
 
 /**
  * Owns the one app-level listener for route-local authentication prompts.
- * Reloading after success lets every protected route re-read the HttpOnly
- * session through its existing controller instead of duplicating auth state.
+ * A successful exchange refreshes the shared session store; the application
+ * root re-resolves reactively, so the chrome flips without reloading the
+ * document and re-paying hydration.
  */
 export function GlobalSignInHost(props: GlobalSignInHostProps = {}) {
   const [open, setOpen] = createSignal(false);
   const completeAuthentication = () => {
     setOpen(false);
-    if (props.reload) props.reload();
-    else if (typeof window !== "undefined") window.location.reload();
+    if (props.refresh) props.refresh();
+    else refreshSession();
   };
   const session = createSignInSession({
     createExchange: props.createExchange,

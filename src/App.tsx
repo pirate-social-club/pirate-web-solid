@@ -3,7 +3,7 @@ import { fileRoutes } from "@solidjs/router/fs";
 import { Errored, Loading, createEffect, createMemo, createSignal, onCleanup } from "solid-js";
 import { getRequestEvent, type JSX } from "@solidjs/web";
 import { pageRoutes } from "virtual:file-routes";
-import { resolveAccountSession } from "./api/session.ts";
+import { resolveAccountSession, onSessionRefreshed } from "./api/session.ts";
 import { GlobalSignInHost } from "./features/auth/global-sign-in-host.tsx";
 import { resolveApplicationChrome } from "./features/shell/application-chrome-model.ts";
 import {
@@ -29,14 +29,22 @@ function ApplicationRoot(props: { readonly children: JSX.Element }) {
   const policy = createMemo(() => resolveApplicationChrome(location.pathname));
   const [session, setSession] = createSignal<ApplicationSessionState>("resolving");
   let active = true;
+  let sessionRequest = 0;
 
   createEffect(
     () => true,
     () => {
       if (typeof window === "undefined") return;
-      void resolveAccountSession()
-        .then(result => { if (active) setSession(result); })
-        .catch(() => { if (active) setSession("anonymous"); });
+      const update = () => {
+        const request = ++sessionRequest;
+        void resolveAccountSession()
+          .then(result => { if (active && request === sessionRequest) setSession(result); })
+          .catch(() => { if (active && request === sessionRequest) setSession("anonymous"); });
+      };
+      update();
+      // A successful sign-in refreshes the shared store instead of reloading
+      // the document; re-resolve here so the chrome flips reactively.
+      onCleanup(onSessionRefreshed(update));
     },
   );
   onCleanup(() => { active = false; });
