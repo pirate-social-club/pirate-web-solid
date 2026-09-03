@@ -177,3 +177,128 @@ outside this task's paths and were not changed or suppressed here.
 Physical-device acceptance remains blocked on owner-operated,
 current-supported iOS Safari and Android Chrome devices. This checkpoint did
 not attempt or simulate that evidence.
+
+## First physical Android run — 2026-09-03
+
+One physical device was operated by the workspace owner and driven over ADB by
+the assistant. This does **not** satisfy the Android Chrome gate: the running
+package is `app.vanadium.browser` (Vanadium on GrapheneOS), whose engine
+reports `Chrome/152.0.7977.64`. It is Android Chromium evidence only; stock
+Chrome and iOS Safari runs remain outstanding.
+
+Device and origin: Pixel 8 (`shiba`), served from the workstation over
+`adb reverse tcp:6006`, so the page ran on `http://localhost:6006` and reported
+`secureContext: true`. The reported user agent is the reduced
+`Android 10; K` string, not the true OS version.
+
+Capability probe: `cameraApi`, `webCodecs` and `avcEncode` all true;
+`nativeAacEncode` true, so the spike-only AAC polyfill was switched off and
+every result below is the native encoder. All three Constrained Baseline
+candidates reported supported — 640x480 `avc1.42e01e` level 3.0, 720x1280
+`avc1.42e01f` level 3.1, 1080x1920 `avc1.42e028` level 4.0.
+
+### fMP4 target, WebCodecs through Mediabunny
+
+The finalized Blob advertised
+`video/mp4; codecs="avc1.42e01f, mp4a.40.2"`, but parsing the finalized bytes
+found `avc1.42001f`: `profile_idc` 66 with constraint flags `00`, level 3.1.
+That is **Baseline, not Constrained Baseline**. The declared MIME type
+therefore misrepresents the actual bitstream, which is direct evidence that a
+client content-type declaration cannot be trusted and server-side probing of
+the sealed object is mandatory.
+
+Trusted FFprobe on the downloaded file reports `has_b_frames: 0`, profile
+`Baseline`, level 31. Converting to Annex-B shows the stream opens SPS, PPS,
+IDR slice, and repeats parameter sets at every keyframe, so the renderer's
+IDR-start requirement is met by inspected bytes rather than by a container
+flag. Across 384 video packets there are 13 keyframes at a uniform 1.000 s
+gap, so the one-second `keyFrameInterval` request was honoured. Presentation
+time never regresses in decode order and `pts` equals `dts` on every packet,
+with a maximum absolute divergence of 0.
+
+With the trusted reorder capacity of `0` applied, the harness verdict is
+`copy_target` with no disqualifying reasons. That establishes copy
+**eligibility** for this source, not a proven copy path: these bytes have not
+been through the pinned server renderer, and no output packet-digest
+comparison has been made against them. The renderer spike's fast path remains
+proven only on its own synthetic fixtures. The copy preview snapped its
+start to the 1.000 s keyframe and reported a 49.605 ms tail shortfall over 354
+selected packets, which is the last-complete-packet rule behaving as
+specified. Audio ran 12.8496 s against 12.800 s of video, a 49.6 ms overhang
+consistent with the AAC priming and padding already measured by the renderer
+spike. Finalization took 291 ms; an earlier 62.76 s / 32.35 MB take finalized
+in the same 291 ms.
+
+Two cautions. Because this encoder emitted no `pts`/`dts` offset at all, this
+run does **not** exercise the renderer's tolerance for a constant decode-to-
+presentation offset; that branch still needs a device that produces one.
+And Baseline implying no B-slices is the expected result, not a licence to
+broaden the ratified Constrained Baseline matrix — eligibility must continue
+to come from the trusted probe and the server IDR check, not from a profile
+string, and one non-stock browser on one device cannot carry a matrix
+amendment.
+
+### WebM fallback, MediaRecorder
+
+`MediaRecorder.mimeType` and the Blob both reported
+`video/webm;codecs=vp9,opus`; FFprobe confirms VP9 Profile 0 with mono 48 kHz
+Opus, `has_b_frames: 0`, monotonic presentation. The harness verdict is
+`transcode_required` for the correct reason — the finalized codec is not
+H.264. Finalization took 65 ms for 4,225,035 bytes over 12.896 s, roughly four
+times faster than the fMP4 path.
+
+The material finding is keyframe cadence: 386 packets carried only 4
+keyframes, at 3.417 s, 3.373 s and 3.368 s. This harness constructs the
+recorder as `new MediaRecorder(stream, { mimeType })` and passes no keyframe
+option, so the run shows only what this configuration produced on this
+browser. It is **not** evidence that the API offers no control: MediaStream
+Recording defines `videoKeyFrameIntervalDuration` and
+`videoKeyFrameIntervalCount` as encoder hints, and neither was requested here.
+Whether Vanadium and stock Chrome accept and honour those options is an open
+question the next fallback run must answer before any conclusion is drawn
+about short GOPs on the fallback path. As configured today, keyframe-snapped
+trimming is demonstrated only on the WebCodecs target, and a WebM source is
+trimmed frame-accurately during its mandatory transcode regardless.
+
+### Provenance of the trusted probe
+
+The two analysed recordings are held outside Git in session temporary storage
+and are expected to disappear; these digests, commands and versions are the
+durable record.
+
+| Artifact | SHA-256 |
+| --- | --- |
+| WebCodecs take, MP4 | `b7fb946065bc863791b78e0ca93df910bc5b1b5b2866cd0eb6a0ab95898cd357` |
+| Fallback take, WebM | `76d5d624aceb5de4a501601063ee6d204ea98c413609439257db1cf33ffa9c20` |
+
+Trusted probe tooling was `ffprobe`/`ffmpeg` version `6.1.1-3ubuntu5`. The
+stream facts came from
+`ffprobe -v error -show_entries stream=index,codec_name,codec_type,profile,level,has_b_frames,width,height,r_frame_rate,nb_frames,duration,channels,sample_rate -of json`,
+the packet timeline from
+`ffprobe -v error -select_streams v:0 -show_entries packet=pts_time,dts_time,duration_time,flags,size -of json`,
+and the NAL inspection from
+`ffmpeg -v error -i <file> -map 0:v:0 -c copy -bsf:v h264_mp4toannexb -f h264`
+followed by start-code scanning for `nal_unit_type`.
+
+Device and browser identity: Pixel 8 (`shiba`), Android 17 (API 37), security
+patch 2026-08-05; Vanadium `152.0.7977.64.0`, engine reporting
+`Chrome/152.0.7977.64`. The page was served over `adb reverse tcp:6006` so the
+origin was `http://localhost:6006`, and the harness was read and driven through
+the DevTools protocol over `adb forward tcp:9222`.
+
+### Still outstanding
+
+This run covered format and copy-eligibility evidence only. The lifecycle and
+performance matrix is untouched: app-switch and backgrounding, orientation
+change, start-up latency, audio/video drift, dropped frames, memory, thermal
+behaviour and battery cost. Stock Android Chrome and current iOS Safari both
+remain required.
+
+Handling: the first take was made with the front camera, contained the
+operator's face, and was discarded by reloading the story without being
+downloaded, probed or copied; only the harness's textual metadata was read
+from it. The harness did not intentionally download or copy that Blob, though
+no claim is made about browser-internal temporary storage. The two analysed
+takes are face-free wall footage held outside the repository, and only
+container, bitstream and timing structure were inspected. No imagery was
+opened, and no recording is added to Git.
