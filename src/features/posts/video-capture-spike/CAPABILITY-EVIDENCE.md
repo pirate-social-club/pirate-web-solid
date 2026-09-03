@@ -302,3 +302,114 @@ no claim is made about browser-internal temporary storage. The two analysed
 takes are face-free wall footage held outside the repository, and only
 container, bitstream and timing structure were inspected. No imagery was
 opened, and no recording is added to Git.
+
+## Second physical Android run — Brave 151, 2026-09-03
+
+One physical device was again operated by the workspace owner and driven over
+ADB by the assistant. The browser this time is Brave `151.0.0.0`, engine
+reporting `Chromium/151.0.0.0` — a second, independent current-generation
+Chromium build on the same Pixel 8 (`shiba`, Android 17, GrapheneOS). This is
+deliberately a vendor Chromium build, not stock Chrome: the device's
+`org.chromium.chrome` package reports Chromium `101.0.4951.54`, which is four
+years stale and cannot serve as current-Chrome evidence, so Brave was the
+only current engine available without installing anything. Whether vendor-
+build Chromium evidence may satisfy the Android Chrome gate is an owner
+ruling that remains open; nothing in this section claims it does.
+
+The page was again served over `adb reverse tcp:6006` (`http://localhost:6006`,
+`secureContext: true`) and driven through the DevTools protocol. The reduced
+user agent reports `Android 10; K`; the true platform version is Android 17.
+
+Capability probe: identical to the Vanadium run — `cameraApi`, `webCodecs`,
+`avcEncode` all true; `nativeAacEncode` true with the polyfill off; all three
+Constrained Baseline candidates reported supported.
+
+### fMP4 target, camera plus microphone
+
+Across two takes (31.278 s / 16,104,958 B, and a corroborating 19.900 s /
+10,241,651 B), every fact replicated the Vanadium result on this hardware:
+
+- Declared MIME `video/mp4; codecs="avc1.42e01f, mp4a.40.2"`, but the
+  finalized bytes parse as `avc1.42001f` — `profile_idc` 66, constraint
+  flags `00`, level 3.1: **Baseline, not Constrained Baseline**. The
+  declared-MIME misrepresentation is therefore cross-build on this device,
+  which strengthens the server-side-probe mandate.
+- Encoded 1280 × 720, `latencyMode: realtime`, `prefer-hardware`, variable
+  4 Mbit/s.
+- `maximumKeyframeGapUs` exactly 1,000,000 on every fMP4 take: the
+  one-second keyframe request was honoured exactly.
+- `no_reordering`: defined unique decode-order sequence numbers, zero
+  presentation-timestamp regressions, zero duplicates.
+- Native AAC, mono 48 kHz, echo cancellation, noise suppression and auto
+  gain control all on.
+- Finalization 223 ms for the 16.1 MB take.
+
+Camera-only take (9.800 s / 4,907,408 B, 90 ms): a video-only
+`video/mp4; codecs="avc1.42e01f"` declaration with the same observed
+Baseline bitstream, the same exact one-second keyframe cadence and no
+reordering.
+
+Short-duration fixture (1.586 s / 772,077 B, 46 ms): uniform one-second
+keyframes hold even in a file barely longer than one GOP.
+
+### WebM fallback, MediaRecorder
+
+6.464 s / 1,144,440 B finalized in 55 ms. `MediaRecorder.mimeType` and the
+Blob both reported `video/webm;codecs=vp9,opus` and the inspection parsed
+VP9 plus mono Opus, `no_reordering`. The harness reports
+`maximumKeyframeGapUs: null` for this container, so keyframe cadence on the
+fallback path remains unmeasured here — the open `videoKeyFrameInterval*`
+question from the first run is untouched by this take.
+
+### Lifecycle findings new to this run
+
+**Orientation change mid-capture is a hard failure of the fMP4 path.** With a
+capture running, rotating the device to landscape caused the camera to emit
+720 × 1280 samples into an encoder configured for 1280 × 720; Mediabunny
+errored `Video sample size must remain constant. Expected 1280x720, got
+720x1280` and no file was finalized. The harness's deferred-error handling
+surfaced the failure text at the Stop boundary, exactly the limitation
+already recorded above. A production composer must pin the capture
+orientation or explicitly handle a size change; it cannot assume a fixed
+sample size across rotation.
+
+**Backgrounding for five seconds mid-capture was survived.** The session
+continued recording through the background gap, the timeline stayed
+continuous at 22.756 s, keyframes stayed uniform at exactly one second across
+the gap, and the take finalized in 1,123 ms — the slowest finalization
+observed on this device, plausibly the cost of recovering after returning to
+the foreground. This is one five-second sample, not a claim about longer
+backgrounding or OS suspension policy.
+
+**Denied microphone was not successfully exercised on-device.** Revoking
+`android.permission.RECORD_AUDIO` from the browser at the OS level was
+superseded when the permission was re-granted from the user side during the
+next prompt (the package flags show `USER_SET`), producing another ordinary
+camera-plus-microphone take instead of a denial. A DevTools
+`Browser.setPermission` denial for the origin did not reach the media stack:
+the subsequent take still carried audio. The denied-microphone path remains
+proven only by the harness's focused tests, not by physical evidence.
+
+Battery cost was unmeasurable this session because the device was charging
+over USB for the whole run (`navigator.getBattery()` reported
+`charging: true`, level 1.0). The harness exposes no memory instrumentation,
+and start-up latency is not separately timed by the harness, so neither is
+claimed here.
+
+Handling: all takes used the front camera and may contain the operator's
+surroundings. None was downloaded; only the harness's in-page textual
+metadata and its byte-level in-page inspection were read. No recording was
+added to Git, and no trusted-probe digests exist for this run for that
+reason; the finalized-byte facts above come from the harness parsing the
+completed Blob in the page.
+
+### What this run changes
+
+Two current Chromium builds on the same hardware now agree on every
+format fact: declared Constrained Baseline, actual Baseline, exact
+one-second keyframes, no reordering, native AAC, and a fast local
+finalization with exact size known before any reservation. The Android
+format picture is consistent; the open items are the owner ruling on whether
+vendor-build Chromium satisfies the Android Chrome gate, stock Chrome and
+iOS Safari if it does not, memory and battery measurement on an unplugged
+device, and the fallback-path keyframe-control question.
