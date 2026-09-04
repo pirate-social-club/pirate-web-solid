@@ -64,7 +64,7 @@ export function PostComposerRequiredSheet(props: {
                   This community requires an explicit age marking before this post can be published.
                 </Type>
               </div>
-              <Button onClick={() => controller.audience.setAgeGatePolicy("18_plus")}>
+              <Button disabled={controller.audience.editingDisabled} onClick={() => controller.audience.setAgeGatePolicy("18_plus")}>
                 Mark 18+
               </Button>
             </section>

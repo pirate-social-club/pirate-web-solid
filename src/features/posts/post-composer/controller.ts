@@ -440,6 +440,7 @@ export function createPostComposerController(
   };
 
   const updateAudienceState = (updater: (current: ComposerAudienceState) => ComposerAudienceState) => {
+    if (props.audienceEditingDisabled === true) return;
     const next = updater(audienceState());
     if (audience() === undefined) {
       setUncontrolledAudienceState(next);
@@ -448,6 +449,7 @@ export function createPostComposerController(
   };
 
   const setAgeGatePolicyWithCallback = (next: AuthorAgeGatePolicy) => {
+    if (props.audienceEditingDisabled === true) return;
     if (ageGatePolicy() === undefined) {
       setUncontrolledAgeGatePolicy(next);
     }
@@ -651,6 +653,7 @@ export function createPostComposerController(
   return {
     audience: {
       get ageGateConfirmationRequired() { return props.ageGateConfirmationRequired === true; },
+      get editingDisabled() { return props.audienceEditingDisabled === true; },
       get ageGatePolicy() { return ageGatePolicyState(); },
       setAgeGatePolicy: setAgeGatePolicyWithCallback,
       get state() { return audienceState(); },

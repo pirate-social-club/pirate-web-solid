@@ -23,6 +23,7 @@ export interface PostComposerSheetRadioOption<T extends string> {
  */
 export function PostComposerSheetRadioGroup<T extends string>(props: {
   "aria-label": string;
+  disabled?: boolean;
   onChange: (value: T) => void;
   options: readonly PostComposerSheetRadioOption<T>[];
   value: T;
@@ -31,6 +32,7 @@ export function PostComposerSheetRadioGroup<T extends string>(props: {
     <RadioGroup
       aria-label={props["aria-label"]}
       class="gap-0 rounded-none border-y border-border-soft bg-transparent p-0"
+      disabled={props.disabled}
       onChange={(value) => {
         const selected = props.options.find((option) => option.value === value);
         if (selected) props.onChange(selected.value);
@@ -44,6 +46,7 @@ export function PostComposerSheetRadioGroup<T extends string>(props: {
           return (
             <RadioGroupItem
               class="border-b border-border-soft last:border-b-0"
+              disabled={props.disabled}
               labelClass={cn(
                 "grid min-h-16 w-full cursor-pointer grid-cols-[2.75rem_1fr_auto] items-center justify-normal gap-3 rounded-none px-4 py-3 text-start hover:bg-muted/60 data-checked:bg-primary-subtle data-checked:text-foreground",
               )}

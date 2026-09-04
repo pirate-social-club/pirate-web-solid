@@ -65,6 +65,7 @@ export interface PostComposerSettingsSectionsProps {
   anonymousIdentityLabel?: string;
   identity: "pseudonym" | "anonymous";
   ageGatePolicy: AuthorAgeGatePolicy;
+  audienceEditingDisabled?: boolean;
   license: AssetLicensePresetId;
   onAgeGatePolicyChange: (value: AuthorAgeGatePolicy) => void;
   onIdentityChange: (value: "pseudonym" | "anonymous") => void;
@@ -263,6 +264,7 @@ export function PostComposerSettingsSections(props: PostComposerSettingsSections
             <Checkbox
               aria-label={copy().ageGateTitle}
               checked={props.ageGatePolicy === "18_plus"}
+              disabled={props.audienceEditingDisabled}
               id="settings-age-gate"
               onChange={(next) => props.onAgeGatePolicyChange(next === true ? "18_plus" : "none")}
             >

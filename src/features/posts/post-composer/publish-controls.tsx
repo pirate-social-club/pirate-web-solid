@@ -71,6 +71,7 @@ function VisibilityControl(props: {
     >
       <ModalTrigger
         aria-label={`${controller.copy.publishChips.visibilityTitle}: ${label()}`}
+        disabled={controller.audience.editingDisabled}
         class={cn(
           props.presentation === "icon"
             ? cn(buttonVariants({ variant: "secondary", size: "icon" }), "size-10")
@@ -123,6 +124,7 @@ function VisibilityControl(props: {
               >
                 <PostComposerSheetRadioGroup
                   aria-label={controller.copy.publishChips.audienceTitle}
+                  disabled={controller.audience.editingDisabled}
                   onChange={updateVisibility}
                   options={[
                     {
@@ -147,6 +149,7 @@ function VisibilityControl(props: {
               <Type as="h3" variant="body-strong">{controller.copy.publishChips.ageGateTitle}</Type>
               <PostComposerSheetRadioGroup
                 aria-label={controller.copy.publishChips.ageGateTitle}
+                disabled={controller.audience.editingDisabled}
                 onChange={(value) => value === "18_plus" ? selectAgeGate() : selectNone()}
                 options={[
                   {

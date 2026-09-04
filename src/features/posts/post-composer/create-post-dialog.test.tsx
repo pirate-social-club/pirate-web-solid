@@ -249,6 +249,36 @@ describe("create post request", () => {
     expect(document.body.textContent).toContain("Checking whether your post was accepted");
   });
 
+  test("hydrates and locks the rating owned by a retained adult text request", async () => {
+    const storage = createMemoryPendingSubmissionStorage();
+    await storage.save(await createPendingSubmissionEnvelope({
+      request: buildCreatePostRequest({
+        communityId: "community-1",
+        title: "Retained adult post",
+        body: "A durable adult-marked draft",
+        idempotencyKey: "pending-adult",
+        ageGatePolicy: "18_plus",
+      }),
+      pendingRequestId: "pending-adult",
+      createdAt: "2026-09-04T00:00:00Z",
+    }));
+
+    render(() => <CreatePostDialog
+      onOpenChange={() => {}}
+      open
+      storage={storage}
+      transport={{ read: async () => null, dispatch: async () => { throw new Error("network uncertain"); } }}
+    />);
+
+    const visibility = await vi.waitFor(() => {
+      const candidate = document.body.querySelector<HTMLButtonElement>("button[aria-label^='Visibility:']");
+      expect(candidate).toBeInstanceOf(HTMLButtonElement);
+      expect(candidate?.getAttribute("aria-label")).toContain("18+");
+      return candidate!;
+    });
+    expect(visibility.disabled).toBe(true);
+  });
+
   test("requires an explicit operation persona when more than one is active", () => {
     expect(initialOperationPersonaId([
       activePersona("persona-one", "Persona One"),
@@ -362,6 +392,7 @@ describe("create post request", () => {
     ]));
     expect(mediaTransport.uploadCount).toBe(1);
     expect((await mediaStorage.loadAll())).toHaveLength(1);
+    expect(document.body.querySelector<HTMLButtonElement>("button[aria-label^='Visibility:']")?.disabled).toBe(true);
 
     const bodies = await Promise.all(mediaTransport.commands.map(async command => {
       const decoded: unknown = JSON.parse(new TextDecoder().decode(await mediaCommandBody(command)));

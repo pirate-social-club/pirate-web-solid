@@ -144,6 +144,7 @@ export function PostComposerSettingsHub(props: {
         copy={settingsCopy(controller)}
         identity={controller.identity.identityMode === "anonymous" ? "anonymous" : "pseudonym"}
         ageGatePolicy={controller.audience.ageGatePolicy}
+        audienceEditingDisabled={controller.audience.editingDisabled}
         license={controller.license.state.presetId}
         onAgeGatePolicyChange={controller.audience.setAgeGatePolicy}
         onAgentIdentitySelect={() => controller.identity.setAuthorMode("agent")}

@@ -30,7 +30,7 @@ import {
   submitComposerLyrics,
   submitSongComposer,
 } from "./media-composer-bridge";
-import type { PendingSubmissionStorage } from "./pending-submission";
+import { decodePendingSubmissionDraft, type PendingSubmissionStorage } from "./pending-submission";
 import { PostComposer } from "./post-composer";
 import { PostComposerSubmission } from "./post-composer-submission";
 import { initialPostComposerState, type PostComposerState } from "./post-composer-state";
@@ -145,8 +145,14 @@ export function CreatePostDialog(props: CreatePostDialogProps): JSX.Element {
   const [communityId, setCommunityId] = createSignal(contextualCommunityId());
   const [title, setTitle] = createSignal("");
   const [body, setBody] = createSignal("");
-  const [ageGatePolicy, setAgeGatePolicy] = createSignal<AuthorAgeGatePolicy>("none");
+  const [textAgeGatePolicy, setTextAgeGatePolicy] = createSignal<AuthorAgeGatePolicy>("none");
+  const [songAgeGatePolicy, setSongAgeGatePolicy] = createSignal<AuthorAgeGatePolicy>("none");
   const [mode, setMode] = createSignal<ComposerTab>("text");
+  const ageGatePolicy = () => mode() === "song" ? songAgeGatePolicy() : textAgeGatePolicy();
+  const setAgeGatePolicy = (next: AuthorAgeGatePolicy) => {
+    if (mode() === "song") setSongAgeGatePolicy(next);
+    else setTextAgeGatePolicy(next);
+  };
   const [songMode, setSongMode] = createSignal<SongMode>("original");
   const [song, setSong] = createSignal<SongComposerState>({
     title: "",
@@ -209,9 +215,16 @@ export function CreatePostDialog(props: CreatePostDialogProps): JSX.Element {
     if (snapshot.status === "published" && !wasPublished) props.onPublished?.();
   }
 
-  void textCoordinator.restore().catch(() => {
-    setTextState({ status: "transport_failure", reason: "durable_storage_failed" });
-  });
+  void textCoordinator.restore()
+    .then(() => {
+      const envelope = textCoordinator.pendingEnvelope;
+      if (envelope === null) return;
+      const draft = decodePendingSubmissionDraft(envelope);
+      setTextAgeGatePolicy(draft.authorDeclaredRating === "adult_18" ? "18_plus" : "none");
+    })
+    .catch(() => {
+      setTextState({ status: "transport_failure", reason: "durable_storage_failed" });
+    });
 
   if (mediaCoordinator !== undefined) {
     void mediaCoordinator.restore(PRODUCTION_SONG_DRAFT_ID)
@@ -220,7 +233,7 @@ export function CreatePostDialog(props: CreatePostDialogProps): JSX.Element {
         setMode("song");
         setCommunityId(record.community_id);
         setSongMode(record.song_draft.song_type);
-        setAgeGatePolicy(record.song_draft.author_declared_rating === "adult_18" ? "18_plus" : "none");
+        setSongAgeGatePolicy(record.song_draft.author_declared_rating === "adult_18" ? "18_plus" : "none");
         setTitle(record.song_draft.title);
         setSong(current => ({
           ...current,
@@ -286,7 +299,7 @@ export function CreatePostDialog(props: CreatePostDialogProps): JSX.Element {
     setMediaView({ status: "editing" });
     resetCommunityId();
     setTitle("");
-    setAgeGatePolicy("none");
+    setSongAgeGatePolicy("none");
     setError("");
   }
 
@@ -306,7 +319,7 @@ export function CreatePostDialog(props: CreatePostDialogProps): JSX.Element {
         resetCommunityId();
         setTitle("");
         setBody("");
-        setAgeGatePolicy("none");
+        setTextAgeGatePolicy("none");
       }
       if (mediaCoordinator !== undefined && terminalMediaView(mediaView())) {
         void discardTerminalSong().catch(discardError => {
@@ -322,7 +335,7 @@ export function CreatePostDialog(props: CreatePostDialogProps): JSX.Element {
     resetCommunityId();
     setTitle("");
     setBody("");
-    setAgeGatePolicy("none");
+    setTextAgeGatePolicy("none");
     setError("");
   }
 
@@ -333,7 +346,7 @@ export function CreatePostDialog(props: CreatePostDialogProps): JSX.Element {
       setCommunityId(draft.communityId);
       setTitle(draft.title);
       setBody(draft.body);
-      setAgeGatePolicy(draft.authorDeclaredRating === "adult_18" ? "18_plus" : "none");
+      setTextAgeGatePolicy(draft.authorDeclaredRating === "adult_18" ? "18_plus" : "none");
     } catch (discardError) {
       setError(discardError instanceof Error ? discardError.message : "The saved request could not be discarded safely.");
     }
@@ -608,6 +621,9 @@ export function CreatePostDialog(props: CreatePostDialogProps): JSX.Element {
             </Show>
 
             <PostComposer
+              audienceEditingDisabled={mode() === "song"
+                ? mediaView().status !== "editing"
+                : textState().status !== "editing" && textState().status !== "transport_failure"}
               availableTabs={["text", "song"]}
               canCreateSongPost={personas().length > 0}
               currentPersonaId={selectedPersonaId()}

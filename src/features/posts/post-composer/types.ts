@@ -381,6 +381,8 @@ export interface PostComposerProps extends Partial<PostComposerDraftState>, Post
   presentation?: "page" | "embedded";
   // Community policy: enabling 18+ requires an explicit confirmation step.
   ageGateConfirmationRequired?: boolean;
+  // A retained request owns its audience and rating until it is resolved.
+  audienceEditingDisabled?: boolean;
   availableTabs?: ComposerTab[];
   canCreateSongPost?: boolean;
   currentPersonaId?: string;
