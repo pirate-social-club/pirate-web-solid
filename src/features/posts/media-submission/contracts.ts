@@ -6,7 +6,10 @@ import type {
   PostMediaPostSubmissionsSubmissionIdTermsInput,
 } from "@pirate/api-client";
 
-export type MediaSubmissionSnapshot = GetMediaPostSubmissionsSubmissionIdResponse;
+export type MediaSubmissionSnapshot = Extract<
+  GetMediaPostSubmissionsSubmissionIdResponse,
+  { readonly track: "song" }
+>;
 export type SongLicensePreset = "non-commercial" | "commercial-use" | "commercial-remix";
 
 export interface SongRoyaltyAllocation {

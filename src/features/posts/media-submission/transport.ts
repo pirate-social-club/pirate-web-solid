@@ -1,5 +1,6 @@
 import {
   ApiClientError,
+  type GetMediaPostSubmissionsSubmissionIdResponse,
   type PirateApiClient,
   type PostCommunitiesCommunityIdMediaPostSubmissionsInput,
   type PostCommunitiesCommunityIdMediaUploadReservationsInput,
@@ -57,6 +58,17 @@ export class MediaSubmissionConflictError extends Error {
   }
 }
 
+function songSnapshot(
+  value: GetMediaPostSubmissionsSubmissionIdResponse,
+): MediaSubmissionSnapshot {
+  if (value.track !== "song") {
+    throw new AmbiguousMediaSubmissionError(
+      "The song submission endpoint returned a different media track",
+    );
+  }
+  return value;
+}
+
 function pathPart(path: string, pattern: RegExp, name: string): string {
   const match = pattern.exec(path);
   if (!match?.[1]) throw new AmbiguousMediaSubmissionError(`Stored ${name} command path is invalid`);
@@ -111,45 +123,45 @@ export function createSameOriginMediaSubmissionTransport(
           }
           case "start": {
             const communityId = pathPart(command.same_origin_path, /^\/api\/communities\/([^/]+)\/media-post-submissions$/u, "start");
-            return api.post_communitiesCommunityIdMediaPostSubmissions({
+            return songSnapshot(await api.post_communitiesCommunityIdMediaPostSubmissions({
               path: { communityId },
               body: await body<PostCommunitiesCommunityIdMediaPostSubmissionsInput["body"]>(command),
-            }, session);
+            }, session));
           }
           case "terms": {
             const submissionId = pathPart(command.same_origin_path, /^\/api\/media-post-submissions\/([^/]+)\/terms$/u, "terms");
-            return api.post_mediaPostSubmissionsSubmissionIdTerms({
+            return songSnapshot(await api.post_mediaPostSubmissionsSubmissionIdTerms({
               path: { submissionId },
               body: await body<PostMediaPostSubmissionsSubmissionIdTermsInput["body"]>(command),
-            }, session);
+            }, session));
           }
           case "lyrics": {
             const submissionId = pathPart(command.same_origin_path, /^\/api\/media-post-submissions\/([^/]+)\/lyrics$/u, "lyrics");
-            return api.post_mediaPostSubmissionsSubmissionIdLyrics({
+            return songSnapshot(await api.post_mediaPostSubmissionsSubmissionIdLyrics({
               path: { submissionId },
               body: await body<PostMediaPostSubmissionsSubmissionIdLyricsInput["body"]>(command),
-            }, session);
+            }, session));
           }
           case "finalize": {
             const submissionId = pathPart(command.same_origin_path, /^\/api\/media-post-submissions\/([^/]+)\/finalize$/u, "finalize");
-            return api.post_mediaPostSubmissionsSubmissionIdFinalize({
+            return songSnapshot(await api.post_mediaPostSubmissionsSubmissionIdFinalize({
               path: { submissionId },
               body: await body<PostMediaPostSubmissionsSubmissionIdFinalizeInput["body"]>(command),
-            }, session);
+            }, session));
           }
           case "retry": {
             const submissionId = pathPart(command.same_origin_path, /^\/api\/media-post-submissions\/([^/]+)\/retry$/u, "retry");
-            return api.post_mediaPostSubmissionsSubmissionIdRetry({
+            return songSnapshot(await api.post_mediaPostSubmissionsSubmissionIdRetry({
               path: { submissionId },
               body: await body<PostMediaPostSubmissionsSubmissionIdRetryInput["body"]>(command),
-            }, session);
+            }, session));
           }
           case "cancel": {
             const submissionId = pathPart(command.same_origin_path, /^\/api\/media-post-submissions\/([^/]+)\/cancel$/u, "cancel");
-            return api.post_mediaPostSubmissionsSubmissionIdCancel({
+            return songSnapshot(await api.post_mediaPostSubmissionsSubmissionIdCancel({
               path: { submissionId },
               body: await body<PostMediaPostSubmissionsSubmissionIdCancelInput["body"]>(command),
-            }, session);
+            }, session));
           }
         }
       } catch (error) {
@@ -160,7 +172,12 @@ export function createSameOriginMediaSubmissionTransport(
     },
     async read(submissionId) {
       try {
-        return await api.get_mediaPostSubmissionsSubmissionId({ path: { submissionId } }, requestOptions(csrfToken));
+        return songSnapshot(
+          await api.get_mediaPostSubmissionsSubmissionId(
+            { path: { submissionId } },
+            requestOptions(csrfToken),
+          ),
+        );
       } catch (error) {
         if (error instanceof ApiClientError && error.status === 404) return null;
         throw new AmbiguousMediaSubmissionError(error instanceof Error ? error.message : undefined);

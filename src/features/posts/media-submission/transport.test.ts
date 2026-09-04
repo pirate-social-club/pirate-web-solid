@@ -107,4 +107,34 @@ describe("same-origin media submission transport", () => {
       new Blob([new Uint8Array([1, 2, 3])], { type: "audio/mpeg" })))
       .rejects.toBeInstanceOf(AmbiguousMediaSubmissionError);
   });
+
+  test("refuses a video snapshot at the retained song-only transport boundary", async () => {
+    const transport = createSameOriginMediaSubmissionTransport({
+      api: {
+        get_mediaPostSubmissionsSubmissionId: async () => ({
+          submission_id: "submission-video",
+          author_persona: {
+            persona_id: "persona-1",
+            object: "persona",
+            display_name: null,
+            avatar_ref: null,
+            primary_public_handle: null,
+          },
+          href: "/media-post-submissions/submission-video",
+          track: "video",
+          intent: "original_audio",
+          creation_revision: 1,
+          video_revision: 1,
+          caption: null,
+          updated_at: "2026-09-04T12:00:00.000Z",
+          status: "processing",
+          phase: "analysis",
+        }),
+      } as never,
+      csrfToken: () => "csrf-current",
+    });
+
+    await expect(transport.read("submission-video"))
+      .rejects.toBeInstanceOf(AmbiguousMediaSubmissionError);
+  });
 });
