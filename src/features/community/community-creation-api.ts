@@ -74,14 +74,7 @@ function mapNextAction(
 ): CreationNextAction {
   switch (action.kind) {
     case "start_verification":
-      return {
-        ceremonyIntentId: action.ceremony_intent_id,
-        creationIntentId: action.creation_intent_id,
-        generation: action.generation,
-        kind: action.kind,
-        providerId: action.provider_id,
-        requirement: action.requirement,
-      };
+      return { kind: "blocked", reason: "pre_boundary_verification" };
     case "commit":
       return { kind: action.kind };
     case "wait":
@@ -99,18 +92,9 @@ function mapNextAction(
 }
 
 function mapIntent(response: PostCommunityCreationIntentsResponse): CommunityCreationIntentView {
-  const identity = response.requirements.human_identity;
   return {
     committedHref: response.committed_resource?.href ?? null,
     expiresAt: response.expires_at,
-    humanIdentity: {
-      ceremonyIntentId: identity.ceremony_intent_id,
-      generation: identity.generation,
-      providerId: identity.provider_id,
-      requirement: identity.requirement,
-      satisfiedAt: identity.satisfied_at,
-      status: identity.status,
-    },
     intentId: response.intent_id,
     nextAction: mapNextAction(response.next_action),
     revision: response.revision,

@@ -1,11 +1,11 @@
 {
   "name": "@pirate/api-client",
-  "version": "0.48.0",
-  "artifact": "vendor/api-client/pirate-api-client-0.48.0.tgz",
-  "sha256": "97c394cc707544ae0ff86da5fbc15617e24019d5504232dec0c629e87c3db168",
-  "source": "api-next-contracts@1f710c2e951822e92741eb4139611342638c88fe97d587ca2e8a5e64972fbd1a",
-  "openapiSha256": "1f710c2e951822e92741eb4139611342638c88fe97d587ca2e8a5e64972fbd1a",
-  "clientSha256": "22666f0a127ff9aa0a63d8fa4884d19f7edba3f3935b0fa6b89a64d41b9a8805",
+  "version": "0.52.0",
+  "artifact": "vendor/api-client/pirate-api-client-0.52.0.tgz",
+  "sha256": "4f63398867b7952655c76ba2fe2442f1134b4fe7c485bcf4fddf59184a46dc99",
+  "source": "api-next-contracts@9d3d4781be512fbcacbee414b321305be0966126f3d172d5b58615b5d2101bc1",
+  "openapiSha256": "9d3d4781be512fbcacbee414b321305be0966126f3d172d5b58615b5d2101bc1",
+  "clientSha256": "56f23c43fa89bd3aee982bd1b16ad48255c7e1ae15efd3fb48af021c8c965f1f",
   "scope": [
     "post_communityCreationIntents",
     "get_communityCreationIntentsIntentId",

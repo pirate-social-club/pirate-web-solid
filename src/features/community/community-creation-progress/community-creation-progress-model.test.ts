@@ -12,8 +12,6 @@ describe("community creation progress model", () => {
     const intent = createIntent();
     expect(intent.status).toBe("draft");
     expect(intent.revision).toBe(1);
-    expect(intent.humanIdentity.requirement).toBe("human_identity");
-    expect(intent.humanIdentity.satisfiedAt).toBeNull();
     expect(intent.nextAction).toEqual({ kind: "wait", requirement: null, reasonCode: "operation_pending" });
   });
 

@@ -30,9 +30,30 @@ interface CreationIntentOverrides {
     href: string;
     persona_role_presentation: { persona: typeof owner; role: "owner" };
   } | null;
-  next_action?: { kind: "commit" } | { kind: "none"; reason: "committed" };
+  next_action?:
+    | { kind: "commit" }
+    | { kind: "none"; reason: "committed" }
+    | {
+        ceremony_intent_id: string;
+        creation_intent_id: string;
+        generation: number;
+        kind: "start_verification";
+        provider_id: string;
+        requirement: "human_identity";
+      };
+  requirements?: {
+    human_identity?: {
+      ceremony_intent_id: string | null;
+      generation: number;
+      provider_id: string;
+      requirement: "human_identity";
+      requirement_hash: string;
+      satisfied_at: string | null;
+      status: "unmet" | "pending" | "satisfied" | "failed" | "expired";
+    };
+  };
   revision?: number;
-  status?: "commit_ready" | "committed";
+  status?: "commit_ready" | "committed" | "verification_required";
 }
 
 function creationIntent(overrides: CreationIntentOverrides = {}) {
@@ -49,28 +70,11 @@ function creationIntent(overrides: CreationIntentOverrides = {}) {
     },
     expires_at: "2026-08-31T00:00:00Z",
     intent_id: "creation-1",
-    next_action: {
-      ceremony_intent_id: "ceremony-1",
-      creation_intent_id: "creation-1",
-      generation: 1,
-      kind: "start_verification",
-      provider_id: "very",
-      requirement: "human_identity",
-    },
+    next_action: { kind: "commit" },
     persona_role_presentation: { persona: owner, role: "owner" },
-    requirements: {
-      human_identity: {
-        ceremony_intent_id: "ceremony-1",
-        generation: 1,
-        provider_id: "very",
-        requirement: "human_identity",
-        requirement_hash: "requirement-hash",
-        satisfied_at: null,
-        status: "unmet",
-      },
-    },
+    requirements: {},
     revision: 1,
-    status: "verification_required",
+    status: "commit_ready",
     ...overrides,
   };
 }
@@ -102,25 +106,10 @@ describe("createCommunityCreationApi", () => {
     await expect(api.createIntent({ draft, idempotencyKey: "create-key" })).resolves.toEqual({
       committedHref: null,
       expiresAt: "2026-08-31T00:00:00Z",
-      humanIdentity: {
-        ceremonyIntentId: "ceremony-1",
-        generation: 1,
-        providerId: "very",
-        requirement: "human_identity",
-        satisfiedAt: null,
-        status: "unmet",
-      },
       intentId: "creation-1",
-      nextAction: {
-        ceremonyIntentId: "ceremony-1",
-        creationIntentId: "creation-1",
-        generation: 1,
-        kind: "start_verification",
-        providerId: "very",
-        requirement: "human_identity",
-      },
+      nextAction: { kind: "commit" },
       revision: 1,
-      status: "verification_required",
+      status: "commit_ready",
     });
     expect(requests[0]?.request.url).toBe("https://web.test/api/community-creation-intents");
     expect(requests[0]?.request.method).toBe("POST");
@@ -208,6 +197,39 @@ describe("createCommunityCreationApi", () => {
 
     await expect(api.getIntent({ intentId: "creation-1" })).resolves.toMatchObject({
       intentId: "creation-1",
+      status: "commit_ready",
+    });
+  });
+
+  test("turns a pre-boundary verification action into a terminal notice", async () => {
+    const api = createCommunityCreationApi({
+      fetchImpl: async () => response(creationIntent({
+        next_action: {
+          ceremony_intent_id: "ceremony-1",
+          creation_intent_id: "creation-1",
+          generation: 1,
+          kind: "start_verification",
+          provider_id: "very.web",
+          requirement: "human_identity",
+        },
+        requirements: {
+          human_identity: {
+            ceremony_intent_id: "ceremony-1",
+            generation: 1,
+            provider_id: "very.web",
+            requirement: "human_identity",
+            requirement_hash: "requirement-hash",
+            satisfied_at: null,
+            status: "unmet",
+          },
+        },
+        status: "verification_required",
+      })),
+      origin: "https://web.test",
+    });
+
+    await expect(api.getIntent({ intentId: "creation-1" })).resolves.toMatchObject({
+      nextAction: { kind: "blocked", reason: "pre_boundary_verification" },
       status: "verification_required",
     });
   });

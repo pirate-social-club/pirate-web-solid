@@ -7,7 +7,6 @@ import { getLocaleMessages } from "../../../locales";
 import { useUiLocale } from "../../../lib/ui-locale";
 import {
   CREATION_STATUS_COPY_KEYS,
-  HUMAN_IDENTITY_COPY_KEYS,
   WAIT_REASON_COPY_KEYS,
   type CommunityCreationIntentView,
   type CreationProgressCopy,
@@ -18,21 +17,6 @@ export interface CommitCommunityInput {
   expectedRevision: number;
 }
 
-/**
- * Spec 012 §3: the start endpoint takes the reserved ceremony id and
- * generation, the requirement, and the creation's current revision for
- * optimistic concurrency. The client idempotency key belongs to the API
- * adapter, not to this view.
- */
-export interface StartVerificationInput {
-  intentId: string;
-  expectedRevision: number;
-  requirement: "human_identity";
-  ceremonyIntentId: string;
-  providerId: string;
-  generation: number;
-}
-
 export interface CommunityCreationProgressProps {
   class?: string;
   committing?: boolean;
@@ -40,7 +24,6 @@ export interface CommunityCreationProgressProps {
   staleRevision?: { expectedRevision: number } | null;
   onCommit?: (input: CommitCommunityInput) => void;
   onRetry?: () => void;
-  onStartVerification?: (input: StartVerificationInput) => void;
   onView?: () => void;
 }
 
@@ -53,25 +36,11 @@ export function CommunityCreationProgressView(props: CommunityCreationProgressPr
   const copy = () => getLocaleMessages(locale, "routes").communityCreationProgress as CreationProgressCopy;
 
   const statusLabel = () => copy()[CREATION_STATUS_COPY_KEYS[props.intent.status]];
-  const identityLabel = () => copy()[HUMAN_IDENTITY_COPY_KEYS[props.intent.humanIdentity.status]];
   const nextAction = () => props.intent.nextAction;
 
   const renderAction = () => {
     const action = nextAction();
     switch (action.kind) {
-      case "start_verification":
-        return (
-          <Button onClick={() => props.onStartVerification?.({
-            intentId: props.intent.intentId,
-            expectedRevision: props.intent.revision,
-            requirement: action.requirement,
-            ceremonyIntentId: action.ceremonyIntentId,
-            providerId: action.providerId,
-            generation: action.generation,
-          })}>
-            {copy().startVerification}
-          </Button>
-        );
       case "commit":
         return (
           <Button
@@ -95,7 +64,11 @@ export function CommunityCreationProgressView(props: CommunityCreationProgressPr
           <div class="space-y-3 rounded-[var(--radius-lg)] border border-destructive/40 bg-destructive/5 p-5" data-blocked-state>
             <Type as="p" variant="body-strong">{statusLabel()}</Type>
             <FormNote tone="destructive">
-              {action.reason === "quota_exceeded" ? copy().quotaExceededBody : copy().gateUnsupportedBody}
+              {action.reason === "quota_exceeded"
+                ? copy().quotaExceededBody
+                : action.reason === "pre_boundary_verification"
+                  ? copy().preBoundaryVerificationBody
+                  : copy().gateUnsupportedBody}
             </FormNote>
           </div>
         );
@@ -132,13 +105,6 @@ export function CommunityCreationProgressView(props: CommunityCreationProgressPr
           <Button onClick={props.onRetry} variant="secondary">{copy().retry}</Button>
         </div>
       </Show>
-
-      <section aria-label={copy().identityHeading} class="space-y-3 rounded-[var(--radius-lg)] border border-border-soft bg-card p-5">
-        <div class="flex items-center justify-between gap-4">
-          <Type as="h2" variant="h3">{copy().identityHeading}</Type>
-          <Type as="span" variant="caption">{identityLabel()}</Type>
-        </div>
-      </section>
 
       {renderAction()}
     </section>

@@ -238,17 +238,10 @@ describe("Community creation production route", () => {
     expect(getIntent).toHaveBeenCalledTimes(2);
   });
 
-  test("carries every server-issued creation fence to the Very route", async () => {
+  test("does not offer the retired creator ceremony for a pre-boundary intent", async () => {
     const verification = createIntent({
       intentId: "creation-1",
-      nextAction: {
-        kind: "start_verification",
-        creationIntentId: "creation-1",
-        ceremonyIntentId: "ceremony-1",
-        providerId: "very.web",
-        requirement: "human_identity",
-        generation: 3,
-      },
+      nextAction: { kind: "blocked", reason: "pre_boundary_verification" },
       revision: 7,
       status: "verification_required",
     });
@@ -272,20 +265,8 @@ describe("Community creation production route", () => {
     ));
 
     await vi.waitFor(() => expect(container.querySelector("[data-community-creation-progress]")).not.toBeNull());
-    const start = container.querySelector<HTMLButtonElement>("[data-community-creation-progress] button")!;
-    start.click();
-
-    expect(navigate).toHaveBeenCalledTimes(1);
-    const target = new URL(navigate.mock.calls[0]![0], "https://solid.invalid");
-    expect(target.pathname).toBe("/verify/very");
-    expect(Object.fromEntries(target.searchParams)).toEqual({
-      creation_intent_id: "creation-1",
-      ceremony_intent_id: "ceremony-1",
-      provider_id: "very.web",
-      requirement: "human_identity",
-      generation: "3",
-      expected_revision: "7",
-      return_to: "/communities/new?intent_id=creation-1",
-    });
+    expect(container.textContent).toContain("This older draft cannot be completed here");
+    expect(container.textContent).not.toContain("Start verification");
+    expect(navigate).not.toHaveBeenCalled();
   });
 });

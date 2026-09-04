@@ -3,32 +3,11 @@ import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import { expect, userEvent, within } from "storybook/test";
 
 import { Type } from "@pirate/web-solid-ui";
-import {
-  CommunityCreationProgressView,
-  type StartVerificationInput,
-} from "./community-creation-progress";
+import { CommunityCreationProgressView } from "./community-creation-progress";
 import {
   createIntent,
   type CommunityCreationIntentView,
 } from "./community-creation-progress-model";
-
-const pendingHumanIdentity = {
-  requirement: "human_identity",
-  status: "pending",
-  providerId: "very",
-  ceremonyIntentId: "ceremony_1",
-  generation: 1,
-  satisfiedAt: null,
-} as const;
-
-const satisfiedHumanIdentity = {
-  requirement: "human_identity",
-  status: "satisfied",
-  providerId: "very",
-  ceremonyIntentId: "ceremony_1",
-  generation: 1,
-  satisfiedAt: "2026-08-25T18:00:00.000Z",
-} as const;
 
 function ProgressStory(props: { committing?: boolean; intent: CommunityCreationIntentView; stale?: boolean }) {
   const [intent, setIntent] = createSignal<CommunityCreationIntentView>(props.intent);
@@ -36,12 +15,6 @@ function ProgressStory(props: { committing?: boolean; intent: CommunityCreationI
   const [attempts, setAttempts] = createSignal(0);
   const [viewed, setViewed] = createSignal(0);
   const [lastCommitRevision, setLastCommitRevision] = createSignal(0);
-  const [lastStart, setLastStart] = createSignal("none");
-
-  const startVerification = (input: StartVerificationInput) => {
-    setLastStart(`${input.requirement}/${input.ceremonyIntentId}/gen${input.generation}/rev${input.expectedRevision}`);
-    setAttempts((count) => count + 1);
-  };
   const commit = (input: { intentId: string; expectedRevision: number }) => {
     setLastCommitRevision(input.expectedRevision);
     setIntent((current) => ({
@@ -65,12 +38,11 @@ function ProgressStory(props: { committing?: boolean; intent: CommunityCreationI
         intent={intent()}
         onCommit={commit}
         onRetry={retry}
-        onStartVerification={startVerification}
         onView={view}
         staleRevision={stale() ? { expectedRevision: props.intent.revision - 1 } : null}
       />
       <Type aria-live="polite" class="sr-only" variant="caption">
-        {`Attempts ${attempts()}; viewed ${viewed()}; last commit revision ${lastCommitRevision()}; revision ${intent().revision}; last start ${lastStart()}`}
+        {`Attempts ${attempts()}; viewed ${viewed()}; last commit revision ${lastCommitRevision()}; revision ${intent().revision}`}
       </Type>
     </div>
   );
@@ -79,36 +51,27 @@ function ProgressStory(props: { committing?: boolean; intent: CommunityCreationI
 const meta = {
   title: "Flows/Community/CreationProgress",
   component: CommunityCreationProgressView,
-  args: { intent: createIntent(), onStartVerification: () => undefined, onCommit: () => undefined, onRetry: () => undefined, onView: () => undefined },
+  args: { intent: createIntent(), onCommit: () => undefined, onRetry: () => undefined, onView: () => undefined },
   parameters: { layout: "fullscreen" },
 } satisfies Meta<typeof CommunityCreationProgressView>;
 
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-export const VerificationRequired: Story = {
+export const PreBoundaryVerification: Story = {
   render: () => (
     <ProgressStory
       intent={createIntent({
         status: "verification_required",
-        nextAction: {
-          kind: "start_verification",
-          requirement: "human_identity",
-          providerId: "very",
-          creationIntentId: "creation_1",
-          ceremonyIntentId: "ceremony_1",
-          generation: 1,
-        },
-        humanIdentity: { ...pendingHumanIdentity },
+        nextAction: { kind: "blocked", reason: "pre_boundary_verification" },
       })}
     />
   ),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(canvas.getByText("Verify it's you")).toBeInTheDocument();
-    await userEvent.click(canvas.getByRole("button", { name: "Start verification" }));
-    await expect(canvas.getByText(/Attempts 1/)).toBeInTheDocument();
-    await expect(canvas.getByText(/last start human_identity\/ceremony_1\/gen1\/rev1/)).toBeInTheDocument();
+    await expect(canvas.getByText("Older creation draft")).toBeInTheDocument();
+    await expect(canvas.getByText(/This older draft cannot be completed here/)).toBeInTheDocument();
+    await expect(canvas.queryByRole("button", { name: "Start verification" })).toBeNull();
   },
 };
 
@@ -118,7 +81,6 @@ export const Waiting: Story = {
       intent={createIntent({
         status: "verification_required",
         nextAction: { kind: "wait", requirement: "human_identity", reasonCode: "verification_pending", retryAfterSeconds: 30 },
-        humanIdentity: { ...pendingHumanIdentity },
       })}
     />
   ),
@@ -135,7 +97,6 @@ export const CommitReady: Story = {
       intent={createIntent({
         status: "commit_ready",
         nextAction: { kind: "commit" },
-        humanIdentity: { ...satisfiedHumanIdentity },
       })}
     />
   ),
@@ -154,7 +115,6 @@ export const Committing: Story = {
       intent={createIntent({
         status: "commit_ready",
         nextAction: { kind: "commit" },
-        humanIdentity: { ...satisfiedHumanIdentity },
       })}
     />
   ),
@@ -173,7 +133,6 @@ export const Committed: Story = {
         status: "committed",
         nextAction: { kind: "none", reason: "committed" },
         committedHref: "/c/community_1",
-        humanIdentity: { ...satisfiedHumanIdentity },
       })}
     />
   ),
@@ -247,15 +206,7 @@ export const StaleRevision: Story = {
       stale
       intent={createIntent({
         status: "verification_required",
-        nextAction: {
-          kind: "start_verification",
-          requirement: "human_identity",
-          providerId: "very",
-          creationIntentId: "creation_1",
-          ceremonyIntentId: "ceremony_1",
-          generation: 1,
-        },
-        humanIdentity: { ...pendingHumanIdentity },
+        nextAction: { kind: "blocked", reason: "pre_boundary_verification" },
         revision: 3,
       })}
     />

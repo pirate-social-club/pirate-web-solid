@@ -21,14 +21,6 @@ export const WAIT_REASON_CODES = [
 export type WaitReasonCode = (typeof WAIT_REASON_CODES)[number];
 
 export type CreationNextAction =
-  | {
-      kind: "start_verification";
-      requirement: "human_identity";
-      providerId: string;
-      creationIntentId: string;
-      ceremonyIntentId: string;
-      generation: number;
-    }
   | { kind: "commit" }
   | {
       kind: "wait";
@@ -36,20 +28,8 @@ export type CreationNextAction =
       reasonCode: WaitReasonCode;
       retryAfterSeconds?: number;
     }
-  | { kind: "blocked"; reason: "quota_exceeded" | "gate_unsupported" }
+  | { kind: "blocked"; reason: "quota_exceeded" | "gate_unsupported" | "pre_boundary_verification" }
   | { kind: "none"; reason: "committed" | "expired" | "cancelled" };
-
-export const HUMAN_IDENTITY_STATUSES = ["unmet", "pending", "satisfied", "failed", "expired"] as const;
-export type HumanIdentityStatus = (typeof HUMAN_IDENTITY_STATUSES)[number];
-
-export interface HumanIdentityProgress {
-  requirement: "human_identity";
-  status: HumanIdentityStatus;
-  providerId: string;
-  ceremonyIntentId: string | null;
-  generation: number;
-  satisfiedAt: string | null;
-}
 
 /**
  * A narrow projection of the full creation intent, shaped for the progress
@@ -64,7 +44,6 @@ export interface CommunityCreationIntentView {
   revision: number;
   status: CreationStatus;
   nextAction: CreationNextAction;
-  humanIdentity: HumanIdentityProgress;
   expiresAt: string;
   committedHref?: string | null;
 }
@@ -75,14 +54,6 @@ export function createIntent(overrides: Partial<CommunityCreationIntentView> = {
     revision: 1,
     status: "draft",
     nextAction: { kind: "wait", requirement: null, reasonCode: "operation_pending" },
-    humanIdentity: {
-      requirement: "human_identity",
-      status: "unmet",
-      providerId: "very",
-      ceremonyIntentId: null,
-      generation: 0,
-      satisfiedAt: null,
-    },
     expiresAt: "2026-08-26T00:00:00.000Z",
     committedHref: null,
     ...overrides,
@@ -104,7 +75,7 @@ export type IntentUpdateResult =
 export function applyIntentUpdate(
   intent: CommunityCreationIntentView,
   expectedRevision: number,
-  patch: Partial<Pick<CommunityCreationIntentView, "status" | "nextAction" | "humanIdentity">>,
+  patch: Partial<Pick<CommunityCreationIntentView, "status" | "nextAction">>,
 ): IntentUpdateResult {
   if (intent.revision !== expectedRevision) {
     return { kind: "conflict", latestRevision: intent.revision };
@@ -126,14 +97,6 @@ export const CREATION_STATUS_COPY_KEYS = {
   expired: "statusExpired",
   cancelled: "statusCancelled",
 } as const satisfies Record<CreationStatus, keyof CreationProgressCopy>;
-
-export const HUMAN_IDENTITY_COPY_KEYS = {
-  unmet: "identityUnmet",
-  pending: "identityPending",
-  satisfied: "identitySatisfied",
-  failed: "identityFailed",
-  expired: "identityExpired",
-} as const satisfies Record<HumanIdentityStatus, keyof CreationProgressCopy>;
 
 export const WAIT_REASON_COPY_KEYS = {
   verification_pending: "waitVerificationPending",
