@@ -8,9 +8,9 @@ import type { PostCommunitiesCommunityIdMediaUploadReservationsResponse } from "
 
 import type { ActivePersonaPublicProjection } from "../../../api/session";
 import type { MediaSubmissionSnapshot } from "../media-submission/contracts";
-import { createMemoryMediaSubmissionStorage, mediaCommandBody, type PersistedMediaCommand } from "../media-submission/pending";
+import { createMemoryMediaSubmissionStorage, MEDIA_PENDING_VERSION, mediaCommandBody, type PersistedMediaCommand } from "../media-submission/pending";
 import type { MediaCommandResult, MediaSubmissionTransport } from "../media-submission/transport";
-import { buildCreatePostRequest, CreatePostDialog, initialOperationPersonaId } from "./create-post-dialog";
+import { buildCreatePostRequest, CreatePostDialog, initialOperationPersonaId, PRODUCTION_SONG_DRAFT_ID } from "./create-post-dialog";
 import { createMemoryPendingSubmissionStorage, createPendingSubmissionEnvelope } from "./pending-submission";
 
 const disposers: Array<() => void> = [];
@@ -268,6 +268,57 @@ describe("create post request", () => {
       open
       storage={storage}
       transport={{ read: async () => null, dispatch: async () => { throw new Error("network uncertain"); } }}
+    />);
+
+    const visibility = await vi.waitFor(() => {
+      const candidate = document.body.querySelector<HTMLButtonElement>("button[aria-label^='Visibility:']");
+      expect(candidate).toBeInstanceOf(HTMLButtonElement);
+      expect(candidate?.getAttribute("aria-label")).toContain("18+");
+      return candidate!;
+    });
+    expect(visibility.disabled).toBe(true);
+  });
+
+  test("locks a retained song rating after reservation and before start", async () => {
+    const mediaStorage = createMemoryMediaSubmissionStorage();
+    const audio = new File([new Uint8Array([1])], "retained.mp3", { type: "audio/mpeg", lastModified: 1 });
+    await mediaStorage.save({
+      version: MEDIA_PENDING_VERSION,
+      draft_id: PRODUCTION_SONG_DRAFT_ID,
+      principal_id: "account-one",
+      community_id: "community-one",
+      persona_id: "persona-one",
+      song_draft: {
+        title: "Retained song",
+        song_type: "original",
+        author_declared_rating: "adult_18",
+      },
+      audio: {
+        blob: audio,
+        name: audio.name,
+        type: audio.type,
+        size: audio.size,
+        last_modified: audio.lastModified,
+      },
+      reservation,
+      submission_id: null,
+      expected_creation_revision: null,
+      upload_status: "not_uploaded",
+      snapshot: null,
+      commands: [],
+      pending_command: null,
+      created_at: "2026-09-04T00:00:00Z",
+      updated_at: "2026-09-04T00:00:00Z",
+    });
+
+    render(() => <CreatePostDialog
+      mediaStorage={mediaStorage}
+      mediaTransport={new ProductionMediaTransport()}
+      onOpenChange={() => {}}
+      open
+      personas={[activePersona("persona-one", "Persona One")]}
+      principalId="account-one"
+      storage={createMemoryPendingSubmissionStorage()}
     />);
 
     const visibility = await vi.waitFor(() => {

@@ -181,6 +181,7 @@ export function CreatePostDialog(props: CreatePostDialogProps): JSX.Element {
   const [lyricsBusy, setLyricsBusy] = createSignal(false);
   const mediaEnabled = props.principalId !== undefined && personas().length > 0;
   const [mediaRestoring, setMediaRestoring] = createSignal(mediaEnabled);
+  const [mediaRecordRetained, setMediaRecordRetained] = createSignal(false);
 
   const communityContextConflict = () => contextualCommunityId() !== ""
     && communityId().trim() !== ""
@@ -230,6 +231,7 @@ export function CreatePostDialog(props: CreatePostDialogProps): JSX.Element {
     void mediaCoordinator.restore(PRODUCTION_SONG_DRAFT_ID)
       .then(record => {
         if (record === null) return;
+        setMediaRecordRetained(true);
         setMode("song");
         setCommunityId(record.community_id);
         setSongMode(record.song_draft.song_type);
@@ -297,6 +299,7 @@ export function CreatePostDialog(props: CreatePostDialogProps): JSX.Element {
     setSelectedPersonaId(nextPersonaId);
     setMediaSnapshot(null);
     setMediaView({ status: "editing" });
+    setMediaRecordRetained(false);
     resetCommunityId();
     setTitle("");
     setSongAgeGatePolicy("none");
@@ -433,6 +436,7 @@ export function CreatePostDialog(props: CreatePostDialogProps): JSX.Element {
     }
     setError("");
     setMediaBusy(true);
+    setMediaRecordRetained(true);
     try {
       const snapshot = await submitSongComposer({
         coordinator: mediaCoordinator,
@@ -448,6 +452,7 @@ export function CreatePostDialog(props: CreatePostDialogProps): JSX.Element {
       });
       applySnapshot(snapshot);
     } catch (submissionError) {
+      if (mediaCoordinator.currentRecord === null) setMediaRecordRetained(false);
       setError(submissionError instanceof Error ? submissionError.message : "The song could not be submitted safely.");
     } finally {
       setMediaBusy(false);
@@ -622,7 +627,7 @@ export function CreatePostDialog(props: CreatePostDialogProps): JSX.Element {
 
             <PostComposer
               audienceEditingDisabled={mode() === "song"
-                ? mediaView().status !== "editing"
+                ? mediaRestoring() || mediaRecordRetained()
                 : textState().status !== "editing" && textState().status !== "transport_failure"}
               availableTabs={["text", "song"]}
               canCreateSongPost={personas().length > 0}
