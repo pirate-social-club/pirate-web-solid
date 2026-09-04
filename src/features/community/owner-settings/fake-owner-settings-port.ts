@@ -2,11 +2,11 @@ import type {
   CommunityNamespaceSettingsPort,
   CommunityProfileDraft,
   CommunityProfileSettingsPort,
-  NamespaceCommandIdempotencyKeys,
   NamespaceFamily,
   NamespaceResourceRecord,
   NamespaceSettingsSnapshot,
 } from "./owner-settings-model";
+export { namespaceIdempotencyKeys } from "./community-namespace-idempotency";
 
 const HNS_COMPLETE_RESOURCE: ReadonlyArray<NamespaceResourceRecord> = [
   { record_type: "NS", value: "ns1.pirate.", supported: true, wallet_record: { type: "NS", ns: "ns1.pirate." } },
@@ -20,19 +20,6 @@ export const unsupportedHnsRecords: ReadonlyArray<NamespaceResourceRecord> = [
   ...HNS_COMPLETE_RESOURCE,
   { record_type: "TLSA", value: "3 1 1 2A8F…", supported: false },
 ];
-
-export function namespaceIdempotencyKeys(operationId: string): NamespaceCommandIdempotencyKeys {
-  return {
-    acknowledge_complete_resource: `${operationId}-acknowledge-complete-resource`,
-    activate: `${operationId}-activate`,
-    change_namespace: `${operationId}-change-namespace`,
-    poll: `${operationId}-poll`,
-    restart: `${operationId}-restart`,
-    select_namespace: `${operationId}-select-namespace`,
-    start_verification: `${operationId}-start-verification`,
-    submit_name_signature: `${operationId}-submit-name-signature`,
-  };
-}
 
 export function createFakeProfileSettingsPort(initial: CommunityProfileDraft): CommunityProfileSettingsPort {
   let revision = 7;

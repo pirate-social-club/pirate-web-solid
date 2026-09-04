@@ -3,6 +3,7 @@ import { Card, Type } from "@pirate/web-solid-ui";
 import { Loading, Show, createEffect, createMemo } from "solid-js";
 
 import type { CommunityModerationSettingsApi } from "./community-moderation-settings-api";
+import { CommunityNamespaceSettingsController } from "./community-namespace-settings-controller";
 import { CommunityModerationSettingsController } from "./community-moderation-settings-controller";
 import type { CommunityNamesSettingsApi } from "./community-names-settings-api";
 import { CommunityNamesSettingsController } from "./community-names-settings-controller";
@@ -14,9 +15,11 @@ import {
   type RoutedOwnerSettingsSection,
 } from "./owner-settings-route-model";
 import { visibleOwnerSettingsGroups } from "./owner-settings-model";
+import type { CommunityNamespaceSettingsPort } from "./owner-settings-model";
 
 export interface OwnerSettingsRouteViewProps {
   moderationApi?: CommunityModerationSettingsApi;
+  namespaceApi?: CommunityNamespaceSettingsPort;
   namesApi?: CommunityNamesSettingsApi;
   navigate: (href: string, options?: { replace?: boolean }) => void;
   requestedSection: string;
@@ -98,6 +101,13 @@ function ResolvedOwnerSettingsRouteView(props: ResolvedOwnerSettingsRouteViewPro
                 <CommunityNamesSettingsController
                   api={props.namesApi}
                   communityId={state().communityId}
+                />
+              </Show>
+              <Show when={section() === "namespace"}>
+                <CommunityNamespaceSettingsController
+                  api={props.namespaceApi}
+                  communityId={state().communityId}
+                  communityPath={state().communityPath}
                 />
               </Show>
               <Show when={section() === "moderation_queue" || section() === "content_policy"}>

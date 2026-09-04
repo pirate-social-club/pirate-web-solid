@@ -65,7 +65,7 @@ function creationIntent(overrides: CreationIntentOverrides = {}) {
     draft: {
       description: "A place for careful listening",
       name: "Harbor songs",
-      persona_id: "persona-1",
+      persona: { kind: "existing", persona_id: "persona-1" },
       policy,
     },
     expires_at: "2026-08-31T00:00:00Z",
@@ -122,7 +122,7 @@ describe("createCommunityCreationApi", () => {
       draft: {
         description: "A place for careful listening",
         name: "Harbor songs",
-        persona_id: "persona-1",
+        persona: { kind: "existing", persona_id: "persona-1" },
         policy,
       },
       idempotency_key: "create-key",

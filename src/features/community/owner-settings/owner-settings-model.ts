@@ -97,11 +97,11 @@ export type CommunityProfileSettingsPort = Readonly<{
 export type NamespaceFamily = "hns";
 
 export type HnsWalletResourceRecord =
-  | Readonly<{ ns: string; type: "NS" }>
-  | Readonly<{ address: string; ns: string; type: "GLUE4" | "GLUE6" }>
-  | Readonly<{ address: string; type: "SYNTH4" | "SYNTH6" }>
-  | Readonly<{ txt: ReadonlyArray<string>; type: "TXT" }>
-  | Readonly<{ algorithm: number; digest: string; digestType: number; keyTag: number; type: "DS" }>;
+  | Readonly<{ type: "NS"; ns: string }>
+  | Readonly<{ type: "TXT"; txt: ReadonlyArray<string> }>
+  | Readonly<{ type: "DS"; keyTag: number; algorithm: number; digestType: number; digest: string }>
+  | Readonly<{ type: "GLUE4" | "GLUE6"; ns: string; address: string }>
+  | Readonly<{ type: "SYNTH4" | "SYNTH6"; address: string }>;
 
 export type NamespaceResourceRecord = Readonly<{
   record_type: string;

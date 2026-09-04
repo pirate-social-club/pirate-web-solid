@@ -118,7 +118,7 @@ function draftBody(draft: CreateCommunityDraft) {
   return {
     description: draft.description,
     name: draft.name,
-    persona_id: draft.personaId,
+    persona: { kind: "existing" as const, persona_id: draft.personaId },
     policy: draftGatePolicy(draft),
   };
 }

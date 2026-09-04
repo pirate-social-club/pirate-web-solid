@@ -1,11 +1,11 @@
 {
   "name": "@pirate/api-client",
-  "version": "0.52.0",
-  "artifact": "vendor/api-client/pirate-api-client-0.52.0.tgz",
-  "sha256": "4f63398867b7952655c76ba2fe2442f1134b4fe7c485bcf4fddf59184a46dc99",
-  "source": "api-next-contracts@9d3d4781be512fbcacbee414b321305be0966126f3d172d5b58615b5d2101bc1",
-  "openapiSha256": "9d3d4781be512fbcacbee414b321305be0966126f3d172d5b58615b5d2101bc1",
-  "clientSha256": "56f23c43fa89bd3aee982bd1b16ad48255c7e1ae15efd3fb48af021c8c965f1f",
+  "version": "0.58.0",
+  "artifact": "vendor/api-client/pirate-api-client-0.58.0.tgz",
+  "sha256": "5b093c5a98978eebaeb2df7b37e3644a34a6ce620cfee925213c96a8af023938",
+  "source": "api-next-contracts@4037e3478fcb9a7fbd406ac487bbf63130961c4954c9ff7c6373a144d629e495",
+  "openapiSha256": "4037e3478fcb9a7fbd406ac487bbf63130961c4954c9ff7c6373a144d629e495",
+  "clientSha256": "346b42c358cf8286d5f5490ceb1bd88a24a58fca721f46eb6f9d0d8ab03a58b2",
   "scope": [
     "post_communityCreationIntents",
     "get_communityCreationIntentsIntentId",
@@ -27,6 +27,10 @@
     "post_communitiesCommunityIdStudyV2SessionsSessionIdItemsSessionItemIdAnswers",
     "get_publicPostsBySlug",
     "get_publicPostsByIdPostIdCanonicalRoute",
-    "get_publicPostsSitemap"
+    "get_publicPostsSitemap",
+    "post_communitiesCommunityIdHnsRootImports",
+    "get_communitiesCommunityIdHnsRootImportsSessionId",
+    "post_communitiesCommunityIdHnsRootImportsSessionIdPoll",
+    "post_communitiesCommunityIdHnsRootImportsSessionIdActivate"
   ]
 }

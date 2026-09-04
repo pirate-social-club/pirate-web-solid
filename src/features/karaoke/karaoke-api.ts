@@ -13,6 +13,7 @@ import {
   sessionRequestOptions,
 } from "../../api/client";
 import type { ApiFetch } from "../../api/proxy";
+import { resolveSession } from "../../api/session";
 import type {
   ApiKaraokeAttempt,
   ApiKaraokeScoringDiagnostics,
@@ -108,6 +109,7 @@ export interface KaraokeApiClientOptions {
   origin?: string | URL;
   fetchImpl?: ApiFetch;
   readCsrfToken?: () => string | undefined;
+  resolvePersonaId?: () => Promise<string>;
 }
 
 export class KaraokeAvailabilityError extends KaraokeApiError {
@@ -312,6 +314,13 @@ export function createKaraokeApiClient(options: KaraokeApiClientOptions = {}): K
     return generatedClient;
   };
   const csrfToken = options.readCsrfToken ?? readCsrfCookie;
+  const resolvePersonaId = options.resolvePersonaId ?? (async () => {
+    const session = await resolveSession();
+    if (session === "anonymous" || session.personas.length === 0) {
+      throw new KaraokeApiError("persona_required", "An active public persona is required to start karaoke.", 403, false);
+    }
+    return session.personas[0]!.personaId;
+  });
 
   return {
     createSession: async ({ communityId, idempotencyKey, postId, signal }) => {
@@ -324,9 +333,10 @@ export function createKaraokeApiClient(options: KaraokeApiClientOptions = {}): K
           false,
         );
       }
+      const personaId = await resolvePersonaId();
       const response = await callApi(() => client().post_communitiesCommunityIdPostsPostIdKaraokeAttempts(
         {
-          body: {},
+          body: { persona_id: personaId },
           headers: { "idempotency-key": idempotencyKey },
           path: { communityId, postId },
         },

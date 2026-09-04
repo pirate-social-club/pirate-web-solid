@@ -224,7 +224,7 @@ function ServerDirectedAction(props: Pick<CommunityNamespaceSettingsPanelProps, 
               >
                 <div class="space-y-2">
                   <Type as="h2" variant="h2">Publish this complete resource</Type>
-                  <FormNote tone="warning">A Handshake update replaces the complete resource. Publish every NS, TXT, and DS record below in one wallet update. Publishing only some records can remove records that are already live.</FormNote>
+                  <FormNote tone="warning">A Handshake update replaces the complete resource. Publish every record below in one wallet update. Publishing only some records can remove records that are already live.</FormNote>
                 </div>
               </Show>
               <NamespaceRecordList records={current().records} />

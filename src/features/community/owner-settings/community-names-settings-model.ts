@@ -48,7 +48,7 @@ export type CommunityNamesSettingsCommand =
 export function ownerSettingsAccessFromNamesSnapshot(
   _snapshot: CommunityNamesManagementSnapshot,
 ): OwnerSettingsAccess {
-  return { "community.names.manage": true };
+  return { "community.names.manage": true, "community.namespace.write": true };
 }
 
 export function saleNamespaceActivationInput(input: {

@@ -74,9 +74,10 @@ describe("community names settings model", () => {
     });
   });
 
-  it("grants only Names navigation after the owner-only management read succeeds", () => {
+  it("grants Names and root-address navigation after the owner-only management read succeeds", () => {
     expect(ownerSettingsAccessFromNamesSnapshot(NAMES_READY)).toEqual({
       "community.names.manage": true,
+      "community.namespace.write": true,
     });
   });
 });

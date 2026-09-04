@@ -10,6 +10,7 @@ import type { OwnerSettingsAccess, OwnerSettingsSection } from "./owner-settings
 import { visibleOwnerSettingsGroups } from "./owner-settings-model";
 
 export const ROUTED_OWNER_SETTINGS_SECTIONS = [
+  "namespace",
   "names",
   "moderation_queue",
   "content_policy",
@@ -37,7 +38,7 @@ export interface OwnerSettingsRouteDependencies {
 }
 
 export function routedOwnerSettingsSection(value: string | undefined): RoutedOwnerSettingsSection | null {
-  return value === "names" || value === "moderation_queue" || value === "content_policy"
+  return value === "namespace" || value === "names" || value === "moderation_queue" || value === "content_policy"
     ? value
     : null;
 }

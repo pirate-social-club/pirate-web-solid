@@ -12,6 +12,7 @@ import {
 import type { CommunityNamesSettingsApi } from "./community-names-settings-api";
 import { NAMES_READY } from "./community-names-settings-fixtures";
 import type { OwnerSettingsRouteState } from "./owner-settings-route-model";
+import type { CommunityNamespaceSettingsPort } from "./owner-settings-model";
 import { OwnerSettingsRouteView } from "./owner-settings-route-view";
 
 const disposers: Array<() => void> = [];
@@ -38,6 +39,7 @@ const success: OwnerSettingsRouteState = {
   access: {
     "community.moderation.manage": true,
     "community.names.manage": true,
+    "community.namespace.write": true,
   },
   avatarUrl: null,
   communityId: "community_midnight",
@@ -66,6 +68,19 @@ function moderationApi(): CommunityModerationSettingsApi {
   };
 }
 
+function namespaceApi(): CommunityNamespaceSettingsPort {
+  return {
+    execute: async () => { throw new Error("not called"); },
+    read: async () => ({
+      community_id: "community_midnight",
+      family: null,
+      generation: 1,
+      next_action: { kind: "choose_namespace" },
+      root_label: "",
+    }),
+  };
+}
+
 describe("OwnerSettingsRouteView", () => {
   test("mounts only real authorized sections and pushes section navigation", async () => {
     const navigate = vi.fn();
@@ -73,6 +88,7 @@ describe("OwnerSettingsRouteView", () => {
       <OwnerSettingsRouteView
         moderationApi={moderationApi()}
         namesApi={namesApi()}
+        namespaceApi={namespaceApi()}
         navigate={navigate}
         requestedSection="names"
         state={success}
@@ -83,6 +99,7 @@ describe("OwnerSettingsRouteView", () => {
     expect(container.textContent).toContain("Names");
     expect(container.textContent).toContain("Queue");
     expect(container.textContent).toContain("Content policy");
+    expect(container.textContent).toContain("Address");
     expect(container.textContent).not.toContain("Community profile");
     expect(container.textContent).not.toContain("Archive community");
     const queue = [...container.querySelectorAll<HTMLButtonElement>("button")]
@@ -90,6 +107,22 @@ describe("OwnerSettingsRouteView", () => {
     expect(queue).toBeDefined();
     queue!.click();
     expect(navigate).toHaveBeenCalledWith("/c/midnight/settings/moderation_queue");
+  });
+
+  test("mounts the real namespace controller for the owner address section", async () => {
+    const container = render(() => (
+      <OwnerSettingsRouteView
+        moderationApi={moderationApi()}
+        namesApi={namesApi()}
+        namespaceApi={namespaceApi()}
+        navigate={() => undefined}
+        requestedSection="namespace"
+        state={success}
+      />
+    ));
+
+    await vi.waitFor(() => expect(container.textContent).toContain("Handshake root"));
+    expect(container.textContent).toContain("Community address settings");
   });
 
   test("replaces unsupported direct links with the first authorized section", async () => {
@@ -105,7 +138,7 @@ describe("OwnerSettingsRouteView", () => {
     ));
 
     await vi.waitFor(() => expect(navigate).toHaveBeenCalledWith(
-      "/c/midnight/settings/names",
+      "/c/midnight/settings/namespace",
       { replace: true },
     ));
   });

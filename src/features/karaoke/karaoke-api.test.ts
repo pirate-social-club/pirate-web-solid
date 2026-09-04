@@ -177,6 +177,7 @@ describe("createKaraokeApiClient", () => {
       },
       origin: "https://web.test",
       readCsrfToken: () => "csrf-1",
+      resolvePersonaId: async () => "persona-1",
     });
 
     await expect(client.createSession({
@@ -192,6 +193,7 @@ describe("createKaraokeApiClient", () => {
     expect(requests[0]?.request.headers.get("idempotency-key")).toBe("key-1");
     expect(requests[0]?.request.headers.get("x-csrf-token")).toBe("csrf-1");
     expect(requests[0]?.credentials).toBe("same-origin");
+    await expect(requests[0]?.request.json()).resolves.toEqual({ persona_id: "persona-1" });
   });
 
   test("reads leaderboard and attempt through their generated contract paths", async () => {

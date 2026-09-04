@@ -62,6 +62,7 @@ describe("owner settings route model", () => {
       access: {
         "community.moderation.manage": true,
         "community.names.manage": true,
+        "community.namespace.write": true,
       },
       avatarUrl: null,
       communityId,
@@ -111,5 +112,6 @@ describe("owner settings route model", () => {
     expect(routedOwnerSettingsSection("profile")).toBeNull();
     expect(firstRoutedOwnerSettingsSection({ "community.moderation.manage": true })).toBe("moderation_queue");
     expect(firstRoutedOwnerSettingsSection({ "community.names.manage": true })).toBe("names");
+    expect(routedOwnerSettingsSection("namespace")).toBe("namespace");
   });
 });
