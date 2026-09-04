@@ -85,6 +85,9 @@ function PostDetail(props: { readonly response: PublicPostContentResponse }) {
 
 function Content(props: { readonly state: Extract<PublicPostRouteState, { readonly kind: "content" }> }) {
   const route = () => props.state.response.route;
+  const detailPath = () => route()?.canonical_path ?? "/";
+  const karaokePath = () => route()?.activity_paths.karaoke ?? "/";
+  const studyPath = () => route()?.activity_paths.study ?? "/";
   const activity = () => props.state.activity;
   return (
     <>
@@ -93,21 +96,21 @@ function Content(props: { readonly state: Extract<PublicPostRouteState, { readon
         <Show when={activity() === "study"} fallback={(
           <Show when={activity() === "karaoke"} fallback={(
             <KaraokeLeaderboardRouteView
-              karaokePath={route()?.activity_paths.karaoke}
+              karaokePath={karaokePath()}
               postId={props.state.response.post_id}
             />
           )}>
             <KaraokeSessionRouteView
-              exitPath={route()?.canonical_path}
+              exitPath={detailPath()}
               postId={props.state.response.post_id}
             />
           </Show>
         )}>
           <StudyV2RouteView
-            exitPath={route()?.canonical_path}
-            karaokePath={route()?.activity_paths.karaoke}
+            exitPath={detailPath()}
+            karaokePath={karaokePath()}
             postId={props.state.response.post_id}
-            routePath={route()?.activity_paths.study}
+            routePath={studyPath()}
           />
         </Show>
       )}>

@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import {
   publicPostResponsePolicy,
+  resolvePublicPostLocale,
   resolvePublicPostPreflight,
 } from "./public-post-preflight.ts";
 
@@ -45,11 +46,19 @@ describe("public post SSR preflight", () => {
     expect(state?.state).toEqual({ kind: "not-found", status: 404 });
     expect(seen?.url.pathname).toBe("/public/posts/by-slug");
     expect(seen?.url.searchParams.get("slug")).toBe("hello");
+    expect(seen?.url.searchParams.get("locale")).toBe("en");
     expect(seen?.headers.get("cookie")).toContain("__Host-pirate_session=session-value");
     expect(seen?.headers.get("cookie")).not.toContain("pirate_csrf");
     expect(seen?.headers.get("authorization")).toBeNull();
     expect(seen?.headers.get("x-csrf-token")).toBeNull();
     expect(seen?.credentials).toBe("omit");
+  });
+
+  it("uses one locale policy for SSR and browser route loads", () => {
+    expect(resolvePublicPostLocale(new URL("https://pirate.sc/posts/hello?locale=zh-CN"), "ar"))
+      .toBe("zh-CN");
+    expect(resolvePublicPostLocale(new URL("https://pirate.sc/posts/hello"), "ar-EG, en;q=0.8"))
+      .toBe("ar");
   });
 
   it("partitions guarded HTML and commits no redirect policy after streaming", () => {

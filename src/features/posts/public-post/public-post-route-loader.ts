@@ -9,6 +9,7 @@ import {
 } from "./public-post-route.model.ts";
 import {
   publicPostResponsePolicy,
+  resolvePublicPostLocale,
   type PublicPostPreflight,
 } from "./public-post-preflight.ts";
 
@@ -22,6 +23,20 @@ function currentOrigin(): string | undefined {
   const event = getRequestEvent();
   if (event !== undefined) return new URL(event.request.url).origin;
   return typeof location === "undefined" ? undefined : location.origin;
+}
+
+function currentLocale(): string {
+  const event = getRequestEvent();
+  if (event !== undefined) {
+    return resolvePublicPostLocale(
+      new URL(event.request.url),
+      event.request.headers.get("accept-language"),
+    );
+  }
+  return resolvePublicPostLocale(
+    new URL(typeof location === "undefined" ? "https://pirate.invalid/" : location.href),
+    typeof navigator === "undefined" ? undefined : navigator.language,
+  );
 }
 
 function commit(state: PublicPostRouteState): void {
@@ -45,6 +60,7 @@ function settled(requestPath: string): PublicPostRouteState | undefined {
 export async function loadSlugRoute(
   rawSlug: string,
   activity: PublicPostActivity,
+  locale: string,
 ): Promise<PublicPostRouteState> {
   const requestPath = currentPath();
   const preflight = settled(requestPath);
@@ -52,6 +68,7 @@ export async function loadSlugRoute(
   const state = await loadPublicPostBySlug({
     activity,
     client: createSessionApiClient({ origin: currentOrigin() }),
+    locale,
     rawSlug,
     requestPath,
   });
@@ -62,6 +79,7 @@ export async function loadSlugRoute(
 export async function loadLegacyRoute(
   postId: string,
   activity: Exclude<PublicPostActivity, "detail">,
+  locale: string,
 ): Promise<PublicPostRouteState> {
   const requestPath = currentPath();
   const preflight = settled(requestPath);
@@ -69,6 +87,7 @@ export async function loadLegacyRoute(
   const state = await loadPublicPostById({
     activity,
     client: createSessionApiClient({ origin: currentOrigin() }),
+    locale,
     postId,
     requestPath,
   });
@@ -78,3 +97,14 @@ export async function loadLegacyRoute(
 
 export const queryPublicPostSlugRoute = query(loadSlugRoute, "public-post-slug-route");
 export const queryPublicPostLegacyRoute = query(loadLegacyRoute, "public-post-legacy-route");
+
+export function preloadPublicPostSlugRoute(rawSlug: string, activity: PublicPostActivity) {
+  return queryPublicPostSlugRoute(rawSlug, activity, currentLocale());
+}
+
+export function preloadPublicPostLegacyRoute(
+  postId: string,
+  activity: Exclude<PublicPostActivity, "detail">,
+) {
+  return queryPublicPostLegacyRoute(postId, activity, currentLocale());
+}

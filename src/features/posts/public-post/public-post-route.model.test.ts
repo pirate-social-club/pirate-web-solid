@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { GetPublicPostsBySlugResponse } from "@pirate/api-client";
 import {
   decodePublicPostSlug,
+  legacyPublicPostPathFromRequest,
   loadPublicPostBySlug,
   loadPublicPostById,
   projectPublicPostResponse,
@@ -32,6 +33,8 @@ describe("public post raw slug boundary", () => {
     "%252F",
     "%2F",
     "%5c",
+    "title%3Fdraft",
+    "title%23draft",
     ".",
     "..",
     "%EF%BC%8F",
@@ -53,6 +56,14 @@ describe("public post raw slug boundary", () => {
     expect(publicPostPathFromRequest(new Request("https://pirate.sc/posts/song/extra"))).toBeUndefined();
   });
 
+  it("recognizes case-varied activity suffixes so preflight can canonicalize them", () => {
+    expect(publicPostPathFromRequest(new Request("https://pirate.sc/posts/song/STUDY")))
+      .toEqual({ rawSlug: "song", activity: "study" });
+    expect(legacyPublicPostPathFromRequest(
+      new Request("https://pirate.sc/p/post-1/KARAOKE/LEADERBOARD"),
+    )).toEqual({ postId: "post-1", activity: "karaoke-leaderboard" });
+  });
+
   it("redirects a valid noncanonical wire spelling to the API-owned activity path", () => {
     const route = {
       canonical_path: "/posts/stra%C3%9Fe",
@@ -72,6 +83,24 @@ describe("public post raw slug boundary", () => {
       status: 308,
       location: "https://pirate.sc/posts/stra%C3%9Fe/study",
     });
+  });
+
+  it("fails closed when API route data contains query or fragment delimiters", () => {
+    for (const canonicalPath of ["/posts/title?draft", "/posts/title#draft"]) {
+      expect(projectPublicPostResponse({
+        activity: "detail",
+        logicalSlug: "title",
+        requestPath: "/posts/title",
+        response: contentResponse({
+          canonical_path: canonicalPath,
+          activity_paths: {
+            study: `${canonicalPath}/study`,
+            karaoke: `${canonicalPath}/karaoke`,
+            karaoke_leaderboard: `${canonicalPath}/karaoke/leaderboard`,
+          },
+        }),
+      })).toEqual({ kind: "unavailable", status: 502 });
+    }
   });
 
   it("never redirects or exposes a canonical URL for a guarded content response", () => {

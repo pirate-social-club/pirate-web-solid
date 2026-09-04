@@ -22,9 +22,11 @@ export type PublicPostResponsePolicy = Readonly<{
   readonly headers: Headers;
 }>;
 
-function localeFromRequest(request: Request): string {
-  const url = new URL(request.url);
-  return resolveLocaleLanguageTag(resolveRequestUiLocale(url, request.headers.get("accept-language")));
+export function resolvePublicPostLocale(
+  url: URL,
+  acceptLanguage: string | null | undefined,
+): string {
+  return resolveLocaleLanguageTag(resolveRequestUiLocale(url, acceptLanguage));
 }
 
 function sessionCookieHeader(request: Request): string | undefined {
@@ -72,7 +74,7 @@ export async function resolvePublicPostPreflight(
   } catch {
     return { requestPath, state: { kind: "unavailable", status: 502 } };
   }
-  const locale = localeFromRequest(request);
+  const locale = resolvePublicPostLocale(new URL(request.url), request.headers.get("accept-language"));
   const state = slugRoute === undefined
     ? await loadPublicPostById({ ...legacyRoute!, client, locale, requestPath })
     : await loadPublicPostBySlug({ ...slugRoute, client, locale, requestPath });

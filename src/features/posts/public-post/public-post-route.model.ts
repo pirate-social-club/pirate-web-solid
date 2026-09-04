@@ -39,7 +39,7 @@ export type DecodedPostSlug = Readonly<{
 }>;
 
 function forbiddenLogicalSlug(value: string): boolean {
-  return value === "" || value === "." || value === ".." || /[%/\\]/u.test(value);
+  return value === "" || value === "." || value === ".." || /[%/\\?#]/u.test(value);
 }
 
 /** Decode one raw URL path segment with strict escapes and strict UTF-8. */
@@ -78,14 +78,15 @@ export function publicPostPathFromRequest(request: Request): Readonly<{
   readonly activity: PublicPostActivity;
   readonly rawSlug: string;
 }> | undefined {
-  const match = /^\/posts\/([^/]+)(?:\/(study|karaoke(?:\/leaderboard)?))?\/?$/u.exec(
+  const match = /^\/posts\/([^/]+)(?:\/(study|karaoke(?:\/leaderboard)?))?\/?$/iu.exec(
     new URL(request.url).pathname,
   );
   if (match?.[1] === undefined) return undefined;
-  const activity = match[2] === "study"
+  const suffix = match[2]?.toLowerCase();
+  const activity = suffix === "study"
     ? "study"
-    : match[2] === "karaoke" ? "karaoke"
-      : match[2] === "karaoke/leaderboard" ? "karaoke-leaderboard"
+    : suffix === "karaoke" ? "karaoke"
+      : suffix === "karaoke/leaderboard" ? "karaoke-leaderboard"
         : "detail";
   return { activity, rawSlug: match[1] };
 }
@@ -94,7 +95,7 @@ export function legacyPublicPostPathFromRequest(request: Request): Readonly<{
   readonly activity: Exclude<PublicPostActivity, "detail">;
   readonly postId: string;
 }> | undefined | null {
-  const match = /^\/p\/([^/]+)\/(study|karaoke(?:\/leaderboard)?)\/?$/u.exec(new URL(request.url).pathname);
+  const match = /^\/p\/([^/]+)\/(study|karaoke(?:\/leaderboard)?)\/?$/iu.exec(new URL(request.url).pathname);
   if (match?.[1] === undefined) return undefined;
   let postId: string;
   try {
@@ -104,7 +105,9 @@ export function legacyPublicPostPathFromRequest(request: Request): Readonly<{
   }
   if (postId === "" || /[%/\\]/u.test(postId)) return null;
   return {
-    activity: match[2] === "study" ? "study" : match[2] === "karaoke" ? "karaoke" : "karaoke-leaderboard",
+    activity: match[2]?.toLowerCase() === "study"
+      ? "study"
+      : match[2]?.toLowerCase() === "karaoke" ? "karaoke" : "karaoke-leaderboard",
     postId,
   };
 }
