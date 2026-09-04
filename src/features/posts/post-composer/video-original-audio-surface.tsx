@@ -135,7 +135,7 @@ export function OriginalVideoCaptureSurface(props: OriginalVideoCaptureSurfacePr
             />
             <button
               aria-label={recording() ? "Stop recording" : "Start recording"}
-              aria-pressed={recording()}
+              aria-pressed={recording() ? "true" : "false"}
               class="grid size-[74px] cursor-pointer place-items-center rounded-full border-4 border-white outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ring-offset-black"
               onClick={() => props.onRecordToggle?.()}
               type="button"
@@ -291,11 +291,7 @@ export type OriginalVideoPublicationState =
   | "failed"
   | "playback_pending";
 
-const publicationCopy: Record<OriginalVideoPublicationState, Readonly<{
-  title: string;
-  description: string;
-  tone: "default" | "warning" | "destructive" | "success";
-}>> = {
+const publicationCopy = {
   uploading: {
     title: "Uploading video",
     description: "Keep this page open while the original file uploads.",
@@ -331,7 +327,11 @@ const publicationCopy: Record<OriginalVideoPublicationState, Readonly<{
     description: "The post is live, but playback is still being prepared. It will become watchable without another upload.",
     tone: "success",
   },
-};
+} satisfies Record<OriginalVideoPublicationState, Readonly<{
+  title: string;
+  description: string;
+  tone: "default" | "warning" | "destructive" | "success";
+}>>;
 
 export function OriginalVideoPublicationSurface(props: {
   readonly state: OriginalVideoPublicationState;

@@ -68,6 +68,7 @@ export default defineConfig({
       "src/features/posts/post-engagement/post-engagement.test.tsx",
       "src/features/posts/post-composer/create-post-dialog.test.tsx",
       "src/features/posts/post-composer/post-composer-submission.test.tsx",
+      "src/features/posts/post-composer/video-original-audio-surface.test.tsx",
       "src/features/posts/post-composer/text-submission-contract.test.ts",
       "src/features/posts/post-composer/pending-submission.test.ts",
       "src/features/posts/post-composer/text-submission-transport.test.ts",
