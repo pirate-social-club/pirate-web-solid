@@ -40,6 +40,7 @@ export interface TextContentSubmissionRequestV1 {
   readonly authorship_mode: "human_direct";
   readonly identity_mode: "public";
   readonly visibility: "public";
+  readonly author_declared_rating: "general" | "adult_18";
   readonly title: string | null;
   readonly body: string;
 }
@@ -50,6 +51,7 @@ interface RawTextSubmissionRequestObject {
   readonly authorship_mode?: unknown;
   readonly identity_mode?: unknown;
   readonly visibility?: unknown;
+  readonly author_declared_rating?: unknown;
   readonly title?: unknown;
   readonly body?: unknown;
 }
@@ -83,7 +85,7 @@ export function decodeTextContentSubmissionRequest(value: unknown): TextContentS
     throw new TextSubmissionContractError("Text submission request must be an object");
   }
   const keys = Object.keys(value);
-  const expectedKeys = [
+  const requiredKeys = [
     "idempotency_key",
     "post_type",
     "authorship_mode",
@@ -92,7 +94,8 @@ export function decodeTextContentSubmissionRequest(value: unknown): TextContentS
     "title",
     "body",
   ];
-  if (keys.length !== expectedKeys.length || expectedKeys.some(key => !Object.prototype.hasOwnProperty.call(value, key))) {
+  const allowedKeys = [...requiredKeys, "author_declared_rating"];
+  if (requiredKeys.some(key => !Object.prototype.hasOwnProperty.call(value, key)) || keys.some(key => !allowedKeys.includes(key))) {
     throw new TextSubmissionContractError("Text submission request has an unexpected shape");
   }
   if (typeof value.idempotency_key !== "string" || value.idempotency_key === "") {
@@ -100,6 +103,9 @@ export function decodeTextContentSubmissionRequest(value: unknown): TextContentS
   }
   if (value.post_type !== "text" || value.authorship_mode !== "human_direct" || value.identity_mode !== "public" || value.visibility !== "public") {
     throw new TextSubmissionContractError("Text submission request has invalid fixed fields");
+  }
+  if (value.author_declared_rating !== undefined && value.author_declared_rating !== "general" && value.author_declared_rating !== "adult_18") {
+    throw new TextSubmissionContractError("Text submission request has an invalid author-declared rating");
   }
   if (value.title !== null && typeof value.title !== "string") {
     throw new TextSubmissionContractError("Text submission request has an invalid title");
@@ -113,6 +119,7 @@ export function decodeTextContentSubmissionRequest(value: unknown): TextContentS
     authorship_mode: "human_direct",
     identity_mode: "public",
     visibility: "public",
+    author_declared_rating: value.author_declared_rating ?? "general",
     title: value.title,
     body: value.body,
   };
@@ -263,6 +270,7 @@ export function normalizeTextSubmissionRequest(
       authorship_mode: "human_direct",
       identity_mode: "public",
       visibility: "public",
+      author_declared_rating: request.body.author_declared_rating,
       title: normalizeTextField(request.body.title),
       body,
     },

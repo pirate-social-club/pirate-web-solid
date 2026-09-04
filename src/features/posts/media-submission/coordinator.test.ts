@@ -190,9 +190,22 @@ const beginInput = () => ({
   audio: new File([new Uint8Array([1, 2, 3])], "song.mp3", { type: "audio/mpeg", lastModified: 1 }),
   title: "Midnight Signal",
   songType: "original" as const,
+  authorDeclaredRating: "adult_18" as const,
 });
 
 describe("media submission coordinator replay", () => {
+  test("persists and sends the author-declared song rating", async () => {
+    const storage = createMemoryMediaSubmissionStorage();
+    const transport = new FakeTransport();
+    const flow = coordinator(storage, transport, ["reserve-key", "start-key"]);
+    await flow.begin(beginInput());
+
+    expect(flow.currentRecord?.song_draft.author_declared_rating).toBe("adult_18");
+    const start = transport.commands.find(command => command.kind === "start");
+    expect(start).toBeDefined();
+    expect(JSON.parse(new TextDecoder().decode(await mediaCommandBody(start!)))).toMatchObject({ author_declared_rating: "adult_18" });
+  });
+
   test("binds reviewed lyrics once while finalization remains in flight", async () => {
     const storage = createMemoryMediaSubmissionStorage();
     const transport = new HeldFinalizeTransport();

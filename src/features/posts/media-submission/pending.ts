@@ -31,6 +31,7 @@ export interface PendingMediaSubmissionV1 {
   readonly song_draft: {
     readonly title: string;
     readonly song_type: "original" | "remix";
+    readonly author_declared_rating?: "general" | "adult_18";
   };
   readonly audio: {
     readonly blob: Blob;

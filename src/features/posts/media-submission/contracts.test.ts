@@ -55,16 +55,29 @@ describe("song media command contracts", () => {
       reservationId: "reservation-1",
       songType: "original",
       title: "Midnight Signal",
+      authorDeclaredRating: "adult_18",
     });
     expect(Object.keys(start.body).sort()).toEqual([
       "audio_reservation_id",
+      "author_declared_rating",
       "idempotency_key",
       "persona_id",
       "song_type",
       "title",
       "version",
     ]);
+    expect(start.body.author_declared_rating).toBe("adult_18");
     expect(Object.keys(start.body)).not.toEqual(expect.arrayContaining(["lyrics", "language", "explicitness", "commentary", "body", "artwork"]));
+
+    const legacyStart = buildStartSongInput({
+      communityId: "community-1",
+      personaId: "persona-author",
+      idempotencyKey: "start-legacy",
+      reservationId: "reservation-legacy",
+      songType: "original",
+      title: "Retained legacy song",
+    });
+    expect("author_declared_rating" in legacyStart.body).toBe(false);
 
     const lyrics = buildSongLyricsInput({
       submissionId: "sub-1",

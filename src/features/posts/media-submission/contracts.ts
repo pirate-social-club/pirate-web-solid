@@ -110,19 +110,23 @@ export function buildStartSongInput(input: {
   readonly reservationId: string;
   readonly songType: "original" | "remix";
   readonly title: string;
+  readonly authorDeclaredRating?: "general" | "adult_18";
 }): PostCommunitiesCommunityIdMediaPostSubmissionsInput {
   const title = input.title.trim();
   if (title === "" || title.length > 300) throw new SongSubmissionContractError("Song title is required and cannot exceed 300 characters");
+  const body = {
+    persona_id: requiredId(input.personaId, "personaId"),
+    version: "song-start-input-v1" as const,
+    title,
+    audio_reservation_id: requiredId(input.reservationId, "reservationId"),
+    song_type: input.songType,
+    idempotency_key: requiredId(input.idempotencyKey, "idempotencyKey"),
+  };
   return {
     path: { communityId: requiredId(input.communityId, "communityId") },
-    body: {
-      persona_id: requiredId(input.personaId, "personaId"),
-      version: "song-start-input-v1",
-      title,
-      audio_reservation_id: requiredId(input.reservationId, "reservationId"),
-      song_type: input.songType,
-      idempotency_key: requiredId(input.idempotencyKey, "idempotencyKey"),
-    },
+    body: input.authorDeclaredRating === undefined
+      ? body
+      : { ...body, author_declared_rating: input.authorDeclaredRating },
   };
 }
 

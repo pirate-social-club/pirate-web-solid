@@ -13,6 +13,7 @@ export interface SongComposerBridgeInput {
   readonly songMode: SongMode;
   readonly license: AssetLicenseState;
   readonly royaltySplit: AssetRoyaltySplitState;
+  readonly authorDeclaredRating: "general" | "adult_18";
 }
 
 function bridgeAllocations(split: AssetRoyaltySplitState): readonly SongRoyaltyAllocation[] {
@@ -42,6 +43,7 @@ export async function submitSongComposer(input: SongComposerBridgeInput): Promis
       audio,
       title,
       songType: input.songMode,
+      authorDeclaredRating: input.authorDeclaredRating,
     });
   } else if (input.coordinator.currentRecord.draft_id !== input.draftId) {
     throw new Error("Resolve the retained media submission for the other draft first");

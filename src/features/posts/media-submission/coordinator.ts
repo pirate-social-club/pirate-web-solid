@@ -38,6 +38,7 @@ export interface BeginSongSubmissionInput {
   readonly audio: File;
   readonly title: string;
   readonly songType: "original" | "remix";
+  readonly authorDeclaredRating: "general" | "adult_18";
   readonly expectedSha256?: string;
 }
 
@@ -296,7 +297,11 @@ export class MediaSubmissionCoordinator {
       principal_id: input.principalId,
       community_id: input.communityId,
       persona_id: input.personaId,
-      song_draft: { title: input.title, song_type: input.songType },
+      song_draft: {
+        title: input.title,
+        song_type: input.songType,
+        author_declared_rating: input.authorDeclaredRating,
+      },
       audio: {
         blob: input.audio,
         name: input.audio.name,
@@ -353,6 +358,7 @@ export class MediaSubmissionCoordinator {
       reservationId: existing.reservation.reservation_id,
       songType: existing.song_draft.song_type,
       title: existing.song_draft.title,
+      authorDeclaredRating: existing.song_draft.author_declared_rating,
     });
     const start = await createPersistedMediaCommand({
       kind: "start",

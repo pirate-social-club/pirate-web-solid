@@ -170,6 +170,7 @@ describe("create post request", () => {
       title: "  Hello Pirate ",
       body: "  A first post from the Solid shell. ",
       idempotencyKey: "idem-1",
+      ageGatePolicy: "none",
     })).toEqual({
       path: { communityId: "community-1" },
       body: {
@@ -178,10 +179,21 @@ describe("create post request", () => {
         authorship_mode: "human_direct",
         identity_mode: "public",
         visibility: "public",
+        author_declared_rating: "general",
         title: "Hello Pirate",
         body: "A first post from the Solid shell.",
       },
     });
+  });
+
+  test("maps the 18+ composer selection to the adult text rating", () => {
+    expect(buildCreatePostRequest({
+      communityId: "community-1",
+      title: "Night watch",
+      body: "Adult-marked body",
+      idempotencyKey: "idem-adult",
+      ageGatePolicy: "18_plus",
+    }).body.author_declared_rating).toBe("adult_18");
   });
 
   test("uses the page community context without exposing or accepting a raw identifier", async () => {
@@ -213,7 +225,7 @@ describe("create post request", () => {
   test("keeps a pending envelope across dialog close and reopen", async () => {
     const storage = createMemoryPendingSubmissionStorage();
     await storage.save(await createPendingSubmissionEnvelope({
-      request: buildCreatePostRequest({ communityId: "community-1", title: "", body: "A durable draft", idempotencyKey: "pending-1" }),
+      request: buildCreatePostRequest({ communityId: "community-1", title: "", body: "A durable draft", idempotencyKey: "pending-1", ageGatePolicy: "none" }),
       pendingRequestId: "pending-1",
       createdAt: "2026-08-21T00:00:00Z",
     }));
@@ -355,9 +367,10 @@ describe("create post request", () => {
       const decoded: unknown = JSON.parse(new TextDecoder().decode(await mediaCommandBody(command)));
       // SAFETY: mediaCommandBody digest-checks command bytes built from
       // generated request bodies; this test reads only their persona field.
-      return decoded as { persona_id?: string };
+      return decoded as { persona_id?: string; author_declared_rating?: string };
     }));
     expect(bodies.every(body => body.persona_id === "persona-one")).toBe(true);
+    expect(bodies.find((_body, index) => mediaTransport.commands[index]?.kind === "start")?.author_declared_rating).toBe("general");
 
     render(() => <CreatePostDialog
       createMediaId={() => "must-not-be-used"}

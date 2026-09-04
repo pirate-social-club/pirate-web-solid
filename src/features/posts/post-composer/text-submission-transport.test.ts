@@ -18,6 +18,7 @@ const request = {
     authorship_mode: "human_direct" as const,
     identity_mode: "public" as const,
     visibility: "public" as const,
+    author_declared_rating: "general" as const,
     title: null,
     body: "Hello pirate",
   },

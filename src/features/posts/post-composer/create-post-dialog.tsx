@@ -42,6 +42,7 @@ import {
 import type {
   AssetLicenseState,
   AssetRoyaltySplitState,
+  AuthorAgeGatePolicy,
   ComposerTab,
   SongComposerState,
   SongMode,
@@ -52,6 +53,7 @@ export interface CreatePostDraft {
   readonly title: string;
   readonly body: string;
   readonly idempotencyKey: string;
+  readonly ageGatePolicy: AuthorAgeGatePolicy;
 }
 
 export interface PostCommunityContext {
@@ -69,6 +71,7 @@ export function buildCreatePostRequest(draft: CreatePostDraft): TextContentSubmi
       authorship_mode: "human_direct",
       identity_mode: "public",
       visibility: "public",
+      author_declared_rating: draft.ageGatePolicy === "18_plus" ? "adult_18" : "general",
       title: draft.title.trim() === "" ? null : draft.title.trim(),
       body: draft.body.trim(),
     },
@@ -142,6 +145,7 @@ export function CreatePostDialog(props: CreatePostDialogProps): JSX.Element {
   const [communityId, setCommunityId] = createSignal(contextualCommunityId());
   const [title, setTitle] = createSignal("");
   const [body, setBody] = createSignal("");
+  const [ageGatePolicy, setAgeGatePolicy] = createSignal<AuthorAgeGatePolicy>("none");
   const [mode, setMode] = createSignal<ComposerTab>("text");
   const [songMode, setSongMode] = createSignal<SongMode>("original");
   const [song, setSong] = createSignal<SongComposerState>({
@@ -216,6 +220,7 @@ export function CreatePostDialog(props: CreatePostDialogProps): JSX.Element {
         setMode("song");
         setCommunityId(record.community_id);
         setSongMode(record.song_draft.song_type);
+        setAgeGatePolicy(record.song_draft.author_declared_rating === "adult_18" ? "18_plus" : "none");
         setTitle(record.song_draft.title);
         setSong(current => ({
           ...current,
@@ -281,6 +286,7 @@ export function CreatePostDialog(props: CreatePostDialogProps): JSX.Element {
     setMediaView({ status: "editing" });
     resetCommunityId();
     setTitle("");
+    setAgeGatePolicy("none");
     setError("");
   }
 
@@ -300,6 +306,7 @@ export function CreatePostDialog(props: CreatePostDialogProps): JSX.Element {
         resetCommunityId();
         setTitle("");
         setBody("");
+        setAgeGatePolicy("none");
       }
       if (mediaCoordinator !== undefined && terminalMediaView(mediaView())) {
         void discardTerminalSong().catch(discardError => {
@@ -315,6 +322,7 @@ export function CreatePostDialog(props: CreatePostDialogProps): JSX.Element {
     resetCommunityId();
     setTitle("");
     setBody("");
+    setAgeGatePolicy("none");
     setError("");
   }
 
@@ -325,6 +333,7 @@ export function CreatePostDialog(props: CreatePostDialogProps): JSX.Element {
       setCommunityId(draft.communityId);
       setTitle(draft.title);
       setBody(draft.body);
+      setAgeGatePolicy(draft.authorDeclaredRating === "adult_18" ? "18_plus" : "none");
     } catch (discardError) {
       setError(discardError instanceof Error ? discardError.message : "The saved request could not be discarded safely.");
     }
@@ -348,6 +357,7 @@ export function CreatePostDialog(props: CreatePostDialogProps): JSX.Element {
         title: title(),
         body: content,
         idempotencyKey: createIdempotencyKey(),
+        ageGatePolicy: ageGatePolicy(),
       }));
       if (snapshot.status === "published") props.onPublished?.();
     } catch (submissionError) {
@@ -421,6 +431,7 @@ export function CreatePostDialog(props: CreatePostDialogProps): JSX.Element {
         songMode: songMode(),
         license: license(),
         royaltySplit: royaltySplit(),
+        authorDeclaredRating: ageGatePolicy() === "18_plus" ? "adult_18" : "general",
       });
       applySnapshot(snapshot);
     } catch (submissionError) {
@@ -610,6 +621,7 @@ export function CreatePostDialog(props: CreatePostDialogProps): JSX.Element {
               mode={mode()}
               onClose={() => close(false)}
               onLicenseChange={setLicense}
+              onAgeGatePolicyChange={setAgeGatePolicy}
               onLyricsValueChange={setLyrics}
               onModeChange={setMode}
               onRoyaltySplitChange={setRoyaltySplit}
@@ -624,6 +636,7 @@ export function CreatePostDialog(props: CreatePostDialogProps): JSX.Element {
                 if (mode() === "song") setSong(current => ({ ...current, title: value }));
               }}
               presentation="embedded"
+              ageGatePolicy={ageGatePolicy()}
               royaltySplit={royaltySplit()}
               song={song()}
               songMode={songMode()}

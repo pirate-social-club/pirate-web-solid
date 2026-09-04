@@ -14,6 +14,7 @@ import {
   PendingSubmissionStorageConflictError,
   type PendingSubmissionEnvelopeV1,
   type PendingSubmissionIssue,
+  type RestoredTextSubmissionDraft,
   type PendingSubmissionStoredRecord,
   type PendingSubmissionStorage,
   createDefaultPendingSubmissionStorage,
@@ -590,7 +591,7 @@ export class TextSubmissionCoordinator {
     return snapshot;
   }
 
-  async discardRejectedRequest(): Promise<{ readonly communityId: string; readonly title: string; readonly body: string }> {
+  async discardRejectedRequest(): Promise<RestoredTextSubmissionDraft> {
     if (this.pending === null) await this.restore();
     const state = this.currentState;
     if (

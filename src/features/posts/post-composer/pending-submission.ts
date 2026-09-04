@@ -167,6 +167,7 @@ export interface RestoredTextSubmissionDraft {
   readonly communityId: string;
   readonly title: string;
   readonly body: string;
+  readonly authorDeclaredRating: "general" | "adult_18";
 }
 
 export function assertSafeSameOriginPath(path: string): string {
@@ -274,7 +275,7 @@ export function decodePendingSubmissionDraft(envelope: PendingSubmissionEnvelope
     throw new PendingSubmissionError("Pending community path is not valid encoding");
   }
   if (communityId === "") throw new PendingSubmissionError("Pending community path is empty");
-  return { communityId, title: request.title ?? "", body: request.body };
+  return { communityId, title: request.title ?? "", body: request.body, authorDeclaredRating: request.author_declared_rating };
 }
 
 interface RawRequestBody {

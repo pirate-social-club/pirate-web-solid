@@ -2,6 +2,7 @@ import { describe, expect, test } from "vitest";
 
 import {
   decodeTextContentSubmission,
+  decodeTextContentSubmissionRequest,
   normalizeTextSubmissionRequest,
   serializeTextSubmissionRequest,
 } from "./text-submission-contract";
@@ -14,6 +15,7 @@ const request = {
     authorship_mode: "human_direct" as const,
     identity_mode: "public" as const,
     visibility: "public" as const,
+    author_declared_rating: "general" as const,
     title: " Cafe\r\n",
     body: " e\u0301lan\rbody ",
   },
@@ -42,6 +44,7 @@ describe("frozen text submission contract", () => {
         authorship_mode: "human_direct",
         identity_mode: "public",
         visibility: "public",
+        author_declared_rating: "general",
         title: "Cafe",
         body: "élan\nbody",
       },
@@ -49,6 +52,18 @@ describe("frozen text submission contract", () => {
     const serialized = serializeTextSubmissionRequest(request);
     expect(new TextDecoder().decode(serialized.bytes)).not.toContain("publish_mode");
     expect(new TextDecoder().decode(serialized.bytes)).toBe(JSON.stringify(normalized.body));
+  });
+
+  test("preserves an adult declaration and defaults legacy retained requests to general", () => {
+    const adult = normalizeTextSubmissionRequest({
+      ...request,
+      body: { ...request.body, author_declared_rating: "adult_18" },
+    });
+    expect(adult.body.author_declared_rating).toBe("adult_18");
+
+    const { author_declared_rating: _omitted, ...legacyBody } = request.body;
+    expect(decodeTextContentSubmissionRequest(legacyBody).author_declared_rating).toBe("general");
+    expect(() => decodeTextContentSubmissionRequest({ ...legacyBody, author_declared_rating: "unrated" })).toThrow("invalid author-declared rating");
   });
 
   test("accepts authoritative published snapshots and rejects inconsistent fields", () => {
