@@ -144,6 +144,33 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
     },
   );
 
+  const runCommit = async (
+    expectedRevision: number,
+    intentId: string,
+    navigateOnSuccess = false,
+  ): Promise<void> => {
+    setMessage("");
+    try {
+      const committed = await api.commitIntent({
+        expectedRevision,
+        idempotencyKey: commandKey(`commit:${intentId}:${expectedRevision}`),
+        intentId,
+      });
+      if (!active) return;
+      setIntent(committed);
+      setStaleRevision(null);
+      if (navigateOnSuccess && committed.committedHref) navigate(committed.committedHref);
+    } catch (error) {
+      if (!active) return;
+      if (rejectionStatus(error) === 409) {
+        setStaleRevision({ expectedRevision });
+        await loadIntent(intentId, true);
+      } else {
+        setMessage(safeError(error, "Could not finish creating this community. Try again."));
+      }
+    }
+  };
+
   const submit = async () => {
     const currentDraft = draft();
     if (!currentDraft || busy()) return;
@@ -157,6 +184,9 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
       if (!active) return;
       setIntent(created);
       navigate(`/communities/new?intent_id=${encodeURIComponent(created.intentId)}`, { replace: true });
+      if (created.nextAction.kind === "commit") {
+        await runCommit(created.revision, created.intentId, true);
+      }
     } catch (error) {
       if (active) setMessage(safeError(error, "Could not create this community draft. Try again."));
     } finally {
@@ -167,24 +197,8 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
   const commit = async (expectedRevision: number, intentId: string) => {
     if (busy()) return;
     setBusy(true);
-    setMessage("");
     try {
-      const committed = await api.commitIntent({
-        expectedRevision,
-        idempotencyKey: commandKey(`commit:${intentId}:${expectedRevision}`),
-        intentId,
-      });
-      if (!active) return;
-      setIntent(committed);
-      setStaleRevision(null);
-    } catch (error) {
-      if (!active) return;
-      if (rejectionStatus(error) === 409) {
-        setStaleRevision({ expectedRevision });
-        await loadIntent(intentId, true);
-      } else {
-        setMessage(safeError(error, "Could not finish creating this community. Try again."));
-      }
+      await runCommit(expectedRevision, intentId);
     } finally {
       if (active) setBusy(false);
     }

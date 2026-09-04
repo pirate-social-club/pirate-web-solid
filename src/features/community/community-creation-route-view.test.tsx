@@ -198,6 +198,135 @@ describe("Community creation production route", () => {
     expect(container.textContent).toContain("Palm scan");
   });
 
+  test("continues a submitted commit-ready draft into commit and its Community resource", async () => {
+    const created = createIntent({
+      intentId: "creation-new",
+      nextAction: { kind: "commit" },
+      revision: 2,
+      status: "commit_ready",
+    });
+    const committed = createIntent({
+      ...created,
+      committedHref: "/c/community-new",
+      nextAction: { kind: "none", reason: "committed" },
+      revision: 3,
+      status: "committed",
+    });
+    const createIntentRequest = vi.fn().mockResolvedValue(created);
+    const commitIntent = vi.fn().mockResolvedValue(committed);
+    const navigate = vi.fn();
+    const container = render(() => (
+      <CommunityCreationRouteView
+        api={api({ commitIntent, createIntent: createIntentRequest })}
+        navigate={navigate}
+        resolveSession={async () => ({
+          personas: [{
+            avatarRef: null,
+            displayName: "Harbor Host",
+            personaId: "persona-1",
+            primaryPublicHandle: "harbor-host",
+          }],
+          status: "authenticated",
+          userId: "user-1",
+        })}
+      />
+    ));
+
+    await vi.waitFor(() => expect(container.querySelector("[data-create-community]")).not.toBeNull());
+    const name = container.querySelector<HTMLInputElement>("input")!;
+    name.value = "Community New";
+    name.dispatchEvent(new InputEvent("input", { bubbles: true, data: "Community New", inputType: "insertText" }));
+    const submit = container.querySelector<HTMLButtonElement>("button[type='submit']")!;
+    await vi.waitFor(() => expect(submit.disabled).toBe(false));
+    submit.click();
+
+    await vi.waitFor(() => expect(navigate).toHaveBeenLastCalledWith("/c/community-new", undefined));
+    expect(createIntentRequest).toHaveBeenCalledOnce();
+    expect(commitIntent).toHaveBeenCalledWith(expect.objectContaining({
+      expectedRevision: 2,
+      intentId: "creation-new",
+    }));
+    expect(navigate).toHaveBeenNthCalledWith(
+      1,
+      "/communities/new?intent_id=creation-new",
+      { replace: true },
+    );
+    expect(navigate.mock.invocationCallOrder[0]).toBeLessThan(commitIntent.mock.invocationCallOrder[0]!);
+  });
+
+  test("does not commit a commit-ready intent merely because its URL was loaded", async () => {
+    const ready = createIntent({
+      intentId: "creation-resumed",
+      nextAction: { kind: "commit" },
+      revision: 4,
+      status: "commit_ready",
+    });
+    const commitIntent = vi.fn();
+    const container = render(() => (
+      <CommunityCreationRouteView
+        api={api({ commitIntent, getIntent: async () => ready })}
+        intentId="creation-resumed"
+        resolveSession={async () => ({
+          personas: [{
+            avatarRef: null,
+            displayName: "Harbor Host",
+            personaId: "persona-1",
+            primaryPublicHandle: "harbor-host",
+          }],
+          status: "authenticated",
+          userId: "user-1",
+        })}
+      />
+    ));
+
+    await vi.waitFor(() => expect(container.textContent).toContain("Ready to create"));
+    expect(container.textContent).toContain("Create community");
+    expect(commitIntent).not.toHaveBeenCalled();
+  });
+
+  test("leaves a failed chained commit on an explicit retry surface", async () => {
+    const created = createIntent({
+      intentId: "creation-retry",
+      nextAction: { kind: "commit" },
+      revision: 5,
+      status: "commit_ready",
+    });
+    const commitIntent = vi.fn().mockRejectedValue(new Error("unavailable"));
+    const navigate = vi.fn();
+    const container = render(() => (
+      <CommunityCreationRouteView
+        api={api({ commitIntent, createIntent: async () => created })}
+        navigate={navigate}
+        resolveSession={async () => ({
+          personas: [{
+            avatarRef: null,
+            displayName: "Harbor Host",
+            personaId: "persona-1",
+            primaryPublicHandle: "harbor-host",
+          }],
+          status: "authenticated",
+          userId: "user-1",
+        })}
+      />
+    ));
+
+    await vi.waitFor(() => expect(container.querySelector("[data-create-community]")).not.toBeNull());
+    const name = container.querySelector<HTMLInputElement>("input")!;
+    name.value = "Retry Harbor";
+    name.dispatchEvent(new InputEvent("input", { bubbles: true, data: "Retry Harbor", inputType: "insertText" }));
+    const submit = container.querySelector<HTMLButtonElement>("button[type='submit']")!;
+    await vi.waitFor(() => expect(submit.disabled).toBe(false));
+    submit.click();
+
+    await vi.waitFor(() => expect(container.textContent).toContain("Could not finish creating this community"));
+    expect(navigate).toHaveBeenCalledWith(
+      "/communities/new?intent_id=creation-retry",
+      { replace: true },
+    );
+    expect(container.querySelector("[data-community-creation-progress] button")?.textContent?.trim())
+      .toBe("Create community");
+  });
+
   test("refreshes a conflicted commit while keeping the stale revision warning visible", async () => {
     const initial = createIntent({
       intentId: "creation-1",
