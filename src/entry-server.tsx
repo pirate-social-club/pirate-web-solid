@@ -28,6 +28,7 @@ export async function render(
   context?: {
     readonly clientEntry?: string;
     readonly API_NEXT_ORIGIN?: string;
+    readonly PUBLIC_APP_CANONICAL_ORIGIN?: string;
     readonly PERSONA_PUBLIC_PROFILE_PREFLIGHT?: PersonaPublicProfilePreflight;
     readonly CANONICAL_ASSET_ORIGIN?: string;
     readonly DISABLE_HYDRATION?: boolean;
@@ -36,6 +37,12 @@ export async function render(
 ) {
   const event = getRequestEvent();
   const nonce = event?.locals.cspNonce;
+  if (event !== undefined) {
+    // SAFETY: this request-local value comes directly from the typed Worker
+    // render context and is read only as that same optional string.
+    const locals = event.locals as typeof event.locals & { publicAppCanonicalOrigin?: string };
+    locals.publicAppCanonicalOrigin = context?.PUBLIC_APP_CANONICAL_ORIGIN;
+  }
   // SAFETY: Vite's runtime manifest includes the `_base` member used by the
   // Solid asset resolver even though AssetManifest's public index signature
   // omits it. Every chunk record is preserved; only that resolver base changes.
@@ -43,7 +50,11 @@ export async function render(
     ? manifest
     : { ...manifest, _base: `${new URL(context.CANONICAL_ASSET_ORIGIN).origin}/` }) as typeof manifest;
   const postPreflight = context?.PUBLIC_POST_PREFLIGHT ??
-    await resolvePublicPostPreflight(request, context?.API_NEXT_ORIGIN);
+    await resolvePublicPostPreflight(
+      request,
+      context?.API_NEXT_ORIGIN,
+      context?.PUBLIC_APP_CANONICAL_ORIGIN,
+    );
   if (postPreflight !== undefined) {
     if (postPreflight.state.kind === "redirect") {
       return new Response(null, {
@@ -116,6 +127,7 @@ export async function render(
       <Document
         clientEntry={context?.clientEntry}
         canonicalAssetOrigin={context?.CANONICAL_ASSET_ORIGIN}
+        publicAppCanonicalOrigin={context?.PUBLIC_APP_CANONICAL_ORIGIN}
         hydrate={context?.DISABLE_HYDRATION !== true}
       >
         <App />

@@ -22,6 +22,7 @@
   ],
   "vars": {
     "API_NEXT_ORIGIN": "http://127.0.0.1:8788",
+    "PUBLIC_APP_CANONICAL_ORIGIN": "http://127.0.0.1:8787",
     "VERIFICATION_UI_ENABLED": "false",
     "HNS_COMMUNITY_APP_INGRESS_ENABLED": "false",
     "HNS_COMMUNITY_APP_INGRESS_ORIGIN": "",
@@ -78,6 +79,7 @@
       },
       "vars": {
         "API_NEXT_ORIGIN": "https://api-next-staging.pirate.sc",
+        "PUBLIC_APP_CANONICAL_ORIGIN": "https://web-next-staging.pirate.sc",
         "VERIFICATION_UI_ENABLED": "true",
         "PRIVY_APP_ID": "cmsw5pis300b80cladbxx7bsr",
         "HNS_COMMUNITY_APP_INGRESS_ENABLED": "false",
@@ -139,6 +141,7 @@
       },
       "vars": {
         "API_NEXT_ORIGIN": "https://api-next.pirate.sc",
+        "PUBLIC_APP_CANONICAL_ORIGIN": "https://pirate.sc",
         "VERIFICATION_UI_ENABLED": "true",
         "PRIVY_APP_ID": "cmnbdx9xk00ty0clapn2q8pdj",
         "HNS_COMMUNITY_APP_INGRESS_ENABLED": "true",

@@ -10,6 +10,7 @@ declare module "virtual:solid-ssr-handler" {
   export interface SolidSsrHandlerOptions {
     readonly context?: Readonly<{
       readonly API_NEXT_ORIGIN?: string;
+      readonly PUBLIC_APP_CANONICAL_ORIGIN?: string;
       readonly PERSONA_PUBLIC_PROFILE_PREFLIGHT?: import("./features/profiles/persona-public-profile/persona-public-profile-preflight.ts").PersonaPublicProfilePreflight;
       readonly PUBLIC_POST_PREFLIGHT?: import("./features/posts/public-post/public-post-preflight.ts").PublicPostPreflight;
       readonly CANONICAL_ASSET_ORIGIN?: string;

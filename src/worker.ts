@@ -52,6 +52,7 @@ async function handleComposition(env: Env): Promise<ProductionHnsHandlePersonaIn
         return handleRequest(request, {
           context: {
             API_NEXT_ORIGIN: env.API_NEXT_ORIGIN,
+            PUBLIC_APP_CANONICAL_ORIGIN: env.PUBLIC_APP_CANONICAL_ORIGIN,
             PERSONA_PUBLIC_PROFILE_PREFLIGHT: {
               personaId: persona.persona.persona_id,
               state,
@@ -87,7 +88,10 @@ export async function applicationRequest(request: Request, env: Env): Promise<Re
     return env.ASSETS.fetch(request);
   }
   return handleRequest(request, {
-    context: { API_NEXT_ORIGIN: env.API_NEXT_ORIGIN },
+    context: {
+      API_NEXT_ORIGIN: env.API_NEXT_ORIGIN,
+      PUBLIC_APP_CANONICAL_ORIGIN: env.PUBLIC_APP_CANONICAL_ORIGIN,
+    },
   });
 }
 
@@ -96,7 +100,11 @@ async function ordinaryRequest(request: Request, env: Env): Promise<Response> {
   if (pathname === "/api" || pathname.startsWith("/api/")) {
     return proxyApiRequest(request, env);
   }
-  const sitemap = await publicPostSitemapResponse(request, env.API_NEXT_ORIGIN);
+  const sitemap = await publicPostSitemapResponse(
+    request,
+    env.API_NEXT_ORIGIN,
+    env.PUBLIC_APP_CANONICAL_ORIGIN,
+  );
   if (sitemap !== undefined) return sitemap;
   return applicationRequest(request, env);
 }

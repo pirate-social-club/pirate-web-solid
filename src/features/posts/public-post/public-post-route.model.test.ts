@@ -7,7 +7,10 @@ import {
   loadPublicPostById,
   projectPublicPostResponse,
   publicPostPathFromRequest,
+  validatePublicAppOrigin,
 } from "./public-post-route.model.ts";
+
+const PUBLIC_APP_ORIGIN = "https://pirate.sc";
 
 function contentResponse(route: null | {
   canonical_path: string;
@@ -75,6 +78,7 @@ describe("public post raw slug boundary", () => {
     };
     expect(projectPublicPostResponse({
       activity: "study",
+      canonicalOrigin: PUBLIC_APP_ORIGIN,
       logicalSlug: "straße",
       requestPath: "/posts/stra%c3%9fe/study",
       response: contentResponse(route),
@@ -85,10 +89,51 @@ describe("public post raw slug boundary", () => {
     });
   });
 
+  it("builds redirects and canonical metadata from the configured public origin", () => {
+    const route = {
+      canonical_path: "/posts/stra%C3%9Fe",
+      activity_paths: {
+        study: "/posts/stra%C3%9Fe/study",
+        karaoke: "/posts/stra%C3%9Fe/karaoke",
+        karaoke_leaderboard: "/posts/stra%C3%9Fe/karaoke/leaderboard",
+      },
+    };
+    expect(projectPublicPostResponse({
+      activity: "detail",
+      canonicalOrigin: "https://web-next-staging.pirate.sc",
+      logicalSlug: "straße",
+      requestPath: "/posts/stra%c3%9fe",
+      response: contentResponse(route),
+    })).toEqual({
+      kind: "redirect",
+      status: 308,
+      location: "https://web-next-staging.pirate.sc/posts/stra%C3%9Fe",
+    });
+    expect(projectPublicPostResponse({
+      activity: "detail",
+      canonicalOrigin: "https://web-next-staging.pirate.sc",
+      logicalSlug: "straße",
+      requestPath: "/posts/stra%C3%9Fe",
+      response: contentResponse(route),
+    })).toMatchObject({
+      kind: "content",
+      canonicalUrl: "https://web-next-staging.pirate.sc/posts/stra%C3%9Fe",
+    });
+  });
+
+  it("accepts exact HTTPS and loopback origins and rejects unsafe configuration", () => {
+    expect(validatePublicAppOrigin("https://pirate.sc").origin).toBe("https://pirate.sc");
+    expect(validatePublicAppOrigin("http://127.0.0.1:8787").origin).toBe("http://127.0.0.1:8787");
+    for (const value of [undefined, "http://pirate.sc", "https://pirate.sc/path", "https://user@pirate.sc"]) {
+      expect(() => validatePublicAppOrigin(value)).toThrow();
+    }
+  });
+
   it("fails closed when API route data contains query or fragment delimiters", () => {
     for (const canonicalPath of ["/posts/title?draft", "/posts/title#draft"]) {
       expect(projectPublicPostResponse({
         activity: "detail",
+        canonicalOrigin: PUBLIC_APP_ORIGIN,
         logicalSlug: "title",
         requestPath: "/posts/title",
         response: contentResponse({
@@ -106,6 +151,7 @@ describe("public post raw slug boundary", () => {
   it("never redirects or exposes a canonical URL for a guarded content response", () => {
     const state = projectPublicPostResponse({
       activity: "detail",
+      canonicalOrigin: PUBLIC_APP_ORIGIN,
       logicalSlug: "private-title",
       requestPath: "/posts/%70rivate-title",
       response: contentResponse(null),
@@ -116,6 +162,7 @@ describe("public post raw slug boundary", () => {
   it("never canonicalizes an age-lock placeholder", () => {
     expect(projectPublicPostResponse({
       activity: "detail",
+      canonicalOrigin: PUBLIC_APP_ORIGIN,
       logicalSlug: "hidden-title",
       requestPath: "/posts/%68idden-title",
       response: {
@@ -133,6 +180,7 @@ describe("public post raw slug boundary", () => {
     const lookup = vi.fn();
     await expect(loadPublicPostBySlug({
       activity: "detail",
+      canonicalOrigin: PUBLIC_APP_ORIGIN,
       client: { get_publicPostsBySlug: lookup, get_publicPostsByIdPostIdCanonicalRoute: vi.fn() },
       rawSlug: "%252F",
       requestPath: "/posts/%252F",
@@ -155,6 +203,7 @@ describe("public post raw slug boundary", () => {
     };
     await expect(loadPublicPostById({
       activity: "karaoke-leaderboard",
+      canonicalOrigin: PUBLIC_APP_ORIGIN,
       client,
       postId: "post-1",
       requestPath: "/p/post-1/karaoke/leaderboard",
@@ -167,6 +216,7 @@ describe("public post raw slug boundary", () => {
     client.get_publicPostsByIdPostIdCanonicalRoute.mockResolvedValue(contentResponse(null));
     await expect(loadPublicPostById({
       activity: "study",
+      canonicalOrigin: PUBLIC_APP_ORIGIN,
       client,
       postId: "post-1",
       requestPath: "/p/post-1/study",

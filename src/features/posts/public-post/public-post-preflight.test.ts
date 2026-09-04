@@ -11,11 +11,13 @@ describe("public post SSR preflight", () => {
     await expect(resolvePublicPostPreflight(
       new Request("https://pirate.sc/posts/%252F"),
       undefined,
+      "https://pirate.sc",
       fetchImpl,
     )).resolves.toMatchObject({ state: { kind: "invalid", status: 400 } });
     await expect(resolvePublicPostPreflight(
       new Request("https://pirate.sc/posts/hello", { method: "POST" }),
       "https://api-next.pirate.sc",
+      "https://pirate.sc",
       fetchImpl,
     )).resolves.toMatchObject({ state: { kind: "method-not-allowed", status: 405 } });
     expect(fetchImpl).not.toHaveBeenCalled();
@@ -32,6 +34,7 @@ describe("public post SSR preflight", () => {
         },
       }),
       "https://api-next.pirate.sc",
+      "https://pirate.sc",
       async (input, init) => {
         seen = {
           url: new URL(input instanceof Request ? input.url : input.toString()),
@@ -59,6 +62,17 @@ describe("public post SSR preflight", () => {
       .toBe("zh-CN");
     expect(resolvePublicPostLocale(new URL("https://pirate.sc/posts/hello"), "ar-EG, en;q=0.8"))
       .toBe("ar");
+  });
+
+  it("fails closed before lookup when the canonical public origin is missing", async () => {
+    const fetchImpl = vi.fn();
+    await expect(resolvePublicPostPreflight(
+      new Request("https://web-next-staging.pirate.sc/posts/hello"),
+      "https://api-next-staging.pirate.sc",
+      undefined,
+      fetchImpl,
+    )).resolves.toMatchObject({ state: { kind: "unavailable", status: 502 } });
+    expect(fetchImpl).not.toHaveBeenCalled();
   });
 
   it("partitions guarded HTML and commits no redirect policy after streaming", () => {

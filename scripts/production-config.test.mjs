@@ -78,6 +78,7 @@ assert.equal(production.name, "pirate-web-solid-production");
 assert.equal(production.workers_dev, true);
 assert.equal(production.preview_urls, false);
 assert.equal(production.vars.API_NEXT_ORIGIN, "https://api-next.pirate.sc");
+assert.equal(production.vars.PUBLIC_APP_CANONICAL_ORIGIN, "https://pirate.sc");
 assert.equal(production.vars.HNS_COMMUNITY_APP_INGRESS_ORIGIN, "https://hns-community-ingress.pirate.sc");
 assert.equal(production.vars.HNS_COMMUNITY_APP_CANONICAL_ORIGIN, "https://pirate.sc");
 assert.equal(production.vars.HNS_COMMUNITY_APP_API_ORIGIN, "https://hns-community-api.pirate.sc");
@@ -127,11 +128,13 @@ assert.equal(production.vars.PRIVY_APP_ID, "cmnbdx9xk00ty0clapn2q8pdj");
 
 assert.deepEqual(staging.routes, [{ pattern: "web-next-staging.pirate.sc", custom_domain: true }]);
 assert.equal(staging.vars.API_NEXT_ORIGIN, "https://api-next-staging.pirate.sc");
+assert.equal(staging.vars.PUBLIC_APP_CANONICAL_ORIGIN, "https://web-next-staging.pirate.sc");
 assert.equal(staging.vars.HNS_COMMUNITY_APP_CANONICAL_ORIGIN, "https://web-next-staging.pirate.sc");
 assert.equal(staging.vars.HNS_HANDLE_HOST_CANONICAL_ORIGIN, "https://pirate.sc");
 assert.equal(staging.vars.HNS_HANDLE_HOST_PUBLIC_API_ORIGIN, "https://api-next-staging.pirate.sc");
 assert.equal(staging.vars.PRIVY_APP_ID, "cmsw5pis300b80cladbxx7bsr");
 assert.notEqual(production.vars.API_NEXT_ORIGIN, staging.vars.API_NEXT_ORIGIN);
+assert.notEqual(production.vars.PUBLIC_APP_CANONICAL_ORIGIN, staging.vars.PUBLIC_APP_CANONICAL_ORIGIN);
 assert.notEqual(production.vars.PRIVY_APP_ID, staging.vars.PRIVY_APP_ID);
 
 assert.match(workerSource, /makeProductionHnsCommunityAppIngressCompositionV2/u);

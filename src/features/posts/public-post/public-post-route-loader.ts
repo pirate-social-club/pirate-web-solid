@@ -25,6 +25,19 @@ function currentOrigin(): string | undefined {
   return typeof location === "undefined" ? undefined : location.origin;
 }
 
+function currentCanonicalOrigin(): string | undefined {
+  const event = getRequestEvent();
+  if (event !== undefined) {
+    // SAFETY: entry-server is the sole writer for this request-local key and
+    // stores only the optional canonical-origin string from the Worker context.
+    return (event.locals as typeof event.locals & { publicAppCanonicalOrigin?: string })
+      .publicAppCanonicalOrigin;
+  }
+  return typeof document === "undefined"
+    ? undefined
+    : document.documentElement.dataset.publicAppCanonicalOrigin;
+}
+
 function currentLocale(): string {
   const event = getRequestEvent();
   if (event !== undefined) {
@@ -61,12 +74,14 @@ export async function loadSlugRoute(
   rawSlug: string,
   activity: PublicPostActivity,
   locale: string,
+  canonicalOrigin: string | undefined,
 ): Promise<PublicPostRouteState> {
   const requestPath = currentPath();
   const preflight = settled(requestPath);
   if (preflight !== undefined) return preflight;
   const state = await loadPublicPostBySlug({
     activity,
+    canonicalOrigin,
     client: createSessionApiClient({ origin: currentOrigin() }),
     locale,
     rawSlug,
@@ -80,12 +95,14 @@ export async function loadLegacyRoute(
   postId: string,
   activity: Exclude<PublicPostActivity, "detail">,
   locale: string,
+  canonicalOrigin: string | undefined,
 ): Promise<PublicPostRouteState> {
   const requestPath = currentPath();
   const preflight = settled(requestPath);
   if (preflight !== undefined) return preflight;
   const state = await loadPublicPostById({
     activity,
+    canonicalOrigin,
     client: createSessionApiClient({ origin: currentOrigin() }),
     locale,
     postId,
@@ -99,12 +116,12 @@ export const queryPublicPostSlugRoute = query(loadSlugRoute, "public-post-slug-r
 export const queryPublicPostLegacyRoute = query(loadLegacyRoute, "public-post-legacy-route");
 
 export function preloadPublicPostSlugRoute(rawSlug: string, activity: PublicPostActivity) {
-  return queryPublicPostSlugRoute(rawSlug, activity, currentLocale());
+  return queryPublicPostSlugRoute(rawSlug, activity, currentLocale(), currentCanonicalOrigin());
 }
 
 export function preloadPublicPostLegacyRoute(
   postId: string,
   activity: Exclude<PublicPostActivity, "detail">,
 ) {
-  return queryPublicPostLegacyRoute(postId, activity, currentLocale());
+  return queryPublicPostLegacyRoute(postId, activity, currentLocale(), currentCanonicalOrigin());
 }

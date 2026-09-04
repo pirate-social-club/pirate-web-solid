@@ -20,6 +20,7 @@ describe("public post sitemap", () => {
     const response = await publicPostSitemapResponse(
       new Request("https://pirate.sc/sitemap.xml"),
       "https://api-next.pirate.sc",
+      "https://pirate.sc",
       sitemapFetch({ root: { items: ["/posts/hello", "/posts/stra%C3%9Fe"], next: null } }),
     );
     expect(response?.status).toBe(200);
@@ -34,6 +35,7 @@ describe("public post sitemap", () => {
     const index = await publicPostSitemapResponse(
       new Request("https://pirate.sc/sitemap.xml"),
       "https://api-next.pirate.sc",
+      "https://web-next-staging.pirate.sc",
       fetchImpl,
     );
     const body = await index!.text();
@@ -41,14 +43,20 @@ describe("public post sitemap", () => {
     expect(body.match(/<sitemap>/gu)).toHaveLength(2);
     const second = [...body.matchAll(/<loc>([^<]+)<\/loc>/gu)][1]?.[1];
     expect(second).toBeDefined();
-    const shard = await publicPostSitemapResponse(new Request(second!), "https://api-next.pirate.sc", fetchImpl);
-    expect(await shard!.text()).toContain("https://pirate.sc/posts/two");
+    const shard = await publicPostSitemapResponse(
+      new Request(second!),
+      "https://api-next.pirate.sc",
+      "https://web-next-staging.pirate.sc",
+      fetchImpl,
+    );
+    expect(await shard!.text()).toContain("https://web-next-staging.pirate.sc/posts/two");
   });
 
   it("does not forward cookies and rejects writes", async () => {
     const rejected = await publicPostSitemapResponse(
       new Request("https://pirate.sc/sitemap.xml", { method: "POST", headers: { cookie: "secret=1" } }),
       "https://api-next.pirate.sc",
+      "https://pirate.sc",
     );
     expect(rejected?.status).toBe(405);
     expect(rejected?.headers.get("allow")).toBe("GET, HEAD");

@@ -3,7 +3,7 @@ import type {
   PirateApiClient,
 } from "@pirate/api-client";
 
-export const PUBLIC_APP_ORIGIN = "https://pirate.sc" as const;
+const LOOPBACK_HOSTNAMES = new Set(["localhost", "127.0.0.1", "[::1]"]);
 
 export type PublicPostActivity = "detail" | "study" | "karaoke" | "karaoke-leaderboard";
 export type PublicPostRouteClient = Pick<
@@ -37,6 +37,30 @@ export type DecodedPostSlug = Readonly<{
   readonly logical: string;
   readonly raw: string;
 }>;
+
+export function validatePublicAppOrigin(value: string | undefined): URL {
+  if (value === undefined || value.trim() !== value || value === "") {
+    throw new TypeError("PUBLIC_APP_CANONICAL_ORIGIN is missing");
+  }
+  let origin: URL;
+  try {
+    origin = new URL(value);
+  } catch {
+    throw new TypeError("PUBLIC_APP_CANONICAL_ORIGIN is not a URL");
+  }
+  if (
+    (origin.protocol !== "https:" &&
+      !(origin.protocol === "http:" && LOOPBACK_HOSTNAMES.has(origin.hostname))) ||
+    origin.username !== "" ||
+    origin.password !== "" ||
+    origin.pathname !== "/" ||
+    origin.search !== "" ||
+    origin.hash !== ""
+  ) {
+    throw new TypeError("PUBLIC_APP_CANONICAL_ORIGIN must be an origin");
+  }
+  return origin;
+}
 
 function forbiddenLogicalSlug(value: string): boolean {
   return value === "" || value === "." || value === ".." || /[%/\\?#]/u.test(value);
@@ -137,6 +161,7 @@ function validatedCanonicalPath(
 
 export function projectPublicPostResponse(options: Readonly<{
   readonly activity: PublicPostActivity;
+  readonly canonicalOrigin: string | undefined;
   readonly expectedPostId?: string;
   readonly logicalSlug?: string;
   readonly requestPath: string;
@@ -169,8 +194,15 @@ export function projectPublicPostResponse(options: Readonly<{
     (options.logicalSlug !== undefined && canonicalLogicalSlug !== options.logicalSlug)
   ) return { kind: "unavailable", status: 502 };
 
+  let canonicalOrigin: URL;
+  try {
+    canonicalOrigin = validatePublicAppOrigin(options.canonicalOrigin);
+  } catch {
+    return { kind: "unavailable", status: 502 };
+  }
+
   if (options.requestPath !== target) {
-    return { kind: "redirect", status: 308, location: new URL(target, PUBLIC_APP_ORIGIN).toString() };
+    return { kind: "redirect", status: 308, location: new URL(target, canonicalOrigin).toString() };
   }
   return {
     kind: "content",
@@ -178,7 +210,7 @@ export function projectPublicPostResponse(options: Readonly<{
     activity: options.activity,
     response: options.response,
     canonicalPath: route.canonical_path,
-    canonicalUrl: new URL(route.canonical_path, PUBLIC_APP_ORIGIN).toString(),
+    canonicalUrl: new URL(route.canonical_path, canonicalOrigin).toString(),
   };
 }
 
@@ -199,6 +231,7 @@ function mapLookupError(error: unknown): PublicPostRouteState {
 
 export async function loadPublicPostBySlug(options: Readonly<{
   readonly activity: PublicPostActivity;
+  readonly canonicalOrigin: string | undefined;
   readonly client: PublicPostRouteClient;
   readonly locale?: string;
   readonly rawSlug: unknown;
@@ -212,6 +245,7 @@ export async function loadPublicPostBySlug(options: Readonly<{
     });
     return projectPublicPostResponse({
       activity: options.activity,
+      canonicalOrigin: options.canonicalOrigin,
       logicalSlug: decoded.logical,
       requestPath: options.requestPath,
       response,
@@ -223,6 +257,7 @@ export async function loadPublicPostBySlug(options: Readonly<{
 
 export async function loadPublicPostById(options: Readonly<{
   readonly activity: Exclude<PublicPostActivity, "detail">;
+  readonly canonicalOrigin: string | undefined;
   readonly client: PublicPostRouteClient;
   readonly locale?: string;
   readonly postId: string;
@@ -235,6 +270,7 @@ export async function loadPublicPostById(options: Readonly<{
     });
     return projectPublicPostResponse({
       activity: options.activity,
+      canonicalOrigin: options.canonicalOrigin,
       expectedPostId: options.postId,
       requestPath: options.requestPath,
       response,

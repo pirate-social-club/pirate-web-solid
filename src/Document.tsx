@@ -10,6 +10,7 @@ export default function Document(props: {
   children: JSX.Element;
   clientEntry?: string;
   canonicalAssetOrigin?: string;
+  publicAppCanonicalOrigin?: string;
   hydrate?: boolean;
 }) {
   const event = getRequestEvent();
@@ -34,7 +35,11 @@ export default function Document(props: {
       event.request.headers.get("accept-language"),
     );
   return (
-    <html lang={resolveLocaleLanguageTag(locale)} dir={resolveLocaleDirection(locale)}>
+    <html
+      lang={resolveLocaleLanguageTag(locale)}
+      dir={resolveLocaleDirection(locale)}
+      data-public-app-canonical-origin={props.publicAppCanonicalOrigin}
+    >
       <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />

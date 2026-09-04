@@ -13,6 +13,7 @@ function enabledMisconfiguredEnvironment() {
   return {
     ASSETS: { fetch: async () => new Response("asset") },
     API_NEXT_ORIGIN: "https://api-next.pirate.sc",
+    PUBLIC_APP_CANONICAL_ORIGIN: "https://pirate.sc",
     VERIFICATION_UI_ENABLED: "true",
     PRIVY_APP_ID: "test-app-id",
     HNS_COMMUNITY_APP_INGRESS_ENABLED: "true",
@@ -108,6 +109,7 @@ describe("Solid Worker HNS isolation", () => {
     expect(ordinary.status).toBe(200);
     await expect(ordinary.json()).resolves.toEqual({
       apiOrigin: "https://api-next.pirate.sc",
+      canonicalOrigin: "https://pirate.sc",
       origin: "https://pirate.sc",
       path: "/c/example?view=latest",
     });

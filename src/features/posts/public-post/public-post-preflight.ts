@@ -9,6 +9,7 @@ import {
   loadPublicPostBySlug,
   publicPostPathFromRequest,
   type PublicPostRouteState,
+  validatePublicAppOrigin,
 } from "./public-post-route.model.ts";
 
 export type PublicPostPreflight = Readonly<{
@@ -54,6 +55,7 @@ function clientForRequest(request: Request, apiNextOrigin: string | undefined, f
 export async function resolvePublicPostPreflight(
   request: Request,
   apiNextOrigin: string | undefined,
+  publicAppCanonicalOrigin: string | undefined,
   fetchImpl: ApiFetch = fetch,
 ): Promise<PublicPostPreflight | undefined> {
   const slugRoute = publicPostPathFromRequest(request);
@@ -69,15 +71,29 @@ export async function resolvePublicPostPreflight(
   }
 
   let client;
+  let canonicalOrigin: URL;
   try {
     client = clientForRequest(request, apiNextOrigin, fetchImpl);
+    canonicalOrigin = validatePublicAppOrigin(publicAppCanonicalOrigin);
   } catch {
     return { requestPath, state: { kind: "unavailable", status: 502 } };
   }
   const locale = resolvePublicPostLocale(new URL(request.url), request.headers.get("accept-language"));
   const state = slugRoute === undefined
-    ? await loadPublicPostById({ ...legacyRoute!, client, locale, requestPath })
-    : await loadPublicPostBySlug({ ...slugRoute, client, locale, requestPath });
+    ? await loadPublicPostById({
+      ...legacyRoute!,
+      canonicalOrigin: canonicalOrigin.origin,
+      client,
+      locale,
+      requestPath,
+    })
+    : await loadPublicPostBySlug({
+      ...slugRoute,
+      canonicalOrigin: canonicalOrigin.origin,
+      client,
+      locale,
+      requestPath,
+    });
   return { requestPath, state };
 }
 

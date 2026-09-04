@@ -1,7 +1,10 @@
 import { createPirateApiClient, type GetPublicPostsSitemapResponse } from "@pirate/api-client";
 import { validateApiNextOrigin } from "../../../api/origin.ts";
 import type { ApiFetch } from "../../../api/proxy.ts";
-import { logicalSlugFromCanonicalPublicPostPath, PUBLIC_APP_ORIGIN } from "./public-post-route.model.ts";
+import {
+  logicalSlugFromCanonicalPublicPostPath,
+  validatePublicAppOrigin,
+} from "./public-post-route.model.ts";
 
 const PAGE_LIMIT = "1000";
 const MAX_SHARDS = 1_000;
@@ -31,21 +34,21 @@ function decodeCursor(value: string): string | null {
   }
 }
 
-function urlset(page: GetPublicPostsSitemapResponse): string {
+function urlset(page: GetPublicPostsSitemapResponse, canonicalOrigin: URL): string {
   const entries = page.items.map(item => {
     if (logicalSlugFromCanonicalPublicPostPath(item.canonical_path) === null) {
       throw new Error("Invalid canonical post path in sitemap page");
     }
-    const location = new URL(item.canonical_path, PUBLIC_APP_ORIGIN).toString();
+    const location = new URL(item.canonical_path, canonicalOrigin).toString();
     return `  <url><loc>${xml(location)}</loc></url>`;
   }).join("\n");
   return `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${entries}\n</urlset>\n`;
 }
 
-function sitemapIndex(cursors: readonly (string | null)[]): string {
+function sitemapIndex(cursors: readonly (string | null)[], canonicalOrigin: URL): string {
   const entries = cursors.map(cursor => {
     const token = cursor === null ? "root" : encodeCursor(cursor);
-    const location = new URL(`${shardPrefix}${token}.xml`, PUBLIC_APP_ORIGIN).toString();
+    const location = new URL(`${shardPrefix}${token}.xml`, canonicalOrigin).toString();
     return `  <sitemap><loc>${xml(location)}</loc></sitemap>`;
   }).join("\n");
   return `<?xml version="1.0" encoding="UTF-8"?>\n<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${entries}\n</sitemapindex>\n`;
@@ -64,6 +67,7 @@ function response(request: Request, body: string, status = 200): Response {
 export async function publicPostSitemapResponse(
   request: Request,
   apiNextOrigin: string | undefined,
+  publicAppCanonicalOrigin: string | undefined,
   fetchImpl: ApiFetch = fetch,
 ): Promise<Response | undefined> {
   const pathname = new URL(request.url).pathname;
@@ -74,8 +78,10 @@ export async function publicPostSitemapResponse(
   }
 
   let origin: URL;
+  let canonicalOrigin: URL;
   try {
     origin = validateApiNextOrigin(apiNextOrigin);
+    canonicalOrigin = validatePublicAppOrigin(publicAppCanonicalOrigin);
   } catch {
     return response(request, "Sitemap unavailable", 503);
   }
@@ -94,11 +100,11 @@ export async function publicPostSitemapResponse(
     if (shard !== null) {
       const cursor = shard[1] === "root" ? null : decodeCursor(shard[1] ?? "");
       if (cursor === null && shard[1] !== "root") return response(request, "Invalid sitemap shard", 400);
-      return response(request, urlset(await load(cursor)));
+      return response(request, urlset(await load(cursor), canonicalOrigin));
     }
 
     const first = await load(null);
-    if (first.next_cursor === null) return response(request, urlset(first));
+    if (first.next_cursor === null) return response(request, urlset(first, canonicalOrigin));
     const cursors: (string | null)[] = [null];
     let cursor: string | null = first.next_cursor;
     while (cursor !== null && cursors.length < MAX_SHARDS) {
@@ -106,7 +112,7 @@ export async function publicPostSitemapResponse(
       cursor = (await load(cursor)).next_cursor;
     }
     if (cursor !== null) return response(request, "Sitemap exceeds the bounded shard limit", 503);
-    return response(request, sitemapIndex(cursors));
+    return response(request, sitemapIndex(cursors, canonicalOrigin));
   } catch {
     return response(request, "Sitemap unavailable", 503);
   }
