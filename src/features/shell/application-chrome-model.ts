@@ -5,7 +5,8 @@ export type ApplicationChromeRoute =
   | "home"
   | "search"
   | "live"
-  | "communities"
+  | "your-communities"
+  | "create-community"
   | "karaoke"
   | "study"
   | "activity"
@@ -28,7 +29,7 @@ export function resolveApplicationChrome(pathname: string): ApplicationChromePol
   const activity = segments.includes("activity");
   const karaoke = first === "karaoke" || segments.includes("karaoke");
   const study = first === "study" || segments.includes("study");
-  const community = first === "c" || first === "communities";
+  const community = first === "c";
   const profile = first === "u" || (first === "p" && !karaoke && !study);
 
   if (first === "auth" || first === "verify" || first === "terms" || first === "privacy") {
@@ -53,7 +54,15 @@ export function resolveApplicationChrome(pathname: string): ApplicationChromePol
     return { activeItemId: "study", mobileActiveItem: "learn", mobileTitle: "Study", mode: "standard" };
   }
   if (community) {
-    return { activeItemId: "communities", mobileActiveItem: "learn", mobileTitle: "Community", mode: "standard" };
+    return { activeItemId: "your-communities", mobileActiveItem: "learn", mobileTitle: "Community", mode: "standard" };
+  }
+  if (first === "communities") {
+    return {
+      activeItemId: segments[1] === "new" ? "create-community" : "your-communities",
+      mobileActiveItem: "learn",
+      mobileTitle: segments[1] === "new" ? "Create Community" : "Your Communities",
+      mode: "standard",
+    };
   }
   if (first === "settings" || profile) {
     return { activeItemId: "settings", mobileActiveItem: "profile", mobileTitle: profile ? "Profile" : "Settings", mode: "standard" };

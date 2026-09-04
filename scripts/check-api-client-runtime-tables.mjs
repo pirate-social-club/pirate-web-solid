@@ -8,15 +8,18 @@ const currentClient = resolve(
   appRoot,
   "node_modules/@pirate/api-client/src/generated/client.ts",
 );
-const expectedDigest = "feb93ade5b00aabb2b94c7228a8a841d1a11469a38424f3b2e8a555fcd05a6f2";
+const expectedDigest = "32d857ce31e49e5c25502e32d8d3c708ad2cfab995ecf2ba5ef0b0dad55048f1";
 
 const operations = [
   "get_personas",
+  "post_personas",
+  "post_personasPersonaIdRetire",
   "post_personasPersonaIdWalletsEvmPrepare",
   "post_personasPersonaIdWalletsEvmConfirm",
   "post_authSessionExchange",
   "post_authRegister",
   "get_usersMe",
+  "get_usersMeCommunityMemberships",
   "get_publicProfilesHandle",
   "get_communitiesCommunityIdJoinEligibility",
   "post_communitiesCommunityIdJoin",

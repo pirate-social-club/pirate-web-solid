@@ -40,7 +40,7 @@ describe("community file-route structure", () => {
     });
     const paths = buildRouteTree(await router.getRoutes()).map(route => route.path);
 
-    expect(paths).not.toContain("/communities/");
+    expect(paths).toContain("/communities/");
     expect(paths).toContain("/communities/new");
   });
 });

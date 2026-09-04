@@ -249,10 +249,6 @@ function SuccessState(props: {
   );
 
   const openPostComposer = async (): Promise<void> => {
-    if (engagement.postingSession() !== undefined) {
-      setComposerOpen(true);
-      return;
-    }
     if (postingBusy()) return;
     setPostingBusy(true);
     try {
@@ -324,7 +320,7 @@ function SuccessState(props: {
                 </Show>
               );
             }}
-            onCreatePost={() => void openPostComposer()}
+            onCreatePost={engagement.joined() ? () => void openPostComposer() : undefined}
             onFollowToggle={() => void engagement.followToggle()}
             onJoin={() => void engagement.joinCommunity()}
             onManage={canManage() ? () => navigate(settingsHref()) : undefined}

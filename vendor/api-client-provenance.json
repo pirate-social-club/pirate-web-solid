@@ -31,6 +31,7 @@
     "post_communitiesCommunityIdHnsRootImports",
     "get_communitiesCommunityIdHnsRootImportsSessionId",
     "post_communitiesCommunityIdHnsRootImportsSessionIdPoll",
-    "post_communitiesCommunityIdHnsRootImportsSessionIdActivate"
+    "post_communitiesCommunityIdHnsRootImportsSessionIdActivate",
+    "get_usersMeCommunityMemberships"
   ]
 }

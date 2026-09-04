@@ -210,7 +210,9 @@ describe("CommunityPage", () => {
           get_cPathSegment: async () => route,
           get_communitiesCommunityIdPreview: async () => preview,
         }}
-        engagementApi={engagementApi()}
+        engagementApi={engagementApi({
+          readViewerState: vi.fn(async () => ({ membership: "member" as const, following: false, followerCount: 20 })),
+        })}
         handleSalesClient={{ get_communitiesCommunityIdHandleOfferings: async () => ({ items: [], next_cursor: null }) }}
         pathSegment="xn--pokmon-dva"
         resolveSession={resolveSession}
@@ -227,6 +229,49 @@ describe("CommunityPage", () => {
     await vi.waitFor(() => expect(document.body.textContent).toContain("Posting in Pirate Harbor"));
     expect(document.body.querySelector("input[name='community-id']")).toBeNull();
     expect(document.body.querySelector(`[data-community-context='${communityId}']`)).not.toBeNull();
+  });
+
+  test("fails closed when routed membership disappears before posting", async () => {
+    const readViewerState = vi
+      .fn()
+      .mockResolvedValueOnce({ membership: "member" as const, following: false, followerCount: 20 })
+      .mockResolvedValueOnce({
+        membership: "not_member" as const,
+        following: false,
+        followerCount: 20,
+      });
+    const container = render(() => (
+      <CommunityPage
+        client={{
+          get_cPathSegment: async () => route,
+          get_communitiesCommunityIdPreview: async () => preview,
+        }}
+        engagementApi={engagementApi({ readViewerState })}
+        handleSalesClient={{
+          get_communitiesCommunityIdHandleOfferings: async () => ({
+            items: [],
+            next_cursor: null,
+          }),
+        }}
+        pathSegment="xn--pokmon-dva"
+        resolveSession={async () => ({
+          status: "authenticated",
+          userId: "account-one",
+          personas: [],
+        })}
+      />
+    ));
+
+    await vi.waitFor(() => expect(readViewerState).toHaveBeenCalledTimes(1));
+    const postHere = [...container.querySelectorAll<HTMLButtonElement>("button")].find(
+      (button) => button.textContent?.trim() === "Post here",
+    );
+    expect(postHere).toBeDefined();
+    postHere!.click();
+
+    await vi.waitFor(() => expect(readViewerState).toHaveBeenCalledTimes(2));
+    await vi.waitFor(() => expect(container.textContent).toContain("Join this Community before posting."));
+    expect(document.body.textContent).not.toContain("Posting in Pirate Harbor");
   });
 
   test("joins an open Community only after the server confirms membership", async () => {
@@ -460,9 +505,7 @@ describe("CommunityPage", () => {
     expect(container.querySelector("[data-application-chrome]")).toBeNull();
   });
 
-  test("opens sign-in instead of an unscoped composer for an anonymous visitor", async () => {
-    const signInRequested = vi.fn();
-    window.addEventListener("pirate:connect", signInRequested);
+  test("does not expose the posting action to a visitor without live membership", async () => {
     const container = render(() => (
       <CommunityPage
         client={{
@@ -477,12 +520,9 @@ describe("CommunityPage", () => {
     await vi.waitFor(() => expect(container.querySelector("h1")?.textContent).toBe("Pirate Harbor"));
 
     const postHere = [...container.querySelectorAll<HTMLButtonElement>("button")]
-      .find(button => button.textContent?.trim() === "Post here")!;
-    postHere.click();
-
-    await vi.waitFor(() => expect(signInRequested).toHaveBeenCalledTimes(1));
+      .find(button => button.textContent?.trim() === "Post here");
+    expect(postHere).toBeUndefined();
     expect(document.body.textContent).not.toContain("Posting in Pirate Harbor");
-    window.removeEventListener("pirate:connect", signInRequested);
   });
 
   test("renders redacted invalid and unavailable states", async () => {

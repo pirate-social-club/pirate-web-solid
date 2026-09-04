@@ -3,6 +3,10 @@ import { describe, expect, test } from "bun:test";
 import { formatCommunityRouteLabel, type YourCommunitySummary } from "./your-communities-page-model";
 
 describe("your communities model", () => {
+  test("does not invent a route from a route-less community id", () => {
+    expect(formatCommunityRouteLabel("community-private-id", null)).toBe("No public route");
+  });
+
   test("formats stable route labels with id, c/ and blank fallbacks", () => {
     expect(formatCommunityRouteLabel("cmt_atlas", "atlas-gardens")).toBe("c/atlas-gardens");
     expect(formatCommunityRouteLabel("cmt_atlas", "c/atlas-gardens")).toBe("c/atlas-gardens");

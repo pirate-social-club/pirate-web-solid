@@ -47,10 +47,21 @@ describe("Media shell production navigation", () => {
       .map((button) => button.textContent?.trim());
 
     expect(navigationLabels).toContain("Create community");
+    expect(navigationLabels).toContain("Your communities");
     expect(navigationLabels).not.toContain("Study");
     expect(navigationLabels).toContain("Karaoke");
     expect(container.querySelector("header button[aria-label='Go home']")).not.toBeNull();
     expect(container.textContent).not.toContain("Create post");
+  });
+
+  test("routes membership discovery and creation through distinct shell actions", () => {
+    const navigate = vi.fn();
+    const container = render(() => <ApplicationChrome navigate={navigate}><main>Current route</main></ApplicationChrome>);
+    const buttons = [...container.querySelectorAll<HTMLButtonElement>("nav button")];
+    buttons.find(button => button.textContent?.trim() === "Your communities")?.click();
+    buttons.find(button => button.textContent?.trim() === "Create community")?.click();
+    expect(navigate).toHaveBeenNthCalledWith(1, "/communities");
+    expect(navigate).toHaveBeenNthCalledWith(2, "/communities/new");
   });
 
   test("keeps immersive controls and mobile selection inside the same chrome owner", () => {

@@ -43,7 +43,8 @@ function routeFor(id: string): string | undefined {
     case "home": return "/";
     case "search": return "/search";
     case "live": return "/live";
-    case "communities": return "/communities/new";
+    case "your-communities": return "/communities";
+    case "create-community": return "/communities/new";
     case "activity": return "/activity";
     case "karaoke": return "/karaoke";
     case "study": return "/study";
@@ -77,13 +78,14 @@ export function ApplicationChrome(props: MediaShellProps) {
       label: "Community",
       items: [
         { id: "activity", label: "Activity", icon: <IconBell class="size-5" /> },
+        { id: "your-communities", label: "Your communities", icon: <IconUsersThree class="size-5" /> },
       ],
     },
     {
       id: "create",
       label: "Create",
       items: [
-        { id: "communities", label: "Create community", icon: <IconUsersThree class="size-5" /> },
+        { id: "create-community", label: "Create community", icon: <IconUsersThree class="size-5" /> },
         { id: "karaoke", label: "Karaoke", icon: <IconMicrophone class="size-5" /> },
       ],
     },
@@ -123,7 +125,7 @@ export function ApplicationChrome(props: MediaShellProps) {
               <IconButton
                 aria-label={immersive() ? "Create community" : "Go home"}
                 class={immersive() ? "text-white hover:bg-white/10 focus-visible:ring-white" : undefined}
-                onClick={immersive() ? () => navigateById("communities") : goHome}
+                onClick={immersive() ? () => navigateById("create-community") : goHome}
                 variant="ghost"
               >
                 <Show when={immersive()} fallback={<IconHouse class="size-6" />}><IconUsersThree class="size-6" /></Show>

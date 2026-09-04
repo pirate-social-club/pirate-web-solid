@@ -2,8 +2,9 @@ export interface YourCommunitySummary {
   avatarSrc?: string | null;
   communityId: string;
   displayName: string;
+  resourceHref?: string | null;
   routeSlug?: string | null;
-  updatedAt: string | number;
+  updatedAt?: string | number;
 }
 
 const PUNYCODE_BASE = 36;
@@ -13,6 +14,7 @@ const PUNYCODE_INITIAL_BIAS = 72;
 const PUNYCODE_INITIAL_N = 128;
 
 export function formatCommunityRouteLabel(communityId: string, routeSlug?: string | null): string {
+  if (routeSlug === null) return "No public route";
   const routeSegment = formatCommunityRouteSegment(routeSlug || communityId);
   return routeSegment.toLowerCase().startsWith("c/") ? routeSegment : `c/${routeSegment}`;
 }

@@ -36,6 +36,7 @@ const clients = [
       "get_communitiesCommunityIdHnsRootImportsSessionId",
       "post_communitiesCommunityIdHnsRootImportsSessionIdPoll",
       "post_communitiesCommunityIdHnsRootImportsSessionIdActivate",
+      "get_usersMeCommunityMemberships",
     ],
   },
 ];

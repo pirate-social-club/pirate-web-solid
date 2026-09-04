@@ -242,6 +242,11 @@ export function createCommunityEngagementController(
   };
 
   const resolvePostingSession = async (): Promise<AuthenticatedSession | undefined> => {
+    if (!await hasAuthenticatedAccount()) return undefined;
+    if (!await refreshViewerState() || membership() !== "member") {
+      if (active && viewerReady()) setError("Join this Community before posting.");
+      return undefined;
+    }
     const cached = postingSession();
     if (cached !== undefined) return cached;
     const request = ++sessionRequest;
