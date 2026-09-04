@@ -1,250 +1,184 @@
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
-import type { PostComposerProps } from "./types";
 
-import { PostComposer } from "./post-composer";
-import { baseComposer } from "./story-fixtures";
-import { ComposerFrame, InteractiveComposer } from "./story-helpers";
+import {
+  OriginalVideoCaptureSurface,
+  OriginalVideoPublicationSurface,
+  OriginalVideoReviewSurface,
+} from "./video-original-audio-surface";
 
 const meta = {
-  title: "Flows/Posts/VideoPost",
-  component: PostComposer,
-  args: baseComposer,
-  parameters: { layout: "fullscreen" },
-} satisfies Meta<typeof PostComposer>;
+  title: "Flows/Posts/VideoPost/OriginalAudio",
+  parameters: {
+    layout: "fullscreen",
+    globals: { viewport: { value: "mobile1", isRotated: false } },
+    docs: {
+      description: {
+        component:
+          "Phase-one original-audio video posting. These are presentational states only: no story opens a camera, records, uploads, probes, moderates or publishes. The accepted source is a 3–180 second MP4 or MOV containing H.264 video and AAC audio. There is no title, description, trim, guide song, client-selected poster, paid access or author-selected licence.",
+      },
+    },
+  },
+} satisfies Meta;
 
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-const video = {
-  primaryVideoLabel: "dance-cut.webm",
-  primaryVideoAspectRatio: 16 / 9,
-  posterFrameSeconds: "1.5",
-};
-
-const regionalPricingPreview = {
-  defaultTierKey: "high_income",
-  tiers: [
-    {
-      tierKey: "high_income",
-      displayName: "High income",
-      adjustmentType: "multiplier" as const,
-      adjustmentValue: 1,
-      countryCodes: ["US", "CA", "GB", "DE", "JP", "AU"],
-    },
-    {
-      tierKey: "standard",
-      displayName: "Standard",
-      adjustmentType: "multiplier" as const,
-      adjustmentValue: 0.65,
-      countryCodes: ["BR", "MX", "PL", "ZA", "TH"],
-    },
-    {
-      tierKey: "reduced",
-      displayName: "Reduced",
-      adjustmentType: "multiplier" as const,
-      adjustmentValue: 0.4,
-      countryCodes: ["CO", "EC", "ID", "PE", "PH"],
-    },
-  ],
-} satisfies NonNullable<PostComposerProps["regionalPricingPreview"]>;
-export const OriginalDetails: Story = {
-  name: "Original / Details",
+export const CameraReady: Story = {
+  name: "1. Capture / Camera ready",
   render: () => (
-    <ComposerFrame>
-      <InteractiveComposer
-        {...baseComposer}
-        mode="video"
-        titleValue="Dance cut from the floor"
-        captionValue="Danced to Sunset Driver at the warehouse show."
-        video={video}
-      />
-    </ComposerFrame>
+    <OriginalVideoCaptureSurface durationLabel="3:00" elapsedLabel="0:00" status="idle" />
   ),
+  parameters: {
+    docs: {
+      description: {
+        story:
+          "Mobile capture after capability probing succeeds. The 9:16 viewfinder and safe-area controls reuse the reviewed Dance capture decisions.",
+      },
+    },
+  },
 };
 
-export const Mobile: Story = {
-  ...OriginalDetails,
-  name: "Mobile",
-  globals: { viewport: { value: "mobile1", isRotated: false } },
-};
-
-export const UsesSong: Story = {
-  name: "Derivative / Uses song",
+export const Recording: Story = {
+  name: "1. Capture / Recording",
   render: () => (
-    <ComposerFrame>
-      <InteractiveComposer
-        {...baseComposer}
-        mode="video"
-        titleValue="Dance cut from the floor"
-        captionValue="A short cut from the warehouse show."
-        video={video}
-        derivativeStep={{
-          visible: true,
-          required: true,
-          trigger: "uses_song",
-          searchResults: [{ id: "asset-sunset", title: "Sunset Driver", subtitle: "lena-wave.pirate" }],
-          references: [{ id: "asset-sunset", title: "Sunset Driver", subtitle: "lena-wave.pirate" }],
-          sourceTermsAccepted: true,
-        }}
-      />
-    </ComposerFrame>
+    <OriginalVideoCaptureSurface durationLabel="3:00" elapsedLabel="0:14" status="recording" />
   ),
+  parameters: {
+    docs: {
+      description: {
+        story:
+          "The host owns the MediaStream and recorder. Backgrounding alone does not end the take; the elapsed timeline resumes when the page returns.",
+      },
+    },
+  },
 };
 
-export const MonetizedSettings: Story = {
-  name: "Settings / Monetized",
-  render: () => (
-    <ComposerFrame>
-      <PostComposer
-        {...baseComposer}
-        mode="video"
-        video={video}
-        monetization={{ visible: true, priceUsd: "4.99", regionalPricingAvailable: true }}
-        license={{ presetId: "commercial-use" }}
-      />
-    </ComposerFrame>
-  ),
+export const CameraDenied: Story = {
+  name: "1. Capture / Camera denied",
+  render: () => <OriginalVideoCaptureSurface status="camera_denied" />,
+  parameters: {
+    docs: {
+      description: {
+        story:
+          "Camera permission is denied, but upload remains available instead of dead-ending the author.",
+      },
+    },
+  },
+};
+
+export const CapabilityUnavailable: Story = {
+  name: "1. Capture / Codec unavailable",
+  render: () => <OriginalVideoCaptureSurface status="capability_unavailable" />,
+  parameters: {
+    docs: {
+      description: {
+        story:
+          "The typed pre-capture failure for a browser without usable H.264 and AAC encoding. Phase one does not offer a WebM recorder and fails before creating unusable bytes.",
+      },
+    },
+  },
+};
+
+export const OrientationLost: Story = {
+  name: "1. Capture / Orientation changed",
+  render: () => <OriginalVideoCaptureSurface status="orientation_lost" />,
+  parameters: {
+    docs: {
+      description: {
+        story:
+          "The physical-device spike showed that rotation changes the encoded sample size and terminates fragmented-MP4 capture. The take ends with an explicit retake state.",
+      },
+    },
+  },
+};
+
+export const UploadOnlyDesktop: Story = {
+  name: "1. Capture / Desktop upload",
+  render: () => <OriginalVideoCaptureSurface channel="upload" />,
+  parameters: {
+    globals: { viewport: { value: "responsive", isRotated: false } },
+    docs: {
+      description: {
+        story:
+          "Desktop offers file upload only and keeps the 9:16 frame. It has no shutter, timer or camera-flip affordance.",
+      },
+    },
+  },
+};
+
+export const Review: Story = {
+  name: "2. Review / Optional caption",
+  render: () => <OriginalVideoReviewSurface caption="A short take from today." />,
+  parameters: {
+    docs: {
+      description: {
+        story:
+          "The only authored text is an optional caption. Source, poster and rights are read-only summaries: the server extracts the poster and checks the recorded soundtrack.",
+      },
+    },
+  },
+};
+
+export const ReviewMobileKeyboard: Story = {
+  name: "2. Review / Mobile keyboard and safe area",
+  render: () => <OriginalVideoReviewSurface caption="Caption stays above the pinned publish action." />,
+  parameters: {
+    docs: {
+      description: {
+        story:
+          "The scrolling body owns the caption field while ActionFooterShell pins publication above the bottom safe area on short or keyboard-reduced viewports.",
+      },
+    },
+  },
 };
 
 export const Uploading: Story = {
-  name: "Publish / Uploading",
-  render: () => (
-    <ComposerFrame>
-      <PostComposer
-        {...baseComposer}
-        mode="video"
-        video={video}
-        submit={{
-          canPost: true,
-          loading: true,
-          progress: {
-            phase: "uploading_media",
-            label: "Uploading video",
-            detail: "63%",
-            currentIndex: 2,
-            totalSteps: 6,
-            display: "pipeline",
-          },
-        }}
-      />
-    </ComposerFrame>
-  ),
+  name: "3. Publish / Uploading",
+  render: () => <OriginalVideoPublicationSurface state="uploading" />,
 };
 
-function videoVariant(overrides: Partial<PostComposerProps>) {
-  return (
-    <ComposerFrame>
-      <PostComposer {...baseComposer} mode="video" video={video} {...overrides} />
-    </ComposerFrame>
-  );
-}
-
-export const Upload: Story = {
-  name: "Upload",
-  render: () => videoVariant({ titleValue: "Dance cut from the floor", captionValue: "A short cut from the warehouse show." }),
+export const Processing: Story = {
+  name: "3. Publish / Processing",
+  render: () => <OriginalVideoPublicationSurface state="processing" />,
 };
 
-export const PaidUnlock: Story = {
-  name: "Access / Paid unlock",
-  render: () => videoVariant({
-    captionValue: "Members can preview the post; buyers unlock the full video.",
-    monetization: {
-      regionalPricingAvailable: true,
-      regionalPricingEnabled: true,
-      priceUsd: "4.99",
-      visible: true,
+export const KnownRecording: Story = {
+  name: "3. Publish / Known recording",
+  render: () => <OriginalVideoPublicationSurface state="known_recording" />,
+  parameters: {
+    docs: {
+      description: {
+        story:
+          "A referenceable known recording cannot be relabelled as original audio. Phase one offers a retake and names the later song-reference restart without exposing guide-song controls here.",
+      },
     },
-    regionalPricingPreview,
-    titleValue: "Full backstage cut",
-    video: { ...video, primaryVideoLabel: "full-backstage-cut.mp4" },
-  }),
+  },
 };
 
-export const UploadFailed: Story = {
-  name: "Upload / Failed",
-  render: () => videoVariant({ submitError: "The video upload failed. Try again." }),
+export const RightsReview: Story = {
+  name: "3. Publish / Soundtrack review",
+  render: () => <OriginalVideoPublicationSurface state="rights_review" />,
 };
 
-export const SubmittingMultipartUpload: Story = {
-  name: "Submitting / Multipart upload",
-  render: () => videoVariant({ submit: { canPost: true, loading: true, progress: { phase: "uploading_media", label: "Uploading video", detail: "63%", currentIndex: 2, totalSteps: 6, display: "pipeline" } } }),
+export const ModerationHold: Story = {
+  name: "3. Publish / Moderation hold",
+  render: () => <OriginalVideoPublicationSurface state="moderation_hold" />,
 };
 
-export const ProcessingAnalysisPending: Story = {
-  name: "Processing / Analysis pending",
-  render: () => videoVariant({ submit: { canPost: true, loading: true, progress: { phase: "processing_media", label: "Analyzing video", currentIndex: 3, totalSteps: 6, display: "pipeline" } } }),
+export const FailedRetry: Story = {
+  name: "3. Publish / Failed and retryable",
+  render: () => <OriginalVideoPublicationSurface state="failed" />,
 };
 
-export const RoyaltySplitMultiRecipient: Story = {
-  name: "Royalties / Multiple recipients",
-  render: () => videoVariant({ monetization: { visible: true, priceUsd: "4.99" }, royaltySplit: { allocations: [{ id: "creator", recipientKind: "creator", sharePct: 70 }, { id: "collaborator", recipientKind: "collaborator", sharePct: 30 }] } }),
-};
-
-export const ExplicitContentSetting: Story = {
-  name: "Publish / Explicit content",
-  render: () => videoVariant({ ageGatePolicy: "18_plus" }),
-};
-
-export const PaidUnlockLicenseNonCommercial: Story = {
-  name: "License / Non-commercial",
-  render: () => videoVariant({ monetization: { visible: true, priceUsd: "4.99" }, license: { presetId: "non-commercial" } }),
-};
-
-export const PaidUnlockLicenseCommercialUse: Story = {
-  name: "License / Commercial use",
-  render: () => videoVariant({ monetization: { visible: true, priceUsd: "4.99" }, license: { presetId: "commercial-use" } }),
-};
-
-export const PaidUnlockLicenseCommercialRemix: Story = {
-  name: "License / Commercial remix",
-  render: () => videoVariant({ monetization: { visible: true, priceUsd: "4.99" }, license: { presetId: "commercial-remix", commercialRevSharePct: 10 } }),
-};
-
-export const FramePicker: Story = {
-  name: "Poster / Frame picker",
-  render: () => videoVariant({ video: { ...video, posterFrameSeconds: "2" } }),
-};
-
-export const FramePickerVertical: Story = {
-  name: "Poster / Vertical frame picker",
-  render: () => videoVariant({ video: { ...video, primaryVideoAspectRatio: 9 / 16, posterFrameSeconds: "1" } }),
-};
-
-export const FramePickerVerticalPublish: Story = {
-  name: "Poster / Vertical publish preview",
-  render: () => videoVariant({ video: { ...video, primaryVideoAspectRatio: 9 / 16 } }),
-};
-
-function usesSong(override: Partial<NonNullable<PostComposerProps["derivativeStep"]>> = {}) {
-  return { visible: true, required: true, trigger: "uses_song" as const, searchResults: [{ id: "asset-sunset", title: "Sunset Driver", subtitle: "lena-wave.pirate" }], references: [], sourceTermsAccepted: false, ...override };
-}
-
-export const UsesSongEmpty: Story = {
-  name: "Uses song / Empty",
-  render: () => videoVariant({ derivativeStep: usesSong() }),
-};
-
-export const UsesSongSearchLoading: Story = {
-  name: "Uses song / Searching",
-  render: () => videoVariant({ derivativeStep: usesSong({ searchLoading: true, query: "sunset" }) }),
-};
-
-export const UsesSongSelected: Story = {
-  name: "Uses song / Selected",
-  render: () => videoVariant({ derivativeStep: usesSong({ references: [{ id: "asset-sunset", title: "Sunset Driver", subtitle: "lena-wave.pirate" }] }) }),
-};
-
-export const UsesSongTermsAccepted: Story = {
-  name: "Uses song / Terms accepted",
-  render: () => videoVariant({ derivativeStep: usesSong({ references: [{ id: "asset-sunset", title: "Sunset Driver", subtitle: "lena-wave.pirate" }], sourceTermsAccepted: true }) }),
-};
-
-export const UsesSongRequiredByAnalysis: Story = {
-  name: "Uses song / Required by analysis",
-  render: () => videoVariant({ derivativeStep: usesSong({ requirementLabel: "Analysis found a likely song reference." }) }),
-};
-
-export const LockedUsesSong: Story = {
-  name: "Uses song / Locked publish",
-  render: () => videoVariant({ license: { presetId: "commercial-remix" }, derivativeStep: usesSong({ required: true }) }),
+export const PlaybackPending: Story = {
+  name: "4. Published / Playback pending",
+  render: () => <OriginalVideoPublicationSurface state="playback_pending" />,
+  parameters: {
+    docs: {
+      description: {
+        story:
+          "The post has published but Stream playback is not ready. The state promises convergence from the retained operation, not another upload.",
+      },
+    },
+  },
 };
