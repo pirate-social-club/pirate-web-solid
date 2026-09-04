@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 
 import {
   fetchPublicFeedPage,
@@ -45,6 +45,7 @@ describe("public feed boundary", () => {
       items: [{
         post: {
           post,
+          canonical_path: "/posts/a-sovereign-town-square",
           upvote_count: 3,
           downvote_count: 1,
           like_count: 2,
@@ -74,6 +75,7 @@ describe("public feed boundary", () => {
       likeCount: 2,
       commentCount: 5,
       title: "A sovereign town square",
+      canonicalPath: "/posts/a-sovereign-town-square",
     });
     expect(page.items[0]?.authorPublicHandle).toBeNull();
     expect(page.items[0]?.createdAt).toBe("2025-08-12T12:00:00.000Z");
@@ -98,6 +100,23 @@ describe("public feed boundary", () => {
       next_cursor: null,
     });
     expect(page.items.map(item => item.id)).toEqual(["valid"]);
+  });
+
+  test("fails closed on a malformed API-owned canonical path", () => {
+    const page = normalizePublicFeed({
+      items: [{
+        post: {
+          post,
+          canonical_path: "//outside.example/post",
+          translation_state: "same_language",
+          machine_translated: false,
+        },
+        community,
+      }],
+      top_communities: [],
+      next_cursor: null,
+    });
+    expect(page.items[0]?.canonicalPath).toBeNull();
   });
 
   test("uses the same-origin /api boundary and never forwards authorization", async () => {

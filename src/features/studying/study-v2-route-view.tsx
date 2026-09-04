@@ -36,6 +36,9 @@ export interface StudyV2RouteViewProps {
   api?: StudyV2Api;
   navigate?: (href: string) => void;
   postId: string;
+  routePath?: string;
+  exitPath?: string;
+  karaokePath?: string;
   recorder?: StudyingRecorder;
   resolveSession?: () => Promise<SessionResolution>;
 }
@@ -187,7 +190,7 @@ export function StudyV2RouteView(props: StudyV2RouteViewProps) {
   };
 
   return (
-    <main data-route-path={`/p/${props.postId}/study`} class="min-h-dvh bg-background text-foreground">
+    <main data-route-path={props.routePath ?? `/p/${props.postId}/study`} class="min-h-dvh bg-background text-foreground">
       <Title>Study · Pirate</Title>
       <Show when={state().kind !== "loading"} fallback={<StudyRouteLoadingState label="Loading study" />}>
         <Show when={state().kind !== "auth-required"} fallback={(
@@ -196,14 +199,14 @@ export function StudyV2RouteView(props: StudyV2RouteViewProps) {
             onConnect={requestGlobalSignIn}
             onConnectIntent={prepareGlobalSignIn}
             onConnectPreload={preloadGlobalSignInAssets}
-            onExit={() => navigate("/")}
+            onExit={() => navigate(props.exitPath ?? "/")}
             title="Sign in to study"
           />
         )}>
           <Show when={failureState() === undefined} fallback={(
             <StudyRouteLoadFailureState
               description={failureState()?.message ?? "We couldn't load Study for this song."}
-              onGoHome={() => navigate("/")}
+              onGoHome={() => navigate(props.exitPath ?? "/")}
               onRetry={() => {
                 createIdempotencyKey = sessionKey(props.postId);
                 void load();
@@ -218,8 +221,8 @@ export function StudyV2RouteView(props: StudyV2RouteViewProps) {
                   {(lesson) => (
                     <StudyingRouteView
                       client={createStudyV2RuntimeClient({ api, initialSession: lesson().session })}
-                      onExit={() => navigate("/")}
-                      onKaraoke={() => navigate(`/p/${encodeURIComponent(props.postId)}/karaoke`)}
+                      onExit={() => navigate(props.exitPath ?? "/")}
+                      onKaraoke={() => navigate(props.karaokePath ?? `/p/${encodeURIComponent(props.postId)}/karaoke`)}
                       onStudyAgain={() => {
                         createIdempotencyKey = sessionKey(props.postId);
                         void load();

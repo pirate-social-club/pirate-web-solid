@@ -13,6 +13,7 @@ import {
   type ProductionHnsCommunityAppIngressCompositionV2,
 } from "./hns-ingress/index.ts";
 import { projectPersonaPublicProfile } from "./features/profiles/persona-public-profile/persona-public-profile.model.ts";
+import { publicPostSitemapResponse } from "./features/posts/public-post/public-post-sitemap.ts";
 
 export { HnsCommunityAppReplayStoreDO } from "./hns-ingress/replay-store-do.ts";
 
@@ -95,6 +96,8 @@ async function ordinaryRequest(request: Request, env: Env): Promise<Response> {
   if (pathname === "/api" || pathname.startsWith("/api/")) {
     return proxyApiRequest(request, env);
   }
+  const sitemap = await publicPostSitemapResponse(request, env.API_NEXT_ORIGIN);
+  if (sitemap !== undefined) return sitemap;
   return applicationRequest(request, env);
 }
 

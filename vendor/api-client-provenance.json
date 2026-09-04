@@ -24,6 +24,9 @@
     "post_communitiesCommunityIdPostsPostIdStudyV2Generations",
     "post_communitiesCommunityIdPostsPostIdStudyV2Sessions",
     "get_communitiesCommunityIdStudyV2SessionsSessionId",
-    "post_communitiesCommunityIdStudyV2SessionsSessionIdItemsSessionItemIdAnswers"
+    "post_communitiesCommunityIdStudyV2SessionsSessionIdItemsSessionItemIdAnswers",
+    "get_publicPostsBySlug",
+    "get_publicPostsByIdPostIdCanonicalRoute",
+    "get_publicPostsSitemap"
   ]
 }

@@ -33,9 +33,10 @@ function payloadLines(payload: ApiSongKaraokePayload) {
 export interface KaraokeSessionRouteViewProps {
   postId: string;
   client?: KaraokeApiClient;
+  exitPath?: string;
 }
 
-function LoadedKaraokeSession(props: { payload: ApiSongKaraokePayload; postId: string; client: KaraokeApiClient }) {
+function LoadedKaraokeSession(props: { payload: ApiSongKaraokePayload; postId: string; client: KaraokeApiClient; exitPath?: string }) {
   const navigate = useNavigate();
   const lines = createMemo(() => payloadLines(props.payload));
   const scorableLines = createMemo(() => toScorableKaraokeLines(lines()));
@@ -70,7 +71,7 @@ function LoadedKaraokeSession(props: { payload: ApiSongKaraokePayload; postId: s
           onConnect={requestGlobalSignIn}
           onConnectIntent={prepareGlobalSignIn}
           onConnectPreload={preloadGlobalSignInAssets}
-          onExit={() => navigate(`/p/${encodeURIComponent(props.postId)}`)}
+          onExit={() => navigate(props.exitPath ?? "/")}
           title="Sign in to sing"
         />
       }
@@ -80,7 +81,7 @@ function LoadedKaraokeSession(props: { payload: ApiSongKaraokePayload; postId: s
         artworkSrc={props.payload.artwork_src ?? undefined}
         instrumentalAudioUrl={props.payload.instrumental_audio_url ?? undefined}
         lines={lines()}
-        onExit={() => navigate(`/p/${encodeURIComponent(props.postId)}`)}
+        onExit={() => navigate(props.exitPath ?? "/")}
         onFinish={(songMs) => scoring.controls.noteFinish(songMs)}
         onPause={(songMs) => scoring.controls.notePause(songMs)}
         onPlay={(songMs) => scoring.controls.notePlay(songMs)}
@@ -112,7 +113,7 @@ export function KaraokeSessionRouteView(props: KaraokeSessionRouteViewProps) {
 
   return (
       <Show when={payload()} fallback={<Show when={!loading()} fallback={<KaraokeRouteLoadingState label="Loading karaoke" />}><KaraokeRouteLoadFailureState description={errorMessage(loadError(), "We couldn't load karaoke for this song.")} onGoHome={() => { window.location.href = "/"; }} onRetry={load} title="Karaoke unavailable" /></Show>}>
-      {(loaded) => <LoadedKaraokeSession client={client} payload={loaded()} postId={props.postId} />}
+      {(loaded) => <LoadedKaraokeSession client={client} exitPath={props.exitPath} payload={loaded()} postId={props.postId} />}
     </Show>
   );
 }
@@ -120,6 +121,7 @@ export function KaraokeSessionRouteView(props: KaraokeSessionRouteViewProps) {
 export interface KaraokeLeaderboardRouteViewProps {
   postId: string;
   client?: KaraokeApiClient;
+  karaokePath?: string;
 }
 
 export function KaraokeLeaderboardRouteView(props: KaraokeLeaderboardRouteViewProps) {
@@ -158,7 +160,7 @@ export function KaraokeLeaderboardRouteView(props: KaraokeLeaderboardRouteViewPr
               onConnect={requestGlobalSignIn}
               onConnectIntent={prepareGlobalSignIn}
               onConnectPreload={preloadGlobalSignInAssets}
-              onExit={() => navigate(`/p/${encodeURIComponent(props.postId)}/karaoke`)}
+              onExit={() => navigate(props.karaokePath ?? `/p/${encodeURIComponent(props.postId)}/karaoke`)}
               artistName={loadedPayload()?.artist_name ?? undefined}
               artworkSrc={loadedPayload()?.artwork_src ?? undefined}
               songTitle={loadedPayload()?.title ?? undefined}
@@ -177,8 +179,8 @@ export function KaraokeLeaderboardRouteView(props: KaraokeLeaderboardRouteViewPr
               artistName={value.payload.artist_name ?? undefined}
               artworkSrc={value.payload.artwork_src ?? undefined}
               leaderboard={value.leaderboard}
-              onExit={() => navigate(`/p/${encodeURIComponent(props.postId)}/karaoke`)}
-              onSing={() => navigate(`/p/${encodeURIComponent(props.postId)}/karaoke`)}
+              onExit={() => navigate(props.karaokePath ?? `/p/${encodeURIComponent(props.postId)}/karaoke`)}
+              onSing={() => navigate(props.karaokePath ?? `/p/${encodeURIComponent(props.postId)}/karaoke`)}
               title={value.payload.title ?? "Karaoke"}
             />
           </>

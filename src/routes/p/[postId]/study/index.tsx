@@ -1,9 +1,12 @@
-import { useNavigate, useParams } from "@solidjs/router";
+import { type RouteProps } from "@solidjs/router";
+import { defineFileRoute } from "@solidjs/router/fs";
+import { PublicPostRouteView } from "../../../../features/posts/public-post/public-post-route-view.tsx";
+import { queryPublicPostLegacyRoute } from "../../../../features/posts/public-post/public-post-route-loader.ts";
 
-import { StudyV2RouteView } from "../../../../features/studying/study-v2-route-view";
+export const route = defineFileRoute("/p/:postId/study", {
+  preload: ({ params }) => queryPublicPostLegacyRoute(params.postId, "study"),
+});
 
-export default function StudyPostRoute() {
-  const navigate = useNavigate();
-  const params = useParams<{ postId: string }>();
-  return <StudyV2RouteView navigate={(href) => navigate(href)} postId={params.postId} />;
+export default function StudyPostRoute(props: RouteProps<typeof route>) {
+  return <PublicPostRouteView state={props.data} />;
 }

@@ -9,6 +9,7 @@ export const publicFeedStagingContractFixture = {
   items: [
     {
       post: {
+        canonical_path: "/posts/sanitized-staging-song",
         post: {
           id: "fixture-song-1",
           object: "post",

@@ -29,6 +29,9 @@ const clients = [
       "post_communitiesCommunityIdPostsPostIdStudyV2Sessions",
       "get_communitiesCommunityIdStudyV2SessionsSessionId",
       "post_communitiesCommunityIdStudyV2SessionsSessionIdItemsSessionItemIdAnswers",
+      "get_publicPostsBySlug",
+      "get_publicPostsByIdPostIdCanonicalRoute",
+      "get_publicPostsSitemap",
     ],
   },
 ];

@@ -142,6 +142,7 @@ function FeedItemCard(props: {
   readonly item: PublicFeedItem;
 }) {
   const title = () => displayTitle(props.item);
+  const heading = () => title() ?? props.item.postType;
   const body = () => displayBody(props.item);
   const card = (controls?: JSX.Element) => (
     <article data-feed-item-id={props.item.id}>
@@ -154,9 +155,11 @@ function FeedItemCard(props: {
             <Type as="span" variant="caption">·</Type>
             <time datetime={props.item.createdAt}>{props.item.createdAt.slice(0, 10)}</time>
           </div>
-          <Show when={title()} fallback={<Type variant="h3">{props.item.postType}</Type>}>
-            {(value) => <Type variant="h3">{value()}</Type>}
-          </Show>
+          <Type variant="h3">
+            <Show when={props.item.canonicalPath} fallback={heading()}>
+              {path => <a href={path()}>{heading()}</a>}
+            </Show>
+          </Type>
           <Show when={body()}>
             {(value) => <Type variant="body">{value()}</Type>}
           </Show>
@@ -165,17 +168,17 @@ function FeedItemCard(props: {
             <Type variant="caption">{props.item.commentCount === null ? "Comments unavailable" : `${props.item.commentCount} comments`}</Type>
             <Type variant="caption">{props.item.postType}</Type>
           </div>
-          <Show when={props.item.postType === "song" && props.item.status === "published"}>
+          <Show when={props.item.postType === "song" && props.item.status === "published" && props.item.canonicalPath}>
             <nav aria-label="Song activities" class="flex flex-wrap gap-3">
               <a
                 class={buttonVariants({ variant: "secondary" })}
-                href={`/p/${encodeURIComponent(props.item.id)}/study`}
+                href={`${props.item.canonicalPath}/study`}
               >
                 Study
               </a>
               <a
                 class={buttonVariants({ variant: "secondary" })}
-                href={`/p/${encodeURIComponent(props.item.id)}/karaoke`}
+                href={`${props.item.canonicalPath}/karaoke`}
               >
                 Karaoke
               </a>

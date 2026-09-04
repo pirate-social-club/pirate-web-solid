@@ -38,6 +38,7 @@ afterEach(() => {
 const page: PublicFeedPage = {
   items: [{
     id: "post-1",
+    canonicalPath: "/posts/a-sovereign-town-square",
     communityId: "community-1",
     communityName: "Harbor",
     communityRouteSlug: "harbor",
@@ -96,6 +97,7 @@ describe("PublicFeed", () => {
     });
     expect(result.items).toHaveLength(1);
     expect(result.items[0]).toMatchObject({
+      canonicalPath: "/posts/sanitized-staging-song",
       id: "fixture-song-1",
       postType: "song",
       title: "Sanitized staging song",
@@ -127,6 +129,8 @@ describe("PublicFeed", () => {
     expect(container.textContent).toContain("Harbor voice");
     expect(container.textContent).toContain("2 likes");
     expect(container.querySelector("[data-feed-item-id='post-1']")).not.toBeNull();
+    expect(container.querySelector("a[href='/posts/a-sovereign-town-square']")?.textContent)
+      .toContain("A sovereign town square");
     expect(container.querySelector("input, textarea, [data-viewer-control]")).toBeNull();
   });
 
@@ -136,7 +140,7 @@ describe("PublicFeed", () => {
     expect(container.textContent).toContain("No public posts are available yet.");
   });
 
-  test("links a published song to the production Study and Karaoke routes", async () => {
+  test("links a published song through the API-owned canonical route", async () => {
     const item = page.items[0]!;
     const songPage: PublicFeedPage = {
       ...page,
@@ -145,8 +149,8 @@ describe("PublicFeed", () => {
     const container = render(() => <PublicFeed data={songPage} />);
 
     await vi.waitFor(() => expect(container.querySelector("[aria-label='Song activities']")).not.toBeNull());
-    expect(container.querySelector("a[href='/p/post%2Fsong-1/study']")?.textContent).toContain("Study");
-    expect(container.querySelector("a[href='/p/post%2Fsong-1/karaoke']")?.textContent).toContain("Karaoke");
+    expect(container.querySelector("a[href='/posts/a-sovereign-town-square/study']")?.textContent).toContain("Study");
+    expect(container.querySelector("a[href='/posts/a-sovereign-town-square/karaoke']")?.textContent).toContain("Karaoke");
   });
 
   test("renders an explicit unavailable state when the feed request fails", async () => {

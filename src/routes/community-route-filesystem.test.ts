@@ -27,6 +27,10 @@ describe("community file-route structure", () => {
 
     expect(paths).toContain("/p/:postId/karaoke/");
     expect(paths).toContain("/p/:postId/study/");
+    expect(paths).toContain("/posts/:slug/");
+    expect(paths).toContain("/posts/:slug/study/");
+    expect(paths).toContain("/posts/:slug/karaoke/");
+    expect(paths).toContain("/posts/:slug/karaoke/leaderboard");
   });
 
   test("gives community creation one unambiguous new route", async () => {

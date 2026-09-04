@@ -18,6 +18,7 @@ import {
 } from "../../../lib/ui-locale-core.ts";
 import type { ApiFetch } from "../../../api/proxy.ts";
 import type { FeedSort } from "./feed-model.ts";
+import { logicalSlugFromCanonicalPublicPostPath } from "../public-post/public-post-route.model.ts";
 
 export type PublicFeedClient = Pick<PirateApiClient, "get_feedHomePublic">;
 
@@ -43,6 +44,7 @@ export interface PublicFeedCommunity {
 
 export interface PublicFeedItem {
   readonly id: string;
+  readonly canonicalPath?: string | null;
   readonly communityId: string;
   readonly communityName: string;
   readonly communityRouteSlug: string | null;
@@ -105,6 +107,11 @@ function isRecord(value: unknown): value is JsonRecord {
 
 function nullableString(value: unknown): string | null {
   return typeof value === "string" && value.trim() !== "" ? value : null;
+}
+
+function canonicalPostPath(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  return logicalSlugFromCanonicalPublicPostPath(value) === null ? null : value;
 }
 
 function finiteNumber(value: unknown): number | null {
@@ -176,6 +183,7 @@ function normalizeFeedItem(value: unknown): PublicFeedItem | null {
   const authorPersona = isRecord(post.author_persona) ? post.author_persona : null;
   return {
     id,
+    canonicalPath: canonicalPostPath(envelope.canonical_path),
     communityId: community.id,
     communityName: community.displayName,
     communityRouteSlug: community.routeSlug,

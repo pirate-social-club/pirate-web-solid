@@ -1,7 +1,12 @@
-import { useParams } from "@solidjs/router";
-import { KaraokeLeaderboardRouteView } from "../../../../features/karaoke/karaoke-route-view";
+import { type RouteProps } from "@solidjs/router";
+import { defineFileRoute } from "@solidjs/router/fs";
+import { PublicPostRouteView } from "../../../../features/posts/public-post/public-post-route-view.tsx";
+import { queryPublicPostLegacyRoute } from "../../../../features/posts/public-post/public-post-route-loader.ts";
 
-export default function KaraokeLeaderboardRoute() {
-  const params = useParams<{ postId: string }>();
-  return <KaraokeLeaderboardRouteView postId={params.postId} />;
+export const route = defineFileRoute("/p/:postId/karaoke/leaderboard", {
+  preload: ({ params }) => queryPublicPostLegacyRoute(params.postId, "karaoke-leaderboard"),
+});
+
+export default function KaraokeLeaderboardRoute(props: RouteProps<typeof route>) {
+  return <PublicPostRouteView state={props.data} />;
 }

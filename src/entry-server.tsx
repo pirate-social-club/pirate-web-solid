@@ -17,6 +17,11 @@ import {
   resolvePersonaPublicProfilePreflight,
   type PersonaPublicProfilePreflight,
 } from "./features/profiles/persona-public-profile/persona-public-profile-preflight.ts";
+import {
+  publicPostResponsePolicy,
+  resolvePublicPostPreflight,
+  type PublicPostPreflight,
+} from "./features/posts/public-post/public-post-preflight.ts";
 
 export async function render(
   request: Request,
@@ -26,6 +31,7 @@ export async function render(
     readonly PERSONA_PUBLIC_PROFILE_PREFLIGHT?: PersonaPublicProfilePreflight;
     readonly CANONICAL_ASSET_ORIGIN?: string;
     readonly DISABLE_HYDRATION?: boolean;
+    readonly PUBLIC_POST_PREFLIGHT?: PublicPostPreflight;
   },
 ) {
   const event = getRequestEvent();
@@ -36,6 +42,29 @@ export async function render(
   const renderManifest = (context?.CANONICAL_ASSET_ORIGIN === undefined
     ? manifest
     : { ...manifest, _base: `${new URL(context.CANONICAL_ASSET_ORIGIN).origin}/` }) as typeof manifest;
+  const postPreflight = context?.PUBLIC_POST_PREFLIGHT ??
+    await resolvePublicPostPreflight(request, context?.API_NEXT_ORIGIN);
+  if (postPreflight !== undefined) {
+    if (postPreflight.state.kind === "redirect") {
+      return new Response(null, {
+        status: 308,
+        headers: {
+          "Cache-Control": "private, no-store",
+          Location: postPreflight.state.location,
+          Vary: "Accept-Language, Cookie",
+        },
+      });
+    }
+    if (event !== undefined) {
+      // SAFETY: this request-local key is written and read only as the
+      // PublicPostPreflight produced immediately above.
+      const locals = event.locals as typeof event.locals & { publicPostPreflight?: PublicPostPreflight };
+      locals.publicPostPreflight = postPreflight;
+    }
+    const policy = publicPostResponsePolicy(postPreflight.state);
+    httpStatus(policy.status, policy.statusText);
+    policy.headers.forEach((value, name) => httpHeader(name, value));
+  }
   const personaPreflight = context?.PERSONA_PUBLIC_PROFILE_PREFLIGHT ??
     await resolvePersonaPublicProfilePreflight(request, context?.API_NEXT_ORIGIN);
   if (personaPreflight !== undefined) {
