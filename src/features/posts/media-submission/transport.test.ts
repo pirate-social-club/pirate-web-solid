@@ -109,6 +109,8 @@ describe("same-origin media submission transport", () => {
   });
 
   test("refuses a video snapshot at the retained song-only transport boundary", async () => {
+    // SAFETY: this test exercises only the read command, so the partial API
+    // double supplies the sole generated-client method the transport invokes.
     const transport = createSameOriginMediaSubmissionTransport({
       api: {
         get_mediaPostSubmissionsSubmissionId: async () => ({
