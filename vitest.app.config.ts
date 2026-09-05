@@ -60,6 +60,7 @@ export default defineConfig({
       "src/features/communities/handle-storefront/handle-storefront.model.test.ts",
       "src/features/communities/handle-storefront/handle-storefront.test.tsx",
       "src/features/karaoke/karaoke-api.test.ts",
+      "src/features/identity/community-persona-choice-sheet.test.tsx",
       "src/features/posts/feed/public-feed.test.tsx",
       "src/features/posts/feed/public-feed.test.ts",
       "src/features/posts/video-feed/home-video-feed.test.tsx",

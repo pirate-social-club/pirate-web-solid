@@ -28,7 +28,7 @@ export const CREATE_NEW_PERSONA_VALUE = "__create_new_persona__";
 export interface CommunityPersonaChoiceDialogProps {
   /** Visible label naming the operation, e.g. "Joining as". */
   label: string;
-  /** The account's active personas; the server stays the eligibility authority. */
+  /** Active candidates scoped by the caller to this operation and community. */
   personas: readonly ActivePersonaPublicProjection[];
   choice: CommunityPersonaChoice | undefined;
   onChoose: (choice: CommunityPersonaChoice) => void;
@@ -38,6 +38,8 @@ export interface CommunityPersonaChoiceDialogProps {
   note?: string;
   createNewLabel?: string;
   createNewDescription?: string;
+  /** Only membership and creation operations can mint a persona. */
+  allowCreateNew?: boolean;
   forceMobile?: boolean;
 }
 
@@ -54,10 +56,8 @@ function selectedValue(
  * The closed persona choice a terminal community membership or
  * community-creation commit carries (spec 014 §10.2): name one of the
  * account's active personas, or have the server mint a new persona bound to
- * the target community in the same commit. The dialog never claims a persona
- * is eligible for the community — the generated client carries no binding, so
- * the server's typed conflict is the authority and callers must render it
- * honestly.
+ * the target community in the same commit. Operation-only callers disable the
+ * mint option. The server still rechecks the selected candidate at commit.
  */
 export function CommunityPersonaChoiceDialog(props: CommunityPersonaChoiceDialogProps) {
   const options = () => toOperationPersonas(props.personas);
@@ -75,11 +75,11 @@ export function CommunityPersonaChoiceDialog(props: CommunityPersonaChoiceDialog
           class="overflow-y-auto px-5 pb-4 sm:px-6 sm:pb-6"
           label={props.label}
           onChange={(value) => {
-            props.onChoose(
-              value === CREATE_NEW_PERSONA_VALUE
-                ? { kind: "create_new" }
-                : { kind: "existing", personaId: value },
-            );
+            if (value === CREATE_NEW_PERSONA_VALUE) {
+              if (props.allowCreateNew !== false) props.onChoose({ kind: "create_new" });
+            } else if (props.personas.some(persona => persona.personaId === value)) {
+              props.onChoose({ kind: "existing", personaId: value });
+            }
           }}
           value={selectedValue(
             props.choice,
@@ -102,13 +102,13 @@ export function CommunityPersonaChoiceDialog(props: CommunityPersonaChoiceDialog
               />
             )}
           </For>
-          <OptionCard
+          <Show when={props.allowCreateNew !== false}><OptionCard
             description={props.createNewDescription
               ?? "Mint a fresh persona bound to this community in the same step."}
             icon={<IconPlus class="size-8" />}
             title={props.createNewLabel ?? "Create a new persona"}
             value={CREATE_NEW_PERSONA_VALUE}
-          />
+          /></Show>
         </OptionCardGroup>
         <Show when={props.note}>
           {(note) => (
