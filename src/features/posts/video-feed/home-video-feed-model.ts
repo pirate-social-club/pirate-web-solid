@@ -106,6 +106,9 @@ function caption(item: PublicFeedItem): string | undefined {
 
 export function toHomeVideoPost(item: PublicFeedItem): HomeVideoPost | null {
   if (item.postType !== "video" || item.status !== "published") return null;
+  // Normalized production video items carry explicit delivery state. Neither
+  // pending nor opaque ready refs authorize the legacy mediaRefs resolver.
+  if (item.videoDelivery) return null;
   const media = resolveVideoMedia(item.mediaRefs);
   if (!media) return null;
   const destination = communityDestination(item);
@@ -133,5 +136,5 @@ export function playableHomeVideos(items: readonly PublicFeedItem[]): HomeVideoP
 }
 
 export function unplayableVideoCount(items: readonly PublicFeedItem[]): number {
-  return items.filter(item => item.postType === "video" && item.status === "published" && resolveVideoMedia(item.mediaRefs) === null).length;
+  return items.filter(item => item.postType === "video" && item.status === "published" && (item.videoDelivery !== undefined || resolveVideoMedia(item.mediaRefs) === null)).length;
 }

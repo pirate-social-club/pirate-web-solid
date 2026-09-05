@@ -2,7 +2,7 @@ import { createSignal, onCleanup, Show } from "solid-js";
 import { Button, FormNote } from "../../../design-system";
 import { OriginalVideoCaptureSurface, OriginalVideoReviewSurface } from "../post-composer/video-original-audio-surface";
 import type { VideoCaptureSession } from "./capture";
-import { VideoCoordinator, type PendingVideo, type VideoStorage } from "./coordinator";
+import { canDiscardRejectedVideo, VideoCoordinator, type PendingVideo, type VideoStorage } from "./coordinator";
 import { createBrowserVideoStorage } from "./storage";
 import { createVideoTransport, type VideoTransport } from "./transport";
 
@@ -146,10 +146,14 @@ export function VideoComposerRuntime(props: {
         preview={<video src={preview()} controls playsinline class="h-full w-full object-contain" />} />
     </Show>
     <Show when={record()}>
-      <p role="status">Video state: {state()?.status.replaceAll("_", " ") ?? "reservation pending"}.</p>
+      <p role="status">Video state: {record()?.rejection ? "request rejected" : state()?.status.replaceAll("_", " ") ?? "reservation pending"}.</p>
+      <Show when={record()?.rejection}><p role="alert">The video request was rejected. A new attempt will not start automatically.</p></Show>
+      <Show when={canDiscardRejectedVideo(record())}><Button disabled={busy()} onClick={() => { void run(async () => {
+        const rejected = await coordinator.discardRejected(); showFile(rejected.file); setCaption(rejected.caption); setRating(rejected.rating);
+      }); }}>Edit rejected video</Button></Show>
       <Show when={state()?.status === "manual_review"}><p>Your video remains private during review. No post is public yet.</p></Show>
       <Show when={state()?.status === "blocked" || state()?.status === "abandoned"}><p>This attempt cannot publish. It will not be retried with a new identity.</p></Show>
-      <Show when={record()?.pending || awaiting() || !state()}><Button disabled={busy()} onClick={() => { void publish(); }}>Resume video submission</Button></Show>
+      <Show when={!record()?.rejection && (record()?.pending || awaiting() || !state())}><Button disabled={busy()} onClick={() => { void publish(); }}>Resume video submission</Button></Show>
       <Show when={awaiting()}><Button disabled={busy()} onClick={() => { void run(() => coordinator.revisionCommand("cancel")); }}>Cancel video submission</Button></Show>
       <Show when={busy()}><Button onClick={() => coordinator.pauseUpload()}>Pause upload</Button></Show>
       <Show when={state()?.status === "processing_failed"}><Button disabled={busy()} onClick={() => { void run(() => coordinator.revisionCommand("retry")); }}>Retry processing</Button></Show>

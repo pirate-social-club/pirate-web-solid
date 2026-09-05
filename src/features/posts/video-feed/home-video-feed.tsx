@@ -1,6 +1,8 @@
 import { Title } from "@solidjs/meta";
 import { VerticalFeed } from "@pirate/web-solid-ui";
-import { Show, createEffect, createSignal, onCleanup, untrack } from "solid-js";
+import { For, Show, createEffect, createSignal, onCleanup, untrack } from "solid-js";
+import { VideoDeliveryPending } from "../video-submission/video-delivery-pending";
+import type { VideoDeliveryState } from "../video-submission/delivery-state";
 
 import { Spinner, Type } from "../../../design-system.ts";
 import type { UiLocaleCode } from "../../../lib/ui-locale-core.ts";
@@ -22,6 +24,7 @@ export interface HomeVideoFeedProps {
 }
 
 interface VideoPageState {
+  readonly delivery: readonly VideoDeliveryState[];
   readonly posts: readonly HomeVideoPost[];
   readonly nextCursor: string | null;
   readonly unplayableCount: number;
@@ -33,6 +36,8 @@ type LoadState =
   | Readonly<{ readonly kind: "ready" }>;
 
 const MAX_EMPTY_PAGE_SCAN = 4;
+const deliveryStates = (page: FeedPage): VideoDeliveryState[] => page.items.flatMap(item =>
+  item.postType === "video" && item.status === "published" && item.videoDelivery ? [item.videoDelivery] : []);
 
 async function collectVideoPage(
   first: FeedPage,
@@ -41,17 +46,19 @@ async function collectVideoPage(
   sort: FeedSort,
 ): Promise<VideoPageState> {
   const posts = [...playableHomeVideos(first.items)];
+  const delivery = deliveryStates(first);
   let unplayableCount = unplayableVideoCount(first.items);
   let nextCursor = first.nextCursor;
   let scanned = 1;
   while (posts.length === 0 && nextCursor && scanned < MAX_EMPTY_PAGE_SCAN) {
     const page = await loadPage({ cursor: nextCursor, locale, sort });
     posts.push(...playableHomeVideos(page.items));
+    delivery.push(...deliveryStates(page));
     unplayableCount += unplayableVideoCount(page.items);
     nextCursor = page.nextCursor;
     scanned += 1;
   }
-  return { posts, nextCursor, unplayableCount };
+  return { posts, nextCursor, unplayableCount, delivery };
 }
 
 function navigateTo(href: string, navigate?: (href: string) => void): void {
@@ -67,6 +74,7 @@ export function HomeVideoFeed(props: HomeVideoFeedProps) {
   const [nextCursor, setNextCursor] = createSignal<string | null>(null);
   const [loadingMore, setLoadingMore] = createSignal(false);
   const [unplayableCount, setUnplayableCount] = createSignal(0);
+  const [delivery, setDelivery] = createSignal<readonly VideoDeliveryState[]>([]);
   let active = true;
   onCleanup(() => { active = false; });
 
@@ -84,6 +92,7 @@ export function HomeVideoFeed(props: HomeVideoFeedProps) {
           setPosts(page.posts);
           setNextCursor(page.nextCursor);
           setUnplayableCount(page.unplayableCount);
+          setDelivery(page.delivery);
           setState({ kind: "ready" });
         })
         .catch(() => { if (active) setState({ kind: "error" }); });
@@ -98,6 +107,7 @@ export function HomeVideoFeed(props: HomeVideoFeedProps) {
       const page = await props.loadPage({ cursor, locale, sort });
       setPosts(previous => [...previous, ...playableHomeVideos(page.items)]);
       setUnplayableCount(count => count + unplayableVideoCount(page.items));
+      setDelivery(previous => [...previous, ...deliveryStates(page)]);
       setNextCursor(page.nextCursor);
     } catch {
       // Keep the current post and cursor so a later end-of-feed signal can retry.
@@ -125,7 +135,11 @@ export function HomeVideoFeed(props: HomeVideoFeedProps) {
         <Show when={state().kind === "ready"} fallback={<div class="grid h-full place-items-center px-6 text-center"><div><Type variant="h2" class="text-white">Video feed unavailable</Type><Type variant="body" class="mt-2 text-white/70">Try again in a moment.</Type></div></div>}>
           <Show
             when={posts().length > 0}
-            fallback={<div class="grid h-full place-items-center px-6 text-center"><div><Type variant="h2" class="text-white">{unplayableCount() > 0 ? "Videos are not playable yet" : "No videos yet"}</Type><Type variant="body" class="mt-2 text-white/70">{unplayableCount() > 0 ? "The feed found video posts, but the API did not provide playable media." : "Published community videos will appear here."}</Type></div></div>}
+            fallback={<Show when={delivery().length > 0} fallback={<div class="grid h-full place-items-center px-6 text-center"><div><Type variant="h2" class="text-white">{unplayableCount() > 0 ? "Videos are not playable yet" : "No videos yet"}</Type><Type variant="body" class="mt-2 text-white/70">{unplayableCount() > 0 ? "The feed found video posts, but the API did not provide playable media." : "Published community videos will appear here."}</Type></div></div>}>
+              <div class="grid max-h-dvh gap-4 overflow-y-auto p-6 text-white" aria-label="Published videos awaiting delivery">
+                <For each={delivery()}>{state => <VideoDeliveryPending state={state} />}</For>
+              </div>
+            </Show>}
           >
             <VerticalFeed
               class="bg-black"

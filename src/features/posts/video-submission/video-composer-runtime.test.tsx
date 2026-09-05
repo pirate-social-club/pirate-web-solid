@@ -2,6 +2,7 @@
 import { render } from "@solidjs/web";
 import { createRoot } from "solid-js";
 import { webcrypto } from "node:crypto";
+import { ApiClientError } from "@pirate/api-client";
 import { afterEach, describe, expect, test, vi } from "vitest";
 import { VideoComposerRuntime } from "./video-composer-runtime";
 import type { PendingVideo, VideoStorage } from "./coordinator";
@@ -10,7 +11,7 @@ import type { OriginalVideoReservation, VideoSnapshot } from "./contracts";
 
 const disposers: (() => void)[] = [];
 afterEach(() => { for (const dispose of disposers.splice(0)) dispose(); document.body.replaceChildren(); vi.unstubAllGlobals(); });
-function setup(final: "published" | "manual_review") {
+function setup(final: "published" | "manual_review", rejectKind?: "reserve" | "start") {
   vi.stubGlobal("crypto", webcrypto);
   const urlApi = class extends URL { static createObjectURL() { return "blob:https://example.test/video"; } static revokeObjectURL() {} };
   vi.stubGlobal("URL", urlApi);
@@ -22,7 +23,11 @@ function setup(final: "published" | "manual_review") {
   let snapshot: VideoSnapshot = { ...common, status: "processing", phase: "awaiting_upload" };
   const commands: VideoCommand[] = [];
   const transport: VideoTransport = { async read() { return snapshot; }, async execute(command) {
-    commands.push(command); if (command.kind === "reserve") return reservation;
+    commands.push(command);
+    if (command.kind === rejectKind) throw new ApiClientError(
+      { status: 400, code: "bad_request", name: "BadRequest", retryable: false },
+      { error: { code: "bad_request", message: "Request refused", retryable: false } });
+    if (command.kind === "reserve") return reservation;
     if (command.kind === "finalize") snapshot = final === "published"
       ? { ...common, creation_revision: 2, video_revision: 1, status: "published", published_resource: { post_id: "post", href: "/posts/post" } }
       : { ...common, creation_revision: 2, video_revision: 1, status: "manual_review", reason_codes: ["media_review_required"], review_ref: "review" };
@@ -45,6 +50,18 @@ async function selectAndPublish() {
   await vi.waitFor(() => expect(publish.disabled).toBe(false)); publish.click();
 }
 describe("mounted original video flow", () => {
+  test.each(["reserve", "start"] as const)("a rejected %s returns to editing only on explicit action", async kind => {
+    const fixture = setup("published", kind); await selectAndPublish();
+    await vi.waitFor(() => expect(document.body.textContent).toContain("request rejected"));
+    const commandCount = fixture.commands.length;
+    expect([...document.querySelectorAll("button")].some(button => button.textContent?.includes("Resume video submission"))).toBe(false);
+    const edit = [...document.querySelectorAll("button")].find(button => button.textContent?.includes("Edit rejected video"))!;
+    await vi.waitFor(() => expect(edit.disabled).toBe(false)); edit.click();
+    await vi.waitFor(() => expect(document.querySelector("textarea")).not.toBeNull());
+    expect(document.body.textContent).toContain("Publish video");
+    expect(fixture.commands).toHaveLength(commandCount);
+    expect(fixture.published).not.toHaveBeenCalled();
+  });
   test("reserves, uploads and finalizes without a title, terms or client poster", async () => {
     const fixture = setup("published"); await selectAndPublish();
     await vi.waitFor(() => expect(fixture.published).toHaveBeenCalledOnce());

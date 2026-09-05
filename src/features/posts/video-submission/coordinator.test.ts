@@ -1,4 +1,5 @@
 import { webcrypto } from "node:crypto";
+import { ApiClientError } from "@pirate/api-client";
 import { afterEach, describe, expect, test, vi } from "vitest";
 import { VideoCoordinator, type PendingVideo, type VideoStorage } from "./coordinator";
 import type { OriginalVideoReservation, VideoSnapshot } from "./contracts";
@@ -25,6 +26,7 @@ function setup(source = reservation) {
   let loseFinalize = true;
   let key = 0;
   const commands: VideoCommand[] = [];
+  let rejection: { kind: VideoCommand["kind"]; error: Error } | null = null;
   const results = new Map<string, VideoCommandResult>();
   const storage: VideoStorage = {
     async exclusive(work) { return work(); },
@@ -34,6 +36,7 @@ function setup(source = reservation) {
     async read() { return current; },
     async execute(command) {
       commands.push(command);
+      if (rejection?.kind === command.kind) { const error = rejection.error; rejection = null; throw error; }
       const old = results.get(command.input.body.idempotency_key);
       if (old) return old;
       if (command.kind === "reserve") { results.set(command.input.body.idempotency_key, source); return source; }
@@ -54,10 +57,46 @@ function setup(source = reservation) {
   const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(new Response(null, { headers: { etag: "part-etag" } }));
   const create = (principalId = "account") => new VideoCoordinator({ principalId, storage, transport, fetchImpl, createId: () => `key-${++key}` });
   const begin = (coordinator: VideoCoordinator) => coordinator.begin({ communityId: "community", personaId: "persona", caption: "", rating: "general", file: new File(["video"], "take.mp4", { type: "video/mp4" }) });
-  return { create, begin, commands, fetchImpl, storage, posts: () => posts };
+  return { create, begin, commands, fetchImpl, storage, posts: () => posts,
+    rejectNext: (kind: VideoCommand["kind"], error: Error) => { rejection = { kind, error }; },
+  };
+}
+
+function rejected(status = 400, retryable = false) {
+  return new ApiClientError({ status, code: "bad_request", name: "BadRequest", retryable },
+    { error: { code: "bad_request", message: "Request refused", retryable } });
 }
 
 describe("video operation replay", () => {
+  test.each(["reserve", "start"] as const)("definitive %s rejection restores without replay and requires explicit editing", async kind => {
+    const fixture = setup(); const first = fixture.create(); fixture.rejectNext(kind, rejected());
+    if (kind === "reserve") await expect(fixture.begin(first)).rejects.toThrow("Request refused");
+    else { await fixture.begin(first); await expect(first.submit()).rejects.toThrow("Request refused"); }
+    expect(first.current?.pending).toBeNull();
+    expect(first.current?.rejection?.command.kind).toBe(kind);
+    const count = fixture.commands.length;
+    const resumed = fixture.create(); await resumed.restore();
+    expect(fixture.commands).toHaveLength(count);
+    await expect(resumed.submit()).rejects.toThrow(/rejected/);
+    expect(fixture.commands).toHaveLength(count);
+    const draft = await resumed.discardRejected(); expect(draft.file.name).toBe("take.mp4");
+    expect(await fixture.storage.load()).toBeNull();
+    await fixture.begin(resumed);
+    expect(fixture.commands.at(-1)?.input.body.idempotency_key).not.toBe(fixture.commands[0]?.input.body.idempotency_key);
+  });
+  test.each([new Error("offline"), rejected(409), rejected(429, true), rejected(503, true)])("uncertain/conflicting rejection is retained and cannot be discarded: %s", async error => {
+    const fixture = setup(); const first = fixture.create(); fixture.rejectNext("reserve", error);
+    await expect(fixture.begin(first)).rejects.toThrow();
+    expect(first.current?.pending?.command.kind).toBe("reserve"); expect(first.current?.rejection).toBeUndefined();
+    await expect(first.discardRejected()).rejects.toThrow(/definitively/);
+    expect(await fixture.storage.load()).not.toBeNull();
+  });
+  test("a rejected finalize never authorizes discarding a server-owned operation", async () => {
+    const fixture = setup(); const first = fixture.create(); await fixture.begin(first); fixture.rejectNext("finalize", rejected());
+    await expect(first.submit()).rejects.toThrow("Request refused");
+    await expect(first.discardRejected()).rejects.toThrow(/definitively/);
+    expect(first.current?.snapshot?.submission_id).toBe("submission");
+  });
   test("partial renewal preserves the complete durable upload plan", async () => {
     const fixture = setup({ ...reservation, upload: { ...reservation.upload, part_size_bytes: 3, part_count: 2,
       parts: [1, 2].map(part_number => ({ part_number, url: `https://upload.example/${part_number}`,

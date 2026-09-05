@@ -19,6 +19,7 @@ import {
 import type { ApiFetch } from "../../../api/proxy.ts";
 import type { FeedSort } from "./feed-model.ts";
 import { logicalSlugFromCanonicalPublicPostPath } from "../public-post/public-post-route.model.ts";
+import { readVideoDelivery, type VideoDeliveryState } from "../video-submission/delivery-state";
 
 export type PublicFeedClient = Pick<PirateApiClient, "get_feedHomePublic">;
 
@@ -66,6 +67,7 @@ export interface PublicFeedItem {
   readonly caption: string | null;
   readonly createdAt: string;
   readonly mediaRefs: readonly unknown[] | null;
+  readonly videoDelivery?: VideoDeliveryState;
   readonly analysisState: "pending" | "allow" | "allow_with_required_reference" | "review_required" | "blocked";
   readonly contentSafetyState: "pending" | "safe" | "sensitive" | "adult";
   readonly ageGatePolicy: "none" | "18_plus";
@@ -205,6 +207,7 @@ function normalizeFeedItem(value: unknown): PublicFeedItem | null {
     caption: nullableString(post.caption),
     createdAt: created,
     mediaRefs: normalizeMediaRefs(post.media_refs),
+    ...(postType === "video" ? { videoDelivery: readVideoDelivery(envelope.video) } : {}),
     analysisState,
     contentSafetyState,
     ageGatePolicy,

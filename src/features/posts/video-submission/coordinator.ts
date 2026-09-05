@@ -1,3 +1,4 @@
+import { ApiClientError } from "@pirate/api-client";
 import { sha256Hex } from "../post-composer/text-submission-contract";
 import { finalizeOriginalVideo, reserveOriginalVideo, startOriginalVideo, VideoContractError,
   type OriginalVideoReservation, type VideoPartReceipt, type VideoSnapshot } from "./contracts";
@@ -16,6 +17,12 @@ export interface PendingVideo {
   readonly snapshot: VideoSnapshot | null;
   readonly receipts: readonly VideoPartReceipt[];
   readonly pending: { readonly command: VideoCommand; readonly digest: string } | null;
+  readonly rejection?: {
+    readonly command: VideoCommand;
+    readonly digest: string;
+    readonly status: number;
+    readonly code: string;
+  };
 }
 export interface VideoStorage {
   readonly exclusive: <T>(work: () => Promise<T>) => Promise<T>;
@@ -25,6 +32,10 @@ export interface VideoStorage {
 }
 
 function snapshotResult(result: VideoCommandResult): result is VideoSnapshot { return "submission_id" in result; }
+export function canDiscardRejectedVideo(record: PendingVideo | null): boolean {
+  return record !== null && record.pending === null && record.snapshot === null
+    && (record.rejection?.command.kind === "reserve" || record.rejection?.command.kind === "start");
+}
 const terminal = (snapshot: VideoSnapshot) => ["published", "blocked", "abandoned"].includes(snapshot.status);
 async function commandDigest(command: VideoCommand): Promise<string> {
   return sha256Hex(new TextEncoder().encode(JSON.stringify(command)));
@@ -77,7 +88,20 @@ export class VideoCoordinator {
       throw new VideoContractError("Reconcile the retained command before issuing another");
     }
     await this.save({ ...current, pending: { command, digest: await commandDigest(command) } });
-    const result = await this.options.transport.execute(command);
+    let result: VideoCommandResult;
+    try { result = await this.options.transport.execute(command); }
+    catch (error) {
+      // Only a generated, declared non-retryable client rejection proves this
+      // command was refused. Conflicts may name an existing operation; keep
+      // them, transport failures and unexpected/malformed responses for replay.
+      if (error instanceof ApiClientError && !error.retryable && error.status >= 400 && error.status < 500
+        && ![408, 409, 429].includes(error.status)) {
+        await this.save({ ...this.require(), pending: null,
+          rejection: { command, digest: await commandDigest(command), status: error.status, code: error.code },
+        });
+      }
+      throw error;
+    }
     let next = this.require();
     if (snapshotResult(result)) {
       if (result.author_persona.persona_id !== next.personaId
@@ -104,7 +128,8 @@ export class VideoCoordinator {
         } } };
       } else next = { ...next, reservation: result };
     }
-    await this.save({ ...next, pending: null });
+    const { rejection: _rejection, ...accepted } = next;
+    await this.save({ ...accepted, pending: null });
     return result;
   }
   private async reconcile(): Promise<void> {
@@ -156,6 +181,7 @@ export class VideoCoordinator {
     return this.exclusive(async () => {
       await this.reconcile();
       let record = this.require();
+      if (record.rejection) throw new VideoContractError("The saved video command was rejected. Resolve it explicitly before continuing.");
       if (!record.reservation) throw new VideoContractError("Reservation has not been reconciled");
       if (!record.snapshot) {
         await this.execute({ kind: "start", input: startOriginalVideo({ ...record, reservation: record.reservation, key: this.key() }) });
@@ -212,6 +238,18 @@ export class VideoCoordinator {
       const snapshot = await this.refreshSnapshot();
       if (!snapshot || !terminal(snapshot)) throw new VideoContractError("Only a terminal video attempt can be discarded");
       await this.options.storage.remove(); this.record = null; this.options.onChange?.(null);
+    });
+  }
+  /** Explicit edit/discard after a refused reserve/start; never on ambiguity. */
+  async discardRejected(): Promise<PendingVideo> {
+    return this.exclusive(async () => {
+      const record = this.require();
+      if (!canDiscardRejectedVideo(record) || !record.rejection
+        || await commandDigest(record.rejection.command) !== record.rejection.digest) {
+        throw new VideoContractError("Only a definitively rejected reservation or start can be discarded");
+      }
+      await this.options.storage.remove(); this.record = null; this.options.onChange?.(null);
+      return record;
     });
   }
 }

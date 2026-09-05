@@ -63,6 +63,22 @@ function contentState(canonical: boolean): PublicPostRouteState {
 }
 
 describe("public post route view", () => {
+  it.each(["pending", "ready"] as const)("shows video %s as a safe delivery status without media URLs", status => {
+    const state = contentState(true);
+    if (state.kind !== "content") throw new Error("Expected fixture content");
+    const container = render({ ...state, response: { ...state.response, content: { ...state.response.content,
+      post: { ...state.response.content.post, post_type: "video" },
+      video: { track: "video", caption: null, caption_dir: null, caption_lang: null,
+        soundtrack: { kind: "original_audio", original_sound_id: "sound", origin_video_post_id: "post-1", origin_author_persona_id: "persona" },
+        playback: status === "pending" ? { status } : { status, provider: "stream", playback_ref: "bare-stream-uid" },
+        thumbnail: status === "pending" ? { status } : { status, artifact_ref: "media://derived/poster" },
+        data_registration: "registered", capabilities: { can_post_with_song: false },
+      },
+    } } });
+    expect(container.textContent).toContain(status === "pending" ? "Playback is being prepared" : "Playback is unavailable");
+    expect(container.querySelector("video, iframe, img")).toBeNull();
+    expect(container.innerHTML).not.toContain("bare-stream-uid"); expect(container.innerHTML).not.toContain("media://");
+  });
   it("renders public content with canonical and Open Graph metadata", async () => {
     const container = render(contentState(true));
     expect(container.textContent).toContain("A searchable title");

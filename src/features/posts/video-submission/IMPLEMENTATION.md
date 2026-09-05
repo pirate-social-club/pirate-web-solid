@@ -15,8 +15,16 @@ and notices remain in the distributed dependency. Error promises now enter
 the capture failure boundary immediately, while orientation and sample-size
 changes require a retake. Background visibility changes are not take-ending.
 
-This is an implementation checkpoint, not a release. Typed public playback
-integration, real-browser IndexedDB and capture acceptance, definitive command
-rejection recovery and final independent review remain. A synthetic transport
-fixture proving publication does not prove live media playback. No deployment
-or live provider call is claimed by this source.
+Definitive non-retryable reserve/start rejection requires explicit editing
+before another attempt. Ambiguous outcomes retain their exact command for
+replay; an existing server submission cannot be discarded as a rejected draft.
+Feed and Post surfaces expose typed pending delivery states. Even a projected
+ready status does not authorize turning an opaque reference into a media URL.
+
+This is an implementation checkpoint, not a release. Playback-ready wiring
+and end-to-end browser acceptance are blocked on
+api-video-delivery-completion and its consumable access contract. The closed
+publication lane is not evidence of backend deployability. Real-browser
+IndexedDB and capture checks, remaining interruption cases and independent
+review remain open. A synthetic transport fixture proving publication does
+not prove live playback. No deployment or live provider call is claimed.

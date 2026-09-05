@@ -59,6 +59,15 @@ function page(items: readonly PublicFeedItem[], nextCursor: string | null): Feed
   return { items, topCommunities: [], nextCursor };
 }
 
+test.each(["pending", "delivery_unavailable"] as const)("shows typed %s without falling back to media refs", async status => {
+  const item = { ...video([{ playback_url: "https://legacy.example/must-not-play.mp4" }]), videoDelivery: { playback: status, thumbnail: status } };
+  const container = render(() => <HomeVideoFeed data={page([item], null)} loadPage={async () => page([], null)} />);
+  await vi.waitFor(() => expect(container.querySelector("[data-video-playback-state]")?.getAttribute("data-video-playback-state")).toBe(status));
+  expect(container.textContent).toContain(status === "pending" ? "Playback is being prepared" : "Playback is unavailable");
+  expect(container.querySelector("video, iframe, img[src*='legacy.example']")).toBeNull();
+  expect(container.innerHTML).not.toContain("must-not-play");
+});
+
 afterEach(() => {
   for (const dispose of disposers.splice(0)) dispose();
   document.body.replaceChildren();

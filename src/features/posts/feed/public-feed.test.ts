@@ -40,6 +40,15 @@ const community = {
 };
 
 describe("public feed boundary", () => {
+  test("normalizes typed video pending and fails closed when delivery facts are missing", () => {
+    const page = normalizePublicFeed({ items: [
+      { community, post: { post: { ...post, post_type: "video" }, translation_state: "same_language",
+        video: { track: "video", playback: { status: "pending" }, thumbnail: { status: "pending" } } } },
+      { community, post: { post: { ...post, id: "missing-video", post_type: "video", media_refs: ["https://legacy.example/video.mp4"] }, translation_state: "same_language" } },
+    ], top_communities: [], next_cursor: null });
+    expect(page.items[0]?.videoDelivery).toEqual({ playback: "pending", thumbnail: "pending" });
+    expect(page.items[1]?.videoDelivery).toEqual({ playback: "unavailable", thumbnail: "unavailable" });
+  });
   test("projects persisted identity, moderation, translation, and counts without defaults", () => {
     const page = normalizePublicFeed({
       items: [{
