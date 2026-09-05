@@ -71,6 +71,8 @@ export default defineConfig({
       "src/features/posts/post-composer/video-original-audio-surface.test.tsx",
       "src/features/posts/video-submission/multipart.test.ts",
       "src/features/posts/video-submission/coordinator.test.ts",
+      "src/features/posts/video-submission/capture.test.ts",
+      "src/features/posts/video-submission/video-composer-runtime.test.tsx",
       "src/features/posts/post-composer/text-submission-contract.test.ts",
       "src/features/posts/post-composer/pending-submission.test.ts",
       "src/features/posts/post-composer/text-submission-transport.test.ts",

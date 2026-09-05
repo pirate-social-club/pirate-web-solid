@@ -141,21 +141,14 @@ export function songSubmitProgressSteps(input: {
   return steps;
 }
 
-export function videoSubmitProgressSteps(input: { monetized: boolean }): SubmitProgressStep[] {
+export function videoSubmitProgressSteps(_input: { monetized: boolean }): SubmitProgressStep[] {
   const steps: SubmitProgressStep[] = [
     { key: "validating", phase: "validating", label: "Checking details" },
     { key: "upload_video", phase: "uploading_media", label: "Uploading video" },
-    { key: "extract_poster", phase: "preparing_media", label: "Preparing poster" },
-    { key: "upload_poster", phase: "uploading_media", label: "Uploading poster" },
+    { key: "analysis", phase: "processing_media", label: "Checking video and soundtrack" },
     { key: "publish_post", phase: "publishing_post", label: "Publishing" },
   ];
-  if (input.monetized) {
-    steps.push({ key: "create_listing", phase: "creating_listing", label: "Creating listing" });
-  }
-  steps.push(
-    { key: "check_registration", phase: "checking_registration", label: "Checking registration" },
-    { key: "done", phase: "done", label: "Post published" },
-  );
+  steps.push({ key: "done", phase: "done", label: "Post published" });
   return steps;
 }
 

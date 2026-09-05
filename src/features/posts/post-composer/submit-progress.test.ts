@@ -75,17 +75,13 @@ describe("submitProgressFraction — pipeline monotonicity", () => {
       ["upload_video", "33%"],
       ["upload_video", "66%"],
       ["upload_video", "100%"],
-      ["extract_poster"],
-      ["upload_poster", "0%"],
-      ["upload_poster", "100%"],
+      ["analysis"],
       ["publish_post"],
-      ["create_listing"],
-      ["check_registration"],
       ["done"],
     ]);
 
     expect(isNonDecreasing(fractions)).toBe(true);
-    expect(approx(fractions[0]!, 1 / 7)).toBe(true); // validating
+    expect(approx(fractions[0]!, 1 / 4)).toBe(true); // validating
     expect(fractions.at(-1)).toBe(1); // done / registration reaches 100%
   });
 
@@ -93,7 +89,7 @@ describe("submitProgressFraction — pipeline monotonicity", () => {
     const fractions = replayFractions(videoSubmitProgressSteps({ monetized: true }), [
       ["validating"],
       ["upload_video"],
-      ["extract_poster"],
+      ["analysis"],
       ["upload_video", "18%"],
     ]);
 

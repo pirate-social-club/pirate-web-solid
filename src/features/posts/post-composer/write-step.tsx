@@ -30,23 +30,19 @@ import {
   textMobileAttachmentActions,
 } from "./defaults";
 import { PostComposerEventSection } from "./event-section";
-import { PostComposerDerivativeSection } from "./derivative-section";
-import { PostComposerSegmentedControl } from "./segmented-control";
 import { LiveTabContent } from "./live-tab";
 import { PostComposerPublishControls } from "./publish-controls";
-import { VideoFramePicker } from "./video-frame-picker";
 import { extractEmbeddedAudioArtworkFile, extractEmbeddedAudioTitle } from "./audio-artwork";
 import {
   createKeyboardBottomOffset,
   createObjectUrl,
-  createVideoPosterUrl,
   createVideoSourceAspectRatio,
 } from "./media-hooks";
 import type { AttachmentKind, AttachmentState, ComposerToolbarAction } from "./types";
 import type { PostComposerController } from "./controller";
 
 const imageExtensions = new Set(["jpg", "jpeg", "png", "gif", "webp", "bmp", "svg", "heic", "heif", "avif"]);
-const videoExtensions = new Set(["mp4", "mov", "avi", "mkv", "webm", "flv", "wmv", "m4v", "3gp", "ts", "mts"]);
+const videoExtensions = new Set(["mp4", "mov"]);
 const audioExtensions = new Set(["mp3", "wav", "flac", "aac", "ogg", "m4a", "wma", "aiff", "opus"]);
 const downloadExtensions = new Set(["csv", "tsv", "txt", "json"]);
 const mp3OnlyCopy = "Public-song v1 currently accepts MP3 only.";
@@ -58,7 +54,8 @@ function fileExtension(name: string): string | null {
 
 function fileKind(file: File): AttachmentKind | null {
   if (file.type.startsWith("image/")) return "image";
-  if (file.type.startsWith("video/")) return "video";
+  if (file.type === "video/mp4" || file.type === "video/quicktime") return "video";
+  if (file.type.startsWith("video/")) return null;
   if (file.type.startsWith("audio/")) return "song";
   const extension = fileExtension(file.name);
   if (!extension) return null;
@@ -133,9 +130,8 @@ export function PostComposerWriteStep(props: {
   const videoPreview = createObjectUrl(() => controller.media.videoState.primaryVideoUpload);
   const detectedVideoAspectRatio = createVideoSourceAspectRatio(videoPreview);
   const videoAspectRatio = () => detectedVideoAspectRatio() ?? controller.media.videoState.primaryVideoAspectRatio;
-  const videoPoster = createVideoPosterUrl(() => controller.media.videoState.primaryVideoUpload);
   const songArtwork = createObjectUrl(() => controller.song.state.coverUpload);
-  const attachment = () => attachmentFor(controller, imagePreview(), videoPoster(), videoPreview(), videoAspectRatio(), songArtwork());
+  const attachment = () => attachmentFor(controller, imagePreview(), undefined, videoPreview(), videoAspectRatio(), songArtwork());
   const keyboardOffset = createKeyboardBottomOffset();
   const [activeTool, setActiveTool] = createSignal<ComposerToolbarAction | null>(null);
   const [moreOpen, setMoreOpen] = createSignal(false);
@@ -252,7 +248,7 @@ export function PostComposerWriteStep(props: {
   const Inputs = () => (
     <>
       <input accept="image/*" aria-label="Upload image" class="sr-only" ref={imageInput} type="file" onChange={(event) => input("image", event.currentTarget.files)} />
-      <input accept="video/*" aria-label="Upload video" class="sr-only" ref={videoInput} type="file" onChange={(event) => input("video", event.currentTarget.files)} />
+      <input accept="video/mp4,video/quicktime,.mp4,.mov" aria-label="Upload video" class="sr-only" ref={videoInput} type="file" onChange={(event) => input("video", event.currentTarget.files)} />
       <input accept=".mp3,audio/mpeg" aria-label="Upload audio" class="sr-only" ref={songInput} type="file" onChange={(event) => input("song", event.currentTarget.files)} />
       <input accept=".csv,.tsv,.txt,.json,text/csv,text/tab-separated-values,text/plain,application/json" aria-label="Upload downloadable file" class="sr-only" ref={fileInput} type="file" onChange={(event) => input("file", event.currentTarget.files)} />
     </>
@@ -303,52 +299,11 @@ export function PostComposerWriteStep(props: {
         </Show>
       </section>
 
-      <BasicFields idPrefix="video-post" />
-
-      <section class="space-y-3">
-        <Type as="h2" variant="body-strong">Source</Type>
-        <PostComposerSegmentedControl
-          aria-label="Video source"
-          options={[
-            { label: "Original", value: "original" },
-            { label: "Remix", value: "uses_song" },
-          ]}
-          onChange={(value) => controller.primary.handleVideoSourceModeChange(value === "uses_song" ? "uses_song" : "original")}
-          value={controller.primary.activeVideoSourceMode}
-        />
-        <PostComposerDerivativeSection
-          copy={controller.copy}
-          derivativePickerKey={controller.primary.derivativePickerKey}
-          derivativeSearchResults={controller.primary.derivativeSearchResults}
-          derivativeState={controller.primary.derivativeState}
-          labels={{
-            acceptTermsLabel: "I accept the source song terms.",
-            emptyLabel: "No songs found.",
-            placeholder: "Search songs",
-            searchAriaLabel: "Search songs this video uses",
-            sectionTitle: "Remix source",
-          }}
-          onAdvancePicker={controller.advanceDerivativePicker}
-          updateDerivativeState={controller.primary.updateDerivativeState}
-        />
-      </section>
-
-      <Show when={controller.media.videoState.primaryVideoUpload}>
-        {(file) => (
-          <VideoFramePicker
-            copy={controller.copy}
-            file={file()}
-            frameSeconds={controller.media.videoState.posterFrameSeconds ?? "0"}
-            onFrameSecondsChange={(value) => controller.media.updateVideoState((current) => ({ ...current, posterFrameSeconds: value }))}
-          />
-        )}
-      </Show>
-
-      <PostComposerAccessRightsControl
-        controller={controller}
-        initialOpen={props.initialOpenPanel === "access-and-rights"}
-        presentation="row"
-      />
+      <label class="grid gap-2">Caption (optional)
+        <Textarea maxlength={2200} value={controller.fields.captionValue}
+          onInput={event => controller.fields.onCaptionValueChange(event.currentTarget.value)} />
+      </label>
+      <FormNote tone="muted">Original audio. Poster generated by the server; soundtrack rights are checked before publication.</FormNote>
     </>
   );
 

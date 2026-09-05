@@ -18,6 +18,7 @@ export interface PendingVideo {
   readonly pending: { readonly command: VideoCommand; readonly digest: string } | null;
 }
 export interface VideoStorage {
+  readonly exclusive: <T>(work: () => Promise<T>) => Promise<T>;
   readonly load: () => Promise<PendingVideo | null>;
   readonly save: (record: PendingVideo) => Promise<void>;
   readonly remove: () => Promise<void>;
@@ -58,7 +59,17 @@ export class VideoCoordinator {
   private async exclusive<T>(work: () => Promise<T>): Promise<T> {
     if (this.busy) throw new VideoContractError("A video command is already in progress");
     this.busy = true;
-    try { return await work(); } finally { this.busy = false; }
+    try {
+      return await this.options.storage.exclusive(async () => {
+        const stored = await this.options.storage.load();
+        if (stored && (stored.version !== "original-video-pending-v1" || stored.principalId !== this.options.principalId)) {
+          throw new VideoContractError("Retained video belongs to a different account or version");
+        }
+        this.record = stored;
+        this.options.onChange?.(stored);
+        return work();
+      });
+    } finally { this.busy = false; }
   }
   private async execute(command: VideoCommand): Promise<VideoCommandResult> {
     const current = this.require();

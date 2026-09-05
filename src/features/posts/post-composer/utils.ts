@@ -69,7 +69,7 @@ export function canAdvanceComposerWriteStep({
   fileUploadPresent?: boolean;
 }) {
   if (mode === "song") return songAudioUploadPresent;
-  if (mode === "video") return title.trim().length > 0 && videoUploadPresent;
+  if (mode === "video") return videoUploadPresent;
   if (mode === "image") return title.trim().length > 0 && imageUploadPresent;
   if (mode === "link") return isValidHttpUrl(linkUrl);
   if (mode === "live") return Boolean(liveState && canSubmitLiveRoomDraft(liveState, title));

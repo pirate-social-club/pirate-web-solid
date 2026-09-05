@@ -29,6 +29,7 @@ export type OriginalVideoCaptureStatus =
   | "orientation_lost";
 
 export interface OriginalVideoCaptureSurfaceProps {
+  readonly preview?: JSX.Element;
   readonly channel?: "camera" | "upload";
   readonly status?: OriginalVideoCaptureStatus;
   readonly elapsedLabel?: string;
@@ -58,6 +59,7 @@ export function OriginalVideoCaptureSurface(props: OriginalVideoCaptureSurfacePr
           class="relative h-full max-h-full w-full bg-gradient-to-b from-[#262a30] to-[#0d0f12] sm:aspect-[9/16] sm:w-auto"
           data-video-viewfinder
         >
+          {props.preview}
           <Switch>
             <Match when={channel() === "upload"}>
               <CaptureMessage
@@ -147,11 +149,11 @@ export function OriginalVideoCaptureSurface(props: OriginalVideoCaptureSurfacePr
                 )}
               />
             </button>
-            <CaptureSideAction
+            <Show when={props.onFlipCamera && !recording()}><CaptureSideAction
               icon={<IconArrowsClockwise class="size-5" />}
               label="Flip"
               onClick={() => props.onFlipCamera?.()}
-            />
+            /></Show>
           </div>
         </div>
       </Show>
@@ -198,6 +200,7 @@ function CaptureSideAction(props: {
 }
 
 export interface OriginalVideoReviewSurfaceProps {
+  readonly preview?: JSX.Element;
   readonly caption?: string;
   readonly submitting?: boolean;
   readonly onBack?: () => void;
@@ -234,6 +237,7 @@ export function OriginalVideoReviewSurface(props: OriginalVideoReviewSurfaceProp
     >
       <div class="mx-auto grid w-full max-w-4xl gap-6 p-4 md:grid-cols-[minmax(15rem,22rem)_1fr] md:p-6">
         <div class="relative mx-auto aspect-[9/16] h-auto max-h-[58dvh] w-full max-w-sm overflow-hidden rounded-[var(--radius-2xl)] bg-gradient-to-b from-[#262a30] to-[#0d0f12]">
+          <Show when={props.preview} fallback={
           <IconButton
             aria-label="Play video preview"
             class="absolute left-1/2 top-1/2 size-16 -translate-x-1/2 -translate-y-1/2 bg-black/60"
@@ -241,6 +245,7 @@ export function OriginalVideoReviewSurface(props: OriginalVideoReviewSurfaceProp
           >
             <IconPlay class="size-7" />
           </IconButton>
+          }>{props.preview}</Show>
         </div>
 
         <div class="space-y-5">

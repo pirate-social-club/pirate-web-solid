@@ -27,6 +27,7 @@ function setup(source = reservation) {
   const commands: VideoCommand[] = [];
   const results = new Map<string, VideoCommandResult>();
   const storage: VideoStorage = {
+    async exclusive(work) { return work(); },
     async load() { return stored; }, async save(record) { stored = record; }, async remove() { stored = null; },
   };
   const transport: VideoTransport = {

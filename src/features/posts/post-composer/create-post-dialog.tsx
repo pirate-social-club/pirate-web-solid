@@ -33,6 +33,7 @@ import {
 } from "./media-composer-bridge";
 import { decodePendingSubmissionDraft, type PendingSubmissionStorage } from "./pending-submission";
 import { PostComposer } from "./post-composer";
+import { VideoComposerRuntime } from "../video-submission/video-composer-runtime";
 import { PostComposerSubmission } from "./post-composer-submission";
 import { initialPostComposerState, type PostComposerState } from "./post-composer-state";
 import type { TextContentSubmissionRequestEnvelopeV1 } from "./text-submission-contract";
@@ -176,7 +177,9 @@ export function CreatePostDialog(props: CreatePostDialogProps): JSX.Element {
     initialPersonaId,
   );
   const [textPersonaId, setTextPersonaId] = createSignal<string | undefined>(initialPersonaId);
-  const selectedPersonaId = () => mode() === "song" ? songPersonaId() : textPersonaId();
+  const [videoPersonaId, setVideoPersonaId] = createSignal<string | undefined>(initialPersonaId);
+  const [videoRetained, setVideoRetained] = createSignal(false);
+  const selectedPersonaId = () => mode() === "video" ? videoPersonaId() : mode() === "song" ? songPersonaId() : textPersonaId();
   const [error, setError] = createSignal("");
   const [textState, setTextState] = createSignal<PostComposerState>(initialPostComposerState);
   const [textRestoring, setTextRestoring] = createSignal(true);
@@ -264,6 +267,7 @@ export function CreatePostDialog(props: CreatePostDialogProps): JSX.Element {
   }
 
   function selectOperationPersona(nextPersonaId: string | undefined): void {
+    if (mode() === "video") { if (!videoRetained()) setVideoPersonaId(nextPersonaId); return; }
     if (mode() === "song") selectSongPersona(nextPersonaId);
     else setTextPersonaId(nextPersonaId);
   }
@@ -624,7 +628,7 @@ export function CreatePostDialog(props: CreatePostDialogProps): JSX.Element {
                 <select
                   aria-label="Operation persona"
                   class="h-11 w-full rounded-full border border-input bg-background px-4 text-base"
-                  disabled={mode() === "text" ? textRestoring() || textState().status !== "editing" : mediaCoordinator?.currentRecord !== null && mediaCoordinator?.currentRecord !== undefined}
+                  disabled={mode() === "video" ? videoRetained() : mode() === "text" ? textRestoring() || textState().status !== "editing" : mediaCoordinator?.currentRecord !== null && mediaCoordinator?.currentRecord !== undefined}
                   name="operation-persona"
                   onChange={event => selectOperationPersona(event.currentTarget.value || undefined)}
                   value={selectedPersonaId() ?? ""}
@@ -644,11 +648,17 @@ export function CreatePostDialog(props: CreatePostDialogProps): JSX.Element {
               <FormNote tone="warning">Create or reactivate a public persona before submitting a post.</FormNote>
             </Show>
 
-            <PostComposer
+            <Show when={mode() !== "video"} fallback={
+              <Show when={props.principalId}>{account => <VideoComposerRuntime
+                principalId={account()} communityId={communityId().trim()} personaId={selectedActivePersonaId()}
+                onExit={() => setMode("text")} onPublished={props.onPublished}
+                onRetainedPersona={personaId => { setVideoRetained(personaId !== null); if (personaId !== null) setVideoPersonaId(personaId); }}
+              />}</Show>
+            }><PostComposer
               audienceEditingDisabled={mode() === "song"
                 ? mediaRestoring() || mediaRecordRetained()
                 : textState().status !== "editing" && textState().status !== "transport_failure"}
-              availableTabs={["text", "song"]}
+              availableTabs={["text", "song", "video"]}
               canCreateSongPost={personas().length > 0}
               currentPersonaId={selectedPersonaId()}
               identity={{
@@ -690,7 +700,7 @@ export function CreatePostDialog(props: CreatePostDialogProps): JSX.Element {
               textBodyValue={body()}
               titleValue={title()}
               validateDraftBeforeSubmit={mode() !== "text"}
-            />
+            /></Show>
             <div class="flex justify-end">
               <Button type="button" variant="outline" onClick={() => close(false)}>Cancel</Button>
             </div>
