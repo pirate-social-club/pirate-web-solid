@@ -59,6 +59,7 @@ function ownedArrayBuffer(bytes: Uint8Array): ArrayBuffer {
 function reserved(name: string): boolean {
   const lower = name.toLowerCase();
   return (
+    lower === "x-pirate-hns-diagnostic-id" ||
     lower === CF_ACCESS_ASSERTION_HEADER ||
     lower === CF_ACCESS_CLIENT_ID_HEADER ||
     lower === CF_ACCESS_CLIENT_SECRET_HEADER ||

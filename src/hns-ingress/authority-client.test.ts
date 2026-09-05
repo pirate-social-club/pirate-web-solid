@@ -45,6 +45,7 @@ describe("private current-authority v2 client", () => {
         expect(init?.method).toBe("POST");
         expect(init?.redirect).toBe("manual");
         const requestHeaders = new Headers(init?.headers);
+        expect(requestHeaders.get("x-pirate-hns-diagnostic-id")).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u);
         expect(requestHeaders.get("accept")).toBe("application/json");
         expect(requestHeaders.get("content-type")).toBe("application/json");
         expect(requestHeaders.get(CF_ACCESS_CLIENT_ID_HEADER)).toBe("service-client-id");

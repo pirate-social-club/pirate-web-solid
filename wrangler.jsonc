@@ -1,6 +1,7 @@
 {
   "$schema": "./node_modules/wrangler/config-schema.json",
   "name": "pirate-web-solid",
+  "version_metadata": { "binding": "CF_VERSION_METADATA" },
   "account_id": "08a4c22cf52e2ecae883e36f80a33f4a",
   "compatibility_date": "2026-08-13",
   "compatibility_flags": ["nodejs_compat", "enable_request_signal"],
@@ -61,6 +62,7 @@
   "env": {
     "staging": {
       "name": "pirate-web-solid-staging",
+      "version_metadata": { "binding": "CF_VERSION_METADATA" },
       "workers_dev": true,
       "preview_urls": false,
       "routes": [
@@ -119,6 +121,7 @@
     },
     "production": {
       "name": "pirate-web-solid-production",
+      "version_metadata": { "binding": "CF_VERSION_METADATA" },
       "workers_dev": true,
       "preview_urls": false,
       "routes": [
