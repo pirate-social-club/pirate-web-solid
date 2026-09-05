@@ -4,6 +4,7 @@ import { Show, createEffect, createSignal, onCleanup } from "solid-js";
 import { resolveSession, type AuthenticatedSession, type SessionResolution } from "../../api/session";
 import { Button, FormNote, Type } from "../../design-system";
 import { preloadGlobalSignInAssets, prepareGlobalSignIn, requestGlobalSignIn } from "../auth/global-sign-in-host";
+import { defaultCommunityPersonaChoice } from "../identity/community-persona-choice";
 import { OperationPersonaControl } from "../identity/operation-persona-control/operation-persona-control";
 import {
   createStudyV2Api,
@@ -70,6 +71,18 @@ function safeFailure(error: unknown, fallback: string): string {
   return fallback;
 }
 
+/**
+ * Session-start failures under the community persona boundary: a 409 means the
+ * selected persona is not bound to this song's community, so the account must
+ * choose a community persona instead of retrying the same start.
+ */
+function startFailure(error: unknown, fallback: string): string {
+  if (typeof error === "object" && error !== null && "status" in error && error.status === 409) {
+    return "That persona isn't active in this song's community. Choose a persona bound to this community, or create one here.";
+  }
+  return safeFailure(error, fallback);
+}
+
 function sessionKey(postId: string): string {
   const random = globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`;
   return `study-session:${postId}:${random}`;
@@ -112,7 +125,10 @@ export function StudyV2RouteView(props: StudyV2RouteViewProps) {
         return;
       }
       if (resolved.personas.length === 0) {
-        setState({ kind: "failed", message: "Create an active public persona before starting Study." });
+        setState({
+          kind: "failed",
+          message: "Create a persona bound to this song's community before starting Study. Joining this community or creating a persona there resolves this.",
+        });
         return;
       }
       const loaded = await api.loadAvailability(props.postId);
@@ -121,7 +137,12 @@ export function StudyV2RouteView(props: StudyV2RouteViewProps) {
         setState({ kind: "unavailable", message: availabilityMessage(loaded.availability) });
         return;
       }
-      setPersonaId(resolved.personas[0]!.personaId);
+      // Spec 014 §10 / spec 018 §10: the default never falls back to the
+      // account's first global persona. A single active persona is the only
+      // candidate the community's eligible set could contain; with several,
+      // nothing is preselected and the account chooses explicitly.
+      const defaultChoice = defaultCommunityPersonaChoice(resolved.personas);
+      setPersonaId(defaultChoice?.kind === "existing" ? defaultChoice.personaId : "");
       setTargetLanguage("");
       setLearnerBand("");
       setState({
@@ -156,6 +177,10 @@ export function StudyV2RouteView(props: StudyV2RouteViewProps) {
       setMessage("Choose a learner level for translated practice.");
       return;
     }
+    if (personaId() === "") {
+      setMessage("Choose the persona this session presents in this community.");
+      return;
+    }
     setStarting(true);
     setMessage("");
     try {
@@ -170,7 +195,7 @@ export function StudyV2RouteView(props: StudyV2RouteViewProps) {
       });
       if (active) setState({ kind: "lesson", session });
     } catch (error) {
-      if (active) setMessage(safeFailure(error, "Could not start this Study session. Try again."));
+      if (active) setMessage(startFailure(error, "Could not start this Study session. Try again."));
     } finally {
       if (active) setStarting(false);
     }
@@ -252,9 +277,14 @@ export function StudyV2RouteView(props: StudyV2RouteViewProps) {
                   <OperationPersonaControl
                     label="Studying as"
                     personas={personas()}
+                    placeholder="Choose a persona"
                     selectedPersonaId={personaId()}
                     onSelect={setPersonaId}
                   />
+                  <p class="text-sm text-muted-foreground" data-persona-consequence-note>
+                    Study progress, streaks, and review history stay with your account. This
+                    persona is only how your session appears publicly in this community.
+                  </p>
                   <label class="flex flex-col gap-2">
                     <Type as="span" variant="label">Helper language</Type>
                     <select
@@ -295,7 +325,7 @@ export function StudyV2RouteView(props: StudyV2RouteViewProps) {
                     <Button class="flex-1" onClick={() => navigate("/")} variant="secondary">Exit</Button>
                     <Button
                       class="flex-1"
-                      disabled={starting() || (targetLanguage() !== "" && learnerBand() === "")}
+                      disabled={starting() || personaId() === "" || (targetLanguage() !== "" && learnerBand() === "")}
                       loading={starting()}
                       onClick={() => void start(configuration())}
                     >

@@ -13,7 +13,6 @@ import {
   sessionRequestOptions,
 } from "../../api/client";
 import type { ApiFetch } from "../../api/proxy";
-import { resolveSession } from "../../api/session";
 import type {
   ApiKaraokeAttempt,
   ApiKaraokeScoringDiagnostics,
@@ -82,6 +81,12 @@ export interface KaraokeApiClient {
   createSession(input: {
     communityId: string;
     postId: string;
+    /**
+     * The explicit performing persona (spec 019 §6.2): an active owned persona
+     * bound to the song's exact community. The contract has no empty-body or
+     * first-active-persona fallback.
+     */
+    personaId: string;
     idempotencyKey: string;
     signal?: AbortSignal;
   }): Promise<ApiKaraokeSession>;
@@ -109,7 +114,6 @@ export interface KaraokeApiClientOptions {
   origin?: string | URL;
   fetchImpl?: ApiFetch;
   readCsrfToken?: () => string | undefined;
-  resolvePersonaId?: () => Promise<string>;
 }
 
 export class KaraokeAvailabilityError extends KaraokeApiError {
@@ -314,16 +318,17 @@ export function createKaraokeApiClient(options: KaraokeApiClientOptions = {}): K
     return generatedClient;
   };
   const csrfToken = options.readCsrfToken ?? readCsrfCookie;
-  const resolvePersonaId = options.resolvePersonaId ?? (async () => {
-    const session = await resolveSession();
-    if (session === "anonymous" || session.personas.length === 0) {
-      throw new KaraokeApiError("persona_required", "An active public persona is required to start karaoke.", 403, false);
-    }
-    return session.personas[0]!.personaId;
-  });
 
   return {
-    createSession: async ({ communityId, idempotencyKey, postId, signal }) => {
+    createSession: async ({ communityId, idempotencyKey, personaId, postId, signal }) => {
+      if (typeof personaId !== "string" || personaId.trim() === "") {
+        throw new KaraokeApiError(
+          "persona_required",
+          "Choose a persona active in this community before starting a karaoke take.",
+          403,
+          false,
+        );
+      }
       const token = csrfToken();
       if (token === undefined) {
         throw new KaraokeApiError(
@@ -333,7 +338,6 @@ export function createKaraokeApiClient(options: KaraokeApiClientOptions = {}): K
           false,
         );
       }
-      const personaId = await resolvePersonaId();
       const response = await callApi(() => client().post_communitiesCommunityIdPostsPostIdKaraokeAttempts(
         {
           body: { persona_id: personaId },

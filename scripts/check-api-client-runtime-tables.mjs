@@ -12,8 +12,6 @@ const expectedDigest = "32d857ce31e49e5c25502e32d8d3c708ad2cfab995ecf2ba5ef0b0da
 
 const operations = [
   "get_personas",
-  "post_personas",
-  "post_personasPersonaIdRetire",
   "post_personasPersonaIdWalletsEvmPrepare",
   "post_personasPersonaIdWalletsEvmConfirm",
   "post_authSessionExchange",

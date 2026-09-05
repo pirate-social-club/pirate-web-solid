@@ -33,6 +33,7 @@ import {
 import type { PostEngagementTransport } from "../../posts/post-engagement/post-engagement-api.ts";
 import type { MediaSubmissionStorage } from "../../posts/media-submission/pending.ts";
 import { OperationPersonaControl } from "../../identity/operation-persona-control/operation-persona-control.tsx";
+import { CommunityPersonaChoiceDialog } from "../../identity/community-persona-choice-sheet.tsx";
 import { createCommunityModerationSettingsApi } from "../../community/owner-settings/community-moderation-settings-api.ts";
 import {
   loadCommunityThreadPage,
@@ -331,6 +332,15 @@ function SuccessState(props: {
           <Show when={engagement.error()}>
             {message => <p class="mx-5 mt-4 text-sm text-destructive md:mx-8" role="alert">{message()}</p>}
           </Show>
+          <CommunityPersonaChoiceDialog
+            createNewLabel="Create a new persona in this Community"
+            label="Joining as"
+            note="Membership attaches to your account. The persona you choose becomes your public identity in this Community; your private Study progress and streaks stay with your account either way."
+            onChoose={engagement.confirmJoinPersona}
+            onOpenChange={(open) => { if (!open) engagement.cancelJoinPersona(); }}
+            open={engagement.joinPersonaStep()}
+            personas={engagement.postingSession()?.personas ?? []}
+          />
       </div>
       <div class="sr-only">
         <p data-community-route={state.requestedPathSegment}>{state.routeDisplay}</p>

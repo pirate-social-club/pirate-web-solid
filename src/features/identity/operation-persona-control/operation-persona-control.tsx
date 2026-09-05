@@ -36,6 +36,12 @@ export interface OperationPersonaControlProps {
   onSelect?: (personaId: string) => void;
   disabled?: boolean;
   forceMobile?: boolean;
+  /**
+   * Text shown while no persona is selected. Community-facing selectors leave
+   * the choice unselected when more than one persona could act, so the trigger
+   * must say what is missing instead of rendering an empty identity.
+   */
+  placeholder?: string;
 }
 
 /**
@@ -73,7 +79,7 @@ export function OperationPersonaControl(props: OperationPersonaControlProps) {
         src={persona?.avatarSrc ?? undefined}
       />
       <Type as="span" class="min-w-0 truncate" variant="body-strong">
-        {persona?.displayName ?? ""}
+        {persona?.displayName ?? props.placeholder ?? ""}
       </Type>
     </>
   );

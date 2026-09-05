@@ -10,6 +10,10 @@ import {
   readCsrfCookie,
   type ApiClientFactoryOptions,
 } from "../../../api/client.ts";
+import {
+  toCommunityPersonaChoiceWire,
+  type CommunityPersonaChoice,
+} from "../../identity/community-persona-choice.ts";
 
 export type CommunityEngagementApiClient = Pick<
   PirateApiClient,
@@ -43,12 +47,21 @@ export type CommunityFollowResult = Readonly<{
 
 export type CommunityJoinResult = Readonly<{
   status: "joined" | "requested";
+  /** The persona the server resolved for the terminal membership commit. */
+  personaId: string | null;
 }>;
 
 export interface CommunityEngagementApi {
   readViewerState(communityId: string): Promise<CommunityViewerEngagement>;
   resolveJoinAction(communityId: string): Promise<CommunityJoinAction>;
-  join(communityId: string): Promise<CommunityJoinResult>;
+  /**
+   * Join or request membership. Spec 014 §10.2: a join that commits an active
+   * membership must carry the closed persona choice, while a request-mode join
+   * never carries one because an intent does not pre-bind identity. Pass
+   * `persona` only for the terminal commit; the server is the eligibility
+   * authority and answers a persona bound elsewhere with a typed conflict.
+   */
+  join(communityId: string, persona?: CommunityPersonaChoice): Promise<CommunityJoinResult>;
   follow(communityId: string): Promise<CommunityFollowResult>;
   unfollow(communityId: string): Promise<CommunityFollowResult>;
 }
@@ -155,15 +168,20 @@ export function createCommunityEngagementApi(
       const response = await client.get_communitiesCommunityIdJoinEligibility({ path: { communityId } });
       return projectCommunityJoinAction(response, communityId);
     },
-    async join(communityId) {
+    async join(communityId, persona) {
       const response = await client.post_communitiesCommunityIdJoin(
-        { path: { communityId } },
+        {
+          body: persona === undefined
+            ? undefined
+            : { persona: toCommunityPersonaChoiceWire(persona) },
+          path: { communityId },
+        },
         mutationOptions(readCsrfToken),
       );
       if (response.community !== communityId || (response.status !== "joined" && response.status !== "requested")) {
         return invalidResponse();
       }
-      return { status: response.status };
+      return { status: response.status, personaId: response.persona_id ?? null };
     },
     async follow(communityId) {
       const response = await client.post_communitiesCommunityIdFollow(
