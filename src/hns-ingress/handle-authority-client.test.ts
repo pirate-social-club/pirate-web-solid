@@ -99,7 +99,7 @@ describe("private handle-host authority client", () => {
     const timedOut = expect(hanging.resolve("name.xn--pokmon-dva", authority)).rejects.toMatchObject({
       reason: "authority_unavailable",
     });
-    await vi.advanceTimersByTimeAsync(2_000);
+    await vi.advanceTimersByTimeAsync(4_000);
     await timedOut;
     const controller = new AbortController();
     const aborted = expect(hanging.resolve("name.xn--pokmon-dva", authority, controller.signal)).rejects.toMatchObject({

@@ -11,8 +11,8 @@ import {
   HNS_FORWARDER_PATH_HEADER,
   HNS_FORWARDER_SIGNATURE_HEADER,
   HNS_FORWARDER_TIMESTAMP_HEADER,
-  HNS_HANDLE_PERSONA_PUBLIC_PROFILE_V1,
-  HNS_HANDLE_PERSONA_PUBLIC_PROFILE_V1_SHA256,
+  HNS_HANDLE_PERSONA_PUBLIC_PROFILE_V2,
+  HNS_HANDLE_PERSONA_PUBLIC_PROFILE_V2_SHA256,
   HnsIngressFailure,
   disabledProductionHnsHandlePersonaIngressCompositionV1,
   encodeHnsHandleAuthorityHeader,
@@ -93,8 +93,8 @@ async function composition(overrides: {
   readonly onAccess?: () => void;
 } = {}) {
   return makeHnsHandlePersonaIngressCompositionV1({
-    profile: HNS_HANDLE_PERSONA_PUBLIC_PROFILE_V1,
-    profileSha256: HNS_HANDLE_PERSONA_PUBLIC_PROFILE_V1_SHA256,
+    profile: HNS_HANDLE_PERSONA_PUBLIC_PROFILE_V2,
+    profileSha256: HNS_HANDLE_PERSONA_PUBLIC_PROFILE_V2_SHA256,
     ingressOrigin,
     canonicalOrigin: "https://pirate.sc",
     accessJwtValidator: { verify: async () => { overrides.onAccess?.(); } },
@@ -196,7 +196,7 @@ describe("public handle-persona HNS composition", () => {
     const missing = await composition({ authorityFailure: "not_found" });
     expect((await missing.fetch(await signedRequest())).status).toBe(404);
     await expect(makeHnsHandlePersonaIngressCompositionV1({
-      profile: "wrong", profileSha256: HNS_HANDLE_PERSONA_PUBLIC_PROFILE_V1_SHA256,
+      profile: "wrong", profileSha256: HNS_HANDLE_PERSONA_PUBLIC_PROFILE_V2_SHA256,
       ingressOrigin, canonicalOrigin: "https://pirate.sc",
       accessJwtValidator: { verify: async () => undefined }, authorityClient: { resolve: async () => authority },
       publicPersonaClient: { loadExact: async () => projection },

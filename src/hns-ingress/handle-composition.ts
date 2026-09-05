@@ -17,9 +17,9 @@ import {
   type HnsForwarderLimitsV1,
 } from "./wire.ts";
 import {
-  HNS_HANDLE_PERSONA_PUBLIC_PROFILE_V1,
-  HNS_HANDLE_PERSONA_PUBLIC_PROFILE_V1_BYTES,
-  HNS_HANDLE_PERSONA_PUBLIC_PROFILE_V1_SHA256,
+  HNS_HANDLE_PERSONA_PUBLIC_PROFILE_V2,
+  HNS_HANDLE_PERSONA_PUBLIC_PROFILE_V2_BYTES,
+  HNS_HANDLE_PERSONA_PUBLIC_PROFILE_V2_SHA256,
   readHnsHandleForwarderEnvelopeV3,
   verifyHnsHandleForwarderEnvelopeV3,
 } from "./handle-wire.ts";
@@ -184,9 +184,9 @@ export async function makeHnsHandlePersonaIngressCompositionV1(options: {
   const canonicalOrigin = exactHttpsOrigin(options.canonicalOrigin);
   if (
     canonicalOrigin !== "https://pirate.sc" || ingressOrigin === canonicalOrigin ||
-    options.profile !== HNS_HANDLE_PERSONA_PUBLIC_PROFILE_V1 ||
-    options.profileSha256 !== HNS_HANDLE_PERSONA_PUBLIC_PROFILE_V1_SHA256 ||
-    encoder.encode(options.profile).byteLength !== HNS_HANDLE_PERSONA_PUBLIC_PROFILE_V1_BYTES ||
+    options.profile !== HNS_HANDLE_PERSONA_PUBLIC_PROFILE_V2 ||
+    options.profileSha256 !== HNS_HANDLE_PERSONA_PUBLIC_PROFILE_V2_SHA256 ||
+    encoder.encode(options.profile).byteLength !== HNS_HANDLE_PERSONA_PUBLIC_PROFILE_V2_BYTES ||
     await sha256Hex(encoder.encode(options.profile)) !== options.profileSha256 ||
     typeof options.accessJwtValidator?.verify !== "function" ||
     typeof options.authorityClient?.resolve !== "function" ||

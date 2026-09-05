@@ -8,9 +8,9 @@ import {
   HNS_FORWARDER_PATH_HEADER,
   HNS_FORWARDER_SIGNATURE_HEADER,
   HNS_FORWARDER_TIMESTAMP_HEADER,
-  HNS_HANDLE_PERSONA_PUBLIC_PROFILE_V1,
-  HNS_HANDLE_PERSONA_PUBLIC_PROFILE_V1_BYTES,
-  HNS_HANDLE_PERSONA_PUBLIC_PROFILE_V1_SHA256,
+  HNS_HANDLE_PERSONA_PUBLIC_PROFILE_V2,
+  HNS_HANDLE_PERSONA_PUBLIC_PROFILE_V2_BYTES,
+  HNS_HANDLE_PERSONA_PUBLIC_PROFILE_V2_SHA256,
   encodeHnsHandleAuthorityHeader,
   hnsHandleForwarderV3Preimage,
   makeStaticHnsForwarderKeyRegistryV1,
@@ -62,9 +62,9 @@ function request(overrides: Record<string, string> = {}, method: "GET" | "HEAD" 
 
 describe("public handle-persona ingress wire", () => {
   it("pins the profile, authority header, and immutable forwarder vector", async () => {
-    expect(encoder.encode(HNS_HANDLE_PERSONA_PUBLIC_PROFILE_V1)).toHaveLength(HNS_HANDLE_PERSONA_PUBLIC_PROFILE_V1_BYTES);
-    expect(await sha256Hex(encoder.encode(HNS_HANDLE_PERSONA_PUBLIC_PROFILE_V1))).toBe(
-      HNS_HANDLE_PERSONA_PUBLIC_PROFILE_V1_SHA256,
+    expect(encoder.encode(HNS_HANDLE_PERSONA_PUBLIC_PROFILE_V2)).toHaveLength(HNS_HANDLE_PERSONA_PUBLIC_PROFILE_V2_BYTES);
+    expect(await sha256Hex(encoder.encode(HNS_HANDLE_PERSONA_PUBLIC_PROFILE_V2))).toBe(
+      HNS_HANDLE_PERSONA_PUBLIC_PROFILE_V2_SHA256,
     );
     expect(encodeHnsHandleAuthorityHeader(authority)).toBe(authorityHeader);
     const envelope = readHnsHandleForwarderEnvelopeV3(request());

@@ -4,8 +4,8 @@ import {
   CF_ACCESS_ASSERTION_HEADER,
   CF_ACCESS_CLIENT_ID_HEADER,
   CF_ACCESS_CLIENT_SECRET_HEADER,
-  HNS_COMMUNITY_APP_INTERACTIVE_PROFILE_V2,
-  HNS_COMMUNITY_APP_INTERACTIVE_PROFILE_V2_SHA256,
+  HNS_COMMUNITY_APP_INTERACTIVE_PROFILE_V3,
+  HNS_COMMUNITY_APP_INTERACTIVE_PROFILE_V3_SHA256,
   HNS_FORWARDER_AUTHORITY_HEADER,
   HNS_FORWARDER_BODY_SHA256_HEADER,
   HNS_FORWARDER_HOST_HEADER,
@@ -91,8 +91,8 @@ async function composition(overrides: {
   replay?: () => Promise<boolean>;
 } = {}) {
   return makeHnsCommunityAppIngressCompositionV2({
-    profile: HNS_COMMUNITY_APP_INTERACTIVE_PROFILE_V2,
-    profileSha256: HNS_COMMUNITY_APP_INTERACTIVE_PROFILE_V2_SHA256,
+    profile: HNS_COMMUNITY_APP_INTERACTIVE_PROFILE_V3,
+    profileSha256: HNS_COMMUNITY_APP_INTERACTIVE_PROFILE_V3_SHA256,
     ingressOrigin,
     canonicalOrigin: "https://pirate.sc",
     apiOrigin: "https://api-next.pirate.sc",
@@ -291,7 +291,7 @@ describe("interactive community application ingress composition", () => {
     await expect(
       makeHnsCommunityAppIngressCompositionV2({
         profile: "wrong",
-        profileSha256: HNS_COMMUNITY_APP_INTERACTIVE_PROFILE_V2_SHA256,
+        profileSha256: HNS_COMMUNITY_APP_INTERACTIVE_PROFILE_V3_SHA256,
         ingressOrigin,
         canonicalOrigin: "https://pirate.sc",
         apiOrigin: "https://api-next.pirate.sc",
