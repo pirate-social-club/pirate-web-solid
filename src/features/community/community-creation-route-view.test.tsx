@@ -125,7 +125,7 @@ describe("Community creation production route", () => {
     expect(attempt).toBe(2);
   });
 
-  test("names the persona-required state for an account without an active persona", async () => {
+  test("opens creation with create-new for an account without an active persona", async () => {
     const container = render(() => (
       <CommunityCreationRouteView
         api={api()}
@@ -134,8 +134,9 @@ describe("Community creation production route", () => {
     ));
 
     const route = () => container.querySelector("[data-route-path='/communities/new']")!;
-    await vi.waitFor(() => expect(route().getAttribute("data-creation-state")).toBe("persona-required"));
-    expect(container.textContent).toContain("Create a persona first");
+    await vi.waitFor(() => expect(route().getAttribute("data-creation-state")).toBe("ready"));
+    expect(container.textContent).not.toContain("Create a persona first");
+    expect(container.textContent).toContain("Create a new owner persona");
   });
 
   test("leaves the resolving fallback for every settled session outcome", async () => {

@@ -246,7 +246,7 @@ export function createCommunityEngagementController(
       // intent does not pre-bind identity.
       let choice = action.kind === "request" ? undefined : persona;
       if (action.kind === "join" && choice === undefined) {
-        const session = await resolvePostingSession();
+        const session = await resolvePersonaSession();
         if (!active || session === undefined) return;
         choice = defaultCommunityPersonaChoice(session.personas);
         if (choice === undefined) {
@@ -281,12 +281,8 @@ export function createCommunityEngagementController(
 
   const cancelJoinPersona = () => setJoinPersonaOpen(false);
 
-  const resolvePostingSession = async (): Promise<AuthenticatedSession | undefined> => {
+  const resolvePersonaSession = async (): Promise<AuthenticatedSession | undefined> => {
     if (!await hasAuthenticatedAccount()) return undefined;
-    if (!await refreshViewerState() || membership() !== "member") {
-      if (active && viewerReady()) setError("Join this Community before posting.");
-      return undefined;
-    }
     const cached = postingSession();
     if (cached !== undefined) return cached;
     const request = ++sessionRequest;
@@ -303,6 +299,15 @@ export function createCommunityEngagementController(
       if (active && request === sessionRequest) setError("We couldn't verify your session. Try again.");
       return undefined;
     }
+  };
+
+  const resolvePostingSession = async (): Promise<AuthenticatedSession | undefined> => {
+    if (!await hasAuthenticatedAccount()) return undefined;
+    if (!await refreshViewerState() || membership() !== "member") {
+      if (active && viewerReady()) setError("Join this Community before posting.");
+      return undefined;
+    }
+    return resolvePersonaSession();
   };
 
   const joined = () => membership() === "member";
