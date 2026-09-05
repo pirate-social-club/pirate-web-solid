@@ -61,6 +61,36 @@ const routedMembership: AccountCommunityMembership = {
 };
 
 describe("YourCommunitiesRouteView", () => {
+  test("ignores posting access that completes after sign-out", async () => {
+    const [session, setSession] = createSignal<
+      "anonymous" | { status: "authenticated"; userId: string }
+    >({ status: "authenticated", userId: "account-one" });
+    let finish = (_items: readonly AccountCommunityMembership[]) => {};
+    const pending = new Promise<readonly AccountCommunityMembership[]>((resolve) => {
+      finish = resolve;
+    });
+    const loadMemberships = vi.fn()
+      .mockResolvedValueOnce([routeLessMembership])
+      .mockReturnValueOnce(pending);
+    const resolvePostingSession = vi.fn(async () => ({
+      status: "authenticated" as const, userId: "account-one", personas: [],
+    }));
+    const container = render(() => <YourCommunitiesRouteView
+      applicationSession={session} loadMemberships={loadMemberships}
+      resolvePostingSession={resolvePostingSession}
+    />);
+    await vi.waitFor(() => expect(container.textContent).toContain("Open Sea"));
+    container.querySelector<HTMLButtonElement>("[data-post-community-id]")!.click();
+    await vi.waitFor(() => expect(loadMemberships).toHaveBeenCalledTimes(2));
+    setSession("anonymous");
+    await vi.waitFor(() => expect(container.textContent).toContain("Sign in to choose"));
+    finish([routeLessMembership]);
+    await pending;
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(resolvePostingSession).not.toHaveBeenCalled();
+    expect(document.body.textContent).not.toContain("Posting in Open Sea");
+  });
+
   test("renders an anonymous sign-in state without loading private memberships", async () => {
     const loadMemberships = vi.fn();
     const container = render(() => (

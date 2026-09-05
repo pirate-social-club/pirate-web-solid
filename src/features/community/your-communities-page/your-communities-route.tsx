@@ -89,8 +89,14 @@ export function YourCommunitiesRouteView(props: YourCommunitiesRouteProps = {}) 
   createEffect(
     () => session(),
     (current) => {
+      const epoch = ++loadRequest;
       queueMicrotask(() => {
-        if (!active) return;
+        if (!active || epoch !== loadRequest) return;
+        setComposerOpen(false);
+        setPostingSession(undefined);
+        setSelectedMembership(undefined);
+        setPostingCommunityId(undefined);
+        setActionError("");
         if (current === undefined || current === "resolving") {
           setState({ kind: "loading" });
           return;
@@ -116,10 +122,19 @@ export function YourCommunitiesRouteView(props: YourCommunitiesRouteProps = {}) 
 
   const openPostComposer = async (community: YourCommunitySummary): Promise<void> => {
     if (postingCommunityId() !== undefined) return;
+    const account = session();
+    if (account === undefined || account === "resolving" || account === "anonymous") return;
+    const epoch = loadRequest;
+    const isCurrent = () => {
+      const current = session();
+      return active && epoch === loadRequest && current !== undefined &&
+        current !== "resolving" && current !== "anonymous" && current.userId === account.userId;
+    };
     setPostingCommunityId(community.communityId);
     setActionError("");
     try {
       const liveMemberships = await loadMemberships();
+      if (!isCurrent()) return;
       const membership = liveMemberships.find(
         (item) =>
           item.community_id === community.communityId &&
@@ -131,18 +146,19 @@ export function YourCommunitiesRouteView(props: YourCommunitiesRouteProps = {}) 
         return;
       }
       const resolved = await resolvePostingSession();
-      if (!active) return;
+      if (!isCurrent()) return;
       if (resolved === "anonymous") {
         requestGlobalSignIn();
         return;
       }
+      if (resolved.userId !== account.userId) return;
       setSelectedMembership(membership);
       setPostingSession(resolved);
       setComposerOpen(true);
     } catch {
-      if (active) setActionError("We couldn't verify posting access. Nothing changed.");
+      if (isCurrent()) setActionError("We couldn't verify posting access. Nothing changed.");
     } finally {
-      if (active) setPostingCommunityId(undefined);
+      if (isCurrent()) setPostingCommunityId(undefined);
     }
   };
 
