@@ -3,7 +3,7 @@ import { render as solidRender } from "@solidjs/web";
 import { afterEach, describe, expect, test, vi } from "vitest";
 
 import type { PrivySessionExchange } from "../../api/privy-session.ts";
-import { refreshSession } from "../../api/session.ts";
+import { onSessionRefreshed, refreshSession } from "../../api/session.ts";
 import type { CommunityCreationApi } from "./community-creation-api";
 import { CommunityCreationRouteView } from "./community-creation-route-view";
 import { createIntent } from "./community-creation-progress/community-creation-progress-model";
@@ -157,6 +157,7 @@ describe("Community creation production route", () => {
         displayName: "Harbor Host",
         personaId: "persona-1",
         primaryPublicHandle: "harbor-host",
+        communityBinding: null,
       }],
       status: "authenticated" as const,
       userId: "user-1",
@@ -186,6 +187,7 @@ describe("Community creation production route", () => {
             displayName: "Harbor Host",
             personaId: "persona-1",
             primaryPublicHandle: "harbor-host",
+            communityBinding: null,
           }],
           status: "authenticated",
           userId: "user-1",
@@ -215,6 +217,8 @@ describe("Community creation production route", () => {
     });
     const createIntentRequest = vi.fn().mockResolvedValue(created);
     const commitIntent = vi.fn().mockResolvedValue(committed);
+    const refreshed = vi.fn();
+    disposers.push(onSessionRefreshed(refreshed));
     const navigate = vi.fn();
     const container = render(() => (
       <CommunityCreationRouteView
@@ -226,6 +230,7 @@ describe("Community creation production route", () => {
             displayName: "Harbor Host",
             personaId: "persona-1",
             primaryPublicHandle: "harbor-host",
+            communityBinding: null,
           }],
           status: "authenticated",
           userId: "user-1",
@@ -243,6 +248,7 @@ describe("Community creation production route", () => {
 
     await vi.waitFor(() => expect(navigate).toHaveBeenLastCalledWith("/c/community-new", undefined));
     expect(createIntentRequest).toHaveBeenCalledOnce();
+    expect(refreshed).toHaveBeenCalledOnce();
     expect(commitIntent).toHaveBeenCalledWith(expect.objectContaining({
       expectedRevision: 2,
       intentId: "creation-new",
@@ -273,6 +279,7 @@ describe("Community creation production route", () => {
             displayName: "Harbor Host",
             personaId: "persona-1",
             primaryPublicHandle: "harbor-host",
+            communityBinding: null,
           }],
           status: "authenticated",
           userId: "user-1",
@@ -304,6 +311,7 @@ describe("Community creation production route", () => {
             displayName: "Harbor Host",
             personaId: "persona-1",
             primaryPublicHandle: "harbor-host",
+            communityBinding: null,
           }],
           status: "authenticated",
           userId: "user-1",
@@ -350,6 +358,7 @@ describe("Community creation production route", () => {
             displayName: "Harbor Host",
             personaId: "persona-1",
             primaryPublicHandle: "harbor-host",
+            communityBinding: null,
           }],
           status: "authenticated",
           userId: "user-1",
@@ -387,6 +396,7 @@ describe("Community creation production route", () => {
             displayName: "Harbor Host",
             personaId: "persona-1",
             primaryPublicHandle: "harbor-host",
+            communityBinding: null,
           }],
           status: "authenticated",
           userId: "user-1",

@@ -321,7 +321,7 @@ export function createKaraokeApiClient(options: KaraokeApiClientOptions = {}): K
 
   return {
     createSession: async ({ communityId, idempotencyKey, personaId, postId, signal }) => {
-      if (typeof personaId !== "string" || personaId.trim() === "") {
+      if (!personaId?.trim()) {
         throw new KaraokeApiError(
           "persona_required",
           "Choose a persona active in this community before starting a karaoke take.",

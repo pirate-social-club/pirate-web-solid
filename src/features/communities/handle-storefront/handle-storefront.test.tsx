@@ -161,6 +161,7 @@ function sessionClient(): SessionHandleSalesApiClient {
         primary_public_handle: "captain.pirate",
       },
       wallet_set: { evm: { chain_account_kind: "evm", hd_wallet_index: 4, address: "0xprivate", assigned_at: "2026-08-26T11:00:00.000Z" } },
+      community_binding: null,
       created_at: "2026-08-26T10:00:00.000Z",
       retired_at: null,
     }] } as const)),

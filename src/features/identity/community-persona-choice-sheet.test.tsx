@@ -6,11 +6,12 @@ const disposers: Array<() => void> = [];
 const personas = [{
   personaId: "persona-here", displayName: "Community persona", avatarRef: null,
   primaryPublicHandle: null,
+  communityBinding: null,
 }];
 
 function mount(open: boolean, allowCreateNew: boolean) {
   const host = document.createElement("div");
-  document.body.append(host);
+  document.body.appendChild(host);
   const onChoose = vi.fn();
   const dispose = render(() => <CommunityPersonaChoiceDialog
     label="Singing as" personas={personas} choice={undefined}

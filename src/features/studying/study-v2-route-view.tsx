@@ -1,10 +1,12 @@
 import { Title } from "@solidjs/meta";
+import { isServer } from "@solidjs/web";
+import { ApiClientError } from "@pirate/api-client";
 import { Show, createEffect, createSignal, onCleanup } from "solid-js";
 
 import { resolveSession, type AuthenticatedSession, type SessionResolution } from "../../api/session";
 import { Button, FormNote, Type } from "../../design-system";
 import { preloadGlobalSignInAssets, prepareGlobalSignIn, requestGlobalSignIn } from "../auth/global-sign-in-host";
-import { defaultCommunityPersonaChoice } from "../identity/community-persona-choice";
+import { communityOperationPersonas, defaultOperationPersonaId, toOperationPersonas } from "../identity/community-persona-choice";
 import { OperationPersonaControl } from "../identity/operation-persona-control/operation-persona-control";
 import {
   createStudyV2Api,
@@ -71,18 +73,6 @@ function safeFailure(error: unknown, fallback: string): string {
   return fallback;
 }
 
-/**
- * Session-start failures under the community persona boundary: a 409 means the
- * selected persona is not bound to this song's community, so the account must
- * choose a community persona instead of retrying the same start.
- */
-function startFailure(error: unknown, fallback: string): string {
-  if (typeof error === "object" && error !== null && "status" in error && error.status === 409) {
-    return "That persona isn't active in this song's community. Choose a persona bound to this community, or create one here.";
-  }
-  return safeFailure(error, fallback);
-}
-
 function sessionKey(postId: string): string {
   const random = globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`;
   return `study-session:${postId}:${random}`;
@@ -124,25 +114,18 @@ export function StudyV2RouteView(props: StudyV2RouteViewProps) {
         setState({ kind: "auth-required" });
         return;
       }
-      if (resolved.personas.length === 0) {
-        setState({
-          kind: "failed",
-          message: "Create a persona bound to this song's community before starting Study. Joining this community or creating a persona there resolves this.",
-        });
-        return;
-      }
       const loaded = await api.loadAvailability(props.postId);
       if (!active) return;
       if (loaded.availability.state !== "ready") {
         setState({ kind: "unavailable", message: availabilityMessage(loaded.availability) });
         return;
       }
-      // Spec 014 §10 / spec 018 §10: the default never falls back to the
-      // account's first global persona. A single active persona is the only
-      // candidate the community's eligible set could contain; with several,
-      // nothing is preselected and the account chooses explicitly.
-      const defaultChoice = defaultCommunityPersonaChoice(resolved.personas);
-      setPersonaId(defaultChoice?.kind === "existing" ? defaultChoice.personaId : "");
+      const eligible = communityOperationPersonas(resolved.personas, loaded.communityId);
+      if (eligible.length === 0) {
+        setState({ kind: "failed", message: "Join this community or create a persona there before starting Study." });
+        return;
+      }
+      setPersonaId(defaultOperationPersonaId(eligible) ?? "");
       setTargetLanguage("");
       setLearnerBand("");
       setState({
@@ -163,7 +146,7 @@ export function StudyV2RouteView(props: StudyV2RouteViewProps) {
   createEffect(
     () => true,
     () => {
-      if (loadStarted || typeof window === "undefined") return;
+      if (loadStarted || isServer) return;
       loadStarted = true;
       queueMicrotask(() => void load());
     },
@@ -177,7 +160,8 @@ export function StudyV2RouteView(props: StudyV2RouteViewProps) {
       setMessage("Choose a learner level for translated practice.");
       return;
     }
-    if (personaId() === "") {
+    if (!communityOperationPersonas(configuration.session.personas, configuration.communityId)
+      .some(persona => persona.personaId === personaId())) {
       setMessage("Choose the persona this session presents in this community.");
       return;
     }
@@ -195,7 +179,9 @@ export function StudyV2RouteView(props: StudyV2RouteViewProps) {
       });
       if (active) setState({ kind: "lesson", session });
     } catch (error) {
-      if (active) setMessage(startFailure(error, "Could not start this Study session. Try again."));
+      if (active) setMessage(error instanceof ApiClientError && error.status === 409
+        ? "The session requirements changed. Refresh your community personas and Study availability before trying again."
+        : safeFailure(error, "Could not start this Study session. Try again."));
     } finally {
       if (active) setStarting(false);
     }
@@ -260,12 +246,9 @@ export function StudyV2RouteView(props: StudyV2RouteViewProps) {
               )}
             >
               {(configuration) => {
-                const personas = () => configuration().session.personas.map((persona) => ({
-                  avatarSrc: persona.avatarRef,
-                  displayName: persona.displayName ?? persona.primaryPublicHandle ?? persona.personaId,
-                  personaId: persona.personaId,
-                  publicHandle: persona.primaryPublicHandle,
-                }));
+                const personas = () => toOperationPersonas(communityOperationPersonas(
+                  configuration().session.personas, configuration().communityId,
+                ));
                 return (
                 <div class="mx-auto flex min-h-dvh w-full max-w-xl flex-col gap-6 px-5 py-8">
                   <header class="space-y-2">

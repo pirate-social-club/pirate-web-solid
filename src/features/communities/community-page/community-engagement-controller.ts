@@ -3,6 +3,7 @@ import { createEffect, createSignal, onCleanup, type Accessor } from "solid-js";
 import { ApiClientError } from "@pirate/api-client";
 import {
   resolveSession as resolveApplicationSession,
+  refreshSession,
   type AuthenticatedSession,
   type SessionResolution,
 } from "../../../api/session.ts";
@@ -10,6 +11,7 @@ import { requestGlobalSignIn } from "../../auth/global-sign-in-host.tsx";
 import { useApplicationSession } from "../../shell/application-session.tsx";
 import {
   defaultCommunityPersonaChoice,
+  communityJoinCandidates,
   type CommunityPersonaChoice,
 } from "../../identity/community-persona-choice.ts";
 import type {
@@ -32,6 +34,7 @@ export interface CommunityEngagementController {
   readonly postingSession: Accessor<AuthenticatedSession | undefined>;
   /** Open while a terminal join waits for the account's closed persona choice. */
   readonly joinPersonaStep: Accessor<boolean>;
+  readonly joinedPersonaId: Accessor<string | undefined>;
   followToggle(): Promise<void>;
   joinCommunity(persona?: CommunityPersonaChoice): Promise<void>;
   confirmJoinPersona(choice: CommunityPersonaChoice): void;
@@ -63,18 +66,12 @@ export function createCommunityEngagementController(
   const [postingSession, setPostingSession] = createSignal<AuthenticatedSession>();
   const [accountAuthenticated, setAccountAuthenticated] = createSignal(false);
   const [joinPersonaOpen, setJoinPersonaOpen] = createSignal(false);
+  const [joinedPersonaId, setJoinedPersonaId] = createSignal<string>();
   let active = true;
   let actionInFlight = false;
   let fullSessionStarted = false;
   let sessionRequest = 0;
   let viewerRequest = 0;
-
-  const joinFailureMessage = (error: unknown): string => {
-    if (error instanceof ApiClientError && error.status === 409) {
-      return "That persona is already active in another community. Choose a different persona or create a new one.";
-    }
-    return "We couldn't complete the membership action. Nothing changed.";
-  };
 
   onCleanup(() => {
     active = false;
@@ -245,14 +242,19 @@ export function createCommunityEngagementController(
       // persona choice; a request-mode join never carries one because an
       // intent does not pre-bind identity.
       let choice = action.kind === "request" ? undefined : persona;
-      if (action.kind === "join" && choice === undefined) {
+      if (action.kind === "join") {
         const session = await resolvePersonaSession();
         if (!active || session === undefined) return;
-        choice = defaultCommunityPersonaChoice(session.personas);
+        const candidates = communityJoinCandidates(session.personas, options.communityId);
+        const selectedId = choice?.kind === "existing" ? choice.personaId : undefined;
+        if (selectedId !== undefined && !candidates.some(candidate => candidate.personaId === selectedId)) {
+          setError("Choose a persona bound to this community or an unbound persona.");
+          setJoinPersonaOpen(true);
+          return;
+        }
+        choice ??= defaultCommunityPersonaChoice(candidates);
         if (choice === undefined) {
-          // Several personas could act. The community's eligible set is not
-          // visible to the browser, so the account must choose explicitly and
-          // the server stays the eligibility authority.
+          // Several scoped candidates remain; do not use a global default.
           setJoinPersonaOpen(true);
           return;
         }
@@ -261,13 +263,24 @@ export function createCommunityEngagementController(
       if (!active) return;
       if (result.status === "joined") {
         setMembership("member");
+        if (!following()) setFollowerCount(count => count + 1);
+        setFollowing(true);
+        setJoinedPersonaId(result.personaId ?? undefined);
         setMessage("Joined this Community.");
+        // Read the minted profile/binding from the server, never manufacture it
+        // from the command response. A read failure must not undo a joined state.
+        refreshSession();
+        setPostingSession(undefined);
+        fullSessionStarted = false;
+        hydrateFullSession();
       } else {
         setMembership("pending");
         setMessage("Membership request sent.");
       }
     } catch (error) {
-      if (active) setError(joinFailureMessage(error));
+      if (active) setError(error instanceof ApiClientError && error.status === 409
+        ? "That persona is already active in another community. Choose a different persona or create a new one."
+        : "We couldn't complete the membership action. Nothing changed.");
     } finally {
       actionInFlight = false;
       if (active) setBusy(undefined);
@@ -329,6 +342,7 @@ export function createCommunityEngagementController(
     joined,
     joinLabel,
     joinPersonaStep: joinPersonaOpen,
+    joinedPersonaId,
     message,
     error,
     postingSession,

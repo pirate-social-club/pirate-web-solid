@@ -12,6 +12,7 @@ import { Button, Card, CardContent, FormNote, Spinner, Type } from "../../design
 import { preloadGlobalSignInAssets, prepareGlobalSignIn, requestGlobalSignIn } from "../auth/global-sign-in-host";
 import {
   defaultCommunityPersonaChoice,
+  communityCreationCandidates,
   type CommunityPersonaChoice,
 } from "../identity/community-persona-choice";
 import { CommunityPersonaChoiceControl } from "../identity/community-persona-choice-sheet";
@@ -66,6 +67,7 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
   const commandKeys = new Map<string, string>();
   let active = true;
   let sessionStarted = false;
+  let refreshingAfterCommit = false;
   let sessionRequest = 0;
 
   const navigate = (href: string, options?: { replace?: boolean }) => {
@@ -106,7 +108,7 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
           // Spec 014 §10.2: the draft always carries the closed persona choice.
           // With no active personas the only branch is `create_new`, which the
           // server mints and binds to the new community at commit.
-          setDraft(createEmptyDraft(defaultCommunityPersonaChoice(result.personas)));
+          setDraft(createEmptyDraft(defaultCommunityPersonaChoice(communityCreationCandidates(result.personas))));
           const resumeId = props.intentId?.trim();
           if (resumeId) void loadIntent(resumeId);
         }
@@ -134,6 +136,7 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
 
   if (typeof window !== "undefined") {
     onCleanup(onSessionRefreshed(() => {
+      if (refreshingAfterCommit) return;
       setSession("resolving");
       startSessionResolution();
     }));
@@ -166,6 +169,10 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
       if (!active) return;
       setIntent(committed);
       setStaleRevision(null);
+      if (committed.committedHref) {
+        refreshingAfterCommit = true;
+        try { refreshSession(); } finally { refreshingAfterCommit = false; }
+      }
       if (navigateOnSuccess && committed.committedHref) navigate(committed.committedHref);
     } catch (error) {
       if (!active) return;
@@ -212,7 +219,7 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
   };
 
   const currentSession = () => signedIn(session());
-  const personas = () => currentSession()?.personas ?? [];
+  const personas = () => communityCreationCandidates(currentSession()?.personas ?? []);
   /**
    * The route must always settle on one named state. `resolving` is only the
    * pre-hydration value, so a stuck spinner is observable as a defect rather

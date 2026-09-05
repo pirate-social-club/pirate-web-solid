@@ -125,8 +125,8 @@ describe("CommunityPage", () => {
           status: "authenticated",
           userId: "usr-account-one",
           personas: [
-            { personaId: "persona-one", displayName: "Persona One", avatarRef: null, primaryPublicHandle: "one.pirate" },
-            { personaId: "persona-two", displayName: "Persona Two", avatarRef: null, primaryPublicHandle: "two.pirate" },
+            { personaId: "persona-one", displayName: "Persona One", avatarRef: null, primaryPublicHandle: "one.pirate", communityBinding: { communityId, bindingSource: "first_membership" } },
+            { personaId: "persona-two", displayName: "Persona Two", avatarRef: null, primaryPublicHandle: "two.pirate", communityBinding: { communityId, bindingSource: "first_membership" } },
           ],
         })}
       />
@@ -292,7 +292,7 @@ describe("CommunityPage", () => {
     const join = [...container.querySelectorAll<HTMLButtonElement>("button")]
       .find(button => button.textContent?.trim() === "Join")!;
     join.click();
-    await vi.waitFor(() => expect(api.join).toHaveBeenCalledWith(communityId));
+    await vi.waitFor(() => expect(api.join).toHaveBeenCalledWith(communityId, { kind: "create_new" }));
     await vi.waitFor(() => expect(container.textContent).toContain("Joined this Community."));
     expect(join.textContent).toBe("Joined");
   });

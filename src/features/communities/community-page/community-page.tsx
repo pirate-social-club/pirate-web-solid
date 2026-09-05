@@ -34,6 +34,7 @@ import type { PostEngagementTransport } from "../../posts/post-engagement/post-e
 import type { MediaSubmissionStorage } from "../../posts/media-submission/pending.ts";
 import { OperationPersonaControl } from "../../identity/operation-persona-control/operation-persona-control.tsx";
 import { CommunityPersonaChoiceDialog } from "../../identity/community-persona-choice-sheet.tsx";
+import { communityJoinCandidates, communityOperationPersonas, defaultOperationPersonaId, toOperationPersonas } from "../../identity/community-persona-choice.ts";
 import { createCommunityModerationSettingsApi } from "../../community/owner-settings/community-moderation-settings-api.ts";
 import {
   loadCommunityThreadPage,
@@ -226,8 +227,11 @@ function SuccessState(props: {
         return;
       }
       const current = selectedPersonaId();
-      if (current !== undefined && session.personas.some(persona => persona.personaId === current)) return;
-      setSelectedPersonaId(session.personas.length === 1 ? session.personas[0]!.personaId : undefined);
+      const eligible = communityOperationPersonas(session.personas, state.communityId);
+      if (current !== undefined && eligible.some(persona => persona.personaId === current)) return;
+      const joinedPersona = engagement.joinedPersonaId();
+      setSelectedPersonaId(eligible.some(persona => persona.personaId === joinedPersona)
+        ? joinedPersona : defaultOperationPersonaId(eligible));
     },
   );
 
@@ -260,12 +264,9 @@ function SuccessState(props: {
     }
   };
 
-  const personaOptions = () => engagement.postingSession()?.personas.map(persona => ({
-    avatarSrc: persona.avatarRef,
-    displayName: persona.displayName ?? persona.primaryPublicHandle ?? persona.personaId,
-    personaId: persona.personaId,
-    publicHandle: persona.primaryPublicHandle,
-  })) ?? [];
+  const personaOptions = () => toOperationPersonas(communityOperationPersonas(
+    engagement.postingSession()?.personas ?? [], state.communityId,
+  ));
 
   const engagementPost = (post: CommunityData["posts"][number]): PostEngagementPost => ({
     id: post.id,
@@ -340,7 +341,7 @@ function SuccessState(props: {
             onChoose={engagement.confirmJoinPersona}
             onOpenChange={(open) => { if (!open) engagement.cancelJoinPersona(); }}
             open={engagement.joinPersonaStep()}
-            personas={engagement.postingSession()?.personas ?? []}
+            personas={communityJoinCandidates(engagement.postingSession()?.personas ?? [], state.communityId)}
           />
       </div>
       <div class="sr-only">
@@ -354,7 +355,7 @@ function SuccessState(props: {
             communityContext={{ id: state.communityId, name: community().name }}
             onOpenChange={setComposerOpen}
             open={composerOpen()}
-            personas={session().personas}
+            personas={communityOperationPersonas(session().personas, state.communityId)}
             principalId={session().userId}
             mediaStorage={props.postComposerMediaStorage}
           />

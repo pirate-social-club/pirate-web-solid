@@ -51,12 +51,12 @@ function userFixture() {
 
 function personasFixture() {
   return {
-    personas: [{
-      persona_id: "persona-text-e2e",
+    personas: Object.entries(communityIds).map(([name, communityId]) => ({
+      persona_id: `persona-text-${name}`,
       object: "persona",
       status: "active",
       profile: {
-        persona_id: "persona-text-e2e",
+        persona_id: `persona-text-${name}`,
         object: "persona_profile",
         revision: 1,
         display_name: "Text fixture persona",
@@ -67,9 +67,10 @@ function personasFixture() {
         primary_public_handle: "text-fixture",
       },
       wallet_set: { evm: null },
+      community_binding: { community_id: communityId, binding_source: "first_membership" },
       created_at: "2026-08-26T00:00:00.000Z",
       retired_at: null,
-    }],
+    })),
   };
 }
 
@@ -82,7 +83,7 @@ function communityRouteFixture(communityId) {
     persona_role_presentation: {
       role: "owner",
       persona: {
-        persona_id: "persona-text-e2e",
+        persona_id: `persona-text-${communitiesById.get(communityId)}`,
         object: "persona",
         display_name: "Text fixture persona",
         avatar_ref: null,
@@ -102,6 +103,8 @@ function communityPreviewFixture(communityId) {
     human_verification_lane: null,
     member_count: 1,
     follower_count: 1,
+    viewer_membership_status: "member",
+    viewer_following: true,
     moderators: [],
     membership_gate_summaries: [],
     rules: [],
@@ -295,9 +298,15 @@ async function authenticatedPage(browser) {
 async function openComposer(page, community, body) {
   const communityId = communityIds[community];
   assert(communityId !== undefined, `missing fixture community id for ${community}`);
-  await page.goto(`${solidOrigin}/c/${communityId}`, { waitUntil: "domcontentloaded" });
+  const response = await page.goto(`${solidOrigin}/c/${communityId}`, { waitUntil: "domcontentloaded" });
+  const html = await response.text();
+  assert(html.includes('data-community-state="success"'), "Community page did not render on the server");
+  assert(!html.includes('role="dialog"'), "Community persona chooser opened during SSR");
   await page.locator("#app-root[data-hydrated='true']").waitFor({ state: "attached" });
   await page.waitForLoadState("networkidle");
+  assert(await page.getByRole("dialog").count() === 0, "Community persona chooser opened during hydration");
+  assert(await page.getByRole("button", { name: "Post here" }).count() === 1,
+    `Hydrated Community has no posting action: ${await page.locator("main").allTextContents()}`);
   await page.getByRole("button", { name: "Post here" }).click();
   const dialog = page.getByRole("dialog");
   await dialog.waitFor({ state: "visible" });

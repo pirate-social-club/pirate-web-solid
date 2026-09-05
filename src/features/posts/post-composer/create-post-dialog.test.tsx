@@ -40,6 +40,7 @@ const activePersona = (personaId: string, displayName: string): ActivePersonaPub
   displayName,
   avatarRef: null,
   primaryPublicHandle: null,
+  communityBinding: null,
 });
 
 const reservation: PostCommunitiesCommunityIdMediaUploadReservationsResponse = {

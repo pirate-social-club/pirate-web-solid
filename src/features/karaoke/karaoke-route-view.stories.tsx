@@ -47,7 +47,12 @@ const sessionClient = storyKaraokeClient({
 });
 
 export const SessionLoaded: Story = {
-  render: () => <KaraokeSessionRouteView client={sessionClient} postId={storyPostId} />,
+  render: () => <KaraokeSessionRouteView client={sessionClient} postId={storyPostId}
+    resolveSession={async () => ({ status: "authenticated", userId: "story-account", personas: [{
+      personaId: "story-persona", displayName: "Singer", avatarRef: null, primaryPublicHandle: null,
+      communityBinding: { communityId: storyPayload.community!, bindingSource: "first_membership" },
+    }] })}
+  />,
   parameters: {
     docs: {
       description: {

@@ -50,7 +50,7 @@
     "verify:live": "node scripts/probe.mjs && node scripts/stream-check.mjs && node scripts/hydration-check.mjs"
   },
   "dependencies": {
-    "@pirate/api-client": "file:vendor/api-client/pirate-api-client-0.59.0.tgz",
+    "@pirate/api-client": "file:vendor/api-client/pirate-api-client-0.61.0.tgz",
     "@pirate/web-solid-ui": "workspace:*",
     "@privy-io/js-sdk-core": "0.70.0",
     "@solidjs/meta": "1.0.0-next.2",

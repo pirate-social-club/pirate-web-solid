@@ -1,4 +1,5 @@
-import { createEffect, createMemo, createSignal, Show } from "solid-js";
+import { createEffect, createMemo, createSignal, onCleanup, untrack, Show } from "solid-js";
+import { isServer } from "@solidjs/web";
 import { useNavigate } from "@solidjs/router";
 import { Title } from "@solidjs/meta";
 import { KaraokePracticeSurface } from "./karaoke-practice-surface";
@@ -16,6 +17,9 @@ import { deriveKaraokeFeedback } from "./karaoke-scoring-feedback";
 import { useKaraokeScoring } from "./scoring/use-karaoke-scoring-session";
 import type { RawKaraokeLine } from "./lyric-transform";
 import { preloadGlobalSignInAssets, prepareGlobalSignIn, requestGlobalSignIn } from "../auth/global-sign-in-host";
+import { resolveSession, onSessionRefreshed, type SessionResolution } from "../../api/session";
+import { communityOperationPersonas, defaultOperationPersonaId } from "../identity/community-persona-choice";
+import { CommunityPersonaChoiceDialog } from "../identity/community-persona-choice-sheet";
 
 function errorMessage(error: unknown, fallback: string): string {
   return error instanceof Error && error.message.trim() ? error.message : fallback;
@@ -34,21 +38,63 @@ export interface KaraokeSessionRouteViewProps {
   postId: string;
   client?: KaraokeApiClient;
   exitPath?: string;
+  resolveSession?: () => Promise<SessionResolution>;
+  createScoring?: typeof useKaraokeScoring;
 }
 
-function LoadedKaraokeSession(props: { payload: ApiSongKaraokePayload; postId: string; client: KaraokeApiClient; exitPath?: string }) {
+function LoadedKaraokeSession(props: { payload: ApiSongKaraokePayload; postId: string; client: KaraokeApiClient; exitPath?: string; resolveSession?: () => Promise<SessionResolution>; createScoring?: typeof useKaraokeScoring }) {
   const navigate = useNavigate();
   const lines = createMemo(() => payloadLines(props.payload));
   const scorableLines = createMemo(() => toScorableKaraokeLines(lines()));
   const communityId = props.payload.community ?? "";
-  const scoring = useKaraokeScoring({
+  const [session, setSession] = createSignal<SessionResolution>();
+  const [personaId, setPersonaId] = createSignal<string>();
+  const [choiceOpen, setChoiceOpen] = createSignal(false);
+  const [personaMessage, setPersonaMessage] = createSignal("");
+  const [authError, setAuthError] = createSignal(false);
+  let pendingSongMs = 0;
+  let attemptPersonaId: string | undefined;
+  let active = true;
+  let sessionEpoch = 0;
+  const eligible = () => {
+    const current = session();
+    return communityOperationPersonas(current && current !== "anonymous" ? current.personas : [], communityId);
+  };
+  const loadSession = async () => {
+    const epoch = ++sessionEpoch;
+    setSession(undefined);
+    setPersonaId(undefined);
+    setChoiceOpen(false);
+    try {
+      const resolved = await (props.resolveSession ?? resolveSession)();
+      if (!active || epoch !== sessionEpoch) return;
+      setSession(resolved);
+      setPersonaId(resolved === "anonymous" ? undefined
+        : defaultOperationPersonaId(communityOperationPersonas(resolved.personas, communityId)));
+      setAuthError(false);
+      setPersonaMessage("");
+    } catch {
+      if (active && epoch === sessionEpoch) setPersonaMessage("We couldn't load your community personas. Refresh to try again.");
+    }
+  };
+  if (!isServer) queueMicrotask(() => { if (active) void loadSession(); });
+  const unsubscribe = onSessionRefreshed(() => { void loadSession(); });
+  onCleanup(() => { active = false; sessionEpoch += 1; unsubscribe(); });
+  // The injected controller factory is fixed for this mounted session.
+  const createScoring = untrack(() => props.createScoring) ?? useKaraokeScoring;
+  const scoring = createScoring({
     communityId,
-    createKaraokeSession: (community, postId, idempotencyKey, signal) => props.client.createSession({ communityId: community, idempotencyKey, postId, signal }),
+    createKaraokeSession: (community, postId, idempotencyKey, signal) => {
+      const selected = attemptPersonaId;
+      if (!selected || !eligible().some(persona => persona.personaId === selected)) {
+        return Promise.reject(new Error("Choose a persona bound to this community before singing."));
+      }
+      return props.client.createSession({ communityId: community, personaId: selected, idempotencyKey, postId, signal });
+    },
     enabled: Boolean(communityId && scorableLines().length > 0),
     postId: props.postId,
     scorableLines: scorableLines(),
   });
-  const [authError, setAuthError] = createSignal(false);
 
   createEffect(
     () => scoring.state(),
@@ -87,13 +133,43 @@ function LoadedKaraokeSession(props: { payload: ApiSongKaraokePayload; postId: s
         onPlay={(songMs) => scoring.controls.notePlay(songMs)}
         onSeek={(songMs) => scoring.controls.noteSeek(songMs)}
         onStartSinging={communityId && scorableLines().length > 0 ? (songMs) => {
-          setAuthError(false);
+          if (session() === undefined) {
+            setPersonaMessage("Your community personas are still loading. Try again shortly.");
+            return;
+          }
+          if (session() === "anonymous") { setAuthError(true); return; }
+          if (eligible().length === 0) {
+            setPersonaMessage("Join this community or create a persona there before singing a scored take.");
+            return;
+          }
+          if (!eligible().some(persona => persona.personaId === personaId())) {
+            pendingSongMs = songMs;
+            setChoiceOpen(true);
+            return;
+          }
+          setPersonaMessage("");
+          attemptPersonaId = personaId();
           scoring.controls.start(songMs);
         } : undefined}
         onTimeChange={(songMs) => scoring.controls.noteTime(songMs)}
         rating={feedback().rating}
         singingStatus={scoringState()?.status ?? "idle"}
         title={props.payload.title ?? "Karaoke"}
+      />
+      <Show when={personaMessage()}><p role="status" class="fixed inset-x-4 bottom-24 z-50 rounded-lg bg-card p-4 text-center">{personaMessage()}</p></Show>
+      <CommunityPersonaChoiceDialog
+        label="Singing as" personas={eligible()} allowCreateNew={false}
+        choice={personaId() ? { kind: "existing", personaId: personaId()! } : undefined}
+        open={choiceOpen()} onOpenChange={setChoiceOpen}
+        note="Choose the persona that presents this take in this community. Your private learning history stays with your account."
+        onChoose={choice => {
+          if (choice.kind !== "existing" || !eligible().some(persona => persona.personaId === choice.personaId)) return;
+          setPersonaId(choice.personaId);
+          attemptPersonaId = choice.personaId;
+          setChoiceOpen(false);
+          setPersonaMessage("");
+          scoring.controls.start(pendingSongMs);
+        }}
       />
     </Show>
   );
@@ -113,7 +189,7 @@ export function KaraokeSessionRouteView(props: KaraokeSessionRouteViewProps) {
 
   return (
       <Show when={payload()} fallback={<Show when={!loading()} fallback={<KaraokeRouteLoadingState label="Loading karaoke" />}><KaraokeRouteLoadFailureState description={errorMessage(loadError(), "We couldn't load karaoke for this song.")} onGoHome={() => { window.location.href = "/"; }} onRetry={load} title="Karaoke unavailable" /></Show>}>
-      {(loaded) => <LoadedKaraokeSession client={client} exitPath={props.exitPath} payload={loaded()} postId={props.postId} />}
+      {(loaded) => <LoadedKaraokeSession client={client} exitPath={props.exitPath} payload={loaded()} postId={props.postId} resolveSession={props.resolveSession} createScoring={props.createScoring} />}
     </Show>
   );
 }

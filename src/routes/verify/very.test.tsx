@@ -5,6 +5,7 @@ import type { JSX } from "@solidjs/web";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import * as veryApi from "../../api/very.ts";
+import * as sessionApi from "../../api/session.ts";
 import VeryVerificationRoute from "./very.tsx";
 
 type WidgetConfig = {
@@ -39,6 +40,8 @@ let widgetConfig: WidgetConfig | undefined;
 const disposers: Array<() => void> = [];
 
 beforeEach(() => {
+  vi.spyOn(sessionApi, "resolveSession").mockResolvedValue({ status: "authenticated", userId: "account-a", personas: [] });
+  vi.spyOn(sessionApi, "refreshSession").mockImplementation(() => {});
   vi.spyOn(veryApi, "resolveVeryCommunityAction").mockResolvedValue({
     kind: "verify",
     intentId: "community-join-intent-1",
@@ -222,7 +225,7 @@ describe("Very verification route", () => {
     await vi.waitFor(() => expect(container.textContent).toContain("Community joined"));
     expect(completeWithWidget).toHaveBeenCalledTimes(1);
     expect(completeWithWidget).toHaveBeenCalledWith("opaque-provider-payload-ref");
-    expect(veryApi.joinVeryCommunity).toHaveBeenCalledWith({ communityId: "community-gated-1" });
+    expect(veryApi.joinVeryCommunity).toHaveBeenCalledWith({ communityId: "community-gated-1", persona: { kind: "create_new" } });
     expect(widgetHarness.destroy).toHaveBeenCalledTimes(1);
     expect(cancel).not.toHaveBeenCalled();
   });
@@ -236,7 +239,7 @@ describe("Very verification route", () => {
     container.querySelector("button")?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
 
     await vi.waitFor(() => expect(container.textContent).toContain("Community joined"));
-    expect(veryApi.joinVeryCommunity).toHaveBeenCalledWith({ communityId: "community-gated-1" });
+    expect(veryApi.joinVeryCommunity).toHaveBeenCalledWith({ communityId: "community-gated-1", persona: { kind: "create_new" } });
     expect(createCeremony).not.toHaveBeenCalled();
   });
 

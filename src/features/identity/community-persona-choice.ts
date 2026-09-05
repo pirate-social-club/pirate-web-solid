@@ -4,7 +4,7 @@ import type { OperationPersona } from "./operation-persona-control/operation-per
 /**
  * The closed persona choice every terminal community membership or
  * community-creation commit must carry (spec 014 §10.2, generated client
- * 0.56.0). A browser never invents a binding or a persona id: it either names
+ * contract). A browser never invents a binding or a persona id: it either names
  * one of the account's active personas or asks the server to mint one bound to
  * the target community in the same commit.
  */
@@ -37,39 +37,40 @@ export function toOperationPersonas(
   }));
 }
 
-/**
- * Default choice under the community persona boundary.
- *
- * The generated client exposes no persona-to-community binding, so the
- * community's eligible set cannot be enumerated in the browser; the server is
- * the eligibility authority and answers a bound-elsewhere persona with a typed
- * conflict. The default therefore never reaches past the first persona the way
- * the old global-pool fallback did:
- *
- * - zero active personas: `create_new`, so the server mints a persona born
- *   bound to the target community in the same commit;
- * - exactly one active persona: that persona, which is the only candidate the
- *   community's eligible set could contain;
- * - more than one: no default. The account must choose explicitly so a persona
- *   already presenting in another community is never sent silently.
- */
+/** Posting, Study and Karaoke cannot mint or bind an unbound persona. */
+export function communityOperationPersonas(
+  personas: readonly ActivePersonaPublicProjection[], communityId: string,
+): ActivePersonaPublicProjection[] {
+  return personas.filter(persona => persona.communityBinding?.communityId === communityId);
+}
+
+/** Terminal joins may reuse a binding here or establish an unbound persona's binding. */
+export function communityJoinCandidates(
+  personas: readonly ActivePersonaPublicProjection[], communityId: string,
+): ActivePersonaPublicProjection[] {
+  return personas.filter(persona => persona.communityBinding === null
+    || persona.communityBinding?.communityId === communityId);
+}
+
+/** A newly created community can only bind a previously unbound persona. */
+export function communityCreationCandidates(
+  personas: readonly ActivePersonaPublicProjection[],
+): ActivePersonaPublicProjection[] {
+  return personas.filter(persona => persona.communityBinding === null);
+}
+
+/** Pass operation-eligible candidates, never the global account pool. */
+export function defaultOperationPersonaId(
+  personas: readonly ActivePersonaPublicProjection[],
+): string | undefined {
+  return personas.length === 1 ? personas[0]!.personaId : undefined;
+}
+
+/** Pass scoped join or creation candidates. Both operations permit create-new. */
 export function defaultCommunityPersonaChoice(
   personas: readonly ActivePersonaPublicProjection[],
 ): CommunityPersonaChoice | undefined {
   if (personas.length === 0) return { kind: "create_new" };
   if (personas.length === 1) return { kind: "existing", personaId: personas[0]!.personaId };
   return undefined;
-}
-
-/**
- * Replacement candidates for retiring a persona: the account's other active
- * personas. The server rechecks that a designated replacement is bound to the
- * same community; a wrong-community designation is a typed conflict, never a
- * silent public-history rewrite.
- */
-export function replacementCandidates(
-  personas: readonly ActivePersonaPublicProjection[],
-  retiringPersonaId: string,
-): ActivePersonaPublicProjection[] {
-  return personas.filter((persona) => persona.personaId !== retiringPersonaId);
 }

@@ -10,12 +10,16 @@ export interface AuthenticatedSession {
 
 export type AuthenticatedAccountSession = Pick<AuthenticatedSession, "status" | "userId">;
 
-/** Public persona fields retained by the shell after authenticated discovery. */
+/** Account-private session projection; binding facts must never be published or persisted. */
 export interface ActivePersonaPublicProjection {
   readonly personaId: string;
   readonly displayName: string | null;
   readonly avatarRef: string | null;
   readonly primaryPublicHandle: string | null;
+  readonly communityBinding: null | {
+    readonly communityId: string;
+    readonly bindingSource: NonNullable<Awaited<ReturnType<PirateApiClient["get_personas"]>>["personas"][number]["community_binding"]>["binding_source"];
+  };
 }
 
 export type SessionResolution = "anonymous" | AuthenticatedSession;
@@ -56,6 +60,10 @@ function projectPersonas(
       displayName: persona.profile.display_name,
       avatarRef: persona.profile.avatar_ref,
       primaryPublicHandle: persona.profile.primary_public_handle,
+      communityBinding: persona.community_binding === null ? null : {
+        communityId: persona.community_binding.community_id,
+        bindingSource: persona.community_binding.binding_source,
+      },
     }));
 }
 

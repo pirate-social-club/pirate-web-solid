@@ -199,6 +199,7 @@ describe("createKaraokeApiClient", () => {
   test.each(["", "   ", undefined])("rejects missing persona %s before any request", async (personaId) => {
     const fetchImpl = vi.fn();
     const client = createKaraokeApiClient({ fetchImpl, origin: "https://web.test", readCsrfToken: () => "csrf-1" });
+    // SAFETY: deliberately violate the compile-time field to prove the runtime fence.
     await expect(client.createSession({
       communityId: "com_1", postId: "pst_1", idempotencyKey: "key-1",
       personaId: personaId as string,
