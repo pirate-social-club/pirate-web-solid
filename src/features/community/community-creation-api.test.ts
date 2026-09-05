@@ -98,7 +98,7 @@ describe("createCommunityCreationApi", () => {
       readCsrfToken: () => "csrf-1",
     });
     const draft = {
-      ...createEmptyDraft("persona-1"),
+      ...createEmptyDraft({ kind: "existing", personaId: "persona-1" }),
       description: "A place for careful listening",
       name: "Harbor songs",
     };
@@ -157,7 +157,7 @@ describe("createCommunityCreationApi", () => {
       origin: "https://web.test",
       readCsrfToken: () => "csrf-1",
     });
-    const draft = { ...createEmptyDraft("persona-1"), name: "Harbor songs" };
+    const draft = { ...createEmptyDraft({ kind: "existing", personaId: "persona-1" }), name: "Harbor songs" };
 
     await expect(api.updateIntent({
       draft,
@@ -246,7 +246,7 @@ describe("createCommunityCreationApi", () => {
     });
 
     await expect(api.createIntent({
-      draft: { ...createEmptyDraft("persona-1"), name: "Harbor songs" },
+      draft: { ...createEmptyDraft({ kind: "existing", personaId: "persona-1" }), name: "Harbor songs" },
       idempotencyKey: "create-key",
     })).rejects.toBeInstanceOf(CommunityCreationApiError);
     expect(requested).toBe(false);

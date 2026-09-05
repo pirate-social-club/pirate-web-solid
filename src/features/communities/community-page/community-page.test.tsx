@@ -42,7 +42,7 @@ function engagementApi(overrides: Partial<CommunityEngagementApi> = {}): Communi
   return {
     readViewerState: vi.fn(async () => ({ membership: "not_member" as const, following: false, followerCount: 20 })),
     resolveJoinAction: vi.fn(async () => ({ kind: "join" as const })),
-    join: vi.fn(async () => ({ status: "joined" as const })),
+    join: vi.fn(async () => ({ status: "joined" as const, personaId: "persona_1" })),
     follow: vi.fn(async () => ({ following: true, followerCount: 21 })),
     unfollow: vi.fn(async () => ({ following: false, followerCount: 20 })),
     ...overrides,
@@ -300,7 +300,7 @@ describe("CommunityPage", () => {
   test("shows a requested membership as pending instead of joined", async () => {
     const api = engagementApi({
       resolveJoinAction: vi.fn(async () => ({ kind: "request" as const })),
-      join: vi.fn(async () => ({ status: "requested" as const })),
+      join: vi.fn(async () => ({ status: "requested" as const, personaId: null })),
     });
     const container = render(() => (
       <CommunityPage

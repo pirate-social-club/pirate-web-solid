@@ -8,7 +8,7 @@ const currentClient = resolve(
   appRoot,
   "node_modules/@pirate/api-client/src/generated/client.ts",
 );
-const expectedDigest = "32d857ce31e49e5c25502e32d8d3c708ad2cfab995ecf2ba5ef0b0dad55048f1";
+const expectedDigest = "d1317df2111d7d52ed8d356403d050331a2321d77d09ab4f3c99a7ddaf49c545";
 
 const operations = [
   "get_personas",

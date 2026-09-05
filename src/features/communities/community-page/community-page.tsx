@@ -333,6 +333,7 @@ function SuccessState(props: {
             {message => <p class="mx-5 mt-4 text-sm text-destructive md:mx-8" role="alert">{message()}</p>}
           </Show>
           <CommunityPersonaChoiceDialog
+            choice={undefined}
             createNewLabel="Create a new persona in this Community"
             label="Joining as"
             note="Membership attaches to your account. The persona you choose becomes your public identity in this Community; your private Study progress and streaks stay with your account either way."

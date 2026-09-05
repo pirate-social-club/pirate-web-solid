@@ -143,10 +143,12 @@ export interface CommunityPersonaChoiceControlProps {
 export function CommunityPersonaChoiceControl(props: CommunityPersonaChoiceControlProps) {
   const [open, setOpen] = createSignal(false);
   const options = () => toOperationPersonas(props.personas);
-  const chosen = () =>
-    props.choice?.kind === "existing"
-      ? options().find((persona) => persona.personaId === props.choice?.personaId)
+  const chosen = () => {
+    const choice = props.choice;
+    return choice?.kind === "existing"
+      ? options().find((persona) => persona.personaId === choice.personaId)
       : undefined;
+  };
   const summary = () =>
     props.choice === undefined
       ? props.placeholder ?? ""

@@ -1,4 +1,4 @@
-import { describe, expect, test } from "vitest";
+import { describe, expect, test, vi } from "vitest";
 import {
   createKaraokeApiClient,
   KaraokeAvailabilityError,
@@ -177,11 +177,11 @@ describe("createKaraokeApiClient", () => {
       },
       origin: "https://web.test",
       readCsrfToken: () => "csrf-1",
-      resolvePersonaId: async () => "persona-1",
     });
 
     await expect(client.createSession({
       communityId: "com_1",
+      personaId: "persona-1",
       idempotencyKey: "key-1",
       postId: "pst_1",
     })).resolves.toMatchObject({
@@ -194,6 +194,16 @@ describe("createKaraokeApiClient", () => {
     expect(requests[0]?.request.headers.get("x-csrf-token")).toBe("csrf-1");
     expect(requests[0]?.credentials).toBe("same-origin");
     await expect(requests[0]?.request.json()).resolves.toEqual({ persona_id: "persona-1" });
+  });
+
+  test.each(["", "   ", undefined])("rejects missing persona %s before any request", async (personaId) => {
+    const fetchImpl = vi.fn();
+    const client = createKaraokeApiClient({ fetchImpl, origin: "https://web.test", readCsrfToken: () => "csrf-1" });
+    await expect(client.createSession({
+      communityId: "com_1", postId: "pst_1", idempotencyKey: "key-1",
+      personaId: personaId as string,
+    })).rejects.toMatchObject({ code: "persona_required" });
+    expect(fetchImpl).not.toHaveBeenCalled();
   });
 
   test("reads leaderboard and attempt through their generated contract paths", async () => {
@@ -228,6 +238,7 @@ describe("createKaraokeApiClient", () => {
 
     await expect(client.createSession({
       communityId: "com_1",
+      personaId: "persona-1",
       idempotencyKey: "key-1",
       postId: "pst_1",
     })).rejects.toMatchObject({ code: "csrf_required", retryable: false, status: 403 });
