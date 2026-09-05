@@ -33,6 +33,7 @@ const clients = [
       "get_publicPostsByIdPostIdCanonicalRoute",
       "get_publicPostsSitemap",
       "post_communitiesCommunityIdHnsRootImports",
+      "get_communitiesCommunityIdHnsRootImports",
       "get_communitiesCommunityIdHnsRootImportsSessionId",
       "post_communitiesCommunityIdHnsRootImportsSessionIdPoll",
       "post_communitiesCommunityIdHnsRootImportsSessionIdActivate",

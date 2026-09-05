@@ -111,7 +111,7 @@ export type NamespaceResourceRecord = Readonly<{
 }>;
 
 export type NamespaceNextAction =
-  | Readonly<{ kind: "choose_namespace" }>
+  | Readonly<{ kind: "choose_namespace"; no_account_import?: boolean }>
   | Readonly<{ family: NamespaceFamily; kind: "start_verification"; root_label: string }>
   | Readonly<{
       expires_at: string;
@@ -152,7 +152,13 @@ export type NamespaceNextAction =
   | Readonly<{ kind: "failed"; reason_code: string; retryable: boolean }>
   | Readonly<{ kind: "expired" }>;
 
+export type NamespaceAttachment = Readonly<{
+  root_label: string;
+  status: "active" | "suspended";
+}>;
+
 export type NamespaceSettingsSnapshot = Readonly<{
+  attachment?: NamespaceAttachment | null;
   community_id: string;
   family: NamespaceFamily | null;
   generation: number;

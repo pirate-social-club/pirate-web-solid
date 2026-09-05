@@ -366,8 +366,20 @@ export function CommunityNamespaceSettingsPanel(props: CommunityNamespaceSetting
 
   return (
     <section class="mx-auto flex w-full max-w-5xl flex-col gap-6 md:gap-8" data-community-namespace-settings>
+      <Show when={props.snapshot.attachment}>
+        {(attachment) => (
+          <Card class="space-y-2 p-5 md:p-6" data-namespace-attachment>
+            <Type as="h2" variant="h2">Attached community name</Type>
+            <Type as="p" variant="body">{attachment().root_label}</Type>
+            <FormNote>{attachment().status === "suspended" ? "This attachment is suspended." : "This is the community’s current name attachment."}</FormNote>
+          </Card>
+        )}
+      </Show>
       <Show when={props.snapshot.next_action.kind === "choose_namespace"} fallback={<ServerDirectedAction busy={props.busy} idempotencyKeys={props.idempotencyKeys} onCommand={props.onCommand} showHeading={props.showHeading} snapshot={props.snapshot} wallet={props.wallet} />}>
         <div class="space-y-6">
+          <Show when={props.snapshot.next_action.kind === "choose_namespace" && props.snapshot.next_action.no_account_import}>
+            <FormNote>No import found for your account.</FormNote>
+          </Show>
           <Show when={props.showHeading !== false}><Type as="h2" responsiveSize="desktop4xl" variant="h1">Connect Name</Type></Show>
           <Card class="space-y-5 p-5 md:p-6">
             <div class="space-y-2">

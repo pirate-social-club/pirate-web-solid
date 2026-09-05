@@ -19,6 +19,11 @@ try {
     }
   });
   if (apiDown) {
+    await page.route("**/api/personas", route => route.fulfill({
+      status: 503,
+      contentType: "application/json",
+      body: JSON.stringify({ error: { code: "provider_unavailable", message: "API unavailable", retryable: true } }),
+    }));
     await page.route("**/api/feed/**", route => route.fulfill({
       status: 503,
       contentType: "application/json",

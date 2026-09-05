@@ -99,7 +99,7 @@ export function CommunityNamespaceSettingsController(
   );
 
   const execute = async (command: NamespaceSettingsCommand) => {
-    if (busy()) return;
+    if (!active || busy()) return;
     setBusy(true);
     setMessage("");
     try {
@@ -123,7 +123,7 @@ export function CommunityNamespaceSettingsController(
     () => ({ busy: busy(), pollKey: keys().poll, snapshot: snapshot(), status: status() }),
     ({ busy: polling, pollKey, snapshot: current, status: loadStatus }) => {
       if (current?.next_action.kind !== "wait" || polling || loadStatus !== "ready") return;
-      const delayMs = Math.min(60, Math.max(1, current.next_action.retry_after_seconds)) * 1_000;
+      const delayMs = Math.max(1, current.next_action.retry_after_seconds) * 1_000;
       const timer = setTimeout(() => {
         void execute({
           expected_generation: current.generation,
@@ -131,7 +131,7 @@ export function CommunityNamespaceSettingsController(
           kind: "poll",
         });
       }, delayMs);
-      onCleanup(() => clearTimeout(timer));
+      return () => clearTimeout(timer);
     },
   );
 

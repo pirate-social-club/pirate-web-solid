@@ -8,7 +8,7 @@ const currentClient = resolve(
   appRoot,
   "node_modules/@pirate/api-client/src/generated/client.ts",
 );
-const expectedDigest = "f4eb2b0158ac665487d9dca034681c933570a174e308cd31102674b818cec8fd";
+const expectedDigest = "ed6991046ca7560e1985d75d822ffb304e13d57597db4ea3892f0a3c7abf61c5";
 
 const operations = [
   "get_personas",
@@ -41,6 +41,7 @@ const operations = [
   "get_publicPostsByIdPostIdCanonicalRoute",
   "get_publicPostsSitemap",
   "post_communitiesCommunityIdHnsRootImports",
+  "get_communitiesCommunityIdHnsRootImports",
   "get_communitiesCommunityIdHnsRootImportsSessionId",
   "post_communitiesCommunityIdHnsRootImportsSessionIdPoll",
   "post_communitiesCommunityIdHnsRootImportsSessionIdActivate",

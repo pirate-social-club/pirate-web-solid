@@ -80,6 +80,7 @@ describe("createCommunityNamespaceSettingsApi", () => {
     // SAFETY: The fake implements exactly the generated methods exercised by this adapter test.
     const api = createCommunityNamespaceSettingsApi({
       client: {
+        get_communitiesCommunityIdHnsRootImports: async () => ({ community_id: common.community_id, attachment: null, session: null }),
         post_communitiesCommunityIdHnsRootImports: start,
         get_communitiesCommunityIdHnsRootImportsSessionId: vi.fn(),
         post_communitiesCommunityIdHnsRootImportsSessionIdPoll: poll,
@@ -96,6 +97,7 @@ describe("createCommunityNamespaceSettingsApi", () => {
     snapshot = await api.execute({ kind: "start_verification", expected_generation: snapshot.generation, idempotency_key: "start-1" });
     expect(snapshot.next_action).toMatchObject({ kind: "sign_ownership", message: "Pirate HNS ownership proof\n[bound payload]" });
     expect(sessionLocator.value).toBe("session-1");
+    sessionLocator.value = null; // Navigation can remove the deep link while the adapter remains mounted.
 
     snapshot = await api.execute({ kind: "submit_name_signature", signature: "wallet-signature", expected_generation: snapshot.generation, idempotency_key: "signature-1" });
     snapshot = await api.execute({ kind: "poll", expected_generation: snapshot.generation, idempotency_key: "poll-1" });
@@ -183,4 +185,77 @@ describe("createCommunityNamespaceSettingsApi", () => {
       replacement_semantics: "complete_resource",
     });
   });
+});
+
+
+describe("community import discovery", () => {
+  const pending = { ...common, revision: 3, status: "awaiting_owner_update", publish_plan: plan,
+    publish_plan_sha256: "plan-hash", readiness_result_sha256: null, retry_after_seconds: 7,
+    publication_check_pending: true };
+
+  test("rediscovers without a locator and uses the discovered session for polling", async () => {
+    const discovery = vi.fn(async () => ({ community_id: common.community_id, attachment: null, session: pending }));
+    const poll = vi.fn(async () => pending);
+    const sessionLocator = locator();
+    const api = createCommunityNamespaceSettingsApi({
+      // SAFETY: The fake returns the discovery and pending response shapes exercised here.
+      client: { get_communitiesCommunityIdHnsRootImports: discovery,
+        post_communitiesCommunityIdHnsRootImportsSessionIdPoll: poll } as never,
+      communityId: common.community_id, communityPath: "/c/community-1", locator: sessionLocator,
+      readCsrfToken: () => "csrf-1",
+    });
+    const snapshot = await api.read();
+    expect(snapshot.next_action).toEqual({ kind: "wait", reason_code: "verification_pending", retry_after_seconds: 7 });
+    expect(sessionLocator.value).toBe("session-1");
+    expect(discovery).toHaveBeenCalledWith({ path: { communityId: common.community_id } }, { credentials: "same-origin" });
+    await api.execute({ kind: "poll", expected_generation: snapshot.generation, idempotency_key: "poll-recovered" });
+    expect(poll).toHaveBeenCalledWith(expect.objectContaining({ path: { communityId: common.community_id, sessionId: "session-1" } }), expect.anything());
+  });
+
+  test.each([null, { canonical_route: { root_label_display: "midnight" }, status: "active" }])(
+    "reports account-scoped absence independently of attachment %j", async (attachment) => {
+      const api = createCommunityNamespaceSettingsApi({
+        // SAFETY: Only the generated discovery fields consumed by this adapter are returned.
+        client: { get_communitiesCommunityIdHnsRootImports: async () => ({ community_id: common.community_id, attachment, session: null }) } as never,
+        communityId: common.community_id, communityPath: "/c/community-1", locator: locator(),
+      });
+      const snapshot = await api.read();
+      expect(snapshot.next_action).toEqual({ kind: "choose_namespace", no_account_import: true });
+      expect(snapshot.attachment).toEqual(attachment === null ? null : { root_label: "midnight", status: "active" });
+    },
+  );
+
+  test.each([
+    { community_id: "another-community", session: null },
+    { community_id: common.community_id, session: { ...pending, community_id: "another-community" } },
+  ])("rejects mismatched discovery without retaining its locator", async (response) => {
+    const sessionLocator = locator();
+    const api = createCommunityNamespaceSettingsApi({
+      // SAFETY: Deliberately mismatched generated responses exercise the tenant check.
+      client: { get_communitiesCommunityIdHnsRootImports: async () => ({ ...response, attachment: null }) } as never,
+      communityId: common.community_id, communityPath: "/c/community-1", locator: sessionLocator,
+    });
+    await expect(api.read()).rejects.toThrow("did not match this community");
+    expect(sessionLocator.value).toBeNull();
+  });
+});
+
+
+test("a loaded deep link remains current when the locator disappears", async () => {
+  const sessionLocator = locator();
+  sessionLocator.value = "session-1";
+  const response = { ...common, revision: 2, status: "provisioning", publish_plan: null,
+    publish_plan_sha256: null, readiness_result_sha256: null, retry_after_seconds: 2 };
+  const poll = vi.fn(async () => response);
+  const api = createCommunityNamespaceSettingsApi({
+    // SAFETY: These fakes provide the session and poll response fields used here.
+    client: { get_communitiesCommunityIdHnsRootImportsSessionId: async () => response,
+      post_communitiesCommunityIdHnsRootImportsSessionIdPoll: poll } as never,
+    communityId: common.community_id, communityPath: "/c/community-1", locator: sessionLocator,
+    readCsrfToken: () => "csrf-1",
+  });
+  const snapshot = await api.read();
+  sessionLocator.clear();
+  await api.execute({ kind: "poll", expected_generation: snapshot.generation, idempotency_key: "poll-loaded" });
+  expect(poll).toHaveBeenCalledWith(expect.objectContaining({ path: { communityId: common.community_id, sessionId: "session-1" } }), expect.anything());
 });

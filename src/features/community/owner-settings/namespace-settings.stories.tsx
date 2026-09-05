@@ -199,3 +199,18 @@ export const CompleteBobWalletCeremony: Story = {
     await expect(await canvas.findByRole("heading", { name: "app.dankmemes" })).toBeInTheDocument();
   },
 };
+
+
+export const NoAccountImport: Story = {
+  args: argsFor({ kind: "choose_namespace", no_account_import: true }),
+};
+
+export const ExistingAttachmentWithoutAccountImport: Story = {
+  args: {
+    ...argsFor({ kind: "choose_namespace", no_account_import: true }),
+    snapshot: {
+      ...namespaceState({ kind: "choose_namespace", no_account_import: true }),
+      attachment: { root_label: "midnight", status: "active" },
+    },
+  },
+};
