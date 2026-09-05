@@ -8,7 +8,9 @@ const currentClient = resolve(
   appRoot,
   "node_modules/@pirate/api-client/src/generated/client.ts",
 );
-const expectedDigest = "32d857ce31e49e5c25502e32d8d3c708ad2cfab995ecf2ba5ef0b0dad55048f1";
+// Client 0.60.0 adds video projections to six read responses; statuses and
+// errors are unchanged from 0.59.0. Include multipart renewal and video reads.
+const expectedDigest = "f4fd64897479eb9c502388efe31a61fc88309047f0a72ccfdb8a668f49487c56";
 
 const operations = [
   "get_personas",
@@ -33,6 +35,11 @@ const operations = [
   "get_mediaPostSubmissionsSubmissionId",
   "post_mediaPostSubmissionsSubmissionIdRetry",
   "post_mediaPostSubmissionsSubmissionIdCancel",
+  "post_mediaUploadReservationsReservationIdPartsRenew",
+  "get_postsPostId",
+  "get_feedHomePublic",
+  "get_feedHome",
+  "get_publicCommunitiesCommunityRefFeed",
   "get_textContentSubmissionsSubmissionId",
   "post_postsPostIdComments",
   "post_postsPostIdVote",

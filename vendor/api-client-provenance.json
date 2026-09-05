@@ -1,11 +1,11 @@
 {
   "name": "@pirate/api-client",
-  "version": "0.59.0",
-  "artifact": "vendor/api-client/pirate-api-client-0.59.0.tgz",
-  "sha256": "33c9b03c4b9095bb9aaa7c82b33f20fa1d25f2d04b0642c226c2f4ac2151dd2c",
-  "source": "api-next-contracts@bc5dfad1b3fe1c40af6dfa240b0277a4f986c4878e5abc086947d9b0726a6866",
-  "openapiSha256": "bc5dfad1b3fe1c40af6dfa240b0277a4f986c4878e5abc086947d9b0726a6866",
-  "clientSha256": "04b44647a5342b2a947782d22790939190e02e0598b77ed1aaa1c8fb87312111",
+  "version": "0.60.0",
+  "artifact": "vendor/api-client/pirate-api-client-0.60.0.tgz",
+  "sha256": "64197265735919f0deedd443c57c2167c2f03428a29ddd918d812810fbd4c9ad",
+  "source": "api-next-contracts@cc59bde1665d70e887392ab962258377c5a0eb750908f80ca3214c2c2f3def28",
+  "openapiSha256": "cc59bde1665d70e887392ab962258377c5a0eb750908f80ca3214c2c2f3def28",
+  "clientSha256": "e18db0bf3b8a055c15bc1f0b682aabbd58408f8617739bb86740522936f100fe",
   "scope": [
     "post_communityCreationIntents",
     "get_communityCreationIntentsIntentId",
@@ -32,6 +32,13 @@
     "get_communitiesCommunityIdHnsRootImportsSessionId",
     "post_communitiesCommunityIdHnsRootImportsSessionIdPoll",
     "post_communitiesCommunityIdHnsRootImportsSessionIdActivate",
-    "get_usersMeCommunityMemberships"
+    "get_usersMeCommunityMemberships",
+    "post_communitiesCommunityIdMediaUploadReservations",
+    "post_communitiesCommunityIdMediaPostSubmissions",
+    "post_mediaPostSubmissionsSubmissionIdFinalize",
+    "post_mediaPostSubmissionsSubmissionIdRetry",
+    "post_mediaPostSubmissionsSubmissionIdCancel",
+    "post_mediaUploadReservationsReservationIdPartsRenew",
+    "get_mediaPostSubmissionsSubmissionId"
   ]
 }
