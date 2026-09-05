@@ -172,9 +172,11 @@ export function CreatePostDialog(props: CreatePostDialogProps): JSX.Element {
       sharePct: 100,
     }],
   });
-  const [selectedPersonaId, setSelectedPersonaId] = createSignal<string | undefined>(
+  const [songPersonaId, setSongPersonaId] = createSignal<string | undefined>(
     initialPersonaId,
   );
+  const [textPersonaId, setTextPersonaId] = createSignal<string | undefined>(initialPersonaId);
+  const selectedPersonaId = () => mode() === "song" ? songPersonaId() : textPersonaId();
   const [error, setError] = createSignal("");
   const [textState, setTextState] = createSignal<PostComposerState>(initialPostComposerState);
   const [textRestoring, setTextRestoring] = createSignal(true);
@@ -224,7 +226,7 @@ export function CreatePostDialog(props: CreatePostDialogProps): JSX.Element {
       const envelope = textCoordinator.pendingEnvelope;
       if (envelope === null) return;
       const draft = decodePendingSubmissionDraft(envelope);
-      selectOperationPersona(draft.personaId);
+      setTextPersonaId(draft.personaId);
       setTextAgeGatePolicy(draft.authorDeclaredRating === "adult_18" ? "18_plus" : "none");
     })
     .catch(() => {
@@ -249,7 +251,7 @@ export function CreatePostDialog(props: CreatePostDialogProps): JSX.Element {
           primaryAudioLabel: record.audio.name,
         }));
         if (personas().some(persona => persona.personaId === record.persona_id)) {
-          selectOperationPersona(record.persona_id);
+          selectSongPersona(record.persona_id);
         }
         if (record.snapshot !== null) applySnapshot(record.snapshot);
       })
@@ -262,7 +264,12 @@ export function CreatePostDialog(props: CreatePostDialogProps): JSX.Element {
   }
 
   function selectOperationPersona(nextPersonaId: string | undefined): void {
-    const previousPersonaId = selectedPersonaId();
+    if (mode() === "song") selectSongPersona(nextPersonaId);
+    else setTextPersonaId(nextPersonaId);
+  }
+
+  function selectSongPersona(nextPersonaId: string | undefined): void {
+    const previousPersonaId = songPersonaId();
     setRoyaltySplit(current => {
       if (current.allocations.length === 0 && nextPersonaId !== undefined) {
         return {
@@ -282,7 +289,7 @@ export function CreatePostDialog(props: CreatePostDialogProps): JSX.Element {
           : allocation),
       };
     });
-    setSelectedPersonaId(nextPersonaId);
+    setSongPersonaId(nextPersonaId);
   }
 
   function resetSongDraft(): void {
@@ -301,7 +308,7 @@ export function CreatePostDialog(props: CreatePostDialogProps): JSX.Element {
         sharePct: 100,
       }],
     });
-    setSelectedPersonaId(nextPersonaId);
+    setSongPersonaId(nextPersonaId);
     setMediaSnapshot(null);
     setMediaView({ status: "editing" });
     setMediaRecordRetained(false);
@@ -351,7 +358,7 @@ export function CreatePostDialog(props: CreatePostDialogProps): JSX.Element {
     setError("");
     try {
       const draft = await textCoordinator.discardRejectedRequest();
-      selectOperationPersona(draft.personaId);
+      setTextPersonaId(draft.personaId);
       setCommunityId(draft.communityId);
       setTitle(draft.title);
       setBody(draft.body);

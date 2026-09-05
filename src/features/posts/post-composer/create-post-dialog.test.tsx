@@ -252,6 +252,16 @@ describe("create post request", () => {
     const records = await storage.loadAll();
     expect(records).toHaveLength(1);
     expect(decodePendingSubmissionDraft(records[0]!).personaId).toBe("persona-two");
+    const audioInput = document.body.querySelector<HTMLInputElement>("input[aria-label='Upload audio']")!;
+    Object.defineProperty(audioInput, "files", { configurable: true, value: [new File([new Uint8Array([1])], "choice.mp3", { type: "audio/mpeg" })] });
+    audioInput.dispatchEvent(new Event("change", { bubbles: true }));
+    await vi.waitFor(() => expect(selector.hasAttribute("disabled")).toBe(false));
+    Reflect.set(selector, "value", "persona-one");
+    selector.dispatchEvent(new Event("change", { bubbles: true }));
+    document.body.querySelector<HTMLButtonElement>("button[aria-label='Remove audio']")!.click();
+    await vi.waitFor(() => expect(selector.hasAttribute("disabled")).toBe(true));
+    expect(selector.querySelector("option:checked")?.getAttribute("value")).toBe("persona-two");
+    expect(decodePendingSubmissionDraft((await storage.loadAll())[0]!).personaId).toBe("persona-two");
   });
 
   test("keeps a pending envelope across dialog close and reopen", async () => {
