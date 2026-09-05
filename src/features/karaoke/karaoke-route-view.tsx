@@ -78,8 +78,8 @@ function LoadedKaraokeSession(props: { payload: ApiSongKaraokePayload; postId: s
     }
   };
   if (!isServer) queueMicrotask(() => { if (active) void loadSession(); });
-  const unsubscribe = onSessionRefreshed(() => { void loadSession(); });
-  onCleanup(() => { active = false; sessionEpoch += 1; unsubscribe(); });
+  if (!isServer) onCleanup(onSessionRefreshed(() => { void loadSession(); }));
+  onCleanup(() => { active = false; sessionEpoch += 1; });
   // The injected controller factory is fixed for this mounted session.
   const createScoring = untrack(() => props.createScoring) ?? useKaraokeScoring;
   const scoring = createScoring({

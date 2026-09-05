@@ -39,10 +39,11 @@ const preview: GetCommunitiesCommunityIdPreviewResponse = {
 };
 
 function engagementApi(overrides: Partial<CommunityEngagementApi> = {}): CommunityEngagementApi {
+  let committed = false;
   return {
-    readViewerState: vi.fn(async () => ({ membership: "not_member" as const, following: false, followerCount: 20 })),
+    readViewerState: vi.fn(async () => ({ membership: committed ? "member" as const : "not_member" as const, following: committed, followerCount: committed ? 21 : 20 })),
     resolveJoinAction: vi.fn(async () => ({ kind: "join" as const })),
-    join: vi.fn(async () => ({ status: "joined" as const, personaId: "persona_1" })),
+    join: vi.fn(async () => { committed = true; return { status: "joined" as const, personaId: "persona_1" }; }),
     follow: vi.fn(async () => ({ following: true, followerCount: 21 })),
     unfollow: vi.fn(async () => ({ following: false, followerCount: 20 })),
     ...overrides,
@@ -292,6 +293,11 @@ describe("CommunityPage", () => {
     const join = [...container.querySelectorAll<HTMLButtonElement>("button")]
       .find(button => button.textContent?.trim() === "Join")!;
     join.click();
+    await vi.waitFor(() => expect(document.querySelector('[role="dialog"]')).not.toBeNull());
+    expect(api.join).not.toHaveBeenCalled();
+    const confirm = [...document.querySelectorAll<HTMLButtonElement>("button")]
+      .find(button => button.textContent?.trim() === "Create persona and join")!;
+    confirm.click();
     await vi.waitFor(() => expect(api.join).toHaveBeenCalledWith(communityId, { kind: "create_new" }));
     await vi.waitFor(() => expect(container.textContent).toContain("Joined this Community."));
     expect(join.textContent).toBe("Joined");

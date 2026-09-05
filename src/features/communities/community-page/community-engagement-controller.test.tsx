@@ -11,10 +11,11 @@ const unboundPersona = { personaId: "persona-a", displayName: "Persona A", avata
 afterEach(() => { for (const dispose of disposers.splice(0)) dispose(); });
 
 async function setup(overrides: Partial<CommunityEngagementApi> = {}, personas: AuthenticatedSession["personas"] = []) {
+  let committed = false;
   const api: CommunityEngagementApi = {
-    readViewerState: vi.fn(async () => ({ membership: "not_member" as const, following: false, followerCount: 0 })),
+    readViewerState: vi.fn(async () => ({ membership: committed ? "member" as const : "not_member" as const, following: committed, followerCount: committed ? 7 : 0 })),
     resolveJoinAction: vi.fn(async () => ({ kind: "join" as const })),
-    join: vi.fn(async () => ({ status: "joined" as const, personaId: "persona-created" })),
+    join: vi.fn(async () => { committed = true; return { status: "joined" as const, personaId: "persona-created" }; }),
     follow: vi.fn(async () => ({ following: true, followerCount: 1 })),
     unfollow: vi.fn(async () => ({ following: false, followerCount: 0 })),
     ...overrides,
@@ -51,11 +52,28 @@ describe("terminal community persona choice", () => {
     expect(api.join).toHaveBeenCalledWith("community-a", { kind: "existing", personaId: "persona-a" });
     expect(controller.joined()).toBe(true);
     expect(controller.following()).toBe(true);
+    expect(controller.followerCount()).toBe(7);
   });
 
-  test("zero-persona join can mint without already being a member", async () => {
+  test("a failed post-join preview preserves membership without manufacturing a count", async () => {
+    const { api, controller } = await setup({}, [unboundPersona]);
+    vi.mocked(api.readViewerState).mockRejectedValue(new Error("preview unavailable"));
+    await controller.joinCommunity({ kind: "existing", personaId: "persona-a" });
+    expect(controller.joined()).toBe(true);
+    expect(controller.followerCount()).toBe(0);
+    expect(controller.message()).toBe("Joined this Community.");
+    expect(controller.error()).toContain("couldn't load");
+  });
+
+  test("zero-persona join requires confirmation before minting", async () => {
     const { api, controller } = await setup();
     await controller.joinCommunity();
+    expect(controller.joinPersonaStep()).toBe(true);
+    expect(controller.joinPersonaChoice()).toEqual({ kind: "create_new" });
+    expect(api.join).not.toHaveBeenCalled();
+    expect(controller.joined()).toBe(false);
+    controller.confirmJoinPersona({ kind: "create_new" });
+    await vi.waitFor(() => expect(controller.joined()).toBe(true));
     expect(api.join).toHaveBeenCalledWith("community-a", { kind: "create_new" });
     expect(controller.joined()).toBe(true);
     expect(controller.joinedPersonaId()).toBe("persona-created");

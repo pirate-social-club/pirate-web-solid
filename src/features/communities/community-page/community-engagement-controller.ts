@@ -34,6 +34,7 @@ export interface CommunityEngagementController {
   readonly postingSession: Accessor<AuthenticatedSession | undefined>;
   /** Open while a terminal join waits for the account's closed persona choice. */
   readonly joinPersonaStep: Accessor<boolean>;
+  readonly joinPersonaChoice: Accessor<CommunityPersonaChoice | undefined>;
   readonly joinedPersonaId: Accessor<string | undefined>;
   followToggle(): Promise<void>;
   joinCommunity(persona?: CommunityPersonaChoice): Promise<void>;
@@ -66,6 +67,7 @@ export function createCommunityEngagementController(
   const [postingSession, setPostingSession] = createSignal<AuthenticatedSession>();
   const [accountAuthenticated, setAccountAuthenticated] = createSignal(false);
   const [joinPersonaOpen, setJoinPersonaOpen] = createSignal(false);
+  const [joinPersonaChoice, setJoinPersonaChoice] = createSignal<CommunityPersonaChoice>();
   const [joinedPersonaId, setJoinedPersonaId] = createSignal<string>();
   let active = true;
   let actionInFlight = false;
@@ -253,8 +255,9 @@ export function createCommunityEngagementController(
           return;
         }
         choice ??= defaultCommunityPersonaChoice(candidates);
-        if (choice === undefined) {
-          // Several scoped candidates remain; do not use a global default.
+        if (choice === undefined || (persona === undefined && choice.kind === "create_new")) {
+          // Minting needs consent even when there are no existing candidates.
+          setJoinPersonaChoice(choice);
           setJoinPersonaOpen(true);
           return;
         }
@@ -263,8 +266,6 @@ export function createCommunityEngagementController(
       if (!active) return;
       if (result.status === "joined") {
         setMembership("member");
-        if (!following()) setFollowerCount(count => count + 1);
-        setFollowing(true);
         setJoinedPersonaId(result.personaId ?? undefined);
         setMessage("Joined this Community.");
         // Read the minted profile/binding from the server, never manufacture it
@@ -273,6 +274,9 @@ export function createCommunityEngagementController(
         setPostingSession(undefined);
         fullSessionStarted = false;
         hydrateFullSession();
+        // The join result proves membership, not a subscription count.
+        // A failed preview must not undo the committed membership.
+        await refreshViewerState();
       } else {
         setMembership("pending");
         setMessage("Membership request sent.");
@@ -342,6 +346,7 @@ export function createCommunityEngagementController(
     joined,
     joinLabel,
     joinPersonaStep: joinPersonaOpen,
+    joinPersonaChoice,
     joinedPersonaId,
     message,
     error,

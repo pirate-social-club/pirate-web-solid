@@ -4,6 +4,7 @@ import { For, Show, createSignal } from "solid-js";
 
 import {
   Avatar,
+  Button,
   IconCaretDown,
   IconPlus,
   Modal,
@@ -40,6 +41,8 @@ export interface CommunityPersonaChoiceDialogProps {
   createNewDescription?: string;
   /** Only membership and creation operations can mint a persona. */
   allowCreateNew?: boolean;
+  /** Explicit confirmation for an automatically preselected mint choice. */
+  confirmCreateNewLabel?: string;
   forceMobile?: boolean;
 }
 
@@ -116,6 +119,13 @@ export function CommunityPersonaChoiceDialog(props: CommunityPersonaChoiceDialog
               {note()}
             </p>
           )}
+        </Show>
+        <Show when={props.confirmCreateNewLabel && props.choice?.kind === "create_new"}>
+          <div class="px-5 pb-5 sm:px-6">
+            <Button type="button" onClick={() => props.onChoose({ kind: "create_new" })}>
+              {props.confirmCreateNewLabel}
+            </Button>
+          </div>
         </Show>
       </ModalContent>
     </Modal>

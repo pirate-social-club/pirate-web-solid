@@ -23,7 +23,7 @@ import {
   type VeryCreationTarget,
 } from "../../api/very.ts";
 
-type Phase = "idle" | "starting" | "waiting" | "ready" | "polling" | "joining" | "joined" | "verified" | "error";
+type Phase = "idle" | "starting" | "waiting" | "ready" | "polling" | "choosing" | "joining" | "joined" | "verified" | "error";
 
 type VeryWidget = Readonly<{
   open?: () => void;
@@ -160,6 +160,7 @@ export default function VeryVerificationRoute(props: Readonly<{ loadWidget?: Ver
   const [busy, setBusy] = createSignal(false);
   const [joinCandidates, setJoinCandidates] = createSignal<ActivePersonaPublicProjection[]>([]);
   const [personaChoiceOpen, setPersonaChoiceOpen] = createSignal(false);
+  const [personaChoice, setPersonaChoice] = createSignal<CommunityPersonaChoice>();
   let ceremony: VeryWebCeremony | undefined;
   let widget: VeryWidget | undefined;
   let widgetObserver: MutationObserver | undefined;
@@ -183,12 +184,18 @@ export default function VeryVerificationRoute(props: Readonly<{ loadWidget?: Ver
     const candidates = communityJoinCandidates(session.personas, targetCommunityId);
     setJoinCandidates(candidates);
     const choice = defaultCommunityPersonaChoice(candidates);
-    if (choice === undefined) { setPersonaChoiceOpen(true); return; }
+    if (choice === undefined || choice.kind === "create_new") {
+      setPersonaChoice(choice);
+      setPhase("choosing");
+      setPersonaChoiceOpen(true);
+      return;
+    }
     await commitPersonaJoin(targetCommunityId, epoch, choice);
   }
 
   async function commitPersonaJoin(targetCommunityId: string, epoch: number, choice: CommunityPersonaChoice) {
     if (!operationIsCurrent(epoch, targetCommunityId)) return;
+    setPhase("joining");
     const joined = await joinVeryCommunity({ communityId: targetCommunityId, persona: toCommunityPersonaChoiceWire(choice) });
     if (!operationIsCurrent(epoch, targetCommunityId)) return;
     refreshSession();
@@ -447,7 +454,8 @@ export default function VeryVerificationRoute(props: Readonly<{ loadWidget?: Ver
   return (
     <main data-route-path="/verify/very" class="mx-auto flex min-h-screen max-w-xl flex-col gap-6 p-6">
       <CommunityPersonaChoiceDialog label="Joining as" personas={joinCandidates()}
-        choice={undefined} open={personaChoiceOpen()}
+        choice={personaChoice()} open={personaChoiceOpen()}
+        confirmCreateNewLabel="Create persona and join"
         onOpenChange={open => { if (!open) reset(); }}
         onChoose={choice => {
           if (choice.kind === "existing" && !joinCandidates().some(persona => persona.personaId === choice.personaId)) return;
@@ -519,6 +527,10 @@ export default function VeryVerificationRoute(props: Readonly<{ loadWidget?: Ver
 
       <Show when={phase() === "polling"}>
         <p role="status">Waiting for the server to receive the palm-scan result…</p>
+      </Show>
+
+      <Show when={phase() === "choosing"}>
+        <p role="status">Choose your public identity before joining this community.</p>
       </Show>
 
       <Show when={phase() === "joining"}>

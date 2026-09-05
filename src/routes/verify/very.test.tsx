@@ -40,7 +40,10 @@ let widgetConfig: WidgetConfig | undefined;
 const disposers: Array<() => void> = [];
 
 beforeEach(() => {
-  vi.spyOn(sessionApi, "resolveSession").mockResolvedValue({ status: "authenticated", userId: "account-a", personas: [] });
+  vi.spyOn(sessionApi, "resolveSession").mockResolvedValue({ status: "authenticated", userId: "account-a", personas: [{
+    personaId: "persona-a", displayName: "Persona A", avatarRef: null, primaryPublicHandle: null,
+    communityBinding: { communityId: "community-gated-1", bindingSource: "first_membership" },
+  }] });
   vi.spyOn(sessionApi, "refreshSession").mockImplementation(() => {});
   vi.spyOn(veryApi, "resolveVeryCommunityAction").mockResolvedValue({
     kind: "verify",
@@ -225,7 +228,7 @@ describe("Very verification route", () => {
     await vi.waitFor(() => expect(container.textContent).toContain("Community joined"));
     expect(completeWithWidget).toHaveBeenCalledTimes(1);
     expect(completeWithWidget).toHaveBeenCalledWith("opaque-provider-payload-ref");
-    expect(veryApi.joinVeryCommunity).toHaveBeenCalledWith({ communityId: "community-gated-1", persona: { kind: "create_new" } });
+    expect(veryApi.joinVeryCommunity).toHaveBeenCalledWith({ communityId: "community-gated-1", persona: { kind: "existing", persona_id: "persona-a" } });
     expect(widgetHarness.destroy).toHaveBeenCalledTimes(1);
     expect(cancel).not.toHaveBeenCalled();
   });
@@ -239,8 +242,25 @@ describe("Very verification route", () => {
     container.querySelector("button")?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
 
     await vi.waitFor(() => expect(container.textContent).toContain("Community joined"));
-    expect(veryApi.joinVeryCommunity).toHaveBeenCalledWith({ communityId: "community-gated-1", persona: { kind: "create_new" } });
+    expect(veryApi.joinVeryCommunity).toHaveBeenCalledWith({ communityId: "community-gated-1", persona: { kind: "existing", persona_id: "persona-a" } });
     expect(createCeremony).not.toHaveBeenCalled();
+  });
+
+  it("explains and confirms a zero-candidate mint before sending the join", async () => {
+    window.history.replaceState(null, "", "/verify/very?community_id=community-gated-1");
+    vi.mocked(sessionApi.resolveSession).mockResolvedValue({ status: "authenticated", userId: "account-a", personas: [] });
+    vi.mocked(veryApi.resolveVeryCommunityAction).mockResolvedValue({ kind: "join" });
+    const container = render(() => <VeryVerificationRoute />);
+    container.querySelector("button")?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    await vi.waitFor(() => expect(document.querySelector('[role="dialog"]')).not.toBeNull());
+    expect(container.textContent).toContain("Choose your public identity");
+    expect(container.textContent).not.toContain("Joining the community…");
+    expect(veryApi.joinVeryCommunity).not.toHaveBeenCalled();
+    const confirm = Array.from(document.querySelectorAll("button")).find(button => button.textContent?.includes("Create persona and join"));
+    expect(confirm).toBeDefined();
+    confirm?.click();
+    await vi.waitFor(() => expect(container.textContent).toContain("Community joined"));
+    expect(veryApi.joinVeryCommunity).toHaveBeenCalledWith({ communityId: "community-gated-1", persona: { kind: "create_new" } });
   });
 
   it("waits on a server-reported pending ceremony without issuing another intent", async () => {
