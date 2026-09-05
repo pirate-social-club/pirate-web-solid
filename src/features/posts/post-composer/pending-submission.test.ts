@@ -500,6 +500,28 @@ describe("pending text submission", () => {
     expect(dispatchedKeys).toEqual(["key-1", "key-new"]);
   });
 
+  test("recovers an unattributed saved draft only after exact retry and definitive rejection", async () => {
+    const storage = createMemoryPendingSubmissionStorage();
+    const envelope = await createPendingSubmissionEnvelope({ request: titledRequest, pendingRequestId: "pending-no-persona" });
+    const { persona_id: _omitted, ...oldBody } = titledRequest.body;
+    const bytes = new TextEncoder().encode(JSON.stringify(oldBody));
+    const retained = { ...envelope, body_utf8_base64url: bytesToBase64Url(bytes), body_sha256: await sha256Hex(bytes) };
+    await storage.save(retained);
+    const dispatch = vi.fn(async (saved: typeof retained) => {
+      expect([...pendingBodyBytes(saved)]).toEqual([...bytes]);
+      throw new TextSubmissionServerRejectionError(400, "bad_request");
+    });
+    const coordinator = new TextSubmissionCoordinator({ storage, transport: { read: async () => null, dispatch } });
+    await coordinator.restore();
+    await expect(coordinator.discardRejectedRequest()).rejects.toThrow("Only a definitively rejected request");
+    expect([...pendingBodyBytes((await storage.loadAll())[0]!)]).toEqual([...bytes]);
+    await expect(coordinator.reconcile()).rejects.toBeInstanceOf(TextSubmissionServerRejectionError);
+    const draft = await coordinator.discardRejectedRequest();
+    expect(draft).toEqual({ communityId: "community-1", personaId: undefined, title: "A retained title", body: "A retained body", authorDeclaredRating: "general" });
+    expect(await storage.loadAll()).toHaveLength(0);
+    expect(coordinator.state).toEqual({ status: "editing" });
+  });
+
   test.each([413, 422])("does not make HTTP %s discardable in session", async status => {
     const storage = createMemoryPendingSubmissionStorage();
     const coordinator = new TextSubmissionCoordinator({

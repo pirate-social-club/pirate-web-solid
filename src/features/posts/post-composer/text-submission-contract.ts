@@ -81,15 +81,24 @@ export class TextSubmissionSerializationError extends TextSubmissionContractErro
   }
 }
 
-/** Decode the exact retained request body before restoring an editable draft. */
 export function decodeTextContentSubmissionRequest(value: unknown): TextContentSubmissionRequestV1 {
+  const decoded = decodeRetainedTextDraftFields(value);
+  if (decoded.persona_id === undefined) {
+    throw new TextSubmissionContractError("Text submission request has an invalid persona id");
+  }
+  return { ...decoded, persona_id: decoded.persona_id };
+}
+
+/** Local draft recovery only: an absent author requires a fresh explicit choice.
+ * Never use this projection to replace or reconstruct persisted retry bytes.
+ */
+export function decodeRetainedTextDraftFields(value: unknown): Omit<TextContentSubmissionRequestV1, "persona_id"> & { readonly persona_id: string | undefined } {
   if (!isTextSubmissionRequestObject(value)) {
     throw new TextSubmissionContractError("Text submission request must be an object");
   }
   const keys = Object.keys(value);
   const requiredKeys = [
     "idempotency_key",
-    "persona_id",
     "post_type",
     "authorship_mode",
     "identity_mode",
@@ -97,14 +106,14 @@ export function decodeTextContentSubmissionRequest(value: unknown): TextContentS
     "title",
     "body",
   ];
-  const allowedKeys = [...requiredKeys, "author_declared_rating"];
+  const allowedKeys = [...requiredKeys, "persona_id", "author_declared_rating"];
   if (requiredKeys.some(key => !Object.prototype.hasOwnProperty.call(value, key)) || keys.some(key => !allowedKeys.includes(key))) {
     throw new TextSubmissionContractError("Text submission request has an unexpected shape");
   }
   if (typeof value.idempotency_key !== "string" || value.idempotency_key === "") {
     throw new TextSubmissionContractError("Text submission request has an invalid idempotency key");
   }
-  if (typeof value.persona_id !== "string" || value.persona_id === "") {
+  if (value.persona_id !== undefined && (typeof value.persona_id !== "string" || value.persona_id === "")) {
     throw new TextSubmissionContractError("Text submission request has an invalid persona id");
   }
   if (value.post_type !== "text" || value.authorship_mode !== "human_direct" || value.identity_mode !== "public" || value.visibility !== "public") {

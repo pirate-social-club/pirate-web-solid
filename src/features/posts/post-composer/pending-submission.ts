@@ -1,7 +1,7 @@
 import {
   base64UrlToBytes,
   bytesToBase64Url,
-  decodeTextContentSubmissionRequest,
+  decodeRetainedTextDraftFields,
   serializeTextSubmissionRequest,
   sha256Hex,
   TextSubmissionContractError,
@@ -168,7 +168,7 @@ export interface RestoredTextSubmissionDraft {
   readonly title: string;
   readonly body: string;
   readonly authorDeclaredRating: "general" | "adult_18";
-  readonly personaId: string;
+  readonly personaId: string | undefined;
 }
 
 export function assertSafeSameOriginPath(path: string): string {
@@ -258,9 +258,9 @@ export function decodePendingSubmissionDraft(envelope: PendingSubmissionEnvelope
   } catch {
     throw new PendingSubmissionError("Pending body is not valid UTF-8 JSON");
   }
-  let request: ReturnType<typeof decodeTextContentSubmissionRequest>;
+  let request: ReturnType<typeof decodeRetainedTextDraftFields>;
   try {
-    request = decodeTextContentSubmissionRequest(parsed);
+    request = decodeRetainedTextDraftFields(parsed);
   } catch (error) {
     throw new PendingSubmissionError(error instanceof Error ? error.message : "Pending body has an invalid request shape");
   }

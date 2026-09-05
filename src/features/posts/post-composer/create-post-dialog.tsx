@@ -618,7 +618,7 @@ export function CreatePostDialog(props: CreatePostDialogProps): JSX.Element {
               )}
             </Show>
 
-            <Show when={personas().length > 1}>
+            <Show when={personas().length > 1 || (personas().length === 1 && selectedActivePersonaId() === undefined)}>
               <label class="grid gap-2 text-sm font-medium">
                 <span>Post as</span>
                 <select
