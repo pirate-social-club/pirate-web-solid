@@ -106,7 +106,7 @@ export const MobileSheet: Story = {
     const dialog = await within(document.body).findByRole("dialog");
     await expect(within(dialog).getByRole("heading", { name: "Join Pirate" })).toBeInTheDocument();
     await expect(within(dialog).getByText("Share music. Find your people.")).toBeInTheDocument();
-    await expect(within(dialog).getByText(/By continuing, you agree to the/)).toBeInTheDocument();
+    await expect(within(dialog).getByText(/By continuing, you confirm you are at least 16 years old and agree to the/)).toBeInTheDocument();
   },
 };
 
