@@ -20,6 +20,7 @@ import {
 import type { ActivePersonaPublicProjection } from "../../api/session";
 import {
   toOperationPersonas,
+  PERSONA_CREATION_UNAVAILABLE,
   type CommunityPersonaChoice,
 } from "./community-persona-choice";
 
@@ -41,6 +42,7 @@ export interface CommunityPersonaChoiceDialogProps {
   createNewDescription?: string;
   /** Only membership and creation operations can mint a persona. */
   allowCreateNew?: boolean;
+  createNewUnavailable?: boolean;
   /** Explicit confirmation for an automatically preselected mint choice. */
   confirmCreateNewLabel?: string;
   forceMobile?: boolean;
@@ -79,7 +81,7 @@ export function CommunityPersonaChoiceDialog(props: CommunityPersonaChoiceDialog
           label={props.label}
           onChange={(value) => {
             if (value === CREATE_NEW_PERSONA_VALUE) {
-              if (props.allowCreateNew !== false) props.onChoose({ kind: "create_new" });
+              if (props.allowCreateNew !== false && !props.createNewUnavailable) props.onChoose({ kind: "create_new" });
             } else if (props.personas.some(persona => persona.personaId === value)) {
               props.onChoose({ kind: "existing", personaId: value });
             }
@@ -105,7 +107,7 @@ export function CommunityPersonaChoiceDialog(props: CommunityPersonaChoiceDialog
               />
             )}
           </For>
-          <Show when={props.allowCreateNew !== false}><OptionCard
+          <Show when={props.allowCreateNew !== false && !props.createNewUnavailable}><OptionCard
             description={props.createNewDescription
               ?? "Mint a fresh persona bound to this community in the same step."}
             icon={<IconPlus class="size-8" />}
@@ -113,6 +115,9 @@ export function CommunityPersonaChoiceDialog(props: CommunityPersonaChoiceDialog
             value={CREATE_NEW_PERSONA_VALUE}
           /></Show>
         </OptionCardGroup>
+        <Show when={props.createNewUnavailable}>
+          <p class="px-5 pb-5 text-sm text-muted-foreground sm:px-6" role="status">{PERSONA_CREATION_UNAVAILABLE}</p>
+        </Show>
         <Show when={props.note}>
           {(note) => (
             <p class="px-5 pb-5 text-sm text-muted-foreground sm:px-6" data-choice-note>
@@ -120,7 +125,7 @@ export function CommunityPersonaChoiceDialog(props: CommunityPersonaChoiceDialog
             </p>
           )}
         </Show>
-        <Show when={props.confirmCreateNewLabel && props.choice?.kind === "create_new"}>
+        <Show when={!props.createNewUnavailable && props.confirmCreateNewLabel && props.choice?.kind === "create_new"}>
           <div class="px-5 pb-5 sm:px-6">
             <Button type="button" onClick={() => props.onChoose({ kind: "create_new" })}>
               {props.confirmCreateNewLabel}
@@ -145,6 +150,7 @@ export interface CommunityPersonaChoiceControlProps {
   createNewLabel?: string;
   createNewDescription?: string;
   disabled?: boolean;
+  createNewUnavailable?: boolean;
   forceMobile?: boolean;
   class?: string;
 }
@@ -167,7 +173,7 @@ export function CommunityPersonaChoiceControl(props: CommunityPersonaChoiceContr
         : chosen()?.displayName ?? "";
 
   return (
-    <div class={cn("flex min-w-0 items-center gap-2", props.class)} data-community-persona-choice>
+    <div class={cn("flex min-w-0 flex-wrap items-center gap-2", props.class)} data-community-persona-choice>
       <Type as="span" class="shrink-0" variant="caption">
         {props.label}
       </Type>
@@ -190,6 +196,7 @@ export function CommunityPersonaChoiceControl(props: CommunityPersonaChoiceContr
         <IconCaretDown class="size-4 shrink-0" />
       </button>
       <CommunityPersonaChoiceDialog
+        createNewUnavailable={props.createNewUnavailable}
         choice={props.choice}
         createNewDescription={props.createNewDescription}
         createNewLabel={props.createNewLabel}
@@ -204,6 +211,9 @@ export function CommunityPersonaChoiceControl(props: CommunityPersonaChoiceContr
         open={open()}
         personas={props.personas}
       />
+      <Show when={props.createNewUnavailable}>
+        <p class="basis-full text-sm text-muted-foreground" role="status">{PERSONA_CREATION_UNAVAILABLE}</p>
+      </Show>
     </div>
   );
 }

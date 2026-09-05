@@ -65,18 +65,17 @@ describe("terminal community persona choice", () => {
     expect(controller.error()).toContain("couldn't load");
   });
 
-  test("zero-persona join requires confirmation before minting", async () => {
+  test("zero-persona join cannot mint even through a stale confirmation", async () => {
     const { api, controller } = await setup();
     await controller.joinCommunity();
     expect(controller.joinPersonaStep()).toBe(true);
-    expect(controller.joinPersonaChoice()).toEqual({ kind: "create_new" });
+    expect(controller.joinPersonaChoice()).toBeUndefined();
     expect(api.join).not.toHaveBeenCalled();
     expect(controller.joined()).toBe(false);
     controller.confirmJoinPersona({ kind: "create_new" });
-    await vi.waitFor(() => expect(controller.joined()).toBe(true));
-    expect(api.join).toHaveBeenCalledWith("community-a", { kind: "create_new" });
-    expect(controller.joined()).toBe(true);
-    expect(controller.joinedPersonaId()).toBe("persona-created");
+    await vi.waitFor(() => expect(controller.error()).toContain("coming soon"));
+    expect(api.join).not.toHaveBeenCalled();
+    expect(controller.joined()).toBe(false);
   });
 
   test("a binding conflict leaves membership unchanged and explains the next choice", async () => {

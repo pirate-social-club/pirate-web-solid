@@ -246,7 +246,7 @@ describe("Very verification route", () => {
     expect(createCeremony).not.toHaveBeenCalled();
   });
 
-  it("explains and confirms a zero-candidate mint before sending the join", async () => {
+  it("blocks a zero-candidate join and explains persona creation is coming soon", async () => {
     window.history.replaceState(null, "", "/verify/very?community_id=community-gated-1");
     vi.mocked(sessionApi.resolveSession).mockResolvedValue({ status: "authenticated", userId: "account-a", personas: [] });
     vi.mocked(veryApi.resolveVeryCommunityAction).mockResolvedValue({ kind: "join" });
@@ -257,10 +257,10 @@ describe("Very verification route", () => {
     expect(container.textContent).not.toContain("Joining the community…");
     expect(veryApi.joinVeryCommunity).not.toHaveBeenCalled();
     const confirm = Array.from(document.querySelectorAll("button")).find(button => button.textContent?.includes("Create persona and join"));
-    expect(confirm).toBeDefined();
-    confirm?.click();
-    await vi.waitFor(() => expect(container.textContent).toContain("Community joined"));
-    expect(veryApi.joinVeryCommunity).toHaveBeenCalledWith({ communityId: "community-gated-1", persona: { kind: "create_new" } });
+    expect(confirm).toBeUndefined();
+    expect(document.body.textContent).toContain("coming soon");
+    expect(document.querySelector('input[value="__create_new_persona__"]')).toBeNull();
+    expect(veryApi.joinVeryCommunity).not.toHaveBeenCalled();
   });
 
   it("waits on a server-reported pending ceremony without issuing another intent", async () => {

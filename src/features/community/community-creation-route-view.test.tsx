@@ -125,10 +125,12 @@ describe("Community creation production route", () => {
     expect(attempt).toBe(2);
   });
 
-  test("opens creation with create-new for an account without an active persona", async () => {
+  test("blocks creation without an eligible persona while activation is unavailable", async () => {
+    const client = api();
+    vi.spyOn(client, "createIntent");
     const container = render(() => (
       <CommunityCreationRouteView
-        api={api()}
+        api={client}
         resolveSession={async () => ({ personas: [], status: "authenticated", userId: "user-1" })}
       />
     ));
@@ -136,7 +138,10 @@ describe("Community creation production route", () => {
     const route = () => container.querySelector("[data-route-path='/communities/new']")!;
     await vi.waitFor(() => expect(route().getAttribute("data-creation-state")).toBe("ready"));
     expect(container.textContent).not.toContain("Create a persona first");
-    expect(container.textContent).toContain("Create a new owner persona");
+    expect(container.textContent).toContain("coming soon");
+    expect(container.querySelector<HTMLButtonElement>('button[type="submit"]')?.disabled).toBe(true);
+    container.querySelector("form")?.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+    expect(client.createIntent).not.toHaveBeenCalled();
   });
 
   test("leaves the resolving fallback for every settled session outcome", async () => {

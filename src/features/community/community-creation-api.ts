@@ -97,7 +97,9 @@ function mapIntent(response: PostCommunityCreationIntentsResponse): CommunityCre
     committedHref: response.committed_resource?.href ?? null,
     expiresAt: response.expires_at,
     intentId: response.intent_id,
-    nextAction: mapNextAction(response.next_action),
+    nextAction: response.draft.persona.kind === "create_new" && response.next_action.kind === "commit"
+      ? { kind: "blocked", reason: "persona_activation_unavailable" }
+      : mapNextAction(response.next_action),
     revision: response.revision,
     status: response.status,
   };

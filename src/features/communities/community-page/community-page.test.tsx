@@ -286,19 +286,16 @@ describe("CommunityPage", () => {
         engagementApi={api}
         handleSalesClient={{ get_communitiesCommunityIdHandleOfferings: async () => ({ items: [], next_cursor: null }) }}
         pathSegment="xn--pokmon-dva"
-        resolveSession={async () => ({ status: "authenticated", userId: "account-one", personas: [] })}
+        resolveSession={async () => ({ status: "authenticated", userId: "account-one", personas: [{
+          personaId: "persona_1", displayName: "Member", avatarRef: null, primaryPublicHandle: null, communityBinding: null,
+        }] })}
       />
     ));
     await vi.waitFor(() => expect(api.readViewerState).toHaveBeenCalledWith(communityId));
     const join = [...container.querySelectorAll<HTMLButtonElement>("button")]
       .find(button => button.textContent?.trim() === "Join")!;
     join.click();
-    await vi.waitFor(() => expect(document.querySelector('[role="dialog"]')).not.toBeNull());
-    expect(api.join).not.toHaveBeenCalled();
-    const confirm = [...document.querySelectorAll<HTMLButtonElement>("button")]
-      .find(button => button.textContent?.trim() === "Create persona and join")!;
-    confirm.click();
-    await vi.waitFor(() => expect(api.join).toHaveBeenCalledWith(communityId, { kind: "create_new" }));
+    await vi.waitFor(() => expect(api.join).toHaveBeenCalledWith(communityId, { kind: "existing", personaId: "persona_1" }));
     await vi.waitFor(() => expect(container.textContent).toContain("Joined this Community."));
     expect(join.textContent).toBe("Joined");
   });

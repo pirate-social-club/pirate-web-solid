@@ -1,7 +1,7 @@
 import { Show, createSignal, onCleanup } from "solid-js";
 import { getRequestEvent } from "@solidjs/web";
 import { resolveSession, refreshSession, type ActivePersonaPublicProjection } from "../../api/session";
-import { communityJoinCandidates, defaultCommunityPersonaChoice, toCommunityPersonaChoiceWire, type CommunityPersonaChoice } from "../../features/identity/community-persona-choice";
+import { communityJoinCandidates, defaultCommunityPersonaChoice, toCommunityPersonaChoiceWire, PERSONA_CREATION_UNAVAILABLE, type CommunityPersonaChoice } from "../../features/identity/community-persona-choice";
 import { CommunityPersonaChoiceDialog } from "../../features/identity/community-persona-choice-sheet";
 
 import {
@@ -185,7 +185,7 @@ export default function VeryVerificationRoute(props: Readonly<{ loadWidget?: Ver
     setJoinCandidates(candidates);
     const choice = defaultCommunityPersonaChoice(candidates);
     if (choice === undefined || choice.kind === "create_new") {
-      setPersonaChoice(choice);
+      setPersonaChoice(undefined);
       setPhase("choosing");
       setPersonaChoiceOpen(true);
       return;
@@ -195,6 +195,12 @@ export default function VeryVerificationRoute(props: Readonly<{ loadWidget?: Ver
 
   async function commitPersonaJoin(targetCommunityId: string, epoch: number, choice: CommunityPersonaChoice) {
     if (!operationIsCurrent(epoch, targetCommunityId)) return;
+    if (choice.kind === "create_new") {
+      setMessage(PERSONA_CREATION_UNAVAILABLE);
+      setPhase("choosing");
+      setPersonaChoiceOpen(true);
+      return;
+    }
     setPhase("joining");
     const joined = await joinVeryCommunity({ communityId: targetCommunityId, persona: toCommunityPersonaChoiceWire(choice) });
     if (!operationIsCurrent(epoch, targetCommunityId)) return;
@@ -455,7 +461,7 @@ export default function VeryVerificationRoute(props: Readonly<{ loadWidget?: Ver
     <main data-route-path="/verify/very" class="mx-auto flex min-h-screen max-w-xl flex-col gap-6 p-6">
       <CommunityPersonaChoiceDialog label="Joining as" personas={joinCandidates()}
         choice={personaChoice()} open={personaChoiceOpen()}
-        confirmCreateNewLabel="Create persona and join"
+        createNewUnavailable
         onOpenChange={open => { if (!open) reset(); }}
         onChoose={choice => {
           if (choice.kind === "existing" && !joinCandidates().some(persona => persona.personaId === choice.personaId)) return;

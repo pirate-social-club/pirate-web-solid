@@ -13,6 +13,7 @@ import { preloadGlobalSignInAssets, prepareGlobalSignIn, requestGlobalSignIn } f
 import {
   defaultCommunityPersonaChoice,
   communityCreationCandidates,
+  PERSONA_CREATION_UNAVAILABLE,
   type CommunityPersonaChoice,
 } from "../identity/community-persona-choice";
 import { CommunityPersonaChoiceControl } from "../identity/community-persona-choice-sheet";
@@ -105,10 +106,9 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
         if (!active || request !== sessionRequest) return;
         setSession(result);
         if (result !== "anonymous") {
-          // Spec 014 §10.2: the draft always carries the closed persona choice.
-          // With no active personas the only branch is `create_new`, which the
-          // server mints and binds to the new community at commit.
-          setDraft(createEmptyDraft(defaultCommunityPersonaChoice(communityCreationCandidates(result.personas))));
+          // Minting stays unavailable until post-mint wallet activation exists.
+          const choice = defaultCommunityPersonaChoice(communityCreationCandidates(result.personas));
+          setDraft(createEmptyDraft(choice?.kind === "existing" ? choice : undefined));
           const resumeId = props.intentId?.trim();
           if (resumeId) void loadIntent(resumeId);
         }
@@ -159,6 +159,7 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
     intentId: string,
     navigateOnSuccess = false,
   ): Promise<void> => {
+    if (intent()?.nextAction.kind === "blocked") return;
     setMessage("");
     try {
       const committed = await api.commitIntent({
@@ -188,6 +189,10 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
   const submit = async () => {
     const currentDraft = draft();
     if (!currentDraft || busy()) return;
+    if (currentDraft.persona?.kind !== "existing") {
+      setMessage(PERSONA_CREATION_UNAVAILABLE);
+      return;
+    }
     setBusy(true);
     setMessage("");
     try {
@@ -223,9 +228,8 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
   /**
    * The route must always settle on one named state. `resolving` is only the
    * pre-hydration value, so a stuck spinner is observable as a defect rather
-   * than an indefinite loading surface. With no active personas the draft still
-   * opens: the closed choice defaults to `create_new`, so the commit mints the
-   * owner persona bound to the new community (spec 014 §10.2).
+   * than an indefinite loading surface. With no eligible persona the form
+   * explains the unavailable mint path and cannot submit.
    */
   const creationState = (): "ready" | "resolving" | "signed-out" | "unavailable" => {
     const current = session();
@@ -283,6 +287,7 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
                       onSubmit={() => void submit()}
                       personaControl={(
                         <CommunityPersonaChoiceControl
+                          createNewUnavailable
                           choice={currentDraft().persona}
                           createNewLabel="Create a new owner persona"
                           label="Community profile"

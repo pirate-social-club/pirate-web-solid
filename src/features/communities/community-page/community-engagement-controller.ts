@@ -12,6 +12,7 @@ import { useApplicationSession } from "../../shell/application-session.tsx";
 import {
   defaultCommunityPersonaChoice,
   communityJoinCandidates,
+  PERSONA_CREATION_UNAVAILABLE,
   type CommunityPersonaChoice,
 } from "../../identity/community-persona-choice.ts";
 import type {
@@ -245,6 +246,12 @@ export function createCommunityEngagementController(
       // intent does not pre-bind identity.
       let choice = action.kind === "request" ? undefined : persona;
       if (action.kind === "join") {
+        if (choice?.kind === "create_new") {
+          setError(PERSONA_CREATION_UNAVAILABLE);
+          setJoinPersonaChoice(undefined);
+          setJoinPersonaOpen(true);
+          return;
+        }
         const session = await resolvePersonaSession();
         if (!active || session === undefined) return;
         const candidates = communityJoinCandidates(session.personas, options.communityId);
@@ -256,8 +263,8 @@ export function createCommunityEngagementController(
         }
         choice ??= defaultCommunityPersonaChoice(candidates);
         if (choice === undefined || (persona === undefined && choice.kind === "create_new")) {
-          // Minting needs consent even when there are no existing candidates.
-          setJoinPersonaChoice(choice);
+          // No global default; minting is unavailable until wallet activation.
+          setJoinPersonaChoice(undefined);
           setJoinPersonaOpen(true);
           return;
         }

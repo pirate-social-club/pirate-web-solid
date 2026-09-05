@@ -87,6 +87,19 @@ function response(body: object, status = 200): Response {
 }
 
 describe("createCommunityCreationApi", () => {
+  test("a resumed create-new draft is blocked instead of offering commit", async () => {
+    const intent = creationIntent();
+    const api = createCommunityCreationApi({
+      fetchImpl: async () => response({ ...intent,
+        draft: { ...intent.draft, persona: { kind: "create_new" } },
+        persona_role_presentation: null,
+      }),
+      origin: "https://web.test",
+    });
+    const result = await api.getIntent({ intentId: "creation-1" });
+    expect(result.nextAction).toEqual({ kind: "blocked", reason: "persona_activation_unavailable" });
+  });
+
   test("creates a V2 intent with the shared draft model and protected request policy", async () => {
     const requests: Array<{ credentials: RequestCredentials | undefined; request: Request }> = [];
     const api = createCommunityCreationApi({

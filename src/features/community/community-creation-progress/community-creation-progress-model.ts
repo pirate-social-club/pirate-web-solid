@@ -28,7 +28,7 @@ export type CreationNextAction =
       reasonCode: WaitReasonCode;
       retryAfterSeconds?: number;
     }
-  | { kind: "blocked"; reason: "quota_exceeded" | "gate_unsupported" | "pre_boundary_verification" }
+  | { kind: "blocked"; reason: "quota_exceeded" | "gate_unsupported" | "pre_boundary_verification" | "persona_activation_unavailable" }
   | { kind: "none"; reason: "committed" | "expired" | "cancelled" };
 
 /**

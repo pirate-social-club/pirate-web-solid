@@ -5,6 +5,7 @@ import { Show } from "solid-js";
 import { Button, FormNote, Type, cn } from "@pirate/web-solid-ui";
 import { getLocaleMessages } from "../../../locales";
 import { useUiLocale } from "../../../lib/ui-locale";
+import { PERSONA_CREATION_UNAVAILABLE } from "../../identity/community-persona-choice";
 import {
   CREATION_STATUS_COPY_KEYS,
   WAIT_REASON_COPY_KEYS,
@@ -64,7 +65,9 @@ export function CommunityCreationProgressView(props: CommunityCreationProgressPr
           <div class="space-y-3 rounded-[var(--radius-lg)] border border-destructive/40 bg-destructive/5 p-5" data-blocked-state>
             <Type as="p" variant="body-strong">{statusLabel()}</Type>
             <FormNote tone="destructive">
-              {action.reason === "quota_exceeded"
+              {action.reason === "persona_activation_unavailable"
+                ? PERSONA_CREATION_UNAVAILABLE
+                : action.reason === "quota_exceeded"
                 ? copy().quotaExceededBody
                 : action.reason === "pre_boundary_verification"
                   ? copy().preBoundaryVerificationBody

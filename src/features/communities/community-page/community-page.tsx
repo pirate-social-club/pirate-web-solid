@@ -335,7 +335,7 @@ function SuccessState(props: {
           </Show>
           <CommunityPersonaChoiceDialog
             choice={engagement.joinPersonaChoice()}
-            confirmCreateNewLabel="Create persona and join"
+            createNewUnavailable
             createNewLabel="Create a new persona in this Community"
             label="Joining as"
             note="Membership attaches to your account. The persona you choose becomes your public identity in this Community; your private Study progress and streaks stay with your account either way."
