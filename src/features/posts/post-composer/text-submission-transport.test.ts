@@ -14,6 +14,7 @@ const request = {
   path: { communityId: "community-1" },
   body: {
     idempotency_key: "key-1",
+    persona_id: "persona-one",
     post_type: "text" as const,
     authorship_mode: "human_direct" as const,
     identity_mode: "public" as const,

@@ -36,6 +36,7 @@ export interface TextContentSubmissionV1 {
 /** The v1 text creation body. `publish_mode` is intentionally absent. */
 export interface TextContentSubmissionRequestV1 {
   readonly idempotency_key: string;
+  readonly persona_id: string;
   readonly post_type: "text";
   readonly authorship_mode: "human_direct";
   readonly identity_mode: "public";
@@ -47,6 +48,7 @@ export interface TextContentSubmissionRequestV1 {
 
 interface RawTextSubmissionRequestObject {
   readonly idempotency_key?: unknown;
+  readonly persona_id?: unknown;
   readonly post_type?: unknown;
   readonly authorship_mode?: unknown;
   readonly identity_mode?: unknown;
@@ -87,6 +89,7 @@ export function decodeTextContentSubmissionRequest(value: unknown): TextContentS
   const keys = Object.keys(value);
   const requiredKeys = [
     "idempotency_key",
+    "persona_id",
     "post_type",
     "authorship_mode",
     "identity_mode",
@@ -100,6 +103,9 @@ export function decodeTextContentSubmissionRequest(value: unknown): TextContentS
   }
   if (typeof value.idempotency_key !== "string" || value.idempotency_key === "") {
     throw new TextSubmissionContractError("Text submission request has an invalid idempotency key");
+  }
+  if (typeof value.persona_id !== "string" || value.persona_id === "") {
+    throw new TextSubmissionContractError("Text submission request has an invalid persona id");
   }
   if (value.post_type !== "text" || value.authorship_mode !== "human_direct" || value.identity_mode !== "public" || value.visibility !== "public") {
     throw new TextSubmissionContractError("Text submission request has invalid fixed fields");
@@ -115,6 +121,7 @@ export function decodeTextContentSubmissionRequest(value: unknown): TextContentS
   }
   return {
     idempotency_key: value.idempotency_key,
+    persona_id: value.persona_id,
     post_type: "text",
     authorship_mode: "human_direct",
     identity_mode: "public",
@@ -258,14 +265,17 @@ export function normalizeTextSubmissionRequest(
 ): TextContentSubmissionRequestEnvelopeV1 {
   const communityId = normalizeTextField(request.path.communityId);
   const idempotencyKey = normalizeTextField(request.body.idempotency_key);
+  const personaId = normalizeTextField(request.body.persona_id);
   const body = normalizeTextField(request.body.body);
   if (communityId === null || communityId === "") throw new TextSubmissionContractError("Community ID is required");
   if (idempotencyKey === null || idempotencyKey === "") throw new TextSubmissionContractError("Idempotency key is required");
+  if (personaId === null || personaId === "") throw new TextSubmissionContractError("Persona ID is required");
   if (body === null || body === "") throw new TextSubmissionContractError("Text body is required");
   return {
     path: { communityId },
     body: {
       idempotency_key: idempotencyKey,
+      persona_id: personaId,
       post_type: "text",
       authorship_mode: "human_direct",
       identity_mode: "public",

@@ -28,6 +28,7 @@ const request = {
   path: { communityId: "community-1" },
   body: {
     idempotency_key: "key-1",
+    persona_id: "persona-one",
     post_type: "text" as const,
     authorship_mode: "human_direct" as const,
     identity_mode: "public" as const,
@@ -277,7 +278,7 @@ describe("pending text submission", () => {
 
   test("survives an IndexedDB reload in the same principal scope and resends exact noncanonical bytes", async () => {
     const controller = new FakeIndexedDbController();
-    const rawBody = '{  "body":"Hello pirate", "visibility":"public", "identity_mode":"public", "authorship_mode":"human_direct", "post_type":"text", "title":null, "idempotency_key":"key-1" }';
+    const rawBody = '{  "body":"Hello pirate", "persona_id":"persona-one", "visibility":"public", "identity_mode":"public", "authorship_mode":"human_direct", "post_type":"text", "title":null, "idempotency_key":"key-1" }';
     const rawBytes = new TextEncoder().encode(rawBody);
     const canonical = await createPendingSubmissionEnvelope({
       request,
@@ -492,7 +493,7 @@ describe("pending text submission", () => {
     await expect(coordinator.submit(titledRequest)).rejects.toBeInstanceOf(TextSubmissionServerRejectionError);
     expect(coordinator.state).toMatchObject({ status: "reconciling", issue: { kind: "server_rejection", status, code } });
     const draft = await coordinator.discardRejectedRequest();
-    expect(draft).toEqual({ communityId: "community-1", title: "A retained title", body: "A retained body", authorDeclaredRating: "general" });
+    expect(draft).toEqual({ communityId: "community-1", personaId: "persona-one", title: "A retained title", body: "A retained body", authorDeclaredRating: "general" });
     expect(coordinator.state).toEqual({ status: "editing" });
     expect(await storage.loadAll()).toHaveLength(0);
     await expect(coordinator.submit({ ...titledRequest, body: { ...titledRequest.body, idempotency_key: "key-new" } })).rejects.toBeInstanceOf(TextSubmissionServerRejectionError);
@@ -535,7 +536,7 @@ describe("pending text submission", () => {
     expect(reloaded.state).toMatchObject({ status: "reconciling", issue: { kind: "server_rejection", status, code } });
     await expect(reloaded.reconcile()).rejects.toThrow("requires explicit resolution");
     const restored = await reloaded.discardRejectedRequest();
-    expect(restored).toEqual({ communityId: "community-1", title: "A retained title", body: "A retained body", authorDeclaredRating: "general" });
+    expect(restored).toEqual({ communityId: "community-1", personaId: "persona-one", title: "A retained title", body: "A retained body", authorDeclaredRating: "general" });
   });
 
   test("does not claim a discardable rejection when metadata persistence fails", async () => {
@@ -561,7 +562,7 @@ describe("pending text submission", () => {
     await expect(reloaded.reconcile()).rejects.toBeInstanceOf(TextSubmissionServerRejectionError);
     expect(reloaded.state).toMatchObject({ status: "reconciling", issue: { kind: "server_rejection", status: 400 } });
     expect(calls[1]).toEqual(calls[0]);
-    await expect(reloaded.discardRejectedRequest()).resolves.toEqual({ communityId: "community-1", title: "A retained title", body: "A retained body", authorDeclaredRating: "general" });
+    await expect(reloaded.discardRejectedRequest()).resolves.toEqual({ communityId: "community-1", personaId: "persona-one", title: "A retained title", body: "A retained body", authorDeclaredRating: "general" });
   });
 
   test("keeps an idempotency conflict replayable when its metadata save fails", async () => {
@@ -600,7 +601,7 @@ describe("pending text submission", () => {
     expect(reloaded.state).toMatchObject({ status: "reconciling", submission_id: "sub-existing", issue: { kind: "idempotency_conflict" } });
     expect(reloaded.pendingEnvelope?.submission_id).toBe("sub-existing");
     const restored = await reloaded.discardRejectedRequest();
-    expect(restored).toEqual({ communityId: "community-1", title: "A retained title", body: "A retained body", authorDeclaredRating: "general" });
+    expect(restored).toEqual({ communityId: "community-1", personaId: "persona-one", title: "A retained title", body: "A retained body", authorDeclaredRating: "general" });
   });
 
   test.each([

@@ -11,7 +11,7 @@ import type { MediaSubmissionSnapshot } from "../media-submission/contracts";
 import { createMemoryMediaSubmissionStorage, MEDIA_PENDING_VERSION, mediaCommandBody, type PersistedMediaCommand } from "../media-submission/pending";
 import type { MediaCommandResult, MediaSubmissionTransport } from "../media-submission/transport";
 import { buildCreatePostRequest, CreatePostDialog, initialOperationPersonaId, PRODUCTION_SONG_DRAFT_ID } from "./create-post-dialog";
-import { createMemoryPendingSubmissionStorage, createPendingSubmissionEnvelope } from "./pending-submission";
+import { createMemoryPendingSubmissionStorage, createPendingSubmissionEnvelope, decodePendingSubmissionDraft } from "./pending-submission";
 
 const disposers: Array<() => void> = [];
 
@@ -165,7 +165,7 @@ class HeldProductionFinalizeTransport extends ProductionMediaTransport {
 
 describe("create post request", () => {
   test("builds the community-scoped text post contract", () => {
-    expect(buildCreatePostRequest({
+    expect(buildCreatePostRequest({ personaId: "persona-one",
       communityId: "  community-1 ",
       title: "  Hello Pirate ",
       body: "  A first post from the Solid shell. ",
@@ -175,6 +175,7 @@ describe("create post request", () => {
       path: { communityId: "community-1" },
       body: {
         idempotency_key: "idem-1",
+        persona_id: "persona-one",
         post_type: "text",
         authorship_mode: "human_direct",
         identity_mode: "public",
@@ -187,7 +188,7 @@ describe("create post request", () => {
   });
 
   test("maps the 18+ composer selection to the adult text rating", () => {
-    expect(buildCreatePostRequest({
+    expect(buildCreatePostRequest({ personaId: "persona-one",
       communityId: "community-1",
       title: "Night watch",
       body: "Adult-marked body",
@@ -200,6 +201,7 @@ describe("create post request", () => {
     render(() => (
       <CreatePostDialog
         communityContext={{ id: "community-contextual", name: "Pirate Harbor" }}
+        personas={[activePersona("persona-one", "Persona One")]}
         onOpenChange={() => {}}
         open
         storage={createMemoryPendingSubmissionStorage()}
@@ -222,10 +224,40 @@ describe("create post request", () => {
     await vi.waitFor(() => expect(publishButtons[0]?.disabled).toBe(false));
   });
 
+  test("requires a text persona choice and freezes its serialized identity after dispatch", async () => {
+    const storage = createMemoryPendingSubmissionStorage();
+    const dispatch = vi.fn(async () => { throw new Error("network uncertain"); });
+    render(() => <CreatePostDialog
+      communityContext={{ id: "community-one", name: "Harbor" }}
+      onOpenChange={() => {}}
+      open
+      personas={[activePersona("persona-one", "Persona One"), activePersona("persona-two", "Persona Two")]}
+      storage={storage}
+      transport={{ read: async () => null, dispatch }}
+    />);
+    await new Promise<void>(resolve => setTimeout(resolve, 0));
+    const body = document.body.querySelector<HTMLTextAreaElement>("#create-post-body")!;
+    body.value = "A persona-authored text post";
+    body.dispatchEvent(new InputEvent("input", { bubbles: true }));
+    const publish = [...document.body.querySelectorAll<HTMLButtonElement>("button")]
+      .find(button => button.textContent?.trim() === "Publish post")!;
+    expect(publish.disabled).toBe(true);
+    const selector = document.body.querySelector("select[aria-label='Operation persona']")!;
+    Reflect.set(selector, "value", "persona-two");
+    selector.dispatchEvent(new Event("change", { bubbles: true }));
+    await vi.waitFor(() => expect(publish.disabled).toBe(false));
+    publish.click();
+    await vi.waitFor(() => expect(dispatch).toHaveBeenCalledOnce());
+    expect(selector.hasAttribute("disabled")).toBe(true);
+    const records = await storage.loadAll();
+    expect(records).toHaveLength(1);
+    expect(decodePendingSubmissionDraft(records[0]!).personaId).toBe("persona-two");
+  });
+
   test("keeps a pending envelope across dialog close and reopen", async () => {
     const storage = createMemoryPendingSubmissionStorage();
     await storage.save(await createPendingSubmissionEnvelope({
-      request: buildCreatePostRequest({ communityId: "community-1", title: "", body: "A durable draft", idempotencyKey: "pending-1", ageGatePolicy: "none" }),
+      request: buildCreatePostRequest({ personaId: "persona-one", communityId: "community-1", title: "", body: "A durable draft", idempotencyKey: "pending-1", ageGatePolicy: "none" }),
       pendingRequestId: "pending-1",
       createdAt: "2026-08-21T00:00:00Z",
     }));
@@ -252,7 +284,7 @@ describe("create post request", () => {
   test("hydrates and locks the rating owned by a retained adult text request", async () => {
     const storage = createMemoryPendingSubmissionStorage();
     await storage.save(await createPendingSubmissionEnvelope({
-      request: buildCreatePostRequest({
+      request: buildCreatePostRequest({ personaId: "persona-one",
         communityId: "community-1",
         title: "Retained adult post",
         body: "A durable adult-marked draft",
@@ -363,6 +395,8 @@ describe("create post request", () => {
     audioInput.dispatchEvent(new Event("change", { bubbles: true }));
 
     await vi.waitFor(() => expect(document.body.querySelector("select[aria-label='Operation persona']")).not.toBeNull());
+    await vi.waitFor(() => expect([...document.body.querySelectorAll<HTMLButtonElement>("button")]
+      .some(button => button.textContent?.trim() === "Publish song")).toBe(true));
     const publish = [...document.body.querySelectorAll<HTMLButtonElement>("button")]
       .find(button => button.textContent?.trim() === "Publish song")!;
     expect(publish.disabled).toBe(true);

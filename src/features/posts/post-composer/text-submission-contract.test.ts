@@ -11,6 +11,7 @@ const request = {
   path: { communityId: " community-1 " },
   body: {
     idempotency_key: "key-1",
+    persona_id: "persona-one",
     post_type: "text" as const,
     authorship_mode: "human_direct" as const,
     identity_mode: "public" as const,
@@ -34,12 +35,20 @@ const published = {
 };
 
 describe("frozen text submission contract", () => {
+  test("requires an explicit persona rather than guessing authorship for retained bytes", () => {
+    const { persona_id: _omitted, ...missingPersona } = request.body;
+    expect(() => decodeTextContentSubmissionRequest(missingPersona)).toThrow();
+    expect(() => decodeTextContentSubmissionRequest({ ...request.body, persona_id: "" })).toThrow("invalid persona id");
+    expect(() => normalizeTextSubmissionRequest({ ...request, body: { ...request.body, persona_id: " " } })).toThrow("Persona ID is required");
+  });
+
   test("normalizes once before serialization and omits publish_mode", () => {
     const normalized = normalizeTextSubmissionRequest(request);
     expect(normalized).toEqual({
       path: { communityId: "community-1" },
       body: {
         idempotency_key: "key-1",
+        persona_id: "persona-one",
         post_type: "text",
         authorship_mode: "human_direct",
         identity_mode: "public",

@@ -1,4 +1,5 @@
 /** @jsxImportSource @solidjs/web */
+import type { CreatePostInput } from "@pirate/api-client";
 import type { JSX } from "@solidjs/web";
 import { createSignal, For, Show } from "solid-js";
 
@@ -50,6 +51,7 @@ import type {
 
 export interface CreatePostDraft {
   readonly communityId: string;
+  readonly personaId: string;
   readonly title: string;
   readonly body: string;
   readonly idempotencyKey: string;
@@ -63,19 +65,19 @@ export interface PostCommunityContext {
 
 /** Keep request construction pure so the contract boundary is easy to test. */
 export function buildCreatePostRequest(draft: CreatePostDraft): TextContentSubmissionRequestEnvelopeV1 {
-  return {
-    path: { communityId: draft.communityId.trim() },
-    body: {
-      idempotency_key: draft.idempotencyKey,
-      post_type: "text",
-      authorship_mode: "human_direct",
-      identity_mode: "public",
-      visibility: "public",
-      author_declared_rating: draft.ageGatePolicy === "18_plus" ? "adult_18" : "general",
-      title: draft.title.trim() === "" ? null : draft.title.trim(),
-      body: draft.body.trim(),
-    },
-  };
+  const path = { communityId: draft.communityId.trim() } satisfies CreatePostInput["path"];
+  const body = {
+    idempotency_key: draft.idempotencyKey,
+    persona_id: draft.personaId.trim(),
+    post_type: "text",
+    authorship_mode: "human_direct",
+    identity_mode: "public",
+    visibility: "public",
+    author_declared_rating: draft.ageGatePolicy === "18_plus" ? "adult_18" : "general",
+    title: draft.title.trim() === "" ? null : draft.title.trim(),
+    body: draft.body.trim(),
+  } satisfies CreatePostInput["body"];
+  return { path, body };
 }
 
 function createIdempotencyKey(): string {
@@ -175,6 +177,7 @@ export function CreatePostDialog(props: CreatePostDialogProps): JSX.Element {
   );
   const [error, setError] = createSignal("");
   const [textState, setTextState] = createSignal<PostComposerState>(initialPostComposerState);
+  const [textRestoring, setTextRestoring] = createSignal(true);
   const [mediaView, setMediaView] = createSignal<SongSubmissionView>({ status: "editing" });
   const [mediaSnapshot, setMediaSnapshot] = createSignal<MediaSubmissionSnapshot | null>(null);
   const [mediaBusy, setMediaBusy] = createSignal(false);
@@ -221,11 +224,13 @@ export function CreatePostDialog(props: CreatePostDialogProps): JSX.Element {
       const envelope = textCoordinator.pendingEnvelope;
       if (envelope === null) return;
       const draft = decodePendingSubmissionDraft(envelope);
+      selectOperationPersona(draft.personaId);
       setTextAgeGatePolicy(draft.authorDeclaredRating === "adult_18" ? "18_plus" : "none");
     })
     .catch(() => {
       setTextState({ status: "transport_failure", reason: "durable_storage_failed" });
-    });
+    })
+    .finally(() => setTextRestoring(false));
 
   if (mediaCoordinator !== undefined) {
     void mediaCoordinator.restore(PRODUCTION_SONG_DRAFT_ID)
@@ -346,6 +351,7 @@ export function CreatePostDialog(props: CreatePostDialogProps): JSX.Element {
     setError("");
     try {
       const draft = await textCoordinator.discardRejectedRequest();
+      selectOperationPersona(draft.personaId);
       setCommunityId(draft.communityId);
       setTitle(draft.title);
       setBody(draft.body);
@@ -356,6 +362,11 @@ export function CreatePostDialog(props: CreatePostDialogProps): JSX.Element {
   }
 
   async function submitText(): Promise<void> {
+    const personaId = selectedActivePersonaId();
+    if (personaId === undefined || textRestoring()) {
+      setError("Choose a public persona before publishing.");
+      return;
+    }
     const community = communityId().trim();
     const content = body().trim();
     if (communityContextConflict()) {
@@ -369,6 +380,7 @@ export function CreatePostDialog(props: CreatePostDialogProps): JSX.Element {
     setError("");
     try {
       const snapshot = await textCoordinator.submit(buildCreatePostRequest({
+        personaId,
         communityId: community,
         title: title(),
         body: content,
@@ -537,7 +549,7 @@ export function CreatePostDialog(props: CreatePostDialogProps): JSX.Element {
     || communityId().trim() === ""
     || communityContextConflict();
   const submitDisabled = () => mode() === "text"
-    ? textState().status !== "editing"
+    ? textRestoring() || selectedActivePersonaId() === undefined || textState().status !== "editing"
       || communityId().trim() === ""
       || body().trim() === ""
       || communityContextConflict()
@@ -599,13 +611,13 @@ export function CreatePostDialog(props: CreatePostDialogProps): JSX.Element {
               )}
             </Show>
 
-            <Show when={mode() === "song" && personas().length > 1}>
+            <Show when={personas().length > 1}>
               <label class="grid gap-2 text-sm font-medium">
                 <span>Post as</span>
                 <select
                   aria-label="Operation persona"
                   class="h-11 w-full rounded-full border border-input bg-background px-4 text-base"
-                  disabled={mediaCoordinator?.currentRecord !== null && mediaCoordinator?.currentRecord !== undefined}
+                  disabled={mode() === "text" ? textRestoring() || textState().status !== "editing" : mediaCoordinator?.currentRecord !== null && mediaCoordinator?.currentRecord !== undefined}
                   name="operation-persona"
                   onChange={event => selectOperationPersona(event.currentTarget.value || undefined)}
                   value={selectedPersonaId() ?? ""}
@@ -615,14 +627,14 @@ export function CreatePostDialog(props: CreatePostDialogProps): JSX.Element {
                     <option value={persona.personaId}>{personaLabel(persona)}</option>
                   )}</For>
                 </select>
-                <span class="text-sm font-normal text-muted-foreground">Choose which active public persona authors this song.</span>
+                <span class="text-sm font-normal text-muted-foreground">Choose which active public persona authors this post.</span>
               </label>
             </Show>
-            <Show when={mode() === "song" && personas().length === 1 && selectedPersona()}>
+            <Show when={personas().length === 1 && selectedPersona()}>
               {(persona) => <Type as="p" variant="caption">Posting as {personaLabel(persona())}</Type>}
             </Show>
             <Show when={personas().length === 0}>
-              <FormNote tone="warning">Create or reactivate a public persona before submitting a song.</FormNote>
+              <FormNote tone="warning">Create or reactivate a public persona before submitting a post.</FormNote>
             </Show>
 
             <PostComposer
