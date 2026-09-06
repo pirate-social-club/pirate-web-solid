@@ -1,0 +1,18 @@
+Local video recovery proof
+Start interrupted uploadRestore retained operationResume uploadInspect retained operationOpen global composerOpen conflicting community composer
+ready
+Create a post
+
+Start a conversation or publish a song in a community you belong to.
+
+Community ID
+Posts are community-scoped. A friendly community picker will replace this field.
+
+Posting as Fixture persona
+
+Video state: processing.
+
+Check video status
+Cancel
+
+Submissions use the same-origin session and durable generated-client contracts.

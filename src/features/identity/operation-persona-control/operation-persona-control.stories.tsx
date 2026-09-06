@@ -46,13 +46,14 @@ export const Disabled: Story = {
   args: { disabled: true },
 };
 
-/** A selected id that is not in the list falls back to the first persona. */
+/** An unknown selected id stays unresolved until a persona is chosen. */
 export const UnknownSelection: Story = {
   name: "Unknown selected id",
-  args: { selectedPersonaId: "p_missing" },
+  args: { selectedPersonaId: "p_missing", placeholder: "Choose a persona" },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(canvas.getByText("Night Shift")).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: "Posting as Choose a persona" })).toBeEnabled();
+    await expect(canvas.queryByText("Night Shift")).not.toBeInTheDocument();
   },
 };
 

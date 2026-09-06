@@ -11,7 +11,7 @@ export function VideoComposerRuntime(props: {
   readonly communityId: string;
   readonly personaId?: string;
   readonly onExit: () => void;
-  readonly onRetainedPersona: (personaId: string | null) => void;
+  readonly onRetainedPersona: (personaId: string | null, communityId?: string) => void;
   readonly onPublished?: () => void;
   readonly storage?: VideoStorage;
   readonly transport?: VideoTransport;
@@ -38,7 +38,7 @@ export function VideoComposerRuntime(props: {
     transport: props.transport ?? createVideoTransport(), fetchImpl: props.fetchImpl,
     onChange: next => {
       if (disposed) return;
-      setRecord(next); props.onRetainedPersona(next?.personaId ?? null);
+      setRecord(next); props.onRetainedPersona(next?.personaId ?? null, next?.communityId);
       if (next?.snapshot?.status === "published" && next.snapshot.published_resource.post_id !== publishedId) {
         publishedId = next.snapshot.published_resource.post_id; props.onPublished?.();
       }
@@ -107,6 +107,7 @@ export function VideoComposerRuntime(props: {
         const selected = file(); if (!selected || !props.personaId || !props.communityId) throw new Error("Choose a community, persona and compatible video");
         await coordinator.begin({ communityId: props.communityId, personaId: props.personaId, file: selected, caption: caption(), rating: rating() });
       }
+      if (disposed) return;
       await coordinator.submit();
     });
   }

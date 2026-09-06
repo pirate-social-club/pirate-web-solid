@@ -1,0 +1,99 @@
+9:55:42 PM [vite] (client) Re-optimizing dependencies because lockfile has changed
+Video fixture browser proof: http://127.0.0.1:4198/__video-proof
+9:56:00 PM [vite] (client) dependencies optimized: @pirate/api-client, hls.js
+9:56:01 PM [vite] (client) dependencies optimized: class-variance-authority, tailwind-merge
+9:56:38 PM [vite] (client) [console.warn] [STRICT_READ_UNTRACKED] Reactive value read directly in <CreatePostDialog> will not update. Move it into a tracking scope (JSX, a memo, or an effect's compute function).
+9:56:38 PM [vite] (client) [console.warn] [STRICT_READ_UNTRACKED] Reactive value read directly in <PostComposer> will not update. Move it into a tracking scope (JSX, a memo, or an effect's compute function).
+9:56:38 PM [vite] (client) [console.warn] [STRICT_READ_UNTRACKED] Reactive value read directly in <PostComposer> will not update. Move it into a tracking scope (JSX, a memo, or an effect's compute function).
+9:56:38 PM [vite] (client) [console.warn] [STRICT_READ_UNTRACKED] Reactive value read directly in <PostComposer> will not update. Move it into a tracking scope (JSX, a memo, or an effect's compute function).
+9:56:38 PM [vite] (client) [console.warn] [STRICT_READ_UNTRACKED] Reactive value read directly in <PostComposer> will not update. Move it into a tracking scope (JSX, a memo, or an effect's compute function).
+9:56:38 PM [vite] (client) [console.warn] [STRICT_READ_UNTRACKED] Reactive value read directly in <PostComposer> will not update. Move it into a tracking scope (JSX, a memo, or an effect's compute function).
+9:56:38 PM [vite] (client) [console.warn] [STRICT_READ_UNTRACKED] Reactive value read directly in <PostComposer> will not update. Move it into a tracking scope (JSX, a memo, or an effect's compute function).
+9:56:38 PM [vite] (client) [console.warn] [STRICT_READ_UNTRACKED] Reactive value read directly in <PostComposer> will not update. Move it into a tracking scope (JSX, a memo, or an effect's compute function).
+9:56:38 PM [vite] (client) [console.warn] [STRICT_READ_UNTRACKED] Reactive value read directly in <PostComposer> will not update. Move it into a tracking scope (JSX, a memo, or an effect's compute function).
+9:56:38 PM [vite] (client) [console.warn] [STRICT_READ_UNTRACKED] Reactive value read directly in <PostComposer> will not update. Move it into a tracking scope (JSX, a memo, or an effect's compute function).
+9:56:38 PM [vite] (client) [console.warn] [STRICT_READ_UNTRACKED] Reactive value read directly in <PostComposer> will not update. Move it into a tracking scope (JSX, a memo, or an effect's compute function).
+9:56:38 PM [vite] (client) [console.warn] [STRICT_READ_UNTRACKED] Reactive value read directly in <PostComposer> will not update. Move it into a tracking scope (JSX, a memo, or an effect's compute function).
+9:56:38 PM [vite] (client) [console.warn] [STRICT_READ_UNTRACKED] Reactive value read directly in <PostComposer> will not update. Move it into a tracking scope (JSX, a memo, or an effect's compute function).
+9:56:38 PM [vite] (client) [console.warn] [STRICT_READ_UNTRACKED] Reactive value read directly in <PostComposer> will not update. Move it into a tracking scope (JSX, a memo, or an effect's compute function).
+9:56:38 PM [vite] (client) [console.warn] [STRICT_READ_UNTRACKED] Reactive value read directly in <PostComposer> will not update. Move it into a tracking scope (JSX, a memo, or an effect's compute function).
+9:56:38 PM [vite] (client) [console.warn] [STRICT_READ_UNTRACKED] Reactive value read directly in <PostComposer> will not update. Move it into a tracking scope (JSX, a memo, or an effect's compute function).
+9:56:38 PM [vite] (client) [console.warn] [STRICT_READ_UNTRACKED] Reactive value read directly in <PostComposer> will not update. Move it into a tracking scope (JSX, a memo, or an effect's compute function).
+9:56:38 PM [vite] (client) [console.warn] [STRICT_READ_UNTRACKED] Reactive value read directly in <PostComposer> will not update. Move it into a tracking scope (JSX, a memo, or an effect's compute function).
+9:56:38 PM [vite] (client) [console.warn] [STRICT_READ_UNTRACKED] Reactive value read directly in <PostComposer> will not update. Move it into a tracking scope (JSX, a memo, or an effect's compute function).
+9:56:38 PM [vite] (client) [console.warn] [STRICT_READ_UNTRACKED] Reactive value read directly in <PostComposer> will not update. Move it into a tracking scope (JSX, a memo, or an effect's compute function).
+9:56:38 PM [vite] (client) [console.warn] [STRICT_READ_UNTRACKED] Reactive value read directly in <PostComposer> will not update. Move it into a tracking scope (JSX, a memo, or an effect's compute function).
+9:56:38 PM [vite] (client) [console.warn] [STRICT_READ_UNTRACKED] Reactive value read directly in <PostComposer> will not update. Move it into a tracking scope (JSX, a memo, or an effect's compute function).
+9:56:38 PM [vite] (client) [console.warn] [STRICT_READ_UNTRACKED] Reactive value read directly in <PostComposer> will not update. Move it into a tracking scope (JSX, a memo, or an effect's compute function).
+9:56:38 PM [vite] (client) [console.warn] [STRICT_READ_UNTRACKED] Reactive value read directly in <PostComposer> will not update. Move it into a tracking scope (JSX, a memo, or an effect's compute function).
+9:56:38 PM [vite] (client) [console.warn] [STRICT_READ_UNTRACKED] Reactive value read directly in <PostComposer> will not update. Move it into a tracking scope (JSX, a memo, or an effect's compute function).
+9:56:38 PM [vite] (client) [console.warn] [STRICT_READ_UNTRACKED] Reactive value read directly in <PostComposer> will not update. Move it into a tracking scope (JSX, a memo, or an effect's compute function).
+9:56:38 PM [vite] (client) [console.warn] [STRICT_READ_UNTRACKED] Reactive value read directly in <PostComposer> will not update. Move it into a tracking scope (JSX, a memo, or an effect's compute function).
+9:56:38 PM [vite] (client) [console.warn] [STRICT_READ_UNTRACKED] Reactive value read directly in <PostComposer> will not update. Move it into a tracking scope (JSX, a memo, or an effect's compute function).
+9:56:38 PM [vite] (client) [console.warn] [STRICT_READ_UNTRACKED] Reactive value read directly in <PostComposer> will not update. Move it into a tracking scope (JSX, a memo, or an effect's compute function).
+9:56:38 PM [vite] (client) [console.warn] [STRICT_READ_UNTRACKED] Reactive value read directly in <PostComposer> will not update. Move it into a tracking scope (JSX, a memo, or an effect's compute function).
+9:56:38 PM [vite] (client) [console.warn] [STRICT_READ_UNTRACKED] Reactive value read directly in <PostComposer> will not update. Move it into a tracking scope (JSX, a memo, or an effect's compute function).
+9:56:38 PM [vite] (client) [console.warn] [STRICT_READ_UNTRACKED] Reactive value read directly in <PostComposer> will not update. Move it into a tracking scope (JSX, a memo, or an effect's compute function).
+9:56:38 PM [vite] (client) [console.warn] [STRICT_READ_UNTRACKED] Reactive value read directly in <PostComposer> will not update. Move it into a tracking scope (JSX, a memo, or an effect's compute function).
+9:56:38 PM [vite] (client) [console.warn] [STRICT_READ_UNTRACKED] Reactive value read directly in <PostComposer> will not update. Move it into a tracking scope (JSX, a memo, or an effect's compute function).
+9:56:38 PM [vite] (client) [console.warn] [STRICT_READ_UNTRACKED] Reactive value read directly in <PostComposer> will not update. Move it into a tracking scope (JSX, a memo, or an effect's compute function).
+9:56:38 PM [vite] (client) [console.warn] [STRICT_READ_UNTRACKED] Reactive value read directly in <PostComposer> will not update. Move it into a tracking scope (JSX, a memo, or an effect's compute function).
+9:56:38 PM [vite] (client) [console.warn] [STRICT_READ_UNTRACKED] Reactive value read directly in <PostComposer> will not update. Move it into a tracking scope (JSX, a memo, or an effect's compute function).
+9:56:38 PM [vite] (client) [console.warn] [STRICT_READ_UNTRACKED] Reactive value read directly in <PostComposer> will not update. Move it into a tracking scope (JSX, a memo, or an effect's compute function).
+9:56:38 PM [vite] (client) [console.warn] [STRICT_READ_UNTRACKED] Reactive value read directly in <PostComposer> will not update. Move it into a tracking scope (JSX, a memo, or an effect's compute function).
+9:56:38 PM [vite] (client) [console.warn] [STRICT_READ_UNTRACKED] Reactive value read directly in <PostComposer> will not update. Move it into a tracking scope (JSX, a memo, or an effect's compute function).
+9:56:38 PM [vite] (client) [console.warn] [STRICT_READ_UNTRACKED] Reactive value read directly in <PostComposer> will not update. Move it into a tracking scope (JSX, a memo, or an effect's compute function).
+9:56:38 PM [vite] (client) [console.warn] [STRICT_READ_UNTRACKED] Reactive value read directly in <PostComposer> will not update. Move it into a tracking scope (JSX, a memo, or an effect's compute function).
+9:56:38 PM [vite] (client) [console.warn] [NO_OWNER_CLEANUP] onCleanup called outside a reactive context will never be run
+9:56:38 PM [vite] (client) [console.warn] [NO_OWNER_CLEANUP] onCleanup called outside a reactive context will never be run
+9:56:38 PM [vite] (client) [console.warn] [NO_OWNER_CLEANUP] onCleanup called outside a reactive context will never be run
+9:56:38 PM [vite] (client) [console.warn] [NO_OWNER_CLEANUP] onCleanup called outside a reactive context will never be run
+9:56:45 PM [vite] (client) [console.warn] [STRICT_READ_UNTRACKED] Reactive value read directly in <VideoComposerRuntime> will not update. Move it into a tracking scope (JSX, a memo, or an effect's compute function).
+9:57:15 PM [vite] (client) [console.warn] [STRICT_READ_UNTRACKED] Reactive value read directly in <CreatePostDialog> will not update. Move it into a tracking scope (JSX, a memo, or an effect's compute function).
+9:57:15 PM [vite] (client) [console.warn] [STRICT_READ_UNTRACKED] Reactive value read directly in <TextFieldRoot> will not update. Move it into a tracking scope (JSX, a memo, or an effect's compute function).
+9:57:15 PM [vite] (client) [console.warn] [STRICT_READ_UNTRACKED] Reactive value read directly in <PostComposer> will not update. Move it into a tracking scope (JSX, a memo, or an effect's compute function).
+9:57:15 PM [vite] (client) [console.warn] [STRICT_READ_UNTRACKED] Reactive value read directly in <PostComposer> will not update. Move it into a tracking scope (JSX, a memo, or an effect's compute function).
+9:57:15 PM [vite] (client) [console.warn] [STRICT_READ_UNTRACKED] Reactive value read directly in <PostComposer> will not update. Move it into a tracking scope (JSX, a memo, or an effect's compute function).
+9:57:15 PM [vite] (client) [console.warn] [STRICT_READ_UNTRACKED] Reactive value read directly in <PostComposer> will not update. Move it into a tracking scope (JSX, a memo, or an effect's compute function).
+9:57:15 PM [vite] (client) [console.warn] [STRICT_READ_UNTRACKED] Reactive value read directly in <PostComposer> will not update. Move it into a tracking scope (JSX, a memo, or an effect's compute function).
+9:57:15 PM [vite] (client) [console.warn] [STRICT_READ_UNTRACKED] Reactive value read directly in <PostComposer> will not update. Move it into a tracking scope (JSX, a memo, or an effect's compute function).
+9:57:15 PM [vite] (client) [console.warn] [STRICT_READ_UNTRACKED] Reactive value read directly in <PostComposer> will not update. Move it into a tracking scope (JSX, a memo, or an effect's compute function).
+9:57:15 PM [vite] (client) [console.warn] [STRICT_READ_UNTRACKED] Reactive value read directly in <PostComposer> will not update. Move it into a tracking scope (JSX, a memo, or an effect's compute function).
+9:57:15 PM [vite] (client) [console.warn] [STRICT_READ_UNTRACKED] Reactive value read directly in <PostComposer> will not update. Move it into a tracking scope (JSX, a memo, or an effect's compute function).
+9:57:15 PM [vite] (client) [console.warn] [STRICT_READ_UNTRACKED] Reactive value read directly in <PostComposer> will not update. Move it into a tracking scope (JSX, a memo, or an effect's compute function).
+9:57:15 PM [vite] (client) [console.warn] [STRICT_READ_UNTRACKED] Reactive value read directly in <PostComposer> will not update. Move it into a tracking scope (JSX, a memo, or an effect's compute function).
+9:57:15 PM [vite] (client) [console.warn] [STRICT_READ_UNTRACKED] Reactive value read directly in <PostComposer> will not update. Move it into a tracking scope (JSX, a memo, or an effect's compute function).
+9:57:15 PM [vite] (client) [console.warn] [STRICT_READ_UNTRACKED] Reactive value read directly in <PostComposer> will not update. Move it into a tracking scope (JSX, a memo, or an effect's compute function).
+9:57:15 PM [vite] (client) [console.warn] [STRICT_READ_UNTRACKED] Reactive value read directly in <PostComposer> will not update. Move it into a tracking scope (JSX, a memo, or an effect's compute function).
+9:57:15 PM [vite] (client) [console.warn] [STRICT_READ_UNTRACKED] Reactive value read directly in <PostComposer> will not update. Move it into a tracking scope (JSX, a memo, or an effect's compute function).
+9:57:15 PM [vite] (client) [console.warn] [STRICT_READ_UNTRACKED] Reactive value read directly in <PostComposer> will not update. Move it into a tracking scope (JSX, a memo, or an effect's compute function).
+9:57:15 PM [vite] (client) [console.warn] [STRICT_READ_UNTRACKED] Reactive value read directly in <PostComposer> will not update. Move it into a tracking scope (JSX, a memo, or an effect's compute function).
+9:57:15 PM [vite] (client) [console.warn] [STRICT_READ_UNTRACKED] Reactive value read directly in <PostComposer> will not update. Move it into a tracking scope (JSX, a memo, or an effect's compute function).
+9:57:15 PM [vite] (client) [console.warn] [STRICT_READ_UNTRACKED] Reactive value read directly in <PostComposer> will not update. Move it into a tracking scope (JSX, a memo, or an effect's compute function).
+9:57:15 PM [vite] (client) [console.warn] [STRICT_READ_UNTRACKED] Reactive value read directly in <PostComposer> will not update. Move it into a tracking scope (JSX, a memo, or an effect's compute function).
+9:57:15 PM [vite] (client) [console.warn] [STRICT_READ_UNTRACKED] Reactive value read directly in <PostComposer> will not update. Move it into a tracking scope (JSX, a memo, or an effect's compute function).
+9:57:15 PM [vite] (client) [console.warn] [STRICT_READ_UNTRACKED] Reactive value read directly in <PostComposer> will not update. Move it into a tracking scope (JSX, a memo, or an effect's compute function).
+9:57:15 PM [vite] (client) [console.warn] [STRICT_READ_UNTRACKED] Reactive value read directly in <PostComposer> will not update. Move it into a tracking scope (JSX, a memo, or an effect's compute function).
+9:57:15 PM [vite] (client) [console.warn] [STRICT_READ_UNTRACKED] Reactive value read directly in <PostComposer> will not update. Move it into a tracking scope (JSX, a memo, or an effect's compute function).
+9:57:15 PM [vite] (client) [console.warn] [STRICT_READ_UNTRACKED] Reactive value read directly in <PostComposer> will not update. Move it into a tracking scope (JSX, a memo, or an effect's compute function).
+9:57:15 PM [vite] (client) [console.warn] [STRICT_READ_UNTRACKED] Reactive value read directly in <PostComposer> will not update. Move it into a tracking scope (JSX, a memo, or an effect's compute function).
+9:57:15 PM [vite] (client) [console.warn] [STRICT_READ_UNTRACKED] Reactive value read directly in <PostComposer> will not update. Move it into a tracking scope (JSX, a memo, or an effect's compute function).
+9:57:15 PM [vite] (client) [console.warn] [STRICT_READ_UNTRACKED] Reactive value read directly in <PostComposer> will not update. Move it into a tracking scope (JSX, a memo, or an effect's compute function).
+9:57:15 PM [vite] (client) [console.warn] [STRICT_READ_UNTRACKED] Reactive value read directly in <PostComposer> will not update. Move it into a tracking scope (JSX, a memo, or an effect's compute function).
+9:57:15 PM [vite] (client) [console.warn] [STRICT_READ_UNTRACKED] Reactive value read directly in <PostComposer> will not update. Move it into a tracking scope (JSX, a memo, or an effect's compute function).
+9:57:15 PM [vite] (client) [console.warn] [STRICT_READ_UNTRACKED] Reactive value read directly in <PostComposer> will not update. Move it into a tracking scope (JSX, a memo, or an effect's compute function).
+9:57:15 PM [vite] (client) [console.warn] [STRICT_READ_UNTRACKED] Reactive value read directly in <PostComposer> will not update. Move it into a tracking scope (JSX, a memo, or an effect's compute function).
+9:57:15 PM [vite] (client) [console.warn] [STRICT_READ_UNTRACKED] Reactive value read directly in <PostComposer> will not update. Move it into a tracking scope (JSX, a memo, or an effect's compute function).
+9:57:15 PM [vite] (client) [console.warn] [STRICT_READ_UNTRACKED] Reactive value read directly in <PostComposer> will not update. Move it into a tracking scope (JSX, a memo, or an effect's compute function).
+9:57:15 PM [vite] (client) [console.warn] [STRICT_READ_UNTRACKED] Reactive value read directly in <PostComposer> will not update. Move it into a tracking scope (JSX, a memo, or an effect's compute function).
+9:57:15 PM [vite] (client) [console.warn] [STRICT_READ_UNTRACKED] Reactive value read directly in <PostComposer> will not update. Move it into a tracking scope (JSX, a memo, or an effect's compute function).
+9:57:15 PM [vite] (client) [console.warn] [STRICT_READ_UNTRACKED] Reactive value read directly in <PostComposer> will not update. Move it into a tracking scope (JSX, a memo, or an effect's compute function).
+9:57:15 PM [vite] (client) [console.warn] [STRICT_READ_UNTRACKED] Reactive value read directly in <PostComposer> will not update. Move it into a tracking scope (JSX, a memo, or an effect's compute function).
+9:57:15 PM [vite] (client) [console.warn] [STRICT_READ_UNTRACKED] Reactive value read directly in <PostComposer> will not update. Move it into a tracking scope (JSX, a memo, or an effect's compute function).
+9:57:15 PM [vite] (client) [console.warn] [STRICT_READ_UNTRACKED] Reactive value read directly in <PostComposer> will not update. Move it into a tracking scope (JSX, a memo, or an effect's compute function).
+9:57:15 PM [vite] (client) [console.warn] [STRICT_READ_UNTRACKED] Reactive value read directly in <PostComposer> will not update. Move it into a tracking scope (JSX, a memo, or an effect's compute function).
+9:57:15 PM [vite] (client) [console.warn] [NO_OWNER_CLEANUP] onCleanup called outside a reactive context will never be run
+9:57:15 PM [vite] (client) [console.warn] [NO_OWNER_CLEANUP] onCleanup called outside a reactive context will never be run
+9:57:15 PM [vite] (client) [console.warn] [NO_OWNER_CLEANUP] onCleanup called outside a reactive context will never be run
+9:57:15 PM [vite] (client) [console.warn] [NO_OWNER_CLEANUP] onCleanup called outside a reactive context will never be run
+9:57:15 PM [vite] (client) [console.warn] [STRICT_READ_UNTRACKED] Reactive value read directly in <VideoComposerRuntime> will not update. Move it into a tracking scope (JSX, a memo, or an effect's compute function).

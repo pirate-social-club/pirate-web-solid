@@ -1,3 +1,4 @@
+import { beginAuthorityDiagnostic, HNS_DIAGNOSTIC_ID_HEADER } from "./request-diagnostics.ts";
 import {
   CF_ACCESS_CLIENT_ID_HEADER,
   CF_ACCESS_CLIENT_SECRET_HEADER,
@@ -66,6 +67,7 @@ function deadline(parent: AbortSignal | undefined): AuthorityDeadline {
   });
   void interrupt.catch(() => undefined);
   const onAbort = (): void => {
+    if (controller.signal.aborted) return;
     const reason = parent?.reason ?? new DOMException("Aborted", "AbortError");
     controller.abort(reason);
     rejectInterrupt?.(reason);
@@ -73,6 +75,7 @@ function deadline(parent: AbortSignal | undefined): AuthorityDeadline {
   if (parent?.aborted) onAbort();
   else parent?.addEventListener("abort", onAbort, { once: true });
   const timer = setTimeout(() => {
+    if (controller.signal.aborted) return;
     timedOut = true;
     const reason = new DOMException("Authority request timed out", "TimeoutError");
     controller.abort(reason);
@@ -203,13 +206,17 @@ export function makeHnsAuthorityClientV2(options: {
         throw new HnsIngressFailure("authority_unavailable");
       }
       const bounded = deadline(signal);
+      let diagnostic: ReturnType<typeof beginAuthorityDiagnostic> | undefined;
       try {
+        bounded.signal.throwIfAborted();
+        diagnostic = beginAuthorityDiagnostic("community_app_v1", HNS_PROFILE_AUTHORITY_DEADLINE_MS);
         const response = await Promise.race([
           (options.fetchImpl ?? fetch)(endpoint, {
             method: "POST",
             headers: {
               accept: "application/json",
               "content-type": "application/json",
+              [HNS_DIAGNOSTIC_ID_HEADER]: diagnostic.correlationId,
               [CF_ACCESS_CLIENT_ID_HEADER]: options.accessClientId,
               [CF_ACCESS_CLIENT_SECRET_HEADER]: options.accessClientSecret,
             },
@@ -225,13 +232,17 @@ export function makeHnsAuthorityClientV2(options: {
         ) {
           throw new HnsIngressFailure("authority_unavailable");
         }
-        return parseResolution(
+        const result = parseResolution(
           await readBounded(response, bounded.interrupt),
           normalizedHost,
           hostAuthority,
           options.gatewayDeploymentReference,
         );
+        bounded.signal.throwIfAborted();
+        diagnostic.finish("success");
+        return result;
       } catch (error) {
+        diagnostic?.finish(bounded.didTimeout() ? "timeout" : signal?.aborted ? "canceled" : "failed");
         if (signal?.aborted && !bounded.didTimeout()) throw signal.reason ?? error;
         if (error instanceof HnsIngressFailure) throw error;
         throw new HnsIngressFailure("authority_unavailable");

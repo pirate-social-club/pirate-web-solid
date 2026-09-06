@@ -3,7 +3,7 @@ import { render as solidRender } from "@solidjs/web";
 import { afterEach, describe, expect, test, vi } from "vitest";
 
 import type { PrivySessionExchange } from "../../api/privy-session.ts";
-import { refreshSession } from "../../api/session.ts";
+import { onSessionRefreshed, refreshSession } from "../../api/session.ts";
 import type { CommunityCreationApi } from "./community-creation-api";
 import { CommunityCreationRouteView } from "./community-creation-route-view";
 import { createIntent } from "./community-creation-progress/community-creation-progress-model";
@@ -125,17 +125,23 @@ describe("Community creation production route", () => {
     expect(attempt).toBe(2);
   });
 
-  test("names the persona-required state for an account without an active persona", async () => {
+  test("blocks creation without an eligible persona while activation is unavailable", async () => {
+    const client = api();
+    vi.spyOn(client, "createIntent");
     const container = render(() => (
       <CommunityCreationRouteView
-        api={api()}
+        api={client}
         resolveSession={async () => ({ personas: [], status: "authenticated", userId: "user-1" })}
       />
     ));
 
     const route = () => container.querySelector("[data-route-path='/communities/new']")!;
-    await vi.waitFor(() => expect(route().getAttribute("data-creation-state")).toBe("persona-required"));
-    expect(container.textContent).toContain("Create a persona first");
+    await vi.waitFor(() => expect(route().getAttribute("data-creation-state")).toBe("ready"));
+    expect(container.textContent).not.toContain("Create a persona first");
+    expect(container.textContent).toContain("coming soon");
+    expect(container.querySelector<HTMLButtonElement>('button[type="submit"]')?.disabled).toBe(true);
+    container.querySelector("form")?.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+    expect(client.createIntent).not.toHaveBeenCalled();
   });
 
   test("leaves the resolving fallback for every settled session outcome", async () => {
@@ -156,6 +162,7 @@ describe("Community creation production route", () => {
         displayName: "Harbor Host",
         personaId: "persona-1",
         primaryPublicHandle: "harbor-host",
+        communityBinding: null,
       }],
       status: "authenticated" as const,
       userId: "user-1",
@@ -185,6 +192,7 @@ describe("Community creation production route", () => {
             displayName: "Harbor Host",
             personaId: "persona-1",
             primaryPublicHandle: "harbor-host",
+            communityBinding: null,
           }],
           status: "authenticated",
           userId: "user-1",
@@ -214,6 +222,8 @@ describe("Community creation production route", () => {
     });
     const createIntentRequest = vi.fn().mockResolvedValue(created);
     const commitIntent = vi.fn().mockResolvedValue(committed);
+    const refreshed = vi.fn();
+    disposers.push(onSessionRefreshed(refreshed));
     const navigate = vi.fn();
     const container = render(() => (
       <CommunityCreationRouteView
@@ -225,6 +235,7 @@ describe("Community creation production route", () => {
             displayName: "Harbor Host",
             personaId: "persona-1",
             primaryPublicHandle: "harbor-host",
+            communityBinding: null,
           }],
           status: "authenticated",
           userId: "user-1",
@@ -242,6 +253,7 @@ describe("Community creation production route", () => {
 
     await vi.waitFor(() => expect(navigate).toHaveBeenLastCalledWith("/c/community-new", undefined));
     expect(createIntentRequest).toHaveBeenCalledOnce();
+    expect(refreshed).toHaveBeenCalledOnce();
     expect(commitIntent).toHaveBeenCalledWith(expect.objectContaining({
       expectedRevision: 2,
       intentId: "creation-new",
@@ -272,6 +284,7 @@ describe("Community creation production route", () => {
             displayName: "Harbor Host",
             personaId: "persona-1",
             primaryPublicHandle: "harbor-host",
+            communityBinding: null,
           }],
           status: "authenticated",
           userId: "user-1",
@@ -303,6 +316,7 @@ describe("Community creation production route", () => {
             displayName: "Harbor Host",
             personaId: "persona-1",
             primaryPublicHandle: "harbor-host",
+            communityBinding: null,
           }],
           status: "authenticated",
           userId: "user-1",
@@ -349,6 +363,7 @@ describe("Community creation production route", () => {
             displayName: "Harbor Host",
             personaId: "persona-1",
             primaryPublicHandle: "harbor-host",
+            communityBinding: null,
           }],
           status: "authenticated",
           userId: "user-1",
@@ -386,6 +401,7 @@ describe("Community creation production route", () => {
             displayName: "Harbor Host",
             personaId: "persona-1",
             primaryPublicHandle: "harbor-host",
+            communityBinding: null,
           }],
           status: "authenticated",
           userId: "user-1",

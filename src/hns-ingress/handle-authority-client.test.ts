@@ -58,8 +58,9 @@ describe("private handle-host authority client", () => {
         expect(init?.redirect).toBe("manual");
         const headers = new Headers(init?.headers);
         expect([...headers.keys()].sort()).toEqual([
-          "accept", "cf-access-client-id", "cf-access-client-secret", "content-type",
+          "accept", "cf-access-client-id", "cf-access-client-secret", "content-type", "x-pirate-hns-diagnostic-id",
         ]);
+        expect(headers.get("x-pirate-hns-diagnostic-id")).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u);
         expect(headers.get(CF_ACCESS_CLIENT_ID_HEADER)).toBe("handle-authority-id");
         expect(headers.get(CF_ACCESS_CLIENT_SECRET_HEADER)).toBe("handle-authority-secret");
         // SAFETY: the fetch spy receives the Uint8Array created by this client.
@@ -98,7 +99,7 @@ describe("private handle-host authority client", () => {
     const timedOut = expect(hanging.resolve("name.xn--pokmon-dva", authority)).rejects.toMatchObject({
       reason: "authority_unavailable",
     });
-    await vi.advanceTimersByTimeAsync(2_000);
+    await vi.advanceTimersByTimeAsync(4_000);
     await timedOut;
     const controller = new AbortController();
     const aborted = expect(hanging.resolve("name.xn--pokmon-dva", authority, controller.signal)).rejects.toMatchObject({

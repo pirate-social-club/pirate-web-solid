@@ -1,6 +1,6 @@
 # Original-audio video runtime
 
-The request and response types come from the exact api-next client 0.60.0
+The request and response types come from the exact api-next client 0.65.0
 artifact recorded in vendor provenance. The video coordinator does not bind
 song terms or construct the song-reference intent. Server submission snapshots
 own publication and review decisions. Part receipts and exact commands survive
@@ -21,10 +21,14 @@ replay; an existing server submission cannot be discarded as a rejected draft.
 Feed and Post surfaces expose typed pending delivery states. Even a projected
 ready status does not authorize turning an opaque reference into a media URL.
 
-This is an implementation checkpoint, not a release. Playback-ready wiring
-and end-to-end browser acceptance are blocked on
-api-video-delivery-completion and its consumable access contract. The closed
-publication lane is not evidence of backend deployability. Real-browser
-IndexedDB and capture checks, remaining interruption cases and independent
-review remain open. A synthetic transport fixture proving publication does
-not prove live playback. No deployment or live provider call is claimed.
+The existing Video action enters the original-video runtime without opening
+its generic attachment picker. Restoring a retained attempt restores its
+community and persona; a different contextual community cannot resume it.
+Navigation and Pause stop subsequent effects, while received server outcomes
+and ambiguous commands remain durable for explicit resume.
+
+Protected playback uses the access contract and authorized poster route.
+Local browser persistence and playback evidence is recorded in
+docs/video-player-browser-recovery-2026-09-06.md. Physical capture,
+large uploads, quota eviction, deployed identity compatibility and the live
+staging proof remain open. No deployment or live provider call is claimed.

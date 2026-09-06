@@ -40,6 +40,7 @@ const activePersona = (personaId: string, displayName: string): ActivePersonaPub
   displayName,
   avatarRef: null,
   primaryPublicHandle: null,
+  communityBinding: null,
 });
 
 const reservation: PostCommunitiesCommunityIdMediaUploadReservationsResponse = {
@@ -593,4 +594,50 @@ describe("create post request", () => {
     await new Promise<void>(resolve => setTimeout(resolve, 0));
     expect(mediaTransport.commands.filter(command => command.kind === "lyrics")).toHaveLength(1);
   });
+});
+
+
+test.each([false, true])("restores retained video authority in global/contextual composer (context=%s)", async contextual => {
+  const { webcrypto } = await import("node:crypto");
+  const originalCrypto = globalThis.crypto; const originalUrl = globalThis.URL;
+  const pickerClick = vi.spyOn(HTMLInputElement.prototype, "click");
+  vi.stubGlobal("crypto", webcrypto);
+  vi.stubGlobal("URL", class extends URL { static createObjectURL() { return "blob:https://example.test/video"; } static revokeObjectURL() {} });
+  const snapshot: import("../video-submission/contracts").VideoSnapshot = {
+    submission_id: "video-submission", author_persona: { object: "persona", persona_id: "persona-one", display_name: null, avatar_ref: null, primary_public_handle: null },
+    href: "/media-post-submissions/video-submission", track: "video", intent: "original_audio", creation_revision: 1,
+    video_revision: 0, caption: "", updated_at: "2026-09-05T00:00:00Z", status: "processing", phase: "awaiting_upload",
+  };
+  let saved: import("../video-submission/coordinator").PendingVideo | null = {
+    version: "original-video-pending-v1", principalId: "account", communityId: "retained-community", personaId: "persona-one",
+    file: new File(["video"], "take.mp4", { type: "video/mp4" }), caption: "", rating: "general", receipts: [], pending: null, snapshot,
+    reservation: { reservation_id: "reservation", track: "video", intent: "original_audio", slot: "primary_video", status: "awaiting_upload", author_persona_id: "persona-one", ingest_policy_revision: 1,
+      upload: { method: "MULTIPART", upload_id: "upload", part_size_bytes: 10, part_count: 1, expires_at: "2099-01-01T00:00:00Z", parts: [{ part_number: 1, url: "https://upload.example/1", expires_at: "2099-01-01T00:00:00Z" }] } },
+  };
+  const videoStorage: import("../video-submission/coordinator").VideoStorage = {
+    async exclusive(work) { return work(); }, async load() { return saved; }, async save(record) { saved = record; }, async remove() { saved = null; },
+  };
+  const execute = vi.fn(async () => ({ ...snapshot, phase: "analysis" as const }));
+  const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(new Response(null, { headers: { etag: "receipt" } }));
+  try {
+    render(() => <CreatePostDialog open onOpenChange={() => {}} principalId="account" personas={[activePersona("persona-one", "Persona One")]}
+      communityContext={contextual ? { id: "other-community", name: "Other community" } : undefined}
+      storage={createMemoryPendingSubmissionStorage()} mediaStorage={createMemoryMediaSubmissionStorage()}
+      videoStorage={videoStorage} videoTransport={{ execute, async read() { return snapshot; } }} fetchImpl={fetchImpl} />);
+    const tab = [...document.querySelectorAll("button")].find(button => button.textContent?.trim() === "Video")!;
+    expect(tab).toBeDefined(); await vi.waitFor(() => expect(tab.disabled).toBe(false)); tab.focus(); tab.click();
+    await vi.waitFor(() => expect(document.body.textContent).toContain("Resume video submission"));
+    expect(pickerClick).not.toHaveBeenCalled();
+    if (!contextual) expect(document.querySelector<HTMLInputElement>('input[name="community-id"]')?.value).toBe("retained-community");
+    else expect(document.body.textContent).toContain("retained submission belongs to another community");
+    const resume = [...document.querySelectorAll("button")].find(button => button.textContent?.includes("Resume video submission"))!;
+    await vi.waitFor(() => expect(resume.disabled).toBe(false)); resume.click();
+    if (contextual) {
+      await vi.waitFor(() => expect(document.body.textContent).toContain("Resolve this retained video with its original community and persona"));
+      expect(fetchImpl).not.toHaveBeenCalled(); expect(execute).not.toHaveBeenCalled();
+    } else {
+      await vi.waitFor(() => expect(execute).toHaveBeenCalledOnce());
+      expect(fetchImpl).toHaveBeenCalledOnce();
+    }
+  } finally { for (const dispose of disposers.splice(0)) dispose(); pickerClick.mockRestore(); vi.stubGlobal("crypto", originalCrypto); vi.stubGlobal("URL", originalUrl); }
 });

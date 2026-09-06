@@ -1,0 +1,4 @@
+$ tsc --noEmit -p e2e/tsconfig.json && playwright test -c e2e --list
+packages/solid-ui/src/patterns/identity/pirate-brand-mark/pirate-brand-mark.tsx(5,21): error TS2307: Cannot find module './logo_ghost_sm.png' or its corresponding type declarations.
+
+exit=2

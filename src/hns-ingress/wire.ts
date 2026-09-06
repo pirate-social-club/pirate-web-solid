@@ -1,8 +1,8 @@
-export const HNS_COMMUNITY_APP_INTERACTIVE_PROFILE_V2 =
-  '["pirate-hns-community-app-interactive-gateway-v2","pirate-hns-forwarder-v3","community_app_v1",["GET","HEAD","POST","PATCH"],["root_to_canonical_community_v2","preserve_other_path_and_query_v1"],["accept","accept-language","cache-control","content-language","content-type","cookie","if-match","if-modified-since","if-none-match","if-unmodified-since","idempotency-key","origin","range","referer","x-csrf-token","x-request-id"],["__Host-pirate_session","__Host-pirate_csrf"],["pirate-hns-solid-host-authority-request-v2","pirate-hns-solid-host-authority-response-v2"],8192,128,32768,1048576,16384,16777216,15000,4096,2000]' as const;
-export const HNS_COMMUNITY_APP_INTERACTIVE_PROFILE_V2_BYTES = 622 as const;
-export const HNS_COMMUNITY_APP_INTERACTIVE_PROFILE_V2_SHA256 =
-  "f49ac37bd45da71bdf1e1cc65f184729d85f9d72ce811f0551a70f7785aa8d86" as const;
+export const HNS_COMMUNITY_APP_INTERACTIVE_PROFILE_V3 =
+  '["pirate-hns-community-app-interactive-gateway-v3","pirate-hns-forwarder-v3","community_app_v1",["GET","HEAD","POST","PATCH"],["root_to_canonical_community_v2","preserve_other_path_and_query_v1"],["accept","accept-language","cache-control","content-language","content-type","cookie","if-match","if-modified-since","if-none-match","if-unmodified-since","idempotency-key","origin","range","referer","x-csrf-token","x-request-id"],["__Host-pirate_session","__Host-pirate_csrf"],["pirate-hns-solid-host-authority-request-v2","pirate-hns-solid-host-authority-response-v2"],8192,128,32768,1048576,16384,16777216,15000,4096,4000]' as const;
+export const HNS_COMMUNITY_APP_INTERACTIVE_PROFILE_V3_BYTES = 622 as const;
+export const HNS_COMMUNITY_APP_INTERACTIVE_PROFILE_V3_SHA256 =
+  "c4f4c07252ba10a25467f476cc5b56d50ef9cf02e25ad368a05551d19ba861ed" as const;
 
 export const HNS_FORWARDER_V3 = "pirate-hns-forwarder-v3" as const;
 export const HNS_FORWARDER_HOST_HEADER = "x-pirate-hns-host" as const;
@@ -36,7 +36,7 @@ export const HNS_PROFILE_MAX_COOKIE_VALUE_BYTES = 16_384 as const;
 export const HNS_PROFILE_MAX_RESPONSE_BYTES = 16_777_216 as const;
 export const HNS_PROFILE_UPSTREAM_DEADLINE_MS = 15_000 as const;
 export const HNS_PROFILE_AUTHORITY_MAX_BYTES = 4_096 as const;
-export const HNS_PROFILE_AUTHORITY_DEADLINE_MS = 2_000 as const;
+export const HNS_PROFILE_AUTHORITY_DEADLINE_MS = 4_000 as const;
 
 export type HnsRouteAuthorityV1 = readonly [
   kind: "verified_namespace_v1" | "operator_managed_route_v1",
@@ -433,6 +433,7 @@ export function hasReservedHnsIngressHeader(headers: Headers): boolean {
     const lower = name.toLowerCase();
     if (
       reservedForwarderHeaders.has(lower) ||
+      lower === "x-pirate-hns-diagnostic-id" ||
       lower === CF_ACCESS_ASSERTION_HEADER ||
       lower === CF_ACCESS_CLIENT_ID_HEADER ||
       lower === CF_ACCESS_CLIENT_SECRET_HEADER ||

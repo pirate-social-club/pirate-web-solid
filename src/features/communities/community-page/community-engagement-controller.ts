@@ -1,12 +1,20 @@
 import { createEffect, createSignal, onCleanup, type Accessor } from "solid-js";
 
+import { ApiClientError } from "@pirate/api-client";
 import {
   resolveSession as resolveApplicationSession,
+  refreshSession,
   type AuthenticatedSession,
   type SessionResolution,
 } from "../../../api/session.ts";
 import { requestGlobalSignIn } from "../../auth/global-sign-in-host.tsx";
 import { useApplicationSession } from "../../shell/application-session.tsx";
+import {
+  defaultCommunityPersonaChoice,
+  communityJoinCandidates,
+  PERSONA_CREATION_UNAVAILABLE,
+  type CommunityPersonaChoice,
+} from "../../identity/community-persona-choice.ts";
 import type {
   CommunityEngagementApi,
   CommunityMembershipState,
@@ -25,8 +33,14 @@ export interface CommunityEngagementController {
   readonly message: Accessor<string>;
   readonly error: Accessor<string>;
   readonly postingSession: Accessor<AuthenticatedSession | undefined>;
+  /** Open while a terminal join waits for the account's closed persona choice. */
+  readonly joinPersonaStep: Accessor<boolean>;
+  readonly joinPersonaChoice: Accessor<CommunityPersonaChoice | undefined>;
+  readonly joinedPersonaId: Accessor<string | undefined>;
   followToggle(): Promise<void>;
-  joinCommunity(): Promise<void>;
+  joinCommunity(persona?: CommunityPersonaChoice): Promise<void>;
+  confirmJoinPersona(choice: CommunityPersonaChoice): void;
+  cancelJoinPersona(): void;
   resolvePostingSession(): Promise<AuthenticatedSession | undefined>;
 }
 
@@ -53,6 +67,9 @@ export function createCommunityEngagementController(
   const [viewerReady, setViewerReady] = createSignal(false);
   const [postingSession, setPostingSession] = createSignal<AuthenticatedSession>();
   const [accountAuthenticated, setAccountAuthenticated] = createSignal(false);
+  const [joinPersonaOpen, setJoinPersonaOpen] = createSignal(false);
+  const [joinPersonaChoice, setJoinPersonaChoice] = createSignal<CommunityPersonaChoice>();
+  const [joinedPersonaId, setJoinedPersonaId] = createSignal<string>();
   let active = true;
   let actionInFlight = false;
   let fullSessionStarted = false;
@@ -186,7 +203,7 @@ export function createCommunityEngagementController(
     }
   };
 
-  const joinCommunity = async (): Promise<void> => {
+  const joinCommunity = async (persona?: CommunityPersonaChoice): Promise<void> => {
     if (actionInFlight || membership() === "member") return;
     actionInFlight = true;
     try {
@@ -224,29 +241,72 @@ export function createCommunityEngagementController(
         options.navigate(`/verify/very?${query.toString()}`);
         return;
       }
-      const result = await options.api.join(options.communityId);
+      // Spec 014 §10.2: the terminal membership commit carries the closed
+      // persona choice; a request-mode join never carries one because an
+      // intent does not pre-bind identity.
+      let choice = action.kind === "request" ? undefined : persona;
+      if (action.kind === "join") {
+        if (choice?.kind === "create_new") {
+          setError(PERSONA_CREATION_UNAVAILABLE);
+          setJoinPersonaChoice(undefined);
+          setJoinPersonaOpen(true);
+          return;
+        }
+        const session = await resolvePersonaSession();
+        if (!active || session === undefined) return;
+        const candidates = communityJoinCandidates(session.personas, options.communityId);
+        const selectedId = choice?.kind === "existing" ? choice.personaId : undefined;
+        if (selectedId !== undefined && !candidates.some(candidate => candidate.personaId === selectedId)) {
+          setError("Choose a persona bound to this community or an unbound persona.");
+          setJoinPersonaOpen(true);
+          return;
+        }
+        choice ??= defaultCommunityPersonaChoice(candidates);
+        if (choice === undefined || (persona === undefined && choice.kind === "create_new")) {
+          // No global default; minting is unavailable until wallet activation.
+          setJoinPersonaChoice(undefined);
+          setJoinPersonaOpen(true);
+          return;
+        }
+      }
+      const result = await options.api.join(options.communityId, choice);
       if (!active) return;
       if (result.status === "joined") {
         setMembership("member");
+        setJoinedPersonaId(result.personaId ?? undefined);
         setMessage("Joined this Community.");
+        // Read the minted profile/binding from the server, never manufacture it
+        // from the command response. A read failure must not undo a joined state.
+        refreshSession();
+        setPostingSession(undefined);
+        fullSessionStarted = false;
+        hydrateFullSession();
+        // The join result proves membership, not a subscription count.
+        // A failed preview must not undo the committed membership.
+        await refreshViewerState();
       } else {
         setMembership("pending");
         setMessage("Membership request sent.");
       }
-    } catch {
-      if (active) setError("We couldn't complete the membership action. Nothing changed.");
+    } catch (error) {
+      if (active) setError(error instanceof ApiClientError && error.status === 409
+        ? "That persona is already active in another community. Choose a different persona or create a new one."
+        : "We couldn't complete the membership action. Nothing changed.");
     } finally {
       actionInFlight = false;
       if (active) setBusy(undefined);
     }
   };
 
-  const resolvePostingSession = async (): Promise<AuthenticatedSession | undefined> => {
+  const confirmJoinPersona = (choice: CommunityPersonaChoice) => {
+    setJoinPersonaOpen(false);
+    void joinCommunity(choice);
+  };
+
+  const cancelJoinPersona = () => setJoinPersonaOpen(false);
+
+  const resolvePersonaSession = async (): Promise<AuthenticatedSession | undefined> => {
     if (!await hasAuthenticatedAccount()) return undefined;
-    if (!await refreshViewerState() || membership() !== "member") {
-      if (active && viewerReady()) setError("Join this Community before posting.");
-      return undefined;
-    }
     const cached = postingSession();
     if (cached !== undefined) return cached;
     const request = ++sessionRequest;
@@ -263,6 +323,15 @@ export function createCommunityEngagementController(
       if (active && request === sessionRequest) setError("We couldn't verify your session. Try again.");
       return undefined;
     }
+  };
+
+  const resolvePostingSession = async (): Promise<AuthenticatedSession | undefined> => {
+    if (!await hasAuthenticatedAccount()) return undefined;
+    if (!await refreshViewerState() || membership() !== "member") {
+      if (active && viewerReady()) setError("Join this Community before posting.");
+      return undefined;
+    }
+    return resolvePersonaSession();
   };
 
   const joined = () => membership() === "member";
@@ -283,11 +352,16 @@ export function createCommunityEngagementController(
     joinDisabled,
     joined,
     joinLabel,
+    joinPersonaStep: joinPersonaOpen,
+    joinPersonaChoice,
+    joinedPersonaId,
     message,
     error,
     postingSession,
     followToggle,
     joinCommunity,
+    confirmJoinPersona,
+    cancelJoinPersona,
     resolvePostingSession,
   };
 }

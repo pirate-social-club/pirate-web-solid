@@ -1,0 +1,135 @@
+$ vite preview --host 0.0.0.0 --host "127.0.0.1" --port "4173"
+Using secrets defined in process.env
+[33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1mMissing required secrets: HNS_FORWARDER_V3_HMAC_KEY_REGISTRY, HNS_COMMUNITY_APP_API_ACCESS_CLIENT_ID, HNS_COMMUNITY_APP_API_ACCESS_CLIENT_SECRET, HNS_COMMUNITY_APP_AUTHORITY_ACCESS_CLIENT_ID, HNS_COMMUNITY_APP_AUTHORITY_ACCESS_CLIENT_SECRET, HNS_HANDLE_HOST_AUTHORITY_ACCESS_CLIENT_ID, HNS_HANDLE_HOST_AUTHORITY_ACCESS_CLIENT_SECRET. Add them to .dev.vars, .env, or set as environment variables.[0m
+
+
+  ➜  Local:   http://127.0.0.1:4173/
+  ➜  Debug:   http://127.0.0.1:4173/__debug
+
+The Cloudflare Vite plugin detected this preview session is running in an AI agent.
+The Local Explorer API is available at http://127.0.0.1:4173/cdn-cgi/local/explorer/api
+Useful routes:
+  GET http://127.0.0.1:4173/cdn-cgi/local/explorer/api/local/workers - local Workers and bindings
+  GET http://127.0.0.1:4173/cdn-cgi/local/explorer/api/storage/kv/namespaces - KV namespaces
+  GET http://127.0.0.1:4173/cdn-cgi/local/explorer/api/d1/database - D1 databases
+  GET http://127.0.0.1:4173/cdn-cgi/local/explorer/api/r2/buckets - R2 buckets
+  GET http://127.0.0.1:4173/cdn-cgi/local/explorer/api/workers/durable_objects/namespaces - Durable Object namespaces
+  GET http://127.0.0.1:4173/cdn-cgi/local/explorer/api/workflows - Workflows
+  POST http://127.0.0.1:4173/cdn-cgi/local/explorer/api/local/observability/query - run a read-only SQL query (SELECT/WITH only) over captured request traces and console logs. Tables: spans, logs (read attributes via json(attributes)). Example:
+    curl -X POST http://127.0.0.1:4173/cdn-cgi/local/explorer/api/local/observability/query -H 'Content-Type: application/json' -d '{"sql":"SELECT service, name, outcome, duration_ms FROM spans WHERE parent_id IS NULL LIMIT 20"}'
+If the routes above don't cover what you need, fetch the full OpenAPI schema (large - use only as a last resort):
+  GET http://127.0.0.1:4173/cdn-cgi/local/explorer/api - OpenAPI schema
+
+worker.diagnostic {
+  instance_id: '94bc8066-1ae2-488c-8fd8-62bb32b9c74d',
+  request_sequence: 1,
+  first_request_on_instance: true,
+  worker_version: 'f9e56b7d-563c-456e-ba3a-d471f0469dee',
+  worker_role: 'solid',
+  phase: 'request_entry',
+  request_offset_ms: 0
+}
+GET / 200 OK (212ms)
+GET /assets/entry-client-BaOGNgko.js 200 OK (3ms)
+GET /assets/entry-client-jaJ9k1ls.css 200 OK (1ms)
+GET /assets/index-BAh4pDOC.js 200 OK (2ms)
+GET /assets/web-B8K8aMrf.js 200 OK (2ms)
+GET /assets/client-C6pbIUTB.js 200 OK (1ms)
+GET /assets/public-profile-page.model-YAzEjafA.js 200 OK (2ms)
+GET /assets/preload-helper-Czpn1I53.js 200 OK (1ms)
+GET /assets/ui-locale-core-BA1HBKR2.js 200 OK (2ms)
+GET /assets/session-9qTvu19c.js 200 OK (2ms)
+GET /assets/public-post-route.model-CVDRJzwi.js 200 OK (1ms)
+GET /assets/src-B-7yy92Z.js 200 OK (2ms)
+GET /assets/rolldown-runtime-C0FnF6B9.js 200 OK (2ms)
+GET /assets/design-system-B9hWj3c9.js 200 OK (2ms)
+GET /assets/application-session-Bqx01zWd.js 200 OK (3ms)
+GET /assets/dist-CqFqvmd4.js 200 OK (2ms)
+GET /assets/video-player-BTzkvHB-.js 200 OK (1ms)
+GET /assets/routing-Cl-Bk4rH.js 200 OK (2ms)
+GET /assets/query-BQj1CcnE.js 200 OK (2ms)
+GET /assets/handle-storefront.model-BwgiEnXa.js 200 OK (1ms)
+GET /assets/persona-public-profile.model-DklkJJQP.js 200 OK (2ms)
+GET /assets/public-profile-preflight-D1y29hfh.js 200 OK (2ms)
+GET /assets/community-page-origin-CWmpQXTh.js 200 OK (4ms)
+GET /assets/owner-settings-route-model-D_xrOgoV.js 200 OK (3ms)
+GET /assets/community-moderation-settings-api-C4h0dkxa.js 200 OK (3ms)
+GET /assets/global-sign-in-host-Dn7j6ZD6.js 200 OK (1ms)
+GET /assets/sign-in-session-cHgX43q8.js 200 OK (1ms)
+GET /assets/sign-in-modal-C3W0EvzW.js 200 OK (2ms)
+GET /assets/verification-config-D75e7h7y.js 200 OK (2ms)
+GET /assets/isAddress-DyuOPP_k.js 200 OK (2ms)
+GET /assets/sha3-DAng0Rme.js 200 OK (1ms)
+GET /assets/utils-BXiNjgTj.js 200 OK (1ms)
+worker.diagnostic {
+  instance_id: '94bc8066-1ae2-488c-8fd8-62bb32b9c74d',
+  request_sequence: 2,
+  first_request_on_instance: false,
+  worker_version: 'f9e56b7d-563c-456e-ba3a-d471f0469dee',
+  worker_role: 'solid',
+  phase: 'request_entry',
+  request_offset_ms: 0
+}
+GET /internal/verification/config 404 Not Found (10ms)
+GET /assets/SignatureErc6492-DiV6q9R4.js 200 OK (5ms)
+GET /assets/sha2-RecSrKwr.js 200 OK (4ms)
+GET /assets/esm-CI9kM9hv.js 200 OK (6ms)
+GET /assets/localBatchGatewayRequest-DPiODYyJ.js 200 OK (4ms)
+GET /assets/BlockOverrides-BE3zIURP.js 200 OK (6ms)
+GET /assets/utils-CC8mSN0M.js 200 OK (6ms)
+GET /assets/secp256k1-1xMjoZ5X.js 200 OK (2ms)
+worker.diagnostic {
+  instance_id: '94bc8066-1ae2-488c-8fd8-62bb32b9c74d',
+  request_sequence: 3,
+  first_request_on_instance: false,
+  worker_version: 'f9e56b7d-563c-456e-ba3a-d471f0469dee',
+  worker_role: 'solid',
+  phase: 'request_entry',
+  request_offset_ms: 0
+}
+GET /internal/verification/config 404 Not Found (10ms)
+worker.diagnostic {
+  instance_id: '94bc8066-1ae2-488c-8fd8-62bb32b9c74d',
+  request_sequence: 4,
+  first_request_on_instance: false,
+  worker_version: 'f9e56b7d-563c-456e-ba3a-d471f0469dee',
+  worker_role: 'solid',
+  phase: 'request_entry',
+  request_offset_ms: 0
+}
+GET /communities/new 200 OK (10ms)
+GET /assets/entry-client-jaJ9k1ls.css 200 OK (2ms)
+GET /assets/entry-client-BaOGNgko.js 200 OK (1ms)
+GET /assets/new-BU59OPgP.js 200 OK (1ms)
+GET /assets/web-B8K8aMrf.js 200 OK (1ms)
+GET /assets/preload-helper-Czpn1I53.js 200 OK (3ms)
+GET /assets/routing-Cl-Bk4rH.js 200 OK (3ms)
+GET /assets/client-C6pbIUTB.js 200 OK (1ms)
+GET /assets/session-9qTvu19c.js 200 OK (2ms)
+GET /assets/src-B-7yy92Z.js 200 OK (2ms)
+GET /assets/rolldown-runtime-C0FnF6B9.js 200 OK (2ms)
+GET /assets/action-footer-shell-wodNpMC4.js 200 OK (2ms)
+GET /assets/design-system-B9hWj3c9.js 200 OK (2ms)
+GET /assets/global-sign-in-host-Dn7j6ZD6.js 200 OK (3ms)
+GET /assets/sign-in-session-cHgX43q8.js 200 OK (2ms)
+GET /assets/verification-config-D75e7h7y.js 200 OK (2ms)
+GET /assets/isAddress-DyuOPP_k.js 200 OK (3ms)
+GET /assets/sha3-DAng0Rme.js 200 OK (3ms)
+GET /assets/sign-in-modal-C3W0EvzW.js 200 OK (4ms)
+GET /assets/dist-CqFqvmd4.js 200 OK (3ms)
+GET /assets/utils-BXiNjgTj.js 200 OK (4ms)
+GET /assets/locales-DE4FHIsm.js 200 OK (4ms)
+GET /assets/ui-locale-BFyhWlOa.js 200 OK (4ms)
+GET /assets/community-persona-choice-sheet-BBDHmJGk.js 200 OK (5ms)
+GET /assets/query-BQj1CcnE.js 200 OK (1ms)
+GET /assets/handle-storefront.model-BwgiEnXa.js 200 OK (3ms)
+GET /assets/persona-public-profile.model-DklkJJQP.js 200 OK (3ms)
+GET /assets/public-profile-page.model-YAzEjafA.js 200 OK (2ms)
+GET /assets/public-profile-preflight-D1y29hfh.js 200 OK (3ms)
+GET /assets/community-page-origin-CWmpQXTh.js 200 OK (3ms)
+GET /assets/public-post-route.model-CVDRJzwi.js 200 OK (4ms)
+GET /assets/ui-locale-core-BA1HBKR2.js 200 OK (2ms)
+GET /assets/owner-settings-route-model-D_xrOgoV.js 200 OK (3ms)
+GET /assets/application-session-Bqx01zWd.js 200 OK (3ms)
+GET /assets/community-moderation-settings-api-C4h0dkxa.js 200 OK (3ms)
+error: script "preview" exited with code 143

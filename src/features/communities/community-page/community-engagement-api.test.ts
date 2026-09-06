@@ -106,9 +106,9 @@ describe("Community engagement API", () => {
     );
     const apiClient = client({ post_communitiesCommunityIdJoin: join });
     const port = createCommunityEngagementApi({ client: apiClient, readCsrfToken: () => "csrf-current" });
-    await expect(port.join(communityId)).resolves.toEqual({ status: "requested" });
+    await expect(port.join(communityId)).resolves.toEqual({ status: "requested", personaId: null });
     expect(join).toHaveBeenCalledWith(
-      { path: { communityId } },
+      { path: { communityId }, body: undefined },
       expect.objectContaining({ credentials: "same-origin" }),
     );
     // SAFETY: the adapter emits a plain string record; the cast only bridges the generated client's readonly tuple alternative.

@@ -18,6 +18,8 @@ const initial: VideoSnapshot = {
   video_revision: 0, caption: "", updated_at: "2026-09-05T00:00:00Z", status: "processing", phase: "awaiting_upload",
 };
 
+type MutableVideoTestTransport = { -readonly [Key in keyof VideoTransport]: VideoTransport[Key] };
+
 function setup(source = reservation) {
   vi.stubGlobal("crypto", webcrypto);
   let stored: PendingVideo | null = null;
@@ -32,7 +34,7 @@ function setup(source = reservation) {
     async exclusive(work) { return work(); },
     async load() { return stored; }, async save(record) { stored = record; }, async remove() { stored = null; },
   };
-  const transport: VideoTransport = {
+  const transport: MutableVideoTestTransport = {
     async read() { return current; },
     async execute(command) {
       commands.push(command);
@@ -57,7 +59,7 @@ function setup(source = reservation) {
   const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(new Response(null, { headers: { etag: "part-etag" } }));
   const create = (principalId = "account") => new VideoCoordinator({ principalId, storage, transport, fetchImpl, createId: () => `key-${++key}` });
   const begin = (coordinator: VideoCoordinator) => coordinator.begin({ communityId: "community", personaId: "persona", caption: "", rating: "general", file: new File(["video"], "take.mp4", { type: "video/mp4" }) });
-  return { create, begin, commands, fetchImpl, storage, posts: () => posts,
+  return { create, begin, commands, fetchImpl, storage, transport, posts: () => posts,
     rejectNext: (kind: VideoCommand["kind"], error: Error) => { rejection = { kind, error }; },
   };
 }
@@ -141,4 +143,24 @@ describe("video operation replay", () => {
     await expect(fixture.create().restore()).rejects.toThrow(/digest/);
     expect(fixture.commands).toHaveLength(count);
   });
+});
+
+
+test.each(["start", "read"] as const)("pause during deferred %s saves the response but prevents upload and finalize", async boundary => {
+  const fixture = setup(); const coordinator = fixture.create(); await fixture.begin(coordinator);
+  let release!: () => void; const waiting = new Promise<void>(resolve => { release = resolve; });
+  let entered!: () => void; const started = new Promise<void>(resolve => { entered = resolve; });
+  const execute = fixture.transport.execute; const read = fixture.transport.read;
+  if (boundary === "start") fixture.transport.execute = async command => {
+    if (command.kind === "start") { entered(); await waiting; } return execute(command);
+  };
+  else fixture.transport.read = async id => { entered(); await waiting; return read(id); };
+  const operation = coordinator.submit(); const stopped = expect(operation).rejects.toThrow(/paused/);
+  await started; coordinator.pauseUpload(); release(); await stopped;
+  expect(coordinator.current?.snapshot?.submission_id).toBe("submission");
+  expect(coordinator.current?.pending).toBeNull(); expect(fixture.fetchImpl).not.toHaveBeenCalled();
+  expect(fixture.commands.some(command => command.kind === "finalize")).toBe(false);
+  fixture.transport.execute = execute; fixture.transport.read = read;
+  await expect(coordinator.submit()).rejects.toThrow("Lost finalize response");
+  expect(fixture.fetchImpl).toHaveBeenCalledTimes(1);
 });

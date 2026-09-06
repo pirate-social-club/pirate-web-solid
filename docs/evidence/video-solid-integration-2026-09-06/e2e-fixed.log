@@ -1,0 +1,16 @@
+$ tsc --noEmit -p e2e/tsconfig.json && playwright test -c e2e --list
+Listing tests:
+  [chromium] › auth.spec.ts:10:3 › staging Privy session › persists the same-origin authenticated shell
+  [chromium] › post-compose-rejection.spec.ts:11:3 › post rejection without route authority › turns the fixture 404 into discard-and-edit recovery
+  [chromium] › post-compose.spec.ts:14:3 › post to a route-authorized community › publishes through the exact replay transport and appears in the feed
+  [chromium] › smoke.spec.ts:36:5 › staging route smoke › / renders without browser errors
+  [chromium] › smoke.spec.ts:36:5 › staging route smoke › /auth/sign-in renders without browser errors
+  [chromium] › smoke.spec.ts:36:5 › staging route smoke › /verify/very renders without browser errors
+  [chromium] › smoke.spec.ts:36:5 › staging route smoke › /verify/zkpassport renders without browser errors
+  [chromium] › smoke.spec.ts:52:3 › staging route smoke › homepage sign-in control opens the global ceremony
+  [chromium] › smoke.spec.ts:58:3 › staging route smoke › route CSPs retain the verification origins
+  [chromium] › very-join.manual-verify.spec.ts:15:3 › Very join manual completion evidence › reads the completed membership without issuing a write
+  [chromium] › very-join.spec.ts:14:3 › Very join scan boundary › mounts the pinned desktop widget and stops before the palm scan
+Total: 11 tests in 6 files
+
+exit=0

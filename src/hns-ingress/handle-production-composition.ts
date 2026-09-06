@@ -9,8 +9,8 @@ import {
 } from "./handle-composition.ts";
 import { makeHnsPublicPersonaClientV1, type HnsPublicPersonaFetch } from "./handle-public-persona-client.ts";
 import {
-  HNS_HANDLE_PERSONA_PUBLIC_PROFILE_V1,
-  HNS_HANDLE_PERSONA_PUBLIC_PROFILE_V1_SHA256,
+  HNS_HANDLE_PERSONA_PUBLIC_PROFILE_V2,
+  HNS_HANDLE_PERSONA_PUBLIC_PROFILE_V2_SHA256,
 } from "./handle-wire.ts";
 import { parseHnsForwarderV3KeyRegistry } from "./forwarder-key-registry.ts";
 import { HnsIngressFailure, type HnsForwarderClockV1 } from "./wire.ts";
@@ -113,8 +113,8 @@ export async function makeProductionHnsHandlePersonaIngressCompositionV1(input: 
       ...(input.publicPersonaFetch === undefined ? {} : { fetchImpl: input.publicPersonaFetch }),
     });
     return await makeHnsHandlePersonaIngressCompositionV1({
-      profile: HNS_HANDLE_PERSONA_PUBLIC_PROFILE_V1,
-      profileSha256: HNS_HANDLE_PERSONA_PUBLIC_PROFILE_V1_SHA256,
+      profile: HNS_HANDLE_PERSONA_PUBLIC_PROFILE_V2,
+      profileSha256: HNS_HANDLE_PERSONA_PUBLIC_PROFILE_V2_SHA256,
       ingressOrigin,
       canonicalOrigin,
       accessJwtValidator,

@@ -2,11 +2,12 @@
 // Local fixtures only. No production route, credential or provider request.
 import { createServer } from "vite";
 import solid from "@solidjs/vite-plugin";
+import tailwindcss from "@tailwindcss/vite";
 import path from "node:path";
 import { readFile } from "node:fs/promises";
 const root = path.resolve(import.meta.dirname, "..");
 const server = await createServer({
-  root, configFile: false, plugins: [solid({ ssr: false }), {
+  root, configFile: false, plugins: [tailwindcss(), solid({ ssr: false }), {
     name: "video-proof-page", configureServer(server) {
       server.middlewares.use((req, res, next) => {
         if (req.url?.startsWith("/__video-media/")) {

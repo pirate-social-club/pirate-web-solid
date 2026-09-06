@@ -14,6 +14,7 @@ import { NAMES_READY } from "./community-names-settings-fixtures";
 import type { OwnerSettingsRouteState } from "./owner-settings-route-model";
 import type { CommunityNamespaceSettingsPort } from "./owner-settings-model";
 import { OwnerSettingsRouteView } from "./owner-settings-route-view";
+import { createCommunityNamespaceSettingsApi } from "./community-namespace-settings-api";
 
 const disposers: Array<() => void> = [];
 
@@ -177,4 +178,43 @@ describe("OwnerSettingsRouteView", () => {
     await vi.waitFor(() => expect(container.textContent).toContain("Field recordings from the eastern breakwater"));
     expect(getCases).toHaveBeenCalledWith({ communityId: "community_midnight", view: "open" });
   });
+});
+
+
+test("address navigation and a reload rediscover the account import without a URL locator", async () => {
+  const discovery = vi.fn(async () => ({
+    community_id: success.communityId, attachment: null,
+    session: { community_id: success.communityId, root_import_session_id: "session-navigation",
+      root_label: "midnight", revision: 3, status: "awaiting_owner_update",
+      publication_check_pending: true, retry_after_seconds: 30,
+      publish_plan: { replacement_records: [] } },
+  }));
+  const navigate = vi.fn();
+  const freshApi = () => createCommunityNamespaceSettingsApi({
+    // SAFETY: The fake returns the generated pending discovery fields used by the mounted route.
+    client: { get_communitiesCommunityIdHnsRootImports: discovery } as never,
+    communityId: success.communityId, communityPath: success.communityPath,
+    locator: { read: () => null, write: () => {}, clear: () => {} },
+  });
+  const mountAddress = () => render(() => <OwnerSettingsRouteView
+    namespaceApi={freshApi()} namesApi={namesApi()} moderationApi={moderationApi()}
+    navigate={navigate} requestedSection="namespace" state={success} />);
+  const first = mountAddress();
+  await vi.waitFor(() => expect(first.textContent).toContain("Checking records"));
+  [...first.querySelectorAll<HTMLButtonElement>("button")].find((button) => button.textContent?.trim() === "Names")!.click();
+  expect(navigate).toHaveBeenLastCalledWith("/c/midnight/settings/names");
+  disposers.pop()!();
+  const names = render(() => <OwnerSettingsRouteView namespaceApi={freshApi()} namesApi={namesApi()}
+    moderationApi={moderationApi()} navigate={navigate} requestedSection="names" state={success} />);
+  await vi.waitFor(() => expect(names.textContent).toContain("yourname.midnight"));
+  [...names.querySelectorAll<HTMLButtonElement>("button")].find((button) => button.textContent?.trim() === "Address")!.click();
+  expect(navigate).toHaveBeenLastCalledWith("/c/midnight/settings/namespace");
+  disposers.pop()!();
+  for (let visit = 0; visit < 2; visit += 1) {
+    const returned = mountAddress();
+    await vi.waitFor(() => expect(returned.textContent).toContain("Checking records"));
+    expect(returned.textContent).not.toContain("Handshake root");
+    disposers.pop()!();
+  }
+  expect(discovery).toHaveBeenCalledTimes(3);
 });

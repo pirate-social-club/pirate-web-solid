@@ -16,11 +16,11 @@ import {
   type HnsForwarderLimitsV1,
 } from "./wire.ts";
 
-export const HNS_HANDLE_PERSONA_PUBLIC_PROFILE_V1 =
-  '["pirate-hns-community-handle-persona-public-gateway-v1","pirate-hns-forwarder-v3","handle_persona_v1",["GET","HEAD"],["preserve_signed_root_v1","render_canonical_persona_v1"],[],[],["pirate-hns-solid-handle-host-authority-request-v1","pirate-hns-solid-handle-host-authority-response-v1"],["/internal/hns/solid-handle-host-authority/v1/resolve","/public-personas/:personaId","/p/:personaId"],8192,128,32768,0,16777216,15000,4096,2000,1048576,2000]' as const;
-export const HNS_HANDLE_PERSONA_PUBLIC_PROFILE_V1_BYTES = 447 as const;
-export const HNS_HANDLE_PERSONA_PUBLIC_PROFILE_V1_SHA256 =
-  "156487e5aff120efa08c1af0dce5a54d42ce32100f1cfb93de350ceac446c37b" as const;
+export const HNS_HANDLE_PERSONA_PUBLIC_PROFILE_V2 =
+  '["pirate-hns-community-handle-persona-public-gateway-v2","pirate-hns-forwarder-v3","handle_persona_v1",["GET","HEAD"],["preserve_signed_root_v1","render_canonical_persona_v1"],[],[],["pirate-hns-solid-handle-host-authority-request-v1","pirate-hns-solid-handle-host-authority-response-v1"],["/internal/hns/solid-handle-host-authority/v1/resolve","/public-personas/:personaId","/p/:personaId"],8192,128,32768,0,16777216,15000,4096,4000,1048576,2000]' as const;
+export const HNS_HANDLE_PERSONA_PUBLIC_PROFILE_V2_BYTES = 447 as const;
+export const HNS_HANDLE_PERSONA_PUBLIC_PROFILE_V2_SHA256 =
+  "b4440ab21ae73a73d3ab3549bcaaa66c1e27891e22cdd308d4377b0b6eb549dc" as const;
 export const HNS_HANDLE_PUBLIC_PERSONA_MAX_BYTES = 1_048_576 as const;
 export const HNS_HANDLE_PUBLIC_PERSONA_DEADLINE_MS = 2_000 as const;
 

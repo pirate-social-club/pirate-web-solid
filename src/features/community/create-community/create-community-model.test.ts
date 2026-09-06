@@ -53,7 +53,7 @@ describe("create community model", () => {
   // exactly as the capability catalog supplied it.
   test("commits the offered requirement verbatim", () => {
     const offered: AdditionalGateRequirement = { requirement: "reputation-score", provider: "passport", minimumScore: 20 };
-    const draft = withAdditionalRequirements(createEmptyDraft("persona_1"), [offered]);
+    const draft = withAdditionalRequirements(createEmptyDraft({ kind: "existing", personaId: "persona_1" }), [offered]);
     expect(draftGatePolicy(draft).accessPaths[0].requirements).toEqual([
       HUMAN_VERIFICATION,
       offered,
@@ -61,22 +61,24 @@ describe("create community model", () => {
   });
 
   test("defaults to Palm scan with no additional requirements", () => {
-    const draft = createEmptyDraft("persona_1");
+    const draft = createEmptyDraft({ kind: "existing", personaId: "persona_1" });
     expect(draft.name).toBe("");
     expect(draft.additionalRequirements).toEqual([]);
     expect(gateKindsOf(draftGatePolicy(draft))).toEqual(["human-verification"]);
   });
 
   test("validates a trimmed name", () => {
-    const draft = createEmptyDraft("persona_1");
+    const draft = createEmptyDraft({ kind: "existing", personaId: "persona_1" });
     expect(validateDraft(draft, copy)).toEqual({
       valid: false,
       nameError: "Name is required.",
+      personaError: null,
     });
     expect(validateDraft({ ...draft, name: "   " }, copy).valid).toBe(false);
     expect(validateDraft({ ...draft, name: "  Signal Room  " }, copy)).toEqual({
       valid: true,
       nameError: null,
+      personaError: null,
     });
   });
 
@@ -87,7 +89,7 @@ describe("create community model", () => {
     expect(hasRequirement([score8], score20)).toBe(false);
     expect(hasRequirement([score8, score20], score20)).toBe(true);
 
-    const draft = withAdditionalRequirements(createEmptyDraft("persona_1"), [score8, score20]);
+    const draft = withAdditionalRequirements(createEmptyDraft({ kind: "existing", personaId: "persona_1" }), [score8, score20]);
     expect(draftGatePolicy(draft).accessPaths[0].requirements).toEqual([
       HUMAN_VERIFICATION,
       score8,
@@ -96,10 +98,10 @@ describe("create community model", () => {
   });
 
   test("updates draft fields through the pure helpers", () => {
-    const draft = createEmptyDraft("persona_1");
+    const draft = createEmptyDraft({ kind: "existing", personaId: "persona_1" });
     expect(withDraftName(draft, "Signal Room").name).toBe("Signal Room");
     expect(withDraftDescription(draft, "").description).toBeNull();
     expect(withDraftDescription(draft, "A room").description).toBe("A room");
-    expect(withDraftPersona(draft, "persona_2").personaId).toBe("persona_2");
+    expect(withDraftPersona(draft, { kind: "existing", personaId: "persona_2" }).persona).toEqual({ kind: "existing", personaId: "persona_2" });
   });
 });

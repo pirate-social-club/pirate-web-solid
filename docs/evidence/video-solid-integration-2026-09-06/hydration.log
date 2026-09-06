@@ -1,0 +1,3 @@
+$ node scripts/hydration-check.mjs
+{"ok":true,"before":"hydration-count: 0","after":"hydration-count: 1","nonceLength":24,"feedState":"error","overlay":true,"signInDialog":true,"form":true,"creationState":"unavailable","usersMeRequests":1,"apiDown":true}
+exit=0

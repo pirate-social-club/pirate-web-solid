@@ -2,9 +2,9 @@ import type { AccessJwtValidatorV1 } from "./access-jwt.ts";
 import type { HnsAuthorityClientV2 } from "./authority-client.ts";
 import {
   CF_ACCESS_ASSERTION_HEADER,
-  HNS_COMMUNITY_APP_INTERACTIVE_PROFILE_V2,
-  HNS_COMMUNITY_APP_INTERACTIVE_PROFILE_V2_BYTES,
-  HNS_COMMUNITY_APP_INTERACTIVE_PROFILE_V2_SHA256,
+  HNS_COMMUNITY_APP_INTERACTIVE_PROFILE_V3,
+  HNS_COMMUNITY_APP_INTERACTIVE_PROFILE_V3_BYTES,
+  HNS_COMMUNITY_APP_INTERACTIVE_PROFILE_V3_SHA256,
   HNS_PROFILE_MAX_REQUEST_BODY_BYTES,
   HnsIngressFailure,
   hasReservedHnsIngressHeader,
@@ -124,9 +124,9 @@ export async function makeHnsCommunityAppIngressCompositionV2(options: {
   const canonicalOrigin = exactHttpsOrigin(options.canonicalOrigin);
   const apiOrigin = exactHttpsOrigin(options.apiOrigin);
   if (
-    options.profile !== HNS_COMMUNITY_APP_INTERACTIVE_PROFILE_V2 ||
-    options.profileSha256 !== HNS_COMMUNITY_APP_INTERACTIVE_PROFILE_V2_SHA256 ||
-    encoder.encode(options.profile).byteLength !== HNS_COMMUNITY_APP_INTERACTIVE_PROFILE_V2_BYTES ||
+    options.profile !== HNS_COMMUNITY_APP_INTERACTIVE_PROFILE_V3 ||
+    options.profileSha256 !== HNS_COMMUNITY_APP_INTERACTIVE_PROFILE_V3_SHA256 ||
+    encoder.encode(options.profile).byteLength !== HNS_COMMUNITY_APP_INTERACTIVE_PROFILE_V3_BYTES ||
     (await sha256Hex(encoder.encode(options.profile))) !== options.profileSha256 ||
     !credentialPattern.test(options.apiAccessClientId) ||
     !credentialPattern.test(options.apiAccessClientSecret) ||

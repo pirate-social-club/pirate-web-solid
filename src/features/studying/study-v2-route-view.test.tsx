@@ -52,6 +52,36 @@ afterEach(() => {
 });
 
 describe("Study v2 production route", () => {
+  test("several community-bound personas have no default", async () => {
+    const createSession = vi.fn(() => new Promise<StudySession>(() => {}));
+    const container = render(() => <StudyV2RouteView api={studyApi(createSession)} postId="post-1"
+      resolveSession={async () => ({ status: "authenticated", userId: "user-1", personas:
+        ["first", "second"].map(personaId => ({
+          personaId, displayName: personaId, avatarRef: null, primaryPublicHandle: null,
+          communityBinding: { communityId: "community-1", bindingSource: "first_membership" as const },
+        })),
+      })}
+    />);
+    await vi.waitFor(() => expect(container.textContent).toContain("Speaking practice only"));
+    const start = [...container.querySelectorAll("button")].find(button => button.textContent?.trim() === "Start")!;
+    expect(start.disabled).toBe(true);
+    start.click();
+    expect(createSession).not.toHaveBeenCalled();
+  });
+
+  test("an elsewhere binding cannot be selected for Study", async () => {
+    const createSession = vi.fn(() => new Promise<StudySession>(() => {}));
+    const container = render(() => <StudyV2RouteView api={studyApi(createSession)} postId="post-1"
+      resolveSession={async () => ({ status: "authenticated", userId: "user-1", personas: [{
+        personaId: "elsewhere", displayName: "Elsewhere", avatarRef: null, primaryPublicHandle: null,
+        communityBinding: { communityId: "community-other", bindingSource: "first_membership" as const },
+      }] })}
+    />);
+    await vi.waitFor(() => expect(container.textContent).toContain("Join this community"));
+    expect(createSession).not.toHaveBeenCalled();
+    expect(container.textContent).not.toContain("Create a new persona");
+  });
+
   test("does not load member Study availability for an anonymous session", async () => {
     const api = studyApi();
     const loadAvailability = vi.spyOn(api, "loadAvailability");
@@ -75,6 +105,7 @@ describe("Study v2 production route", () => {
             displayName: "Learner",
             personaId: "persona-1",
             primaryPublicHandle: "learner",
+            communityBinding: { communityId: "community-1", bindingSource: "first_membership" },
           }],
           status: "authenticated",
           userId: "user-1",

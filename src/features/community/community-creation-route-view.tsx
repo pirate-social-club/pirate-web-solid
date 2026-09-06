@@ -10,7 +10,13 @@ import {
 } from "../../api/session";
 import { Button, Card, CardContent, FormNote, Spinner, Type } from "../../design-system";
 import { preloadGlobalSignInAssets, prepareGlobalSignIn, requestGlobalSignIn } from "../auth/global-sign-in-host";
-import { OperationPersonaControl } from "../identity/operation-persona-control/operation-persona-control";
+import {
+  defaultCommunityPersonaChoice,
+  communityCreationCandidates,
+  PERSONA_CREATION_UNAVAILABLE,
+  type CommunityPersonaChoice,
+} from "../identity/community-persona-choice";
+import { CommunityPersonaChoiceControl } from "../identity/community-persona-choice-sheet";
 import {
   CommunityCreationApiError,
   createCommunityCreationApi,
@@ -62,6 +68,7 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
   const commandKeys = new Map<string, string>();
   let active = true;
   let sessionStarted = false;
+  let refreshingAfterCommit = false;
   let sessionRequest = 0;
 
   const navigate = (href: string, options?: { replace?: boolean }) => {
@@ -98,8 +105,10 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
       .then((result) => {
         if (!active || request !== sessionRequest) return;
         setSession(result);
-        if (result !== "anonymous" && result.personas.length > 0) {
-          setDraft(createEmptyDraft(result.personas[0]!.personaId));
+        if (result !== "anonymous") {
+          // Minting stays unavailable until post-mint wallet activation exists.
+          const choice = defaultCommunityPersonaChoice(communityCreationCandidates(result.personas));
+          setDraft(createEmptyDraft(choice?.kind === "existing" ? choice : undefined));
           const resumeId = props.intentId?.trim();
           if (resumeId) void loadIntent(resumeId);
         }
@@ -127,6 +136,7 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
 
   if (typeof window !== "undefined") {
     onCleanup(onSessionRefreshed(() => {
+      if (refreshingAfterCommit) return;
       setSession("resolving");
       startSessionResolution();
     }));
@@ -149,6 +159,7 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
     intentId: string,
     navigateOnSuccess = false,
   ): Promise<void> => {
+    if (intent()?.nextAction.kind === "blocked") return;
     setMessage("");
     try {
       const committed = await api.commitIntent({
@@ -159,6 +170,10 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
       if (!active) return;
       setIntent(committed);
       setStaleRevision(null);
+      if (committed.committedHref) {
+        refreshingAfterCommit = true;
+        try { refreshSession(); } finally { refreshingAfterCommit = false; }
+      }
       if (navigateOnSuccess && committed.committedHref) navigate(committed.committedHref);
     } catch (error) {
       if (!active) return;
@@ -174,6 +189,10 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
   const submit = async () => {
     const currentDraft = draft();
     if (!currentDraft || busy()) return;
+    if (currentDraft.persona?.kind !== "existing") {
+      setMessage(PERSONA_CREATION_UNAVAILABLE);
+      return;
+    }
     setBusy(true);
     setMessage("");
     try {
@@ -205,18 +224,19 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
   };
 
   const currentSession = () => signedIn(session());
-  const personas = () => currentSession()?.personas ?? [];
+  const personas = () => communityCreationCandidates(currentSession()?.personas ?? []);
   /**
    * The route must always settle on one named state. `resolving` is only the
    * pre-hydration value, so a stuck spinner is observable as a defect rather
-   * than an indefinite loading surface.
+   * than an indefinite loading surface. With no eligible persona the form
+   * explains the unavailable mint path and cannot submit.
    */
-  const creationState = (): "persona-required" | "ready" | "resolving" | "signed-out" | "unavailable" => {
+  const creationState = (): "ready" | "resolving" | "signed-out" | "unavailable" => {
     const current = session();
     if (current === "resolving") return "resolving";
     if (current === "failed") return "unavailable";
     if (current === "anonymous") return "signed-out";
-    return personas().length > 0 ? "ready" : "persona-required";
+    return "ready";
   };
 
   return (
@@ -252,17 +272,7 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
             </CardContent></Card>
           </div>
         )}>
-          <Show when={creationState() === "ready"} fallback={(
-            <div class="mx-auto flex min-h-[24rem] max-w-xl items-center px-5">
-              <Card class="w-full"><CardContent class="space-y-4 p-6">
-                <Type as="h1" variant="h2">Create a persona first</Type>
-                <Type as="p" class="text-muted-foreground" variant="body">
-                  A community needs one active public persona to present its owner role.
-                </Type>
-                <Button onClick={() => navigate("/settings")}>Open settings</Button>
-              </CardContent></Card>
-            </div>
-          )}>
+          <Show when={creationState() === "ready"}>
             <Show when={intent()} fallback={(
               <Show when={draft()}>
                 {(currentDraft) => (
@@ -276,16 +286,15 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
                       onDraftChange={(patch) => setDraft((current) => current ? { ...current, ...patch } : current)}
                       onSubmit={() => void submit()}
                       personaControl={(
-                        <OperationPersonaControl
+                        <CommunityPersonaChoiceControl
+                          createNewUnavailable
+                          choice={currentDraft().persona}
+                          createNewLabel="Create a new owner persona"
                           label="Community profile"
-                          personas={personas().map((persona) => ({
-                            avatarSrc: persona.avatarRef,
-                            displayName: persona.displayName ?? persona.primaryPublicHandle ?? persona.personaId,
-                            personaId: persona.personaId,
-                            publicHandle: persona.primaryPublicHandle,
-                          }))}
-                          selectedPersonaId={currentDraft().personaId}
-                          onSelect={(personaId) => setDraft((current) => current ? { ...current, personaId } : current)}
+                          note="Your account owns this community. The persona you choose is its public face here; your private Study progress and streaks stay with your account either way."
+                          onChoose={(choice: CommunityPersonaChoice) => setDraft((current) => current ? { ...current, persona: choice } : current)}
+                          personas={personas()}
+                          placeholder="Choose a persona"
                         />
                       )}
                       showMediaFields={false}

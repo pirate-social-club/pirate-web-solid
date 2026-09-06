@@ -21,6 +21,7 @@ const personasPage = {
     {
       persona_id: "persona-active",
       status: "active",
+      community_binding: { community_id: "community-a", binding_source: "first_membership" },
       profile: {
         display_name: "Active Pirate",
         avatar_ref: "avatar-1",
@@ -30,11 +31,17 @@ const personasPage = {
     {
       persona_id: "persona-retired",
       status: "retired",
+      community_binding: { community_id: "community-a", binding_source: "first_membership" },
       profile: {
         display_name: "Retired Pirate",
         avatar_ref: null,
         primary_public_handle: null,
       },
+    },
+    {
+      persona_id: "persona-suspended", status: "suspended",
+      community_binding: { community_id: "community-a", binding_source: "first_membership" },
+      profile: { display_name: "Suspended", avatar_ref: null, primary_public_handle: null },
     },
   ],
 };
@@ -44,6 +51,7 @@ const activePersonaProjection = {
   displayName: "Active Pirate",
   avatarRef: "avatar-1",
   primaryPublicHandle: "active-pirate",
+  communityBinding: { communityId: "community-a", bindingSource: "first_membership" },
 };
 
 describe("browser session resolution", () => {

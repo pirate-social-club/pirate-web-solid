@@ -1,0 +1,735 @@
+$ storybook build
+
+┌  Building storybook v10.5.10
+│
+◇  Cleaning outputDir: storybook-static
+│
+◇  Loading presets
+│
+◇  Building manager..
+│
+●  Building open services..
+│
+●  Building preview..
+│  Vite vite v8.2.1 building client environment for production...
+[2Ktransforming...✓ 2255 modules transformed.
+rendering chunks...
+computing gzip size...
+│  Vite storybook-static/assets/poster-3-CZoA022h.jpg
+│  4.19 kB
+│  storybook-static/assets/cosmos-Bs9ebOVp.png
+│  4.59 kB
+│  storybook-static/assets/poster-2-CmYipMLZ.jpg
+│  5.17 kB
+│  storybook-static/assets/clip-1-CAImlZFY.mp4
+│  12.52 kB
+│  storybook-static/assets/poster-1-CZOgKDDx.jpg
+│  14.96 kB
+│  storybook-static/iframe.html
+│  20.30 kB │ gzip:   5.56 kB
+│  storybook-static/assets/logo_ghost_sm-D1_cTyok.png
+│  26.47 kB
+│  storybook-static/assets/karaoke-practice-surface-BjEBwSIp.css
+│  2.75 kB │ gzip:   0.89 kB
+│  storybook-static/assets/iframe-jaJ9k1ls.css
+│  115.25 kB │ gzip:  18.48 kB
+│  storybook-static/assets/iframe-DLAWj8O5.js
+│  0.04 kB │ gzip:   0.06 kB
+│  storybook-static/assets/design-system-x4OZmwog.js
+│  0.13 kB │ gzip:   0.13 kB
+│  storybook-static/assets/BLTiiqMx-BcNxz9z0.js
+│  0.14 kB │ gzip:   0.13 kB
+│  storybook-static/assets/clip-1-DlrevkHA.js
+│  0.16 kB │ gzip:   0.16 kB
+│  storybook-static/assets/DocsRenderer-JROSPFPF-CvPwpag9.js
+│  0.16 kB │ gzip:   0.15 kB
+│  storybook-static/assets/controlled-C5lpiMUc.js
+│  0.21 kB │ gzip:   0.18 kB
+│  storybook-static/assets/5-BHfdGI-C9dPQgtI.js
+│  0.23 kB │ gzip:   0.18 kB
+│  storybook-static/assets/formatter-L2YTDE3Q-DApCo0BY.js
+│  0.25 kB │ gzip:   0.21 kB
+│  storybook-static/assets/chunk-QQBDHPVZ-DC5n6Pix.js
+│  0.32 kB │ gzip:   0.20 kB
+│  storybook-static/assets/D6_aBB9R-H-lMsGNw.js
+│  0.33 kB │ gzip:   0.25 kB
+│  storybook-static/assets/fixtures-BdzlpU07.js
+│  0.33 kB │ gzip:   0.24 kB
+│  storybook-static/assets/combineProps-Bk2xCflC.js
+│  0.35 kB │ gzip:   0.26 kB
+│  storybook-static/assets/sidebar.shared-Cw_MLAE_.js
+│  0.37 kB │ gzip:   0.27 kB
+│  storybook-static/assets/polymorphic-BaetyW-M.js
+│  0.41 kB │ gzip:   0.29 kB
+│  storybook-static/assets/CF70_KE4-EUiH0GQN.js
+│  0.41 kB │ gzip:   0.25 kB
+│  storybook-static/assets/DV_ixT98-h_reVOSj.js
+│  0.42 kB │ gzip:   0.29 kB
+│  storybook-static/assets/dist-DW1osD8_.js
+│  0.56 kB │ gzip:   0.38 kB
+│  storybook-static/assets/react-Bl2r1tuC.js
+│  0.58 kB │ gzip:   0.34 kB
+│  storybook-static/assets/eventListener-DnpIH3yg.js
+│  0.61 kB │ gzip:   0.36 kB
+│  storybook-static/assets/media-query-Dj4t0b4Q.js
+│  0.63 kB │ gzip:   0.37 kB
+│  storybook-static/assets/BBjsoOtd-CofGqwMk.js
+│  0.63 kB │ gzip:   0.41 kB
+│  storybook-static/assets/QhqEt4aD-swS9Bowt.js
+│  0.66 kB │ gzip:   0.40 kB
+│  storybook-static/assets/chunk-UAWMPV5J-_VQykhfG.js
+│  0.74 kB │ gzip:   0.45 kB
+│  storybook-static/assets/community-persona-choice-TLYY1DVn.js
+│  0.91 kB │ gzip:   0.44 kB
+│  storybook-static/assets/separator-GqPIrLC7.js
+│  0.93 kB │ gzip:   0.51 kB
+│  storybook-static/assets/label-CORrMU7d.js
+│  0.99 kB │ gzip:   0.56 kB
+│  storybook-static/assets/dist-CjP-J3ql.js
+│  1.03 kB │ gzip:   0.50 kB
+│  storybook-static/assets/story-layout-l265Kz4o.js
+│  1.06 kB │ gzip:   0.46 kB
+│  storybook-static/assets/storybook-smoke.stories-C83_Ik6r.js
+│  1.06 kB │ gzip:   0.59 kB
+│  storybook-static/assets/DUp9FXTP-DScrNTff.js
+│  1.08 kB │ gzip:   0.55 kB
+│  storybook-static/assets/dialog-CjUbgnbp.js
+│  1.08 kB │ gzip:   0.50 kB
+│  storybook-static/assets/dist-CMtSCnxP.js
+│  1.10 kB │ gzip:   0.59 kB
+│  storybook-static/assets/rolldown-runtime-DkW27tQK.js
+│  1.19 kB │ gzip:   0.67 kB
+│  storybook-static/assets/dist-h6cqND8T.js
+│  1.20 kB │ gzip:   0.62 kB
+│  storybook-static/assets/comment-pill-rUImlcrD.js
+│  1.21 kB │ gzip:   0.68 kB
+│  storybook-static/assets/preload-helper-wdlQj8DP.js
+│  1.31 kB │ gzip:   0.74 kB
+│  storybook-static/assets/alert-dialog-JzX-XDpu.js
+│  1.33 kB │ gzip:   0.62 kB
+│  storybook-static/assets/pill-button-TdrFu82x.js
+│  1.38 kB │ gzip:   0.73 kB
+│  storybook-static/assets/booking-format-Dg07GDzH.js
+│  1.44 kB │ gzip:   0.61 kB
+│  storybook-static/assets/skeleton-C0YrRzkR.js
+│  1.46 kB │ gzip:   0.81 kB
+│  storybook-static/assets/DvspU6cJ-CG4a6RoG.js
+│  1.50 kB │ gzip:   0.76 kB
+│  storybook-static/assets/dialog-footer-BhrF7mFb.js
+│  1.51 kB │ gzip:   0.68 kB
+│  storybook-static/assets/card-c1tX_sdo.js
+│  1.57 kB │ gzip:   0.56 kB
+│  storybook-static/assets/media-control-button-dzqSGDhw.js
+│  1.73 kB │ gzip:   0.83 kB
+│  storybook-static/assets/chip-ZksGG25P.js
+│  1.79 kB │ gzip:   0.85 kB
+│  storybook-static/assets/community-moderation-save-footer-Ccwvdkv6.js
+│  1.83 kB │ gzip:   0.86 kB
+│  storybook-static/assets/auto-resize-textarea.stories-quSGIjJJ.js
+│  1.87 kB │ gzip:   0.90 kB
+│  storybook-static/assets/icon-button-CLZhcJkp.js
+│  1.89 kB │ gzip:   0.83 kB
+│  storybook-static/assets/OK7882aq-CxAFV_bA.js
+│  1.89 kB │ gzip:   0.98 kB
+│  storybook-static/assets/action-banner-CJImRFr4.js
+│  1.92 kB │ gzip:   0.89 kB
+│  storybook-static/assets/label.stories-DjheP_Mg.js
+│  1.99 kB │ gzip:   0.89 kB
+│  storybook-static/assets/Motion-DmChyo-I.js
+│  2.02 kB │ gzip:   0.88 kB
+│  storybook-static/assets/radio-indicator.stories-DXVY61YC.js
+│  2.03 kB │ gzip:   0.82 kB
+│  storybook-static/assets/karaoke-leaderboard.stories-DgyqNaCo.js
+│  2.06 kB │ gzip:   0.71 kB
+│  storybook-static/assets/comment-pill.stories-DR6mncoH.js
+│  2.09 kB │ gzip:   0.91 kB
+│  storybook-static/assets/flat-tabs-BFCi6XUt.js
+│  2.15 kB │ gzip:   0.91 kB
+│  storybook-static/assets/illustrated-state-BVLquS7t.js
+│  2.19 kB │ gzip:   1.01 kB
+│  storybook-static/assets/studying-route-states.stories-Cx9SdyLD.js
+│  2.19 kB │ gzip:   0.88 kB
+│  storybook-static/assets/media-shell.stories-C8W8YRP4.js
+│  2.21 kB │ gzip:   0.98 kB
+│  storybook-static/assets/karaoke-route-states.stories-CiYM0bKm.js
+│  2.21 kB │ gzip:   0.88 kB
+│  storybook-static/assets/badged-circle-Dn_7tSeO.js
+│  2.22 kB │ gzip:   0.88 kB
+│  storybook-static/assets/BlSoAAAV-BuSlcV--.js
+│  2.22 kB │ gzip:   0.96 kB
+│  storybook-static/assets/submit-progress-flow.stories-QW5QnA2Y.js
+│  2.23 kB │ gzip:   1.05 kB
+│  storybook-static/assets/sheet-BUCDBmh_.js
+│  2.24 kB │ gzip:   0.94 kB
+│  storybook-static/assets/community-avatar-BKylERIh.js
+│  2.28 kB │ gzip:   1.05 kB
+│  storybook-static/assets/confirm-dialog-DTnEMKHu.js
+│  2.30 kB │ gzip:   0.81 kB
+│  storybook-static/assets/waveform-BdxwqspC.js
+│  2.32 kB │ gzip:   1.09 kB
+│  storybook-static/assets/stacked-section-nav-Q8dp-lIf.js
+│  2.51 kB │ gzip:   1.11 kB
+│  storybook-static/assets/dist-BBnQV4c0.js
+│  2.53 kB │ gzip:   1.31 kB
+│  storybook-static/assets/copy-field.stories-Bzda28kM.js
+│  2.54 kB │ gzip:   1.07 kB
+│  storybook-static/assets/status-card-NyOMUPoH.js
+│  2.58 kB │ gzip:   1.14 kB
+│  storybook-static/assets/Cai1J0En-BkjMN3Hv.js
+│  2.61 kB │ gzip:   0.92 kB
+│  storybook-static/assets/checkbox-card-D5O0DNeQ.js
+│  2.68 kB │ gzip:   1.17 kB
+│  storybook-static/assets/global-sign-in-host--O_1yyNp.js
+│  2.70 kB │ gzip:   1.14 kB
+│  storybook-static/assets/stack-page-shell.stories-C-yKDfPu.js
+│  2.72 kB │ gzip:   0.90 kB
+│  storybook-static/assets/action-footer-shell-DNv6it-2.js
+│  2.82 kB │ gzip:   1.24 kB
+│  storybook-static/assets/input-otp.stories-Drzkz-2X.js
+│  2.89 kB │ gzip:   1.19 kB
+│  storybook-static/assets/wallet-hub-model-DymFNJSf.js
+│  2.92 kB │ gzip:   1.17 kB
+│  storybook-static/assets/community-moderation-policy.stories-CCGDiaq7.js
+│  2.93 kB │ gzip:   1.00 kB
+│  storybook-static/assets/tooltip.stories-uboliTe8.js
+│  2.96 kB │ gzip:   1.20 kB
+│  storybook-static/assets/editable-number-input.stories-B911zNtG.js
+│  2.98 kB │ gzip:   1.13 kB
+│  storybook-static/assets/layout-shell-Ch-lqKKm.js
+│  3.02 kB │ gzip:   1.07 kB
+│  storybook-static/assets/spinner.stories-DH0VfZ3J.js
+│  3.02 kB │ gzip:   1.09 kB
+│  storybook-static/assets/ccip-DioFM4lU.js
+│  3.12 kB │ gzip:   1.47 kB
+│  storybook-static/assets/form-reset-listener-DeftWMpe.js
+│  3.27 kB │ gzip:   1.38 kB
+│  storybook-static/assets/form-layout.stories-BvIybxk-.js
+│  3.29 kB │ gzip:   1.21 kB
+│  storybook-static/assets/prefix-input.stories-Bch3AGv9.js
+│  3.32 kB │ gzip:   1.21 kB
+│  storybook-static/assets/button-B0x5M3Bn.js
+│  3.34 kB │ gzip:   1.29 kB
+│  storybook-static/assets/status-card.stories-BnAvMA6B.js
+│  3.35 kB │ gzip:   1.04 kB
+│  storybook-static/assets/input-otp-CDwsNScX.js
+│  3.39 kB │ gzip:   1.61 kB
+│  storybook-static/assets/Spacing-C0FsAVUf.js
+│  3.39 kB │ gzip:   1.06 kB
+│  storybook-static/assets/skeleton.stories-BeJajLyr.js
+│  3.40 kB │ gzip:   1.20 kB
+│  storybook-static/assets/_u64-BlfFPM8N.js
+│  3.40 kB │ gzip:   1.47 kB
+│  storybook-static/assets/activity-progress-header-c3fybmzj.js
+│  3.42 kB │ gzip:   1.46 kB
+│  storybook-static/assets/separator.stories-iF2DKey3.js
+│  3.42 kB │ gzip:   1.23 kB
+│  storybook-static/assets/waveform.stories-Be4atT3A.js
+│  3.44 kB │ gzip:   1.25 kB
+│  storybook-static/assets/content-rail-shell.stories-BWGTH3qI.js
+│  3.53 kB │ gzip:   1.26 kB
+│  storybook-static/assets/add-to-calendar.stories-XiK75Gva.js
+│  3.53 kB │ gzip:   1.46 kB
+│  storybook-static/assets/pill-button.stories-CP0RmpbG.js
+│  3.55 kB │ gzip:   1.20 kB
+│  storybook-static/assets/mobile-route-shell.stories-DvjXDmSE.js
+│  3.56 kB │ gzip:   1.30 kB
+│  storybook-static/assets/card.stories-Ddfl0amf.js
+│  3.58 kB │ gzip:   1.27 kB
+│  storybook-static/assets/page-shell-DDahfZMq.js
+│  3.58 kB │ gzip:   1.03 kB
+│  storybook-static/assets/form-layout-CdL9XXna.js
+│  3.59 kB │ gzip:   1.20 kB
+│  storybook-static/assets/badged-circle.stories-BoS7c0jW.js
+│  3.59 kB │ gzip:   1.26 kB
+│  storybook-static/assets/karaoke-leaderboard-CbnKVXRL.js
+│  3.68 kB │ gzip:   1.46 kB
+│  storybook-static/assets/avatar-B2bHlRTb.js
+│  3.68 kB │ gzip:   1.59 kB
+│  storybook-static/assets/slot-picker-DcV_eq3P.js
+│  3.72 kB │ gzip:   1.61 kB
+│  storybook-static/assets/item-HfT97oy1.js
+│  3.77 kB │ gzip:   1.01 kB
+│  storybook-static/assets/community-moderation-settings-fixtures-TKkTYLSc.js
+│  3.78 kB │ gzip:   1.31 kB
+│  storybook-static/assets/chunk-242VQQM5-BvAPezJ5.js
+│  3.78 kB │ gzip:   1.47 kB
+│  storybook-static/assets/layout-shell.stories-fYfaL06d.js
+│  3.80 kB │ gzip:   1.28 kB
+│  storybook-static/assets/type.stories-Djonrqut.js
+│  3.86 kB │ gzip:   1.29 kB
+│  storybook-static/assets/wallet-visuals.stories-COvM0d0q.js
+│  3.89 kB │ gzip:   1.38 kB
+│  storybook-static/assets/checkbox.stories-BtCWEHHV.js
+│  3.92 kB │ gzip:   1.49 kB
+│  storybook-static/assets/mobile-page-header-CD4XZx8O.js
+│  3.93 kB │ gzip:   1.28 kB
+│  storybook-static/assets/utils-Bi4_R5R-.js
+│  4.01 kB │ gzip:   1.64 kB
+│  storybook-static/assets/community-avatar.stories-BbtsrcZm.js
+│  4.06 kB │ gzip:   1.19 kB
+│  storybook-static/assets/sign-in-session-DE3Jffcx.js
+│  4.07 kB │ gzip:   1.83 kB
+│  storybook-static/assets/mobile-page-header.stories-DqBEqSQT.js
+│  4.11 kB │ gzip:   1.36 kB
+│  storybook-static/assets/stacked-section-nav.stories-wZwwwRi7.js
+│  4.15 kB │ gzip:   1.47 kB
+│  storybook-static/assets/studying-route-states-BQnpfUwK.js
+│  4.16 kB │ gzip:   1.33 kB
+│  storybook-static/assets/action-menu-CldcuaU-.js
+│  4.21 kB │ gzip:   1.37 kB
+│  storybook-static/assets/file.stories-B7oOESEt.js
+│  4.27 kB │ gzip:   1.30 kB
+│  storybook-static/assets/feed-side-panel-Bb-Rjd9f.js
+│  4.28 kB │ gzip:   1.61 kB
+│  storybook-static/assets/vote-pill.stories-BoCzWbml.js
+│  4.29 kB │ gzip:   1.39 kB
+│  storybook-static/assets/avatar.stories-BE1svIj5.js
+│  4.38 kB │ gzip:   1.30 kB
+│  storybook-static/assets/formatted-text-C32YKi31.js
+│  4.39 kB │ gzip:   1.88 kB
+│  storybook-static/assets/media-upload-field.stories-D05HRiQn.js
+│  4.39 kB │ gzip:   1.15 kB
+│  storybook-static/assets/i18n-DfrfBGCG.js
+│  4.40 kB │ gzip:   1.80 kB
+│  storybook-static/assets/route-placeholder.stories-CDpOeJGr.js
+│  4.42 kB │ gzip:   1.54 kB
+│  storybook-static/assets/Typography-QakSUxGN.js
+│  4.44 kB │ gzip:   1.18 kB
+│  storybook-static/assets/textarea.stories-DJ3BADBI.js
+│  4.48 kB │ gzip:   1.41 kB
+│  storybook-static/assets/list-row.stories-Do1xgrq8.js
+│  4.48 kB │ gzip:   1.28 kB
+│  storybook-static/assets/page-shell.stories-CKYP5qET.js
+│  4.49 kB │ gzip:   1.34 kB
+│  storybook-static/assets/app-sidebar.stories-BTI-aVlE.js
+│  4.49 kB │ gzip:   1.42 kB
+│  storybook-static/assets/avatar-badge-DnlI2DfD.js
+│  4.50 kB │ gzip:   1.68 kB
+│  storybook-static/assets/input.stories-YDaVj0Gf.js
+│  4.55 kB │ gzip:   1.37 kB
+│  storybook-static/assets/combobox.stories-BRWKAeZa.js
+│  4.56 kB │ gzip:   1.60 kB
+│  storybook-static/assets/mobile-footer-nav-CH9aMJaK.js
+│  4.57 kB │ gzip:   1.68 kB
+│  storybook-static/assets/vote-pill-B2JEO3Vm.js
+│  4.59 kB │ gzip:   1.62 kB
+│  storybook-static/assets/select.stories-C8hKZqea.js
+│  4.62 kB │ gzip:   1.62 kB
+│  storybook-static/assets/sheet.stories-Cbi2dsxn.js
+│  4.64 kB │ gzip:   1.45 kB
+│  storybook-static/assets/mobile-footer-nav.stories-BE6WuEb6.js
+│  4.65 kB │ gzip:   1.46 kB
+│  storybook-static/assets/confirm-dialog.stories-CMu6kATM.js
+│  4.78 kB │ gzip:   1.36 kB
+│  storybook-static/assets/wallet-receive-sheet.stories-BCoWV1Uj.js
+│  4.84 kB │ gzip:   1.41 kB
+│  storybook-static/assets/RadiusElevation-xwFEcIsw.js
+│  4.84 kB │ gzip:   1.15 kB
+│  storybook-static/assets/rules-editor.stories-DJ5n-_uM.js
+│  4.92 kB │ gzip:   1.63 kB
+│  storybook-static/assets/chunk-3LY4VQVK-DkO3Jri7.js
+│  4.93 kB │ gzip:   2.10 kB
+│  storybook-static/assets/spinner-BYuNpVaZ.js
+│  4.99 kB │ gzip:   1.44 kB
+│  storybook-static/assets/text-field.stories-ClUpTvfl.js
+│  4.99 kB │ gzip:   1.34 kB
+│  storybook-static/assets/operation-persona-control-CTyzwzFm.js
+│  5.00 kB │ gzip:   2.13 kB
+│  storybook-static/assets/community-moderation-queue.stories-Dh5AoVFn.js
+│  5.01 kB │ gzip:   1.50 kB
+│  storybook-static/assets/illustrated-state.stories-Ly25WA1f.js
+│  5.01 kB │ gzip:   1.48 kB
+│  storybook-static/assets/feed-side-panel.stories-C_cJwO6B.js
+│  5.02 kB │ gzip:   1.67 kB
+│  storybook-static/assets/community-archive-page-UHX5hbN1.js
+│  5.09 kB │ gzip:   1.88 kB
+│  storybook-static/assets/app-shell-chrome.stories-XBWO3Rp5.js
+│  5.17 kB │ gzip:   1.43 kB
+│  storybook-static/assets/option-card.stories-CScxQr10.js
+│  5.20 kB │ gzip:   1.52 kB
+│  storybook-static/assets/type-If6ktNEK.js
+│  5.26 kB │ gzip:   1.57 kB
+│  storybook-static/assets/post-engagement.stories-BlCtL2nT.js
+│  5.40 kB │ gzip:   2.09 kB
+│  storybook-static/assets/responsive-option-select.stories-BNimK2-D.js
+│  5.45 kB │ gzip:   1.63 kB
+│  storybook-static/assets/action-footer-shell.stories-IIxsjiYE.js
+│  5.46 kB │ gzip:   1.59 kB
+│  storybook-static/assets/slot-picker.stories-B2_hocRy.js
+│  5.47 kB │ gzip:   1.46 kB
+│  storybook-static/assets/community-persona-choice-sheet-CaY29-GV.js
+│  5.48 kB │ gzip:   1.97 kB
+│  storybook-static/assets/booking-summary.stories-Dkr15E9Z.js
+│  5.50 kB │ gzip:   1.65 kB
+│  storybook-static/assets/switch.stories-D2BBIZ59.js
+│  5.51 kB │ gzip:   1.62 kB
+│  storybook-static/assets/checkbox-card.stories-C06tqIPc.js
+│  5.51 kB │ gzip:   1.54 kB
+│  storybook-static/assets/option-card-C3mNgR4n.js
+│  5.51 kB │ gzip:   1.85 kB
+│  storybook-static/assets/operation-persona-control.stories-DVnOPfVE.js
+│  5.51 kB │ gzip:   1.51 kB
+│  storybook-static/assets/community-moderation-save-footer.stories-Di9Us4sT.js
+│  5.55 kB │ gzip:   1.68 kB
+│  storybook-static/assets/pirate-brand-mark.stories-CE8C2Byw.js
+│  5.56 kB │ gzip:   1.52 kB
+│  storybook-static/assets/links-editor.stories-Dc7YsANm.js
+│  5.56 kB │ gzip:   1.78 kB
+│  storybook-static/assets/activity-progress-header.stories-DZgvqEHg.js
+│  5.57 kB │ gzip:   1.44 kB
+│  storybook-static/assets/action-banner.stories-CzuCYPr-.js
+│  5.57 kB │ gzip:   1.47 kB
+│  storybook-static/assets/karaoke-route-states-CQJDnyR8.js
+│  5.58 kB │ gzip:   1.73 kB
+│  storybook-static/assets/Bpz3OGAn-CTDq8hIA.js
+│  5.71 kB │ gzip:   2.19 kB
+│  storybook-static/assets/icon-button.stories-DRq6pMBY.js
+│  5.75 kB │ gzip:   1.54 kB
+│  storybook-static/assets/chip.stories-Ba0JCnHJ.js
+│  5.78 kB │ gzip:   1.62 kB
+│  storybook-static/assets/wallet-receive-sheet-BBvWKqfB.js
+│  5.79 kB │ gzip:   2.40 kB
+│  storybook-static/assets/scrubber.stories-DkF3TLj1.js
+│  5.83 kB │ gzip:   1.83 kB
+│  storybook-static/assets/media-upload-field-DweIRZDU.js
+│  5.94 kB │ gzip:   2.13 kB
+│  storybook-static/assets/flat-tabs.stories-D-Lu6raE.js
+│  5.95 kB │ gzip:   1.73 kB
+│  storybook-static/assets/media-control-button.stories-BXGL2pv3.js
+│  6.00 kB │ gzip:   1.42 kB
+│  storybook-static/assets/dropdown-menu.stories-1EPxhXBx.js
+│  6.01 kB │ gzip:   1.91 kB
+│  storybook-static/assets/post-composer-state-C2yOCAkP.js
+│  6.06 kB │ gzip:   1.96 kB
+│  storybook-static/assets/alert-dialog.stories-Dn6P8csw.js
+│  6.08 kB │ gzip:   1.63 kB
+│  storybook-static/assets/video-feed-karaoke-cta.stories-3UJfERYV.js
+│  6.08 kB │ gzip:   1.67 kB
+│  storybook-static/assets/responsive-option-select-CckjW9bn.js
+│  6.10 kB │ gzip:   2.26 kB
+│  storybook-static/assets/preventScroll-BVPzVlg7.js
+│  6.11 kB │ gzip:   2.42 kB
+│  storybook-static/assets/action-callout-panel.stories-CYPruryN.js
+│  6.20 kB │ gzip:   1.60 kB
+│  storybook-static/assets/song-terms-editor.stories-CtpKymNy.js
+│  6.25 kB │ gzip:   1.38 kB
+│  storybook-static/assets/community-links-editor-page-DdEyg4p3.js
+│  6.28 kB │ gzip:   2.35 kB
+│  storybook-static/assets/popular-communities-rail.stories-BSZtyxOB.js
+│  6.39 kB │ gzip:   1.78 kB
+│  storybook-static/assets/radio-group-bwN_ZlFq.js
+│  6.41 kB │ gzip:   1.81 kB
+│  storybook-static/assets/radio-group.stories-BDmZsXR6.js
+│  6.50 kB │ gzip:   1.75 kB
+│  storybook-static/assets/tooltip-CUZrBoFd.js
+│  6.54 kB │ gzip:   2.63 kB
+│  storybook-static/assets/formatted-textarea.stories-CZFRqH5C.js
+│  6.54 kB │ gzip:   1.78 kB
+│  storybook-static/assets/radio-indicator-uSRZ3Pk4.js
+│  6.66 kB │ gzip:   1.64 kB
+│  storybook-static/assets/textarea-DV4zmMja.js
+│  6.69 kB │ gzip:   1.66 kB
+│  storybook-static/assets/availability-calendar-aFIwcgHQ.js
+│  6.73 kB │ gzip:   2.48 kB
+│  storybook-static/assets/sidebar.stories-BN-FMF3c.js
+│  6.74 kB │ gzip:   2.31 kB
+│  storybook-static/assets/dialog-presentation-CR8v6y3F.js
+│  6.83 kB │ gzip:   2.72 kB
+│  storybook-static/assets/submit-progress.stories-DpDwirPf.js
+│  6.86 kB │ gzip:   1.64 kB
+│  storybook-static/assets/availability-calendar.stories-BNfxnNqf.js
+│  6.94 kB │ gzip:   1.40 kB
+│  storybook-static/assets/button.stories-DpKz2RJx.js
+│  6.97 kB │ gzip:   1.77 kB
+│  storybook-static/assets/auto-resize-textarea-DZUUcY0E.js
+│  7.07 kB │ gzip:   1.82 kB
+│  storybook-static/assets/input-kADEn-TH.js
+│  7.07 kB │ gzip:   1.78 kB
+│  storybook-static/assets/editable-number-input-BJ4-2ygv.js
+│  7.11 kB │ gzip:   1.78 kB
+│  storybook-static/assets/action-menu.stories-C_09u8L8.js
+│  7.39 kB │ gzip:   1.98 kB
+│  storybook-static/assets/RyRdwdaj-B4d5fvqi.js
+│  7.42 kB │ gzip:   3.03 kB
+│  storybook-static/assets/text.stories-rzNc6oQr.js
+│  7.42 kB │ gzip:   1.44 kB
+│  storybook-static/assets/prefix-input-ln5Fq7ly.js
+│  7.47 kB │ gzip:   2.01 kB
+│  storybook-static/assets/karaoke-story-fixtures-B1Wqz7Yv.js
+│  7.48 kB │ gzip:   2.75 kB
+│  storybook-static/assets/react-BZJXY1be.js
+│  7.53 kB │ gzip:   2.88 kB
+│  storybook-static/assets/bookings-list.stories-BsdVooHS.js
+│  7.54 kB │ gzip:   2.55 kB
+│  storybook-static/assets/toast.stories-BTBabymt.js
+│  7.56 kB │ gzip:   2.02 kB
+│  storybook-static/assets/host-booking-page.stories-BU64XokC.js
+│  7.58 kB │ gzip:   2.43 kB
+│  storybook-static/assets/copy-field-PR8K2XG-.js
+│  7.61 kB │ gzip:   2.11 kB
+│  storybook-static/assets/pirate-brand-mark-rJwH0Iwx.js
+│  7.66 kB │ gzip:   2.12 kB
+│  storybook-static/assets/tabs.stories-C4MXExZn.js
+│  7.66 kB │ gzip:   1.76 kB
+│  storybook-static/assets/formatted-text.stories-xBFbJumO.js
+│  7.76 kB │ gzip:   2.28 kB
+│  storybook-static/assets/media-shell-D4pVCDoL.js
+│  7.77 kB │ gzip:   2.38 kB
+│  storybook-static/assets/community-names-settings.stories-Bk_HPeg-.js
+│  7.84 kB │ gzip:   1.66 kB
+│  storybook-static/assets/accordion-DBR346up.js
+│  7.93 kB │ gzip:   2.91 kB
+│  storybook-static/assets/page-shell.stories-C6q10y97.js
+│  8.03 kB │ gzip:   2.22 kB
+│  storybook-static/assets/modal-DXBzq4lL.js
+│  8.07 kB │ gzip:   1.68 kB
+│  storybook-static/assets/karaoke-practice-surface.stories-CyzAVYHe.js
+│  8.08 kB │ gzip:   1.69 kB
+│  storybook-static/assets/app-shell.stories-BnsrlMKh.js
+│  8.19 kB │ gzip:   2.44 kB
+│  storybook-static/assets/modal.stories-BbTuiwMi.js
+│  8.31 kB │ gzip:   2.44 kB
+│  storybook-static/assets/community-rules-editor-page-B9jM8A8G.js
+│  8.31 kB │ gzip:   2.73 kB
+│  storybook-static/assets/app-sidebar-CnwV5-G2.js
+│  8.47 kB │ gzip:   2.33 kB
+│  storybook-static/assets/Icons-D-VLW-ys.js
+│  8.58 kB │ gzip:   1.84 kB
+│  storybook-static/assets/booking-checkout.stories-Dp4HgNxF.js
+│  8.59 kB │ gzip:   2.60 kB
+│  storybook-static/assets/wallet-send-sheet.stories-vWRylev0.js
+│  8.69 kB │ gzip:   1.96 kB
+│  storybook-static/assets/jSgZ_i04-D__8P-2D.js
+│  8.70 kB │ gzip:   3.05 kB
+│  storybook-static/assets/list-row-Ccjp3k_Q.js
+│  8.91 kB │ gzip:   2.46 kB
+│  storybook-static/assets/app-header.stories-C9R8JaRM.js
+│  9.03 kB │ gzip:   2.38 kB
+│  storybook-static/assets/text-field-4bvkp4dt.js
+│  9.06 kB │ gzip:   2.63 kB
+│  storybook-static/assets/song.stories-h7SGDa5I.js
+│  9.28 kB │ gzip:   2.47 kB
+│  storybook-static/assets/item.stories-juKJTHZY.js
+│  9.30 kB │ gzip:   2.02 kB
+│  storybook-static/assets/Color-CA2JbJG7.js
+│  9.31 kB │ gzip:   2.34 kB
+│  storybook-static/assets/community-page-origin-Djmh-oZh.js
+│  9.59 kB │ gzip:   3.46 kB
+│  storybook-static/assets/wallet-send-sheet-B3LKdCge.js
+│  9.70 kB │ gzip:   3.35 kB
+│  storybook-static/assets/song-terms-editor-Cw7_5Rw6.js
+│  9.80 kB │ gzip:   3.35 kB
+│  storybook-static/assets/karaoke-practice-surface-BGJ9VJA3.js
+│  9.88 kB │ gzip:   3.30 kB
+│  storybook-static/assets/avatar-badge.stories-D0HeE1cE.js
+│  9.98 kB │ gzip:   2.07 kB
+│  storybook-static/assets/mobile-persona-footer.stories-DriJnjHr.js
+│  10.08 kB │ gzip:   3.08 kB
+│  storybook-static/assets/song-purchase-modal.stories-CiKAew4U.js
+│  10.22 kB │ gzip:   2.98 kB
+│  storybook-static/assets/formatted-textarea-C4va4vvC.js
+│  10.24 kB │ gzip:   2.97 kB
+│  storybook-static/assets/persona-public-profile.stories-C4XjWO6H.js
+│  10.48 kB │ gzip:   2.98 kB
+│  storybook-static/assets/booking-status-card.stories-C1YhzPPp.js
+│  10.51 kB │ gzip:   2.64 kB
+│  storybook-static/assets/app-shell-chrome-BsvZV0WI.js
+│  10.51 kB │ gzip:   2.64 kB
+│  storybook-static/assets/archive-page.stories-BYLgogyD.js
+│  10.57 kB │ gzip:   2.08 kB
+│  storybook-static/assets/video.stories-DF4Nsknh.js
+│  10.60 kB │ gzip:   2.47 kB
+│  storybook-static/assets/post-composer-submission.stories-Coo4aBgH.js
+│  10.92 kB │ gzip:   2.20 kB
+│  storybook-static/assets/tabs-CmvcGtnO.js
+│  10.94 kB │ gzip:   3.82 kB
+│  storybook-static/assets/switch-hLvqX8qa.js
+│  11.06 kB │ gzip:   3.22 kB
+│  storybook-static/assets/booking-cancellation-dialog.stories-BBJLt5Bs.js
+│  11.12 kB │ gzip:   3.07 kB
+│  storybook-static/assets/membership-requests-page.stories-DaFTOFjq.js
+│  11.18 kB │ gzip:   3.31 kB
+│  storybook-static/assets/dialog.stories-D-BbuUMl.js
+│  11.67 kB │ gzip:   2.52 kB
+│  storybook-static/assets/checkbox-DEblMseY.js
+│  11.74 kB │ gzip:   3.59 kB
+│  storybook-static/assets/route-states.stories-e6kH-cnm.js
+│  11.83 kB │ gzip:   2.47 kB
+│  storybook-static/assets/app-header-B1m5q8jS.js
+│  11.84 kB │ gzip:   3.31 kB
+│  storybook-static/assets/story-helpers-C6IHhRWm.js
+│  11.96 kB │ gzip:   2.57 kB
+│  storybook-static/assets/toast-BMfSkSpT.js
+│  12.07 kB │ gzip:   4.59 kB
+│  storybook-static/assets/join-request-modal.stories-DxvCSBvy.js
+│  12.10 kB │ gzip:   3.62 kB
+│  storybook-static/assets/profile-book-panel.stories-ZXE6dyWJ.js
+│  12.22 kB │ gzip:   3.16 kB
+│  storybook-static/assets/community-names-settings-fixtures-D6tM6byP.js
+│  12.46 kB │ gzip:   3.49 kB
+│  storybook-static/assets/route-states-x3TXFeFQ.js
+│  12.59 kB │ gzip:   3.14 kB
+│  storybook-static/assets/your-communities-page.stories-DaHWiiUD.js
+│  13.37 kB │ gzip:   3.60 kB
+│  storybook-static/assets/public-profile-page.stories-CvunlDqL.js
+│  13.45 kB │ gzip:   4.14 kB
+│  storybook-static/assets/video-original-audio-surface-CkryWbm6.js
+│  13.83 kB │ gzip:   4.44 kB
+│  storybook-static/assets/host-availability-editor.stories-oMCQQVC1.js
+│  13.95 kB │ gzip:   3.74 kB
+│  storybook-static/assets/serverForms-DYNFF1Oc.js
+│  14.13 kB │ gzip:   5.64 kB
+│  storybook-static/assets/feed-booking-sheet.stories-DLsM2twA.js
+│  14.23 kB │ gzip:   3.71 kB
+│  storybook-static/assets/booking-session-controls.stories-C9P8Lrwk.js
+│  14.53 kB │ gzip:   3.39 kB
+│  storybook-static/assets/studying-route-view.stories-MAn9p1Pv.js
+│  14.87 kB │ gzip:   4.56 kB
+│  storybook-static/assets/sidebar-CiKGbhB0.js
+│  15.14 kB │ gzip:   3.97 kB
+│  storybook-static/assets/scrubber-xyNdyBvX.js
+│  15.18 kB │ gzip:   5.33 kB
+│  storybook-static/assets/studying-surface.stories-D_9_lT3D.js
+│  15.60 kB │ gzip:   3.26 kB
+│  storybook-static/assets/pending-submission-BGJu0XpW.js
+│  16.02 kB │ gzip:   4.74 kB
+│  storybook-static/assets/CgkAj-2j-DudLB3q-.js
+│  16.06 kB │ gzip:   5.30 kB
+│  storybook-static/assets/community-moderation-settings-panel-DSgX-g97.js
+│  16.68 kB │ gzip:   4.37 kB
+│  storybook-static/assets/src-DnObw4HR.js
+│  17.10 kB │ gzip:   5.14 kB
+│  storybook-static/assets/sign-in-modal.stories-BwxYgRrW.js
+│  17.28 kB │ gzip:   3.32 kB
+│  storybook-static/assets/wallet-visuals-DjarsmVU.js
+│  17.50 kB │ gzip:  11.49 kB
+│  storybook-static/assets/accordion.stories-DWpHP1eu.js
+│  18.64 kB │ gzip:   3.01 kB
+│  storybook-static/assets/wallet-hub.stories-BsvmDogJ.js
+│  18.95 kB │ gzip:   4.78 kB
+│  storybook-static/assets/create-community.stories-B-h1l-B9.js
+│  19.01 kB │ gzip:   4.68 kB
+│  storybook-static/assets/select-BkQ25DHa.js
+│  19.05 kB │ gzip:   6.08 kB
+│  storybook-static/assets/sidebar.stories-CV5SgXUn.js
+│  19.06 kB │ gzip:   4.19 kB
+│  storybook-static/assets/page-shell-Cz9WDzak.js
+│  19.09 kB │ gzip:   5.21 kB
+│  storybook-static/assets/booking-management-view.stories-BkdJ-_eh.js
+│  19.40 kB │ gzip:   5.05 kB
+│  storybook-static/assets/community-creation-progress.stories-Ch3wp7UK.js
+│  19.45 kB │ gzip:   4.04 kB
+│  storybook-static/assets/studying-story-fixtures-oRoC4DH9.js
+│  19.80 kB │ gzip:   6.21 kB
+│  storybook-static/assets/post-composer.stories-DkfCUh3_.js
+│  19.93 kB │ gzip:   3.56 kB
+│  storybook-static/assets/decode-BpM2f4Dr.js
+│  20.40 kB │ gzip:   6.17 kB
+│  storybook-static/assets/namespace-settings.stories-D_rPlZAy.js
+│  20.91 kB │ gzip:   4.14 kB
+│  storybook-static/assets/fake-owner-settings-port-DXczjZnc.js
+│  22.14 kB │ gzip:   6.06 kB
+│  storybook-static/assets/chunk-W22LQPXL-D_o4dLPl.js
+│  23.08 kB │ gzip:   7.77 kB
+│  storybook-static/assets/combobox-DmyE2exa.js
+│  23.27 kB │ gzip:   7.75 kB
+│  storybook-static/assets/BzGqGM_d-_WabQH54.js
+│  23.37 kB │ gzip:   9.24 kB
+│  storybook-static/assets/vertical-feed.stories-DZCDD5md.js
+│  23.38 kB │ gzip:   7.93 kB
+│  storybook-static/assets/dropdown-menu-GwbUcQcH.js
+│  23.55 kB │ gzip:   7.09 kB
+│  storybook-static/assets/public-feed.stories-Jev6v3De.js
+│  25.54 kB │ gzip:   8.58 kB
+│  storybook-static/assets/profile-bookings-section.stories-DQYUyZGJ.js
+│  25.90 kB │ gzip:   6.45 kB
+│  storybook-static/assets/cn-C1qs17db.js
+│  27.48 kB │ gzip:   8.89 kB
+│  storybook-static/vite-inject-mocker-entry.js
+│  27.84 kB │ gzip:   9.66 kB
+│  storybook-static/assets/matchers-JIUQ3HVY-C789_MAK.js
+│  28.79 kB │ gzip:   9.68 kB
+│  storybook-static/assets/vertical-feed-D0kzovnp.js
+│  29.48 kB │ gzip:   7.05 kB
+│  storybook-static/assets/owner-settings.stories-Dz6FkzdJ.js
+│  29.63 kB │ gzip:   6.94 kB
+│  storybook-static/assets/Color-6AOWCN3U-C8RqgvN7.js
+│  30.41 kB │ gzip:  11.51 kB
+│  storybook-static/assets/Color-6AOWCN3U-CdsJZcVM.js
+│  30.97 kB │ gzip:  11.74 kB
+│  storybook-static/assets/secp256k1-BGvTvNf9.js
+│  31.44 kB │ gzip:  13.35 kB
+│  storybook-static/assets/sign-in-modal-D0yAsqj6.js
+│  32.43 kB │ gzip:  11.38 kB
+│  storybook-static/assets/WithTooltip-CDUNV5IS-DfBNGwAT.js
+│  32.70 kB │ gzip:  11.46 kB
+│  storybook-static/assets/post-engagement-BUSDfZef.js
+│  32.99 kB │ gzip:   9.62 kB
+│  storybook-static/assets/locales-BgPU8elF.js
+│  35.42 kB │ gzip:  12.16 kB
+│  storybook-static/assets/handle-storefront.stories-BBdRdHwM.js
+│  35.44 kB │ gzip:   9.81 kB
+│  storybook-static/assets/theming-Dotgcx4i.js
+│  55.37 kB │ gzip:  21.32 kB
+│  storybook-static/assets/icons-D5g5ObG8.js
+│  63.39 kB │ gzip:   9.73 kB
+│  storybook-static/assets/karaoke-route-view.stories-Dny0EWZd.js
+│  71.38 kB │ gzip:  23.92 kB
+│  storybook-static/assets/syntaxhighlighter-QEQV7K2Y-BozkKXUA.js
+│  75.87 kB │ gzip:  27.25 kB
+│  storybook-static/assets/web-DvtxU5cQ.js
+│  98.41 kB │ gzip:  33.45 kB
+│  storybook-static/assets/community-page.stories-DexcbOfe.js
+│  106.94 kB │ gzip:  29.05 kB
+│  storybook-static/assets/blocks-C1a8BG7X.js
+│  175.48 kB │ gzip:  55.03 kB
+│  storybook-static/assets/post-composer-Dbx4x3_X.js
+│  198.51 kB │ gzip:  47.52 kB
+│  storybook-static/assets/capture-B2tryidd.js
+│  494.09 kB │ gzip: 126.44 kB
+│  storybook-static/assets/hls-RF9UWiBn.js
+│  575.36 kB │ gzip: 179.98 kB
+│  storybook-static/assets/axe-_9eNhXQJ.js
+│  587.04 kB │ gzip: 160.26 kB
+│  storybook-static/assets/client-XF02Cunk.js
+│  708.91 kB │ gzip:  48.34 kB
+│  storybook-static/assets/components-9001saJi.js
+│  733.96 kB │ gzip: 234.86 kB
+│  storybook-static/assets/esm-BRWjADFy.js
+│  739.89 kB │ gzip: 186.90 kB
+│  storybook-static/assets/iframe-BHNoXN68.js
+│  1,259.10 kB │ gzip: 361.10 kB
+
+│
+▲  Vite [plugin builtin:vite-reporter]
+│  (!) Some chunks are larger than 500 kB after minification. Consider:
+│  - Using dynamic import() to code-split the application
+│  - Use build.rolldownOptions.output.codeSplitting to improve chunking:
+│  ]8;;https://rolldown.rs/reference/OutputOptions.codeSplittinghttps://rolldown.rs/reference/OutputOptions.codeSplitting]8;;
+│  - Adjust chunk size limit for this warning via
+│  build.chunkSizeWarningLimit.
+│  Vite ✓ built in 51.49s
+│
+▲  Vite [33m[PLUGIN_TIMINGS] [0mYour build spent 98% of 51.5s inside plugin
+│  hooks (50.2s).
+│  Measured inside the callback, so queue time is excluded and time the
+│  callback itself awaited is not:
+│  - storybook:solid-component-meta transform (91%, 46.6s, 2255 calls)
+│  - @tailwindcss/vite:generate:build transform (20%, 10.1s, 3 calls)
+│  - vite:asset-import-meta-url transform (3%, 1.7s, 2 calls)
+│  Those rows are 100% of the build; the rest of the 98% is below.
+│  Not measurable — 2 hooks whose calls overlap, so elapsed time covers
+│  work other calls were doing. Profile with `node --cpu-prof`:
+│  - plugin-csf transform (2255 calls)
+│  - vite:asset load (12 calls)
+│  See ]8;;https://rolldown.rs/reference/InputOptions.checks#plugintimingshttps://rolldown.rs/reference/InputOptions.checks#plugintimings]8;;
+│  for more details.
+
+│
+◇  Output directory:
+│  /media/t42/codedrive/Code/pirate-workspace/.worktrees/pirate-web-solid/solid-video-original-audio-runtime/storybook-static
+│
+└  Storybook build completed successfully
+
+
+exit=0

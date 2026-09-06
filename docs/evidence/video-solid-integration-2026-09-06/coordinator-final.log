@@ -1,0 +1,12 @@
+$ vitest run --config vitest.app.config.ts "--maxWorkers=1" src/features/posts/video-submission/coordinator.test.ts
+
+ RUN  v4.1.10 /media/t42/codedrive/Code/pirate-workspace/.worktrees/pirate-web-solid/solid-video-original-audio-runtime
+
+
+ Test Files  1 passed (1)
+      Tests  14 passed (14)
+   Start at  21:53:06
+   Duration  2.35s (transform 580ms, setup 221ms, import 617ms, tests 23ms, environment 1.36s)
+
+
+exit=0

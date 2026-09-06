@@ -1,0 +1,1 @@
+"{\"calls\":[\"reserve\",\"start\",\"read\",\"put:1\",\"bytes:abc\",\"put:2\",\"mint\",\"mint\",\"read\"],\"failed\":true,\"finalized\":false,\"denied\":false,\"started\":1788717379486}"

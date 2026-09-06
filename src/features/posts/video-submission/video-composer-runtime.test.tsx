@@ -11,7 +11,7 @@ import type { OriginalVideoReservation, VideoSnapshot } from "./contracts";
 
 const disposers: (() => void)[] = [];
 afterEach(() => { for (const dispose of disposers.splice(0)) dispose(); document.body.replaceChildren(); vi.unstubAllGlobals(); });
-function setup(final: "published" | "manual_review" | "provider_submission_unconfirmed" | "membership_required", rejectKind?: "reserve" | "start") {
+function setup(final: "published" | "manual_review" | "provider_submission_unconfirmed" | "membership_required", rejectKind?: "reserve" | "start", beforeExecute?: (command: VideoCommand) => Promise<void>) {
   vi.stubGlobal("crypto", webcrypto);
   const urlApi = class extends URL { static createObjectURL() { return "blob:https://example.test/video"; } static revokeObjectURL() {} };
   vi.stubGlobal("URL", urlApi);
@@ -23,7 +23,7 @@ function setup(final: "published" | "manual_review" | "provider_submission_uncon
   let snapshot: VideoSnapshot = { ...common, status: "processing", phase: "awaiting_upload" };
   const commands: VideoCommand[] = [];
   const transport: VideoTransport = { async read() { return snapshot; }, async execute(command) {
-    commands.push(command);
+    commands.push(command); await beforeExecute?.(command);
     if (command.kind === rejectKind) throw new ApiClientError(
       { status: 400, code: "bad_request", name: "BadRequest", retryable: false },
       { error: { code: "bad_request", message: "Request refused", retryable: false } });
@@ -88,4 +88,18 @@ describe("mounted original video flow", () => {
     await vi.waitFor(() => expect(document.body.textContent).toContain("No post is public yet"));
     expect(fixture.published).not.toHaveBeenCalled(); expect(document.querySelector("a")).toBeNull();
   });
+});
+
+
+test("unmount during reservation preserves it without starting upload", async () => {
+  let release!: () => void; const waiting = new Promise<void>(resolve => { release = resolve; });
+  let entered!: () => void; const started = new Promise<void>(resolve => { entered = resolve; });
+  const fixture = setup("published", undefined, async command => {
+    if (command.kind === "reserve") { entered(); await waiting; }
+  });
+  await selectAndPublish(); await started; disposers.pop()!(); release();
+  await vi.waitFor(() => expect(fixture.commands.map(command => command.kind)).toEqual(["reserve"]));
+  await new Promise(resolve => setTimeout(resolve, 20));
+  expect(fixture.commands.map(command => command.kind)).toEqual(["reserve"]);
+  expect(fixture.published).not.toHaveBeenCalled();
 });

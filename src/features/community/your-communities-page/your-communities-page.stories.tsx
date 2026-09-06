@@ -5,7 +5,7 @@ import { expect, userEvent, within } from "storybook/test";
 import { Type } from "@pirate/web-solid-ui";
 import { YourCommunitiesPageView, type YourCommunitiesPageProps } from "./your-communities-page";
 
-const communities = [{ communityId: "cmt_signal", displayName: "Signal Room", routeSlug: "signal-room", updatedAt: "2026-08-01" }, { communityId: "cmt_tame", displayName: "Tame Impala", routeSlug: "tameimpala", updatedAt: "2026-08-02" }];
+const communities = [{ communityId: "cmt_signal", displayName: "Signal Room", routeSlug: "signal-room", resourceHref: "/c/signal-room", updatedAt: "2026-08-01" }, { communityId: "cmt_tame", displayName: "Tame Impala", routeSlug: "tameimpala", resourceHref: "/c/tameimpala", updatedAt: "2026-08-02" }];
 function StoryView(props: Omit<YourCommunitiesPageProps, "onCreateCommunity" | "onSelectCommunity">) {
   const [created, setCreated] = createSignal(0);
   const [selected, setSelected] = createSignal("");

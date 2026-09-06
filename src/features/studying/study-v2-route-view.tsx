@@ -1,9 +1,12 @@
 import { Title } from "@solidjs/meta";
+import { isServer } from "@solidjs/web";
+import { ApiClientError } from "@pirate/api-client";
 import { Show, createEffect, createSignal, onCleanup } from "solid-js";
 
 import { resolveSession, type AuthenticatedSession, type SessionResolution } from "../../api/session";
 import { Button, FormNote, Type } from "../../design-system";
 import { preloadGlobalSignInAssets, prepareGlobalSignIn, requestGlobalSignIn } from "../auth/global-sign-in-host";
+import { communityOperationPersonas, defaultOperationPersonaId, toOperationPersonas } from "../identity/community-persona-choice";
 import { OperationPersonaControl } from "../identity/operation-persona-control/operation-persona-control";
 import {
   createStudyV2Api,
@@ -111,17 +114,18 @@ export function StudyV2RouteView(props: StudyV2RouteViewProps) {
         setState({ kind: "auth-required" });
         return;
       }
-      if (resolved.personas.length === 0) {
-        setState({ kind: "failed", message: "Create an active public persona before starting Study." });
-        return;
-      }
       const loaded = await api.loadAvailability(props.postId);
       if (!active) return;
       if (loaded.availability.state !== "ready") {
         setState({ kind: "unavailable", message: availabilityMessage(loaded.availability) });
         return;
       }
-      setPersonaId(resolved.personas[0]!.personaId);
+      const eligible = communityOperationPersonas(resolved.personas, loaded.communityId);
+      if (eligible.length === 0) {
+        setState({ kind: "failed", message: "Join this community or create a persona there before starting Study." });
+        return;
+      }
+      setPersonaId(defaultOperationPersonaId(eligible) ?? "");
       setTargetLanguage("");
       setLearnerBand("");
       setState({
@@ -142,7 +146,7 @@ export function StudyV2RouteView(props: StudyV2RouteViewProps) {
   createEffect(
     () => true,
     () => {
-      if (loadStarted || typeof window === "undefined") return;
+      if (loadStarted || isServer) return;
       loadStarted = true;
       queueMicrotask(() => void load());
     },
@@ -154,6 +158,11 @@ export function StudyV2RouteView(props: StudyV2RouteViewProps) {
     const band = learnerBand();
     if (language !== "" && band === "") {
       setMessage("Choose a learner level for translated practice.");
+      return;
+    }
+    if (!communityOperationPersonas(configuration.session.personas, configuration.communityId)
+      .some(persona => persona.personaId === personaId())) {
+      setMessage("Choose the persona this session presents in this community.");
       return;
     }
     setStarting(true);
@@ -170,7 +179,9 @@ export function StudyV2RouteView(props: StudyV2RouteViewProps) {
       });
       if (active) setState({ kind: "lesson", session });
     } catch (error) {
-      if (active) setMessage(safeFailure(error, "Could not start this Study session. Try again."));
+      if (active) setMessage(error instanceof ApiClientError && error.status === 409
+        ? "The session requirements changed. Refresh your community personas and Study availability before trying again."
+        : safeFailure(error, "Could not start this Study session. Try again."));
     } finally {
       if (active) setStarting(false);
     }
@@ -235,12 +246,9 @@ export function StudyV2RouteView(props: StudyV2RouteViewProps) {
               )}
             >
               {(configuration) => {
-                const personas = () => configuration().session.personas.map((persona) => ({
-                  avatarSrc: persona.avatarRef,
-                  displayName: persona.displayName ?? persona.primaryPublicHandle ?? persona.personaId,
-                  personaId: persona.personaId,
-                  publicHandle: persona.primaryPublicHandle,
-                }));
+                const personas = () => toOperationPersonas(communityOperationPersonas(
+                  configuration().session.personas, configuration().communityId,
+                ));
                 return (
                 <div class="mx-auto flex min-h-dvh w-full max-w-xl flex-col gap-6 px-5 py-8">
                   <header class="space-y-2">
@@ -252,9 +260,14 @@ export function StudyV2RouteView(props: StudyV2RouteViewProps) {
                   <OperationPersonaControl
                     label="Studying as"
                     personas={personas()}
+                    placeholder="Choose a persona"
                     selectedPersonaId={personaId()}
                     onSelect={setPersonaId}
                   />
+                  <p class="text-sm text-muted-foreground" data-persona-consequence-note>
+                    Study progress, streaks, and review history stay with your account. This
+                    persona is only how your session appears publicly in this community.
+                  </p>
                   <label class="flex flex-col gap-2">
                     <Type as="span" variant="label">Helper language</Type>
                     <select
@@ -295,7 +308,7 @@ export function StudyV2RouteView(props: StudyV2RouteViewProps) {
                     <Button class="flex-1" onClick={() => navigate("/")} variant="secondary">Exit</Button>
                     <Button
                       class="flex-1"
-                      disabled={starting() || (targetLanguage() !== "" && learnerBand() === "")}
+                      disabled={starting() || personaId() === "" || (targetLanguage() !== "" && learnerBand() === "")}
                       loading={starting()}
                       onClick={() => void start(configuration())}
                     >

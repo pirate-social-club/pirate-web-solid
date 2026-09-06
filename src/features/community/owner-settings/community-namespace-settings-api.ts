@@ -12,6 +12,7 @@ import type { ApiFetch } from "../../../api/proxy";
 import type {
   CommunityNamespaceSettingsPort,
   HnsWalletResourceRecord,
+  NamespaceAttachment,
   NamespaceResourceRecord,
   NamespaceSettingsCommand,
   NamespaceSettingsSnapshot,
@@ -22,6 +23,7 @@ type HnsApiResourceRecord = NonNullable<RootImportSnapshot["publish_plan"]>["rep
 type RootImportClient = Pick<
   PirateApiClient,
   | "post_communitiesCommunityIdHnsRootImports"
+  | "get_communitiesCommunityIdHnsRootImports"
   | "get_communitiesCommunityIdHnsRootImportsSessionId"
   | "post_communitiesCommunityIdHnsRootImportsSessionIdPoll"
   | "post_communitiesCommunityIdHnsRootImportsSessionIdActivate"
@@ -135,8 +137,10 @@ function chooseSnapshot(communityId: string): NamespaceSettingsSnapshot {
 function mapSnapshot(
   response: RootImportSnapshot,
   communityPath: string,
+  attachment: NamespaceAttachment | null = null,
 ): NamespaceSettingsSnapshot {
   const common = {
+    attachment,
     community_id: response.community_id,
     family: "hns" as const,
     generation: response.revision,
@@ -151,6 +155,11 @@ function mapSnapshot(
     } };
   }
   if (response.status === "provisioning") {
+    return { ...common, next_action: {
+      kind: "wait", reason_code: "verification_pending", retry_after_seconds: response.retry_after_seconds,
+    } };
+  }
+  if (response.status === "awaiting_owner_update" && response.publication_check_pending === true) {
     return { ...common, next_action: {
       kind: "wait", reason_code: "verification_pending", retry_after_seconds: response.retry_after_seconds,
     } };
@@ -211,6 +220,8 @@ export function createCommunityNamespaceSettingsApi(
   const locator = options.locator ?? browserSessionLocator();
   const csrfToken = options.readCsrfToken ?? readCsrfCookie;
   let current = chooseSnapshot(options.communityId);
+  let attachment: NamespaceAttachment | null = null;
+  let currentSessionId: string | null = null;
 
   const writeOptions = () => {
     const token = csrfToken();
@@ -224,14 +235,35 @@ export function createCommunityNamespaceSettingsApi(
     if (response.community_id !== options.communityId || response.root_import_session_id !== sessionId) {
       throw new CommunityNamespaceSettingsApiError("The HNS verification response did not match this community.");
     }
-    current = mapSnapshot(response, options.communityPath);
+    currentSessionId = sessionId;
+    current = mapSnapshot(response, options.communityPath, attachment);
     return current;
   };
 
   return {
     read: async () => {
       const sessionId = locator.read();
-      return sessionId === null ? current : load(sessionId);
+      if (sessionId !== null) return load(sessionId);
+      const response = await client().get_communitiesCommunityIdHnsRootImports({
+        path: { communityId: options.communityId },
+      }, { credentials: "same-origin" });
+      if (response.community_id !== options.communityId
+        || (response.session !== null && response.session.community_id !== options.communityId)) {
+        throw new CommunityNamespaceSettingsApiError("The HNS verification response did not match this community.");
+      }
+      attachment = response.attachment === null ? null : {
+        root_label: response.attachment.canonical_route.root_label_display,
+        status: response.attachment.status,
+      };
+      currentSessionId = response.session?.root_import_session_id ?? null;
+      if (response.session !== null) {
+        locator.write(response.session.root_import_session_id);
+        current = mapSnapshot(response.session, options.communityPath, attachment);
+      } else {
+        current = { ...chooseSnapshot(options.communityId), attachment,
+          next_action: { kind: "choose_namespace", no_account_import: true } };
+      }
+      return current;
     },
     execute: async (command: NamespaceSettingsCommand) => {
       if (command.expected_generation !== current.generation) {
@@ -239,11 +271,13 @@ export function createCommunityNamespaceSettingsApi(
       }
       if (command.kind === "change_namespace") {
         locator.clear();
-        current = chooseSnapshot(options.communityId);
+        currentSessionId = null;
+        current = { ...chooseSnapshot(options.communityId), attachment };
         return current;
       }
       if (command.kind === "select_namespace") {
         current = {
+          attachment,
           community_id: options.communityId,
           family: "hns",
           generation: current.generation + 1,
@@ -254,6 +288,7 @@ export function createCommunityNamespaceSettingsApi(
       }
       if (command.kind === "restart") {
         locator.clear();
+        currentSessionId = null;
         current = { ...current, generation: current.generation + 1, next_action: {
           kind: "start_verification", family: "hns", root_label: current.root_label,
         } };
@@ -264,11 +299,15 @@ export function createCommunityNamespaceSettingsApi(
           path: { communityId: options.communityId },
           body: { root_label: current.root_label, idempotency_key: command.idempotency_key },
         }, writeOptions());
+        if (response.community_id !== options.communityId) {
+          throw new CommunityNamespaceSettingsApiError("The HNS verification response did not match this community.");
+        }
+        currentSessionId = response.root_import_session_id;
         locator.write(response.root_import_session_id);
-        current = mapSnapshot(response, options.communityPath);
+        current = mapSnapshot(response, options.communityPath, attachment);
         return current;
       }
-      const sessionId = locator.read();
+      const sessionId = currentSessionId ?? locator.read();
       if (sessionId === null) throw new CommunityNamespaceSettingsApiError("The HNS verification session is missing.");
       if (command.kind === "activate") {
         const response = await client().post_communitiesCommunityIdHnsRootImportsSessionIdActivate({
@@ -294,7 +333,7 @@ export function createCommunityNamespaceSettingsApi(
           publish_plan_sha256: null,
           readiness_result_sha256: null,
           retry_after_seconds: null,
-        }, options.communityPath);
+        }, options.communityPath, attachment);
         return current;
       }
       const response = await client().post_communitiesCommunityIdHnsRootImportsSessionIdPoll({
@@ -307,7 +346,7 @@ export function createCommunityNamespaceSettingsApi(
             : {}),
         },
       }, writeOptions());
-      current = mapSnapshot(response, options.communityPath);
+      current = mapSnapshot(response, options.communityPath, attachment);
       return current;
     },
   };

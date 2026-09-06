@@ -167,11 +167,12 @@ describe("Very web ceremony", () => {
     })).resolves.toEqual({ kind: "join" });
     await expect(joinVeryCommunity({
       communityId: "community-gated-1",
+      persona: { kind: "create_new" },
       apiClient,
       csrfToken: "csrf-token",
     })).resolves.toEqual({ communityId: "community-gated-1", status: "joined" });
     expect(join).toHaveBeenCalledWith(
-      { path: { communityId: "community-gated-1" } },
+      { path: { communityId: "community-gated-1" }, body: { persona: { kind: "create_new" } } },
       expect.objectContaining({ credentials: "same-origin", headers: expect.any(Headers) }),
     );
   });

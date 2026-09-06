@@ -87,6 +87,19 @@ function response(body: object, status = 200): Response {
 }
 
 describe("createCommunityCreationApi", () => {
+  test("a resumed create-new draft is blocked instead of offering commit", async () => {
+    const intent = creationIntent();
+    const api = createCommunityCreationApi({
+      fetchImpl: async () => response({ ...intent,
+        draft: { ...intent.draft, persona: { kind: "create_new" } },
+        persona_role_presentation: null,
+      }),
+      origin: "https://web.test",
+    });
+    const result = await api.getIntent({ intentId: "creation-1" });
+    expect(result.nextAction).toEqual({ kind: "blocked", reason: "persona_activation_unavailable" });
+  });
+
   test("creates a V2 intent with the shared draft model and protected request policy", async () => {
     const requests: Array<{ credentials: RequestCredentials | undefined; request: Request }> = [];
     const api = createCommunityCreationApi({
@@ -98,7 +111,7 @@ describe("createCommunityCreationApi", () => {
       readCsrfToken: () => "csrf-1",
     });
     const draft = {
-      ...createEmptyDraft("persona-1"),
+      ...createEmptyDraft({ kind: "existing", personaId: "persona-1" }),
       description: "A place for careful listening",
       name: "Harbor songs",
     };
@@ -157,7 +170,7 @@ describe("createCommunityCreationApi", () => {
       origin: "https://web.test",
       readCsrfToken: () => "csrf-1",
     });
-    const draft = { ...createEmptyDraft("persona-1"), name: "Harbor songs" };
+    const draft = { ...createEmptyDraft({ kind: "existing", personaId: "persona-1" }), name: "Harbor songs" };
 
     await expect(api.updateIntent({
       draft,
@@ -246,7 +259,7 @@ describe("createCommunityCreationApi", () => {
     });
 
     await expect(api.createIntent({
-      draft: { ...createEmptyDraft("persona-1"), name: "Harbor songs" },
+      draft: { ...createEmptyDraft({ kind: "existing", personaId: "persona-1" }), name: "Harbor songs" },
       idempotencyKey: "create-key",
     })).rejects.toBeInstanceOf(CommunityCreationApiError);
     expect(requested).toBe(false);

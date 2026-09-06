@@ -12,7 +12,7 @@ const currentClient = resolve(
 // delivery states, plus the HNS publication check. The audited operation set
 // retains its success statuses and error envelopes from 0.60.0. Playback
 // access (200 JSON) and poster (200/304 JPEG) now join the pinned scope.
-const expectedDigest = "60a79eb9350436b52f63d1cf9fea6cbe38cf63fb3987e684cd10cc5b7b00ef81";
+const expectedDigest = "37ccdacdbfc4639a708309be7e0d972e3436d7dadcdc289b6f51524d263e08db";
 
 const operations = [
   "post_postsPostIdVideoPlaybackAccess",
@@ -54,6 +54,7 @@ const operations = [
   "get_publicPostsByIdPostIdCanonicalRoute",
   "get_publicPostsSitemap",
   "post_communitiesCommunityIdHnsRootImports",
+  "get_communitiesCommunityIdHnsRootImports",
   "get_communitiesCommunityIdHnsRootImportsSessionId",
   "post_communitiesCommunityIdHnsRootImportsSessionIdPoll",
   "post_communitiesCommunityIdHnsRootImportsSessionIdActivate",

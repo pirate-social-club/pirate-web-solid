@@ -1,6 +1,10 @@
 /** @jsxImportSource @solidjs/web */
+import "../../src/index.css";
 import { render } from "@solidjs/web";
-import { createRoot, createSignal } from "solid-js";
+import { createRoot, createSignal, Show } from "solid-js";
+import { CreatePostDialog } from "../../src/features/posts/post-composer/create-post-dialog";
+import { createMemoryPendingSubmissionStorage } from "../../src/features/posts/post-composer/pending-submission";
+import { createMemoryMediaSubmissionStorage } from "../../src/features/posts/media-submission/pending";
 import { VideoCoordinator } from "../../src/features/posts/video-submission/coordinator";
 import { createBrowserVideoStorage } from "../../src/features/posts/video-submission/storage";
 import { createVideoTransport } from "../../src/features/posts/video-submission/transport";
@@ -39,12 +43,14 @@ const fixtureFetch: typeof fetch = async (input, init) => {
 };
 createRoot(() => {
   const [message, setMessage] = createSignal("ready");
+  const [dialog, setDialog] = createSignal<"global" | "conflict" | null>(null);
+  const transport = createVideoTransport({ fetchImpl: fixtureFetch, csrfToken: () => "fixture-csrf" });
   const storage = createBrowserVideoStorage("account-fixture");
   const coordinator = new VideoCoordinator({ principalId: "account-fixture", storage,
-    transport: createVideoTransport({ fetchImpl: fixtureFetch, csrfToken: () => "fixture-csrf" }), fetchImpl: fixtureFetch });
+    transport, fetchImpl: fixtureFetch });
   async function inspect() {
     const record = await storage.load(); const source = record ? await record.file.text() : null;
-    setMessage(JSON.stringify({ source, operation: record?.snapshot?.submission_id, parts: record?.receipts.map(p => p.part_number), pending: record?.pending?.command.kind ?? null, status: record?.snapshot?.status, phase: record?.snapshot?.status === "processing" ? record.snapshot.phase : null, server: read() }));
+    setMessage(JSON.stringify({ source, community: record?.communityId, persona: record?.personaId, operation: record?.snapshot?.submission_id, parts: record?.receipts.map(p => p.part_number), pending: record?.pending?.command.kind ?? null, status: record?.snapshot?.status, phase: record?.snapshot?.status === "processing" ? record.snapshot.phase : null, server: read() }));
   }
   async function run(action: () => Promise<unknown>) { try { await action(); } catch (error) { setMessage(error instanceof Error ? error.message : "fixture failed"); } await inspect(); }
   render(() => <main>
@@ -52,7 +58,15 @@ createRoot(() => {
     <button onClick={() => { void run(async () => { await storage.remove(); localStorage.removeItem(key); await coordinator.begin({ communityId: "community-fixture", personaId: "persona-fixture", file: new File(["abcdefghi"], "fixture.mp4", { type: "video/mp4" }), caption: "", rating: "general" }); await coordinator.submit(); }); }}>Start interrupted upload</button>
     <button onClick={() => { void run(() => coordinator.restore()); }}>Restore retained operation</button>
     <button onClick={() => { void run(() => coordinator.submit()); }}>Resume upload</button>
+    <button onClick={() => { void inspect(); }}>Inspect retained operation</button>
+    <button onClick={() => setDialog("global")}>Open global composer</button>
+    <button onClick={() => setDialog("conflict")}>Open conflicting community composer</button>
     <pre data-proof-result>{message()}</pre>
+    <Show when={dialog()}>{kind => <CreatePostDialog open onOpenChange={open => { if (!open) setDialog(null); }}
+      principalId="account-fixture" personas={[{ personaId: "persona-fixture", displayName: "Fixture persona", avatarRef: null, primaryPublicHandle: null, communityBinding: null }]}
+      communityContext={kind() === "conflict" ? { id: "other-community", name: "Other fixture community" } : undefined}
+      storage={createMemoryPendingSubmissionStorage()} mediaStorage={createMemoryMediaSubmissionStorage()}
+      videoStorage={storage} videoTransport={transport} fetchImpl={fixtureFetch} />}</Show>
     <VideoPlayer postId="post-fixture" state={{ playback: "ready", thumbnail: "pending" }} mint={async (_post, signal) => {
       event("mint"); if (signal.aborted || read().denied) throw new Error("Access denied");
       return { url: new URL("/__video-media/master.m3u8", location.origin).href, expiresAt: Date.now() + 30_000, renewAt: Date.now() + 15_000 };

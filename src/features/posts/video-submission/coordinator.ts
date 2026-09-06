@@ -46,6 +46,11 @@ export class VideoCoordinator {
   private record: PendingVideo | null = null;
   private busy = false;
   private uploadAbort: AbortController | null = null;
+  private pauseRevision = 0;
+  private operationRevision = 0;
+  private assertActive(): void {
+    if (this.operationRevision !== this.pauseRevision) throw new VideoContractError("Video operation paused; resume the retained attempt explicitly");
+  }
   constructor(private readonly options: {
     readonly principalId: string;
     readonly storage: VideoStorage;
@@ -70,6 +75,7 @@ export class VideoCoordinator {
   private async exclusive<T>(work: () => Promise<T>): Promise<T> {
     if (this.busy) throw new VideoContractError("A video command is already in progress");
     this.busy = true;
+    this.operationRevision = this.pauseRevision;
     try {
       return await this.options.storage.exclusive(async () => {
         const stored = await this.options.storage.load();
@@ -78,16 +84,19 @@ export class VideoCoordinator {
         }
         this.record = stored;
         this.options.onChange?.(stored);
+        this.assertActive();
         return work();
       });
     } finally { this.busy = false; }
   }
   private async execute(command: VideoCommand): Promise<VideoCommandResult> {
+    this.assertActive();
     const current = this.require();
     if (current.pending && await commandDigest(command) !== current.pending.digest) {
       throw new VideoContractError("Reconcile the retained command before issuing another");
     }
     await this.save({ ...current, pending: { command, digest: await commandDigest(command) } });
+    this.assertActive();
     let result: VideoCommandResult;
     try { result = await this.options.transport.execute(command); }
     catch (error) {
@@ -130,6 +139,7 @@ export class VideoCoordinator {
     }
     const { rejection: _rejection, ...accepted } = next;
     await this.save({ ...accepted, pending: null });
+    this.assertActive();
     return result;
   }
   private async reconcile(): Promise<void> {
@@ -167,16 +177,18 @@ export class VideoCoordinator {
   private async refreshSnapshot(): Promise<VideoSnapshot | null> {
     const record = this.require();
     if (!record.snapshot) return null;
+    this.assertActive();
     const snapshot = await this.options.transport.read(record.snapshot.submission_id);
     if (snapshot.submission_id !== record.snapshot.submission_id || snapshot.author_persona.persona_id !== record.personaId) {
       throw new VideoContractError("Read changed video operation authority");
     }
     if (snapshot.creation_revision >= record.snapshot.creation_revision) await this.save({ ...record, snapshot });
+    this.assertActive();
     return this.require().snapshot;
   }
   refresh(): Promise<VideoSnapshot | null> { return this.exclusive(() => this.refreshSnapshot()); }
-  /** Abort bytes only; cancellation of the durable operation is a separate command. */
-  pauseUpload(): void { this.uploadAbort?.abort(); }
+  /** Stop bytes and later effects; retain received outcomes and commands for explicit resume. */
+  pauseUpload(): void { this.pauseRevision++; this.uploadAbort?.abort(); }
   async submit(): Promise<VideoSnapshot> {
     return this.exclusive(async () => {
       await this.reconcile();

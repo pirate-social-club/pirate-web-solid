@@ -28,7 +28,7 @@ export type CreationNextAction =
       reasonCode: WaitReasonCode;
       retryAfterSeconds?: number;
     }
-  | { kind: "blocked"; reason: "quota_exceeded" | "gate_unsupported" | "pre_boundary_verification" }
+  | { kind: "blocked"; reason: "quota_exceeded" | "gate_unsupported" | "pre_boundary_verification" | "persona_activation_unavailable" }
   | { kind: "none"; reason: "committed" | "expired" | "cancelled" };
 
 /**
@@ -37,7 +37,7 @@ export type CreationNextAction =
  * optimistic concurrency, even though the number is never rendered. It omits
  * wire fields the UI neither renders nor sends: the draft, the canonical policy
  * hash, requirement_hash, persona role presentation, and the committed resource
- * payload.
+ * payload. Creator verification is no longer part of this progress model.
  */
 export interface CommunityCreationIntentView {
   intentId: string;

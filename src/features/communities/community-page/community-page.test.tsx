@@ -39,10 +39,11 @@ const preview: GetCommunitiesCommunityIdPreviewResponse = {
 };
 
 function engagementApi(overrides: Partial<CommunityEngagementApi> = {}): CommunityEngagementApi {
+  let committed = false;
   return {
-    readViewerState: vi.fn(async () => ({ membership: "not_member" as const, following: false, followerCount: 20 })),
+    readViewerState: vi.fn(async () => ({ membership: committed ? "member" as const : "not_member" as const, following: committed, followerCount: committed ? 21 : 20 })),
     resolveJoinAction: vi.fn(async () => ({ kind: "join" as const })),
-    join: vi.fn(async () => ({ status: "joined" as const })),
+    join: vi.fn(async () => { committed = true; return { status: "joined" as const, personaId: "persona_1" }; }),
     follow: vi.fn(async () => ({ following: true, followerCount: 21 })),
     unfollow: vi.fn(async () => ({ following: false, followerCount: 20 })),
     ...overrides,
@@ -125,8 +126,8 @@ describe("CommunityPage", () => {
           status: "authenticated",
           userId: "usr-account-one",
           personas: [
-            { personaId: "persona-one", displayName: "Persona One", avatarRef: null, primaryPublicHandle: "one.pirate" },
-            { personaId: "persona-two", displayName: "Persona Two", avatarRef: null, primaryPublicHandle: "two.pirate" },
+            { personaId: "persona-one", displayName: "Persona One", avatarRef: null, primaryPublicHandle: "one.pirate", communityBinding: { communityId, bindingSource: "first_membership" } },
+            { personaId: "persona-two", displayName: "Persona Two", avatarRef: null, primaryPublicHandle: "two.pirate", communityBinding: { communityId, bindingSource: "first_membership" } },
           ],
         })}
       />
@@ -285,14 +286,16 @@ describe("CommunityPage", () => {
         engagementApi={api}
         handleSalesClient={{ get_communitiesCommunityIdHandleOfferings: async () => ({ items: [], next_cursor: null }) }}
         pathSegment="xn--pokmon-dva"
-        resolveSession={async () => ({ status: "authenticated", userId: "account-one", personas: [] })}
+        resolveSession={async () => ({ status: "authenticated", userId: "account-one", personas: [{
+          personaId: "persona_1", displayName: "Member", avatarRef: null, primaryPublicHandle: null, communityBinding: null,
+        }] })}
       />
     ));
     await vi.waitFor(() => expect(api.readViewerState).toHaveBeenCalledWith(communityId));
     const join = [...container.querySelectorAll<HTMLButtonElement>("button")]
       .find(button => button.textContent?.trim() === "Join")!;
     join.click();
-    await vi.waitFor(() => expect(api.join).toHaveBeenCalledWith(communityId));
+    await vi.waitFor(() => expect(api.join).toHaveBeenCalledWith(communityId, { kind: "existing", personaId: "persona_1" }));
     await vi.waitFor(() => expect(container.textContent).toContain("Joined this Community."));
     expect(join.textContent).toBe("Joined");
   });
@@ -300,7 +303,7 @@ describe("CommunityPage", () => {
   test("shows a requested membership as pending instead of joined", async () => {
     const api = engagementApi({
       resolveJoinAction: vi.fn(async () => ({ kind: "request" as const })),
-      join: vi.fn(async () => ({ status: "requested" as const })),
+      join: vi.fn(async () => ({ status: "requested" as const, personaId: null })),
     });
     const container = render(() => (
       <CommunityPage

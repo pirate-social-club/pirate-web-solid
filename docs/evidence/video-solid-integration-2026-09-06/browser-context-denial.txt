@@ -1,0 +1,21 @@
+Local video recovery proof
+Start interrupted uploadRestore retained operationResume uploadInspect retained operationOpen global composerOpen conflicting community composer
+ready
+Create a post
+
+Start a conversation or publish a song in a community you belong to.
+
+A retained submission belongs to another community. Resolve it from the global Create post action before posting here.
+
+Posting as Fixture persona
+
+Resolve this retained video with its original community and persona
+
+Video state: processing.
+
+Resume video submission
+Cancel video submission
+Check video status
+Cancel
+
+Submissions use the same-origin session and durable generated-client contracts.

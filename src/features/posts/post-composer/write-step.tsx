@@ -122,6 +122,7 @@ function attachmentFor(
 
 export function PostComposerWriteStep(props: {
   controller: PostComposerController;
+  onVideoEntry?: () => void;
   initialOpenPanel?: "access-and-rights" | "visibility";
   structuredLayout?: "text" | "video";
 }) {
@@ -164,7 +165,10 @@ export function PostComposerWriteStep(props: {
       return;
     }
     if (kind === "image") return imageInput?.click();
-    if (kind === "video") return videoInput?.click();
+    if (kind === "video") {
+      if (props.onVideoEntry) return props.onVideoEntry();
+      return videoInput?.click();
+    }
     if (kind === "song") return songInput?.click();
     if (kind === "file") return fileInput?.click();
     controller.tabs.onTabChange(kind);

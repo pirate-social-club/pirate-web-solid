@@ -1,6 +1,7 @@
 // Thin Worker adapter: Solid start mode provides the web-standard handler;
 // Cloudflare owns the Worker environment and the ASSETS binding.
 import { handleRequest } from "virtual:solid-ssr-handler";
+import { solidRequestDiagnostics } from "./hns-ingress/request-diagnostics.ts";
 import { proxyApiRequest } from "./api/index.ts";
 import { VERIFICATION_CONFIG_PATH, verificationConfigResponse } from "./api/verification-config.ts";
 import {
@@ -111,20 +112,22 @@ async function ordinaryRequest(request: Request, env: Env): Promise<Response> {
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
-    const origin = new URL(request.url).origin;
-    let community: ProductionHnsCommunityAppIngressCompositionV2 = disabledProductionHnsCommunityAppIngressCompositionV2;
-    let handle: ProductionHnsHandlePersonaIngressCompositionV1 = disabledProductionHnsHandlePersonaIngressCompositionV1;
-    try {
-      if (origin === env.HNS_COMMUNITY_APP_INGRESS_ORIGIN) community = await hnsComposition(env);
-      if (origin === env.HNS_HANDLE_HOST_INGRESS_ORIGIN) handle = await handleComposition(env);
-    } catch {
-      return hnsAssemblyFailureResponse();
-    }
-    return routeHnsIngressRequest({
-      request,
-      community,
-      handle,
-      ordinary: (ordinary) => ordinaryRequest(ordinary, env),
+    return solidRequestDiagnostics.run(env.CF_VERSION_METADATA?.id ?? null, async () => {
+      const origin = new URL(request.url).origin;
+      let community: ProductionHnsCommunityAppIngressCompositionV2 = disabledProductionHnsCommunityAppIngressCompositionV2;
+      let handle: ProductionHnsHandlePersonaIngressCompositionV1 = disabledProductionHnsHandlePersonaIngressCompositionV1;
+      try {
+        if (origin === env.HNS_COMMUNITY_APP_INGRESS_ORIGIN) community = await hnsComposition(env);
+        if (origin === env.HNS_HANDLE_HOST_INGRESS_ORIGIN) handle = await handleComposition(env);
+      } catch {
+        return hnsAssemblyFailureResponse();
+      }
+      return routeHnsIngressRequest({
+        request,
+        community,
+        handle,
+        ordinary: (ordinary) => ordinaryRequest(ordinary, env),
+      });
     });
   },
 };

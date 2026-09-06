@@ -55,10 +55,10 @@ export function PostComposer(props: PostComposerProps) {
 
             <Show when={controller.isMobile()} fallback={
               <Card class="overflow-hidden bg-card shadow-none">
-                <PostComposerWriteStep controller={controller} initialOpenPanel={props.initialOpenPanel} />
+                <PostComposerWriteStep onVideoEntry={props.onVideoEntry} controller={controller} initialOpenPanel={props.initialOpenPanel} />
               </Card>
             }>
-              <PostComposerWriteStep controller={controller} initialOpenPanel={props.initialOpenPanel} />
+              <PostComposerWriteStep onVideoEntry={props.onVideoEntry} controller={controller} initialOpenPanel={props.initialOpenPanel} />
             </Show>
           </div>
         }
@@ -72,7 +72,7 @@ export function PostComposer(props: PostComposerProps) {
                 onClose={() => props.onClose?.()}
                 onSubmit={requestPost}
               >
-                <PostComposerWriteStep
+                <PostComposerWriteStep onVideoEntry={props.onVideoEntry}
                   controller={controller}
                   initialOpenPanel={props.initialOpenPanel}
                   structuredLayout={mode() === "video" ? "video" : "text"}

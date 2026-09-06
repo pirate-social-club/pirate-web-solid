@@ -1,4 +1,5 @@
 import type { GeneratedLocaleCatalogs } from "../../../locales/generated";
+import type { CommunityPersonaChoice } from "../../identity/community-persona-choice";
 
 /**
  * A subset of api-next's `CompiledGateRequirement`
@@ -86,17 +87,22 @@ export function compileMembershipPolicy(
 }
 
 export interface CreateCommunityDraft {
-  /** Selected by the host's shared operation-level persona control. */
-  personaId: string;
+  /**
+   * The closed persona choice every creation intent carries (spec 014 §10.2):
+   * an existing active persona the creator designates, or `create_new` to have
+   * the server mint the owner persona bound to the new community at commit.
+   * Undefined only while several personas could act and none is chosen yet.
+   */
+  persona: CommunityPersonaChoice | undefined;
   name: string;
   description: string | null;
   /** Configured requirements appended to the mandatory human baseline. */
   additionalRequirements: AdditionalGateRequirement[];
 }
 
-export function createEmptyDraft(personaId: string): CreateCommunityDraft {
+export function createEmptyDraft(persona: CommunityPersonaChoice | undefined): CreateCommunityDraft {
   return {
-    personaId,
+    persona,
     name: "",
     description: null,
     additionalRequirements: [],
@@ -111,8 +117,11 @@ export function withDraftDescription(draft: CreateCommunityDraft, description: s
   return { ...draft, description: description === "" ? null : description };
 }
 
-export function withDraftPersona(draft: CreateCommunityDraft, personaId: string): CreateCommunityDraft {
-  return { ...draft, personaId };
+export function withDraftPersona(
+  draft: CreateCommunityDraft,
+  persona: CommunityPersonaChoice,
+): CreateCommunityDraft {
+  return { ...draft, persona };
 }
 
 export function withAdditionalRequirements(
@@ -133,13 +142,17 @@ export type CreateCommunityCopy = {
 
 export interface DraftValidation {
   nameError: string | null;
+  personaError: string | null;
   valid: boolean;
 }
 
 export function validateDraft(
-  draft: Pick<CreateCommunityDraft, "name">,
+  draft: Pick<CreateCommunityDraft, "name" | "persona">,
   copy: CreateCommunityCopy,
 ): DraftValidation {
   const nameError = draft.name.trim().length === 0 ? copy.nameRequired : null;
-  return { nameError, valid: nameError === null };
+  const personaError = draft.persona === undefined
+    ? "Choose the persona this community presents before continuing."
+    : null;
+  return { nameError, personaError, valid: nameError === null && personaError === null };
 }

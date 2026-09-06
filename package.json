@@ -98,6 +98,7 @@
   },
   "overrides": {
     "@storybook/builder-vite": "10.5.10",
-    "@storybook/csf-plugin": "10.5.10"
+    "@storybook/csf-plugin": "10.5.10",
+    "ethers>ws": "8.21.3"
   }
 }

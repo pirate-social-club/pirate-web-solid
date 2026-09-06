@@ -377,6 +377,7 @@ interface PostComposerSubmitState {
 }
 
 export interface PostComposerProps extends Partial<PostComposerDraftState>, PostComposerDraftActions {
+  onVideoEntry?: () => void;
   onClose?: () => void;
   presentation?: "page" | "embedded";
   // Community policy: enabling 18+ requires an explicit confirmation step.

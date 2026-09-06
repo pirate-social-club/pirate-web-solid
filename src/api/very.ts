@@ -2,6 +2,7 @@ import type {
   PirateApiClient,
   PirateApiRequestOptions,
   PostVerificationSessionsInput,
+  PostCommunitiesCommunityIdJoinInput,
 } from "@pirate/api-client";
 
 import {
@@ -319,12 +320,12 @@ export async function resolveVeryCommunityAction(
 }
 
 export async function joinVeryCommunity(
-  options: VeryCommunityOptions,
+  options: VeryCommunityOptions & { persona: NonNullable<NonNullable<PostCommunitiesCommunityIdJoinInput["body"]>["persona"]> },
 ): Promise<VeryCommunityJoin> {
   const { apiClient, requestOptions } = veryCommunityRequest(options);
   try {
     const joined = await apiClient.post_communitiesCommunityIdJoin(
-      { path: { communityId: options.communityId } },
+      { path: { communityId: options.communityId }, body: { persona: options.persona } },
       requestOptions,
     );
     if (joined.community !== options.communityId || joined.status !== "joined") {

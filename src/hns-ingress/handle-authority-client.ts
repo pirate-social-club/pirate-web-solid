@@ -1,3 +1,4 @@
+import { beginAuthorityDiagnostic, HNS_DIAGNOSTIC_ID_HEADER } from "./request-diagnostics.ts";
 import {
   CF_ACCESS_CLIENT_ID_HEADER,
   CF_ACCESS_CLIENT_SECRET_HEADER,
@@ -132,12 +133,16 @@ export function makeHnsHandleAuthorityClientV1(options: {
       ]));
       if (bytes.byteLength > HNS_PROFILE_AUTHORITY_MAX_BYTES) throw new HnsIngressFailure("authority_unavailable");
       const bounded = makeInterruptDeadline(parentSignal, HNS_PROFILE_AUTHORITY_DEADLINE_MS);
+      let diagnostic: ReturnType<typeof beginAuthorityDiagnostic> | undefined;
       try {
+        bounded.signal.throwIfAborted();
+        diagnostic = beginAuthorityDiagnostic("handle_persona_v1", HNS_PROFILE_AUTHORITY_DEADLINE_MS);
         const response = await Promise.race([
           (options.fetchImpl ?? fetch)(`${origin}${HNS_SOLID_HANDLE_HOST_AUTHORITY_V1_PATH}`, {
             method: "POST",
             headers: {
               accept: "application/json", "content-type": "application/json",
+              [HNS_DIAGNOSTIC_ID_HEADER]: diagnostic.correlationId,
               [CF_ACCESS_CLIENT_ID_HEADER]: options.accessClientId,
               [CF_ACCESS_CLIENT_SECRET_HEADER]: options.accessClientSecret,
             },
@@ -151,8 +156,12 @@ export function makeHnsHandleAuthorityClientV1(options: {
         if (response.status !== 200 || response.headers.get("content-type")?.split(";", 1)[0]?.trim().toLowerCase() !== "application/json") {
           throw new HnsIngressFailure("authority_unavailable");
         }
-        return parseResponse(await boundedBytes(response, bounded.interrupt), normalizedHost, authority, options.gatewayDeploymentReference);
+        const result = parseResponse(await boundedBytes(response, bounded.interrupt), normalizedHost, authority, options.gatewayDeploymentReference);
+        bounded.signal.throwIfAborted();
+        diagnostic.finish("success");
+        return result;
       } catch (error) {
+        diagnostic?.finish(bounded.didTimeout() ? "timeout" : parentSignal?.aborted ? "canceled" : "failed");
         if (parentSignal?.aborted && !bounded.didTimeout()) throw parentSignal.reason ?? error;
         if (error instanceof HnsIngressFailure) throw error;
         throw new HnsIngressFailure("authority_unavailable");

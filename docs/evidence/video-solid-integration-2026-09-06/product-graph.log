@@ -1,0 +1,10 @@
+$ node scripts/check-product-graph.mjs --require-build
+{
+  "productionSourceFiles": 873,
+  "workerAssetFiles": 190,
+  "productionRuntimeReactDependencies": 0,
+  "storybookManager": "dev-only; .storybook and storybook-static are excluded from Worker asset scan",
+  "buildRequired": true
+}
+
+exit=0

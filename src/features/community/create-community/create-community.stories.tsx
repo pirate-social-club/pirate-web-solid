@@ -11,7 +11,7 @@ import {
   type CreateCommunityDraft,
 } from "./create-community-model";
 
-const personaId = "persona_1";
+const personaId = { kind: "existing", personaId: "persona_1" } as const;
 
 function CreateStory(props: {
   draft?: CreateCommunityDraft;

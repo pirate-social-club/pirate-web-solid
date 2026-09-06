@@ -69,7 +69,9 @@ export const PreBoundaryVerification: Story = {
   ),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(canvas.getByText("Older creation draft")).toBeInTheDocument();
+    const blockedState = canvasElement.querySelector<HTMLElement>("[data-blocked-state]");
+    if (!blockedState) throw new Error("Expected the blocked creation state");
+    await expect(within(blockedState).getByText("Older creation draft")).toBeInTheDocument();
     await expect(canvas.getByText(/This older draft cannot be completed here/)).toBeInTheDocument();
     await expect(canvas.queryByRole("button", { name: "Start verification" })).toBeNull();
   },

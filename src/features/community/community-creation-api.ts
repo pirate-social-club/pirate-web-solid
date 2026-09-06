@@ -10,6 +10,7 @@ import {
   sessionRequestOptions,
 } from "../../api/client";
 import type { ApiFetch } from "../../api/proxy";
+import { toCommunityPersonaChoiceWire } from "../identity/community-persona-choice";
 import {
   draftGatePolicy,
   type CreateCommunityDraft,
@@ -60,7 +61,7 @@ export interface CommunityCreationApi {
 }
 
 export class CommunityCreationApiError extends Error {
-  readonly code: "csrf_required" | "unsupported_creation_contract";
+  readonly code: "csrf_required" | "persona_choice_required" | "unsupported_creation_contract";
 
   constructor(code: CommunityCreationApiError["code"], message: string) {
     super(message);
@@ -96,7 +97,9 @@ function mapIntent(response: PostCommunityCreationIntentsResponse): CommunityCre
     committedHref: response.committed_resource?.href ?? null,
     expiresAt: response.expires_at,
     intentId: response.intent_id,
-    nextAction: mapNextAction(response.next_action),
+    nextAction: response.draft.persona.kind === "create_new" && response.next_action.kind === "commit"
+      ? { kind: "blocked", reason: "persona_activation_unavailable" }
+      : mapNextAction(response.next_action),
     revision: response.revision,
     status: response.status,
   };
@@ -115,10 +118,16 @@ function requireCurrentIntent(
 }
 
 function draftBody(draft: CreateCommunityDraft) {
+  if (draft.persona === undefined) {
+    throw new CommunityCreationApiError(
+      "persona_choice_required",
+      "Choose the persona this community presents before saving the draft.",
+    );
+  }
   return {
     description: draft.description,
     name: draft.name,
-    persona: { kind: "existing" as const, persona_id: draft.personaId },
+    persona: toCommunityPersonaChoiceWire(draft.persona),
     policy: draftGatePolicy(draft),
   };
 }

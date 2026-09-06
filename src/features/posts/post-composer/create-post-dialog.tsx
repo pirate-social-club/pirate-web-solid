@@ -136,6 +136,8 @@ export interface CreatePostDialogProps {
   readonly transport?: TextSubmissionTransport;
   readonly mediaStorage?: MediaSubmissionStorage;
   readonly mediaTransport?: MediaSubmissionTransport;
+  readonly videoStorage?: import("../video-submission/coordinator").VideoStorage;
+  readonly videoTransport?: import("../video-submission/transport").VideoTransport;
   readonly createMediaId?: () => string;
   readonly origin?: string | URL;
   readonly fetchImpl?: typeof fetch;
@@ -650,9 +652,13 @@ export function CreatePostDialog(props: CreatePostDialogProps): JSX.Element {
 
             <Show when={mode() !== "video"} fallback={
               <Show when={props.principalId}>{account => <VideoComposerRuntime
-                principalId={account()} communityId={communityId().trim()} personaId={selectedActivePersonaId()}
+                principalId={account()} communityId={communityContextConflict() ? contextualCommunityId() : communityId().trim()} personaId={selectedActivePersonaId()}
+                storage={props.videoStorage} transport={props.videoTransport} fetchImpl={props.fetchImpl}
                 onExit={() => setMode("text")} onPublished={props.onPublished}
-                onRetainedPersona={personaId => { setVideoRetained(personaId !== null); if (personaId !== null) setVideoPersonaId(personaId); }}
+                onRetainedPersona={(personaId, retainedCommunityId) => {
+                  setVideoRetained(personaId !== null);
+                  if (personaId !== null) { setVideoPersonaId(personaId); if (retainedCommunityId) setCommunityId(retainedCommunityId); }
+                }}
               />}</Show>
             }><PostComposer
               audienceEditingDisabled={mode() === "song"
@@ -674,6 +680,7 @@ export function CreatePostDialog(props: CreatePostDialogProps): JSX.Element {
               onAgeGatePolicyChange={setAgeGatePolicy}
               onLyricsValueChange={setLyrics}
               onModeChange={setMode}
+              onVideoEntry={() => setMode("video")}
               onRoyaltySplitChange={setRoyaltySplit}
               onSongChange={next => {
                 setSong(next);

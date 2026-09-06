@@ -39,6 +39,9 @@
     "post_mediaPostSubmissionsSubmissionIdRetry",
     "post_mediaPostSubmissionsSubmissionIdCancel",
     "post_mediaUploadReservationsReservationIdPartsRenew",
-    "get_mediaPostSubmissionsSubmissionId"
+    "get_mediaPostSubmissionsSubmissionId",
+    "get_communitiesCommunityIdHnsRootImports",
+    "post_postsPostIdVideoPlaybackAccess",
+    "get_postsPostIdVideoPoster"
   ]
 }

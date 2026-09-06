@@ -45,6 +45,7 @@ describe("private current-authority v2 client", () => {
         expect(init?.method).toBe("POST");
         expect(init?.redirect).toBe("manual");
         const requestHeaders = new Headers(init?.headers);
+        expect(requestHeaders.get("x-pirate-hns-diagnostic-id")).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/u);
         expect(requestHeaders.get("accept")).toBe("application/json");
         expect(requestHeaders.get("content-type")).toBe("application/json");
         expect(requestHeaders.get(CF_ACCESS_CLIENT_ID_HEADER)).toBe("service-client-id");
@@ -117,7 +118,33 @@ describe("private current-authority v2 client", () => {
     ).rejects.toMatchObject({ reason: "authority_unavailable" });
   });
 
-  it("enforces the two-second deadline and propagates caller abort", async () => {
+  it("accepts a three-second authority result once and keeps a pre-aborted caller off the network", async () => {
+    vi.useFakeTimers();
+    let calls = 0;
+    const client = makeHnsAuthorityClientV2({
+      origin: "https://api-private.test", accessClientId: "id", accessClientSecret: "secret",
+      gatewayDeploymentReference: deployment,
+      fetchImpl: () => {
+        calls += 1;
+        return new Promise<Response>((resolve) => setTimeout(() => resolve(
+          new Response(responseBody(), { headers: { "content-type": "application/json" } }),
+        ), 3_000));
+      },
+    });
+    let settled = false;
+    const response = client.resolve("app.xn--pokmon-dva", authority).then((value) => { settled = true; return value; });
+    await vi.advanceTimersByTimeAsync(2_000);
+    expect(settled).toBe(false);
+    await vi.advanceTimersByTimeAsync(1_000);
+    await expect(response).resolves.toMatchObject({ normalizedHost: "app.xn--pokmon-dva" });
+    const controller = new AbortController();
+    const reason = new DOMException("caller canceled", "AbortError");
+    controller.abort(reason);
+    await expect(client.resolve("app.xn--pokmon-dva", authority, controller.signal)).rejects.toBe(reason);
+    expect(calls).toBe(1);
+  });
+
+  it("enforces the four-second deadline and propagates caller abort", async () => {
     vi.useFakeTimers();
     const client = makeHnsAuthorityClientV2({
       origin: "https://api-private.test",
@@ -128,7 +155,7 @@ describe("private current-authority v2 client", () => {
     });
     const timedOut = client.resolve("app.xn--pokmon-dva", authority);
     const timeoutExpectation = expect(timedOut).rejects.toMatchObject({ reason: "authority_unavailable" });
-    await vi.advanceTimersByTimeAsync(2_000);
+    await vi.advanceTimersByTimeAsync(4_000);
     await timeoutExpectation;
 
     const controller = new AbortController();
