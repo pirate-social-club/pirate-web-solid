@@ -78,3 +78,24 @@ proof remain open. The local recovery source is intentionally tiny and does
 not establish large-upload performance. Every clean video still requires the
 ratified API safety approval during proof. Song-backed recording and server
 soundtrack construction remain phase two.
+
+## Independent lifecycle review continuation
+
+Review found and fixed three local lifecycle errors: successful explicit retry
+now restores the authorized poster, renewal preserves the current user pause
+rather than sticky historical play intent, and seeking to zero is retained.
+Playback state is captured only for attached media with metadata, so hiding
+while replacement metadata loads cannot overwrite the retained position or
+intent with teardown defaults. Eight focused player cases pass, including
+renewal at position 25 followed by hide/show before metadata, exit 0.
+
+The continuation Storybook build completed successfully, exit 0, superseding
+the incomplete prior attempts. The final application suite passes 448 cases
+across 65 suites; TypeScript, lint and the production build pass, all exit 0.
+The first new type run failed because a test variable inferred the literal
+HAVE_METADATA value; the fixture now declares a numeric readiness variable.
+The failed log remains evidence. No deployed or physical-browser claim changes.
+
+Solid main has advanced with persona/HNS changes since this branch's base.
+Reconciliation with main and integration validation remain before a paired
+staging deployment. No shared draft or participation behavior changed here.

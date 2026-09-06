@@ -27,8 +27,13 @@ export function VideoPlayer(props: {
   const [foreground, setForeground] = createSignal(true, { ownedWrite: true });
   const [status, setStatus] = createSignal<"idle" | "loading" | "ready" | "unavailable">("idle", { ownedWrite: true });
   const [poster, setPoster] = createSignal<string | undefined>(undefined, { ownedWrite: true });
+  function rememberPlayback() {
+    if (!video || !detach || video.readyState < HTMLMediaElement.HAVE_METADATA) return;
+    if (Number.isFinite(video.currentTime)) position = video.currentTime;
+    resume = !video.paused;
+  }
   function stop() {
-    if (video) { position = video.currentTime || position; resume = !video.paused; }
+    rememberPlayback();
     generation++; abort?.abort(); abort = undefined;
     clearTimeout(timer); clearTimeout(expiryTimer); clearTimeout(requestTimer);
     if (video) {
@@ -40,13 +45,13 @@ export function VideoPlayer(props: {
   function fail() { stop(); setStatus("unavailable"); }
   async function attach(grant: PlaybackGrant, expected: number) {
     const cleanup = await (props.attach ?? attachPlayback)({ video, url: grant.url,
-      position: video.currentTime || position, resume: !video.paused || resume,
+      position, resume,
       signal: abort!.signal, onFailure: () => { if (generation === expected) fail(); } });
     if (generation !== expected) cleanup(); else detach = cleanup;
   }
   async function acquire() {
     const expected = generation;
-    if (video) { position = video.currentTime || position; resume = !video.paused || resume; }
+    rememberPlayback();
     abort?.abort(); detach?.(); detach = undefined; abort = new AbortController();
     clearTimeout(timer); clearTimeout(expiryTimer); clearTimeout(requestTimer);
     lastMint = Date.now(); setStatus("loading");
@@ -55,6 +60,7 @@ export function VideoPlayer(props: {
       const grant = await (props.mint ?? mintPlaybackAccess)(props.postId, abort.signal);
       if (generation !== expected || abort.signal.aborted) return;
       clearTimeout(requestTimer);
+      if (props.state.thumbnail === "ready") setPoster(videoPosterPath(props.postId));
       // Expiry still stops buffered playback if a renewal request hangs.
       expiryTimer = setTimeout(() => { if (generation === expected) fail(); }, Math.max(0, grant.expiresAt - Date.now()));
       await attach(grant, expected);
