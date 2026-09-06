@@ -8,9 +8,10 @@ const currentClient = resolve(
   appRoot,
   "node_modules/@pirate/api-client/src/generated/client.ts",
 );
-// Client 0.60.0 adds video projections to six read responses; statuses and
-// errors are unchanged from 0.59.0. Include multipart renewal and video reads.
-const expectedDigest = "f4fd64897479eb9c502388efe31a61fc88309047f0a72ccfdb8a668f49487c56";
+// Client 0.65.0 adds persona bindings, video failure reasons and unavailable
+// delivery states, plus the HNS publication check. The audited operation set
+// retains its success statuses and error envelopes from 0.60.0.
+const expectedDigest = "50faab29460a048fbfc29bdbbb96ea3b909352f808ae007bbd79719e1801dfd8";
 
 const operations = [
   "get_personas",

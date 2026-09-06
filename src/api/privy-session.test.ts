@@ -35,6 +35,7 @@ function persona(
       primary_public_handle: null,
     },
     wallet_set: { evm: wallet },
+    community_binding: null,
     created_at: "2026-09-02T00:00:00.000Z",
     retired_at: null,
   };
