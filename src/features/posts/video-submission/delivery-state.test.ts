@@ -20,7 +20,7 @@ describe("video delivery boundary", () => {
       thumbnail: { status: "ready", artifact_ref: "media://derived/private-poster" },
     };
     const state = projectVideoDelivery(value);
-    expect(state).toEqual({ playback: "delivery_unavailable", thumbnail: "delivery_unavailable" });
+    expect(state).toEqual({ playback: "ready", thumbnail: "ready" });
     expect(readVideoDelivery(value)).toEqual(state);
     expect(JSON.stringify(state)).not.toContain("bare-provider-uid");
     expect(JSON.stringify(state)).not.toContain("media://");

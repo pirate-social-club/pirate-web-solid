@@ -50,7 +50,6 @@
     "verify:live": "node scripts/probe.mjs && node scripts/stream-check.mjs && node scripts/hydration-check.mjs"
   },
   "dependencies": {
-    "mediabunny": "1.55.5",
     "@pirate/api-client": "file:vendor/api-client/pirate-api-client-0.65.0.tgz",
     "@pirate/web-solid-ui": "workspace:*",
     "@privy-io/js-sdk-core": "0.70.0",
@@ -60,6 +59,8 @@
     "@veryai/widget": "1.0.22",
     "@zkpassport/sdk": "0.14.2",
     "filesystem-routing": "0.2.1",
+    "hls.js": "1.7.2",
+    "mediabunny": "1.55.5",
     "qr-code-styling": "1.9.2",
     "qrcode": "1.5.4",
     "solid-js": "2.0.0-rc.0",

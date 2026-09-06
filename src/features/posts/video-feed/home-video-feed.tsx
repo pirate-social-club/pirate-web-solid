@@ -1,7 +1,7 @@
 import { Title } from "@solidjs/meta";
 import { VerticalFeed } from "@pirate/web-solid-ui";
 import { For, Show, createEffect, createSignal, onCleanup, untrack } from "solid-js";
-import { VideoDeliveryPending } from "../video-submission/video-delivery-pending";
+import { VideoPlayer } from "../video-submission/video-player";
 import type { VideoDeliveryState } from "../video-submission/delivery-state";
 
 import { Spinner, Type } from "../../../design-system.ts";
@@ -24,7 +24,7 @@ export interface HomeVideoFeedProps {
 }
 
 interface VideoPageState {
-  readonly delivery: readonly VideoDeliveryState[];
+  readonly delivery: readonly { postId: string; state: VideoDeliveryState; caption: string | null; href: string }[];
   readonly posts: readonly HomeVideoPost[];
   readonly nextCursor: string | null;
   readonly unplayableCount: number;
@@ -36,8 +36,8 @@ type LoadState =
   | Readonly<{ readonly kind: "ready" }>;
 
 const MAX_EMPTY_PAGE_SCAN = 4;
-const deliveryStates = (page: FeedPage): VideoDeliveryState[] => page.items.flatMap(item =>
-  item.postType === "video" && item.status === "published" && item.videoDelivery ? [item.videoDelivery] : []);
+const deliveryStates = (page: FeedPage): { postId: string; state: VideoDeliveryState; caption: string | null; href: string }[] => page.items.flatMap(item =>
+  item.postType === "video" && item.status === "published" && item.videoDelivery ? [{ postId: item.id, state: item.videoDelivery, caption: item.caption, href: item.canonicalPath ?? `/p/${encodeURIComponent(item.id)}` }] : []);
 
 async function collectVideoPage(
   first: FeedPage,
@@ -50,7 +50,7 @@ async function collectVideoPage(
   let unplayableCount = unplayableVideoCount(first.items);
   let nextCursor = first.nextCursor;
   let scanned = 1;
-  while (posts.length === 0 && nextCursor && scanned < MAX_EMPTY_PAGE_SCAN) {
+  while (posts.length === 0 && delivery.length === 0 && nextCursor && scanned < MAX_EMPTY_PAGE_SCAN) {
     const page = await loadPage({ cursor: nextCursor, locale, sort });
     posts.push(...playableHomeVideos(page.items));
     delivery.push(...deliveryStates(page));
@@ -74,7 +74,7 @@ export function HomeVideoFeed(props: HomeVideoFeedProps) {
   const [nextCursor, setNextCursor] = createSignal<string | null>(null);
   const [loadingMore, setLoadingMore] = createSignal(false);
   const [unplayableCount, setUnplayableCount] = createSignal(0);
-  const [delivery, setDelivery] = createSignal<readonly VideoDeliveryState[]>([]);
+  const [delivery, setDelivery] = createSignal<readonly { postId: string; state: VideoDeliveryState; caption: string | null; href: string }[]>([]);
   let active = true;
   onCleanup(() => { active = false; });
 
@@ -136,8 +136,13 @@ export function HomeVideoFeed(props: HomeVideoFeedProps) {
           <Show
             when={posts().length > 0}
             fallback={<Show when={delivery().length > 0} fallback={<div class="grid h-full place-items-center px-6 text-center"><div><Type variant="h2" class="text-white">{unplayableCount() > 0 ? "Videos are not playable yet" : "No videos yet"}</Type><Type variant="body" class="mt-2 text-white/70">{unplayableCount() > 0 ? "The feed found video posts, but the API did not provide playable media." : "Published community videos will appear here."}</Type></div></div>}>
-              <div class="grid max-h-dvh gap-4 overflow-y-auto p-6 text-white" aria-label="Published videos awaiting delivery">
-                <For each={delivery()}>{state => <VideoDeliveryPending state={state} />}</For>
+              <div class="h-full snap-y snap-mandatory overflow-y-auto text-white" aria-label="Published videos">
+                <For each={delivery()}>{item => <article class="grid min-h-[90dvh] snap-start content-center gap-3 px-4 py-8">
+                  <VideoPlayer postId={item.postId} state={item.state} />
+                  <Show when={item.caption}>{caption => <p>{caption()}</p>}</Show>
+                  <a href={item.href}>View post</a>
+                </article>}</For>
+                <Show when={nextCursor()}><button type="button" disabled={loadingMore()} onClick={() => { void loadMore(); }} class="m-4">{loadingMore() ? "Loading videos…" : "Load more videos"}</button></Show>
               </div>
             </Show>}
           >

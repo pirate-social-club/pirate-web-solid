@@ -4,7 +4,7 @@ import { KaraokeLeaderboardRouteView, KaraokeSessionRouteView } from "../../kara
 import { StudyV2RouteView } from "../../studying/study-v2-route-view.tsx";
 import type { PublicPostContentResponse, PublicPostRouteState } from "./public-post-route.model.ts";
 import { projectVideoDelivery } from "../video-submission/delivery-state";
-import { VideoDeliveryPending } from "../video-submission/video-delivery-pending";
+import { VideoPlayer } from "../video-submission/video-player";
 
 export interface PublicPostRouteViewProps {
   readonly state: PublicPostRouteState | PromiseLike<PublicPostRouteState>;
@@ -81,7 +81,7 @@ function PostDetail(props: { readonly response: PublicPostContentResponse }) {
         </header>
         <Show when={body()}>{value => <p class="whitespace-pre-wrap">{value()}</p>}</Show>
         <Show when={props.response.content.post.post_type === "video"}>
-          <VideoDeliveryPending state={projectVideoDelivery(props.response.content.video)} />
+          <VideoPlayer postId={props.response.post_id} state={projectVideoDelivery(props.response.content.video)} />
         </Show>
       </article>
     </main>

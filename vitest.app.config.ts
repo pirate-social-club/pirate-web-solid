@@ -73,6 +73,8 @@ export default defineConfig({
       "src/features/posts/video-submission/coordinator.test.ts",
       "src/features/posts/video-submission/capture.test.ts",
       "src/features/posts/video-submission/delivery-state.test.ts",
+      "src/features/posts/video-submission/playback-access.test.ts",
+      "src/features/posts/video-submission/video-player.test.tsx",
       "src/features/posts/video-submission/video-composer-runtime.test.tsx",
       "src/features/posts/post-composer/text-submission-contract.test.ts",
       "src/features/posts/post-composer/pending-submission.test.ts",

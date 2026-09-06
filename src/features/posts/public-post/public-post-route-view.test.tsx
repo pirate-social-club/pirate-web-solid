@@ -75,8 +75,10 @@ describe("public post route view", () => {
         data_registration: "registered", capabilities: { can_post_with_song: false },
       },
     } } });
-    expect(container.textContent).toContain(status === "pending" ? "Playback is being prepared" : "Playback is unavailable");
-    expect(container.querySelector("video, iframe, img")).toBeNull();
+    if (status === "pending") {
+      expect(container.textContent).toContain("Playback is being prepared");
+      expect(container.querySelector("video, iframe, img")).toBeNull();
+    } else expect(container.querySelector("video")?.getAttribute("src")).toBeNull();
     expect(container.innerHTML).not.toContain("bare-stream-uid"); expect(container.innerHTML).not.toContain("media://");
   });
   it("renders public content with canonical and Open Graph metadata", async () => {

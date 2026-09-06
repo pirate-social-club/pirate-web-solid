@@ -9,7 +9,7 @@ import type { FeedSort } from "./feed-model.ts";
 import type { PostEngagementTransport } from "../post-engagement/post-engagement-api.ts";
 import type { CommentThreadItem } from "../post-engagement/post-engagement-model.ts";
 import { PostEngagement } from "../post-engagement/post-engagement.tsx";
-import { VideoDeliveryPending } from "../video-submission/video-delivery-pending";
+import { VideoPlayer } from "../video-submission/video-player";
 import {
   fetchPublicFeedPage,
   type PublicFeedClient,
@@ -165,7 +165,7 @@ function FeedItemCard(props: {
             {(value) => <Type variant="body">{value()}</Type>}
           </Show>
           <Show when={props.item.postType === "video" && props.item.videoDelivery}>
-            {(state) => <VideoDeliveryPending state={state()} />}
+            {(state) => <VideoPlayer postId={props.item.id} state={state()} />}
           </Show>
           <div class="flex flex-wrap gap-3" aria-label="Post activity">
             <Type variant="caption">{props.item.likeCount === null ? "Likes unavailable" : `${props.item.likeCount} likes`}</Type>

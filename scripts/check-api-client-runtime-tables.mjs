@@ -10,10 +10,13 @@ const currentClient = resolve(
 );
 // Client 0.65.0 adds persona bindings, video failure reasons and unavailable
 // delivery states, plus the HNS publication check. The audited operation set
-// retains its success statuses and error envelopes from 0.60.0.
-const expectedDigest = "50faab29460a048fbfc29bdbbb96ea3b909352f808ae007bbd79719e1801dfd8";
+// retains its success statuses and error envelopes from 0.60.0. Playback
+// access (200 JSON) and poster (200/304 JPEG) now join the pinned scope.
+const expectedDigest = "60a79eb9350436b52f63d1cf9fea6cbe38cf63fb3987e684cd10cc5b7b00ef81";
 
 const operations = [
+  "post_postsPostIdVideoPlaybackAccess",
+  "get_postsPostIdVideoPoster",
   "get_personas",
   "post_personas",
   "post_personasPersonaIdRetire",

@@ -59,7 +59,7 @@ function page(items: readonly PublicFeedItem[], nextCursor: string | null): Feed
   return { items, topCommunities: [], nextCursor };
 }
 
-test.each(["pending", "delivery_unavailable"] as const)("shows typed %s without falling back to media refs", async status => {
+test.each(["pending", "unavailable"] as const)("shows typed %s without falling back to media refs", async status => {
   const item = { ...video([{ playback_url: "https://legacy.example/must-not-play.mp4" }]), videoDelivery: { playback: status, thumbnail: status } };
   const container = render(() => <HomeVideoFeed data={page([item], null)} loadPage={async () => page([], null)} />);
   await vi.waitFor(() => expect(container.querySelector("[data-video-playback-state]")?.getAttribute("data-video-playback-state")).toBe(status));
@@ -104,4 +104,12 @@ describe("HomeVideoFeed", () => {
     expect(container.textContent).toContain("the API did not provide playable media");
     expect(container.querySelector("video")).toBeNull();
   });
+});
+
+test("does not scan past a normalized video when a next cursor exists", async () => {
+  const item = { ...video([]), videoDelivery: { playback: "pending" as const, thumbnail: "pending" as const } };
+  const loadPage = vi.fn(async () => page([], null));
+  const container = render(() => <HomeVideoFeed data={page([item], "page-2")} loadPage={loadPage} />);
+  await vi.waitFor(() => expect(container.textContent).toContain("Playback is being prepared"));
+  expect(loadPage).not.toHaveBeenCalled();
 });
