@@ -2,6 +2,7 @@
 import { render } from "@solidjs/web";
 import { createRoot, createSignal } from "solid-js";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
+import { validatePlaybackGrant } from "./playback-access";
 import { VideoPlayer } from "./video-player";
 const disposers: (() => void)[] = [];
 beforeEach(() => {
@@ -54,6 +55,8 @@ test("loads a late authorized thumbnail independently of pending playback", asyn
     render(() => <VideoPlayer postId="post" state={{ playback: "pending", thumbnail: thumbnail() }} mint={mint} />, root);
   });
   await flush(); expect(root.querySelector("img")).toBeNull();
+  expect(root.textContent).toContain("The post is published.");
+  expect(root.textContent).not.toContain("upload it again");
   ready(); await flush();
   expect(root.querySelector("img")?.getAttribute("src")).toBe("/api/posts/post/video/poster");
   expect(mint).not.toHaveBeenCalled();
@@ -101,4 +104,21 @@ test("hide during replacement metadata loading retains the prior position and pl
   visibility.mockReturnValue("hidden"); document.dispatchEvent(new Event("visibilitychange")); await flush();
   visibility.mockReturnValue("visible"); document.dispatchEvent(new Event("visibilitychange")); await flush();
   expect(attach.mock.calls[2]![0]).toMatchObject({ resume: true, position: 25 });
+});
+
+test("already-due grants do not cause an immediate renewal loop", async () => {
+  vi.setSystemTime(1_240_000);
+  const mint = vi.fn(async () => validatePlaybackGrant({ playback_url: grant().url, expires_at: 1300, renew_after: 1240 }));
+  const root = mount(mint); await flush();
+  expect(root.querySelector("video")?.src).toContain("/a.b.c/manifest/");
+  await vi.advanceTimersByTimeAsync(9_998); expect(mint).toHaveBeenCalledTimes(1);
+  await vi.advanceTimersByTimeAsync(1); expect(mint).toHaveBeenCalledTimes(2);
+});
+test("a near-expired grant stops before another mint rather than spinning", async () => {
+  vi.setSystemTime(1_299_000);
+  const mint = vi.fn(async () => validatePlaybackGrant({ playback_url: grant().url, expires_at: 1300, renew_after: 1240 }));
+  const root = mount(mint); await flush();
+  await vi.advanceTimersByTimeAsync(1_000);
+  expect(mint).toHaveBeenCalledTimes(1);
+  expect(root.querySelector("video")?.getAttribute("src")).toBeNull();
 });

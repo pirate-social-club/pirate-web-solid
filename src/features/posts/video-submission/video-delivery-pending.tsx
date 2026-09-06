@@ -7,6 +7,6 @@ export function VideoDeliveryPending(props: { readonly state: VideoDeliveryState
     data-video-playback-state={props.state.playback} data-video-thumbnail-state={props.state.thumbnail}>
     <p>{videoPlaybackMessage(props.state)}</p>
     <Show when={props.showThumbnailMessage !== false}><p>{videoThumbnailMessage(props.state)}</p></Show>
-    <p>The post is published. You do not need to upload it again.</p>
+    <p>The post is published. Playback availability is shown above.</p>
   </section>;
 }

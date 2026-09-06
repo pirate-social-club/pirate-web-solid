@@ -1,0 +1,366 @@
+$ node scripts/check-solid-runtime.mjs && node scripts/check-api-client-provenance.mjs && node scripts/check-api-client-runtime-tables.mjs
+{
+  "appSolid": "/media/t42/codedrive/Code/pirate-workspace/.worktrees/pirate-web-solid/solid-video-playback-clock-and-viewer-copy/node_modules/.bun/solid-js@2.0.0-rc.0/node_modules/solid-js",
+  "appWeb": "/media/t42/codedrive/Code/pirate-workspace/.worktrees/pirate-web-solid/solid-video-playback-clock-and-viewer-copy/node_modules/.bun/@solidjs+web@2.0.0-rc.0+6b48b9f3356e564b/node_modules/@solidjs/web",
+  "designSystemPackage": "/media/t42/codedrive/Code/pirate-workspace/.worktrees/pirate-web-solid/solid-video-playback-clock-and-viewer-copy/packages/solid-ui/package.json",
+  "designSolid": "/media/t42/codedrive/Code/pirate-workspace/.worktrees/pirate-web-solid/solid-video-playback-clock-and-viewer-copy/node_modules/.bun/solid-js@2.0.0-rc.0/node_modules/solid-js/dist/server.cjs",
+  "designWeb": "/media/t42/codedrive/Code/pirate-workspace/.worktrees/pirate-web-solid/solid-video-playback-clock-and-viewer-copy/node_modules/.bun/@solidjs+web@2.0.0-rc.0+6b48b9f3356e564b/node_modules/@solidjs/web/dist/server.cjs",
+  "peerNormalized": true,
+  "kobalteVersion": "2.0.0-alpha.0",
+  "kobalteSourceCommit": "a892187065cf7e0d07e91db02310bd28a5619236",
+  "kobalteTarballSha512": "bfd5c834803476b2a528d8b7d4685383c348afd8ecc8ff6dc53ab405a8d2188a65660bdbc8063f0a09eb3cc7b9aca7790a43f1b00821d478fd456b0b3e29c898",
+  "kobaltePatchSha512": "c08545f0578ffdb1fac6fb268077557846eaca4aa182dfc80df9bc81518debadf7f7708d12d99e7e70a75c319096b04404eb1f9648573ef61a587e8464f53c30",
+  "kobaltePatch": true,
+  "dedupe": [
+    "solid-js",
+    "@solidjs/web"
+  ],
+  "note": "The internal solid-ui package is resolved from this repository and shares the app's deduped Solid runtime."
+}
+{
+  "apiClients": [
+    {
+      "dependency": "@pirate/api-client",
+      "provenance": "vendor/api-client-provenance.json"
+    }
+  ]
+}
+{
+  "operations": 43,
+  "expectedDigest": "37ccdacdbfc4639a708309be7e0d972e3436d7dadcdc289b6f51524d263e08db",
+  "clients": [
+    {
+      "path": "/media/t42/codedrive/Code/pirate-workspace/.worktrees/pirate-web-solid/solid-video-playback-clock-and-viewer-copy/node_modules/@pirate/api-client/src/generated/client.ts",
+      "digest": "37ccdacdbfc4639a708309be7e0d972e3436d7dadcdc289b6f51524d263e08db"
+    }
+  ]
+}
+$ vite build && node scripts/prune-solid-ssr-optional-assets.mjs
+vite v8.2.1 building client environment for production...
+[2Ktransforming...✓ 3650 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/client/.assetsignore                                             0.02 kB
+dist/client/assets/thread.worker-DiJ8IDD1.js                          6.31 kB
+dist/client/assets/main.worker-BOqweAg5.js                           10.21 kB
+dist/client/assets/clip-1-CAImlZFY.mp4                               12.52 kB
+dist/client/assets/logo_ghost_sm-D1_cTyok.png                        26.47 kB
+dist/client/.vite/manifest.json                                      32.48 kB │ gzip:     3.89 kB
+dist/client/assets/public-post-route-view-BjEBwSIp.css                2.75 kB │ gzip:     0.89 kB
+dist/client/assets/entry-client-jaJ9k1ls.css                        115.25 kB │ gzip:    18.48 kB
+dist/client/assets/design-system-B9hWj3c9.js                          0.02 kB │ gzip:     0.04 kB
+dist/client/assets/ui-locale-BFyhWlOa.js                              0.09 kB │ gzip:     0.11 kB
+dist/client/assets/index-3uoIt6cf.js                                  0.16 kB │ gzip:     0.15 kB
+dist/client/assets/index-Bq3wp4b_.js                                  0.16 kB │ gzip:     0.15 kB
+dist/client/assets/index-DVIaLcT4.js                                  0.16 kB │ gzip:     0.15 kB
+dist/client/assets/index-HPDSponW.js                                  0.16 kB │ gzip:     0.15 kB
+dist/client/assets/index-NyR492b7.js                                  0.16 kB │ gzip:     0.15 kB
+dist/client/assets/leaderboard-DVIaLcT4.js                            0.16 kB │ gzip:     0.15 kB
+dist/client/assets/leaderboard-NyR492b7.js                            0.16 kB │ gzip:     0.15 kB
+dist/client/assets/terms-DVoI-I4w.js                                  0.16 kB │ gzip:     0.15 kB
+dist/client/assets/privacy-mm1Kne6K.js                                0.17 kB │ gzip:     0.16 kB
+dist/client/assets/application-session-Bqx01zWd.js                    0.20 kB │ gzip:     0.16 kB
+dist/client/assets/browser-CfJvH2ji.js                                0.21 kB │ gzip:     0.18 kB
+dist/client/assets/live-EvG5koaT.js                                   0.21 kB │ gzip:     0.18 kB
+dist/client/assets/search-BnW7gDym.js                                 0.22 kB │ gzip:     0.19 kB
+dist/client/assets/karaoke-CWQqNiJl.js                                0.23 kB │ gzip:     0.19 kB
+dist/client/assets/settings-DmemI_tr.js                               0.23 kB │ gzip:     0.20 kB
+dist/client/assets/study-Ch0RiSY5.js                                  0.25 kB │ gzip:     0.21 kB
+dist/client/assets/activity-518ALj8H.js                               0.25 kB │ gzip:     0.21 kB
+dist/client/assets/dist-CqFqvmd4.js                                   0.44 kB │ gzip:     0.31 kB
+dist/client/assets/public-profile-preflight-D1y29hfh.js               0.53 kB │ gzip:     0.32 kB
+dist/client/assets/global-sign-in-host-Dn7j6ZD6.js                    0.67 kB │ gzip:     0.40 kB
+dist/client/assets/ui-locale-core-BA1HBKR2.js                         0.89 kB │ gzip:     0.45 kB
+dist/client/assets/action-footer-shell-wodNpMC4.js                    0.96 kB │ gzip:     0.56 kB
+dist/client/assets/route-placeholder-BVPvTEIC.js                      1.07 kB │ gzip:     0.59 kB
+dist/client/assets/sign-in-B2MHSQQc.js                                1.16 kB │ gzip:     0.59 kB
+dist/client/assets/preload-helper-Czpn1I53.js                         1.19 kB │ gzip:     0.67 kB
+dist/client/assets/legal-placeholder-page-CCWmvb6l.js                 1.21 kB │ gzip:     0.70 kB
+dist/client/assets/chains-DS9Eg5SF.js                                 1.22 kB │ gzip:     0.54 kB
+dist/client/assets/community-moderation-settings-api-C4h0dkxa.js      1.25 kB │ gzip:     0.57 kB
+dist/client/assets/rolldown-runtime-C0FnF6B9.js                       1.29 kB │ gzip:     0.71 kB
+dist/client/assets/sign-in-modal-C3W0EvzW.js                          1.43 kB │ gzip:     0.72 kB
+dist/client/assets/persona-public-profile.model-DklkJJQP.js           1.66 kB │ gzip:     0.79 kB
+dist/client/assets/public-profile-page.model-YAzEjafA.js              2.17 kB │ gzip:     0.94 kB
+dist/client/assets/session-9qTvu19c.js                                2.26 kB │ gzip:     0.92 kB
+dist/client/assets/operation-persona-control-t4pjBVaU.js              2.59 kB │ gzip:     1.21 kB
+dist/client/assets/sha3-DAng0Rme.js                                   2.85 kB │ gzip:     1.33 kB
+dist/client/assets/ccip-CdPQPrnn.js                                   2.90 kB │ gzip:     1.34 kB
+dist/client/assets/utils-BXiNjgTj.js                                  3.19 kB │ gzip:     1.37 kB
+dist/client/assets/_persona_id_-0p2hEzKs.js                           3.26 kB │ gzip:     1.33 kB
+dist/client/assets/public-post-route.model-CVDRJzwi.js                3.33 kB │ gzip:     1.24 kB
+dist/client/assets/utils-CC8mSN0M.js                                  3.92 kB │ gzip:     1.58 kB
+dist/client/assets/community-page-origin-CWmpQXTh.js                  4.03 kB │ gzip:     1.73 kB
+dist/client/assets/query-BQj1CcnE.js                                  5.33 kB │ gzip:     2.38 kB
+dist/client/assets/community-persona-choice-sheet-BBDHmJGk.js         5.64 kB │ gzip:     2.13 kB
+dist/client/assets/handle-storefront.model-BwgiEnXa.js                5.75 kB │ gzip:     2.25 kB
+dist/client/assets/_handle_-C4X77Qmj.js                               5.84 kB │ gzip:     2.14 kB
+dist/client/assets/video-player-BVAlDCu2.js                           7.11 kB │ gzip:     2.95 kB
+dist/client/assets/isAddress-DyuOPP_k.js                              7.95 kB │ gzip:     3.02 kB
+dist/client/assets/sha2-RecSrKwr.js                                   7.95 kB │ gzip:     4.05 kB
+dist/client/assets/jSgZ_i04-DTPjvlTs.js                               8.23 kB │ gzip:     2.85 kB
+dist/client/assets/owner-settings-route-model-D_xrOgoV.js             9.68 kB │ gzip:     2.76 kB
+dist/client/assets/verification-config-D75e7h7y.js                    9.68 kB │ gzip:     3.53 kB
+dist/client/assets/sign-in-session-cHgX43q8.js                       11.15 kB │ gzip:     4.03 kB
+dist/client/assets/zkpassport-CMFucqsT.js                            11.49 kB │ gzip:     4.43 kB
+dist/client/assets/serverForms-DypuSuZB.js                           11.68 kB │ gzip:     4.59 kB
+dist/client/assets/index-DdihbWnR.js                                 12.73 kB │ gzip:     4.60 kB
+dist/client/assets/routing-Cl-Bk4rH.js                               13.73 kB │ gzip:     5.99 kB
+dist/client/assets/new-BU59OPgP.js                                   16.98 kB │ gzip:     5.94 kB
+dist/client/assets/index-Bv7m3QPO.js                                 17.22 kB │ gzip:     6.12 kB
+dist/client/assets/very-2kNmS5oA.js                                  19.36 kB │ gzip:     6.52 kB
+dist/client/assets/decode-3X5v8ClT.js                                19.92 kB │ gzip:     5.87 kB
+dist/client/assets/secp256k1-1xMjoZ5X.js                             22.90 kB │ gzip:     9.13 kB
+dist/client/assets/browser-BhDNRenU.js                               23.47 kB │ gzip:     8.86 kB
+dist/client/assets/names-dASEZSNo.js                                 24.89 kB │ gzip:     7.61 kB
+dist/client/assets/BlockOverrides-BE3zIURP.js                        26.10 kB │ gzip:     7.45 kB
+dist/client/assets/SignatureErc6492-DiV6q9R4.js                      29.43 kB │ gzip:     8.59 kB
+dist/client/assets/locales-DE4FHIsm.js                               35.29 kB │ gzip:    12.06 kB
+dist/client/assets/entry-client-B436_-Rx.js                          45.62 kB │ gzip:    12.70 kB
+dist/client/assets/pako.esm-g1_L_x7P.js                              46.76 kB │ gzip:    14.85 kB
+dist/client/assets/build-DTCgq-lx.js                                 65.33 kB │ gzip:    19.93 kB
+dist/client/assets/index-vgAFX8kG.js                                 70.28 kB │ gzip:    20.24 kB
+dist/client/assets/_section_-JBcf4b6v.js                             74.13 kB │ gzip:    19.10 kB
+dist/client/assets/localBatchGatewayRequest-DPiODYyJ.js              74.73 kB │ gzip:    21.09 kB
+dist/client/assets/ccip-C5XZ7_jK.js                                  84.67 kB │ gzip:    24.13 kB
+dist/client/assets/web-B8K8aMrf.js                                   85.51 kB │ gzip:    31.08 kB
+dist/client/assets/browser-B-1O9DZr.js                               90.79 kB │ gzip:    22.35 kB
+dist/client/assets/_esm-B_6IM4SG.js                                  95.57 kB │ gzip:    29.28 kB
+dist/client/assets/public-post-route-view-DDGn4EW5.js               109.48 kB │ gzip:    33.41 kB
+dist/client/assets/src-B-7yy92Z.js                                  255.04 kB │ gzip:    72.94 kB
+dist/client/assets/create-post-dialog-Bc9BRyui.js                   305.60 kB │ gzip:    79.75 kB
+dist/client/assets/capture-CurUlw5x.js                              488.32 kB │ gzip:   123.62 kB
+dist/client/assets/esm-CqHALzmd.js                                  538.51 kB │ gzip:   157.86 kB
+dist/client/assets/hls-DSymRVZ7.js                                  574.61 kB │ gzip:   179.00 kB
+dist/client/assets/esm-CI9kM9hv.js                                  588.25 kB │ gzip:   143.01 kB
+dist/client/assets/client-C6pbIUTB.js                               708.71 kB │ gzip:    48.05 kB
+dist/client/assets/barretenberg-L8rqvsU7.js                       3,641.89 kB │ gzip: 2,734.61 kB
+dist/client/assets/barretenberg-threads-DbzAWZ_O.js               3,669.27 kB │ gzip: 2,755.85 kB
+
+✓ built in 5.24s
+[plugin builtin:vite-reporter] 
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+[33m[PLUGIN_TIMINGS] [0mYour build spent 74% of 5.2s inside plugin hooks (3.9s).
+Measured inside the callback, so queue time is excluded and time the callback itself awaited is not:
+  - @tailwindcss/vite:generate:build transform (27%, 1.4s, 2 calls)
+  - filesystem-routing:tree-shake transform (25%, 1.3s, 3650 calls)
+Those rows are 52% of the build; the rest of the 74% is below.
+Not measurable — 1 hook whose calls overlap, so elapsed time covers work other calls were doing. Profile with `node --cpu-prof`:
+  - vite:worker-import-meta-url transform (2 calls)
+See https://rolldown.rs/reference/InputOptions.checks#plugintimings for more details.
+
+vite v8.2.1 building ssr environment for production...
+[2Ktransforming...✓ 3722 modules transformed.
+rendering chunks...
+Using secrets defined in process.env
+[33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1mMissing required secrets: HNS_FORWARDER_V3_HMAC_KEY_REGISTRY, HNS_COMMUNITY_APP_API_ACCESS_CLIENT_ID, HNS_COMMUNITY_APP_API_ACCESS_CLIENT_SECRET, HNS_COMMUNITY_APP_AUTHORITY_ACCESS_CLIENT_ID, HNS_COMMUNITY_APP_AUTHORITY_ACCESS_CLIENT_SECRET, HNS_HANDLE_HOST_AUTHORITY_ACCESS_CLIENT_ID, HNS_HANDLE_HOST_AUTHORITY_ACCESS_CLIENT_SECRET. Add them to .dev.vars, .env, or set as environment variables.[0m
+
+
+computing gzip size...
+dist/ssr/wrangler.json                                             3.12 kB │ gzip:     1.24 kB
+dist/ssr/assets/clip-1-CAImlZFY.mp4                               12.52 kB
+dist/ssr/assets/logo_ghost_sm-D1_cTyok.png                        26.47 kB
+dist/ssr/.vite/manifest.json                                      33.83 kB │ gzip:     4.02 kB
+dist/ssr/assets/public-post-route-view-BjEBwSIp.css                2.75 kB │ gzip:     0.89 kB
+dist/ssr/assets/index-jaJ9k1ls.css                               115.25 kB │ gzip:    18.48 kB
+dist/ssr/assets/design-system-DFiyU3TR.js                          0.02 kB │ gzip:     0.04 kB
+dist/ssr/assets/ui-locale-CWHlBNyU.js                              0.25 kB │ gzip:     0.18 kB
+dist/ssr/assets/builtin_esm-external-require-util-wXRSsOu6.js      0.34 kB │ gzip:     0.23 kB
+dist/ssr/assets/terms-BHWt2nGG.js                                  0.37 kB │ gzip:     0.24 kB
+dist/ssr/assets/privacy-dzC2NMjC.js                                0.39 kB │ gzip:     0.24 kB
+dist/ssr/assets/browser-Db6Jswn0.js                                0.40 kB │ gzip:     0.29 kB
+dist/ssr/assets/live-CVZTz1Ho.js                                   0.41 kB │ gzip:     0.26 kB
+dist/ssr/assets/index-B9i1Omew.js                                  0.42 kB │ gzip:     0.25 kB
+dist/ssr/assets/index-CLALZ5HR.js                                  0.42 kB │ gzip:     0.25 kB
+dist/ssr/assets/index-BVRGcDxx.js                                  0.42 kB │ gzip:     0.25 kB
+dist/ssr/assets/search-UcW1xf7I.js                                 0.43 kB │ gzip:     0.26 kB
+dist/ssr/assets/index-CUCmFKLY.js                                  0.43 kB │ gzip:     0.25 kB
+dist/ssr/assets/index-DWP818P8.js                                  0.44 kB │ gzip:     0.26 kB
+dist/ssr/assets/karaoke-zqLHvg9G.js                                0.44 kB │ gzip:     0.27 kB
+dist/ssr/assets/settings-Bgl8TjGP.js                               0.45 kB │ gzip:     0.27 kB
+dist/ssr/assets/study-BNiyUTvH.js                                  0.45 kB │ gzip:     0.28 kB
+dist/ssr/assets/leaderboard-2AQ0qu9t.js                            0.45 kB │ gzip:     0.26 kB
+dist/ssr/assets/activity-DEDe8yc2.js                               0.47 kB │ gzip:     0.28 kB
+dist/ssr/assets/leaderboard-hz-3XGBB.js                            0.48 kB │ gzip:     0.26 kB
+dist/ssr/assets/application-session-Cn5YyQIw.js                    0.54 kB │ gzip:     0.27 kB
+dist/ssr/assets/dist-Bj-so5-Y.js                                   1.15 kB │ gzip:     0.58 kB
+dist/ssr/assets/route-placeholder-zpIayDTM.js                      1.69 kB │ gzip:     0.74 kB
+dist/ssr/assets/ui-locale-core-Bfa4tpev.js                         1.86 kB │ gzip:     0.74 kB
+dist/ssr/assets/legal-placeholder-page-7INv5vfh.js                 2.04 kB │ gzip:     0.95 kB
+dist/ssr/assets/sign-in-BLW2oZXU.js                                2.06 kB │ gzip:     0.88 kB
+dist/ssr/assets/chains-7aVKAV1W.js                                 2.12 kB │ gzip:     0.77 kB
+dist/ssr/assets/flat-tabs-CIfFZA8o.js                              2.13 kB │ gzip:     0.91 kB
+dist/ssr/assets/community-moderation-settings-api-DnDa1Bcj.js      2.14 kB │ gzip:     0.79 kB
+dist/ssr/assets/global-sign-in-host-DshilZnC.js                    2.15 kB │ gzip:     0.97 kB
+dist/ssr/assets/rolldown-runtime-CEgmsyvS.js                       2.30 kB │ gzip:     1.03 kB
+dist/ssr/assets/sign-in-modal-BDpJnndQ.js                          2.32 kB │ gzip:     1.03 kB
+dist/ssr/assets/action-footer-shell-D2sMcC-L.js                    2.53 kB │ gzip:     1.12 kB
+dist/ssr/assets/decode-C4Lck7WE.js                                 2.62 kB │ gzip:     1.11 kB
+dist/ssr/assets/public-profile-preflight-AfiGNcKO.js               2.66 kB │ gzip:     1.13 kB
+dist/ssr/assets/serialization-mMTW-wp8.js                          2.78 kB │ gzip:     1.17 kB
+dist/ssr/assets/persona-public-profile.model-CZgSE91o.js           3.28 kB │ gzip:     1.21 kB
+dist/ssr/assets/public-profile-page.model-BBN5bTm3.js              4.16 kB │ gzip:     1.41 kB
+dist/ssr/assets/ccip-BtNy6Rgo.js                                   5.11 kB │ gzip:     1.80 kB
+dist/ssr/assets/_persona_id_-CUotUNHE.js                           5.44 kB │ gzip:     1.73 kB
+dist/ssr/assets/operation-persona-control-PHnbrAEe.js              5.71 kB │ gzip:     2.15 kB
+dist/ssr/assets/sha3-JzTy6Tt7.js                                   5.88 kB │ gzip:     2.20 kB
+dist/ssr/assets/session-BG_RxLC_.js                                6.07 kB │ gzip:     2.07 kB
+dist/ssr/assets/public-post-route.model-2AlQQVeL.js                6.92 kB │ gzip:     1.92 kB
+dist/ssr/assets/utils-Bw0gt0l4.js                                  7.10 kB │ gzip:     2.63 kB
+dist/ssr/assets/community-page-origin-DC4loxby.js                  7.74 kB │ gzip:     2.57 kB
+dist/ssr/assets/serverForms-CfMOjH9M.js                            7.86 kB │ gzip:     3.01 kB
+dist/ssr/assets/zkpassport-DXrS4hj0.js                             8.16 kB │ gzip:     2.54 kB
+dist/ssr/assets/utils-CLmIl0By.js                                  8.57 kB │ gzip:     3.16 kB
+dist/ssr/assets/_handle_-Bts-AxP-.js                              10.79 kB │ gzip:     2.93 kB
+dist/ssr/assets/community-persona-choice-sheet-CRrpaN7v.js        11.08 kB │ gzip:     3.30 kB
+dist/ssr/assets/video-player-CmVgyGtj.js                          12.53 kB │ gzip:     4.02 kB
+dist/ssr/assets/handle-storefront.model-DUP3XKiG.js               12.84 kB │ gzip:     3.77 kB
+dist/ssr/assets/sha2-BzNSOK23.js                                  15.23 kB │ gzip:     5.53 kB
+dist/ssr/assets/owner-settings-route-model-9XACzgNk.js            15.49 kB │ gzip:     3.75 kB
+dist/ssr/assets/zkpassport-DxGdAWSE.js                            15.65 kB │ gzip:     4.58 kB
+dist/ssr/assets/jSgZ_i04-C-6XcNJO.js                              16.56 kB │ gzip:     4.41 kB
+dist/ssr/assets/verification-config-tUZQMp-n.js                   19.83 kB │ gzip:     5.58 kB
+dist/ssr/assets/routing-aYDWDtFQ.js                               22.27 kB │ gzip:     7.45 kB
+dist/ssr/assets/isAddress-D9uJkOT5.js                             23.47 kB │ gzip:     5.26 kB
+dist/ssr/assets/index-BLo349xv.js                                 23.82 kB │ gzip:     6.32 kB
+dist/ssr/assets/sign-in-session-MQotdJ_B.js                       25.45 kB │ gzip:     7.83 kB
+dist/ssr/assets/index-vv48Mt43.js                                 30.55 kB │ gzip:     8.39 kB
+dist/ssr/assets/new-CmplO2ZF.js                                   31.63 kB │ gzip:     8.23 kB
+dist/ssr/assets/very-Ce0UGtjk.js                                  35.51 kB │ gzip:     8.34 kB
+dist/ssr/assets/query-ZNdfiJn5.js                                 40.39 kB │ gzip:    11.30 kB
+dist/ssr/assets/locales-B2zxEXVT.js                               42.01 kB │ gzip:    12.67 kB
+dist/ssr/assets/names-CU4UZAyg.js                                 45.51 kB │ gzip:    10.21 kB
+dist/ssr/assets/web-BNEh89Tx.js                                   54.93 kB │ gzip:    13.70 kB
+dist/ssr/assets/secp256k1-mJDT89La.js                             56.46 kB │ gzip:    18.56 kB
+dist/ssr/assets/BlockOverrides-BdYYsIbs.js                        70.85 kB │ gzip:    13.92 kB
+dist/ssr/assets/SignatureErc6492-DGbs9VCP.js                      99.22 kB │ gzip:    20.05 kB
+dist/ssr/assets/build-CVtOLH3q.js                                102.42 kB │ gzip:    23.82 kB
+dist/ssr/assets/pako.esm-CoTAZKas.js                             103.94 kB │ gzip:    24.62 kB
+dist/ssr/assets/index-Bt9jz7Gz.js                                126.59 kB │ gzip:    27.61 kB
+dist/ssr/assets/_section_-CL9qqG91.js                            127.24 kB │ gzip:    26.48 kB
+dist/ssr/assets/localBatchGatewayRequest-D8UM8FAn.js             129.39 kB │ gzip:    29.15 kB
+dist/ssr/assets/lib-CfhRnI1W.js                                  141.54 kB │ gzip:    31.74 kB
+dist/ssr/assets/ccip-COuWisfl.js                                 157.14 kB │ gzip:    34.94 kB
+dist/ssr/assets/server-DL1Cu_ys.js                               165.68 kB │ gzip:    43.34 kB
+dist/ssr/assets/browser-C5JUTjJU.js                              173.28 kB │ gzip:    32.35 kB
+dist/ssr/assets/public-post-route-view-BgdpNFY2.js               180.05 kB │ gzip:    44.24 kB
+dist/ssr/index.js                                                216.28 kB │ gzip:    42.95 kB
+dist/ssr/assets/_esm-DiiONLEj.js                                 270.65 kB │ gzip:    55.96 kB
+dist/ssr/assets/create-post-dialog-B0bSprll.js                   511.82 kB │ gzip:   107.47 kB
+dist/ssr/assets/src-BzutB3RE.js                                  512.85 kB │ gzip:   109.66 kB
+dist/ssr/assets/esm-BScuqaET.js                                  900.80 kB │ gzip:   220.98 kB
+dist/ssr/assets/capture-439V2-0X.js                              967.32 kB │ gzip:   197.80 kB
+dist/ssr/assets/esm-Byxd0qgz.js                                1,149.26 kB │ gzip:   219.08 kB
+dist/ssr/assets/hls-xHtV60T8.js                                1,152.91 kB │ gzip:   266.71 kB
+dist/ssr/assets/client-BL_ziVdW.js                             1,155.12 kB │ gzip:    78.03 kB
+dist/ssr/assets/barretenberg-DGWT2Hb4.js                       3,642.09 kB │ gzip: 2,734.76 kB
+dist/ssr/assets/barretenberg-threads-f5_RuoGI.js               3,669.47 kB │ gzip: 2,756.00 kB
+
+✓ built in 3.08s
+vite v8.2.1 building client environment for production...
+[2Ktransforming...✓ 3650 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/client/.assetsignore                                             0.02 kB
+dist/client/assets/thread.worker-DiJ8IDD1.js                          6.31 kB
+dist/client/assets/main.worker-BOqweAg5.js                           10.21 kB
+dist/client/assets/clip-1-CAImlZFY.mp4                               12.52 kB
+dist/client/assets/logo_ghost_sm-D1_cTyok.png                        26.47 kB
+dist/client/.vite/manifest.json                                      32.32 kB │ gzip:     3.79 kB
+dist/client/assets/public-post-route-view-BjEBwSIp.css                2.75 kB │ gzip:     0.89 kB
+dist/client/assets/entry-client-jaJ9k1ls.css                        115.25 kB │ gzip:    18.48 kB
+dist/client/assets/design-system-B9hWj3c9.js                          0.02 kB │ gzip:     0.04 kB
+dist/client/assets/ui-locale-BFyhWlOa.js                              0.09 kB │ gzip:     0.11 kB
+dist/client/assets/index-3uoIt6cf.js                                  0.16 kB │ gzip:     0.15 kB
+dist/client/assets/index-Bq3wp4b_.js                                  0.16 kB │ gzip:     0.15 kB
+dist/client/assets/index-DVIaLcT4.js                                  0.16 kB │ gzip:     0.15 kB
+dist/client/assets/index-HPDSponW.js                                  0.16 kB │ gzip:     0.15 kB
+dist/client/assets/index-NyR492b7.js                                  0.16 kB │ gzip:     0.15 kB
+dist/client/assets/leaderboard-DVIaLcT4.js                            0.16 kB │ gzip:     0.15 kB
+dist/client/assets/leaderboard-NyR492b7.js                            0.16 kB │ gzip:     0.15 kB
+dist/client/assets/terms-DVoI-I4w.js                                  0.16 kB │ gzip:     0.15 kB
+dist/client/assets/privacy-mm1Kne6K.js                                0.17 kB │ gzip:     0.16 kB
+dist/client/assets/application-session-Bqx01zWd.js                    0.20 kB │ gzip:     0.16 kB
+dist/client/assets/browser-CfJvH2ji.js                                0.21 kB │ gzip:     0.18 kB
+dist/client/assets/live-EvG5koaT.js                                   0.21 kB │ gzip:     0.18 kB
+dist/client/assets/search-BnW7gDym.js                                 0.22 kB │ gzip:     0.19 kB
+dist/client/assets/karaoke-CWQqNiJl.js                                0.23 kB │ gzip:     0.19 kB
+dist/client/assets/settings-DmemI_tr.js                               0.23 kB │ gzip:     0.20 kB
+dist/client/assets/study-Ch0RiSY5.js                                  0.25 kB │ gzip:     0.21 kB
+dist/client/assets/activity-518ALj8H.js                               0.25 kB │ gzip:     0.21 kB
+dist/client/assets/dist-CqFqvmd4.js                                   0.44 kB │ gzip:     0.31 kB
+dist/client/assets/global-sign-in-host-Dn7j6ZD6.js                    0.67 kB │ gzip:     0.40 kB
+dist/client/assets/ui-locale-core-BA1HBKR2.js                         0.89 kB │ gzip:     0.45 kB
+dist/client/assets/action-footer-shell-wodNpMC4.js                    0.96 kB │ gzip:     0.56 kB
+dist/client/assets/route-placeholder-BVPvTEIC.js                      1.07 kB │ gzip:     0.59 kB
+dist/client/assets/sign-in-B2MHSQQc.js                                1.16 kB │ gzip:     0.59 kB
+dist/client/assets/preload-helper-Czpn1I53.js                         1.19 kB │ gzip:     0.67 kB
+dist/client/assets/legal-placeholder-page-CCWmvb6l.js                 1.21 kB │ gzip:     0.70 kB
+dist/client/assets/chains-DS9Eg5SF.js                                 1.22 kB │ gzip:     0.54 kB
+dist/client/assets/community-moderation-settings-api-C4h0dkxa.js      1.25 kB │ gzip:     0.57 kB
+dist/client/assets/rolldown-runtime-C0FnF6B9.js                       1.29 kB │ gzip:     0.71 kB
+dist/client/assets/sign-in-modal-C3W0EvzW.js                          1.43 kB │ gzip:     0.72 kB
+dist/client/assets/public-profile-page.model-YAzEjafA.js              2.17 kB │ gzip:     0.94 kB
+dist/client/assets/session-9qTvu19c.js                                2.26 kB │ gzip:     0.92 kB
+dist/client/assets/operation-persona-control-t4pjBVaU.js              2.59 kB │ gzip:     1.21 kB
+dist/client/assets/sha3-DAng0Rme.js                                   2.85 kB │ gzip:     1.33 kB
+dist/client/assets/ccip-CdPQPrnn.js                                   2.90 kB │ gzip:     1.34 kB
+dist/client/assets/utils-BXiNjgTj.js                                  3.19 kB │ gzip:     1.37 kB
+dist/client/assets/_persona_id_-BvXwopEI.js                           3.25 kB │ gzip:     1.32 kB
+dist/client/assets/utils-CC8mSN0M.js                                  3.92 kB │ gzip:     1.58 kB
+dist/client/assets/community-page-origin-CWmpQXTh.js                  4.03 kB │ gzip:     1.73 kB
+dist/client/assets/community-persona-choice-sheet-BBDHmJGk.js         5.64 kB │ gzip:     2.13 kB
+dist/client/assets/handle-storefront.model-BwgiEnXa.js                5.75 kB │ gzip:     2.25 kB
+dist/client/assets/_handle_-DILP0tuB.js                               5.83 kB │ gzip:     2.14 kB
+dist/client/assets/video-player-BVAlDCu2.js                           7.11 kB │ gzip:     2.95 kB
+dist/client/assets/isAddress-DyuOPP_k.js                              7.95 kB │ gzip:     3.02 kB
+dist/client/assets/sha2-RecSrKwr.js                                   7.95 kB │ gzip:     4.05 kB
+dist/client/assets/jSgZ_i04-DTPjvlTs.js                               8.23 kB │ gzip:     2.85 kB
+dist/client/assets/owner-settings-route-model-D_xrOgoV.js             9.68 kB │ gzip:     2.76 kB
+dist/client/assets/verification-config-D75e7h7y.js                    9.68 kB │ gzip:     3.53 kB
+dist/client/assets/sign-in-session-cHgX43q8.js                       11.15 kB │ gzip:     4.03 kB
+dist/client/assets/zkpassport-CMFucqsT.js                            11.49 kB │ gzip:     4.43 kB
+dist/client/assets/serverForms-DQfMjnZ4.js                           11.69 kB │ gzip:     4.59 kB
+dist/client/assets/index-DdihbWnR.js                                 12.73 kB │ gzip:     4.60 kB
+dist/client/assets/routing-Cl-Bk4rH.js                               13.73 kB │ gzip:     5.99 kB
+dist/client/assets/new-BU59OPgP.js                                   16.98 kB │ gzip:     5.94 kB
+dist/client/assets/index-yuS5hvhc.js                                 17.21 kB │ gzip:     6.12 kB
+dist/client/assets/very-2kNmS5oA.js                                  19.36 kB │ gzip:     6.52 kB
+dist/client/assets/decode-3X5v8ClT.js                                19.92 kB │ gzip:     5.87 kB
+dist/client/assets/secp256k1-1xMjoZ5X.js                             22.90 kB │ gzip:     9.13 kB
+dist/client/assets/browser-BhDNRenU.js                               23.47 kB │ gzip:     8.86 kB
+dist/client/assets/names-dASEZSNo.js                                 24.89 kB │ gzip:     7.61 kB
+dist/client/assets/BlockOverrides-BE3zIURP.js                        26.10 kB │ gzip:     7.45 kB
+dist/client/assets/SignatureErc6492-DiV6q9R4.js                      29.43 kB │ gzip:     8.59 kB
+dist/client/assets/locales-DE4FHIsm.js                               35.29 kB │ gzip:    12.06 kB
+dist/client/assets/pako.esm-g1_L_x7P.js                              46.76 kB │ gzip:    14.85 kB
+dist/client/assets/entry-client-BwydxWBD.js                          55.83 kB │ gzip:    15.95 kB
+dist/client/assets/build-DTCgq-lx.js                                 65.33 kB │ gzip:    19.93 kB
+dist/client/assets/index-vgAFX8kG.js                                 70.28 kB │ gzip:    20.24 kB
+dist/client/assets/_section_-JBcf4b6v.js                             74.13 kB │ gzip:    19.10 kB
+dist/client/assets/localBatchGatewayRequest-DPiODYyJ.js              74.73 kB │ gzip:    21.09 kB
+dist/client/assets/ccip-C5XZ7_jK.js                                  84.67 kB │ gzip:    24.13 kB
+dist/client/assets/web-B8K8aMrf.js                                   85.51 kB │ gzip:    31.08 kB
+dist/client/assets/browser-B-1O9DZr.js                               90.79 kB │ gzip:    22.35 kB
+dist/client/assets/_esm-B_6IM4SG.js                                  95.57 kB │ gzip:    29.28 kB
+dist/client/assets/public-post-route-view-DDGn4EW5.js               109.48 kB │ gzip:    33.41 kB
+dist/client/assets/src-B-7yy92Z.js                                  255.04 kB │ gzip:    72.94 kB
+dist/client/assets/create-post-dialog-Bc9BRyui.js                   305.60 kB │ gzip:    79.75 kB
+dist/client/assets/capture-CurUlw5x.js                              488.32 kB │ gzip:   123.62 kB
+dist/client/assets/esm-CqHALzmd.js                                  538.51 kB │ gzip:   157.86 kB
+dist/client/assets/hls-DSymRVZ7.js                                  574.61 kB │ gzip:   179.00 kB
+dist/client/assets/esm-CI9kM9hv.js                                  588.25 kB │ gzip:   143.01 kB
+dist/client/assets/client-C6pbIUTB.js                               708.71 kB │ gzip:    48.05 kB
+dist/client/assets/barretenberg-L8rqvsU7.js                       3,641.89 kB │ gzip: 2,734.61 kB
+dist/client/assets/barretenberg-threads-DbzAWZ_O.js               3,669.27 kB │ gzip: 2,755.85 kB
+
+✓ built in 3.40s
+[plugin builtin:vite-reporter] 
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+Removed 5 browser-only SSR asset(s): assets/barretenberg-DGWT2Hb4.js, assets/barretenberg-threads-f5_RuoGI.js, assets/browser-C5JUTjJU.js, assets/esm-BScuqaET.js, assets/lib-CfhRnI1W.js
