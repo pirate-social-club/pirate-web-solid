@@ -43,6 +43,7 @@ export interface CreateCommunityProps {
   /** Keep false in production until the community API can persist these assets. */
   showMediaFields?: boolean;
   submitting?: boolean;
+  submitDisabled?: boolean;
   forceMobile?: boolean;
 }
 
@@ -65,7 +66,7 @@ export function CreateCommunityView(props: CreateCommunityProps) {
   // Stay neutral until the field is touched or the server rejects it, rather
   // than telling the user an untouched empty field is already valid.
   const nameValidationState = () => (visibleNameError() ? "invalid" as const : nameTouched() ? "valid" as const : undefined);
-  const canSubmit = () => validation().valid && !props.submitting;
+  const canSubmit = () => validation().valid && !props.submitting && !props.submitDisabled;
 
   return (
     <form

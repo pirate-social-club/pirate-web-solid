@@ -75,17 +75,18 @@ describe("Community creation production route", () => {
 
     expect(container.querySelector("[data-media-shell]")).toBeNull();
     expect(container.querySelector("[data-route-path='/communities/new']")).not.toBeNull();
-    expect(container.querySelector("[aria-label='Loading community creation']")).not.toBeNull();
+    expect(container.querySelector("[aria-label='Loading community creation']")).toBeNull();
+    expect(container.querySelector("[data-create-community]")).not.toBeNull();
     expect(container.querySelector(".h-dvh")).toBeNull();
   });
 
-  test("requires a signed-in session", async () => {
+  test("keeps the form visible while requiring sign-in to submit", async () => {
     const container = render(() => (
       <CommunityCreationRouteView api={api()} resolveSession={async () => "anonymous"} />
     ));
 
     await vi.waitFor(() => expect(container.textContent).toContain("Sign in to create a community"));
-    expect(container.querySelector("[data-create-community]")).toBeNull();
+    expect(container.querySelector("[data-create-community]")).not.toBeNull();
     const route = container.querySelector("[data-route-path='/communities/new']")!;
     const signIn = [...route.querySelectorAll<HTMLButtonElement>("button")]
       .find(button => button.textContent?.trim() === "Sign in")!;
@@ -99,7 +100,7 @@ describe("Community creation production route", () => {
     }
   });
 
-  test("names the unavailable state when session resolution fails and recovers on retry", async () => {
+  test("keeps the draft editable when session resolution fails and recovers on retry", async () => {
     let attempt = 0;
     const container = render(() => (
       <CommunityCreationRouteView
@@ -114,7 +115,8 @@ describe("Community creation production route", () => {
 
     const route = () => container.querySelector("[data-route-path='/communities/new']")!;
     await vi.waitFor(() => expect(route().getAttribute("data-creation-state")).toBe("unavailable"));
-    expect(container.textContent).toContain("Community creation is unavailable");
+    expect(container.textContent).toContain("Could not check your account");
+    expect(container.querySelector("[data-create-community]")).not.toBeNull();
     expect(container.textContent).not.toContain("Sign in to create a community");
 
     const retry = [...route().querySelectorAll<HTMLButtonElement>("button")]
@@ -123,6 +125,77 @@ describe("Community creation production route", () => {
 
     await vi.waitFor(() => expect(route().getAttribute("data-creation-state")).toBe("signed-out"));
     expect(attempt).toBe(2);
+  });
+
+  test("preserves typed fields and the mounted input through a delayed session and refresh failure", async () => {
+    let settle!: (value: import("../../api/session").SessionResolution) => void;
+    let attempt = 0;
+    const client = api({ createIntent: vi.fn() });
+    const authenticated = {
+      status: "authenticated" as const,
+      userId: "user-1",
+      personas: [{ personaId: "persona-1", displayName: "Host", avatarRef: null,
+        primaryPublicHandle: null, communityBinding: null }],
+    };
+    const container = render(() => <CommunityCreationRouteView api={client} resolveSession={() => {
+      attempt += 1;
+      if (attempt === 2) return Promise.reject(new Error("network"));
+      return new Promise(resolve => { settle = resolve; });
+    }} />);
+    const name = container.querySelector<HTMLInputElement>("input")!;
+    const description = container.querySelector<HTMLTextAreaElement>("textarea")!;
+    name.value = "My community";
+    name.dispatchEvent(new InputEvent("input", { bubbles: true }));
+    description.value = "Keep this description";
+    description.dispatchEvent(new InputEvent("input", { bubbles: true }));
+    const submit = () => container.querySelector<HTMLButtonElement>('button[type="submit"]')!;
+    expect(submit().disabled).toBe(true);
+    await vi.waitFor(() => expect(settle).toBeTypeOf("function"));
+    settle(authenticated);
+    await vi.waitFor(() => expect(submit().disabled).toBe(false));
+    expect(container.querySelector("input")).toBe(name);
+    expect(name.value).toBe("My community");
+    expect(description.value).toBe("Keep this description");
+
+    refreshSession();
+    await vi.waitFor(() => expect(container.textContent).toContain("Could not check your account"));
+    expect(submit().disabled).toBe(true);
+    expect(container.querySelector("input")).toBe(name);
+    expect(name.value).toBe("My community");
+    container.querySelector("form")!.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+    expect(client.createIntent).not.toHaveBeenCalled();
+    const retry = [...container.querySelectorAll<HTMLButtonElement>("button")]
+      .find(button => button.textContent?.trim() === "Try again")!;
+    retry.click();
+    await vi.waitFor(() => expect(attempt).toBe(3));
+    settle(authenticated);
+    await vi.waitFor(() => expect(submit().disabled).toBe(false));
+    expect(container.querySelector("input")).toBe(name);
+    expect(name.value).toBe("My community");
+    expect(description.value).toBe("Keep this description");
+  });
+
+  test("does not submit using a persona from the previous session", async () => {
+    let authenticated = true;
+    const createIntentRequest = vi.fn();
+    const container = render(() => <CommunityCreationRouteView
+      api={api({ createIntent: createIntentRequest })}
+      resolveSession={async () => ({ status: "authenticated", userId: authenticated ? "user-1" : "user-2",
+        personas: authenticated ? [{ personaId: "persona-1", displayName: "Host", avatarRef: null,
+          primaryPublicHandle: null, communityBinding: null }] : [] })}
+    />);
+    const name = container.querySelector<HTMLInputElement>("input")!;
+    name.value = "My community";
+    name.dispatchEvent(new InputEvent("input", { bubbles: true }));
+    const submit = () => container.querySelector<HTMLButtonElement>('button[type="submit"]')!;
+    await vi.waitFor(() => expect(submit().disabled).toBe(false));
+    authenticated = false;
+    refreshSession();
+    await vi.waitFor(() => expect(container.textContent).toContain("coming soon"));
+    expect(submit().disabled).toBe(true);
+    expect(name.value).toBe("My community");
+    container.querySelector("form")!.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+    expect(createIntentRequest).not.toHaveBeenCalled();
   });
 
   test("blocks creation without an eligible persona while activation is unavailable", async () => {

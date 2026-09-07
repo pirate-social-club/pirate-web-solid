@@ -1,5 +1,5 @@
 import type { JSX } from "@solidjs/web";
-import { Show, createMemo } from "solid-js";
+import { Show, children, createMemo } from "solid-js";
 
 import { cn } from "@/lib/cn";
 
@@ -54,11 +54,14 @@ export function ActionFooterShell(props: ActionFooterShellProps) {
     ),
   );
 
+  // Resolve JSX once so the visibility check and insertion share hydration IDs.
+  const header = children(() => props.header);
+
   return (
     <div class={className()} data-action-footer-shell>
-      <Show when={props.header}>
+      <Show when={header()}>
         <div class="shrink-0" data-action-footer-shell-header>
-          {props.header}
+          {header()}
         </div>
       </Show>
       {/*

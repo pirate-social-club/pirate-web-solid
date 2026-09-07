@@ -8,7 +8,7 @@ import {
   type AuthenticatedSession,
   type SessionResolution,
 } from "../../api/session";
-import { Button, Card, CardContent, FormNote, Spinner, Type } from "../../design-system";
+import { Button, FormNote, Type } from "../../design-system";
 import { preloadGlobalSignInAssets, prepareGlobalSignIn, requestGlobalSignIn } from "../auth/global-sign-in-host";
 import {
   defaultCommunityPersonaChoice,
@@ -60,7 +60,7 @@ function signedIn(session: RouteSession): AuthenticatedSession | undefined {
 export function CommunityCreationRouteView(props: CommunityCreationRouteViewProps) {
   const api = props.api ?? createCommunityCreationApi();
   const [session, setSession] = createSignal<RouteSession>("resolving");
-  const [draft, setDraft] = createSignal<CreateCommunityDraft>();
+  const [draft, setDraft] = createSignal<CreateCommunityDraft>(createEmptyDraft(undefined));
   const [intent, setIntent] = createSignal<CommunityCreationIntentView>();
   const [busy, setBusy] = createSignal(false);
   const [message, setMessage] = createSignal("");
@@ -108,7 +108,12 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
         if (result !== "anonymous") {
           // Minting stays unavailable until post-mint wallet activation exists.
           const choice = defaultCommunityPersonaChoice(communityCreationCandidates(result.personas));
-          setDraft(createEmptyDraft(choice?.kind === "existing" ? choice : undefined));
+          setDraft((current) => {
+            const selected = current.persona;
+            const eligible = selected?.kind === "existing"
+              && communityCreationCandidates(result.personas).some(persona => persona.personaId === selected.personaId);
+            return { ...current, persona: eligible ? selected : choice?.kind === "existing" ? choice : undefined };
+          });
           const resumeId = props.intentId?.trim();
           if (resumeId) void loadIntent(resumeId);
         }
@@ -159,7 +164,7 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
     intentId: string,
     navigateOnSuccess = false,
   ): Promise<void> => {
-    if (intent()?.nextAction.kind === "blocked") return;
+    if (!signedIn(session()) || intent()?.nextAction.kind === "blocked") return;
     setMessage("");
     try {
       const committed = await api.commitIntent({
@@ -188,8 +193,10 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
 
   const submit = async () => {
     const currentDraft = draft();
-    if (!currentDraft || busy()) return;
-    if (currentDraft.persona?.kind !== "existing") {
+    if (busy() || !signedIn(session()) || props.intentId?.trim()) return;
+    const selected = currentDraft.persona;
+    if (selected?.kind !== "existing"
+      || !personas().some(persona => persona.personaId === selected.personaId)) {
       setMessage(PERSONA_CREATION_UNAVAILABLE);
       return;
     }
@@ -225,12 +232,7 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
 
   const currentSession = () => signedIn(session());
   const personas = () => communityCreationCandidates(currentSession()?.personas ?? []);
-  /**
-   * The route must always settle on one named state. `resolving` is only the
-   * pre-hydration value, so a stuck spinner is observable as a defect rather
-   * than an indefinite loading surface. With no eligible persona the form
-   * explains the unavailable mint path and cannot submit.
-   */
+  // Session state is diagnostic only; it never gates the editable form.
   const creationState = (): "ready" | "resolving" | "signed-out" | "unavailable" => {
     const current = session();
     if (current === "resolving") return "resolving";
@@ -242,87 +244,66 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
   return (
     <main data-creation-state={creationState()} data-route-path="/communities/new" class="min-h-[calc(100dvh-4rem)] bg-background text-foreground">
       <Title>Create community · Pirate</Title>
-      <Show when={creationState() !== "resolving"} fallback={(
-        <div aria-label="Loading community creation" class="grid min-h-[24rem] place-items-center" role="status">
-          <div class="flex items-center gap-3 text-muted-foreground">
-            <Spinner class="size-5" decorative />
-            <Type as="span" variant="body">Preparing community creation…</Type>
-          </div>
+      <Show when={session() === "failed"}>
+        <div class="mx-auto flex max-w-2xl items-center gap-3 px-5 pt-4">
+          <FormNote tone="destructive">Could not check your account. Your draft is still here.</FormNote>
+          <Button onClick={retrySessionResolution} type="button">Try again</Button>
         </div>
-      )}>
-        <Show when={creationState() !== "unavailable"} fallback={(
-          <div class="mx-auto flex min-h-[24rem] max-w-xl items-center px-5">
-            <Card class="w-full"><CardContent class="space-y-4 p-6">
-              <Type as="h1" variant="h2">Community creation is unavailable</Type>
-              <Type as="p" class="text-muted-foreground" variant="body">
-                Your session could not be checked. This is usually temporary.
-              </Type>
-              <Button onClick={retrySessionResolution}>Try again</Button>
-            </CardContent></Card>
-          </div>
-        )}>
-        <Show when={creationState() !== "signed-out"} fallback={(
-          <div class="mx-auto flex min-h-[24rem] max-w-xl items-center px-5">
-            <Card class="w-full"><CardContent class="space-y-4 p-6">
-              <Type as="h1" variant="h2">Sign in to create a community</Type>
-              <Type as="p" class="text-muted-foreground" variant="body">
-                Community ownership is attached to your signed-in account and public persona.
-              </Type>
-              <Button onClick={requestGlobalSignIn} onFocus={prepareGlobalSignIn} onPointerDown={prepareGlobalSignIn} onPointerEnter={preloadGlobalSignInAssets}>Sign in</Button>
-            </CardContent></Card>
-          </div>
-        )}>
-          <Show when={creationState() === "ready"}>
-            <Show when={intent()} fallback={(
-              <Show when={draft()}>
-                {(currentDraft) => (
-                  <>
-                    <Show when={message()}>{(error) => (
-                      <FormNote class="mx-auto mt-4 max-w-2xl" tone="destructive">{error()}</FormNote>
-                    )}</Show>
-                    <CreateCommunityView
-                      draft={currentDraft()}
-                      onClose={() => navigate("/")}
-                      onDraftChange={(patch) => setDraft((current) => current ? { ...current, ...patch } : current)}
-                      onSubmit={() => void submit()}
-                      personaControl={(
-                        <CommunityPersonaChoiceControl
-                          createNewUnavailable
-                          choice={currentDraft().persona}
-                          createNewLabel="Create a new owner persona"
-                          label="Community profile"
-                          note="Your account owns this community. The persona you choose is its public face here; your private Study progress and streaks stay with your account either way."
-                          onChoose={(choice: CommunityPersonaChoice) => setDraft((current) => current ? { ...current, persona: choice } : current)}
-                          personas={personas()}
-                          placeholder="Choose a persona"
-                        />
-                      )}
-                      showMediaFields={false}
-                      submitting={busy()}
-                    />
-                  </>
-                )}
-              </Show>
-            )}>
-              {(currentIntent) => (
-                <div class="px-5 py-8">
-                  <Show when={message()}>{(error) => (
-                    <FormNote class="mx-auto mb-5 max-w-2xl" tone="destructive">{error()}</FormNote>
-                  )}</Show>
-                  <CommunityCreationProgressView
-                    committing={busy()}
-                    intent={currentIntent()}
-                    staleRevision={staleRevision()}
-                    onCommit={({ expectedRevision, intentId }) => void commit(expectedRevision, intentId)}
-                    onRetry={() => void loadIntent(currentIntent().intentId)}
-                    onView={() => currentIntent().committedHref && navigate(currentIntent().committedHref!)}
+      </Show>
+      <Show when={session() === "anonymous"}>
+        <div class="mx-auto flex max-w-2xl items-center gap-3 px-5 pt-4">
+          <Type as="p" variant="body">Sign in to create a community</Type>
+          <Button onClick={requestGlobalSignIn} onFocus={prepareGlobalSignIn} onPointerDown={prepareGlobalSignIn} onPointerEnter={preloadGlobalSignInAssets} type="button">Sign in</Button>
+        </div>
+      </Show>
+      <Show when={currentSession() && intent()} fallback={(
+        <Show when={draft()}>
+          {(currentDraft) => (
+            <>
+              <Show when={message()}>{(error) => (
+                <FormNote class="mx-auto mt-4 max-w-2xl" tone="destructive">{error()}</FormNote>
+              )}</Show>
+              <CreateCommunityView
+                draft={currentDraft()}
+                onClose={() => navigate("/")}
+                onDraftChange={(patch) => setDraft((current) => current ? { ...current, ...patch } : current)}
+                onSubmit={() => void submit()}
+                personaControl={(
+                  <CommunityPersonaChoiceControl
+                    createNewUnavailable={!!currentSession()}
+                    disabled={!currentSession()}
+                    choice={currentSession() ? currentDraft().persona : undefined}
+                    createNewLabel="Create a new owner persona"
+                    label="Community profile"
+                    note="Your account owns this community. The persona you choose is its public face here; your private Study progress and streaks stay with your account either way."
+                    onChoose={(choice: CommunityPersonaChoice) => setDraft((current) => current ? { ...current, persona: choice } : current)}
+                    personas={personas()}
+                    placeholder="Choose a persona"
                   />
-                </div>
-              )}
-            </Show>
-          </Show>
+                )}
+                showMediaFields={false}
+                submitting={busy()}
+                submitDisabled={!currentSession() || !!props.intentId?.trim()}
+              />
+            </>
+          )}
         </Show>
-        </Show>
+      )}>
+        {(currentIntent) => (
+          <div class="px-5 py-8">
+            <Show when={message()}>{(error) => (
+              <FormNote class="mx-auto mb-5 max-w-2xl" tone="destructive">{error()}</FormNote>
+            )}</Show>
+            <CommunityCreationProgressView
+              committing={busy()}
+              intent={currentIntent()}
+              staleRevision={staleRevision()}
+              onCommit={({ expectedRevision, intentId }) => void commit(expectedRevision, intentId)}
+              onRetry={() => void loadIntent(currentIntent().intentId)}
+              onView={() => currentIntent().committedHref && navigate(currentIntent().committedHref!)}
+            />
+          </div>
+        )}
       </Show>
     </main>
   );
