@@ -41,6 +41,15 @@ describe("Media shell production navigation", () => {
     expect(signInRequested).toHaveBeenCalledOnce();
   });
 
+  test("renders a neutral initial account check without sign-in messaging", () => {
+    const container = render(() => <ApplicationChrome sessionResolving><main>Current route</main></ApplicationChrome>);
+    expect(container.querySelector("[data-shell-auth]")?.getAttribute("data-shell-auth")).toBe("resolving");
+    expect(container.textContent).toContain("Checking your account");
+    expect(container.textContent).not.toContain("Join Pirate");
+    expect(container.textContent).not.toContain("Sign in");
+    expect(container.textContent).not.toContain("Save, follow, and post");
+  });
+
   test("offers account-check recovery instead of sign-in when the session check fails", () => {
     const retry = vi.fn();
     const container = render(() => <ApplicationChrome sessionUnavailable onSessionRetry={retry}><main>Current route</main></ApplicationChrome>);

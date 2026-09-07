@@ -120,7 +120,7 @@ describe("Community creation production route", () => {
     expect(container.textContent).not.toContain("Sign in to create a community");
 
     const retry = [...route().querySelectorAll<HTMLButtonElement>("button")]
-      .find(button => button.textContent?.trim() === "Try again")!;
+      .find(button => button.textContent?.trim() === "Retry account check")!;
     retry.click();
 
     await vi.waitFor(() => expect(route().getAttribute("data-creation-state")).toBe("signed-out"));
@@ -164,7 +164,7 @@ describe("Community creation production route", () => {
     expect(name.value).toBe("My community");
     expect(client.createIntent).not.toHaveBeenCalled();
     const retry = [...container.querySelectorAll<HTMLButtonElement>("button")]
-      .find(button => button.textContent?.trim() === "Try again")!;
+      .find(button => button.textContent?.trim() === "Retry account check")!;
     retry.click();
     await vi.waitFor(() => expect(attempt).toBe(3));
     settle(authenticated);
@@ -225,7 +225,7 @@ describe("Community creation production route", () => {
     expect(client.getIntent).toHaveBeenCalledOnce();
   });
 
-  test("uses the enabled anonymous CTA to sign in and submits the retained draft afterwards", async () => {
+  test("requires an explicit creation click after sign-in and retains subsequent draft edits", async () => {
     let authenticated = false;
     const request = vi.fn();
     const createIntentRequest = vi.fn(async () => createIntent());
@@ -246,13 +246,94 @@ describe("Community creation production route", () => {
       button.click();
       expect(request).toHaveBeenCalledOnce();
       expect(createIntentRequest).not.toHaveBeenCalled();
+      // Dismissing sign-in leaves no deferred creation, including after edits
+      // and a later sign-in from elsewhere in the shell.
+      name.value = "Edited community";
+      name.dispatchEvent(new InputEvent("input", { bubbles: true }));
       authenticated = true;
       refreshSession();
+      await vi.waitFor(() => expect(button.textContent?.trim()).toBe("Create"));
+      expect(name.value).toBe("Edited community");
+      expect(container.textContent).toContain("Host");
+      expect(createIntentRequest).not.toHaveBeenCalled();
+      button.click();
       await vi.waitFor(() => expect(createIntentRequest).toHaveBeenCalledOnce());
-      expect(createIntentRequest).toHaveBeenCalledWith(expect.objectContaining({ draft: expect.objectContaining({ name: "Retained community", persona: { kind: "existing", personaId: "persona-1" } }) }));
+      expect(createIntentRequest).toHaveBeenCalledWith(expect.objectContaining({ draft: expect.objectContaining({ name: "Edited community", persona: { kind: "existing", personaId: "persona-1" } }) }));
     } finally {
       window.removeEventListener(GLOBAL_SIGN_IN_EVENT, request);
     }
+  });
+
+  test("account retry never creates and background recovery preserves a creation error", async () => {
+    let unavailable = true;
+    const createIntentRequest = vi.fn(async () => { throw new Error("write failed"); });
+    const container = render(() => <CommunityCreationRouteView api={api({ createIntent: createIntentRequest })}
+      resolveSession={async () => {
+        if (unavailable) throw new Error("account unavailable");
+        return { status: "authenticated", userId: "user-1", personas: [{ personaId: "persona-1", displayName: "Host",
+          avatarRef: null, primaryPublicHandle: null, communityBinding: null }] };
+      }} />);
+    await vi.waitFor(() => expect(container.textContent).toContain("Could not check your account"));
+    const name = container.querySelector<HTMLInputElement>("input")!;
+    name.value = "Retained community";
+    name.dispatchEvent(new InputEvent("input", { bubbles: true }));
+    const button = container.querySelector<HTMLButtonElement>('button[type="submit"]')!;
+    await vi.waitFor(() => expect(button.disabled).toBe(false));
+    expect(button.textContent).toContain("Retry account check");
+    unavailable = false;
+    button.click();
+    await vi.waitFor(() => expect(button.textContent?.trim()).toBe("Create"));
+    expect(createIntentRequest).not.toHaveBeenCalled();
+    button.click();
+    await vi.waitFor(() => expect(container.textContent).toContain("Could not create this community draft"));
+    refreshSession();
+    await vi.waitFor(() => expect(button.textContent?.trim()).toBe("Create"));
+    expect(container.textContent).toContain("Could not create this community draft");
+    expect(createIntentRequest).toHaveBeenCalledOnce();
+  });
+
+  test("profile retry recovers selection without creating a community", async () => {
+    let attempts = 0;
+    const createIntentRequest = vi.fn(async () => createIntent());
+    const container = render(() => <CommunityCreationRouteView
+      api={api({ createIntent: createIntentRequest })}
+      resolveSession={async () => ++attempts === 1
+        ? { status: "authenticated", userId: "user-1", personas: [], personasUnavailable: true }
+        : { status: "authenticated", userId: "user-1", personas: [{ personaId: "persona-1", displayName: "Host",
+          avatarRef: null, primaryPublicHandle: null, communityBinding: null }] }} />);
+    await vi.waitFor(() => expect(container.textContent).toContain("community profiles could not be loaded"));
+    const name = container.querySelector<HTMLInputElement>("input")!;
+    name.value = "Retained community";
+    name.dispatchEvent(new InputEvent("input", { bubbles: true }));
+    const button = container.querySelector<HTMLButtonElement>('button[type="submit"]')!;
+    await vi.waitFor(() => expect(button.disabled).toBe(false));
+    expect(button.textContent).toContain("Retry profiles");
+    button.click();
+    await vi.waitFor(() => expect(button.textContent?.trim()).toBe("Create"));
+    expect(attempts).toBe(2);
+    expect(name.value).toBe("Retained community");
+    expect(container.textContent).toContain("Host");
+    expect(createIntentRequest).not.toHaveBeenCalled();
+  });
+
+  test("clicking during the initial account check never queues creation", async () => {
+    let settle!: (value: import("../../api/session").SessionResolution) => void;
+    const createIntentRequest = vi.fn();
+    const container = render(() => <CommunityCreationRouteView api={api({ createIntent: createIntentRequest })}
+      resolveSession={() => new Promise(resolve => { settle = resolve; })} />);
+    const name = container.querySelector<HTMLInputElement>("input")!;
+    name.value = "Pending community";
+    name.dispatchEvent(new InputEvent("input", { bubbles: true }));
+    const button = container.querySelector<HTMLButtonElement>('button[type="submit"]')!;
+    await vi.waitFor(() => expect(button.disabled).toBe(false));
+    expect(button.textContent).toContain("Check account");
+    button.click();
+    await vi.waitFor(() => expect(container.textContent).toContain("Your draft is ready"));
+    settle({ status: "authenticated", userId: "user-1", personas: [{ personaId: "persona-1", displayName: "Host",
+      avatarRef: null, primaryPublicHandle: null, communityBinding: null }] });
+    await vi.waitFor(() => expect(button.textContent?.trim()).toBe("Create"));
+    expect(createIntentRequest).not.toHaveBeenCalled();
+    expect(container.textContent).toContain("Your draft is ready");
   });
 
   test("reports a session change during creation instead of silently committing under another account", async () => {

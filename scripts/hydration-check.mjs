@@ -11,6 +11,7 @@ try {
   const page = await browser.newPage();
   const errors = [];
   let anonymousSessionProbe = false;
+  let retryAccountResponse;
   page.on("console", message => { if (message.type() === "error") errors.push(`console: ${message.text()}`); });
   page.on("pageerror", error => errors.push(`pageerror: ${error.message}`));
   page.on("response", response => {
@@ -29,11 +30,18 @@ try {
       contentType: "application/json",
       body: JSON.stringify({ error: { code: "provider_unavailable", message: "API unavailable", retryable: true } }),
     }));
-    await page.route("**/api/users/me", route => route.fulfill({
-      status: 503,
-      contentType: "application/json",
-      body: JSON.stringify({ error: { code: "provider_unavailable", message: "API unavailable", retryable: true } }),
-    }));
+    await page.route("**/api/users/me", async route => {
+      if (retryAccountResponse) {
+        await retryAccountResponse;
+        return route.fulfill({ status: 401, contentType: "application/json",
+          body: JSON.stringify({ error: { code: "auth_error", message: "Not signed in", retryable: false } }) });
+      }
+      return route.fulfill({
+        status: 503,
+        contentType: "application/json",
+        body: JSON.stringify({ error: { code: "provider_unavailable", message: "API unavailable", retryable: true } }),
+      });
+    });
   }
   await page.route("**/favicon.ico", route => route.fulfill({ status: 204, body: "" }));
   const hydrationUrl = new URL(base);
@@ -70,13 +78,21 @@ try {
   await dialog.waitFor({ state: "hidden" });
 
   if (apiDown) {
-    await page.getByRole("button", { name: "Retry account check" }).first().waitFor();
-    // A failed probe is not anonymous. Exercise the independent sign-in host
-    // without expecting the shell to mislabel a connection error as signed out.
-    await page.evaluate(() => window.dispatchEvent(new CustomEvent("pirate:connect")));
-  } else {
-    await page.getByRole("button", { name: "Sign in", exact: true }).first().click();
+    let releaseRetry;
+    retryAccountResponse = new Promise(resolve => { releaseRetry = resolve; });
+    const retry = page.getByRole("button", { name: "Retry account check" }).first();
+    await retry.waitFor();
+    const accountRequest = page.waitForRequest("**/api/users/me");
+    await retry.click();
+    await accountRequest;
+    if (await page.getByRole("button", { name: "Sign in", exact: true }).count()) {
+      throw new Error("Account retry temporarily rendered signed-out chrome");
+    }
+    if (!await retry.isVisible()) throw new Error("Account retry lost its recovery label");
+    releaseRetry();
   }
+  await page.getByRole("button", { name: "Sign in", exact: true }).first().click();
+  retryAccountResponse = undefined;
   const signInDialog = page.getByRole("dialog", { name: "Join Pirate" });
   await signInDialog.waitFor({ state: "visible" });
   await signInDialog.getByRole("heading", { name: "Join Pirate" }).waitFor({ state: "visible" });
@@ -96,9 +112,10 @@ try {
   // so exactly one anonymous users/me probe may leave this page. The counter
   // is attached before the navigation so it observes every request.
   let usersMeRequests = 0;
-  page.on("request", request => {
+  const countAccountRequest = request => {
     if (new URL(request.url()).pathname === "/api/users/me") usersMeRequests += 1;
-  });
+  };
+  page.on("request", countAccountRequest);
   const creationResponse = await page.goto(new URL("/communities/new", base).toString(), { waitUntil: "networkidle" });
   if (!creationResponse?.ok()) throw new Error(`Creation SSR page returned ${creationResponse?.status()}`);
   const creationHtml = await creationResponse.text();
@@ -119,6 +136,50 @@ try {
   if (creationState === "resolving") throw new Error("Creation session resolution never settled");
   if (usersMeRequests !== 1) {
     throw new Error(`Creation page issued ${usersMeRequests} users/me requests; the shared session store must issue exactly one`);
+  }
+
+  page.off("request", countAccountRequest);
+
+  if (apiDown) {
+    // Authenticate independently of a failed profile read, then hold the retry
+    // to prove that authenticated chrome and the typed form remain stable.
+    let releaseAccount;
+    let accountGate = new Promise(resolve => { releaseAccount = resolve; });
+    await page.unroute("**/api/users/me");
+    await page.route("**/api/users/me", async route => {
+      await accountGate;
+      return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({
+        id: "user-browser-check", object: "user", verification_state: "unverified", created: 1788495833,
+        verification_capabilities: Object.fromEntries(
+          ["unique_human", "age_over_18", "minimum_age", "nationality", "gender", "wallet_score"]
+            .map(key => [key, { state: "unverified" }])),
+      }) });
+    });
+    await page.goto(new URL("/communities/new", base).toString(), { waitUntil: "domcontentloaded" });
+    await page.locator("#app-root[data-hydrated='true']").waitFor({ state: "attached" });
+    if (await page.locator("[data-shell-auth]").getAttribute("data-shell-auth") !== "resolving") {
+      throw new Error("Initial account check must have neutral chrome");
+    }
+    if (await page.getByRole("button", { name: "Sign in", exact: true }).count()) {
+      throw new Error("Initial account check must not advertise sign-in");
+    }
+    await page.locator("form input").first().fill("Retained browser draft");
+    releaseAccount();
+    await page.locator("[data-shell-auth='authenticated']").waitFor();
+    const profileRetry = page.getByRole("button", { name: "Retry profiles", exact: true });
+    await profileRetry.waitFor();
+    accountGate = new Promise(resolve => { releaseAccount = resolve; });
+    const retryRequest = page.waitForRequest("**/api/users/me");
+    await profileRetry.click();
+    await retryRequest;
+    if (await page.locator("[data-shell-auth]").getAttribute("data-shell-auth") !== "authenticated") {
+      throw new Error("Background refresh discarded authenticated chrome");
+    }
+    releaseAccount();
+    await profileRetry.waitFor();
+    if (await page.locator("form input").first().inputValue() !== "Retained browser draft") {
+      throw new Error("Profile retry discarded the draft");
+    }
   }
 
   const unexpectedErrors = errors.filter(error => !(

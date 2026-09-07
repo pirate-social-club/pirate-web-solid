@@ -61,7 +61,7 @@ export function communityCreationCanUsePersona(
   session: AuthenticatedSession | undefined,
   choice: CommunityPersonaChoice | undefined,
 ): boolean {
-  return session !== undefined && choice?.kind === "existing"
+  return session !== undefined && !session.personasUnavailable && choice?.kind === "existing"
     && communityCreationCandidates(session.personas).some(persona => persona.personaId === choice.personaId);
 }
 
@@ -70,8 +70,7 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
   const [session, setSession] = createSignal<RouteSession>("resolving");
   const [draft, setDraft] = createSignal<CreateCommunityDraft>(createEmptyDraft(undefined));
   const [displayPersonas, setDisplayPersonas] = createSignal<AuthenticatedSession["personas"]>([]);
-  let intentOwnerId: string | undefined;
-  let continueAfterSignIn = false;
+  const [intentOwnerId, setIntentOwnerId] = createSignal<string>();
   const [intent, setIntent] = createSignal<CommunityCreationIntentView>();
   const [busy, setBusy] = createSignal(false);
   const [message, setMessage] = createSignal("");
@@ -104,7 +103,7 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
     try {
       const latest = await api.getIntent({ intentId });
       if (!active || request !== sessionRequest) return;
-      intentOwnerId = owner.userId;
+      setIntentOwnerId(owner.userId);
       setIntent(latest);
       if (!preserveStaleRevision) setStaleRevision(null);
       setMessage("");
@@ -119,23 +118,24 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
       .then((result) => {
         if (!active || request !== sessionRequest) return;
         setSession(result);
-        setMessage("");
         if (result === "anonymous") {
           setDisplayPersonas([]);
           setDraft(current => ({ ...current, persona: undefined }));
           setIntent(undefined);
         } else {
-          const changedOwner = intentOwnerId !== undefined && intentOwnerId !== result.userId;
+          const changedOwner = intentOwnerId() !== undefined && intentOwnerId() !== result.userId;
           if (changedOwner) setIntent(undefined);
-          setDisplayPersonas(result.personas);
-          // Minting stays unavailable until post-mint wallet activation exists.
-          const choice = defaultCommunityPersonaChoice(communityCreationCandidates(result.personas));
-          setDraft((current) => {
-            const selected = current.persona;
-            const eligible = selected?.kind === "existing"
-              && communityCreationCandidates(result.personas).some(persona => persona.personaId === selected.personaId);
-            return { ...current, persona: eligible ? selected : choice?.kind === "existing" ? choice : undefined };
-          });
+          if (!result.personasUnavailable) {
+            setDisplayPersonas(result.personas);
+            // Minting stays unavailable until post-mint wallet activation exists.
+            const choice = defaultCommunityPersonaChoice(communityCreationCandidates(result.personas));
+            setDraft((current) => {
+              const selected = current.persona;
+              const eligible = selected?.kind === "existing"
+                && communityCreationCandidates(result.personas).some(persona => persona.personaId === selected.personaId);
+              return { ...current, persona: eligible ? selected : choice?.kind === "existing" ? choice : undefined };
+            });
+          }
           const resumeId = props.intentId?.trim();
           if (resumeId && (!intent() || changedOwner)) void loadIntent(resumeId, false, result);
         }
@@ -184,11 +184,12 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
   const runCommit = async (
     expectedRevision: number,
     intentId: string,
+    expectedOwnerId: string | undefined,
     navigateOnSuccess = false,
   ): Promise<void> => {
     const owner = signedIn(session());
-    if (!owner || (intentOwnerId && intentOwnerId !== owner.userId)) {
-      setMessage("Check your account before finishing this community. Your saved draft is still here.");
+    if (!owner || !expectedOwnerId || expectedOwnerId !== owner.userId) {
+      setMessage("Check your account before finishing this community. If you switched accounts, reload this saved draft after signing in with its owner account.");
       return;
     }
     if (intent()?.nextAction.kind === "blocked") return;
@@ -223,10 +224,13 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
     if (busy() || props.intentId?.trim()) return;
     const owner = signedIn(session());
     if (!owner) {
-      continueAfterSignIn = true;
       if (session() === "anonymous") requestGlobalSignIn();
       else if (session() === "failed") retrySessionResolution();
       else setMessage("Your draft is ready. Your account must be checked before it can be created.");
+      return;
+    }
+    if (owner.personasUnavailable) {
+      retrySessionResolution();
       return;
     }
     if (!communityCreationCanUsePersona(owner, currentDraft.persona)) {
@@ -241,11 +245,11 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
         idempotencyKey: commandKey("create"),
       });
       if (!active) return;
-      intentOwnerId = owner.userId;
+      setIntentOwnerId(owner.userId);
       setIntent(created);
       navigate(`/communities/new?intent_id=${encodeURIComponent(created.intentId)}`, { replace: true });
       if (created.nextAction.kind === "commit") {
-        await runCommit(created.revision, created.intentId, true);
+        await runCommit(created.revision, created.intentId, owner.userId, true);
       }
     } catch (error) {
       if (active) setMessage(safeError(error, "Could not create this community draft. Try again."));
@@ -258,22 +262,13 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
     if (busy()) return;
     setBusy(true);
     try {
-      await runCommit(expectedRevision, intentId);
+      await runCommit(expectedRevision, intentId, intentOwnerId());
     } finally {
       if (active) setBusy(false);
     }
   };
 
   const currentSession = () => signedIn(session());
-  createEffect(
-    () => ({ current: currentSession(), persona: draft().persona }),
-    ({ current, persona }) => {
-      if (!continueAfterSignIn || !current) return;
-      continueAfterSignIn = false;
-      if (persona?.kind === "existing") void submit();
-      else setMessage("Choose an eligible community profile, then create your community.");
-    },
-  );
   // Session state is diagnostic only; it never gates the editable form.
   const creationState = (): "ready" | "resolving" | "signed-out" | "unavailable" => {
     const current = session();
@@ -289,7 +284,12 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
       <Show when={session() === "failed"}>
         <div class="mx-auto flex max-w-2xl items-center gap-3 px-5 pt-4">
           <FormNote tone="destructive">Could not check your account. Your draft is still here.</FormNote>
-          <Button onClick={retrySessionResolution} type="button">Try again</Button>
+          <Button onClick={retrySessionResolution} type="button">Retry account check</Button>
+        </div>
+      </Show>
+      <Show when={currentSession()?.personasUnavailable}>
+        <div class="mx-auto max-w-2xl px-5 pt-4">
+          <FormNote tone="destructive">You are signed in, but your community profiles could not be loaded. Retry profiles before creating this community.</FormNote>
         </div>
       </Show>
       <Show when={session() === "anonymous"}>
@@ -319,7 +319,7 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
             personaControl={(
               <CommunityPersonaChoiceControl
                 createNewUnavailable
-                disabled={!currentSession()}
+                disabled={!currentSession() || currentSession()?.personasUnavailable}
                 choice={draft().persona}
                 createNewLabel="Create a new owner persona"
                 label="Community profile"
@@ -331,8 +331,8 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
             )}
             showMediaFields={false}
             submitting={busy()}
-            requirePersona={!!currentSession()}
-            submitLabel={session() === "anonymous" ? "Sign in to create" : session() === "failed" ? "Try again" : undefined}
+            requirePersona={!!currentSession() && !currentSession()?.personasUnavailable}
+            submitLabel={currentSession()?.personasUnavailable ? "Retry profiles" : session() === "anonymous" ? "Sign in to create" : session() === "failed" ? "Retry account check" : session() === "resolving" ? "Check account" : undefined}
             submitNote={!currentSession() ? "Your draft stays here while you sign in or check your account." : undefined}
           />
         </Show>
@@ -340,11 +340,11 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
         {(currentIntent) => (
           <div class="px-5 py-8">
             <Show when={!currentSession()}>
-              <FormNote class="mx-auto mb-5 max-w-2xl" tone="muted">Check your account before finishing this community. Your saved draft is still here.</FormNote>
+              <FormNote class="mx-auto mb-5 max-w-2xl" tone="muted">Check your account before finishing this community. If you switched accounts, reload this saved draft after signing in with its owner account.</FormNote>
             </Show>
             <CommunityCreationProgressView
               committing={busy()}
-              commitDisabled={!currentSession() || intentOwnerId !== currentSession()?.userId}
+              commitDisabled={!currentSession() || intentOwnerId() !== currentSession()?.userId}
               intent={currentIntent()}
               staleRevision={staleRevision()}
               onCommit={({ expectedRevision, intentId }) => void commit(expectedRevision, intentId)}

@@ -130,6 +130,15 @@ describe("browser session resolution", () => {
     expect(input).toBeUndefined();
   });
 
+  test("preserves authentication when only the persona read fails", async () => {
+    const result = await resolveSession({ client: {
+      // SAFETY: this focused fixture supplies the only account field projected.
+      get_usersMe: async () => ({ id: "user-1" }) as never,
+      get_personas: async () => { throw authError(503); },
+    } });
+    expect(result).toEqual({ status: "authenticated", userId: "user-1", personas: [], personasUnavailable: true });
+  });
+
   test("treats only an explicit 401 as anonymous", async () => {
     // The persona read starts concurrently with the account read; when the
     // account resolves anonymous its result — including its rejection — is
@@ -193,6 +202,21 @@ describe("shared session store", () => {
     expect(session).toEqual({ status: "authenticated", userId: "user-1", personas: [] });
     expect(spies.get_usersMe).toHaveBeenCalledTimes(1);
     expect(spies.get_personas).toHaveBeenCalledTimes(1);
+  });
+
+  test("keeps account success separate from unavailable personas and recovers on refresh", async () => {
+    let unavailable = true;
+    const spies = stubClient({ personas: async () => {
+      if (unavailable) throw authError(503);
+      return personasPage;
+    } });
+    const store = storeFrom(spies);
+    await expect(store.resolveSession()).resolves.toEqual({ status: "authenticated", userId: "user-1", personas: [], personasUnavailable: true });
+    await expect(store.resolveAccountSession()).resolves.toEqual({ status: "authenticated", userId: "user-1" });
+    unavailable = false;
+    store.refreshSession();
+    await expect(store.resolveSession()).resolves.toEqual({ status: "authenticated", userId: "user-1", personas: [activePersonaProjection] });
+    expect(spies.get_personas).toHaveBeenCalledTimes(2);
   });
 
   test("starts the persona read before the account read settles", async () => {
