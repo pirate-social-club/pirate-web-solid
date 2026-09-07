@@ -203,7 +203,7 @@ function SuccessState(props: {
     : state.canonicalUrl;
   const title = () => interpolateMessage(copy.title, { name: community().name });
   const description = () => community().description;
-  const settingsHref = () => `${state.canonicalPath}/settings/names`;
+  const settingsHref = () => `${state.canonicalPath}/settings/moderation_queue`;
 
   createEffect(
     () => state.communityId,

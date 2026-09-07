@@ -14,6 +14,7 @@ import { toCommunityPersonaChoiceWire } from "../identity/community-persona-choi
 import {
   draftGatePolicy,
   type CreateCommunityDraft,
+  type AdditionalGateRequirement,
 } from "./create-community/create-community-model";
 import type {
   CommunityCreationIntentView,
@@ -94,8 +95,37 @@ function mapNextAction(
   }
 }
 
+/** Validate the open JSON policy before reconstructing an editable draft. */
+function additionalDraftRequirements(policy: PostCommunityCreationIntentsResponse["draft"]["policy"]): AdditionalGateRequirement[] {
+  const unsupported = () => new CommunityCreationApiError("unsupported_creation_contract", "This saved community uses a membership policy that this form cannot edit.");
+  const paths = policy.accessPaths;
+  if (policy.version !== 1 || !Array.isArray(paths) || paths.length !== 1) throw unsupported();
+  const path = paths[0];
+  if (!path || typeof path !== "object" || path.id !== "default" || path.operator !== "and" || !Array.isArray(path.requirements)) throw unsupported();
+  const additional: AdditionalGateRequirement[] = [];
+  let human = 0;
+  for (const requirement of path.requirements) {
+    if (!requirement || typeof requirement !== "object") throw unsupported();
+    if (requirement.requirement === "human-verification") { human += 1; continue; }
+    if (requirement.requirement !== "reputation-score" || requirement.provider !== "passport"
+      || typeof requirement.minimumScore !== "number" || !Number.isFinite(requirement.minimumScore)) throw unsupported();
+    additional.push({ requirement: "reputation-score", provider: "passport", minimumScore: requirement.minimumScore });
+  }
+  if (human !== 1) throw unsupported();
+  return additional;
+}
+
 function mapIntent(response: PostCommunityCreationIntentsResponse): CommunityCreationIntentView {
   return {
+    draft: response.committed_resource ? undefined : {
+      name: response.draft.name,
+      description: response.draft.description,
+      publicName: response.draft.public_name ?? "",
+      persona: response.draft.persona.kind === "existing"
+        ? { kind: "existing", personaId: response.draft.persona.persona_id }
+        : { kind: "create_new" },
+      additionalRequirements: additionalDraftRequirements(response.draft.policy),
+    },
     committedHref: response.committed_resource?.href ?? null,
     expiresAt: response.expires_at,
     intentId: response.intent_id,

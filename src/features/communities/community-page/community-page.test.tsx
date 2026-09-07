@@ -589,7 +589,7 @@ describe("CommunityPage", () => {
       .find(button => button.textContent?.trim() === "Manage");
     expect(manage).toBeDefined();
     manage!.click();
-    expect(navigate).toHaveBeenCalledWith("/c/xn--pokmon-dva/settings/names");
+    expect(navigate).toHaveBeenCalledWith("/c/xn--pokmon-dva/settings/moderation_queue");
 
     expect(container.querySelector("nav[aria-label='Primary navigation']")).toBeNull();
     expect(container.querySelector("[data-application-chrome]")).toBeNull();

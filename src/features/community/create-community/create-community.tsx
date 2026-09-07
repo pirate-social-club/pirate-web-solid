@@ -45,10 +45,15 @@ export interface CreateCommunityProps {
   /** Keep false in production until the community API can persist these assets. */
   showMediaFields?: boolean;
   submitting?: boolean;
+  fieldsDisabled?: boolean;
+  ownerDisabled?: boolean;
+  actionOnly?: boolean;
+  failureMessage?: string;
+  onRetry?: () => void;
+  retryLabel?: string;
   accountChecking?: boolean;
   requirePersona?: boolean;
   submitLabel?: string;
-  submitNote?: string;
   forceMobile?: boolean;
 }
 
@@ -71,13 +76,14 @@ export function CreateCommunityView(props: CreateCommunityProps) {
   // Stay neutral until the field is touched or the server rejects it, rather
   // than telling the user an untouched empty field is already valid.
   const nameValidationState = () => (visibleNameError() ? "invalid" as const : nameTouched() ? "valid" as const : undefined);
-  const canSubmit = () => validation().nameError === null
+  const canSubmit = () => (props.actionOnly || (validation().nameError === null
     && (props.requirePersona === false || (validation().personaError === null && validation().publicNameError === null))
-    && !props.submitting && !props.accountChecking;
+    )) && !props.submitting && !props.accountChecking;
 
   return (
     <form
       class={cn("h-full", props.class)}
+      novalidate
       data-create-community
       onSubmit={(event) => { event.preventDefault(); if (canSubmit()) props.onSubmit?.(); }}
     >
@@ -85,8 +91,11 @@ export function CreateCommunityView(props: CreateCommunityProps) {
         bodyClass="mx-auto flex w-full max-w-2xl flex-col gap-5 px-5 py-5"
         footer={
           <div class="mx-auto w-full max-w-2xl">
-            <Show when={props.submitNote}><p class="mb-2 text-sm text-muted-foreground">{props.submitNote}</p></Show>
-            <Button class="h-11 w-full" disabled={!canSubmit()} loading={props.submitting} type="submit">
+            <div class="h-20 overflow-auto text-sm text-destructive" data-creation-feedback>
+              <p role="alert">{props.failureMessage}</p>
+              <Show when={props.onRetry}><Button type="button" variant="ghost" disabled={props.accountChecking || props.submitting} onClick={props.onRetry}>{props.retryLabel ?? "Try again"}</Button></Show>
+            </div>
+            <Button class="h-11 w-full" disabled={!canSubmit()} loading={props.submitting || props.accountChecking} type="submit">
               {props.submitLabel ?? copy().submit}
             </Button>
           </div>
@@ -101,6 +110,7 @@ export function CreateCommunityView(props: CreateCommunityProps) {
           </div>
         }
       >
+        <fieldset disabled={props.fieldsDisabled || props.submitting} class="contents">
         <Show when={props.showMediaFields !== false}>
           <MediaUploadField
             chooseLabel={copy().coverChoose}
@@ -183,7 +193,10 @@ export function CreateCommunityView(props: CreateCommunityProps) {
 
         </section>
 
+        <fieldset class="contents" disabled={props.ownerDisabled}>
         <CommunityOwnerFields draft={props.draft} personas={props.personas} profilesUnavailable={props.profilesUnavailable} onChange={props.onDraftChange} />
+        </fieldset>
+        </fieldset>
       </ActionFooterShell>
     </form>
   );

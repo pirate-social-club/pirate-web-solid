@@ -15,7 +15,7 @@ export function CommunityOwnerFields(props: {
   const candidates = () => communityCreationCandidates(props.personas ?? []);
   const existing = () => {
     const choice = props.draft.persona;
-    return choice?.kind === "existing" ? candidates().find(profile => profile.personaId === choice.personaId) : undefined;
+    return choice?.kind === "existing" ? (props.personas ?? []).find(profile => profile.personaId === choice.personaId) : undefined;
   };
   const useExisting = () => {
     const only = candidates().length === 1 ? candidates()[0] : undefined;
@@ -32,9 +32,9 @@ export function CommunityOwnerFields(props: {
             <TextFieldInput maxlength={80} aria-describedby={`owner-help-${id}`} class="rounded-[var(--radius-lg)] bg-card" />
           </TextField>
           <p id={`owner-help-${id}`} class="text-sm text-muted-foreground">This name appears on your posts in this community. Your new profile stays with this community.</p>
-          <Show when={candidates().length > 0}>
-            <Button type="button" variant="ghost" class="self-start" disabled={props.profilesUnavailable} onClick={useExisting}>Use an existing profile</Button>
-          </Show>
+          <div class="h-10">
+            <Button type="button" variant="ghost" class={candidates().length === 0 ? "invisible self-start" : "self-start"} disabled={props.profilesUnavailable || candidates().length === 0} onClick={useExisting}>Use an existing profile</Button>
+          </div>
         </>
       }>
         <Show when={existing()} fallback={
