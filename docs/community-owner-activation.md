@@ -36,8 +36,9 @@ The client artifact comes from api-next c18cbd55ee5f099f135a31f3e91b63482ddab093
 The new pending inventory is independent of the active profile read: failure of
 that read does not prevent confirmation from recovering a private pending owner.
 
-Production is unchanged. API migration 0130 is reserved behind participation's
-0129. That migration has not landed and is outside this UI release scope.
-Refresh and verify the compatible API/Solid pair after the dependency lands;
-do not deploy this frontend ahead of its API contract or skip a reserved
-production migration.
+The owner corrected the migration reservation: community owner activation
+uses the next free 0129, with no dependency on the unlanded participation lane.
+The SQL and client artifact are unchanged. Release the compatible API first,
+then this frontend; never introduce a migration-ledger gap. The task record
+owns live release receipts. A production candidate must retain the serving
+frontend lineage so unrelated unreleased video work is not included.
