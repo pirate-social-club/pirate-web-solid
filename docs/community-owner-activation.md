@@ -21,7 +21,7 @@ client. An already active owner requires no confirmation. Dismissal cancels the
 prompt's publication continuation; unrelated later sign-ins only recover the
 profile. OAuth returns to the saved intent for explicit completion.
 
-Verification on September 7: 531 application tests, 140 API tests, and 16 focused
+Feature-branch verification on September 7: 531 application tests, 140 API tests, and 16 focused
 model tests passed. TypeScript, design-system typecheck, lint (existing warnings),
 client provenance/runtime table checks, and the Worker build passed. Ten rendered
 Storybook variants passed interactions and axe with no violations; ten incomplete
@@ -42,3 +42,25 @@ The SQL and client artifact are unchanged. Release the compatible API first,
 then this frontend; never introduce a migration-ledger gap. The task record
 owns live release receipts. A production candidate must retain the serving
 frontend lineage so unrelated unreleased video work is not included.
+
+The scoped production candidate applies only this feature to serving source
+613df46ebfb21a71edae44f2d45d5d490d64cc55. Cherry-pick conflicts were confined
+to client metadata, lockfile and the runtime-table audit; runtime files applied
+without conflicts. The production Wrangler configuration, HNS ingress source
+and post/video runtime source are unchanged from that serving base.
+
+The 0.62.0 to 0.66.0 audit covers the same 34 consumed operations. Seven media
+submission responses add only membership_required and
+provider_submission_unconfirmed reason codes. Two public-post canonical
+responses add unavailable playback/thumbnail variants. All other audited
+responses, success statuses and error definitions are unchanged. The new
+reviewed digest is 0bb76bd48b7ed7c05c7129cefc8bceef31a1cc4eca8081c2a5ac1d90bcbbc755.
+The pending-wallet endpoint is additive and the creation change is tested
+through the generated client. No schema check was removed or bypassed.
+
+The scoped candidate's full verify chain passes: 136 API tests, 454 application
+tests, 420 design-system tests, both type checks, lint, e2e inventory, production
+configuration, provenance/runtime tables, icon checks and Solid Doctor with
+zero errors and existing warnings. Production build, generated-config deploy
+dry run, SSR/hydration and private owner-setup browser fixtures also pass.
+Live activation receipts remain in the workspace task register.
