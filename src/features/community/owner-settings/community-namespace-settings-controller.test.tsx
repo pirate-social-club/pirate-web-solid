@@ -63,7 +63,7 @@ test.each([2, 90])("pending checks honor a %i second interval and stop on dispos
   expect(container.textContent).toContain("Review changes to existing records");
   expect(container.textContent).toContain("Records kept live (1)");
   expect(container.textContent).toContain("Records added by this update (2)");
-  expect(container.textContent).toContain("Records not carried over (1)");
+  expect(container.textContent).toContain("Existing records being replaced (1)");
   expect(container.textContent).toContain("make up the complete list of 3 records");
   vi.useFakeTimers();
   const acknowledge = [...container.querySelectorAll<HTMLButtonElement>("button")].find((button) => button.textContent === "I published all records manually");

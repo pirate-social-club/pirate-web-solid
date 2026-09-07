@@ -232,7 +232,7 @@ function ServerDirectedAction(props: Pick<CommunityNamespaceSettingsPanelProps, 
                 </Show>
                 <Show when={current().removed_records.length > 0}>
                   <div class="space-y-3">
-                    <Type as="h3" variant="h3">Records not carried over ({current().removed_records.length})</Type>
+                    <Type as="h3" variant="h3">Existing records being replaced ({current().removed_records.length})</Type>
                     <NamespaceRecordList records={current().removed_records} />
                   </div>
                 </Show>
@@ -246,7 +246,7 @@ function ServerDirectedAction(props: Pick<CommunityNamespaceSettingsPanelProps, 
                 </Show>
                 <Show when={current().removed_records.length > 0}>
                   <FormNote tone="warning">
-                    Records not carried over are not included in the complete resource, and a Handshake update swaps the entire record set at once, so they stop being live once your update publishes. Resolvers may keep serving cached answers until those expire.
+                    Compare these existing records with the complete resource below. A record may appear in both lists when its value stays the same. Only records absent from the complete resource are removed. Resolvers may keep serving cached answers until those expire.
                   </FormNote>
                 </Show>
               </Card>
