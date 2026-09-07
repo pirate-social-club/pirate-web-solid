@@ -98,13 +98,13 @@ describe("OwnerSettingsRouteView", () => {
 
     await vi.waitFor(() => expect(container.textContent).toContain("yourname.midnight"));
     expect(container.textContent).toContain("Names");
-    expect(container.textContent).toContain("Queue");
+    expect(container.textContent).toContain("Moderation queue");
     expect(container.textContent).toContain("Content policy");
     expect(container.textContent).toContain("Address");
     expect(container.textContent).not.toContain("Community profile");
     expect(container.textContent).not.toContain("Archive community");
     const queue = [...container.querySelectorAll<HTMLButtonElement>("button")]
-      .find((button) => button.textContent?.trim() === "Queue");
+      .find((button) => button.textContent?.trim() === "Moderation queue");
     expect(queue).toBeDefined();
     queue!.click();
     expect(navigate).toHaveBeenCalledWith("/c/midnight/settings/moderation_queue");
@@ -217,4 +217,23 @@ test("address navigation and a reload rediscover the account import without a UR
     disposers.pop()!();
   }
   expect(discovery).toHaveBeenCalledTimes(3);
+});
+
+
+test("keeps failed moderation visible without granting access or redirecting to names", async () => {
+  const navigate = vi.fn();
+  const getCases = vi.fn();
+  const container = render(() => <OwnerSettingsRouteView
+    state={{ ...success, access: { "community.names.manage": true }, unavailableSections: ["moderation_queue", "content_policy"] }}
+    requestedSection="moderation_queue" navigate={navigate}
+    moderationApi={{ ...moderationApi(), getCases }} namesApi={namesApi()}
+  />);
+  await vi.waitFor(() => expect(container.textContent).toContain("Your access could not be determined"));
+  expect(navigate).not.toHaveBeenCalled();
+  expect(getCases).not.toHaveBeenCalled();
+  const nav = container.querySelector("nav")!;
+  expect(nav.textContent).toContain("Names");
+  expect(nav.textContent).toContain("Moderation queue");
+  expect(nav.querySelector('[aria-current="page"]')?.textContent).toContain("Moderation queue");
+  expect([...container.querySelectorAll("button")].some(button => button.textContent === "Try again")).toBe(true);
 });

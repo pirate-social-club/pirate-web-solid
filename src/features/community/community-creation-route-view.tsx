@@ -74,6 +74,10 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
   const applyIntent = (incoming: CommunityCreationIntentView) => {
     const current = intent();
     if (current?.intentId === incoming.intentId && current.revision > incoming.revision) return current;
+    if (incoming.nextAction.kind === "wait" && current?.nextAction.kind !== "wait") {
+      const expires = Date.parse(incoming.expiresAt);
+      setWaitDeadline(Math.min(Date.now() + 60_000, Number.isFinite(expires) ? expires : Infinity));
+    }
     setIntent(incoming);
     return incoming;
   };
@@ -81,6 +85,7 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
   const [message, setMessage] = createSignal("");
   const [intentReadFailed, setIntentReadFailed] = createSignal(false);
   let continuing = false;
+  const [waitDeadline, setWaitDeadline] = createSignal<number>();
   const [loadingSaved, setLoadingSaved] = createSignal(!!props.intentId?.trim());
   const commandKeys = new Map<string, string>();
   const activationAbort = new AbortController();
@@ -203,6 +208,21 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
   onCleanup(() => { active = false; activationAbort.abort(); });
 
   createEffect(
+    () => ({ current: intent(), deadline: waitDeadline(), failed: intentReadFailed() }),
+    ({ current, deadline, failed }) => {
+      if (current?.nextAction.kind !== "wait" || deadline === undefined || failed) return;
+      const timer = window.setTimeout(() => {
+        continuing = false;
+        setIntentReadFailed(true);
+        setMessage(Date.parse(current.expiresAt) <= deadline
+          ? "This saved draft has expired. Check it again before continuing."
+          : "Creation is taking longer than expected. Your draft is saved. Try again.");
+      }, Math.max(0, Math.min(deadline, Date.parse(current.expiresAt) || Infinity) - Date.now()));
+      onCleanup(() => window.clearTimeout(timer));
+    },
+  );
+
+  createEffect(
     () => ({ current: intent(), authenticated: signedIn(session()) !== undefined, failed: intentReadFailed() }),
     ({ current, authenticated, failed }) => {
     if (!authenticated || failed || current?.nextAction.kind !== "wait") return;
@@ -215,8 +235,8 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
         if (!owner || signedIn(session())?.userId !== owner) { continuing = false; return; }
         setBusy(true);
         try {
-          if (latest.nextAction.kind === "commit") await runCommit(latest.revision, latest.intentId, owner, true);
-          else if (latest.nextAction.kind === "activate_profile") await activateProfile(latest, owner);
+          if (latest.nextAction.kind === "commit") await runCommit(latest.revision, latest.intentId, owner, true, false);
+          else if (latest.nextAction.kind === "activate_profile") await activateProfile(latest, owner, false);
         } finally { if (active) setBusy(false); }
       });
     }, delay);
@@ -228,7 +248,8 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
     expectedRevision: number,
     intentId: string,
     expectedOwnerId: string | undefined,
-    navigateOnSuccess = false,
+    continueActivation = false,
+    allowInteractive = true,
   ): Promise<void> => {
     const owner = signedIn(session());
     if (!owner || !expectedOwnerId || expectedOwnerId !== owner.userId) {
@@ -250,7 +271,7 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
         try { refreshSession(); } finally { refreshingAfterCommit = false; }
       }
       if (committed.committedHref) navigate(committed.committedHref);
-      else if (navigateOnSuccess && committed.nextAction.kind === "activate_profile") await activateProfile(committed, expectedOwnerId);
+      else if (continueActivation && committed.nextAction.kind === "activate_profile") await activateProfile(committed, expectedOwnerId, allowInteractive);
     } catch (error) {
       continuing = false;
       if (!active) return;
@@ -263,7 +284,7 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
     }
   };
 
-  const activateProfile = async (saved: CommunityCreationIntentView, expectedOwner: string | undefined) => {
+  const activateProfile = async (saved: CommunityCreationIntentView, expectedOwner: string | undefined, allowInteractive = true) => {
     if (!expectedOwner || signedIn(session())?.userId !== expectedOwner) return;
     setMessage("");
     try {
@@ -273,6 +294,11 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
       if (!active || signedIn(session())?.userId !== expectedOwner) return;
       applyIntent(latest);
       if (latest.nextAction.kind === "activate_profile") {
+        if (!allowInteractive) {
+          continuing = false;
+          setMessage("Your profile still needs confirmation. Select Create to continue with your saved draft.");
+          return;
+        }
         const confirmed = await (props.confirmIdentity ?? requestGlobalSignInCompletion)(activationAbort.signal);
         if (!confirmed || !active) {
           continuing = false;
@@ -314,13 +340,14 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
       else setMessage("Your draft is ready. Your account must be checked before it can be created.");
       return;
     }
-    continuing = true;
     const saved = intent();
     if (saved) {
       if (intentOwnerId() !== owner.userId) {
         setMessage("Sign in with the account that saved this community, then reload the draft.");
         return;
       }
+      continuing = true;
+      setWaitDeadline(Date.now() + 60_000);
       setBusy(true);
       try {
         let latest = await loadIntent(saved.intentId);
@@ -351,6 +378,7 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
       setMessage("Choose an available profile or create a new profile before continuing.");
       return;
     }
+    continuing = true;
     setBusy(true);
     setMessage("");
     try {

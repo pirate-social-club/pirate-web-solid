@@ -53,3 +53,25 @@ publication and committed-intent reload. These fixtures intercept writes;
 they do not create a production community or provision a real provider wallet.
 The initial development-server hydration timeout was followed by successful
 checks against built production assets, not treated as a pass itself.
+
+
+The follow-up bounds each wait attempt to one minute or the intent expiry,
+whichever comes first. A timeout leaves the same draft retryable. Poll-driven
+continuation cannot open interactive confirmation; it returns control to the
+Create button. Owner validation precedes enabling continuation.
+
+Owner settings retain the application chrome and now use a desktop section
+sidebar, with horizontal navigation on small screens. Names, Address, Moderation
+queue and Content policy remain reachable according to their independent API
+results. An unexpected failed capability check keeps its sections visible as
+retryable errors without granting authority or redirecting to another section.
+A redacted response still hides unauthorized sections.
+
+Follow-up verification: 543 application tests and 140 API tests pass, along
+with TypeScript, lint with warnings, production and Storybook builds. Twenty
+creation and owner-shell stories pass interactions and axe with zero violations;
+thirteen incomplete checks remain separately reported. Desktop and mobile
+built-asset creation fixtures pass again. Visual inspection includes the
+reserved failure area on desktop and mobile. Provider persistence remains
+pending an explicit decision; none of these checks proves later-page silent
+provider activation or authenticated production moderation HTTP access.

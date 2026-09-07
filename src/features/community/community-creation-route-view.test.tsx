@@ -14,7 +14,7 @@ import {
 } from "../auth/global-sign-in-host";
 
 function createIntent(overrides: Parameters<typeof createIntentView>[0] = {}) {
-  return createIntentView({ draft: { name: "Saved community", publicName: "River Room", description: "Saved description", persona: { kind: "create_new" }, additionalRequirements: [] }, ...overrides });
+  return createIntentView({ expiresAt: new Date(Date.now() + 86_400_000).toISOString(), draft: { name: "Saved community", publicName: "River Room", description: "Saved description", persona: { kind: "create_new" }, additionalRequirements: [] }, ...overrides });
 }
 
 function fillPublicName(container: HTMLElement) {
@@ -856,4 +856,38 @@ test("saves edited community details before retrying a saved intent without chan
   await vi.waitFor(() => expect(commitIntent).toHaveBeenCalledOnce());
   expect(updateIntent).toHaveBeenCalledWith(expect.objectContaining({ expectedRevision: 2, draft: expect.objectContaining({ name: "Corrected community", publicName: "River Room" }) }));
   expect(commitIntent).toHaveBeenCalledWith(expect.objectContaining({ expectedRevision: 3 }));
+});
+
+
+test("stops a stuck wait at its expiry and lets the same draft be checked again", async () => {
+  const waiting = createIntent({ expiresAt: new Date(Date.now() + 250).toISOString(), nextAction: { kind: "wait", requirement: null, reasonCode: "operation_pending", retryAfterSeconds: 10 } });
+  const getIntent = vi.fn().mockResolvedValueOnce(waiting).mockResolvedValue(createIntent({ nextAction: { kind: "commit" }, revision: 2 }));
+  const commitIntent = vi.fn(async () => createIntent({ nextAction: { kind: "none", reason: "committed" }, committedHref: "/c/done" }));
+  const container = render(() => <CommunityCreationRouteView intentId="saved" api={api({ getIntent, commitIntent })} resolveSession={async () => ({ status: "authenticated", userId: "owner", personas: [] })} navigate={() => {}} />);
+  await vi.waitFor(() => expect(container.textContent).toContain("draft has expired"));
+  const button = container.querySelector<HTMLButtonElement>("button[type=submit]")!;
+  expect(button.disabled).toBe(false);
+  button.click();
+  await vi.waitFor(() => expect(commitIntent).toHaveBeenCalledOnce());
+});
+
+test("never opens an identity dialog from wait polling", async () => {
+  const pending = createIntent({ revision: 2, nextAction: { kind: "activate_profile", personaId: "new" } });
+  const confirmIdentity = vi.fn(async () => false);
+  const container = render(() => <CommunityCreationRouteView api={api({
+    createIntent: async () => createIntent({ nextAction: { kind: "wait", requirement: null, reasonCode: "operation_pending", retryAfterSeconds: 1 } }),
+    getIntent: async () => pending,
+  })} resolveSession={async () => ({ status: "authenticated", userId: "owner", personas: [] })} navigate={() => {}} confirmIdentity={confirmIdentity} />);
+  const name = container.querySelector<HTMLInputElement>("input")!;
+  name.value = "Timer community";
+  name.dispatchEvent(new InputEvent("input", { bubbles: true }));
+  fillPublicName(container);
+  const button = container.querySelector<HTMLButtonElement>("button[type=submit]")!;
+  await vi.waitFor(() => expect(button.disabled).toBe(false));
+  button.click();
+  await vi.waitFor(() => expect(container.textContent).toContain("profile still needs confirmation"), { timeout: 3000 });
+  expect(confirmIdentity).not.toHaveBeenCalled();
+  expect(button.disabled).toBe(false);
+  button.click();
+  await vi.waitFor(() => expect(confirmIdentity).toHaveBeenCalledOnce());
 });
