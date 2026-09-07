@@ -84,9 +84,8 @@ try {
     element.dispatchEvent(new Event("input", { bubbles: true }));
   });
   if (await displayName.inputValue() !== "Gate test") throw new Error("TextField value did not update");
-  // The community creation route hydrates from SSR HTML and must settle on a
-  // named state. A hydration fault there halts the reactive system, so the
-  // route keeps its server-rendered spinner and never calls the session API.
+  // The editable form must be present in SSR HTML before any session request.
+  // Hydration must retain it for anonymous visitors and failed session reads.
   // The shell and the creation route share one coalesced session resolution,
   // so exactly one anonymous users/me probe may leave this page. The counter
   // is attached before the navigation so it observes every request.
@@ -96,7 +95,12 @@ try {
   });
   const creationResponse = await page.goto(new URL("/communities/new", base).toString(), { waitUntil: "networkidle" });
   if (!creationResponse?.ok()) throw new Error(`Creation SSR page returned ${creationResponse?.status()}`);
+  const creationHtml = await creationResponse.text();
+  if (!creationHtml.includes("data-create-community") || creationHtml.includes("Loading community creation")) {
+    throw new Error("Creation SSR must contain the form without a loading fallback");
+  }
   await page.locator("#app-root[data-hydrated='true']").waitFor({ state: "attached" });
+  await page.locator("form[data-create-community]").waitFor({ state: "visible" });
   const creationRoute = page.locator("main[data-route-path='/communities/new']");
   await creationRoute.waitFor({ state: "attached" });
   let creationState = null;
@@ -106,7 +110,7 @@ try {
     await page.waitForTimeout(250);
   }
   if (creationState === null) throw new Error("Creation route reported no state");
-  if (creationState === "resolving") throw new Error("Creation route never left its loading fallback");
+  if (creationState === "resolving") throw new Error("Creation session resolution never settled");
   if (usersMeRequests !== 1) {
     throw new Error(`Creation page issued ${usersMeRequests} users/me requests; the shared session store must issue exactly one`);
   }

@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { expectNoA11yViolations, render } from "@/test/test-utils";
 
@@ -33,6 +33,18 @@ describe("ActionFooterShell", () => {
       : node.getAttribute("data-action-footer-shell-body") === ""
         ? "body"
         : "footer")).toEqual(["header", "body", "footer"]);
+  });
+
+  it("resolves header JSX once for both visibility and insertion", () => {
+    const makeHeader = vi.fn(() => <h1>Create community</h1>);
+    const container = render(() => (
+      <ActionFooterShell header={makeHeader()} footer={<button type="button">Create</button>}>
+        <p>Body content</p>
+      </ActionFooterShell>
+    ));
+
+    expect(makeHeader).toHaveBeenCalledOnce();
+    expect(container.querySelectorAll("h1")).toHaveLength(1);
   });
 
   it("omits the header region entirely when no header is given", () => {
