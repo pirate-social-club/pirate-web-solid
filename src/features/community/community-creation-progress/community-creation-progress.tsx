@@ -21,6 +21,7 @@ export interface CommitCommunityInput {
 export interface CommunityCreationProgressProps {
   class?: string;
   committing?: boolean;
+  commitDisabled?: boolean;
   intent: CommunityCreationIntentView;
   staleRevision?: { expectedRevision: number } | null;
   onCommit?: (input: CommitCommunityInput) => void;
@@ -45,6 +46,7 @@ export function CommunityCreationProgressView(props: CommunityCreationProgressPr
       case "commit":
         return (
           <Button
+            disabled={props.commitDisabled}
             loading={props.committing}
             onClick={() => props.onCommit?.({ intentId: props.intent.intentId, expectedRevision: props.intent.revision })}
           >
