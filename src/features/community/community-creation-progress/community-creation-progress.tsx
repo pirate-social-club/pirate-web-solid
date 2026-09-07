@@ -26,6 +26,7 @@ export interface CommunityCreationProgressProps {
   staleRevision?: { expectedRevision: number } | null;
   onCommit?: (input: CommitCommunityInput) => void;
   onRetry?: () => void;
+  onActivateProfile?: () => void;
   onView?: () => void;
 }
 
@@ -37,12 +38,19 @@ export function CommunityCreationProgressView(props: CommunityCreationProgressPr
   // SAFETY: the generated routes catalog guarantees the communityCreationProgress key shape for every UI locale.
   const copy = () => getLocaleMessages(locale, "routes").communityCreationProgress as CreationProgressCopy;
 
-  const statusLabel = () => copy()[CREATION_STATUS_COPY_KEYS[props.intent.status]];
+  const statusLabel = () => props.intent.nextAction.kind === "activate_profile" ? "Setting up your profile" : copy()[CREATION_STATUS_COPY_KEYS[props.intent.status]];
   const nextAction = () => props.intent.nextAction;
 
   const renderAction = () => {
     const action = nextAction();
     switch (action.kind) {
+      case "activate_profile":
+        return (
+          <div class="space-y-4" data-owner-activation>
+            <Type as="p" variant="body">Your community is saved and private until your profile is ready. Confirm it’s you to finish setup.</Type>
+            <Button disabled={props.commitDisabled || props.committing} loading={props.committing} onClick={props.onActivateProfile}>Continue setup</Button>
+          </div>
+        );
       case "commit":
         return (
           <Button

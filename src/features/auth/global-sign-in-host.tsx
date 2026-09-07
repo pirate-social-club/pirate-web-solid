@@ -16,6 +16,24 @@ export function requestGlobalSignIn(): void {
   }
 }
 
+interface SignInCompletion {
+  readonly complete: (authenticated: boolean) => void;
+}
+
+/** A continuation belongs to this prompt only; dismissal and route exit cancel it. */
+export function requestGlobalSignInCompletion(signal: AbortSignal): Promise<boolean> {
+  if (typeof window === "undefined" || signal.aborted) return Promise.resolve(false);
+  return new Promise(resolve => {
+    const finish = (authenticated: boolean) => {
+      signal.removeEventListener("abort", cancel);
+      resolve(authenticated && !signal.aborted);
+    };
+    const cancel = () => finish(false);
+    signal.addEventListener("abort", cancel, { once: true });
+    window.dispatchEvent(new CustomEvent<SignInCompletion>(GLOBAL_SIGN_IN_EVENT, { detail: { complete: finish } }));
+  });
+}
+
 /**
  * Starts the memory-only identity client after focus or pointer-down intent.
  * Callers must not use passive hover alone to contact the identity provider.
@@ -42,25 +60,41 @@ export interface GlobalSignInHostProps {
  */
 export function GlobalSignInHost(props: GlobalSignInHostProps = {}) {
   const [open, setOpen] = createSignal(false);
+  const [confirmIdentity, setConfirmIdentity] = createSignal(false);
+  let completion: SignInCompletion | undefined;
+  const finishPrompt = (authenticated: boolean) => {
+    const pending = completion;
+    completion = undefined;
+    pending?.complete(authenticated);
+  };
   const completeAuthentication = () => {
     setOpen(false);
     if (props.refresh) props.refresh();
     else refreshSession();
+    finishPrompt(true);
   };
   const session = createSignInSession({
     createExchange: props.createExchange,
     enabled: open,
     onAuthenticated: completeAuthentication,
   });
-  const openSignIn = () => setOpen(true);
+  const openSignIn = (event: Event) => {
+    // SAFETY: this app-owned event is dispatched only by the request helpers above and carries no credentials.
+    const detail = event instanceof CustomEvent && event.detail !== null ? event.detail as SignInCompletion | undefined : undefined;
+    if (completion !== undefined) finishPrompt(false);
+    completion = detail;
+    setConfirmIdentity(detail !== undefined);
+    setOpen(true);
+  };
   const listening = typeof window !== "undefined";
   // Install during component setup. A deferred effect leaves a small window
   // where a hydrated route can dispatch the sign-in request before the global
   // host is listening, dropping the user's first click.
   if (listening) window.addEventListener(GLOBAL_SIGN_IN_EVENT, openSignIn);
   onCleanup(() => {
+    finishPrompt(false);
     if (listening) window.removeEventListener(GLOBAL_SIGN_IN_EVENT, openSignIn);
   });
 
-  return <SignInModal onOpenChange={setOpen} open={open()} session={session} />;
+  return <SignInModal confirmIdentity={confirmIdentity()} onOpenChange={next => { setOpen(next); if (!next) finishPrompt(false); }} open={open()} session={session} />;
 }

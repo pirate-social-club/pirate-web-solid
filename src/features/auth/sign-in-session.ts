@@ -75,6 +75,9 @@ const MINIMUM_AGE_AFFIRMATION: MinimumAgeAffirmation = {
 function oauthRedirect(provider: OAuthProvider): string {
   const redirect = new URL("/auth/sign-in", window.location.origin);
   redirect.searchParams.set("provider", provider);
+  const current = new URL(window.location.href);
+  const intentId = current.pathname === "/communities/new" ? current.searchParams.get("intent_id") : current.searchParams.get("community_intent");
+  if (intentId && /^[a-zA-Z0-9_-]{1,200}$/.test(intentId)) redirect.searchParams.set("community_intent", intentId);
   return redirect.toString();
 }
 

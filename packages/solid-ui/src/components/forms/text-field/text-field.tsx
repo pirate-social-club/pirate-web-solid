@@ -49,6 +49,7 @@ export interface TextFieldInputProps
   autocomplete?: string;
   disabled?: boolean;
   inputmode?: string;
+  maxlength?: number;
   placeholder?: string;
   required?: boolean;
   spellcheck?: boolean;

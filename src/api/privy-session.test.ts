@@ -84,6 +84,7 @@ describe("Privy session exchange", () => {
         initialize: async () => undefined,
         getAccessToken: async () => "oauth-access-token",
       }),
+      listPendingWallets: async () => ({ wallets: [] }),
       exchange: async accessToken => { exchanged = accessToken; },
       listPersonas: noPersonas,
       register: async () => undefined,
@@ -109,6 +110,7 @@ describe("Privy session exchange", () => {
           getAccessToken: async () => "access-token",
         };
       },
+      listPendingWallets: async () => ({ wallets: [] }),
       exchange: async (access, identity) => { exchanged = [access, identity]; },
       listPersonas: noPersonas,
       register: async () => undefined,
@@ -127,6 +129,7 @@ describe("Privy session exchange", () => {
         initialize: async () => undefined,
         getAccessToken: async () => "access-token",
       }),
+      listPendingWallets: async () => ({ wallets: [] }),
       exchange: async () => undefined,
       listPersonas: noPersonas,
       register: async () => undefined,
@@ -151,6 +154,7 @@ describe("Privy session exchange", () => {
         initialize: async () => undefined,
         getAccessToken: async () => accessToken,
       }),
+      listPendingWallets: async () => ({ wallets: [] }),
       exchange: rejectFirstExchange(unauthorized),
       listPersonas: noPersonas,
       register: async body => { registered = body; },
@@ -190,6 +194,7 @@ describe("Privy session exchange", () => {
           ensureEmbeddedEthereumWallet: async index => { ensured.push(index); },
         };
       },
+      listPendingWallets: async () => ({ wallets: [] }),
       exchange: rejectFirstExchange(unauthorized),
       listPersonas: noPersonas,
       register: async () => ({
@@ -237,6 +242,7 @@ describe("Privy session exchange", () => {
         getAccessToken: async () => accessToken,
         ensureEmbeddedEthereumWallet: async index => { ensured.push(index); },
       }),
+      listPendingWallets: async () => ({ wallets: [] }),
       exchange: async () => undefined,
       listPersonas: async () => ({ personas: [persona("persona-returning")] }),
       prepareWallet: async () => ({
@@ -257,6 +263,53 @@ describe("Privy session exchange", () => {
     expect(confirmed).toEqual(["persona-returning"]);
   });
 
+  it("activates a private pending owner which is absent from the active persona list", async () => {
+    const ensure = vi.fn(async () => undefined);
+    const confirm = vi.fn(async () => ({ hd_wallet_index: 4 }));
+    const auth = await createPrivySessionExchange({ enabled: true, privyAppId: "app" }, {
+      createPrivy: async () => ({
+        auth: { email: { sendCode: async () => ({ success: true }), loginWithCode: async () => undefined } },
+        initialize: async () => undefined,
+        getAccessToken: async () => "provider-proof",
+        ensureEmbeddedEthereumWallet: ensure,
+      }),
+      listPendingWallets: async () => ({ wallets: [{ persona_id: "pending-owner" }] }),
+      exchange: async () => undefined,
+      listPersonas: async () => ({ personas: [] }),
+      prepareWallet: async () => ({ persona_id: "pending-owner", hd_wallet_index: 4, status: "pending" }),
+      confirmWallet: confirm,
+      csrf: () => "csrf",
+      idempotencyKey: () => "owner-resume",
+    });
+    await auth.loginWithCode("owner@example.test", "123456");
+    expect(ensure).toHaveBeenCalledWith(4, "owner-resume");
+    expect(confirm).toHaveBeenCalledWith("pending-owner", "provider-proof");
+  });
+
+  it("activates a private pending owner when the active profile read fails", async () => {
+    const ensure = vi.fn(async () => undefined);
+    const confirm = vi.fn(async () => ({ hd_wallet_index: 4 }));
+    const auth = await createPrivySessionExchange({ enabled: true, privyAppId: "app" }, {
+      createPrivy: async () => ({
+        auth: { email: { sendCode: async () => ({ success: true }), loginWithCode: async () => undefined } },
+        initialize: async () => undefined,
+        getAccessToken: async () => "provider-proof",
+        ensureEmbeddedEthereumWallet: ensure,
+      }),
+      listPendingWallets: async () => ({ wallets: [{ persona_id: "pending-owner" }] }),
+      exchange: async () => undefined,
+      listPersonas: async () => { throw new Error("profiles unavailable"); },
+      reportWalletResumeError: vi.fn(),
+      prepareWallet: async () => ({ persona_id: "pending-owner", hd_wallet_index: 4, status: "pending" }),
+      confirmWallet: confirm,
+      csrf: () => "csrf",
+      idempotencyKey: () => "owner-resume",
+    });
+    await auth.loginWithCode("owner@example.test", "123456");
+    expect(ensure).toHaveBeenCalledWith(4, "owner-resume");
+    expect(confirm).toHaveBeenCalledWith("pending-owner", "provider-proof");
+  });
+
   it("keeps an established session when existing-wallet recovery fails", async () => {
     const recoveryFailure = new ApiClientError(
       { status: 404, code: "not_found", name: "NotFound", retryable: false },
@@ -271,6 +324,7 @@ describe("Privy session exchange", () => {
         getAccessToken: async () => "returning-access-token",
         dispose,
       }),
+      listPendingWallets: async () => ({ wallets: [] }),
       exchange: async () => undefined,
       listPersonas: async () => ({ personas: [persona("persona-walletless")] }),
       prepareWallet: async () => { throw recoveryFailure; },
@@ -293,6 +347,7 @@ describe("Privy session exchange", () => {
         initialize: async () => undefined,
         getAccessToken: async () => "returning-access-token",
       }),
+      listPendingWallets: async () => ({ wallets: [] }),
       exchange: async () => { exchanges += 1; },
       listPersonas: async () => ({ personas: [persona("persona-returning", {
         chain_account_kind: "evm",
@@ -329,6 +384,7 @@ describe("Privy session exchange", () => {
           if (creationAttempts === 1) throw new Error("wallet_rejected");
         },
       }),
+      listPendingWallets: async () => ({ wallets: [] }),
       exchange: rejectFirstExchange(unauthorized),
       listPersonas: noPersonas,
       register: async () => ({
@@ -373,6 +429,7 @@ describe("Privy session exchange", () => {
         getAccessToken: async () => accessToken,
         ensureEmbeddedEthereumWallet: ensureWallet,
       }),
+      listPendingWallets: async () => ({ wallets: [] }),
       exchange: rejectFirstExchange(unauthorized),
       listPersonas: noPersonas,
       register: async () => ({
@@ -431,6 +488,7 @@ describe("Privy session exchange", () => {
           initialize: async () => undefined,
           getAccessToken: async () => "wallet-access-token",
         }),
+        listPendingWallets: async () => ({ wallets: [] }),
         exchange: async accessToken => { exchanged = accessToken; },
         listPersonas: noPersonas,
         register: async () => undefined,
@@ -484,6 +542,7 @@ describe("Privy session exchange", () => {
           initialize: async () => undefined,
           getAccessToken: async () => "wallet-access-token",
         }),
+        listPendingWallets: async () => ({ wallets: [] }),
         exchange: async () => undefined,
         listPersonas: noPersonas,
         csrf: () => "csrf",
@@ -521,6 +580,7 @@ describe("Privy session exchange", () => {
             initialize: async () => undefined,
             getAccessToken: async () => "wallet-access-token",
           }),
+          listPendingWallets: async () => ({ wallets: [] }),
           exchange: async () => undefined,
           csrf: () => "csrf",
         });
@@ -559,6 +619,7 @@ describe("Privy session exchange", () => {
           initialize: async () => undefined,
           getAccessToken: async () => "wallet-access-token",
         }),
+        listPendingWallets: async () => ({ wallets: [] }),
         exchange: async () => undefined,
         csrf: () => "csrf",
         reportWalletLoginStage,
@@ -609,6 +670,7 @@ describe("Privy session exchange", () => {
           initialize: async () => undefined,
           getAccessToken: async () => "wallet-access-token",
         }),
+        listPendingWallets: async () => ({ wallets: [] }),
         exchange: async () => undefined,
         csrf: () => "csrf",
       });
@@ -651,6 +713,7 @@ describe("Privy session exchange", () => {
           initialize: async () => undefined,
           getAccessToken: async () => "wallet-access-token",
         }),
+        listPendingWallets: async () => ({ wallets: [] }),
         exchange: async () => undefined,
         csrf: () => "csrf",
       });
@@ -681,6 +744,7 @@ describe("Privy session exchange", () => {
           initialize: async () => undefined,
           getAccessToken: async () => "wallet-access-token",
         }),
+        listPendingWallets: async () => ({ wallets: [] }),
         exchange: async () => undefined,
         csrf: () => "csrf",
       });
@@ -715,6 +779,7 @@ describe("Privy session exchange", () => {
           initialize: async () => undefined,
           getAccessToken: async () => "wallet-access-token",
         }),
+        listPendingWallets: async () => ({ wallets: [] }),
         exchange: async () => undefined,
         csrf: () => "csrf",
       });
@@ -749,6 +814,7 @@ describe("Privy session exchange", () => {
           initialize: async () => undefined,
           getAccessToken: async () => "wallet-access-token",
         }),
+        listPendingWallets: async () => ({ wallets: [] }),
         exchange: async () => undefined,
         csrf: () => "csrf",
       });
@@ -782,6 +848,7 @@ describe("Privy session exchange", () => {
           initialize: async () => undefined,
           getAccessToken: async () => "wallet-access-token",
         }),
+        listPendingWallets: async () => ({ wallets: [] }),
         exchange: async () => undefined,
         csrf: () => "csrf",
       });

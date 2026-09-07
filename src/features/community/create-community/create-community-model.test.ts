@@ -67,18 +67,27 @@ describe("create community model", () => {
     expect(gateKindsOf(draftGatePolicy(draft))).toEqual(["human-verification"]);
   });
 
+  test("defaults to a fresh profile and requires a plain public name", () => {
+    const draft = { ...createEmptyDraft(undefined), name: "New place" };
+    expect(draft.persona).toEqual({ kind: "create_new" });
+    expect(validateDraft(draft, copy).publicNameError).not.toBeNull();
+    expect(validateDraft({ ...draft, publicName: "River Room" }, copy).valid).toBe(true);
+    expect(validateDraft({ ...draft, publicName: " " }, copy).valid).toBe(false);
+    expect(validateDraft({ ...draft, publicName: "a".repeat(81) }, copy).valid).toBe(false);
+  });
+
   test("validates a trimmed name", () => {
     const draft = createEmptyDraft({ kind: "existing", personaId: "persona_1" });
     expect(validateDraft(draft, copy)).toEqual({
       valid: false,
       nameError: "Name is required.",
-      personaError: null,
+      personaError: null, publicNameError: null,
     });
     expect(validateDraft({ ...draft, name: "   " }, copy).valid).toBe(false);
     expect(validateDraft({ ...draft, name: "  Signal Room  " }, copy)).toEqual({
       valid: true,
       nameError: null,
-      personaError: null,
+      personaError: null, publicNameError: null,
     });
   });
 

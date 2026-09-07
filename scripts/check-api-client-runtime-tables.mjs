@@ -8,10 +8,9 @@ const currentClient = resolve(
   appRoot,
   "node_modules/@pirate/api-client/src/generated/client.ts",
 );
-// Client 0.65.0 adds persona bindings, video failure reasons and unavailable
-// delivery states, plus the HNS publication check. The audited operation set
-// retains its success statuses and error envelopes from 0.60.0. Playback
-// access (200 JSON) and poster (200/304 JPEG) now join the pinned scope.
+// Client 0.66.0 keeps the audited existing responses, statuses and errors intact.
+// Private pending-wallet discovery is a separate additive endpoint.
+// Existing success statuses and error envelopes remain unchanged.
 const expectedDigest = "37ccdacdbfc4639a708309be7e0d972e3436d7dadcdc289b6f51524d263e08db";
 
 const operations = [

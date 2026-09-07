@@ -32,6 +32,7 @@ interface CreationIntentOverrides {
   } | null;
   next_action?:
     | { kind: "commit" }
+    | { kind: "activate_profile"; persona_id: string }
     | { kind: "none"; reason: "committed" }
     | {
         ceremony_intent_id: string;
@@ -87,7 +88,7 @@ function response(body: object, status = 200): Response {
 }
 
 describe("createCommunityCreationApi", () => {
-  test("a resumed create-new draft is blocked instead of offering commit", async () => {
+  test("a resumed create-new draft follows the server activation lifecycle", async () => {
     const intent = creationIntent();
     const api = createCommunityCreationApi({
       fetchImpl: async () => response({ ...intent,
@@ -97,7 +98,24 @@ describe("createCommunityCreationApi", () => {
       origin: "https://web.test",
     });
     const result = await api.getIntent({ intentId: "creation-1" });
-    expect(result.nextAction).toEqual({ kind: "blocked", reason: "persona_activation_unavailable" });
+    expect(result.nextAction).toEqual({ kind: "commit" });
+  });
+
+  test("persists a public name and exposes private activation without a community link", async () => {
+    let body: unknown;
+    const intent = creationIntent({ next_action: { kind: "activate_profile", persona_id: "pending-owner" }, revision: 2 });
+    const api = createCommunityCreationApi({
+      fetchImpl: async (input, init) => {
+        body = await new Request(input, init).json();
+        return response({ ...intent, draft: { ...intent.draft, persona: { kind: "create_new" }, public_name: "River Room" }, persona_role_presentation: null });
+      },
+      origin: "https://web.test",
+      readCsrfToken: () => "csrf",
+    });
+    const saved = await api.createIntent({ draft: { ...createEmptyDraft(undefined), name: "New place", publicName: "River Room" }, idempotencyKey: "fresh-profile" });
+    expect(body).toMatchObject({ draft: { public_name: "River Room", persona: { kind: "create_new" } } });
+    expect(saved.nextAction).toEqual({ kind: "activate_profile", personaId: "pending-owner" });
+    expect(saved.committedHref).toBeNull();
   });
 
   test("creates a V2 intent with the shared draft model and protected request policy", async () => {
