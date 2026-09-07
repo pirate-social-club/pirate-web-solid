@@ -32,7 +32,9 @@ export const hnsChangeClassification: HnsChangeClassification = {
   added_records: HNS_COMPLETE_RESOURCE.slice(2),
   preserved_records: HNS_COMPLETE_RESOURCE.slice(0, 2),
   preserved_unknown_record_types: [],
-  removed_records: [],
+  removed_records: [
+    { record_type: "TXT", value: "previous-owner-note", supported: true, wallet_record: { type: "TXT", txt: ["previous-owner-note"] } },
+  ],
 };
 
 export function createFakeProfileSettingsPort(initial: CommunityProfileDraft): CommunityProfileSettingsPort {

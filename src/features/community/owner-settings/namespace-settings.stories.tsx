@@ -79,6 +79,8 @@ export const CompleteResource: Story = {
     await expect(canvas.getAllByText("DS")).toHaveLength(4);
     await expect(canvas.getByText("Records kept live (2)")).toBeInTheDocument();
     await expect(canvas.getByText("Records added by this update (3)")).toBeInTheDocument();
+    await expect(canvas.getByText("Records not carried over (1)")).toBeInTheDocument();
+    await expect(canvas.getByText(/make up the complete list of 5 records/)).toBeInTheDocument();
   },
 };
 
