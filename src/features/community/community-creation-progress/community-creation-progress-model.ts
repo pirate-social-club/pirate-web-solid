@@ -22,6 +22,7 @@ export type WaitReasonCode = (typeof WAIT_REASON_CODES)[number];
 
 export type CreationNextAction =
   | { kind: "commit" }
+  | { kind: "activate_profile"; personaId: string }
   | {
       kind: "wait";
       requirement: "human_identity" | null;

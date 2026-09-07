@@ -1,7 +1,8 @@
-import { createSignal, onCleanup } from "solid-js";
+import { createSignal } from "solid-js";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import { expect, userEvent, within } from "storybook/test";
 
+import type { ActivePersonaPublicProjection } from "../../../api/session";
 import { Type } from "@pirate/web-solid-ui";
 import { CreateCommunityView } from "./create-community";
 import {
@@ -11,48 +12,25 @@ import {
   type CreateCommunityDraft,
 } from "./create-community-model";
 
-const personaId = { kind: "existing", personaId: "persona_1" } as const;
+const personaId = { kind: "create_new" } as const;
 
 function CreateStory(props: {
   draft?: CreateCommunityDraft;
   nameError?: string | null;
   submitting?: boolean;
+  personas?: readonly ActivePersonaPublicProjection[];
 }) {
   const [draft, setDraft] = createSignal<CreateCommunityDraft>(
     props.draft ?? createEmptyDraft(personaId),
   );
   const [submitCount, setSubmitCount] = createSignal(0);
-  const [avatarSrc, setAvatarSrc] = createSignal<string | null>(null);
-  const [coverSrc, setCoverSrc] = createSignal<string | null>(null);
-  let avatarObjectUrl: string | null = null;
-  let coverObjectUrl: string | null = null;
-
-  const updatePreview = (kind: "avatar" | "cover", file: File | null) => {
-    const current = kind === "avatar" ? avatarObjectUrl : coverObjectUrl;
-    if (current) URL.revokeObjectURL(current);
-    const next = file ? URL.createObjectURL(file) : null;
-    if (kind === "avatar") {
-      avatarObjectUrl = next;
-      setAvatarSrc(next);
-    } else {
-      coverObjectUrl = next;
-      setCoverSrc(next);
-    }
-  };
-
-  onCleanup(() => {
-    if (avatarObjectUrl) URL.revokeObjectURL(avatarObjectUrl);
-    if (coverObjectUrl) URL.revokeObjectURL(coverObjectUrl);
-  });
 
   return (
     <div class="h-dvh bg-background text-foreground">
       <CreateCommunityView
-        avatarSrc={avatarSrc()}
-        coverSrc={coverSrc()}
+        showMediaFields={false}
         draft={draft()}
-        onAvatarChange={(file) => updatePreview("avatar", file)}
-        onCoverChange={(file) => updatePreview("cover", file)}
+        personas={props.personas}
         nameError={props.nameError}
         onDraftChange={(patch) => setDraft((current) => ({ ...current, ...patch }))}
         onSubmit={() => setSubmitCount((count) => count + 1)}
@@ -67,7 +45,7 @@ function CreateStory(props: {
 
 const validDraft = () =>
   withDraftDescription(
-    withDraftName(createEmptyDraft(personaId), "Night Shift"),
+    withDraftName({ ...createEmptyDraft(personaId), publicName: "River Room" }, "Night Shift"),
     "A late-night space for music, ideas, and people building after dark.",
   );
 
@@ -118,6 +96,7 @@ export const NameValidation: Story = {
     await userEvent.tab();
     await expect(canvas.getByText("Name is required.")).toBeInTheDocument();
 
+    await userEvent.type(canvas.getByRole("textbox", { name: "Public name" }), "River Room");
     await userEvent.type(name, "Signal Room");
     await expect(canvas.getByRole("button", { name: "Create" })).toBeEnabled();
     await userEvent.clear(name);
@@ -180,5 +159,18 @@ export const RejectedCommit: Story = {
     const submit = canvas.getByRole("button", { name: "Create" });
     await expect(submit).toBeEnabled();
     await userEvent.click(submit);
+  },
+};
+
+export const ExistingProfile: Story = {
+  render: () => <CreateStory draft={validDraft()} personas={[{ personaId: "unused-profile", displayName: "Harbor keeper", avatarRef: null, primaryPublicHandle: null, communityBinding: null }]} />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByRole("textbox", { name: "Public name" })).toBeInTheDocument();
+    await userEvent.click(canvas.getByRole("button", { name: "Use an existing profile" }));
+    await expect(canvas.getByText("Creating as Harbor keeper")).toBeInTheDocument();
+    await expect(canvas.queryByRole("combobox")).not.toBeInTheDocument();
+    await expect(canvas.getByText("This profile becomes permanently linked to this community.")).toBeInTheDocument();
+    await expect(canvas.queryByText(/coming soon/)).not.toBeInTheDocument();
   },
 };

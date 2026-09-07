@@ -8,7 +8,8 @@ const currentClient = resolve(
   appRoot,
   "node_modules/@pirate/api-client/src/generated/client.ts",
 );
-const expectedDigest = "ed6991046ca7560e1985d75d822ffb304e13d57597db4ea3892f0a3c7abf61c5";
+// The scoped production client audit is recorded in docs/community-owner-activation.md.
+const expectedDigest = "0bb76bd48b7ed7c05c7129cefc8bceef31a1cc4eca8081c2a5ac1d90bcbbc755";
 
 const operations = [
   "get_personas",

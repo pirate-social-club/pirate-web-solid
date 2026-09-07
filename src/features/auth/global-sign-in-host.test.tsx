@@ -4,7 +4,7 @@ import { createRoot } from "solid-js";
 import { afterEach, describe, expect, test, vi } from "vitest";
 
 import type { PrivySessionExchange } from "../../api/privy-session.ts";
-import { GlobalSignInHost, GLOBAL_SIGN_IN_EVENT } from "./global-sign-in-host.tsx";
+import { GlobalSignInHost, GLOBAL_SIGN_IN_EVENT, requestGlobalSignInCompletion } from "./global-sign-in-host.tsx";
 
 const disposers: Array<() => void> = [];
 
@@ -69,6 +69,20 @@ afterEach(() => {
 });
 
 describe("global sign-in host", () => {
+  test("identity confirmation is cancelled by dismissal and by route exit", async () => {
+    render(() => <GlobalSignInHost createExchange={async () => fakeExchange()} refresh={() => {}} />);
+    const first = new AbortController();
+    const completion = requestGlobalSignInCompletion(first.signal);
+    await settle();
+    expect(document.querySelector('[role="dialog"]')?.getAttribute("aria-label")).toBe("Confirm it’s you");
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    await expect(completion).resolves.toBe(false);
+    const second = new AbortController();
+    const abandoned = requestGlobalSignInCompletion(second.signal);
+    second.abort();
+    await expect(abandoned).resolves.toBe(false);
+  });
+
   test("refreshes the shared store after authentication instead of reloading the document", async () => {
     const refresh = vi.fn();
     const reload = vi.fn();

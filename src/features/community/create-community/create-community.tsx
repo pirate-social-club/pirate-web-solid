@@ -1,6 +1,7 @@
 /** @jsxImportSource @solidjs/web */
 
-import type { JSX } from "@solidjs/web";
+import type { ActivePersonaPublicProjection } from "../../../api/session";
+import { CommunityOwnerFields } from "./community-owner-fields";
 import { Show, createSignal, createUniqueId } from "solid-js";
 
 import {
@@ -39,7 +40,8 @@ export interface CreateCommunityProps {
   onDraftChange?: (patch: Partial<CreateCommunityDraft>) => void;
   onSubmit?: () => void;
   onClose?: () => void;
-  personaControl?: JSX.Element;
+  personas?: readonly ActivePersonaPublicProjection[];
+  profilesUnavailable?: boolean;
   /** Keep false in production until the community API can persist these assets. */
   showMediaFields?: boolean;
   submitting?: boolean;
@@ -70,7 +72,7 @@ export function CreateCommunityView(props: CreateCommunityProps) {
   // than telling the user an untouched empty field is already valid.
   const nameValidationState = () => (visibleNameError() ? "invalid" as const : nameTouched() ? "valid" as const : undefined);
   const canSubmit = () => validation().nameError === null
-    && (props.requirePersona === false || validation().personaError === null)
+    && (props.requirePersona === false || (validation().personaError === null && validation().publicNameError === null))
     && !props.submitting && !props.accountChecking;
 
   return (
@@ -125,7 +127,7 @@ export function CreateCommunityView(props: CreateCommunityProps) {
           />
         </Show>
 
-        {props.personaControl}
+        <Type as="h2" variant="body-strong">Community</Type>
 
         {/* Kobalte's TextField exposes no blur hook, so the wrapper marks the
             field touched when focus leaves it. */}
@@ -181,6 +183,7 @@ export function CreateCommunityView(props: CreateCommunityProps) {
 
         </section>
 
+        <CommunityOwnerFields draft={props.draft} personas={props.personas} profilesUnavailable={props.profilesUnavailable} onChange={props.onDraftChange} />
       </ActionFooterShell>
     </form>
   );

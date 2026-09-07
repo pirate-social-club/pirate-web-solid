@@ -59,7 +59,7 @@ export function communityJoinCandidates(
 export function communityCreationCandidates(
   personas: readonly ActivePersonaPublicProjection[],
 ): ActivePersonaPublicProjection[] {
-  return personas.filter(persona => persona.communityBinding === null);
+  return personas.filter(persona => persona.communityBinding === null && !!persona.displayName?.trim());
 }
 
 /** Pass operation-eligible candidates, never the global account pool. */

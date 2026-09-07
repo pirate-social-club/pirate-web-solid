@@ -90,11 +90,12 @@ export interface CreateCommunityDraft {
   /**
    * The closed persona choice every creation intent carries (spec 014 §10.2):
    * an existing active persona the creator designates, or `create_new` to have
-   * the server mint the owner persona bound to the new community at commit.
-   * Undefined only while several personas could act and none is chosen yet.
+   * the server reserve and activate a fresh profile before publishing.
+   * Undefined while choosing among multiple existing profiles.
    */
   persona: CommunityPersonaChoice | undefined;
   name: string;
+  publicName?: string;
   description: string | null;
   /** Configured requirements appended to the mandatory human baseline. */
   additionalRequirements: AdditionalGateRequirement[];
@@ -102,7 +103,8 @@ export interface CreateCommunityDraft {
 
 export function createEmptyDraft(persona: CommunityPersonaChoice | undefined): CreateCommunityDraft {
   return {
-    persona,
+    persona: persona ?? { kind: "create_new" },
+    publicName: "",
     name: "",
     description: null,
     additionalRequirements: [],
@@ -143,16 +145,20 @@ export type CreateCommunityCopy = {
 export interface DraftValidation {
   nameError: string | null;
   personaError: string | null;
+  publicNameError: string | null;
   valid: boolean;
 }
 
 export function validateDraft(
-  draft: Pick<CreateCommunityDraft, "name" | "persona">,
+  draft: Pick<CreateCommunityDraft, "name" | "persona" | "publicName">,
   copy: CreateCommunityCopy,
 ): DraftValidation {
   const nameError = draft.name.trim().length === 0 ? copy.nameRequired : null;
   const personaError = draft.persona === undefined
     ? "Choose the persona this community presents before continuing."
     : null;
-  return { nameError, personaError, valid: nameError === null && personaError === null };
+  const publicName = draft.publicName?.trim() ?? "";
+  const publicNameError = draft.persona?.kind === "create_new" && (publicName.length === 0 || publicName.length > 80 || [...publicName].some(character => character.charCodeAt(0) < 32 || character.charCodeAt(0) === 127))
+    ? "Enter a public name of up to 80 characters." : null;
+  return { nameError, personaError, publicNameError, valid: nameError === null && personaError === null && publicNameError === null };
 }

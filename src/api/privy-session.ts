@@ -364,6 +364,7 @@ export async function createPrivySessionExchange(
       identityToken?: string,
     ) => Promise<void>;
     readonly listPersonas?: () => Promise<GetPersonasResponse>;
+    readonly listPendingWallets?: () => Promise<{ wallets: readonly { persona_id: string }[] }>;
     readonly register?: (body: MinimumAgeRegistrationBody) => Promise<RegistrationResult | void>;
     readonly prepareWallet?: (personaId: string, idempotencyKey: string) => Promise<{
       readonly persona_id: string;
@@ -396,6 +397,7 @@ export async function createPrivySessionExchange(
   const listPersonas = dependencies.listPersonas ?? (async () => {
     return createSessionApiClient().get_personas(undefined);
   });
+  const listPendingWallets = dependencies.listPendingWallets ?? (() => createSessionApiClient().get_personasWalletsEvmPending(undefined));
   const register = dependencies.register ?? (async (
     body: MinimumAgeRegistrationBody,
   ): Promise<RegistrationResult> => {
@@ -494,22 +496,27 @@ export async function createPrivySessionExchange(
     }
   };
   const resumeExistingWallets = async (accessToken: string) => {
-    let response: GetPersonasResponse;
+    let response: GetPersonasResponse = { personas: [] };
     try {
       response = await listPersonas();
     } catch (error) {
       reportWalletResumeError(error);
-      return;
     }
-    for (const persona of response.personas) {
-      if (persona.status !== "active" || persona.wallet_set.evm !== null) continue;
+    let pendingIds: string[] = [];
+    try { pendingIds = (await listPendingWallets()).wallets.map(wallet => wallet.persona_id); }
+    catch (error) { reportWalletResumeError(error); }
+    const pending = [
+      ...pendingIds,
+      ...response.personas.filter(persona => persona.status === "active" && persona.wallet_set.evm === null).map(persona => persona.persona_id),
+    ];
+    for (const personaId of new Set(pending)) {
       try {
         await activatePreparedWallet(
           accessToken,
-          await prepareExistingWallet(persona.persona_id),
+          await prepareExistingWallet(personaId),
         );
       } catch (error) {
-        reportWalletResumeError(error, persona.persona_id);
+        reportWalletResumeError(error, personaId);
       }
     }
   };
