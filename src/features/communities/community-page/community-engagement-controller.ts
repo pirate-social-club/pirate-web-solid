@@ -68,7 +68,7 @@ export function createCommunityEngagementController(
   const [busy, setBusy] = createSignal<"follow" | "join">();
   const [message, setMessage] = createSignal("");
   const [error, setError] = createSignal("");
-  const [personaError, setPersonaError] = createSignal("");
+  const [profilesUnavailable, setProfilesUnavailable] = createSignal(false);
   const [personaRetryBusy, setPersonaRetryBusy] = createSignal(false);
   let personaRetryInFlight = false;
   const [viewerReady, setViewerReady] = createSignal(false);
@@ -112,7 +112,7 @@ export function createCommunityEngagementController(
   const applyAccountSession = (resolved: "anonymous" | Readonly<{ status: "authenticated"; userId: string }>) => {
     if (resolved === "anonymous") {
       setAccountAuthenticated(false);
-      setPersonaError("");
+      setProfilesUnavailable(false);
       setPostingSession(undefined);
       setViewerReady(false);
       return;
@@ -124,9 +124,9 @@ export function createCommunityEngagementController(
   const applyFullSession = (resolved: SessionResolution) => {
     if (sessionPersonasUnavailable(resolved)) {
       setPostingSession(undefined);
-      setPersonaError("We couldn't load your active personas. Try the posting or joining action again to retry.");
+      setProfilesUnavailable(true);
     } else if (resolved !== "anonymous") {
-      setPersonaError("");
+      setProfilesUnavailable(false);
       setPostingSession(resolved);
     }
     applyAccountSession(resolved);
@@ -143,7 +143,7 @@ export function createCommunityEngagementController(
       })
       .catch(() => {
         if (active && request === sessionRequest) {
-          setPersonaError("We couldn't load your active personas. Retry before commenting or posting.");
+          setProfilesUnavailable(true);
         }
       });
   };
@@ -212,7 +212,6 @@ export function createCommunityEngagementController(
       if (!viewerReady() && !await refreshViewerState()) return;
       setBusy("follow");
       setError("");
-      setPersonaError("");
       setMessage("");
       const result = following()
         ? await options.api.unfollow(options.communityId)
@@ -238,7 +237,6 @@ export function createCommunityEngagementController(
       if (membership() === "member") return;
       setBusy("join");
       setError("");
-      setPersonaError("");
       setMessage("");
       const action = await options.api.resolveJoinAction(options.communityId);
       if (!active) return;
@@ -367,6 +365,7 @@ export function createCommunityEngagementController(
     personaRetryInFlight = true;
     setPersonaRetryBusy(true);
     setError("");
+    setMessage("");
     try {
       await resolvePersonaSession();
     } finally {
@@ -397,9 +396,12 @@ export function createCommunityEngagementController(
     joinPersonaChoice,
     joinedPersonaId,
     message,
-    error: () => error() || personaError(),
+    // Action outcomes take precedence without changing profile availability.
+    error: () => error() || (!message() && profilesUnavailable()
+      ? "We couldn't load your active personas. Retry profiles before commenting, posting or joining."
+      : ""),
     postingSession,
-    personaRetryAvailable: () => personaError() !== "",
+    personaRetryAvailable: profilesUnavailable,
     personaRetryBusy,
     retryPersonas,
     followToggle,
