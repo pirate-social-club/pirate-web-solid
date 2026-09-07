@@ -35,6 +35,7 @@ export interface MediaShellProps {
   readonly signedIn?: boolean;
   readonly sessionUnavailable?: boolean;
   readonly sessionResolving?: boolean;
+  readonly sessionPending?: boolean;
   readonly onSessionRetry?: () => void;
   /** Compatibility seam for existing stories; `mode="immersive"` is canonical. */
   readonly immersive?: boolean;
@@ -104,9 +105,10 @@ export function ApplicationChrome(props: MediaShellProps) {
         brandLabel="PIRATE"
         class="sticky top-0 hidden h-screen md:flex"
         footerActionHref={signedIn() ? "/settings" : undefined}
-        footerActionLabel={props.sessionResolving ? "Account" : props.sessionUnavailable ? "Retry account check" : signedIn() ? "Account settings" : "Sign in"}
-        footerDetail={props.sessionResolving ? "Checking your account" : props.sessionUnavailable ? "Your account could not be checked" : signedIn() ? "Session active" : "Save, follow, and post"}
-        footerTitle={props.sessionResolving ? "Your Pirate" : props.sessionUnavailable ? "Connection unavailable" : signedIn() ? "Your Pirate" : "Join Pirate"}
+        footerActionDisabled={props.sessionResolving || props.sessionPending}
+        footerActionLabel={props.sessionResolving || (props.sessionUnavailable && props.sessionPending) ? "Checking account" : props.sessionUnavailable ? "Retry account check" : signedIn() ? "Account settings" : "Sign in"}
+        footerDetail={props.sessionResolving || props.sessionPending ? "Checking your account" : props.sessionUnavailable ? "Your account could not be checked" : signedIn() ? "Session active" : "Save, follow, and post"}
+        footerTitle={props.sessionResolving ? "Account" : props.sessionUnavailable ? "Connection unavailable" : signedIn() ? "Your Pirate" : "Join Pirate"}
         homeAriaLabel="Go to Pirate home"
         onFooterAction={props.sessionResolving ? undefined : props.sessionUnavailable ? props.onSessionRetry : requestGlobalSignIn}
         onFooterActionFocus={props.sessionResolving || props.sessionUnavailable ? undefined : prepareGlobalSignIn}
@@ -134,7 +136,7 @@ export function ApplicationChrome(props: MediaShellProps) {
                 <Show when={immersive()} fallback={<IconHouse class="size-6" />}><IconUsersThree class="size-6" /></Show>
               </IconButton>
             }
-            mobileTrailingContent={props.sessionResolving ? <Type as="span" variant="caption">Account</Type> : props.sessionUnavailable ? <Button type="button" onClick={props.onSessionRetry} size="sm" variant="ghost">Retry account check</Button> : signedIn() ? undefined : <Button type="button" onClick={requestGlobalSignIn} onFocus={prepareGlobalSignIn} onPointerDown={prepareGlobalSignIn} onPointerEnter={preloadGlobalSignInAssets} class={immersive() ? "text-white" : undefined} size="sm" variant="ghost">Sign in</Button>}
+            mobileTrailingContent={props.sessionResolving ? <Type as="span" variant="caption">Account</Type> : props.sessionUnavailable ? <Button type="button" onClick={props.onSessionRetry} disabled={props.sessionPending} size="sm" variant="ghost">{props.sessionPending ? "Checking account" : "Retry account check"}</Button> : signedIn() ? undefined : <Button type="button" onClick={requestGlobalSignIn} onFocus={prepareGlobalSignIn} onPointerDown={prepareGlobalSignIn} onPointerEnter={preloadGlobalSignInAssets} class={immersive() ? "text-white" : undefined} size="sm" variant="ghost">Sign in</Button>}
             onHomeClick={goHome}
             onProfileClick={goProfile}
             showNotificationsAction={false}

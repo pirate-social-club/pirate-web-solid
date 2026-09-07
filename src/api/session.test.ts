@@ -219,6 +219,25 @@ describe("shared session store", () => {
     expect(spies.get_personas).toHaveBeenCalledTimes(2);
   });
 
+  test("retries unavailable profiles on the next caller while retaining the account cache", async () => {
+    let unavailable = true;
+    const spies = stubClient({ personas: async () => {
+      if (unavailable) throw authError(503);
+      return personasPage;
+    } });
+    const store = storeFrom(spies);
+    const first = store.resolveSession();
+    const concurrent = store.resolveSession();
+    expect(first).toBe(concurrent);
+    await expect(first).resolves.toMatchObject({ personasUnavailable: true });
+    unavailable = false;
+    await expect(store.resolveSession()).resolves.toMatchObject({ personas: [activePersonaProjection] });
+    expect(spies.get_usersMe).toHaveBeenCalledOnce();
+    expect(spies.get_personas).toHaveBeenCalledTimes(2);
+    await store.resolveSession();
+    expect(spies.get_personas).toHaveBeenCalledTimes(2);
+  });
+
   test("starts the persona read before the account read settles", async () => {
     let releaseUsers!: (value: { id: string }) => void;
     const spies = stubClient({

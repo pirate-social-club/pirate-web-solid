@@ -17,7 +17,7 @@ import { deriveKaraokeFeedback } from "./karaoke-scoring-feedback";
 import { useKaraokeScoring } from "./scoring/use-karaoke-scoring-session";
 import type { RawKaraokeLine } from "./lyric-transform";
 import { preloadGlobalSignInAssets, prepareGlobalSignIn, requestGlobalSignIn } from "../auth/global-sign-in-host";
-import { resolveSession, onSessionRefreshed, type SessionResolution } from "../../api/session";
+import { resolveSession, sessionPersonasUnavailable, onSessionRefreshed, type SessionResolution } from "../../api/session";
 import { communityOperationPersonas, defaultOperationPersonaId } from "../identity/community-persona-choice";
 import { CommunityPersonaChoiceDialog } from "../identity/community-persona-choice-sheet";
 
@@ -56,25 +56,39 @@ function LoadedKaraokeSession(props: { payload: ApiSongKaraokePayload; postId: s
   let attemptPersonaId: string | undefined;
   let active = true;
   let sessionEpoch = 0;
+  const [sessionFailed, setSessionFailed] = createSignal(false);
+  const [sessionPending, setSessionPending] = createSignal(false);
   const eligible = () => {
     const current = session();
     return communityOperationPersonas(current && current !== "anonymous" ? current.personas : [], communityId);
   };
   const loadSession = async () => {
     const epoch = ++sessionEpoch;
+    setSessionPending(true);
+    setSessionFailed(false);
     setSession(undefined);
     setPersonaId(undefined);
     setChoiceOpen(false);
     try {
       const resolved = await (props.resolveSession ?? resolveSession)();
       if (!active || epoch !== sessionEpoch) return;
+      if (sessionPersonasUnavailable(resolved)) {
+        setSessionFailed(true);
+        setPersonaMessage("We couldn't load your community profiles. Retry profiles before singing a scored take.");
+        return;
+      }
       setSession(resolved);
       setPersonaId(resolved === "anonymous" ? undefined
         : defaultOperationPersonaId(communityOperationPersonas(resolved.personas, communityId)));
       setAuthError(false);
       setPersonaMessage("");
     } catch {
-      if (active && epoch === sessionEpoch) setPersonaMessage("We couldn't load your community personas. Refresh to try again.");
+      if (active && epoch === sessionEpoch) {
+        setSessionFailed(true);
+        setPersonaMessage("We couldn't load your community profiles. Retry profiles before singing a scored take.");
+      }
+    } finally {
+      if (active && epoch === sessionEpoch) setSessionPending(false);
     }
   };
   if (!isServer) queueMicrotask(() => { if (active) void loadSession(); });
@@ -133,6 +147,7 @@ function LoadedKaraokeSession(props: { payload: ApiSongKaraokePayload; postId: s
         onPlay={(songMs) => scoring.controls.notePlay(songMs)}
         onSeek={(songMs) => scoring.controls.noteSeek(songMs)}
         onStartSinging={communityId && scorableLines().length > 0 ? (songMs) => {
+          if (sessionFailed()) return;
           if (session() === undefined) {
             setPersonaMessage("Your community personas are still loading. Try again shortly.");
             return;
@@ -156,7 +171,7 @@ function LoadedKaraokeSession(props: { payload: ApiSongKaraokePayload; postId: s
         singingStatus={scoringState()?.status ?? "idle"}
         title={props.payload.title ?? "Karaoke"}
       />
-      <Show when={personaMessage()}><p role="status" class="fixed inset-x-4 bottom-24 z-50 rounded-lg bg-card p-4 text-center">{personaMessage()}</p></Show>
+      <Show when={personaMessage()}><p role="status" class="fixed inset-x-4 bottom-24 z-50 rounded-lg bg-card p-4 text-center">{personaMessage()}<Show when={sessionFailed() || sessionPending()}><button type="button" disabled={sessionPending()} onClick={() => void loadSession()}>{sessionPending() ? "Checking profiles" : "Retry profiles"}</button></Show></p></Show>
       <CommunityPersonaChoiceDialog
         label="Singing as" personas={eligible()} allowCreateNew={false}
         choice={personaId() ? { kind: "existing", personaId: personaId()! } : undefined}

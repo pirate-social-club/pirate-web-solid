@@ -316,7 +316,7 @@ describe("Community creation production route", () => {
     expect(createIntentRequest).not.toHaveBeenCalled();
   });
 
-  test("clicking during the initial account check never queues creation", async () => {
+  test("the initial account check disables submission without hiding the form", async () => {
     let settle!: (value: import("../../api/session").SessionResolution) => void;
     const createIntentRequest = vi.fn();
     const container = render(() => <CommunityCreationRouteView api={api({ createIntent: createIntentRequest })}
@@ -325,15 +325,14 @@ describe("Community creation production route", () => {
     name.value = "Pending community";
     name.dispatchEvent(new InputEvent("input", { bubbles: true }));
     const button = container.querySelector<HTMLButtonElement>('button[type="submit"]')!;
-    await vi.waitFor(() => expect(button.disabled).toBe(false));
-    expect(button.textContent).toContain("Check account");
+    await vi.waitFor(() => expect(button.textContent).toContain("Checking account"));
+    expect(button.disabled).toBe(true);
     button.click();
-    await vi.waitFor(() => expect(container.textContent).toContain("Your draft is ready"));
     settle({ status: "authenticated", userId: "user-1", personas: [{ personaId: "persona-1", displayName: "Host",
       avatarRef: null, primaryPublicHandle: null, communityBinding: null }] });
     await vi.waitFor(() => expect(button.textContent?.trim()).toBe("Create"));
     expect(createIntentRequest).not.toHaveBeenCalled();
-    expect(container.textContent).toContain("Your draft is ready");
+    expect(container.querySelector("input")).toBe(name);
   });
 
   test("reports a session change during creation instead of silently committing under another account", async () => {

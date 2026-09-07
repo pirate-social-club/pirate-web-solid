@@ -9,6 +9,7 @@ import {
 } from "../../../api/account-community-memberships.ts";
 import {
   resolveSession as resolveApplicationSession,
+  sessionPersonasUnavailable,
   type AccountSessionResolution,
   type AuthenticatedSession,
   type SessionResolution,
@@ -157,6 +158,10 @@ export function YourCommunitiesRouteView(props: YourCommunitiesRouteProps = {}) 
         return;
       }
       if (resolved.userId !== account.userId) return;
+      if (sessionPersonasUnavailable(resolved)) {
+        setActionError("We couldn't load your community profiles. Choose Post again to retry.");
+        return;
+      }
       setSelectedMembership(membership);
       setPostingSession(resolved);
       setComposerOpen(true);

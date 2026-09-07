@@ -35,6 +35,7 @@ export interface AppSidebarProps {
   footerDetail?: string;
   footerActionLabel?: string;
   footerActionHref?: string;
+  footerActionDisabled?: boolean;
   onFooterAction?: () => void;
   onFooterActionFocus?: () => void;
   onFooterActionPointerDown?: () => void;
@@ -66,6 +67,7 @@ export function AppSidebar(props: AppSidebarProps) {
             <div class="text-base font-normal leading-5 text-white/60">{props.footerDetail}</div>
             <button
               class="block w-full cursor-pointer rounded-lg bg-white px-3 py-2 text-center text-sm font-semibold text-black hover:bg-white/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white"
+              disabled={props.footerActionDisabled}
               hidden={props.footerActionHref !== undefined}
               onClick={props.onFooterAction}
               onFocus={props.onFooterActionFocus}

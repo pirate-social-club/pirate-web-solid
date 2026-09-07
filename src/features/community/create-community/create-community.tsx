@@ -43,6 +43,7 @@ export interface CreateCommunityProps {
   /** Keep false in production until the community API can persist these assets. */
   showMediaFields?: boolean;
   submitting?: boolean;
+  accountChecking?: boolean;
   requirePersona?: boolean;
   submitLabel?: string;
   submitNote?: string;
@@ -70,7 +71,7 @@ export function CreateCommunityView(props: CreateCommunityProps) {
   const nameValidationState = () => (visibleNameError() ? "invalid" as const : nameTouched() ? "valid" as const : undefined);
   const canSubmit = () => validation().nameError === null
     && (props.requirePersona === false || validation().personaError === null)
-    && !props.submitting;
+    && !props.submitting && !props.accountChecking;
 
   return (
     <form

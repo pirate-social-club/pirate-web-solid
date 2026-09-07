@@ -52,6 +52,24 @@ afterEach(() => {
 });
 
 describe("Study v2 production route", () => {
+  test("unavailable profiles offer retry instead of a false membership claim", async () => {
+    let unavailable = true;
+    const api = studyApi();
+    const availability = vi.spyOn(api, "loadAvailability");
+    const container = render(() => <StudyV2RouteView api={api} postId="post-1"
+      resolveSession={async () => ({ status: "authenticated", userId: "user-1",
+        personas: unavailable ? [] : [{ personaId: "here", displayName: "Here", avatarRef: null, primaryPublicHandle: null,
+          communityBinding: { communityId: "community-1", bindingSource: "first_membership" } }],
+        personasUnavailable: unavailable ? true as const : undefined })} />);
+    await vi.waitFor(() => expect(container.textContent).toContain("couldn't load your community profiles"));
+    expect(container.textContent).not.toContain("Join this community");
+    expect(availability).not.toHaveBeenCalled();
+    unavailable = false;
+    [...container.querySelectorAll("button")].find(button => button.textContent?.trim() === "Try Again")!.click();
+    await vi.waitFor(() => expect(container.textContent).toContain("Speaking practice only"));
+    expect(api.createSession).not.toHaveBeenCalled();
+  });
+
   test("several community-bound personas have no default", async () => {
     const createSession = vi.fn(() => new Promise<StudySession>(() => {}));
     const container = render(() => <StudyV2RouteView api={studyApi(createSession)} postId="post-1"

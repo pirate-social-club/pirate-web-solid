@@ -12,6 +12,7 @@ try {
   const errors = [];
   let anonymousSessionProbe = false;
   let retryAccountResponse;
+  let accountRetryRequests = 0;
   page.on("console", message => { if (message.type() === "error") errors.push(`console: ${message.text()}`); });
   page.on("pageerror", error => errors.push(`pageerror: ${error.message}`));
   page.on("response", response => {
@@ -32,6 +33,7 @@ try {
     }));
     await page.route("**/api/users/me", async route => {
       if (retryAccountResponse) {
+        accountRetryRequests += 1;
         await retryAccountResponse;
         return route.fulfill({ status: 401, contentType: "application/json",
           body: JSON.stringify({ error: { code: "auth_error", message: "Not signed in", retryable: false } }) });
@@ -88,10 +90,13 @@ try {
     if (await page.getByRole("button", { name: "Sign in", exact: true }).count()) {
       throw new Error("Account retry temporarily rendered signed-out chrome");
     }
-    if (!await retry.isVisible()) throw new Error("Account retry lost its recovery label");
+    const checking = page.getByRole("button", { name: "Checking account", exact: true }).first();
+    if (!await checking.isVisible() || !await checking.isDisabled()) throw new Error("Account retry must show disabled pending feedback");
+    await checking.evaluate(element => { element.click(); element.click(); });
     releaseRetry();
   }
   await page.getByRole("button", { name: "Sign in", exact: true }).first().click();
+  if (apiDown && accountRetryRequests !== 1) throw new Error(`Account retry issued ${accountRetryRequests} requests`);
   retryAccountResponse = undefined;
   const signInDialog = page.getByRole("dialog", { name: "Join Pirate" });
   await signInDialog.waitFor({ state: "visible" });

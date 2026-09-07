@@ -3,6 +3,7 @@ import { createEffect, createSignal, onCleanup, type Accessor } from "solid-js";
 import { ApiClientError } from "@pirate/api-client";
 import {
   resolveSession as resolveApplicationSession,
+  sessionPersonasUnavailable,
   refreshSession,
   type AuthenticatedSession,
   type SessionResolution,
@@ -64,6 +65,7 @@ export function createCommunityEngagementController(
   const [busy, setBusy] = createSignal<"follow" | "join">();
   const [message, setMessage] = createSignal("");
   const [error, setError] = createSignal("");
+  const [personaError, setPersonaError] = createSignal("");
   const [viewerReady, setViewerReady] = createSignal(false);
   const [postingSession, setPostingSession] = createSignal<AuthenticatedSession>();
   const [accountAuthenticated, setAccountAuthenticated] = createSignal(false);
@@ -105,6 +107,7 @@ export function createCommunityEngagementController(
   const applyAccountSession = (resolved: "anonymous" | Readonly<{ status: "authenticated"; userId: string }>) => {
     if (resolved === "anonymous") {
       setAccountAuthenticated(false);
+      setPersonaError("");
       setPostingSession(undefined);
       setViewerReady(false);
       return;
@@ -114,7 +117,13 @@ export function createCommunityEngagementController(
   };
 
   const applyFullSession = (resolved: SessionResolution) => {
-    if (resolved !== "anonymous") setPostingSession(resolved);
+    if (sessionPersonasUnavailable(resolved)) {
+      setPostingSession(undefined);
+      setPersonaError("We couldn't load your active personas. Try the posting or joining action again to retry.");
+    } else if (resolved !== "anonymous") {
+      setPersonaError("");
+      setPostingSession(resolved);
+    }
     applyAccountSession(resolved);
   };
 
@@ -129,7 +138,7 @@ export function createCommunityEngagementController(
       })
       .catch(() => {
         if (active && request === sessionRequest) {
-          setError("We couldn't load your active personas. Retry before commenting or posting.");
+          setPersonaError("We couldn't load your active personas. Retry before commenting or posting.");
         }
       });
   };
@@ -329,6 +338,7 @@ export function createCommunityEngagementController(
         return undefined;
       }
       applyFullSession(resolved);
+      if (sessionPersonasUnavailable(resolved)) return undefined;
       return resolved;
     } catch {
       if (active && request === sessionRequest) setError("We couldn't verify your session. Try again.");
@@ -367,7 +377,7 @@ export function createCommunityEngagementController(
     joinPersonaChoice,
     joinedPersonaId,
     message,
-    error,
+    error: () => error() || personaError(),
     postingSession,
     followToggle,
     joinCommunity,

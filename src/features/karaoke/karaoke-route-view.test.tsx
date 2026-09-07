@@ -23,7 +23,7 @@ const persona = (id: string, communityId: string | null) => ({
   communityBinding: communityId === null ? null : { communityId, bindingSource: "first_membership" as const },
 });
 
-function mount(personas: AuthenticatedSession["personas"]) {
+function mount(personas: AuthenticatedSession["personas"], resolveSession = async (): Promise<AuthenticatedSession> => ({ status: "authenticated", userId: "account-1", personas })) {
   const host = document.createElement("div");
   document.body.appendChild(host);
   const createSession = vi.fn(() => new Promise<never>(() => {}));
@@ -39,7 +39,7 @@ function mount(personas: AuthenticatedSession["personas"]) {
   const dispose = render(() => <TestRouter>{() => <KaraokeSessionRouteView
     postId="post-1" client={client}
     createScoring={createScoring}
-    resolveSession={async () => ({ status: "authenticated", userId: "account-1", personas })}
+    resolveSession={resolveSession}
   />}</TestRouter>, host);
   disposers.push(() => { dispose(); host.remove(); });
   return { host, createSession };
@@ -58,6 +58,23 @@ afterEach(() => {
 });
 
 describe("Karaoke community persona selection", () => {
+  test("retries failed profile reads without claiming the user must join", async () => {
+    let unavailable = true;
+    const { host, createSession } = mount([], async () => ({ status: "authenticated", userId: "account-1",
+      personas: unavailable ? [] : [persona("here", "community-here")],
+      personasUnavailable: unavailable ? true as const : undefined }));
+    await vi.waitFor(() => expect(host.textContent).toContain("Retry profiles"));
+    await start(host);
+    expect(host.textContent).not.toContain("Join this community");
+    expect(createSession).not.toHaveBeenCalled();
+    unavailable = false;
+    [...host.querySelectorAll("button")].find(button => button.textContent?.trim() === "Retry profiles")!.click();
+    await vi.waitFor(() => expect(host.textContent).not.toContain("Retry profiles"));
+    expect(createSession).not.toHaveBeenCalled();
+    await start(host);
+    await vi.waitFor(() => expect(createSession).toHaveBeenCalledWith(expect.objectContaining({ personaId: "here" })));
+  });
+
   test("uses the sole bound-here persona, never the first global persona", async () => {
     const { host, createSession } = mount([persona("elsewhere", "community-other"), persona("here", "community-here")]);
     await start(host);

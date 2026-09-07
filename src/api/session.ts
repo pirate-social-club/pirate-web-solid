@@ -25,6 +25,11 @@ export interface ActivePersonaPublicProjection {
 }
 
 export type SessionResolution = "anonymous" | AuthenticatedSession;
+/** Distinguish a failed profile read from a successful empty profile list. */
+export function sessionPersonasUnavailable(session: SessionResolution | undefined): boolean {
+  return session !== undefined && session !== "anonymous" && session.personasUnavailable === true;
+}
+
 export type AccountSessionResolution = "anonymous" | AuthenticatedAccountSession;
 export type AccountSessionResolutionClient = Pick<PirateApiClient, "get_usersMe">;
 export type SessionResolutionClient = Pick<PirateApiClient, "get_usersMe" | "get_personas">;
@@ -159,7 +164,7 @@ export interface SessionStore {
  * route, and route controllers all resolve through the page store, so a page
  * issues at most one `users/me` and one `personas` request however many
  * surfaces mount. A rejected attempt clears its slot so the next caller or an
- * explicit retry starts a fresh request; a successful resolution is kept until
+ * explicit retry starts a fresh request; a successful persona read is kept until
  * `refreshSession` runs. Calls carrying explicit transport resolve uncached so
  * injected tests and server rendering stay deterministic.
  */
@@ -212,7 +217,15 @@ export function createSessionStore(clientFactory: SessionClientFactory): Session
       if (hasExplicitTransport(options) || typeof window === "undefined") {
         return resolveSessionUncached(options);
       }
-      return track(slots.session, resolveSessionShared);
+      const pending = track(slots.session, resolveSessionShared);
+      void pending.then(result => {
+        // Keep the independently successful account read, but let the next
+        // persona caller recover without a page-wide session invalidation.
+        if (sessionPersonasUnavailable(result) && slots.session.promise === pending) {
+          slots.session.promise = undefined;
+        }
+      }, () => {});
+      return pending;
     },
     resolveAccountSession(options: AccountSessionResolutionOptions = {}) {
       if (hasExplicitTransport(options) || typeof window === "undefined") {

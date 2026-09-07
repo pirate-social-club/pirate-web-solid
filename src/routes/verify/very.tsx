@@ -1,6 +1,6 @@
 import { Show, createSignal, onCleanup } from "solid-js";
 import { getRequestEvent } from "@solidjs/web";
-import { resolveSession, refreshSession, type ActivePersonaPublicProjection } from "../../api/session";
+import { resolveSession, sessionPersonasUnavailable, refreshSession, type ActivePersonaPublicProjection } from "../../api/session";
 import { communityJoinCandidates, defaultCommunityPersonaChoice, toCommunityPersonaChoiceWire, PERSONA_CREATION_UNAVAILABLE, type CommunityPersonaChoice } from "../../features/identity/community-persona-choice";
 import { CommunityPersonaChoiceDialog } from "../../features/identity/community-persona-choice-sheet";
 
@@ -180,7 +180,7 @@ export default function VeryVerificationRoute(props: Readonly<{ loadWidget?: Ver
     setPhase("joining");
     const session = await resolveSession();
     if (!operationIsCurrent(epoch, targetCommunityId)) return;
-    if (session === "anonymous") throw new VeryWebClientError("join_failed");
+    if (session === "anonymous" || sessionPersonasUnavailable(session)) throw new VeryWebClientError("join_failed");
     const candidates = communityJoinCandidates(session.personas, targetCommunityId);
     setJoinCandidates(candidates);
     const choice = defaultCommunityPersonaChoice(candidates);
