@@ -292,6 +292,29 @@ describe("create post request", () => {
     expect(document.body.textContent).toContain("Checking whether your post was accepted");
   });
 
+  test("does not reconcile another community's retained text request from a contextual composer", async () => {
+    const storage = createMemoryPendingSubmissionStorage();
+    await storage.save(await createPendingSubmissionEnvelope({
+      request: buildCreatePostRequest({ personaId: "persona-one", communityId: "original-community", title: "", body: "Retained draft", idempotencyKey: "retained-context", ageGatePolicy: "none" }),
+      pendingRequestId: "retained-context",
+      createdAt: "2026-09-07T00:00:00Z",
+    }));
+    const transport = { read: vi.fn(async () => null), dispatch: vi.fn(async () => { throw new Error("Unexpected dispatch"); }) };
+    render(() => <CreatePostDialog open onOpenChange={() => {}}
+      communityContext={{ id: "different-community", name: "Different community" }}
+      storage={storage} transport={transport}
+    />);
+    await vi.waitFor(() => expect(document.body.textContent).toContain("retained submission belongs to another community"));
+    const readsBeforeRetry = transport.read.mock.calls.length;
+    const retry = Array.from(document.body.querySelectorAll<HTMLButtonElement>("button")).find(button => button.textContent === "Check again");
+    expect(retry).toBeDefined();
+    retry!.click();
+    await new Promise<void>(resolve => setTimeout(resolve, 0));
+    expect(transport.read).toHaveBeenCalledTimes(readsBeforeRetry);
+    expect(transport.dispatch).not.toHaveBeenCalled();
+    expect(decodePendingSubmissionDraft((await storage.loadAll())[0]!).communityId).toBe("original-community");
+  });
+
   test("hydrates and locks the rating owned by a retained adult text request", async () => {
     const storage = createMemoryPendingSubmissionStorage();
     await storage.save(await createPendingSubmissionEnvelope({

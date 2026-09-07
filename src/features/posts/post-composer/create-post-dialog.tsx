@@ -232,6 +232,7 @@ export function CreatePostDialog(props: CreatePostDialogProps): JSX.Element {
       if (envelope === null) return;
       const draft = decodePendingSubmissionDraft(envelope);
       setTextPersonaId(draft.personaId);
+      setCommunityId(draft.communityId);
       setTextAgeGatePolicy(draft.authorDeclaredRating === "adult_18" ? "18_plus" : "none");
     })
     .catch(() => {
@@ -416,6 +417,10 @@ export function CreatePostDialog(props: CreatePostDialogProps): JSX.Element {
     setError("");
     try {
       if (textState().status === "reconciling") {
+        if (communityContextConflict()) {
+          setError("A retained submission belongs to another community. Resolve it from the global Create post action before posting here.");
+          return;
+        }
         const snapshot = await textCoordinator.reconcile();
         if (snapshot.status === "published") props.onPublished?.();
       } else {

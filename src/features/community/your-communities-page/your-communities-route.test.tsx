@@ -139,6 +139,26 @@ describe("YourCommunitiesRouteView", () => {
     ).not.toBeNull();
   });
 
+  test("does not offer unrelated or unbound personas in a route-less community", async () => {
+    const persona = (personaId: string, communityId: string | null) => ({
+      personaId, displayName: personaId, avatarRef: null, primaryPublicHandle: null,
+      communityBinding: communityId === null ? null : { communityId, bindingSource: "first_membership" as const },
+    });
+    const container = render(() => <YourCommunitiesRouteView
+      applicationSession={() => ({ status: "authenticated", userId: "account-one" })}
+      loadMemberships={async () => [routeLessMembership]}
+      resolvePostingSession={async () => ({ status: "authenticated", userId: "account-one", personas: [
+        persona("persona-elsewhere", "another-community"), persona("persona-unbound", null),
+      ] })}
+    />);
+    await vi.waitFor(() => expect(container.textContent).toContain("Open Sea"));
+    container.querySelector<HTMLButtonElement>("[data-post-community-id]")!.click();
+    await vi.waitFor(() => expect(document.body.textContent).toContain("Posting in Open Sea"));
+    await vi.waitFor(() => expect(document.body.textContent).toContain("Create or reactivate a public persona"));
+    expect(document.body.textContent).not.toContain("persona-elsewhere");
+    expect(document.body.textContent).not.toContain("persona-unbound");
+  });
+
   test("fails closed when membership disappears before the composer opens", async () => {
     const loadMemberships = vi
       .fn()

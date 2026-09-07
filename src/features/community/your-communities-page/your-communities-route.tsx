@@ -15,6 +15,7 @@ import {
 } from "../../../api/session.ts";
 import { Button, Type } from "../../../design-system.ts";
 import { requestGlobalSignIn } from "../../auth/global-sign-in-host.tsx";
+import { communityOperationPersonas } from "../../identity/community-persona-choice.ts";
 import { CreatePostDialog } from "../../posts/post-composer/create-post-dialog.tsx";
 import {
   useApplicationSession,
@@ -166,6 +167,13 @@ export function YourCommunitiesRouteView(props: YourCommunitiesRouteProps = {}) 
     const membership = selectedMembership();
     return membership === undefined ? undefined : summary(membership);
   });
+  const postingPersonas = createMemo(() => {
+    const session = postingSession();
+    const community = selectedSummary();
+    return session === undefined || community === undefined
+      ? []
+      : communityOperationPersonas(session.personas, community.communityId);
+  });
 
   return (
     <main data-route-path="/communities" data-communities-state={state().kind}>
@@ -236,7 +244,7 @@ export function YourCommunitiesRouteView(props: YourCommunitiesRouteProps = {}) 
                 communityContext={{ id: community().communityId, name: community().displayName }}
                 onOpenChange={setComposerOpen}
                 open={composerOpen()}
-                personas={resolved().personas}
+                personas={postingPersonas()}
                 principalId={resolved().userId}
               />
             )}
