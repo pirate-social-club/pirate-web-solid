@@ -5,7 +5,7 @@ import { afterEach, describe, expect, test, vi } from "vitest";
 import type { PrivySessionExchange } from "../../api/privy-session.ts";
 import { onSessionRefreshed, refreshSession } from "../../api/session.ts";
 import type { CommunityCreationApi } from "./community-creation-api";
-import { CommunityCreationRouteView } from "./community-creation-route-view";
+import { CommunityCreationRouteView, communityCreationCanUsePersona } from "./community-creation-route-view";
 import { createIntent } from "./community-creation-progress/community-creation-progress-model";
 import {
   GLOBAL_SIGN_IN_EVENT,
@@ -159,10 +159,9 @@ describe("Community creation production route", () => {
 
     refreshSession();
     await vi.waitFor(() => expect(container.textContent).toContain("Could not check your account"));
-    expect(submit().disabled).toBe(true);
+    expect(submit().disabled).toBe(false);
     expect(container.querySelector("input")).toBe(name);
     expect(name.value).toBe("My community");
-    container.querySelector("form")!.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
     expect(client.createIntent).not.toHaveBeenCalled();
     const retry = [...container.querySelectorAll<HTMLButtonElement>("button")]
       .find(button => button.textContent?.trim() === "Try again")!;
@@ -191,11 +190,94 @@ describe("Community creation production route", () => {
     await vi.waitFor(() => expect(submit().disabled).toBe(false));
     authenticated = false;
     refreshSession();
-    await vi.waitFor(() => expect(container.textContent).toContain("coming soon"));
-    expect(submit().disabled).toBe(true);
+    await vi.waitFor(() => expect(container.querySelector("main")?.getAttribute("data-creation-state")).toBe("ready"));
+    await vi.waitFor(() => expect(submit().disabled).toBe(true));
     expect(name.value).toBe("My community");
-    container.querySelector("form")!.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+    expect(communityCreationCanUsePersona({ status: "authenticated", userId: "user-2", personas: [] },
+      { kind: "existing", personaId: "persona-1" })).toBe(false);
+    expect(communityCreationCanUsePersona(undefined, { kind: "existing", personaId: "persona-1" })).toBe(false);
     expect(createIntentRequest).not.toHaveBeenCalled();
+  });
+
+  test("resumes a saved intent without exposing a new editable form and retains progress during refresh", async () => {
+    let resolveAccount!: (value: import("../../api/session").SessionResolution) => void;
+    let resolveIntent!: (value: ReturnType<typeof createIntent>) => void;
+    const authenticated = { status: "authenticated" as const, userId: "user-1", personas: [] };
+    const client = api({ getIntent: vi.fn(() => new Promise<ReturnType<typeof createIntent>>(resolve => { resolveIntent = resolve; })) });
+    const container = render(() => <CommunityCreationRouteView api={client} intentId="saved-1"
+      resolveSession={() => new Promise(resolve => { resolveAccount = resolve; })} />);
+    expect(container.querySelector("form")).toBeNull();
+    expect(container.textContent).toContain("Resume community creation");
+    await vi.waitFor(() => expect(resolveAccount).toBeTypeOf("function"));
+    resolveAccount(authenticated);
+    await vi.waitFor(() => expect(resolveIntent).toBeTypeOf("function"));
+    expect(container.querySelector("form")).toBeNull();
+    resolveIntent(createIntent({ intentId: "saved-1", nextAction: { kind: "commit" } }));
+    await vi.waitFor(() => expect(container.querySelector("[data-community-creation-progress]")).not.toBeNull());
+    const progress = container.querySelector("[data-community-creation-progress]");
+    refreshSession();
+    await vi.waitFor(() => expect(progress?.querySelector("button")?.disabled).toBe(true));
+    expect(container.querySelector("[data-community-creation-progress]")).toBe(progress);
+    expect(container.querySelector("form")).toBeNull();
+    resolveAccount(authenticated);
+    await vi.waitFor(() => expect(progress?.querySelector("button")?.disabled).toBe(false));
+    expect(container.querySelector("[data-community-creation-progress]")).toBe(progress);
+    expect(client.getIntent).toHaveBeenCalledOnce();
+  });
+
+  test("uses the enabled anonymous CTA to sign in and submits the retained draft afterwards", async () => {
+    let authenticated = false;
+    const request = vi.fn();
+    const createIntentRequest = vi.fn(async () => createIntent());
+    window.addEventListener(GLOBAL_SIGN_IN_EVENT, request);
+    try {
+      const container = render(() => <CommunityCreationRouteView api={api({ createIntent: createIntentRequest })}
+        navigate={() => {}}
+        resolveSession={async () => authenticated ? ({ status: "authenticated", userId: "user-1",
+          personas: [{ personaId: "persona-1", displayName: "Host", avatarRef: null,
+            primaryPublicHandle: null, communityBinding: null }] }) : "anonymous"} />);
+      await vi.waitFor(() => expect(container.querySelector("main")?.getAttribute("data-creation-state")).toBe("signed-out"));
+      const name = container.querySelector<HTMLInputElement>("input")!;
+      name.value = "Retained community";
+      name.dispatchEvent(new InputEvent("input", { bubbles: true }));
+      const button = container.querySelector<HTMLButtonElement>('button[type="submit"]')!;
+      await vi.waitFor(() => expect(button.disabled).toBe(false));
+      expect(button.textContent).toContain("Sign in to create");
+      button.click();
+      expect(request).toHaveBeenCalledOnce();
+      expect(createIntentRequest).not.toHaveBeenCalled();
+      authenticated = true;
+      refreshSession();
+      await vi.waitFor(() => expect(createIntentRequest).toHaveBeenCalledOnce());
+      expect(createIntentRequest).toHaveBeenCalledWith(expect.objectContaining({ draft: expect.objectContaining({ name: "Retained community", persona: { kind: "existing", personaId: "persona-1" } }) }));
+    } finally {
+      window.removeEventListener(GLOBAL_SIGN_IN_EVENT, request);
+    }
+  });
+
+  test("reports a session change during creation instead of silently committing under another account", async () => {
+    let account = "user-1";
+    let finishCreate!: (value: ReturnType<typeof createIntent>) => void;
+    const commitIntent = vi.fn();
+    const client = api({ createIntent: vi.fn(() => new Promise<ReturnType<typeof createIntent>>(resolve => { finishCreate = resolve; })), commitIntent });
+    const container = render(() => <CommunityCreationRouteView api={client} navigate={() => {}}
+      resolveSession={async () => ({ status: "authenticated", userId: account,
+        personas: [{ personaId: "persona-1", displayName: "Host", avatarRef: null,
+          primaryPublicHandle: null, communityBinding: null }] })} />);
+    await vi.waitFor(() => expect(container.querySelector("main")?.getAttribute("data-creation-state")).toBe("ready"));
+    const name = container.querySelector<HTMLInputElement>("input")!;
+    name.value = "Retained draft";
+    name.dispatchEvent(new InputEvent("input", { bubbles: true }));
+    const submit = container.querySelector<HTMLButtonElement>('button[type="submit"]')!;
+    await vi.waitFor(() => expect(submit.disabled).toBe(false));
+    submit.click();
+    await vi.waitFor(() => expect(finishCreate).toBeTypeOf("function"));
+    account = "user-2";
+    refreshSession();
+    await vi.waitFor(() => expect(container.querySelector("main")?.getAttribute("data-creation-state")).toBe("ready"));
+    finishCreate(createIntent({ nextAction: { kind: "commit" } }));
+    await vi.waitFor(() => expect(container.textContent).toContain("Check your account before finishing"));
+    expect(commitIntent).not.toHaveBeenCalled();
   });
 
   test("blocks creation without an eligible persona while activation is unavailable", async () => {

@@ -44,6 +44,9 @@ export interface CreateCommunityProps {
   showMediaFields?: boolean;
   submitting?: boolean;
   submitDisabled?: boolean;
+  requirePersona?: boolean;
+  submitLabel?: string;
+  submitNote?: string;
   forceMobile?: boolean;
 }
 
@@ -66,7 +69,9 @@ export function CreateCommunityView(props: CreateCommunityProps) {
   // Stay neutral until the field is touched or the server rejects it, rather
   // than telling the user an untouched empty field is already valid.
   const nameValidationState = () => (visibleNameError() ? "invalid" as const : nameTouched() ? "valid" as const : undefined);
-  const canSubmit = () => validation().valid && !props.submitting && !props.submitDisabled;
+  const canSubmit = () => validation().nameError === null
+    && (props.requirePersona === false || validation().personaError === null)
+    && !props.submitting && !props.submitDisabled;
 
   return (
     <form
@@ -78,8 +83,9 @@ export function CreateCommunityView(props: CreateCommunityProps) {
         bodyClass="mx-auto flex w-full max-w-2xl flex-col gap-5 px-5 py-5"
         footer={
           <div class="mx-auto w-full max-w-2xl">
+            <Show when={props.submitNote}><p class="mb-2 text-sm text-muted-foreground">{props.submitNote}</p></Show>
             <Button class="h-11 w-full" disabled={!canSubmit()} loading={props.submitting} type="submit">
-              {copy().submit}
+              {props.submitLabel ?? copy().submit}
             </Button>
           </div>
         }
