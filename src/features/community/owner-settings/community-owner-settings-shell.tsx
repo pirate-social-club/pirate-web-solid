@@ -43,6 +43,8 @@ export function CommunityOwnerSettingsShell(props: CommunityOwnerSettingsShellPr
     links: "Links",
     moderation_queue: "Moderation queue",
     content_policy: "Content policy",
+    telegram: "Telegram",
+    assistant: "Assistant",
     archive: "Archive community",
   } satisfies Record<OwnerSettingsSection, string>)[props.activeSection];
 

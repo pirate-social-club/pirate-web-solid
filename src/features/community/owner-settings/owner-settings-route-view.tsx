@@ -3,6 +3,8 @@ import { Button, Card, Type } from "@pirate/web-solid-ui";
 import { Loading, Show, createEffect, createMemo } from "solid-js";
 
 import type { CommunityModerationSettingsApi } from "./community-moderation-settings-api";
+import type { CommunityTelegramSettingsApi } from "./community-telegram-settings-api";
+import { CommunityTelegramSettingsController } from "./community-telegram-settings-controller";
 import { CommunityNamespaceSettingsController } from "./community-namespace-settings-controller";
 import { CommunityModerationSettingsController } from "./community-moderation-settings-controller";
 import type { CommunityNamesSettingsApi } from "./community-names-settings-api";
@@ -19,6 +21,7 @@ import type { CommunityNamespaceSettingsPort } from "./owner-settings-model";
 
 export interface OwnerSettingsRouteViewProps {
   moderationApi?: CommunityModerationSettingsApi;
+  telegramApi?: CommunityTelegramSettingsApi;
   namespaceApi?: CommunityNamespaceSettingsPort;
   namesApi?: CommunityNamesSettingsApi;
   navigate: (href: string, options?: { replace?: boolean }) => void;
@@ -109,6 +112,9 @@ function ResolvedOwnerSettingsRouteView(props: ResolvedOwnerSettingsRouteViewPro
                   api={props.namesApi}
                   communityId={state().communityId}
                 />
+              </Show>
+              <Show when={section() === "telegram" || section() === "assistant"}>
+                <CommunityTelegramSettingsController api={props.telegramApi} communityId={state().communityId} section={section() === "assistant" ? "assistant" : "telegram"} />
               </Show>
               <Show when={section() === "namespace"}>
                 <CommunityNamespaceSettingsController

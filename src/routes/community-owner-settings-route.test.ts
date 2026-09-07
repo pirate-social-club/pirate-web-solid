@@ -1,6 +1,7 @@
 import { describe, expect, test } from "vitest";
 import { resolveOwnerSettingsPreflight, ownerSettingsResponseStatus } from "../features/community/owner-settings/owner-settings-preflight";
 import { NAMES_ACTIVE } from "../features/community/owner-settings/community-names-settings-fixtures";
+import { TELEGRAM_CONNECTED } from "../features/community/owner-settings/community-telegram-fixtures";
 
 const communityId = "community_midnight";
 const route = { community_id: communityId, canonical_route: {
@@ -22,6 +23,7 @@ function fixture(ownerStatus = 200) {
       if (ownerStatus !== 200) return response({ error: { code: "auth_error", message: "Sign in required", retryable: false } }, ownerStatus);
       if (path.endsWith("/me/capabilities")) return response({ community_id: communityId, role: "owner", role_assignment_id: "owner-1", capabilities: ["moderation.view", "moderation.act"] });
       if (path.endsWith("/handle-sales-management")) return response(NAMES_ACTIVE.context);
+      if (path.endsWith("/telegram")) return response({ ...TELEGRAM_CONNECTED, community_id: communityId });
       return response({ items: [], next_cursor: null });
     },
   };
@@ -34,7 +36,7 @@ describe("owner settings SSR preflight", () => {
       headers: { cookie: "__Host-pirate_session=session-1; __Host-pirate_csrf=csrf-1", authorization: "Bearer must-not-forward" },
     }), "https://api-next.test", fetchImpl);
     expect(result?.state).toMatchObject({ kind: "success", access: { "community.moderation.manage": true, "community.names.manage": true } });
-    expect(requests.length).toBe(6);
+    expect(requests.length).toBe(7);
     for (const [index, request] of requests.entries()) {
       expect(new URL(request.url).origin).toBe("https://api-next.test");
       expect(request.method).toBe("GET");
@@ -55,7 +57,7 @@ describe("owner settings SSR preflight", () => {
   test("failed private probes retain retryable sections without granting access", async () => {
     const { fetchImpl } = fixture(503);
     const result = await resolveOwnerSettingsPreflight(new Request("https://web.test/c/midnight/settings/moderation_queue"), "https://api-next.test", fetchImpl);
-    expect(result?.state).toMatchObject({ kind: "success", access: {}, unavailableSections: ["moderation_queue", "content_policy", "namespace", "names"] });
+    expect(result?.state).toMatchObject({ kind: "success", access: {}, unavailableSections: ["moderation_queue", "content_policy", "namespace", "names", "telegram", "assistant"] });
   });
 
   test("does not run on unrelated routes or send invalid paths upstream", async () => {

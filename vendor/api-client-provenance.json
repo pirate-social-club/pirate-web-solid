@@ -1,11 +1,11 @@
 {
   "name": "@pirate/api-client",
-  "version": "0.66.0",
-  "artifact": "vendor/api-client/pirate-api-client-0.66.0-fe42382f.tgz",
-  "sha256": "b440c060641224f99898b97c37f36505f17ae9fb56cf15f3d79b18b20d74a927",
-  "source": "api-next-contracts@fe42382ff9cdf0f25a845876e11568f05d332c82faa84100d992ef8d103f254b",
-  "openapiSha256": "fe42382ff9cdf0f25a845876e11568f05d332c82faa84100d992ef8d103f254b",
-  "clientSha256": "53a370feae6c3a98cd28a7df749624498d35169c45245c89a11b8c3c7a9ba06b",
+  "version": "0.67.0",
+  "artifact": "vendor/api-client/pirate-api-client-0.67.0.tgz",
+  "sha256": "55ca5894fdd52a21f48772f66a06eb75a0028e4a751b6f0a95eb666f6bcac386",
+  "source": "api-next-contracts@8be53afd898570606a3a3f359dd6c291b2d7702b973f6893b0d04048dffb5042",
+  "openapiSha256": "8be53afd898570606a3a3f359dd6c291b2d7702b973f6893b0d04048dffb5042",
+  "clientSha256": "63f991fb491e85819fa0db64b68e0a8f60bb439121b3a6866217d6550c172b6b",
   "scope": [
     "post_communityCreationIntents",
     "get_communityCreationIntentsIntentId",
@@ -46,6 +46,19 @@
     "get_personas",
     "post_personasPersonaIdWalletsEvmPrepare",
     "post_personasPersonaIdWalletsEvmConfirm",
-    "get_personasWalletsEvmPending"
+    "get_personasWalletsEvmPending",
+    "get_communitiesCommunityIdTelegram",
+    "get_communitiesCommunityIdTelegramDeliveries",
+    "get_communitiesCommunityIdTelegramModels",
+    "get_communitiesCommunityIdTelegramVoices",
+    "post_communitiesCommunityIdTelegramConnect",
+    "post_communitiesCommunityIdTelegramDisconnect",
+    "post_communitiesCommunityIdTelegramSettings",
+    "post_communitiesCommunityIdTelegramCredentials",
+    "post_communitiesCommunityIdTelegramChannelSetup",
+    "get_communitiesCommunityIdTelegramChannelSetupSetupId",
+    "post_communitiesCommunityIdTelegramChannelSetupSetupIdConfirm",
+    "post_communitiesCommunityIdTelegramPublications",
+    "post_communitiesCommunityIdTelegramDeliveriesDeliveryIdResolve"
   ]
 }

@@ -6,6 +6,7 @@ import { createPublicCommunityRouteClient } from "../../../../api/community-rout
 import type { OwnerSettingsPreflight } from "../../../../features/community/owner-settings/owner-settings-preflight";
 import { createCommunityModerationSettingsApi } from "../../../../features/community/owner-settings/community-moderation-settings-api";
 import { createCommunityNamesSettingsApi } from "../../../../features/community/owner-settings/community-names-settings-api";
+import { createCommunityTelegramSettingsApi } from "../../../../features/community/owner-settings/community-telegram-settings-api";
 import {
   loadOwnerSettingsRoute,
   type OwnerSettingsRouteDependencies,
@@ -27,6 +28,7 @@ function routeDependencies(): OwnerSettingsRouteDependencies {
     communityClient: createPublicCommunityRouteClient({ origin }),
     moderationApi: createCommunityModerationSettingsApi({ origin }),
     namesApi: createCommunityNamesSettingsApi({ origin }),
+    telegramApi: createCommunityTelegramSettingsApi({ origin }),
   };
 }
 

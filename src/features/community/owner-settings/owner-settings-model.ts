@@ -6,6 +6,8 @@ export type OwnerSettingsSection =
   | "links"
   | "moderation_queue"
   | "content_policy"
+  | "telegram"
+  | "assistant"
   | "archive";
 
 export type OwnerSettingsCapability =
@@ -15,6 +17,7 @@ export type OwnerSettingsCapability =
   | "community.rules.write"
   | "community.links.write"
   | "community.moderation.manage"
+  | "community.bot.manage"
   | "community.archive.write";
 
 export type OwnerSettingsAccess = Readonly<Partial<Record<OwnerSettingsCapability, boolean>>>;
@@ -46,6 +49,8 @@ const OWNER_SETTINGS_GROUPS: ReadonlyArray<OwnerSettingsNavGroup> = [
     label: "Moderation",
     items: [
       { section: "moderation_queue", capability: "community.moderation.manage", label: "Moderation queue", description: "Reported content that needs review" },
+      { section: "telegram", capability: "community.bot.manage", label: "Telegram", description: "Community bot and content channel" },
+      { section: "assistant", capability: "community.bot.manage", label: "Assistant", description: "API keys, model, voice and limits" },
     ],
   },
   {

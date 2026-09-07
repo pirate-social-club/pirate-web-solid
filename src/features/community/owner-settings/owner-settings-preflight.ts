@@ -3,6 +3,7 @@ import { proxyApiRequest, type ApiFetch } from "../../../api/proxy";
 import { decodeCommunityRouteParam } from "../../communities/community-page/community-page-preflight";
 import { createCommunityModerationSettingsApi } from "./community-moderation-settings-api";
 import { createCommunityNamesSettingsApi } from "./community-names-settings-api";
+import { createCommunityTelegramSettingsApi } from "./community-telegram-settings-api";
 import { loadOwnerSettingsRoute, type OwnerSettingsRouteState } from "./owner-settings-route-model";
 
 export interface OwnerSettingsPreflight {
@@ -40,6 +41,7 @@ export async function resolveOwnerSettingsPreflight(
       communityClient: createPublicCommunityRouteClient(options),
       moderationApi: createCommunityModerationSettingsApi(options),
       namesApi: createCommunityNamesSettingsApi(options),
+      telegramApi: createCommunityTelegramSettingsApi(options),
     }, url.origin),
   };
 }

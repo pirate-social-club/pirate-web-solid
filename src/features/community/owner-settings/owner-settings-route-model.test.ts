@@ -2,6 +2,7 @@ import { ApiClientError } from "@pirate/api-client";
 import { describe, expect, test, vi } from "vitest";
 
 import { NAMES_READY } from "./community-names-settings-fixtures";
+import { TELEGRAM_CONNECTED } from "./community-telegram-fixtures";
 import {
   firstRoutedOwnerSettingsSection,
   loadOwnerSettingsRoute,
@@ -57,6 +58,15 @@ function apiError(status: 401 | 404): ApiClientError {
 }
 
 describe("owner settings route model", () => {
+  test("bot sections require independent owner authority and remain routed", async () => {
+    const state = await loadOwnerSettingsRoute("harbor", dependencies({ telegramApi: { getSettings: async () => TELEGRAM_CONNECTED } }));
+    expect(state).toMatchObject({ kind: "success", access: { "community.bot.manage": true } });
+    expect(routedOwnerSettingsSection("telegram")).toBe("telegram");
+    expect(routedOwnerSettingsSection("assistant")).toBe("assistant");
+    const denied = await loadOwnerSettingsRoute("harbor", dependencies({ telegramApi: { getSettings: async () => { throw apiError(404); } } }));
+    if (denied.kind !== "success") throw new Error("expected other authorized settings");
+    expect(denied.access["community.bot.manage"]).toBeUndefined();
+  });
   test("maps only successful server authority into the routed partial access model", async () => {
     await expect(loadOwnerSettingsRoute("harbor", dependencies())).resolves.toEqual({
       access: {

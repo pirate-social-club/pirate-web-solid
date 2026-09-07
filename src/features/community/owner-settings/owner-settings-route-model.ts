@@ -3,6 +3,7 @@ import { ApiClientError } from "@pirate/api-client";
 import type { CommunityRouteClient } from "../../communities/community-page/community-page.model";
 import { loadCommunityPage } from "../../communities/community-page/community-page.model";
 import type { CommunityModerationSettingsApi } from "./community-moderation-settings-api";
+import type { CommunityTelegramSettingsApi } from "./community-telegram-settings-api";
 import { ownerSettingsAccessFromModerationCapabilities } from "./community-moderation-settings-model";
 import type { CommunityNamesSettingsApi } from "./community-names-settings-api";
 import { ownerSettingsAccessFromNamesSnapshot } from "./community-names-settings-model";
@@ -14,6 +15,8 @@ export const ROUTED_OWNER_SETTINGS_SECTIONS = [
   "names",
   "moderation_queue",
   "content_policy",
+  "telegram",
+  "assistant",
 ] as const satisfies ReadonlyArray<OwnerSettingsSection>;
 
 export type RoutedOwnerSettingsSection = typeof ROUTED_OWNER_SETTINGS_SECTIONS[number];
@@ -36,10 +39,11 @@ export interface OwnerSettingsRouteDependencies {
   communityClient: CommunityRouteClient;
   moderationApi: Pick<CommunityModerationSettingsApi, "getCapabilities">;
   namesApi: Pick<CommunityNamesSettingsApi, "getSnapshot">;
+  telegramApi?: Pick<CommunityTelegramSettingsApi, "getSettings">;
 }
 
 export function routedOwnerSettingsSection(value: string | undefined): RoutedOwnerSettingsSection | null {
-  return value === "namespace" || value === "names" || value === "moderation_queue" || value === "content_policy"
+  return value === "namespace" || value === "names" || value === "moderation_queue" || value === "content_policy" || value === "telegram" || value === "assistant"
     ? value
     : null;
 }
@@ -67,13 +71,15 @@ export async function loadOwnerSettingsRoute(
   );
   if (community.kind !== "success") return { kind: community.kind };
 
-  const [moderation, names] = await Promise.allSettled([
+  const [moderation, names, telegram] = await Promise.allSettled([
     dependencies.moderationApi.getCapabilities({ communityId: community.communityId }),
     dependencies.namesApi.getSnapshot({ communityId: community.communityId }),
+    dependencies.telegramApi?.getSettings({ communityId: community.communityId }) ?? Promise.resolve(null),
   ]);
   const unavailableSections: RoutedOwnerSettingsSection[] = [];
   if (moderation.status === "rejected" && !isRedactedOwnerResponse(moderation.reason)) unavailableSections.push("moderation_queue", "content_policy");
   if (names.status === "rejected" && !isRedactedOwnerResponse(names.reason)) unavailableSections.push("namespace", "names");
+  if (telegram.status === "rejected" && !isRedactedOwnerResponse(telegram.reason)) unavailableSections.push("telegram", "assistant");
   let access: OwnerSettingsAccess = {};
   if (moderation.status === "fulfilled") {
     access = ownerSettingsAccessFromModerationCapabilities(moderation.value);
@@ -81,6 +87,7 @@ export async function loadOwnerSettingsRoute(
   if (names.status === "fulfilled") {
     access = { ...access, ...ownerSettingsAccessFromNamesSnapshot(names.value) };
   }
+  if (telegram.status === "fulfilled" && telegram.value !== null) access = { ...access, "community.bot.manage": true };
   if (firstRoutedOwnerSettingsSection(access, unavailableSections) === null) return { kind: "denied" };
 
   return {
