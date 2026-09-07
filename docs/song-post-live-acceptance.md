@@ -51,7 +51,13 @@ and be eligible under its current rights policy.
    Confirm publication and playback without phantom lyrics. In a separate
    retained draft with already accepted lyrics, clear the box and verify that
    submission refuses to silently discard them.
-5. Submit the real derivative until reference-required recovery appears.
+5. Blocked as of 2026-09-08: api-song-reference-resolver-hookup must prove
+   production reference binding before this case is scheduled. At API a1803de3,
+   default HTTP composition omits referenceResolver and /reference throws
+   Media reference resolution is unavailable. The Solid identifier input and
+   local fixtures do not clear this blocker. After the repair is integrated
+   and the serving pair is verified, submit the real derivative until
+   reference-required recovery appears.
    Record the reference request and creation revision. Enter the eligible
    source asset identifier, bind it, and observe the real next state. Confirm
    the request carries the current reference_request_ref and
