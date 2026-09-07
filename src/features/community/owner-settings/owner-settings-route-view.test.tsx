@@ -200,7 +200,7 @@ test("address navigation and a reload rediscover the account import without a UR
     namespaceApi={freshApi()} namesApi={namesApi()} moderationApi={moderationApi()}
     navigate={navigate} requestedSection="namespace" state={success} />);
   const first = mountAddress();
-  await vi.waitFor(() => expect(first.textContent).toContain("Your records are ready to publish"));
+  await vi.waitFor(() => expect(first.textContent).toContain("Checking published records"));
   [...first.querySelectorAll<HTMLButtonElement>("button")].find((button) => button.textContent?.trim() === "Names")!.click();
   expect(navigate).toHaveBeenLastCalledWith("/c/midnight/settings/names");
   disposers.pop()!();
@@ -212,7 +212,7 @@ test("address navigation and a reload rediscover the account import without a UR
   disposers.pop()!();
   for (let visit = 0; visit < 2; visit += 1) {
     const returned = mountAddress();
-    await vi.waitFor(() => expect(returned.textContent).toContain("Your records are ready to publish"));
+    await vi.waitFor(() => expect(returned.textContent).toContain("Checking published records"));
     expect(returned.textContent).not.toContain("Handshake root");
     disposers.pop()!();
   }
