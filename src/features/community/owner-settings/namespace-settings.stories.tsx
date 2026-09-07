@@ -79,7 +79,7 @@ export const CompleteResource: Story = {
     await expect(canvas.getAllByText("DS")).toHaveLength(4);
     await expect(canvas.getByText("Records kept live (2)")).toBeInTheDocument();
     await expect(canvas.getByText("Records added by this update (3)")).toBeInTheDocument();
-    await expect(canvas.getByText("Records not carried over (1)")).toBeInTheDocument();
+    await expect(canvas.getByText("Existing records being replaced (1)")).toBeInTheDocument();
     await expect(canvas.getByText(/make up the complete list of 5 records/)).toBeInTheDocument();
   },
 };
@@ -90,6 +90,26 @@ export const UnsupportedRecordsBlocked: Story = {
     const canvas = within(canvasElement);
     await expect(canvas.getByRole("alert")).toHaveTextContent("Unsupported records");
     await expect(canvas.queryByRole("button", { name: "I published all records manually" })).not.toBeInTheDocument();
+  },
+};
+
+export const ReaddedDelegationRecord: Story = {
+  args: argsFor({
+    kind: "publish_resource",
+    acknowledgement_required: true,
+    replacement_semantics: "complete_resource",
+    records: hnsCompleteResource,
+    added_records: hnsCompleteResource,
+    preserved_records: [],
+    preserved_unknown_record_types: [],
+    removed_records: [hnsCompleteResource[0]],
+  }),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByText("Existing records being replaced (1)")).toBeInTheDocument();
+    await expect(canvas.getByText(/A record may appear in both lists when its value stays the same/)).toBeInTheDocument();
+    await expect(canvas.getByText(/Kept \(0\) plus added \(5\)/)).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: "I published all records manually" })).toBeEnabled();
   },
 };
 
