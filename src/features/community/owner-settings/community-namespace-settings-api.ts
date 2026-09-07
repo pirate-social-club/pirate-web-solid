@@ -165,12 +165,17 @@ function mapSnapshot(
   }
   if (response.status === "awaiting_owner_update" || response.status === "observing") {
     const pending = response.status === "observing" || response.publication_check_pending === true;
+    const plan = response.publish_plan;
     return { ...common, next_action: {
       kind: "publish_resource",
       acknowledgement_required: true,
       replacement_semantics: "complete_resource",
-      records: resourceRecords(response.publish_plan.replacement_records),
-      ...(pending ? {check_pending: true, retry_after_seconds: response.retry_after_seconds} : {}),
+      records: resourceRecords(plan.replacement_records),
+      preserved_records: resourceRecords(plan.preserved_records),
+      added_records: resourceRecords(plan.added_records),
+      removed_records: resourceRecords(plan.removed_conflicts),
+      preserved_unknown_record_types: [...plan.preserved_unknown_record_types],
+      ...(pending ? { check_pending: true, retry_after_seconds: response.retry_after_seconds } : {}),
     } };
   }
   if (response.status === "ready") {

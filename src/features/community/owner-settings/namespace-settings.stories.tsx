@@ -3,7 +3,7 @@ import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import { expect, fn, userEvent, within } from "storybook/test";
 
 import { CommunityNamespaceSettingsPanel } from "./community-namespace-settings-panel";
-import { createFakeNamespaceSettingsPort, hnsCompleteResource, namespaceIdempotencyKeys, namespaceState, unsupportedHnsRecords } from "./fake-owner-settings-port";
+import { createFakeNamespaceSettingsPort, hnsChangeClassification, hnsCompleteResource, namespaceIdempotencyKeys, namespaceState, unsupportedHnsRecords } from "./fake-owner-settings-port";
 import type { CommunityHnsWallet } from "./community-hns-wallet";
 import type { NamespaceNextAction, NamespaceSettingsSnapshot } from "./owner-settings-model";
 
@@ -71,17 +71,19 @@ export const SignOwnership: Story = {
 };
 
 export const CompleteResource: Story = {
-  args: argsFor({ kind: "publish_resource", acknowledgement_required: true, replacement_semantics: "complete_resource", records: hnsCompleteResource }),
+  args: argsFor({ kind: "publish_resource", acknowledgement_required: true, replacement_semantics: "complete_resource", records: hnsCompleteResource, ...hnsChangeClassification }),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(canvas.getByText("Publish this complete resource")).toBeInTheDocument();
     await expect(canvas.getByText(/replaces the complete resource/)).toBeInTheDocument();
-    await expect(canvas.getAllByText("DS")).toHaveLength(2);
+    await expect(canvas.getAllByText("DS")).toHaveLength(4);
+    await expect(canvas.getByText("Records kept live (2)")).toBeInTheDocument();
+    await expect(canvas.getByText("Records added by this update (3)")).toBeInTheDocument();
   },
 };
 
 export const UnsupportedRecordsBlocked: Story = {
-  args: argsFor({ kind: "publish_resource", acknowledgement_required: true, replacement_semantics: "complete_resource", records: unsupportedHnsRecords }),
+  args: argsFor({ kind: "publish_resource", acknowledgement_required: true, replacement_semantics: "complete_resource", records: unsupportedHnsRecords, ...hnsChangeClassification }),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(canvas.getByRole("alert")).toHaveTextContent("Unsupported records");

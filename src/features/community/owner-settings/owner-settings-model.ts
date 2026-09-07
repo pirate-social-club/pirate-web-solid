@@ -125,11 +125,15 @@ export type NamespaceNextAction =
       root_label: string;
     }>
   | Readonly<{
+      added_records: ReadonlyArray<NamespaceResourceRecord>;
       acknowledgement_required: true;
       kind: "publish_resource";
+      preserved_records: ReadonlyArray<NamespaceResourceRecord>;
+      preserved_unknown_record_types: ReadonlyArray<string>;
       check_pending?: boolean;
       retry_after_seconds?: number;
       records: ReadonlyArray<NamespaceResourceRecord>;
+      removed_records: ReadonlyArray<NamespaceResourceRecord>;
       replacement_semantics: "complete_resource";
     }>
   | Readonly<{
@@ -205,4 +209,13 @@ export type CommunityNamespaceSettingsPort = Readonly<{
 
 export function hasUnsupportedNamespaceRecords(action: NamespaceNextAction): boolean {
   return action.kind === "publish_resource" && action.records.some((record) => !record.supported);
+}
+
+export function hasNamespaceRecordChangeReview(
+  action: Extract<NamespaceNextAction, { kind: "publish_resource" }>,
+): boolean {
+  return action.preserved_records.length > 0
+    || action.added_records.length > 0
+    || action.removed_records.length > 0
+    || action.preserved_unknown_record_types.length > 0;
 }
