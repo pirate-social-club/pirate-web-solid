@@ -115,3 +115,13 @@ describe("owner settings route model", () => {
     expect(routedOwnerSettingsSection("namespace")).toBe("namespace");
   });
 });
+
+
+test("reports a failed moderation check separately from names authority", async () => {
+  await expect(loadOwnerSettingsRoute("harbor", dependencies({
+    moderationApi: { getCapabilities: async () => { throw new Error("offline"); } },
+  }))).resolves.toMatchObject({
+    kind: "success", access: { "community.names.manage": true },
+    unavailableSections: ["moderation_queue", "content_policy"],
+  });
+});

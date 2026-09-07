@@ -24,6 +24,7 @@ export type OwnerSettingsRouteState =
   | Readonly<{ kind: "error" }>
   | Readonly<{
       access: OwnerSettingsAccess;
+      unavailableSections?: ReadonlyArray<RoutedOwnerSettingsSection>;
       avatarUrl: string | null;
       communityId: string;
       communityName: string;
@@ -70,6 +71,9 @@ export async function loadOwnerSettingsRoute(
     dependencies.moderationApi.getCapabilities({ communityId: community.communityId }),
     dependencies.namesApi.getSnapshot({ communityId: community.communityId }),
   ]);
+  const unavailableSections: RoutedOwnerSettingsSection[] = [];
+  if (moderation.status === "rejected" && !isRedactedOwnerResponse(moderation.reason)) unavailableSections.push("moderation_queue", "content_policy");
+  if (names.status === "rejected" && !isRedactedOwnerResponse(names.reason)) unavailableSections.push("namespace", "names");
   let access: OwnerSettingsAccess = {};
   if (moderation.status === "fulfilled") {
     access = ownerSettingsAccessFromModerationCapabilities(moderation.value);
@@ -85,6 +89,7 @@ export async function loadOwnerSettingsRoute(
 
   return {
     access,
+    ...(unavailableSections.length ? { unavailableSections } : {}),
     avatarUrl: community.community.avatarSrc ?? null,
     communityId: community.communityId,
     communityName: community.community.displayName,

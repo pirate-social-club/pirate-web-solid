@@ -4,8 +4,6 @@ import { For, Show } from "solid-js";
 import {
   Button,
   Card,
-  FlatTabBar,
-  FlatTabButton,
   Spinner,
   Type,
   cn,
@@ -19,6 +17,7 @@ import {
 
 export interface CommunityOwnerSettingsShellProps {
   access: OwnerSettingsAccess;
+  unavailableSections?: ReadonlyArray<OwnerSettingsSection>;
   activeSection: OwnerSettingsSection;
   children: JSX.Element;
   class?: string;
@@ -33,7 +32,7 @@ export interface CommunityOwnerSettingsShellProps {
 
 export function CommunityOwnerSettingsShell(props: CommunityOwnerSettingsShellProps) {
   const status = () => props.status ?? "ready";
-  const groups = () => visibleOwnerSettingsGroups(props.access);
+  const groups = () => visibleOwnerSettingsGroups(props.access, props.unavailableSections);
   const dirty = () => new Set(props.dirtySections ?? []);
   const activeLabel = () => groups().flatMap((group) => group.items).find((item) => item.section === props.activeSection)?.label ?? "Settings";
   const activeTitle = () => ({
@@ -61,23 +60,27 @@ export function CommunityOwnerSettingsShell(props: CommunityOwnerSettingsShellPr
         </div>
       </header>
 
+      <div class="mx-auto grid max-w-6xl md:grid-cols-[13rem_minmax(0,1fr)]">
       <Show when={groups().length > 0}>
-        <nav aria-label="Owner settings sections" class="sticky top-16 z-20 border-b border-border-soft bg-background/95 px-4 backdrop-blur-md md:top-0 md:px-8">
-          <div class="mx-auto w-full max-w-6xl">
-            <FlatTabBar>
-              <For each={groups().flatMap((group) => group.items)}>
-                {(item) => (
-                  <FlatTabButton active={item.section === props.activeSection} onClick={() => props.onSectionChange(item.section)}>
-                    {item.label}{dirty().has(item.section) ? " •" : ""}
-                  </FlatTabButton>
-                )}
-              </For>
-            </FlatTabBar>
+        <nav aria-label="Owner settings sections" class="border-b border-border-soft bg-background p-4 md:border-b-0 md:border-r md:py-8">
+          <div class="flex gap-1 overflow-x-auto md:sticky md:top-4 md:flex-col">
+            <For each={groups().flatMap(group => group.items)}>
+              {item => (
+                <Button
+                  class="shrink-0 justify-start"
+                  variant={item.section === props.activeSection ? "secondary" : "ghost"}
+                  aria-current={item.section === props.activeSection ? "page" : undefined}
+                  onClick={() => props.onSectionChange(item.section)}
+                >
+                  {item.label}{dirty().has(item.section) ? " •" : ""}
+                </Button>
+              )}
+            </For>
           </div>
         </nav>
       </Show>
 
-      <section aria-label={activeLabel()} class="mx-auto min-w-0 max-w-6xl px-4 py-6 md:px-8 md:py-8">
+      <section aria-label={activeLabel()} class="w-full min-w-0 px-4 py-6 md:px-8 md:py-8">
             <Show when={groups().length > 0 && status() === "ready"}>
               <Type as="h2" class="sr-only" variant="h2">{activeTitle()} settings</Type>
             </Show>
@@ -113,6 +116,7 @@ export function CommunityOwnerSettingsShell(props: CommunityOwnerSettingsShellPr
               </Show>
             </Show>
       </section>
+      </div>
     </main>
   );
 }

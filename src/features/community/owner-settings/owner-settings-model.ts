@@ -45,7 +45,7 @@ const OWNER_SETTINGS_GROUPS: ReadonlyArray<OwnerSettingsNavGroup> = [
   {
     label: "Moderation",
     items: [
-      { section: "moderation_queue", capability: "community.moderation.manage", label: "Queue", description: "Reported content that needs review" },
+      { section: "moderation_queue", capability: "community.moderation.manage", label: "Moderation queue", description: "Reported content that needs review" },
     ],
   },
   {
@@ -62,9 +62,9 @@ const OWNER_SETTINGS_GROUPS: ReadonlyArray<OwnerSettingsNavGroup> = [
   },
 ];
 
-export function visibleOwnerSettingsGroups(access: OwnerSettingsAccess): ReadonlyArray<OwnerSettingsNavGroup> {
+export function visibleOwnerSettingsGroups(access: OwnerSettingsAccess, unavailable: ReadonlyArray<OwnerSettingsSection> = []): ReadonlyArray<OwnerSettingsNavGroup> {
   return OWNER_SETTINGS_GROUPS
-    .map((group) => ({ ...group, items: group.items.filter((item) => access[item.capability]) }))
+    .map((group) => ({ ...group, items: group.items.filter((item) => access[item.capability] || unavailable.includes(item.section)) }))
     .filter((group) => group.items.length > 0);
 }
 

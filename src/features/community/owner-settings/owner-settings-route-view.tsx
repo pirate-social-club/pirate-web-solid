@@ -1,5 +1,5 @@
 import { Title } from "@solidjs/meta";
-import { Card, Type } from "@pirate/web-solid-ui";
+import { Button, Card, Type } from "@pirate/web-solid-ui";
 import { Loading, Show, createEffect, createMemo } from "solid-js";
 
 import type { CommunityModerationSettingsApi } from "./community-moderation-settings-api";
@@ -55,6 +55,9 @@ function RouteMessage(props: { state: OwnerSettingsRouteState }) {
       <Card class="w-full max-w-lg p-6">
         <Type as="h1" variant="h2">{copy().title}</Type>
         <Type as="p" class="mt-2 text-muted-foreground" variant="body">{copy().body}</Type>
+        <Show when={props.state.kind === "error" || props.state.kind === "unavailable"}>
+          <Button class="mt-4" onClick={() => window.location.reload()}>Try again</Button>
+        </Show>
       </Card>
     </main>
   );
@@ -67,7 +70,7 @@ function ResolvedOwnerSettingsRouteView(props: ResolvedOwnerSettingsRouteViewPro
     if (state === undefined) return null;
     const requested = routedOwnerSettingsSection(props.requestedSection);
     if (requested !== null) {
-      const visible = visibleOwnerSettingsGroups(state.access)
+      const visible = visibleOwnerSettingsGroups(state.access, state.unavailableSections)
         .flatMap((group) => group.items)
         .some((item) => item.section === requested);
       if (visible) return requested;
@@ -92,6 +95,10 @@ function ResolvedOwnerSettingsRouteView(props: ResolvedOwnerSettingsRouteViewPro
             <Title>{state().communityName} settings</Title>
             <CommunityOwnerSettingsShell
               access={state().access}
+              unavailableSections={state().unavailableSections}
+              status={state().unavailableSections?.includes(section()) ? "error" : "ready"}
+              errorMessage="This settings check failed. Your access could not be determined. Try again."
+              onRetry={() => window.location.reload()}
               activeSection={section()}
               communityName={state().communityName}
               onCommunityClick={() => props.navigate(state().communityPath)}
