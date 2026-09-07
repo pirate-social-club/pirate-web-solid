@@ -27,11 +27,18 @@ const session = {
   replayed: false, root_import_session_id: "session-1", root_label: "midnight", revision: 3,
   status: "awaiting_owner_update", publication_check_pending: false,
   publish_plan: {
-    added_records: [],
-    preserved_records: [],
+    added_records: [
+      { type: "TXT", txt: ["pirate-verification=session-1"] },
+      { type: "DS", keyTag: 10875, algorithm: 13, digestType: 2, digest: "ba5d84ad6e3e7ec452a569ee2e6c447ba2b9b533de65c58e59f2f0b7f0773045" },
+    ],
+    preserved_records: [{ type: "NS", ns: "ns1.midnight" }],
     preserved_unknown_record_types: [],
-    removed_conflicts: [],
-    replacement_records: [{ type: "NS", ns: "ns1.midnight" }],
+    removed_conflicts: [{ type: "NS", ns: "old-ns.example." }],
+    replacement_records: [
+      { type: "NS", ns: "ns1.midnight" },
+      { type: "TXT", txt: ["pirate-verification=session-1"] },
+      { type: "DS", keyTag: 10875, algorithm: 13, digestType: 2, digest: "ba5d84ad6e3e7ec452a569ee2e6c447ba2b9b533de65c58e59f2f0b7f0773045" },
+    ],
   },
   publish_plan_sha256: "plan-hash", readiness_result_sha256: null, retry_after_seconds: 2,
 };

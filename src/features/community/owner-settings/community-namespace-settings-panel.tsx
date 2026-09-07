@@ -217,7 +217,7 @@ function ServerDirectedAction(props: Pick<CommunityNamespaceSettingsPanelProps, 
                 <div class="space-y-2">
                   <Type as="h2" variant="h2">Review changes to existing records</Type>
                   <Type as="p" class="text-muted-foreground" variant="caption">
-                    Your wallet update replaces the complete resource. These lists show how the update treats the records that are live on this name now.
+                    These lists show how the update treats the records that are live on this name now. Only the complete resource in the next card remains live after your wallet update publishes.
                   </Type>
                 </div>
                 <Show when={current().preserved_records.length > 0}>
@@ -234,10 +234,13 @@ function ServerDirectedAction(props: Pick<CommunityNamespaceSettingsPanelProps, 
                 </Show>
                 <Show when={current().removed_records.length > 0}>
                   <div class="space-y-3">
-                    <Type as="h3" variant="h3">Records removed by this update ({current().removed_records.length})</Type>
+                    <Type as="h3" variant="h3">Records not carried over ({current().removed_records.length})</Type>
                     <NamespaceRecordList records={current().removed_records} />
                   </div>
                 </Show>
+                <FormNote>
+                  Kept ({current().preserved_records.length}) plus added ({current().added_records.length}) make up the complete list of {current().records.length} records below.
+                </FormNote>
                 <Show when={current().preserved_unknown_record_types.length > 0}>
                   <FormNote>
                     Kept live without interpretation: {current().preserved_unknown_record_types.join(", ")}.
@@ -245,7 +248,7 @@ function ServerDirectedAction(props: Pick<CommunityNamespaceSettingsPanelProps, 
                 </Show>
                 <Show when={current().removed_records.length > 0}>
                   <FormNote tone="warning">
-                    Removed records stop resolving once your wallet update is published. Review them before approving the update.
+                    Records not carried over are not included in the complete resource, and a Handshake update swaps the entire record set at once, so they stop being live once your update publishes. Resolvers may keep serving cached answers until those expire.
                   </FormNote>
                 </Show>
               </Card>
