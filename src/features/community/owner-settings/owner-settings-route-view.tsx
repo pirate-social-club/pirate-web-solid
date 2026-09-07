@@ -75,7 +75,7 @@ function ResolvedOwnerSettingsRouteView(props: ResolvedOwnerSettingsRouteViewPro
         .some((item) => item.section === requested);
       if (visible) return requested;
     }
-    return firstRoutedOwnerSettingsSection(state.access);
+    return firstRoutedOwnerSettingsSection(state.access, state.unavailableSections);
   });
 
   createEffect(

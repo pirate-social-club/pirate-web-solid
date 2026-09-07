@@ -3,7 +3,7 @@ import { defineFileRoute } from "@solidjs/router/fs";
 import { getRequestEvent, httpHeader, httpStatus } from "@solidjs/web";
 
 import { createPublicCommunityRouteClient } from "../../../../api/community-route-client";
-import type { ApiFetch } from "../../../../api/proxy";
+import type { OwnerSettingsPreflight } from "../../../../features/community/owner-settings/owner-settings-preflight";
 import { createCommunityModerationSettingsApi } from "../../../../features/community/owner-settings/community-moderation-settings-api";
 import { createCommunityNamesSettingsApi } from "../../../../features/community/owner-settings/community-names-settings-api";
 import {
@@ -21,24 +21,12 @@ function requestOrigin(): string | undefined {
   return globalThis.location?.origin;
 }
 
-/** Forward only the current request cookie into same-origin SSR API calls. */
-export function ownerSettingsRequestFetch(request: Request, fetchImpl: ApiFetch = fetch): ApiFetch {
-  return (input, init) => {
-    const headers = new Headers(init?.headers);
-    const cookie = request.headers.get("cookie");
-    if (cookie !== null) headers.set("cookie", cookie);
-    return fetchImpl(input, { ...init, headers });
-  };
-}
-
 function routeDependencies(): OwnerSettingsRouteDependencies {
-  const event = getRequestEvent();
   const origin = requestOrigin();
-  const fetchImpl = event === undefined ? undefined : ownerSettingsRequestFetch(event.request);
   return {
-    communityClient: createPublicCommunityRouteClient({ fetchImpl, origin }),
-    moderationApi: createCommunityModerationSettingsApi({ fetchImpl, origin }),
-    namesApi: createCommunityNamesSettingsApi({ fetchImpl, origin }),
+    communityClient: createPublicCommunityRouteClient({ origin }),
+    moderationApi: createCommunityModerationSettingsApi({ origin }),
+    namesApi: createCommunityNamesSettingsApi({ origin }),
   };
 }
 
@@ -67,7 +55,13 @@ const queryOwnerSettingsRoute = query(
 );
 
 export const route = defineFileRoute("/c/:path_segment/settings/:section", {
-  preload: ({ params }) => queryOwnerSettingsRoute(decodeCommunityRouteParam(params.path_segment)),
+  preload: ({ params }) => {
+    const decoded = decodeCommunityRouteParam(params.path_segment);
+    // SAFETY: entry-server writes this request-local key only after validated API reads.
+    const settled = getRequestEvent()?.locals.ownerSettingsPreflight as OwnerSettingsPreflight | undefined;
+    if (settled?.requestedPathSegment === decoded) return settled.state;
+    return queryOwnerSettingsRoute(decoded);
+  },
 });
 
 export default function CommunityOwnerSettingsRoute(props: RouteProps<typeof route>) {
