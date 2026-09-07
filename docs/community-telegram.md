@@ -31,3 +31,17 @@ artifact. Backend activation, wrapping secrets, queues and migration 0131 are
 documented in api-next's community Telegram runbook. The backend feature remains
 disabled until an authorized activation; no credentials, webhook or deployment
 were provisioned by this change.
+
+API keys are encrypted with AES-256-GCM in api-next PostgreSQL records. The
+wrapping key is separate: Infisical owns its canonical custody, and the API
+and jobs Workers receive it as a secret binding during activation. Keys are
+validated server-side before replacement; reads expose status only. The
+browser does not persist keys in localStorage or call providers directly.
+
+Staging preparation on 2026-09-08 created the Telegram queue and stored the
+wrapping key in Infisical. Live staging remains on schema 0109 behind the
+coordinated persona reset/release gate. Telegram requires schema 0131, so the
+moderation routes and provider checks have not been deployed or exercised live.
+The serving Worker secrets were not changed. After the paired release, an
+owner must enter the dedicated test bot and provider keys through these panels
+before controlled channel, text and voice acceptance.
