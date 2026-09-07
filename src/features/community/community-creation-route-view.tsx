@@ -1,6 +1,6 @@
 import { ApiClientError } from "@pirate/api-client";
 import { Title } from "@solidjs/meta";
-import { Show, createEffect, createSignal, onCleanup } from "solid-js";
+import { createEffect, createSignal, onCleanup } from "solid-js";
 
 import {
   onSessionRefreshed,
@@ -9,8 +9,7 @@ import {
   type AuthenticatedSession,
   type SessionResolution,
 } from "../../api/session";
-import { Button, FormNote, Type } from "../../design-system";
-import { preloadGlobalSignInAssets, prepareGlobalSignIn, requestGlobalSignIn, requestGlobalSignInCompletion } from "../auth/global-sign-in-host";
+import { requestGlobalSignIn, requestGlobalSignInCompletion } from "../auth/global-sign-in-host";
 import {
   communityCreationCandidates,
   type CommunityPersonaChoice,
@@ -20,7 +19,6 @@ import {
   createCommunityCreationApi,
   type CommunityCreationApi,
 } from "./community-creation-api";
-import { CommunityCreationProgressView } from "./community-creation-progress/community-creation-progress";
 import type { CommunityCreationIntentView } from "./community-creation-progress/community-creation-progress-model";
 import { CreateCommunityView } from "./create-community/create-community";
 import { createEmptyDraft, type CreateCommunityDraft } from "./create-community/create-community-model";
@@ -69,14 +67,21 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
   const api = props.api ?? createCommunityCreationApi();
   const [session, setSession] = createSignal<RouteSession>("resolving");
   const [draft, setDraft] = createSignal<CreateCommunityDraft>(createEmptyDraft(undefined));
+  const [draftEdited, setDraftEdited] = createSignal(false);
   const [displayPersonas, setDisplayPersonas] = createSignal<AuthenticatedSession["personas"]>([]);
   const [intentOwnerId, setIntentOwnerId] = createSignal<string>();
   const [intent, setIntent] = createSignal<CommunityCreationIntentView>();
-  const applyIntent = (incoming: CommunityCreationIntentView) => setIntent(current =>
-    current?.intentId === incoming.intentId && current.revision > incoming.revision ? current : incoming);
+  const applyIntent = (incoming: CommunityCreationIntentView) => {
+    const current = intent();
+    if (current?.intentId === incoming.intentId && current.revision > incoming.revision) return current;
+    setIntent(incoming);
+    return incoming;
+  };
   const [busy, setBusy] = createSignal(false);
   const [message, setMessage] = createSignal("");
-  const [staleRevision, setStaleRevision] = createSignal<{ expectedRevision: number } | null>(null);
+  const [intentReadFailed, setIntentReadFailed] = createSignal(false);
+  let continuing = false;
+  const [loadingSaved, setLoadingSaved] = createSignal(!!props.intentId?.trim());
   const commandKeys = new Map<string, string>();
   const activationAbort = new AbortController();
   let active = true;
@@ -104,18 +109,29 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
     return created;
   };
 
-  const loadIntent = async (intentId: string, preserveStaleRevision = false, owner = signedIn(session())) => {
+  const loadIntent = async (intentId: string, owner = signedIn(session())) => {
     if (!owner) return;
     const request = sessionRequest;
+    setLoadingSaved(true);
+    setIntentReadFailed(false);
     try {
-      const latest = await api.getIntent({ intentId });
+      const response = await api.getIntent({ intentId });
       if (!active || request !== sessionRequest) return;
       setIntentOwnerId(owner.userId);
-      applyIntent(latest);
-      if (!preserveStaleRevision) setStaleRevision(null);
+      const latest = applyIntent(response);
+      if (latest.draft && !draftEdited()) setDraft(latest.draft);
+      if (latest.nextAction.kind === "blocked") setMessage("This saved draft cannot be completed here. Start a new community.");
+      if (latest.nextAction.kind === "none" && !latest.committedHref) setMessage("This saved draft has ended. Start a new community.");
+      if (latest.committedHref) navigate(latest.committedHref);
+      setLoadingSaved(false);
       return latest;
     } catch (error) {
-      if (active && request === sessionRequest) setMessage(safeError(error, "Could not refresh this community draft. Try again."));
+      if (active && request === sessionRequest) {
+        setLoadingSaved(false);
+        setIntentReadFailed(true);
+        continuing = false;
+        setMessage(safeError(error, "Could not load your saved draft. Try again."));
+      }
     }
   };
 
@@ -128,28 +144,33 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
         sessionInFlight = false;
         setSession(result);
         if (result === "anonymous") {
+          continuing = false;
+          setLoadingSaved(false);
           setDisplayPersonas([]);
           setDraft(current => ({ ...current, persona: { kind: "create_new" } }));
           setIntent(undefined);
         } else {
           const changedOwner = intentOwnerId() !== undefined && intentOwnerId() !== result.userId;
-          if (changedOwner) setIntent(undefined);
+          if (changedOwner) { continuing = false; setIntent(undefined); }
           if (!result.personasUnavailable) {
             setDisplayPersonas(result.personas);
             setDraft(current => {
+              if (intent()) return current;
               const selected = current.persona;
               const eligible = selected?.kind === "existing" && communityCreationCandidates(result.personas).some(persona => persona.personaId === selected.personaId);
               return { ...current, persona: selected?.kind !== "existing" || eligible ? selected : { kind: "create_new" } };
             });
           }
           const resumeId = props.intentId?.trim() ?? intent()?.intentId;
-          if (resumeId) void loadIntent(resumeId, false, result);
+          if (resumeId) void loadIntent(resumeId, result);
         }
       })
       .catch(() => {
         if (active && request === sessionRequest) {
           sessionInFlight = false;
+          continuing = false;
           setSession("failed");
+          setLoadingSaved(false);
         }
       });
   };
@@ -182,11 +203,23 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
   onCleanup(() => { active = false; activationAbort.abort(); });
 
   createEffect(
-    () => ({ current: intent(), authenticated: signedIn(session()) !== undefined }),
-    ({ current, authenticated }) => {
-    if (!authenticated || current?.nextAction.kind !== "wait") return;
+    () => ({ current: intent(), authenticated: signedIn(session()) !== undefined, failed: intentReadFailed() }),
+    ({ current, authenticated, failed }) => {
+    if (!authenticated || failed || current?.nextAction.kind !== "wait") return;
     const delay = Math.max(1, current.nextAction.retryAfterSeconds ?? 3) * 1_000;
-    const timer = window.setTimeout(() => void loadIntent(current.intentId), delay);
+    const timer = window.setTimeout(() => {
+      if (loadingSaved()) return;
+      void loadIntent(current.intentId).then(async latest => {
+        if (!latest || !continuing || !active || busy()) return;
+        const owner = intentOwnerId();
+        if (!owner || signedIn(session())?.userId !== owner) { continuing = false; return; }
+        setBusy(true);
+        try {
+          if (latest.nextAction.kind === "commit") await runCommit(latest.revision, latest.intentId, owner, true);
+          else if (latest.nextAction.kind === "activate_profile") await activateProfile(latest, owner);
+        } finally { if (active) setBusy(false); }
+      });
+    }, delay);
     onCleanup(() => window.clearTimeout(timer));
     },
   );
@@ -212,18 +245,17 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
       });
       if (!active || signedIn(session())?.userId !== expectedOwnerId) return;
       applyIntent(committed);
-      setStaleRevision(null);
       if (committed.committedHref) {
         refreshingAfterCommit = true;
         try { refreshSession(); } finally { refreshingAfterCommit = false; }
       }
-      if (navigateOnSuccess && committed.committedHref) navigate(committed.committedHref);
+      if (committed.committedHref) navigate(committed.committedHref);
       else if (navigateOnSuccess && committed.nextAction.kind === "activate_profile") await activateProfile(committed, expectedOwnerId);
     } catch (error) {
+      continuing = false;
       if (!active) return;
       if (rejectionStatus(error) === 409) {
-        const latest = await loadIntent(intentId, true);
-        if (latest && latest.revision !== expectedRevision) setStaleRevision({ expectedRevision });
+        await loadIntent(intentId);
         setMessage(safeError(error, "Could not finish creating this community. Your draft is saved."));
       } else {
         setMessage(safeError(error, "Could not finish creating this community. Try again."));
@@ -242,7 +274,11 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
       applyIntent(latest);
       if (latest.nextAction.kind === "activate_profile") {
         const confirmed = await (props.confirmIdentity ?? requestGlobalSignInCompletion)(activationAbort.signal);
-        if (!confirmed || !active) return;
+        if (!confirmed || !active) {
+          continuing = false;
+          if (active) setMessage("Creation was not completed. Your draft is saved; try again when ready.");
+          return;
+        }
         const resolved = await (props.resolveSession ?? resolveSession)();
         if (!active) return;
         setSession(resolved);
@@ -255,21 +291,22 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
       const ready = await api.getIntent({ intentId: saved.intentId });
       if (!active || signedIn(session())?.userId !== expectedOwner) return;
       applyIntent(ready);
-      if (ready.nextAction.kind === "commit") {
+      if (ready.committedHref) {
+        navigate(ready.committedHref);
+      } else if (ready.nextAction.kind === "commit") {
         await runCommit(ready.revision, ready.intentId, expectedOwner);
-        const href = intent()?.committedHref;
-        if (href) navigate(href);
       } else if (ready.nextAction.kind === "activate_profile") {
-        setMessage("Your profile setup did not finish. Your community is still private and saved. Continue setup to try again.");
+        setMessage("Could not finish creating your profile. Your draft is saved. Try again.");
       }
     } catch (error) {
+      continuing = false;
       if (active) setMessage(safeError(error, "Could not finish profile setup. Your community is still private and saved. Try again."));
     }
   };
 
   const submit = async () => {
     const currentDraft = draft();
-    if (busy() || props.intentId?.trim()) return;
+    if (busy() || loadingSaved() || sessionInFlight) return;
     const owner = signedIn(session());
     if (!owner) {
       if (session() === "anonymous") requestGlobalSignIn();
@@ -277,6 +314,35 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
       else setMessage("Your draft is ready. Your account must be checked before it can be created.");
       return;
     }
+    continuing = true;
+    const saved = intent();
+    if (saved) {
+      if (intentOwnerId() !== owner.userId) {
+        setMessage("Sign in with the account that saved this community, then reload the draft.");
+        return;
+      }
+      setBusy(true);
+      try {
+        let latest = await loadIntent(saved.intentId);
+        if (!latest || !active || signedIn(session())?.userId !== owner.userId) return;
+        if (latest.committedHref) return;
+        if (draftEdited()) {
+          const updated = await api.updateIntent({ intentId: saved.intentId, expectedRevision: saved.revision, draft: currentDraft, idempotencyKey: commandKey("update") });
+          if (!active || signedIn(session())?.userId !== owner.userId) return;
+          latest = applyIntent(updated);
+          setDraftEdited(false);
+          setMessage("");
+        }
+        if (latest.nextAction.kind === "activate_profile") await activateProfile(latest, owner.userId);
+        else if (latest.nextAction.kind === "commit") await runCommit(latest.revision, latest.intentId, owner.userId, true);
+        else if (latest.nextAction.kind !== "wait") setMessage("This saved draft cannot be created. Start a new community.");
+      } catch (error) {
+        continuing = false;
+        if (active) setMessage(safeError(error, "Could not save your changes. Your draft is still here. Try again."));
+      } finally { if (active) setBusy(false); }
+      return;
+    }
+    if (props.intentId?.trim()) { await loadIntent(props.intentId.trim()); return; }
     if (owner.personasUnavailable && currentDraft.persona?.kind === "existing") {
       retrySessionResolution();
       return;
@@ -304,17 +370,8 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
         await runCommit(created.revision, created.intentId, owner.userId, true);
       }
     } catch (error) {
+      continuing = false;
       if (active) setMessage(safeError(error, "Could not create this community draft. Try again."));
-    } finally {
-      if (active) setBusy(false);
-    }
-  };
-
-  const commit = async (expectedRevision: number, intentId: string) => {
-    if (busy()) return;
-    setBusy(true);
-    try {
-      await runCommit(expectedRevision, intentId, intentOwnerId());
     } finally {
       if (active) setBusy(false);
     }
@@ -333,75 +390,33 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
   return (
     <main data-creation-state={creationState()} data-route-path="/communities/new" class="min-h-[calc(100dvh-4rem)] bg-background text-foreground">
       <Title>Create community · Pirate</Title>
-      <Show when={session() === "failed"}>
-        <div class="mx-auto flex max-w-2xl items-center gap-3 px-5 pt-4">
-          <FormNote tone="destructive">Could not check your account. Your draft is still here.</FormNote>
-          <Button onClick={retrySessionResolution} type="button">Retry account check</Button>
-        </div>
-      </Show>
-      <Show when={currentSession()?.personasUnavailable}>
-        <div class="mx-auto max-w-2xl px-5 pt-4">
-          <FormNote tone="destructive">You are signed in, but your community profiles could not be loaded. You can create a new profile, or retry before using an existing one.</FormNote>
-        </div>
-      </Show>
-      <Show when={currentSession()?.personasUnavailable}><div class="mx-auto max-w-2xl px-5 pt-3"><Button disabled={sessionInFlight} onClick={retrySessionResolution}>Retry profiles</Button></div></Show>
-      <Show when={session() === "anonymous"}>
-        <div class="mx-auto flex max-w-2xl items-center gap-3 px-5 pt-4">
-          <Type as="p" variant="body">Sign in to create a community</Type>
-          <Button onClick={requestGlobalSignIn} onFocus={prepareGlobalSignIn} onPointerDown={prepareGlobalSignIn} onPointerEnter={preloadGlobalSignInAssets} type="button">Sign in</Button>
-        </div>
-      </Show>
-      <Show when={message()}>{(error) => (
-        <FormNote class="mx-auto mt-4 max-w-2xl" tone="destructive">{error()}</FormNote>
-      )}</Show>
-      <Show when={intent()} fallback={(
-        <Show when={!props.intentId?.trim()} fallback={(
-          <section class="mx-auto max-w-2xl space-y-4 px-5 py-8" data-community-creation-resume>
-            <Type as="h1" variant="h2">Resume community creation</Type>
-            <Type as="p" variant="body">Your saved draft will appear here once your account and draft are checked.</Type>
-            <Show when={currentSession() && message()}>
-              <Button onClick={() => void loadIntent(props.intentId!.trim())}>Retry saved draft</Button>
-            </Show>
-          </section>
-        )}>
-          <CreateCommunityView
-            draft={draft()}
-            onClose={() => navigate("/")}
-            onDraftChange={(patch) => { commandKeys.delete("create"); setDraft(current => ({ ...current, ...patch })); }}
-            onSubmit={() => void submit()}
-            personas={displayPersonas()}
-            profilesUnavailable={!!currentSession()?.personasUnavailable}
-            showMediaFields={false}
-            accountChecking={session() === "resolving"}
-            submitting={busy()}
-            requirePersona={!!currentSession()}
-            submitLabel={currentSession()?.personasUnavailable && draft().persona?.kind === "existing" ? "Retry profiles" : session() === "anonymous" ? "Sign in to create" : session() === "failed" ? "Retry account check" : session() === "resolving" ? "Checking account" : undefined}
-            submitNote={!currentSession() ? "Your draft stays here while you sign in or check your account." : undefined}
-          />
-        </Show>
-      )}>
-        {(currentIntent) => (
-          <div class="px-5 py-8">
-            <Show when={!currentSession()}>
-              <FormNote class="mx-auto mb-5 max-w-2xl" tone="muted">Check your account before finishing this community. If you switched accounts, reload this saved draft after signing in with its owner account.</FormNote>
-            </Show>
-            <CommunityCreationProgressView
-              committing={busy()}
-              commitDisabled={!currentSession() || intentOwnerId() !== currentSession()?.userId}
-              intent={currentIntent()}
-              staleRevision={staleRevision()}
-              onActivateProfile={() => {
-                if (busy()) return;
-                setBusy(true);
-                void activateProfile(currentIntent(), intentOwnerId()).finally(() => { if (active) setBusy(false); });
-              }}
-              onCommit={({ expectedRevision, intentId }) => void commit(expectedRevision, intentId)}
-              onRetry={() => void loadIntent(currentIntent().intentId)}
-              onView={() => currentIntent().committedHref && navigate(currentIntent().committedHref!)}
-            />
-          </div>
-        )}
-      </Show>
+      <CreateCommunityView
+        draft={draft()}
+        onClose={() => navigate("/")}
+        onDraftChange={(patch) => {
+          if (busy() || loadingSaved() || (props.intentId?.trim() && !intent())) return;
+          continuing = false;
+          commandKeys.delete("create");
+          commandKeys.delete("update");
+          if (intent()) {
+            setDraftEdited(true);
+            setDraft(current => ({ ...current, name: patch.name ?? current.name, description: patch.description === undefined ? current.description : patch.description }));
+          } else setDraft(current => ({ ...current, ...patch }));
+        }}
+        onSubmit={() => void submit()}
+        personas={displayPersonas()}
+        profilesUnavailable={!!currentSession()?.personasUnavailable}
+        showMediaFields={false}
+        actionOnly={((!!intent() || !!props.intentId?.trim()) && !draftEdited()) || !currentSession()}
+        fieldsDisabled={loadingSaved() || (!!props.intentId?.trim() && !intent())}
+        ownerDisabled={!!intent()}
+        accountChecking={session() === "resolving" || loadingSaved()}
+        submitting={busy() || (intent()?.nextAction.kind === "wait" && !intentReadFailed())}
+        requirePersona={!!currentSession()}
+        failureMessage={message() || (session() === "failed" ? "Could not check your account. Your draft is still here." : currentSession()?.personasUnavailable ? "Could not load your existing profiles. You can still create a new profile." : "")}
+        onRetry={session() === "failed" || currentSession()?.personasUnavailable ? retrySessionResolution : props.intentId?.trim() && !intent() && message() ? () => void loadIntent(props.intentId!.trim()) : undefined}
+        retryLabel={session() === "failed" ? "Retry account check" : currentSession()?.personasUnavailable ? "Retry profiles" : "Retry saved draft"}
+      />
     </main>
   );
 }

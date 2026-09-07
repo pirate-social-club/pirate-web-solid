@@ -10,6 +10,10 @@ const oldProfile = {
   wallet_set: { evm: null }, community_binding: { community_id: "old-community", binding_source: "first_membership" }, created_at: timestamp, retired_at: null,
 };
 let draft;
+let releaseCreate;
+let creationReceived;
+const firstCreate = new Promise(resolve => { creationReceived = resolve; });
+let rejectFirstCreate = true;
 let activated = false;
 let committed = false;
 let commits = 0;
@@ -23,11 +27,25 @@ const intent = () => ({
   committed_resource: committed ? { authority_version: "optional_route_v2", community_id: "community_browser_owner", canonical_route: null, href: "/communities/community_browser_owner", persona_role_presentation: presentation } : null,
 });
 try {
-  const context = await browser.newContext();
+  const context = await browser.newContext({ viewport: process.env.SOLID_MOBILE === "1" ? { width: 390, height: 844 } : { width: 1280, height: 1000 } });
   await context.addCookies([{ name: "__Host-pirate_csrf", value: "browser-csrf", url: base.replace("http:", "https:"), secure: true, sameSite: "Lax" }]);
   const page = await context.newPage();
+  await page.route("**/communities/community_browser_owner", route => route.fulfill({ status: 200, contentType: "text/html", body: "<main>Community fixture</main>" }));
+  const stableForm = () => page.locator("[data-create-community]").evaluate(form => {
+    const rect = element => {
+      const value = element.getBoundingClientRect();
+      return { x: value.x + window.scrollX, y: value.y + window.scrollY, width: value.width, height: value.height };
+    };
+    return {
+      form: rect(form),
+      fields: [...form.querySelectorAll("input, textarea")].map(field => ({ rect: rect(field), value: field.value })),
+      labels: [...form.querySelectorAll("label")].map(label => label.textContent),
+      button: rect(form.querySelector("button[type=submit]")),
+      buttonText: form.querySelector("button[type=submit]").textContent.trim(),
+    };
+  });
   const errors = [];
-  page.on("pageerror", error => errors.push(error.message));
+  page.on("pageerror", error => { errors.push(error.message); console.error("page error:", error.message); });
   await page.route("**/api/**", async route => {
     const request = route.request();
     const path = new URL(request.url()).pathname;
@@ -39,6 +57,11 @@ try {
       draft = request.postDataJSON().draft;
       assert.equal(draft.public_name, "River Room");
       assert.deepEqual(draft.persona, { kind: "create_new" });
+      if (rejectFirstCreate) {
+        await new Promise(resolve => { releaseCreate = resolve; creationReceived(); });
+        rejectFirstCreate = false;
+        return route.fulfill({ status: 503, contentType: "application/json", body: JSON.stringify({ error: { code: "provider_unavailable", message: "Unavailable", retryable: true } }) });
+      }
       return respond(intent());
     }
     if (path.endsWith("/browser-owner-setup/commit")) {
@@ -53,11 +76,21 @@ try {
   const html = await response.text();
   assert(html.includes("Public name") && html.includes("data-create-community"));
   await page.locator("[data-creation-state='ready']").waitFor();
-  assert.equal(await page.getByText("Use an existing profile", { exact: true }).count(), 0);
+  assert.equal(await page.getByRole("button", { name: "Use an existing profile", exact: true }).count(), 0);
   await page.getByRole("textbox", { name: "Name", exact: true }).fill("New place");
   await page.getByRole("textbox", { name: "Public name", exact: true }).fill("River Room");
+  await page.getByRole("textbox", { name: "Public name", exact: true }).blur();
+  const before = await stableForm();
   await page.getByRole("button", { name: "Create", exact: true }).click();
-  await page.locator("[data-owner-activation]").waitFor();
+  await page.waitForFunction(() => document.querySelector("[data-create-community] fieldset").disabled);
+  assert.deepEqual(await stableForm(), before);
+  await firstCreate;
+  assert.equal(typeof releaseCreate, "function");
+  releaseCreate();
+  await page.getByRole("alert").filter({ hasText: "Could not create" }).waitFor();
+  assert.deepEqual(await stableForm(), before);
+  await page.getByRole("button", { name: "Create", exact: true }).click();
+  await page.getByRole("dialog").waitFor();
   assert.equal(commits, 1);
   assert.equal(committed, false);
   assert(page.url().includes("intent_id=browser-owner-setup"));
@@ -65,16 +98,20 @@ try {
   await page.keyboard.press("Escape");
   await page.getByRole("dialog").waitFor({ state: "hidden" });
   assert.equal(commits, 1);
+  assert.deepEqual(await stableForm(), before);
   // The real proof and account/index checks are exercised in API tests. Here
   // an interrupted activation completes before the browser resumes its URL.
   activated = true;
   await page.reload();
-  await page.locator("[data-community-creation-progress] button").first().click();
-  await page.locator("[data-committed-state]").waitFor();
+  await page.getByRole("button", { name: "Create", exact: true }).click();
+  await page.waitForURL("**/communities/community_browser_owner");
   assert.equal(commits, 2);
   assert.equal(await page.getByRole("dialog").count(), 0);
+  await page.goto(new URL("/communities/new?intent_id=browser-owner-setup", base).href);
+  await page.waitForURL("**/communities/community_browser_owner");
+  assert.equal(commits, 2);
   assert.deepEqual(errors, []);
-  console.log(JSON.stringify({ ok: true, ssrPublicName: true, boundFirstProfile: true, privateUntilActivation: true, dismissal: true, resumedPublication: true, commits }));
+  console.log(JSON.stringify({ ok: true, ssrPublicName: true, boundFirstProfile: true, privateUntilActivation: true, dismissal: true, resumedPublication: true, committedReloadRedirect: true, stableFormDimensions: true, commits }));
 } finally {
   await browser.close();
 }

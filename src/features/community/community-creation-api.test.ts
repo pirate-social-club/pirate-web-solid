@@ -135,6 +135,7 @@ describe("createCommunityCreationApi", () => {
     };
 
     await expect(api.createIntent({ draft, idempotencyKey: "create-key" })).resolves.toEqual({
+      draft,
       committedHref: null,
       expiresAt: "2026-08-31T00:00:00Z",
       intentId: "creation-1",
@@ -282,4 +283,18 @@ describe("createCommunityCreationApi", () => {
     })).rejects.toBeInstanceOf(CommunityCreationApiError);
     expect(requested).toBe(false);
   });
+});
+
+
+test("preserves supported additional requirements when restoring a draft", async () => {
+  const score = { requirement: "reputation-score", provider: "passport", minimumScore: 20 };
+  const original = creationIntent();
+  const api = createCommunityCreationApi({ origin: "https://web.test", fetchImpl: async () => response({ ...original, draft: { ...original.draft, policy: { version: 1, accessPaths: [{ id: "default", operator: "and", requirements: [{ requirement: "human-verification" }, score] }] } } }) });
+  expect((await api.getIntent({ intentId: "saved" })).draft?.additionalRequirements).toEqual([score]);
+});
+
+test("rejects an unsupported saved policy instead of silently rewriting it", async () => {
+  const original = creationIntent();
+  const api = createCommunityCreationApi({ origin: "https://web.test", fetchImpl: async () => response({ ...original, draft: { ...original.draft, policy: { version: 1, accessPaths: [{ id: "custom-path", operator: "and", requirements: [{ requirement: "human-verification" }] }] } } }) });
+  await expect(api.getIntent({ intentId: "saved" })).rejects.toMatchObject({ code: "unsupported_creation_contract" });
 });

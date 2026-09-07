@@ -34,13 +34,14 @@ export type CreationNextAction =
 
 /**
  * A narrow projection of the full creation intent, shaped for the progress
- * view. It carries `revision` because every mutating command needs it for
+ * view and resumable form. It carries `revision` because every mutating command needs it for
  * optimistic concurrency, even though the number is never rendered. It omits
- * wire fields the UI neither renders nor sends: the draft, the canonical policy
+ * wire fields the UI neither renders nor sends: the canonical policy
  * hash, requirement_hash, persona role presentation, and the committed resource
  * payload. Creator verification is no longer part of this progress model.
  */
 export interface CommunityCreationIntentView {
+  draft?: import("../create-community/create-community-model").CreateCommunityDraft;
   intentId: string;
   revision: number;
   status: CreationStatus;
