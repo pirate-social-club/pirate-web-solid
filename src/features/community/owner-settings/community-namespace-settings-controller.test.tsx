@@ -24,7 +24,13 @@ const session = {
   attachment_intent_id: "attachment-1", community_id: "community-1", expires_at: "2099-09-11T00:00:00.000Z",
   replayed: false, root_import_session_id: "session-1", root_label: "midnight", revision: 3,
   status: "awaiting_owner_update", publication_check_pending: false,
-  publish_plan: { replacement_records: [{ type: "NS", ns: "ns1.midnight" }] },
+  publish_plan: {
+    added_records: [],
+    preserved_records: [],
+    preserved_unknown_record_types: [],
+    removed_conflicts: [],
+    replacement_records: [{ type: "NS", ns: "ns1.midnight" }],
+  },
   publish_plan_sha256: "plan-hash", readiness_result_sha256: null, retry_after_seconds: 2,
 };
 type DiscoveryFixture = {

@@ -21,6 +21,20 @@ export const unsupportedHnsRecords: ReadonlyArray<NamespaceResourceRecord> = [
   { record_type: "TLSA", value: "3 1 1 2A8F…", supported: false },
 ];
 
+export interface HnsChangeClassification {
+  added_records: ReadonlyArray<NamespaceResourceRecord>;
+  preserved_records: ReadonlyArray<NamespaceResourceRecord>;
+  preserved_unknown_record_types: ReadonlyArray<string>;
+  removed_records: ReadonlyArray<NamespaceResourceRecord>;
+}
+
+export const hnsChangeClassification: HnsChangeClassification = {
+  added_records: HNS_COMPLETE_RESOURCE.slice(2),
+  preserved_records: HNS_COMPLETE_RESOURCE.slice(0, 2),
+  preserved_unknown_record_types: [],
+  removed_records: [],
+};
+
 export function createFakeProfileSettingsPort(initial: CommunityProfileDraft): CommunityProfileSettingsPort {
   let revision = 7;
   let profile = initial;
@@ -74,6 +88,7 @@ export function createFakeNamespaceSettingsPort(): CommunityNamespaceSettingsPor
           acknowledgement_required: true,
           replacement_semantics: "complete_resource",
           records: HNS_COMPLETE_RESOURCE,
+          ...hnsChangeClassification,
         } });
       } else if (command.kind === "acknowledge_complete_resource") {
         pollCount = 0;

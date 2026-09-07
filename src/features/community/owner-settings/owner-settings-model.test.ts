@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { createFakeNamespaceSettingsPort, namespaceIdempotencyKeys } from "./fake-owner-settings-port";
 import {
   firstVisibleOwnerSettingsSection,
+  hasNamespaceRecordChangeReview,
   hasUnsupportedNamespaceRecords,
   visibleOwnerSettingsGroups,
   type OwnerSettingsAccess,
@@ -57,8 +58,30 @@ describe("owner settings model", () => {
         { record_type: "NS", value: "ns1.pirate.", supported: true },
         { record_type: "TLSA", value: "3 1 1 fixture", supported: false },
       ],
+      preserved_records: [],
+      added_records: [],
+      removed_records: [],
+      preserved_unknown_record_types: [],
     })).toBe(true);
     expect(hasUnsupportedNamespaceRecords({ kind: "wait", reason_code: "verification_pending", retry_after_seconds: 5 })).toBe(false);
+  });
+
+  it("shows the change review only when the plan classifies at least one change", () => {
+    const empty = {
+      kind: "publish_resource",
+      acknowledgement_required: true,
+      replacement_semantics: "complete_resource",
+      records: [{ record_type: "NS", value: "ns1.pirate.", supported: true }],
+      preserved_records: [],
+      added_records: [],
+      removed_records: [],
+      preserved_unknown_record_types: [],
+    } as const;
+    expect(hasNamespaceRecordChangeReview(empty)).toBe(false);
+    expect(hasNamespaceRecordChangeReview({ ...empty, preserved_records: empty.records })).toBe(true);
+    expect(hasNamespaceRecordChangeReview({ ...empty, added_records: empty.records })).toBe(true);
+    expect(hasNamespaceRecordChangeReview({ ...empty, removed_records: empty.records })).toBe(true);
+    expect(hasNamespaceRecordChangeReview({ ...empty, preserved_unknown_record_types: ["TLSA"] })).toBe(true);
   });
 
   it("fences namespace commands and returns a complete HNS resource", async () => {

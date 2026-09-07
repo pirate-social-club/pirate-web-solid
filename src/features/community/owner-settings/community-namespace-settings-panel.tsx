@@ -15,6 +15,7 @@ import {
   buttonVariants,
 } from "@pirate/web-solid-ui";
 import {
+  hasNamespaceRecordChangeReview,
   hasUnsupportedNamespaceRecords,
   type NamespaceCommandIdempotencyKeys,
   type NamespaceNextAction,
@@ -209,6 +210,44 @@ function ServerDirectedAction(props: Pick<CommunityNamespaceSettingsPanelProps, 
       <Show when={publishAction(action())}>
         {(current) => (
           <>
+            <Show when={hasNamespaceRecordChangeReview(current())}>
+              <Card class="space-y-5 p-5 md:p-6">
+                <div class="space-y-2">
+                  <Type as="h2" variant="h2">Review changes to existing records</Type>
+                  <Type as="p" class="text-muted-foreground" variant="caption">
+                    Your wallet update replaces the complete resource. These lists show how the update treats the records that are live on this name now.
+                  </Type>
+                </div>
+                <Show when={current().preserved_records.length > 0}>
+                  <div class="space-y-3">
+                    <Type as="h3" variant="h3">Records kept live ({current().preserved_records.length})</Type>
+                    <NamespaceRecordList records={current().preserved_records} />
+                  </div>
+                </Show>
+                <Show when={current().added_records.length > 0}>
+                  <div class="space-y-3">
+                    <Type as="h3" variant="h3">Records added by this update ({current().added_records.length})</Type>
+                    <NamespaceRecordList records={current().added_records} />
+                  </div>
+                </Show>
+                <Show when={current().removed_records.length > 0}>
+                  <div class="space-y-3">
+                    <Type as="h3" variant="h3">Records removed by this update ({current().removed_records.length})</Type>
+                    <NamespaceRecordList records={current().removed_records} />
+                  </div>
+                </Show>
+                <Show when={current().preserved_unknown_record_types.length > 0}>
+                  <FormNote>
+                    Kept live without interpretation: {current().preserved_unknown_record_types.join(", ")}.
+                  </FormNote>
+                </Show>
+                <Show when={current().removed_records.length > 0}>
+                  <FormNote tone="warning">
+                    Removed records stop resolving once your wallet update is published. Review them before approving the update.
+                  </FormNote>
+                </Show>
+              </Card>
+            </Show>
             <Card class="space-y-5 p-5 md:p-6">
               <Show
                 when={!hasUnsupportedNamespaceRecords(current())}

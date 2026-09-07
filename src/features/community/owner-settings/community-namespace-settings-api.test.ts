@@ -13,11 +13,20 @@ const common = {
 
 const plan = {
   acknowledgement_required: true,
-  added_records: [],
-  current_records: [],
-  preserved_records: [],
+  added_records: [
+    { type: "TXT", txt: ["pirate-verification=session-1"] },
+  ],
+  current_records: [
+    { type: "NS", ns: "ns1.pirate" },
+    { type: "TXT", txt: ["previous-owner-note"] },
+  ],
+  preserved_records: [
+    { type: "NS", ns: "ns1.pirate" },
+  ],
   preserved_unknown_record_types: ["SYNTH4"],
-  removed_conflicts: [],
+  removed_conflicts: [
+    { type: "TXT", txt: ["previous-owner-note"] },
+  ],
   replacement_records: [
     { type: "SYNTH4", address: "203.0.113.8" },
     { type: "TXT", txt: ["unrelated", " value"] },
@@ -102,13 +111,23 @@ describe("createCommunityNamespaceSettingsApi", () => {
     snapshot = await api.execute({ kind: "submit_name_signature", signature: "wallet-signature", expected_generation: snapshot.generation, idempotency_key: "signature-1" });
     snapshot = await api.execute({ kind: "poll", expected_generation: snapshot.generation, idempotency_key: "poll-1" });
     expect(snapshot.next_action).toEqual({
+      added_records: [
+        { record_type: "TXT", supported: true, value: "pirate-verification=session-1", wallet_record: { type: "TXT", txt: ["pirate-verification=session-1"] } },
+      ],
       acknowledgement_required: true,
       kind: "publish_resource",
+      preserved_records: [
+        { record_type: "NS", supported: true, value: "ns1.pirate", wallet_record: { type: "NS", ns: "ns1.pirate" } },
+      ],
+      preserved_unknown_record_types: ["SYNTH4"],
       records: [
         { record_type: "SYNTH4", supported: true, value: '{"type":"SYNTH4","address":"203.0.113.8"}', wallet_record: plan.replacement_records[0] },
         { record_type: "TXT", supported: true, value: "unrelated value", wallet_record: plan.replacement_records[1] },
         { record_type: "NS", supported: true, value: "ns1.pirate", wallet_record: plan.replacement_records[2] },
         { record_type: "DS", supported: true, value: "1234 13 2 abcd", wallet_record: plan.replacement_records[3] },
+      ],
+      removed_records: [
+        { record_type: "TXT", supported: true, value: "previous-owner-note", wallet_record: { type: "TXT", txt: ["previous-owner-note"] } },
       ],
       replacement_semantics: "complete_resource",
     });
@@ -179,9 +198,19 @@ describe("createCommunityNamespaceSettingsApi", () => {
 
     const snapshot = await api.read();
     expect(snapshot.next_action).toEqual({
+      added_records: [
+        { record_type: "TXT", supported: true, value: "pirate-verification=session-1", wallet_record: { type: "TXT", txt: ["pirate-verification=session-1"] } },
+      ],
       acknowledgement_required: true,
       kind: "publish_resource",
+      preserved_records: [
+        { record_type: "NS", supported: true, value: "ns1.pirate", wallet_record: { type: "NS", ns: "ns1.pirate" } },
+      ],
+      preserved_unknown_record_types: ["SYNTH4"],
       records: [{ record_type: "CAA", supported: false, value: '{"type":"CAA","tag":"issue","value":"ca.example"}' }],
+      removed_records: [
+        { record_type: "TXT", supported: true, value: "previous-owner-note", wallet_record: { type: "TXT", txt: ["previous-owner-note"] } },
+      ],
       replacement_semantics: "complete_resource",
     });
   });
