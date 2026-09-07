@@ -50,7 +50,7 @@ export function SongTermsEditor(props: {
                 class="border-0 px-0 shadow-none"
                 inputmode="decimal"
                 onChange={event => {
-                  try { props.onCommercialRevShareBpsChange(percentTextToBasisPoints(event.currentTarget.value)); } catch { /* keep last valid integer value */ }
+                  try { props.onCommercialRevShareBpsChange(percentTextToBasisPoints(event.currentTarget.value)); } catch { event.currentTarget.value = basisPointsToPercentText(props.commercialRevShareBps); }
                 }}
                 value={basisPointsToPercentText(props.commercialRevShareBps)}
               />
@@ -67,7 +67,7 @@ export function SongTermsEditor(props: {
             <Type as="p" variant="caption" class="text-muted-foreground">Recipient identities only. Wallets are resolved by the server.</Type>
           </div>
           <Type as="span" variant="label" class={total() === 10_000 ? "text-primary-text" : "text-destructive-text"}>
-            {basisPointsToPercentText(Math.min(10_000, Math.max(0, total())))}%
+            {String(total() / 100)}%
           </Type>
         </div>
         <For each={props.allocations.allocations}>{(allocation, index) => (
@@ -88,7 +88,7 @@ export function SongTermsEditor(props: {
                   try {
                     const shareBps = percentTextToBasisPoints(event.currentTarget.value);
                     update(allocation.id, { shareBps, sharePct: shareBps / 100 });
-                  } catch { /* keep the last valid basis-point value */ }
+                  } catch { event.currentTarget.value = basisPointsToPercentText(allocationBps(allocation)); }
                 }}
                 value={basisPointsToPercentText(allocationBps(allocation))}
               />
@@ -106,7 +106,7 @@ export function SongTermsEditor(props: {
         <Button
           onClick={() => props.onAllocationsChange({
             allocations: [...props.allocations.allocations, {
-              id: `recipient-${props.allocations.allocations.length + 1}`,
+              id: `recipient-${Math.max(0, ...props.allocations.allocations.map(row => Number(row.id.replace("recipient-", "")) || 0)) + 1}`,
               recipientKind: "collaborator",
               recipientId: "",
               shareBps: 1,

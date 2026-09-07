@@ -50,7 +50,7 @@ export function createObjectUrl(file: Accessor<File | null | undefined>): Access
       }
       const nextUrl = URL.createObjectURL(current);
       setObjectUrl(nextUrl);
-      onCleanup(() => URL.revokeObjectURL(nextUrl));
+      return () => URL.revokeObjectURL(nextUrl);
     },
   );
 

@@ -8,18 +8,19 @@ import { PostComposerPublishControls } from "./publish-controls";
 import { PublishButton } from "./submit-actions";
 
 export function PostComposerPageFrame(props: ParentProps<{
+  embedded?: boolean;
   footer: JSX.Element;
   header: JSX.Element;
 }>) {
   return (
-    <div class="flex h-dvh w-full flex-col bg-background sm:mx-auto sm:h-[min(44rem,calc(100dvh-6rem))] sm:max-w-2xl sm:overflow-hidden sm:rounded-[var(--radius-2xl)] sm:border sm:border-border-soft">
+    <div class={props.embedded ? "flex h-[min(36rem,65dvh)] w-full flex-col overflow-hidden rounded-2xl border border-border-soft bg-background" : "flex h-dvh w-full flex-col bg-background sm:mx-auto sm:h-[min(44rem,calc(100dvh-6rem))] sm:max-w-2xl sm:overflow-hidden sm:rounded-[var(--radius-2xl)] sm:border sm:border-border-soft"}>
       <header class="shrink-0 border-b border-border-soft">
         <div class="mx-auto flex h-[88px] w-full max-w-2xl items-center gap-3 px-6">
           {props.header}
         </div>
       </header>
 
-      <main class="min-h-0 flex-1 overflow-y-auto">
+      <main tabindex={0} class="min-h-0 flex-1 overflow-y-auto">
         <div class="mx-auto w-full max-w-2xl">
           {props.children}
         </div>

@@ -1,3 +1,4 @@
+import { prepareSongComposer, submitSongComposer, restoreSongComposerTerms } from "../post-composer/media-composer-bridge";
 import { describe, expect, test } from "bun:test";
 
 import { ApiClientError, type PostCommunitiesCommunityIdMediaUploadReservationsResponse } from "@pirate/api-client";
@@ -414,8 +415,97 @@ describe("media submission coordinator replay", () => {
     await flow.refresh();
     expect(flow.currentRecord?.snapshot?.lyrics_state.current.status).toBe("no_lyrics");
 
-    transport.snapshot = snapshot();
-    await flow.cancel();
-    expect(flow.state.status).toBe("abandoned");
+    // A sealed revision cannot move back to awaiting_upload. Cancellation
+    // remains available on a distinct submission that has not been finalized.
+    const cancelTransport = new FakeTransport();
+    const cancellable = coordinator(createMemoryMediaSubmissionStorage(), cancelTransport, ["reserve", "start", "cancel"]);
+    await cancellable.begin(beginInput());
+    await cancellable.cancel();
+    expect(cancellable.state.status).toBe("abandoned");
   });
+});
+
+function bridgeInput(flow: MediaSubmissionCoordinator) {
+  const begin = beginInput();
+  return { coordinator: flow, draftId: begin.draftId, principalId: begin.principalId,
+    communityId: begin.communityId, personaId: begin.personaId, songMode: begin.songType,
+    authorDeclaredRating: begin.authorDeclaredRating, song: { primaryAudioUpload: begin.audio, title: begin.title },
+    license: { presetId: "commercial-remix" as const, commercialRevShareBps: 1_234 },
+    royaltySplit: { allocations: [
+      { id: "creator", recipientKind: "creator" as const, recipientId: begin.personaId, shareBps: 7_500, sharePct: 75 },
+      { id: "collaborator", recipientKind: "collaborator" as const, recipientId: "persona-collaborator", shareBps: 2_500, sharePct: 25 },
+    ] }, lyrics: "Reviewed song words" };
+}
+
+test("preparation holds terms; final publish binds reviewed lyrics first and restores exact shares", async () => {
+  const storage = createMemoryMediaSubmissionStorage();
+  const transport = new FakeTransport();
+  const flow = coordinator(storage, transport, ["reserve", "start", "finalize", "lyrics", "terms"]);
+  const input = bridgeInput(flow);
+  await prepareSongComposer(input);
+  expect(transport.commands.map(command => command.kind)).toEqual(["reserve", "start", "finalize"]);
+  await submitSongComposer(input);
+  expect(transport.commands.map(command => command.kind)).toEqual(["reserve", "start", "finalize", "lyrics", "terms"]);
+  const restored = await restoreSongComposerTerms(flow.currentRecord!);
+  expect(restored?.license).toEqual(input.license);
+  expect(restored?.royaltySplit.allocations.map(({ recipientId, shareBps }) => ({ recipientId, shareBps })))
+    .toEqual([{ recipientId: "persona-author", shareBps: 7_500 }, { recipientId: "persona-collaborator", shareBps: 2_500 }]);
+  await submitSongComposer(input);
+  expect(transport.commands).toHaveLength(5);
+});
+
+test("invalid fixture-only allocations fail before a reservation is made", async () => {
+  const transport = new FakeTransport();
+  const input = bridgeInput(coordinator(createMemoryMediaSubmissionStorage(), transport, []));
+  await expect(submitSongComposer({ ...input, royaltySplit: { allocations: [
+    { id: "creator", recipientKind: "creator", sharePct: 100 },
+  ] } })).rejects.toThrow("recipient id and integer basis-point share");
+  expect(transport.commands).toHaveLength(0);
+});
+
+test("ambiguous lyrics never release terms and retry retains the accepted lyrics command", async () => {
+  class LostLyricsResponse extends FakeTransport {
+    first = true;
+    override async dispatch(command: PersistedMediaCommand) {
+      const result = await super.dispatch(command);
+      if (command.kind === "lyrics" && this.first) { this.first = false; throw new AmbiguousMediaSubmissionError(); }
+      return result;
+    }
+  }
+  const transport = new LostLyricsResponse();
+  const storage = createMemoryMediaSubmissionStorage();
+  const flow = coordinator(storage, transport, ["reserve", "start", "finalize", "lyrics", "terms"]);
+  await expect(submitSongComposer(bridgeInput(flow))).rejects.toBeInstanceOf(AmbiguousMediaSubmissionError);
+  expect(transport.commands.some(command => command.kind === "terms")).toBe(false);
+  const restored = coordinator(storage, transport, ["terms"]);
+  await restored.restore("draft-1");
+  await submitSongComposer(bridgeInput(restored));
+  expect(transport.commands.map(command => command.kind)).toEqual(["reserve", "start", "finalize", "lyrics", "terms"]);
+});
+
+test("reference recovery replays exact request bytes after an ambiguous response", async () => {
+  class LostReferenceResponse extends FakeTransport {
+    first = true;
+    override async dispatch(command: PersistedMediaCommand) {
+      if (command.kind !== "reference") return super.dispatch(command);
+      this.commands.push(command);
+      if (this.first) { this.first = false; throw new AmbiguousMediaSubmissionError(); }
+      this.snapshot = snapshot({ creation_revision: 4, audio_revision: 1, phase: "analysis" });
+      return this.snapshot;
+    }
+  }
+  const storage = createMemoryMediaSubmissionStorage();
+  const transport = new LostReferenceResponse();
+  const flow = coordinator(storage, transport, ["reserve", "start", "reference"]);
+  await flow.begin(beginInput());
+  transport.snapshot = snapshot({ status: "action_required", creation_revision: 3, audio_revision: 1,
+    action: { kind: "reference_required", reference_request_ref: "request-1", expires_at: "2099-01-01T00:00:00Z" } });
+  await expect(flow.bindReference("asset-source")).rejects.toBeInstanceOf(AmbiguousMediaSubmissionError);
+  const restored = coordinator(storage, transport, ["must-not-be-used"]);
+  await restored.restore("draft-1");
+  const references = transport.commands.filter(command => command.kind === "reference");
+  expect(references).toHaveLength(2);
+  expect(references[0]).toEqual(references[1]);
+  expect(JSON.parse(new TextDecoder().decode(await mediaCommandBody(references[0]!))))
+    .toMatchObject({ persona_id: "persona-author", expected_creation_revision: 3, reference_request_ref: "request-1", upstream_asset_id: "asset-source" });
 });

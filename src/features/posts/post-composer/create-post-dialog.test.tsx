@@ -88,7 +88,7 @@ class ProductionMediaTransport implements MediaSubmissionTransport {
     }
     if (this.snapshot === null) throw new Error("missing test submission");
     if (command.kind === "terms") {
-      this.snapshot = mediaSnapshot({ creation_revision: this.snapshot.creation_revision + 1 });
+      this.snapshot = mediaSnapshot({ ...this.snapshot, creation_revision: this.snapshot.creation_revision + 1 });
     } else if (command.kind === "finalize") {
       this.snapshot = mediaSnapshot({ creation_revision: this.snapshot.creation_revision, audio_revision: 1, phase: "analysis" });
     } else if (command.kind === "lyrics") {
@@ -124,44 +124,21 @@ class ProductionMediaTransport implements MediaSubmissionTransport {
   }
 }
 
-class HeldProductionFinalizeTransport extends ProductionMediaTransport {
-  private markFinalizeStarted!: () => void;
-  readonly finalizeStarted = new Promise<void>(resolve => {
-    this.markFinalizeStarted = resolve;
-  });
-  private releaseFinalization!: () => void;
-  private readonly finalizationReleased = new Promise<void>(resolve => {
-    this.releaseFinalization = resolve;
-  });
+function button(label: string): HTMLButtonElement {
+  const result = [...document.body.querySelectorAll<HTMLButtonElement>("button")]
+    .find(button => button.textContent?.trim() === label);
+  expect(result).toBeInstanceOf(HTMLButtonElement);
+  return result!;
+}
 
-  releaseFinalize(): void {
-    this.releaseFinalization();
-  }
-
-  override async dispatch(command: PersistedMediaCommand): Promise<MediaCommandResult> {
-    if (command.kind !== "finalize") return super.dispatch(command);
-    this.commands.push(command);
-    if (this.snapshot === null) throw new Error("missing test submission");
-    const started = this.snapshot;
-    this.snapshot = mediaSnapshot({
-      status: "processing",
-      creation_revision: started.creation_revision,
-      audio_revision: 1,
-      lyrics_state: started.lyrics_state,
-      phase: "analysis",
-    });
-    this.markFinalizeStarted();
-    await this.finalizationReleased;
-    const current = this.snapshot;
-    this.snapshot = mediaSnapshot({
-      status: "published",
-      creation_revision: current.creation_revision,
-      audio_revision: current.audio_revision,
-      lyrics_state: current.lyrics_state,
-      published_resource: { post_id: "post-production", href: "/posts/post-production" },
-    });
-    return this.snapshot;
-  }
+async function continueToReview() {
+  await vi.waitFor(() => expect(button("Upload and continue").disabled).toBe(false));
+  button("Upload and continue").click();
+  await vi.waitFor(() => expect(document.querySelector('textarea[aria-label="Lyrics (optional)"]')).not.toBeNull());
+  button("Continue").click();
+  await vi.waitFor(() => expect(button("Review").disabled).toBe(false));
+  button("Review").click();
+  await vi.waitFor(() => expect(button("Publish song").disabled).toBe(false));
 }
 
 describe("create post request", () => {
@@ -430,9 +407,9 @@ describe("create post request", () => {
 
     await vi.waitFor(() => expect(document.body.querySelector("select[aria-label='Operation persona']")).not.toBeNull());
     await vi.waitFor(() => expect([...document.body.querySelectorAll<HTMLButtonElement>("button")]
-      .some(button => button.textContent?.trim() === "Publish song")).toBe(true));
+      .some(button => button.textContent?.trim() === "Upload and continue")).toBe(true));
     const publish = [...document.body.querySelectorAll<HTMLButtonElement>("button")]
-      .find(button => button.textContent?.trim() === "Publish song")!;
+      .find(button => button.textContent?.trim() === "Upload and continue")!;
     expect(publish.disabled).toBe(true);
     const selector = document.body.querySelector("select[aria-label='Operation persona']")!;
     Reflect.set(selector, "value", "persona-two");
@@ -474,7 +451,7 @@ describe("create post request", () => {
   test("routes a production song through one durable reserve, start, terms, upload, and finalize flow", async () => {
     const mediaStorage = createMemoryMediaSubmissionStorage();
     const mediaTransport = new ProductionMediaTransport();
-    const ids = ["reserve-key", "start-key", "terms-key", "finalize-key"];
+    const ids = ["reserve-key", "start-key", "finalize-key", "terms-key"];
     let idIndex = 0;
     render(() => <CreatePostDialog
       createMediaId={() => ids[idIndex++] ?? "unexpected-key"}
@@ -497,7 +474,7 @@ describe("create post request", () => {
     Object.defineProperty(audioInput, "files", { configurable: true, value: [audio] });
     audioInput.dispatchEvent(new Event("change", { bubbles: true }));
 
-    await new Promise<void>(resolve => setTimeout(resolve, 0));
+    await continueToReview();
     const post = [...document.body.querySelectorAll<HTMLButtonElement>("button")]
       .find(button => button.textContent?.trim() === "Publish song")!;
     expect(post.disabled).toBe(false);
@@ -506,8 +483,8 @@ describe("create post request", () => {
     await vi.waitFor(() => expect(mediaTransport.commands.map(command => command.kind)).toEqual([
       "reserve",
       "start",
-      "terms",
       "finalize",
+      "terms",
     ]));
     expect(mediaTransport.uploadCount).toBe(1);
     expect((await mediaStorage.loadAll())).toHaveLength(1);
@@ -533,90 +510,72 @@ describe("create post request", () => {
       storage={createMemoryPendingSubmissionStorage()}
     />);
     await new Promise<void>(resolve => setTimeout(resolve, 0));
-    expect(mediaTransport.commands.map(command => command.kind)).toEqual(["reserve", "start", "terms", "finalize"]);
+    expect(mediaTransport.commands.map(command => command.kind)).toEqual(["reserve", "start", "finalize", "terms"]);
     expect(mediaTransport.uploadCount).toBe(1);
   });
 
-  test("saves reviewed lyrics while finalization is still pending and restores without rebinding", async () => {
+  test("holds terms until reviewed lyrics are accepted and restores without rebinding", async () => {
     const mediaStorage = createMemoryMediaSubmissionStorage();
-    const mediaTransport = new HeldProductionFinalizeTransport();
-    const ids = ["reserve-key", "start-key", "terms-key", "finalize-key", "lyrics-key"];
-    let idIndex = 0;
+    const mediaTransport = new ProductionMediaTransport();
     const onPublished = vi.fn();
-    render(() => <CreatePostDialog
-      createMediaId={() => ids[idIndex++] ?? "unexpected-key"}
-      mediaStorage={mediaStorage}
-      mediaTransport={mediaTransport}
-      onOpenChange={() => {}}
-      onPublished={onPublished}
-      open
-      personas={[activePersona("persona-one", "Persona One")]}
-      principalId="account-one"
-      storage={createMemoryPendingSubmissionStorage()}
-    />);
-
+    render(() => <CreatePostDialog mediaStorage={mediaStorage} mediaTransport={mediaTransport}
+      onOpenChange={() => {}} onPublished={onPublished} open
+      personas={[activePersona("persona-one", "Persona One")]} principalId="account-one"
+      communityContext={{ id: "community-one", name: "Test community" }} storage={createMemoryPendingSubmissionStorage()} />);
     await new Promise<void>(resolve => setTimeout(resolve, 0));
-    const community = document.body.querySelector<HTMLInputElement>("input[name='community-id']")!;
-    community.value = "community-one";
-    community.dispatchEvent(new InputEvent("input", { bubbles: true }));
-    const audio = new File([new Uint8Array([1, 2, 3, 4])], "signal.mp3", { type: "audio/mpeg", lastModified: 1 });
-    const audioInput = document.body.querySelector<HTMLInputElement>("input[aria-label='Upload audio']")!;
-    Object.defineProperty(audioInput, "files", { configurable: true, value: [audio] });
-    audioInput.dispatchEvent(new Event("change", { bubbles: true }));
-
-    const publish = await vi.waitFor(() => {
-      const candidate = [...document.body.querySelectorAll<HTMLButtonElement>("button")]
-        .find(button => button.textContent?.trim() === "Publish song")!;
-      expect(candidate).toBeInstanceOf(HTMLButtonElement);
-      expect(candidate.disabled).toBe(false);
-      return candidate;
-    });
-    publish.click();
-    await mediaTransport.finalizeStarted;
-    expect(document.body.querySelector("textarea[placeholder='Write or paste the song lyrics']")).toBeNull();
-    expect([...document.body.querySelectorAll<HTMLButtonElement>("button")]
-      .find(button => button.textContent?.trim() === "Save reviewed lyrics")).toBeUndefined();
-    expect(mediaTransport.commands.filter(command => command.kind === "finalize")).toHaveLength(1);
-
+    const input = document.querySelector<HTMLInputElement>('input[aria-label="Upload audio"]')!;
+    Object.defineProperty(input, "files", { configurable: true, value: [new File([new Uint8Array([1])], "test.mp3", { type: "audio/mpeg" })] });
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+    await vi.waitFor(() => expect(button("Upload and continue").disabled).toBe(false));
+    expect(document.querySelector('textarea[aria-label="Lyrics (optional)"]')).toBeNull();
+    button("Upload and continue").click();
     const lyrics = await vi.waitFor(() => {
-      const candidate = document.body.querySelector<HTMLTextAreaElement>("textarea[placeholder='Write or paste the song lyrics']");
-      expect(candidate).toBeInstanceOf(HTMLTextAreaElement);
-      return candidate!;
-    }, { timeout: 1_000 });
+      const value = document.querySelector<HTMLTextAreaElement>('textarea[aria-label="Lyrics (optional)"]');
+      expect(value).not.toBeNull(); return value!;
+    });
+    expect(mediaTransport.commands.map(command => command.kind)).toEqual(["reserve", "start", "finalize"]);
     lyrics.value = "Reviewed words";
     lyrics.dispatchEvent(new Event("change", { bubbles: true }));
-
-    const saveLyrics = await vi.waitFor(() => {
-      const candidate = [...document.body.querySelectorAll<HTMLButtonElement>("button")]
-        .find(button => button.textContent?.trim() === "Save reviewed lyrics")!;
-      expect(candidate).toBeInstanceOf(HTMLButtonElement);
-      expect(candidate.disabled).toBe(false);
-      return candidate;
+    button("Continue").click();
+    await vi.waitFor(() => expect(button("Review").disabled).toBe(false));
+    button("Add collaborator").click();
+    await vi.waitFor(() => expect(document.querySelector('input[aria-label="Recipient 2 id"]')).not.toBeNull());
+    async function changeInput(label: string, value: string) {
+      const input = document.querySelector<HTMLInputElement>(`input[aria-label="${label}"]`)!;
+      input.value = value;
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+      await new Promise<void>(resolve => setTimeout(resolve, 0));
+    }
+    await changeInput("Recipient 2 id", "persona-collaborator");
+    await changeInput("Recipient 1 share", "75");
+    await changeInput("Recipient 2 share", "25");
+    button("Commercial remix").click();
+    await vi.waitFor(() => expect(document.querySelector('input[aria-label="Downstream commercial remix share"]')).not.toBeNull());
+    await changeInput("Downstream commercial remix share", "12.34");
+    await vi.waitFor(() => expect(button("Review").disabled).toBe(false));
+    button("Review").click();
+    await vi.waitFor(() => expect(button("Publish song").disabled).toBe(false));
+    button("Publish song").click();
+    await vi.waitFor(() => expect(mediaTransport.commands.map(command => command.kind)).toEqual(["reserve", "start", "finalize", "lyrics", "terms"]));
+    expect(mediaTransport.snapshot?.lyrics_state.current).toMatchObject({ status: "ready", text: "Reviewed words" });
+    const terms = mediaTransport.commands.find(command => command.kind === "terms")!;
+    expect(JSON.parse(new TextDecoder().decode(await mediaCommandBody(terms)))).toMatchObject({
+      commercial_rev_share_bps: 1_234,
+      royalty_allocations: [{ recipient_id: "persona-one", share_bps: 7_500 }, { recipient_id: "persona-collaborator", share_bps: 2_500 }],
     });
-    expect(publish.disabled).toBe(true);
-    saveLyrics.click();
-    await vi.waitFor(() => expect(mediaTransport.commands.filter(command => command.kind === "lyrics")).toHaveLength(1));
-
-    mediaTransport.releaseFinalize();
-    await vi.waitFor(() => expect(mediaTransport.snapshot).toMatchObject({
-      status: "published",
-      lyrics_state: { current: { status: "ready", text: "Reviewed words" } },
-    }));
-    expect(onPublished).toHaveBeenCalledTimes(1);
-
-    render(() => <CreatePostDialog
-      createMediaId={() => "must-not-be-used"}
-      mediaStorage={mediaStorage}
-      mediaTransport={mediaTransport}
-      onOpenChange={() => {}}
-      open
-      personas={[activePersona("persona-one", "Persona One")]}
-      principalId="account-one"
-      storage={createMemoryPendingSubmissionStorage()}
-    />);
-    await new Promise<void>(resolve => setTimeout(resolve, 0));
+    mediaTransport.snapshot = mediaSnapshot({ ...mediaTransport.snapshot!, status: "published",
+      published_resource: { post_id: "post-production", href: "/posts/post-production" } });
+    await vi.waitFor(() => expect(onPublished).toHaveBeenCalledOnce(), { timeout: 5_000 });
+    for (const dispose of disposers.splice(0)) dispose();
+    document.body.replaceChildren();
+    render(() => <CreatePostDialog mediaStorage={mediaStorage} mediaTransport={mediaTransport}
+      onOpenChange={() => {}} open personas={[activePersona("persona-one", "Persona One")]}
+      principalId="account-one" storage={createMemoryPendingSubmissionStorage()} />);
+    await vi.waitFor(() => expect(document.body.textContent).toContain("Song published."));
     expect(mediaTransport.commands.filter(command => command.kind === "lyrics")).toHaveLength(1);
+    expect(mediaTransport.uploadCount).toBe(1);
   });
+
 });
 
 

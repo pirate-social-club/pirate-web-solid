@@ -2,6 +2,7 @@ import type {
   PostMediaPostSubmissionsSubmissionIdCancelInput,
   PostMediaPostSubmissionsSubmissionIdFinalizeInput,
   PostMediaPostSubmissionsSubmissionIdRetryInput,
+  PostMediaPostSubmissionsSubmissionIdReferenceInput,
 } from "@pirate/api-client";
 import { base64UrlToBytes } from "../post-composer/text-submission-contract";
 import {
@@ -284,8 +285,8 @@ export class MediaSubmissionCoordinator {
     const current = this.requireRecord();
     if (current.submission_id === null) return null;
     const snapshot = await this.transport.read(current.submission_id);
-    if (snapshot !== null) await this.saveSnapshot(snapshot, current.pending_command);
-    return snapshot;
+    if (snapshot !== null) await this.saveSnapshot(snapshot, this.requireRecord().pending_command);
+    return snapshot === null ? null : this.requireRecord().snapshot;
   }
 
   async begin(input: BeginSongSubmissionInput): Promise<MediaSubmissionSnapshot> {
@@ -461,6 +462,29 @@ export class MediaSubmissionCoordinator {
     });
     const result = await this.dispatch(command);
     if (!snapshotResult(result)) throw new Error("Lyrics command returned an upload reservation");
+    return result;
+  }
+
+  async bindReference(upstreamAssetId: string): Promise<MediaSubmissionSnapshot> {
+    await this.reconcilePending();
+    const snapshot = await this.refresh();
+    if (snapshot?.status !== "action_required" || snapshot.action.kind !== "reference_required") {
+      if (snapshot !== null) return snapshot;
+      throw new Error("The song reference request could not be read");
+    }
+    const assetId = upstreamAssetId.trim();
+    if (!assetId || assetId.length > 128) throw new Error("Enter the source song asset identifier");
+    const idempotencyKey = this.createId();
+    const generated: PostMediaPostSubmissionsSubmissionIdReferenceInput = {
+      path: { submissionId: snapshot.submission_id },
+      body: { persona_id: this.requireRecord().persona_id, idempotency_key: idempotencyKey,
+        expected_creation_revision: snapshot.creation_revision,
+        reference_request_ref: snapshot.action.reference_request_ref, upstream_asset_id: assetId },
+    };
+    const command = await createPersistedMediaCommand({ kind: "reference", idempotencyKey,
+      sameOriginPath: `/api/media-post-submissions/${encodeURIComponent(snapshot.submission_id)}/reference`, body: generated.body });
+    const result = await this.dispatch(command);
+    if (!snapshotResult(result)) throw new Error("Reference binding returned an upload reservation");
     return result;
   }
 

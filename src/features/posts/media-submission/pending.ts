@@ -9,7 +9,7 @@ import type { MediaSubmissionSnapshot } from "./contracts";
 export const MEDIA_PENDING_VERSION = "media-submission-pending-v1" as const;
 export const MEDIA_COMMAND_VERSION = "media-submission-command-v1" as const;
 
-export type MediaCommandKind = "reserve" | "start" | "terms" | "finalize" | "lyrics" | "retry" | "cancel";
+export type MediaCommandKind = "reserve" | "start" | "terms" | "finalize" | "lyrics" | "reference" | "retry" | "cancel";
 
 export interface PersistedMediaCommand {
   readonly version: typeof MEDIA_COMMAND_VERSION;

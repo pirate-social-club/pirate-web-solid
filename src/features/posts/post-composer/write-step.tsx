@@ -201,7 +201,6 @@ export function PostComposerWriteStep(props: {
     } else if (kind === "song") {
       if (!isPublicSongMp3(file)) {
         setSongFileError(mp3OnlyCopy);
-        controller.tabs.onTabChange("song");
         return;
       }
       setSongFileError(null);
@@ -233,7 +232,6 @@ export function PostComposerWriteStep(props: {
     if (file) {
       if (kind === "song" && !isPublicSongMp3(file)) {
         setSongFileError(mp3OnlyCopy);
-        controller.tabs.onTabChange("song");
       }
       else void handleFile(file);
     }

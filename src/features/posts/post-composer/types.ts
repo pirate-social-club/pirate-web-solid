@@ -376,7 +376,16 @@ interface PostComposerSubmitState {
   progress?: SubmitProgress | null;
 }
 
+export interface SongFlowRuntime {
+  readonly personaId?: string;
+  readonly prepare: () => Promise<boolean>;
+  readonly prepared: boolean;
+  readonly retained: boolean;
+  readonly locked: boolean;
+}
+
 export interface PostComposerProps extends Partial<PostComposerDraftState>, PostComposerDraftActions {
+  songFlowRuntime?: SongFlowRuntime;
   onVideoEntry?: () => void;
   onClose?: () => void;
   presentation?: "page" | "embedded";

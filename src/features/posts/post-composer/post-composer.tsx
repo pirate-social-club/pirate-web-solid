@@ -14,7 +14,7 @@ export function PostComposer(props: PostComposerProps) {
   const controller = createPostComposerController(props, { isMobile: createIsMobile() });
   const [requiredSheetOpen, setRequiredSheetOpen] = createSignal(false);
   const structuredMode = () => {
-    if (props.presentation === "embedded") return null;
+    if (props.presentation === "embedded" && !props.songFlowRuntime) return null;
     const mode = controller.tabs.activeTab;
     return mode === "text" || mode === "video" || mode === "song" ? mode : null;
   };
@@ -83,6 +83,7 @@ export function PostComposer(props: PostComposerProps) {
             <SongUploadFlow
               controller={controller}
               initialStep={props.initialSongStep}
+              runtime={props.songFlowRuntime}
               onClose={() => props.onClose?.()}
               onSubmit={requestPost}
             />

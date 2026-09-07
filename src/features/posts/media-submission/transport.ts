@@ -9,6 +9,7 @@ import {
   type PostMediaPostSubmissionsSubmissionIdFinalizeInput,
   type PostMediaPostSubmissionsSubmissionIdLyricsInput,
   type PostMediaPostSubmissionsSubmissionIdRetryInput,
+  type PostMediaPostSubmissionsSubmissionIdReferenceInput,
   type PostMediaPostSubmissionsSubmissionIdTermsInput,
 } from "@pirate/api-client";
 import { createApiClient, readCsrfCookie, sessionRequestOptions } from "../../../api/client";
@@ -23,6 +24,7 @@ type MediaApiClient = Pick<PirateApiClient,
   | "post_mediaPostSubmissionsSubmissionIdLyrics"
   | "post_mediaPostSubmissionsSubmissionIdFinalize"
   | "get_mediaPostSubmissionsSubmissionId"
+  | "post_mediaPostSubmissionsSubmissionIdReference"
   | "post_mediaPostSubmissionsSubmissionIdRetry"
   | "post_mediaPostSubmissionsSubmissionIdCancel"
 >;
@@ -133,6 +135,13 @@ export function createSameOriginMediaSubmissionTransport(
             return songSnapshot(await api.post_mediaPostSubmissionsSubmissionIdTerms({
               path: { submissionId },
               body: await body<PostMediaPostSubmissionsSubmissionIdTermsInput["body"]>(command),
+            }, session));
+          }
+          case "reference": {
+            const submissionId = pathPart(command.same_origin_path, /^\/api\/media-post-submissions\/([^/]+)\/reference$/u, "reference");
+            return songSnapshot(await api.post_mediaPostSubmissionsSubmissionIdReference({
+              path: { submissionId },
+              body: await body<PostMediaPostSubmissionsSubmissionIdReferenceInput["body"]>(command),
             }, session));
           }
           case "lyrics": {
