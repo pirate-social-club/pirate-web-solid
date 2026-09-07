@@ -39,6 +39,9 @@ function commandError(error: unknown): string {
   if (error instanceof ApiClientError && error.status === 409) {
     return "The HNS address changed in another request. Refresh the page and try again.";
   }
+  if (error instanceof ApiClientError && error.code === "provider_unavailable" && !error.retryable) {
+    return "HNS address setup is unavailable. Your progress is saved; this needs a service fix before you can continue.";
+  }
   if (error instanceof ApiClientError && error.retryable) {
     return "The HNS verifier is temporarily unavailable. Try again in a moment.";
   }
@@ -63,6 +66,7 @@ export function CommunityNamespaceSettingsController(
   const [draftRootLabel, setDraftRootLabel] = createSignal("");
   const [busy, setBusy] = createSignal(false);
   const [message, setMessage] = createSignal("");
+  const [failedPoll, setFailedPoll] = createSignal<NamespaceSettingsCommand>();
   const [keys, setKeys] = createSignal(operationKeys());
   let active = true;
   let requestGeneration = 0;
@@ -102,6 +106,7 @@ export function CommunityNamespaceSettingsController(
     if (!active || busy()) return;
     setBusy(true);
     setMessage("");
+    setFailedPoll(undefined);
     try {
       const current = await api.execute(command);
       if (!active) return;
@@ -113,16 +118,19 @@ export function CommunityNamespaceSettingsController(
         setKeys((currentKeys) => ({ ...currentKeys, [command.kind]: nextOperationKey(command.kind) }));
       }
     } catch (error) {
-      if (active) setMessage(commandError(error));
+      if (active) {
+        setMessage(commandError(error));
+        if (command.kind === "poll" && (!(error instanceof ApiClientError) || error.retryable)) setFailedPoll(command);
+      }
     } finally {
       if (active) setBusy(false);
     }
   };
 
   createEffect(
-    () => ({ busy: busy(), pollKey: keys().poll, snapshot: snapshot(), status: status() }),
-    ({ busy: polling, pollKey, snapshot: current, status: loadStatus }) => {
-      if (current?.next_action.kind !== "wait" || polling || loadStatus !== "ready") return;
+    () => ({ busy: busy(), pollKey: keys().poll, snapshot: snapshot(), status: status(), failed: message() !== "" }),
+    ({ busy: polling, pollKey, snapshot: current, status: loadStatus, failed }) => {
+      if (failed || current?.next_action.kind !== "wait" || polling || loadStatus !== "ready") return;
       const delayMs = Math.max(1, current.next_action.retry_after_seconds) * 1_000;
       const timer = setTimeout(() => {
         void execute({
@@ -166,6 +174,7 @@ export function CommunityNamespaceSettingsController(
                 wallet={wallet}
               />
               <Show when={message()}><FormNote tone="destructive">{message()}</FormNote></Show>
+              <Show when={failedPoll()}>{(command) => <Button disabled={busy()} onClick={() => void execute(command())} variant="secondary">Retry check</Button>}</Show>
             </>
           )}</Show>
         </Show>

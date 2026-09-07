@@ -1,3 +1,4 @@
+import { ApiClientError } from "@pirate/api-client";
 import { render as solidRender, type JSX } from "@solidjs/web";
 import { createRoot } from "solid-js";
 import { afterEach, expect, test, vi } from "vitest";
@@ -111,3 +112,28 @@ test.each([null, { canonical_route: { root_label_display: "midnight" }, status: 
     expect(container.textContent).not.toContain("Accessible");
   },
 );
+
+test.each([true, false])("failed polling pauses without a retry loop (retryable=%s)", async (retryable) => {
+ const failed = new ApiClientError({code:"provider_unavailable",name:retryable?"ProviderUnavailable":"ProviderMisconfigured",retryable,status:502},
+ {error:{code:"provider_unavailable",message:"Unavailable",retryable}});
+ const poll=vi.fn(async()=>({...session,publication_check_pending:true}));
+ poll.mockRejectedValueOnce(failed);
+ const api=makeApi(async()=>({community_id:"community-1",attachment:null,session:{...session,publication_check_pending:true}}),poll);
+ const {container}=render(()=><CommunityNamespaceSettingsController api={api} communityId="community-1" communityPath="/c/community-1" />);
+ await vi.waitFor(()=>expect(container.textContent).toContain("Checking records"));
+ vi.useFakeTimers();
+ // Re-load under fake timers is unnecessary: the first real timer is allowed to fire.
+ await vi.waitFor(()=>expect(poll).toHaveBeenCalledTimes(1),{timeout:4000});
+ await vi.advanceTimersByTimeAsync(60000);
+ expect(poll).toHaveBeenCalledTimes(1);
+ const retry=[...container.querySelectorAll<HTMLButtonElement>("button")].find(button=>button.textContent==="Retry check");
+ if(retryable) {
+  expect(retry).toBeDefined();retry?.click();await vi.advanceTimersByTimeAsync(0);
+  expect(poll).toHaveBeenCalledTimes(2);
+  expect(poll.mock.calls[1]).toEqual(poll.mock.calls[0]);
+  await vi.advanceTimersByTimeAsync(2000);expect(poll).toHaveBeenCalledTimes(3);
+ } else {
+  expect(retry).toBeUndefined();expect(container.textContent).toContain("needs a service fix");
+  expect(container.textContent).not.toContain("temporarily unavailable");
+ }
+});
