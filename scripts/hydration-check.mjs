@@ -69,8 +69,14 @@ try {
   await page.getByRole("button", { name: "Close" }).click();
   await dialog.waitFor({ state: "hidden" });
 
-  const signInButton = page.getByRole("button", { name: "Sign in" }).first();
-  await signInButton.click();
+  if (apiDown) {
+    await page.getByRole("button", { name: "Retry account check" }).first().waitFor();
+    // A failed probe is not anonymous. Exercise the independent sign-in host
+    // without expecting the shell to mislabel a connection error as signed out.
+    await page.evaluate(() => window.dispatchEvent(new CustomEvent("pirate:connect")));
+  } else {
+    await page.getByRole("button", { name: "Sign in", exact: true }).first().click();
+  }
   const signInDialog = page.getByRole("dialog", { name: "Join Pirate" });
   await signInDialog.waitFor({ state: "visible" });
   await signInDialog.getByRole("heading", { name: "Join Pirate" }).waitFor({ state: "visible" });

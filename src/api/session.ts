@@ -38,6 +38,10 @@ export interface AccountSessionResolutionOptions extends Omit<SessionResolutionO
   readonly client?: AccountSessionResolutionClient;
 }
 
+// Session reads run behind already-rendered UI. Authenticated requests can take
+// more than four seconds; allow them to finish while retaining a finite bound.
+const SESSION_TIMEOUT_MS = 15_000;
+
 function boundedFetch(fetchImpl: ApiFetch, timeoutMs: number): ApiFetch {
   return async (input, init) => {
     const controller = new AbortController();
@@ -84,7 +88,7 @@ function isAnonymousRejection(error: unknown): boolean {
 async function resolveSessionUncached(options: SessionResolutionOptions): Promise<SessionResolution> {
   const client = options.client ?? createSessionApiClient({
     origin: options.origin,
-    fetchImpl: boundedFetch(options.fetchImpl ?? fetch, options.timeoutMs ?? 4_000),
+    fetchImpl: boundedFetch(options.fetchImpl ?? fetch, options.timeoutMs ?? SESSION_TIMEOUT_MS),
   });
   const personasPromise = client.get_personas(undefined);
   personasPromise.catch(() => undefined);
@@ -105,7 +109,7 @@ async function resolveAccountSessionUncached(
 ): Promise<AccountSessionResolution> {
   const client = options.client ?? createSessionApiClient({
     origin: options.origin,
-    fetchImpl: boundedFetch(options.fetchImpl ?? fetch, options.timeoutMs ?? 4_000),
+    fetchImpl: boundedFetch(options.fetchImpl ?? fetch, options.timeoutMs ?? SESSION_TIMEOUT_MS),
   });
   try {
     const user = await client.get_usersMe(undefined);
@@ -231,7 +235,7 @@ export function createSessionStore(clientFactory: SessionClientFactory): Session
  * server-side call resolves uncached through the `typeof window` guard above.
  */
 const browserStore = createSessionStore(() => createSessionApiClient({
-  fetchImpl: boundedFetch(fetch, 4_000),
+  fetchImpl: boundedFetch(fetch, SESSION_TIMEOUT_MS),
 }));
 
 /** Resolve the session for persona-aware surfaces; see `createSessionStore`. */

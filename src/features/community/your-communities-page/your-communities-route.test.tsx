@@ -91,6 +91,14 @@ describe("YourCommunitiesRouteView", () => {
     expect(document.body.textContent).not.toContain("Posting in Open Sea");
   });
 
+  test("shows account-check failure without loading memberships or claiming sign-out", async () => {
+    const loadMemberships = vi.fn();
+    const container = render(() => <YourCommunitiesRouteView applicationSession={() => "failed"} loadMemberships={loadMemberships} />);
+    await vi.waitFor(() => expect(container.textContent).toContain("We couldn't check your account"));
+    expect(loadMemberships).not.toHaveBeenCalled();
+    expect(container.textContent).not.toContain("Sign in to choose");
+  });
+
   test("renders an anonymous sign-in state without loading private memberships", async () => {
     const loadMemberships = vi.fn();
     const container = render(() => (

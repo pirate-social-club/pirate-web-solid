@@ -41,6 +41,16 @@ describe("Media shell production navigation", () => {
     expect(signInRequested).toHaveBeenCalledOnce();
   });
 
+  test("offers account-check recovery instead of sign-in when the session check fails", () => {
+    const retry = vi.fn();
+    const container = render(() => <ApplicationChrome sessionUnavailable onSessionRetry={retry}><main>Current route</main></ApplicationChrome>);
+    expect(container.querySelector("[data-shell-auth]")?.getAttribute("data-shell-auth")).toBe("unavailable");
+    const buttons = [...container.querySelectorAll<HTMLButtonElement>("button")];
+    expect(buttons.some(button => button.textContent?.trim() === "Sign in")).toBe(false);
+    buttons.find(button => button.textContent?.trim() === "Retry account check")!.click();
+    expect(retry).toHaveBeenCalledOnce();
+  });
+
   test("offers community creation without advertising global post or placeholder Study actions", () => {
     const container = render(() => <ApplicationChrome><main>Current route</main></ApplicationChrome>);
     const navigationLabels = Array.from(container.querySelectorAll("nav button"))
