@@ -1,0 +1,130 @@
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { decodeFunctionData, erc20Abi } from "viem";
+import type { Storage } from "@privy-io/js-sdk-core";
+import { createRewardWalletSession, rewardTransfer } from "./reward-wallet-session.ts";
+import type { EthereumProvider, PrivyAuthClient } from "./privy-session.ts";
+import { context, fee, recipient, sender, token, transactionHash } from "../../test/fixtures/reward-funding.ts";
+
+afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); });
+function harness() {
+  const requests: Array<{ method: string; params?: readonly unknown[] }> = [];
+  const responses = new Map<string, unknown>([
+    ["eth_accounts", [sender]], ["eth_chainId", "0x14a34"], ["eth_call", "0x989680"],
+    ["eth_estimateGas", "0xc350"], ["eth_gasPrice", "0x2"], ["eth_getBalance", "0x989680"],
+    ["eth_sendTransaction", transactionHash], ["wallet_switchEthereumChain", null],
+  ]);
+  const provider: EthereumProvider = { request: vi.fn(async request => { requests.push(request); return responses.get(request.method); }) };
+  let storage: Storage | undefined;
+  const client: PrivyAuthClient = {
+    initialize: vi.fn(async () => undefined), getAccessToken: vi.fn(async () => "private-provider-token"),
+    auth: {
+      email: { sendCode: vi.fn(async () => ({ success: true })), loginWithCode: vi.fn(async () => { storage?.put("credential", "private-provider-token"); }) },
+      oauth: { generateURL: vi.fn(async () => ({ url: "https://auth.example/authorize" })), loginWithCode: vi.fn(async () => undefined) },
+      siwe: { init: vi.fn(async () => ({ message: "login challenge" })), loginWithSiwe: vi.fn(async () => undefined) },
+    },
+    getEmbeddedEthereumProvider: vi.fn(async () => provider), dispose: vi.fn(),
+  };
+  const create = () => createRewardWalletSession({ enabled: true, privyAppId: "app" }, async (_config, memory) => { storage = memory; return client; });
+  return { create, client, provider, responses, requests, storage: () => storage };
+}
+
+describe("explicit persona wallet authorization", () => {
+  it("requires separate authentication before touching a provider", async () => {
+    const h = harness(); const session = await h.create();
+    await expect(session.estimate(context())).rejects.toThrow("wallet_reauthentication_required");
+    expect(h.client.getEmbeddedEthereumProvider).not.toHaveBeenCalled();
+  });
+  it.each(["asset_bonus", "megapot_pool"] as const)("constructs only the exact %s token transfer", async kind => {
+    const h = harness(); const session = await h.create();
+    await session.sendCode("operator@example.test"); await session.loginWithCode("operator@example.test", "fixture-code");
+    expect(await session.estimate(context(kind))).toEqual(fee);
+    const before = vi.fn(async () => { expect(h.requests.some(item => item.method === "eth_sendTransaction")).toBe(false); });
+    expect(await session.send(context(kind), fee, before)).toBe(transactionHash);
+    expect(before).toHaveBeenCalledOnce();
+    expect(h.client.getEmbeddedEthereumProvider).toHaveBeenCalledWith(3, sender);
+    const submission = h.requests.find(item => item.method === "eth_sendTransaction");
+    expect(submission?.params).toEqual([{ ...rewardTransfer(context(kind)), gas: "0xea60", gasPrice: "0x2" }]);
+    const tx = rewardTransfer(context(kind));
+    expect(tx).toMatchObject({ from: sender, to: token, value: "0x0", chainId: "0x14a34" });
+    expect(decodeFunctionData({ abi: erc20Abi, data: tx.data })).toMatchObject({ functionName: "transfer", args: [recipient, 1000000n] });
+    expect(h.requests.some(item => item.method === "personal_sign")).toBe(false);
+  });
+  it.each([
+    ["eth_accounts", [recipient], "wallet_assignment_mismatch"],
+    ["eth_chainId", "0x1", "wallet_wrong_chain"],
+    ["eth_call", "0x0", "wallet_insufficient_token_balance"],
+    ["eth_getBalance", "0x0", "wallet_insufficient_gas_balance"],
+    ["eth_gasPrice", "garbage", "wallet_invalid_response"],
+  ])("fails before broadcast for %s", async (method, value, message) => {
+    const h = harness(); const session = await h.create(); await session.loginWithCode("a", "b");
+    h.responses.set(String(method), value);
+    const before = vi.fn(async () => undefined);
+    await expect(session.send(context(), fee, before)).rejects.toThrow(String(message));
+    expect(before).not.toHaveBeenCalled();
+    expect(h.requests.some(item => item.method === "eth_sendTransaction")).toBe(false);
+  });
+  it("requires a fresh review when fees rise", async () => {
+    const h = harness(); const session = await h.create(); await session.loginWithCode("a", "b");
+    h.responses.set("eth_gasPrice", "0x3");
+    await expect(session.send(context(), fee, async () => undefined)).rejects.toThrow("wallet_fee_changed");
+    expect(h.requests.some(item => item.method === "eth_sendTransaction")).toBe(false);
+  });
+  it("does not mask a provider refusal", async () => {
+    const h = harness(); const session = await h.create(); await session.loginWithCode("a", "b");
+    const request = h.provider.request; const refusal = Object.assign(new Error("declined"), { code: 4001 });
+    h.provider.request = async args => { if (args.method === "eth_sendTransaction") throw refusal; return request(args); };
+    await expect(session.send(context(), fee, async () => undefined)).rejects.toBe(refusal);
+  });
+  it("rejects an invalid hash as uncertain submission", async () => {
+    const h = harness(); const session = await h.create(); await session.loginWithCode("a", "b");
+    h.responses.set("eth_sendTransaction", "not-a-hash");
+    await expect(session.send(context(), fee, async () => undefined)).rejects.toThrow("wallet_submission_uncertain");
+  });
+  it("fails closed on a provider assignment mismatch", async () => {
+    const h = harness(); const session = await h.create(); await session.loginWithCode("a", "b");
+    h.client.getEmbeddedEthereumProvider = async () => { throw new Error("wallet_assignment_mismatch"); };
+    await expect(session.estimate(context())).rejects.toThrow("wallet_assignment_mismatch");
+    expect(h.requests).toEqual([]);
+  });
+  it("clears credentials and rejects future use after disposal", async () => {
+    const h = harness(); const session = await h.create(); await session.loginWithCode("a", "b");
+    expect(h.storage()?.getKeys()).toContain("credential");
+    session.dispose();
+    expect(h.storage()?.getKeys()).toEqual([]);
+    expect(h.client.dispose).toHaveBeenCalledOnce();
+    await expect(session.estimate(context())).rejects.toThrow("wallet_session_closed");
+  });
+  it("requires new authentication after five minutes", async () => {
+    vi.useFakeTimers(); const h = harness(); const session = await h.create(); await session.loginWithCode("a", "b");
+    vi.advanceTimersByTime(300001);
+    await expect(session.estimate(context())).rejects.toThrow("wallet_reauthentication_required");
+  });
+  it("cleans up late authentication after disposal", async () => {
+    const h = harness(); const session = await h.create();
+    let finish = () => {};
+    h.client.auth.email.loginWithCode = () => new Promise<void>(resolve => { finish = () => { h.storage()?.put("credential", "late"); resolve(); }; });
+    const pending = session.loginWithCode("a", "b"); session.dispose(); finish();
+    await expect(pending).rejects.toThrow("wallet_session_closed");
+    expect(h.storage()?.getKeys()).toEqual([]);
+  });
+  it("uses OAuth only for the separate provider session", async () => {
+    const h = harness(); const session = await h.create();
+    expect(await session.beginOAuth("google", "https://app.example/return")).toBe("https://auth.example/authorize");
+    await session.completeOAuth("google", "code", "state");
+    expect(h.client.auth.oauth?.loginWithCode).toHaveBeenCalledWith("code", "state", "google");
+    await session.estimate(context());
+  });
+  it("uses the injected wallet for SIWE only and the assigned embedded provider for funding", async () => {
+    const h = harness(); const injected = vi.fn(async (request: { method: string }) => {
+      if (request.method === "eth_requestAccounts") return [recipient];
+      if (request.method === "eth_chainId") return "0x1";
+      if (request.method === "personal_sign") return "0xabcd";
+      throw new Error("unexpected external wallet request");
+    });
+    vi.stubGlobal("window", { location: { host: "app.example", origin: "https://app.example" }, ethereum: { request: injected } });
+    const session = await h.create(); await session.loginWithWallet();
+    await session.send(context(), fee, async () => undefined);
+    expect(injected.mock.calls.map(([request]) => request.method)).toEqual(["eth_requestAccounts", "eth_chainId", "personal_sign"]);
+    expect(h.client.getEmbeddedEthereumProvider).toHaveBeenCalledWith(3, sender);
+  });
+});

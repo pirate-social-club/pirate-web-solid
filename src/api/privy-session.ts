@@ -24,7 +24,7 @@ export class MemoryOnlyStorage implements Storage {
   clear(): void { this.#values.clear(); }
 }
 
-interface PrivyAuthClient {
+export interface PrivyAuthClient {
   readonly auth: { readonly email: {
     sendCode(email: string): Promise<{ success: boolean }>;
     loginWithCode(email: string, code: string): Promise<void>;
@@ -38,10 +38,11 @@ interface PrivyAuthClient {
   initialize(): Promise<void>;
   getAccessToken(): Promise<string | null>;
   ensureEmbeddedEthereumWallet?(walletIndex: number, idempotencyKey: string): Promise<void>;
+  getEmbeddedEthereumProvider?(walletIndex: number, address: string): Promise<EthereumProvider>;
   dispose?(): void;
 }
 
-type PrivyFactory = (config: VerificationPublicConfig, storage: Storage) => Promise<PrivyAuthClient>;
+export type PrivyFactory = (config: VerificationPublicConfig, storage: Storage) => Promise<PrivyAuthClient>;
 
 type PrivySdk = typeof import("@privy-io/js-sdk-core");
 
@@ -106,7 +107,17 @@ function accessTokenSubject(token: string): string | undefined {
   }
 }
 
-async function defaultPrivyFactory(config: VerificationPublicConfig, storage: Storage): Promise<PrivyAuthClient> {
+/** Match the existing server assignment; never select a sibling or create a wallet. */
+export function selectAssignedEmbeddedWallet<T extends { readonly wallet_index: number; readonly address: string }>(
+  wallets: readonly T[], walletIndex: number, address: string,
+): T {
+  const wallet = wallets.find(candidate => candidate.wallet_index === walletIndex &&
+    candidate.address.toLowerCase() === address.toLowerCase());
+  if (wallet === undefined) throw new Error("wallet_assignment_mismatch");
+  return wallet;
+}
+
+export async function defaultPrivyFactory(config: VerificationPublicConfig, storage: Storage): Promise<PrivyAuthClient> {
   if (typeof window === "undefined") throw new Error("browser_required");
   const {
     default: Privy,
@@ -169,6 +180,18 @@ async function defaultPrivyFactory(config: VerificationPublicConfig, storage: St
     } },
     initialize: () => client.initialize(),
     getAccessToken: () => client.getAccessToken(),
+    async getEmbeddedEthereumProvider(walletIndex, address) {
+      ensureEmbeddedWalletBridge();
+      const { user } = await client.user.get();
+      const wallet = selectAssignedEmbeddedWallet(
+        getAllUserEmbeddedEthereumWallets(user), walletIndex, address,
+      );
+      const provider = await client.embeddedWallet.getProvider(wallet);
+      return { request: args => provider.request({
+        method: args.method,
+        ...(args.params === undefined ? {} : { params: [...args.params] }),
+      }) };
+    },
     async ensureEmbeddedEthereumWallet(walletIndex, idempotencyKey) {
       ensureEmbeddedWalletBridge();
       let { user } = await client.user.get();
@@ -222,7 +245,7 @@ export interface PrivySessionExchange {
 
 export type OAuthProvider = "google" | "twitter";
 
-interface EthereumProvider {
+export interface EthereumProvider {
   // oxlint-disable-next-line anti-slop/no-unknown-returns -- EIP-1193 providers return protocol-specific JSON-RPC values.
   request(args: { method: string; params?: readonly unknown[] }): Promise<unknown>;
 }
