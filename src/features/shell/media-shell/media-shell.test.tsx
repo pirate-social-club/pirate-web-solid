@@ -1,6 +1,6 @@
 import type { JSX } from "@solidjs/web";
 import { render as solidRender } from "@solidjs/web";
-import { createRoot } from "solid-js";
+import { createRoot, createSignal } from "solid-js";
 import { afterEach, describe, expect, test, vi } from "vitest";
 
 import { ApplicationChrome } from "./media-shell";
@@ -72,6 +72,29 @@ describe("Media shell production navigation", () => {
     expect(retry).not.toHaveBeenCalled();
     expect(container.textContent).toContain("Checking your account");
     expect(container.textContent).not.toContain("Sign in");
+  });
+
+  test("leaves authenticated footer content and settings access stable during background reads", async () => {
+    const [pending, setPending] = createSignal(false);
+    const container = render(() => <ApplicationChrome signedIn sessionPending={pending()}>Route</ApplicationChrome>);
+    const sidebar = container.querySelector("aside")!;
+    const before = sidebar.textContent;
+    const settings = sidebar.querySelector<HTMLAnchorElement>('a[href="/settings"]')!;
+    setPending(true);
+    await new Promise(resolve => setTimeout(resolve, 0));
+    expect(sidebar.textContent).toBe(before);
+    expect(settings.hidden).toBe(false);
+    expect(settings.getAttribute("aria-disabled")).not.toBe("true");
+    expect(sidebar.textContent).toContain("Session active");
+    expect(sidebar.textContent).not.toContain("Checking your account");
+  });
+
+  test("does not disable the anonymous sign-in action merely because pending is set", () => {
+    const container = render(() => <ApplicationChrome sessionPending>Route</ApplicationChrome>);
+    const signIn = [...container.querySelectorAll<HTMLButtonElement>("button")].find(button => button.textContent === "Sign in")!;
+    expect(signIn.disabled).toBe(false);
+    expect(container.textContent).toContain("Save, follow, and post");
+    expect(container.textContent).not.toContain("Checking your account");
   });
 
   test("offers community creation without advertising global post or placeholder Study actions", () => {

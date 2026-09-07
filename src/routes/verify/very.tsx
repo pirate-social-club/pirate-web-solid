@@ -64,6 +64,7 @@ function safeMessage(error: unknown): string {
       case "ceremony_expired": return "This ceremony expired. Start a fresh one.";
       case "ceremony_cancelled": return "The ceremony was cancelled. Start a fresh one.";
       case "join_not_ready": return "That community is not currently ready for a Very verification.";
+      case "profiles_unavailable": return "Your community profiles could not be loaded. Joining has not been attempted. Retry to load your profiles and continue.";
       case "join_failed": return "Palm verification succeeded, but joining the community failed. Retry the join.";
       case "provider_unavailable": return "Very is still processing the palm scan.";
       case "provider_rejected": return "Very rejected the verification. You can retry.";
@@ -180,7 +181,8 @@ export default function VeryVerificationRoute(props: Readonly<{ loadWidget?: Ver
     setPhase("joining");
     const session = await resolveSession();
     if (!operationIsCurrent(epoch, targetCommunityId)) return;
-    if (session === "anonymous" || sessionPersonasUnavailable(session)) throw new VeryWebClientError("join_failed");
+    if (session === "anonymous") throw new VeryWebClientError("join_failed");
+    if (sessionPersonasUnavailable(session)) throw new VeryWebClientError("profiles_unavailable");
     const candidates = communityJoinCandidates(session.personas, targetCommunityId);
     setJoinCandidates(candidates);
     const choice = defaultCommunityPersonaChoice(candidates);

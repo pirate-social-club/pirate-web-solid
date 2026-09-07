@@ -2,6 +2,7 @@ import { createEffect, createMemo, createSignal, onCleanup, untrack, Show } from
 import { isServer } from "@solidjs/web";
 import { useNavigate } from "@solidjs/router";
 import { Title } from "@solidjs/meta";
+import { Button } from "../../design-system";
 import { KaraokePracticeSurface } from "./karaoke-practice-surface";
 import { KaraokeLeaderboard } from "./karaoke-leaderboard";
 import {
@@ -171,7 +172,16 @@ function LoadedKaraokeSession(props: { payload: ApiSongKaraokePayload; postId: s
         singingStatus={scoringState()?.status ?? "idle"}
         title={props.payload.title ?? "Karaoke"}
       />
-      <Show when={personaMessage()}><p role="status" class="fixed inset-x-4 bottom-24 z-50 rounded-lg bg-card p-4 text-center">{personaMessage()}<Show when={sessionFailed() || sessionPending()}><button type="button" disabled={sessionPending()} onClick={() => void loadSession()}>{sessionPending() ? "Checking profiles" : "Retry profiles"}</button></Show></p></Show>
+      <Show when={personaMessage()}>
+        <div class="fixed inset-x-4 bottom-24 z-50 space-y-3 rounded-lg bg-card p-4 text-center">
+          <p role="status">{personaMessage()}</p>
+          <Show when={sessionFailed() || sessionPending()}>
+            <Button type="button" disabled={sessionPending()} onClick={() => void loadSession()}>
+              {sessionPending() ? "Checking profiles" : "Retry profiles"}
+            </Button>
+          </Show>
+        </div>
+      </Show>
       <CommunityPersonaChoiceDialog
         label="Singing as" personas={eligible()} allowCreateNew={false}
         choice={personaId() ? { kind: "existing", personaId: personaId()! } : undefined}

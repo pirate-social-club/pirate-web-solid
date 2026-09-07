@@ -48,6 +48,35 @@ describe("terminal community persona choice", () => {
     expect(api.join).toHaveBeenCalledOnce();
   });
 
+  test("a successful follow clears the prior profile error", async () => {
+    const { controller } = await setup({}, [], async () => ({ status: "authenticated", userId: "account-a", personas: [], personasUnavailable: true }));
+    expect(controller.error()).toContain("active personas");
+    await controller.followToggle();
+    expect(controller.message()).toBe("Following this Community.");
+    expect(controller.error()).toBe("");
+  });
+
+  test("explicit profile retry restores personas without following or joining", async () => {
+    let unavailable = true;
+    let rejectRetry = false;
+    const { controller, api } = await setup({}, [], async () => {
+      if (rejectRetry) throw new Error("network");
+      return { status: "authenticated", userId: "account-a",
+        personas: unavailable ? [] : [unboundPersona], personasUnavailable: unavailable ? true : undefined };
+    });
+    expect(controller.personaRetryAvailable()).toBe(true);
+    rejectRetry = true;
+    await controller.retryPersonas();
+    expect(controller.error()).toContain("couldn't verify your session");
+    rejectRetry = false;
+    unavailable = false;
+    await controller.retryPersonas();
+    await vi.waitFor(() => expect(controller.postingSession()?.personas).toEqual([unboundPersona]));
+    expect(controller.error()).toBe("");
+    expect(api.join).not.toHaveBeenCalled();
+    expect(api.follow).not.toHaveBeenCalled();
+  });
+
   test("request-mode join sends no persona even when one is supplied", async () => {
     const { api, controller } = await setup({
       resolveJoinAction: vi.fn(async () => ({ kind: "request" as const })),

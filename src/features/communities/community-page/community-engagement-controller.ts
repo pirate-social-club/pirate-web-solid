@@ -33,6 +33,9 @@ export interface CommunityEngagementController {
   readonly joinLabel: Accessor<string>;
   readonly message: Accessor<string>;
   readonly error: Accessor<string>;
+  readonly personaRetryAvailable: Accessor<boolean>;
+  readonly personaRetryBusy: Accessor<boolean>;
+  retryPersonas(): Promise<void>;
   readonly postingSession: Accessor<AuthenticatedSession | undefined>;
   /** Open while a terminal join waits for the account's closed persona choice. */
   readonly joinPersonaStep: Accessor<boolean>;
@@ -66,6 +69,8 @@ export function createCommunityEngagementController(
   const [message, setMessage] = createSignal("");
   const [error, setError] = createSignal("");
   const [personaError, setPersonaError] = createSignal("");
+  const [personaRetryBusy, setPersonaRetryBusy] = createSignal(false);
+  let personaRetryInFlight = false;
   const [viewerReady, setViewerReady] = createSignal(false);
   const [postingSession, setPostingSession] = createSignal<AuthenticatedSession>();
   const [accountAuthenticated, setAccountAuthenticated] = createSignal(false);
@@ -207,6 +212,7 @@ export function createCommunityEngagementController(
       if (!viewerReady() && !await refreshViewerState()) return;
       setBusy("follow");
       setError("");
+      setPersonaError("");
       setMessage("");
       const result = following()
         ? await options.api.unfollow(options.communityId)
@@ -232,6 +238,7 @@ export function createCommunityEngagementController(
       if (membership() === "member") return;
       setBusy("join");
       setError("");
+      setPersonaError("");
       setMessage("");
       const action = await options.api.resolveJoinAction(options.communityId);
       if (!active) return;
@@ -355,6 +362,19 @@ export function createCommunityEngagementController(
     return resolvePersonaSession();
   };
 
+  const retryPersonas = async () => {
+    if (personaRetryInFlight) return;
+    personaRetryInFlight = true;
+    setPersonaRetryBusy(true);
+    setError("");
+    try {
+      await resolvePersonaSession();
+    } finally {
+      personaRetryInFlight = false;
+      if (active) setPersonaRetryBusy(false);
+    }
+  };
+
   const joined = () => membership() === "member";
   const joinDisabled = () => membership() === "pending" || membership() === "banned" || membership() === "blocked";
   const joinLabel = () => {
@@ -379,6 +399,9 @@ export function createCommunityEngagementController(
     message,
     error: () => error() || personaError(),
     postingSession,
+    personaRetryAvailable: () => personaError() !== "",
+    personaRetryBusy,
+    retryPersonas,
     followToggle,
     joinCommunity,
     confirmJoinPersona,

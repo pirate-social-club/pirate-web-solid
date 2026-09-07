@@ -105,9 +105,9 @@ export function ApplicationChrome(props: MediaShellProps) {
         brandLabel="PIRATE"
         class="sticky top-0 hidden h-screen md:flex"
         footerActionHref={signedIn() ? "/settings" : undefined}
-        footerActionDisabled={props.sessionResolving || props.sessionPending}
+        footerActionDisabled={props.sessionResolving || (props.sessionUnavailable && props.sessionPending)}
         footerActionLabel={props.sessionResolving || (props.sessionUnavailable && props.sessionPending) ? "Checking account" : props.sessionUnavailable ? "Retry account check" : signedIn() ? "Account settings" : "Sign in"}
-        footerDetail={props.sessionResolving || props.sessionPending ? "Checking your account" : props.sessionUnavailable ? "Your account could not be checked" : signedIn() ? "Session active" : "Save, follow, and post"}
+        footerDetail={props.sessionResolving || (props.sessionUnavailable && props.sessionPending) ? "Checking your account" : props.sessionUnavailable ? "Your account could not be checked" : signedIn() ? "Session active" : "Save, follow, and post"}
         footerTitle={props.sessionResolving ? "Account" : props.sessionUnavailable ? "Connection unavailable" : signedIn() ? "Your Pirate" : "Join Pirate"}
         homeAriaLabel="Go to Pirate home"
         onFooterAction={props.sessionResolving ? undefined : props.sessionUnavailable ? props.onSessionRetry : requestGlobalSignIn}

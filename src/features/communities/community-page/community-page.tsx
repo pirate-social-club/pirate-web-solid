@@ -8,6 +8,7 @@ import {
 } from "../../../api/handle-sales-client.ts";
 import type { SessionResolution } from "../../../api/session.ts";
 import {
+  Button,
   buttonVariants,
 } from "../../../design-system.ts";
 import { resolveRequestUiLocale } from "../../../lib/ui-locale-core.ts";
@@ -332,6 +333,11 @@ function SuccessState(props: {
           </Show>
           <Show when={engagement.error()}>
             {message => <p class="mx-5 mt-4 text-sm text-destructive md:mx-8" role="alert">{message()}</p>}
+          </Show>
+          <Show when={engagement.personaRetryAvailable()}>
+            <Button class="mx-5 mt-3 md:mx-8" type="button" disabled={engagement.personaRetryBusy()} onClick={() => void engagement.retryPersonas()}>
+              {engagement.personaRetryBusy() ? "Checking profiles" : "Retry profiles"}
+            </Button>
           </Show>
           <CommunityPersonaChoiceDialog
             choice={engagement.joinPersonaChoice()}
