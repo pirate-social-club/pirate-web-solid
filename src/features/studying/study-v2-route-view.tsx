@@ -3,7 +3,7 @@ import { isServer } from "@solidjs/web";
 import { ApiClientError } from "@pirate/api-client";
 import { Show, createEffect, createSignal, onCleanup } from "solid-js";
 
-import { resolveSession, type AuthenticatedSession, type SessionResolution } from "../../api/session";
+import { resolveSession, sessionPersonasUnavailable, type AuthenticatedSession, type SessionResolution } from "../../api/session";
 import { Button, FormNote, Type } from "../../design-system";
 import { preloadGlobalSignInAssets, prepareGlobalSignIn, requestGlobalSignIn } from "../auth/global-sign-in-host";
 import { communityOperationPersonas, defaultOperationPersonaId, toOperationPersonas } from "../identity/community-persona-choice";
@@ -112,6 +112,10 @@ export function StudyV2RouteView(props: StudyV2RouteViewProps) {
       if (!active) return;
       if (resolved === "anonymous") {
         setState({ kind: "auth-required" });
+        return;
+      }
+      if (sessionPersonasUnavailable(resolved)) {
+        setState({ kind: "failed", message: "We couldn't load your community profiles. Retry before starting Study." });
         return;
       }
       const loaded = await api.loadAvailability(props.postId);

@@ -80,6 +80,7 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
   let sessionStarted = false;
   let refreshingAfterCommit = false;
   let sessionRequest = 0;
+  let sessionInFlight = true;
 
   const navigate = (href: string, options?: { replace?: boolean }) => {
     if (props.navigate) {
@@ -114,9 +115,11 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
 
   const startSessionResolution = () => {
     const request = ++sessionRequest;
+    sessionInFlight = true;
     void (props.resolveSession ?? resolveSession)()
       .then((result) => {
         if (!active || request !== sessionRequest) return;
+        sessionInFlight = false;
         setSession(result);
         if (result === "anonymous") {
           setDisplayPersonas([]);
@@ -141,11 +144,15 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
         }
       })
       .catch(() => {
-        if (active && request === sessionRequest) setSession("failed");
+        if (active && request === sessionRequest) {
+          sessionInFlight = false;
+          setSession("failed");
+        }
       });
   };
 
   const retrySessionResolution = () => {
+    if (sessionInFlight) return;
     setSession("resolving");
     // Dropping the store notifies this route and the application shell. Their
     // subscribers then coalesce onto the same fresh account request.
@@ -289,7 +296,7 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
       </Show>
       <Show when={currentSession()?.personasUnavailable}>
         <div class="mx-auto max-w-2xl px-5 pt-4">
-          <FormNote tone="destructive">You are signed in, but your community profiles could not be loaded. Retry profiles before creating this community.</FormNote>
+          <FormNote tone="destructive">You are signed in, but your community profiles could not be loaded. Retry profiles before creating this community. Any profile still shown is your previous selection and must be checked again.</FormNote>
         </div>
       </Show>
       <Show when={session() === "anonymous"}>
@@ -330,9 +337,10 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
               />
             )}
             showMediaFields={false}
+            accountChecking={session() === "resolving"}
             submitting={busy()}
             requirePersona={!!currentSession() && !currentSession()?.personasUnavailable}
-            submitLabel={currentSession()?.personasUnavailable ? "Retry profiles" : session() === "anonymous" ? "Sign in to create" : session() === "failed" ? "Retry account check" : session() === "resolving" ? "Check account" : undefined}
+            submitLabel={currentSession()?.personasUnavailable ? "Retry profiles" : session() === "anonymous" ? "Sign in to create" : session() === "failed" ? "Retry account check" : session() === "resolving" ? "Checking account" : undefined}
             submitNote={!currentSession() ? "Your draft stays here while you sign in or check your account." : undefined}
           />
         </Show>

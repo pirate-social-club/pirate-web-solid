@@ -46,6 +46,9 @@ describe("Media shell production navigation", () => {
     expect(container.querySelector("[data-shell-auth]")?.getAttribute("data-shell-auth")).toBe("resolving");
     expect(container.textContent).toContain("Checking your account");
     expect(container.textContent).not.toContain("Join Pirate");
+    expect(container.textContent).not.toContain("Your Pirate");
+    const checking = [...container.querySelectorAll<HTMLButtonElement>("button")].find(button => button.textContent === "Checking account")!;
+    expect(checking.disabled).toBe(true);
     expect(container.textContent).not.toContain("Sign in");
     expect(container.textContent).not.toContain("Save, follow, and post");
   });
@@ -58,6 +61,17 @@ describe("Media shell production navigation", () => {
     expect(buttons.some(button => button.textContent?.trim() === "Sign in")).toBe(false);
     buttons.find(button => button.textContent?.trim() === "Retry account check")!.click();
     expect(retry).toHaveBeenCalledOnce();
+  });
+
+  test("disables account retry and shows pending feedback without claiming sign-out", () => {
+    const retry = vi.fn();
+    const container = render(() => <ApplicationChrome sessionUnavailable sessionPending onSessionRetry={retry}>Route</ApplicationChrome>);
+    const checking = [...container.querySelectorAll<HTMLButtonElement>("button")].filter(button => button.textContent === "Checking account");
+    expect(checking.length).toBeGreaterThan(0);
+    for (const button of checking) { expect(button.disabled).toBe(true); button.click(); }
+    expect(retry).not.toHaveBeenCalled();
+    expect(container.textContent).toContain("Checking your account");
+    expect(container.textContent).not.toContain("Sign in");
   });
 
   test("offers community creation without advertising global post or placeholder Study actions", () => {

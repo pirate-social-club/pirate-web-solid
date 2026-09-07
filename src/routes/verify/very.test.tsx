@@ -246,6 +246,20 @@ describe("Very verification route", () => {
     expect(createCeremony).not.toHaveBeenCalled();
   });
 
+  it("keeps a failed profile read out of persona selection and retries the join", async () => {
+    window.history.replaceState(null, "", "/verify/very?community_id=community-gated-1");
+    vi.mocked(sessionApi.resolveSession).mockResolvedValueOnce({ status: "authenticated", userId: "account-a", personas: [], personasUnavailable: true });
+    vi.mocked(veryApi.resolveVeryCommunityAction).mockResolvedValue({ kind: "join" });
+    const container = render(() => <VeryVerificationRoute />);
+    container.querySelector<HTMLButtonElement>("button")!.click();
+    await vi.waitFor(() => expect(container.textContent).toContain("Retry the join"));
+    expect(document.querySelector('[role="dialog"]')).toBeNull();
+    expect(veryApi.joinVeryCommunity).not.toHaveBeenCalled();
+    container.querySelector<HTMLButtonElement>("button")!.click();
+    await vi.waitFor(() => expect(container.textContent).toContain("Community joined"));
+    expect(veryApi.joinVeryCommunity).toHaveBeenCalledOnce();
+  });
+
   it("blocks a zero-candidate join and explains persona creation is coming soon", async () => {
     window.history.replaceState(null, "", "/verify/very?community_id=community-gated-1");
     vi.mocked(sessionApi.resolveSession).mockResolvedValue({ status: "authenticated", userId: "account-a", personas: [] });

@@ -147,6 +147,25 @@ describe("YourCommunitiesRouteView", () => {
     ).not.toBeNull();
   });
 
+  test("reports unavailable profiles and retries on the next Post click", async () => {
+    let unavailable = true;
+    const resolvePostingSession = vi.fn(async () => ({ status: "authenticated" as const,
+      userId: "account-one", personas: [], personasUnavailable: unavailable ? true as const : undefined }));
+    const container = render(() => <YourCommunitiesRouteView
+      applicationSession={() => ({ status: "authenticated", userId: "account-one" })}
+      loadMemberships={async () => [routeLessMembership]} resolvePostingSession={resolvePostingSession} />);
+    await vi.waitFor(() => expect(container.textContent).toContain("Open Sea"));
+    const post = () => container.querySelector<HTMLButtonElement>("[data-post-community-id]")!;
+    post().click();
+    await vi.waitFor(() => expect(container.textContent).toContain("couldn't load your community profiles"));
+    expect(document.body.textContent).not.toContain("Create or reactivate a public persona");
+    expect(document.body.textContent).not.toContain("Posting in Open Sea");
+    unavailable = false;
+    post().click();
+    await vi.waitFor(() => expect(document.body.textContent).toContain("Posting in Open Sea"));
+    expect(resolvePostingSession).toHaveBeenCalledTimes(2);
+  });
+
   test("fails closed when membership disappears before the composer opens", async () => {
     const loadMemberships = vi
       .fn()

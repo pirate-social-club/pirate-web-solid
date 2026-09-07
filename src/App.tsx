@@ -30,6 +30,9 @@ function ApplicationRoot(props: { readonly children: JSX.Element }) {
   const [session, setSession] = createSignal<ApplicationSessionState>("resolving");
   let active = true;
   let sessionRequest = 0;
+  let accountInFlight = false;
+  const [accountPending, setAccountPending] = createSignal(true);
+  const retryAccount = () => { if (!accountInFlight) refreshSession(); };
 
   createEffect(
     () => true,
@@ -37,12 +40,20 @@ function ApplicationRoot(props: { readonly children: JSX.Element }) {
       if (typeof window === "undefined") return;
       const update = () => {
         const request = ++sessionRequest;
+        accountInFlight = true;
+        setAccountPending(true);
         // Refresh invalidates a previous anonymous result (including sign-in),
         // while authenticated and failed chrome remain stable during the read.
         if (session() === "anonymous") setSession("resolving");
         void resolveAccountSession()
           .then(result => { if (active && request === sessionRequest) setSession(result); })
-          .catch(() => { if (active && request === sessionRequest) setSession("failed"); });
+          .catch(() => { if (active && request === sessionRequest) setSession("failed"); })
+          .finally(() => {
+            if (active && request === sessionRequest) {
+              accountInFlight = false;
+              setAccountPending(false);
+            }
+          });
       };
       update();
       // A successful sign-in refreshes the shared store instead of reloading
@@ -63,7 +74,8 @@ function ApplicationRoot(props: { readonly children: JSX.Element }) {
         signedIn={session() !== "resolving" && session() !== "anonymous" && session() !== "failed"}
         sessionUnavailable={session() === "failed"}
         sessionResolving={session() === "resolving"}
-        onSessionRetry={refreshSession}
+        sessionPending={accountPending()}
+        onSessionRetry={retryAccount}
       >
         <Errored fallback={(_, reset) => <RootErrorState onHome={() => { reset(); navigate("/"); }} />}>
           {props.children}

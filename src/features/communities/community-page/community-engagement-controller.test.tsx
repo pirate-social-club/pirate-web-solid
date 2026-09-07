@@ -10,7 +10,7 @@ const unboundPersona = { personaId: "persona-a", displayName: "Persona A", avata
   primaryPublicHandle: null, communityBinding: null };
 afterEach(() => { for (const dispose of disposers.splice(0)) dispose(); });
 
-async function setup(overrides: Partial<CommunityEngagementApi> = {}, personas: AuthenticatedSession["personas"] = []) {
+async function setup(overrides: Partial<CommunityEngagementApi> = {}, personas: AuthenticatedSession["personas"] = [], resolveSession = async (): Promise<AuthenticatedSession> => ({ status: "authenticated", userId: "account-a", personas })) {
   let committed = false;
   const api: CommunityEngagementApi = {
     readViewerState: vi.fn(async () => ({ membership: committed ? "member" as const : "not_member" as const, following: committed, followerCount: committed ? 7 : 0 })),
@@ -25,15 +25,29 @@ async function setup(overrides: Partial<CommunityEngagementApi> = {}, personas: 
     return createCommunityEngagementController({
       api, communityId: "community-a", initialFollowerCount: 0, membershipMode: "open",
       navigate: vi.fn(), returnTo: "/c/community-a",
-      resolveSession: async () => ({ status: "authenticated", userId: "account-a", personas }),
+      resolveSession,
     });
   });
-  await vi.waitFor(() => expect(controller.postingSession()).toBeDefined());
+  await vi.waitFor(() => expect(controller.postingSession() !== undefined || controller.error().includes("active personas")).toBe(true));
   await vi.waitFor(() => expect(api.readViewerState).toHaveBeenCalled());
   return { api, controller };
 }
 
 describe("terminal community persona choice", () => {
+  test("unavailable profiles block selection without claiming no eligible persona and allow retry", async () => {
+    let unavailable = true;
+    const { controller, api } = await setup({}, [], async () => ({ status: "authenticated", userId: "account-a",
+      personas: unavailable ? [] : [unboundPersona], personasUnavailable: unavailable ? true as const : undefined }));
+    await controller.joinCommunity();
+    expect(controller.error()).toContain("couldn't load your active personas");
+    expect(controller.postingSession()).toBeUndefined();
+    expect(controller.joinPersonaStep()).toBe(false);
+    expect(api.join).not.toHaveBeenCalled();
+    unavailable = false;
+    await controller.joinCommunity({ kind: "existing", personaId: "persona-a" });
+    expect(api.join).toHaveBeenCalledOnce();
+  });
+
   test("request-mode join sends no persona even when one is supplied", async () => {
     const { api, controller } = await setup({
       resolveJoinAction: vi.fn(async () => ({ kind: "request" as const })),

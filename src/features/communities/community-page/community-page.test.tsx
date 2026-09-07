@@ -232,6 +232,46 @@ describe("CommunityPage", () => {
     expect(document.body.querySelector(`[data-community-context='${communityId}']`)).not.toBeNull();
   });
 
+  test("profile failure does not open an empty composer and the Post action retries", async () => {
+    let unavailable = true;
+    const resolveSession = vi.fn(async () => ({
+      status: "authenticated" as const,
+      userId: "account-one",
+      personas: [],
+      personasUnavailable: unavailable ? true as const : undefined,
+    }));
+    const container = render(() => (
+      <CommunityPage
+        client={{
+          get_cPathSegment: async () => route,
+          get_communitiesCommunityIdPreview: async () => preview,
+        }}
+        engagementApi={engagementApi({
+          readViewerState: vi.fn(async () => ({ membership: "member" as const, following: false, followerCount: 20 })),
+        })}
+        handleSalesClient={{ get_communitiesCommunityIdHandleOfferings: async () => ({ items: [], next_cursor: null }) }}
+        pathSegment="xn--pokmon-dva"
+        resolveSession={resolveSession}
+      />
+    ));
+    await vi.waitFor(() => expect(container.querySelector("h1")?.textContent).toBe("Pirate Harbor"));
+    await vi.waitFor(() => expect(resolveSession).toHaveBeenCalledTimes(1));
+
+    const postHere = [...container.querySelectorAll<HTMLButtonElement>("button")]
+      .find(button => button.textContent?.trim() === "Post here")!;
+    postHere.click();
+
+    await vi.waitFor(() => expect(container.textContent).toContain("couldn't load your active personas"));
+    expect(document.body.textContent).not.toContain("Posting in Pirate Harbor");
+    expect(document.body.textContent).not.toContain("Create or reactivate a public persona");
+    unavailable = false;
+    postHere.click();
+    await vi.waitFor(() => expect(document.body.textContent).toContain("Posting in Pirate Harbor"));
+    expect(container.textContent).not.toContain("couldn't load your active personas");
+    expect(document.body.querySelector("input[name='community-id']")).toBeNull();
+    expect(document.body.querySelector(`[data-community-context='${communityId}']`)).not.toBeNull();
+  });
+
   test("fails closed when routed membership disappears before posting", async () => {
     const readViewerState = vi
       .fn()
