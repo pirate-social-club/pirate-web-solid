@@ -66,6 +66,15 @@ export function CommunityNamespaceSettingsController(
   const [draftRootLabel, setDraftRootLabel] = createSignal("");
   const [busy, setBusy] = createSignal(false);
   const [message, setMessage] = createSignal("");
+  const [activeCommand, setActiveCommand] = createSignal<NamespaceSettingsCommand["kind"]>();
+  const [pollFailed, setPollFailed] = createSignal(false);
+  const [unchangedReads, setUnchangedReads] = createSignal(0);
+  const [pageVisible, setPageVisible] = createSignal(typeof document === "undefined" || document.visibilityState !== "hidden");
+  if (typeof document !== "undefined") {
+    const updateVisibility = () => setPageVisible(document.visibilityState !== "hidden");
+    document.addEventListener("visibilitychange", updateVisibility);
+    onCleanup(() => document.removeEventListener("visibilitychange", updateVisibility));
+  }
   const [keys, setKeys] = createSignal(operationKeys());
   let active = true;
   let requestGeneration = 0;
@@ -104,12 +113,22 @@ export function CommunityNamespaceSettingsController(
   const execute = async (command: NamespaceSettingsCommand) => {
     if (!active || busy()) return;
     setBusy(true);
-    setMessage("");
+    setActiveCommand(command.kind);
+    // Keep the named retry control mounted while its request is in flight.
+    if (command.kind !== "poll") {
+      setMessage("");
+      setPollFailed(false);
+    }
     try {
       const current = await api.execute(command);
       if (!active) return;
+      const previous = snapshot();
+      const advanced = previous?.generation !== current.generation || previous?.next_action.kind !== current.next_action.kind;
+      setUnchangedReads(command.kind === "poll" && !advanced ? Math.min(4, unchangedReads() + 1) : 0);
       setSnapshot(current);
       setDraftRootLabel(current.root_label);
+      setMessage("");
+      setPollFailed(false);
       if (command.kind === "restart" || command.kind === "change_namespace") {
         setKeys(operationKeys());
       } else {
@@ -117,7 +136,8 @@ export function CommunityNamespaceSettingsController(
       }
     } catch (error) {
       if (active) {
-        setMessage(command.kind === "poll" ? "Could not update progress. Try again using the same button." : commandError(error));
+        setPollFailed(command.kind === "poll");
+        setMessage(command.kind === "poll" ? "Could not refresh verification status. Select Retry status to reconnect." : commandError(error));
       }
     } finally {
       if (active) setBusy(false);
@@ -125,12 +145,14 @@ export function CommunityNamespaceSettingsController(
   };
 
   createEffect(
-    () => ({ busy: busy(), pollKey: keys().poll, snapshot: snapshot(), status: status(), failed: message() !== "" }),
-    ({ busy: polling, pollKey, snapshot: current, status: loadStatus, failed }) => {
-      if (failed || !current || polling || loadStatus !== "ready") return;
+    () => ({ busy: busy(), pollKey: keys().poll, snapshot: snapshot(), status: status(), failed: message() !== "", visible: pageVisible(), attempts: unchangedReads() }),
+    ({ busy: polling, pollKey, snapshot: current, status: loadStatus, failed, visible, attempts }) => {
+      if (!visible || failed || !current || polling || loadStatus !== "ready") return;
       const action = current.next_action;
       if (action.kind !== "wait" && !(action.kind === "publish_resource" && action.check_pending)) return;
-      const delayMs = Math.max(1, action.retry_after_seconds ?? 2) * 1_000;
+      // Back off unchanged snapshots: 2, 4, 8, 16, then 30 seconds.
+      // A longer server hint always takes precedence.
+      const delayMs = Math.max(action.retry_after_seconds ?? 2, Math.min(30, 2 ** (attempts + 1))) * 1_000;
       const timer = setTimeout(() => {
         void execute({
           expected_generation: current.generation,
@@ -163,8 +185,7 @@ export function CommunityNamespaceSettingsController(
           <Show when={snapshot()}>{(current) => (
             <>
               <CommunityNamespaceSettingsPanel
-                busy={busy()}
-                progressPaused={message() !== ""}
+                busy={busy() && activeCommand() !== "poll"}
                 draftRootLabel={draftRootLabel()}
                 idempotencyKeys={keys()}
                 onCommand={(command) => void execute(command)}
@@ -173,7 +194,15 @@ export function CommunityNamespaceSettingsController(
                 snapshot={current()}
                 wallet={wallet}
               />
-              <div class="h-12 overflow-auto" role="status"><Show when={message()}><FormNote tone="destructive">{message()}</FormNote></Show></div>
+              <div class="flex h-20 items-center gap-3 overflow-auto">
+                <div class="min-w-0 flex-1" role="status"><Show when={message()}><FormNote tone="destructive">{message()}</FormNote></Show></div>
+                <Show when={pollFailed()}>
+                  <Button loading={busy()} onClick={() => {
+                    const current = snapshot();
+                    if (current) void execute({ kind: "poll", expected_generation: current.generation, idempotency_key: keys().poll });
+                  }} variant="secondary">Retry status</Button>
+                </Show>
+              </div>
             </>
           )}</Show>
         </Show>
