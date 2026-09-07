@@ -3,7 +3,7 @@ import { fileRoutes } from "@solidjs/router/fs";
 import { Errored, Loading, createEffect, createMemo, createSignal, onCleanup } from "solid-js";
 import { getRequestEvent, type JSX } from "@solidjs/web";
 import { pageRoutes } from "virtual:file-routes";
-import { resolveAccountSession, onSessionRefreshed } from "./api/session.ts";
+import { resolveAccountSession, onSessionRefreshed, refreshSession } from "./api/session.ts";
 import { GlobalSignInHost } from "./features/auth/global-sign-in-host.tsx";
 import { resolveApplicationChrome } from "./features/shell/application-chrome-model.ts";
 import {
@@ -37,9 +37,10 @@ function ApplicationRoot(props: { readonly children: JSX.Element }) {
       if (typeof window === "undefined") return;
       const update = () => {
         const request = ++sessionRequest;
+        setSession("resolving");
         void resolveAccountSession()
           .then(result => { if (active && request === sessionRequest) setSession(result); })
-          .catch(() => { if (active && request === sessionRequest) setSession("anonymous"); });
+          .catch(() => { if (active && request === sessionRequest) setSession("failed"); });
       };
       update();
       // A successful sign-in refreshes the shared store instead of reloading
@@ -57,7 +58,9 @@ function ApplicationRoot(props: { readonly children: JSX.Element }) {
         mobileTitle={policy().mobileTitle}
         mode={policy().mode}
         navigate={(href) => navigate(href)}
-        signedIn={session() !== "resolving" && session() !== "anonymous"}
+        signedIn={session() !== "resolving" && session() !== "anonymous" && session() !== "failed"}
+        sessionUnavailable={session() === "failed"}
+        onSessionRetry={refreshSession}
       >
         <Errored fallback={(_, reset) => <RootErrorState onHome={() => { reset(); navigate("/"); }} />}>
           {props.children}

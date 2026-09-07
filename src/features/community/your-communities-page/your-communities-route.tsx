@@ -101,6 +101,10 @@ export function YourCommunitiesRouteView(props: YourCommunitiesRouteProps = {}) 
           setState({ kind: "loading" });
           return;
         }
+        if (current === "failed") {
+          setState({ kind: "error", message: "We couldn't check your account. Use Retry account check to reconnect." });
+          return;
+        }
         load(current);
       });
     },
@@ -123,12 +127,12 @@ export function YourCommunitiesRouteView(props: YourCommunitiesRouteProps = {}) 
   const openPostComposer = async (community: YourCommunitySummary): Promise<void> => {
     if (postingCommunityId() !== undefined) return;
     const account = session();
-    if (account === undefined || account === "resolving" || account === "anonymous") return;
+    if (account === undefined || account === "resolving" || account === "anonymous" || account === "failed") return;
     const epoch = loadRequest;
     const isCurrent = () => {
       const current = session();
       return active && epoch === loadRequest && current !== undefined &&
-        current !== "resolving" && current !== "anonymous" && current.userId === account.userId;
+        current !== "resolving" && current !== "anonymous" && current !== "failed" && current.userId === account.userId;
     };
     setPostingCommunityId(community.communityId);
     setActionError("");

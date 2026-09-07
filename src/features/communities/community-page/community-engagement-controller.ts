@@ -145,6 +145,13 @@ export function createCommunityEngagementController(
           .catch(() => { if (active && request === sessionRequest) setError("We couldn't verify your session."); });
         return;
       }
+      if (resolved === "failed") {
+        setAccountAuthenticated(false);
+        setPostingSession(undefined);
+        setViewerReady(false);
+        setError("We couldn't check your account. Use Retry account check to reconnect.");
+        return;
+      }
       if (resolved !== "resolving") {
         applyAccountSession(resolved);
         if (resolved !== "anonymous") hydrateFullSession();
@@ -156,6 +163,10 @@ export function createCommunityEngagementController(
     if (accountAuthenticated()) return true;
     const fromApplication = applicationSession();
     if (fromApplication !== undefined && fromApplication !== "resolving") {
+      if (fromApplication === "failed") {
+        setError("We couldn't check your account. Use Retry account check to reconnect.");
+        return false;
+      }
       if (fromApplication === "anonymous") {
         requestGlobalSignIn();
         return false;

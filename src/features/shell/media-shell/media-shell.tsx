@@ -33,6 +33,8 @@ export interface MediaShellProps {
   readonly mode?: ApplicationChromeMode;
   readonly navigate?: (href: string) => void;
   readonly signedIn?: boolean;
+  readonly sessionUnavailable?: boolean;
+  readonly onSessionRetry?: () => void;
   /** Compatibility seam for existing stories; `mode="immersive"` is canonical. */
   readonly immersive?: boolean;
   readonly class?: string;
@@ -93,7 +95,7 @@ export function ApplicationChrome(props: MediaShellProps) {
   const goHome = () => navigateById("home");
   const goProfile = () => navigateById("settings");
 
-  return <Show when={mode() !== "bare"} fallback={props.children}><div data-application-chrome data-media-shell data-shell-mode={mode()} data-shell-auth={signedIn() ? "authenticated" : "anonymous"} class={`min-h-screen bg-background text-foreground ${props.class ?? ""}`}>
+  return <Show when={mode() !== "bare"} fallback={props.children}><div data-application-chrome data-media-shell data-shell-mode={mode()} data-shell-auth={props.sessionUnavailable ? "unavailable" : signedIn() ? "authenticated" : "anonymous"} class={`min-h-screen bg-background text-foreground ${props.class ?? ""}`}>
     <div class="flex min-h-screen">
       <AppSidebar
         activeItemId={activeItem()}
@@ -101,14 +103,14 @@ export function ApplicationChrome(props: MediaShellProps) {
         brandLabel="PIRATE"
         class="sticky top-0 hidden h-screen md:flex"
         footerActionHref={signedIn() ? "/settings" : undefined}
-        footerActionLabel={signedIn() ? "Account settings" : "Sign in"}
-        footerDetail={signedIn() ? "Session active" : "Save, follow, and post"}
-        footerTitle={signedIn() ? "Your Pirate" : "Join Pirate"}
+        footerActionLabel={props.sessionUnavailable ? "Retry account check" : signedIn() ? "Account settings" : "Sign in"}
+        footerDetail={props.sessionUnavailable ? "Your account could not be checked" : signedIn() ? "Session active" : "Save, follow, and post"}
+        footerTitle={props.sessionUnavailable ? "Connection unavailable" : signedIn() ? "Your Pirate" : "Join Pirate"}
         homeAriaLabel="Go to Pirate home"
-        onFooterAction={requestGlobalSignIn}
-        onFooterActionFocus={prepareGlobalSignIn}
-        onFooterActionPointerDown={prepareGlobalSignIn}
-        onFooterActionPointerEnter={preloadGlobalSignInAssets}
+        onFooterAction={props.sessionUnavailable ? props.onSessionRetry : requestGlobalSignIn}
+        onFooterActionFocus={props.sessionUnavailable ? undefined : prepareGlobalSignIn}
+        onFooterActionPointerDown={props.sessionUnavailable ? undefined : prepareGlobalSignIn}
+        onFooterActionPointerEnter={props.sessionUnavailable ? undefined : preloadGlobalSignInAssets}
         onHomeClick={goHome}
         onNavigate={navigateById}
         primaryItems={primaryItems}
@@ -131,7 +133,7 @@ export function ApplicationChrome(props: MediaShellProps) {
                 <Show when={immersive()} fallback={<IconHouse class="size-6" />}><IconUsersThree class="size-6" /></Show>
               </IconButton>
             }
-            mobileTrailingContent={signedIn() ? undefined : <Button type="button" onClick={requestGlobalSignIn} onFocus={prepareGlobalSignIn} onPointerDown={prepareGlobalSignIn} onPointerEnter={preloadGlobalSignInAssets} class={immersive() ? "text-white" : undefined} size="sm" variant="ghost">Sign in</Button>}
+            mobileTrailingContent={props.sessionUnavailable ? <Button type="button" onClick={props.onSessionRetry} size="sm" variant="ghost">Retry account check</Button> : signedIn() ? undefined : <Button type="button" onClick={requestGlobalSignIn} onFocus={prepareGlobalSignIn} onPointerDown={prepareGlobalSignIn} onPointerEnter={preloadGlobalSignInAssets} class={immersive() ? "text-white" : undefined} size="sm" variant="ghost">Sign in</Button>}
             onHomeClick={goHome}
             onProfileClick={goProfile}
             showNotificationsAction={false}

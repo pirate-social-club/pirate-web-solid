@@ -55,6 +55,43 @@ const activePersonaProjection = {
 };
 
 describe("browser session resolution", () => {
+  test("accepts a valid account response slower than the former four-second cutoff", async () => {
+    vi.useFakeTimers();
+    try {
+      const result = resolveAccountSession({
+        origin: "https://app.example.test",
+        fetchImpl: (_input, init) => new Promise((resolve, reject) => {
+          init?.signal?.addEventListener("abort", () => reject(new DOMException("Aborted", "AbortError")));
+          setTimeout(() => resolve(Response.json({
+            id: "user-slow", object: "user", verification_state: "unverified", created: 1788495833,
+            verification_capabilities: Object.fromEntries(
+              ["unique_human", "age_over_18", "minimum_age", "nationality", "gender", "wallet_score"]
+                .map(key => [key, { state: "unverified" }]),
+            ),
+          })), 4_500);
+        }),
+      });
+      const outcome = expect(result).resolves.toEqual({ status: "authenticated", userId: "user-slow" });
+      await vi.advanceTimersByTimeAsync(4_500);
+      await outcome;
+    } finally { vi.useRealTimers(); }
+  });
+
+  test("still aborts an account check that exceeds the background timeout", async () => {
+    vi.useFakeTimers();
+    try {
+      const result = resolveAccountSession({
+        origin: "https://app.example.test",
+        fetchImpl: (_input, init) => new Promise((_resolve, reject) => {
+          init?.signal?.addEventListener("abort", () => reject(new DOMException("Aborted", "AbortError")));
+        }),
+      });
+      const outcome = expect(result).rejects.toThrow("Aborted");
+      await vi.advanceTimersByTimeAsync(15_000);
+      await outcome;
+    } finally { vi.useRealTimers(); }
+  });
+
   test("resolves the home shell from the account without waiting for personas", async () => {
     const getPersonas = vi.fn(async () => { throw new Error("persona projection unavailable"); });
     const result = await resolveAccountSession({

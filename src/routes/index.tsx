@@ -38,7 +38,7 @@ export interface HomeRouteProps {
   readonly navigate?: HomeVideoFeedProps["navigate"];
 }
 
-type HomeRouteSession = "resolving" | AccountSessionResolution;
+type HomeRouteSession = "resolving" | "failed" | AccountSessionResolution;
 
 function isHydrationFixtureRequest(): boolean {
   const event = getRequestEvent();
@@ -110,11 +110,11 @@ export default function HomeRoute(props: HomeRouteProps = {}) {
   const publicData = props.publicData ?? (reviewFixture ? publicFeedReviewPage : undefined);
   const authenticatedSession = () => {
     const current = session();
-    return current === "resolving" || current === "anonymous" ? undefined : current;
+    return current === "resolving" || current === "anonymous" || current === "failed" ? undefined : current;
   };
   const sessionStatus = () => session() === "resolving"
     ? "resolving"
-    : session() === "anonymous" ? "anonymous" : "authenticated";
+    : session() === "anonymous" ? "anonymous" : session() === "failed" ? "failed" : "authenticated";
 
   createEffect(
     () => applicationSession?.(),
