@@ -66,7 +66,6 @@ export function CommunityNamespaceSettingsController(
   const [draftRootLabel, setDraftRootLabel] = createSignal("");
   const [busy, setBusy] = createSignal(false);
   const [message, setMessage] = createSignal("");
-  const [failedPoll, setFailedPoll] = createSignal<NamespaceSettingsCommand>();
   const [keys, setKeys] = createSignal(operationKeys());
   let active = true;
   let requestGeneration = 0;
@@ -106,7 +105,6 @@ export function CommunityNamespaceSettingsController(
     if (!active || busy()) return;
     setBusy(true);
     setMessage("");
-    setFailedPoll(undefined);
     try {
       const current = await api.execute(command);
       if (!active) return;
@@ -119,8 +117,7 @@ export function CommunityNamespaceSettingsController(
       }
     } catch (error) {
       if (active) {
-        setMessage(commandError(error));
-        if (command.kind === "poll" && (!(error instanceof ApiClientError) || error.retryable)) setFailedPoll(command);
+        setMessage(command.kind === "poll" ? "Could not update progress. Try again using the same button." : commandError(error));
       }
     } finally {
       if (active) setBusy(false);
@@ -130,8 +127,10 @@ export function CommunityNamespaceSettingsController(
   createEffect(
     () => ({ busy: busy(), pollKey: keys().poll, snapshot: snapshot(), status: status(), failed: message() !== "" }),
     ({ busy: polling, pollKey, snapshot: current, status: loadStatus, failed }) => {
-      if (failed || current?.next_action.kind !== "wait" || polling || loadStatus !== "ready") return;
-      const delayMs = Math.max(1, current.next_action.retry_after_seconds) * 1_000;
+      if (failed || !current || polling || loadStatus !== "ready") return;
+      const action = current.next_action;
+      if (action.kind !== "wait" && !(action.kind === "publish_resource" && action.check_pending)) return;
+      const delayMs = Math.max(1, action.retry_after_seconds ?? 2) * 1_000;
       const timer = setTimeout(() => {
         void execute({
           expected_generation: current.generation,
@@ -165,6 +164,7 @@ export function CommunityNamespaceSettingsController(
             <>
               <CommunityNamespaceSettingsPanel
                 busy={busy()}
+                progressPaused={message() !== ""}
                 draftRootLabel={draftRootLabel()}
                 idempotencyKeys={keys()}
                 onCommand={(command) => void execute(command)}
@@ -173,8 +173,7 @@ export function CommunityNamespaceSettingsController(
                 snapshot={current()}
                 wallet={wallet}
               />
-              <Show when={message()}><FormNote tone="destructive">{message()}</FormNote></Show>
-              <Show when={failedPoll()}>{(command) => <Button disabled={busy()} onClick={() => void execute(command())} variant="secondary">Retry check</Button>}</Show>
+              <div class="h-12 overflow-auto" role="status"><Show when={message()}><FormNote tone="destructive">{message()}</FormNote></Show></div>
             </>
           )}</Show>
         </Show>

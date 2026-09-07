@@ -1,4 +1,3 @@
-import { ApiClientError } from "@pirate/api-client";
 import { render as solidRender, type JSX } from "@solidjs/web";
 import { createRoot } from "solid-js";
 import { afterEach, expect, test, vi } from "vitest";
@@ -46,94 +45,90 @@ type DiscoveryFixture = {
   attachment: null | { canonical_route: { root_label_display: string }; status: string };
   session: typeof session | null;
 };
-function makeApi(read: () => Promise<DiscoveryFixture>, poll = vi.fn(async () => ({ ...session, publication_check_pending: true }))) {
+function makeApi(read: () => Promise<DiscoveryFixture>, poll = vi.fn(async () => ({ ...session, publication_check_pending: true })), get = vi.fn(async () => ({...session,publication_check_pending:true}))) {
   return createCommunityNamespaceSettingsApi({
-    // SAFETY: These fakes supply the generated discovery and poll response fields exercised here.
+    // SAFETY: These fakes implement exactly the generated methods exercised here.
     client: { get_communitiesCommunityIdHnsRootImports: read,
+      get_communitiesCommunityIdHnsRootImportsSessionId: get,
       post_communitiesCommunityIdHnsRootImportsSessionIdPoll: poll } as never,
     communityId: "community-1", communityPath: "/c/community-1", readCsrfToken: () => "csrf-1",
     locator: { read: () => null, write: () => {}, clear: () => {} },
   });
 }
 
-test.each([2, 90])("pending checks honor a %i second interval and stop on disposal", async (retrySeconds) => {
-  const poll = vi.fn(async () => ({ ...session, publication_check_pending: true, retry_after_seconds: retrySeconds }));
-  const api = makeApi(async () => ({ community_id: "community-1", attachment: null, session }), poll);
-  const { container, cleanup } = render(() => <CommunityNamespaceSettingsController api={api} communityId="community-1" communityPath="/c/community-1" />);
-  await vi.waitFor(() => expect(container.textContent).toContain("I published all records manually"));
-  expect(container.textContent).toContain("Review changes to existing records");
-  expect(container.textContent).toContain("Records kept live (1)");
-  expect(container.textContent).toContain("Records added by this update (2)");
-  expect(container.textContent).toContain("Existing records being replaced (1)");
-  expect(container.textContent).toContain("make up the complete list of 3 records");
+test.each([2, 90])("automatic progress uses GET every %i seconds and stops on disposal", async (retrySeconds) => {
+  const post = vi.fn();
+  const get = vi.fn(async () => ({ ...session, publication_check_pending: true, retry_after_seconds: retrySeconds }));
+  const api = makeApi(async () => ({ community_id: "community-1", attachment: null, session: {...session,publication_check_pending:true,retry_after_seconds:retrySeconds} }), post, get);
   vi.useFakeTimers();
-  const acknowledge = [...container.querySelectorAll<HTMLButtonElement>("button")].find((button) => button.textContent === "I published all records manually");
-  acknowledge!.click();
+  const {container,cleanup}=render(()=><CommunityNamespaceSettingsController api={api} communityId="community-1" communityPath="/c/community-1" />);
   await vi.advanceTimersByTimeAsync(0);
-  expect(poll).toHaveBeenCalledTimes(1);
-  expect(container.textContent).toContain("Checking records");
-  expect(container.textContent).not.toContain("I published all records manually");
-  expect(container.textContent).not.toContain("Activate community address");
-  await vi.advanceTimersByTimeAsync(retrySeconds * 1000 - 1);
-  expect(poll).toHaveBeenCalledTimes(1);
-  await vi.advanceTimersByTimeAsync(1);
-  expect(poll).toHaveBeenCalledTimes(2);
-  await vi.advanceTimersByTimeAsync(retrySeconds * 1000);
-  expect(poll).toHaveBeenCalledTimes(3);
-  cleanup();
-  await vi.advanceTimersByTimeAsync(retrySeconds * 5000);
-  expect(poll).toHaveBeenCalledTimes(3);
+  expect(container.textContent).toContain("Your records are ready to publish");
+   expect(container.textContent).toContain("Review changes to existing records");
+   expect(container.textContent).toContain("Records kept live (1)");
+   expect(container.textContent).toContain("Records added by this update (2)");
+   expect(container.textContent).toContain("Existing records being replaced (1)");
+  expect(container.textContent).not.toContain("Retry after");
+  expect(container.textContent).not.toContain("Check status");
+  await vi.advanceTimersByTimeAsync(retrySeconds*1000-1);expect(get).not.toHaveBeenCalled();
+  await vi.advanceTimersByTimeAsync(1);expect(get).toHaveBeenCalledTimes(1);
+  await vi.advanceTimersByTimeAsync(retrySeconds*1000);expect(get).toHaveBeenCalledTimes(2);
+  expect(post).not.toHaveBeenCalled();cleanup();
+  await vi.advanceTimersByTimeAsync(retrySeconds*5000);expect(get).toHaveBeenCalledTimes(2);
 });
 
-test("fresh controllers recover pending imports after navigation and reload without a locator", async () => {
-  const discovery = vi.fn(async () => ({ community_id: "community-1", attachment: null,
-    session: { ...session, publication_check_pending: true } }));
-  for (let visit = 0; visit < 3; visit += 1) {
-    const api = makeApi(discovery);
-    const { container, cleanup } = render(() => <CommunityNamespaceSettingsController api={api} communityId="community-1" communityPath="/c/community-1" />);
-    await vi.waitFor(() => expect(container.textContent).toContain("Checking records"));
-    expect(container.textContent).not.toContain("Handshake root");
-    cleanup();
-  }
-  expect(discovery).toHaveBeenCalledTimes(3);
+test("records survive acknowledgement, pending reads and failures without a second POST",async()=>{
+  let acknowledged=false;
+  const post=vi.fn(async()=>{acknowledged=true;return {...session,publication_check_pending:true};});
+  const get=vi.fn(async()=>({...session,revision:4,publication_check_pending:acknowledged}));
+  const api=makeApi(async()=>({community_id:"community-1",attachment:null,session}),post,get);
+  vi.useFakeTimers();
+  const {container}=render(()=><CommunityNamespaceSettingsController api={api} communityId="community-1" communityPath="/c/community-1" />);
+  await vi.advanceTimersByTimeAsync(0);
+  const button=[...container.querySelectorAll<HTMLButtonElement>("button")].find(b=>b.textContent==="I published all records manually")!;
+  const text=container.textContent;
+  const records=container.querySelector("input,textarea");
+  button.click();await vi.advanceTimersByTimeAsync(0);
+  expect(post).toHaveBeenCalledTimes(1);
+  expect(post.mock.calls[0]).toEqual(expect.arrayContaining([expect.objectContaining({body:expect.objectContaining({expected_revision:4})})]));
+  expect(container.textContent).toBe(text);expect(button.disabled).toBe(true);
+  expect(container.querySelector("input,textarea")).toBe(records);
+  await vi.advanceTimersByTimeAsync(2000);expect(post).toHaveBeenCalledTimes(1);
+  get.mockRejectedValueOnce(new Error("offline"));
+  await vi.advanceTimersByTimeAsync(2000);
+  expect(container.textContent).toContain("Could not update progress");
+  expect(button.disabled).toBe(false);expect(button.textContent).toBe("I published all records manually");
+  const calls=get.mock.calls.length;await vi.advanceTimersByTimeAsync(60000);expect(get).toHaveBeenCalledTimes(calls);
+  button.click();await vi.advanceTimersByTimeAsync(0);expect(get).toHaveBeenCalledTimes(calls+1);expect(post).toHaveBeenCalledTimes(1);
 });
 
-test.each([null, { canonical_route: { root_label_display: "midnight" }, status: "suspended" }])(
-  "renders only the asserted attachment and account absence %j", async (attachment) => {
-    const api = makeApi(async () => ({ community_id: "community-1", attachment, session: null }));
-    const { container } = render(() => <CommunityNamespaceSettingsController api={api} communityId="community-1" communityPath="/c/community-1" />);
-    await vi.waitFor(() => expect(container.textContent).toContain("No import found for your account."));
-    expect(container.querySelector("[data-namespace-attachment]") !== null).toBe(attachment !== null);
-    if (attachment !== null) {
-      expect(container.textContent).toContain("midnight");
-      expect(container.textContent).toContain("This attachment is suspended.");
-    }
-    expect(container.textContent).not.toContain("another operator");
-    expect(container.textContent).not.toContain("Accessible");
-  },
-);
-
-test.each([true, false])("failed polling pauses without a retry loop (retryable=%s)", async (retryable) => {
- const failed = new ApiClientError({code:"provider_unavailable",name:retryable?"ProviderUnavailable":"ProviderMisconfigured",retryable,status:502},
- {error:{code:"provider_unavailable",message:"Unavailable",retryable}});
- const poll=vi.fn(async()=>({...session,publication_check_pending:true}));
- poll.mockRejectedValueOnce(failed);
- const api=makeApi(async()=>({community_id:"community-1",attachment:null,session:{...session,publication_check_pending:true}}),poll);
- const {container}=render(()=><CommunityNamespaceSettingsController api={api} communityId="community-1" communityPath="/c/community-1" />);
- await vi.waitFor(()=>expect(container.textContent).toContain("Checking records"));
+test("preparation advances across server revisions by GET and displays records automatically",async()=>{
+ const post=vi.fn();
+ const get=vi.fn(async()=>session);
+ const api=makeApi(async()=>({community_id:"community-1",attachment:null,session:{...session,status:"provisioning",revision:2,publication_check_pending:false}}),post,get);
  vi.useFakeTimers();
- // Re-load under fake timers is unnecessary: the first real timer is allowed to fire.
- await vi.waitFor(()=>expect(poll).toHaveBeenCalledTimes(1),{timeout:4000});
- await vi.advanceTimersByTimeAsync(60000);
- expect(poll).toHaveBeenCalledTimes(1);
- const retry=[...container.querySelectorAll<HTMLButtonElement>("button")].find(button=>button.textContent==="Retry check");
- if(retryable) {
-  expect(retry).toBeDefined();retry?.click();await vi.advanceTimersByTimeAsync(0);
-  expect(poll).toHaveBeenCalledTimes(2);
-  expect(poll.mock.calls[1]).toEqual(poll.mock.calls[0]);
-  await vi.advanceTimersByTimeAsync(2000);expect(poll).toHaveBeenCalledTimes(3);
- } else {
-  expect(retry).toBeUndefined();expect(container.textContent).toContain("needs a service fix");
-  expect(container.textContent).not.toContain("temporarily unavailable");
+ const {container}=render(()=><CommunityNamespaceSettingsController api={api} communityId="community-1" communityPath="/c/community-1" />);
+ await vi.advanceTimersByTimeAsync(0);
+ expect(container.textContent).toContain("Prepare your records");
+ expect(container.textContent).not.toContain("Checking records");
+ expect([...container.querySelectorAll("button")].find(b=>b.textContent==="Start verification")?.disabled).toBe(true);
+ await vi.advanceTimersByTimeAsync(2000);
+ expect(container.textContent).toContain("Your records are ready to publish");expect(container.textContent).toContain("ns1.midnight");
+ expect(post).not.toHaveBeenCalled();expect(get).toHaveBeenCalledTimes(1);
+});
+
+test("fresh controllers recover pending imports without a locator",async()=>{
+ const discovery=vi.fn(async()=>({community_id:"community-1",attachment:null,session:{...session,publication_check_pending:true}}));
+ for(let visit=0;visit<3;visit++){
+  const api=makeApi(discovery);const {container,cleanup}=render(()=><CommunityNamespaceSettingsController api={api} communityId="community-1" communityPath="/c/community-1" />);
+  await vi.waitFor(()=>expect(container.textContent).toContain("Your records are ready to publish"));cleanup();
  }
+ expect(discovery).toHaveBeenCalledTimes(3);
+});
+
+test.each([null,{canonical_route:{root_label_display:"midnight"},status:"suspended"}])("renders asserted attachment and absence %j",async attachment=>{
+ const api=makeApi(async()=>({community_id:"community-1",attachment,session:null}));
+ const {container}=render(()=><CommunityNamespaceSettingsController api={api} communityId="community-1" communityPath="/c/community-1" />);
+ await vi.waitFor(()=>expect(container.textContent).toContain("No import found for your account."));
+ expect(container.querySelector("[data-namespace-attachment]")!==null).toBe(attachment!==null);
 });

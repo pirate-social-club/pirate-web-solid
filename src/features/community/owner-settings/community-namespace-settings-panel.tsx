@@ -10,7 +10,6 @@ import {
   IconGlobe,
   IconWarningCircle,
   PrefixInput,
-  Spinner,
   Type,
   buttonVariants,
 } from "@pirate/web-solid-ui";
@@ -28,6 +27,7 @@ import type { CommunityHnsWallet } from "./community-hns-wallet";
 
 export interface CommunityNamespaceSettingsPanelProps {
   busy?: boolean;
+  progressPaused?: boolean;
   draftRootLabel: string;
   idempotencyKeys: NamespaceCommandIdempotencyKeys;
   onCommand: (command: NamespaceSettingsCommand) => void;
@@ -52,6 +52,7 @@ function command(
 function actionTitle(action: NamespaceNextAction): string {
   if (action.kind === "wait") {
     return {
+      preparation_pending: "Preparing records",
       delegation_insecure: "Waiting for secure delegation",
       provider_unavailable: "Verifier temporarily unavailable",
       tree_commitment_pending: "Waiting for tree commitment",
@@ -150,8 +151,9 @@ function activationAction(action: NamespaceNextAction): Extract<NamespaceNextAct
   return action.kind === "ready_to_activate" ? action : null;
 }
 
-function ServerDirectedAction(props: Pick<CommunityNamespaceSettingsPanelProps, "busy" | "idempotencyKeys" | "onCommand" | "showHeading" | "snapshot" | "wallet">) {
+function ServerDirectedAction(props: Pick<CommunityNamespaceSettingsPanelProps, "busy" | "progressPaused" | "idempotencyKeys" | "onCommand" | "showHeading" | "snapshot" | "wallet">) {
   const action = () => props.snapshot.next_action;
+  const preparing = () => { const current = action(); return current.kind === "wait" && current.reason_code === "preparation_pending"; };
   const [walletBusy, setWalletBusy] = createSignal(false);
   const [walletError, setWalletError] = createSignal<string | null>(null);
   const dispatch = (value: NamespaceSettingsCommandInput) => {
@@ -171,11 +173,11 @@ function ServerDirectedAction(props: Pick<CommunityNamespaceSettingsPanelProps, 
 
   return (
     <div class="space-y-4" data-next-action={action().kind}>
-      <Show when={action().kind === "start_verification"}>
+      <Show when={action().kind === "start_verification" || preparing()}>
         <Card class="space-y-4 p-5 md:p-6">
-          <Type as="h2" variant="h2">Ready to verify</Type>
+          <Type as="h2" variant="h2">Prepare your records</Type>
           <FormNote>The server will prepare the complete Handshake resource for this name.</FormNote>
-          <Button loading={props.busy} onClick={() => dispatch({ kind: "start_verification" })}>Start verification</Button>
+          <Button loading={props.busy || (preparing() && !props.progressPaused)} onClick={() => dispatch({ kind: preparing() ? "poll" : "start_verification" })}>Start verification</Button>
         </Card>
         <SecondaryAction idempotencyKeys={props.idempotencyKeys} onCommand={props.onCommand} snapshot={props.snapshot} />
       </Show>
@@ -265,7 +267,7 @@ function ServerDirectedAction(props: Pick<CommunityNamespaceSettingsPanelProps, 
                 }
               >
                 <div class="space-y-2">
-                  <Type as="h2" variant="h2">Publish this complete resource</Type>
+                  <Type as="h2" variant="h2">Your records are ready to publish</Type>
                   <FormNote tone="warning">A Handshake update replaces the complete resource. Publish every record below in one wallet update. Publishing only some records can remove records that are already live.</FormNote>
                 </div>
               </Show>
@@ -275,10 +277,11 @@ function ServerDirectedAction(props: Pick<CommunityNamespaceSettingsPanelProps, 
               <SecondaryAction idempotencyKeys={props.idempotencyKeys} onCommand={props.onCommand} snapshot={props.snapshot} />
               <Show when={!hasUnsupportedNamespaceRecords(current())}>
                 <div class="flex flex-wrap gap-3">
-                  <Button loading={props.busy} onClick={() => dispatch({ kind: "acknowledge_complete_resource" })} variant="secondary">I published all records manually</Button>
+                  <Button loading={props.busy || (!!current().check_pending && !props.progressPaused)} onClick={() => dispatch({ kind: current().check_pending ? "poll" : "acknowledge_complete_resource" })} variant="secondary">I published all records manually</Button>
                   <Show when={props.wallet?.isAvailable() && current().records.every((record) => record.wallet_record)}>
                     <Button
                       loading={props.busy || walletBusy()}
+                      disabled={current().check_pending}
                       onClick={() => runWalletAction("Bob Wallet could not publish the update. You can retry or publish the complete record list manually.", async () => {
                         const records = current().records.flatMap((record) => record.wallet_record ? [record.wallet_record] : []);
                         await props.wallet!.publishCompleteResource(props.snapshot.root_label, records);
@@ -296,11 +299,11 @@ function ServerDirectedAction(props: Pick<CommunityNamespaceSettingsPanelProps, 
         )}
       </Show>
 
-      <Show when={waitAction(action())}>
+      <Show when={!preparing() && waitAction(action())}>
         {(current) => (
           <>
             <Card class="space-y-4 p-5 md:p-6" role="status">
-              <div class="flex items-center gap-3"><Spinner size="sm" /><Type as="h2" variant="h2">{actionTitle(current())}</Type></div>
+              <Type as="h2" variant="h2">{actionTitle(current())}</Type>
               <FormNote>
                 {current().reason_code === "tree_commitment_pending"
                   ? "Handshake is finalizing the update at the next tree commitment."
@@ -310,11 +313,10 @@ function ServerDirectedAction(props: Pick<CommunityNamespaceSettingsPanelProps, 
                       ? "The verifier is unavailable. Try again after the server-provided interval."
                       : "The server is checking the published records."}
               </FormNote>
-              <Type as="p" class="text-muted-foreground" variant="caption">Retry after {current().retry_after_seconds} seconds.</Type>
             </Card>
             <div class="flex flex-wrap items-center justify-between gap-3">
               <SecondaryAction idempotencyKeys={props.idempotencyKeys} onCommand={props.onCommand} snapshot={props.snapshot} />
-              <Button loading={props.busy} onClick={() => dispatch({ kind: "poll" })}>Check status</Button>
+              <Button loading={props.busy || !props.progressPaused} onClick={() => dispatch({ kind: "poll" })}>Verify published records</Button>
             </div>
           </>
         )}
@@ -417,7 +419,7 @@ export function CommunityNamespaceSettingsPanel(props: CommunityNamespaceSetting
           </Card>
         )}
       </Show>
-      <Show when={props.snapshot.next_action.kind === "choose_namespace"} fallback={<ServerDirectedAction busy={props.busy} idempotencyKeys={props.idempotencyKeys} onCommand={props.onCommand} showHeading={props.showHeading} snapshot={props.snapshot} wallet={props.wallet} />}>
+      <Show when={props.snapshot.next_action.kind === "choose_namespace"} fallback={<ServerDirectedAction busy={props.busy} progressPaused={props.progressPaused} idempotencyKeys={props.idempotencyKeys} onCommand={props.onCommand} showHeading={props.showHeading} snapshot={props.snapshot} wallet={props.wallet} />}>
         <div class="space-y-6">
           <Show when={props.snapshot.next_action.kind === "choose_namespace" && props.snapshot.next_action.no_account_import}>
             <FormNote>No import found for your account.</FormNote>

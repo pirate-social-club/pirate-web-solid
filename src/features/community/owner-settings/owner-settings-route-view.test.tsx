@@ -187,7 +187,7 @@ test("address navigation and a reload rediscover the account import without a UR
     session: { community_id: success.communityId, root_import_session_id: "session-navigation",
       root_label: "midnight", revision: 3, status: "awaiting_owner_update",
       publication_check_pending: true, retry_after_seconds: 30,
-      publish_plan: { replacement_records: [] } },
+      publish_plan: { replacement_records: [], preserved_records: [], added_records: [], removed_conflicts: [], preserved_unknown_record_types: [] } },
   }));
   const navigate = vi.fn();
   const freshApi = () => createCommunityNamespaceSettingsApi({
@@ -200,7 +200,7 @@ test("address navigation and a reload rediscover the account import without a UR
     namespaceApi={freshApi()} namesApi={namesApi()} moderationApi={moderationApi()}
     navigate={navigate} requestedSection="namespace" state={success} />);
   const first = mountAddress();
-  await vi.waitFor(() => expect(first.textContent).toContain("Checking records"));
+  await vi.waitFor(() => expect(first.textContent).toContain("Your records are ready to publish"));
   [...first.querySelectorAll<HTMLButtonElement>("button")].find((button) => button.textContent?.trim() === "Names")!.click();
   expect(navigate).toHaveBeenLastCalledWith("/c/midnight/settings/names");
   disposers.pop()!();
@@ -212,7 +212,7 @@ test("address navigation and a reload rediscover the account import without a UR
   disposers.pop()!();
   for (let visit = 0; visit < 2; visit += 1) {
     const returned = mountAddress();
-    await vi.waitFor(() => expect(returned.textContent).toContain("Checking records"));
+    await vi.waitFor(() => expect(returned.textContent).toContain("Your records are ready to publish"));
     expect(returned.textContent).not.toContain("Handshake root");
     disposers.pop()!();
   }

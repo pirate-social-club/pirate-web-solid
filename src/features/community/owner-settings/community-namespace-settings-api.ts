@@ -156,15 +156,11 @@ function mapSnapshot(
   }
   if (response.status === "provisioning") {
     return { ...common, next_action: {
-      kind: "wait", reason_code: "verification_pending", retry_after_seconds: response.retry_after_seconds,
+      kind: "wait", reason_code: "preparation_pending", retry_after_seconds: response.retry_after_seconds,
     } };
   }
-  if (response.status === "awaiting_owner_update" && response.publication_check_pending === true) {
-    return { ...common, next_action: {
-      kind: "wait", reason_code: "verification_pending", retry_after_seconds: response.retry_after_seconds,
-    } };
-  }
-  if (response.status === "awaiting_owner_update") {
+  if (response.status === "awaiting_owner_update" || response.status === "observing") {
+    const pending = response.status === "observing" || response.publication_check_pending === true;
     const plan = response.publish_plan;
     return { ...common, next_action: {
       kind: "publish_resource",
@@ -175,11 +171,7 @@ function mapSnapshot(
       added_records: resourceRecords(plan.added_records),
       removed_records: resourceRecords(plan.removed_conflicts),
       preserved_unknown_record_types: [...plan.preserved_unknown_record_types],
-    } };
-  }
-  if (response.status === "observing") {
-    return { ...common, next_action: {
-      kind: "wait", reason_code: "delegation_insecure", retry_after_seconds: response.retry_after_seconds,
+      ...(pending ? { check_pending: true, retry_after_seconds: response.retry_after_seconds } : {}),
     } };
   }
   if (response.status === "ready") {
@@ -247,7 +239,7 @@ export function createCommunityNamespaceSettingsApi(
 
   return {
     read: async () => {
-      const sessionId = locator.read();
+      const sessionId = currentSessionId ?? locator.read();
       if (sessionId !== null) return load(sessionId);
       const response = await client().get_communitiesCommunityIdHnsRootImports({
         path: { communityId: options.communityId },
@@ -271,6 +263,12 @@ export function createCommunityNamespaceSettingsApi(
       return current;
     },
     execute: async (command: NamespaceSettingsCommand) => {
+      if (command.kind === "poll") {
+        const sessionId = currentSessionId ?? locator.read();
+        if (sessionId === null) throw new CommunityNamespaceSettingsApiError("The HNS verification session is missing.");
+        return load(sessionId);
+      }
+
       if (command.expected_generation !== current.generation) {
         throw new CommunityNamespaceSettingsApiError("The community address changed. Refresh and try again.");
       }
@@ -341,10 +339,14 @@ export function createCommunityNamespaceSettingsApi(
         }, options.communityPath, attachment);
         return current;
       }
+      if (command.kind === "acknowledge_complete_resource") {
+        await load(sessionId);
+        if (current.next_action.kind !== "publish_resource" || current.next_action.check_pending) return current;
+      }
       const response = await client().post_communitiesCommunityIdHnsRootImportsSessionIdPoll({
         path: { communityId: options.communityId, sessionId },
         body: {
-          expected_revision: command.expected_generation,
+          expected_revision: command.kind === "acknowledge_complete_resource" ? current.generation : command.expected_generation,
           idempotency_key: command.idempotency_key,
           ...(command.kind === "submit_name_signature"
             ? { provisioning_name_signature: command.signature }

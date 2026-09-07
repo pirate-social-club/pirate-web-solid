@@ -125,13 +125,15 @@ export type NamespaceNextAction =
       kind: "publish_resource";
       preserved_records: ReadonlyArray<NamespaceResourceRecord>;
       preserved_unknown_record_types: ReadonlyArray<string>;
+      check_pending?: boolean;
+      retry_after_seconds?: number;
       records: ReadonlyArray<NamespaceResourceRecord>;
       removed_records: ReadonlyArray<NamespaceResourceRecord>;
       replacement_semantics: "complete_resource";
     }>
   | Readonly<{
       kind: "wait";
-      reason_code: "verification_pending" | "provider_unavailable" | "tree_commitment_pending" | "delegation_insecure";
+      reason_code: "preparation_pending" | "verification_pending" | "provider_unavailable" | "tree_commitment_pending" | "delegation_insecure";
       retry_after_seconds: number;
     }>
   | Readonly<{
