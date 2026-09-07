@@ -579,6 +579,8 @@ export function CreatePostDialog(props: CreatePostDialogProps): JSX.Element {
 
   const selectedPersona = () => personas().find(persona => persona.personaId === selectedPersonaId());
   const songTermsIssued = () => {
+    // currentRecord is not reactive. Every coordinator command path must apply
+    // its snapshot so this dependency invalidates after retained commands change.
     mediaSnapshot();
     return mediaCoordinator?.currentRecord?.commands.some(command => command.kind === "terms") ?? false;
   };
