@@ -6,6 +6,8 @@ export interface AuthenticatedSession {
   readonly status: "authenticated";
   readonly userId: string;
   readonly personas: readonly ActivePersonaPublicProjection[];
+  /** Account authentication succeeded, but its persona read failed. */
+  readonly personasUnavailable?: true;
 }
 
 export type AuthenticatedAccountSession = Pick<AuthenticatedSession, "status" | "userId">;
@@ -99,8 +101,19 @@ async function resolveSessionUncached(options: SessionResolutionOptions): Promis
     if (isAnonymousRejection(error)) return "anonymous";
     throw error;
   }
-  const response = await personasPromise;
-  return { status: "authenticated", userId: user.id, personas: projectPersonas(response) };
+  return resolvePersonaProjection(user.id, personasPromise);
+}
+
+/** A failed persona projection must not erase a successful account check. */
+async function resolvePersonaProjection(
+  userId: string,
+  response: ReturnType<PirateApiClient["get_personas"]>,
+): Promise<AuthenticatedSession> {
+  try {
+    return { status: "authenticated", userId, personas: projectPersonas(await response) };
+  } catch {
+    return { status: "authenticated", userId, personas: [], personasUnavailable: true };
+  }
 }
 
 /** Resolve only account authentication for surfaces that do not need personas. */
@@ -188,13 +201,9 @@ export function createSessionStore(clientFactory: SessionClientFactory): Session
     const client = clientFactory();
     const personasPromise = client.get_personas(undefined);
     personasPromise.catch(() => undefined);
-    return store.resolveAccountSession().then(account => {
+    return store.resolveAccountSession().then<SessionResolution>(account => {
       if (account === "anonymous") return "anonymous" as const;
-      return personasPromise.then(response => ({
-        status: "authenticated" as const,
-        userId: account.userId,
-        personas: projectPersonas(response),
-      }));
+      return resolvePersonaProjection(account.userId, personasPromise);
     });
   }
 

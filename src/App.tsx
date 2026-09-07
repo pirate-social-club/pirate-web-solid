@@ -37,7 +37,9 @@ function ApplicationRoot(props: { readonly children: JSX.Element }) {
       if (typeof window === "undefined") return;
       const update = () => {
         const request = ++sessionRequest;
-        setSession("resolving");
+        // Refresh invalidates a previous anonymous result (including sign-in),
+        // while authenticated and failed chrome remain stable during the read.
+        if (session() === "anonymous") setSession("resolving");
         void resolveAccountSession()
           .then(result => { if (active && request === sessionRequest) setSession(result); })
           .catch(() => { if (active && request === sessionRequest) setSession("failed"); });
@@ -60,6 +62,7 @@ function ApplicationRoot(props: { readonly children: JSX.Element }) {
         navigate={(href) => navigate(href)}
         signedIn={session() !== "resolving" && session() !== "anonymous" && session() !== "failed"}
         sessionUnavailable={session() === "failed"}
+        sessionResolving={session() === "resolving"}
         onSessionRetry={refreshSession}
       >
         <Errored fallback={(_, reset) => <RootErrorState onHome={() => { reset(); navigate("/"); }} />}>
