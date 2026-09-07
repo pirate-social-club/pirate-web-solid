@@ -84,7 +84,7 @@ describe("owner settings route model", () => {
     expect(state.access["community.names.manage"]).toBeUndefined();
   });
 
-  test("fails closed as denied for redacted owner endpoints and as error for upstream failure", async () => {
+  test("distinguishes redacted denial from retryable upstream failure", async () => {
     await expect(loadOwnerSettingsRoute("harbor", dependencies({
       moderationApi: { getCapabilities: async () => { throw apiError(401); } },
       namesApi: { getSnapshot: async () => { throw apiError(404); } },
@@ -93,7 +93,7 @@ describe("owner settings route model", () => {
     await expect(loadOwnerSettingsRoute("harbor", dependencies({
       moderationApi: { getCapabilities: async () => { throw new Error("upstream unavailable"); } },
       namesApi: { getSnapshot: async () => { throw apiError(404); } },
-    }))).resolves.toEqual({ kind: "error" });
+    }))).resolves.toMatchObject({ kind: "success", access: {}, unavailableSections: ["moderation_queue", "content_policy"] });
   });
 
   test("rejects invalid community paths before owner APIs are called", async () => {

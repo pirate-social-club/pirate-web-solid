@@ -237,3 +237,16 @@ test("keeps failed moderation visible without granting access or redirecting to 
   expect(nav.querySelector('[aria-current="page"]')?.textContent).toContain("Moderation queue");
   expect([...container.querySelectorAll("button")].some(button => button.textContent === "Try again")).toBe(true);
 });
+
+
+test("renders retryable navigation when every owner probe is unavailable", async () => {
+  const navigate = vi.fn();
+  const container = render(() => <OwnerSettingsRouteView
+    state={{ ...success, access: {}, unavailableSections: ["moderation_queue", "content_policy", "namespace", "names"] }}
+    requestedSection="moderation_queue" navigate={navigate}
+  />);
+  await vi.waitFor(() => expect(container.textContent).toContain("Your access could not be determined"));
+  expect(container.querySelector("nav")?.textContent).toContain("Moderation queue");
+  expect(container.querySelector("nav")?.textContent).toContain("Names");
+  expect(navigate).not.toHaveBeenCalled();
+});

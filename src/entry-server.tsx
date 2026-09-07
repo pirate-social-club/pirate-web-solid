@@ -1,3 +1,4 @@
+import { resolveOwnerSettingsPreflight, ownerSettingsResponseStatus, type OwnerSettingsPreflight } from "./features/community/owner-settings/owner-settings-preflight";
 import { getRequestEvent, httpHeader, httpStatus, renderToStream } from "@solidjs/web";
 import manifest from "virtual:solid-manifest";
 import App from "./App";
@@ -90,6 +91,17 @@ export async function render(
     const policy = personaPublicProfileResponsePolicy(personaPreflight.state);
     httpStatus(policy.status, policy.statusText);
     policy.headers.forEach((value, name) => httpHeader(name, value));
+  }
+  const ownerSettingsPreflight = await resolveOwnerSettingsPreflight(request, context?.API_NEXT_ORIGIN);
+  if (ownerSettingsPreflight !== undefined) {
+    if (event !== undefined) {
+      // SAFETY: this request-local key is written only with the preflight result above.
+      const locals = event.locals as typeof event.locals & { ownerSettingsPreflight?: OwnerSettingsPreflight };
+      locals.ownerSettingsPreflight = ownerSettingsPreflight;
+    }
+    httpStatus(ownerSettingsResponseStatus(ownerSettingsPreflight.state));
+    httpHeader("Cache-Control", "private, no-store");
+    httpHeader("Vary", "Cookie");
   }
   const communityPreflight = await resolveCommunityPagePreflight(request, context?.API_NEXT_ORIGIN);
   if (communityPreflight !== undefined) {

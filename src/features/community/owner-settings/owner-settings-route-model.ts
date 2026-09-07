@@ -44,8 +44,8 @@ export function routedOwnerSettingsSection(value: string | undefined): RoutedOwn
     : null;
 }
 
-export function firstRoutedOwnerSettingsSection(access: OwnerSettingsAccess): RoutedOwnerSettingsSection | null {
-  const section = visibleOwnerSettingsGroups(access)
+export function firstRoutedOwnerSettingsSection(access: OwnerSettingsAccess, unavailableSections: ReadonlyArray<RoutedOwnerSettingsSection> = []): RoutedOwnerSettingsSection | null {
+  const section = visibleOwnerSettingsGroups(access, unavailableSections)
     .flatMap((group) => group.items)
     .find((item) => routedOwnerSettingsSection(item.section) !== null)?.section;
   return routedOwnerSettingsSection(section);
@@ -81,11 +81,7 @@ export async function loadOwnerSettingsRoute(
   if (names.status === "fulfilled") {
     access = { ...access, ...ownerSettingsAccessFromNamesSnapshot(names.value) };
   }
-  if (firstRoutedOwnerSettingsSection(access) === null) {
-    const unexpectedFailure = (moderation.status === "rejected" && !isRedactedOwnerResponse(moderation.reason))
-      || (names.status === "rejected" && !isRedactedOwnerResponse(names.reason));
-    return { kind: unexpectedFailure ? "error" : "denied" };
-  }
+  if (firstRoutedOwnerSettingsSection(access, unavailableSections) === null) return { kind: "denied" };
 
   return {
     access,
