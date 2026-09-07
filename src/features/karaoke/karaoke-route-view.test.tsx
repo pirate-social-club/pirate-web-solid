@@ -64,6 +64,9 @@ describe("Karaoke community persona selection", () => {
       personas: unavailable ? [] : [persona("here", "community-here")],
       personasUnavailable: unavailable ? true as const : undefined }));
     await vi.waitFor(() => expect(host.textContent).toContain("Retry profiles"));
+    const retry = [...host.querySelectorAll("button")].find(button => button.textContent?.trim() === "Retry profiles")!;
+    expect(retry.closest('[role="status"]')).toBeNull();
+    expect(retry.parentElement?.querySelector('[role="status"]')).not.toBeNull();
     await start(host);
     expect(host.textContent).not.toContain("Join this community");
     expect(createSession).not.toHaveBeenCalled();

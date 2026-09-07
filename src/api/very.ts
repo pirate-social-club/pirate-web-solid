@@ -26,6 +26,7 @@ export type VeryWebClientErrorCode =
   | "ceremony_expired"
   | "join_not_ready"
   | "join_failed"
+  | "profiles_unavailable"
   | "provider_rejected"
   | "provider_unavailable";
 

@@ -92,6 +92,8 @@ try {
     }
     const checking = page.getByRole("button", { name: "Checking account", exact: true }).first();
     if (!await checking.isVisible() || !await checking.isDisabled()) throw new Error("Account retry must show disabled pending feedback");
+    // This pins native disabled-control behavior, not the handler's separate
+    // in-flight guard (disabled clicks do not reach that handler).
     await checking.evaluate(element => { element.click(); element.click(); });
     releaseRetry();
   }
@@ -179,6 +181,13 @@ try {
     await retryRequest;
     if (await page.locator("[data-shell-auth]").getAttribute("data-shell-auth") !== "authenticated") {
       throw new Error("Background refresh discarded authenticated chrome");
+    }
+    const sidebar = page.locator("aside");
+    if (!await sidebar.getByText("Session active", { exact: true }).isVisible()) {
+      throw new Error("Authenticated footer detail changed during background refresh");
+    }
+    if (!await sidebar.getByRole("link", { name: "Account settings" }).isVisible()) {
+      throw new Error("Background refresh removed account settings access");
     }
     releaseAccount();
     await profileRetry.waitFor();

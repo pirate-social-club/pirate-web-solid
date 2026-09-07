@@ -252,7 +252,7 @@ describe("Very verification route", () => {
     vi.mocked(veryApi.resolveVeryCommunityAction).mockResolvedValue({ kind: "join" });
     const container = render(() => <VeryVerificationRoute />);
     container.querySelector<HTMLButtonElement>("button")!.click();
-    await vi.waitFor(() => expect(container.textContent).toContain("Retry the join"));
+    await vi.waitFor(() => expect(container.textContent).toContain("Your community profiles could not be loaded"));
     expect(document.querySelector('[role="dialog"]')).toBeNull();
     expect(veryApi.joinVeryCommunity).not.toHaveBeenCalled();
     container.querySelector<HTMLButtonElement>("button")!.click();
