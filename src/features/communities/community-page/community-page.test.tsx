@@ -303,10 +303,15 @@ describe("CommunityPage", () => {
     await vi.waitFor(() => expect(container.textContent).toContain("couldn't load your active personas"));
     expect(document.body.textContent).not.toContain("Posting in Pirate Harbor");
     expect(document.body.textContent).not.toContain("Create or reactivate a public persona");
+    [...container.querySelectorAll<HTMLButtonElement>("button")].find(button => button.textContent?.trim() === "Follow")!.click();
+    await vi.waitFor(() => expect(container.textContent).toContain("Following this Community."));
+    expect(container.textContent).not.toContain("couldn't load your active personas");
+    expect([...container.querySelectorAll("button")].some(button => button.textContent?.trim() === "Retry profiles")).toBe(true);
     unavailable = false;
     [...container.querySelectorAll<HTMLButtonElement>("button")].find(button => button.textContent?.trim() === "Retry profiles")!.click();
     await vi.waitFor(() => expect(container.textContent).not.toContain("couldn't load your active personas"));
     expect(document.body.textContent).not.toContain("Posting in Pirate Harbor");
+    expect(container.textContent).not.toContain("Following this Community.");
     postHere.click();
     await vi.waitFor(() => expect(document.body.textContent).toContain("Posting in Pirate Harbor"));
     expect(container.textContent).not.toContain("couldn't load your active personas");

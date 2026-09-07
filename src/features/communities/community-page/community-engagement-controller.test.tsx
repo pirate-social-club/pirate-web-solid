@@ -48,12 +48,48 @@ describe("terminal community persona choice", () => {
     expect(api.join).toHaveBeenCalledOnce();
   });
 
-  test("a successful follow clears the prior profile error", async () => {
-    const { controller } = await setup({}, [], async () => ({ status: "authenticated", userId: "account-a", personas: [], personasUnavailable: true }));
+  test("follow success takes precedence while profile retry remains available until recovery", async () => {
+    let finishRetry: ((value: AuthenticatedSession) => void) | undefined;
+    let holdRetry = false;
+    const { controller } = await setup({}, [], () => holdRetry
+      ? new Promise(resolve => { finishRetry = resolve; })
+      : Promise.resolve({ status: "authenticated", userId: "account-a", personas: [], personasUnavailable: true }));
     expect(controller.error()).toContain("active personas");
     await controller.followToggle();
     expect(controller.message()).toBe("Following this Community.");
     expect(controller.error()).toBe("");
+    expect(controller.postingSession()).toBeUndefined();
+    expect(controller.personaRetryAvailable()).toBe(true);
+    holdRetry = true;
+    const pending = controller.retryPersonas();
+    await vi.waitFor(() => expect(finishRetry).toBeTypeOf("function"));
+    expect(controller.message()).toBe("");
+    expect(controller.personaRetryBusy()).toBe(true);
+    expect(controller.personaRetryAvailable()).toBe(true);
+    finishRetry!({ status: "authenticated", userId: "account-a", personas: [unboundPersona] });
+    await pending;
+    await vi.waitFor(() => expect(controller.personaRetryAvailable()).toBe(false));
+    expect(controller.personaRetryBusy()).toBe(false);
+    expect(controller.error()).toBe("");
+  });
+
+  test("an action failure takes precedence without removing profile retry", async () => {
+    const { controller } = await setup({ follow: async () => { throw new Error("follow unavailable"); } }, [],
+      async () => ({ status: "authenticated", userId: "account-a", personas: [], personasUnavailable: true }));
+    await controller.followToggle();
+    expect(controller.error()).toBe("We couldn't update your follow. Nothing changed.");
+    expect(controller.personaRetryAvailable()).toBe(true);
+  });
+
+  test("a request-mode join preserves profile recovery despite its successful outcome", async () => {
+    const { controller } = await setup({ resolveJoinAction: async () => ({ kind: "request" }),
+      join: async () => ({ status: "requested", personaId: null }) }, [],
+      async () => ({ status: "authenticated", userId: "account-a", personas: [], personasUnavailable: true }));
+    await controller.joinCommunity();
+    expect(controller.message()).toBe("Membership request sent.");
+    expect(controller.error()).toBe("");
+    expect(controller.personaRetryAvailable()).toBe(true);
+    expect(controller.postingSession()).toBeUndefined();
   });
 
   test("explicit profile retry restores personas without following or joining", async () => {
