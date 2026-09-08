@@ -121,3 +121,29 @@ still required beyond the adapter regressions and component rendering tests.
 No remote publication, deployment, funded staging ceremony or production
 activation was performed. A live ceremony requires explicit transaction scope,
 assigned participant/sponsor wallets, limits, and independent reconciliation.
+
+## Bounty presentation checkpoint, 2026-09-08
+
+The approved Create a bounty presentation is preserved separately from the
+functional sponsor dialog. Its Storybook compose callbacks are no-ops; these
+stories do not exercise API creation or funding. The functional dialog already
+loads admitted assets, submits reviewed qualification-policy versions, and has
+a published-song feed caller. Connecting the approved presentation to that
+controller remains required. Existing-offer discovery remains the API follow-up;
+public pool and bonus projections do not supply the original offer dates or
+an offer that has no leg.
+
+The rewrite's three lint errors were corrected. Radio IDs now use Solid's
+hydration-safe allocator, and a controlled interaction test covers arrow-key
+selection, focus, wrapping, clicks and the single tab stop. Megapot copy no
+longer promises one ticket or same-day qualification; immutable terms are
+identified as locking at creation. The story documentation retains the
+additional Megapot score-floor requirement instead of claiming it was removed.
+
+Typecheck, lint and Storybook build passed. API tests passed all 220 cases.
+The app run passed 541 tests in 68 files but failed with seven worker-start
+errors: "Timeout waiting for worker to respond". Retrying those files together
+with all rewards tests using one worker passed 55 tests in 11 files. This is
+partitioned verification, not a clean full-suite invocation. No new live browser
+or funded testnet ceremony was run for this presentation checkpoint. The scratch
+shot.mjs file was neither deleted nor included.

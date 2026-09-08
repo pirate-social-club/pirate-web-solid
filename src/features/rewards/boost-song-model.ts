@@ -23,15 +23,19 @@ export interface BoostDraft {
 
 export interface BoostQuote {
   readonly kind: BoostKind;
-  readonly budgetLabel: string;
-  readonly tokenSymbol: string;
-  /** e.g. "up to 10 accounts" or "12 sharing today's ticket". */
-  readonly yieldLabel: string;
   readonly activity: BoostActivity;
+  /** What each qualifier gets, or how the pool splits. */
+  readonly rewardLabel: string;
+  readonly budgetLabel: string;
+  /** The embedded wallet signs headlessly, so these must be shown here. */
+  readonly senderLabel: string;
+  readonly networkLabel: string;
+  readonly feeLabel: string;
 }
 
 export interface BoostLive {
   readonly kind: BoostKind;
+  readonly activity: BoostActivity;
   readonly rewardLabel: string;
   readonly remainingLabel: string;
 }
@@ -45,7 +49,13 @@ export type BoostFailure =
   | "recovery_unavailable" | "provider_rejected";
 
 export type BoostState =
-  | { readonly step: "compose"; readonly draft: BoostDraft; readonly problem?: string }
+  | {
+      readonly step: "compose";
+      readonly draft: BoostDraft;
+      /** One-tap budgets, already formatted. */
+      readonly presets: readonly string[];
+      readonly problem?: string;
+    }
   | { readonly step: "quote"; readonly quote: BoostQuote }
   | { readonly step: "confirming" }
   | { readonly step: "awaiting_finality"; readonly transactionHash: string | null }
@@ -53,14 +63,21 @@ export type BoostState =
   | { readonly step: "failed"; readonly failure: BoostFailure; readonly transactionHash: string | null };
 
 export const kindTitle = {
-  megapot_pool: "Megapot ticket",
   asset_bonus: "Token bonus",
+  megapot_pool: "Megapot ticket",
 } satisfies Record<BoostKind, string>;
 
-export const activityLabel = {
-  either: "Study or singing",
-  study: "Study only",
-  karaoke: "Singing only",
+/** Shown under each reward-type choice. One line, no jargon. */
+export const kindBlurb = {
+  asset_bonus: "Pay every qualifier the same amount until it runs out.",
+  megapot_pool: "Qualifiers share net winnings from tickets funded by this reward.",
+} satisfies Record<BoostKind, string>;
+
+/** Legacy labels, unchanged. */
+export const activityTitle = {
+  karaoke: "Karaoke",
+  study: "Study",
+  either: "Either",
 } satisfies Record<BoostActivity, string>;
 
 /** A token bonus cannot be narrowed: the leg's activity column must be NULL. */
@@ -103,4 +120,11 @@ export function failureLine(failure: BoostFailure): string {
     case "recovery_corrupt": return "The saved attempt cannot be read. Keep its record and check with support before sending anything.";
     case "recovery_unavailable": return "The browser could not save or read this attempt. Keep any transaction hash and check its status.";
   }
+}
+
+/** A token bonus always counts for either activity: its leg column must be NULL. */
+export function activityCaption(kind: BoostKind, activity: BoostActivity): string {
+  return kind === "asset_bonus"
+    ? "Counts for studying or karaoke."
+    : `Counts for ${activityTitle[activity].toLowerCase()}.`;
 }
