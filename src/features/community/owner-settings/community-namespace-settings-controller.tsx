@@ -44,8 +44,11 @@ function commandError(error: unknown): string {
   if (error instanceof ApiClientError && error.status === 403) {
     return "This account cannot change the community address. Check that you are signed in to the owner account.";
   }
+  if (error instanceof ApiClientError && error.status === 429) {
+    return "Too many requests. Wait a moment before trying again.";
+  }
   if (error instanceof ApiClientError && error.status === 409) {
-    return "The HNS address changed in another request. Refresh the page and try again.";
+    return "This address step could not continue. Your current setup is saved.";
   }
   if (error instanceof ApiClientError && error.code === "provider_unavailable" && !error.retryable) {
     return "HNS address setup is unavailable. Your progress is saved; this needs a service fix before you can continue.";
@@ -74,6 +77,22 @@ export function CommunityNamespaceSettingsController(
   const [draftRootLabel, setDraftRootLabel] = createSignal("");
   const [busy, setBusy] = createSignal(false);
   const [message, setMessage] = createSignal("");
+  const [preparationRetryAt, setPreparationRetryAt] = createSignal<number>();
+  const feedback = () => {
+    if (message()) return message();
+    const retryAt = preparationRetryAt();
+    if (retryAt === undefined) return "";
+    const localTime = new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(retryAt);
+    return `You have prepared three record lists in 24 hours. You can get another after ${localTime}. No refresh is needed.`;
+  };
+  createEffect(
+    preparationRetryAt,
+    (retryAt) => {
+      if (retryAt === undefined) return;
+      const timer = setTimeout(() => setPreparationRetryAt(undefined), Math.max(0, retryAt - Date.now()));
+      onCleanup(() => clearTimeout(timer));
+    },
+  );
   const [activeCommand, setActiveCommand] = createSignal<NamespaceSettingsCommand["kind"]>();
   const [pollFailed, setPollFailed] = createSignal(false);
   const [unchangedReads, setUnchangedReads] = createSignal(0);
@@ -120,6 +139,7 @@ export function CommunityNamespaceSettingsController(
 
   const execute = async (command: NamespaceSettingsCommand) => {
     if (!active || busy()) return;
+    if ((command.kind === "restart" || command.kind === "start_verification") && preparationRetryAt() !== undefined) return;
     setBusy(true);
     setActiveCommand(command.kind);
     // Keep the named retry control mounted while its request is in flight.
@@ -145,6 +165,15 @@ export function CommunityNamespaceSettingsController(
     } catch (error) {
       if (active) {
         setPollFailed(command.kind === "poll");
+        if (error instanceof ApiClientError && error.status === 429 && error.details?.reason === "hns_preparation_daily_limit") {
+          const seconds = error.details.retry_after_seconds;
+          if (typeof seconds === "number" && Number.isSafeInteger(seconds) && seconds > 0 && seconds <= 86_400) {
+            const retryAt = Date.now() + seconds * 1_000;
+            setPreparationRetryAt(retryAt);
+            setMessage("");
+            return;
+          }
+        }
         setMessage(command.kind === "poll" ? "Could not refresh verification status. Select Retry status to reconnect." : commandError(error));
       }
     } finally {
@@ -210,6 +239,7 @@ export function CommunityNamespaceSettingsController(
             <>
               <CommunityNamespaceSettingsPanel
                 busy={busy() && activeCommand() !== "poll"}
+                preparationDisabled={preparationRetryAt() !== undefined}
                 draftRootLabel={draftRootLabel()}
                 idempotencyKeys={keys()}
                 onCommand={(command) => void execute(command)}
@@ -219,7 +249,7 @@ export function CommunityNamespaceSettingsController(
                 wallet={wallet}
               />
               <div class="flex h-20 items-center gap-3 overflow-auto">
-                <div class="min-w-0 flex-1" role="status"><Show when={message()}><FormNote tone="destructive">{message()}</FormNote></Show></div>
+                <div class="min-w-0 flex-1" role="status"><Show when={feedback()}><FormNote tone="destructive">{feedback()}</FormNote></Show></div>
                 <Show when={pollFailed()}>
                   <Button loading={busy()} onClick={() => {
                     const current = snapshot();

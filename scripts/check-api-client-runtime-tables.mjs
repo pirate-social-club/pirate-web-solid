@@ -8,10 +8,9 @@ const currentClient = resolve(
   appRoot,
   "node_modules/@pirate/api-client/src/generated/client.ts",
 );
-// Client 0.66.0 keeps the audited existing responses, statuses and errors intact.
-// Private pending-wallet discovery is a separate additive endpoint.
-// Existing success statuses and error envelopes remain unchanged.
-const expectedDigest = "37ccdacdbfc4639a708309be7e0d972e3436d7dadcdc289b6f51524d263e08db";
+// Client 0.68.1 preserves the audited success responses and statuses below.
+// The sole change in these consumed tables adds RateLimited to HNS preparation.
+const expectedDigest = "1878e31edda0aef2f3029b545044afb1c5cec7806b330439b059b9b1af9ccddc";
 
 const operations = [
   "post_postsPostIdVideoPlaybackAccess",

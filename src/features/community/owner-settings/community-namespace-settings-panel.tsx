@@ -26,6 +26,7 @@ import type { CommunityHnsWallet } from "./community-hns-wallet";
 
 export interface CommunityNamespaceSettingsPanelProps {
   busy?: boolean;
+  preparationDisabled?: boolean;
   draftRootLabel: string;
   idempotencyKeys: NamespaceCommandIdempotencyKeys;
   onCommand: (command: NamespaceSettingsCommand) => void;
@@ -149,7 +150,7 @@ function activationAction(action: NamespaceNextAction): Extract<NamespaceNextAct
   return action.kind === "ready_to_activate" ? action : null;
 }
 
-function ServerDirectedAction(props: Pick<CommunityNamespaceSettingsPanelProps, "busy" | "idempotencyKeys" | "onCommand" | "showHeading" | "snapshot" | "wallet">) {
+function ServerDirectedAction(props: Pick<CommunityNamespaceSettingsPanelProps, "busy" | "preparationDisabled" | "idempotencyKeys" | "onCommand" | "showHeading" | "snapshot" | "wallet">) {
   const action = () => props.snapshot.next_action;
   const preparing = () => { const current = action(); return current.kind === "wait" && current.reason_code === "preparation_pending"; };
   const [walletBusy, setWalletBusy] = createSignal(false);
@@ -175,7 +176,7 @@ function ServerDirectedAction(props: Pick<CommunityNamespaceSettingsPanelProps, 
         <Card class="space-y-4 p-5 md:p-6">
           <Type as="h2" variant="h2">Prepare your records</Type>
           <FormNote>The server will prepare the complete Handshake resource for this name.</FormNote>
-          <Button loading={props.busy} disabled={preparing()} onClick={() => dispatch({ kind: "start_verification" })}>Start verification</Button>
+          <Button loading={props.busy} disabled={preparing() || props.preparationDisabled} onClick={() => dispatch({ kind: "start_verification" })}>Start verification</Button>
         </Card>
         <SecondaryAction idempotencyKeys={props.idempotencyKeys} onCommand={props.onCommand} snapshot={props.snapshot} />
       </Show>
@@ -354,7 +355,7 @@ function ServerDirectedAction(props: Pick<CommunityNamespaceSettingsPanelProps, 
         </Card>
         <div class="flex flex-wrap items-center justify-between gap-3">
           <SecondaryAction idempotencyKeys={props.idempotencyKeys} onCommand={props.onCommand} snapshot={props.snapshot} />
-          <Button loading={props.busy} disabled={props.busy} onClick={() => dispatch({ kind: "restart" })}>Get a new record list</Button>
+          <Button loading={props.busy} disabled={props.busy || props.preparationDisabled} onClick={() => dispatch({ kind: "restart" })}>Get a new record list</Button>
         </div>
       </Show>
     </div>
@@ -379,7 +380,7 @@ export function CommunityNamespaceSettingsPanel(props: CommunityNamespaceSetting
           </Card>
         )}
       </Show>
-      <Show when={props.snapshot.next_action.kind === "choose_namespace"} fallback={<ServerDirectedAction busy={props.busy} idempotencyKeys={props.idempotencyKeys} onCommand={props.onCommand} showHeading={props.showHeading} snapshot={props.snapshot} wallet={props.wallet} />}>
+      <Show when={props.snapshot.next_action.kind === "choose_namespace"} fallback={<ServerDirectedAction busy={props.busy} preparationDisabled={props.preparationDisabled} idempotencyKeys={props.idempotencyKeys} onCommand={props.onCommand} showHeading={props.showHeading} snapshot={props.snapshot} wallet={props.wallet} />}>
         <div class="space-y-6">
           <Show when={props.snapshot.next_action.kind === "choose_namespace" && props.snapshot.next_action.no_account_import}>
             <FormNote>No import found for your account.</FormNote>
