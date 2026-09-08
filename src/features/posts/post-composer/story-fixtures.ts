@@ -2,7 +2,7 @@ import type { PostComposerProps, SubmitProgress } from "./types";
 
 export const baseComposer: PostComposerProps = {
   mode: "text",
-  availableTabs: ["text", "image", "video", "link", "song", "live", "file"],
+  availableCapabilities: ["text", "image", "video", "link", "song", "live", "file", "event"],
   canCreateSongPost: true,
   titleValue: "What is the best album opener?",
   textBodyValue:

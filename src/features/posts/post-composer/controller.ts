@@ -24,9 +24,10 @@ import {
   defaultLiveComposerState,
   defaultMonetizationState,
   defaultSongState,
-  defaultTabs,
+  defaultCapabilities,
   defaultVideoState,
 } from "./defaults";
+import { createComposerCapabilitySet } from "./capability";
 import {
   deriveLiveStateForRoomKindChange,
   shouldClearSelectedQualifiers,
@@ -42,9 +43,11 @@ import type {
   AuthorMode,
   CharityContributionState,
   ComposerAudienceState,
+  ComposerCapability,
   ComposerEventState,
   ComposerIdentityState,
   ComposerTab,
+  ComposerToolbarAction,
   DerivativeStepState,
   DownloadFileComposerState,
   IdentityMode,
@@ -77,8 +80,14 @@ export function createPostComposerController(
   const draft = () => props.draft;
   const submit = () => props.submit;
 
-  const availableTabs = () => props.availableTabs ?? defaultTabs;
   const canCreateSongPost = () => props.canCreateSongPost ?? false;
+  // The one capability boundary. Tabs, toolbar actions, file inputs, drag and
+  // drop, and programmatic tab changes all resolve through this set, so an
+  // undeclared kind has no entrance left open.
+  const capabilities = () => createComposerCapabilitySet(
+    props.availableCapabilities ?? defaultCapabilities,
+    { canCreateSongPost: canCreateSongPost() },
+  );
   const mode = () => draft()?.mode ?? props.mode ?? "text";
   const providedTitleValue = () => draft()?.titleValue ?? props.titleValue ?? "";
   const providedTextBodyValue = () => draft()?.textBodyValue ?? props.textBodyValue ?? "";
@@ -140,7 +149,7 @@ export function createPostComposerController(
   const submitLoading = () => submit()?.loading ?? props.submitLoading ?? false;
   const submitProgress = () => submit()?.progress ?? null;
 
-  const visibleTabs = () => availableTabs().filter((tab) => tab !== "song" || canCreateSongPost());
+  const visibleTabs = () => capabilities().tabs;
 
   // These signals synchronize controlled props from effect apply phases.
   const [activeTab, setActiveTab] = createSignal<ComposerTab>(visibleTabs()[0] ?? "text", { ownedWrite: true });
@@ -462,6 +471,10 @@ export function createPostComposerController(
   };
 
   const setEventStateWithCallback = (next: ComposerEventState) => {
+    // A surface that never declared `event` must not be able to hold event
+    // data: the text submission contract does not carry it, so accepting the
+    // state here would publish a post with the date and place dropped.
+    if (next.enabled && !capabilities().allows("event")) return;
     setEventState(next);
     onEventChange()?.(next);
   };
@@ -761,10 +774,17 @@ export function createPostComposerController(
       get activeTab() { return activeTab(); },
       labels: tabLabels,
       onTabChange: (nextTab: ComposerTab) => {
+        // Fail closed, including for programmatic callers: an undeclared tab
+        // must not become the active tab nor be reported to the host as the
+        // requested mode.
+        if (!capabilities().allows(nextTab)) return;
         setActiveTab(nextTab);
         onModeChange()?.(nextTab);
       },
       get visibleTabs() { return visibleTabs(); },
+      allows: (capability: ComposerCapability) => capabilities().allows(capability),
+      permitted: <T extends { readonly kind: ComposerToolbarAction }>(actions: readonly T[]) =>
+        capabilities().permitted(actions),
     },
     advanceDerivativePicker: () => setDerivativePickerKey((current) => current + 1),
   };

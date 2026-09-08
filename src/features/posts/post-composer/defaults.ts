@@ -8,6 +8,7 @@ import type {
   AssetRoyaltySplitState,
   CharityContributionState,
   ComposerAudienceState,
+  ComposerCapability,
   ComposerEventState,
   ComposerTab,
   DownloadFileComposerState,
@@ -55,6 +56,9 @@ export const overflowMobileAttachmentActions = attachmentActions.filter(({ kind 
 );
 
 export const defaultTabs: ComposerTab[] = ["text", "image", "video", "link", "song", "live", "file"];
+
+/** What a host that declares nothing gets: every kind the composer can render. */
+export const defaultCapabilities: ComposerCapability[] = [...defaultTabs, "event"];
 export const anonymousEligibleTabs: ComposerTab[] = ["text", "image", "video", "link", "song", "live", "file"];
 
 export const noneLanguageValue = "__none__";

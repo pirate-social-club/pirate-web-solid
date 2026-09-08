@@ -714,7 +714,7 @@ export function CreatePostDialog(props: CreatePostDialogProps): JSX.Element {
               audienceEditingDisabled={mode() === "song"
                 ? mediaRestoring() || mediaRecordRetained()
                 : textState().status !== "editing" && textState().status !== "transport_failure"}
-              availableTabs={["text", "song", "video"]}
+              availableCapabilities={["text", "song", "video"]}
               canCreateSongPost={personas().length > 0}
               currentPersonaId={selectedPersonaId()}
               identity={{

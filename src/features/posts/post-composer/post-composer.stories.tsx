@@ -165,7 +165,7 @@ export const LiveStream: Story = {
       <InteractiveComposer
         {...baseComposer}
         mode="live"
-        availableTabs={["text", "image", "video", "link", "song", "live"]}
+        availableCapabilities={["text", "image", "video", "link", "song", "live"]}
         titleValue="Friday night set"
         textBodyValue="A live run through the new material with a short Q&A."
         live={{
@@ -292,7 +292,7 @@ export const FileDownload: Story = {
       <PostComposer
         {...baseComposer}
         mode="file"
-        availableTabs={["file"]}
+        availableCapabilities={["file"]}
         titleValue="Research export"
         textBodyValue="A deterministic downloadable file."
         file={{ upload: null, label: "research-export.csv" }}

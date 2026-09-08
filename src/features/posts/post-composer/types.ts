@@ -15,6 +15,13 @@ export type ComposerTab = "text" | "image" | "video" | "link" | "song" | "live" 
 export type AttachmentKind = "link" | "image" | "video" | "song" | "live" | "file";
 export type ComposerToolbarAction = AttachmentKind | "event";
 
+/**
+ * What a host surface declares it supports. Every tab is a capability, and
+ * `event` is one too even though it overlays the text tab rather than owning
+ * a tab of its own.
+ */
+export type ComposerCapability = ComposerTab | "event";
+
 export type AttachmentState =
   | { kind: "link"; url: string }
   | { kind: "image"; label: string; previewUrl?: string }
@@ -393,7 +400,7 @@ export interface PostComposerProps extends Partial<PostComposerDraftState>, Post
   ageGateConfirmationRequired?: boolean;
   // A retained request owns its audience and rating until it is resolved.
   audienceEditingDisabled?: boolean;
-  availableTabs?: ComposerTab[];
+  availableCapabilities?: readonly ComposerCapability[];
   canCreateSongPost?: boolean;
   currentPersonaId?: string;
   currentUserWalletAddress?: string;

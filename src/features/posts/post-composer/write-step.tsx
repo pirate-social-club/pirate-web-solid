@@ -46,6 +46,20 @@ const videoExtensions = new Set(["mp4", "mov"]);
 const audioExtensions = new Set(["mp3", "wav", "flac", "aac", "ogg", "m4a", "wma", "aiff", "opus"]);
 const downloadExtensions = new Set(["csv", "tsv", "txt", "json"]);
 const mp3OnlyCopy = "Public-song v1 currently accepts MP3 only.";
+const unsupportedFileCopy = "That file type cannot be attached to a post.";
+
+const attachmentKindNouns = {
+  link: "Links",
+  image: "Images",
+  video: "Videos",
+  song: "Songs",
+  live: "Live rooms",
+  file: "Downloadable files",
+} satisfies Record<AttachmentKind, string>;
+
+function unsupportedKindCopy(kind: AttachmentKind): string {
+  return `${attachmentKindNouns[kind]} cannot be posted here.`;
+}
 
 function fileExtension(name: string): string | null {
   const index = name.lastIndexOf(".");
@@ -137,7 +151,7 @@ export function PostComposerWriteStep(props: {
   const [activeTool, setActiveTool] = createSignal<ComposerToolbarAction | null>(null);
   const [moreOpen, setMoreOpen] = createSignal(false);
   const [dragging, setDragging] = createSignal(false);
-  const [songFileError, setSongFileError] = createSignal<string | null>(null);
+  const [attachmentError, setAttachmentError] = createSignal<string | null>(null);
   let dragCounter = 0;
   let imageInput: HTMLInputElement | undefined;
   let videoInput: HTMLInputElement | undefined;
@@ -159,6 +173,11 @@ export function PostComposerWriteStep(props: {
   );
 
   const selectAttachment = (kind: ComposerToolbarAction) => {
+    // Fail closed. The toolbars are already filtered, so reaching this is
+    // either a programmatic caller or a stale action; neither may open a
+    // picker or change the tab.
+    if (!controller.tabs.allows(kind)) return;
+    setAttachmentError(null);
     setActiveTool(kind);
     if (kind === "event") {
       controller.event.update({ ...controller.event.state, enabled: true });
@@ -193,17 +212,27 @@ export function PostComposerWriteStep(props: {
 
   const handleFile = async (file: File) => {
     const kind = fileKind(file);
-    if (!kind) return;
+    if (!kind) {
+      setAttachmentError(unsupportedFileCopy);
+      return;
+    }
+    if (!controller.tabs.allows(kind)) {
+      // Refuse visibly. Dropping a file this surface cannot post used to be
+      // indistinguishable from the drop not registering at all.
+      setAttachmentError(unsupportedKindCopy(kind));
+      return;
+    }
+    setAttachmentError(null);
     if (kind === "image") {
       controller.media.setImageUpload(file);
     } else if (kind === "video") {
       controller.media.updateVideoState((state) => ({ ...state, primaryVideoUpload: file, primaryVideoLabel: file.name, posterFrameSeconds: "0" }));
     } else if (kind === "song") {
       if (!isPublicSongMp3(file)) {
-        setSongFileError(mp3OnlyCopy);
+        setAttachmentError(mp3OnlyCopy);
         return;
       }
-      setSongFileError(null);
+      setAttachmentError(null);
       const [embeddedTitle, embeddedArtwork] = await Promise.all([
         extractEmbeddedAudioTitle(file),
         extractEmbeddedAudioArtworkFile(file),
@@ -231,7 +260,7 @@ export function PostComposerWriteStep(props: {
     const file = files?.[0];
     if (file) {
       if (kind === "song" && !isPublicSongMp3(file)) {
-        setSongFileError(mp3OnlyCopy);
+        setAttachmentError(mp3OnlyCopy);
       }
       else void handleFile(file);
     }
@@ -247,12 +276,22 @@ export function PostComposerWriteStep(props: {
     if (file) void handleFile(file);
   };
 
+  // Only declared kinds get an input. An undeclared picker must not exist to
+  // be clicked, by the toolbar or by anything else holding the ref.
   const Inputs = () => (
     <>
-      <input accept="image/*" aria-label="Upload image" class="sr-only" ref={imageInput} type="file" onChange={(event) => input("image", event.currentTarget.files)} />
-      <input accept="video/mp4,video/quicktime,.mp4,.mov" aria-label="Upload video" class="sr-only" ref={videoInput} type="file" onChange={(event) => input("video", event.currentTarget.files)} />
-      <input accept=".mp3,audio/mpeg" aria-label="Upload audio" class="sr-only" ref={songInput} type="file" onChange={(event) => input("song", event.currentTarget.files)} />
-      <input accept=".csv,.tsv,.txt,.json,text/csv,text/tab-separated-values,text/plain,application/json" aria-label="Upload downloadable file" class="sr-only" ref={fileInput} type="file" onChange={(event) => input("file", event.currentTarget.files)} />
+      <Show when={controller.tabs.allows("image")}>
+        <input accept="image/*" aria-label="Upload image" class="sr-only" ref={imageInput} type="file" onChange={(event) => input("image", event.currentTarget.files)} />
+      </Show>
+      <Show when={controller.tabs.allows("video")}>
+        <input accept="video/mp4,video/quicktime,.mp4,.mov" aria-label="Upload video" class="sr-only" ref={videoInput} type="file" onChange={(event) => input("video", event.currentTarget.files)} />
+      </Show>
+      <Show when={controller.tabs.allows("song")}>
+        <input accept=".mp3,audio/mpeg" aria-label="Upload audio" class="sr-only" ref={songInput} type="file" onChange={(event) => input("song", event.currentTarget.files)} />
+      </Show>
+      <Show when={controller.tabs.allows("file")}>
+        <input accept=".csv,.tsv,.txt,.json,text/csv,text/tab-separated-values,text/plain,application/json" aria-label="Upload downloadable file" class="sr-only" ref={fileInput} type="file" onChange={(event) => input("file", event.currentTarget.files)} />
+      </Show>
     </>
   );
 
@@ -338,9 +377,9 @@ export function PostComposerWriteStep(props: {
           />
         </Show>
       </div>
-      <PostComposerAttachmentCard attachment={attachment()} onChange={(next) => { if (next?.kind === "link") { controller.fields.onLinkUrlValueChange?.(next.url); controller.tabs.onTabChange("link"); } }} onRemove={removeAttachment} onReplace={selectAttachment} />
-      <Show when={songFileError()}>
-        <FormNote tone="warning">{songFileError()}</FormNote>
+      <PostComposerAttachmentCard attachment={attachment()} onChange={(next) => { if (next?.kind === "link" && controller.tabs.allows("link")) { controller.fields.onLinkUrlValueChange?.(next.url); controller.tabs.onTabChange("link"); } }} onRemove={removeAttachment} onReplace={selectAttachment} />
+      <Show when={attachmentError()}>
+        <FormNote tone="warning">{attachmentError()}</FormNote>
       </Show>
       <Show when={controller.tabs.activeTab === "song" && controller.requirements.songAudioMissing}>
         <FormNote class="flex items-center gap-2" tone="warning">
@@ -373,7 +412,7 @@ export function PostComposerWriteStep(props: {
           <Show when={controller.song.state.detectedExplicitness}><Type as="span" variant="caption">Lyrics: {controller.song.state.detectedExplicitness}</Type></Show>
         </div>
       </Show>
-      <Show when={controller.tabs.activeTab === "live"} fallback={<Show when={controller.tabs.activeTab !== "song" && controller.event.state.enabled}><PostComposerEventSection event={controller.event.state} onChange={controller.event.update} onSearchPlaces={controller.event.searchPlaces} /></Show>}>
+      <Show when={controller.tabs.activeTab === "live"} fallback={<Show when={controller.tabs.allows("event") && controller.tabs.activeTab !== "song" && controller.event.state.enabled}><PostComposerEventSection event={controller.event.state} onChange={controller.event.update} onSearchPlaces={controller.event.searchPlaces} /></Show>}>
         <LiveTabContent copy={controller.copy} live={controller.primary.liveState} onLiveChange={controller.primary.setLiveState} />
       </Show>
     </>
@@ -387,10 +426,10 @@ export function PostComposerWriteStep(props: {
           <Show
             when={controller.isMobile()}
             fallback={
-              <CardContent class={cn("relative space-y-5 p-6", dragging() && "overflow-hidden")} onDragEnter={(event) => { event.preventDefault(); dragCounter += 1; setDragging(true); }} onDragOver={(event) => event.preventDefault()} onDragLeave={(event) => { event.preventDefault(); dragCounter -= 1; if (dragCounter <= 0) setDragging(false); }} onDrop={drop}>
+              <CardContent data-composer-drop-zone class={cn("relative space-y-5 p-6", dragging() && "overflow-hidden")} onDragEnter={(event) => { event.preventDefault(); dragCounter += 1; setDragging(true); }} onDragOver={(event) => event.preventDefault()} onDragLeave={(event) => { event.preventDefault(); dragCounter -= 1; if (dragCounter <= 0) setDragging(false); }} onDrop={drop}>
                 <Show when={dragging()}><div class="absolute inset-0 z-10 grid place-items-center rounded-[var(--radius-lg)] border-2 border-dashed border-primary bg-primary-subtle/80"><div class="flex flex-col items-center gap-3"><IconUploadSimple class="size-10 text-primary" /><Type as="p" variant="body-strong" class="text-primary">Drop a file to attach it</Type></div></div></Show>
                 {body(false)}
-                <PostComposerDesktopAttachmentToolbar actions={attachmentActions} activeKind={activeTool() ?? attachment()?.kind ?? null} onSelect={selectAttachment} />
+                <PostComposerDesktopAttachmentToolbar actions={controller.tabs.permitted(attachmentActions)} activeKind={activeTool() ?? attachment()?.kind ?? null} onSelect={selectAttachment} />
                 <Inputs />
               </CardContent>
             }
@@ -404,10 +443,12 @@ export function PostComposerWriteStep(props: {
               </div>
             </Show>
             <PostComposerMobileAttachmentBar
-              actions={primaryMobileAttachmentActions}
+              actions={controller.tabs.permitted(primaryMobileAttachmentActions)}
               activeKind={activeTool() ?? attachment()?.kind ?? null}
               bottomOffset={keyboardOffset()}
-              onMore={() => setMoreOpen(true)}
+              onMore={controller.tabs.permitted(overflowMobileAttachmentActions).length > 0
+                ? () => setMoreOpen(true)
+                : undefined}
               onSelect={selectAttachment}
             />
             <Inputs />
@@ -422,7 +463,7 @@ export function PostComposerWriteStep(props: {
                 </ModalHeader>
                 <div class="space-y-2 px-4 pt-5">
                   <PostComposerDesktopAttachmentToolbar
-                    actions={overflowMobileAttachmentActions}
+                    actions={controller.tabs.permitted(overflowMobileAttachmentActions)}
                     activeKind={activeTool() ?? attachment()?.kind ?? null}
                     onSelect={(kind) => {
                       setMoreOpen(false);
@@ -444,7 +485,7 @@ export function PostComposerWriteStep(props: {
                   <>
                     <BasicFields idPrefix="text-post" />
                     <PostComposerMobileAttachmentBar
-                      actions={textMobileAttachmentActions}
+                      actions={controller.tabs.permitted(textMobileAttachmentActions)}
                       activeKind={activeTool() ?? attachment()?.kind ?? null}
                       onSelect={selectAttachment}
                       position="inline"

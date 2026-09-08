@@ -30,7 +30,7 @@ function FileComposerFlow(props: { initialStatus?: string }) {
       <PostComposer
         {...baseComposer}
         mode="file"
-        availableTabs={["file"]}
+        availableCapabilities={["file"]}
         titleValue="Research export"
         textBodyValue="A deterministic downloadable file."
         file={{ upload: file, label: file?.name ?? "export.csv" }}
