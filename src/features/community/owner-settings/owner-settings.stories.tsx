@@ -11,7 +11,7 @@ import { CommunityNamesSettingsPanel } from "./community-names-settings-panel";
 import { NAMES_ACTIVE, NAMES_PAUSED } from "./community-names-settings-fixtures";
 import { CommunityModerationPolicyPanel, CommunityModerationQueuePanel } from "./community-moderation-settings-panel";
 import { HIDDEN_MODERATION_CASE_DETAILS, HIDDEN_MODERATION_CASES, MODERATION_POLICY, MODERATION_VIEW_AND_ACT, OPEN_MODERATION_CASE_DETAILS, OPEN_MODERATION_CASES } from "./community-moderation-settings-fixtures";
-import { CommunityOwnerSettingsShell } from "./community-owner-settings-shell";
+import { CommunityManagementShell } from "./community-management-shell";
 import { CommunityProfileSettingsPanel } from "./community-profile-settings-panel";
 import { createFakeProfileSettingsPort, namespaceIdempotencyKeys, namespaceState } from "./fake-owner-settings-port";
 import { moderationPolicyDecisions, type CommunityModerationCaseView, type CommunityModerationPolicyDecision } from "./community-moderation-settings-model";
@@ -100,7 +100,7 @@ function OwnerSettingsHappyPath(props: { access?: OwnerSettingsAccess; initialSe
     }
   };
   return (
-    <CommunityOwnerSettingsShell
+    <CommunityManagementShell
       access={props.access ?? FULL_ACCESS}
       activeSection={active()}
       communityName={profile().display_name}
@@ -193,15 +193,15 @@ function OwnerSettingsHappyPath(props: { access?: OwnerSettingsAccess; initialSe
         <Match when={active() === "archive"}><CommunityArchivePage onArchive={() => setArchiveStatus("archived")} onUnarchive={() => setArchiveStatus("active")} showHeading={false} status={archiveStatus()} submitState={{ kind: "idle" }} /></Match>
       </Switch>
       <Show when={savedMessage()}><Type aria-live="polite" class="sr-only" variant="caption">{savedMessage()}</Type></Show>
-    </CommunityOwnerSettingsShell>
+    </CommunityManagementShell>
   );
 }
 
 const meta = {
   title: "Screens/Community/OwnerSettings/Shell",
-  component: CommunityOwnerSettingsShell,
+  component: CommunityManagementShell,
   parameters: { layout: "fullscreen", a11y: { test: "error" } },
-} satisfies Meta<typeof CommunityOwnerSettingsShell>;
+} satisfies Meta<typeof CommunityManagementShell>;
 
 export default meta;
 type Story = StoryObj<typeof meta>;
@@ -230,12 +230,12 @@ export const ProfileDirtySave: Story = {
     const name = canvas.getByRole("textbox", { name: "Community name" });
     await userEvent.clear(name);
     await userEvent.type(name, "Midnight Signals");
-    await expect(canvas.getByRole("button", { name: "Profile •" })).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: "Profile Unsaved changes" })).toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: "Save" })).toBeEnabled();
     await userEvent.click(canvas.getByRole("button", { name: "Save" }));
     await expect(await canvas.findByText("Profile saved")).toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: "Profile" })).toBeInTheDocument();
-    await expect(canvas.queryByRole("button", { name: "Profile •" })).not.toBeInTheDocument();
+    await expect(canvas.queryByRole("button", { name: "Profile Unsaved changes" })).not.toBeInTheDocument();
   },
 };
 

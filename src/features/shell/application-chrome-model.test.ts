@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 
-import { resolveApplicationChrome } from "./application-chrome-model.ts";
+import { isCommunityManagementRoute, resolveApplicationChrome } from "./application-chrome-model.ts";
 
 describe("application chrome policy", () => {
   test("keeps the home video route immersive", () => {
@@ -15,7 +15,9 @@ describe("application chrome policy", () => {
   });
 
   test("maps Community and per-post learning routes into shared navigation", () => {
-    expect(resolveApplicationChrome("/c/harbor/settings/moderation_queue")).toMatchObject({
+    // Management lives under /c/<community>/settings and is deliberately not
+    // shared navigation; it owns the viewport. See the bare-chrome case below.
+    expect(resolveApplicationChrome("/c/harbor")).toMatchObject({
       mode: "standard",
       activeItemId: "your-communities",
       mobileActiveItem: "learn",
@@ -35,5 +37,20 @@ describe("application chrome policy", () => {
       activeItemId: "settings",
       mobileActiveItem: "profile",
     });
+  });
+  test("gives community management bare chrome so it can own the viewport", () => {
+    expect(isCommunityManagementRoute("/c/community_1/settings/moderation_queue")).toBe(true);
+    expect(isCommunityManagementRoute("/c/community_1/settings")).toBe(true);
+    expect(resolveApplicationChrome("/c/community_1/settings/moderation_queue")).toMatchObject({ mode: "bare" });
+    expect(resolveApplicationChrome("/c/community_1/settings/namespace")).toMatchObject({ mode: "bare" });
+  });
+
+  test("leaves ordinary community surfaces on standard chrome", () => {
+    expect(isCommunityManagementRoute("/c/community_1")).toBe(false);
+    expect(isCommunityManagementRoute("/c/community_1/names")).toBe(false);
+    expect(isCommunityManagementRoute("/settings")).toBe(false);
+    expect(resolveApplicationChrome("/c/community_1")).toMatchObject({ mode: "standard" });
+    expect(resolveApplicationChrome("/c/community_1/names")).toMatchObject({ mode: "standard" });
+    expect(resolveApplicationChrome("/settings")).toMatchObject({ mode: "standard" });
   });
 });

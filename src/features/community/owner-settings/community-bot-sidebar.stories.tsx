@@ -1,7 +1,7 @@
 import { createSignal, Show } from "solid-js";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import { expect, userEvent, within } from "storybook/test";
-import { CommunityOwnerSettingsShell } from "./community-owner-settings-shell";
+import { CommunityManagementShell } from "./community-management-shell";
 import { CommunityAssistantSettingsPanel } from "./community-assistant-settings-panel";
 import { CommunityTelegramSettingsPanel } from "./community-telegram-settings-panel";
 import { TELEGRAM_CONNECTED } from "./community-telegram-fixtures";
@@ -10,11 +10,11 @@ import type { OwnerSettingsSection } from "./owner-settings-model";
 function CommunityBotSidebar() {
   const [section, setSection] = createSignal<OwnerSettingsSection>("telegram");
   const [settings, setSettings] = createSignal(TELEGRAM_CONNECTED);
-  return <CommunityOwnerSettingsShell access={{ "community.bot.manage": true }} activeSection={section()} communityName="Community" onSectionChange={setSection}>
+  return <CommunityManagementShell access={{ "community.bot.manage": true }} activeSection={section()} communityName="Community" onSectionChange={setSection}>
     <Show when={section() === "assistant"} fallback={<CommunityTelegramSettingsPanel showHeading={false} settings={settings()} deliveries={[]} onConnect={async () => {}} onDisconnect={() => {}} onSetup={() => {}} onConfirmChannel={() => {}} onRefresh={() => {}} onAutomaticChange={() => {}} onBackfill={() => {}} onResolve={() => {}} />}>
       <CommunityAssistantSettingsPanel showHeading={false} settings={settings()} models={[]} voices={[]} onChange={(assistant) => setSettings({ ...settings(), assistant })} onSave={() => {}} onCredentialSave={async () => {}} onRefreshOptions={() => {}} />
     </Show>
-  </CommunityOwnerSettingsShell>;
+  </CommunityManagementShell>;
 }
 
 const meta = {

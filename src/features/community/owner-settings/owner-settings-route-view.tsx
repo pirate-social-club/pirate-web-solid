@@ -9,7 +9,7 @@ import { CommunityNamespaceSettingsController } from "./community-namespace-sett
 import { CommunityModerationSettingsController } from "./community-moderation-settings-controller";
 import type { CommunityNamesSettingsApi } from "./community-names-settings-api";
 import { CommunityNamesSettingsController } from "./community-names-settings-controller";
-import { CommunityOwnerSettingsShell } from "./community-owner-settings-shell";
+import { CommunityManagementShell } from "./community-management-shell";
 import {
   firstRoutedOwnerSettingsSection,
   routedOwnerSettingsSection,
@@ -96,15 +96,17 @@ function ResolvedOwnerSettingsRouteView(props: ResolvedOwnerSettingsRouteViewPro
         <Show when={activeSection()}>{(section) => (
           <>
             <Title>{state().communityName} settings</Title>
-            <CommunityOwnerSettingsShell
+            <CommunityManagementShell
               access={state().access}
               unavailableSections={state().unavailableSections}
               status={state().unavailableSections?.includes(section()) ? "error" : "ready"}
               errorMessage="This settings check failed. Your access could not be determined. Try again."
               onRetry={() => window.location.reload()}
               activeSection={section()}
+              communityAvatarSrc={state().avatarUrl}
+              communityId={state().communityId}
               communityName={state().communityName}
-              onCommunityClick={() => props.navigate(state().communityPath)}
+              onExit={() => props.navigate(state().communityPath)}
               onSectionChange={(next) => props.navigate(`${state().communityPath}/settings/${next}`)}
             >
               <Show when={section() === "names"}>
@@ -130,7 +132,7 @@ function ResolvedOwnerSettingsRouteView(props: ResolvedOwnerSettingsRouteViewPro
                   section={section() === "moderation_queue" ? "moderation_queue" : "content_policy"}
                 />
               </Show>
-            </CommunityOwnerSettingsShell>
+            </CommunityManagementShell>
           </>
         )}</Show>
       )}

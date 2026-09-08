@@ -98,13 +98,13 @@ describe("OwnerSettingsRouteView", () => {
 
     await vi.waitFor(() => expect(container.textContent).toContain("yourname.midnight"));
     expect(container.textContent).toContain("Names");
-    expect(container.textContent).toContain("Moderation queue");
+    expect(container.textContent).toContain("Queue");
     expect(container.textContent).toContain("Content policy");
     expect(container.textContent).toContain("Address");
     expect(container.textContent).not.toContain("Community profile");
     expect(container.textContent).not.toContain("Archive community");
     const queue = [...container.querySelectorAll<HTMLButtonElement>("button")]
-      .find((button) => button.textContent?.trim() === "Moderation queue");
+      .find((button) => button.textContent?.trim() === "Queue");
     expect(queue).toBeDefined();
     queue!.click();
     expect(navigate).toHaveBeenCalledWith("/c/midnight/settings/moderation_queue");
@@ -123,7 +123,7 @@ describe("OwnerSettingsRouteView", () => {
     ));
 
     await vi.waitFor(() => expect(container.textContent).toContain("Handshake root"));
-    expect(container.textContent).toContain("Community address settings");
+    expect(container.querySelector("main h1")?.textContent).toBe("Community address");
   });
 
   test("replaces unsupported direct links with the first authorized section", async () => {
@@ -139,7 +139,7 @@ describe("OwnerSettingsRouteView", () => {
     ));
 
     await vi.waitFor(() => expect(navigate).toHaveBeenCalledWith(
-      "/c/midnight/settings/namespace",
+      "/c/midnight/settings/moderation_queue",
       { replace: true },
     ));
   });
@@ -233,8 +233,8 @@ test("keeps failed moderation visible without granting access or redirecting to 
   expect(getCases).not.toHaveBeenCalled();
   const nav = container.querySelector("nav")!;
   expect(nav.textContent).toContain("Names");
-  expect(nav.textContent).toContain("Moderation queue");
-  expect(nav.querySelector('[aria-current="page"]')?.textContent).toContain("Moderation queue");
+  expect(nav.textContent).toContain("Queue");
+  expect(nav.querySelector('[aria-current="page"]')?.textContent).toContain("Queue");
   expect([...container.querySelectorAll("button")].some(button => button.textContent === "Try again")).toBe(true);
 });
 
@@ -246,7 +246,7 @@ test("renders retryable navigation when every owner probe is unavailable", async
     requestedSection="moderation_queue" navigate={navigate}
   />);
   await vi.waitFor(() => expect(container.textContent).toContain("Your access could not be determined"));
-  expect(container.querySelector("nav")?.textContent).toContain("Moderation queue");
+  expect(container.querySelector("nav")?.textContent).toContain("Queue");
   expect(container.querySelector("nav")?.textContent).toContain("Names");
   expect(navigate).not.toHaveBeenCalled();
 });

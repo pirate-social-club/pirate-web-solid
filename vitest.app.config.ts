@@ -47,6 +47,7 @@ export default defineConfig({
       "src/features/community/owner-settings/community-moderation-settings-api.test.ts",
       "src/features/community/owner-settings/community-moderation-settings-controller.test.tsx",
       "src/features/community/owner-settings/community-moderation-settings-model.test.ts",
+      "src/features/community/owner-settings/community-management-shell.test.tsx",
       "src/features/community/owner-settings/community-hns-wallet.test.ts",
       "src/features/community/owner-settings/community-namespace-settings-api.test.ts",
       "src/features/community/owner-settings/community-namespace-settings-controller.test.tsx",

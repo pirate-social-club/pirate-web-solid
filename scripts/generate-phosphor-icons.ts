@@ -84,6 +84,17 @@ const iconSpecs: readonly IconSpec[] = [
   { component: "IconListNumbers", asset: "list-numbers" },
   { component: "IconSpeakerHigh", asset: "speaker-high" },
   { component: "IconSpeakerSlash", asset: "speaker-slash" },
+  // Community management navigation marks. Legacy renders the active item
+  // filled, so each of these needs both weights.
+  { component: "IconQueue", asset: "queue", supportsFilled: true },
+  { component: "IconSealCheck", asset: "seal-check", supportsFilled: true },
+  { component: "IconAt", asset: "at", supportsFilled: true },
+  { component: "IconGavel", asset: "gavel", supportsFilled: true },
+  { component: "IconEye", asset: "eye", supportsFilled: true },
+  { component: "IconTelegramLogo", asset: "telegram-logo", supportsFilled: true },
+  { component: "IconChatCircleDots", asset: "chat-circle-dots", supportsFilled: true },
+  { component: "IconArchive", asset: "archive", supportsFilled: true },
+  { component: "IconImageSquare", asset: "image-square", supportsFilled: true },
   // The feed's existing heart is a filled mark, so preserve that visual while
   // using the canonical Phosphor fill asset. It has no runtime weight switch.
   { component: "IconHeart", asset: "heart", defaultWeight: "fill" },

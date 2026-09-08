@@ -34,7 +34,17 @@ export type OwnerSettingsNavGroup = Readonly<{
   items: ReadonlyArray<OwnerSettingsNavItem>;
 }>;
 
+// Group order mirrors the legacy management navigation: the moderation work
+// queue leads, because it is the surface an owner opens to act on something
+// waiting for them. Telegram and Assistant are integrations, not moderation
+// tools, so they sit under access and safety as they did in legacy.
 const OWNER_SETTINGS_GROUPS: ReadonlyArray<OwnerSettingsNavGroup> = [
+  {
+    label: "Moderation",
+    items: [
+      { section: "moderation_queue", capability: "community.moderation.manage", label: "Queue", description: "Reported content that needs review" },
+    ],
+  },
   {
     label: "Community",
     items: [
@@ -46,17 +56,11 @@ const OWNER_SETTINGS_GROUPS: ReadonlyArray<OwnerSettingsNavGroup> = [
     ],
   },
   {
-    label: "Moderation",
-    items: [
-      { section: "moderation_queue", capability: "community.moderation.manage", label: "Moderation queue", description: "Reported content that needs review" },
-      { section: "telegram", capability: "community.bot.manage", label: "Telegram", description: "Community bot and content channel" },
-      { section: "assistant", capability: "community.bot.manage", label: "Assistant", description: "API keys, model, voice and limits" },
-    ],
-  },
-  {
     label: "Access and safety",
     items: [
       { section: "content_policy", capability: "community.moderation.manage", label: "Content policy", description: "What is allowed, reviewed or blocked" },
+      { section: "telegram", capability: "community.bot.manage", label: "Telegram", description: "Community bot and content channel" },
+      { section: "assistant", capability: "community.bot.manage", label: "Assistant", description: "API keys, model, voice and limits" },
     ],
   },
   {

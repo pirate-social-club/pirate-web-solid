@@ -140,6 +140,17 @@
   }
 }
 
+@layer base {
+  /* Interactive controls read as clickable even when a call site styles a bare
+     element instead of reaching for Button, Chip or IconButton. Disabled
+     controls keep the default arrow so unavailability stays legible. */
+  button:not(:disabled),
+  [role='button']:not([aria-disabled='true']),
+  [role='tab']:not([aria-disabled='true']) {
+    cursor: pointer;
+  }
+}
+
 @keyframes sheet-enter-right {
   from { transform: translateX(100%); }
   to { transform: translateX(0); }
