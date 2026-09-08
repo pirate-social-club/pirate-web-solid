@@ -211,6 +211,27 @@ export function hasUnsupportedNamespaceRecords(action: NamespaceNextAction): boo
   return action.kind === "publish_resource" && action.records.some((record) => !record.supported);
 }
 
+export type NamespaceRecordChange = "already_live" | "new";
+
+export type NamespaceRecordRow = Readonly<{
+  change: NamespaceRecordChange;
+  record: NamespaceResourceRecord;
+}>;
+
+function namespaceRecordKey(record: NamespaceResourceRecord): string {
+  return `${record.record_type}\u0000${record.value}`;
+}
+
+export function namespaceRecordRows(
+  action: Extract<NamespaceNextAction, { kind: "publish_resource" }>,
+): ReadonlyArray<NamespaceRecordRow> {
+  const alreadyLive = new Set(action.preserved_records.map(namespaceRecordKey));
+  return action.records.map((record) => ({
+    change: alreadyLive.has(namespaceRecordKey(record)) ? "already_live" : "new",
+    record,
+  }));
+}
+
 export function hasNamespaceRecordChangeReview(
   action: Extract<NamespaceNextAction, { kind: "publish_resource" }>,
 ): boolean {

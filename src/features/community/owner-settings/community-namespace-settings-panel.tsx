@@ -16,6 +16,8 @@ import {
 import {
   hasNamespaceRecordChangeReview,
   hasUnsupportedNamespaceRecords,
+  namespaceRecordRows,
+  type NamespaceRecordRow,
   type NamespaceCommandIdempotencyKeys,
   type NamespaceNextAction,
   type NamespaceResourceRecord,
@@ -87,6 +89,48 @@ function NamespaceRecordList(props: { records: ReadonlyArray<NamespaceResourceRe
         )}
       </For>
     </div>
+  );
+}
+
+function RecordChangeBadge(props: { change: NamespaceRecordRow["change"] }) {
+  return (
+    <Show
+      when={props.change === "already_live"}
+      fallback={<span class="rounded-full bg-success/10 px-2 py-0.5 text-xs font-semibold text-success">New</span>}
+    >
+      <span class="rounded-full bg-muted px-2 py-0.5 text-xs font-semibold text-muted-foreground">Already live</span>
+    </Show>
+  );
+}
+
+function NamespaceRecordPlan(props: { rows: ReadonlyArray<NamespaceRecordRow> }) {
+  return (
+    <ul class="space-y-3">
+      <For each={props.rows}>
+        {(row) => (
+            <li class="space-y-3 rounded-lg border border-border p-3">
+              <div class="flex flex-wrap items-center gap-2">
+                <Type as="span" variant="caption">{row.record.record_type}</Type>
+                <RecordChangeBadge change={row.change} />
+                <Show when={!row.record.supported}>
+                  <span class="rounded-full bg-warning/10 px-2 py-0.5 text-xs font-semibold text-warning">Unsupported</span>
+                </Show>
+              </div>
+              <CopyField class="h-auto min-h-16 py-3" copyLabel={`${row.record.record_type} record`} value={row.record.value} wrap />
+            </li>
+        )}
+      </For>
+    </ul>
+  );
+}
+
+function RecordListExpiry(props: { expiresAt: string }) {
+  const localTime = () => {
+    const parsed = new Date(props.expiresAt);
+    return Number.isNaN(parsed.getTime()) ? props.expiresAt : parsed.toLocaleString();
+  };
+  return (
+    <FormNote>Expires <time datetime={props.expiresAt}>{localTime()}</time>, after which you need a new list.</FormNote>
   );
 }
 
@@ -212,47 +256,6 @@ function ServerDirectedAction(props: Pick<CommunityNamespaceSettingsPanelProps, 
       <Show when={publishAction(action())}>
         {(current) => (
           <>
-            <Show when={hasNamespaceRecordChangeReview(current())}>
-              <Card class="space-y-5 p-5 md:p-6">
-                <div class="space-y-2">
-                  <Type as="h2" variant="h2">Review changes to existing records</Type>
-                  <Type as="p" class="text-muted-foreground" variant="caption">
-                    These lists show how the update treats the records that are live on this name now. Only the complete resource in the next card remains live after your wallet update publishes.
-                  </Type>
-                </div>
-                <Show when={current().preserved_records.length > 0}>
-                  <div class="space-y-3">
-                    <Type as="h3" variant="h3">Records kept live ({current().preserved_records.length})</Type>
-                    <NamespaceRecordList records={current().preserved_records} />
-                  </div>
-                </Show>
-                <Show when={current().added_records.length > 0}>
-                  <div class="space-y-3">
-                    <Type as="h3" variant="h3">Records added by this update ({current().added_records.length})</Type>
-                    <NamespaceRecordList records={current().added_records} />
-                  </div>
-                </Show>
-                <Show when={current().removed_records.length > 0}>
-                  <div class="space-y-3">
-                    <Type as="h3" variant="h3">Existing records being replaced ({current().removed_records.length})</Type>
-                    <NamespaceRecordList records={current().removed_records} />
-                  </div>
-                </Show>
-                <FormNote>
-                  Kept ({current().preserved_records.length}) plus added ({current().added_records.length}) make up the complete list of {current().records.length} records below.
-                </FormNote>
-                <Show when={current().preserved_unknown_record_types.length > 0}>
-                  <FormNote>
-                    Kept live without interpretation: {current().preserved_unknown_record_types.join(", ")}.
-                  </FormNote>
-                </Show>
-                <Show when={current().removed_records.length > 0}>
-                  <FormNote tone="warning">
-                    Compare these existing records with the complete resource below. A record may appear in both lists when its value stays the same. Only records absent from the complete resource are removed. Resolvers may keep serving cached answers until those expire.
-                  </FormNote>
-                </Show>
-              </Card>
-            </Show>
             <Card class="space-y-5 p-5 md:p-6">
               <Show
                 when={!hasUnsupportedNamespaceRecords(current())}
@@ -260,21 +263,71 @@ function ServerDirectedAction(props: Pick<CommunityNamespaceSettingsPanelProps, 
                   <div class="space-y-2" role="alert">
                     <div class="flex items-center gap-2">
                       <IconWarningCircle class="size-5 text-warning" />
-                      <Type as="h2" variant="h2">Unsupported records</Type>
+                      <Type as="h2" variant="h2">Unsupported records on {props.snapshot.root_label}/</Type>
                     </div>
-                    <FormNote tone="warning">This name contains records that cannot be preserved exactly. Publishing is blocked so existing records are not lost.</FormNote>
+                    <FormNote tone="warning">This name holds records that cannot be preserved exactly. Publishing is blocked so nothing already live is lost.</FormNote>
                   </div>
                 }
               >
                 <div class="space-y-2">
-                  <Type as="h2" variant="h2">{current().check_pending ? "Checking published records" : "Your records are ready to publish"}</Type>
-                  <FormNote tone="warning">A Handshake update replaces the complete resource. Publish every record below in one wallet update. Publishing only some records can remove records that are already live.</FormNote>
+                  <Type as="h2" variant="h2">{current().check_pending ? "Checking published records" : `Publish these ${current().records.length} records to ${props.snapshot.root_label}/`}</Type>
+                  <Type as="p" class="text-muted-foreground" variant="caption">
+                    Publish all of them in one wallet update. It replaces every record on this name.
+                  </Type>
                 </div>
               </Show>
+
               <Show when={props.snapshot.expires_at}>
-                <FormNote>Verification expires at <time datetime={props.snapshot.expires_at}>{props.snapshot.expires_at?.replace("T", " ").replace(/(?:\.\d+)?Z$/, " UTC")}</time>. Publish and verify the records before then; afterwards, generate a new record list.</FormNote>
+                {(expiresAt) => <RecordListExpiry expiresAt={expiresAt()} />}
               </Show>
-              <NamespaceRecordList records={current().records} />
+
+              <NamespaceRecordPlan rows={namespaceRecordRows(current())} />
+
+              <Show when={current().removed_records.length > 0}>
+                <div class="space-y-2">
+                  <Type as="h3" variant="h3">Stops being served ({current().removed_records.length})</Type>
+                  <ul class="space-y-1">
+                    <For each={current().removed_records}>
+                      {(record) => (
+                        <li class="text-sm text-muted-foreground">
+                          <span class="font-semibold">{record.record_type}</span>{" "}
+                          <span class="line-through">{record.value}</span>
+                        </li>
+                      )}
+                    </For>
+                  </ul>
+                </div>
+              </Show>
+
+              <Show when={current().preserved_unknown_record_types.length > 0}>
+                <FormNote>Kept exactly as they are, without interpretation: {current().preserved_unknown_record_types.join(", ")}.</FormNote>
+              </Show>
+
+              <Show when={hasNamespaceRecordChangeReview(current())}>
+                <details class="rounded-lg border border-border p-3">
+                  <summary class="cursor-pointer text-sm font-semibold">What is changing and why</summary>
+                  <div class="space-y-4 pt-3">
+                    <Show when={current().preserved_records.length > 0}>
+                      <div class="space-y-3">
+                        <Type as="h3" variant="h3">Already live and kept ({current().preserved_records.length})</Type>
+                        <NamespaceRecordList records={current().preserved_records} />
+                      </div>
+                    </Show>
+                    <Show when={current().added_records.length > 0}>
+                      <div class="space-y-3">
+                        <Type as="h3" variant="h3">Added by this update ({current().added_records.length})</Type>
+                        <NamespaceRecordList records={current().added_records} />
+                      </div>
+                    </Show>
+                    <Show when={current().removed_records.length > 0}>
+                      <div class="space-y-3">
+                        <Type as="h3" variant="h3">Replaced by this update ({current().removed_records.length})</Type>
+                        <NamespaceRecordList records={current().removed_records} />
+                      </div>
+                    </Show>
+                  </div>
+                </details>
+              </Show>
             </Card>
             <div class="flex flex-wrap items-center justify-between gap-3">
               <SecondaryAction idempotencyKeys={props.idempotencyKeys} onCommand={props.onCommand} snapshot={props.snapshot} />
@@ -291,7 +344,7 @@ function ServerDirectedAction(props: Pick<CommunityNamespaceSettingsPanelProps, 
                         dispatch({ kind: "acknowledge_complete_resource" });
                       })}
                     >
-                      Publish complete resource with Bob Wallet
+                      Publish to {props.snapshot.root_label}/ with Bob Wallet
                     </Button>
                   </Show>
                 </div>

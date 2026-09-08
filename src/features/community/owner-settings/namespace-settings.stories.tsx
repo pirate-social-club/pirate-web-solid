@@ -74,13 +74,58 @@ export const CompleteResource: Story = {
   args: argsFor({ kind: "publish_resource", acknowledgement_required: true, replacement_semantics: "complete_resource", records: hnsCompleteResource, ...hnsChangeClassification }),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(canvas.getByText("Publish this complete resource")).toBeInTheDocument();
-    await expect(canvas.getByText(/replaces the complete resource/)).toBeInTheDocument();
-    await expect(canvas.getAllByText("DS")).toHaveLength(4);
-    await expect(canvas.getByText("Records kept live (2)")).toBeInTheDocument();
-    await expect(canvas.getByText("Records added by this update (3)")).toBeInTheDocument();
-    await expect(canvas.getByText("Existing records being replaced (1)")).toBeInTheDocument();
-    await expect(canvas.getByText(/make up the complete list of 5 records/)).toBeInTheDocument();
+    await expect(canvas.getByText("Publish these 5 records to midnight/")).toBeInTheDocument();
+    await expect(canvas.getByText(/Publish all of them in one wallet update/)).toBeInTheDocument();
+    await expect(canvas.getAllByText("Already live")).toHaveLength(2);
+    await expect(canvas.getAllByText("New")).toHaveLength(3);
+    await expect(canvas.getByText("Stops being served (1)")).toBeInTheDocument();
+    await expect(canvas.getByText("What is changing and why")).toBeInTheDocument();
+    await expect(canvas.getByText("Already live and kept (2)")).toBeInTheDocument();
+  },
+};
+
+const dankmemeRecords = [
+  { record_type: "GLUE4", value: '{"address":"44.231.6.183","ns":"ns1.dankmeme.","type":"GLUE4"}', supported: true, wallet_record: { type: "GLUE4", ns: "ns1.dankmeme.", address: "44.231.6.183" } },
+  { record_type: "NS", value: "ns1.pirate.", supported: true, wallet_record: { type: "NS", ns: "ns1.pirate." } },
+  { record_type: "NS", value: "ns2.pirate.", supported: true, wallet_record: { type: "NS", ns: "ns2.pirate." } },
+  { record_type: "TXT", value: "pirate-verification=nvs_87b0c3d842c8ea3176c4de1f7888d38907866ff80", supported: true, wallet_record: { type: "TXT", txt: ["pirate-verification=nvs_87b0c3d842c8ea3176c4de1f7888d38907866ff80"] } },
+  { record_type: "DS", value: "39280 13 2 7763394f08c984b2fb71c10a8284bb7d5204a76c3a90867be3768417e27ac8e6", supported: true, wallet_record: { type: "DS", keyTag: 39280, algorithm: 13, digestType: 2, digest: "7763394f08c984b2fb71c10a8284bb7d5204a76c3a90867be3768417e27ac8e6" } },
+] as const;
+
+export const AlreadyPointedAtPirate: Story = {
+  args: {
+    draftRootLabel: "dankmeme",
+    idempotencyKeys: namespaceIdempotencyKeys("storybook-already-pointed"),
+    onCommand: fn(),
+    onDraftRootLabelChange: fn(),
+    snapshot: {
+      community_id: "community_fixture",
+      expires_at: "2099-09-08T14:31:14.000Z",
+      family: "hns",
+      generation: 4,
+      root_label: "dankmeme",
+      next_action: {
+        kind: "publish_resource",
+        acknowledgement_required: true,
+        replacement_semantics: "complete_resource",
+        records: dankmemeRecords,
+        added_records: [dankmemeRecords[3]],
+        preserved_records: [dankmemeRecords[0], dankmemeRecords[1], dankmemeRecords[2], dankmemeRecords[4]],
+        preserved_unknown_record_types: [],
+        removed_records: [
+          { record_type: "TXT", value: "pirate-verification=nvs_95f773c476c84acb8a237af7ea64b96e", supported: true },
+        ],
+      },
+    },
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByText("Publish these 5 records to dankmeme/")).toBeInTheDocument();
+    await expect(canvas.getAllByText("Already live")).toHaveLength(4);
+    await expect(canvas.getAllByText("New")).toHaveLength(1);
+    await expect(canvas.getByText(/^Expires/)).toBeInTheDocument();
+    await expect(canvas.getByText("Stops being served (1)")).toBeInTheDocument();
+    await expect(canvas.queryByText("Key tag")).not.toBeInTheDocument();
   },
 };
 
@@ -106,9 +151,10 @@ export const ReaddedDelegationRecord: Story = {
   }),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(canvas.getByText("Existing records being replaced (1)")).toBeInTheDocument();
-    await expect(canvas.getByText(/A record may appear in both lists when its value stays the same/)).toBeInTheDocument();
-    await expect(canvas.getByText(/Kept \(0\) plus added \(5\)/)).toBeInTheDocument();
+    await expect(canvas.getByText("Stops being served (1)")).toBeInTheDocument();
+    await expect(canvas.getByText("Replaced by this update (1)")).toBeInTheDocument();
+    await expect(canvas.getAllByText("New")).toHaveLength(5);
+    await expect(canvas.queryByText("Already live")).not.toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: "I published all records manually" })).toBeEnabled();
   },
 };
@@ -216,7 +262,7 @@ export const CompleteBobWalletCeremony: Story = {
     await userEvent.click(canvas.getByRole("button", { name: "Continue" }));
     await userEvent.click(await canvas.findByRole("button", { name: "Start verification" }));
     await userEvent.click(await canvas.findByRole("button", { name: "Sign ownership with Bob Wallet" }));
-    await userEvent.click(await canvas.findByRole("button", { name: "Publish complete resource with Bob Wallet" }));
+    await userEvent.click(await canvas.findByRole("button", { name: "Publish to dankmemes/ with Bob Wallet" }));
     await userEvent.click(await canvas.findByRole("button", { name: "Check status" }));
     await userEvent.click(await canvas.findByRole("button", { name: "Check status" }));
     await userEvent.click(await canvas.findByRole("button", { name: "Activate community address" }));

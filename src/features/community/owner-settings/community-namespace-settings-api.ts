@@ -142,6 +142,7 @@ function mapSnapshot(
   const common = {
     attachment,
     community_id: response.community_id,
+    expires_at: response.expires_at,
     family: "hns" as const,
     generation: response.revision,
     expires_at: response.expires_at,
