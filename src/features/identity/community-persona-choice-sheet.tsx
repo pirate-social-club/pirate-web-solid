@@ -59,7 +59,7 @@ function selectedValue(
 
 /**
  * The closed persona choice a terminal community membership or
- * community-creation commit carries (spec 014 §10.2): name one of the
+ * community-creation commit carries (spec 014 §11.2): name one of the
  * account's active personas, or have the server mint a new persona bound to
  * the target community in the same commit. Operation-only callers disable the
  * mint option. The server still rechecks the selected candidate at commit.

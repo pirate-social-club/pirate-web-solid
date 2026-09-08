@@ -6,7 +6,7 @@ export const PERSONA_CREATION_UNAVAILABLE =
 
 /**
  * The closed persona choice every terminal community membership or
- * community-creation commit must carry (spec 014 §10.2, generated client
+ * community-creation commit must carry (spec 014 §11.2, generated client
  * contract). A browser never invents a binding or a persona id: it either names
  * one of the account's active personas or asks the server to mint one bound to
  * the target community in the same commit.

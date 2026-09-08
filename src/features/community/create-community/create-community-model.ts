@@ -88,7 +88,7 @@ export function compileMembershipPolicy(
 
 export interface CreateCommunityDraft {
   /**
-   * The closed persona choice every creation intent carries (spec 014 §10.2):
+   * The closed persona choice every creation intent carries (spec 014 §11.2):
    * an existing active persona the creator designates, or `create_new` to have
    * the server reserve and activate a fresh profile before publishing.
    * Undefined while choosing among multiple existing profiles.

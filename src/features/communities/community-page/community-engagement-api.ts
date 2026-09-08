@@ -55,7 +55,7 @@ export interface CommunityEngagementApi {
   readViewerState(communityId: string): Promise<CommunityViewerEngagement>;
   resolveJoinAction(communityId: string): Promise<CommunityJoinAction>;
   /**
-   * Join or request membership. Spec 014 §10.2: a join that commits an active
+   * Join or request membership. Spec 014 §11.2: a join that commits an active
    * membership must carry the closed persona choice, while a request-mode join
    * never carries one because an intent does not pre-bind identity. Pass
    * `persona` only for the terminal commit; the server is the eligibility

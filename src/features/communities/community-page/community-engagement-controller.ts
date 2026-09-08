@@ -266,7 +266,7 @@ export function createCommunityEngagementController(
         options.navigate(`/verify/very?${query.toString()}`);
         return;
       }
-      // Spec 014 §10.2: the terminal membership commit carries the closed
+      // Spec 014 §11.2: the terminal membership commit carries the closed
       // persona choice; a request-mode join never carries one because an
       // intent does not pre-bind identity.
       let choice = action.kind === "request" ? undefined : persona;
