@@ -5,7 +5,7 @@ import { createCommunityNamespaceSettingsApi, type HnsSessionLocator } from "./c
 const common = {
   attachment_intent_id: "attachment-1",
   community_id: "community-1",
-  expires_at: "2026-09-11T00:00:00.000Z",
+  expires_at: "2099-09-11T00:00:00.000Z",
   replayed: false,
   root_import_session_id: "session-1",
   root_label: "dankmemes",

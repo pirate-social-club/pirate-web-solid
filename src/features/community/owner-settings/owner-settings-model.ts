@@ -165,6 +165,7 @@ export type NamespaceAttachment = Readonly<{
 }>;
 
 export type NamespaceSettingsSnapshot = Readonly<{
+  expires_at?: string;
   attachment?: NamespaceAttachment | null;
   community_id: string;
   family: NamespaceFamily | null;

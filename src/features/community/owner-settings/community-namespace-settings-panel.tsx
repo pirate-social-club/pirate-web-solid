@@ -228,6 +228,9 @@ function ServerDirectedAction(props: Pick<CommunityNamespaceSettingsPanelProps, 
                   <FormNote tone="warning">A Handshake update replaces the complete resource. Publish every record below in one wallet update. Publishing only some records can remove records that are already live.</FormNote>
                 </div>
               </Show>
+              <Show when={props.snapshot.expires_at}>
+                <FormNote>Verification expires at <time datetime={props.snapshot.expires_at}>{props.snapshot.expires_at?.replace("T", " ").replace(/(?:\.\d+)?Z$/, " UTC")}</time>. Publish and verify the records before then; afterwards, generate a new record list.</FormNote>
+              </Show>
               <NamespaceRecordList records={current().records} />
             </Card>
             <div class="flex flex-wrap items-center justify-between gap-3">
@@ -347,11 +350,11 @@ function ServerDirectedAction(props: Pick<CommunityNamespaceSettingsPanelProps, 
       <Show when={action().kind === "expired"}>
         <Card class="space-y-4 border-warning/50 p-5 md:p-6" role="alert">
           <Type as="h2" variant="h2">Verification expired</Type>
-          <FormNote tone="warning">Generate a fresh server challenge before publishing anything.</FormNote>
+          <FormNote tone="warning">This verification has expired. Get a new record list for .{props.snapshot.root_label} before publishing.</FormNote>
         </Card>
         <div class="flex flex-wrap items-center justify-between gap-3">
           <SecondaryAction idempotencyKeys={props.idempotencyKeys} onCommand={props.onCommand} snapshot={props.snapshot} />
-          <Button onClick={() => dispatch({ kind: "restart" })}>Get a new record list</Button>
+          <Button loading={props.busy} disabled={props.busy} onClick={() => dispatch({ kind: "restart" })}>Get a new record list</Button>
         </div>
       </Show>
     </div>

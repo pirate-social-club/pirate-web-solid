@@ -144,8 +144,12 @@ function mapSnapshot(
     community_id: response.community_id,
     family: "hns" as const,
     generation: response.revision,
+    expires_at: response.expires_at,
     root_label: response.root_label,
   };
+  if (response.status !== "activated" && Date.parse(response.expires_at) <= Date.now()) {
+    return { ...common, next_action: { kind: "expired" } };
+  }
   if (response.status === "awaiting_ownership") {
     return { ...common, next_action: {
       kind: "sign_ownership",
@@ -284,15 +288,9 @@ export function createCommunityNamespaceSettingsApi(
         };
         return current;
       }
-      if (command.kind === "restart") {
-        locator.clear();
-        currentSessionId = null;
-        current = { ...current, generation: current.generation + 1, next_action: {
-          kind: "start_verification", family: "hns", root_label: current.root_label,
-        } };
-        return current;
-      }
-      if (command.kind === "start_verification") {
+      // Restart is a real new attempt. Retain the expired snapshot and locator
+      // until admission succeeds so failed authentication never loses recovery.
+      if (command.kind === "restart" || command.kind === "start_verification") {
         const response = await client().post_communitiesCommunityIdHnsRootImports({
           path: { communityId: options.communityId },
           body: { root_label: current.root_label, idempotency_key: command.idempotency_key },

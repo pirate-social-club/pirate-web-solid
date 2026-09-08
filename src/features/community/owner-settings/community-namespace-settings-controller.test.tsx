@@ -1,7 +1,7 @@
 import { render as solidRender, type JSX } from "@solidjs/web";
 import { createRoot } from "solid-js";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
-import { createCommunityNamespaceSettingsApi } from "./community-namespace-settings-api";
+import { CommunityNamespaceSettingsApiError, createCommunityNamespaceSettingsApi } from "./community-namespace-settings-api";
 import { CommunityNamespaceSettingsController } from "./community-namespace-settings-controller";
 
 const disposers: Array<() => void> = [];
@@ -189,4 +189,87 @@ test("only the explicit acknowledgement spins its button, not background reads",
   completeRead({ ...session, publication_check_pending: true });
   await vi.advanceTimersByTimeAsync(0);
   expect(post).toHaveBeenCalledTimes(1);
+});
+
+
+test.each([
+  "Refresh the page before changing the community address.",
+  "The HNS verification session is missing.",
+  "The HNS verification response did not match this community.",
+])("preserves the namespace adapter error: %s", async (message) => {
+  const api = {
+    read: async () => ({ community_id: "community-1", family: "hns" as const, generation: 1, root_label: "midnight", next_action: { kind: "start_verification" as const, family: "hns" as const, root_label: "midnight" } }),
+    execute: vi.fn(async () => { throw new CommunityNamespaceSettingsApiError(message); }),
+  };
+  const { container } = render(() => <CommunityNamespaceSettingsController api={api} communityId="community-1" communityPath="/c/community-1" />);
+  await vi.waitFor(() => expect(container.textContent).toContain("Start verification"));
+  [...container.querySelectorAll("button")].find(button => button.textContent === "Start verification")!.click();
+  await vi.waitFor(() => expect(container.textContent).toContain(message));
+  expect(api.execute).toHaveBeenCalledTimes(1);
+  expect(container.textContent).not.toContain("That HNS address step could not be completed.");
+});
+
+test("deadline crossing regenerates in one click and retains recovery when CSRF is missing", async () => {
+  vi.useFakeTimers();
+  vi.setSystemTime(new Date("2026-09-08T05:00:00Z"));
+  let csrf: string | undefined;
+  let savedLocator: string | null = null;
+  const start = vi.fn(async () => ({ ...session, root_import_session_id: "session-2", expires_at: "2026-09-08T07:00:00Z", revision: 2, status: "provisioning" }));
+  const get = vi.fn(async () => ({ ...session, root_import_session_id: "session-2", expires_at: "2026-09-08T07:00:00Z" }));
+  const api = createCommunityNamespaceSettingsApi({
+    communityId: "community-1", communityPath: "/c/community-1", readCsrfToken: () => csrf,
+    locator: { read: () => savedLocator, write: value => { savedLocator = value; }, clear: () => { savedLocator = null; } },
+    // SAFETY: These fakes implement the generated discovery, start and read methods.
+    client: {
+      get_communitiesCommunityIdHnsRootImports: async () => ({ community_id: "community-1", attachment: null, session: { ...session, expires_at: "2026-09-08T06:00:00Z" } }),
+      post_communitiesCommunityIdHnsRootImports: start,
+      get_communitiesCommunityIdHnsRootImportsSessionId: get,
+    } as never,
+  });
+  const { container } = render(() => <CommunityNamespaceSettingsController api={api} communityId="community-1" communityPath="/c/community-1" />);
+  await vi.advanceTimersByTimeAsync(0);
+  expect(container.querySelector("time")?.dateTime).toBe("2026-09-08T06:00:00Z");
+  await vi.advanceTimersByTimeAsync(3_600_000);
+  expect(get).not.toHaveBeenCalled();
+  expect(container.textContent).toContain("Verification expired");
+  expect(container.textContent).toContain(".midnight");
+  const regenerate = () => [...container.querySelectorAll("button")].find(button => button.textContent === "Get a new record list")!;
+  regenerate().click();
+  await vi.advanceTimersByTimeAsync(0);
+  expect(container.textContent).toContain("Refresh the page before changing the community address.");
+  expect(start).not.toHaveBeenCalled();
+  expect(savedLocator).toBe("session-1");
+  expect(regenerate().disabled).toBe(false);
+  csrf = "restored-csrf";
+  regenerate().click();
+  await vi.advanceTimersByTimeAsync(0);
+  expect(start).toHaveBeenCalledTimes(1);
+  expect(start.mock.calls[0]).toEqual(expect.arrayContaining([expect.objectContaining({ body: expect.objectContaining({ root_label: "midnight" }) })]));
+  expect(savedLocator).toBe("session-2");
+  expect(container.textContent).toContain("Prepare your records");
+  await vi.advanceTimersByTimeAsync(2_000);
+  expect(container.textContent).toContain("Your records are ready to publish");
+  expect(container.textContent).toContain("ns1.midnight");
+  expect(start).toHaveBeenCalledTimes(1);
+});
+
+
+test.each(["provisioning", "observing", "ready", "awaiting_ownership"])("a suspended tab recovers an expired %s state without another mutation", async status => {
+  vi.useFakeTimers();
+  vi.setSystemTime(new Date("2026-09-08T05:00:00Z"));
+  const deadlineSession = { ...session, status, expires_at: "2026-09-08T06:00:00Z", provisioning_authorization: { expires_at: "2026-09-08T06:00:00Z", message: "proof" } };
+  const get = vi.fn(async () => deadlineSession);
+  const post = vi.fn();
+  const api = makeApi(async () => ({ community_id: "community-1", attachment: null, session: deadlineSession }), post, get);
+  const { container } = render(() => <CommunityNamespaceSettingsController api={api} communityId="community-1" communityPath="/c/community-1" />);
+  await vi.advanceTimersByTimeAsync(0);
+  vi.spyOn(document, "visibilityState", "get").mockReturnValue("hidden");
+  document.dispatchEvent(new Event("visibilitychange"));
+  await vi.advanceTimersByTimeAsync(3_600_001);
+  expect(get).not.toHaveBeenCalled();
+  vi.spyOn(document, "visibilityState", "get").mockReturnValue("visible");
+  document.dispatchEvent(new Event("visibilitychange"));
+  await vi.advanceTimersByTimeAsync(0);
+  expect(container.textContent).toContain("Verification expired");
+  expect(post).not.toHaveBeenCalled();
 });
