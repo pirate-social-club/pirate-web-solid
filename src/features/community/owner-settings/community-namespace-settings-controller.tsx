@@ -10,6 +10,7 @@ import {
 } from "./community-namespace-settings-api";
 import { CommunityNamespaceSettingsPanel } from "./community-namespace-settings-panel";
 import { namespaceIdempotencyKeys } from "./community-namespace-idempotency";
+import { useApplicationSession } from "../../shell/application-session";
 import type {
   CommunityNamespaceSettingsPort,
   NamespaceCommandIdempotencyKeys,
@@ -26,6 +27,22 @@ export interface CommunityNamespaceSettingsControllerProps {
 }
 
 type LoadStatus = "loading" | "ready" | "denied" | "error";
+
+const PREPARATION_RETRY_STORAGE_PREFIX = "pirate:hns-preparation-retry:";
+
+function storedPreparationRetryAt(userId: string): number | undefined {
+  if (typeof sessionStorage === "undefined") return undefined;
+  const value = Number(sessionStorage.getItem(`${PREPARATION_RETRY_STORAGE_PREFIX}${userId}`));
+  if (!Number.isSafeInteger(value) || value <= Date.now() || value > Date.now() + 86_400_000) return undefined;
+  return value;
+}
+
+function storePreparationRetryAt(userId: string, retryAt: number | undefined): void {
+  if (typeof sessionStorage === "undefined") return;
+  const key = `${PREPARATION_RETRY_STORAGE_PREFIX}${userId}`;
+  if (retryAt === undefined) sessionStorage.removeItem(key);
+  else sessionStorage.setItem(key, String(retryAt));
+}
 
 function operationKeys(): NamespaceCommandIdempotencyKeys {
   const random = globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`;
@@ -62,6 +79,7 @@ function commandError(error: unknown): string {
 export function CommunityNamespaceSettingsController(
   props: CommunityNamespaceSettingsControllerProps,
 ) {
+  const applicationSession = useApplicationSession();
   const api = untrack(() => {
     const apiOptions: CommunityNamespaceSettingsApiOptions = {
       communityId: props.communityId,
@@ -78,18 +96,40 @@ export function CommunityNamespaceSettingsController(
   const [busy, setBusy] = createSignal(false);
   const [message, setMessage] = createSignal("");
   const [preparationRetryAt, setPreparationRetryAt] = createSignal<number>();
+  let preparationAccountId: string | undefined;
+  const accountId = () => {
+    const session = applicationSession();
+    return session !== undefined && session !== "resolving" && session !== "failed" && session !== "anonymous"
+      ? session.userId
+      : undefined;
+  };
   const feedback = () => {
     if (message()) return message();
     const retryAt = preparationRetryAt();
     if (retryAt === undefined) return "";
     const localTime = new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" }).format(retryAt);
-    return `You have prepared three record lists in 24 hours. You can get another after ${localTime}. No refresh is needed.`;
+    return `This account has prepared three record lists across its communities in 24 hours. You can get another after ${localTime}.`;
   };
+  createEffect(
+    accountId,
+    (userId) => {
+      if (userId === undefined || userId === preparationAccountId) return;
+      const stored = storedPreparationRetryAt(userId);
+      preparationAccountId = userId;
+      queueMicrotask(() => {
+        if (accountId() === userId) setPreparationRetryAt(stored);
+      });
+    },
+  );
   createEffect(
     preparationRetryAt,
     (retryAt) => {
       if (retryAt === undefined) return;
-      const timer = setTimeout(() => setPreparationRetryAt(undefined), Math.max(0, retryAt - Date.now()));
+      const retryAccountId = preparationAccountId;
+      const timer = setTimeout(() => {
+        if (retryAccountId !== undefined) storePreparationRetryAt(retryAccountId, undefined);
+        setPreparationRetryAt(undefined);
+      }, Math.max(0, retryAt - Date.now()));
       onCleanup(() => clearTimeout(timer));
     },
   );
@@ -170,6 +210,11 @@ export function CommunityNamespaceSettingsController(
           if (typeof seconds === "number" && Number.isSafeInteger(seconds) && seconds > 0 && seconds <= 86_400) {
             const retryAt = Date.now() + seconds * 1_000;
             setPreparationRetryAt(retryAt);
+            const userId = accountId();
+            if (userId !== undefined) {
+              preparationAccountId = userId;
+              storePreparationRetryAt(userId, retryAt);
+            }
             setMessage("");
             return;
           }
@@ -249,7 +294,7 @@ export function CommunityNamespaceSettingsController(
                 wallet={wallet}
               />
               <div class="flex h-20 items-center gap-3 overflow-auto">
-                <div class="min-w-0 flex-1" role="status"><Show when={feedback()}><FormNote tone="destructive">{feedback()}</FormNote></Show></div>
+                <div class="min-w-0 flex-1" role="status"><Show when={feedback()}><FormNote tone="muted">{feedback()}</FormNote></Show></div>
                 <Show when={pollFailed()}>
                   <Button loading={busy()} onClick={() => {
                     const current = snapshot();
