@@ -63,10 +63,22 @@ export interface CommunityPageShellProps {
    */
   feed?: () => CommunityFeed;
   /**
-   * True while the viewer's session or authority is still settling. Controls
+   * True while the viewer's session or membership is still settling. Controls
    * that depend on it hold their space without claiming what they do not know.
    */
   authorityPending?: boolean;
+  /**
+   * True while the viewer's membership was read and the read failed. The
+   * controls stay actionable so a retry is possible, but they say only that
+   * the state needs checking, never that the viewer is or is not a member.
+   */
+  viewerUnknown?: boolean;
+  /**
+   * True while management authority alone is still settling. Separate from
+   * authorityPending, because a slow moderation read must not hold the follow,
+   * join, post or persona controls that no longer depend on anything.
+   */
+  managePending?: boolean;
   personaControl?: JSX.Element;
   renderPost?: (
     post: CommunityPost,
@@ -281,6 +293,27 @@ export function CommunityPageShell(props: CommunityPageShellProps) {
   // already in hand, so nothing waits.
   const feed = (): CommunityFeed =>
     props.feed?.() ?? { kind: "ready", posts: community().posts };
+  /**
+   * What each viewer control says, and what it says to a screen reader. A
+   * pending control reports that it is checking; a control whose read failed
+   * asks to check again. Neither reports a membership or a follow direction.
+   */
+  const followLabel = () => {
+    if (props.followBusy) return { text: "Saving…", description: "Saving your follow" };
+    if (props.authorityPending) return { text: "Checking…", description: "Checking your follow state" };
+    if (props.viewerUnknown) return { text: "Check follow", description: "Check your follow state again" };
+    return props.following
+      ? { text: "Following", description: "Unfollow this community" }
+      : { text: "Follow", description: "Follow this community" };
+  };
+  const joinLabel = () => {
+    if (props.authorityPending || props.joinBusy) {
+      return { text: "Checking…", description: "Checking your membership" };
+    }
+    if (props.viewerUnknown) return { text: "Check membership", description: "Check your membership again" };
+    if (props.joined) return { text: "Joined", description: "You are a member of this community" };
+    return { text: props.joinLabel ?? "Join", description: props.joinLabel ?? "Join this community" };
+  };
   const feedPosts = () => {
     const current = feed();
     return current.kind === "ready" ? current.posts : [];
@@ -322,20 +355,24 @@ export function CommunityPageShell(props: CommunityPageShellProps) {
               class="mt-3 grid min-h-[9.5rem] grid-cols-2 content-start gap-2 md:mt-0 md:flex md:min-h-0 md:shrink-0 md:flex-wrap"
               data-community-actions-reserved
             >
-              <Button class="w-full md:w-auto" disabled={props.followBusy || props.authorityPending} onClick={() => props.onFollowToggle?.()} variant={props.following ? "secondary" : "outline"}>{props.followBusy ? "Saving…" : props.following ? "Following" : "Follow"}</Button>
+              {/* Follow and Following both state a direction that has not been
+                  read yet, so neither is offered until it has been. */}
+              <Button
+                aria-label={followLabel().description}
+                class="w-full md:w-auto"
+                disabled={props.followBusy || props.authorityPending}
+                onClick={() => props.onFollowToggle?.()}
+                variant={props.following ? "secondary" : "outline"}
+              >{followLabel().text}</Button>
               <Show when={props.canJoin !== false}>
                 <Button
+                  aria-label={joinLabel().description}
                   class="w-full md:w-auto"
-                  disabled={props.authorityPending || props.joined || props.joinBusy || props.joinDisabled}
+                  disabled={props.authorityPending || props.joinBusy
+                    || (!props.viewerUnknown && (props.joined || props.joinDisabled))}
                   onClick={() => props.onJoin?.()}
-                  variant={props.joined ? "secondary" : "default"}
-                >
-                  {/* Neither Join nor Joined until membership is read: both state
-                      something about this viewer that is not known yet. */}
-                  {props.authorityPending || props.joinBusy
-                    ? "Checking…"
-                    : props.joined ? "Joined" : props.joinLabel ?? "Join"}
-                </Button>
+                  variant={props.joined && !props.viewerUnknown ? "secondary" : "default"}
+                >{joinLabel().text}</Button>
               </Show>
               <Show
                 when={props.joined || props.showCreatePost || props.onCreatePost !== undefined}
@@ -352,7 +389,7 @@ export function CommunityPageShell(props: CommunityPageShellProps) {
               </Show>
               <Show
                 when={props.onManage}
-                fallback={<Show when={props.authorityPending}><PendingControl class="col-span-2 md:w-32" /></Show>}
+                fallback={<Show when={props.managePending ?? props.authorityPending}><PendingControl class="col-span-2 md:w-32" /></Show>}
               >
                 <Button
                   class="col-span-2 w-full md:w-auto"

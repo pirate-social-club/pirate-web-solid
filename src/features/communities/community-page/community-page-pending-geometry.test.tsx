@@ -167,6 +167,12 @@ function buttonNamed(container: HTMLElement, label: string): HTMLButtonElement |
     .find(button => button.textContent?.trim() === label);
 }
 
+/** Pending follow and join both read "Checking…", so address them by purpose. */
+function buttonDescribed(container: HTMLElement, description: string): HTMLButtonElement | undefined {
+  return [...container.querySelectorAll<HTMLButtonElement>("button")]
+    .find(button => button.getAttribute("aria-label") === description);
+}
+
 function pendingControls(container: HTMLElement): number {
   return container.querySelectorAll("[data-pending-control]").length;
 }
@@ -281,8 +287,11 @@ describe("private controls while authority settles", () => {
     const container = mount(() => "resolving", { member: true, canManage: true, personas: [boundPersona] });
 
     await vi.waitFor(() => expect(container.querySelector("[aria-label='Community actions']")).not.toBeNull());
-    expect(buttonNamed(container, "Checking…")?.disabled).toBe(true);
-    expect(buttonNamed(container, "Follow")?.disabled).toBe(true);
+    expect(buttonDescribed(container, "Checking your membership")?.disabled).toBe(true);
+    expect(buttonDescribed(container, "Checking your follow state")?.disabled).toBe(true);
+    // Follow, Following, Join and Joined each state something unread.
+    expect(buttonNamed(container, "Follow")).toBeUndefined();
+    expect(buttonNamed(container, "Following")).toBeUndefined();
     expect(buttonNamed(container, "Join")).toBeUndefined();
     expect(buttonNamed(container, "Joined")).toBeUndefined();
     expect(buttonNamed(container, "Post here")).toBeUndefined();
@@ -358,5 +367,75 @@ describe("private controls while authority settles", () => {
     expect(reservedGeometry(container)).toEqual(reserved);
     expect(buttonNamed(container, "Manage")).toBeUndefined();
     expect(buttonNamed(container, "Post here")).toBeUndefined();
+  });
+});
+
+describe("management authority settles on its own schedule", () => {
+  test("a moderation read that never answers holds nothing but Manage", async () => {
+    const container = render(() => (
+      <ApplicationSessionProvider state={() => ({ status: "authenticated", userId: "account-a" })}>
+        <CommunityPage
+          client={client}
+          engagementApi={engagementApi(true)}
+          handleSalesClient={handleSalesClient}
+          loadThreads={loadThreads}
+          pathSegment={harbor.pathSegment}
+          postComposerMediaStorage={createMemoryMediaSubmissionStorage()}
+          // Never answers. Management authority stays unknown for the life of
+          // the page while everything else is long since known.
+          resolveOwnerSettingsAccess={() => new Promise<boolean>(() => {})}
+          resolveSession={async (): Promise<SessionResolution> => ({
+            status: "authenticated", userId: "account-a", personas: [boundPersona],
+          })}
+        />
+      </ApplicationSessionProvider>
+    ));
+
+    await vi.waitFor(() => expect(buttonNamed(container, "Joined")).toBeDefined());
+    // Membership and personas are known, so their controls are done waiting.
+    expect(buttonNamed(container, "Post here")).toBeDefined();
+    expect(buttonNamed(container, "Follow")?.disabled).toBe(false);
+    expect(container.querySelector("[data-operation-persona]")).not.toBeNull();
+    // Only the management slot is still reserved.
+    expect(buttonNamed(container, "Manage")).toBeUndefined();
+    expect(pendingControls(container)).toBe(1);
+    expect(reservedGeometry(container)).toEqual(reserved);
+  });
+});
+
+describe("a membership read that fails", () => {
+  test("the controls ask to check rather than stating a membership", async () => {
+    const failingApi: CommunityEngagementApi = {
+      ...engagementApi(false),
+      readViewerState: vi.fn(async () => { throw new Error("viewer read failed"); }),
+    };
+    const container = render(() => (
+      <ApplicationSessionProvider state={() => ({ status: "authenticated", userId: "account-a" })}>
+        <CommunityPage
+          client={client}
+          engagementApi={failingApi}
+          handleSalesClient={handleSalesClient}
+          loadThreads={loadThreads}
+          pathSegment={harbor.pathSegment}
+          postComposerMediaStorage={createMemoryMediaSubmissionStorage()}
+          resolveOwnerSettingsAccess={async () => false}
+          resolveSession={async (): Promise<SessionResolution> => ({
+            status: "authenticated", userId: "account-a", personas: [boundPersona],
+          })}
+        />
+      </ApplicationSessionProvider>
+    ));
+
+    await vi.waitFor(() => expect(buttonNamed(container, "Check membership")).toBeDefined());
+    // Actionable, because retrying an action is how this recovers.
+    expect(buttonNamed(container, "Check membership")?.disabled).toBe(false);
+    expect(buttonNamed(container, "Check follow")?.disabled).toBe(false);
+    // None of these may be stated from a read that failed.
+    expect(buttonNamed(container, "Join")).toBeUndefined();
+    expect(buttonNamed(container, "Joined")).toBeUndefined();
+    expect(buttonNamed(container, "Follow")).toBeUndefined();
+    expect(buttonNamed(container, "Following")).toBeUndefined();
+    expect(buttonNamed(container, "Post here")).toBeUndefined();
+    expect(reservedGeometry(container)).toEqual(reserved);
   });
 });

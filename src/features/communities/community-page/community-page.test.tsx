@@ -564,9 +564,13 @@ describe("CommunityPage", () => {
       />
     ));
     await vi.waitFor(() => expect(container.textContent).toContain("Retry an action to check again."));
-    [...container.querySelectorAll<HTMLButtonElement>("button")]
-      .find(button => button.textContent?.trim() === "Follow")!
-      .click();
+    // The read failed, so the control asks to check rather than offering to
+    // follow, which would state a direction nothing established.
+    expect(container.textContent).not.toContain(">Follow<");
+    const recheck = [...container.querySelectorAll<HTMLButtonElement>("button")]
+      .find(button => button.textContent?.trim() === "Check follow")!;
+    expect(recheck.disabled).toBe(false);
+    recheck.click();
     await vi.waitFor(() => expect(readViewerState).toHaveBeenCalledTimes(2));
     expect(api.follow).not.toHaveBeenCalled();
     expect(api.unfollow).not.toHaveBeenCalled();

@@ -42,6 +42,13 @@ never use the Very ceremony fixture. The API currently exposes no post-delete
 contract, so an explicit run leaves uniquely marked staging content and
 records a cleanup annotation.
 
+The feed hydration spec reads `E2E_FEED_COMMUNITY_PATH_SEGMENT`, naming a
+community whose public feed has at least one post, and skips with a visible
+reason without it. It asserts that the response body already carries the feed
+and that hydration issues no further read of it, which is the one place that
+observes serialization and hydration together. It proves nothing until the
+change under test is the deployed build.
+
 After one authorized physical scan, run the separately tagged read-only
 membership assertion with `E2E_ALLOW_MANUAL_VERIFY=1` and
 `bun run test:e2e:staging:manual`. This is once-per-release evidence, not a

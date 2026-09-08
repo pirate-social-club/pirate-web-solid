@@ -323,7 +323,9 @@ function SuccessState(props: {
             joinDisabled={engagement.joinDisabled()}
             joinLabel={engagement.joinLabel()}
             joined={engagement.joined()}
-            authorityPending={engagement.authorityPending() || manageAuthorityPending()}
+            authorityPending={engagement.authorityPending()}
+            managePending={manageAuthorityPending()}
+            viewerUnknown={engagement.viewerUnknown()}
             feed={feed}
             personaControl={personaOptions().length > 0 ? (
               <OperationPersonaControl

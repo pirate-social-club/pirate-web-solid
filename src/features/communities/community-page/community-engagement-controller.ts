@@ -45,6 +45,12 @@ export interface CommunityEngagementController {
    * because "not a member" and "not signed in" are claims, not defaults.
    */
   readonly authorityPending: Accessor<boolean>;
+  /**
+   * The viewer's membership was read and the read failed, so the page knows
+   * nothing about it. Distinct from pending: an action can recover from this,
+   * but no control may state a membership or a follow direction.
+   */
+  readonly viewerUnknown: Accessor<boolean>;
   /** Open while a terminal join waits for the account's closed persona choice. */
   readonly joinPersonaStep: Accessor<boolean>;
   readonly joinPersonaChoice: Accessor<CommunityPersonaChoice | undefined>;
@@ -481,6 +487,7 @@ export function createCommunityEngagementController(
   // Unresolved account, or an account whose viewer state has not been read.
   const authorityPending = () => accountIdentity() === undefined
     || (accountAuthenticated() && !viewerSettled());
+  const viewerUnknown = () => accountAuthenticated() && viewerSettled() && !viewerReady();
   const joinDisabled = () => membership() === "pending" || membership() === "banned" || membership() === "blocked";
   const joinLabel = () => {
     if (membership() === "pending") return "Request pending";
@@ -509,6 +516,7 @@ export function createCommunityEngagementController(
     postingSession,
     accountIdentity,
     authorityPending,
+    viewerUnknown,
     personaRetryAvailable: profilesUnavailable,
     personaRetryBusy,
     retryPersonas,
