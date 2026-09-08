@@ -1,0 +1,89 @@
+import { describe, expect, it, vi } from "vitest";
+import { createRewardCreation, rewardCreationKey, type RewardCreationJournal, type RewardCreationScope, type RewardLegRequest } from "./reward-creation.ts";
+const scope = { accountId: "account", personaId: "persona", communityId: "community", postId: "song" };
+const offer = { path: { communityId: "community", postId: "song" }, body: { persona_id: "persona", idempotency_key: "open-key", starts_at: "2026-09-08T00:00:00Z", ends_at: "2026-09-15T00:00:00Z" } };
+const leg: RewardLegRequest = { kind: "asset_bonus", input: { path: { offerId: "" }, body: {
+  persona_id: "persona", idempotency_key: "leg-key", expected_qualification_policy_versions: { study: "study-v2", karaoke: "karaoke-v2" },
+  chain_id: 84532, token_address: `0x${"a".repeat(40)}`, token_decimals: 6, token_symbol: "PSTB", asset_policy_version: "test-v1",
+  funding_amount_atomic: "10000000", amount_per_claim_atomic: "1000000", max_claims: 10,
+} } };
+const target = { kind: "asset_bonus" as const, legId: "leg", fundingEffectId: "effect" };
+function setup() {
+  const values = new Map<string,string>();
+  let tail = Promise.resolve();
+  const journal: RewardCreationJournal = {
+    read: key => values.get(key) ?? null,
+    write: (key,value) => { values.set(key,value); },
+    exclusive: (_key, operation) => {
+      const result = tail.then(operation); tail = result.then(() => {}, () => {}); return result;
+    },
+  };
+  const api = { open: vi.fn(async () => "offer"), add: vi.fn(async () => target) };
+  let current: RewardCreationScope | null = scope;
+  const controller = () => createRewardCreation({ scope, journal, api, currentScope: () => current });
+  return { values, journal, api, controller, switchActor: () => { current = null; } };
+}
+describe("reward creation recovery", () => {
+  it("persists exact reviewed terms before either request and identities before returning", async () => {
+    const s = setup();
+    s.api.open.mockImplementation(async () => {
+      expect(s.controller().pending()?.offer).toEqual(offer);
+      expect(s.controller().pending()?.leg).toEqual(leg);
+      return "offer";
+    });
+    s.api.add.mockImplementation(async () => {
+      expect(s.controller().pending()?.offerId).toBe("offer"); return target;
+    });
+    expect(await s.controller().start(offer,leg)).toEqual(target);
+    expect(s.controller().pending()?.target).toEqual(target);
+  });
+  it("replays a lost offer response with the original key after reload", async () => {
+    const s = setup(); s.api.open.mockRejectedValueOnce(new Error("lost response"));
+    await expect(s.controller().start(offer,leg)).rejects.toThrow("lost response");
+    expect(await s.controller().recover()).toEqual(target);
+    expect(s.api.open.mock.calls[0]).toEqual(s.api.open.mock.calls[1]);
+    expect(s.api.add).toHaveBeenCalledTimes(1);
+  });
+  it("replays a lost leg response without reopening or regenerating keys", async () => {
+    const s = setup(); s.api.add.mockRejectedValueOnce(new Error("lost response"));
+    await expect(s.controller().start(offer,leg)).rejects.toThrow("lost response");
+    expect(await s.controller().recover()).toEqual(target);
+    expect(s.api.open).toHaveBeenCalledTimes(1);
+    expect(s.api.add.mock.calls[0]).toEqual(s.api.add.mock.calls[1]);
+  });
+  it("serializes two tabs on the song, refusing replacement of the pending operation", async () => {
+    const s = setup();
+    const results = await Promise.allSettled([s.controller().start(offer,leg),s.controller().start(offer,leg)]);
+    expect(results.map(r => r.status)).toEqual(["fulfilled", "rejected"]);
+    expect(s.api.open).toHaveBeenCalledTimes(1); expect(s.api.add).toHaveBeenCalledTimes(1);
+  });
+  it("cannot create when initial persistence fails", async () => {
+    const s = setup(); s.journal.write = () => { throw new Error("storage unavailable"); };
+    await expect(s.controller().start(offer,leg)).rejects.toThrow("storage unavailable");
+    expect(s.api.open).not.toHaveBeenCalled(); expect(s.api.add).not.toHaveBeenCalled();
+  });
+  it("does not return a signing target when saving its identities fails", async () => {
+    const s = setup(), write = s.journal.write;
+    s.journal.write = (key,raw) => { if (JSON.parse(raw).target) throw new Error("storage unavailable"); write(key,raw); };
+    await expect(s.controller().start(offer,leg)).rejects.toThrow("storage unavailable");
+    s.journal.write = write;
+    expect(await s.controller().recover()).toEqual(target);
+    expect(s.api.add.mock.calls[0]).toEqual(s.api.add.mock.calls[1]);
+  });
+  it("fails closed on corrupt receipts instead of starting a replacement", async () => {
+    const s = setup(); s.values.set(rewardCreationKey(scope), "{");
+    await expect(s.controller().start(offer,leg)).rejects.toThrow("reward_creation_recovery_corrupt");
+    expect(s.api.open).not.toHaveBeenCalled();
+  });
+  it("does not advance creation when the persona changes during the request", async () => {
+    const s = setup(); s.api.open.mockImplementation(async () => { s.switchActor(); return "offer"; });
+    await expect(s.controller().start(offer,leg)).rejects.toThrow("reward_creation_actor_changed");
+    expect(s.api.add).not.toHaveBeenCalled();
+  });
+  it("captures terms before awaiting the lock and refuses fresh terms on recovery", async () => {
+    const s = setup(), input = structuredClone(offer);
+    const promise = s.controller().start(input,leg); input.body.ends_at = "2027-01-01T00:00:00Z";
+    await promise; expect(s.controller().pending()?.offer).toEqual(offer);
+    await expect(s.controller().start(input,leg)).rejects.toThrow("reward_creation_recovery_required");
+  });
+});

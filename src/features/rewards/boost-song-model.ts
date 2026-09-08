@@ -1,12 +1,3 @@
-// Boost a song: the sponsor flow reached from a post's overflow menu. Modelled
-// on the legacy BoostCampaignSheet state machine (compose → quote → confirming →
-// awaiting-finality → active) with the same "either" activity default.
-//
-// Backend shape this maps onto: a song has one non-terminal offer
-// (song_reward_offers_one_nonterminal_per_post_uidx) and rewards are legs on it.
-// A Megapot leg holds eligible_activities as a list; a token bonus must have it
-// NULL, so a token bonus is always "either" and offers no activity choice.
-
 export type BoostKind = "megapot_pool" | "asset_bonus";
 
 /** "either" is the default. Only a Megapot leg can narrow it. */
@@ -18,7 +9,6 @@ export type BoostStep =
   | "confirming"
   | "awaiting_finality"
   | "active"
-  | "top_up"
   | "failed";
 
 export interface BoostDraft {
@@ -60,19 +50,18 @@ export type BoostState =
   | { readonly step: "confirming" }
   | { readonly step: "awaiting_finality"; readonly transactionHash: string | null }
   | { readonly step: "active"; readonly live: BoostLive }
-  | { readonly step: "top_up"; readonly live: BoostLive; readonly draft: BoostDraft }
   | { readonly step: "failed"; readonly failure: BoostFailure; readonly transactionHash: string | null };
 
-export const kindTitle: Record<BoostKind, string> = {
+export const kindTitle = {
   megapot_pool: "Megapot ticket",
   asset_bonus: "Token bonus",
-};
+} satisfies Record<BoostKind, string>;
 
-export const activityLabel: Record<BoostActivity, string> = {
+export const activityLabel = {
   either: "Study or singing",
   study: "Study only",
   karaoke: "Singing only",
-};
+} satisfies Record<BoostActivity, string>;
 
 /** A token bonus cannot be narrowed: the leg's activity column must be NULL. */
 export function activityIsChoosable(kind: BoostKind): boolean {
@@ -109,9 +98,9 @@ export function failureLine(failure: BoostFailure): string {
     case "insufficient_gas_balance": return "You need a little ETH for the fee. Nothing was sent.";
     case "reauthentication_required": return "Sign in to your wallet again. Nothing was sent.";
     case "transaction_mismatch": return "This reward is settling a different transaction than we recorded.";
-    case "terms_changed": return "Your transfer is tracked. It needs checking against the current terms.";
+    case "terms_changed": return "This attempt needs checking against the current funding instructions. Keep any transaction hash.";
     case "provider_rejected": return "We can't prove nothing was sent, so this stays locked.";
-    case "recovery_corrupt": return "Kept rather than cleared, so nothing can be sent twice.";
-    case "recovery_unavailable": return "This may not survive a reload. You can give us the hash.";
+    case "recovery_corrupt": return "The saved attempt cannot be read. Keep its record and check with support before sending anything.";
+    case "recovery_unavailable": return "The browser could not save or read this attempt. Keep any transaction hash and check its status.";
   }
 }

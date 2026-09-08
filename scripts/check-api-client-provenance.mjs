@@ -11,6 +11,20 @@ const clients = [
     dependency: "@pirate/api-client",
     provenance: "vendor/api-client-provenance.json",
     expectedScope: [
+      "post_communitiesCommunityIdPostsPostIdRewardOffers",
+      "post_rewardOffersOfferIdMegapotPoolLegs",
+      "post_rewardOffersOfferIdAssetBonusLegs",
+      "get_rewardsQualificationPolicies",
+      "get_rewardsBonusAssets",
+      "get_communitiesCommunityIdPostsPostIdRewardsMegapotPool",
+      "get_communitiesCommunityIdPostsPostIdRewardsAssetBonuses",
+      "get_rewardOfferLegsLegIdStanding",
+      "get_rewardsCredits",
+      "post_rewardOfferLegsLegIdFundingFundingEffectIdObservations",
+      "get_rewardOfferLegsLegIdFundingFundingEffectId",
+      "post_assetBonusLegsLegIdFundingFundingEffectIdObservations",
+      "get_assetBonusLegsLegIdFundingFundingEffectId",
+
       "post_communityCreationIntents",
       "get_communityCreationIntentsIntentId",
       "patch_communityCreationIntentsIntentId",
@@ -83,6 +97,9 @@ function sha256(path) {
 
 for (const client of clients) {
   const provenance = readJson(resolve(appRoot, client.provenance));
+  if (!Array.isArray(provenance.scope) || client.expectedScope.some(operation => !provenance.scope.includes(operation))) {
+    throw new Error(`${client.dependency} provenance is missing a required operation`);
+  }
   const dependency = packageJson.dependencies?.[client.dependency];
   const expectedDependency = `file:${provenance.artifact}`;
   if (dependency !== expectedDependency) {

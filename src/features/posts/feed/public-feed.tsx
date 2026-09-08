@@ -3,6 +3,7 @@ import { fetchHomeFeedPage } from "./home-feed-adapter.ts";
 import { onSessionRefreshed } from "../../../api/session.ts";
 import { AgeAccessPrompt } from "../../verification/age-access-prompt.tsx";
 import { feedSlots, type FeedSlot } from "./feed-slots.ts";
+import { RewardSponsorAction } from "../../rewards/reward-sponsor-action.tsx";
 import { Title } from "@solidjs/meta";
 import type { JSX } from "@solidjs/web";
 import { Show, For, getRequestEvent } from "@solidjs/web";
@@ -165,6 +166,9 @@ function FeedItemCard(props: {
             <Type as="span" variant="caption">·</Type>
             <time datetime={props.item.createdAt}>{props.item.createdAt.slice(0, 10)}</time>
           </div>
+          <Show when={props.item.postType === "song" && props.item.status === "published"}>
+            <div class="ml-auto"><RewardSponsorAction communityId={props.item.communityId} postId={props.item.id} songTitle={heading()} /></div>
+          </Show>
           <Type variant="h3">
             <Show when={props.item.canonicalPath} fallback={heading()}>
               {path => <a href={path()}>{heading()}</a>}

@@ -28,6 +28,8 @@ export default defineConfig({
     // keep scripts/check-test-discovery.ts green when ownership moves.
     include: [
       "src/features/posts/song-player/song-player.test.tsx",
+      "src/features/rewards/*.test.ts",
+      "src/features/rewards/*.test.tsx",
       "src/hns-community-route-transform.test.ts",
       "src/lib/viewer-session-hint.test.ts",
       "src/routes/community-owner-settings-route.test.ts",

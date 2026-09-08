@@ -31,11 +31,10 @@ const meta = {
       description: {
         component:
           "The sponsor flow reached from a post's overflow menu, the way the legacy app opened Boost. It is "
-          + "a modal with a three-step spine — compose, quote, approve — plus the live campaign, top-up, and "
+          + "a modal with a three-step spine — compose, quote, approve — plus the live campaign and "
           + "failure states.\n\nA song has one offer and rewards are legs on it, so a sponsor never repeats "
           + "this per activity. \"Study or singing\" is the default and the only option for a token bonus, "
-          + "whose activity column must be NULL; only a Megapot leg can narrow it. There is no score "
-          + "control — qualification policies are fixed by the platform.",
+          + "whose activity column must be NULL; only a Megapot leg can narrow it. Megapot has an additional score floor above each activity policy.",
       },
     },
   },
@@ -57,7 +56,6 @@ function sheet(state: BoostState, extra: Partial<BoostSongSheetProps> = {}) {
       onRestart={noop}
       onReview={noop}
       onRewardChange={noop}
-      onTopUp={noop}
       open
       songTitle={songTitle}
       state={state}
@@ -142,17 +140,6 @@ export const Active: Story = {
     step: "active",
     live: { kind: "asset_bonus", rewardLabel: "1.00 PSTB each", remainingLabel: "7 of 10 left" },
   }),
-};
-
-export const TopUp: Story = {
-  render: sheet({
-    step: "top_up",
-    live: { kind: "asset_bonus", rewardLabel: "1.00 PSTB each", remainingLabel: "0 of 10 left" },
-    draft: bonusDraft,
-  }),
-  parameters: {
-    docs: { description: { story: "Adding funds reopens an exhausted reward and never changes its terms." } },
-  },
 };
 
 export const FailedWrongChain: Story = {

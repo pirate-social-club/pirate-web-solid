@@ -41,20 +41,18 @@ export interface BoostSongSheetProps {
   readonly onBack: () => void;
   /** Only offered when the failure proves nothing was broadcast. */
   readonly onRestart: () => void;
-  readonly onTopUp: () => void;
   /** Support-assisted hash entry. Authorizes nothing. */
   readonly onReconcile: () => void;
 }
 
-const stepCaption: Record<BoostState["step"], string> = {
+const stepCaption = {
   compose: "Step 1 of 3 · Set it up",
   quote: "Step 2 of 3 · Check it over",
-  confirming: "Step 3 of 3 · Approve in your wallet",
+  confirming: "Step 3 of 3 · Sending transfer",
   awaiting_finality: "Step 3 of 3 · Confirming",
   active: "Live",
-  top_up: "Add funds",
   failed: "Couldn't fund",
-};
+} satisfies Record<BoostState["step"], string>;
 
 export function BoostSongSheet(props: BoostSongSheetProps) {
   return (
@@ -94,7 +92,7 @@ export function BoostSongSheet(props: BoostSongSheetProps) {
                     <OptionCardGroup
                       label="What counts"
                       value={state().draft.activity}
-                      onChange={(value) => props.onActivityChange(value as BoostActivity)}
+                      onChange={(value) => { if (value === "either" || value === "study" || value === "karaoke") props.onActivityChange(value); }}
                     >
                       <For each={["either", "study", "karaoke"] as const}>
                         {(activity) => <OptionCard value={activity} title={activityLabel[activity]} />}
@@ -142,7 +140,7 @@ export function BoostSongSheet(props: BoostSongSheetProps) {
 
           <Match when={props.state.step === "confirming"}>
             <Type as="p" class="text-muted-foreground" variant="caption">
-              Approve the transfer in your wallet. We won't send anything twice.
+              Sending the reviewed transfer. Wait for its status.
             </Type>
           </Match>
 
@@ -168,30 +166,6 @@ export function BoostSongSheet(props: BoostSongSheetProps) {
                 <Type as="p" class="text-muted-foreground" variant="caption">
                   {state().live.remainingLabel}
                 </Type>
-                <ModalFooter>
-                  <Button variant="outline" onClick={props.onTopUp}>Add funds</Button>
-                </ModalFooter>
-              </>
-            )}
-          </Match>
-
-          <Match when={props.state.step === "top_up" && props.state}>
-            {(state) => (
-              <>
-                <Type as="p" class="text-muted-foreground" variant="caption">
-                  {state().live.rewardLabel} · {state().live.remainingLabel}
-                </Type>
-                <TextField value={state().draft.budgetLabel} onChange={props.onBudgetChange}>
-                  <TextFieldLabel>Add</TextFieldLabel>
-                  <TextFieldInput />
-                </TextField>
-                <Type as="p" class="text-muted-foreground" variant="caption">
-                  Adding funds never changes the terms.
-                </Type>
-                <ModalFooter>
-                  <Button onClick={props.onReview}>Review</Button>
-                  <Button variant="ghost" onClick={props.onBack}>Back</Button>
-                </ModalFooter>
               </>
             )}
           </Match>
