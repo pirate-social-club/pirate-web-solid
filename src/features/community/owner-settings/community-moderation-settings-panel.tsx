@@ -84,6 +84,8 @@ interface CommunityModerationPanelStateProps {
   capabilities: CommunityModerationCapabilities;
   errorMessage?: string;
   loading?: boolean;
+  /** A refresh over content already on screen, which must not unmount it. */
+  refreshing?: boolean;
   showHeading?: boolean;
 }
 
@@ -144,13 +146,15 @@ function CaseQueue(props: CommunityModerationQueuePanelProps) {
     <section aria-label="Moderation cases" class="flex flex-col gap-4 pb-24 md:pb-0">
       <div class="flex items-center justify-between gap-4">
         <Show when={props.showHeading !== false}><Type as="h2" variant="h2">Moderation queue</Type></Show>
-        <div class="flex rounded-[var(--radius-lg)] bg-muted p-1" role="group" aria-label="Case status">
+        <div aria-busy={props.refreshing ? "true" : undefined} class="flex rounded-[var(--radius-lg)] bg-muted p-1" role="group" aria-label="Case status">
           <For each={["open", "hidden"] as const}>{(view) => <button class={cn("cursor-pointer rounded-[var(--radius-md)] px-3 py-1.5 text-sm font-semibold transition-colors", props.caseView === view ? "bg-card text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")} onClick={() => props.onCaseViewChange?.(view)} type="button">{caseViewLabel(view)}</button>}</For>
         </div>
       </div>
-      <Show when={props.cases.items.length > 0} fallback={<Card class="p-8 text-center"><Type as="p" variant="body-strong">{emptyCopy().title}</Type><Type as="p" class="mt-1 text-muted-foreground" variant="caption">{emptyCopy().body}</Type></Card>}>
-        <div class="flex flex-col gap-4"><For each={props.cases.items}>{(item) => <CaseCard {...props} detail={detailFor(item.case_ref)} item={item} />}</For></div>
-      </Show>
+      <div class={cn("flex flex-col gap-4 transition-opacity", props.refreshing && "opacity-60")}>
+        <Show when={props.cases.items.length > 0} fallback={<Card class="p-8 text-center"><Type as="p" variant="body-strong">{emptyCopy().title}</Type><Type as="p" class="mt-1 text-muted-foreground" variant="caption">{emptyCopy().body}</Type></Card>}>
+          <For each={props.cases.items}>{(item) => <CaseCard {...props} detail={detailFor(item.case_ref)} item={item} />}</For>
+        </Show>
+      </div>
     </section>
   );
 }
@@ -194,10 +198,13 @@ function PolicyEditor(props: Pick<CommunityModerationPolicyPanelProps, "capabili
 export function CommunityModerationQueuePanel(props: CommunityModerationQueuePanelProps) {
   return (
     <div class="flex flex-col gap-5">
-      <Show when={!props.errorMessage} fallback={<Card class="p-6"><FormNote tone="destructive">{props.errorMessage}</FormNote></Card>}>
-        <Show when={!props.loading} fallback={<Card class="grid min-h-64 place-items-center" role="status"><div class="flex items-center gap-3"><Spinner class="size-5" /><Type variant="body">Loading queue…</Type></div></Card>}>
-          <CaseQueue {...props} />
-        </Show>
+      <Show when={props.errorMessage}>
+        {/* Reported above the queue rather than in place of it, so a failed
+            refresh does not take away the cases already on screen. */}
+        <Card class="p-4" role="alert"><FormNote tone="destructive">{props.errorMessage}</FormNote></Card>
+      </Show>
+      <Show when={!props.loading} fallback={<Card class="grid min-h-64 place-items-center" role="status"><div class="flex items-center gap-3"><Spinner class="size-5" /><Type variant="body">Loading queue&hellip;</Type></div></Card>}>
+        <CaseQueue {...props} />
       </Show>
     </div>
   );

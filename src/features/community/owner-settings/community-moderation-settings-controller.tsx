@@ -28,11 +28,28 @@ export type CommunityModerationSettingsSection = "moderation_queue" | "content_p
 
 export interface CommunityModerationSettingsControllerProps {
   api?: CommunityModerationSettingsApi;
+  /**
+   * Capabilities already read by the route. Supplying them keeps entry to one
+   * round trip; omitting them makes the controller read its own, which is what
+   * stories and isolated tests do.
+   */
+  capabilities?: CommunityModerationCapabilities;
   communityId: string;
   section: CommunityModerationSettingsSection;
 }
 
 type LoadStatus = "loading" | "ready" | "denied" | "error";
+
+/**
+ * A response is only applied when the community and view it was issued for are
+ * still the ones on screen. Sequence alone is not enough: a slower read for the
+ * previous view can land after a newer one and would otherwise overwrite it.
+ */
+interface RequestToken {
+  communityId: string;
+  sequence: number;
+  view: CommunityModerationCaseView;
+}
 
 function idempotencyKey(scope: string): string {
   const random = globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`;
@@ -49,8 +66,9 @@ export function CommunityModerationSettingsController(
 ) {
   const api = props.api ?? createCommunityModerationSettingsApi();
   const [status, setStatus] = createSignal<LoadStatus>("loading");
+  const [refreshing, setRefreshing] = createSignal(false);
   const [message, setMessage] = createSignal("");
-  const [capabilities, setCapabilities] = createSignal<CommunityModerationCapabilities>([]);
+  const [capabilities, setCapabilities] = createSignal<CommunityModerationCapabilities>(props.capabilities ?? []);
   const [caseView, setCaseView] = createSignal<CommunityModerationCaseView>("open");
   const [caseBundle, setCaseBundle] = createSignal<CommunityModerationCaseBundle>();
   const [actionBusy, setActionBusy] = createSignal<Readonly<{
@@ -63,12 +81,26 @@ export function CommunityModerationSettingsController(
   const [policySaving, setPolicySaving] = createSignal(false);
   const commandKeys = new Map<string, string>();
   let active = true;
-  let requestGeneration = 0;
+  let sequence = 0;
+  let current: RequestToken | undefined;
 
   onCleanup(() => {
     active = false;
-    requestGeneration += 1;
+    current = undefined;
   });
+
+  const issue = (view: CommunityModerationCaseView): RequestToken => {
+    const token = { communityId: props.communityId, sequence: ++sequence, view };
+    current = token;
+    return token;
+  };
+
+  const stale = (token: RequestToken): boolean =>
+    !active
+    || current === undefined
+    || current.sequence !== token.sequence
+    || current.communityId !== token.communityId
+    || current.view !== token.view;
 
   const commandKey = (scope: string): string => {
     const existing = commandKeys.get(scope);
@@ -78,55 +110,73 @@ export function CommunityModerationSettingsController(
     return created;
   };
 
-  const loadQueue = async (view: CommunityModerationCaseView, request = ++requestGeneration) => {
-    setStatus("loading");
+  const loadQueue = async (view: CommunityModerationCaseView, token = issue(view)) => {
+    // The requested view is selected before the read starts, so its control
+    // reflects the click immediately and the list it replaces stays on screen
+    // until the new one arrives.
+    setCaseView(view);
+    if (caseBundle() === undefined) setStatus("loading");
+    else setRefreshing(true);
     setMessage("");
     try {
-      const bundle = await api.getCases({ communityId: props.communityId, view });
-      if (!active || request !== requestGeneration) return;
-      setCaseView(view);
+      const bundle = await api.getCases({ communityId: token.communityId, view: token.view });
+      if (stale(token)) return;
       setCaseBundle(bundle);
       setStatus("ready");
     } catch (error) {
-      if (!active || request !== requestGeneration) return;
-      setMessage(safeError(error instanceof ApiClientError ? error : undefined, "The moderation queue could not be loaded."));
-      setStatus("error");
+      if (stale(token)) return;
+      const failure = safeError(error instanceof ApiClientError ? error : undefined, "The moderation queue could not be loaded.");
+      if (error instanceof ApiClientError && (error.status === 401 || error.status === 404)) {
+        setStatus("denied");
+        return;
+      }
+      setMessage(failure);
+      // A failed refresh keeps the list it could not replace; only a first read
+      // has nothing to fall back to.
+      if (caseBundle() === undefined) setStatus("error");
+    } finally {
+      if (active) setRefreshing(false);
     }
   };
 
-  const loadPolicy = async (request = ++requestGeneration) => {
-    setStatus("loading");
+  const loadPolicy = async (token = issue(caseView())) => {
+    if (policy() === undefined) setStatus("loading");
+    else setRefreshing(true);
     setMessage("");
     try {
-      const nextPolicy = await api.getPolicy({ communityId: props.communityId });
-      if (!active || request !== requestGeneration) return;
+      const nextPolicy = await api.getPolicy({ communityId: token.communityId });
+      if (stale(token)) return;
       setPolicy(nextPolicy);
       setPolicyDecisions(moderationPolicyDecisions(nextPolicy));
       setPolicyDirty(false);
       setStatus("ready");
     } catch (error) {
-      if (!active || request !== requestGeneration) return;
+      if (stale(token)) return;
       setMessage(safeError(error instanceof ApiClientError ? error : undefined, "The content policy could not be loaded."));
-      setStatus("error");
+      if (policy() === undefined) setStatus("error");
+    } finally {
+      if (active) setRefreshing(false);
     }
   };
 
   const load = async () => {
-    const request = ++requestGeneration;
-    setStatus("loading");
+    const token = issue(caseView());
     setMessage("");
     try {
-      const nextCapabilities = await api.getCapabilities({ communityId: props.communityId });
-      if (!active || request !== requestGeneration) return;
+      // The route already read capabilities for the navigation it rendered;
+      // repeating that read here would add a round trip to every entry.
+      const known = props.capabilities;
+      const nextCapabilities = known ?? await api.getCapabilities({ communityId: token.communityId });
+      if (stale(token)) return;
       if (!nextCapabilities.includes("moderation.view")) {
         setStatus("denied");
         return;
       }
       setCapabilities(nextCapabilities);
-      if (props.section === "moderation_queue") await loadQueue(caseView(), request);
-      else await loadPolicy(request);
+      if (props.section === "moderation_queue") await loadQueue(token.view, token);
+      else await loadPolicy(token);
     } catch (error) {
-      if (!active || request !== requestGeneration) return;
+      if (stale(token)) return;
       if (error instanceof ApiClientError && (error.status === 401 || error.status === 404)) {
         setStatus("denied");
         return;
@@ -138,7 +188,18 @@ export function CommunityModerationSettingsController(
 
   createEffect(
     () => `${props.communityId}:${props.section}`,
-    () => { queueMicrotask(() => { if (active) void load(); }); },
+    () => {
+      // Solid 2 forbids writing signals from an owned scope, so the reset that
+      // drops the previous community's cases happens with the read that
+      // replaces them.
+      queueMicrotask(() => {
+        if (!active) return;
+        setCaseBundle(undefined);
+        setPolicy(undefined);
+        setStatus("loading");
+        void load();
+      });
+    },
   );
 
   const changeView = (view: CommunityModerationCaseView) => {
@@ -157,6 +218,7 @@ export function CommunityModerationSettingsController(
     try {
       await api.actOnCase(input);
       if (!active) return;
+      // A background refresh after the action; the list it replaces stays put.
       await loadQueue(caseView());
     } catch (error) {
       if (active) setMessage(safeError(error instanceof ApiClientError ? error : undefined, "The moderation action could not be completed."));
@@ -220,6 +282,7 @@ export function CommunityModerationSettingsController(
                 errorMessage={message() || undefined}
                 onCaseAction={(input) => void actOnCase(input)}
                 onCaseViewChange={changeView}
+                refreshing={refreshing()}
                 showHeading={false}
               />
             )}

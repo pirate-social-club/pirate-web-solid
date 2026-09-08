@@ -18,7 +18,8 @@ export async function resolveOwnerSettingsPreflight(
   fetchImpl: ApiFetch = fetch,
 ): Promise<OwnerSettingsPreflight | undefined> {
   const url = new URL(request.url);
-  const match = /^\/c\/([^/]+)\/settings\/[^/]+$/u.exec(url.pathname);
+  // The index and a section both preflight; the index is the drill-down entry.
+  const match = /^\/c\/([^/]+)\/settings(?:\/[^/]+)?\/?$/u.exec(url.pathname);
   if (!match?.[1]) return undefined;
   const requestedPathSegment = decodeCommunityRouteParam(match[1]);
   const serverFetch: ApiFetch = (input, init) => {

@@ -1,6 +1,6 @@
 import { Title } from "@solidjs/meta";
 import { Button, Card, Type } from "@pirate/web-solid-ui";
-import { Loading, Show, createEffect, createMemo } from "solid-js";
+import { Loading, Show, createEffect, createMemo, createSignal, onCleanup } from "solid-js";
 import { getRequestEvent } from "@solidjs/web";
 
 import type { CommunityModerationSettingsApi } from "./community-moderation-settings-api";
@@ -18,9 +18,13 @@ import {
   type RoutedOwnerSettingsSection,
 } from "./owner-settings-route-model";
 import { visibleOwnerSettingsGroups } from "./owner-settings-model";
+import { settledBotAccess, type OwnerSettingsBotAccess } from "./owner-settings-route-model";
+import { createCommunityTelegramSettingsApi } from "./community-telegram-settings-api";
 import type { CommunityNamespaceSettingsPort } from "./owner-settings-model";
 
 export interface OwnerSettingsRouteViewProps {
+  /** The deferred bot probe needs only this read, so it is injected narrowly. */
+  botProbeApi?: Pick<CommunityTelegramSettingsApi, "getSettings">;
   moderationApi?: CommunityModerationSettingsApi;
   telegramApi?: CommunityTelegramSettingsApi;
   namespaceApi?: CommunityNamespaceSettingsPort;
@@ -94,17 +98,57 @@ function RouteMessage(props: { state: OwnerSettingsRouteState }) {
 function ResolvedOwnerSettingsRouteView(props: ResolvedOwnerSettingsRouteViewProps) {
   const success = () => props.state.kind === "success" ? props.state : undefined;
   const indexMode = () => props.requestedSection === null;
+
+  // Resolved after entry, so the sections the route already authorized are
+  // usable while this is still in flight.
+  const [botAccess, setBotAccess] = createSignal<OwnerSettingsBotAccess>();
+  const [botPending, setBotPending] = createSignal(true);
+  let live = true;
+  onCleanup(() => { live = false; });
+  createEffect(
+    () => success()?.communityId,
+    (communityId) => {
+      if (communityId === undefined) return;
+      queueMicrotask(() => {
+        if (!live) return;
+        setBotPending(true);
+        void settledBotAccess(
+          { telegramApi: props.botProbeApi ?? props.telegramApi ?? createCommunityTelegramSettingsApi() },
+          communityId,
+        )
+          .then((result) => { if (live) setBotAccess(result); })
+          .finally(() => { if (live) setBotPending(false); });
+      });
+    },
+  );
+  const access = createMemo(() => {
+    const state = success();
+    if (state === undefined) return {};
+    return botAccess()?.granted === true
+      ? { ...state.access, "community.bot.manage": true }
+      : state.access;
+  });
+  const unavailable = createMemo(() => {
+    const state = success();
+    const base = state?.unavailableSections ?? [];
+    return botAccess()?.unavailable === true
+      ? [...base, "telegram" as const, "assistant" as const]
+      : base;
+  });
   const activeSection = createMemo<RoutedOwnerSettingsSection | null>(() => {
     const state = success();
     if (state === undefined || indexMode()) return null;
     const requested = routedOwnerSettingsSection(props.requestedSection ?? undefined);
     if (requested !== null) {
-      const visible = visibleOwnerSettingsGroups(state.access, state.unavailableSections)
+      const visible = visibleOwnerSettingsGroups(access(), unavailable())
         .flatMap((group) => group.items)
         .some((item) => item.section === requested);
       if (visible) return requested;
+      // A direct link to a bot section waits for its probe rather than being
+      // bounced to the landing section before the answer is known.
+      if ((requested === "telegram" || requested === "assistant") && botPending()) return null;
     }
-    return firstRoutedOwnerSettingsSection(state.access, state.unavailableSections);
+    return firstRoutedOwnerSettingsSection(access(), unavailable());
   });
 
   createEffect(
@@ -127,8 +171,8 @@ function ResolvedOwnerSettingsRouteView(props: ResolvedOwnerSettingsRouteViewPro
             <>
               <Title>{state().communityName} settings</Title>
               <CommunityManagementShell
-                access={state().access}
-                unavailableSections={state().unavailableSections}
+                access={access()}
+                unavailableSections={unavailable()}
                 activeSection={null}
                 communityAvatarSrc={state().avatarUrl}
                 communityId={state().communityId}
@@ -137,8 +181,8 @@ function ResolvedOwnerSettingsRouteView(props: ResolvedOwnerSettingsRouteViewPro
                 onSectionChange={(next) => props.navigate(ownerSettingsSectionHref(state().communityPath, next, currentSearch()))}
               >
                 <CommunityManagementSections
-                  access={state().access}
-                  unavailableSections={state().unavailableSections}
+                  access={access()}
+                  unavailableSections={unavailable()}
                   onSectionChange={(next) => props.navigate(ownerSettingsSectionHref(state().communityPath, next, currentSearch()))}
                 />
               </CommunityManagementShell>
@@ -149,8 +193,8 @@ function ResolvedOwnerSettingsRouteView(props: ResolvedOwnerSettingsRouteViewPro
           <>
             <Title>{state().communityName} settings</Title>
             <CommunityManagementShell
-              access={state().access}
-              unavailableSections={state().unavailableSections}
+              access={access()}
+              unavailableSections={unavailable()}
               status={state().unavailableSections?.includes(section()) ? "error" : "ready"}
               errorMessage="This settings check failed. Your access could not be determined. Try again."
               onRetry={() => window.location.reload()}
@@ -181,6 +225,7 @@ function ResolvedOwnerSettingsRouteView(props: ResolvedOwnerSettingsRouteViewPro
               <Show when={section() === "moderation_queue" || section() === "content_policy"}>
                 <CommunityModerationSettingsController
                   api={props.moderationApi}
+                  capabilities={state().moderationCapabilities}
                   communityId={state().communityId}
                   section={section() === "moderation_queue" ? "moderation_queue" : "content_policy"}
                 />

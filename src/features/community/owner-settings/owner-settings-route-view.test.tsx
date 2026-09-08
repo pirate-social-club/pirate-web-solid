@@ -2,6 +2,8 @@ import { render as solidRender, type JSX } from "@solidjs/web";
 import { createRoot, createSignal } from "solid-js";
 import { afterEach, describe, expect, test, vi } from "vitest";
 
+import { ApiClientError } from "@pirate/api-client";
+
 import type { CommunityModerationSettingsApi } from "./community-moderation-settings-api";
 import {
   MODERATION_POLICY,
@@ -11,6 +13,7 @@ import {
 } from "./community-moderation-settings-fixtures";
 import type { CommunityNamesSettingsApi } from "./community-names-settings-api";
 import { NAMES_READY } from "./community-names-settings-fixtures";
+import { TELEGRAM_CONNECTED } from "./community-telegram-fixtures";
 import type { OwnerSettingsRouteState } from "./owner-settings-route-model";
 import type { CommunityNamespaceSettingsPort } from "./owner-settings-model";
 import { OwnerSettingsRouteView } from "./owner-settings-route-view";
@@ -486,5 +489,51 @@ describe("management deep links", () => {
     expect(headings).toEqual(["Community management", "Community management"]);
     expect(container.querySelector("main h1")?.className).toContain("md:block");
     expect(container.querySelector("header")?.className).toContain("md:hidden");
+  });
+
+  test("holds a bot deep link while its probe is still in flight", async () => {
+    const navigate = vi.fn();
+    let release: (value: unknown) => void = () => {};
+    const gate = new Promise((resolve) => { release = resolve; });
+    render(() => (
+      <OwnerSettingsRouteView
+        namesApi={namesApi()}
+        navigate={navigate}
+        requestedSection="telegram"
+        botProbeApi={{ getSettings: async () => { await gate; return TELEGRAM_CONNECTED; } }}
+        state={success}
+      />
+    ));
+
+    // Bouncing to the queue before the probe answers would strand an owner who
+    // followed a direct Telegram link.
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(navigate).not.toHaveBeenCalled();
+
+    release(undefined);
+    await vi.waitFor(() => expect(navigate).not.toHaveBeenCalled());
+  });
+
+  test("redirects a bot deep link once the probe denies it", async () => {
+    const navigate = vi.fn();
+    const redacted = new ApiClientError(
+      { code: "not_found", name: "NotFound", retryable: false, status: 404 },
+      { error: { code: "not_found", message: "Redacted", retryable: false } },
+    );
+    render(() => (
+      <OwnerSettingsRouteView
+        moderationApi={moderationApi()}
+        namesApi={namesApi()}
+        navigate={navigate}
+        requestedSection="telegram"
+        botProbeApi={{ getSettings: async () => { throw redacted; } }}
+        state={success}
+      />
+    ));
+
+    await vi.waitFor(() => expect(navigate).toHaveBeenCalledWith(
+      "/c/midnight/settings/moderation_queue",
+      { replace: true },
+    ));
   });
 });

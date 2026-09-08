@@ -2,6 +2,8 @@ import { render as solidRender, type JSX } from "@solidjs/web";
 import { createRoot } from "solid-js";
 import { afterEach, describe, expect, test, vi } from "vitest";
 
+import { ApiClientError } from "@pirate/api-client";
+
 import type { CommunityModerationSettingsApi } from "./community-moderation-settings-api";
 import { CommunityModerationSettingsController } from "./community-moderation-settings-controller";
 import {
@@ -116,5 +118,122 @@ describe("CommunityModerationSettingsController", () => {
 
     await vi.waitFor(() => expect(container.querySelector("[data-owner-settings-denied]")).not.toBeNull());
     expect(getCases).not.toHaveBeenCalled();
+  });
+
+  test("selects the requested view immediately and keeps the list until the new one lands", async () => {
+    let release = () => {};
+    const gate = new Promise<void>((resolve) => { release = resolve; });
+    const container = render(() => (
+      <CommunityModerationSettingsController
+        api={moderationApi({
+          getCases: async ({ view }) => {
+            if (view === "hidden") await gate;
+            return view === "hidden"
+              ? { cases: HIDDEN_MODERATION_CASES, details: HIDDEN_MODERATION_CASE_DETAILS }
+              : { cases: OPEN_MODERATION_CASES, details: OPEN_MODERATION_CASE_DETAILS };
+          },
+        })}
+        capabilities={MODERATION_VIEW_AND_ACT}
+        communityId="community_midnight"
+        section="moderation_queue"
+      />
+    ));
+
+    await vi.waitFor(() => expect(container.textContent).toContain("Needs review"));
+    const openCases = container.textContent;
+    const takenDown = [...container.querySelectorAll<HTMLButtonElement>("button")]
+      .find((button) => button.textContent?.trim() === "Taken down");
+    takenDown!.click();
+
+    // Mid-flight: the control shows the requested view and the previous list is
+    // still on screen rather than replaced by a spinner.
+    await vi.waitFor(() => expect(container.querySelector('[aria-busy="true"]')).not.toBeNull());
+    expect([...container.querySelectorAll("button")].some((button) => button.textContent?.trim() === "Taken down")).toBe(true);
+    expect(container.textContent).toContain("Needs review");
+    expect(container.querySelector('[role="status"]')).toBeNull();
+    expect(container.textContent?.length).toBeGreaterThanOrEqual((openCases ?? "").length - 40);
+
+    release();
+    await vi.waitFor(() => expect(container.querySelector('[aria-busy="true"]')).toBeNull());
+  });
+
+  test("ignores a slow response for a view the owner already left", async () => {
+    let releaseHidden = () => {};
+    const hiddenGate = new Promise<void>((resolve) => { releaseHidden = resolve; });
+    const container = render(() => (
+      <CommunityModerationSettingsController
+        api={moderationApi({
+          getCases: async ({ view }) => {
+            if (view === "hidden") await hiddenGate;
+            return view === "hidden"
+              ? { cases: HIDDEN_MODERATION_CASES, details: HIDDEN_MODERATION_CASE_DETAILS }
+              : { cases: OPEN_MODERATION_CASES, details: OPEN_MODERATION_CASE_DETAILS };
+          },
+        })}
+        capabilities={MODERATION_VIEW_AND_ACT}
+        communityId="community_midnight"
+        section="moderation_queue"
+      />
+    ));
+
+    await vi.waitFor(() => expect(container.textContent).toContain("Needs review"));
+    const button = (label: string) => [...container.querySelectorAll<HTMLButtonElement>("button")]
+      .find((candidate) => candidate.textContent?.trim() === label);
+    button("Taken down")!.click();
+    await vi.waitFor(() => expect(container.querySelector('[aria-busy="true"]')).not.toBeNull());
+    button("Needs review")!.click();
+    await vi.waitFor(() => expect(container.querySelector('[aria-busy="true"]')).toBeNull());
+
+    // The stale hidden read lands last and must not overwrite the open queue.
+    releaseHidden();
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    expect(container.querySelector('[aria-label="Case status"] [aria-current]')).toBeNull();
+    expect(container.textContent).toContain("Publish");
+    expect(container.textContent).not.toContain("Restore");
+  });
+
+  test("reuses route capabilities instead of reading them again", async () => {
+    const getCapabilities = vi.fn(async () => MODERATION_VIEW_AND_ACT);
+    const container = render(() => (
+      <CommunityModerationSettingsController
+        api={moderationApi({ getCapabilities })}
+        capabilities={MODERATION_VIEW_AND_ACT}
+        communityId="community_midnight"
+        section="moderation_queue"
+      />
+    ));
+
+    await vi.waitFor(() => expect(container.textContent).toContain("Needs review"));
+    expect(getCapabilities).not.toHaveBeenCalled();
+  });
+
+  test("still fails closed when supplied capabilities omit moderation.view", async () => {
+    const container = render(() => (
+      <CommunityModerationSettingsController
+        api={moderationApi()}
+        capabilities={[]}
+        communityId="community_midnight"
+        section="moderation_queue"
+      />
+    ));
+
+    await vi.waitFor(() => expect(container.textContent).toContain("Owner access required"));
+  });
+
+  test("fails closed when the queue read is redacted after entry", async () => {
+    const redacted = new ApiClientError(
+      { code: "not_found", name: "NotFound", retryable: false, status: 404 },
+      { error: { code: "not_found", message: "Redacted", retryable: false } },
+    );
+    const container = render(() => (
+      <CommunityModerationSettingsController
+        api={moderationApi({ getCases: async () => { throw redacted; } })}
+        capabilities={MODERATION_VIEW_AND_ACT}
+        communityId="community_midnight"
+        section="moderation_queue"
+      />
+    ));
+
+    await vi.waitFor(() => expect(container.textContent).toContain("Owner access required"));
   });
 });

@@ -7,6 +7,7 @@ import {
   firstRoutedOwnerSettingsSection,
   loadOwnerSettingsRoute,
   routedOwnerSettingsSection,
+  settledBotAccess,
   type OwnerSettingsRouteDependencies,
 } from "./owner-settings-route-model";
 
@@ -59,13 +60,38 @@ function apiError(status: 401 | 404): ApiClientError {
 
 describe("owner settings route model", () => {
   test("bot sections require independent owner authority and remain routed", async () => {
+    // Entry no longer waits for the bot probe, so the route grants nothing for
+    // it while other authority already renders the navigation.
     const state = await loadOwnerSettingsRoute("harbor", dependencies({ telegramApi: { getSettings: async () => TELEGRAM_CONNECTED } }));
-    expect(state).toMatchObject({ kind: "success", access: { "community.bot.manage": true } });
+    if (state.kind !== "success") throw new Error("expected authorized settings");
+    expect(state.access["community.bot.manage"]).toBeUndefined();
     expect(routedOwnerSettingsSection("telegram")).toBe("telegram");
     expect(routedOwnerSettingsSection("assistant")).toBe("assistant");
-    const denied = await loadOwnerSettingsRoute("harbor", dependencies({ telegramApi: { getSettings: async () => { throw apiError(404); } } }));
-    if (denied.kind !== "success") throw new Error("expected other authorized settings");
-    expect(denied.access["community.bot.manage"]).toBeUndefined();
+
+    // The deferred probe is what decides the pair, and it still requires
+    // independent owner authority.
+    await expect(settledBotAccess({ telegramApi: { getSettings: async () => TELEGRAM_CONNECTED } }, "community_1"))
+      .resolves.toEqual({ granted: true, unavailable: false });
+    await expect(settledBotAccess({ telegramApi: { getSettings: async () => { throw apiError(404); } } }, "community_1"))
+      .resolves.toEqual({ granted: false, unavailable: false });
+    await expect(settledBotAccess({ telegramApi: { getSettings: async () => { throw new Error("offline"); } } }, "community_1"))
+      .resolves.toEqual({ granted: false, unavailable: true });
+  });
+
+  test("consults the bot probe only when nothing else authorized the owner", async () => {
+    const getSettings = vi.fn(async () => TELEGRAM_CONNECTED);
+    await loadOwnerSettingsRoute("harbor", dependencies({ telegramApi: { getSettings } }));
+    expect(getSettings).not.toHaveBeenCalled();
+
+    // With every other probe redacted the answer decides denial, so it is worth
+    // waiting for here and only here.
+    const state = await loadOwnerSettingsRoute("harbor", dependencies({
+      moderationApi: { getCapabilities: async () => { throw apiError(404); } },
+      namesApi: { getSnapshot: async () => { throw apiError(404); } },
+      telegramApi: { getSettings },
+    }));
+    expect(getSettings).toHaveBeenCalledTimes(1);
+    expect(state).toMatchObject({ kind: "success", access: { "community.bot.manage": true } });
   });
   test("maps only successful server authority into the routed partial access model", async () => {
     await expect(loadOwnerSettingsRoute("harbor", dependencies())).resolves.toEqual({
@@ -79,6 +105,9 @@ describe("owner settings route model", () => {
       communityName: "Pirate Harbor",
       communityPath: "/c/harbor",
       kind: "success",
+      // Carried so the moderation controller does not repeat the read the
+      // route already made to build this navigation.
+      moderationCapabilities: ["moderation.view", "moderation.act"],
     });
   });
 

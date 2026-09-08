@@ -36,7 +36,9 @@ describe("owner settings SSR preflight", () => {
       headers: { cookie: "__Host-pirate_session=session-1; __Host-pirate_csrf=csrf-1", authorization: "Bearer must-not-forward" },
     }), "https://api-next.test", fetchImpl);
     expect(result?.state).toMatchObject({ kind: "success", access: { "community.moderation.manage": true, "community.names.manage": true } });
-    expect(requests.length).toBe(7);
+    // Six, not seven: the bot probe is no longer on the entry path, so the
+    // navigation renders without waiting for it.
+    expect(requests.length).toBe(6);
     for (const [index, request] of requests.entries()) {
       expect(new URL(request.url).origin).toBe("https://api-next.test");
       expect(request.method).toBe("GET");
@@ -57,7 +59,9 @@ describe("owner settings SSR preflight", () => {
   test("failed private probes retain retryable sections without granting access", async () => {
     const { fetchImpl } = fixture(503);
     const result = await resolveOwnerSettingsPreflight(new Request("https://web.test/c/midnight/settings/moderation_queue"), "https://api-next.test", fetchImpl);
-    expect(result?.state).toMatchObject({ kind: "success", access: {}, unavailableSections: ["moderation_queue", "content_policy", "namespace", "names", "telegram", "assistant"] });
+    // The bot pair is absent here because its probe runs after entry; the view
+    // adds it to the unavailable set if that later read fails.
+    expect(result?.state).toMatchObject({ kind: "success", access: {}, unavailableSections: ["moderation_queue", "content_policy", "namespace", "names"] });
   });
 
   test("does not run on unrelated routes or send invalid paths upstream", async () => {
