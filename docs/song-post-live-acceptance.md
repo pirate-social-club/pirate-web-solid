@@ -18,10 +18,20 @@ The reset's fixed 0001–0119 manifest is not the new-flow migration receipt.
 Require the separately reviewed song-staging-reference-migration-delta handoff:
 the complete applied ledger for the serving API, explicitly including
 0132_song_reference_decision_wakeup.sql and
-0133_song_reference_publication_resume.sql with verified checksums, before the
-Worker requiring them serves this acceptance. Keep the approved database,
-producers, ingress release order and original reset artifacts intact. A handoff
-that only verifies 0119 leaves acceptance blocked.
+0133_song_reference_publication_resume.sql with verified checksums. A serving
+Worker at or after API merge e1f006915f6e65b1c6eb26089a7c801bc36c4b85 also
+requires the intervening 0134_reward_qualification_terms.sql and
+0135_song_source_recording_authority.sql. Require all four exact checksum
+receipts and the complete applied ledger through 0135 before that Worker serves
+this acceptance. Keep the approved database, producers, ingress release order
+and original reset artifacts intact. A handoff that verifies only 0119 or stops
+at 0133 leaves acceptance blocked.
+
+The accepted checksums are 0132
+87616f9efad291b5c18475b0d472427616028ceaa8d8ede709ed2cad9b7c406e, 0133
+d8645cf1a114e82e6c0978403f8e2b61328dca85d481f10a62044615b89ea691, 0134
+c4e42b5a044e36b56f212d7f33bcee10e126ab616757022f24b40b76f368b828 and 0135
+fdef3c6d12c22db8b9bb508510252b6e3c5c0dd3156b44ff97247eaced05e96c.
 
 Record the serving Solid and api-next commit SHAs, deployment identifiers,
 origin, UTC start time, browser version and authorized test persona/community.
@@ -35,14 +45,16 @@ original deliberately without lyrics, a real derivative with a resolvable
 source asset, and approved material that naturally exercises manual review
 and policy block. Case 5 needs explicit authorization for two new posts: the
 source recording and its derivative, their file hashes, personas/community,
-source commercial-remix terms and separately approved derivative terms. If no approved fixture or deterministic live route to an
-outcome exists, mark that case blocked. Do not alter policy or provider results
-to manufacture a pass. The derivative source must exist on this serving pair
-and be eligible under its current rights policy. Do not schedule case 5 until
-api-song-source-recording-authority supplies an implemented, approved way to
-establish the published source's server-held recording identity. Publishing a
-no-match original alone does not establish it. The two-post authorization does
-not expand the separate one-original production canary.
+source commercial-remix terms and separately approved derivative terms. If no
+approved fixture or deterministic live route to an outcome exists, mark that
+case blocked. Do not alter policy or provider results to manufacture a pass.
+The derivative source must exist on this serving pair and be eligible under its
+current rights policy. Source-authority runtime is integrated at API e1f00691,
+but case 5 remains blocked until song-source-provider-retention-policy and
+song-source-acr-catalog-provisioning complete, the runtime is enabled on the
+verified serving pair and the source reaches ready authority honestly.
+Publishing a no-match original alone does not establish it. The two-post
+authorization does not expand the separate one-original production canary.
 
 ## Browser procedure
 
@@ -68,8 +80,9 @@ not expand the separate one-original production canary.
    submission refuses to silently discard them.
 5. This is a source-then-derivative sequence on one unchanged serving pair.
    It remains blocked until legitimate source establishment is available.
-   The resolver repair is integrated at API 4db8d1df; source integration and
-   component fixtures alone do not satisfy the entry conditions above.
+   The resolver repair is integrated at API 4db8d1df and source-authority
+   runtime at API e1f00691. Disabled runtime, component fixtures or local tests
+   alone do not satisfy the entry conditions above.
 
    First publish the approved project-owned source song through the browser.
    Use commercial-remix terms with an explicitly approved nonzero
