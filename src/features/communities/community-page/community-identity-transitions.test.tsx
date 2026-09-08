@@ -156,11 +156,23 @@ function boundPersona(personaId: string, displayName: string, communityId: strin
   };
 }
 
-const sessionFor = (userId: string, personaId: string, communityId: string): AuthenticatedSession => ({
+/** Every persona name is distinct so a stale one is visible by name, not by absence. */
+const personaName = (userId: string, communityId: string) =>
+  `${userId} in ${fixtureFor(communityId).pathSegment}`;
+
+const sessionFor = (userId: string, ...communityIds: readonly string[]): AuthenticatedSession => ({
   status: "authenticated",
   userId,
-  personas: [boundPersona(personaId, `${userId} voice`, communityId)],
+  personas: communityIds.map(communityId => boundPersona(
+    `persona-${userId}-${fixtureFor(communityId).pathSegment}`,
+    personaName(userId, communityId),
+    communityId,
+  )),
 });
+
+function personaControlText(container: HTMLElement): string {
+  return container.querySelector("[data-operation-persona]")?.textContent ?? "";
+}
 
 function joinLabelButton(container: HTMLElement): HTMLButtonElement | undefined {
   return Array.from(container.querySelectorAll("button"))
@@ -192,7 +204,7 @@ describe("navigating between communities on the same route", () => {
         pathSegment={pathSegment()}
         postComposerMediaStorage={createMemoryMediaSubmissionStorage()}
         resolveOwnerSettingsAccess={resolveOwnerSettingsAccess}
-        resolveSession={async (): Promise<SessionResolution> => sessionFor("account-a", "persona-a", harbor.communityId)}
+        resolveSession={async (): Promise<SessionResolution> => sessionFor("account-a", harbor.communityId, lagoon.communityId)}
       />
     ));
 
@@ -201,7 +213,8 @@ describe("navigating between communities on the same route", () => {
     await vi.waitFor(() => expect(hasButton(container, "Manage")).toBe(true));
     expect(container.textContent).toContain(harbor.threadTitle);
     expect(hasButton(container, "Post here")).toBe(true);
-    expect(container.querySelector("[data-operation-persona]")).not.toBeNull();
+    await vi.waitFor(() => expect(personaControlText(container))
+      .toContain(personaName("account-a", harbor.communityId)));
 
     setPathSegment(lagoon.pathSegment);
 
@@ -215,6 +228,11 @@ describe("navigating between communities on the same route", () => {
     expect(hasButton(container, "Post here")).toBe(false);
     expect(container.querySelector("[data-community-route='lagoon']")).not.toBeNull();
     expect(resolveOwnerSettingsAccess).toHaveBeenCalledWith(lagoon.communityId);
+    // The account holds a persona in both communities, so the control is still
+    // here: what must not survive is the persona bound to the community that
+    // was here before.
+    expect(personaControlText(container)).not.toContain(personaName("account-a", harbor.communityId));
+    expect(container.textContent).not.toContain(personaName("account-a", harbor.communityId));
   });
 });
 
@@ -240,14 +258,15 @@ describe("account identity transitions on one community", () => {
           postComposerMediaStorage={createMemoryMediaSubmissionStorage()}
           resolveOwnerSettingsAccess={async () => account === "account-a"}
           resolveSession={async (): Promise<SessionResolution> =>
-            account === null ? "anonymous" : sessionFor(account, "persona-a", harbor.communityId)}
+            account === null ? "anonymous" : sessionFor(account, harbor.communityId)}
         />
       </ApplicationSessionProvider>
     ));
 
     await vi.waitFor(() => expect(joinLabelButton(container)?.textContent?.trim()).toBe("Joined"));
     await vi.waitFor(() => expect(hasButton(container, "Manage")).toBe(true));
-    await vi.waitFor(() => expect(container.querySelector("[data-operation-persona]")).not.toBeNull());
+    await vi.waitFor(() => expect(personaControlText(container))
+      .toContain(personaName("account-a", harbor.communityId)));
     expect(hasButton(container, "Post here")).toBe(true);
 
     account = null;
@@ -257,6 +276,7 @@ describe("account identity transitions on one community", () => {
     expect(hasButton(container, "Post here")).toBe(false);
     expect(hasButton(container, "Manage")).toBe(false);
     expect(container.querySelector("[data-operation-persona]")).toBeNull();
+    expect(container.textContent).not.toContain(personaName("account-a", harbor.communityId));
     // The public feed is not account-scoped and must survive the transition.
     expect(container.textContent).toContain(harbor.threadTitle);
   });
@@ -281,13 +301,15 @@ describe("account identity transitions on one community", () => {
           pathSegment={harbor.pathSegment}
           postComposerMediaStorage={createMemoryMediaSubmissionStorage()}
           resolveOwnerSettingsAccess={async () => account === "account-a"}
-          resolveSession={async (): Promise<SessionResolution> => sessionFor(account, `persona-${account}`, harbor.communityId)}
+          resolveSession={async (): Promise<SessionResolution> => sessionFor(account, harbor.communityId)}
         />
       </ApplicationSessionProvider>
     ));
 
     await vi.waitFor(() => expect(joinLabelButton(container)?.textContent?.trim()).toBe("Joined"));
     await vi.waitFor(() => expect(hasButton(container, "Manage")).toBe(true));
+    await vi.waitFor(() => expect(personaControlText(container))
+      .toContain(personaName("account-a", harbor.communityId)));
     const viewerReadsForFirstAccount = readViewerState.mock.calls.length;
 
     account = "account-b";
@@ -300,6 +322,8 @@ describe("account identity transitions on one community", () => {
     await vi.waitFor(() => expect(joinLabelButton(container)?.textContent?.trim()).toBe("Join"));
     expect(hasButton(container, "Post here")).toBe(false);
     await vi.waitFor(() => expect(hasButton(container, "Manage")).toBe(false));
+    // Account A's persona must be gone by name, not merely superseded.
+    expect(container.textContent).not.toContain(personaName("account-a", harbor.communityId));
   });
 });
 
@@ -345,7 +369,7 @@ describe("account-scoped counts and the session-start guard", () => {
       unfollow: vi.fn(async () => ({ following: false, followerCount: 20 })),
     };
     const resolveSession = vi.fn(async (): Promise<SessionResolution> =>
-      account === null ? "anonymous" : sessionFor(account, "persona-a", harbor.communityId));
+      account === null ? "anonymous" : sessionFor(account, harbor.communityId));
 
     const controller = mountController(api, sessionState, resolveSession);
 
@@ -373,5 +397,212 @@ describe("account-scoped counts and the session-start guard", () => {
     await vi.waitFor(() => expect(resolveSession.mock.calls.length).toBeGreaterThan(resolvedWhileSignedIn));
     await vi.waitFor(() => expect(controller.postingSession()).not.toBeUndefined());
     await vi.waitFor(() => expect(controller.joined()).toBe(true));
+  });
+});
+
+/** A promise the test resolves by hand, to hold a call across a transition. */
+function deferred<T>() {
+  let settle!: (value: T) => void;
+  const promise = new Promise<T>(resolve => { settle = resolve; });
+  return { promise, settle };
+}
+
+describe("actions in flight across an account change", () => {
+  test("a follow issued by account A never lands on account B", async () => {
+    const [sessionState, setSessionState] = createSignal<ApplicationSessionState>(
+      { status: "authenticated", userId: "account-a" },
+    );
+    let account = "account-a";
+    const slowFollow = deferred<{ following: boolean; followerCount: number }>();
+    const api: CommunityEngagementApi = {
+      readViewerState: vi.fn(async () => ({
+        membership: account === "account-a" ? "member" as const : "not_member" as const,
+        following: account === "account-a",
+        followerCount: 20,
+      })),
+      resolveJoinAction: vi.fn(async () => ({ kind: "join" as const })),
+      join: vi.fn(async () => ({ status: "joined" as const, personaId: "persona-a" })),
+      follow: vi.fn(() => slowFollow.promise),
+      unfollow: vi.fn(() => slowFollow.promise),
+    };
+    const controller = mountController(api, sessionState, async () => sessionFor(account, harbor.communityId));
+
+    await vi.waitFor(() => expect(controller.joined()).toBe(true));
+    const pending = controller.followToggle();
+    await vi.waitFor(() => expect(api.unfollow).toHaveBeenCalled());
+    expect(controller.followBusy()).toBe(true);
+
+    account = "account-b";
+    setSessionState({ status: "authenticated", userId: "account-b" });
+    await vi.waitFor(() => expect(controller.accountIdentity()).toBe("account-b"));
+    await vi.waitFor(() => expect(controller.joined()).toBe(false));
+    // The busy state belonged to the account that left with it.
+    expect(controller.followBusy()).toBe(false);
+
+    slowFollow.settle({ following: true, followerCount: 99 });
+    await pending;
+
+    expect(controller.following()).toBe(false);
+    expect(controller.followerCount()).toBe(20);
+    expect(controller.message()).toBe("");
+    expect(controller.followBusy()).toBe(false);
+    expect(controller.joined()).toBe(false);
+  });
+
+  test("a join issued by account A never commits membership for account B", async () => {
+    const [sessionState, setSessionState] = createSignal<ApplicationSessionState>(
+      { status: "authenticated", userId: "account-a" },
+    );
+    let account = "account-a";
+    const slowJoin = deferred<{ status: "joined"; personaId: string }>();
+    const api: CommunityEngagementApi = {
+      readViewerState: vi.fn(async () => ({
+        membership: "not_member" as const, following: false, followerCount: 20,
+      })),
+      resolveJoinAction: vi.fn(async () => ({ kind: "join" as const })),
+      join: vi.fn(() => slowJoin.promise),
+      follow: vi.fn(async () => ({ following: true, followerCount: 21 })),
+      unfollow: vi.fn(async () => ({ following: false, followerCount: 20 })),
+    };
+    const controller = mountController(api, sessionState, async () => sessionFor(account, harbor.communityId));
+
+    await vi.waitFor(() => expect(controller.postingSession()).not.toBeUndefined());
+    const pending = controller.joinCommunity();
+    await vi.waitFor(() => expect(api.join).toHaveBeenCalled());
+
+    account = "account-b";
+    setSessionState({ status: "authenticated", userId: "account-b" });
+    await vi.waitFor(() => expect(controller.accountIdentity()).toBe("account-b"));
+
+    slowJoin.settle({ status: "joined", personaId: "persona-a" });
+    await pending;
+
+    expect(controller.joined()).toBe(false);
+    expect(controller.joinedPersonaId()).toBeUndefined();
+    expect(controller.message()).toBe("");
+    expect(controller.joinBusy()).toBe(false);
+  });
+});
+
+describe("management capability across an account change", () => {
+  test("a late capability answer for account A cannot restore Manage for account B", async () => {
+    const [sessionState, setSessionState] = createSignal<ApplicationSessionState>(
+      { status: "authenticated", userId: "account-a" },
+    );
+    let account = "account-a";
+    const { api: engagementApi } = accountScopedEngagementApi(
+      new Map([["account-a", new Set([harbor.communityId])]]),
+      () => account,
+    );
+    const slowOwnerAccess = deferred<boolean>();
+    const resolveOwnerSettingsAccess = vi.fn(async () => account === "account-a"
+      ? slowOwnerAccess.promise
+      : false);
+
+    const container = render(() => (
+      <ApplicationSessionProvider state={sessionState}>
+        <CommunityPage
+          client={routeClient}
+          engagementApi={engagementApi}
+          handleSalesClient={handleSalesClient}
+          loadThreads={loadThreads}
+          pathSegment={harbor.pathSegment}
+          postComposerMediaStorage={createMemoryMediaSubmissionStorage()}
+          resolveOwnerSettingsAccess={resolveOwnerSettingsAccess}
+          resolveSession={async (): Promise<SessionResolution> => sessionFor(account, harbor.communityId)}
+        />
+      </ApplicationSessionProvider>
+    ));
+
+    await vi.waitFor(() => expect(resolveOwnerSettingsAccess).toHaveBeenCalled());
+    const requestsForFirstAccount = resolveOwnerSettingsAccess.mock.calls.length;
+
+    account = "account-b";
+    setSessionState({ status: "authenticated", userId: "account-b" });
+
+    await vi.waitFor(() => expect(resolveOwnerSettingsAccess.mock.calls.length)
+      .toBeGreaterThan(requestsForFirstAccount));
+    await vi.waitFor(() => expect(hasButton(container, "Manage")).toBe(false));
+
+    // Account A's answer arrives last and grants authority. It is retired.
+    slowOwnerAccess.settle(true);
+    await vi.waitFor(() => expect(hasButton(container, "Manage")).toBe(false));
+    await new Promise(resolve => setTimeout(resolve, 20));
+    expect(hasButton(container, "Manage")).toBe(false);
+  });
+
+  test("an unresolved identity costs no capability request", async () => {
+    const resolveOwnerSettingsAccess = vi.fn(async () => true);
+    const { api: engagementApi } = accountScopedEngagementApi(new Map(), () => null);
+    render(() => (
+      <CommunityPage
+        client={routeClient}
+        engagementApi={engagementApi}
+        handleSalesClient={handleSalesClient}
+        loadThreads={loadThreads}
+        pathSegment={harbor.pathSegment}
+        postComposerMediaStorage={createMemoryMediaSubmissionStorage()}
+        resolveOwnerSettingsAccess={resolveOwnerSettingsAccess}
+      />
+    ));
+
+    // No provider and no session resolver: the account is never established,
+    // so there is no identity a capability could belong to.
+    await new Promise(resolve => setTimeout(resolve, 50));
+    expect(resolveOwnerSettingsAccess).not.toHaveBeenCalled();
+  });
+});
+
+describe("an account check that fails", () => {
+  test("failure drops account-scoped state and a later success restores it", async () => {
+    const [sessionState, setSessionState] = createSignal<ApplicationSessionState>(
+      { status: "authenticated", userId: "account-a" },
+    );
+    let failing = false;
+    const { api: engagementApi } = accountScopedEngagementApi(
+      new Map([["account-a", new Set([harbor.communityId])]]),
+      () => failing ? null : "account-a",
+    );
+
+    const container = render(() => (
+      <ApplicationSessionProvider state={sessionState}>
+        <CommunityPage
+          client={routeClient}
+          engagementApi={engagementApi}
+          handleSalesClient={handleSalesClient}
+          loadThreads={loadThreads}
+          pathSegment={harbor.pathSegment}
+          postComposerMediaStorage={createMemoryMediaSubmissionStorage()}
+          resolveOwnerSettingsAccess={async () => !failing}
+          resolveSession={async (): Promise<SessionResolution> =>
+            failing ? "anonymous" : sessionFor("account-a", harbor.communityId)}
+        />
+      </ApplicationSessionProvider>
+    ));
+
+    await vi.waitFor(() => expect(joinLabelButton(container)?.textContent?.trim()).toBe("Joined"));
+    await vi.waitFor(() => expect(hasButton(container, "Manage")).toBe(true));
+    await vi.waitFor(() => expect(personaControlText(container))
+      .toContain(personaName("account-a", harbor.communityId)));
+
+    failing = true;
+    setSessionState("failed");
+
+    // A failed check is an identity loss, not a banner over stale state.
+    await vi.waitFor(() => expect(joinLabelButton(container)?.textContent?.trim()).toBe("Join"));
+    expect(hasButton(container, "Post here")).toBe(false);
+    await vi.waitFor(() => expect(hasButton(container, "Manage")).toBe(false));
+    expect(container.querySelector("[data-operation-persona]")).toBeNull();
+    expect(container.textContent).not.toContain(personaName("account-a", harbor.communityId));
+    expect(container.textContent).toContain("Retry account check");
+
+    failing = false;
+    setSessionState({ status: "authenticated", userId: "account-a" });
+
+    await vi.waitFor(() => expect(joinLabelButton(container)?.textContent?.trim()).toBe("Joined"));
+    await vi.waitFor(() => expect(hasButton(container, "Manage")).toBe(true));
+    await vi.waitFor(() => expect(personaControlText(container))
+      .toContain(personaName("account-a", harbor.communityId)));
+    expect(hasButton(container, "Post here")).toBe(true);
   });
 });

@@ -209,21 +209,31 @@ function SuccessState(props: {
   const description = () => community().description;
   const settingsHref = () => `${state.canonicalPath}/settings/moderation_queue`;
 
+  // Management authority belongs to an account, not to the page, so each
+  // identity gets its own request and only the newest one may answer. Without
+  // the generation a slow reply for the previous account could restore Manage
+  // after the current account's reply had already denied it.
+  let capabilityRequest = 0;
   createEffect(
     () => engagement.accountIdentity(),
     (accountIdentity) => {
-      // Management authority belongs to an account, not to the page. An
-      // account that signs out or changes loses it before anything is read.
-      setCanManage(false);
-      if (accountIdentity === null) return;
+      const request = ++capabilityRequest;
+      const owns = () => active && request === capabilityRequest;
       const resolveAccess = props.resolveOwnerSettingsAccess ?? (async (id: string) => {
         const capabilities = await createCommunityModerationSettingsApi().getCapabilities({ communityId: id });
         return capabilities.includes("moderation.view");
       });
+      // Deferred so the reset is not an apply-phase write, and so an
+      // unresolved identity costs no request at all.
       queueMicrotask(() => {
+        if (!owns()) return;
+        setCanManage(false);
+        // Only an established account can hold management authority; undefined
+        // is "not resolved yet" and null is anonymous.
+        if (typeof accountIdentity !== "string") return;
         void resolveAccess(communityId)
-          .then((allowed) => { if (active) setCanManage(allowed); })
-          .catch(() => { if (active) setCanManage(false); });
+          .then((allowed) => { if (owns()) setCanManage(allowed); })
+          .catch(() => { if (owns()) setCanManage(false); });
       });
     },
   );

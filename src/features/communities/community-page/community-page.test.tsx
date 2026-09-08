@@ -580,6 +580,9 @@ describe("CommunityPage", () => {
         navigate={navigate}
         pathSegment="xn--pokmon-dva"
         resolveOwnerSettingsAccess={resolveOwnerSettingsAccess}
+        // Management authority is account-scoped, so the surface has to resolve
+        // an account before it can hold any.
+        resolveSession={async () => ({ status: "authenticated", userId: "account-owner", personas: [] })}
       />
     ));
 

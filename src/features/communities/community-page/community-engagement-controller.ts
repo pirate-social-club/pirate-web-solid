@@ -91,6 +91,15 @@ export function createCommunityEngagementController(
   let observedAccountIdentity: string | null | undefined;
   /** Mirrors whether postingSession holds a value, for same-tick guards. */
   let personasResolved = false;
+  /**
+   * Retires an action that is still awaiting when the account changes. The read
+   * generations cover reads; an action also commits membership, counts,
+   * messages and busy state, none of which belong to the incoming account.
+   */
+  let actionGeneration = 0;
+
+  /** True while the action that captured this generation still owns the state. */
+  const actionOwns = (generation: number) => active && generation === actionGeneration;
 
   const assignPostingSession = (next: AuthenticatedSession | undefined) => {
     personasResolved = next !== undefined;
@@ -143,6 +152,14 @@ export function createCommunityEngagementController(
     // generation guards, so one already in flight cannot land afterwards.
     sessionRequest += 1;
     viewerRequest += 1;
+    // An action in flight for the previous account is retired the same way,
+    // and the busy state it owned is released so the incoming account is not
+    // left looking mid-action.
+    actionGeneration += 1;
+    actionInFlight = false;
+    personaRetryInFlight = false;
+    setBusy(undefined);
+    setPersonaRetryBusy(false);
   };
 
   const applyAccountSession = (resolved: "anonymous" | Readonly<{ status: "authenticated"; userId: string }>) => {
@@ -218,9 +235,9 @@ export function createCommunityEngagementController(
       queueMicrotask(() => {
         if (!active) return;
         if (resolved === "failed") {
-          setAccountAuthenticated(false);
-          assignPostingSession(undefined);
-          setViewerReady(false);
+          // No established identity: everything scoped to the account that was
+          // here goes with it, exactly as a sign-out would take it.
+          applyAccountSession("anonymous");
           setError("We couldn't check your account. Use Retry account check to reconnect.");
           return;
         }
@@ -264,39 +281,46 @@ export function createCommunityEngagementController(
   const followToggle = async (): Promise<void> => {
     if (actionInFlight) return;
     actionInFlight = true;
+    const generation = actionGeneration;
     try {
-      if (!await hasAuthenticatedAccount()) return;
+      if (!await hasAuthenticatedAccount() || !actionOwns(generation)) return;
       if (!viewerReady() && !await refreshViewerState()) return;
+      if (!actionOwns(generation)) return;
       setBusy("follow");
       setError("");
       setMessage("");
       const result = following()
         ? await options.api.unfollow(options.communityId)
         : await options.api.follow(options.communityId);
-      if (!active) return;
+      if (!actionOwns(generation)) return;
       setFollowing(result.following);
       if (result.followerCount !== null) setFollowerCount(result.followerCount);
       setMessage(result.following ? "Following this Community." : "Community unfollowed.");
     } catch {
-      if (active) setError("We couldn't update your follow. Nothing changed.");
+      if (actionOwns(generation)) setError("We couldn't update your follow. Nothing changed.");
     } finally {
-      actionInFlight = false;
-      if (active) setBusy(undefined);
+      // A retired generation released the busy state at the transition; taking
+      // it back would clear whatever the incoming account started.
+      if (actionOwns(generation)) {
+        actionInFlight = false;
+        setBusy(undefined);
+      }
     }
   };
 
   const joinCommunity = async (persona?: CommunityPersonaChoice): Promise<void> => {
     if (actionInFlight || membership() === "member") return;
     actionInFlight = true;
+    const generation = actionGeneration;
     try {
-      if (!await hasAuthenticatedAccount() || membership() === "member") return;
+      if (!await hasAuthenticatedAccount() || !actionOwns(generation) || membership() === "member") return;
       if (!viewerReady() && !await refreshViewerState()) return;
-      if (membership() === "member") return;
+      if (!actionOwns(generation) || membership() === "member") return;
       setBusy("join");
       setError("");
       setMessage("");
       const action = await options.api.resolveJoinAction(options.communityId);
-      if (!active) return;
+      if (!actionOwns(generation)) return;
       if (action.kind === "joined") {
         setMembership("member");
         setMessage("You are already a member.");
@@ -335,7 +359,7 @@ export function createCommunityEngagementController(
           return;
         }
         const session = await resolvePersonaSession();
-        if (!active || session === undefined) return;
+        if (!actionOwns(generation) || session === undefined) return;
         const candidates = communityJoinCandidates(session.personas, options.communityId);
         const selectedId = choice?.kind === "existing" ? choice.personaId : undefined;
         if (selectedId !== undefined && !candidates.some(candidate => candidate.personaId === selectedId)) {
@@ -352,7 +376,7 @@ export function createCommunityEngagementController(
         }
       }
       const result = await options.api.join(options.communityId, choice);
-      if (!active) return;
+      if (!actionOwns(generation)) return;
       if (result.status === "joined") {
         setMembership("member");
         setJoinedPersonaId(result.personaId ?? undefined);
@@ -371,12 +395,14 @@ export function createCommunityEngagementController(
         setMessage("Membership request sent.");
       }
     } catch (error) {
-      if (active) setError(error instanceof ApiClientError && error.status === 409
+      if (actionOwns(generation)) setError(error instanceof ApiClientError && error.status === 409
         ? "That persona is already active in another community. Choose a different persona or create a new one."
         : "We couldn't complete the membership action. Nothing changed.");
     } finally {
-      actionInFlight = false;
-      if (active) setBusy(undefined);
+      if (actionOwns(generation)) {
+        actionInFlight = false;
+        setBusy(undefined);
+      }
     }
   };
 
@@ -420,6 +446,7 @@ export function createCommunityEngagementController(
   const retryPersonas = async () => {
     if (personaRetryInFlight) return;
     personaRetryInFlight = true;
+    const generation = actionGeneration;
     setPersonaRetryBusy(true);
     setError("");
     setMessage("");
@@ -427,7 +454,7 @@ export function createCommunityEngagementController(
       await resolvePersonaSession();
     } finally {
       personaRetryInFlight = false;
-      if (active) setPersonaRetryBusy(false);
+      if (actionOwns(generation)) setPersonaRetryBusy(false);
     }
   };
 
