@@ -224,6 +224,20 @@ export function createCommunityNamespaceSettingsApi(
   let attachment: NamespaceAttachment | null = null;
   let currentSessionId: string | null = null;
 
+  const acceptSession = (response: RootImportSnapshot): NamespaceSettingsSnapshot => {
+    const mapped = mapSnapshot(response, options.communityPath, attachment);
+    if (mapped.next_action.kind === "expired") {
+      locator.clear();
+      currentSessionId = null;
+      current = { ...chooseSnapshot(options.communityId), attachment };
+      return current;
+    }
+    currentSessionId = response.root_import_session_id;
+    locator.write(response.root_import_session_id);
+    current = mapped;
+    return current;
+  };
+
   const writeOptions = () => {
     const token = csrfToken();
     if (token === undefined) throw new CommunityNamespaceSettingsApiError("Refresh the page before changing the community address.");
@@ -236,9 +250,7 @@ export function createCommunityNamespaceSettingsApi(
     if (response.community_id !== options.communityId || response.root_import_session_id !== sessionId) {
       throw new CommunityNamespaceSettingsApiError("The HNS verification response did not match this community.");
     }
-    currentSessionId = sessionId;
-    current = mapSnapshot(response, options.communityPath, attachment);
-    return current;
+    return acceptSession(response);
   };
 
   return {
@@ -258,8 +270,7 @@ export function createCommunityNamespaceSettingsApi(
       };
       currentSessionId = response.session?.root_import_session_id ?? null;
       if (response.session !== null) {
-        locator.write(response.session.root_import_session_id);
-        current = mapSnapshot(response.session, options.communityPath, attachment);
+        current = acceptSession(response.session);
       } else {
         current = { ...chooseSnapshot(options.communityId), attachment,
           next_action: { kind: "choose_namespace", no_account_import: true } };

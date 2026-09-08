@@ -9,14 +9,14 @@ import { CommunityNamespaceSettingsController } from "./community-namespace-sett
 let dispose = () => {};
 afterEach(() => { dispose(); vi.useRealTimers(); sessionStorage.clear(); document.body.replaceChildren(); });
 
-test("a wire rate limit retains the session and retry identity until preparation is available", async () => {
+test("a wire rate limit retains the retry identity after an active session expires", async () => {
   vi.useFakeTimers();
   vi.setSystemTime(new Date("2026-09-08T15:00:00Z"));
   const expired = {
     attachment_intent_id: "attachment-1", community_id: "community-1",
-    expires_at: "2026-09-08T14:00:00Z", replayed: false,
+    expires_at: "2026-09-08T15:00:01Z", replayed: false,
     root_import_session_id: "session-1", root_label: "dankmeme", revision: 4,
-    status: "expired", publish_plan: null, publish_plan_sha256: null,
+    status: "provisioning", publish_plan: null, publish_plan_sha256: null,
     readiness_result_sha256: null, retry_after_seconds: null,
   };
   let locator = "session-1";
@@ -39,7 +39,7 @@ test("a wire rate limit retains the session and retry identity until preparation
   });
   const container = document.createElement("div"); document.body.appendChild(container);
   createRoot(cleanup => { dispose = cleanup; solidRender(() => <ApplicationSessionProvider state={() => ({ status: "authenticated", userId: "account-1" })}><CommunityNamespaceSettingsController api={api} communityId="community-1" communityPath="/c/community-1" /></ApplicationSessionProvider>, container); });
-  await vi.advanceTimersByTimeAsync(0);
+  await vi.advanceTimersByTimeAsync(1_001);
   const button = [...container.querySelectorAll("button")].find(node => node.textContent === "Get a new record list")!;
   button.click(); await vi.advanceTimersByTimeAsync(0);
   expect(wire).toHaveBeenCalledTimes(1);

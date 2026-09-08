@@ -184,6 +184,38 @@ describe("createCommunityNamespaceSettingsApi", () => {
     );
   });
 
+  test("discards an expired deep-link session and returns to namespace selection", async () => {
+    const sessionLocator = locator();
+    sessionLocator.value = "session-1";
+    // SAFETY: This fake exposes exactly the generated session read used by the adapter.
+    const api = createCommunityNamespaceSettingsApi({
+      client: {
+        get_communitiesCommunityIdHnsRootImportsSessionId: async () => ({
+          ...common,
+          revision: 4,
+          status: "expired",
+          publish_plan: plan,
+          publish_plan_sha256: "plan-hash",
+          readiness_result_sha256: null,
+          retry_after_seconds: null,
+        }),
+      } as never,
+      communityId: common.community_id,
+      communityPath: "/c/community-1",
+      locator: sessionLocator,
+    });
+
+    const snapshot = await api.read();
+    expect(snapshot).toMatchObject({
+      attachment: null,
+      community_id: "community-1",
+      generation: 1,
+      next_action: { kind: "choose_namespace" },
+      root_label: "",
+    });
+    expect(sessionLocator.value).toBeNull();
+  });
+
   test("keeps unknown records visible but blocks the Bob wallet representation", async () => {
     const sessionLocator = locator();
     sessionLocator.value = "session-1";
@@ -248,6 +280,33 @@ describe("community import discovery", () => {
     expect(discovery).toHaveBeenCalledWith({ path: { communityId: common.community_id } }, { credentials: "same-origin" });
     await api.execute({ kind: "poll", expected_generation: snapshot.generation, idempotency_key: "poll-recovered" });
     expect(poll).toHaveBeenCalledWith(expect.objectContaining({ path: { communityId: common.community_id, sessionId: "session-1" } }), expect.anything());
+  });
+
+  test("discards a discovered expired session while preserving the current attachment", async () => {
+    const sessionLocator = locator();
+    const attachment = { canonical_route: { root_label_display: "current-name" }, status: "active" };
+    // SAFETY: This fake exposes exactly the generated discovery read used by the adapter.
+    const api = createCommunityNamespaceSettingsApi({
+      client: {
+        get_communitiesCommunityIdHnsRootImports: async () => ({
+          community_id: common.community_id,
+          attachment,
+          session: {
+            ...pending,
+            status: "expired",
+            expires_at: "2026-09-08T06:00:00Z",
+          },
+        }),
+      } as never,
+      communityId: common.community_id,
+      communityPath: "/c/community-1",
+      locator: sessionLocator,
+    });
+
+    const snapshot = await api.read();
+    expect(snapshot.next_action).toEqual({ kind: "choose_namespace" });
+    expect(snapshot.attachment).toEqual({ root_label: "current-name", status: "active" });
+    expect(sessionLocator.value).toBeNull();
   });
 
   test.each([null, { canonical_route: { root_label_display: "midnight" }, status: "active" }])(
