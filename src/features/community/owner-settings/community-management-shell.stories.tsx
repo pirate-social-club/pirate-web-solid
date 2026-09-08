@@ -1,11 +1,11 @@
-import { createSignal } from "solid-js";
+import { Show, createSignal } from "solid-js";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import { expect, userEvent, within } from "storybook/test";
 
 import { Button, Card, Type } from "../../../design-system";
 import { ApplicationChrome } from "../../shell/media-shell/media-shell";
 import { resolveApplicationChrome } from "../../shell/application-chrome-model";
-import { CommunityManagementShell } from "./community-management-shell";
+import { CommunityManagementSections, CommunityManagementShell } from "./community-management-shell";
 import type { OwnerSettingsAccess, OwnerSettingsSection } from "./owner-settings-model";
 
 /**
@@ -46,9 +46,11 @@ function PanelPlaceholder(props: { section: OwnerSettingsSection }) {
  * The chrome mode comes from the production policy, never from a hand-written
  * prop, so a story cannot pass while the real route classification regresses.
  */
-function ManagementRoute(props: { access?: OwnerSettingsAccess; initialSection?: OwnerSettingsSection }) {
-  const [section, setSection] = createSignal<OwnerSettingsSection>(props.initialSection ?? "moderation_queue");
-  const policy = () => resolveApplicationChrome(managementPath(section()));
+function ManagementRoute(props: { access?: OwnerSettingsAccess; index?: boolean; initialSection?: OwnerSettingsSection }) {
+  const [section, setSection] = createSignal<OwnerSettingsSection | null>(
+    props.index === true ? null : props.initialSection ?? "moderation_queue",
+  );
+  const policy = () => resolveApplicationChrome(managementPath(section() ?? "moderation_queue"));
   return (
     <ApplicationChrome
       activeItemId={policy().activeItemId}
@@ -62,10 +64,21 @@ function ManagementRoute(props: { access?: OwnerSettingsAccess; initialSection?:
         activeSection={section()}
         communityId={COMMUNITY_ID}
         communityName="Midnight Waves"
+        onBack={() => setSection(null)}
         onExit={() => undefined}
         onSectionChange={setSection}
       >
-        <PanelPlaceholder section={section()} />
+        <Show
+          when={section()}
+          fallback={
+            <CommunityManagementSections
+              access={props.access ?? PRODUCTION_ACCESS}
+              onSectionChange={setSection}
+            />
+          }
+        >
+          {(current) => <PanelPlaceholder section={current()} />}
+        </Show>
       </CommunityManagementShell>
     </ApplicationChrome>
   );
@@ -165,4 +178,24 @@ export const Mobile: Story = {
 
 export const NoCapabilities: Story = {
   render: () => <ManagementRoute access={{}} />,
+};
+
+export const MobileIndex: Story = {
+  globals: { viewport: { value: "mobile1", isRotated: false } },
+  render: () => <ManagementRoute index />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const list = canvas.getByRole("navigation", { name: "All management sections" });
+
+    // No sidebar at this width, so the grouped list is how a section is reached.
+    await expect(canvas.queryByRole("navigation", { name: "Primary navigation" })).not.toBeInTheDocument();
+    expect(visibleHeadings(canvasElement)).toEqual(["Community management"]);
+
+    await userEvent.click(within(list).getByRole("button", { name: /Address/ }));
+    expect(visibleHeadings(canvasElement)).toEqual(["Community address"]);
+
+    // And back out again, one step.
+    await userEvent.click(canvas.getByRole("button", { name: "Back to all sections" }));
+    expect(visibleHeadings(canvasElement)).toEqual(["Community management"]);
+  },
 };

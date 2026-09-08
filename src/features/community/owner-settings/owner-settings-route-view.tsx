@@ -10,7 +10,7 @@ import { CommunityNamespaceSettingsController } from "./community-namespace-sett
 import { CommunityModerationSettingsController } from "./community-moderation-settings-controller";
 import type { CommunityNamesSettingsApi } from "./community-names-settings-api";
 import { CommunityNamesSettingsController } from "./community-names-settings-controller";
-import { CommunityManagementShell } from "./community-management-shell";
+import { CommunityManagementSections, CommunityManagementShell } from "./community-management-shell";
 import {
   firstRoutedOwnerSettingsSection,
   routedOwnerSettingsSection,
@@ -26,7 +26,8 @@ export interface OwnerSettingsRouteViewProps {
   namespaceApi?: CommunityNamespaceSettingsPort;
   namesApi?: CommunityNamesSettingsApi;
   navigate: (href: string, options?: { replace?: boolean }) => void;
-  requestedSection: string;
+  /** `null` renders the management index instead of a section. */
+  requestedSection: string | null;
   state: OwnerSettingsRouteState | PromiseLike<OwnerSettingsRouteState>;
 }
 
@@ -92,10 +93,11 @@ function RouteMessage(props: { state: OwnerSettingsRouteState }) {
 
 function ResolvedOwnerSettingsRouteView(props: ResolvedOwnerSettingsRouteViewProps) {
   const success = () => props.state.kind === "success" ? props.state : undefined;
+  const indexMode = () => props.requestedSection === null;
   const activeSection = createMemo<RoutedOwnerSettingsSection | null>(() => {
     const state = success();
-    if (state === undefined) return null;
-    const requested = routedOwnerSettingsSection(props.requestedSection);
+    if (state === undefined || indexMode()) return null;
+    const requested = routedOwnerSettingsSection(props.requestedSection ?? undefined);
     if (requested !== null) {
       const visible = visibleOwnerSettingsGroups(state.access, state.unavailableSections)
         .flatMap((group) => group.items)
@@ -108,7 +110,8 @@ function ResolvedOwnerSettingsRouteView(props: ResolvedOwnerSettingsRouteViewPro
   createEffect(
     () => ({ active: activeSection(), requested: props.requestedSection, state: success() }),
     ({ active, requested, state }) => {
-      if (active !== null && state !== undefined && active !== requested) {
+      // The index is a destination, never corrected to a section.
+      if (active !== null && state !== undefined && requested !== null && active !== requested) {
         const href = ownerSettingsSectionHref(state.communityPath, active, currentSearch());
         queueMicrotask(() => props.navigate(href, { replace: true }));
       }
@@ -118,6 +121,30 @@ function ResolvedOwnerSettingsRouteView(props: ResolvedOwnerSettingsRouteViewPro
   return (
     <Show when={success()} fallback={<RouteMessage state={props.state} />}>
       {(state) => (
+        <Show
+          when={!indexMode()}
+          fallback={
+            <>
+              <Title>{state().communityName} settings</Title>
+              <CommunityManagementShell
+                access={state().access}
+                unavailableSections={state().unavailableSections}
+                activeSection={null}
+                communityAvatarSrc={state().avatarUrl}
+                communityId={state().communityId}
+                communityName={state().communityName}
+                onExit={() => props.navigate(state().communityPath)}
+                onSectionChange={(next) => props.navigate(ownerSettingsSectionHref(state().communityPath, next, currentSearch()))}
+              >
+                <CommunityManagementSections
+                  access={state().access}
+                  unavailableSections={state().unavailableSections}
+                  onSectionChange={(next) => props.navigate(ownerSettingsSectionHref(state().communityPath, next, currentSearch()))}
+                />
+              </CommunityManagementShell>
+            </>
+          }
+        >
         <Show when={activeSection()}>{(section) => (
           <>
             <Title>{state().communityName} settings</Title>
@@ -131,6 +158,7 @@ function ResolvedOwnerSettingsRouteView(props: ResolvedOwnerSettingsRouteViewPro
               communityAvatarSrc={state().avatarUrl}
               communityId={state().communityId}
               communityName={state().communityName}
+              onBack={() => props.navigate(`${state().communityPath}/settings${currentSearch()}`)}
               onExit={() => props.navigate(state().communityPath)}
               onSectionChange={(next) => props.navigate(ownerSettingsSectionHref(state().communityPath, next, currentSearch()))}
             >
@@ -160,6 +188,7 @@ function ResolvedOwnerSettingsRouteView(props: ResolvedOwnerSettingsRouteViewPro
             </CommunityManagementShell>
           </>
         )}</Show>
+        </Show>
       )}
     </Show>
   );

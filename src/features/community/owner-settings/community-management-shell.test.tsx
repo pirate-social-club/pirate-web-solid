@@ -180,4 +180,49 @@ describe("Community management takeover shell", () => {
     expect(container.querySelector('nav[aria-label="Community management"]')).toBeNull();
     expect(container.textContent).toContain("No management tools available");
   });
+
+  test("marks no section current while the index is showing", () => {
+    const policy = resolveApplicationChrome(MANAGEMENT_PATH);
+    const container = render(() => (
+      <ApplicationChrome mode={policy.mode} signedIn>
+        <CommunityManagementShell
+          access={PRODUCTION_ACCESS}
+          activeSection={null}
+          communityName="Midnight Waves"
+          onExit={() => undefined}
+          onSectionChange={() => undefined}
+        >
+          <p>Index content</p>
+        </CommunityManagementShell>
+      </ApplicationChrome>
+    ));
+
+    const nav = container.querySelector('nav[aria-label="Community management"]');
+    expect(nav).not.toBeNull();
+    expect(nav!.querySelector('[aria-current="page"]')).toBeNull();
+    expect(container.querySelector("main h1")?.textContent).toBe("Community management");
+  });
+
+  test("offers back on a section and exit on the index, never both", () => {
+    const policy = resolveApplicationChrome(MANAGEMENT_PATH);
+    const shell = (section: "moderation_queue" | null) => render(() => (
+      <ApplicationChrome mode={policy.mode} signedIn>
+        <CommunityManagementShell
+          access={PRODUCTION_ACCESS}
+          activeSection={section}
+          communityName="Midnight Waves"
+          onBack={() => undefined}
+          onExit={() => undefined}
+          onSectionChange={() => undefined}
+        >
+          <p>Panel content</p>
+        </CommunityManagementShell>
+      </ApplicationChrome>
+    ));
+
+    const labels = (container: HTMLElement) => Array.from(container.querySelectorAll("header button"))
+      .map((button) => button.getAttribute("aria-label"));
+    expect(labels(shell("moderation_queue"))).toEqual(["Back to all sections"]);
+    expect(labels(shell(null))).toEqual(["Close community management"]);
+  });
 });

@@ -6,8 +6,10 @@ import {
   Card,
   CommunityAvatar,
   IconArchive,
+  IconArrowLeft,
   IconAt,
   IconButton,
+  IconCaretRight,
   IconChatCircleDots,
   IconEye,
   IconGavel,
@@ -58,7 +60,8 @@ const SECTION_TITLES = {
 
 export interface CommunityManagementShellProps {
   access: OwnerSettingsAccess;
-  activeSection: OwnerSettingsSection;
+  /** `null` renders the management index: no section is current. */
+  activeSection: OwnerSettingsSection | null;
   children: JSX.Element;
   class?: string;
   communityAvatarSrc?: string | null;
@@ -66,6 +69,7 @@ export interface CommunityManagementShellProps {
   communityName: string;
   dirtySections?: ReadonlyArray<OwnerSettingsSection>;
   errorMessage?: string;
+  onBack?: () => void;
   onExit?: () => void;
   onRetry?: () => void;
   onSectionChange: (section: OwnerSettingsSection) => void;
@@ -118,6 +122,52 @@ function SectionNav(props: CommunityManagementShellProps & { groups: ReturnType<
 }
 
 /**
+ * The index list. Small viewports have no sidebar, so this is how an owner
+ * reaches a section: grouped exactly as the sidebar groups it, one tap in, one
+ * step back out. It renders at every width, which is why the sidebar has no
+ * current item while it is showing.
+ */
+export function CommunityManagementSections(
+  props: Pick<CommunityManagementShellProps, "access" | "onSectionChange" | "unavailableSections">,
+) {
+  const groups = () => visibleOwnerSettingsGroups(props.access, props.unavailableSections);
+  return (
+    <nav aria-label="All management sections" class="flex flex-col gap-6">
+      <For each={groups()}>
+        {(group) => (
+          <section class="flex flex-col gap-2">
+            <Type as="h2" class="uppercase tracking-[0.03em] text-muted-foreground" variant="caption">
+              {group.label}
+            </Type>
+            <Card class="divide-y divide-border-soft overflow-hidden">
+              <For each={group.items}>
+                {(item) => {
+                  const Icon = SECTION_ICONS[item.section];
+                  return (
+                    <button
+                      class="flex w-full items-center gap-4 p-4 text-start transition-colors hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+                      onClick={() => props.onSectionChange(item.section)}
+                      type="button"
+                    >
+                      <Icon class="size-5 shrink-0 text-muted-foreground" />
+                      <span class="min-w-0 flex-1">
+                        <Type as="span" class="block truncate" variant="body-strong">{item.label}</Type>
+                        <Type as="span" class="block text-muted-foreground" variant="caption">{item.description}</Type>
+                      </span>
+                      <IconCaretRight class="size-4 shrink-0 text-muted-foreground" />
+                    </button>
+                  );
+                }}
+              </For>
+            </Card>
+          </section>
+        )}
+      </For>
+    </nav>
+  );
+}
+
+/**
  * The management surface owns the whole viewport. It carries its own sidebar,
  * heading and exit control in place of the application chrome, which the route
  * policy suppresses, so an owner never sees one navigation column nested
@@ -126,7 +176,11 @@ function SectionNav(props: CommunityManagementShellProps & { groups: ReturnType<
 export function CommunityManagementShell(props: CommunityManagementShellProps) {
   const status = () => props.status ?? "ready";
   const groups = () => visibleOwnerSettingsGroups(props.access, props.unavailableSections);
-  const activeTitle = () => SECTION_TITLES[props.activeSection];
+  const activeSection = () => props.activeSection;
+  const activeTitle = () => {
+    const section = activeSection();
+    return section === null ? "Community management" : SECTION_TITLES[section];
+  };
 
   return (
     <div class={cn("flex min-h-[100dvh] bg-background text-foreground md:min-h-screen", props.class)} data-community-management-shell>
@@ -157,9 +211,20 @@ export function CommunityManagementShell(props: CommunityManagementShellProps) {
       <div class="flex min-w-0 flex-1 flex-col">
         <header class="sticky top-0 z-10 border-b border-border-soft bg-background md:hidden">
           <div class="flex items-center gap-2 px-2 py-3">
-            <Show when={props.onExit}>
-              <IconButton aria-label="Close community management" onClick={props.onExit} variant="ghost">
-                <IconX class="size-5" />
+            {/* A section steps back to the index it was reached from; the
+                index itself leaves management altogether. */}
+            <Show
+              when={props.activeSection !== null && props.onBack}
+              fallback={
+                <Show when={props.onExit}>
+                  <IconButton aria-label="Close community management" onClick={props.onExit} variant="ghost">
+                    <IconX class="size-5" />
+                  </IconButton>
+                </Show>
+              }
+            >
+              <IconButton aria-label="Back to all sections" onClick={props.onBack} variant="ghost">
+                <IconArrowLeft class="size-5" />
               </IconButton>
             </Show>
             <div class="min-w-0">
@@ -167,23 +232,6 @@ export function CommunityManagementShell(props: CommunityManagementShellProps) {
               <Type as="h1" class="truncate" variant="h4">{activeTitle()}</Type>
             </div>
           </div>
-          <Show when={groups().length > 0}>
-            <div class="flex gap-1 overflow-x-auto px-2 pb-2">
-              <For each={groups().flatMap((group) => group.items)}>
-                {(item) => (
-                  <Button
-                    aria-current={item.section === props.activeSection ? "page" : undefined}
-                    class="shrink-0"
-                    onClick={() => props.onSectionChange(item.section)}
-                    size="sm"
-                    variant={item.section === props.activeSection ? "secondary" : "ghost"}
-                  >
-                    {item.label}
-                  </Button>
-                )}
-              </For>
-            </div>
-          </Show>
         </header>
 
         <main aria-label={activeTitle()} class="min-w-0 flex-1 px-4 py-6 md:px-8 md:py-8">

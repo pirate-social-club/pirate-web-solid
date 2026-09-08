@@ -14,6 +14,9 @@ describe("community file-route structure", () => {
     expect(communityRoutes.map(route => ({ path: route.path, children: route.children }))).toEqual([
       { path: "/c/:path_segment/", children: undefined },
       { path: "/c/:path_segment/names", children: undefined },
+      // The management index is its own leaf so a small viewport can drill into
+      // a section and step back out through browser history.
+      { path: "/c/:path_segment/settings/", children: undefined },
       { path: "/c/:path_segment/settings/:section", children: undefined },
     ]);
   });

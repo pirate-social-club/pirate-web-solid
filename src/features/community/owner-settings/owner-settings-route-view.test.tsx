@@ -402,4 +402,89 @@ describe("management deep links", () => {
     await vi.waitFor(() => expect(container.querySelector("main h1")?.textContent).toBe("Community address"));
     expect(navigate).not.toHaveBeenCalled();
   });
+
+  test("renders the index as a destination without correcting it to a section", async () => {
+    const navigate = vi.fn();
+    const container = render(() => (
+      <OwnerSettingsRouteView namesApi={namesApi()} navigate={navigate} requestedSection={null} state={success} />
+    ));
+
+    await vi.waitFor(() => expect(container.querySelector("main h1")?.textContent).toBe("Community management"));
+    const list = container.querySelector('nav[aria-label="All management sections"]');
+    expect(list).not.toBeNull();
+    expect([...list!.querySelectorAll("button")].map((button) => button.textContent?.trim().startsWith("Queue")))
+      .toContain(true);
+    expect(navigate).not.toHaveBeenCalled();
+  });
+
+  test("drills from the index into a section, carrying the import parameter", async () => {
+    const navigate = vi.fn();
+    setLocation(IMPORT_SEARCH);
+    const container = render(() => (
+      <OwnerSettingsRouteView namesApi={namesApi()} navigate={navigate} requestedSection={null} state={success} />
+    ));
+
+    await vi.waitFor(() => expect(container.querySelector('nav[aria-label="All management sections"]')).not.toBeNull());
+    const address = [...container.querySelectorAll<HTMLButtonElement>('nav[aria-label="All management sections"] button')]
+      .find((button) => button.textContent?.includes("Address"));
+    expect(address).toBeDefined();
+    address!.click();
+
+    expect(navigate).toHaveBeenCalledWith(`/c/midnight/settings/namespace${IMPORT_SEARCH}`);
+  });
+
+  test("steps a section back to the index and exits to the community", async () => {
+    const navigate = vi.fn();
+    setLocation(IMPORT_SEARCH);
+    const container = render(() => (
+      <OwnerSettingsRouteView
+        namespaceApi={namespaceApi()}
+        namesApi={namesApi()}
+        navigate={navigate}
+        requestedSection="namespace"
+        state={success}
+      />
+    ));
+
+    await vi.waitFor(() => expect(container.textContent).toContain("Handshake root"));
+    const back = [...container.querySelectorAll<HTMLButtonElement>("button")]
+      .find((button) => button.getAttribute("aria-label") === "Back to all sections");
+    expect(back).toBeDefined();
+    back!.click();
+    expect(navigate).toHaveBeenCalledWith(`/c/midnight/settings${IMPORT_SEARCH}`);
+
+    const exit = [...container.querySelectorAll<HTMLButtonElement>("button")]
+      .find((button) => button.getAttribute("aria-label") === "Close community management");
+    expect(exit).toBeDefined();
+    exit!.click();
+    expect(navigate).toHaveBeenCalledWith("/c/midnight");
+  });
+
+  test("the index exits to the community and offers no back control", async () => {
+    const navigate = vi.fn();
+    const container = render(() => (
+      <OwnerSettingsRouteView namesApi={namesApi()} navigate={navigate} requestedSection={null} state={success} />
+    ));
+
+    await vi.waitFor(() => expect(container.querySelector("main h1")?.textContent).toBe("Community management"));
+    expect([...container.querySelectorAll("button")]
+      .some((button) => button.getAttribute("aria-label") === "Back to all sections")).toBe(false);
+    const exit = [...container.querySelectorAll<HTMLButtonElement>("button")]
+      .find((button) => button.getAttribute("aria-label") === "Close community management");
+    exit!.click();
+    expect(navigate).toHaveBeenCalledWith("/c/midnight");
+  });
+
+  test("keeps one heading per viewport on the index", async () => {
+    const navigate = vi.fn();
+    const container = render(() => (
+      <OwnerSettingsRouteView namesApi={namesApi()} navigate={navigate} requestedSection={null} state={success} />
+    ));
+
+    await vi.waitFor(() => expect(container.querySelector("main h1")).not.toBeNull());
+    const headings = [...container.querySelectorAll("h1")].map((heading) => heading.textContent?.trim());
+    expect(headings).toEqual(["Community management", "Community management"]);
+    expect(container.querySelector("main h1")?.className).toContain("md:block");
+    expect(container.querySelector("header")?.className).toContain("md:hidden");
+  });
 });

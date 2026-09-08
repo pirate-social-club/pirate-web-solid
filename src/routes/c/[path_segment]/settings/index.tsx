@@ -7,12 +7,12 @@ import { queryOwnerSettingsRoute } from "../../../../features/community/owner-se
 import { OwnerSettingsRouteView } from "../../../../features/community/owner-settings/owner-settings-route-view";
 import { decodeCommunityRouteParam } from "../../../../features/communities/community-page/community-page-preflight";
 
-export {
-  commitOwnerSettingsResponse,
-  preloadOwnerSettingsRoute,
-} from "../../../../features/community/owner-settings/owner-settings-route-loader";
-
-export const route = defineFileRoute("/c/:path_segment/settings/:section", {
+/**
+ * The management index. It exists so small viewports can drill down into one
+ * section at a time and step back out, which needs the list to be a history
+ * entry rather than a panel. Direct section links bypass it entirely.
+ */
+export const route = defineFileRoute("/c/:path_segment/settings", {
   preload: ({ params }) => {
     const decoded = decodeCommunityRouteParam(params.path_segment);
     // SAFETY: entry-server writes this request-local key only after validated API reads.
@@ -22,12 +22,12 @@ export const route = defineFileRoute("/c/:path_segment/settings/:section", {
   },
 });
 
-export default function CommunityOwnerSettingsRoute(props: RouteProps<typeof route>) {
+export default function CommunityOwnerSettingsIndexRoute(props: RouteProps<typeof route>) {
   const navigate = useNavigate();
   return (
     <OwnerSettingsRouteView
       navigate={(href, options) => navigate(href, options)}
-      requestedSection={props.params.section}
+      requestedSection={null}
       state={props.data}
     />
   );
