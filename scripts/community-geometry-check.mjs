@@ -50,6 +50,12 @@ async function measure(page, storyId, viewport) {
   });
   await page.locator("[data-community-page]").first().waitFor({ state: "visible", timeout: startupTimeoutMs });
   const measured = {};
+  // A fixed-height container hides its own overflow from a bounding box: the
+  // box stays put while the content inside it spills over what follows. Read
+  // the overflow directly so a control put back into a fixed row is caught at
+  // every width, not only where it happens to widen the row.
+  measured.actionsOverflow = await page.locator("[data-community-actions-reserved]").first()
+    .evaluate(node => Math.max(0, node.scrollHeight - node.clientHeight, node.scrollWidth - node.clientWidth));
   for (const probe of probes) {
     const box = await page.locator(probe.selector).first().boundingBox().catch(() => null);
     if (box === null) throw new Error(`${storyId} at ${viewport.name}: nothing matched ${probe.selector}`);
@@ -60,6 +66,14 @@ async function measure(page, storyId, viewport) {
 
 function compare(storyId, viewport, pending, settled) {
   const failures = [];
+  for (const [state, measured] of [["pending", pending], [storyId, settled]]) {
+    if (measured.actionsOverflow > tolerancePx) {
+      failures.push(
+        `${viewport.name} ${state}: the action row overflows its fixed height by `
+        + `${measured.actionsOverflow.toFixed(2)}px, which covers what follows it`,
+      );
+    }
+  }
   for (const probe of probes) {
     const before = pending[probe.key];
     const after = settled[probe.key];

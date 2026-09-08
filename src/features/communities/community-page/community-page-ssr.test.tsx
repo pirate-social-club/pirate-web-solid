@@ -191,8 +191,8 @@ describe("the private controls the server sends", () => {
     expect(shell).toContain("data-community-follow-slot");
     expect(shell).toContain("data-community-membership-slot");
     expect(shell).toContain("data-community-manage=\"pending\"");
-    // The feedback region is an overlay, so it occupies no page space.
-    expect(shell).toMatch(/data-community-feedback[^>]*/u);
-    expect(shell).toContain("fixed inset-x-0 bottom-0");
+    // Outcomes are announced through the toast region, which the server has
+    // nothing to say into, so the response carries no feedback block at all.
+    expect(shell).not.toContain("data-community-feedback");
   });
 });

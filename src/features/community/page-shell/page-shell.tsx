@@ -262,7 +262,7 @@ function CommunityBanner(props: {
   manage: "available" | "pending" | "unavailable";
   onBack?: () => void;
   onManage?: () => void;
-  onMore?: () => void;
+  onShowDetails: () => void;
 }) {
   return (
     <div class="relative h-36 overflow-hidden bg-[linear-gradient(120deg,#162c32_0%,#5f746a_45%,#c7b68a_100%)] md:h-56">
@@ -290,7 +290,10 @@ function CommunityBanner(props: {
                 <span>Manage</span>
               </DropdownMenuItem>
             </Show>
-            <DropdownMenuItem onSelect={() => props.onMore?.()}>Community details</DropdownMenuItem>
+            {/* Always does something: a host that owns this navigation takes it,
+                and otherwise it selects the About tab, which is where the
+                community's details already live. */}
+            <DropdownMenuItem onSelect={() => props.onShowDetails()}>Community details</DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
@@ -355,7 +358,10 @@ export function CommunityPageShell(props: CommunityPageShellProps) {
           : (props.managePending ?? props.authorityPending) ? "pending" : "unavailable"}
         onBack={props.onBack}
         onManage={props.onManage}
-        onMore={props.onMore}
+        onShowDetails={() => {
+          if (props.onMore !== undefined) props.onMore();
+          else setTab("about");
+        }}
       />
 
       <header class="relative border-b border-border-soft bg-background px-5 pb-5 md:px-8 md:pb-6">

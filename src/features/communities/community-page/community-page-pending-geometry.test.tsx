@@ -309,8 +309,11 @@ describe("private controls while authority settles", () => {
     // there when authority settles.
     expect(headerSlots(container).cells).toBe(2);
     expect(manageAuthority(container)).toBe("pending");
-    expect(container.querySelector("[data-community-feedback]")?.className)
-      .toContain("fixed");
+    // Outcomes are announced through the shared toast region, which is fixed
+    // and owns its own lifetime, so nothing they say occupies page space.
+    expect(container.querySelector("[data-community-feedback]")).toBeNull();
+    expect(container.querySelector("[role='region'], [data-toast-region]")?.className ?? "")
+      .not.toContain("static");
   });
 
   test("a moderator who is a member keeps the same action geometry once settled", async () => {
@@ -326,7 +329,6 @@ describe("private controls while authority settles", () => {
     await vi.waitFor(() => expect(manageAuthority(container)).toBe("available"));
     expect(buttonNamed(container, "Post here")).toBeDefined();
     expect(headerSlots(container)).toEqual(pendingHeader);
-    expect(container.querySelector("[data-community-feedback]")).not.toBeNull();
   });
 
   test("an anonymous viewer keeps the same action geometry once settled", async () => {
@@ -440,5 +442,89 @@ describe("a membership read that fails", () => {
     expect(buttonNamed(container, "Following")).toBeUndefined();
     expect(buttonNamed(container, "Post here")).toBeUndefined();
     expect(headerSlots(container).cells).toBe(2);
+  });
+});
+
+describe("the overflow menu and the outcome announcements", () => {
+  /** Kobalte opens on pointerdown, which a bare click() does not produce. */
+  function openOverflow(container: HTMLElement): HTMLElement {
+    const trigger = container.querySelector<HTMLElement>("[aria-label='More community options']");
+    if (trigger === null) throw new Error("the community overflow menu is not rendered");
+    trigger.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, button: 0, isPrimary: true }));
+    trigger.dispatchEvent(new PointerEvent("pointerup", { bubbles: true, button: 0, isPrimary: true }));
+    trigger.click();
+    return trigger;
+  }
+
+  function menuItem(label: string): HTMLElement | undefined {
+    return [...document.body.querySelectorAll<HTMLElement>("[role='menuitem']")]
+      .find(item => item.textContent?.trim() === label);
+  }
+
+  test("Community details opens the About panel rather than doing nothing", async () => {
+    const container = render(() => (
+      <CommunityPage
+        client={client}
+        engagementApi={engagementApi(false)}
+        handleSalesClient={handleSalesClient}
+        loadThreads={loadThreads}
+        pathSegment={harbor.pathSegment}
+        postComposerMediaStorage={createMemoryMediaSubmissionStorage()}
+      />
+    ));
+
+    await vi.waitFor(() => expect(container.textContent).toContain(harbor.threadTitle));
+    // The About panel is a desktop aside and a mobile tab; the feed is what
+    // gives way when the details are asked for.
+    const feed = container.querySelector<HTMLElement>("[aria-label='Community feed']")!;
+    expect(feed.className).not.toContain("hidden");
+
+    openOverflow(container);
+    const details = await vi.waitFor(() => {
+      const item = menuItem("Community details");
+      expect(item).toBeDefined();
+      return item!;
+    });
+    details.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, button: 0, isPrimary: true }));
+    details.dispatchEvent(new PointerEvent("pointerup", { bubbles: true, button: 0, isPrimary: true }));
+    details.click();
+
+    await vi.waitFor(() => expect(
+      container.querySelector<HTMLElement>("[aria-label='Community feed']")?.className,
+    ).toContain("hidden"));
+    expect(container.textContent).toContain(`About ${harbor.displayName}`);
+  });
+
+  test("an outcome is announced with a lifetime and a way to dismiss it", async () => {
+    const container = render(() => (
+      <ApplicationSessionProvider state={() => ({ status: "authenticated", userId: "account-a" })}>
+        <CommunityPage
+          client={client}
+          engagementApi={engagementApi(false)}
+          handleSalesClient={handleSalesClient}
+          loadThreads={loadThreads}
+          pathSegment={harbor.pathSegment}
+          postComposerMediaStorage={createMemoryMediaSubmissionStorage()}
+          resolveSession={async (): Promise<SessionResolution> => ({
+            status: "authenticated", userId: "account-a", personas: [boundPersona],
+          })}
+        />
+      </ApplicationSessionProvider>
+    ));
+
+    await vi.waitFor(() => expect(buttonNamed(container, "Follow")).toBeDefined());
+    buttonNamed(container, "Follow")!.click();
+
+    const announcement = await vi.waitFor(() => {
+      const node = [...container.querySelectorAll<HTMLElement>("[role='status'], [role='alert']")]
+        .find(item => item.textContent?.includes("Following this Community."));
+      expect(node).toBeDefined();
+      return node!;
+    });
+    // It is dismissible, which the previous hand-rolled overlay was not.
+    const dismiss = announcement.closest("li, div")?.querySelector("button");
+    expect(dismiss).toBeDefined();
+    // And it does not occupy page space: the feed is not pushed by it.
+    expect(container.querySelector("[data-community-feedback]")).toBeNull();
   });
 });

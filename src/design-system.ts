@@ -38,6 +38,12 @@ export {
 } from "@pirate/web-solid-ui";
 export { Separator, Type } from "@pirate/web-solid-ui";
 export {
+  Toaster,
+  toast,
+  type ShowToastOptions,
+  type ToastType,
+} from "@pirate/web-solid-ui";
+export {
   NetworkBase,
   NetworkBitcoin,
   NetworkEthereum,

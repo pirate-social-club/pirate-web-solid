@@ -10,6 +10,8 @@ import type { SessionResolution } from "../../../api/session.ts";
 import {
   Button,
   buttonVariants,
+  toast,
+  Toaster,
 } from "../../../design-system.ts";
 import { resolveRequestUiLocale } from "../../../lib/ui-locale-core.ts";
 import { getLocaleMessages, interpolateMessage } from "../../../locales/index.ts";
@@ -281,6 +283,25 @@ function SuccessState(props: {
 
   const manageAuthorityPending = () => !manageResolved();
 
+  // Announcements this page raised. They expire on their own and can be
+  // dismissed, and they are cleared when the page goes away so a stale outcome
+  // never outlives the community it belonged to.
+  const announced = new Set<number>();
+  const announce = (raise: (message: string) => number, message: string) => {
+    if (message === "") return;
+    queueMicrotask(() => {
+      if (!active) return;
+      announced.add(raise(message));
+    });
+  };
+  onCleanup(() => {
+    for (const id of announced) toast.dismiss(id);
+    announced.clear();
+  });
+
+  createEffect(() => engagement.message(), (message) => announce(toast.success, message));
+  createEffect(() => engagement.error(), (message) => announce(toast.error, message));
+
   const openPostComposer = async (): Promise<void> => {
     if (postingBusy()) return;
     setPostingBusy(true);
@@ -334,6 +355,14 @@ function SuccessState(props: {
                 personas={personaOptions()}
                 selectedPersonaId={selectedPersonaId()}
               />
+            ) : engagement.personaRetryAvailable() ? (
+              <Button
+                class="h-9"
+                disabled={engagement.personaRetryBusy()}
+                onClick={() => void engagement.retryPersonas()}
+                size="sm"
+                type="button"
+              >{engagement.personaRetryBusy() ? "Checking profiles" : "Retry profiles"}</Button>
             ) : undefined}
             renderPost={(post, render) => {
               const session = engagement.postingSession();
@@ -357,31 +386,13 @@ function SuccessState(props: {
             onJoin={() => void engagement.joinCommunity()}
             onManage={canManage() ? () => navigate(settingsHref()) : undefined}
           />
-          {/* An overlay, outside the document flow. A message, an error and a
-              retry used to appear from nothing and push the page down, and a
-              wrapped error pushed it further than any reserved height. Nothing
-              here can move the page, whatever it says or how long it wraps. */}
-          <div
-            aria-live="polite"
-            class="pointer-events-none fixed inset-x-0 bottom-0 z-40 flex justify-center px-5 pb-[calc(env(safe-area-inset-bottom)+1rem)]"
-            data-community-feedback
-          >
-            <Show when={engagement.message() || engagement.error() || engagement.personaRetryAvailable()}>
-              <div class="pointer-events-auto w-full max-w-xl rounded-2xl border border-border-soft bg-card p-4 shadow-lg">
-                <Show when={engagement.message()}>
-                  {message => <p class="text-sm text-muted-foreground" role="status">{message()}</p>}
-                </Show>
-                <Show when={engagement.error()}>
-                  {message => <p class="text-sm text-destructive" role="alert">{message()}</p>}
-                </Show>
-                <Show when={engagement.personaRetryAvailable()}>
-                  <Button class="mt-3" type="button" disabled={engagement.personaRetryBusy()} onClick={() => void engagement.retryPersonas()}>
-                    {engagement.personaRetryBusy() ? "Checking profiles" : "Retry profiles"}
-                  </Button>
-                </Show>
-              </div>
-            </Show>
-          </div>
+          {/* Action outcomes go to the shared toast region, which owns its own
+              lifetime, dismissal and announcement priority. A hand-rolled
+              overlay had none of those: it covered the page until something
+              else replaced it, and it nested an alert inside a polite region.
+              The retry control is not an outcome, so it stays on the page, in
+              the reserved persona row where the missing control would be. */}
+          <Toaster />
           <CommunityPersonaChoiceDialog
             choice={engagement.joinPersonaChoice()}
             createNewUnavailable
