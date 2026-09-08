@@ -26,6 +26,14 @@ export interface RewardWalletSession extends RewardWallet {
   selectTestnet(context: RewardFundingContext): Promise<void>;
 }
 
+/** Only the adapter's local checks before invoking the send RPC may create this. */
+export class RewardFundingNotBroadcastError extends Error {
+  constructor(cause: unknown) {
+    super(cause instanceof Error ? cause.message : "funding_not_broadcast", { cause });
+    this.name = "RewardFundingNotBroadcastError";
+  }
+}
+
 export function isWalletRefusal(error: unknown): boolean {
   return error !== null && typeof error === "object" && "code" in error && error.code === 4001;
 }
@@ -165,10 +173,15 @@ export async function createRewardWalletSession(
           BigInt(current.gasPriceAtomic) > BigInt(fee.gasPriceAtomic)) throw new Error("wallet_fee_changed");
       await verifyProvider(provider, context);
       await beforeBroadcast();
-      authorized();
-      const result = await provider.request({ method: "eth_sendTransaction", params: [{
-        ...rewardTransfer(context), gas: toHex(BigInt(fee.gasLimit)), gasPrice: toHex(BigInt(fee.gasPriceAtomic)),
-      }] });
+      let transaction;
+      try {
+        authorized();
+        transaction = { ...rewardTransfer(context), gas: toHex(BigInt(fee.gasLimit)), gasPrice: toHex(BigInt(fee.gasPriceAtomic)) };
+      } catch (cause) {
+        // No provider call occurs inside this block. Provider errors must never authorize retry.
+        throw new RewardFundingNotBroadcastError(cause);
+      }
+      const result = await provider.request({ method: "eth_sendTransaction", params: [transaction] });
       if (typeof result !== "string" || !/^0x[0-9a-f]{64}$/iu.test(result)) throw new Error("wallet_submission_uncertain");
       return result.toLowerCase();
     },

@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { createRewardFundingController } from "./reward-funding-controller.ts";
 import type { RewardFundingActor, RewardFundingApi, RewardFundingTarget } from "./reward-funding-client.ts";
 import type { RewardFundingReceipt, RewardFundingRecovery } from "./reward-funding-recovery.ts";
-import type { RewardWallet } from "./reward-wallet-session.ts";
+import { RewardFundingNotBroadcastError, type RewardWallet } from "./reward-wallet-session.ts";
 import { actor, context, fee, target, transactionHash } from "../../test/fixtures/reward-funding.ts";
 
 function harness(kind: RewardFundingTarget["kind"] = "asset_bonus") {
@@ -117,15 +117,17 @@ describe("persona reward funding submission", () => {
   it("retains the unknown-submission marker when saving a returned hash fails", async () => {
     const h = harness(); const r = await review(h.controller); const write = h.recovery.write;
     h.recovery.write = (key, receipt) => { if (receipt.transactionHash !== null) throw new Error("quota"); write(key, receipt); };
-    expect(await h.controller.confirm(r.id)).toEqual({ kind: "uncertain", transactionHash });
+    expect(await h.controller.confirm(r.id)).toMatchObject({ kind: "server", funding: { transaction_hash: transactionHash }, reconciliationReason: "recovery_unavailable" });
+    expect(h.api.observe).toHaveBeenCalledWith(target, actor, transactionHash, expect.any(String));
     expect(await h.create().prepare()).toEqual({ kind: "uncertain", transactionHash: null });
   });
-  it("allows a new explicit review after definite wallet refusal", async () => {
+  it("retains the guard even when a provider reports refusal after possible broadcast", async () => {
     const h = harness(); const r = await review(h.controller);
     h.wallet.send = vi.fn(async (_c, _f, before) => { await before(); throw Object.assign(new Error("declined"), { code: 4001 }); });
-    expect(await h.controller.confirm(r.id)).toEqual({ kind: "cancelled" });
-    expect(h.receipts.size).toBe(0);
-    expect((await review(h.controller)).id).not.toBe(r.id);
+    expect(await h.controller.confirm(r.id)).toMatchObject({ kind: "reconciliation", reason: "provider_rejected", transactionHash: null });
+    expect(h.receipts.size).toBe(1);
+    expect(await h.create().prepare()).toEqual({ kind: "uncertain", transactionHash: null });
+    expect(h.wallet.send).toHaveBeenCalledTimes(1);
     expect(h.api.observe).not.toHaveBeenCalled();
   });
   it("replays observation with the same key after navigation without resending", async () => {
@@ -156,4 +158,93 @@ describe("persona reward funding submission", () => {
     expect([...h.receipts.values()][0].transactionHash).toBe(transactionHash);
     expect(h.api.observe).not.toHaveBeenCalled();
   });
+  it("allows a fresh review only after the adapter proves a local pre-send abort", async () => {
+    const h = harness(); const r = await review(h.controller);
+    h.wallet.send = vi.fn(async (_c, _f, before) => { await before(); throw new RewardFundingNotBroadcastError(new Error("wallet_reauthentication_required")); });
+    await expect(h.controller.confirm(r.id)).rejects.toThrow("wallet_reauthentication_required");
+    expect(h.controller.state.kind).toBe("cancelled");
+    expect(h.receipts.size).toBe(0);
+    expect((await review(h.create())).id).not.toBe(r.id);
+  });
+  it.each(["confirm", "recover", "server-read"])("surfaces a different server hash during %s", async phase => {
+    const h = harness(); const r = await review(h.controller);
+    const otherHash = `0x${"cd".repeat(32)}`;
+    h.api.observe = vi.fn().mockRejectedValue(new Error("offline"));
+    if (phase !== "confirm") await h.controller.confirm(r.id);
+    h.api.observe = vi.fn().mockResolvedValue({ ...context().funding, status: "confirming", transaction_hash: otherHash });
+    if (phase === "server-read") h.server({ ...context(), funding: { ...context().funding, status: "confirmed", transaction_hash: otherHash } });
+    const result = phase === "confirm" ? await h.controller.confirm(r.id) : await h.create().recover();
+    expect(result).toEqual({ kind: "reconciliation", reason: "transaction_mismatch", transactionHash, serverTransactionHash: otherHash });
+    expect([...h.receipts.values()][0].transactionHash).toBe(transactionHash);
+    expect(h.wallet.send).toHaveBeenCalledTimes(1);
+  });
+  it("continues observation after confirmation requirements drift", async () => {
+    const h = harness(); const r = await review(h.controller);
+    h.api.observe = vi.fn().mockRejectedValueOnce(new Error("offline")).mockResolvedValue({ ...context().funding, status: "confirming", transaction_hash: transactionHash });
+    await h.controller.confirm(r.id);
+    h.server({ ...context(), funding: { ...context().funding, required_confirmations: 8 } });
+    expect(await h.create().recover()).toMatchObject({ kind: "server", reconciliationReason: "terms_changed", funding: { transaction_hash: transactionHash } });
+    expect(vi.mocked(h.api.observe).mock.calls[0]).toEqual(vi.mocked(h.api.observe).mock.calls[1]);
+    expect(h.wallet.send).toHaveBeenCalledTimes(1);
+  });
+  it("keeps the known hash visible when drift reconciliation is offline", async () => {
+    const h = harness(); const r = await review(h.controller);
+    h.api.observe = vi.fn().mockRejectedValue(new Error("offline"));
+    await h.controller.confirm(r.id);
+    h.server({ ...context(), funding: { ...context().funding, required_confirmations: 8 } });
+    expect(await h.create().recover()).toEqual({ kind: "reconciliation", reason: "terms_changed", transactionHash });
+  });
+  it.each(["prepare", "confirm", "recover"])("handles corrupt recovery during %s without authorizing resend", async operation => {
+    const h = harness(); const r = await review(h.controller);
+    h.recovery.read = () => { throw new Error("funding_recovery_corrupt"); };
+    const result = operation === "confirm" ? await h.controller.confirm(r.id) : await h.controller[operation === "prepare" ? "prepare" : "recover"]();
+    expect(result).toEqual({ kind: "reconciliation", reason: "recovery_corrupt", transactionHash: null });
+    expect(h.wallet.send).not.toHaveBeenCalled();
+  });
+  it("supports server reconciliation of corrupt evidence without deleting it", async () => {
+    const h = harness();
+    h.recovery.read = () => { throw new Error("funding_recovery_corrupt"); };
+    h.recovery.remove = vi.fn(); h.recovery.write = vi.fn();
+    expect(await h.controller.reconcileTransaction(transactionHash)).toMatchObject({ kind: "server", reconciliationReason: "recovery_corrupt", funding: { transaction_hash: transactionHash } });
+    expect(h.recovery.remove).not.toHaveBeenCalled(); expect(h.recovery.write).not.toHaveBeenCalled();
+    expect(h.wallet.send).not.toHaveBeenCalled();
+  });
+  it("can reconcile a recovered hash after an unknown submission", async () => {
+    const h = harness(); const r = await review(h.controller);
+    h.wallet.send = vi.fn(async (_c, _f, before) => { await before(); throw new Error("lost"); });
+    await h.controller.confirm(r.id);
+    expect(await h.create().reconcileTransaction(transactionHash)).toMatchObject({ kind: "server", funding: { transaction_hash: transactionHash } });
+    expect(h.wallet.send).toHaveBeenCalledTimes(1);
+  });
+  it("retains an in-memory hash for retry when both persistence and observation fail", async () => {
+    const h = harness(); const r = await review(h.controller); const write = h.recovery.write;
+    h.recovery.write = (key, receipt) => { if (receipt.transactionHash !== null) throw new Error("quota"); write(key, receipt); };
+    h.api.observe = vi.fn().mockRejectedValueOnce(new Error("offline")).mockResolvedValue({ ...context().funding, status: "confirming", transaction_hash: transactionHash });
+    expect(await h.controller.confirm(r.id)).toEqual({ kind: "reconciliation", reason: "recovery_unavailable", transactionHash });
+    expect(await h.controller.recover()).toMatchObject({ kind: "server", funding: { transaction_hash: transactionHash } });
+    expect(vi.mocked(h.api.observe).mock.calls[0]).toEqual(vi.mocked(h.api.observe).mock.calls[1]);
+    expect(h.wallet.send).toHaveBeenCalledTimes(1);
+  });
+
+  it("rejects support hash replacement and recovery without a held receipt", async () => {
+    const h = harness();
+    await expect(h.controller.reconcileTransaction(transactionHash)).rejects.toThrow("funding_recovery_not_required");
+    const r = await review(h.controller); await h.controller.confirm(r.id);
+    expect(await h.controller.reconcileTransaction(`0x${"cd".repeat(32)}`)).toMatchObject({ kind: "reconciliation", reason: "transaction_mismatch", transactionHash });
+    expect(h.api.observe).toHaveBeenCalledTimes(1);
+  });
+
+  it("exposes the returned hash while observation is still pending", async () => {
+    const h = harness(); const r = await review(h.controller);
+    let release = () => {}; let entered = () => {};
+    const observing = new Promise<void>(resolve => { entered = resolve; });
+    h.api.observe = async () => {
+      entered(); await new Promise<void>(resolve => { release = resolve; });
+      return { ...context().funding, status: "confirming", transaction_hash: transactionHash };
+    };
+    const pending = h.controller.confirm(r.id); await observing;
+    expect(h.controller.state).toEqual({ kind: "submitted", transactionHash });
+    release(); await pending;
+  });
+
 });

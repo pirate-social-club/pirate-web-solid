@@ -16,7 +16,9 @@ export function rewardFundingRecoveryKey(actor: RewardFundingActor, target: Rewa
   return `pirate:reward-funding:v1:${JSON.stringify([actor.accountId, actor.personaId, target.kind, target.legId, target.fundingEffectId])}`;
 }
 function decodeReceipt(raw: string): RewardFundingReceipt {
-  const value: unknown = JSON.parse(raw);
+  let value: unknown;
+  try { value = JSON.parse(raw); }
+  catch { throw new Error("funding_recovery_corrupt"); }
   if (value === null || typeof value !== "object" || !("version" in value) || value.version !== 1 ||
       !("instructionDigest" in value) || typeof value.instructionDigest !== "string" || !/^[0-9a-f]{64}$/u.test(value.instructionDigest) ||
       !("observationKey" in value) || typeof value.observationKey !== "string" || !/^[0-9a-f-]{36}$/u.test(value.observationKey) ||

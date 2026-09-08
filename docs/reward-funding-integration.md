@@ -50,7 +50,12 @@ retained but observation may need retry. State uncertain means submission may
 have happened; a null hash must never offer a second transfer. State server
 contains the backend's planned/confirming/confirmed/reverted/reconciliation_required
 status. A returned hash never means confirmed funding. State cancelled permits
-a new explicit review after a definite provider refusal. State closed must clear
+a new explicit review only after the owned adapter proves that a local check
+failed before it invoked the send RPC and the receipt was removed successfully.
+The originating error (for example wallet_reauthentication_required) is still
+returned so the UI can request reauthentication. A provider's code 4001 is not
+proof: it retains the receipt and returns reconciliation with provider_rejected.
+After reload that retained null-hash receipt remains uncertain. State closed must clear
 private presentation and require a new flow for the current actor.
 
 Use controller.recover after navigation and for explicit status retries. It
@@ -59,6 +64,32 @@ idempotency key and hash. It never signs, broadcasts or creates another effect.
 An unknown hash remains unresolved until server/operator reconciliation can
 identify it; this implementation does not claim automatic discovery of a lost
 hash. Do not provide a browser journal-reset button to bypass that hold.
+
+State reconciliation is a hard stop for funding, with a reason and the known
+transactionHash. transaction_mismatch also exposes serverTransactionHash;
+show both for support and never label the anomaly an ordinary network retry.
+terms_changed retains the submitted hash and continues observation. Successful
+server responses can carry reconciliationReason; render that notice alongside
+the actual backend status rather than discarding it.
+
+Corrupt JSON and unreadable storage produce recovery_corrupt or
+recovery_unavailable states instead of an unhandled exception. Keep damaged
+journal evidence intact. Offer status retry and a support handoff identifying
+the account/persona, funding target, reason and any known hash, without provider
+credentials. If support locates the transaction, an explicit
+controller.reconcileTransaction(hash) action observes it through the existing
+server endpoint. This requires a held receipt or a storage problem, rejects
+replacement of an already known hash, and never signs or clears the guard.
+Only the server response establishes funding status; a supplied hash is not
+proof. If no hash or authoritative outcome can be established, the hold remains.
+A safe no-transfer reset requires a server-owned reconciliation protocol that
+these APIs do not expose; browser deletion is not a substitute.
+
+If storing a returned hash fails, observation is still attempted immediately.
+The controller retains the hash and observation key in memory for further
+retries, and the original durable null-hash guard remains. If both storage and
+server observation fail and the page then disappears, the hash can still be
+lost; the reloaded flow must reconcile rather than send again.
 
 Recovery identifiers are stored under an account/persona/effect-specific key.
 Web Locks serialize confirmation across tabs on the same origin. A storage or
@@ -115,3 +146,30 @@ submission uses the assigned embedded provider. Existing login cleanup tests
 continue to pass. No Storybook rendering change or new dependency was introduced;
 no additional live authentication, provider configuration or deployment gate was
 run or claimed.
+
+## Failure recovery repair — September 8
+
+The repair separates transport errors from hash-integrity checks, including
+server reads during recovery. It exposes a known hash while observation is
+still pending. The owned wallet adapter identifies a local pre-send failure;
+provider errors never grant permission to delete the double-send receipt.
+A composed adapter/controller test expires authentication after durable receipt
+creation, reauthenticates, and proves exactly one subsequent send RPC.
+
+The focused recovery/wallet tests and all 211 API tests pass. All 552 application
+tests pass. Type checking, lint (advisory warnings), and the client/SSR build
+including unchanged client provenance and 47-operation runtime coverage pass.
+No dependencies, public API operations or runtime digest changed.
+
+The extended localhost browser fixture verifies concurrent documents still
+send once, code 4001 retains the guard after reload, a locally proven abort
+permits a new explicit review, mismatches expose both hashes, terms drift
+continues observation, and hash-write failure still attempts observation.
+A truncated journal produces a handled support state after reload; supplying
+a recovered hash reaches server confirming without modifying that journal.
+The isolated browser and fixture server were closed. These remain simulated
+transfers; no live authentication, transaction, deployment or publication ran.
+
+This repairs the preserved funding branch from 23c2ca4. It does not rebase or
+integrate the branch into the independently advancing Solid main. Acceptance
+against the then-current main and the composed sponsor ceremony remain separate.

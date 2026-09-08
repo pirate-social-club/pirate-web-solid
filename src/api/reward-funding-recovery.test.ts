@@ -26,8 +26,8 @@ describe("durable funding recovery", () => {
     expect(key).not.toBe(rewardFundingRecoveryKey({ ...actor, accountId: "other" }, target));
     expect(key).not.toBe(rewardFundingRecoveryKey({ ...actor, personaId: "other" }, target));
   });
-  it("fails closed on corrupt stored recovery instead of permitting resend", () => {
-    const b = browser(); b.data.set("key", "{}");
+  it.each(["{}", '{"version":', "null"])("fails closed on corrupt recovery %s", raw => {
+    const b = browser(); b.data.set("key", raw);
     expect(() => createBrowserRewardFundingRecovery().read("key")).toThrow("funding_recovery_corrupt");
   });
   it("detects a non-durable write", () => {

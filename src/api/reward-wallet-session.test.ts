@@ -1,9 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { decodeFunctionData, erc20Abi } from "viem";
 import type { Storage } from "@privy-io/js-sdk-core";
-import { createRewardWalletSession, rewardTransfer } from "./reward-wallet-session.ts";
+import { createRewardWalletSession, rewardTransfer, RewardFundingNotBroadcastError } from "./reward-wallet-session.ts";
 import type { EthereumProvider, PrivyAuthClient } from "./privy-session.ts";
-import { context, fee, recipient, sender, token, transactionHash } from "../../test/fixtures/reward-funding.ts";
+import { createRewardFundingController } from "./reward-funding-controller.ts";
+import type { RewardFundingReceipt } from "./reward-funding-recovery.ts";
+import { actor, target, context, fee, recipient, sender, token, transactionHash } from "../../test/fixtures/reward-funding.ts";
 
 afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); });
 function harness() {
@@ -127,4 +129,33 @@ describe("explicit persona wallet authorization", () => {
     expect(injected.mock.calls.map(([request]) => request.method)).toEqual(["eth_requestAccounts", "eth_chainId", "personal_sign"]);
     expect(h.client.getEmbeddedEthereumProvider).toHaveBeenCalledWith(3, sender);
   });
+  it("proves expiry after the receipt callback is still before the send RPC", async () => {
+    vi.useFakeTimers(); const h = harness(); const session = await h.create(); await session.loginWithCode("a", "b");
+    const before = vi.fn(async () => { vi.advanceTimersByTime(300001); });
+    await expect(session.send(context(), fee, before)).rejects.toBeInstanceOf(RewardFundingNotBroadcastError);
+    expect(before).toHaveBeenCalledOnce();
+    expect(h.requests.some(item => item.method === "eth_sendTransaction")).toBe(false);
+  });
+
+  it("re-authenticates and funds once after expiry between durable receipt and send", async () => {
+    vi.useFakeTimers(); const h = harness(); const session = await h.create(); await session.loginWithCode("a", "b");
+    const receipts = new Map<string, RewardFundingReceipt>(); let expire = true;
+    const controller = createRewardFundingController({ actor, target, currentActor: () => actor, wallet: session,
+      api: { load: async () => context(), observe: async (_t, _a, hash) => ({ ...context().funding, status: "confirming", transaction_hash: hash }) },
+      recovery: {
+        read: key => receipts.get(key) ?? null,
+        write: (key, value) => { receipts.set(key, value); if (expire) { expire = false; vi.advanceTimersByTime(300001); } },
+        remove: key => { receipts.delete(key); }, exclusive: async (_key, operation) => operation(),
+      },
+    });
+    const first = await controller.prepare(); if (first.kind !== "review") throw new Error("expected review");
+    await expect(controller.confirm(first.review.id)).rejects.toThrow("wallet_reauthentication_required");
+    expect(receipts.size).toBe(0);
+    expect(h.requests.filter(item => item.method === "eth_sendTransaction")).toHaveLength(0);
+    await session.loginWithCode("a", "b");
+    const second = await controller.prepare(); if (second.kind !== "review") throw new Error("expected review");
+    expect(await controller.confirm(second.review.id)).toMatchObject({ kind: "server", funding: { transaction_hash: transactionHash } });
+    expect(h.requests.filter(item => item.method === "eth_sendTransaction")).toHaveLength(1);
+  });
+
 });
