@@ -14,6 +14,15 @@ connection with pg_read_all_stats or superuser visibility remain prerequisites
 owned outside this song lane. Obtain the current handoff from that lane before
 executing; this document grants no live mutation or operator authority.
 
+The reset's fixed 0001–0119 manifest is not the new-flow migration receipt.
+Require the separately reviewed song-staging-reference-migration-delta handoff:
+the complete applied ledger for the serving API, explicitly including
+0132_song_reference_decision_wakeup.sql and
+0133_song_reference_publication_resume.sql with verified checksums, before the
+Worker requiring them serves this acceptance. Keep the approved database,
+producers, ingress release order and original reset artifacts intact. A handoff
+that only verifies 0119 leaves acceptance blocked.
+
 Record the serving Solid and api-next commit SHAs, deployment identifiers,
 origin, UTC start time, browser version and authorized test persona/community.
 Verify the serving revisions, rather than assuming branch tips are deployed.
@@ -24,10 +33,16 @@ Access secrets, database credentials or unsanitized request headers.
 Arrange authorized audio fixtures: an original with reviewed lyrics, an
 original deliberately without lyrics, a real derivative with a resolvable
 source asset, and approved material that naturally exercises manual review
-and policy block. If no approved fixture or deterministic live route to an
+and policy block. Case 5 needs explicit authorization for two new posts: the
+source recording and its derivative, their file hashes, personas/community,
+source commercial-remix terms and separately approved derivative terms. If no approved fixture or deterministic live route to an
 outcome exists, mark that case blocked. Do not alter policy or provider results
 to manufacture a pass. The derivative source must exist on this serving pair
-and be eligible under its current rights policy.
+and be eligible under its current rights policy. Do not schedule case 5 until
+api-song-source-recording-authority supplies an implemented, approved way to
+establish the published source's server-held recording identity. Publishing a
+no-match original alone does not establish it. The two-post authorization does
+not expand the separate one-original production canary.
 
 ## Browser procedure
 
@@ -51,20 +66,50 @@ and be eligible under its current rights policy.
    Confirm publication and playback without phantom lyrics. In a separate
    retained draft with already accepted lyrics, clear the box and verify that
    submission refuses to silently discard them.
-5. Blocked as of 2026-09-08: api-song-reference-resolver-hookup must prove
-   production reference binding before this case is scheduled. At API a1803de3,
-   default HTTP composition omits referenceResolver and /reference throws
-   Media reference resolution is unavailable. The Solid identifier input and
-   local fixtures do not clear this blocker. After the repair is integrated
-   and the serving pair is verified, submit the real derivative until
-   reference-required recovery appears.
-   Record the reference request and creation revision. Enter the eligible
-   source asset identifier, bind it, and observe the real next state. Confirm
-   the request carries the current reference_request_ref and
-   expected_creation_revision. If a response is lost, reconnect and retry;
-   confirm the retained command is replayed exactly and has only one effect.
-   Do not assume binding necessarily means immediate publication: record any
-   additional rights or review decision imposed by the live service.
+5. This is a source-then-derivative sequence on one unchanged serving pair.
+   It remains blocked until legitimate source establishment is available.
+   The resolver repair is integrated at API 4db8d1df; source integration and
+   component fixtures alone do not satisfy the entry conditions above.
+
+   First publish the approved project-owned source song through the browser.
+   Use commercial-remix terms with an explicitly approved nonzero
+   commercial_remix_share_bps, called B in the case ledger. Record the source
+   file hash, submission and published post/asset identifiers, publication
+   time, immutable terms revision, license and exact B. Confirm source playback.
+   Establish and verify the source recording authority through its separately
+   approved mechanism. Retain authorized server evidence references and the
+   source audio/analysis revisions and hash without exposing private blobs.
+   If that authority cannot be established, stop here and record blocked;
+   do not seed a provider match or upload the derivative speculatively.
+
+   Reverify the same serving API/Solid SHAs before uploading the approved real
+   derivative of that source. Record its distinct file hash and submission.
+   Use a separately approved offered remix term different from B so inherited
+   share resolution is observable. Its beneficiary split still sums to 10000;
+   neither that split nor its offered downstream term sets the upstream share.
+   Observe a natural reference_required decision. An unexpected provider
+   outcome is recorded as such; never change the result to reach this branch.
+
+   Record the reference request and current creation revision. Enter the
+   published source asset identifier and bind it. Confirm the request carries
+   current reference_request_ref and expected_creation_revision without an
+   author-supplied upstream share. Verify through authorized server readback
+   that the binding names the selected source, uses verified recording evidence
+   and inherits B from that source's immutable terms. Record the current
+   derivative audio/hash and analysis fences as well as source evidence;
+   do not mislabel the binding's current-submission fences as source revisions.
+
+   Observe recovery through decision to publication, preserving the accepted
+   derivative terms at its new creation revision. If a response is lost,
+   reconnect and retry the retained command; verify exact replay, one binding
+   effect and no duplicate post. Success requires exactly one source post and
+   one derivative post for this case, normal derivative playback and the
+   applicable reference presentation. Record each publication separately from
+   enrichment. If further rights or manual review is required, record that real
+   state and use only its separately authorized path; binding alone is not a
+   pass. If the serving pair changes during the sequence, stop and arrange a
+   new authorized case on a verified pair rather than combining deployments.
+
 6. Exercise manual review with the approved fixture. Verify its visible state,
    continued bounded observation and absence of premature publication. Any
    reviewer decision must be made through the separately authorized review
@@ -103,7 +148,10 @@ tested only and retain production timing assessment as open.
 Attach a sanitized case ledger containing fixture hash, serving pair,
 submission/post identifiers, observed transitions and timestamps, expected and
 actual outcomes, playback/enrichment evidence, and any failure or blocked
-reason. State which outcomes were observed live and which remain local-test
+reason. For case 5 include both posts, both file hashes, their shared serving
+pair, source-authority references, immutable source terms and B, the derivative's
+distinct offered term, observed inherited share, binding/replay evidence and
+separate publication/enrichment results. State which outcomes were observed live and which remain local-test
 claims. Acceptance requires both ordinary originals plus the applicable
 recovery and terminal cases above; unresolved cases remain explicit gates.
 
@@ -116,8 +164,15 @@ confirmation.
 ## Known UX debt
 
 Reference-required recovery currently asks for a source song asset identifier.
-The contract-backed binding is functional, but the product needs a searchable
-source picker once a source-asset lookup contract exists. That follow-up must
+The backend repair implements verified binding; live eligibility still requires
+source authority and the reviewed deployment. The registered solid-song-source-picker
+successor owns a searchable picker once a source-asset lookup contract exists. That follow-up must
 specify eligible-source filtering, selection, unavailable sources and recovery;
 it must preserve the current revision/request-reference binding and exact replay.
 There is no invented lookup endpoint in this acceptance procedure.
+
+Off-platform sources remain rejected by default. The registered
+song-off-platform-reference-policy decision owns whether such works are
+postable and whether manual review may ever admit them. This procedure does
+not grant that authority or treat rejection as a bug to bypass. Those decisions
+do not block verified on-platform acceptance once its prerequisites are met.
