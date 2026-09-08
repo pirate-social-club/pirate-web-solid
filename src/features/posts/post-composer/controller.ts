@@ -10,7 +10,7 @@
 // - Uncontrolled draft slices are signals; controlled slices read props
 //   directly, matching React's `controlled ?? uncontrolled` resolution.
 
-import { createEffect, createSignal, type Accessor } from "solid-js";
+import { createEffect, createMemo, createSignal, type Accessor } from "solid-js";
 
 import { buildComposerTabLabels, defaultComposerCopy, type ComposerCopy } from "./copy";
 import {
@@ -470,6 +470,15 @@ export function createPostComposerController(
     onLiveChange()?.(next);
   };
 
+  // The single read of event state, so nothing reaches a surface that cannot
+  // submit it. This covers the entrances a write guard cannot: an initial
+  // `event: { enabled: true }` prop, a controlled update pushed by the host,
+  // and a declaration that later stops granting `event`.
+  const grantedEventState = createMemo(() => {
+    const next = eventState();
+    return next.enabled && !capabilities().allows("event") ? { ...next, enabled: false } : next;
+  });
+
   const setEventStateWithCallback = (next: ComposerEventState) => {
     // A surface that never declared `event` must not be able to hold event
     // data: the text submission contract does not carry it, so accepting the
@@ -740,7 +749,7 @@ export function createPostComposerController(
     },
     event: {
       get searchPlaces() { return props.onSearchEventPlaces; },
-      get state() { return eventState(); },
+      get state() { return grantedEventState(); },
       update: setEventStateWithCallback,
     },
     generic: {

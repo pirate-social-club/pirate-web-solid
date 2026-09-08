@@ -3,7 +3,10 @@ import { afterEach, describe, expect, test, vi } from "vitest";
 import { render as solidRender } from "@solidjs/web";
 import { createRoot, flush } from "solid-js";
 
+import { createMemoryMediaSubmissionStorage } from "../media-submission/pending";
 import { createComposerCapabilitySet } from "./capability";
+import { CreatePostDialog } from "./create-post-dialog";
+import { createMemoryPendingSubmissionStorage } from "./pending-submission";
 import { createPostComposerController, type PostComposerController } from "./controller";
 import { defaultEventState } from "./defaults";
 import { PostComposerWriteStep } from "./write-step";
@@ -135,7 +138,9 @@ describe("declared capabilities gate every composer entrance", () => {
     expect(container.textContent).toContain("Downloadable files cannot be posted here.");
   });
 
-  test("a drop of a declared kind still attaches", () => {
+  test("a drop of a declared kind still attaches where the composer owns it", () => {
+    // No onVideoEntry: this composer keeps the video itself, so the drop has
+    // somewhere to land. The hosted case is covered separately below.
     const { container, controller } = mountWriteStep(communitySurface);
     dropFile(container, new File([" "], "clip.mp4", { type: "video/mp4" }));
     flush();
@@ -180,5 +185,108 @@ describe("event data is never accepted where it cannot be submitted", () => {
     flush();
     expect(controller.event.state.enabled).toBe(true);
     expect(onEventChange).toHaveBeenCalled();
+  });
+});
+
+describe("event state that arrives rather than being selected", () => {
+  test("an undeclared event prop is never held, shown, or reported as enabled", () => {
+    const onEventChange = vi.fn();
+    const { container, controller } = mountWriteStep({
+      ...communitySurface,
+      // A host that hands the composer event data it never declared.
+      event: { ...defaultEventState(), enabled: true, isOnline: true },
+      onEventChange,
+    });
+    expect(controller.event.state.enabled).toBe(false);
+    expect(onEventChange).not.toHaveBeenCalled();
+    expect(container.textContent).not.toContain("Online event");
+    expect(container.textContent).not.toContain("Date and place");
+  });
+
+  test("the mobile selected-event chip follows the same boundary", () => {
+    const { container } = mountWriteStep({
+      ...communitySurface,
+      event: { ...defaultEventState(), enabled: true, isOnline: true },
+    }, { isMobile: true });
+    expect(document.body.textContent).not.toContain("Online event");
+    expect(container.textContent).not.toContain("Online event");
+  });
+
+  test("a declared surface still receives the event state it was given", () => {
+    const { container, controller } = mountWriteStep({
+      ...communitySurface,
+      availableCapabilities: ["text", "song", "video", "event"],
+      event: { ...defaultEventState(), enabled: true, isOnline: true },
+    });
+    expect(controller.event.state.enabled).toBe(true);
+    expect(container.querySelector('[aria-label="Online event"]')).not.toBeNull();
+  });
+});
+
+describe("the community dialog's video entrance", () => {
+  /** Renders the dialog exactly as the community page configures it. */
+  function mountCommunityDialog() {
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    let dispose = () => {};
+    createRoot(rootDispose => {
+      dispose = rootDispose;
+      solidRender(() => (
+        <CreatePostDialog
+          communityContext={{ id: "community-one", name: "Pirate Harbor" }}
+          mediaStorage={createMemoryMediaSubmissionStorage()}
+          onOpenChange={() => {}}
+          open
+          personas={[{
+            personaId: "persona-one",
+            displayName: "Persona One",
+            avatarRef: null,
+            primaryPublicHandle: null,
+            communityBinding: null,
+          }]}
+          principalId="account-one"
+          storage={createMemoryPendingSubmissionStorage()}
+        />
+      ), container);
+    });
+    disposers.push(() => { dispose(); container.remove(); });
+    return container;
+  }
+
+  test("a dropped video is refused rather than lost when the host owns video entry", async () => {
+    mountCommunityDialog();
+    await new Promise<void>(resolve => setTimeout(resolve, 0));
+
+    const zone = document.body.querySelector("[data-composer-drop-zone]");
+    expect(zone).not.toBeNull();
+    const event = new Event("drop", { bubbles: true, cancelable: true });
+    Object.defineProperty(event, "dataTransfer", {
+      value: { files: [new File([" "], "clip.mp4", { type: "video/mp4" })] },
+    });
+    zone!.dispatchEvent(event);
+    flush();
+    await new Promise<void>(resolve => setTimeout(resolve, 0));
+
+    // The dialog swaps this composer for its own video runtime on a video
+    // mode change, and that runtime cannot receive a file staged here, so the
+    // drop must not silently take that path.
+    expect(document.body.textContent).toContain("Start a video with the Video action");
+    expect(document.body.querySelector("[data-composer-drop-zone]")).not.toBeNull();
+    expect(document.body.textContent).not.toContain("clip.mp4");
+  });
+
+  test("the Video action still reaches the host's video runtime", async () => {
+    mountCommunityDialog();
+    await new Promise<void>(resolve => setTimeout(resolve, 0));
+
+    const video = [...document.body.querySelectorAll<HTMLButtonElement>("button")]
+      .find(button => button.textContent?.trim() === "Video");
+    expect(video).toBeDefined();
+    video!.click();
+    flush();
+    await new Promise<void>(resolve => setTimeout(resolve, 0));
+
+    // Leaving the composer for the host's runtime is the supported entrance.
+    expect(document.body.querySelector("[data-composer-drop-zone]")).toBeNull();
   });
 });

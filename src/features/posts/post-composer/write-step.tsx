@@ -47,6 +47,7 @@ const audioExtensions = new Set(["mp3", "wav", "flac", "aac", "ogg", "m4a", "wma
 const downloadExtensions = new Set(["csv", "tsv", "txt", "json"]);
 const mp3OnlyCopy = "Public-song v1 currently accepts MP3 only.";
 const unsupportedFileCopy = "That file type cannot be attached to a post.";
+const hostedVideoDropCopy = "Start a video with the Video action; a dropped video cannot be carried into it.";
 
 const attachmentKindNouns = {
   link: "Links",
@@ -220,6 +221,14 @@ export function PostComposerWriteStep(props: {
       // Refuse visibly. Dropping a file this surface cannot post used to be
       // indistinguishable from the drop not registering at all.
       setAttachmentError(unsupportedKindCopy(kind));
+      return;
+    }
+    if (kind === "video" && props.onVideoEntry) {
+      // The host owns video entry and replaces this composer with its own
+      // runtime, which has no transport for a file staged here. Taking the
+      // drop would set video state and a mode the host acts on, and the file
+      // would be gone by the time the runtime mounted. Refuse instead.
+      setAttachmentError(hostedVideoDropCopy);
       return;
     }
     setAttachmentError(null);
