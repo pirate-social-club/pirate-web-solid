@@ -57,6 +57,7 @@ export default defineConfig({
       "src/features/communities/community-page/community-page.model.test.ts",
       "src/features/communities/community-page/community-engagement-api.test.ts",
       "src/features/communities/community-page/community-engagement-controller.test.tsx",
+      "src/features/communities/community-page/community-identity-transitions.test.tsx",
       "src/features/communities/community-page/community-page.test.tsx",
       "src/features/communities/community-page/community-thread-feed-api.test.ts",
       "src/features/communities/handle-storefront/handle-storefront.flow.test.ts",

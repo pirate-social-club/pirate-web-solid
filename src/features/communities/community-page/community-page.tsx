@@ -97,12 +97,11 @@ function LoadingState() {
 
 function MessageState(props: { readonly state: CommunityPageViewState }) {
   const copy = communityCopy();
-  const state = untrack(() => props.state);
-  const message = () => state.kind === "invalid"
+  const message = () => props.state.kind === "invalid"
     ? copy.invalid
-    : state.kind === "not-found" ? copy.notFound : copy.error;
+    : props.state.kind === "not-found" ? copy.notFound : copy.error;
   return (
-    <main data-community-state={state.kind}>
+    <main data-community-state={props.state.kind}>
       <Title>{message()}</Title>
       <h1>{message()}</h1>
       <p role="alert">{message()}</p>
@@ -142,6 +141,8 @@ function CommunityNamesCta(props: {
 }
 
 function SuccessState(props: {
+  /** The keyed community identity this instance is scoped to. */
+  readonly communityId: string;
   readonly engagementApi: CommunityEngagementApi;
   readonly state: CommunityPageSuccess;
   readonly handleSalesClient: PublicHandleSalesApiClient;
@@ -155,6 +156,9 @@ function SuccessState(props: {
 }) {
   const copy = communityCopy();
   const state = untrack(() => props.state);
+  // Safe to snapshot: the keyed parent rebuilds this component whenever the
+  // community identity changes, so the snapshot cannot outlive its community.
+  const communityId = props.communityId;
   const engagementApi = untrack(() => props.engagementApi);
   const resolveSession = untrack(() => props.resolveSession);
   const [composerOpen, setComposerOpen] = createSignal(false);
@@ -173,7 +177,7 @@ function SuccessState(props: {
   };
   const engagement = createCommunityEngagementController({
     api: engagementApi,
-    communityId: state.communityId,
+    communityId: communityId,
     initialFollowerCount: state.community.followerCount ?? 0,
     membershipMode: state.community.membershipMode,
     navigate,
@@ -183,7 +187,7 @@ function SuccessState(props: {
   const community = createMemo<CommunityData>(() => {
     const source = props.surfaceData ?? {};
     return {
-      id: state.communityId,
+      id: communityId,
       name: source.name ?? state.community.displayName,
       handle: source.handle ?? `c/${state.routeDisplay}`,
       description: source.description ?? state.community.description ?? interpolateMessage(copy.defaultDescription, { name: state.community.displayName }),
@@ -206,8 +210,12 @@ function SuccessState(props: {
   const settingsHref = () => `${state.canonicalPath}/settings/moderation_queue`;
 
   createEffect(
-    () => state.communityId,
-    (communityId) => {
+    () => engagement.accountIdentity(),
+    (accountIdentity) => {
+      // Management authority belongs to an account, not to the page. An
+      // account that signs out or changes loses it before anything is read.
+      setCanManage(false);
+      if (accountIdentity === null) return;
       const resolveAccess = props.resolveOwnerSettingsAccess ?? (async (id: string) => {
         const capabilities = await createCommunityModerationSettingsApi().getCapabilities({ communityId: id });
         return capabilities.includes("moderation.view");
@@ -228,7 +236,7 @@ function SuccessState(props: {
         return;
       }
       const current = selectedPersonaId();
-      const eligible = communityOperationPersonas(session.personas, state.communityId);
+      const eligible = communityOperationPersonas(session.personas, communityId);
       if (current !== undefined && eligible.some(persona => persona.personaId === current)) return;
       const joinedPersona = engagement.joinedPersonaId();
       setSelectedPersonaId(eligible.some(persona => persona.personaId === joinedPersona)
@@ -237,7 +245,7 @@ function SuccessState(props: {
   );
 
   createEffect(
-    () => state.communityId,
+    () => communityId,
     (communityId) => {
       if (props.surfaceData?.posts !== undefined) return;
       setThreadState("loading");
@@ -266,7 +274,7 @@ function SuccessState(props: {
   };
 
   const personaOptions = () => toOperationPersonas(communityOperationPersonas(
-    engagement.postingSession()?.personas ?? [], state.communityId,
+    engagement.postingSession()?.personas ?? [], communityId,
   ));
 
   const engagementPost = (post: CommunityData["posts"][number]): PostEngagementPost => ({
@@ -313,7 +321,7 @@ function SuccessState(props: {
                 <Show when={selectedPersonaId()} fallback={render()} keyed>
                   {personaId => (
                     <PostEngagement
-                      communityId={state.communityId}
+                      communityId={communityId}
                       personaId={personaId}
                       post={engagementPost(post)}
                       principalId={session.userId}
@@ -348,7 +356,7 @@ function SuccessState(props: {
             onChoose={engagement.confirmJoinPersona}
             onOpenChange={(open) => { if (!open) engagement.cancelJoinPersona(); }}
             open={engagement.joinPersonaStep()}
-            personas={communityJoinCandidates(engagement.postingSession()?.personas ?? [], state.communityId)}
+            personas={communityJoinCandidates(engagement.postingSession()?.personas ?? [], communityId)}
           />
       </div>
       <div class="sr-only">
@@ -359,10 +367,10 @@ function SuccessState(props: {
       <Show when={engagement.postingSession()}>
         {session => (
           <CreatePostDialog
-            communityContext={{ id: state.communityId, name: community().name }}
+            communityContext={{ id: communityId, name: community().name }}
             onOpenChange={setComposerOpen}
             open={composerOpen()}
-            personas={communityOperationPersonas(session().personas, state.communityId)}
+            personas={communityOperationPersonas(session().personas, communityId)}
             principalId={session().userId}
             mediaStorage={props.postComposerMediaStorage}
           />
@@ -385,21 +393,29 @@ function CommunityState(props: {
   readonly postComposerMediaStorage?: MediaSubmissionStorage;
 }) {
   const success = () => props.state.kind === "success" ? props.state : undefined;
+  // The inner Show is keyed by community identity: a same-route move to another
+  // community rebuilds the controller, the loaders and the local state instead
+  // of leaving them bound to the community that was here before.
   return (
     <Show when={success()} fallback={<MessageState state={props.state} />}>
       {state => (
-        <SuccessState
-          engagementApi={props.engagementApi}
-          state={state()}
-          handleSalesClient={props.handleSalesClient}
-          resolveSession={props.resolveSession}
-          resolveOwnerSettingsAccess={props.resolveOwnerSettingsAccess}
-          navigate={props.navigate}
-          surfaceData={props.surfaceData}
-          loadThreads={props.loadThreads}
-          postEngagementTransport={props.postEngagementTransport}
-          postComposerMediaStorage={props.postComposerMediaStorage}
-        />
+        <Show when={state().communityId} keyed>
+          {communityId => (
+            <SuccessState
+              communityId={communityId}
+              engagementApi={props.engagementApi}
+              state={state()}
+              handleSalesClient={props.handleSalesClient}
+              resolveSession={props.resolveSession}
+              resolveOwnerSettingsAccess={props.resolveOwnerSettingsAccess}
+              navigate={props.navigate}
+              surfaceData={props.surfaceData}
+              loadThreads={props.loadThreads}
+              postEngagementTransport={props.postEngagementTransport}
+              postComposerMediaStorage={props.postComposerMediaStorage}
+            />
+          )}
+        </Show>
       )}
     </Show>
   );

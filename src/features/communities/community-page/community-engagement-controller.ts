@@ -37,6 +37,8 @@ export interface CommunityEngagementController {
   readonly personaRetryBusy: Accessor<boolean>;
   retryPersonas(): Promise<void>;
   readonly postingSession: Accessor<AuthenticatedSession | undefined>;
+  /** undefined before the first account resolution, null while anonymous. */
+  readonly accountIdentity: Accessor<string | null | undefined>;
   /** Open while a terminal join waits for the account's closed persona choice. */
   readonly joinPersonaStep: Accessor<boolean>;
   readonly joinPersonaChoice: Accessor<CommunityPersonaChoice | undefined>;
@@ -77,11 +79,23 @@ export function createCommunityEngagementController(
   const [joinPersonaOpen, setJoinPersonaOpen] = createSignal(false);
   const [joinPersonaChoice, setJoinPersonaChoice] = createSignal<CommunityPersonaChoice>();
   const [joinedPersonaId, setJoinedPersonaId] = createSignal<string>();
+  // Reactive for consumers; the plain mirror below is what control flow reads,
+  // because a signal write is not visible to a read in the same tick.
+  const [accountIdentity, setAccountIdentity] = createSignal<string | null>();
   let active = true;
   let actionInFlight = false;
   let fullSessionStarted = false;
   let sessionRequest = 0;
   let viewerRequest = 0;
+  /** undefined until the first account resolution, then the id or null. */
+  let observedAccountIdentity: string | null | undefined;
+  /** Mirrors whether postingSession holds a value, for same-tick guards. */
+  let personasResolved = false;
+
+  const assignPostingSession = (next: AuthenticatedSession | undefined) => {
+    personasResolved = next !== undefined;
+    setPostingSession(next);
+  };
 
   onCleanup(() => {
     active = false;
@@ -109,31 +123,69 @@ export function createCommunityEngagementController(
     }
   };
 
+  // Membership, follow state, counts, personas and the join step are all scoped
+  // to one account. Signing out or changing account invalidates every one of
+  // them: without this a signed-out page kept rendering Joined and Post here,
+  // and a second account inherited the first account's viewer state because
+  // viewer readiness never fell back to false.
+  const clearAccountScopedState = () => {
+    setMembership("unknown");
+    setFollowing(false);
+    setFollowerCount(options.initialFollowerCount);
+    setViewerReady(false);
+    setProfilesUnavailable(false);
+    setJoinedPersonaId(undefined);
+    setJoinPersonaOpen(false);
+    setJoinPersonaChoice(undefined);
+    assignPostingSession(undefined);
+    fullSessionStarted = false;
+    // Retire reads issued for the previous identity through the existing
+    // generation guards, so one already in flight cannot land afterwards.
+    sessionRequest += 1;
+    viewerRequest += 1;
+  };
+
   const applyAccountSession = (resolved: "anonymous" | Readonly<{ status: "authenticated"; userId: string }>) => {
-    if (resolved === "anonymous") {
+    const identity = resolved === "anonymous" ? null : resolved.userId;
+    const changed = observedAccountIdentity !== undefined && observedAccountIdentity !== identity;
+    observedAccountIdentity = identity;
+    setAccountIdentity(identity);
+    if (changed) {
+      // An action outcome belongs to the account that produced it.
+      setMessage("");
+      setError("");
+    }
+    if (identity === null) {
       setAccountAuthenticated(false);
-      setProfilesUnavailable(false);
-      setPostingSession(undefined);
-      setViewerReady(false);
+      clearAccountScopedState();
       return;
     }
     setAccountAuthenticated(true);
+    if (changed) {
+      // The clear above just retired viewer readiness, so read nothing back:
+      // this account needs its own viewer state either way.
+      clearAccountScopedState();
+      void refreshViewerState();
+      return;
+    }
     if (!viewerReady()) void refreshViewerState();
   };
 
   const applyFullSession = (resolved: SessionResolution) => {
+    // The account transition runs first, so the state it clears cannot take
+    // the personas resolved for the incoming identity with it.
+    applyAccountSession(resolved);
     if (sessionPersonasUnavailable(resolved)) {
-      setPostingSession(undefined);
+      assignPostingSession(undefined);
       setProfilesUnavailable(true);
     } else if (resolved !== "anonymous") {
       setProfilesUnavailable(false);
-      setPostingSession(resolved);
+      assignPostingSession(resolved);
     }
-    applyAccountSession(resolved);
   };
 
   const hydrateFullSession = () => {
-    if (fullSessionStarted || postingSession() !== undefined) return;
+    if (fullSessionStarted || personasResolved) return;
     fullSessionStarted = true;
     const request = ++sessionRequest;
     void (options.resolveSession ?? resolveApplicationSession)()
@@ -159,17 +211,22 @@ export function createCommunityEngagementController(
           .catch(() => { if (active && request === sessionRequest) setError("We couldn't verify your session."); });
         return;
       }
-      if (resolved === "failed") {
-        setAccountAuthenticated(false);
-        setPostingSession(undefined);
-        setViewerReady(false);
-        setError("We couldn't check your account. Use Retry account check to reconnect.");
-        return;
-      }
-      if (resolved !== "resolving") {
+      if (resolved === "resolving") return;
+      // Applied off the effect's apply phase: an account resolution that is
+      // already settled at mount would otherwise write these signals inside an
+      // owned scope, which halts the reactive system rather than transitioning.
+      queueMicrotask(() => {
+        if (!active) return;
+        if (resolved === "failed") {
+          setAccountAuthenticated(false);
+          assignPostingSession(undefined);
+          setViewerReady(false);
+          setError("We couldn't check your account. Use Retry account check to reconnect.");
+          return;
+        }
         applyAccountSession(resolved);
         if (resolved !== "anonymous") hydrateFullSession();
-      }
+      });
     },
   );
 
@@ -303,7 +360,7 @@ export function createCommunityEngagementController(
         // Read the minted profile/binding from the server, never manufacture it
         // from the command response. A read failure must not undo a joined state.
         refreshSession();
-        setPostingSession(undefined);
+        assignPostingSession(undefined);
         fullSessionStarted = false;
         hydrateFullSession();
         // The join result proves membership, not a subscription count.
@@ -332,7 +389,7 @@ export function createCommunityEngagementController(
 
   const resolvePersonaSession = async (): Promise<AuthenticatedSession | undefined> => {
     if (!await hasAuthenticatedAccount()) return undefined;
-    const cached = postingSession();
+    const cached = personasResolved ? postingSession() : undefined;
     if (cached !== undefined) return cached;
     const request = ++sessionRequest;
     try {
@@ -401,6 +458,7 @@ export function createCommunityEngagementController(
       ? "We couldn't load your active personas. Retry profiles before commenting, posting or joining."
       : ""),
     postingSession,
+    accountIdentity,
     personaRetryAvailable: profilesUnavailable,
     personaRetryBusy,
     retryPersonas,
