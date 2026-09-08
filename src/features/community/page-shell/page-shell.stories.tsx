@@ -56,3 +56,62 @@ export const GatesOrMode: Story = { name: "States / OR gates", render: () => <St
 export const CommunityViewportPreset: Story = { name: "Mobile / Feed header actions", globals: { viewport: { value: "mobile1", isRotated: false } }, render: () => <StoryCommunityPageShell community={tameImpala} mobile initialFollowing initialJoined /> };
 export const FollowingNotCitizen: Story = { render: () => <StoryCommunityPageShell community={tameImpala} initialFollowing /> };
 export const CanFollowCannotJoin: Story = { render: () => <StoryCommunityPageShell community={infinity} canJoin={false} /> };
+
+// Geometry states. The page must not move as the viewer's authority settles,
+// so these four are measured against one another at mobile and desktop widths
+// by scripts/community-geometry-check.mjs.
+const geometryCommunity: CommunityData = { ...tameImpala, name: "Geometry" };
+
+export const AuthorityPending: Story = {
+  name: "Geometry / Authority pending",
+  render: () => (
+    <CommunityPageShell
+      authorityPending
+      community={geometryCommunity}
+      following={false}
+      joined={false}
+      managePending
+    />
+  ),
+};
+
+export const SettledAnonymous: Story = {
+  name: "Geometry / Settled anonymous",
+  render: () => (
+    <CommunityPageShell community={geometryCommunity} following={false} joined={false} />
+  ),
+};
+
+export const SettledMember: Story = {
+  name: "Geometry / Settled member",
+  render: () => (
+    <CommunityPageShell
+      community={geometryCommunity}
+      following
+      joined
+      onCreatePost={() => undefined}
+      personaControl={<span data-operation-persona>Commenting as harbour</span>}
+    />
+  ),
+};
+
+export const SettledModerator: Story = {
+  name: "Geometry / Settled moderator",
+  render: () => (
+    <CommunityPageShell
+      community={geometryCommunity}
+      following
+      joined
+      onCreatePost={() => undefined}
+      onManage={() => undefined}
+      personaControl={<span data-operation-persona>Commenting as harbour</span>}
+    />
+  ),
+};
+
+export const ViewerUnknown: Story = {
+  name: "Geometry / Membership read failed",
+  render: () => (
+    <CommunityPageShell community={geometryCommunity} following={false} joined={false} viewerUnknown />
+  ),
+};

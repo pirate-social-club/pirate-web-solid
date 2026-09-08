@@ -70,6 +70,19 @@ function render(ui: () => JSX.Element): HTMLElement {
   return container;
 }
 
+/** Kobalte opens on pointerdown, which a bare click() does not produce. */
+function openOverlay(trigger: HTMLElement): void {
+  trigger.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, button: 0, isPrimary: true }));
+  trigger.dispatchEvent(new PointerEvent("pointerup", { bubbles: true, button: 0, isPrimary: true }));
+  trigger.click();
+}
+
+function activateOverlayItem(item: HTMLElement): void {
+  item.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, button: 0, isPrimary: true }));
+  item.dispatchEvent(new PointerEvent("pointerup", { bubbles: true, button: 0, isPrimary: true }));
+  item.click();
+}
+
 afterEach(() => {
   for (const dispose of disposers.splice(0)) dispose();
   document.head.replaceChildren();
@@ -596,12 +609,19 @@ describe("CommunityPage", () => {
       />
     ));
 
-    await vi.waitFor(() => expect(container.textContent).toContain("Manage"));
-    expect(resolveOwnerSettingsAccess).toHaveBeenCalledWith(communityId);
-    const manage = [...container.querySelectorAll<HTMLButtonElement>("button")]
-      .find(button => button.textContent?.trim() === "Manage");
-    expect(manage).toBeDefined();
-    manage!.click();
+    await vi.waitFor(() => expect(resolveOwnerSettingsAccess).toHaveBeenCalledWith(communityId));
+    // Manage lives in the banner's overflow menu, so that an option appearing
+    // when authority settles moves nothing on the page beneath it.
+    const overflow = container.querySelector<HTMLElement>("[aria-label='More community options']")!;
+    await vi.waitFor(() => expect(overflow.getAttribute("data-community-manage")).toBe("available"));
+    openOverlay(overflow);
+    const manage = await vi.waitFor(() => {
+      const item = [...document.body.querySelectorAll<HTMLElement>("[role='menuitem']")]
+        .find(entry => entry.textContent?.trim() === "Manage");
+      expect(item).toBeDefined();
+      return item!;
+    });
+    activateOverlayItem(manage);
     expect(navigate).toHaveBeenCalledWith("/c/xn--pokmon-dva/settings/moderation_queue");
 
     expect(container.querySelector("nav[aria-label='Primary navigation']")).toBeNull();

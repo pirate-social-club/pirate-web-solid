@@ -179,13 +179,20 @@ describe("the private controls the server sends", () => {
     expect(shell).not.toContain(">Joined<");
     expect(shell).not.toContain("Post here");
     expect(shell).not.toContain(">Manage<");
+    expect(shell).not.toContain(">Follow<");
+    expect(shell).not.toContain(">Following<");
   });
 
-  test("the controls whose authority is unknown still occupy their space", async () => {
+  test("the header carries two fixed slots and nothing conditional", async () => {
     const { shell } = await serverRender(page({ loadThreads: emptyFeed }));
 
-    // Two reserved action cells, post and manage, plus the persona row.
-    expect([...shell.matchAll(/data-pending-control/gu)]).toHaveLength(3);
-    expect(shell).toContain("data-community-feedback");
+    // Both slots ship in the response at their final size, and the controls
+    // whose existence depends on authority are not in the header at all.
+    expect(shell).toContain("data-community-follow-slot");
+    expect(shell).toContain("data-community-membership-slot");
+    expect(shell).toContain("data-community-manage=\"pending\"");
+    // The feedback region is an overlay, so it occupies no page space.
+    expect(shell).toMatch(/data-community-feedback[^>]*/u);
+    expect(shell).toContain("fixed inset-x-0 bottom-0");
   });
 });

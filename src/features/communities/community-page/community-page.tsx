@@ -357,19 +357,29 @@ function SuccessState(props: {
             onJoin={() => void engagement.joinCommunity()}
             onManage={canManage() ? () => navigate(settingsHref()) : undefined}
           />
-          {/* Reserved: a message, an error and a retry each used to appear from
-              nothing and push everything under them down the page. */}
-          <div class="min-h-14 px-5 pt-4 md:px-8" data-community-feedback>
-            <Show when={engagement.message()}>
-              {message => <p class="text-sm text-muted-foreground" role="status">{message()}</p>}
-            </Show>
-            <Show when={engagement.error()}>
-              {message => <p class="text-sm text-destructive" role="alert">{message()}</p>}
-            </Show>
-            <Show when={engagement.personaRetryAvailable()}>
-              <Button class="mt-3" type="button" disabled={engagement.personaRetryBusy()} onClick={() => void engagement.retryPersonas()}>
-                {engagement.personaRetryBusy() ? "Checking profiles" : "Retry profiles"}
-              </Button>
+          {/* An overlay, outside the document flow. A message, an error and a
+              retry used to appear from nothing and push the page down, and a
+              wrapped error pushed it further than any reserved height. Nothing
+              here can move the page, whatever it says or how long it wraps. */}
+          <div
+            aria-live="polite"
+            class="pointer-events-none fixed inset-x-0 bottom-0 z-40 flex justify-center px-5 pb-[calc(env(safe-area-inset-bottom)+1rem)]"
+            data-community-feedback
+          >
+            <Show when={engagement.message() || engagement.error() || engagement.personaRetryAvailable()}>
+              <div class="pointer-events-auto w-full max-w-xl rounded-2xl border border-border-soft bg-card p-4 shadow-lg">
+                <Show when={engagement.message()}>
+                  {message => <p class="text-sm text-muted-foreground" role="status">{message()}</p>}
+                </Show>
+                <Show when={engagement.error()}>
+                  {message => <p class="text-sm text-destructive" role="alert">{message()}</p>}
+                </Show>
+                <Show when={engagement.personaRetryAvailable()}>
+                  <Button class="mt-3" type="button" disabled={engagement.personaRetryBusy()} onClick={() => void engagement.retryPersonas()}>
+                    {engagement.personaRetryBusy() ? "Checking profiles" : "Retry profiles"}
+                  </Button>
+                </Show>
+              </div>
             </Show>
           </div>
           <CommunityPersonaChoiceDialog

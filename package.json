@@ -19,6 +19,7 @@
     "generate:web3-icons": "bun scripts/generate-web3-icons.ts",
     "check:web3-icons": "bun scripts/generate-web3-icons.ts --check",
     "storybook:a11y": "node scripts/storybook-a11y-sweep.mjs",
+    "check:community-geometry": "node scripts/community-geometry-check.mjs",
     "test:storybook:a11y": "bun test scripts/storybook-a11y-sweep.test.mjs",
     "check-product-graph": "node scripts/check-product-graph.mjs --require-build",
     "test:app": "vitest run --config vitest.app.config.ts",

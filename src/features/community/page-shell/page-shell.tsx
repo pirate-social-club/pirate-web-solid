@@ -19,6 +19,10 @@ import {
   IconPlus,
   IconShield,
   IconButton,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
   MediaControlButton,
   Separator,
   cn,
@@ -194,21 +198,6 @@ function FeedPost(props: { post: CommunityPost; actions?: JSX.Element }) {
   );
 }
 
-/**
- * Holds a control's space while its authority is unknown. It is not disabled
- * chrome: a greyed Manage would tell a reader they are a moderator, and a
- * greyed Post here would tell them they are a member. It says nothing.
- */
-function PendingControl(props: { readonly class?: string }) {
-  return (
-    <div
-      aria-hidden="true"
-      class={cn("h-11 w-full rounded-full bg-muted/40", props.class)}
-      data-pending-control
-    />
-  );
-}
-
 function FeedPending() {
   return (
     <Card>
@@ -267,7 +256,14 @@ function CommunityAbout(props: { community: CommunityData }) {
   );
 }
 
-function CommunityBanner(props: { community: CommunityData; onBack?: () => void; onMore?: () => void }) {
+function CommunityBanner(props: {
+  community: CommunityData;
+  /** Reported on the trigger so a surface can read it without opening it. */
+  manage: "available" | "pending" | "unavailable";
+  onBack?: () => void;
+  onManage?: () => void;
+  onMore?: () => void;
+}) {
   return (
     <div class="relative h-36 overflow-hidden bg-[linear-gradient(120deg,#162c32_0%,#5f746a_45%,#c7b68a_100%)] md:h-56">
       <Show when={props.community.bannerSrc}>
@@ -277,9 +273,26 @@ function CommunityBanner(props: { community: CommunityData; onBack?: () => void;
         <IconButton aria-label="Go back" class="bg-background/75 text-foreground shadow-sm backdrop-blur-sm" onClick={props.onBack} variant="ghost">
           <IconArrowLeft class="size-5" />
         </IconButton>
-        <IconButton aria-label="More community options" class="bg-background/75 text-foreground shadow-sm backdrop-blur-sm" onClick={props.onMore} variant="ghost">
-          <IconDotsThree class="size-5" />
-        </IconButton>
+        {/* An overlay, so an option that appears when authority settles moves
+            nothing on the page beneath it. */}
+        <DropdownMenu placement="bottom-end" gutter={4}>
+          <DropdownMenuTrigger
+            aria-label="More community options"
+            class="grid size-10 place-items-center rounded-full bg-background/75 text-foreground shadow-sm backdrop-blur-sm"
+            data-community-manage={props.manage}
+          >
+            <IconDotsThree class="size-5" />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent class="w-56">
+            <Show when={props.onManage}>
+              <DropdownMenuItem onSelect={() => props.onManage?.()}>
+                <IconShield class="size-4" />
+                <span>Manage</span>
+              </DropdownMenuItem>
+            </Show>
+            <DropdownMenuItem onSelect={() => props.onMore?.()}>Community details</DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
     </div>
   );
@@ -291,6 +304,9 @@ export function CommunityPageShell(props: CommunityPageShellProps) {
   const community = () => props.community;
   // Reading this is what suspends; a host that passes no feed has its posts
   // already in hand, so nothing waits.
+  // Both header slots are this size in every state, so a label change cannot
+  // resize them and a viewport change cannot make them wrap.
+  const slotClass = "h-11 w-full min-w-0 md:w-32";
   const feed = (): CommunityFeed =>
     props.feed?.() ?? { kind: "ready", posts: community().posts };
   /**
@@ -332,7 +348,15 @@ export function CommunityPageShell(props: CommunityPageShellProps) {
 
   return (
     <div class={props.mobile ? "w-full max-w-[24.375rem] bg-background" : "mx-auto w-full max-w-6xl bg-background"} data-community-page>
-      <CommunityBanner community={community()} onBack={props.onBack} onMore={props.onMore} />
+      <CommunityBanner
+        community={community()}
+        manage={props.onManage !== undefined
+          ? "available"
+          : (props.managePending ?? props.authorityPending) ? "pending" : "unavailable"}
+        onBack={props.onBack}
+        onManage={props.onManage}
+        onMore={props.onMore}
+      />
 
       <header class="relative border-b border-border-soft bg-background px-5 pb-5 md:px-8 md:pb-6">
         <div class="md:flex md:items-end md:gap-4">
@@ -350,53 +374,34 @@ export function CommunityPageShell(props: CommunityPageShellProps) {
             <Type class="mt-1 block" variant="caption">{community().handle} · {formatCount(community().members)} members · {formatCount(community().followers)} followers</Type>
           </div>
           <Show when={props.readOnly !== true}>
+            {/* Exactly two slots, both always present and both a fixed size,
+                so no label this row can show changes its geometry. Controls
+                whose existence depends on authority live outside the header. */}
             <div
               aria-label="Community actions"
-              class="mt-3 grid min-h-[9.5rem] grid-cols-2 content-start gap-2 md:mt-0 md:flex md:min-h-0 md:shrink-0 md:flex-wrap"
+              class="mt-3 grid h-11 grid-cols-2 gap-2 md:mt-0 md:flex md:shrink-0"
               data-community-actions-reserved
             >
               {/* Follow and Following both state a direction that has not been
                   read yet, so neither is offered until it has been. */}
               <Button
                 aria-label={followLabel().description}
-                class="w-full md:w-auto"
+                class={slotClass}
+                data-community-follow-slot
                 disabled={props.followBusy || props.authorityPending}
                 onClick={() => props.onFollowToggle?.()}
                 variant={props.following ? "secondary" : "outline"}
-              >{followLabel().text}</Button>
-              <Show when={props.canJoin !== false}>
+              ><span class="truncate">{followLabel().text}</span></Button>
+              <Show when={props.canJoin !== false} fallback={<div class={slotClass} aria-hidden="true" />}>
                 <Button
                   aria-label={joinLabel().description}
-                  class="w-full md:w-auto"
+                  class={slotClass}
+                  data-community-membership-slot
                   disabled={props.authorityPending || props.joinBusy
                     || (!props.viewerUnknown && (props.joined || props.joinDisabled))}
                   onClick={() => props.onJoin?.()}
                   variant={props.joined && !props.viewerUnknown ? "secondary" : "default"}
-                >{joinLabel().text}</Button>
-              </Show>
-              <Show
-                when={props.joined || props.showCreatePost || props.onCreatePost !== undefined}
-                fallback={<Show when={props.authorityPending}><PendingControl class="col-span-2 md:w-32" /></Show>}
-              >
-                <Button
-                  class="col-span-2 w-full md:w-auto"
-                  disabled={props.createPostBusy}
-                  leadingIcon={<IconPlus class="size-4" />}
-                  onClick={() => props.onCreatePost?.()}
-                >
-                  {props.createPostBusy ? "Opening…" : "Post here"}
-                </Button>
-              </Show>
-              <Show
-                when={props.onManage}
-                fallback={<Show when={props.managePending ?? props.authorityPending}><PendingControl class="col-span-2 md:w-32" /></Show>}
-              >
-                <Button
-                  class="col-span-2 w-full md:w-auto"
-                  leadingIcon={<IconShield class="size-4" />}
-                  onClick={() => props.onManage?.()}
-                  variant="secondary"
-                >Manage</Button>
+                ><span class="truncate">{joinLabel().text}</span></Button>
               </Show>
             </div>
           </Show>
@@ -404,29 +409,42 @@ export function CommunityPageShell(props: CommunityPageShellProps) {
         <Type class="mt-3 max-w-2xl md:hidden" variant="body">{community().description}</Type>
       </header>
 
+      <div data-community-tabs>
       <FlatTabBar class="px-5 md:px-8" columns={4}>
         <FlatTabButton active={tab() === "feed"} onClick={() => setTab("feed")}>Feed</FlatTabButton>
         <FlatTabButton active={tab() === "songs"} onClick={() => setTab("songs")}>Songs</FlatTabButton>
         <FlatTabButton active={tab() === "leaderboard"} onClick={() => setTab("leaderboard")}>Leaderboard</FlatTabButton>
         <FlatTabButton active={tab() === "about"} onClick={() => setTab("about")}>About</FlatTabButton>
       </FlatTabBar>
+      </div>
 
       <div class="grid gap-8 p-5 md:grid-cols-[minmax(0,1fr)_20rem] md:p-8">
         <main class={tab() === "about" ? "hidden md:block" : "min-w-0"} aria-label="Community feed">
           <Show when={tab() === "feed"}>
-            <div class="mb-5 flex items-center justify-between gap-3">
+            <div class="mb-5 flex h-9 items-center justify-between gap-3">
               <Type variant="h2">Feed</Type>
+              <div class="flex items-center gap-2">
+              <Show when={props.joined || props.showCreatePost || props.onCreatePost !== undefined}>
+                <Button
+                  class="h-9 rounded-full px-4"
+                  disabled={props.createPostBusy}
+                  leadingIcon={<IconPlus class="size-4" />}
+                  onClick={() => props.onCreatePost?.()}
+                  size="sm"
+                >
+                  {props.createPostBusy ? "Opening…" : "Post here"}
+                </Button>
+              </Show>
               <label class="flex items-center gap-2">
                 <Type as="span" class="sr-only" variant="label">Sort community feed</Type>
                 <select aria-label="Sort community feed" class="h-9 rounded-full border border-border-soft bg-card px-3 text-sm" onChange={event => setSort(event.currentTarget.value)} value={sort()}>
                   <option value="Best">Best</option><option value="New">New</option><option value="Top">Top</option>
                 </select>
               </label>
+              </div>
             </div>
-            <div class="mb-4 flex h-9 justify-end" data-community-persona-reserved>
-              <Show when={props.personaControl} fallback={
-                <Show when={props.authorityPending}><PendingControl class="h-9 w-44" /></Show>
-              }>{props.personaControl}</Show>
+            <div class="mb-4 flex h-9 items-center justify-end" data-community-persona-reserved>
+              {props.personaControl}
             </div>
             <Loading fallback={<FeedPending />}>
               <Show when={feed().kind === "ready"} fallback={<Card><CardContent class="p-6"><Type role="alert" variant="body">Community posts are temporarily unavailable.</Type></CardContent></Card>}>

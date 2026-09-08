@@ -184,6 +184,17 @@ function hasButton(container: HTMLElement, label: string): boolean {
     .some(button => button.textContent?.trim() === label);
 }
 
+/**
+ * Manage lives in the banner's overflow menu, an overlay whose contents exist
+ * only while it is open. The trigger reports the authority so a transition can
+ * be read without driving the overlay; one focused test opens it.
+ */
+function manageAuthority(container: HTMLElement): string | null {
+  const trigger = container.querySelector("[aria-label='More community options']");
+  if (trigger === null) throw new Error("the community overflow menu is not rendered");
+  return trigger.getAttribute("data-community-manage");
+}
+
 describe("navigating between communities on the same route", () => {
   test("community B never inherits community A's membership, feed or management authority", async () => {
     const [pathSegment, setPathSegment] = createSignal(harbor.pathSegment);
@@ -210,7 +221,7 @@ describe("navigating between communities on the same route", () => {
 
     await vi.waitFor(() => expect(container.textContent).toContain(harbor.displayName));
     await vi.waitFor(() => expect(joinLabelButton(container)?.textContent?.trim()).toBe("Joined"));
-    await vi.waitFor(() => expect(hasButton(container, "Manage")).toBe(true));
+    await vi.waitFor(() => expect(manageAuthority(container)).toBe("available"));
     expect(container.textContent).toContain(harbor.threadTitle);
     expect(hasButton(container, "Post here")).toBe(true);
     await vi.waitFor(() => expect(personaControlText(container))
@@ -224,7 +235,7 @@ describe("navigating between communities on the same route", () => {
     await vi.waitFor(() => expect(container.textContent).toContain(lagoon.threadTitle));
     expect(container.textContent).not.toContain(harbor.threadTitle);
     expect(container.textContent).not.toContain(harbor.displayName);
-    expect(hasButton(container, "Manage")).toBe(false);
+    expect(manageAuthority(container)).not.toBe("available");
     expect(hasButton(container, "Post here")).toBe(false);
     expect(container.querySelector("[data-community-route='lagoon']")).not.toBeNull();
     expect(resolveOwnerSettingsAccess).toHaveBeenCalledWith(lagoon.communityId);
@@ -264,7 +275,7 @@ describe("account identity transitions on one community", () => {
     ));
 
     await vi.waitFor(() => expect(joinLabelButton(container)?.textContent?.trim()).toBe("Joined"));
-    await vi.waitFor(() => expect(hasButton(container, "Manage")).toBe(true));
+    await vi.waitFor(() => expect(manageAuthority(container)).toBe("available"));
     await vi.waitFor(() => expect(personaControlText(container))
       .toContain(personaName("account-a", harbor.communityId)));
     expect(hasButton(container, "Post here")).toBe(true);
@@ -274,7 +285,7 @@ describe("account identity transitions on one community", () => {
 
     await vi.waitFor(() => expect(joinLabelButton(container)?.textContent?.trim()).toBe("Join"));
     expect(hasButton(container, "Post here")).toBe(false);
-    expect(hasButton(container, "Manage")).toBe(false);
+    expect(manageAuthority(container)).not.toBe("available");
     expect(container.querySelector("[data-operation-persona]")).toBeNull();
     expect(container.textContent).not.toContain(personaName("account-a", harbor.communityId));
     // The public feed is not account-scoped and must survive the transition.
@@ -307,7 +318,7 @@ describe("account identity transitions on one community", () => {
     ));
 
     await vi.waitFor(() => expect(joinLabelButton(container)?.textContent?.trim()).toBe("Joined"));
-    await vi.waitFor(() => expect(hasButton(container, "Manage")).toBe(true));
+    await vi.waitFor(() => expect(manageAuthority(container)).toBe("available"));
     await vi.waitFor(() => expect(personaControlText(container))
       .toContain(personaName("account-a", harbor.communityId)));
     const viewerReadsForFirstAccount = readViewerState.mock.calls.length;
@@ -321,7 +332,7 @@ describe("account identity transitions on one community", () => {
       .toBeGreaterThan(viewerReadsForFirstAccount));
     await vi.waitFor(() => expect(joinLabelButton(container)?.textContent?.trim()).toBe("Join"));
     expect(hasButton(container, "Post here")).toBe(false);
-    await vi.waitFor(() => expect(hasButton(container, "Manage")).toBe(false));
+    await vi.waitFor(() => expect(manageAuthority(container)).not.toBe("available"));
     // Account A's persona must be gone by name, not merely superseded.
     expect(container.textContent).not.toContain(personaName("account-a", harbor.communityId));
   });
@@ -522,13 +533,13 @@ describe("management capability across an account change", () => {
 
     await vi.waitFor(() => expect(resolveOwnerSettingsAccess.mock.calls.length)
       .toBeGreaterThan(requestsForFirstAccount));
-    await vi.waitFor(() => expect(hasButton(container, "Manage")).toBe(false));
+    await vi.waitFor(() => expect(manageAuthority(container)).not.toBe("available"));
 
     // Account A's answer arrives last and grants authority. It is retired.
     slowOwnerAccess.settle(true);
-    await vi.waitFor(() => expect(hasButton(container, "Manage")).toBe(false));
+    await vi.waitFor(() => expect(manageAuthority(container)).not.toBe("available"));
     await new Promise(resolve => setTimeout(resolve, 20));
-    expect(hasButton(container, "Manage")).toBe(false);
+    expect(manageAuthority(container)).not.toBe("available");
   });
 
   test("an unresolved identity costs no capability request", async () => {
@@ -581,7 +592,7 @@ describe("an account check that fails", () => {
     ));
 
     await vi.waitFor(() => expect(joinLabelButton(container)?.textContent?.trim()).toBe("Joined"));
-    await vi.waitFor(() => expect(hasButton(container, "Manage")).toBe(true));
+    await vi.waitFor(() => expect(manageAuthority(container)).toBe("available"));
     await vi.waitFor(() => expect(personaControlText(container))
       .toContain(personaName("account-a", harbor.communityId)));
 
@@ -591,7 +602,7 @@ describe("an account check that fails", () => {
     // A failed check is an identity loss, not a banner over stale state.
     await vi.waitFor(() => expect(joinLabelButton(container)?.textContent?.trim()).toBe("Join"));
     expect(hasButton(container, "Post here")).toBe(false);
-    await vi.waitFor(() => expect(hasButton(container, "Manage")).toBe(false));
+    await vi.waitFor(() => expect(manageAuthority(container)).not.toBe("available"));
     expect(container.querySelector("[data-operation-persona]")).toBeNull();
     expect(container.textContent).not.toContain(personaName("account-a", harbor.communityId));
     expect(container.textContent).toContain("Retry account check");
@@ -600,7 +611,7 @@ describe("an account check that fails", () => {
     setSessionState({ status: "authenticated", userId: "account-a" });
 
     await vi.waitFor(() => expect(joinLabelButton(container)?.textContent?.trim()).toBe("Joined"));
-    await vi.waitFor(() => expect(hasButton(container, "Manage")).toBe(true));
+    await vi.waitFor(() => expect(manageAuthority(container)).toBe("available"));
     await vi.waitFor(() => expect(personaControlText(container))
       .toContain(personaName("account-a", harbor.communityId)));
     expect(hasButton(container, "Post here")).toBe(true);

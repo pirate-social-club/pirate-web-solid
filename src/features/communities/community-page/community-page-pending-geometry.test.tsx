@@ -145,22 +145,33 @@ function actionRow(container: HTMLElement): HTMLElement {
 }
 
 /**
- * The reserved regions and the height they hold. jsdom performs no layout, so
- * this reads the reservation itself: the action row, the persona row and the
- * feedback region each keep their reserved height class in every state, which
- * is what stops a control appearing or disappearing from moving the page.
+ * The header holds exactly two fixed-size slots, follow state and membership
+ * state, and nothing whose existence depends on authority. jsdom performs no
+ * layout, so this reads the invariants that make the geometry fixed; the
+ * measured proof lives in the browser gate.
  */
-function reservedGeometry(container: HTMLElement) {
+const sizingClasses = /^(h-|w-|min-w-|min-h-|max-w-|grid|flex|col-span-|gap-|md:(h-|w-|min-h-|flex|grid|shrink-))/u;
+
+/** Only the classes that decide size; a variant colour is not geometry. */
+function sizing(element: Element | null): string | null {
+  if (element === null) return null;
+  return element.className.split(/\s+/u).filter(name => sizingClasses.test(name)).sort().join(" ");
+}
+
+function headerSlots(container: HTMLElement) {
   const row = actionRow(container);
   return {
-    actions: row.getAttribute("data-community-actions-reserved") !== null
-      && row.className.includes("min-h-[9.5rem]"),
-    persona: container.querySelector("[data-community-persona-reserved]")?.className.includes("h-9") === true,
-    feedback: container.querySelector("[data-community-feedback]")?.className.includes("min-h-14") === true,
+    cells: row.children.length,
+    row: sizing(row),
+    follow: sizing(row.querySelector("[data-community-follow-slot]")),
+    membership: sizing(row.querySelector("[data-community-membership-slot]")),
   };
 }
 
-const reserved = { actions: true, persona: true, feedback: true };
+function manageAuthority(container: HTMLElement): string | null {
+  return container.querySelector("[aria-label='More community options']")
+    ?.getAttribute("data-community-manage") ?? null;
+}
 
 function buttonNamed(container: HTMLElement, label: string): HTMLButtonElement | undefined {
   return [...container.querySelectorAll<HTMLButtonElement>("button")]
@@ -171,10 +182,6 @@ function buttonNamed(container: HTMLElement, label: string): HTMLButtonElement |
 function buttonDescribed(container: HTMLElement, description: string): HTMLButtonElement | undefined {
   return [...container.querySelectorAll<HTMLButtonElement>("button")]
     .find(button => button.getAttribute("aria-label") === description);
-}
-
-function pendingControls(container: HTMLElement): number {
-  return container.querySelectorAll("[data-pending-control]").length;
 }
 
 describe("the feed a host supplies", () => {
@@ -298,13 +305,12 @@ describe("private controls while authority settles", () => {
     expect(buttonNamed(container, "Manage")).toBeUndefined();
     // Reserved space is not a control: it is inert and hidden from assistive
     // technology, so it states nothing about this viewer.
-    expect(pendingControls(container)).toBe(3);
-    expect(reservedGeometry(container)).toEqual(reserved);
-    for (const reserved of container.querySelectorAll("[data-pending-control]")) {
-      expect(reserved.getAttribute("aria-hidden")).toBe("true");
-      expect(reserved.querySelector("button")).toBeNull();
-    }
-    expect(container.querySelector("[data-community-feedback]")).not.toBeNull();
+    // The header carries the two slots and nothing else, so nothing appears
+    // there when authority settles.
+    expect(headerSlots(container).cells).toBe(2);
+    expect(manageAuthority(container)).toBe("pending");
+    expect(container.querySelector("[data-community-feedback]")?.className)
+      .toContain("fixed");
   });
 
   test("a moderator who is a member keeps the same action geometry once settled", async () => {
@@ -312,15 +318,14 @@ describe("private controls while authority settles", () => {
     const container = mount(sessionState, { member: true, canManage: true, personas: [boundPersona] });
 
     await vi.waitFor(() => expect(buttonNamed(container, "Checking…")).toBeDefined());
-    expect(reservedGeometry(container)).toEqual(reserved);
+    const pendingHeader = headerSlots(container);
 
     setSessionState({ status: "authenticated", userId: "account-a" });
 
     await vi.waitFor(() => expect(buttonNamed(container, "Joined")).toBeDefined());
-    await vi.waitFor(() => expect(buttonNamed(container, "Manage")).toBeDefined());
+    await vi.waitFor(() => expect(manageAuthority(container)).toBe("available"));
     expect(buttonNamed(container, "Post here")).toBeDefined();
-    expect(reservedGeometry(container)).toEqual(reserved);
-    expect(pendingControls(container)).toBe(0);
+    expect(headerSlots(container)).toEqual(pendingHeader);
     expect(container.querySelector("[data-community-feedback]")).not.toBeNull();
   });
 
@@ -329,14 +334,13 @@ describe("private controls while authority settles", () => {
     const container = mount(sessionState, { member: false, canManage: false, personas: [] });
 
     await vi.waitFor(() => expect(buttonNamed(container, "Checking…")).toBeDefined());
-    expect(reservedGeometry(container)).toEqual(reserved);
+    const pendingHeader = headerSlots(container);
 
     setSessionState("anonymous");
 
     await vi.waitFor(() => expect(buttonNamed(container, "Join")).toBeDefined());
     expect(buttonNamed(container, "Join")?.disabled).toBe(false);
-    expect(reservedGeometry(container)).toEqual(reserved);
-    expect(pendingControls(container)).toBe(0);
+    expect(headerSlots(container)).toEqual(pendingHeader);
   });
 
   test("a member without management authority keeps the same action geometry", async () => {
@@ -344,14 +348,13 @@ describe("private controls while authority settles", () => {
     const container = mount(sessionState, { member: true, canManage: false, personas: [boundPersona] });
 
     await vi.waitFor(() => expect(buttonNamed(container, "Checking…")).toBeDefined());
-    expect(reservedGeometry(container)).toEqual(reserved);
+    const pendingHeader = headerSlots(container);
 
     setSessionState({ status: "authenticated", userId: "account-a" });
 
     await vi.waitFor(() => expect(buttonNamed(container, "Joined")).toBeDefined());
-    await vi.waitFor(() => expect(pendingControls(container)).toBe(0));
-    expect(buttonNamed(container, "Manage")).toBeUndefined();
-    expect(reservedGeometry(container)).toEqual(reserved);
+    await vi.waitFor(() => expect(manageAuthority(container)).toBe("unavailable"));
+    expect(headerSlots(container)).toEqual(pendingHeader);
   });
 
   test("an account check that fails keeps the same action geometry", async () => {
@@ -359,13 +362,13 @@ describe("private controls while authority settles", () => {
     const container = mount(sessionState, { member: true, canManage: true, personas: [boundPersona] });
 
     await vi.waitFor(() => expect(buttonNamed(container, "Checking…")).toBeDefined());
-    expect(reservedGeometry(container)).toEqual(reserved);
+    const pendingHeader = headerSlots(container);
 
     setSessionState("failed");
 
     await vi.waitFor(() => expect(container.textContent).toContain("Retry account check"));
-    expect(reservedGeometry(container)).toEqual(reserved);
-    expect(buttonNamed(container, "Manage")).toBeUndefined();
+    expect(headerSlots(container)).toEqual(pendingHeader);
+    expect(manageAuthority(container)).not.toBe("available");
     expect(buttonNamed(container, "Post here")).toBeUndefined();
   });
 });
@@ -396,10 +399,10 @@ describe("management authority settles on its own schedule", () => {
     expect(buttonNamed(container, "Post here")).toBeDefined();
     expect(buttonNamed(container, "Follow")?.disabled).toBe(false);
     expect(container.querySelector("[data-operation-persona]")).not.toBeNull();
-    // Only the management slot is still reserved.
-    expect(buttonNamed(container, "Manage")).toBeUndefined();
-    expect(pendingControls(container)).toBe(1);
-    expect(reservedGeometry(container)).toEqual(reserved);
+    // Only management is still unknown, and it is reported on an overlay
+    // trigger that is always present, so nothing on the page is waiting.
+    expect(manageAuthority(container)).toBe("pending");
+    expect(headerSlots(container).cells).toBe(2);
   });
 });
 
@@ -436,6 +439,6 @@ describe("a membership read that fails", () => {
     expect(buttonNamed(container, "Follow")).toBeUndefined();
     expect(buttonNamed(container, "Following")).toBeUndefined();
     expect(buttonNamed(container, "Post here")).toBeUndefined();
-    expect(reservedGeometry(container)).toEqual(reserved);
+    expect(headerSlots(container).cells).toBe(2);
   });
 });
