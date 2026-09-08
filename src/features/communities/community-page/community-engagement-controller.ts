@@ -39,6 +39,12 @@ export interface CommunityEngagementController {
   readonly postingSession: Accessor<AuthenticatedSession | undefined>;
   /** undefined before the first account resolution, null while anonymous. */
   readonly accountIdentity: Accessor<string | null | undefined>;
+  /**
+   * True while the viewer's account or membership is still being established.
+   * Surfaces render their private controls as reserved space while this holds,
+   * because "not a member" and "not signed in" are claims, not defaults.
+   */
+  readonly authorityPending: Accessor<boolean>;
   /** Open while a terminal join waits for the account's closed persona choice. */
   readonly joinPersonaStep: Accessor<boolean>;
   readonly joinPersonaChoice: Accessor<CommunityPersonaChoice | undefined>;
@@ -74,6 +80,11 @@ export function createCommunityEngagementController(
   const [personaRetryBusy, setPersonaRetryBusy] = createSignal(false);
   let personaRetryInFlight = false;
   const [viewerReady, setViewerReady] = createSignal(false);
+  // Distinct from viewerReady: a failed read settles the question of whether
+  // the page is still waiting, even though it leaves membership unknown. The
+  // established recovery is an action retry, so the controls stay actionable
+  // behind the error rather than reserved forever.
+  const [viewerSettled, setViewerSettled] = createSignal(false);
   const [postingSession, setPostingSession] = createSignal<AuthenticatedSession>();
   const [accountAuthenticated, setAccountAuthenticated] = createSignal(false);
   const [joinPersonaOpen, setJoinPersonaOpen] = createSignal(false);
@@ -121,11 +132,13 @@ export function createCommunityEngagementController(
       setFollowing(viewer.following);
       if (viewer.followerCount !== null) setFollowerCount(viewer.followerCount);
       setViewerReady(true);
+      setViewerSettled(true);
       setError("");
       return true;
     } catch {
       if (active && request === viewerRequest) {
         setViewerReady(false);
+        setViewerSettled(true);
         setError("We couldn't load your current Community membership. Retry an action to check again.");
       }
       return false;
@@ -142,6 +155,7 @@ export function createCommunityEngagementController(
     setFollowing(false);
     setFollowerCount(options.initialFollowerCount);
     setViewerReady(false);
+    setViewerSettled(false);
     setProfilesUnavailable(false);
     setJoinedPersonaId(undefined);
     setJoinPersonaOpen(false);
@@ -464,6 +478,9 @@ export function createCommunityEngagementController(
   };
 
   const joined = () => membership() === "member";
+  // Unresolved account, or an account whose viewer state has not been read.
+  const authorityPending = () => accountIdentity() === undefined
+    || (accountAuthenticated() && !viewerSettled());
   const joinDisabled = () => membership() === "pending" || membership() === "banned" || membership() === "blocked";
   const joinLabel = () => {
     if (membership() === "pending") return "Request pending";
@@ -491,6 +508,7 @@ export function createCommunityEngagementController(
       : ""),
     postingSession,
     accountIdentity,
+    authorityPending,
     personaRetryAvailable: profilesUnavailable,
     personaRetryBusy,
     retryPersonas,

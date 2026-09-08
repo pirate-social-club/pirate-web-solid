@@ -29,6 +29,15 @@ export interface CommunityPost {
   karaokeAvailable?: boolean;
 }
 
+/**
+ * What the shell renders in the feed region. A pending read is the absence of
+ * this value, not a member of it, so the boundary that awaits it decides the
+ * pending shape and the shell never has to invent one.
+ */
+export type CommunityFeed =
+  | { readonly kind: "ready"; readonly posts: readonly CommunityPost[] }
+  | { readonly kind: "error" };
+
 export interface CommunityRule {
   title: string;
   body: string;

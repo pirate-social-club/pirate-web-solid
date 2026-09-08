@@ -25,7 +25,7 @@ import {
   communityRequestOrigin,
 } from "./community-page-origin.ts";
 import { CommunityPageShell } from "../../community/page-shell/page-shell.tsx";
-import type { CommunityData } from "../../community/page-shell/page-shell-model.ts";
+import type { CommunityData, CommunityFeed } from "../../community/page-shell/page-shell-model.ts";
 import { CreatePostDialog } from "../../posts/post-composer/create-post-dialog.tsx";
 import {
   PostEngagement,
@@ -164,8 +164,7 @@ function SuccessState(props: {
   const [composerOpen, setComposerOpen] = createSignal(false);
   const [postingBusy, setPostingBusy] = createSignal(false);
   const [canManage, setCanManage] = createSignal(false);
-  const [threadPosts, setThreadPosts] = createSignal<CommunityData["posts"]>([]);
-  const [threadState, setThreadState] = createSignal<"idle" | "loading" | "ready" | "error">("idle");
+  const [manageResolved, setManageResolved] = createSignal(false);
   const [selectedPersonaId, setSelectedPersonaId] = createSignal<string>();
   let active = true;
   onCleanup(() => {
@@ -184,6 +183,24 @@ function SuccessState(props: {
     resolveSession,
     returnTo: state.canonicalPath,
   });
+  // deferStream holds the response open until the feed settles, so the HTML
+  // carries the posts, a true empty feed, or an honest failure — never an
+  // empty feed that is really an unstarted read. A failed read resolves to a
+  // value rather than rejecting, so the boundary reports it instead of the
+  // page falling over.
+  const feed = createMemo<CommunityFeed>(
+    () => {
+      const injected = props.surfaceData?.posts;
+      if (injected !== undefined) return { kind: "ready", posts: injected };
+      const load = props.loadThreads ?? ((id: string) => loadCommunityThreadPage({ communityRef: id }));
+      return load(communityId).then(
+        (page): CommunityFeed => ({ kind: "ready", posts: page.posts }),
+        (): CommunityFeed => ({ kind: "error" }),
+      );
+    },
+    { deferStream: true },
+  );
+
   const community = createMemo<CommunityData>(() => {
     const source = props.surfaceData ?? {};
     return {
@@ -193,7 +210,9 @@ function SuccessState(props: {
       description: source.description ?? state.community.description ?? interpolateMessage(copy.defaultDescription, { name: state.community.displayName }),
       members: source.members ?? state.community.memberCount ?? 0,
       followers: source.followers ?? engagement.followerCount(),
-      posts: source.posts ?? threadPosts(),
+      // The shell reads the feed through its own boundary; this stays empty so
+      // the header and the chrome around it never wait on a thread read.
+      posts: [],
       avatarSrc: source.avatarSrc ?? state.community.avatarSrc,
       bannerSrc: source.bannerSrc ?? state.community.bannerSrc,
       gates: source.gates,
@@ -228,12 +247,17 @@ function SuccessState(props: {
       queueMicrotask(() => {
         if (!owns()) return;
         setCanManage(false);
+        setManageResolved(false);
         // Only an established account can hold management authority; undefined
         // is "not resolved yet" and null is anonymous.
+        if (accountIdentity === null) {
+          setManageResolved(true);
+          return;
+        }
         if (typeof accountIdentity !== "string") return;
         void resolveAccess(communityId)
-          .then((allowed) => { if (owns()) setCanManage(allowed); })
-          .catch(() => { if (owns()) setCanManage(false); });
+          .then((allowed) => { if (owns()) { setCanManage(allowed); setManageResolved(true); } })
+          .catch(() => { if (owns()) { setCanManage(false); setManageResolved(true); } });
       });
     },
   );
@@ -254,23 +278,8 @@ function SuccessState(props: {
     },
   );
 
-  createEffect(
-    () => communityId,
-    (communityId) => {
-      if (props.surfaceData?.posts !== undefined) return;
-      setThreadState("loading");
-      const load = props.loadThreads ?? ((id: string) => loadCommunityThreadPage({ communityRef: id }));
-      queueMicrotask(() => {
-        void load(communityId)
-          .then(page => {
-            if (!active) return;
-            setThreadPosts(page.posts);
-            setThreadState("ready");
-          })
-          .catch(() => { if (active) setThreadState("error"); });
-      });
-    },
-  );
+
+  const manageAuthorityPending = () => !manageResolved();
 
   const openPostComposer = async (): Promise<void> => {
     if (postingBusy()) return;
@@ -314,8 +323,8 @@ function SuccessState(props: {
             joinDisabled={engagement.joinDisabled()}
             joinLabel={engagement.joinLabel()}
             joined={engagement.joined()}
-            postsError={threadState() === "error"}
-            postsLoading={threadState() === "loading"}
+            authorityPending={engagement.authorityPending() || manageAuthorityPending()}
+            feed={feed}
             personaControl={personaOptions().length > 0 ? (
               <OperationPersonaControl
                 label="Commenting as"
@@ -346,17 +355,21 @@ function SuccessState(props: {
             onJoin={() => void engagement.joinCommunity()}
             onManage={canManage() ? () => navigate(settingsHref()) : undefined}
           />
-          <Show when={engagement.message()}>
-            {message => <p class="mx-5 mt-4 text-sm text-muted-foreground md:mx-8" role="status">{message()}</p>}
-          </Show>
-          <Show when={engagement.error()}>
-            {message => <p class="mx-5 mt-4 text-sm text-destructive md:mx-8" role="alert">{message()}</p>}
-          </Show>
-          <Show when={engagement.personaRetryAvailable()}>
-            <Button class="mx-5 mt-3 md:mx-8" type="button" disabled={engagement.personaRetryBusy()} onClick={() => void engagement.retryPersonas()}>
-              {engagement.personaRetryBusy() ? "Checking profiles" : "Retry profiles"}
-            </Button>
-          </Show>
+          {/* Reserved: a message, an error and a retry each used to appear from
+              nothing and push everything under them down the page. */}
+          <div class="min-h-14 px-5 pt-4 md:px-8" data-community-feedback>
+            <Show when={engagement.message()}>
+              {message => <p class="text-sm text-muted-foreground" role="status">{message()}</p>}
+            </Show>
+            <Show when={engagement.error()}>
+              {message => <p class="text-sm text-destructive" role="alert">{message()}</p>}
+            </Show>
+            <Show when={engagement.personaRetryAvailable()}>
+              <Button class="mt-3" type="button" disabled={engagement.personaRetryBusy()} onClick={() => void engagement.retryPersonas()}>
+                {engagement.personaRetryBusy() ? "Checking profiles" : "Retry profiles"}
+              </Button>
+            </Show>
+          </div>
           <CommunityPersonaChoiceDialog
             choice={engagement.joinPersonaChoice()}
             createNewUnavailable

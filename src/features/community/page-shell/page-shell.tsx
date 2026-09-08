@@ -1,6 +1,6 @@
 /** @jsxImportSource @solidjs/web */
 import type { JSX } from "@solidjs/web";
-import { For, Show, createMemo, createSignal } from "solid-js";
+import { For, Loading, Show, createMemo, createSignal } from "solid-js";
 
 import {
   Button,
@@ -21,6 +21,7 @@ import {
   IconButton,
   MediaControlButton,
   Separator,
+  cn,
   Type,
 } from "@pirate/web-solid-ui";
 import {
@@ -30,6 +31,7 @@ import {
   safeCommunityHref,
   sortCommunityPosts,
   type CommunityData,
+  type CommunityFeed,
   type CommunityPost,
   type CommunitySort,
 } from "./page-shell-model";
@@ -54,8 +56,17 @@ export interface CommunityPageShellProps {
   canJoin?: boolean;
   showCreatePost?: boolean;
   readOnly?: boolean;
-  postsLoading?: boolean;
-  postsError?: boolean;
+  /**
+   * The feed, read inside this shell's own loading boundary. Reading it may
+   * suspend, which is why it is a function and not a value: the surrounding
+   * chrome stays rendered while the region it belongs to waits.
+   */
+  feed?: () => CommunityFeed;
+  /**
+   * True while the viewer's session or authority is still settling. Controls
+   * that depend on it hold their space without claiming what they do not know.
+   */
+  authorityPending?: boolean;
   personaControl?: JSX.Element;
   renderPost?: (
     post: CommunityPost,
@@ -171,6 +182,31 @@ function FeedPost(props: { post: CommunityPost; actions?: JSX.Element }) {
   );
 }
 
+/**
+ * Holds a control's space while its authority is unknown. It is not disabled
+ * chrome: a greyed Manage would tell a reader they are a moderator, and a
+ * greyed Post here would tell them they are a member. It says nothing.
+ */
+function PendingControl(props: { readonly class?: string }) {
+  return (
+    <div
+      aria-hidden="true"
+      class={cn("h-11 w-full rounded-full bg-muted/40", props.class)}
+      data-pending-control
+    />
+  );
+}
+
+function FeedPending() {
+  return (
+    <Card>
+      <CardContent class="p-6">
+        <Type aria-live="polite" role="status" variant="body">Loading community posts…</Type>
+      </CardContent>
+    </Card>
+  );
+}
+
 function CommunityAbout(props: { community: CommunityData }) {
   const community = () => props.community;
   return (
@@ -241,11 +277,19 @@ export function CommunityPageShell(props: CommunityPageShellProps) {
   const [sort, setSort] = createSignal("Best");
   const [tab, setTab] = createSignal<CommunityTab>("feed");
   const community = () => props.community;
+  // Reading this is what suspends; a host that passes no feed has its posts
+  // already in hand, so nothing waits.
+  const feed = (): CommunityFeed =>
+    props.feed?.() ?? { kind: "ready", posts: community().posts };
+  const feedPosts = () => {
+    const current = feed();
+    return current.kind === "ready" ? current.posts : [];
+  };
   const sortedPosts = createMemo(() => {
     const requestedSort = sort().toLowerCase();
     // SAFETY: only the three controlled select values reach this branch; unknown values use the stable best default.
     const communitySort: CommunitySort = requestedSort === "new" ? "new" : requestedSort === "top" ? "top" : "best";
-    return sortCommunityPosts(community().posts, communitySort);
+    return sortCommunityPosts(feedPosts(), communitySort);
   });
   const songs = createMemo(() => sortedPosts().filter(post => post.kind === "song"));
   const renderPost = (post: CommunityPost) => {
@@ -273,12 +317,30 @@ export function CommunityPageShell(props: CommunityPageShellProps) {
             <Type class="mt-1 block" variant="caption">{community().handle} · {formatCount(community().members)} members · {formatCount(community().followers)} followers</Type>
           </div>
           <Show when={props.readOnly !== true}>
-            <div class="mt-3 grid grid-cols-2 gap-2 md:mt-0 md:flex md:shrink-0 md:flex-wrap" aria-label="Community actions">
-              <Button class="w-full md:w-auto" disabled={props.followBusy} onClick={() => props.onFollowToggle?.()} variant={props.following ? "secondary" : "outline"}>{props.followBusy ? "Saving…" : props.following ? "Following" : "Follow"}</Button>
+            <div
+              aria-label="Community actions"
+              class="mt-3 grid min-h-[9.5rem] grid-cols-2 content-start gap-2 md:mt-0 md:flex md:min-h-0 md:shrink-0 md:flex-wrap"
+              data-community-actions-reserved
+            >
+              <Button class="w-full md:w-auto" disabled={props.followBusy || props.authorityPending} onClick={() => props.onFollowToggle?.()} variant={props.following ? "secondary" : "outline"}>{props.followBusy ? "Saving…" : props.following ? "Following" : "Follow"}</Button>
               <Show when={props.canJoin !== false}>
-                <Button class="w-full md:w-auto" disabled={props.joined || props.joinBusy || props.joinDisabled} onClick={() => props.onJoin?.()} variant={props.joined ? "secondary" : "default"}>{props.joinBusy ? "Checking…" : props.joined ? "Joined" : props.joinLabel ?? "Join"}</Button>
+                <Button
+                  class="w-full md:w-auto"
+                  disabled={props.authorityPending || props.joined || props.joinBusy || props.joinDisabled}
+                  onClick={() => props.onJoin?.()}
+                  variant={props.joined ? "secondary" : "default"}
+                >
+                  {/* Neither Join nor Joined until membership is read: both state
+                      something about this viewer that is not known yet. */}
+                  {props.authorityPending || props.joinBusy
+                    ? "Checking…"
+                    : props.joined ? "Joined" : props.joinLabel ?? "Join"}
+                </Button>
               </Show>
-              <Show when={props.joined || props.showCreatePost || props.onCreatePost !== undefined}>
+              <Show
+                when={props.joined || props.showCreatePost || props.onCreatePost !== undefined}
+                fallback={<Show when={props.authorityPending}><PendingControl class="col-span-2 md:w-32" /></Show>}
+              >
                 <Button
                   class="col-span-2 w-full md:w-auto"
                   disabled={props.createPostBusy}
@@ -288,7 +350,10 @@ export function CommunityPageShell(props: CommunityPageShellProps) {
                   {props.createPostBusy ? "Opening…" : "Post here"}
                 </Button>
               </Show>
-              <Show when={props.onManage}>
+              <Show
+                when={props.onManage}
+                fallback={<Show when={props.authorityPending}><PendingControl class="col-span-2 md:w-32" /></Show>}
+              >
                 <Button
                   class="col-span-2 w-full md:w-auto"
                   leadingIcon={<IconShield class="size-4" />}
@@ -321,24 +386,28 @@ export function CommunityPageShell(props: CommunityPageShellProps) {
                 </select>
               </label>
             </div>
-            <Show when={props.personaControl}>
-              <div class="mb-4 flex justify-end">{props.personaControl}</div>
-            </Show>
-            <Show when={!props.postsLoading} fallback={<Card><CardContent class="p-6"><Type aria-live="polite" role="status" variant="body">Loading community posts…</Type></CardContent></Card>}>
-              <Show when={!props.postsError} fallback={<Card><CardContent class="p-6"><Type role="alert" variant="body">Community posts are temporarily unavailable.</Type></CardContent></Card>}>
+            <div class="mb-4 flex h-9 justify-end" data-community-persona-reserved>
+              <Show when={props.personaControl} fallback={
+                <Show when={props.authorityPending}><PendingControl class="h-9 w-44" /></Show>
+              }>{props.personaControl}</Show>
+            </div>
+            <Loading fallback={<FeedPending />}>
+              <Show when={feed().kind === "ready"} fallback={<Card><CardContent class="p-6"><Type role="alert" variant="body">Community posts are temporarily unavailable.</Type></CardContent></Card>}>
                 <Show when={!props.empty && sortedPosts().length > 0} fallback={<Card><CardContent class="p-6"><Type variant="body">No posts in this community yet.</Type></CardContent></Card>}>
-              <div class="flex flex-col">
-                <For each={sortedPosts()}>{post => renderPost(post)}</For>
-              </div>
+                  <div class="flex flex-col">
+                    <For each={sortedPosts()}>{post => renderPost(post)}</For>
+                  </div>
                 </Show>
               </Show>
-            </Show>
+            </Loading>
           </Show>
           <Show when={tab() === "songs"}>
             <div class="mb-5"><Type variant="h2">Songs</Type></div>
-            <Show when={songs().length > 0} fallback={<Card><CardContent class="p-6"><Type variant="body">No songs in this community yet.</Type></CardContent></Card>}>
-              <div class="flex flex-col"><For each={songs()}>{post => renderPost(post)}</For></div>
-            </Show>
+            <Loading fallback={<FeedPending />}>
+              <Show when={songs().length > 0} fallback={<Card><CardContent class="p-6"><Type variant="body">No songs in this community yet.</Type></CardContent></Card>}>
+                <div class="flex flex-col"><For each={songs()}>{post => renderPost(post)}</For></div>
+              </Show>
+            </Loading>
           </Show>
           <Show when={tab() === "leaderboard"}>
             <div class="mb-5"><Type variant="h2">Leaderboard</Type></div>
