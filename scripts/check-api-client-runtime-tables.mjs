@@ -8,8 +8,9 @@ const currentClient = resolve(
   appRoot,
   "node_modules/@pirate/api-client/src/generated/client.ts",
 );
-// The scoped production client audit is recorded in docs/community-owner-activation.md.
-const expectedDigest = "0bb76bd48b7ed7c05c7129cefc8bceef31a1cc4eca8081c2a5ac1d90bcbbc755";
+// Client 0.66.1 changes only HNS preparation errors in these consumed tables:
+// RateLimited now carries retry timing. Success schemas and statuses are unchanged.
+const expectedDigest = "dde630d4d3293536525d68a0b70d5d4f60b097316d4ba4494b35cc17b92c2818";
 
 const operations = [
   "get_personas",
