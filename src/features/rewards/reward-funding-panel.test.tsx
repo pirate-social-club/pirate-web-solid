@@ -26,6 +26,51 @@ describe("funding approval and reconciliation", () => {
     expect(root.querySelector('[role="alert"]')?.textContent).toBeTruthy();
     expect(root.textContent).not.toContain("Confirm transfer"); expect(root.textContent).not.toContain("Nothing was sent"); expect(confirm).not.toHaveBeenCalled();
   });
+  it.each(["provider_rejected", "recovery_corrupt", "recovery_unavailable", "terms_changed", "transaction_mismatch"] as const)("keeps the confirmed server status visible with %s reconciliation", reason => {
+    const { root, confirm } = mount({
+      kind: "server",
+      reconciliationReason: reason,
+      funding: {
+        object: "asset_bonus_funding",
+        action: "fund_with_asset",
+        funding_effect_id: "effect",
+        leg_id: "leg",
+        status: "confirmed",
+        chain_id: 84532,
+        token_address: "0x" + "a".repeat(40),
+        token_decimals: 6,
+        sender_address: "0x" + "b".repeat(40),
+        recipient_address: "0x" + "c".repeat(40),
+        expected_amount_atomic: "1000000",
+        confirmed_amount_atomic: "1000000",
+        required_confirmations: 2,
+        transaction_hash: "0x" + "d".repeat(64),
+      },
+    });
+    expect(root.textContent).toContain("Funding confirmed");
+    expect(root.querySelector('[role="alert"]')?.textContent).toBeTruthy();
+    expect(root.textContent).not.toContain("Confirm transfer");
+    expect(confirm).not.toHaveBeenCalled();
+  });
+  it("submits a support hash for observation without exposing a transfer action", async () => {
+    const { root, reconcile } = mount({
+      kind: "reconciliation",
+      reason: "provider_rejected",
+      transactionHash: null,
+    });
+    const input = root.querySelector<HTMLInputElement>("input");
+    if (!input) throw new Error("Missing transaction hash input");
+    const hash = "0x" + "d".repeat(64);
+    input.value = hash;
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+    await new Promise(resolve => setTimeout(resolve, 0));
+    const check = Array.from(root.querySelectorAll("button")).find(button => button.textContent === "Check this transaction");
+    if (!check) throw new Error("Missing transaction check action");
+    check.click();
+    expect(reconcile).toHaveBeenCalledWith(hash);
+    expect(root.textContent).not.toContain("Confirm transfer");
+  });
   it("does not claim an unknown-hash transfer was sent", () => {
     const { root } = mount({ kind: "uncertain", transactionHash: null });
     expect(root.textContent).toContain("may have sent"); expect(root.textContent).not.toContain("Funding confirmed");

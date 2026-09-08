@@ -47,7 +47,7 @@ export interface BoostSongSheetProps {
 const ACTIVITY_OPTIONS: readonly BoostActivity[] = ["karaoke", "study", "either"];
 const KIND_OPTIONS: readonly BoostKind[] = ["asset_bonus", "megapot_pool"];
 
-function SummaryRow(props: { readonly label: string; readonly value: string }) {
+export function BoostSummaryRow(props: { readonly label: string; readonly value: string }) {
   return (
     <div class="flex items-center justify-between gap-4 border-b border-border-soft py-3 last:border-b-0">
       <Type as="span" class="text-muted-foreground" variant="body">{props.label}</Type>
@@ -56,10 +56,11 @@ function SummaryRow(props: { readonly label: string; readonly value: string }) {
   );
 }
 
-function AmountField(props: {
+export function BoostAmountField(props: {
   readonly id: string;
   readonly label: string;
   readonly value: string;
+  readonly prefix?: string;
   readonly invalid?: boolean;
   readonly onChange: (value: string) => void;
 }) {
@@ -67,14 +68,14 @@ function AmountField(props: {
     <TextField value={props.value} onChange={props.onChange}>
       <TextFieldLabel class="mb-2 block text-muted-foreground">{props.label}</TextFieldLabel>
       <div class="relative">
-        <span class="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
-        <TextFieldInput class={cn("pl-8", props.invalid && "border-destructive")} id={props.id} />
+        <Show when={props.prefix}>{prefix => <span class="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground">{prefix()}</span>}</Show>
+        <TextFieldInput class={cn(props.prefix && "pl-8", props.invalid && "border-destructive")} id={props.id} />
       </div>
     </TextField>
   );
 }
 
-function Problem(props: { readonly message: string }) {
+export function BoostProblem(props: { readonly message: string }) {
   return (
     <div class="flex items-start gap-3 rounded-lg border border-destructive/40 bg-destructive/5 p-4">
       <IconWarningCircle class="mt-0.5 size-5 shrink-0 text-destructive" />
@@ -124,17 +125,19 @@ export function BoostSongSheet(props: BoostSongSheetProps) {
                   />
                 </Show>
                 <Show when={state().draft.rewardPerClaimLabel !== undefined}>
-                  <AmountField
+                  <BoostAmountField
                     id="boost-reward"
                     label="Each person gets"
+                    prefix="$"
                     value={state().draft.rewardPerClaimLabel ?? ""}
                     onChange={props.onRewardChange}
                   />
                 </Show>
                 <div>
-                  <AmountField
+                  <BoostAmountField
                     id="boost-budget"
                     label="Total budget"
+                    prefix="$"
                     value={state().draft.budgetLabel}
                     invalid={state().problem !== undefined}
                     onChange={props.onBudgetChange}
@@ -165,7 +168,7 @@ export function BoostSongSheet(props: BoostSongSheetProps) {
                     </Type>
                   }
                 >
-                  {(problem) => <Problem message={problem()} />}
+                  {(problem) => <BoostProblem message={problem()} />}
                 </Show>
                 <Button disabled={state().problem !== undefined} onClick={props.onReview}>
                   Review
@@ -178,12 +181,12 @@ export function BoostSongSheet(props: BoostSongSheetProps) {
             {(state) => (
               <div class="mt-5 space-y-4">
                 <div class="rounded-lg border border-border-soft px-4">
-                  <SummaryRow label="People earn by" value={activityTitle[state().quote.activity]} />
-                  <SummaryRow label="Bounty" value={state().quote.rewardLabel} />
-                  <SummaryRow label="Total" value={state().quote.budgetLabel} />
-                  <SummaryRow label="Paying from" value={state().quote.senderLabel} />
-                  <SummaryRow label="Network" value={state().quote.networkLabel} />
-                  <SummaryRow label="Network fee" value={state().quote.feeLabel} />
+                  <BoostSummaryRow label="People earn by" value={activityTitle[state().quote.activity]} />
+                  <BoostSummaryRow label="Bounty" value={state().quote.rewardLabel} />
+                  <BoostSummaryRow label="Total" value={state().quote.budgetLabel} />
+                  <BoostSummaryRow label="Paying from" value={state().quote.senderLabel} />
+                  <BoostSummaryRow label="Network" value={state().quote.networkLabel} />
+                  <BoostSummaryRow label="Network fee" value={state().quote.feeLabel} />
                 </div>
                 <Type as="p" class="text-muted-foreground" variant="caption">
                   Your wallet signs this without another prompt, so check the amount and address above.
@@ -217,9 +220,9 @@ export function BoostSongSheet(props: BoostSongSheetProps) {
             {(state) => (
               <div class="mt-5 space-y-4">
                 <div class="rounded-lg border border-border-soft px-4">
-                  <SummaryRow label="Activity" value={activityTitle[state().live.activity]} />
-                  <SummaryRow label="Bounty" value={state().live.rewardLabel} />
-                  <SummaryRow label="Remaining" value={state().live.remainingLabel} />
+                  <BoostSummaryRow label="Activity" value={activityTitle[state().live.activity]} />
+                  <BoostSummaryRow label="Bounty" value={state().live.rewardLabel} />
+                  <BoostSummaryRow label="Remaining" value={state().live.remainingLabel} />
                 </div>
               </div>
             )}
@@ -228,7 +231,7 @@ export function BoostSongSheet(props: BoostSongSheetProps) {
           <Match when={props.state.step === "failed" && props.state}>
             {(state) => (
               <div class="mt-5 space-y-4">
-                <Problem message={`${failureTitle(state().failure)}. ${failureLine(state().failure)}`} />
+                <BoostProblem message={`${failureTitle(state().failure)}. ${failureLine(state().failure)}`} />
                 <Show when={state().transactionHash}>
                   {(hash) => (
                     <Type as="p" class="break-all text-muted-foreground" variant="caption">{hash()}</Type>

@@ -1,6 +1,6 @@
 import type { AddAssetBonusLegInput, AddMegapotPoolLegInput, OpenSongRewardOfferInput } from "@pirate/api-client";
 import { createSessionApiClient, readCsrfCookie, sessionRequestOptions, type PirateApiClient } from "./client.ts";
-import type { RewardFundingActor, RewardFundingTarget } from "./reward-funding-client.ts";
+import type { RewardFunding, RewardFundingActor, RewardFundingTarget } from "./reward-funding-client.ts";
 
 export type RewardLegRequest =
   | { readonly kind: "asset_bonus"; readonly input: AddAssetBonusLegInput }
@@ -9,6 +9,7 @@ export interface RewardCreationScope extends RewardFundingActor { readonly commu
 export interface RewardCreationJournal {
   read(key: string): string | null;
   write(key: string, value: string): void;
+  remove(key: string): void;
   exclusive<T>(key: string, operation: () => Promise<T>): Promise<T>;
 }
 export interface RewardCreationApi {
@@ -23,8 +24,18 @@ interface RecordV1 {
   readonly offerId: string | null;
   readonly target: RewardFundingTarget | null;
 }
+interface HistoryV1 {
+  readonly version: 1;
+  readonly creation: RecordV1;
+  readonly resolution: Readonly<{
+    status: "confirmed" | "reverted";
+    transactionHash: string | null;
+  }>;
+}
 export const rewardCreationKey = (scope: RewardCreationScope) =>
   `pirate:reward-creation:v1:${JSON.stringify([scope.accountId, scope.personaId, scope.communityId, scope.postId])}`;
+export const rewardCreationHistoryKey = (scope: RewardCreationScope, target: RewardFundingTarget) =>
+  `pirate:reward-creation-history:v1:${JSON.stringify([scope.accountId, scope.personaId, scope.communityId, scope.postId, target.kind, target.legId, target.fundingEffectId])}`;
 const identifier = (value: unknown): value is string => typeof value === "string" && value.length > 0 && value.length <= 256;
 // oxlint-disable-next-line anti-slop/no-unsafe-dictionary-type -- This is the private JSON decoding boundary; every consumed field is checked below.
 const object = (value: unknown): value is Record<string, unknown> => value !== null && typeof value === "object" && !Array.isArray(value);
@@ -117,6 +128,38 @@ export function createRewardCreation(options: {
         return resume(record);
       });
     },
+    complete(funding: RewardFunding) {
+      return options.journal.exclusive(key, async () => {
+        const record = read();
+        if (record?.target === null || record === null) {
+          throw new Error("reward_creation_recovery_not_required");
+        }
+        const target = record.target;
+        if (
+          funding.leg_id !== target.legId ||
+          funding.funding_effect_id !== target.fundingEffectId ||
+          funding.object !== `${target.kind}_funding` ||
+          (funding.status !== "confirmed" && funding.status !== "reverted")
+        ) {
+          throw new Error("reward_creation_completion_unproven");
+        }
+        const historyKey = rewardCreationHistoryKey(scope, target);
+        const history: HistoryV1 = {
+          version: 1,
+          creation: record,
+          resolution: { status: funding.status, transactionHash: funding.transaction_hash },
+        };
+        const raw = JSON.stringify(history);
+        options.journal.write(historyKey, raw);
+        if (options.journal.read(historyKey) !== raw) {
+          throw new Error("reward_creation_recovery_unavailable");
+        }
+        options.journal.remove(key);
+        if (options.journal.read(key) !== null) {
+          throw new Error("reward_creation_recovery_unavailable");
+        }
+      });
+    },
   };
 }
 export function createBrowserRewardCreationJournal(): RewardCreationJournal {
@@ -124,6 +167,7 @@ export function createBrowserRewardCreationJournal(): RewardCreationJournal {
   const storage = window.localStorage, locks = navigator.locks;
   return {
     read: key => storage.getItem(key), write: (key, raw) => storage.setItem(key, raw),
+    remove: key => storage.removeItem(key),
     async exclusive<T>(key: string, operation: () => Promise<T>): Promise<T> { return await locks.request(key, { mode: "exclusive" }, operation); },
   };
 }

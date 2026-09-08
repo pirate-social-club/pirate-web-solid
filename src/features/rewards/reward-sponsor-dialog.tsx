@@ -3,8 +3,8 @@ import { RewardSongStatus } from "./reward-song-status.tsx";
 import { sponsorFailure } from "./reward-sponsor-errors.ts";
 import { For, Match, Show, Switch, createSignal, createEffect, onCleanup, untrack } from "solid-js";
 import { formatUnits } from "viem";
-import { Button, Modal, ModalContent, ModalDescription, ModalHeader, ModalTitle, TextField, TextFieldInput, TextFieldLabel } from "../../design-system.ts";
-import { createRewardSponsorData } from "../../api/reward-sponsor-data.ts";
+import { Button, Modal, ModalContent, ModalDescription, ModalHeader, ModalTitle, TextField, TextFieldInput, TextFieldLabel, Type } from "../../design-system.ts";
+import { createRewardSponsorData, type RewardSponsorContext } from "../../api/reward-sponsor-data.ts";
 import { createBrowserRewardCreationJournal, createRewardCreation, createRewardCreationApi, type RewardCreationScope, type RewardCreationJournal } from "../../api/reward-creation.ts";
 import { createBrowserRewardFunding } from "../../api/reward-funding.ts";
 import { fetchVerificationConfig } from "../../api/verification-config.ts";
@@ -12,9 +12,14 @@ import type { RewardFundingState } from "../../api/reward-funding-controller.ts"
 import { createSessionApiClient } from "../../api/client.ts";
 import { qualificationText, sponsorTerms, type SponsorDraft } from "./reward-sponsor-terms.ts";
 import { RewardFundingPanel } from "./reward-funding-panel.tsx";
+import { BoostAmountField } from "./boost-song-sheet.tsx";
+import { activityCaption, activityTitle, kindBlurb, kindTitle, type BoostActivity, type BoostKind } from "./boost-song-model.ts";
+import { RewardRadioCardGroup } from "./reward-radio-card-group.tsx";
 
 type Catalog = Awaited<ReturnType<ReturnType<typeof createRewardSponsorData>["catalog"]>>;
 type Terms = ReturnType<typeof sponsorTerms>;
+const rewardKinds: readonly BoostKind[] = ["asset_bonus", "megapot_pool"];
+const rewardActivities: readonly BoostActivity[] = ["karaoke", "study", "either"];
 export interface RewardSponsorDependencies {
   readonly data: ReturnType<typeof createRewardSponsorData>;
   readonly journal: RewardCreationJournal;
@@ -37,7 +42,7 @@ export function RewardSponsorDialog(props: { communityId: string; postId: string
   const [email, setEmail] = createSignal("");
   const [code, setCode] = createSignal("");
   const [codeSent, setCodeSent] = createSignal(false);
-  const [existing, setExisting] = createSignal(false);
+  const [sponsorContext, setSponsorContext] = createSignal<RewardSponsorContext>();
   const [songState, setSongState] = createSignal<Awaited<ReturnType<typeof data.song>>>();
   let alive = true;
   let scope: RewardCreationScope | null = null;
@@ -69,23 +74,29 @@ export function RewardSponsorDialog(props: { communityId: string; postId: string
       }
     } finally { if (alive) setBusy(false); }
   };
-  const selectPersona = (id: string, loaded = catalog()) => {
+  const selectPersona = async (id: string, loaded = catalog()) => {
     wallet?.dispose(); wallet = undefined; setFunding({ kind: "idle" }); setTerms(undefined); setEmail(""); setCode(""); setCodeSent(false);
     if (!loaded || !loaded.personas.some(p => p.persona_id === id)) throw new Error("Choose a persona with a wallet.");
     setPersonaId(id);
-    scope = { accountId: loaded.accountId, personaId: id, communityId: props.communityId, postId: props.postId };
-    creation = createRewardCreation({ scope, currentScope, journal: dependencies?.journal ?? createBrowserRewardCreationJournal(), api: (dependencies?.creationApi ?? createRewardCreationApi)(scope) });
+    const selectedScope = { accountId: loaded.accountId, personaId: id, communityId: props.communityId, postId: props.postId };
+    scope = selectedScope;
+    creation = createRewardCreation({ scope: selectedScope, currentScope, journal: dependencies?.journal ?? createBrowserRewardCreationJournal(), api: (dependencies?.creationApi ?? createRewardCreationApi)(selectedScope) });
+    setSponsorContext(undefined); setStep("loading");
+    const next = await data.sponsorContext(selectedScope, props.communityId, props.postId);
+    if (!alive || scope !== selectedScope) return;
+    setSponsorContext(next);
+    const allowedKinds = rewardKinds.filter(kind => kind === "asset_bonus" ? next.permissions.add_asset_bonus.allowed : next.permissions.add_megapot_pool.allowed);
+    if (!allowedKinds.includes(draft().kind) && allowedKinds[0]) update("kind", allowedKinds[0]);
     setStep(creation.pending() ? "resume" : "compose");
   };
   createEffect(() => true, () => { queueMicrotask(() => { void run(async () => {
     const [loaded, song] = await Promise.all([data.catalog(), data.song(props.communityId, props.postId)]);
     if (!alive) return;
     setCatalog(loaded); setSongState(song);
-    setExisting(song.pool !== null || song.bonuses.items.length > 0);
     update("assetAddress", loaded.assets.items[0]?.token_address ?? "");
     const first = loaded.personas.find(p => p.community_binding?.community_id === props.communityId) ?? loaded.personas[0];
     if (!first) throw new Error("Create a persona wallet before funding rewards.");
-    selectPersona(first.persona_id, loaded);
+    await selectPersona(first.persona_id, loaded);
   }); }); });
   // Cookie identity can change in another tab. Clear private state when this tab returns.
   createEffect(() => true, () => {
@@ -99,7 +110,11 @@ export function RewardSponsorDialog(props: { communityId: string; postId: string
   const review = () => {
     if (!scope || !catalog()) return;
     try {
-      const next = sponsorTerms(scope, draft(), catalog()!.assets.items, catalog()!.policies, new Date());
+      const context = sponsorContext();
+      if (!context) throw new Error("Reward permissions are unavailable. Reload before reviewing.");
+      const permission = draft().kind === "asset_bonus" ? context.permissions.add_asset_bonus : context.permissions.add_megapot_pool;
+      if (!permission.allowed) throw new Error("This persona cannot add that reward.");
+      const next = sponsorTerms(scope, draft(), catalog()!.assets.items, catalog()!.policies, new Date(), context.offer);
       setTerms(next); setError(""); setStep("terms");
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Check the reward terms."); }
   };
@@ -130,47 +145,90 @@ export function RewardSponsorDialog(props: { communityId: string; postId: string
     const next = funding().kind === "review" ? await wallet.controller.prepare() : await wallet.controller.recover(); setFunding(next);
     if (next.kind === "idle" || next.kind === "cancelled") setStep("authorize");
   };
-  const Field = (fieldProps: { label: string; field: "amount" | "perClaim" | "claims" | "ticketCeiling" | "minimumScore" | "cutoffSeconds" | "endsAt"; type?: "text" | "datetime-local" }) => <label class="block">{fieldProps.label}
-    <input class="block w-full rounded-md border border-input bg-background px-3 py-2" type={fieldProps.type ?? "text"} value={draft()[fieldProps.field]} onInput={event => update(fieldProps.field, event.currentTarget.value)} />
-  </label>;
+  const availableKinds = () => {
+    const context = sponsorContext();
+    if (!context) return [];
+    return rewardKinds.filter(kind => kind === "asset_bonus"
+      ? context.permissions.add_asset_bonus.allowed
+      : context.permissions.add_megapot_pool.allowed);
+  };
+  const unavailableReason = () => {
+    const context = sponsorContext();
+    if (!context) return "Reward permissions are unavailable.";
+    const reasons = [context.permissions.add_asset_bonus, context.permissions.add_megapot_pool]
+      .filter(permission => !permission.allowed)
+      .map(permission => permission.reason);
+    if (reasons.includes("owner_only")) return "Only the song owner can add rewards.";
+    if (reasons.includes("offer_not_addable")) return "This reward offer can no longer accept rewards.";
+    if (reasons.includes("pool_declined")) return "This song does not accept Megapot rewards.";
+    return "This persona cannot add a reward.";
+  };
+  const terminalFunding = () => {
+    const state = funding();
+    return state.kind === "server" && (state.funding.status === "confirmed" || state.funding.status === "reverted")
+      ? state.funding
+      : undefined;
+  };
+  const addAnother = async () => {
+    const serverFunding = terminalFunding();
+    if (!scope || !creation || !serverFunding) {
+      throw new Error("reward_creation_completion_unproven");
+    }
+    await creation.complete(serverFunding);
+    const selectedScope = scope;
+    const next = await data.sponsorContext(selectedScope, props.communityId, props.postId);
+    if (!alive || scope !== selectedScope) return;
+    wallet?.dispose(); wallet = undefined;
+    setFunding({ kind: "idle" }); setTerms(undefined); setSponsorContext(next);
+    const allowed = rewardKinds.filter(kind => kind === "asset_bonus"
+      ? next.permissions.add_asset_bonus.allowed
+      : next.permissions.add_megapot_pool.allowed);
+    if (!allowed.includes(draft().kind) && allowed[0]) update("kind", allowed[0]);
+    setStep("compose");
+  };
+  const Field = (fieldProps: { label: string; field: "amount" | "perClaim" | "claims" | "ticketCeiling" | "minimumScore" | "cutoffSeconds" | "endsAt"; type?: "text" | "datetime-local"; prefix?: string }) => fieldProps.type === "datetime-local"
+    ? <label class="block"><Type as="span" class="mb-2 block text-muted-foreground" variant="label">{fieldProps.label}</Type><input class="block w-full rounded-md border border-input bg-background px-3 py-2" type="datetime-local" value={draft()[fieldProps.field]} onInput={event => update(fieldProps.field, event.currentTarget.value)} /></label>
+    : <BoostAmountField id={`reward-${fieldProps.field}`} label={fieldProps.label} prefix={fieldProps.prefix} value={draft()[fieldProps.field]} onChange={value => update(fieldProps.field, value)} />;
   const bonusTerms = () => { const leg = terms()?.leg; return leg?.kind === "asset_bonus" ? leg : undefined; };
   const poolTerms = () => { const leg = terms()?.leg; return leg?.kind === "megapot_pool" ? leg : undefined; };
-  return <Modal open onOpenChange={open => { if (!open) close(); }}><ModalContent class="max-w-lg max-h-[90dvh] overflow-y-auto">
-    <ModalHeader><ModalTitle>Boost {props.songTitle}</ModalTitle><ModalDescription>Song rewards · Base Sepolia testnet</ModalDescription></ModalHeader>
+  return <Modal open onOpenChange={open => { if (!open) close(); }}><ModalContent class="flex max-h-[88dvh] w-full flex-col overflow-y-auto px-5 pb-5 pt-4 md:w-[min(100%-2rem,36rem)] md:max-w-[36rem] md:px-7 md:pb-7 md:pt-7" mobileSide="bottom">
+    <ModalHeader class="text-start"><ModalTitle>Create a bounty</ModalTitle><ModalDescription>Reward people who practice {props.songTitle}.</ModalDescription></ModalHeader>
     <Show when={error()}>{message => <p role="alert" class="text-destructive-text break-words">{message()}</p>}</Show>
     <Switch>
       <Match when={step() === "unavailable"}><p>Sign in with a persona wallet and reopen rewards to try again.</p></Match>
       <Match when={step() === "loading"}><p>Loading rewards…</p></Match>
       <Match when={step() === "compose"}>
-        <div class="space-y-4">
-          <label class="block">Persona<select class="block w-full" value={personaId()} disabled={busy()} onChange={event => { try { selectPersona(event.currentTarget.value); } catch (cause) { setError(sponsorFailure(cause)); } }}>
+        <div class="mt-5 space-y-4">
+          <label class="block"><Type as="span" class="mb-2 block text-muted-foreground" variant="label">Persona</Type><select class="block w-full rounded-md border border-input bg-background px-3 py-2" value={personaId()} disabled={busy()} onChange={event => { void run(() => selectPersona(event.currentTarget.value)); }}>
             <For each={catalog()?.personas}>{p => <option value={p.persona_id}>{p.profile.display_name ?? p.persona_id}</option>}</For>
           </select></label>
           <Show when={personaId()} keyed>{id => <Show when={songState()}>{song => <RewardSongStatus song={song()} actor={{ accountId: catalog()!.accountId, personaId: id }} data={data} />}</Show>}</Show>
-          <Show when={!existing()} fallback={<p>This song already has rewards. Adding another reward needs its existing offer terms; this form currently creates a new offer.</p>}>
-            <label class="block">Reward<select class="block w-full" value={draft().kind} onChange={event => update("kind", event.currentTarget.value === "asset_bonus" ? "asset_bonus" : "megapot_pool")}>
-              <option value="megapot_pool">Megapot shared winnings</option><option value="asset_bonus">Token bonus</option>
-            </select></label>
+          <Show when={availableKinds().length > 0} fallback={<p>{unavailableReason()}</p>}>
+            <RewardRadioCardGroup descriptions={kindBlurb} label="Reward type" labels={kindTitle} options={availableKinds()} value={draft().kind} onChange={kind => { update("kind", kind); if (kind === "asset_bonus") update("activities", "either"); }} />
             <Show when={draft().kind === "asset_bonus"} fallback={<>
-              <Field label="Budget (USDC)" field="amount" /><Field label="Maximum ticket price (USDC)" field="ticketCeiling" />
-              <label class="block">Activities<select class="block w-full" value={draft().activities} onChange={event => update("activities", event.currentTarget.value === "study" ? "study" : event.currentTarget.value === "karaoke" ? "karaoke" : "either")}>
-                <option value="either">Study or singing</option><option value="study">Study</option><option value="karaoke">Singing</option>
-              </select></label>
-              <Field label="Additional score floor (%)" field="minimumScore" /><Field label="Entry cutoff before drawing (seconds)" field="cutoffSeconds" />
-              <p class="text-sm">Pirate buys and holds the ticket. Qualifiers share net winnings. If nobody qualifies, no ticket is purchased.</p>
+              <RewardRadioCardGroup label="People earn by" labels={activityTitle} options={rewardActivities} value={draft().activities} onChange={activity => update("activities", activity)} />
+              <Field label="Total budget (USDC)" field="amount" />
+              <details class="rounded-lg border border-border-soft px-4 py-3"><summary class="cursor-pointer">More options</summary><div class="mt-4 space-y-4">
+                <Field label="Additional score floor (%)" field="minimumScore" />
+                <Field label="Maximum ticket price (USDC)" field="ticketCeiling" />
+                <Field label="Entry cutoff before drawing (seconds)" field="cutoffSeconds" />
+              </div></details>
+              <Type as="p" class="text-muted-foreground" variant="caption">{activityCaption("megapot_pool", draft().activities)} Pirate buys and holds the tickets. Qualifiers share net winnings. If nobody qualifies, no ticket is purchased.</Type>
             </>}>
-              <label class="block">Token<select class="block w-full" value={draft().assetAddress} onChange={event => update("assetAddress", event.currentTarget.value)}>
+              <label class="block"><Type as="span" class="mb-2 block text-muted-foreground" variant="label">Token</Type><select class="block w-full rounded-md border border-input bg-background px-3 py-2" value={draft().assetAddress} onChange={event => update("assetAddress", event.currentTarget.value)}>
                 <For each={catalog()?.assets.items}>{asset => <option value={asset.token_address}>{asset.token_symbol} · {asset.token_address}</option>}</For>
               </select></label>
               <Show when={catalog()?.assets.items.length === 0}><p>No bonus tokens are available.</p></Show>
               <Show when={catalog()?.assets.next_cursor}><Button variant="outline" disabled={busy()} onClick={() => { void run(async () => {
                 const page = await data.assets(catalog()!.assets.next_cursor!); if (alive) setCatalog(old => old ? { ...old, assets: { items: [...old.assets.items, ...page.items], next_cursor: page.next_cursor } } : old);
               }); }}>More tokens</Button></Show>
-              <Field label="Amount per person" field="perClaim" /><Field label="Number of recipients" field="claims" />
-              <p class="text-sm">Study or singing counts. Each account can claim once.</p>
+              <Field label={`Amount per person (${catalog()?.assets.items.find(asset => asset.token_address === draft().assetAddress)?.token_symbol ?? "token"})`} field="perClaim" /><Field label="Number of recipients" field="claims" />
+              <Type as="p" class="text-muted-foreground" variant="caption">{activityCaption("asset_bonus", "either")} Each account can claim once.</Type>
             </Show>
             <div aria-label="Qualification requirements"><For each={catalog()?.policies.filter(policy => draft().kind === "asset_bonus" || draft().activities === "either" || draft().activities === policy.activity)}>{policy => <p class="text-sm">{qualificationText(policy)}</p>}</For></div>
-            <Field label="Offer ends (your local time)" field="endsAt" type="datetime-local" />
+            <Show when={sponsorContext()?.offer} fallback={<Field label="Offer ends (your local time)" field="endsAt" type="datetime-local" />}>
+              {offer => <Type as="p" class="text-muted-foreground" variant="caption">This reward joins the existing offer ending {new Date(offer().ends_at).toLocaleString()}.</Type>}
+            </Show>
             <Button disabled={busy()} onClick={review}>Review terms</Button>
           </Show>
         </div>
@@ -187,7 +245,7 @@ export function RewardSponsorDialog(props: { communityId: string; postId: string
         <Button variant="ghost" disabled={busy()} onClick={() => setStep("compose")}>Back</Button>
       </div>}</Match>
       <Match when={step() === "resume"}><p>A saved reward creation is available for this persona.</p>
-        <label>Persona<select value={personaId()} disabled={busy()} onChange={event => { try { selectPersona(event.currentTarget.value); } catch (cause) { setError(sponsorFailure(cause)); } }}><For each={catalog()?.personas}>{p => <option value={p.persona_id}>{p.profile.display_name ?? p.persona_id}</option>}</For></select></label><Button disabled={busy()} onClick={() => { void run(() => attach(true)); }}>Resume saved reward</Button></Match>
+        <label>Persona<select value={personaId()} disabled={busy()} onChange={event => { void run(() => selectPersona(event.currentTarget.value)); }}><For each={catalog()?.personas}>{p => <option value={p.persona_id}>{p.profile.display_name ?? p.persona_id}</option>}</For></select></label><Button disabled={busy()} onClick={() => { void run(() => attach(true)); }}>Resume saved reward</Button></Match>
       <Match when={step() === "authorize"}><div class="space-y-3">
         <p>Confirm access to {personaLabel()}'s wallet. You will review the transfer before sending.</p>
         <TextField value={email()} onChange={setEmail}><TextFieldLabel>Email for your wallet</TextFieldLabel><TextFieldInput inputmode="email" /></TextField>
@@ -196,7 +254,11 @@ export function RewardSponsorDialog(props: { communityId: string; postId: string
       </div></Match>
       <Match when={step() === "funding"}><RewardFundingPanel state={funding()} personaLabel={personaLabel()} tokenSymbol={terms()?.tokenSymbol ?? "token"} busy={busy()}
         onConfirm={id => { void run(async () => { try { setFunding(await wallet!.controller.confirm(id)); } finally { if (alive) setFunding(wallet!.controller.state); } }); }}
-        onRefresh={() => { void run(refresh); }} onReconcile={hash => { void run(async () => { setFunding(await wallet!.controller.reconcileTransaction(hash)); }); }} /></Match>
+        onRefresh={() => { void run(refresh); }} onReconcile={hash => { void run(async () => { setFunding(await wallet!.controller.reconcileTransaction(hash)); }); }} />
+        <Show when={terminalFunding()}>
+          <Button disabled={busy()} onClick={() => { void run(addAnother); }}>Add another reward</Button>
+        </Show>
+      </Match>
     </Switch>
     <Show when={busy()}><p role="status">Working…</p></Show>
   </ModalContent></Modal>;

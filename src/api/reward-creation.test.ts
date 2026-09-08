@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { createRewardCreation, rewardCreationKey, type RewardCreationJournal, type RewardCreationScope, type RewardLegRequest } from "./reward-creation.ts";
+import { createRewardCreation, rewardCreationHistoryKey, rewardCreationKey, type RewardCreationJournal, type RewardCreationScope, type RewardLegRequest } from "./reward-creation.ts";
 const scope = { accountId: "account", personaId: "persona", communityId: "community", postId: "song" };
 const offer = { path: { communityId: "community", postId: "song" }, body: { persona_id: "persona", idempotency_key: "open-key", starts_at: "2026-09-08T00:00:00Z", ends_at: "2026-09-15T00:00:00Z" } };
 const leg: RewardLegRequest = { kind: "asset_bonus", input: { path: { offerId: "" }, body: {
@@ -14,6 +14,7 @@ function setup() {
   const journal: RewardCreationJournal = {
     read: key => values.get(key) ?? null,
     write: (key,value) => { values.set(key,value); },
+    remove: key => { values.delete(key); },
     exclusive: (_key, operation) => {
       const result = tail.then(operation); tail = result.then(() => {}, () => {}); return result;
     },
@@ -85,5 +86,35 @@ describe("reward creation recovery", () => {
     const promise = s.controller().start(input,leg); input.body.ends_at = "2027-01-01T00:00:00Z";
     await promise; expect(s.controller().pending()?.offer).toEqual(offer);
     await expect(s.controller().start(input,leg)).rejects.toThrow("reward_creation_recovery_required");
+  });
+  it("archives an exact terminal funding result before allowing another reward", async () => {
+    const s = setup();
+    await s.controller().start(offer, leg);
+    await s.controller().complete({
+      object: "asset_bonus_funding", action: "fund_with_asset", funding_effect_id: "effect",
+      leg_id: "leg", status: "confirmed", chain_id: 84532,
+      token_address: `0x${"a".repeat(40)}`, token_decimals: 6,
+      sender_address: `0x${"b".repeat(40)}`, recipient_address: `0x${"c".repeat(40)}`,
+      expected_amount_atomic: "10000000", confirmed_amount_atomic: "10000000",
+      required_confirmations: 2, transaction_hash: `0x${"d".repeat(64)}`,
+    });
+    expect(s.controller().pending()).toBeNull();
+    expect(s.values.has(rewardCreationHistoryKey(scope, target))).toBe(true);
+    await expect(s.controller().start(offer, leg)).resolves.toEqual(target);
+  });
+  it("keeps the active guard when funding is not terminal or does not match", async () => {
+    const s = setup();
+    await s.controller().start(offer, leg);
+    const planned = {
+      object: "asset_bonus_funding" as const, action: "fund_with_asset" as const,
+      funding_effect_id: "effect", leg_id: "leg", status: "planned" as const,
+      chain_id: 84532 as const, token_address: `0x${"a".repeat(40)}`,
+      token_decimals: 6, sender_address: `0x${"b".repeat(40)}`,
+      recipient_address: `0x${"c".repeat(40)}`, expected_amount_atomic: "10000000",
+      confirmed_amount_atomic: null, required_confirmations: 2, transaction_hash: null,
+    };
+    await expect(s.controller().complete(planned)).rejects.toThrow("reward_creation_completion_unproven");
+    await expect(s.controller().complete({ ...planned, status: "confirmed", leg_id: "other" })).rejects.toThrow("reward_creation_completion_unproven");
+    expect(s.controller().pending()?.target).toEqual(target);
   });
 });

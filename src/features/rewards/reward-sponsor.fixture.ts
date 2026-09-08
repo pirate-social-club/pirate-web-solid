@@ -12,7 +12,12 @@ export function rewardSponsorFixture(): RewardSponsorDependencies {
   const asset = { chain_id: 84532 as const, token_address: `0x${"a".repeat(40)}`, token_decimals: 6, token_symbol: "PSTB", asset_policy_version: "staging-token-v1" };
   let funding: RewardFunding = { object: "asset_bonus_funding", action: "fund_with_asset", funding_effect_id: "effect", leg_id: "leg", status: "planned", chain_id: 84532, token_address: asset.token_address, token_decimals: 6, sender_address: `0x${"b".repeat(40)}`, recipient_address: `0x${"c".repeat(40)}`, expected_amount_atomic: "10000000", confirmed_amount_atomic: null, required_confirmations: 2, transaction_hash: null };
   return {
-    journal: { read: key => records.get(key) ?? null, write: (key,raw) => { records.set(key,raw); }, exclusive },
+    journal: {
+      read: key => records.get(key) ?? null,
+      write: (key,raw) => { records.set(key,raw); },
+      remove: key => { records.delete(key); },
+      exclusive,
+    },
     data: {
       async catalog() { return { accountId: "account", personas: [{ object: "persona", persona_id: "persona", status: "active", profile: { object: "persona_profile", persona_id: "persona", revision: 1, display_name: "Harbor persona", avatar_ref: null, cover_ref: null, bio: null, preferred_locale: "en", primary_public_handle: null }, wallet_set: { evm: { chain_account_kind: "evm", address: funding.sender_address, hd_wallet_index: 0, assigned_at: "2026-09-08T00:00:00Z" } }, community_binding: { community_id: "community", binding_source: "persona_creation" }, created_at: "2026-09-08T00:00:00Z", retired_at: null }], policies: [
         { activity: "study", policy: { kind: "study_session_first_pass_v2", qualification_policy_version_id: "study-v2", required_correct_bps: 7000 } },
@@ -20,13 +25,25 @@ export function rewardSponsorFixture(): RewardSponsorDependencies {
       ], assets: { items: [asset], next_cursor: null } }; },
       async privateRewards() { return { credits: { object: "reward_credit_list", items: [], next_cursor: null }, standing: null }; },
       async assets() { return { items: [], next_cursor: null }; },
+      async sponsorContext() {
+        return {
+          offer: null,
+          permissions: {
+            open_offer: { allowed: true as const, reason: null },
+            add_asset_bonus: { allowed: true as const, reason: null },
+            add_megapot_pool: { allowed: true as const, reason: null },
+          },
+        };
+      },
       async song() { return { pool: null, bonuses: { object: "song_asset_bonus_list", items: [] } }; },
     },
     creationApi: () => ({
       async open() { return "offer"; },
       async add(request) {
-        if (request.kind === "asset_bonus") funding = { ...funding, object: "asset_bonus_funding", action: "fund_with_asset", token_decimals: request.input.body.token_decimals, expected_amount_atomic: request.input.body.funding_amount_atomic };
-        else funding = { ...funding, object: "megapot_pool_funding", action: "fund_with_usdc", token_decimals: 6, expected_amount_atomic: request.input.body.funding_amount_atomic };
+        const nextEffect = funding.funding_effect_id === "effect" ? "effect-2" : "effect-3";
+        const nextLeg = funding.leg_id === "leg" ? "leg-2" : "leg-3";
+        if (request.kind === "asset_bonus") funding = { ...funding, object: "asset_bonus_funding", action: "fund_with_asset", funding_effect_id: nextEffect, leg_id: nextLeg, status: "planned", token_decimals: request.input.body.token_decimals, expected_amount_atomic: request.input.body.funding_amount_atomic, confirmed_amount_atomic: null, transaction_hash: null };
+        else funding = { ...funding, object: "megapot_pool_funding", action: "fund_with_usdc", funding_effect_id: nextEffect, leg_id: nextLeg, status: "planned", token_decimals: 6, expected_amount_atomic: request.input.body.funding_amount_atomic, confirmed_amount_atomic: null, transaction_hash: null };
         return { kind: request.kind, legId: funding.leg_id, fundingEffectId: funding.funding_effect_id };
       },
     }),

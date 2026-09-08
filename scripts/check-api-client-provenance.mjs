@@ -14,6 +14,7 @@ const clients = [
       "post_communitiesCommunityIdPostsPostIdRewardOffers",
       "post_rewardOffersOfferIdMegapotPoolLegs",
       "post_rewardOffersOfferIdAssetBonusLegs",
+      "get_communitiesCommunityIdPostsPostIdRewardsSponsorContext",
       "get_rewardsQualificationPolicies",
       "get_rewardsBonusAssets",
       "get_communitiesCommunityIdPostsPostIdRewardsMegapotPool",

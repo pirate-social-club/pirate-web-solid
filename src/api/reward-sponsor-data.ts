@@ -1,8 +1,13 @@
-import type { GetRewardsBonusAssetsResponse, GetRewardsQualificationPoliciesResponse } from "@pirate/api-client";
+import type {
+  GetRewardsBonusAssetsResponse,
+  GetRewardsQualificationPoliciesResponse,
+  GetSongRewardSponsorContextResponse,
+} from "@pirate/api-client";
 import type { RewardFundingActor } from "./reward-funding-client.ts";
 import { createPublicApiClient, createSessionApiClient, type PirateApiClient } from "./client.ts";
 export type RewardAsset = GetRewardsBonusAssetsResponse["items"][number];
 export type RewardPolicy = GetRewardsQualificationPoliciesResponse["policies"][number];
+export type RewardSponsorContext = GetSongRewardSponsorContextResponse;
 
 export function createRewardSponsorData(client: PirateApiClient = createSessionApiClient(), publicClient: PirateApiClient = createPublicApiClient()) {
   return {
@@ -24,6 +29,18 @@ export function createRewardSponsorData(client: PirateApiClient = createSessionA
       return { credits, standing: standing?.standing ?? null };
     },
     assets(cursor: string) { return client.get_rewardsBonusAssets({ query: { cursor, limit: "50" } }); },
+    async sponsorContext(actor: RewardFundingActor, communityId: string, postId: string) {
+      if ((await client.get_usersMe(undefined)).id !== actor.accountId) {
+        throw new Error("reward_creation_actor_changed");
+      }
+      const context = await client.get_communitiesCommunityIdPostsPostIdRewardsSponsorContext({
+        path: { communityId, postId }, query: { persona_id: actor.personaId },
+      });
+      if ((await client.get_usersMe(undefined)).id !== actor.accountId) {
+        throw new Error("reward_creation_actor_changed");
+      }
+      return context;
+    },
     async song(communityId: string, postId: string) {
       const path = { communityId, postId };
       const [pool, bonuses] = await Promise.all([
