@@ -213,6 +213,14 @@ export const Expired: Story = {
   args: argsFor({ kind: "expired" }),
 };
 
+export const PreparationLimited: Story = {
+  args: { ...argsFor({ kind: "expired" }), preparationDisabled: true },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByRole("button", { name: "Get a new record list" })).toBeDisabled();
+  },
+};
+
 export const Connected: Story = {
   args: argsFor({
     kind: "verified",
@@ -263,10 +271,9 @@ export const CompleteBobWalletCeremony: Story = {
     await userEvent.click(await canvas.findByRole("button", { name: "Start verification" }));
     await userEvent.click(await canvas.findByRole("button", { name: "Sign ownership with Bob Wallet" }));
     await userEvent.click(await canvas.findByRole("button", { name: "Publish to dankmemes/ with Bob Wallet" }));
-    await userEvent.click(await canvas.findByRole("button", { name: "Check status" }));
-    await userEvent.click(await canvas.findByRole("button", { name: "Check status" }));
-    await userEvent.click(await canvas.findByRole("button", { name: "Activate community address" }));
-    await expect(await canvas.findByRole("heading", { name: "app.dankmemes" })).toBeInTheDocument();
+    // Progress past publication is driven by the controller's automatic reads, not
+    // by this panel, so the wallet path ends here and activation is covered elsewhere.
+    await expect(await canvas.findByRole("button", { name: "Verify published records" })).toBeInTheDocument();
   },
 };
 

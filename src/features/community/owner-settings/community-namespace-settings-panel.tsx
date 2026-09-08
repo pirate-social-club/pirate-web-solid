@@ -283,11 +283,11 @@ function ServerDirectedAction(props: Pick<CommunityNamespaceSettingsPanelProps, 
 
               <NamespaceRecordPlan rows={namespaceRecordRows(current())} />
 
-              <Show when={current().removed_records.length > 0}>
+              <Show when={(current().removed_records ?? []).length > 0}>
                 <div class="space-y-2">
-                  <Type as="h3" variant="h3">Stops being served ({current().removed_records.length})</Type>
+                  <Type as="h3" variant="h3">Stops being served ({(current().removed_records ?? []).length})</Type>
                   <ul class="space-y-1">
-                    <For each={current().removed_records}>
+                    <For each={current().removed_records ?? []}>
                       {(record) => (
                         <li class="text-sm text-muted-foreground">
                           <span class="font-semibold">{record.record_type}</span>{" "}
@@ -299,30 +299,30 @@ function ServerDirectedAction(props: Pick<CommunityNamespaceSettingsPanelProps, 
                 </div>
               </Show>
 
-              <Show when={current().preserved_unknown_record_types.length > 0}>
-                <FormNote>Kept exactly as they are, without interpretation: {current().preserved_unknown_record_types.join(", ")}.</FormNote>
+              <Show when={(current().preserved_unknown_record_types ?? []).length > 0}>
+                <FormNote>Kept exactly as they are, without interpretation: {(current().preserved_unknown_record_types ?? []).join(", ")}.</FormNote>
               </Show>
 
               <Show when={hasNamespaceRecordChangeReview(current())}>
                 <details class="rounded-lg border border-border p-3">
                   <summary class="cursor-pointer text-sm font-semibold">What is changing and why</summary>
                   <div class="space-y-4 pt-3">
-                    <Show when={current().preserved_records.length > 0}>
+                    <Show when={(current().preserved_records ?? []).length > 0}>
                       <div class="space-y-3">
-                        <Type as="h3" variant="h3">Already live and kept ({current().preserved_records.length})</Type>
-                        <NamespaceRecordList records={current().preserved_records} />
+                        <Type as="h3" variant="h3">Already live and kept ({(current().preserved_records ?? []).length})</Type>
+                        <NamespaceRecordList records={current().preserved_records ?? []} />
                       </div>
                     </Show>
-                    <Show when={current().added_records.length > 0}>
+                    <Show when={(current().added_records ?? []).length > 0}>
                       <div class="space-y-3">
-                        <Type as="h3" variant="h3">Added by this update ({current().added_records.length})</Type>
-                        <NamespaceRecordList records={current().added_records} />
+                        <Type as="h3" variant="h3">Added by this update ({(current().added_records ?? []).length})</Type>
+                        <NamespaceRecordList records={current().added_records ?? []} />
                       </div>
                     </Show>
-                    <Show when={current().removed_records.length > 0}>
+                    <Show when={(current().removed_records ?? []).length > 0}>
                       <div class="space-y-3">
-                        <Type as="h3" variant="h3">Replaced by this update ({current().removed_records.length})</Type>
-                        <NamespaceRecordList records={current().removed_records} />
+                        <Type as="h3" variant="h3">Replaced by this update ({(current().removed_records ?? []).length})</Type>
+                        <NamespaceRecordList records={current().removed_records ?? []} />
                       </div>
                     </Show>
                   </div>

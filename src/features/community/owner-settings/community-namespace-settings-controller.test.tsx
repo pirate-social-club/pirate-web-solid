@@ -89,7 +89,7 @@ test("records survive acknowledgement, pending reads and failures without a seco
   button.click();await vi.advanceTimersByTimeAsync(0);
   expect(post).toHaveBeenCalledTimes(1);
   expect(post.mock.calls[0]).toEqual(expect.arrayContaining([expect.objectContaining({body:expect.objectContaining({expected_revision:4})})]));
-  expect(container.textContent).toBe(text?.replace("Your records are ready to publish", "Checking published records"));expect(button.disabled).toBe(true);
+  expect(container.textContent).toBe(text?.replace("Publish these 3 records to midnight/", "Checking published records"));expect(button.disabled).toBe(true);
   expect(button.getAttribute("aria-busy")).not.toBe("true");
   expect(container.querySelector("input,textarea")).toBe(records);
   await vi.advanceTimersByTimeAsync(2000);expect(post).toHaveBeenCalledTimes(1);
@@ -113,7 +113,7 @@ test("preparation advances across server revisions by GET and displays records a
  expect(container.textContent).not.toContain("Checking records");
  expect([...container.querySelectorAll("button")].find(b=>b.textContent==="Start verification")?.disabled).toBe(true);
  await vi.advanceTimersByTimeAsync(2000);
- expect(container.textContent).toContain("Your records are ready to publish");expect(container.textContent).toContain("ns1.midnight");
+ expect(container.textContent).toContain("Publish these 3 records to midnight/");expect(container.textContent).toContain("ns1.midnight");
  expect(post).not.toHaveBeenCalled();expect(get).toHaveBeenCalledTimes(1);
 });
 
@@ -261,7 +261,7 @@ test("deadline crossing regenerates in one click and retains recovery when CSRF 
   expect(savedLocator).toBe("session-2");
   expect(container.textContent).toContain("Prepare your records");
   await vi.advanceTimersByTimeAsync(2_000);
-  expect(container.textContent).toContain("Your records are ready to publish");
+  expect(container.textContent).toContain("Publish these 3 records to midnight/");
   expect(container.textContent).toContain("ns1.midnight");
   expect(start).toHaveBeenCalledTimes(1);
 });

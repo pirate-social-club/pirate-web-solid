@@ -225,8 +225,8 @@ function namespaceRecordKey(record: NamespaceResourceRecord): string {
 export function namespaceRecordRows(
   action: Extract<NamespaceNextAction, { kind: "publish_resource" }>,
 ): ReadonlyArray<NamespaceRecordRow> {
-  const alreadyLive = new Set(action.preserved_records.map(namespaceRecordKey));
-  return action.records.map((record) => ({
+  const alreadyLive = new Set((action.preserved_records ?? []).map(namespaceRecordKey));
+  return (action.records ?? []).map((record) => ({
     change: alreadyLive.has(namespaceRecordKey(record)) ? "already_live" : "new",
     record,
   }));
@@ -235,8 +235,8 @@ export function namespaceRecordRows(
 export function hasNamespaceRecordChangeReview(
   action: Extract<NamespaceNextAction, { kind: "publish_resource" }>,
 ): boolean {
-  return action.preserved_records.length > 0
-    || action.added_records.length > 0
-    || action.removed_records.length > 0
-    || action.preserved_unknown_record_types.length > 0;
+  return (action.preserved_records ?? []).length > 0
+    || (action.added_records ?? []).length > 0
+    || (action.removed_records ?? []).length > 0
+    || (action.preserved_unknown_record_types ?? []).length > 0;
 }
