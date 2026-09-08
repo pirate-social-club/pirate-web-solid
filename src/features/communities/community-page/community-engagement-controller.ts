@@ -453,8 +453,13 @@ export function createCommunityEngagementController(
     try {
       await resolvePersonaSession();
     } finally {
-      personaRetryInFlight = false;
-      if (actionOwns(generation)) setPersonaRetryBusy(false);
+      // personaRetryInFlight is the concurrency guard, not just presentation:
+      // releasing it from a retired generation would hand the incoming
+      // account's ownership away and let a duplicate retry through.
+      if (actionOwns(generation)) {
+        personaRetryInFlight = false;
+        setPersonaRetryBusy(false);
+      }
     }
   };
 

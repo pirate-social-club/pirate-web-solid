@@ -606,3 +606,72 @@ describe("an account check that fails", () => {
     expect(hasButton(container, "Post here")).toBe(true);
   });
 });
+
+describe("persona retry ownership across an account change", () => {
+  test("a retry settling for account A does not release account B's retry", async () => {
+    const [sessionState, setSessionState] = createSignal<ApplicationSessionState>(
+      { status: "authenticated", userId: "account-a" },
+    );
+    let account = "account-a";
+    const pendingResolutions: Array<{ settle: (value: SessionResolution) => void }> = [];
+    const resolveSession = vi.fn((): Promise<SessionResolution> => {
+      const next = deferred<SessionResolution>();
+      pendingResolutions.push(next);
+      return next.promise;
+    });
+    /** Authenticated, but the persona read failed, which is what retry is for. */
+    const personasUnavailable = (userId: string): SessionResolution => ({
+      status: "authenticated", userId, personas: [], personasUnavailable: true,
+    });
+    const { api } = accountScopedEngagementApi(new Map(), () => account);
+
+    const controller = mountController(api, sessionState, resolveSession);
+
+    // 1. Account A resolves without personas, then starts a retry.
+    await vi.waitFor(() => expect(pendingResolutions.length).toBe(1));
+    pendingResolutions[0].settle(personasUnavailable("account-a"));
+    await vi.waitFor(() => expect(controller.personaRetryAvailable()).toBe(true));
+
+    const retryForA = controller.retryPersonas();
+    await vi.waitFor(() => expect(pendingResolutions.length).toBe(2));
+    expect(controller.personaRetryBusy()).toBe(true);
+
+    // 2. The identity changes while account A's retry is still in flight.
+    account = "account-b";
+    setSessionState({ status: "authenticated", userId: "account-b" });
+    await vi.waitFor(() => expect(controller.accountIdentity()).toBe("account-b"));
+    expect(controller.personaRetryBusy()).toBe(false);
+
+    // 3. Account B resolves without personas and starts its own retry.
+    await vi.waitFor(() => expect(pendingResolutions.length).toBe(3));
+    pendingResolutions[2].settle(personasUnavailable("account-b"));
+    await vi.waitFor(() => expect(controller.personaRetryAvailable()).toBe(true));
+
+    const retryForB = controller.retryPersonas();
+    await vi.waitFor(() => expect(pendingResolutions.length).toBe(4));
+    expect(controller.personaRetryBusy()).toBe(true);
+
+    // 4. Account A's retry settles last. It owns nothing here any more.
+    pendingResolutions[1].settle(personasUnavailable("account-a"));
+    await retryForA;
+    expect(controller.personaRetryBusy()).toBe(true);
+
+    // 5. A third attempt stays coalesced behind account B's pending retry.
+    const attemptsWhileBPending = resolveSession.mock.calls.length;
+    // Not awaited: a coalesced attempt returns at once, while an attempt that
+    // wrongly got through would await a resolution nothing settles.
+    void controller.retryPersonas();
+    await new Promise(resolve => setTimeout(resolve, 20));
+    expect(resolveSession.mock.calls.length).toBe(attemptsWhileBPending);
+    expect(controller.personaRetryBusy()).toBe(true);
+
+    // Account B's own retry releases the flag, and a later attempt proceeds.
+    // It settles unavailable again so the retry affordance is still there.
+    pendingResolutions[3].settle(personasUnavailable("account-b"));
+    await retryForB;
+    await vi.waitFor(() => expect(controller.personaRetryBusy()).toBe(false));
+    void controller.retryPersonas();
+    await vi.waitFor(() => expect(resolveSession.mock.calls.length)
+      .toBeGreaterThan(attemptsWhileBPending));
+  });
+});
