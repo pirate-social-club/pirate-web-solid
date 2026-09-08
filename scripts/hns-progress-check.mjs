@@ -11,6 +11,7 @@ const common = { community_id: communityId, attachment_intent_id: "attachment-1"
 const plan = { acknowledgement_required: true, added_records: [], current_records: [], preserved_records: [], preserved_unknown_record_types: [], removed_conflicts: [], replacement_records: [{ type: "NS", ns: "ns1.pirate" }, { type: "TXT", txt: ["pirate-proof"] }], replacement_semantics: "complete_resource", version: "pirate-hns-root-import-publish-plan-v1" };
 let phase = "empty";
 let failReads = false;
+let rejectWrites = false;
 const requests = [];
 const snapshot = () => ({ ...common, status: phase === "checking" ? "awaiting_owner_update" : phase, revision: phase === "provisioning" ? 2 : 3, publish_plan: phase === "provisioning" ? null : plan, publish_plan_sha256: phase === "provisioning" ? null : "a".repeat(64), readiness_result_sha256: null, retry_after_seconds: 2, ...(phase === "provisioning" ? {} : { publication_check_pending: phase === "checking" }) });
 const upstream = createServer(async (request, response) => {
@@ -29,6 +30,7 @@ const upstream = createServer(async (request, response) => {
   if (path.endsWith("/hns-root-imports")) {
     if (request.method === "GET") return send({ community_id: communityId, attachment: null, session: phase === "empty" ? null : snapshot() });
     assert.equal(request.method, "POST");
+    if (rejectWrites) return send({ error: { code: "auth_error", message: "Authentication failed", retryable: false } }, 401);
     phase = "provisioning";
     return send(snapshot(), 202);
   }
@@ -91,8 +93,43 @@ try {
   assert.equal(await publish.isDisabled(), true);
   assert.equal(writes().length, 2, "Resuming progress must not acknowledge twice");
   assert.doesNotMatch(await panel.innerText(), /Retry after|Check status|Retry check|Checking records/);
+  // Cross the actual browser deadline, then recover through missing CSRF and
+  // an expired server session. These are transport fixtures, not live writes.
+  phase = "awaiting_owner_update";
+  common.expires_at = new Date(Date.now() + 60_000).toISOString();
+  await page.clock.install();
+  await page.reload();
+  await page.getByRole("heading", { name: "Your records are ready to publish" }).waitFor();
+  await page.locator("time").waitFor();
+  await page.clock.fastForward(61_000);
+  const regenerate = page.getByRole("button", { name: "Get a new record list", exact: true });
+  await regenerate.waitFor();
+  const expiredBox = await panel.boundingBox();
+  const expiredText = await panel.innerText();
+  await context.clearCookies({ name: "__Host-pirate_csrf" });
+  await regenerate.click();
+  await page.getByText("Refresh the page before changing the community address.", { exact: true }).waitFor();
+  assert.equal(writes().length, 2, "Missing CSRF must send no write");
+  assert.deepEqual(await panel.boundingBox(), expiredBox);
+  assert.equal(await panel.innerText(), expiredText);
+  await context.addCookies([{ name: "__Host-pirate_csrf", value: "csrf-2", url: "https://127.0.0.1:4186", secure: true, sameSite: "Lax" }]);
+  rejectWrites = true;
+  await regenerate.click();
+  await page.getByText("Your sign-in has expired. Sign in again, then retry. Your namespace is saved.", { exact: true }).waitFor();
+  assert.equal(writes().length, 3);
+  assert.deepEqual(await panel.boundingBox(), expiredBox);
+  rejectWrites = false;
+  common.expires_at = "2099-01-01T00:00:00.000Z";
+  await regenerate.click();
+  await page.waitForFunction(() => document.querySelector('[data-next-action="wait"]'));
+  assert.equal(writes().length, 4, "Regeneration starts with one click");
+  assert.equal(writes()[2].body.idempotency_key, writes()[3].body.idempotency_key, "Retry must reuse its key");
+  assert.equal(writes()[3].body.root_label, "midnight");
+  phase = "awaiting_owner_update";
+  await page.clock.fastForward(2_000);
+  await page.getByRole("heading", { name: "Your records are ready to publish" }).waitFor();
   assert.deepEqual(errors, []);
-  console.log(JSON.stringify({ ok: true, preparationGets: true, oneAcknowledgement: true, quietPendingButtons: true, reloadResumes: true, stablePendingAndFailureLayout: true, noCountdown: true }));
+  console.log(JSON.stringify({ ok: true, preparationGets: true, oneAcknowledgement: true, quietPendingButtons: true, reloadResumes: true, stablePendingAndFailureLayout: true, noCountdown: true, expiryRecovery: true, missingCsrfNoWrite: true, expiredSessionRecovery: true }));
 } finally {
   await browser.close();
   await new Promise(resolve => upstream.close(resolve));

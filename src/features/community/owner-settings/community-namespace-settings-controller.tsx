@@ -5,6 +5,7 @@ import type { ApiFetch } from "../../../api/proxy";
 import { createBobCommunityHnsWallet } from "./community-hns-wallet";
 import {
   createCommunityNamespaceSettingsApi,
+  CommunityNamespaceSettingsApiError,
   type CommunityNamespaceSettingsApiOptions,
 } from "./community-namespace-settings-api";
 import { CommunityNamespaceSettingsPanel } from "./community-namespace-settings-panel";
@@ -36,6 +37,13 @@ function nextOperationKey(kind: NamespaceSettingsCommand["kind"]): string {
 }
 
 function commandError(error: unknown): string {
+  if (error instanceof CommunityNamespaceSettingsApiError) return error.message;
+  if (error instanceof ApiClientError && error.status === 401) {
+    return "Your sign-in has expired. Sign in again, then retry. Your namespace is saved.";
+  }
+  if (error instanceof ApiClientError && error.status === 403) {
+    return "This account cannot change the community address. Check that you are signed in to the owner account.";
+  }
   if (error instanceof ApiClientError && error.status === 409) {
     return "The HNS address changed in another request. Refresh the page and try again.";
   }
@@ -143,6 +151,22 @@ export function CommunityNamespaceSettingsController(
       if (active) setBusy(false);
     }
   };
+
+  // A page waiting for wallet publication has no progress polling. Its deadline
+  // must still end the attempt, including when the tab resumes after suspension.
+  createEffect(
+    () => ({ snapshot: snapshot(), visible: pageVisible() }),
+    ({ snapshot: current, visible }) => {
+      if (!visible || !current?.expires_at || ["verified", "expired", "failed"].includes(current.next_action.kind)) return;
+      const remaining = Date.parse(current.expires_at) - Date.now();
+      if (!Number.isFinite(remaining)) return;
+      const timer = setTimeout(() => {
+        if (Date.parse(current.expires_at!) > Date.now()) return;
+        setSnapshot((latest) => latest === current ? { ...current, next_action: { kind: "expired" } } : latest);
+      }, Math.max(0, Math.min(remaining, 2_147_483_647)));
+      return () => clearTimeout(timer);
+    },
+  );
 
   createEffect(
     () => ({ busy: busy(), pollKey: keys().poll, snapshot: snapshot(), status: status(), failed: message() !== "", visible: pageVisible(), attempts: unchangedReads() }),
