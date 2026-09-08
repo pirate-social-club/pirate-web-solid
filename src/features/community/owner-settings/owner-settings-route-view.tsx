@@ -1,6 +1,7 @@
 import { Title } from "@solidjs/meta";
 import { Button, Card, Type } from "@pirate/web-solid-ui";
 import { Loading, Show, createEffect, createMemo } from "solid-js";
+import { getRequestEvent } from "@solidjs/web";
 
 import type { CommunityModerationSettingsApi } from "./community-moderation-settings-api";
 import type { CommunityTelegramSettingsApi } from "./community-telegram-settings-api";
@@ -31,6 +32,29 @@ export interface OwnerSettingsRouteViewProps {
 
 interface ResolvedOwnerSettingsRouteViewProps extends Omit<OwnerSettingsRouteViewProps, "state"> {
   state: OwnerSettingsRouteState;
+}
+
+/**
+ * The management surface keeps state in the document URL that route state does
+ * not hold: the namespace API reads an in-flight HNS import session straight
+ * from `location.href`. A section change that rebuilt a bare path would drop
+ * that parameter and destroy the import, so the search string travels with
+ * every navigation this view performs. Reading it through the request event on
+ * the server keeps the behaviour identical before and after hydration.
+ */
+function currentSearch(): string {
+  const event = getRequestEvent();
+  if (event !== undefined) return new URL(event.request.url).search;
+  if (typeof location === "undefined") return "";
+  return new URL(location.href).search;
+}
+
+export function ownerSettingsSectionHref(
+  communityPath: string,
+  section: string,
+  search: string,
+): string {
+  return `${communityPath}/settings/${section}${search}`;
 }
 
 function RouteMessage(props: { state: OwnerSettingsRouteState }) {
@@ -85,7 +109,8 @@ function ResolvedOwnerSettingsRouteView(props: ResolvedOwnerSettingsRouteViewPro
     () => ({ active: activeSection(), requested: props.requestedSection, state: success() }),
     ({ active, requested, state }) => {
       if (active !== null && state !== undefined && active !== requested) {
-        queueMicrotask(() => props.navigate(`${state.communityPath}/settings/${active}`, { replace: true }));
+        const href = ownerSettingsSectionHref(state.communityPath, active, currentSearch());
+        queueMicrotask(() => props.navigate(href, { replace: true }));
       }
     },
   );
@@ -107,7 +132,7 @@ function ResolvedOwnerSettingsRouteView(props: ResolvedOwnerSettingsRouteViewPro
               communityId={state().communityId}
               communityName={state().communityName}
               onExit={() => props.navigate(state().communityPath)}
-              onSectionChange={(next) => props.navigate(`${state().communityPath}/settings/${next}`)}
+              onSectionChange={(next) => props.navigate(ownerSettingsSectionHref(state().communityPath, next, currentSearch()))}
             >
               <Show when={section() === "names"}>
                 <CommunityNamesSettingsController

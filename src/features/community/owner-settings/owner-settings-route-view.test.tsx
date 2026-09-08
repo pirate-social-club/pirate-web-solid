@@ -1,5 +1,5 @@
 import { render as solidRender, type JSX } from "@solidjs/web";
-import { createRoot } from "solid-js";
+import { createRoot, createSignal } from "solid-js";
 import { afterEach, describe, expect, test, vi } from "vitest";
 
 import type { CommunityModerationSettingsApi } from "./community-moderation-settings-api";
@@ -249,4 +249,157 @@ test("renders retryable navigation when every owner probe is unavailable", async
   expect(container.querySelector("nav")?.textContent).toContain("Queue");
   expect(container.querySelector("nav")?.textContent).toContain("Names");
   expect(navigate).not.toHaveBeenCalled();
+});
+
+describe("management deep links", () => {
+  const IMPORT_SEARCH = "?hns_import_session=hns-root-import_80dfa5c7-2d30-473a-bbfa-035de6688071";
+
+  // Hold the document URL for the whole test: the assertions are async, so a
+  // helper that restored it around render alone would read the wrong URL.
+  function setLocation(search: string): void {
+    const original = window.location.href;
+    window.history.replaceState(null, "", `/c/midnight/settings/namespace${search}`);
+    disposers.push(() => window.history.replaceState(null, "", original));
+  }
+
+  test("keeps an explicit Address deep link on Address with its import parameter", async () => {
+    const navigate = vi.fn();
+    setLocation(IMPORT_SEARCH);
+    const container = render(() => (
+      <OwnerSettingsRouteView
+        namespaceApi={namespaceApi()}
+        namesApi={namesApi()}
+        navigate={navigate}
+        requestedSection="namespace"
+        state={success}
+      />
+    ));
+
+    await vi.waitFor(() => expect(container.textContent).toContain("Handshake root"));
+    // The import session lives only in the document URL, so the surface must
+    // settle on Address without navigating at all.
+    expect(navigate).not.toHaveBeenCalled();
+    expect(new URL(window.location.href).searchParams.get("hns_import_session"))
+      .toBe("hns-root-import_80dfa5c7-2d30-473a-bbfa-035de6688071");
+  });
+
+  test("carries the exact import parameter through a generic-entry redirect", async () => {
+    const navigate = vi.fn();
+    setLocation(IMPORT_SEARCH);
+    render(() => (
+      <OwnerSettingsRouteView
+        moderationApi={moderationApi()}
+        namesApi={namesApi()}
+        navigate={navigate}
+        requestedSection="profile"
+        state={success}
+      />
+    ));
+
+    await vi.waitFor(() => expect(navigate).toHaveBeenCalledWith(
+      `/c/midnight/settings/moderation_queue${IMPORT_SEARCH}`,
+      { replace: true },
+    ));
+  });
+
+  test("resolves a generic settings entry to Queue when authorized", async () => {
+    const navigate = vi.fn();
+    render(() => (
+      <OwnerSettingsRouteView
+        moderationApi={moderationApi()}
+        namesApi={namesApi()}
+        navigate={navigate}
+        requestedSection=""
+        state={success}
+      />
+    ));
+
+    await vi.waitFor(() => expect(navigate).toHaveBeenCalledWith(
+      "/c/midnight/settings/moderation_queue",
+      { replace: true },
+    ));
+  });
+
+  test("falls back to Address when the queue is not authorized", async () => {
+    const navigate = vi.fn();
+    render(() => (
+      <OwnerSettingsRouteView
+        namesApi={namesApi()}
+        navigate={navigate}
+        requestedSection=""
+        state={{ ...success, access: { "community.names.manage": true, "community.namespace.write": true } }}
+      />
+    ));
+
+    await vi.waitFor(() => expect(navigate).toHaveBeenCalledWith(
+      "/c/midnight/settings/namespace",
+      { replace: true },
+    ));
+  });
+
+  test("keeps the import parameter when the owner changes section by hand", async () => {
+    const navigate = vi.fn();
+    setLocation(IMPORT_SEARCH);
+    const container = render(() => (
+      <OwnerSettingsRouteView
+        moderationApi={moderationApi()}
+        namesApi={namesApi()}
+        namespaceApi={namespaceApi()}
+        navigate={navigate}
+        requestedSection="namespace"
+        state={success}
+      />
+    ));
+
+    await vi.waitFor(() => expect(container.textContent).toContain("Handshake root"));
+    const queue = [...container.querySelectorAll<HTMLButtonElement>("button")]
+      .find((button) => button.textContent?.trim() === "Queue");
+    expect(queue).toBeDefined();
+    queue!.click();
+
+    expect(navigate).toHaveBeenCalledWith(`/c/midnight/settings/moderation_queue${IMPORT_SEARCH}`);
+  });
+
+  test("adds no query string when the document carries none", async () => {
+    const navigate = vi.fn();
+    render(() => (
+      <OwnerSettingsRouteView
+        moderationApi={moderationApi()}
+        namesApi={namesApi()}
+        navigate={navigate}
+        requestedSection="profile"
+        state={success}
+      />
+    ));
+
+    await vi.waitFor(() => expect(navigate).toHaveBeenCalledWith(
+      "/c/midnight/settings/moderation_queue",
+      { replace: true },
+    ));
+  });
+
+  test("does not redirect when browser navigation lands on another authorized section", async () => {
+    const navigate = vi.fn();
+    const [requested, setRequested] = createSignal("namespace");
+    setLocation(IMPORT_SEARCH);
+    const container = render(() => (
+      <OwnerSettingsRouteView
+        moderationApi={moderationApi()}
+        namesApi={namesApi()}
+        namespaceApi={namespaceApi()}
+        navigate={navigate}
+        requestedSection={requested()}
+        state={success}
+      />
+    ));
+
+    await vi.waitFor(() => expect(container.textContent).toContain("Handshake root"));
+    // Back or forward changes the section the router reports. Both are
+    // authorized, so the view follows the URL instead of correcting it.
+    setRequested("moderation_queue");
+    await vi.waitFor(() => expect(container.querySelector("main h1")?.textContent).toBe("Moderation queue"));
+    setRequested("namespace");
+    await vi.waitFor(() => expect(container.querySelector("main h1")?.textContent).toBe("Community address"));
+    expect(navigate).not.toHaveBeenCalled();
+  });
 });
