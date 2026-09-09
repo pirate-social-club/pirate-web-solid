@@ -52,6 +52,7 @@ export default defineConfig({
       "src/features/community/owner-settings/community-namespace-settings-api.test.ts",
       "src/features/community/owner-settings/community-namespace-settings-controller.test.tsx",
       "src/features/community/owner-settings/community-namespace-admission.test.tsx",
+      "src/features/community/owner-settings/community-namespace-failure-reference.test.tsx",
       "src/features/community/owner-settings/owner-settings-model.test.ts",
       "src/features/community/owner-settings/owner-settings-route-model.test.ts",
       "src/features/community/owner-settings/owner-settings-route-view.test.tsx",

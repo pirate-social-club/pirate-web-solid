@@ -76,6 +76,19 @@ function commandError(error: unknown): string {
   return "That HNS address step could not be completed.";
 }
 
+/**
+ * The reference the API returned with this failure, if it returned one.
+ *
+ * Every api-next error body carries `request_id`, and the generated client
+ * parses it into `requestId`. Showing it is the only way an owner can hand a
+ * failure to someone who can look it up; the message alone identifies neither
+ * the failure nor the request. Nothing else is taken off the error: the
+ * reference is opaque, and the rest of an error object is not.
+ */
+function failureReference(error: unknown): string {
+  return error instanceof ApiClientError ? (error.requestId?.trim() ?? "") : "";
+}
+
 export function CommunityNamespaceSettingsController(
   props: CommunityNamespaceSettingsControllerProps,
 ) {
@@ -95,6 +108,15 @@ export function CommunityNamespaceSettingsController(
   const [draftRootLabel, setDraftRootLabel] = createSignal("");
   const [busy, setBusy] = createSignal(false);
   const [message, setMessage] = createSignal("");
+  const [messageReference, setMessageReference] = createSignal("");
+  const clearMessage = () => {
+    setMessage("");
+    setMessageReference("");
+  };
+  const showFailure = (text: string, error: unknown) => {
+    setMessage(text);
+    setMessageReference(failureReference(error));
+  };
   const [preparationRetryAt, setPreparationRetryAt] = createSignal<number>();
   let preparationAccountId: string | undefined;
   const accountId = () => {
@@ -154,7 +176,7 @@ export function CommunityNamespaceSettingsController(
   const load = async () => {
     const request = ++requestGeneration;
     setStatus("loading");
-    setMessage("");
+    clearMessage();
     try {
       const current = await api.read();
       if (!active || request !== requestGeneration) return;
@@ -166,7 +188,7 @@ export function CommunityNamespaceSettingsController(
       if (error instanceof ApiClientError && (error.status === 401 || error.status === 404)) {
         setStatus("denied");
       } else {
-        setMessage("Community address settings could not be loaded.");
+        showFailure("Community address settings could not be loaded.", error);
         setStatus("error");
       }
     }
@@ -184,7 +206,7 @@ export function CommunityNamespaceSettingsController(
     setActiveCommand(command.kind);
     // Keep the named retry control mounted while its request is in flight.
     if (command.kind !== "poll") {
-      setMessage("");
+      clearMessage();
       setPollFailed(false);
     }
     try {
@@ -195,7 +217,7 @@ export function CommunityNamespaceSettingsController(
       setUnchangedReads(command.kind === "poll" && !advanced ? Math.min(4, unchangedReads() + 1) : 0);
       setSnapshot(current);
       setDraftRootLabel(current.root_label);
-      setMessage("");
+      clearMessage();
       setPollFailed(false);
       if (command.kind === "restart" || command.kind === "change_namespace") {
         setKeys(operationKeys());
@@ -215,11 +237,16 @@ export function CommunityNamespaceSettingsController(
               preparationAccountId = userId;
               storePreparationRetryAt(userId, retryAt);
             }
-            setMessage("");
+            clearMessage();
             return;
           }
         }
-        setMessage(command.kind === "poll" ? "Could not refresh verification status. Select Retry status to reconnect." : commandError(error));
+        showFailure(
+          command.kind === "poll"
+            ? "Could not refresh verification status. Select Retry status to reconnect."
+            : commandError(error),
+          error,
+        );
       }
     } finally {
       if (active) setBusy(false);
@@ -294,7 +321,12 @@ export function CommunityNamespaceSettingsController(
                 wallet={wallet}
               />
               <div class="flex h-20 items-center gap-3 overflow-auto">
-                <div class="min-w-0 flex-1" role="status"><Show when={feedback()}><FormNote tone="muted">{feedback()}</FormNote></Show></div>
+                <div class="min-w-0 flex-1" role="status"><Show when={feedback()}><FormNote tone="muted">
+                  {feedback()}
+                  <Show when={messageReference()}>
+                    {" "}<span class="whitespace-nowrap">Reference <code class="select-all font-mono" data-testid="namespace-failure-reference">{messageReference()}</code></span>
+                  </Show>
+                </FormNote></Show></div>
                 <Show when={pollFailed()}>
                   <Button loading={busy()} onClick={() => {
                     const current = snapshot();
