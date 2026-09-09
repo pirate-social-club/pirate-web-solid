@@ -108,11 +108,12 @@ function postTimestamp(value: string): string {
 function PostActions(props: { post: CommunityPost; engagementControls?: JSX.Element }) {
   return (
     <div class="flex flex-wrap items-center gap-2 pt-1" aria-label="Post actions">
-      {/* No engagement controls means no viewer who can act: the page has no
-          resolved posting session. These were three buttons with no handlers
-          behind them, which offered actions that could never happen. They are
-          the standing counts instead, and a viewer who signs in gets the real
-          controls in their place. */}
+      {/* No engagement controls yet: either no posting session was resolved,
+          or the viewer's own state for this post is still being read. These
+          were three buttons with no handlers behind them, which offered
+          actions that could never happen. They are the standing counts
+          instead, and the real controls take their place once there is a
+          viewer who can act and enough known about them to act correctly. */}
       <Show when={props.engagementControls} fallback={
         <div class="flex flex-wrap items-center gap-2 text-sm text-muted-foreground" data-post-counts>
           <span class="inline-flex h-9 items-center gap-1 rounded-full border border-border-soft px-3">

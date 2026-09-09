@@ -63,6 +63,7 @@ export default defineConfig({
       "src/features/communities/community-page/community-page-pending-geometry.test.tsx",
       "src/features/communities/community-page/community-page.test.tsx",
       "src/features/communities/community-page/community-thread-feed-api.test.ts",
+    "src/features/communities/community-page/community-viewer-vote-api.test.ts",
       "src/features/communities/handle-storefront/handle-storefront.flow.test.ts",
       "src/features/communities/handle-storefront/handle-storefront.model.test.ts",
       "src/features/communities/handle-storefront/handle-storefront.test.tsx",

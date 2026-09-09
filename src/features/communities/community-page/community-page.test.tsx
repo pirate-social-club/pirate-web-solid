@@ -1,6 +1,7 @@
 import type {
   GetCPathSegmentResponse,
   GetCommunitiesCommunityIdPreviewResponse,
+  GetPostsPostIdResponse,
 } from "@pirate/api-client";
 import { render as solidRender, type JSX } from "@solidjs/web";
 import { createRoot } from "solid-js";
@@ -10,6 +11,41 @@ import { createMemoryMediaSubmissionStorage } from "../../posts/media-submission
 import CommunityPage from "./community-page.tsx";
 
 const disposers: Array<() => void> = [];
+
+/**
+ * The viewer's vote comes from the authenticated post read, so a page under
+ * test needs one. Without it the controls correctly wait forever rather than
+ * claiming the viewer has not voted.
+ */
+function viewerVoteClient(vote: -1 | 1 | null) {
+  const response: GetPostsPostIdResponse = JSON.parse(JSON.stringify({
+    post: {
+      id: "post-under-test",
+      object: "post",
+      community: communityId,
+      authorship_mode: "human_direct",
+      identity_mode: "public",
+      post_type: "text",
+      status: "published",
+      visibility: "public",
+      analysis_state: "allow",
+      content_safety_state: "safe",
+      age_gate_policy: "none",
+      created: 1_756_752_000,
+    },
+    thread_snapshot: null,
+    upvote_count: 0,
+    downvote_count: 0,
+    like_count: 0,
+    viewer_vote: vote,
+    viewer_reaction_kinds: [],
+    resolved_locale: "en",
+    translation_state: "ready",
+    machine_translated: false,
+    source_hash: null,
+  }));
+  return { get_postsPostId: async () => response };
+}
 
 /** The contextual composer is open when its one close control exists and no
  * raw community identifier input is offered. */
@@ -130,6 +166,47 @@ describe("CommunityPage", () => {
     expect(container.querySelector("[aria-label='Post actions'] button")).toBeNull();
   });
 
+  test("shows the viewer's existing vote as selected rather than as no vote", async () => {
+    const container = render(() => (
+      <CommunityPage
+        client={{
+          get_cPathSegment: async () => route,
+          get_communitiesCommunityIdPreview: async () => preview,
+        }}
+        engagementApi={engagementApi()}
+        handleSalesClient={{ get_communitiesCommunityIdHandleOfferings: async () => ({ items: [], next_cursor: null }) }}
+        loadThreads={async () => ({
+          posts: [{
+            id: "thread-voted",
+            title: "Already voted",
+            body: "The viewer upvoted this before the page was opened.",
+            score: 4,
+            upvoteCount: 5,
+            downvoteCount: 1,
+            publishedAt: "2026-09-01T18:00:00.000Z",
+            commentCount: 0,
+          }],
+          nextCursor: null,
+        })}
+        pathSegment="xn--pokmon-dva"
+        postComposerMediaStorage={createMemoryMediaSubmissionStorage()}
+        viewerVoteClient={viewerVoteClient(1)}
+        resolveSession={async () => ({
+          status: "authenticated",
+          userId: "usr-account-one",
+          personas: [],
+        })}
+      />
+    ));
+
+    // The public thread response cannot carry this, so it comes from the
+    // authenticated post read. Before that read existed the control opened
+    // unselected and a second press would have toggled from the wrong state.
+    await vi.waitFor(() => expect(container.querySelector("button[aria-label='Upvote']")).not.toBeNull());
+    expect(container.querySelector("button[aria-label='Upvote']")?.getAttribute("aria-pressed")).toBe("true");
+    expect(container.querySelector("button[aria-label='Downvote']")?.getAttribute("aria-pressed")).toBe("false");
+  });
+
   test("offers engagement without a persona and asks for one only to author", async () => {
     const container = render(() => (
       <CommunityPage
@@ -152,6 +229,7 @@ describe("CommunityPage", () => {
         })}
         pathSegment="xn--pokmon-dva"
         postComposerMediaStorage={createMemoryMediaSubmissionStorage()}
+        viewerVoteClient={viewerVoteClient(null)}
         resolveSession={async () => ({
           status: "authenticated",
           userId: "usr-account-one",
