@@ -310,6 +310,13 @@ export function CommunityPageShell(props: CommunityPageShellProps) {
   // Both header slots are this size in every state, so a label change cannot
   // resize them and a viewport change cannot make them wrap.
   const slotClass = "h-11 w-full min-w-0 md:w-32";
+  /**
+   * Spec 016 §4.6: an active member may invoke follow idempotently but may not
+   * unfollow, and has nothing left to join. Offering either would be offering
+   * an action the server answers with a typed conflict. The row is a fixed
+   * height, so withdrawing them moves nothing.
+   */
+  const memberHasNoAction = () => props.joined === true && props.viewerUnknown !== true;
   const feed = (): CommunityFeed =>
     props.feed?.() ?? { kind: "ready", posts: community().posts };
   /**
@@ -377,7 +384,10 @@ export function CommunityPageShell(props: CommunityPageShellProps) {
           </div>
           <div class="min-w-0 md:flex-1 md:pb-1">
             <Type as="h1" class="text-2xl md:text-3xl" variant="h1">{community().name}</Type>
-            <Type class="mt-1 block" variant="caption">{community().handle} · {formatCount(community().members)} members · {formatCount(community().followers)} followers</Type>
+            <Type class="mt-1 block" variant="caption">
+              <Show when={community().handle}>{handle => <>{handle()} · </>}</Show>
+              {formatCount(community().members)} members · {formatCount(community().followers)} followers
+            </Type>
           </div>
           <Show when={props.readOnly !== true}>
             {/* Exactly two slots, both always present and both a fixed size,
@@ -390,14 +400,15 @@ export function CommunityPageShell(props: CommunityPageShellProps) {
             >
               {/* Follow and Following both state a direction that has not been
                   read yet, so neither is offered until it has been. */}
-              <Button
-                aria-label={followLabel().description}
-                class={slotClass}
-                data-community-follow-slot
-                disabled={props.followBusy || props.authorityPending}
-                onClick={() => props.onFollowToggle?.()}
-                variant={props.following ? "secondary" : "outline"}
-              ><span class="truncate">{followLabel().text}</span></Button>
+              <Show when={!memberHasNoAction()}>
+                <Button
+                  aria-label={followLabel().description}
+                  class={slotClass}
+                  data-community-follow-slot
+                  disabled={props.followBusy || props.authorityPending}
+                  onClick={() => props.onFollowToggle?.()}
+                  variant={props.following ? "secondary" : "outline"}
+                ><span class="truncate">{followLabel().text}</span></Button>
               <Show when={props.canJoin !== false} fallback={<div class={slotClass} aria-hidden="true" />}>
                 <Button
                   aria-label={joinLabel().description}
@@ -408,6 +419,7 @@ export function CommunityPageShell(props: CommunityPageShellProps) {
                   onClick={() => props.onJoin?.()}
                   variant={props.joined && !props.viewerUnknown ? "secondary" : "default"}
                 ><span class="truncate">{joinLabel().text}</span></Button>
+              </Show>
               </Show>
             </div>
           </Show>
@@ -442,7 +454,7 @@ export function CommunityPageShell(props: CommunityPageShellProps) {
                   onClick={() => props.onCreatePost?.()}
                   size="sm"
                 >
-                  {props.createPostBusy ? "Opening…" : "Post here"}
+                  {props.createPostBusy ? "Opening…" : "Post"}
                 </Button>
               </Show>
               <label class="flex items-center gap-2">

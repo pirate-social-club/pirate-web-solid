@@ -67,6 +67,25 @@ const client = {
     { path }: { path: { path_segment: string } },
   ): Promise<GetCPathSegmentResponse> => {
     const fixture = fixtureFor(path.path_segment);
+    // A community reached by its own identifier carries no route.
+    if (path.path_segment === fixture.communityId) {
+      return {
+        authority_version: "optional_route_v2",
+        community_id: fixture.communityId,
+        href: `/c/${fixture.communityId}`,
+        canonical_route: null,
+        persona_role_presentation: {
+          role: "owner",
+          persona: {
+            persona_id: `persona-${fixture.pathSegment}`,
+            object: "persona",
+            display_name: "Song fixture persona",
+            avatar_ref: null,
+            primary_public_handle: null,
+          },
+        },
+      };
+    }
     return {
       community_id: fixture.communityId,
       canonical_route: {
@@ -158,14 +177,22 @@ function sizing(element: Element | null): string | null {
   return element.className.split(/\s+/u).filter(name => sizingClasses.test(name)).sort().join(" ");
 }
 
+/**
+ * The row's own size, which is what holds the page still. Its contents change
+ * legitimately: Spec 016 leaves an active member neither Follow nor Join, so a
+ * settled member's row is empty while a visitor's carries two controls.
+ */
 function headerSlots(container: HTMLElement) {
   const row = actionRow(container);
   return {
-    cells: row.children.length,
     row: sizing(row),
     follow: sizing(row.querySelector("[data-community-follow-slot]")),
     membership: sizing(row.querySelector("[data-community-membership-slot]")),
   };
+}
+
+function actionRowSize(container: HTMLElement): string | null {
+  return sizing(actionRow(container));
 }
 
 function manageAuthority(container: HTMLElement): string | null {
@@ -226,7 +253,7 @@ describe("the feed a host supplies", () => {
     await vi.waitFor(() => expect(container.textContent).toContain(harbor.threadTitle));
     // Membership, personas and management authority all settle after the feed.
     // None of them may cause the public feed to be read again.
-    await vi.waitFor(() => expect(buttonNamed(container, "Joined")).toBeDefined());
+    await vi.waitFor(() => expect(buttonNamed(container, "Post")).toBeDefined());
     expect(load).toHaveBeenCalledTimes(1);
   });
 
@@ -301,13 +328,13 @@ describe("private controls while authority settles", () => {
     expect(buttonNamed(container, "Following")).toBeUndefined();
     expect(buttonNamed(container, "Join")).toBeUndefined();
     expect(buttonNamed(container, "Joined")).toBeUndefined();
-    expect(buttonNamed(container, "Post here")).toBeUndefined();
+    expect(buttonNamed(container, "Post")).toBeUndefined();
     expect(buttonNamed(container, "Manage")).toBeUndefined();
     // Reserved space is not a control: it is inert and hidden from assistive
     // technology, so it states nothing about this viewer.
     // The header carries the two slots and nothing else, so nothing appears
     // there when authority settles.
-    expect(headerSlots(container).cells).toBe(2);
+    expect(actionRow(container).children.length).toBe(2);
     expect(manageAuthority(container)).toBe("pending");
     // Outcomes are announced through the shared toast region, which is fixed
     // and owns its own lifetime, so nothing they say occupies page space.
@@ -325,10 +352,13 @@ describe("private controls while authority settles", () => {
 
     setSessionState({ status: "authenticated", userId: "account-a" });
 
-    await vi.waitFor(() => expect(buttonNamed(container, "Joined")).toBeDefined());
+    await vi.waitFor(() => expect(buttonNamed(container, "Post")).toBeDefined());
     await vi.waitFor(() => expect(manageAuthority(container)).toBe("available"));
-    expect(buttonNamed(container, "Post here")).toBeDefined();
-    expect(headerSlots(container)).toEqual(pendingHeader);
+    expect(buttonNamed(container, "Post")).toBeDefined();
+    // Spec 016 leaves a member neither action, and the row holds its size.
+    expect(buttonNamed(container, "Follow")).toBeUndefined();
+    expect(buttonNamed(container, "Join")).toBeUndefined();
+    expect(actionRowSize(container)).toBe(pendingHeader.row);
   });
 
   test("an anonymous viewer keeps the same action geometry once settled", async () => {
@@ -354,9 +384,9 @@ describe("private controls while authority settles", () => {
 
     setSessionState({ status: "authenticated", userId: "account-a" });
 
-    await vi.waitFor(() => expect(buttonNamed(container, "Joined")).toBeDefined());
+    await vi.waitFor(() => expect(buttonNamed(container, "Post")).toBeDefined());
     await vi.waitFor(() => expect(manageAuthority(container)).toBe("unavailable"));
-    expect(headerSlots(container)).toEqual(pendingHeader);
+    expect(actionRowSize(container)).toBe(pendingHeader.row);
   });
 
   test("an account check that fails keeps the same action geometry", async () => {
@@ -371,7 +401,7 @@ describe("private controls while authority settles", () => {
     await vi.waitFor(() => expect(container.textContent).toContain("Retry account check"));
     expect(headerSlots(container)).toEqual(pendingHeader);
     expect(manageAuthority(container)).not.toBe("available");
-    expect(buttonNamed(container, "Post here")).toBeUndefined();
+    expect(buttonNamed(container, "Post")).toBeUndefined();
   });
 });
 
@@ -396,15 +426,16 @@ describe("management authority settles on its own schedule", () => {
       </ApplicationSessionProvider>
     ));
 
-    await vi.waitFor(() => expect(buttonNamed(container, "Joined")).toBeDefined());
+    await vi.waitFor(() => expect(buttonNamed(container, "Post")).toBeDefined());
     // Membership and personas are known, so their controls are done waiting.
-    expect(buttonNamed(container, "Post here")).toBeDefined();
-    expect(buttonNamed(container, "Follow")?.disabled).toBe(false);
+    // A member is offered neither Follow nor Join, so the row is empty and the
+    // proof that membership settled is the action they do have.
+    expect(buttonNamed(container, "Follow")).toBeUndefined();
     expect(container.querySelector("[data-operation-persona]")).not.toBeNull();
     // Only management is still unknown, and it is reported on an overlay
     // trigger that is always present, so nothing on the page is waiting.
     expect(manageAuthority(container)).toBe("pending");
-    expect(headerSlots(container).cells).toBe(2);
+    expect(actionRow(container).children.length).toBe(0);
   });
 });
 
@@ -440,8 +471,8 @@ describe("a membership read that fails", () => {
     expect(buttonNamed(container, "Joined")).toBeUndefined();
     expect(buttonNamed(container, "Follow")).toBeUndefined();
     expect(buttonNamed(container, "Following")).toBeUndefined();
-    expect(buttonNamed(container, "Post here")).toBeUndefined();
-    expect(headerSlots(container).cells).toBe(2);
+    expect(buttonNamed(container, "Post")).toBeUndefined();
+    expect(actionRow(container).children.length).toBe(2);
   });
 });
 
@@ -530,5 +561,77 @@ describe("the overflow menu and the outcome announcements", () => {
     expect(dismiss).toBeDefined();
     // And it does not occupy page space: the feed is not pushed by it.
     expect(container.querySelector("[data-community-feedback]")).toBeNull();
+  });
+});
+
+describe("what a community offers each viewer", () => {
+  test("an active member is offered neither follow nor join", async () => {
+    const container = render(() => (
+      <ApplicationSessionProvider state={() => ({ status: "authenticated", userId: "account-a" })}>
+        <CommunityPage
+          client={client}
+          engagementApi={engagementApi(true)}
+          handleSalesClient={handleSalesClient}
+          loadThreads={loadThreads}
+          pathSegment={harbor.pathSegment}
+          postComposerMediaStorage={createMemoryMediaSubmissionStorage()}
+          resolveSession={async (): Promise<SessionResolution> => ({
+            status: "authenticated", userId: "account-a", personas: [boundPersona],
+          })}
+        />
+      </ApplicationSessionProvider>
+    ));
+
+    // Spec 016 §4.6: a member may invoke follow idempotently but may not
+    // unfollow, and has nothing to join. Offering either would offer an action
+    // the server answers with a typed conflict.
+    await vi.waitFor(() => expect(buttonNamed(container, "Post")).toBeDefined());
+    for (const withheld of ["Follow", "Following", "Join", "Joined"]) {
+      expect(buttonNamed(container, withheld), `${withheld} was offered to a member`).toBeUndefined();
+    }
+  });
+
+  test("a visitor who is not a member keeps both actions", async () => {
+    const container = render(() => (
+      <ApplicationSessionProvider state={() => ({ status: "authenticated", userId: "account-a" })}>
+        <CommunityPage
+          client={client}
+          engagementApi={engagementApi(false)}
+          handleSalesClient={handleSalesClient}
+          loadThreads={loadThreads}
+          pathSegment={harbor.pathSegment}
+          postComposerMediaStorage={createMemoryMediaSubmissionStorage()}
+          resolveSession={async (): Promise<SessionResolution> => ({
+            status: "authenticated", userId: "account-a", personas: [],
+          })}
+        />
+      </ApplicationSessionProvider>
+    ));
+
+    await vi.waitFor(() => expect(buttonNamed(container, "Join")).toBeDefined());
+    expect(buttonNamed(container, "Follow")).toBeDefined();
+    // Posting belongs to members, so it is not offered here.
+    expect(buttonNamed(container, "Post")).toBeUndefined();
+  });
+
+  test("an id-routed community keeps its identifier out of the page", async () => {
+    const container = render(() => (
+      <CommunityPage
+        client={client}
+        engagementApi={engagementApi(false)}
+        handleSalesClient={handleSalesClient}
+        loadThreads={loadThreads}
+        pathSegment={harbor.communityId}
+        postComposerMediaStorage={createMemoryMediaSubmissionStorage()}
+      />
+    ));
+
+    await vi.waitFor(() => expect(container.textContent).toContain(harbor.displayName));
+    // The canonical link still carries it; the page body does not.
+    const header = container.querySelector("header");
+    expect(header?.textContent).not.toContain(harbor.communityId);
+    expect(header?.textContent).not.toContain("c/community_");
+    expect(document.head.querySelector("link[rel='canonical']")?.getAttribute("href") ?? "")
+      .toContain(harbor.communityId);
   });
 });

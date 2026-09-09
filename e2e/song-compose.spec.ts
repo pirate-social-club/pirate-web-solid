@@ -41,7 +41,7 @@ test.describe("publish a song from a community page", { tag: "@staging-mutating"
 
       await page.goto(`/c/${communityPath}`);
       await page.locator("#app-root[data-hydrated='true']").waitFor({ state: "attached" });
-      await page.getByRole("button", { name: "Post here" }).click();
+      await page.getByRole("button", { name: "Post" }).click();
 
       const composer = page.getByRole("form", { name: "Create a post" });
       await expect(composer).toBeVisible();

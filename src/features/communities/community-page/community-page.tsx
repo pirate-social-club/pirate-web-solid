@@ -208,7 +208,10 @@ function SuccessState(props: {
     return {
       id: communityId,
       name: source.name ?? state.community.displayName,
-      handle: source.handle ?? `c/${state.routeDisplay}`,
+      // An id-routed community has no handle to show. Printing the identifier
+      // as one puts a raw uuid in the page while the canonical link, which is
+      // where the identifier belongs, already carries it.
+      handle: source.handle ?? (state.routeFamily === "community_id" ? "" : `c/${state.routeDisplay}`),
       description: source.description ?? state.community.description ?? interpolateMessage(copy.defaultDescription, { name: state.community.displayName }),
       members: source.members ?? state.community.memberCount ?? 0,
       followers: source.followers ?? engagement.followerCount(),

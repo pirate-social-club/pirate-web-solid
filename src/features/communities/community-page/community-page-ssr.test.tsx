@@ -177,7 +177,7 @@ describe("the private controls the server sends", () => {
     expect(shell).toContain("Checking…");
     expect(shell).not.toContain(">Join<");
     expect(shell).not.toContain(">Joined<");
-    expect(shell).not.toContain("Post here");
+    expect(shell).not.toContain("Post");
     expect(shell).not.toContain(">Manage<");
     expect(shell).not.toContain(">Follow<");
     expect(shell).not.toContain(">Following<");

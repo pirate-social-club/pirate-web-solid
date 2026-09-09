@@ -244,7 +244,7 @@ describe("CommunityPage", () => {
     await vi.waitFor(() => expect(resolveSession).toHaveBeenCalledTimes(1));
 
     const postHere = [...container.querySelectorAll<HTMLButtonElement>("button")]
-      .find(button => button.textContent?.trim() === "Post here")!;
+      .find(button => button.textContent?.trim() === "Post")!;
     postHere.click();
 
     expect(resolveSession).toHaveBeenCalledTimes(1);
@@ -277,7 +277,7 @@ describe("CommunityPage", () => {
     await vi.waitFor(() => expect(resolveSession).toHaveBeenCalledTimes(1));
 
     const postHere = [...container.querySelectorAll<HTMLButtonElement>("button")]
-      .find(button => button.textContent?.trim() === "Post here")!;
+      .find(button => button.textContent?.trim() === "Post")!;
     postHere.click();
 
     await vi.waitFor(() => expect(container.textContent).toContain("couldn't load your active personas"));
@@ -320,13 +320,14 @@ describe("CommunityPage", () => {
     await vi.waitFor(() => expect(resolveSession).toHaveBeenCalledTimes(1));
 
     const postHere = [...container.querySelectorAll<HTMLButtonElement>("button")]
-      .find(button => button.textContent?.trim() === "Post here")!;
+      .find(button => button.textContent?.trim() === "Post")!;
 
     await vi.waitFor(() => expect(container.textContent).toContain("couldn't load your active personas"));
     expect(contextualComposerOpen()).toBe(false);
     expect(document.body.textContent).not.toContain("Create or reactivate a public persona");
-    [...container.querySelectorAll<HTMLButtonElement>("button")].find(button => button.textContent?.trim() === "Follow")!.click();
-    await vi.waitFor(() => expect(container.textContent).toContain("Following this Community."));
+    // This viewer is a member, so Spec 016 leaves them no follow to exercise
+    // here; the controller suite covers a follow succeeding while profiles are
+    // unavailable. What matters on the page is that the retry is offered.
     expect([...container.querySelectorAll("button")].some(button => button.textContent?.trim() === "Retry profiles")).toBe(true);
     unavailable = false;
     [...container.querySelectorAll<HTMLButtonElement>("button")].find(button => button.textContent?.trim() === "Retry profiles")!.click();
@@ -377,7 +378,7 @@ describe("CommunityPage", () => {
 
     await vi.waitFor(() => expect(readViewerState).toHaveBeenCalledTimes(1));
     const postHere = [...container.querySelectorAll<HTMLButtonElement>("button")].find(
-      (button) => button.textContent?.trim() === "Post here",
+      (button) => button.textContent?.trim() === "Post",
     );
     expect(postHere).toBeDefined();
     postHere!.click();
@@ -409,7 +410,12 @@ describe("CommunityPage", () => {
     join.click();
     await vi.waitFor(() => expect(api.join).toHaveBeenCalledWith(communityId, { kind: "existing", personaId: "persona_1" }));
     await vi.waitFor(() => expect(container.textContent).toContain("Joined this Community."));
-    expect(join.textContent).toBe("Joined");
+    // Spec 016 leaves a member neither Join nor Follow, so the proof of
+    // membership is the action they gained, not a label on the one they lost.
+    await vi.waitFor(() => expect([...container.querySelectorAll("button")]
+      .some(button => button.textContent?.trim() === "Post")).toBe(true));
+    expect([...container.querySelectorAll("button")]
+      .some(button => ["Join", "Joined", "Follow", "Following"].includes(button.textContent?.trim() ?? ""))).toBe(false);
   });
 
   test("shows a requested membership as pending instead of joined", async () => {
@@ -449,10 +455,11 @@ describe("CommunityPage", () => {
       />
     ));
     await vi.waitFor(() => expect(container.textContent).toContain("21 followers"));
-    const joined = [...container.querySelectorAll<HTMLButtonElement>("button")]
-      .find(button => button.textContent?.trim() === "Joined")!;
-    expect(joined.disabled).toBe(true);
-    expect(container.textContent).toContain("Post here");
+    // An existing member is offered neither action and keeps the one that is
+    // theirs; the server would answer a member's unfollow with a conflict.
+    expect([...container.querySelectorAll("button")]
+      .some(button => ["Join", "Joined", "Follow", "Following"].includes(button.textContent?.trim() ?? ""))).toBe(false);
+    expect(container.textContent).toContain("Post");
     expect(api.resolveJoinAction).not.toHaveBeenCalled();
   });
 
@@ -649,7 +656,7 @@ describe("CommunityPage", () => {
     await vi.waitFor(() => expect(container.querySelector("h1")?.textContent).toBe("Pirate Harbor"));
 
     const postHere = [...container.querySelectorAll<HTMLButtonElement>("button")]
-      .find(button => button.textContent?.trim() === "Post here");
+      .find(button => button.textContent?.trim() === "Post");
     expect(postHere).toBeUndefined();
     expect(contextualComposerOpen()).toBe(false);
   });

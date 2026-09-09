@@ -305,9 +305,9 @@ async function openComposer(page, community, body) {
   await page.locator("#app-root[data-hydrated='true']").waitFor({ state: "attached" });
   await page.waitForLoadState("networkidle");
   assert(await page.getByRole("dialog").count() === 0, "Community persona chooser opened during hydration");
-  assert(await page.getByRole("button", { name: "Post here" }).count() === 1,
+  assert(await page.getByRole("button", { name: "Post" }).count() === 1,
     `Hydrated Community has no posting action: ${await page.locator("main").allTextContents()}`);
-  await page.getByRole("button", { name: "Post here" }).click();
+  await page.getByRole("button", { name: "Post" }).click();
   const form = page.getByRole("form", { name: "Create a post" });
   await form.waitFor({ state: "visible" });
   assert(await page.getByRole("dialog").count() === 0, "posting form introduced an outer modal");
@@ -324,7 +324,7 @@ async function runTerminalScenario(browser, community, expectedText) {
     const form = await openComposer(page, community, `Browser body for ${community}`);
     if (community === "published") {
       await form.waitFor({ state: "hidden" });
-      await page.getByRole("button", { name: "Post here" }).click();
+      await page.getByRole("button", { name: "Post" }).click();
       const freshForm = page.getByRole("form", { name: "Create a post" });
       const freshPublish = freshForm.getByRole("button", { name: "Publish post" });
       assert(await freshForm.getByLabel("Community ID").count() === 0, "fresh contextual draft exposed the raw Community ID field");
@@ -377,7 +377,7 @@ try {
     await page.reload({ waitUntil: "domcontentloaded" });
     await page.locator("#app-root[data-hydrated='true']").waitFor({ state: "attached" });
     await page.waitForLoadState("networkidle");
-    await page.getByRole("button", { name: "Post here" }).click();
+    await page.getByRole("button", { name: "Post" }).click();
     form = page.getByRole("form", { name: "Create a post" });
     await form.getByRole("button", { name: "Check again" }).waitFor({ state: "visible" });
     await form.getByRole("button", { name: "Check again" }).click();

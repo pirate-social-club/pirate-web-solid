@@ -1,6 +1,6 @@
 import { expect, hasE2eAuthCredentials, test } from "./fixtures/auth.ts";
 
-// The composer a member actually opens: the community page's own Post here
+// The composer a member actually opens: the community page's own Post
 // action, not the global entry with a raw community identifier typed into it.
 // The surface under test is the one that ships, so the assertions follow it —
 // the body lives in the framed composer's Description field, and a successful
@@ -23,7 +23,7 @@ test.describe("post to a community from its own page", { tag: "@staging-mutating
     await page.goto(`/c/${communityPath}`);
     await page.locator("#app-root[data-hydrated='true']").waitFor({ state: "attached" });
 
-    const postHere = page.getByRole("button", { name: "Post here" });
+    const postHere = page.getByRole("button", { name: "Post" });
     await expect(postHere).toBeVisible();
     await postHere.click();
 

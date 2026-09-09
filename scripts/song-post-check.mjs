@@ -1,7 +1,7 @@
 // Song posting through an ordinary browser, on the real community page.
 //
 // The text harness proves conversation posting end to end; this is its song
-// equivalent. It drives the page's own Post here action, the four designed
+// equivalent. It drives the page's own Post action, the four designed
 // steps, and the production media submission coordinator against a fixture
 // API, and it insists the song publishes exactly once.
 //
@@ -388,7 +388,7 @@ async function publishSong(page, community, { lyrics }) {
   assert(html.includes('data-community-state="success"'), "Community page did not render on the server");
   await page.locator("#app-root[data-hydrated='true']").waitFor({ state: "attached" });
   await page.waitForLoadState("networkidle");
-  await page.getByRole("button", { name: "Post here" }).click();
+  await page.getByRole("button", { name: "Post" }).click();
 
   const form = page.getByRole("form", { name: "Create a post" });
   await form.waitFor({ state: "visible" });
