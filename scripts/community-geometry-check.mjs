@@ -1,5 +1,6 @@
-// Measures the community page shell in a real browser and fails when the page
-// moves as the viewer's authority settles.
+// Measures the community page shell in a real browser: the page must not move
+// as the viewer's authority settles, and asking for the community's details
+// must produce a real view rather than a blank column.
 //
 // Class-string assertions cannot establish equal geometry: they do not know
 // what wraps, what a label does to a width, or what a viewport does to a flex
@@ -90,6 +91,43 @@ function compare(storyId, viewport, pending, settled) {
   return failures;
 }
 
+/**
+ * The banner's overflow menu at one width. Community details must replace the
+ * feed with the About panel, not leave an empty column beside an aside that
+ * was already on screen, which is what a desktop-only escape hatch did.
+ */
+async function checkCommunityDetails(page, viewport) {
+  const failures = [];
+  await page.setViewportSize({ width: viewport.width, height: viewport.height });
+  await page.goto(`${baseUrl}/iframe.html?id=${settledStories[1]}&viewMode=story`, {
+    waitUntil: "domcontentloaded",
+    timeout: startupTimeoutMs,
+  });
+  const feed = page.locator("[aria-label='Community feed']").first();
+  const about = page.locator("[aria-label='Community information']").first();
+  await feed.waitFor({ state: "visible", timeout: startupTimeoutMs });
+
+  await page.locator("[aria-label='More community options']").first().click();
+  await page.getByRole("menuitem", { name: "Community details" }).click();
+
+  if (await feed.isVisible()) {
+    failures.push(`${viewport.name}: the feed is still on screen after asking for community details`);
+  }
+  if (!(await about.isVisible())) {
+    failures.push(`${viewport.name}: community details left nothing on screen`);
+  } else {
+    const box = await about.boundingBox();
+    // A real view, not a sidebar the reader was already looking at.
+    if (box === null || box.width < viewport.width * 0.5) {
+      failures.push(
+        `${viewport.name}: the about panel is ${box === null ? "absent" : `${box.width.toFixed(0)}px`}`
+        + `, narrower than half the ${viewport.width}px viewport`,
+      );
+    }
+  }
+  return failures;
+}
+
 async function main() {
   const browser = await chromium.launch();
   const page = await browser.newPage();
@@ -101,6 +139,7 @@ async function main() {
         const settled = await measure(page, storyId, viewport);
         failures.push(...compare(storyId, viewport, pending, settled));
       }
+      failures.push(...await checkCommunityDetails(page, viewport));
     }
   } finally {
     await page.close();
@@ -114,7 +153,8 @@ async function main() {
     return;
   }
   process.stdout.write(
-    `community-geometry-check: ${settledStories.length} settled state(s) hold their geometry `
+    `community-geometry-check: ${settledStories.length} settled state(s) hold their geometry, `
+    + `and community details opens a real view, `
     + `at ${viewports.map(viewport => `${viewport.width}px`).join(" and ")}\n`,
   );
 }

@@ -425,7 +425,11 @@ export function CommunityPageShell(props: CommunityPageShellProps) {
       </div>
 
       <div class="grid gap-8 p-5 md:grid-cols-[minmax(0,1fr)_20rem] md:p-8">
-        <main class={tab() === "about" ? "hidden md:block" : "min-w-0"} aria-label="Community feed">
+        {/* About is a view at every width. It used to be a mobile-only tab:
+            at desktop the main column came back through md:block and rendered
+            nothing, so asking for the community's details replaced the feed
+            with a blank column beside an aside that was already there. */}
+        <main class={tab() === "about" ? "hidden" : "min-w-0"} aria-label="Community feed">
           <Show when={tab() === "feed"}>
             <div class="mb-5 flex h-9 items-center justify-between gap-3">
               <Type variant="h2">Feed</Type>
@@ -476,7 +480,12 @@ export function CommunityPageShell(props: CommunityPageShellProps) {
           </Show>
         </main>
 
-        <aside class={tab() === "about" ? "flex flex-col gap-4" : "hidden md:block"} aria-label="Community information">
+        <aside
+          aria-label="Community information"
+          class={tab() === "about"
+            ? "flex flex-col gap-4 md:col-span-2 md:max-w-3xl"
+            : "hidden md:block"}
+        >
           <CommunityAbout community={community()} />
         </aside>
       </div>

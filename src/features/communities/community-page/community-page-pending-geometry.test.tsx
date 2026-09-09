@@ -489,10 +489,14 @@ describe("the overflow menu and the outcome announcements", () => {
     details.dispatchEvent(new PointerEvent("pointerup", { bubbles: true, button: 0, isPrimary: true }));
     details.click();
 
+    // Hidden at every width, with no md: escape putting an empty column back.
     await vi.waitFor(() => expect(
       container.querySelector<HTMLElement>("[aria-label='Community feed']")?.className,
-    ).toContain("hidden"));
-    expect(container.textContent).toContain(`About ${harbor.displayName}`);
+    ).toBe("hidden"));
+    const about = container.querySelector<HTMLElement>("[aria-label='Community information']");
+    expect(about?.className).not.toContain("hidden");
+    expect(about?.className).toContain("md:col-span-2");
+    expect(about?.textContent).toContain(`About ${harbor.displayName}`);
   });
 
   test("an outcome is announced with a lifetime and a way to dismiss it", async () => {
