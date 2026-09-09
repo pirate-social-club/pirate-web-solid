@@ -26,8 +26,18 @@ authority by design. Its POST must return the sanitized `404 not_found`
 contract, and the client must offer `Discard and edit` without entering a
 retry loop.
 
-The successful post spec skips with a visible reason until the HNS lane
-supplies `E2E_ROUTE_AUTHORIZED_COMMUNITY_ID`. It does not enable HNS and must
+The text and song posting specs drive the community page's own `Post here`
+action, which is the surface a member uses, rather than the global entry with a
+raw community identifier. Both read `E2E_COMMUNITY_PATH_SEGMENT`, naming a
+staging community this account belongs to with an active persona, and skip with
+a visible reason without it. The song spec publishes real audio into the
+configured object store and asserts exactly one publication, no lyrics command
+for an instrumental, and the post appearing in the feed; it is the only
+evidence that the deployed API, storage and processing accept a song, because
+the local `song-post-check` supplies its own responses.
+
+The earlier successful post spec skipped with a visible reason until the HNS
+lane supplied `E2E_ROUTE_AUTHORIZED_COMMUNITY_ID`. It does not enable HNS and must
 never use the Very ceremony fixture. The API currently exposes no post-delete
 contract, so an explicit run leaves uniquely marked staging content and
 records a cleanup annotation.
