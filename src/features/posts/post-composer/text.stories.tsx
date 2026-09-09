@@ -5,10 +5,18 @@ import { baseComposer } from "./story-fixtures";
 import { ComposerFrame } from "./story-helpers";
 
 const meta = {
-  title: "Flows/Posts/TextPost",
+  title: "Parts/Posts/PostComposer/IdentityVariants",
   component: PostComposer,
   args: baseComposer,
-  parameters: { layout: "fullscreen" },
+  parameters: {
+    layout: "fullscreen",
+    docs: {
+      description: {
+        component:
+          "Identity-mode variants of the product composer component. The shipped surface — with the community-page dialog and its persona rows — lives under Flows/Posts/CreatePostDialog.",
+      },
+    },
+  },
 } satisfies Meta<typeof PostComposer>;
 
 export default meta;

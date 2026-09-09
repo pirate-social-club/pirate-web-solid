@@ -75,9 +75,32 @@ export interface ComposerCopy {
     source: string;
   };
   live: Record<string, string>;
+  lyrics: {
+    noLyricsToggle: string;
+    noLyricsToggleNote: string;
+    reviewNote: string;
+    uploadFirst: string;
+  };
   none: string;
   placeholders: Record<string, string>;
   requiredFieldsLegend: string;
+  review: {
+    change: string;
+    license: string;
+    lyrics: string;
+    noLyrics: string;
+    persona: string;
+    recipients: (count: number) => string;
+    rights: string;
+    song: string;
+  };
+  rights: {
+    license: string;
+    recipientsNote: string;
+    revShare: string;
+    songKind: string;
+    totalExact: string;
+  };
   sections: Record<string, string>;
   setlist: {
     cannotFindTrack: string;
@@ -87,6 +110,12 @@ export interface ComposerCopy {
   songModes: {
     original: string;
     remix: string;
+  };
+  steps: {
+    lyrics: string;
+    review: string;
+    rights: string;
+    song: string;
   };
   tabs: Record<"text" | "image" | "video" | "link" | "song" | "live", string>;
   upload: {
@@ -198,6 +227,12 @@ export const defaultComposerCopy: ComposerCopy = {
   labels: {
     source: "Source",
   },
+  lyrics: {
+    noLyricsToggle: "This song has no lyrics",
+    noLyricsToggleNote: "Study and Karaoke will be unavailable for this song.",
+    reviewNote: "Review the words you wrote or pasted. They will be saved before your song is published.",
+    uploadFirst: "Finish uploading your audio before adding lyrics.",
+  },
   live: {
     roomKind: "Room kind",
     access: "Access",
@@ -259,6 +294,23 @@ export const defaultComposerCopy: ComposerCopy = {
     vinylReleaseUrl: "https://elasticstage.com/artist/releases/release-singleep",
   },
   requiredFieldsLegend: "Required fields are marked with *",
+  review: {
+    change: "Change",
+    license: "License",
+    lyrics: "Lyrics",
+    noLyrics: "No lyrics",
+    persona: "Posting as",
+    recipients: (count: number) => `${count} recipient${count === 1 ? "" : "s"}`,
+    rights: "Rights",
+    song: "Song",
+  },
+  rights: {
+    license: "License",
+    recipientsNote: "Recipient identities only. Wallets are resolved by the server.",
+    revShare: "Downstream commercial remix share",
+    songKind: "Song kind",
+    totalExact: "Allocations must total exactly 100%.",
+  },
   sections: {
     postAs: "Post as",
     sourceTrack: "Remix source",
@@ -272,6 +324,12 @@ export const defaultComposerCopy: ComposerCopy = {
   songModes: {
     original: "Original",
     remix: "Remix",
+  },
+  steps: {
+    lyrics: "Lyrics",
+    review: "Review",
+    rights: "Rights",
+    song: "Song",
   },
   tabs: {
     image: "Image",

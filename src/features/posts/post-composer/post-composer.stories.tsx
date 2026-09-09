@@ -15,7 +15,7 @@ const meta = {
     docs: {
       description: {
         component:
-          "The post composer port. Host-owned identity, upload, and submit callbacks are represented with deterministic Storybook fixtures.",
+          "Component demonstrations of the ported post composer, including kinds the product surfaces do not grant. Host-owned identity, upload, and submit callbacks are deterministic fixtures. The shipped flow — one composer surface through the community-page dialog with text, song, and video — lives under Flows/Posts/CreatePostDialog.",
       },
     },
   },

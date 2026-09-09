@@ -8,6 +8,8 @@
 //   React `@/locales` routes catalog, so stories stay deterministic and
 //   offline.
 
+import type { JSX } from "@solidjs/web";
+
 import type { PostCardEventPlace } from "./post-card-preview-types";
 
 export type ComposerTab = "text" | "image" | "video" | "link" | "song" | "live" | "file";
@@ -270,12 +272,22 @@ export interface ComposerAudienceState {
   publicOptionDisabledReason?: string;
 }
 
+/** One active public persona the author may post as. */
+export interface ComposerPublicPersona {
+  personaId: string;
+  handle?: string;
+  displayName?: string;
+  avatarSrc?: string | null;
+}
+
 export interface ComposerIdentityState {
   visible?: boolean;
   allowAnonymousIdentity?: boolean;
   allowQualifiersOnAnonymousPosts?: boolean;
   identityMode?: IdentityMode;
   authorMode?: AuthorMode;
+  /** Active public personas; absent means the single `publicHandle` identity. */
+  publicPersonas?: readonly ComposerPublicPersona[];
   publicHandle?: string;
   publicAvatarSrc?: string | null;
   publicAvatarSeed?: string | null;
@@ -332,6 +344,7 @@ interface PostComposerDraftActions {
   onVideoChange?: (value: VideoComposerState) => void;
   onSongModeChange?: (value: SongMode) => void;
   onModeChange?: (value: ComposerTab) => void;
+  onPersonaChange?: (personaId: string) => void;
   onDerivativeStepChange?: (value: DerivativeStepState | undefined) => void;
   onMonetizationChange?: (value: MonetizationState) => void;
   onCharityContributionChange?: (value: CharityContributionState) => void;
@@ -395,11 +408,12 @@ export interface PostComposerProps extends Partial<PostComposerDraftState>, Post
   songFlowRuntime?: SongFlowRuntime;
   onVideoEntry?: () => void;
   onClose?: () => void;
-  presentation?: "page" | "embedded";
   // Community policy: enabling 18+ requires an explicit confirmation step.
   ageGateConfirmationRequired?: boolean;
   // A retained request owns its audience and rating until it is resolved.
   audienceEditingDisabled?: boolean;
+  // A retained request or pending dispatch owns authorship until resolved.
+  personaSelectionDisabled?: boolean;
   availableCapabilities?: readonly ComposerCapability[];
   canCreateSongPost?: boolean;
   currentPersonaId?: string;
@@ -421,4 +435,9 @@ export interface PostComposerProps extends Partial<PostComposerDraftState>, Post
   initialOpenPanel?: "access-and-rights" | "visibility";
   // Supports restoring a draft at a known step and focused Storybook review.
   initialSongStep?: 1 | 2 | 3 | 4;
+  // Host-owned outcome panels rendered inside the single composer surface.
+  // Accessors, not elements: an eagerly-evaluated JSX descriptor held in props
+  // keeps live children getters that diagnostics tooling must not execute.
+  textOutcome?: () => JSX.Element;
+  mediaStatus?: () => JSX.Element;
 }

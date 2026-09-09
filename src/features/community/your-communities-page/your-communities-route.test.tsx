@@ -15,6 +15,13 @@ function routeRoot(container: HTMLElement): HTMLElement {
   return root;
 }
 
+/** The contextual composer is open when its one close control exists and no
+ * raw community identifier input is offered. */
+function contextualComposerOpen(): boolean {
+  return document.body.querySelector("button[aria-label='Close composer']") !== null
+    && document.body.querySelector("input[name='community-id']") === null;
+}
+
 function render(ui: () => JSX.Element): HTMLElement {
   const container = document.createElement("div");
   document.body.appendChild(container);
@@ -88,7 +95,7 @@ describe("YourCommunitiesRouteView", () => {
     await pending;
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(resolvePostingSession).not.toHaveBeenCalled();
-    expect(document.body.textContent).not.toContain("Posting in Open Sea");
+    expect(contextualComposerOpen()).toBe(false);
   });
 
   test("shows account-check failure without loading memberships or claiming sign-out", async () => {
@@ -139,12 +146,10 @@ describe("YourCommunitiesRouteView", () => {
     container
       .querySelector<HTMLButtonElement>("[data-post-community-id='community-route-less']")
       ?.click();
-    await vi.waitFor(() => expect(document.body.textContent).toContain("Posting in Open Sea"));
+    await vi.waitFor(() => expect(contextualComposerOpen()).toBe(true));
     expect(loadMemberships).toHaveBeenCalledTimes(2);
     expect(resolvePostingSession).toHaveBeenCalledOnce();
-    expect(
-      document.body.querySelector("[data-community-context='community-route-less']"),
-    ).not.toBeNull();
+    expect(document.body.querySelector("input[name='community-id']")).toBeNull();
   });
 
   test("reports unavailable profiles and retries on the next Post click", async () => {
@@ -159,10 +164,10 @@ describe("YourCommunitiesRouteView", () => {
     post().click();
     await vi.waitFor(() => expect(container.textContent).toContain("couldn't load your community profiles"));
     expect(document.body.textContent).not.toContain("Create or reactivate a public persona");
-    expect(document.body.textContent).not.toContain("Posting in Open Sea");
+    expect(contextualComposerOpen()).toBe(false);
     unavailable = false;
     post().click();
-    await vi.waitFor(() => expect(document.body.textContent).toContain("Posting in Open Sea"));
+    await vi.waitFor(() => expect(contextualComposerOpen()).toBe(true));
     expect(resolvePostingSession).toHaveBeenCalledTimes(2);
   });
 
@@ -180,7 +185,7 @@ describe("YourCommunitiesRouteView", () => {
     />);
     await vi.waitFor(() => expect(container.textContent).toContain("Open Sea"));
     container.querySelector<HTMLButtonElement>("[data-post-community-id]")!.click();
-    await vi.waitFor(() => expect(document.body.textContent).toContain("Posting in Open Sea"));
+    await vi.waitFor(() => expect(contextualComposerOpen()).toBe(true));
     await vi.waitFor(() => expect(document.body.textContent).toContain("Create or reactivate a public persona"));
     expect(document.body.textContent).not.toContain("persona-elsewhere");
     expect(document.body.textContent).not.toContain("persona-unbound");
@@ -205,7 +210,7 @@ describe("YourCommunitiesRouteView", () => {
       ?.click();
     await vi.waitFor(() => expect(container.textContent).toContain("no longer post"));
     expect(resolvePostingSession).not.toHaveBeenCalled();
-    expect(document.body.textContent).not.toContain("Posting in Open Sea");
+    expect(contextualComposerOpen()).toBe(false);
   });
 
   test("reacts to hydration session transitions", async () => {

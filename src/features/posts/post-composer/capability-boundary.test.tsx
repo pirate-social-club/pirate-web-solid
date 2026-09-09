@@ -1,7 +1,7 @@
 /** @jsxImportSource @solidjs/web */
 import { afterEach, describe, expect, test, vi } from "vitest";
 import { render as solidRender } from "@solidjs/web";
-import { createRoot, flush } from "solid-js";
+import { createRoot, createSignal, flush } from "solid-js";
 
 import { createMemoryMediaSubmissionStorage } from "../media-submission/pending";
 import { createComposerCapabilitySet } from "./capability";
@@ -9,8 +9,9 @@ import { CreatePostDialog } from "./create-post-dialog";
 import { createMemoryPendingSubmissionStorage } from "./pending-submission";
 import { createPostComposerController, type PostComposerController } from "./controller";
 import { defaultEventState } from "./defaults";
+import { SongRightsStep } from "./song-steps";
 import { PostComposerWriteStep } from "./write-step";
-import type { PostComposerProps } from "./types";
+import type { AssetRoyaltySplitState, PostComposerProps } from "./types";
 
 const disposers: Array<() => void> = [];
 
@@ -220,6 +221,41 @@ describe("event state that arrives rather than being selected", () => {
     });
     expect(controller.event.state.enabled).toBe(true);
     expect(container.querySelector('[aria-label="Online event"]')).not.toBeNull();
+  });
+});
+
+describe("the designed rights step", () => {
+  // Regression guard: rendering the allocation total once shares exceed 100%
+  // used to throw inside the reactive render (basis-point formatting is only
+  // valid per-share) and halted the reactive system.
+  test("adds a collaborator and re-renders the allocation rows", async () => {
+    const [royaltySplit, setRoyaltySplit] = createSignal<AssetRoyaltySplitState>({ allocations: [
+      { id: "creator", recipientKind: "creator", recipientId: "persona-one", shareBps: 10_000, sharePct: 100 },
+    ] });
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    let dispose = () => {};
+    createRoot(rootDispose => {
+      dispose = rootDispose;
+      solidRender(() => {
+        const controller = createPostComposerController({
+          mode: "song",
+          availableCapabilities: ["text", "song", "video"],
+          canCreateSongPost: true,
+          get royaltySplit() { return royaltySplit(); },
+          onRoyaltySplitChange: setRoyaltySplit,
+        }, { isMobile: () => false });
+        return <SongRightsStep controller={controller} />;
+      }, container);
+    });
+    disposers.push(() => { dispose(); container.remove(); });
+    const add = [...container.querySelectorAll<HTMLButtonElement>("button")]
+      .find(button => button.textContent?.trim() === "Add collaborator")!;
+    expect(add).toBeInstanceOf(HTMLButtonElement);
+    add.click();
+    await new Promise<void>(resolve => setTimeout(resolve, 50));
+    expect(container.querySelector("input[aria-label='Recipient 2 id']")).not.toBeNull();
+    expect(container.textContent).toContain("100.01%");
   });
 });
 

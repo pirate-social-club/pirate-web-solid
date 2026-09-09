@@ -118,3 +118,25 @@ function formatPreviewPrice(value?: string) {
   if (!normalized) return "$1.00";
   return normalized.startsWith("$") ? normalized : `$${normalized}`;
 }
+
+// Designed composer step tracks. Song is the only multi-step track today; a
+// track with no entries is single-step and posts from the composer button.
+export type ComposerStepName = "song" | "lyrics" | "rights" | "review";
+
+const songStepTrack: readonly ComposerStepName[] = ["song", "lyrics", "rights", "review"];
+
+export function composerStepTrack(tab: ComposerTab): readonly ComposerStepName[] {
+  return tab === "song" ? songStepTrack : [];
+}
+
+export function getNextComposerStep(step: ComposerStepName, tab: ComposerTab): ComposerStepName {
+  const track = composerStepTrack(tab);
+  const index = track.indexOf(step);
+  return index >= 0 && index < track.length - 1 ? track[index + 1]! : step;
+}
+
+export function getPreviousComposerStep(step: ComposerStepName, tab: ComposerTab): ComposerStepName {
+  const track = composerStepTrack(tab);
+  const index = track.indexOf(step);
+  return index > 0 ? track[index - 1]! : step;
+}

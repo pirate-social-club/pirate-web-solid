@@ -1,22 +1,19 @@
 /** @jsxImportSource @solidjs/web */
 import type { CreatePostInput } from "@pirate/api-client";
 import type { JSX } from "@solidjs/web";
-import { createSignal, For, getOwner, onCleanup, Show } from "solid-js";
+import { createSignal, getOwner, onCleanup, Show } from "solid-js";
 
 import type { ActivePersonaPublicProjection } from "../../../api/session";
 import {
   Button,
   Dialog,
   DialogContent,
-  DialogDescription,
-  DialogHeader,
   DialogTitle,
   FormNote,
   TextField,
   TextFieldDescription,
   TextFieldInput,
   TextFieldLabel,
-  Type,
 } from "../../../design-system";
 import type { MediaSubmissionSnapshot } from "../media-submission/contracts";
 import {
@@ -96,9 +93,14 @@ export function initialOperationPersonaId(
   return personas.length === 1 ? personas[0]?.personaId : undefined;
 }
 
-function personaLabel(persona: ActivePersonaPublicProjection): string {
-  return persona.displayName?.trim()
-    || (persona.primaryPublicHandle ? `@${persona.primaryPublicHandle}` : persona.personaId);
+/** Map session personas onto the composer identity sheet's public rows. */
+function composerPersonas(personas: readonly ActivePersonaPublicProjection[]) {
+  return personas.map(persona => ({
+    personaId: persona.personaId,
+    handle: persona.primaryPublicHandle ?? undefined,
+    displayName: persona.displayName ?? undefined,
+    avatarSrc: persona.avatarRef,
+  }));
 }
 
 function restoredAudio(record: NonNullable<MediaSubmissionCoordinator["currentRecord"]>): File {
@@ -638,186 +640,174 @@ export function CreatePostDialog(props: CreatePostDialogProps): JSX.Element {
     return view.status === "processing_failed" && view.retryable;
   };
 
+  // A retained request or in-flight dispatch owns authorship until resolved;
+  // the identity sheet's persona rows lock for the same states the removed
+  // host persona selector did.
+  const personaSelectionDisabled = () =>
+    mode() === "video" ? videoRetained()
+      : mode() === "text" ? textRestoring() || textState().status !== "editing"
+        : mediaCoordinator?.currentRecord !== null && mediaCoordinator?.currentRecord !== undefined;
+
+  // Where a retained song resumes: before the upload finishes it is Song,
+  // with audio but unbound lyrics it is Lyrics, once lyrics are accepted it
+  // is Rights, and after terms are issued only Review remains.
+  const initialSongStep = (): 1 | 2 | 3 | 4 => {
+    if (mediaRestoring()) return 1;
+    const snapshot = mediaSnapshot();
+    if (snapshot === null || snapshot.audio_revision < 1) return 1;
+    if (songTermsIssued()) return 4;
+    return snapshot.lyrics_state.current.status === "ready" ? 3 : 2;
+  };
+
+  const mediaStatusPanel = () => (
+    <Show when={mode() === "song" && (mediaView().status !== "editing" || mediaRestoring())}>
+      <div
+        aria-live="polite"
+        class="grid gap-3 rounded-2xl border border-border-soft bg-card p-5 text-base"
+        data-media-composer-state={mediaRestoring() ? "restoring" : mediaView().status}
+        role={mediaView().status === "blocked" || mediaView().status === "processing_failed" ? "alert" : "status"}
+      >
+        <p>{mediaRestoring() ? "Restoring the retained song submission…"
+          : mediaSnapshot()?.audio_revision && !songTermsIssued() && mediaView().status === "processing"
+            ? "Audio uploaded. Finish reviewing your lyrics and royalties, then publish your song."
+            : mediaStateMessage(mediaView())}</p>
+        <Show when={observationPaused()}><FormNote>Automatic checks paused. Check status to try again.</FormNote></Show>
+        <Show when={mediaCoordinator?.currentRecord?.issue}>
+          {(issue) => <FormNote tone="warning">The retained command has a {issue().kind.replaceAll("_", " ")} and will not be re-keyed automatically.</FormNote>}
+        </Show>
+        <Show when={mediaCoordinator?.currentRecord?.submission_id != null && !terminalMediaView(mediaView())}>
+          <Button disabled={mediaBusy()} type="button" variant="outline" onClick={() => void refreshSong()}>Check status</Button>
+        </Show>
+        <Show when={canCancelSong()}>
+          <Button disabled={mediaBusy()} type="button" variant="ghost" onClick={() => void cancelSong()}>Cancel song submission</Button>
+        </Show>
+        <Show when={mediaView().status === "action_required"}>
+          <TextField value={sourceAssetId()} onChange={setSourceAssetId}>
+            <TextFieldLabel>Source song asset ID</TextFieldLabel>
+            <TextFieldInput />
+            <TextFieldDescription>Provide the published source asset requested for this recording.</TextFieldDescription>
+          </TextField>
+          <Button disabled={mediaBusy() || sourceAssetId().trim() === ""} onClick={() => void bindSongReference()}>Confirm source song</Button>
+        </Show>
+        <Show when={canRetrySong()}>
+          <Button disabled={mediaBusy()} type="button" variant="outline" onClick={() => void retrySong()}>Retry processing</Button>
+        </Show>
+        <Show when={lyricsCanSave()}>
+          <Button disabled={lyricsBusy()} type="button" onClick={() => void saveLyrics()}>Save reviewed lyrics</Button>
+        </Show>
+        <Show when={terminalMediaView(mediaView())}>
+          <Button disabled={mediaBusy()} type="button" variant="outline" onClick={() => void discardTerminalSong()}>Start a new post</Button>
+        </Show>
+      </div>
+    </Show>
+  );
+
+  const textOutcomePanel = () => (
+    <Show when={mode() === "text" && textState().status !== "editing"}>
+      <PostComposerSubmission
+        onDiscardAndEdit={() => void discardAndEditText()}
+        onNewDraft={startNewTextDraft}
+        onRetry={() => void retryText()}
+        onResolveOldest={() => { textCoordinator.resolveOldestPending(); }}
+        state={textState()}
+      />
+    </Show>
+  );
+
   return (
     <Dialog open={props.open} onOpenChange={close}>
-      <DialogContent class="max-h-[92dvh] overflow-y-auto sm:w-[min(100%-2rem,48rem)]">
-        <DialogHeader>
-          <DialogTitle>Create a post</DialogTitle>
-          <DialogDescription>Start a conversation or publish a song in a community you belong to.</DialogDescription>
-        </DialogHeader>
+      <DialogContent hideCloseButton class="max-h-[92dvh] overflow-y-auto p-0 sm:w-[min(100%-2rem,48rem)]">
+        <DialogTitle class="sr-only">Create a post</DialogTitle>
         <Show when={props.open}>
-          <div class="grid gap-4">
-            <Show
-              when={props.communityContext}
-              fallback={(
-                <TextField name="community-id" value={communityId()} onChange={setCommunityId}>
-                  <TextFieldLabel>Community ID</TextFieldLabel>
-                  <TextFieldInput autocomplete="off" placeholder="The community identifier" />
-                  <TextFieldDescription>Posts are community-scoped. A friendly community picker will replace this field.</TextFieldDescription>
-                </TextField>
-              )}
-            >
-              {context => (
-                <Show
-                  when={!communityContextConflict()}
-                  fallback={(
-                    <FormNote tone="warning">
-                      A retained submission belongs to another community. Resolve it from the global Create post action before posting here.
-                    </FormNote>
-                  )}
-                >
-                  <div class="rounded-2xl border border-border-soft bg-card p-4" data-community-context={context().id}>
-                    <Type as="p" variant="label">Posting in {context().name}</Type>
-                    <Type as="p" class="mt-1" variant="caption">This community is selected from the page.</Type>
-                  </div>
-                </Show>
-              )}
+          <div class="grid gap-3 p-3 sm:p-4">
+            <Show when={!props.communityContext}>
+              <TextField name="community-id" value={communityId()} onChange={setCommunityId}>
+                <TextFieldLabel>Community ID</TextFieldLabel>
+                <TextFieldInput autocomplete="off" placeholder="The community identifier" />
+                <TextFieldDescription>Posts are community-scoped. A friendly community picker will replace this field.</TextFieldDescription>
+              </TextField>
             </Show>
-
-            <Show when={personas().length > 1 || (personas().length === 1 && selectedActivePersonaId() === undefined)}>
-              <label class="grid gap-2 text-sm font-medium">
-                <span>Post as</span>
-                <select
-                  aria-label="Operation persona"
-                  class="h-11 w-full rounded-full border border-input bg-background px-4 text-base"
-                  disabled={mode() === "video" ? videoRetained() : mode() === "text" ? textRestoring() || textState().status !== "editing" : mediaCoordinator?.currentRecord !== null && mediaCoordinator?.currentRecord !== undefined}
-                  name="operation-persona"
-                  onChange={event => selectOperationPersona(event.currentTarget.value || undefined)}
-                  value={selectedPersonaId() ?? ""}
-                >
-                  <option value="">Choose a public persona</option>
-                  <For each={personas()}>{persona => (
-                    <option value={persona.personaId}>{personaLabel(persona)}</option>
-                  )}</For>
-                </select>
-                <span class="text-sm font-normal text-muted-foreground">Choose which active public persona authors this post.</span>
-              </label>
-            </Show>
-            <Show when={personas().length === 1 && selectedPersona()}>
-              {(persona) => <Type as="p" variant="caption">Posting as {personaLabel(persona())}</Type>}
+            <Show when={communityContextConflict()}>
+              <FormNote tone="warning">
+                A retained submission belongs to another community. Resolve it from the global Create post action before posting here.
+              </FormNote>
             </Show>
             <Show when={personas().length === 0}>
               <FormNote tone="warning">Create or reactivate a public persona before submitting a post.</FormNote>
             </Show>
-
-            <Show when={mode() !== "video"} fallback={
-              <Show when={props.principalId}>{account => <VideoComposerRuntime
-                principalId={account()} communityId={communityContextConflict() ? contextualCommunityId() : communityId().trim()} personaId={selectedActivePersonaId()}
-                storage={props.videoStorage} transport={props.videoTransport} fetchImpl={props.fetchImpl}
-                onExit={() => setMode("text")} onPublished={props.onPublished}
-                onRetainedPersona={(personaId, retainedCommunityId) => {
-                  setVideoRetained(personaId !== null);
-                  if (personaId !== null) { setVideoPersonaId(personaId); if (retainedCommunityId) setCommunityId(retainedCommunityId); }
+            <Show
+              when={mode() !== "video"}
+              fallback={
+                <Show when={props.principalId}>{account => <VideoComposerRuntime
+                  principalId={account()} communityId={communityContextConflict() ? contextualCommunityId() : communityId().trim()} personaId={selectedActivePersonaId()}
+                  storage={props.videoStorage} transport={props.videoTransport} fetchImpl={props.fetchImpl}
+                  onExit={() => setMode("text")} onPublished={props.onPublished}
+                  onRetainedPersona={(personaId, retainedCommunityId) => {
+                    setVideoRetained(personaId !== null);
+                    if (personaId !== null) { setVideoPersonaId(personaId); if (retainedCommunityId) setCommunityId(retainedCommunityId); }
+                  }}
+                />}</Show>
+              }
+            >
+              <PostComposer
+                audienceEditingDisabled={mode() === "song"
+                  ? mediaRestoring() || mediaRecordRetained()
+                  : textState().status !== "editing" && textState().status !== "transport_failure"}
+                availableCapabilities={["text", "song", "video"]}
+                canCreateSongPost={personas().length > 0}
+                currentPersonaId={selectedPersonaId()}
+                identity={{
+                  publicPersonas: composerPersonas(personas()),
+                  publicHandle: selectedPersona()?.primaryPublicHandle ?? undefined,
+                  publicAvatarSrc: selectedPersona()?.avatarRef,
                 }}
-              />}</Show>
-            }><PostComposer
-              audienceEditingDisabled={mode() === "song"
-                ? mediaRestoring() || mediaRecordRetained()
-                : textState().status !== "editing" && textState().status !== "transport_failure"}
-              availableCapabilities={["text", "song", "video"]}
-              canCreateSongPost={personas().length > 0}
-              currentPersonaId={selectedPersonaId()}
-              identity={{
-                visible: mode() === "song",
-                publicHandle: selectedPersona()?.primaryPublicHandle ?? undefined,
-                publicAvatarSrc: selectedPersona()?.avatarRef,
-              }}
-              license={license()}
-              lyricsValue={lyrics()}
-              mode={mode()}
-              onClose={() => close(false)}
-              onLicenseChange={setLicense}
-              onAgeGatePolicyChange={setAgeGatePolicy}
-              onLyricsValueChange={value => { lyricsEdited = true; setLyrics(value); }}
-              onModeChange={setMode}
-              onVideoEntry={() => setMode("video")}
-              onRoyaltySplitChange={setRoyaltySplit}
-              onSongChange={next => {
-                setSong(next);
-                if (next.title !== undefined) setTitle(next.title);
-              }}
-              onSongModeChange={setSongMode}
-              onTextBodyValueChange={setBody}
-              onTitleValueChange={value => {
-                setTitle(value);
-                if (mode() === "song") setSong(current => ({ ...current, title: value }));
-              }}
-              presentation="embedded"
-              songFlowRuntime={mode() === "song" ? {
-                personaId: selectedActivePersonaId(),
-                prepare: () => submitSong(true),
-                prepared: (mediaSnapshot()?.audio_revision ?? 0) >= 1,
-                retained: mediaRecordRetained(),
-                locked: mediaBusy() || lyricsBusy() || songTermsIssued() || terminalMediaView(mediaView()),
-              } : undefined}
-              ageGatePolicy={ageGatePolicy()}
-              royaltySplit={royaltySplit()}
-              song={song()}
-              songMode={songMode()}
-              submit={{
-                get disabled() { return submitDisabled(); },
-                get error() { return error() || null; },
-                get label() { return mode() === "song" ? "Publish song" : "Publish post"; },
-                get loading() { return mode() === "song" ? mediaBusy() || mediaRestoring() : textState().status === "submitting"; },
-                onSubmit: submit,
-              }}
-              textBodyValue={body()}
-              titleValue={title()}
-              validateDraftBeforeSubmit={mode() !== "text"}
-            /></Show>
-            <div class="flex justify-end">
-              <Button type="button" variant="outline" onClick={() => close(false)}>Cancel</Button>
-            </div>
-
-            <Show when={mode() === "text" && textState().status !== "editing"}>
-              <PostComposerSubmission
-                onDiscardAndEdit={() => void discardAndEditText()}
-                onNewDraft={startNewTextDraft}
-                onRetry={() => void retryText()}
-                onResolveOldest={() => { textCoordinator.resolveOldestPending(); }}
-                state={textState()}
+                initialSongStep={initialSongStep()}
+                license={license()}
+                lyricsValue={lyrics()}
+                mediaStatus={mediaStatusPanel}
+                mode={mode()}
+                onClose={() => close(false)}
+                onLicenseChange={setLicense}
+                onAgeGatePolicyChange={setAgeGatePolicy}
+                onLyricsValueChange={value => { lyricsEdited = true; setLyrics(value); }}
+                onModeChange={setMode}
+                onPersonaChange={nextPersonaId => selectOperationPersona(nextPersonaId)}
+                onVideoEntry={() => setMode("video")}
+                onRoyaltySplitChange={setRoyaltySplit}
+                onSongChange={next => {
+                  setSong(next);
+                  if (next.title !== undefined) setTitle(next.title);
+                }}
+                onSongModeChange={setSongMode}
+                onTextBodyValueChange={setBody}
+                onTitleValueChange={value => {
+                  setTitle(value);
+                  if (mode() === "song") setSong(current => ({ ...current, title: value }));
+                }}
+                personaSelectionDisabled={personaSelectionDisabled()}
+                songFlowRuntime={mode() === "song" ? {
+                  personaId: selectedActivePersonaId(),
+                  prepare: () => submitSong(true),
+                  prepared: (mediaSnapshot()?.audio_revision ?? 0) >= 1,
+                  retained: mediaRecordRetained(),
+                  locked: mediaBusy() || lyricsBusy() || songTermsIssued() || terminalMediaView(mediaView()),
+                } : undefined}
+                ageGatePolicy={ageGatePolicy()}
+                royaltySplit={royaltySplit()}
+                song={song()}
+                songMode={songMode()}
+                submit={{
+                  get disabled() { return submitDisabled(); },
+                  get error() { return error() || null; },
+                  get label() { return mode() === "song" ? "Publish song" : "Publish post"; },
+                  get loading() { return mode() === "song" ? mediaBusy() || mediaRestoring() : textState().status === "submitting"; },
+                  onSubmit: submit,
+                }}
+                textBodyValue={body()}
+                textOutcome={textOutcomePanel}
+                titleValue={title()}
+                validateDraftBeforeSubmit={mode() !== "text"}
               />
-            </Show>
-
-            <Show when={mode() === "song" && (mediaView().status !== "editing" || mediaRestoring())}>
-              <div
-                aria-live="polite"
-                class="grid gap-3 rounded-2xl border border-border-soft bg-card p-5 text-base"
-                data-media-composer-state={mediaRestoring() ? "restoring" : mediaView().status}
-                role={mediaView().status === "blocked" || mediaView().status === "processing_failed" ? "alert" : "status"}
-              >
-                <p>{mediaRestoring() ? "Restoring the retained song submission…"
-                  : mediaSnapshot()?.audio_revision && !songTermsIssued() && mediaView().status === "processing"
-                    ? "Audio uploaded. Finish reviewing your lyrics and royalties, then publish your song."
-                    : mediaStateMessage(mediaView())}</p>
-                <Show when={observationPaused()}><FormNote>Automatic checks paused. Check status to try again.</FormNote></Show>
-                <Show when={mediaCoordinator?.currentRecord?.issue}>
-                  {(issue) => <FormNote tone="warning">The retained command has a {issue().kind.replaceAll("_", " ")} and will not be re-keyed automatically.</FormNote>}
-                </Show>
-                <Show when={mediaCoordinator?.currentRecord?.submission_id != null && !terminalMediaView(mediaView())}>
-                  <Button disabled={mediaBusy()} type="button" variant="outline" onClick={() => void refreshSong()}>Check status</Button>
-                </Show>
-                <Show when={canCancelSong()}>
-                  <Button disabled={mediaBusy()} type="button" variant="ghost" onClick={() => void cancelSong()}>Cancel song submission</Button>
-                </Show>
-                <Show when={mediaView().status === "action_required"}>
-                  <TextField value={sourceAssetId()} onChange={setSourceAssetId}>
-                    <TextFieldLabel>Source song asset ID</TextFieldLabel>
-                    <TextFieldInput />
-                    <TextFieldDescription>Provide the published source asset requested for this recording.</TextFieldDescription>
-                  </TextField>
-                  <Button disabled={mediaBusy() || sourceAssetId().trim() === ""} onClick={() => void bindSongReference()}>Confirm source song</Button>
-                </Show>
-                <Show when={canRetrySong()}>
-                  <Button disabled={mediaBusy()} type="button" variant="outline" onClick={() => void retrySong()}>Retry processing</Button>
-                </Show>
-                <Show when={lyricsCanSave()}>
-                  <Button disabled={lyricsBusy()} type="button" onClick={() => void saveLyrics()}>Save reviewed lyrics</Button>
-                </Show>
-                <Show when={terminalMediaView(mediaView())}>
-                  <Button disabled={mediaBusy()} type="button" variant="outline" onClick={() => void discardTerminalSong()}>Start a new post</Button>
-                </Show>
-              </div>
             </Show>
           </div>
         </Show>

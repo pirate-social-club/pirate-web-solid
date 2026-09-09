@@ -1,3 +1,4 @@
+import type { JSX } from "@solidjs/web";
 import { For, Show, createMemo, createSignal } from "solid-js";
 
 import {
@@ -10,32 +11,83 @@ import {
   ModalHeader,
   ModalTitle,
   ModalTrigger,
-  buttonVariants,
-  pillButtonVariants,
   RadioIndicator,
   Type,
 } from "../../../design-system";
 import { cn } from "../../../design-system";
 
 import type { PostComposerController } from "./controller";
-import { PostComposerSheetRadioGroup } from "./sheet-radio-group";
+import { composerPillTriggerClass, composerRowTriggerClass } from "./composer-pills";
+import { PostComposerPublishControls } from "./publish-controls";
+import type { ComposerPublicPersona } from "./types";
 
 function publicInitials(handle: string) {
   const chunks = handle.replace(/^@/, "").trim().split(/[-.\s_]+/).filter(Boolean);
-  if (chunks.length === 0) return "me";
-  if (chunks.length === 1) return chunks[0]!.slice(0, 2).toLowerCase();
-  return `${chunks[0]![0] ?? ""}${chunks[1]![0] ?? ""}`.toLowerCase();
+  return chunks[0]?.slice(0, 1).toUpperCase() || "?";
+}
+
+export function PostComposerIdentityAvatar(props: {
+  class?: string;
+  controller: PostComposerController;
+}) {
+  const controller = props.controller;
+  const identity = () => controller.identity.identity;
+  const publicLabel = () => controller.identity.publicPersonas === undefined
+    ? identity()?.publicHandle ?? "name.pirate"
+    : selectedPersonaLabel();
+  const isAgent = () => controller.identity.authorMode === "agent";
+  const isAnonymous = () => !isAgent() && controller.identity.identityMode === "anonymous";
+
+  function selectedPersonaLabel(): string {
+    const selected = controller.identity.publicPersonas?.find(
+      persona => persona.personaId === controller.identity.publicPersonaId,
+    );
+    return selected?.handle ?? selected?.displayName ?? "name.pirate";
+  }
+
+  return (
+    <Show
+      when={!isAgent()}
+      fallback={<span class={cn("grid place-items-center rounded-full bg-background text-foreground ring-1 ring-border-soft", props.class)}><IconRobot class="size-5" /></span>}
+    >
+      <Show
+        when={!isAnonymous()}
+        fallback={<span class={cn("grid place-items-center rounded-full bg-background text-foreground ring-1 ring-border-soft", props.class)}><IconMaskHappy class="size-5" /></span>}
+      >
+        <Avatar
+          class={cn("bg-card ring-1 ring-border-soft", props.class)}
+          fallback={publicInitials(publicLabel())}
+          fallbackSeed={identity()?.publicAvatarSeed ?? publicLabel()}
+          src={identity()?.publicAvatarSrc ?? undefined}
+        />
+      </Show>
+    </Show>
+  );
+}
+
+function personaRowLabel(persona: ComposerPublicPersona): string {
+  return persona.handle?.trim()
+    || persona.displayName?.trim()
+    || persona.personaId;
 }
 
 export function PostComposerIdentityControl(props: {
   class?: string;
   controller: PostComposerController;
-  presentation?: "pill" | "icon";
+  variant?: "pill" | "row";
 }) {
   const controller = props.controller;
+  const row = () => props.variant === "row";
   const [open, setOpen] = createSignal(false);
   const identity = () => controller.identity.identity;
-  const publicLabel = () => identity()?.publicHandle ?? "name.pirate";
+  const personas = createMemo(() => identity()?.publicPersonas ?? []);
+  const selectedPersona = createMemo(() => personas().find(
+    persona => persona.personaId === controller.identity.publicPersonaId,
+  ));
+  const hasPersonaRows = () => personas().length > 0;
+  const publicLabel = () => hasPersonaRows()
+    ? selectedPersona() ? personaRowLabel(selectedPersona()!) : "Choose a persona"
+    : identity()?.publicHandle ?? "name.pirate";
   const anonymousLabel = () => identity()?.anonymousLabel ?? "Pseudonym";
   const agentLabel = () => identity()?.agentLabel;
   const isAgent = () => controller.identity.authorMode === "agent";
@@ -56,10 +108,15 @@ export function PostComposerIdentityControl(props: {
   const canUseQualifiers = () => isAnonymous()
     && identity()?.allowQualifiersOnAnonymousPosts !== false
     && qualifiers().length > 0;
+  const personaLocked = () => controller.identity.personaSelectionDisabled;
 
   const selectPublic = () => {
     controller.identity.setAuthorMode("human");
     controller.identity.setIdentityMode("public");
+    setOpen(false);
+  };
+  const selectPersona = (personaId: string) => {
+    controller.identity.selectPublicPersona(personaId);
     setOpen(false);
   };
   const selectAnonymous = () => {
@@ -81,32 +138,39 @@ export function PostComposerIdentityControl(props: {
     );
   };
 
-  const IdentityAvatar = (avatarProps: { class?: string }) => (
-    <Show
-      when={!isAgent()}
-      fallback={<span class={cn("grid place-items-center rounded-full bg-background text-foreground", avatarProps.class)}><IconRobot class="size-5" /></span>}
+  const Option = (optionProps: {
+    checked: boolean;
+    description: string;
+    icon: JSX.Element;
+    label: string;
+    onSelect: () => void;
+    disabled?: boolean;
+  }) => (
+    <button
+      aria-disabled={optionProps.disabled ? "true" : undefined}
+      aria-pressed={optionProps.checked ? "true" : "false"}
+      class={cn(
+        "grid w-full grid-cols-[2.75rem_1fr_auto] items-center gap-3 border-b border-border-soft px-4 py-3 text-start outline-none transition-colors hover:bg-muted focus-visible:bg-muted focus-visible:ring-2 focus-visible:ring-ring",
+        optionProps.checked && "bg-primary-subtle",
+        optionProps.disabled && "cursor-not-allowed opacity-60 hover:bg-transparent",
+      )}
+      onClick={() => {
+        if (!optionProps.disabled) optionProps.onSelect();
+      }}
+      type="button"
     >
-      <Show
-        when={!isAnonymous()}
-        fallback={<span class={cn("grid place-items-center rounded-full bg-background text-foreground", avatarProps.class)}><IconMaskHappy class="size-5" /></span>}
-      >
-        <Avatar
-          class={cn("border-0", avatarProps.class)}
-          fallback={publicInitials(publicLabel())}
-          fallbackSeed={identity()?.publicAvatarSeed ?? undefined}
-          src={identity()?.publicAvatarSrc ?? undefined}
-        />
-      </Show>
-    </Show>
+      {optionProps.icon}
+      <span class="min-w-0">
+        <Type as="span" variant="body-strong" class="block truncate">{optionProps.label}</Type>
+        <Type as="span" variant="caption" class="block text-muted-foreground">{optionProps.description}</Type>
+      </span>
+      <RadioIndicator checked={optionProps.checked} />
+    </button>
   );
 
-  const triggerAriaLabel = () => [
-    `${controller.copy.identitySheet.title}: ${triggerLabel()}`,
-    qualifierLabel(),
-  ].filter(Boolean).join(", ");
-  const IdentitySheetContent = () => (
+  const identitySheetContent = () => (
     <ModalContent
-      class="flex max-h-[80dvh] flex-col rounded-t-[var(--radius-3xl)] px-0 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-4 sm:rounded-[var(--radius-xl)] sm:p-0"
+      class="flex max-h-[80dvh] flex-col rounded-t-[var(--radius-3xl)] px-0 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-4 sm:rounded-[var(--radius-xl)] sm:pb-6 sm:pt-6"
       mobileSide="bottom"
     >
       <div aria-hidden="true" class="mx-auto mb-4 h-1 w-12 rounded-full bg-muted sm:hidden" />
@@ -114,46 +178,65 @@ export function PostComposerIdentityControl(props: {
         <ModalTitle>{controller.copy.identitySheet.title}</ModalTitle>
       </ModalHeader>
       <div class="mt-4 min-h-0 overflow-y-auto border-t border-border-soft">
-        <PostComposerSheetRadioGroup
-          aria-label={controller.copy.identitySheet.title}
-          onChange={(value) => {
-            if (value === "anonymous") selectAnonymous();
-            else if (value === "agent") selectAgent();
-            else selectPublic();
-          }}
-          options={[
-            {
-              description: controller.copy.identitySheet.publicRowDescription,
-              icon: (
+        <Show
+          when={hasPersonaRows()}
+          fallback={
+            <Option
+              checked={!isAgent() && !isAnonymous()}
+              description={controller.copy.identitySheet.publicRowDescription}
+              icon={
                 <Avatar
                   class="size-11 border-0"
                   fallback={publicInitials(publicLabel())}
                   fallbackSeed={identity()?.publicAvatarSeed ?? undefined}
                   src={identity()?.publicAvatarSrc ?? undefined}
                 />
-              ),
-              label: publicLabel(),
-              value: "public",
-            },
-            ...(canUseAnonymous()
-              ? [{
-                  description: identity()?.anonymousDescription ?? controller.copy.identitySheet.anonymousRowDescription,
-                  icon: <IconMaskHappy class="size-5" />,
-                  label: anonymousLabel(),
-                  value: "anonymous" as const,
-                }]
-              : []),
-            ...(agentLabel()
-              ? [{
-                  description: controller.copy.identitySheet.agentRowDescription,
-                  icon: <IconRobot class="size-5" />,
-                  label: agentLabel()!,
-                  value: "agent" as const,
-                }]
-              : []),
-          ]}
-          value={isAgent() ? "agent" : isAnonymous() ? "anonymous" : "public"}
-        />
+              }
+              label={publicLabel()}
+              onSelect={selectPublic}
+            />
+          }
+        >
+          <For each={personas()}>
+            {(persona) => (
+              <Option
+                checked={!isAgent() && !isAnonymous() && selectedPersona()?.personaId === persona.personaId}
+                description={controller.copy.identitySheet.publicRowDescription}
+                disabled={personaLocked()}
+                icon={
+                  <Avatar
+                    class="size-11 border-0"
+                    fallback={publicInitials(personaRowLabel(persona))}
+                    fallbackSeed={persona.handle ?? persona.personaId}
+                    src={persona.avatarSrc?.trim() || undefined}
+                  />
+                }
+                label={personaRowLabel(persona)}
+                onSelect={() => selectPersona(persona.personaId)}
+              />
+            )}
+          </For>
+        </Show>
+        <Show when={canUseAnonymous()}>
+          <Option
+            checked={isAnonymous()}
+            description={identity()?.anonymousDescription ?? controller.copy.identitySheet.anonymousRowDescription}
+            icon={<span class="grid size-11 place-items-center rounded-full bg-background text-foreground"><IconMaskHappy class="size-5" /></span>}
+            label={anonymousLabel()}
+            onSelect={selectAnonymous}
+          />
+        </Show>
+        <Show when={agentLabel()}>
+          {(label) => (
+            <Option
+              checked={isAgent()}
+              description={controller.copy.identitySheet.agentRowDescription}
+              icon={<span class="grid size-11 place-items-center rounded-full bg-background text-foreground"><IconRobot class="size-5" /></span>}
+              label={label()}
+              onSelect={selectAgent}
+            />
+          )}
+        </Show>
         <Show when={canUseQualifiers()}>
           <section class="space-y-2 px-4 py-4">
             <Type as="h3" variant="body-strong">{controller.copy.identitySheet.qualifiersTitle}</Type>
@@ -192,38 +275,51 @@ export function PostComposerIdentityControl(props: {
 
   return (
     <Show when={identity()?.visible !== false}>
-      <Show
-        when={props.presentation === "icon"}
-        fallback={
-          <Modal open={open()} onOpenChange={setOpen}>
-            <ModalTrigger
-              aria-label={triggerAriaLabel()}
-              class={cn(pillButtonVariants({ tone: "default" }), "h-11 px-3.5", props.class)}
-            >
-              <IdentityAvatar class="size-8 shrink-0" />
-              <span class="min-w-0 flex-1 text-start">
-                <Type as="span" variant="body-strong" class="block truncate">{triggerLabel()}</Type>
-              </span>
-              <IconCaretDown class="size-4 shrink-0 text-muted-foreground" />
-            </ModalTrigger>
-            <IdentitySheetContent />
-          </Modal>
-        }
-      >
-        <Modal open={open()} onOpenChange={setOpen}>
-          <ModalTrigger
-            aria-label={triggerAriaLabel()}
-            class={cn(
-              buttonVariants({ variant: "secondary", size: "icon" }),
-              "size-10 p-0",
-              props.class,
-            )}
-          >
-            <IdentityAvatar class="size-10 shrink-0" />
-          </ModalTrigger>
-          <IdentitySheetContent />
-        </Modal>
-      </Show>
+      <Modal open={open()} onOpenChange={setOpen}>
+        <ModalTrigger
+          aria-label={[
+            `${controller.copy.identitySheet.title}: ${triggerLabel()}`,
+            qualifierLabel(),
+          ].filter(Boolean).join(", ")}
+          class={cn(
+            row()
+              ? cn(composerRowTriggerClass, "max-w-full")
+              : cn(composerPillTriggerClass, "justify-start ps-2 pe-3 text-start"),
+            props.class,
+          )}
+        >
+          <Show when={!row()}>
+            <PostComposerIdentityAvatar class="size-7 shrink-0" controller={controller} />
+          </Show>
+          <span class="min-w-0 whitespace-nowrap">
+            <Type as="span" variant="body-strong" class={cn("block truncate", !controller.isMobile() && "text-lg")}>{triggerLabel()}</Type>
+          </span>
+          <IconCaretDown class={cn("shrink-0 text-muted-foreground", controller.isMobile() ? "size-4" : "size-5")} />
+        </ModalTrigger>
+        {identitySheetContent()}
+      </Modal>
+    </Show>
+  );
+}
+
+export function PostComposerIdentityCluster(props: {
+  class?: string;
+  controller: PostComposerController;
+  initialOpen?: boolean;
+}) {
+  return (
+    <Show when={props.controller.identity.identity?.visible !== false}>
+      <div class={cn("flex items-center gap-4", props.class)}>
+        <PostComposerIdentityAvatar class="size-14 shrink-0" controller={props.controller} />
+        <div class="flex min-w-0 flex-col items-start">
+          <PostComposerIdentityControl class="max-w-full" controller={props.controller} variant="row" />
+          <PostComposerPublishControls
+            controller={props.controller}
+            initialOpen={props.initialOpen}
+            presentation="row"
+          />
+        </div>
+      </div>
     </Show>
   );
 }

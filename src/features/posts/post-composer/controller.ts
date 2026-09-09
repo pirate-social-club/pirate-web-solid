@@ -127,6 +127,7 @@ export function createPostComposerController(
   const onVideoChange = () => actions()?.onVideoChange ?? props.onVideoChange;
   const onSongModeChange = () => actions()?.onSongModeChange ?? props.onSongModeChange;
   const onModeChange = () => actions()?.onModeChange ?? props.onModeChange;
+  const onPersonaChange = () => actions()?.onPersonaChange ?? props.onPersonaChange;
   const onDerivativeStepChange = () => actions()?.onDerivativeStepChange ?? props.onDerivativeStepChange;
   const onMonetizationChange = () => actions()?.onMonetizationChange ?? props.onMonetizationChange;
   const onCharityContributionChange = () => actions()?.onCharityContributionChange ?? props.onCharityContributionChange;
@@ -232,6 +233,15 @@ export function createPostComposerController(
   const setAuthorModeWithCallback = (next: AuthorMode) => {
     setAuthorMode(next);
     onAuthorModeChange()?.(next);
+  };
+
+  // Selecting a public persona row sets the real operation persona id, which
+  // the host feeds into request envelopes, retained drafts, and royalty
+  // defaults. It is an authorship choice, not a cosmetic identity mode.
+  const selectPublicPersona = (personaId: string) => {
+    setAuthorMode("human");
+    setIdentityMode("public");
+    onPersonaChange()?.(personaId);
   };
 
   const setSelectedQualifierIdsWithCallback = (next: string[]) => {
@@ -710,9 +720,13 @@ export function createPostComposerController(
       get authorMode() { return authorMode(); },
       get identity() { return identity(); },
       get identityMode() { return identityMode(); },
+      get personaSelectionDisabled() { return props.personaSelectionDisabled === true; },
       get publicAvatarSrc() { return identity()?.publicAvatarSrc; },
       get publicAvatarSeed() { return identity()?.publicAvatarSeed; },
+      get publicPersonaId() { return props.currentPersonaId; },
+      get publicPersonas() { return identity()?.publicPersonas; },
       get selectedQualifierIds() { return selectedQualifierIds(); },
+      selectPublicPersona,
       setAuthorMode: setAuthorModeWithCallback,
       setIdentityMode: setIdentityModeWithCallback,
       setSelectedQualifierIds: setSelectedQualifierIdsWithCallback,

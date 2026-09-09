@@ -131,6 +131,31 @@ function button(label: string): HTMLButtonElement {
   return result!;
 }
 
+function identityTrigger(): HTMLButtonElement {
+  const trigger = [...document.body.querySelectorAll<HTMLButtonElement>("button[aria-label^='Post as:']")][0];
+  expect(trigger).toBeInstanceOf(HTMLButtonElement);
+  return trigger!;
+}
+
+function personaRow(label: string): HTMLButtonElement | undefined {
+  return [...document.body.querySelectorAll<HTMLButtonElement>("button")]
+    .find(button => button.textContent?.includes("Your public profile")
+      && button.textContent?.includes(label));
+}
+
+async function choosePersona(label: string): Promise<HTMLButtonElement> {
+  identityTrigger().click();
+  const row = await vi.waitFor(() => {
+    const candidate = personaRow(label);
+    expect(candidate).toBeInstanceOf(HTMLButtonElement);
+    return candidate!;
+  });
+  row.click();
+  // Selecting a persona closes the sheet, so the row disappears with it.
+  await vi.waitFor(() => expect(personaRow(label)).toBeUndefined());
+  return row;
+}
+
 async function continueToReview() {
   await vi.waitFor(() => expect(button("Upload and continue").disabled).toBe(false));
   button("Upload and continue").click();
@@ -176,20 +201,25 @@ describe("create post request", () => {
   });
 
   test("uses the page community context without exposing or accepting a raw identifier", async () => {
+    const storage = createMemoryPendingSubmissionStorage();
+    const dispatch = vi.fn(async () => { throw new Error("network uncertain"); });
     render(() => (
       <CreatePostDialog
         communityContext={{ id: "community-contextual", name: "Pirate Harbor" }}
         personas={[activePersona("persona-one", "Persona One")]}
         onOpenChange={() => {}}
         open
-        storage={createMemoryPendingSubmissionStorage()}
+        storage={storage}
+        transport={{ read: async () => null, dispatch }}
       />
     ));
     await new Promise<void>(resolve => setTimeout(resolve, 0));
 
-    expect(document.body.textContent).toContain("Posting in Pirate Harbor");
+    // The contextual composer carries the page community without host chrome:
+    // no "Posting in" card, no raw identifier input.
+    expect(document.body.textContent).not.toContain("Posting in");
     expect(document.body.querySelector("input[name='community-id']")).toBeNull();
-    expect(document.body.querySelector("[data-community-context='community-contextual']")).not.toBeNull();
+    expect(document.body.querySelector("[data-community-context='community-contextual']")).toBeNull();
 
     const publishButtons = [...document.body.querySelectorAll<HTMLButtonElement>("button")]
       .filter(button => button.textContent?.trim() === "Publish post");
@@ -200,6 +230,10 @@ describe("create post request", () => {
     body.value = "A contextual post";
     body.dispatchEvent(new InputEvent("input", { bubbles: true }));
     await vi.waitFor(() => expect(publishButtons[0]?.disabled).toBe(false));
+    publishButtons[0]!.click();
+    await vi.waitFor(() => expect(dispatch).toHaveBeenCalledOnce());
+    expect(decodePendingSubmissionDraft((await storage.loadAll())[0]!).communityId)
+      .toBe("community-contextual");
   });
 
   test("requires a text persona choice and freezes its serialized identity after dispatch", async () => {
@@ -220,25 +254,34 @@ describe("create post request", () => {
     const publish = [...document.body.querySelectorAll<HTMLButtonElement>("button")]
       .find(button => button.textContent?.trim() === "Publish post")!;
     expect(publish.disabled).toBe(true);
-    const selector = document.body.querySelector("select[aria-label='Operation persona']")!;
-    Reflect.set(selector, "value", "persona-two");
-    selector.dispatchEvent(new Event("change", { bubbles: true }));
+    await choosePersona("Persona Two");
     await vi.waitFor(() => expect(publish.disabled).toBe(false));
     publish.click();
     await vi.waitFor(() => expect(dispatch).toHaveBeenCalledOnce());
-    expect(selector.hasAttribute("disabled")).toBe(true);
-    const records = await storage.loadAll();
-    expect(records).toHaveLength(1);
-    expect(decodePendingSubmissionDraft(records[0]!).personaId).toBe("persona-two");
+    // The retained request owns authorship: the sheet's persona rows freeze.
+    identityTrigger().click();
+    await vi.waitFor(() => expect(personaRow("Persona One")?.getAttribute("aria-disabled")).toBe("true"));
+    await vi.waitFor(() => expect(personaRow("Persona Two")?.getAttribute("aria-pressed")).toBe("true"));
+    identityTrigger().click();
     const audioInput = document.body.querySelector<HTMLInputElement>("input[aria-label='Upload audio']")!;
     Object.defineProperty(audioInput, "files", { configurable: true, value: [new File([new Uint8Array([1])], "choice.mp3", { type: "audio/mpeg" })] });
     audioInput.dispatchEvent(new Event("change", { bubbles: true }));
-    await vi.waitFor(() => expect(selector.hasAttribute("disabled")).toBe(false));
-    Reflect.set(selector, "value", "persona-one");
-    selector.dispatchEvent(new Event("change", { bubbles: true }));
+    await vi.waitFor(() => expect(document.body.textContent).toContain("choice.mp3"));
+    // Song mode owns a separate operation persona until a submission is retained.
+    identityTrigger().click();
+    const songRow = await vi.waitFor(() => {
+      const candidate = personaRow("Persona One");
+      expect(candidate).toBeInstanceOf(HTMLButtonElement);
+      return candidate!;
+    });
+    expect(songRow.getAttribute("aria-disabled")).toBeNull();
+    songRow.click();
+    await vi.waitFor(() => expect(personaRow("Persona One")).toBeUndefined());
     document.body.querySelector<HTMLButtonElement>("button[aria-label='Remove audio']")!.click();
-    await vi.waitFor(() => expect(selector.hasAttribute("disabled")).toBe(true));
-    expect(selector.querySelector("option:checked")?.getAttribute("value")).toBe("persona-two");
+    await vi.waitFor(() => expect(document.body.querySelector("#create-post-body")).not.toBeNull());
+    // Returning to text mode restores the frozen retained authorship.
+    identityTrigger().click();
+    await vi.waitFor(() => expect(personaRow("Persona Two")?.getAttribute("aria-pressed")).toBe("true"));
     expect(decodePendingSubmissionDraft((await storage.loadAll())[0]!).personaId).toBe("persona-two");
   });
 
@@ -405,16 +448,12 @@ describe("create post request", () => {
     Object.defineProperty(audioInput, "files", { configurable: true, value: [audio] });
     audioInput.dispatchEvent(new Event("change", { bubbles: true }));
 
-    await vi.waitFor(() => expect(document.body.querySelector("select[aria-label='Operation persona']")).not.toBeNull());
-    await vi.waitFor(() => expect([...document.body.querySelectorAll<HTMLButtonElement>("button")]
-      .some(button => button.textContent?.trim() === "Upload and continue")).toBe(true));
-    const publish = [...document.body.querySelectorAll<HTMLButtonElement>("button")]
-      .find(button => button.textContent?.trim() === "Upload and continue")!;
-    expect(publish.disabled).toBe(true);
-    const selector = document.body.querySelector("select[aria-label='Operation persona']")!;
-    Reflect.set(selector, "value", "persona-two");
-    selector.dispatchEvent(new Event("change", { bubbles: true }));
-    await vi.waitFor(() => expect(publish.disabled).toBe(false));
+    // The MP3 enters the designed Song step, and the identity control is the
+    // one persona entrance.
+    await vi.waitFor(() => expect(document.body.textContent).toContain("choice.mp3"));
+    await vi.waitFor(() => expect(button("Upload and continue").disabled).toBe(true));
+    await choosePersona("Persona Two");
+    await vi.waitFor(() => expect(button("Upload and continue").disabled).toBe(false));
   });
 
   test("rejects non-MP3 song files before reservation and accepts an uppercase MP3 filename", async () => {
@@ -549,7 +588,9 @@ describe("create post request", () => {
     await changeInput("Recipient 2 id", "persona-collaborator");
     await changeInput("Recipient 1 share", "75");
     await changeInput("Recipient 2 share", "25");
-    button("Commercial remix").click();
+    // The license choices are option cards, so the commercial-remix radio is
+    // clicked directly rather than through a button lookup.
+    document.querySelector<HTMLInputElement>('input[type="radio"][value="commercial-remix"]')!.click();
     await vi.waitFor(() => expect(document.querySelector('input[aria-label="Downstream commercial remix share"]')).not.toBeNull());
     await changeInput("Downstream commercial remix share", "12.34");
     await vi.waitFor(() => expect(button("Review").disabled).toBe(false));
@@ -576,6 +617,173 @@ describe("create post request", () => {
     expect(mediaTransport.uploadCount).toBe(1);
   });
 
+  test("the contextual dialog renders one composer surface with one close control and one scroller", async () => {
+    render(() => <CreatePostDialog
+      communityContext={{ id: "community-one", name: "Pirate Harbor" }}
+      mediaStorage={createMemoryMediaSubmissionStorage()}
+      mediaTransport={new ProductionMediaTransport()}
+      onOpenChange={() => {}}
+      open
+      personas={[activePersona("persona-one", "Persona One"), activePersona("persona-two", "Persona Two")]}
+      principalId="account-one"
+      storage={createMemoryPendingSubmissionStorage()}
+    />);
+    await new Promise<void>(resolve => setTimeout(resolve, 0));
+
+    const closeButtons = document.body.querySelectorAll("button[aria-label='Close composer']");
+    expect(closeButtons).toHaveLength(1);
+    const identityControls = document.body.querySelectorAll("button[aria-label^='Post as:']");
+    expect(identityControls).toHaveLength(1);
+    // The dialog surface owns the one content scroller; the composer card and
+    // its steps must not nest another.
+    const scrollers = [...document.body.querySelectorAll<HTMLElement>("[class*='overflow-y-auto']")];
+    expect(scrollers).toHaveLength(1);
+    expect([...document.body.querySelectorAll("button")].some(button => button.textContent?.trim() === "Cancel")).toBe(false);
+    expect(document.body.textContent).not.toContain("Posting in");
+
+    // Each active persona is a distinct public row in the identity sheet.
+    identityTrigger().click();
+    await vi.waitFor(() => {
+      expect(personaRow("Persona One")).toBeInstanceOf(HTMLButtonElement);
+      expect(personaRow("Persona Two")).toBeInstanceOf(HTMLButtonElement);
+    });
+  });
+
+  test("publishes a song with deliberately empty lyrics through the designed steps", async () => {
+    const mediaStorage = createMemoryMediaSubmissionStorage();
+    const mediaTransport = new ProductionMediaTransport();
+    const ids = ["reserve-empty", "start-empty", "finalize-empty", "terms-empty"];
+    let idIndex = 0;
+    const onPublished = vi.fn();
+    render(() => <CreatePostDialog
+      communityContext={{ id: "community-one", name: "Pirate Harbor" }}
+      createMediaId={() => ids[idIndex++] ?? "unexpected-key"}
+      mediaStorage={mediaStorage}
+      mediaTransport={mediaTransport}
+      onOpenChange={() => {}}
+      onPublished={onPublished}
+      open
+      personas={[activePersona("persona-one", "Persona One"), activePersona("persona-two", "Persona Two")]}
+      principalId="account-one"
+      storage={createMemoryPendingSubmissionStorage()}
+    />);
+    await new Promise<void>(resolve => setTimeout(resolve, 0));
+
+    const audioInput = document.body.querySelector<HTMLInputElement>("input[aria-label='Upload audio']")!;
+    Object.defineProperty(audioInput, "files", { configurable: true, value: [new File([new Uint8Array([1])], "wordless.mp3", { type: "audio/mpeg" })] });
+    audioInput.dispatchEvent(new Event("change", { bubbles: true }));
+    await vi.waitFor(() => expect(button("Upload and continue").disabled).toBe(true));
+    // The chosen operation persona authors every song command.
+    await choosePersona("Persona Two");
+    await vi.waitFor(() => expect(button("Upload and continue").disabled).toBe(false));
+    button("Upload and continue").click();
+
+    const lyrics = await vi.waitFor(() => {
+      const value = document.querySelector<HTMLTextAreaElement>('textarea[aria-label="Lyrics (optional)"]');
+      expect(value).not.toBeNull(); return value!;
+    });
+    expect(lyrics.value).toBe("");
+    button("Continue").click();
+    await vi.waitFor(() => expect(button("Review").disabled).toBe(false));
+    button("Review").click();
+    await vi.waitFor(() => expect(document.body.textContent).toContain("No lyrics"));
+    await vi.waitFor(() => expect(button("Publish song").disabled).toBe(false));
+    button("Publish song").click();
+
+    // Deliberately empty lyrics never bind: no lyrics command is issued.
+    await vi.waitFor(() => expect(mediaTransport.commands.map(command => command.kind)).toEqual([
+      "reserve", "start", "finalize", "terms",
+    ]));
+    const bodies = await Promise.all(mediaTransport.commands.map(async command => {
+      const decoded: unknown = JSON.parse(new TextDecoder().decode(await mediaCommandBody(command)));
+      // SAFETY: mediaCommandBody digest-checks generated request bytes; this
+      // reads only the persona field needed to prove authorship.
+      return decoded as { persona_id?: string };
+    }));
+    expect(bodies.every(body => body.persona_id === "persona-two")).toBe(true);
+
+    mediaTransport.snapshot = mediaSnapshot({ ...mediaTransport.snapshot!, status: "published",
+      published_resource: { post_id: "post-wordless", href: "/posts/post-wordless" } });
+    await vi.waitFor(() => expect(onPublished).toHaveBeenCalledOnce(), { timeout: 5_000 });
+    expect(mediaTransport.commands.filter(command => command.kind === "lyrics")).toHaveLength(0);
+    expect(mediaTransport.uploadCount).toBe(1);
+  });
+
+  test("wizard navigation preserves state and supports back", async () => {
+    const mediaStorage = createMemoryMediaSubmissionStorage();
+    const mediaTransport = new ProductionMediaTransport();
+    render(() => <CreatePostDialog
+      communityContext={{ id: "community-one", name: "Pirate Harbor" }}
+      mediaStorage={mediaStorage}
+      mediaTransport={mediaTransport}
+      onOpenChange={() => {}}
+      open
+      personas={[activePersona("persona-one", "Persona One")]}
+      principalId="account-one"
+      storage={createMemoryPendingSubmissionStorage()}
+    />);
+    await new Promise<void>(resolve => setTimeout(resolve, 0));
+
+    const audioInput = document.body.querySelector<HTMLInputElement>("input[aria-label='Upload audio']")!;
+    Object.defineProperty(audioInput, "files", { configurable: true, value: [new File([new Uint8Array([1])], "carry-through.mp3", { type: "audio/mpeg" })] });
+    audioInput.dispatchEvent(new Event("change", { bubbles: true }));
+    await vi.waitFor(() => expect(button("Upload and continue").disabled).toBe(false));
+    button("Upload and continue").click();
+    const lyrics = await vi.waitFor(() => {
+      const value = document.querySelector<HTMLTextAreaElement>('textarea[aria-label="Lyrics (optional)"]');
+      expect(value).not.toBeNull(); return value!;
+    });
+    lyrics.value = "Verse one carries through";
+    lyrics.dispatchEvent(new Event("change", { bubbles: true }));
+    button("Continue").click();
+    await vi.waitFor(() => expect(button("Review").disabled).toBe(false));
+
+    button("Back").click();
+    const lyricsAgain = await vi.waitFor(() => {
+      const value = document.querySelector<HTMLTextAreaElement>('textarea[aria-label="Lyrics (optional)"]');
+      expect(value).not.toBeNull(); return value!;
+    });
+    expect(lyricsAgain.value).toBe("Verse one carries through");
+    button("Back").click();
+    await vi.waitFor(() => expect(document.body.textContent).toContain("carry-through.mp3"));
+    const title = document.body.querySelector<HTMLInputElement>("input#song-track-title")!;
+    expect(title.value).toBe("carry-through");
+  });
+
+  test("restores a retained song at the lyrics step with its original persona", async () => {
+    const mediaStorage = createMemoryMediaSubmissionStorage();
+    const audio = new File([new Uint8Array([1])], "retained.mp3", { type: "audio/mpeg", lastModified: 1 });
+    await mediaStorage.save({
+      version: MEDIA_PENDING_VERSION,
+      draft_id: PRODUCTION_SONG_DRAFT_ID,
+      principal_id: "account-one",
+      community_id: "community-one",
+      persona_id: "persona-one",
+      song_draft: { title: "Retained song", song_type: "original", author_declared_rating: "general" },
+      audio: { blob: audio, name: audio.name, type: audio.type, size: audio.size, last_modified: audio.lastModified },
+      reservation,
+      submission_id: "submission-production",
+      expected_creation_revision: 1,
+      upload_status: "uploaded",
+      snapshot: mediaSnapshot({ audio_revision: 1, phase: "analysis" }),
+      commands: [],
+      pending_command: null,
+      created_at: "2026-09-04T00:00:00Z",
+      updated_at: "2026-09-04T00:00:00Z",
+    });
+    render(() => <CreatePostDialog
+      communityContext={{ id: "community-one", name: "Pirate Harbor" }}
+      mediaStorage={mediaStorage}
+      mediaTransport={new ProductionMediaTransport()}
+      onOpenChange={() => {}}
+      open
+      personas={[activePersona("persona-one", "Persona One"), activePersona("persona-two", "Persona Two")]}
+      principalId="account-one"
+      storage={createMemoryPendingSubmissionStorage()}
+    />);
+    await vi.waitFor(() => expect(document.querySelector('textarea[aria-label="Lyrics (optional)"]')).not.toBeNull());
+    expect(identityTrigger().getAttribute("aria-label")).toContain("Persona One");
+  });
 });
 
 

@@ -11,6 +11,14 @@ import CommunityPage from "./community-page.tsx";
 
 const disposers: Array<() => void> = [];
 
+/** The contextual composer is open when its one close control exists and no
+ * raw community identifier input is offered. */
+function contextualComposerOpen(): boolean {
+  return document.body.querySelector("button[aria-label='Close composer']") !== null
+    && document.body.querySelector("input[name='community-id']") === null;
+}
+
+
 const communityId = "community_123e4567-e89b-42d3-a456-426614174000";
 const route: GetCPathSegmentResponse = {
   community_id: communityId,
@@ -227,9 +235,7 @@ describe("CommunityPage", () => {
     postHere.click();
 
     expect(resolveSession).toHaveBeenCalledTimes(1);
-    await vi.waitFor(() => expect(document.body.textContent).toContain("Posting in Pirate Harbor"));
-    expect(document.body.querySelector("input[name='community-id']")).toBeNull();
-    expect(document.body.querySelector(`[data-community-context='${communityId}']`)).not.toBeNull();
+    await vi.waitFor(() => expect(contextualComposerOpen()).toBe(true));
   });
 
   test("profile failure does not open an empty composer and the Post action retries", async () => {
@@ -262,14 +268,14 @@ describe("CommunityPage", () => {
     postHere.click();
 
     await vi.waitFor(() => expect(container.textContent).toContain("couldn't load your active personas"));
-    expect(document.body.textContent).not.toContain("Posting in Pirate Harbor");
+    expect(contextualComposerOpen()).toBe(false);
     expect(document.body.textContent).not.toContain("Create or reactivate a public persona");
     unavailable = false;
     postHere.click();
-    await vi.waitFor(() => expect(document.body.textContent).toContain("Posting in Pirate Harbor"));
+    await vi.waitFor(() => expect(contextualComposerOpen()).toBe(true));
     expect(container.textContent).not.toContain("couldn't load your active personas");
     expect(document.body.querySelector("input[name='community-id']")).toBeNull();
-    expect(document.body.querySelector(`[data-community-context='${communityId}']`)).not.toBeNull();
+    expect(contextualComposerOpen()).toBe(true);
   });
 
   test("visible profile retry restores community controls without opening a composer", async () => {
@@ -301,7 +307,7 @@ describe("CommunityPage", () => {
       .find(button => button.textContent?.trim() === "Post here")!;
 
     await vi.waitFor(() => expect(container.textContent).toContain("couldn't load your active personas"));
-    expect(document.body.textContent).not.toContain("Posting in Pirate Harbor");
+    expect(contextualComposerOpen()).toBe(false);
     expect(document.body.textContent).not.toContain("Create or reactivate a public persona");
     [...container.querySelectorAll<HTMLButtonElement>("button")].find(button => button.textContent?.trim() === "Follow")!.click();
     await vi.waitFor(() => expect(container.textContent).toContain("Following this Community."));
@@ -310,13 +316,13 @@ describe("CommunityPage", () => {
     unavailable = false;
     [...container.querySelectorAll<HTMLButtonElement>("button")].find(button => button.textContent?.trim() === "Retry profiles")!.click();
     await vi.waitFor(() => expect(container.textContent).not.toContain("couldn't load your active personas"));
-    expect(document.body.textContent).not.toContain("Posting in Pirate Harbor");
+    expect(contextualComposerOpen()).toBe(false);
     expect(container.textContent).not.toContain("Following this Community.");
     postHere.click();
-    await vi.waitFor(() => expect(document.body.textContent).toContain("Posting in Pirate Harbor"));
+    await vi.waitFor(() => expect(contextualComposerOpen()).toBe(true));
     expect(container.textContent).not.toContain("couldn't load your active personas");
     expect(document.body.querySelector("input[name='community-id']")).toBeNull();
-    expect(document.body.querySelector(`[data-community-context='${communityId}']`)).not.toBeNull();
+    expect(contextualComposerOpen()).toBe(true);
   });
 
   test("fails closed when routed membership disappears before posting", async () => {
@@ -359,7 +365,7 @@ describe("CommunityPage", () => {
 
     await vi.waitFor(() => expect(readViewerState).toHaveBeenCalledTimes(2));
     await vi.waitFor(() => expect(container.textContent).toContain("Join this Community before posting."));
-    expect(document.body.textContent).not.toContain("Posting in Pirate Harbor");
+    expect(contextualComposerOpen()).toBe(false);
   });
 
   test("joins an open Community only after the server confirms membership", async () => {
@@ -615,7 +621,7 @@ describe("CommunityPage", () => {
     const postHere = [...container.querySelectorAll<HTMLButtonElement>("button")]
       .find(button => button.textContent?.trim() === "Post here");
     expect(postHere).toBeUndefined();
-    expect(document.body.textContent).not.toContain("Posting in Pirate Harbor");
+    expect(contextualComposerOpen()).toBe(false);
   });
 
   test("renders redacted invalid and unavailable states", async () => {

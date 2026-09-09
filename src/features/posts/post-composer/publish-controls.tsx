@@ -22,7 +22,7 @@ function VisibilityControl(props: {
   class?: string;
   controller: PostComposerController;
   initialOpen?: boolean;
-  presentation?: "pill" | "icon";
+  presentation?: "pill" | "icon" | "row";
 }) {
   const controller = props.controller;
   const [open, setOpen] = createSignal(props.initialOpen ?? false);
@@ -75,7 +75,9 @@ function VisibilityControl(props: {
         class={cn(
           props.presentation === "icon"
             ? cn(buttonVariants({ variant: "secondary", size: "icon" }), "size-10")
-            : "inline-flex h-11 min-w-0 items-center gap-2 rounded-full border border-border-soft bg-card px-3.5 text-foreground outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring",
+            : props.presentation === "row"
+              ? "flex h-8 w-max min-w-0 items-center gap-2 px-0 text-start text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              : "inline-flex h-11 min-w-0 items-center gap-2 rounded-full border border-border-soft bg-card px-3.5 text-foreground outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring",
           props.class,
         )}
       >
@@ -177,7 +179,7 @@ export function PostComposerPublishControls(props: {
   class?: string;
   controller: PostComposerController;
   initialOpen?: boolean;
-  presentation?: "pill" | "icon";
+  presentation?: "pill" | "icon" | "row";
 }) {
   return <VisibilityControl class={props.class} controller={props.controller} initialOpen={props.initialOpen} presentation={props.presentation} />;
 }
