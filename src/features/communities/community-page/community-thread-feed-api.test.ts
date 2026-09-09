@@ -54,8 +54,6 @@ describe("public Community thread feed", () => {
         authorAvatarSrc: "/media/captain.webp",
         kind: "text",
         commentCount: 3,
-        learnAvailable: false,
-        karaokeAvailable: false,
       }],
       nextCursor: "next-page",
     });

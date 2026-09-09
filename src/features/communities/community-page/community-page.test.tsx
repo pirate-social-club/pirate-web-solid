@@ -119,6 +119,15 @@ describe("CommunityPage", () => {
     expect(container.textContent).toContain("This came from the public Community feed.");
     expect(container.querySelector("[data-community-post='thread-1']")).not.toBeNull();
     expect(loadThreads).toHaveBeenCalledWith(communityId);
+
+    // No session was resolved, so nothing here can act. The counts are shown,
+    // and no control is offered that has no handler behind it.
+    const counts = container.querySelector("[data-post-counts]");
+    expect(counts).not.toBeNull();
+    expect(counts?.textContent).toContain("7");
+    expect(counts?.textContent).toContain("4");
+    expect(counts?.querySelector("button")).toBeNull();
+    expect(container.querySelector("[aria-label='Post actions'] button")).toBeNull();
   });
 
   test("offers engagement without a persona and asks for one only to author", async () => {

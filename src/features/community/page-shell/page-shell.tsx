@@ -9,7 +9,6 @@ import {
   CommunityAvatar,
   FlatTabBar,
   FlatTabButton,
-  IconArrowDown,
   IconArrowLeft,
   IconArrowUp,
   IconChatCircle,
@@ -109,20 +108,24 @@ function postTimestamp(value: string): string {
 function PostActions(props: { post: CommunityPost; engagementControls?: JSX.Element }) {
   return (
     <div class="flex flex-wrap items-center gap-2 pt-1" aria-label="Post actions">
+      {/* No engagement controls means no viewer who can act: the page has no
+          resolved posting session. These were three buttons with no handlers
+          behind them, which offered actions that could never happen. They are
+          the standing counts instead, and a viewer who signs in gets the real
+          controls in their place. */}
       <Show when={props.engagementControls} fallback={
-        <>
-          <button aria-label={`Upvote post, ${props.post.score} points`} class="inline-flex h-9 items-center gap-1 rounded-full border border-border-soft px-3 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground" type="button">
-            <IconArrowUp class="size-4" />
+        <div class="flex flex-wrap items-center gap-2 text-sm text-muted-foreground" data-post-counts>
+          <span class="inline-flex h-9 items-center gap-1 rounded-full border border-border-soft px-3">
+            <IconArrowUp class="size-4" aria-hidden="true" />
             <span>{props.post.score}</span>
-          </button>
-          <button aria-label="Downvote post" class="inline-flex size-9 items-center justify-center rounded-full border border-border-soft text-muted-foreground transition-colors hover:bg-muted hover:text-foreground" type="button">
-            <IconArrowDown class="size-4" />
-          </button>
-          <button aria-label={`Open ${props.post.commentCount ?? 0} comments`} class="inline-flex h-9 items-center gap-2 rounded-full border border-border-soft px-3 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground" type="button">
-            <IconChatCircle class="size-4" />
+            <span class="sr-only">points</span>
+          </span>
+          <span class="inline-flex h-9 items-center gap-2 rounded-full border border-border-soft px-3">
+            <IconChatCircle class="size-4" aria-hidden="true" />
             <span>{props.post.commentCount ?? 0}</span>
-          </button>
-        </>
+            <span class="sr-only">comments</span>
+          </span>
+        </div>
       }>{controls => controls()}</Show>
       <Show when={props.post.learnAvailable}>
         <Button class="h-9 rounded-full px-4" size="sm" variant="secondary">Learn</Button>
@@ -149,7 +152,11 @@ function SongPost(props: { post: CommunityPost }) {
         </div>
         <div class="min-w-0 flex-1">
           <Type class="block truncate" variant="body-strong">{props.post.mediaTitle ?? props.post.title}</Type>
-          <Type class="block truncate" variant="caption">{props.post.mediaArtist ?? "Tame Impala"}</Type>
+          {/* An unknown artist is left unsaid. The placeholder here named a
+              real recording artist who has nothing to do with the post. */}
+          <Show when={props.post.mediaArtist}>
+            {artist => <Type class="block truncate" variant="caption">{artist()}</Type>}
+          </Show>
           <div class="mt-2 flex items-center gap-2">
             <div aria-label={`${progress()}% played`} class="h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-border-soft" role="progressbar" aria-valuemax="100" aria-valuemin="0" aria-valuenow={progress()}>
               <div class="h-full rounded-full bg-primary" style={{ width: `${progress()}%` }} />
@@ -168,7 +175,10 @@ function SongPost(props: { post: CommunityPost }) {
 }
 
 function FeedPost(props: { post: CommunityPost; actions?: JSX.Element }) {
-  const author = () => props.post.authorHandle ?? "midnightwaves.pirate";
+  // The feed adapter always resolves a handle, including "Anonymous" and a
+  // generic public label. This covers a caller that supplied none, and says so
+  // rather than attributing the post to an invented account.
+  const author = () => props.post.authorHandle ?? "Unknown author";
   return (
     <article class="flex flex-col gap-3 border-b border-border-soft px-0 py-5 first:pt-0 last:border-b-0" data-community-post={props.post.id}>
       <div class="flex items-center gap-2">

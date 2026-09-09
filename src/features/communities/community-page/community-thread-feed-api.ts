@@ -59,8 +59,10 @@ function threadPost(item: ThreadItem): CommunityPost | null {
     kind: post.post_type === "song" ? "song" : "text",
     ...(post.post_type === "song" && post.song_title ? { mediaTitle: post.song_title } : {}),
     commentCount: finiteCount(item.comment_count),
-    learnAvailable: post.post_type === "song",
-    karaokeAvailable: post.post_type === "song",
+    // Being a song is not a Learn or Karaoke capability. These were derived
+    // from post_type alone, which put two buttons with no handlers behind them
+    // on every song. The real capability is a server projection this surface
+    // does not carry, so nothing is claimed here until it does.
   };
 }
 
