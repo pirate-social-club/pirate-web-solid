@@ -13,8 +13,11 @@ import { PostComposerWriteStep } from "./write-step";
 export function PostComposer(props: PostComposerProps) {
   const controller = createPostComposerController(props, { isMobile: createIsMobile() });
   const [requiredSheetOpen, setRequiredSheetOpen] = createSignal(false);
+  // Embedded is a size, not a different composer. It used to select a second
+  // inline layout for text, so the surface a host shipped and the surface
+  // Storybook reviewed were not the same one.
+  const embedded = () => props.presentation === "embedded";
   const structuredMode = () => {
-    if (props.presentation === "embedded" && !props.songFlowRuntime) return null;
     const mode = controller.tabs.activeTab;
     return mode === "text" || mode === "video" || mode === "song" ? mode : null;
   };
@@ -69,6 +72,7 @@ export function PostComposer(props: PostComposerProps) {
             fallback={
               <PostComposerFormShell
                 controller={controller}
+                embedded={embedded()}
                 onClose={() => props.onClose?.()}
                 onSubmit={requestPost}
               >

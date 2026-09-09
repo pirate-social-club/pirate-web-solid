@@ -279,8 +279,9 @@ describe("the community dialog's video entrance", () => {
     mountCommunityDialog();
     await new Promise<void>(resolve => setTimeout(resolve, 0));
 
+    // The framed layout's attachment bar is icon-only, so address it by name.
     const video = [...document.body.querySelectorAll<HTMLButtonElement>("button")]
-      .find(button => button.textContent?.trim() === "Video");
+      .find(button => (button.getAttribute("aria-label") ?? button.textContent?.trim()) === "Video");
     expect(video).toBeDefined();
     video!.click();
     flush();

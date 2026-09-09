@@ -313,7 +313,7 @@ async function openComposer(page, community, body) {
   assert(await dialog.getByLabel("Community ID").count() === 0, "contextual composer exposed the raw Community ID field");
   await dialog.locator(`[data-community-context="${communityId}"]`).waitFor({ state: "visible" });
   await dialog.getByLabel("Title").fill(`Fixture ${community}`);
-  await dialog.getByLabel("Post", { exact: true }).fill(body);
+  await dialog.getByLabel("Description", { exact: true }).fill(body);
   await dialog.getByRole("button", { name: "Publish post" }).click();
   return dialog;
 }
@@ -324,14 +324,14 @@ async function runTerminalScenario(browser, community, expectedText) {
     const dialog = await openComposer(page, community, `Browser body for ${community}`);
     await dialog.getByText(expectedText, { exact: false }).waitFor({ state: "visible" });
     if (community === "published") {
-      await dialog.getByRole("button", { name: "Cancel" }).click();
+      await dialog.getByRole("button", { name: "Close composer" }).click();
       await page.getByRole("button", { name: "Post here" }).click();
       const freshDialog = page.getByRole("dialog");
       const freshPublish = freshDialog.getByRole("button", { name: "Publish post" });
       assert(await freshDialog.getByLabel("Community ID").count() === 0, "fresh contextual draft exposed the raw Community ID field");
       assert(await freshPublish.isDisabled(), "fresh contextual draft allowed publishing without content");
       await freshDialog.getByLabel("Title").fill("Fresh contextual draft");
-      await freshDialog.getByLabel("Post", { exact: true }).fill("Fresh contextual body");
+      await freshDialog.getByLabel("Description", { exact: true }).fill("Fresh contextual body");
       assert(await freshPublish.isEnabled(), "fresh contextual draft did not become publishable with content");
       assert(await freshDialog.locator("[data-post-composer-state]").count() === 0, "published close retained a terminal state");
     }
