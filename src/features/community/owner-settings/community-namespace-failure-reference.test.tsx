@@ -142,3 +142,45 @@ test("drops the reference once a later command succeeds", async () => {
   await vi.waitFor(() => expect(reference(container)).toBeNull());
   expect(container.textContent).not.toContain("Reference");
 });
+
+test("shows the reference when the initial settings read fails", async () => {
+  const { container } = render(() => (
+    <CommunityNamespaceSettingsController
+      api={{
+        read: async () => {
+          throw apiFailure(500, "internal_error", { requestId: "request-read" });
+        },
+        execute: async () => ready,
+      }}
+      communityId="community-1"
+      communityPath="/c/community-1"
+    />
+  ));
+
+  await vi.waitFor(() =>
+    expect(container.textContent).toContain("Community address settings could not be loaded."),
+  );
+  expect(reference(container)).toBe("request-read");
+  expect(container.querySelector('[role="alert"]')).not.toBeNull();
+});
+
+test("shows no reference on a read failure that carried none", async () => {
+  const { container } = render(() => (
+    <CommunityNamespaceSettingsController
+      api={{
+        read: async () => {
+          throw apiFailure(500, "internal_error");
+        },
+        execute: async () => ready,
+      }}
+      communityId="community-1"
+      communityPath="/c/community-1"
+    />
+  ));
+
+  await vi.waitFor(() =>
+    expect(container.textContent).toContain("Community address settings could not be loaded."),
+  );
+  expect(reference(container)).toBeNull();
+  expect(container.textContent).not.toContain("Reference");
+});

@@ -303,7 +303,12 @@ export function CommunityNamespaceSettingsController(
       )}>
         <Show when={status() !== "error"} fallback={(
           <Card class="p-6" role="alert">
-            <FormNote tone="destructive">{message()}</FormNote>
+            <FormNote tone="destructive">
+              {message()}
+              <Show when={messageReference()}>
+                {" "}<span class="whitespace-nowrap">Reference <code class="select-all font-mono" data-testid="namespace-failure-reference">{messageReference()}</code></span>
+              </Show>
+            </FormNote>
             <Button class="mt-4" onClick={() => void load()} variant="secondary">Try again</Button>
           </Card>
         )}>
