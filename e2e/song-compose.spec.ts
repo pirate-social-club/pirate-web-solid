@@ -1,4 +1,5 @@
 import { expect, hasE2eAuthCredentials, test } from "./fixtures/auth.ts";
+import { readFile } from "node:fs/promises";
 
 // One real song, published through the community page against the deployed
 // API and object store. The local song gate supplies its own responses, so it
@@ -9,15 +10,10 @@ import { expect, hasE2eAuthCredentials, test } from "./fixtures/auth.ts";
 const allowMutation = process.env.E2E_ALLOW_MUTATION === "1";
 const communityPath = process.env.E2E_COMMUNITY_PATH_SEGMENT?.trim();
 
-/** A minimal MPEG audio frame; the composer accepts MP3 by type and extension. */
-function mp3(name: string) {
-  const buffer = Buffer.alloc(4_096);
-  buffer[0] = 0xff;
-  buffer[1] = 0xfb;
-  buffer[2] = 0x90;
-  buffer[3] = 0x00;
-  return { name, mimeType: "audio/mpeg", buffer };
-}
+// This checked-in sound is a real, decodable MP3. A synthetic MPEG header is
+// enough for the browser's file-type gate but cannot prove the processing
+// service accepts audio.
+const audioFixture = await readFile(new URL("../public/sounds/study/correct.mp3", import.meta.url));
 
 test.describe("publish a song from a community page", { tag: "@staging-mutating" }, () => {
   test.skip(!allowMutation, "Set E2E_ALLOW_MUTATION=1 to publish staging content");
@@ -54,31 +50,36 @@ test.describe("publish a song from a community page", { tag: "@staging-mutating"
       const stored = page.waitForResponse(response =>
         response.request().method() === "PUT" && response.status() < 400,
         { timeout: 120_000 });
-      await composer.locator('input[aria-label="Upload audio"]').first().setInputFiles(mp3(`${marker}.mp3`));
+      await composer.locator('input[aria-label="Upload audio"]').first().setInputFiles({
+        name: `${marker}.mp3`,
+        mimeType: "audio/mpeg",
+        buffer: audioFixture,
+      });
       await expect(composer.getByRole("navigation", { name: "Steps" })).toBeVisible();
 
       const title = composer.getByLabel("Song title", { exact: false });
       if (await title.count() > 0) await title.fill(marker);
 
-      // Song, Lyrics, Rights, Review. The forward control is named for the
-      // step it opens, so it is addressed directly rather than by label, and
-      // each advance waits for the step to change before the next.
+      // Song, Lyrics, Rights, Review. Each advance waits for the exact next
+      // step; unrelated status copy changing cannot satisfy the assertion.
       const forward = composer.locator("[data-composer-forward]");
-      for (let step = 0; step < 6; step += 1) {
-        if (await composer.getByRole("button", { name: "Publish song" }).count() > 0) break;
-        const lyricsField = composer.getByLabel("Lyrics", { exact: true });
-        if (lyrics !== "" && await lyricsField.count() > 0) {
-          await lyricsField.fill(lyrics);
-          const save = composer.getByRole("button", { name: "Save reviewed lyrics" });
-          if (await save.count() > 0 && !await save.isDisabled()) await save.click();
-        }
-        await expect(forward).toBeVisible();
-        const before = await composer.innerText();
-        await forward.click();
-        await expect
-          .poll(async () => composer.innerText(), { timeout: 120_000 })
-          .not.toBe(before);
+      const currentStep = (name: string) => composer
+        .getByRole("button", { name, exact: true })
+        .and(composer.locator('[aria-current="step"]'));
+
+      await forward.click();
+      await expect(currentStep("Lyrics")).toBeVisible({ timeout: 120_000 });
+      if (lyrics !== "") {
+        await composer.getByLabel("Lyrics", { exact: true }).fill(lyrics);
+        const saved = page.waitForResponse(response => response.request().method() === "POST"
+          && /\/media-post-submissions\/[^/]+\/lyrics$/u.test(new URL(response.url()).pathname));
+        await composer.getByRole("button", { name: "Save reviewed lyrics" }).click();
+        expect((await saved).status()).toBeLessThan(400);
       }
+      await forward.click();
+      await expect(currentStep("Rights")).toBeVisible({ timeout: 120_000 });
+      await forward.click();
+      await expect(currentStep("Review")).toBeVisible({ timeout: 120_000 });
 
       // The audio reached the real object store before anything was published.
       expect((await stored).status()).toBeLessThan(400);
