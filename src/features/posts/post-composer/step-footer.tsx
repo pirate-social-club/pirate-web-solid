@@ -104,7 +104,7 @@ export function PostComposerStepFooter(props: {
   const nextLabel = () => {
     const next = getNextComposerStep(props.steps.current(), tab());
     if (props.steps.current() === "song" && props.runtime && !props.runtime.prepared) {
-      return "Upload and continue";
+      return controller.copy.actions.continue;
     }
     if (next === "rights") return controller.copy.actions.continue;
     if (next === "review") return controller.copy.steps.review;

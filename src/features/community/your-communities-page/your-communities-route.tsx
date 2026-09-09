@@ -253,6 +253,7 @@ export function YourCommunitiesRouteView(props: YourCommunitiesRouteProps = {}) 
                 communityContext={{ id: community().communityId, name: community().displayName }}
                 onOpenChange={setComposerOpen}
                 open={composerOpen()}
+                personaId={postingPersonas()[0]?.personaId}
                 personas={postingPersonas()}
                 principalId={resolved().userId}
               />

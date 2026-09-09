@@ -75,12 +75,6 @@ export interface ComposerCopy {
     source: string;
   };
   live: Record<string, string>;
-  lyrics: {
-    noLyricsToggle: string;
-    noLyricsToggleNote: string;
-    reviewNote: string;
-    uploadFirst: string;
-  };
   none: string;
   placeholders: Record<string, string>;
   requiredFieldsLegend: string;
@@ -88,8 +82,6 @@ export interface ComposerCopy {
     change: string;
     license: string;
     lyrics: string;
-    noLyrics: string;
-    persona: string;
     recipients: (count: number) => string;
     rights: string;
     song: string;
@@ -227,12 +219,6 @@ export const defaultComposerCopy: ComposerCopy = {
   labels: {
     source: "Source",
   },
-  lyrics: {
-    noLyricsToggle: "This song has no lyrics",
-    noLyricsToggleNote: "Study and Karaoke will be unavailable for this song.",
-    reviewNote: "Review the words you wrote or pasted. They will be saved before your song is published.",
-    uploadFirst: "Finish uploading your audio before adding lyrics.",
-  },
   live: {
     roomKind: "Room kind",
     access: "Access",
@@ -298,8 +284,6 @@ export const defaultComposerCopy: ComposerCopy = {
     change: "Change",
     license: "License",
     lyrics: "Lyrics",
-    noLyrics: "No lyrics",
-    persona: "Posting as",
     recipients: (count: number) => `${count} recipient${count === 1 ? "" : "s"}`,
     rights: "Rights",
     song: "Song",

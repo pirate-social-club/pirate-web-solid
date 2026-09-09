@@ -131,35 +131,10 @@ function button(label: string): HTMLButtonElement {
   return result!;
 }
 
-function identityTrigger(): HTMLButtonElement {
-  const trigger = [...document.body.querySelectorAll<HTMLButtonElement>("button[aria-label^='Post as:']")][0];
-  expect(trigger).toBeInstanceOf(HTMLButtonElement);
-  return trigger!;
-}
-
-function personaRow(label: string): HTMLButtonElement | undefined {
-  return [...document.body.querySelectorAll<HTMLButtonElement>("button")]
-    .find(button => button.textContent?.includes("Your public profile")
-      && button.textContent?.includes(label));
-}
-
-async function choosePersona(label: string): Promise<HTMLButtonElement> {
-  identityTrigger().click();
-  const row = await vi.waitFor(() => {
-    const candidate = personaRow(label);
-    expect(candidate).toBeInstanceOf(HTMLButtonElement);
-    return candidate!;
-  });
-  row.click();
-  // Selecting a persona closes the sheet, so the row disappears with it.
-  await vi.waitFor(() => expect(personaRow(label)).toBeUndefined());
-  return row;
-}
-
 async function continueToReview() {
-  await vi.waitFor(() => expect(button("Upload and continue").disabled).toBe(false));
-  button("Upload and continue").click();
-  await vi.waitFor(() => expect(document.querySelector('textarea[aria-label="Lyrics (optional)"]')).not.toBeNull());
+  await vi.waitFor(() => expect(button("Continue").disabled).toBe(false));
+  button("Continue").click();
+  await vi.waitFor(() => expect(document.querySelector('textarea[aria-label="Lyrics"]')).not.toBeNull());
   button("Continue").click();
   await vi.waitFor(() => expect(button("Review").disabled).toBe(false));
   button("Review").click();
@@ -236,13 +211,14 @@ describe("create post request", () => {
       .toBe("community-contextual");
   });
 
-  test("requires a text persona choice and freezes its serialized identity after dispatch", async () => {
+  test("uses the app-selected persona and freezes its serialized identity after dispatch", async () => {
     const storage = createMemoryPendingSubmissionStorage();
     const dispatch = vi.fn(async () => { throw new Error("network uncertain"); });
     render(() => <CreatePostDialog
       communityContext={{ id: "community-one", name: "Harbor" }}
       onOpenChange={() => {}}
       open
+      personaId="persona-two"
       personas={[activePersona("persona-one", "Persona One"), activePersona("persona-two", "Persona Two")]}
       storage={storage}
       transport={{ read: async () => null, dispatch }}
@@ -253,35 +229,12 @@ describe("create post request", () => {
     body.dispatchEvent(new InputEvent("input", { bubbles: true }));
     const publish = [...document.body.querySelectorAll<HTMLButtonElement>("button")]
       .find(button => button.textContent?.trim() === "Publish post")!;
-    expect(publish.disabled).toBe(true);
-    await choosePersona("Persona Two");
     await vi.waitFor(() => expect(publish.disabled).toBe(false));
     publish.click();
     await vi.waitFor(() => expect(dispatch).toHaveBeenCalledOnce());
-    // The retained request owns authorship: the sheet's persona rows freeze.
-    identityTrigger().click();
-    await vi.waitFor(() => expect(personaRow("Persona One")?.getAttribute("aria-disabled")).toBe("true"));
-    await vi.waitFor(() => expect(personaRow("Persona Two")?.getAttribute("aria-pressed")).toBe("true"));
-    identityTrigger().click();
-    const audioInput = document.body.querySelector<HTMLInputElement>("input[aria-label='Upload audio']")!;
-    Object.defineProperty(audioInput, "files", { configurable: true, value: [new File([new Uint8Array([1])], "choice.mp3", { type: "audio/mpeg" })] });
-    audioInput.dispatchEvent(new Event("change", { bubbles: true }));
-    await vi.waitFor(() => expect(document.body.textContent).toContain("choice.mp3"));
-    // Song mode owns a separate operation persona until a submission is retained.
-    identityTrigger().click();
-    const songRow = await vi.waitFor(() => {
-      const candidate = personaRow("Persona One");
-      expect(candidate).toBeInstanceOf(HTMLButtonElement);
-      return candidate!;
-    });
-    expect(songRow.getAttribute("aria-disabled")).toBeNull();
-    songRow.click();
-    await vi.waitFor(() => expect(personaRow("Persona One")).toBeUndefined());
-    document.body.querySelector<HTMLButtonElement>("button[aria-label='Remove audio']")!.click();
-    await vi.waitFor(() => expect(document.body.querySelector("#create-post-body")).not.toBeNull());
-    // Returning to text mode restores the frozen retained authorship.
-    identityTrigger().click();
-    await vi.waitFor(() => expect(personaRow("Persona Two")?.getAttribute("aria-pressed")).toBe("true"));
+    expect(decodePendingSubmissionDraft((await storage.loadAll())[0]!).personaId).toBe("persona-two");
+    expect(document.body.querySelector("[aria-label^='Post as:']")).toBeNull();
+    expect(document.body.querySelector("[aria-label^='Posting as:']")).toBeNull();
     expect(decodePendingSubmissionDraft((await storage.loadAll())[0]!).personaId).toBe("persona-two");
   });
 
@@ -412,21 +365,26 @@ describe("create post request", () => {
     expect(document.body.querySelector("button[aria-label^='Visibility:']")).toBeNull();
   });
 
-  test("requires an explicit operation persona when more than one is active", () => {
+  test("uses the app-selected persona and otherwise defaults to the first active persona", () => {
     expect(initialOperationPersonaId([
       activePersona("persona-one", "Persona One"),
       activePersona("persona-two", "Persona Two"),
-    ])).toBeUndefined();
+    ])).toBe("persona-one");
+    expect(initialOperationPersonaId([
+      activePersona("persona-one", "Persona One"),
+      activePersona("persona-two", "Persona Two"),
+    ], "persona-two")).toBe("persona-two");
     expect(initialOperationPersonaId([activePersona("persona-one", "Persona One")])).toBe("persona-one");
     expect(initialOperationPersonaId([])).toBeUndefined();
   });
 
-  test("shows the operation-persona control and keeps song publish disabled before an explicit choice", async () => {
+  test("uses the app persona for song without exposing a form-level identity choice", async () => {
     render(() => <CreatePostDialog
       mediaStorage={createMemoryMediaSubmissionStorage()}
       mediaTransport={new ProductionMediaTransport()}
       onOpenChange={() => {}}
       open
+      personaId="persona-two"
       personas={[
         activePersona("persona-one", "Persona One"),
         activePersona("persona-two", "Persona Two"),
@@ -444,12 +402,10 @@ describe("create post request", () => {
     Object.defineProperty(audioInput, "files", { configurable: true, value: [audio] });
     audioInput.dispatchEvent(new Event("change", { bubbles: true }));
 
-    // The MP3 enters the designed Song step, and the identity control is the
-    // one persona entrance.
     await vi.waitFor(() => expect(document.body.textContent).toContain("choice.mp3"));
-    await vi.waitFor(() => expect(button("Upload and continue").disabled).toBe(true));
-    await choosePersona("Persona Two");
-    await vi.waitFor(() => expect(button("Upload and continue").disabled).toBe(false));
+    await vi.waitFor(() => expect(button("Continue").disabled).toBe(false));
+    expect(document.body.querySelector("[aria-label^='Post as:']")).toBeNull();
+    expect(document.body.querySelector("[aria-label^='Posting as:']")).toBeNull();
   });
 
   test("rejects non-MP3 song files before reservation and accepts an uppercase MP3 filename", async () => {
@@ -561,11 +517,11 @@ describe("create post request", () => {
     const input = document.querySelector<HTMLInputElement>('input[aria-label="Upload audio"]')!;
     Object.defineProperty(input, "files", { configurable: true, value: [new File([new Uint8Array([1])], "test.mp3", { type: "audio/mpeg" })] });
     input.dispatchEvent(new Event("change", { bubbles: true }));
-    await vi.waitFor(() => expect(button("Upload and continue").disabled).toBe(false));
-    expect(document.querySelector('textarea[aria-label="Lyrics (optional)"]')).toBeNull();
-    button("Upload and continue").click();
+    await vi.waitFor(() => expect(button("Continue").disabled).toBe(false));
+    expect(document.querySelector('textarea[aria-label="Lyrics"]')).toBeNull();
+    button("Continue").click();
     const lyrics = await vi.waitFor(() => {
-      const value = document.querySelector<HTMLTextAreaElement>('textarea[aria-label="Lyrics (optional)"]');
+      const value = document.querySelector<HTMLTextAreaElement>('textarea[aria-label="Lyrics"]');
       expect(value).not.toBeNull(); return value!;
     });
     expect(mediaTransport.commands.map(command => command.kind)).toEqual(["reserve", "start", "finalize"]);
@@ -613,7 +569,7 @@ describe("create post request", () => {
     expect(mediaTransport.uploadCount).toBe(1);
   });
 
-  test("the contextual form renders one bordered composer and opens only the identity modal", async () => {
+  test("the contextual form renders one bordered composer with no persona UI", async () => {
     render(() => <CreatePostDialog
       communityContext={{ id: "community-one", name: "Pirate Harbor" }}
       mediaStorage={createMemoryMediaSubmissionStorage()}
@@ -631,8 +587,8 @@ describe("create post request", () => {
     expect(document.body.querySelectorAll("[role='dialog']")).toHaveLength(0);
     const closeButtons = document.body.querySelectorAll("button[aria-label='Close composer']");
     expect(closeButtons).toHaveLength(1);
-    const identityControls = document.body.querySelectorAll("button[aria-label^='Post as:']");
-    expect(identityControls).toHaveLength(1);
+    expect(document.body.querySelectorAll("[aria-label^='Post as:']")).toHaveLength(0);
+    expect(document.body.querySelectorAll("[aria-label^='Posting as:']")).toHaveLength(0);
     // The page-form surface owns the one content scroller; the bordered
     // composer card and its steps must not nest another.
     const scrollers = [...document.body.querySelectorAll<HTMLElement>("[class*='overflow-y-auto']")];
@@ -640,35 +596,6 @@ describe("create post request", () => {
     expect([...document.body.querySelectorAll("button")].some(button => button.textContent?.trim() === "Cancel")).toBe(false);
     expect(document.body.textContent).not.toContain("Posting in");
 
-    // Each active persona is a distinct public row in the identity sheet.
-    identityTrigger().click();
-    await vi.waitFor(() => {
-      expect(document.body.querySelectorAll("[role='dialog']")).toHaveLength(1);
-      expect(personaRow("Persona One")).toBeInstanceOf(HTMLButtonElement);
-      expect(personaRow("Persona Two")).toBeInstanceOf(HTMLButtonElement);
-    });
-  });
-
-  test("renders one available persona as fixed identity rather than a dropdown", async () => {
-    render(() => <CreatePostDialog
-      communityContext={{ id: "community-one", name: "Pirate Harbor" }}
-      mediaStorage={createMemoryMediaSubmissionStorage()}
-      mediaTransport={new ProductionMediaTransport()}
-      onOpenChange={() => {}}
-      open
-      personas={[activePersona("persona-one", "Persona One")]}
-      principalId="account-one"
-      storage={createMemoryPendingSubmissionStorage()}
-    />);
-
-    const fixedIdentity = await vi.waitFor(() => {
-      const candidate = document.body.querySelector("[aria-label='Posting as: Persona One']");
-      expect(candidate).toBeInstanceOf(HTMLDivElement);
-      return candidate!;
-    });
-    expect(fixedIdentity.closest("button")).toBeNull();
-    expect(document.body.querySelector("button[aria-label^='Post as:']")).toBeNull();
-    expect(document.body.querySelector("[role='dialog']")).toBeNull();
   });
 
   test("publishes a song with deliberately empty lyrics through the designed steps", async () => {
@@ -685,6 +612,7 @@ describe("create post request", () => {
       onOpenChange={() => {}}
       onPublished={onPublished}
       open
+      personaId="persona-two"
       personas={[activePersona("persona-one", "Persona One"), activePersona("persona-two", "Persona Two")]}
       principalId="account-one"
       storage={createMemoryPendingSubmissionStorage()}
@@ -694,21 +622,18 @@ describe("create post request", () => {
     const audioInput = document.body.querySelector<HTMLInputElement>("input[aria-label='Upload audio']")!;
     Object.defineProperty(audioInput, "files", { configurable: true, value: [new File([new Uint8Array([1])], "wordless.mp3", { type: "audio/mpeg" })] });
     audioInput.dispatchEvent(new Event("change", { bubbles: true }));
-    await vi.waitFor(() => expect(button("Upload and continue").disabled).toBe(true));
-    // The chosen operation persona authors every song command.
-    await choosePersona("Persona Two");
-    await vi.waitFor(() => expect(button("Upload and continue").disabled).toBe(false));
-    button("Upload and continue").click();
+    await vi.waitFor(() => expect(button("Continue").disabled).toBe(false));
+    button("Continue").click();
 
     const lyrics = await vi.waitFor(() => {
-      const value = document.querySelector<HTMLTextAreaElement>('textarea[aria-label="Lyrics (optional)"]');
+      const value = document.querySelector<HTMLTextAreaElement>('textarea[aria-label="Lyrics"]');
       expect(value).not.toBeNull(); return value!;
     });
     expect(lyrics.value).toBe("");
     button("Continue").click();
     await vi.waitFor(() => expect(button("Review").disabled).toBe(false));
     button("Review").click();
-    await vi.waitFor(() => expect(document.body.textContent).toContain("No lyrics"));
+    await vi.waitFor(() => expect(document.body.textContent).toContain("Instrumental"));
     await vi.waitFor(() => expect(button("Publish song").disabled).toBe(false));
     button("Publish song").click();
 
@@ -749,10 +674,10 @@ describe("create post request", () => {
     const audioInput = document.body.querySelector<HTMLInputElement>("input[aria-label='Upload audio']")!;
     Object.defineProperty(audioInput, "files", { configurable: true, value: [new File([new Uint8Array([1])], "carry-through.mp3", { type: "audio/mpeg" })] });
     audioInput.dispatchEvent(new Event("change", { bubbles: true }));
-    await vi.waitFor(() => expect(button("Upload and continue").disabled).toBe(false));
-    button("Upload and continue").click();
+    await vi.waitFor(() => expect(button("Continue").disabled).toBe(false));
+    button("Continue").click();
     const lyrics = await vi.waitFor(() => {
-      const value = document.querySelector<HTMLTextAreaElement>('textarea[aria-label="Lyrics (optional)"]');
+      const value = document.querySelector<HTMLTextAreaElement>('textarea[aria-label="Lyrics"]');
       expect(value).not.toBeNull(); return value!;
     });
     lyrics.value = "Verse one carries through";
@@ -762,7 +687,7 @@ describe("create post request", () => {
 
     button("Back").click();
     const lyricsAgain = await vi.waitFor(() => {
-      const value = document.querySelector<HTMLTextAreaElement>('textarea[aria-label="Lyrics (optional)"]');
+      const value = document.querySelector<HTMLTextAreaElement>('textarea[aria-label="Lyrics"]');
       expect(value).not.toBeNull(); return value!;
     });
     expect(lyricsAgain.value).toBe("Verse one carries through");
@@ -803,8 +728,9 @@ describe("create post request", () => {
       principalId="account-one"
       storage={createMemoryPendingSubmissionStorage()}
     />);
-    await vi.waitFor(() => expect(document.querySelector('textarea[aria-label="Lyrics (optional)"]')).not.toBeNull());
-    expect(identityTrigger().getAttribute("aria-label")).toContain("Persona One");
+    await vi.waitFor(() => expect(document.querySelector('textarea[aria-label="Lyrics"]')).not.toBeNull());
+    expect(document.body.querySelector("[aria-label^='Post as:']")).toBeNull();
+    expect(document.body.querySelector("[aria-label^='Posting as:']")).toBeNull();
   });
 });
 

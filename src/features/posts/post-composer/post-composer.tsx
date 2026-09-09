@@ -2,7 +2,6 @@ import { createSignal, Show } from "solid-js";
 
 import { Card, IconButton, IconX, createIsMobile, cn } from "../../../design-system";
 import { createComposerSteps } from "./composer-steps";
-import { PostComposerIdentityCluster } from "./identity-control";
 import { PostComposerRequiredSheet } from "./required-post-sheet";
 import { PublishButton } from "./submit-actions";
 import { createPostComposerController } from "./controller";
@@ -109,10 +108,6 @@ export function PostComposer(props: PostComposerProps) {
                 <IconX class="size-6" />
               </IconButton>
               {stepIndicator()}
-              <PostComposerIdentityCluster
-                class="pe-16 ps-8 pb-3 pt-5"
-                controller={controller}
-              />
               <Show when={props.mediaStatus}>{props.mediaStatus!()}</Show>
               {stepContent()}
               <Show when={isMultiStep()}>
@@ -122,10 +117,6 @@ export function PostComposer(props: PostComposerProps) {
           }
         >
           {stepIndicator()}
-          <PostComposerIdentityCluster
-            class="px-1 pb-1 pt-4"
-            controller={controller}
-          />
           <Show when={props.mediaStatus}>{props.mediaStatus!()}</Show>
           {stepContent()}
           <Show when={isMultiStep()}>

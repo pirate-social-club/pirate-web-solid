@@ -1,7 +1,7 @@
 /** @jsxImportSource @solidjs/web */
 import type { CreatePostInput } from "@pirate/api-client";
 import type { JSX } from "@solidjs/web";
-import { createSignal, getOwner, onCleanup, Show } from "solid-js";
+import { createSignal, getOwner, onCleanup, Show, untrack } from "solid-js";
 
 import type { ActivePersonaPublicProjection } from "../../../api/session";
 import {
@@ -86,18 +86,10 @@ export const PRODUCTION_SONG_DRAFT_ID = "production-song-draft-v1";
 
 export function initialOperationPersonaId(
   personas: readonly ActivePersonaPublicProjection[],
+  preferredPersonaId?: string,
 ): string | undefined {
-  return personas.length === 1 ? personas[0]?.personaId : undefined;
-}
-
-/** Map session personas onto the composer identity sheet's public rows. */
-function composerPersonas(personas: readonly ActivePersonaPublicProjection[]) {
-  return personas.map(persona => ({
-    personaId: persona.personaId,
-    handle: persona.primaryPublicHandle ?? undefined,
-    displayName: persona.displayName ?? undefined,
-    avatarSrc: persona.avatarRef,
-  }));
+  return personas.find(persona => persona.personaId === preferredPersonaId)?.personaId
+    ?? personas[0]?.personaId;
 }
 
 function restoredAudio(record: NonNullable<MediaSubmissionCoordinator["currentRecord"]>): File {
@@ -131,6 +123,7 @@ export interface CreatePostDialogProps {
   readonly open: boolean;
   readonly onOpenChange: (open: boolean) => void;
   readonly onPublished?: () => void;
+  readonly personaId?: string;
   readonly principalId?: string;
   readonly personas?: readonly ActivePersonaPublicProjection[];
   readonly storage?: PendingSubmissionStorage;
@@ -146,7 +139,7 @@ export interface CreatePostDialogProps {
 
 export function CreatePostDialog(props: CreatePostDialogProps): JSX.Element {
   const personas = () => props.personas ?? [];
-  const initialPersonaId = initialOperationPersonaId(personas());
+  const initialPersonaId = untrack(() => initialOperationPersonaId(personas(), props.personaId));
   const contextualCommunityId = () => props.communityContext?.id.trim() ?? "";
   const [communityId, setCommunityId] = createSignal(contextualCommunityId());
   const [title, setTitle] = createSignal("");
@@ -274,12 +267,6 @@ export function CreatePostDialog(props: CreatePostDialogProps): JSX.Element {
       .finally(() => setMediaRestoring(false));
   }
 
-  function selectOperationPersona(nextPersonaId: string | undefined): void {
-    if (mode() === "video") { if (!videoRetained()) setVideoPersonaId(nextPersonaId); return; }
-    if (mode() === "song") selectSongPersona(nextPersonaId);
-    else setTextPersonaId(nextPersonaId);
-  }
-
   function selectSongPersona(nextPersonaId: string | undefined): void {
     const previousPersonaId = songPersonaId();
     setRoyaltySplit(current => {
@@ -311,7 +298,7 @@ export function CreatePostDialog(props: CreatePostDialogProps): JSX.Element {
     setLyrics("");
     lyricsEdited = false;
     setLicense({ presetId: "non-commercial" });
-    const nextPersonaId = initialOperationPersonaId(personas());
+    const nextPersonaId = initialOperationPersonaId(personas(), props.personaId);
     setRoyaltySplit({
       allocations: nextPersonaId === undefined ? [] : [{
         id: "creator",
@@ -576,7 +563,6 @@ export function CreatePostDialog(props: CreatePostDialogProps): JSX.Element {
     }
   }
 
-  const selectedPersona = () => personas().find(persona => persona.personaId === selectedPersonaId());
   const songTermsIssued = () => {
     // currentRecord is not reactive. Every coordinator command path must apply
     // its snapshot so this dependency invalidates after retained commands change.
@@ -637,14 +623,6 @@ export function CreatePostDialog(props: CreatePostDialogProps): JSX.Element {
     return view.status === "processing_failed" && view.retryable;
   };
 
-  // A retained request or in-flight dispatch owns authorship until resolved;
-  // the identity sheet's persona rows lock for the same states the removed
-  // host persona selector did.
-  const personaSelectionDisabled = () =>
-    mode() === "video" ? videoRetained()
-      : mode() === "text" ? textRestoring() || textState().status !== "editing"
-        : mediaCoordinator?.currentRecord !== null && mediaCoordinator?.currentRecord !== undefined;
-
   // Where a retained song resumes: before the upload finishes it is Song,
   // with audio but unbound lyrics it is Lyrics, once lyrics are accepted it
   // is Rights, and after terms are issued only Review remains.
@@ -666,7 +644,7 @@ export function CreatePostDialog(props: CreatePostDialogProps): JSX.Element {
       >
         <p>{mediaRestoring() ? "Restoring the retained song submission…"
           : mediaSnapshot()?.audio_revision && !songTermsIssued() && mediaView().status === "processing"
-            ? "Audio uploaded. Finish reviewing your lyrics and royalties, then publish your song."
+            ? "Audio uploaded."
             : mediaStateMessage(mediaView())}</p>
         <Show when={observationPaused()}><FormNote>Automatic checks paused. Check status to try again.</FormNote></Show>
         <Show when={mediaCoordinator?.currentRecord?.issue}>
@@ -756,11 +734,6 @@ export function CreatePostDialog(props: CreatePostDialogProps): JSX.Element {
                 availableCapabilities={["text", "song", "video"]}
                 canCreateSongPost={personas().length > 0}
                 currentPersonaId={selectedPersonaId()}
-                identity={{
-                  publicPersonas: composerPersonas(personas()),
-                  publicHandle: selectedPersona()?.primaryPublicHandle ?? undefined,
-                  publicAvatarSrc: selectedPersona()?.avatarRef,
-                }}
                 initialSongStep={initialSongStep()}
                 license={license()}
                 lyricsValue={lyrics()}
@@ -771,7 +744,6 @@ export function CreatePostDialog(props: CreatePostDialogProps): JSX.Element {
                 onAgeGatePolicyChange={setAgeGatePolicy}
                 onLyricsValueChange={value => { lyricsEdited = true; setLyrics(value); }}
                 onModeChange={setMode}
-                onPersonaChange={nextPersonaId => selectOperationPersona(nextPersonaId)}
                 onVideoEntry={() => setMode("video")}
                 onRoyaltySplitChange={setRoyaltySplit}
                 onSongChange={next => {
@@ -784,7 +756,6 @@ export function CreatePostDialog(props: CreatePostDialogProps): JSX.Element {
                   setTitle(value);
                   if (mode() === "song") setSong(current => ({ ...current, title: value }));
                 }}
-                personaSelectionDisabled={personaSelectionDisabled()}
                 songFlowRuntime={mode() === "song" ? {
                   personaId: selectedActivePersonaId(),
                   prepare: () => submitSong(true),

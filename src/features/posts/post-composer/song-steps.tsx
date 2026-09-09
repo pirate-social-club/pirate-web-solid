@@ -1,11 +1,11 @@
 // Song steps 2-4: Lyrics, Rights, and Review. The draft is the visual
 // authority for the first two; the draft's Review step was an unimplemented
-// placeholder, so this review summarizes the real draft state — persona,
-// song, lyrics, rights, license, and royalty allocation — with a change
+// placeholder, so this review summarizes the real draft state — song,
+// lyrics, rights, license, and royalty allocation — with a change
 // affordance back to the step that owns each value.
 
 import type { JSX } from "@solidjs/web";
-import { createSignal, For, Show, type ParentProps } from "solid-js";
+import { For, Show, type ParentProps } from "solid-js";
 
 import {
   Button,
@@ -14,7 +14,6 @@ import {
   Input,
   OptionCard,
   OptionCardGroup,
-  Switch,
   Textarea,
   Type,
 } from "../../../design-system";
@@ -59,17 +58,9 @@ export function songTermsIssue(controller: PostComposerController, runtime?: Son
 
 function StepCard(props: ParentProps<{
   controller: PostComposerController;
-  title: string;
-  note?: string;
 }>) {
   return (
     <CardContent class={cn("space-y-6 p-8", props.controller.isMobile() && "px-0 pb-4 pt-1")}>
-      <div class="space-y-1">
-        <Type as="h2" variant="h3" class="text-muted-foreground">{props.title}</Type>
-        <Show when={props.note}>
-          <Type as="p" variant="caption" class="text-muted-foreground">{props.note}</Type>
-        </Show>
-      </div>
       {props.children}
     </CardContent>
   );
@@ -80,58 +71,29 @@ export function SongLyricsStep(props: {
   runtime?: SongFlowRuntime;
 }) {
   const controller = props.controller;
-  const song = () => controller.song.state;
   const locked = () => props.runtime?.locked === true;
   const prepared = () => props.runtime
     ? props.runtime.prepared
     : controller.song.state.lyricsEditorState === "ready";
-  const [declareNoLyrics, setDeclareNoLyrics] = createSignal(song().lyricsEditorState === "no_lyrics");
-
-  const toggleNoLyrics = (on: boolean) => {
-    setDeclareNoLyrics(on);
-    // Declaring no lyrics is a real authorship choice: the draft text is
-    // cleared so publication cannot bind stale words the author rejected.
-    if (on) controller.fields.onLyricsValueChange?.("");
-  };
 
   return (
-    <StepCard controller={controller} title={controller.copy.steps.lyrics}>
+    <StepCard controller={controller}>
       <Show
         when={prepared()}
-        fallback={<FormNote>{controller.copy.lyrics.uploadFirst}</FormNote>}
+        fallback={<FormNote>Upload audio first.</FormNote>}
       >
-        <section class="space-y-3">
-          <div class="flex items-center justify-between gap-4 rounded-[var(--radius-lg)] border border-border-soft bg-card p-4">
-            <div class="space-y-1">
-              <Type as="div" variant="body-strong">{controller.copy.lyrics.noLyricsToggle}</Type>
-              <Type as="p" variant="caption" class="text-muted-foreground">{controller.copy.lyrics.noLyricsToggleNote}</Type>
-            </div>
-            <Switch
-              aria-label={controller.copy.lyrics.noLyricsToggle}
-              checked={declareNoLyrics()}
-              disabled={locked()}
-              onChange={toggleNoLyrics}
-            />
-          </div>
-
-          <label class="block space-y-2">
-            <Type as="span" variant="body-strong">Lyrics (optional)</Type>
-            <Textarea
-              aria-label="Lyrics (optional)"
-              class="min-h-36 resize-y"
-              disabled={locked() || declareNoLyrics()}
-              maxlength={10_000}
-              onChange={(event) => controller.fields.onLyricsValueChange?.(event.currentTarget.value)}
-              placeholder={controller.copy.placeholders.lyrics}
-              value={controller.fields.lyricsValue}
-            />
-          </label>
-          <Type as="p" variant="caption" class="text-muted-foreground">
-            {declareNoLyrics()
-              ? controller.copy.lyrics.noLyricsToggleNote
-              : controller.copy.lyrics.reviewNote}
-          </Type>
-        </section>
+        <label class="block space-y-2">
+          <Type as="span" variant="body-strong">Lyrics</Type>
+          <Textarea
+            aria-label="Lyrics"
+            class="min-h-64 resize-y"
+            disabled={locked()}
+            maxlength={10_000}
+            onChange={(event) => controller.fields.onLyricsValueChange?.(event.currentTarget.value)}
+            placeholder="Add lyrics (optional)"
+            value={controller.fields.lyricsValue}
+          />
+        </label>
       </Show>
     </StepCard>
   );
@@ -170,7 +132,7 @@ export function SongRightsStep(props: {
     (sum, allocation) => sum + allocationBps(allocation), 0);
 
   return (
-    <StepCard controller={controller} title={controller.copy.steps.rights}>
+    <StepCard controller={controller}>
       <fieldset disabled={locked()}>
         <section class="space-y-3">
           <FieldLabel label={controller.copy.rights.songKind} />
@@ -347,11 +309,6 @@ export function SongReviewStep(props: {
   const controller = props.controller;
   const song = () => controller.song.state;
   const issue = () => songTermsIssue(controller, props.runtime);
-  const personaLabel = () => {
-    const persona = controller.identity.publicPersonas?.find(
-      candidate => candidate.personaId === controller.identity.publicPersonaId);
-    return persona?.handle ?? persona?.displayName ?? controller.identity.identity?.publicHandle ?? "—";
-  };
   const licenseLabel = () => controller.copy.assetLicense.song[controller.license.state.presetId];
   const kindLabel = () => controller.primary.activeSongMode === "remix"
     ? controller.copy.songModes.remix
@@ -359,12 +316,11 @@ export function SongReviewStep(props: {
   const sourceCount = () => controller.primary.derivativeState?.references?.length ?? 0;
 
   return (
-    <StepCard controller={controller} title={controller.copy.steps.review}>
+    <StepCard controller={controller}>
       <Show when={issue()}>
         <FormNote tone="warning">{issue()}</FormNote>
       </Show>
       <div class="rounded-[var(--radius-lg)] px-1">
-        <ReviewRow label={controller.copy.review.persona} value={personaLabel()} />
         <ReviewRow
           action={{ label: controller.copy.review.change, onClick: () => props.steps.set("song") }}
           label={controller.copy.review.song}
@@ -383,7 +339,7 @@ export function SongReviewStep(props: {
           action={{ label: controller.copy.review.change, onClick: () => props.steps.set("lyrics") }}
           label={controller.copy.review.lyrics}
           value={controller.fields.lyricsValue.trim() === ""
-            ? controller.copy.review.noLyrics
+            ? "Instrumental"
             : <span class="line-clamp-2">{controller.fields.lyricsValue}</span>}
         />
         <ReviewRow

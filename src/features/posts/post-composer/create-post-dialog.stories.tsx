@@ -118,6 +118,7 @@ const storyMp3 = (name = "midnight-waves.mp3") =>
 interface StoryOptions {
   readonly communityContext?: boolean;
   readonly personaCount?: 1 | 2;
+  readonly personaId?: string;
   readonly mediaTransport?: MediaSubmissionTransport;
   readonly publishOnTerms?: boolean;
 }
@@ -136,6 +137,7 @@ function dialogHarness(options: StoryOptions = {}) {
         onOpenChange={() => {}}
         onPublished={() => {}}
         open={open}
+        personaId={options.personaId}
         personas={personas(options.personaCount ?? 1)}
         principalId="account-one"
         storage={createMemoryPendingSubmissionStorage()}
@@ -182,7 +184,7 @@ const meta = {
     docs: {
       description: {
         component:
-          "The shipped posting form: the same surface the community page opens through Post here. The form adds no card or dialog chrome, so the composer has one border and the identity sheet is its only modal. Deterministic in-memory storages and transports stand in for the network.",
+          "The shipped posting form: the same surface the community page opens through Post here. It adds no dialog chrome, persona choice, or audience policy; the app supplies that context. Deterministic in-memory storages and transports stand in for the network.",
       },
     },
   },
@@ -203,14 +205,12 @@ export const ContextualTextMobile: Story = {
 };
 
 export const ContextualTextMultiplePersonas: Story = {
-  name: "Contextual / Text / Multiple personas",
-  render: () => dialogHarness({ personaCount: 2 }).render(),
+  name: "Contextual / Text / App-selected persona",
+  render: () => dialogHarness({ personaCount: 2, personaId: "persona-two" }).render(),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement.ownerDocument.body);
-    await userEvent.click(canvas.getByRole("button", { name: /^Post as: / }));
-    const row = canvas.getByText("drift-reef.pirate");
-    await userEvent.click(row.closest("button")!);
-    await expect(canvas.getByRole("button", { name: /Post as: drift-reef\.pirate/ })).toBeInTheDocument();
+    await expect(canvas.queryByRole("button", { name: /^Post as: / })).not.toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: "Publish post" })).toBeInTheDocument();
   },
 };
 
@@ -273,7 +273,7 @@ export const SongStepFourReview: Story = {
       .find(button => button.closest("nav") === null);
     if (review === undefined) throw new Error("Rights footer did not render its Review action");
     await userEvent.click(review);
-    await expect(canvas.getByText("Posting as")).toBeInTheDocument();
+    await expect(canvas.getByText("License")).toBeInTheDocument();
   },
 };
 
@@ -283,13 +283,13 @@ export const SongEmptyLyricsPublished: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement.ownerDocument.body);
     await userEvent.upload(canvas.getByLabelText("Upload audio"), storyMp3("wordless.mp3"));
-    await userEvent.click(canvas.getByRole("button", { name: "Upload and continue" }));
+    await userEvent.click(canvas.getByRole("button", { name: "Continue" }));
     await userEvent.click(await canvas.findByRole("button", { name: "Continue" }));
     const review = canvas.getAllByRole("button", { name: "Review" })
       .find(button => button.closest("nav") === null);
     if (review === undefined) throw new Error("Rights footer did not render its Review action");
     await userEvent.click(review);
-    await expect(canvas.getByText("No lyrics")).toBeInTheDocument();
+    await expect(canvas.getByText("Instrumental")).toBeInTheDocument();
     await userEvent.click(canvas.getByRole("button", { name: "Publish song" }));
     await expect(canvas.getByText("Song published.")).toBeInTheDocument();
   },

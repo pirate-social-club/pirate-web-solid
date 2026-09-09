@@ -380,6 +380,7 @@ function SuccessState(props: {
             communityContext={{ id: communityId, name: community().name }}
             onOpenChange={setComposerOpen}
             open={composerOpen()}
+            personaId={selectedPersonaId()}
             personas={communityOperationPersonas(session().personas, communityId)}
             principalId={session().userId}
             mediaStorage={props.postComposerMediaStorage}
