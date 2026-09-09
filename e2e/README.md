@@ -43,8 +43,13 @@ contract, so an explicit run leaves uniquely marked staging content and
 records a cleanup annotation.
 
 The feed hydration spec reads `E2E_FEED_COMMUNITY_PATH_SEGMENT`, naming a
-community whose public feed has at least one post, and skips with a visible
-reason without it. It asserts that the response body already carries the feed
+community that both resolves at `/c/<segment>` and whose public feed endpoint
+answers, and skips with a visible reason without it. Those are two conditions,
+not one: a community can carry public posts, be a valid community id, and still
+fail both. On 2026-09-09 the two staging communities with public posts,
+`staging-song-pipeline` and `community-very-staging-fixture-moderation-e2e`,
+report `route_slug: null` in their preview and 404 on
+`/public-communities/<ref>/feed`, so a route alone would not be enough. It asserts that the response body already carries the feed
 and that hydration issues no further read of it, which is the one place that
 observes serialization and hydration together. It proves nothing until the
 change under test is the deployed build.
