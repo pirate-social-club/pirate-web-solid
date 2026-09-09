@@ -37,14 +37,11 @@ export function PostComposerPageFrame(props: ParentProps<{
 
 export function PostComposerFormShell(props: ParentProps<{
   controller: PostComposerController;
-  /** A host that owns the surrounding surface sizes the frame down. */
-  embedded?: boolean;
   onClose?: () => void;
   onSubmit: () => void;
 }>) {
   return (
     <PostComposerPageFrame
-      embedded={props.embedded}
       header={
         <>
           <IconButton

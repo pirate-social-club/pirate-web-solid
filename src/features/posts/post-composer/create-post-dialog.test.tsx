@@ -196,7 +196,7 @@ describe("create post request", () => {
     expect(publishButtons).toHaveLength(1);
     expect(publishButtons[0]?.disabled).toBe(true);
 
-    const body = document.body.querySelector<HTMLTextAreaElement>("#text-post-description")!;
+    const body = document.body.querySelector<HTMLTextAreaElement>("#create-post-body")!;
     body.value = "A contextual post";
     body.dispatchEvent(new InputEvent("input", { bubbles: true }));
     await vi.waitFor(() => expect(publishButtons[0]?.disabled).toBe(false));
@@ -214,7 +214,7 @@ describe("create post request", () => {
       transport={{ read: async () => null, dispatch }}
     />);
     await new Promise<void>(resolve => setTimeout(resolve, 0));
-    const body = document.body.querySelector<HTMLTextAreaElement>("#text-post-description")!;
+    const body = document.body.querySelector<HTMLTextAreaElement>("#create-post-body")!;
     body.value = "A persona-authored text post";
     body.dispatchEvent(new InputEvent("input", { bubbles: true }));
     const publish = [...document.body.querySelectorAll<HTMLButtonElement>("button")]
@@ -606,9 +606,7 @@ test.each([false, true])("restores retained video authority in global/contextual
       communityContext={contextual ? { id: "other-community", name: "Other community" } : undefined}
       storage={createMemoryPendingSubmissionStorage()} mediaStorage={createMemoryMediaSubmissionStorage()}
       videoStorage={videoStorage} videoTransport={{ execute, async read() { return snapshot; } }} fetchImpl={fetchImpl} />);
-    // The framed composer's attachment bar is icon-only, so address it by name.
-    const tab = [...document.querySelectorAll("button")]
-      .find(button => (button.getAttribute("aria-label") ?? button.textContent?.trim()) === "Video")!;
+    const tab = [...document.querySelectorAll("button")].find(button => button.textContent?.trim() === "Video")!;
     expect(tab).toBeDefined(); await vi.waitFor(() => expect(tab.disabled).toBe(false)); tab.focus(); tab.click();
     await vi.waitFor(() => expect(document.body.textContent).toContain("Resume video submission"));
     expect(pickerClick).not.toHaveBeenCalled();

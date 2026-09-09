@@ -15,9 +15,7 @@ const meta = {
     docs: {
       description: {
         component:
-          "The post composer component, exercised with capabilities no product "
-          + "surface grants so every branch has coverage. The surface to review is "
-          + "Flows/Posts/CreatePostDialog, which is what a community page opens.",
+          "The post composer port. Host-owned identity, upload, and submit callbacks are represented with deterministic Storybook fixtures.",
       },
     },
   },

@@ -487,33 +487,12 @@ export function PostComposerWriteStep(props: {
       >
         {(layout) => (
           <>
-            {/* The framed layout keeps the drop entrance the inline one had,
-                so moving a host onto the frame does not quietly remove drag
-                and drop along with the second layout. */}
-            <div
-              class={cn("relative space-y-5 px-6 pb-6 pt-6 sm:py-8", dragging() && "overflow-hidden")}
-              data-composer-drop-zone
-              onDragEnter={(event) => { event.preventDefault(); dragCounter += 1; setDragging(true); }}
-              onDragLeave={(event) => { event.preventDefault(); dragCounter -= 1; if (dragCounter <= 0) setDragging(false); }}
-              onDragOver={(event) => event.preventDefault()}
-              onDrop={drop}
-            >
-              <Show when={dragging()}>
-                <div class="absolute inset-0 z-10 grid place-items-center rounded-[var(--radius-lg)] border-2 border-dashed border-primary bg-primary-subtle/80">
-                  <div class="flex flex-col items-center gap-3">
-                    <IconUploadSimple class="size-10 text-primary" />
-                    <Type as="p" variant="body-strong" class="text-primary">Drop a file to attach it</Type>
-                  </div>
-                </div>
-              </Show>
+            <div class="space-y-5 px-6 pb-6 pt-6 sm:py-8">
               <Show
                 when={layout() === "video"}
                 fallback={
                   <>
                     <BasicFields idPrefix="text-post" />
-                    <Show when={attachmentError()}>
-                      <FormNote tone="warning">{attachmentError()}</FormNote>
-                    </Show>
                     <PostComposerMobileAttachmentBar
                       actions={controller.tabs.permitted(textMobileAttachmentActions)}
                       activeKind={activeTool() ?? attachment()?.kind ?? null}

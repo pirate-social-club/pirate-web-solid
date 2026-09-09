@@ -641,10 +641,7 @@ export function CreatePostDialog(props: CreatePostDialogProps): JSX.Element {
   return (
     <Dialog open={props.open} onOpenChange={close}>
       <DialogContent class="max-h-[92dvh] overflow-y-auto sm:w-[min(100%-2rem,48rem)]">
-        {/* The composer frame owns the visible header, close and publish
-            controls. This stays for the accessible name the dialog needs and
-            is not shown twice. */}
-        <DialogHeader class="sr-only">
+        <DialogHeader>
           <DialogTitle>Create a post</DialogTitle>
           <DialogDescription>Start a conversation or publish a song in a community you belong to.</DialogDescription>
         </DialogHeader>
@@ -768,6 +765,9 @@ export function CreatePostDialog(props: CreatePostDialogProps): JSX.Element {
               titleValue={title()}
               validateDraftBeforeSubmit={mode() !== "text"}
             /></Show>
+            <div class="flex justify-end">
+              <Button type="button" variant="outline" onClick={() => close(false)}>Cancel</Button>
+            </div>
 
             <Show when={mode() === "text" && textState().status !== "editing"}>
               <PostComposerSubmission
