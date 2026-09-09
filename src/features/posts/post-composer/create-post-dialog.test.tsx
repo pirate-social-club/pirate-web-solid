@@ -211,6 +211,39 @@ describe("create post request", () => {
       .toBe("community-contextual");
   });
 
+  test("lets an account with several eligible personas choose which one authors", async () => {
+    const storage = createMemoryPendingSubmissionStorage();
+    // This case never publishes; it only changes the author before doing so.
+    const dispatch = vi.fn(async () => { throw new Error("not dispatched in this case"); });
+    render(() => <CreatePostDialog
+      communityContext={{ id: "community-one", name: "Harbor" }}
+      onOpenChange={() => {}}
+      open
+      personaId="persona-one"
+      personas={[activePersona("persona-one", "Persona One"), activePersona("persona-two", "Persona Two")]}
+      storage={storage}
+      transport={{ read: async () => null, dispatch }}
+    />);
+    await new Promise<void>(resolve => setTimeout(resolve, 0));
+
+    // The dialog used to author as whatever persona it was handed, with no way
+    // to change it. An entry point that supplied only the first eligible
+    // persona therefore fixed the author, and the account was never told which
+    // of its identities was about to publish.
+    const control = document.body.querySelector("[data-operation-persona]");
+    expect(control).not.toBeNull();
+    expect(control?.textContent).toContain("Persona One");
+
+    control!.querySelector<HTMLButtonElement>("button")!.click();
+    await vi.waitFor(() => expect(document.body.textContent).toContain("Persona Two"));
+    const second = document.body.querySelector<HTMLInputElement>("input[value='persona-two']");
+    expect(second).not.toBeNull();
+    second!.click();
+    await vi.waitFor(() => expect(
+      document.body.querySelector("[data-operation-persona]")?.textContent,
+    ).toContain("Persona Two"));
+  });
+
   test("uses the app-selected persona and freezes its serialized identity after dispatch", async () => {
     const storage = createMemoryPendingSubmissionStorage();
     const dispatch = vi.fn(async () => { throw new Error("network uncertain"); });
