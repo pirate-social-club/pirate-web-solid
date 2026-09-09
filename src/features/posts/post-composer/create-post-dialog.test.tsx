@@ -649,6 +649,28 @@ describe("create post request", () => {
     });
   });
 
+  test("renders one available persona as fixed identity rather than a dropdown", async () => {
+    render(() => <CreatePostDialog
+      communityContext={{ id: "community-one", name: "Pirate Harbor" }}
+      mediaStorage={createMemoryMediaSubmissionStorage()}
+      mediaTransport={new ProductionMediaTransport()}
+      onOpenChange={() => {}}
+      open
+      personas={[activePersona("persona-one", "Persona One")]}
+      principalId="account-one"
+      storage={createMemoryPendingSubmissionStorage()}
+    />);
+
+    const fixedIdentity = await vi.waitFor(() => {
+      const candidate = document.body.querySelector("[aria-label='Posting as: Persona One']");
+      expect(candidate).toBeInstanceOf(HTMLDivElement);
+      return candidate!;
+    });
+    expect(fixedIdentity.closest("button")).toBeNull();
+    expect(document.body.querySelector("button[aria-label^='Post as:']")).toBeNull();
+    expect(document.body.querySelector("[role='dialog']")).toBeNull();
+  });
+
   test("publishes a song with deliberately empty lyrics through the designed steps", async () => {
     const mediaStorage = createMemoryMediaSubmissionStorage();
     const mediaTransport = new ProductionMediaTransport();

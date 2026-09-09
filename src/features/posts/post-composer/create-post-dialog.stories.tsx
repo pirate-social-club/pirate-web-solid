@@ -220,7 +220,7 @@ export const GlobalCommunityId: Story = {
   render: () => dialogHarness({ communityContext: false }).render(),
 };
 
-export const SongStepOne: Story = {
+export const SongStep1Song: Story = {
   name: "Song / Step 1 — Song",
   render: () => dialogHarness().render(),
   play: async ({ canvasElement }) => {
@@ -230,8 +230,8 @@ export const SongStepOne: Story = {
   },
 };
 
-export const SongStepOneMobile: Story = {
-  ...SongStepOne,
+export const SongStep1SongMobile: Story = {
+  ...SongStep1Song,
   name: "Song / Step 1 — Song / Mobile",
   globals: { viewport: { value: "mobile1", isRotated: false } },
 };

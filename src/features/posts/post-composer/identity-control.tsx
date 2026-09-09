@@ -104,6 +104,10 @@ export function PostComposerIdentityControl(props: {
       ? anonymousLabel()
       : publicLabel();
   const canUseAnonymous = () => identity()?.allowAnonymousIdentity === true;
+  const selectableIdentityCount = () => (hasPersonaRows() ? personas().length : 1)
+    + (canUseAnonymous() ? 1 : 0)
+    + (agentLabel() ? 1 : 0);
+  const canChooseIdentity = () => selectableIdentityCount() > 1;
   const canUseQualifiers = () => isAnonymous()
     && identity()?.allowQualifiersOnAnonymousPosts !== false
     && qualifiers().length > 0;
@@ -272,31 +276,56 @@ export function PostComposerIdentityControl(props: {
     </ModalContent>
   );
 
+  const triggerContent = (showCaret: boolean) => (
+    <>
+      <Show when={!row()}>
+        <PostComposerIdentityAvatar class="size-7 shrink-0" controller={controller} />
+      </Show>
+      <span class="min-w-0 whitespace-nowrap">
+        <Type as="span" variant="body-strong" class={cn("block truncate", !controller.isMobile() && "text-lg")}>{triggerLabel()}</Type>
+      </span>
+      <Show when={showCaret}>
+        <IconCaretDown class={cn("shrink-0 text-muted-foreground", controller.isMobile() ? "size-4" : "size-5")} />
+      </Show>
+    </>
+  );
+
   return (
     <Show when={identity()?.visible !== false}>
-      <Modal open={open()} onOpenChange={setOpen}>
-        <ModalTrigger
-          aria-label={[
-            `${controller.copy.identitySheet.title}: ${triggerLabel()}`,
-            qualifierLabel(),
-          ].filter(Boolean).join(", ")}
-          class={cn(
-            row()
-              ? cn(composerRowTriggerClass, "max-w-full")
-              : cn(composerPillTriggerClass, "justify-start ps-2 pe-3 text-start"),
-            props.class,
-          )}
-        >
-          <Show when={!row()}>
-            <PostComposerIdentityAvatar class="size-7 shrink-0" controller={controller} />
-          </Show>
-          <span class="min-w-0 whitespace-nowrap">
-            <Type as="span" variant="body-strong" class={cn("block truncate", !controller.isMobile() && "text-lg")}>{triggerLabel()}</Type>
-          </span>
-          <IconCaretDown class={cn("shrink-0 text-muted-foreground", controller.isMobile() ? "size-4" : "size-5")} />
-        </ModalTrigger>
-        {identitySheetContent()}
-      </Modal>
+      <Show
+        when={canChooseIdentity()}
+        fallback={
+          <div
+            aria-label={`Posting as: ${triggerLabel()}`}
+            class={cn(
+              row()
+                ? "flex h-8 w-max min-w-0 items-center gap-2 px-0 text-start"
+                : "inline-flex h-11 min-w-0 items-center gap-2 px-2 text-start text-foreground",
+              props.class,
+            )}
+          >
+            {triggerContent(false)}
+          </div>
+        }
+      >
+        <Modal open={open()} onOpenChange={setOpen}>
+          <ModalTrigger
+            aria-label={[
+              `${controller.copy.identitySheet.title}: ${triggerLabel()}`,
+              qualifierLabel(),
+            ].filter(Boolean).join(", ")}
+            class={cn(
+              row()
+                ? cn(composerRowTriggerClass, "max-w-full")
+                : cn(composerPillTriggerClass, "justify-start ps-2 pe-3 text-start"),
+              props.class,
+            )}
+          >
+            {triggerContent(true)}
+          </ModalTrigger>
+          {identitySheetContent()}
+        </Modal>
+      </Show>
     </Show>
   );
 }
