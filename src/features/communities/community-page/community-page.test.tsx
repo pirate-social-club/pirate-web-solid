@@ -121,7 +121,7 @@ describe("CommunityPage", () => {
     expect(loadThreads).toHaveBeenCalledWith(communityId);
   });
 
-  test("requires an explicit persona before mounting persona-authored engagement", async () => {
+  test("offers engagement without a persona and asks for one only to author", async () => {
     const container = render(() => (
       <CommunityPage
         client={{
@@ -155,8 +155,18 @@ describe("CommunityPage", () => {
     ));
 
     await vi.waitFor(() => expect(container.querySelector("[data-operation-persona]")).not.toBeNull());
-    expect(container.querySelector("button[aria-label='Comments (4)']")).toBeNull();
-    expect(container.querySelector("button[aria-label='Open 4 comments']")).not.toBeNull();
+
+    // No persona is selected yet. Voting is account-scoped, so the real
+    // controls mount now rather than leaving the handlerless placeholders up.
+    await vi.waitFor(() => expect(container.querySelector("button[aria-label='Comments (4)']")).not.toBeNull());
+    expect(container.querySelector("button[aria-label='Open 4 comments']")).toBeNull();
+
+    // Authorship is what needs a profile, and the composer says so before the
+    // viewer types rather than refusing after they have written something.
+    container.querySelector<HTMLButtonElement>("button[aria-label='Comments (4)']")!.click();
+    await vi.waitFor(() => expect(document.body.querySelector("textarea[aria-label='Write a comment']")).not.toBeNull());
+    expect(document.body.querySelector<HTMLTextAreaElement>("textarea[aria-label='Write a comment']")!.disabled).toBe(true);
+    expect(document.body.textContent).toContain("Choose a profile to comment as.");
 
     container.querySelector<HTMLButtonElement>("[data-operation-persona] button")!.click();
     await vi.waitFor(() => expect(document.body.textContent).toContain("Persona Two"));
@@ -164,7 +174,9 @@ describe("CommunityPage", () => {
     expect(personaTwo).not.toBeNull();
     personaTwo!.click();
 
-    await vi.waitFor(() => expect(container.querySelector("button[aria-label='Comments (4)']")).not.toBeNull());
+    await vi.waitFor(() => expect(
+      document.body.querySelector<HTMLTextAreaElement>("textarea[aria-label='Write a comment']")!.disabled,
+    ).toBe(false));
   });
 
   test("renders the public community projection and canonical metadata", async () => {

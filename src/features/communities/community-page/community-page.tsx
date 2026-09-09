@@ -371,20 +371,21 @@ function SuccessState(props: {
               >{engagement.personaRetryBusy() ? "Checking profiles" : "Retry profiles"}</Button>
             ) : undefined}
             renderPost={(post, render) => {
+              // A signed-in viewer gets working controls whether or not a
+              // profile is selected. Votes are account-scoped and carry no
+              // persona, so gating them on one withheld an action the account
+              // was always entitled to take; the comment composer inside asks
+              // for a profile because authorship is the part that needs one.
               const session = engagement.postingSession();
               if (session === undefined) return render();
               return (
-                <Show when={selectedPersonaId()} fallback={render()} keyed>
-                  {personaId => (
-                    <PostEngagement
-                      communityId={communityId}
-                      personaId={personaId}
-                      post={engagementPost(post)}
-                      principalId={session.userId}
-                      transport={props.postEngagementTransport}
-                    >{controls => render(controls)}</PostEngagement>
-                  )}
-                </Show>
+                <PostEngagement
+                  communityId={communityId}
+                  personaId={selectedPersonaId()}
+                  post={engagementPost(post)}
+                  principalId={session.userId}
+                  transport={props.postEngagementTransport}
+                >{controls => render(controls)}</PostEngagement>
               );
             }}
             onCreatePost={engagement.joined() ? () => void openPostComposer() : undefined}

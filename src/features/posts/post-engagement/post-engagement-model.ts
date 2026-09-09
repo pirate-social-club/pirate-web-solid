@@ -39,6 +39,8 @@ export type EngagementIssue =
   | { readonly kind: "auth_required" }
   | { readonly kind: "csrf_missing" }
   | { readonly kind: "membership_required" }
+  /** Raised locally: the write needs an author identity the viewer has not chosen. */
+  | { readonly kind: "persona_required" }
   | { readonly kind: "not_found" }
   | { readonly kind: "comments_locked" }
   | { readonly kind: "gate_unsatisfied" }
@@ -82,6 +84,7 @@ export function engagementIssueMessage(issue: EngagementIssue): string {
     case "auth_required": return "Sign in again before continuing.";
     case "csrf_missing": return "Refresh this page before continuing.";
     case "membership_required": return "Join this community before participating.";
+    case "persona_required": return "Choose a profile to comment as.";
     case "not_found": return "This post or comment is no longer available.";
     case "comments_locked": return "Comments are locked for this post.";
     case "gate_unsatisfied": return "Complete this community's participation requirements first.";

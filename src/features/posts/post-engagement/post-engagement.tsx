@@ -58,8 +58,13 @@ export interface PostEngagementProps {
   readonly post: PostEngagementPost;
   /** Account-scoped durable-storage identity; never serialized as persona_id. */
   readonly principalId: string;
-  /** Explicit operation persona serialized only for persona-authored commands. */
-  readonly personaId: string;
+  /**
+   * Explicit operation persona serialized only for persona-authored commands.
+   * Absent when the viewer has not chosen one. Voting is account-scoped and
+   * carries no persona, so it stays available; comment and reply authorship
+   * does carry one and reports that it needs a profile instead.
+   */
+  readonly personaId?: string;
   readonly communityId?: string;
   readonly transport?: PostEngagementTransport;
   readonly initialComments?: readonly CommentThreadItem[];
@@ -367,6 +372,13 @@ export function PostEngagement(props: PostEngagementProps) {
   const submit = async () => {
     const body = draft().trim();
     if (!body || submissionBusy()) return;
+    // Authorship is persona-scoped. Refuse locally rather than sending a
+    // command the contract cannot express without an author.
+    const personaId = props.personaId;
+    if (personaId === undefined) {
+      setIssue({ kind: "persona_required" });
+      return;
+    }
     const target = composeTarget();
     const parent = target.kind === "reply" ? targetParent() : undefined;
     if (target.kind === "reply" && (!parent || !canReplyToComment(parent))) {
@@ -379,8 +391,8 @@ export function PostEngagement(props: PostEngagementProps) {
     setIssue(undefined);
     const slot = commentSubmissionSlot(props.principalId, props.post.id);
     const record = await prepareRecord(slot, key => parent
-      ? { kind: "reply", commentId: parent.id, personaId: props.personaId, body, idempotencyKey: key }
-      : { kind: "comment", postId: props.post.id, personaId: props.personaId, body, idempotencyKey: key });
+      ? { kind: "reply", commentId: parent.id, personaId, body, idempotencyKey: key }
+      : { kind: "comment", postId: props.post.id, personaId, body, idempotencyKey: key });
     if (record === null) {
       setSubmissionBusy(false);
       return;
@@ -735,11 +747,15 @@ export function PostEngagement(props: PostEngagementProps) {
           </Show>
           <FormattedTextarea
             aria-label={composeTarget().kind === "reply" ? "Write a reply" : "Write a comment"}
-            disabled={submissionBusy()}
+            disabled={submissionBusy() || props.personaId === undefined}
             onChange={updateDraft}
             placeholder={composeTarget().kind === "reply" ? "Write a reply…" : "Join the conversation…"}
             value={draft()}
           />
+          {/* Said before the viewer types, not after they try to post. */}
+          <Show when={props.personaId === undefined}>
+            <Type class="mt-2" variant="caption">Choose a profile to comment as.</Type>
+          </Show>
           <div class="mt-3 flex flex-wrap items-center justify-between gap-3">
             <label class="flex items-center gap-2 text-sm text-muted-foreground">
               Report reason
@@ -752,7 +768,7 @@ export function PostEngagement(props: PostEngagementProps) {
                 <For each={REPORT_REASONS}>{reason => <option value={reason.value}>{reason.label}</option>}</For>
               </select>
             </label>
-            <Button disabled={submissionBusy() || draft().trim() === ""} onClick={() => void submit()} type="button">
+            <Button disabled={submissionBusy() || draft().trim() === "" || props.personaId === undefined} onClick={() => void submit()} type="button">
               {submissionBusy() ? "Submitting" : composeTarget().kind === "reply" ? "Post reply" : "Post comment"}
             </Button>
           </div>

@@ -62,10 +62,10 @@ describe("public Community thread feed", () => {
   });
 
   test("keeps both vote sides when the net score cannot express them", () => {
-    const mixed = JSON.parse(JSON.stringify(response)) as typeof response;
-    const item = mixed.items[0] as { upvote_count: string; downvote_count: string };
-    item.upvote_count = "5";
-    item.downvote_count = "3";
+    const mixed: GetPublicCommunitiesCommunityRefFeedResponse = JSON.parse(JSON.stringify({
+      ...response,
+      items: [{ ...response.items[0], upvote_count: "5", downvote_count: "3" }],
+    }));
     const [post] = normalizeCommunityThreadPage(mixed).posts;
     // A post nobody downvoted would carry the same score, so the score alone
     // cannot be turned back into these two numbers.
