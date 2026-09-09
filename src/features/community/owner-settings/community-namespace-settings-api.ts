@@ -13,12 +13,15 @@ import type {
   CommunityNamespaceSettingsPort,
   HnsWalletResourceRecord,
   NamespaceAttachment,
+  NamespaceLifecycle,
+  NamespaceRecoveryReasonCode,
   NamespaceResourceRecord,
   NamespaceSettingsCommand,
   NamespaceSettingsSnapshot,
 } from "./owner-settings-model";
 
 type RootImportSnapshot = PostCommunitiesCommunityIdHnsRootImportsResponse;
+type LifecycleBlock = NonNullable<RootImportSnapshot["lifecycle"]>;
 type HnsApiResourceRecord = NonNullable<RootImportSnapshot["publish_plan"]>["replacement_records"][number];
 type RootImportClient = Pick<
   PirateApiClient,
@@ -134,22 +137,62 @@ function chooseSnapshot(communityId: string): NamespaceSettingsSnapshot {
   };
 }
 
+function lifecycleProjection(response: RootImportSnapshot): NamespaceLifecycle | null {
+  const block: LifecycleBlock | null | undefined = response.lifecycle;
+  if (block === null || block === undefined) return null;
+  return {
+    deadline: block.deadline === null ? null : { at: block.deadline.at, kind: block.deadline.kind },
+    next_check_at: block.next_check_at,
+    observation: block.observation === null ? null : { ...block.observation },
+    pending_reason: block.pending_reason,
+    permitted_actions: [...block.permitted_actions],
+    phase: block.phase,
+    retry_hint_seconds: block.retry_hint_seconds,
+    server_time: block.server_time,
+  };
+}
+
+/**
+ * Exact record differences for a publication mismatch, derived only from the
+ * two server-provided lists in the same response: the planned complete
+ * resource and the records the server last read on the name. Missing is what
+ * the plan requires but the name did not hold; unexpected is what the name
+ * held but the plan replaces. No chain state is inferred locally.
+ */
+function publicationDifferences(plan: NonNullable<RootImportSnapshot["publish_plan"]>) {
+  const key = (record: HnsApiResourceRecord) => JSON.stringify(record);
+  const current = new Set(plan.current_records.map(key));
+  const planned = new Set(plan.replacement_records.map(key));
+  return {
+    missing: resourceRecords(plan.replacement_records.filter((record) => !current.has(key(record)))),
+    unexpected: resourceRecords(plan.current_records.filter((record) => !planned.has(key(record)))),
+  };
+}
+
+function recoveryReason(pendingReason: string | null): NamespaceRecoveryReasonCode {
+  if (pendingReason === "publication_deadline_reached") return "publication_deadline_reached";
+  if (pendingReason === "finality_deadline_reached") return "finality_deadline_reached";
+  if (pendingReason === "superseded") return "superseded";
+  return "other";
+}
+
 function mapSnapshot(
   response: RootImportSnapshot,
   communityPath: string,
   attachment: NamespaceAttachment | null = null,
 ): NamespaceSettingsSnapshot {
+  const lifecycle = lifecycleProjection(response);
   const common = {
     attachment,
     community_id: response.community_id,
     expires_at: response.expires_at,
     family: "hns" as const,
     generation: response.revision,
+    lifecycle,
     root_label: response.root_label,
   };
-  if (response.status !== "activated" && Date.parse(response.expires_at) <= Date.now()) {
-    return { ...common, next_action: { kind: "expired" } };
-  }
+  // The signature ceremony precedes lifecycle admission and carries the
+  // proof message; it is projected from the coarse status in both shapes.
   if (response.status === "awaiting_ownership") {
     return { ...common, next_action: {
       kind: "sign_ownership",
@@ -158,6 +201,93 @@ function mapSnapshot(
       root_label: response.root_label,
     } };
   }
+  // With the lifecycle block present, the server's phase is the authority
+  // for progress, recovery, and terminal state (spec 012, 2026-09-09).
+  if (lifecycle !== null) {
+    const retryAfter = lifecycle.retry_hint_seconds ?? response.retry_after_seconds ?? 2;
+    if (lifecycle.phase === "preparing") {
+      return { ...common, next_action: { kind: "wait", reason_code: "preparation_pending", retry_after_seconds: retryAfter } };
+    }
+    if (lifecycle.phase === "awaiting_publication" || lifecycle.phase === "checking_publication") {
+      const plan = response.publish_plan;
+      if (lifecycle.phase === "checking_publication" && lifecycle.pending_reason === "resource_mismatch_hold") {
+        const differences = plan === null ? { missing: [], unexpected: [] } : publicationDifferences(plan);
+        return { ...common, next_action: {
+          kind: "repair",
+          reason_code: "resource_mismatch",
+          ...(differences.missing.length > 0 ? { missing_records: differences.missing } : {}),
+          ...(differences.unexpected.length > 0 ? { unexpected_records: differences.unexpected } : {}),
+        } };
+      }
+      const pending = lifecycle.phase === "checking_publication";
+      if (plan === null) {
+        // The phase says a plan was exposed and this response does not carry
+        // it. The client cannot show an owner which records to publish, and
+        // must not invent a list; it waits for a response that has one.
+        return { ...common, next_action: {
+          kind: "wait", reason_code: "preparation_pending", retry_after_seconds: retryAfter,
+        } };
+      }
+      return { ...common, next_action: {
+        kind: "publish_resource",
+        acknowledgement_required: true,
+        replacement_semantics: "complete_resource",
+        records: resourceRecords(plan.replacement_records),
+        preserved_records: resourceRecords(plan.preserved_records ?? []),
+        added_records: resourceRecords(plan.added_records ?? []),
+        removed_records: resourceRecords(plan.removed_conflicts ?? []),
+        preserved_unknown_record_types: [...(plan.preserved_unknown_record_types ?? [])],
+        ...(pending ? { check_pending: true, retry_after_seconds: retryAfter } : {}),
+      } };
+    }
+    if (lifecycle.phase === "waiting_safe_commitment") {
+      return { ...common, next_action: { kind: "wait", reason_code: "tree_commitment_pending", retry_after_seconds: retryAfter } };
+    }
+    if (lifecycle.phase === "checking_authority") {
+      return { ...common, next_action: { kind: "wait", reason_code: "delegation_insecure", retry_after_seconds: retryAfter } };
+    }
+    if (lifecycle.phase === "ready") {
+      // Activation carries both digests to the server. Without them there is
+      // nothing to activate against, so the action is not offered at all
+      // rather than offered with values the client would have to make up.
+      const planHash = response.publish_plan_sha256;
+      const readinessHash = response.readiness_result_sha256;
+      if (planHash === null || readinessHash === null) {
+        return { ...common, next_action: {
+          kind: "wait", reason_code: "delegation_insecure", retry_after_seconds: retryAfter,
+        } };
+      }
+      return { ...common, next_action: {
+        kind: "ready_to_activate",
+        app_host: `app.${response.root_label}`,
+        publish_plan_sha256: planHash,
+        readiness_result_sha256: readinessHash,
+      } };
+    }
+    if (lifecycle.phase === "activated") {
+      return { ...common, next_action: verifiedAction(response, communityPath) };
+    }
+    if (lifecycle.phase === "recovery_required") {
+      return { ...common, next_action: {
+        kind: "recovery_required",
+        deadline_kind: lifecycle.deadline === null ? null : lifecycle.deadline.kind,
+        reason_code: recoveryReason(lifecycle.pending_reason),
+        server_reason: lifecycle.pending_reason,
+      } };
+    }
+    return { ...common, next_action: {
+      kind: "failed",
+      reason_code:
+        lifecycle.pending_reason !== null && lifecycle.pending_reason.startsWith("operational_failure_budget_exhausted")
+          ? "provider_unavailable"
+          : "root_import_failed",
+      retryable: true,
+    } };
+  }
+  // Degraded shape — the deployed API without the lifecycle block. The
+  // coarse states keep rendering exactly as before; expiry and every other
+  // terminal decision still comes from the server's status, never from a
+  // local clock.
   if (response.status === "provisioning") {
     return { ...common, next_action: {
       kind: "wait", reason_code: "preparation_pending", retry_after_seconds: response.retry_after_seconds,
@@ -187,13 +317,7 @@ function mapSnapshot(
     } };
   }
   if (response.status === "activated") {
-    return { ...common, next_action: {
-      kind: "verified",
-      canonical_route: `https://app.${response.root_label}/`,
-      canonical_route_label: `app.${response.root_label}`,
-      fallback_route: communityPath,
-      fallback_route_label: `pirate.sc${communityPath}`,
-    } };
+    return { ...common, next_action: verifiedAction(response, communityPath) };
   }
   if (response.status === "expired") return { ...common, next_action: { kind: "expired" } };
   return {
@@ -206,6 +330,16 @@ function mapSnapshot(
           : "root_import_failed",
       retryable: true,
     },
+  };
+}
+
+function verifiedAction(response: RootImportSnapshot, communityPath: string) {
+  return {
+    kind: "verified" as const,
+    canonical_route: `https://app.${response.root_label}/`,
+    canonical_route_label: `app.${response.root_label}`,
+    fallback_route: communityPath,
+    fallback_route_label: `pirate.sc${communityPath}`,
   };
 }
 

@@ -128,6 +128,56 @@ export type NamespaceResourceRecord = Readonly<{
   wallet_record?: HnsWalletResourceRecord;
 }>;
 
+/**
+ * Spec 012 (2026-09-09 amendment) lifecycle projection. The block is an
+ * additive, optional wire field: the deployed API may omit it, and every
+ * consumer must keep the coarse states rendering when it is absent. The
+ * server owns every lifecycle decision; the client only projects it.
+ */
+export type NamespaceLifecyclePhase =
+  | "preparing"
+  | "awaiting_publication"
+  | "checking_publication"
+  | "waiting_safe_commitment"
+  | "checking_authority"
+  | "ready"
+  | "activated"
+  | "recovery_required"
+  | "failed";
+
+export type NamespaceLifecyclePermittedAction =
+  | "poll"
+  | "acknowledge"
+  | "check_publication"
+  | "refresh_readiness"
+  | "activate"
+  | "recover";
+
+export type NamespaceLifecycleObservation = Readonly<{
+  view: "current" | "safe";
+  resource_sha256: string;
+  tip_height: number;
+  update_inclusion_height: number | null;
+  commitment_height: number | null;
+}>;
+
+export type NamespaceLifecycle = Readonly<{
+  deadline: Readonly<{ at: string; kind: "publication" | "finality" }> | null;
+  next_check_at: string | null;
+  observation: NamespaceLifecycleObservation | null;
+  pending_reason: string | null;
+  permitted_actions: ReadonlyArray<NamespaceLifecyclePermittedAction>;
+  phase: NamespaceLifecyclePhase;
+  retry_hint_seconds: number | null;
+  server_time: string;
+}>;
+
+export type NamespaceRecoveryReasonCode =
+  | "publication_deadline_reached"
+  | "finality_deadline_reached"
+  | "superseded"
+  | "other";
+
 export type NamespaceNextAction =
   | Readonly<{ kind: "choose_namespace"; no_account_import?: boolean }>
   | Readonly<{ family: NamespaceFamily; kind: "start_verification"; root_label: string }>
@@ -161,6 +211,12 @@ export type NamespaceNextAction =
       unexpected_records?: ReadonlyArray<NamespaceResourceRecord>;
     }>
   | Readonly<{
+      deadline_kind: "publication" | "finality" | null;
+      kind: "recovery_required";
+      reason_code: NamespaceRecoveryReasonCode;
+      server_reason: string | null;
+    }>
+  | Readonly<{
       app_host: string;
       kind: "ready_to_activate";
       publish_plan_sha256: string;
@@ -187,9 +243,15 @@ export type NamespaceSettingsSnapshot = Readonly<{
   community_id: string;
   family: NamespaceFamily | null;
   generation: number;
+  lifecycle?: NamespaceLifecycle | null;
   next_action: NamespaceNextAction;
   root_label: string;
 }>;
+
+/** True when only the server can move the operation forward or end it. */
+export function isTerminalNamespaceAction(kind: NamespaceNextAction["kind"]): boolean {
+  return kind === "verified" || kind === "expired" || kind === "failed";
+}
 
 type NamespaceCommandFence = Readonly<{
   expected_generation: number;

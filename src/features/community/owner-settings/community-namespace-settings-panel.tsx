@@ -69,6 +69,7 @@ function actionTitle(action: NamespaceNextAction): string {
       resource_mismatch: "Published resource does not match",
     }[action.reason_code];
   }
+  if (action.kind === "recovery_required") return "This name needs attention";
   return action.kind;
 }
 
@@ -185,6 +186,10 @@ function verifiedAction(action: NamespaceNextAction): Extract<NamespaceNextActio
 
 function failedAction(action: NamespaceNextAction): Extract<NamespaceNextAction, { kind: "failed" }> | null {
   return action.kind === "failed" ? action : null;
+}
+
+function recoveryAction(action: NamespaceNextAction): Extract<NamespaceNextAction, { kind: "recovery_required" }> | null {
+  return action.kind === "recovery_required" ? action : null;
 }
 
 function signAction(action: NamespaceNextAction): Extract<NamespaceNextAction, { kind: "sign_ownership" }> | null {
@@ -448,6 +453,28 @@ function ServerDirectedAction(props: Pick<CommunityNamespaceSettingsPanelProps, 
               <Show when={current().retryable}><Button onClick={() => dispatch({ kind: "restart" })}>Try a new verification</Button></Show>
             </div>
           </>
+        )}
+      </Show>
+
+      <Show when={recoveryAction(action())}>
+        {(current) => (
+          <Card class="space-y-4 border-warning/50 p-5 md:p-6" role="alert">
+            <Type as="h2" variant="h2">This name needs attention</Type>
+            <FormNote tone="warning">{{
+              publication_deadline_reached: "The window to publish these records has passed. Your Handshake name and its DNS setup are untouched.",
+              finality_deadline_reached: "Handshake did not settle the published records in time. Your Handshake name and its DNS setup are untouched.",
+              superseded: "This record list was replaced. Your Handshake name and its DNS setup are untouched.",
+              other: "This attempt stopped and needs a decision. Your Handshake name and its DNS setup are untouched.",
+            }[current().reason_code]}</FormNote>
+            {/* Nothing is offered here. Recovery is the server's decision to
+                make and this attempt has no safe action left; inventing one
+                would be the client deciding what happens to live authority. */}
+            <Show when={current().deadline_kind !== null}>
+              <Type as="p" variant="caption">
+                {current().deadline_kind === "publication" ? "Publication deadline" : "Finality deadline"}
+              </Type>
+            </Show>
+          </Card>
         )}
       </Show>
 

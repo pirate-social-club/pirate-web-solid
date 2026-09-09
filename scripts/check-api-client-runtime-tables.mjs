@@ -8,9 +8,11 @@ const currentClient = resolve(
   appRoot,
   "node_modules/@pirate/api-client/src/generated/client.ts",
 );
-// Client 0.68.2 preserves the audited statuses and adds only the bounded,
-// optional failure_reason field to failed HNS root-import responses.
-const expectedDigest = "59e586493fd61b9e0e181164eeb3ceb535436aeca91f1bfdfecdd075070b995d";
+// Client 0.68.4 preserves the audited statuses and error tables. The sole
+// change in these consumed tables adds the optional HNS root-import
+// lifecycle block and the optional publish-plan encoded_resource_sha256
+// to the community HNS root-import response schemas.
+const expectedDigest = "e0620f8afcab0b2c8e296b1c26d7c49c0b9b92847a82d87ced8be9ad606419f1";
 
 const operations = [
   "post_postsPostIdVideoPlaybackAccess",
