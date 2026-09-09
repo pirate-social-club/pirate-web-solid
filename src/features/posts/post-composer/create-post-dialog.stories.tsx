@@ -222,7 +222,7 @@ export const GlobalCommunityId: Story = {
 
 export const SongStepOne: Story = {
   name: "Song / Step 1 — Song",
-  render: () => dialogHarness({ personaCount: 2 }).render(),
+  render: () => dialogHarness().render(),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement.ownerDocument.body);
     await userEvent.upload(canvas.getByLabelText("Upload audio"), storyMp3());
