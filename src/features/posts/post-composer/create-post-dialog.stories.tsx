@@ -171,7 +171,7 @@ async function seedRetainedSong(
 }
 
 const meta = {
-  title: "Flows/Posts/CreatePostDialog",
+  title: "Flows/Posts/CreatePostForm",
   component: CreatePostDialog,
   args: {
     open: true,
@@ -182,7 +182,7 @@ const meta = {
     docs: {
       description: {
         component:
-          "The shipped composer surface: the same CreatePostDialog the community page opens through Post here. One composer card, one close control, one identity sheet, and the designed text editor and Song, Lyrics, Rights, Review steps. Deterministic in-memory storages and transports stand in for the network.",
+          "The shipped posting form: the same surface the community page opens through Post here. The form adds no card or dialog chrome, so the composer has one border and the identity sheet is its only modal. Deterministic in-memory storages and transports stand in for the network.",
       },
     },
   },

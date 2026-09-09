@@ -13,7 +13,7 @@ const meta = {
     docs: {
       description: {
         component:
-          "Identity-mode variants of the product composer component. The shipped surface — with the community-page dialog and its persona rows — lives under Flows/Posts/CreatePostDialog.",
+          "Identity-mode variants of the product composer component. The shipped form — with its community context and persona rows — lives under Flows/Posts/CreatePostForm.",
       },
     },
   },

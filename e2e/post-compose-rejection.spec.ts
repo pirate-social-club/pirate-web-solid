@@ -12,7 +12,7 @@ test.describe("post rejection without route authority", { tag: "@staging-mutatin
     const body = `E2E route-authority rejection ${Date.now()}`;
     await page.goto("/");
     await page.getByRole("button", { name: "Create post", exact: true }).click();
-    const dialog = page.getByRole("dialog", { name: "Create a post" });
+    const dialog = page.getByRole("form", { name: "Create a post" });
     await dialog.getByRole("textbox", { name: "Community ID" }).fill(communityId);
     await dialog.locator("#create-post-body").fill(body);
 

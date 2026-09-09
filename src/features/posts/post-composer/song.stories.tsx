@@ -15,7 +15,7 @@ const meta = {
     docs: {
       description: {
         component:
-          "Component-level snapshots of the designed Song, Lyrics, Rights, and Review steps inside the product composer. The shipped flow — dialog, identity, upload, publication — lives under Flows/Posts/CreatePostDialog.",
+          "Component-level snapshots of the designed Song, Lyrics, Rights, and Review steps inside the product composer. The shipped flow — form, identity, upload, publication — lives under Flows/Posts/CreatePostForm.",
       },
     },
   },

@@ -617,7 +617,7 @@ describe("create post request", () => {
     expect(mediaTransport.uploadCount).toBe(1);
   });
 
-  test("the contextual dialog renders one composer surface with one close control and one scroller", async () => {
+  test("the contextual form renders one bordered composer and opens only the identity modal", async () => {
     render(() => <CreatePostDialog
       communityContext={{ id: "community-one", name: "Pirate Harbor" }}
       mediaStorage={createMemoryMediaSubmissionStorage()}
@@ -630,12 +630,15 @@ describe("create post request", () => {
     />);
     await new Promise<void>(resolve => setTimeout(resolve, 0));
 
+    const form = document.body.querySelector("form[aria-label='Create a post']");
+    expect(form).toBeInstanceOf(HTMLFormElement);
+    expect(document.body.querySelectorAll("[role='dialog']")).toHaveLength(0);
     const closeButtons = document.body.querySelectorAll("button[aria-label='Close composer']");
     expect(closeButtons).toHaveLength(1);
     const identityControls = document.body.querySelectorAll("button[aria-label^='Post as:']");
     expect(identityControls).toHaveLength(1);
-    // The dialog surface owns the one content scroller; the composer card and
-    // its steps must not nest another.
+    // The page-form surface owns the one content scroller; the bordered
+    // composer card and its steps must not nest another.
     const scrollers = [...document.body.querySelectorAll<HTMLElement>("[class*='overflow-y-auto']")];
     expect(scrollers).toHaveLength(1);
     expect([...document.body.querySelectorAll("button")].some(button => button.textContent?.trim() === "Cancel")).toBe(false);
@@ -644,6 +647,7 @@ describe("create post request", () => {
     // Each active persona is a distinct public row in the identity sheet.
     identityTrigger().click();
     await vi.waitFor(() => {
+      expect(document.body.querySelectorAll("[role='dialog']")).toHaveLength(1);
       expect(personaRow("Persona One")).toBeInstanceOf(HTMLButtonElement);
       expect(personaRow("Persona Two")).toBeInstanceOf(HTMLButtonElement);
     });

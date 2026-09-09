@@ -15,7 +15,7 @@ test.describe("post to a route-authorized community", { tag: "@staging-mutating"
     const marker = `E2E route-authorized post ${Date.now()}`;
     await page.goto("/");
     await page.getByRole("button", { name: "Create post", exact: true }).click();
-    const dialog = page.getByRole("dialog", { name: "Create a post" });
+    const dialog = page.getByRole("form", { name: "Create a post" });
     await dialog.getByRole("textbox", { name: "Community ID" }).fill(communityId!);
     await dialog.getByRole("textbox", { name: /^Title/u }).fill(marker);
     await dialog.locator("#create-post-body").fill(marker);

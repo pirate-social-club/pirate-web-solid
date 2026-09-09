@@ -6,9 +6,6 @@ import { createSignal, getOwner, onCleanup, Show } from "solid-js";
 import type { ActivePersonaPublicProjection } from "../../../api/session";
 import {
   Button,
-  Dialog,
-  DialogContent,
-  DialogTitle,
   FormNote,
   TextField,
   TextFieldDescription,
@@ -715,11 +712,14 @@ export function CreatePostDialog(props: CreatePostDialogProps): JSX.Element {
   );
 
   return (
-    <Dialog open={props.open} onOpenChange={close}>
-      <DialogContent hideCloseButton class="max-h-[92dvh] overflow-y-auto p-0 sm:w-[min(100%-2rem,48rem)]">
-        <DialogTitle class="sr-only">Create a post</DialogTitle>
-        <Show when={props.open}>
-          <div class="grid gap-3 p-3 sm:p-4">
+    <Show when={props.open}>
+      <form
+        aria-label="Create a post"
+        class="fixed inset-0 z-40 overflow-y-auto bg-background px-3 py-4 sm:px-6 sm:py-8"
+        data-create-post-form
+        onSubmit={event => event.preventDefault()}
+      >
+        <div class="mx-auto grid w-full max-w-3xl gap-3">
             <Show when={!props.communityContext}>
               <TextField name="community-id" value={communityId()} onChange={setCommunityId}>
                 <TextFieldLabel>Community ID</TextFieldLabel>
@@ -809,9 +809,8 @@ export function CreatePostDialog(props: CreatePostDialogProps): JSX.Element {
                 validateDraftBeforeSubmit={mode() !== "text"}
               />
             </Show>
-          </div>
-        </Show>
-      </DialogContent>
-    </Dialog>
+        </div>
+      </form>
+    </Show>
   );
 }

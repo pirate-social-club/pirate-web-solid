@@ -308,32 +308,32 @@ async function openComposer(page, community, body) {
   assert(await page.getByRole("button", { name: "Post here" }).count() === 1,
     `Hydrated Community has no posting action: ${await page.locator("main").allTextContents()}`);
   await page.getByRole("button", { name: "Post here" }).click();
-  const dialog = page.getByRole("dialog");
-  await dialog.waitFor({ state: "visible" });
-  assert(await dialog.getByLabel("Community ID").count() === 0, "contextual composer exposed the raw Community ID field");
-  await dialog.locator(`[data-community-context="${communityId}"]`).waitFor({ state: "visible" });
-  await dialog.getByLabel("Title").fill(`Fixture ${community}`);
-  await dialog.getByLabel("Post", { exact: true }).fill(body);
-  await dialog.getByRole("button", { name: "Publish post" }).click();
-  return dialog;
+  const form = page.getByRole("form", { name: "Create a post" });
+  await form.waitFor({ state: "visible" });
+  assert(await page.getByRole("dialog").count() === 0, "posting form introduced an outer modal");
+  assert(await form.getByLabel("Community ID").count() === 0, "contextual composer exposed the raw Community ID field");
+  await form.getByLabel("Title").fill(`Fixture ${community}`);
+  await form.getByLabel("Post", { exact: true }).fill(body);
+  await form.getByRole("button", { name: "Publish post" }).click();
+  return form;
 }
 
 async function runTerminalScenario(browser, community, expectedText) {
   const { context, page } = await authenticatedPage(browser);
   try {
-    const dialog = await openComposer(page, community, `Browser body for ${community}`);
-    await dialog.getByText(expectedText, { exact: false }).waitFor({ state: "visible" });
+    const form = await openComposer(page, community, `Browser body for ${community}`);
+    await form.getByText(expectedText, { exact: false }).waitFor({ state: "visible" });
     if (community === "published") {
-      await dialog.getByRole("button", { name: "Cancel" }).click();
+      await form.getByRole("button", { name: "Close composer" }).click();
       await page.getByRole("button", { name: "Post here" }).click();
-      const freshDialog = page.getByRole("dialog");
-      const freshPublish = freshDialog.getByRole("button", { name: "Publish post" });
-      assert(await freshDialog.getByLabel("Community ID").count() === 0, "fresh contextual draft exposed the raw Community ID field");
+      const freshForm = page.getByRole("form", { name: "Create a post" });
+      const freshPublish = freshForm.getByRole("button", { name: "Publish post" });
+      assert(await freshForm.getByLabel("Community ID").count() === 0, "fresh contextual draft exposed the raw Community ID field");
       assert(await freshPublish.isDisabled(), "fresh contextual draft allowed publishing without content");
-      await freshDialog.getByLabel("Title").fill("Fresh contextual draft");
-      await freshDialog.getByLabel("Post", { exact: true }).fill("Fresh contextual body");
+      await freshForm.getByLabel("Title").fill("Fresh contextual draft");
+      await freshForm.getByLabel("Post", { exact: true }).fill("Fresh contextual body");
       assert(await freshPublish.isEnabled(), "fresh contextual draft did not become publishable with content");
-      assert(await freshDialog.locator("[data-post-composer-state]").count() === 0, "published close retained a terminal state");
+      assert(await freshForm.locator("[data-post-composer-state]").count() === 0, "published close retained a terminal state");
     }
   } finally {
     await context.close();
@@ -371,16 +371,16 @@ try {
 
   const { context, page } = await authenticatedPage(browser);
   try {
-    let dialog = await openComposer(page, "lost-response", "Exact lost response body");
-    await dialog.getByText("Checking whether your post was accepted", { exact: false }).waitFor({ state: "visible" });
+    let form = await openComposer(page, "lost-response", "Exact lost response body");
+    await form.getByText("Checking whether your post was accepted", { exact: false }).waitFor({ state: "visible" });
     await page.reload({ waitUntil: "domcontentloaded" });
     await page.locator("#app-root[data-hydrated='true']").waitFor({ state: "attached" });
     await page.waitForLoadState("networkidle");
     await page.getByRole("button", { name: "Post here" }).click();
-    dialog = page.getByRole("dialog");
-    await dialog.getByRole("button", { name: "Check again" }).waitFor({ state: "visible" });
-    await dialog.getByRole("button", { name: "Check again" }).click();
-    await dialog.getByText("Post published.", { exact: true }).waitFor({ state: "visible" });
+    form = page.getByRole("form", { name: "Create a post" });
+    await form.getByRole("button", { name: "Check again" }).waitFor({ state: "visible" });
+    await form.getByRole("button", { name: "Check again" }).click();
+    await form.getByText("Post published.", { exact: true }).waitFor({ state: "visible" });
   } finally {
     await context.close();
   }
