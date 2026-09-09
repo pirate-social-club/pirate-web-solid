@@ -54,6 +54,7 @@ import {
   type CommunityViewerVoteClient,
   type CommunityViewerVoteReader,
   type ViewerVote,
+  type ViewerVoteRead,
 } from "./community-viewer-vote-api.ts";
 
 export interface CommunityPageProps {
@@ -178,42 +179,61 @@ function SuccessState(props: {
   const [manageResolved, setManageResolved] = createSignal(false);
   const [selectedPersonaId, setSelectedPersonaId] = createSignal<string>();
   // The viewer's own vote is not in the public thread response and must not be
-  // added to it: that response is anonymous and cached as public. It is read
+  // added to it: that response is deliberately anonymous and no-store. It is read
   // per post from the authenticated post read, on demand, and a post's control
   // waits for its read rather than opening with a null that would show an
   // existing vote as unselected and then toggle from the wrong prior state.
-  const [viewerVotes, setViewerVotes] = createSignal<ReadonlyMap<string, ViewerVote>>(new Map());
+  const [viewerVotes, setViewerVotes] = createSignal<ReadonlyMap<string, ViewerVoteRead>>(new Map());
   let viewerVoteReader: CommunityViewerVoteReader | undefined;
+  let viewerVoteOwner: string | undefined;
+  let viewerVoteGeneration = 0;
   // Built on first use and only in a browser. This is a private per-account
   // read: a server render has no viewer to read for, and constructing a
   // credentialed client there would need a request origin it does not have.
   const ensureViewerVoteReader = (): CommunityViewerVoteReader | undefined => {
+    const owner = engagement.postingSession()?.userId;
+    if (owner === undefined) return undefined;
+    if (viewerVoteOwner !== owner) {
+      viewerVoteReader?.dispose();
+      viewerVoteReader = undefined;
+      viewerVoteOwner = owner;
+      viewerVoteGeneration += 1;
+    }
     if (viewerVoteReader !== undefined) return viewerVoteReader;
     const client = untrack(() => props.viewerVoteClient)
       ?? (globalThis.window === undefined
         ? undefined
         : createCommunityViewerVoteClient({ origin: communityRequestOrigin() }));
     if (client === undefined) return undefined;
+    const generation = viewerVoteGeneration;
     viewerVoteReader = createCommunityViewerVoteReader({
       client,
       onSettled: (postId, vote) => {
-        if (!active) return;
-        setViewerVotes(current => new Map(current).set(postId, vote));
+        if (!active || viewerVoteGeneration !== generation) return;
+        setViewerVotes(current => new Map([...current].filter(([key]) => key.startsWith(`${generation}:`))).set(`${generation}:${postId}`, vote));
       },
     });
     return viewerVoteReader;
   };
   /** The vote, or undefined while its read is still outstanding. */
-  const viewerVoteFor = (postId: string): ViewerVote | undefined => {
-    const settled = viewerVotes().get(postId);
-    if (settled !== undefined) return settled;
+  const viewerVoteFor = (postId: string): ViewerVoteRead | undefined => {
     const reader = ensureViewerVoteReader();
-    // Nothing to read with, so there is nothing to wait for.
-    return reader === undefined ? null : reader.read(postId);
+    const settled = viewerVotes().get(`${viewerVoteGeneration}:${postId}`);
+    if (settled !== undefined) return settled;
+    return reader?.read(postId);
+  };
+  const retryViewerVote = (postId: string) => {
+    setViewerVotes(current => {
+      const next = new Map(current);
+      next.delete(`${viewerVoteGeneration}:${postId}`);
+      return next;
+    });
+    viewerVoteReader?.retry(postId);
   };
   let active = true;
   onCleanup(() => {
     active = false;
+    viewerVoteReader?.dispose();
   });
   const navigate = (href: string) => {
     if (props.navigate) props.navigate(href);
@@ -314,6 +334,10 @@ function SuccessState(props: {
     () => engagement.postingSession(),
     (session) => {
       if (session === undefined) {
+        viewerVoteReader?.dispose();
+        viewerVoteReader = undefined;
+        viewerVoteOwner = undefined;
+        setViewerVotes(new Map());
         setSelectedPersonaId(undefined);
         return;
       }
@@ -432,11 +456,24 @@ function SuccessState(props: {
                   // Until this post's vote is read, the counts stand in rather
                   // than a control claiming the viewer has not voted before
                   // anything has looked.
-                  <Show when={viewerVoteFor(post.id) !== undefined} fallback={render()}>
+                  <Show when={viewerVoteFor(post.id) !== undefined && viewerVoteFor(post.id) !== "unavailable"} fallback={
+                    <>
+                      {render()}
+                      <Show when={viewerVoteFor(post.id) === "unavailable"}>
+                        <div role="status">
+                          Your vote could not be checked.
+                          <Button onClick={() => retryViewerVote(post.id)} size="sm" type="button">Retry vote</Button>
+                        </div>
+                      </Show>
+                    </>
+                  }>
                     <PostEngagement
                       communityId={communityId}
                       personaId={selectedPersonaId()}
-                      post={engagementPost(post, viewerVoteFor(post.id) ?? null)}
+                      post={engagementPost(post, (() => {
+                        const vote = viewerVoteFor(post.id);
+                        return vote === 1 || vote === -1 ? vote : null;
+                      })())}
                       principalId={session().userId}
                       transport={props.postEngagementTransport}
                     >{controls => render(controls)}</PostEngagement>

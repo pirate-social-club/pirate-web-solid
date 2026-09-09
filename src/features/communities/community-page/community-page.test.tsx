@@ -18,7 +18,7 @@ const disposers: Array<() => void> = [];
  * claiming the viewer has not voted.
  */
 function viewerVoteClient(vote: -1 | 1 | null) {
-  const response: GetPostsPostIdResponse = JSON.parse(JSON.stringify({
+  const response: Exclude<GetPostsPostIdResponse, { kind: "age_locked" }> = JSON.parse(JSON.stringify({
     post: {
       id: "post-under-test",
       object: "post",
@@ -44,7 +44,7 @@ function viewerVoteClient(vote: -1 | 1 | null) {
     machine_translated: false,
     source_hash: null,
   }));
-  return { get_postsPostId: async () => response };
+  return { get_postsPostId: async (input: { path: { postId: string } }) => ({ ...response, post: { ...response.post, id: input.path.postId } }) };
 }
 
 /** The contextual composer is open when its one close control exists and no
@@ -205,6 +205,47 @@ describe("CommunityPage", () => {
     await vi.waitFor(() => expect(container.querySelector("button[aria-label='Upvote']")).not.toBeNull());
     expect(container.querySelector("button[aria-label='Upvote']")?.getAttribute("aria-pressed")).toBe("true");
     expect(container.querySelector("button[aria-label='Downvote']")?.getAttribute("aria-pressed")).toBe("false");
+  });
+
+  test("keeps failed vote reads unavailable until retry recovers the existing vote", async () => {
+    const container = render(() => (
+      <CommunityPage
+        client={{
+          get_cPathSegment: async () => route,
+          get_communitiesCommunityIdPreview: async () => preview,
+        }}
+        engagementApi={engagementApi()}
+        handleSalesClient={{ get_communitiesCommunityIdHandleOfferings: async () => ({ items: [], next_cursor: null }) }}
+        loadThreads={async () => ({
+          posts: [{
+            id: "thread-voted",
+            title: "Already voted",
+            body: "The viewer upvoted this before the page was opened.",
+            score: 4,
+            upvoteCount: 5,
+            downvoteCount: 1,
+            publishedAt: "2026-09-01T18:00:00.000Z",
+            commentCount: 0,
+          }],
+          nextCursor: null,
+        })}
+        pathSegment="xn--pokmon-dva"
+        postComposerMediaStorage={createMemoryMediaSubmissionStorage()}
+        viewerVoteClient={{ get_postsPostId: vi.fn().mockRejectedValueOnce(new Error("offline")).mockImplementation(viewerVoteClient(1).get_postsPostId) }}
+        resolveSession={async () => ({
+          status: "authenticated",
+          userId: "usr-account-one",
+          personas: [],
+        })}
+      />
+    ));
+
+    await vi.waitFor(() => expect(container.textContent).toContain("Your vote could not be checked"));
+    expect(container.querySelector("button[aria-label='Upvote']")).toBeNull();
+    const retry = Array.from(container.querySelectorAll("button")).find(button => button.textContent === "Retry vote");
+    expect(retry).toBeDefined();
+    retry?.click();
+    await vi.waitFor(() => expect(container.querySelector("button[aria-label='Upvote']")?.getAttribute("aria-pressed")).toBe("true"));
   });
 
   test("offers engagement without a persona and asks for one only to author", async () => {

@@ -4,6 +4,7 @@ import {
   createCommunityViewerVoteReader,
   type CommunityViewerVoteClient,
   type ViewerVote,
+  type ViewerVoteRead,
 } from "./community-viewer-vote-api.ts";
 
 /** The reader never calls this when a load override is supplied. */
@@ -22,9 +23,22 @@ function deferred<T>() {
 }
 
 describe("community viewer vote reader", () => {
+  test("discarding an account reader cancels queued reads and ignores in-flight results", async () => {
+    const pending=deferred<ViewerVote>();
+    const onSettled=vi.fn();
+    const load=vi.fn(()=>pending.promise);
+    const reader=createCommunityViewerVoteReader({client:unusedClient,load,onSettled});
+    for(let index=0;index<6;index++) reader.read(`post-${index}`);
+    expect(load).toHaveBeenCalledTimes(4);
+    reader.dispose();pending.settle(1);
+    await pending.promise;await Promise.resolve();await Promise.resolve();
+    expect(onSettled).not.toHaveBeenCalled();expect(load).toHaveBeenCalledTimes(4);
+    expect(reader.read("post-0")).toBeUndefined();
+  });
+
   test("reports a vote as unknown until its read settles", async () => {
     const pending = deferred<ViewerVote>();
-    const settled: Array<[string, ViewerVote]> = [];
+    const settled: Array<[string, ViewerVoteRead]> = [];
     const reader = createCommunityViewerVoteReader({
       client: unusedClient,
       load: async () => pending.promise,
@@ -73,18 +87,21 @@ describe("community viewer vote reader", () => {
     expect(pending.has("e")).toBe(true);
   });
 
-  test("treats a failed read as no vote so the viewer can still act", async () => {
-    const settled: Array<[string, ViewerVote]> = [];
+  test("keeps a failure unknown and recovers the existing vote only after explicit retry", async () => {
+    const settled: Array<[string, ViewerVoteRead]> = [];
+    const load = vi.fn().mockRejectedValueOnce(new Error("read failed")).mockResolvedValueOnce(1);
     const reader = createCommunityViewerVoteReader({
       client: unusedClient,
-      load: async () => { throw new Error("read failed"); },
+      load,
       onSettled: (postId, vote) => settled.push([postId, vote]),
     });
-
     reader.read("post-1");
-    // Withholding the control instead would deny an action the account is
-    // entitled to take; the cost is an existing vote reading as unselected.
-    await vi.waitFor(() => expect(settled).toEqual([["post-1", null]]));
-    expect(reader.read("post-1")).toBeNull();
+    await vi.waitFor(() => expect(settled).toEqual([["post-1", "unavailable"]]));
+    expect(reader.read("post-1")).toBe("unavailable");
+    expect(load).toHaveBeenCalledTimes(1);
+    reader.retry("post-1");
+    expect(reader.read("post-1")).toBeUndefined();
+    await vi.waitFor(() => expect(reader.read("post-1")).toBe(1));
+    expect(load).toHaveBeenCalledTimes(2);
   });
 });
