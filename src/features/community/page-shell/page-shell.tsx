@@ -1,3 +1,4 @@
+import { SongPlayer } from "../../posts/song-player/song-player.tsx";
 /** @jsxImportSource @solidjs/web */
 import type { JSX } from "@solidjs/web";
 import { For, Loading, Show, createMemo, createSignal } from "solid-js";
@@ -14,7 +15,6 @@ import {
   IconChatCircle,
   IconDotsThree,
   IconMusicNote,
-  IconPlay,
   IconPlus,
   IconShield,
   IconButton,
@@ -22,9 +22,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-  MediaControlButton,
   Separator,
-  cn,
   Type,
 } from "@pirate/web-solid-ui";
 import {
@@ -139,7 +137,6 @@ function PostActions(props: { post: CommunityPost; engagementControls?: JSX.Elem
 }
 
 function SongPost(props: { post: CommunityPost }) {
-  const progress = () => Math.max(0, Math.min(100, props.post.mediaProgress ?? 0));
   return (
     <div class="flex flex-col gap-3 rounded-xl border border-border-soft bg-muted/30 p-3">
       <div class="flex items-center gap-3">
@@ -147,9 +144,7 @@ function SongPost(props: { post: CommunityPost }) {
           <Show when={props.post.mediaSrc} fallback={<div class="grid size-full place-items-center"><IconMusicNote class="size-7 text-muted-foreground" /></div>}>
             {src => <img alt="" class="size-full object-cover" src={src()} />}
           </Show>
-          <MediaControlButton aria-label={`Play ${props.post.mediaTitle ?? props.post.title}`} class="absolute inset-1/2 -translate-x-1/2 -translate-y-1/2" size="sm">
-            <IconPlay class="size-4" />
-          </MediaControlButton>
+
         </div>
         <div class="min-w-0 flex-1">
           <Type class="block truncate" variant="body-strong">{props.post.mediaTitle ?? props.post.title}</Type>
@@ -158,12 +153,7 @@ function SongPost(props: { post: CommunityPost }) {
           <Show when={props.post.mediaArtist}>
             {artist => <Type class="block truncate" variant="caption">{artist()}</Type>}
           </Show>
-          <div class="mt-2 flex items-center gap-2">
-            <div aria-label={`${progress()}% played`} class="h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-border-soft" role="progressbar" aria-valuemax="100" aria-valuemin="0" aria-valuenow={progress()}>
-              <div class="h-full rounded-full bg-primary" style={{ width: `${progress()}%` }} />
-            </div>
-            <Type variant="caption">{props.post.mediaDuration ?? "—"}</Type>
-          </div>
+          <SongPlayer postId={props.post.id} title={props.post.mediaTitle ?? props.post.title} />
         </div>
       </div>
       <Show when={props.post.rewardLabels?.length}>
@@ -191,9 +181,7 @@ function FeedPost(props: { post: CommunityPost; actions?: JSX.Element }) {
         />
         <Type as="span" variant="label">{author()}</Type>
         <Type as="span" variant="caption">· {postTimestamp(props.post.publishedAt)}</Type>
-        <IconButton aria-label={`More options for ${props.post.title}`} class="ms-auto size-8" variant="ghost">
-          <IconDotsThree class="size-5" />
-        </IconButton>
+
       </div>
       <Show when={props.post.kind === "song"} fallback={
         <>

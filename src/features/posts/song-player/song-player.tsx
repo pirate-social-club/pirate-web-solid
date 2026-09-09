@@ -1,0 +1,156 @@
+import { Show, createSignal, onCleanup } from "solid-js";
+import { Button, Type } from "../../../design-system.ts";
+import { readSongPlaybackAccess, type SongPlaybackGrant } from "./song-player-api.ts";
+
+export interface SongPlayerProps {
+  readonly postId: string;
+  readonly title: string;
+  readonly readAccess?: (postId: string) => Promise<SongPlaybackGrant>;
+  readonly now?: () => number;
+}
+/** Native controls provide seeking, volume and keyboard access to the real full mix. */
+export function SongPlayer(props: SongPlayerProps) {
+  let audio: HTMLAudioElement | undefined;
+  let disposed = false;
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  let resumeAt = 0;
+  let shouldResume = false;
+  const [grant, setGrant] = createSignal<
+    Omit<SongPlaybackGrant, "expires_at" | "renew_after"> & {
+      expires_at: number;
+      renew_after: number;
+    }
+  >();
+  const [busy, setBusy] = createSignal(false);
+  const [issue, setIssue] = createSignal<string>();
+  const now = () => Math.floor((props.now?.() ?? Date.now()) / 1000);
+  const clearTimer = () => {
+    if (timer !== undefined) clearTimeout(timer);
+    timer = undefined;
+  };
+  onCleanup(() => {
+    disposed = true;
+    clearTimer();
+    audio?.pause();
+    audio?.removeAttribute("src");
+    audio?.load();
+  });
+  const renew = async (start: boolean): Promise<void> => {
+    if (busy() || disposed) return;
+    clearTimer();
+    setBusy(true);
+    setIssue(undefined);
+    resumeAt = audio?.currentTime ?? 0;
+    shouldResume = start;
+    audio?.pause();
+    try {
+      const response = await (props.readAccess ?? readSongPlaybackAccess)(props.postId);
+      const next = {
+        ...response,
+        expires_at: Number(response.expires_at),
+        renew_after: Number(response.renew_after),
+      };
+      if (disposed) return;
+      const url = new URL(next.playback_url);
+      if (
+        url.protocol !== "https:" ||
+        url.username ||
+        url.password ||
+        !Number.isFinite(next.expires_at) ||
+        !Number.isFinite(next.renew_after) ||
+        next.renew_after <= now() ||
+        next.expires_at <= next.renew_after
+      )
+        throw new Error("Invalid playback grant");
+      setGrant(next);
+    } catch {
+      if (!disposed) {
+        setGrant(undefined);
+        setIssue("This song could not be played. Try again.");
+      }
+    } finally {
+      if (!disposed) setBusy(false);
+    }
+  };
+  const schedule = () => {
+    clearTimer();
+    const current = grant();
+    if (!current || disposed) return;
+    if (now() >= current.renew_after) {
+      void renew(true);
+      return;
+    }
+    timer = setTimeout(
+      () => {
+        if (audio && !audio.paused) void renew(true);
+      },
+      Math.max(1, (current.renew_after - now()) * 1000),
+    );
+  };
+  const ready = () => {
+    if (!audio || disposed) return;
+    if (Number.isFinite(audio.duration))
+      audio.currentTime = Math.min(resumeAt, Math.max(0, audio.duration));
+    if (shouldResume) {
+      shouldResume = false;
+      void audio.play().catch(() => {
+        if (!disposed) setIssue("Press play to start the song.");
+      });
+    }
+  };
+  return (
+    <div class="flex flex-col gap-2" data-song-player={props.postId}>
+      <Show
+        when={grant()}
+        fallback={
+          <Button
+            disabled={busy()}
+            onClick={() => void renew(true)}
+            size="sm"
+            type="button"
+            variant="secondary"
+          >
+            {busy() ? "Loading audio…" : `Play ${props.title}`}
+          </Button>
+        }
+      >
+        {(current) => (
+          <audio
+            aria-label={`Audio for ${props.title}`}
+            class="w-full"
+            controls
+            preload="metadata"
+            ref={audio}
+            src={current().playback_url}
+            onLoadedMetadata={ready}
+            onPlay={schedule}
+            onPause={clearTimer}
+            onEnded={clearTimer}
+            onError={() => {
+              clearTimer();
+              setIssue("Audio could not be loaded. Retry playback.");
+            }}
+          />
+        )}
+      </Show>
+      <Show when={issue()}>
+        {(message) => (
+          <Type role="status" variant="caption">
+            {message()}
+          </Type>
+        )}
+      </Show>
+      <Show when={issue() && grant()}>
+        <Button
+          disabled={busy()}
+          onClick={() => void renew(true)}
+          size="sm"
+          type="button"
+          variant="outline"
+        >
+          Retry playback
+        </Button>
+      </Show>
+    </div>
+  );
+}

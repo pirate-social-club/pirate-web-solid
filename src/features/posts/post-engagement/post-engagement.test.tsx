@@ -79,6 +79,35 @@ afterEach(() => {
 });
 
 describe("PostEngagement", () => {
+  test("reads persisted comments and replies on demand, including after remount", async () => {
+    window.scrollTo=vi.fn();
+    const row=(id:string,parent:string|null,depth:number)=>({comment_id:id,parent_comment_id:parent,body:`Persisted ${id}`,depth,reply_count:parent?0:1,status:"published" as const,content_rating:"general" as const,created_at:"2026-09-09T00:00:00Z",author_persona:null});
+    const readComments=vi.fn(async (input:{parentId?:string;cursor?:string})=>({items:[row(input.parentId?"reply":"root",input.parentId??null,input.parentId?1:0)],next_cursor:null}));
+    const mount=()=>render(()=><PostEngagement readComments={readComments} post={{id:"post-1",upvoteCount:0,downvoteCount:0,commentCount:2,viewerVote:null}} principalId="user-1" transport={transportFixture(vi.fn())} pendingStorage={createMemoryPendingEngagementStorage()} />);
+    mount();
+    expect(readComments).not.toHaveBeenCalled();
+    button("Comments (2)").click();
+    await vi.waitFor(()=>expect(document.body.textContent).toContain("Persisted root"));
+    button("View replies").click();
+    await vi.waitFor(()=>expect(document.body.textContent).toContain("Persisted reply"));
+    expect(readComments).toHaveBeenCalledWith({postId:"post-1",parentId:"root"});
+    for(const dispose of disposers.splice(0)) dispose();
+    mount();button("Comments (2)").click();
+    await vi.waitFor(()=>expect(document.body.textContent).toContain("Persisted root"));
+    expect(readComments).toHaveBeenCalledTimes(3);
+  });
+
+  test("a failed comment read offers retry without pretending the thread is empty", async () => {
+    window.scrollTo=vi.fn();
+    const readComments=vi.fn().mockRejectedValueOnce(new Error("offline")).mockResolvedValueOnce({items:[],next_cursor:null});
+    render(()=><PostEngagement readComments={readComments} post={{id:"post-1",upvoteCount:0,downvoteCount:0,commentCount:2,viewerVote:null}} principalId="user-1" transport={transportFixture(vi.fn())} pendingStorage={createMemoryPendingEngagementStorage()} />);
+    button("Comments (2)").click();
+    await vi.waitFor(()=>expect(document.body.textContent).toContain("Comments could not be loaded."));
+    expect(document.body.textContent).not.toContain("No comments yet.");
+    button("Retry comments").click();
+    await vi.waitFor(()=>expect(document.body.textContent).toContain("No comments yet."));
+  });
+
   test("restores exact comment bytes and the same key after a component reload", async () => {
     const createComment = vi.fn()
       .mockRejectedValueOnce(new Error("connection lost"))

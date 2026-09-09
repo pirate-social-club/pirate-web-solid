@@ -18,7 +18,7 @@ test.describe("post to a community from its own page", { tag: "@staging-mutating
     "Set E2E_COMMUNITY_PATH_SEGMENT to a staging community this account belongs to with an active persona",
   );
 
-  test("publishes a conversation and shows it in the feed", async ({ page }) => {
+  test("publishes text, persists both vote directions, and reloads comments and replies", async ({ page }) => {
     const marker = `E2E text post ${Date.now()}`;
     await page.goto(`/c/${communityPath}`);
     await page.locator("#app-root[data-hydrated='true']").waitFor({ state: "attached" });
@@ -50,5 +50,38 @@ test.describe("post to a community from its own page", { tag: "@staging-mutating
     });
     await page.reload();
     await expect(page.getByText(marker, { exact: true }).first()).toBeVisible();
+    const card = page.locator("[data-community-post]").filter({has: page.getByText(marker,{exact:true})}).first();
+    await card.scrollIntoViewIfNeeded();
+    // Membership is a precondition: following alone cannot vote or comment.
+    const upvote=card.getByRole("button",{name:"Upvote",exact:true});
+    const downvote=card.getByRole("button",{name:"Downvote",exact:true});
+    await expect(upvote).toBeVisible();
+    await upvote.click();
+    await expect(upvote).toHaveAttribute("aria-pressed","true");
+    await page.reload();
+    await expect(upvote).toHaveAttribute("aria-pressed","true");
+    await downvote.click();
+    await expect(downvote).toHaveAttribute("aria-pressed","true");
+    await page.reload();
+    await expect(downvote).toHaveAttribute("aria-pressed","true");
+    await card.getByRole("button",{name:/^Comments/}).click();
+    const comment=`${marker} comment`;
+    await page.getByRole("textbox",{name:"Write a comment"}).fill(comment);
+    await page.getByRole("button",{name:"Post comment",exact:true}).click();
+    const commentCard=page.locator("[data-comment-id]").filter({has:page.getByText(comment,{exact:true})});
+    await expect(commentCard).toHaveAttribute("data-comment-state","published");
+    await page.reload();
+    await card.getByRole("button",{name:/^Comments/}).click();
+    await expect(commentCard).toBeVisible();
+    await commentCard.getByRole("button",{name:"Reply",exact:true}).click();
+    const reply=`${marker} reply`;
+    await page.getByRole("textbox",{name:"Write a reply"}).fill(reply);
+    await page.getByRole("button",{name:"Post reply",exact:true}).click();
+    await expect(page.locator("[data-comment-id]").filter({has:page.getByText(reply,{exact:true})})).toHaveAttribute("data-comment-state","published");
+    await page.reload();
+    await card.getByRole("button",{name:/^Comments/}).click();
+    await commentCard.getByRole("button",{name:"View replies",exact:true}).click();
+    await expect(page.getByText(reply,{exact:true})).toBeVisible();
+
   });
 });

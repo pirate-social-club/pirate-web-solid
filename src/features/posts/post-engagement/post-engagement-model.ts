@@ -13,6 +13,7 @@ import {
 export type CommentSubmissionResponse = CreateCommentResponse | CreateCommentReplyResponse | GetTextContentSubmissionResponse;
 
 export type CommentDisplayState =
+  | "age_locked"
   | "submitting"
   | "published"
   | "manual_review"
@@ -26,6 +27,7 @@ export interface CommentThreadItem {
   readonly submissionId: string | null;
   readonly parentId: string | null;
   readonly body: string;
+  readonly authorLabel?: string;
   readonly depth: number;
   readonly replyCount: number;
   readonly state: CommentDisplayState;

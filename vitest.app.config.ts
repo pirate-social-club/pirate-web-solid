@@ -24,6 +24,7 @@ export default defineConfig({
     // The app still has Bun-native .tsx suites; they are intentionally not
     // loaded by Vitest. Add a suite here once it imports Vitest's API.
     include: [
+      "src/features/posts/song-player/song-player.test.tsx",
       "src/hns-community-route-transform.test.ts",
       "src/routes/community-owner-settings-route.test.ts",
       "src/routes/community-route-filesystem.test.ts",

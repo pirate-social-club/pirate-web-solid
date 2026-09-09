@@ -1,3 +1,5 @@
+import type { CommentThreadReader } from "./comment-thread-api.ts";
+import { createCommentThreadController } from "./comment-thread-controller.ts";
 import type { JSX } from "@solidjs/web";
 import { For, Show, createEffect, createMemo, createSignal, untrack } from "solid-js";
 
@@ -67,6 +69,7 @@ export interface PostEngagementProps {
   readonly personaId?: string;
   readonly communityId?: string;
   readonly transport?: PostEngagementTransport;
+  readonly readComments?: CommentThreadReader;
   readonly initialComments?: readonly CommentThreadItem[];
   readonly canModerate?: boolean;
   readonly generateIdempotencyKey?: () => string;
@@ -98,6 +101,7 @@ function reportReasonFromValue(value: string): CommentReportReason {
 
 function commentStateLabel(item: CommentThreadItem): string {
   switch (item.state) {
+    case "age_locked": return "Age verification required";
     case "submitting": return "Submitting";
     case "published": return "Published";
     case "manual_review": return "Held for review";
@@ -109,6 +113,7 @@ function commentStateLabel(item: CommentThreadItem): string {
 }
 
 function visibleCommentBody(item: CommentThreadItem): string {
+  if (item.state === "age_locked") return "Verify your age to view this comment.";
   if (item.state === "hidden") return "This comment is hidden.";
   if (item.state === "removed") return "This comment was removed.";
   if (item.state === "blocked") return "This comment was not published.";
@@ -207,9 +212,11 @@ export function PostEngagement(props: PostEngagementProps) {
       : undefined);
   };
 
+  const thread = createCommentThreadController({postId:props.post.id,readComments:props.readComments,comments,setComments});
   const openComments = () => {
     setPanelOpen(true);
     setIssue(undefined);
+    if (props.initialComments === undefined || props.readComments !== undefined) void thread.load();
   };
 
   const selectReply = (item: CommentThreadItem) => {
@@ -686,10 +693,10 @@ export function PostEngagement(props: PostEngagementProps) {
         <div class="min-h-0 flex-1 overflow-y-auto px-5 py-4" data-comment-thread>
           <Show
             when={comments().length > 0}
-            fallback={<Type variant="body">No thread details are loaded. New comments from this session appear here.</Type>}
+            fallback={<Type variant="body">{thread.pages().root?.state === "loading" ? "Loading comments…" : thread.pages().root?.state === "error" ? "Comments could not be loaded." : "No comments yet."}</Type>}
           >
             <div class="flex flex-col gap-3">
-              <For each={comments()}>{item => (
+              <For each={thread.ordered()}>{item => (
                 <Card
                   class="border-border-soft"
                   data-comment-depth={item.depth}
@@ -699,14 +706,19 @@ export function PostEngagement(props: PostEngagementProps) {
                 >
                   <CardContent class="flex flex-col gap-2 p-4">
                     <div class="flex flex-wrap items-center justify-between gap-2">
-                      <Type variant="label">{commentStateLabel(item)}</Type>
-                      <Type variant="caption">Depth {item.depth} · {item.replyCount} replies</Type>
+                      <Type variant="label">{item.authorLabel ?? commentStateLabel(item)}</Type>
+                      <Show when={item.state !== "age_locked"}><Type variant="caption">Depth {item.depth} · {item.replyCount} replies</Type></Show>
                     </div>
                     <Type variant="body">{visibleCommentBody(item)}</Type>
                     <Show when={item.reportState}>
                       {(reportState) => <Type role="status" variant="caption">Report {reportState()}</Type>}
                     </Show>
                     <div class="flex flex-wrap gap-2">
+                      <Show when={item.replyCount > 0 && (thread.pages()[`parent:${item.id}`]?.state !== "ready" || thread.pages()[`parent:${item.id}`]?.cursor !== null)}>
+                        <Button disabled={thread.pages()[`parent:${item.id}`]?.state === "loading"} onClick={() => void thread.load(item.id)} size="sm" type="button" variant="outline">
+                          {thread.pages()[`parent:${item.id}`]?.state === "loading" ? "Loading replies…" : thread.pages()[`parent:${item.id}`]?.state === "error" ? "Retry replies" : thread.pages()[`parent:${item.id}`] ? "More replies" : "View replies"}
+                        </Button>
+                      </Show>
                       <Show when={canReplyToComment(item)}>
                         <Button onClick={() => selectReply(item)} size="sm" type="button" variant="outline">Reply</Button>
                       </Show>
@@ -734,6 +746,9 @@ export function PostEngagement(props: PostEngagementProps) {
                 </Card>
               )}</For>
             </div>
+          </Show>
+          <Show when={thread.pages().root?.state === "error" || (thread.pages().root?.state === "ready" && thread.pages().root?.cursor !== null)}>
+            <Button onClick={() => void thread.load()} size="sm" type="button" variant="outline">{thread.pages().root?.state === "error" ? "Retry comments" : "More comments"}</Button>
           </Show>
         </div>
         <div class="shrink-0 border-t border-border-soft px-5 py-4">

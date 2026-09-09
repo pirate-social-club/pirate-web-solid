@@ -102,6 +102,26 @@ test.describe("publish a song from a community page", { tag: "@staging-mutating"
       // The song is a post like any other, so it belongs in the feed.
       await page.reload();
       await expect(page.getByText(marker, { exact: false }).first()).toBeVisible({ timeout: 120_000 });
+      const song=page.locator("[data-community-post]").filter({has:page.getByText(marker,{exact:false})}).first();
+      await song.getByRole("button",{name:`Play ${marker}`,exact:true}).click();
+      const audio=song.locator("audio");
+      await expect(audio).toBeVisible();
+      const playbackState = () => audio.evaluate(element => {
+        if (!(element instanceof HTMLAudioElement)) throw new Error("Expected audio player");
+        return {duration:element.duration,currentTime:element.currentTime};
+      });
+      await expect.poll(async () => {const state=await playbackState();return Number.isFinite(state.duration) && state.duration>0;}).toBe(true);
+      await audio.evaluate(element => {
+        if (!(element instanceof HTMLAudioElement)) throw new Error("Expected audio player");
+        return element.play();
+      });
+      await expect.poll(async () => (await playbackState()).currentTime).toBeGreaterThan(0);
+      await audio.evaluate(element => {
+        if (!(element instanceof HTMLAudioElement)) throw new Error("Expected audio player");
+        element.pause();element.currentTime=element.duration/2;
+      });
+      await expect.poll(async () => {const state=await playbackState();return Math.abs(state.currentTime-state.duration/2);}).toBeLessThan(0.1);
+
     });
   }
 });
