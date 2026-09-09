@@ -188,6 +188,8 @@ export function CreatePostDialog(props: CreatePostDialogProps): JSX.Element {
   const mediaEnabled = props.principalId !== undefined && personas().length > 0;
   const [mediaRestoring, setMediaRestoring] = createSignal(mediaEnabled);
   const [mediaRecordRetained, setMediaRecordRetained] = createSignal(false);
+  let mediaOperationInFlight = false;
+  let finishingPublishedSong = false;
 
   const communityContextConflict = () => contextualCommunityId() !== ""
     && communityId().trim() !== ""
@@ -214,12 +216,11 @@ export function CreatePostDialog(props: CreatePostDialogProps): JSX.Element {
   });
 
   function applySnapshot(snapshot: MediaSubmissionSnapshot): void {
-    const wasPublished = mediaSnapshot()?.status === "published";
     setMediaSnapshot(snapshot);
     const projection = projectSnapshotIntoSongComposer(snapshot);
     setSong(current => ({ ...current, ...projection.song }));
     if (projection.lyricsValue !== undefined && !lyricsEdited) setLyrics(projection.lyricsValue);
-    if (snapshot.status === "published" && !wasPublished) finishPublished();
+    if (snapshot.status === "published" && !mediaOperationInFlight) void finishSongPublished();
   }
 
   void textCoordinator.restore()
@@ -352,6 +353,18 @@ export function CreatePostDialog(props: CreatePostDialogProps): JSX.Element {
     props.onPublished?.();
   }
 
+  async function finishSongPublished(): Promise<void> {
+    if (finishingPublishedSong || mediaCoordinator?.currentRecord == null) return;
+    finishingPublishedSong = true;
+    try {
+      await discardTerminalSong();
+      props.onOpenChange(false);
+      props.onPublished?.();
+    } finally {
+      finishingPublishedSong = false;
+    }
+  }
+
   function startNewTextDraft(): void {
     textCoordinator.startNewDraft();
     resetCommunityId();
@@ -468,6 +481,7 @@ export function CreatePostDialog(props: CreatePostDialogProps): JSX.Element {
     setError("");
     setMediaBusy(true);
     setMediaRecordRetained(true);
+    mediaOperationInFlight = true;
     try {
       const snapshot = await (prepareOnly ? prepareSongComposer : submitSongComposer)({
         coordinator: mediaCoordinator,
@@ -483,12 +497,14 @@ export function CreatePostDialog(props: CreatePostDialogProps): JSX.Element {
         authorDeclaredRating: ageGatePolicy() === "18_plus" ? "adult_18" : "general",
       });
       applySnapshot(snapshot);
+      if (!prepareOnly && snapshot.status === "published") await finishSongPublished();
       return snapshot.audio_revision >= 1;
     } catch (submissionError) {
       if (mediaCoordinator.currentRecord === null) setMediaRecordRetained(false);
       setError(submissionError instanceof Error ? submissionError.message : "The song could not be submitted safely.");
       return false;
     } finally {
+      mediaOperationInFlight = false;
       setMediaBusy(false);
     }
   }

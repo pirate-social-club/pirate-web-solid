@@ -35,6 +35,7 @@
     "hydration-check": "node scripts/hydration-check.mjs",
     "post-engagement-check": "node scripts/post-engagement-check.mjs",
     "text-post-check": "node scripts/text-post-check.mjs",
+    "song-post-check": "node scripts/song-post-check.mjs",
     "karaoke-route-check": "node scripts/karaoke-route-check.mjs",
     "check-solid-runtime": "node scripts/check-solid-runtime.mjs",
     "check-api-client-provenance": "node scripts/check-api-client-provenance.mjs",
@@ -46,7 +47,7 @@
     "test:production-config": "node scripts/production-config.test.mjs",
     "lint": "oxlint src",
     "generate-worker-types": "wrangler types",
-    "verify": "bun run generate-worker-types && bun run test:production-config && bun run tsc --noEmit -p tsconfig.json && bun run check:e2e && bun run test:api && bun run test:app && bun run lint && node scripts/check-solid-runtime.mjs && node scripts/check-api-client-provenance.mjs && node scripts/check-api-client-runtime-tables.mjs && bun run check:web3-icons && bun run check:phosphor-icons && bun run --cwd packages/solid-ui typecheck && bun run --cwd packages/solid-ui test && bun run check:solid-doctor",
+    "verify": "bun run generate-worker-types && bun run test:production-config && bun run tsc --noEmit -p tsconfig.json && bun run check:e2e && bun run test:api && bun run test:app && bun run lint && node scripts/check-solid-runtime.mjs && node scripts/check-api-client-provenance.mjs && node scripts/check-api-client-runtime-tables.mjs && bun run check:web3-icons && bun run check:phosphor-icons && bun run --cwd packages/solid-ui typecheck && bun run --cwd packages/solid-ui test && bun run check:solid-doctor && bun run text-post-check && bun run song-post-check",
     "verify:live": "node scripts/probe.mjs && node scripts/stream-check.mjs && node scripts/hydration-check.mjs"
   },
   "dependencies": {

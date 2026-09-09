@@ -234,10 +234,10 @@ export class MediaSubmissionCoordinator {
         if (observed === null) continue;
         await this.saveSnapshot(observed, this.requireRecord().pending_command);
         if (observed.audio_revision >= 1 || terminal(observed)) {
-          const result = await finalization;
-          return snapshotResult(result)
-            ? this.requireRecord().snapshot ?? result
-            : result;
+          // The read is authoritative evidence that this exact retained
+          // finalize took effect. Do not keep the author blocked on a delayed
+          // response after the server has already exposed the result.
+          return this.requireRecord().snapshot ?? observed;
         }
       } catch {
         // The authoritative finalize request owns the result. A transient

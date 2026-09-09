@@ -70,6 +70,7 @@ export function PostComposerStepFooter(props: {
 }) {
   const controller = props.controller;
   const [preparing, setPreparing] = createSignal(false);
+  let advancing = false;
   let mobileBar: HTMLDivElement | undefined;
   let entered = false;
   createEffect(
@@ -115,22 +116,29 @@ export function PostComposerStepFooter(props: {
     props.steps.set(getPreviousComposerStep(props.steps.current(), tab()));
   };
   const goNext = async () => {
-    if (!canAdvance()) return;
+    // Signal writes are not visible to a second handler in the same tick.
+    // This synchronous owner prevents a double click from starting a second
+    // advance while the audio preparation is still awaiting its response.
+    if (advancing) return;
+    advancing = true;
     const target = getNextComposerStep(props.steps.current(), tab());
-    if (props.steps.current() === "song" && props.runtime && !props.runtime.prepared) {
-      // Advancing past Song uploads the audio first; a failed or uncertain
-      // upload stays on this step with the host's error surfaced. The target
-      // is computed before the await because a successful upload re-seeds the
-      // step state, which would otherwise advance a second time.
-      setPreparing(true);
-      try {
+    try {
+      if (props.steps.current() === "song" && props.runtime && !props.runtime.prepared) {
+        // Advancing past Song uploads the audio first; a failed or uncertain
+        // upload stays on this step with the host's error surfaced. The target
+        // is computed before the await because a successful upload re-seeds the
+        // step state, which would otherwise advance a second time.
+        setPreparing(true);
         if (!await props.runtime.prepare()) return;
-      } catch {
-        return;
-      } finally {
-        setPreparing(false);
       }
+    } catch {
+      return;
+    } finally {
+      advancing = false;
+      setPreparing(false);
     }
+    // Release the operation before exposing the next step. An author can
+    // legitimately continue as soon as that UI becomes visible.
     props.steps.set(target);
   };
 
@@ -145,7 +153,14 @@ export function PostComposerStepFooter(props: {
     <Show
       when={props.steps.isLast()}
       fallback={
-        <Button class={controller.isMobile() ? "w-full" : undefined} disabled={!canAdvance()} loading={preparing()} onClick={() => void goNext()} size="lg">
+        <Button
+          class={controller.isMobile() ? "w-full" : undefined}
+          data-composer-forward
+          disabled={!canAdvance()}
+          loading={preparing()}
+          onClick={() => void goNext()}
+          size="lg"
+        >
           {nextLabel()}
         </Button>
       }

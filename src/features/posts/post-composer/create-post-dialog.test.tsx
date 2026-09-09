@@ -505,7 +505,7 @@ describe("create post request", () => {
     expect(mediaTransport.uploadCount).toBe(1);
   });
 
-  test("holds terms until reviewed lyrics are accepted and restores without rebinding", async () => {
+  test("holds terms until reviewed lyrics are accepted and clears the published operation", async () => {
     const mediaStorage = createMemoryMediaSubmissionStorage();
     const mediaTransport = new ProductionMediaTransport();
     const onPublished = vi.fn();
@@ -519,6 +519,7 @@ describe("create post request", () => {
     input.dispatchEvent(new Event("change", { bubbles: true }));
     await vi.waitFor(() => expect(button("Continue").disabled).toBe(false));
     expect(document.querySelector('textarea[aria-label="Lyrics"]')).toBeNull();
+    button("Continue").click();
     button("Continue").click();
     const lyrics = await vi.waitFor(() => {
       const value = document.querySelector<HTMLTextAreaElement>('textarea[aria-label="Lyrics"]');
@@ -564,7 +565,8 @@ describe("create post request", () => {
     render(() => <CreatePostDialog mediaStorage={mediaStorage} mediaTransport={mediaTransport}
       onOpenChange={() => {}} open personas={[activePersona("persona-one", "Persona One")]}
       principalId="account-one" storage={createMemoryPendingSubmissionStorage()} />);
-    await vi.waitFor(() => expect(document.body.textContent).toContain("Song published."));
+    await vi.waitFor(async () => expect(await mediaStorage.loadAll()).toHaveLength(0));
+    expect(document.body.textContent).not.toContain("Song published.");
     expect(mediaTransport.commands.filter(command => command.kind === "lyrics")).toHaveLength(1);
     expect(mediaTransport.uploadCount).toBe(1);
   });
