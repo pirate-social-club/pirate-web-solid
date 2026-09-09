@@ -128,6 +128,18 @@ export function SongRightsStep(props: {
     }));
   };
 
+  const hasCollaborators = () => controller.royaltySplit.state.allocations
+    .some(allocation => allocation.recipientKind !== "creator");
+  const addCollaborator = () => controller.royaltySplit.update(() => ({
+    allocations: [...controller.royaltySplit.state.allocations, {
+      id: `recipient-${Math.max(0, ...controller.royaltySplit.state.allocations
+        .map(row => Number(row.id.replace("recipient-", "")) || 0)) + 1}`,
+      recipientKind: "collaborator",
+      recipientId: "",
+      shareBps: 1,
+      sharePct: 0.01,
+    }],
+  }));
   const totalBps = () => controller.royaltySplit.state.allocations.reduce(
     (sum, allocation) => sum + allocationBps(allocation), 0);
 
@@ -204,7 +216,19 @@ export function SongRightsStep(props: {
           </Show>
         </section>
 
+        {/* One line until there is a split to make. A sole creator has nothing
+            to allocate, so the editor, the running total and the per-recipient
+            fields are noise until a collaborator exists. */}
         <section class="space-y-3">
+          <Show
+            when={hasCollaborators()}
+            fallback={(
+              <div class="flex items-center justify-between gap-3">
+                <Type as="p" variant="body">{controller.copy.rights.soleRecipient}</Type>
+                <Button onClick={addCollaborator} size="sm" variant="outline">Add collaborator</Button>
+              </div>
+            )}
+          >
           <div class="flex items-center justify-between gap-3">
             <div>
               <Type as="h3" variant="body-strong">Creator allocation</Type>
@@ -257,20 +281,10 @@ export function SongRightsStep(props: {
               </div>
             )}
           </For>
-          <Button
-            onClick={() => controller.royaltySplit.update(() => ({
-              allocations: [...controller.royaltySplit.state.allocations, {
-                id: `recipient-${Math.max(0, ...controller.royaltySplit.state.allocations.map(row => Number(row.id.replace("recipient-", "")) || 0)) + 1}`,
-                recipientKind: "collaborator",
-                recipientId: "",
-                shareBps: 1,
-                sharePct: 0.01,
-              }],
-            }))}
-            variant="outline"
-          >Add collaborator</Button>
+          <Button onClick={addCollaborator} variant="outline">Add collaborator</Button>
           <Show when={totalBps() !== 10_000}>
             <Type as="p" variant="caption" class="text-destructive-text">{controller.copy.rights.totalExact}</Type>
+          </Show>
           </Show>
         </section>
       </fieldset>
@@ -314,6 +328,13 @@ export function SongReviewStep(props: {
     ? controller.copy.songModes.remix
     : controller.copy.songModes.original;
   const sourceCount = () => controller.primary.derivativeState?.references?.length ?? 0;
+  const allocationSummary = () => {
+    const allocations = controller.royaltySplit.state.allocations;
+    const shared = allocations.filter(allocation => allocation.recipientKind !== "creator");
+    return shared.length === 0
+      ? controller.copy.rights.soleRecipient
+      : allocations.map(allocation => `${basisPointsToPercentText(allocationBps(allocation))}%`).join(" / ");
+  };
 
   return (
     <StepCard controller={controller}>
@@ -342,21 +363,23 @@ export function SongReviewStep(props: {
             ? "Instrumental"
             : <span class="line-clamp-2">{controller.fields.lyricsValue}</span>}
         />
+        {/* One row per step the author went through. Rights decided the kind,
+            the licence and the split, so it reads back as one row with one
+            Change, not as three rows that all return to the same step. */}
         <ReviewRow
           action={{ label: controller.copy.review.change, onClick: () => props.steps.set("rights") }}
           label={controller.copy.review.rights}
-          value={`${kindLabel()}${controller.primary.activeSongMode === "remix" ? ` · ${sourceCount()} source${sourceCount() === 1 ? "" : "s"}` : ""}`}
-        />
-        <ReviewRow
-          action={{ label: controller.copy.review.change, onClick: () => props.steps.set("rights") }}
-          label={controller.copy.review.license}
-          value={licenseLabel()}
-        />
-        <ReviewRow
-          action={{ label: controller.copy.review.change, onClick: () => props.steps.set("rights") }}
-          label={controller.copy.review.recipients(controller.royaltySplit.state.allocations.length)}
-          value={controller.royaltySplit.state.allocations
-            .map(allocation => basisPointsToPercentText(allocationBps(allocation))).join(" / ") + "%"}
+          value={(
+            <span class="block">
+              {kindLabel()}
+              <Show when={controller.primary.activeSongMode === "remix"}>
+                {` · ${sourceCount()} source${sourceCount() === 1 ? "" : "s"}`}
+              </Show>
+              <Type as="span" variant="caption" class="block text-muted-foreground">
+                {licenseLabel()} · {allocationSummary()}
+              </Type>
+            </span>
+          )}
         />
       </div>
     </StepCard>

@@ -80,9 +80,7 @@ export interface ComposerCopy {
   requiredFieldsLegend: string;
   review: {
     change: string;
-    license: string;
     lyrics: string;
-    recipients: (count: number) => string;
     rights: string;
     song: string;
   };
@@ -90,6 +88,7 @@ export interface ComposerCopy {
     license: string;
     recipientsNote: string;
     revShare: string;
+    soleRecipient: string;
     songKind: string;
     totalExact: string;
   };
@@ -282,15 +281,14 @@ export const defaultComposerCopy: ComposerCopy = {
   requiredFieldsLegend: "Required fields are marked with *",
   review: {
     change: "Change",
-    license: "License",
     lyrics: "Lyrics",
-    recipients: (count: number) => `${count} recipient${count === 1 ? "" : "s"}`,
     rights: "Rights",
     song: "Song",
   },
   rights: {
     license: "License",
     recipientsNote: "Recipient identities only. Wallets are resolved by the server.",
+    soleRecipient: "You keep all of it.",
     revShare: "Downstream commercial remix share",
     songKind: "Song kind",
     totalExact: "Allocations must total exactly 100%.",
