@@ -196,7 +196,17 @@ function mapSnapshot(
     } };
   }
   if (response.status === "expired") return { ...common, next_action: { kind: "expired" } };
-  return { ...common, next_action: { kind: "failed", reason_code: "root_import_failed", retryable: true } };
+  return {
+    ...common,
+    next_action: {
+      kind: "failed",
+      reason_code:
+        response.status === "failed"
+          ? (response.failure_reason ?? "root_import_failed")
+          : "root_import_failed",
+      retryable: true,
+    },
+  };
 }
 
 export class CommunityNamespaceSettingsApiError extends Error {

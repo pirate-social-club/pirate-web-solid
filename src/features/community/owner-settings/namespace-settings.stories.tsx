@@ -206,7 +206,7 @@ export const DelegationFailure: Story = {
 };
 
 export const Failed: Story = {
-  args: argsFor({ kind: "failed", reason_code: "ownership_proof_rejected", retryable: true }),
+  args: argsFor({ kind: "failed", reason_code: "challenge_mismatch", retryable: true }),
 };
 
 export const Expired: Story = {

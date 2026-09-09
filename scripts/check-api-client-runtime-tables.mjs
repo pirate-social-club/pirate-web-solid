@@ -8,9 +8,9 @@ const currentClient = resolve(
   appRoot,
   "node_modules/@pirate/api-client/src/generated/client.ts",
 );
-// Client 0.68.1 preserves the audited success responses and statuses below.
-// The sole change in these consumed tables adds RateLimited to HNS preparation.
-const expectedDigest = "1878e31edda0aef2f3029b545044afb1c5cec7806b330439b059b9b1af9ccddc";
+// Client 0.68.2 preserves the audited statuses and adds only the bounded,
+// optional failure_reason field to failed HNS root-import responses.
+const expectedDigest = "59e586493fd61b9e0e181164eeb3ceb535436aeca91f1bfdfecdd075070b995d";
 
 const operations = [
   "post_postsPostIdVideoPlaybackAccess",

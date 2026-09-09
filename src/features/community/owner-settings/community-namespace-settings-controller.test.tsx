@@ -1,3 +1,4 @@
+import { ApiClientError } from "@pirate/api-client";
 import { render as solidRender, type JSX } from "@solidjs/web";
 import { createRoot } from "solid-js";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
@@ -100,6 +101,35 @@ test("records survive acknowledgement, pending reads and failures without a seco
   const calls=get.mock.calls.length;await vi.advanceTimersByTimeAsync(60000);expect(get).toHaveBeenCalledTimes(calls);
   const retry=[...container.querySelectorAll<HTMLButtonElement>("button")].find(b=>b.textContent==="Retry status")!;
   retry.click();await vi.advanceTimersByTimeAsync(0);expect(get).toHaveBeenCalledTimes(calls+1);expect(post).toHaveBeenCalledTimes(1);
+});
+
+test("an expired sign-in during polling is reported as authentication, with immediate retry feedback", async () => {
+  let rejectRetry!: (error: unknown) => void;
+  const get = vi
+    .fn()
+    .mockRejectedValueOnce(new Error("offline"))
+    .mockImplementationOnce(() => new Promise((_resolve, reject) => { rejectRetry = reject; }));
+  const api = makeApi(
+    async () => ({ community_id: "community-1", attachment: null, session: { ...session, publication_check_pending: true } }),
+    vi.fn(),
+    get,
+  );
+  vi.useFakeTimers();
+  const { container } = render(() => <CommunityNamespaceSettingsController api={api} communityId="community-1" communityPath="/c/community-1" />);
+  await vi.advanceTimersByTimeAsync(2_000);
+  const retry = [...container.querySelectorAll<HTMLButtonElement>("button")].find((button) => button.textContent === "Retry status")!;
+  retry.click();
+  await vi.advanceTimersByTimeAsync(0);
+  expect(container.textContent).toContain("Checking verification status…");
+  // SAFETY: These are the exact generated error-definition and wire-body shapes
+  // needed to construct the 401 response exercised by this test.
+  rejectRetry(new ApiClientError(
+    { name: "unauthorized", status: 401 } as never,
+    { error: { code: "unauthorized", message: "withheld", retryable: false }, request_id: "poll-401" } as never,
+  ));
+  await vi.advanceTimersByTimeAsync(0);
+  expect(container.textContent).toContain("Your sign-in has expired. Sign in again, then retry. Your namespace is saved.");
+  expect(container.textContent).not.toContain("Could not refresh verification status");
 });
 
 test("preparation advances across server revisions by GET and displays records automatically",async()=>{

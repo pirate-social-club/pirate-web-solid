@@ -433,7 +433,15 @@ function ServerDirectedAction(props: Pick<CommunityNamespaceSettingsPanelProps, 
           <>
             <Card class="space-y-4 border-destructive/40 p-5 md:p-6" role="alert">
               <Type as="h2" variant="h2">Verification failed</Type>
-              <FormNote tone="warning">{current().reason_code.replaceAll("_", " ")}</FormNote>
+              <FormNote tone="warning">{{
+                challenge_mismatch: "The published verification record does not match this attempt.",
+                dns_delegation_not_confirmed: "Handshake has not confirmed the required DNS delegation.",
+                root_resource_unavailable: "This Handshake name is not currently available for verification.",
+                zone_not_provisioned: "The DNS zone could not be prepared for this name.",
+                challenge_not_published: "The verification record was not found on the Handshake name.",
+                provider_unavailable: "The HNS verification service was unavailable.",
+                root_import_failed: "The root import failed for an unknown reason.",
+              }[current().reason_code]}</FormNote>
             </Card>
             <div class="flex flex-wrap items-center justify-between gap-3">
               <SecondaryAction idempotencyKeys={props.idempotencyKeys} onCommand={props.onCommand} snapshot={props.snapshot} />

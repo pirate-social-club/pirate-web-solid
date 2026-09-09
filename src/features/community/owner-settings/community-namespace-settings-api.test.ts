@@ -47,6 +47,73 @@ function locator(): HnsSessionLocator & { value: string | null } {
 }
 
 describe("createCommunityNamespaceSettingsApi", () => {
+  test.each([
+    "challenge_mismatch",
+    "dns_delegation_not_confirmed",
+    "root_resource_unavailable",
+    "zone_not_provisioned",
+    "challenge_not_published",
+    "provider_unavailable",
+  ] as const)("projects the terminal failure reason %s", async (failureReason) => {
+    // SAFETY: This fake implements the single generated discovery method used by read().
+    const api = createCommunityNamespaceSettingsApi({
+      client: {
+        get_communitiesCommunityIdHnsRootImports: async () => ({
+          community_id: common.community_id,
+          attachment: null,
+          session: {
+            ...common,
+            revision: 4,
+            status: "failed",
+            failure_reason: failureReason,
+            publish_plan: null,
+            publish_plan_sha256: null,
+            readiness_result_sha256: null,
+            retry_after_seconds: null,
+          },
+        }),
+      } as never,
+      communityId: common.community_id,
+      communityPath: "/c/community-1",
+      locator: locator(),
+    });
+
+    expect((await api.read()).next_action).toEqual({
+      kind: "failed",
+      reason_code: failureReason,
+      retryable: true,
+    });
+  });
+
+  test("keeps an older failed response usable when it has no reason", async () => {
+    // SAFETY: This fake implements the single generated discovery method used by read().
+    const api = createCommunityNamespaceSettingsApi({
+      client: {
+        get_communitiesCommunityIdHnsRootImports: async () => ({
+          community_id: common.community_id,
+          attachment: null,
+          session: {
+            ...common,
+            revision: 4,
+            status: "failed",
+            publish_plan: null,
+            publish_plan_sha256: null,
+            readiness_result_sha256: null,
+            retry_after_seconds: null,
+          },
+        }),
+      } as never,
+      communityId: common.community_id,
+      communityPath: "/c/community-1",
+      locator: locator(),
+    });
+
+    expect((await api.read()).next_action).toMatchObject({
+      kind: "failed",
+      reason_code: "root_import_failed",
+    });
+  });
+
   test("drives the real one-signature ceremony and preserves every wallet record", async () => {
     const sessionLocator = locator();
     const pollResponses = [

@@ -109,6 +109,9 @@ export function CommunityNamespaceSettingsController(
   const [busy, setBusy] = createSignal(false);
   const [message, setMessage] = createSignal("");
   const [messageReference, setMessageReference] = createSignal("");
+  const [activeCommand, setActiveCommand] = createSignal<NamespaceSettingsCommand["kind"]>();
+  const [pollFailed, setPollFailed] = createSignal(false);
+  const [unchangedReads, setUnchangedReads] = createSignal(0);
   const clearMessage = () => {
     setMessage("");
     setMessageReference("");
@@ -126,6 +129,7 @@ export function CommunityNamespaceSettingsController(
       : undefined;
   };
   const feedback = () => {
+    if (busy() && activeCommand() === "poll") return "Checking verification status…";
     if (message()) return message();
     const retryAt = preparationRetryAt();
     if (retryAt === undefined) return "";
@@ -155,9 +159,6 @@ export function CommunityNamespaceSettingsController(
       onCleanup(() => clearTimeout(timer));
     },
   );
-  const [activeCommand, setActiveCommand] = createSignal<NamespaceSettingsCommand["kind"]>();
-  const [pollFailed, setPollFailed] = createSignal(false);
-  const [unchangedReads, setUnchangedReads] = createSignal(0);
   const [pageVisible, setPageVisible] = createSignal(typeof document === "undefined" || document.visibilityState !== "hidden");
   if (typeof document !== "undefined") {
     const updateVisibility = () => setPageVisible(document.visibilityState !== "hidden");
@@ -242,7 +243,7 @@ export function CommunityNamespaceSettingsController(
           }
         }
         showFailure(
-          command.kind === "poll"
+          command.kind === "poll" && !(error instanceof ApiClientError && error.status === 401)
             ? "Could not refresh verification status. Select Retry status to reconnect."
             : commandError(error),
           error,

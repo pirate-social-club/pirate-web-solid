@@ -105,6 +105,15 @@ export type CommunityProfileSettingsPort = Readonly<{
 
 export type NamespaceFamily = "hns";
 
+export type NamespaceFailureReasonCode =
+  | "challenge_mismatch"
+  | "dns_delegation_not_confirmed"
+  | "root_resource_unavailable"
+  | "zone_not_provisioned"
+  | "challenge_not_published"
+  | "provider_unavailable"
+  | "root_import_failed";
+
 export type HnsWalletResourceRecord =
   | Readonly<{ type: "NS"; ns: string }>
   | Readonly<{ type: "TXT"; txt: ReadonlyArray<string> }>
@@ -164,7 +173,7 @@ export type NamespaceNextAction =
       fallback_route_label: string;
       kind: "verified";
     }>
-  | Readonly<{ kind: "failed"; reason_code: string; retryable: boolean }>
+  | Readonly<{ kind: "failed"; reason_code: NamespaceFailureReasonCode; retryable: boolean }>
   | Readonly<{ kind: "expired" }>;
 
 export type NamespaceAttachment = Readonly<{
