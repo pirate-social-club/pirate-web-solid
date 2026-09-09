@@ -335,7 +335,7 @@ describe("create post request", () => {
     expect(decodePendingSubmissionDraft((await storage.loadAll())[0]!).communityId).toBe("original-community");
   });
 
-  test("hydrates and locks the rating owned by a retained adult text request", async () => {
+  test("does not expose the system-managed rating from a retained adult text request", async () => {
     const storage = createMemoryPendingSubmissionStorage();
     await storage.save(await createPendingSubmissionEnvelope({
       request: buildCreatePostRequest({ personaId: "persona-one",
@@ -356,16 +356,14 @@ describe("create post request", () => {
       transport={{ read: async () => null, dispatch: async () => { throw new Error("network uncertain"); } }}
     />);
 
-    const visibility = await vi.waitFor(() => {
-      const candidate = document.body.querySelector<HTMLButtonElement>("button[aria-label^='Visibility:']");
-      expect(candidate).toBeInstanceOf(HTMLButtonElement);
-      expect(candidate?.getAttribute("aria-label")).toContain("18+");
-      return candidate!;
-    });
-    expect(visibility.disabled).toBe(true);
+    await vi.waitFor(() => expect(document.body.querySelector("form[aria-label='Create a post']")).not.toBeNull());
+    expect(document.body.textContent).not.toContain("Age gate");
+    expect(document.body.textContent).not.toContain("18+");
+    expect(document.body.textContent).not.toContain("Members only");
+    expect(document.body.querySelector("button[aria-label^='Visibility:']")).toBeNull();
   });
 
-  test("locks a retained song rating after reservation and before start", async () => {
+  test("does not expose the system-managed rating from a retained song", async () => {
     const mediaStorage = createMemoryMediaSubmissionStorage();
     const audio = new File([new Uint8Array([1])], "retained.mp3", { type: "audio/mpeg", lastModified: 1 });
     await mediaStorage.save({
@@ -407,13 +405,11 @@ describe("create post request", () => {
       storage={createMemoryPendingSubmissionStorage()}
     />);
 
-    const visibility = await vi.waitFor(() => {
-      const candidate = document.body.querySelector<HTMLButtonElement>("button[aria-label^='Visibility:']");
-      expect(candidate).toBeInstanceOf(HTMLButtonElement);
-      expect(candidate?.getAttribute("aria-label")).toContain("18+");
-      return candidate!;
-    });
-    expect(visibility.disabled).toBe(true);
+    await vi.waitFor(() => expect(document.body.querySelector("form[aria-label='Create a post']")).not.toBeNull());
+    expect(document.body.textContent).not.toContain("Age gate");
+    expect(document.body.textContent).not.toContain("18+");
+    expect(document.body.textContent).not.toContain("Members only");
+    expect(document.body.querySelector("button[aria-label^='Visibility:']")).toBeNull();
   });
 
   test("requires an explicit operation persona when more than one is active", () => {
@@ -527,7 +523,7 @@ describe("create post request", () => {
     ]));
     expect(mediaTransport.uploadCount).toBe(1);
     expect((await mediaStorage.loadAll())).toHaveLength(1);
-    expect(document.body.querySelector<HTMLButtonElement>("button[aria-label^='Visibility:']")?.disabled).toBe(true);
+    expect(document.body.querySelector("button[aria-label^='Visibility:']")).toBeNull();
 
     const bodies = await Promise.all(mediaTransport.commands.map(async command => {
       const decoded: unknown = JSON.parse(new TextDecoder().decode(await mediaCommandBody(command)));

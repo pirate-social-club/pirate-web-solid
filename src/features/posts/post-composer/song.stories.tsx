@@ -7,7 +7,7 @@ import { ComposerFrame } from "./story-helpers";
 import type { AssetLicenseState, AssetRoyaltySplitState, SongComposerState } from "./types";
 
 const meta = {
-  title: "Parts/Posts/PostComposer/SongSteps",
+  title: "Parts/Posts/SongSteps",
   component: PostComposer,
   args: baseComposer,
   parameters: {

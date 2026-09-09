@@ -112,7 +112,6 @@ export function PostComposer(props: PostComposerProps) {
               <PostComposerIdentityCluster
                 class="pe-16 ps-8 pb-3 pt-5"
                 controller={controller}
-                initialOpen={props.initialOpenPanel === "visibility"}
               />
               <Show when={props.mediaStatus}>{props.mediaStatus!()}</Show>
               {stepContent()}
@@ -126,7 +125,6 @@ export function PostComposer(props: PostComposerProps) {
           <PostComposerIdentityCluster
             class="px-1 pb-1 pt-4"
             controller={controller}
-            initialOpen={props.initialOpenPanel === "visibility"}
           />
           <Show when={props.mediaStatus}>{props.mediaStatus!()}</Show>
           {stepContent()}

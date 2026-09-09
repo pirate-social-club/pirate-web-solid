@@ -5,7 +5,7 @@ import { baseComposer } from "./story-fixtures";
 import { ComposerFrame } from "./story-helpers";
 
 const meta = {
-  title: "Parts/Posts/PostComposer/IdentityVariants",
+  title: "Parts/Posts/IdentityControl",
   component: PostComposer,
   args: baseComposer,
   parameters: {

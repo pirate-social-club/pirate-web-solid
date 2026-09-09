@@ -432,7 +432,7 @@ export interface PostComposerProps extends Partial<PostComposerDraftState>, Post
   validateDraftBeforeSubmit?: boolean;
   // Storybook-only seed for reviewing a specific composer panel. Production
   // callers leave panels closed and open them from the composer controls.
-  initialOpenPanel?: "access-and-rights" | "visibility";
+  initialOpenPanel?: "access-and-rights";
   // Supports restoring a draft at a known step and focused Storybook review.
   initialSongStep?: 1 | 2 | 3 | 4;
   // Host-owned outcome panels rendered inside the single composer surface.

@@ -119,7 +119,7 @@ function attachmentFor(
 export function PostComposerWriteStep(props: {
   controller: PostComposerController;
   onVideoEntry?: () => void;
-  initialOpenPanel?: "access-and-rights" | "visibility";
+  initialOpenPanel?: "access-and-rights";
   children?: JSX.Element;
 }) {
   const controller = props.controller;

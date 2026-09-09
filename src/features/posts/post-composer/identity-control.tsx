@@ -18,7 +18,6 @@ import { cn } from "../../../design-system";
 
 import type { PostComposerController } from "./controller";
 import { composerPillTriggerClass, composerRowTriggerClass } from "./composer-pills";
-import { PostComposerPublishControls } from "./publish-controls";
 import type { ComposerPublicPersona } from "./types";
 
 function publicInitials(handle: string) {
@@ -305,7 +304,6 @@ export function PostComposerIdentityControl(props: {
 export function PostComposerIdentityCluster(props: {
   class?: string;
   controller: PostComposerController;
-  initialOpen?: boolean;
 }) {
   return (
     <Show when={props.controller.identity.identity?.visible !== false}>
@@ -313,11 +311,6 @@ export function PostComposerIdentityCluster(props: {
         <PostComposerIdentityAvatar class="size-14 shrink-0" controller={props.controller} />
         <div class="flex min-w-0 flex-col items-start">
           <PostComposerIdentityControl class="max-w-full" controller={props.controller} variant="row" />
-          <PostComposerPublishControls
-            controller={props.controller}
-            initialOpen={props.initialOpen}
-            presentation="row"
-          />
         </div>
       </div>
     </Show>
