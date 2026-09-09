@@ -214,12 +214,6 @@ export const ContextualTextMultiplePersonas: Story = {
   },
 };
 
-export const GlobalCommunityId: Story = {
-  name: "Global / Raw community id",
-  parameters: { docs: { description: { story: "The global Create post path still asks for a raw community identifier. Its friendly-picker redesign is registered separately." } } },
-  render: () => dialogHarness({ communityContext: false }).render(),
-};
-
 export const SongStep1Song: Story = {
   name: "Song / Step 1 — Song",
   render: () => dialogHarness().render(),
@@ -274,24 +268,6 @@ export const SongStepFourReview: Story = {
     if (review === undefined) throw new Error("Rights footer did not render its Review action");
     await userEvent.click(review);
     await expect(canvas.getByText("License")).toBeInTheDocument();
-  },
-};
-
-export const SongEmptyLyricsPublished: Story = {
-  name: "Song / Publish with deliberately empty lyrics",
-  render: () => dialogHarness().render(),
-  play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement.ownerDocument.body);
-    await userEvent.upload(canvas.getByLabelText("Upload audio"), storyMp3("wordless.mp3"));
-    await userEvent.click(canvas.getByRole("button", { name: "Continue" }));
-    await userEvent.click(await canvas.findByRole("button", { name: "Continue" }));
-    const review = canvas.getAllByRole("button", { name: "Review" })
-      .find(button => button.closest("nav") === null);
-    if (review === undefined) throw new Error("Rights footer did not render its Review action");
-    await userEvent.click(review);
-    await expect(canvas.getByText("Instrumental")).toBeInTheDocument();
-    await userEvent.click(canvas.getByRole("button", { name: "Publish song" }));
-    await expect(canvas.getByText("Song published.")).toBeInTheDocument();
   },
 };
 

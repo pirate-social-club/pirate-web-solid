@@ -219,7 +219,7 @@ export function CreatePostDialog(props: CreatePostDialogProps): JSX.Element {
     const projection = projectSnapshotIntoSongComposer(snapshot);
     setSong(current => ({ ...current, ...projection.song }));
     if (projection.lyricsValue !== undefined && !lyricsEdited) setLyrics(projection.lyricsValue);
-    if (snapshot.status === "published" && !wasPublished) props.onPublished?.();
+    if (snapshot.status === "published" && !wasPublished) finishPublished();
   }
 
   void textCoordinator.restore()
@@ -347,6 +347,11 @@ export function CreatePostDialog(props: CreatePostDialogProps): JSX.Element {
     props.onOpenChange(open);
   }
 
+  function finishPublished(): void {
+    close(false);
+    props.onPublished?.();
+  }
+
   function startNewTextDraft(): void {
     textCoordinator.startNewDraft();
     resetCommunityId();
@@ -396,7 +401,7 @@ export function CreatePostDialog(props: CreatePostDialogProps): JSX.Element {
         idempotencyKey: createIdempotencyKey(),
         ageGatePolicy: ageGatePolicy(),
       }));
-      if (snapshot.status === "published") props.onPublished?.();
+      if (snapshot.status === "published") finishPublished();
     } catch (submissionError) {
       if (textCoordinator.state.status === "transport_failure") {
         setError("Your post could not be prepared for safe retry.");
@@ -417,7 +422,7 @@ export function CreatePostDialog(props: CreatePostDialogProps): JSX.Element {
           return;
         }
         const snapshot = await textCoordinator.reconcile();
-        if (snapshot.status === "published") props.onPublished?.();
+        if (snapshot.status === "published") finishPublished();
       } else {
         await submitText();
       }
@@ -670,8 +675,8 @@ export function CreatePostDialog(props: CreatePostDialogProps): JSX.Element {
         <Show when={lyricsCanSave()}>
           <Button disabled={lyricsBusy()} type="button" onClick={() => void saveLyrics()}>Save reviewed lyrics</Button>
         </Show>
-        <Show when={terminalMediaView(mediaView())}>
-          <Button disabled={mediaBusy()} type="button" variant="outline" onClick={() => void discardTerminalSong()}>Start a new post</Button>
+        <Show when={terminalMediaView(mediaView()) && mediaView().status !== "published"}>
+          <Button disabled={mediaBusy()} type="button" variant="outline" onClick={() => void discardTerminalSong()}>Discard and start over</Button>
         </Show>
       </div>
     </Show>

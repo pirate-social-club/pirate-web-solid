@@ -322,9 +322,8 @@ async function runTerminalScenario(browser, community, expectedText) {
   const { context, page } = await authenticatedPage(browser);
   try {
     const form = await openComposer(page, community, `Browser body for ${community}`);
-    await form.getByText(expectedText, { exact: false }).waitFor({ state: "visible" });
     if (community === "published") {
-      await form.getByRole("button", { name: "Close composer" }).click();
+      await form.waitFor({ state: "hidden" });
       await page.getByRole("button", { name: "Post here" }).click();
       const freshForm = page.getByRole("form", { name: "Create a post" });
       const freshPublish = freshForm.getByRole("button", { name: "Publish post" });
@@ -334,6 +333,8 @@ async function runTerminalScenario(browser, community, expectedText) {
       await freshForm.getByLabel("Post", { exact: true }).fill("Fresh contextual body");
       assert(await freshPublish.isEnabled(), "fresh contextual draft did not become publishable with content");
       assert(await freshForm.locator("[data-post-composer-state]").count() === 0, "published close retained a terminal state");
+    } else {
+      await form.getByText(expectedText, { exact: false }).waitFor({ state: "visible" });
     }
   } finally {
     await context.close();
@@ -380,7 +381,7 @@ try {
     form = page.getByRole("form", { name: "Create a post" });
     await form.getByRole("button", { name: "Check again" }).waitFor({ state: "visible" });
     await form.getByRole("button", { name: "Check again" }).click();
-    await form.getByText("Post published.", { exact: true }).waitFor({ state: "visible" });
+    await form.waitFor({ state: "hidden" });
   } finally {
     await context.close();
   }
