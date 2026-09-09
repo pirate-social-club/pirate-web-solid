@@ -320,10 +320,13 @@ function SuccessState(props: {
     engagement.postingSession()?.personas ?? [], communityId,
   ));
 
+  // The feed carries both vote sides; a caller that supplied only a net score
+  // gets a split that preserves that net, which is all the control displays.
+  // The split is not a claim about how many people voted each way.
   const engagementPost = (post: CommunityData["posts"][number]): PostEngagementPost => ({
     id: post.id,
-    upvoteCount: Math.max(0, post.score),
-    downvoteCount: Math.max(0, -post.score),
+    upvoteCount: post.upvoteCount ?? Math.max(0, post.score),
+    downvoteCount: post.downvoteCount ?? Math.max(0, -post.score),
     commentCount: post.commentCount ?? 0,
     viewerVote: null,
   });

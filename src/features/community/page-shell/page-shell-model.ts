@@ -14,6 +14,14 @@ export interface CommunityPost {
   title: string;
   body: string;
   score: number;
+  /**
+   * Both sides of the vote, kept because the net score cannot be taken apart
+   * again. Five up and three down and two up and zero down are the same score,
+   * so a consumer that needs the sides has to be given them rather than
+   * reconstruct them. Absent for callers that only ever had a net score.
+   */
+  upvoteCount?: number;
+  downvoteCount?: number;
   publishedAt: string;
   authorHandle?: string;
   authorAvatarSrc?: string | null;
