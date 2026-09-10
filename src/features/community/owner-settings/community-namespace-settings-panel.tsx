@@ -460,11 +460,15 @@ function ServerDirectedAction(props: Pick<CommunityNamespaceSettingsPanelProps, 
         {(current) => (
           <Card class="space-y-4 border-warning/50 p-5 md:p-6" role="alert">
             <Type as="h2" variant="h2">This name needs attention</Type>
+            {/* The assurance names what this application state actually
+                proves: the authority setup is retained here. It does not claim
+                anything about the Handshake name or its DNS records, which are
+                the owner's and are not established by retained state. */}
             <FormNote tone="warning">{{
-              publication_deadline_reached: "The window to publish these records has passed. Your Handshake name and its DNS setup are untouched.",
-              finality_deadline_reached: "Handshake did not settle the published records in time. Your Handshake name and its DNS setup are untouched.",
-              superseded: "This record list was replaced. Your Handshake name and its DNS setup are untouched.",
-              other: "This attempt stopped and needs a decision. Your Handshake name and its DNS setup are untouched.",
+              publication_deadline_reached: "The window to publish these records has passed. This operation is paused. We're retaining its authority setup while recovery is reviewed.",
+              finality_deadline_reached: "Handshake did not settle the published records in time. This operation is paused. We're retaining its authority setup while recovery is reviewed.",
+              superseded: "This record list was replaced. This operation is paused. We're retaining its authority setup while recovery is reviewed.",
+              other: "This operation is paused. We're retaining its authority setup while recovery is reviewed.",
             }[current().reason_code]}</FormNote>
             {/* Nothing is offered here. Recovery is the server's decision to
                 make and this attempt has no safe action left; inventing one

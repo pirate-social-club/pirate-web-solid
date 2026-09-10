@@ -208,9 +208,13 @@ test("recovery is reported as the server's decision, and offers the owner nothin
   await vi.advanceTimersByTimeAsync(0);
   expect(container.textContent).toContain("This name needs attention");
   expect(container.textContent).toContain("window to publish these records has passed");
-  // The authority is retained, and the panel says so rather than implying the
-  // name or its DNS setup was torn down.
-  expect(container.textContent).toContain("Handshake name and its DNS setup are untouched");
+  // The assurance is bounded by what retained application state proves: the
+  // authority setup is retained. It claims nothing about the owner's name or
+  // its DNS records, which this state does not establish.
+  expect(container.textContent).toContain(
+    "We're retaining its authority setup while recovery is reviewed",
+  );
+  expect(container.textContent).not.toContain("DNS setup are untouched");
   expect(container.textContent).toContain("Publication deadline");
   // A deadline that has passed is not a failure, and nothing here offers to
   // restart: recovery is the server's decision to make.
