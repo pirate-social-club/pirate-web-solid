@@ -13,7 +13,7 @@ const meta = {
     docs: {
       description: {
         component:
-          "Choosing the song excerpt a video is danced to, on fixture data. The songs are not real, no audio plays, and nothing uploads, publishes or downloads. What is real is the selection: bounds are integer milliseconds, the same values publication and the standalone MP3 would use, and reopening the draft restores them unchanged. Three separate controls, because dragging an endpoint resizes the excerpt while dragging its position moves the whole span at its current length — moving the start must never drag the end along with it. The excerpt runs six to thirty seconds, per specification 021.",
+          "Choosing the song excerpt a video is danced to, on fixture data. The preview is audible: the tone is synthesized rather than bundled, so it carries no third-party rights, and its pitch steps every two seconds so moving the excerpt sounds different rather than merely looking different. Playback starts at the excerpt start and is stopped by the audio clock at its end. The songs are not real and nothing uploads, publishes or downloads — publication and MP3 download are shown as unavailable rather than hidden. What is real is the selection: bounds are integer milliseconds, the same values publication and the standalone MP3 would use, and reopening the draft restores them unchanged. Three separate controls, because dragging an endpoint resizes the excerpt while dragging its position moves the whole span at its current length — moving the start must never drag the end along with it. The excerpt runs six to thirty seconds, per specification 021.",
       },
     },
   },

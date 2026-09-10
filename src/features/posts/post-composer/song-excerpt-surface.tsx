@@ -1,7 +1,8 @@
-import { createEffect, createSignal, For, onCleanup, Show } from "solid-js";
+import { createSignal, For, onCleanup, Show } from "solid-js";
 
 import { Type } from "../../../design-system";
 import { PostComposerExcerptSelector } from "./preview-segment-selector";
+import { createExcerptPlayer } from "./song-excerpt-audio";
 import {
   clampExcerpt,
   defaultExcerpt,
@@ -18,6 +19,7 @@ import {
   type SongExcerptDraftStore,
 } from "./song-excerpt-draft";
 import { FIXTURE_SONGS, type FixtureSong, findFixtureSong } from "./song-excerpt-fixtures";
+import { BAR_MS } from "./song-excerpt-audio";
 import {
   advancePreview,
   previewProgress,
@@ -58,8 +60,32 @@ export function SongExcerptComposerSurface(props: { store?: SongExcerptDraftStor
   const [preview, setPreview] = createSignal(stopPreview(defaultExcerpt(0)));
   const [retained, setRetained] = createSignal<{ endMs: number; songId: string; startMs: number }>();
   const [restoredNote, setRestoredNote] = createSignal<string>();
+  const player = createExcerptPlayer();
+  onCleanup(() => player.close());
+
+  const stopPlayback = () => {
+    stopTicking();
+    player.stop();
+    setPreview(stopPreview(bounds()));
+  };
+
+  const togglePlayback = () => {
+    if (preview().playing) {
+      stopPlayback();
+      return;
+    }
+    setPreview(startPreview(bounds()));
+    startTicking();
+    // The audio clock ends the excerpt; the ticker only moves the marker.
+    player.play(bounds(), () => {
+      stopTicking();
+      setPreview(stopPreview(bounds()));
+    });
+  };
 
   const chooseSong = (next: FixtureSong) => {
+    stopTicking();
+    player.stop();
     setSong(next);
     const initial = defaultExcerpt(next.durationMs);
     setBounds(initial);
@@ -68,18 +94,39 @@ export function SongExcerptComposerSurface(props: { store?: SongExcerptDraftStor
   };
 
   const changeBounds = (next: ReturnType<typeof defaultExcerpt>) => {
+    const wasPlaying = preview().playing;
     setBounds(next);
     setPreview((state) => reboundPreview(state, next));
+    // Adjusting while it plays restarts on the new span rather than finishing
+    // the old one, which is the point of hearing the change.
+    if (wasPlaying) {
+      player.play(next, () => {
+        stopTicking();
+        setPreview(stopPreview(next));
+      });
+      setPreview(startPreview(next));
+      startTicking();
+    }
   };
 
-  createEffect(() => {
-    if (!preview().playing) return;
-    const timer = setInterval(
+  // The marker is ticked imperatively rather than from an effect. An effect
+  // whose compute reads the preview signal re-runs on every tick, because the
+  // tick updates that same signal, so it spawned a new interval each time and
+  // the marker raced. Starting and stopping the ticker where playback starts
+  // and stops keeps exactly one.
+  let ticker: ReturnType<typeof setInterval> | undefined;
+  const stopTicking = () => {
+    if (ticker !== undefined) clearInterval(ticker);
+    ticker = undefined;
+  };
+  const startTicking = () => {
+    stopTicking();
+    ticker = setInterval(
       () => setPreview((state) => advancePreview(state, bounds(), TICK_MS)),
       TICK_MS,
     );
-    onCleanup(() => clearInterval(timer));
-  });
+  };
+  onCleanup(stopTicking);
 
   const retain = async () => {
     const chosen = song();
@@ -153,9 +200,7 @@ export function SongExcerptComposerSurface(props: { store?: SongExcerptDraftStor
               <PostComposerExcerptSelector
                 bounds={bounds()}
                 onChange={changeBounds}
-                onTogglePreview={() =>
-                  setPreview((state) =>
-                    state.playing ? stopPreview(bounds()) : startPreview(bounds()))}
+                onTogglePreview={togglePlayback}
                 playing={preview().playing}
                 songDurationMs={chosen().durationMs}
               />
@@ -178,7 +223,8 @@ export function SongExcerptComposerSurface(props: { store?: SongExcerptDraftStor
                 <Type as="p" variant="caption" class="text-muted-foreground tabular-nums">
                   {preview().playing ? "Playing" : "Stopped"} at {preview().positionMs} ms ·
                   bounded to {formatExcerptTime(bounds().startMs)}–
-                  {formatExcerptTime(bounds().endMs)} · silent fixture playhead
+                  {formatExcerptTime(bounds().endMs)} · synthesized fixture tone, pitch steps
+                  every {BAR_MS / 1_000} seconds so moving the excerpt is audible
                 </Type>
               </div>
             </div>
@@ -221,6 +267,20 @@ export function SongExcerptComposerSurface(props: { store?: SongExcerptDraftStor
                   <Type as="p" variant="caption" class="tabular-nums">{note()}</Type>
                 )}
               </Show>
+              <div class="grid gap-2">
+                {/* Visible text rather than a title tooltip: a tooltip is not
+                    reachable by touch, and this is a phone surface. */}
+                <div class="rounded-[var(--radius-lg)] border border-dashed border-muted-foreground/40 p-3">
+                  <Type as="p" variant="caption" class="text-muted-foreground">
+                    Publishing isn’t available in this demo.
+                  </Type>
+                </div>
+                <div class="rounded-[var(--radius-lg)] border border-dashed border-muted-foreground/40 p-3">
+                  <Type as="p" variant="caption" class="text-muted-foreground">
+                    MP3 download isn’t available in this demo.
+                  </Type>
+                </div>
+              </div>
             </div>
           </>
         )}
