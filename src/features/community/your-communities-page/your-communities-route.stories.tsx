@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
-import { expect, waitFor, within } from "storybook/test";
+import { expect, userEvent, waitFor, within } from "storybook/test";
 
 import type { AccountCommunityMembership } from "../../../api/account-community-memberships";
 import { YourCommunitiesRouteView } from "./your-communities-route";
@@ -103,6 +103,39 @@ export const LoadFailed: Story = {
     const canvas = within(canvasElement);
     await waitFor(() =>
       expect(canvas.getByRole("alert")).toHaveTextContent("We couldn't load your Communities. Try again."),
+    );
+  },
+};
+
+/**
+ * The posting check reaching an authenticated session whose profile read
+ * failed surfaces the route's action error. This renders the bare
+ * `text-destructive` alert at `your-communities-route.tsx:243`, the same
+ * token misuse the creation route exposes; it is recorded for item 7,
+ * not fixed here.
+ */
+export const PostCheckProfilesUnavailable: Story = {
+  name: "Post check profiles unavailable",
+  args: {
+    applicationSession: authenticated,
+    loadMemberships: async () => [routedMembership],
+    resolvePostingSession: async () => ({
+      status: "authenticated" as const,
+      userId: "account-one",
+      personas: [],
+      personasUnavailable: true,
+    }),
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await waitFor(() => expect(canvas.getAllByText("Harbor").length).toBeGreaterThan(0));
+    const [postHere] = canvas.getAllByRole("button", { name: "Post here" });
+    if (postHere === undefined) throw new Error("missing Post here control");
+    await userEvent.click(postHere);
+    await waitFor(() =>
+      expect(canvas.getByRole("alert")).toHaveTextContent(
+        "We couldn't load your community profiles. Choose Post again to retry.",
+      ),
     );
   },
 };
