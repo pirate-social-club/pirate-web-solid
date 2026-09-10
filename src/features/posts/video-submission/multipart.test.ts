@@ -1,5 +1,5 @@
 import { describe, expect, test, vi } from "vitest";
-import { reserveOriginalVideo, startOriginalVideo, type OriginalVideoReservation } from "./contracts";
+import { reserveOriginalVideo, startVideo, type OriginalVideoReservation } from "./contracts";
 import { uploadVideoParts } from "./multipart";
 
 const future = "2099-01-01T00:00:00Z";
@@ -15,7 +15,7 @@ describe("original video boundary", () => {
   test("constructs only original audio without terms, song fields, or a title", () => {
     const reserve = reserveOriginalVideo({ communityId: "community", personaId: "persona", key: "reserve", file: { size: 6, type: "video/mp4" } });
     expect(reserve.body).toEqual({ persona_id: "persona", idempotency_key: "reserve", track: "video", slot: "primary_video", intent: "original_audio", expected_content_type: "video/mp4", expected_size_bytes: 6 });
-    const start = startOriginalVideo({ communityId: "community", personaId: "persona", key: "start", reservation, caption: "", rating: "general" });
+    const start = startVideo({ communityId: "community", personaId: "persona", key: "start", reservation, caption: "", rating: "general" });
     expect(start.body).not.toHaveProperty("title");
     expect(start.body).not.toHaveProperty("intent");
   });
@@ -24,7 +24,7 @@ describe("original video boundary", () => {
       expect(() => reserveOriginalVideo({ communityId: "community", personaId: "persona", key: "key", file: { type, size: 6 } })).toThrow();
     }
     expect(() => reserveOriginalVideo({ communityId: "community", personaId: "persona", key: "key", file: { type: "video/mp4", size: 0 } })).toThrow();
-    expect(() => startOriginalVideo({ communityId: "community", personaId: "other", key: "key", reservation, caption: "", rating: "general" })).toThrow(/persona/);
+    expect(() => startVideo({ communityId: "community", personaId: "other", key: "key", reservation, caption: "", rating: "general" })).toThrow(/persona/);
   });
 });
 

@@ -1,13 +1,13 @@
-import { VideoContractError, videoPartEtag, type OriginalVideoReservation, type VideoPartReceipt } from "./contracts";
+import { VideoContractError, videoPartEtag, type VideoPartReceipt, type VideoReservation } from "./contracts";
 
-type Part = OriginalVideoReservation["upload"]["parts"][number];
+type Part = VideoReservation["upload"]["parts"][number];
 export class VideoUploadExpiredError extends Error {
   constructor() { super("This video upload reservation expired; resolve it before starting a new attempt"); this.name = "VideoUploadExpiredError"; }
 }
 
 /** Each acknowledged part is durably saved before another PUT starts. */
 export async function uploadVideoParts(input: {
-  readonly reservation: OriginalVideoReservation;
+  readonly reservation: VideoReservation;
   readonly file: Blob;
   readonly receipts: readonly VideoPartReceipt[];
   readonly saveReceipt: (receipt: VideoPartReceipt) => Promise<void>;
