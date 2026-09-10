@@ -50,3 +50,12 @@ repository, and its digest is in that capture's manifest. The sweep only
 judges branches its stories render, so the findings above are a floor
 rather than a complete inventory; the token misuse is enforced by the
 lint rule in item 7 rather than by the sweep.
+
+`sweep-summary-study-v2.txt` is the study v2 route run: eleven stories for
+`study-v2-route-view`, all eleven interactions passing. Four of them
+(`auth-required`, `profiles-unavailable`, `no-community-persona`,
+`cards-processing`) carry the same landmark findings because the studying
+state components rendered their own `<main>` inside the route's. That
+defect is admitted to the ratchet under the step-zero lane, which fixes it
+in `9e13362`; these stories lose the axe failures once the fix reaches
+main.
