@@ -1,0 +1,10 @@
+Storybook axe/interaction sweep
+Base URL: http://127.0.0.1:6010
+Catalog: 153 files / 776 stories; selected 1 files / 13 stories
+Axe: 12 pass, 1 violation-fail, 0 indeterminate
+Axe incomplete checks: 3 (reported separately; not violations or indeterminate)
+Interactions: 13 pass, 0 fail, 0 indeterminate
+Panel evidence: 13 bare/no-counter result(s) (diagnostic only; never a pass)
+Exit: FAIL
+Failures:
+- screens-community-ownersettingsroute--loading: axe=fail(axe_violations), interaction=pass

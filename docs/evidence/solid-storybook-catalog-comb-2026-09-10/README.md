@@ -34,6 +34,15 @@ after `Screens/Community/YourCommunitiesRoute` gained
 interaction, and axe reports the same serious `color-contrast` failure on
 the alert, corroborating item 7's token finding from a second route.
 
+`sweep-summary-sections.txt` is the section-controller run:
+`Screens/Community/OwnerSettingsRoute` gained names, address, telegram,
+moderation queue, and entered-while-unavailable stories, each mounting the
+real controller through a typed per-port stub. The file's thirteen stories
+all pass interaction; the only axe failure is the already-recorded
+`role="status"` on this route's loading `<main>`, so the ratchet's set
+gains no member. The production build for that run has 776 story entries
+plus 65 docs and 159 titles.
+
 The 10 MB ledger `lane-comb-fixed2.jsonl` is preserved in the registered
 complete-history capture for this lane at
 `.archive/solid-storybook-catalog-comb-2026-09-10/` in the pirate-workspace
