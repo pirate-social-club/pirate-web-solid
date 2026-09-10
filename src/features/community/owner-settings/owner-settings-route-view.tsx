@@ -242,7 +242,11 @@ function ResolvedOwnerSettingsRouteView(props: ResolvedOwnerSettingsRouteViewPro
 export function OwnerSettingsRouteView(props: OwnerSettingsRouteViewProps) {
   const state = createMemo(() => props.state, { deferStream: true });
   return (
-    <Loading fallback={<main class="grid min-h-dvh place-items-center" role="status">Loading community settings…</main>}>
+    <Loading fallback={
+      <main class="grid min-h-dvh place-items-center">
+        <p role="status">Loading community settings…</p>
+      </main>
+    }>
       <ResolvedOwnerSettingsRouteView {...props} state={state()} />
     </Loading>
   );

@@ -9,15 +9,17 @@ const hydrationGuardFiles = [
 ];
 
 export default defineConfig({
-  ignorePatterns: ["tools/oxlint/anti-slop/**"],
+  ignorePatterns: ["tools/oxlint/anti-slop/**", "tools/oxlint/design-tokens/**"],
   jsPlugins: [
     { name: "anti-slop", specifier: "./tools/oxlint/anti-slop/index.ts" },
+    { name: "design-tokens", specifier: "./tools/oxlint/design-tokens/index.ts" },
   ],
   overrides: [
     {
       files: sourceFiles,
       rules: {
         "anti-slop/no-chained-type-assertions": "error",
+        "design-tokens/no-bare-destructive-text": "error",
         "anti-slop/no-widen-then-assert": "error",
         "anti-slop/no-known-value-widening": "error",
         "anti-slop/no-unsafe-dictionary-type": "error",
@@ -34,6 +36,13 @@ export default defineConfig({
         "anti-slop/no-conditional-empty-object-spread": "warn",
         // The existing seam uses a short-circuit assignment; it is outside this policy's scope.
         "no-unused-expressions": "off",
+      },
+    },
+    {
+      // The guards assert the bare utility is not rendered; they stay as written.
+      files: ["**/*.test.ts", "**/*.test.tsx"],
+      rules: {
+        "design-tokens/no-bare-destructive-text": "off",
       },
     },
     {
