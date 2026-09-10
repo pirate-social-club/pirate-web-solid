@@ -117,12 +117,14 @@ function attachmentFor(
 }
 
 export function PostComposerWriteStep(props: {
+  attachmentBarPlacement?: "fixed" | "inline";
   controller: PostComposerController;
   onVideoEntry?: () => void;
   initialOpenPanel?: "access-and-rights";
   children?: JSX.Element;
 }) {
   const controller = props.controller;
+  const barPlacement = () => props.attachmentBarPlacement ?? "fixed";
   const imagePreview = createObjectUrl(() => controller.media.activeImageUpload);
   const videoPreview = createObjectUrl(() => controller.media.videoState.primaryVideoUpload);
   const detectedVideoAspectRatio = createVideoSourceAspectRatio(videoPreview);
@@ -331,7 +333,10 @@ export function PostComposerWriteStep(props: {
           </>
         }
       >
-        <div class="space-y-2 px-0 pt-1" style={{ "padding-bottom": `${96 + keyboardOffset()}px` }}>{body(true)}</div>
+        <div
+          class="space-y-2 px-0 pt-1"
+          style={{ "padding-bottom": `${barPlacement() === "inline" ? 0 : 96 + keyboardOffset()}px` }}
+        >{body(true)}</div>
         <Show when={controller.event.state.enabled && controller.tabs.activeTab !== "live"}>
           <div class="flex flex-wrap gap-2 px-1" aria-label="Selected post options">
             <Type as="span" variant="caption" class="text-muted-foreground">
@@ -343,6 +348,7 @@ export function PostComposerWriteStep(props: {
           actions={controller.tabs.permitted(primaryMobileAttachmentActions)}
           activeKind={activeTool() ?? attachment()?.kind ?? null}
           bottomOffset={keyboardOffset()}
+          position={barPlacement()}
           onMore={controller.tabs.permitted(overflowMobileAttachmentActions).length > 0
             ? () => setMoreOpen(true)
             : undefined}

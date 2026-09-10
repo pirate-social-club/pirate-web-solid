@@ -75,10 +75,17 @@ export function PostComposerMobileAttachmentBar(props: {
             </button>
           )}
         </For>
-        <Show when={props.onMore && !inline()}>
+        {/* The overflow entry follows whether the host supplied one, not how the
+            bar is placed. It carries file, live and event, so suppressing it in
+            the inline placement would leave those three unreachable wherever a
+            host cannot use the fixed bar. */}
+        <Show when={props.onMore}>
           <button
             aria-label="More post attachments"
-            class="grid size-11 cursor-pointer place-items-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            class={cn(
+              "grid cursor-pointer place-items-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+              inline() ? "size-10 border border-border-soft bg-card" : "size-11",
+            )}
             onClick={() => props.onMore?.()}
             type="button"
           >

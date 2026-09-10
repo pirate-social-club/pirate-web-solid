@@ -405,6 +405,14 @@ export interface SongFlowRuntime {
 }
 
 export interface PostComposerProps extends Partial<PostComposerDraftState>, PostComposerDraftActions {
+  /** Where the mobile attachment bar belongs.
+   *
+   * It defaults to `fixed`: on a page the bar is a viewport-level bottom bar,
+   * rendered through a portal so page scrolling does not move it. A host that
+   * already owns the viewport — a full-screen dialog — must ask for `inline`
+   * instead, because a portalled bar leaves that host's stacking context and
+   * lands behind its overlay, where it cannot be tapped. */
+  attachmentBarPlacement?: "fixed" | "inline";
   songFlowRuntime?: SongFlowRuntime;
   onVideoEntry?: () => void;
   onClose?: () => void;

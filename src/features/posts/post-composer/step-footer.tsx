@@ -65,10 +65,16 @@ export function PostComposerStepIndicator(props: {
 
 export function PostComposerStepFooter(props: {
   controller: PostComposerController;
+  /** Where the mobile footer belongs. Same rule as the attachment bar: a host
+   * that already owns the viewport gets `inline`, because a portalled footer
+   * leaves that host's stacking context and lands behind its overlay, taking
+   * Back, Next and Publish out of reach. */
+  placement?: "fixed" | "inline";
   steps: ComposerSteps;
   runtime?: SongFlowRuntime;
 }) {
   const controller = props.controller;
+  const placement = () => props.placement ?? "fixed";
   const [preparing, setPreparing] = createSignal(false);
   let advancing = false;
   let mobileBar: HTMLDivElement | undefined;
@@ -76,7 +82,9 @@ export function PostComposerStepFooter(props: {
   createEffect(
     () => mobileBar,
     (nextBar) => {
-      if (!entered && nextBar) {
+      // The entrance slide belongs to a bar that floats in from the bottom
+      // edge. An inline footer is already in the flow, so it just appears.
+      if (!entered && nextBar && placement() === "fixed") {
         animateComposerBarEnter(nextBar);
         entered = true;
       }
@@ -183,7 +191,13 @@ export function PostComposerStepFooter(props: {
   );
 
   const mobile = (
-    <div class="fixed inset-x-0 bottom-0 z-20 border-t border-border-soft bg-background/95 px-4 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-3 backdrop-blur-xl" ref={mobileBar}>
+    <div
+      class={cn(
+        "border-t border-border-soft bg-background/95 px-4 pb-[calc(env(safe-area-inset-bottom)+0.75rem)] pt-3 backdrop-blur-xl",
+        placement() === "inline" ? "w-full" : "fixed inset-x-0 bottom-0 z-20",
+      )}
+      ref={mobileBar}
+    >
       <div class="flex items-center gap-3">
         {back()}
         <div class="min-w-0 flex-1">{forward()}</div>
@@ -192,7 +206,7 @@ export function PostComposerStepFooter(props: {
   );
 
   if (controller.isMobile()) {
-    if (typeof document === "undefined") return mobile;
+    if (placement() === "inline" || typeof document === "undefined") return mobile;
     return <Portal>{mobile}</Portal>;
   }
 

@@ -749,6 +749,7 @@ export function CreatePostDialog(props: CreatePostDialogProps): JSX.Element {
               }
             >
               <PostComposer
+                attachmentBarPlacement="inline"
                 audienceEditingDisabled={mode() === "song"
                   ? mediaRestoring() || mediaRecordRetained()
                   : textState().status !== "editing" && textState().status !== "transport_failure"}
