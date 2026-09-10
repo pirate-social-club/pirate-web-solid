@@ -6,8 +6,8 @@ import type { OwnerSettingsRouteState } from "./owner-settings-route-model";
 import type { OwnerSettingsAccess } from "./owner-settings-model";
 import {
   ownerSettingsAccessFromModerationCapabilities,
-  type CommunityModerationCapabilities,
 } from "./community-moderation-settings-model";
+import { MODERATION_VIEW_AND_ACT } from "./community-moderation-settings-fixtures";
 import { ownerSettingsAccessFromNamesSnapshot } from "./community-names-settings-model";
 import { NAMES_ACTIVE } from "./community-names-settings-fixtures";
 import type { CommunityTelegramSettingsApi } from "./community-telegram-settings-api";
@@ -15,12 +15,14 @@ import { OwnerSettingsRouteView } from "./owner-settings-route-view";
 
 /**
  * Production access is composed from the loader's real derivation functions —
- * a successful owner-only names read grants names and namespace together, the
- * moderation read grants moderation — so the story inherits whatever
- * production derives instead of restating it.
+ * the moderation read gates on moderation.view, a successful owner-only names
+ * read grants names and namespace together — so the story inherits whatever
+ * production derives instead of restating it. Section labels render in both
+ * the desktop sidebar and the mobile nav, so label assertions use the
+ * collision-safe plural queries.
  */
 const productionAccess: OwnerSettingsAccess = {
-  ...ownerSettingsAccessFromModerationCapabilities(["moderation.act"] satisfies CommunityModerationCapabilities),
+  ...ownerSettingsAccessFromModerationCapabilities(MODERATION_VIEW_AND_ACT),
   ...ownerSettingsAccessFromNamesSnapshot(NAMES_ACTIVE),
 };
 
@@ -140,24 +142,29 @@ export const Index: Story = {
   args: { state: successState() },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await waitFor(() => expect(canvas.getByText("Telegram")).toBeInTheDocument());
-    await expect(canvas.getByText("Names")).toBeInTheDocument();
-    await expect(canvas.getByText("Address")).toBeInTheDocument();
-    await expect(canvas.getByText("Moderation")).toBeInTheDocument();
+    await waitFor(() => expect(canvas.getAllByText("Telegram").length).toBeGreaterThan(0));
+    expect(canvas.getAllByText("Names").length).toBeGreaterThan(0);
+    expect(canvas.getAllByText("Address").length).toBeGreaterThan(0);
+    expect(canvas.getAllByText("Moderation").length).toBeGreaterThan(0);
   },
 };
 
-/** An unreachable bot probe hides the bot sections without touching the rest. */
+/**
+ * An unreachable bot probe does not remove the bot sections: a failed check
+ * stays listed (owner-settings-model.ts keeps sections whose read is
+ * unavailable) and surfaces its error only when entered, which is section-view
+ * behavior. The index therefore remains complete, indistinguishable at this
+ * level from the granted-probe story.
+ */
 export const IndexWithoutBotAccess: Story = {
   name: "Index with bot probe unavailable",
   args: { state: successState(), botProbeApi: unavailableProbe },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await waitFor(() => expect(canvas.getByText("Names")).toBeInTheDocument());
-    await expect(canvas.getByText("Address")).toBeInTheDocument();
-    await expect(canvas.getByText("Moderation")).toBeInTheDocument();
-    await expect(canvas.queryByText("Telegram")).toBeNull();
-    await expect(canvas.queryByText("Assistant")).toBeNull();
+    await waitFor(() => expect(canvas.getAllByText("Names").length).toBeGreaterThan(0));
+    expect(canvas.getAllByText("Address").length).toBeGreaterThan(0);
+    expect(canvas.getAllByText("Moderation").length).toBeGreaterThan(0);
+    expect(canvas.getAllByText("Telegram").length).toBeGreaterThan(0);
   },
 };
 

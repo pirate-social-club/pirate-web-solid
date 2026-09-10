@@ -72,8 +72,8 @@ export const Ready: Story = {
   },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await waitFor(() => expect(canvas.getByText("Harbor")).toBeInTheDocument());
-    await expect(canvas.getByText("Open Sea")).toBeInTheDocument();
+    await waitFor(() => expect(canvas.getAllByText("Harbor").length).toBeGreaterThan(0));
+    expect(canvas.getAllByText("Open Sea").length).toBeGreaterThan(0);
   },
 };
 
@@ -86,7 +86,7 @@ export const NoMemberships: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await waitFor(() =>
-      expect(canvas.getByText("You aren't an active member of a Community yet.")).toBeInTheDocument(),
+      expect(canvas.getAllByText("You aren't an active member of a Community yet.").length).toBeGreaterThan(0),
     );
   },
 };
