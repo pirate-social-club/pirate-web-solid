@@ -8,9 +8,13 @@ const currentClient = resolve(
   appRoot,
   "node_modules/@pirate/api-client/src/generated/client.ts",
 );
-// Client 0.68.2 preserves the audited statuses and adds only the bounded,
-// optional failure_reason field to failed HNS root-import responses.
-const expectedDigest = "59e586493fd61b9e0e181164eeb3ceb535436aeca91f1bfdfecdd075070b995d";
+// Client 0.71.0, audited against 0.68.2. Success statuses are unchanged. The
+// song-reference reservation response gains its frozen interval; reservation
+// errors gain 403 eligibility_failed and a retryable 409 conflict; a video
+// submission's intent may be song_reference and a blocked one may carry
+// song_reference_invalid with song_reason_code; a post's song soundtrack carries
+// render_mode. The song-video interval preflight is newly consumed.
+const expectedDigest = "1a5c715d8f2322d7509043c7ca821644355f8d46896d58e90cce346e75fea263";
 
 const operations = [
   "post_postsPostIdVideoPlaybackAccess",
@@ -29,6 +33,7 @@ const operations = [
   "post_communitiesCommunityIdJoin",
   "post_verificationSessions",
   "post_verificationSessionsProofSessionIdComplete",
+  "post_communitiesCommunityIdSongVideoIntervalPreflights",
   "post_communitiesCommunityIdMediaUploadReservations",
   "post_communitiesCommunityIdMediaPostSubmissions",
   "post_mediaPostSubmissionsSubmissionIdTerms",
