@@ -4,13 +4,24 @@ import type { GetCommunitiesCommunityIdTelegramResponse } from "@pirate/api-clie
 
 import type { OwnerSettingsRouteState } from "./owner-settings-route-model";
 import type { OwnerSettingsAccess } from "./owner-settings-model";
+import {
+  ownerSettingsAccessFromModerationCapabilities,
+  type CommunityModerationCapabilities,
+} from "./community-moderation-settings-model";
+import { ownerSettingsAccessFromNamesSnapshot } from "./community-names-settings-model";
+import { NAMES_ACTIVE } from "./community-names-settings-fixtures";
 import type { CommunityTelegramSettingsApi } from "./community-telegram-settings-api";
 import { OwnerSettingsRouteView } from "./owner-settings-route-view";
 
-/** Production access derives only from the moderation, names and Telegram reads. */
+/**
+ * Production access is composed from the loader's real derivation functions —
+ * a successful owner-only names read grants names and namespace together, the
+ * moderation read grants moderation — so the story inherits whatever
+ * production derives instead of restating it.
+ */
 const productionAccess: OwnerSettingsAccess = {
-  "community.moderation.manage": true,
-  "community.names.manage": true,
+  ...ownerSettingsAccessFromModerationCapabilities(["moderation.act"] satisfies CommunityModerationCapabilities),
+  ...ownerSettingsAccessFromNamesSnapshot(NAMES_ACTIVE),
 };
 
 function successState(
@@ -120,8 +131,9 @@ export const Unavailable: Story = {
 };
 
 /**
- * The management index under production access: moderation and names from the
- * routed reads, plus the bot sections once the deferred probe resolves.
+ * The management index under production access: moderation from the moderation
+ * read, names and Address together from the names read, plus the bot sections
+ * once the deferred probe resolves.
  */
 export const Index: Story = {
   name: "Index with bot access",
@@ -130,6 +142,7 @@ export const Index: Story = {
     const canvas = within(canvasElement);
     await waitFor(() => expect(canvas.getByText("Telegram")).toBeInTheDocument());
     await expect(canvas.getByText("Names")).toBeInTheDocument();
+    await expect(canvas.getByText("Address")).toBeInTheDocument();
     await expect(canvas.getByText("Moderation")).toBeInTheDocument();
   },
 };
@@ -141,6 +154,8 @@ export const IndexWithoutBotAccess: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await waitFor(() => expect(canvas.getByText("Names")).toBeInTheDocument());
+    await expect(canvas.getByText("Address")).toBeInTheDocument();
+    await expect(canvas.getByText("Moderation")).toBeInTheDocument();
     await expect(canvas.queryByText("Telegram")).toBeNull();
     await expect(canvas.queryByText("Assistant")).toBeNull();
   },
