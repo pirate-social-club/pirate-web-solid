@@ -1,5 +1,7 @@
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 
+import { KaraokeAvailabilityError } from "../../karaoke/karaoke-api";
+import { KaraokeApiError } from "../../karaoke/karaoke-session-bridge";
 import { SongExcerptComposer } from "./song-excerpt-composer";
 import { frequencyAt } from "./song-excerpt-audio";
 import { makeMemoryExcerptDraftStore } from "./song-excerpt-surface";
@@ -120,6 +122,57 @@ export const FailedToLoad: Story = {
       read={async () => {
         throw new Error("GET /communities/x/posts/y 403");
       }}
+      store={makeMemoryExcerptDraftStore()}
+    />
+  ),
+};
+
+/** Still being prepared. Retrying can change this answer, so a retry is
+ * offered. */
+export const StillProcessing: Story = {
+  render: () => (
+    <SongExcerptComposer
+      read={async () => {
+        throw new KaraokeAvailabilityError("processing", "still_processing");
+      }}
+      store={makeMemoryExcerptDraftStore()}
+    />
+  ),
+};
+
+/** No karaoke audio at all. Retrying cannot change it, so none is offered. */
+export const NoKaraokeAudio: Story = {
+  render: () => (
+    <SongExcerptComposer
+      read={async () => {
+        throw new KaraokeAvailabilityError("unavailable", "no_karaoke");
+      }}
+      store={makeMemoryExcerptDraftStore()}
+    />
+  ),
+};
+
+/** About the viewer rather than the song, so it is kept separate from both. */
+export const AgeRestricted: Story = {
+  render: () => (
+    <SongExcerptComposer
+      read={async () => {
+        throw new KaraokeApiError("age_locked", "Age verification is required.", 403, false);
+      }}
+      store={makeMemoryExcerptDraftStore()}
+    />
+  ),
+};
+
+/** The payload read succeeds and the audio still does not play: a ref that
+ * does not fetch. The surface says so instead of waiting for a length. */
+export const AudioWontPlay: Story = {
+  render: () => (
+    <SongExcerptComposer
+      read={async () => ({
+        instrumental_audio_url: "https://audio.invalid/missing.mp3",
+        title: "A song whose audio moved",
+      })}
       store={makeMemoryExcerptDraftStore()}
     />
   ),

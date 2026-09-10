@@ -1,5 +1,13 @@
 import { describe, expect, it } from "vitest";
 
+import { KaraokeAvailabilityError } from "../../karaoke/karaoke-api";
+import { KaraokeApiError } from "../../karaoke/karaoke-session-bridge";
+import { makeSongExcerptDraft, SONG_EXCERPT_DRAFT_VERSION } from "./song-excerpt-draft";
+import {
+  createLocalExcerptDraftStore,
+  excerptDraftStorageKey,
+  SongExcerptDraftUnwritable,
+} from "./song-excerpt-draft-store";
 import { parseSongLink } from "./song-excerpt-link";
 import { loadSongSource } from "./song-excerpt-source";
 
@@ -89,5 +97,93 @@ describe("resolving a song post into a playable source", () => {
       title: "",
     }));
     if (state.kind === "ready") expect(state.title).toBe("Untitled song");
+  });
+});
+
+describe("telling the refusals apart", () => {
+  // The real error types, not stand-ins: what matters is that the states this
+  // surface shows follow from what the Karaoke read actually throws.
+  const refuse = (error: Error) => loadSongSource("abc123def456", async () => { throw error; });
+
+  it("says a song still being prepared is unavailable for now, and offers a retry", async () => {
+    const state = await refuse(new KaraokeAvailabilityError("processing", "still_processing"));
+    expect(state.kind).toBe("unavailable");
+    if (state.kind === "unavailable") {
+      expect(state.reason).toContain("still being prepared");
+      expect(state.retryable).toBe(true);
+    }
+  });
+
+  it("says a song with no karaoke audio will not become available by retrying", async () => {
+    const state = await refuse(new KaraokeAvailabilityError("unavailable", "no_karaoke"));
+    expect(state.kind).toBe("unavailable");
+    if (state.kind === "unavailable") {
+      expect(state.reason).toContain("no karaoke audio");
+      expect(state.retryable).toBe(false);
+    }
+  });
+
+  it("keeps age restriction separate, because it is about the viewer not the song", async () => {
+    const state = await refuse(
+      new KaraokeApiError("age_locked", "Age verification is required for this song.", 403, false),
+    );
+    expect(state.kind).toBe("restricted");
+    if (state.kind === "restricted") expect(state.reason).toContain("age restricted");
+  });
+
+  it("gives the three refusals three different meanings", async () => {
+    const [processing, unavailable, restricted] = await Promise.all([
+      refuse(new KaraokeAvailabilityError("processing", "still_processing")),
+      refuse(new KaraokeAvailabilityError("unavailable", "no_karaoke")),
+      refuse(new KaraokeApiError("age_locked", "Age verification is required.", 403, false)),
+    ]);
+    const reasons = [processing, unavailable, restricted].map((state) =>
+      "reason" in state ? state.reason : "",
+    );
+    expect(new Set(reasons).size).toBe(3);
+  });
+
+  it("does not offer a retry for a failure the API called final", async () => {
+    const state = await refuse(new KaraokeApiError("invalid_karaoke_response", "bad", 502, false));
+    expect(state.kind).toBe("error");
+    if (state.kind === "error") {
+      expect(state.retryable).toBe(false);
+      expect(state.reason).not.toContain("invalid_karaoke_response");
+    }
+  });
+});
+
+describe("keeping the excerpt across a closed composer", () => {
+  it("round-trips a draft through the browser store", async () => {
+    const store = createLocalExcerptDraftStore("principal-1");
+    await store.save(makeSongExcerptDraft("abc123def456", { startMs: 62_400, endMs: 76_400 }));
+    expect(await store.load()).toEqual({
+      endMs: 76_400,
+      songPostId: "abc123def456",
+      startMs: 62_400,
+      version: SONG_EXCERPT_DRAFT_VERSION,
+    });
+  });
+
+  it("reports a refused write rather than pretending the excerpt was kept", async () => {
+    const original = Storage.prototype.setItem;
+    Storage.prototype.setItem = () => {
+      throw new Error("QuotaExceededError");
+    };
+    try {
+      const store = createLocalExcerptDraftStore("principal-2");
+      await expect(
+        store.save(makeSongExcerptDraft("abc123def456", { startMs: 0, endMs: 9_000 })),
+      ).rejects.toBeInstanceOf(SongExcerptDraftUnwritable);
+    } finally {
+      Storage.prototype.setItem = original;
+    }
+  });
+
+  it("treats bytes that are not a draft as nothing to restore", async () => {
+    localStorage.setItem(excerptDraftStorageKey("principal-3"), "{not json");
+    expect(await createLocalExcerptDraftStore("principal-3").load()).toBeNull();
+    localStorage.setItem(excerptDraftStorageKey("principal-4"), JSON.stringify({ startMs: 0 }));
+    expect(await createLocalExcerptDraftStore("principal-4").load()).toBeNull();
   });
 });

@@ -60,8 +60,17 @@ export function SongExcerptComposer(props: {
   const [positionMs, setPositionMs] = createSignal(0);
   const [retained, setRetained] = createSignal<{ bounds: ExcerptBounds; songPostId: string }>();
   const [note, setNote] = createSignal<string>();
+  // A payload can read cleanly and still yield audio this browser cannot use:
+  // a ref that does not fetch, a container it cannot decode, or a stream whose
+  // length is unknown. None of that reaches `loadSongSource`, so the element
+  // reports it here and the surface stops waiting.
+  const [audioProblem, setAudioProblem] = createSignal<string>();
 
   let audio: HTMLAudioElement | undefined;
+  // Bounds read back from the draft, waiting for a length to be clamped
+  // against. Applied by `noteDuration`, because they are only meaningful once
+  // the song's length is known.
+  let pendingRestore: ExcerptBounds | undefined;
   let pending: AbortController | undefined;
   // Only the newest load may set state. Aborting the previous one is not
   // enough: a reader that ignores its signal can still resolve late and
@@ -86,10 +95,28 @@ export function SongExcerptComposer(props: {
     });
   };
 
-  /** The excerpt ends where the author said it ends, not where the song does. */
+  /** The excerpt ends where the author said it ends, not where the song does.
+   *
+   * It also has to begin where they said. Seeking is a request, not a
+   * guarantee: a host that serves the audio without range support leaves the
+   * element at the beginning, and playback then runs from the top of the song
+   * while the surface says it is playing the excerpt. Playing the wrong audio
+   * under the right label is worse than not playing at all, so a playhead
+   * before the excerpt stops it and says so. */
   const observe = (atMs: number) => {
     setPositionMs(Math.round(atMs));
-    if (playing() && atMs >= bounds().endMs) stopPlayback();
+    if (!playing()) return;
+    if (atMs < bounds().startMs - 500) {
+      stopPlayback();
+      setNote("This browser couldn’t start that audio at the chosen point, so nothing was played.");
+      return;
+    }
+    if (atMs >= bounds().endMs) stopPlayback();
+  };
+
+  const currentPostId = () => {
+    const state = source();
+    return state.kind === "idle" ? undefined : state.postId;
   };
 
   const stopPlayback = () => {
@@ -113,6 +140,7 @@ export function SongExcerptComposer(props: {
     setLinkProblem(undefined);
     stopPlayback();
     setNote(undefined);
+    setAudioProblem(undefined);
     setDurationMs(0);
     setPositionMs(0);
     setBounds({ startMs: 0, endMs: 0 });
@@ -121,19 +149,63 @@ export function SongExcerptComposer(props: {
     const mine = ++generation;
     setSource({ kind: "loading", postId: parsed.postId });
     const next = await loadSongSource(parsed.postId, reader, pending.signal);
-    if (mine === generation) setSource(next);
+    if (mine !== generation) return;
+    setSource(next);
+    // Reopening the draft should not need a second action: if this song
+    // already has a retained excerpt, it comes back with the song. The bounds
+    // are applied once a length is known, which is why they are held here
+    // rather than written straight into the selector.
+    if (next.kind === "ready") {
+      const held = await store.load();
+      if (mine === generation && held?.songPostId === next.postId) {
+        pendingRestore = { endMs: held.endMs, startMs: held.startMs };
+      }
+    }
   };
 
   /** The length comes from the audio element, not from the payload: the element
    * is the thing that will play, so its own idea of the length is the one the
-   * bounds have to respect. */
-  const noteDuration = (seconds: number) => {
+   * bounds have to respect.
+   *
+   * Once metadata has loaded, a length that is not a positive finite number is
+   * final rather than pending — a live or unbounded stream reports `Infinity`
+   * and never improves — so it is reported as unusable instead of leaving the
+   * surface waiting for a number that is not coming. */
+  const noteDuration = (seconds: number, settled: boolean) => {
     const total = Math.round(seconds * 1_000);
-    if (!Number.isFinite(total) || total <= 0) return;
-    setDurationMs(total);
-    setBounds((current) =>
-      current.endMs > 0 ? clampExcerpt(current, total) : defaultExcerpt(total),
-    );
+    if (Number.isFinite(total) && total > 0) {
+      setAudioProblem(undefined);
+      setDurationMs(total);
+      const held = pendingRestore;
+      pendingRestore = undefined;
+      if (held) {
+        const restored = clampExcerpt(held, total);
+        if (isSubmittableExcerpt(restored, total)) {
+          setBounds(restored);
+          setPositionMs(restored.startMs);
+          setRetained({ bounds: restored, songPostId: currentPostId() ?? "" });
+          setNote(`Restored ${restored.startMs}–${restored.endMs} ms from the video draft.`);
+          return;
+        }
+      }
+      setBounds((current) =>
+        current.endMs > 0 ? clampExcerpt(current, total) : defaultExcerpt(total),
+      );
+      return;
+    }
+    if (settled) {
+      setDurationMs(0);
+      setAudioProblem(
+        "That audio doesn’t report a length this browser can excerpt from, so an excerpt can’t be chosen from it.",
+      );
+    }
+  };
+
+  /** The element could not fetch or decode the source at all. */
+  const noteAudioFailure = () => {
+    stopPlayback();
+    setDurationMs(0);
+    setAudioProblem("That audio couldn’t be played in this browser. It may have moved or expired.");
   };
 
   const changeBounds = (next: ExcerptBounds) => {
@@ -175,8 +247,21 @@ export function SongExcerptComposer(props: {
 
   const retain = async (songPostId: string) => {
     if (!submittable()) return;
-    await retainSongExcerpt(store, songPostId, bounds());
-    setRetained({ bounds: bounds(), songPostId });
+    const chosen = bounds();
+    try {
+      await retainSongExcerpt(store, songPostId, chosen);
+    } catch (failure) {
+      // A store that refused the write is reported, never treated as retained:
+      // saying an excerpt was kept when it was not is the one outcome worse
+      // than failing to keep it.
+      setNote(
+        failure instanceof Error
+          ? failure.message
+          : "The excerpt couldn’t be kept with the draft.",
+      );
+      return;
+    }
+    setRetained({ bounds: chosen, songPostId });
     setNote(undefined);
   };
 
@@ -206,7 +291,7 @@ export function SongExcerptComposer(props: {
   return (
     <section class="mx-auto grid max-w-md gap-4 p-4">
       <div class="grid gap-2">
-        <Type as="h2" variant="h4">1. Choose a song</Type>
+        <Type as="h2" variant="h4">Choose a song</Type>
         <Type as="p" variant="caption">
           Paste a song link or its post id. Browsing a list of songs isn’t available yet.
         </Type>
@@ -236,15 +321,30 @@ export function SongExcerptComposer(props: {
         <Type as="p" variant="caption">Loading that song…</Type>
       </Show>
       <Show when={problemOf(source())}>
-        {(reason) => <Type as="p" variant="caption" role="alert">{reason()}</Type>}
+        {(reason) => (
+          <div class="grid gap-2">
+            <Type as="p" variant="caption" role="alert">{reason()}</Type>
+            <Show when={retryableProblem(source())}>
+              <button
+                class="justify-self-start rounded-[var(--radius-lg)] border border-border p-3"
+                onClick={() => void loadSong()}
+                type="button"
+              >
+                Try loading it again
+              </button>
+            </Show>
+          </div>
+        )}
       </Show>
 
       <Show when={readyOf(source())}>
         {(ready) => (
           <>
             <audio
-              onDurationChange={(event) => noteDuration(event.currentTarget.duration)}
+              onDurationChange={(event) => noteDuration(event.currentTarget.duration, false)}
               onEnded={() => stopPlayback()}
+              onError={() => noteAudioFailure()}
+              onLoadedMetadata={(event) => noteDuration(event.currentTarget.duration, true)}
               onTimeUpdate={(event) => observe(event.currentTarget.currentTime * 1_000)}
               preload="metadata"
               ref={(element) => {
@@ -254,17 +354,29 @@ export function SongExcerptComposer(props: {
             />
 
             <div class="grid gap-2">
-              <Type as="h2" variant="h4">2. Adjust the excerpt</Type>
+              <Type as="h2" variant="h4">Adjust the excerpt</Type>
               <Type as="p" variant="body">{ready().title}</Type>
               <Show
                 fallback={
-                  <Type as="p" variant="caption">
-                    {durationMs() > 0
-                      ? "That song is too short to hold a six second excerpt."
-                      : "Reading the song’s length…"}
-                  </Type>
+                  <div class="grid gap-2">
+                    <Type as="p" variant="caption" role={audioProblem() ? "alert" : undefined}>
+                      {audioProblem() ??
+                        (durationMs() > 0
+                          ? "That song is too short to hold a six second excerpt."
+                          : "Reading the song’s length…")}
+                    </Type>
+                    <Show when={audioProblem()}>
+                      <button
+                        class="justify-self-start rounded-[var(--radius-lg)] border border-border p-3"
+                        onClick={() => void loadSong()}
+                        type="button"
+                      >
+                        Try loading it again
+                      </button>
+                    </Show>
+                  </div>
                 }
-                when={durationMs() > 0 && canHoldExcerpt(durationMs())}
+                when={!audioProblem() && durationMs() > 0 && canHoldExcerpt(durationMs())}
               >
                 <PostComposerExcerptSelector
                   bounds={bounds()}
@@ -287,7 +399,7 @@ export function SongExcerptComposer(props: {
             </div>
 
             <div class="grid gap-2">
-              <Type as="h2" variant="h4">3. Retain it with the video draft</Type>
+              <Type as="h2" variant="h4">Retain it with the video draft</Type>
               <div class="flex gap-2">
                 <button
                   class="flex-1 rounded-[var(--radius-lg)] bg-primary p-3 text-primary-foreground disabled:opacity-50"
@@ -331,11 +443,16 @@ export function SongExcerptComposer(props: {
       </Show>
 
       {/* Visible text rather than a title tooltip: a tooltip is not reachable
-          by touch, and this is a phone surface. Neither action is implemented,
-          and neither owner-policy check behind them has been made. */}
+          by touch, and this is a phone surface. This sits inside a composer
+          that really does publish, so the wording has to be exact about what
+          publishing does and does not carry. Neither owner-policy check behind
+          these has been made. */}
       <div class="grid gap-2">
         <div class="rounded-[var(--radius-lg)] border border-dashed border-muted-foreground/40 p-3">
-          <Type as="p" variant="caption">Publishing isn’t available yet.</Type>
+          <Type as="p" variant="caption">
+            This excerpt is kept with the draft. It isn’t sent with the video yet, and publishing
+            won’t include it.
+          </Type>
         </div>
         <div class="rounded-[var(--radius-lg)] border border-dashed border-muted-foreground/40 p-3">
           <Type as="p" variant="caption">MP3 download isn’t available yet.</Type>
@@ -352,7 +469,17 @@ function readyOf(state: SongSourceState) {
 }
 
 function problemOf(state: SongSourceState): string | undefined {
-  return state.kind === "unavailable" || state.kind === "error" ? state.reason : undefined;
+  return state.kind === "unavailable" || state.kind === "error" || state.kind === "restricted"
+    ? state.reason
+    : undefined;
+}
+
+/** Whether loading again could plausibly give a different answer. A song still
+ * being prepared becomes playable; a song with no karaoke audio and an
+ * age-restricted one do not, and offering to retry them would waste the
+ * reader's time on a fix that is not theirs to make. */
+function retryableProblem(state: SongSourceState): boolean {
+  return (state.kind === "unavailable" || state.kind === "error") && state.retryable;
 }
 
 let sharedReader: SongPayloadReader | undefined;

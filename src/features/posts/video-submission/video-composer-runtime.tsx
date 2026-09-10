@@ -1,5 +1,7 @@
 import { createSignal, onCleanup, Show } from "solid-js";
 import { Button, FormNote } from "../../../design-system";
+import { SongExcerptComposer } from "../post-composer/song-excerpt-composer";
+import { createLocalExcerptDraftStore } from "../post-composer/song-excerpt-draft-store";
 import { OriginalVideoCaptureSurface, OriginalVideoReviewSurface } from "../post-composer/video-original-audio-surface";
 import type { VideoCaptureSession } from "./capture";
 import { canDiscardRejectedVideo, VideoCoordinator, type PendingVideo, type VideoStorage } from "./coordinator";
@@ -29,6 +31,10 @@ export function VideoComposerRuntime(props: {
   const [captureStatus, setCaptureStatus] = createSignal<"idle" | "recording" | "camera_denied" | "capability_unavailable" | "orientation_lost">("idle");
   const [stream, setStream] = createSignal<MediaStream | null>(null);
   const mobile = typeof matchMedia !== "undefined" && matchMedia("(pointer: coarse) and (max-width: 767px)").matches;
+  // One draft store per principal, built once. The excerpt is kept beside the
+  // video draft rather than inside it: the video record is the coordinator's
+  // and is governed by a submission contract this selection is not part of yet.
+  const excerptStore = createLocalExcerptDraftStore(props.principalId);
   let picker: HTMLInputElement | undefined;
   let session: VideoCaptureSession | null = null;
   let disposed = false;
@@ -146,6 +152,13 @@ export function VideoComposerRuntime(props: {
       <OriginalVideoReviewSurface caption={caption()} onCaptionChange={setCaption} submitting={busy()} onPublish={() => { void publish(); }}
         onBack={() => { if (!busy()) { setFile(null); const url = preview(); if (url) URL.revokeObjectURL(url); setPreview(undefined); } }}
         preview={<video src={preview()} controls playsinline class="h-full w-full object-contain" />} />
+      {/* Choosing the song this video is danced to. It is kept with the draft
+          and is not part of this submission: phase one publishes original
+          audio, and a song-backed publication is a different contract that is
+          not built. The surface says so rather than implying otherwise. */}
+      <section aria-label="Song excerpt for this video">
+        <SongExcerptComposer store={excerptStore} />
+      </section>
     </Show>
     <Show when={record()}>
       <p role="status">Video state: {record()?.rejection ? "request rejected" : state()?.status.replaceAll("_", " ") ?? "reservation pending"}.</p>
