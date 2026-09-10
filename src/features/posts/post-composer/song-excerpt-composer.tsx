@@ -168,7 +168,13 @@ export function SongExcerptComposer(props: {
     });
   };
 
+  /** Whether the current selection is one the draft can hold. The selector
+   * keeps bounds in range, but it is only rendered once a length is known, and
+   * until then the bounds are the zero-length pair the component starts with. */
+  const submittable = () => isSubmittableExcerpt(bounds(), durationMs());
+
   const retain = async (songPostId: string) => {
+    if (!submittable()) return;
     await retainSongExcerpt(store, songPostId, bounds());
     setRetained({ bounds: bounds(), songPostId });
     setNote(undefined);
@@ -176,6 +182,13 @@ export function SongExcerptComposer(props: {
 
   /** Reopening the draft: discard what is on screen and read it back. */
   const reopen = async (songPostId: string) => {
+    // A retained draft is read back against the song's length, so without one
+    // there is nothing to check it against — which is not the same as there
+    // being no draft, and must not be reported as though it were.
+    if (durationMs() <= 0) {
+      setNote("The song’s length isn’t known yet, so a retained excerpt can’t be read back.");
+      return;
+    }
     const restored = await restoreSongExcerpt(store, {
       durationMs: durationMs(),
       id: songPostId,
@@ -277,7 +290,8 @@ export function SongExcerptComposer(props: {
               <Type as="h2" variant="h4">3. Retain it with the video draft</Type>
               <div class="flex gap-2">
                 <button
-                  class="flex-1 rounded-[var(--radius-lg)] bg-primary p-3 text-primary-foreground"
+                  class="flex-1 rounded-[var(--radius-lg)] bg-primary p-3 text-primary-foreground disabled:opacity-50"
+                  disabled={!submittable()}
                   onClick={() => void retain(ready().postId)}
                   type="button"
                 >
@@ -291,6 +305,12 @@ export function SongExcerptComposer(props: {
                   Reopen draft
                 </button>
               </div>
+              <Show when={!submittable()}>
+                <Type as="p" variant="caption">
+                  An excerpt can be retained once it is six to thirty seconds inside a song of
+                  known length.
+                </Type>
+              </Show>
               <Show
                 fallback={<Type as="p" variant="caption">Nothing retained yet.</Type>}
                 when={retained()}
