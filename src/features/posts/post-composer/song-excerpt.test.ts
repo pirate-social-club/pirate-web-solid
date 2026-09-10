@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   canHoldExcerpt,
   clampExcerpt,
+  DEFAULT_EXCERPT_MS,
   defaultExcerpt,
   excerptLengthMs,
   formatExcerptTime,
@@ -18,11 +19,19 @@ import {
 const SONG = 214_000; // 3:34, a plausible song length.
 
 describe("song excerpt bounds", () => {
-  it("defaults to the opening at the maximum length the song allows", () => {
-    expect(defaultExcerpt(SONG)).toEqual({ startMs: 0, endMs: MAX_EXCERPT_MS });
-    // A song shorter than the maximum yields the whole song, not an excerpt
+  it("defaults to the opening 30 seconds, or the whole song when shorter", () => {
+    expect(defaultExcerpt(SONG)).toEqual({ startMs: 0, endMs: DEFAULT_EXCERPT_MS });
+    expect(DEFAULT_EXCERPT_MS).toBe(30_000);
+    // A song shorter than the default yields the whole song, not an interval
     // that runs past its end.
     expect(defaultExcerpt(12_000)).toEqual({ startMs: 0, endMs: 12_000 });
+    // The default is a starting point: the author can still stretch to 180 s.
+    expect(maxExcerptMs(SONG)).toBe(MAX_EXCERPT_MS);
+  });
+
+  it("treats a song shorter than three seconds as unavailable", () => {
+    expect(canHoldExcerpt(2_999)).toBe(false);
+    expect(canHoldExcerpt(3_000)).toBe(true);
   });
 
   it("refuses to treat a song shorter than the minimum as excerptable", () => {

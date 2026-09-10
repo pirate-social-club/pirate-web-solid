@@ -31,12 +31,19 @@ export function maxExcerptMs(songDurationMs: number): number {
   return Math.min(MAX_EXCERPT_MS, whole(songDurationMs));
 }
 
-/** Where a selection starts when the author has not chosen one. Deliberately
- * the opening of the song rather than a guess at a chorus: a default that
- * pretends to be clever is worse than one the author can see is arbitrary. */
+/** How long the selection is before the author touches it, set by the owner on
+ * 2026-09-10. It is a starting point, not a limit: the author can still adjust
+ * anywhere from 3 to 180 seconds. */
+export const DEFAULT_EXCERPT_MS = 30_000;
+
+/** Where a selection starts when the author has not chosen one: the opening 30
+ * seconds, or the whole song when it is shorter. Deliberately the opening rather
+ * than a guess at a chorus — a default that pretends to be clever is worse than
+ * one the author can see is arbitrary. A song shorter than the 3 second minimum
+ * cannot back a video at all; `canHoldExcerpt` says so before this is asked. */
 export function defaultExcerpt(songDurationMs: number): ExcerptBounds {
   const duration = whole(songDurationMs);
-  return { startMs: 0, endMs: Math.min(duration, MAX_EXCERPT_MS) };
+  return { startMs: 0, endMs: Math.min(duration, DEFAULT_EXCERPT_MS) };
 }
 
 /** Move the whole excerpt, preserving its length. This is what dragging the
