@@ -1,3 +1,4 @@
+import { ApiClientError } from "@pirate/api-client";
 import { createSignal, onCleanup, Show } from "solid-js";
 
 import { Type } from "../../../design-system";
@@ -19,6 +20,16 @@ import {
 } from "./song-excerpt-draft";
 import { parseSongLink } from "./song-excerpt-link";
 import { loadSongSource, type SongPayloadReader, type SongSourceState } from "./song-excerpt-source";
+import {
+  canonicalTiming,
+  type CanonicalSongTiming,
+  intervalFromExcerpt,
+  type SongIntervalPreflight,
+  songPlanFromError,
+  songPlanFromPreflight,
+  type SongPlanState,
+  songPlanText,
+} from "../video-submission/song-reference";
 
 /** Choosing a real song by link, hearing the selected excerpt of its canonical
  * audio, adjusting it, and retaining it with the video draft.
@@ -29,18 +40,27 @@ import { loadSongSource, type SongPayloadReader, type SongSourceState } from "./
  *
  * The audio is the song's real full mix, read through the Karaoke payload the
  * Karaoke surface already plays. That proves a playback source exists and
- * nothing more. Whether this audio may be rendered into a published video, or
- * cut into a downloadable MP3, is an owner-policy question this surface does
- * not ask and must not appear to answer: both actions are shown as
- * unavailable, and the checks behind them are unbuilt.
+ * nothing more. Whether this audio may be rendered into a published video is
+ * the server's decision, asked through the preflight below and decided again at
+ * reservation; this surface reports that answer and never infers one. Cutting a
+ * downloadable MP3 is not asked at all and stays unavailable.
  *
  * No fixture is ever substituted here. A song that fails to load says so, in
  * every case, because a surface that quietly played something else would make
  * a broken read look like a working one.
+ *
+ * Given a community and a preflight, the server's answer takes over: its
+ * canonical length and interval policy bound the selection, and retaining an
+ * excerpt asks it whether this video can be posted to the song. The plan it
+ * reports is what the video composer publishes with. Without them the excerpt
+ * is only kept with the draft, and the surface says so.
  */
 export function SongExcerptComposer(props: {
   read?: SongPayloadReader;
   store: SongExcerptDraftStore;
+  communityId?: string;
+  preflight?: SongIntervalPreflight;
+  onPlan?: (state: SongPlanState) => void;
 }) {
   // The store and the reader are captured once, not read per call. A caller
   // writing `store={makeStore()}` passes a prop getter that builds a new store
@@ -50,6 +70,9 @@ export function SongExcerptComposer(props: {
   // reactively and a draft to lose.
   const store = props.store;
   const reader = props.read ?? defaultPayloadReader();
+  const communityId = props.communityId;
+  const preflight = communityId === undefined ? undefined : props.preflight;
+  const reportPlan = props.onPlan;
 
   const [link, setLink] = createSignal("");
   const [linkProblem, setLinkProblem] = createSignal<string>();
@@ -65,6 +88,19 @@ export function SongExcerptComposer(props: {
   // length is unknown. None of that reaches `loadSongSource`, so the element
   // reports it here and the surface stops waiting.
   const [audioProblem, setAudioProblem] = createSignal<string>();
+  // The server's timing for the loaded song, once it has answered. It replaces
+  // the element's length as the bound: the element decodes for playback, the
+  // server measured the canonical samples the video is rendered from.
+  const [timing, setTiming] = createSignal<CanonicalSongTiming>();
+  const [plan, setPlanState] = createSignal<SongPlanState>({ kind: "none" });
+  const setPlan = (next: SongPlanState) => {
+    setPlanState(next);
+    reportPlan?.(next);
+  };
+  /** The length the selection is bounded by: the server's when known, and
+   * otherwise the element's. */
+  const boundBy = (elementMs: number) => timing()?.durationMs ?? elementMs;
+  const lengthMs = () => boundBy(durationMs());
 
   let audio: HTMLAudioElement | undefined;
   // Bounds read back from the draft, waiting for a length to be clamped
@@ -76,6 +112,22 @@ export function SongExcerptComposer(props: {
   // enough: a reader that ignores its signal can still resolve late and
   // overwrite the song the person is now looking at.
   let generation = 0;
+  // Each check supersedes the one before it, so a late answer about an older
+  // excerpt can never become the plan for the current one.
+  let check: AbortController | undefined;
+  let recheck: ReturnType<typeof setTimeout> | undefined;
+  let timingRetry: ReturnType<typeof setTimeout> | undefined;
+  const stopPlanCheck = () => {
+    check?.abort();
+    check = undefined;
+    if (recheck !== undefined) clearTimeout(recheck);
+    recheck = undefined;
+  };
+  const stopChecking = () => {
+    stopPlanCheck();
+    if (timingRetry !== undefined) clearTimeout(timingRetry);
+    timingRetry = undefined;
+  };
 
   // The playhead is watched on animation frames rather than on `timeupdate`,
   // which fires about four times a second and would let the excerpt run up to
@@ -127,9 +179,71 @@ export function SongExcerptComposer(props: {
 
   onCleanup(() => {
     stopWatching();
+    stopChecking();
     audio?.pause();
     pending?.abort();
   });
+
+  /** The server's timing for a song, asked before any excerpt is chosen. A
+   * song-level refusal (not available yet, not permitted, unmeasurable) is
+   * shown straight away; a failed read falls back to the element's length and
+   * the check at retain time asks again. */
+  const requestTiming = async (songPostId: string, mine: number, attempt = 0) => {
+    if (!preflight || communityId === undefined) return;
+    try {
+      const response = await preflight({ path: { communityId }, body: { song_post_id: songPostId } }, pending?.signal);
+      if (mine !== generation) return;
+      const known = canonicalTiming(response);
+      if (known) {
+        setTiming(known);
+        setBounds((current) => (current.endMs > 0 ? clampExcerpt(current, known.durationMs) : current));
+        return;
+      }
+      if (response.state === "unavailable") setPlan({ kind: "timing_unavailable" });
+      else if (response.state === "measuring" && attempt < 30) {
+        timingRetry = setTimeout(() => void requestTiming(songPostId, mine, attempt + 1), response.retry_after_ms);
+      }
+    } catch (failure) {
+      if (mine !== generation || !(failure instanceof ApiClientError)) return;
+      const state = songPlanFromError(failure);
+      if (state.kind === "not_available" || state.kind === "ineligible" || state.kind === "timing_unavailable") {
+        setPlan(state);
+      }
+    }
+  };
+
+  /** Asks whether the retained excerpt can back this video. */
+  const checkPlan = async (songPostId: string, chosen: ExcerptBounds, attempt = 0) => {
+    if (!preflight || communityId === undefined) return;
+    stopPlanCheck();
+    const controller = new AbortController();
+    check = controller;
+    setPlan({ kind: "checking" });
+    let next: SongPlanState;
+    try {
+      const response = await preflight(
+        { path: { communityId }, body: { song_post_id: songPostId, interval: intervalFromExcerpt(chosen) } },
+        controller.signal,
+      );
+      next = songPlanFromPreflight(response, { songPostId, bounds: chosen });
+      // The verdict carries the timing too; it is the newest the server gave.
+      const known = canonicalTiming(response);
+      if (known && check === controller) setTiming(known);
+    } catch (failure) {
+      if (controller.signal.aborted) return;
+      // An undeclared failure — offline, a malformed answer — could be anything,
+      // so it is reported as a check that failed and can be tried again.
+      next = failure instanceof ApiClientError ? songPlanFromError(failure) : { kind: "failed", retryable: true };
+    }
+    if (check !== controller) return;
+    check = undefined;
+    setPlan(next);
+    // A song still being measured is asked again, for about a minute at the
+    // server's suggested pace, and then left for the author to retry.
+    if (next.kind === "measuring" && attempt < 30) {
+      recheck = setTimeout(() => void checkPlan(songPostId, chosen, attempt + 1), next.retryAfterMs);
+    }
+  };
 
   const loadSong = async () => {
     const parsed = parseSongLink(link());
@@ -139,8 +253,12 @@ export function SongExcerptComposer(props: {
     }
     setLinkProblem(undefined);
     stopPlayback();
+    stopChecking();
     setNote(undefined);
     setAudioProblem(undefined);
+    setTiming(undefined);
+    setRetained(undefined);
+    setPlan({ kind: "none" });
     setDurationMs(0);
     setPositionMs(0);
     setBounds({ startMs: 0, endMs: 0 });
@@ -156,6 +274,7 @@ export function SongExcerptComposer(props: {
     // are applied once a length is known, which is why they are held here
     // rather than written straight into the selector.
     if (next.kind === "ready") {
+      void requestTiming(next.postId, mine);
       const held = await store.load();
       if (mine === generation && held?.songPostId === next.postId) {
         pendingRestore = { endMs: held.endMs, startMs: held.startMs };
@@ -178,18 +297,23 @@ export function SongExcerptComposer(props: {
       setDurationMs(total);
       const held = pendingRestore;
       pendingRestore = undefined;
+      // From the value just reported, not from the signal set above: a write is
+      // not readable until the update it belongs to has been applied.
+      const length = boundBy(total);
       if (held) {
-        const restored = clampExcerpt(held, total);
-        if (isSubmittableExcerpt(restored, total)) {
+        const restored = clampExcerpt(held, length);
+        if (isSubmittableExcerpt(restored, length)) {
           setBounds(restored);
           setPositionMs(restored.startMs);
-          setRetained({ bounds: restored, songPostId: currentPostId() ?? "" });
+          const songPostId = currentPostId() ?? "";
+          setRetained({ bounds: restored, songPostId });
           setNote(`Restored ${restored.startMs}–${restored.endMs} ms from the video draft.`);
+          void checkPlan(songPostId, restored);
           return;
         }
       }
       setBounds((current) =>
-        current.endMs > 0 ? clampExcerpt(current, total) : defaultExcerpt(total),
+        current.endMs > 0 ? clampExcerpt(current, length) : defaultExcerpt(length),
       );
       return;
     }
@@ -243,7 +367,19 @@ export function SongExcerptComposer(props: {
   /** Whether the current selection is one the draft can hold. The selector
    * keeps bounds in range, but it is only rendered once a length is known, and
    * until then the bounds are the zero-length pair the component starts with. */
-  const submittable = () => isSubmittableExcerpt(bounds(), durationMs());
+  const submittable = () => {
+    const known = timing();
+    const length = bounds().endMs - bounds().startMs;
+    return isSubmittableExcerpt(bounds(), lengthMs())
+      && (!known || (length >= known.minExcerptMs && length <= known.maxExcerptMs));
+  };
+  /** The limits the hint names: the server's policy once it has answered. */
+  const limitsText = () => {
+    const known = timing();
+    return known
+      ? `${known.minExcerptMs / 1_000} to ${known.maxExcerptMs / 1_000} seconds`
+      : "3 to 180 seconds";
+  };
 
   const retain = async (songPostId: string) => {
     if (!submittable()) return;
@@ -263,6 +399,7 @@ export function SongExcerptComposer(props: {
     }
     setRetained({ bounds: chosen, songPostId });
     setNote(undefined);
+    void checkPlan(songPostId, chosen);
   };
 
   /** Reopening the draft: discard what is on screen and read it back. */
@@ -270,12 +407,12 @@ export function SongExcerptComposer(props: {
     // A retained draft is read back against the song's length, so without one
     // there is nothing to check it against — which is not the same as there
     // being no draft, and must not be reported as though it were.
-    if (durationMs() <= 0) {
+    if (lengthMs() <= 0) {
       setNote("The song’s length isn’t known yet, so a retained excerpt can’t be read back.");
       return;
     }
     const restored = await restoreSongExcerpt(store, {
-      durationMs: durationMs(),
+      durationMs: lengthMs(),
       id: songPostId,
     });
     if (!restored) {
@@ -285,7 +422,9 @@ export function SongExcerptComposer(props: {
     stopPlayback();
     setBounds(restored.bounds);
     setPositionMs(restored.bounds.startMs);
+    setRetained({ bounds: restored.bounds, songPostId });
     setNote(`Restored ${restored.bounds.startMs}–${restored.bounds.endMs} ms from the draft.`);
+    void checkPlan(songPostId, restored.bounds);
   };
 
   return (
@@ -361,7 +500,7 @@ export function SongExcerptComposer(props: {
                   <div class="grid gap-2">
                     <Type as="p" variant="caption" role={audioProblem() ? "alert" : undefined}>
                       {audioProblem() ??
-                        (durationMs() > 0
+                        (lengthMs() > 0
                           ? "That song is too short to hold a three second interval."
                           : "Reading the song’s length…")}
                     </Type>
@@ -376,25 +515,33 @@ export function SongExcerptComposer(props: {
                     </Show>
                   </div>
                 }
-                when={!audioProblem() && durationMs() > 0 && canHoldExcerpt(durationMs())}
+                when={!audioProblem() && lengthMs() > 0 && canHoldExcerpt(lengthMs())}
               >
                 <PostComposerExcerptSelector
                   bounds={bounds()}
                   onChange={changeBounds}
                   onTogglePreview={togglePlayback}
                   playing={playing()}
-                  songDurationMs={durationMs()}
+                  songDurationMs={lengthMs()}
                 />
                 <Type as="p" variant="caption" class="tabular-nums">
                   start {bounds().startMs} ms · end {bounds().endMs} ms · length{" "}
                   {excerptLengthMs(bounds())} ms ·{" "}
-                  {isSubmittableExcerpt(bounds(), durationMs()) ? "in range" : "out of range"}
+                  {submittable() ? "in range" : "out of range"}
                 </Type>
                 <Type as="p" variant="caption" class="tabular-nums">
                   {playing() ? "Playing" : "Stopped"} at {positionMs()} ms · bounded to{" "}
                   {formatExcerptTime(bounds().startMs)}–{formatExcerptTime(bounds().endMs)} of this
                   song’s canonical audio
                 </Type>
+                <Show when={timing()}>
+                  {(known) => (
+                    <Type as="p" variant="caption" class="tabular-nums">
+                      Bounded by the server’s measured length, {known().durationMs} ms, of audio
+                      revision {known().audioRevision}.
+                    </Type>
+                  )}
+                </Show>
               </Show>
             </div>
 
@@ -419,8 +566,8 @@ export function SongExcerptComposer(props: {
               </div>
               <Show when={!submittable()}>
                 <Type as="p" variant="caption">
-                  An interval can be retained once it is 3 to 180 seconds long and inside a song
-                  of known length.
+                  An interval can be retained once it is {limitsText()} long and inside a song of
+                  known length.
                 </Type>
               </Show>
               <Show
@@ -445,14 +592,34 @@ export function SongExcerptComposer(props: {
       {/* Visible text rather than a title tooltip: a tooltip is not reachable
           by touch, and this is a phone surface. This sits inside a composer
           that really does publish, so the wording has to be exact about what
-          publishing does and does not carry. Neither owner-policy check behind
-          these has been made. */}
+          publishing does and does not carry: the song only when the server has
+          accepted the retained excerpt, and even then only as its decision. */}
       <div class="grid gap-2">
-        <div class="rounded-[var(--radius-lg)] border border-dashed border-muted-foreground/40 p-3">
-          <Type as="p" variant="caption">
-            This excerpt is kept with the draft. It isn’t sent with the video yet, and publishing
-            won’t include it.
+        <div
+          class="rounded-[var(--radius-lg)] border border-dashed border-muted-foreground/40 p-3"
+          data-song-plan={preflight ? plan().kind : "unchecked"}
+        >
+          <Type as="p" variant="caption" role="status">
+            {!preflight
+              ? "This excerpt is kept with the draft. It isn’t sent with the video, and publishing won’t include it."
+              : source().kind === "idle"
+                ? "Publishing sends this video with its own sound. To post it to a song, load the song and retain an excerpt."
+                : songPlanText(plan())}
           </Type>
+          <Show when={plan().kind === "failed" && retained()}>
+            {(_) => (
+              <button
+                class="mt-2 rounded-[var(--radius-lg)] border border-border p-3"
+                onClick={() => {
+                  const held = retained();
+                  if (held) void checkPlan(held.songPostId, held.bounds);
+                }}
+                type="button"
+              >
+                Check the excerpt again
+              </button>
+            )}
+          </Show>
         </div>
         <div class="rounded-[var(--radius-lg)] border border-dashed border-muted-foreground/40 p-3">
           <Type as="p" variant="caption">MP3 download isn’t available yet.</Type>

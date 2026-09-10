@@ -2,10 +2,19 @@ import { createSignal, onCleanup, Show } from "solid-js";
 import { Button, FormNote } from "../../../design-system";
 import { SongExcerptComposer } from "../post-composer/song-excerpt-composer";
 import { createLocalExcerptDraftStore } from "../post-composer/song-excerpt-draft-store";
+import type { SongPayloadReader } from "../post-composer/song-excerpt-source";
 import { OriginalVideoCaptureSurface, OriginalVideoReviewSurface } from "../post-composer/video-original-audio-surface";
 import type { VideoCaptureSession } from "./capture";
 import { canDiscardRejectedVideo, VideoCoordinator, type PendingVideo, type VideoStorage } from "./coordinator";
 import { createBrowserVideoStorage } from "./storage";
+import {
+  createSongIntervalPreflight,
+  selectionSpan,
+  songReferenceInvalidText,
+  songReservationRefusalText,
+  type SongIntervalPreflight,
+  type SongPlanState,
+} from "./song-reference";
 import { createVideoTransport, type VideoTransport } from "./transport";
 
 export function VideoComposerRuntime(props: {
@@ -19,6 +28,8 @@ export function VideoComposerRuntime(props: {
   readonly transport?: VideoTransport;
   readonly inspectFile?: (file: File) => Promise<File>;
   readonly fetchImpl?: typeof fetch;
+  readonly songPreflight?: SongIntervalPreflight;
+  readonly songReader?: SongPayloadReader;
 }) {
   const [record, setRecord] = createSignal<PendingVideo | null>(null);
   const [file, setFile] = createSignal<File | null>(null);
@@ -35,6 +46,11 @@ export function VideoComposerRuntime(props: {
   // video draft rather than inside it: the video record is the coordinator's
   // and is governed by a submission contract this selection is not part of yet.
   const excerptStore = createLocalExcerptDraftStore(props.principalId);
+  const songPreflight = props.songPreflight ?? createSongIntervalPreflight();
+  // Where the retained excerpt stands with the server. Publishing names the
+  // song only when this is ready; in every other state it publishes the
+  // video's own sound, which the excerpt surface says in words.
+  const [songPlan, setSongPlan] = createSignal<SongPlanState>({ kind: "none" });
   let picker: HTMLInputElement | undefined;
   let session: VideoCaptureSession | null = null;
   let disposed = false;
@@ -111,7 +127,12 @@ export function VideoComposerRuntime(props: {
       if (retained && (retained.communityId !== props.communityId || retained.personaId !== props.personaId)) throw new Error("Resolve this retained video with its original community and persona");
       if (!retained) {
         const selected = file(); if (!selected || !props.personaId || !props.communityId) throw new Error("Choose a community, persona and compatible video");
-        await coordinator.begin({ communityId: props.communityId, personaId: props.personaId, file: selected, caption: caption(), rating: rating() });
+        const plan = songPlan();
+        // Publishing mid-check would silently decide for the author which
+        // soundtrack they get, so it waits for the server's answer.
+        if (plan.kind === "checking") throw new Error("The excerpt is still being checked. Publish again once it has an answer.");
+        const attempt = { communityId: props.communityId, personaId: props.personaId, file: selected, caption: caption(), rating: rating() };
+        await coordinator.begin(plan.kind === "ready" ? { ...attempt, song: plan.selection } : attempt);
       }
       if (disposed) return;
       await coordinator.submit();
@@ -135,7 +156,9 @@ export function VideoComposerRuntime(props: {
     const url = new URL(snapshot.published_resource.href, location.origin);
     return url.origin === location.origin ? `${url.pathname}${url.search}` : undefined;
   };
-  return <section class="grid gap-3" aria-label="Original-audio video composer">
+  const blocked = () => { const snapshot = state(); return snapshot?.status === "blocked" ? snapshot : undefined; };
+  const songReserved = () => { const reservation = record()?.reservation; return reservation?.intent === "song_reference" ? reservation : undefined; };
+  return <section class="grid gap-3" aria-label="Video composer">
     <input ref={element => { picker = element; }} hidden type="file" accept="video/mp4,video/quicktime,.mp4,.mov" onChange={event => { void chooseFile(event.currentTarget.files?.[0]); event.currentTarget.value = ""; }} />
     <Show when={error()}>{message => <FormNote tone="warning">{message()}</FormNote>}</Show>
     <Show when={busy()}><p role="status">{progress() || "Preparing video…"}</p></Show>
@@ -150,23 +173,30 @@ export function VideoComposerRuntime(props: {
     <Show when={editing() && file()}>
       <label><input type="checkbox" checked={rating() === "adult_18"} disabled={busy()} onChange={event => setRating(event.currentTarget.checked ? "adult_18" : "general")} /> This video is for adults (18+)</label>
       <OriginalVideoReviewSurface caption={caption()} onCaptionChange={setCaption} submitting={busy()} onPublish={() => { void publish(); }}
-        onBack={() => { if (!busy()) { setFile(null); const url = preview(); if (url) URL.revokeObjectURL(url); setPreview(undefined); } }}
+        onBack={() => { if (!busy()) { setFile(null); setSongPlan({ kind: "none" }); const url = preview(); if (url) URL.revokeObjectURL(url); setPreview(undefined); } }}
         preview={<video src={preview()} controls playsinline class="h-full w-full object-contain" />} />
       {/* Choosing the song this video is danced to. It is kept with the draft
           and is not part of this submission: phase one publishes original
           audio, and a song-backed publication is a different contract that is
           not built. The surface says so rather than implying otherwise. */}
       <section aria-label="Song excerpt for this video">
-        <SongExcerptComposer store={excerptStore} />
+        <SongExcerptComposer store={excerptStore} read={props.songReader} communityId={props.communityId} preflight={songPreflight} onPlan={setSongPlan} />
       </section>
     </Show>
     <Show when={record()}>
       <p role="status">Video state: {record()?.rejection ? "request rejected" : state()?.status.replaceAll("_", " ") ?? "reservation pending"}.</p>
-      <Show when={record()?.rejection}><p role="alert">The video request was rejected. A new attempt will not start automatically.</p></Show>
+      <Show when={record()?.song && !record()?.rejection}>
+        <p role="status">{songReserved()
+          ? `The server reserved this video as posted to the song, from ${selectionSpan(record()!.song!)}, and froze that excerpt.`
+          : "Asking the server to post this video to the song…"}</p>
+      </Show>
+      <Show when={record()?.rejection}><p role="alert">{songReservationRefusalText(record()?.rejection?.reasonCode)
+        ?? "The video request was rejected. A new attempt will not start automatically."}</p></Show>
       <Show when={canDiscardRejectedVideo(record())}><Button disabled={busy()} onClick={() => { void run(async () => {
-        const rejected = await coordinator.discardRejected(); showFile(rejected.file); setCaption(rejected.caption); setRating(rejected.rating);
+        const rejected = await coordinator.discardRejected(); setSongPlan({ kind: "none" }); showFile(rejected.file); setCaption(rejected.caption); setRating(rejected.rating);
       }); }}>Edit rejected video</Button></Show>
       <Show when={state()?.status === "manual_review"}><p>Your video remains private during review. No post is public yet.</p></Show>
+      <Show when={blocked()?.reason_code === "song_reference_invalid"}><p role="status">{songReferenceInvalidText(blocked()?.song_reason_code)}</p></Show>
       <Show when={state()?.status === "blocked" || state()?.status === "abandoned"}><p>This attempt cannot publish. It will not be retried with a new identity.</p></Show>
       <Show when={!record()?.rejection && (record()?.pending || awaiting() || !state())}><Button disabled={busy()} onClick={() => { void publish(); }}>Resume video submission</Button></Show>
       <Show when={awaiting() && Date.parse(record()?.reservation?.upload.expires_at ?? "") <= Date.now()}><p role="status">This upload reservation has expired. Cancel this submission, then select the source again for a new video.</p></Show>
@@ -178,7 +208,7 @@ export function VideoComposerRuntime(props: {
       <Button disabled={busy()} onClick={() => { void run(() => coordinator.refresh()); }}>Check video status</Button>
       <Show when={publishedHref()}>{href => <a href={href()}>View published post</a>}</Show>
       <Show when={state() && ["published", "blocked", "abandoned"].includes(state()!.status)}>
-        <Button disabled={busy()} onClick={() => { void run(async () => { await coordinator.discard(); setFile(null); const url = preview(); if (url) URL.revokeObjectURL(url); setPreview(undefined); setCaption(""); }); }}>Start a new video</Button>
+        <Button disabled={busy()} onClick={() => { void run(async () => { await coordinator.discard(); setSongPlan({ kind: "none" }); setFile(null); const url = preview(); if (url) URL.revokeObjectURL(url); setPreview(undefined); setCaption(""); }); }}>Start a new video</Button>
       </Show>
     </Show>
   </section>;
