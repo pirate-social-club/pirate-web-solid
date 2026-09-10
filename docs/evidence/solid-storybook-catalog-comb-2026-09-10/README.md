@@ -27,6 +27,13 @@ owner in `tasks/records/solid-storybook-catalog-comb.md`:
 held the bot-probe absence assertion, kept so the correction can be
 audited against the failure it removed.
 
+`sweep-summary-action-error-story.txt` is a later run on the same day,
+after `Screens/Community/YourCommunitiesRoute` gained
+`PostCheckProfilesUnavailable`, which drives the `actionError()` branch at
+`your-communities-route.tsx:243`. That file's seven stories all pass
+interaction, and axe reports the same serious `color-contrast` failure on
+the alert, corroborating item 7's token finding from a second route.
+
 The 10 MB ledger `lane-comb-fixed2.jsonl` is preserved in the registered
 complete-history capture for this lane at
 `.archive/solid-storybook-catalog-comb-2026-09-10/` in the pirate-workspace
