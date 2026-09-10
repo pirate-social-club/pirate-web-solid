@@ -35,6 +35,26 @@ export const Ready: Story = {
   },
 };
 
+/**
+ * The authenticated `/` configuration: no initial data, so the feed mounts
+ * through its loader exactly as the route hands it `fetchHomeFeedPage`, and
+ * the first page arrives from the load call.
+ */
+export const AuthenticatedLoader: Story = {
+  name: "Authenticated loader",
+  args: {
+    data: undefined,
+    loadPage: async () => publicFeedReviewPage,
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await waitFor(() =>
+      expect(canvasElement.querySelector("main")?.getAttribute("data-video-feed-state")).toBe("ready"),
+    );
+    await expect(canvas.getByLabelText("Videos for you")).toBeInTheDocument();
+  },
+};
+
 /** The initial load state before the first page resolves. */
 export const Loading: Story = {
   args: { data: new Promise<FeedPage>(() => {}) },
