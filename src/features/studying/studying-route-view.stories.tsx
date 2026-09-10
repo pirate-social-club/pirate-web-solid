@@ -13,6 +13,7 @@ import {
 
 const meta = {
   title: "Screens/Studying/Route",
+  decorators: [(Story) => <main class="min-h-dvh bg-background text-foreground"><Story /></main>],
   parameters: {
     layout: "fullscreen",
     docs: {
