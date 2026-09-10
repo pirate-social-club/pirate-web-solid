@@ -40,6 +40,7 @@ export default defineConfig({
       "src/features/auth/sign-in-session.test.ts",
       "src/features/auth/sign-in-view.test.tsx",
       "src/features/community/community-creation-api.test.ts",
+      "src/features/community/page-shell/page-shell-actions.test.tsx",
       "src/features/community/community-creation-route-view.test.tsx",
       "src/features/community/your-communities-page/your-communities-route.test.tsx",
       "src/features/community/owner-settings/community-names-settings-api.test.ts",
