@@ -59,3 +59,14 @@ state components rendered their own `<main>` inside the route's. That
 defect is admitted to the ratchet under the step-zero lane, which fixes it
 in `9e13362`; these stories lose the axe failures once the fix reaches
 main.
+
+`sweep-summary-composer-repairs.txt` is the composer assertion repair run.
+Four stale assertions now query the title field by accessible name, assert
+the review step's Rights summary, and target the footer Review action
+rather than the same-named nav item; all four pass, and the file's axe
+result is clean. The single remaining failure is
+`parts-posts-songsteps--entered-from-text-post`, which asserts the step
+heading fixed in `7a3d1f7`; that defect is admitted to the ratchet under
+the step-zero lane and leaves the set when the fix reaches main. The
+duplicate accessible name on the nav Review and the forward action is
+recorded as a minor naming finding.
