@@ -7,10 +7,27 @@ import type { OwnerSettingsAccess } from "./owner-settings-model";
 import {
   ownerSettingsAccessFromModerationCapabilities,
 } from "./community-moderation-settings-model";
-import { MODERATION_VIEW_AND_ACT } from "./community-moderation-settings-fixtures";
+import {
+  MODERATION_POLICY,
+  MODERATION_VIEW_AND_ACT,
+  OPEN_MODERATION_CASE_DETAILS,
+  OPEN_MODERATION_CASES,
+} from "./community-moderation-settings-fixtures";
 import { ownerSettingsAccessFromNamesSnapshot } from "./community-names-settings-model";
 import { NAMES_ACTIVE } from "./community-names-settings-fixtures";
-import type { CommunityTelegramSettingsApi } from "./community-telegram-settings-api";
+import {
+  createCommunityModerationSettingsApi,
+  type CommunityModerationSettingsApi,
+} from "./community-moderation-settings-api";
+import {
+  createCommunityNamesSettingsApi,
+  type CommunityNamesSettingsApi,
+} from "./community-names-settings-api";
+import {
+  createCommunityTelegramSettingsApi,
+  type CommunityTelegramSettingsApi,
+} from "./community-telegram-settings-api";
+import { createFakeNamespaceSettingsPort } from "./fake-owner-settings-port";
 import { OwnerSettingsRouteView } from "./owner-settings-route-view";
 
 /**
@@ -27,15 +44,16 @@ const productionAccess: OwnerSettingsAccess = {
 };
 
 function successState(
-  access: OwnerSettingsAccess = productionAccess,
+  overrides: Partial<Extract<OwnerSettingsRouteState, { kind: "success" }>> = {},
 ): OwnerSettingsRouteState {
   return {
     kind: "success",
-    access,
+    access: productionAccess,
     avatarUrl: null,
     communityId: "community-harbor",
     communityName: "Harbor",
     communityPath: "/c/harbor",
+    ...overrides,
   };
 }
 
@@ -72,6 +90,32 @@ const unavailableProbe: Pick<CommunityTelegramSettingsApi, "getSettings"> = {
   getSettings: async () => {
     throw new Error("bot probe unreachable");
   },
+};
+
+/**
+ * Per-port snapshot stubs for the section controllers. Each one defaults to a
+ * real API client, so a section story injects only the reads that section
+ * performs; the rest of the surface keeps the production implementation and is
+ * never called by the story. No casts: every override is checked against the
+ * port's real response type.
+ */
+const namesSectionApi: CommunityNamesSettingsApi = {
+  ...createCommunityNamesSettingsApi(),
+  getSnapshot: async () => NAMES_ACTIVE,
+};
+
+const namespaceSectionApi = createFakeNamespaceSettingsPort();
+
+const telegramSectionApi: CommunityTelegramSettingsApi = {
+  ...createCommunityTelegramSettingsApi(),
+  getDeliveries: async () => ({ items: [], next_cursor: null }),
+  getSettings: async () => disconnectedTelegram,
+};
+
+const moderationSectionApi: CommunityModerationSettingsApi = {
+  ...createCommunityModerationSettingsApi(),
+  getCases: async () => ({ cases: OPEN_MODERATION_CASES, details: OPEN_MODERATION_CASE_DETAILS }),
+  getPolicy: async () => MODERATION_POLICY,
 };
 
 const meta = {
@@ -171,4 +215,73 @@ export const IndexWithoutBotAccess: Story = {
 export const Mobile: Story = {
   args: { state: successState() },
   globals: { viewport: { value: "mobile1", isRotated: false } },
+};
+
+/** `/c/<segment>/settings/names` mounting the names controller through its typed port stub. */
+export const SectionNames: Story = {
+  name: "Section names",
+  args: { requestedSection: "names", namesApi: namesSectionApi, state: successState() },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await waitFor(() => expect(canvas.getByRole("button", { name: "Pause names" })).toBeInTheDocument());
+  },
+};
+
+/** `/c/<segment>/settings/namespace` drives the real namespace controller through its fake port. */
+export const SectionAddress: Story = {
+  name: "Section address",
+  args: { requestedSection: "namespace", namespaceApi: namespaceSectionApi, state: successState() },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await waitFor(() => expect(canvas.getByRole("button", { name: "Continue" })).toBeInTheDocument());
+  },
+};
+
+/** `/c/<segment>/settings/telegram` mounts the bot controller against the disconnected snapshot. */
+export const SectionTelegram: Story = {
+  name: "Section telegram",
+  args: { requestedSection: "telegram", telegramApi: telegramSectionApi, state: successState() },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await waitFor(() => expect(canvas.getByRole("button", { name: "Connect bot" })).toBeInTheDocument());
+  },
+};
+
+/** `/c/<segment>/settings/moderation_queue` mounts the queue against the open-case fixtures. */
+export const SectionModerationQueue: Story = {
+  name: "Section moderation queue",
+  args: {
+    requestedSection: "moderation_queue",
+    moderationApi: moderationSectionApi,
+    state: successState({ moderationCapabilities: MODERATION_VIEW_AND_ACT }),
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await waitFor(() =>
+      expect(canvas.getAllByText("Field recordings from the eastern breakwater").length).toBeGreaterThan(0),
+    );
+  },
+};
+
+/**
+ * A section whose read failed stays listed and fails only once entered: the
+ * shell shows the unavailable state with its retry instead of the panel.
+ */
+export const SectionReadUnavailable: Story = {
+  name: "Section entered with unavailable read",
+  args: {
+    requestedSection: "moderation_queue",
+    moderationApi: moderationSectionApi,
+    state: successState({
+      moderationCapabilities: MODERATION_VIEW_AND_ACT,
+      unavailableSections: ["moderation_queue", "content_policy"],
+    }),
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await waitFor(() =>
+      expect(canvas.getByText("This settings check failed. Your access could not be determined. Try again.")).toBeInTheDocument(),
+    );
+    expect(canvas.getByRole("button", { name: "Try again" })).toBeInTheDocument();
+  },
 };
