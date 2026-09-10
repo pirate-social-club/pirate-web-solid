@@ -24,3 +24,11 @@ which clears the four `aria-prohibited-attr` violations the audit found
 on every `/c/<segment>` page, and the AlertDialog story waits for focus
 to return after the close transition instead of asserting within it.
 This matches the step-zero package's expectation exactly.
+
+`sweep-summary-landmark-fix.txt` is the full unfiltered sweep after the
+landmark fix. `StudyRouteShell` and `StudyRouteLoadFailureState` now render
+`<section>` instead of `<main>`, leaving the single landmark to the route
+view, and the studying route and route-state story files wrap their
+subjects in `<main>` the way V2 does in production. The result is unchanged
+from the landing sweep: 729 axe passes, zero violations, and the same five
+song-composer interaction failures.
