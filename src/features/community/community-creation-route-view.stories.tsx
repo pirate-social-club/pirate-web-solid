@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
-import { expect, waitFor, within } from "storybook/test";
+import { expect, userEvent, waitFor, within } from "storybook/test";
 
 import type { SessionResolution } from "../../api/session";
 import { CommunityCreationRouteView } from "./community-creation-route-view";
@@ -47,13 +47,14 @@ export const SignedOut: Story = {
   },
 };
 
-/** Signed in with profiles: the full creation form with an existing persona offered. */
+/** Signed in with profiles: choosing the existing profile names it in the form. */
 export const Ready: Story = {
   args: { resolveSession: async () => authenticated() },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await waitFor(() => expect(stateOf(canvasElement)).toBe("ready"));
-    await expect(canvas.getByText("Harbor Keeper")).toBeInTheDocument();
+    await userEvent.click(canvas.getByRole("button", { name: "Use an existing profile" }));
+    await waitFor(() => expect(canvas.getByText("Creating as Harbor Keeper")).toBeInTheDocument());
   },
 };
 

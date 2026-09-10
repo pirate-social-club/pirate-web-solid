@@ -5,7 +5,6 @@ import { expect, waitFor, within } from "storybook/test";
 import { HomeVideoFeed } from "./home-video-feed";
 import { publicFeedReviewPage } from "../feed/public-feed-fixtures";
 import type { FeedPage } from "../feed/public-feed-adapter";
-
 const emptyPage: FeedPage = { ...publicFeedReviewPage, items: [], topCommunities: [] };
 const textOnlyPage: FeedPage = {
   ...publicFeedReviewPage,
@@ -60,14 +59,25 @@ export const Loading: Story = {
   args: { data: new Promise<FeedPage>(() => {}) },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(canvas.getByText("Loading videos")).toBeInTheDocument();
+    await expect(canvas.getByLabelText("Loading videos")).toBeInTheDocument();
   },
 };
 
-/** A failed first page keeps the surface honest instead of showing an empty feed. */
+/**
+ * A failed first page keeps the surface honest instead of showing an empty
+ * feed. The rejection is created inside the render so no rejected promise
+ * exists at module scope, where it surfaces as an unhandled rejection on
+ * sibling stories.
+ */
 export const FailedFirstPage: Story = {
   name: "Failed first page",
-  args: { data: Promise.reject(new Error("feed unavailable")) },
+  render: () => (
+    <HomeVideoFeed
+      data={Promise.reject(new Error("feed unavailable"))}
+      loadPage={async () => emptyPage}
+      navigate={() => undefined}
+    />
+  ),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await waitFor(() => expect(canvas.getByText("Video feed unavailable")).toBeInTheDocument());
