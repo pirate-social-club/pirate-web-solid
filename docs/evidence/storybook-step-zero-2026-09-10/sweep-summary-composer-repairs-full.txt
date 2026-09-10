@@ -1,0 +1,8 @@
+Storybook axe/interaction sweep
+Base URL: http://127.0.0.1:6006
+Catalog: 146 files / 729 stories; selected 146 files / 729 stories
+Axe: 729 pass, 0 violation-fail, 0 indeterminate
+Axe incomplete checks: 142 (reported separately; not violations or indeterminate)
+Interactions: 729 pass, 0 fail, 0 indeterminate
+Panel evidence: 729 bare/no-counter result(s) (diagnostic only; never a pass)
+Exit: PASS

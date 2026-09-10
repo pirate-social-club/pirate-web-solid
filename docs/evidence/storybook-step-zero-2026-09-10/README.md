@@ -41,3 +41,11 @@ only on the stale `getByLabelText("Song title")` query, which belongs to the
 catalog-comb lane's assertion repairs along with the other four composer
 stories. The convention is recorded at
 `docs/design/a11y-wizard-step-headings.md`.
+
+`sweep-summary-composer-repairs-full.txt` is the complete unfiltered sweep
+at the combined tip: step zero plus the four composer assertion repairs
+taken by path from the catalog-comb lane. It is the first fully green full
+sweep for this lane — 729 of 729 accessibility passes with zero
+violations and 729 of 729 interactions, exit PASS. With this tip the main
+catalog's only remaining reds are the token substitution and the
+owner-settings `role="status"`, both of which have their own dispositions.
