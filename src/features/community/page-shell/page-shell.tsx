@@ -397,6 +397,7 @@ export function CommunityPageShell(props: CommunityPageShellProps) {
               aria-label="Community actions"
               class="mt-3 grid h-11 grid-cols-2 gap-2 md:mt-0 md:flex md:shrink-0"
               data-community-actions-reserved
+              role="group"
             >
               {/* Follow and Following both state a direction that has not been
                   read yet, so neither is offered until it has been. */}

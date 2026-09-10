@@ -1,0 +1,14 @@
+Storybook axe/interaction sweep
+Base URL: http://127.0.0.1:6006
+Catalog: 146 files / 729 stories; selected 146 files / 729 stories
+Axe: 729 pass, 0 violation-fail, 0 indeterminate
+Axe incomplete checks: 141 (reported separately; not violations or indeterminate)
+Interactions: 724 pass, 5 fail, 0 indeterminate
+Panel evidence: 729 bare/no-counter result(s) (diagnostic only; never a pass)
+Exit: FAIL
+Failures:
+- flows-posts-createpostform--song-step-1-song: axe=pass, interaction=fail(play_function_failure)
+- flows-posts-createpostform--song-step-1-song-mobile: axe=pass, interaction=fail(play_function_failure)
+- flows-posts-createpostform--song-step-four-review: axe=pass, interaction=fail(play_function_failure)
+- parts-posts-songsteps--entered-from-text-post: axe=pass, interaction=fail(play_function_failure)
+- parts-posts-songsteps--step-three: axe=pass, interaction=fail(play_function_failure)
