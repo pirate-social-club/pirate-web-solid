@@ -90,6 +90,7 @@ export default defineConfig({
       "src/features/posts/video-submission/video-composer-runtime.test.tsx",
       "src/features/posts/post-composer/song-excerpt.test.ts",
       "src/features/posts/post-composer/song-excerpt-draft.test.ts",
+      "src/features/posts/post-composer/song-excerpt-link.test.ts",
       "src/features/posts/post-composer/text-submission-contract.test.ts",
       "src/features/posts/post-composer/pending-submission.test.ts",
       "src/features/posts/post-composer/text-submission-transport.test.ts",

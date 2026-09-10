@@ -7,9 +7,9 @@ import {
 
 const meta = {
   title: "Flows/Posts/VideoPost/SongExcerpt",
+  globals: { viewport: { value: "mobile1", isRotated: false } },
   parameters: {
     layout: "fullscreen",
-    globals: { viewport: { value: "mobile1", isRotated: false } },
     docs: {
       description: {
         component:

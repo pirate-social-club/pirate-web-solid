@@ -6,12 +6,17 @@ import { clampExcerpt, type ExcerptBounds, isSubmittableExcerpt } from "./song-e
  * chosen, because these are the values publication and MP3 extraction use. A
  * draft that restored something merely close would produce a video danced to
  * one span and an MP3 cut from another.
+ *
+ * The identity retained beside the bounds is the song post's id, which is what
+ * the payload read takes and what publication will name. It is not the song
+ * entity's id; those are different lookups, and a field that blurred them
+ * would send a later step to the wrong record.
  */
-export const SONG_EXCERPT_DRAFT_VERSION = "song-excerpt-draft-v1";
+export const SONG_EXCERPT_DRAFT_VERSION = "song-excerpt-draft-v2";
 
 export type SongExcerptDraft = {
   readonly endMs: number;
-  readonly songId: string;
+  readonly songPostId: string;
   readonly startMs: number;
   readonly version: typeof SONG_EXCERPT_DRAFT_VERSION;
 };
@@ -23,10 +28,10 @@ export type SongExcerptDraftStore = {
   readonly save: (draft: SongExcerptDraft) => Promise<void>;
 };
 
-export function makeSongExcerptDraft(songId: string, bounds: ExcerptBounds): SongExcerptDraft {
+export function makeSongExcerptDraft(songPostId: string, bounds: ExcerptBounds): SongExcerptDraft {
   return {
     endMs: bounds.endMs,
-    songId,
+    songPostId,
     startMs: bounds.startMs,
     version: SONG_EXCERPT_DRAFT_VERSION,
   };
@@ -36,12 +41,12 @@ export function makeSongExcerptDraft(songId: string, bounds: ExcerptBounds): Son
  * nothing is claimed about the value that has not been checked. */
 export function isSongExcerptDraft(value: unknown): value is SongExcerptDraft {
   if (typeof value !== "object" || value === null) return false;
-  if (!("version" in value && "songId" in value && "startMs" in value && "endMs" in value)) {
+  if (!("version" in value && "songPostId" in value && "startMs" in value && "endMs" in value)) {
     return false;
   }
   return (
     value.version === SONG_EXCERPT_DRAFT_VERSION &&
-    typeof value.songId === "string" &&
+    typeof value.songPostId === "string" &&
     typeof value.startMs === "number" &&
     typeof value.endMs === "number"
   );
@@ -54,31 +59,31 @@ export function parseStoredExcerptDraft(value: unknown): SongExcerptDraft | null
   return isSongExcerptDraft(value) ? value : null;
 }
 
-/** Reads a retained draft against the song it names. Range is the one thing
- * clamped rather than rejected, because a song can legitimately have changed
- * length under a draft; identity and shape are not repaired. */
+/** Reads a retained draft against the song post it names. Range is the one
+ * thing clamped rather than rejected, because a song can legitimately have
+ * changed length under a draft; identity and shape are not repaired. */
 export function readSongExcerptDraft(
   draft: SongExcerptDraft | null,
   song: { readonly durationMs: number; readonly id: string } | undefined,
-): { bounds: ExcerptBounds; songId: string } | null {
-  if (!song || !draft || draft.songId !== song.id) return null;
+): { bounds: ExcerptBounds; songPostId: string } | null {
+  if (!song || !draft || draft.songPostId !== song.id) return null;
   const bounds = clampExcerpt({ startMs: draft.startMs, endMs: draft.endMs }, song.durationMs);
-  return isSubmittableExcerpt(bounds, song.durationMs) ? { bounds, songId: song.id } : null;
+  return isSubmittableExcerpt(bounds, song.durationMs) ? { bounds, songPostId: song.id } : null;
 }
 
 /** Round-trips through a store. Kept as one pair so the save and the load
  * cannot drift apart. */
 export async function retainSongExcerpt(
   store: SongExcerptDraftStore,
-  songId: string,
+  songPostId: string,
   bounds: ExcerptBounds,
 ): Promise<void> {
-  await store.save(makeSongExcerptDraft(songId, bounds));
+  await store.save(makeSongExcerptDraft(songPostId, bounds));
 }
 
 export async function restoreSongExcerpt(
   store: SongExcerptDraftStore,
   song: { readonly durationMs: number; readonly id: string } | undefined,
-): Promise<{ bounds: ExcerptBounds; songId: string } | null> {
+): Promise<{ bounds: ExcerptBounds; songPostId: string } | null> {
   return readSongExcerptDraft(await store.load(), song);
 }

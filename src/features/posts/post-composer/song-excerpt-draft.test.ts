@@ -41,7 +41,7 @@ describe("retaining an excerpt with the video draft", () => {
     const restored = await restoreSongExcerpt(store, SONG);
     // Not "close to": the same integers, because publication and MP3
     // extraction use these exact values.
-    expect(restored).toEqual({ bounds, songId: SONG.id });
+    expect(restored).toEqual({ bounds, songPostId: SONG.id });
     expect(restored?.bounds.startMs).toBe(87_300);
     expect(restored?.bounds.endMs).toBe(104_900);
   });
@@ -67,11 +67,11 @@ describe("retaining an excerpt with the video draft", () => {
   it("rejects an unversioned or malformed stored value at the parse boundary", () => {
     expect(parseStoredExcerptDraft(null)).toBeNull();
     expect(parseStoredExcerptDraft("not an object")).toBeNull();
-    expect(parseStoredExcerptDraft({ songId: SONG.id, startMs: 0, endMs: 10_000 })).toBeNull();
+    expect(parseStoredExcerptDraft({ songPostId: SONG.id, startMs: 0, endMs: 10_000 })).toBeNull();
     expect(
       parseStoredExcerptDraft({
         version: SONG_EXCERPT_DRAFT_VERSION,
-        songId: SONG.id,
+        songPostId: SONG.id,
         startMs: "0",
         endMs: 10_000,
       }),

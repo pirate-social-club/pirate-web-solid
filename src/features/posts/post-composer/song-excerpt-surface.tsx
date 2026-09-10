@@ -58,7 +58,7 @@ export function SongExcerptComposerSurface(props: { store?: SongExcerptDraftStor
   const [song, setSong] = createSignal<FixtureSong | undefined>();
   const [bounds, setBounds] = createSignal(defaultExcerpt(0));
   const [preview, setPreview] = createSignal(stopPreview(defaultExcerpt(0)));
-  const [retained, setRetained] = createSignal<{ endMs: number; songId: string; startMs: number }>();
+  const [retained, setRetained] = createSignal<{ endMs: number; songPostId: string; startMs: number }>();
   const [restoredNote, setRestoredNote] = createSignal<string>();
   const player = createExcerptPlayer();
   onCleanup(() => player.close());
@@ -132,7 +132,7 @@ export function SongExcerptComposerSurface(props: { store?: SongExcerptDraftStor
     const chosen = song();
     if (!chosen) return;
     await retainSongExcerpt(store, chosen.id, bounds());
-    setRetained({ ...bounds(), songId: chosen.id });
+    setRetained({ ...bounds(), songPostId: chosen.id });
     setRestoredNote(undefined);
   };
 
@@ -257,7 +257,7 @@ export function SongExcerptComposerSurface(props: { store?: SongExcerptDraftStor
               >
                 {(record) => (
                   <Type as="p" variant="caption" class="tabular-nums">
-                    Retained with the draft: {record().songId} · {record().startMs}–
+                    Retained with the draft: {record().songPostId} · {record().startMs}–
                     {record().endMs} ms
                   </Type>
                 )}
@@ -290,8 +290,8 @@ export function SongExcerptComposerSurface(props: { store?: SongExcerptDraftStor
 }
 
 /** Exported for a story that opens straight into a restored draft. */
-export function seededExcerptDraftStore(songId: string, startMs: number, endMs: number) {
-  const song = findFixtureSong(songId);
+export function seededExcerptDraftStore(songPostId: string, startMs: number, endMs: number) {
+  const song = findFixtureSong(songPostId);
   const bounds = song ? clampExcerpt({ startMs, endMs }, song.durationMs) : { startMs, endMs };
-  return makeMemoryExcerptDraftStore(makeSongExcerptDraft(songId, bounds));
+  return makeMemoryExcerptDraftStore(makeSongExcerptDraft(songPostId, bounds));
 }
