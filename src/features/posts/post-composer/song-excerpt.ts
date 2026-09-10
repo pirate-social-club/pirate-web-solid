@@ -1,16 +1,20 @@
-/** Excerpt bounds for a song-backed video, in integer milliseconds.
+/** The playback interval of a song-backed video, in integer milliseconds.
  *
- * These are the authoritative values. Spec 021 section 3.2 has the author
- * choose `start_ms` and `end_ms` because the excerpt and the movement phrase
- * are one authored target, and says the UI may offer waveform, beat, lyric or
- * alignment assistance but that the submitted integer bounds are the authority.
- * The same numbers later identify the canonical segment the server extracts
- * from the sealed song audio, and the same numbers bound the standalone MP3.
- * So they are integers here, not seconds rounded on the way out, and every
- * adjustment goes through this module rather than being recomputed in a view.
+ * Under Spec 013 §5A a song-backed video publishes a server-rendered master
+ * whose soundtrack is this interval of the canonical song, so the interval is
+ * bounded like the video itself: 3 to 180 seconds, and contained within the
+ * song. It is not the Dance segment. Spec 021's scored segment is a separate,
+ * opt-in, later-authored 6 to 30 seconds chosen on an already-published video,
+ * and publishing an ordinary song-backed video does not create one. This module
+ * enforced the Dance limit until 2026-09-10, which conflated the two.
+ *
+ * These are integers because the server takes them exactly: whole milliseconds
+ * at 48 kHz convert to samples without loss. The client's limits mirror the
+ * server's policy for feedback only. The server revalidates at reservation,
+ * against the canonical song's own duration, and its answer is the authority.
  */
-export const MIN_EXCERPT_MS = 6_000;
-export const MAX_EXCERPT_MS = 30_000;
+export const MIN_EXCERPT_MS = 3_000;
+export const MAX_EXCERPT_MS = 180_000;
 
 export type ExcerptBounds = { readonly startMs: number; readonly endMs: number };
 

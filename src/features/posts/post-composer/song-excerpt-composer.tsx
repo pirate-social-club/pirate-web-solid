@@ -362,7 +362,7 @@ export function SongExcerptComposer(props: {
                     <Type as="p" variant="caption" role={audioProblem() ? "alert" : undefined}>
                       {audioProblem() ??
                         (durationMs() > 0
-                          ? "That song is too short to hold a six second excerpt."
+                          ? "That song is too short to hold a three second interval."
                           : "Reading the song’s length…")}
                     </Type>
                     <Show when={audioProblem()}>
@@ -419,8 +419,8 @@ export function SongExcerptComposer(props: {
               </div>
               <Show when={!submittable()}>
                 <Type as="p" variant="caption">
-                  An excerpt can be retained once it is six to thirty seconds inside a song of
-                  known length.
+                  An interval can be retained once it is 3 to 180 seconds long and inside a song
+                  of known length.
                 </Type>
               </Show>
               <Show

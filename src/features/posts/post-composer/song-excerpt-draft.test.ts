@@ -163,7 +163,7 @@ describe("audible excerpt preview", () => {
     expect(early.map((step) => step.frequencyHz)).not.toEqual(late.map((step) => step.frequencyHz));
   });
 
-  it("a six second excerpt still sounds, and a thirty second one is bounded", () => {
+  it("the shortest interval still sounds, and the longest one is bounded", () => {
     expect(excerptToneSchedule({ startMs: 0, endMs: MIN_EXCERPT_MS }).length).toBeGreaterThan(0);
     for (const step of excerptToneSchedule({ startMs: 0, endMs: MAX_EXCERPT_MS })) {
       expect(step.offsetMs).toBeLessThan(MAX_EXCERPT_MS);

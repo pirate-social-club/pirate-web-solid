@@ -11,13 +11,13 @@ import {
   resizeExcerptStart,
 } from "./song-excerpt";
 
-/** Selects the excerpt of a song that a video is danced to.
+/** Selects the interval of a song that a song-backed video plays.
  *
- * This was a start-only picker for a fixed thirty-second preview. Spec 021
- * section 3.2 has the author choose both bounds, with the excerpt running six
- * to thirty seconds, so a fixed span could not express one. It is generalized
- * here rather than duplicated: a second selector contradicting this one would
- * be worse than either.
+ * This was a start-only picker for a fixed thirty-second preview, which could
+ * not express an interval whose start and end are both the author's. It is
+ * generalized here rather than duplicated: a second selector contradicting this
+ * one would be worse than either. The limits come from the bounds module, which
+ * holds the Spec 013 song-backed interval of 3 to 180 seconds.
  *
  * Three controls, deliberately separate and separately labelled, because the
  * failure this avoids is moving the start and having the end follow. The two

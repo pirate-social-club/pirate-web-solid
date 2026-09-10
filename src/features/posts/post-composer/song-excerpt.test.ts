@@ -48,11 +48,13 @@ describe("song excerpt bounds", () => {
     expect(excerptLengthMs(resized)).toBe(12_000);
   });
 
-  it("resizing from either endpoint stays within six and thirty seconds", () => {
-    const bounds = { startMs: 40_000, endMs: 60_000 };
+  it("resizing from either endpoint stays within three and 180 seconds", () => {
+    // Late enough in the song that the maximum, not the song's opening, is
+    // what stops the start from being dragged further back.
+    const bounds = { startMs: 190_000, endMs: 200_000 };
     // Dragged past the end, and dragged far before it.
-    expect(resizeExcerptStart(bounds, 59_000, SONG).startMs).toBe(60_000 - MIN_EXCERPT_MS);
-    expect(resizeExcerptStart(bounds, 0, SONG).startMs).toBe(60_000 - MAX_EXCERPT_MS);
+    expect(resizeExcerptStart(bounds, 199_000, SONG).startMs).toBe(200_000 - MIN_EXCERPT_MS);
+    expect(resizeExcerptStart(bounds, 0, SONG).startMs).toBe(200_000 - MAX_EXCERPT_MS);
     expect(excerptLengthMs(resizeExcerptStart(bounds, 0, SONG))).toBe(MAX_EXCERPT_MS);
   });
 
@@ -67,12 +69,12 @@ describe("song excerpt bounds", () => {
     expect(resizeExcerptEnd(bounds, 62_000, SONG)).toEqual({ startMs: 40_000, endMs: 62_000 });
   });
 
-  it("keeps the length within six and thirty seconds from either control", () => {
-    const bounds = { startMs: 40_000, endMs: 55_000 };
+  it("keeps the length within three and 180 seconds from either control", () => {
+    const bounds = { startMs: 20_000, endMs: 35_000 };
     // Dragged far below the minimum and far above the maximum.
-    expect(excerptLengthMs(resizeExcerptEnd(bounds, 40_100, SONG))).toBe(MIN_EXCERPT_MS);
-    expect(excerptLengthMs(resizeExcerptEnd(bounds, 200_000, SONG))).toBe(MAX_EXCERPT_MS);
-    // The span cannot move so late that six seconds no longer fit.
+    expect(excerptLengthMs(resizeExcerptEnd(bounds, 20_100, SONG))).toBe(MIN_EXCERPT_MS);
+    expect(excerptLengthMs(resizeExcerptEnd(bounds, 999_999, SONG))).toBe(MAX_EXCERPT_MS);
+    // The span cannot move so late that three seconds no longer fit.
     expect(moveExcerpt(bounds, SONG, SONG).startMs).toBe(SONG - MIN_EXCERPT_MS);
   });
 
