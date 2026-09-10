@@ -32,3 +32,12 @@ view, and the studying route and route-state story files wrap their
 subjects in `<main>` the way V2 does in production. The result is unchanged
 from the landing sweep: 729 axe passes, zero violations, and the same five
 song-composer interaction failures.
+
+`sweep-summary-wizard-headings.txt` is the composer run after each song step
+gained its `h2` from the step's own copy. All composer stories pass axe with
+zero violations. The heading resolves the `entered-from-text-post` product
+question — that story now clears its `heading "Song"` assertion and fails
+only on the stale `getByLabelText("Song title")` query, which belongs to the
+catalog-comb lane's assertion repairs along with the other four composer
+stories. The convention is recorded at
+`docs/design/a11y-wizard-step-headings.md`.
