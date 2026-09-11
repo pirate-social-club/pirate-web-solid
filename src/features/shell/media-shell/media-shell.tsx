@@ -83,15 +83,17 @@ export function ApplicationChrome(props: MediaShellProps) {
     },
   ];
   const goHome = () => navigateById("home");
-  const profileTarget = () => props.profileHref ?? "/communities";
+  const profileTarget = () => props.profileHref;
   const anonymousSettled = () => !props.sessionResolving && !props.sessionUnavailable && !signedIn();
   const openProfile = () => {
     if (!signedIn()) {
       if (anonymousSettled()) requestGlobalSignIn();
       return;
     }
-    if (props.navigate) props.navigate(profileTarget());
-    else if (typeof window !== "undefined") window.location.assign(profileTarget());
+    const href = profileTarget();
+    if (href === undefined) return;
+    if (props.navigate) props.navigate(href);
+    else if (typeof window !== "undefined") window.location.assign(href);
   };
 
   return <Show when={mode() !== "bare"} fallback={props.children}><div data-application-chrome data-media-shell data-shell-mode={mode()} data-shell-auth={props.sessionResolving ? "resolving" : props.sessionUnavailable ? "unavailable" : signedIn() ? "authenticated" : "anonymous"} class={`min-h-screen bg-background text-foreground ${props.class ?? ""}`}>
@@ -102,15 +104,15 @@ export function ApplicationChrome(props: MediaShellProps) {
         brandLabel="PIRATE"
         class="sticky top-0 hidden h-screen md:flex"
         footerActionHref={signedIn() ? profileTarget() : undefined}
-        footerActionDisabled={props.sessionResolving || (props.sessionUnavailable && props.sessionPending)}
+        footerActionDisabled={props.sessionResolving || (props.sessionUnavailable && props.sessionPending) || (signedIn() && profileTarget() === undefined)}
         footerActionLabel={props.sessionResolving || (props.sessionUnavailable && props.sessionPending) ? "Checking account" : props.sessionUnavailable ? "Retry account check" : signedIn() ? "Your profile" : "Sign in"}
-        footerDetail={props.sessionResolving || (props.sessionUnavailable && props.sessionPending) ? "Checking your account" : props.sessionUnavailable ? "Your account could not be checked" : signedIn() ? "View your public profile" : "Save, follow, and post"}
+        footerDetail={props.sessionResolving || (props.sessionUnavailable && props.sessionPending) ? "Checking your account" : props.sessionUnavailable ? "Your account could not be checked" : signedIn() ? profileTarget() === undefined ? "Your profile is still loading" : "View your public profile" : "Save, follow, and post"}
         footerTitle={props.sessionResolving ? "Account" : props.sessionUnavailable ? "Connection unavailable" : signedIn() ? "Your Pirate" : "Join Pirate"}
         homeAriaLabel="Go to Pirate home"
-        onFooterAction={props.sessionResolving ? undefined : props.sessionUnavailable ? props.onSessionRetry : requestGlobalSignIn}
-        onFooterActionFocus={props.sessionResolving || props.sessionUnavailable ? undefined : prepareGlobalSignIn}
-        onFooterActionPointerDown={props.sessionResolving || props.sessionUnavailable ? undefined : prepareGlobalSignIn}
-        onFooterActionPointerEnter={props.sessionResolving || props.sessionUnavailable ? undefined : preloadGlobalSignInAssets}
+        onFooterAction={props.sessionResolving ? undefined : props.sessionUnavailable ? props.onSessionRetry : signedIn() ? undefined : requestGlobalSignIn}
+        onFooterActionFocus={props.sessionResolving || props.sessionUnavailable || signedIn() ? undefined : prepareGlobalSignIn}
+        onFooterActionPointerDown={props.sessionResolving || props.sessionUnavailable || signedIn() ? undefined : prepareGlobalSignIn}
+        onFooterActionPointerEnter={props.sessionResolving || props.sessionUnavailable || signedIn() ? undefined : preloadGlobalSignInAssets}
         onHomeClick={goHome}
         onNavigate={navigateById}
         primaryItems={primaryItems}

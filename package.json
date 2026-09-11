@@ -43,11 +43,12 @@
     "check-api-client-provenance": "node scripts/check-api-client-provenance.mjs",
     "check:api-client-runtime-tables": "node scripts/check-api-client-runtime-tables.mjs",
     "check:solid-doctor": "solid-doctor . --baseline .solid-doctor-baseline.json",
+    "check:story-parity": "node scripts/check-story-production-parity.mjs",
     "configure:radicle-primary": "scripts/configure-radicle-primary",
     "publish:main": "scripts/publish-main",
     "test:publish-main": "scripts/publish-main.test.sh",
     "test:production-config": "node scripts/production-config.test.mjs",
-    "lint": "oxlint src",
+    "lint": "oxlint src && node scripts/check-story-production-parity.mjs",
     "generate-worker-types": "wrangler types",
     "verify": "bun run generate-worker-types && bun run test:production-config && bun run tsc --noEmit -p tsconfig.json && bun run check:e2e && bun run test:api && bun run test:app && bun run test:ssr && bun run lint && node scripts/check-solid-runtime.mjs && node scripts/check-api-client-provenance.mjs && node scripts/check-api-client-runtime-tables.mjs && bun run check:web3-icons && bun run check:phosphor-icons && bun run --cwd packages/solid-ui typecheck && bun run --cwd packages/solid-ui test && bun run check:solid-doctor && bun run text-post-check && bun run song-post-check",
     "verify:live": "node scripts/probe.mjs && node scripts/stream-check.mjs && node scripts/hydration-check.mjs"
