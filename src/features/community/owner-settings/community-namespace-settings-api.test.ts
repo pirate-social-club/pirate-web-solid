@@ -1,6 +1,6 @@
-import { createPirateApiClient } from "@pirate/api-client";
 import { describe, expect, test, vi } from "vitest";
 
+import { createApiClient } from "../../../api/client";
 import { createCommunityNamespaceSettingsApi, type HnsSessionLocator } from "./community-namespace-settings-api";
 
 const common = {
@@ -450,15 +450,16 @@ test("the vendored client decodes a lifecycle-bearing HNS session response", asy
     },
   };
   // The generated client decodes strictly; an undeclared field is a validation
-  // error, so this fails on a client older than 0.72.0.
-  const client = createPirateApiClient(
-    "https://api.example",
-    async () =>
+  // error, so this fails on a client older than 0.72.0. The app's own client
+  // factory builds the real generated client.
+  const client = createApiClient({
+    origin: "https://api.example",
+    fetchImpl: async () =>
       new Response(JSON.stringify(response), {
         status: 200,
         headers: { "content-type": "application/json" },
       }),
-  );
+  });
   const decoded = await client.get_communitiesCommunityIdHnsRootImports({
     path: { communityId: common.community_id },
   });
