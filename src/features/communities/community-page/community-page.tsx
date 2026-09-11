@@ -423,6 +423,7 @@ function SuccessState(props: {
             authorityPending={engagement.authorityPending()}
             managePending={manageAuthorityPending()}
             viewerUnknown={engagement.viewerUnknown()}
+            viewerSignedIn={typeof engagement.accountIdentity() === "string"}
             feed={feed}
             personaControl={personaOptions().length > 0 ? (
               <OperationPersonaControl

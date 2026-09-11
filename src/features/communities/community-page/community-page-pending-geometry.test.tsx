@@ -179,8 +179,8 @@ function sizing(element: Element | null): string | null {
 
 /**
  * The row's own size, which is what holds the page still. Its contents change
- * legitimately: Spec 016 leaves an active member neither Follow nor Join, so a
- * settled member's row is empty while a visitor's carries two controls.
+ * legitimately: a settled member shows the idempotent follow control and the
+ * disabled Joined state rather than a visitor's two live actions.
  */
 function headerSlots(container: HTMLElement) {
   const row = actionRow(container);
@@ -355,9 +355,10 @@ describe("private controls while authority settles", () => {
     await vi.waitFor(() => expect(buttonNamed(container, "Post")).toBeDefined());
     await vi.waitFor(() => expect(manageAuthority(container)).toBe("available"));
     expect(buttonNamed(container, "Post")).toBeDefined();
-    // Spec 016 leaves a member neither action, and the row holds its size.
-    expect(buttonNamed(container, "Follow")).toBeUndefined();
-    expect(buttonNamed(container, "Join")).toBeUndefined();
+    // Both slots stay filled with settled states: the idempotent follow
+    // control and the disabled Joined state, so the row holds its size.
+    expect(buttonNamed(container, "Follow")).toBeDefined();
+    expect(buttonNamed(container, "Joined")?.disabled).toBe(true);
     expect(actionRowSize(container)).toBe(pendingHeader.row);
   });
 
@@ -428,14 +429,15 @@ describe("management authority settles on its own schedule", () => {
 
     await vi.waitFor(() => expect(buttonNamed(container, "Post")).toBeDefined());
     // Membership and personas are known, so their controls are done waiting.
-    // A member is offered neither Follow nor Join, so the row is empty and the
-    // proof that membership settled is the action they do have.
-    expect(buttonNamed(container, "Follow")).toBeUndefined();
+    // A member's row stays filled with the idempotent follow control and the
+    // disabled Joined state rather than the action the server would reject.
+    expect(buttonNamed(container, "Follow")).toBeDefined();
+    expect(buttonNamed(container, "Joined")?.disabled).toBe(true);
     expect(container.querySelector("[data-operation-persona]")).not.toBeNull();
     // Only management is still unknown, and it is reported on an overlay
     // trigger that is always present, so nothing on the page is waiting.
     expect(manageAuthority(container)).toBe("pending");
-    expect(actionRow(container).children.length).toBe(0);
+    expect(actionRow(container).children.length).toBe(2);
   });
 });
 
@@ -565,7 +567,7 @@ describe("the overflow menu and the outcome announcements", () => {
 });
 
 describe("what a community offers each viewer", () => {
-  test("an active member is offered neither follow nor join", async () => {
+  test("an active member keeps both action slots as settled states", async () => {
     const container = render(() => (
       <ApplicationSessionProvider state={() => ({ status: "authenticated", userId: "account-a" })}>
         <CommunityPage
@@ -583,12 +585,13 @@ describe("what a community offers each viewer", () => {
     ));
 
     // Spec 016 §4.6: a member may invoke follow idempotently but may not
-    // unfollow, and has nothing to join. Offering either would offer an action
-    // the server answers with a typed conflict.
+    // unfollow, and has nothing to join. Both slots stay filled so the header
+    // holds: the follow control and the disabled Joined state.
     await vi.waitFor(() => expect(buttonNamed(container, "Post")).toBeDefined());
-    for (const withheld of ["Follow", "Following", "Join", "Joined"]) {
-      expect(buttonNamed(container, withheld), `${withheld} was offered to a member`).toBeUndefined();
-    }
+    expect(buttonNamed(container, "Follow")).toBeDefined();
+    expect(buttonNamed(container, "Following")).toBeUndefined();
+    expect(buttonNamed(container, "Joined")?.disabled).toBe(true);
+    expect(buttonNamed(container, "Join")).toBeUndefined();
   });
 
   test("a visitor who is not a member keeps both actions", async () => {

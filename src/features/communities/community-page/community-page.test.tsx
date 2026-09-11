@@ -550,12 +550,13 @@ describe("CommunityPage", () => {
     join.click();
     await vi.waitFor(() => expect(api.join).toHaveBeenCalledWith(communityId, { kind: "existing", personaId: "persona_1" }));
     await vi.waitFor(() => expect(container.textContent).toContain("Joined this Community."));
-    // Spec 016 leaves a member neither Join nor Follow, so the proof of
-    // membership is the action they gained, not a label on the one they lost.
+    // The member keeps the Post action and both header slots as settled
+    // states: Joined is disabled rather than gone.
     await vi.waitFor(() => expect([...container.querySelectorAll("button")]
       .some(button => button.textContent?.trim() === "Post")).toBe(true));
-    expect([...container.querySelectorAll("button")]
-      .some(button => ["Join", "Joined", "Follow", "Following"].includes(button.textContent?.trim() ?? ""))).toBe(false);
+    const joined = [...container.querySelectorAll<HTMLButtonElement>("button")]
+      .find(button => button.textContent?.trim() === "Joined");
+    expect(joined?.disabled).toBe(true);
   });
 
   test("shows a requested membership as pending instead of joined", async () => {
@@ -595,10 +596,13 @@ describe("CommunityPage", () => {
       />
     ));
     await vi.waitFor(() => expect(container.textContent).toContain("21 followers"));
-    // An existing member is offered neither action and keeps the one that is
-    // theirs; the server would answer a member's unfollow with a conflict.
-    expect([...container.querySelectorAll("button")]
-      .some(button => ["Join", "Joined", "Follow", "Following"].includes(button.textContent?.trim() ?? ""))).toBe(false);
+    // An existing member keeps both slots as states: Following is locked and
+    // Joined is disabled; the server would answer a member's unfollow with a
+    // conflict.
+    expect([...container.querySelectorAll<HTMLButtonElement>("button")]
+      .find(button => button.textContent?.trim() === "Following")?.disabled).toBe(true);
+    expect([...container.querySelectorAll<HTMLButtonElement>("button")]
+      .find(button => button.textContent?.trim() === "Joined")?.disabled).toBe(true);
     expect(container.textContent).toContain("Post");
     expect(api.resolveJoinAction).not.toHaveBeenCalled();
   });

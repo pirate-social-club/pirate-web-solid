@@ -82,6 +82,12 @@ export interface CommunityPageShellProps {
    * join, post or persona controls that no longer depend on anything.
    */
   managePending?: boolean;
+  /**
+   * True once the account session resolved to an established account. The feed
+   * controls row reserves its space for a signed-in viewer before the profile
+   * and membership reads arrive, so the posts never move under them.
+   */
+  viewerSignedIn?: boolean;
   personaControl?: JSX.Element;
   renderPost?: (
     post: CommunityPost,
@@ -314,11 +320,11 @@ export function CommunityPageShell(props: CommunityPageShellProps) {
   const slotClass = "h-11 w-full min-w-0 md:w-32";
   /**
    * Spec 016 §4.6: an active member may invoke follow idempotently but may not
-   * unfollow, and has nothing left to join. Offering either would be offering
-   * an action the server answers with a typed conflict. The row is a fixed
-   * height, so withdrawing them moves nothing.
+   * unfollow, and has nothing left to join. Both slots stay filled so the
+   * header does not move, with Joined and Following as disabled states rather
+   * than offering a typed conflict.
    */
-  const memberHasNoAction = () => props.joined === true && props.viewerUnknown !== true;
+  const memberFollowLocked = () => props.joined === true && props.viewerUnknown !== true && props.following;
   const feed = (): CommunityFeed =>
     props.feed?.() ?? { kind: "ready", posts: community().posts };
   /**
@@ -331,7 +337,7 @@ export function CommunityPageShell(props: CommunityPageShellProps) {
     if (props.authorityPending) return { text: "Checking…", description: "Checking your follow state" };
     if (props.viewerUnknown) return { text: "Check follow", description: "Check your follow state again" };
     return props.following
-      ? { text: "Following", description: "Unfollow this community" }
+      ? { text: "Following", description: memberFollowLocked() ? "Following this community" : "Unfollow this community" }
       : { text: "Follow", description: "Follow this community" };
   };
   const joinLabel = () => {
@@ -414,7 +420,7 @@ export function CommunityPageShell(props: CommunityPageShellProps) {
               <div class="min-w-0 flex-1">
                 <Type as="h1" class="line-clamp-2 text-2xl md:text-3xl" variant="h1">{community().name}</Type>
                 <Type class="mt-1 block truncate" variant="caption">
-                  {formatCount(community().members)} members · {formatCount(community().followers)} followers
+                  {formatCount(community().members)} members<span class="hidden md:inline"> · {formatCount(community().followers)} followers</span>
                 </Type>
               </div>
             </div>
@@ -425,9 +431,9 @@ export function CommunityPageShell(props: CommunityPageShellProps) {
             </div>
           </div>
           <Show when={props.readOnly !== true}>
-            {/* Two fixed-size slots, and the row keeps their width even when
-                a member has no action left, so nothing in the header moves as
-                authority settles. Controls whose existence depends on
+            {/* Two fixed-size slots, both filled even for a member: Joined and
+                Following are states, and Following is disabled because a
+                member may not unfollow. Controls whose existence depends on
                 authority live outside the header. */}
             <div
               aria-label="Community actions"
@@ -439,16 +445,15 @@ export function CommunityPageShell(props: CommunityPageShellProps) {
                   read yet, so neither is offered until it has been. While the
                   read is pending the control shows a spinner, not a label it
                   cannot stand behind, and keeps Checking… for screen readers. */}
-              <Show when={!memberHasNoAction()}>
-                <Button
-                  aria-label={followLabel().description}
-                  class={slotClass}
-                  data-community-follow-slot
-                  disabled={props.followBusy || props.authorityPending}
-                  loading={props.followBusy || props.authorityPending}
-                  onClick={() => props.onFollowToggle?.()}
-                  variant={props.following ? "secondary" : "outline"}
-                ><span class={props.followBusy || props.authorityPending ? "sr-only" : "truncate"}>{followLabel().text}</span></Button>
+              <Button
+                aria-label={followLabel().description}
+                class={slotClass}
+                data-community-follow-slot
+                disabled={props.followBusy || props.authorityPending || memberFollowLocked()}
+                loading={props.followBusy || props.authorityPending}
+                onClick={() => props.onFollowToggle?.()}
+                variant={props.following ? "secondary" : "outline"}
+              ><span class={props.followBusy || props.authorityPending ? "sr-only" : "truncate"}>{followLabel().text}</span></Button>
               <Show when={props.canJoin !== false} fallback={<div class={slotClass} aria-hidden="true" />}>
                 <Button
                   aria-label={joinLabel().description}
@@ -460,7 +465,6 @@ export function CommunityPageShell(props: CommunityPageShellProps) {
                   onClick={() => props.onJoin?.()}
                   variant={props.joined && !props.viewerUnknown ? "secondary" : "default"}
                 ><span class={props.authorityPending || props.joinBusy ? "sr-only" : "truncate"}>{joinLabel().text}</span></Button>
-              </Show>
               </Show>
             </div>
           </Show>
@@ -483,10 +487,11 @@ export function CommunityPageShell(props: CommunityPageShellProps) {
         <main class={tab() === "about" ? "hidden" : "min-w-0"} aria-label="Community feed">
           <Show when={tab() === "feed"}>
             {/* One controls row: the persona picker on the left and Post on
-                the right, rendered only when it can carry a control. The row
-                used to reserve its space in every state, which left an empty
-                band above the first post for viewers who have neither. */}
-            <Show when={props.personaControl || props.joined || props.showCreatePost || props.onCreatePost !== undefined}>
+                the right. A signed-in viewer keeps the row's space from the
+                moment the session resolves, so the profile and membership
+                reads fill it in without moving the first post; an anonymous
+                viewer has nothing to reserve and stays tight. */}
+            <Show when={props.viewerSignedIn === true}>
               <div class="mb-5 flex min-h-9 items-center gap-3" data-community-persona-reserved>
                 <div class="min-w-0 flex-1">{props.personaControl}</div>
                 <Show when={props.joined || props.showCreatePost || props.onCreatePost !== undefined}>
