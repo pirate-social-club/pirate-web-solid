@@ -343,6 +343,23 @@ describe("private controls while authority settles", () => {
       .not.toContain("static");
   });
 
+  test("reserves the controls row on first paint when the session cookie is present", async () => {
+    document.documentElement.dataset.viewerSession = "present";
+    try {
+      const container = mount(() => "resolving", { member: true, canManage: true, personas: [boundPersona] });
+      await vi.waitFor(() =>
+        expect(container.querySelector("[data-community-persona-reserved]")).not.toBeNull());
+    } finally {
+      delete document.documentElement.dataset.viewerSession;
+    }
+  });
+
+  test("keeps the anonymous first paint tight without the session hint", async () => {
+    const container = mount(() => "resolving", { member: false, canManage: false, personas: [] });
+    await vi.waitFor(() => expect(container.querySelector("[data-community-page]")).not.toBeNull());
+    expect(container.querySelector("[data-community-persona-reserved]")).toBeNull();
+  });
+
   test("a moderator who is a member keeps the same action geometry once settled", async () => {
     const [sessionState, setSessionState] = createSignal<ApplicationSessionState>("resolving");
     const container = mount(sessionState, { member: true, canManage: true, personas: [boundPersona] });

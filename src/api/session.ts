@@ -2,6 +2,14 @@ import { ApiClientError, type PirateApiClient } from "@pirate/api-client";
 import { createSessionApiClient } from "./client.ts";
 import type { ApiFetch } from "./proxy.ts";
 
+/**
+ * The host-only HttpOnly session cookie api-next issues. The Worker can read
+ * its presence on the SSR request before the browser resolves the account, so
+ * the first paint can reserve a signed-in viewer's controls row. The value is
+ * never parsed here; only its presence matters.
+ */
+export const SESSION_COOKIE_NAME = "n-pirate_session";
+
 export interface AuthenticatedSession {
   readonly status: "authenticated";
   readonly userId: string;

@@ -14,6 +14,7 @@ import {
   Toaster,
 } from "../../../design-system.ts";
 import { resolveRequestUiLocale } from "../../../lib/ui-locale-core.ts";
+import { viewerSessionHint } from "../../../lib/viewer-session-hint.ts";
 import { getLocaleMessages, interpolateMessage } from "../../../locales/index.ts";
 import {
   loadCommunityPage,
@@ -353,6 +354,18 @@ function SuccessState(props: {
 
   const manageAuthorityPending = () => !manageResolved();
 
+  /**
+   * Reserve the controls row before the account identity resolves. The Worker
+   * sees the session cookie, so the first HTML already knows whether to hold
+   * the row; a resolved identity is always authoritative afterwards. Without
+   * the hint the row would arrive late and push the server-rendered posts down
+   * for every signed-in viewer.
+   */
+  const viewerSignedIn = () => {
+    const identity = engagement.accountIdentity();
+    return identity === undefined ? viewerSessionHint() : typeof identity === "string";
+  };
+
   // Announcements this page raised. They expire on their own and can be
   // dismissed, and they are cleared when the page goes away so a stale outcome
   // never outlives the community it belonged to.
@@ -423,7 +436,7 @@ function SuccessState(props: {
             authorityPending={engagement.authorityPending()}
             managePending={manageAuthorityPending()}
             viewerUnknown={engagement.viewerUnknown()}
-            viewerSignedIn={typeof engagement.accountIdentity() === "string"}
+            viewerSignedIn={viewerSignedIn()}
             feed={feed}
             personaControl={personaOptions().length > 0 ? (
               <OperationPersonaControl

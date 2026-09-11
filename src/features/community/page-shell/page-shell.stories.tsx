@@ -76,6 +76,20 @@ export const AuthorityPending: Story = {
   ),
 };
 
+/** The first paint without a session cookie: nothing is reserved. */
+export const AuthorityPendingAnonymous: Story = {
+  name: "Geometry / Authority pending anonymous",
+  render: () => (
+    <CommunityPageShell
+      authorityPending
+      community={geometryCommunity}
+      following={false}
+      joined={false}
+      managePending
+    />
+  ),
+};
+
 export const SettledAnonymous: Story = {
   name: "Geometry / Settled anonymous",
   render: () => (

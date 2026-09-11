@@ -487,11 +487,13 @@ export function CommunityPageShell(props: CommunityPageShellProps) {
         <main class={tab() === "about" ? "hidden" : "min-w-0"} aria-label="Community feed">
           <Show when={tab() === "feed"}>
             {/* One controls row: the persona picker on the left and Post on
-                the right. A signed-in viewer keeps the row's space from the
-                moment the session resolves, so the profile and membership
-                reads fill it in without moving the first post; an anonymous
-                viewer has nothing to reserve and stays tight. */}
-            <Show when={props.viewerSignedIn === true}>
+                the right. A viewer whose session is resolved signed-in keeps
+                the row's space from the first paint, so the profile and
+                membership reads fill it in without moving the first post; the
+                content check is a fallback for hosts that render a control
+                without declaring the session. An anonymous viewer has nothing
+                to reserve and stays tight. */}
+            <Show when={props.viewerSignedIn === true || props.personaControl || props.joined || props.showCreatePost || props.onCreatePost !== undefined}>
               <div class="mb-5 flex min-h-9 items-center gap-3" data-community-persona-reserved>
                 <div class="min-w-0 flex-1">{props.personaControl}</div>
                 <Show when={props.joined || props.showCreatePost || props.onCreatePost !== undefined}>

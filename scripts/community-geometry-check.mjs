@@ -27,6 +27,7 @@ const signedInSettledStories = [
   "screens-community-pageshell--viewer-unknown",
 ];
 const anonymousStory = "screens-community-pageshell--settled-anonymous";
+const pendingAnonymousStory = "screens-community-pageshell--authority-pending-anonymous";
 
 const personaSelector = "[data-community-persona-reserved]";
 const firstPostSelector = "[data-community-post]";
@@ -52,6 +53,10 @@ const signedInProbes = [
 /** An anonymous viewer has no reserved row and no persona probe to compare. */
 const anonymousProbes = signedInProbes.filter(
   probe => probe.key !== "persona" && probe.key !== "firstPost",
+);
+/** The anonymous first paint and its settled state share the tight layout. */
+const anonymousFirstPaintProbes = anonymousProbes.concat(
+  signedInProbes.filter(probe => probe.key === "firstPost"),
 );
 
 async function measure(page, storyId, viewport, probes) {
@@ -150,11 +155,16 @@ async function main() {
         const settled = await measure(page, storyId, viewport, signedInProbes);
         failures.push(...compare(storyId, viewport, pending, settled, signedInProbes));
       }
-      const anonymous = await measure(page, anonymousStory, viewport, anonymousProbes);
-      failures.push(...compare(anonymousStory, viewport, pending, anonymous, anonymousProbes));
+      const pendingAnonymous = await measure(page, pendingAnonymousStory, viewport, anonymousFirstPaintProbes);
       if (await page.locator(personaSelector).count() > 0) {
-        failures.push(`${viewport.name}: the anonymous view reserved the signed-in persona row`);
+        failures.push(`${viewport.name}: the anonymous first paint reserved the signed-in persona row`);
       }
+      const anonymous = await measure(page, anonymousStory, viewport, anonymousFirstPaintProbes);
+      if (await page.locator(personaSelector).count() > 0) {
+        failures.push(`${viewport.name}: the anonymous settled view reserved the signed-in persona row`);
+      }
+      failures.push(...compare(anonymousStory, viewport, pendingAnonymous, anonymous, anonymousFirstPaintProbes));
+      failures.push(...compare(anonymousStory, viewport, pending, anonymous, anonymousProbes));
       failures.push(...await checkCommunityDetails(page, viewport));
     }
   } finally {
