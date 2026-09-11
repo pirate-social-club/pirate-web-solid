@@ -33,14 +33,11 @@ export function SignInModal(props: SignInModalProps): JSX.Element {
     <Modal forceMobile={props.forceMobile} onOpenChange={props.onOpenChange} open={props.open}>
       <ModalContent
         aria-label={props.confirmIdentity ? "Confirm it’s you" : copy().title}
-        class="min-h-[100dvh] max-h-[100dvh] overflow-y-auto rounded-t-[var(--radius-sheet)] border-border bg-background px-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] pt-4 sm:min-h-0 sm:max-h-[90vh] sm:max-w-lg sm:rounded-[var(--radius-xl)] sm:px-8 sm:pb-8 sm:pt-8"
-        hideCloseButton
+        class="max-h-[90dvh] overflow-y-auto rounded-t-[var(--radius-sheet)] border-border bg-background px-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] pt-4 sm:max-h-[90vh] sm:max-w-lg sm:rounded-[var(--radius-xl)] sm:px-8 sm:pb-8 sm:pt-8"
         mobileSide="bottom"
         onOpenAutoFocus={(event) => event.preventDefault()}
       >
         <div class="flex flex-col gap-6">
-          <div class="mx-auto h-1 w-9 rounded-full bg-border sm:hidden" />
-
           <SignInView
             confirmIdentity={props.confirmIdentity}
             onBack={props.session.back}

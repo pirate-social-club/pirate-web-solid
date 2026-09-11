@@ -4,7 +4,7 @@ import { formatCommunityRouteLabel, type YourCommunitySummary } from "./your-com
 
 describe("your communities model", () => {
   test("does not invent a route from a route-less community id", () => {
-    expect(formatCommunityRouteLabel("community-private-id", null)).toBe("No public route");
+    expect(formatCommunityRouteLabel("community-private-id", null)).toBeNull();
   });
 
   test("formats stable route labels with id, c/ and blank fallbacks", () => {

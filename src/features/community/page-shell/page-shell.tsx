@@ -22,6 +22,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  ResponsiveOptionSelect,
   Separator,
   Type,
 } from "@pirate/web-solid-ui";
@@ -87,7 +88,7 @@ export interface CommunityPageShellProps {
   ) => JSX.Element;
 }
 
-type CommunityTab = "feed" | "songs" | "leaderboard" | "about";
+type CommunityTab = "feed" | "songs" | "about";
 
 function formatCount(value: number): string {
   return value.toLocaleString("en-US");
@@ -231,7 +232,7 @@ function CommunityAbout(props: { community: CommunityData }) {
             <Type variant="h3">Community rules</Type>
             <ol class="flex flex-col gap-4">
               <For each={orderedCommunityRules(community().rules ?? [])}>
-                {(rule, index) => <li class="flex gap-3"><span class="grid size-6 shrink-0 place-items-center rounded-full bg-muted text-xs font-semibold">{index() + 1}</span><div><Type variant="body-strong">{rule.title}</Type><Type variant="caption">{rule.body}</Type></div></li>}
+                {(rule, index) => <li class="flex gap-3"><span class="grid size-6 shrink-0 place-items-center rounded-full bg-muted text-xs font-semibold">{index() + 1}</span><div class="flex flex-col gap-0.5"><Type variant="body-strong">{rule.title}</Type><Type variant="caption">{rule.body}</Type></div></li>}
               </For>
             </ol>
           </CardContent>
@@ -268,6 +269,9 @@ function CommunityBanner(props: {
       <Show when={props.community.bannerSrc}>
         {src => <img alt="" class="size-full object-cover" src={src()} />}
       </Show>
+      {/* The avatar overlaps the banner; the scrim darkens the lower cover so
+          the avatar edge stays readable over a light or busy image. */}
+      <div aria-hidden="true" class="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/5 via-transparent to-black/45" />
       <div class="absolute inset-x-0 top-0 flex items-center justify-between p-3 md:p-5">
         <IconButton aria-label="Go back" class="bg-background/75 text-foreground shadow-sm backdrop-blur-sm" onClick={props.onBack} variant="ghost">
           <IconArrowLeft class="size-5" />
@@ -372,21 +376,27 @@ export function CommunityPageShell(props: CommunityPageShellProps) {
 
       <header class="relative border-b border-border-soft bg-background px-5 pb-5 md:px-8 md:pb-6">
         <div class="md:flex md:items-end md:gap-4">
-          <div class="-mt-9 mb-3 md:-mt-11 md:mb-0">
-            <CommunityAvatar
-              avatarSrc={community().avatarSrc}
-              class="size-20 border-4 border-background md:size-24"
-              communityId={community().id ?? community().handle}
-              displayName={community().name}
-              size="lg"
-            />
-          </div>
-          <div class="min-w-0 md:flex-1 md:pb-1">
-            <Type as="h1" class="text-2xl md:text-3xl" variant="h1">{community().name}</Type>
-            <Type class="mt-1 block" variant="caption">
-              <Show when={community().handle}>{handle => <>{handle()} · </>}</Show>
-              {formatCount(community().members)} members · {formatCount(community().followers)} followers
-            </Type>
+          {/* Avatar and name share one row at every width: the avatar sits half
+              over the banner and the name reads to its right, rather than the
+              name dropping to its own line and leaving the top half empty.
+              items-start holds that half-overlap even when the name wraps. */}
+          <div class="flex min-w-0 items-start gap-3 md:flex-1 md:gap-4">
+            <div class="-mt-10 shrink-0 md:-mt-12">
+              <CommunityAvatar
+                avatarSrc={community().avatarSrc}
+                class="size-20 border-4 border-background md:size-24"
+                communityId={community().id ?? community().handle}
+                displayName={community().name}
+                size="lg"
+              />
+            </div>
+            <div class="min-w-0 flex-1 md:pb-1">
+              <Type as="h1" class="line-clamp-2 text-2xl md:text-3xl" variant="h1">{community().name}</Type>
+              <Type class="mt-1 block truncate" variant="caption">
+                <Show when={community().handle}>{handle => <>{handle()} · </>}</Show>
+                {formatCount(community().members)} members<span class="hidden md:inline"> · {formatCount(community().followers)} followers</span>
+              </Type>
+            </div>
           </div>
           <Show when={props.readOnly !== true}>
             {/* Exactly two slots, both always present and both a fixed size,
@@ -394,21 +404,24 @@ export function CommunityPageShell(props: CommunityPageShellProps) {
                 whose existence depends on authority live outside the header. */}
             <div
               aria-label="Community actions"
-              class="mt-3 grid h-11 grid-cols-2 gap-2 md:mt-0 md:flex md:shrink-0"
+              class="mt-3 grid h-11 grid-cols-2 gap-3 md:mt-0 md:flex md:shrink-0 md:gap-3"
               data-community-actions-reserved
               role="group"
             >
               {/* Follow and Following both state a direction that has not been
-                  read yet, so neither is offered until it has been. */}
+                  read yet, so neither is offered until it has been. While the
+                  read is pending the control shows a spinner, not a label it
+                  cannot stand behind, and keeps Checking… for screen readers. */}
               <Show when={!memberHasNoAction()}>
                 <Button
                   aria-label={followLabel().description}
                   class={slotClass}
                   data-community-follow-slot
                   disabled={props.followBusy || props.authorityPending}
+                  loading={props.followBusy || props.authorityPending}
                   onClick={() => props.onFollowToggle?.()}
                   variant={props.following ? "secondary" : "outline"}
-                ><span class="truncate">{followLabel().text}</span></Button>
+                ><span class={props.followBusy || props.authorityPending ? "sr-only" : "truncate"}>{followLabel().text}</span></Button>
               <Show when={props.canJoin !== false} fallback={<div class={slotClass} aria-hidden="true" />}>
                 <Button
                   aria-label={joinLabel().description}
@@ -416,9 +429,10 @@ export function CommunityPageShell(props: CommunityPageShellProps) {
                   data-community-membership-slot
                   disabled={props.authorityPending || props.joinBusy
                     || (!props.viewerUnknown && (props.joined || props.joinDisabled))}
+                  loading={props.authorityPending || props.joinBusy}
                   onClick={() => props.onJoin?.()}
                   variant={props.joined && !props.viewerUnknown ? "secondary" : "default"}
-                ><span class="truncate">{joinLabel().text}</span></Button>
+                ><span class={props.authorityPending || props.joinBusy ? "sr-only" : "truncate"}>{joinLabel().text}</span></Button>
               </Show>
               </Show>
             </div>
@@ -428,10 +442,9 @@ export function CommunityPageShell(props: CommunityPageShellProps) {
       </header>
 
       <div data-community-tabs>
-      <FlatTabBar class="px-5 md:px-8" columns={4}>
+      <FlatTabBar class="px-5 md:px-8" columns={3}>
         <FlatTabButton active={tab() === "feed"} onClick={() => setTab("feed")}>Feed</FlatTabButton>
         <FlatTabButton active={tab() === "songs"} onClick={() => setTab("songs")}>Songs</FlatTabButton>
-        <FlatTabButton active={tab() === "leaderboard"} onClick={() => setTab("leaderboard")}>Leaderboard</FlatTabButton>
         <FlatTabButton active={tab() === "about"} onClick={() => setTab("about")}>About</FlatTabButton>
       </FlatTabBar>
       </div>
@@ -443,12 +456,14 @@ export function CommunityPageShell(props: CommunityPageShellProps) {
             with a blank column beside an aside that was already there. */}
         <main class={tab() === "about" ? "hidden" : "min-w-0"} aria-label="Community feed">
           <Show when={tab() === "feed"}>
-            <div class="mb-5 flex h-9 items-center justify-between gap-3">
-              <Type variant="h2">Feed</Type>
-              <div class="flex items-center gap-2">
+            {/* One controls row: the persona picker on the left, Post and the
+                current sort on the right. The picker used to reserve its own
+                line, which left a blank band above the first post. */}
+            <div class="mb-5 flex min-h-9 items-center gap-3" data-community-persona-reserved>
+              <div class="min-w-0 flex-1">{props.personaControl}</div>
               <Show when={props.joined || props.showCreatePost || props.onCreatePost !== undefined}>
                 <Button
-                  class="h-9 rounded-full px-4"
+                  class="h-9 shrink-0 rounded-full px-4"
                   disabled={props.createPostBusy}
                   leadingIcon={<IconPlus class="size-4" />}
                   onClick={() => props.onCreatePost?.()}
@@ -457,16 +472,19 @@ export function CommunityPageShell(props: CommunityPageShellProps) {
                   {props.createPostBusy ? "Opening…" : "Post"}
                 </Button>
               </Show>
-              <label class="flex items-center gap-2">
-                <Type as="span" class="sr-only" variant="label">Sort community feed</Type>
-                <select aria-label="Sort community feed" class="h-9 rounded-full border border-border-soft bg-card px-3 text-sm" onChange={event => setSort(event.currentTarget.value)} value={sort()}>
-                  <option value="Best">Best</option><option value="New">New</option><option value="Top">Top</option>
-                </select>
-              </label>
-              </div>
-            </div>
-            <div class="mb-4 flex h-9 items-center justify-end" data-community-persona-reserved>
-              {props.personaControl}
+              <ResponsiveOptionSelect
+                ariaLabel="Sort community feed"
+                class="w-auto shrink-0"
+                drawerTitle="Sort feed"
+                onValueChange={value => setSort(value)}
+                options={[
+                  { label: "Best", value: "Best" },
+                  { label: "New", value: "New" },
+                  { label: "Top", value: "Top" },
+                ]}
+                triggerClass="w-auto"
+                value={sort()}
+              />
             </div>
             <Loading fallback={<FeedPending />}>
               <Show when={feed().kind === "ready"} fallback={<Card><CardContent class="p-6"><Type role="alert" variant="body">Community posts are temporarily unavailable.</Type></CardContent></Card>}>
@@ -485,10 +503,6 @@ export function CommunityPageShell(props: CommunityPageShellProps) {
                 <div class="flex flex-col"><For each={songs()}>{post => renderPost(post)}</For></div>
               </Show>
             </Loading>
-          </Show>
-          <Show when={tab() === "leaderboard"}>
-            <div class="mb-5"><Type variant="h2">Leaderboard</Type></div>
-            <Card><CardContent class="p-6"><Type variant="body">Earn points by sharing, learning, and singing with the community.</Type></CardContent></Card>
           </Show>
         </main>
 

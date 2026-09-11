@@ -13,8 +13,11 @@ const PUNYCODE_T_MAX = 26;
 const PUNYCODE_INITIAL_BIAS = 72;
 const PUNYCODE_INITIAL_N = 128;
 
-export function formatCommunityRouteLabel(communityId: string, routeSlug?: string | null): string {
-  if (routeSlug === null) return "No public route";
+export function formatCommunityRouteLabel(communityId: string, routeSlug?: string | null): string | null {
+  // A community created today has no public route yet. Saying so in the list
+  // read as a defect notice, so the caption is simply absent until there is a
+  // route to name.
+  if (routeSlug === null) return null;
   const routeSegment = formatCommunityRouteSegment(routeSlug || communityId);
   return routeSegment.toLowerCase().startsWith("c/") ? routeSegment : `c/${routeSegment}`;
 }

@@ -136,7 +136,7 @@ describe("YourCommunitiesRouteView", () => {
       />
     ));
     await vi.waitFor(() => expect(container.textContent).toContain("Open Sea"));
-    expect(container.textContent).toContain("No public route");
+    expect(container.textContent).not.toContain("No public route");
     expect(
       container.querySelector(
         "#community-community-route-less button:not([data-post-community-id])",

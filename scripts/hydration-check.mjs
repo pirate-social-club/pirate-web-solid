@@ -173,7 +173,7 @@ try {
     await page.locator("form input").first().fill("Retained browser draft");
     releaseAccount();
     await page.locator("[data-shell-auth='authenticated']").waitFor();
-    const profileRetry = page.getByRole("button", { name: "Retry profiles", exact: true });
+    const profileRetry = page.getByRole("button", { name: "Try again", exact: true });
     await profileRetry.waitFor();
     accountGate = new Promise(resolve => { releaseAccount = resolve; });
     const retryRequest = page.waitForRequest("**/api/users/me");
