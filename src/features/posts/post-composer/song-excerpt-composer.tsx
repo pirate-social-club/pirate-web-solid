@@ -24,6 +24,7 @@ import {
   canonicalTiming,
   type CanonicalSongTiming,
   intervalFromExcerpt,
+  type SongChoice,
   type SongIntervalPreflight,
   songPlanFromError,
   songPlanFromPreflight,
@@ -61,6 +62,7 @@ export function SongExcerptComposer(props: {
   communityId?: string;
   preflight?: SongIntervalPreflight;
   onPlan?: (state: SongPlanState) => void;
+  onChoice?: (choice: SongChoice) => void;
 }) {
   // The store and the reader are captured once, not read per call. A caller
   // writing `store={makeStore()}` passes a prop getter that builds a new store
@@ -73,6 +75,7 @@ export function SongExcerptComposer(props: {
   const communityId = props.communityId;
   const preflight = communityId === undefined ? undefined : props.preflight;
   const reportPlan = props.onPlan;
+  const reportChoice = props.onChoice;
 
   const [link, setLink] = createSignal("");
   const [linkProblem, setLinkProblem] = createSignal<string>();
@@ -266,6 +269,10 @@ export function SongExcerptComposer(props: {
     pending = new AbortController();
     const mine = ++generation;
     setSource({ kind: "loading", postId: parsed.postId });
+    // Loading a valid song link is the author's choice, made before the reader
+    // answers. A pending or failed read must not silently revert the video to
+    // its own sound; only the explicit control does that.
+    reportChoice?.({ kind: "song", songPostId: parsed.postId });
     const next = await loadSongSource(parsed.postId, reader, pending.signal);
     if (mine !== generation) return;
     setSource(next);
@@ -379,6 +386,16 @@ export function SongExcerptComposer(props: {
     return known
       ? `${known.minExcerptMs / 1_000} to ${known.maxExcerptMs / 1_000} seconds`
       : "3 to 180 seconds";
+  };
+
+  /** The status line. A chosen song with no verdict yet is not the same as no
+   * song at all: publishing waits for the server's answer rather than
+   * silently using the video's own sound. */
+  const planText = () => {
+    if (plan().kind === "none" && currentPostId() !== undefined) {
+      return "A song is chosen as this video’s soundtrack. Retain an excerpt so the server can accept it; until it does, publishing with the song is blocked.";
+    }
+    return songPlanText(plan());
   };
 
   const retain = async (songPostId: string) => {
@@ -600,11 +617,11 @@ export function SongExcerptComposer(props: {
           data-song-plan={preflight ? plan().kind : "unchecked"}
         >
           <Type as="p" variant="caption" role="status">
-            {!preflight
-              ? "This excerpt is kept with the draft. It isn’t sent with the video, and publishing won’t include it."
-              : source().kind === "idle"
-                ? "Publishing sends this video with its own sound. To post it to a song, load the song and retain an excerpt."
-                : songPlanText(plan())}
+          {!preflight
+            ? "This excerpt is kept with the draft. It isn’t sent with the video, and publishing won’t include it."
+            : source().kind === "idle"
+              ? "Publishing sends this video with its own sound. To post it to a song, load the song and retain an excerpt."
+              : planText()}
           </Type>
           <Show when={plan().kind === "failed" && retained()}>
             {(_) => (

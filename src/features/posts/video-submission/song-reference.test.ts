@@ -164,9 +164,9 @@ describe("the server's answer decides the plan", () => {
     expect(isDefinitiveSongRefusal(declared(409, "conflict", "canonical_timing_pending", true))).toBe(false);
   });
 
-  test("the words say the video publishes its own sound unless the server has accepted the song", () => {
+  test("a retained excerpt blocks publishing until the server accepts it or the author chooses own sound", () => {
+    expect(songPlanText({ kind: "none" })).toContain("its own sound");
     for (const state of [
-      { kind: "none" },
       { kind: "not_available" },
       { kind: "measuring", retryAfterMs: 2_000 },
       { kind: "timing_unavailable" },
@@ -174,7 +174,8 @@ describe("the server's answer decides the plan", () => {
       { kind: "ineligible", reasonCode: "derivative_video_blocked" },
       { kind: "failed", retryable: true },
     ] as const) {
-      expect(songPlanText(state)).toContain("its own sound");
+      expect(songPlanText(state)).toContain("Publishing with the song is blocked");
+      expect(songPlanText(state)).toContain("Use original sound");
     }
     expect(songPlanText({ kind: "not_available" })).toContain("isn’t available yet");
     const accepted = songPlanText({ kind: "ready", selection });

@@ -137,7 +137,8 @@ export function createSongIntervalPreflight(options: ApiClientFactoryOptions & {
 }
 
 /** Where a retained excerpt stands with the server. Only `ready` lets a
- * publication name the song; every other state publishes original sound. */
+ * publication name the song; while any other retained state stands, publishing
+ * is blocked until the author explicitly chooses the video's own sound. */
 export type SongPlanState =
   | { readonly kind: "none" }
   | { readonly kind: "checking" }
@@ -148,6 +149,14 @@ export type SongPlanState =
   | { readonly kind: "ineligible"; readonly reasonCode: SongVideoIneligibility }
   | { readonly kind: "failed"; readonly retryable: boolean }
   | { readonly kind: "ready"; readonly selection: SongVideoSelection };
+
+/** The author's soundtrack choice, tracked apart from the server's verdict on
+ * it. Once a song is chosen it stays this video's intent — including while a
+ * fresh preflight answer is pending or the author switches songs — until the
+ * author explicitly replaces it with the video's own sound. */
+export type SongChoice =
+  | Readonly<{ kind: "none" }>
+  | Readonly<{ kind: "song"; songPostId: string }>;
 
 const DEFAULT_MEASURING_RETRY_MS = 2_000;
 
@@ -219,7 +228,7 @@ export function isDefinitiveSongRefusal(error: ApiClientError): boolean {
   return reason === "song_audio_revision_changed" || reason === "canonical_timing_unavailable";
 }
 
-const OWN_SOUND = "Publishing now sends this video with its own sound, and the excerpt stays with the draft.";
+const OWN_SOUND = "Publishing with the song is blocked until the excerpt is accepted; you can choose “Use original sound” to publish without it.";
 
 function refusalText(reason: SongIntervalRefusal): string {
   switch (reason) {
@@ -249,8 +258,10 @@ export function selectionSpan(selection: SongVideoSelection): string {
   return `${formatExcerptTime(start)} to ${formatExcerptTime(end)}`;
 }
 
-/** What publishing will do, in every state. Only `ready` mentions the song as
- * something publishing carries, and even then as the server's decision. */
+/** What publishing will do, in every state. Only `ready` carries the song into
+ * a publication, and even then as the server's decision; a retained excerpt in
+ * any other state blocks publishing until the author chooses the video's own
+ * sound. */
 export function songPlanText(state: SongPlanState): string {
   switch (state.kind) {
     case "none": return "Retain an excerpt to ask whether this video can be posted to the song. Until then, publishing sends this video with its own sound.";
