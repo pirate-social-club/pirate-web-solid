@@ -400,12 +400,13 @@ export function CommunityPageShell(props: CommunityPageShellProps) {
             </div>
           </div>
           <Show when={props.readOnly !== true}>
-            {/* Exactly two slots, both always present and both a fixed size,
-                so no label this row can show changes its geometry. Controls
-                whose existence depends on authority live outside the header. */}
+            {/* Two fixed-size slots, and the row keeps their width even when
+                a member has no action left, so nothing in the header moves as
+                authority settles. Controls whose existence depends on
+                authority live outside the header. */}
             <div
               aria-label="Community actions"
-              class="mt-4 grid h-11 grid-cols-2 gap-3 md:mt-0 md:flex md:shrink-0 md:gap-3"
+              class="mt-4 grid h-11 grid-cols-2 gap-3 md:mt-0 md:flex md:min-w-[16.75rem] md:shrink-0 md:gap-3"
               data-community-actions-reserved
               role="group"
             >
