@@ -3,8 +3,11 @@ import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import { KaraokeAvailabilityError } from "../../karaoke/karaoke-api";
 import { KaraokeApiError } from "../../karaoke/karaoke-session-bridge";
 import { SongExcerptComposer } from "./song-excerpt-composer";
-import { frequencyAt } from "./song-excerpt-audio";
-import { makeMemoryExcerptDraftStore } from "./song-excerpt-surface";
+import {
+  parseStoredExcerptDraft,
+  type SongExcerptDraft,
+  type SongExcerptDraftStore,
+} from "./song-excerpt-draft";
 import type { SongPayloadReader } from "./song-excerpt-source";
 
 /** A stand-in for a real song's canonical audio, generated here in the story.
@@ -19,6 +22,17 @@ import type { SongPayloadReader } from "./song-excerpt-source";
  * different rather than merely looking different — a preview that always
  * sounded the same would prove only that something played.
  */
+const BAR_MS = 2_000;
+// A fixed pentatonic ladder, so consecutive bars are distinguishable by ear
+// without being unpleasant across a thirty-second span.
+const SCALE_HZ = [220, 247, 277, 330, 370, 440, 494, 554] as const;
+
+function frequencyAt(positionMs: number): number {
+  const index = Math.max(0, Math.floor(positionMs / BAR_MS));
+  // SAFETY: the modulo keeps the index inside the fixed scale array.
+  return SCALE_HZ[index % SCALE_HZ.length] ?? SCALE_HZ[0];
+}
+
 function toneWavUrl(durationMs: number): string {
   const rate = 8_000;
   const samples = Math.floor((durationMs / 1_000) * rate);
@@ -53,6 +67,17 @@ function toneWavUrl(durationMs: number): string {
   return URL.createObjectURL(new Blob([buffer], { type: "audio/wav" }));
 }
 
+/** In-memory draft store for the stories; the app uses the localStorage one. */
+function memoryStore(): SongExcerptDraftStore {
+  let stored: string | null = null;
+  return {
+    load: async () => (stored === null ? null : parseStoredExcerptDraft(JSON.parse(stored))),
+    save: async (draft: SongExcerptDraft) => {
+      stored = JSON.stringify(draft);
+    },
+  };
+}
+
 function standInReader(title: string, durationMs: number): SongPayloadReader {
   const audioUrl = toneWavUrl(durationMs);
   return async () => ({ instrumental_audio_url: audioUrl, title });
@@ -80,7 +105,7 @@ export const ChooseHearAndRetain: Story = {
   render: () => (
     <SongExcerptComposer
       read={standInReader("Cadence (stand-in audio)", 150_000)}
-      store={makeMemoryExcerptDraftStore()}
+      store={memoryStore()}
     />
   ),
 };
@@ -91,7 +116,7 @@ export const ShortSong: Story = {
   render: () => (
     <SongExcerptComposer
       read={standInReader("Interlude (stand-in audio)", 8_200)}
-      store={makeMemoryExcerptDraftStore()}
+      store={memoryStore()}
     />
   ),
 };
@@ -99,7 +124,7 @@ export const ShortSong: Story = {
 /** The read never settles, so the loading state stays on screen. */
 export const Loading: Story = {
   render: () => (
-    <SongExcerptComposer read={() => new Promise(() => {})} store={makeMemoryExcerptDraftStore()} />
+    <SongExcerptComposer read={() => new Promise(() => {})} store={memoryStore()} />
   ),
 };
 
@@ -109,7 +134,7 @@ export const NoAudioYet: Story = {
   render: () => (
     <SongExcerptComposer
       read={async () => ({ instrumental_audio_url: null, title: "Still processing" })}
-      store={makeMemoryExcerptDraftStore()}
+      store={memoryStore()}
     />
   ),
 };
@@ -122,7 +147,7 @@ export const FailedToLoad: Story = {
       read={async () => {
         throw new Error("GET /communities/x/posts/y 403");
       }}
-      store={makeMemoryExcerptDraftStore()}
+      store={memoryStore()}
     />
   ),
 };
@@ -135,7 +160,7 @@ export const StillProcessing: Story = {
       read={async () => {
         throw new KaraokeAvailabilityError("processing", "still_processing");
       }}
-      store={makeMemoryExcerptDraftStore()}
+      store={memoryStore()}
     />
   ),
 };
@@ -147,7 +172,7 @@ export const NoKaraokeAudio: Story = {
       read={async () => {
         throw new KaraokeAvailabilityError("unavailable", "no_karaoke");
       }}
-      store={makeMemoryExcerptDraftStore()}
+      store={memoryStore()}
     />
   ),
 };
@@ -159,7 +184,7 @@ export const AgeRestricted: Story = {
       read={async () => {
         throw new KaraokeApiError("age_locked", "Age verification is required.", 403, false);
       }}
-      store={makeMemoryExcerptDraftStore()}
+      store={memoryStore()}
     />
   ),
 };
@@ -173,7 +198,7 @@ export const AudioWontPlay: Story = {
         instrumental_audio_url: "https://audio.invalid/missing.mp3",
         title: "A song whose audio moved",
       })}
-      store={makeMemoryExcerptDraftStore()}
+      store={memoryStore()}
     />
   ),
 };
