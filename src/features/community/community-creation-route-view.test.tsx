@@ -129,7 +129,7 @@ describe("Community creation production route", () => {
     expect(container.textContent).not.toContain("Sign in to create a community");
 
     const retry = [...route().querySelectorAll<HTMLButtonElement>("button")]
-      .find(button => button.textContent?.trim() === "Retry account check")!;
+      .find(button => button.textContent?.trim() === "Try again")!;
     retry.click();
 
     await vi.waitFor(() => expect(route().getAttribute("data-creation-state")).toBe("signed-out"));
@@ -174,7 +174,7 @@ describe("Community creation production route", () => {
     expect(name.value).toBe("My community");
     expect(client.createIntent).not.toHaveBeenCalled();
     const retry = [...container.querySelectorAll<HTMLButtonElement>("button")]
-      .find(button => button.textContent?.trim() === "Retry account check")!;
+      .find(button => button.textContent?.trim() === "Try again")!;
     retry.click();
     await vi.waitFor(() => expect(attempt).toBe(3));
     settle(authenticated);
@@ -327,7 +327,7 @@ describe("Community creation production route", () => {
     const button = container.querySelector<HTMLButtonElement>('button[type="submit"]')!;
     await vi.waitFor(() => expect(button.disabled).toBe(false));
     expect(button.textContent).toContain("Create");
-    const retryProfiles = [...container.querySelectorAll<HTMLButtonElement>("button")].find(button => button.textContent?.trim() === "Retry profiles")!;
+    const retryProfiles = [...container.querySelectorAll<HTMLButtonElement>("button")].find(button => button.textContent?.trim() === "Try again")!;
     retryProfiles.click();
     await vi.waitFor(() => expect(button.disabled).toBe(false));
     expect(button.textContent?.trim()).toBe("Create");
@@ -761,6 +761,43 @@ describe("Community creation production route", () => {
 
     await vi.waitFor(() => expect(container.textContent).toContain("Palm scan isn't available right now. Try again later."));
     expect(container.querySelector<HTMLButtonElement>("button[type='submit']")?.disabled).toBe(false);
+  });
+
+  test("explains an ended setup when its update comes back terminal", async () => {
+    const saved = createIntent({
+      intentId: "creation-ended",
+      nextAction: { kind: "commit" },
+      revision: 2,
+      status: "commit_ready",
+    });
+    const ended = createIntent({
+      ...saved,
+      nextAction: { kind: "none", reason: "expired" },
+      revision: 3,
+      status: "expired",
+    });
+    const updateIntent = vi.fn().mockResolvedValue(ended);
+    const commitIntent = vi.fn();
+    const container = render(() => (
+      <CommunityCreationRouteView
+        api={api({ commitIntent, getIntent: async () => saved, updateIntent })}
+        intentId="creation-ended"
+        navigate={() => {}}
+        resolveSession={async () => ({ status: "authenticated", userId: "user-1", personas: [] })}
+      />
+    ));
+
+    const name = container.querySelector<HTMLInputElement>("input")!;
+    await vi.waitFor(() => expect(name.value).toBe("Saved community"));
+    name.value = "Edited community";
+    name.dispatchEvent(new InputEvent("input", { bubbles: true }));
+    const submit = container.querySelector<HTMLButtonElement>("button[type='submit']")!;
+    await vi.waitFor(() => expect(submit.disabled).toBe(false));
+    submit.click();
+
+    await vi.waitFor(() => expect(container.textContent).toContain("This community setup has ended. Start again."));
+    expect(updateIntent).toHaveBeenCalledOnce();
+    expect(commitIntent).not.toHaveBeenCalled();
   });
 });
 

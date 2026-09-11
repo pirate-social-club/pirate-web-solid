@@ -354,13 +354,12 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
     if (!owner) {
       if (session() === "anonymous") requestGlobalSignIn();
       else if (session() === "failed") retrySessionResolution();
-      else setMessage("Checking your account\u2026");
       return;
     }
     const saved = intent();
     if (saved) {
       if (intentOwnerId() !== owner.userId) {
-        setMessage("Sign in with the account that started this community, then reload this setup.");
+        setMessage("Sign in with the account that started this community, then try again.");
         return;
       }
       continuing = true;
@@ -378,6 +377,7 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
           setMessage("");
         }
         if (latest.nextAction.kind === "blocked") setMessage(blockedCreationMessage(latest.nextAction.reason));
+        else if (latest.nextAction.kind === "none" && !latest.committedHref) setMessage("This community setup has ended. Start again.");
         else if (latest.nextAction.kind === "activate_profile") await activateProfile(latest, owner.userId);
         else if (latest.nextAction.kind === "commit") await runCommit(latest.revision, latest.intentId, owner.userId, true);
       } catch (error) {
@@ -467,7 +467,6 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
         requirePersona={!!currentSession()}
         failureMessage={message() || (session() === "failed" ? "Could not check your account. Your setup is still here." : currentSession()?.personasUnavailable ? "Could not load your existing profiles. You can still create a new profile." : "")}
         onRetry={session() === "failed" || currentSession()?.personasUnavailable ? retrySessionResolution : props.intentId?.trim() && !intent() && message() ? () => void loadIntent(props.intentId!.trim()) : undefined}
-        retryLabel={session() === "failed" ? "Retry account check" : currentSession()?.personasUnavailable ? "Retry profiles" : "Try again"}
       />
     </main>
   );

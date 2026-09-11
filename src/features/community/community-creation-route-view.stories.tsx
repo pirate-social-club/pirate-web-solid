@@ -81,7 +81,7 @@ export const ProfilesUnavailable: Story = {
     await waitFor(() =>
       expect(canvas.getByText("Could not load your existing profiles. You can still create a new profile.")).toBeInTheDocument(),
     );
-    await expect(canvas.getByRole("button", { name: "Retry profiles" })).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: "Try again" })).toBeInTheDocument();
   },
 };
 
@@ -96,7 +96,7 @@ export const Unavailable: Story = {
     const canvas = within(canvasElement);
     await waitFor(() => expect(stateOf(canvasElement)).toBe("unavailable"));
     await expect(canvas.getByText("Could not check your account. Your setup is still here.")).toBeInTheDocument();
-    await expect(canvas.getByRole("button", { name: "Retry account check" })).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: "Try again" })).toBeInTheDocument();
   },
 };
 
