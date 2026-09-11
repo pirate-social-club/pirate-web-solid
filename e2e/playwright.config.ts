@@ -1,5 +1,8 @@
 import { defineConfig, devices } from "playwright/test";
 
+// Authenticated pages can contain identity data; do not retain automatic DOM snapshots.
+process.env.PLAYWRIGHT_NO_COPY_PROMPT = "1";
+
 const baseURL = process.env.E2E_BASE_URL?.trim() || "https://web-next-staging.pirate.sc";
 
 export default defineConfig({

@@ -63,3 +63,36 @@ An authorized staging publish is incomplete until the publisher injects the
 staging test-account environment and runs `bun run test:e2e:staging` against
 the resulting deployment. Mutating and manual tags are never part of that
 automatic post-publish check.
+
+## Required song onboarding journey
+
+`bun run test:e2e:song-onboarding` signs in with an authorized fixed-OTP Privy
+identity, registers the Pirate account if necessary, creates its own uniquely
+named community, uploads the included instrumental MP3, publishes it, reloads
+its community feed and proves playback plus seeking. It does not require a
+personal song file or a pre-existing community. It makes no business API mocks.
+The dedicated configuration fails before launching a browser if credentials
+are missing; it cannot substitute skipped tests for acceptance.
+
+Inject `E2E_PRIVY_EMAIL` and `E2E_PRIVY_OTP` through the authorized secret runner.
+The existing operator names `MODERATION_E2E_OWNER_EMAIL` and
+`MODERATION_E2E_OWNER_OTP` are also accepted. Do not put their values in commands,
+reports or Git. The default target is the known staging app; `E2E_BASE_URL` can
+select a prepared localhost origin backed by the real test services. Production
+and arbitrary remote origins are refused. Privy itself is still the real test
+application, even when the product origin is local.
+
+The explicit command permits one community and one 16-second song, uses no
+retries, and has a ten-minute test timeout. It does not reset databases, deploy
+workers, provision keys or run unrelated acceptance cases. The test identity
+must have community-creation quota. There is no supported delete contract, so
+created content remains marked for disposition; a quota failure is a failure,
+not grounds to reuse an unrelated community or bypass product checks.
+
+Authenticated fixtures disable traces, screenshots and video and attach only
+bounded network method/path/status diagnostics on failure. The auth and
+community setup adapt the preserved, unintegrated foundation at
+`9dfb77ac0195caecff524f2096ecf6582305302e`; the song flow extends the current
+`song-compose.spec.ts`. This instrumental journey does not establish lyric
+alignment, retention, ACR registration, moderation or every engagement case.
+Those remain separate assertions and must not be claimed from this test.
