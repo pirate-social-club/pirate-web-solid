@@ -26,6 +26,7 @@ export default defineConfig({
     include: [
       "src/features/posts/song-player/song-player.test.tsx",
       "src/hns-community-route-transform.test.ts",
+      "src/lib/viewer-session-hint.test.ts",
       "src/routes/community-owner-settings-route.test.ts",
       "src/routes/community-route-filesystem.test.ts",
       "src/features/posts/public-post/public-post-route.model.test.ts",
