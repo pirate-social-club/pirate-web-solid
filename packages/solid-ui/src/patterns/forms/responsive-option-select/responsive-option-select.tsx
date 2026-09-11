@@ -67,9 +67,9 @@ function OptionDetail(props: { option: ResponsiveOptionSelectOption }) {
  * data-driven — options carry label, description, icon, and disabled reason;
  * selection is reported through onValueChange. The host controls the value.
  *
- * Custom mobile triggers are rendered as the SheetTrigger's child, so they
- * must be content-only or a single interactive control; the wrapper does not
- * add pill styling or triggerClass to custom content.
+ * Custom mobile triggers replace the default trigger content and must be
+ * content-only; the trigger element keeps button semantics and the aria
+ * label, so a nested interactive control is not allowed.
  */
 export function ResponsiveOptionSelect(props: ResponsiveOptionSelectProps) {
   const [drawerOpen, setDrawerOpen] = createSignal(false);
@@ -114,7 +114,15 @@ export function ResponsiveOptionSelect(props: ResponsiveOptionSelectProps) {
               }
             >
               {(customTrigger) => (
-                <SheetTrigger as="span" role="presentation" tabindex={-1}>
+                <SheetTrigger
+                  aria-label={props.ariaLabel}
+                  class={cn(
+                    pillButtonVariants({ tone: "default" }),
+                    triggerSizeClass(),
+                    "w-full max-w-none cursor-pointer gap-1.5 px-4",
+                    props.triggerClass,
+                  )}
+                >
                   {customTrigger()}
                 </SheetTrigger>
               )}

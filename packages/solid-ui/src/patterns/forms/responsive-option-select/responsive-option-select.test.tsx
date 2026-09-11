@@ -74,18 +74,20 @@ describe("ResponsiveOptionSelect", () => {
     expect(screen.queryByRole("dialog")).toBeNull();
   });
 
-  it("accepts a custom mobile trigger", () => {
+  it("accepts a content-only custom mobile trigger", () => {
     const container = render(() => (
       <ResponsiveOptionSelect
         ariaLabel="Sort"
         drawerTitle="Sort"
-        mobileTriggerContent={<button type="button">Custom trigger</button>}
+        mobileTriggerContent={<span>Custom trigger</span>}
         options={options}
         value="best"
       />
     ));
 
-    expect(within(container).getByText("Custom trigger")).toBeVisible();
+    const trigger = container.querySelector<HTMLButtonElement>("button");
+    expect(trigger?.getAttribute("aria-label")).toBe("Sort");
+    expect(trigger?.textContent).toContain("Custom trigger");
     expect(container.querySelector("button > button")).toBeNull();
   });
 
