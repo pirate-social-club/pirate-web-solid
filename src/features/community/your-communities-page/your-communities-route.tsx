@@ -186,7 +186,7 @@ export function YourCommunitiesRouteView(props: YourCommunitiesRouteProps = {}) 
 
   return (
     <main data-route-path="/communities" data-communities-state={state().kind}>
-      <Title>Your Communities | Pirate</Title>
+      <Title>Your communities | Pirate</Title>
       <Show when={state().kind === "loading"}>
         <PageContainer>
           <Type as="p" role="status">
@@ -197,9 +197,9 @@ export function YourCommunitiesRouteView(props: YourCommunitiesRouteProps = {}) 
       <Show when={state().kind === "anonymous"}>
         <PageContainer class="flex flex-col gap-4">
           <Type as="h1" variant="h1">
-            Your Communities
+            Your communities
           </Type>
-          <Type as="p">Sign in to choose a Community and post.</Type>
+          <Type as="p">Sign in to see your communities.</Type>
           <Button class="w-fit" onClick={requestGlobalSignIn}>
             Sign in
           </Button>
@@ -208,7 +208,7 @@ export function YourCommunitiesRouteView(props: YourCommunitiesRouteProps = {}) 
       <Show when={state().kind === "error"}>
         <PageContainer class="flex flex-col gap-4">
           <Type as="h1" variant="h1">
-            Your Communities
+            Your communities
           </Type>
           <Type as="p" role="alert">
             {errorMessage()}
@@ -217,20 +217,17 @@ export function YourCommunitiesRouteView(props: YourCommunitiesRouteProps = {}) 
       </Show>
       <Show when={state().kind === "ready"}>
         <YourCommunitiesPageView
-          createCommunityLabel="Create Community"
-          emptyFollowingLabel="Following Communities will appear here."
-          emptyJoinedLabel="You aren't an active member of a Community yet."
-          followingCommunities={[]}
-          followingLabel="Following"
+          createCommunityLabel="Create community"
+          emptyJoinedLabel="You aren't a member of a community yet."
           joinedCommunities={joinedCommunities()}
-          joinedLabel="Joined"
+          joinedLabel="Communities"
           onCreateCommunity={() => navigate("/communities/new")}
           onPostHere={(community) => void openPostComposer(community)}
           onSelectCommunity={(community) => {
             if (community.resourceHref !== null && community.resourceHref !== undefined)
               navigate(community.resourceHref);
           }}
-          title="Your Communities"
+          title="Your communities"
         />
       </Show>
       <Show when={postingCommunityId()}>

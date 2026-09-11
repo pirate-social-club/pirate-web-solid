@@ -24,11 +24,10 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
   ResponsiveOptionSelect,
-  Separator,
   Type,
 } from "@pirate/web-solid-ui";
 import {
-  gateSummary,
+  membershipLine,
   orderedCommunityRules,
   orderedReferenceLinks,
   safeCommunityHref,
@@ -41,8 +40,6 @@ import {
 
 export interface CommunityPageShellProps {
   community: CommunityData;
-  empty?: boolean;
-  mobile?: boolean;
   following: boolean;
   joined: boolean;
   onFollowToggle?: () => void;
@@ -55,10 +52,7 @@ export interface CommunityPageShellProps {
   onCreatePost?: () => void;
   createPostBusy?: boolean;
   onBack?: () => void;
-  onMore?: () => void;
   canJoin?: boolean;
-  showCreatePost?: boolean;
-  readOnly?: boolean;
   /**
    * The feed, read inside this shell's own loading boundary. Reading it may
    * suspend, which is why it is a function and not a value: the surrounding
@@ -211,18 +205,13 @@ function CommunityAbout(props: { community: CommunityData }) {
     <div class="flex flex-col gap-4 max-md:gap-8">
       <Card class="max-md:rounded-none max-md:border-0 max-md:bg-transparent max-md:shadow-none">
         <CardContent class="flex flex-col gap-3 p-5 max-md:p-0">
-          <Type variant="h3">About {community().name}</Type>
+          <Type variant="h3">About</Type>
           <Type variant="body">{community().description}</Type>
-          <Separator />
-          <Type variant="caption">
-            <Show when={community().handle}>{handle => <>{handle()} · </>}</Show>
-            {formatCount(community().members)} members · {formatCount(community().followers)} followers
-          </Type>
-          <Show when={community().gates?.length}>
-            <Type variant="label">{gateSummary(community().gates ?? [], community().gateMode ?? "unknown")}</Type>
-            <ul class="flex flex-col gap-2">
-              <For each={community().gates}>{gate => <li class="flex items-center justify-between gap-3"><Type variant="body">{gate.label}</Type><Type variant="caption">{gate.status}</Type></li>}</For>
-            </ul>
+          <Show when={community().handle}>
+            {handle => <Type variant="caption">{handle()}</Type>}
+          </Show>
+          <Show when={membershipLine(community().membershipMode)}>
+            {line => <Type variant="caption">{line()}</Type>}
           </Show>
         </CardContent>
       </Card>
@@ -262,7 +251,6 @@ function CommunityBanner(props: {
   manage: "available" | "pending" | "unavailable";
   onBack?: () => void;
   onManage?: () => void;
-  onShowDetails: () => void;
   /** Feed sort, rendered left of the overflow menu when the shell has one. */
   sortControl?: JSX.Element;
 }) {
@@ -280,8 +268,9 @@ function CommunityBanner(props: {
         </IconButton>
         <div class="flex items-center gap-2">
           {props.sortControl}
-          {/* An overlay, so an option that appears when authority settles moves
-              nothing on the page beneath it. */}
+          {/* An overlay, so the management option that appears when authority
+              settles moves nothing on the page beneath it. The Community
+              details item is gone: the About tab below is that surface. */}
           <DropdownMenu placement="bottom-end" gutter={4}>
             <DropdownMenuTrigger
               aria-label="More community options"
@@ -294,13 +283,9 @@ function CommunityBanner(props: {
               <Show when={props.onManage}>
                 <DropdownMenuItem onSelect={() => props.onManage?.()}>
                   <IconShield class="size-4" />
-                  <span>Manage</span>
+                  <span>Manage community</span>
                 </DropdownMenuItem>
               </Show>
-              {/* Always does something: a host that owns this navigation takes it,
-                  and otherwise it selects the About tab, which is where the
-                  community's details already live. */}
-              <DropdownMenuItem onSelect={() => props.onShowDetails()}>Community details</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
@@ -387,7 +372,7 @@ export function CommunityPageShell(props: CommunityPageShellProps) {
   );
 
   return (
-    <div class={props.mobile ? "w-full max-w-[24.375rem] bg-background" : "mx-auto w-full max-w-6xl bg-background"} data-community-page>
+    <div class="mx-auto w-full max-w-6xl bg-background" data-community-page>
       <CommunityBanner
         community={community()}
         manage={props.onManage !== undefined
@@ -395,10 +380,6 @@ export function CommunityPageShell(props: CommunityPageShellProps) {
           : (props.managePending ?? props.authorityPending) ? "pending" : "unavailable"}
         onBack={props.onBack}
         onManage={props.onManage}
-        onShowDetails={() => {
-          if (props.onMore !== undefined) props.onMore();
-          else setTab("about");
-        }}
         sortControl={tab() === "about" ? undefined : sortControl()}
       />
 
@@ -430,44 +411,42 @@ export function CommunityPageShell(props: CommunityPageShellProps) {
               <Type variant="body">{community().description}</Type>
             </div>
           </div>
-          <Show when={props.readOnly !== true}>
-            {/* Two fixed-size slots, both filled even for a member: Joined and
-                Following are states, and Following is disabled because a
-                member may not unfollow. Controls whose existence depends on
-                authority live outside the header. */}
-            <div
-              aria-label="Community actions"
-              class="mt-4 grid h-11 grid-cols-2 gap-3 md:mt-0 md:flex md:min-w-[16.75rem] md:shrink-0 md:gap-3"
-              data-community-actions-reserved
-              role="group"
-            >
-              {/* Follow and Following both state a direction that has not been
-                  read yet, so neither is offered until it has been. While the
-                  read is pending the control shows a spinner, not a label it
-                  cannot stand behind, and keeps Checking… for screen readers. */}
+          {/* Two fixed-size slots, both filled even for a member: Joined and
+              Following are states, and Following is disabled because a
+              member may not unfollow. Controls whose existence depends on
+              authority live outside the header. */}
+          <div
+            aria-label="Community actions"
+            class="mt-4 grid h-11 grid-cols-2 gap-3 md:mt-0 md:flex md:min-w-[16.75rem] md:shrink-0 md:gap-3"
+            data-community-actions-reserved
+            role="group"
+          >
+            {/* Follow and Following both state a direction that has not been
+                read yet, so neither is offered until it has been. While the
+                read is pending the control shows a spinner, not a label it
+                cannot stand behind, and keeps Checking… for screen readers. */}
+            <Button
+              aria-label={followLabel().description}
+              class={slotClass}
+              data-community-follow-slot
+              disabled={props.followBusy || props.authorityPending || memberFollowLocked()}
+              loading={props.followBusy || props.authorityPending}
+              onClick={() => props.onFollowToggle?.()}
+              variant={props.following ? "secondary" : "outline"}
+            ><span class={props.followBusy || props.authorityPending ? "sr-only" : "truncate"}>{followLabel().text}</span></Button>
+            <Show when={props.canJoin !== false} fallback={<div class={slotClass} aria-hidden="true" />}>
               <Button
-                aria-label={followLabel().description}
+                aria-label={joinLabel().description}
                 class={slotClass}
-                data-community-follow-slot
-                disabled={props.followBusy || props.authorityPending || memberFollowLocked()}
-                loading={props.followBusy || props.authorityPending}
-                onClick={() => props.onFollowToggle?.()}
-                variant={props.following ? "secondary" : "outline"}
-              ><span class={props.followBusy || props.authorityPending ? "sr-only" : "truncate"}>{followLabel().text}</span></Button>
-              <Show when={props.canJoin !== false} fallback={<div class={slotClass} aria-hidden="true" />}>
-                <Button
-                  aria-label={joinLabel().description}
-                  class={slotClass}
-                  data-community-membership-slot
-                  disabled={props.authorityPending || props.joinBusy
-                    || (!props.viewerUnknown && (props.joined || props.joinDisabled))}
-                  loading={props.authorityPending || props.joinBusy}
-                  onClick={() => props.onJoin?.()}
-                  variant={props.joined && !props.viewerUnknown ? "secondary" : "default"}
-                ><span class={props.authorityPending || props.joinBusy ? "sr-only" : "truncate"}>{joinLabel().text}</span></Button>
-              </Show>
-            </div>
-          </Show>
+                data-community-membership-slot
+                disabled={props.authorityPending || props.joinBusy
+                  || (!props.viewerUnknown && (props.joined || props.joinDisabled))}
+                loading={props.authorityPending || props.joinBusy}
+                onClick={() => props.onJoin?.()}
+                variant={props.joined && !props.viewerUnknown ? "secondary" : "default"}
+              ><span class={props.authorityPending || props.joinBusy ? "sr-only" : "truncate"}>{joinLabel().text}</span></Button>
+            </Show>
+          </div>
         </div>
       </header>
 
@@ -493,10 +472,10 @@ export function CommunityPageShell(props: CommunityPageShellProps) {
                 content check is a fallback for hosts that render a control
                 without declaring the session. An anonymous viewer has nothing
                 to reserve and stays tight. */}
-            <Show when={props.viewerSignedIn === true || props.personaControl || props.joined || props.showCreatePost || props.onCreatePost !== undefined}>
+            <Show when={props.viewerSignedIn === true || props.personaControl || props.joined || props.onCreatePost !== undefined}>
               <div class="mb-5 flex min-h-9 items-center gap-3" data-community-persona-reserved>
                 <div class="min-w-0 flex-1">{props.personaControl}</div>
-                <Show when={props.joined || props.showCreatePost || props.onCreatePost !== undefined}>
+                <Show when={props.joined || props.onCreatePost !== undefined}>
                   <Button
                     class="h-9 shrink-0 rounded-full px-4"
                     disabled={props.createPostBusy}
@@ -511,7 +490,7 @@ export function CommunityPageShell(props: CommunityPageShellProps) {
             </Show>
             <Loading fallback={<FeedPending />}>
               <Show when={feed().kind === "ready"} fallback={<Card><CardContent class="p-6"><Type role="alert" variant="body">Community posts are temporarily unavailable.</Type></CardContent></Card>}>
-                <Show when={!props.empty && sortedPosts().length > 0} fallback={<Card><CardContent class="p-6"><Type variant="body">No posts in this community yet.</Type></CardContent></Card>}>
+                <Show when={sortedPosts().length > 0} fallback={<Card><CardContent class="p-6"><Type variant="body">No posts in this community yet.</Type></CardContent></Card>}>
                   <div class="flex flex-col">
                     <For each={sortedPosts()}>{post => renderPost(post)}</For>
                   </div>

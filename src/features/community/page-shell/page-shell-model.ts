@@ -1,13 +1,8 @@
-export type GateMode = "all" | "any" | "unknown";
-
 export type CommunitySort = "best" | "new" | "top";
 
 export type CommunityPostKind = "text" | "song";
 
-export interface CommunityGate {
-  label: string;
-  status: "met" | "unmet" | "unknown";
-}
+export type CommunityMembershipMode = "open" | "gated" | "request";
 
 export interface CommunityPost {
   id: string;
@@ -29,12 +24,7 @@ export interface CommunityPost {
   mediaSrc?: string | null;
   mediaTitle?: string;
   mediaArtist?: string;
-  mediaDuration?: string;
-  mediaProgress?: number;
   commentCount?: number;
-  rewardLabels?: readonly string[];
-  learnAvailable?: boolean;
-  karaokeAvailable?: boolean;
 }
 
 /**
@@ -68,38 +58,16 @@ export interface CommunityData {
   members: number;
   followers: number;
   posts: readonly CommunityPost[];
-  gates?: readonly CommunityGate[];
-  gateMode?: GateMode;
+  /** How people join, stated once in the About card. New communities are gated. */
+  membershipMode?: CommunityMembershipMode;
   rules?: readonly CommunityRule[];
   referenceLinks?: readonly CommunityReferenceLink[];
 }
 
-export interface CommunityStoryState {
-  initialFollowing: boolean;
-  initialJoined: boolean;
-  showCreatePost: boolean;
-  hasSidebarMetadata: boolean;
-}
-
-export const overviewStoryState: CommunityStoryState = {
-  initialFollowing: false,
-  initialJoined: false,
-  showCreatePost: false,
-  hasSidebarMetadata: true,
-};
-
-export const communityWithPostsStoryState: CommunityStoryState = {
-  initialFollowing: false,
-  initialJoined: true,
-  showCreatePost: true,
-  hasSidebarMetadata: false,
-};
-
-export function gateSummary(gates: readonly CommunityGate[], mode: GateMode): string {
-  if (gates.length === 0) return "No entry requirements";
-  if (mode === "all") return `Meet all ${gates.length} requirements`;
-  if (mode === "any") return `Meet any ${gates.length} requirements`;
-  return "Entry requirements are being checked";
+export function membershipLine(mode: CommunityMembershipMode | undefined): string | null {
+  if (mode === "gated") return "Members verify with a palm scan.";
+  if (mode === "request") return "Membership is by request.";
+  return null;
 }
 
 export function sortCommunityPosts(posts: readonly CommunityPost[], sort: CommunitySort): CommunityPost[] {
@@ -122,8 +90,4 @@ export function orderedCommunityRules(rules: readonly CommunityRule[]): Communit
 
 export function orderedReferenceLinks(links: readonly CommunityReferenceLink[]): CommunityReferenceLink[] {
   return [...links].sort((left, right) => left.position - right.position);
-}
-
-export function visibleCommunityTab(width: "mobile" | "desktop", requested: "feed" | "about"): "feed" | "about" {
-  return width === "mobile" && requested === "about" ? "about" : requested;
 }

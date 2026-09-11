@@ -1,7 +1,14 @@
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import { expect, within } from "storybook/test";
 
-import { CommunityPage } from "./community-page";
+import type { SessionResolution } from "../../../api/session.ts";
+import {
+  CommunityPage,
+} from "./community-page";
+import type {
+  CommunityEngagementApi,
+  CommunityJoinAction,
+} from "./community-engagement-api.ts";
 import type { CommunityPageSuccess, CommunityPageViewState } from "./community-page.model";
 
 const rules = [
@@ -19,19 +26,14 @@ const surfaceData = {
     {
       id: "apocalypse-dreams",
       title: "Apocalypse Dreams",
-      body: "Apocalypse Dreams",
+      body: "The build on this one still surprises me.",
       score: 128,
       publishedAt: "2026-08-28T10:00:00.000Z",
       authorHandle: "midnightwaves.pirate",
       kind: "song" as const,
       mediaTitle: "Apocalypse Dreams",
       mediaArtist: "Tame Impala",
-      mediaDuration: "5:56",
-      mediaProgress: 62,
       commentCount: 23,
-      rewardLabels: ["Learn due"],
-      learnAvailable: true,
-      karaokeAvailable: true,
     },
     {
       id: "tour-arrangement",
@@ -73,6 +75,36 @@ function success(
   };
 }
 
+/** Without a session fake the page waits on a real client and every button stays on "Checking…". */
+const anonymousSession = (): Promise<SessionResolution> => Promise.resolve("anonymous");
+
+/**
+ * A settled non-member viewer, so each story shows the join label it is named
+ * for instead of a pending read. Actions answer in kind; nothing here touches
+ * the network.
+ */
+function settledEngagement(joinAction: CommunityJoinAction): CommunityEngagementApi {
+  let following = false;
+  let followerCount: number | null = 92_100;
+  return {
+    readViewerState: async () => ({ membership: "not_member", following, followerCount }),
+    resolveJoinAction: async () => joinAction,
+    join: async () => ({ status: "joined", personaId: null }),
+    follow: async () => {
+      following = true;
+      followerCount = (followerCount ?? 0) + 1;
+      return { following, followerCount };
+    },
+    unfollow: async () => {
+      following = false;
+      followerCount = Math.max(0, (followerCount ?? 1) - 1);
+      return { following, followerCount };
+    },
+  };
+}
+
+const settledLoad = async () => ({ posts: [], nextCursor: null });
+
 const meta = {
   title: "Screens/Community/CommunityPage",
   component: CommunityPage,
@@ -85,7 +117,12 @@ type Story = StoryObj<typeof meta>;
 
 export const Default: Story = {
   name: "Open community",
-  args: { surfaceData },
+  args: {
+    surfaceData,
+    engagementApi: settledEngagement({ kind: "join" }),
+    loadThreads: settledLoad,
+    resolveSession: anonymousSession,
+  },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(canvas.getByRole("heading", { name: "Tame Impala" })).toBeInTheDocument();
@@ -94,23 +131,45 @@ export const Default: Story = {
 
 export const RequestToJoin: Story = {
   name: "Request to join",
-  args: { data: success({}, { membershipMode: "request" }), surfaceData },
+  args: {
+    data: success({}, { membershipMode: "request" }),
+    surfaceData,
+    engagementApi: settledEngagement({ kind: "request" }),
+    loadThreads: settledLoad,
+    resolveSession: anonymousSession,
+  },
 };
 
 export const Gated: Story = {
   name: "Gated",
-  args: { data: success({}, { membershipMode: "gated" }), surfaceData },
+  args: {
+    data: success({}, { membershipMode: "gated" }),
+    surfaceData,
+    engagementApi: settledEngagement({ kind: "verify", providerId: "very", intentId: "storybook-intent" }),
+    loadThreads: settledLoad,
+    resolveSession: anonymousSession,
+  },
 };
 
 /** Counts are nullable, so the page must not render an empty statistic. */
 export const WithoutCounts: Story = {
   name: "No member or follower counts",
-  args: { data: success({}, { memberCount: null, followerCount: null }) },
+  args: {
+    data: success({}, { memberCount: null, followerCount: null }),
+    engagementApi: settledEngagement({ kind: "join" }),
+    loadThreads: settledLoad,
+    resolveSession: anonymousSession,
+  },
 };
 
 export const WithoutDescriptionOrRules: Story = {
   name: "No description or rules",
-  args: { data: success({}, { description: null, rules: [] }) },
+  args: {
+    data: success({}, { description: null, rules: [] }),
+    engagementApi: settledEngagement({ kind: "join" }),
+    loadThreads: settledLoad,
+    resolveSession: anonymousSession,
+  },
 };
 
 /** A community reached by its id rather than a route shows the id form. */
@@ -123,6 +182,9 @@ export const CommunityIdRoute: Story = {
       routeDisplay: "community_2f1c9a10-1b2c-4d3e-8f90-abcdef012345",
       requestedPathSegment: "community_2f1c9a10-1b2c-4d3e-8f90-abcdef012345",
     }),
+    engagementApi: settledEngagement({ kind: "join" }),
+    loadThreads: settledLoad,
+    resolveSession: anonymousSession,
   },
 };
 
@@ -143,6 +205,11 @@ export const Unavailable: Story = {
 
 export const Mobile: Story = {
   name: "Mobile",
-  args: { surfaceData },
+  args: {
+    surfaceData,
+    engagementApi: settledEngagement({ kind: "join" }),
+    loadThreads: settledLoad,
+    resolveSession: anonymousSession,
+  },
   globals: { viewport: { value: "mobile1", isRotated: false } },
 };

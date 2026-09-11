@@ -3,7 +3,7 @@ import { describe, expect, test } from "bun:test";
 import { formatCommunityRouteLabel, type YourCommunitySummary } from "./your-communities-page-model";
 
 describe("your communities model", () => {
-  test("does not invent a route from a route-less community id", () => {
+  test("renders no caption for a route-less community rather than a defect notice", () => {
     expect(formatCommunityRouteLabel("community-private-id", null)).toBeNull();
   });
 

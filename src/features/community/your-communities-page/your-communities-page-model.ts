@@ -18,7 +18,17 @@ export function formatCommunityRouteLabel(communityId: string, routeSlug?: strin
   // read as a defect notice, so the caption is simply absent until there is a
   // route to name.
   if (routeSlug === null) return null;
-  const routeSegment = formatCommunityRouteSegment(routeSlug || communityId);
+  return communityRouteLabel(routeSlug || communityId);
+}
+
+/**
+ * The route caption for a community that has one. A community without a route
+ * gets no caption: "no route" is protocol vocabulary, and every community
+ * created today starts without one.
+ */
+export function communityRouteLabel(routeSlug?: string | null): string | null {
+  if (routeSlug === null || routeSlug === undefined || routeSlug === "") return null;
+  const routeSegment = formatCommunityRouteSegment(routeSlug);
   return routeSegment.toLowerCase().startsWith("c/") ? routeSegment : `c/${routeSegment}`;
 }
 
