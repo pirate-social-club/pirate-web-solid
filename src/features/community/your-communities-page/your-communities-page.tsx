@@ -41,7 +41,7 @@ function YourCommunityListItem(props: {
     <CommunityAvatar class="size-11 border-border-soft" avatarSrc={community().avatarSrc} communityId={community().communityId} displayName={community().displayName} />
     <div class="min-w-0 flex-1">
       <Type as="div" variant="body-strong" class="truncate">{community().displayName}</Type>
-      <Type as="div" variant="caption" class="truncate">{routeLabel()}</Type>
+      <Show when={routeLabel()}>{label => <Type as="div" variant="caption" class="truncate">{label()}</Type>}</Show>
     </div>
   </>;
   return (
