@@ -210,7 +210,7 @@ describe("Community creation production route", () => {
     expect(createIntentRequest).not.toHaveBeenCalled();
   });
 
-  test("restores a saved draft in the same disabled form and retains it during refresh", async () => {
+  test("restores a saved setup in the same disabled form and retains it during refresh", async () => {
     let resolveAccount!: (value: import("../../api/session").SessionResolution) => void;
     let resolveIntent!: (value: ReturnType<typeof createIntent>) => void;
     const authenticated = { status: "authenticated" as const, userId: "user-1", personas: [] };
@@ -302,11 +302,11 @@ describe("Community creation production route", () => {
     expect(button.textContent?.trim()).toBe("Create");
     expect(createIntentRequest).not.toHaveBeenCalled();
     button.click();
-    await vi.waitFor(() => expect(container.textContent).toContain("Could not create this community draft"));
+    await vi.waitFor(() => expect(container.textContent).toContain("Couldn't create your community"));
     refreshSession();
     await vi.waitFor(() => expect(button.disabled).toBe(false));
     expect(button.textContent?.trim()).toBe("Create");
-    expect(container.textContent).toContain("Could not create this community draft");
+    expect(container.textContent).toContain("Couldn't create your community");
     expect(createIntentRequest).toHaveBeenCalledOnce();
   });
 
@@ -674,9 +674,93 @@ describe("Community creation production route", () => {
     ));
 
     await vi.waitFor(() => expect(container.querySelector<HTMLButtonElement>("button[type=submit]")?.disabled).toBe(false));
-    expect(container.textContent).toContain("This saved draft cannot be completed here");
+    expect(container.textContent).toContain("This community setup cannot be completed here");
     expect(container.textContent).not.toContain("Start verification");
     expect(navigate).not.toHaveBeenCalled();
+  });
+
+  test("explains a quota-blocked commit and keeps Create disabled", async () => {
+    const created = createIntent({
+      intentId: "creation-quota",
+      nextAction: { kind: "commit" },
+      revision: 2,
+      status: "commit_ready",
+    });
+    const blocked = createIntent({
+      ...created,
+      nextAction: { kind: "blocked", reason: "quota_exceeded" },
+      revision: 3,
+      status: "quota_exceeded",
+    });
+    const commitIntent = vi.fn().mockResolvedValue(blocked);
+    const container = render(() => (
+      <CommunityCreationRouteView
+        api={api({ commitIntent, createIntent: async () => created })}
+        navigate={() => {}}
+        resolveSession={async () => ({
+          personas: [{
+            avatarRef: null,
+            displayName: "Harbor Host",
+            personaId: "persona-1",
+            primaryPublicHandle: "harbor-host",
+            communityBinding: null,
+          }],
+          status: "authenticated",
+          userId: "user-1",
+        })}
+      />
+    ));
+
+    await vi.waitFor(() => expect(container.querySelector("[data-create-community]")).not.toBeNull());
+    const name = container.querySelector<HTMLInputElement>("input")!;
+    name.value = "Quota Community";
+    name.dispatchEvent(new InputEvent("input", { bubbles: true }));
+    fillPublicName(container);
+    const submit = container.querySelector<HTMLButtonElement>("button[type='submit']")!;
+    await vi.waitFor(() => expect(submit.disabled).toBe(false));
+    submit.click();
+
+    await vi.waitFor(() => expect(container.textContent).toContain("You've reached the limit for new communities."));
+    expect(commitIntent).toHaveBeenCalledOnce();
+    expect(container.querySelector<HTMLButtonElement>("button[type='submit']")?.disabled).toBe(true);
+  });
+
+  test("shows the quota reason when a saved intent reloads blocked", async () => {
+    const blocked = createIntent({
+      intentId: "creation-quota",
+      nextAction: { kind: "blocked", reason: "quota_exceeded" },
+      revision: 3,
+      status: "quota_exceeded",
+    });
+    const container = render(() => (
+      <CommunityCreationRouteView
+        api={api({ getIntent: async () => blocked })}
+        intentId="creation-quota"
+        resolveSession={async () => ({ status: "authenticated", userId: "user-1", personas: [] })}
+      />
+    ));
+
+    await vi.waitFor(() => expect(container.textContent).toContain("You've reached the limit for new communities."));
+    expect(container.querySelector<HTMLButtonElement>("button[type='submit']")?.disabled).toBe(true);
+  });
+
+  test("explains an unsupported palm-scan gate and leaves Create retryable", async () => {
+    const blocked = createIntent({
+      intentId: "creation-gate",
+      nextAction: { kind: "blocked", reason: "gate_unsupported" },
+      revision: 2,
+      status: "gate_unsupported",
+    });
+    const container = render(() => (
+      <CommunityCreationRouteView
+        api={api({ getIntent: async () => blocked })}
+        intentId="creation-gate"
+        resolveSession={async () => ({ status: "authenticated", userId: "user-1", personas: [] })}
+      />
+    ));
+
+    await vi.waitFor(() => expect(container.textContent).toContain("Palm scan isn't available right now. Try again later."));
+    expect(container.querySelector<HTMLButtonElement>("button[type='submit']")?.disabled).toBe(false);
   });
 });
 
@@ -793,7 +877,7 @@ describe("Stable creation lifecycle", () => {
     expect(labels()).toEqual(initialLabels);
     expect(container.querySelector("form")).toBe(form);
     reject(new Error("unavailable"));
-    await vi.waitFor(() => expect(container.querySelector("[role=alert]")?.textContent).toContain("Could not create"));
+    await vi.waitFor(() => expect(container.querySelector("[role=alert]")?.textContent).toContain("Couldn't create your community"));
     expect(name.matches(":disabled")).toBe(false);
     expect(name.value).toBe("A stable community");
     expect(button.textContent?.trim()).toBe("Create");
@@ -826,7 +910,7 @@ describe("Creation wait recovery", () => {
     const commitIntent = vi.fn(async () => createIntent({ status: "committed", nextAction: { kind: "none", reason: "committed" }, committedHref: "/c/ready" }));
     const createIntentRequest = vi.fn();
     const container = render(() => <CommunityCreationRouteView intentId="saved" api={api({ getIntent, commitIntent, createIntent: createIntentRequest })} resolveSession={async () => owner} navigate={() => {}} />);
-    await vi.waitFor(() => expect(container.textContent).toContain("Could not load your saved draft"), { timeout: 3000 });
+    await vi.waitFor(() => expect(container.textContent).toContain("Couldn't load your community setup"), { timeout: 3000 });
     const button = container.querySelector<HTMLButtonElement>("button[type=submit]")!;
     expect(button.disabled).toBe(false);
     button.click();
@@ -864,7 +948,7 @@ test("stops a stuck wait at its expiry and lets the same draft be checked again"
   const getIntent = vi.fn().mockResolvedValueOnce(waiting).mockResolvedValue(createIntent({ nextAction: { kind: "commit" }, revision: 2 }));
   const commitIntent = vi.fn(async () => createIntent({ nextAction: { kind: "none", reason: "committed" }, committedHref: "/c/done" }));
   const container = render(() => <CommunityCreationRouteView intentId="saved" api={api({ getIntent, commitIntent })} resolveSession={async () => ({ status: "authenticated", userId: "owner", personas: [] })} navigate={() => {}} />);
-  await vi.waitFor(() => expect(container.textContent).toContain("draft has expired"));
+  await vi.waitFor(() => expect(container.textContent).toContain("This setup expired"));
   const button = container.querySelector<HTMLButtonElement>("button[type=submit]")!;
   expect(button.disabled).toBe(false);
   button.click();
@@ -885,7 +969,7 @@ test("never opens an identity dialog from wait polling", async () => {
   const button = container.querySelector<HTMLButtonElement>("button[type=submit]")!;
   await vi.waitFor(() => expect(button.disabled).toBe(false));
   button.click();
-  await vi.waitFor(() => expect(container.textContent).toContain("profile still needs confirmation"), { timeout: 3000 });
+  await vi.waitFor(() => expect(container.textContent).toContain("Confirm it's you to finish. Select Create."), { timeout: 3000 });
   expect(confirmIdentity).not.toHaveBeenCalled();
   expect(button.disabled).toBe(false);
   button.click();

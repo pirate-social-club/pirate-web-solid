@@ -45,6 +45,8 @@ export interface CreateCommunityProps {
   /** Keep false in production until the community API can persist these assets. */
   showMediaFields?: boolean;
   submitting?: boolean;
+  /** A blocked creation intent keeps Create disabled without a loading state. */
+  submitDisabled?: boolean;
   fieldsDisabled?: boolean;
   ownerDisabled?: boolean;
   actionOnly?: boolean;
@@ -78,7 +80,7 @@ export function CreateCommunityView(props: CreateCommunityProps) {
   const nameValidationState = () => (visibleNameError() ? "invalid" as const : nameTouched() ? "valid" as const : undefined);
   const canSubmit = () => (props.actionOnly || (validation().nameError === null
     && (props.requirePersona === false || (validation().personaError === null && validation().publicNameError === null))
-    )) && !props.submitting && !props.accountChecking;
+    )) && !props.submitting && !props.accountChecking && !props.submitDisabled;
 
   return (
     <form

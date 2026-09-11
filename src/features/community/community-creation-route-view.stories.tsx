@@ -3,6 +3,7 @@ import { expect, userEvent, waitFor, within } from "storybook/test";
 
 import type { SessionResolution } from "../../api/session";
 import { CommunityCreationRouteView } from "./community-creation-route-view";
+import { createIntent as createIntentView } from "./community-creation-progress/community-creation-progress-model";
 
 const persona = {
   personaId: "persona-harbor",
@@ -16,6 +17,13 @@ const authenticated = (): SessionResolution => ({
   status: "authenticated",
   userId: "account-one",
   personas: [persona],
+});
+
+const quotaIntent = createIntentView({
+  intentId: "creation-quota",
+  nextAction: { kind: "blocked", reason: "quota_exceeded" },
+  revision: 3,
+  status: "quota_exceeded",
 });
 
 const stateOf = (container: HTMLElement) =>
@@ -87,8 +95,29 @@ export const Unavailable: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await waitFor(() => expect(stateOf(canvasElement)).toBe("unavailable"));
-    await expect(canvas.getByText("Could not check your account. Your draft is still here.")).toBeInTheDocument();
+    await expect(canvas.getByText("Could not check your account. Your setup is still here.")).toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: "Retry account check" })).toBeInTheDocument();
+  },
+};
+
+/** A quota-blocked saved intent keeps the reason visible and Create disabled. */
+export const QuotaExceeded: Story = {
+  args: {
+    api: {
+      commitIntent: async () => quotaIntent,
+      createIntent: async () => quotaIntent,
+      getIntent: async () => quotaIntent,
+      updateIntent: async () => quotaIntent,
+    },
+    intentId: "creation-quota",
+    resolveSession: async () => authenticated(),
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await waitFor(() =>
+      expect(canvas.getByText("You've reached the limit for new communities.")).toBeInTheDocument(),
+    );
+    await expect(canvas.getByRole("button", { name: "Create" })).toBeDisabled();
   },
 };
 
