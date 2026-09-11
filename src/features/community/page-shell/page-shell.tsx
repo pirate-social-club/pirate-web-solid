@@ -14,6 +14,7 @@ import {
   IconArrowUp,
   IconChatCircle,
   IconDotsThree,
+  IconFadersHorizontal,
   IconMusicNote,
   IconPlus,
   IconShield,
@@ -256,42 +257,47 @@ function CommunityBanner(props: {
   onBack?: () => void;
   onManage?: () => void;
   onShowDetails: () => void;
+  /** Feed sort, rendered left of the overflow menu when the shell has one. */
+  sortControl?: JSX.Element;
 }) {
   return (
     <div class="relative h-36 overflow-hidden bg-[linear-gradient(120deg,#162c32_0%,#5f746a_45%,#c7b68a_100%)] md:h-56">
       <Show when={props.community.bannerSrc}>
         {src => <img alt="" class="size-full object-cover" src={src()} />}
       </Show>
-      {/* The avatar overlaps the banner; the scrim darkens the lower cover so
-          the avatar edge stays readable over a light or busy image. */}
+      {/* The scrim darkens the lower cover so the overlay controls stay
+          readable over a light or busy image. */}
       <div aria-hidden="true" class="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/5 via-transparent to-black/45" />
       <div class="absolute inset-x-0 top-0 flex items-center justify-between p-3 md:p-5">
         <IconButton aria-label="Go back" class="bg-background/75 text-foreground shadow-sm backdrop-blur-sm" onClick={props.onBack} variant="ghost">
           <IconArrowLeft class="size-5" />
         </IconButton>
-        {/* An overlay, so an option that appears when authority settles moves
-            nothing on the page beneath it. */}
-        <DropdownMenu placement="bottom-end" gutter={4}>
-          <DropdownMenuTrigger
-            aria-label="More community options"
-            class="grid size-10 place-items-center rounded-full bg-background/75 text-foreground shadow-sm backdrop-blur-sm"
-            data-community-manage={props.manage}
-          >
-            <IconDotsThree class="size-5" />
-          </DropdownMenuTrigger>
-          <DropdownMenuContent class="w-56">
-            <Show when={props.onManage}>
-              <DropdownMenuItem onSelect={() => props.onManage?.()}>
-                <IconShield class="size-4" />
-                <span>Manage</span>
-              </DropdownMenuItem>
-            </Show>
-            {/* Always does something: a host that owns this navigation takes it,
-                and otherwise it selects the About tab, which is where the
-                community's details already live. */}
-            <DropdownMenuItem onSelect={() => props.onShowDetails()}>Community details</DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <div class="flex items-center gap-2">
+          {props.sortControl}
+          {/* An overlay, so an option that appears when authority settles moves
+              nothing on the page beneath it. */}
+          <DropdownMenu placement="bottom-end" gutter={4}>
+            <DropdownMenuTrigger
+              aria-label="More community options"
+              class="grid size-10 place-items-center rounded-full bg-background/75 text-foreground shadow-sm backdrop-blur-sm"
+              data-community-manage={props.manage}
+            >
+              <IconDotsThree class="size-5" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent class="w-56">
+              <Show when={props.onManage}>
+                <DropdownMenuItem onSelect={() => props.onManage?.()}>
+                  <IconShield class="size-4" />
+                  <span>Manage</span>
+                </DropdownMenuItem>
+              </Show>
+              {/* Always does something: a host that owns this navigation takes it,
+                  and otherwise it selects the About tab, which is where the
+                  community's details already live. */}
+              <DropdownMenuItem onSelect={() => props.onShowDetails()}>Community details</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </div>
     </div>
   );
@@ -351,6 +357,32 @@ export function CommunityPageShell(props: CommunityPageShellProps) {
     const render = (actions?: JSX.Element) => <FeedPost actions={actions} post={post} />;
     return props.renderPost?.(post, render) ?? render();
   };
+  /**
+   * The feed sort lives in the banner beside the overflow menu, the way a
+   * community's feed controls read on a phone. The icon opens the existing
+   * responsive picker: a sheet on small viewports and a select above them.
+   */
+  const sortControl = () => (
+    <ResponsiveOptionSelect
+      ariaLabel="Sort community feed"
+      class="w-auto shrink-0"
+      drawerTitle="Sort feed"
+      mobileTriggerContent={
+        <IconButton aria-label="Sort community feed" class="size-10 bg-background/75 text-foreground shadow-sm backdrop-blur-sm" variant="ghost">
+          <IconFadersHorizontal class="size-5" />
+        </IconButton>
+      }
+      onValueChange={value => setSort(value)}
+      options={[
+        { label: "Best", value: "Best" },
+        { label: "New", value: "New" },
+        { label: "Top", value: "Top" },
+      ]}
+      triggerClass="h-10 w-10 min-w-0 justify-center rounded-full p-0 bg-background/75 text-foreground shadow-sm backdrop-blur-sm"
+      triggerContent={<IconFadersHorizontal class="size-5" />}
+      value={sort()}
+    />
+  );
 
   return (
     <div class={props.mobile ? "w-full max-w-[24.375rem] bg-background" : "mx-auto w-full max-w-6xl bg-background"} data-community-page>
@@ -365,25 +397,26 @@ export function CommunityPageShell(props: CommunityPageShellProps) {
           if (props.onMore !== undefined) props.onMore();
           else setTab("about");
         }}
+        sortControl={tab() === "about" ? undefined : sortControl()}
       />
 
-      <header class="relative bg-background px-5 pb-5 md:px-8 md:pb-6">
-        <div class="md:flex md:items-end md:gap-4">
+      <header class="relative bg-background px-5 pb-5 pt-5 md:px-8 md:pb-6 md:pt-6">
+        <div class="md:flex md:items-center md:gap-4">
           <div class="min-w-0 md:flex-1">
-            {/* The avatar matches the title and counts block and sits half over
-                the banner, so the counts line lands at its midpoint. The handle
-                lives with the description rather than in that line. */}
-            <div class="flex min-w-0 items-start gap-3 md:gap-4">
-              <div class="-mt-7 shrink-0 md:-mt-8">
+            {/* The avatar sits below the banner rather than overlapping it, and
+                the title and counts are centered against it. The handle lives
+                with the description rather than in the title block. */}
+            <div class="flex min-w-0 items-center gap-3 md:gap-4">
+              <div class="shrink-0">
                 <CommunityAvatar
                   avatarSrc={community().avatarSrc}
-                  class="size-14 border-4 border-background md:size-16"
+                  class="size-20 border-4 border-background md:size-24"
                   communityId={community().id ?? community().handle}
                   displayName={community().name}
                   size="lg"
                 />
               </div>
-              <div class="min-w-0 flex-1 md:pb-1">
+              <div class="min-w-0 flex-1">
                 <Type as="h1" class="line-clamp-2 text-2xl md:text-3xl" variant="h1">{community().name}</Type>
                 <Type class="mt-1 block truncate" variant="caption">
                   {formatCount(community().members)} members · {formatCount(community().followers)} followers
@@ -443,25 +476,7 @@ export function CommunityPageShell(props: CommunityPageShellProps) {
       </header>
 
       <div data-community-tabs>
-      <FlatTabBar
-        actions={
-          <ResponsiveOptionSelect
-            ariaLabel="Sort community feed"
-            class="w-auto shrink-0"
-            drawerTitle="Sort feed"
-            onValueChange={value => setSort(value)}
-            options={[
-              { label: "Best", value: "Best" },
-              { label: "New", value: "New" },
-              { label: "Top", value: "Top" },
-            ]}
-            triggerClass="w-auto"
-            value={sort()}
-          />
-        }
-        class="px-5 md:px-8"
-        columns={3}
-      >
+      <FlatTabBar class="px-5 md:px-8" columns={3}>
         <FlatTabButton active={tab() === "feed"} onClick={() => setTab("feed")}>Feed</FlatTabButton>
         <FlatTabButton active={tab() === "songs"} onClick={() => setTab("songs")}>Songs</FlatTabButton>
         <FlatTabButton active={tab() === "about"} onClick={() => setTab("about")}>About</FlatTabButton>
