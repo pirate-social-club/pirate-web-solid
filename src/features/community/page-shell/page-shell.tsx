@@ -367,18 +367,14 @@ export function CommunityPageShell(props: CommunityPageShellProps) {
       ariaLabel="Sort community feed"
       class="w-auto shrink-0"
       drawerTitle="Sort feed"
-      mobileTriggerContent={
-        <IconButton aria-label="Sort community feed" class="size-10 bg-background/75 text-foreground shadow-sm backdrop-blur-sm" variant="ghost">
-          <IconFadersHorizontal class="size-5" />
-        </IconButton>
-      }
+      mobileTriggerContent={<IconFadersHorizontal class="size-5" />}
       onValueChange={value => setSort(value)}
       options={[
         { label: "Best", value: "Best" },
         { label: "New", value: "New" },
         { label: "Top", value: "Top" },
       ]}
-      triggerClass="h-10 w-10 min-w-0 justify-center rounded-full p-0 bg-background/75 text-foreground shadow-sm backdrop-blur-sm"
+      triggerClass="h-10 w-10 min-w-0 justify-center rounded-full p-0 bg-background/75 text-foreground shadow-sm backdrop-blur-sm [&>span:last-child]:hidden"
       triggerContent={<IconFadersHorizontal class="size-5" />}
       value={sort()}
     />
