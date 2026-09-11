@@ -1,6 +1,8 @@
-// Measures the community page shell in a real browser: the page must not move
-// as the viewer's authority settles, and asking for the community's details
-// must produce a real view rather than a blank column.
+// Measures the community page shell in a real browser: the header, the tab bar
+// and the top of the feed must not move as the viewer's authority settles, and
+// asking for the community's details must produce a real view rather than a
+// blank column. The persona/Post row appears only when it carries a control, so
+// it may grow the feed downward; its own geometry is not a fixed reservation.
 //
 // Class-string assertions cannot establish equal geometry: they do not know
 // what wraps, what a label does to a width, or what a viewport does to a flex
@@ -33,14 +35,14 @@ const viewports = [
 
 /**
  * What must not move. The action row is the header's own geometry; the tab bar
- * and the feed are everything the reader is actually looking at, so their
- * position is the real subject.
+ * and the top of the feed are everything the reader is actually looking at, so
+ * their position is the real subject. The feed's height is excluded because the
+ * persona/Post row grows the feed when it appears.
  */
 const probes = [
-  { key: "actions", selector: "[data-community-actions-reserved]" },
-  { key: "tabs", selector: "[data-community-tabs]" },
-  { key: "feed", selector: "[aria-label='Community feed']" },
-  { key: "persona", selector: "[data-community-persona-reserved]" },
+  { key: "actions", selector: "[data-community-actions-reserved]", sides: ["x", "y", "width", "height"] },
+  { key: "tabs", selector: "[data-community-tabs]", sides: ["x", "y", "width", "height"] },
+  { key: "feed", selector: "[aria-label='Community feed']", sides: ["x", "y", "width"] },
 ];
 
 async function measure(page, storyId, viewport) {
@@ -78,7 +80,7 @@ function compare(storyId, viewport, pending, settled) {
   for (const probe of probes) {
     const before = pending[probe.key];
     const after = settled[probe.key];
-    for (const side of ["x", "y", "width", "height"]) {
+    for (const side of probe.sides) {
       const moved = Math.abs(before[side] - after[side]);
       if (moved > tolerancePx) {
         failures.push(

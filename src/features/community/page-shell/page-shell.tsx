@@ -202,9 +202,9 @@ function FeedPending() {
 function CommunityAbout(props: { community: CommunityData }) {
   const community = () => props.community;
   return (
-    <div class="flex flex-col gap-4">
-      <Card>
-        <CardContent class="flex flex-col gap-3 p-5">
+    <div class="flex flex-col gap-4 max-md:gap-8">
+      <Card class="max-md:rounded-none max-md:border-0 max-md:bg-transparent max-md:shadow-none">
+        <CardContent class="flex flex-col gap-3 p-5 max-md:p-0">
           <Type variant="h3">About {community().name}</Type>
           <Type variant="body">{community().description}</Type>
           <Separator />
@@ -221,8 +221,8 @@ function CommunityAbout(props: { community: CommunityData }) {
         </CardContent>
       </Card>
       <Show when={community().rules?.length}>
-        <Card>
-          <CardContent class="flex flex-col gap-4 p-5">
+        <Card class="max-md:rounded-none max-md:border-0 max-md:bg-transparent max-md:shadow-none">
+          <CardContent class="flex flex-col gap-4 p-5 max-md:p-0">
             <Type variant="h3">Community rules</Type>
             <ol class="flex flex-col gap-4">
               <For each={orderedCommunityRules(community().rules ?? [])}>
@@ -233,8 +233,8 @@ function CommunityAbout(props: { community: CommunityData }) {
         </Card>
       </Show>
       <Show when={community().referenceLinks?.length}>
-        <Card>
-          <CardContent class="flex flex-col gap-3 p-5">
+        <Card class="max-md:rounded-none max-md:border-0 max-md:bg-transparent max-md:shadow-none">
+          <CardContent class="flex flex-col gap-3 p-5 max-md:p-0">
             <Type variant="h3">Links</Type>
             <nav aria-label="Community reference links">
               <ul class="flex flex-col gap-2">
@@ -400,8 +400,7 @@ export function CommunityPageShell(props: CommunityPageShellProps) {
         <div class="md:flex md:items-center md:gap-4">
           <div class="min-w-0 md:flex-1">
             {/* The avatar sits below the banner rather than overlapping it, and
-                the title and counts are centered against it. The handle lives
-                with the description rather than in the title block. */}
+                the title and counts are centered against it. */}
             <div class="flex min-w-0 items-center gap-3 md:gap-4">
               <div class="shrink-0">
                 <CommunityAvatar
@@ -422,10 +421,7 @@ export function CommunityPageShell(props: CommunityPageShellProps) {
             {/* Full width above the actions on phones, with equal space above
                 and below. Desktop keeps the description in the About card. */}
             <div class="mt-4 md:hidden">
-              <Show when={community().handle}>
-                {handle => <Type class="block truncate" variant="caption">{handle()}</Type>}
-              </Show>
-              <Type class="mt-1" variant="body">{community().description}</Type>
+              <Type variant="body">{community().description}</Type>
             </div>
           </div>
           <Show when={props.readOnly !== true}>
@@ -487,23 +483,25 @@ export function CommunityPageShell(props: CommunityPageShellProps) {
         <main class={tab() === "about" ? "hidden" : "min-w-0"} aria-label="Community feed">
           <Show when={tab() === "feed"}>
             {/* One controls row: the persona picker on the left and Post on
-                the right. The row stays reserved at every authority state so
-                the feed cannot move when the persona control appears; the
-                picker used to reserve its own line above it. */}
-            <div class="mb-5 flex min-h-9 items-center gap-3" data-community-persona-reserved>
-              <div class="min-w-0 flex-1">{props.personaControl}</div>
-              <Show when={props.joined || props.showCreatePost || props.onCreatePost !== undefined}>
-                <Button
-                  class="h-9 shrink-0 rounded-full px-4"
-                  disabled={props.createPostBusy}
-                  leadingIcon={<IconPlus class="size-4" />}
-                  onClick={() => props.onCreatePost?.()}
-                  size="sm"
-                >
-                  {props.createPostBusy ? "Opening…" : "Post"}
-                </Button>
-              </Show>
-            </div>
+                the right, rendered only when it can carry a control. The row
+                used to reserve its space in every state, which left an empty
+                band above the first post for viewers who have neither. */}
+            <Show when={props.personaControl || props.joined || props.showCreatePost || props.onCreatePost !== undefined}>
+              <div class="mb-5 flex min-h-9 items-center gap-3" data-community-persona-reserved>
+                <div class="min-w-0 flex-1">{props.personaControl}</div>
+                <Show when={props.joined || props.showCreatePost || props.onCreatePost !== undefined}>
+                  <Button
+                    class="h-9 shrink-0 rounded-full px-4"
+                    disabled={props.createPostBusy}
+                    leadingIcon={<IconPlus class="size-4" />}
+                    onClick={() => props.onCreatePost?.()}
+                    size="sm"
+                  >
+                    {props.createPostBusy ? "Opening…" : "Post"}
+                  </Button>
+                </Show>
+              </div>
+            </Show>
             <Loading fallback={<FeedPending />}>
               <Show when={feed().kind === "ready"} fallback={<Card><CardContent class="p-6"><Type role="alert" variant="body">Community posts are temporarily unavailable.</Type></CardContent></Card>}>
                 <Show when={!props.empty && sortedPosts().length > 0} fallback={<Card><CardContent class="p-6"><Type variant="body">No posts in this community yet.</Type></CardContent></Card>}>
@@ -515,7 +513,6 @@ export function CommunityPageShell(props: CommunityPageShellProps) {
             </Loading>
           </Show>
           <Show when={tab() === "songs"}>
-            <div class="mb-5"><Type variant="h2">Songs</Type></div>
             <Loading fallback={<FeedPending />}>
               <Show when={songs().length > 0} fallback={<Card><CardContent class="p-6"><Type variant="body">No songs in this community yet.</Type></CardContent></Card>}>
                 <div class="flex flex-col"><For each={songs()}>{post => renderPost(post)}</For></div>
