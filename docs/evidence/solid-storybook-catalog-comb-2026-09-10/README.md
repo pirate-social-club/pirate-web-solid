@@ -70,3 +70,10 @@ heading fixed in `7a3d1f7`; that defect is admitted to the ratchet under
 the step-zero lane and leaves the set when the fix reaches main. The
 duplicate accessible name on the nav Review and the forward action is
 recorded as a minor naming finding.
+
+`sweep-summary-comb-rebased-full.txt` is the complete unfiltered sweep of
+the comb branch rebased onto green main. With every fix the ratchet was
+waiting on already in main, the whole catalog is green: 787 of 787
+accessibility passes with zero violations and 787 of 787 interactions,
+exit PASS, across 787 stories and 160 titles. The ratchet's members drop
+out on this branch, leaving no recorded defects.
