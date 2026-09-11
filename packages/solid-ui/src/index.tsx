@@ -234,6 +234,7 @@ export {
   IconDotsThree,
   IconDownloadSimple,
   IconEye,
+  IconFadersHorizontal,
   IconFire,
   IconFileText,
   IconFlag,

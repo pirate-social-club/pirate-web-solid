@@ -18,6 +18,17 @@ jobs:
         with:
           bun-version: 1.4.0
       - run: bun install --frozen-lockfile
+      - name: Read Playwright version
+        id: playwright
+        run: echo "version=$(bunx playwright --version | awk '{print $NF}')" >> "$GITHUB_OUTPUT"
+      - name: Cache Playwright browsers
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-${{ runner.arch }}-playwright-chromium-${{ steps.playwright.outputs.version }}
+      # The cache stores browsers, not Linux system dependencies.
+      - name: Install Chromium for browser probes
+        run: bunx playwright install --with-deps chromium
       - run: bun run verify
       - name: Build staging Worker artifact
         run: bun run build
@@ -30,17 +41,6 @@ jobs:
           NODE_OPTIONS: --max-old-space-size=3072
       - name: Check post-engagement Worker proxy transport
         run: bun run post-engagement-check
-      - name: Read Playwright version
-        id: playwright
-        run: echo "version=$(bunx playwright --version | awk '{print $NF}')" >> "$GITHUB_OUTPUT"
-      - name: Cache Playwright browsers
-        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684
-        with:
-          path: ~/.cache/ms-playwright
-          key: ${{ runner.os }}-${{ runner.arch }}-playwright-chromium-${{ steps.playwright.outputs.version }}
-      # The cache stores browsers, not Linux system dependencies.
-      - name: Install Chromium for browser probes
-        run: bunx playwright install --with-deps chromium
       - name: Check text-post browser flow through Worker proxy
         run: bun run text-post-check
 

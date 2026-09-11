@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
-import { expect, userEvent, within } from "storybook/test";
+import { expect, userEvent, waitFor, within } from "storybook/test";
 
 import { buttonVariants } from "@/components/actions/button/button";
 import { StoryDialogFooter } from "@/stories/lib/dialog-footer";
@@ -83,7 +83,9 @@ export const Default: Story = {
 
     await userEvent.click(cancel);
     await expect(body.queryByRole("alertdialog")).not.toBeInTheDocument();
-    await expect(trigger).toHaveFocus();
+    // Focus returns to the trigger after the close transition, not within the
+    // same task, so wait for it as dialog.stories.tsx and alert-dialog.test.tsx do.
+    await waitFor(() => expect(trigger).toHaveFocus());
   },
 };
 

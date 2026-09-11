@@ -1,6 +1,7 @@
 import type {
   GetCPathSegmentResponse,
   GetCommunitiesCommunityIdPreviewResponse,
+  GetPostsPostIdResponse,
 } from "@pirate/api-client";
 import { render as solidRender, type JSX } from "@solidjs/web";
 import { createRoot } from "solid-js";
@@ -10,6 +11,41 @@ import { createMemoryMediaSubmissionStorage } from "../../posts/media-submission
 import CommunityPage from "./community-page.tsx";
 
 const disposers: Array<() => void> = [];
+
+/**
+ * The viewer's vote comes from the authenticated post read, so a page under
+ * test needs one. Without it the controls correctly wait forever rather than
+ * claiming the viewer has not voted.
+ */
+function viewerVoteClient(vote: -1 | 1 | null) {
+  const response: Exclude<GetPostsPostIdResponse, { kind: "age_locked" }> = JSON.parse(JSON.stringify({
+    post: {
+      id: "post-under-test",
+      object: "post",
+      community: communityId,
+      authorship_mode: "human_direct",
+      identity_mode: "public",
+      post_type: "text",
+      status: "published",
+      visibility: "public",
+      analysis_state: "allow",
+      content_safety_state: "safe",
+      age_gate_policy: "none",
+      created: 1_756_752_000,
+    },
+    thread_snapshot: null,
+    upvote_count: 0,
+    downvote_count: 0,
+    like_count: 0,
+    viewer_vote: vote,
+    viewer_reaction_kinds: [],
+    resolved_locale: "en",
+    translation_state: "ready",
+    machine_translated: false,
+    source_hash: null,
+  }));
+  return { get_postsPostId: async (input: { path: { postId: string } }) => ({ ...response, post: { ...response.post, id: input.path.postId } }) };
+}
 
 /** The contextual composer is open when its one close control exists and no
  * raw community identifier input is offered. */
@@ -119,9 +155,100 @@ describe("CommunityPage", () => {
     expect(container.textContent).toContain("This came from the public Community feed.");
     expect(container.querySelector("[data-community-post='thread-1']")).not.toBeNull();
     expect(loadThreads).toHaveBeenCalledWith(communityId);
+
+    // No session was resolved, so nothing here can act. The counts are shown,
+    // and no control is offered that has no handler behind it.
+    const counts = container.querySelector("[data-post-counts]");
+    expect(counts).not.toBeNull();
+    expect(counts?.textContent).toContain("7");
+    expect(counts?.textContent).toContain("4");
+    expect(counts?.querySelector("button")).toBeNull();
+    expect(container.querySelector("[aria-label='Post actions'] button")).toBeNull();
   });
 
-  test("requires an explicit persona before mounting persona-authored engagement", async () => {
+  test("shows the viewer's existing vote as selected rather than as no vote", async () => {
+    const container = render(() => (
+      <CommunityPage
+        client={{
+          get_cPathSegment: async () => route,
+          get_communitiesCommunityIdPreview: async () => preview,
+        }}
+        engagementApi={engagementApi()}
+        handleSalesClient={{ get_communitiesCommunityIdHandleOfferings: async () => ({ items: [], next_cursor: null }) }}
+        loadThreads={async () => ({
+          posts: [{
+            id: "thread-voted",
+            title: "Already voted",
+            body: "The viewer upvoted this before the page was opened.",
+            score: 4,
+            upvoteCount: 5,
+            downvoteCount: 1,
+            publishedAt: "2026-09-01T18:00:00.000Z",
+            commentCount: 0,
+          }],
+          nextCursor: null,
+        })}
+        pathSegment="xn--pokmon-dva"
+        postComposerMediaStorage={createMemoryMediaSubmissionStorage()}
+        viewerVoteClient={viewerVoteClient(1)}
+        resolveSession={async () => ({
+          status: "authenticated",
+          userId: "usr-account-one",
+          personas: [],
+        })}
+      />
+    ));
+
+    // The public thread response cannot carry this, so it comes from the
+    // authenticated post read. Before that read existed the control opened
+    // unselected and a second press would have toggled from the wrong state.
+    await vi.waitFor(() => expect(container.querySelector("button[aria-label='Upvote']")).not.toBeNull());
+    expect(container.querySelector("button[aria-label='Upvote']")?.getAttribute("aria-pressed")).toBe("true");
+    expect(container.querySelector("button[aria-label='Downvote']")?.getAttribute("aria-pressed")).toBe("false");
+  });
+
+  test("keeps failed vote reads unavailable until retry recovers the existing vote", async () => {
+    const container = render(() => (
+      <CommunityPage
+        client={{
+          get_cPathSegment: async () => route,
+          get_communitiesCommunityIdPreview: async () => preview,
+        }}
+        engagementApi={engagementApi()}
+        handleSalesClient={{ get_communitiesCommunityIdHandleOfferings: async () => ({ items: [], next_cursor: null }) }}
+        loadThreads={async () => ({
+          posts: [{
+            id: "thread-voted",
+            title: "Already voted",
+            body: "The viewer upvoted this before the page was opened.",
+            score: 4,
+            upvoteCount: 5,
+            downvoteCount: 1,
+            publishedAt: "2026-09-01T18:00:00.000Z",
+            commentCount: 0,
+          }],
+          nextCursor: null,
+        })}
+        pathSegment="xn--pokmon-dva"
+        postComposerMediaStorage={createMemoryMediaSubmissionStorage()}
+        viewerVoteClient={{ get_postsPostId: vi.fn().mockRejectedValueOnce(new Error("offline")).mockImplementation(viewerVoteClient(1).get_postsPostId) }}
+        resolveSession={async () => ({
+          status: "authenticated",
+          userId: "usr-account-one",
+          personas: [],
+        })}
+      />
+    ));
+
+    await vi.waitFor(() => expect(container.textContent).toContain("Your vote could not be checked"));
+    expect(container.querySelector("button[aria-label='Upvote']")).toBeNull();
+    const retry = Array.from(container.querySelectorAll("button")).find(button => button.textContent === "Retry vote");
+    expect(retry).toBeDefined();
+    retry?.click();
+    await vi.waitFor(() => expect(container.querySelector("button[aria-label='Upvote']")?.getAttribute("aria-pressed")).toBe("true"));
+  });
+
+  test("offers engagement without a persona and asks for one only to author", async () => {
     const container = render(() => (
       <CommunityPage
         client={{
@@ -143,6 +270,7 @@ describe("CommunityPage", () => {
         })}
         pathSegment="xn--pokmon-dva"
         postComposerMediaStorage={createMemoryMediaSubmissionStorage()}
+        viewerVoteClient={viewerVoteClient(null)}
         resolveSession={async () => ({
           status: "authenticated",
           userId: "usr-account-one",
@@ -155,8 +283,18 @@ describe("CommunityPage", () => {
     ));
 
     await vi.waitFor(() => expect(container.querySelector("[data-operation-persona]")).not.toBeNull());
-    expect(container.querySelector("button[aria-label='Comments (4)']")).toBeNull();
-    expect(container.querySelector("button[aria-label='Open 4 comments']")).not.toBeNull();
+
+    // No persona is selected yet. Voting is account-scoped, so the real
+    // controls mount now rather than leaving the handlerless placeholders up.
+    await vi.waitFor(() => expect(container.querySelector("button[aria-label='Comments (4)']")).not.toBeNull());
+    expect(container.querySelector("button[aria-label='Open 4 comments']")).toBeNull();
+
+    // Authorship is what needs a profile, and the composer says so before the
+    // viewer types rather than refusing after they have written something.
+    container.querySelector<HTMLButtonElement>("button[aria-label='Comments (4)']")!.click();
+    await vi.waitFor(() => expect(document.body.querySelector("textarea[aria-label='Write a comment']")).not.toBeNull());
+    expect(document.body.querySelector<HTMLTextAreaElement>("textarea[aria-label='Write a comment']")!.disabled).toBe(true);
+    expect(document.body.textContent).toContain("Choose a profile to comment as.");
 
     container.querySelector<HTMLButtonElement>("[data-operation-persona] button")!.click();
     await vi.waitFor(() => expect(document.body.textContent).toContain("Persona Two"));
@@ -164,7 +302,9 @@ describe("CommunityPage", () => {
     expect(personaTwo).not.toBeNull();
     personaTwo!.click();
 
-    await vi.waitFor(() => expect(container.querySelector("button[aria-label='Comments (4)']")).not.toBeNull());
+    await vi.waitFor(() => expect(
+      document.body.querySelector<HTMLTextAreaElement>("textarea[aria-label='Write a comment']")!.disabled,
+    ).toBe(false));
   });
 
   test("renders the public community projection and canonical metadata", async () => {
@@ -410,12 +550,13 @@ describe("CommunityPage", () => {
     join.click();
     await vi.waitFor(() => expect(api.join).toHaveBeenCalledWith(communityId, { kind: "existing", personaId: "persona_1" }));
     await vi.waitFor(() => expect(container.textContent).toContain("Joined this Community."));
-    // Spec 016 leaves a member neither Join nor Follow, so the proof of
-    // membership is the action they gained, not a label on the one they lost.
+    // The member keeps the Post action and both header slots as settled
+    // states: Joined is disabled rather than gone.
     await vi.waitFor(() => expect([...container.querySelectorAll("button")]
       .some(button => button.textContent?.trim() === "Post")).toBe(true));
-    expect([...container.querySelectorAll("button")]
-      .some(button => ["Join", "Joined", "Follow", "Following"].includes(button.textContent?.trim() ?? ""))).toBe(false);
+    const joined = [...container.querySelectorAll<HTMLButtonElement>("button")]
+      .find(button => button.textContent?.trim() === "Joined");
+    expect(joined?.disabled).toBe(true);
   });
 
   test("shows a requested membership as pending instead of joined", async () => {
@@ -455,10 +596,13 @@ describe("CommunityPage", () => {
       />
     ));
     await vi.waitFor(() => expect(container.textContent).toContain("21 followers"));
-    // An existing member is offered neither action and keeps the one that is
-    // theirs; the server would answer a member's unfollow with a conflict.
-    expect([...container.querySelectorAll("button")]
-      .some(button => ["Join", "Joined", "Follow", "Following"].includes(button.textContent?.trim() ?? ""))).toBe(false);
+    // An existing member keeps both slots as states: Following is locked and
+    // Joined is disabled; the server would answer a member's unfollow with a
+    // conflict.
+    expect([...container.querySelectorAll<HTMLButtonElement>("button")]
+      .find(button => button.textContent?.trim() === "Following")?.disabled).toBe(true);
+    expect([...container.querySelectorAll<HTMLButtonElement>("button")]
+      .find(button => button.textContent?.trim() === "Joined")?.disabled).toBe(true);
     expect(container.textContent).toContain("Post");
     expect(api.resolveJoinAction).not.toHaveBeenCalled();
   });

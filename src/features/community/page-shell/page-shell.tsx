@@ -1,3 +1,4 @@
+import { SongPlayer } from "../../posts/song-player/song-player.tsx";
 /** @jsxImportSource @solidjs/web */
 import type { JSX } from "@solidjs/web";
 import { For, Loading, Show, createMemo, createSignal } from "solid-js";
@@ -9,13 +10,12 @@ import {
   CommunityAvatar,
   FlatTabBar,
   FlatTabButton,
-  IconArrowDown,
   IconArrowLeft,
   IconArrowUp,
   IconChatCircle,
   IconDotsThree,
+  IconFadersHorizontal,
   IconMusicNote,
-  IconPlay,
   IconPlus,
   IconShield,
   IconButton,
@@ -23,9 +23,8 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-  MediaControlButton,
+  ResponsiveOptionSelect,
   Separator,
-  cn,
   Type,
 } from "@pirate/web-solid-ui";
 import {
@@ -83,6 +82,12 @@ export interface CommunityPageShellProps {
    * join, post or persona controls that no longer depend on anything.
    */
   managePending?: boolean;
+  /**
+   * True once the account session resolved to an established account. The feed
+   * controls row reserves its space for a signed-in viewer before the profile
+   * and membership reads arrive, so the posts never move under them.
+   */
+  viewerSignedIn?: boolean;
   personaControl?: JSX.Element;
   renderPost?: (
     post: CommunityPost,
@@ -90,7 +95,7 @@ export interface CommunityPageShellProps {
   ) => JSX.Element;
 }
 
-type CommunityTab = "feed" | "songs" | "leaderboard" | "about";
+type CommunityTab = "feed" | "songs" | "about";
 
 function formatCount(value: number): string {
   return value.toLocaleString("en-US");
@@ -109,66 +114,56 @@ function postTimestamp(value: string): string {
 function PostActions(props: { post: CommunityPost; engagementControls?: JSX.Element }) {
   return (
     <div class="flex flex-wrap items-center gap-2 pt-1" aria-label="Post actions">
+      {/* No engagement controls yet: either no posting session was resolved,
+          or the viewer's own state for this post is still being read. These
+          were three buttons with no handlers behind them, which offered
+          actions that could never happen. They are the standing counts
+          instead, and the real controls take their place once there is a
+          viewer who can act and enough known about them to act correctly. */}
       <Show when={props.engagementControls} fallback={
-        <>
-          <button aria-label={`Upvote post, ${props.post.score} points`} class="inline-flex h-9 items-center gap-1 rounded-full border border-border-soft px-3 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground" type="button">
-            <IconArrowUp class="size-4" />
+        <div class="flex flex-wrap items-center gap-2 text-sm text-muted-foreground" data-post-counts>
+          <span class="inline-flex h-9 items-center gap-1 rounded-full border border-border-soft px-3">
+            <IconArrowUp class="size-4" aria-hidden="true" />
             <span>{props.post.score}</span>
-          </button>
-          <button aria-label="Downvote post" class="inline-flex size-9 items-center justify-center rounded-full border border-border-soft text-muted-foreground transition-colors hover:bg-muted hover:text-foreground" type="button">
-            <IconArrowDown class="size-4" />
-          </button>
-          <button aria-label={`Open ${props.post.commentCount ?? 0} comments`} class="inline-flex h-9 items-center gap-2 rounded-full border border-border-soft px-3 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground" type="button">
-            <IconChatCircle class="size-4" />
+            <span class="sr-only">points</span>
+          </span>
+          <span class="inline-flex h-9 items-center gap-2 rounded-full border border-border-soft px-3">
+            <IconChatCircle class="size-4" aria-hidden="true" />
             <span>{props.post.commentCount ?? 0}</span>
-          </button>
-        </>
+            <span class="sr-only">comments</span>
+          </span>
+        </div>
       }>{controls => controls()}</Show>
-      <Show when={props.post.learnAvailable}>
-        <Button class="h-9 rounded-full px-4" size="sm" variant="secondary">Learn</Button>
-      </Show>
-      <Show when={props.post.karaokeAvailable}>
-        <Button class="h-9 rounded-full px-4" size="sm">Karaoke</Button>
-      </Show>
     </div>
   );
 }
 
 function SongPost(props: { post: CommunityPost }) {
-  const progress = () => Math.max(0, Math.min(100, props.post.mediaProgress ?? 0));
   return (
-    <div class="flex flex-col gap-3 rounded-xl border border-border-soft bg-muted/30 p-3">
-      <div class="flex items-center gap-3">
-        <div class="relative size-14 shrink-0 overflow-hidden rounded-lg bg-secondary">
-          <Show when={props.post.mediaSrc} fallback={<div class="grid size-full place-items-center"><IconMusicNote class="size-7 text-muted-foreground" /></div>}>
-            {src => <img alt="" class="size-full object-cover" src={src()} />}
-          </Show>
-          <MediaControlButton aria-label={`Play ${props.post.mediaTitle ?? props.post.title}`} class="absolute inset-1/2 -translate-x-1/2 -translate-y-1/2" size="sm">
-            <IconPlay class="size-4" />
-          </MediaControlButton>
-        </div>
-        <div class="min-w-0 flex-1">
-          <Type class="block truncate" variant="body-strong">{props.post.mediaTitle ?? props.post.title}</Type>
-          <Type class="block truncate" variant="caption">{props.post.mediaArtist ?? "Tame Impala"}</Type>
-          <div class="mt-2 flex items-center gap-2">
-            <div aria-label={`${progress()}% played`} class="h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-border-soft" role="progressbar" aria-valuemax="100" aria-valuemin="0" aria-valuenow={progress()}>
-              <div class="h-full rounded-full bg-primary" style={{ width: `${progress()}%` }} />
-            </div>
-            <Type variant="caption">{props.post.mediaDuration ?? "—"}</Type>
-          </div>
-        </div>
+    <div class="flex flex-wrap items-center gap-3 rounded-xl border border-border-soft bg-muted/30 p-3">
+      <div class="relative size-14 shrink-0 overflow-hidden rounded-lg bg-secondary">
+        <Show when={props.post.mediaSrc} fallback={<div class="grid size-full place-items-center"><IconMusicNote class="size-7 text-muted-foreground" /></div>}>
+          {src => <img alt="" class="size-full object-cover" src={src()} />}
+        </Show>
       </div>
-      <Show when={props.post.rewardLabels?.length}>
-        <div class="flex flex-wrap gap-2">
-          <For each={props.post.rewardLabels}>{label => <span class="rounded-full bg-primary/15 px-2.5 py-1 text-xs font-semibold text-primary-text">{label}</span>}</For>
-        </div>
-      </Show>
+      <div class="min-w-0 flex-1">
+        <Type class="block truncate" variant="body-strong">{props.post.mediaTitle ?? props.post.title}</Type>
+        {/* An unknown artist is left unsaid. The placeholder here named a
+            real recording artist who has nothing to do with the post. */}
+        <Show when={props.post.mediaArtist}>
+          {artist => <Type class="block truncate" variant="caption">{artist()}</Type>}
+        </Show>
+      </div>
+      <SongPlayer compact postId={props.post.id} title={props.post.mediaTitle ?? props.post.title} />
     </div>
   );
 }
 
 function FeedPost(props: { post: CommunityPost; actions?: JSX.Element }) {
-  const author = () => props.post.authorHandle ?? "midnightwaves.pirate";
+  // The feed adapter always resolves a handle, including "Anonymous" and a
+  // generic public label. This covers a caller that supplied none, and says so
+  // rather than attributing the post to an invented account.
+  const author = () => props.post.authorHandle ?? "Unknown author";
   return (
     <article class="flex flex-col gap-3 border-b border-border-soft px-0 py-5 first:pt-0 last:border-b-0" data-community-post={props.post.id}>
       <div class="flex items-center gap-2">
@@ -180,9 +175,7 @@ function FeedPost(props: { post: CommunityPost; actions?: JSX.Element }) {
         />
         <Type as="span" variant="label">{author()}</Type>
         <Type as="span" variant="caption">· {postTimestamp(props.post.publishedAt)}</Type>
-        <IconButton aria-label={`More options for ${props.post.title}`} class="ms-auto size-8" variant="ghost">
-          <IconDotsThree class="size-5" />
-        </IconButton>
+
       </div>
       <Show when={props.post.kind === "song"} fallback={
         <>
@@ -190,7 +183,11 @@ function FeedPost(props: { post: CommunityPost; actions?: JSX.Element }) {
           <Type variant="body">{props.post.body}</Type>
         </>
       }>
-        <Show when={props.post.body}><Type variant="h3">{props.post.body}</Type></Show>
+        {/* The card names the song and the player plays it; a body that only
+            repeats the song title is not commentary and is not shown. */}
+        <Show when={props.post.body && props.post.body !== (props.post.mediaTitle ?? props.post.title)}>
+          <Type variant="body">{props.post.body}</Type>
+        </Show>
         <SongPost post={props.post} />
       </Show>
       <PostActions engagementControls={props.actions} post={props.post} />
@@ -211,13 +208,16 @@ function FeedPending() {
 function CommunityAbout(props: { community: CommunityData }) {
   const community = () => props.community;
   return (
-    <div class="flex flex-col gap-4">
-      <Card>
-        <CardContent class="flex flex-col gap-3 p-5">
+    <div class="flex flex-col gap-4 max-md:gap-8">
+      <Card class="max-md:rounded-none max-md:border-0 max-md:bg-transparent max-md:shadow-none">
+        <CardContent class="flex flex-col gap-3 p-5 max-md:p-0">
           <Type variant="h3">About {community().name}</Type>
           <Type variant="body">{community().description}</Type>
           <Separator />
-          <Type variant="caption">{formatCount(community().members)} members · {formatCount(community().followers)} followers</Type>
+          <Type variant="caption">
+            <Show when={community().handle}>{handle => <>{handle()} · </>}</Show>
+            {formatCount(community().members)} members · {formatCount(community().followers)} followers
+          </Type>
           <Show when={community().gates?.length}>
             <Type variant="label">{gateSummary(community().gates ?? [], community().gateMode ?? "unknown")}</Type>
             <ul class="flex flex-col gap-2">
@@ -227,20 +227,20 @@ function CommunityAbout(props: { community: CommunityData }) {
         </CardContent>
       </Card>
       <Show when={community().rules?.length}>
-        <Card>
-          <CardContent class="flex flex-col gap-4 p-5">
+        <Card class="max-md:rounded-none max-md:border-0 max-md:bg-transparent max-md:shadow-none">
+          <CardContent class="flex flex-col gap-4 p-5 max-md:p-0">
             <Type variant="h3">Community rules</Type>
             <ol class="flex flex-col gap-4">
               <For each={orderedCommunityRules(community().rules ?? [])}>
-                {(rule, index) => <li class="flex gap-3"><span class="grid size-6 shrink-0 place-items-center rounded-full bg-muted text-xs font-semibold">{index() + 1}</span><div><Type variant="body-strong">{rule.title}</Type><Type variant="caption">{rule.body}</Type></div></li>}
+                {(rule, index) => <li class="flex gap-3"><span class="grid size-6 shrink-0 place-items-center rounded-full bg-muted text-xs font-semibold">{index() + 1}</span><div class="flex flex-col gap-0.5"><Type variant="body-strong">{rule.title}</Type><Type variant="caption">{rule.body}</Type></div></li>}
               </For>
             </ol>
           </CardContent>
         </Card>
       </Show>
       <Show when={community().referenceLinks?.length}>
-        <Card>
-          <CardContent class="flex flex-col gap-3 p-5">
+        <Card class="max-md:rounded-none max-md:border-0 max-md:bg-transparent max-md:shadow-none">
+          <CardContent class="flex flex-col gap-3 p-5 max-md:p-0">
             <Type variant="h3">Links</Type>
             <nav aria-label="Community reference links">
               <ul class="flex flex-col gap-2">
@@ -263,39 +263,47 @@ function CommunityBanner(props: {
   onBack?: () => void;
   onManage?: () => void;
   onShowDetails: () => void;
+  /** Feed sort, rendered left of the overflow menu when the shell has one. */
+  sortControl?: JSX.Element;
 }) {
   return (
     <div class="relative h-36 overflow-hidden bg-[linear-gradient(120deg,#162c32_0%,#5f746a_45%,#c7b68a_100%)] md:h-56">
       <Show when={props.community.bannerSrc}>
         {src => <img alt="" class="size-full object-cover" src={src()} />}
       </Show>
+      {/* The scrim darkens the lower cover so the overlay controls stay
+          readable over a light or busy image. */}
+      <div aria-hidden="true" class="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/5 via-transparent to-black/45" />
       <div class="absolute inset-x-0 top-0 flex items-center justify-between p-3 md:p-5">
         <IconButton aria-label="Go back" class="bg-background/75 text-foreground shadow-sm backdrop-blur-sm" onClick={props.onBack} variant="ghost">
           <IconArrowLeft class="size-5" />
         </IconButton>
-        {/* An overlay, so an option that appears when authority settles moves
-            nothing on the page beneath it. */}
-        <DropdownMenu placement="bottom-end" gutter={4}>
-          <DropdownMenuTrigger
-            aria-label="More community options"
-            class="grid size-10 place-items-center rounded-full bg-background/75 text-foreground shadow-sm backdrop-blur-sm"
-            data-community-manage={props.manage}
-          >
-            <IconDotsThree class="size-5" />
-          </DropdownMenuTrigger>
-          <DropdownMenuContent class="w-56">
-            <Show when={props.onManage}>
-              <DropdownMenuItem onSelect={() => props.onManage?.()}>
-                <IconShield class="size-4" />
-                <span>Manage</span>
-              </DropdownMenuItem>
-            </Show>
-            {/* Always does something: a host that owns this navigation takes it,
-                and otherwise it selects the About tab, which is where the
-                community's details already live. */}
-            <DropdownMenuItem onSelect={() => props.onShowDetails()}>Community details</DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <div class="flex items-center gap-2">
+          {props.sortControl}
+          {/* An overlay, so an option that appears when authority settles moves
+              nothing on the page beneath it. */}
+          <DropdownMenu placement="bottom-end" gutter={4}>
+            <DropdownMenuTrigger
+              aria-label="More community options"
+              class="grid size-10 place-items-center rounded-full bg-background/75 text-foreground shadow-sm backdrop-blur-sm"
+              data-community-manage={props.manage}
+            >
+              <IconDotsThree class="size-5" />
+            </DropdownMenuTrigger>
+            <DropdownMenuContent class="w-56">
+              <Show when={props.onManage}>
+                <DropdownMenuItem onSelect={() => props.onManage?.()}>
+                  <IconShield class="size-4" />
+                  <span>Manage</span>
+                </DropdownMenuItem>
+              </Show>
+              {/* Always does something: a host that owns this navigation takes it,
+                  and otherwise it selects the About tab, which is where the
+                  community's details already live. */}
+              <DropdownMenuItem onSelect={() => props.onShowDetails()}>Community details</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </div>
     </div>
   );
@@ -312,11 +320,11 @@ export function CommunityPageShell(props: CommunityPageShellProps) {
   const slotClass = "h-11 w-full min-w-0 md:w-32";
   /**
    * Spec 016 §4.6: an active member may invoke follow idempotently but may not
-   * unfollow, and has nothing left to join. Offering either would be offering
-   * an action the server answers with a typed conflict. The row is a fixed
-   * height, so withdrawing them moves nothing.
+   * unfollow, and has nothing left to join. Both slots stay filled so the
+   * header does not move, with Joined and Following as disabled states rather
+   * than offering a typed conflict.
    */
-  const memberHasNoAction = () => props.joined === true && props.viewerUnknown !== true;
+  const memberFollowLocked = () => props.joined === true && props.viewerUnknown !== true && props.following;
   const feed = (): CommunityFeed =>
     props.feed?.() ?? { kind: "ready", posts: community().posts };
   /**
@@ -329,7 +337,7 @@ export function CommunityPageShell(props: CommunityPageShellProps) {
     if (props.authorityPending) return { text: "Checking…", description: "Checking your follow state" };
     if (props.viewerUnknown) return { text: "Check follow", description: "Check your follow state again" };
     return props.following
-      ? { text: "Following", description: "Unfollow this community" }
+      ? { text: "Following", description: memberFollowLocked() ? "Following this community" : "Unfollow this community" }
       : { text: "Follow", description: "Follow this community" };
   };
   const joinLabel = () => {
@@ -355,6 +363,28 @@ export function CommunityPageShell(props: CommunityPageShellProps) {
     const render = (actions?: JSX.Element) => <FeedPost actions={actions} post={post} />;
     return props.renderPost?.(post, render) ?? render();
   };
+  /**
+   * The feed sort lives in the banner beside the overflow menu, the way a
+   * community's feed controls read on a phone. The icon opens the existing
+   * responsive picker: a sheet on small viewports and a select above them.
+   */
+  const sortControl = () => (
+    <ResponsiveOptionSelect
+      ariaLabel="Sort community feed"
+      class="w-auto shrink-0"
+      drawerTitle="Sort feed"
+      mobileTriggerContent={<IconFadersHorizontal class="size-5" />}
+      onValueChange={value => setSort(value)}
+      options={[
+        { label: "Best", value: "Best" },
+        { label: "New", value: "New" },
+        { label: "Top", value: "Top" },
+      ]}
+      triggerClass="h-10 w-10 min-w-0 justify-center rounded-full p-0 bg-background/75 text-foreground shadow-sm backdrop-blur-sm [&>span:last-child]:hidden"
+      triggerContent={<IconFadersHorizontal class="size-5" />}
+      value={sort()}
+    />
+  );
 
   return (
     <div class={props.mobile ? "w-full max-w-[24.375rem] bg-background" : "mx-auto w-full max-w-6xl bg-background"} data-community-page>
@@ -369,46 +399,61 @@ export function CommunityPageShell(props: CommunityPageShellProps) {
           if (props.onMore !== undefined) props.onMore();
           else setTab("about");
         }}
+        sortControl={tab() === "about" ? undefined : sortControl()}
       />
 
-      <header class="relative border-b border-border-soft bg-background px-5 pb-5 md:px-8 md:pb-6">
-        <div class="md:flex md:items-end md:gap-4">
-          <div class="-mt-9 mb-3 md:-mt-11 md:mb-0">
-            <CommunityAvatar
-              avatarSrc={community().avatarSrc}
-              class="size-20 border-4 border-background md:size-24"
-              communityId={community().id ?? community().handle}
-              displayName={community().name}
-              size="lg"
-            />
-          </div>
-          <div class="min-w-0 md:flex-1 md:pb-1">
-            <Type as="h1" class="text-2xl md:text-3xl" variant="h1">{community().name}</Type>
-            <Type class="mt-1 block" variant="caption">
-              <Show when={community().handle}>{handle => <>{handle()} · </>}</Show>
-              {formatCount(community().members)} members · {formatCount(community().followers)} followers
-            </Type>
+      <header class="relative bg-background px-5 pb-5 pt-5 md:px-8 md:pb-6 md:pt-6">
+        <div class="md:flex md:items-center md:gap-4">
+          <div class="min-w-0 md:flex-1">
+            {/* The avatar sits below the banner rather than overlapping it, and
+                the title and counts are centered against it. */}
+            <div class="flex min-w-0 items-center gap-3 md:gap-4">
+              <div class="shrink-0">
+                <CommunityAvatar
+                  avatarSrc={community().avatarSrc}
+                  class="size-20 border-4 border-background md:size-24"
+                  communityId={community().id ?? community().handle}
+                  displayName={community().name}
+                  size="lg"
+                />
+              </div>
+              <div class="min-w-0 flex-1">
+                <Type as="h1" class="line-clamp-2 text-2xl md:text-3xl" variant="h1">{community().name}</Type>
+                <Type class="mt-1 block truncate" variant="caption">
+                  {formatCount(community().members)} members<span class="hidden md:inline"> · {formatCount(community().followers)} followers</span>
+                </Type>
+              </div>
+            </div>
+            {/* Full width above the actions on phones, with equal space above
+                and below. Desktop keeps the description in the About card. */}
+            <div class="mt-4 md:hidden">
+              <Type variant="body">{community().description}</Type>
+            </div>
           </div>
           <Show when={props.readOnly !== true}>
-            {/* Exactly two slots, both always present and both a fixed size,
-                so no label this row can show changes its geometry. Controls
-                whose existence depends on authority live outside the header. */}
+            {/* Two fixed-size slots, both filled even for a member: Joined and
+                Following are states, and Following is disabled because a
+                member may not unfollow. Controls whose existence depends on
+                authority live outside the header. */}
             <div
               aria-label="Community actions"
-              class="mt-3 grid h-11 grid-cols-2 gap-2 md:mt-0 md:flex md:shrink-0"
+              class="mt-4 grid h-11 grid-cols-2 gap-3 md:mt-0 md:flex md:min-w-[16.75rem] md:shrink-0 md:gap-3"
               data-community-actions-reserved
+              role="group"
             >
               {/* Follow and Following both state a direction that has not been
-                  read yet, so neither is offered until it has been. */}
-              <Show when={!memberHasNoAction()}>
-                <Button
-                  aria-label={followLabel().description}
-                  class={slotClass}
-                  data-community-follow-slot
-                  disabled={props.followBusy || props.authorityPending}
-                  onClick={() => props.onFollowToggle?.()}
-                  variant={props.following ? "secondary" : "outline"}
-                ><span class="truncate">{followLabel().text}</span></Button>
+                  read yet, so neither is offered until it has been. While the
+                  read is pending the control shows a spinner, not a label it
+                  cannot stand behind, and keeps Checking… for screen readers. */}
+              <Button
+                aria-label={followLabel().description}
+                class={slotClass}
+                data-community-follow-slot
+                disabled={props.followBusy || props.authorityPending || memberFollowLocked()}
+                loading={props.followBusy || props.authorityPending}
+                onClick={() => props.onFollowToggle?.()}
+                variant={props.following ? "secondary" : "outline"}
+              ><span class={props.followBusy || props.authorityPending ? "sr-only" : "truncate"}>{followLabel().text}</span></Button>
               <Show when={props.canJoin !== false} fallback={<div class={slotClass} aria-hidden="true" />}>
                 <Button
                   aria-label={joinLabel().description}
@@ -416,22 +461,20 @@ export function CommunityPageShell(props: CommunityPageShellProps) {
                   data-community-membership-slot
                   disabled={props.authorityPending || props.joinBusy
                     || (!props.viewerUnknown && (props.joined || props.joinDisabled))}
+                  loading={props.authorityPending || props.joinBusy}
                   onClick={() => props.onJoin?.()}
                   variant={props.joined && !props.viewerUnknown ? "secondary" : "default"}
-                ><span class="truncate">{joinLabel().text}</span></Button>
-              </Show>
+                ><span class={props.authorityPending || props.joinBusy ? "sr-only" : "truncate"}>{joinLabel().text}</span></Button>
               </Show>
             </div>
           </Show>
         </div>
-        <Type class="mt-3 max-w-2xl md:hidden" variant="body">{community().description}</Type>
       </header>
 
       <div data-community-tabs>
-      <FlatTabBar class="px-5 md:px-8" columns={4}>
+      <FlatTabBar class="px-5 md:px-8" columns={3}>
         <FlatTabButton active={tab() === "feed"} onClick={() => setTab("feed")}>Feed</FlatTabButton>
         <FlatTabButton active={tab() === "songs"} onClick={() => setTab("songs")}>Songs</FlatTabButton>
-        <FlatTabButton active={tab() === "leaderboard"} onClick={() => setTab("leaderboard")}>Leaderboard</FlatTabButton>
         <FlatTabButton active={tab() === "about"} onClick={() => setTab("about")}>About</FlatTabButton>
       </FlatTabBar>
       </div>
@@ -443,31 +486,29 @@ export function CommunityPageShell(props: CommunityPageShellProps) {
             with a blank column beside an aside that was already there. */}
         <main class={tab() === "about" ? "hidden" : "min-w-0"} aria-label="Community feed">
           <Show when={tab() === "feed"}>
-            <div class="mb-5 flex h-9 items-center justify-between gap-3">
-              <Type variant="h2">Feed</Type>
-              <div class="flex items-center gap-2">
-              <Show when={props.joined || props.showCreatePost || props.onCreatePost !== undefined}>
-                <Button
-                  class="h-9 rounded-full px-4"
-                  disabled={props.createPostBusy}
-                  leadingIcon={<IconPlus class="size-4" />}
-                  onClick={() => props.onCreatePost?.()}
-                  size="sm"
-                >
-                  {props.createPostBusy ? "Opening…" : "Post"}
-                </Button>
-              </Show>
-              <label class="flex items-center gap-2">
-                <Type as="span" class="sr-only" variant="label">Sort community feed</Type>
-                <select aria-label="Sort community feed" class="h-9 rounded-full border border-border-soft bg-card px-3 text-sm" onChange={event => setSort(event.currentTarget.value)} value={sort()}>
-                  <option value="Best">Best</option><option value="New">New</option><option value="Top">Top</option>
-                </select>
-              </label>
+            {/* One controls row: the persona picker on the left and Post on
+                the right. A viewer whose session is resolved signed-in keeps
+                the row's space from the first paint, so the profile and
+                membership reads fill it in without moving the first post; the
+                content check is a fallback for hosts that render a control
+                without declaring the session. An anonymous viewer has nothing
+                to reserve and stays tight. */}
+            <Show when={props.viewerSignedIn === true || props.personaControl || props.joined || props.showCreatePost || props.onCreatePost !== undefined}>
+              <div class="mb-5 flex min-h-9 items-center gap-3" data-community-persona-reserved>
+                <div class="min-w-0 flex-1">{props.personaControl}</div>
+                <Show when={props.joined || props.showCreatePost || props.onCreatePost !== undefined}>
+                  <Button
+                    class="h-9 shrink-0 rounded-full px-4"
+                    disabled={props.createPostBusy}
+                    leadingIcon={<IconPlus class="size-4" />}
+                    onClick={() => props.onCreatePost?.()}
+                    size="sm"
+                  >
+                    {props.createPostBusy ? "Opening…" : "Post"}
+                  </Button>
+                </Show>
               </div>
-            </div>
-            <div class="mb-4 flex h-9 items-center justify-end" data-community-persona-reserved>
-              {props.personaControl}
-            </div>
+            </Show>
             <Loading fallback={<FeedPending />}>
               <Show when={feed().kind === "ready"} fallback={<Card><CardContent class="p-6"><Type role="alert" variant="body">Community posts are temporarily unavailable.</Type></CardContent></Card>}>
                 <Show when={!props.empty && sortedPosts().length > 0} fallback={<Card><CardContent class="p-6"><Type variant="body">No posts in this community yet.</Type></CardContent></Card>}>
@@ -479,16 +520,11 @@ export function CommunityPageShell(props: CommunityPageShellProps) {
             </Loading>
           </Show>
           <Show when={tab() === "songs"}>
-            <div class="mb-5"><Type variant="h2">Songs</Type></div>
             <Loading fallback={<FeedPending />}>
               <Show when={songs().length > 0} fallback={<Card><CardContent class="p-6"><Type variant="body">No songs in this community yet.</Type></CardContent></Card>}>
                 <div class="flex flex-col"><For each={songs()}>{post => renderPost(post)}</For></div>
               </Show>
             </Loading>
-          </Show>
-          <Show when={tab() === "leaderboard"}>
-            <div class="mb-5"><Type variant="h2">Leaderboard</Type></div>
-            <Card><CardContent class="p-6"><Type variant="body">Earn points by sharing, learning, and singing with the community.</Type></CardContent></Card>
           </Show>
         </main>
 

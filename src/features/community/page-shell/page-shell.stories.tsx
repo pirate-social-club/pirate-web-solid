@@ -49,12 +49,12 @@ type Story = StoryObj<typeof meta>;
 
 export const Overview: Story = { render: () => <StoryCommunityPageShell community={tameImpala} {...overviewStoryState} /> };
 export const EmptyCommunity: Story = { render: () => <StoryCommunityPageShell community={infinity} empty /> };
-export const CommunityWithPosts: Story = { render: () => <StoryCommunityPageShell community={tameImpala} {...communityWithPostsStoryState} /> };
+export const CommunityWithPosts: Story = { render: () => <StoryCommunityPageShell community={tameImpala} viewerSignedIn {...communityWithPostsStoryState} /> };
 export const PassportScoreGated: Story = { name: "States / Passport Score Gated", render: () => <StoryCommunityPageShell community={{ ...tameImpala, name: "Passport Score", description: "A community gated by Human Passport wallet reputation.", gates: [{ label: "Passport score 20+", status: "unmet" }], gateMode: "all" }} canJoin /> };
 export const GatesAndMode: Story = { name: "States / AND gates", render: () => <StoryCommunityPageShell community={gateCommunity("AND Gates", "all")} canJoin /> };
 export const GatesOrMode: Story = { name: "States / OR gates", render: () => <StoryCommunityPageShell community={gateCommunity("OR Gates", "any")} canJoin /> };
-export const CommunityViewportPreset: Story = { name: "Mobile / Feed header actions", globals: { viewport: { value: "mobile1", isRotated: false } }, render: () => <StoryCommunityPageShell community={tameImpala} mobile initialFollowing initialJoined /> };
-export const FollowingNotCitizen: Story = { render: () => <StoryCommunityPageShell community={tameImpala} initialFollowing /> };
+export const CommunityViewportPreset: Story = { name: "Mobile / Feed header actions", globals: { viewport: { value: "mobile1", isRotated: false } }, render: () => <StoryCommunityPageShell community={tameImpala} mobile initialFollowing initialJoined viewerSignedIn /> };
+export const FollowingNotCitizen: Story = { render: () => <StoryCommunityPageShell community={tameImpala} initialFollowing viewerSignedIn /> };
 export const CanFollowCannotJoin: Story = { render: () => <StoryCommunityPageShell community={infinity} canJoin={false} /> };
 
 // Geometry states. The page must not move as the viewer's authority settles,
@@ -64,6 +64,21 @@ const geometryCommunity: CommunityData = { ...tameImpala, name: "Geometry" };
 
 export const AuthorityPending: Story = {
   name: "Geometry / Authority pending",
+  render: () => (
+    <CommunityPageShell
+      authorityPending
+      community={geometryCommunity}
+      following={false}
+      joined={false}
+      managePending
+      viewerSignedIn
+    />
+  ),
+};
+
+/** The first paint without a session cookie: nothing is reserved. */
+export const AuthorityPendingAnonymous: Story = {
+  name: "Geometry / Authority pending anonymous",
   render: () => (
     <CommunityPageShell
       authorityPending
@@ -91,6 +106,7 @@ export const SettledMember: Story = {
       joined
       onCreatePost={() => undefined}
       personaControl={<span data-operation-persona>Commenting as harbour</span>}
+      viewerSignedIn
     />
   ),
 };
@@ -105,6 +121,7 @@ export const SettledModerator: Story = {
       onCreatePost={() => undefined}
       onManage={() => undefined}
       personaControl={<span data-operation-persona>Commenting as harbour</span>}
+      viewerSignedIn
     />
   ),
 };
@@ -112,6 +129,6 @@ export const SettledModerator: Story = {
 export const ViewerUnknown: Story = {
   name: "Geometry / Membership read failed",
   render: () => (
-    <CommunityPageShell community={geometryCommunity} following={false} joined={false} viewerUnknown />
+    <CommunityPageShell community={geometryCommunity} following={false} joined={false} viewerUnknown viewerSignedIn />
   ),
 };

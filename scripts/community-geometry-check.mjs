@@ -1,6 +1,8 @@
-// Measures the community page shell in a real browser: the page must not move
-// as the viewer's authority settles, and asking for the community's details
-// must produce a real view rather than a blank column.
+// Measures the community page shell in a real browser: the header, the tab bar,
+// the reserved persona row and the first post must not move as a signed-in
+// viewer's authority settles, and asking for the community's details must
+// produce a real view rather than a blank column. An anonymous viewer has no
+// reserved row and keeps the tight layout; that is asserted separately.
 //
 // Class-string assertions cannot establish equal geometry: they do not know
 // what wraps, what a label does to a width, or what a viewport does to a flex
@@ -19,12 +21,16 @@ const startupTimeoutMs = Number(process.env.GEOMETRY_STARTUP_TIMEOUT_MS ?? 30_00
 const tolerancePx = Number(process.env.GEOMETRY_TOLERANCE_PX ?? 0.5);
 
 const pendingStory = "screens-community-pageshell--authority-pending";
-const settledStories = [
-  "screens-community-pageshell--settled-anonymous",
+const signedInSettledStories = [
   "screens-community-pageshell--settled-member",
   "screens-community-pageshell--settled-moderator",
   "screens-community-pageshell--viewer-unknown",
 ];
+const anonymousStory = "screens-community-pageshell--settled-anonymous";
+const pendingAnonymousStory = "screens-community-pageshell--authority-pending-anonymous";
+
+const personaSelector = "[data-community-persona-reserved]";
+const firstPostSelector = "[data-community-post]";
 
 const viewports = [
   { name: "mobile", width: 390, height: 844 },
@@ -32,18 +38,28 @@ const viewports = [
 ];
 
 /**
- * What must not move. The action row is the header's own geometry; the tab bar
- * and the feed are everything the reader is actually looking at, so their
- * position is the real subject.
+ * What must not move for a signed-in viewer. The action row is the header's
+ * own geometry; the tab bar, the reserved persona row and the first post are
+ * what the reader is looking at, so their position is the real subject. The
+ * feed's height is excluded because the persona row's content can grow it.
  */
-const probes = [
-  { key: "actions", selector: "[data-community-actions-reserved]" },
-  { key: "tabs", selector: "[data-community-tabs]" },
-  { key: "feed", selector: "[aria-label='Community feed']" },
-  { key: "persona", selector: "[data-community-persona-reserved]" },
+const signedInProbes = [
+  { key: "actions", selector: "[data-community-actions-reserved]", sides: ["x", "y", "width", "height"] },
+  { key: "tabs", selector: "[data-community-tabs]", sides: ["x", "y", "width", "height"] },
+  { key: "feed", selector: "[aria-label='Community feed']", sides: ["x", "y", "width"] },
+  { key: "persona", selector: personaSelector, sides: ["x", "y", "width", "height"] },
+  { key: "firstPost", selector: firstPostSelector, sides: ["y"] },
 ];
+/** An anonymous viewer has no reserved row and no persona probe to compare. */
+const anonymousProbes = signedInProbes.filter(
+  probe => probe.key !== "persona" && probe.key !== "firstPost",
+);
+/** The anonymous first paint and its settled state share the tight layout. */
+const anonymousFirstPaintProbes = anonymousProbes.concat(
+  signedInProbes.filter(probe => probe.key === "firstPost"),
+);
 
-async function measure(page, storyId, viewport) {
+async function measure(page, storyId, viewport, probes) {
   await page.setViewportSize({ width: viewport.width, height: viewport.height });
   await page.goto(`${baseUrl}/iframe.html?id=${storyId}&viewMode=story`, {
     waitUntil: "domcontentloaded",
@@ -65,7 +81,7 @@ async function measure(page, storyId, viewport) {
   return measured;
 }
 
-function compare(storyId, viewport, pending, settled) {
+function compare(storyId, viewport, pending, settled, probes) {
   const failures = [];
   for (const [state, measured] of [["pending", pending], [storyId, settled]]) {
     if (measured.actionsOverflow > tolerancePx) {
@@ -78,7 +94,7 @@ function compare(storyId, viewport, pending, settled) {
   for (const probe of probes) {
     const before = pending[probe.key];
     const after = settled[probe.key];
-    for (const side of ["x", "y", "width", "height"]) {
+    for (const side of probe.sides) {
       const moved = Math.abs(before[side] - after[side]);
       if (moved > tolerancePx) {
         failures.push(
@@ -99,7 +115,7 @@ function compare(storyId, viewport, pending, settled) {
 async function checkCommunityDetails(page, viewport) {
   const failures = [];
   await page.setViewportSize({ width: viewport.width, height: viewport.height });
-  await page.goto(`${baseUrl}/iframe.html?id=${settledStories[1]}&viewMode=story`, {
+  await page.goto(`${baseUrl}/iframe.html?id=${signedInSettledStories[0]}&viewMode=story`, {
     waitUntil: "domcontentloaded",
     timeout: startupTimeoutMs,
   });
@@ -134,11 +150,21 @@ async function main() {
   const failures = [];
   try {
     for (const viewport of viewports) {
-      const pending = await measure(page, pendingStory, viewport);
-      for (const storyId of settledStories) {
-        const settled = await measure(page, storyId, viewport);
-        failures.push(...compare(storyId, viewport, pending, settled));
+      const pending = await measure(page, pendingStory, viewport, signedInProbes);
+      for (const storyId of signedInSettledStories) {
+        const settled = await measure(page, storyId, viewport, signedInProbes);
+        failures.push(...compare(storyId, viewport, pending, settled, signedInProbes));
       }
+      const pendingAnonymous = await measure(page, pendingAnonymousStory, viewport, anonymousFirstPaintProbes);
+      if (await page.locator(personaSelector).count() > 0) {
+        failures.push(`${viewport.name}: the anonymous first paint reserved the signed-in persona row`);
+      }
+      const anonymous = await measure(page, anonymousStory, viewport, anonymousFirstPaintProbes);
+      if (await page.locator(personaSelector).count() > 0) {
+        failures.push(`${viewport.name}: the anonymous settled view reserved the signed-in persona row`);
+      }
+      failures.push(...compare(anonymousStory, viewport, pendingAnonymous, anonymous, anonymousFirstPaintProbes));
+      failures.push(...compare(anonymousStory, viewport, pending, anonymous, anonymousProbes));
       failures.push(...await checkCommunityDetails(page, viewport));
     }
   } finally {
@@ -153,8 +179,8 @@ async function main() {
     return;
   }
   process.stdout.write(
-    `community-geometry-check: ${settledStories.length} settled state(s) hold their geometry, `
-    + `and community details opens a real view, `
+    `community-geometry-check: ${signedInSettledStories.length} signed-in state(s) hold their geometry, `
+    + `the anonymous view stays tight, and community details opens a real view, `
     + `at ${viewports.map(viewport => `${viewport.width}px`).join(" and ")}\n`,
   );
 }

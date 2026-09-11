@@ -14,6 +14,7 @@ import {
   Toaster,
 } from "../../../design-system.ts";
 import { resolveRequestUiLocale } from "../../../lib/ui-locale-core.ts";
+import { viewerSessionHint } from "../../../lib/viewer-session-hint.ts";
 import { getLocaleMessages, interpolateMessage } from "../../../locales/index.ts";
 import {
   loadCommunityPage,
@@ -48,6 +49,14 @@ import {
   type CommunityEngagementApi,
 } from "./community-engagement-api.ts";
 import { createCommunityEngagementController } from "./community-engagement-controller.ts";
+import {
+  createCommunityViewerVoteClient,
+  createCommunityViewerVoteReader,
+  type CommunityViewerVoteClient,
+  type CommunityViewerVoteReader,
+  type ViewerVote,
+  type ViewerVoteRead,
+} from "./community-viewer-vote-api.ts";
 
 export interface CommunityPageProps {
   readonly pathSegment: string;
@@ -62,6 +71,7 @@ export interface CommunityPageProps {
   readonly loadThreads?: (communityId: string) => Promise<CommunityThreadPage>;
   readonly postEngagementTransport?: PostEngagementTransport;
   readonly postComposerMediaStorage?: MediaSubmissionStorage;
+  readonly viewerVoteClient?: CommunityViewerVoteClient;
 }
 
 function communityCopy() {
@@ -155,6 +165,7 @@ function SuccessState(props: {
   readonly loadThreads?: (communityId: string) => Promise<CommunityThreadPage>;
   readonly postEngagementTransport?: PostEngagementTransport;
   readonly postComposerMediaStorage?: MediaSubmissionStorage;
+  readonly viewerVoteClient?: CommunityViewerVoteClient;
 }) {
   const copy = communityCopy();
   const state = untrack(() => props.state);
@@ -168,9 +179,62 @@ function SuccessState(props: {
   const [canManage, setCanManage] = createSignal(false);
   const [manageResolved, setManageResolved] = createSignal(false);
   const [selectedPersonaId, setSelectedPersonaId] = createSignal<string>();
+  // The viewer's own vote is not in the public thread response and must not be
+  // added to it: that response is deliberately anonymous and no-store. It is read
+  // per post from the authenticated post read, on demand, and a post's control
+  // waits for its read rather than opening with a null that would show an
+  // existing vote as unselected and then toggle from the wrong prior state.
+  const [viewerVotes, setViewerVotes] = createSignal<ReadonlyMap<string, ViewerVoteRead>>(new Map());
+  let viewerVoteReader: CommunityViewerVoteReader | undefined;
+  let viewerVoteOwner: string | undefined;
+  let viewerVoteGeneration = 0;
+  // Built on first use and only in a browser. This is a private per-account
+  // read: a server render has no viewer to read for, and constructing a
+  // credentialed client there would need a request origin it does not have.
+  const ensureViewerVoteReader = (): CommunityViewerVoteReader | undefined => {
+    const owner = engagement.postingSession()?.userId;
+    if (owner === undefined) return undefined;
+    if (viewerVoteOwner !== owner) {
+      viewerVoteReader?.dispose();
+      viewerVoteReader = undefined;
+      viewerVoteOwner = owner;
+      viewerVoteGeneration += 1;
+    }
+    if (viewerVoteReader !== undefined) return viewerVoteReader;
+    const client = untrack(() => props.viewerVoteClient)
+      ?? (globalThis.window === undefined
+        ? undefined
+        : createCommunityViewerVoteClient({ origin: communityRequestOrigin() }));
+    if (client === undefined) return undefined;
+    const generation = viewerVoteGeneration;
+    viewerVoteReader = createCommunityViewerVoteReader({
+      client,
+      onSettled: (postId, vote) => {
+        if (!active || viewerVoteGeneration !== generation) return;
+        setViewerVotes(current => new Map([...current].filter(([key]) => key.startsWith(`${generation}:`))).set(`${generation}:${postId}`, vote));
+      },
+    });
+    return viewerVoteReader;
+  };
+  /** The vote, or undefined while its read is still outstanding. */
+  const viewerVoteFor = (postId: string): ViewerVoteRead | undefined => {
+    const reader = ensureViewerVoteReader();
+    const settled = viewerVotes().get(`${viewerVoteGeneration}:${postId}`);
+    if (settled !== undefined) return settled;
+    return reader?.read(postId);
+  };
+  const retryViewerVote = (postId: string) => {
+    setViewerVotes(current => {
+      const next = new Map(current);
+      next.delete(`${viewerVoteGeneration}:${postId}`);
+      return next;
+    });
+    viewerVoteReader?.retry(postId);
+  };
   let active = true;
   onCleanup(() => {
     active = false;
+    viewerVoteReader?.dispose();
   });
   const navigate = (href: string) => {
     if (props.navigate) props.navigate(href);
@@ -271,6 +335,10 @@ function SuccessState(props: {
     () => engagement.postingSession(),
     (session) => {
       if (session === undefined) {
+        viewerVoteReader?.dispose();
+        viewerVoteReader = undefined;
+        viewerVoteOwner = undefined;
+        setViewerVotes(new Map());
         setSelectedPersonaId(undefined);
         return;
       }
@@ -285,6 +353,18 @@ function SuccessState(props: {
 
 
   const manageAuthorityPending = () => !manageResolved();
+
+  /**
+   * Reserve the controls row before the account identity resolves. The Worker
+   * sees the session cookie, so the first HTML already knows whether to hold
+   * the row; a resolved identity is always authoritative afterwards. Without
+   * the hint the row would arrive late and push the server-rendered posts down
+   * for every signed-in viewer.
+   */
+  const viewerSignedIn = () => {
+    const identity = engagement.accountIdentity();
+    return identity === undefined ? viewerSessionHint() : typeof identity === "string";
+  };
 
   // Announcements this page raised. They expire on their own and can be
   // dismissed, and they are cleared when the page goes away so a stale outcome
@@ -320,12 +400,18 @@ function SuccessState(props: {
     engagement.postingSession()?.personas ?? [], communityId,
   ));
 
-  const engagementPost = (post: CommunityData["posts"][number]): PostEngagementPost => ({
+  // The feed carries both vote sides; a caller that supplied only a net score
+  // gets a split that preserves that net, which is all the control displays.
+  // The split is not a claim about how many people voted each way.
+  const engagementPost = (
+    post: CommunityData["posts"][number],
+    viewerVote: ViewerVote,
+  ): PostEngagementPost => ({
     id: post.id,
-    upvoteCount: Math.max(0, post.score),
-    downvoteCount: Math.max(0, -post.score),
+    upvoteCount: post.upvoteCount ?? Math.max(0, post.score),
+    downvoteCount: post.downvoteCount ?? Math.max(0, -post.score),
     commentCount: post.commentCount ?? 0,
-    viewerVote: null,
+    viewerVote,
   });
 
   return (
@@ -350,6 +436,7 @@ function SuccessState(props: {
             authorityPending={engagement.authorityPending()}
             managePending={manageAuthorityPending()}
             viewerUnknown={engagement.viewerUnknown()}
+            viewerSignedIn={viewerSignedIn()}
             feed={feed}
             personaControl={personaOptions().length > 0 ? (
               <OperationPersonaControl
@@ -367,23 +454,47 @@ function SuccessState(props: {
                 type="button"
               >{engagement.personaRetryBusy() ? "Checking profiles" : "Retry profiles"}</Button>
             ) : undefined}
-            renderPost={(post, render) => {
-              const session = engagement.postingSession();
-              if (session === undefined) return render();
-              return (
-                <Show when={selectedPersonaId()} fallback={render()} keyed>
-                  {personaId => (
+            renderPost={(post, render) => (
+              // Both gates are reactive on purpose. This callback body runs
+              // once per post, so a plain branch on a signal would freeze
+              // whatever was true at that moment and never mount the controls
+              // when the session or the vote arrived afterwards.
+              //
+              // A signed-in viewer gets working controls whether or not a
+              // profile is selected: votes are account-scoped and carry no
+              // persona, so gating them on one withheld an action the account
+              // was always entitled to take. The comment composer inside asks
+              // for a profile, because authorship is the part that needs one.
+              <Show when={engagement.postingSession()} fallback={render()}>
+                {session => (
+                  // Until this post's vote is read, the counts stand in rather
+                  // than a control claiming the viewer has not voted before
+                  // anything has looked.
+                  <Show when={viewerVoteFor(post.id) !== undefined && viewerVoteFor(post.id) !== "unavailable"} fallback={
+                    <>
+                      {render()}
+                      <Show when={viewerVoteFor(post.id) === "unavailable"}>
+                        <div role="status">
+                          Your vote could not be checked.
+                          <Button onClick={() => retryViewerVote(post.id)} size="sm" type="button">Retry vote</Button>
+                        </div>
+                      </Show>
+                    </>
+                  }>
                     <PostEngagement
                       communityId={communityId}
-                      personaId={personaId}
-                      post={engagementPost(post)}
-                      principalId={session.userId}
+                      personaId={selectedPersonaId()}
+                      post={engagementPost(post, (() => {
+                        const vote = viewerVoteFor(post.id);
+                        return vote === 1 || vote === -1 ? vote : null;
+                      })())}
+                      principalId={session().userId}
                       transport={props.postEngagementTransport}
                     >{controls => render(controls)}</PostEngagement>
-                  )}
-                </Show>
-              );
-            }}
+                  </Show>
+                )}
+              </Show>
+            )}
             onCreatePost={engagement.joined() ? () => void openPostComposer() : undefined}
             onFollowToggle={() => void engagement.followToggle()}
             onJoin={() => void engagement.joinCommunity()}
@@ -441,6 +552,7 @@ function CommunityState(props: {
   readonly loadThreads?: (communityId: string) => Promise<CommunityThreadPage>;
   readonly postEngagementTransport?: PostEngagementTransport;
   readonly postComposerMediaStorage?: MediaSubmissionStorage;
+  readonly viewerVoteClient?: CommunityViewerVoteClient;
 }) {
   const success = () => props.state.kind === "success" ? props.state : undefined;
   // The inner Show is keyed by community identity: a same-route move to another
@@ -463,6 +575,7 @@ function CommunityState(props: {
               loadThreads={props.loadThreads}
               postEngagementTransport={props.postEngagementTransport}
               postComposerMediaStorage={props.postComposerMediaStorage}
+              viewerVoteClient={props.viewerVoteClient}
             />
           )}
         </Show>
@@ -485,6 +598,7 @@ function CommunityData(props: CommunityPageProps) {
   return (
     <CommunityState
       engagementApi={engagementApi}
+      viewerVoteClient={props.viewerVoteClient}
       state={state()}
       handleSalesClient={handleSalesClient}
       resolveSession={props.resolveSession}

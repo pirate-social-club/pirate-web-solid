@@ -74,6 +74,7 @@ const iconSpecs: readonly IconSpec[] = [
   { component: "IconSquare", asset: "square" },
   { component: "IconStop", asset: "stop", defaultWeight: "fill" },
   { component: "IconSidebarSimple", asset: "sidebar-simple" },
+  { component: "IconFadersHorizontal", asset: "faders-horizontal" },
   { component: "IconFire", asset: "fire", supportsFilled: true },
   { component: "IconFlag", asset: "flag" },
   { component: "IconMagnifyingGlass", asset: "magnifying-glass" },

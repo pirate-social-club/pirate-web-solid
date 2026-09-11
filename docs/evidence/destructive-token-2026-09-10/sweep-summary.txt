@@ -1,0 +1,12 @@
+Storybook axe/interaction sweep
+Base URL: http://127.0.0.1:6006
+Catalog: 146 files / 729 stories; selected 146 files / 729 stories
+Axe: 726 pass, 0 violation-fail, 3 indeterminate
+Axe incomplete checks: 141 (reported separately; not violations or indeterminate)
+Interactions: 726 pass, 0 fail, 3 indeterminate
+Panel evidence: 729 bare/no-counter result(s) (diagnostic only; never a pass)
+Exit: FAIL
+Failures:
+- screens-community-ownersettings-shell--moderation-queue-mounted: axe=indeterminate(story_finished_timeout), interaction=indeterminate(story_finished_timeout)
+- screens-community-ownersettings-shell--profile-default: axe=indeterminate(story_finished_timeout), interaction=indeterminate(story_finished_timeout)
+- screens-community-ownersettings-shell--profile-dirty-save: axe=indeterminate(story_finished_timeout), interaction=indeterminate(story_finished_timeout)

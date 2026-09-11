@@ -1,9 +1,11 @@
 /** @jsxImportSource @solidjs/web */
 import type { CreatePostInput } from "@pirate/api-client";
 import type { JSX } from "@solidjs/web";
-import { createSignal, getOwner, onCleanup, Show, untrack } from "solid-js";
+import { createMemo, createSignal, getOwner, onCleanup, Show, untrack } from "solid-js";
 
 import type { ActivePersonaPublicProjection } from "../../../api/session";
+import { toOperationPersonas } from "../../identity/community-persona-choice.ts";
+import { OperationPersonaControl } from "../../identity/operation-persona-control/operation-persona-control.tsx";
 import {
   Button,
   FormNote,
@@ -177,6 +179,16 @@ export function CreatePostDialog(props: CreatePostDialogProps): JSX.Element {
   const [videoPersonaId, setVideoPersonaId] = createSignal<string | undefined>(initialPersonaId);
   const [videoRetained, setVideoRetained] = createSignal(false);
   const selectedPersonaId = () => mode() === "video" ? videoPersonaId() : mode() === "song" ? songPersonaId() : textPersonaId();
+  // Whichever track is open authors as its own persona, so a choice made here
+  // has to land on that track's signal. Without this the dialog published as
+  // whatever persona it was handed and gave the account no way to say which of
+  // its identities was speaking.
+  const setSelectedPersonaId = (next: string) => {
+    if (mode() === "video") setVideoPersonaId(next);
+    else if (mode() === "song") setSongPersonaId(next);
+    else setTextPersonaId(next);
+  };
+  const personaChoices = createMemo(() => toOperationPersonas(personas()));
   const [sourceAssetId, setSourceAssetId] = createSignal("");
   const [error, setError] = createSignal("");
   const [textState, setTextState] = createSignal<PostComposerState>(initialPostComposerState);
@@ -733,6 +745,14 @@ export function CreatePostDialog(props: CreatePostDialogProps): JSX.Element {
             </Show>
             <Show when={personas().length === 0}>
               <FormNote tone="warning">Create or reactivate a public persona before submitting a post.</FormNote>
+            </Show>
+            <Show when={personaChoices().length > 0}>
+              <OperationPersonaControl
+                label="Posting as"
+                onSelect={setSelectedPersonaId}
+                personas={personaChoices()}
+                selectedPersonaId={selectedPersonaId()}
+              />
             </Show>
             <Show
               when={mode() !== "video"}

@@ -42,19 +42,27 @@ function threadPost(item: ThreadItem): CommunityPost | null {
     : persona?.primary_public_handle ?? post.author_public_handle ?? persona?.display_name ?? "Public creator";
   const title = post.title ?? post.caption ?? (post.post_type === "song" ? post.song_title : null) ?? post.post_type;
   const body = post.body ?? post.caption ?? "";
+  const upvoteCount = finiteCount(item.upvote_count);
+  const downvoteCount = finiteCount(item.downvote_count);
   return {
     id: post.id,
     title,
     body,
-    score: finiteCount(item.upvote_count) - finiteCount(item.downvote_count),
+    score: upvoteCount - downvoteCount,
+    // The server sends both sides. Carry them rather than only their
+    // difference, because nothing downstream can recover them from it.
+    upvoteCount,
+    downvoteCount,
     publishedAt: created.toISOString(),
     authorHandle,
     authorAvatarSrc: persona?.avatar_ref ?? null,
     kind: post.post_type === "song" ? "song" : "text",
     ...(post.post_type === "song" && post.song_title ? { mediaTitle: post.song_title } : {}),
     commentCount: finiteCount(item.comment_count),
-    learnAvailable: post.post_type === "song",
-    karaokeAvailable: post.post_type === "song",
+    // Being a song is not a Learn or Karaoke capability. These were derived
+    // from post_type alone, which put two buttons with no handlers behind them
+    // on every song. The real capability is a server projection this surface
+    // does not carry, so nothing is claimed here until it does.
   };
 }
 

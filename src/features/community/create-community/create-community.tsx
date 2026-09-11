@@ -45,6 +45,8 @@ export interface CreateCommunityProps {
   /** Keep false in production until the community API can persist these assets. */
   showMediaFields?: boolean;
   submitting?: boolean;
+  /** A blocked creation intent keeps Create disabled without a loading state. */
+  submitDisabled?: boolean;
   fieldsDisabled?: boolean;
   ownerDisabled?: boolean;
   actionOnly?: boolean;
@@ -78,7 +80,7 @@ export function CreateCommunityView(props: CreateCommunityProps) {
   const nameValidationState = () => (visibleNameError() ? "invalid" as const : nameTouched() ? "valid" as const : undefined);
   const canSubmit = () => (props.actionOnly || (validation().nameError === null
     && (props.requirePersona === false || (validation().personaError === null && validation().publicNameError === null))
-    )) && !props.submitting && !props.accountChecking;
+    )) && !props.submitting && !props.accountChecking && !props.submitDisabled;
 
   return (
     <form
@@ -91,7 +93,7 @@ export function CreateCommunityView(props: CreateCommunityProps) {
         bodyClass="mx-auto flex w-full max-w-2xl flex-col gap-5 px-5 py-5"
         footer={
           <div class="mx-auto w-full max-w-2xl">
-            <div class="h-20 overflow-auto text-sm text-destructive" data-creation-feedback>
+            <div class="h-20 overflow-auto text-sm text-destructive-text" data-creation-feedback>
               <p role="alert">{props.failureMessage}</p>
               <Show when={props.onRetry}><Button type="button" variant="ghost" disabled={props.accountChecking || props.submitting} onClick={props.onRetry}>{props.retryLabel ?? "Try again"}</Button></Show>
             </div>

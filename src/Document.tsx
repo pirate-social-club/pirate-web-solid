@@ -4,6 +4,7 @@ import {
   resolveLocaleLanguageTag,
   resolveRequestUiLocale,
 } from "./lib/ui-locale-core.ts";
+import { viewerSessionHint } from "./lib/viewer-session-hint.ts";
 import { documentClientEntry } from "./asset-target.ts";
 
 export default function Document(props: {
@@ -39,6 +40,7 @@ export default function Document(props: {
       lang={resolveLocaleLanguageTag(locale)}
       dir={resolveLocaleDirection(locale)}
       data-public-app-canonical-origin={props.publicAppCanonicalOrigin}
+      data-viewer-session={viewerSessionHint() ? "present" : "absent"}
     >
       <head>
         <meta charset="utf-8" />

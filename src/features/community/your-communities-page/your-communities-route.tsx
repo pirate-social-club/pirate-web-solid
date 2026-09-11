@@ -240,7 +240,7 @@ export function YourCommunitiesRouteView(props: YourCommunitiesRouteProps = {}) 
       </Show>
       <Show when={actionError()}>
         {(message) => (
-          <p class="mx-5 text-sm text-destructive" role="alert">
+          <p class="mx-5 text-sm text-destructive-text" role="alert">
             {message()}
           </p>
         )}
