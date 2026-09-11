@@ -196,7 +196,7 @@ function actionRowSize(container: HTMLElement): string | null {
 }
 
 function manageAuthority(container: HTMLElement): string | null {
-  return container.querySelector("[aria-label='More community options']")
+  return container.querySelector("[data-community-manage]")
     ?.getAttribute("data-community-manage") ?? null;
 }
 
@@ -403,7 +403,7 @@ describe("private controls while authority settles", () => {
     setSessionState({ status: "authenticated", userId: "account-a" });
 
     await vi.waitFor(() => expect(buttonNamed(container, "Post")).toBeDefined());
-    await vi.waitFor(() => expect(manageAuthority(container)).toBe("unavailable"));
+    await vi.waitFor(() => expect(manageAuthority(container)).toBeNull());
     expect(actionRowSize(container)).toBe(pendingHeader.row);
   });
 

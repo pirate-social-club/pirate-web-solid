@@ -268,26 +268,31 @@ function CommunityBanner(props: {
         </IconButton>
         <div class="flex items-center gap-2">
           {props.sortControl}
-          {/* An overlay, so the management option that appears when authority
-              settles moves nothing on the page beneath it. The Community
-              details item is gone: the About tab below is that surface. */}
-          <DropdownMenu placement="bottom-end" gutter={4}>
-            <DropdownMenuTrigger
-              aria-label="More community options"
-              class="grid size-10 place-items-center rounded-full bg-background/75 text-foreground shadow-sm backdrop-blur-sm"
-              data-community-manage={props.manage}
-            >
-              <IconDotsThree class="size-5" />
-            </DropdownMenuTrigger>
-            <DropdownMenuContent class="w-56">
-              <Show when={props.onManage}>
+          {/* An overlay, so the sort holds its place while authority settles:
+              a same-size, non-interactive placeholder holds the trigger's spot
+              on first paint, the real menu appears only for a manager, and
+              everyone else gets nothing. */}
+          <Show when={props.onManage !== undefined} fallback={
+            <Show when={props.manage === "pending"}>
+              <div aria-hidden="true" class="invisible size-10" data-community-manage="pending" />
+            </Show>
+          }>
+            <DropdownMenu placement="bottom-end" gutter={4}>
+              <DropdownMenuTrigger
+                aria-label="More community options"
+                class="grid size-10 place-items-center rounded-full bg-background/75 text-foreground shadow-sm backdrop-blur-sm"
+                data-community-manage="available"
+              >
+                <IconDotsThree class="size-5" />
+              </DropdownMenuTrigger>
+              <DropdownMenuContent class="w-56">
                 <DropdownMenuItem onSelect={() => props.onManage?.()}>
                   <IconShield class="size-4" />
                   <span>Manage community</span>
                 </DropdownMenuItem>
-              </Show>
-            </DropdownMenuContent>
-          </DropdownMenu>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </Show>
         </div>
       </div>
     </div>

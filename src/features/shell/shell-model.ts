@@ -1,6 +1,6 @@
-export type ShellNavItem = "home" | "learn" | "wallet" | "profile";
+export type ShellNavItem = "home" | "communities" | "profile";
 
-export const shellNavItems = ["home", "learn", "wallet", "profile"] as const;
+export const shellNavItems = ["home", "communities", "profile"] as const;
 
 export function normalizeUnreadCount(value: number | undefined): number {
   if (value === undefined || !Number.isFinite(value)) return 0;

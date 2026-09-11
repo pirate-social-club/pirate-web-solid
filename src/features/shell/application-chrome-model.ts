@@ -1,20 +1,12 @@
 import type { ShellNavItem } from "./shell-model.ts";
 
 export type ApplicationChromeMode = "bare" | "immersive" | "standard";
-export type ApplicationChromeRoute =
-  | "home"
-  | "search"
-  | "live"
-  | "your-communities"
-  | "create-community"
-  | "karaoke"
-  | "study"
-  | "activity"
-  | "settings";
+export type ApplicationChromeRoute = "home" | "your-communities" | "create-community" | "none";
+export type ApplicationMobileItem = ShellNavItem | "none";
 
 export interface ApplicationChromePolicy {
   readonly activeItemId: ApplicationChromeRoute;
-  readonly mobileActiveItem: ShellNavItem;
+  readonly mobileActiveItem: ApplicationMobileItem;
   readonly mobileTitle: string;
   readonly mode: ApplicationChromeMode;
 }
@@ -35,7 +27,14 @@ export function isCommunityManagementRoute(pathname: string): boolean {
   return segments[0] === "c" && segments[2] === "settings";
 }
 
-export function resolveApplicationChrome(pathname: string): ApplicationChromePolicy {
+/**
+ * The navigation keeps only destinations with real pages: Home, Communities
+ * and Create community. Search, Live, Activity, Study, Karaoke and Settings
+ * keep their routes so old links resolve, but they are unlisted and highlight
+ * no item. A viewer's own profile highlights Profile; anyone else's profile
+ * highlights nothing, which is what `viewerProfilePath` distinguishes.
+ */
+export function resolveApplicationChrome(pathname: string, viewerProfilePath?: string): ApplicationChromePolicy {
   const segments = pathSegments(pathname);
   const first = segments[0];
   const activity = segments.includes("activity");
@@ -43,9 +42,10 @@ export function resolveApplicationChrome(pathname: string): ApplicationChromePol
   const study = first === "study" || segments.includes("study");
   const community = first === "c";
   const profile = first === "u" || (first === "p" && !karaoke && !study);
+  const ownProfile = viewerProfilePath !== undefined && pathname === viewerProfilePath;
 
   if (isCommunityManagementRoute(pathname)) {
-    return { activeItemId: "your-communities", mobileActiveItem: "learn", mobileTitle: "Community", mode: "bare" };
+    return { activeItemId: "your-communities", mobileActiveItem: "communities", mobileTitle: "Community", mode: "bare" };
   }
   if (first === "auth" || first === "verify" || first === "terms" || first === "privacy") {
     return { activeItemId: "home", mobileActiveItem: "home", mobileTitle: "Pirate", mode: "bare" };
@@ -53,34 +53,37 @@ export function resolveApplicationChrome(pathname: string): ApplicationChromePol
   if (segments.length === 0) {
     return { activeItemId: "home", mobileActiveItem: "home", mobileTitle: "PIRATE", mode: "immersive" };
   }
-  if (first === "search") {
-    return { activeItemId: "search", mobileActiveItem: "home", mobileTitle: "Search", mode: "standard" };
-  }
-  if (first === "live") {
-    return { activeItemId: "live", mobileActiveItem: "home", mobileTitle: "Live", mode: "standard" };
-  }
-  if (activity) {
-    return { activeItemId: "activity", mobileActiveItem: "home", mobileTitle: "Activity", mode: "standard" };
-  }
-  if (karaoke) {
-    return { activeItemId: "karaoke", mobileActiveItem: "learn", mobileTitle: "Karaoke", mode: "standard" };
-  }
-  if (study) {
-    return { activeItemId: "study", mobileActiveItem: "learn", mobileTitle: "Study", mode: "standard" };
-  }
   if (community) {
-    return { activeItemId: "your-communities", mobileActiveItem: "learn", mobileTitle: "Community", mode: "standard" };
+    return { activeItemId: "your-communities", mobileActiveItem: "communities", mobileTitle: "Community", mode: "standard" };
   }
   if (first === "communities") {
     return {
       activeItemId: segments[1] === "new" ? "create-community" : "your-communities",
-      mobileActiveItem: "learn",
-      mobileTitle: segments[1] === "new" ? "Create Community" : "Your Communities",
+      mobileActiveItem: "communities",
+      mobileTitle: segments[1] === "new" ? "Create community" : "Your communities",
       mode: "standard",
     };
   }
-  if (first === "settings" || profile) {
-    return { activeItemId: "settings", mobileActiveItem: "profile", mobileTitle: profile ? "Profile" : "Settings", mode: "standard" };
+  if (profile) {
+    return { activeItemId: "none", mobileActiveItem: ownProfile ? "profile" : "none", mobileTitle: "Profile", mode: "standard" };
+  }
+  if (first === "search") {
+    return { activeItemId: "none", mobileActiveItem: "none", mobileTitle: "Search", mode: "standard" };
+  }
+  if (first === "live") {
+    return { activeItemId: "none", mobileActiveItem: "none", mobileTitle: "Live", mode: "standard" };
+  }
+  if (activity) {
+    return { activeItemId: "none", mobileActiveItem: "none", mobileTitle: "Activity", mode: "standard" };
+  }
+  if (karaoke) {
+    return { activeItemId: "none", mobileActiveItem: "none", mobileTitle: "Karaoke", mode: "standard" };
+  }
+  if (study) {
+    return { activeItemId: "none", mobileActiveItem: "none", mobileTitle: "Study", mode: "standard" };
+  }
+  if (first === "settings") {
+    return { activeItemId: "none", mobileActiveItem: "none", mobileTitle: "Settings", mode: "standard" };
   }
   return { activeItemId: "home", mobileActiveItem: "home", mobileTitle: "Pirate", mode: "standard" };
 }

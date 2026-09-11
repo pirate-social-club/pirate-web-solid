@@ -3,8 +3,9 @@ import { fileRoutes } from "@solidjs/router/fs";
 import { Errored, Loading, createEffect, createMemo, createSignal, onCleanup } from "solid-js";
 import { getRequestEvent, type JSX } from "@solidjs/web";
 import { pageRoutes } from "virtual:file-routes";
-import { resolveAccountSession, onSessionRefreshed, refreshSession } from "./api/session.ts";
+import { resolveSession, onSessionRefreshed, refreshSession } from "./api/session.ts";
 import { GlobalSignInHost } from "./features/auth/global-sign-in-host.tsx";
+import { buildPublicProfilePath } from "./features/profiles/public-profile-page/public-profile-page.model.ts";
 import { resolveApplicationChrome } from "./features/shell/application-chrome-model.ts";
 import {
   ApplicationSessionProvider,
@@ -26,8 +27,19 @@ const Router = createRouter({
 function ApplicationRoot(props: { readonly children: JSX.Element }) {
   const location = useLocation();
   const navigate = useNavigate();
-  const policy = createMemo(() => resolveApplicationChrome(location.pathname));
   const [session, setSession] = createSignal<ApplicationSessionState>("resolving");
+  /**
+   * The viewer's own public profile, once the account personas resolve. Until
+   * then the Profile destination stays with the unlisted fallback.
+   */
+  const profileHref = createMemo(() => {
+    const current = session();
+    if (typeof current !== "object" || current.status !== "authenticated") return undefined;
+    if (!("personas" in current)) return undefined;
+    const handle = current.personas.find(persona => persona.primaryPublicHandle !== null)?.primaryPublicHandle;
+    return handle ? buildPublicProfilePath(handle) : undefined;
+  });
+  const policy = createMemo(() => resolveApplicationChrome(location.pathname, profileHref()));
   let active = true;
   let sessionRequest = 0;
   let accountInFlight = false;
@@ -45,7 +57,7 @@ function ApplicationRoot(props: { readonly children: JSX.Element }) {
         // Refresh invalidates a previous anonymous result (including sign-in),
         // while authenticated and failed chrome remain stable during the read.
         if (session() === "anonymous") setSession("resolving");
-        void resolveAccountSession()
+        void resolveSession()
           .then(result => { if (active && request === sessionRequest) setSession(result); })
           .catch(() => { if (active && request === sessionRequest) setSession("failed"); })
           .finally(() => {
@@ -76,6 +88,7 @@ function ApplicationRoot(props: { readonly children: JSX.Element }) {
         sessionResolving={session() === "resolving"}
         sessionPending={accountPending()}
         onSessionRetry={retryAccount}
+        profileHref={profileHref()}
       >
         <Errored fallback={(_, reset) => <RootErrorState onHome={() => { reset(); navigate("/"); }} />}>
           {props.children}

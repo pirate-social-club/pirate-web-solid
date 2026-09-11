@@ -55,7 +55,7 @@ describe("shell model", () => {
   });
 
   test("keeps the mobile navigation order stable", () => {
-    expect(shellNavItems).toEqual(["home", "learn", "wallet", "profile"]);
+    expect(shellNavItems).toEqual(["home", "communities", "profile"]);
   });
 
   test("resolves deterministic story route titles", () => {
@@ -63,22 +63,23 @@ describe("shell model", () => {
     expect(resolveShellTitle("profile")).toBe("story.pirate");
   });
 
-  test("renders the four accessible footer destinations", () => {
+  test("renders the three accessible footer destinations", () => {
     const html = renderToString(() => createComponent(MobileFooterNav, {
       forceMobile: true,
       labels: {
         home: "Home",
-        learn: "Learn",
+        communities: "Communities",
         profile: "Profile",
-        wallet: "Wallet",
         primaryNavAriaLabel: "Primary navigation",
       },
     }));
 
     expect(html).toContain('aria-label="Primary navigation"');
-    for (const label of ["Home", "Learn", "Wallet", "Profile"]) {
+    for (const label of ["Home", "Communities", "Profile"]) {
       expect(html).toContain(`aria-label="${label}"`);
     }
+    expect(html).not.toContain('aria-label="Wallet"');
+    expect(html).not.toContain('aria-label="Learn"');
     expect(html).not.toContain('aria-label="Chat"');
     expect(html).not.toContain('aria-label="Inbox"');
   });

@@ -140,20 +140,18 @@ export function AppHeader(props: AppHeaderProps) {
  * instead of the pattern's CSS breakpoint.
  */
 export interface MobileFooterNavProps {
-  activeItem?: ShellNavItem;
+  activeItem?: ShellNavItem | "none";
   avatarFallback?: string;
   class?: string;
   forceMobile?: boolean;
   labels?: Partial<Record<ShellNavItem, string>> & {
-    learnAriaLabel?: string;
+    communitiesAriaLabel?: string;
     primaryNavAriaLabel?: string;
     profileAriaLabel?: string;
-    walletAriaLabel?: string;
   };
   onHomeClick?: () => void;
-  onLearnClick?: () => void;
+  onCommunitiesClick?: () => void;
   onProfileClick?: () => void;
-  onWalletClick?: () => void;
 }
 
 export function MobileFooterNav(props: MobileFooterNavProps) {
@@ -166,18 +164,15 @@ export function MobileFooterNav(props: MobileFooterNavProps) {
         class={cn("md:block", props.class)}
         labels={{
           home: labels().home,
-          learn: labels().learn,
-          learnAriaLabel: labels().learnAriaLabel,
-          wallet: labels().wallet,
-          walletAriaLabel: labels().walletAriaLabel,
+          communities: labels().communities,
+          communitiesAriaLabel: labels().communitiesAriaLabel,
           profile: labels().profile,
           profileAriaLabel: labels().profileAriaLabel,
           primaryNavAriaLabel: labels().primaryNavAriaLabel,
         }}
         onHomeClick={props.onHomeClick}
-        onLearnClick={props.onLearnClick}
+        onCommunitiesClick={props.onCommunitiesClick}
         onProfileClick={props.onProfileClick}
-        onWalletClick={props.onWalletClick}
       />
     </Show>
   );

@@ -14,30 +14,34 @@ describe("application chrome policy", () => {
     expect(resolveApplicationChrome("/privacy").mode).toBe("bare");
   });
 
-  test("maps Community and per-post learning routes into shared navigation", () => {
+  test("maps Community routes onto the Communities destination", () => {
     // Management lives under /c/<community>/settings and is deliberately not
     // shared navigation; it owns the viewport. See the bare-chrome case below.
     expect(resolveApplicationChrome("/c/harbor")).toMatchObject({
       mode: "standard",
       activeItemId: "your-communities",
-      mobileActiveItem: "learn",
+      mobileActiveItem: "communities",
     });
-    expect(resolveApplicationChrome("/p/post-1/study")).toMatchObject({ activeItemId: "study", mobileActiveItem: "learn" });
-    expect(resolveApplicationChrome("/p/post-1/karaoke")).toMatchObject({ activeItemId: "karaoke", mobileActiveItem: "learn" });
+    // Study and Karaoke stay reachable from a song post but no longer have a
+    // tab; they highlight nothing.
+    expect(resolveApplicationChrome("/p/post-1/study")).toMatchObject({ activeItemId: "none", mobileActiveItem: "none" });
+    expect(resolveApplicationChrome("/p/post-1/karaoke")).toMatchObject({ activeItemId: "none", mobileActiveItem: "none" });
   });
 
   test("separates the membership index from community creation", () => {
-    expect(resolveApplicationChrome("/communities")).toMatchObject({ activeItemId: "your-communities", mobileTitle: "Your Communities" });
-    expect(resolveApplicationChrome("/communities/new")).toMatchObject({ activeItemId: "create-community", mobileTitle: "Create Community" });
+    expect(resolveApplicationChrome("/communities")).toMatchObject({ activeItemId: "your-communities", mobileTitle: "Your communities" });
+    expect(resolveApplicationChrome("/communities/new")).toMatchObject({ activeItemId: "create-community", mobileTitle: "Create community" });
   });
 
-  test("gives public profiles standard chrome", () => {
-    expect(resolveApplicationChrome("/u/captain.pirate")).toMatchObject({
-      mode: "standard",
-      activeItemId: "settings",
-      mobileActiveItem: "profile",
-    });
+  test("highlights Profile only on the viewer's own public profile", () => {
+    const own = resolveApplicationChrome("/u/captain.pirate", "/u/captain.pirate");
+    expect(own).toMatchObject({ mode: "standard", activeItemId: "none", mobileActiveItem: "profile" });
+    const other = resolveApplicationChrome("/u/someone.else", "/u/captain.pirate");
+    expect(other).toMatchObject({ mode: "standard", activeItemId: "none", mobileActiveItem: "none" });
+    const unknown = resolveApplicationChrome("/p/persona-1");
+    expect(unknown).toMatchObject({ mode: "standard", activeItemId: "none", mobileActiveItem: "none" });
   });
+
   test("gives community management bare chrome so it can own the viewport", () => {
     expect(isCommunityManagementRoute("/c/community_1/settings/moderation_queue")).toBe(true);
     expect(isCommunityManagementRoute("/c/community_1/settings")).toBe(true);
@@ -51,6 +55,6 @@ describe("application chrome policy", () => {
     expect(isCommunityManagementRoute("/settings")).toBe(false);
     expect(resolveApplicationChrome("/c/community_1")).toMatchObject({ mode: "standard" });
     expect(resolveApplicationChrome("/c/community_1/names")).toMatchObject({ mode: "standard" });
-    expect(resolveApplicationChrome("/settings")).toMatchObject({ mode: "standard" });
+    expect(resolveApplicationChrome("/settings")).toMatchObject({ mode: "standard", activeItemId: "none", mobileActiveItem: "none" });
   });
 });

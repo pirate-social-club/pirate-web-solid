@@ -13,14 +13,13 @@ const meta = {
     // this the nav is still md:hidden at play time and has no queryable roles.
     forceMobile: true,
     onHomeClick: fn(),
-    onLearnClick: fn(),
+    onCommunitiesClick: fn(),
     onProfileClick: fn(),
-    onWalletClick: fn(),
   },
   argTypes: { class: { table: { disable: true } }, icons: { table: { disable: true } }, labels: { table: { disable: true } } },
   globals: { viewport: { value: "mobile1", isRotated: false } },
   parameters: {
-    docs: { description: { component: "Callback-driven bottom navigation with the four product destinations: Home, Learn, Wallet and Profile. The component owns presentation and mobile CSS; the host owns routing, active-item resolution, labels, and haptic feedback. Injected icons receive an optional `filled` prop for active-state rendering; custom icons may ignore it." } },
+    docs: { description: { component: "Callback-driven bottom navigation with the three real product destinations: Home, Communities and Profile. The component owns presentation and mobile CSS; the host owns routing, active-item resolution, labels, and haptic feedback. Injected icons receive an optional `filled` prop for active-state rendering; custom icons may ignore it." } },
   },
 } satisfies Meta<typeof MobileFooterNav>;
 
@@ -30,31 +29,31 @@ type Story = StoryObj<typeof meta>;
 export const Default: Story = {
   play: async ({ canvasElement, args }) => {
     const canvas = within(canvasElement);
-    await expect(canvas.getAllByRole("button")).toHaveLength(4);
+    await expect(canvas.getAllByRole("button")).toHaveLength(3);
     await canvas.getByRole("button", { name: "Profile" }).click();
     await expect(args.onProfileClick).toHaveBeenCalledTimes(1);
   },
 };
 
-export const LearnActive: Story = {
-  args: { activeItem: "learn" },
+export const CommunitiesActive: Story = {
+  args: { activeItem: "communities" },
   play: async ({ canvasElement, args }) => {
     const canvas = within(canvasElement);
-    await expect(canvas.getByRole("button", { name: "Learn" })).toHaveAttribute("aria-current", "page");
-    await canvas.getByRole("button", { name: "Wallet" }).click();
-    await expect(args.onWalletClick).toHaveBeenCalledTimes(1);
+    await expect(canvas.getByRole("button", { name: "Communities" })).toHaveAttribute("aria-current", "page");
+    await canvas.getByRole("button", { name: "Home" }).click();
+    await expect(args.onHomeClick).toHaveBeenCalledTimes(1);
   },
 };
 
 export const RTL: Story = {
   args: {
-    activeItem: "wallet",
-    labels: { home: "الرئيسية", learn: "تعلّم", wallet: "المحفظة", profile: "الملف الشخصي", primaryNavAriaLabel: "التنقل الأساسي" },
+    activeItem: "communities",
+    labels: { home: "الرئيسية", communities: "المجتمعات", profile: "الملف الشخصي", primaryNavAriaLabel: "التنقل الأساسي" },
   },
   globals: { direction: "rtl", locale: "ar" },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(document.documentElement).toHaveAttribute("dir", "rtl");
-    await expect(canvas.getByRole("button", { name: "المحفظة" })).toHaveAttribute("aria-current", "page");
+    await expect(canvas.getByRole("button", { name: "المجتمعات" })).toHaveAttribute("aria-current", "page");
   },
 };
