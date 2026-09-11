@@ -1,5 +1,5 @@
 import { Show, createSignal, onCleanup } from "solid-js";
-import { Button, Type } from "../../../design-system.ts";
+import { Button, IconPlay, Type } from "../../../design-system.ts";
 import { readSongPlaybackAccess, type SongPlaybackGrant } from "./song-player-api.ts";
 
 export interface SongPlayerProps {
@@ -7,6 +7,11 @@ export interface SongPlayerProps {
   readonly title: string;
   readonly readAccess?: (postId: string) => Promise<SongPlaybackGrant>;
   readonly now?: () => number;
+  /**
+   * Compact mode joins the caller's flex row: the trigger stays on the line
+   * and the granted native audio wraps to its own full-width line beneath it.
+   */
+  readonly compact?: boolean;
 }
 /** Native controls provide seeking, volume and keyboard access to the real full mix. */
 export function SongPlayer(props: SongPlayerProps) {
@@ -99,25 +104,30 @@ export function SongPlayer(props: SongPlayerProps) {
     }
   };
   return (
-    <div class="flex flex-col gap-2" data-song-player={props.postId}>
+    <div class={props.compact ? "contents" : "flex flex-col gap-2"} data-song-player={props.postId}>
       <Show
         when={grant()}
         fallback={
           <Button
+            aria-label={`Play ${props.title}`}
+            class={props.compact ? "ml-auto size-9 shrink-0 rounded-full px-0" : undefined}
             disabled={busy()}
+            loading={props.compact ? busy() : undefined}
             onClick={() => void renew(true)}
             size="sm"
             type="button"
             variant="secondary"
           >
-            {busy() ? "Loading audio…" : `Play ${props.title}`}
+            {props.compact
+              ? (busy() ? undefined : <IconPlay aria-hidden="true" class="size-4" />)
+              : busy() ? "Loading audio…" : `Play ${props.title}`}
           </Button>
         }
       >
         {(current) => (
           <audio
             aria-label={`Audio for ${props.title}`}
-            class="w-full"
+            class={props.compact ? "w-full basis-full" : "w-full"}
             controls
             preload="metadata"
             ref={audio}
@@ -135,13 +145,14 @@ export function SongPlayer(props: SongPlayerProps) {
       </Show>
       <Show when={issue()}>
         {(message) => (
-          <Type role="status" variant="caption">
+          <Type class={props.compact ? "basis-full" : undefined} role="status" variant="caption">
             {message()}
           </Type>
         )}
       </Show>
       <Show when={issue() && grant()}>
         <Button
+          class={props.compact ? "basis-full" : undefined}
           disabled={busy()}
           onClick={() => void renew(true)}
           size="sm"

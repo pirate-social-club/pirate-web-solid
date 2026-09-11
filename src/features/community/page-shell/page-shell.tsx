@@ -127,41 +127,27 @@ function PostActions(props: { post: CommunityPost; engagementControls?: JSX.Elem
           </span>
         </div>
       }>{controls => controls()}</Show>
-      <Show when={props.post.learnAvailable}>
-        <Button class="h-9 rounded-full px-4" size="sm" variant="secondary">Learn</Button>
-      </Show>
-      <Show when={props.post.karaokeAvailable}>
-        <Button class="h-9 rounded-full px-4" size="sm">Karaoke</Button>
-      </Show>
     </div>
   );
 }
 
 function SongPost(props: { post: CommunityPost }) {
   return (
-    <div class="flex flex-col gap-3 rounded-xl border border-border-soft bg-muted/30 p-3">
-      <div class="flex items-center gap-3">
-        <div class="relative size-14 shrink-0 overflow-hidden rounded-lg bg-secondary">
-          <Show when={props.post.mediaSrc} fallback={<div class="grid size-full place-items-center"><IconMusicNote class="size-7 text-muted-foreground" /></div>}>
-            {src => <img alt="" class="size-full object-cover" src={src()} />}
-          </Show>
-
-        </div>
-        <div class="min-w-0 flex-1">
-          <Type class="block truncate" variant="body-strong">{props.post.mediaTitle ?? props.post.title}</Type>
-          {/* An unknown artist is left unsaid. The placeholder here named a
-              real recording artist who has nothing to do with the post. */}
-          <Show when={props.post.mediaArtist}>
-            {artist => <Type class="block truncate" variant="caption">{artist()}</Type>}
-          </Show>
-          <SongPlayer postId={props.post.id} title={props.post.mediaTitle ?? props.post.title} />
-        </div>
+    <div class="flex flex-wrap items-center gap-3 rounded-xl border border-border-soft bg-muted/30 p-3">
+      <div class="relative size-14 shrink-0 overflow-hidden rounded-lg bg-secondary">
+        <Show when={props.post.mediaSrc} fallback={<div class="grid size-full place-items-center"><IconMusicNote class="size-7 text-muted-foreground" /></div>}>
+          {src => <img alt="" class="size-full object-cover" src={src()} />}
+        </Show>
       </div>
-      <Show when={props.post.rewardLabels?.length}>
-        <div class="flex flex-wrap gap-2">
-          <For each={props.post.rewardLabels}>{label => <span class="rounded-full bg-primary/15 px-2.5 py-1 text-xs font-semibold text-primary-text">{label}</span>}</For>
-        </div>
-      </Show>
+      <div class="min-w-0 flex-1">
+        <Type class="block truncate" variant="body-strong">{props.post.mediaTitle ?? props.post.title}</Type>
+        {/* An unknown artist is left unsaid. The placeholder here named a
+            real recording artist who has nothing to do with the post. */}
+        <Show when={props.post.mediaArtist}>
+          {artist => <Type class="block truncate" variant="caption">{artist()}</Type>}
+        </Show>
+      </div>
+      <SongPlayer compact postId={props.post.id} title={props.post.mediaTitle ?? props.post.title} />
     </div>
   );
 }
@@ -190,7 +176,11 @@ function FeedPost(props: { post: CommunityPost; actions?: JSX.Element }) {
           <Type variant="body">{props.post.body}</Type>
         </>
       }>
-        <Show when={props.post.body}><Type variant="h3">{props.post.body}</Type></Show>
+        {/* The card names the song and the player plays it; a body that only
+            repeats the song title is not commentary and is not shown. */}
+        <Show when={props.post.body && props.post.body !== (props.post.mediaTitle ?? props.post.title)}>
+          <Type variant="body">{props.post.body}</Type>
+        </Show>
         <SongPost post={props.post} />
       </Show>
       <PostActions engagementControls={props.actions} post={props.post} />
@@ -217,7 +207,10 @@ function CommunityAbout(props: { community: CommunityData }) {
           <Type variant="h3">About {community().name}</Type>
           <Type variant="body">{community().description}</Type>
           <Separator />
-          <Type variant="caption">{formatCount(community().members)} members · {formatCount(community().followers)} followers</Type>
+          <Type variant="caption">
+            <Show when={community().handle}>{handle => <>{handle()} · </>}</Show>
+            {formatCount(community().members)} members · {formatCount(community().followers)} followers
+          </Type>
           <Show when={community().gates?.length}>
             <Type variant="label">{gateSummary(community().gates ?? [], community().gateMode ?? "unknown")}</Type>
             <ul class="flex flex-col gap-2">
@@ -374,28 +367,36 @@ export function CommunityPageShell(props: CommunityPageShellProps) {
         }}
       />
 
-      <header class="relative border-b border-border-soft bg-background px-5 pb-5 md:px-8 md:pb-6">
+      <header class="relative bg-background px-5 pb-5 md:px-8 md:pb-6">
         <div class="md:flex md:items-end md:gap-4">
-          {/* Avatar and name share one row at every width: the avatar sits half
-              over the banner and the name reads to its right, rather than the
-              name dropping to its own line and leaving the top half empty.
-              items-start holds that half-overlap even when the name wraps. */}
-          <div class="flex min-w-0 items-start gap-3 md:flex-1 md:gap-4">
-            <div class="-mt-10 shrink-0 md:-mt-12">
-              <CommunityAvatar
-                avatarSrc={community().avatarSrc}
-                class="size-20 border-4 border-background md:size-24"
-                communityId={community().id ?? community().handle}
-                displayName={community().name}
-                size="lg"
-              />
+          <div class="min-w-0 md:flex-1">
+            {/* The avatar matches the title and counts block and sits half over
+                the banner, so the counts line lands at its midpoint. The handle
+                lives with the description rather than in that line. */}
+            <div class="flex min-w-0 items-start gap-3 md:gap-4">
+              <div class="-mt-7 shrink-0 md:-mt-8">
+                <CommunityAvatar
+                  avatarSrc={community().avatarSrc}
+                  class="size-14 border-4 border-background md:size-16"
+                  communityId={community().id ?? community().handle}
+                  displayName={community().name}
+                  size="lg"
+                />
+              </div>
+              <div class="min-w-0 flex-1 md:pb-1">
+                <Type as="h1" class="line-clamp-2 text-2xl md:text-3xl" variant="h1">{community().name}</Type>
+                <Type class="mt-1 block truncate" variant="caption">
+                  {formatCount(community().members)} members · {formatCount(community().followers)} followers
+                </Type>
+              </div>
             </div>
-            <div class="min-w-0 flex-1 md:pb-1">
-              <Type as="h1" class="line-clamp-2 text-2xl md:text-3xl" variant="h1">{community().name}</Type>
-              <Type class="mt-1 block truncate" variant="caption">
-                <Show when={community().handle}>{handle => <>{handle()} · </>}</Show>
-                {formatCount(community().members)} members<span class="hidden md:inline"> · {formatCount(community().followers)} followers</span>
-              </Type>
+            {/* Full width above the actions on phones, with equal space above
+                and below. Desktop keeps the description in the About card. */}
+            <div class="mt-4 md:hidden">
+              <Show when={community().handle}>
+                {handle => <Type class="block truncate" variant="caption">{handle()}</Type>}
+              </Show>
+              <Type class="mt-1" variant="body">{community().description}</Type>
             </div>
           </div>
           <Show when={props.readOnly !== true}>
@@ -404,7 +405,7 @@ export function CommunityPageShell(props: CommunityPageShellProps) {
                 whose existence depends on authority live outside the header. */}
             <div
               aria-label="Community actions"
-              class="mt-3 grid h-11 grid-cols-2 gap-3 md:mt-0 md:flex md:shrink-0 md:gap-3"
+              class="mt-4 grid h-11 grid-cols-2 gap-3 md:mt-0 md:flex md:shrink-0 md:gap-3"
               data-community-actions-reserved
               role="group"
             >
@@ -438,11 +439,28 @@ export function CommunityPageShell(props: CommunityPageShellProps) {
             </div>
           </Show>
         </div>
-        <Type class="mt-3 max-w-2xl md:hidden" variant="body">{community().description}</Type>
       </header>
 
       <div data-community-tabs>
-      <FlatTabBar class="px-5 md:px-8" columns={3}>
+      <FlatTabBar
+        actions={
+          <ResponsiveOptionSelect
+            ariaLabel="Sort community feed"
+            class="w-auto shrink-0"
+            drawerTitle="Sort feed"
+            onValueChange={value => setSort(value)}
+            options={[
+              { label: "Best", value: "Best" },
+              { label: "New", value: "New" },
+              { label: "Top", value: "Top" },
+            ]}
+            triggerClass="w-auto"
+            value={sort()}
+          />
+        }
+        class="px-5 md:px-8"
+        columns={3}
+      >
         <FlatTabButton active={tab() === "feed"} onClick={() => setTab("feed")}>Feed</FlatTabButton>
         <FlatTabButton active={tab() === "songs"} onClick={() => setTab("songs")}>Songs</FlatTabButton>
         <FlatTabButton active={tab() === "about"} onClick={() => setTab("about")}>About</FlatTabButton>
@@ -456,9 +474,10 @@ export function CommunityPageShell(props: CommunityPageShellProps) {
             with a blank column beside an aside that was already there. */}
         <main class={tab() === "about" ? "hidden" : "min-w-0"} aria-label="Community feed">
           <Show when={tab() === "feed"}>
-            {/* One controls row: the persona picker on the left, Post and the
-                current sort on the right. The picker used to reserve its own
-                line, which left a blank band above the first post. */}
+            {/* One controls row: the persona picker on the left and Post on
+                the right. The row stays reserved at every authority state so
+                the feed cannot move when the persona control appears; the
+                picker used to reserve its own line above it. */}
             <div class="mb-5 flex min-h-9 items-center gap-3" data-community-persona-reserved>
               <div class="min-w-0 flex-1">{props.personaControl}</div>
               <Show when={props.joined || props.showCreatePost || props.onCreatePost !== undefined}>
@@ -472,19 +491,6 @@ export function CommunityPageShell(props: CommunityPageShellProps) {
                   {props.createPostBusy ? "Opening…" : "Post"}
                 </Button>
               </Show>
-              <ResponsiveOptionSelect
-                ariaLabel="Sort community feed"
-                class="w-auto shrink-0"
-                drawerTitle="Sort feed"
-                onValueChange={value => setSort(value)}
-                options={[
-                  { label: "Best", value: "Best" },
-                  { label: "New", value: "New" },
-                  { label: "Top", value: "Top" },
-                ]}
-                triggerClass="w-auto"
-                value={sort()}
-              />
             </div>
             <Loading fallback={<FeedPending />}>
               <Show when={feed().kind === "ready"} fallback={<Card><CardContent class="p-6"><Type role="alert" variant="body">Community posts are temporarily unavailable.</Type></CardContent></Card>}>

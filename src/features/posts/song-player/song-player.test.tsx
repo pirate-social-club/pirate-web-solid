@@ -72,3 +72,27 @@ test("failed access is retryable and never installs an audio URL", async () => {
   button("Play Original song").click();
   await vi.waitFor(() => expect(document.querySelector("audio")).not.toBeNull());
 });
+test("compact mode keeps a labelled trigger and wraps the granted audio", async () => {
+  vi.spyOn(HTMLMediaElement.prototype, "pause").mockImplementation(() => {});
+  vi.spyOn(HTMLMediaElement.prototype, "load").mockImplementation(() => {});
+  const read = vi.fn(async () => ({
+    kind: "full_mix" as const,
+    playback_url: "https://audio.example.test/signed",
+    expires_at: 1900,
+    renew_after: 1840,
+  }));
+  const node = document.createElement("div");
+  document.body.appendChild(node);
+  createRoot((dispose) => {
+    disposers.push(dispose);
+    solidRender(
+      () => <SongPlayer compact postId="song" now={() => 1000000} title="Original song" readAccess={read} />,
+      node,
+    );
+  });
+  expect(document.querySelector("[data-song-player='song']")?.className).toContain("contents");
+  const trigger = document.querySelector<HTMLButtonElement>("button[aria-label='Play Original song']");
+  expect(trigger).not.toBeNull();
+  trigger!.click();
+  await vi.waitFor(() => expect(document.querySelector("audio")?.classList.contains("basis-full")).toBe(true));
+});
