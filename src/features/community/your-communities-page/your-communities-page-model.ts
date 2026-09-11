@@ -18,7 +18,8 @@ export function formatCommunityRouteLabel(communityId: string, routeSlug?: strin
   // read as a defect notice, so the caption is simply absent until there is a
   // route to name.
   if (routeSlug === null) return null;
-  return communityRouteLabel(routeSlug || communityId);
+  const routeSegment = formatCommunityRouteSegment(routeSlug || communityId);
+  return routeSegment.toLowerCase().startsWith("c/") ? routeSegment : `c/${routeSegment}`;
 }
 
 /**

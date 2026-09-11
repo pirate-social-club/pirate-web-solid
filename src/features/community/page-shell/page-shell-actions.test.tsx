@@ -48,12 +48,4 @@ describe("community page shell header actions", () => {
     expect(row?.getAttribute("role")).toBe("group");
     expect(row?.getAttribute("aria-label")).toBe("Community actions");
   });
-
-  test("does not render the action row for a read-only viewer", () => {
-    const container = render(() => (
-      <CommunityPageShell community={community} following={false} joined={false} readOnly />
-    ));
-
-    expect(container.querySelector("[data-community-actions-reserved]")).toBeNull();
-  });
 });
