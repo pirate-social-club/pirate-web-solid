@@ -35,5 +35,4 @@ export const DnsZoneUnavailable: Story = { args: { snapshot: unavailableNames("d
 export const DnsDelegationRequired: Story = { args: { snapshot: unavailableNames("dns_delegation_required") } };
 export const HostingUnavailable: Story = { args: { snapshot: NAMES_INEFFECTIVE } };
 export const EnablePending: Story = { args: { busy: "enable_names" } };
-export const Loading: Story = { args: { loading: true } };
 export const Error: Story = { args: { errorMessage: "Community names could not be loaded." } };

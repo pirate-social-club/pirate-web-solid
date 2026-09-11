@@ -7,9 +7,9 @@ const meta = {
   title: "Parts/Shell/RoutePlaceholder",
   component: RoutePlaceholder,
   args: {
-    description: "Browse and join the communities you follow.",
-    path: "/communities",
-    title: "Communities",
+    description: "Search across songs, videos, and communities.",
+    path: "/search",
+    title: "Search",
   },
   parameters: { layout: "fullscreen", a11y: { test: "error" } },
 } satisfies Meta<typeof RoutePlaceholder>;
@@ -21,18 +21,8 @@ export const Default: Story = {
   name: "Scaffolded route",
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(canvas.getByRole("heading", { name: "Communities" })).toBeInTheDocument();
-    await expect(canvas.getByText("/communities")).toBeInTheDocument();
-  },
-};
-
-export const LongDescription: Story = {
-  name: "Long description",
-  args: {
-    description:
-      "This route will host the full moderation queue, including reported posts, hidden content, the policy editor, and the audit trail for every action a moderator takes.",
-    path: "/c/night-shift/moderation",
-    title: "Moderation",
+    await expect(canvas.getByRole("heading", { name: "Search" })).toBeInTheDocument();
+    await expect(canvas.getByText("/search")).toBeInTheDocument();
   },
 };
 

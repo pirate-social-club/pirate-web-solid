@@ -209,11 +209,3 @@ export const StartFailed: Story = {
     await waitFor(() => expect(canvas.getByText("Could not start this Study session. Try again.")).toBeInTheDocument());
   },
 };
-
-export const Mobile: Story = {
-  args: {
-    api: studyApi(),
-    resolveSession: authenticated([learner("persona-learner", "Learner")]),
-  },
-  globals: { viewport: { value: "mobile1", isRotated: false } },
-};

@@ -55,5 +55,4 @@ export const HiddenCases: Story = { args: { cases: HIDDEN_MODERATION_CASES, case
 export const LockedPreview: Story = { args: { cases: { ...OPEN_MODERATION_CASES, items: [LOCKED_MODERATION_CASE_DETAIL.case] }, details: [LOCKED_MODERATION_CASE_DETAIL] } };
 export const ViewOnly: Story = { args: { capabilities: MODERATION_VIEW_ONLY } };
 export const ActionPending: Story = { args: { actionBusy: { action: "reject", caseRef: "case_report_1042" } } };
-export const Loading: Story = { args: { loading: true } };
 export const Error: Story = { args: { errorMessage: "Moderation cases could not be loaded." } };

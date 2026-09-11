@@ -1,7 +1,6 @@
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 
 import { Button } from "@/components/actions/button/button";
-import { EmptyFeedState } from "@/patterns/feedback/route-states/route-states";
 import { StatusCard } from "@/patterns/feedback/status-card/status-card";
 
 import { StackPageShell } from "./stack-page-shell";
@@ -50,7 +49,10 @@ export const PlainHeader: Story = {
       hideTitleOnMobile
       actions={<Button variant="secondary">Export</Button>}
     >
-      <EmptyFeedState message="No moderation actions yet." />
+      <StatusCard
+        title="Content"
+        description="This is the child content inside a plain-header shell."
+      />
     </StackPageShell>
   ),
 };

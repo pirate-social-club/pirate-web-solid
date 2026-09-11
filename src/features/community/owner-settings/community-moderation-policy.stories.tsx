@@ -32,5 +32,4 @@ type Story = StoryObj<typeof meta>;
 export const Default: Story = {};
 export const Dirty: Story = { args: { policyDecisions: DIRTY_POLICY_DECISIONS, policyDirty: true } };
 export const ViewOnly: Story = { args: { capabilities: MODERATION_VIEW_ONLY } };
-export const Loading: Story = { args: { loading: true } };
 export const Error: Story = { args: { errorMessage: "Content policy could not be loaded." } };

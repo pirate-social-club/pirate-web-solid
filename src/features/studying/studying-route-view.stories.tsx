@@ -91,25 +91,6 @@ export const MissedAttempts: Story = {
   },
 };
 
-export const LockedLesson: Story = {
-  render: () => (
-    <StudyingRouteView
-      client={createStoryLessonClient({
-        loadLesson: async () => ({
-          post_id: storyPostId,
-          title: "Paper Moon",
-          locked: true,
-          price_label: "$1.50",
-          reward_label: "+25 $MOON",
-          exercises: [],
-        }),
-      })}
-      onExit={noop}
-      postId={storyPostId}
-    />
-  ),
-};
-
 export const Loading: Story = {
   render: () => (
     <StudyingRouteView

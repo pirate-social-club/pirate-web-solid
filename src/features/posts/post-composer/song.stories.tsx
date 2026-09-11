@@ -15,7 +15,7 @@ const meta = {
     docs: {
       description: {
         component:
-          "Component-level snapshots of the designed Song, Lyrics, Rights, and Review steps inside the product composer. The shipped flow — form, identity, upload, publication — lives under Flows/Posts/CreatePostForm.",
+          "The two entry paths the Parts level adds over the shipped flow: a text post that gains audio, and the Rights step's collaborator interaction. The shipped wizard — form, identity, upload, publication — lives under Flows/Posts/CreatePostForm.",
       },
     },
   },
@@ -23,7 +23,7 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-function StatefulSongFlow(props: { initialStep?: 1 | 2 | 3 | 4 }) {
+function StatefulRightsStep() {
   const [song, setSong] = createSignal<SongComposerState>({ title: "Midnight Waves", primaryAudioLabel: "midnight-waves.mp3", lyricsEditorState: "ready" });
   const [lyrics, setLyrics] = createSignal("");
   const [license, setLicense] = createSignal<AssetLicenseState>({ presetId: "non-commercial" });
@@ -31,17 +31,15 @@ function StatefulSongFlow(props: { initialStep?: 1 | 2 | 3 | 4 }) {
     { id: "creator", recipientKind: "creator", recipientId: "persona-creator", shareBps: 10_000, sharePct: 100 },
   ] });
   return <ComposerFrame><PostComposer {...baseComposer} currentPersonaId="persona-creator"
-    initialSongStep={props.initialStep} mode="song" song={song()} onSongChange={setSong}
+    initialSongStep={3} mode="song" song={song()} onSongChange={setSong}
     lyricsValue={lyrics()} onLyricsValueChange={setLyrics} license={license()} onLicenseChange={setLicense}
     royaltySplit={royaltySplit()} onRoyaltySplitChange={setRoyaltySplit}
     submit={{ canPost: true, label: "Publish song", onSubmit: () => undefined }} /></ComposerFrame>;
 }
 
-export const StepOne: Story = { name: "1. Song", render: () => <StatefulSongFlow initialStep={1} /> };
-export const StepTwo: Story = { name: "2. Lyrics", render: () => <StatefulSongFlow initialStep={2} /> };
-export const StepThree: Story = {
-  name: "3. Rights",
-  render: () => <StatefulSongFlow initialStep={3} />,
+export const RightsCollaborators: Story = {
+  name: "Rights / Collaborator shares",
+  render: () => <StatefulRightsStep />,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await userEvent.click(canvas.getByRole("button", { name: "Add collaborator" }));
@@ -60,7 +58,7 @@ export const StepThree: Story = {
     await expect(forward).toBeEnabled();
   },
 };
-export const StepFour: Story = { name: "4. Review", render: () => <StatefulSongFlow initialStep={4} /> };
+
 export const EnteredFromTextPost: Story = {
   name: "Entry / Audio selected in text post",
   render: () => <ComposerFrame><PostComposer {...baseComposer} /></ComposerFrame>,

@@ -207,32 +207,5 @@
     "humanVerificationRequired": "Required",
     "additionalRequirementsTitle": "Additional requirements",
     "submit": "Create"
-  },
-  "communityCreationProgress": {
-    "title": "Community creation",
-    "statusDraft": "Draft",
-    "statusVerificationRequired": "Older creation draft",
-    "statusCommitReady": "Ready to create",
-    "statusCommitted": "Community created",
-    "statusQuotaExceeded": "Creation blocked",
-    "statusGateUnsupported": "Requirement unavailable",
-    "statusExpired": "Draft expired",
-    "statusCancelled": "Creation cancelled",
-    "commit": "Create community",
-    "retry": "Retry",
-    "viewCommunity": "View community",
-    "waitVerificationPending": "Identity verification is still in progress.",
-    "waitMembershipPending": "Waiting for membership confirmation.",
-    "waitOperationPending": "A background operation is still running.",
-    "waitReconciliationPending": "Reconciling your account.",
-    "retryAfterPrefix": "Retry in",
-    "quotaExceededBody": "You've reached the limit of communities you can create.",
-    "gateUnsupportedBody": "One of the requirements you chose isn't available right now.",
-    "preBoundaryVerificationBody": "This older draft cannot be completed here. Close it and start a new community; new creations do not require identity verification.",
-    "expiredBody": "This creation draft expired. Start a new community to continue.",
-    "cancelledBody": "This creation was cancelled.",
-    "committedBody": "Your community is live.",
-    "staleTitle": "This creation changed",
-    "staleBody": "Something else updated this creation while you were working. Review the latest version and try again."
   }
 }

@@ -1,5 +1,3 @@
-import type { GeneratedLocaleCatalogs } from "../../../locales/generated";
-
 export const CREATION_STATUSES = [
   "draft",
   "verification_required",
@@ -84,25 +82,3 @@ export function applyIntentUpdate(
   }
   return { kind: "updated", intent: { ...intent, ...patch, revision: intent.revision + 1 } };
 }
-
-export type CreationProgressCopy = {
-  [Key in keyof GeneratedLocaleCatalogs["en"]["routes"]["communityCreationProgress"]]: string;
-};
-
-export const CREATION_STATUS_COPY_KEYS = {
-  draft: "statusDraft",
-  verification_required: "statusVerificationRequired",
-  commit_ready: "statusCommitReady",
-  committed: "statusCommitted",
-  quota_exceeded: "statusQuotaExceeded",
-  gate_unsupported: "statusGateUnsupported",
-  expired: "statusExpired",
-  cancelled: "statusCancelled",
-} as const satisfies Record<CreationStatus, keyof CreationProgressCopy>;
-
-export const WAIT_REASON_COPY_KEYS = {
-  verification_pending: "waitVerificationPending",
-  membership_pending: "waitMembershipPending",
-  operation_pending: "waitOperationPending",
-  reconciliation_pending: "waitReconciliationPending",
-} as const satisfies Record<WaitReasonCode, keyof CreationProgressCopy>;
