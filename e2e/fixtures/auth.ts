@@ -93,7 +93,7 @@ export const test = base.extend<AuthTestFixtures, AuthWorkerFixtures>({
       const stage = error instanceof Error && error.message.startsWith("Privy test sign-in failed during ") ? error.message : "Privy session establishment failed.";
       throw new Error(`${stage}\nSanitized network events:\n${diagnostics.summary()}`);
     } finally {
-      diagnostics.stop();
+      await diagnostics.stop();
       await context.close();
     }
     await use(state);
@@ -101,7 +101,7 @@ export const test = base.extend<AuthTestFixtures, AuthWorkerFixtures>({
   sanitizedDiagnostics: [async ({ page }, use, testInfo) => {
     const diagnostics = captureSanitizedNetworkDiagnostics(page);
     await use();
-    diagnostics.stop();
+    await diagnostics.stop();
     if (testInfo.status !== testInfo.expectedStatus) {
       const path = testInfo.outputPath("sanitized-network-events.json");
       await writeFile(path, diagnostics.summary());

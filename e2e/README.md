@@ -96,3 +96,11 @@ community setup adapt the preserved, unintegrated foundation at
 `song-compose.spec.ts`. This instrumental journey does not establish lyric
 alignment, retention, ACR registration, moderation or every engagement case.
 Those remain separate assertions and must not be claimed from this test.
+
+Creation failure diagnostics retain paired request/response JSON attachments.
+They preserve JSON structure, enum values and string constraints for creation
+calls, while replacing free text and excluding all headers and credentials.
+The observer drains body reads before teardown, and the creation helper waits
+for the actual POST response. Raw authenticated traces, video, screenshots and
+DOM snapshots remain disabled. Run `node --test scripts/creation-diagnostics.test.mjs`
+for redaction and real-browser request/response capture regression tests.

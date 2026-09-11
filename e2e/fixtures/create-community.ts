@@ -10,7 +10,13 @@ export async function createCommunity(page: Page, marker: string): Promise<strin
   await page.getByRole("textbox", { name: "Description", exact: true }).fill("Automated song publication acceptance");
   const publicName = page.getByRole("textbox", { name: "Public name", exact: true });
   if (await publicName.isVisible()) await publicName.fill("Song test creator");
-  await page.getByRole("button", { name: "Create", exact: true }).click();
+  const [created] = await Promise.all([
+    page.waitForResponse(response => response.request().method() === "POST"
+      && /^\/(?:api\/)?community-creation-intents$/u.test(new URL(response.url()).pathname),
+    { timeout: 60_000 }),
+    page.getByRole("button", { name: "Create", exact: true }).click(),
+  ]);
+  if (!created.ok()) throw new Error(`Community creation returned HTTP ${created.status()}; inspect sanitized network events.`);
 
   const confirmation = page.getByRole("button", { name: "Continue with email" });
   let failed = false;
