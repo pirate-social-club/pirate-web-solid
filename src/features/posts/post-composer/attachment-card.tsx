@@ -184,7 +184,7 @@ export function PostComposerAttachmentCard(props: {
                       aria-invalid={isInvalid() ? "true" : undefined}
                       class={cn(
                         "h-auto rounded-none border-0 bg-transparent p-0 text-2xl shadow-none placeholder:text-muted-foreground focus-visible:ring-0",
-                        isInvalid() && "text-destructive",
+                        isInvalid() && "text-destructive-text",
                       )}
                       inputmode="url"
                       onChange={(event) => props.onChange({ ...link(), url: event.currentTarget.value })}
@@ -202,7 +202,7 @@ export function PostComposerAttachmentCard(props: {
                     </button>
                   </div>
                   <Show when={isInvalid()}>
-                    <Type as="p" variant="caption" class="text-destructive">
+                    <Type as="p" variant="caption" class="text-destructive-text">
                       Enter a valid http or https link.
                     </Type>
                   </Show>

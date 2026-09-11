@@ -129,7 +129,7 @@ export function RoyaltySplitEditor(props: {
           "shrink-0 rounded-full px-3 py-1 font-semibold tabular-nums",
           totalSharePct() === 100
             ? "bg-primary-subtle text-primary"
-            : "bg-destructive/10 text-destructive",
+            : "bg-destructive/10 text-destructive-text",
         )}>
           {displayPct(totalSharePct())}%
         </div>
@@ -321,25 +321,25 @@ export function RoyaltySplitEditor(props: {
                       </Type>
                     }
                   >
-                    <Type as="p" variant="caption" class="text-destructive">
+                    <Type as="p" variant="caption" class="text-destructive-text">
                       Sale proceeds must total 100% before publishing.
                     </Type>
                   </Show>
                 }
               >
-                <Type as="p" variant="caption" class="text-destructive">
+                <Type as="p" variant="caption" class="text-destructive-text">
                   Each wallet can appear only once.
                 </Type>
               </Show>
             }
           >
-            <Type as="p" variant="caption" class="text-destructive">
+            <Type as="p" variant="caption" class="text-destructive-text">
               Every recipient needs a share greater than 0%.
             </Type>
           </Show>
         }
       >
-        <Type as="p" variant="caption" class="text-destructive">
+        <Type as="p" variant="caption" class="text-destructive-text">
           You need to receive at least some royalty.
         </Type>
       </Show>

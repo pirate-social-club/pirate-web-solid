@@ -1,3 +1,4 @@
+import { SongPlayer } from "../../posts/song-player/song-player.tsx";
 /** @jsxImportSource @solidjs/web */
 import type { JSX } from "@solidjs/web";
 import { For, Loading, Show, createMemo, createSignal } from "solid-js";
@@ -9,13 +10,11 @@ import {
   CommunityAvatar,
   FlatTabBar,
   FlatTabButton,
-  IconArrowDown,
   IconArrowLeft,
   IconArrowUp,
   IconChatCircle,
   IconDotsThree,
   IconMusicNote,
-  IconPlay,
   IconPlus,
   IconShield,
   IconButton,
@@ -23,9 +22,7 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-  MediaControlButton,
   Separator,
-  cn,
   Type,
 } from "@pirate/web-solid-ui";
 import {
@@ -109,20 +106,25 @@ function postTimestamp(value: string): string {
 function PostActions(props: { post: CommunityPost; engagementControls?: JSX.Element }) {
   return (
     <div class="flex flex-wrap items-center gap-2 pt-1" aria-label="Post actions">
+      {/* No engagement controls yet: either no posting session was resolved,
+          or the viewer's own state for this post is still being read. These
+          were three buttons with no handlers behind them, which offered
+          actions that could never happen. They are the standing counts
+          instead, and the real controls take their place once there is a
+          viewer who can act and enough known about them to act correctly. */}
       <Show when={props.engagementControls} fallback={
-        <>
-          <button aria-label={`Upvote post, ${props.post.score} points`} class="inline-flex h-9 items-center gap-1 rounded-full border border-border-soft px-3 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground" type="button">
-            <IconArrowUp class="size-4" />
+        <div class="flex flex-wrap items-center gap-2 text-sm text-muted-foreground" data-post-counts>
+          <span class="inline-flex h-9 items-center gap-1 rounded-full border border-border-soft px-3">
+            <IconArrowUp class="size-4" aria-hidden="true" />
             <span>{props.post.score}</span>
-          </button>
-          <button aria-label="Downvote post" class="inline-flex size-9 items-center justify-center rounded-full border border-border-soft text-muted-foreground transition-colors hover:bg-muted hover:text-foreground" type="button">
-            <IconArrowDown class="size-4" />
-          </button>
-          <button aria-label={`Open ${props.post.commentCount ?? 0} comments`} class="inline-flex h-9 items-center gap-2 rounded-full border border-border-soft px-3 text-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground" type="button">
-            <IconChatCircle class="size-4" />
+            <span class="sr-only">points</span>
+          </span>
+          <span class="inline-flex h-9 items-center gap-2 rounded-full border border-border-soft px-3">
+            <IconChatCircle class="size-4" aria-hidden="true" />
             <span>{props.post.commentCount ?? 0}</span>
-          </button>
-        </>
+            <span class="sr-only">comments</span>
+          </span>
+        </div>
       }>{controls => controls()}</Show>
       <Show when={props.post.learnAvailable}>
         <Button class="h-9 rounded-full px-4" size="sm" variant="secondary">Learn</Button>
@@ -135,7 +137,6 @@ function PostActions(props: { post: CommunityPost; engagementControls?: JSX.Elem
 }
 
 function SongPost(props: { post: CommunityPost }) {
-  const progress = () => Math.max(0, Math.min(100, props.post.mediaProgress ?? 0));
   return (
     <div class="flex flex-col gap-3 rounded-xl border border-border-soft bg-muted/30 p-3">
       <div class="flex items-center gap-3">
@@ -143,19 +144,16 @@ function SongPost(props: { post: CommunityPost }) {
           <Show when={props.post.mediaSrc} fallback={<div class="grid size-full place-items-center"><IconMusicNote class="size-7 text-muted-foreground" /></div>}>
             {src => <img alt="" class="size-full object-cover" src={src()} />}
           </Show>
-          <MediaControlButton aria-label={`Play ${props.post.mediaTitle ?? props.post.title}`} class="absolute inset-1/2 -translate-x-1/2 -translate-y-1/2" size="sm">
-            <IconPlay class="size-4" />
-          </MediaControlButton>
+
         </div>
         <div class="min-w-0 flex-1">
           <Type class="block truncate" variant="body-strong">{props.post.mediaTitle ?? props.post.title}</Type>
-          <Type class="block truncate" variant="caption">{props.post.mediaArtist ?? "Tame Impala"}</Type>
-          <div class="mt-2 flex items-center gap-2">
-            <div aria-label={`${progress()}% played`} class="h-1.5 min-w-0 flex-1 overflow-hidden rounded-full bg-border-soft" role="progressbar" aria-valuemax="100" aria-valuemin="0" aria-valuenow={progress()}>
-              <div class="h-full rounded-full bg-primary" style={{ width: `${progress()}%` }} />
-            </div>
-            <Type variant="caption">{props.post.mediaDuration ?? "—"}</Type>
-          </div>
+          {/* An unknown artist is left unsaid. The placeholder here named a
+              real recording artist who has nothing to do with the post. */}
+          <Show when={props.post.mediaArtist}>
+            {artist => <Type class="block truncate" variant="caption">{artist()}</Type>}
+          </Show>
+          <SongPlayer postId={props.post.id} title={props.post.mediaTitle ?? props.post.title} />
         </div>
       </div>
       <Show when={props.post.rewardLabels?.length}>
@@ -168,7 +166,10 @@ function SongPost(props: { post: CommunityPost }) {
 }
 
 function FeedPost(props: { post: CommunityPost; actions?: JSX.Element }) {
-  const author = () => props.post.authorHandle ?? "midnightwaves.pirate";
+  // The feed adapter always resolves a handle, including "Anonymous" and a
+  // generic public label. This covers a caller that supplied none, and says so
+  // rather than attributing the post to an invented account.
+  const author = () => props.post.authorHandle ?? "Unknown author";
   return (
     <article class="flex flex-col gap-3 border-b border-border-soft px-0 py-5 first:pt-0 last:border-b-0" data-community-post={props.post.id}>
       <div class="flex items-center gap-2">
@@ -180,9 +181,7 @@ function FeedPost(props: { post: CommunityPost; actions?: JSX.Element }) {
         />
         <Type as="span" variant="label">{author()}</Type>
         <Type as="span" variant="caption">· {postTimestamp(props.post.publishedAt)}</Type>
-        <IconButton aria-label={`More options for ${props.post.title}`} class="ms-auto size-8" variant="ghost">
-          <IconDotsThree class="size-5" />
-        </IconButton>
+
       </div>
       <Show when={props.post.kind === "song"} fallback={
         <>
@@ -397,6 +396,7 @@ export function CommunityPageShell(props: CommunityPageShellProps) {
               aria-label="Community actions"
               class="mt-3 grid h-11 grid-cols-2 gap-2 md:mt-0 md:flex md:shrink-0"
               data-community-actions-reserved
+              role="group"
             >
               {/* Follow and Following both state a direction that has not been
                   read yet, so neither is offered until it has been. */}

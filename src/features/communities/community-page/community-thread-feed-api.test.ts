@@ -47,16 +47,29 @@ describe("public Community thread feed", () => {
         title: "Welcome aboard",
         body: "The first public thread.",
         score: 6,
+        upvoteCount: 8,
+        downvoteCount: 2,
         publishedAt: "2025-09-01T18:40:00.000Z",
         authorHandle: "captain-one.pirate",
         authorAvatarSrc: "/media/captain.webp",
         kind: "text",
         commentCount: 3,
-        learnAvailable: false,
-        karaokeAvailable: false,
       }],
       nextCursor: "next-page",
     });
+  });
+
+  test("keeps both vote sides when the net score cannot express them", () => {
+    const mixed: GetPublicCommunitiesCommunityRefFeedResponse = JSON.parse(JSON.stringify({
+      ...response,
+      items: [{ ...response.items[0], upvote_count: "5", downvote_count: "3" }],
+    }));
+    const [post] = normalizeCommunityThreadPage(mixed).posts;
+    // A post nobody downvoted would carry the same score, so the score alone
+    // cannot be turned back into these two numbers.
+    expect(post?.score).toBe(2);
+    expect(post?.upvoteCount).toBe(5);
+    expect(post?.downvoteCount).toBe(3);
   });
 
   test("calls the generated public operation with the opaque Community id", async () => {

@@ -24,6 +24,11 @@ function PostEngagement(props: Omit<PostEngagementProps, "personaId"> & { readon
   return <PostEngagementComponent {...props} personaId={props.personaId ?? "persona-1"} />;
 }
 
+/** Renders the component itself, so the absent persona is genuinely absent. */
+function PostEngagementWithoutPersona(props: Omit<PostEngagementProps, "personaId">) {
+  return <PostEngagementComponent {...props} />;
+}
+
 function render(ui: () => JSX.Element): HTMLElement {
   const container = document.createElement("div");
   document.body.appendChild(container);
@@ -74,6 +79,35 @@ afterEach(() => {
 });
 
 describe("PostEngagement", () => {
+  test("reads persisted comments and replies on demand, including after remount", async () => {
+    window.scrollTo=vi.fn();
+    const row=(id:string,parent:string|null,depth:number)=>({comment_id:id,parent_comment_id:parent,body:`Persisted ${id}`,depth,reply_count:parent?0:1,status:"published" as const,content_rating:"general" as const,created_at:"2026-09-09T00:00:00Z",author_persona:null});
+    const readComments=vi.fn(async (input:{parentId?:string;cursor?:string})=>({items:[row(input.parentId?"reply":"root",input.parentId??null,input.parentId?1:0)],next_cursor:null}));
+    const mount=()=>render(()=><PostEngagement readComments={readComments} post={{id:"post-1",upvoteCount:0,downvoteCount:0,commentCount:2,viewerVote:null}} principalId="user-1" transport={transportFixture(vi.fn())} pendingStorage={createMemoryPendingEngagementStorage()} />);
+    mount();
+    expect(readComments).not.toHaveBeenCalled();
+    button("Comments (2)").click();
+    await vi.waitFor(()=>expect(document.body.textContent).toContain("Persisted root"));
+    button("View replies").click();
+    await vi.waitFor(()=>expect(document.body.textContent).toContain("Persisted reply"));
+    expect(readComments).toHaveBeenCalledWith({postId:"post-1",parentId:"root"});
+    for(const dispose of disposers.splice(0)) dispose();
+    mount();button("Comments (2)").click();
+    await vi.waitFor(()=>expect(document.body.textContent).toContain("Persisted root"));
+    expect(readComments).toHaveBeenCalledTimes(3);
+  });
+
+  test("a failed comment read offers retry without pretending the thread is empty", async () => {
+    window.scrollTo=vi.fn();
+    const readComments=vi.fn().mockRejectedValueOnce(new Error("offline")).mockResolvedValueOnce({items:[],next_cursor:null});
+    render(()=><PostEngagement readComments={readComments} post={{id:"post-1",upvoteCount:0,downvoteCount:0,commentCount:2,viewerVote:null}} principalId="user-1" transport={transportFixture(vi.fn())} pendingStorage={createMemoryPendingEngagementStorage()} />);
+    button("Comments (2)").click();
+    await vi.waitFor(()=>expect(document.body.textContent).toContain("Comments could not be loaded."));
+    expect(document.body.textContent).not.toContain("No comments yet.");
+    button("Retry comments").click();
+    await vi.waitFor(()=>expect(document.body.textContent).toContain("No comments yet."));
+  });
+
   test("restores exact comment bytes and the same key after a component reload", async () => {
     const createComment = vi.fn()
       .mockRejectedValueOnce(new Error("connection lost"))
@@ -705,5 +739,35 @@ describe("PostEngagement", () => {
     expect(reportComment).toHaveBeenCalledTimes(2);
     expect(reportComment.mock.calls[1]?.[0]).toEqual(reportComment.mock.calls[0]?.[0]);
     expect(generateKey).toHaveBeenCalledTimes(1);
+  });
+
+  test("votes without a persona and refuses only the authorship the contract scopes to one", async () => {
+    window.scrollTo = vi.fn();
+    const transport = transportFixture(vi.fn());
+    render(() => <PostEngagementWithoutPersona
+      generateIdempotencyKey={() => "vote-without-persona"}
+      pendingStorage={createMemoryPendingEngagementStorage()}
+      post={{ id: "post-1", upvoteCount: 3, downvoteCount: 1, commentCount: 0, viewerVote: null }}
+      principalId="user-1"
+      transport={transport}
+    />);
+
+    // A vote carries an idempotency key and a value, never a persona, so an
+    // account with no profile chosen is still entitled to cast one.
+    button("Upvote").click();
+    await vi.waitFor(() => expect(button("Upvote").getAttribute("aria-pressed")).toBe("true"));
+    const vote = await decodePendingEngagementAction(vi.mocked(transport.castVote).mock.calls[0]?.[0]);
+    expect(vote).toMatchObject({ kind: "vote", postId: "post-1", value: 1 });
+    expect(vote).not.toHaveProperty("personaId");
+
+    // Authorship is persona-scoped, so the composer says what it needs and
+    // stays closed rather than sending a command without an author.
+    button("Comments (0)").click();
+    await vi.waitFor(() => expect(document.querySelector("textarea[aria-label='Write a comment']")).not.toBeNull());
+    const textarea = document.querySelector("textarea[aria-label='Write a comment']");
+    if (!(textarea instanceof HTMLTextAreaElement)) throw new Error("comment textarea missing");
+    expect(textarea.disabled).toBe(true);
+    expect(button("Post comment").disabled).toBe(true);
+    expect(document.body.textContent).toContain("Choose a profile to comment as.");
   });
 });

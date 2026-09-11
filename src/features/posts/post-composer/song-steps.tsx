@@ -58,9 +58,11 @@ export function songTermsIssue(controller: PostComposerController, runtime?: Son
 
 function StepCard(props: ParentProps<{
   controller: PostComposerController;
+  title: string;
 }>) {
   return (
     <CardContent class={cn("space-y-6 p-8", props.controller.isMobile() && "px-0 pb-4 pt-1")}>
+      <Type as="h2" variant="h3">{props.title}</Type>
       {props.children}
     </CardContent>
   );
@@ -77,7 +79,7 @@ export function SongLyricsStep(props: {
     : controller.song.state.lyricsEditorState === "ready";
 
   return (
-    <StepCard controller={controller}>
+    <StepCard controller={controller} title={controller.copy.steps.lyrics}>
       <Show
         when={prepared()}
         fallback={<FormNote>Upload audio first.</FormNote>}
@@ -144,7 +146,7 @@ export function SongRightsStep(props: {
     (sum, allocation) => sum + allocationBps(allocation), 0);
 
   return (
-    <StepCard controller={controller}>
+    <StepCard controller={controller} title={controller.copy.steps.rights}>
       <fieldset disabled={locked()}>
         <section class="space-y-3">
           <FieldLabel label={controller.copy.rights.songKind} />
@@ -337,7 +339,7 @@ export function SongReviewStep(props: {
   };
 
   return (
-    <StepCard controller={controller}>
+    <StepCard controller={controller} title={controller.copy.steps.review}>
       <Show when={issue()}>
         <FormNote tone="warning">{issue()}</FormNote>
       </Show>

@@ -220,7 +220,7 @@ export const SongStep1Song: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement.ownerDocument.body);
     await userEvent.upload(canvas.getByLabelText("Upload audio"), storyMp3());
-    await expect(canvas.getByLabelText("Song title")).toHaveValue("midnight-waves");
+    await expect(canvas.getByRole("textbox", { name: "Song title" })).toHaveValue("midnight-waves");
   },
 };
 
@@ -267,7 +267,7 @@ export const SongStepFourReview: Story = {
       .find(button => button.closest("nav") === null);
     if (review === undefined) throw new Error("Rights footer did not render its Review action");
     await userEvent.click(review);
-    await expect(canvas.getByText("License")).toBeInTheDocument();
+    await expect(canvas.getByText(/Non-commercial remixing/)).toBeInTheDocument();
   },
 };
 

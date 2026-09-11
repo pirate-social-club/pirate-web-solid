@@ -18,7 +18,7 @@ interface StudyRouteShellProps {
 /** Shared mobile frame for route states that still belong to a study session. */
 function StudyRouteShell(props: StudyRouteShellProps) {
   return (
-    <main class="flex h-dvh min-h-0 w-full flex-col overflow-hidden bg-background text-foreground">
+    <section class="flex h-dvh min-h-0 w-full flex-col overflow-hidden bg-background text-foreground">
       <header class="flex h-14 shrink-0 items-center gap-3 border-b border-border-soft px-4">
         <IconButton
           aria-label="Exit study"
@@ -33,7 +33,7 @@ function StudyRouteShell(props: StudyRouteShellProps) {
         </Type>
       </header>
       {props.children}
-    </main>
+    </section>
   );
 }
 
@@ -63,7 +63,7 @@ export interface StudyRouteLoadFailureStateProps {
 
 export function StudyRouteLoadFailureState(props: StudyRouteLoadFailureStateProps) {
   return (
-    <main class="flex h-dvh w-full items-center justify-center bg-background px-5 text-foreground">
+    <section class="flex h-dvh w-full items-center justify-center bg-background px-5 text-foreground">
       <div class="flex w-full max-w-[350px] flex-col items-center text-center">
         <Type as="h1" class="text-xl" variant="h4">
           {props.title}
@@ -85,7 +85,7 @@ export function StudyRouteLoadFailureState(props: StudyRouteLoadFailureStateProp
           </Button>
         </div>
       </div>
-    </main>
+    </section>
   );
 }
 

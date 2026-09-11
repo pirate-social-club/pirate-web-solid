@@ -91,7 +91,7 @@ export function CreateCommunityView(props: CreateCommunityProps) {
         bodyClass="mx-auto flex w-full max-w-2xl flex-col gap-5 px-5 py-5"
         footer={
           <div class="mx-auto w-full max-w-2xl">
-            <div class="h-20 overflow-auto text-sm text-destructive" data-creation-feedback>
+            <div class="h-20 overflow-auto text-sm text-destructive-text" data-creation-feedback>
               <p role="alert">{props.failureMessage}</p>
               <Show when={props.onRetry}><Button type="button" variant="ghost" disabled={props.accountChecking || props.submitting} onClick={props.onRetry}>{props.retryLabel ?? "Try again"}</Button></Show>
             </div>

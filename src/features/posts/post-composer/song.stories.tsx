@@ -54,7 +54,10 @@ export const StepThree: Story = {
     await userEvent.clear(canvas.getByLabelText("Recipient 2 share"));
     await userEvent.type(canvas.getByLabelText("Recipient 2 share"), "25");
     await userEvent.tab();
-    await expect(canvas.getByRole("button", { name: "Review" })).toBeEnabled();
+    const forward = canvas.getAllByRole("button", { name: "Review" })
+      .find(button => button.closest("nav") === null);
+    if (forward === undefined) throw new Error("Rights footer did not render its Review action");
+    await expect(forward).toBeEnabled();
   },
 };
 export const StepFour: Story = { name: "4. Review", render: () => <StatefulSongFlow initialStep={4} /> };
@@ -66,6 +69,6 @@ export const EnteredFromTextPost: Story = {
     const file = new File([new Uint8Array([0x49, 0x44, 0x33])], "midnight-waves.mp3", { type: "audio/mpeg" });
     await userEvent.upload(canvas.getByLabelText("Upload audio"), file);
     await expect(await canvas.findByRole("heading", { name: "Song" })).toBeVisible();
-    await expect(canvas.getByLabelText("Song title")).toHaveValue("midnight-waves");
+    await expect(canvas.getByRole("textbox", { name: "Song title" })).toHaveValue("midnight-waves");
   },
 };

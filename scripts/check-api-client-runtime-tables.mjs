@@ -8,10 +8,11 @@ const currentClient = resolve(
   appRoot,
   "node_modules/@pirate/api-client/src/generated/client.ts",
 );
-// Client 0.68.4 preserves the audited statuses and error tables. The sole
-// change in these consumed tables adds the optional HNS root-import
-// lifecycle block and the optional publish-plan encoded_resource_sha256
-// to the community HNS root-import response schemas.
+// Client 0.68.6 preserves the audited statuses and error tables. The
+// consumed-table changes add the optional HNS root-import lifecycle block
+// and the optional publish-plan encoded_resource_sha256, alongside the
+// 0.68.5 community core reads and song playback grants that leave these
+// tables unchanged.
 const expectedDigest = "e0620f8afcab0b2c8e296b1c26d7c49c0b9b92847a82d87ced8be9ad606419f1";
 
 const operations = [

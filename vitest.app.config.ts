@@ -24,6 +24,7 @@ export default defineConfig({
     // The app still has Bun-native .tsx suites; they are intentionally not
     // loaded by Vitest. Add a suite here once it imports Vitest's API.
     include: [
+      "src/features/posts/song-player/song-player.test.tsx",
       "src/hns-community-route-transform.test.ts",
       "src/routes/community-owner-settings-route.test.ts",
       "src/routes/community-route-filesystem.test.ts",
@@ -39,6 +40,7 @@ export default defineConfig({
       "src/features/auth/sign-in-session.test.ts",
       "src/features/auth/sign-in-view.test.tsx",
       "src/features/community/community-creation-api.test.ts",
+      "src/features/community/page-shell/page-shell-actions.test.tsx",
       "src/features/community/community-creation-route-view.test.tsx",
       "src/features/community/your-communities-page/your-communities-route.test.tsx",
       "src/features/community/owner-settings/community-names-settings-api.test.ts",
@@ -64,6 +66,7 @@ export default defineConfig({
       "src/features/communities/community-page/community-page-pending-geometry.test.tsx",
       "src/features/communities/community-page/community-page.test.tsx",
       "src/features/communities/community-page/community-thread-feed-api.test.ts",
+    "src/features/communities/community-page/community-viewer-vote-api.test.ts",
       "src/features/communities/handle-storefront/handle-storefront.flow.test.ts",
       "src/features/communities/handle-storefront/handle-storefront.model.test.ts",
       "src/features/communities/handle-storefront/handle-storefront.test.tsx",

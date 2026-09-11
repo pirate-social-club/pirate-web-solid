@@ -8,6 +8,7 @@ import {
 
 const meta = {
   title: "Screens/Studying/RouteStates",
+  decorators: [(Story) => <main class="min-h-dvh bg-background text-foreground"><Story /></main>],
   parameters: {
     layout: "fullscreen",
     docs: {
