@@ -179,18 +179,17 @@ describe("Study v2 production route", () => {
     expect(loadAvailability).toHaveBeenCalledOnce();
   });
 
-  test("coalesces repeated refreshes while a continuation load is in flight", async () => {
+  test("coalesces two synchronous refreshes into one continuation request", async () => {
     let authenticated = false;
-    let releaseSession: (session: SessionResolution) => void = () => {};
+    const requests: Array<(session: SessionResolution) => void> = [];
     const api = studyApi();
     const loadAvailability = vi.spyOn(api, "loadAvailability");
+    const resolveContinuation = vi.fn(() => new Promise<SessionResolution>(resolve => { requests.push(resolve); }));
     const container = render(() => (
       <StudyV2RouteView
         api={api}
         postId="post-1"
-        resolveSession={() => authenticated
-          ? new Promise<SessionResolution>(resolve => { releaseSession = resolve; })
-          : Promise.resolve("anonymous")}
+        resolveSession={() => authenticated ? resolveContinuation() : Promise.resolve("anonymous")}
       />
     ));
 
@@ -198,10 +197,47 @@ describe("Study v2 production route", () => {
     authenticated = true;
     refreshSession();
     refreshSession();
-    await Promise.resolve();
-    expect(loadAvailability).not.toHaveBeenCalled();
-    releaseSession(learnerSession);
+    await vi.waitFor(() => expect(resolveContinuation).toHaveBeenCalledOnce());
+    expect(requests).toHaveLength(1);
+    requests[0]!(learnerSession);
     await vi.waitFor(() => expect(container.textContent).toContain("Speaking practice only"));
+    expect(loadAvailability).toHaveBeenCalledOnce();
+  });
+
+  test("rejects a stale retry response that resolves after a newer request", async () => {
+    const requests: Array<(session: SessionResolution) => void> = [];
+    const api = studyApi();
+    const loadAvailability = vi.spyOn(api, "loadAvailability");
+    const unavailableSession: SessionResolution = {
+      status: "authenticated",
+      userId: "user-1",
+      personas: [],
+      personasUnavailable: true,
+    };
+    let calls = 0;
+    const container = render(() => (
+      <StudyV2RouteView
+        api={api}
+        postId="post-1"
+        resolveSession={() => {
+          calls += 1;
+          if (calls === 1) return Promise.resolve(unavailableSession);
+          return new Promise<SessionResolution>(resolve => { requests.push(resolve); });
+        }}
+      />
+    ));
+
+    await vi.waitFor(() => expect(container.textContent).toContain("Try Again"));
+    const retry = [...container.querySelectorAll("button")].find(button => button.textContent?.trim() === "Try Again")!;
+    retry.click();
+    retry.click();
+    await vi.waitFor(() => expect(requests).toHaveLength(2));
+    requests[1]!(learnerSession);
+    await vi.waitFor(() => expect(container.textContent).toContain("Speaking practice only"));
+    requests[0]!("anonymous");
+    await new Promise(resolve => setTimeout(resolve, 20));
+    expect(container.textContent).toContain("Speaking practice only");
+    expect(container.textContent).not.toContain("Sign in to study");
     expect(loadAvailability).toHaveBeenCalledOnce();
   });
 
