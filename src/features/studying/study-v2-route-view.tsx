@@ -3,7 +3,7 @@ import { isServer } from "@solidjs/web";
 import { ApiClientError } from "@pirate/api-client";
 import { Show, createEffect, createSignal, onCleanup } from "solid-js";
 
-import { resolveSession, sessionPersonasUnavailable, type AuthenticatedSession, type SessionResolution } from "../../api/session";
+import { onSessionRefreshed, resolveSession, sessionPersonasUnavailable, type AuthenticatedSession, type SessionResolution } from "../../api/session";
 import { Button, FormNote, Type } from "../../design-system";
 import { preloadGlobalSignInAssets, prepareGlobalSignIn, requestGlobalSignIn } from "../auth/global-sign-in-host";
 import { communityOperationPersonas, defaultOperationPersonaId, toOperationPersonas } from "../identity/community-persona-choice";
@@ -155,6 +155,15 @@ export function StudyV2RouteView(props: StudyV2RouteViewProps) {
       queueMicrotask(() => void load());
     },
   );
+  // Sign-in refreshes the shared session store without reloading the document.
+  // Resume only from the anonymous prompt: a configured session, an active
+  // lesson and a failed persona read must not restart on an unrelated refresh.
+  if (!isServer) {
+    onCleanup(onSessionRefreshed(() => {
+      if (!active || state().kind !== "auth-required") return;
+      void load();
+    }));
+  }
   onCleanup(() => { active = false; });
 
   const start = async (configuration: Extract<RouteState, { kind: "configure" }>) => {

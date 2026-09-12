@@ -3,6 +3,7 @@ import { render as solidRender } from "@solidjs/web";
 import { createRoot } from "solid-js";
 import { afterEach, describe, expect, test, vi } from "vitest";
 
+import { refreshSession, type SessionResolution } from "../../api/session";
 import type { StudySession, StudyV2Api } from "./study-v2-api";
 import { StudyV2RouteView } from "./study-v2-route-view";
 
@@ -144,5 +145,91 @@ describe("Study v2 production route", () => {
       postId: "post-1",
       targetLanguage: null,
     }));
+  });
+
+  const learnerSession: SessionResolution = {
+    status: "authenticated",
+    userId: "user-1",
+    personas: [{
+      avatarRef: null,
+      displayName: "Learner",
+      personaId: "persona-1",
+      primaryPublicHandle: "learner",
+      communityBinding: { communityId: "community-1", bindingSource: "first_membership" },
+    }],
+  };
+
+  test("resumes an anonymous route once when sign-in refreshes the session", async () => {
+    let authenticated = false;
+    const api = studyApi();
+    const loadAvailability = vi.spyOn(api, "loadAvailability");
+    const container = render(() => (
+      <StudyV2RouteView
+        api={api}
+        postId="post-1"
+        resolveSession={async () => authenticated ? learnerSession : "anonymous"}
+      />
+    ));
+
+    await vi.waitFor(() => expect(container.textContent).toContain("Sign in to study"));
+    expect(loadAvailability).not.toHaveBeenCalled();
+    authenticated = true;
+    refreshSession();
+    await vi.waitFor(() => expect(container.textContent).toContain("Speaking practice only"));
+    expect(loadAvailability).toHaveBeenCalledOnce();
+  });
+
+  test("coalesces repeated refreshes while a continuation load is in flight", async () => {
+    let authenticated = false;
+    let releaseSession: (session: SessionResolution) => void = () => {};
+    const api = studyApi();
+    const loadAvailability = vi.spyOn(api, "loadAvailability");
+    const container = render(() => (
+      <StudyV2RouteView
+        api={api}
+        postId="post-1"
+        resolveSession={() => authenticated
+          ? new Promise<SessionResolution>(resolve => { releaseSession = resolve; })
+          : Promise.resolve("anonymous")}
+      />
+    ));
+
+    await vi.waitFor(() => expect(container.textContent).toContain("Sign in to study"));
+    authenticated = true;
+    refreshSession();
+    refreshSession();
+    await Promise.resolve();
+    expect(loadAvailability).not.toHaveBeenCalled();
+    releaseSession(learnerSession);
+    await vi.waitFor(() => expect(container.textContent).toContain("Speaking practice only"));
+    expect(loadAvailability).toHaveBeenCalledOnce();
+  });
+
+  test("does not restart a configured session on an unrelated refresh", async () => {
+    const api = studyApi();
+    const loadAvailability = vi.spyOn(api, "loadAvailability");
+    const container = render(() => (
+      <StudyV2RouteView api={api} postId="post-1" resolveSession={async () => learnerSession} />
+    ));
+
+    await vi.waitFor(() => expect(container.textContent).toContain("Speaking practice only"));
+    expect(loadAvailability).toHaveBeenCalledOnce();
+    refreshSession();
+    await Promise.resolve();
+    expect(loadAvailability).toHaveBeenCalledOnce();
+  });
+
+  test("unsubscribes from session refresh when the route unmounts", async () => {
+    const api = studyApi();
+    const loadAvailability = vi.spyOn(api, "loadAvailability");
+    const container = render(() => (
+      <StudyV2RouteView api={api} postId="post-1" resolveSession={async () => "anonymous"} />
+    ));
+
+    await vi.waitFor(() => expect(container.textContent).toContain("Sign in to study"));
+    for (const dispose of disposers.splice(0)) dispose();
+    refreshSession();
+    await Promise.resolve();
+    expect(loadAvailability).not.toHaveBeenCalled();
   });
 });
