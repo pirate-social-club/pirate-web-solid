@@ -7,7 +7,6 @@ import type {
 import type { StudyingAttemptResult, StudyingServerExercise } from "./studying-model";
 
 type StudySessionItem = StudySession["items"][number];
-type TranscriptDiffFeedback = Extract<StudyAnswerResult["feedback"], { kind: "transcript_diff" }>;
 
 function exerciseOf(
   item: StudySessionItem,

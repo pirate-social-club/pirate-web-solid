@@ -261,7 +261,8 @@ function LoadedStudyingLesson(props: StudyingRouteViewProps & {
     });
   };
 
-  const beginCapture = (card: SayItBackSurfaceState) => {    unlockStudyFeedbackAudio();
+  const beginCapture = (card: SayItBackSurfaceState) => {
+    unlockStudyFeedbackAudio();
     const recorder = props.recorder;
     if (!recorder) {
       updateSayItBack(card.exercise.id, (latest, current) => ({
