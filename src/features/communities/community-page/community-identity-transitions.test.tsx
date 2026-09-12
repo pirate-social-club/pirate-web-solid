@@ -9,7 +9,6 @@ import { afterEach, describe, expect, test, vi } from "vitest";
 import type { AuthenticatedSession, SessionResolution } from "../../../api/session.ts";
 import { ApplicationSessionProvider, type ApplicationSessionState } from "../../shell/application-session.tsx";
 import type { CommunityEngagementApi, CommunityMembershipState } from "./community-engagement-api.ts";
-import { createMemoryMediaSubmissionStorage } from "../../posts/media-submission/pending.ts";
 import {
   createCommunityEngagementController,
   type CommunityEngagementController,
@@ -171,7 +170,7 @@ const sessionFor = (userId: string, ...communityIds: readonly string[]): Authent
 });
 
 function personaControlText(container: HTMLElement): string {
-  return container.querySelector("[data-operation-persona]")?.textContent ?? "";
+  return container.querySelector("[data-active-persona]")?.textContent ?? "";
 }
 
 function joinLabelButton(container: HTMLElement): HTMLButtonElement | undefined {
@@ -211,7 +210,6 @@ describe("navigating between communities on the same route", () => {
         handleSalesClient={handleSalesClient}
         loadThreads={loadThreads}
         pathSegment={pathSegment()}
-        postComposerMediaStorage={createMemoryMediaSubmissionStorage()}
         resolveOwnerSettingsAccess={resolveOwnerSettingsAccess}
         resolveSession={async (): Promise<SessionResolution> => sessionFor("account-a", harbor.communityId, lagoon.communityId)}
       />
@@ -264,7 +262,6 @@ describe("account identity transitions on one community", () => {
           handleSalesClient={handleSalesClient}
           loadThreads={loadThreads}
           pathSegment={harbor.pathSegment}
-          postComposerMediaStorage={createMemoryMediaSubmissionStorage()}
           resolveOwnerSettingsAccess={async () => account === "account-a"}
           resolveSession={async (): Promise<SessionResolution> =>
             account === null ? "anonymous" : sessionFor(account, harbor.communityId)}
@@ -284,7 +281,7 @@ describe("account identity transitions on one community", () => {
     await vi.waitFor(() => expect(joinLabelButton(container)?.textContent?.trim()).toBe("Join"));
     expect(hasButton(container, "Post")).toBe(false);
     expect(manageAuthority(container)).not.toBe("available");
-    expect(container.querySelector("[data-operation-persona]")).toBeNull();
+    expect(container.querySelector("[data-active-persona]")).toBeNull();
     expect(container.textContent).not.toContain(personaName("account-a", harbor.communityId));
     // The public feed is not account-scoped and must survive the transition.
     expect(container.textContent).toContain(harbor.threadTitle);
@@ -308,7 +305,6 @@ describe("account identity transitions on one community", () => {
           handleSalesClient={handleSalesClient}
           loadThreads={loadThreads}
           pathSegment={harbor.pathSegment}
-          postComposerMediaStorage={createMemoryMediaSubmissionStorage()}
           resolveOwnerSettingsAccess={async () => account === "account-a"}
           resolveSession={async (): Promise<SessionResolution> => sessionFor(account, harbor.communityId)}
         />
@@ -516,7 +512,6 @@ describe("management capability across an account change", () => {
           handleSalesClient={handleSalesClient}
           loadThreads={loadThreads}
           pathSegment={harbor.pathSegment}
-          postComposerMediaStorage={createMemoryMediaSubmissionStorage()}
           resolveOwnerSettingsAccess={resolveOwnerSettingsAccess}
           resolveSession={async (): Promise<SessionResolution> => sessionFor(account, harbor.communityId)}
         />
@@ -550,7 +545,6 @@ describe("management capability across an account change", () => {
         handleSalesClient={handleSalesClient}
         loadThreads={loadThreads}
         pathSegment={harbor.pathSegment}
-        postComposerMediaStorage={createMemoryMediaSubmissionStorage()}
         resolveOwnerSettingsAccess={resolveOwnerSettingsAccess}
       />
     ));
@@ -581,7 +575,6 @@ describe("an account check that fails", () => {
           handleSalesClient={handleSalesClient}
           loadThreads={loadThreads}
           pathSegment={harbor.pathSegment}
-          postComposerMediaStorage={createMemoryMediaSubmissionStorage()}
           resolveOwnerSettingsAccess={async () => !failing}
           resolveSession={async (): Promise<SessionResolution> =>
             failing ? "anonymous" : sessionFor("account-a", harbor.communityId)}
@@ -601,7 +594,7 @@ describe("an account check that fails", () => {
     await vi.waitFor(() => expect(joinLabelButton(container)?.textContent?.trim()).toBe("Join"));
     expect(hasButton(container, "Post")).toBe(false);
     await vi.waitFor(() => expect(manageAuthority(container)).not.toBe("available"));
-    expect(container.querySelector("[data-operation-persona]")).toBeNull();
+    expect(container.querySelector("[data-active-persona]")).toBeNull();
     expect(container.textContent).not.toContain(personaName("account-a", harbor.communityId));
     expect(container.textContent).toContain("Retry account check");
 

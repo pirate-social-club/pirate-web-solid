@@ -35,15 +35,15 @@ export interface ComposerCopy {
   };
   derivative: {
     acceptSourceTerms: string;
+    chooseSource: string;
     licenseNewRemixTerms: string;
-    searchSourceTracks: string;
+    noMatches: string;
+    searchSongs: string;
   };
   empty: {
     noOptionalQualifiers: string;
     noQualifiers: string;
-    noReferences: string;
     noSongs: string;
-    noSourceTracks: string;
   };
   fields: Record<string, string>;
   identitySheet: {
@@ -80,17 +80,34 @@ export interface ComposerCopy {
   requiredFieldsLegend: string;
   review: {
     change: string;
+    earnings: string;
     lyrics: string;
+    permissions: string;
     rights: string;
     song: string;
+    sources: string;
+    you: string;
   };
   rights: {
+    addCollaborator: string;
+    addProfile: string;
+    earningsTitle: string;
+    everyProfileHasShare: string;
+    fullTerms: string;
+    includeCreator: string;
     license: string;
-    recipientsNote: string;
+    missingRecipient: string;
+    noMatchingProfiles: string;
+    overRemaining: string;
+    permissionsTitle: string;
+    positiveShares: string;
     revShare: string;
-    soleRecipient: string;
+    searchProfiles: string;
+    share: string;
     songKind: string;
     totalExact: string;
+    uniqueRecipients: string;
+    yourShare: string;
   };
   sections: Record<string, string>;
   setlist: {
@@ -135,12 +152,15 @@ export const defaultComposerCopy: ComposerCopy = {
   },
   assetLicense: {
     song: {
-      "non-commercial": "Non-commercial remixing",
-      "non-commercialDescription": "Others can publish non-commercial remixes with attribution; commercial releases are prohibited.",
-      "commercial-use": "Commercial use",
-      "commercial-useDescription": "Others can monetize with the original song with attribution; remixes are prohibited.",
-      "commercial-remix": "Commercial remix",
-      "commercial-remixDescription": "Others can monetize and publish remixes with attribution.",
+      "non-commercial": "Remix, not for profit",
+      "non-commercialDescription": "Anyone can remix it with credit, but not sell it.",
+      "commercial-use": "Use as is, including for profit",
+      "commercial-useDescription": "Anyone can use it in paid work with credit. No remixes.",
+      "commercial-remix": "Remix and sell",
+      "commercial-remixDescription": "Anyone can remix and sell it with credit. You get a share of their earnings.",
+      "non-commercialTerms": "Others can publish non-commercial remixes with attribution; commercial releases are prohibited.",
+      "commercial-useTerms": "Others can monetize the original song with attribution; remixes are prohibited.",
+      "commercial-remixTerms": "Others can monetize and publish remixes with attribution. You keep a share of their earnings.",
       revenueShare: "Revenue share",
     },
     video: {
@@ -163,22 +183,24 @@ export const defaultComposerCopy: ComposerCopy = {
   },
   derivative: {
     acceptSourceTerms: "I accept these remix terms.",
+    chooseSource: "Choose the song you remixed.",
     licenseNewRemixTerms: "New remix terms",
-    searchSourceTracks: "Search remix-eligible source songs",
+    noMatches: "No matching songs.",
+    searchSongs: "Search songs",
   },
   empty: {
     noOptionalQualifiers: "No optional qualifiers are available for this community.",
     noQualifiers: "No qualifiers found.",
-    noReferences: "No remix sources attached yet.",
     noSongs: "No songs found.",
-    noSourceTracks: "No remix-eligible source songs yet. Songs appear here after Story registration completes.",
   },
   fields: {
+    addLyrics: "Add lyrics (optional)",
     canvasVideo: "Canvas video (9:16)",
     coverArt: "Cover art",
     coverFrame: "Cover frame",
     genre: "Genre",
     geniusAnnotations: "Genius annotations",
+    hideLyrics: "Hide lyrics",
     instrumentalStem: "Instrumental stem",
     lyrics: "Lyrics",
     price: "Price",
@@ -272,7 +294,7 @@ export const defaultComposerCopy: ComposerCopy = {
     selectLanguage: "Select language",
     songSearch: "Search your uploaded songs",
     songTitle: "Song title",
-    sourceTrackSearch: "Search remix-eligible source songs",
+    sourceTrackSearch: "Search songs",
     title: "Title",
     unlockPrice: "0",
     previewStartSeconds: "0",
@@ -281,17 +303,34 @@ export const defaultComposerCopy: ComposerCopy = {
   requiredFieldsLegend: "Required fields are marked with *",
   review: {
     change: "Change",
+    earnings: "Earnings split",
     lyrics: "Lyrics",
+    permissions: "Permissions",
     rights: "Rights",
     song: "Song",
+    sources: "Remix source",
+    you: "You",
   },
   rights: {
+    addCollaborator: "Add collaborator",
+    addProfile: "Add",
+    earningsTitle: "Earnings split",
+    everyProfileHasShare: "Every profile in this community already has a share.",
+    fullTerms: "Full terms",
+    includeCreator: "The split must include you.",
     license: "License",
-    recipientsNote: "Recipient identities only. Wallets are resolved by the server.",
-    soleRecipient: "You keep all of it.",
-    revShare: "Downstream commercial remix share",
-    songKind: "Song kind",
-    totalExact: "Allocations must total exactly 100%.",
+    missingRecipient: "Every recipient needs a profile.",
+    noMatchingProfiles: "No matching profiles.",
+    overRemaining: "That share leaves less than 0% for you.",
+    permissionsTitle: "What others may do with this song",
+    positiveShares: "Each share must be more than 0%.",
+    revShare: "Your share of remix earnings",
+    searchProfiles: "Search profiles",
+    share: "Share",
+    songKind: "Is this your own song?",
+    totalExact: "Shares must add up to 100%.",
+    uniqueRecipients: "Each collaborator can appear only once.",
+    yourShare: "Your share",
   },
   sections: {
     postAs: "Post as",
@@ -304,8 +343,8 @@ export const defaultComposerCopy: ComposerCopy = {
     searchSongs: "Search songs for setlist item",
   },
   songModes: {
-    original: "Original",
-    remix: "Remix",
+    original: "My original",
+    remix: "A remix of another song",
   },
   steps: {
     lyrics: "Lyrics",

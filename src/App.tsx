@@ -5,6 +5,7 @@ import { getRequestEvent, type JSX } from "@solidjs/web";
 import { pageRoutes } from "virtual:file-routes";
 import { resolveSession, onSessionRefreshed, refreshSession } from "./api/session.ts";
 import { GlobalSignInHost } from "./features/auth/global-sign-in-host.tsx";
+import { ActivePersonaProvider } from "./features/identity/active-persona-store.tsx";
 import { buildPublicProfilePath } from "./features/profiles/public-profile-page/public-profile-page.model.ts";
 import { resolveApplicationChrome } from "./features/shell/application-chrome-model.ts";
 import {
@@ -76,25 +77,27 @@ function ApplicationRoot(props: { readonly children: JSX.Element }) {
   onCleanup(() => { active = false; });
 
   return (
-    <ApplicationSessionProvider state={session}>
-      <ApplicationChrome
-        activeItemId={policy().activeItemId}
-        mobileActiveItem={policy().mobileActiveItem}
-        mobileTitle={policy().mobileTitle}
-        mode={policy().mode}
-        navigate={(href) => navigate(href)}
-        signedIn={session() !== "resolving" && session() !== "anonymous" && session() !== "failed"}
-        sessionUnavailable={session() === "failed"}
-        sessionResolving={session() === "resolving"}
-        sessionPending={accountPending()}
-        onSessionRetry={retryAccount}
-        profileHref={profileHref()}
-      >
-        <Errored fallback={(_, reset) => <RootErrorState onHome={() => { reset(); navigate("/"); }} />}>
-          {props.children}
-        </Errored>
-      </ApplicationChrome>
-    </ApplicationSessionProvider>
+    <ActivePersonaProvider>
+      <ApplicationSessionProvider state={session}>
+        <ApplicationChrome
+          activeItemId={policy().activeItemId}
+          mobileActiveItem={policy().mobileActiveItem}
+          mobileTitle={policy().mobileTitle}
+          mode={policy().mode}
+          navigate={(href) => navigate(href)}
+          signedIn={session() !== "resolving" && session() !== "anonymous" && session() !== "failed"}
+          sessionUnavailable={session() === "failed"}
+          sessionResolving={session() === "resolving"}
+          sessionPending={accountPending()}
+          onSessionRetry={retryAccount}
+          profileHref={profileHref()}
+        >
+          <Errored fallback={(_, reset) => <RootErrorState onHome={() => { reset(); navigate("/"); }} />}>
+            {props.children}
+          </Errored>
+        </ApplicationChrome>
+      </ApplicationSessionProvider>
+    </ActivePersonaProvider>
   );
 }
 

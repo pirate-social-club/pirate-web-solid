@@ -8,15 +8,9 @@ import type { PostCommunitiesCommunityIdMediaUploadReservationsResponse } from "
 
 import type { ActivePersonaPublicProjection } from "../../../api/session";
 import type { MediaSubmissionSnapshot } from "../media-submission/contracts";
-import {
-  createMemoryMediaSubmissionStorage,
-  MEDIA_PENDING_VERSION,
-  mediaCommandBody,
-  type PersistedMediaCommand,
-} from "../media-submission/pending";
+import { mediaCommandBody, type PersistedMediaCommand } from "../media-submission/pending";
 import type { MediaCommandResult, MediaSubmissionTransport } from "../media-submission/transport";
-import { CreatePostDialog, PRODUCTION_SONG_DRAFT_ID } from "./create-post-dialog";
-import { createMemoryPendingSubmissionStorage } from "./pending-submission";
+import { CreatePostDialog } from "./create-post-dialog";
 
 const personas = (count: 1 | 2 = 1): ActivePersonaPublicProjection[] => [
   { personaId: "persona-one", displayName: "Persona One", avatarRef: null, primaryPublicHandle: "salt-cove.pirate", communityBinding: null },
@@ -57,16 +51,25 @@ function snapshot(patch: Partial<MediaSubmissionSnapshot> = {}): MediaSubmission
   return base as MediaSubmissionSnapshot;
 }
 
+type StoryOutcome = "published" | "manual_review" | "blocked" | "processing_failed";
+
+function outcomeSnapshot(outcome: StoryOutcome, current: MediaSubmissionSnapshot): MediaSubmissionSnapshot {
+  if (outcome === "published") return snapshot({ ...current, status: "published", published_resource: { post_id: "post-story", href: "/posts/post-story" } });
+  if (outcome === "manual_review") return snapshot({ ...current, status: "manual_review", reason_code: "review_required", review_ref: "review-story" });
+  if (outcome === "blocked") return snapshot({ ...current, status: "blocked", reason_code: "policy_violation" });
+  return snapshot({ ...current, status: "processing_failed", reason_code: "transform_failed", retry_count: 1, retryable: true });
+}
+
 /** In-memory song transport: one reserve/start/upload/finalize pipeline that
- * accepts lyrics and terms and lands the song as published. */
+ * accepts lyrics and terms and settles on the requested outcome. */
 class StoryMediaTransport implements MediaSubmissionTransport {
   snapshot: MediaSubmissionSnapshot | null = null;
   readonly commands: PersistedMediaCommand[] = [];
   uploadCount = 0;
-  readonly publishOnTerms: boolean;
+  readonly outcome: StoryOutcome;
 
-  constructor(publishOnTerms = true) {
-    this.publishOnTerms = publishOnTerms;
+  constructor(outcome: StoryOutcome = "published") {
+    this.outcome = outcome;
   }
 
   async dispatch(command: PersistedMediaCommand): Promise<MediaCommandResult> {
@@ -78,13 +81,12 @@ class StoryMediaTransport implements MediaSubmissionTransport {
     }
     if (this.snapshot === null) throw new Error("missing story submission");
     if (command.kind === "terms") {
-      this.snapshot = this.publishOnTerms
-        ? snapshot({ ...this.snapshot, status: "published", published_resource: { post_id: "post-story", href: "/posts/post-story" } })
-        : snapshot({ ...this.snapshot, creation_revision: this.snapshot.creation_revision + 1 });
+      this.snapshot = outcomeSnapshot(this.outcome, this.snapshot);
       return this.snapshot;
     }
     if (command.kind === "finalize") {
       this.snapshot = snapshot({ creation_revision: this.snapshot.creation_revision, audio_revision: 1, phase: "analysis" });
+      if (this.outcome !== "published") this.snapshot = outcomeSnapshot(this.outcome, this.snapshot);
       return this.snapshot;
     }
     if (command.kind === "lyrics") {
@@ -117,23 +119,18 @@ const storyMp3 = (name = "midnight-waves.mp3") =>
   new File([new Uint8Array([0x49, 0x44, 0x33, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00])], name, { type: "audio/mpeg" });
 
 interface StoryOptions {
-  readonly communityContext?: boolean;
   readonly personaCount?: 1 | 2;
   readonly personaId?: string;
   readonly mediaTransport?: MediaSubmissionTransport;
-  readonly publishOnTerms?: boolean;
 }
 
 function dialogHarness(options: StoryOptions = {}) {
-  const mediaStorage = createMemoryMediaSubmissionStorage();
-  const mediaTransport = options.mediaTransport ?? new StoryMediaTransport(options.publishOnTerms ?? true);
+  const mediaTransport = options.mediaTransport ?? new StoryMediaTransport();
   return {
-    mediaStorage,
     mediaTransport,
     render: (open = true) => (
       <CreatePostDialog
-        communityContext={options.communityContext === false ? undefined : { id: "community-one", name: "Pirate Harbor" }}
-        mediaStorage={mediaStorage}
+        communityContext={{ id: "community-one", name: "Pirate Harbor" }}
         mediaTransport={mediaTransport}
         onOpenChange={() => {}}
         onPublished={() => {}}
@@ -141,36 +138,9 @@ function dialogHarness(options: StoryOptions = {}) {
         personaId={options.personaId}
         personas={personas(options.personaCount ?? 1)}
         principalId="account-one"
-        storage={createMemoryPendingSubmissionStorage()}
       />
     ),
   };
-}
-
-/** Seed a retained song record so the restore path lands mid-wizard. */
-async function seedRetainedSong(
-  mediaStorage: ReturnType<typeof createMemoryMediaSubmissionStorage>,
-  retained: { snapshot: MediaSubmissionSnapshot; songTitle?: string },
-) {
-  const audio = storyMp3("retained-song.mp3");
-  await mediaStorage.save({
-    version: MEDIA_PENDING_VERSION,
-    draft_id: PRODUCTION_SONG_DRAFT_ID,
-    principal_id: "account-one",
-    community_id: "community-one",
-    persona_id: "persona-one",
-    song_draft: { title: retained.songTitle ?? "Retained song", song_type: "original", author_declared_rating: "general" },
-    audio: { blob: audio, name: audio.name, type: audio.type, size: audio.size, last_modified: audio.lastModified },
-    reservation,
-    submission_id: retained.snapshot.submission_id,
-    expected_creation_revision: retained.snapshot.creation_revision,
-    upload_status: "uploaded",
-    snapshot: retained.snapshot,
-    commands: [],
-    pending_command: null,
-    created_at: "2026-09-01T00:00:00Z",
-    updated_at: "2026-09-01T00:00:00Z",
-  });
 }
 
 const meta = {
@@ -185,7 +155,7 @@ const meta = {
     docs: {
       description: {
         component:
-          "The shipped posting form: the same surface the community page opens through Post here. It adds no dialog chrome, persona choice, or audience policy; the app supplies that context. Deterministic in-memory storages and transports stand in for the network.",
+          "The shipped posting form: the same surface the community page opens through Post here. It adds no dialog chrome, profile choice, or audience policy; the app supplies that context. Deterministic in-memory transports stand in for the network.",
       },
     },
   },
@@ -207,8 +177,7 @@ export const ContextualTextDismissible: Story = {
   name: "Contextual / Text / Dismissible",
   render: () => {
     const [open, setOpen] = createSignal(true);
-    const mediaStorage = createMemoryMediaSubmissionStorage();
-    const mediaTransport = new StoryMediaTransport(true);
+    const mediaTransport = new StoryMediaTransport();
     return (
       <>
         <Show when={!open()}>
@@ -216,14 +185,12 @@ export const ContextualTextDismissible: Story = {
         </Show>
         <CreatePostDialog
           communityContext={{ id: "community-one", name: "Pirate Harbor" }}
-          mediaStorage={mediaStorage}
           mediaTransport={mediaTransport}
           onOpenChange={setOpen}
           onPublished={() => {}}
           open={open()}
           personas={personas(1)}
           principalId="account-one"
-          storage={createMemoryPendingSubmissionStorage()}
         />
       </>
     );
@@ -246,7 +213,7 @@ export const ContextualTextMultiplePersonas: Story = {
   },
 };
 
-export const SongStep1Song: Story = {
+export const SongStepSong: Story = {
   name: "Song / Step 1 — Song",
   render: () => dialogHarness().render(),
   play: async ({ canvasElement }) => {
@@ -256,89 +223,81 @@ export const SongStep1Song: Story = {
   },
 };
 
-export const SongStep1SongMobile: Story = {
-  ...SongStep1Song,
+export const SongStepSongMobile: Story = {
+  ...SongStepSong,
   name: "Song / Step 1 — Song / Mobile",
   globals: { viewport: { value: "mobile1", isRotated: false } },
 };
 
-export const SongStepTwoLyrics: Story = {
-  name: "Song / Step 2 — Lyrics",
-  render: () => {
-    const harness = dialogHarness();
-    void seedRetainedSong(harness.mediaStorage, { snapshot: snapshot({ audio_revision: 1, phase: "analysis" }) });
-    return harness.render();
+export const SongLyricsOnSongStep: Story = {
+  name: "Song / Lyrics on the Song step",
+  render: () => dialogHarness().render(),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement.ownerDocument.body);
+    await userEvent.upload(canvas.getByLabelText("Upload audio"), storyMp3());
+    await userEvent.click(canvas.getByRole("button", { name: "Add lyrics (optional)" }));
+    await userEvent.type(canvas.getByLabelText("Lyrics"), "A line carried on the tide");
+    await expect(canvas.getByLabelText("Lyrics")).toHaveValue("A line carried on the tide");
   },
 };
 
-export const SongStepThreeRights: Story = {
-  name: "Song / Step 3 — Rights",
-  render: () => {
-    const harness = dialogHarness();
-    void seedRetainedSong(harness.mediaStorage, { snapshot: snapshot({ audio_revision: 1, phase: "analysis" }) });
-    return harness.render();
-  },
+export const SongStepRights: Story = {
+  name: "Song / Step 2 — Rights",
+  render: () => dialogHarness().render(),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement.ownerDocument.body);
+    await userEvent.upload(canvas.getByLabelText("Upload audio"), storyMp3());
     await userEvent.click(await canvas.findByRole("button", { name: "Continue" }));
-    await expect(canvas.getByText("Song kind")).toBeInTheDocument();
+    await expect(canvas.getByText("What others may do with this song")).toBeInTheDocument();
+    await expect(canvas.getByText("Earnings split")).toBeInTheDocument();
+    await expect(canvas.getByText("Your share — 100%")).toBeInTheDocument();
   },
 };
 
-export const SongStepFourReview: Story = {
-  name: "Song / Step 4 — Review",
-  render: () => {
-    const harness = dialogHarness();
-    void seedRetainedSong(harness.mediaStorage, { snapshot: snapshot({ audio_revision: 1, phase: "analysis" }) });
-    return harness.render();
-  },
+export const SongStepReview: Story = {
+  name: "Song / Step 3 — Review",
+  render: () => dialogHarness().render(),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement.ownerDocument.body);
+    await userEvent.upload(canvas.getByLabelText("Upload audio"), storyMp3());
     await userEvent.click(await canvas.findByRole("button", { name: "Continue" }));
-    const review = canvas.getAllByRole("button", { name: "Review" })
-      .find(button => button.closest("nav") === null);
-    if (review === undefined) throw new Error("Rights footer did not render its Review action");
-    await userEvent.click(review);
-    await expect(canvas.getByText(/Non-commercial remixing/)).toBeInTheDocument();
+    await userEvent.click(await canvas.findByRole("button", { name: "Continue" }));
+    await expect(canvas.getByText("Permissions")).toBeInTheDocument();
+    await expect(canvas.getByText("Earnings split")).toBeInTheDocument();
+    await expect(canvas.getByText("You 100%")).toBeInTheDocument();
   },
 };
 
 export const SongManualReview: Story = {
   name: "Song / States / Manual review",
-  render: () => {
-    const harness = dialogHarness();
-    void seedRetainedSong(harness.mediaStorage, { snapshot: snapshot({ audio_revision: 1, status: "manual_review" }) });
-    return harness.render();
+  render: () => dialogHarness({ mediaTransport: new StoryMediaTransport("manual_review") }).render(),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement.ownerDocument.body);
+    await userEvent.upload(canvas.getByLabelText("Upload audio"), storyMp3());
+    await userEvent.click(await canvas.findByRole("button", { name: "Continue" }));
+    await expect(await canvas.findByText("This song is awaiting manual review.")).toBeInTheDocument();
   },
 };
 
 export const SongBlocked: Story = {
   name: "Song / States / Blocked",
-  render: () => {
-    const harness = dialogHarness();
-    void seedRetainedSong(harness.mediaStorage, { snapshot: snapshot({ audio_revision: 1, status: "blocked" }) });
-    return harness.render();
+  render: () => dialogHarness({ mediaTransport: new StoryMediaTransport("blocked") }).render(),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement.ownerDocument.body);
+    await userEvent.upload(canvas.getByLabelText("Upload audio"), storyMp3());
+    await userEvent.click(await canvas.findByRole("button", { name: "Continue" }));
+    await expect(await canvas.findByText("This song was blocked by policy.")).toBeInTheDocument();
   },
 };
 
 export const SongRetryableFailure: Story = {
   name: "Song / States / Retryable failure",
-  render: () => {
-    const harness = dialogHarness();
-    void seedRetainedSong(harness.mediaStorage, {
-      snapshot: snapshot({ audio_revision: 1, status: "processing_failed", reason_code: "transform_failed", retryable: true }),
-    });
-    return harness.render();
-  },
-};
-
-export const SongPublished: Story = {
-  name: "Song / States / Published",
-  render: () => {
-    const harness = dialogHarness();
-    void seedRetainedSong(harness.mediaStorage, {
-      snapshot: snapshot({ audio_revision: 1, status: "published", published_resource: { post_id: "post-story", href: "/posts/post-story" } }),
-    });
-    return harness.render();
+  render: () => dialogHarness({ mediaTransport: new StoryMediaTransport("processing_failed") }).render(),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement.ownerDocument.body);
+    await userEvent.upload(canvas.getByLabelText("Upload audio"), storyMp3());
+    await userEvent.click(await canvas.findByRole("button", { name: "Continue" }));
+    await expect(await canvas.findByText(/Song processing failed/)).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: "Retry processing" })).toBeInTheDocument();
   },
 };

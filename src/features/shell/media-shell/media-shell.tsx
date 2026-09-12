@@ -14,6 +14,8 @@ import {
   prepareGlobalSignIn,
   requestGlobalSignIn,
 } from "../../auth/global-sign-in-host.tsx";
+import { useActivePersonaStoreOptional } from "../../identity/active-persona-store.tsx";
+import { PersonaSwitcherSheet } from "../../identity/persona-switcher-sheet/persona-switcher-sheet.tsx";
 import type { ApplicationChromeMode, ApplicationChromeRoute } from "../application-chrome-model.ts";
 import { AppHeader, MobileFooterNav } from "../app-shell-chrome/app-shell-chrome";
 import { AppSidebar, SidebarContent, type SidebarItem, type SidebarSection } from "../app-sidebar/app-sidebar";
@@ -85,6 +87,16 @@ export function ApplicationChrome(props: MediaShellProps) {
   const goHome = () => navigateById("home");
   const profileTarget = () => props.profileHref;
   const anonymousSettled = () => !props.sessionResolving && !props.sessionUnavailable && !signedIn();
+  const personaStore = useActivePersonaStoreOptional();
+  const switchTarget = () => personaStore?.target();
+  const switchable = () => (switchTarget()?.personas.length ?? 0) > 1;
+  const selectedSwitchPersonaId = () => {
+    const target = switchTarget();
+    return target === undefined ? "" : personaStore?.activePersonaId(target.communityId) ?? "";
+  };
+  const openPersonaSwitcher = () => {
+    if (switchable()) personaStore?.openSwitcher();
+  };
   const openProfile = () => {
     if (!signedIn()) {
       if (anonymousSettled()) requestGlobalSignIn();
@@ -157,7 +169,23 @@ export function ApplicationChrome(props: MediaShellProps) {
           onCommunitiesClick={() => navigateById("your-communities")}
           onHomeClick={goHome}
           onProfileClick={openProfile}
+          onProfileDoubleTap={signedIn() && switchable() ? openPersonaSwitcher : undefined}
         />
+        <Show when={personaStore === undefined ? undefined : switchTarget()}>
+          {(target) => (
+            <PersonaSwitcherSheet
+              onOpenChange={(open) => { if (!open) personaStore!.closeSwitcher(); }}
+              onSelect={(personaId) => {
+                personaStore!.selectPersona(target().communityId, personaId);
+                personaStore!.closeSwitcher();
+              }}
+              open={personaStore!.open()}
+              personas={target().personas}
+              selectedPersonaId={selectedSwitchPersonaId()}
+              title={target().title ?? "Switch profile"}
+            />
+          )}
+        </Show>
       </SidebarContent>
     </div>
   </div></Show>;
