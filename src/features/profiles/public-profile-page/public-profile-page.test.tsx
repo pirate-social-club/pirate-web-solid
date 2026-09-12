@@ -200,9 +200,13 @@ describe("PublicProfilePage", () => {
       return <PublicProfileRoute {...props} />;
     }
     const history = memoryHistory("/u/captain-one.pirate");
+    // SAFETY: the router supplies this route's params and preloaded data at
+    // runtime; the cast only widens the section-component prop type so this
+    // test harness can mount the real route component.
+    const SectionComponent = RouteWithNavigation as Component<{}>;
     const TestRouter = createRouter({
       history,
-      routes: [{ ...publicProfileRoute, path: "/u/:handle", component: RouteWithNavigation as Component<{}> }],
+      routes: [{ ...publicProfileRoute, path: "/u/:handle", component: SectionComponent }],
     });
     const container = render(() => <TestRouter>{routerProps => routerProps.children}</TestRouter>);
 
