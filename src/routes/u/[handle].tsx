@@ -67,20 +67,23 @@ export default function PublicProfileRoute(props: RouteProps<typeof route>) {
   // Route navigation is available in the real file-route context. The page's
   // direct-render tests omit it and retain a small history fallback.
   const navigate: Navigator = useNavigate();
-  let resolvedFor: string | undefined;
+  let preloadHandle: string | undefined;
+  let preloadUsable = true;
   const data = createMemo(() => {
     const current = props.params.handle;
     // solid-router 2 keys route contexts by route definition, so a param-only
     // navigation does not recreate this context and its preload never runs
-    // again. Reuse the preloaded result on first render and for an unchanged
-    // handle, and re-resolve a changed handle through the same handle-keyed
-    // query.
-    if (resolvedFor !== undefined && resolvedFor !== current) {
-      resolvedFor = current;
-      return queryPublicProfile(current);
+    // again. The router's query is the source of truth for later handles: its
+    // reactive cache signal re-enters this memo on invalidation, and the
+    // preloaded result may only stand in for the handle it was resolved for.
+    // Once the handle moves, the preload is retired permanently so a later
+    // query invalidation can never restore it.
+    if (preloadHandle === undefined) preloadHandle = current;
+    if (preloadUsable && current === preloadHandle) {
+      return props.data ?? queryPublicProfile(current);
     }
-    resolvedFor = current;
-    return props.data ?? queryPublicProfile(current);
+    preloadUsable = false;
+    return queryPublicProfile(current);
   });
   return <PublicProfilePage handle={props.params.handle} data={data()} navigate={navigate} />;
 }
