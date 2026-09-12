@@ -316,7 +316,7 @@ export const defaultComposerCopy: ComposerCopy = {
   rights: {
     addCollaborator: "Add collaborator",
     addProfile: "Add",
-    collaboratorScope: "Only profiles in this community can be added for now.",
+    collaboratorScope: "Only your profiles bound to this community can be added for now.",
     earningsTitle: "Earnings split",
     everyProfileHasShare: "No profiles left to add in this community.",
     fullTerms: "Full terms",

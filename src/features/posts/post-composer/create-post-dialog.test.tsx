@@ -364,6 +364,67 @@ describe("create post request", () => {
     expect(dispatched).toHaveLength(1);
   });
 
+  test("refuses to close while a song command is unresolved", async () => {
+    class AmbiguousTermsTransport extends ProductionMediaTransport {
+      override async dispatch(command: PersistedMediaCommand): Promise<MediaCommandResult> {
+        if (command.kind === "terms") throw new Error("network uncertain");
+        return super.dispatch(command);
+      }
+    }
+    render(() => <CreatePostDialog
+      communityContext={{ id: "community-one", name: "Harbor" }}
+      mediaTransport={new AmbiguousTermsTransport()}
+      onOpenChange={() => {}}
+      open
+      personas={[activePersona("persona-one", "Persona One")]}
+      principalId="account-one"
+    />);
+    await new Promise<void>(resolve => setTimeout(resolve, 0));
+    await uploadAudio("unresolved.mp3");
+    await continueToReview();
+    button("Publish song").click();
+    await vi.waitFor(() => expect(document.body.textContent).toContain("network uncertain"));
+
+    document.body.querySelector<HTMLButtonElement>("button[aria-label='Close composer']")!.click();
+    await vi.waitFor(() => expect(document.body.textContent).toContain("still has an unresolved command"));
+    expect(document.body.querySelector("form[aria-label='Create a post']")).not.toBeNull();
+  });
+
+  test("allows closing after a known manual-review outcome", async () => {
+    class ManualReviewTransport extends ProductionMediaTransport {
+      override async dispatch(command: PersistedMediaCommand): Promise<MediaCommandResult> {
+        const result = await super.dispatch(command);
+        if (command.kind === "terms" && this.snapshot !== null) {
+          this.snapshot = mediaSnapshot({
+            ...this.snapshot,
+            status: "manual_review",
+            reason_code: "review_required",
+            review_ref: "review-one",
+          });
+          return this.snapshot;
+        }
+        return result;
+      }
+    }
+    const [open, setOpen] = createSignal(true);
+    render(() => <CreatePostDialog
+      communityContext={{ id: "community-one", name: "Harbor" }}
+      mediaTransport={new ManualReviewTransport()}
+      onOpenChange={setOpen}
+      open={open()}
+      personas={[activePersona("persona-one", "Persona One")]}
+      principalId="account-one"
+    />);
+    await new Promise<void>(resolve => setTimeout(resolve, 0));
+    await uploadAudio("moderated.mp3");
+    await continueToReview();
+    button("Publish song").click();
+    await vi.waitFor(() => expect(document.body.textContent).toContain("This song is awaiting manual review."));
+
+    document.body.querySelector<HTMLButtonElement>("button[aria-label='Close composer']")!.click();
+    await vi.waitFor(() => expect(document.body.querySelector("form[aria-label='Create a post']")).toBeNull());
+  });
+
   test("restores an edited share that exceeds the remainder and keeps the creator minimum", async () => {
     const mediaTransport = new ProductionMediaTransport();
     render(() => <CreatePostDialog
@@ -380,7 +441,7 @@ describe("create post request", () => {
     await vi.waitFor(() => expect(document.body.textContent).toContain("What others may do with this song"));
     button("Add collaborator").click();
     await vi.waitFor(() => expect(document.querySelector('[role="dialog"]')).not.toBeNull());
-    await vi.waitFor(() => expect(document.body.textContent).toContain("Only profiles in this community can be added for now."));
+    await vi.waitFor(() => expect(document.body.textContent).toContain("Only your profiles bound to this community can be added for now."));
     const collaborator = [...document.querySelectorAll<HTMLButtonElement>("[role='dialog'] button")]
       .find(candidate => candidate.textContent?.includes("Persona Two"))!;
     collaborator.click();

@@ -299,9 +299,12 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
         setError("Checking whether your post was accepted. Resolve it before closing.");
         return;
       }
+      // Only an outstanding request keeps the composer open. A processing or
+      // manual-review state is a known server response the author cannot act
+      // on, so it must not trap them here.
       const view = mediaView();
-      if (mediaBusy() || view.status === "uploading" || view.status === "processing" || view.status === "manual_review") {
-        setError("This song is still being submitted. Finish it before closing.");
+      if (mediaBusy() || view.status === "uploading" || view.status === "reconciling") {
+        setError("This song submission still has an unresolved command. Resolve it before closing.");
         return;
       }
     }

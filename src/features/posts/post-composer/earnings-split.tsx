@@ -181,8 +181,9 @@ function CollaboratorPicker(props: {
             placeholder={props.copy.rights.searchProfiles}
             value={query()}
           />
-          {/* The search is scoped to this community until a profile-search
-              contract exists; say so instead of implying a global lookup. */}
+          {/* The search covers the account's profiles bound to this community
+              until a public profile-search contract exists; say so rather
+              than implying a lookup across other members. */}
           <div class="pt-2">
             <FormNote>{props.copy.rights.collaboratorScope}</FormNote>
           </div>
