@@ -136,3 +136,27 @@ test("delivers an in-flight grant to the replacement player", async () => {
   await vi.waitFor(() => expect(document.querySelector("audio")?.src).toBe("https://audio.example.test/inflight"));
   expect(read).toHaveBeenCalledTimes(1);
 });
+test("a retry with a valid cached grant resumes instead of pausing", async () => {
+  const pause = vi.spyOn(HTMLMediaElement.prototype, "pause").mockImplementation(() => {});
+  vi.spyOn(HTMLMediaElement.prototype, "load").mockImplementation(() => {});
+  const play = vi.spyOn(HTMLMediaElement.prototype, "play").mockResolvedValue();
+  const read = vi.fn(async () => ({
+    kind: "full_mix" as const,
+    playback_url: "https://audio.example.test/retry",
+    expires_at: 1900,
+    renew_after: 1840,
+  }));
+  mount(read, undefined, "song-retry-grant");
+  button("Play Original song").click();
+  await vi.waitFor(() => expect(document.querySelector("audio")).not.toBeNull());
+  const audio = document.querySelector("audio")!;
+  pause.mockClear();
+  audio.dispatchEvent(new Event("error"));
+  await vi.waitFor(() => expect(document.body.textContent).toContain("Audio could not be loaded."));
+  button("Retry playback").click();
+  await new Promise<void>(resolve => setTimeout(resolve, 0));
+  audio.dispatchEvent(new Event("loadedmetadata"));
+  await vi.waitFor(() => expect(play).toHaveBeenCalledTimes(1));
+  expect(pause).not.toHaveBeenCalled();
+  expect(read).toHaveBeenCalledTimes(1);
+});

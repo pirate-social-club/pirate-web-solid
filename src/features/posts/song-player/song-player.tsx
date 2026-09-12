@@ -90,15 +90,25 @@ export function SongPlayer(props: SongPlayerProps) {
     if (busy() || disposed) return;
     clearTimer();
     setIssue(undefined);
-    resumeAt = audio?.currentTime ?? 0;
-    shouldResume = start;
-    audio?.pause();
     const cached = cachedPlaybackGrant(props.postId, now());
     if (cached !== undefined) {
-      setGrant(cached);
+      // A still-valid grant must not pause playback on a retry. Reuse the
+      // element, or let the freshly rendered one resume on metadata.
+      resumeAt = audio?.currentTime ?? 0;
+      shouldResume = start;
+      if (grant() !== cached) setGrant(cached);
+      if (start && audio !== undefined && audio.readyState > 0) {
+        shouldResume = false;
+        void audio.play().catch(() => {
+          if (!disposed) setIssue("Press play to start the song.");
+        });
+      }
       return;
     }
     setBusy(true);
+    resumeAt = audio?.currentTime ?? 0;
+    shouldResume = start;
+    audio?.pause();
     try {
       const response = await (props.readAccess ?? readSongPlaybackAccess)(props.postId);
       const next: PlayerGrant = {
