@@ -66,53 +66,123 @@ function navigateTo(href: string, navigate?: (href: string) => void): void {
   else globalThis.location?.assign(href);
 }
 
+/**
+ * One continuation control for the branches that do not own an end observer.
+ * Rendering nothing at a null cursor is the terminal state: the four-page
+ * scan may end with later pages still reachable, so a retained cursor must
+ * stay actionable instead of silently hiding them.
+ */
+function FeedContinuation(props: {
+  readonly cursor: string | null;
+  readonly loading: boolean;
+  readonly onLoadMore: () => void;
+}) {
+  return (
+    <Show when={props.cursor !== null}>
+      <button
+        type="button"
+        data-video-feed-continuation
+        disabled={props.loading}
+        onClick={props.onLoadMore}
+        class="rounded-[var(--radius-lg)] border border-white/30 px-4 py-2 text-sm text-white disabled:opacity-60"
+      >
+        {props.loading ? "Loading videos…" : "Load more videos"}
+      </button>
+    </Show>
+  );
+}
+
 export function HomeVideoFeed(props: HomeVideoFeedProps) {
-  const locale = untrack(() => props.locale ?? "en");
-  const sort = untrack(() => props.sort ?? "best");
   const [state, setState] = createSignal<LoadState>({ kind: "loading" });
   const [posts, setPosts] = createSignal<readonly HomeVideoPost[]>([]);
   const [nextCursor, setNextCursor] = createSignal<string | null>(null);
   const [loadingMore, setLoadingMore] = createSignal(false);
   const [unplayableCount, setUnplayableCount] = createSignal(0);
   const [delivery, setDelivery] = createSignal<readonly { postId: string; state: VideoDeliveryState; caption: string | null; href: string }[]>([]);
+  const [paginationIssue, setPaginationIssue] = createSignal<"error" | "stalled" | null>(null);
   let active = true;
+  let requestIdentity = 0;
+  let paginationGeneration = 0;
+  let loadingMoreInFlight = false;
   onCleanup(() => { active = false; });
 
+  // `data`, `locale` and `sort` are a reactive request identity. A retained
+  // feed instance reloads when any of them changes; the reload is queued
+  // because Solid 2 rejects synchronous signal writes from an owned effect
+  // scope. Pagination resets for the new identity, and a response still in
+  // flight for a superseded identity is discarded rather than appended.
+  const reload = (input: {
+    readonly initial: FeedPage | PromiseLike<FeedPage> | undefined;
+    readonly locale: UiLocaleCode;
+    readonly sort: FeedSort;
+  }) => {
+    if (!active) return;
+    const loadPage = untrack(() => props.loadPage);
+    const identity = ++requestIdentity;
+    paginationGeneration += 1;
+    loadingMoreInFlight = false;
+    setPaginationIssue(null);
+    setPosts([]);
+    setNextCursor(null);
+    setUnplayableCount(0);
+    setDelivery([]);
+    setLoadingMore(false);
+    setState({ kind: "loading" });
+    const first = input.initial === undefined
+      ? loadPage({ locale: input.locale, sort: input.sort })
+      : Promise.resolve(input.initial);
+    void first
+      .then(page => collectVideoPage(page, loadPage, input.locale, input.sort))
+      .then(page => {
+        if (!active || identity !== requestIdentity) return;
+        setPosts(page.posts);
+        setNextCursor(page.nextCursor);
+        setUnplayableCount(page.unplayableCount);
+        setDelivery(page.delivery);
+        setState({ kind: "ready" });
+      })
+      .catch(() => {
+        if (active && identity === requestIdentity) setState({ kind: "error" });
+      });
+  };
+
   createEffect(
-    () => true,
-    () => {
-      const initial = untrack(() => props.data);
-      const first = initial === undefined
-        ? props.loadPage({ locale, sort })
-        : Promise.resolve(initial);
-      void first
-        .then(page => collectVideoPage(page, props.loadPage, locale, sort))
-        .then(page => {
-          if (!active) return;
-          setPosts(page.posts);
-          setNextCursor(page.nextCursor);
-          setUnplayableCount(page.unplayableCount);
-          setDelivery(page.delivery);
-          setState({ kind: "ready" });
-        })
-        .catch(() => { if (active) setState({ kind: "error" }); });
-    },
+    () => ({ initial: props.data, locale: props.locale ?? "en", sort: props.sort ?? "best" }),
+    input => { queueMicrotask(() => reload(input)); },
   );
 
   const loadMore = async () => {
     const cursor = nextCursor();
-    if (!cursor || loadingMore()) return;
+    // `loadingMoreInFlight` is the synchronous exclusion guard; the
+    // `loadingMore` signal only drives the pending UI and may still be false
+    // while a queued write has not flushed. The pagination generation keeps an
+    // obsolete completion from clearing a newer request's guard.
+    if (!cursor || loadingMoreInFlight) return;
+    const identity = requestIdentity;
+    const generation = ++paginationGeneration;
+    loadingMoreInFlight = true;
     setLoadingMore(true);
     try {
-      const page = await props.loadPage({ cursor, locale, sort });
-      setPosts(previous => [...previous, ...playableHomeVideos(page.items)]);
+      const page = await props.loadPage({ cursor, locale: props.locale ?? "en", sort: props.sort ?? "best" });
+      if (!active || identity !== requestIdentity || generation !== paginationGeneration) return;
+      const playable = playableHomeVideos(page.items);
+      setPosts(previous => [...previous, ...playable]);
       setUnplayableCount(count => count + unplayableVideoCount(page.items));
       setDelivery(previous => [...previous, ...deliveryStates(page)]);
       setNextCursor(page.nextCursor);
+      // A page that adds no playable post cannot move the active index, so
+      // the automatic end trigger will not fire again; surface continuation.
+      setPaginationIssue(playable.length === 0 && page.nextCursor !== null ? "stalled" : null);
     } catch {
-      // Keep the current post and cursor so a later end-of-feed signal can retry.
+      // Keep the current post and cursor so the visible continuation retries.
+      if (active && identity === requestIdentity && generation === paginationGeneration) {
+        setPaginationIssue("error");
+      }
     } finally {
-      setLoadingMore(false);
+      if (active && identity === requestIdentity && generation === paginationGeneration) {
+        loadingMoreInFlight = false;
+        setLoadingMore(false);
+      }
     }
   };
 
@@ -135,32 +205,43 @@ export function HomeVideoFeed(props: HomeVideoFeedProps) {
         <Show when={state().kind === "ready"} fallback={<div class="grid h-full place-items-center px-6 text-center"><div><Type variant="h2" class="text-white">Video feed unavailable</Type><Type variant="body" class="mt-2 text-white/70">Try again in a moment.</Type></div></div>}>
           <Show
             when={posts().length > 0}
-            fallback={<Show when={delivery().length > 0} fallback={<div class="grid h-full place-items-center px-6 text-center"><div><Type variant="h2" class="text-white">{unplayableCount() > 0 ? "Videos are not playable yet" : "No videos yet"}</Type><Type variant="body" class="mt-2 text-white/70">{unplayableCount() > 0 ? "The feed found video posts, but the API did not provide playable media." : "Published community videos will appear here."}</Type></div></div>}>
+            fallback={<Show when={delivery().length > 0} fallback={<div class="grid h-full place-items-center px-6 text-center"><div class="flex flex-col items-center gap-3"><Type variant="h2" class="text-white">{unplayableCount() > 0 ? "Videos are not playable yet" : "No videos yet"}</Type><Type variant="body" class="text-white/70">{unplayableCount() > 0 ? "The feed found video posts, but the API did not provide playable media." : "Published community videos will appear here."}</Type><FeedContinuation cursor={nextCursor()} loading={loadingMore()} onLoadMore={() => { void loadMore(); }} /></div></div>}>
               <div class="h-full snap-y snap-mandatory overflow-y-auto text-white" aria-label="Published videos">
                 <For each={delivery()}>{item => <article class="grid min-h-[90dvh] snap-start content-center gap-3 px-4 py-8">
                   <VideoPlayer postId={item.postId} state={item.state} />
                   <Show when={item.caption}>{caption => <p>{caption()}</p>}</Show>
                   <a href={item.href}>View post</a>
                 </article>}</For>
-                <Show when={nextCursor()}><button type="button" disabled={loadingMore()} onClick={() => { void loadMore(); }} class="m-4">{loadingMore() ? "Loading videos…" : "Load more videos"}</button></Show>
+                <div class="m-4 flex justify-center">
+                  <FeedContinuation cursor={nextCursor()} loading={loadingMore()} onLoadMore={() => { void loadMore(); }} />
+                </div>
               </div>
             </Show>}
           >
-            <VerticalFeed
-              class="bg-black"
-              emptyMessage="No videos yet"
-              feedLabel="Videos for you"
-              hasMobileFooter
-              hasMore={nextCursor() !== null}
-              loading={loadingMore()}
-              onAuthorClick={(postId) => {
-                const href = publisherHref(postId);
-                if (href) navigateTo(href, props.navigate);
-              }}
-              onEndReached={() => void loadMore()}
-              onShareClick={sharePost}
-              posts={[...posts()]}
-            />
+            <div class="relative h-full">
+              <VerticalFeed
+                class="bg-black"
+                emptyMessage="No videos yet"
+                feedLabel="Videos for you"
+                hasMobileFooter
+                hasMore={nextCursor() !== null}
+                loading={loadingMore()}
+                onAuthorClick={(postId) => {
+                  const href = publisherHref(postId);
+                  if (href) navigateTo(href, props.navigate);
+                }}
+                onEndReached={() => void loadMore()}
+                onShareClick={sharePost}
+                posts={[...posts()]}
+              />
+              <Show when={paginationIssue() !== null && nextCursor() !== null}>
+                <div class="pointer-events-none absolute inset-x-0 bottom-20 z-10 flex justify-center">
+                  <div class="pointer-events-auto">
+                    <FeedContinuation cursor={nextCursor()} loading={loadingMore()} onLoadMore={() => { void loadMore(); }} />
+                  </div>
+                </div>
+              </Show>
+            </div>
           </Show>
         </Show>
       </Show>

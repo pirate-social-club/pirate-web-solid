@@ -48,7 +48,7 @@ export const LessonFlow: Story = {
     docs: {
       description: {
         story:
-          "Happy path: record the say-it-back card (Stop submits a correct attempt), then answer the multiple-choice card to reach the streak-qualified completion.",
+          "Happy path: record the say-it-back card (Stop submits a correct attempt, the server advances to its current card), then answer the multiple-choice card to reach the streak-qualified completion.",
       },
     },
   },
@@ -68,22 +68,22 @@ export const MissedAttempts: Story = {
     docs: {
       description: {
         story:
-          "Every attempt misses: the first miss is retryable in place, the second spends the appearance and requeues the card behind the remaining lesson.",
+          "Every attempt misses: each graded spoken presentation is spent server-side, so the miss reveals the transcript feedback and Continue moves to the server's next card; the missed line returns later in the lesson. The first capture is gated by the Spec 019 retention disclosure.",
       },
     },
   },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
 
-    // First miss: stay on the same card and offer another recording.
+    // Spec 019 first-use disclosure gates the first capture; accept it.
     await userEvent.click(await canvas.findByRole("button", { name: "Record" }));
+    await expect(await canvas.findByRole("dialog", { name: "Recording disclosure" })).toBeInTheDocument();
+    await userEvent.click(await canvas.findByRole("button", { name: "Continue to record" }));
+
+    // The miss is final for this appearance: feedback, then Continue.
     await userEvent.click(await canvas.findByRole("button", { name: "Stop" }));
     await expect(await canvas.findByText(/Incorrect/)).toBeInTheDocument();
-    await expect(await canvas.findByRole("button", { name: "Record" })).toBeInTheDocument();
-
-    // Second miss: spend this appearance and offer Continue into the requeued lesson.
-    await userEvent.click(await canvas.findByRole("button", { name: "Record" }));
-    await userEvent.click(await canvas.findByRole("button", { name: "Stop" }));
+    await expect(await canvas.findByText(/We heard:/)).toBeInTheDocument();
     await expect(await canvas.findByRole("button", { name: "Continue" })).toBeInTheDocument();
 
     await userEvent.click(await canvas.findByRole("button", { name: "Continue" }));

@@ -1,16 +1,16 @@
-import { createSignal, Show } from "solid-js";
+import { createSignal, onCleanup, Show } from "solid-js";
 import { Title } from "@solidjs/meta";
 import { preloadGlobalSignInAssets, prepareGlobalSignIn, requestGlobalSignIn } from "../auth/global-sign-in-host";
+import { Button, Type } from "../../design-system";
 
 import {
-  advanceLesson,
+  applyServerLesson,
   completeSurface,
   exerciseSurface,
   isStudyAttemptDivergence,
   lockedSurface,
   makeAttemptIdempotencyKey,
   STUDY_ATTEMPT_DIVERGENCE_RECOVERY_LIMIT,
-  STUDY_MAX_ATTEMPTS_PER_APPEARANCE,
   type StudyingLessonState,
   type StudyingSurfaceState,
 } from "./studying-model";
@@ -67,13 +67,11 @@ function LoadedStudyingLesson(props: StudyingRouteViewProps & {
   onReload: () => void;
   payload: StudyingLessonPayload;
 }) {
-  const initialQueue = () => props.payload.exercises.map((_, index) => index);
   const [lesson, setLesson] = createSignal<StudyingLessonState>({
     correctCount: props.payload.correct_count ?? 0,
-    exerciseQueue: initialQueue(),
     exercises: props.payload.exercises,
-    presentationCounts: {},
     previousStreak: props.payload.previous_streak,
+    resolvedCount: props.payload.resolved_count,
     servedCount: props.payload.served_count,
     surface: props.payload.exercises.length > 0
       ? exerciseSurface(props.payload.exercises[0]!)
@@ -84,6 +82,35 @@ function LoadedStudyingLesson(props: StudyingRouteViewProps & {
   });
   let divergenceRecoveries = 0;
   const idempotencyKeys = new Map<string, string>();
+  const [micDisclosure, setMicDisclosure] = createSignal<string | null>(null);
+
+  // Spec 019 §5.1: learner-facing microphone capture requires a first-use
+  // disclosure naming the provider and its retention before the first
+  // capture. The acknowledgment is a local UI fact, not an account fact.
+  const MIC_DISCLOSURE_STORAGE_KEY = "study:microphone-disclosure:v1";
+
+  const micDisclosureAcknowledged = (): boolean => {
+    try {
+      return globalThis.localStorage?.getItem(MIC_DISCLOSURE_STORAGE_KEY) === "1";
+    } catch {
+      return false;
+    }
+  };
+
+  const acknowledgeMicDisclosure = () => {
+    const pending = micDisclosure();
+    try {
+      globalThis.localStorage?.setItem(MIC_DISCLOSURE_STORAGE_KEY, "1");
+    } catch {
+      // Storage can be unavailable (private mode); the disclosure simply
+      // reappears next session, which is the safe direction.
+    }
+    setMicDisclosure(null);
+    const surface = lesson().surface;
+    if (pending !== null && surface.kind === "say_it_back" && surface.exercise.id === pending) {
+      beginCapture(surface);
+    }
+  };
 
   const attemptIdempotencyKey = (exerciseId: string, attemptNumber: number): string => {
     const logical = `${props.payload.session_id}:${exerciseId}:${attemptNumber}`;
@@ -133,13 +160,19 @@ function LoadedStudyingLesson(props: StudyingRouteViewProps & {
         updateMultipleChoice(exerciseId, (surface, current) => {
           if (result.outcome === "correct") {
             // The green highlight stays on the selected option briefly, then
-            // the lesson moves on without a "correct" banner.
+            // the lesson moves to the server's next card without a "correct"
+            // banner.
             (props.scheduleAdvance ?? defaultScheduleAdvance)(() => {
               updateMultipleChoice(exerciseId, (latest, state) => latest.result === "correct"
-                ? advanceLesson(state, "correct")
+                ? applyServerLesson(state, result)
                 : state);
             });
           }
+          // A retryable miss keeps the server-selected current card — the same
+          // item at its next attempt number; only its queue ordinal moved.
+          const retryExercise = result.next_lesson?.exercises[0];
+          const retryable = result.outcome === "incorrect" && (result.attempts_remaining ?? 0) > 0
+            && retryExercise?.id === exerciseId;
           return {
             ...current,
             lastAttemptResult: result,
@@ -149,10 +182,10 @@ function LoadedStudyingLesson(props: StudyingRouteViewProps & {
                 ...surface.exercise,
                 correctOptionId: result.correct_option_id ?? surface.exercise.correctOptionId,
               },
-              attemptNumber: result.outcome === "incorrect" && (result.attempts_remaining ?? 0) > 0
-                ? surface.attemptNumber + 1
+              attemptNumber: retryable
+                ? Number(retryExercise?.presentation_count ?? surface.attemptNumber - 1) + 1
                 : surface.attemptNumber,
-              canRetry: result.outcome === "incorrect" && (result.attempts_remaining ?? 0) > 0,
+              canRetry: retryable,
               result: result.outcome === "correct" ? "correct" as const : "wrong" as const,
               submitting: false,
             },
@@ -162,22 +195,23 @@ function LoadedStudyingLesson(props: StudyingRouteViewProps & {
       }
       updateSayItBack(exerciseId, (surface, current) => {
         if (result.outcome === "correct") {
-          return advanceLesson({ ...current, lastAttemptResult: result }, "correct");
+          return applyServerLesson(current, result);
         }
-        const attemptsThisAppearance = (surface.attemptsThisAppearance ?? 0) + 1;
-        const spent = attemptsThisAppearance >= STUDY_MAX_ATTEMPTS_PER_APPEARANCE
-          || (result.attempts_remaining ?? 0) <= 0;
+        // Every graded spoken presentation is spent server-side: the miss is
+        // final for this appearance, the diff explains it, and an unresolved
+        // card returns later in the lesson at the server's choosing.
+        const resolved = result.next_lesson?.resolved_count ?? current.resolvedCount ?? 0;
+        const total = current.servedCount ?? current.exercises.length;
         return {
           ...current,
           lastAttemptResult: result,
           surface: {
             ...surface,
-            attemptNumber: spent ? surface.attemptNumber : surface.attemptNumber + 1,
-            attemptsThisAppearance,
+            diff: result.diff,
             heardTranscript: result.heard_transcript,
             phase: "wrong" as const,
-            revealReference: spent,
-            willReturn: spent && current.exerciseQueue.length > 1,
+            revealReference: true,
+            willReturn: resolved < total,
           },
         };
       });
@@ -227,9 +261,45 @@ function LoadedStudyingLesson(props: StudyingRouteViewProps & {
     });
   };
 
+  const beginCapture = (card: SayItBackSurfaceState) => {
+    unlockStudyFeedbackAudio();
+    const recorder = props.recorder;
+    if (!recorder) {
+      updateSayItBack(card.exercise.id, (latest, current) => ({
+        ...current,
+        surface: {
+          ...latest,
+          phase: "idle" as const,
+          submitError: "Voice recording is not available in this browser.",
+        },
+      }));
+      return;
+    }
+    updateSayItBack(card.exercise.id, (latest, current) => ({
+      ...current,
+      surface: {
+        ...latest,
+        diff: undefined,
+        heardTranscript: undefined,
+        phase: "listening" as const,
+        submitError: undefined,
+        willReturn: undefined,
+      },
+    }));
+    void recorder.start().catch((rejection: StudyingAttemptRejection) => {
+      updateSayItBack(card.exercise.id, (latest, current) => ({
+        ...current,
+        surface: {
+          ...latest,
+          phase: "idle" as const,
+          submitError: errorMessage(rejection, "Voice recording is not available in this browser."),
+        },
+      }));
+    });
+  };
+
   const handlePrimaryAction = () => {
     const surface = lesson().surface;
-
     if (surface.kind === "multiple_choice") {
       if (surface.result) {
         if (surface.result === "wrong" && surface.canRetry) {
@@ -244,7 +314,7 @@ function LoadedStudyingLesson(props: StudyingRouteViewProps & {
           }));
           return;
         }
-        setLesson((current) => advanceLesson(current, surface.result!));
+        setLesson((current) => applyServerLesson(current, current.lastAttemptResult ?? {}));
         return;
       }
       if (surface.selectedOptionId && !surface.submitting) {
@@ -257,7 +327,9 @@ function LoadedStudyingLesson(props: StudyingRouteViewProps & {
     const card = surface;
 
     if (card.phase === "wrong" && card.revealReference) {
-      setLesson((current) => advanceLesson(current, "wrong"));
+      // The spent miss is final for this appearance: continue to the
+      // server's next card (or completion) from the stored server lesson.
+      setLesson((current) => applyServerLesson(current, current.lastAttemptResult ?? {}));
       return;
     }
 
@@ -265,38 +337,11 @@ function LoadedStudyingLesson(props: StudyingRouteViewProps & {
       // A retryable miss behaves exactly like idle: the footer already reads
       // "Record", so pressing it starts the recording rather than costing the
       // learner an extra tap to clear the banner first.
-      unlockStudyFeedbackAudio();
-      const recorder = props.recorder;
-      if (!recorder) {
-        updateSayItBack(card.exercise.id, (latest, current) => ({
-          ...current,
-          surface: {
-            ...latest,
-            phase: "idle" as const,
-            submitError: "Voice recording is not available in this browser.",
-          },
-        }));
+      if (!micDisclosureAcknowledged()) {
+        setMicDisclosure(card.exercise.id);
         return;
       }
-      updateSayItBack(card.exercise.id, (latest, current) => ({
-        ...current,
-        surface: {
-          ...latest,
-          heardTranscript: undefined,
-          phase: "listening" as const,
-          submitError: undefined,
-        },
-      }));
-      void recorder.start().catch((rejection: StudyingAttemptRejection) => {
-        updateSayItBack(card.exercise.id, (latest, current) => ({
-          ...current,
-          surface: {
-            ...latest,
-            phase: "idle" as const,
-            submitError: errorMessage(rejection, "Voice recording is not available in this browser."),
-          },
-        }));
-      });
+      beginCapture(card);
       return;
     }
 
@@ -343,9 +388,51 @@ function LoadedStudyingLesson(props: StudyingRouteViewProps & {
     submitMultipleChoice({ ...surface, selectedOptionId: optionId }, optionId);
   };
 
+  // Capture cannot outlive this surface: disposal stops any live recording
+  // and invalidates permission still being granted.
+  onCleanup(() => {
+    void props.recorder?.cancel?.();
+  });
+
   return (
     <>
       <Title>{props.payload.title ? `${props.payload.title} · Study` : "Study"}</Title>
+      <Show when={micDisclosure() !== null}>
+        <div
+          class="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-4 sm:items-center"
+          data-study-mic-disclosure
+          role="dialog"
+          aria-modal="true"
+          aria-label="Recording disclosure"
+        >
+          <div class="w-full max-w-md rounded-[var(--radius-xl)] border border-border bg-card p-6 shadow-xl">
+            <Type as="h2" variant="h3">Before you record</Type>
+            <Type as="p" class="mt-3 text-muted-foreground" variant="body">
+              Your voice recording is sent to our speech provider, ElevenLabs,
+              for transcription. Under its standard terms, ElevenLabs may retain
+              the recording. Pirate also stores your recording privately for 24
+              months for your study review history, and you can delete it from
+              Settings at any time.
+            </Type>
+            <div class="mt-6 flex gap-3">
+              <Button
+                class="flex-1"
+                onClick={() => setMicDisclosure(null)}
+                variant="secondary"
+              >
+                Cancel
+              </Button>
+              <Button
+                class="flex-1"
+                data-study-mic-disclosure-accept
+                onClick={acknowledgeMicDisclosure}
+              >
+                Continue to record
+              </Button>
+            </div>
+          </div>
+        </div>
+      </Show>
       <StudyingSurface
         lessonProgress={lessonProgressOf(lesson())}
         onExit={props.onExit}
