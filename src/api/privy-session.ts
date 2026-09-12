@@ -5,7 +5,12 @@ import {
   type PostAuthRegisterResponse,
 } from "@pirate/api-client";
 import { getAddress } from "viem";
-import { createSessionApiClient, readCsrfCookie, sessionRequestOptions } from "./client.ts";
+import {
+  createSessionApiClient,
+  type PirateApiRequestOptions,
+  readCsrfCookie,
+  sessionRequestOptions,
+} from "./client.ts";
 import type { VerificationPublicConfig } from "./verification-config.ts";
 
 export class MemoryOnlyStorage implements Storage {
@@ -386,13 +391,23 @@ export async function createPrivySessionExchange(
   let terminal = false;
   let pendingRegistrationToken: string | undefined;
   const walletPreparationKeys = new Map<string, string>();
+  // Session issuance and replacement attach the readable double-submit proof
+  // when the browser already holds a CSRF cookie; the cookie-free initial call
+  // remains unauthenticated beyond the exact-Origin policy the API enforces.
+  const csrfRequestOptions = (): PirateApiRequestOptions | undefined => {
+    const csrf = (dependencies.csrf ?? readCsrfCookie)();
+    return csrf === undefined ? undefined : sessionRequestOptions(csrf);
+  };
   const exchange = dependencies.exchange ?? (async (accessToken, identityToken) => {
     const proof: PrivyAccessTokenProof = {
         type: "privy_access_token",
         privy_access_token: accessToken,
     };
     if (identityToken !== undefined) proof.privy_identity_token = identityToken;
-    await createSessionApiClient().post_authSessionExchange({ body: { proof } });
+    await createSessionApiClient().post_authSessionExchange(
+      { body: { proof } },
+      csrfRequestOptions(),
+    );
   });
   const listPersonas = dependencies.listPersonas ?? (async () => {
     return createSessionApiClient().get_personas(undefined);
@@ -401,9 +416,7 @@ export async function createPrivySessionExchange(
   const register = dependencies.register ?? (async (
     body: MinimumAgeRegistrationBody,
   ): Promise<RegistrationResult> => {
-    return createSessionApiClient().post_authRegister({
-      body,
-    });
+    return createSessionApiClient().post_authRegister({ body }, csrfRequestOptions());
   });
   const prepareWallet = dependencies.prepareWallet ?? (async (personaId, idempotencyKey) => {
     const csrf = readCsrfCookie();
