@@ -1,0 +1,20 @@
+[
+  {
+    "kind": "response",
+    "method": "GET",
+    "status": 200,
+    "target": "web-next-staging.pirate.sc/communities/new"
+  },
+  {
+    "kind": "response",
+    "method": "GET",
+    "status": 200,
+    "target": "web-next-staging.pirate.sc/api/users/:id"
+  },
+  {
+    "kind": "response",
+    "method": "GET",
+    "status": 200,
+    "target": "web-next-staging.pirate.sc/api/personas"
+  }
+]

@@ -1,0 +1,138 @@
+[
+  {
+    "kind": "request",
+    "requestId": 1,
+    "method": "GET",
+    "target": "web-next-staging.pirate.sc/communities/new",
+    "resourceType": "document"
+  },
+  {
+    "kind": "response",
+    "requestId": 1,
+    "method": "GET",
+    "status": 200,
+    "target": "web-next-staging.pirate.sc/communities/new"
+  },
+  {
+    "kind": "request",
+    "requestId": 2,
+    "method": "GET",
+    "target": "web-next-staging.pirate.sc/api/users/:id",
+    "resourceType": "fetch"
+  },
+  {
+    "kind": "request",
+    "requestId": 3,
+    "method": "GET",
+    "target": "web-next-staging.pirate.sc/api/personas",
+    "resourceType": "fetch"
+  },
+  {
+    "kind": "response",
+    "requestId": 3,
+    "method": "GET",
+    "status": 200,
+    "target": "web-next-staging.pirate.sc/api/personas"
+  },
+  {
+    "kind": "response",
+    "requestId": 2,
+    "method": "GET",
+    "status": 200,
+    "target": "web-next-staging.pirate.sc/api/users/:id"
+  },
+  {
+    "kind": "request",
+    "requestId": 4,
+    "method": "POST",
+    "target": "web-next-staging.pirate.sc/api/community-creation-intents",
+    "resourceType": "fetch",
+    "body": {
+      "draft": {
+        "public_name": {
+          "type": "string",
+          "length": 17,
+          "trimmedLength": 17,
+          "hasControlCharacters": false
+        },
+        "description": {
+          "type": "string",
+          "length": 37,
+          "trimmedLength": 37,
+          "hasControlCharacters": false
+        },
+        "name": {
+          "type": "string",
+          "length": 31,
+          "trimmedLength": 31,
+          "hasControlCharacters": false
+        },
+        "persona": {
+          "kind": "create_new"
+        },
+        "policy": {
+          "version": {
+            "type": "number",
+            "integer": true,
+            "value": 1
+          },
+          "accessPaths": [
+            {
+              "id": {
+                "type": "string",
+                "length": 7,
+                "trimmedLength": 7,
+                "hasControlCharacters": false
+              },
+              "operator": "and",
+              "requirements": [
+                {
+                  "requirement": "human-verification"
+                }
+              ]
+            }
+          ]
+        }
+      },
+      "idempotency_key": {
+        "type": "string",
+        "length": 53,
+        "trimmedLength": 53,
+        "hasControlCharacters": false
+      }
+    }
+  },
+  {
+    "kind": "response",
+    "requestId": 4,
+    "method": "POST",
+    "status": 400,
+    "target": "web-next-staging.pirate.sc/api/community-creation-intents",
+    "body": {
+      "error": {
+        "code": {
+          "type": "string",
+          "length": 11,
+          "trimmedLength": 11,
+          "hasControlCharacters": false
+        },
+        "message": "Invalid body request",
+        "retryable": false,
+        "details": {
+          "location": {
+            "type": "string",
+            "length": 4,
+            "trimmedLength": 4,
+            "hasControlCharacters": false
+          }
+        }
+      },
+      "request_id": {
+        "type": "string",
+        "length": 36,
+        "trimmedLength": 36,
+        "hasControlCharacters": false
+      }
+    }
+  }
+]

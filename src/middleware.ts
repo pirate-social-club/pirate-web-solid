@@ -1,6 +1,8 @@
 import { getRequestEvent } from "@solidjs/web";
 
-const MEDIA_UPLOAD_ORIGIN = "https://08a4c22cf52e2ecae883e36f80a33f4a.r2.cloudflarestorage.com";
+// One R2 account host serves the ingress upload target and the immutable
+// originals bucket whose signed GET grants song playback in the audio element.
+const MEDIA_R2_ORIGIN = "https://08a4c22cf52e2ecae883e36f80a33f4a.r2.cloudflarestorage.com";
 
 function makeNonce(): string {
   const bytes = new Uint8Array(18);
@@ -32,7 +34,7 @@ export function securityPolicy(pathname: string, nonce: string): string {
       ? `default-src 'self'; script-src 'nonce-${nonce}' 'strict-dynamic'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://assets.very.org; frame-src https://auth.privy.io; connect-src 'self' https://auth.privy.io https://bridge.very.org https://verify.very.org; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'`
       : signInRoute
         ? `default-src 'self'; script-src 'nonce-${nonce}' 'strict-dynamic'; img-src 'self' data: https://auth.privy.io; frame-src https://auth.privy.io; connect-src 'self' https://auth.privy.io; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'`
-        : `default-src 'self'; script-src 'nonce-${nonce}' 'strict-dynamic'; frame-src https://auth.privy.io; connect-src 'self' https://auth.privy.io ${MEDIA_UPLOAD_ORIGIN} https://*.cloudflarestream.com; media-src 'self' blob: https://*.cloudflarestream.com; worker-src 'self' blob:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'`;
+        : `default-src 'self'; script-src 'nonce-${nonce}' 'strict-dynamic'; frame-src https://auth.privy.io; connect-src 'self' https://auth.privy.io ${MEDIA_R2_ORIGIN} https://*.cloudflarestream.com; media-src 'self' blob: ${MEDIA_R2_ORIGIN} https://*.cloudflarestream.com; worker-src 'self' blob:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'`;
 }
 
 export default [standaloneMiddleware];

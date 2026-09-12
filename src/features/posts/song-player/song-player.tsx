@@ -2,6 +2,52 @@ import { Show, createSignal, onCleanup } from "solid-js";
 import { Button, IconPlay, Type } from "../../../design-system.ts";
 import { readSongPlaybackAccess, type SongPlaybackGrant } from "./song-player-api.ts";
 
+type PlayerGrant = Omit<SongPlaybackGrant, "expires_at" | "renew_after"> & {
+  readonly expires_at: number;
+  readonly renew_after: number;
+};
+
+/**
+ * Playback grants are reusable bearer URLs valid for fifteen minutes, and a
+ * community feed can replace its post components while a grant request is in
+ * flight. Cache the latest grant per post so a remounted player resumes from
+ * it instead of discarding access and refetching.
+ */
+const playbackGrants = new Map<string, PlayerGrant>();
+const playbackGrantListeners = new Map<string, Set<(grant: PlayerGrant) => void>>();
+const PLAYBACK_GRANT_CACHE_LIMIT = 32;
+
+function cachePlaybackGrant(postId: string, grant: PlayerGrant): void {
+  playbackGrants.delete(postId);
+  playbackGrants.set(postId, grant);
+  while (playbackGrants.size > PLAYBACK_GRANT_CACHE_LIMIT) {
+    const oldest = playbackGrants.keys().next().value;
+    if (oldest === undefined) break;
+    playbackGrants.delete(oldest);
+  }
+  // A request started by a component that has since been replaced still has
+  // to reach its successor, which subscribed before the grant resolved.
+  for (const listener of playbackGrantListeners.get(postId) ?? []) listener(grant);
+}
+
+function subscribePlaybackGrant(
+  postId: string,
+  listener: (grant: PlayerGrant) => void,
+): () => void {
+  const listeners = playbackGrantListeners.get(postId) ?? new Set<(grant: PlayerGrant) => void>();
+  listeners.add(listener);
+  playbackGrantListeners.set(postId, listeners);
+  return () => {
+    listeners.delete(listener);
+    if (listeners.size === 0) playbackGrantListeners.delete(postId);
+  };
+}
+
+function cachedPlaybackGrant(postId: string, nowSeconds: number): PlayerGrant | undefined {
+  const cached = playbackGrants.get(postId);
+  return cached !== undefined && cached.renew_after > nowSeconds ? cached : undefined;
+}
+
 export interface SongPlayerProps {
   readonly postId: string;
   readonly title: string;
@@ -20,15 +66,12 @@ export function SongPlayer(props: SongPlayerProps) {
   let timer: ReturnType<typeof setTimeout> | undefined;
   let resumeAt = 0;
   let shouldResume = false;
-  const [grant, setGrant] = createSignal<
-    Omit<SongPlaybackGrant, "expires_at" | "renew_after"> & {
-      expires_at: number;
-      renew_after: number;
-    }
-  >();
   const [busy, setBusy] = createSignal(false);
   const [issue, setIssue] = createSignal<string>();
   const now = () => Math.floor((props.now?.() ?? Date.now()) / 1000);
+  const [grant, setGrant] = createSignal<PlayerGrant | undefined>(
+    cachedPlaybackGrant(props.postId, now()),
+  );
   const clearTimer = () => {
     if (timer !== undefined) clearTimeout(timer);
     timer = undefined;
@@ -40,22 +83,39 @@ export function SongPlayer(props: SongPlayerProps) {
     audio?.removeAttribute("src");
     audio?.load();
   });
+  onCleanup(subscribePlaybackGrant(props.postId, next => {
+    if (!disposed) setGrant(next);
+  }));
   const renew = async (start: boolean): Promise<void> => {
     if (busy() || disposed) return;
     clearTimer();
-    setBusy(true);
     setIssue(undefined);
+    const cached = cachedPlaybackGrant(props.postId, now());
+    if (cached !== undefined) {
+      // A still-valid grant must not pause playback on a retry. Reuse the
+      // element, or let the freshly rendered one resume on metadata.
+      resumeAt = audio?.currentTime ?? 0;
+      shouldResume = start;
+      if (grant() !== cached) setGrant(cached);
+      if (start && audio !== undefined && audio.readyState > 0) {
+        shouldResume = false;
+        void audio.play().catch(() => {
+          if (!disposed) setIssue("Press play to start the song.");
+        });
+      }
+      return;
+    }
+    setBusy(true);
     resumeAt = audio?.currentTime ?? 0;
     shouldResume = start;
     audio?.pause();
     try {
       const response = await (props.readAccess ?? readSongPlaybackAccess)(props.postId);
-      const next = {
+      const next: PlayerGrant = {
         ...response,
         expires_at: Number(response.expires_at),
         renew_after: Number(response.renew_after),
       };
-      if (disposed) return;
       const url = new URL(next.playback_url);
       if (
         url.protocol !== "https:" ||
@@ -67,6 +127,10 @@ export function SongPlayer(props: SongPlayerProps) {
         next.expires_at <= next.renew_after
       )
         throw new Error("Invalid playback grant");
+      // Cache before the disposal check so a replaced component still leaves
+      // reusable access for the one that follows it.
+      cachePlaybackGrant(props.postId, next);
+      if (disposed) return;
       setGrant(next);
     } catch {
       if (!disposed) {
