@@ -2,8 +2,11 @@ import { describe, expect, afterEach, test, vi } from "vitest";
 import type { GetPublicProfilesHandleResponse } from "@pirate/api-client";
 import { render as solidRender } from "@solidjs/web";
 import type { JSX } from "@solidjs/web";
-import { createRoot } from "solid-js";
+import { createRoot, createSignal, type Component } from "solid-js";
+import { createRouter, memoryHistory, useNavigate } from "@solidjs/router";
+import PublicProfileRoute, { route as publicProfileRoute } from "../../../routes/u/[handle].tsx";
 import PublicProfilePage from "./public-profile-page";
+import type { PublicProfileSuccess, PublicProfileViewState } from "./public-profile-page.model";
 
 const disposers: Array<() => void> = [];
 const initialUrl = window.location.href;
@@ -28,6 +31,7 @@ afterEach(() => {
   window.history.replaceState(null, "", initialUrl);
   document.head.replaceChildren();
   document.body.replaceChildren();
+  vi.unstubAllGlobals();
 });
 
 const profileResponse = (communities: GetPublicProfilesHandleResponse["created_communities"] = []): GetPublicProfilesHandleResponse => ({
@@ -127,5 +131,94 @@ describe("PublicProfilePage", () => {
     const container = render(() => <PublicProfilePage handle="bad_handle" client={client(profileResponse())} />);
     await vi.waitFor(() => expect(container.querySelector("[data-profile-state='invalid']")).not.toBeNull());
     expect(container.textContent).toContain("该个人资料句柄无效。");
+  });
+
+  const successState = (handle: string): PublicProfileSuccess => ({
+    kind: "success",
+    status: 200,
+    requestedHandle: `${handle}.pirate`,
+    canonicalHandle: `${handle}.pirate`,
+    canonicalPath: `/u/${handle}.pirate`,
+    isCanonical: true,
+    profile: { displayName: `${handle} profile`, handle: `${handle}.pirate`, bio: `Bio for ${handle}` },
+    communities: [{ name: `Harbor ${handle}`, href: `/c/harbor-${handle}` }],
+  });
+
+  test("updates a retained successful profile when another result arrives", async () => {
+    const [state, setState] = createSignal<PublicProfileViewState>(successState("captain-one"));
+    const container = render(() => <PublicProfilePage handle="captain-one" data={state()} />);
+    await vi.waitFor(() => expect(container.querySelector("h1")?.textContent).toBe("captain-one profile"));
+    setState(successState("captain-two"));
+    await vi.waitFor(() => expect(container.querySelector("h1")?.textContent).toBe("captain-two profile"));
+    expect(container.textContent).toContain("Bio for captain-two");
+    expect(container.querySelector("a[href='/c/harbor-captain-two']")?.textContent).toBe("Harbor captain-two");
+    expect(container.querySelector("[data-profile-handle]")?.textContent).toBe("@captain-two.pirate");
+    const canonical = document.head.querySelector("link[rel='canonical']")?.getAttribute("href");
+    expect(canonical == null ? null : new URL(canonical, window.location.origin).pathname).toBe("/u/captain-two.pirate");
+    expect(document.title).toContain("captain-two.pirate");
+  });
+
+  test("updates a retained failure state when the error kind changes", async () => {
+    const [state, setState] = createSignal<PublicProfileViewState>({ kind: "not-found", status: 404 });
+    const container = render(() => <PublicProfilePage handle="missing" data={state()} />);
+    await vi.waitFor(() => expect(container.querySelector("[data-profile-state='not-found']")).not.toBeNull());
+    setState({ kind: "invalid", status: 400 });
+    await vi.waitFor(() => expect(container.querySelector("[data-profile-state='invalid']")).not.toBeNull());
+    expect(container.textContent).toContain("That profile handle is not valid.");
+  });
+
+  test("navigates between handles on the current route with a fresh request", async () => {
+    const fetchImpl = vi.fn(async (input: RequestInfo | URL) => {
+      const pathname = new URL(input instanceof Request ? input.url : input.toString()).pathname;
+      const handle = pathname.includes("captain-two") ? "captain-two" : "captain-one";
+      return new Response(JSON.stringify({
+        profile: {
+          id: `profile-${handle}`,
+          object: "profile",
+          display_name: `${handle} profile`,
+          avatar_ref: null,
+          avatar_source: "upload",
+          cover_ref: null,
+          cover_source: "upload",
+          bio: `Bio for ${handle}`,
+          bio_source: "manual",
+          preferred_locale: "en",
+          global_handle: { id: `handle-${handle}`, object: "global_handle", label: `${handle}.pirate`, status: "active" },
+          created: 1_700_000_000,
+        },
+        requested_handle_label: `${handle}.pirate`,
+        resolved_handle_label: `${handle}.pirate`,
+        is_canonical: true,
+        created_communities: [{ community: `community-${handle}`, display_name: `Harbor ${handle}`, created: 1_700_000_001, route_slug: `harbor-${handle}` }],
+      }), { status: 200, headers: { "content-type": "application/json" } });
+    });
+    vi.stubGlobal("fetch", fetchImpl);
+
+    let navigate: ReturnType<typeof useNavigate> | undefined;
+    function RouteWithNavigation(props: Parameters<typeof PublicProfileRoute>[0]) {
+      navigate = useNavigate();
+      return <PublicProfileRoute {...props} />;
+    }
+    const history = memoryHistory("/u/captain-one.pirate");
+    const TestRouter = createRouter({
+      history,
+      routes: [{ ...publicProfileRoute, path: "/u/:handle", component: RouteWithNavigation as Component<{}> }],
+    });
+    const container = render(() => <TestRouter>{routerProps => routerProps.children}</TestRouter>);
+
+    await vi.waitFor(() => expect(container.querySelector("h1")?.textContent).toBe("captain-one profile"));
+    expect(fetchImpl).toHaveBeenCalledOnce();
+
+    navigate!("/u/captain-two.pirate");
+    await vi.waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(2));
+    await vi.waitFor(() => expect(container.querySelector("h1")?.textContent).toBe("captain-two profile"));
+    const secondInput = fetchImpl.mock.calls[1]![0];
+    const secondPath = new URL(secondInput instanceof Request ? secondInput.url : String(secondInput)).pathname;
+    expect(secondPath).toContain("captain-two");
+    expect(container.textContent).toContain("Bio for captain-two");
+    expect(container.querySelector("a[href='/c/harbor-captain-two']")?.textContent).toBe("Harbor captain-two");
+    const canonical = document.head.querySelector("link[rel='canonical']")?.getAttribute("href");
+    expect(canonical == null ? null : new URL(canonical, window.location.origin).pathname).toBe("/u/captain-two.pirate");
+    expect(document.title).toContain("captain-two.pirate");
   });
 });

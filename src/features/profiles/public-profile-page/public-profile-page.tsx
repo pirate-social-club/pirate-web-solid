@@ -1,7 +1,7 @@
 import { Link, Meta, Title } from "@solidjs/meta";
 import type { Navigator } from "@solidjs/router";
 import { getRequestEvent } from "@solidjs/web";
-import { Loading, Show, For, createEffect, createMemo, untrack } from "solid-js";
+import { Loading, Show, For, createEffect, createMemo } from "solid-js";
 import { createPublicApiClient } from "../../../api/client.ts";
 import { resolveRequestUiLocale } from "../../../lib/ui-locale-core.ts";
 import { getLocaleMessages, interpolateMessage } from "../../../locales/index.ts";
@@ -64,17 +64,19 @@ function LoadingState() {
 
 function MessageState(props: { readonly state: PublicProfileViewState }) {
   const copy = profileCopy();
-  const state = untrack(() => props.state);
-  const message = () => state.kind === "invalid"
-    ? copy.invalid
-    : state.kind === "not-found" ? copy.notFound : copy.error;
-  const heading = () => state.kind === "invalid"
-    ? copy.invalid
-    : state.kind === "not-found" ? copy.notFound : copy.error;
+  // Failure states share one retained component, so the message must derive
+  // from the current prop rather than a mount-time snapshot of it.
+  const state = () => props.state;
+  const message = () => {
+    const current = state();
+    return current.kind === "invalid"
+      ? copy.invalid
+      : current.kind === "not-found" ? copy.notFound : copy.error;
+  };
   return (
-    <main class="mx-auto w-full max-w-5xl px-4 py-8 md:px-8" data-profile-state={state.kind}>
-      <Title>{heading()}</Title>
-      <h1>{heading()}</h1>
+    <main class="mx-auto w-full max-w-5xl px-4 py-8 md:px-8" data-profile-state={state().kind}>
+      <Title>{message()}</Title>
+      <h1>{message()}</h1>
       <p role="alert">{message()}</p>
     </main>
   );
@@ -82,16 +84,22 @@ function MessageState(props: { readonly state: PublicProfileViewState }) {
 
 function SuccessState(props: { readonly state: PublicProfileSuccess; readonly navigate?: Navigator }) {
   const copy = profileCopy();
-  const state = untrack(() => props.state);
-  const displayName = () => state.profile.displayName ?? `@${state.profile.handle}`;
-  const description = () => state.profile.displayName
-    ? interpolateMessage(copy.defaultDescription, { name: state.profile.displayName })
-    : interpolateMessage(copy.defaultDescription, { name: `@${state.profile.handle}` });
-  const canonicalUrl = () => absolutePath(state.canonicalPath);
-  const title = () => interpolateMessage(copy.title, { handle: state.profile.handle });
+  // A retained success component can be handed a different successful profile
+  // when only the route handle changes. Every derived value must stay reactive
+  // to `props.state`; a snapshot here left the previous profile on screen.
+  const state = () => props.state;
+  const displayName = () => state().profile.displayName ?? `@${state().profile.handle}`;
+  const description = () => {
+    const name = state().profile.displayName;
+    return name
+      ? interpolateMessage(copy.defaultDescription, { name })
+      : interpolateMessage(copy.defaultDescription, { name: `@${state().profile.handle}` });
+  };
+  const canonicalUrl = () => absolutePath(state().canonicalPath);
+  const title = () => interpolateMessage(copy.title, { handle: state().profile.handle });
 
   return (
-    <main class="mx-auto w-full max-w-5xl px-4 py-8 md:px-8" data-profile-state={state.isCanonical ? "success" : "alias"}>
+    <main class="mx-auto w-full max-w-5xl px-4 py-8 md:px-8" data-profile-state={state().isCanonical ? "success" : "alias"}>
       <Title>{title()}</Title>
       <Meta name="description" content={description()} />
       <Meta property="og:title" content={title()} />
@@ -99,15 +107,15 @@ function SuccessState(props: { readonly state: PublicProfileSuccess; readonly na
       <Meta property="og:url" content={canonicalUrl()} />
       <Link rel="canonical" href={canonicalUrl()} />
       <h1>{displayName()}</h1>
-      <p data-profile-handle={state.profile.handle}>@{state.profile.handle}</p>
-      <Show when={state.profile.bio}>
-        <p>{state.profile.bio}</p>
+      <p data-profile-handle={state().profile.handle}>@{state().profile.handle}</p>
+      <Show when={state().profile.bio}>
+        {bio => <p>{bio()}</p>}
       </Show>
       <section aria-labelledby="created-communities-heading">
         <h2 id="created-communities-heading">{copy.createdCommunities}</h2>
-        <Show when={state.communities.length > 0} fallback={<p role="status">{copy.emptyCommunities}</p>}>
+        <Show when={state().communities.length > 0} fallback={<p role="status">{copy.emptyCommunities}</p>}>
           <ul>
-            <For each={state.communities}>
+            <For each={state().communities}>
               {community => (
                 <li>
                   <Show when={community.href} fallback={<span>{community.name}</span>}>
@@ -120,23 +128,22 @@ function SuccessState(props: { readonly state: PublicProfileSuccess; readonly na
             </For>
           </ul>
           <p class="sr-only">
-            {state.communities.length === 1
+            {state().communities.length === 1
               ? interpolateMessage(copy.createdCommunitySingularDescription, { name: displayName() })
-              : interpolateMessage(copy.createdCommunityPluralDescription, { name: displayName(), count: state.communities.length })}
+              : interpolateMessage(copy.createdCommunityPluralDescription, { name: displayName(), count: state().communities.length })}
           </p>
         </Show>
       </section>
-      <Show when={!state.isCanonical}>
-        <AliasRedirect state={state} navigate={props.navigate} />
+      <Show when={!state().isCanonical}>
+        <AliasRedirect state={state()} navigate={props.navigate} />
       </Show>
     </main>
   );
 }
 
 function AliasRedirect(props: { readonly state: PublicProfileSuccess; readonly navigate?: Navigator }) {
-  const state = untrack(() => props.state);
   createEffect(
-    () => state.canonicalPath,
+    () => props.state.canonicalPath,
     canonicalPath => {
       if (typeof window !== "undefined" && window.location.pathname !== canonicalPath) {
         if (props.navigate) props.navigate(canonicalPath, { replace: true, scroll: false });
@@ -144,7 +151,7 @@ function AliasRedirect(props: { readonly state: PublicProfileSuccess; readonly n
       }
     },
   );
-  return <p role="status">{`Redirecting to ${state.canonicalHandle}`}</p>;
+  return <p role="status">{`Redirecting to ${props.state.canonicalHandle}`}</p>;
 }
 
 function ProfileState(props: { readonly state: PublicProfileViewState; readonly navigate?: Navigator }) {
