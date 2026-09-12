@@ -1,6 +1,7 @@
 import { query, useNavigate, type Navigator, type RouteProps } from "@solidjs/router";
 import { defineFileRoute } from "@solidjs/router/fs";
 import { getRequestEvent, httpHeader, httpStatus } from "@solidjs/web";
+import { createMemo } from "solid-js";
 import { createPublicApiClient } from "../../api/client.ts";
 import { loadPublicProfile, normalizePirateHandle, type PublicProfileClient, type PublicProfileViewState } from "../../features/profiles/public-profile-page/public-profile-page.model.ts";
 import PublicProfilePage from "../../features/profiles/public-profile-page/public-profile-page.tsx";
@@ -66,5 +67,16 @@ export default function PublicProfileRoute(props: RouteProps<typeof route>) {
   // Route navigation is available in the real file-route context. The page's
   // direct-render tests omit it and retain a small history fallback.
   const navigate: Navigator = useNavigate();
-  return <PublicProfilePage handle={props.params.handle} data={props.data} navigate={navigate} />;
+  let resolvedFor = props.params.handle;
+  const data = createMemo(() => {
+    const current = props.params.handle;
+    // solid-router 2 keys route contexts by route definition, so a param-only
+    // navigation does not recreate this context and its preload never runs
+    // again. Reuse the preloaded result for the handle it was resolved for and
+    // re-resolve through the same handle-keyed query when the handle changes.
+    if (current === resolvedFor && props.data !== undefined) return props.data;
+    resolvedFor = current;
+    return queryPublicProfile(current);
+  });
+  return <PublicProfilePage handle={props.params.handle} data={data()} navigate={navigate} />;
 }
