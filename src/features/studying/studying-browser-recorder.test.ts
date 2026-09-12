@@ -92,7 +92,7 @@ describe("Study browser recorder", () => {
         grantPermission = resolve;
       }),
     );
-    vi.stubGlobal("MediaRecorder", FakeMediaRecorder as unknown as typeof MediaRecorder);
+    vi.stubGlobal("MediaRecorder", FakeMediaRecorder);
     vi.stubGlobal("navigator", {
       mediaDevices: { getUserMedia },
     });
@@ -114,7 +114,7 @@ describe("Study browser recorder", () => {
         grantPermission = resolve;
       }),
     );
-    vi.stubGlobal("MediaRecorder", FakeMediaRecorder as unknown as typeof MediaRecorder);
+    vi.stubGlobal("MediaRecorder", FakeMediaRecorder);
     vi.stubGlobal("navigator", {
       mediaDevices: { getUserMedia },
     });
@@ -142,7 +142,7 @@ describe("Study browser recorder", () => {
           super(acquired, options);
           instances.push(this);
         }
-      } as unknown as typeof MediaRecorder,
+      },
     );
     vi.stubGlobal("navigator", {
       mediaDevices: { getUserMedia: vi.fn().mockResolvedValue(stream) },
@@ -172,7 +172,7 @@ describe("Study browser recorder", () => {
           super(acquired, options);
           instances.push(this);
         }
-      } as unknown as typeof MediaRecorder,
+      },
     );
     vi.stubGlobal("navigator", {
       mediaDevices: { getUserMedia: vi.fn().mockResolvedValue(stream) },

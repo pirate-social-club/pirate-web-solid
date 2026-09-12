@@ -26,7 +26,9 @@ function render(ui: () => JSX.Element): HTMLElement {
 
 function studyApi(
   createSession = vi.fn(() => new Promise<StudySession>(() => {})),
-  getSession: StudyV2Api["getSession"] = (() => { throw new Error("unused"); }) as StudyV2Api["getSession"],
+  getSession: StudyV2Api["getSession"] = async () => {
+    throw new Error("unused");
+  },
 ): StudyV2Api {
   const unused = async (): Promise<never> => { throw new Error("unused"); };
   return {
@@ -398,9 +400,9 @@ describe("Study v2 production route", () => {
     await vi.waitFor(() =>
       expect(container.querySelector("[data-study-mic-disclosure]")).toBeTruthy(),
     );
-    const accept = container.querySelector("[data-study-mic-disclosure-accept]");
+    const accept = container.querySelector<HTMLElement>("[data-study-mic-disclosure-accept]");
     expect(accept).toBeTruthy();
-    (accept as HTMLElement).click();
+    accept?.click();
     await vi.waitFor(() => expect(recorderStart).toHaveBeenCalledOnce());
     expect(localStorage.getItem("study:microphone-disclosure:v1")).toBe("1");
   });
