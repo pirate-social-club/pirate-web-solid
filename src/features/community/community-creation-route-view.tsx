@@ -370,7 +370,14 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
         if (!latest || !active || signedIn(session())?.userId !== owner.userId) return;
         if (latest.committedHref) return;
         if (draftEdited()) {
-          const updated = await api.updateIntent({ intentId: saved.intentId, expectedRevision: saved.revision, draft: currentDraft, idempotencyKey: commandKey("update") });
+          const updated = await api.updateIntent({
+            intentId: latest.intentId,
+            expectedRevision: latest.revision,
+            draft: currentDraft,
+            // A new revision changes the request body; unchanged retries keep
+            // their key, while draft edits already rotate the update key.
+            idempotencyKey: `${commandKey("update")}:${latest.revision}`,
+          });
           if (!active || signedIn(session())?.userId !== owner.userId) return;
           latest = applyIntent(updated);
           setDraftEdited(false);

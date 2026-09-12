@@ -87,3 +87,6 @@ in nine files, and `bun x --no-install oxlint --threads=1 e2e
 scripts/creation-diagnostics.test.mjs scripts/e2e-auth.test.mjs
 scripts/e2e-environment.test.mjs` returns zero. These follow-up checks ran
 serially at 50% CPU, at most 1 GiB RAM and zero swap. No browser was launched.
+
+The subsequent controller fix and its separate verification limits are recorded
+in [saved revision recovery](community-creation-revision-recovery.md).

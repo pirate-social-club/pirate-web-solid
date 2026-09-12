@@ -1012,3 +1012,92 @@ test("never opens an identity dialog from wait polling", async () => {
   button.click();
   await vi.waitFor(() => expect(confirmIdentity).toHaveBeenCalledOnce());
 });
+
+
+describe("saved creation revision recovery", () => {
+  const owner = { status: "authenticated" as const, userId: "owner", personas: [] };
+  const saved = () => createIntent({ intentId: "saved-revision", revision: 2, nextAction: { kind: "commit" } });
+
+  async function editName(container: HTMLElement) {
+    const name = container.querySelector<HTMLInputElement>("input")!;
+    const button = container.querySelector<HTMLButtonElement>("button[type=submit]")!;
+    await vi.waitFor(() => {
+      expect(name.value).toBe("Saved community");
+      expect(button.disabled).toBe(false);
+    });
+    name.value = "Edited community";
+    name.dispatchEvent(new InputEvent("input", { bubbles: true }));
+    return { name, button };
+  }
+
+  test("patches edits against the refreshed revision and commits the resulting revision", async () => {
+    const refreshed = createIntent({ ...saved(), revision: 3 });
+    const updated = createIntent({ ...refreshed, revision: 4 });
+    const getIntent = vi.fn().mockResolvedValueOnce(saved()).mockResolvedValue(refreshed);
+    const updateIntent = vi.fn().mockResolvedValue(updated);
+    const commitIntent = vi.fn().mockResolvedValue(createIntent({ ...updated, revision: 5,
+      status: "committed", nextAction: { kind: "none", reason: "committed" }, committedHref: "/c/updated" }));
+    const navigate = vi.fn();
+    const container = render(() => <CommunityCreationRouteView intentId="saved-revision"
+      api={api({ getIntent, updateIntent, commitIntent })} resolveSession={async () => owner} navigate={navigate} />);
+    const { button } = await editName(container);
+    button.click();
+    await vi.waitFor(() => expect(updateIntent).toHaveBeenCalledOnce());
+    expect(updateIntent).toHaveBeenCalledWith(expect.objectContaining({ intentId: "saved-revision",
+      expectedRevision: 3, draft: expect.objectContaining({ name: "Edited community", publicName: "River Room" }) }));
+    await vi.waitFor(() => expect(navigate).toHaveBeenCalledWith("/c/updated", undefined));
+    expect(commitIntent).toHaveBeenCalledWith(expect.objectContaining({ expectedRevision: 4 }));
+    expect(getIntent).toHaveBeenCalledTimes(2);
+  });
+
+  test.each([
+    { reason: "another writer wins after refresh", status: 409, retryRevision: 4 },
+    { reason: "a successful PATCH loses its response", status: 503, retryRevision: 4 },
+    { reason: "a failed PATCH leaves the revision unchanged", status: 503, retryRevision: 3 },
+  ])("preserves edits and retries when $reason", async ({ status, retryRevision }) => {
+    const getIntent = vi.fn().mockResolvedValueOnce(saved())
+      .mockResolvedValueOnce(createIntent({ ...saved(), revision: 3 }))
+      .mockResolvedValue(createIntent({ ...saved(), revision: retryRevision }));
+    const updateIntent = vi.fn().mockRejectedValueOnce({ status })
+      .mockResolvedValue(createIntent({ ...saved(), revision: retryRevision + 1 }));
+    const commitIntent = vi.fn().mockResolvedValue(createIntent({ ...saved(), revision: retryRevision + 2,
+      status: "committed", nextAction: { kind: "none", reason: "committed" }, committedHref: "/c/updated" }));
+    const createIntentRequest = vi.fn();
+    const container = render(() => <CommunityCreationRouteView intentId="saved-revision"
+      api={api({ getIntent, updateIntent, commitIntent, createIntent: createIntentRequest })}
+      resolveSession={async () => owner} navigate={() => {}} />);
+    const { name, button } = await editName(container);
+    button.click();
+    await vi.waitFor(() => expect(container.textContent).toContain("Could not save your changes"));
+    expect(updateIntent).toHaveBeenCalledOnce();
+    expect(commitIntent).not.toHaveBeenCalled();
+    expect(name.value).toBe("Edited community");
+    expect(button.disabled).toBe(false);
+    button.click();
+    await vi.waitFor(() => expect(commitIntent).toHaveBeenCalledOnce());
+    const first = updateIntent.mock.calls[0]![0];
+    const retry = updateIntent.mock.calls[1]![0];
+    expect(first.expectedRevision).toBe(3);
+    expect(retry.expectedRevision).toBe(retryRevision);
+    expect(retry.draft.name).toBe("Edited community");
+    expect(retry.draft.publicName).toBe("River Room");
+    expect(retry.idempotencyKey === first.idempotencyKey).toBe(retryRevision === 3);
+    expect(commitIntent).toHaveBeenCalledWith(expect.objectContaining({ expectedRevision: retryRevision + 1 }));
+    expect(createIntentRequest).not.toHaveBeenCalled();
+  });
+
+  test("reopens a community committed during refresh without patching the edited draft", async () => {
+    const getIntent = vi.fn().mockResolvedValueOnce(saved()).mockResolvedValue(createIntent({ ...saved(), revision: 3,
+      status: "committed", nextAction: { kind: "none", reason: "committed" }, committedHref: "/c/already-created" }));
+    const updateIntent = vi.fn();
+    const commitIntent = vi.fn();
+    const navigate = vi.fn();
+    const container = render(() => <CommunityCreationRouteView intentId="saved-revision"
+      api={api({ getIntent, updateIntent, commitIntent })} resolveSession={async () => owner} navigate={navigate} />);
+    const { button } = await editName(container);
+    button.click();
+    await vi.waitFor(() => expect(navigate).toHaveBeenCalledWith("/c/already-created", undefined));
+    expect(updateIntent).not.toHaveBeenCalled();
+    expect(commitIntent).not.toHaveBeenCalled();
+  });
+});
