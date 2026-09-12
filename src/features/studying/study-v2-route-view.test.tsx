@@ -24,12 +24,15 @@ function render(ui: () => JSX.Element): HTMLElement {
   return container;
 }
 
-function studyApi(createSession = vi.fn(() => new Promise<StudySession>(() => {}))): StudyV2Api {
+function studyApi(
+  createSession = vi.fn(() => new Promise<StudySession>(() => {})),
+  getSession: StudyV2Api["getSession"] = (() => { throw new Error("unused"); }) as StudyV2Api["getSession"],
+): StudyV2Api {
   const unused = async (): Promise<never> => { throw new Error("unused"); };
   return {
     createSession,
     deleteLearnerAudio: unused,
-    getSession: unused,
+    getSession,
     loadAvailability: async () => ({
       availability: {
         available_exercise_types: ["say_it_back", "translation_choice"],
@@ -51,6 +54,83 @@ afterEach(() => {
   document.body.replaceChildren();
   document.head.replaceChildren();
 });
+
+
+function routeSession(): StudySession {
+  const items = [1, 2, 3, 4].map((index) => ({
+    answer_visibility: "always_visible",
+    exercise_review_key: `review-${index}`,
+    exercise_type: "say_it_back",
+    exercise_variant: "spoken-v1",
+    exercise_version_id: `version-${index}`,
+    feedback_policy_revision: "feedback-v1",
+    feedback_release: "every_graded_attempt",
+    grader_policy_revision: "script_aware_token_phonetic_v3",
+    language_profile_revision: null,
+    languages: { learning_language: "en", target_language: null },
+    learner_band: null,
+    line: {
+      audio_revision: 1,
+      line_source_hash: `hash-${index}`,
+      line_version: 1,
+      lyric_line_id: `line-${index}`,
+      lyrics_revision: 1,
+      post_id: "post-1",
+      study_unit_id: `unit-${index}`,
+    },
+    maximum_attempts: 3,
+    object: "study_session_item_v2",
+    ordinal: index - 1,
+    presentation: {
+      capture: "microphone_audio",
+      kind: "say_it_back",
+      reference_text: `Sing line ${index}`,
+    },
+    quality_policy_revision: "quality-v1",
+    session_item_id: `item-${index}`,
+  }));
+  return {
+    audio_revision: 1,
+    community_id: "community-1",
+    completed_at: null,
+    created_at: "2026-09-12T10:00:00Z",
+    items,
+    language_profile_revision: null,
+    languages: { learning_language: "en", target_language: null },
+    learner_band: null,
+    lesson: {
+      completion_reason: null,
+      current: {
+        is_reappearance: false,
+        presentation_number: 1,
+        presented_at: "2026-09-12T10:00:00Z",
+        session_item_id: "item-1",
+      },
+      presentation_cap: 12,
+      presentation_count: 1,
+      resolved_card_count: 0,
+      total_card_count: 4,
+    },
+    lyrics_revision: 1,
+    object: "study_session_v2",
+    persona_id: "persona-1",
+    post_id: "post-1",
+    progress: {
+      answered_exercise_count: 0,
+      first_pass_correct: 0,
+      qualifying_exercise_count: 4,
+      required_correct: 3,
+      score_bps: null,
+    },
+    qualification_policy_revision: "qualification-v1",
+    selection_policy_revision: "selection-v1",
+    session_id: "session-1",
+    source_set_revision: 1,
+    status: "active",
+    study_profile_revision: 1,
+    timezone: "UTC",
+  };
+}
 
 describe("Study v2 production route", () => {
   test("unavailable profiles offer retry instead of a false membership claim", async () => {
@@ -267,5 +347,82 @@ describe("Study v2 production route", () => {
     refreshSession();
     await Promise.resolve();
     expect(loadAvailability).not.toHaveBeenCalled();
+  });
+
+  const enterLesson = async (container: HTMLElement, createSession: ReturnType<typeof vi.fn>) => {
+    await vi.waitFor(() => expect(container.textContent).toContain("Start"));
+    const start = [...container.querySelectorAll("button")]
+      .find((button) => button.textContent?.trim() === "Start");
+    start?.click();
+    await vi.waitFor(() => expect(createSession).toHaveBeenCalledOnce());
+    await vi.waitFor(() => expect(container.textContent).toContain("Record"));
+    return [...container.querySelectorAll("button")]
+      .find((button) => button.textContent?.trim() === "Record");
+  };
+
+  test("shows the required first-use microphone disclosure before the first capture", async () => {
+    localStorage.clear();
+    const recorderStart = vi.fn(async () => {});
+    const recorder = { start: recorderStart, stop: vi.fn(), cancel: vi.fn() };
+    const session = routeSession();
+    const createSession = vi.fn(async () => session);
+    const container = render(() => (
+      <StudyV2RouteView
+        api={studyApi(createSession, async () => session)}
+        postId="post-1"
+        recorder={recorder}
+        resolveSession={async () => learnerSession}
+      />
+    ));
+
+    const record = await enterLesson(container, createSession);
+    record?.click();
+    await vi.waitFor(() =>
+      expect(container.querySelector("[data-study-mic-disclosure]")).toBeTruthy(),
+    );
+    expect(container.textContent).toContain("ElevenLabs");
+    expect(container.textContent).toContain("24 months");
+    expect(recorderStart).not.toHaveBeenCalled();
+
+    const cancel = [...container.querySelectorAll("button")]
+      .find((button) => button.textContent?.trim() === "Cancel");
+    cancel?.click();
+    await vi.waitFor(() =>
+      expect(container.querySelector("[data-study-mic-disclosure]")).toBeNull(),
+    );
+    expect(recorderStart).not.toHaveBeenCalled();
+
+    const recordAgain = [...container.querySelectorAll("button")]
+      .find((button) => button.textContent?.trim() === "Record");
+    recordAgain?.click();
+    await vi.waitFor(() =>
+      expect(container.querySelector("[data-study-mic-disclosure]")).toBeTruthy(),
+    );
+    const accept = container.querySelector("[data-study-mic-disclosure-accept]");
+    expect(accept).toBeTruthy();
+    (accept as HTMLElement).click();
+    await vi.waitFor(() => expect(recorderStart).toHaveBeenCalledOnce());
+    expect(localStorage.getItem("study:microphone-disclosure:v1")).toBe("1");
+  });
+
+  test("starts capture without the disclosure once it is acknowledged", async () => {
+    localStorage.setItem("study:microphone-disclosure:v1", "1");
+    const recorderStart = vi.fn(async () => {});
+    const recorder = { start: recorderStart, stop: vi.fn(), cancel: vi.fn() };
+    const session = routeSession();
+    const createSession = vi.fn(async () => session);
+    const container = render(() => (
+      <StudyV2RouteView
+        api={studyApi(createSession, async () => session)}
+        postId="post-1"
+        recorder={recorder}
+        resolveSession={async () => learnerSession}
+      />
+    ));
+
+    const record = await enterLesson(container, createSession);
+    record?.click();
+    await vi.waitFor(() => expect(recorderStart).toHaveBeenCalledOnce());
+    expect(container.querySelector("[data-study-mic-disclosure]")).toBeNull();
   });
 });

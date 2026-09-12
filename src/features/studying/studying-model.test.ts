@@ -1,7 +1,7 @@
 import { describe, expect, test } from "bun:test";
 
 import {
-  advanceLesson,
+  applyServerLesson,
   caughtUpMessage,
   clampPercent,
   completeSurface,
@@ -14,7 +14,6 @@ import {
   primaryActionVariant,
   previousStreakForAnimation,
   STUDY_ATTEMPT_DIVERGENCE_RECOVERY_LIMIT,
-  STUDY_MAX_ATTEMPTS_PER_APPEARANCE,
   toMultipleChoiceExercise,
   toSayItBackExercise,
   type StudyingAttemptResult,
@@ -26,8 +25,8 @@ import {
 // Test cases ported from the legacy study-route behavioral suite
 // (`web/src/app/authenticated-routes/study-route.test.tsx`, source checkout
 // 0bc2ea7e8d427b5f5be8824d3943dad29c800f2c), re-expressed against the pure
-// model: the legacy cases rendered the React page with a mocked API; here the
-// same transitions run through advanceLesson/exerciseSurface directly.
+// model. Progression cases run through applyServerLesson: the server's
+// returned lesson state is the single progression authority.
 
 const sayItBack = (id: string, overrides: Partial<StudyingServerExercise> = {}): StudyingServerExercise => ({
   id,
@@ -53,9 +52,8 @@ const multipleChoice = (id: string, overrides: Partial<StudyingServerExercise> =
 
 const lesson = (overrides: Partial<StudyingLessonState> = {}): StudyingLessonState => ({
   correctCount: 0,
-  exerciseQueue: [0],
   exercises: [sayItBack("ex-1")],
-  presentationCounts: {},
+  servedCount: 4,
   surface: exerciseSurface(sayItBack("ex-1")),
   ...overrides,
 });
@@ -83,104 +81,54 @@ describe("exercise adapters", () => {
   });
 });
 
-describe("advanceLesson", () => {
-  // Ported from "advances straight to the next exercise after a correct
-  // say-it-back attempt".
-  test("advances straight to the next exercise after a correct first-pass attempt", () => {
-    const state = lesson({
-      exerciseQueue: [0, 1],
-      exercises: [sayItBack("ex-1"), multipleChoice("ex-2")],
+describe("applyServerLesson", () => {
+  test("advances to the server's next card after a correct attempt", () => {
+    const state = lesson({ servedCount: 4 });
+    const next = applyServerLesson(state, {
+      next_lesson: { exercises: [multipleChoice("ex-2")], resolved_count: 1 },
+      session: { first_pass_correct_count: 1, status: "active" },
     });
-    const next = advanceLesson(state, "correct");
     expect(next.correctCount).toBe(1);
-    expect(next.exerciseQueue).toEqual([1]);
+    expect(next.resolvedCount).toBe(1);
+    expect(next.exercises).toHaveLength(1);
     expect(next.surface.kind).toBe("multiple_choice");
-    expect(next.presentationCounts["ex-1"]).toBe(1);
   });
 
-  // Ported from "retries a missed say-it-back in place while attempts remain"
-  // (the in-place retry is a surface-phase concern; the queue only re-enters
-  // the card once the appearance is spent — modeled by requeueing).
-  test("requeues a missed card with intervening prompts while attempts remain", () => {
-    const state = lesson({
-      exerciseQueue: [0, 1, 2, 3, 4],
-      exercises: [sayItBack("ex-1"), sayItBack("ex-2"), sayItBack("ex-3"), sayItBack("ex-4"), sayItBack("ex-5")],
-      lastAttemptResult: { attempts_remaining: 2, session: { status: "active" } },
+  test("resumes a re-presented card at the server's presentation number", () => {
+    const state = lesson({ servedCount: 4 });
+    const next = applyServerLesson(state, {
+      next_lesson: { exercises: [sayItBack("ex-1", { presentation_count: 1 })], resolved_count: 3 },
+      session: { first_pass_correct_count: 3, status: "active" },
     });
-    const next = advanceLesson(state, "wrong");
-    // Miss goes back 3 deep: two or three different prompts before the retry.
-    expect(next.exerciseQueue).toEqual([1, 2, 3, 0, 4]);
-    expect(next.correctCount).toBe(0);
-    expect(next.surface.kind).toBe("say_it_back");
-    expect(next.surface.kind === "say_it_back" && next.surface.exercise.id).toBe("ex-2");
+    expect(next.surface.kind === "say_it_back" && next.surface.attemptNumber).toBe(2);
+    expect(next.surface.kind === "say_it_back" && next.surface.exercise.id).toBe("ex-1");
   });
 
-  test("requeues with at least one intervening prompt in a short lesson", () => {
-    const state = lesson({
-      exerciseQueue: [0, 1],
-      exercises: [sayItBack("ex-1"), sayItBack("ex-2")],
-      lastAttemptResult: { attempts_remaining: 1, session: { status: "active" } },
+  test("completes only when the server reports no remaining current card", () => {
+    const state = lesson({ servedCount: 4 });
+    const completed = applyServerLesson(state, {
+      next_lesson: { exercises: [], resolved_count: 4 },
+      session: { first_pass_correct_count: 3, status: "completed" },
     });
-    expect(advanceLesson(state, "wrong").exerciseQueue).toEqual([1, 0]);
+    expect(completed.surface.kind).toBe("complete");
+    if (completed.surface.kind === "complete") {
+      expect(completed.surface.correctCount).toBe(3);
+      expect(completed.surface.totalCount).toBe(4);
+    }
   });
 
-  // Ported from "shows completion without a restart action when every
-  // exercise is exhausted": with nothing else to show, a miss must not loop.
-  test("ends the lesson instead of re-presenting the last card after a miss", () => {
-    const state = lesson({
-      lastAttemptResult: { attempts_remaining: 2, session: { status: "active" } },
-    });
-    const next = advanceLesson(state, "wrong");
-    expect(next.surface.kind).toBe("complete");
-    expect(next.exerciseQueue).toEqual([]);
-  });
-
-  test("ends the lesson when the server session is no longer active", () => {
-    const state = lesson({
-      exerciseQueue: [0, 1],
-      exercises: [sayItBack("ex-1"), sayItBack("ex-2")],
-      lastAttemptResult: { attempts_remaining: 2, session: { status: "completed" } },
-    });
-    expect(advanceLesson(state, "wrong").surface.kind).toBe("complete");
-  });
-
-  test("does not requeue when no attempts remain", () => {
-    const state = lesson({
-      exerciseQueue: [0, 1],
-      exercises: [sayItBack("ex-1"), sayItBack("ex-2")],
-      lastAttemptResult: { attempts_remaining: 0, session: { status: "active" } },
-    });
-    const next = advanceLesson(state, "wrong");
-    expect(next.exerciseQueue).toEqual([1]);
+  test("an absent server lesson leaves the surface untouched", () => {
+    const state = lesson();
+    expect(applyServerLesson(state, {})).toBe(state);
   });
 
   test("prefers the server first-pass correct count over the local tally", () => {
-    const state = lesson({
-      correctCount: 1,
-      lastAttemptResult: { session: { status: "active", first_pass_correct_count: 7 } },
+    const state = lesson({ correctCount: 1 });
+    const next = applyServerLesson(state, {
+      next_lesson: { exercises: [sayItBack("ex-2")] },
+      session: { first_pass_correct_count: 7, status: "active" },
     });
-    expect(advanceLesson(state, "correct").correctCount).toBe(7);
-  });
-
-  test("resumes a re-presented card at its recorded attempt number", () => {
-    const state = lesson({
-      exerciseQueue: [0, 1],
-      exercises: [sayItBack("ex-1"), sayItBack("ex-2")],
-      presentationCounts: { "ex-2": 2 },
-    });
-    const next = advanceLesson(state, "correct");
-    expect(next.surface.kind === "say_it_back" && next.surface.attemptNumber).toBe(3);
-  });
-
-  test("completes with the served count and a clamped score percent", () => {
-    const state = lesson({ correctCount: 2, servedCount: 3 });
-    const next = advanceLesson(state, "correct");
-    expect(next.surface.kind).toBe("complete");
-    if (next.surface.kind === "complete") {
-      expect(next.surface.correctCount).toBe(3);
-      expect(next.surface.scorePercent).toBe(100);
-      expect(next.surface.totalCount).toBe(3);
-    }
+    expect(next.correctCount).toBe(7);
   });
 });
 
@@ -297,8 +245,7 @@ describe("footer derivation", () => {
     expect(primaryActionDisabled(sayItBackSurface("listening"))).toBe(false);
   });
 
-  test("per-appearance retry cap and percent clamp stay honest", () => {
-    expect(STUDY_MAX_ATTEMPTS_PER_APPEARANCE).toBe(3);
+  test("percent clamp stays honest", () => {
     expect(clampPercent(120)).toBe(100);
     expect(clampPercent(-3)).toBe(0);
     expect(clampPercent(74.6)).toBe(75);

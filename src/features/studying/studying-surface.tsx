@@ -144,7 +144,7 @@ function SayItBackState(props: { state: Extract<StudyingSurfaceState, { kind: "s
     <div class="mx-auto flex w-full max-w-3xl flex-1 flex-col gap-6 px-4 pb-10 pt-7 sm:px-6 sm:pt-10">
       <StudyPrompt instruction="Say it back:" prompt={props.state.exercise.prompt} />
 
-      {/* A miss reports the result only; the prompt already provides the target. */}
+      {/* A miss reports the result with the transcript diff the grader kept. */}
       <Show when={props.state.phase === "wrong"}>
         <div
           class={cn(
@@ -159,6 +159,43 @@ function SayItBackState(props: { state: Extract<StudyingSurfaceState, { kind: "s
               </Type>
             </div>
           </div>
+          <Show when={props.state.heardTranscript}>
+            <Type as="p" class="mt-3 text-muted-foreground" data-heard-transcript variant="body">
+              We heard: “{props.state.heardTranscript}”
+            </Type>
+          </Show>
+          <Show when={props.state.diff && (props.state.diff.missing.length > 0 || props.state.diff.substituted.length > 0 || props.state.diff.extra.length > 0)}>
+            <div class="mt-3 flex flex-wrap items-center gap-1.5" data-transcript-diff>
+              <For each={props.state.diff?.missing ?? []}>
+                {(word) => (
+                  <span class="rounded-md bg-[#2a1a17] px-2 py-0.5 text-sm text-destructive-text line-through" data-diff-missing>
+                    {word.token}
+                  </span>
+                )}
+              </For>
+              <For each={props.state.diff?.substituted ?? []}>
+                {(word) => (
+                  <span class="rounded-md bg-[#2a1a17] px-2 py-0.5 text-sm" data-diff-substituted>
+                    <span class="text-foreground line-through">{word.expected.token}</span>
+                    <span class="mx-1 text-muted-foreground">→</span>
+                    <span class="text-destructive-text">{word.heard}</span>
+                  </span>
+                )}
+              </For>
+              <For each={props.state.diff?.extra ?? []}>
+                {(word) => (
+                  <span class="rounded-md bg-[#2a1a17] px-2 py-0.5 text-sm text-muted-foreground" data-diff-extra>
+                    +{word}
+                  </span>
+                )}
+              </For>
+            </div>
+          </Show>
+          <Show when={props.state.willReturn}>
+            <Type as="p" class="mt-3 text-muted-foreground" variant="caption">
+              This line comes back later in this lesson.
+            </Type>
+          </Show>
         </div>
       </Show>
       <Show when={props.state.submitError}>
