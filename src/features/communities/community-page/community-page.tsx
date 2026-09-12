@@ -9,7 +9,6 @@ import {
 import type { SessionResolution } from "../../../api/session.ts";
 import {
   Button,
-  buttonVariants,
   toast,
   Toaster,
 } from "../../../design-system.ts";
@@ -22,7 +21,6 @@ import {
   type CommunityPageViewState,
   type CommunityRouteClient,
 } from "./community-page.model.ts";
-import { hasActiveHandleStorefront } from "../handle-storefront/handle-storefront.model.ts";
 import {
   communityCanonicalOrigin,
   communityRequestOrigin,
@@ -119,37 +117,6 @@ function MessageState(props: { readonly state: CommunityPageViewState }) {
       <p role="alert">{message()}</p>
     </main>
   );
-}
-
-function communityNamesUrl(state: CommunityPageSuccess): string {
-  const path = `/c/${state.communityId}/names`;
-  try {
-    return new URL(path, state.canonicalUrl).toString();
-  } catch {
-    return path;
-  }
-}
-
-function CommunityNamesCta(props: {
-  readonly state: CommunityPageSuccess;
-  readonly client: PublicHandleSalesApiClient;
-}) {
-  const copy = communityCopy();
-  const available = createMemo(
-    () => hasActiveHandleStorefront(props.client, props.state.communityId),
-    { deferStream: true },
-  );
-  return <Loading fallback={null}>
-    <Show when={available()}>
-      <a
-        class={buttonVariants({ variant: "default" })}
-        data-community-names-cta
-        href={communityNamesUrl(props.state)}
-      >
-        {copy.namesCta}
-      </a>
-    </Show>
-  </Loading>;
 }
 
 function SuccessState(props: {
@@ -284,8 +251,7 @@ function SuccessState(props: {
       posts: [],
       avatarSrc: source.avatarSrc ?? state.community.avatarSrc,
       bannerSrc: source.bannerSrc ?? state.community.bannerSrc,
-      gates: source.gates,
-      gateMode: source.gateMode,
+      membershipMode: state.community.membershipMode,
       rules: source.rules ?? state.community.rules.map((rule, position) => ({ ...rule, position: position + 1 })),
       referenceLinks: source.referenceLinks,
     };
@@ -519,11 +485,11 @@ function SuccessState(props: {
             personas={communityJoinCandidates(engagement.postingSession()?.personas ?? [], communityId)}
           />
       </div>
-      <div class="sr-only">
-        <p data-community-route={state.requestedPathSegment}>{state.routeDisplay}</p>
-        <p>{copy.membership}: {copy.membershipModes[state.community.membershipMode]}</p>
-        <CommunityNamesCta state={state} client={props.handleSalesClient} />
-      </div>
+      {/* The membership mode is stated visibly once, in the About card the
+          shell renders from membershipMode. The names storefront link lived
+          here invisibly for keyboard users only; it returns when it has a
+          visible place on the page. */}
+      <p class="sr-only" data-community-route={state.requestedPathSegment}>{state.routeDisplay}</p>
       <Show when={engagement.postingSession()}>
         {session => (
           <CreatePostDialog

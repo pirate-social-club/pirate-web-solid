@@ -108,9 +108,8 @@ function compare(storyId, viewport, pending, settled, probes) {
 }
 
 /**
- * The banner's overflow menu at one width. Community details must replace the
- * feed with the About panel, not leave an empty column beside an aside that
- * was already on screen, which is what a desktop-only escape hatch did.
+ * The About tab at one width. It must replace the feed with the About panel,
+ * not leave an empty column beside an aside that was already on screen.
  */
 async function checkCommunityDetails(page, viewport) {
   const failures = [];
@@ -123,8 +122,7 @@ async function checkCommunityDetails(page, viewport) {
   const about = page.locator("[aria-label='Community information']").first();
   await feed.waitFor({ state: "visible", timeout: startupTimeoutMs });
 
-  await page.locator("[aria-label='More community options']").first().click();
-  await page.getByRole("menuitem", { name: "Community details" }).click();
+  await page.locator("[data-community-tabs]").getByRole("button", { name: "About", exact: true }).click();
 
   if (await feed.isVisible()) {
     failures.push(`${viewport.name}: the feed is still on screen after asking for community details`);

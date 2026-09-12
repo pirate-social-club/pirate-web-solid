@@ -90,7 +90,7 @@ describe("YourCommunitiesRouteView", () => {
     container.querySelector<HTMLButtonElement>("[data-post-community-id]")!.click();
     await vi.waitFor(() => expect(loadMemberships).toHaveBeenCalledTimes(2));
     setSession("anonymous");
-    await vi.waitFor(() => expect(container.textContent).toContain("Sign in to choose"));
+    await vi.waitFor(() => expect(container.textContent).toContain("Sign in to see your communities."));
     finish([routeLessMembership]);
     await pending;
     await new Promise((resolve) => setTimeout(resolve, 0));
@@ -103,7 +103,7 @@ describe("YourCommunitiesRouteView", () => {
     const container = render(() => <YourCommunitiesRouteView applicationSession={() => "failed"} loadMemberships={loadMemberships} />);
     await vi.waitFor(() => expect(container.textContent).toContain("We couldn't check your account"));
     expect(loadMemberships).not.toHaveBeenCalled();
-    expect(container.textContent).not.toContain("Sign in to choose");
+    expect(container.textContent).not.toContain("Sign in to see your communities.");
   });
 
   test("renders an anonymous sign-in state without loading private memberships", async () => {
@@ -118,7 +118,7 @@ describe("YourCommunitiesRouteView", () => {
       expect(routeRoot(container).getAttribute("data-communities-state")).toBe("anonymous"),
     );
     expect(loadMemberships).not.toHaveBeenCalled();
-    expect(container.textContent).toContain("Sign in to choose a Community and post.");
+    expect(container.textContent).toContain("Sign in to see your communities.");
   });
 
   test("offers route-less members a contextual composer after a fresh membership read", async () => {
@@ -253,6 +253,6 @@ describe("YourCommunitiesRouteView", () => {
     await vi.waitFor(() =>
       expect(routeRoot(container).getAttribute("data-communities-state")).toBe("ready"),
     );
-    expect(container.textContent).toContain("You aren't an active member of a Community yet.");
+    expect(container.textContent).toContain("You aren't a member of a community yet.");
   });
 });

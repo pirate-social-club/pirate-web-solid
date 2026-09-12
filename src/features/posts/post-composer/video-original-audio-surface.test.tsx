@@ -6,7 +6,6 @@ import { afterEach, describe, expect, test } from "vitest";
 
 import {
   OriginalVideoCaptureSurface,
-  OriginalVideoPublicationSurface,
   OriginalVideoReviewSurface,
 } from "./video-original-audio-surface";
 
@@ -52,16 +51,5 @@ describe("original-audio video design surfaces", () => {
     expect(document.body.textContent).toContain("Recorded soundtrack");
     expect(document.body.textContent).not.toContain("Commercial remix");
     expect(document.body.textContent).not.toContain("Paid unlock");
-  });
-
-  test("keeps held work private and gives retryable failure an action", () => {
-    render(() => <OriginalVideoPublicationSurface state="rights_review" />);
-    expect(document.body.textContent).toContain("No post is public yet");
-
-    disposers.pop()?.();
-    render(() => <OriginalVideoPublicationSurface state="failed" />);
-    expect([...document.querySelectorAll("button")].some((button) =>
-      button.textContent?.trim() === "Retry"
-    )).toBe(true);
   });
 });

@@ -196,7 +196,7 @@ function actionRowSize(container: HTMLElement): string | null {
 }
 
 function manageAuthority(container: HTMLElement): string | null {
-  return container.querySelector("[aria-label='More community options']")
+  return container.querySelector("[data-community-manage]")
     ?.getAttribute("data-community-manage") ?? null;
 }
 
@@ -329,7 +329,7 @@ describe("private controls while authority settles", () => {
     expect(buttonNamed(container, "Join")).toBeUndefined();
     expect(buttonNamed(container, "Joined")).toBeUndefined();
     expect(buttonNamed(container, "Post")).toBeUndefined();
-    expect(buttonNamed(container, "Manage")).toBeUndefined();
+    expect(buttonNamed(container, "Manage community")).toBeUndefined();
     // Reserved space is not a control: it is inert and hidden from assistive
     // technology, so it states nothing about this viewer.
     // The header carries the two slots and nothing else, so nothing appears
@@ -403,7 +403,7 @@ describe("private controls while authority settles", () => {
     setSessionState({ status: "authenticated", userId: "account-a" });
 
     await vi.waitFor(() => expect(buttonNamed(container, "Post")).toBeDefined());
-    await vi.waitFor(() => expect(manageAuthority(container)).toBe("unavailable"));
+    await vi.waitFor(() => expect(manageAuthority(container)).toBeNull());
     expect(actionRowSize(container)).toBe(pendingHeader.row);
   });
 
@@ -511,7 +511,7 @@ describe("the overflow menu and the outcome announcements", () => {
       .find(item => item.textContent?.trim() === label);
   }
 
-  test("Community details opens the About panel rather than doing nothing", async () => {
+  test("the About tab opens the details panel rather than leaving an empty column", async () => {
     const container = render(() => (
       <CommunityPage
         client={client}
@@ -529,15 +529,10 @@ describe("the overflow menu and the outcome announcements", () => {
     const feed = container.querySelector<HTMLElement>("[aria-label='Community feed']")!;
     expect(feed.className).not.toContain("hidden");
 
-    openOverflow(container);
-    const details = await vi.waitFor(() => {
-      const item = menuItem("Community details");
-      expect(item).toBeDefined();
-      return item!;
-    });
-    details.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, button: 0, isPrimary: true }));
-    details.dispatchEvent(new PointerEvent("pointerup", { bubbles: true, button: 0, isPrimary: true }));
-    details.click();
+    const aboutTab = [...container.querySelectorAll<HTMLButtonElement>("button")]
+      .find(button => button.textContent?.trim() === "About");
+    expect(aboutTab).toBeDefined();
+    aboutTab!.click();
 
     // Hidden at every width, with no md: escape putting an empty column back.
     await vi.waitFor(() => expect(
@@ -546,7 +541,7 @@ describe("the overflow menu and the outcome announcements", () => {
     const about = container.querySelector<HTMLElement>("[aria-label='Community information']");
     expect(about?.className).not.toContain("hidden");
     expect(about?.className).toContain("md:col-span-2");
-    expect(about?.textContent).toContain(`About ${harbor.displayName}`);
+    expect(about?.textContent).toContain("About");
   });
 
   test("an outcome is announced with a lifetime and a way to dismiss it", async () => {

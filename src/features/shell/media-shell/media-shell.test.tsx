@@ -74,18 +74,18 @@ describe("Media shell production navigation", () => {
     expect(container.textContent).not.toContain("Sign in");
   });
 
-  test("leaves authenticated footer content and settings access stable during background reads", async () => {
+  test("leaves authenticated footer content and profile access stable during background reads", async () => {
     const [pending, setPending] = createSignal(false);
-    const container = render(() => <ApplicationChrome signedIn sessionPending={pending()}>Route</ApplicationChrome>);
+    const container = render(() => <ApplicationChrome signedIn profileHref="/u/story.pirate" sessionPending={pending()}>Route</ApplicationChrome>);
     const sidebar = container.querySelector("aside")!;
     const before = sidebar.textContent;
-    const settings = sidebar.querySelector<HTMLAnchorElement>('a[href="/settings"]')!;
+    const profile = sidebar.querySelector<HTMLAnchorElement>('a[href="/u/story.pirate"]')!;
     setPending(true);
     await new Promise(resolve => setTimeout(resolve, 0));
     expect(sidebar.textContent).toBe(before);
-    expect(settings.hidden).toBe(false);
-    expect(settings.getAttribute("aria-disabled")).not.toBe("true");
-    expect(sidebar.textContent).toContain("Session active");
+    expect(profile.hidden).toBe(false);
+    expect(profile.getAttribute("aria-disabled")).not.toBe("true");
+    expect(sidebar.textContent).toContain("View your public profile");
     expect(sidebar.textContent).not.toContain("Checking your account");
   });
 
@@ -103,9 +103,12 @@ describe("Media shell production navigation", () => {
       .map((button) => button.textContent?.trim());
 
     expect(navigationLabels).toContain("Create community");
-    expect(navigationLabels).toContain("Your communities");
+    expect(navigationLabels).toContain("Communities");
     expect(navigationLabels).not.toContain("Study");
-    expect(navigationLabels).toContain("Karaoke");
+    expect(navigationLabels).not.toContain("Karaoke");
+    expect(navigationLabels).not.toContain("Search");
+    expect(navigationLabels).not.toContain("Live");
+    expect(navigationLabels).not.toContain("Activity");
     expect(container.querySelector("header button[aria-label='Go home']")).not.toBeNull();
     expect(container.textContent).not.toContain("Create post");
   });
@@ -114,7 +117,7 @@ describe("Media shell production navigation", () => {
     const navigate = vi.fn();
     const container = render(() => <ApplicationChrome navigate={navigate}><main>Current route</main></ApplicationChrome>);
     const buttons = [...container.querySelectorAll<HTMLButtonElement>("nav button")];
-    buttons.find(button => button.textContent?.trim() === "Your communities")?.click();
+    buttons.find(button => button.textContent?.trim() === "Communities")?.click();
     buttons.find(button => button.textContent?.trim() === "Create community")?.click();
     expect(navigate).toHaveBeenNthCalledWith(1, "/communities");
     expect(navigate).toHaveBeenNthCalledWith(2, "/communities/new");
@@ -123,14 +126,14 @@ describe("Media shell production navigation", () => {
   test("keeps immersive controls and mobile selection inside the same chrome owner", () => {
     const navigate = vi.fn();
     const container = render(() => (
-      <ApplicationChrome mobileActiveItem="learn" mode="immersive" navigate={navigate}>
+      <ApplicationChrome mobileActiveItem="communities" mode="immersive" navigate={navigate}>
         <main>Video route</main>
       </ApplicationChrome>
     ));
 
     container.querySelector<HTMLButtonElement>("header button[aria-label='Create community']")?.click();
     expect(navigate).toHaveBeenCalledWith("/communities/new");
-    expect(container.querySelector("nav[aria-label='Primary navigation'] button[aria-current='page']")?.textContent).toContain("Learn");
+    expect(container.querySelector("nav[aria-label='Primary navigation'] button[aria-current='page']")?.textContent).toContain("Communities");
   });
 
   test("renders ceremony routes without application chrome", () => {

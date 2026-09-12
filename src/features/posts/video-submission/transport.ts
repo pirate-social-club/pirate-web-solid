@@ -8,7 +8,7 @@ import type {
   PostMediaUploadReservationsReservationIdPartsRenewInput,
 } from "@pirate/api-client";
 import { createApiClient, readCsrfCookie, sessionRequestOptions, type ApiClientFactoryOptions } from "../../../api/client";
-import { VideoContractError, type OriginalVideoReservation, type VideoSnapshot } from "./contracts";
+import { VideoContractError, verifySongReservation, type VideoReservation, type VideoSnapshot } from "./contracts";
 
 export type VideoCommand =
   | { readonly kind: "reserve"; readonly input: PostCommunitiesCommunityIdMediaUploadReservationsInput }
@@ -28,15 +28,19 @@ type VideoApi = Pick<PirateApiClient,
   | "get_mediaPostSubmissionsSubmissionId"
 >;
 
-export type VideoCommandResult = OriginalVideoReservation | VideoSnapshot;
+export type VideoCommandResult = VideoReservation | VideoSnapshot;
 export interface VideoTransport {
   readonly execute: (command: VideoCommand) => Promise<VideoCommandResult>;
   readonly read: (submissionId: string) => Promise<VideoSnapshot>;
 }
 
 function videoSnapshot(value: Awaited<ReturnType<VideoApi["get_mediaPostSubmissionsSubmissionId"]>>): VideoSnapshot {
-  if (value.track !== "video" || value.intent !== "original_audio") throw new VideoContractError("Unexpected media submission track");
-  return value;
+  if (value.track !== "video") throw new VideoContractError("Unexpected media submission track");
+  switch (value.intent) {
+    case "original_audio":
+    case "song_reference":
+      return value;
+  }
 }
 
 /** Generated validation, same-origin session and current CSRF remain mandatory. */
@@ -55,10 +59,14 @@ export function createVideoTransport(options: ApiClientFactoryOptions & {
       const session = requestOptions();
       switch (command.kind) {
         case "reserve": {
-          if (command.input.body.track !== "video" || command.input.body.intent !== "original_audio") throw new VideoContractError("Only original audio is available");
+          const body = command.input.body;
+          if (body.track !== "video") throw new VideoContractError("Only a video can be reserved here");
           const result = await api.post_communitiesCommunityIdMediaUploadReservations(command.input, session);
-          if (result.track !== "video" || result.intent !== "original_audio"
-            || result.author_persona_id !== command.input.body.persona_id) throw new VideoContractError("Unexpected reservation authority");
+          if (result.track !== "video" || result.author_persona_id !== body.persona_id) {
+            throw new VideoContractError("Unexpected reservation authority");
+          }
+          if (body.intent === "song_reference") return verifySongReservation(body, result);
+          if (result.intent !== "original_audio") throw new VideoContractError("Unexpected reservation intent");
           return result;
         }
         case "start":
@@ -70,8 +78,10 @@ export function createVideoTransport(options: ApiClientFactoryOptions & {
         case "retry": return videoSnapshot(await api.post_mediaPostSubmissionsSubmissionIdRetry(command.input, session));
         case "cancel": return videoSnapshot(await api.post_mediaPostSubmissionsSubmissionIdCancel(command.input, session));
         case "renew": {
+          // The coordinator compares a renewal's intent, song and interval with
+          // the retained reservation; this checks only its authority.
           const result = await api.post_mediaUploadReservationsReservationIdPartsRenew(command.input, session);
-          if (result.intent !== "original_audio" || result.author_persona_id !== command.input.body.persona_id
+          if (result.author_persona_id !== command.input.body.persona_id
             || result.reservation_id !== command.input.path.reservationId) throw new VideoContractError("Unexpected renewal authority");
           return result;
         }

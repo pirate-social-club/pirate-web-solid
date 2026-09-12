@@ -4,12 +4,8 @@ import { Show } from "solid-js";
 
 import {
   Button,
-  IconBell,
-  IconBroadcast,
   IconHouse,
   IconButton,
-  IconMagnifyingGlass,
-  IconMicrophone,
   IconUsersThree,
   Type,
 } from "../../../design-system";
@@ -28,7 +24,7 @@ export type MediaShellRoute = ApplicationChromeRoute;
 export interface MediaShellProps {
   readonly children: JSX.Element;
   readonly activeItemId?: MediaShellRoute;
-  readonly mobileActiveItem?: ShellNavItem;
+  readonly mobileActiveItem?: ShellNavItem | "none";
   readonly mobileTitle?: string;
   readonly mode?: ApplicationChromeMode;
   readonly navigate?: (href: string) => void;
@@ -37,6 +33,8 @@ export interface MediaShellProps {
   readonly sessionResolving?: boolean;
   readonly sessionPending?: boolean;
   readonly onSessionRetry?: () => void;
+  /** The viewer's own public profile; unset until the account personas land. */
+  readonly profileHref?: string;
   /** Compatibility seam for existing stories; `mode="immersive"` is canonical. */
   readonly immersive?: boolean;
   readonly class?: string;
@@ -45,14 +43,8 @@ export interface MediaShellProps {
 function routeFor(id: string): string | undefined {
   switch (id) {
     case "home": return "/";
-    case "search": return "/search";
-    case "live": return "/live";
     case "your-communities": return "/communities";
     case "create-community": return "/communities/new";
-    case "activity": return "/activity";
-    case "karaoke": return "/karaoke";
-    case "study": return "/study";
-    case "settings": return "/settings";
     default: return undefined;
   }
 }
@@ -73,16 +65,13 @@ export function ApplicationChrome(props: MediaShellProps) {
   const navigateById = (id: string) => navigate(id, props.navigate);
   const primaryItems: readonly SidebarItem[] = [
     { id: "home", label: "Home", icon: <IconHouse class="size-5" /> },
-    { id: "search", label: "Search", icon: <IconMagnifyingGlass class="size-5" /> },
-    { id: "live", label: "Live", icon: <IconBroadcast class="size-5" /> },
   ];
   const sections: readonly SidebarSection[] = [
     {
       id: "community",
       label: "Community",
       items: [
-        { id: "activity", label: "Activity", icon: <IconBell class="size-5" /> },
-        { id: "your-communities", label: "Your communities", icon: <IconUsersThree class="size-5" /> },
+        { id: "your-communities", label: "Communities", icon: <IconUsersThree class="size-5" /> },
       ],
     },
     {
@@ -90,12 +79,22 @@ export function ApplicationChrome(props: MediaShellProps) {
       label: "Create",
       items: [
         { id: "create-community", label: "Create community", icon: <IconUsersThree class="size-5" /> },
-        { id: "karaoke", label: "Karaoke", icon: <IconMicrophone class="size-5" /> },
       ],
     },
   ];
   const goHome = () => navigateById("home");
-  const goProfile = () => navigateById("settings");
+  const profileTarget = () => props.profileHref;
+  const anonymousSettled = () => !props.sessionResolving && !props.sessionUnavailable && !signedIn();
+  const openProfile = () => {
+    if (!signedIn()) {
+      if (anonymousSettled()) requestGlobalSignIn();
+      return;
+    }
+    const href = profileTarget();
+    if (href === undefined) return;
+    if (props.navigate) props.navigate(href);
+    else if (typeof window !== "undefined") window.location.assign(href);
+  };
 
   return <Show when={mode() !== "bare"} fallback={props.children}><div data-application-chrome data-media-shell data-shell-mode={mode()} data-shell-auth={props.sessionResolving ? "resolving" : props.sessionUnavailable ? "unavailable" : signedIn() ? "authenticated" : "anonymous"} class={`min-h-screen bg-background text-foreground ${props.class ?? ""}`}>
     <div class="flex min-h-screen">
@@ -104,16 +103,16 @@ export function ApplicationChrome(props: MediaShellProps) {
         appearance="media"
         brandLabel="PIRATE"
         class="sticky top-0 hidden h-screen md:flex"
-        footerActionHref={signedIn() ? "/settings" : undefined}
-        footerActionDisabled={props.sessionResolving || (props.sessionUnavailable && props.sessionPending)}
-        footerActionLabel={props.sessionResolving || (props.sessionUnavailable && props.sessionPending) ? "Checking account" : props.sessionUnavailable ? "Retry account check" : signedIn() ? "Account settings" : "Sign in"}
-        footerDetail={props.sessionResolving || (props.sessionUnavailable && props.sessionPending) ? "Checking your account" : props.sessionUnavailable ? "Your account could not be checked" : signedIn() ? "Session active" : "Save, follow, and post"}
+        footerActionHref={signedIn() ? profileTarget() : undefined}
+        footerActionDisabled={props.sessionResolving || (props.sessionUnavailable && props.sessionPending) || (signedIn() && profileTarget() === undefined)}
+        footerActionLabel={props.sessionResolving || (props.sessionUnavailable && props.sessionPending) ? "Checking account" : props.sessionUnavailable ? "Retry account check" : signedIn() ? "Your profile" : "Sign in"}
+        footerDetail={props.sessionResolving || (props.sessionUnavailable && props.sessionPending) ? "Checking your account" : props.sessionUnavailable ? "Your account could not be checked" : signedIn() ? profileTarget() === undefined ? "Your profile is still loading" : "View your public profile" : "Save, follow, and post"}
         footerTitle={props.sessionResolving ? "Account" : props.sessionUnavailable ? "Connection unavailable" : signedIn() ? "Your Pirate" : "Join Pirate"}
         homeAriaLabel="Go to Pirate home"
-        onFooterAction={props.sessionResolving ? undefined : props.sessionUnavailable ? props.onSessionRetry : requestGlobalSignIn}
-        onFooterActionFocus={props.sessionResolving || props.sessionUnavailable ? undefined : prepareGlobalSignIn}
-        onFooterActionPointerDown={props.sessionResolving || props.sessionUnavailable ? undefined : prepareGlobalSignIn}
-        onFooterActionPointerEnter={props.sessionResolving || props.sessionUnavailable ? undefined : preloadGlobalSignInAssets}
+        onFooterAction={props.sessionResolving ? undefined : props.sessionUnavailable ? props.onSessionRetry : signedIn() ? undefined : requestGlobalSignIn}
+        onFooterActionFocus={props.sessionResolving || props.sessionUnavailable || signedIn() ? undefined : prepareGlobalSignIn}
+        onFooterActionPointerDown={props.sessionResolving || props.sessionUnavailable || signedIn() ? undefined : prepareGlobalSignIn}
+        onFooterActionPointerEnter={props.sessionResolving || props.sessionUnavailable || signedIn() ? undefined : preloadGlobalSignInAssets}
         onHomeClick={goHome}
         onNavigate={navigateById}
         primaryItems={primaryItems}
@@ -138,14 +137,27 @@ export function ApplicationChrome(props: MediaShellProps) {
             }
             mobileTrailingContent={props.sessionResolving ? <Type as="span" variant="caption">Account</Type> : props.sessionUnavailable ? <Button type="button" onClick={props.onSessionRetry} disabled={props.sessionPending} size="sm" variant="ghost">{props.sessionPending ? "Checking account" : "Retry account check"}</Button> : signedIn() ? undefined : <Button type="button" onClick={requestGlobalSignIn} onFocus={prepareGlobalSignIn} onPointerDown={prepareGlobalSignIn} onPointerEnter={preloadGlobalSignInAssets} class={immersive() ? "text-white" : undefined} size="sm" variant="ghost">Sign in</Button>}
             onHomeClick={goHome}
-            onProfileClick={goProfile}
+            onProfileClick={openProfile}
             showNotificationsAction={false}
             showProfileAction={signedIn()}
             showWalletAction={false}
           />
         </div>
         <div class={immersive() ? "h-[100dvh] w-full md:h-screen" : "min-h-[100dvh] w-full pt-[calc(env(safe-area-inset-top)+4rem)] md:min-h-screen md:pt-0"}>{props.children}</div>
-        <MobileFooterNav class="md:hidden" forceMobile activeItem={props.mobileActiveItem ?? "home"} onHomeClick={goHome} onLearnClick={() => navigateById("study")} onProfileClick={goProfile} onWalletClick={() => navigateById("settings")} />
+        <MobileFooterNav
+          class="md:hidden"
+          forceMobile
+          activeItem={props.mobileActiveItem ?? "home"}
+          labels={{
+            communities: "Communities",
+            communitiesAriaLabel: "Communities",
+            profile: signedIn() ? "Profile" : anonymousSettled() ? "Sign in" : "Profile",
+            profileAriaLabel: signedIn() ? "Your profile" : anonymousSettled() ? "Sign in" : "Profile",
+          }}
+          onCommunitiesClick={() => navigateById("your-communities")}
+          onHomeClick={goHome}
+          onProfileClick={openProfile}
+        />
       </SidebarContent>
     </div>
   </div></Show>;

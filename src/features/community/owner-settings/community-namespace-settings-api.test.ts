@@ -1,5 +1,6 @@
 import { describe, expect, test, vi } from "vitest";
 
+import { createApiClient } from "../../../api/client";
 import { createCommunityNamespaceSettingsApi, type HnsSessionLocator } from "./community-namespace-settings-api";
 
 const common = {
@@ -422,4 +423,46 @@ test("a loaded deep link remains current when the locator disappears", async () 
   sessionLocator.clear();
   await api.execute({ kind: "poll", expected_generation: snapshot.generation, idempotency_key: "poll-loaded" });
   expect(poll).toHaveBeenCalledWith(expect.objectContaining({ path: { communityId: common.community_id, sessionId: "session-1" } }), expect.anything());
+});
+
+test("the vendored client decodes a lifecycle-bearing HNS session response", async () => {
+  const response = {
+    community_id: common.community_id,
+    attachment: null,
+    session: {
+      ...common,
+      revision: 4,
+      status: "failed",
+      lifecycle: {
+        phase: "checking_authority",
+        pending_reason: "waiting for authority",
+        deadline: { kind: "finality", at: "2099-09-11T00:00:00.000Z" },
+        server_time: "2026-09-11T00:00:00.000Z",
+        next_check_at: null,
+        retry_hint_seconds: 5,
+        permitted_actions: ["poll", "recover"],
+        observation: null,
+      },
+      publish_plan: null,
+      publish_plan_sha256: null,
+      readiness_result_sha256: null,
+      retry_after_seconds: null,
+    },
+  };
+  // The generated client decodes strictly; an undeclared field is a validation
+  // error, so this fails on a client older than 0.72.0. The app's own client
+  // factory builds the real generated client.
+  const client = createApiClient({
+    origin: "https://api.example",
+    fetchImpl: async () =>
+      new Response(JSON.stringify(response), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      }),
+  });
+  const decoded = await client.get_communitiesCommunityIdHnsRootImports({
+    path: { communityId: common.community_id },
+  });
+  expect(decoded.session?.lifecycle?.phase).toBe("checking_authority");
+  expect(decoded.session?.lifecycle?.permitted_actions).toContain("poll");
 });

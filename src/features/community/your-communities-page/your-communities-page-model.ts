@@ -22,6 +22,17 @@ export function formatCommunityRouteLabel(communityId: string, routeSlug?: strin
   return routeSegment.toLowerCase().startsWith("c/") ? routeSegment : `c/${routeSegment}`;
 }
 
+/**
+ * The route caption for a community that has one. A community without a route
+ * gets no caption: "no route" is protocol vocabulary, and every community
+ * created today starts without one.
+ */
+export function communityRouteLabel(routeSlug?: string | null): string | null {
+  if (routeSlug === null || routeSlug === undefined || routeSlug === "") return null;
+  const routeSegment = formatCommunityRouteSegment(routeSlug);
+  return routeSegment.toLowerCase().startsWith("c/") ? routeSegment : `c/${routeSegment}`;
+}
+
 function formatCommunityRouteSegment(value: string): string {
   const trimmedInput = value.trim();
   const trimmed = trimmedInput.toLowerCase().startsWith("c/") ? trimmedInput.slice(2) : trimmedInput;

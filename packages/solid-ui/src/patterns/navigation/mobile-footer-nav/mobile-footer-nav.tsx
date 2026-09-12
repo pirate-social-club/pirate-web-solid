@@ -3,27 +3,24 @@ import { Dynamic } from "@solidjs/web";
 import { For } from "solid-js";
 
 import { Avatar } from "@/components/data-display/avatar/avatar";
-import { IconHouse, IconPlaylist, IconWallet } from "@/components/media/icons";
+import { IconHouse, IconUsersThree } from "@/components/media/icons";
 import { cn } from "@/lib/cn";
 
-export type FooterNavItemId = "home" | "learn" | "wallet" | "profile";
+export type FooterNavItemId = "home" | "communities" | "profile" | "none";
 type FooterIcon = (props: { class?: string; filled?: boolean }) => JSX.Element;
 
 export interface MobileFooterNavLabels {
   home?: string;
-  learn?: string;
-  learnAriaLabel?: string;
+  communities?: string;
+  communitiesAriaLabel?: string;
   primaryNavAriaLabel?: string;
   profile?: string;
   profileAriaLabel?: string;
-  wallet?: string;
-  walletAriaLabel?: string;
 }
 
 export interface MobileFooterNavIcons {
   home?: FooterIcon;
-  learn?: FooterIcon;
-  wallet?: FooterIcon;
+  communities?: FooterIcon;
 }
 
 export interface MobileFooterNavProps {
@@ -33,7 +30,7 @@ export interface MobileFooterNavProps {
   icons?: MobileFooterNavIcons;
   labels?: MobileFooterNavLabels;
   onHomeClick?: () => void;
-  onLearnClick?: () => void;
+  onCommunitiesClick?: () => void;
   onProfileClick?: () => void;
   /**
    * Render at any width instead of only below md. The nav is display:none on a
@@ -42,7 +39,6 @@ export interface MobileFooterNavProps {
    */
   forceMobile?: boolean;
   onTapHaptic?: () => void;
-  onWalletClick?: () => void;
   userAvatarSeed?: string | null;
   userAvatarSrc?: string | null;
 }
@@ -52,8 +48,7 @@ export function MobileFooterNav(props: MobileFooterNavProps) {
   const labels = () => props.labels ?? {};
   const icons = () => props.icons ?? {};
   const home = () => labels().home ?? "Home";
-  const learn = () => labels().learn ?? "Learn";
-  const wallet = () => labels().wallet ?? "Wallet";
+  const communities = () => labels().communities ?? "Communities";
   const profile = () => labels().profile ?? "Profile";
   const active = () => props.activeItem ?? "home";
   const handleTap = (action?: () => void) => {
@@ -64,8 +59,7 @@ export function MobileFooterNav(props: MobileFooterNavProps) {
 
   const items = () => [
     { id: "home" as const, icon: icons().home ?? IconHouse, label: home(), onClick: props.onHomeClick, ariaLabel: home() },
-    { id: "learn" as const, icon: icons().learn ?? IconPlaylist, label: learn(), onClick: props.onLearnClick, ariaLabel: labels().learnAriaLabel ?? learn() },
-    { id: "wallet" as const, icon: icons().wallet ?? IconWallet, label: wallet(), onClick: props.onWalletClick, ariaLabel: labels().walletAriaLabel ?? wallet() },
+    { id: "communities" as const, icon: icons().communities ?? IconUsersThree, label: communities(), onClick: props.onCommunitiesClick, ariaLabel: labels().communitiesAriaLabel ?? communities() },
   ];
 
   return (
@@ -77,7 +71,7 @@ export function MobileFooterNav(props: MobileFooterNavProps) {
         props.class,
       )}
     >
-      <div class="grid h-[var(--header-height)] grid-cols-4 items-center px-3">
+      <div class="grid h-[var(--header-height)] grid-cols-3 items-center px-3">
         <For each={items()}>
           {(item) => (
             <button

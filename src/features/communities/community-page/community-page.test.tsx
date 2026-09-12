@@ -352,10 +352,7 @@ describe("CommunityPage", () => {
     expect(container.textContent).toContain("Public conversations.");
     expect(container.textContent).toContain("Respect");
     expect(container.textContent).toContain("Feed");
-    expect(container.textContent).toContain("About Pirate Harbor");
-    await vi.waitFor(() => expect(container.querySelector("[data-community-names-cta]")).not.toBeNull());
-    expect(container.querySelector<HTMLAnchorElement>("[data-community-names-cta]")?.href)
-      .toContain(`/c/${communityId}/names`);
+    expect(container.querySelector("[aria-label='Community information']")?.textContent).toContain("c/pokémon");
     expect(document.head.querySelector("link[rel='canonical']")?.getAttribute("href"))
       .toContain("/c/xn--pokmon-dva");
   });
@@ -774,7 +771,7 @@ describe("CommunityPage", () => {
     openOverlay(overflow);
     const manage = await vi.waitFor(() => {
       const item = [...document.body.querySelectorAll<HTMLElement>("[role='menuitem']")]
-        .find(entry => entry.textContent?.trim() === "Manage");
+        .find(entry => entry.textContent?.trim() === "Manage community");
       expect(item).toBeDefined();
       return item!;
     });

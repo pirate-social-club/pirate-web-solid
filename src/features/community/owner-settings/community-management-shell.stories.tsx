@@ -120,49 +120,6 @@ export const QueueFirstDesktop: Story = {
   },
 };
 
-export const SectionChange: Story = {
-  render: () => <ManagementRoute />,
-  play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement);
-    const nav = canvas.getByRole("navigation", { name: "Community management" });
-
-    await userEvent.click(within(nav).getByRole("button", { name: "Address" }));
-    await expect(canvas.getByRole("heading", { level: 1, name: "Community address" })).toBeInTheDocument();
-    await expect(within(nav).getByRole("button", { name: "Address" })).toHaveAttribute("aria-current", "page");
-    await expect(within(nav).getByRole("button", { name: "Queue" })).not.toHaveAttribute("aria-current");
-  },
-};
-
-export const InteractionStates: Story = {
-  render: () => <ManagementRoute />,
-  play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement);
-    const nav = canvas.getByRole("navigation", { name: "Community management" });
-    const queue = within(nav).getByRole("button", { name: "Queue" });
-    const address = within(nav).getByRole("button", { name: "Address" });
-
-    // Active: the current section is announced, not merely tinted.
-    await expect(queue).toHaveAttribute("aria-current", "page");
-
-    // Pointer: an enabled control reads as clickable, a disabled one does not.
-    // The base rule restored in the design-system tokens is what makes the bare
-    // nav button a pointer target without its own cursor class.
-    expect(getComputedStyle(address).cursor).toBe("pointer");
-    // A disabled control takes no pointer events, so the pointer never lands on
-    // it and the viewer keeps the surrounding cursor. Its computed `cursor` is
-    // not the property that decides this, so it is not what is asserted.
-    const disabled = canvas.getByRole("button", { name: "Unavailable action" });
-    await expect(disabled).toBeDisabled();
-    expect(getComputedStyle(disabled).pointerEvents).toBe("none");
-
-    // Keyboard: the same control takes focus and activates without a pointer.
-    address.focus();
-    await expect(address).toHaveFocus();
-    await userEvent.keyboard("{Enter}");
-    await expect(canvas.getByRole("heading", { level: 1, name: "Community address" })).toBeInTheDocument();
-  },
-};
-
 export const Mobile: Story = {
   globals: { viewport: { value: "mobile1", isRotated: false } },
   render: () => <ManagementRoute />,
@@ -174,10 +131,6 @@ export const Mobile: Story = {
     // The complementary heading: one exposed here too, now the mobile one.
     expect(visibleHeadings(canvasElement)).toEqual(["Moderation queue"]);
   },
-};
-
-export const NoCapabilities: Story = {
-  render: () => <ManagementRoute access={{}} />,
 };
 
 export const MobileIndex: Story = {

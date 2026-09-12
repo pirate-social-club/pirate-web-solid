@@ -1,9 +1,14 @@
 import { createContext, useContext, type Accessor } from "solid-js";
 import type { JSX } from "@solidjs/web";
 
-import type { AccountSessionResolution } from "../../api/session.ts";
+import type { AccountSessionResolution, SessionResolution } from "../../api/session.ts";
 
-export type ApplicationSessionState = "resolving" | "failed" | AccountSessionResolution;
+/**
+ * The chrome accepts both the account-only resolution and the full session
+ * with personas; the full shape is what lets the shell link to the viewer's
+ * own public profile.
+ */
+export type ApplicationSessionState = "resolving" | "failed" | AccountSessionResolution | SessionResolution;
 export type ApplicationSessionAccessor = Accessor<ApplicationSessionState | undefined>;
 
 const ApplicationSessionContext = createContext<ApplicationSessionAccessor>(() => undefined);

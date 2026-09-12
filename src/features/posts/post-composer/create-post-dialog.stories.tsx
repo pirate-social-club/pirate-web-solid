@@ -1,6 +1,7 @@
 // The product-path composer stories. The community page renders exactly this
 // component (CreatePostDialog), so every flow reviewed here is the shipped
 // surface; the Parts stories demonstrate the inner components in isolation.
+import { createSignal, Show } from "solid-js";
 import { expect, userEvent, within } from "storybook/test";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import type { PostCommunitiesCommunityIdMediaUploadReservationsResponse } from "@pirate/api-client";
@@ -196,6 +197,37 @@ type Story = StoryObj<typeof meta>;
 export const ContextualText: Story = {
   name: "Contextual / Text",
   render: () => dialogHarness().render(),
+};
+
+/** A host that honours dismissal. The other stories pin `open` and ignore
+ * `onOpenChange`, which is right for reviewing a surface but means closing can
+ * only be assumed there. This one closes, and offers the way back, so dismissal
+ * and reopening can be observed. */
+export const ContextualTextDismissible: Story = {
+  name: "Contextual / Text / Dismissible",
+  render: () => {
+    const [open, setOpen] = createSignal(true);
+    const mediaStorage = createMemoryMediaSubmissionStorage();
+    const mediaTransport = new StoryMediaTransport(true);
+    return (
+      <>
+        <Show when={!open()}>
+          <button onClick={() => setOpen(true)} type="button">Open the composer</button>
+        </Show>
+        <CreatePostDialog
+          communityContext={{ id: "community-one", name: "Pirate Harbor" }}
+          mediaStorage={mediaStorage}
+          mediaTransport={mediaTransport}
+          onOpenChange={setOpen}
+          onPublished={() => {}}
+          open={open()}
+          personas={personas(1)}
+          principalId="account-one"
+          storage={createMemoryPendingSubmissionStorage()}
+        />
+      </>
+    );
+  },
 };
 
 export const ContextualTextMobile: Story = {

@@ -30,6 +30,7 @@ export function PostComposer(props: PostComposerProps) {
       return (
         <>
           <PostComposerWriteStep
+            attachmentBarPlacement={props.attachmentBarPlacement}
             onVideoEntry={props.onVideoEntry}
             controller={controller}
             initialOpenPanel={props.initialOpenPanel}
@@ -111,7 +112,12 @@ export function PostComposer(props: PostComposerProps) {
               <Show when={props.mediaStatus}>{props.mediaStatus!()}</Show>
               {stepContent()}
               <Show when={isMultiStep()}>
-                <PostComposerStepFooter controller={controller} steps={steps} runtime={props.songFlowRuntime} />
+                <PostComposerStepFooter
+                  controller={controller}
+                  placement={props.attachmentBarPlacement}
+                  runtime={props.songFlowRuntime}
+                  steps={steps}
+                />
               </Show>
             </Card>
           }
@@ -120,8 +126,15 @@ export function PostComposer(props: PostComposerProps) {
           <Show when={props.mediaStatus}>{props.mediaStatus!()}</Show>
           {stepContent()}
           <Show when={isMultiStep()}>
-            <div class="h-24" aria-hidden="true" />
-            <PostComposerStepFooter controller={controller} steps={steps} runtime={props.songFlowRuntime} />
+            <Show when={props.attachmentBarPlacement !== "inline"}>
+              <div class="h-24" aria-hidden="true" />
+            </Show>
+            <PostComposerStepFooter
+              controller={controller}
+              placement={props.attachmentBarPlacement}
+              runtime={props.songFlowRuntime}
+              steps={steps}
+            />
           </Show>
         </Show>
       </div>

@@ -1,5 +1,26 @@
-import type { PendingVideo, VideoStorage } from "./coordinator";
+import { isRetainedVersion, type PendingVideo, type VideoStorage } from "./coordinator";
 import { VideoContractError } from "./contracts";
+
+/** A retained song selection, checked field by field; anything else is not one. */
+function songSelection(value: object): PendingVideo["song"] {
+  if (!("songPostId" in value) || !("audioRevision" in value) || !("clipStartSamples" in value)
+    || !("clipDurationSamples" in value) || !("selectedFrom" in value)) return undefined;
+  const { songPostId, audioRevision, clipStartSamples, clipDurationSamples, selectedFrom } = value;
+  if (typeof songPostId !== "string" || songPostId === "" || typeof audioRevision !== "number"
+    || typeof clipStartSamples !== "number" || typeof clipDurationSamples !== "number"
+    || !Number.isSafeInteger(audioRevision) || audioRevision < 1
+    || !Number.isSafeInteger(clipStartSamples) || clipStartSamples < 0
+    || !Number.isSafeInteger(clipDurationSamples) || clipDurationSamples < 1
+    || typeof selectedFrom !== "object" || selectedFrom === null || !("kind" in selectedFrom)) return undefined;
+  if (selectedFrom.kind === "library") {
+    return { songPostId, audioRevision, clipStartSamples, clipDurationSamples, selectedFrom: { kind: "library" } };
+  }
+  if (selectedFrom.kind === "feed" && "origin_post_id" in selectedFrom && typeof selectedFrom.origin_post_id === "string") {
+    return { songPostId, audioRevision, clipStartSamples, clipDurationSamples,
+      selectedFrom: { kind: "feed", origin_post_id: selectedFrom.origin_post_id } };
+  }
+  return undefined;
+}
 
 /** Account-scoped IndexedDB; never a bearer token or an authentication source. */
 export function createBrowserVideoStorage(principalId: string): VideoStorage {
@@ -39,7 +60,10 @@ export function createBrowserVideoStorage(principalId: string): VideoStorage {
       const value: unknown = await transact("readonly", store => store.get("current"));
       if (value === undefined) return null;
       if (typeof value !== "object" || value === null || !("version" in value)
-        || value.version !== "original-video-pending-v1" || !("principalId" in value)
+        || (value.version !== "original-video-pending-v1" && value.version !== "song-video-pending-v1")
+        || !isRetainedVersion({ version: value.version,
+          song: "song" in value && typeof value.song === "object" && value.song !== null ? songSelection(value.song) : undefined })
+        || !("principalId" in value)
         || value.principalId !== principalId || !("file" in value) || !(value.file instanceof Blob)
         || !("receipts" in value) || !Array.isArray(value.receipts)
         || !("communityId" in value) || typeof value.communityId !== "string"

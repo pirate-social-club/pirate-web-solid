@@ -207,32 +207,5 @@
     "humanVerificationRequired": "مطلوب",
     "additionalRequirementsTitle": "متطلبات إضافية",
     "submit": "إنشاء"
-  },
-  "communityCreationProgress": {
-    "title": "إنشاء المجتمع",
-    "statusDraft": "مسودة",
-    "statusVerificationRequired": "مسودة إنشاء قديمة",
-    "statusCommitReady": "جاهز للإنشاء",
-    "statusCommitted": "تم إنشاء المجتمع",
-    "statusQuotaExceeded": "الإنشاء محظور",
-    "statusGateUnsupported": "المتطلب غير متاح",
-    "statusExpired": "انتهت صلاحية المسودة",
-    "statusCancelled": "تم إلغاء الإنشاء",
-    "commit": "إنشاء المجتمع",
-    "retry": "إعادة المحاولة",
-    "viewCommunity": "عرض المجتمع",
-    "waitVerificationPending": "لا يزال التحقق من الهوية قيد التنفيذ.",
-    "waitMembershipPending": "في انتظار تأكيد العضوية.",
-    "waitOperationPending": "لا تزال هناك عملية في الخلفية قيد التشغيل.",
-    "waitReconciliationPending": "جارٍ تسوية حسابك.",
-    "retryAfterPrefix": "أعد المحاولة خلال",
-    "quotaExceededBody": "لقد وصلت إلى الحد الأقصى لعدد المجتمعات التي يمكنك إنشاؤها.",
-    "gateUnsupportedBody": "أحد المتطلبات التي اخترتها غير متاح حاليًا.",
-    "preBoundaryVerificationBody": "لا يمكن إكمال هذه المسودة القديمة هنا. أغلقها وابدأ مجتمعًا جديدًا؛ عمليات الإنشاء الجديدة لا تتطلب التحقق من الهوية.",
-    "expiredBody": "انتهت صلاحية مسودة الإنشاء هذه. ابدأ مجتمعًا جديدًا للمتابعة.",
-    "cancelledBody": "تم إلغاء هذا الإنشاء.",
-    "committedBody": "مجتمعك متاح الآن.",
-    "staleTitle": "تغيّر هذا الإنشاء",
-    "staleBody": "قام إجراء آخر بتحديث هذا الإنشاء أثناء عملك. راجع أحدث نسخة وأعد المحاولة."
   }
 }

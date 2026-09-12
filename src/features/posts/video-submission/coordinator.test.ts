@@ -2,7 +2,8 @@ import { webcrypto } from "node:crypto";
 import { ApiClientError } from "@pirate/api-client";
 import { afterEach, describe, expect, test, vi } from "vitest";
 import { VideoCoordinator, type PendingVideo, type VideoStorage } from "./coordinator";
-import type { OriginalVideoReservation, VideoSnapshot } from "./contracts";
+import { SongReservationMismatch, type OriginalVideoReservation, type SongVideoReservation, type SongVideoSelection,
+  type VideoReservation, type VideoSnapshot } from "./contracts";
 import type { VideoCommand, VideoCommandResult, VideoTransport } from "./transport";
 
 afterEach(() => vi.unstubAllGlobals());
@@ -20,7 +21,7 @@ const initial: VideoSnapshot = {
 
 type MutableVideoTestTransport = { -readonly [Key in keyof VideoTransport]: VideoTransport[Key] };
 
-function setup(source = reservation) {
+function setup(source: VideoReservation = reservation) {
   vi.stubGlobal("crypto", webcrypto);
   let stored: PendingVideo | null = null;
   let current = initial;
@@ -58,7 +59,10 @@ function setup(source = reservation) {
   };
   const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(new Response(null, { headers: { etag: "part-etag" } }));
   const create = (principalId = "account") => new VideoCoordinator({ principalId, storage, transport, fetchImpl, createId: () => `key-${++key}` });
-  const begin = (coordinator: VideoCoordinator) => coordinator.begin({ communityId: "community", personaId: "persona", caption: "", rating: "general", file: new File(["video"], "take.mp4", { type: "video/mp4" }) });
+  const begin = (coordinator: VideoCoordinator, song?: SongVideoSelection) => {
+    const attempt = { communityId: "community", personaId: "persona", caption: "", rating: "general" as const, file: new File(["video"], "take.mp4", { type: "video/mp4" }) };
+    return coordinator.begin(song ? { ...attempt, song } : attempt);
+  };
   return { create, begin, commands, fetchImpl, storage, transport, posts: () => posts,
     rejectNext: (kind: VideoCommand["kind"], error: Error) => { rejection = { kind, error }; },
   };
@@ -163,4 +167,82 @@ test.each(["start", "read"] as const)("pause during deferred %s saves the respon
   fixture.transport.execute = execute; fixture.transport.read = read;
   await expect(coordinator.submit()).rejects.toThrow("Lost finalize response");
   expect(fixture.fetchImpl).toHaveBeenCalledTimes(1);
+});
+
+const selection: SongVideoSelection = {
+  songPostId: "song-post", audioRevision: 7, clipStartSamples: 1_488_000, clipDurationSamples: 576_000, selectedFrom: { kind: "library" },
+};
+const songReservation: SongVideoReservation = {
+  ...reservation, intent: "song_reference",
+  song_reference: { song_post_id: "song-post", audio_revision: 7, song_asset_id: "song-asset" },
+  reservation_policy_snapshot: { observed_at_transition: "media_reservation_issued", owner_policy_revision: 3,
+    owner_policy_hash: "a".repeat(64), derivative_video: "allowed", observed_at: "2026-09-11T00:00:00Z" },
+  interval: { clip_start_samples: 1_488_000, clip_duration_samples: 576_000, song_duration_samples: 10_080_047 },
+};
+function refused(status: number, reasonCode: string) {
+  const code = status === 409 ? "conflict" : "bad_request";
+  return new ApiClientError({ status, code, name: "Declared", retryable: false },
+    { error: { code, message: "Song refused", retryable: false, details: { reason_code: reasonCode } } });
+}
+
+describe("song-backed video attempts", () => {
+  test("reserve the exact selection, keep it with the attempt, and start and finalize as any video", async () => {
+    const fixture = setup(songReservation); const coordinator = fixture.create();
+    await fixture.begin(coordinator, selection);
+    expect(fixture.commands[0]?.input.body).toMatchObject({
+      intent: "song_reference", song_post_id: "song-post", audio_revision: 7,
+      clip_start_samples: 1_488_000, clip_duration_samples: 576_000, selected_from: { kind: "library" },
+    });
+    const saved = await fixture.storage.load();
+    expect(saved?.version).toBe("song-video-pending-v1");
+    expect(saved?.song).toEqual(selection);
+    expect(saved?.reservation?.intent).toBe("song_reference");
+    await expect(coordinator.submit()).rejects.toThrow("Lost finalize response");
+    expect(fixture.commands.map(command => command.kind)).toEqual(["reserve", "start", "finalize"]);
+  });
+
+  test("an unavailable capability is a definitive refusal that keeps its reason and allows editing", async () => {
+    const fixture = setup(songReservation); const coordinator = fixture.create();
+    fixture.rejectNext("reserve", refused(400, "capability_unavailable"));
+    await expect(fixture.begin(coordinator, selection)).rejects.toThrow("Song refused");
+    expect(coordinator.current?.rejection).toMatchObject({ status: 400, code: "bad_request", reasonCode: "capability_unavailable" });
+    await coordinator.discardRejected();
+    const original = setup(); await original.begin(original.create());
+    expect(original.commands[0]?.input.body).toMatchObject({ intent: "original_audio" });
+  });
+
+  test("a changed song revision is definitive although it is a conflict", async () => {
+    const fixture = setup(songReservation); const coordinator = fixture.create();
+    fixture.rejectNext("reserve", refused(409, "song_audio_revision_changed"));
+    await expect(fixture.begin(coordinator, selection)).rejects.toThrow("Song refused");
+    expect(coordinator.current?.pending).toBeNull();
+    expect(coordinator.current?.rejection?.reasonCode).toBe("song_audio_revision_changed");
+  });
+
+  test("a reservation that froze a different excerpt is recorded, never uploaded, and can be edited", async () => {
+    const fixture = setup(songReservation); const coordinator = fixture.create();
+    fixture.rejectNext("reserve", new SongReservationMismatch("The server froze a different excerpt than the one chosen"));
+    await expect(fixture.begin(coordinator, selection)).rejects.toThrow(SongReservationMismatch);
+    expect(coordinator.current?.rejection).toMatchObject({ status: 0, code: "contract", reasonCode: "song_reference_mismatch" });
+    expect(fixture.fetchImpl).not.toHaveBeenCalled();
+    const draft = await coordinator.discardRejected(); expect(draft.song).toEqual(selection);
+  });
+
+  test("a response that drops the song is refused rather than published as original sound", async () => {
+    const fixture = setup(reservation); const coordinator = fixture.create();
+    await expect(fixture.begin(coordinator, selection)).rejects.toThrow(/posted to a song/);
+    expect(coordinator.current?.reservation).toBeNull();
+    expect(coordinator.current?.pending?.command.kind).toBe("reserve");
+  });
+
+  test("a song-backed record without its selection is not restored", async () => {
+    const fixture = setup(songReservation); await fixture.begin(fixture.create(), selection);
+    const saved = await fixture.storage.load();
+    if (!saved) throw new Error("Missing saved attempt");
+    const { song: _song, ...withoutSong } = saved;
+    // SAFETY: deliberately not a valid record — a song-backed version with its
+    // selection removed — to prove that restoring refuses it.
+    await fixture.storage.save(withoutSong as PendingVideo);
+    await expect(fixture.create().restore()).rejects.toThrow(/version/);
+  });
 });

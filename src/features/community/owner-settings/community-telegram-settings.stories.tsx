@@ -19,5 +19,4 @@ export const ChannelSelected: Story = { args: { setup: { id: "setup-fixture", st
 export const SetupExpired: Story = { args: { setup: { id: "setup-fixture", state: "expired", deep_link: null, channel_title: null, expires_at: "2026-09-08T10:10:00.000Z" } } };
 export const UncertainDelivery: Story = { args: { deliveries: [{ id: "delivery-fixture", kind: "publication", post_id: "post-fixture", state: "uncertain", attempt_count: 1, last_error: "acknowledgement_unavailable", created_at: "2026-09-08T10:00:00.000Z" }] } };
 export const Loading: Story = { args: { loading: true } };
-export const ReadOnly: Story = { args: { readOnly: true } };
 export const Error: Story = { args: { errorMessage: "Telegram settings could not be loaded. Try refreshing." } };

@@ -11,7 +11,7 @@ const meta = {
     docs: {
       description: {
         component:
-          "Full-screen karaoke surface matching the reviewed mobile design: the shared activity progress header, an artwork-backed lyric stage, and one full-width action before singing starts. Stories cover the designed states — primed, connecting, active, scoring feedback and ended — and do not touch the mic, WebSocket sessions, or real audio.",
+          "Full-screen karaoke surface matching the reviewed mobile design: the shared activity progress header, an artwork-backed lyric stage, and one full-width action before singing starts. Stories cover the designed states — primed, connecting, active, scoring feedback and ended — and do not touch the mic, WebSocket sessions, or real audio. The production route never supplies a reward label, so no story here shows the gift badge.",
       },
     },
   },
@@ -21,7 +21,7 @@ export default meta;
 
 type Story = StoryObj<typeof meta>;
 
-export const PublicReadOnly: Story = {
+export const NotScorable: Story = {
   args: {
     artworkSrc: storyArtworkSrc,
     title: "Paper Moon",
@@ -31,7 +31,7 @@ export const PublicReadOnly: Story = {
     docs: {
       description: {
         story:
-          "Signed-out visitor on a public song: timed lyrics render as a read-only surface with no singing affordance.",
+          "A song with no scorable lines: lyrics render with no singing affordance. Signed-out visitors get the Start action instead.",
       },
     },
   },
@@ -42,7 +42,6 @@ export const PausedPrimed: Story = {
     artworkSrc: storyArtworkSrc,
     title: "Paper Moon",
     lines: storyStageLines,
-    rewardLabel: "$0.40",
     singingStatus: "idle",
     onStartSinging: () => {},
   },
@@ -56,25 +55,6 @@ export const PausedPrimed: Story = {
   },
 };
 
-export const ReadyToSing: Story = {
-  args: {
-    artworkSrc: storyArtworkSrc,
-    title: "Paper Moon",
-    lines: storyStageLines,
-    initialDurationMs: 4800,
-    rewardLabel: "$0.40",
-    singingStatus: "idle",
-    onStartSinging: () => {},
-  },
-  parameters: {
-    docs: {
-      description: {
-        story: "The song is ready to start: the reward milestone is attached to the progress track and the Start karaoke action is available.",
-      },
-    },
-  },
-};
-
 export const ScoringFeedback: Story = {
   args: {
     artworkSrc: storyArtworkSrc,
@@ -82,7 +62,6 @@ export const ScoringFeedback: Story = {
     lines: storyStageLines,
     initialTimeMs: 2550,
     initialDurationMs: 4800,
-    rewardLabel: "$0.40",
     rating: {
       key: "line-1:0:0.98",
       label: "Perfect",
@@ -108,7 +87,6 @@ export const Connecting: Story = {
     artworkSrc: storyArtworkSrc,
     title: "Paper Moon",
     lines: storyStageLines,
-    rewardLabel: "$0.40",
     singingStatus: "connecting",
     onStartSinging: () => {},
   },
@@ -127,7 +105,6 @@ export const Ended: Story = {
     title: "Paper Moon",
     initialTimeMs: 13600,
     lines: storyStageLines,
-    rewardLabel: "$0.40",
     singingStatus: "ended",
     onStartSinging: () => {},
   },

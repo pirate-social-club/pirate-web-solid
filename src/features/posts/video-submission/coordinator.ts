@@ -1,19 +1,29 @@
 import { ApiClientError } from "@pirate/api-client";
 import { sha256Hex } from "../post-composer/text-submission-contract";
-import { finalizeOriginalVideo, reserveOriginalVideo, startOriginalVideo, VideoContractError,
-  type OriginalVideoReservation, type VideoPartReceipt, type VideoSnapshot } from "./contracts";
+import { finalizeVideo, reserveOriginalVideo, reserveSongVideo, sameReservationPlan, SongReservationMismatch,
+  startVideo, VideoContractError, type SongVideoSelection, type VideoPartReceipt, type VideoReservation,
+  type VideoSnapshot } from "./contracts";
 import { uploadVideoParts } from "./multipart";
+import { isDefinitiveSongRefusal, type SongRejectionCode, songRefusalCode } from "./song-reference";
 import type { VideoCommand, VideoCommandResult, VideoTransport } from "./transport";
 
+/** Original-audio attempts keep their first version, so a take retained before
+ * song-backed video existed restores unchanged. A song-backed attempt is its
+ * own version and always carries the selection it reserved with. */
+export const ORIGINAL_VIDEO_PENDING = "original-video-pending-v1";
+export const SONG_VIDEO_PENDING = "song-video-pending-v1";
+
 export interface PendingVideo {
-  readonly version: "original-video-pending-v1";
+  readonly version: typeof ORIGINAL_VIDEO_PENDING | typeof SONG_VIDEO_PENDING;
   readonly principalId: string;
   readonly communityId: string;
   readonly personaId: string;
   readonly file: File;
   readonly caption: string;
   readonly rating: "general" | "adult_18";
-  readonly reservation: OriginalVideoReservation | null;
+  /** Present exactly when `version` is the song-backed one. */
+  readonly song?: SongVideoSelection;
+  readonly reservation: VideoReservation | null;
   readonly snapshot: VideoSnapshot | null;
   readonly receipts: readonly VideoPartReceipt[];
   readonly pending: { readonly command: VideoCommand; readonly digest: string } | null;
@@ -22,7 +32,15 @@ export interface PendingVideo {
     readonly digest: string;
     readonly status: number;
     readonly code: string;
+    /** Why a song was refused, when the refusal named a song reason. */
+    readonly reasonCode?: SongRejectionCode;
   };
+}
+
+export function isRetainedVersion(record: Pick<PendingVideo, "version" | "song">): boolean {
+  return record.version === ORIGINAL_VIDEO_PENDING
+    ? record.song === undefined
+    : record.version === SONG_VIDEO_PENDING && record.song !== undefined;
 }
 export interface VideoStorage {
   readonly exclusive: <T>(work: () => Promise<T>) => Promise<T>;
@@ -79,7 +97,7 @@ export class VideoCoordinator {
     try {
       return await this.options.storage.exclusive(async () => {
         const stored = await this.options.storage.load();
-        if (stored && (stored.version !== "original-video-pending-v1" || stored.principalId !== this.options.principalId)) {
+        if (stored && (!isRetainedVersion(stored) || stored.principalId !== this.options.principalId)) {
           throw new VideoContractError("Retained video belongs to a different account or version");
         }
         this.record = stored;
@@ -103,11 +121,21 @@ export class VideoCoordinator {
       // Only a generated, declared non-retryable client rejection proves this
       // command was refused. Conflicts may name an existing operation; keep
       // them, transport failures and unexpected/malformed responses for replay.
+      // Two exceptions are definitive for a song: a conflict naming a changed
+      // song revision or unmeasurable audio, and a reservation that froze a
+      // different song or excerpt, which replaying would only repeat.
       if (error instanceof ApiClientError && !error.retryable && error.status >= 400 && error.status < 500
-        && ![408, 409, 429].includes(error.status)) {
+        && (![408, 409, 429].includes(error.status) || isDefinitiveSongRefusal(error))) {
+        const rejection: NonNullable<PendingVideo["rejection"]> = {
+          command, digest: await commandDigest(command), status: error.status, code: error.code,
+        };
+        const reasonCode = songRefusalCode(error);
         await this.save({ ...this.require(), pending: null,
-          rejection: { command, digest: await commandDigest(command), status: error.status, code: error.code },
-        });
+          rejection: reasonCode === undefined ? rejection : { ...rejection, reasonCode } });
+      } else if (error instanceof SongReservationMismatch) {
+        await this.save({ ...this.require(), pending: null, rejection: {
+          command, digest: await commandDigest(command), status: 0, code: "contract", reasonCode: "song_reference_mismatch",
+        } });
       }
       throw error;
     }
@@ -120,10 +148,14 @@ export class VideoCoordinator {
       next = { ...next, snapshot: result };
     } else {
       if (result.author_persona_id !== next.personaId) throw new VideoContractError("Response changed reservation authority");
+      if (result.intent !== (next.song === undefined ? "original_audio" : "song_reference")) {
+        throw new VideoContractError("Response changed whether this video is posted to a song");
+      }
       if (next.reservation && (next.reservation.reservation_id !== result.reservation_id
         || next.reservation.upload.upload_id !== result.upload.upload_id
         || next.reservation.upload.part_count !== result.upload.part_count
-        || next.reservation.upload.part_size_bytes !== result.upload.part_size_bytes)) {
+        || next.reservation.upload.part_size_bytes !== result.upload.part_size_bytes
+        || !sameReservationPlan(next.reservation, result))) {
         throw new VideoContractError("Renewal changed the immutable upload plan");
       }
       if (command.kind === "renew" && next.reservation) {
@@ -152,7 +184,7 @@ export class VideoCoordinator {
     return this.exclusive(async () => {
       const record = await this.options.storage.load();
       if (!record) return null;
-      if (record.version !== "original-video-pending-v1" || record.principalId !== this.options.principalId) {
+      if (!isRetainedVersion(record) || record.principalId !== this.options.principalId) {
         throw new VideoContractError("Retained video belongs to a different account or version");
       }
       this.record = record;
@@ -162,13 +194,19 @@ export class VideoCoordinator {
       return this.record;
     });
   }
-  async begin(input: Pick<PendingVideo, "communityId" | "personaId" | "file" | "caption" | "rating">): Promise<void> {
+  /** Starts an attempt. With `song`, the reservation asks the server to post
+   * this video to that song; without it, the video publishes its own sound. */
+  async begin(input: Pick<PendingVideo, "communityId" | "personaId" | "file" | "caption" | "rating" | "song">): Promise<void> {
     return this.exclusive(async () => {
       if (this.record || await this.options.storage.load()) throw new VideoContractError("Resolve the retained video before starting another");
-      const reserve = reserveOriginalVideo({ ...input, key: this.key() });
+      const { song, ...common } = input;
+      const reserve = song === undefined
+        ? reserveOriginalVideo({ ...common, key: this.key() })
+        : reserveSongVideo({ ...common, song, key: this.key() });
       if (input.caption.length > 2200) throw new VideoContractError("Caption exceeds 2200 characters");
       const command: VideoCommand = { kind: "reserve", input: reserve };
-      await this.save({ ...input, version: "original-video-pending-v1", principalId: this.options.principalId,
+      await this.save({ ...common, ...(song === undefined ? { version: ORIGINAL_VIDEO_PENDING } : { version: SONG_VIDEO_PENDING, song }),
+        principalId: this.options.principalId,
         reservation: null, snapshot: null, receipts: [], pending: { command, digest: await commandDigest(command) },
       });
       await this.execute(command);
@@ -196,7 +234,7 @@ export class VideoCoordinator {
       if (record.rejection) throw new VideoContractError("The saved video command was rejected. Resolve it explicitly before continuing.");
       if (!record.reservation) throw new VideoContractError("Reservation has not been reconciled");
       if (!record.snapshot) {
-        await this.execute({ kind: "start", input: startOriginalVideo({ ...record, reservation: record.reservation, key: this.key() }) });
+        await this.execute({ kind: "start", input: startVideo({ ...record, reservation: record.reservation, key: this.key() }) });
       }
       const snapshot = await this.refreshSnapshot();
       if (!snapshot) throw new VideoContractError("Submission has not been reconciled");
@@ -223,7 +261,7 @@ export class VideoCoordinator {
       const latest = await this.refreshSnapshot();
       if (!latest) throw new VideoContractError("Submission could not be checked before finalize");
       if (latest.status !== "processing" || latest.phase !== "awaiting_upload") return latest;
-      const result = await this.execute({ kind: "finalize", input: finalizeOriginalVideo({
+      const result = await this.execute({ kind: "finalize", input: finalizeVideo({
         personaId: record.personaId, key: this.key(), snapshot: latest, reservation, parts,
       }) });
       if (!snapshotResult(result)) throw new VideoContractError("Unexpected finalize response");

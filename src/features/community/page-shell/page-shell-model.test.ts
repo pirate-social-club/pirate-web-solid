@@ -1,37 +1,19 @@
 import { describe, expect, test } from "bun:test";
 
 import {
-  communityWithPostsStoryState,
-  gateSummary,
+  membershipLine,
   orderedCommunityRules,
   orderedReferenceLinks,
-  overviewStoryState,
   safeCommunityHref,
   sortCommunityPosts,
-  visibleCommunityTab,
 } from "./page-shell-model";
 
 describe("community page shell model", () => {
-  test("preserves AND, OR, unknown, and empty gate semantics", () => {
-    expect(gateSummary([{ label: "Passport score 8+", status: "unmet" }, { label: "Palm scan", status: "met" }], "all"))
-      .toBe("Meet all 2 requirements");
-    expect(gateSummary([{ label: "Passport score 8+", status: "met" }], "any"))
-      .toBe("Meet any 1 requirements");
-    expect(gateSummary([{ label: "Passport score 8+", status: "unknown" }], "unknown"))
-      .toBe("Entry requirements are being checked");
-    expect(gateSummary([], "all")).toBe("No entry requirements");
-  });
-
-  test("allows a responsive mobile about tab while desktop keeps the requested view", () => {
-    expect(visibleCommunityTab("mobile", "about")).toBe("about");
-    expect(visibleCommunityTab("mobile", "feed")).toBe("feed");
-    expect(visibleCommunityTab("desktop", "about")).toBe("about");
-  });
-
-  test("keeps Overview and CommunityWithPosts as distinct story states", () => {
-    expect(overviewStoryState).not.toEqual(communityWithPostsStoryState);
-    expect(overviewStoryState).toMatchObject({ initialFollowing: false, initialJoined: false, hasSidebarMetadata: true });
-    expect(communityWithPostsStoryState).toMatchObject({ initialJoined: true, showCreatePost: true });
+  test("states each membership mode once, and says nothing for open", () => {
+    expect(membershipLine("gated")).toBe("Members verify with a palm scan.");
+    expect(membershipLine("request")).toBe("Membership is by request.");
+    expect(membershipLine("open")).toBeNull();
+    expect(membershipLine(undefined)).toBeNull();
   });
 
   test("sorts real community posts and preserves ordered metadata", () => {

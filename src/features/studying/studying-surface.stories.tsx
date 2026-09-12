@@ -15,9 +15,10 @@ const meta = {
       description: {
         component:
           "Presentational studying activity surface, ported from the legacy React `SongStudySurface`. " +
-          "Every state is injected: locked, the say-it-back phase machine (idle/listening/checking/wrong), " +
-          "multiple choice with reveal styling, and the completion/reward variants. Recording, network, " +
-          "and timers live at the route-view seam, never in this component.",
+          "Every state is injected: the say-it-back phase machine (idle/listening/checking/wrong), " +
+          "multiple choice with reveal styling, and completion. Recording, network, " +
+          "and timers live at the route-view seam, never in this component. The production v2 client " +
+          "never supplies a reward or streak, so no story here depicts one.",
       },
     },
   },
@@ -39,28 +40,11 @@ function surface(state: StudyingSurfaceState, extra: Partial<StudyingSurfaceProp
       onExit={noop}
       onOptionSelect={noop}
       onPrimaryAction={noop}
-      rewardLabel="+25 $MOON"
       state={state}
       {...extra}
     />
   );
 }
-
-export const Locked: Story = {
-  render: surface({ kind: "locked", priceLabel: "$2.00" }, { rewardLabel: undefined }),
-  parameters: {
-    docs: {
-      description: {
-        story:
-          "Study follows the song's access rules: without ownership the lesson stays locked and the footer offers the purchase.",
-      },
-    },
-  },
-};
-
-export const LockedWithoutPrice: Story = {
-  render: surface({ kind: "locked" }),
-};
 
 export const SayItBackIdle: Story = {
   render: surface({
@@ -145,26 +129,6 @@ export const SayItBackWrongSpentWillReturn: Story = {
       description: {
         story:
           "A spent miss reports Incorrect with the final destructive treatment; the card comes back later in this lesson.",
-      },
-    },
-  },
-};
-
-export const SayItBackWrongSpentFinal: Story = {
-  render: surface({
-    kind: "say_it_back",
-    attemptNumber: 3,
-    attemptsThisAppearance: 2,
-    exercise: storySayItBackExercise,
-    heardTranscript: "yo no se por que",
-    phase: "wrong",
-    revealReference: true,
-    willReturn: false,
-  }),
-  parameters: {
-    docs: {
-      description: {
-        story: "The card is spent with nothing left to requeue into; Incorrect is the only feedback copy.",
       },
     },
   },
@@ -267,81 +231,16 @@ export const Complete: Story = {
       totalCount: 14,
     },
     {
-      completeActionLabel: "Done",
       lessonProgress: completeProgress,
-      onPrimaryAction: noop,
-      rewardSlot: (
-        <div class="mx-2 min-h-[74px] rounded-[var(--radius-xl)] bg-[#202326] px-4 py-3">
-          <p class="text-xs text-muted-foreground">Rewards earned</p>
-          <div class="mt-2 flex flex-wrap gap-2">
-            <span class="rounded-full border border-warning bg-background px-2 py-0.5 text-xs font-semibold text-warning">◉ +$0.30</span>
-            <span class="rounded-full border border-warning bg-background px-2 py-0.5 text-xs font-semibold text-warning">▣ Lotto ticket</span>
-          </div>
-        </div>
-      ),
+      onKaraoke: noop,
+      onStudyAgain: noop,
     },
-  ),
-  parameters: {
-    docs: {
-      description: {
-        story: "Session complete without a streak qualification; the score, correct count, and earned rewards stay together.",
-      },
-    },
-  },
-};
-
-export const CompleteStreakQualified: Story = {
-  render: surface(
-    {
-      kind: "complete",
-      correctCount: 12,
-      nextReviewLabel: "tomorrow",
-      previousStreak: 7,
-      scorePercent: 100,
-      streak: {
-        currentStreak: 7,
-        qualifiedToday: true,
-        studyAttemptsToday: 14,
-        studyCorrectCount: 12,
-        studyTargetCount: 10,
-      },
-      streakWeek: [true, true, true, true, false, false, false],
-      totalCount: 14,
-    },
-    { completeActionLabel: "Done", lessonProgress: completeProgress, onPrimaryAction: noop },
   ),
   parameters: {
     docs: {
       description: {
         story:
-          "Streak-qualified completion: the streak total and weekday progress sit above the single Done action.",
-      },
-    },
-  },
-};
-
-export const CompleteWithRewardSlot: Story = {
-  render: surface(
-    {
-      kind: "complete",
-      correctCount: 6,
-      scorePercent: 75,
-      totalCount: 8,
-    },
-    {
-      onKaraoke: noop,
-      rewardLabel: undefined,
-      rewardSlot: (
-        <div class="mx-2 min-h-[74px] rounded-[var(--radius-xl)] bg-[#202326] px-4 py-3 text-center">
-          <span class="font-semibold text-warning">+25 $MOON earned for today's session</span>
-        </div>
-      ),
-    },
-  ),
-  parameters: {
-    docs: {
-      description: {
-        story: "Completion reward variant: the campaign reward renders below the header instead of in the progress capsule.",
+          "Production completion: both footer actions are present and no reward or streak is claimed.",
       },
     },
   },

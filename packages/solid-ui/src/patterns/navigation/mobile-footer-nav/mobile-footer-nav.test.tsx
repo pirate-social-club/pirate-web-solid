@@ -7,11 +7,11 @@ import { expectNoA11yViolations, render } from "@/test/test-utils";
 import { MobileFooterNav } from "./mobile-footer-nav";
 
 describe("MobileFooterNav", () => {
-  it("renders the four pen destinations in SSR-friendly markup", () => {
+  it("renders the three real destinations in SSR-friendly markup", () => {
     const container = render(() => <MobileFooterNav activeItem="profile" />);
     const buttons = within(container).getAllByRole("button");
-    expect(buttons).toHaveLength(4);
-    expect(buttons.map((button) => button.getAttribute("aria-label"))).toEqual(["Home", "Learn", "Wallet", "Profile"]);
+    expect(buttons).toHaveLength(3);
+    expect(buttons.map((button) => button.getAttribute("aria-label"))).toEqual(["Home", "Communities", "Profile"]);
     expect(within(container).getByRole("button", { name: "Profile" })).toHaveAttribute("aria-current", "page");
   });
 
@@ -24,8 +24,8 @@ describe("MobileFooterNav", () => {
   });
 
   it("marks only the active destination and renders currentColor icons", () => {
-    const container = render(() => <MobileFooterNav activeItem="learn" />);
-    expect(within(container).getByRole("button", { name: "Learn" })).toHaveClass("h-full", "w-full", "text-foreground");
+    const container = render(() => <MobileFooterNav activeItem="communities" />);
+    expect(within(container).getByRole("button", { name: "Communities" })).toHaveClass("h-full", "w-full", "text-foreground");
     expect(within(container).getByRole("button", { name: "Home" })).toHaveClass("text-muted-foreground");
     expect(within(container).getByRole("button", { name: "Home" }).querySelector('svg[fill="currentColor"]')).toBeInTheDocument();
   });

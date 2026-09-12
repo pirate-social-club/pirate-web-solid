@@ -190,9 +190,7 @@ function hasButton(container: HTMLElement, label: string): boolean {
  * be read without driving the overlay; one focused test opens it.
  */
 function manageAuthority(container: HTMLElement): string | null {
-  const trigger = container.querySelector("[aria-label='More community options']");
-  if (trigger === null) throw new Error("the community overflow menu is not rendered");
-  return trigger.getAttribute("data-community-manage");
+  return container.querySelector("[data-community-manage]")?.getAttribute("data-community-manage") ?? null;
 }
 
 describe("navigating between communities on the same route", () => {

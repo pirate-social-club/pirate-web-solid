@@ -69,6 +69,8 @@ jobs:
         run: bunx playwright install --with-deps chromium
       - name: Build Storybook
         run: bun run build-storybook
+      - name: Check story-to-production parity
+        run: bun run check:story-parity
       - name: Audit Storybook accessibility and interactions
         run: |
           python3 -m http.server 6006 --directory storybook-static > "$RUNNER_TEMP/storybook-server.log" 2>&1 &

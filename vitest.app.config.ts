@@ -26,6 +26,7 @@ export default defineConfig({
     include: [
       "src/features/posts/song-player/song-player.test.tsx",
       "src/hns-community-route-transform.test.ts",
+      "src/lib/viewer-session-hint.test.ts",
       "src/routes/community-owner-settings-route.test.ts",
       "src/routes/community-route-filesystem.test.ts",
       "src/features/posts/public-post/public-post-route.model.test.ts",
@@ -92,6 +93,10 @@ export default defineConfig({
       "src/features/posts/video-submission/playback-access.test.ts",
       "src/features/posts/video-submission/video-player.test.tsx",
       "src/features/posts/video-submission/video-composer-runtime.test.tsx",
+      "src/features/posts/video-submission/song-reference.test.ts",
+      "src/features/posts/post-composer/song-excerpt.test.ts",
+      "src/features/posts/post-composer/song-excerpt-draft.test.ts",
+      "src/features/posts/post-composer/song-excerpt-link.test.ts",
       "src/features/posts/post-composer/text-submission-contract.test.ts",
       "src/features/posts/post-composer/pending-submission.test.ts",
       "src/features/posts/post-composer/text-submission-transport.test.ts",

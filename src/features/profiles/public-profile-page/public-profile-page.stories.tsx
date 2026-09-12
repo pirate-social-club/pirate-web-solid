@@ -57,18 +57,6 @@ export const NoBio: Story = {
   },
 };
 
-/**
- * A non-canonical handle still renders, so the page must point at the
- * canonical path rather than silently presenting the alias as canonical.
- */
-export const NonCanonicalHandle: Story = {
-  name: "Non-canonical handle",
-  args: {
-    handle: "NightShift",
-    data: success({ requestedHandle: "NightShift", isCanonical: false }),
-  },
-};
-
 export const NotFound: Story = {
   name: "Not found",
   args: { data: { kind: "not-found", status: 404 } },

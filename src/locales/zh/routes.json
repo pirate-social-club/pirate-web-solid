@@ -207,32 +207,5 @@
     "humanVerificationRequired": "必需",
     "additionalRequirementsTitle": "附加要求",
     "submit": "创建"
-  },
-  "communityCreationProgress": {
-    "title": "创建社区",
-    "statusDraft": "草稿",
-    "statusVerificationRequired": "旧版创建草稿",
-    "statusCommitReady": "可以创建",
-    "statusCommitted": "社区已创建",
-    "statusQuotaExceeded": "创建受限",
-    "statusGateUnsupported": "要求不可用",
-    "statusExpired": "草稿已过期",
-    "statusCancelled": "创建已取消",
-    "commit": "创建社区",
-    "retry": "重试",
-    "viewCommunity": "查看社区",
-    "waitVerificationPending": "身份验证仍在进行中。",
-    "waitMembershipPending": "正在等待成员资格确认。",
-    "waitOperationPending": "后台操作仍在运行。",
-    "waitReconciliationPending": "正在核对你的账户。",
-    "retryAfterPrefix": "请在此后重试：",
-    "quotaExceededBody": "你已达到可创建社区数量的上限。",
-    "gateUnsupportedBody": "你选择的某项要求目前不可用。",
-    "preBoundaryVerificationBody": "此旧版草稿无法在这里完成。请关闭它并重新创建社区；新的创建流程不需要身份验证。",
-    "expiredBody": "此创建草稿已过期。请重新开始创建社区。",
-    "cancelledBody": "此创建已取消。",
-    "committedBody": "你的社区已上线。",
-    "staleTitle": "此创建已变更",
-    "staleBody": "在你操作期间，其他动作更新了此创建。请查看最新版本后重试。"
   }
 }

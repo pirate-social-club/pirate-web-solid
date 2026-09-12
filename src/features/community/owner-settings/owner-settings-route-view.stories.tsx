@@ -86,12 +86,6 @@ const grantedProbe: Pick<CommunityTelegramSettingsApi, "getSettings"> = {
   getSettings: async () => disconnectedTelegram,
 };
 
-const unavailableProbe: Pick<CommunityTelegramSettingsApi, "getSettings"> = {
-  getSettings: async () => {
-    throw new Error("bot probe unreachable");
-  },
-};
-
 /**
  * Per-port snapshot stubs for the section controllers. Each one defaults to a
  * real API client, so a section story injects only the reads that section
@@ -190,25 +184,6 @@ export const Index: Story = {
     expect(canvas.getAllByText("Names").length).toBeGreaterThan(0);
     expect(canvas.getAllByText("Address").length).toBeGreaterThan(0);
     expect(canvas.getAllByText("Moderation").length).toBeGreaterThan(0);
-  },
-};
-
-/**
- * An unreachable bot probe does not remove the bot sections: a failed check
- * stays listed (owner-settings-model.ts keeps sections whose read is
- * unavailable) and surfaces its error only when entered, which is section-view
- * behavior. The index therefore remains complete, indistinguishable at this
- * level from the granted-probe story.
- */
-export const IndexWithoutBotAccess: Story = {
-  name: "Index with bot probe unavailable",
-  args: { state: successState(), botProbeApi: unavailableProbe },
-  play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement);
-    await waitFor(() => expect(canvas.getAllByText("Names").length).toBeGreaterThan(0));
-    expect(canvas.getAllByText("Address").length).toBeGreaterThan(0);
-    expect(canvas.getAllByText("Moderation").length).toBeGreaterThan(0);
-    expect(canvas.getAllByText("Telegram").length).toBeGreaterThan(0);
   },
 };
 

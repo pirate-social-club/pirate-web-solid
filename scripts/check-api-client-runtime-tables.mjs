@@ -8,12 +8,15 @@ const currentClient = resolve(
   appRoot,
   "node_modules/@pirate/api-client/src/generated/client.ts",
 );
-// Client 0.68.6 preserves the audited statuses and error tables. The
-// consumed-table changes add the optional HNS root-import lifecycle block
-// and the optional publish-plan encoded_resource_sha256, alongside the
-// 0.68.5 community core reads and song playback grants that leave these
-// tables unchanged.
-const expectedDigest = "e0620f8afcab0b2c8e296b1c26d7c49c0b9b92847a82d87ced8be9ad606419f1";
+// Client 0.72.0, audited against 0.68.2. Success statuses are unchanged. The
+// HNS root-import responses gain the optional lifecycle projection; comment
+// reads and song-playback access are added; the song-reference reservation
+// response gains its frozen interval; reservation errors gain 403
+// eligibility_failed and a retryable 409 conflict; a video submission's intent
+// may be song_reference and a blocked one may carry song_reference_invalid with
+// song_reason_code; a post's song soundtrack carries render_mode. The song-video
+// interval preflight is newly consumed.
+const expectedDigest = "37f4340a73eec03262a5214710bbf0f3c58732ad0f572ce887e53131580daa6b";
 
 const operations = [
   "post_postsPostIdVideoPlaybackAccess",
@@ -32,6 +35,7 @@ const operations = [
   "post_communitiesCommunityIdJoin",
   "post_verificationSessions",
   "post_verificationSessionsProofSessionIdComplete",
+  "post_communitiesCommunityIdSongVideoIntervalPreflights",
   "post_communitiesCommunityIdMediaUploadReservations",
   "post_communitiesCommunityIdMediaPostSubmissions",
   "post_mediaPostSubmissionsSubmissionIdTerms",

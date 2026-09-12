@@ -2,7 +2,6 @@ import type { Meta, StoryObj } from "storybook-solidjs-vite";
 
 import {
   OriginalVideoCaptureSurface,
-  OriginalVideoPublicationSurface,
   OriginalVideoReviewSurface,
 } from "./video-original-audio-surface";
 
@@ -10,7 +9,6 @@ const meta = {
   title: "Flows/Posts/VideoPost/OriginalAudio",
   parameters: {
     layout: "fullscreen",
-    globals: { viewport: { value: "mobile1", isRotated: false } },
     docs: {
       description: {
         component:
@@ -23,8 +21,11 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
+const mobileViewport = { viewport: { value: "mobile1", isRotated: false } } as const;
+
 export const CameraReady: Story = {
   name: "1. Capture / Camera ready",
+  globals: mobileViewport,
   render: () => (
     <OriginalVideoCaptureSurface durationLabel="3:00" elapsedLabel="0:00" status="idle" />
   ),
@@ -40,6 +41,7 @@ export const CameraReady: Story = {
 
 export const Recording: Story = {
   name: "1. Capture / Recording",
+  globals: mobileViewport,
   render: () => (
     <OriginalVideoCaptureSurface durationLabel="3:00" elapsedLabel="0:14" status="recording" />
   ),
@@ -55,6 +57,7 @@ export const Recording: Story = {
 
 export const CameraDenied: Story = {
   name: "1. Capture / Camera denied",
+  globals: mobileViewport,
   render: () => <OriginalVideoCaptureSurface status="camera_denied" />,
   parameters: {
     docs: {
@@ -68,6 +71,7 @@ export const CameraDenied: Story = {
 
 export const CapabilityUnavailable: Story = {
   name: "1. Capture / Codec unavailable",
+  globals: mobileViewport,
   render: () => <OriginalVideoCaptureSurface status="capability_unavailable" />,
   parameters: {
     docs: {
@@ -81,6 +85,7 @@ export const CapabilityUnavailable: Story = {
 
 export const OrientationLost: Story = {
   name: "1. Capture / Orientation changed",
+  globals: mobileViewport,
   render: () => <OriginalVideoCaptureSurface status="orientation_lost" />,
   parameters: {
     docs: {
@@ -96,7 +101,6 @@ export const UploadOnlyDesktop: Story = {
   name: "1. Capture / Desktop upload",
   render: () => <OriginalVideoCaptureSurface channel="upload" />,
   parameters: {
-    globals: { viewport: { value: "responsive", isRotated: false } },
     docs: {
       description: {
         story:
@@ -108,6 +112,7 @@ export const UploadOnlyDesktop: Story = {
 
 export const Review: Story = {
   name: "2. Review / Optional caption",
+  globals: mobileViewport,
   render: () => <OriginalVideoReviewSurface caption="A short take from today." />,
   parameters: {
     docs: {
@@ -121,63 +126,13 @@ export const Review: Story = {
 
 export const ReviewMobileKeyboard: Story = {
   name: "2. Review / Mobile keyboard and safe area",
+  globals: mobileViewport,
   render: () => <OriginalVideoReviewSurface caption="Caption stays above the pinned publish action." />,
   parameters: {
     docs: {
       description: {
         story:
           "The scrolling body owns the caption field while ActionFooterShell pins publication above the bottom safe area on short or keyboard-reduced viewports.",
-      },
-    },
-  },
-};
-
-export const Uploading: Story = {
-  name: "3. Publish / Uploading",
-  render: () => <OriginalVideoPublicationSurface state="uploading" />,
-};
-
-export const Processing: Story = {
-  name: "3. Publish / Processing",
-  render: () => <OriginalVideoPublicationSurface state="processing" />,
-};
-
-export const KnownRecording: Story = {
-  name: "3. Publish / Known recording",
-  render: () => <OriginalVideoPublicationSurface state="known_recording" />,
-  parameters: {
-    docs: {
-      description: {
-        story:
-          "A referenceable known recording cannot be relabelled as original audio. Phase one offers a retake and names the later song-reference restart without exposing guide-song controls here.",
-      },
-    },
-  },
-};
-
-export const RightsReview: Story = {
-  name: "3. Publish / Soundtrack review",
-  render: () => <OriginalVideoPublicationSurface state="rights_review" />,
-};
-
-export const ModerationHold: Story = {
-  name: "3. Publish / Moderation hold",
-  render: () => <OriginalVideoPublicationSurface state="moderation_hold" />,
-};
-
-export const FailedRetry: Story = {
-  name: "3. Publish / Failed and retryable",
-  render: () => <OriginalVideoPublicationSurface state="failed" />,
-};
-
-export const PlaybackPending: Story = {
-  name: "4. Published / Playback pending",
-  render: () => <OriginalVideoPublicationSurface state="playback_pending" />,
-  parameters: {
-    docs: {
-      description: {
-        story:
-          "The post has published but Stream playback is not ready. The state promises convergence from the retained operation, not another upload.",
       },
     },
   },

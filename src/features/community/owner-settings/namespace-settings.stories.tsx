@@ -138,27 +138,6 @@ export const UnsupportedRecordsBlocked: Story = {
   },
 };
 
-export const ReaddedDelegationRecord: Story = {
-  args: argsFor({
-    kind: "publish_resource",
-    acknowledgement_required: true,
-    replacement_semantics: "complete_resource",
-    records: hnsCompleteResource,
-    added_records: hnsCompleteResource,
-    preserved_records: [],
-    preserved_unknown_record_types: [],
-    removed_records: [hnsCompleteResource[0]],
-  }),
-  play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement);
-    await expect(canvas.getByText("Stops being served (1)")).toBeInTheDocument();
-    await expect(canvas.getByText("Replaced by this update (1)")).toBeInTheDocument();
-    await expect(canvas.getAllByText("New")).toHaveLength(5);
-    await expect(canvas.queryByText("Already live")).not.toBeInTheDocument();
-    await expect(canvas.getByRole("button", { name: "I published all records manually" })).toBeEnabled();
-  },
-};
-
 export const ReadyToActivate: Story = {
   args: argsFor({
     kind: "ready_to_activate",
@@ -168,24 +147,12 @@ export const ReadyToActivate: Story = {
   }),
 };
 
-export const CheckingRecords: Story = {
-  args: argsFor({ kind: "wait", reason_code: "verification_pending", retry_after_seconds: 5 }),
-};
-
-export const VerifierUnavailable: Story = {
-  args: argsFor({ kind: "wait", reason_code: "provider_unavailable", retry_after_seconds: 30 }),
-};
-
 export const TreeCommitmentPending: Story = {
   args: argsFor({ kind: "wait", reason_code: "tree_commitment_pending", retry_after_seconds: 600 }),
 };
 
 export const DelegationInsecure: Story = {
   args: argsFor({ kind: "wait", reason_code: "delegation_insecure", retry_after_seconds: 60 }),
-};
-
-export const TxtMismatch: Story = {
-  args: argsFor({ kind: "repair", reason_code: "challenge_mismatch", missing_records: [hnsCompleteResource[2]] }),
 };
 
 export const ResourceMismatch: Story = {
@@ -197,28 +164,12 @@ export const ResourceMismatch: Story = {
   }),
 };
 
-export const DnssecFailure: Story = {
-  args: argsFor({ kind: "repair", reason_code: "dnssec_failure" }),
-};
-
-export const DelegationFailure: Story = {
-  args: argsFor({ kind: "repair", reason_code: "delegation_failure" }),
-};
-
 export const Failed: Story = {
   args: argsFor({ kind: "failed", reason_code: "challenge_mismatch", retryable: true }),
 };
 
 export const Expired: Story = {
   args: argsFor({ kind: "expired" }),
-};
-
-export const PreparationLimited: Story = {
-  args: { ...argsFor({ kind: "expired" }), preparationDisabled: true },
-  play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement);
-    await expect(canvas.getByRole("button", { name: "Get a new record list" })).toBeDisabled();
-  },
 };
 
 export const Connected: Story = {

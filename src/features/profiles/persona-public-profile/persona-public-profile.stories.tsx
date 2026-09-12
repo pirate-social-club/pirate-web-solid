@@ -105,11 +105,6 @@ export const Invalid: Story = {
   args: { state: { kind: "invalid", status: 400 } },
 };
 
-export const MethodNotAllowed: Story = {
-  name: "Read-only",
-  args: { state: { kind: "method-not-allowed", status: 405 } },
-};
-
 export const Unavailable: Story = {
   name: "Unavailable",
   args: { state: { kind: "unavailable", status: 502 } },
