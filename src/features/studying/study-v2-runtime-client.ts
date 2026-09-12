@@ -47,13 +47,16 @@ function exerciseOf(
  */
 export function studyLessonPayload(session: StudySession): StudyingLessonPayload {
   const current = session.lesson.current;
-  const item =
-    current === null || session.status === "completed"
-      ? undefined
-      : session.items.find(({ session_item_id }) => session_item_id === current.session_item_id);
+  let item: StudySessionItem | undefined;
+  let presentationNumber = 0;
+  if (current !== null && session.status !== "completed") {
+    const currentItemId = current.session_item_id;
+    item = session.items.find(({ session_item_id }) => session_item_id === currentItemId);
+    presentationNumber = current.presentation_number;
+  }
   return {
     correct_count: session.progress.first_pass_correct,
-    exercises: item === undefined ? [] : [exerciseOf(item, current.presentation_number)],
+    exercises: item === undefined ? [] : [exerciseOf(item, presentationNumber)],
     post_id: session.post_id,
     resolved_count: session.lesson.resolved_card_count,
     served_count: session.lesson.total_card_count,
