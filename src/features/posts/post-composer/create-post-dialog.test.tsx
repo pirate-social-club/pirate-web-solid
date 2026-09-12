@@ -1,7 +1,7 @@
 /** @jsxImportSource @solidjs/web */
 import { afterEach, describe, expect, test, vi } from "vitest";
 import { render as solidRender } from "@solidjs/web";
-import { createRoot } from "solid-js";
+import { createRoot, createSignal } from "solid-js";
 import type { JSX } from "@solidjs/web";
 
 import type { PostCommunitiesCommunityIdMediaUploadReservationsResponse } from "@pirate/api-client";
@@ -304,6 +304,110 @@ describe("create post request", () => {
     expect(dispatched).toHaveLength(2);
     expect(dispatched[1]!.idempotency_key).toBe(dispatched[0]!.idempotency_key);
     expect(envelopeBody(dispatched[1]!)).toEqual(envelopeBody(dispatched[0]!));
+  });
+
+  test("destroys composer state when it closes and reopens", async () => {
+    const [open, setOpen] = createSignal(true);
+    render(() => <CreatePostDialog
+      communityContext={{ id: "community-one", name: "Harbor" }}
+      onOpenChange={setOpen}
+      open={open()}
+      personaId="persona-one"
+      personas={[activePersona("persona-one", "Persona One")]}
+      transport={{ read: async () => null, dispatch: async () => { throw new Error("not dispatched in this case"); } }}
+    />);
+    await new Promise<void>(resolve => setTimeout(resolve, 0));
+    const body = document.body.querySelector<HTMLTextAreaElement>("#create-post-body")!;
+    body.value = "Half-written post";
+    body.dispatchEvent(new InputEvent("input", { bubbles: true }));
+
+    setOpen(false);
+    await vi.waitFor(() => expect(document.body.querySelector("form[aria-label='Create a post']")).toBeNull());
+    setOpen(true);
+    await vi.waitFor(() => expect(document.body.querySelector("#create-post-body")).not.toBeNull());
+    expect(document.body.querySelector<HTMLTextAreaElement>("#create-post-body")!.value).toBe("");
+
+    // The song side is destroyed the same way: an unfinished audio selection
+    // does not survive the close, and the composer returns to a fresh text
+    // draft with no attachment.
+    await uploadAudio("abandoned.mp3");
+    setOpen(false);
+    await vi.waitFor(() => expect(document.body.querySelector("form[aria-label='Create a post']")).toBeNull());
+    setOpen(true);
+    await vi.waitFor(() => expect(document.body.querySelector("#create-post-body")).not.toBeNull());
+    expect(document.body.textContent).not.toContain("abandoned.mp3");
+    expect(document.body.querySelector<HTMLTextAreaElement>("#create-post-body")!.value).toBe("");
+  });
+
+  test("refuses to close while a submission outcome is unknown", async () => {
+    const dispatched: PendingSubmissionEnvelopeV1[] = [];
+    render(() => <CreatePostDialog
+      communityContext={{ id: "community-one", name: "Harbor" }}
+      onOpenChange={() => {}}
+      open
+      personaId="persona-one"
+      personas={[activePersona("persona-one", "Persona One")]}
+      transport={{ read: async () => null, dispatch: async (envelope) => { dispatched.push(envelope); throw new Error("network uncertain"); } }}
+    />);
+    await new Promise<void>(resolve => setTimeout(resolve, 0));
+    const body = document.body.querySelector<HTMLTextAreaElement>("#create-post-body")!;
+    body.value = "A post with an unknown outcome";
+    body.dispatchEvent(new InputEvent("input", { bubbles: true }));
+    const publish = button("Publish post");
+    await vi.waitFor(() => expect(publish.disabled).toBe(false));
+    publish.click();
+    await vi.waitFor(() => expect(document.body.textContent).toContain("Checking whether your post was accepted"));
+
+    document.body.querySelector<HTMLButtonElement>("button[aria-label='Close composer']")!.click();
+    await vi.waitFor(() => expect(document.body.textContent).toContain("Resolve it before closing."));
+    expect(document.body.querySelector("form[aria-label='Create a post']")).not.toBeNull();
+    expect(dispatched).toHaveLength(1);
+  });
+
+  test("restores an edited share that exceeds the remainder and keeps the creator minimum", async () => {
+    const mediaTransport = new ProductionMediaTransport();
+    render(() => <CreatePostDialog
+      communityContext={{ id: "community-one", name: "Harbor" }}
+      mediaTransport={mediaTransport}
+      onOpenChange={() => {}}
+      open
+      personas={[activePersona("persona-one", "Persona One"), activePersona("persona-two", "Persona Two")]}
+      principalId="account-one"
+    />);
+    await new Promise<void>(resolve => setTimeout(resolve, 0));
+    await uploadAudio("shares.mp3");
+    button("Continue").click();
+    await vi.waitFor(() => expect(document.body.textContent).toContain("What others may do with this song"));
+    button("Add collaborator").click();
+    await vi.waitFor(() => expect(document.querySelector('[role="dialog"]')).not.toBeNull());
+    await vi.waitFor(() => expect(document.body.textContent).toContain("Only profiles in this community can be added for now."));
+    const collaborator = [...document.querySelectorAll<HTMLButtonElement>("[role='dialog'] button")]
+      .find(candidate => candidate.textContent?.includes("Persona Two"))!;
+    collaborator.click();
+    const pickerShare = await vi.waitFor(() => {
+      const input = document.querySelector<HTMLInputElement>('input[aria-label="Share for Persona Two"]');
+      expect(input).not.toBeNull();
+      return input!;
+    });
+    pickerShare.value = "25";
+    pickerShare.dispatchEvent(new Event("change", { bubbles: true }));
+    const add = [...document.querySelectorAll<HTMLButtonElement>("[role='dialog'] button")]
+      .find(candidate => candidate.textContent?.trim() === "Add")!;
+    await vi.waitFor(() => expect(add.disabled).toBe(false));
+    add.click();
+    await vi.waitFor(() => expect(document.querySelector('[role="dialog"]')).toBeNull());
+
+    const rowShare = document.querySelector<HTMLInputElement>('input[aria-label="Share for Persona Two"]')!;
+    rowShare.value = "100";
+    rowShare.dispatchEvent(new Event("change", { bubbles: true }));
+    await vi.waitFor(() => expect(document.body.textContent).toContain("That share leaves no room for your share."));
+    expect(rowShare.value).toBe("25");
+
+    rowShare.value = "150";
+    rowShare.dispatchEvent(new Event("change", { bubbles: true }));
+    await vi.waitFor(() => expect(document.body.textContent).toContain("Enter a share between 0.01% and 100%."));
+    expect(rowShare.value).toBe("25");
+    expect(document.body.textContent).toContain("Persona One75%");
   });
 
   test("uses the app-selected persona and otherwise defaults to the first active persona", () => {

@@ -91,10 +91,12 @@ export interface ComposerCopy {
   rights: {
     addCollaborator: string;
     addProfile: string;
+    collaboratorScope: string;
     earningsTitle: string;
     everyProfileHasShare: string;
     fullTerms: string;
     includeCreator: string;
+    invalidShare: string;
     license: string;
     missingRecipient: string;
     noMatchingProfiles: string;
@@ -314,14 +316,16 @@ export const defaultComposerCopy: ComposerCopy = {
   rights: {
     addCollaborator: "Add collaborator",
     addProfile: "Add",
+    collaboratorScope: "Only profiles in this community can be added for now.",
     earningsTitle: "Earnings split",
-    everyProfileHasShare: "Every profile in this community already has a share.",
+    everyProfileHasShare: "No profiles left to add in this community.",
     fullTerms: "Full terms",
     includeCreator: "The split must include you.",
+    invalidShare: "Enter a share between 0.01% and 100%.",
     license: "License",
     missingRecipient: "Every recipient needs a profile.",
-    noMatchingProfiles: "No matching profiles.",
-    overRemaining: "That share leaves less than 0% for you.",
+    noMatchingProfiles: "No matching profiles in this community.",
+    overRemaining: "That share leaves no room for your share.",
     permissionsTitle: "What others may do with this song",
     positiveShares: "Each share must be more than 0%.",
     revShare: "Your share of remix earnings",

@@ -125,7 +125,22 @@ export interface CreatePostDialogProps {
   readonly fetchImpl?: typeof fetch;
 }
 
+/**
+ * One composer session per open. The session owns its coordinators and draft
+ * state, so closing the composer destroys everything it held; nothing survives
+ * to the next open. An unresolved request is the exception: it must be
+ * reconciled or reach a terminal outcome before the session may close, because
+ * abandoning it would lose the only record that prevents a duplicate post.
+ */
 export function CreatePostDialog(props: CreatePostDialogProps): JSX.Element {
+  return (
+    <Show when={props.open}>
+      <CreatePostDialogSession {...props} />
+    </Show>
+  );
+}
+
+function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
   const personas = () => props.personas ?? [];
   const initialPersonaId = untrack(() => initialOperationPersonaId(personas(), props.personaId));
   const contextualCommunityId = () => props.communityContext?.id.trim() ?? "";
@@ -279,15 +294,15 @@ export function CreatePostDialog(props: CreatePostDialogProps): JSX.Element {
 
   function close(open: boolean): void {
     if (!open) {
-      setError("");
       const state = textState();
-      if (state.status === "published" || state.status === "manual_review" || state.status === "blocked" || state.status === "abandoned") {
-        setTitle("");
-        setBody("");
-        setTextAgeGatePolicy("none");
+      if (state.status === "submitting" || state.status === "reconciling") {
+        setError("Checking whether your post was accepted. Resolve it before closing.");
+        return;
       }
-      if (mediaCoordinator !== undefined && terminalMediaView(mediaView())) {
-        discardTerminalSong();
+      const view = mediaView();
+      if (mediaBusy() || view.status === "uploading" || view.status === "processing" || view.status === "manual_review") {
+        setError("This song is still being submitted. Finish it before closing.");
+        return;
       }
     }
     props.onOpenChange(open);
@@ -603,14 +618,13 @@ export function CreatePostDialog(props: CreatePostDialogProps): JSX.Element {
   );
 
   return (
-    <Show when={props.open}>
-      <form
-        aria-label="Create a post"
-        class="fixed inset-0 z-40 overflow-y-auto bg-background px-3 py-4 sm:px-6 sm:py-8"
-        data-create-post-form
-        onSubmit={event => event.preventDefault()}
-      >
-        <div class="mx-auto grid w-full max-w-3xl gap-3">
+    <form
+      aria-label="Create a post"
+      class="fixed inset-0 z-40 overflow-y-auto bg-background px-3 py-4 sm:px-6 sm:py-8"
+      data-create-post-form
+      onSubmit={event => event.preventDefault()}
+    >
+      <div class="mx-auto grid w-full max-w-3xl gap-3">
             <Show when={!props.communityContext}>
               <TextField name="community-id" value={communityId()} onChange={setCommunityId}>
                 <TextFieldLabel>Community ID</TextFieldLabel>
@@ -696,6 +710,5 @@ export function CreatePostDialog(props: CreatePostDialogProps): JSX.Element {
             </Show>
         </div>
       </form>
-    </Show>
   );
 }

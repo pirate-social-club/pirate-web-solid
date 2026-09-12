@@ -67,11 +67,21 @@ export function royaltySplitIssue(
 
 function PercentField(props: {
   ariaLabel: string;
+  copy: ComposerCopy;
   disabled?: boolean;
   maxBps: number;
   onCommit: (bps: number) => void;
+  onReject?: (message: string) => void;
+  rejectMessage: string;
   valueBps?: number;
 }) {
+  const committedText = () => props.valueBps === undefined ? "" : basisPointsToPercentText(props.valueBps);
+  const reject = (input: HTMLInputElement, message: string) => {
+    // Restore the input to what will actually submit. A displayed share that
+    // the commit path ignored is how a silent mismatch reaches Review.
+    input.value = committedText();
+    props.onReject?.(message);
+  };
   return (
     <div class="grid h-11 grid-cols-[minmax(0,1fr)_1.25rem] items-center rounded-[var(--radius-lg)] border border-input bg-background px-3">
       <Input
@@ -80,17 +90,23 @@ function PercentField(props: {
         disabled={props.disabled}
         inputmode="decimal"
         onChange={(event) => {
+          const input = event.currentTarget;
+          let bps: number;
           try {
-            const bps = percentTextToBasisPoints(event.currentTarget.value);
-            if (bps > 0 && bps <= props.maxBps) props.onCommit(bps);
+            bps = percentTextToBasisPoints(input.value);
           } catch {
-            event.currentTarget.value = props.valueBps === undefined
-              ? ""
-              : basisPointsToPercentText(props.valueBps);
+            reject(input, props.copy.rights.invalidShare);
+            return;
           }
+          if (bps <= 0 || bps > props.maxBps) {
+            reject(input, props.rejectMessage);
+            return;
+          }
+          props.onReject?.("");
+          props.onCommit(bps);
         }}
         placeholder="0"
-        value={props.valueBps === undefined ? "" : basisPointsToPercentText(props.valueBps)}
+        value={committedText()}
       />
       <span class="text-end font-semibold text-muted-foreground">%</span>
     </div>
@@ -135,6 +151,7 @@ function CollaboratorPicker(props: {
   const [query, setQuery] = createSignal("");
   const [selectedId, setSelectedId] = createSignal<string>();
   const [shareBps, setShareBps] = createSignal<number>();
+  const [shareError, setShareError] = createSignal("");
   const filtered = () => {
     const needle = query().trim().toLowerCase();
     if (needle === "") return props.candidates;
@@ -164,6 +181,11 @@ function CollaboratorPicker(props: {
             placeholder={props.copy.rights.searchProfiles}
             value={query()}
           />
+          {/* The search is scoped to this community until a profile-search
+              contract exists; say so instead of implying a global lookup. */}
+          <div class="pt-2">
+            <FormNote>{props.copy.rights.collaboratorScope}</FormNote>
+          </div>
         </div>
         <div class="min-h-0 flex-1 overflow-y-auto px-2 sm:px-3">
           <For each={filtered()}>
@@ -174,6 +196,7 @@ function CollaboratorPicker(props: {
                 onClick={() => {
                   setSelectedId(profile.personaId);
                   setShareBps(undefined);
+                  setShareError("");
                 }}
                 type="button"
               >
@@ -199,13 +222,19 @@ function CollaboratorPicker(props: {
                 <FieldLabel label={`${props.copy.rights.share} for ${profile().displayName}`} />
                 <PercentField
                   ariaLabel={`${props.copy.rights.share} for ${profile().displayName}`}
+                  copy={props.copy}
                   maxBps={props.maxShareBps}
-                  onCommit={setShareBps}
+                  onCommit={(bps) => { setShareError(""); setShareBps(bps); }}
+                  onReject={setShareError}
+                  rejectMessage={props.copy.rights.overRemaining}
                   valueBps={shareBps()}
                 />
               </div>
               <Show when={props.maxShareBps <= 0}>
                 <FormNote tone="warning">{props.copy.rights.overRemaining}</FormNote>
+              </Show>
+              <Show when={shareError()}>
+                <FormNote tone="warning">{shareError()}</FormNote>
               </Show>
               <Button
                 disabled={!canAdd()}
@@ -241,6 +270,7 @@ export function EarningsSplit(props: {
   split: AssetRoyaltySplitState;
 }) {
   const [pickerOpen, setPickerOpen] = createSignal(false);
+  const [shareError, setShareError] = createSignal("");
   const collaborators = createMemo(() => props.split.allocations
     .filter(allocation => allocation.recipientKind !== "creator"));
   const collaboratorBps = createMemo(() => collaborators()
@@ -323,9 +353,12 @@ export function EarningsSplit(props: {
                 </div>
                 <PercentField
                   ariaLabel={`${props.copy.rights.share} for ${name()}`}
+                  copy={props.copy}
                   disabled={props.disabled}
-                  maxBps={creatorBps() + allocationBps(allocation)}
-                  onCommit={(bps) => updateCollaborator(allocation.id, bps)}
+                  maxBps={Math.max(1, creatorBps() + allocationBps(allocation) - 1)}
+                  onCommit={(bps) => { setShareError(""); updateCollaborator(allocation.id, bps); }}
+                  onReject={setShareError}
+                  rejectMessage={props.copy.rights.overRemaining}
                   valueBps={allocationBps(allocation)}
                 />
                 <Button
@@ -343,6 +376,9 @@ export function EarningsSplit(props: {
           }}
         </For>
       </div>
+      <Show when={shareError()}>
+        <FormNote tone="warning">{shareError()}</FormNote>
+      </Show>
       <Button
         disabled={props.disabled}
         leadingIcon={<IconPlus class="size-4" />}
@@ -355,7 +391,7 @@ export function EarningsSplit(props: {
       <CollaboratorPicker
         candidates={pickerCandidates()}
         copy={props.copy}
-        maxShareBps={creatorBps()}
+        maxShareBps={Math.max(0, creatorBps() - 1)}
         onAdd={addCollaborator}
         onOpenChange={setPickerOpen}
         open={pickerOpen()}
