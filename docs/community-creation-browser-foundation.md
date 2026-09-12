@@ -42,7 +42,7 @@ A configured product browser run remains required before this lane can be
 called end-to-end verified. No remote mutation or deployment is implied by
 helper tests, discovery or negative preflight runs.
 
-## Verification on 2026-09-12
+## Initial verification on 2026-09-12
 
 The focused helper gate passes 10 tests with no skips. The E2E TypeScript
 check passes, and Playwright discovery lists 15 tests in nine files. The
@@ -63,3 +63,27 @@ both were corrected before the passing check.
 The real configured creation journey is still pending. Its pass requires the
 candidate build, a prepared api-next environment and injected test credentials.
 The source manifest and local checks are review evidence, not live acceptance.
+
+## Review correction and reproducible setup
+
+The initial passing checks used temporary links to the canonical checkout's
+installed dependencies. Those links were removed after checking, leaving the
+review worktree without dependencies. The reviewer therefore reproduced eight
+passing helper tests and one file failing to load Playwright; the two sign-in
+tests in that file did not execute. The reported ten-test run was historical
+evidence, not a claim that the dependency-free worktree could run it directly.
+The same prerequisite prevented the reviewer's type, discovery and lint runs.
+
+Follow [the E2E setup instructions](../e2e/README.md) to reconstruct the
+environment with a frozen Bun install. The follow-up installed the pinned
+584 packages directly in this worktree, with scripts disabled and network
+concurrency one, rather than using temporary checkout links. The install
+returned zero without changing package.json or bun.lock. Installed dependencies
+remain available for independent reruns and are ignored by Git.
+
+With that ordinary install present, `bun run test:e2e:helpers` passes all ten
+tests with no skips, `bun run check:e2e` passes its type check and lists 15 tests
+in nine files, and `bun x --no-install oxlint --threads=1 e2e
+scripts/creation-diagnostics.test.mjs scripts/e2e-auth.test.mjs
+scripts/e2e-environment.test.mjs` returns zero. These follow-up checks ran
+serially at 50% CPU, at most 1 GiB RAM and zero swap. No browser was launched.

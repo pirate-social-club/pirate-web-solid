@@ -6,6 +6,18 @@ and keeps traces on failure for unauthenticated probes. Authenticated fixtures
 use sanitized diagnostics instead. Override the origin with
 `E2E_BASE_URL` for an explicitly prepared local preview.
 
+Each checkout needs its own installed dependencies before any test, type or
+lint command. From the repository root, using Bun 1.4.0 and Node 24 or newer,
+run `bun install --frozen-lockfile --ignore-scripts --network-concurrency=1
+--concurrent-scripts=1`. This installs the pinned workspace dependencies
+without starting lifecycle scripts. Leave `node_modules` installed for review;
+Playwright test discovery and the fake sign-in tests still import Playwright.
+Installing dependencies does not launch or install browser binaries.
+
+For local checks, run `bun run test:e2e:helpers`, then `bun run check:e2e`.
+The latter includes TypeScript and discovery only. Install Chromium separately
+with `bun x playwright install chromium` when preparing an authorized live run.
+
 `bun run test:e2e` and `bun run test:e2e:staging` run only tests tagged
 `@staging-readonly`. Authenticated tests read `E2E_PRIVY_EMAIL` and
 `E2E_PRIVY_OTP` from the process environment. Credentials must come from an
