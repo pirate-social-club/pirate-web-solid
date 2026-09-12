@@ -1,7 +1,8 @@
 import { render as solidRender, type JSX } from "@solidjs/web";
-import { createRoot } from "solid-js";
+import { createRoot, createSignal } from "solid-js";
 import { afterEach, describe, expect, test, vi } from "vitest";
 
+import type { UiLocaleCode } from "../../../lib/ui-locale-core.ts";
 import type { FeedPage, PublicFeedItem } from "../feed/public-feed-adapter.ts";
 import { HomeVideoFeed } from "./home-video-feed.tsx";
 
@@ -112,4 +113,92 @@ test("does not scan past a normalized video when a next cursor exists", async ()
   const container = render(() => <HomeVideoFeed data={page([item], "page-2")} loadPage={loadPage} />);
   await vi.waitFor(() => expect(container.textContent).toContain("Playback is being prepared"));
   expect(loadPage).not.toHaveBeenCalled();
+});
+
+test("keeps continuation visible after four video-free pages and loads a later video", async () => {
+  let loads = 0;
+  const loadPage = vi.fn(async () => {
+    loads += 1;
+    return loads <= 3
+      ? page([], "more-pages")
+      : page([video([{ playback_url: "https://media.pirate.test/later.mp4" }])], null);
+  });
+  const container = render(() => <HomeVideoFeed data={page([], "page-2")} loadPage={loadPage} />);
+  await vi.waitFor(() => expect(container.querySelector("[data-video-feed-state]")?.getAttribute("data-video-feed-state")).toBe("ready"));
+  expect(loadPage).toHaveBeenCalledTimes(3);
+  expect(container.textContent).toContain("No videos yet");
+  const continuation = container.querySelector<HTMLButtonElement>("[data-video-feed-continuation]");
+  expect(continuation).not.toBeNull();
+  continuation!.click();
+  await vi.waitFor(() => expect(container.querySelector("video")?.getAttribute("src")).toBe("https://media.pirate.test/later.mp4"));
+  expect(container.querySelector("[data-video-feed-continuation]")).toBeNull();
+});
+
+test("retains the cursor for retry after a continuation failure", async () => {
+  let loads = 0;
+  const loadPage = vi.fn(async () => {
+    loads += 1;
+    if (loads <= 3) return page([], "more-pages");
+    if (loads === 4) throw new Error("offline");
+    return page([video([{ playback_url: "https://media.pirate.test/retry.mp4" }])], null);
+  });
+  const container = render(() => <HomeVideoFeed data={page([], "page-2")} loadPage={loadPage} />);
+  await vi.waitFor(() => expect(container.querySelector("[data-video-feed-continuation]")).not.toBeNull());
+  container.querySelector<HTMLButtonElement>("[data-video-feed-continuation]")!.click();
+  await vi.waitFor(() => expect(loadPage).toHaveBeenCalledTimes(4));
+  await vi.waitFor(() => expect(container.querySelector<HTMLButtonElement>("[data-video-feed-continuation]")!.disabled).toBe(false));
+  expect(container.querySelector("video")).toBeNull();
+  container.querySelector<HTMLButtonElement>("[data-video-feed-continuation]")!.click();
+  await vi.waitFor(() => expect(container.querySelector("video")?.getAttribute("src")).toBe("https://media.pirate.test/retry.mp4"));
+});
+
+test("does not offer continuation at terminal exhaustion in empty and delivery states", async () => {
+  const empty = render(() => <HomeVideoFeed data={page([], null)} loadPage={vi.fn()} />);
+  await vi.waitFor(() => expect(empty.textContent).toContain("No videos yet"));
+  expect(empty.querySelector("[data-video-feed-continuation]")).toBeNull();
+
+  const pending = { ...video([]), videoDelivery: { playback: "pending" as const, thumbnail: "pending" as const } };
+  const delivery = render(() => <HomeVideoFeed data={page([pending], null)} loadPage={vi.fn()} />);
+  await vi.waitFor(() => expect(delivery.textContent).toContain("Playback is being prepared"));
+  expect(delivery.querySelector("[data-video-feed-continuation]")).toBeNull();
+});
+
+test("offers continuation from the delivery branch when a cursor remains", async () => {
+  const pending = { ...video([]), videoDelivery: { playback: "pending" as const, thumbnail: "pending" as const } };
+  const loadPage = vi.fn(async () => page([video([{ playback_url: "https://media.pirate.test/next.mp4" }])], null));
+  const container = render(() => <HomeVideoFeed data={page([pending], "page-2")} loadPage={loadPage} />);
+  await vi.waitFor(() => expect(container.textContent).toContain("Playback is being prepared"));
+  container.querySelector<HTMLButtonElement>("[data-video-feed-continuation]")!.click();
+  await vi.waitFor(() => expect(container.querySelector("video")?.getAttribute("src")).toBe("https://media.pirate.test/next.mp4"));
+  expect(loadPage).toHaveBeenCalledOnce();
+});
+
+test("reloads for a new locale identity", async () => {
+  const [locale, setLocale] = createSignal<UiLocaleCode>("en");
+  const loadPage = vi.fn(async ({ locale: requested }: { readonly locale: UiLocaleCode }) => page(
+    [video([{ playback_url: `https://media.pirate.test/${requested}.mp4` }])],
+    null,
+  ));
+  const container = render(() => <HomeVideoFeed data={undefined} loadPage={loadPage} locale={locale()} />);
+  await vi.waitFor(() => expect(container.querySelector("video")?.getAttribute("src")).toBe("https://media.pirate.test/en.mp4"));
+  setLocale("ar");
+  await vi.waitFor(() => expect(container.querySelector("video")?.getAttribute("src")).toBe("https://media.pirate.test/ar.mp4"));
+  expect(loadPage).toHaveBeenCalledTimes(2);
+  expect(loadPage).toHaveBeenLastCalledWith(expect.objectContaining({ locale: "ar" }));
+});
+
+test("discards an in-flight response from a superseded identity", async () => {
+  let releaseEnglish: (value: FeedPage) => void = () => {};
+  const english = new Promise<FeedPage>(resolve => { releaseEnglish = resolve; });
+  const loadPage = vi.fn(async ({ locale: requested }: { readonly locale: UiLocaleCode }) => {
+    if (requested === "en") return english;
+    return page([video([{ playback_url: "https://media.pirate.test/ar.mp4" }])], null);
+  });
+  const [locale, setLocale] = createSignal<UiLocaleCode>("en");
+  const container = render(() => <HomeVideoFeed data={undefined} loadPage={loadPage} locale={locale()} />);
+  setLocale("ar");
+  await vi.waitFor(() => expect(container.querySelector("video")?.getAttribute("src")).toBe("https://media.pirate.test/ar.mp4"));
+  releaseEnglish(page([video([{ playback_url: "https://media.pirate.test/en.mp4" }])], null));
+  await new Promise(resolve => setTimeout(resolve, 20));
+  expect(container.querySelector("video")?.getAttribute("src")).toBe("https://media.pirate.test/ar.mp4");
 });
