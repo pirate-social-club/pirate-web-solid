@@ -9,6 +9,8 @@ interface NetworkEvent {
   readonly method: string;
   readonly target: string;
   readonly status?: number;
+  /** Sanitized media type only; no header values beyond the shape. */
+  readonly contentType?: string;
   readonly failure?: string;
   readonly resourceType?: string;
   readonly body?: unknown;
@@ -58,12 +60,14 @@ export function captureSanitizedNetworkDiagnostics(page: Page): SanitizedNetwork
   const captureResponse = async (response: Response) => {
     const request = response.request();
     if (!isDiagnosticRequest(request)) return;
+    const mediaType = response.headers()["content-type"]?.split(";", 1)[0]?.trim().toLowerCase();
     append({
       kind: "response",
       requestId: id(request),
       method: request.method(),
       status: response.status(),
       target: targetOf(response.url()),
+      ...(mediaType === undefined || mediaType === "" ? {} : { contentType: mediaType.slice(0, 100) }),
       ...(isCreationCall(response.url()) ? {
         body: await response.text().then(sanitizeCreationBody, () => ({ unavailable: true })),
       } : {}),
