@@ -78,6 +78,7 @@ class ProductionMediaTransport implements MediaSubmissionTransport {
   snapshot: MediaSubmissionSnapshot | null = null;
   readonly commands: PersistedMediaCommand[] = [];
   uploadCount = 0;
+  failReads = false;
 
   async dispatch(command: PersistedMediaCommand): Promise<MediaCommandResult> {
     this.commands.push(command);
@@ -115,6 +116,7 @@ class ProductionMediaTransport implements MediaSubmissionTransport {
   }
 
   async read(): Promise<MediaSubmissionSnapshot | null> {
+    if (this.failReads) throw new Error("API response was not valid JSON");
     return this.snapshot;
   }
 
@@ -690,6 +692,49 @@ describe("create post request", () => {
     expect(mediaTransport.commands.filter(command => command.kind === "lyrics")).toHaveLength(0);
     expect(mediaTransport.uploadCount).toBe(1);
   });
+
+  test("keeps observing after a transient status failure and still marks the published song", async () => {
+    const mediaStorage = createMemoryMediaSubmissionStorage();
+    const mediaTransport = new ProductionMediaTransport();
+    const onPublished = vi.fn();
+    render(() => <CreatePostDialog
+      communityContext={{ id: "community-one", name: "Pirate Harbor" }}
+      mediaStorage={mediaStorage}
+      mediaTransport={mediaTransport}
+      onOpenChange={() => {}}
+      onPublished={onPublished}
+      open
+      personas={[activePersona("persona-one", "Persona One")]}
+      principalId="account-one"
+      storage={createMemoryPendingSubmissionStorage()}
+    />);
+    await new Promise<void>(resolve => setTimeout(resolve, 0));
+
+    const audioInput = document.body.querySelector<HTMLInputElement>("input[aria-label='Upload audio']")!;
+    Object.defineProperty(audioInput, "files", { configurable: true, value: [new File([new Uint8Array([1])], "transient.mp3", { type: "audio/mpeg" })] });
+    audioInput.dispatchEvent(new Event("change", { bubbles: true }));
+    await vi.waitFor(() => expect(button("Continue").disabled).toBe(false));
+    button("Continue").click();
+    await vi.waitFor(() => expect(document.querySelector('textarea[aria-label="Lyrics"]')).not.toBeNull());
+    button("Continue").click();
+    await vi.waitFor(() => expect(button("Review").disabled).toBe(false));
+    button("Review").click();
+    await vi.waitFor(() => expect(button("Publish song").disabled).toBe(false));
+    button("Publish song").click();
+    await vi.waitFor(() => expect(mediaTransport.commands.map(command => command.kind)).toEqual([
+      "reserve", "start", "finalize", "terms",
+    ]));
+
+    // One automatic status check fails while the submission later becomes
+    // published. Observation must back off and resume rather than pause
+    // permanently, or the composer strands the published song.
+    mediaTransport.failReads = true;
+    await new Promise<void>(resolve => setTimeout(resolve, 4_000));
+    mediaTransport.snapshot = mediaSnapshot({ ...mediaTransport.snapshot!, status: "published",
+      published_resource: { post_id: "post-transient", href: "/posts/post-transient" } });
+    mediaTransport.failReads = false;
+    await vi.waitFor(() => expect(onPublished).toHaveBeenCalledOnce(), { timeout: 8_000 });
+  }, 20_000);
 
   test("wizard navigation preserves state and supports back", async () => {
     const mediaStorage = createMemoryMediaSubmissionStorage();

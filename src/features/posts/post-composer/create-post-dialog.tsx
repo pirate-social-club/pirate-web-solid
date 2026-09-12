@@ -523,14 +523,28 @@ export function CreatePostDialog(props: CreatePostDialogProps): JSX.Element {
 
   async function refreshSong(automatic = false): Promise<void> {
     if (mediaCoordinator?.currentRecord?.submission_id == null || mediaBusy() || lyricsBusy()) return;
-    if (!automatic) { observationCount = 0; setObservationPaused(false); }
+    if (!automatic) {
+      observationCount = 0;
+      observationFailures = 0;
+      observationRetryAt = 0;
+      setObservationPaused(false);
+    }
     setError("");
     setMediaBusy(true);
     try {
       const snapshot = await mediaCoordinator.refresh();
       if (snapshot !== null) applySnapshot(snapshot);
+      observationFailures = 0;
+      observationRetryAt = 0;
     } catch (refreshError) {
-      if (automatic) setObservationPaused(true);
+      if (automatic) {
+        // A transient status failure must not strand a submission that later
+        // publishes: back off and keep checking until a bounded run of
+        // consecutive failures pauses observation for a manual retry.
+        observationFailures += 1;
+        observationRetryAt = Date.now() + Math.min(30_000, 3_000 * 2 ** (observationFailures - 1));
+        if (observationFailures >= 5) setObservationPaused(true);
+      }
       setError(refreshError instanceof Error ? refreshError.message : "The song status is still uncertain.");
     } finally {
       setMediaBusy(false);
@@ -603,6 +617,8 @@ export function CreatePostDialog(props: CreatePostDialogProps): JSX.Element {
     return mediaCoordinator?.currentRecord?.commands.some(command => command.kind === "terms") ?? false;
   };
   let observationCount = 0;
+  let observationFailures = 0;
+  let observationRetryAt = 0;
   let disposed = false;
   const [observationPaused, setObservationPaused] = createSignal(false);
   const observation = typeof window !== "undefined" && getOwner() ? setInterval(() => {
@@ -611,6 +627,7 @@ export function CreatePostDialog(props: CreatePostDialogProps): JSX.Element {
     const view = mediaView();
     if (view.status !== "processing" && view.status !== "manual_review") return;
     if (mediaCoordinator?.currentRecord?.submission_id == null) return;
+    if (Date.now() < observationRetryAt) return;
     if (++observationCount > 200) { setObservationPaused(true); return; }
     void refreshSong(true);
   }, 3_000) : undefined;
