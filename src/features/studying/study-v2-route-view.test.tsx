@@ -57,7 +57,7 @@ afterEach(() => {
 
 
 function routeSession(): StudySession {
-  const items = [1, 2, 3, 4].map((index) => ({
+  const items: StudySession["items"] = [1, 2, 3, 4].map((index) => ({
     answer_visibility: "always_visible",
     exercise_review_key: `review-${index}`,
     exercise_type: "say_it_back",

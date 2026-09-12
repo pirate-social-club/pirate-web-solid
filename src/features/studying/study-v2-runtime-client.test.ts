@@ -4,12 +4,7 @@ import type { StudySession, StudyV2Api } from "./study-v2-api";
 import { createStudyV2RuntimeClient, studyLessonPayload } from "./study-v2-runtime-client";
 
 function session(activeOverrides: Partial<StudySession> = {}): StudySession {
-  return {
-    audio_revision: 1,
-    community_id: "community-1",
-    completed_at: null,
-    created_at: "2026-08-30T10:00:00Z",
-    items: [1, 2, 3, 4].map((index) => ({
+  const items: StudySession["items"] = [1, 2, 3, 4].map((index) => ({
       answer_visibility: "always_visible",
       exercise_review_key: `review-${index}`,
       exercise_type: "say_it_back",
@@ -40,7 +35,13 @@ function session(activeOverrides: Partial<StudySession> = {}): StudySession {
       },
       quality_policy_revision: "quality-v1",
       session_item_id: `item-${index}`,
-    })),
+    }));
+  return {
+    audio_revision: 1,
+    community_id: "community-1",
+    completed_at: null,
+    created_at: "2026-08-30T10:00:00Z",
+    items,
     language_profile_revision: null,
     languages: { learning_language: "en", target_language: null },
     learner_band: null,
@@ -151,7 +152,7 @@ describe("Study v2 runtime client", () => {
   });
 
   test("renders no exercises once the server completes the lesson", () => {
-    const completed = {
+    const completed: StudySession = {
       ...session(),
       completed_at: "2026-08-30T10:10:00Z",
       lesson: {
@@ -253,6 +254,7 @@ describe("Study v2 runtime client", () => {
             ...item,
             exercise_type: "translation_choice" as const,
             presentation: {
+              capture: "choice_selection" as const,
               kind: "translation_choice" as const,
               question: "What does this mean?",
               source_text: "source",
@@ -264,7 +266,7 @@ describe("Study v2 runtime client", () => {
           }
         : item,
     );
-    const choiceSession = { ...initial, items };
+    const choiceSession: StudySession = { ...initial, items };
     const afterRetryableMiss = withCurrent(
       choiceSession,
       {

@@ -48,7 +48,7 @@ export const LessonFlow: Story = {
     docs: {
       description: {
         story:
-          "Happy path: record the say-it-back card (Stop submits a correct attempt), then answer the multiple-choice card to reach the streak-qualified completion.",
+          "Happy path: record the say-it-back card (Stop submits a correct attempt, the server advances to its current card), then answer the multiple-choice card to reach the streak-qualified completion.",
       },
     },
   },

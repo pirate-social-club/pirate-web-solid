@@ -47,9 +47,8 @@ function exerciseOf(
  */
 export function studyLessonPayload(session: StudySession): StudyingLessonPayload {
   const current = session.lesson.current;
-  const completed = session.status === "completed" || current === null;
   const item =
-    completed || current === null
+    current === null || session.status === "completed"
       ? undefined
       : session.items.find(({ session_item_id }) => session_item_id === current.session_item_id);
   return {
@@ -80,13 +79,13 @@ function attemptResult(
         ? undefined
         : {
             extra: diff.extra,
-            match_kind: diff.match_kind,
+            match_kind: diff.match_kind ?? "none",
             matched: diff.matched,
             missing: diff.missing,
             substituted: diff.substituted,
           },
     heard_transcript: diff?.heard_transcript,
-    match_kind: diff?.match_kind,
+    match_kind: diff?.match_kind ?? "none",
     outcome: result.outcome,
     session: {
       first_pass_correct_count: result.session.progress.first_pass_correct,
