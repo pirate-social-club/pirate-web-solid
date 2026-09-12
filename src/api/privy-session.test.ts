@@ -1,6 +1,10 @@
-import { ApiClientError, type GetPersonasResponse } from "@pirate/api-client";
+import {
+  ApiClientError,
+  type GetPersonasResponse,
+  type PostAuthRegisterResponse,
+} from "@pirate/api-client";
 import type { ExternalWallet } from "@privy-io/js-sdk-core";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   MemoryOnlyStorage,
   PrivyIdentityBootstrapRequired,
@@ -14,6 +18,87 @@ const minimumAgeAffirmation = {
 } as const;
 
 const noPersonas = async (): Promise<GetPersonasResponse> => ({ personas: [] });
+
+const sessionResponse = {
+  user: {
+    id: "canonical-user",
+    object: "user",
+    verification_state: "unverified",
+    verification_capabilities: {
+      unique_human: { state: "unverified" },
+      age_over_18: { state: "unverified" },
+      minimum_age: { state: "unverified" },
+      nationality: { state: "unverified" },
+      gender: { state: "unverified" },
+      wallet_score: { state: "unverified" },
+    },
+    created: 1_700_000_000,
+  },
+  profile: {
+    id: "canonical-user",
+    object: "profile",
+    global_handle: {
+      id: "handle-1",
+      object: "global_handle",
+      label: "captain",
+      tier: "generated",
+      status: "active",
+      issuance_source: "generated_signup",
+      issued_at: 1_700_000_000,
+    },
+    created: 1_700_000_000,
+  },
+  onboarding: {
+    generated_handle_assigned: true,
+    cleanup_rename_available: false,
+    unique_human_verification_status: "not_started",
+    namespace_verification_status: "not_started",
+    community_creation_ready: false,
+    missing_requirements: [],
+    reddit_verification_status: "not_started",
+    reddit_import_status: "not_started",
+  },
+  wallet_attachments: [],
+} satisfies PostAuthRegisterResponse;
+
+function jsonResponse(body: unknown, status: number): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { "content-type": "application/json" },
+  });
+}
+
+function installCookieJar(initial: string) {
+  const jar = { value: initial };
+  vi.stubGlobal("location", { origin: "https://solid.test" });
+  vi.stubGlobal("document", {
+    get cookie() {
+      return jar.value;
+    },
+    set cookie(next: string) {
+      jar.value = next;
+    },
+  });
+  return jar;
+}
+
+function defaultSessionServices(accessToken: string) {
+  return {
+    createPrivy: async () => ({
+      auth: {
+        email: { sendCode: async () => ({ success: true }), loginWithCode: async () => undefined },
+      },
+      initialize: async () => undefined,
+      getAccessToken: async () => accessToken,
+    }),
+    listPersonas: noPersonas,
+    listPendingWallets: async () => ({ wallets: [] }),
+  };
+}
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
 
 function persona(
   personaId: string,
@@ -857,5 +942,96 @@ describe("Privy session exchange", () => {
     } finally {
       Reflect.deleteProperty(globalThis, "window");
     }
+  });
+
+  it("attaches the readable CSRF proof to the default registration and post-registration exchange", async () => {
+    const accessToken = "header.eyJzdWIiOiJkaWQ6cHJpdnk6dGVzdC11c2VyIn0.signature";
+    const jar = installCookieJar("");
+    const calls: {
+      path: string;
+      csrf: string | null;
+      credentials: RequestCredentials | undefined;
+    }[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = new URL(String(input));
+        const headers = new Headers(init?.headers);
+        calls.push({
+          path: url.pathname,
+          csrf: headers.get("x-csrf-token"),
+          credentials: init?.credentials,
+        });
+        if (url.pathname === "/api/auth/session/exchange") {
+          if (jar.value === "") {
+            return jsonResponse(
+              { error: { code: "auth_error", message: "not registered", retryable: false } },
+              401,
+            );
+          }
+          return jsonResponse(sessionResponse, 200);
+        }
+        if (url.pathname === "/api/auth/register") {
+          jar.value = "__Host-pirate_session=session-token; __Host-pirate_csrf=csrf-value";
+          return jsonResponse(sessionResponse, 201);
+        }
+        throw new Error(`unexpected_path:${url.pathname}`);
+      }),
+    );
+
+    const auth = await createPrivySessionExchange(
+      { enabled: true, privyAppId: "app" },
+      defaultSessionServices(accessToken),
+    );
+
+    await expect(auth.loginWithCode("person@example.test", "123456")).rejects.toBeInstanceOf(
+      PrivyIdentityBootstrapRequired,
+    );
+    await auth.register(minimumAgeAffirmation);
+
+    expect(calls.map((call) => call.path)).toEqual([
+      "/api/auth/session/exchange",
+      "/api/auth/register",
+      "/api/auth/session/exchange",
+    ]);
+    expect(calls.map((call) => call.csrf)).toEqual([null, null, "csrf-value"]);
+    expect(calls.every((call) => call.credentials === "same-origin")).toBe(true);
+  });
+
+  it("reuses the readable CSRF proof on a retry and sends no proof when it is absent", async () => {
+    const accessToken = "header.eyJzdWIiOiJkaWQ6cHJpdnk6dGVzdC11c2VyIn0.signature";
+    const jar = installCookieJar("__Host-pirate_session=session-token; __Host-pirate_csrf=csrf-value");
+    const csrfHeaders: (string | null)[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+        const csrf = new Headers(init?.headers).get("x-csrf-token");
+        csrfHeaders.push(csrf);
+        if (jar.value.includes("__Host-pirate_session=") && csrf === null) {
+          return jsonResponse(
+            { error: { code: "auth_error", message: "missing proof", retryable: false } },
+            401,
+          );
+        }
+        return jsonResponse(sessionResponse, 200);
+      }),
+    );
+
+    const retry = await createPrivySessionExchange(
+      { enabled: true, privyAppId: "app" },
+      defaultSessionServices(accessToken),
+    );
+    await retry.loginWithCode("person@example.test", "123456");
+    expect(csrfHeaders).toEqual(["csrf-value"]);
+
+    jar.value = "__Host-pirate_session=session-token";
+    const sessionOnly = await createPrivySessionExchange(
+      { enabled: true, privyAppId: "app" },
+      defaultSessionServices(accessToken),
+    );
+    await expect(sessionOnly.loginWithCode("person@example.test", "123456")).rejects.toBeInstanceOf(
+      PrivyIdentityBootstrapRequired,
+    );
+    expect(csrfHeaders).toEqual(["csrf-value", null]);
   });
 });
