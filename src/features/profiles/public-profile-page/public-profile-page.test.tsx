@@ -3,7 +3,7 @@ import type { GetPublicProfilesHandleResponse } from "@pirate/api-client";
 import { render as solidRender } from "@solidjs/web";
 import type { JSX } from "@solidjs/web";
 import { createRoot, createSignal, type Component } from "solid-js";
-import { createRouter, memoryHistory, useNavigate } from "@solidjs/router";
+import { createRouter, memoryHistory, revalidate, useNavigate } from "@solidjs/router";
 import PublicProfileRoute, { route as publicProfileRoute } from "../../../routes/u/[handle].tsx";
 import PublicProfilePage from "./public-profile-page";
 import type { PublicProfileSuccess, PublicProfileViewState } from "./public-profile-page.model";
@@ -224,5 +224,16 @@ describe("PublicProfilePage", () => {
     const canonical = document.head.querySelector("link[rel='canonical']")?.getAttribute("href");
     expect(canonical == null ? null : new URL(canonical, window.location.origin).pathname).toBe("/u/captain-two.pirate");
     expect(document.title).toContain("captain-two.pirate");
+
+    // Revalidating the second handle must refetch it and never fall back to
+    // the first handle's preloaded result.
+    revalidate("public-profile");
+    await vi.waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(3));
+    await new Promise(resolve => setTimeout(resolve, 20));
+    expect(container.querySelector("h1")?.textContent).toBe("captain-two profile");
+    expect(container.textContent).not.toContain("captain-one profile");
+    const thirdInput = fetchImpl.mock.calls[2]![0];
+    const thirdPath = new URL(thirdInput instanceof Request ? thirdInput.url : String(thirdInput)).pathname;
+    expect(thirdPath).toContain("captain-two");
   });
 });
