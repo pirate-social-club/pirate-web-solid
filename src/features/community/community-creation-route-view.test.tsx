@@ -1031,7 +1031,10 @@ describe("saved creation revision recovery", () => {
   }
 
   test("patches edits against the refreshed revision and commits the resulting revision", async () => {
-    const refreshed = createIntent({ ...saved(), revision: 3 });
+    const refreshed = createIntent({ ...saved(), revision: 3, draft: {
+      additionalRequirements: [], persona: { kind: "create_new" }, description: "Saved description",
+      publicName: "River Room", name: "Saved community",
+    } });
     const updated = createIntent({ ...refreshed, revision: 4 });
     const getIntent = vi.fn().mockResolvedValueOnce(saved()).mockResolvedValue(refreshed);
     const updateIntent = vi.fn().mockResolvedValue(updated);
@@ -1051,8 +1054,7 @@ describe("saved creation revision recovery", () => {
   });
 
   test.each([
-    { reason: "another writer wins after refresh", status: 409, retryRevision: 4 },
-    { reason: "a successful PATCH loses its response", status: 503, retryRevision: 4 },
+    { reason: "a lifecycle advance wins after refresh", status: 409, retryRevision: 4 },
     { reason: "a failed PATCH leaves the revision unchanged", status: 503, retryRevision: 3 },
   ])("preserves edits and retries when $reason", async ({ status, retryRevision }) => {
     const getIntent = vi.fn().mockResolvedValueOnce(saved())
@@ -1084,6 +1086,173 @@ describe("saved creation revision recovery", () => {
     expect(retry.idempotencyKey === first.idempotencyKey).toBe(retryRevision === 3);
     expect(commitIntent).toHaveBeenCalledWith(expect.objectContaining({ expectedRevision: retryRevision + 1 }));
     expect(createIntentRequest).not.toHaveBeenCalled();
+  });
+
+  test("recognizes the saved local draft after a lost PATCH response without another PATCH", async () => {
+    const applied = createIntent({ ...saved(), revision: 4, draft: { ...saved().draft!, name: "Edited community" } });
+    const getIntent = vi.fn().mockResolvedValueOnce(saved())
+      .mockResolvedValueOnce(createIntent({ ...saved(), revision: 3 })).mockResolvedValue(applied);
+    const updateIntent = vi.fn().mockRejectedValue({ status: 503 });
+    const commitIntent = vi.fn().mockResolvedValue(createIntent({ ...applied, revision: 5,
+      status: "committed", nextAction: { kind: "none", reason: "committed" }, committedHref: "/c/updated" }));
+    const container = render(() => <CommunityCreationRouteView intentId="saved-revision"
+      api={api({ getIntent, updateIntent, commitIntent })} resolveSession={async () => owner} navigate={() => {}} />);
+    const { name, button } = await editName(container);
+    button.click();
+    await vi.waitFor(() => expect(container.textContent).toContain("Could not save your changes"));
+    expect(name.value).toBe("Edited community");
+    button.click();
+    await vi.waitFor(() => expect(commitIntent).toHaveBeenCalledOnce());
+    expect(updateIntent).toHaveBeenCalledOnce();
+    expect(commitIntent).toHaveBeenCalledWith(expect.objectContaining({ expectedRevision: 4 }));
+  });
+
+  test.each([
+    { field: "name", patch: { name: "Remote community" } },
+    { field: "description", patch: { description: "Remote description" } },
+    { field: "public name", patch: { publicName: "Remote profile" } },
+    { field: "persona", patch: { persona: { kind: "existing" as const, personaId: "remote-persona" } } },
+    { field: "policy", patch: { additionalRequirements: [{ requirement: "reputation-score" as const, provider: "passport" as const, minimumScore: 10 }] } },
+  ])("refuses to overwrite a remote $field edit across repeated submits and session refreshes", async ({ patch }) => {
+    const remote = createIntent({ ...saved(), revision: 3, draft: { ...saved().draft!, ...patch } });
+    const getIntent = vi.fn().mockResolvedValueOnce(saved()).mockResolvedValue(remote);
+    const updateIntent = vi.fn();
+    const commitIntent = vi.fn();
+    const container = render(() => <CommunityCreationRouteView intentId="saved-revision"
+      api={api({ getIntent, updateIntent, commitIntent })} resolveSession={async () => owner} navigate={() => {}} />);
+    const { name, button } = await editName(container);
+    button.click();
+    await vi.waitFor(() => expect(container.textContent).toContain("saved setup changed while you were editing"));
+    expect(name.value).toBe("Edited community");
+    expect(button.disabled).toBe(true);
+    container.querySelector("form")!.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+    refreshSession();
+    await vi.waitFor(() => expect(getIntent).toHaveBeenCalledTimes(3));
+    expect(name.value).toBe("Edited community");
+    expect(updateIntent).not.toHaveBeenCalled();
+    expect(commitIntent).not.toHaveBeenCalled();
+  });
+
+  test("refuses a remote draft edit discovered after a PATCH conflict", async () => {
+    const remote = createIntent({ ...saved(), revision: 4, draft: { ...saved().draft!, name: "Remote community" } });
+    const getIntent = vi.fn().mockResolvedValueOnce(saved())
+      .mockResolvedValueOnce(createIntent({ ...saved(), revision: 3 })).mockResolvedValue(remote);
+    const updateIntent = vi.fn().mockRejectedValue({ status: 409 });
+    const commitIntent = vi.fn();
+    const container = render(() => <CommunityCreationRouteView intentId="saved-revision"
+      api={api({ getIntent, updateIntent, commitIntent })} resolveSession={async () => owner} navigate={() => {}} />);
+    const { name, button } = await editName(container);
+    button.click();
+    await vi.waitFor(() => expect(container.textContent).toContain("Could not save your changes"));
+    button.click();
+    await vi.waitFor(() => expect(container.textContent).toContain("saved setup changed while you were editing"));
+    expect(name.value).toBe("Edited community");
+    expect(button.disabled).toBe(true);
+    expect(updateIntent).toHaveBeenCalledOnce();
+    expect(commitIntent).not.toHaveBeenCalled();
+  });
+
+  test("keeps the edit baseline when a session refresh discovers a remote draft before submit", async () => {
+    const remote = createIntent({ ...saved(), revision: 3, draft: { ...saved().draft!, name: "Remote community" } });
+    const getIntent = vi.fn().mockResolvedValueOnce(saved()).mockResolvedValue(remote);
+    const updateIntent = vi.fn();
+    const commitIntent = vi.fn();
+    const container = render(() => <CommunityCreationRouteView intentId="saved-revision"
+      api={api({ getIntent, updateIntent, commitIntent })} resolveSession={async () => owner} navigate={() => {}} />);
+    const { name, button } = await editName(container);
+    refreshSession();
+    await vi.waitFor(() => expect(container.textContent).toContain("saved setup changed while you were editing"));
+    await vi.waitFor(() => expect(name.matches(":disabled")).toBe(false));
+    name.value = "Further local edit";
+    name.dispatchEvent(new InputEvent("input", { bubbles: true }));
+    await vi.waitFor(() => expect(name.value).toBe("Further local edit"));
+    button.click();
+    expect(name.value).toBe("Further local edit");
+    expect(button.disabled).toBe(true);
+    expect(updateIntent).not.toHaveBeenCalled();
+    expect(commitIntent).not.toHaveBeenCalled();
+  });
+
+  test("stops continuation when a refresh detects a remote edit during an in-flight PATCH", async () => {
+    const remote = createIntent({ ...saved(), revision: 5, draft: { ...saved().draft!, name: "Remote community" } });
+    const getIntent = vi.fn().mockResolvedValueOnce(saved())
+      .mockResolvedValueOnce(createIntent({ ...saved(), revision: 3 })).mockResolvedValue(remote);
+    let finishPatch: ((value: ReturnType<typeof createIntent>) => void) | undefined;
+    const updateIntent = vi.fn(() => new Promise<ReturnType<typeof createIntent>>(resolve => { finishPatch = resolve; }));
+    const commitIntent = vi.fn();
+    const container = render(() => <CommunityCreationRouteView intentId="saved-revision"
+      api={api({ getIntent, updateIntent, commitIntent })} resolveSession={async () => owner} navigate={() => {}} />);
+    const { name, button } = await editName(container);
+    button.click();
+    await vi.waitFor(() => expect(updateIntent).toHaveBeenCalledOnce());
+    refreshSession();
+    await vi.waitFor(() => expect(container.textContent).toContain("saved setup changed while you were editing"));
+    finishPatch!(createIntent({ ...saved(), revision: 4, draft: { ...saved().draft!, name: "Edited community" } }));
+    await vi.waitFor(() => expect(name.matches(":disabled")).toBe(false));
+    expect(name.value).toBe("Edited community");
+    expect(button.disabled).toBe(true);
+    expect(commitIntent).not.toHaveBeenCalled();
+  });
+
+  test("allows sign-in after a conflict without forgetting the editing baseline", async () => {
+    let authenticated = true;
+    const remote = createIntent({ ...saved(), revision: 3, draft: { ...saved().draft!, name: "Remote community" } });
+    const getIntent = vi.fn().mockResolvedValueOnce(saved()).mockResolvedValue(remote);
+    const updateIntent = vi.fn();
+    const commitIntent = vi.fn();
+    const container = render(() => <CommunityCreationRouteView intentId="saved-revision"
+      api={api({ getIntent, updateIntent, commitIntent })}
+      resolveSession={async () => authenticated ? owner : "anonymous"} navigate={() => {}} />);
+    const { name, button } = await editName(container);
+    button.click();
+    await vi.waitFor(() => expect(container.textContent).toContain("saved setup changed while you were editing"));
+    authenticated = false;
+    refreshSession();
+    await vi.waitFor(() => expect(container.querySelector("main")?.getAttribute("data-creation-state")).toBe("signed-out"));
+    expect(button.disabled).toBe(false);
+    expect(name.value).toBe("Edited community");
+    authenticated = true;
+    refreshSession();
+    await vi.waitFor(() => {
+      expect(getIntent).toHaveBeenCalledTimes(3);
+      expect(button.disabled).toBe(true);
+      expect(container.textContent).toContain("Discard my edits and load saved setup");
+    });
+    expect(name.value).toBe("Edited community");
+    expect(updateIntent).not.toHaveBeenCalled();
+    expect(commitIntent).not.toHaveBeenCalled();
+  });
+
+  test("discards local edits only after the explicit reload succeeds", async () => {
+    const remote = createIntent({ ...saved(), revision: 3, draft: { ...saved().draft!, name: "Remote community" } });
+    const getIntent = vi.fn().mockResolvedValueOnce(saved()).mockResolvedValueOnce(remote)
+      .mockRejectedValueOnce(new Error("offline")).mockResolvedValue(remote);
+    const updateIntent = vi.fn().mockResolvedValue(createIntent({ ...remote, revision: 4 }));
+    const commitIntent = vi.fn().mockResolvedValue(createIntent({ ...remote, revision: 5,
+      status: "committed", nextAction: { kind: "none", reason: "committed" }, committedHref: "/c/reviewed" }));
+    const container = render(() => <CommunityCreationRouteView intentId="saved-revision"
+      api={api({ getIntent, updateIntent, commitIntent })} resolveSession={async () => owner} navigate={() => {}} />);
+    const { name, button } = await editName(container);
+    button.click();
+    const reload = () => [...container.querySelectorAll<HTMLButtonElement>("button")]
+      .find(item => item.textContent === "Discard my edits and load saved setup")!;
+    await vi.waitFor(() => expect(reload()).toBeDefined());
+    reload().click();
+    await vi.waitFor(() => expect(container.textContent).toContain("Couldn't load your community setup"));
+    expect(name.value).toBe("Edited community");
+    expect(button.disabled).toBe(true);
+    reload().click();
+    await vi.waitFor(() => expect(name.value).toBe("Remote community"));
+    expect(updateIntent).not.toHaveBeenCalled();
+    expect(commitIntent).not.toHaveBeenCalled();
+    await vi.waitFor(() => expect(name.matches(":disabled")).toBe(false));
+    name.value = "Reviewed local edit";
+    name.dispatchEvent(new InputEvent("input", { bubbles: true }));
+    await vi.waitFor(() => expect(name.value).toBe("Reviewed local edit"));
+    button.click();
+    await vi.waitFor(() => expect(commitIntent).toHaveBeenCalledOnce());
+    expect(updateIntent).toHaveBeenCalledWith(expect.objectContaining({ expectedRevision: 3,
+      draft: expect.objectContaining({ name: "Reviewed local edit" }) }));
   });
 
   test("reopens a community committed during refresh without patching the edited draft", async () => {
