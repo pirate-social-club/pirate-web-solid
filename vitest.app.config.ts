@@ -22,7 +22,8 @@ export default defineConfig({
     // on 16-core runners, so keep the app gate bounded and deterministic.
     maxWorkers: 4,
     // The app still has Bun-native .tsx suites; they are intentionally not
-    // loaded by Vitest. Add a suite here once it imports Vitest's API.
+    // loaded by Vitest. Add a suite here once it imports Vitest's API, and
+    // keep scripts/check-test-discovery.ts green when ownership moves.
     include: [
       "src/features/posts/song-player/song-player.test.tsx",
       "src/hns-community-route-transform.test.ts",
@@ -41,6 +42,8 @@ export default defineConfig({
       "src/features/auth/sign-in-session.test.ts",
       "src/features/auth/sign-in-view.test.tsx",
       "src/features/community/community-creation-api.test.ts",
+      "src/features/community/community-creation-progress/community-creation-progress-model.test.ts",
+      "src/features/community/create-community/create-community-model.test.ts",
       "src/features/community/page-shell/page-shell-actions.test.tsx",
       "src/features/community/community-creation-route-view.test.tsx",
       "src/features/community/your-communities-page/your-communities-route.test.tsx",
