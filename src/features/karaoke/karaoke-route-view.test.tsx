@@ -24,6 +24,9 @@ const persona = (id: string, communityId: string | null) => ({
 });
 
 function mount(personas: AuthenticatedSession["personas"], resolveSession = async (): Promise<AuthenticatedSession> => ({ status: "authenticated", userId: "account-1", personas })) {
+  // Scored-take tests exercise persona and start behavior; the dedicated
+  // disclosure tests clear this acknowledgment to prove the capture gate.
+  localStorage.setItem("karaoke:microphone-disclosure:v1", "1");
   const host = document.createElement("div");
   document.body.appendChild(host);
   const createSession = vi.fn(() => new Promise<never>(() => {}));
@@ -102,5 +105,36 @@ describe("Karaoke community persona selection", () => {
     await vi.waitFor(() => expect(document.body.textContent).toContain("Join this community"));
     expect(createSession).not.toHaveBeenCalled();
     expect(document.querySelector('[role="dialog"]')).toBeNull();
+  });
+});
+
+describe("Karaoke first-use microphone disclosure", () => {
+  test("blocks capture until the disclosure is acknowledged", async () => {
+    const { host, createSession } = mount([persona("here", "community-here")]);
+    localStorage.clear();
+    await start(host);
+    await vi.waitFor(() => expect(host.querySelector("[data-karaoke-mic-disclosure]")).toBeTruthy());
+    expect(host.textContent).toContain("ElevenLabs");
+    expect(host.textContent).toContain("24 months");
+    expect(createSession).not.toHaveBeenCalled();
+
+    [...host.querySelectorAll("button")]
+      .find(button => button.textContent?.trim() === "Cancel")!
+      .click();
+    await vi.waitFor(() => expect(host.querySelector("[data-karaoke-mic-disclosure]")).toBeNull());
+    expect(createSession).not.toHaveBeenCalled();
+
+    await start(host);
+    await vi.waitFor(() => expect(host.querySelector("[data-karaoke-mic-disclosure]")).toBeTruthy());
+    host.querySelector<HTMLElement>("[data-karaoke-mic-disclosure-accept]")?.click();
+    await vi.waitFor(() => expect(createSession).toHaveBeenCalledOnce());
+    expect(localStorage.getItem("karaoke:microphone-disclosure:v1")).toBe("1");
+  });
+
+  test("starts the scored take without the dialog once acknowledged", async () => {
+    const { host, createSession } = mount([persona("here", "community-here")]);
+    await start(host);
+    await vi.waitFor(() => expect(createSession).toHaveBeenCalledOnce());
+    expect(host.querySelector("[data-karaoke-mic-disclosure]")).toBeNull();
   });
 });
