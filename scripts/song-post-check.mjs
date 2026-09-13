@@ -403,15 +403,19 @@ async function publishSong(page, community, { lyrics }) {
     throw error;
   }
   await audioInput.setInputFiles(mp3Fixture(`${community}.mp3`));
-  await form.getByRole("navigation", { name: "Steps" }).waitFor({ state: "visible" });
 
   const title = form.getByLabel("Title", { exact: true });
   if (await title.count() > 0) await title.fill(`Fixture song ${community}`);
 
-  // The step indicator repeats every step name as a button, so the footer's
-  // forward control is addressed directly rather than by label.
+  // Lyrics are optional and live on the Song step; they are bound when the
+  // song is published rather than saved from a separate step.
+  if (lyrics !== "") {
+    await form.getByRole("button", { name: "Add lyrics (optional)" }).click();
+    await form.getByLabel("Lyrics", { exact: true }).fill(lyrics);
+  }
+
+  // The footer's forward control advances Song -> Rights -> Review.
   const forward = form.locator("[data-composer-forward]");
-  const currentStep = (name) => form.getByRole("button", { name, exact: true }).and(form.locator('[aria-current="step"]'));
   const waitForForward = async () => {
     await forward.waitFor({ state: "visible" });
     await page.waitForFunction(
@@ -422,24 +426,12 @@ async function publishSong(page, community, { lyrics }) {
       "form[aria-label='Create a post'] [data-composer-forward]",
     );
   };
-  await forward.click();
-  await currentStep("Lyrics").waitFor({ state: "visible" });
-  const lyricsField = form.getByLabel("Lyrics", { exact: true });
-  if (lyrics !== "") {
-    await lyricsField.fill(lyrics);
-    await form.getByRole("button", { name: "Save reviewed lyrics" }).click();
-    const deadline = Date.now() + 10_000;
-    while (!mediaCalls.some(call => call.kind === "lyrics" && call.submission === `submission-${community}`)) {
-      if (Date.now() >= deadline) throw new Error(`reviewed lyrics were not saved for ${community}`);
-      await page.waitForTimeout(25);
-    }
-  }
   await waitForForward();
   await forward.click();
-  await currentStep("Rights").waitFor({ state: "visible" });
+  await form.getByRole("heading", { name: "Rights" }).waitFor({ state: "visible" });
   await waitForForward();
   await forward.click();
-  await currentStep("Review").waitFor({ state: "visible" });
+  await form.getByRole("heading", { name: "Review" }).waitFor({ state: "visible" });
 
   if (lyrics !== "") {
     const review = await form.innerText();
