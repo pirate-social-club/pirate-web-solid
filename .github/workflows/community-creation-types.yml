@@ -1,0 +1,67 @@
+name: community-creation-types
+
+# Publish this workflow on this dedicated branch, parented on the review tip.
+# A branch push works without installing workflow_dispatch on main first.
+on:
+  push:
+    branches: [ci/community-creation-types]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: community-creation-types
+  cancel-in-progress: false
+
+jobs:
+  app-types:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      NODE_OPTIONS: --max-old-space-size=2048
+      RAYON_NUM_THREADS: '1'
+      UV_THREADPOOL_SIZE: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: 3fd5df4b122a8c50732a0cf7e33df43532c1f4f1
+          persist-credentials: false
+      - name: Verify source pin
+        run: test "$(git rev-parse HEAD)" = 3fd5df4b122a8c50732a0cf7e33df43532c1f4f1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24.14.0
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.4.0
+      - name: Install frozen dependencies
+        run: bun install --frozen-lockfile --ignore-scripts --network-concurrency=1 --concurrent-scripts=1
+      - name: Check full application types
+        shell: bash
+        run: |
+          set -euo pipefail
+          ulimit -c 0
+          evidence="$RUNNER_TEMP/community-types"
+          mkdir -p "$evidence"
+          {
+            git rev-parse HEAD
+            node --version
+            bun --version
+            printf 'Command: node node_modules/typescript/bin/tsc --noEmit -p tsconfig.json\n'
+            printf 'NODE_OPTIONS=%s\n' "$NODE_OPTIONS"
+          } > "$evidence/environment.txt"
+          set +e
+          /usr/bin/time -v node node_modules/typescript/bin/tsc --noEmit -p tsconfig.json > "$evidence/types.log" 2>&1
+          result=$?
+          set -e
+          printf '%s\n' "$result" > "$evidence/exit-code.txt"
+          cat "$evidence/types.log"
+          exit "$result"
+      - name: Preserve type-check evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: community-types-3fd5df4-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/community-types/
+          if-no-files-found: warn
+          retention-days: 14
