@@ -23,19 +23,17 @@ configuration, so a new script or suite is type-checked by that gate.
 
 ## Unowned inventory
 
-Sixty-three `src` suites import `bun:test`, which neither Vitest
-configuration loads. That count is an inventory, not a coverage claim: some
-may be dead, some may be deliberately Bun-only, and each still needs an owner.
-Two of them, the community creation model suites, were brought into the app
-gate on 2026-09-13:
-
-- `src/features/community/create-community/create-community-model.test.ts`
-- `src/features/community/community-creation-progress/community-creation-progress-model.test.ts`
-
-The remaining sixty-one are recorded in
-`scripts/test-discovery-allowlist.json`. The list is a ratchet: it may only
-shrink. Remove an entry when its suite gains a runner, is converted to Vitest,
-or is deleted. Recording a suite there does not make it executed or owned.
+Sixty-three `src` suites imported `bun:test` when the inventory was taken on
+2026-09-13. That count is an inventory, not a coverage claim: some may be
+dead, some may be deliberately Bun-only, and each still needs an owner. The
+creation model suites were resolved the same day:
+`src/features/community/create-community/create-community-model.test.ts` now
+runs in the app gate, and the progress model test was removed with the
+intent-view consolidation once its subject became fixture-only. The remaining
+fifty-nine are recorded in `scripts/test-discovery-allowlist.json`. The list
+is a ratchet: it may only shrink. Remove an entry when its suite gains a
+runner, is converted to Vitest, or is deleted. Recording a suite there does
+not make it executed or owned.
 
 ## Discovery check
 

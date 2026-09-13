@@ -19,7 +19,7 @@ import {
 import type {
   CommunityCreationIntentView,
   CreationNextAction,
-} from "./community-creation-progress/community-creation-progress-model";
+} from "./community-creation-intent/community-creation-intent-model";
 
 type CommunityCreationGeneratedClient = Pick<
   PirateApiClient,

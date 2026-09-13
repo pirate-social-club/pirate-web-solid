@@ -108,5 +108,21 @@ preflight and diagnostics, without a browser or a server. It is part of
 not execute them. The configured creation command is a separate required
 acceptance check, and missing inputs must be reported as a failed check.
 
+## Local creation fixture
+
+`e2e/community-creation-local.spec.ts` carries the former
+`scripts/community-owner-activation-check.mjs` scenarios as a maintained
+spec: a rejected create keeps the form stable and retryable, a committed
+intent stays private until profile activation completes, and resuming the
+saved intent publishes once without another create. It intercepts every
+`/api/**` call, so it requires a loopback origin serving the built Worker and
+skips visibly otherwise. Serve the built Worker on `127.0.0.1:4186` and run:
+
+```sh
+E2E_BASE_URL=http://127.0.0.1:4186 bun x playwright test -c e2e --grep @local-fixture
+```
+
+The spec is tagged `@local-fixture` and is excluded from the staging greps.
+
 The reviewed import and its verification limits are recorded in
 [the browser foundation note](../docs/community-creation-browser-foundation.md).

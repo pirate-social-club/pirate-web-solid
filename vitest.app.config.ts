@@ -42,7 +42,6 @@ export default defineConfig({
       "src/features/auth/sign-in-session.test.ts",
       "src/features/auth/sign-in-view.test.tsx",
       "src/features/community/community-creation-api.test.ts",
-      "src/features/community/community-creation-progress/community-creation-progress-model.test.ts",
       "src/features/community/create-community/create-community-model.test.ts",
       "src/features/community/page-shell/page-shell-actions.test.tsx",
       "src/features/community/community-creation-route-view.test.tsx",

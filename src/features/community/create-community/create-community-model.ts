@@ -5,8 +5,9 @@ import type { CommunityPersonaChoice } from "../../identity/community-persona-ch
  * A subset of api-next's `CompiledGateRequirement`
  * (packages/contracts/src/community-creation.ts): the members this client
  * knows how to compile, each shaped exactly as the contract declares it. The
- * wire union reserves more requirement kinds, but the creation client exposes
- * only entries offered by the backend capability catalog.
+ * wire union reserves more requirement kinds; this client carries the
+ * reputation-score subset for contract parity and never composes a configured
+ * gate itself, so that surface is dormant scaffolding.
  */
 export type HumanVerificationRequirement = { requirement: "human-verification" };
 export type AdditionalGateRequirement = {
@@ -22,30 +23,11 @@ export type GateKind = GateRequirement["requirement"];
 export const HUMAN_VERIFICATION: HumanVerificationRequirement = { requirement: "human-verification" };
 
 /**
- * One additional gate the server offers this operator, already configured.
- *
- * The requirement arrives complete because the client has no way to choose a
- * minimum age or score: it would be inventing a threshold the operator never
- * set. Spec 010 §2 also requires unsupported gates to be hidden in production
- * rather than shown disabled, so an option only reaches the client once the
- * backend capability catalog offers it.
- */
-export interface AdditionalGateOption {
-  requirement: AdditionalGateRequirement;
-  label: string;
-  description: string;
-}
-
-export function gateKindOf(requirement: GateRequirement): GateKind {
-  return requirement.requirement;
-}
-
-/**
  * Structural equality over the closed requirement union.
  *
- * Selection compares the whole configured value, not just the kind: a catalog
- * may offer Passport score 8+ and Passport score 20+ at once, and selecting
- * one must not select or replace the other.
+ * Comparison covers the whole configured value, not just the kind: two
+ * Passport thresholds are different requirements, and one must not replace or
+ * stand in for the other.
  */
 export function requirementsEqual(
   left: AdditionalGateRequirement,

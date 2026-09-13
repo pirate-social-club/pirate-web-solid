@@ -6,7 +6,7 @@ import type { PrivySessionExchange } from "../../api/privy-session.ts";
 import { onSessionRefreshed, refreshSession } from "../../api/session.ts";
 import type { CommunityCreationApi } from "./community-creation-api";
 import { CommunityCreationRouteView, communityCreationCanUsePersona } from "./community-creation-route-view";
-import { createIntent as createIntentView } from "./community-creation-progress/community-creation-progress-model";
+import { createIntentView } from "./community-creation-intent/community-creation-intent-fixture";
 import {
   GLOBAL_SIGN_IN_EVENT,
   GlobalSignInHost,
@@ -870,14 +870,13 @@ describe("Stable creation lifecycle", () => {
   const owner = { status: "authenticated" as const, userId: "owner-account", personas: [] };
   const published = () => createIntent({ status: "committed", revision: 3, nextAction: { kind: "none", reason: "committed" }, committedHref: "/c/published-community" });
 
-  test("redirects a committed intent on reload without a progress screen or mutation", async () => {
+  test("redirects a committed intent on reload without another mutation", async () => {
     const navigate = vi.fn();
     const client = api({ getIntent: async () => published(), commitIntent: vi.fn(), createIntent: vi.fn() });
     const container = render(() => <CommunityCreationRouteView intentId="saved" api={client} navigate={navigate} resolveSession={async () => owner} />);
     const form = container.querySelector("form");
     await vi.waitFor(() => expect(navigate).toHaveBeenCalledWith("/c/published-community", undefined));
     expect(container.querySelector("form")).toBe(form);
-    expect(container.querySelector("[data-community-creation-progress]")).toBeNull();
     expect(client.commitIntent).not.toHaveBeenCalled();
     expect(client.createIntent).not.toHaveBeenCalled();
   });

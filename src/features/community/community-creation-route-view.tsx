@@ -19,7 +19,7 @@ import {
   createCommunityCreationApi,
   type CommunityCreationApi,
 } from "./community-creation-api";
-import type { CommunityCreationIntentView, CreationNextAction } from "./community-creation-progress/community-creation-progress-model";
+import type { CommunityCreationIntentView, CreationNextAction } from "./community-creation-intent/community-creation-intent-model";
 import { CreateCommunityView } from "./create-community/create-community";
 import { createEmptyDraft, type CreateCommunityDraft } from "./create-community/create-community-model";
 import { communityCreationDraftsEqual } from "./community-creation-draft";
