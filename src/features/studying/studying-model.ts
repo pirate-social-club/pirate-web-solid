@@ -45,6 +45,8 @@ export type StudyingSurfaceState =
     guidance?: string;
     /** What speech-to-text heard on the last miss. Shown only while `phase` is "wrong". */
     heardTranscript?: string;
+    /** Token diff for the last miss, preserved for the wrong-phase feedback. */
+    diff?: StudyingTranscriptDiff;
     phase: "idle" | "listening" | "checking" | "wrong";
     /** True once the card is spent, so the miss is final rather than retryable. */
     revealReference?: boolean;
@@ -95,11 +97,32 @@ export interface StudyingServerExercise {
   presentation_count?: number;
 }
 
+/** Token-level transcript diff from the spoken grader. */
+export interface StudyingTranscriptDiff {
+  extra: readonly string[];
+  match_kind: "exact" | "phonetic" | "none";
+  matched: readonly { token: string; position: number }[];
+  missing: readonly { token: string; position: number }[];
+  substituted: readonly {
+    expected: { token: string; position: number };
+    heard: string;
+  }[];
+}
+
 /** Server attempt-result wire fields the lesson model reads. */
 export interface StudyingAttemptResult {
+  attempt_state?: "retryable" | "spent";
   attempts_remaining?: number;
   correct_option_id?: string;
   heard_transcript?: string;
+  /** How the grader matched: exact, phonetic, or none. */
+  match_kind?: "exact" | "phonetic" | "none";
+  /** Token-level transcript diff from the spoken grader, when provided. */
+  diff?: StudyingTranscriptDiff;
+  next_lesson?: {
+    exercises: StudyingServerExercise[];
+    resolved_count?: number;
+  };
   outcome?: "correct" | "incorrect";
   session?: {
     first_pass_correct_count?: number;
@@ -117,23 +140,14 @@ export interface StudyingAttemptResult {
 
 export interface StudyingLessonState {
   correctCount: number;
-  exerciseQueue: number[];
   exercises: StudyingServerExercise[];
   lastAttemptResult?: StudyingAttemptResult;
-  presentationCounts: Record<string, number>;
   /** Pre-session streak snapshot; only the completion slot animation reads it. */
   previousStreak?: number;
+  resolvedCount?: number;
   servedCount?: number;
   surface: StudyingSurfaceState;
 }
-
-/**
- * Attempts a say-it-back card gets per appearance before the lesson moves on.
- * The server's lifetime presentation budget is separate; this is the slice
- * spent in one sitting, so a miss returns for later review rather than
- * trapping the learner on a single line.
- */
-export const STUDY_MAX_ATTEMPTS_PER_APPEARANCE = 3;
 
 // A rejected attempt with one of these statuses means our cached view of the
 // session diverged from the server's: the card is spent, it is already
@@ -314,54 +328,42 @@ export function completeSurface(input: {
   };
 }
 
-export function advanceLesson(
+/**
+ * Applies the server's post-answer lesson state. The returned session is the
+ * single progression authority: the next surface is the server's current card
+ * at its real presentation number, and completion requires the server to have
+ * completed the lesson — never a drained local queue.
+ */
+export function applyServerLesson(
   state: StudyingLessonState,
-  outcome: "correct" | "wrong",
+  result: StudyingAttemptResult,
 ): StudyingLessonState {
-  const currentIndex = state.exerciseQueue[0];
-  if (currentIndex === undefined) return state;
-  const currentExercise = state.exercises[currentIndex]!;
-  const attemptNumber = state.surface.kind === "multiple_choice" || state.surface.kind === "say_it_back"
-    ? state.surface.attemptNumber
-    : 0;
-  const presentationCounts = {
-    ...state.presentationCounts,
-    [currentExercise.id]: Math.max(state.presentationCounts[currentExercise.id] ?? 0, attemptNumber),
-  };
-  const firstPassCorrect = outcome === "correct" && attemptNumber === 1;
-  const correctCount = state.lastAttemptResult?.session?.first_pass_correct_count
-    ?? state.correctCount + (firstPassCorrect ? 1 : 0);
-  const remaining = state.exerciseQueue.slice(1);
-  const shouldRequeue = outcome === "wrong"
-    // With nothing else left to show, requeueing would re-present the same card
-    // immediately — the loop the per-appearance cap exists to prevent. Let the
-    // lesson end instead; the card stays due and returns in a future session.
-    && remaining.length > 0
-    && (state.lastAttemptResult?.attempts_remaining ?? 0) > 0
-    && state.lastAttemptResult?.session?.status !== "completed";
-  if (shouldRequeue) {
-    // Keep two or three different prompts between a miss and its retry where
-    // the remaining lesson is large enough; at minimum one intervening prompt.
-    remaining.splice(Math.min(3, remaining.length), 0, currentIndex);
+  const lesson = result.next_lesson;
+  if (lesson === undefined) return state;
+  const correctCount = result.session?.first_pass_correct_count ?? state.correctCount;
+  const resolvedCount = lesson.resolved_count ?? state.resolvedCount;
+  const nextExercise = lesson.exercises[0];
+  const totalCount = state.servedCount ?? state.exercises.length;
+  if (nextExercise === undefined) {
+    return {
+      ...state,
+      correctCount,
+      lastAttemptResult: result,
+      resolvedCount,
+      surface: completeSurface({
+        correctCount,
+        lastAttemptResult: result,
+        previousStreak: state.previousStreak,
+        totalCount,
+      }),
+    };
   }
-  const completed = (state.lastAttemptResult?.session?.status !== undefined
-    && state.lastAttemptResult.session.status !== "active") || remaining.length === 0;
-  const nextIndex = remaining[0];
   return {
     ...state,
     correctCount,
-    exerciseQueue: remaining,
-    presentationCounts,
-    surface: completed || nextIndex === undefined
-      ? completeSurface({
-          correctCount,
-          lastAttemptResult: state.lastAttemptResult,
-          previousStreak: state.previousStreak,
-          totalCount: state.servedCount ?? state.exercises.length,
-        })
-      : exerciseSurface(
-          state.exercises[nextIndex]!,
-          (presentationCounts[state.exercises[nextIndex]!.id] ?? 0) + 1,
-        ),
+    exercises: [nextExercise],
+    lastAttemptResult: result,
+    resolvedCount,
+    surface: exerciseSurface(nextExercise),
   };
 }

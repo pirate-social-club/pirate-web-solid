@@ -58,9 +58,9 @@ export const Anonymous: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await waitFor(() =>
-      expect(canvas.getByRole("heading", { name: "Your Communities", level: 1 })).toBeInTheDocument(),
+      expect(canvas.getByRole("heading", { name: "Your communities", level: 1 })).toBeInTheDocument(),
     );
-    await expect(canvas.getByText("Sign in to choose a Community and post.")).toBeInTheDocument();
+    await expect(canvas.getByText("Sign in to see your communities.")).toBeInTheDocument();
   },
 };
 
@@ -86,7 +86,7 @@ export const NoMemberships: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await waitFor(() =>
-      expect(canvas.getAllByText("You aren't an active member of a Community yet.").length).toBeGreaterThan(0),
+      expect(canvas.getAllByText("You aren't a member of a community yet.").length).toBeGreaterThan(0),
     );
   },
 };

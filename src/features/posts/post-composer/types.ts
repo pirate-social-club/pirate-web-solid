@@ -84,10 +84,19 @@ export interface ComposerReference {
   id: string;
   title: string;
   subtitle?: string;
+  artworkUrl?: string;
   licensePreset?: AssetLicensePresetId | null;
   upstreamRoyaltyPct?: number | null;
   parentIpId?: string | null;
   licenseTermsId?: string | null;
+}
+
+/** A person the host offers for the earnings split, named for display only. */
+export interface ComposerRecipientProfile {
+  personaId: string;
+  displayName: string;
+  handle?: string | null;
+  avatarSrc?: string | null;
 }
 
 export interface LiveSetlistItemInput {
@@ -438,11 +447,11 @@ export interface PostComposerProps extends Partial<PostComposerDraftState>, Post
   submitLoading?: boolean;
   // Set false when a production boundary retains its own validation and error copy.
   validateDraftBeforeSubmit?: boolean;
-  // Storybook-only seed for reviewing a specific composer panel. Production
-  // callers leave panels closed and open them from the composer controls.
-  initialOpenPanel?: "access-and-rights";
   // Supports restoring a draft at a known step and focused Storybook review.
-  initialSongStep?: 1 | 2 | 3 | 4;
+  initialSongStep?: 1 | 2 | 3;
+  // Named profiles for the earnings split and source-song results. The
+  // composer never resolves identities itself; the host supplies display data.
+  recipientProfiles?: readonly ComposerRecipientProfile[];
   // Host-owned outcome panels rendered inside the single composer surface.
   // Accessors, not elements: an eagerly-evaluated JSX descriptor held in props
   // keeps live children getters that diagnostics tooling must not execute.

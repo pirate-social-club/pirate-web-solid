@@ -1,11 +1,9 @@
 /** @jsxImportSource @solidjs/web */
 import type { CreatePostInput } from "@pirate/api-client";
 import type { JSX } from "@solidjs/web";
-import { createMemo, createSignal, getOwner, onCleanup, Show, untrack } from "solid-js";
+import { createEffect, createSignal, getOwner, onCleanup, Show, untrack } from "solid-js";
 
 import type { ActivePersonaPublicProjection } from "../../../api/session";
-import { toOperationPersonas } from "../../identity/community-persona-choice.ts";
-import { OperationPersonaControl } from "../../identity/operation-persona-control/operation-persona-control.tsx";
 import {
   Button,
   FormNote,
@@ -19,17 +17,15 @@ import {
   createMediaSubmissionCoordinator,
   type MediaSubmissionCoordinator,
 } from "../media-submission/coordinator";
-import type { MediaSubmissionStorage } from "../media-submission/pending";
 import type { SongSubmissionView } from "../media-submission/projection";
 import type { MediaSubmissionTransport } from "../media-submission/transport";
+import { royaltySplitIssue } from "./earnings-split";
 import {
   prepareSongComposer,
-  restoreSongComposerTerms,
   projectSnapshotIntoSongComposer,
   submitComposerLyrics,
   submitSongComposer,
 } from "./media-composer-bridge";
-import { decodePendingSubmissionDraft, type PendingSubmissionStorage } from "./pending-submission";
 import { PostComposer } from "./post-composer";
 import { VideoComposerRuntime } from "../video-submission/video-composer-runtime";
 import { PostComposerSubmission } from "./post-composer-submission";
@@ -37,6 +33,7 @@ import { initialPostComposerState, type PostComposerState } from "./post-compose
 import type { TextContentSubmissionRequestEnvelopeV1 } from "./text-submission-contract";
 import {
   createTextSubmissionCoordinator,
+  TextSubmissionServerRejectionError,
   type TextSubmissionTransport,
 } from "./text-submission-transport";
 import type {
@@ -84,21 +81,12 @@ function createIdempotencyKey(): string {
   return `solid-post-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
-export const PRODUCTION_SONG_DRAFT_ID = "production-song-draft-v1";
-
 export function initialOperationPersonaId(
   personas: readonly ActivePersonaPublicProjection[],
   preferredPersonaId?: string,
 ): string | undefined {
   return personas.find(persona => persona.personaId === preferredPersonaId)?.personaId
     ?? personas[0]?.personaId;
-}
-
-function restoredAudio(record: NonNullable<MediaSubmissionCoordinator["currentRecord"]>): File {
-  return new File([record.audio.blob], record.audio.name, {
-    type: record.audio.type,
-    lastModified: record.audio.last_modified,
-  });
 }
 
 function terminalMediaView(view: SongSubmissionView): boolean {
@@ -128,9 +116,7 @@ export interface CreatePostDialogProps {
   readonly personaId?: string;
   readonly principalId?: string;
   readonly personas?: readonly ActivePersonaPublicProjection[];
-  readonly storage?: PendingSubmissionStorage;
   readonly transport?: TextSubmissionTransport;
-  readonly mediaStorage?: MediaSubmissionStorage;
   readonly mediaTransport?: MediaSubmissionTransport;
   readonly videoStorage?: import("../video-submission/coordinator").VideoStorage;
   readonly videoTransport?: import("../video-submission/transport").VideoTransport;
@@ -139,7 +125,22 @@ export interface CreatePostDialogProps {
   readonly fetchImpl?: typeof fetch;
 }
 
+/**
+ * One composer session per open. The session owns its coordinators and draft
+ * state, so closing the composer destroys everything it held; nothing survives
+ * to the next open. An unresolved request is the exception: it must be
+ * reconciled or reach a terminal outcome before the session may close, because
+ * abandoning it would lose the only record that prevents a duplicate post.
+ */
 export function CreatePostDialog(props: CreatePostDialogProps): JSX.Element {
+  return (
+    <Show when={props.open}>
+      <CreatePostDialogSession {...props} />
+    </Show>
+  );
+}
+
+function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
   const personas = () => props.personas ?? [];
   const initialPersonaId = untrack(() => initialOperationPersonaId(personas(), props.personaId));
   const contextualCommunityId = () => props.communityContext?.id.trim() ?? "";
@@ -171,54 +172,38 @@ export function CreatePostDialog(props: CreatePostDialogProps): JSX.Element {
       shareBps: 10_000,
       sharePct: 100,
     }],
-  });
+  }, { ownedWrite: true });
   const [songPersonaId, setSongPersonaId] = createSignal<string | undefined>(
     initialPersonaId,
+    { ownedWrite: true },
   );
-  const [textPersonaId, setTextPersonaId] = createSignal<string | undefined>(initialPersonaId);
-  const [videoPersonaId, setVideoPersonaId] = createSignal<string | undefined>(initialPersonaId);
-  const [videoRetained, setVideoRetained] = createSignal(false);
+  const [textPersonaId, setTextPersonaId] = createSignal<string | undefined>(initialPersonaId, { ownedWrite: true });
+  const [videoPersonaId, setVideoPersonaId] = createSignal<string | undefined>(initialPersonaId, { ownedWrite: true });
   const selectedPersonaId = () => mode() === "video" ? videoPersonaId() : mode() === "song" ? songPersonaId() : textPersonaId();
-  // Whichever track is open authors as its own persona, so a choice made here
-  // has to land on that track's signal. Without this the dialog published as
-  // whatever persona it was handed and gave the account no way to say which of
-  // its identities was speaking.
-  const setSelectedPersonaId = (next: string) => {
-    if (mode() === "video") setVideoPersonaId(next);
-    else if (mode() === "song") setSongPersonaId(next);
-    else setTextPersonaId(next);
-  };
-  const personaChoices = createMemo(() => toOperationPersonas(personas()));
+  const recipientProfiles = () => personas().map(persona => ({
+    personaId: persona.personaId,
+    displayName: persona.displayName ?? persona.primaryPublicHandle ?? "Profile",
+    handle: persona.primaryPublicHandle,
+    avatarSrc: persona.avatarRef,
+  }));
   const [sourceAssetId, setSourceAssetId] = createSignal("");
   const [error, setError] = createSignal("");
   const [textState, setTextState] = createSignal<PostComposerState>(initialPostComposerState);
-  const [textRestoring, setTextRestoring] = createSignal(true);
   const [mediaView, setMediaView] = createSignal<SongSubmissionView>({ status: "editing" });
   const [mediaSnapshot, setMediaSnapshot] = createSignal<MediaSubmissionSnapshot | null>(null);
   const [mediaBusy, setMediaBusy] = createSignal(false);
   const [lyricsBusy, setLyricsBusy] = createSignal(false);
   const mediaEnabled = props.principalId !== undefined && personas().length > 0;
-  const [mediaRestoring, setMediaRestoring] = createSignal(mediaEnabled);
-  const [mediaRecordRetained, setMediaRecordRetained] = createSignal(false);
   let mediaOperationInFlight = false;
   let finishingPublishedSong = false;
 
-  const communityContextConflict = () => contextualCommunityId() !== ""
-    && communityId().trim() !== ""
-    && communityId().trim() !== contextualCommunityId();
-  const resetCommunityId = () => setCommunityId(contextualCommunityId());
-
   const textCoordinator = createTextSubmissionCoordinator({
-    principalId: props.principalId,
-    storage: props.storage,
     transport: props.transport,
     origin: props.origin,
     fetchImpl: props.fetchImpl,
     onStateChange: setTextState,
   });
   const mediaCoordinator = !mediaEnabled ? undefined : createMediaSubmissionCoordinator({
-    principalId: props.principalId,
-    storage: props.mediaStorage,
     transport: props.mediaTransport,
     createId: props.createMediaId,
     origin: props.origin,
@@ -235,50 +220,21 @@ export function CreatePostDialog(props: CreatePostDialogProps): JSX.Element {
     if (snapshot.status === "published" && !mediaOperationInFlight) void finishSongPublished();
   }
 
-  void textCoordinator.restore()
-    .then(() => {
-      const envelope = textCoordinator.pendingEnvelope;
-      if (envelope === null) return;
-      const draft = decodePendingSubmissionDraft(envelope);
-      setTextPersonaId(draft.personaId);
-      setCommunityId(draft.communityId);
-      setTextAgeGatePolicy(draft.authorDeclaredRating === "adult_18" ? "18_plus" : "none");
-    })
-    .catch(() => {
-      setTextState({ status: "transport_failure", reason: "durable_storage_failed" });
-    })
-    .finally(() => setTextRestoring(false));
-
-  if (mediaCoordinator !== undefined) {
-    void mediaCoordinator.restore(PRODUCTION_SONG_DRAFT_ID)
-      .then(async record => {
-        if (record === null) return;
-        setMediaRecordRetained(true);
-        setMode("song");
-        setCommunityId(record.community_id);
-        setSongMode(record.song_draft.song_type);
-        setSongAgeGatePolicy(record.song_draft.author_declared_rating === "adult_18" ? "18_plus" : "none");
-        setTitle(record.song_draft.title);
-        setSong(current => ({
-          ...current,
-          title: record.song_draft.title,
-          primaryAudioUpload: restoredAudio(record),
-          primaryAudioLabel: record.audio.name,
-        }));
-        if (personas().some(persona => persona.personaId === record.persona_id)) {
-          selectSongPersona(record.persona_id);
-        }
-        const terms = await restoreSongComposerTerms(record);
-        if (terms) { setLicense(terms.license); setRoyaltySplit(terms.royaltySplit); }
-        if (record.snapshot !== null) applySnapshot(record.snapshot);
-      })
-      .catch(restorationError => {
-        setError(restorationError instanceof Error
-          ? restorationError.message
-          : "The retained song submission could not be restored safely.");
-      })
-      .finally(() => setMediaRestoring(false));
-  }
+  // The composer inherits the community's active profile whenever it opens on
+  // a fresh operation. An unresolved submission in this dialog session keeps
+  // the author it was already sent under; a request is never re-keyed to a
+  // different profile after dispatch.
+  createEffect(
+    () => [props.open, props.personaId, props.personas, textState().status] as const,
+    ([open]) => {
+      if (!open) return;
+      const nextPersonaId = initialOperationPersonaId(personas(), props.personaId);
+      const textUnresolved = textState().status === "submitting" || textState().status === "reconciling";
+      if (!textUnresolved) setTextPersonaId(nextPersonaId);
+      if (mediaCoordinator?.currentRecord == null) selectSongPersona(nextPersonaId);
+      setVideoPersonaId(nextPersonaId);
+    },
+  );
 
   function selectSongPersona(nextPersonaId: string | undefined): void {
     const previousPersonaId = songPersonaId();
@@ -324,37 +280,32 @@ export function CreatePostDialog(props: CreatePostDialogProps): JSX.Element {
     setSongPersonaId(nextPersonaId);
     setMediaSnapshot(null);
     setMediaView({ status: "editing" });
-    setMediaRecordRetained(false);
     observationCount = 0;
     setObservationPaused(false);
-    resetCommunityId();
     setTitle("");
     setSongAgeGatePolicy("none");
     setError("");
   }
 
-  async function discardTerminalSong(): Promise<void> {
-    if (mediaCoordinator?.currentRecord !== null && mediaCoordinator?.currentRecord !== undefined) {
-      await mediaCoordinator.discardTerminal();
-    }
+  function discardTerminalSong(): void {
+    mediaCoordinator?.discardTerminal();
     resetSongDraft();
   }
 
   function close(open: boolean): void {
     if (!open) {
-      setError("");
       const state = textState();
-      if (state.status === "published" || state.status === "manual_review" || state.status === "blocked" || state.status === "abandoned") {
-        textCoordinator.startNewDraft();
-        resetCommunityId();
-        setTitle("");
-        setBody("");
-        setTextAgeGatePolicy("none");
+      if (state.status === "submitting" || state.status === "reconciling") {
+        setError("Checking whether your post was accepted. Resolve it before closing.");
+        return;
       }
-      if (mediaCoordinator !== undefined && terminalMediaView(mediaView())) {
-        void discardTerminalSong().catch(discardError => {
-          setError(discardError instanceof Error ? discardError.message : "The completed song draft could not be cleared.");
-        });
+      // Only an outstanding request keeps the composer open. A processing or
+      // manual-review state is a known server response the author cannot act
+      // on, so it must not trap them here.
+      const view = mediaView();
+      if (mediaBusy() || view.status === "uploading" || view.status === "reconciling") {
+        setError("This song submission still has an unresolved command. Resolve it before closing.");
+        return;
       }
     }
     props.onOpenChange(open);
@@ -365,11 +316,11 @@ export function CreatePostDialog(props: CreatePostDialogProps): JSX.Element {
     props.onPublished?.();
   }
 
-  async function finishSongPublished(): Promise<void> {
+  function finishSongPublished(): void {
     if (finishingPublishedSong || mediaCoordinator?.currentRecord == null) return;
     finishingPublishedSong = true;
     try {
-      await discardTerminalSong();
+      discardTerminalSong();
       props.onOpenChange(false);
       props.onPublished?.();
     } finally {
@@ -377,41 +328,14 @@ export function CreatePostDialog(props: CreatePostDialogProps): JSX.Element {
     }
   }
 
-  function startNewTextDraft(): void {
-    textCoordinator.startNewDraft();
-    resetCommunityId();
-    setTitle("");
-    setBody("");
-    setTextAgeGatePolicy("none");
-    setError("");
-  }
-
-  async function discardAndEditText(): Promise<void> {
-    setError("");
-    try {
-      const draft = await textCoordinator.discardRejectedRequest();
-      setTextPersonaId(draft.personaId);
-      setCommunityId(draft.communityId);
-      setTitle(draft.title);
-      setBody(draft.body);
-      setTextAgeGatePolicy(draft.authorDeclaredRating === "adult_18" ? "18_plus" : "none");
-    } catch (discardError) {
-      setError(discardError instanceof Error ? discardError.message : "The saved request could not be discarded safely.");
-    }
-  }
-
   async function submitText(): Promise<void> {
     const personaId = selectedActivePersonaId();
-    if (personaId === undefined || textRestoring()) {
-      setError("Choose a public persona before publishing.");
+    if (personaId === undefined) {
+      setError("Choose a profile before publishing.");
       return;
     }
     const community = communityId().trim();
     const content = body().trim();
-    if (communityContextConflict()) {
-      setError("A retained submission belongs to another community. Resolve it from the global Create post action before posting here.");
-      return;
-    }
     if (community === "" || content === "") {
       setError("Choose a community and write something before publishing.");
       return;
@@ -431,7 +355,9 @@ export function CreatePostDialog(props: CreatePostDialogProps): JSX.Element {
       if (textCoordinator.state.status === "transport_failure") {
         setError("Your post could not be prepared for safe retry.");
       } else if (textCoordinator.state.status === "reconciling") {
-        setError("The request result is uncertain; the saved request can be checked again safely.");
+        setError("The request result is uncertain; checking again is safe.");
+      } else if (submissionError instanceof TextSubmissionServerRejectionError) {
+        setError("This post couldn't be sent. Check the details and try again.");
       } else if (submissionError instanceof Error) {
         setError(submissionError.message);
       }
@@ -442,10 +368,6 @@ export function CreatePostDialog(props: CreatePostDialogProps): JSX.Element {
     setError("");
     try {
       if (textState().status === "reconciling") {
-        if (communityContextConflict()) {
-          setError("A retained submission belongs to another community. Resolve it from the global Create post action before posting here.");
-          return;
-        }
         const snapshot = await textCoordinator.reconcile();
         if (snapshot.status === "published") finishPublished();
       } else {
@@ -464,7 +386,7 @@ export function CreatePostDialog(props: CreatePostDialogProps): JSX.Element {
   }
 
   async function submitSong(prepareOnly = false): Promise<boolean> {
-    if (mediaBusy() || lyricsBusy() || mediaRestoring()) return false;
+    if (mediaBusy() || lyricsBusy()) return false;
     const personaId = selectedActivePersonaId();
     const community = communityId().trim();
     if (mediaCoordinator === undefined || props.principalId === undefined) {
@@ -473,32 +395,20 @@ export function CreatePostDialog(props: CreatePostDialogProps): JSX.Element {
     }
     if (personaId === undefined) {
       setError(personas().length === 0
-        ? "An active public persona is required to submit a song."
-        : "Choose the public persona that will submit this song.");
+        ? "Choose a profile for this community before posting."
+        : "This profile cannot post here. Choose another profile and try again.");
       return false;
     }
     if (community === "") {
       setError("Choose a community before publishing.");
       return false;
     }
-    if (communityContextConflict()) {
-      setError("A retained submission belongs to another community. Resolve it from the global Create post action before posting here.");
-      return false;
-    }
-    const retained = mediaCoordinator.currentRecord;
-    if (retained !== null && retained.persona_id !== personaId) {
-      setError("The retained song belongs to another operation persona and must be resolved first.");
-      return false;
-    }
     setError("");
     setMediaBusy(true);
-    setMediaRecordRetained(true);
     mediaOperationInFlight = true;
     try {
       const snapshot = await (prepareOnly ? prepareSongComposer : submitSongComposer)({
         coordinator: mediaCoordinator,
-        draftId: PRODUCTION_SONG_DRAFT_ID,
-        principalId: props.principalId,
         communityId: community,
         personaId,
         song: song(),
@@ -509,10 +419,9 @@ export function CreatePostDialog(props: CreatePostDialogProps): JSX.Element {
         authorDeclaredRating: ageGatePolicy() === "18_plus" ? "adult_18" : "general",
       });
       applySnapshot(snapshot);
-      if (!prepareOnly && snapshot.status === "published") await finishSongPublished();
+      if (!prepareOnly && snapshot.status === "published") finishSongPublished();
       return snapshot.audio_revision >= 1;
     } catch (submissionError) {
-      if (mediaCoordinator.currentRecord === null) setMediaRecordRetained(false);
       setError(submissionError instanceof Error ? submissionError.message : "The song could not be submitted safely.");
       return false;
     } finally {
@@ -553,7 +462,7 @@ export function CreatePostDialog(props: CreatePostDialogProps): JSX.Element {
   }
 
   async function bindSongReference(): Promise<void> {
-    if (!mediaCoordinator || mediaBusy() || lyricsBusy() || communityContextConflict()) return;
+    if (!mediaCoordinator || mediaBusy() || lyricsBusy()) return;
     setError(""); setMediaBusy(true);
     try { applySnapshot(await mediaCoordinator.bindReference(sourceAssetId())); }
     catch (error) { setError(error instanceof Error ? error.message : "The source song could not be bound."); }
@@ -606,8 +515,8 @@ export function CreatePostDialog(props: CreatePostDialogProps): JSX.Element {
   let disposed = false;
   const [observationPaused, setObservationPaused] = createSignal(false);
   const observation = typeof window !== "undefined" && getOwner() ? setInterval(() => {
-    if (disposed || !props.open || mode() !== "song" || mediaRestoring() || mediaBusy() || lyricsBusy()
-      || observationPaused() || communityContextConflict()) return;
+    if (disposed || !props.open || mode() !== "song" || mediaBusy() || lyricsBusy()
+      || observationPaused()) return;
     const view = mediaView();
     if (view.status !== "processing" && view.status !== "manual_review") return;
     if (mediaCoordinator?.currentRecord?.submission_id == null) return;
@@ -622,18 +531,16 @@ export function CreatePostDialog(props: CreatePostDialogProps): JSX.Element {
       || view.status === "reconciling"
       || (view.status === "processing" && !songTermsIssued());
   };
-  const songSubmitDisabled = () => mediaRestoring()
-    || mediaBusy()
+  const songSubmitDisabled = () => mediaBusy()
     || lyricsBusy()
     || !canContinueSongSubmit()
     || selectedActivePersonaId() === undefined
     || communityId().trim() === ""
-    || communityContextConflict();
+    || royaltySplitIssue(royaltySplit(), selectedActivePersonaId()) !== "";
   const submitDisabled = () => mode() === "text"
-    ? textRestoring() || selectedActivePersonaId() === undefined || textState().status !== "editing"
+    ? selectedActivePersonaId() === undefined || textState().status !== "editing"
       || communityId().trim() === ""
       || body().trim() === ""
-      || communityContextConflict()
     : mode() === "song" ? songSubmitDisabled() : true;
   const lyricsCanSave = () => {
     const snapshot = mediaSnapshot();
@@ -656,33 +563,27 @@ export function CreatePostDialog(props: CreatePostDialogProps): JSX.Element {
     return view.status === "processing_failed" && view.retryable;
   };
 
-  // Where a retained song resumes: before the upload finishes it is Song,
-  // with audio but unbound lyrics it is Lyrics, once lyrics are accepted it
-  // is Rights, and after terms are issued only Review remains.
-  const initialSongStep = (): 1 | 2 | 3 | 4 => {
-    if (mediaRestoring()) return 1;
+  // Where an in-flight song is: before the upload finishes it is Song, and
+  // once audio is accepted and terms are issued only Review remains.
+  const initialSongStep = (): 1 | 2 | 3 => {
     const snapshot = mediaSnapshot();
     if (snapshot === null || snapshot.audio_revision < 1) return 1;
-    if (songTermsIssued()) return 4;
-    return snapshot.lyrics_state.current.status === "ready" ? 3 : 2;
+    if (songTermsIssued()) return 3;
+    return 2;
   };
 
   const mediaStatusPanel = () => (
-    <Show when={mode() === "song" && (mediaView().status !== "editing" || mediaRestoring())}>
+    <Show when={mode() === "song" && mediaView().status !== "editing"}>
       <div
         aria-live="polite"
         class="grid gap-3 rounded-2xl border border-border-soft bg-card p-5 text-base"
-        data-media-composer-state={mediaRestoring() ? "restoring" : mediaView().status}
+        data-media-composer-state={mediaView().status}
         role={mediaView().status === "blocked" || mediaView().status === "processing_failed" ? "alert" : "status"}
       >
-        <p>{mediaRestoring() ? "Restoring the retained song submission…"
-          : mediaSnapshot()?.audio_revision && !songTermsIssued() && mediaView().status === "processing"
-            ? "Audio uploaded."
-            : mediaStateMessage(mediaView())}</p>
+        <p>{mediaSnapshot()?.audio_revision && !songTermsIssued() && mediaView().status === "processing"
+          ? "Audio uploaded."
+          : mediaStateMessage(mediaView())}</p>
         <Show when={observationPaused()}><FormNote>Automatic checks paused. Check status to try again.</FormNote></Show>
-        <Show when={mediaCoordinator?.currentRecord?.issue}>
-          {(issue) => <FormNote tone="warning">The retained command has a {issue().kind.replaceAll("_", " ")} and will not be re-keyed automatically.</FormNote>}
-        </Show>
         <Show when={mediaCoordinator?.currentRecord?.submission_id != null && !terminalMediaView(mediaView())}>
           <Button disabled={mediaBusy()} type="button" variant="outline" onClick={() => void refreshSong()}>Check status</Button>
         </Show>
@@ -704,7 +605,7 @@ export function CreatePostDialog(props: CreatePostDialogProps): JSX.Element {
           <Button disabled={lyricsBusy()} type="button" onClick={() => void saveLyrics()}>Save reviewed lyrics</Button>
         </Show>
         <Show when={terminalMediaView(mediaView()) && mediaView().status !== "published"}>
-          <Button disabled={mediaBusy()} type="button" variant="outline" onClick={() => void discardTerminalSong()}>Discard and start over</Button>
+          <Button disabled={mediaBusy()} type="button" variant="outline" onClick={() => discardTerminalSong()}>Discard and start over</Button>
         </Show>
       </div>
     </Show>
@@ -713,24 +614,20 @@ export function CreatePostDialog(props: CreatePostDialogProps): JSX.Element {
   const textOutcomePanel = () => (
     <Show when={mode() === "text" && textState().status !== "editing"}>
       <PostComposerSubmission
-        onDiscardAndEdit={() => void discardAndEditText()}
-        onNewDraft={startNewTextDraft}
         onRetry={() => void retryText()}
-        onResolveOldest={() => { textCoordinator.resolveOldestPending(); }}
         state={textState()}
       />
     </Show>
   );
 
   return (
-    <Show when={props.open}>
-      <form
-        aria-label="Create a post"
-        class="fixed inset-0 z-40 overflow-y-auto bg-background px-3 py-4 sm:px-6 sm:py-8"
-        data-create-post-form
-        onSubmit={event => event.preventDefault()}
-      >
-        <div class="mx-auto grid w-full max-w-3xl gap-3">
+    <form
+      aria-label="Create a post"
+      class="fixed inset-0 z-40 overflow-y-auto bg-background px-3 py-4 sm:px-6 sm:py-8"
+      data-create-post-form
+      onSubmit={event => event.preventDefault()}
+    >
+      <div class="mx-auto grid w-full max-w-3xl gap-3">
             <Show when={!props.communityContext}>
               <TextField name="community-id" value={communityId()} onChange={setCommunityId}>
                 <TextFieldLabel>Community ID</TextFieldLabel>
@@ -738,32 +635,23 @@ export function CreatePostDialog(props: CreatePostDialogProps): JSX.Element {
                 <TextFieldDescription>Posts are community-scoped. A friendly community picker will replace this field.</TextFieldDescription>
               </TextField>
             </Show>
-            <Show when={communityContextConflict()}>
-              <FormNote tone="warning">
-                A retained submission belongs to another community. Resolve it from the global Create post action before posting here.
-              </FormNote>
-            </Show>
             <Show when={personas().length === 0}>
-              <FormNote tone="warning">Create or reactivate a public persona before submitting a post.</FormNote>
-            </Show>
-            <Show when={personaChoices().length > 0}>
-              <OperationPersonaControl
-                label="Posting as"
-                onSelect={setSelectedPersonaId}
-                personas={personaChoices()}
-                selectedPersonaId={selectedPersonaId()}
-              />
+              <FormNote tone="warning">Choose a profile for this community before posting.</FormNote>
             </Show>
             <Show
               when={mode() !== "video"}
               fallback={
                 <Show when={props.principalId}>{account => <VideoComposerRuntime
-                  principalId={account()} communityId={communityContextConflict() ? contextualCommunityId() : communityId().trim()} personaId={selectedActivePersonaId()}
+                  principalId={account()} communityId={communityId().trim()} personaId={selectedActivePersonaId()}
                   storage={props.videoStorage} transport={props.videoTransport} fetchImpl={props.fetchImpl}
                   onExit={() => setMode("text")} onPublished={props.onPublished}
                   onRetainedPersona={(personaId, retainedCommunityId) => {
-                    setVideoRetained(personaId !== null);
-                    if (personaId !== null) { setVideoPersonaId(personaId); if (retainedCommunityId) setCommunityId(retainedCommunityId); }
+                    if (personaId !== null) {
+                      setVideoPersonaId(personaId);
+                      // A contextual composer keeps its page community; the
+                      // runtime then reports the retained video's mismatch.
+                      if (retainedCommunityId && !props.communityContext) setCommunityId(retainedCommunityId);
+                    }
                   }}
                 />}</Show>
               }
@@ -771,7 +659,7 @@ export function CreatePostDialog(props: CreatePostDialogProps): JSX.Element {
               <PostComposer
                 attachmentBarPlacement="inline"
                 audienceEditingDisabled={mode() === "song"
-                  ? mediaRestoring() || mediaRecordRetained()
+                  ? mediaSnapshot() !== null || mediaBusy()
                   : textState().status !== "editing" && textState().status !== "transport_failure"}
                 availableCapabilities={["text", "song", "video"]}
                 canCreateSongPost={personas().length > 0}
@@ -798,11 +686,12 @@ export function CreatePostDialog(props: CreatePostDialogProps): JSX.Element {
                   setTitle(value);
                   if (mode() === "song") setSong(current => ({ ...current, title: value }));
                 }}
+                recipientProfiles={recipientProfiles()}
                 songFlowRuntime={mode() === "song" ? {
                   personaId: selectedActivePersonaId(),
                   prepare: () => submitSong(true),
                   prepared: (mediaSnapshot()?.audio_revision ?? 0) >= 1,
-                  retained: mediaRecordRetained(),
+                  retained: mediaSnapshot() !== null,
                   locked: mediaBusy() || lyricsBusy() || songTermsIssued() || terminalMediaView(mediaView()),
                 } : undefined}
                 ageGatePolicy={ageGatePolicy()}
@@ -813,7 +702,7 @@ export function CreatePostDialog(props: CreatePostDialogProps): JSX.Element {
                   get disabled() { return submitDisabled(); },
                   get error() { return error() || null; },
                   get label() { return mode() === "song" ? "Publish song" : "Publish post"; },
-                  get loading() { return mode() === "song" ? mediaBusy() || mediaRestoring() : textState().status === "submitting"; },
+                  get loading() { return mode() === "song" ? mediaBusy() : textState().status === "submitting"; },
                   onSubmit: submit,
                 }}
                 textBodyValue={body()}
@@ -824,6 +713,5 @@ export function CreatePostDialog(props: CreatePostDialogProps): JSX.Element {
             </Show>
         </div>
       </form>
-    </Show>
   );
 }

@@ -15,6 +15,8 @@ export interface StudyingLessonPayload {
   artwork_src?: string;
   locked?: boolean;
   price_label?: string;
+  /** Cards the server has resolved so far, when it reports them. */
+  resolved_count?: number;
   served_count?: number;
   session_id?: string;
   /** Pre-session streak snapshot; only the completion slot animation reads it. */
@@ -55,6 +57,11 @@ export interface StudyingRecorder {
     contentType: "audio/webm" | "audio/ogg" | "audio/mp4" | "audio/wav";
     durationMs: number;
   }>;
+  /**
+   * Idempotently invalidates pending acquisition and stops any live capture.
+   * Bound to route disposal so the microphone cannot outlive the surface.
+   */
+  cancel?: () => Promise<void>;
 }
 
 /** Rejection contract every studying client/recorder promise settles with. */
@@ -78,11 +85,12 @@ export function errorMessage(rejection: StudyingAttemptRejection | null, fallbac
   return rejection?.message?.trim() ? rejection.message : fallback;
 }
 
-/** Header progress: served cards minus what is still queued. */
+/** Header progress: the server's resolved-card count against the session size. */
 export function lessonProgressOf(state: StudyingLessonState) {
   const totalCount = state.servedCount ?? state.exercises.length;
+  const resolvedCount = state.resolvedCount ?? Math.max(0, totalCount - (state.exercises.length === 0 ? 0 : 1));
   return {
-    resolvedCount: Math.max(0, totalCount - state.exerciseQueue.length),
+    resolvedCount: Math.min(resolvedCount, totalCount),
     totalCount,
   };
 }

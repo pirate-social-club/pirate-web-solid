@@ -8,7 +8,9 @@ import {
 } from "../../../api/handle-sales-client.ts";
 import type { SessionResolution } from "../../../api/session.ts";
 import {
+  Avatar,
   Button,
+  IconCaretDown,
   toast,
   Toaster,
 } from "../../../design-system.ts";
@@ -33,8 +35,8 @@ import {
   type PostEngagementPost,
 } from "../../posts/post-engagement/post-engagement.tsx";
 import type { PostEngagementTransport } from "../../posts/post-engagement/post-engagement-api.ts";
-import type { MediaSubmissionStorage } from "../../posts/media-submission/pending.ts";
-import { OperationPersonaControl } from "../../identity/operation-persona-control/operation-persona-control.tsx";
+import { useActivePersonaStoreOptional } from "../../identity/active-persona-store.tsx";
+import { PersonaSwitcherSheet } from "../../identity/persona-switcher-sheet/persona-switcher-sheet.tsx";
 import { CommunityPersonaChoiceDialog } from "../../identity/community-persona-choice-sheet.tsx";
 import { communityJoinCandidates, communityOperationPersonas, defaultOperationPersonaId, toOperationPersonas } from "../../identity/community-persona-choice.ts";
 import { createCommunityModerationSettingsApi } from "../../community/owner-settings/community-moderation-settings-api.ts";
@@ -68,7 +70,6 @@ export interface CommunityPageProps {
   readonly surfaceData?: Partial<CommunityData>;
   readonly loadThreads?: (communityId: string) => Promise<CommunityThreadPage>;
   readonly postEngagementTransport?: PostEngagementTransport;
-  readonly postComposerMediaStorage?: MediaSubmissionStorage;
   readonly viewerVoteClient?: CommunityViewerVoteClient;
 }
 
@@ -131,7 +132,6 @@ function SuccessState(props: {
   readonly surfaceData?: Partial<CommunityData>;
   readonly loadThreads?: (communityId: string) => Promise<CommunityThreadPage>;
   readonly postEngagementTransport?: PostEngagementTransport;
-  readonly postComposerMediaStorage?: MediaSubmissionStorage;
   readonly viewerVoteClient?: CommunityViewerVoteClient;
 }) {
   const copy = communityCopy();
@@ -145,7 +145,19 @@ function SuccessState(props: {
   const [postingBusy, setPostingBusy] = createSignal(false);
   const [canManage, setCanManage] = createSignal(false);
   const [manageResolved, setManageResolved] = createSignal(false);
-  const [selectedPersonaId, setSelectedPersonaId] = createSignal<string>();
+  // The app-level store owns "which profile is acting in this community" when
+  // the shell is mounted; isolated renders (tests, stories) keep a local
+  // selection so the page still works without chrome.
+  const personaStore = useActivePersonaStoreOptional();
+  const [localPersonaId, setLocalPersonaId] = createSignal<string>();
+  const [localSwitcherOpen, setLocalSwitcherOpen] = createSignal(false);
+  const selectedPersonaId = () => personaStore === undefined
+    ? localPersonaId()
+    : personaStore.activePersonaId(communityId);
+  const selectPersonaId = (personaId: string | undefined) => {
+    if (personaStore === undefined) setLocalPersonaId(personaId);
+    else personaStore.selectPersona(communityId, personaId);
+  };
   // The viewer's own vote is not in the public thread response and must not be
   // added to it: that response is deliberately anonymous and no-store. It is read
   // per post from the authenticated post read, on demand, and a post's control
@@ -305,14 +317,14 @@ function SuccessState(props: {
         viewerVoteReader = undefined;
         viewerVoteOwner = undefined;
         setViewerVotes(new Map());
-        setSelectedPersonaId(undefined);
+        selectPersonaId(undefined);
         return;
       }
       const current = selectedPersonaId();
       const eligible = communityOperationPersonas(session.personas, communityId);
       if (current !== undefined && eligible.some(persona => persona.personaId === current)) return;
       const joinedPersona = engagement.joinedPersonaId();
-      setSelectedPersonaId(eligible.some(persona => persona.personaId === joinedPersona)
+      selectPersonaId(eligible.some(persona => persona.personaId === joinedPersona)
         ? joinedPersona : defaultOperationPersonaId(eligible));
     },
   );
@@ -365,6 +377,30 @@ function SuccessState(props: {
   const personaOptions = () => toOperationPersonas(communityOperationPersonas(
     engagement.postingSession()?.personas ?? [], communityId,
   ));
+  const activePersonaOption = () => personaOptions()
+    .find(persona => persona.personaId === selectedPersonaId());
+  const canSwitchPersona = () => personaOptions().length > 1;
+  const openPersonaSwitcher = () => {
+    if (personaStore !== undefined) personaStore.openSwitcher();
+    else if (canSwitchPersona()) setLocalSwitcherOpen(true);
+  };
+  // The shell's bottom-right profile control reads this target. It exists only
+  // while the page owns an active persona, so no other surface can open a
+  // switcher for a community the viewer is not looking at.
+  createEffect(
+    () => [communityId, personaStore, personaOptions()] as const,
+    ([targetCommunityId, store, personas]) => {
+      if (store === undefined) return;
+      store.setTarget({
+        communityId: targetCommunityId,
+        personas,
+        title: "Switch profile",
+      });
+    },
+  );
+  onCleanup(() => {
+    personaStore?.setTarget(undefined);
+  });
 
   // The feed carries both vote sides; a caller that supplied only a net score
   // gets a split that preserves that net, which is all the control displays.
@@ -405,12 +441,27 @@ function SuccessState(props: {
             viewerSignedIn={viewerSignedIn()}
             feed={feed}
             personaControl={personaOptions().length > 0 ? (
-              <OperationPersonaControl
-                label="Commenting as"
-                onSelect={setSelectedPersonaId}
-                personas={personaOptions()}
-                selectedPersonaId={selectedPersonaId()}
-              />
+              <button
+                aria-haspopup={canSwitchPersona() ? "dialog" : undefined}
+                class="flex min-w-0 items-center gap-2 rounded-full border border-border-soft bg-card py-1 pe-3 ps-1 text-start transition-colors hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-default disabled:hover:bg-card"
+                data-active-persona
+                disabled={!canSwitchPersona()}
+                onClick={openPersonaSwitcher}
+                type="button"
+              >
+                <Avatar
+                  class="size-7 border-0 bg-background"
+                  fallback={activePersonaOption()?.displayName ?? "Profile"}
+                  size="sm"
+                  src={activePersonaOption()?.avatarSrc ?? undefined}
+                />
+                <span class="min-w-0 truncate text-base font-medium">
+                  {activePersonaOption()?.displayName ?? "Choose a profile"}
+                </span>
+                <Show when={canSwitchPersona()}>
+                  <IconCaretDown aria-hidden="true" class="size-4 shrink-0 text-muted-foreground" />
+                </Show>
+              </button>
             ) : engagement.personaRetryAvailable() ? (
               <Button
                 class="h-9"
@@ -484,6 +535,15 @@ function SuccessState(props: {
             open={engagement.joinPersonaStep()}
             personas={communityJoinCandidates(engagement.postingSession()?.personas ?? [], communityId)}
           />
+          <Show when={personaStore === undefined}>
+            <PersonaSwitcherSheet
+              onOpenChange={setLocalSwitcherOpen}
+              onSelect={(personaId) => { selectPersonaId(personaId); setLocalSwitcherOpen(false); }}
+              open={localSwitcherOpen()}
+              personas={personaOptions()}
+              selectedPersonaId={selectedPersonaId() ?? ""}
+            />
+          </Show>
       </div>
       {/* The membership mode is stated visibly once, in the About card the
           shell renders from membershipMode. The names storefront link lived
@@ -499,7 +559,6 @@ function SuccessState(props: {
             personaId={selectedPersonaId()}
             personas={communityOperationPersonas(session().personas, communityId)}
             principalId={session().userId}
-            mediaStorage={props.postComposerMediaStorage}
           />
         )}
       </Show>
@@ -517,7 +576,6 @@ function CommunityState(props: {
   readonly surfaceData?: Partial<CommunityData>;
   readonly loadThreads?: (communityId: string) => Promise<CommunityThreadPage>;
   readonly postEngagementTransport?: PostEngagementTransport;
-  readonly postComposerMediaStorage?: MediaSubmissionStorage;
   readonly viewerVoteClient?: CommunityViewerVoteClient;
 }) {
   const success = () => props.state.kind === "success" ? props.state : undefined;
@@ -540,7 +598,6 @@ function CommunityState(props: {
               surfaceData={props.surfaceData}
               loadThreads={props.loadThreads}
               postEngagementTransport={props.postEngagementTransport}
-              postComposerMediaStorage={props.postComposerMediaStorage}
               viewerVoteClient={props.viewerVoteClient}
             />
           )}
@@ -573,7 +630,6 @@ function CommunityData(props: CommunityPageProps) {
       surfaceData={props.surfaceData}
       loadThreads={props.loadThreads}
       postEngagementTransport={props.postEngagementTransport}
-      postComposerMediaStorage={props.postComposerMediaStorage}
     />
   );
 }

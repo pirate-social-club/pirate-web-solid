@@ -119,6 +119,52 @@ function LoadedKaraokeSession(props: { payload: ApiSongKaraokePayload; postId: s
     },
   );
 
+  const [disclosureOpen, setDisclosureOpen] = createSignal(false);
+  let pendingScoredStart: (() => void) | undefined;
+
+  // Spec 019 section 5.1: learner-facing microphone capture requires a
+  // first-use disclosure naming the provider and its retention before the
+  // first scored take. The acknowledgment is a local UI fact, not an
+  // account fact.
+  const KARAOKE_MIC_DISCLOSURE_KEY = "karaoke:microphone-disclosure:v1";
+
+  const micDisclosureAcknowledged = (): boolean => {
+    try {
+      return globalThis.localStorage?.getItem(KARAOKE_MIC_DISCLOSURE_KEY) === "1";
+    } catch {
+      return false;
+    }
+  };
+
+  const acknowledgeMicDisclosure = () => {
+    try {
+      globalThis.localStorage?.setItem(KARAOKE_MIC_DISCLOSURE_KEY, "1");
+    } catch {
+      // Storage can be unavailable (private mode); the disclosure simply
+      // reappears next session, which is the safe direction.
+    }
+    setDisclosureOpen(false);
+    const resume = pendingScoredStart;
+    pendingScoredStart = undefined;
+    resume?.();
+  };
+
+  const dismissMicDisclosure = () => {
+    pendingScoredStart = undefined;
+    setDisclosureOpen(false);
+  };
+
+  // Capture cannot begin before the disclosure is acknowledged: both the
+  // direct start and the persona-choice continuation route through here.
+  const beginScoredTake = (songMs: number) => {
+    if (!micDisclosureAcknowledged()) {
+      pendingScoredStart = () => scoring.controls.start(songMs);
+      setDisclosureOpen(true);
+      return;
+    }
+    scoring.controls.start(songMs);
+  };
+
   const scoringState = () => scoring.state();
   const feedback = () => deriveKaraokeFeedback(scoringState());
 
@@ -165,7 +211,7 @@ function LoadedKaraokeSession(props: { payload: ApiSongKaraokePayload; postId: s
           }
           setPersonaMessage("");
           attemptPersonaId = personaId();
-          scoring.controls.start(songMs);
+          beginScoredTake(songMs);
         } : undefined}
         onTimeChange={(songMs) => scoring.controls.noteTime(songMs)}
         rating={feedback().rating}
@@ -193,9 +239,42 @@ function LoadedKaraokeSession(props: { payload: ApiSongKaraokePayload; postId: s
           attemptPersonaId = choice.personaId;
           setChoiceOpen(false);
           setPersonaMessage("");
-          scoring.controls.start(pendingSongMs);
+          beginScoredTake(pendingSongMs);
         }}
       />
+      <Show when={disclosureOpen()}>
+        <div
+          class="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-4 sm:items-center"
+          data-karaoke-mic-disclosure
+          role="dialog"
+          aria-modal="true"
+          aria-label="Recording disclosure"
+        >
+          <div class="w-full max-w-md rounded-[var(--radius-xl)] border border-border bg-card p-6 shadow-xl">
+            <h2 class="text-lg font-semibold text-foreground">Before you record</h2>
+            <p class="mt-3 text-muted-foreground">
+              Your voice recording is sent to our speech provider, ElevenLabs,
+              for transcription and scoring. Under its standard terms,
+              ElevenLabs may retain the recording. Pirate also stores your
+              recording privately for 24 months, and you can delete it from
+              Settings at any time.
+            </p>
+            <div class="mt-6 flex gap-3">
+              <Button class="flex-1" type="button" variant="secondary" onClick={dismissMicDisclosure}>
+                Cancel
+              </Button>
+              <Button
+                class="flex-1"
+                data-karaoke-mic-disclosure-accept
+                type="button"
+                onClick={acknowledgeMicDisclosure}
+              >
+                Continue to record
+              </Button>
+            </div>
+          </div>
+        </div>
+      </Show>
     </Show>
   );
 }
