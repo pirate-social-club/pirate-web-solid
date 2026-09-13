@@ -6,7 +6,7 @@ import type { PrivySessionExchange } from "../../api/privy-session.ts";
 import { onSessionRefreshed, refreshSession } from "../../api/session.ts";
 import type { CommunityCreationApi } from "./community-creation-api";
 import { CommunityCreationRouteView, communityCreationCanUsePersona } from "./community-creation-route-view";
-import { createIntentView } from "./community-creation-intent/community-creation-intent-fixture";
+import { createIntentView } from "./community-creation-intent/community-creation-intent-fixtures";
 import {
   GLOBAL_SIGN_IN_EVENT,
   GlobalSignInHost,
