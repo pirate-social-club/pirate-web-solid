@@ -88,7 +88,7 @@ export function SongRightsStep(props: {
 
   return (
     <StepCard controller={controller} title={controller.copy.steps.rights}>
-      <fieldset disabled={locked()}>
+      <fieldset class="space-y-8" disabled={locked()}>
         <section class="space-y-3">
           <FieldLabel label={controller.copy.rights.permissionsTitle} />
           <OptionCardGroup

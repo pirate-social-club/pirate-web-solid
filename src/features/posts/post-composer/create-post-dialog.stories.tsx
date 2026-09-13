@@ -250,7 +250,19 @@ export const SongStepRights: Story = {
     await userEvent.click(await canvas.findByRole("button", { name: "Continue" }));
     await expect(canvas.getByText("What others may do with this song")).toBeInTheDocument();
     await expect(canvas.getByText("Earnings split")).toBeInTheDocument();
-    await expect(canvas.getByText("Your share — 100%")).toBeInTheDocument();
+    await expect(canvas.getByText("Persona One")).toBeInTheDocument();
+  },
+};
+
+/** Two eligible profiles so the collaborator picker can be exercised. */
+export const SongStepRightsCollaborators: Story = {
+  name: "Song / Step 2 — Rights / Collaborators",
+  render: () => dialogHarness({ personaCount: 2 }).render(),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement.ownerDocument.body);
+    await userEvent.upload(canvas.getByLabelText("Upload audio"), storyMp3());
+    await userEvent.click(await canvas.findByRole("button", { name: "Continue" }));
+    await expect(await canvas.findByText("Earnings split")).toBeInTheDocument();
   },
 };
 

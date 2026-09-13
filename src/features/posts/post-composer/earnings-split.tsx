@@ -163,9 +163,20 @@ function CollaboratorPicker(props: {
     && shareBps() !== undefined
     && shareBps()! > 0
     && shareBps()! <= props.maxShareBps;
+  // A fresh open starts a fresh choice; a previous selection or share draft
+  // must not survive a close and make the next add look pre-filled.
+  const handleOpenChange = (open: boolean) => {
+    if (open) {
+      setQuery("");
+      setSelectedId(undefined);
+      setShareBps(undefined);
+      setShareError("");
+    }
+    props.onOpenChange(open);
+  };
 
   return (
-    <Modal forceMobile onOpenChange={props.onOpenChange} open={props.open}>
+    <Modal forceMobile onOpenChange={handleOpenChange} open={props.open}>
       <ModalContent
         class="flex max-h-[85dvh] flex-col rounded-t-[var(--radius-3xl)] px-0 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-4 sm:rounded-[var(--radius-xl)]"
         mobileSide="bottom"
@@ -244,7 +255,7 @@ function CollaboratorPicker(props: {
                   const bps = shareBps();
                   if (personaId === undefined || bps === undefined) return;
                   props.onAdd(personaId, bps);
-                  props.onOpenChange(false);
+                  handleOpenChange(false);
                 }}
               >
                 {props.copy.rights.addProfile}
@@ -325,18 +336,14 @@ export function EarningsSplit(props: {
 
   return (
     <section class="space-y-3">
-      <div class="flex items-center justify-between gap-3">
-        <Type as="h3" variant="body-strong">{props.copy.rights.earningsTitle}</Type>
-        <Show when={collaborators().length === 0}>
-          <span class="text-base tabular-nums text-muted-foreground">
-            {props.copy.rights.yourShare} — {basisPointsToPercentText(creatorBps())}%
-          </span>
-        </Show>
-      </div>
+      <Type as="h3" variant="body-strong">{props.copy.rights.earningsTitle}</Type>
       <div class="divide-y divide-border-soft overflow-hidden rounded-[var(--radius-lg)] border border-border-soft">
         <div class="grid grid-cols-[minmax(0,1fr)_5.5rem_2.5rem] items-center gap-2 px-3 py-2">
           <div class="flex min-w-0 items-center gap-2.5">
-            <ProfileRowContent fallback={props.copy.review.you} profile={authorProfile()} />
+            <ProfileRowContent
+              fallback={collaborators().length === 0 ? props.copy.rights.yourShare : props.copy.review.you}
+              profile={authorProfile()}
+            />
           </div>
           <Type as="span" class="text-end text-base tabular-nums" variant="body-strong">
             {basisPointsToPercentText(creatorBps())}%
