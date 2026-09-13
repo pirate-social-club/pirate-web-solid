@@ -3,8 +3,6 @@ import "../../src/index.css";
 import { render } from "@solidjs/web";
 import { createRoot, createSignal, Show } from "solid-js";
 import { CreatePostDialog } from "../../src/features/posts/post-composer/create-post-dialog";
-import { createMemoryPendingSubmissionStorage } from "../../src/features/posts/post-composer/pending-submission";
-import { createMemoryMediaSubmissionStorage } from "../../src/features/posts/media-submission/pending";
 import { VideoCoordinator } from "../../src/features/posts/video-submission/coordinator";
 import { createBrowserVideoStorage } from "../../src/features/posts/video-submission/storage";
 import { createVideoTransport } from "../../src/features/posts/video-submission/transport";
@@ -65,7 +63,6 @@ createRoot(() => {
     <Show when={dialog()}>{kind => <CreatePostDialog open onOpenChange={open => { if (!open) setDialog(null); }}
       principalId="account-fixture" personas={[{ personaId: "persona-fixture", displayName: "Fixture persona", avatarRef: null, primaryPublicHandle: null, communityBinding: null }]}
       communityContext={kind() === "conflict" ? { id: "other-community", name: "Other fixture community" } : undefined}
-      storage={createMemoryPendingSubmissionStorage()} mediaStorage={createMemoryMediaSubmissionStorage()}
       videoStorage={storage} videoTransport={transport} fetchImpl={fixtureFetch} />}</Show>
     <VideoPlayer postId="post-fixture" state={{ playback: "ready", thumbnail: "pending" }} mint={async (_post, signal) => {
       event("mint"); if (signal.aborted || read().denied) throw new Error("Access denied");

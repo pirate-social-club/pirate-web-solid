@@ -14,7 +14,6 @@ import {
   Type,
 } from "../../../design-system";
 import { cn } from "../../../design-system";
-import { PostComposerAccessRightsControl } from "./access-rights-control";
 import { PostComposerGenericAssetFields } from "./generic-asset-fields";
 import {
   PostComposerDesktopAttachmentToolbar,
@@ -120,7 +119,6 @@ export function PostComposerWriteStep(props: {
   attachmentBarPlacement?: "fixed" | "inline";
   controller: PostComposerController;
   onVideoEntry?: () => void;
-  initialOpenPanel?: "access-and-rights";
   children?: JSX.Element;
 }) {
   const controller = props.controller;
@@ -141,8 +139,6 @@ export function PostComposerWriteStep(props: {
   let videoInput: HTMLInputElement | undefined;
   let songInput: HTMLInputElement | undefined;
   let fileInput: HTMLInputElement | undefined;
-
-  const showAccessRights = () => ["video", "live"].includes(controller.tabs.activeTab);
 
   createEffect(
     () => detectedVideoAspectRatio(),
@@ -293,14 +289,6 @@ export function PostComposerWriteStep(props: {
         variant="flat"
         value={controller.fields.titleValue}
       />
-      <Show when={showAccessRights()}>
-        <div class="flex flex-wrap items-center gap-2">
-          <PostComposerAccessRightsControl
-            controller={controller}
-            initialOpen={props.initialOpenPanel === "access-and-rights"}
-          />
-        </div>
-      </Show>
       <PostComposerAttachmentCard attachment={attachment()} onChange={(next) => { if (next?.kind === "link" && controller.tabs.allows("link")) { controller.fields.onLinkUrlValueChange?.(next.url); controller.tabs.onTabChange("link"); } }} onRemove={removeAttachment} onReplace={selectAttachment} />
       <Show when={attachmentError()}>
         <FormNote tone="warning">{attachmentError()}</FormNote>

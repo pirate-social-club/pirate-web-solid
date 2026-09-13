@@ -6,8 +6,8 @@ import { PostComposerRequiredSheet } from "./required-post-sheet";
 import { PublishButton } from "./submit-actions";
 import { createPostComposerController } from "./controller";
 import { SongStep } from "./song-step";
-import { SongLyricsStep, SongReviewStep, SongRightsStep } from "./song-steps";
-import { PostComposerStepFooter, PostComposerStepIndicator } from "./step-footer";
+import { SongReviewStep, SongRightsStep } from "./song-steps";
+import { PostComposerStepFooter } from "./step-footer";
 import type { PostComposerProps } from "./types";
 import { PostComposerWriteStep } from "./write-step";
 
@@ -33,7 +33,6 @@ export function PostComposer(props: PostComposerProps) {
             attachmentBarPlacement={props.attachmentBarPlacement}
             onVideoEntry={props.onVideoEntry}
             controller={controller}
-            initialOpenPanel={props.initialOpenPanel}
           >
             <PublishButton
               class="min-w-40"
@@ -49,28 +48,25 @@ export function PostComposer(props: PostComposerProps) {
     switch (steps.current()) {
       case "song":
         return <SongStep controller={controller} runtime={props.songFlowRuntime} />;
-      case "lyrics":
-        return <SongLyricsStep controller={controller} runtime={props.songFlowRuntime} />;
       case "rights":
-        return <SongRightsStep controller={controller} runtime={props.songFlowRuntime} />;
+        return (
+          <SongRightsStep
+            controller={controller}
+            recipients={props.recipientProfiles}
+            runtime={props.songFlowRuntime}
+          />
+        );
       case "review":
         return (
           <SongReviewStep
             controller={controller}
+            recipients={props.recipientProfiles}
             runtime={props.songFlowRuntime}
             steps={steps}
           />
         );
     }
   };
-
-  const stepIndicator = () => (
-    <Show when={controller.tabs.activeTab === "song"}>
-      <div class={controller.isMobile() ? "px-1" : "px-8 pb-1 pt-4"}>
-        <PostComposerStepIndicator controller={controller} steps={steps} />
-      </div>
-    </Show>
-  );
 
   return (
     <>
@@ -108,7 +104,6 @@ export function PostComposer(props: PostComposerProps) {
               >
                 <IconX class="size-6" />
               </IconButton>
-              {stepIndicator()}
               <Show when={props.mediaStatus}>{props.mediaStatus!()}</Show>
               {stepContent()}
               <Show when={isMultiStep()}>
@@ -122,7 +117,6 @@ export function PostComposer(props: PostComposerProps) {
             </Card>
           }
         >
-          {stepIndicator()}
           <Show when={props.mediaStatus}>{props.mediaStatus!()}</Show>
           {stepContent()}
           <Show when={isMultiStep()}>
