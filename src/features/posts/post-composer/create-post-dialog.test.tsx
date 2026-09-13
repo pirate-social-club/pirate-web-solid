@@ -471,6 +471,57 @@ describe("create post request", () => {
     expect(document.body.textContent).toContain("Persona One75%");
   });
 
+  test("clears the collaborator sheet between opens", async () => {
+    const mediaTransport = new ProductionMediaTransport();
+    render(() => <CreatePostDialog
+      communityContext={{ id: "community-one", name: "Harbor" }}
+      mediaTransport={mediaTransport}
+      onOpenChange={() => {}}
+      open
+      personas={[activePersona("persona-one", "Persona One"), activePersona("persona-two", "Persona Two")]}
+      principalId="account-one"
+    />);
+    await new Promise<void>(resolve => setTimeout(resolve, 0));
+    await uploadAudio("sheet-reset.mp3");
+    button("Continue").click();
+    await vi.waitFor(() => expect(document.body.textContent).toContain("What others may do with this song"));
+
+    button("Add collaborator").click();
+    await vi.waitFor(() => expect(document.querySelector('[role="dialog"]')).not.toBeNull());
+    const search = document.querySelector<HTMLInputElement>('input[aria-label="Search profiles"]')!;
+    search.value = "drift";
+    search.dispatchEvent(new Event("change", { bubbles: true }));
+    const collaborator = [...document.querySelectorAll<HTMLButtonElement>("[role='dialog'] button")]
+      .find(candidate => candidate.textContent?.includes("Persona Two"))!;
+    collaborator.click();
+    const share = await vi.waitFor(() => {
+      const input = document.querySelector<HTMLInputElement>('input[aria-label="Share for Persona Two"]');
+      expect(input).not.toBeNull();
+      return input!;
+    });
+    share.value = "25";
+    share.dispatchEvent(new Event("change", { bubbles: true }));
+
+    const close = [...document.querySelectorAll<HTMLButtonElement>('[role="dialog"] button')]
+      .find(candidate => candidate.textContent?.trim() === "Close" || candidate.getAttribute("aria-label") === "Close")!;
+    close.click();
+    await vi.waitFor(() => expect(document.querySelector('[role="dialog"]')).toBeNull());
+
+    button("Add collaborator").click();
+    await vi.waitFor(() => expect(document.querySelector('[role="dialog"]')).not.toBeNull());
+    expect(document.querySelector('input[aria-label="Share for Persona Two"]')).toBeNull();
+    expect(document.querySelector<HTMLInputElement>('input[aria-label="Search profiles"]')!.value).toBe("");
+    const collaboratorAgain = [...document.querySelectorAll<HTMLButtonElement>("[role='dialog'] button")]
+      .find(candidate => candidate.textContent?.includes("Persona Two"))!;
+    collaboratorAgain.click();
+    const emptyShare = await vi.waitFor(() => {
+      const input = document.querySelector<HTMLInputElement>('input[aria-label="Share for Persona Two"]');
+      expect(input).not.toBeNull();
+      return input!;
+    });
+    expect(emptyShare.value).toBe("");
+  });
+
   test("uses the app-selected persona and otherwise defaults to the first active persona", () => {
     expect(initialOperationPersonaId([
       activePersona("persona-one", "Persona One"),
