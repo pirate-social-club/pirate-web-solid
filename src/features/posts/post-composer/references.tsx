@@ -89,36 +89,6 @@ function ReferenceMeta(props: {
   );
 }
 
-export function References(props: {
-  copy: ComposerCopy;
-  items?: ComposerReference[];
-}) {
-  return (
-    <Show
-      when={props.items && props.items.length > 0}
-      fallback={
-        <div class="rounded-[var(--radius-lg)] border border-dashed border-border-soft p-4 text-base text-muted-foreground">
-          {props.copy.empty.noReferences}
-        </div>
-      }
-    >
-      <div class="space-y-2">
-        <For each={props.items}>
-          {(item) => (
-            <div class="flex items-center justify-between gap-3 rounded-[var(--radius-lg)] border border-border-soft bg-card px-4 py-3">
-              <div class="min-w-0">
-                <Type as="p" variant="body-strong" class="truncate">{item.title}</Type>
-                <ReferenceMeta item={item} />
-              </div>
-              <span class="text-base text-muted-foreground">{props.copy.labels.source}</span>
-            </div>
-          )}
-        </For>
-      </div>
-    </Show>
-  );
-}
-
 export { dedupeReferences };
 
 export function SearchReferencePicker(props: {

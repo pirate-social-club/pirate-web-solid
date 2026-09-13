@@ -15,10 +15,8 @@ import {
   type SongRoyaltyAllocation,
 } from "./contracts";
 import {
-  createDefaultMediaSubmissionStorage,
   createPersistedMediaCommand,
   MEDIA_PENDING_VERSION,
-  type MediaSubmissionStorage,
   type PendingMediaSubmissionV1,
   type PersistedMediaCommand,
 } from "./pending";
@@ -32,8 +30,6 @@ import {
 } from "./transport";
 
 export interface BeginSongSubmissionInput {
-  readonly draftId: string;
-  readonly principalId: string;
   readonly communityId: string;
   readonly personaId: string;
   readonly audio: File;
@@ -50,13 +46,10 @@ export interface BindSongTermsInput {
 }
 
 export interface MediaSubmissionCoordinatorOptions {
-  readonly principalId?: string;
-  readonly storage?: MediaSubmissionStorage;
   readonly transport?: MediaSubmissionTransport;
   readonly origin?: string | URL;
   readonly fetchImpl?: typeof fetch;
   readonly createId?: () => string;
-  readonly now?: () => string;
   readonly onStateChange?: (view: SongSubmissionView) => void;
   readonly onSnapshotChange?: (snapshot: MediaSubmissionSnapshot) => void;
 }
@@ -87,21 +80,23 @@ function finalizeObservationTick(): Promise<{ readonly kind: "tick" }> {
   });
 }
 
+/**
+ * Owns one song upload and publication for the life of the composer. The
+ * in-memory record retains each issued command's exact body and idempotency
+ * key, so a lost response is reconciled or replayed as the same operation
+ * instead of a second upload. It is not a draft and never survives the dialog.
+ */
 export class MediaSubmissionCoordinator {
-  readonly storage: MediaSubmissionStorage;
   readonly transport: MediaSubmissionTransport;
   private record: PendingMediaSubmissionV1 | null = null;
   private view: SongSubmissionView = { status: "editing" };
   private readonly createId: () => string;
-  private readonly now: () => string;
   private readonly onStateChange?: (view: SongSubmissionView) => void;
   private readonly onSnapshotChange?: (snapshot: MediaSubmissionSnapshot) => void;
 
   constructor(options: MediaSubmissionCoordinatorOptions = {}) {
-    this.storage = options.storage ?? createDefaultMediaSubmissionStorage(options.principalId);
     this.transport = options.transport ?? createSameOriginMediaSubmissionTransport({ origin: options.origin, fetchImpl: options.fetchImpl });
     this.createId = options.createId ?? randomId;
-    this.now = options.now ?? (() => new Date().toISOString());
     this.onStateChange = options.onStateChange;
     this.onSnapshotChange = options.onSnapshotChange;
   }
@@ -114,9 +109,8 @@ export class MediaSubmissionCoordinator {
     this.onStateChange?.(view);
   }
 
-  private async save(next: PendingMediaSubmissionV1): Promise<void> {
+  private save(next: PendingMediaSubmissionV1): void {
     this.record = next;
-    await this.storage.save(next);
   }
 
   private requireRecord(): PendingMediaSubmissionV1 {
@@ -124,7 +118,7 @@ export class MediaSubmissionCoordinator {
     return this.record;
   }
 
-  private async saveSnapshot(snapshot: MediaSubmissionSnapshot, pendingCommand: PersistedMediaCommand | null = null): Promise<void> {
+  private saveSnapshot(snapshot: MediaSubmissionSnapshot, pendingCommand: PersistedMediaCommand | null = null): void {
     const current = this.requireRecord();
     const retainedSnapshot = !terminal(snapshot)
       && snapshot.lyrics_state.current.status !== "no_lyrics"
@@ -135,14 +129,12 @@ export class MediaSubmissionCoordinator {
       ? current.snapshot
       : snapshot;
     const sealed = retainedSnapshot.status !== "processing" || retainedSnapshot.phase !== "awaiting_upload";
-    await this.save({
+    this.save({
       ...current,
       submission_id: retainedSnapshot.submission_id,
-      expected_creation_revision: retainedSnapshot.creation_revision,
       upload_status: sealed ? "sealed" : current.upload_status,
       snapshot: retainedSnapshot,
       pending_command: pendingCommand,
-      updated_at: this.now(),
     });
     this.onSnapshotChange?.(retainedSnapshot);
     this.setView(projectMediaSubmission(retainedSnapshot));
@@ -177,11 +169,10 @@ export class MediaSubmissionCoordinator {
   private async dispatch(command: PersistedMediaCommand): Promise<MediaCommandResult> {
     const current = this.requireRecord();
     if (current.pending_command?.body_sha256 !== command.body_sha256) {
-      await this.save({
+      this.save({
         ...current,
         commands: current.commands.some(saved => saved.body_sha256 === command.body_sha256) ? current.commands : [...current.commands, command],
         pending_command: command,
-        updated_at: this.now(),
       });
     }
     this.setView({ status: "reconciling", ...(this.record?.submission_id === null ? {} : { submissionId: this.record?.submission_id ?? undefined }) });
@@ -190,21 +181,17 @@ export class MediaSubmissionCoordinator {
       result = await this.transport.dispatch(command);
     } catch (error) {
       if (error instanceof MediaSubmissionConflictError) {
+        // The key is bound to different bytes; replaying it can never apply.
+        // Drop it so a later explicit action starts from the authoritative
+        // snapshot instead of retrying the same conflicting command.
         const conflicted = this.requireRecord();
-        await this.save({
-          ...conflicted,
-          issue: {
-            kind: error.conflictKind,
-            ...(error.submissionId === undefined ? {} : { submission_id: error.submissionId }),
-          },
-          updated_at: this.now(),
-        });
+        this.save({ ...conflicted, pending_command: null });
       }
       throw error;
     }
     if (snapshotResult(result)) {
       const pending = this.requireRecord().pending_command;
-      await this.saveSnapshot(
+      this.saveSnapshot(
         result,
         pending?.body_sha256 === command.body_sha256 ? null : pending,
       );
@@ -232,11 +219,11 @@ export class MediaSubmissionCoordinator {
       try {
         const observed = await this.transport.read(current.submission_id);
         if (observed === null) continue;
-        await this.saveSnapshot(observed, this.requireRecord().pending_command);
+        this.saveSnapshot(observed, this.requireRecord().pending_command);
         if (observed.audio_revision >= 1 || terminal(observed)) {
-          // The read is authoritative evidence that this exact retained
-          // finalize took effect. Do not keep the author blocked on a delayed
-          // response after the server has already exposed the result.
+          // The read is authoritative evidence that this exact finalize took
+          // effect. Do not keep the author blocked on a delayed response after
+          // the server has already exposed the result.
           return this.requireRecord().snapshot ?? observed;
         }
       } catch {
@@ -253,49 +240,28 @@ export class MediaSubmissionCoordinator {
     if (current.submission_id !== null) {
       const snapshot = await this.transport.read(current.submission_id);
       if (snapshot !== null) {
-        await this.saveSnapshot(snapshot, this.commandAlreadyReflected(pending, snapshot) ? null : pending);
+        this.saveSnapshot(snapshot, this.commandAlreadyReflected(pending, snapshot) ? null : pending);
         if (this.requireRecord().pending_command === null) return;
       }
     }
     const result = await this.dispatch(pending);
     if (!snapshotResult(result)) {
-      const refreshed = this.requireRecord();
-      await this.save({ ...refreshed, reservation: result, pending_command: null, updated_at: this.now() });
+      this.save({ ...this.requireRecord(), reservation: result, pending_command: null });
     }
-  }
-
-  async restore(draftId: string): Promise<PendingMediaSubmissionV1 | null> {
-    const loaded = await this.storage.load(draftId);
-    this.record = loaded;
-    if (loaded === null) {
-      this.setView({ status: "editing" });
-      return null;
-    }
-    try {
-      await this.reconcilePending();
-      if (this.record?.submission_id !== null) await this.refresh();
-    } catch (error) {
-      if (!(error instanceof AmbiguousMediaSubmissionError)) throw error;
-      this.setView({ status: "reconciling", ...(loaded.submission_id === null ? {} : { submissionId: loaded.submission_id }) });
-    }
-    return this.record;
   }
 
   async refresh(): Promise<MediaSubmissionSnapshot | null> {
     const current = this.requireRecord();
     if (current.submission_id === null) return null;
     const snapshot = await this.transport.read(current.submission_id);
-    if (snapshot !== null) await this.saveSnapshot(snapshot, this.requireRecord().pending_command);
+    if (snapshot !== null) this.saveSnapshot(snapshot, this.requireRecord().pending_command);
     return snapshot === null ? null : this.requireRecord().snapshot;
   }
 
   async begin(input: BeginSongSubmissionInput): Promise<MediaSubmissionSnapshot> {
-    if (this.record !== null) throw new Error("Resolve the retained media submission before starting another");
-    const createdAt = this.now();
-    await this.save({
+    if (this.record !== null) throw new Error("Resolve the active media submission before starting another");
+    this.save({
       version: MEDIA_PENDING_VERSION,
-      draft_id: input.draftId,
-      principal_id: input.principalId,
       community_id: input.communityId,
       persona_id: input.personaId,
       song_draft: {
@@ -312,13 +278,10 @@ export class MediaSubmissionCoordinator {
       },
       reservation: null,
       submission_id: null,
-      expected_creation_revision: null,
       upload_status: "not_uploaded",
       snapshot: null,
       commands: [],
       pending_command: null,
-      created_at: createdAt,
-      updated_at: createdAt,
     });
     const reserveKey = this.createId();
     const reserveInput = buildReserveSongAudioInput({
@@ -336,7 +299,7 @@ export class MediaSubmissionCoordinator {
     });
     const reservationResult = await this.dispatch(reserve);
     if (snapshotResult(reservationResult)) throw new Error("Reservation command returned a submission snapshot");
-    await this.save({ ...this.requireRecord(), reservation: reservationResult, pending_command: null, updated_at: this.now() });
+    this.save({ ...this.requireRecord(), reservation: reservationResult, pending_command: null });
 
     return this.ensureStarted();
   }
@@ -346,10 +309,10 @@ export class MediaSubmissionCoordinator {
     const existing = this.requireRecord();
     if (existing.submission_id !== null) {
       const snapshot = await this.refresh();
-      if (snapshot === null) throw new Error("The retained song submission could not be reconciled");
+      if (snapshot === null) throw new Error("The active song submission could not be reconciled");
       return snapshot;
     }
-    if (existing.reservation === null) throw new Error("The retained upload reservation could not be reconciled");
+    if (existing.reservation === null) throw new Error("The active upload reservation could not be reconciled");
 
     const startKey = this.createId();
     const startInput = buildStartSongInput({
@@ -402,7 +365,7 @@ export class MediaSubmissionCoordinator {
     if (snapshot === null || current.reservation === null) throw new Error("The upload reservation or submission is missing");
     if (snapshot.status !== "processing" || snapshot.phase !== "awaiting_upload") return snapshot;
     if (current.upload_status !== "uploaded") {
-      await this.save({ ...current, upload_status: "uploading", updated_at: this.now() });
+      this.save({ ...current, upload_status: "uploading" });
       this.setView({ status: "uploading", submissionId: snapshot.submission_id, bytesSent: 0, bytesTotal: current.audio.size });
       try {
         await this.transport.upload(current.reservation, current.audio.blob, (sent, total) => {
@@ -416,7 +379,7 @@ export class MediaSubmissionCoordinator {
         this.setView(projectMediaSubmission(snapshot));
         throw error;
       }
-      await this.save({ ...this.requireRecord(), upload_status: "uploaded", updated_at: this.now() });
+      this.save({ ...this.requireRecord(), upload_status: "uploaded" });
     }
     snapshot = await this.refresh();
     if (snapshot === null || snapshot.status !== "processing" || snapshot.phase !== "awaiting_upload") return snapshot!;
@@ -513,10 +476,9 @@ export class MediaSubmissionCoordinator {
   retry(): Promise<MediaSubmissionSnapshot> { return this.revisionCommand("retry"); }
   cancel(): Promise<MediaSubmissionSnapshot> { return this.revisionCommand("cancel"); }
 
-  async discardTerminal(): Promise<void> {
+  discardTerminal(): void {
     const current = this.requireRecord();
     if (current.snapshot === null || !terminal(current.snapshot)) throw new Error("Only a terminal media submission may be discarded");
-    await this.storage.remove(current.draft_id);
     this.record = null;
     this.setView({ status: "editing" });
   }

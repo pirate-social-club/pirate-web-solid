@@ -121,9 +121,11 @@ function formatPreviewPrice(value?: string) {
 
 // Designed composer step tracks. Song is the only multi-step track today; a
 // track with no entries is single-step and posts from the composer button.
-export type ComposerStepName = "song" | "lyrics" | "rights" | "review";
+// Lyrics live inside the Song step as an optional field, so the flow is the
+// song itself, its rights, then confirmation.
+export type ComposerStepName = "song" | "rights" | "review";
 
-const songStepTrack: readonly ComposerStepName[] = ["song", "lyrics", "rights", "review"];
+const songStepTrack: readonly ComposerStepName[] = ["song", "rights", "review"];
 
 export function composerStepTrack(tab: ComposerTab): readonly ComposerStepName[] {
   return tab === "song" ? songStepTrack : [];

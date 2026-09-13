@@ -4,7 +4,7 @@
 // final step publishes exactly once through the host's submit runtime.
 
 import { Portal } from "@solidjs/web";
-import { createEffect, createSignal, For, Show } from "solid-js";
+import { createEffect, createSignal, Show } from "solid-js";
 
 import { Button, CardFooter } from "../../../design-system";
 import { cn } from "../../../design-system";
@@ -15,53 +15,6 @@ import { songTermsIssue } from "./song-steps";
 import { PublishButton } from "./submit-actions";
 import { getNextComposerStep, getPreviousComposerStep } from "./utils";
 import type { SongFlowRuntime } from "./types";
-
-// Step indicator for the song flow: position and names, with names clickable
-// once the first step (Song) is satisfied, since no later step is a hard gate.
-export function PostComposerStepIndicator(props: {
-  controller: PostComposerController;
-  steps: ComposerSteps;
-}) {
-  const controller = props.controller;
-  const canJump = () => !controller.requirements.songAudioMissing;
-  const stepName = (step: string) =>
-    step === "lyrics" ? controller.copy.steps.lyrics
-      : step === "rights" ? controller.copy.steps.rights
-        : step === "review" ? controller.copy.steps.review
-          : controller.copy.steps.song;
-
-  return (
-    <nav aria-label="Steps" class="flex flex-wrap items-center gap-x-1 gap-y-1">
-      <For each={props.steps.list()}>
-        {(step, index) => {
-          const isCurrent = () => step === props.steps.current();
-          const clickable = () => canJump() || isCurrent();
-          return (
-            <>
-              <Show when={index() > 0}>
-                <span class="select-none text-muted-foreground" aria-hidden="true">·</span>
-              </Show>
-              <button
-                aria-current={isCurrent() ? "step" : undefined}
-                class={cn(
-                  "rounded-full px-2 py-1 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                  controller.isMobile() ? "text-base" : "text-lg",
-                  isCurrent() ? "font-semibold text-foreground" : "text-muted-foreground hover:text-foreground",
-                  !clickable() && "cursor-default opacity-60 hover:text-muted-foreground",
-                )}
-                disabled={!clickable()}
-                onClick={() => props.steps.set(step)}
-                type="button"
-              >
-                {stepName(step)}
-              </button>
-            </>
-          );
-        }}
-      </For>
-    </nav>
-  );
-}
 
 export function PostComposerStepFooter(props: {
   controller: PostComposerController;
@@ -90,7 +43,6 @@ export function PostComposerStepFooter(props: {
       }
     },
   );
-  const tab = () => controller.tabs.activeTab;
   const locked = () => props.runtime?.locked === true;
   const termsIssue = () => songTermsIssue(controller, props.runtime);
 
@@ -101,8 +53,6 @@ export function PostComposerStepFooter(props: {
         return !controller.requirements.songAudioMissing
           && Boolean(controller.song.state.title?.trim())
           && !(props.runtime && !props.runtime.personaId);
-      case "lyrics":
-        return props.runtime ? props.runtime.prepared : true;
       case "rights":
         return termsIssue() === "";
       default:
@@ -110,18 +60,8 @@ export function PostComposerStepFooter(props: {
     }
   };
 
-  const nextLabel = () => {
-    const next = getNextComposerStep(props.steps.current(), tab());
-    if (props.steps.current() === "song" && props.runtime && !props.runtime.prepared) {
-      return controller.copy.actions.continue;
-    }
-    if (next === "rights") return controller.copy.actions.continue;
-    if (next === "review") return controller.copy.steps.review;
-    return controller.copy.actions.continue;
-  };
-
   const goBack = () => {
-    props.steps.set(getPreviousComposerStep(props.steps.current(), tab()));
+    props.steps.set(getPreviousComposerStep(props.steps.current(), controller.tabs.activeTab));
   };
   const goNext = async () => {
     // Signal writes are not visible to a second handler in the same tick.
@@ -129,7 +69,7 @@ export function PostComposerStepFooter(props: {
     // advance while the audio preparation is still awaiting its response.
     if (advancing) return;
     advancing = true;
-    const target = getNextComposerStep(props.steps.current(), tab());
+    const target = getNextComposerStep(props.steps.current(), controller.tabs.activeTab);
     try {
       if (props.steps.current() === "song" && props.runtime && !props.runtime.prepared) {
         // Advancing past Song uploads the audio first; a failed or uncertain
@@ -169,7 +109,7 @@ export function PostComposerStepFooter(props: {
           onClick={() => void goNext()}
           size="lg"
         >
-          {nextLabel()}
+          {controller.copy.actions.continue}
         </Button>
       }
     >

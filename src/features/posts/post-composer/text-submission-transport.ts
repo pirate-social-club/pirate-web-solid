@@ -2,30 +2,20 @@ import { createApiClient, readCsrfCookie, sessionRequestOptions } from "../../..
 import { ApiClientError } from "@pirate/api-client";
 import {
   decodeTextContentSubmission,
+  TextSubmissionContractError,
   type TextContentSubmissionV1,
 } from "./text-submission-contract";
 import {
   assertSafeSameOriginPath,
-  decodePendingSubmissionDraft,
+  createPendingSubmissionEnvelope,
   pendingBodyBytes,
   PENDING_SUBMISSION_CONTENT_TYPE,
-  PENDING_SUBMISSION_RECORD_VERSION,
   PendingSubmissionError,
-  PendingSubmissionStorageConflictError,
   type PendingSubmissionEnvelopeV1,
-  type PendingSubmissionIssue,
-  type RestoredTextSubmissionDraft,
-  type PendingSubmissionStoredRecord,
-  type PendingSubmissionStorage,
-  createDefaultPendingSubmissionStorage,
-  createPendingSubmissionEnvelope,
-  isDiscardablePendingSubmissionIssue,
-  isDefinitiveServerRejectionStatus,
 } from "./pending-submission";
 import {
   initialPostComposerState,
   projectTextSubmission,
-  reducePostComposerState,
   type PostComposerState,
 } from "./post-composer-state";
 import type { TextContentSubmissionRequestEnvelopeV1 } from "./text-submission-contract";
@@ -164,10 +154,6 @@ function decodeDefinitiveServerRejection(status: number, value: unknown): Defini
   return error.code === "not_found" ? error.code : null;
 }
 
-function isDefinitiveServerRejection(error: TextSubmissionServerRejectionError): error is TextSubmissionServerRejectionError & { readonly status: 400 | 403 | 404 } {
-  return error.definitive && isDefinitiveServerRejectionStatus(error.status);
-}
-
 /**
  * Narrow same-origin adapter for exact-byte POST replay. The generated client
  * owns GET URL construction, status/error handling, and response validation.
@@ -271,8 +257,6 @@ export function createSameOriginTextSubmissionTransport(
 }
 
 export interface TextSubmissionCoordinatorOptions {
-  readonly storage?: PendingSubmissionStorage;
-  readonly principalId?: string;
   readonly transport?: TextSubmissionTransport;
   readonly origin?: string | URL;
   readonly fetchImpl?: TextSubmissionFetch;
@@ -286,29 +270,23 @@ function createId(): string {
   return `pending-${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
-/** Coordinates durable-before-dispatch, exact replay, reload, and projection. */
+/**
+ * Coordinates one text publication for the life of the composer operation.
+ *
+ * A request is retained in memory from the moment it is built until its
+ * outcome is authoritative, so an ambiguous network result can be retried as
+ * the exact same bytes and idempotency key instead of producing a second post.
+ * Nothing survives the dialog; the product has no saved drafts.
+ */
 export class TextSubmissionCoordinator {
-  readonly storage: PendingSubmissionStorage;
   readonly transport: TextSubmissionTransport;
   private currentState: PostComposerState = initialPostComposerState;
   private pending: PendingSubmissionEnvelopeV1 | null = null;
-  private pendingExactEnvelope: PendingSubmissionEnvelopeV1 | null = null;
   private readonly createPendingRequestId: () => string;
   private readonly now: () => string;
   private readonly onStateChange?: (state: PostComposerState) => void;
 
   constructor(options: TextSubmissionCoordinatorOptions = {}) {
-    try {
-      this.storage = options.storage ?? createDefaultPendingSubmissionStorage(options.principalId);
-    } catch {
-      this.storage = {
-        load: async () => { throw new PendingSubmissionError("Durable pending storage is unavailable"); },
-        loadAll: async () => { throw new PendingSubmissionError("Durable pending storage is unavailable"); },
-        save: async () => { throw new PendingSubmissionError("Durable pending storage is unavailable"); },
-        remove: async () => { throw new PendingSubmissionError("Durable pending storage is unavailable"); },
-      };
-      this.currentState = { status: "transport_failure", reason: "durable_storage_failed" };
-    }
     this.transport = options.transport ?? createSameOriginTextSubmissionTransport({ origin: options.origin, fetchImpl: options.fetchImpl });
     this.createPendingRequestId = options.createPendingRequestId ?? createId;
     this.now = options.now ?? (() => new Date().toISOString());
@@ -319,119 +297,15 @@ export class TextSubmissionCoordinator {
     return this.currentState;
   }
 
-  get pendingEnvelope(): PendingSubmissionEnvelopeV1 | null {
-    return this.pending;
-  }
-
   private setState(next: PostComposerState): PostComposerState {
     this.currentState = next;
     this.onStateChange?.(next);
     return next;
   }
 
-  private async loadRecords(): Promise<readonly PendingSubmissionStoredRecord[]> {
-    if (this.storage.loadAllRecords !== undefined) return this.storage.loadAllRecords();
-    const envelopes = await this.storage.loadAll();
-    return envelopes.map(envelope => ({
-      version: PENDING_SUBMISSION_RECORD_VERSION,
-      pending_request_id: envelope.pending_request_id,
-      envelope,
-      submission_id: envelope.submission_id,
-    }));
-  }
-
-  private async saveRecord(record: PendingSubmissionStoredRecord): Promise<void> {
-    if (this.storage.saveRecord !== undefined) {
-      await this.storage.saveRecord(record);
-      return;
-    }
-    if (record.issue !== undefined || record.submission_id !== record.envelope.submission_id) {
-      throw new PendingSubmissionError("Pending storage cannot durably retain issue metadata");
-    }
-    // Legacy injected stores cannot retain issue metadata, but still preserve
-    // exact bytes for ordinary injected-storage tests.
-    await this.storage.save(record.envelope);
-  }
-
-  private async persistPendingMetadata(
-    envelope: PendingSubmissionEnvelopeV1,
-    metadata: { readonly issue?: PendingSubmissionIssue; readonly submission_id?: string | null },
-  ): Promise<void> {
-    const exactEnvelope = this.pendingExactEnvelope?.pending_request_id === envelope.pending_request_id
-      ? this.pendingExactEnvelope
-      : envelope;
-    await this.saveRecord({
-      version: PENDING_SUBMISSION_RECORD_VERSION,
-      pending_request_id: envelope.pending_request_id,
-      envelope: exactEnvelope,
-      ...(metadata.issue === undefined ? {} : { issue: metadata.issue }),
-      submission_id: metadata.submission_id ?? envelope.submission_id,
-    });
-  }
-
-  private pendingState(
-    envelope: PendingSubmissionEnvelopeV1,
-    issue?: PendingSubmissionIssue | { readonly kind: "storage_conflict"; readonly record_count: number },
-  ): PostComposerState {
-    return {
-      status: "reconciling",
-      pending_request_id: envelope.pending_request_id,
-      ...(envelope.submission_id === null ? {} : { submission_id: envelope.submission_id }),
-      ...(issue === undefined ? {} : { issue }),
-    };
-  }
-
-  private async adoptAfterSaveConflict(originalError: PendingSubmissionStorageConflictError): Promise<never> {
-    let records: readonly PendingSubmissionStoredRecord[];
-    try {
-      records = await this.loadRecords();
-    } catch {
-      this.setState({ status: "transport_failure", reason: "durable_storage_failed" });
-      throw originalError;
-    }
-    const ordered = [...records].sort((left, right) => left.envelope.created_at.localeCompare(right.envelope.created_at) || left.pending_request_id.localeCompare(right.pending_request_id));
-    const unresolved = ordered[0];
-    if (unresolved === undefined) {
-      // The winner may have resolved and removed its record before the loser
-      // could adopt it. Never dispatch the unpersisted loser request.
-      this.setState({ status: "transport_failure", reason: "durable_storage_failed" });
-      throw originalError;
-    }
-    const envelope = unresolved.submission_id !== unresolved.envelope.submission_id
-      ? { ...unresolved.envelope, submission_id: unresolved.submission_id }
-      : unresolved.envelope;
-    this.pending = envelope;
-    this.pendingExactEnvelope = unresolved.envelope;
-    this.setState(this.pendingState(
-      envelope,
-      ordered.length > 1 ? { kind: "storage_conflict", record_count: ordered.length } : unresolved.issue,
-    ));
-    throw originalError;
-  }
-
-  private async saveBeforeDispatch(request: TextContentSubmissionRequestEnvelopeV1): Promise<PendingSubmissionEnvelopeV1> {
-    let records: readonly PendingSubmissionStoredRecord[];
-    try {
-      records = await this.loadRecords();
-    } catch (error) {
-      this.setState({ status: "transport_failure", reason: "durable_storage_failed" });
-      throw error;
-    }
-    if (records.length > 0) {
-      const ordered = [...records].sort((left, right) => left.envelope.created_at.localeCompare(right.envelope.created_at) || left.pending_request_id.localeCompare(right.pending_request_id));
-      const unresolved = ordered[0];
-      if (unresolved !== undefined) {
-        const envelope = unresolved.submission_id !== unresolved.envelope.submission_id
-          ? { ...unresolved.envelope, submission_id: unresolved.submission_id }
-          : unresolved.envelope;
-        this.pending = envelope;
-        this.pendingExactEnvelope = unresolved.envelope;
-        const issue = ordered.length > 1
-          ? { kind: "storage_conflict" as const, record_count: ordered.length }
-          : unresolved.issue;
-        this.setState(this.pendingState(envelope, issue));
-      }
-      throw new PendingSubmissionStorageConflictError(ordered.map(record => record.envelope));
+  async submit(request: TextContentSubmissionRequestEnvelopeV1): Promise<TextContentSubmissionV1> {
+    if (this.pending !== null) {
+      throw new PendingSubmissionError("An unresolved submission must be reconciled before another can start");
     }
     let envelope: PendingSubmissionEnvelopeV1;
     try {
@@ -441,26 +315,15 @@ export class TextSubmissionCoordinator {
         createdAt: this.now(),
       });
     } catch (error) {
-      const reason = error instanceof Error && error.name === "TextSubmissionContractError"
+      const reason = error instanceof TextSubmissionContractError
         ? "local_validation_failed"
         : "serialization_failed";
       this.setState({ status: "transport_failure", reason });
       throw error;
     }
-    try {
-      await this.storage.save(envelope);
-    } catch (error) {
-      if (error instanceof PendingSubmissionStorageConflictError) return this.adoptAfterSaveConflict(error);
-      this.setState({ status: "transport_failure", reason: "durable_storage_failed" });
-      throw error;
-    }
     this.pending = envelope;
-    this.pendingExactEnvelope = envelope;
-    this.setState(reducePostComposerState(this.currentState, {
-      type: "submit_requested",
-      pending_request_id: envelope.pending_request_id,
-    }));
-    return envelope;
+    this.setState({ status: "submitting", pending_request_id: envelope.pending_request_id });
+    return this.dispatchPending(envelope);
   }
 
   private async dispatchPending(envelope: PendingSubmissionEnvelopeV1): Promise<TextContentSubmissionV1> {
@@ -469,162 +332,44 @@ export class TextSubmissionCoordinator {
       snapshot = await this.transport.dispatch(envelope);
     } catch (error) {
       if (error instanceof IdempotencyConflictError) {
-        try {
-          await this.persistPendingMetadata(envelope, {
-            issue: { kind: "idempotency_conflict", submission_id: error.submission_id },
-            submission_id: error.submission_id,
-          });
-        } catch {
-          this.pending = envelope;
-          this.setState(reducePostComposerState(this.currentState, { type: "ambiguous_transport_observed" }));
-          throw error;
-        }
+        // The key is already bound to a submission. Keep the request so the
+        // read below can learn the authoritative outcome; never rebuild it.
         this.pending = { ...envelope, submission_id: error.submission_id };
         this.setState({
           status: "reconciling",
           pending_request_id: envelope.pending_request_id,
           submission_id: error.submission_id,
-          issue: { kind: "idempotency_conflict", submission_id: error.submission_id },
         });
         throw error;
       }
-      if (error instanceof TextSubmissionServerRejectionError) {
-        if (!isDefinitiveServerRejection(error)) {
-          this.setState(reducePostComposerState(this.currentState, { type: "ambiguous_transport_observed" }));
-          throw error;
-        }
-        try {
-          await this.persistPendingMetadata(envelope, { issue: { kind: "server_rejection", status: error.status, code: error.code } });
-        } catch {
-          this.setState(reducePostComposerState(this.currentState, { type: "ambiguous_transport_observed" }));
-          throw error;
-        }
-        this.setState({
-          status: "reconciling",
-          pending_request_id: envelope.pending_request_id,
-          issue: { kind: "server_rejection", status: error.status, code: error.code },
-        });
+      if (error instanceof TextSubmissionServerRejectionError && error.definitive) {
+        // A definitive rejection cannot become a post; release the request and
+        // let the author correct the still-open form.
+        this.pending = null;
+        this.setState({ status: "editing" });
         throw error;
       }
-      this.setState(reducePostComposerState(this.currentState, { type: "ambiguous_transport_observed" }));
+      this.setState({ status: "reconciling", pending_request_id: envelope.pending_request_id });
       throw error;
     }
-    // A decoded snapshot is authoritative even if browser cleanup is
-    // temporarily unavailable. The retained record is safe to replay by key.
-    try {
-      await this.storage.remove(envelope.pending_request_id);
-    } catch {
-      // Cleanup is best effort after authority; it must not become a false
-      // transport failure or replace the server-owned projection.
-    }
     this.pending = null;
-    this.pendingExactEnvelope = null;
-    this.setState(reducePostComposerState(this.currentState, {
-      type: "authoritative_snapshot_received",
-      snapshot,
-    }));
+    this.setState(projectTextSubmission(snapshot));
     return snapshot;
   }
 
-  async submit(request: TextContentSubmissionRequestEnvelopeV1): Promise<TextContentSubmissionV1> {
-    if (!this.canStartNewRequest()) throw new Error("An unresolved submission must remain separate from a new draft");
-    const envelope = await this.saveBeforeDispatch(request);
-    return this.dispatchPending(envelope);
-  }
-
-  async restore(): Promise<PostComposerState> {
-    const records = await this.loadRecords();
-    const ordered = [...records].sort((left, right) => left.envelope.created_at.localeCompare(right.envelope.created_at) || left.pending_request_id.localeCompare(right.pending_request_id));
-    const unresolved = ordered[0];
-    if (unresolved === undefined) {
-      this.pending = null;
-      this.pendingExactEnvelope = null;
-      return this.setState(initialPostComposerState);
-    }
-    this.pending = unresolved.submission_id !== unresolved.envelope.submission_id
-      ? { ...unresolved.envelope, submission_id: unresolved.submission_id }
-      : unresolved.envelope;
-    this.pendingExactEnvelope = unresolved.envelope;
-    const issue = ordered.length > 1
-      ? { kind: "storage_conflict" as const, record_count: ordered.length }
-      : unresolved.issue;
-    return this.setState(this.pendingState(this.pending, issue));
-  }
-
+  /** Read the known submission, or replay the exact retained request. */
   async reconcile(): Promise<TextContentSubmissionV1> {
-    if (this.pending === null) {
-      await this.restore();
-    }
-    if (this.pending === null) throw new Error("No pending text submission");
-    if (this.currentState.status === "reconciling" && this.currentState.issue !== undefined) {
-      throw new Error("This saved request requires explicit resolution before replay");
-    }
-    if (this.pending.submission_id !== null) {
-      let knownSnapshot: TextContentSubmissionV1 | null;
-      try {
-        knownSnapshot = await this.transport.read(this.pending.submission_id);
-      } catch (error) {
-        this.setState(reducePostComposerState(this.currentState, { type: "reconciliation_attempt_ambiguous" }));
-        throw error;
+    const envelope = this.pending;
+    if (envelope === null) throw new PendingSubmissionError("No unresolved text submission to reconcile");
+    if (envelope.submission_id !== null) {
+      const knownSnapshot = await this.transport.read(envelope.submission_id);
+      if (knownSnapshot !== null) {
+        this.pending = null;
+        this.setState(projectTextSubmission(knownSnapshot));
+        return knownSnapshot;
       }
-      if (knownSnapshot !== null) return this.acceptAuthoritativeSnapshot(this.pending, knownSnapshot);
     }
-    this.setState(reducePostComposerState(this.currentState, { type: "reconciliation_retry_requested" }));
-    return this.dispatchPending(this.pending);
-  }
-
-  private async acceptAuthoritativeSnapshot(
-    envelope: PendingSubmissionEnvelopeV1,
-    snapshot: TextContentSubmissionV1,
-  ): Promise<TextContentSubmissionV1> {
-    try {
-      await this.storage.remove(envelope.pending_request_id);
-    } catch {
-      // The server snapshot is authoritative; cleanup can be retried safely.
-    }
-    this.pending = null;
-    this.pendingExactEnvelope = null;
-    this.setState(reducePostComposerState(this.currentState, {
-      type: "authoritative_snapshot_received",
-      snapshot,
-    }));
-    return snapshot;
-  }
-
-  async discardRejectedRequest(): Promise<RestoredTextSubmissionDraft> {
-    if (this.pending === null) await this.restore();
-    const state = this.currentState;
-    if (
-      this.pending === null
-      || state.status !== "reconciling"
-      || !isDiscardablePendingSubmissionIssue(state.issue)
-    ) {
-      throw new Error("Only a definitively rejected request may be discarded");
-    }
-    const draft = decodePendingSubmissionDraft(this.pending);
-    await this.storage.remove(this.pending.pending_request_id);
-    this.pending = null;
-    this.pendingExactEnvelope = null;
-    this.setState(reducePostComposerState(state, { type: "discard_rejected_request" }));
-    return draft;
-  }
-
-  resolveOldestPending(): PostComposerState {
-    return this.setState(reducePostComposerState(this.currentState, { type: "resolve_oldest_pending" }));
-  }
-
-  startNewDraft(): PostComposerState {
-    if (this.currentState.status === "reconciling" && this.currentState.issue === undefined) {
-      return this.setState(reducePostComposerState(this.currentState, { type: "new_local_draft_started" }));
-    }
-    if (this.currentState.status === "published" || this.currentState.status === "manual_review" || this.currentState.status === "blocked" || this.currentState.status === "abandoned") {
-      return this.setState(initialPostComposerState);
-    }
-    return this.currentState;
-  }
-
-  private canStartNewRequest(): boolean {
-    return this.currentState.status === "editing" || this.currentState.status === "transport_failure";
+    return this.dispatchPending(envelope);
   }
 }
 

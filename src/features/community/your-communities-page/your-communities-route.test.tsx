@@ -163,7 +163,7 @@ describe("YourCommunitiesRouteView", () => {
     const post = () => container.querySelector<HTMLButtonElement>("[data-post-community-id]")!;
     post().click();
     await vi.waitFor(() => expect(container.textContent).toContain("couldn't load your community profiles"));
-    expect(document.body.textContent).not.toContain("Create or reactivate a public persona");
+    expect(document.body.textContent).not.toContain("Choose a profile for this community before posting");
     expect(contextualComposerOpen()).toBe(false);
     unavailable = false;
     post().click();
@@ -186,7 +186,7 @@ describe("YourCommunitiesRouteView", () => {
     await vi.waitFor(() => expect(container.textContent).toContain("Open Sea"));
     container.querySelector<HTMLButtonElement>("[data-post-community-id]")!.click();
     await vi.waitFor(() => expect(contextualComposerOpen()).toBe(true));
-    await vi.waitFor(() => expect(document.body.textContent).toContain("Create or reactivate a public persona"));
+    await vi.waitFor(() => expect(document.body.textContent).toContain("Choose a profile for this community before posting"));
     expect(document.body.textContent).not.toContain("persona-elsewhere");
     expect(document.body.textContent).not.toContain("persona-unbound");
   });

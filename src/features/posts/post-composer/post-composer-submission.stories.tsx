@@ -21,7 +21,6 @@ type Story = StoryObj<typeof meta>;
 function frame(state: PostComposerState, onRetry?: () => void) {
   return (
     <main class="w-full max-w-xl p-6">
-      <h1 class="mb-4 text-lg font-semibold">Create a post</h1>
       <PostComposerSubmission onRetry={onRetry} state={state} />
     </main>
   );
@@ -83,7 +82,6 @@ export const FailureRetry: Story = {
     const retry = () => setState(reducePostComposerState(state(), { type: "retry_requested", pending_request_id: "pending-request-2" }));
     return (
       <main class="w-full max-w-xl p-6">
-        <h1 class="mb-4 text-lg font-semibold">Create a post</h1>
         <PostComposerSubmission onRetry={retry} state={state()} />
       </main>
     );
@@ -100,16 +98,4 @@ export const Abandoned: Story = {
   play: async ({ canvasElement }) => {
     await expect(within(canvasElement).getByText(/cancelled before publication/)).toBeInTheDocument();
   },
-};
-
-export const LocalValidationFailure: Story = {
-  render: () => frame({ status: "transport_failure", reason: "local_validation_failed" }),
-};
-
-export const SerializationFailure: Story = {
-  render: () => frame({ status: "transport_failure", reason: "serialization_failed" }),
-};
-
-export const DurableStorageFailure: Story = {
-  render: () => frame({ status: "transport_failure", reason: "durable_storage_failed" }),
 };
