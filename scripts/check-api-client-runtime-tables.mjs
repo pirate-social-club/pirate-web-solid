@@ -8,15 +8,10 @@ const currentClient = resolve(
   appRoot,
   "node_modules/@pirate/api-client/src/generated/client.ts",
 );
-// Client 0.72.0, audited against 0.68.2. Success statuses are unchanged. The
-// HNS root-import responses gain the optional lifecycle projection; comment
-// reads and song-playback access are added; the song-reference reservation
-// response gains its frozen interval; reservation errors gain 403
-// eligibility_failed and a retryable 409 conflict; a video submission's intent
-// may be song_reference and a blocked one may carry song_reference_invalid with
-// song_reason_code; a post's song soundtrack carries render_mode. The song-video
-// interval preflight is newly consumed.
-const expectedDigest = "37f4340a73eec03262a5214710bbf0f3c58732ad0f572ce887e53131580daa6b";
+// Client 0.73.0, audited against 0.72.0. Operations and success statuses are
+// unchanged; the song processing_failed failure union gains the non-retryable
+// workflow_terminal_unconverged reason emitted by the operator recovery lane.
+const expectedDigest = "158e31c4e831d2211bb4868a39ceaef56b0609f73d9d7ea2368f2401d99aa53b";
 
 const operations = [
   "post_postsPostIdVideoPlaybackAccess",
