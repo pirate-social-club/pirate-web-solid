@@ -9,6 +9,8 @@ import { StudyV2RouteView } from "../../studying/study-v2-route-view.tsx";
 import type { PublicPostContentResponse, PublicPostRouteState } from "./public-post-route.model.ts";
 import { projectVideoDelivery } from "../video-submission/delivery-state";
 import { VideoPlayer } from "../video-submission/video-player";
+import { SongPlayer } from "../song-player/song-player.tsx";
+import { buttonVariants } from "../../../design-system";
 
 export interface PublicPostRouteViewProps {
   readonly state: PublicPostRouteState | PromiseLike<PublicPostRouteState>;
@@ -75,6 +77,8 @@ function PublicMetadata(props: { readonly state: Extract<PublicPostRouteState, {
 
 function PostDetail(props: { readonly response: PublicPostContentResponse }) {
   const body = () => displayBody(props.response);
+  const route = () => props.response.route;
+  const title = () => displayTitle(props.response);
   return (
     <main class="mx-auto w-full max-w-3xl px-4 py-8 md:px-8" data-public-post-state="content">
       <article
@@ -88,6 +92,19 @@ function PostDetail(props: { readonly response: PublicPostContentResponse }) {
         <Show when={body()}>{value => <p class="whitespace-pre-wrap">{value()}</p>}</Show>
         <Show when={props.response.content.post.post_type === "video"}>
           <VideoPlayer requiresAgeVerification={props.response.content.post.age_gate_policy === "18_plus"} postId={props.response.post_id} state={projectVideoDelivery(props.response.content.video)} />
+        </Show>
+        <Show when={props.response.content.post.post_type === "song"}>
+          <div class="mt-4 grid gap-4">
+            <SongPlayer postId={props.response.post_id} title={title()} />
+            <Show when={route()}>
+              {(songRoute) => (
+                <nav aria-label="Song activities" class="flex flex-wrap gap-3">
+                  <a class={buttonVariants({ variant: "secondary" })} href={songRoute().activity_paths.study}>Study</a>
+                  <a class={buttonVariants({ variant: "secondary" })} href={songRoute().activity_paths.karaoke}>Karaoke</a>
+                </nav>
+              )}
+            </Show>
+          </div>
         </Show>
       </article>
     </main>
