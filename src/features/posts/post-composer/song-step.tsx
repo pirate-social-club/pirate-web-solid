@@ -8,6 +8,8 @@ import { createSignal, Show } from "solid-js";
 import {
   Button,
   CardContent,
+  Checkbox,
+  CheckboxLabel,
   IconCaretDown,
   IconImage,
   IconMusicNote,
@@ -239,6 +241,22 @@ export function SongStep(props: {
             value={controller.fields.lyricsValue}
           />
         </Show>
+      </section>
+
+      <section class="space-y-3">
+        <Checkbox
+          aria-label="18+ content"
+          checked={controller.audience.ageGatePolicy === "18_plus"}
+          disabled={controller.audience.editingDisabled}
+          onChange={(checked) => controller.audience.setAgeGatePolicy(checked === true ? "18_plus" : "none")}
+        >
+          <CheckboxLabel class="grid gap-1">
+            <span>18+ content</span>
+            <span class="font-normal text-muted-foreground">
+              Mark this song for adults if its audio, lyrics, or artwork contains adult content.
+            </span>
+          </CheckboxLabel>
+        </Checkbox>
       </section>
 
       <section class="space-y-3">

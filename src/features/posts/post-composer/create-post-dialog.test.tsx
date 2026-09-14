@@ -567,7 +567,7 @@ describe("create post request", () => {
     expect(mediaTransport.commands).toHaveLength(0);
   });
 
-  test("routes a song through one reserve, start, finalize, and terms flow", async () => {
+  test("routes an author-declared 18+ song through one reserve, start, finalize, and terms flow", async () => {
     const mediaTransport = new ProductionMediaTransport();
     const ids = ["reserve-key", "start-key", "finalize-key", "terms-key"];
     let idIndex = 0;
@@ -583,7 +583,27 @@ describe("create post request", () => {
 
     await new Promise<void>(resolve => setTimeout(resolve, 0));
     await uploadAudio();
-    await continueToReview();
+    const adultRating = document.body.querySelector<HTMLInputElement>('input[aria-label="18+ content"]');
+    expect(adultRating).not.toBeNull();
+    adultRating!.click();
+    await vi.waitFor(() => expect(
+      document.body.querySelector<HTMLInputElement>('input[aria-label="18+ content"]')?.checked,
+    ).toBe(true));
+    await vi.waitFor(() => expect(button("Continue").disabled).toBe(false));
+    button("Continue").click();
+    await vi.waitFor(() => expect(document.body.textContent).toContain("What others may do with this song"));
+    button("Back").click();
+    await vi.waitFor(() => {
+      const retainedRating = document.body.querySelector<HTMLInputElement>('input[aria-label="18+ content"]');
+      expect(retainedRating?.checked).toBe(true);
+      expect(retainedRating?.disabled).toBe(true);
+    });
+    button("Continue").click();
+    await vi.waitFor(() => expect(document.body.textContent).toContain("What others may do with this song"));
+    await vi.waitFor(() => expect(button("Continue").disabled).toBe(false));
+    button("Continue").click();
+    await vi.waitFor(() => expect(document.body.textContent).toContain("Permissions"));
+    await vi.waitFor(() => expect(button("Publish song").disabled).toBe(false));
     button("Publish song").click();
 
     await vi.waitFor(() => expect(mediaTransport.commands.map(command => command.kind)).toEqual([
@@ -602,7 +622,7 @@ describe("create post request", () => {
       return decoded as { persona_id?: string; author_declared_rating?: string };
     }));
     expect(bodies.every(body => body.persona_id === "persona-one")).toBe(true);
-    expect(bodies.find((_body, index) => mediaTransport.commands[index]?.kind === "start")?.author_declared_rating).toBe("general");
+    expect(bodies.find((_body, index) => mediaTransport.commands[index]?.kind === "start")?.author_declared_rating).toBe("adult_18");
   });
 
   test("binds reviewed lyrics and named collaborators before publishing", async () => {
