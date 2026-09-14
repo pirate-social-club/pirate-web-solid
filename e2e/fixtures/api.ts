@@ -1,6 +1,7 @@
 import { expect, type Page } from "playwright/test";
 import type {
   GetCommunityCreationIntentsIntentIdResponse,
+  GetCommunitiesCommunityIdPreviewResponse,
   GetCommunitiesCommunityIdMeCapabilitiesResponse,
   GetPersonasResponse,
   GetUsersMeCommunityMembershipsResponse,
@@ -31,6 +32,9 @@ export function readonlyApi(page: Page) {
     homeFeed: () => get(page, "/api/feed/home"),
     creationIntent: (intentId: string) => get<GetCommunityCreationIntentsIntentIdResponse>(
       page, `/api/community-creation-intents/${encodeURIComponent(intentId)}`,
+    ),
+    communityPreview: (communityId: string) => get<GetCommunitiesCommunityIdPreviewResponse>(
+      page, `/api/communities/${encodeURIComponent(communityId)}/preview`,
     ),
     personas: () => get<GetPersonasResponse>(page, "/api/personas"),
     ownerCapabilities: (communityId: string) => get<GetCommunitiesCommunityIdMeCapabilitiesResponse>(
