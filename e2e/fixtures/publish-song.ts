@@ -33,7 +33,12 @@ export async function publishSongAndVerifyPlayback(page: Page, marker: string, a
   const title = composer.getByLabel("Song title", { exact: false });
   if (await title.count() > 0) await title.fill(marker);
 
-  // Song, Lyrics, Rights, Review. Each advance waits for the exact next
+  if (lyrics !== "") {
+    await composer.getByRole("button", { name: "Add lyrics (optional)" }).click();
+    await composer.getByLabel("Lyrics", { exact: true }).fill(lyrics);
+  }
+
+  // Song, Rights, Review. Each advance waits for the exact next
   // step; unrelated status copy changing cannot satisfy the assertion.
   const forward = composer.locator("[data-composer-forward]");
   const currentStep = (name: string) => composer
@@ -41,9 +46,8 @@ export async function publishSongAndVerifyPlayback(page: Page, marker: string, a
     .and(composer.locator('[aria-current="step"]'));
 
   await forward.click();
-  await expect(currentStep("Lyrics")).toBeVisible({ timeout: 120_000 });
+  await expect(currentStep("Rights")).toBeVisible({ timeout: 120_000 });
   if (lyrics !== "") {
-    await composer.getByLabel("Lyrics", { exact: true }).fill(lyrics);
     const [saved] = await Promise.all([
       page.waitForResponse(response => response.request().method() === "POST"
         && /\/media-post-submissions\/[^/]+\/lyrics$/u.test(new URL(response.url()).pathname)),
@@ -51,8 +55,6 @@ export async function publishSongAndVerifyPlayback(page: Page, marker: string, a
     ]);
     expect(saved.ok()).toBe(true);
   }
-  await forward.click();
-  await expect(currentStep("Rights")).toBeVisible({ timeout: 120_000 });
   await forward.click();
   await expect(currentStep("Review")).toBeVisible({ timeout: 120_000 });
 
