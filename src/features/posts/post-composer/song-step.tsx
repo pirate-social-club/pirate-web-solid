@@ -22,7 +22,7 @@ import {
   Type,
 } from "../../../design-system";
 import { cn } from "../../../design-system";
-import { publicSongAudioIssue } from "../media-submission/contracts";
+import { PUBLIC_SONG_LYRICS_MAX_CHARACTERS, publicSongAudioIssue } from "../media-submission/contracts";
 import { extractEmbeddedAudioArtworkFile, extractEmbeddedAudioTitle } from "./audio-artwork";
 import { PostComposerAttachmentCard } from "./attachment-card";
 import { PostComposerDerivativeSection } from "./derivative-section";
@@ -235,7 +235,7 @@ export function SongStep(props: {
             aria-label="Lyrics"
             class="min-h-48 resize-y"
             disabled={audioLocked()}
-            maxlength={10_000}
+            maxlength={PUBLIC_SONG_LYRICS_MAX_CHARACTERS}
             onChange={(event) => controller.fields.onLyricsValueChange?.(event.currentTarget.value)}
             placeholder="Add lyrics (optional)"
             value={controller.fields.lyricsValue}

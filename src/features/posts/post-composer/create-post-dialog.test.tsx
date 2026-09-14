@@ -670,6 +670,10 @@ describe("create post request", () => {
     await vi.waitFor(() => expect(document.body.textContent).not.toContain("Public-song v1 currently accepts MP3 only."));
     expect(document.body.textContent).toContain("RIGHT.MP3");
     expect(mediaTransport.commands).toHaveLength(0);
+    button("Add lyrics (optional)").click();
+    await vi.waitFor(() => expect(
+      document.body.querySelector<HTMLTextAreaElement>("textarea[aria-label='Lyrics']")?.maxLength,
+    ).toBe(200_000));
 
     const oversized = new File([new Uint8Array([1])], "large.mp3", { type: "audio/mpeg" });
     Object.defineProperty(oversized, "size", { value: 64 * 1024 * 1024 + 1 });

@@ -25,6 +25,8 @@ export class SongSubmissionContractError extends Error {
 }
 
 export const PUBLIC_SONG_AUDIO_MAX_BYTES = 64 * 1024 * 1024;
+export const PUBLIC_SONG_LYRICS_MAX_CHARACTERS = 200_000;
+export const PUBLIC_SONG_LYRICS_MAX_BYTES = 800_000;
 
 export function publicSongAudioIssue(
   file: Pick<File, "name" | "size" | "type">,
@@ -188,7 +190,9 @@ export function buildSongLyricsInput(input: {
   readonly expectedAudioRevision: number;
   readonly lyrics: string;
 }): PostMediaPostSubmissionsSubmissionIdLyricsInput {
-  if (input.lyrics.length === 0 || input.lyrics.length > 200_000 || new TextEncoder().encode(input.lyrics).byteLength > 800_000) {
+  if (input.lyrics.length === 0
+    || input.lyrics.length > PUBLIC_SONG_LYRICS_MAX_CHARACTERS
+    || new TextEncoder().encode(input.lyrics).byteLength > PUBLIC_SONG_LYRICS_MAX_BYTES) {
     throw new SongSubmissionContractError("Lyrics must be non-empty and within the published text bounds");
   }
   if (!Number.isInteger(input.expectedCreationRevision) || input.expectedCreationRevision < 1
