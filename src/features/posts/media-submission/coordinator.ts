@@ -379,6 +379,9 @@ export class MediaSubmissionCoordinator {
     if (snapshot === null || current.reservation === null) throw new Error("The upload reservation or submission is missing");
     if (snapshot.status !== "processing" || snapshot.phase !== "awaiting_upload") return snapshot;
     if (current.upload_status !== "uploaded") {
+      if (Date.parse(current.reservation.upload.expires_at) <= Date.now()) {
+        throw new Error("The upload reservation expired. Cancel this submission and start again.");
+      }
       this.save({ ...current, upload_status: "uploading" });
       this.setView({ status: "uploading", submissionId: snapshot.submission_id, bytesSent: 0, bytesTotal: current.audio.size });
       try {

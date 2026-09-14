@@ -133,6 +133,12 @@ class MemoryMediaTransport implements MediaSubmissionTransport {
       });
     } else if (command.kind === "reference") {
       this.current = snapshot({ ...this.current, status: "processing", phase: "analysis" });
+    } else if (command.kind === "cancel") {
+      this.current = snapshot({
+        ...this.current,
+        status: "abandoned",
+        reason_code: "author_cancelled_before_finalize",
+      });
     }
     return this.current;
   }
@@ -266,6 +272,20 @@ describe("media submission coordinator", () => {
     expect(transport.kinds.filter(kind => kind === "finalize")).toHaveLength(1);
   });
 
+  test("refuses an expired upload URL and preserves the cancel-and-restart path", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2100-01-01T00:00:00Z"));
+    const transport = new MemoryMediaTransport();
+    const coordinator = await started(transport);
+    await expect(coordinator.uploadAndFinalize()).rejects.toThrow(
+      "The upload reservation expired. Cancel this submission and start again.",
+    );
+    expect(transport.uploadCount).toBe(0);
+    await expect(coordinator.cancel()).resolves.toMatchObject({ status: "abandoned" });
+    coordinator.discardTerminal();
+    expect(coordinator.currentRecord).toBeNull();
+  });
+
   test("drops a conflicting command so a later action starts from the snapshot", async () => {
     const transport = new MemoryMediaTransport();
     const coordinator = await started(transport);
@@ -319,7 +339,7 @@ describe("media submission coordinator", () => {
     expect(transport.kinds).not.toContain("cancel");
 
     transport.current = snapshot();
-    await expect(coordinator.cancel()).resolves.toMatchObject({ status: "processing" });
+    await expect(coordinator.cancel()).resolves.toMatchObject({ status: "abandoned" });
     expect(transport.kinds).toContain("cancel");
   });
 
