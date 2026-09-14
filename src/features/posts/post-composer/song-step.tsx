@@ -22,6 +22,7 @@ import {
   Type,
 } from "../../../design-system";
 import { cn } from "../../../design-system";
+import { publicSongAudioIssue } from "../media-submission/contracts";
 import { extractEmbeddedAudioArtworkFile, extractEmbeddedAudioTitle } from "./audio-artwork";
 import { PostComposerAttachmentCard } from "./attachment-card";
 import { PostComposerDerivativeSection } from "./derivative-section";
@@ -31,8 +32,6 @@ import type { PostComposerController } from "./controller";
 import type { SongFlowRuntime } from "./types";
 
 const acceptedImageMimeTypes = "image/jpeg,image/png,image/webp,image/gif,image/avif";
-const mp3OnlyCopy = "Public-song v1 currently accepts MP3 only.";
-
 function titleFromFilename(name: string): string {
   const index = name.lastIndexOf(".");
   return (index > 0 ? name.slice(0, index) : name).trim();
@@ -65,8 +64,9 @@ export function SongStep(props: {
   async function selectFile(file: File | undefined) {
     if (!file || audioLocked()) return;
     const selection = ++fileSelection;
-    if (file.type !== "audio/mpeg" || !file.name.toLowerCase().endsWith(".mp3")) {
-      setFileError(mp3OnlyCopy);
+    const issue = publicSongAudioIssue(file);
+    if (issue !== null) {
+      setFileError(issue);
       return;
     }
     setFileError(null);

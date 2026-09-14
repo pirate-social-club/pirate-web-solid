@@ -169,6 +169,33 @@ describe("media submission coordinator", () => {
     expect(coordinator.currentRecord?.upload_status).toBe("sealed");
   });
 
+  test("rejects oversized audio before retaining a command and accepts a smaller replacement", async () => {
+    const transport = new MemoryMediaTransport();
+    const coordinator = createMediaSubmissionCoordinator({ transport });
+    const oversized = new File([new Uint8Array([1])], "large.mp3", { type: "audio/mpeg" });
+    Object.defineProperty(oversized, "size", { value: 64 * 1024 * 1024 + 1 });
+    await expect(coordinator.begin({
+      communityId: "community-1",
+      personaId: "persona-one",
+      audio: oversized,
+      title: "Too large",
+      songType: "original",
+      authorDeclaredRating: "general",
+    })).rejects.toThrow("Song audio must be 64 MiB or smaller.");
+    expect(coordinator.currentRecord).toBeNull();
+    expect(transport.commands).toHaveLength(0);
+
+    await coordinator.begin({
+      communityId: "community-1",
+      personaId: "persona-one",
+      audio: new File([new Uint8Array([1])], "smaller.mp3", { type: "audio/mpeg" }),
+      title: "Smaller",
+      songType: "original",
+      authorDeclaredRating: "general",
+    });
+    expect(transport.kinds).toEqual(["reserve", "start"]);
+  });
+
   test("replays the exact retained start command after an ambiguous response", async () => {
     const transport = new MemoryMediaTransport();
     const coordinator = createMediaSubmissionCoordinator({ transport });
@@ -289,6 +316,24 @@ describe("media submission coordinator", () => {
       published_resource: { post_id: "post-1", href: "/posts/post-1" },
     } as MediaSubmissionSnapshot;
     transport.current = published;
+    await coordinator.refresh();
+    coordinator.discardTerminal();
+    expect(coordinator.currentRecord).toBeNull();
+    expect(coordinator.state).toEqual({ status: "editing" });
+  });
+
+  test("allows a non-retryable processing failure to be discarded", async () => {
+    const transport = new MemoryMediaTransport();
+    const coordinator = await started(transport);
+    // SAFETY: the base snapshot is a processing variant; this patch selects
+    // the non-retryable failure variant returned by the API.
+    transport.current = snapshot({
+      status: "processing_failed",
+      phase: undefined,
+      reason_code: "workflow_terminal_unconverged",
+      retry_count: 0,
+      retryable: false,
+    } as Partial<MediaSubmissionSnapshot>);
     await coordinator.refresh();
     coordinator.discardTerminal();
     expect(coordinator.currentRecord).toBeNull();

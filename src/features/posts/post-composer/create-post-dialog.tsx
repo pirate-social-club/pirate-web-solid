@@ -13,10 +13,7 @@ import {
   TextFieldLabel,
 } from "../../../design-system";
 import type { MediaSubmissionSnapshot } from "../media-submission/contracts";
-import {
-  createMediaSubmissionCoordinator,
-  type MediaSubmissionCoordinator,
-} from "../media-submission/coordinator";
+import { createMediaSubmissionCoordinator } from "../media-submission/coordinator";
 import type { SongSubmissionView } from "../media-submission/projection";
 import type { MediaSubmissionTransport } from "../media-submission/transport";
 import { royaltySplitIssue } from "./earnings-split";
@@ -534,7 +531,9 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
     if (disposed || !props.open || mode() !== "song" || mediaBusy() || lyricsBusy()
       || observationPaused()) return;
     const view = mediaView();
-    if (view.status !== "processing" && view.status !== "manual_review") return;
+    if (view.status !== "processing"
+      && view.status !== "manual_review"
+      && (view.status !== "processing_failed" || view.retryable)) return;
     if (mediaCoordinator?.currentRecord?.submission_id == null) return;
     if (Date.now() < observationRetryAt) return;
     if (++observationCount > 200) { setObservationPaused(true); return; }
@@ -621,7 +620,8 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
         <Show when={lyricsCanSave()}>
           <Button disabled={lyricsBusy()} type="button" onClick={() => void saveLyrics()}>Save reviewed lyrics</Button>
         </Show>
-        <Show when={terminalMediaView(mediaView()) && mediaView().status !== "published"}>
+        <Show when={(terminalMediaView(mediaView()) && mediaView().status !== "published")
+          || mediaView().status === "processing_failed"}>
           <Button disabled={mediaBusy()} type="button" variant="outline" onClick={() => discardTerminalSong()}>Discard and start over</Button>
         </Show>
       </div>

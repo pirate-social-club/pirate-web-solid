@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 
 import {
   basisPointsToPercentText,
+  buildReserveSongAudioInput,
   buildSongLyricsInput,
   buildSongTermsInput,
   buildStartSongInput,
@@ -10,6 +11,27 @@ import {
 } from "./contracts";
 
 describe("song media command contracts", () => {
+  test("accepts only MP3 audio within the 64 MiB reservation bound", () => {
+    const input = {
+      communityId: "community-1",
+      personaId: "persona-author",
+      idempotencyKey: "reserve-1",
+      file: { name: "song.mp3", size: 64 * 1024 * 1024, type: "audio/mpeg" },
+    };
+    expect(buildReserveSongAudioInput(input).body).toMatchObject({
+      expected_content_type: "audio/mpeg",
+      expected_size_bytes: 64 * 1024 * 1024,
+    });
+    expect(() => buildReserveSongAudioInput({
+      ...input,
+      file: { ...input.file, size: 64 * 1024 * 1024 + 1 },
+    })).toThrow("Song audio must be 64 MiB or smaller.");
+    expect(() => buildReserveSongAudioInput({
+      ...input,
+      file: { ...input.file, name: "song.wav", type: "audio/wav" },
+    })).toThrow("Public-song v1 currently accepts MP3 only.");
+  });
+
   test("serializes commercial remix percentages as exact integer basis points", () => {
     expect(percentTextToBasisPoints("10")).toBe(1_000);
     expect(percentTextToBasisPoints("10.25")).toBe(1_025);
