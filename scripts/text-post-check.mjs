@@ -368,18 +368,14 @@ try {
   await runTerminalScenario(browser, "published", "Post published.");
   await runTerminalScenario(browser, "manual-review", "awaiting review");
   await runTerminalScenario(browser, "blocked", "blocked by community policy");
-  await runTerminalScenario(browser, "conflict", "conflicts with an existing submission (submission-conflict)");
+  // A typed conflict is an unresolved request, not a saved-draft recovery: the
+  // composer reports that the outcome is being checked and offers a retry.
+  await runTerminalScenario(browser, "conflict", "Checking whether your post was accepted");
 
   const { context, page } = await authenticatedPage(browser);
   try {
-    let form = await openComposer(page, "lost-response", "Exact lost response body");
+    const form = await openComposer(page, "lost-response", "Exact lost response body");
     await form.getByText("Checking whether your post was accepted", { exact: false }).waitFor({ state: "visible" });
-    await page.reload({ waitUntil: "domcontentloaded" });
-    await page.locator("#app-root[data-hydrated='true']").waitFor({ state: "attached" });
-    await page.waitForLoadState("networkidle");
-    await page.getByRole("button", { name: "Post" }).click();
-    form = page.getByRole("form", { name: "Create a post" });
-    await form.getByRole("button", { name: "Check again" }).waitFor({ state: "visible" });
     await form.getByRole("button", { name: "Check again" }).click();
     await form.waitFor({ state: "hidden" });
   } finally {
@@ -387,7 +383,7 @@ try {
   }
 
   assert(lostAttempts.length === 2, `expected two lost-response attempts, received ${lostAttempts.length}`);
-  assert(lostAttempts[0] === lostAttempts[1], "lost-response reload did not resend byte-identical JSON");
+  assert(lostAttempts[0] === lostAttempts[1], "lost-response retry did not resend byte-identical JSON");
   assert(requests.length === 6, `expected six text POSTs, received ${requests.length}`);
   assert(sessionRequests.some(request => request.path === "/users/me"), "session resolution skipped GET /users/me");
   assert(sessionRequests.some(request => request.path === "/personas"), "session resolution skipped GET /personas");
@@ -404,7 +400,7 @@ try {
   }
   console.log(JSON.stringify({
     ok: true,
-    scenarios: ["published", "manual_review", "blocked", "typed_conflict", "lost_response_reload"],
+    scenarios: ["published", "manual_review", "blocked", "typed_conflict", "lost_response_replay"],
     exactReplay: true,
     proxy: true,
     principal: "user-text-e2e",

@@ -9,8 +9,10 @@ import {
 
 const communityId = "community_123e4567-e89b-42d3-a456-426614174000";
 
+type JoinEligibilityV1 = Exclude<Awaited<ReturnType<CommunityEngagementApiClient["get_communitiesCommunityIdJoinEligibility"]>>, { readonly join_eligibility_version: "provider_choice_v2" }>;
+
 function eligibility(
-  overrides: Partial<Awaited<ReturnType<CommunityEngagementApiClient["get_communitiesCommunityIdJoinEligibility"]>>> = {},
+  overrides: Partial<JoinEligibilityV1> = {},
 ) {
   return {
     community: communityId,
@@ -121,5 +123,29 @@ describe("Community engagement API", () => {
     await expect(noCsrf.follow(communityId)).rejects.toEqual(expect.objectContaining({ code: "csrf_required" }));
     expect(() => projectCommunityJoinAction(eligibility({ community: "community_other" }), communityId))
       .toThrow(CommunityEngagementLocalError);
+  });
+});
+
+
+describe("composed join provider choice", () => {
+  const composed = {
+    ...eligibility(), join_eligibility_version: "provider_choice_v2" as const,
+    status: "verification_required" as const, joinable_now: false,
+    requirements: {
+      human_identity: { requirement: "human_identity" as const, status: "satisfied" as const, provider_id: "very.web" as const },
+      nationality: { requirement: "nationality" as const, status: "pending" as const,
+        requirement_hash: "hash-nationality", provider_id: "self.pass", accepted_provider_ids: ["self.pass", "zkpassport"],
+        ceremony_intent_id: "nationality-child-1", generation: 1 },
+    },
+    next_action: { kind: "start_verification" as const, requirement: "nationality" as const, provider_id: "self.pass", intent_id: "nationality-child-1" },
+  };
+  test("carries both server-owned choices and refuses a mismatched child or unsupported alternative", () => {
+    expect(projectCommunityJoinAction(composed, communityId)).toMatchObject({
+      kind: "verify_document", requirement: { acceptedProviderIds: ["self.pass", "zkpassport"], intentId: "nationality-child-1", generation: 1 },
+    });
+    expect(() => projectCommunityJoinAction({ ...composed, next_action: { ...composed.next_action, intent_id: "stale-child" } }, communityId)).toThrow();
+    expect(() => projectCommunityJoinAction({ ...composed, requirements: { ...composed.requirements,
+      nationality: { ...composed.requirements.nationality, accepted_provider_ids: ["self.pass", "unknown"] },
+    } }, communityId)).toThrow();
   });
 });

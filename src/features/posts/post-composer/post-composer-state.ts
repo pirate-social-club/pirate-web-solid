@@ -1,11 +1,6 @@
 import type { TextContentSubmissionV1 } from "./text-submission-contract";
-import { isDiscardablePendingSubmissionIssue, type PendingSubmissionIssue } from "./pending-submission";
 
-export type TransportFailureReason = "local_validation_failed" | "serialization_failed" | "durable_storage_failed";
-
-export type ReconciliationIssue =
-  | PendingSubmissionIssue
-  | { readonly kind: "storage_conflict"; readonly record_count: number };
+export type TransportFailureReason = "local_validation_failed" | "serialization_failed";
 
 /** Closed Solid projection for the text creation operation in spec 013 §8. */
 export type PostComposerState =
@@ -15,7 +10,6 @@ export type PostComposerState =
       readonly status: "reconciling";
       readonly pending_request_id: string;
       readonly submission_id?: string;
-      readonly issue?: ReconciliationIssue;
     }
   | { readonly status: "published"; readonly submission_id: string; readonly post_href: string }
   | {
@@ -35,13 +29,7 @@ export type PostComposerEvent =
   | { readonly type: "authoritative_snapshot_received"; readonly snapshot: TextContentSubmissionV1 }
   | { readonly type: "ambiguous_transport_observed" }
   | { readonly type: "pre_dispatch_failure"; readonly reason: TransportFailureReason }
-  | { readonly type: "reconciliation_attempt_ambiguous" }
-  | { readonly type: "reconciliation_retry_requested" }
-  | { readonly type: "new_local_draft_started" }
-  | { readonly type: "resolve_oldest_pending" }
-  | { readonly type: "discard_rejected_request" }
-  | { readonly type: "retry_requested"; readonly pending_request_id: string }
-  | { readonly type: "edit_requested" };
+  | { readonly type: "retry_requested"; readonly pending_request_id: string };
 
 export const initialPostComposerState: PostComposerState = { status: "editing" };
 
@@ -101,25 +89,9 @@ export function reducePostComposerState(
       return state.status === "editing" || state.status === "submitting"
         ? { status: "transport_failure", reason: event.reason }
         : state;
-    case "reconciliation_attempt_ambiguous":
-    case "reconciliation_retry_requested":
-      return state;
-    case "new_local_draft_started":
-      return state.status === "reconciling" && state.issue === undefined ? { status: "editing" } : state;
-    case "resolve_oldest_pending":
-      return state.status === "reconciling" && state.issue?.kind === "storage_conflict"
-        ? { status: "reconciling", pending_request_id: state.pending_request_id, ...(state.submission_id === undefined ? {} : { submission_id: state.submission_id }) }
-        : state;
-    case "discard_rejected_request":
-      return state.status === "reconciling"
-          && isDiscardablePendingSubmissionIssue(state.issue)
-        ? { status: "editing" }
-        : state;
     case "retry_requested":
       return state.status === "transport_failure"
         ? { status: "submitting", pending_request_id: event.pending_request_id }
         : state;
-    case "edit_requested":
-      return state.status === "transport_failure" ? { status: "editing" } : state;
   }
 }

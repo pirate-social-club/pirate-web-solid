@@ -1,9 +1,9 @@
 import { defineConfig, devices } from "playwright/test";
 
-// Authenticated pages can contain identity data; do not retain automatic DOM snapshots.
-process.env.PLAYWRIGHT_NO_COPY_PROMPT = "1";
+import { e2eBaseURL } from "./fixtures/environment.ts";
 
-const baseURL = process.env.E2E_BASE_URL?.trim() || "https://web-next-staging.pirate.sc";
+// Raw DOM error contexts can contain credentials during profile confirmation.
+process.env.PLAYWRIGHT_NO_COPY_PROMPT = "1";
 
 export default defineConfig({
   testDir: ".",
@@ -16,7 +16,7 @@ export default defineConfig({
   outputDir: "../.tmp/playwright-e2e",
   reporter: [["list"]],
   use: {
-    baseURL,
+    baseURL: e2eBaseURL(),
     screenshot: "only-on-failure",
     trace: "retain-on-failure",
     video: "off",

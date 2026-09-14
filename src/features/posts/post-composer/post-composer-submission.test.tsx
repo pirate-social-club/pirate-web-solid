@@ -52,11 +52,6 @@ const reviewSnapshot = {
   review_ref: "review-1",
 };
 
-const unavailableReviewSnapshot = {
-  ...reviewSnapshot,
-  result: { decision: "manual_review" as const, reason_code: "moderation_unavailable" as const },
-};
-
 const blockedSnapshot = {
   ...publishedSnapshot,
   status: "blocked" as const,
@@ -69,17 +64,13 @@ function submittingState(): PostComposerState {
 }
 
 describe("post composer state", () => {
-  test("uses required IDs and reconciles ambiguous dispatches", () => {
+  test("moves an ambiguous dispatch into reconciliation", () => {
     const submitting = submittingState();
     expect(submitting).toEqual({ status: "submitting", pending_request_id: "pending-1" });
     expect(reducePostComposerState(submitting, { type: "ambiguous_transport_observed" })).toEqual({
       status: "reconciling",
       pending_request_id: "pending-1",
     });
-    expect(reducePostComposerState(
-      { status: "reconciling", pending_request_id: "pending-1" },
-      { type: "reconciliation_attempt_ambiguous" },
-    )).toEqual({ status: "reconciling", pending_request_id: "pending-1" });
   });
 
   test("projects every closed text publication outcome from an authoritative snapshot", () => {
@@ -95,9 +86,8 @@ describe("post composer state", () => {
     });
   });
 
-  test("keeps the three transport failure causes closed", () => {
-    const causes = ["local_validation_failed", "serialization_failed", "durable_storage_failed"] as const;
-    for (const reason of causes) {
+  test("keeps the two pre-dispatch failure causes closed", () => {
+    for (const reason of ["local_validation_failed", "serialization_failed"] as const) {
       expect(reducePostComposerState(initialPostComposerState, { type: "pre_dispatch_failure", reason })).toEqual({
         status: "transport_failure", reason,
       });
@@ -112,41 +102,6 @@ describe("post composer state", () => {
       status: "submitting", pending_request_id: "pending-2",
     });
   });
-
-  test("only discards definitively rejected reconciliation states", () => {
-    expect(reducePostComposerState({
-      status: "reconciling",
-      pending_request_id: "pending-1",
-      issue: { kind: "server_rejection", status: 400, code: "bad_request" },
-    }, { type: "discard_rejected_request" })).toEqual({ status: "editing" });
-    expect(reducePostComposerState({
-      status: "reconciling",
-      pending_request_id: "pending-1",
-      issue: { kind: "storage_conflict", record_count: 2 },
-    }, { type: "discard_rejected_request" })).toEqual({
-      status: "reconciling",
-      pending_request_id: "pending-1",
-      issue: { kind: "storage_conflict", record_count: 2 },
-    });
-  });
-
-  test("resolves only a storage conflict into plain reconciliation", () => {
-    expect(reducePostComposerState({
-      status: "reconciling",
-      pending_request_id: "pending-old",
-      issue: { kind: "storage_conflict", record_count: 2 },
-    }, { type: "resolve_oldest_pending" })).toEqual({
-      status: "reconciling",
-      pending_request_id: "pending-old",
-    });
-    expect(reducePostComposerState({
-      status: "reconciling",
-      pending_request_id: "pending-one",
-    }, { type: "resolve_oldest_pending" })).toEqual({
-      status: "reconciling",
-      pending_request_id: "pending-one",
-    });
-  });
 });
 
 describe("PostComposerSubmission", () => {
@@ -157,7 +112,7 @@ describe("PostComposerSubmission", () => {
     expect(container.textContent).not.toContain("Post published.");
   });
 
-  test("renders reconciliation without claiming success", () => {
+  test("renders reconciliation without claiming success and offers a check", () => {
     const onRetry = vi.fn();
     const container = render(() => <PostComposerSubmission onRetry={onRetry} state={{ status: "reconciling", pending_request_id: "pending-1" }} />);
     expect(container.textContent).toContain("Checking whether your post was accepted");
@@ -166,52 +121,18 @@ describe("PostComposerSubmission", () => {
     expect(onRetry).toHaveBeenCalledOnce();
   });
 
-  test("blocks replay for a conflict and renders moderation unavailability distinctly", () => {
-    const onRetry = vi.fn();
-    const onDiscard = vi.fn();
-    const conflict = render(() => <PostComposerSubmission
-      onDiscardAndEdit={onDiscard}
-      onRetry={onRetry}
-      state={{
-        status: "reconciling",
-        pending_request_id: "pending-1",
-        issue: { kind: "idempotency_conflict", submission_id: "sub-existing" },
-      }}
-    />);
-    expect(conflict.textContent).toContain("conflicts with an existing submission");
-    expect(conflict.textContent).toContain("Discard and edit");
-    conflict.querySelector("button")?.click();
-    expect(onDiscard).toHaveBeenCalledOnce();
-    conflict.remove();
+  test("renders moderation unavailability distinctly", () => {
     const review = render(() => <PostComposerSubmission state={
-      { status: "manual_review", submission_id: "sub-1", reason_code: unavailableReviewSnapshot.result.reason_code, review_ref: "review-1" }
+      { status: "manual_review", submission_id: "sub-1", reason_code: "moderation_unavailable", review_ref: "review-1" }
     } />);
     expect(review.textContent).toContain("moderation is temporarily unavailable");
-  });
-
-  test("offers oldest-record resolution without a discard affordance", () => {
-    const onResolveOldest = vi.fn();
-    const container = render(() => <PostComposerSubmission
-      onDiscardAndEdit={() => {}}
-      onResolveOldest={onResolveOldest}
-      onRetry={() => {}}
-      state={{
-        status: "reconciling",
-        pending_request_id: "pending-old",
-        issue: { kind: "storage_conflict", record_count: 2 },
-      }}
-    />);
-    expect(container.textContent).toContain("Check oldest request");
-    expect(container.textContent).not.toContain("Discard and edit");
-    container.querySelector("button")?.click();
-    expect(onResolveOldest).toHaveBeenCalledOnce();
   });
 
   test("renders abandoned and each closed pre-dispatch failure cause", () => {
     const abandoned = render(() => <PostComposerSubmission state={{ status: "abandoned", submission_id: "sub-1" }} />);
     expect(abandoned.textContent).toContain("cancelled before publication");
     abandoned.remove();
-    for (const reason of ["local_validation_failed", "serialization_failed", "durable_storage_failed"] as const) {
+    for (const reason of ["local_validation_failed", "serialization_failed"] as const) {
       const container = render(() => <PostComposerSubmission onRetry={() => {}} state={{ status: "transport_failure", reason }} />);
       expect(container.querySelector("[data-post-composer-state='transport_failure']")).not.toBeNull();
       expect(container.textContent).toContain("Try again");

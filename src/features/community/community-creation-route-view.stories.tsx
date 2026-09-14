@@ -3,7 +3,7 @@ import { expect, userEvent, waitFor, within } from "storybook/test";
 
 import type { SessionResolution } from "../../api/session";
 import { CommunityCreationRouteView } from "./community-creation-route-view";
-import { createIntent as createIntentView } from "./community-creation-progress/community-creation-progress-model";
+import { createIntentView } from "./community-creation-intent/community-creation-intent-fixtures";
 
 const persona = {
   personaId: "persona-harbor",

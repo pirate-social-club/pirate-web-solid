@@ -153,3 +153,12 @@ describe("public feed boundary", () => {
     expect(seenAuthorization).toBeNull();
   });
 });
+
+test("retains only content-free positions for age locks instead of dropping their call to action", () => {
+  const page = normalizePublicFeed({ items: [
+    { kind: "age_locked", content_rating: "adult_18", next_action: { kind: "verify_minimum_age", minimum_age: 18, href: "/verification/sessions" }, title: "must not project", country: "private" },
+    { kind: "age_locked", content_rating: "adult_18" },
+  ], top_communities: [], next_cursor: null });
+  expect(page).toEqual({ items: [], ageLockedPositions: [0, 1], topCommunities: [], nextCursor: null });
+  expect(JSON.stringify(page)).not.toContain("private");
+});

@@ -18,7 +18,7 @@ export interface ComposerSteps {
  */
 export function createComposerSteps(
   activeTab: Accessor<ComposerTab>,
-  seed: Accessor<1 | 2 | 3 | 4 | undefined>,
+  seed: Accessor<1 | 2 | 3 | undefined>,
 ): ComposerSteps {
   const track = () => composerStepTrack(activeTab());
   const seedStep = (): ComposerStepName => {

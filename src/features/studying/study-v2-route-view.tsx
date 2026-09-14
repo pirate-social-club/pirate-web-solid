@@ -1,9 +1,11 @@
+import type { verifyAdultViewing } from "../verification/age-verification.ts";
+import { AgeAccessPrompt } from "../verification/age-access-prompt.tsx";
 import { Title } from "@solidjs/meta";
 import { isServer } from "@solidjs/web";
 import { ApiClientError } from "@pirate/api-client";
 import { Show, createEffect, createSignal, onCleanup } from "solid-js";
 
-import { resolveSession, sessionPersonasUnavailable, type AuthenticatedSession, type SessionResolution } from "../../api/session";
+import { onSessionRefreshed, resolveSession, sessionPersonasUnavailable, type AuthenticatedSession, type SessionResolution } from "../../api/session";
 import { Button, FormNote, Type } from "../../design-system";
 import { preloadGlobalSignInAssets, prepareGlobalSignIn, requestGlobalSignIn } from "../auth/global-sign-in-host";
 import { communityOperationPersonas, defaultOperationPersonaId, toOperationPersonas } from "../identity/community-persona-choice";
@@ -30,12 +32,14 @@ type ReadyAvailability = Extract<StudyAvailability, { state: "ready" }>;
 type RouteState =
   | { kind: "loading" }
   | { kind: "auth-required" }
+  | { kind: "age-required" }
   | { kind: "failed"; message: string }
   | { kind: "unavailable"; message: string }
   | { kind: "configure"; availability: ReadyAvailability; communityId: string; session: AuthenticatedSession }
   | { kind: "lesson"; session: StudySession };
 
 export interface StudyV2RouteViewProps {
+  verifyAge?: typeof verifyAdultViewing;
   api?: StudyV2Api;
   navigate?: (href: string) => void;
   postId: string;
@@ -97,6 +101,8 @@ export function StudyV2RouteView(props: StudyV2RouteViewProps) {
   const [message, setMessage] = createSignal("");
   let active = true;
   let loadStarted = false;
+  let loadInFlight = false;
+  let requestGeneration = 0;
   let createIdempotencyKey = sessionKey(props.postId);
 
   const navigate = (href: string) => {
@@ -104,12 +110,16 @@ export function StudyV2RouteView(props: StudyV2RouteViewProps) {
     else if (typeof window !== "undefined") window.location.assign(href);
   };
 
-  const load = async () => {
+  const load = async (preserveChoices = false) => {
+    const generation = ++requestGeneration;
+    // Set synchronously so a burst of refresh callbacks cannot each start a
+    // request before the queued `loading` state is visible.
+    loadInFlight = true;
     setState({ kind: "loading" });
     setMessage("");
     try {
       const resolved = await (props.resolveSession ?? resolveSession)();
-      if (!active) return;
+      if (!active || generation !== requestGeneration) return;
       if (resolved === "anonymous") {
         setState({ kind: "auth-required" });
         return;
@@ -119,7 +129,7 @@ export function StudyV2RouteView(props: StudyV2RouteViewProps) {
         return;
       }
       const loaded = await api.loadAvailability(props.postId);
-      if (!active) return;
+      if (!active || generation !== requestGeneration) return;
       if (loaded.availability.state !== "ready") {
         setState({ kind: "unavailable", message: availabilityMessage(loaded.availability) });
         return;
@@ -129,9 +139,8 @@ export function StudyV2RouteView(props: StudyV2RouteViewProps) {
         setState({ kind: "failed", message: "Join this community or create a persona there before starting Study." });
         return;
       }
-      setPersonaId(defaultOperationPersonaId(eligible) ?? "");
-      setTargetLanguage("");
-      setLearnerBand("");
+      if (!preserveChoices || !eligible.some(persona => persona.personaId === personaId())) setPersonaId(defaultOperationPersonaId(eligible) ?? "");
+      if (!preserveChoices) { setTargetLanguage(""); setLearnerBand(""); }
       setState({
         availability: loaded.availability,
         communityId: loaded.communityId,
@@ -139,11 +148,14 @@ export function StudyV2RouteView(props: StudyV2RouteViewProps) {
         session: resolved,
       });
     } catch (error) {
-      if (!active) return;
+      if (!active || generation !== requestGeneration) return;
+      if (error instanceof StudyV2LocalError && error.code === "age_locked") { setState({ kind: "age-required" }); return; }
       const message = safeFailure(error, "We couldn't load Study for this song.");
       setState(message.startsWith("Sign in")
         ? { kind: "auth-required" }
         : { kind: "failed", message });
+    } finally {
+      if (generation === requestGeneration) loadInFlight = false;
     }
   };
 
@@ -155,6 +167,18 @@ export function StudyV2RouteView(props: StudyV2RouteViewProps) {
       queueMicrotask(() => void load());
     },
   );
+  // Sign-in refreshes the shared session store without reloading the document.
+  // Resume only from the anonymous prompt: a configured session, an active
+  // lesson and a failed persona read must not restart on an unrelated refresh.
+  // The synchronous in-flight flag coalesces a burst of refreshes, and the
+  // request generation rejects a slower earlier response that would otherwise
+  // overwrite a newer state.
+  if (!isServer) {
+    onCleanup(onSessionRefreshed(() => {
+      if (!active || loadInFlight || state().kind !== "auth-required") return;
+      void load();
+    }));
+  }
   onCleanup(() => { active = false; });
 
   const start = async (configuration: Extract<RouteState, { kind: "configure" }>) => {
@@ -218,6 +242,7 @@ export function StudyV2RouteView(props: StudyV2RouteViewProps) {
             title="Sign in to study"
           />
         )}>
+          <Show when={state().kind === "age-required"}><AgeAccessPrompt verify={props.verifyAge} onVerified={async () => { await load(true); }} /></Show>
           <Show when={failureState() === undefined} fallback={(
             <StudyRouteLoadFailureState
               description={failureState()?.message ?? "We couldn't load Study for this song."}

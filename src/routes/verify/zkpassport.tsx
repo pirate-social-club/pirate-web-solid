@@ -29,7 +29,12 @@ function safeMessage(error: unknown): string {
   return "The operation failed safely. Please retry.";
 }
 
-export default function ZkPassportVerificationRoute() {
+export type ZkPassportVerificationRouteProps = Readonly<{
+  loadConfig?: typeof fetchVerificationConfig;
+  createSessionExchange?: typeof createPrivySessionExchange;
+  createCeremony?: typeof createZkPassportCeremony;
+}>;
+export default function ZkPassportVerificationRoute(props: ZkPassportVerificationRouteProps = {}) {
   const [phase, setPhase] = createSignal<Phase>("loading");
   const [email, setEmail] = createSignal("");
   const [code, setCode] = createSignal("");
@@ -47,10 +52,13 @@ export default function ZkPassportVerificationRoute() {
     () => true,
     () => {
       if (typeof window === "undefined") return;
-      void fetchVerificationConfig().then(async config => {
-        auth = await createPrivySessionExchange(config);
+      void (props.loadConfig ?? fetchVerificationConfig)().then(async config => {
+        if (!mounted) return;
+        const exchange = await (props.createSessionExchange ?? createPrivySessionExchange)(config);
+        if (!mounted) { exchange.clear(); return; }
+        auth = exchange;
         setPhase("email");
-      }).catch(() => setPhase("unavailable"));
+      }).catch(() => { if (mounted) setPhase("unavailable"); });
     },
   );
 
@@ -80,7 +88,7 @@ export default function ZkPassportVerificationRoute() {
   async function startCeremony() {
     setBusy(true); setMessage(""); setQr("");
     try {
-      const created = await createZkPassportCeremony();
+      const created = await (props.createCeremony ?? createZkPassportCeremony)();
       if (!mounted) {
         created.cancel();
         await created.completion.catch(() => undefined);

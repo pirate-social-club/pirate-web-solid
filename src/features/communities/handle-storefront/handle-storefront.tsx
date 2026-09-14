@@ -1,3 +1,6 @@
+import { createSessionApiClient } from "../../../api/client.ts";
+import { requestDocumentVerification } from "../../verification/document-verification-host.tsx";
+import { handleNationalityRequirement } from "../../verification/document-requirement.ts";
 import { ApiClientError } from "@pirate/api-client";
 import { Link, Meta, Title } from "@solidjs/meta";
 import { getRequestEvent } from "@solidjs/web";
@@ -89,6 +92,7 @@ type ClaimUiState =
     }>
   | Readonly<{ readonly kind: "issued"; readonly identifier: string; readonly persona: string }>
   | Readonly<{ readonly kind: "pending" }>
+  | Readonly<{ readonly kind: "verification"; readonly message: string }>
   | Readonly<{ readonly kind: "error"; readonly message: string }>;
 
 function namesCopy() {
@@ -468,6 +472,20 @@ function BuyerPanel(props: {
         });
       } else if (result.kind === "pending") {
         setClaimState({ kind: "pending" });
+      } else if (result.kind === "nationality_required") {
+        attemptKeys = undefined;
+        attemptSignature = undefined;
+        const verificationClient = createSessionApiClient();
+        const verified = await requestDocumentVerification({
+          title: "Verify nationality for this handle", signal: controller.signal,
+          load: async signal => handleNationalityRequirement(
+            await verificationClient.get_handleQualificationIntentsIntentId({ path: { intentId: result.qualificationIntentId } }, { signal }),
+            result.qualificationIntentId, offering.offering_id,
+          ),
+        });
+        if (!controller.signal.aborted) setClaimState({ kind: "verification", message: verified
+          ? "Nationality verified. Select Claim again to get a fresh quote for this handle."
+          : "Verification was cancelled. Your handle and persona choices are unchanged." });
       } else if (result.kind === "eligibility_required") {
         attemptKeys = undefined;
         attemptSignature = undefined;
@@ -710,6 +728,9 @@ function BuyerPanel(props: {
                     <p>{copy.pendingDescription}</p>
                     <Button class="mt-3" variant="outline" onClick={() => void claim()}>{copy.retry}</Button>
                   </div>
+                </Show>
+                <Show when={(() => { const value = claimState(); return value.kind === "verification" ? value : undefined; })()}>
+                  {verification => <p role="status">{verification().message}</p>}
                 </Show>
                 <Show when={claimError()}>
                   {errorState => <p role="alert" class="text-destructive-text">{errorState().message}</p>}

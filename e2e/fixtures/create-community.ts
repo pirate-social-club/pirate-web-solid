@@ -7,9 +7,9 @@ export async function createCommunity(page: Page, marker: string): Promise<strin
   await page.goto("/communities/new");
   await expect(page.locator("[data-creation-state='ready']")).toBeVisible();
   await page.getByRole("textbox", { name: "Name", exact: true }).fill(marker);
-  await page.getByRole("textbox", { name: "Description", exact: true }).fill("Automated song publication acceptance");
+  await page.getByRole("textbox", { name: "Description", exact: true }).fill("Automated community creation acceptance");
   const publicName = page.getByRole("textbox", { name: "Public name", exact: true });
-  if (await publicName.isVisible()) await publicName.fill("Song test creator");
+  if (await publicName.isVisible()) await publicName.fill("Community test creator");
   const [created] = await Promise.all([
     page.waitForResponse(response => response.request().method() === "POST"
       && /^\/(?:api\/)?community-creation-intents$/u.test(new URL(response.url()).pathname),
@@ -23,7 +23,11 @@ export async function createCommunity(page: Page, marker: string): Promise<strin
   await expect.poll(async () => {
     if (new URL(page.url()).pathname.startsWith("/c/")) return "created";
     if (await confirmation.isVisible()) return "confirm-profile";
-    if (await page.getByRole("alert").first().isVisible()) { failed = true; return "rejected"; }
+    const alert = page.getByRole("alert").first();
+    if (await alert.isVisible() && (await alert.innerText()).trim()) {
+      failed = true;
+      return "rejected";
+    }
     return "pending";
   }, { timeout: 60_000, message: "Community creation must finish or request profile confirmation" }).not.toBe("pending");
   if (failed) throw new Error("Community creation was rejected by the product; inspect sanitized network events.");

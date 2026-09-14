@@ -24,6 +24,8 @@ export default defineConfig({
     environment: "node",
     include: [
       "src/features/communities/community-page/community-page-ssr.test.tsx",
+      "src/features/activity/activity-progress-header.test.tsx",
+      "src/features/profiles/public-profile-page/public-profile-page.model.test.ts",
     ],
   },
 });

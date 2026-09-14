@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 import { publicPostSitemapResponse } from "./public-post-sitemap.ts";
 
 function sitemapFetch(pages: Readonly<Record<string, { items: readonly string[]; next: string | null }>>) {
-  return async (input: RequestInfo | URL) => {
+  return async (input: RequestInfo | URL, init?: RequestInit) => {
+    expect(init?.cache).toBe("no-store");
+    expect(init?.credentials).toBe("omit");
     const url = new URL(input instanceof Request ? input.url : input.toString());
     const key = url.searchParams.get("cursor") ?? "root";
     const page = pages[key];
@@ -24,6 +26,7 @@ describe("public post sitemap", () => {
       sitemapFetch({ root: { items: ["/posts/hello", "/posts/stra%C3%9Fe"], next: null } }),
     );
     expect(response?.status).toBe(200);
+    expect(response?.headers.get("cache-control")).toBe("no-store");
     expect(await response?.text()).toContain("<loc>https://pirate.sc/posts/stra%C3%9Fe</loc>");
   });
 

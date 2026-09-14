@@ -26,6 +26,7 @@
     "test:ssr": "vitest run --config vitest.ssr.config.ts",
     "test:api": "vitest run --config vitest.api.config.ts src/api src/hns-ingress src/worker.test.ts",
     "check:e2e": "tsc --noEmit -p e2e/tsconfig.json && playwright test -c e2e --list",
+    "check:test-discovery": "bun scripts/check-test-discovery.ts",
     "test:e2e": "playwright test -c e2e --grep @staging-readonly",
     "test:e2e:staging": "E2E_BASE_URL=https://web-next-staging.pirate.sc playwright test -c e2e --grep @staging-readonly",
     "test:e2e:staging:mutating": "E2E_BASE_URL=https://web-next-staging.pirate.sc playwright test -c e2e --grep @staging-mutating",
@@ -50,14 +51,18 @@
     "test:production-config": "node scripts/production-config.test.mjs",
     "lint": "oxlint src && node scripts/check-story-production-parity.mjs",
     "generate-worker-types": "wrangler types",
-    "verify": "bun run generate-worker-types && bun run test:production-config && bun run tsc --noEmit -p tsconfig.json && bun run check:e2e && bun run test:api && bun run test:app && bun run test:ssr && bun run lint && node scripts/check-solid-runtime.mjs && node scripts/check-api-client-provenance.mjs && node scripts/check-api-client-runtime-tables.mjs && bun run check:web3-icons && bun run check:phosphor-icons && bun run --cwd packages/solid-ui typecheck && bun run --cwd packages/solid-ui test && bun run check:solid-doctor && bun run text-post-check && bun run song-post-check",
+    "verify": "bun run generate-worker-types && bun run test:production-config && bun run tsc --noEmit -p tsconfig.json && bun run test:e2e:helpers && bun run check:e2e && bun run check:test-discovery && bun run test:api && bun run test:app && bun run test:ssr && bun run lint && node scripts/check-solid-runtime.mjs && node scripts/check-api-client-provenance.mjs && node scripts/check-api-client-runtime-tables.mjs && bun run check:web3-icons && bun run check:phosphor-icons && bun run --cwd packages/solid-ui typecheck && bun run --cwd packages/solid-ui test && bun run check:solid-doctor && bun run text-post-check && bun run song-post-check",
     "verify:live": "node scripts/probe.mjs && node scripts/stream-check.mjs && node scripts/hydration-check.mjs",
+    "test:e2e:helpers": "node --test --test-concurrency=1 scripts/creation-diagnostics.test.mjs scripts/e2e-environment.test.mjs scripts/e2e-auth.test.mjs",
+    "test:e2e:community-creation": "playwright test -c e2e/community-creation.config.ts",
+    "test:e2e:community-creation-local": "playwright test -c e2e --grep @local-fixture",
     "test:e2e:song-onboarding": "E2E_ALLOW_MUTATION=1 playwright test -c e2e/song-onboarding.config.ts"
   },
   "dependencies": {
-    "@pirate/api-client": "file:vendor/api-client/pirate-api-client-0.72.0.tgz",
+    "@pirate/api-client": "file:vendor/api-client/pirate-api-client-0.79.0.tgz",
     "@pirate/web-solid-ui": "workspace:*",
     "@privy-io/js-sdk-core": "0.70.0",
+    "@selfxyz/sdk-common": "1.0.0",
     "@solidjs/meta": "1.0.0-next.2",
     "@solidjs/router": "2.0.0-next.16",
     "@solidjs/web": "2.0.0-rc.0",
@@ -94,7 +99,7 @@
     "typescript": "5.9.3",
     "vite": "8.2.1",
     "vite-plugin-solid": "3.0.0-next.27",
-    "vitest": "4.1.10",
+    "vitest": "4.1.11",
     "wrangler": "4.123.0"
   },
   "patchedDependencies": {
@@ -104,6 +109,7 @@
   "overrides": {
     "@storybook/builder-vite": "10.5.10",
     "@storybook/csf-plugin": "10.5.10",
-    "ethers>ws": "8.21.3"
+    "ethers>ws": "8.21.3",
+    "miniflare>sharp": "0.35.4"
   }
 }

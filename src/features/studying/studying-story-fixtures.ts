@@ -50,39 +50,63 @@ export const storySayItBackExercise: StudyingSayItBackExercise =
 export const storyMultipleChoiceExercise: StudyingMultipleChoiceExercise =
   toMultipleChoiceExercise(storyMultipleChoiceServerExercise);
 
+// Server-owned progression: the payload carries only the server's current
+// card; the choice card arrives through the attempt result's next_lesson.
 export const storyLessonPayload: StudyingLessonPayload = {
   post_id: storyPostId,
   title: "Paper Moon",
+  resolved_count: 0,
   served_count: 2,
   session_id: "ses_story1",
   previous_streak: 4,
   reward_label: "+25 $MOON",
-  exercises: [storySayItBackServerExercise, storyMultipleChoiceServerExercise],
+  exercises: [storySayItBackServerExercise],
 };
 
 export function storyCorrectAttempt(input: StudyingAttemptInput) {
+  const completing = input.type === "translation_choice";
   return {
-    attempts_remaining: 2,
+    attempt_state: "spent" as const,
+    attempts_remaining: 0,
     correct_option_id: input.type === "translation_choice" ? "opt-a" : undefined,
-    outcome: "correct" as const,
-    session: { first_pass_correct_count: 1, status: "active" },
-    study_progress: {
-      current_streak: 5,
-      next_due_at: Math.floor(Date.now() / 1000) + 86_400,
-      qualified_today: true,
-      study_attempt_count: 2,
-      study_correct_count: 2,
-      study_target_count: 10,
+    next_lesson: {
+      exercises: completing ? [] : [storyMultipleChoiceServerExercise],
+      resolved_count: completing ? 2 : 1,
     },
+    outcome: "correct" as const,
+    session: completing
+      ? { first_pass_correct_count: 2, status: "completed" }
+      : { first_pass_correct_count: 1, status: "active" },
+    ...(completing
+      ? {
+          study_progress: {
+            current_streak: 5,
+            next_due_at: Math.floor(Date.now() / 1000) + 86_400,
+            qualified_today: true,
+            study_attempt_count: 2,
+            study_correct_count: 2,
+            study_target_count: 10,
+          },
+        }
+      : {}),
   };
 }
 
 export function storyWrongAttempt(input: StudyingAttemptInput) {
+  // Every graded spoken presentation is spent server-side: the miss is final
+  // for this appearance and the lesson moves to the server's next card, with
+  // the missed line returning later in the lesson.
   return {
-    attempts_remaining: Math.max(0, 2 - input.attempt_number),
-    correct_option_id: input.type === "translation_choice" ? "opt-a" : undefined,
+    attempt_number: input.attempt_number,
+    attempt_state: "spent" as const,
+    attempts_remaining: 0,
+    heard_transcript: "yo no sé por qué te fuiste",
+    next_lesson: {
+      exercises: [storyMultipleChoiceServerExercise],
+      resolved_count: 0,
+    },
     outcome: "incorrect" as const,
-    session: { status: "active" },
+    session: { first_pass_correct_count: 0, status: "active" },
   };
 }
 

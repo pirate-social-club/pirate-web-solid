@@ -1,0 +1,45 @@
+{
+  "sourceCommit": "eeade42ee71e7fb5a2ce502c20da7898cc34e4c6",
+  "baselineCommit": "31b38a238467463bef5ca9e0943d87d3eb7aac62",
+  "files": [
+    {
+      "path": "e2e/fixtures/auth.ts",
+      "sourceSha256": "1cb65f3adc00c0472a2e631d0a0da60f84b7bbcc41f9dfc76691c572adb5b67f",
+      "adaptedSha256": "d92a52c6a805a06fc29de22da832d0f56c03573419ceda946588d405365f43d4"
+    },
+    {
+      "path": "e2e/fixtures/create-community.ts",
+      "sourceSha256": "f7d3db50862a48f21f0daac38b82b356e5c59451de97140662f6bdb82be1c26b",
+      "adaptedSha256": "f555547398832efc83c1ba43323366e61e581644964f08b445a869ec4f57b864"
+    },
+    {
+      "path": "e2e/fixtures/diagnostics.ts",
+      "sourceSha256": "b894bcd14d92cad92ef9c587da5f44b9fe366c2b5fa26d9ed36b8b1d56a8c1d2",
+      "adaptedSha256": "0ae07d8312e9979378c4f36af62eba7094540159b2f532e37583c5037604a35d"
+    },
+    {
+      "path": "e2e/fixtures/creation-diagnostics.ts",
+      "sourceSha256": "077a38a3bf4e9c3b13fc1ba385bdb1c38145246d6dfb9b8d9923604c0d34183f",
+      "adaptedSha256": "077a38a3bf4e9c3b13fc1ba385bdb1c38145246d6dfb9b8d9923604c0d34183f"
+    },
+    {
+      "path": "scripts/creation-diagnostics.test.mjs",
+      "sourceSha256": "5274ebe5b0099048f6548d12521b56f8dec94d3fbd468312583f10b085de6a12",
+      "adaptedSha256": "f35653516b757aa8afc6872e687d54d10a04a0707c7a118afefc7619b5af73d9"
+    }
+  ],
+  "reviewedInputs": [
+    {
+      "sourcePath": "e2e/fixtures/song-onboarding-preflight.ts",
+      "sourceSha256": "e0d2143bb6f78ace9ec9fca1b48ed042b68eaadcf46bc3466c7a4ef7fbc4e4b1",
+      "adaptedDestination": "e2e/fixtures/environment.ts",
+      "adaptedSha256": "475a1f48ca01337cdb2c31dd427c63d17c70158b22dda67250f4156a9636cc7a"
+    },
+    {
+      "sourcePath": "e2e/playwright.config.ts",
+      "sourceSha256": "56782e679ce0ea0640b14665138e69a40e94751eb72fcd81468c4c685bf61446",
+      "adaptedDestination": "e2e/playwright.config.ts",
+      "adaptedSha256": "3b4bb9e56b06643266f2e6f8b2bb98ff7a6e861c82642bcf57478f7faed81c4c"
+    }
+  ]
+}

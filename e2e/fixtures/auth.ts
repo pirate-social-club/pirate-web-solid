@@ -6,8 +6,8 @@ import {
   type Page,
 } from "playwright/test";
 import { captureSanitizedNetworkDiagnostics } from "./diagnostics.ts";
-
-const DEFAULT_BASE_URL = "https://web-next-staging.pirate.sc";
+import { e2eAuthCredentials, e2eBaseURL } from "./environment.ts";
+export { hasE2eAuthCredentials } from "./environment.ts";
 
 type AuthStorageState = Awaited<ReturnType<BrowserContext["storageState"]>>;
 type AuthTestFixtures = Readonly<{
@@ -16,31 +16,6 @@ type AuthTestFixtures = Readonly<{
 type AuthWorkerFixtures = Readonly<{
   authenticatedStorageState: AuthStorageState;
 }>;
-
-function baseURL(): string {
-  return process.env.E2E_BASE_URL?.trim() || DEFAULT_BASE_URL;
-}
-
-export function hasE2eAuthCredentials(): boolean {
-  return Boolean(readCredential("email") && readCredential("otp"));
-}
-
-function readCredential(kind: "email" | "otp"): string | undefined {
-  const direct = kind === "email" ? process.env.E2E_PRIVY_EMAIL : process.env.E2E_PRIVY_OTP;
-  const operator = kind === "email"
-    ? process.env.MODERATION_E2E_OWNER_EMAIL
-    : process.env.MODERATION_E2E_OWNER_OTP;
-  return direct?.trim() || operator?.trim() || undefined;
-}
-
-export function e2eAuthCredentials(): Readonly<{ email: string; otp: string }> {
-  const email = readCredential("email");
-  const otp = readCredential("otp");
-  if (!email || !otp) {
-    throw new Error("E2E Privy credentials are required for authenticated E2E tests");
-  }
-  return { email, otp };
-}
 
 export async function completePrivyEmail(page: Page): Promise<void> {
   let stage = "email entry";
@@ -70,7 +45,7 @@ export const test = base.extend<AuthTestFixtures, AuthWorkerFixtures>({
   screenshot: "off",
   video: "off",
   authenticatedStorageState: [async ({ browser }, use) => {
-    const target = new URL(baseURL());
+    const target = new URL(e2eBaseURL());
     const context = await browser.newContext({ baseURL: target.origin });
     const page = await context.newPage();
     const diagnostics = captureSanitizedNetworkDiagnostics(page);
@@ -90,6 +65,7 @@ export const test = base.extend<AuthTestFixtures, AuthWorkerFixtures>({
         origins: raw.origins.filter(origin => origin.origin === target.origin),
       };
     } catch (error) {
+      await diagnostics.stop();
       const stage = error instanceof Error && error.message.startsWith("Privy test sign-in failed during ") ? error.message : "Privy session establishment failed.";
       throw new Error(`${stage}\nSanitized network events:\n${diagnostics.summary()}`);
     } finally {

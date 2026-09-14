@@ -31,7 +31,11 @@ function StatefulRightsStep() {
     { id: "creator", recipientKind: "creator", recipientId: "persona-creator", shareBps: 10_000, sharePct: 100 },
   ] });
   return <ComposerFrame><PostComposer {...baseComposer} currentPersonaId="persona-creator"
-    initialSongStep={3} mode="song" song={song()} onSongChange={setSong}
+    initialSongStep={2} mode="song" song={song()} onSongChange={setSong}
+    recipientProfiles={[
+      { personaId: "persona-creator", displayName: "Creator", handle: "creator.pirate" },
+      { personaId: "persona-collaborator", displayName: "Collaborator", handle: "collaborator.pirate" },
+    ]}
     lyricsValue={lyrics()} onLyricsValueChange={setLyrics} license={license()} onLicenseChange={setLicense}
     royaltySplit={royaltySplit()} onRoyaltySplitChange={setRoyaltySplit}
     submit={{ canPost: true, label: "Publish song", onSubmit: () => undefined }} /></ComposerFrame>;
@@ -42,20 +46,18 @@ export const RightsCollaborators: Story = {
   render: () => <StatefulRightsStep />,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await userEvent.click(canvas.getByRole("button", { name: "Add collaborator" }));
-    const id = canvas.getByLabelText("Recipient 2 id");
-    await userEvent.type(id, "persona-collaborator");
+    const body = within(canvasElement.ownerDocument.body);
+    await userEvent.click(await canvas.findByRole("button", { name: "Add collaborator" }));
+    const sheet = await body.findByRole("dialog");
+    const collaborator = await within(sheet).findByRole("button", { name: /collaborator\.pirate/ });
+    await userEvent.click(collaborator);
+    const share = await within(sheet).findByLabelText("Share for Collaborator");
+    await userEvent.clear(share);
+    await userEvent.type(share, "25");
     await userEvent.tab();
-    await userEvent.clear(canvas.getByLabelText("Recipient 1 share"));
-    await userEvent.type(canvas.getByLabelText("Recipient 1 share"), "75");
-    await userEvent.tab();
-    await userEvent.clear(canvas.getByLabelText("Recipient 2 share"));
-    await userEvent.type(canvas.getByLabelText("Recipient 2 share"), "25");
-    await userEvent.tab();
-    const forward = canvas.getAllByRole("button", { name: "Review" })
-      .find(button => button.closest("nav") === null);
-    if (forward === undefined) throw new Error("Rights footer did not render its Review action");
-    await expect(forward).toBeEnabled();
+    await userEvent.click(await within(sheet).findByRole("button", { name: "Add" }));
+    await expect(await body.findByText("75%")).toBeVisible();
+    await expect(canvas.getByRole("button", { name: "Continue" })).toBeEnabled();
   },
 };
 

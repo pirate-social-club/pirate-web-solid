@@ -48,7 +48,8 @@ export function captureSanitizedNetworkDiagnostics(page: Page): SanitizedNetwork
     return ids.get(request)!;
   };
   const append = (event: NetworkEvent) => {
-    if (events.length < MAX_EVENTS) events.push(event);
+    if (events.length === MAX_EVENTS) events.shift();
+    events.push(event);
   };
   const onRequest = (request: Request) => {
     if (!isDiagnosticRequest(request)) return;
@@ -76,7 +77,8 @@ export function captureSanitizedNetworkDiagnostics(page: Page): SanitizedNetwork
   const onResponse = (response: Response) => {
     const work = captureResponse(response);
     pending.add(work);
-    void work.finally(() => pending.delete(work));
+    // Handle both outcomes without creating an unobserved rejecting promise.
+    void work.then(() => pending.delete(work), () => pending.delete(work));
   };
   const onRequestFailed = (request: Request) => {
     if (!isDiagnosticRequest(request)) return;

@@ -1,3 +1,4 @@
+import { DocumentVerificationHost } from "../verification/document-verification-host.tsx";
 import type { JSX } from "@solidjs/web";
 import { render as solidRender } from "@solidjs/web";
 import { afterEach, describe, expect, test, vi } from "vitest";
@@ -6,7 +7,7 @@ import type { PrivySessionExchange } from "../../api/privy-session.ts";
 import { onSessionRefreshed, refreshSession } from "../../api/session.ts";
 import type { CommunityCreationApi } from "./community-creation-api";
 import { CommunityCreationRouteView, communityCreationCanUsePersona } from "./community-creation-route-view";
-import { createIntent as createIntentView } from "./community-creation-progress/community-creation-progress-model";
+import { createIntentView } from "./community-creation-intent/community-creation-intent-fixtures";
 import {
   GLOBAL_SIGN_IN_EVENT,
   GlobalSignInHost,
@@ -17,8 +18,12 @@ function createIntent(overrides: Parameters<typeof createIntentView>[0] = {}) {
   return createIntentView({ expiresAt: new Date(Date.now() + 86_400_000).toISOString(), draft: { name: "Saved community", publicName: "River Room", description: "Saved description", persona: { kind: "create_new" }, additionalRequirements: [] }, ...overrides });
 }
 
+function publicNameField(container: HTMLElement): HTMLInputElement | null {
+  const label = [...container.querySelectorAll("label")].find(value => value.textContent?.trim() === "Public name");
+  return label ? container.querySelector<HTMLInputElement>(`#${CSS.escape(label.htmlFor)}`) : null;
+}
 function fillPublicName(container: HTMLElement) {
-  const field = container.querySelectorAll<HTMLInputElement>("input")[1];
+  const field = publicNameField(container);
   if (field) { field.value = "River Room"; field.dispatchEvent(new InputEvent("input", { bubbles: true })); }
 }
 
@@ -759,7 +764,7 @@ describe("Community creation production route", () => {
       />
     ));
 
-    await vi.waitFor(() => expect(container.textContent).toContain("Palm scan isn't available right now. Try again later."));
+    await vi.waitFor(() => expect(container.textContent).toContain("This community requirement is not available right now. Your setup is still here."));
     expect(container.querySelector<HTMLButtonElement>("button[type='submit']")?.disabled).toBe(false);
   });
 
@@ -870,14 +875,13 @@ describe("Stable creation lifecycle", () => {
   const owner = { status: "authenticated" as const, userId: "owner-account", personas: [] };
   const published = () => createIntent({ status: "committed", revision: 3, nextAction: { kind: "none", reason: "committed" }, committedHref: "/c/published-community" });
 
-  test("redirects a committed intent on reload without a progress screen or mutation", async () => {
+  test("redirects a committed intent on reload without another mutation", async () => {
     const navigate = vi.fn();
     const client = api({ getIntent: async () => published(), commitIntent: vi.fn(), createIntent: vi.fn() });
     const container = render(() => <CommunityCreationRouteView intentId="saved" api={client} navigate={navigate} resolveSession={async () => owner} />);
     const form = container.querySelector("form");
     await vi.waitFor(() => expect(navigate).toHaveBeenCalledWith("/c/published-community", undefined));
     expect(container.querySelector("form")).toBe(form);
-    expect(container.querySelector("[data-community-creation-progress]")).toBeNull();
     expect(client.commitIntent).not.toHaveBeenCalled();
     expect(client.createIntent).not.toHaveBeenCalled();
   });
@@ -965,7 +969,7 @@ test("saves edited community details before retrying a saved intent without chan
   const name = container.querySelector<HTMLInputElement>("input")!;
   await vi.waitFor(() => expect(name.value).toBe("Saved community"));
   expect(name.matches(":disabled")).toBe(false);
-  expect(container.querySelectorAll<HTMLInputElement>("input")[1]!.matches(":disabled")).toBe(true);
+  expect(publicNameField(container)!.matches(":disabled")).toBe(true);
   name.value = "Corrected community";
   name.dispatchEvent(new InputEvent("input", { bubbles: true }));
   refreshSession();
@@ -1011,4 +1015,287 @@ test("never opens an identity dialog from wait polling", async () => {
   expect(button.disabled).toBe(false);
   button.click();
   await vi.waitFor(() => expect(confirmIdentity).toHaveBeenCalledOnce());
+});
+
+
+describe("saved creation revision recovery", () => {
+  const owner = { status: "authenticated" as const, userId: "owner", personas: [] };
+  const saved = () => createIntent({ intentId: "saved-revision", revision: 2, nextAction: { kind: "commit" } });
+
+  async function editName(container: HTMLElement) {
+    const name = container.querySelector<HTMLInputElement>("input")!;
+    const button = container.querySelector<HTMLButtonElement>("button[type=submit]")!;
+    await vi.waitFor(() => {
+      expect(name.value).toBe("Saved community");
+      expect(button.disabled).toBe(false);
+    });
+    name.value = "Edited community";
+    name.dispatchEvent(new InputEvent("input", { bubbles: true }));
+    return { name, button };
+  }
+
+  test("patches edits against the refreshed revision and commits the resulting revision", async () => {
+    const refreshed = createIntent({ ...saved(), revision: 3, draft: {
+      additionalRequirements: [], persona: { kind: "create_new" }, description: "Saved description",
+      publicName: "River Room", name: "Saved community",
+    } });
+    const updated = createIntent({ ...refreshed, revision: 4 });
+    const getIntent = vi.fn().mockResolvedValueOnce(saved()).mockResolvedValue(refreshed);
+    const updateIntent = vi.fn().mockResolvedValue(updated);
+    const commitIntent = vi.fn().mockResolvedValue(createIntent({ ...updated, revision: 5,
+      status: "committed", nextAction: { kind: "none", reason: "committed" }, committedHref: "/c/updated" }));
+    const navigate = vi.fn();
+    const container = render(() => <CommunityCreationRouteView intentId="saved-revision"
+      api={api({ getIntent, updateIntent, commitIntent })} resolveSession={async () => owner} navigate={navigate} />);
+    const { button } = await editName(container);
+    button.click();
+    await vi.waitFor(() => expect(updateIntent).toHaveBeenCalledOnce());
+    expect(updateIntent).toHaveBeenCalledWith(expect.objectContaining({ intentId: "saved-revision",
+      expectedRevision: 3, draft: expect.objectContaining({ name: "Edited community", publicName: "River Room" }) }));
+    await vi.waitFor(() => expect(navigate).toHaveBeenCalledWith("/c/updated", undefined));
+    expect(commitIntent).toHaveBeenCalledWith(expect.objectContaining({ expectedRevision: 4 }));
+    expect(getIntent).toHaveBeenCalledTimes(2);
+  });
+
+  test.each([
+    { reason: "a lifecycle advance wins after refresh", status: 409, retryRevision: 4 },
+    { reason: "a failed PATCH leaves the revision unchanged", status: 503, retryRevision: 3 },
+  ])("preserves edits and retries when $reason", async ({ status, retryRevision }) => {
+    const getIntent = vi.fn().mockResolvedValueOnce(saved())
+      .mockResolvedValueOnce(createIntent({ ...saved(), revision: 3 }))
+      .mockResolvedValue(createIntent({ ...saved(), revision: retryRevision }));
+    const updateIntent = vi.fn().mockRejectedValueOnce({ status })
+      .mockResolvedValue(createIntent({ ...saved(), revision: retryRevision + 1 }));
+    const commitIntent = vi.fn().mockResolvedValue(createIntent({ ...saved(), revision: retryRevision + 2,
+      status: "committed", nextAction: { kind: "none", reason: "committed" }, committedHref: "/c/updated" }));
+    const createIntentRequest = vi.fn();
+    const container = render(() => <CommunityCreationRouteView intentId="saved-revision"
+      api={api({ getIntent, updateIntent, commitIntent, createIntent: createIntentRequest })}
+      resolveSession={async () => owner} navigate={() => {}} />);
+    const { name, button } = await editName(container);
+    button.click();
+    await vi.waitFor(() => expect(container.textContent).toContain("Could not save your changes"));
+    expect(updateIntent).toHaveBeenCalledOnce();
+    expect(commitIntent).not.toHaveBeenCalled();
+    expect(name.value).toBe("Edited community");
+    expect(button.disabled).toBe(false);
+    button.click();
+    await vi.waitFor(() => expect(commitIntent).toHaveBeenCalledOnce());
+    const first = updateIntent.mock.calls[0]![0];
+    const retry = updateIntent.mock.calls[1]![0];
+    expect(first.expectedRevision).toBe(3);
+    expect(retry.expectedRevision).toBe(retryRevision);
+    expect(retry.draft.name).toBe("Edited community");
+    expect(retry.draft.publicName).toBe("River Room");
+    expect(retry.idempotencyKey === first.idempotencyKey).toBe(retryRevision === 3);
+    expect(commitIntent).toHaveBeenCalledWith(expect.objectContaining({ expectedRevision: retryRevision + 1 }));
+    expect(createIntentRequest).not.toHaveBeenCalled();
+  });
+
+  test("recognizes the saved local draft after a lost PATCH response without another PATCH", async () => {
+    const applied = createIntent({ ...saved(), revision: 4, draft: { ...saved().draft!, name: "Edited community" } });
+    const getIntent = vi.fn().mockResolvedValueOnce(saved())
+      .mockResolvedValueOnce(createIntent({ ...saved(), revision: 3 })).mockResolvedValue(applied);
+    const updateIntent = vi.fn().mockRejectedValue({ status: 503 });
+    const commitIntent = vi.fn().mockResolvedValue(createIntent({ ...applied, revision: 5,
+      status: "committed", nextAction: { kind: "none", reason: "committed" }, committedHref: "/c/updated" }));
+    const container = render(() => <CommunityCreationRouteView intentId="saved-revision"
+      api={api({ getIntent, updateIntent, commitIntent })} resolveSession={async () => owner} navigate={() => {}} />);
+    const { name, button } = await editName(container);
+    button.click();
+    await vi.waitFor(() => expect(container.textContent).toContain("Could not save your changes"));
+    expect(name.value).toBe("Edited community");
+    button.click();
+    await vi.waitFor(() => expect(commitIntent).toHaveBeenCalledOnce());
+    expect(updateIntent).toHaveBeenCalledOnce();
+    expect(commitIntent).toHaveBeenCalledWith(expect.objectContaining({ expectedRevision: 4 }));
+  });
+
+  test.each([
+    { field: "name", patch: { name: "Remote community" } },
+    { field: "description", patch: { description: "Remote description" } },
+    { field: "public name", patch: { publicName: "Remote profile" } },
+    { field: "persona", patch: { persona: { kind: "existing" as const, personaId: "remote-persona" } } },
+    { field: "policy", patch: { additionalRequirements: [{ requirement: "reputation-score" as const, provider: "passport" as const, minimumScore: 10 }] } },
+  ])("refuses to overwrite a remote $field edit across repeated submits and session refreshes", async ({ patch }) => {
+    const remote = createIntent({ ...saved(), revision: 3, draft: { ...saved().draft!, ...patch } });
+    const getIntent = vi.fn().mockResolvedValueOnce(saved()).mockResolvedValue(remote);
+    const updateIntent = vi.fn();
+    const commitIntent = vi.fn();
+    const container = render(() => <CommunityCreationRouteView intentId="saved-revision"
+      api={api({ getIntent, updateIntent, commitIntent })} resolveSession={async () => owner} navigate={() => {}} />);
+    const { name, button } = await editName(container);
+    button.click();
+    await vi.waitFor(() => expect(container.textContent).toContain("saved setup changed while you were editing"));
+    expect(name.value).toBe("Edited community");
+    expect(button.disabled).toBe(true);
+    container.querySelector("form")!.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+    refreshSession();
+    await vi.waitFor(() => expect(getIntent).toHaveBeenCalledTimes(3));
+    expect(name.value).toBe("Edited community");
+    expect(updateIntent).not.toHaveBeenCalled();
+    expect(commitIntent).not.toHaveBeenCalled();
+  });
+
+  test("refuses a remote draft edit discovered after a PATCH conflict", async () => {
+    const remote = createIntent({ ...saved(), revision: 4, draft: { ...saved().draft!, name: "Remote community" } });
+    const getIntent = vi.fn().mockResolvedValueOnce(saved())
+      .mockResolvedValueOnce(createIntent({ ...saved(), revision: 3 })).mockResolvedValue(remote);
+    const updateIntent = vi.fn().mockRejectedValue({ status: 409 });
+    const commitIntent = vi.fn();
+    const container = render(() => <CommunityCreationRouteView intentId="saved-revision"
+      api={api({ getIntent, updateIntent, commitIntent })} resolveSession={async () => owner} navigate={() => {}} />);
+    const { name, button } = await editName(container);
+    button.click();
+    await vi.waitFor(() => expect(container.textContent).toContain("Could not save your changes"));
+    button.click();
+    await vi.waitFor(() => expect(container.textContent).toContain("saved setup changed while you were editing"));
+    expect(name.value).toBe("Edited community");
+    expect(button.disabled).toBe(true);
+    expect(updateIntent).toHaveBeenCalledOnce();
+    expect(commitIntent).not.toHaveBeenCalled();
+  });
+
+  test("keeps the edit baseline when a session refresh discovers a remote draft before submit", async () => {
+    const remote = createIntent({ ...saved(), revision: 3, draft: { ...saved().draft!, name: "Remote community" } });
+    const getIntent = vi.fn().mockResolvedValueOnce(saved()).mockResolvedValue(remote);
+    const updateIntent = vi.fn();
+    const commitIntent = vi.fn();
+    const container = render(() => <CommunityCreationRouteView intentId="saved-revision"
+      api={api({ getIntent, updateIntent, commitIntent })} resolveSession={async () => owner} navigate={() => {}} />);
+    const { name, button } = await editName(container);
+    refreshSession();
+    await vi.waitFor(() => expect(container.textContent).toContain("saved setup changed while you were editing"));
+    await vi.waitFor(() => expect(name.matches(":disabled")).toBe(false));
+    name.value = "Further local edit";
+    name.dispatchEvent(new InputEvent("input", { bubbles: true }));
+    await vi.waitFor(() => expect(name.value).toBe("Further local edit"));
+    button.click();
+    expect(name.value).toBe("Further local edit");
+    expect(button.disabled).toBe(true);
+    expect(updateIntent).not.toHaveBeenCalled();
+    expect(commitIntent).not.toHaveBeenCalled();
+  });
+
+  test("stops continuation when a refresh detects a remote edit during an in-flight PATCH", async () => {
+    const remote = createIntent({ ...saved(), revision: 5, draft: { ...saved().draft!, name: "Remote community" } });
+    const getIntent = vi.fn().mockResolvedValueOnce(saved())
+      .mockResolvedValueOnce(createIntent({ ...saved(), revision: 3 })).mockResolvedValue(remote);
+    let finishPatch: ((value: ReturnType<typeof createIntent>) => void) | undefined;
+    const updateIntent = vi.fn(() => new Promise<ReturnType<typeof createIntent>>(resolve => { finishPatch = resolve; }));
+    const commitIntent = vi.fn();
+    const container = render(() => <CommunityCreationRouteView intentId="saved-revision"
+      api={api({ getIntent, updateIntent, commitIntent })} resolveSession={async () => owner} navigate={() => {}} />);
+    const { name, button } = await editName(container);
+    button.click();
+    await vi.waitFor(() => expect(updateIntent).toHaveBeenCalledOnce());
+    refreshSession();
+    await vi.waitFor(() => expect(container.textContent).toContain("saved setup changed while you were editing"));
+    finishPatch!(createIntent({ ...saved(), revision: 4, draft: { ...saved().draft!, name: "Edited community" } }));
+    await vi.waitFor(() => expect(name.matches(":disabled")).toBe(false));
+    expect(name.value).toBe("Edited community");
+    expect(button.disabled).toBe(true);
+    expect(commitIntent).not.toHaveBeenCalled();
+  });
+
+  test("allows sign-in after a conflict without forgetting the editing baseline", async () => {
+    let authenticated = true;
+    const remote = createIntent({ ...saved(), revision: 3, draft: { ...saved().draft!, name: "Remote community" } });
+    const getIntent = vi.fn().mockResolvedValueOnce(saved()).mockResolvedValue(remote);
+    const updateIntent = vi.fn();
+    const commitIntent = vi.fn();
+    const container = render(() => <CommunityCreationRouteView intentId="saved-revision"
+      api={api({ getIntent, updateIntent, commitIntent })}
+      resolveSession={async () => authenticated ? owner : "anonymous"} navigate={() => {}} />);
+    const { name, button } = await editName(container);
+    button.click();
+    await vi.waitFor(() => expect(container.textContent).toContain("saved setup changed while you were editing"));
+    authenticated = false;
+    refreshSession();
+    await vi.waitFor(() => expect(container.querySelector("main")?.getAttribute("data-creation-state")).toBe("signed-out"));
+    expect(button.disabled).toBe(false);
+    expect(name.value).toBe("Edited community");
+    authenticated = true;
+    refreshSession();
+    await vi.waitFor(() => {
+      expect(getIntent).toHaveBeenCalledTimes(3);
+      expect(button.disabled).toBe(true);
+      expect(container.textContent).toContain("Discard my edits and load saved setup");
+    });
+    expect(name.value).toBe("Edited community");
+    expect(updateIntent).not.toHaveBeenCalled();
+    expect(commitIntent).not.toHaveBeenCalled();
+  });
+
+  test("discards local edits only after the explicit reload succeeds", async () => {
+    const remote = createIntent({ ...saved(), revision: 3, draft: { ...saved().draft!, name: "Remote community" } });
+    const getIntent = vi.fn().mockResolvedValueOnce(saved()).mockResolvedValueOnce(remote)
+      .mockRejectedValueOnce(new Error("offline")).mockResolvedValue(remote);
+    const updateIntent = vi.fn().mockResolvedValue(createIntent({ ...remote, revision: 4 }));
+    const commitIntent = vi.fn().mockResolvedValue(createIntent({ ...remote, revision: 5,
+      status: "committed", nextAction: { kind: "none", reason: "committed" }, committedHref: "/c/reviewed" }));
+    const container = render(() => <CommunityCreationRouteView intentId="saved-revision"
+      api={api({ getIntent, updateIntent, commitIntent })} resolveSession={async () => owner} navigate={() => {}} />);
+    const { name, button } = await editName(container);
+    button.click();
+    const reload = () => [...container.querySelectorAll<HTMLButtonElement>("button")]
+      .find(item => item.textContent === "Discard my edits and load saved setup")!;
+    await vi.waitFor(() => expect(reload()).toBeDefined());
+    reload().click();
+    await vi.waitFor(() => expect(container.textContent).toContain("Couldn't load your community setup"));
+    expect(name.value).toBe("Edited community");
+    expect(button.disabled).toBe(true);
+    reload().click();
+    await vi.waitFor(() => expect(name.value).toBe("Remote community"));
+    expect(updateIntent).not.toHaveBeenCalled();
+    expect(commitIntent).not.toHaveBeenCalled();
+    await vi.waitFor(() => expect(name.matches(":disabled")).toBe(false));
+    name.value = "Reviewed local edit";
+    name.dispatchEvent(new InputEvent("input", { bubbles: true }));
+    await vi.waitFor(() => expect(name.value).toBe("Reviewed local edit"));
+    button.click();
+    await vi.waitFor(() => expect(commitIntent).toHaveBeenCalledOnce());
+    expect(updateIntent).toHaveBeenCalledWith(expect.objectContaining({ expectedRevision: 3,
+      draft: expect.objectContaining({ name: "Reviewed local edit" }) }));
+  });
+
+  test("reopens a community committed during refresh without patching the edited draft", async () => {
+    const getIntent = vi.fn().mockResolvedValueOnce(saved()).mockResolvedValue(createIntent({ ...saved(), revision: 3,
+      status: "committed", nextAction: { kind: "none", reason: "committed" }, committedHref: "/c/already-created" }));
+    const updateIntent = vi.fn();
+    const commitIntent = vi.fn();
+    const navigate = vi.fn();
+    const container = render(() => <CommunityCreationRouteView intentId="saved-revision"
+      api={api({ getIntent, updateIntent, commitIntent })} resolveSession={async () => owner} navigate={navigate} />);
+    const { button } = await editName(container);
+    button.click();
+    await vi.waitFor(() => expect(navigate).toHaveBeenCalledWith("/c/already-created", undefined));
+    expect(updateIntent).not.toHaveBeenCalled();
+    expect(commitIntent).not.toHaveBeenCalled();
+  });
+});
+
+
+test("verifies the saved creator requirement in place and requires an explicit continuation", async () => {
+  let current = createIntent({ status: "verification_required", nextAction: { kind: "verify_nationality" },
+    nationalityRequirement: { kind: "pending", requirement: "nationality", requirementHash: "country-rule", intentId: "creator-child", providerId: "self.pass", acceptedProviderIds: ["self.pass", "zkpassport"], generation: 1 } });
+  const commit = vi.fn();
+  const client = api({ getIntent: async () => current, commitIntent: commit });
+  const start = vi.fn(async () => {
+    current = { ...current, nationalityRequirement: { kind: "pending", requirement: "nationality", requirementHash: "country-rule", intentId: "creator-child-2", providerId: "zkpassport", acceptedProviderIds: ["self.pass", "zkpassport"], generation: 2 } };
+    return { url: "https://zkpassport.id/r/test", completion: Promise.resolve(), cancel() {} };
+  });
+  const container = render(() => <><DocumentVerificationHost start={start} qr={async () => "data:image/png;base64,AA=="} pollIntervalMs={5} />
+    <CommunityCreationRouteView api={client} intentId={current.intentId} navigate={() => {}} resolveSession={async () => ({ status: "authenticated", userId: "user-1", personas: [] })} /></>);
+  const findButton = (label: string) => [...document.querySelectorAll("button")].find(value => value.textContent?.trim() === label);
+  await vi.waitFor(() => expect(findButton("Verify nationality")?.disabled).toBe(false));
+  findButton("Verify nationality")!.click();
+  await vi.waitFor(() => expect(findButton("Verify with ZKPassport")?.disabled).toBe(false));
+  findButton("Verify with ZKPassport")!.click();
+  await vi.waitFor(() => expect(start).toHaveBeenCalledOnce());
+  expect(commit).not.toHaveBeenCalled();
+  current = { ...current, revision: current.revision + 1, status: "commit_ready", nextAction: { kind: "commit" }, nationalityRequirement: { kind: "satisfied" } };
+  await vi.waitFor(() => expect(container.textContent).toContain("Nationality verified. Continue"));
+  expect(commit).not.toHaveBeenCalled();
+  expect(container.querySelector('input')?.value).toBe("Saved community");
 });

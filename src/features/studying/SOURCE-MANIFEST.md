@@ -23,14 +23,18 @@ moved behind injected interfaces. Source → port SHA-256:
 | `studying-surface.tsx` | `web/src/components/compositions/song-study/song-study-surface.tsx` | `c8b59251582963f46c67765b87aee73fa56427039d62a2e35cfff5d33954e585` | `228e06de102ccdd1770b49884c4cddba47a50c4d8739070cdf00e34f0fd9d0c8` |
 | `studying-route-view.tsx` | `web/src/app/authenticated-routes/study-route.tsx` (controller flow, minus Telegram handoff / feedback audio / MediaRecorder) | `050e3aceef12bef2b5fa54da198ce006f4ef625fc70cb55a78de4a9518c54355` | `130776ab710d523364261fb42677ed1b3e2ae8bd6ba7836a2060fadfa6efd665` |
 
-Ported pure logic (evidence level: unit-tested parity — 24 focused tests in
-`studying-model.test.ts` pass): `advanceLesson`, `exerciseSurface`,
+Ported pure logic (evidence level: unit-tested parity — 20 focused tests in
+`studying-model.test.ts` pass): `applyServerLesson`, `exerciseSurface`,
 `completeSurface`, `lockedSurface`, `toSayItBackExercise`,
 `toMultipleChoiceExercise`, `formatNextReviewLabel`, `caughtUpMessage`,
 `clampPercent`, `primaryActionLabel/Variant/Disabled`,
 `previousStreakForAnimation`, `isStudyAttemptDivergence`,
-`makeAttemptIdempotencyKey`, `STUDY_MAX_ATTEMPTS_PER_APPEARANCE`,
-`STUDY_ATTEMPT_DIVERGENCE_STATUSES`, `STUDY_ATTEMPT_DIVERGENCE_RECOVERY_LIMIT`.
+`makeAttemptIdempotencyKey`, `STUDY_ATTEMPT_DIVERGENCE_STATUSES`,
+`STUDY_ATTEMPT_DIVERGENCE_RECOVERY_LIMIT`. The 2026-09-12 server-progression
+repair replaced the legacy local queue, per-appearance retry emulation
+(`STUDY_MAX_ATTEMPTS_PER_APPEARANCE`) and handwritten presentation tallies
+with the server-owned lesson state; the ported helpers above are surface
+adaptations only.
 
 ## Exact copy from the karaoke lane (app-original there)
 
@@ -49,6 +53,14 @@ authored it as a reusable activity header.
   and learner-audio deletion transport. The adapter is authored for this app,
   sends protected writes through the same-origin `/api` boundary with CSRF,
   and has no legacy application runtime source.
+- `study-v2-runtime-client.ts`, `study-v2-runtime-client.test.ts` — the v2
+  adapter that renders the server's current card at its real presentation
+  number and re-derives the surface from each returned session; authored for
+  the server-owned progression, not ported.
+- `studying-browser-recorder.ts`, `studying-browser-recorder.test.ts` —
+  app-owned MediaRecorder/getUserMedia capture with cancellation, late-track
+  release and capture-lifetime limits; authored here, not copied from the
+  legacy React capture.
 - `studying-route-model.ts` — client/recorder seam interfaces and auth-error
   helpers, modeled on the karaoke lane's route-model idiom but authored here.
 - `studying-story-fixtures.ts` — Storybook fixtures (mirrors test shapes).
@@ -62,9 +74,9 @@ authored it as a reusable activity header.
 
 ## Deliberately excluded from the port
 
-React-coupled legacy code that stays behind: MediaRecorder/getUserMedia
-capture, Telegram voice-message handoff, feedback audio (AudioContext),
-streak leaderboard/chip components, visibility-change refetch. Generated
-Study v2 API wiring is now app-owned above; browser capture and the visual
-controller migration remain excluded. See `docs/studying-storybook-audit.md`
-for the full inventory.
+React-coupled legacy code that stays behind: Telegram voice-message handoff,
+streak leaderboard/chip components, visibility-change refetch, and the legacy
+client-side lesson queue (superseded by server-owned progression).
+Generated Study v2 API wiring, browser capture and the visual controller are
+app-owned above. See `docs/studying-storybook-audit.md` for the full
+inventory.

@@ -36,42 +36,57 @@ test("keeps known decode messages and structure, redacts echoed input, bounds in
 });
 
 
-test("browser capture pairs a creation POST with its fully read error response", async () => {
-  const { createServer } = await import("node:http");
-  const { chromium } = await import("playwright");
+// Exercise asynchronous teardown without launching Chromium on the shared host.
+test("capture drains pending response bodies and pairs sanitized requests", async () => {
+  const { EventEmitter } = await import("node:events");
   const { captureSanitizedNetworkDiagnostics } = await import("../e2e/fixtures/diagnostics.ts");
-  const server = createServer((request, response) => {
-    if (request.method === "GET") { response.end("<html><body>Diagnostic fixture</body></html>"); return; }
-    request.resume();
-    request.on("end", () => {
-      response.writeHead(400, { "Content-Type": "application/json" });
-      response.write('{"_tag":"BadRequest",');
-      setTimeout(() => response.end('"message":"Invalid body request","token":"private-response-token"}'), 30);
-    });
-  });
-  await new Promise(resolve => server.listen(0, "127.0.0.1", resolve));
-  let browser;
-  try {
-    browser = await chromium.launch();
-    const page = await browser.newPage();
-    const diagnostics = captureSanitizedNetworkDiagnostics(page);
-    await page.goto(`http://127.0.0.1:${server.address().port}`);
-    await page.evaluate(async () => { await fetch("/api/community-creation-intents", {
-      method: "POST", headers: { "Content-Type": "application/json", Authorization: "Bearer private-header" },
-      body: JSON.stringify({ draft: { public_name: "private-name", persona: { kind: "create_new" } }, token: "private-request-token" }),
-    }); });
-    await diagnostics.stop();
-    const events = JSON.parse(diagnostics.summary()).filter(event => event.method === "POST");
-    assert.equal(events.length, 2);
-    assert.equal(events[0].kind, "request");
-    assert.equal(events[0].requestId, events[1].requestId);
-    assert.equal(events[1].status, 400);
-    assert.equal(events[1].body.message, "Invalid body request");
-    for (const secret of ["private-header", "private-request-token", "private-response-token", "private-name"]) {
-      assert.equal(diagnostics.summary().includes(secret), false);
-    }
-  } finally {
-    await browser?.close();
-    await new Promise(resolve => server.close(resolve));
-  }
+  const context = new EventEmitter();
+  const diagnostics = captureSanitizedNetworkDiagnostics({ context: () => context });
+  const request = {
+    url: () => "https://example.invalid/api/community-creation-intents/private-intent/commit?token=private-query",
+    method: () => "POST", resourceType: () => "fetch",
+    postData: () => JSON.stringify({ token: "private-request-token", expected_revision: 3 }),
+  };
+  let finishBody;
+  const body = new Promise(resolve => { finishBody = resolve; });
+  context.emit("request", request);
+  context.emit("response", { request: () => request, url: request.url, status: () => 409,
+    headers: () => ({ "content-type": "application/json; charset=utf-8" }), text: () => body });
+  let stopped = false;
+  const stopping = diagnostics.stop().then(() => { stopped = true; });
+  await Promise.resolve();
+  assert.equal(stopped, false);
+  finishBody(JSON.stringify({ token: "private-response-token", revision: 4 }));
+  await stopping;
+  const events = JSON.parse(diagnostics.summary());
+  assert.equal(events.length, 2);
+  assert.equal(events[0].requestId, events[1].requestId);
+  assert.equal(events[1].status, 409);
+  assert.equal(events[1].body.revision.value, 4);
+  for (const secret of ["private-intent", "private-query", "private-request-token", "private-response-token"]) assert.equal(diagnostics.summary().includes(secret), false);
+  assert.equal(context.listenerCount("request"), 0);
+  assert.equal(context.listenerCount("response"), 0);
+  assert.equal(context.listenerCount("requestfailed"), 0);
+});
+
+test("capture bounds events and tolerates failed body reads", async () => {
+  const { EventEmitter } = await import("node:events");
+  const { captureSanitizedNetworkDiagnostics } = await import("../e2e/fixtures/diagnostics.ts");
+  const context = new EventEmitter();
+  const diagnostics = captureSanitizedNetworkDiagnostics({ context: () => context });
+  const request = { url: () => "https://example.invalid/api/community-creation-intents", method: () => "POST", resourceType: () => "fetch", postData: () => null };
+  context.emit("response", { request: () => request, url: request.url, status: () => 400, headers: () => ({}), text: () => Promise.reject(new Error("private transport details")) });
+  await diagnostics.stop();
+  assert.deepEqual(JSON.parse(diagnostics.summary())[0].body, { unavailable: true });
+  const bounded = captureSanitizedNetworkDiagnostics({ context: () => context });
+  for (let i = 0; i < 150; i++) context.emit("request", request);
+  context.emit("response", { request: () => request, url: request.url, status: () => 409,
+    headers: () => ({}), text: () => Promise.resolve('{"revision":4}') });
+  await bounded.stop();
+  const events = JSON.parse(bounded.summary());
+  assert.equal(events.length, 100);
+  assert.equal(events.at(-1).kind, "response");
+  assert.equal(events.at(-1).status, 409);
+  context.emit("request", request);
+  assert.equal(bounded.summary(), JSON.stringify(events, null, 2));
 });

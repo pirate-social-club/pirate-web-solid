@@ -7,7 +7,6 @@ import { render as solidRender, type JSX } from "@solidjs/web";
 import { createRoot } from "solid-js";
 import { afterEach, describe, expect, test, vi } from "vitest";
 import type { CommunityEngagementApi } from "./community-engagement-api.ts";
-import { createMemoryMediaSubmissionStorage } from "../../posts/media-submission/pending.ts";
 import CommunityPage from "./community-page.tsx";
 
 const disposers: Array<() => void> = [];
@@ -189,7 +188,6 @@ describe("CommunityPage", () => {
           nextCursor: null,
         })}
         pathSegment="xn--pokmon-dva"
-        postComposerMediaStorage={createMemoryMediaSubmissionStorage()}
         viewerVoteClient={viewerVoteClient(1)}
         resolveSession={async () => ({
           status: "authenticated",
@@ -230,7 +228,6 @@ describe("CommunityPage", () => {
           nextCursor: null,
         })}
         pathSegment="xn--pokmon-dva"
-        postComposerMediaStorage={createMemoryMediaSubmissionStorage()}
         viewerVoteClient={{ get_postsPostId: vi.fn().mockRejectedValueOnce(new Error("offline")).mockImplementation(viewerVoteClient(1).get_postsPostId) }}
         resolveSession={async () => ({
           status: "authenticated",
@@ -269,7 +266,6 @@ describe("CommunityPage", () => {
           nextCursor: null,
         })}
         pathSegment="xn--pokmon-dva"
-        postComposerMediaStorage={createMemoryMediaSubmissionStorage()}
         viewerVoteClient={viewerVoteClient(null)}
         resolveSession={async () => ({
           status: "authenticated",
@@ -282,7 +278,7 @@ describe("CommunityPage", () => {
       />
     ));
 
-    await vi.waitFor(() => expect(container.querySelector("[data-operation-persona]")).not.toBeNull());
+    await vi.waitFor(() => expect(container.querySelector("[data-active-persona]")).not.toBeNull());
 
     // No persona is selected yet. Voting is account-scoped, so the real
     // controls mount now rather than leaving the handlerless placeholders up.
@@ -296,7 +292,7 @@ describe("CommunityPage", () => {
     expect(document.body.querySelector<HTMLTextAreaElement>("textarea[aria-label='Write a comment']")!.disabled).toBe(true);
     expect(document.body.textContent).toContain("Choose a profile to comment as.");
 
-    container.querySelector<HTMLButtonElement>("[data-operation-persona] button")!.click();
+    container.querySelector<HTMLButtonElement>("[data-active-persona]")!.click();
     await vi.waitFor(() => expect(document.body.textContent).toContain("Persona Two"));
     const personaTwo = document.body.querySelector<HTMLInputElement>("input[value='persona-two']");
     expect(personaTwo).not.toBeNull();
@@ -419,7 +415,7 @@ describe("CommunityPage", () => {
 
     await vi.waitFor(() => expect(container.textContent).toContain("couldn't load your active personas"));
     expect(contextualComposerOpen()).toBe(false);
-    expect(document.body.textContent).not.toContain("Create or reactivate a public persona");
+    expect(document.body.textContent).not.toContain("Choose a profile for this community before posting");
     unavailable = false;
     postHere.click();
     await vi.waitFor(() => expect(contextualComposerOpen()).toBe(true));
@@ -461,7 +457,7 @@ describe("CommunityPage", () => {
 
     await vi.waitFor(() => expect(container.textContent).toContain("couldn't load your active personas"));
     expect(contextualComposerOpen()).toBe(false);
-    expect(document.body.textContent).not.toContain("Create or reactivate a public persona");
+    expect(document.body.textContent).not.toContain("Choose a profile for this community before posting");
     // This viewer is a member, so Spec 016 leaves them no follow to exercise
     // here; the controller suite covers a follow succeeding while profiles are
     // unavailable. What matters on the page is that the retry is offered.

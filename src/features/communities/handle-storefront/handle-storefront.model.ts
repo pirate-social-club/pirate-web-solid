@@ -65,7 +65,7 @@ export function isSupportedHandleOffering(
 ): offering is SupportedHandleOffering {
   const supportedTerms = offering.label_scope.kind === "label_rule_v2"
     ? offering.allocation.kind === "first_come_v1"
-      && offering.qualification_policy.kind === "none_v1"
+      && (offering.qualification_policy.kind === "none_v1" || offering.qualification_policy.kind === "curated_nationality_v1")
       && Number.isInteger(offering.label_scope.availability.min_label_length)
       && Number.isInteger(offering.label_scope.availability.max_label_length)
       && offering.label_scope.availability.min_label_length >= 8

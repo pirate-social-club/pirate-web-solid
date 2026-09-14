@@ -1,5 +1,5 @@
 /** @jsxImportSource @solidjs/web */
-import { Show } from "solid-js";
+import { onCleanup, Show } from "solid-js";
 import type { JSX } from "@solidjs/web";
 
 import {
@@ -152,10 +152,45 @@ export interface MobileFooterNavProps {
   onHomeClick?: () => void;
   onCommunitiesClick?: () => void;
   onProfileClick?: () => void;
+  /**
+   * A second tap on the profile control within the double-tap window. When it
+   * is absent the profile tap stays immediate; when it is present the single
+   * tap waits one window so a double tap can win, then navigates.
+   */
+  onProfileDoubleTap?: () => void;
 }
 
 export function MobileFooterNav(props: MobileFooterNavProps) {
   const labels = () => props.labels ?? {};
+  const doubleTapWindowMs = 280;
+  let lastProfileTap = 0;
+  let pendingProfileTap: ReturnType<typeof setTimeout> | undefined;
+  const clearPendingProfileTap = () => {
+    if (pendingProfileTap === undefined) return;
+    clearTimeout(pendingProfileTap);
+    pendingProfileTap = undefined;
+  };
+  const handleProfileTap = () => {
+    if (props.onProfileDoubleTap === undefined) {
+      props.onProfileClick?.();
+      return;
+    }
+    const now = Date.now();
+    if (now - lastProfileTap <= doubleTapWindowMs) {
+      clearPendingProfileTap();
+      lastProfileTap = 0;
+      props.onProfileDoubleTap();
+      return;
+    }
+    lastProfileTap = now;
+    clearPendingProfileTap();
+    pendingProfileTap = setTimeout(() => {
+      pendingProfileTap = undefined;
+      lastProfileTap = 0;
+      props.onProfileClick?.();
+    }, doubleTapWindowMs);
+  };
+  onCleanup(clearPendingProfileTap);
   return (
     <Show when={props.forceMobile}>
       <DesignSystemMobileFooterNav
@@ -172,7 +207,7 @@ export function MobileFooterNav(props: MobileFooterNavProps) {
         }}
         onHomeClick={props.onHomeClick}
         onCommunitiesClick={props.onCommunitiesClick}
-        onProfileClick={props.onProfileClick}
+        onProfileClick={handleProfileTap}
       />
     </Show>
   );

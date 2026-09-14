@@ -1,3 +1,4 @@
+import { KaraokeApiError } from "./karaoke-session-bridge.ts";
 import { render } from "@solidjs/web";
 import { afterEach, describe, expect, test, vi } from "vitest";
 import type { AuthenticatedSession } from "../../api/session";
@@ -24,6 +25,9 @@ const persona = (id: string, communityId: string | null) => ({
 });
 
 function mount(personas: AuthenticatedSession["personas"], resolveSession = async (): Promise<AuthenticatedSession> => ({ status: "authenticated", userId: "account-1", personas })) {
+  // Scored-take tests exercise persona and start behavior; the dedicated
+  // disclosure tests clear this acknowledgment to prove the capture gate.
+  localStorage.setItem("karaoke:microphone-disclosure:v1", "1");
   const host = document.createElement("div");
   document.body.appendChild(host);
   const createSession = vi.fn(() => new Promise<never>(() => {}));
@@ -103,4 +107,54 @@ describe("Karaoke community persona selection", () => {
     expect(createSession).not.toHaveBeenCalled();
     expect(document.querySelector('[role="dialog"]')).toBeNull();
   });
+});
+
+describe("Karaoke first-use microphone disclosure", () => {
+  test("blocks capture until the disclosure is acknowledged", async () => {
+    const { host, createSession } = mount([persona("here", "community-here")]);
+    localStorage.clear();
+    await start(host);
+    await vi.waitFor(() => expect(host.querySelector("[data-karaoke-mic-disclosure]")).toBeTruthy());
+    expect(host.textContent).toContain("ElevenLabs");
+    expect(host.textContent).toContain("24 months");
+    expect(createSession).not.toHaveBeenCalled();
+
+    [...host.querySelectorAll("button")]
+      .find(button => button.textContent?.trim() === "Cancel")!
+      .click();
+    await vi.waitFor(() => expect(host.querySelector("[data-karaoke-mic-disclosure]")).toBeNull());
+    expect(createSession).not.toHaveBeenCalled();
+
+    await start(host);
+    await vi.waitFor(() => expect(host.querySelector("[data-karaoke-mic-disclosure]")).toBeTruthy());
+    host.querySelector<HTMLElement>("[data-karaoke-mic-disclosure-accept]")?.click();
+    await vi.waitFor(() => expect(createSession).toHaveBeenCalledOnce());
+    expect(localStorage.getItem("karaoke:microphone-disclosure:v1")).toBe("1");
+  });
+
+  test("starts the scored take without the dialog once acknowledged", async () => {
+    const { host, createSession } = mount([persona("here", "community-here")]);
+    await start(host);
+    await vi.waitFor(() => expect(createSession).toHaveBeenCalledOnce());
+    expect(host.querySelector("[data-karaoke-mic-disclosure]")).toBeNull();
+  });
+});
+
+test("an age-locked song verifies before karaoke loads and never starts a scored take automatically", async()=>{
+  const host=document.createElement("div");document.body.appendChild(host);
+  let verified=false;const createSession=vi.fn(()=>new Promise<never>(()=>{}));
+  const unused=async():Promise<never>=>{throw new Error("unused");};
+  const client:KaraokeApiClient={createSession,getAttempt:unused,getLeaderboard:unused,getPayload:async()=>{
+    if(!verified) throw new KaraokeApiError("age_locked","Age required",403,false);
+    return {community:"community-here",id:"revision-1",object:"song_karaoke_payload",post:"post-1",karaoke_lines:[{id:"line-1",index:0,kind:"lyric",start_ms:0,end_ms:2000,text:"Authorized lyrics",words:[]}]};
+  }};
+  const TestRouter=createRouter({history:memoryHistory(),routes:[{path:"/"}]});
+  const dispose=render(()=><TestRouter>{()=><KaraokeSessionRouteView postId="post-1" client={client} createScoring={createScoring}
+    verifyAge={async()=>{verified=true;return true;}} resolveSession={async()=>({status:"authenticated",userId:"account-1",personas:[persona("here","community-here")]})} />}</TestRouter>,host);
+  disposers.push(()=>{dispose();host.remove();});
+  await vi.waitFor(()=>expect(host.textContent).toContain("Verify 18+ to view"));
+  expect(host.textContent).not.toContain("Authorized lyrics");
+  [...host.querySelectorAll("button")].find(button=>button.textContent?.includes("Verify 18+"))?.click();
+  await vi.waitFor(()=>expect(host.querySelector("[data-age-access-prompt]")).toBeNull());
+  expect(createSession).not.toHaveBeenCalled();
 });

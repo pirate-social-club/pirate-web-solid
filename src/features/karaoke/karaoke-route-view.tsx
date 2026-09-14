@@ -1,3 +1,6 @@
+import type { verifyAdultViewing } from "../verification/age-verification.ts";
+import { AgeAccessPrompt } from "../verification/age-access-prompt.tsx";
+import { KaraokeApiError } from "./karaoke-session-bridge.ts";
 import { createEffect, createMemo, createSignal, onCleanup, untrack, Show } from "solid-js";
 import { isServer } from "@solidjs/web";
 import { useNavigate } from "@solidjs/router";
@@ -22,6 +25,8 @@ import { resolveSession, sessionPersonasUnavailable, onSessionRefreshed, type Se
 import { communityOperationPersonas, defaultOperationPersonaId } from "../identity/community-persona-choice";
 import { CommunityPersonaChoiceDialog } from "../identity/community-persona-choice-sheet";
 
+function isAgeLocked(error: unknown): boolean { return error instanceof KaraokeApiError && error.code === "age_locked"; }
+
 function errorMessage(error: unknown, fallback: string): string {
   return error instanceof Error && error.message.trim() ? error.message : fallback;
 }
@@ -36,6 +41,7 @@ function payloadLines(payload: ApiSongKaraokePayload) {
 }
 
 export interface KaraokeSessionRouteViewProps {
+  verifyAge?: typeof verifyAdultViewing;
   postId: string;
   client?: KaraokeApiClient;
   exitPath?: string;
@@ -119,6 +125,52 @@ function LoadedKaraokeSession(props: { payload: ApiSongKaraokePayload; postId: s
     },
   );
 
+  const [disclosureOpen, setDisclosureOpen] = createSignal(false);
+  let pendingScoredStart: (() => void) | undefined;
+
+  // Spec 019 section 5.1: learner-facing microphone capture requires a
+  // first-use disclosure naming the provider and its retention before the
+  // first scored take. The acknowledgment is a local UI fact, not an
+  // account fact.
+  const KARAOKE_MIC_DISCLOSURE_KEY = "karaoke:microphone-disclosure:v1";
+
+  const micDisclosureAcknowledged = (): boolean => {
+    try {
+      return globalThis.localStorage?.getItem(KARAOKE_MIC_DISCLOSURE_KEY) === "1";
+    } catch {
+      return false;
+    }
+  };
+
+  const acknowledgeMicDisclosure = () => {
+    try {
+      globalThis.localStorage?.setItem(KARAOKE_MIC_DISCLOSURE_KEY, "1");
+    } catch {
+      // Storage can be unavailable (private mode); the disclosure simply
+      // reappears next session, which is the safe direction.
+    }
+    setDisclosureOpen(false);
+    const resume = pendingScoredStart;
+    pendingScoredStart = undefined;
+    resume?.();
+  };
+
+  const dismissMicDisclosure = () => {
+    pendingScoredStart = undefined;
+    setDisclosureOpen(false);
+  };
+
+  // Capture cannot begin before the disclosure is acknowledged: both the
+  // direct start and the persona-choice continuation route through here.
+  const beginScoredTake = (songMs: number) => {
+    if (!micDisclosureAcknowledged()) {
+      pendingScoredStart = () => scoring.controls.start(songMs);
+      setDisclosureOpen(true);
+      return;
+    }
+    scoring.controls.start(songMs);
+  };
+
   const scoringState = () => scoring.state();
   const feedback = () => deriveKaraokeFeedback(scoringState());
 
@@ -165,7 +217,7 @@ function LoadedKaraokeSession(props: { payload: ApiSongKaraokePayload; postId: s
           }
           setPersonaMessage("");
           attemptPersonaId = personaId();
-          scoring.controls.start(songMs);
+          beginScoredTake(songMs);
         } : undefined}
         onTimeChange={(songMs) => scoring.controls.noteTime(songMs)}
         rating={feedback().rating}
@@ -193,9 +245,42 @@ function LoadedKaraokeSession(props: { payload: ApiSongKaraokePayload; postId: s
           attemptPersonaId = choice.personaId;
           setChoiceOpen(false);
           setPersonaMessage("");
-          scoring.controls.start(pendingSongMs);
+          beginScoredTake(pendingSongMs);
         }}
       />
+      <Show when={disclosureOpen()}>
+        <div
+          class="fixed inset-0 z-50 flex items-end justify-center bg-black/60 p-4 sm:items-center"
+          data-karaoke-mic-disclosure
+          role="dialog"
+          aria-modal="true"
+          aria-label="Recording disclosure"
+        >
+          <div class="w-full max-w-md rounded-[var(--radius-xl)] border border-border bg-card p-6 shadow-xl">
+            <h2 class="text-lg font-semibold text-foreground">Before you record</h2>
+            <p class="mt-3 text-muted-foreground">
+              Your voice recording is sent to our speech provider, ElevenLabs,
+              for transcription and scoring. Under its standard terms,
+              ElevenLabs may retain the recording. Pirate also stores your
+              recording privately for 24 months, and you can delete it from
+              Settings at any time.
+            </p>
+            <div class="mt-6 flex gap-3">
+              <Button class="flex-1" type="button" variant="secondary" onClick={dismissMicDisclosure}>
+                Cancel
+              </Button>
+              <Button
+                class="flex-1"
+                data-karaoke-mic-disclosure-accept
+                type="button"
+                onClick={acknowledgeMicDisclosure}
+              >
+                Continue to record
+              </Button>
+            </div>
+          </div>
+        </div>
+      </Show>
     </Show>
   );
 }
@@ -205,21 +290,28 @@ export function KaraokeSessionRouteView(props: KaraokeSessionRouteViewProps) {
   const [payload, setPayload] = createSignal<ApiSongKaraokePayload>();
   const [loadError, setLoadError] = createSignal<unknown>(null);
   const [loading, setLoading] = createSignal(true);
-  const load = () => {
-    setLoading(true);
-    setLoadError(null);
-    void loadKaraokePayload(client, props.postId).then(setPayload).catch(setLoadError).finally(() => setLoading(false));
+  let active = true;
+  let generation = 0;
+  const load = async () => {
+    const revision = ++generation;
+    setLoading(true); setLoadError(null); setPayload(undefined);
+    try { const result = await loadKaraokePayload(client, props.postId); if (active && revision === generation) setPayload(result); }
+    catch (error) { if (active && revision === generation) setLoadError(error); }
+    finally { if (active && revision === generation) setLoading(false); }
   };
-  if (typeof window !== "undefined") queueMicrotask(load);
+  onCleanup(() => { active = false; generation += 1; });
+  onCleanup(onSessionRefreshed(() => { if (!isAgeLocked(loadError())) void load(); }));
+  if (typeof window !== "undefined") queueMicrotask(() => { if (active) void load(); });
 
   return (
-      <Show when={payload()} fallback={<Show when={!loading()} fallback={<KaraokeRouteLoadingState label="Loading karaoke" />}><KaraokeRouteLoadFailureState description={errorMessage(loadError(), "We couldn't load karaoke for this song.")} onGoHome={() => { window.location.href = "/"; }} onRetry={load} title="Karaoke unavailable" /></Show>}>
+      <Show when={payload()} fallback={<Show when={!loading()} fallback={<KaraokeRouteLoadingState label="Loading karaoke" />}><Show when={isAgeLocked(loadError())} fallback={<KaraokeRouteLoadFailureState description={errorMessage(loadError(), "We couldn't load karaoke for this song.")} onGoHome={() => { window.location.href = "/"; }} onRetry={load} title="Karaoke unavailable" />}><AgeAccessPrompt verify={props.verifyAge} onVerified={async () => { await load(); }} /></Show></Show>}>
       {(loaded) => <LoadedKaraokeSession client={client} exitPath={props.exitPath} payload={loaded()} postId={props.postId} resolveSession={props.resolveSession} createScoring={props.createScoring} />}
     </Show>
   );
 }
 
 export interface KaraokeLeaderboardRouteViewProps {
+  verifyAge?: typeof verifyAdultViewing;
   postId: string;
   client?: KaraokeApiClient;
   karaokePath?: string;
@@ -232,15 +324,20 @@ export function KaraokeLeaderboardRouteView(props: KaraokeLeaderboardRouteViewPr
   const [loadedPayload, setLoadedPayload] = createSignal<ApiSongKaraokePayload>();
   const [loadError, setLoadError] = createSignal<unknown>(null);
   const [loading, setLoading] = createSignal(true);
-  const load = () => {
-    setLoading(true);
-    setLoadError(null);
-    void loadKaraokeLeaderboard(client, props.postId, undefined, setLoadedPayload)
-      .then(setResult)
-      .catch(setLoadError)
-      .finally(() => setLoading(false));
+  let active = true;
+  let generation = 0;
+  const load = async () => {
+    const revision = ++generation;
+    setLoading(true); setLoadError(null); setResult(undefined); setLoadedPayload(undefined);
+    try {
+      const result = await loadKaraokeLeaderboard(client, props.postId, undefined, payload => { if (active && revision === generation) setLoadedPayload(payload); });
+      if (active && revision === generation) setResult(result);
+    } catch (error) { if (active && revision === generation) setLoadError(error); }
+    finally { if (active && revision === generation) setLoading(false); }
   };
-  if (typeof window !== "undefined") queueMicrotask(load);
+  onCleanup(() => { active = false; generation += 1; });
+  onCleanup(onSessionRefreshed(() => { if (!isAgeLocked(loadError())) void load(); }));
+  if (typeof window !== "undefined") queueMicrotask(() => { if (active) void load(); });
 
   return (
     <Show
@@ -252,7 +349,7 @@ export function KaraokeLeaderboardRouteView(props: KaraokeLeaderboardRouteViewPr
         >
           <Show
             when={isKaraokeAuthError(loadError())}
-            fallback={<KaraokeRouteLoadFailureState description={errorMessage(loadError(), "We couldn't load the karaoke leaderboard.")} onGoHome={() => { window.location.href = "/"; }} onRetry={load} title="Leaderboard unavailable" />}
+            fallback={<Show when={isAgeLocked(loadError())} fallback={<KaraokeRouteLoadFailureState description={errorMessage(loadError(), "We couldn't load the karaoke leaderboard.")} onGoHome={() => { window.location.href = "/"; }} onRetry={load} title="Leaderboard unavailable" />}><AgeAccessPrompt verify={props.verifyAge} onVerified={async () => { await load(); }} /></Show>}
           >
             <KaraokeAuthRequiredState
               ctaLabel="Sign in"

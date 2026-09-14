@@ -1,3 +1,4 @@
+import { requestDocumentVerification } from "../verification/document-verification-host.tsx";
 import { ApiClientError } from "@pirate/api-client";
 import { Title } from "@solidjs/meta";
 import { createEffect, createSignal, onCleanup } from "solid-js";
@@ -19,9 +20,10 @@ import {
   createCommunityCreationApi,
   type CommunityCreationApi,
 } from "./community-creation-api";
-import type { CommunityCreationIntentView, CreationNextAction } from "./community-creation-progress/community-creation-progress-model";
+import type { CommunityCreationIntentView, CreationNextAction } from "./community-creation-intent/community-creation-intent-model";
 import { CreateCommunityView } from "./create-community/create-community";
 import { createEmptyDraft, type CreateCommunityDraft } from "./create-community/create-community-model";
+import { communityCreationDraftsEqual } from "./community-creation-draft";
 
 type RouteSession = "resolving" | "failed" | SessionResolution;
 
@@ -60,7 +62,7 @@ export function blockedCreationMessage(reason: Extract<CreationNextAction, { kin
     case "quota_exceeded":
       return "You've reached the limit for new communities.";
     case "gate_unsupported":
-      return "Palm scan isn't available right now. Try again later.";
+      return "This community requirement is not available right now. Your setup is still here.";
     default:
       // pre_boundary_verification and persona_activation_unavailable have no
       // recovery path in this route; never advise starting over.
@@ -81,6 +83,9 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
   const [session, setSession] = createSignal<RouteSession>("resolving");
   const [draft, setDraft] = createSignal<CreateCommunityDraft>(createEmptyDraft(undefined));
   const [draftEdited, setDraftEdited] = createSignal(false);
+  const [draftConflict, setDraftConflict] = createSignal(false);
+  // Refreshing lifecycle state must not replace the baseline of unsaved edits.
+  let editBase: { intentId: string; draft: CreateCommunityDraft | undefined } | undefined;
   const [displayPersonas, setDisplayPersonas] = createSignal<AuthenticatedSession["personas"]>([]);
   const [intentOwnerId, setIntentOwnerId] = createSignal<string>();
   const [intent, setIntent] = createSignal<CommunityCreationIntentView>();
@@ -127,7 +132,11 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
     return created;
   };
 
-  const loadIntent = async (intentId: string, owner = signedIn(session())) => {
+  const loadIntent = async (
+    intentId: string,
+    owner = signedIn(session()),
+    options: { discardEdits?: boolean } = {},
+  ) => {
     if (!owner) return;
     const request = sessionRequest;
     setLoadingSaved(true);
@@ -137,9 +146,24 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
       if (!active || request !== sessionRequest) return;
       setIntentOwnerId(owner.userId);
       const latest = applyIntent(response);
-      if (latest.draft && !draftEdited()) setDraft(latest.draft);
-      if (latest.nextAction.kind === "blocked") setMessage(blockedCreationMessage(latest.nextAction.reason));
-      if (latest.nextAction.kind === "none" && !latest.committedHref) setMessage("This community setup has ended. Start again.");
+      if (latest.draft && (!draftEdited() || options.discardEdits
+        || communityCreationDraftsEqual(latest.draft, draft()))) {
+        // The server can already contain our draft after a lost PATCH response.
+        if (draftEdited()) { commandKeys.delete("update"); setMessage(""); }
+        setDraft(latest.draft);
+        editBase = undefined;
+        setDraftEdited(false);
+        setDraftConflict(false);
+      } else if (!latest.committedHref && draftEdited()
+        && (editBase?.intentId !== latest.intentId || !communityCreationDraftsEqual(editBase?.draft, latest.draft))) {
+        continuing = false;
+        setDraftConflict(true);
+        setMessage("The saved setup changed while you were editing. Your edits are still here. Copy anything you want to keep before loading the saved setup.");
+      }
+      if (!draftConflict()) {
+        if (latest.nextAction.kind === "blocked") setMessage(blockedCreationMessage(latest.nextAction.reason));
+        if (latest.nextAction.kind === "none" && !latest.committedHref) setMessage("This community setup has ended. Start again.");
+      }
       if (latest.committedHref) navigate(latest.committedHref);
       setLoadingSaved(false);
       return latest;
@@ -167,9 +191,10 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
           setDisplayPersonas([]);
           setDraft(current => ({ ...current, persona: { kind: "create_new" } }));
           setIntent(undefined);
+          setDraftConflict(false);
         } else {
           const changedOwner = intentOwnerId() !== undefined && intentOwnerId() !== result.userId;
-          if (changedOwner) { continuing = false; setIntent(undefined); }
+          if (changedOwner) { continuing = false; setIntent(undefined); setDraftConflict(false); }
           if (!result.personasUnavailable) {
             setDisplayPersonas(result.personas);
             setDraft(current => {
@@ -347,9 +372,26 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
     }
   };
 
+  const verifyNationality = async (saved: CommunityCreationIntentView, ownerId: string) => {
+    const verified = await requestDocumentVerification({
+      title: "Verify nationality to create this community", signal: activationAbort.signal,
+      load: async signal => {
+        if (signedIn(session())?.userId !== ownerId) throw new Error("account_changed");
+        const latest = await api.getIntent({ intentId: saved.intentId, signal });
+        if (signedIn(session())?.userId !== ownerId || latest.nationalityRequirement === undefined) throw new Error("requirement_changed");
+        return latest.nationalityRequirement;
+      },
+    });
+    if (!active || signedIn(session())?.userId !== ownerId) return;
+    if (verified) {
+      await loadIntent(saved.intentId);
+      setMessage("Nationality verified. Continue to finish creating your community.");
+    }
+  };
+
   const submit = async () => {
     const currentDraft = draft();
-    if (busy() || loadingSaved() || sessionInFlight) return;
+    if (busy() || loadingSaved() || sessionInFlight || draftConflict()) return;
     const owner = signedIn(session());
     if (!owner) {
       if (session() === "anonymous") requestGlobalSignIn();
@@ -368,16 +410,25 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
       try {
         let latest = await loadIntent(saved.intentId);
         if (!latest || !active || signedIn(session())?.userId !== owner.userId) return;
-        if (latest.committedHref) return;
+        if (latest.committedHref || draftConflict()) return;
         if (draftEdited()) {
-          const updated = await api.updateIntent({ intentId: saved.intentId, expectedRevision: saved.revision, draft: currentDraft, idempotencyKey: commandKey("update") });
-          if (!active || signedIn(session())?.userId !== owner.userId) return;
+          const updated = await api.updateIntent({
+            intentId: latest.intentId,
+            expectedRevision: latest.revision,
+            draft: currentDraft,
+            // A new revision changes the request body; unchanged retries keep
+            // their key, while draft edits already rotate the update key.
+            idempotencyKey: `${commandKey("update")}:${latest.revision}`,
+          });
+          if (!active || signedIn(session())?.userId !== owner.userId || draftConflict()) return;
           latest = applyIntent(updated);
+          editBase = undefined;
           setDraftEdited(false);
           setMessage("");
         }
         if (latest.nextAction.kind === "blocked") setMessage(blockedCreationMessage(latest.nextAction.reason));
         else if (latest.nextAction.kind === "none" && !latest.committedHref) setMessage("This community setup has ended. Start again.");
+        else if (latest.nextAction.kind === "verify_nationality") await verifyNationality(latest, owner.userId);
         else if (latest.nextAction.kind === "activate_profile") await activateProfile(latest, owner.userId);
         else if (latest.nextAction.kind === "commit") await runCommit(latest.revision, latest.intentId, owner.userId, true);
       } catch (error) {
@@ -413,6 +464,8 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
       navigate(`/communities/new?intent_id=${encodeURIComponent(created.intentId)}`, { replace: true });
       if (created.nextAction.kind === "blocked") {
         setMessage(blockedCreationMessage(created.nextAction.reason));
+      } else if (created.nextAction.kind === "verify_nationality") {
+        await verifyNationality(created, owner.userId);
       } else if (created.nextAction.kind === "commit") {
         await runCommit(created.revision, created.intentId, owner.userId, true);
       }
@@ -425,6 +478,12 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
   };
 
   const currentSession = () => signedIn(session());
+  const needsSessionRetry = () => session() === "failed" || currentSession()?.personasUnavailable;
+  const discardEditsAndReload = () => {
+    if (busy() || loadingSaved()) return;
+    const saved = intent();
+    if (saved) void loadIntent(saved.intentId, signedIn(session()), { discardEdits: true });
+  };
   const quotaBlocked = () => {
     const action = intent()?.nextAction;
     return action?.kind === "blocked" && action.reason === "quota_exceeded";
@@ -449,12 +508,15 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
           continuing = false;
           commandKeys.delete("create");
           commandKeys.delete("update");
-          if (intent()) {
+          const saved = intent();
+          if (saved) {
+            if (!draftEdited()) editBase = { intentId: saved.intentId, draft: saved.draft };
             setDraftEdited(true);
-            setDraft(current => ({ ...current, name: patch.name ?? current.name, description: patch.description === undefined ? current.description : patch.description }));
+            setDraft(current => ({ ...current, name: patch.name ?? current.name, description: patch.description === undefined ? current.description : patch.description, additionalRequirements: patch.additionalRequirements ?? current.additionalRequirements }));
           } else setDraft(current => ({ ...current, ...patch }));
         }}
         onSubmit={() => void submit()}
+        submitLabel={intent()?.nextAction.kind === "verify_nationality" ? "Verify nationality" : undefined}
         personas={displayPersonas()}
         profilesUnavailable={!!currentSession()?.personasUnavailable}
         showMediaFields={false}
@@ -463,10 +525,11 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
         ownerDisabled={!!intent()}
         accountChecking={session() === "resolving" || loadingSaved()}
         submitting={busy() || (intent()?.nextAction.kind === "wait" && !intentReadFailed())}
-        submitDisabled={quotaBlocked()}
+        submitDisabled={quotaBlocked() || draftConflict()}
         requirePersona={!!currentSession()}
         failureMessage={message() || (session() === "failed" ? "Could not check your account. Your setup is still here." : currentSession()?.personasUnavailable ? "Could not load your existing profiles. You can still create a new profile." : "")}
-        onRetry={session() === "failed" || currentSession()?.personasUnavailable ? retrySessionResolution : props.intentId?.trim() && !intent() && message() ? () => void loadIntent(props.intentId!.trim()) : undefined}
+        onRetry={needsSessionRetry() ? retrySessionResolution : draftConflict() ? discardEditsAndReload : props.intentId?.trim() && !intent() && message() ? () => void loadIntent(props.intentId!.trim()) : undefined}
+        retryLabel={!needsSessionRetry() && draftConflict() ? "Discard my edits and load saved setup" : undefined}
       />
     </main>
   );

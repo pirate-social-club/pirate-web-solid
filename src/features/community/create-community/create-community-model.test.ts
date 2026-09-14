@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, test } from "vitest";
 
 import { getLocaleMessages } from "../../../locales";
 import {
@@ -14,7 +14,6 @@ import {
   withDraftDescription,
   withDraftName,
   withDraftPersona,
-  type AdditionalGateOption,
   type AdditionalGateRequirement,
   type CreateCommunityCopy,
 } from "./create-community-model";
@@ -22,11 +21,7 @@ import {
 // SAFETY: the generated routes catalog guarantees the createCommunity key shape for every UI locale.
 const copy = getLocaleMessages("en", "routes").createCommunity as CreateCommunityCopy;
 
-const scoreGate: AdditionalGateOption = {
-  requirement: { requirement: "reputation-score", provider: "passport", minimumScore: 8 },
-  label: "Passport score 8+",
-  description: "Members must have a Passport reputation score of at least 8.",
-};
+const scoreGate: AdditionalGateRequirement = { requirement: "reputation-score", provider: "passport", minimumScore: 8 };
 
 describe("create community model", () => {
   test("wraps requirements in an AND policy", () => {
@@ -37,20 +32,20 @@ describe("create community model", () => {
   });
 
   test("derives ordered gate kinds from a compiled policy", () => {
-    const policy = compileMembershipPolicy([scoreGate.requirement]);
+    const policy = compileMembershipPolicy([scoreGate]);
     expect(gateKindsOf(policy)).toEqual(["human-verification", "reputation-score"]);
   });
 
   test("always prepends the unique-human membership baseline", () => {
     expect(compileMembershipPolicy().accessPaths[0].requirements).toEqual([HUMAN_VERIFICATION]);
-    expect(compileMembershipPolicy([scoreGate.requirement]).accessPaths[0].requirements).toEqual([
+    expect(compileMembershipPolicy([scoreGate]).accessPaths[0].requirements).toEqual([
       HUMAN_VERIFICATION,
-      scoreGate.requirement,
+      scoreGate,
     ]);
   });
 
-  // The client never invents a threshold: the offered requirement is committed
-  // exactly as the capability catalog supplied it.
+  // The client never invents a threshold: a configured requirement is
+  // committed exactly as supplied.
   test("commits the offered requirement verbatim", () => {
     const offered: AdditionalGateRequirement = { requirement: "reputation-score", provider: "passport", minimumScore: 20 };
     const draft = withAdditionalRequirements(createEmptyDraft({ kind: "existing", personaId: "persona_1" }), [offered]);
@@ -92,7 +87,7 @@ describe("create community model", () => {
   });
 
   test("distinguishes two configured requirements of the same kind", () => {
-    const score8 = scoreGate.requirement;
+    const score8 = scoreGate;
     const score20: AdditionalGateRequirement = { requirement: "reputation-score", provider: "passport", minimumScore: 20 };
     expect(requirementsEqual(score8, score20)).toBe(false);
     expect(hasRequirement([score8], score20)).toBe(false);
@@ -113,4 +108,12 @@ describe("create community model", () => {
     expect(withDraftDescription(draft, "A room").description).toBe("A room");
     expect(withDraftPersona(draft, { kind: "existing", personaId: "persona_2" }).persona).toEqual({ kind: "existing", personaId: "persona_2" });
   });
+});
+
+
+test("nationality authoring preserves Palm and compares normalized full allowlists", () => {
+  const nationality: AdditionalGateRequirement = { requirement: "nationality-allowed", allowedCountries: ["US", "CA"] };
+  expect(compileMembershipPolicy([nationality]).accessPaths[0].requirements).toEqual([HUMAN_VERIFICATION, nationality]);
+  expect(requirementsEqual(nationality, { requirement: "nationality-allowed", allowedCountries: ["CAN", "USA"] })).toBe(true);
+  expect(requirementsEqual(nationality, { requirement: "nationality-allowed", allowedCountries: ["US"] })).toBe(false);
 });

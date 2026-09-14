@@ -3,10 +3,8 @@ import { afterEach, describe, expect, test, vi } from "vitest";
 import { render as solidRender } from "@solidjs/web";
 import { createRoot, createSignal, flush } from "solid-js";
 
-import { createMemoryMediaSubmissionStorage } from "../media-submission/pending";
 import { createComposerCapabilitySet } from "./capability";
 import { CreatePostDialog } from "./create-post-dialog";
-import { createMemoryPendingSubmissionStorage } from "./pending-submission";
 import { createPostComposerController, type PostComposerController } from "./controller";
 import { defaultEventState } from "./defaults";
 import { SongRightsStep } from "./song-steps";
@@ -225,10 +223,9 @@ describe("event state that arrives rather than being selected", () => {
 });
 
 describe("the designed rights step", () => {
-  // Regression guard: rendering the allocation total once shares exceed 100%
-  // used to throw inside the reactive render (basis-point formatting is only
-  // valid per-share) and halted the reactive system.
-  test("adds a collaborator and re-renders the allocation rows", async () => {
+  // The creator remainder is derived, so a split can never exceed 100% and no
+  // raw persona identifier input exists.
+  test("adds a named collaborator and re-renders the derived shares", async () => {
     const [royaltySplit, setRoyaltySplit] = createSignal<AssetRoyaltySplitState>({ allocations: [
       { id: "creator", recipientKind: "creator", recipientId: "persona-one", shareBps: 10_000, sharePct: 100 },
     ] });
@@ -245,7 +242,16 @@ describe("the designed rights step", () => {
           get royaltySplit() { return royaltySplit(); },
           onRoyaltySplitChange: setRoyaltySplit,
         }, { isMobile: () => false });
-        return <SongRightsStep controller={controller} />;
+        return (
+          <SongRightsStep
+            controller={controller}
+            recipients={[
+              { personaId: "persona-one", displayName: "Persona One", handle: "one.pirate" },
+              { personaId: "persona-two", displayName: "Persona Two", handle: "two.pirate" },
+            ]}
+            runtime={{ personaId: "persona-one", prepare: async () => true, prepared: true, retained: false, locked: false }}
+          />
+        );
       }, container);
     });
     disposers.push(() => { dispose(); container.remove(); });
@@ -254,8 +260,22 @@ describe("the designed rights step", () => {
     expect(add).toBeInstanceOf(HTMLButtonElement);
     add.click();
     await new Promise<void>(resolve => setTimeout(resolve, 50));
-    expect(container.querySelector("input[aria-label='Recipient 2 id']")).not.toBeNull();
-    expect(container.textContent).toContain("100.01%");
+    const collaborator = [...document.querySelectorAll<HTMLButtonElement>("[role='dialog'] button")]
+      .find(candidate => candidate.textContent?.includes("Persona Two"))!;
+    collaborator.click();
+    await new Promise<void>(resolve => setTimeout(resolve, 50));
+    const share = document.querySelector<HTMLInputElement>('input[aria-label="Share for Persona Two"]')!;
+    share.value = "25";
+    share.dispatchEvent(new Event("change", { bubbles: true }));
+    await new Promise<void>(resolve => setTimeout(resolve, 50));
+    const confirm = [...document.querySelectorAll<HTMLButtonElement>("[role='dialog'] button")]
+      .find(candidate => candidate.textContent?.trim() === "Add")!;
+    await vi.waitFor(() => expect(confirm.disabled).toBe(false));
+    confirm.click();
+    await vi.waitFor(() => expect(document.querySelector('[role="dialog"]')).toBeNull());
+    await vi.waitFor(() => expect(container.textContent).toContain("one.pirate75%"));
+    expect(container.querySelector("input[aria-label='Recipient 2 id']")).toBeNull();
+    expect(container.textContent).not.toContain("100.01%");
   });
 });
 
@@ -270,7 +290,6 @@ describe("the community dialog's video entrance", () => {
       solidRender(() => (
         <CreatePostDialog
           communityContext={{ id: "community-one", name: "Pirate Harbor" }}
-          mediaStorage={createMemoryMediaSubmissionStorage()}
           onOpenChange={() => {}}
           open
           personas={[{
@@ -281,7 +300,6 @@ describe("the community dialog's video entrance", () => {
             communityBinding: null,
           }]}
           principalId="account-one"
-          storage={createMemoryPendingSubmissionStorage()}
         />
       ), container);
     });

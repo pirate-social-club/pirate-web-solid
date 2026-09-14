@@ -125,3 +125,15 @@ export function preloadPublicPostLegacyRoute(
 ) {
   return queryPublicPostLegacyRoute(postId, activity, currentLocale(), currentCanonicalOrigin());
 }
+
+/** Refresh the current authorized read after proof without navigating or starting an activity. */
+export async function reloadCurrentPublicPostRoute(activity: PublicPostActivity, signal: AbortSignal): Promise<PublicPostRouteState> {
+  const requestPath = currentPath();
+  const client = createSessionApiClient({ origin: currentOrigin(), fetchImpl: (input, init) => fetch(input, { ...init, signal }) });
+  const common = { activity, client, requestPath, locale: currentLocale(), canonicalOrigin: currentCanonicalOrigin() };
+  const slug = /^\/posts\/([^/]+)(?:\/|$)/u.exec(requestPath)?.[1];
+  if (slug) return loadPublicPostBySlug({ ...common, rawSlug: slug });
+  const postId = /^\/p\/([^/]+)(?:\/|$)/u.exec(requestPath)?.[1];
+  if (postId && activity !== "detail") return loadPublicPostById({ ...common, activity, postId });
+  return { kind: "invalid", status: 400 };
+}

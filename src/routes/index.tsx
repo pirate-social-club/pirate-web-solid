@@ -143,20 +143,14 @@ export default function HomeRoute(props: HomeRouteProps = {}) {
 
   return (
     <div data-route-path="/" data-home-session={sessionStatus()}>
-        <Show
-          when={authenticatedSession()}
-          fallback={<HomeVideoFeed
-            data={publicData}
-            loadPage={({ cursor, locale, sort }) => fetchPublicFeedPage({ client: props.publicClient, cursor, locale, sort })}
-            navigate={props.navigate}
-          />}
-        >
-          <HomeVideoFeed
-            data={props.homeData}
-            loadPage={({ cursor, locale, sort }) => fetchHomeFeedPage({ client: props.homeClient, cursor, locale, sort })}
-            navigate={props.navigate}
-          />
-        </Show>
+        <HomeVideoFeed
+          sourceIdentity={authenticatedSession() ? `user:${authenticatedSession()?.userId}` : "anonymous"}
+          data={authenticatedSession() ? props.homeData : publicData}
+          loadPage={({ cursor, locale, sort }) => authenticatedSession()
+            ? fetchHomeFeedPage({ client: props.homeClient, cursor, locale, sort })
+            : fetchPublicFeedPage({ client: props.publicClient, cursor, locale, sort })}
+          navigate={props.navigate}
+        />
         <Show when={hydrationFixtures}>
           <HydrationFixtures />
         </Show>

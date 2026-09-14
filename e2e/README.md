@@ -2,8 +2,21 @@
 
 This suite replaces ad-hoc staging clicks with repeatable Playwright evidence.
 It defaults to `https://web-next-staging.pirate.sc`, runs one Chromium worker,
-and keeps traces only when a test fails. Override the origin with
+and keeps traces on failure for unauthenticated probes. Authenticated fixtures
+use sanitized diagnostics instead. Override the origin with
 `E2E_BASE_URL` for an explicitly prepared local preview.
+
+Each checkout needs its own installed dependencies before any test, type or
+lint command. From the repository root, using Bun 1.4.0 and Node 24 or newer,
+run `bun install --frozen-lockfile --ignore-scripts --network-concurrency=1
+--concurrent-scripts=1`. This installs the pinned workspace dependencies
+without starting lifecycle scripts. Leave `node_modules` installed for review;
+Playwright test discovery and the fake sign-in tests still import Playwright.
+Installing dependencies does not launch or install browser binaries.
+
+For local checks, run `bun run test:e2e:helpers`, then `bun run check:e2e`.
+The latter includes TypeScript and discovery only. Install Chromium separately
+with `bun x playwright install chromium` when preparing an authorized live run.
 
 `bun run test:e2e` and `bun run test:e2e:staging` run only tests tagged
 `@staging-readonly`. Authenticated tests read `E2E_PRIVY_EMAIL` and
@@ -104,3 +117,52 @@ The observer drains body reads before teardown, and the creation helper waits
 for the actual POST response. Raw authenticated traces, video, screenshots and
 DOM snapshots remain disabled. Run `node --test scripts/creation-diagnostics.test.mjs`
 for redaction and real-browser request/response capture regression tests.
+## Required community creation acceptance
+
+`bun run test:e2e:community-creation` runs one creation journey with no retries
+and no credential-based skip. Its preflight rejects missing mutation consent,
+missing test credentials, malformed OTPs and targets other than the exact
+staging origin or a prepared loopback origin before starting a browser. Set
+`E2E_ALLOW_MUTATION=1` explicitly and inject the authorized test credentials
+through the secret runner. The same checks apply when selecting this spec
+through the general Playwright configuration. Listing tests is not acceptance.
+
+The journey creates a uniquely marked community through the UI and api-next,
+confirms an active bound persona, membership and owner capabilities, reloads,
+opens management through the community menu, then revisits the committed
+creation intent. It checks that the resource and revision remain unchanged and
+that reopening causes no additional creation writes. It records the created
+route as a persistent-content annotation. It does not automatically delete the
+community. The target must run the candidate build and the corresponding
+api-next contract; a pass on an older deployment does not validate this branch.
+
+Authenticated fixtures share the email-first InputOTP ceremony and disable
+raw traces, screenshots, video and DOM error contexts. Failures attach bounded
+sanitized network events; creation request and response bodies retain schema
+shape and revisions while withholding private values. Other optional probes
+retain their existing tags and visible skip behavior.
+
+`bun run test:e2e:helpers` runs the small Node regression suite for sign-in,
+preflight and diagnostics, without a browser or a server. It is part of
+`verify`. `bun run check:e2e` checks types and lists the browser tests; it does
+not execute them. The configured creation command is a separate required
+acceptance check, and missing inputs must be reported as a failed check.
+
+## Local creation fixture
+
+`e2e/community-creation-local.spec.ts` carries the former
+`scripts/community-owner-activation-check.mjs` scenarios as a maintained
+spec: a rejected create keeps the form stable and retryable, a committed
+intent stays private until profile activation completes, and resuming the
+saved intent publishes once without another create. It intercepts every
+`/api/**` call, so it requires a loopback origin serving the built Worker and
+skips visibly otherwise. Serve the built Worker on `127.0.0.1:4186` and run:
+
+```sh
+E2E_BASE_URL=http://127.0.0.1:4186 bun x playwright test -c e2e --grep @local-fixture
+```
+
+The spec is tagged `@local-fixture` and is excluded from the staging greps.
+
+The reviewed import and its verification limits are recorded in
+[the browser foundation note](../docs/community-creation-browser-foundation.md).

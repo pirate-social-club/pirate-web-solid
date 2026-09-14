@@ -7,7 +7,6 @@ import { createRoot, createSignal } from "solid-js";
 import { afterEach, describe, expect, test, vi } from "vitest";
 
 import type { SessionResolution } from "../../../api/session.ts";
-import { createMemoryMediaSubmissionStorage } from "../../posts/media-submission/pending.ts";
 import { ApplicationSessionProvider, type ApplicationSessionState } from "../../shell/application-session.tsx";
 import type { CommunityEngagementApi } from "./community-engagement-api.ts";
 import type { CommunityThreadPage } from "./community-thread-feed-api.ts";
@@ -221,7 +220,6 @@ describe("the feed a host supplies", () => {
         handleSalesClient={handleSalesClient}
         loadThreads={load}
         pathSegment={harbor.pathSegment}
-        postComposerMediaStorage={createMemoryMediaSubmissionStorage()}
         surfaceData={{ posts: [{
           id: "injected", title: "Injected thread", body: "Supplied by the host.",
           score: 1, publishedAt: "2026-09-01T18:00:00.000Z", commentCount: 0,
@@ -243,7 +241,6 @@ describe("the feed a host supplies", () => {
         handleSalesClient={handleSalesClient}
         loadThreads={load}
         pathSegment={harbor.pathSegment}
-        postComposerMediaStorage={createMemoryMediaSubmissionStorage()}
         resolveSession={async (): Promise<SessionResolution> => ({
           status: "authenticated", userId: "account-a", personas: [boundPersona],
         })}
@@ -265,7 +262,6 @@ describe("the feed a host supplies", () => {
         handleSalesClient={handleSalesClient}
         loadThreads={async () => { throw new Error("thread read failed"); }}
         pathSegment={harbor.pathSegment}
-        postComposerMediaStorage={createMemoryMediaSubmissionStorage()}
       />
     ));
 
@@ -283,7 +279,6 @@ describe("the feed a host supplies", () => {
         handleSalesClient={handleSalesClient}
         loadThreads={loadThreads}
         pathSegment={pathSegment()}
-        postComposerMediaStorage={createMemoryMediaSubmissionStorage()}
       />
     ));
 
@@ -307,7 +302,6 @@ describe("private controls while authority settles", () => {
           handleSalesClient={handleSalesClient}
           loadThreads={loadThreads}
           pathSegment={harbor.pathSegment}
-          postComposerMediaStorage={createMemoryMediaSubmissionStorage()}
           resolveOwnerSettingsAccess={async () => options.canManage}
           resolveSession={async (): Promise<SessionResolution> => ({
             status: "authenticated", userId: "account-a", personas: [...options.personas],
@@ -433,7 +427,6 @@ describe("management authority settles on its own schedule", () => {
           handleSalesClient={handleSalesClient}
           loadThreads={loadThreads}
           pathSegment={harbor.pathSegment}
-          postComposerMediaStorage={createMemoryMediaSubmissionStorage()}
           // Never answers. Management authority stays unknown for the life of
           // the page while everything else is long since known.
           resolveOwnerSettingsAccess={() => new Promise<boolean>(() => {})}
@@ -450,7 +443,7 @@ describe("management authority settles on its own schedule", () => {
     // disabled Joined state rather than the action the server would reject.
     expect(buttonNamed(container, "Follow")).toBeDefined();
     expect(buttonNamed(container, "Joined")?.disabled).toBe(true);
-    expect(container.querySelector("[data-operation-persona]")).not.toBeNull();
+    expect(container.querySelector("[data-active-persona]")).not.toBeNull();
     // Only management is still unknown, and it is reported on an overlay
     // trigger that is always present, so nothing on the page is waiting.
     expect(manageAuthority(container)).toBe("pending");
@@ -472,7 +465,6 @@ describe("a membership read that fails", () => {
           handleSalesClient={handleSalesClient}
           loadThreads={loadThreads}
           pathSegment={harbor.pathSegment}
-          postComposerMediaStorage={createMemoryMediaSubmissionStorage()}
           resolveOwnerSettingsAccess={async () => false}
           resolveSession={async (): Promise<SessionResolution> => ({
             status: "authenticated", userId: "account-a", personas: [boundPersona],
@@ -519,7 +511,6 @@ describe("the overflow menu and the outcome announcements", () => {
         handleSalesClient={handleSalesClient}
         loadThreads={loadThreads}
         pathSegment={harbor.pathSegment}
-        postComposerMediaStorage={createMemoryMediaSubmissionStorage()}
       />
     ));
 
@@ -553,7 +544,6 @@ describe("the overflow menu and the outcome announcements", () => {
           handleSalesClient={handleSalesClient}
           loadThreads={loadThreads}
           pathSegment={harbor.pathSegment}
-          postComposerMediaStorage={createMemoryMediaSubmissionStorage()}
           resolveSession={async (): Promise<SessionResolution> => ({
             status: "authenticated", userId: "account-a", personas: [boundPersona],
           })}
@@ -588,7 +578,6 @@ describe("what a community offers each viewer", () => {
           handleSalesClient={handleSalesClient}
           loadThreads={loadThreads}
           pathSegment={harbor.pathSegment}
-          postComposerMediaStorage={createMemoryMediaSubmissionStorage()}
           resolveSession={async (): Promise<SessionResolution> => ({
             status: "authenticated", userId: "account-a", personas: [boundPersona],
           })}
@@ -615,7 +604,6 @@ describe("what a community offers each viewer", () => {
           handleSalesClient={handleSalesClient}
           loadThreads={loadThreads}
           pathSegment={harbor.pathSegment}
-          postComposerMediaStorage={createMemoryMediaSubmissionStorage()}
           resolveSession={async (): Promise<SessionResolution> => ({
             status: "authenticated", userId: "account-a", personas: [],
           })}
@@ -637,7 +625,6 @@ describe("what a community offers each viewer", () => {
         handleSalesClient={handleSalesClient}
         loadThreads={loadThreads}
         pathSegment={harbor.communityId}
-        postComposerMediaStorage={createMemoryMediaSubmissionStorage()}
       />
     ));
 
