@@ -58,7 +58,7 @@ function response(request: Request, body: string, status = 200): Response {
   return new Response(request.method === "HEAD" ? null : body, {
     status,
     headers: {
-      "Cache-Control": status === 200 ? "public, max-age=300" : "no-store",
+      "Cache-Control": "no-store",
       "Content-Type": "application/xml; charset=utf-8",
     },
   });
@@ -90,7 +90,7 @@ export async function publicPostSitemapResponse(
     signal: request.signal,
     // SAFETY: ApiFetch has the generated client's standard fetch call shape;
     // runtime-specific static fetch members are not used by the client.
-    fetchImpl: fetchImpl as typeof fetch,
+    fetchImpl: ((input, init) => fetchImpl(input, { ...init, cache: "no-store" })) as typeof fetch,
   });
   const load = (cursor: string | null) => client.get_publicPostsSitemap({
     query: { ...(cursor === null ? {} : { cursor }), limit: PAGE_LIMIT },

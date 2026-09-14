@@ -20,7 +20,11 @@ export type PublicFeedClient = Pick<PirateApiClient, "get_feedHomePublic">;
 
 /** Public discovery deliberately omits the session cookie. */
 export function createPublicFeedClient(options: ApiClientFactoryOptions = {}): PublicFeedClient {
-  return createGeneratedApiClient(createPirateApiClient, options, { credentials: "omit" });
+  const upstream = options.fetchImpl ?? fetch;
+  return createGeneratedApiClient(createPirateApiClient, {
+    ...options,
+    fetchImpl: (input, init) => upstream(input, { ...init, cache: "no-store" }),
+  }, { credentials: "omit" });
 }
 
 type JsonPrimitive = string | number | boolean | null;

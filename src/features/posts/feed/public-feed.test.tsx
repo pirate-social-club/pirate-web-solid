@@ -77,12 +77,13 @@ const page: PublicFeedPage = {
 
 describe("PublicFeed", () => {
   test("accepts the sanitized staging shape through the generated client", async () => {
-    let request: { readonly credentials: RequestCredentials | undefined; readonly url: string } | undefined;
+    let request: { readonly credentials: RequestCredentials | undefined; readonly cache: RequestCache | undefined; readonly url: string } | undefined;
     const result = await fetchPublicFeedPage({
       origin: "https://solid.example",
       fetchImpl: async (input, init) => {
         request = {
           credentials: init?.credentials,
+          cache: init?.cache,
           url: input instanceof Request ? input.url : input.toString(),
         };
         return new Response(JSON.stringify(publicFeedStagingContractFixture), {
@@ -94,6 +95,7 @@ describe("PublicFeed", () => {
 
     expect(request).toEqual({
       credentials: "omit",
+      cache: "no-store",
       url: "https://solid.example/api/feed/home/public?locale=en&sort=best",
     });
     expect(result.items).toHaveLength(1);
