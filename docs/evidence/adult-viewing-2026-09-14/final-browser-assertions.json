@@ -1,0 +1,30 @@
+{
+  "source_commit": "8fbbcd9f6fde8f7db5d2c71e48d587cf7efc7a9d",
+  "catalog": "built Storybook",
+  "assertions": [
+    {
+      "story": "flows-community-create--valid-draft",
+      "result": "Palm scan remained required and the real Create action advanced the submission counter from 1 to 2."
+    },
+    {
+      "story": "flows-community-create--nationality-allowed",
+      "result": "Palm scan remained required, nationality was enabled, United States and Canada were selected, and the UI stated that users may choose Self or ZKPassport."
+    },
+    {
+      "fixture": "adult feed locked desktop",
+      "result": "The 18+ prompt was visible and the document contained zero video elements."
+    },
+    {
+      "fixture": "adult feed authorized desktop",
+      "result": "The video element existed after the guarded refresh, remained paused at currentTime 0, and the locked prompt was absent."
+    },
+    {
+      "fixture": "adult feed cancelled mobile 390x844",
+      "result": "Cancellation retained the 18+ prompt and the document contained zero video elements."
+    },
+    {
+      "story": "default handle storefront",
+      "result": "An anonymous visitor could continue into Pirate without membership being presented as a qualification prerequisite."
+    }
+  ]
+}

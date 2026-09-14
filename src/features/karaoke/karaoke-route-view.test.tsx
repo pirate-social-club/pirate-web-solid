@@ -1,3 +1,4 @@
+import { KaraokeApiError } from "./karaoke-session-bridge.ts";
 import { render } from "@solidjs/web";
 import { afterEach, describe, expect, test, vi } from "vitest";
 import type { AuthenticatedSession } from "../../api/session";
@@ -137,4 +138,23 @@ describe("Karaoke first-use microphone disclosure", () => {
     await vi.waitFor(() => expect(createSession).toHaveBeenCalledOnce());
     expect(host.querySelector("[data-karaoke-mic-disclosure]")).toBeNull();
   });
+});
+
+test("an age-locked song verifies before karaoke loads and never starts a scored take automatically", async()=>{
+  const host=document.createElement("div");document.body.appendChild(host);
+  let verified=false;const createSession=vi.fn(()=>new Promise<never>(()=>{}));
+  const unused=async():Promise<never>=>{throw new Error("unused");};
+  const client:KaraokeApiClient={createSession,getAttempt:unused,getLeaderboard:unused,getPayload:async()=>{
+    if(!verified) throw new KaraokeApiError("age_locked","Age required",403,false);
+    return {community:"community-here",id:"revision-1",object:"song_karaoke_payload",post:"post-1",karaoke_lines:[{id:"line-1",index:0,kind:"lyric",start_ms:0,end_ms:2000,text:"Authorized lyrics",words:[]}]};
+  }};
+  const TestRouter=createRouter({history:memoryHistory(),routes:[{path:"/"}]});
+  const dispose=render(()=><TestRouter>{()=><KaraokeSessionRouteView postId="post-1" client={client} createScoring={createScoring}
+    verifyAge={async()=>{verified=true;return true;}} resolveSession={async()=>({status:"authenticated",userId:"account-1",personas:[persona("here","community-here")]})} />}</TestRouter>,host);
+  disposers.push(()=>{dispose();host.remove();});
+  await vi.waitFor(()=>expect(host.textContent).toContain("Verify 18+ to view"));
+  expect(host.textContent).not.toContain("Authorized lyrics");
+  [...host.querySelectorAll("button")].find(button=>button.textContent?.includes("Verify 18+"))?.click();
+  await vi.waitFor(()=>expect(host.querySelector("[data-age-access-prompt]")).toBeNull());
+  expect(createSession).not.toHaveBeenCalled();
 });

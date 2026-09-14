@@ -1,3 +1,5 @@
+import { AgeAccessPrompt } from "../../verification/age-access-prompt.tsx";
+import type { verifyAdultViewing } from "../../verification/age-verification.ts";
 import { createEffect, createSignal, onCleanup, Show } from "solid-js";
 import { attachPlayback } from "./playback-engine";
 import { mintPlaybackAccess, videoPosterPath, type PlaybackGrant } from "./playback-access";
@@ -7,6 +9,8 @@ import type { VideoDeliveryState } from "./delivery-state";
 /** Grants live only in this mounted player; neither SSR nor feed caches hold them. */
 export function VideoPlayer(props: {
   readonly postId: string;
+  readonly requiresAgeVerification?: boolean;
+  readonly verifyAge?: typeof verifyAdultViewing;
   readonly state: VideoDeliveryState;
   readonly mint?: typeof mintPlaybackAccess;
   readonly attach?: typeof attachPlayback;
@@ -103,6 +107,7 @@ export function VideoPlayer(props: {
         onError={() => { if (status() === "ready" || status() === "loading") fail(); }} />
       <Show when={status() === "loading"}><p role="status">Preparing playback…</p></Show>
       <Show when={status() === "unavailable"}>
+        <Show when={props.requiresAgeVerification}><AgeAccessPrompt verify={props.verifyAge} onVerified={async () => { resume = false; if (visible() && foreground()) await acquire(); }} /></Show>
         <p role="status">Playback is unavailable. Your access may have changed, or delivery needs attention.</p>
         <button type="button" onClick={() => { if (visible() && foreground() && Date.now() - lastMint >= 10_000) void acquire(); }}>Try playback again</button>
       </Show>

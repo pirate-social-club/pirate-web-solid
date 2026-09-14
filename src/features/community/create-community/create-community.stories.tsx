@@ -68,7 +68,7 @@ export const Empty: Story = {
     await expect(canvas.getByText("Palm scan")).toBeInTheDocument();
     await expect(canvas.getByText(/Required · Members scan their palm/)).toBeInTheDocument();
     await expect(canvas.queryByText("Additional requirements")).not.toBeInTheDocument();
-    await expect(canvas.queryByRole("checkbox")).not.toBeInTheDocument();
+    await expect(canvas.getByRole("checkbox", { name: "Require nationality verification" })).not.toBeChecked();
   },
 };
 
@@ -78,6 +78,21 @@ export const ValidDraft: Story = {
     const canvas = within(canvasElement);
     await expect(canvas.getByRole("button", { name: "Create" })).toBeEnabled();
     await expect(canvas.getByText("Palm scan")).toBeInTheDocument();
+    await userEvent.click(canvas.getByRole("button", { name: "Create" }));
+    await expect(canvas.getByText("Submitted 1 times")).toBeInTheDocument();
+  },
+};
+
+export const NationalityAllowed: Story = {
+  render: () => <CreateStory draft={validDraft()} />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(canvas.getByRole("checkbox", { name: "Require nationality verification" }));
+    await expect(canvas.getByRole("option", { name: "United States" })).toHaveProperty("selected", true);
+    await expect(canvas.getByText("Palm scan")).toBeInTheDocument();
+    await userEvent.selectOptions(canvas.getByRole("listbox", { name: "Allowed nationalities" }), ["US", "CA"]);
+    await userEvent.click(canvas.getByRole("button", { name: "Create" }));
+    await expect(canvas.getByText("Submitted 1 times")).toBeInTheDocument();
   },
 };
 

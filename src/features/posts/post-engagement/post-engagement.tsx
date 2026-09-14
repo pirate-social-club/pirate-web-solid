@@ -1,3 +1,4 @@
+import { AgeAccessPrompt } from "../../verification/age-access-prompt.tsx";
 import type { CommentThreadReader } from "./comment-thread-api.ts";
 import { createCommentThreadController } from "./comment-thread-controller.ts";
 import type { JSX } from "@solidjs/web";
@@ -709,7 +710,7 @@ export function PostEngagement(props: PostEngagementProps) {
                       <Type variant="label">{item.authorLabel ?? commentStateLabel(item)}</Type>
                       <Show when={item.state !== "age_locked"}><Type variant="caption">Depth {item.depth} · {item.replyCount} replies</Type></Show>
                     </div>
-                    <Type variant="body">{visibleCommentBody(item)}</Type>
+                    <Show when={item.state === "age_locked"} fallback={<Type variant="body">{visibleCommentBody(item)}</Type>}><AgeAccessPrompt onVerified={thread.refresh} /></Show>
                     <Show when={item.reportState}>
                       {(reportState) => <Type role="status" variant="caption">Report {reportState()}</Type>}
                     </Show>

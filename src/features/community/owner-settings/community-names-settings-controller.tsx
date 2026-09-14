@@ -26,7 +26,7 @@ type LoadStatus = "loading" | "ready" | "denied" | "error";
 
 function idempotencyKey(scope: string): string {
   const random = globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-  return `community-names:${scope}:${random}`;
+  return `community-names:${scope.slice(0, 64)}:${random}`;
 }
 
 function safeCommandError(error: ApiClientError | undefined): string {
@@ -108,6 +108,21 @@ export function CommunityNamesSettingsController(
           context: current.context,
           idempotencyKey: commandKey(`offer:${activation.sale_namespace_activation_id}:${activation.sale_namespace_activation_generation}`),
         }));
+      } else if (command.kind === "set_nationality") {
+        if (command.offering.label_scope.kind !== "label_rule_v2" || command.offering.allocation.kind !== "first_come_v1"
+          || command.offering.status === "retired" || (command.countries !== undefined && command.countries.length === 0)) throw new Error("unsupported_offering");
+        const scope = `${command.offering.offering_hash}:${JSON.stringify(command.countries ?? null)}`;
+        let qualification = { policy_id: current.context.offering_authoring_preset.broad_qualification_policy_id,
+          policy_revision: current.context.offering_authoring_preset.expected_broad_qualification_policy_revision };
+        if (command.countries !== undefined) {
+          if (api.authorNationalityPolicy === undefined) throw new Error("authoring_unavailable");
+          qualification = await api.authorNationalityPolicy({ communityId: props.communityId, countries: command.countries,
+            idempotencyKey: commandKey(`qualification:${scope}`) });
+        }
+        if (!active) return;
+        await api.reviseOffering(namesOfferingRevisionInput({ communityId: props.communityId, offering: command.offering,
+          status: command.offering.status === "paused" ? "paused" : "active", qualification,
+          idempotencyKey: commandKey(`qualification-offering:${scope}`) }));
       } else if (command.kind === "resume_name_hosting") {
         await api.reviseSaleNamespace(saleNamespaceRevisionInput({
           activation: command.activation,
@@ -153,6 +168,7 @@ export function CommunityNamesSettingsController(
           <Show when={snapshot()}>{(current) => (
             <CommunityNamesSettingsPanel
               busy={busy()}
+              nationalityAuthoring={api.authorNationalityPolicy !== undefined}
               errorMessage={message() || undefined}
               onCommand={(command) => void execute(command)}
               onReviewAddress={props.onReviewAddress}

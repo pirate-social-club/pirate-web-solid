@@ -8,10 +8,10 @@ const currentClient = resolve(
   appRoot,
   "node_modules/@pirate/api-client/src/generated/client.ts",
 );
-// Client 0.73.0, audited against 0.72.0. Operations and success statuses are
-// unchanged; the song processing_failed failure union gains the non-retryable
-// workflow_terminal_unconverged reason emitted by the operator recovery lane.
-const expectedDigest = "158e31c4e831d2211bb4868a39ceaef56b0609f73d9d7ea2368f2401d99aa53b";
+// Client 0.79.0 combines the reviewed recovery enum with nationality creation,
+// joining, independent handle qualification, and renewable document18+ authority.
+// This digest pins the exact success, error, and schema tables consumed here.
+const expectedDigest = "b3935dc829eb7134301e8e9d490cb8934b9d5d2137af7c9989009ecfa3ebcf05";
 
 const operations = [
   "post_postsPostIdVideoPlaybackAccess",
@@ -58,6 +58,18 @@ const operations = [
   "get_communitiesCommunityIdHnsRootImportsSessionId",
   "post_communitiesCommunityIdHnsRootImportsSessionIdPoll",
   "post_communitiesCommunityIdHnsRootImportsSessionIdActivate",
+  "get_communitiesCommunityIdHandleNationalityAuthoring",
+  "get_handleQualificationIntentsIntentId",
+  "post_communitiesCommunityIdHandleNationalityQualificationPolicies",
+  "get_communitiesCommunityIdHandleOfferings",
+  "get_communitiesCommunityIdHandleSalesManagementOfferings",
+  "get_communityCreationIntentsIntentId",
+  "patch_communityCreationIntentsIntentId",
+  "post_communitiesCommunityIdHandleOfferings",
+  "post_communitiesCommunityIdHandleOfferingsOfferingIdRevisions",
+  "post_communityCreationIntents",
+  "post_communityCreationIntentsIntentIdCommit",
+  "post_handleQuotes",
 ];
 
 const tables = [

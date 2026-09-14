@@ -132,7 +132,7 @@ export const AgeLocked: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(canvas.getByRole("heading", { name: "Age verification required", level: 1 })).toBeInTheDocument();
-    await expect(canvas.getByText("This post is available after verifying that you are at least 18.")).toBeInTheDocument();
+    await expect(canvas.getByText("This content is available after proving you are 18 or older.")).toBeInTheDocument();
     await expect(canvas.queryByText("A searchable title")).toBeNull();
     await expect(canvasElement.querySelector("main")?.getAttribute("data-public-post-state")).toBe("age-locked");
   },

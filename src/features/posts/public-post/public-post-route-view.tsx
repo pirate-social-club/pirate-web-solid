@@ -1,5 +1,9 @@
+import type { verifyAdultViewing } from "../../verification/age-verification.ts";
+import { onSessionRefreshed } from "../../../api/session.ts";
+import { AgeAccessPrompt } from "../../verification/age-access-prompt.tsx";
+import { reloadCurrentPublicPostRoute } from "./public-post-route-loader.ts";
 import { Link, Meta, Title } from "@solidjs/meta";
-import { Loading, Show, createMemo, untrack } from "solid-js";
+import { Loading, Show, createMemo, createSignal, onCleanup, untrack } from "solid-js";
 import { KaraokeLeaderboardRouteView, KaraokeSessionRouteView } from "../../karaoke/karaoke-route-view.tsx";
 import { StudyV2RouteView } from "../../studying/study-v2-route-view.tsx";
 import type { PublicPostContentResponse, PublicPostRouteState } from "./public-post-route.model.ts";
@@ -8,6 +12,8 @@ import { VideoPlayer } from "../video-submission/video-player";
 
 export interface PublicPostRouteViewProps {
   readonly state: PublicPostRouteState | PromiseLike<PublicPostRouteState>;
+  readonly reload?: typeof reloadCurrentPublicPostRoute;
+  readonly verifyAge?: typeof verifyAdultViewing;
 }
 
 function displayTitle(response: PublicPostContentResponse): string {
@@ -81,7 +87,7 @@ function PostDetail(props: { readonly response: PublicPostContentResponse }) {
         </header>
         <Show when={body()}>{value => <p class="whitespace-pre-wrap">{value()}</p>}</Show>
         <Show when={props.response.content.post.post_type === "video"}>
-          <VideoPlayer postId={props.response.post_id} state={projectVideoDelivery(props.response.content.video)} />
+          <VideoPlayer requiresAgeVerification={props.response.content.post.age_gate_policy === "18_plus"} postId={props.response.post_id} state={projectVideoDelivery(props.response.content.video)} />
         </Show>
       </article>
     </main>
@@ -125,7 +131,7 @@ function Content(props: { readonly state: Extract<PublicPostRouteState, { readon
   );
 }
 
-function Failure(props: { readonly state: Exclude<PublicPostRouteState, { readonly kind: "content" }> }) {
+function Failure(props: { readonly state: Exclude<PublicPostRouteState, { readonly kind: "content" }>; readonly onVerified: (signal: AbortSignal) => Promise<void>; readonly verifyAge?: typeof verifyAdultViewing }) {
   const state = untrack(() => props.state);
   if (state.kind === "age-locked") {
     return (
@@ -133,7 +139,7 @@ function Failure(props: { readonly state: Exclude<PublicPostRouteState, { readon
         <Title>Age verification required · Pirate</Title>
         <Meta name="robots" content="noindex, nofollow" />
         <h1>Age verification required</h1>
-        <p>This post is available after verifying that you are at least 18.</p>
+        <AgeAccessPrompt onVerified={props.onVerified} verify={props.verifyAge} />
       </main>
     );
   }
@@ -148,23 +154,48 @@ function Failure(props: { readonly state: Exclude<PublicPostRouteState, { readon
       <Meta name="robots" content="noindex, nofollow" />
       <h1>Post unavailable</h1>
       <p role="alert">{message}</p>
+      <Show when={state.kind === "redirect" ? state.location : undefined}>{href => <a href={href()}>Continue to this post</a>}</Show>
     </main>
   );
 }
 
 export function PublicPostRouteView(props: PublicPostRouteViewProps) {
-  const state = createMemo(() => props.state, { deferStream: true });
+  const [refreshed, setRefreshed] = createSignal<{ source: PublicPostRouteViewProps["state"]; state: PublicPostRouteState }>();
+  const state = createMemo(() => refreshed()?.source === props.state ? refreshed()?.state : props.state, { deferStream: true });
+  let authorityRefresh: AbortController | undefined;
+  onCleanup(() => authorityRefresh?.abort());
+  onCleanup(onSessionRefreshed(() => {
+    authorityRefresh?.abort();
+    const request = new AbortController(); authorityRefresh = request;
+    const source = props.state;
+    const prior = untrack(state);
+    if (prior && typeof prior === "object" && "kind" in prior && prior.kind === "age-locked") return;
+    // Drop rendered content immediately; the new account must win its own read.
+    setRefreshed({ source, state: { kind: "unavailable", status: 502 } });
+    void Promise.resolve(prior).then(async current => {
+      if (!current || !("activity" in current)) return;
+      const next = await (props.reload ?? reloadCurrentPublicPostRoute)(current.activity, request.signal);
+      if (!request.signal.aborted && source === props.state) setRefreshed({ source, state: next });
+    }).catch(() => undefined);
+  }));
+  const verified = async (signal: AbortSignal) => {
+    const source = props.state;
+    const current = await state();
+    if (!current || current.kind !== "age-locked") return;
+    const next = await (props.reload ?? reloadCurrentPublicPostRoute)(current.activity, signal);
+    if (!signal.aborted && source === props.state) setRefreshed({ source, state: next });
+  };
   return (
     <Loading fallback={<main aria-busy="true"><h1>Loading post</h1></main>}>
-      <Show when={state()}>
-        {resolved => <Resolved state={resolved()} />}
+      <Show when={state()} keyed>
+        {resolved => <Resolved state={resolved} onVerified={verified} verifyAge={props.verifyAge} />}
       </Show>
     </Loading>
   );
 }
 
-function Resolved(props: { readonly state: PublicPostRouteState }) {
+function Resolved(props: { readonly state: PublicPostRouteState; readonly onVerified: (signal: AbortSignal) => Promise<void>; readonly verifyAge?: typeof verifyAdultViewing }) {
   const state = untrack(() => props.state);
   if (state.kind === "content") return <Content state={state} />;
-  return <Failure state={state} />;
+  return <Failure state={state} onVerified={props.onVerified} verifyAge={props.verifyAge} />;
 }

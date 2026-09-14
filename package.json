@@ -58,9 +58,10 @@
     "test:e2e:community-creation-local": "playwright test -c e2e --grep @local-fixture"
   },
   "dependencies": {
-    "@pirate/api-client": "file:vendor/api-client/pirate-api-client-0.73.0.tgz",
+    "@pirate/api-client": "file:vendor/api-client/pirate-api-client-0.79.0.tgz",
     "@pirate/web-solid-ui": "workspace:*",
     "@privy-io/js-sdk-core": "0.70.0",
+    "@selfxyz/sdk-common": "1.0.0",
     "@solidjs/meta": "1.0.0-next.2",
     "@solidjs/router": "2.0.0-next.16",
     "@solidjs/web": "2.0.0-rc.0",
@@ -97,7 +98,7 @@
     "typescript": "5.9.3",
     "vite": "8.2.1",
     "vite-plugin-solid": "3.0.0-next.27",
-    "vitest": "4.1.10",
+    "vitest": "4.1.11",
     "wrangler": "4.123.0"
   },
   "patchedDependencies": {
@@ -107,6 +108,7 @@
   "overrides": {
     "@storybook/builder-vite": "10.5.10",
     "@storybook/csf-plugin": "10.5.10",
-    "ethers>ws": "8.21.3"
+    "ethers>ws": "8.21.3",
+    "miniflare>sharp": "0.35.4"
   }
 }

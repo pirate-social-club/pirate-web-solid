@@ -1,0 +1,21 @@
+# Nationality provider choice and authoring evidence
+
+This checkpoint belongs to the coordinator-owned community creation acceptance worktree, based on b7850cb71232810be22c27284cc4ae7d83116cc3. It adopts api-client 0.77.0 and adds the shared Self/ZKPassport ceremony host, nationality authoring for community creation and handle offerings, and explicit join/claim continuation. Completion never creates membership or automatically claims a handle. The source manifest records the independently owned country-code data and the pure Self SDK dependency.
+
+The client artifact SHA-256 is 5c1640489a7f1def756cbcc17fafdc74e9f18089f263a44abb0549f3381f7b1c. Its release is local and undeployed. Runtime table, provenance and strict schema checks pass. Nationality enablement is not part of this checkpoint.
+
+## Verification and limits
+
+The retained solid-verify-077-patched transcript proves type checking, E2E helper discovery, API tests (149), app tests (804), SSR tests (20), UI tests (409), lint, runtime tables, icons, UI type checking and solid-doctor. Those 1,382 tests passed. The combined command then exited 143 during the text browser check because its systemd scope hit the 3 GiB limit. It is not a successful full verify command. The journal identified an OOM kill in run-r4a68daed99554bc18f7a936467e81999.scope.
+
+Browser and build components were rerun serially under 4 GiB, one CPU and no swap, with Node heap capped at 1,792 MiB and thread counts constrained. The text browser component passed five scenarios in solid-final-browser-build; that command subsequently failed the song harness's stale exact title-label locator. Inspection showed the required field is labelled Song title with a required marker. The harness now selects that label explicitly and logs bounded form diagnostics on failure. The final solid-final-song-build command exited zero: two song browser scenarios, production Worker build and Storybook build all passed. No unsupported full-command success is inferred from the earlier failed runs.
+
+A separate local Storybook browser inspection at 390 by 844 pixels confirmed the nationality story selected US and CA, retained required Palm, and had no horizontally scrolling elements after the field width correction. The screenshot is retained. The desktop Palm-only valid-draft story was also inspected with nationality unchecked and creation enabled. Browser inspection used fixtures, not real documents. No live Self or ZKPassport acceptance ceremony, staging enablement, or deployment occurred.
+
+The dependency audit initially found advisories in the development test/image toolchain. Vitest is pinned to 4.1.11 and the Miniflare sharp dependency is overridden to 0.35.4; the final bun audit --json returned an empty object and exit zero. The relevant upstream advisories are https://github.com/advisories/GHSA-82fw-gwwq-j7x9 and https://github.com/advisories/GHSA-rgj7-g3m4-5g8c. Both browser builds passed with these patched resolutions. Node syntax checks and the workspace script checker passed after the harness correction, with zero script findings.
+
+The shared host has tests for equal provider choices, server-authoritative satisfaction, switching, stale callbacks, expiry/replacement and retry. Creator integration proves retained draft state and no automatic commit. These are controlled adapter tests and do not substitute for live provider proofs. Adult viewing and its renewable age ceremony remain implementation work; the host vocabulary supports age requirements but does not yet expose a complete adult flow.
+
+The accompanying transcripts preserve warnings and failed-command boundaries. Earlier scratch failures were not erased or relabelled as successful checks. SHA256SUMS binds the retained files; regenerate it over all files in this directory except SHA256SUMS itself.
+
+Follow-up on 2026-09-14: the initial requirement-read failure now offers an in-place Retry verification action. It reloads server authority without starting a provider or resolving the caller as verified. All five host tests, TypeScript and lint passed; authority-retry-validation.txt retains this narrower follow-up evidence. The earlier full browser/build evidence is not represented as a rerun for this button change.

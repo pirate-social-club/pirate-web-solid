@@ -404,8 +404,13 @@ async function publishSong(page, community, { lyrics }) {
   }
   await audioInput.setInputFiles(mp3Fixture(`${community}.mp3`));
 
-  const title = form.getByLabel("Title", { exact: true });
-  if (await title.count() > 0) await title.fill(`Fixture song ${community}`);
+  const title = form.getByLabel(/^Song title/u);
+  try {
+    await title.fill(`Fixture song ${community}`);
+  } catch (error) {
+    process.stderr.write(`song-step(${community}): ${JSON.stringify((await form.innerText()).slice(0, 1600))}\n`);
+    throw error;
+  }
 
   // Lyrics are optional and live on the Song step; they are bound when the
   // song is published rather than saved from a separate step.

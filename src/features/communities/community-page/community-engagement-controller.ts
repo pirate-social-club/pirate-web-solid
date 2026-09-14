@@ -1,3 +1,4 @@
+import { requestDocumentVerification } from "../../verification/document-verification-host.tsx";
 import { createEffect, createSignal, onCleanup, type Accessor } from "solid-js";
 
 import { ApiClientError } from "@pirate/api-client";
@@ -76,6 +77,7 @@ export function createCommunityEngagementController(
   options: CommunityEngagementControllerOptions,
 ): CommunityEngagementController {
   const applicationSession = useApplicationSession();
+  let documentRequest: AbortController | undefined;
   const [following, setFollowing] = createSignal(false);
   const [membership, setMembership] = createSignal<EngagementMembership>("unknown");
   const [followerCount, setFollowerCount] = createSignal(options.initialFollowerCount);
@@ -124,6 +126,7 @@ export function createCommunityEngagementController(
   };
 
   onCleanup(() => {
+    documentRequest?.abort();
     active = false;
     sessionRequest += 1;
     viewerRequest += 1;
@@ -157,6 +160,7 @@ export function createCommunityEngagementController(
   // and a second account inherited the first account's viewer state because
   // viewer readiness never fell back to false.
   const clearAccountScopedState = () => {
+    documentRequest?.abort();
     setMembership("unknown");
     setFollowing(false);
     setFollowerCount(options.initialFollowerCount);
@@ -356,6 +360,18 @@ export function createCommunityEngagementController(
         setError(action.reason === "banned"
           ? "This account cannot join this Community."
           : "The Community requirements are not satisfied.");
+        return;
+      }
+      if (action.kind === "verify_document") {
+        const load = options.api.readNationalityRequirement;
+        if (load === undefined) { setError("Document verification is unavailable. Please retry."); return; }
+        documentRequest?.abort();
+        documentRequest = new AbortController();
+        const verified = await requestDocumentVerification({
+          title: "Verify nationality to join", signal: documentRequest.signal,
+          load: signal => load(options.communityId, signal),
+        });
+        if (actionOwns(generation) && verified) setMessage("Nationality verified. Select Join to continue.");
         return;
       }
       if (action.kind === "verify") {

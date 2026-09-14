@@ -1,6 +1,6 @@
 /** @jsxImportSource @solidjs/web */
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
-import { expect, waitFor, within } from "storybook/test";
+import { expect, userEvent, waitFor, within } from "storybook/test";
 
 import { HomeVideoFeed } from "./home-video-feed";
 import { publicFeedReviewPage } from "../feed/public-feed-fixtures";
@@ -95,4 +95,29 @@ export const NoVideos: Story = {
 
 export const Mobile: Story = {
   globals: { viewport: { value: "mobile1", isRotated: false } },
+};
+
+/** Uses the production prompt and feed; only document authority is a fixture. */
+export const AdultViewing: Story = {
+  args: {
+    data: { ...emptyPage, ageLockedPositions: [0], nextCursor: null },
+    verifyAge: async () => true,
+    loadPage: async () => ({ ...publicFeedReviewPage, nextCursor: null }),
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const button = await canvas.findByRole("button", { name: "Verify 18+ to view" });
+    await expect(canvasElement.querySelector("video")).toBeNull();
+    const region = canvas.getByRole("region", { name: "Videos for you" });
+    await userEvent.click(button);
+    await waitFor(() => expect(canvas.queryByRole("button", { name: "Verify 18+ to view" })).toBeNull());
+    await expect(canvas.getByRole("region", { name: "Videos for you" })).toBe(region);
+    for (const video of canvasElement.querySelectorAll("video")) await expect(video.autoplay).toBe(false);
+  },
+};
+
+/** Manual browser review of the same in-place flow before proof. */
+export const AdultLocked: Story = { args: AdultViewing.args };
+export const AdultCancelled: Story = {
+  args: { ...AdultViewing.args, verifyAge: async () => false },
 };

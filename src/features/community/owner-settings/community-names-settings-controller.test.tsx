@@ -155,3 +155,23 @@ describe("CommunityNamesSettingsController", () => {
     expect(container.textContent).not.toContain("Enable names");
   });
 });
+
+
+test("authors an independent nationality policy before revising the existing offering", async () => {
+  const author = vi.fn(async () => ({ policy_id: "nationality-policy", policy_revision: 7 }));
+  const revise = vi.fn(async () => {});
+  const api = namesApi({ getSnapshot: async () => NAMES_ACTIVE, authorNationalityPolicy: author, reviseOffering: revise });
+  const container = render(() => <CommunityNamesSettingsController api={api} communityId="community_midnight" />);
+  await vi.waitFor(() => expect(button(container, "Change handle nationality requirement")).toBeDefined());
+  button(container, "Change handle nationality requirement")!.click();
+  await vi.waitFor(() => expect(container.querySelector('input[type="checkbox"]')).not.toBeNull());
+  container.querySelector<HTMLInputElement>('input[type="checkbox"]')!.click();
+  await vi.waitFor(() => expect(container.querySelector("select[multiple]")).not.toBeNull());
+  button(container, "Save handle requirement")!.click();
+  await vi.waitFor(() => expect(revise).toHaveBeenCalledOnce());
+  expect(author).toHaveBeenCalledWith(expect.objectContaining({ communityId: "community_midnight", countries: ["US"] }));
+  expect(revise).toHaveBeenCalledWith(expect.objectContaining({ body: expect.objectContaining({
+    expected_offering_hash: NAMES_ACTIVE.offerings[0]!.offering.offering_hash,
+    terms: expect.objectContaining({ qualification_policy_id: "nationality-policy", expected_qualification_policy_revision: 7 }),
+  }) }));
+});

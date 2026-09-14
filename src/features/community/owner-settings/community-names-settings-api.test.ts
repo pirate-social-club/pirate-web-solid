@@ -143,3 +143,22 @@ describe("createCommunityNamesSettingsApi", () => {
     expect(requested).toBe(false);
   });
 });
+
+
+test("uses server-owned authoring reference and lifetime instead of inventing policy input", async () => {
+  const requests: Request[] = [];
+  const reference = "a".repeat(64);
+  const api = createCommunityNamesSettingsApi({ origin: "https://web.test", readCsrfToken: () => "csrf-test", fetchImpl: async (input, init) => {
+    const request = new Request(input, init); requests.push(request);
+    return request.method === "GET" ? response({ kind: "nationality_authoring_context_v1", community_id: "community_midnight", authoring_reference: reference,
+      policy_revision: 7, lifetime: { kind: "max_age_seconds", seconds: 31536000 }, accepted_provider_ids: ["self.pass", "zkpassport"] })
+      : response({ kind: "nationality_policy_authored_v1", request_hash: "b".repeat(64), qualification_policy: {
+        kind: "curated_nationality_v1", policy_id: "policy-nationality", policy_revision: 7, policy_hash: "c".repeat(64), requirement_hash: "d".repeat(64),
+        provider_binding_hashes: ["e".repeat(64), "f".repeat(64)], lifetime: { kind: "max_age_seconds", seconds: 31536000 },
+      }, created_at: "2026-09-14T00:00:00.000Z", replayed: false }, 201);
+  } });
+  expect(await api.authorNationalityPolicy!({ communityId: "community_midnight", countries: ["US"], idempotencyKey: "author-key" })).toMatchObject({ policy_id: "policy-nationality", policy_revision: 7 });
+  const body = await requests[1]!.json();
+  expect(body).toEqual({ idempotency_key: `author-key:${reference.slice(0, 16)}`, authoring_reference: reference, allowed_countries: ["US"] });
+  expect(requests[1]!.headers.get("x-csrf-token")).toBe("csrf-test");
+});

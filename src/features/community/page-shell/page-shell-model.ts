@@ -33,7 +33,7 @@ export interface CommunityPost {
  * pending shape and the shell never has to invent one.
  */
 export type CommunityFeed =
-  | { readonly kind: "ready"; readonly posts: readonly CommunityPost[] }
+  | { readonly kind: "ready"; readonly posts: readonly CommunityPost[]; readonly ageLockedCount?: number }
   | { readonly kind: "error" };
 
 export interface CommunityRule {
