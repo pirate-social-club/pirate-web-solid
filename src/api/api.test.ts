@@ -84,6 +84,41 @@ describe("same-origin API transport", () => {
     ]);
   });
 
+  it.each(["/api/auth/register", "/api/auth/session/exchange"])(
+    "preserves the session cookie, CSRF proof, and response cookie through %s",
+    async (path) => {
+      let upstreamUrl = "";
+      let upstreamCookie: string | null = null;
+      let upstreamCsrf: string | null = null;
+      const request = new Request(`https://solid.test${path}`, {
+        method: "POST",
+        headers: {
+          cookie: "__Host-pirate_session=session; __Host-pirate_csrf=csrf-value",
+          origin: "https://solid.test",
+          "x-csrf-token": "csrf-value",
+        },
+      });
+
+      const response = await proxyApiRequest(request, { API_NEXT_ORIGIN: origin }, {
+        fetchImpl: async (input, init) => {
+          upstreamUrl = String(input);
+          const headers = new Headers(init?.headers);
+          upstreamCookie = headers.get("cookie");
+          upstreamCsrf = headers.get("x-csrf-token");
+          return new Response(null, {
+            status: 204,
+            headers: { "set-cookie": "__Host-pirate_session=replaced; Secure; HttpOnly; Path=/" },
+          });
+        },
+      });
+
+      expect(upstreamUrl).toBe(`${origin}${path.slice(4)}`);
+      expect(upstreamCookie).toBe("__Host-pirate_session=session; __Host-pirate_csrf=csrf-value");
+      expect(upstreamCsrf).toBe("csrf-value");
+      expect(response.headers.get("set-cookie")).toContain("__Host-pirate_session=replaced");
+    },
+  );
+
   it("enforces request and cookie limits before an upstream call", async () => {
     let calls = 0;
     const fetchImpl = async (): Promise<Response> => {
