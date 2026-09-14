@@ -1,3 +1,4 @@
+import { normalizeIdentityCountryAlpha2 } from "../../verification/nationality-country-codes.ts";
 import type { GeneratedLocaleCatalogs } from "../../../locales/generated";
 import type { CommunityPersonaChoice } from "../../identity/community-persona-choice";
 
@@ -5,12 +6,12 @@ import type { CommunityPersonaChoice } from "../../identity/community-persona-ch
  * A subset of api-next's `CompiledGateRequirement`
  * (packages/contracts/src/community-creation.ts): the members this client
  * knows how to compile, each shaped exactly as the contract declares it. The
- * wire union reserves more requirement kinds; this client carries the
- * reputation-score subset for contract parity and never composes a configured
- * gate itself, so that surface is dormant scaffolding.
+ * wire union reserves more requirement kinds. Nationality is allowlist-only;
+ * reputation-score remains historical scaffolding without an authoring control.
  */
 export type HumanVerificationRequirement = { requirement: "human-verification" };
-export type AdditionalGateRequirement = {
+export type NationalityRequirement = { requirement: "nationality-allowed"; allowedCountries: string[] };
+export type AdditionalGateRequirement = NationalityRequirement | {
   requirement: "reputation-score";
   provider: "passport";
   minimumScore: number;
@@ -33,6 +34,11 @@ export function requirementsEqual(
   left: AdditionalGateRequirement,
   right: AdditionalGateRequirement,
 ): boolean {
+  if (left.requirement === "nationality-allowed" || right.requirement === "nationality-allowed") {
+    if (left.requirement !== "nationality-allowed" || right.requirement !== "nationality-allowed") return false;
+    const canonical = (values: readonly string[]) => [...new Set(values.map(value => normalizeIdentityCountryAlpha2(value) ?? value))].sort().join(",");
+    return canonical(left.allowedCountries) === canonical(right.allowedCountries);
+  }
   return left.provider === right.provider && left.minimumScore === right.minimumScore;
 }
 

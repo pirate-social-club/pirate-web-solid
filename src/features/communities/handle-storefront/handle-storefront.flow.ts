@@ -26,6 +26,7 @@ export type HandleStorefrontProgressUpdate = Readonly<{
 }>;
 
 export type HandleStorefrontResult =
+  | Readonly<{ kind: "nationality_required"; qualificationIntentId: string }>
   | Readonly<{
       readonly kind: "issued";
       readonly claim: HandleClaim;
@@ -269,6 +270,11 @@ export async function runFreeHandleClaim(
       && quoteResult.owner_persona_id === input.personaId,
     );
     return { kind: "eligibility_required", reason: quoteResult.reason };
+  }
+  if (quoteResult.kind === "nationality_required") {
+    assert(quoteResult.offering_id === input.offering.offering_id
+      && quoteResult.owner_persona_id === input.personaId && quoteResult.qualification_intent_id.length > 0);
+    return { kind: "nationality_required", qualificationIntentId: quoteResult.qualification_intent_id };
   }
   validateQuote(quoteResult, input);
 

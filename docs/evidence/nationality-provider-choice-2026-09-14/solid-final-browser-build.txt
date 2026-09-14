@@ -1,0 +1,301 @@
+Running as unit: run-r8afd70da1e164900b7fda8ff26f53b16.scope; invocation ID: f7eff3167e524578b44a1ef9aaf95e4a
+$ node scripts/text-post-check.mjs
+{"ok":true,"scenarios":["published","manual_review","blocked","typed_conflict","lost_response_replay"],"exactReplay":true,"proxy":true,"principal":"user-text-e2e"}
+$ node scripts/song-post-check.mjs
+Using secrets defined in process.env
+▲ [WARNING] Missing required secrets: HNS_FORWARDER_V3_HMAC_KEY_REGISTRY, HNS_COMMUNITY_APP_API_ACCESS_CLIENT_ID, HNS_COMMUNITY_APP_API_ACCESS_CLIENT_SECRET, HNS_COMMUNITY_APP_AUTHORITY_ACCESS_CLIENT_ID, HNS_COMMUNITY_APP_AUTHORITY_ACCESS_CLIENT_SECRET, HNS_HANDLE_HOST_AUTHORITY_ACCESS_CLIENT_ID, HNS_HANDLE_HOST_AUTHORITY_ACCESS_CLIENT_SECRET. Add them to .dev.vars, .env, or set as environment variables.
+
+
+Using secrets defined in process.env
+▲ [WARNING] Missing required secrets: HNS_FORWARDER_V3_HMAC_KEY_REGISTRY, HNS_COMMUNITY_APP_API_ACCESS_CLIENT_ID, HNS_COMMUNITY_APP_API_ACCESS_CLIENT_SECRET, HNS_COMMUNITY_APP_AUTHORITY_ACCESS_CLIENT_ID, HNS_COMMUNITY_APP_AUTHORITY_ACCESS_CLIENT_SECRET, HNS_HANDLE_HOST_AUTHORITY_ACCESS_CLIENT_ID, HNS_HANDLE_HOST_AUTHORITY_ACCESS_CLIENT_SECRET. Add them to .dev.vars, .env, or set as environment variables.
+
+
+
+  VITE v8.2.1  ready in 10443 ms
+
+  ➜  Local:   http://127.0.0.1:4184/
+  ➜  Debug:   http://127.0.0.1:4184/__debug
+
+The Cloudflare Vite plugin detected this dev session is running in an AI agent.
+The Local Explorer API is available at http://127.0.0.1:4184/cdn-cgi/local/explorer/api
+Useful routes:
+  GET http://127.0.0.1:4184/cdn-cgi/local/explorer/api/local/workers - local Workers and bindings
+  GET http://127.0.0.1:4184/cdn-cgi/local/explorer/api/storage/kv/namespaces - KV namespaces
+  GET http://127.0.0.1:4184/cdn-cgi/local/explorer/api/d1/database - D1 databases
+  GET http://127.0.0.1:4184/cdn-cgi/local/explorer/api/r2/buckets - R2 buckets
+  GET http://127.0.0.1:4184/cdn-cgi/local/explorer/api/workers/durable_objects/namespaces - Durable Object namespaces
+  GET http://127.0.0.1:4184/cdn-cgi/local/explorer/api/workflows - Workflows
+  POST http://127.0.0.1:4184/cdn-cgi/local/explorer/api/local/observability/query - run a read-only SQL query (SELECT/WITH only) over captured request traces and console logs. Tables: spans, logs (read attributes via json(attributes)). Example:
+    curl -X POST http://127.0.0.1:4184/cdn-cgi/local/explorer/api/local/observability/query -H 'Content-Type: application/json' -d '{"sql":"SELECT service, name, outcome, duration_ms FROM spans WHERE parent_id IS NULL LIMIT 20"}'
+If the routes above don't cover what you need, fetch the full OpenAPI schema (large - use only as a last resort):
+  GET http://127.0.0.1:4184/cdn-cgi/local/explorer/api - OpenAPI schema
+
+worker.diagnostic {
+  instance_id: '9db01489-d8cc-4ff9-98bc-767b2b648698',
+  request_sequence: 1,
+  first_request_on_instance: true,
+  worker_version: '52a8ea0d-207e-4bdc-8851-89ab5a4fade0',
+  worker_role: 'solid',
+  phase: 'request_entry',
+  request_offset_ms: 0
+}
+worker.diagnostic {
+  instance_id: '9db01489-d8cc-4ff9-98bc-767b2b648698',
+  request_sequence: 2,
+  first_request_on_instance: false,
+  worker_version: '52a8ea0d-207e-4bdc-8851-89ab5a4fade0',
+  worker_role: 'solid',
+  phase: 'request_entry',
+  request_offset_ms: 0
+}
+worker.diagnostic {
+  instance_id: '9db01489-d8cc-4ff9-98bc-767b2b648698',
+  request_sequence: 3,
+  first_request_on_instance: false,
+  worker_version: '52a8ea0d-207e-4bdc-8851-89ab5a4fade0',
+  worker_role: 'solid',
+  phase: 'request_entry',
+  request_offset_ms: 0
+}
+worker.diagnostic {
+  instance_id: '9db01489-d8cc-4ff9-98bc-767b2b648698',
+  request_sequence: 4,
+  first_request_on_instance: false,
+  worker_version: '52a8ea0d-207e-4bdc-8851-89ab5a4fade0',
+  worker_role: 'solid',
+  phase: 'request_entry',
+  request_offset_ms: 0
+}
+7:18:35 AM [vite] (client) [console.warn] [NO_OWNER_CLEANUP] onCleanup called outside a reactive context will never be run
+7:18:35 AM [vite] (client) [console.warn] [NO_OWNER_CLEANUP] onCleanup called outside a reactive context will never be run
+7:18:35 AM [vite] (client) [console.warn] [STRICT_READ_UNTRACKED] Reactive value read directly in an effect callback will not update. Move it into a tracking scope (JSX, a memo, or an effect's compute function).
+7:18:35 AM [vite] (client) [console.warn] [NO_OWNER_CLEANUP] onCleanup called outside a reactive context will never be run
+7:18:35 AM [vite] (client) [console.warn] [STRICT_READ_UNTRACKED] Reactive value read directly in an effect callback will not update. Move it into a tracking scope (JSX, a memo, or an effect's compute function).
+worker.diagnostic {
+  instance_id: '9db01489-d8cc-4ff9-98bc-767b2b648698',
+  request_sequence: 5,
+  first_request_on_instance: false,
+  worker_version: '52a8ea0d-207e-4bdc-8851-89ab5a4fade0',
+  worker_role: 'solid',
+  phase: 'request_entry',
+  request_offset_ms: 0
+}
+worker.diagnostic {
+  instance_id: '9db01489-d8cc-4ff9-98bc-767b2b648698',
+  request_sequence: 6,
+  first_request_on_instance: false,
+  worker_version: '52a8ea0d-207e-4bdc-8851-89ab5a4fade0',
+  worker_role: 'solid',
+  phase: 'request_entry',
+  request_offset_ms: 0
+}
+worker.diagnostic {
+  instance_id: '9db01489-d8cc-4ff9-98bc-767b2b648698',
+  request_sequence: 7,
+  first_request_on_instance: false,
+  worker_version: '52a8ea0d-207e-4bdc-8851-89ab5a4fade0',
+  worker_role: 'solid',
+  phase: 'request_entry',
+  request_offset_ms: 0
+}
+worker.diagnostic {
+  instance_id: '9db01489-d8cc-4ff9-98bc-767b2b648698',
+  request_sequence: 8,
+  first_request_on_instance: false,
+  worker_version: '52a8ea0d-207e-4bdc-8851-89ab5a4fade0',
+  worker_role: 'solid',
+  phase: 'request_entry',
+  request_offset_ms: 0
+}
+worker.diagnostic {
+  instance_id: '9db01489-d8cc-4ff9-98bc-767b2b648698',
+  request_sequence: 9,
+  first_request_on_instance: false,
+  worker_version: '52a8ea0d-207e-4bdc-8851-89ab5a4fade0',
+  worker_role: 'solid',
+  phase: 'request_entry',
+  request_offset_ms: 0
+}
+7:18:37 AM [vite] (client) [console.warn] [NO_OWNER_CLEANUP] onCleanup called outside a reactive context will never be run
+7:18:37 AM [vite] (client) [console.warn] [NO_OWNER_CLEANUP] onCleanup called outside a reactive context will never be run
+7:18:37 AM [vite] (client) [console.warn] [STRICT_READ_UNTRACKED] Reactive value read directly in an effect callback will not update. Move it into a tracking scope (JSX, a memo, or an effect's compute function).
+7:18:37 AM [vite] (client) [console.warn] [NO_OWNER_CLEANUP] onCleanup called outside a reactive context will never be run
+7:18:37 AM [vite] (client) [console.warn] Hydration completed with 41 unclaimed server-rendered node(s):
+  <div _hk="5000804000bk5003000000318" data-community-state="success" data-community-route-family="com
+  <div _hk="5000804000bk500300000031c" class="mx-auto w-full max-w-6xl bg-background" data-community-p
+  <div _hk="5000804000bk500300000031d" class="relative h-36 overflow-hidden bg-[linear-gradient(120deg
+  <button _hk="5000804000bk500300000031i" class="inline-flex cursor-pointer items-center justify-cente
+  <svg _hk="5000804000bk500300000031k0" aria-hidden="true" class="size-5" fill="currentColor" viewBox=
+  <div _hk="5000804000bk500300000031r0" class="flex w-auto shrink-0"><div class="w-full md:hidden"><bu
+  <button _hk="5000804000bk500300000031rh024" aria-haspopup="dialog" aria-expanded="false" data-closed
+  <svg _hk="5000804000bk500300000031rh000" aria-hidden="true" class="size-5" fill="currentColor" viewB
+  <div _hk="5000804000bk500300000031rA1b0002030" as="div" role="group" id="select-5000804000bk50030000
+  <button _hk="5000804000bk500300000031rA1b000203a" type="button" id="select-5000804000bk500300000031r
+  <span _hk="5000804000bk500300000031rA1b000203c30" as="span" id="select-5000804000bk500300000031rm-va
+  <svg _hk="5000804000bk500300000031rA1b000203c3300" aria-hidden="true" class="size-5" fill="currentCo
+  <span _hk="5000804000bk500300000031rA1b000203c60" as="span" aria-hidden="true" data-closed="" class=
+  <svg _hk="5000804000bk500300000031rA1b000203c61" aria-hidden="true" class="size-4 transition-transfo
+  <div _hk="5000804000bk500300000031n20" aria-hidden="true" class="invisible size-10" data-community-m
+  <div _hk="5000804000bk500300000031A12" aria-label="Song fixture community" class="grid shrink-0 plac
+  <span _hk="5000804000bk500300000031t0" aria-hidden="true" class="grid size-full place-items-center r
+  <h1 _hk="5000804000bk500300000031A180" class="font-semibold tracking-tight text-foreground line-clam
+  <span _hk="5000804000bk500300000031A1b0" class="text-base font-normal leading-5 text-muted-foregroun
+  <span _hk="5000804000bk500300000031A1b2" class="hidden md:inline"> · <!--$-->1<!--/--> followers</sp
+  <span _hk="5000804000bk500300000031A1e0" class="text-base font-normal leading-6 text-foreground">Con
+  <button _hk="5000804000bk500300000031A1k" aria-label="Checking your follow state" data-community-fol
+  <svg _hk="5000804000bk500300000031A1m02" aria-hidden="true" class="animate-spin text-current motion-
+  <span _hk="5000804000bk500300000031A1m10" class="sr-only">Checking…</span>
+  <button _hk="5000804000bk500300000031A1p5" aria-label="Checking your membership" data-community-memb
+  <svg _hk="5000804000bk500300000031A1p702" aria-hidden="true" class="animate-spin text-current motion
+  <span _hk="5000804000bk500300000031A1p710" class="sr-only">Checking…</span>
+  <div _hk="5000804000bk500300000031A1r" class="flex items-center justify-between gap-4 border-b borde
+  <button _hk="5000804000bk500300000031A1s1" class="inline-flex h-12 min-w-0 cursor-pointer items-cent
+  <button _hk="5000804000bk500300000031A1s4" class="inline-flex h-12 min-w-0 cursor-pointer items-cent
+  <button _hk="5000804000bk500300000031A1s7" class="inline-flex h-12 min-w-0 cursor-pointer items-cent
+  <div _hk="5000804000bk500300000031A1x30023" class="rounded-[var(--radius-lg)] border border-border-s
+  <div _hk="5000804000bk500300000031A1x300203" class="p-6"><span _hk="5000804000bk500300000031A1x30020
+  <span _hk="5000804000bk500300000031A1x30020020" class="text-base font-normal leading-6 text-foregrou
+  <div _hk="5000804000bk500300000031A21" class="flex flex-col gap-4 max-md:gap-8"><!--$--><div _hk="50
+  <div _hk="5000804000bk500300000031A25" class="rounded-[var(--radius-lg)] border border-border-soft b
+  <div _hk="5000804000bk500300000031A223" class="flex flex-col gap-3 p-5 max-md:p-0"><span _hk="500080
+  <span _hk="5000804000bk500300000031A22020" class="text-xl font-semibold tracking-tight text-foregrou
+  <span _hk="5000804000bk500300000031A22050" class="text-base font-normal leading-6 text-foreground">C
+  <div _hk="5000804000bk500300000031A2f020" as="div" role="region" tabindex="-1" aria-label="Notificat
+  <div _hk="5000804000bk500300000031A2f0240" tabindex="-1" class="flex flex-col gap-2"></div>
+worker.diagnostic {
+  instance_id: '9db01489-d8cc-4ff9-98bc-767b2b648698',
+  request_sequence: 10,
+  first_request_on_instance: false,
+  worker_version: '52a8ea0d-207e-4bdc-8851-89ab5a4fade0',
+  worker_role: 'solid',
+  phase: 'request_entry',
+  request_offset_ms: 0
+}
+worker.diagnostic {
+  instance_id: '9db01489-d8cc-4ff9-98bc-767b2b648698',
+  request_sequence: 11,
+  first_request_on_instance: false,
+  worker_version: '52a8ea0d-207e-4bdc-8851-89ab5a4fade0',
+  worker_role: 'solid',
+  phase: 'request_entry',
+  request_offset_ms: 0
+}
+worker.diagnostic {
+  instance_id: '9db01489-d8cc-4ff9-98bc-767b2b648698',
+  request_sequence: 12,
+  first_request_on_instance: false,
+  worker_version: '52a8ea0d-207e-4bdc-8851-89ab5a4fade0',
+  worker_role: 'solid',
+  phase: 'request_entry',
+  request_offset_ms: 0
+}
+worker.diagnostic {
+  instance_id: '9db01489-d8cc-4ff9-98bc-767b2b648698',
+  request_sequence: 13,
+  first_request_on_instance: false,
+  worker_version: '52a8ea0d-207e-4bdc-8851-89ab5a4fade0',
+  worker_role: 'solid',
+  phase: 'request_entry',
+  request_offset_ms: 0
+}
+7:18:38 AM [vite] (client) [console.warn] [STRICT_READ_UNTRACKED] Reactive value read directly in <SelectBase> will not update. Move it into a tracking scope (JSX, a memo, or an effect's compute function).
+7:18:38 AM [vite] (client) [console.warn] [STRICT_READ_UNTRACKED] Reactive value read directly in <SelectBase> will not update. Move it into a tracking scope (JSX, a memo, or an effect's compute function).
+7:18:38 AM [vite] (client) [console.warn] [STRICT_READ_UNTRACKED] Reactive value read directly in <SelectBase> will not update. Move it into a tracking scope (JSX, a memo, or an effect's compute function).
+7:18:38 AM [vite] (client) [console.warn] [STRICT_READ_UNTRACKED] Reactive value read directly in <PopperRoot> will not update. Move it into a tracking scope (JSX, a memo, or an effect's compute function).
+7:18:38 AM [vite] (client) [console.warn] [STRICT_READ_UNTRACKED] Reactive value read directly in <SelectTrigger> will not update. Move it into a tracking scope (JSX, a memo, or an effect's compute function).
+7:18:38 AM [vite] (client) [console.warn] [STRICT_READ_UNTRACKED] Reactive value read directly in <ButtonRoot> will not update. Move it into a tracking scope (JSX, a memo, or an effect's compute function).
+7:18:38 AM [vite] (client) [console.warn] [STRICT_READ_UNTRACKED] Reactive value read directly in <ButtonRoot> will not update. Move it into a tracking scope (JSX, a memo, or an effect's compute function).
+7:18:38 AM [vite] (client) [console.warn] [STRICT_READ_UNTRACKED] Reactive value read directly in <SelectValue> will not update. Move it into a tracking scope (JSX, a memo, or an effect's compute function).
+worker.diagnostic {
+  instance_id: '9db01489-d8cc-4ff9-98bc-767b2b648698',
+  request_sequence: 14,
+  first_request_on_instance: false,
+  worker_version: '52a8ea0d-207e-4bdc-8851-89ab5a4fade0',
+  worker_role: 'solid',
+  phase: 'request_entry',
+  request_offset_ms: 0
+}
+7:18:38 AM [vite] (client) [console.warn] [STRICT_READ_UNTRACKED] Reactive value read directly in an effect callback will not update. Move it into a tracking scope (JSX, a memo, or an effect's compute function).
+7:18:38 AM [vite] (client) [console.warn] [STRICT_READ_UNTRACKED] Reactive value read directly in an effect callback will not update. Move it into a tracking scope (JSX, a memo, or an effect's compute function).
+7:18:38 AM [vite] (client) [console.warn] [STRICT_READ_UNTRACKED] Reactive value read directly in an effect callback will not update. Move it into a tracking scope (JSX, a memo, or an effect's compute function).
+7:18:38 AM [vite] (client) [console.warn] [NO_OWNER_CLEANUP] onCleanup called outside a reactive context will never be run
+7:18:38 AM [vite] (client) [console.warn] [NO_OWNER_CLEANUP] onCleanup called outside a reactive context will never be run
+7:18:38 AM [vite] (client) [console.warn] [STRICT_READ_UNTRACKED] Reactive value read directly in an effect callback will not update. Move it into a tracking scope (JSX, a memo, or an effect's compute function).
+7:18:38 AM [vite] (client) [console.warn] [STRICT_READ_UNTRACKED] Reactive value read directly in an effect callback will not update. Move it into a tracking scope (JSX, a memo, or an effect's compute function).
+worker.diagnostic {
+  instance_id: '9db01489-d8cc-4ff9-98bc-767b2b648698',
+  request_sequence: 15,
+  first_request_on_instance: false,
+  worker_version: '52a8ea0d-207e-4bdc-8851-89ab5a4fade0',
+  worker_role: 'solid',
+  phase: 'request_entry',
+  request_offset_ms: 0
+}
+worker.diagnostic {
+  instance_id: '9db01489-d8cc-4ff9-98bc-767b2b648698',
+  request_sequence: 16,
+  first_request_on_instance: false,
+  worker_version: '52a8ea0d-207e-4bdc-8851-89ab5a4fade0',
+  worker_role: 'solid',
+  phase: 'request_entry',
+  request_offset_ms: 0
+}
+worker.diagnostic {
+  instance_id: '9db01489-d8cc-4ff9-98bc-767b2b648698',
+  request_sequence: 17,
+  first_request_on_instance: false,
+  worker_version: '52a8ea0d-207e-4bdc-8851-89ab5a4fade0',
+  worker_role: 'solid',
+  phase: 'request_entry',
+  request_offset_ms: 0
+}
+worker.diagnostic {
+  instance_id: '9db01489-d8cc-4ff9-98bc-767b2b648698',
+  request_sequence: 18,
+  first_request_on_instance: false,
+  worker_version: '52a8ea0d-207e-4bdc-8851-89ab5a4fade0',
+  worker_role: 'solid',
+  phase: 'request_entry',
+  request_offset_ms: 0
+}
+7:18:38 AM [vite] (client) [console.warn] [STRICT_READ_UNTRACKED] Reactive value read directly in <CreatePostDialogSession> will not update. Move it into a tracking scope (JSX, a memo, or an effect's compute function).
+7:18:38 AM [vite] (client) [console.warn] [STRICT_READ_UNTRACKED] Reactive value read directly in <CreatePostDialogSession> will not update. Move it into a tracking scope (JSX, a memo, or an effect's compute function).
+7:18:38 AM [vite] (client) [console.warn] [STRICT_READ_UNTRACKED] Reactive value read directly in <CreatePostDialogSession> will not update. Move it into a tracking scope (JSX, a memo, or an effect's compute function).
+7:18:38 AM [vite] (client) [console.warn] [STRICT_READ_UNTRACKED] Reactive value read directly in <PostComposer> will not update. Move it into a tracking scope (JSX, a memo, or an effect's compute function).
+7:18:38 AM [vite] (client) [console.warn] [STRICT_READ_UNTRACKED] Reactive value read directly in <PostComposer> will not update. Move it into a tracking scope (JSX, a memo, or an effect's compute function).
+7:18:38 AM [vite] (client) [console.warn] [STRICT_READ_UNTRACKED] Reactive value read directly in <PostComposer> will not update. Move it into a tracking scope (JSX, a memo, or an effect's compute function).
+7:18:38 AM [vite] (client) [console.warn] [STRICT_READ_UNTRACKED] Reactive value read directly in <PostComposer> will not update. Move it into a tracking scope (JSX, a memo, or an effect's compute function).
+7:18:38 AM [vite] (client) [console.warn] [STRICT_READ_UNTRACKED] Reactive value read directly in <PostComposer> will not update. Move it into a tracking scope (JSX, a memo, or an effect's compute function).
+7:18:38 AM [vite] (client) [console.warn] [STRICT_READ_UNTRACKED] Reactive value read directly in <PostComposer> will not update. Move it into a tracking scope (JSX, a memo, or an effect's compute function).
+7:18:38 AM [vite] (client) [console.warn] [STRICT_READ_UNTRACKED] Reactive value read directly in <PostComposer> will not update. Move it into a tracking scope (JSX, a memo, or an effect's compute function).
+7:18:38 AM [vite] (client) [console.warn] [STRICT_READ_UNTRACKED] Reactive value read directly in <PostComposer> will not update. Move it into a tracking scope (JSX, a memo, or an effect's compute function).
+7:18:38 AM [vite] (client) [console.warn] [STRICT_READ_UNTRACKED] Reactive value read directly in <PostComposer> will not update. Move it into a tracking scope (JSX, a memo, or an effect's compute function).
+7:18:38 AM [vite] (client) [console.warn] [STRICT_READ_UNTRACKED] Reactive value read directly in <PostComposer> will not update. Move it into a tracking scope (JSX, a memo, or an effect's compute function).
+7:18:38 AM [vite] (client) [console.warn] [STRICT_READ_UNTRACKED] Reactive value read directly in <PostComposer> will not update. Move it into a tracking scope (JSX, a memo, or an effect's compute function).
+7:18:38 AM [vite] (client) [console.warn] [STRICT_READ_UNTRACKED] Reactive value read directly in <PostComposer> will not update. Move it into a tracking scope (JSX, a memo, or an effect's compute function).
+7:18:38 AM [vite] (client) [console.warn] [STRICT_READ_UNTRACKED] Reactive value read directly in <PostComposer> will not update. Move it into a tracking scope (JSX, a memo, or an effect's compute function).
+7:18:38 AM [vite] (client) [console.warn] [STRICT_READ_UNTRACKED] Reactive value read directly in <PostComposer> will not update. Move it into a tracking scope (JSX, a memo, or an effect's compute function).
+7:18:38 AM [vite] (client) [console.warn] [STRICT_READ_UNTRACKED] Reactive value read directly in an effect callback will not update. Move it into a tracking scope (JSX, a memo, or an effect's compute function).
+7:18:38 AM [vite] (client) [console.warn] [STRICT_READ_UNTRACKED] Reactive value read directly in an effect callback will not update. Move it into a tracking scope (JSX, a memo, or an effect's compute function).
+7:18:38 AM [vite] (client) [console.warn] [STRICT_READ_UNTRACKED] Reactive value read directly in an effect callback will not update. Move it into a tracking scope (JSX, a memo, or an effect's compute function).
+7:18:38 AM [vite] (client) [console.warn] [STRICT_READ_UNTRACKED] Reactive value read directly in an effect callback will not update. Move it into a tracking scope (JSX, a memo, or an effect's compute function).
+7:18:38 AM [vite] (client) [console.warn] [STRICT_READ_UNTRACKED] Reactive value read directly in an effect callback will not update. Move it into a tracking scope (JSX, a memo, or an effect's compute function).
+7:18:38 AM [vite] (client) [console.warn] [NO_OWNER_CLEANUP] onCleanup called outside a reactive context will never be run
+7:18:38 AM [vite] (client) [console.warn] [NO_OWNER_CLEANUP] onCleanup called outside a reactive context will never be run
+7:18:38 AM [vite] (client) [console.warn] [NO_OWNER_CLEANUP] onCleanup called outside a reactive context will never be run
+7:18:38 AM [vite] (client) [console.warn] [STRICT_READ_UNTRACKED] Reactive value read directly in <PostComposerStepFooter> will not update. Move it into a tracking scope (JSX, a memo, or an effect's compute function).
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+locator.fill: Timeout 30000ms exceeded.
+Call log:
+  - waiting for getByRole('form', { name: 'Create a post' }).getByLabel('Song title', { exact: true })
+
+    at publishSong (<solid-worktree>/scripts/song-post-check.mjs:408:15)
+    at async file://<solid-worktree>/scripts/song-post-check.mjs:480:7 {
+  name: 'TimeoutError'
+}
+
+Node.js v24.14.0
+error: script "song-post-check" exited with code 1

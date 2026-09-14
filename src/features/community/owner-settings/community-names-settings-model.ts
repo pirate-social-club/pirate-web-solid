@@ -12,6 +12,8 @@ import type { OwnerSettingsAccess } from "./owner-settings-model";
 
 export type CommunityNamesManagementPort = Pick<
   PirateApiClient,
+  | "get_communitiesCommunityIdHandleNationalityAuthoring"
+  | "post_communitiesCommunityIdHandleNationalityQualificationPolicies"
   | "get_communitiesCommunityIdHandleSalesManagement"
   | "get_communitiesCommunityIdHandleSalesManagementOfferings"
   | "get_communitiesCommunityIdHandleSalesManagementSaleNamespaces"
@@ -39,6 +41,7 @@ export type CommunityNamesManagementSnapshot = Readonly<{
 }>;
 
 export type CommunityNamesSettingsCommand =
+  | Readonly<{ kind: "set_nationality"; offering: CommunityNamesOffering["offering"]; countries: readonly string[] | undefined }>
   | Readonly<{ candidate: CommunityNamesReadyCandidate; kind: "enable_names" }>
   | Readonly<{ kind: "pause_names"; offering: CommunityNamesOffering["offering"] }>
   | Readonly<{ kind: "resume_names"; offering: CommunityNamesOffering["offering"] }>
@@ -143,6 +146,7 @@ export function namesOfferingRevisionInput(input: {
   idempotencyKey: string;
   offering: CommunityNamesOffering["offering"];
   status: "active" | "paused";
+  qualification?: Readonly<{ policy_id: string; policy_revision: number }>;
 }): PostCommunitiesCommunityIdHandleOfferingsOfferingIdRevisionsInput {
   return {
     path: { communityId: input.communityId, offeringId: input.offering.offering_id },
@@ -150,7 +154,10 @@ export function namesOfferingRevisionInput(input: {
       idempotency_key: input.idempotencyKey,
       expected_offering_hash: input.offering.offering_hash,
       requested_status: input.status,
-      terms: offeringTerms(input.offering),
+      terms: input.qualification === undefined ? offeringTerms(input.offering) : {
+        ...offeringTerms(input.offering), qualification_policy_id: input.qualification.policy_id,
+        expected_qualification_policy_revision: input.qualification.policy_revision,
+      },
     },
   };
 }

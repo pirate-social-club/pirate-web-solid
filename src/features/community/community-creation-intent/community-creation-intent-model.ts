@@ -1,3 +1,4 @@
+import type { DocumentRequirement } from "../../verification/document-requirement.ts";
 export const CREATION_STATUSES = [
   "draft",
   "verification_required",
@@ -19,11 +20,12 @@ export const WAIT_REASON_CODES = [
 export type WaitReasonCode = (typeof WAIT_REASON_CODES)[number];
 
 export type CreationNextAction =
+  | { kind: "verify_nationality" }
   | { kind: "commit" }
   | { kind: "activate_profile"; personaId: string }
   | {
       kind: "wait";
-      requirement: "human_identity" | null;
+      requirement: "human_identity" | "nationality" | null;
       reasonCode: WaitReasonCode;
       retryAfterSeconds?: number;
     }
@@ -44,6 +46,7 @@ export interface CommunityCreationIntentView {
   revision: number;
   status: CreationStatus;
   nextAction: CreationNextAction;
+  nationalityRequirement?: DocumentRequirement;
   expiresAt: string;
   committedHref?: string | null;
 }

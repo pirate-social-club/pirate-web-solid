@@ -1,0 +1,17 @@
+{
+  "source_revision": "api-next@4c633dbc",
+  "source_path": "packages/domain/src/gates/country-codes.ts",
+  "source_sha256": "1be1f81fba6361777f04d0d1645ef113cfa62c6c9948f6fe3b397bb79d5adfde",
+  "destination_path": "src/features/verification/nationality-country-codes.ts",
+  "destination_sha256": "c297f456dedbfbb609d079f51a29a1ed08738a7b8aa6e707f29a62f986c62aba",
+  "adaptation": "Standalone owned copy; exports the alpha-2 code list for the allowlist control. No cross-repository runtime import.",
+  "dependency_review": {
+    "package": "@selfxyz/sdk-common",
+    "version": "1.0.0",
+    "license": "ISC",
+    "dependencies": {
+      "uuid": "^13.0.0"
+    },
+    "use": "Pure SelfAppBuilder and getUniversalLink, loaded on demand; no React package, proof callback trust, or credential persistence."
+  }
+}

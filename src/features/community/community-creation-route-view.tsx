@@ -1,3 +1,4 @@
+import { requestDocumentVerification } from "../verification/document-verification-host.tsx";
 import { ApiClientError } from "@pirate/api-client";
 import { Title } from "@solidjs/meta";
 import { createEffect, createSignal, onCleanup } from "solid-js";
@@ -61,7 +62,7 @@ export function blockedCreationMessage(reason: Extract<CreationNextAction, { kin
     case "quota_exceeded":
       return "You've reached the limit for new communities.";
     case "gate_unsupported":
-      return "Palm scan isn't available right now. Try again later.";
+      return "This community requirement is not available right now. Your setup is still here.";
     default:
       // pre_boundary_verification and persona_activation_unavailable have no
       // recovery path in this route; never advise starting over.
@@ -371,6 +372,23 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
     }
   };
 
+  const verifyNationality = async (saved: CommunityCreationIntentView, ownerId: string) => {
+    const verified = await requestDocumentVerification({
+      title: "Verify nationality to create this community", signal: activationAbort.signal,
+      load: async signal => {
+        if (signedIn(session())?.userId !== ownerId) throw new Error("account_changed");
+        const latest = await api.getIntent({ intentId: saved.intentId, signal });
+        if (signedIn(session())?.userId !== ownerId || latest.nationalityRequirement === undefined) throw new Error("requirement_changed");
+        return latest.nationalityRequirement;
+      },
+    });
+    if (!active || signedIn(session())?.userId !== ownerId) return;
+    if (verified) {
+      await loadIntent(saved.intentId);
+      setMessage("Nationality verified. Continue to finish creating your community.");
+    }
+  };
+
   const submit = async () => {
     const currentDraft = draft();
     if (busy() || loadingSaved() || sessionInFlight || draftConflict()) return;
@@ -410,6 +428,7 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
         }
         if (latest.nextAction.kind === "blocked") setMessage(blockedCreationMessage(latest.nextAction.reason));
         else if (latest.nextAction.kind === "none" && !latest.committedHref) setMessage("This community setup has ended. Start again.");
+        else if (latest.nextAction.kind === "verify_nationality") await verifyNationality(latest, owner.userId);
         else if (latest.nextAction.kind === "activate_profile") await activateProfile(latest, owner.userId);
         else if (latest.nextAction.kind === "commit") await runCommit(latest.revision, latest.intentId, owner.userId, true);
       } catch (error) {
@@ -445,6 +464,8 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
       navigate(`/communities/new?intent_id=${encodeURIComponent(created.intentId)}`, { replace: true });
       if (created.nextAction.kind === "blocked") {
         setMessage(blockedCreationMessage(created.nextAction.reason));
+      } else if (created.nextAction.kind === "verify_nationality") {
+        await verifyNationality(created, owner.userId);
       } else if (created.nextAction.kind === "commit") {
         await runCommit(created.revision, created.intentId, owner.userId, true);
       }
@@ -491,10 +512,11 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
           if (saved) {
             if (!draftEdited()) editBase = { intentId: saved.intentId, draft: saved.draft };
             setDraftEdited(true);
-            setDraft(current => ({ ...current, name: patch.name ?? current.name, description: patch.description === undefined ? current.description : patch.description }));
+            setDraft(current => ({ ...current, name: patch.name ?? current.name, description: patch.description === undefined ? current.description : patch.description, additionalRequirements: patch.additionalRequirements ?? current.additionalRequirements }));
           } else setDraft(current => ({ ...current, ...patch }));
         }}
         onSubmit={() => void submit()}
+        submitLabel={intent()?.nextAction.kind === "verify_nationality" ? "Verify nationality" : undefined}
         personas={displayPersonas()}
         profilesUnavailable={!!currentSession()?.personasUnavailable}
         showMediaFields={false}

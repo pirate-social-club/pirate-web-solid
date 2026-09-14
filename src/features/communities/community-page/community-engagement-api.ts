@@ -1,3 +1,4 @@
+import { joinNationalityRequirement, type DocumentRequirement } from "../../verification/document-requirement.ts";
 import {
   createPirateApiClient,
   type GetCommunitiesCommunityIdJoinEligibilityResponse,
@@ -30,6 +31,7 @@ export type CommunityJoinAction =
   | Readonly<{ kind: "join" }>
   | Readonly<{ kind: "request" }>
   | Readonly<{ kind: "verify"; providerId: string; intentId: string }>
+  | Readonly<{ kind: "verify_document"; requirement: Extract<DocumentRequirement, { kind: "pending" }> }>
   | Readonly<{ kind: "joined" }>
   | Readonly<{ kind: "pending" }>
   | Readonly<{ kind: "blocked"; reason: "banned" | "gate_failed" | "unsupported" }>;
@@ -53,6 +55,7 @@ export type CommunityJoinResult = Readonly<{
 
 export interface CommunityEngagementApi {
   readViewerState(communityId: string): Promise<CommunityViewerEngagement>;
+  readNationalityRequirement?(communityId: string, signal: AbortSignal): Promise<DocumentRequirement>;
   resolveJoinAction(communityId: string): Promise<CommunityJoinAction>;
   /**
    * Join or request membership. Spec 014 §11.2: a join that commits an active
@@ -113,6 +116,11 @@ export function projectCommunityJoinAction(
   }
   if (response.status === "verification_required" && action.kind === "start_verification") {
     if (!validOpaqueId(action.provider_id) || !validOpaqueId(action.intent_id)) return invalidResponse();
+    if ("join_eligibility_version" in response && "requirement" in action && action.requirement === "nationality") {
+      const requirement = joinNationalityRequirement(response, communityId);
+      if (requirement.kind !== "pending" || requirement.intentId !== action.intent_id || requirement.providerId !== action.provider_id) return invalidResponse();
+      return { kind: "verify_document", requirement };
+    }
     return { kind: "verify", providerId: action.provider_id, intentId: action.intent_id };
   }
   if (response.status === "already_joined" && action.kind === "none" && action.reason === "already_joined") {
@@ -163,6 +171,9 @@ export function createCommunityEngagementApi(
         following: response.viewer_following === true,
         followerCount: finiteCount(response.follower_count),
       };
+    },
+    async readNationalityRequirement(communityId, signal) {
+      return joinNationalityRequirement(await client.get_communitiesCommunityIdJoinEligibility({ path: { communityId } }, { signal }), communityId);
     },
     async resolveJoinAction(communityId) {
       const response = await client.get_communitiesCommunityIdJoinEligibility({ path: { communityId } });

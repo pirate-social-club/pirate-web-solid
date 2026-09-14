@@ -232,6 +232,17 @@ describe("free handle storefront flow", () => {
     expect(apiClient.post_handleReservations).not.toHaveBeenCalled();
   });
 
+  test("returns the actor-bound nationality context without reserving or claiming", async () => {
+    const apiClient = client(claim("issued"));
+    apiClient.post_handleQuotes = vi.fn(async () => ({
+      kind: "nationality_required" as const, offering_id: offering.offering_id,
+      owner_persona_id: personaId, qualification_intent_id: "qualification-1", reason: "evidence_required" as const,
+    }));
+    expect(await runFreeHandleClaim(input(apiClient))).toEqual({ kind: "nationality_required", qualificationIntentId: "qualification-1" });
+    expect(apiClient.post_handleReservations).not.toHaveBeenCalled();
+    expect(apiClient.post_handleClaims).not.toHaveBeenCalled();
+  });
+
   test("fails closed when any response changes the selected persona or handle", async () => {
     const apiClient = client(claim("issued"));
     apiClient.post_handleClaims = vi.fn(async () => ({

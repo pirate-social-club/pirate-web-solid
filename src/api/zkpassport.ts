@@ -115,6 +115,8 @@ type VerificationApiClient = Pick<
 >;
 
 export interface CreateZkPassportCeremonyOptions {
+  /** Server-issued ceremony identity; the standalone diagnostic retains its age intent. */
+  readonly intentId?: string;
   readonly apiClient?: VerificationApiClient;
   readonly csrfToken?: string;
   readonly idempotencyKey?: () => string;
@@ -439,7 +441,7 @@ export async function createZkPassportCeremony(
   const requestOptions = sessionRequestOptions(csrfToken, options.requestOptions);
   const apiClient = options.apiClient ?? createSessionApiClient();
   const started = await apiClient.post_verificationSessions(
-    { body: { intent_id: ZKPASSPORT_AGE_18_INTENT_ID, provider_id: ZKPASSPORT_PROVIDER_ID } },
+    { body: { intent_id: options.intentId ?? ZKPASSPORT_AGE_18_INTENT_ID, provider_id: ZKPASSPORT_PROVIDER_ID } },
     requestOptions,
   );
   const presentation = parseZkPassportPresentation(started);
@@ -448,6 +450,16 @@ export async function createZkPassportCeremony(
   const builder = await sdk.request({ ...presentation.request, logo: presentation.request.logo ?? "" });
   const compiled = compileZkPassportQuery(builder, presentation.query);
   if (typeof compiled.url !== "string" || compiled.url.length === 0 || typeof compiled.requestId !== "string" || compiled.requestId.length === 0) {
+    throw new ZkPassportClientError("query_mismatch");
+  }
+  try {
+    const launch = new URL(compiled.url);
+    if (launch.origin !== "https://zkpassport.id" || launch.username || launch.password || launch.hash
+      || !(launch.pathname === "/r" || launch.pathname.startsWith("/r/"))) {
+      throw new Error("invalid_launch_url");
+    }
+  } catch {
+    try { sdk.cancelRequest?.(compiled.requestId); } catch { /* cleanup is best-effort */ }
     throw new ZkPassportClientError("query_mismatch");
   }
 

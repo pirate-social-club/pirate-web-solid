@@ -1,3 +1,4 @@
+import { documentProviders } from "../../verification/document-requirement.ts";
 import { createPirateApiClient } from "@pirate/api-client";
 
 import {
@@ -17,6 +18,7 @@ import type {
 } from "./community-names-settings-model";
 
 export interface CommunityNamesSettingsApi {
+  authorNationalityPolicy?(input: { communityId: string; countries: readonly string[]; idempotencyKey: string; signal?: AbortSignal }): Promise<Readonly<{ policy_id: string; policy_revision: number }>>;
   activateSaleNamespace(
     input: CommunityNamesSaleNamespaceActivationInput & { signal?: AbortSignal },
   ): Promise<CommunityNamesSaleNamespaceActivation>;
@@ -97,6 +99,18 @@ export function createCommunityNamesSettingsApi(
   };
 
   return {
+    async authorNationalityPolicy({ communityId, countries, idempotencyKey, signal }) {
+      const context = await client().get_communitiesCommunityIdHandleNationalityAuthoring({ path: { communityId } }, { signal });
+      assertProtocol(context.community_id === communityId && countries.length > 0);
+      documentProviders(context.accepted_provider_ids, "self.pass");
+      const authored = await client().post_communitiesCommunityIdHandleNationalityQualificationPolicies({
+        path: { communityId }, body: { idempotency_key: `${idempotencyKey}:${context.authoring_reference.slice(0, 16)}`,
+          authoring_reference: context.authoring_reference, allowed_countries: countries },
+      }, writeOptions(signal));
+      assertProtocol(authored.qualification_policy.policy_revision === context.policy_revision
+        && authored.qualification_policy.lifetime.seconds === context.lifetime.seconds);
+      return authored.qualification_policy;
+    },
     async activateSaleNamespace({ signal, ...input }) {
       const response = await client().post_communitiesCommunityIdHandleSaleNamespaces(
         input,
