@@ -80,6 +80,25 @@ describe("document verification continuation", () => {
     expect(await result).toBe(false);
   });
 
+  test("retries a failed initial authority read in place without starting a provider", async () => {
+    const start = vi.fn();
+    let online = false;
+    render(() => <DocumentVerificationHost start={start} />);
+    const controller = new AbortController();
+    const result = requestDocumentVerification({ title: "Verify", signal: controller.signal, load: async () => {
+      if (!online) throw new Error("offline");
+      return pending();
+    } });
+    await vi.waitFor(() => expect(button("Retry verification").disabled).toBe(false));
+    online = true;
+    button("Retry verification").click();
+    await vi.waitFor(() => expect(button("Verify with Self").disabled).toBe(false));
+    expect(document.querySelector('[role="alert"]')).toBeNull();
+    expect(start).not.toHaveBeenCalled();
+    controller.abort();
+    expect(await result).toBe(false);
+  });
+
   test("retires an expired child QR and retries with the server's replacement without granting access", async () => {
     let current = pending();
     const cancel = vi.fn();

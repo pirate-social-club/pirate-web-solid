@@ -137,9 +137,15 @@ export function DocumentVerificationHost(props: DocumentVerificationHostProps = 
     prompt = incoming;
     incoming.signal.addEventListener("abort", cancelled, { once: true });
     setTitle(incoming.title); setMessage(""); setRequirement(undefined); setOpen(true); setBusy(true);
+    reload();
+  };
+  const reload = () => {
+    const current = prompt;
+    if (current === undefined || current.signal.aborted) return;
+    stop(); setMessage(""); setBusy(true);
     const controller = new AbortController(); operation = controller;
     const token = generation;
-    void refresh(token, incoming, controller.signal).then(() => {
+    void refresh(token, current, controller.signal).then(() => {
       if (token === generation) setBusy(false);
     }).catch(() => fail(token));
   };
@@ -167,6 +173,9 @@ export function DocumentVerificationHost(props: DocumentVerificationHostProps = 
           <a href={url()} rel="noreferrer">Open verification app</a>
         </Show>
         <Show when={message()}><p role="alert">{message()}</p></Show>
+        <Show when={message() && pending() === undefined}>
+          <Button type="button" variant="outline" disabled={busy()} onClick={reload}>Retry verification</Button>
+        </Show>
         <Button type="button" variant="ghost" onClick={() => close(false)}>Cancel</Button>
       </div>
     </ModalContent>
