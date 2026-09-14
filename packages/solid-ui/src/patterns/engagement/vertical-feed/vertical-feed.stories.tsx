@@ -5,7 +5,6 @@ import { expect, fn, userEvent, waitFor, within } from "storybook/test";
 
 import { Type } from "@/components/data-display/type/type";
 import { brokenPost, fixturePosts, longCaptionPost } from "./fixtures";
-import type { MediaPostData } from "./types";
 import { VerticalFeed, type VerticalFeedProps } from "./vertical-feed";
 
 const meta = {
@@ -56,13 +55,13 @@ type Story = StoryObj<typeof meta>;
 
 /** Interactive wrapper that owns like state, like a host app would. */
 function InteractiveFeed(props: VerticalFeedProps) {
-  const [posts, setPosts] = createSignal<MediaPostData[]>(props.posts);
+  const [posts, setPosts] = createSignal<VerticalFeedProps["posts"]>(props.posts);
   const rest = omit(props, "posts", "onLikeClick");
 
   const handleLike = (postId: string) => {
     setPosts((current) =>
       current.map((post) =>
-        post.id === postId
+        post.id === postId && !("placeholder" in post)
           ? {
               ...post,
               isLiked: !post.isLiked,

@@ -1,3 +1,6 @@
+import type { verifyAdultViewing } from "../verification/age-verification.ts";
+import { AgeAccessPrompt } from "../verification/age-access-prompt.tsx";
+import { KaraokeApiError } from "./karaoke-session-bridge.ts";
 import { createEffect, createMemo, createSignal, onCleanup, untrack, Show } from "solid-js";
 import { isServer } from "@solidjs/web";
 import { useNavigate } from "@solidjs/router";
@@ -22,6 +25,8 @@ import { resolveSession, sessionPersonasUnavailable, onSessionRefreshed, type Se
 import { communityOperationPersonas, defaultOperationPersonaId } from "../identity/community-persona-choice";
 import { CommunityPersonaChoiceDialog } from "../identity/community-persona-choice-sheet";
 
+function isAgeLocked(error: unknown): boolean { return error instanceof KaraokeApiError && error.code === "age_locked"; }
+
 function errorMessage(error: unknown, fallback: string): string {
   return error instanceof Error && error.message.trim() ? error.message : fallback;
 }
@@ -36,6 +41,7 @@ function payloadLines(payload: ApiSongKaraokePayload) {
 }
 
 export interface KaraokeSessionRouteViewProps {
+  verifyAge?: typeof verifyAdultViewing;
   postId: string;
   client?: KaraokeApiClient;
   exitPath?: string;
@@ -284,21 +290,28 @@ export function KaraokeSessionRouteView(props: KaraokeSessionRouteViewProps) {
   const [payload, setPayload] = createSignal<ApiSongKaraokePayload>();
   const [loadError, setLoadError] = createSignal<unknown>(null);
   const [loading, setLoading] = createSignal(true);
-  const load = () => {
-    setLoading(true);
-    setLoadError(null);
-    void loadKaraokePayload(client, props.postId).then(setPayload).catch(setLoadError).finally(() => setLoading(false));
+  let active = true;
+  let generation = 0;
+  const load = async () => {
+    const revision = ++generation;
+    setLoading(true); setLoadError(null); setPayload(undefined);
+    try { const result = await loadKaraokePayload(client, props.postId); if (active && revision === generation) setPayload(result); }
+    catch (error) { if (active && revision === generation) setLoadError(error); }
+    finally { if (active && revision === generation) setLoading(false); }
   };
-  if (typeof window !== "undefined") queueMicrotask(load);
+  onCleanup(() => { active = false; generation += 1; });
+  onCleanup(onSessionRefreshed(() => { if (!isAgeLocked(loadError())) void load(); }));
+  if (typeof window !== "undefined") queueMicrotask(() => { if (active) void load(); });
 
   return (
-      <Show when={payload()} fallback={<Show when={!loading()} fallback={<KaraokeRouteLoadingState label="Loading karaoke" />}><KaraokeRouteLoadFailureState description={errorMessage(loadError(), "We couldn't load karaoke for this song.")} onGoHome={() => { window.location.href = "/"; }} onRetry={load} title="Karaoke unavailable" /></Show>}>
+      <Show when={payload()} fallback={<Show when={!loading()} fallback={<KaraokeRouteLoadingState label="Loading karaoke" />}><Show when={isAgeLocked(loadError())} fallback={<KaraokeRouteLoadFailureState description={errorMessage(loadError(), "We couldn't load karaoke for this song.")} onGoHome={() => { window.location.href = "/"; }} onRetry={load} title="Karaoke unavailable" />}><AgeAccessPrompt verify={props.verifyAge} onVerified={async () => { await load(); }} /></Show></Show>}>
       {(loaded) => <LoadedKaraokeSession client={client} exitPath={props.exitPath} payload={loaded()} postId={props.postId} resolveSession={props.resolveSession} createScoring={props.createScoring} />}
     </Show>
   );
 }
 
 export interface KaraokeLeaderboardRouteViewProps {
+  verifyAge?: typeof verifyAdultViewing;
   postId: string;
   client?: KaraokeApiClient;
   karaokePath?: string;
@@ -311,15 +324,20 @@ export function KaraokeLeaderboardRouteView(props: KaraokeLeaderboardRouteViewPr
   const [loadedPayload, setLoadedPayload] = createSignal<ApiSongKaraokePayload>();
   const [loadError, setLoadError] = createSignal<unknown>(null);
   const [loading, setLoading] = createSignal(true);
-  const load = () => {
-    setLoading(true);
-    setLoadError(null);
-    void loadKaraokeLeaderboard(client, props.postId, undefined, setLoadedPayload)
-      .then(setResult)
-      .catch(setLoadError)
-      .finally(() => setLoading(false));
+  let active = true;
+  let generation = 0;
+  const load = async () => {
+    const revision = ++generation;
+    setLoading(true); setLoadError(null); setResult(undefined); setLoadedPayload(undefined);
+    try {
+      const result = await loadKaraokeLeaderboard(client, props.postId, undefined, payload => { if (active && revision === generation) setLoadedPayload(payload); });
+      if (active && revision === generation) setResult(result);
+    } catch (error) { if (active && revision === generation) setLoadError(error); }
+    finally { if (active && revision === generation) setLoading(false); }
   };
-  if (typeof window !== "undefined") queueMicrotask(load);
+  onCleanup(() => { active = false; generation += 1; });
+  onCleanup(onSessionRefreshed(() => { if (!isAgeLocked(loadError())) void load(); }));
+  if (typeof window !== "undefined") queueMicrotask(() => { if (active) void load(); });
 
   return (
     <Show
@@ -331,7 +349,7 @@ export function KaraokeLeaderboardRouteView(props: KaraokeLeaderboardRouteViewPr
         >
           <Show
             when={isKaraokeAuthError(loadError())}
-            fallback={<KaraokeRouteLoadFailureState description={errorMessage(loadError(), "We couldn't load the karaoke leaderboard.")} onGoHome={() => { window.location.href = "/"; }} onRetry={load} title="Leaderboard unavailable" />}
+            fallback={<Show when={isAgeLocked(loadError())} fallback={<KaraokeRouteLoadFailureState description={errorMessage(loadError(), "We couldn't load the karaoke leaderboard.")} onGoHome={() => { window.location.href = "/"; }} onRetry={load} title="Leaderboard unavailable" />}><AgeAccessPrompt verify={props.verifyAge} onVerified={async () => { await load(); }} /></Show>}
           >
             <KaraokeAuthRequiredState
               ctaLabel="Sign in"

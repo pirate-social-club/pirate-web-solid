@@ -1,3 +1,5 @@
+import { onSessionRefreshed } from "../../../api/session.ts";
+import { createSessionApiClient } from "../../../api/client.ts";
 import { Link, Meta, Title } from "@solidjs/meta";
 import { getRequestEvent } from "@solidjs/web";
 import { Loading, Show, createEffect, createMemo, createSignal, onCleanup, untrack } from "solid-js";
@@ -233,13 +235,21 @@ function SuccessState(props: {
   // empty feed that is really an unstarted read. A failed read resolves to a
   // value rather than rejecting, so the boundary reports it instead of the
   // page falling over.
+  const [authorizedFeed, setAuthorizedFeed] = createSignal<CommunityFeed>();
+  onCleanup(onSessionRefreshed(() => setAuthorizedFeed(undefined)));
+  const refreshAgeFeed = async (signal: AbortSignal) => {
+    const page = await (props.loadThreads ? props.loadThreads(communityId) : loadCommunityThreadPage({ communityRef: communityId, client: createSessionApiClient() }));
+    if (!signal.aborted) setAuthorizedFeed({ kind: "ready", posts: page.posts, ageLockedCount: page.ageLockedCount });
+  };
   const feed = createMemo<CommunityFeed>(
     () => {
+      const authorized = authorizedFeed();
+      if (authorized) return authorized;
       const injected = props.surfaceData?.posts;
       if (injected !== undefined) return { kind: "ready", posts: injected };
       const load = props.loadThreads ?? ((id: string) => loadCommunityThreadPage({ communityRef: id }));
       return load(communityId).then(
-        (page): CommunityFeed => ({ kind: "ready", posts: page.posts }),
+        (page): CommunityFeed => ({ kind: "ready", posts: page.posts, ageLockedCount: page.ageLockedCount }),
         (): CommunityFeed => ({ kind: "error" }),
       );
     },
@@ -440,6 +450,7 @@ function SuccessState(props: {
             viewerUnknown={engagement.viewerUnknown()}
             viewerSignedIn={viewerSignedIn()}
             feed={feed}
+            onVerifyAge={refreshAgeFeed}
             personaControl={personaOptions().length > 0 ? (
               <button
                 aria-haspopup={canSwitchPersona() ? "dialog" : undefined}

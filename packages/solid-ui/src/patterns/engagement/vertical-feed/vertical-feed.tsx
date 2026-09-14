@@ -1,4 +1,5 @@
 import { createEffect, createSignal, For, onSettled, Show, untrack } from "solid-js";
+import type { JSX } from "@solidjs/web";
 
 import { Spinner } from "@/components/feedback/spinner/spinner";
 import { cn } from "@/lib/cn";
@@ -8,7 +9,11 @@ import type { HapticKind, MediaPostData } from "./types";
 import { VideoPlaybackProvider } from "./video-playback";
 
 export interface VerticalFeedProps {
-  posts: MediaPostData[];
+  posts: (MediaPostData | Readonly<{ id: string; placeholder: true }>)[];
+  /** Product-owned content-free rows retain their place without inventing media or authors. */
+  renderPlaceholder?: (id: string) => JSX.Element;
+  /** Disable automatic playback after a host verification or authorization refresh. Manual play remains available. */
+  autoplay?: boolean;
   /** Show a loading row at the end of the list. */
   loading?: boolean;
   /** More posts exist; onEndReached fires near the end of the list. */
@@ -145,23 +150,26 @@ export function VerticalFeed(props: VerticalFeedProps) {
           onKeyDown={handleKeyDown}
         >
           <For each={props.posts} keyed={(post) => post.id}>
-            {(post, index) => (
+            {(post, index) => {
+              const media = () => { const value = post(); return "placeholder" in value ? undefined : value; };
+              return (
               <div class="h-[100dvh] w-full snap-start snap-always md:h-screen">
-                <MediaPost
-                  id={post().id}
-                  videoUrl={post().videoUrl}
-                  posterUrl={post().posterUrl}
-                  authorName={post().authorName}
-                  authorAvatarUrl={post().authorAvatarUrl}
-                  caption={post().caption}
-                  title={post().title}
-                  artist={post().artist}
-                  mediaImageUrl={post().mediaImageUrl}
-                  likeCount={post().likeCount}
-                  isLiked={post().isLiked}
-                  isFollowing={post().isFollowing}
+                <Show when={media()} fallback={props.renderPlaceholder?.(post().id)}>
+                  {entry => <MediaPost
+                  id={entry().id}
+                  videoUrl={entry().videoUrl}
+                  posterUrl={entry().posterUrl}
+                  authorName={entry().authorName}
+                  authorAvatarUrl={entry().authorAvatarUrl}
+                  caption={entry().caption}
+                  title={entry().title}
+                  artist={entry().artist}
+                  mediaImageUrl={entry().mediaImageUrl}
+                  likeCount={entry().likeCount}
+                  isLiked={entry().isLiked}
+                  isFollowing={entry().isFollowing}
                   autoplay={
-                    index() === activeIndex() && props.pausedPostId !== post().id
+                    props.autoplay !== false && index() === activeIndex() && props.pausedPostId !== entry().id
                   }
                   muted={props.muted}
                   showChrome={props.showChrome}
@@ -169,36 +177,37 @@ export function VerticalFeed(props: VerticalFeedProps) {
                   hasMobileFooter={props.hasMobileFooter}
                   onLikeClick={
                     props.onLikeClick
-                      ? () => props.onLikeClick?.(post().id)
+                      ? () => props.onLikeClick?.(entry().id)
                       : undefined
                   }
                   onShareClick={
                     props.onShareClick
-                      ? () => props.onShareClick?.(post().id)
+                      ? () => props.onShareClick?.(entry().id)
                       : undefined
                   }
                   onFollowClick={
                     props.onFollowClick
-                      ? () => props.onFollowClick?.(post().id)
+                      ? () => props.onFollowClick?.(entry().id)
                       : undefined
                   }
                   onAuthorClick={
                     props.onAuthorClick
-                      ? () => props.onAuthorClick?.(post().id)
+                      ? () => props.onAuthorClick?.(entry().id)
                       : undefined
                   }
                   onSoundtrackClick={
                     props.onSoundtrackClick
-                      ? () => props.onSoundtrackClick?.(post().id)
+                      ? () => props.onSoundtrackClick?.(entry().id)
                       : undefined
                   }
-                  onMuteToggle={(muted) => props.onMuteToggle?.(post().id, muted)}
+                  onMuteToggle={(muted) => props.onMuteToggle?.(entry().id, muted)}
                   onTimeUpdate={props.onTimeUpdate}
                   onViewed={props.onViewed}
                   onHaptic={props.onHaptic}
-                />
+                />}
+                </Show>
               </div>
-            )}
+            ); }}
           </For>
 
           <Show when={props.loading}>

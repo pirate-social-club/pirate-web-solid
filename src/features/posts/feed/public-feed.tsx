@@ -1,3 +1,8 @@
+import type { verifyAdultViewing } from "../../verification/age-verification.ts";
+import { fetchHomeFeedPage } from "./home-feed-adapter.ts";
+import { onSessionRefreshed } from "../../../api/session.ts";
+import { AgeAccessPrompt } from "../../verification/age-access-prompt.tsx";
+import { feedSlots, type FeedSlot } from "./feed-slots.ts";
 import { Title } from "@solidjs/meta";
 import type { JSX } from "@solidjs/web";
 import { Show, For, getRequestEvent } from "@solidjs/web";
@@ -46,6 +51,8 @@ export interface FeedSurfaceProps {
   readonly locale?: UiLocaleCode;
   readonly sort?: FeedSort;
   readonly loadPage: FeedPageLoader;
+  readonly loadVerifiedPage?: FeedPageLoader;
+  readonly verifyAge?: typeof verifyAdultViewing;
   readonly copy: FeedCopy;
   readonly engagement?: FeedEngagementOptions;
 }
@@ -123,6 +130,8 @@ type FeedLoadResult = FeedReadyResult | FeedErrorResult;
 function FeedResult(props: {
   readonly result: FeedLoadResult;
   readonly loadPage: FeedPageLoader;
+  readonly loadVerifiedPage?: FeedPageLoader;
+  readonly verifyAge?: typeof verifyAdultViewing;
   readonly locale: UiLocaleCode;
   readonly sort: FeedSort;
   readonly copy: FeedCopy;
@@ -133,7 +142,7 @@ function FeedResult(props: {
       when={props.result.status === "ready" ? props.result : undefined}
       fallback={<FeedErrorState copy={props.copy} />}
     >
-      {(ready) => <FeedResults engagement={props.engagement} loadPage={props.loadPage} initial={ready().page} locale={props.locale} sort={props.sort} copy={props.copy} />}
+      {(ready) => <FeedResults loadVerifiedPage={props.loadVerifiedPage} verifyAge={props.verifyAge} engagement={props.engagement} loadPage={props.loadPage} initial={ready().page} locale={props.locale} sort={props.sort} copy={props.copy} />}
     </Show>
   );
 }
@@ -165,7 +174,7 @@ function FeedItemCard(props: {
             {(value) => <Type variant="body">{value()}</Type>}
           </Show>
           <Show when={props.item.postType === "video" && props.item.videoDelivery}>
-            {(state) => <VideoPlayer postId={props.item.id} state={state()} />}
+            {(state) => <VideoPlayer postId={props.item.id} state={state()} requiresAgeVerification={props.item.ageGatePolicy === "18_plus"} />}
           </Show>
           <div class="flex flex-wrap gap-3" aria-label="Post activity">
             <Type variant="caption">{props.item.likeCount === null ? "Likes unavailable" : `${props.item.likeCount} likes`}</Type>
@@ -211,6 +220,8 @@ function FeedItemCard(props: {
 
 function FeedResults(props: {
   readonly loadPage: FeedPageLoader;
+  readonly loadVerifiedPage?: FeedPageLoader;
+  readonly verifyAge?: typeof verifyAdultViewing;
   readonly initial: FeedPage;
   readonly locale: UiLocaleCode;
   readonly sort: FeedSort;
@@ -218,29 +229,66 @@ function FeedResults(props: {
   readonly engagement?: FeedEngagementOptions;
 }) {
   const initial = untrack(() => props.initial);
-  const [items, setItems] = createSignal<readonly PublicFeedItem[]>(initial.items);
+  const [slots, setSlots] = createSignal<readonly FeedSlot[]>(feedSlots(initial, "first"));
+  const pages = new Map<string, { cursor?: string; page: FeedPage }>([["first", { page: initial }]]);
+  let active = true;
+  let generation = 0;
+  let authorizedLoader = false;
+  onCleanup(() => { active = false; generation += 1; });
+  onCleanup(onSessionRefreshed(() => {
+    generation += 1;
+    authorizedLoader = false;
+    setLoadingMore(false);
+    setSlots(current => current.flatMap<FeedSlot>(slot => {
+      if (slot.kind === "age_locked") return [slot];
+      if (slot.item.visibility !== "public") return [];
+      return slot.item.ageGatePolicy === "18_plus" ? [{ kind: "age_locked", key: slot.key }] : [slot];
+    }));
+  }));
+  let refreshing = false;
+  const refreshAuthorized = async (signal: AbortSignal) => {
+    const revision = ++generation;
+    refreshing = true;
+    setLoadingMore(false);
+    try {
+    const refreshed = new Map<string, { cursor?: string; page: FeedPage }>();
+    for (const [key, existing] of [...pages]) {
+      const page = await (props.loadVerifiedPage ?? props.loadPage)({ cursor: existing.cursor, locale: props.locale, sort: props.sort });
+      if (!active || signal.aborted || revision !== generation) return;
+      refreshed.set(key, { ...existing, page });
+    }
+    authorizedLoader = true;
+    for (const [key, value] of refreshed) pages.set(key, value);
+    setSlots([...pages].flatMap(([key, value]) => feedSlots(value.page, key)));
+    setNextCursor([...pages.values()].at(-1)?.page.nextCursor ?? null);
+    } finally { refreshing = false; }
+  };
   const [nextCursor, setNextCursor] = createSignal(initial.nextCursor);
   const [loadingMore, setLoadingMore] = createSignal(false);
   const [loadMoreError, setLoadMoreError] = createSignal(false);
 
   const loadMore = async () => {
     const cursor = nextCursor();
-    if (!cursor || loadingMore()) return;
+    if (!cursor || loadingMore() || refreshing) return;
+    const revision = generation;
     setLoadingMore(true);
     setLoadMoreError(false);
     try {
-      const page = await props.loadPage({ cursor, locale: props.locale, sort: props.sort });
-      setItems(previous => [...previous, ...page.items]);
+      const page = await (authorizedLoader ? (props.loadVerifiedPage ?? props.loadPage) : props.loadPage)({ cursor, locale: props.locale, sort: props.sort });
+      if (!active || revision !== generation) return;
+      const key = `cursor:${cursor}`;
+      pages.set(key, { cursor, page });
+      setSlots(previous => [...previous, ...feedSlots(page, key)]);
       setNextCursor(page.nextCursor);
     } catch {
-      setLoadMoreError(true);
+      if (active && revision === generation) setLoadMoreError(true);
     } finally {
-      setLoadingMore(false);
+      if (active && revision === generation) setLoadingMore(false);
     }
   };
 
   return (
-    <main data-feed-state={items().length === 0 ? "empty" : "ready"}>
+    <main data-feed-state={slots().length === 0 ? "empty" : "ready"}>
       <Title>{props.copy.title}</Title>
       <header class="mb-5 flex flex-wrap items-end justify-between gap-3">
         <div>
@@ -249,9 +297,14 @@ function FeedResults(props: {
         </div>
         <Type variant="label">{props.sort}</Type>
       </header>
-      <Show when={items().length > 0} fallback={<Card><CardContent class="p-6"><Type variant="body">{props.copy.emptyMessage}</Type></CardContent></Card>}>
+      <Show when={slots().length > 0} fallback={<Card><CardContent class="p-6"><Type variant="body">{props.copy.emptyMessage}</Type></CardContent></Card>}>
         <div class="flex flex-col gap-4" data-feed-list>
-          <For each={items()}>{item => <FeedItemCard engagement={props.engagement} item={item} />}</For>
+          <For each={slots()} keyed={slot => slot.key}>{slot => {
+            const item = () => { const value = slot(); return value.kind === "post" ? value.item : undefined; };
+            return <Show when={item()} fallback={<AgeAccessPrompt verify={props.verifyAge} onVerified={refreshAuthorized} />}>
+              {post => <FeedItemCard engagement={props.engagement} item={post()} />}
+            </Show>;
+          }}</For>
         </div>
       </Show>
       <Show when={nextCursor()}>
@@ -303,7 +356,7 @@ export function FeedSurface(props: FeedSurfaceProps) {
 
   return (
     <Show when={!loading()} fallback={<FeedLoadingState copy={props.copy} />}>
-      <FeedResult engagement={props.engagement} result={result() ?? { status: "error" }} loadPage={props.loadPage} locale={locale} sort={sort} copy={props.copy} />
+      <FeedResult loadVerifiedPage={props.loadVerifiedPage} verifyAge={props.verifyAge} engagement={props.engagement} result={result() ?? { status: "error" }} loadPage={props.loadPage} locale={locale} sort={sort} copy={props.copy} />
     </Show>
   );
 }
@@ -323,6 +376,7 @@ export function PublicFeed(props: PublicFeedProps) {
     data={props.data}
     locale={props.locale}
     sort={props.sort}
+    loadVerifiedPage={({ cursor, locale, sort }) => fetchHomeFeedPage({ cursor, locale, sort })}
     copy={PUBLIC_FEED_COPY}
     loadPage={({ cursor, locale, sort }) => fetchPublicFeedPage({ client: props.client, cursor, locale, sort })}
   />;

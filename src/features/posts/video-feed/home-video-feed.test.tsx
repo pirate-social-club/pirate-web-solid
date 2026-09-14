@@ -296,3 +296,37 @@ test("discards a stale pagination completion after the input identity changes", 
   expect(container.querySelector("video[src='https://media.pirate.test/stale.mp4']")).toBeNull();
   expect(container.querySelector("video")?.getAttribute("src")).toBe("https://media.pirate.test/ar.mp4");
 });
+
+test("an age-locked feed offers in-place verification without inventing a video or resetting its scroll region", async () => {
+  const play = vi.spyOn(HTMLMediaElement.prototype, "play").mockResolvedValue();
+  const first = { ...page([], null), ageLockedPositions: [0] };
+  const unlocked = page([video([{ playback_url: "https://media.test/authorized.mp4" }])], null);
+  const verify = vi.fn(async () => true);
+  const load = vi.fn(async () => unlocked);
+  const container = render(() => <HomeVideoFeed data={first} loadPage={load} verifyAge={verify} />);
+  await vi.waitFor(() => expect(container.querySelector("[data-age-access-prompt]")).not.toBeNull());
+  expect(container.querySelector("video, img")).toBeNull();
+  expect(container.textContent).not.toContain("No videos yet");
+  const region = container.querySelector('[role="region"]');
+  if (!(region instanceof HTMLElement)) throw new Error("feed scroll region missing");
+  region.scrollTop = 57;
+  const button = [...container.querySelectorAll("button")].find(button => button.textContent?.includes("Verify 18+"));
+  button?.click();
+  await vi.waitFor(() => expect(load).toHaveBeenCalledOnce());
+  await vi.waitFor(() => expect(container.querySelector("[data-age-access-prompt]")).toBeNull());
+  expect(container.querySelector('[role="region"]')).toBe(region);
+  expect(region.scrollTop).toBe(57);
+  expect(container.querySelector("video")?.autoplay).toBe(false);
+  expect(play).not.toHaveBeenCalled();
+  play.mockRestore();
+});
+
+test("cancelling age verification keeps the locked row and does not refetch or play content", async () => {
+  const load = vi.fn(async () => page([], null));
+  const container = render(() => <HomeVideoFeed data={{ ...page([], null), ageLockedPositions: [0] }} loadPage={load} verifyAge={async () => false} />);
+  await vi.waitFor(() => expect(container.querySelector("[data-age-access-prompt]")).not.toBeNull());
+  [...container.querySelectorAll("button")].find(button => button.textContent?.includes("Verify 18+"))?.click();
+  await vi.waitFor(() => expect(container.querySelector("button")?.disabled).toBe(false));
+  expect(load).not.toHaveBeenCalled();
+  expect(container.querySelector("video")).toBeNull();
+});

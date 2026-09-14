@@ -122,3 +122,14 @@ test("a near-expired grant stops before another mint rather than spinning", asyn
   expect(mint).toHaveBeenCalledTimes(1);
   expect(root.querySelector("video")?.getAttribute("src")).toBeNull();
 });
+
+test("adult access can be reverified after denial without resuming playback automatically", async()=>{
+  const mint=vi.fn().mockRejectedValueOnce(new Error("age denied")).mockImplementation(async()=>grant());
+  const resumes:boolean[]=[];
+  const attach:NonNullable<Parameters<typeof VideoPlayer>[0]["attach"]>=async input=>{resumes.push(input.resume);return ()=>{};};
+  const root=document.createElement("div");document.body.appendChild(root);
+  createRoot(dispose=>{disposers.push(dispose);render(()=><VideoPlayer postId="post" state={{playback:"ready",thumbnail:"ready"}} requiresAgeVerification mint={mint} attach={attach} verifyAge={async()=>true} />,root);});
+  await flush();expect(root.textContent).toContain("Verify 18+ to view");
+  [...root.querySelectorAll("button")].find(button=>button.textContent?.includes("Verify 18+"))?.click();
+  await flush();expect(mint).toHaveBeenCalledTimes(2);expect(resumes).toEqual([false]);
+});

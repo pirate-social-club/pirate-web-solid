@@ -42,6 +42,7 @@ const response: GetPublicCommunitiesCommunityRefFeedResponse = JSON.parse(JSON.s
 describe("public Community thread feed", () => {
   test("projects public threads into the Reddit-style page model", () => {
     expect(normalizeCommunityThreadPage(response)).toEqual({
+      ageLockedCount: 1,
       posts: [{
         id: "post-1",
         title: "Welcome aboard",
