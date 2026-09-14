@@ -372,7 +372,10 @@ export class MediaSubmissionCoordinator {
     return result;
   }
 
-  async uploadAndFinalize(onProgress?: (sent: number, total: number) => void): Promise<MediaSubmissionSnapshot> {
+  async uploadAndFinalize(
+    onProgress?: (sent: number, total: number) => void,
+    signal?: AbortSignal,
+  ): Promise<MediaSubmissionSnapshot> {
     await this.reconcilePending();
     let snapshot = await this.refresh();
     const current = this.requireRecord();
@@ -385,14 +388,20 @@ export class MediaSubmissionCoordinator {
       this.save({ ...current, upload_status: "uploading" });
       this.setView({ status: "uploading", submissionId: snapshot.submission_id, bytesSent: 0, bytesTotal: current.audio.size });
       try {
-        await this.transport.upload(current.reservation, current.audio.blob, (sent, total) => {
-          this.setView({ status: "uploading", submissionId: snapshot!.submission_id, bytesSent: sent, bytesTotal: total });
-          onProgress?.(sent, total);
-        });
+        await this.transport.upload(
+          current.reservation,
+          current.audio.blob,
+          (sent, total) => {
+            this.setView({ status: "uploading", submissionId: snapshot!.submission_id, bytesSent: sent, bytesTotal: total });
+            onProgress?.(sent, total);
+          },
+          signal,
+        );
       } catch (error) {
         // The retained Blob and reservation make the same PUT retryable. Do
         // not leave the composer in its transient progress-only state when a
         // browser, CORS, or response failure makes the result ambiguous.
+        this.save({ ...this.requireRecord(), upload_status: "not_uploaded" });
         this.setView(projectMediaSubmission(snapshot));
         throw error;
       }

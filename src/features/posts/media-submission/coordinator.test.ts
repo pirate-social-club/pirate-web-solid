@@ -147,7 +147,12 @@ class MemoryMediaTransport implements MediaSubmissionTransport {
     return this.current;
   }
 
-  async upload(): Promise<void> {
+  async upload(
+    _reservation: PostCommunitiesCommunityIdMediaUploadReservationsResponse,
+    _audio: Blob,
+    _onProgress?: (sent: number, total: number) => void,
+    _signal?: AbortSignal,
+  ): Promise<void> {
     this.uploadCount += 1;
   }
 }
@@ -261,15 +266,46 @@ describe("media submission coordinator", () => {
     const coordinator = await started(transport);
     let first = true;
     const originalUpload = transport.upload.bind(transport);
-    transport.upload = async () => {
+    transport.upload = async (...input) => {
       if (first) { first = false; throw new Error("upload uncertain"); }
-      await originalUpload();
+      await originalUpload(...input);
     };
     await expect(coordinator.uploadAndFinalize()).rejects.toThrow("upload uncertain");
     const finalized = await coordinator.uploadAndFinalize();
     expect(finalized.audio_revision).toBe(1);
     expect(transport.uploadCount).toBe(1);
     expect(transport.kinds.filter(kind => kind === "finalize")).toHaveLength(1);
+  });
+
+  test("restores a retryable retained upload after caller cancellation", async () => {
+    const transport = new MemoryMediaTransport();
+    const coordinator = await started(transport);
+    const entered = Promise.withResolvers<void>();
+    transport.upload = async (_reservation, audio, onProgress, signal) => {
+      transport.uploadCount += 1;
+      onProgress?.(1, audio.size);
+      entered.resolve();
+      await new Promise<void>((_resolve, reject) => {
+        signal?.addEventListener("abort", () => reject(new Error("upload stopped")), {
+          once: true,
+        });
+      });
+    };
+    const controller = new AbortController();
+    const upload = coordinator.uploadAndFinalize(undefined, controller.signal);
+    await entered.promise;
+    expect(coordinator.state).toEqual({
+      status: "uploading",
+      submissionId: "submission-1",
+      bytesSent: 1,
+      bytesTotal: 3,
+    });
+    controller.abort();
+
+    await expect(upload).rejects.toThrow("upload stopped");
+    expect(coordinator.currentRecord?.upload_status).toBe("not_uploaded");
+    expect(coordinator.state).toMatchObject({ status: "processing", phase: "awaiting_upload" });
+    expect(transport.kinds).not.toContain("finalize");
   });
 
   test("refuses an expired upload URL and preserves the cancel-and-restart path", async () => {

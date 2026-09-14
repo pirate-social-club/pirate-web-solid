@@ -192,6 +192,7 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
   const [lyricsBusy, setLyricsBusy] = createSignal(false);
   const mediaEnabled = props.principalId !== undefined && personas().length > 0;
   let mediaOperationInFlight = false;
+  let mediaUploadController: AbortController | undefined;
   let finishingPublishedSong = false;
 
   const textCoordinator = createTextSubmissionCoordinator({
@@ -403,6 +404,8 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
     setError("");
     setMediaBusy(true);
     mediaOperationInFlight = true;
+    const uploadController = new AbortController();
+    mediaUploadController = uploadController;
     try {
       const snapshot = await (prepareOnly ? prepareSongComposer : submitSongComposer)({
         coordinator: mediaCoordinator,
@@ -414,6 +417,7 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
         license: license(),
         royaltySplit: royaltySplit(),
         authorDeclaredRating: ageGatePolicy() === "18_plus" ? "adult_18" : "general",
+        signal: uploadController.signal,
       });
       applySnapshot(snapshot);
       if (!prepareOnly && snapshot.status === "published") finishSongPublished();
@@ -422,9 +426,14 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
       setError(submissionError instanceof Error ? submissionError.message : "The song could not be submitted safely.");
       return false;
     } finally {
+      if (mediaUploadController === uploadController) mediaUploadController = undefined;
       mediaOperationInFlight = false;
       setMediaBusy(false);
     }
+  }
+
+  function stopSongUpload(): void {
+    mediaUploadController?.abort(new DOMException("Upload stopped", "AbortError"));
   }
 
   async function refreshSong(automatic = false): Promise<void> {
@@ -539,7 +548,11 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
     if (++observationCount > 200) { setObservationPaused(true); return; }
     void refreshSong(true);
   }, 3_000) : undefined;
-  if (observation !== undefined) onCleanup(() => { disposed = true; clearInterval(observation); });
+  onCleanup(() => {
+    disposed = true;
+    if (observation !== undefined) clearInterval(observation);
+    mediaUploadController?.abort(new DOMException("Composer closed", "AbortError"));
+  });
 
   const canContinueSongSubmit = () => {
     const view = mediaView();
@@ -599,6 +612,9 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
         <p>{mediaSnapshot()?.audio_revision && !songTermsIssued() && mediaView().status === "processing"
           ? "Audio uploaded."
           : mediaStateMessage(mediaView())}</p>
+        <Show when={mediaView().status === "uploading"}>
+          <Button type="button" variant="outline" onClick={stopSongUpload}>Stop upload</Button>
+        </Show>
         <Show when={observationPaused()}><FormNote>Automatic checks paused. Check status to try again.</FormNote></Show>
         <Show when={mediaCoordinator?.currentRecord?.submission_id != null && !terminalMediaView(mediaView())}>
           <Button disabled={mediaBusy()} type="button" variant="outline" onClick={() => void refreshSong()}>Check status</Button>

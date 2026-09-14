@@ -99,30 +99,37 @@ describe("same-origin media submission transport", () => {
 
   test("keeps opaque upload credentials out and forwards only required headers", async () => {
     let seenUrl: string | undefined;
-    let seen: RequestInit | undefined;
+    let seenHeaders: Headers | undefined;
+    let seenSignal: AbortSignal | undefined;
+    const progress: Array<[number, number]> = [];
+    const controller = new AbortController();
     const transport = createSameOriginMediaSubmissionTransport({
       origin: "https://solid.example",
-      fetchImpl: async (input, init) => {
-        seenUrl = input.toString();
-        seen = init;
-        return new Response(null, { status: 200 });
+      uploadRequest: async input => {
+        seenUrl = input.url;
+        seenHeaders = input.headers;
+        seenSignal = input.signal;
+        input.onProgress?.(1, input.audio.size);
+        return 200;
       },
       csrfToken: () => "csrf-current",
     });
 
     await transport.upload(uploadReservation,
-      new Blob([new Uint8Array([1, 2, 3])], { type: "audio/mpeg" }));
+      new Blob([new Uint8Array([1, 2, 3])], { type: "audio/mpeg" }),
+      (sent, total) => progress.push([sent, total]), controller.signal);
 
     expect(seenUrl).toBe("https://uploads.example/song");
-    expect(seen?.credentials).toBe("omit");
-    expect(new Headers(seen?.headers).get("content-type")).toBe("audio/mpeg");
-    expect(new Headers(seen?.headers).has("x-csrf-token")).toBe(false);
+    expect(seenSignal).toBe(controller.signal);
+    expect(seenHeaders?.get("content-type")).toBe("audio/mpeg");
+    expect(seenHeaders?.has("x-csrf-token")).toBe(false);
+    expect(progress).toEqual([[0, 3], [1, 3], [3, 3]]);
   });
 
   test("keeps browser and CORS-like upload failures ambiguous for retry", async () => {
     const transport = createSameOriginMediaSubmissionTransport({
       origin: "https://solid.example",
-      fetchImpl: async () => {
+      uploadRequest: async () => {
         throw new TypeError("Failed to fetch");
       },
       csrfToken: () => "csrf-current",
@@ -136,13 +143,41 @@ describe("same-origin media submission transport", () => {
   test("keeps a non-successful R2 response ambiguous for retry", async () => {
     const transport = createSameOriginMediaSubmissionTransport({
       origin: "https://solid.example",
-      fetchImpl: async () => new Response(null, { status: 503 }),
+      uploadRequest: async () => 503,
       csrfToken: () => "csrf-current",
     });
 
     await expect(transport.upload(uploadReservation,
       new Blob([new Uint8Array([1, 2, 3])], { type: "audio/mpeg" })))
       .rejects.toBeInstanceOf(AmbiguousMediaSubmissionError);
+  });
+
+  test("cancels an in-flight upload through its caller signal", async () => {
+    const entered = Promise.withResolvers<void>();
+    const transport = createSameOriginMediaSubmissionTransport({
+      origin: "https://solid.example",
+      uploadRequest: input => new Promise((_resolve, reject) => {
+        entered.resolve();
+        input.signal?.addEventListener("abort", () => {
+          reject(new DOMException("Upload stopped", "AbortError"));
+        }, { once: true });
+      }),
+      csrfToken: () => "csrf-current",
+    });
+    const controller = new AbortController();
+    const upload = transport.upload(
+      uploadReservation,
+      new Blob([new Uint8Array([1, 2, 3])], { type: "audio/mpeg" }),
+      undefined,
+      controller.signal,
+    );
+    await entered.promise;
+    controller.abort();
+
+    await expect(upload).rejects.toMatchObject({
+      name: "CancelledMediaUploadError",
+      message: "The upload was stopped. You can retry it or cancel the song submission.",
+    });
   });
 
   test("refuses a video snapshot at the retained song-only transport boundary", async () => {

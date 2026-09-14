@@ -393,6 +393,46 @@ describe("create post request", () => {
     expect(document.body.querySelector("form[aria-label='Create a post']")).not.toBeNull();
   });
 
+  test("lets the author stop an in-flight song upload and recover the cancel path", async () => {
+    class HangingUploadTransport extends ProductionMediaTransport {
+      override async upload(
+        _reservation: PostCommunitiesCommunityIdMediaUploadReservationsResponse,
+        audio: Blob,
+        onProgress?: (sent: number, total: number) => void,
+        signal?: AbortSignal,
+      ): Promise<void> {
+        this.uploadCount += 1;
+        onProgress?.(1, audio.size);
+        await new Promise<void>((_resolve, reject) => {
+          signal?.addEventListener("abort", () => reject(new Error("upload stopped")), {
+            once: true,
+          });
+        });
+      }
+    }
+    const mediaTransport = new HangingUploadTransport();
+    render(() => <CreatePostDialog
+      communityContext={{ id: "community-one", name: "Harbor" }}
+      mediaTransport={mediaTransport}
+      onOpenChange={() => {}}
+      open
+      personas={[activePersona("persona-one", "Persona One")]}
+      principalId="account-one"
+    />);
+    await new Promise<void>(resolve => setTimeout(resolve, 0));
+    await uploadAudio("stoppable.mp3");
+    await vi.waitFor(() => expect(button("Continue").disabled).toBe(false));
+    button("Continue").click();
+    await vi.waitFor(() => expect(button("Stop upload")).toBeInstanceOf(HTMLButtonElement));
+    button("Stop upload").click();
+
+    await vi.waitFor(() => expect(document.body.textContent).toContain("awaiting upload"));
+    expect(document.body.textContent).not.toContain("Stop upload");
+    await vi.waitFor(() => expect(button("Cancel song submission").disabled).toBe(false));
+    expect(mediaTransport.uploadCount).toBe(1);
+    expect(mediaTransport.commands.map(command => command.kind)).toEqual(["reserve", "start"]);
+  });
+
   test("allows closing after a known manual-review outcome", async () => {
     class ManualReviewTransport extends ProductionMediaTransport {
       override async dispatch(command: PersistedMediaCommand): Promise<MediaCommandResult> {
