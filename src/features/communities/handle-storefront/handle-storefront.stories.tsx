@@ -27,7 +27,7 @@ const community: CommunityPageSuccess = {
   },
 };
 
-function offering(overrides: Partial<SupportedHandleOffering> = {}): SupportedHandleOffering {
+function offering(overrides: Partial<Extract<SupportedHandleOffering, { readonly qualification_policy: { readonly kind: "none_v1" | "curated_policy_v1" } }>> = {}): SupportedHandleOffering {
   return {
     offering_id: "offering_open_claims",
     offering_revision: 1,

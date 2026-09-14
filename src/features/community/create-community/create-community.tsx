@@ -1,5 +1,6 @@
 /** @jsxImportSource @solidjs/web */
 
+import { NationalityAllowlistField } from "../../verification/nationality-allowlist-field.tsx";
 import type { ActivePersonaPublicProjection } from "../../../api/session";
 import { CommunityOwnerFields } from "./community-owner-fields";
 import { Show, createSignal, createUniqueId } from "solid-js";
@@ -78,7 +79,9 @@ export function CreateCommunityView(props: CreateCommunityProps) {
   // Stay neutral until the field is touched or the server rejects it, rather
   // than telling the user an untouched empty field is already valid.
   const nameValidationState = () => (visibleNameError() ? "invalid" as const : nameTouched() ? "valid" as const : undefined);
-  const canSubmit = () => (props.actionOnly || (validation().nameError === null
+  const nationality = () => props.draft.additionalRequirements.find(value => value.requirement === "nationality-allowed");
+  const nationalityValid = () => nationality() === undefined || (nationality()?.allowedCountries.length ?? 0) > 0;
+  const canSubmit = () => (props.actionOnly || (nationalityValid() && validation().nameError === null
     && (props.requirePersona === false || (validation().personaError === null && validation().publicNameError === null))
     )) && !props.submitting && !props.accountChecking && !props.submitDisabled;
 
@@ -179,9 +182,7 @@ export function CreateCommunityView(props: CreateCommunityProps) {
         </div>
 
         {/*
-          Unique-human verification is the only gate offered at creation, and
-          it is stated rather than chosen: every community requires it, so a
-          control would imply an option that does not exist.
+          Palm remains mandatory. Nationality adds an independent AND requirement.
         */}
         <section aria-labelledby={joinPolicyLabelId} class="flex flex-col gap-2" data-community-join-policy>
           <div class="mb-1" id={joinPolicyLabelId}>
@@ -192,7 +193,11 @@ export function CreateCommunityView(props: CreateCommunityProps) {
             leading={<IconHandPalm class="size-6" />}
             title={copy().humanVerificationTitle}
           />
-
+          <NationalityAllowlistField countries={nationality()?.allowedCountries} locale={locale} onChange={countries => props.onDraftChange?.({
+            additionalRequirements: countries === undefined
+              ? props.draft.additionalRequirements.filter(value => value.requirement !== "nationality-allowed")
+              : [...props.draft.additionalRequirements.filter(value => value.requirement !== "nationality-allowed"), { requirement: "nationality-allowed", allowedCountries: [...countries] }],
+          })} />
         </section>
 
         <fieldset class="contents" disabled={props.ownerDisabled}>

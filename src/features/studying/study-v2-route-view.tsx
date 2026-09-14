@@ -1,3 +1,5 @@
+import type { verifyAdultViewing } from "../verification/age-verification.ts";
+import { AgeAccessPrompt } from "../verification/age-access-prompt.tsx";
 import { Title } from "@solidjs/meta";
 import { isServer } from "@solidjs/web";
 import { ApiClientError } from "@pirate/api-client";
@@ -30,12 +32,14 @@ type ReadyAvailability = Extract<StudyAvailability, { state: "ready" }>;
 type RouteState =
   | { kind: "loading" }
   | { kind: "auth-required" }
+  | { kind: "age-required" }
   | { kind: "failed"; message: string }
   | { kind: "unavailable"; message: string }
   | { kind: "configure"; availability: ReadyAvailability; communityId: string; session: AuthenticatedSession }
   | { kind: "lesson"; session: StudySession };
 
 export interface StudyV2RouteViewProps {
+  verifyAge?: typeof verifyAdultViewing;
   api?: StudyV2Api;
   navigate?: (href: string) => void;
   postId: string;
@@ -106,7 +110,7 @@ export function StudyV2RouteView(props: StudyV2RouteViewProps) {
     else if (typeof window !== "undefined") window.location.assign(href);
   };
 
-  const load = async () => {
+  const load = async (preserveChoices = false) => {
     const generation = ++requestGeneration;
     // Set synchronously so a burst of refresh callbacks cannot each start a
     // request before the queued `loading` state is visible.
@@ -135,9 +139,8 @@ export function StudyV2RouteView(props: StudyV2RouteViewProps) {
         setState({ kind: "failed", message: "Join this community or create a persona there before starting Study." });
         return;
       }
-      setPersonaId(defaultOperationPersonaId(eligible) ?? "");
-      setTargetLanguage("");
-      setLearnerBand("");
+      if (!preserveChoices || !eligible.some(persona => persona.personaId === personaId())) setPersonaId(defaultOperationPersonaId(eligible) ?? "");
+      if (!preserveChoices) { setTargetLanguage(""); setLearnerBand(""); }
       setState({
         availability: loaded.availability,
         communityId: loaded.communityId,
@@ -146,6 +149,7 @@ export function StudyV2RouteView(props: StudyV2RouteViewProps) {
       });
     } catch (error) {
       if (!active || generation !== requestGeneration) return;
+      if (error instanceof StudyV2LocalError && error.code === "age_locked") { setState({ kind: "age-required" }); return; }
       const message = safeFailure(error, "We couldn't load Study for this song.");
       setState(message.startsWith("Sign in")
         ? { kind: "auth-required" }
@@ -238,6 +242,7 @@ export function StudyV2RouteView(props: StudyV2RouteViewProps) {
             title="Sign in to study"
           />
         )}>
+          <Show when={state().kind === "age-required"}><AgeAccessPrompt verify={props.verifyAge} onVerified={async () => { await load(true); }} /></Show>
           <Show when={failureState() === undefined} fallback={(
             <StudyRouteLoadFailureState
               description={failureState()?.message ?? "We couldn't load Study for this song."}

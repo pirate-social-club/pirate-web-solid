@@ -4,7 +4,7 @@ import { createRoot } from "solid-js";
 import { afterEach, describe, expect, test, vi } from "vitest";
 
 import { refreshSession, type SessionResolution } from "../../api/session";
-import type { StudySession, StudyV2Api } from "./study-v2-api";
+import { StudyV2LocalError, type StudySession, type StudyV2Api } from "./study-v2-api";
 import { StudyV2RouteView } from "./study-v2-route-view";
 
 const disposers: Array<() => void> = [];
@@ -427,4 +427,17 @@ describe("Study v2 production route", () => {
     await Promise.resolve();
     expect(loadAvailability).not.toHaveBeenCalled();
   });
+});
+
+test("an age-locked Study entry verifies in place and returns to configuration without starting a lesson", async () => {
+  const api=studyApi(); const available=api.loadAvailability;
+  let verified=false;
+  api.loadAvailability=async (...args)=>{if(!verified) throw new StudyV2LocalError("age_locked","Age required");return available(...args);};
+  const container=render(()=><StudyV2RouteView api={api} postId="post-1" verifyAge={async()=>{verified=true;return true;}}
+    resolveSession={async()=>({status:"authenticated",userId:"user-a",personas:[{personaId:"here",displayName:"Here",avatarRef:null,primaryPublicHandle:null,
+      communityBinding:{communityId:"community-1",bindingSource:"first_membership"}}]})} />);
+  await vi.waitFor(()=>expect(container.textContent).toContain("Verify 18+ to view"));
+  [...container.querySelectorAll("button")].find(button=>button.textContent?.includes("Verify 18+"))?.click();
+  await vi.waitFor(()=>expect(container.textContent).toContain("Start Study"));
+  expect(api.createSession).not.toHaveBeenCalled();
 });

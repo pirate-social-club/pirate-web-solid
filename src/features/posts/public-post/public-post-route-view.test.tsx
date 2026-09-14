@@ -5,20 +5,23 @@ import type { GetPublicPostsBySlugResponse } from "@pirate/api-client";
 import { PublicPostRouteView } from "./public-post-route-view.tsx";
 import type { PublicPostRouteState } from "./public-post-route.model.ts";
 
+const ageProof = vi.fn(async () => false);
+
 const cleanups: Array<() => void> = [];
 afterEach(() => {
   for (const cleanup of cleanups.splice(0)) cleanup();
+  ageProof.mockReset().mockResolvedValue(false);
   document.head.replaceChildren();
   document.body.replaceChildren();
 });
 
-function render(state: PublicPostRouteState): HTMLElement {
+function render(state: PublicPostRouteState, reload?: Parameters<typeof PublicPostRouteView>[0]["reload"]): HTMLElement {
   const container = document.createElement("div");
   document.body.appendChild(container);
   let dispose: () => void = () => undefined;
   createRoot(rootDispose => {
     dispose = rootDispose;
-    solidRender(() => <PublicPostRouteView state={state} />, container);
+    solidRender(() => <PublicPostRouteView state={state} reload={reload} verifyAge={ageProof} />, container);
   });
   cleanups.push(() => { dispose(); container.remove(); });
   return container;
@@ -116,4 +119,18 @@ describe("public post route view", () => {
     await vi.waitFor(() => expect(document.head.querySelector("meta[name='robots']")).not.toBeNull());
     expect(document.head.querySelector("link[rel='canonical'], meta[property^='og:']")).toBeNull();
   });
+});
+
+
+it("unlocks post detail only after proof and a fresh guarded read, without navigation", async () => {
+  ageProof.mockResolvedValue(true);
+  const reload = vi.fn(async () => contentState(true));
+  const before = location.href;
+  const container = render({ kind: "age-locked", status: 200, activity: "detail", locked: { kind: "age_locked", content_rating: "adult_18", next_action: { kind: "verify_minimum_age", minimum_age: 18 } } }, reload);
+  await vi.waitFor(() => expect(container.textContent).toContain("Verify 18+ to view"));
+  expect(container.textContent).not.toContain("A searchable title");
+  container.querySelector("button")?.click();
+  await vi.waitFor(() => expect(container.textContent).toContain("A searchable title"));
+  expect(reload).toHaveBeenCalledOnce();
+  expect(location.href).toBe(before);
 });

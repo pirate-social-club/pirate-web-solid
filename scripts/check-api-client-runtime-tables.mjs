@@ -8,15 +8,10 @@ const currentClient = resolve(
   appRoot,
   "node_modules/@pirate/api-client/src/generated/client.ts",
 );
-// Client 0.72.0, audited against 0.68.2. Success statuses are unchanged. The
-// HNS root-import responses gain the optional lifecycle projection; comment
-// reads and song-playback access are added; the song-reference reservation
-// response gains its frozen interval; reservation errors gain 403
-// eligibility_failed and a retryable 409 conflict; a video submission's intent
-// may be song_reference and a blocked one may carry song_reference_invalid with
-// song_reason_code; a post's song soundtrack carries render_mode. The song-video
-// interval preflight is newly consumed.
-const expectedDigest = "37f4340a73eec03262a5214710bbf0f3c58732ad0f572ce887e53131580daa6b";
+// Client 0.79.0 combines the reviewed recovery enum with nationality creation,
+// joining, independent handle qualification, and renewable document18+ authority.
+// This digest pins the exact success, error, and schema tables consumed here.
+const expectedDigest = "b3935dc829eb7134301e8e9d490cb8934b9d5d2137af7c9989009ecfa3ebcf05";
 
 const operations = [
   "post_postsPostIdVideoPlaybackAccess",
@@ -63,6 +58,18 @@ const operations = [
   "get_communitiesCommunityIdHnsRootImportsSessionId",
   "post_communitiesCommunityIdHnsRootImportsSessionIdPoll",
   "post_communitiesCommunityIdHnsRootImportsSessionIdActivate",
+  "get_communitiesCommunityIdHandleNationalityAuthoring",
+  "get_handleQualificationIntentsIntentId",
+  "post_communitiesCommunityIdHandleNationalityQualificationPolicies",
+  "get_communitiesCommunityIdHandleOfferings",
+  "get_communitiesCommunityIdHandleSalesManagementOfferings",
+  "get_communityCreationIntentsIntentId",
+  "patch_communityCreationIntentsIntentId",
+  "post_communitiesCommunityIdHandleOfferings",
+  "post_communitiesCommunityIdHandleOfferingsOfferingIdRevisions",
+  "post_communityCreationIntents",
+  "post_communityCreationIntentsIntentIdCommit",
+  "post_handleQuotes",
 ];
 
 const tables = [

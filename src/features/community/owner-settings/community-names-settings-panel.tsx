@@ -1,4 +1,5 @@
-import { For, Show } from "solid-js";
+import { NationalityAllowlistField } from "../../verification/nationality-allowlist-field.tsx";
+import { For, Show, createSignal } from "solid-js";
 import { Button, Card, FormNote, Spinner, Type } from "@pirate/web-solid-ui";
 import type {
   CommunityNamesCandidate,
@@ -9,6 +10,7 @@ import type {
 } from "./community-names-settings-model";
 
 export interface CommunityNamesSettingsPanelProps {
+  nationalityAuthoring?: boolean;
   busy?: CommunityNamesSettingsCommand["kind"];
   errorMessage?: string;
   loading?: boolean;
@@ -43,7 +45,9 @@ function NamesSummary(props: { maximum: number; minimum: number; root: string })
   );
 }
 
-function ReadyNamesCard(props: Pick<CommunityNamesSettingsPanelProps, "busy" | "onCommand" | "snapshot"> & { candidate: CommunityNamesReadyCandidate }) {
+function ReadyNamesCard(props: Pick<CommunityNamesSettingsPanelProps, "busy" | "onCommand" | "snapshot" | "nationalityAuthoring"> & { candidate: CommunityNamesReadyCandidate }) {
+  const [editingNationality, setEditingNationality] = createSignal(false);
+  const [countries, setCountries] = createSignal<readonly string[] | undefined>();
   const saleNamespace = () => props.snapshot.saleNamespaces.find((item) => item.activation.canonical_root === props.candidate.canonical_root);
   const broadOffering = (): CommunityNamesOffering | undefined => {
     const activationId = saleNamespace()?.activation.sale_namespace_activation_id;
@@ -78,6 +82,17 @@ function ReadyNamesCard(props: Pick<CommunityNamesSettingsPanelProps, "busy" | "
         </Show>
       </div>
 
+      <Show when={props.nationalityAuthoring && offering() !== undefined}>
+        <p class="text-sm">{offering()?.qualification_policy.kind === "curated_nationality_v1" ? "A nationality proof is required for these handles." : "These handles have no nationality restriction."} This is separate from joining the community.</p>
+        <Show when={editingNationality()} fallback={<Button type="button" variant="secondary" disabled={props.busy !== undefined} onClick={() => { setCountries(offering()?.qualification_policy.kind === "curated_nationality_v1" ? [] : undefined); setEditingNationality(true); }}>Change handle nationality requirement</Button>}>
+          <p class="text-sm">Choose the complete replacement allowlist. Saving invalidates outstanding quotes; buyers must request a new quote.</p>
+          <NationalityAllowlistField countries={countries()} onChange={setCountries} disabled={props.busy !== undefined} label="Require nationality to claim a handle" />
+          <Button type="button" disabled={props.busy !== undefined || countries()?.length === 0} onClick={() => {
+            const current = offering(); if (current) props.onCommand?.({ kind: "set_nationality", offering: current, countries: countries() });
+          }}>Save handle requirement</Button>
+          <Button type="button" variant="ghost" disabled={props.busy !== undefined} onClick={() => setEditingNationality(false)}>Cancel</Button>
+        </Show>
+      </Show>
       <Show when={ineffectiveReason()}>{(reason) => <FormNote tone="warning">{ineffectiveCopy(reason())}</FormNote>}</Show>
       <Show when={activationStatus() === "pending"}><FormNote>Name hosting is being prepared.</FormNote></Show>
       <Show when={activationStatus() === "revoked"}><FormNote tone="warning">Names are no longer enabled for this namespace.</FormNote></Show>
@@ -123,7 +138,7 @@ export function CommunityNamesSettingsPanel(props: CommunityNamesSettingsPanelPr
           }>
             <div class="flex flex-col gap-4">
               <For each={props.snapshot.context.sale_namespace_candidates}>{(candidate) => candidate.kind === "ready_v1"
-                ? <ReadyNamesCard busy={props.busy} candidate={candidate} onCommand={props.onCommand} snapshot={props.snapshot} />
+                ? <ReadyNamesCard nationalityAuthoring={props.nationalityAuthoring} busy={props.busy} candidate={candidate} onCommand={props.onCommand} snapshot={props.snapshot} />
                 : <Card class="space-y-3 p-5 md:p-6"><Type as="p" class="font-mono" variant="h3">.{candidate.display_root}</Type><FormNote tone="warning">{unavailableCopy(candidate.reason)}</FormNote></Card>
               }</For>
             </div>

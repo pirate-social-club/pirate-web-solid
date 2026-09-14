@@ -1,3 +1,4 @@
+import { DocumentVerificationHost } from "../verification/document-verification-host.tsx";
 import type { JSX } from "@solidjs/web";
 import { render as solidRender } from "@solidjs/web";
 import { afterEach, describe, expect, test, vi } from "vitest";
@@ -17,8 +18,12 @@ function createIntent(overrides: Parameters<typeof createIntentView>[0] = {}) {
   return createIntentView({ expiresAt: new Date(Date.now() + 86_400_000).toISOString(), draft: { name: "Saved community", publicName: "River Room", description: "Saved description", persona: { kind: "create_new" }, additionalRequirements: [] }, ...overrides });
 }
 
+function publicNameField(container: HTMLElement): HTMLInputElement | null {
+  const label = [...container.querySelectorAll("label")].find(value => value.textContent?.trim() === "Public name");
+  return label ? container.querySelector<HTMLInputElement>(`#${CSS.escape(label.htmlFor)}`) : null;
+}
 function fillPublicName(container: HTMLElement) {
-  const field = container.querySelectorAll<HTMLInputElement>("input")[1];
+  const field = publicNameField(container);
   if (field) { field.value = "River Room"; field.dispatchEvent(new InputEvent("input", { bubbles: true })); }
 }
 
@@ -759,7 +764,7 @@ describe("Community creation production route", () => {
       />
     ));
 
-    await vi.waitFor(() => expect(container.textContent).toContain("Palm scan isn't available right now. Try again later."));
+    await vi.waitFor(() => expect(container.textContent).toContain("This community requirement is not available right now. Your setup is still here."));
     expect(container.querySelector<HTMLButtonElement>("button[type='submit']")?.disabled).toBe(false);
   });
 
@@ -964,7 +969,7 @@ test("saves edited community details before retrying a saved intent without chan
   const name = container.querySelector<HTMLInputElement>("input")!;
   await vi.waitFor(() => expect(name.value).toBe("Saved community"));
   expect(name.matches(":disabled")).toBe(false);
-  expect(container.querySelectorAll<HTMLInputElement>("input")[1]!.matches(":disabled")).toBe(true);
+  expect(publicNameField(container)!.matches(":disabled")).toBe(true);
   name.value = "Corrected community";
   name.dispatchEvent(new InputEvent("input", { bubbles: true }));
   refreshSession();
@@ -1268,4 +1273,29 @@ describe("saved creation revision recovery", () => {
     expect(updateIntent).not.toHaveBeenCalled();
     expect(commitIntent).not.toHaveBeenCalled();
   });
+});
+
+
+test("verifies the saved creator requirement in place and requires an explicit continuation", async () => {
+  let current = createIntent({ status: "verification_required", nextAction: { kind: "verify_nationality" },
+    nationalityRequirement: { kind: "pending", requirement: "nationality", requirementHash: "country-rule", intentId: "creator-child", providerId: "self.pass", acceptedProviderIds: ["self.pass", "zkpassport"], generation: 1 } });
+  const commit = vi.fn();
+  const client = api({ getIntent: async () => current, commitIntent: commit });
+  const start = vi.fn(async () => {
+    current = { ...current, nationalityRequirement: { kind: "pending", requirement: "nationality", requirementHash: "country-rule", intentId: "creator-child-2", providerId: "zkpassport", acceptedProviderIds: ["self.pass", "zkpassport"], generation: 2 } };
+    return { url: "https://zkpassport.id/r/test", completion: Promise.resolve(), cancel() {} };
+  });
+  const container = render(() => <><DocumentVerificationHost start={start} qr={async () => "data:image/png;base64,AA=="} pollIntervalMs={5} />
+    <CommunityCreationRouteView api={client} intentId={current.intentId} navigate={() => {}} resolveSession={async () => ({ status: "authenticated", userId: "user-1", personas: [] })} /></>);
+  const findButton = (label: string) => [...document.querySelectorAll("button")].find(value => value.textContent?.trim() === label);
+  await vi.waitFor(() => expect(findButton("Verify nationality")?.disabled).toBe(false));
+  findButton("Verify nationality")!.click();
+  await vi.waitFor(() => expect(findButton("Verify with ZKPassport")?.disabled).toBe(false));
+  findButton("Verify with ZKPassport")!.click();
+  await vi.waitFor(() => expect(start).toHaveBeenCalledOnce());
+  expect(commit).not.toHaveBeenCalled();
+  current = { ...current, revision: current.revision + 1, status: "commit_ready", nextAction: { kind: "commit" }, nationalityRequirement: { kind: "satisfied" } };
+  await vi.waitFor(() => expect(container.textContent).toContain("Nationality verified. Continue"));
+  expect(commit).not.toHaveBeenCalled();
+  expect(container.querySelector('input')?.value).toBe("Saved community");
 });

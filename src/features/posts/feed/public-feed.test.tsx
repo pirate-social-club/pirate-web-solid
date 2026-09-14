@@ -3,7 +3,8 @@ import { render as solidRender } from "@solidjs/web";
 import { createRoot } from "solid-js";
 import type { JSX } from "@solidjs/web";
 
-import { PublicFeed } from "./public-feed";
+import { refreshSession } from "../../../api/session.ts";
+import { FeedSurface, PublicFeed } from "./public-feed";
 import HomeFeed from "./home-feed.tsx";
 import { fetchHomeFeedPage } from "./home-feed-adapter.ts";
 import {
@@ -76,12 +77,13 @@ const page: PublicFeedPage = {
 
 describe("PublicFeed", () => {
   test("accepts the sanitized staging shape through the generated client", async () => {
-    let request: { readonly credentials: RequestCredentials | undefined; readonly url: string } | undefined;
+    let request: { readonly credentials: RequestCredentials | undefined; readonly cache: RequestCache | undefined; readonly url: string } | undefined;
     const result = await fetchPublicFeedPage({
       origin: "https://solid.example",
       fetchImpl: async (input, init) => {
         request = {
           credentials: init?.credentials,
+          cache: init?.cache,
           url: input instanceof Request ? input.url : input.toString(),
         };
         return new Response(JSON.stringify(publicFeedStagingContractFixture), {
@@ -93,6 +95,7 @@ describe("PublicFeed", () => {
 
     expect(request).toEqual({
       credentials: "omit",
+      cache: "no-store",
       url: "https://solid.example/api/feed/home/public?locale=en&sort=best",
     });
     expect(result.items).toHaveLength(1);
@@ -192,4 +195,38 @@ describe("HomeFeed engagement", () => {
     expect(container.querySelector("button[aria-label='Upvote']")).not.toBeNull();
     expect(container.querySelector("button[aria-label='Comments (5)']")).not.toBeNull();
   });
+});
+
+
+test("an account change fences an outstanding feed page and leaves pagination retryable", async () => {
+  let resolvePage!: (value: Awaited<ReturnType<NonNullable<Parameters<typeof HomeFeed>[0]["client"]>["get_feedHome"]>>) => void;
+  const client = { get_feedHome: vi.fn(() => new Promise<Awaited<ReturnType<NonNullable<Parameters<typeof HomeFeed>[0]["client"]>["get_feedHome"]>>>(resolve => { resolvePage = resolve; })) };
+  const container = render(() => <HomeFeed data={{ ...page, nextCursor: "next" }} client={client} />);
+  await vi.waitFor(() => expect(container.textContent).toContain("Load more"));
+  const more = [...container.querySelectorAll("button")].find(button => button.textContent?.includes("Load more"));
+  more?.click();
+  await vi.waitFor(() => expect(client.get_feedHome).toHaveBeenCalledOnce());
+  refreshSession();
+  resolvePage(publicFeedStagingContractFixture);
+  await vi.waitFor(() => expect(more?.disabled).toBe(false));
+  await new Promise(resolve => setTimeout(resolve, 20));
+  expect(container.textContent).not.toContain("Sanitized staging song");
+});
+
+
+test("a locked feed switches to the authenticated read only after proof and retains the surface", async () => {
+  const publicRead = vi.fn(async () => ({ ...page, items: [], ageLockedPositions: [0] }));
+  const authorizedRead = vi.fn(async () => page);
+  const container = render(() => <FeedSurface
+    data={{ ...page, items: [], ageLockedPositions: [0] }}
+    loadPage={publicRead} loadVerifiedPage={authorizedRead} verifyAge={async () => true}
+    copy={{ title: "Feed", subtitle: "", loadingLabel: "Loading", unavailableTitle: "Unavailable", unavailableMessage: "Unavailable", emptyMessage: "Empty" }}
+  />);
+  await vi.waitFor(() => expect(container.textContent).toContain("Verify 18+ to view"));
+  const main = container.querySelector("main");
+  container.querySelector("button")?.click();
+  await vi.waitFor(() => expect(container.textContent).toContain("A sovereign town square"));
+  expect(authorizedRead).toHaveBeenCalledOnce();
+  expect(publicRead).not.toHaveBeenCalled();
+  expect(container.querySelector("main")).toBe(main);
 });

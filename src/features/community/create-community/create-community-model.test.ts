@@ -109,3 +109,11 @@ describe("create community model", () => {
     expect(withDraftPersona(draft, { kind: "existing", personaId: "persona_2" }).persona).toEqual({ kind: "existing", personaId: "persona_2" });
   });
 });
+
+
+test("nationality authoring preserves Palm and compares normalized full allowlists", () => {
+  const nationality: AdditionalGateRequirement = { requirement: "nationality-allowed", allowedCountries: ["US", "CA"] };
+  expect(compileMembershipPolicy([nationality]).accessPaths[0].requirements).toEqual([HUMAN_VERIFICATION, nationality]);
+  expect(requirementsEqual(nationality, { requirement: "nationality-allowed", allowedCountries: ["CAN", "USA"] })).toBe(true);
+  expect(requirementsEqual(nationality, { requirement: "nationality-allowed", allowedCountries: ["US"] })).toBe(false);
+});

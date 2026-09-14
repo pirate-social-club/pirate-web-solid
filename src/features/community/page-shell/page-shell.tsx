@@ -1,3 +1,4 @@
+import { AgeAccessPrompt } from "../../verification/age-access-prompt.tsx";
 import { SongPlayer } from "../../posts/song-player/song-player.tsx";
 /** @jsxImportSource @solidjs/web */
 import type { JSX } from "@solidjs/web";
@@ -59,6 +60,7 @@ export interface CommunityPageShellProps {
    * chrome stays rendered while the region it belongs to waits.
    */
   feed?: () => CommunityFeed;
+  onVerifyAge?: (signal: AbortSignal) => Promise<void>;
   /**
    * True while the viewer's session or membership is still settling. Controls
    * that depend on it hold their space without claiming what they do not know.
@@ -317,6 +319,8 @@ export function CommunityPageShell(props: CommunityPageShellProps) {
   const memberFollowLocked = () => props.joined === true && props.viewerUnknown !== true && props.following;
   const feed = (): CommunityFeed =>
     props.feed?.() ?? { kind: "ready", posts: community().posts };
+  const hasAgeLocks = () => { const current = feed(); return current.kind === "ready" && (current.ageLockedCount ?? 0) > 0; };
+  const agePrompt = () => <Show when={hasAgeLocks() && props.onVerifyAge}>{verify => <AgeAccessPrompt onVerified={verify()} />}</Show>;
   /**
    * What each viewer control says, and what it says to a screen reader. A
    * pending control reports that it is checking; a control whose read failed
@@ -495,7 +499,8 @@ export function CommunityPageShell(props: CommunityPageShellProps) {
             </Show>
             <Loading fallback={<FeedPending />}>
               <Show when={feed().kind === "ready"} fallback={<Card><CardContent class="p-6"><Type role="alert" variant="body">Community posts are temporarily unavailable.</Type></CardContent></Card>}>
-                <Show when={sortedPosts().length > 0} fallback={<Card><CardContent class="p-6"><Type variant="body">No posts in this community yet.</Type></CardContent></Card>}>
+                {agePrompt()}
+                <Show when={sortedPosts().length > 0 || hasAgeLocks()} fallback={<Card><CardContent class="p-6"><Type variant="body">No posts in this community yet.</Type></CardContent></Card>}>
                   <div class="flex flex-col">
                     <For each={sortedPosts()}>{post => renderPost(post)}</For>
                   </div>
@@ -505,7 +510,8 @@ export function CommunityPageShell(props: CommunityPageShellProps) {
           </Show>
           <Show when={tab() === "songs"}>
             <Loading fallback={<FeedPending />}>
-              <Show when={songs().length > 0} fallback={<Card><CardContent class="p-6"><Type variant="body">No songs in this community yet.</Type></CardContent></Card>}>
+              {agePrompt()}
+              <Show when={songs().length > 0 || hasAgeLocks()} fallback={<Card><CardContent class="p-6"><Type variant="body">No songs in this community yet.</Type></CardContent></Card>}>
                 <div class="flex flex-col"><For each={songs()}>{post => renderPost(post)}</For></div>
               </Show>
             </Loading>

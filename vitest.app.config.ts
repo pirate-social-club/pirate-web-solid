@@ -113,6 +113,10 @@ export default defineConfig({
       "src/features/studying/studying-browser-recorder.test.ts",
       "src/middleware.test.ts",
       "src/routes/verify/very.test.tsx",
+      "src/routes/verify/zkpassport.test.tsx",
+      "src/features/verification/document-verification-host.test.tsx",
+      "src/features/verification/age-verification.test.ts",
+      "src/features/posts/post-engagement/comment-thread-controller.test.ts",
     ],
   },
 });

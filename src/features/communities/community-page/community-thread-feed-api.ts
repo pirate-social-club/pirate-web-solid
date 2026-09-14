@@ -15,6 +15,7 @@ export type CommunityThreadFeedClient = Pick<PirateApiClient, "get_publicCommuni
 export interface CommunityThreadPage {
   readonly posts: readonly CommunityPost[];
   readonly nextCursor: string | null;
+  readonly ageLockedCount?: number;
 }
 
 export function createCommunityThreadFeedClient(
@@ -74,6 +75,7 @@ export function normalizeCommunityThreadPage(
       const projected = threadPost(item);
       return projected ? [projected] : [];
     }),
+    ...(response.items.some(item => "kind" in item) ? { ageLockedCount: response.items.filter(item => "kind" in item).length } : {}),
     nextCursor: response.next_cursor,
   };
 }

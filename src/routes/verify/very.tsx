@@ -144,7 +144,15 @@ function mobileRuntime(): boolean {
   return typeof navigator !== "undefined" && /Android|iPhone|iPad|iPod|Mobile|Tablet/iu.test(navigator.userAgent);
 }
 
-export default function VeryVerificationRoute(props: Readonly<{ loadWidget?: VeryWidgetLoader }> = {}) {
+export type VeryVerificationRouteProps = Readonly<{
+  loadWidget?: VeryWidgetLoader;
+  resolveSession?: typeof resolveSession;
+  refreshSession?: typeof refreshSession;
+  createCeremony?: typeof createVeryWebCeremony;
+  resolveCommunityAction?: typeof resolveVeryCommunityAction;
+  joinCommunity?: typeof joinVeryCommunity;
+}>;
+export default function VeryVerificationRoute(props: VeryVerificationRouteProps = {}) {
   const [communityId, setCommunityId] = createSignal(initialCommunityId());
   const parsedCreationTarget = initialCreationTarget();
   const creationTarget = parsedCreationTarget === "invalid" ? undefined : parsedCreationTarget;
@@ -179,7 +187,7 @@ export default function VeryVerificationRoute(props: Readonly<{ loadWidget?: Ver
   async function joinResolvedCommunity(targetCommunityId: string, epoch: number) {
     if (!operationIsCurrent(epoch, targetCommunityId)) return;
     setPhase("joining");
-    const session = await resolveSession();
+    const session = await (props.resolveSession ?? resolveSession)();
     if (!operationIsCurrent(epoch, targetCommunityId)) return;
     if (session === "anonymous") throw new VeryWebClientError("join_failed");
     if (sessionPersonasUnavailable(session)) throw new VeryWebClientError("profiles_unavailable");
@@ -204,9 +212,9 @@ export default function VeryVerificationRoute(props: Readonly<{ loadWidget?: Ver
       return;
     }
     setPhase("joining");
-    const joined = await joinVeryCommunity({ communityId: targetCommunityId, persona: toCommunityPersonaChoiceWire(choice) });
+    const joined = await (props.joinCommunity ?? joinVeryCommunity)({ communityId: targetCommunityId, persona: toCommunityPersonaChoiceWire(choice) });
     if (!operationIsCurrent(epoch, targetCommunityId)) return;
-    refreshSession();
+    (props.refreshSession ?? refreshSession)();
     setJoinedCommunityId(joined.communityId);
     setMessage("");
     setPhase("joined");
@@ -348,15 +356,15 @@ export default function VeryVerificationRoute(props: Readonly<{ loadWidget?: Ver
     try {
       let created: VeryWebCeremony;
       if (creationTarget !== undefined) {
-        created = await createVeryWebCeremony({ creation: creationTarget });
+        created = await (props.createCeremony ?? createVeryWebCeremony)({ creation: creationTarget });
       } else {
-        let action = await resolveVeryCommunityAction({ communityId: value });
+        let action = await (props.resolveCommunityAction ?? resolveVeryCommunityAction)({ communityId: value });
         while (operationIsCurrent(epoch, value) && action.kind === "wait") {
           const retryAfterMs = action.retryAfterMs;
           setPhase("waiting");
           await new Promise<void>((resolve) => window.setTimeout(resolve, retryAfterMs));
           if (!operationIsCurrent(epoch, value)) return;
-          action = await resolveVeryCommunityAction({ communityId: value });
+          action = await (props.resolveCommunityAction ?? resolveVeryCommunityAction)({ communityId: value });
         }
         if (!operationIsCurrent(epoch, value)) return;
         if (action.kind === "joined") {
@@ -369,7 +377,7 @@ export default function VeryVerificationRoute(props: Readonly<{ loadWidget?: Ver
           return;
         }
         if (action.kind !== "verify") throw new VeryWebClientError("join_not_ready");
-        created = await createVeryWebCeremony({ intentId: action.intentId });
+        created = await (props.createCeremony ?? createVeryWebCeremony)({ intentId: action.intentId });
       }
       if (!operationIsCurrent(epoch, value)) {
         created.cancel();

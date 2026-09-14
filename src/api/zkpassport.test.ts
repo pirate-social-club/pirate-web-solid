@@ -21,7 +21,7 @@ function presentation() {
     proof_session_id: sessionId,
     provider_id: "zkpassport",
     presentation: {
-      kind: "embedded_sdk",
+      kind: "embedded_sdk" as const,
       session_id: sessionId,
       protocol: "zkpassport",
       version: "0.14.2",
@@ -173,6 +173,17 @@ describe("ZKPassport embedded presentation", () => {
 });
 
 describe("ZKPassport ceremony", () => {
+  it.each(["javascript:alert(1)", "http://zkpassport.id/r", "https://untrusted.invalid/r", "https://user@zkpassport.id/r", "https://zkpassport.id/r#fragment"])("rejects an unsafe SDK launch link and closes its bridge: %s", async url => {
+    const built = builderResult();
+    const builder = queryBuilder({ ...built.result, url });
+    const cancelRequest = vi.fn();
+    await expect(createZkPassportCeremony({
+      intentId: "nationality-child-2", csrfToken: "csrf-token",
+      apiClient: { post_verificationSessions: async () => presentation(), post_verificationSessionsProofSessionIdComplete: vi.fn() },
+      loadSdk: async () => () => ({ request: async () => builder.builder, cancelRequest }),
+    })).rejects.toMatchObject({ code: "query_mismatch" });
+    expect(cancelRequest).toHaveBeenCalledWith("request-1");
+  });
   it("rejects SSR use before starting a verification session", async () => {
     const start = vi.fn();
     await expect(createZkPassportCeremony({
@@ -185,6 +196,22 @@ describe("ZKPassport ceremony", () => {
       csrfToken: "csrf-token",
     })).rejects.toMatchObject({ code: "browser_required" });
     expect(start).not.toHaveBeenCalled();
+  });
+
+  it("starts a server-issued nationality child instead of the diagnostic age intent", async () => {
+    const state = callbacks();
+    const compiled = builderResult(state);
+    const builder = queryBuilder(compiled.result);
+    const start = vi.fn(async () => presentation());
+    const ceremony = await createZkPassportCeremony({
+      intentId: "nationality-child-2", csrfToken: "csrf-token",
+      apiClient: { post_verificationSessions: start, post_verificationSessionsProofSessionIdComplete: vi.fn() },
+      loadSdk: async () => () => ({ request: async () => builder.builder }),
+    });
+    expect(start).toHaveBeenCalledWith({ body: { intent_id: "nationality-child-2", provider_id: "zkpassport" } }, expect.anything());
+    const completion = ceremony.completion.catch(error => error);
+    ceremony.cancel();
+    await completion;
   });
 
   it("submits exactly once and excludes SDK verdict and identifiers", async () => {

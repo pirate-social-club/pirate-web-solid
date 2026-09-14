@@ -89,7 +89,7 @@ describe("public-first home route", () => {
     ));
 
     await vi.waitFor(() => expect(container.querySelector("[data-video-feed-state='ready']")).not.toBeNull());
-    expect(container.textContent).toContain("No videos yet");
+    expect(container.textContent).toContain("Verify 18+ to view");
     expect(container.textContent).not.toContain("Video feed unavailable");
     expect(fetchImpl).toHaveBeenCalledOnce();
   });

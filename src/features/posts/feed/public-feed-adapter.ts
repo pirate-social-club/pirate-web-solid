@@ -1,8 +1,3 @@
-/*
- * These feed operations intentionally use the newer reviewed client alias. The
- * base client remains pinned for unrelated surfaces, but its older feed schema
- * rejects api-next's nullable source hashes and age-locked projection items.
- */
 import {
   createPirateApiClient,
   type GetFeedHomePublicResponse,
@@ -23,9 +18,13 @@ import { readVideoDelivery, type VideoDeliveryState } from "../video-submission/
 
 export type PublicFeedClient = Pick<PirateApiClient, "get_feedHomePublic">;
 
-/** Use the reviewed client whose feed schema includes nullable hashes and age locks. */
+/** Public discovery deliberately omits the session cookie. */
 export function createPublicFeedClient(options: ApiClientFactoryOptions = {}): PublicFeedClient {
-  return createGeneratedApiClient(createPirateApiClient, options, { credentials: "omit" });
+  const upstream = options.fetchImpl ?? fetch;
+  return createGeneratedApiClient(createPirateApiClient, {
+    ...options,
+    fetchImpl: (input, init) => upstream(input, { ...init, cache: "no-store" }),
+  }, { credentials: "omit" });
 }
 
 type JsonPrimitive = string | number | boolean | null;
@@ -85,6 +84,8 @@ export interface PublicFeedItem {
 
 export interface PublicFeedPage {
   readonly items: readonly PublicFeedItem[];
+  /** Positions in the projected page only, never resource identifiers. */
+  readonly ageLockedPositions?: readonly number[];
   readonly topCommunities: readonly PublicFeedCommunity[];
   readonly nextCursor: string | null;
 }
@@ -226,12 +227,16 @@ function normalizeFeedItem(value: unknown): PublicFeedItem | null {
 
 export function normalizeFeedPage(value: unknown): FeedPage {
   if (!isRecord(value)) throw new Error("Invalid public feed response");
-  const items = Array.isArray(value.items)
-    ? value.items.flatMap(item => {
-      const normalized = normalizeFeedItem(item);
-      return normalized ? [normalized] : [];
-    })
-    : [];
+  const items: PublicFeedItem[] = [];
+  const ageLockedPositions: number[] = [];
+  if (Array.isArray(value.items)) for (const item of value.items) {
+    if (isRecord(item) && item.kind === "age_locked" && item.content_rating === "adult_18") {
+      ageLockedPositions.push(items.length + ageLockedPositions.length);
+      continue;
+    }
+    const normalized = normalizeFeedItem(item);
+    if (normalized) items.push(normalized);
+  }
   const topCommunities = Array.isArray(value.top_communities)
     ? value.top_communities.flatMap(community => {
       const normalized = normalizeCommunity(community);
@@ -241,6 +246,7 @@ export function normalizeFeedPage(value: unknown): FeedPage {
   return {
     items,
     topCommunities,
+    ...(ageLockedPositions.length ? { ageLockedPositions } : {}),
     nextCursor: normalizeKeysetCursor(value.next_cursor),
   };
 }

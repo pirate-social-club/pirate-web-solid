@@ -1,11 +1,11 @@
 {
   "name": "@pirate/api-client",
-  "version": "0.72.0",
-  "artifact": "vendor/api-client/pirate-api-client-0.72.0.tgz",
-  "sha256": "1121c40d20465e390f3c7fb07665f3da2582159b216980fc8cca65f6882456f1",
-  "source": "api-next-contracts@4ef8ed9a30d9922f5fdbdb8c5bb90fc0a4f455e6a03a41c206020c3118801b9f",
-  "openapiSha256": "4ef8ed9a30d9922f5fdbdb8c5bb90fc0a4f455e6a03a41c206020c3118801b9f",
-  "clientSha256": "ec0a6671e8772a52ca40591988a359598d0ba48371ee8198eef0abf27d6cf24e",
+  "version": "0.79.0",
+  "artifact": "vendor/api-client/pirate-api-client-0.79.0.tgz",
+  "sha256": "85488f318432c4ee3e124f16be406acc4a762c4953fc8f1cc58f0a2cc6e19c27",
+  "source": "api-next-contracts@65d3188b9df0c4308aa29d7bf947039f0caca5ce94f385f8d4f2de0a9be12680",
+  "openapiSha256": "65d3188b9df0c4308aa29d7bf947039f0caca5ce94f385f8d4f2de0a9be12680",
+  "clientSha256": "5b8eff26b4815aeaba1b83d2c5818e107b9c215dc11f73cd711658b02c64ae16",
   "scope": [
     "post_communityCreationIntents",
     "get_communityCreationIntentsIntentId",
@@ -60,6 +60,12 @@
     "get_communitiesCommunityIdTelegramChannelSetupSetupId",
     "post_communitiesCommunityIdTelegramChannelSetupSetupIdConfirm",
     "post_communitiesCommunityIdTelegramPublications",
-    "post_communitiesCommunityIdTelegramDeliveriesDeliveryIdResolve"
+    "post_communitiesCommunityIdTelegramDeliveriesDeliveryIdResolve",
+    "get_communitiesCommunityIdJoinEligibility",
+    "get_communitiesCommunityIdHandleNationalityAuthoring",
+    "post_communitiesCommunityIdHandleNationalityQualificationPolicies",
+    "get_handleQualificationIntentsIntentId",
+    "post_handleQuotes",
+    "get_meAgeVerification"
   ]
 }

@@ -1,3 +1,4 @@
+import { DocumentVerificationHost } from "./features/verification/document-verification-host.tsx";
 import { createRouter, useLocation, useNavigate } from "@solidjs/router";
 import { fileRoutes } from "@solidjs/router/fs";
 import { Errored, Loading, createEffect, createMemo, createSignal, onCleanup } from "solid-js";
@@ -108,6 +109,7 @@ export default function App() {
     <Loading fallback={null}>
       <Router url={serverUrl}>{props => <ApplicationRoot>{props.children}</ApplicationRoot>}</Router>
       <GlobalSignInHost />
+      <DocumentVerificationHost />
     </Loading>
   );
 }
