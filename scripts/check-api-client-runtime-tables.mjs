@@ -8,12 +8,10 @@ const currentClient = resolve(
   appRoot,
   "node_modules/@pirate/api-client/src/generated/client.ts",
 );
-// Client 0.77.0, audited against 0.72.0 and 0.76.0.
-// The 0.77.0 change adds accepted alternatives to the four creation responses. Existing success statuses and error
-// tables are unchanged. Creation/join gain nationality progress; offerings and
-// quotes gain independent nationality qualification. Three private authoring
-// and buyer-progress endpoints are added. The audit covers every changed wire.
-const expectedDigest = "d3848c1b5ecd15b83db5c114516c8e35fdf34574d93e46f0ed38bce11fd71246";
+// Client 0.79.0 combines the reviewed recovery enum with nationality creation,
+// joining, independent handle qualification, and renewable document18+ authority.
+// This digest pins the exact success, error, and schema tables consumed here.
+const expectedDigest = "b3935dc829eb7134301e8e9d490cb8934b9d5d2137af7c9989009ecfa3ebcf05";
 
 const operations = [
   "post_postsPostIdVideoPlaybackAccess",

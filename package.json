@@ -58,7 +58,7 @@
     "test:e2e:community-creation-local": "playwright test -c e2e --grep @local-fixture"
   },
   "dependencies": {
-    "@pirate/api-client": "file:vendor/api-client/pirate-api-client-0.78.0.tgz",
+    "@pirate/api-client": "file:vendor/api-client/pirate-api-client-0.79.0.tgz",
     "@pirate/web-solid-ui": "workspace:*",
     "@privy-io/js-sdk-core": "0.70.0",
     "@selfxyz/sdk-common": "1.0.0",
