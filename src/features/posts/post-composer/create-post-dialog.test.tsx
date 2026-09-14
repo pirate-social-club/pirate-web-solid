@@ -54,7 +54,7 @@ const reservation: PostCommunitiesCommunityIdMediaUploadReservationsResponse = {
     method: "PUT",
     url: "https://upload.test/song",
     required_headers: [{ name: "content-type", value: "audio/mpeg" }],
-    expires_at: "2026-08-27T00:00:00Z",
+    expires_at: "2099-01-01T00:00:00Z",
   },
 };
 
