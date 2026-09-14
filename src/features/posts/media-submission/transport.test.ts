@@ -1,9 +1,11 @@
 import { describe, expect, test } from "bun:test";
+import { ApiClientError } from "@pirate/api-client";
 
 import { createPersistedMediaCommand } from "./pending";
 import {
   AmbiguousMediaSubmissionError,
   createSameOriginMediaSubmissionTransport,
+  RejectedMediaSubmissionError,
 } from "./transport";
 
 const uploadReservation = {
@@ -20,6 +22,41 @@ const uploadReservation = {
 } as const;
 
 describe("same-origin media submission transport", () => {
+  test("classifies a permanent client response as a definitive rejection", async () => {
+    // SAFETY: this test exercises only the reserve command, so the partial API
+    // double supplies the sole generated-client method the transport invokes.
+    const transport = createSameOriginMediaSubmissionTransport({
+      api: {
+        post_communitiesCommunityIdMediaUploadReservations: async () => {
+          throw new ApiClientError(
+            { status: 400, code: "bad_request", name: "BadRequest", retryable: false },
+            { error: { code: "bad_request", message: "Audio is too large", retryable: false } },
+          );
+        },
+      } as never,
+      csrfToken: () => "csrf-current",
+    });
+    const command = await createPersistedMediaCommand({
+      kind: "reserve",
+      idempotencyKey: "rejected-reserve",
+      sameOriginPath: "/api/communities/community-1/media-upload-reservations",
+      body: {
+        persona_id: "persona-1",
+        idempotency_key: "rejected-reserve",
+        track: "song",
+        slot: "primary_audio",
+        expected_content_type: "audio/mpeg",
+        expected_size_bytes: 3,
+      },
+    });
+
+    await expect(transport.dispatch(command)).rejects.toMatchObject({
+      name: RejectedMediaSubmissionError.name,
+      status: 400,
+      message: "Audio is too large",
+    });
+  });
+
   test("sends session credentials and current CSRF state through the Worker API proxy", async () => {
     const seen: Array<{ url: string; credentials?: RequestCredentials; csrf: string | null }> = [];
     const fetchImpl = async (input: RequestInfo | URL, init?: RequestInit) => {

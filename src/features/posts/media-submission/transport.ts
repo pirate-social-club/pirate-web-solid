@@ -60,6 +60,37 @@ export class MediaSubmissionConflictError extends Error {
   }
 }
 
+export class RejectedMediaSubmissionError extends Error {
+  readonly status: number;
+
+  constructor(error: ApiClientError) {
+    super(error.message, { cause: error });
+    this.name = "RejectedMediaSubmissionError";
+    this.status = error.status;
+  }
+}
+
+function apiClientError(error: unknown): ApiClientError | null {
+  if (error instanceof ApiClientError) return error;
+  if (
+    typeof error !== "object" ||
+    error === null ||
+    !("_tag" in error) ||
+    error._tag !== "ApiClientError" ||
+    !("status" in error) ||
+    typeof error.status !== "number" ||
+    !("retryable" in error) ||
+    typeof error.retryable !== "boolean" ||
+    !("declaredName" in error) ||
+    typeof error.declaredName !== "string" ||
+    !("message" in error) ||
+    typeof error.message !== "string"
+  ) return null;
+  // SAFETY: the generated client's stable tag and every field used below
+  // were checked; duplicate package instances can make instanceof fail.
+  return error as ApiClientError;
+}
+
 function songSnapshot(
   value: GetMediaPostSubmissionsSubmissionIdResponse,
 ): MediaSubmissionSnapshot {
@@ -118,7 +149,7 @@ export function createSameOriginMediaSubmissionTransport(
         switch (command.kind) {
           case "reserve": {
             const communityId = pathPart(command.same_origin_path, /^\/api\/communities\/([^/]+)\/media-upload-reservations$/u, "reserve");
-            return api.post_communitiesCommunityIdMediaUploadReservations({
+            return await api.post_communitiesCommunityIdMediaUploadReservations({
               path: { communityId },
               body: await body<PostCommunitiesCommunityIdMediaUploadReservationsInput["body"]>(command),
             }, session);
@@ -174,8 +205,11 @@ export function createSameOriginMediaSubmissionTransport(
           }
         }
       } catch (error) {
-        if (error instanceof ApiClientError && error.status === 409 && !error.retryable) throw new MediaSubmissionConflictError(error);
-        if (error instanceof ApiClientError && error.status >= 400 && error.status < 500 && error.status !== 408 && error.status !== 409 && error.status !== 429) throw error;
+        const failure = apiClientError(error);
+        if (failure !== null && failure.status === 409 && !failure.retryable) throw new MediaSubmissionConflictError(failure);
+        if (failure !== null && failure.status >= 400 && failure.status < 500 && failure.status !== 408 && failure.status !== 409 && failure.status !== 429) {
+          throw new RejectedMediaSubmissionError(failure);
+        }
         throw new AmbiguousMediaSubmissionError(error instanceof Error ? error.message : undefined);
       }
     },
@@ -188,7 +222,8 @@ export function createSameOriginMediaSubmissionTransport(
           ),
         );
       } catch (error) {
-        if (error instanceof ApiClientError && error.status === 404) return null;
+        const failure = apiClientError(error);
+        if (failure?.status === 404) return null;
         throw new AmbiguousMediaSubmissionError(error instanceof Error ? error.message : undefined);
       }
     },

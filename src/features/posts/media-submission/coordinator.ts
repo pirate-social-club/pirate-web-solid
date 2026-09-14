@@ -24,6 +24,7 @@ import { projectMediaSubmission, type SongSubmissionView } from "./projection";
 import {
   createSameOriginMediaSubmissionTransport,
   MediaSubmissionConflictError,
+  RejectedMediaSubmissionError,
   type MediaCommandResult,
   type MediaSubmissionTransport,
 } from "./transport";
@@ -179,12 +180,26 @@ export class MediaSubmissionCoordinator {
     try {
       result = await this.transport.dispatch(command);
     } catch (error) {
-      if (error instanceof MediaSubmissionConflictError) {
-        // The key is bound to different bytes; replaying it can never apply.
-        // Drop it so a later explicit action starts from the authoritative
-        // snapshot instead of retrying the same conflicting command.
-        const conflicted = this.requireRecord();
-        this.save({ ...conflicted, pending_command: null });
+      if (
+        error instanceof MediaSubmissionConflictError ||
+        error instanceof RejectedMediaSubmissionError
+      ) {
+        // A definitive client or idempotency rejection can never succeed on
+        // replay. Before start there is no server submission to retain; after
+        // start, restore the last authoritative snapshot and let the author
+        // correct and issue a fresh command.
+        const rejected = this.requireRecord();
+        if (rejected.submission_id === null) {
+          this.record = null;
+          this.setView({ status: "editing" });
+        } else {
+          this.save({
+            ...rejected,
+            commands: rejected.commands.filter(saved => saved.body_sha256 !== command.body_sha256),
+            pending_command: null,
+          });
+          if (rejected.snapshot !== null) this.setView(projectMediaSubmission(rejected.snapshot));
+        }
       }
       throw error;
     }

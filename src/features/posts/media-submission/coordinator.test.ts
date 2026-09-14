@@ -10,6 +10,7 @@ import {
 import { mediaCommandBody, type PersistedMediaCommand } from "./pending";
 import {
   MediaSubmissionConflictError,
+  RejectedMediaSubmissionError,
   type MediaCommandResult,
   type MediaSubmissionTransport,
 } from "./transport";
@@ -56,6 +57,13 @@ function conflict(): MediaSubmissionConflictError {
   return new MediaSubmissionConflictError(apiError);
 }
 
+function rejected(): RejectedMediaSubmissionError {
+  // SAFETY: the transport error wrapper reads the stable Error message and
+  // numeric status fields supplied by this definitive-rejection fixture.
+  const apiError = Object.assign(new Error("request rejected"), { status: 400 }) as never;
+  return new RejectedMediaSubmissionError(apiError);
+}
+
 interface MediaCommandBodyShape {
   readonly lyrics?: string;
   readonly expected_audio_revision?: number;
@@ -74,6 +82,7 @@ class MemoryMediaTransport implements MediaSubmissionTransport {
   uploadCount = 0;
   failOnce: string | null = null;
   conflictOnce: string | null = null;
+  rejectOnce: string | null = null;
   finalizeDelayed = false;
   current: MediaSubmissionSnapshot | null = null;
 
@@ -87,6 +96,10 @@ class MemoryMediaTransport implements MediaSubmissionTransport {
     if (this.conflictOnce === command.kind) {
       this.conflictOnce = null;
       throw conflict();
+    }
+    if (this.rejectOnce === command.kind) {
+      this.rejectOnce = null;
+      throw rejected();
     }
     if (command.kind === "reserve") return reservation;
     if (command.kind === "start") {
@@ -196,6 +209,25 @@ describe("media submission coordinator", () => {
     expect(transport.kinds).toEqual(["reserve", "start"]);
   });
 
+  test("drops a definitively rejected reserve so corrected input starts a new operation", async () => {
+    const transport = new MemoryMediaTransport();
+    const coordinator = createMediaSubmissionCoordinator({ transport });
+    transport.rejectOnce = "reserve";
+    const input = {
+      communityId: "community-1",
+      personaId: "persona-one",
+      audio: new File([new Uint8Array([1])], "song.mp3", { type: "audio/mpeg" }),
+      title: "Signal",
+      songType: "original" as const,
+      authorDeclaredRating: "general" as const,
+    };
+    await expect(coordinator.begin(input)).rejects.toBeInstanceOf(RejectedMediaSubmissionError);
+    expect(coordinator.currentRecord).toBeNull();
+
+    await coordinator.begin({ ...input, title: "Corrected signal" });
+    expect(transport.kinds).toEqual(["reserve", "reserve", "start"]);
+  });
+
   test("replays the exact retained start command after an ambiguous response", async () => {
     const transport = new MemoryMediaTransport();
     const coordinator = createMediaSubmissionCoordinator({ transport });
@@ -244,6 +276,7 @@ describe("media submission coordinator", () => {
       allocations: [{ recipientId: "persona-one", shareBps: 10_000 }],
     })).rejects.toBeInstanceOf(MediaSubmissionConflictError);
     expect(coordinator.currentRecord?.pending_command).toBeNull();
+    expect(coordinator.currentRecord?.commands.some(command => command.kind === "terms")).toBe(false);
 
     await coordinator.bindTerms({
       licensePreset: "non-commercial",
