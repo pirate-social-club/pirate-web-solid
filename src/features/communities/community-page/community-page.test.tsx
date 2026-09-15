@@ -278,11 +278,14 @@ describe("CommunityPage", () => {
       />
     ));
 
-    await vi.waitFor(() => expect(container.querySelector("[data-active-persona]")).not.toBeNull());
-
     // No persona is selected yet. Voting is account-scoped, so the real
     // controls mount now rather than leaving the handlerless placeholders up.
-    await vi.waitFor(() => expect(container.querySelector("button[aria-label='Comments (4)']")).not.toBeNull());
+    // Wait for the account and engagement surfaces together instead of
+    // serially polling two consequences of the same session resolution.
+    await vi.waitFor(() => {
+      expect(container.querySelector("[data-active-persona]")).not.toBeNull();
+      expect(container.querySelector("button[aria-label='Comments (4)']")).not.toBeNull();
+    });
     expect(container.querySelector("button[aria-label='Open 4 comments']")).toBeNull();
 
     // Authorship is what needs a profile, and the composer says so before the

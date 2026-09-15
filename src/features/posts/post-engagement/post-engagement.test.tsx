@@ -696,7 +696,17 @@ describe("PostEngagement", () => {
       .mockRejectedValueOnce(new Error("connection lost"))
       .mockResolvedValueOnce({ report_id: "report-1", case_ref: "case-1", status: "open" as const });
     const transport = { ...transportFixture(vi.fn()), reportComment };
-    const pendingStorage = createMemoryPendingEngagementStorage();
+    const memoryStorage = createMemoryPendingEngagementStorage();
+    let listComplete: (() => void) | undefined;
+    const pendingStorage = {
+      ...memoryStorage,
+      async listForPost(principalId: string, postId: string) {
+        const records = await memoryStorage.listForPost(principalId, postId);
+        listComplete?.();
+        listComplete = undefined;
+        return records;
+      },
+    };
     const generateKey = vi.fn(() => "stable-report-key");
     const props = {
       generateIdempotencyKey: generateKey,
@@ -727,8 +737,10 @@ describe("PostEngagement", () => {
     await vi.waitFor(() => expect(document.body.textContent).toContain("Retrying will reuse the same action key"));
 
     disposers.pop()?.();
+    const restoredRead = new Promise<void>(resolve => { listComplete = resolve; });
     render(() => <PostEngagement {...props} />);
     button("Comments (1)").click();
+    await restoredRead;
     await vi.waitFor(() => {
       const restoredReason = document.querySelector("select[aria-label='Report reason']");
       if (!(restoredReason instanceof HTMLSelectElement)) throw new Error("restored report reason missing");
