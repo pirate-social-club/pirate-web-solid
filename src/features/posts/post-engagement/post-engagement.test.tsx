@@ -343,10 +343,21 @@ describe("PostEngagement", () => {
     await vi.waitFor(() => expect(button("Post comment").disabled).toBe(false));
     button("Post comment").click();
     await vi.waitFor(() => expect(button("Retry retained request")).toBeTruthy());
-    textarea.value = "Edited request";
-    textarea.dispatchEvent(new InputEvent("input", { bubbles: true }));
+    await vi.waitFor(() => expect(button("Post comment").disabled).toBe(false));
+    const editableTextarea = document.querySelector("textarea[aria-label='Write a comment']");
+    if (!(editableTextarea instanceof HTMLTextAreaElement)) throw new Error("comment textarea missing after failure");
+    editableTextarea.value = "Edited request";
+    editableTextarea.dispatchEvent(new InputEvent("input", {
+      bubbles: true,
+      data: "Edited request",
+      inputType: "insertText",
+    }));
+    await Promise.resolve();
+    expect(editableTextarea.value).toBe("Edited request");
     button("Post comment").click();
-    await new Promise(resolve => setTimeout(resolve, 0));
+    await vi.waitFor(() => expect(document.body.textContent).toContain(
+      "Resolve or retry the saved action before starting a different one.",
+    ));
     expect(createComment).toHaveBeenCalledTimes(1);
     expect(generateKey).toHaveBeenCalledTimes(1);
     expect(await decodePendingEngagementAction(createComment.mock.calls[0]?.[0])).toMatchObject({
@@ -696,7 +707,17 @@ describe("PostEngagement", () => {
       .mockRejectedValueOnce(new Error("connection lost"))
       .mockResolvedValueOnce({ report_id: "report-1", case_ref: "case-1", status: "open" as const });
     const transport = { ...transportFixture(vi.fn()), reportComment };
-    const pendingStorage = createMemoryPendingEngagementStorage();
+    const memoryStorage = createMemoryPendingEngagementStorage();
+    let listComplete: (() => void) | undefined;
+    const pendingStorage = {
+      ...memoryStorage,
+      async listForPost(principalId: string, postId: string) {
+        const records = await memoryStorage.listForPost(principalId, postId);
+        listComplete?.();
+        listComplete = undefined;
+        return records;
+      },
+    };
     const generateKey = vi.fn(() => "stable-report-key");
     const props = {
       generateIdempotencyKey: generateKey,
@@ -727,8 +748,10 @@ describe("PostEngagement", () => {
     await vi.waitFor(() => expect(document.body.textContent).toContain("Retrying will reuse the same action key"));
 
     disposers.pop()?.();
+    const restoredRead = new Promise<void>(resolve => { listComplete = resolve; });
     render(() => <PostEngagement {...props} />);
     button("Comments (1)").click();
+    await restoredRead;
     await vi.waitFor(() => {
       const restoredReason = document.querySelector("select[aria-label='Report reason']");
       if (!(restoredReason instanceof HTMLSelectElement)) throw new Error("restored report reason missing");
