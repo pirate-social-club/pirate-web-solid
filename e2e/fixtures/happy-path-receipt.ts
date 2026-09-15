@@ -1,4 +1,6 @@
 import { createHash } from "node:crypto";
+import { mkdir, writeFile } from "node:fs/promises";
+import { dirname } from "node:path";
 import type { Frame, Page, Request, Response, TestInfo } from "playwright/test";
 
 type StepStatus = "pending" | "passed" | "failed";
@@ -205,6 +207,18 @@ export class HappyPathReceipt {
     this.outcome = outcome;
   }
 
+  /**
+   * Keep the current receipt in Playwright's output directory while the test
+   * is running. Attachments are reporter-owned and are not a durable
+   * checkpoint with the list reporter, so the named output file is the
+   * recovery record and the final attach remains a convenience for reporters.
+   */
+  async persist(testInfo: TestInfo): Promise<void> {
+    const path = testInfo.outputPath("happy-path-attempt-receipt.json");
+    await mkdir(dirname(path), { recursive: true });
+    await writeFile(path, JSON.stringify(this.snapshot(), null, 2), "utf8");
+  }
+
   snapshot(): HappyPathReceiptSnapshot {
     const audio = this.audio;
     return {
@@ -236,8 +250,9 @@ export class HappyPathReceipt {
   }
 
   async attach(testInfo: TestInfo): Promise<void> {
+    await this.persist(testInfo);
     await testInfo.attach("happy-path-attempt-receipt.json", {
-      body: JSON.stringify(this.snapshot(), null, 2),
+      path: testInfo.outputPath("happy-path-attempt-receipt.json"),
       contentType: "application/json",
     });
   }

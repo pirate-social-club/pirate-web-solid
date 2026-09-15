@@ -1,4 +1,5 @@
-import { readFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { dirname } from "node:path";
 import { expect, test, type BrowserContext, type Page, type TestInfo } from "playwright/test";
 
 import { createCommunityAndVerifyAcceptance } from "./fixtures/create-community.ts";
@@ -9,6 +10,7 @@ import {
 } from "./fixtures/fresh-registration.ts";
 import { happyPathAttemptContext } from "./fixtures/happy-path-preflight.ts";
 import { HappyPathReceipt, observeHappyPathPage } from "./fixtures/happy-path-receipt.ts";
+import { captureSanitizedNetworkDiagnostics, type SanitizedNetworkDiagnostics } from "./fixtures/diagnostics.ts";
 import { assertPersistedInstrumentalSong, publishSongAndVerifyPlayback } from "./fixtures/publish-song.ts";
 
 const audioFixture = await readFile(new URL("./fixtures/song-instrumental.mp3", import.meta.url));
@@ -50,6 +52,7 @@ test.use({ trace: "off", screenshot: "off", video: "off" });
 
 async function receiptStep<T>(
   receipt: HappyPathReceipt,
+  testInfo: TestInfo,
   name: string,
   operation: () => Promise<T>,
 ): Promise<T> {
@@ -61,6 +64,8 @@ async function receiptStep<T>(
   } catch (error) {
     receipt.finishStep(name, "failed");
     throw error;
+  } finally {
+    await receipt.persist(testInfo);
   }
 }
 
@@ -82,15 +87,18 @@ test.describe("M1 D3 happy path", { tag: ["@happy-path", "@staging-mutating"] },
       audioFixture,
     );
     const detachObservers: Array<() => void> = [];
+    const diagnostics: SanitizedNetworkDiagnostics[] = [];
     let context: BrowserContext | null = null;
     let page!: Page;
     let outcome: "passed" | "failed" = "failed";
     const marker = (kind: string) => `E2E ${attempt.id} ${kind} ${crypto.randomUUID().slice(0, 8)}`;
     try {
+      await receipt.persist(testInfo);
       context = await browser.newContext({ baseURL: new URL(e2eBaseURL()).origin });
       page = await context.newPage();
       detachObservers.push(observeHappyPathPage(page, receipt));
-      await receiptStep(receipt, "registration", async () => {
+      diagnostics.push(captureSanitizedNetworkDiagnostics(page));
+      await receiptStep(receipt, testInfo, "registration", async () => {
         const observation = await registerFreshAccountOnPage(page);
         expect(observation.exchangeStatuses).toEqual([401, 200]);
         expect(observation.registerStatuses).toEqual([201]);
@@ -101,14 +109,15 @@ test.describe("M1 D3 happy path", { tag: ["@happy-path", "@staging-mutating"] },
       context = await browser.newContext({ baseURL: new URL(e2eBaseURL()).origin });
       page = await context.newPage();
       detachObservers.push(observeHappyPathPage(page, receipt));
-      await receiptStep(receipt, "relogin", async () => {
+      diagnostics.push(captureSanitizedNetworkDiagnostics(page));
+      await receiptStep(receipt, testInfo, "relogin", async () => {
         const observation = await signInExistingAccountOnPage(page);
         expect(observation.exchangeStatuses).toEqual([200]);
         expect(observation.registerStatuses).toEqual([]);
       });
 
       const communityMarker = marker("community");
-      const communityPath = await receiptStep(receipt, "community", async () => {
+      const communityPath = await receiptStep(receipt, testInfo, "community", async () => {
         const path = await createCommunityAndVerifyAcceptance(page, communityMarker, testInfo, observation => {
           receipt.recordResourceId("community_id", observation.communityId);
         });
@@ -119,10 +128,10 @@ test.describe("M1 D3 happy path", { tag: ["@happy-path", "@staging-mutating"] },
       });
 
       const textMarker = marker("text-post");
-      await receiptStep(receipt, "text_post", () => publishTextPost(page, communityPath, textMarker, testInfo));
+      await receiptStep(receipt, testInfo, "text_post", () => publishTextPost(page, communityPath, textMarker, testInfo));
 
       const songMarker = marker("song");
-      await receiptStep(receipt, "song", async () => {
+      await receiptStep(receipt, testInfo, "song", async () => {
         await page.goto(communityPath);
         await publishSongAndVerifyPlayback(page, songMarker, audioFixture, "", testInfo, observation => {
           receipt.recordSongObservation(observation);
@@ -152,6 +161,13 @@ test.describe("M1 D3 happy path", { tag: ["@happy-path", "@staging-mutating"] },
     } finally {
       for (const detach of detachObservers) detach();
       await receipt.flushResponseReads();
+      await Promise.all(diagnostics.map(diagnostic => diagnostic.stop()));
+      if (outcome === "failed") {
+        const path = testInfo.outputPath("sanitized-network-events.json");
+        await mkdir(dirname(path), { recursive: true });
+        await writeFile(path, JSON.stringify({ contexts: diagnostics.map(diagnostic => JSON.parse(diagnostic.summary())) }, null, 2), "utf8");
+        await testInfo.attach("sanitized-network-events", { path, contentType: "application/json" });
+      }
       try {
         if (context) await context.close();
       } finally {

@@ -51,7 +51,7 @@ test("capture drains pending response bodies and pairs sanitized requests", asyn
   const body = new Promise(resolve => { finishBody = resolve; });
   context.emit("request", request);
   context.emit("response", { request: () => request, url: request.url, status: () => 409,
-    headers: () => ({ "content-type": "application/json; charset=utf-8" }), text: () => body });
+    headers: () => ({ "content-type": "application/json; charset=utf-8", authorization: "Bearer private-header", "set-cookie": "session=private-cookie" }), text: () => body });
   let stopped = false;
   const stopping = diagnostics.stop().then(() => { stopped = true; });
   await Promise.resolve();
@@ -63,7 +63,7 @@ test("capture drains pending response bodies and pairs sanitized requests", asyn
   assert.equal(events[0].requestId, events[1].requestId);
   assert.equal(events[1].status, 409);
   assert.equal(events[1].body.revision.value, 4);
-  for (const secret of ["private-intent", "private-query", "private-request-token", "private-response-token"]) assert.equal(diagnostics.summary().includes(secret), false);
+  for (const secret of ["private-intent", "private-query", "private-request-token", "private-response-token", "private-header", "private-cookie", "<input"]) assert.equal(diagnostics.summary().includes(secret), false);
   assert.equal(context.listenerCount("request"), 0);
   assert.equal(context.listenerCount("response"), 0);
   assert.equal(context.listenerCount("requestfailed"), 0);

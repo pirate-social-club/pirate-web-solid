@@ -1,4 +1,7 @@
 import assert from "node:assert/strict";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import test from "node:test";
 import { HappyPathReceipt, cspAllowsAudioHost, fixtureSha256 } from "../e2e/fixtures/happy-path-receipt.ts";
 
@@ -129,4 +132,41 @@ test("a stale document policy cannot authorize audio after navigation", () => {
     request: request({ frame: pageFrame }),
   }));
   assert.equal(receipt.snapshot().signed_audio.csp_host_match, false);
+});
+
+test("persists a failed partial receipt under the test output and attaches the final bytes", async () => {
+  const directory = await mkdtemp(join(tmpdir(), "happy-path-receipt-"));
+  const attachments = [];
+  const testInfo = {
+    outputPath: name => join(directory, name),
+    attach: async (name, attachment) => attachments.push({ name, attachment }),
+  };
+  try {
+    const receipt = new HappyPathReceipt(
+      { id: "m1-a1-01234567-89ab-cdef-0123-456789abcdef", number: "1", role: "owner", started_at: "2026-09-15T12:34:56.000Z" },
+      "manifest-sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+      "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
+      "2026-09-15T12:34:56.000Z",
+      "test-account.r2.cloudflarestorage.com",
+      Buffer.from("fixture"),
+    );
+    receipt.beginStep("community");
+    receipt.finishStep("community", "failed");
+    await receipt.persist(testInfo);
+    const partial = JSON.parse(await readFile(join(directory, "happy-path-attempt-receipt.json"), "utf8"));
+    assert.equal(partial.outcome, "failed");
+    assert.equal(partial.steps.find(step => step.name === "community").status, "failed");
+
+    receipt.finalize("failed");
+    await receipt.attach(testInfo);
+    assert.equal(attachments.length, 1);
+    assert.equal(attachments[0].name, "happy-path-attempt-receipt.json");
+    assert.equal(attachments[0].attachment.path, join(directory, "happy-path-attempt-receipt.json"));
+    const finalBytes = await readFile(attachments[0].attachment.path, "utf8");
+    for (const unsafe of ["authorization", "cookie", "<html", "otp", "secret-token"]) {
+      assert.equal(finalBytes.toLowerCase().includes(unsafe), false);
+    }
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
 });
