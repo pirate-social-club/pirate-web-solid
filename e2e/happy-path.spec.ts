@@ -164,12 +164,19 @@ test.describe("M1 D3 happy path", { tag: ["@happy-path", "@staging-mutating"] },
     } finally {
       for (const detach of detachObservers) detach();
       await receipt.flushResponseReads();
-      if (outcome === "failed") await persistSanitizedNetworkDiagnostics(diagnostics, testInfo);
       try {
-        if (context) await context.close();
+        if (outcome === "failed") {
+          await persistSanitizedNetworkDiagnostics(diagnostics, testInfo);
+        } else {
+          await Promise.all(diagnostics.map(diagnostic => diagnostic.stop()));
+        }
       } finally {
-        receipt.finalize(outcome);
-        await receipt.attach(testInfo);
+        try {
+          if (context) await context.close();
+        } finally {
+          receipt.finalize(outcome);
+          await receipt.attach(testInfo);
+        }
       }
     }
   });

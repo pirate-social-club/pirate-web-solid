@@ -144,6 +144,11 @@ test("persists two sanitized context summaries as one attached output artifact",
       name: "sanitized-network-events",
       attachment: { path: outputPath, contentType: "application/json" },
     }]);
+    for (const context of contexts) {
+      assert.equal(context.listenerCount("request"), 0);
+      assert.equal(context.listenerCount("response"), 0);
+      assert.equal(context.listenerCount("requestfailed"), 0);
+    }
     for (const unsafe of ["<html", "otp-secret", "authorization-secret", "cookie-secret", "123456", "provider-secret", "response-header-secret", "response-cookie-secret"]) {
       assert.equal(bytes.includes(unsafe), false);
     }
