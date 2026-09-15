@@ -1,5 +1,5 @@
 import { readFile } from "node:fs/promises";
-import { expect, test, type Page, type TestInfo } from "playwright/test";
+import { expect, test, type BrowserContext, type Page, type TestInfo } from "playwright/test";
 
 import { createCommunityAndVerifyAcceptance } from "./fixtures/create-community.ts";
 import { e2eBaseURL } from "./fixtures/environment.ts";
@@ -7,8 +7,9 @@ import {
   registerFreshAccountOnPage,
   signInExistingAccountOnPage,
 } from "./fixtures/fresh-registration.ts";
-import { stagingPairEvidence } from "./fixtures/happy-path-preflight.ts";
-import { publishSongAndVerifyPlayback } from "./fixtures/publish-song.ts";
+import { happyPathAttemptContext } from "./fixtures/happy-path-preflight.ts";
+import { HappyPathReceipt, observeHappyPathPage } from "./fixtures/happy-path-receipt.ts";
+import { assertPersistedInstrumentalSong, publishSongAndVerifyPlayback } from "./fixtures/publish-song.ts";
 
 const audioFixture = await readFile(new URL("./fixtures/song-instrumental.mp3", import.meta.url));
 
@@ -47,15 +48,49 @@ async function publishTextPost(
 
 test.use({ trace: "off", screenshot: "off", video: "off" });
 
+async function receiptStep<T>(
+  receipt: HappyPathReceipt,
+  name: string,
+  operation: () => Promise<T>,
+): Promise<T> {
+  receipt.beginStep(name);
+  try {
+    const result = await operation();
+    receipt.finishStep(name, "passed");
+    return result;
+  } catch (error) {
+    receipt.finishStep(name, "failed");
+    throw error;
+  }
+}
+
 test.describe("M1 D3 happy path", { tag: ["@happy-path", "@staging-mutating"] }, () => {
   test.setTimeout(900_000);
 
   test("registers, creates, posts text, publishes a song, and plays it", async ({ browser }, testInfo) => {
-    testInfo.annotations.push({ type: "staging-serving-pair", description: stagingPairEvidence() });
-    let context = await browser.newContext({ baseURL: new URL(e2eBaseURL()).origin });
-    let page = await context.newPage();
+    const attempt = happyPathAttemptContext();
+    testInfo.annotations.push(
+      { type: "staging-serving-pair", description: attempt.releaseReference },
+      { type: "happy-path-attempt", description: `${attempt.id} (${attempt.role})` },
+    );
+    const receipt = new HappyPathReceipt(
+      { id: attempt.id, number: attempt.number, role: attempt.role, started_at: attempt.startedAt },
+      attempt.releaseReference,
+      attempt.manifestDigest,
+      attempt.manifestObservedAt,
+      attempt.playbackHost,
+      audioFixture,
+    );
+    const detachObservers: Array<() => void> = [];
+    let context: BrowserContext | null = null;
+    let page!: Page;
+    let outcome: "passed" | "failed" = "failed";
+    const marker = (kind: string) => `E2E ${attempt.id} ${kind} ${crypto.randomUUID().slice(0, 8)}`;
     try {
-      await test.step("D0: register a fresh account and reload it", async () => {
+      context = await browser.newContext({ baseURL: new URL(e2eBaseURL()).origin });
+      page = await context.newPage();
+      detachObservers.push(observeHappyPathPage(page, receipt));
+      await receiptStep(receipt, "registration", async () => {
         const observation = await registerFreshAccountOnPage(page);
         expect(observation.exchangeStatuses).toEqual([401, 200]);
         expect(observation.registerStatuses).toEqual([201]);
@@ -65,31 +100,63 @@ test.describe("M1 D3 happy path", { tag: ["@happy-path", "@staging-mutating"] },
       await context.close();
       context = await browser.newContext({ baseURL: new URL(e2eBaseURL()).origin });
       page = await context.newPage();
-      await test.step("D0: re-login in a new browser context", async () => {
+      detachObservers.push(observeHappyPathPage(page, receipt));
+      await receiptStep(receipt, "relogin", async () => {
         const observation = await signInExistingAccountOnPage(page);
         expect(observation.exchangeStatuses).toEqual([200]);
         expect(observation.registerStatuses).toEqual([]);
       });
 
-      const communityMarker = `E2E community ${Date.now()}-${crypto.randomUUID().slice(0, 8)}`;
-      const communityPath = await test.step("D1: create a community and retain it after reload", async () => {
-        const path = await createCommunityAndVerifyAcceptance(page, communityMarker, testInfo);
+      const communityMarker = marker("community");
+      const communityPath = await receiptStep(receipt, "community", async () => {
+        const path = await createCommunityAndVerifyAcceptance(page, communityMarker, testInfo, observation => {
+          receipt.recordResourceId("community_id", observation.communityId);
+        });
         await page.reload();
         await expect(page.locator("[data-community-state='success']")).toBeVisible();
         await expect(page.getByRole("heading", { name: communityMarker, exact: true })).toBeVisible();
         return path;
       });
 
-      const textMarker = `E2E text post ${Date.now()}-${crypto.randomUUID().slice(0, 8)}`;
-      await test.step("D3: publish and reload a text post", () => publishTextPost(page, communityPath, textMarker, testInfo));
+      const textMarker = marker("text-post");
+      await receiptStep(receipt, "text_post", () => publishTextPost(page, communityPath, textMarker, testInfo));
 
-      const songMarker = `E2E song ${Date.now()}-${crypto.randomUUID().slice(0, 8)}`;
-      await test.step("D2: publish, reload, play and seek one song", async () => {
+      const songMarker = marker("song");
+      await receiptStep(receipt, "song", async () => {
         await page.goto(communityPath);
-        await publishSongAndVerifyPlayback(page, songMarker, audioFixture, "", testInfo);
+        await publishSongAndVerifyPlayback(page, songMarker, audioFixture, "", testInfo, observation => {
+          receipt.recordSongObservation(observation);
+          receipt.recordResourceId("song_submission_id", observation.submissionId);
+        });
+        const snapshot = receipt.snapshot();
+        expect(snapshot.lyrics.request_count).toBe(0);
+        expect(snapshot.lyrics.instrumental_review_visible).toBe(true);
+        const submissionId = snapshot.resources.song_submission_id;
+        if (!submissionId) throw new Error("Published song did not produce a bounded submission identifier.");
+        expect(await assertPersistedInstrumentalSong(page, submissionId)).toBe("no_lyrics");
+        receipt.recordPersistedNoLyrics();
+        await expect.poll(() => receipt.signedAudioEvidence()?.rangeStatus ?? null, {
+          timeout: 120_000,
+          message: "Song playback must produce an observed ranged audio response",
+        }).toBe(206);
+        const audio = receipt.signedAudioEvidence();
+        expect(audio).not.toBeNull();
+        if (!audio) throw new Error("Signed audio evidence was not captured");
+        expect(audio.hostname).toBe(attempt.playbackHost);
+        expect(audio.requestHadRange).toBe(true);
+        expect(audio.contentType).toMatch(/^audio\//u);
+        expect(audio.contentRange).toMatch(/^bytes \d+-\d+\/(?:\d+|\*)$/u);
+        expect(audio.cspHostMatch).toBe(true);
       });
+      outcome = "passed";
     } finally {
-      await context.close();
+      for (const detach of detachObservers) detach();
+      try {
+        if (context) await context.close();
+      } finally {
+        receipt.finalize(outcome);
+        await receipt.attach(testInfo);
+      }
     }
   });
 });

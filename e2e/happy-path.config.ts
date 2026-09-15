@@ -4,6 +4,7 @@ import shared from "./playwright.config.ts";
 
 export default defineConfig(shared, {
   testMatch: "happy-path.spec.ts",
+  testIgnore: [],
   globalSetup: "./fixtures/happy-path-global-preflight.ts",
   timeout: 900_000,
   workers: 1,

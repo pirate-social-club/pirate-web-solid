@@ -17,7 +17,7 @@ test.describe("M1 D0 fresh registration", { tag: "@happy-path" }, () => {
   test.beforeAll(() => requireHappyPathObservedEnvironment());
 
   test("registers, survives reload, and re-signs in in a new browser context", async ({ browser }, testInfo) => {
-    testInfo.annotations.push({ type: "staging-serving-pair", description: stagingPairEvidence() });
+    testInfo.annotations.push({ type: "staging-serving-pair", description: stagingPairEvidence().releaseReference });
     const first = await registerFreshAccount(browser);
     expect(first.exchangeStatuses).toEqual([401, 200]);
     expect(first.registerStatuses).toEqual([201]);

@@ -7,6 +7,9 @@ process.env.PLAYWRIGHT_NO_COPY_PROMPT = "1";
 
 export default defineConfig({
   testDir: ".",
+  // The M1 suite has a stricter attempt runner and global preflight. It is
+  // selected only through e2e/happy-path.config.ts.
+  testIgnore: ["happy-path.spec.ts"],
   fullyParallel: false,
   workers: 1,
   retries: 0,

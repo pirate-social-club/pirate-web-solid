@@ -90,8 +90,12 @@ export async function registerFreshAccountOnPage(page: Page): Promise<Registrati
     await page.goto("/auth/sign-in");
     await expect(page.locator("[data-route-path='/auth/sign-in']")).toBeVisible();
     await expect(page.getByText(/at least 16 years old/u)).toBeVisible();
-    await expect(page.getByRole("link", { name: "Terms", exact: true })).toHaveAttribute("href", "/terms");
-    await expect(page.getByRole("link", { name: "Privacy Policy", exact: true })).toHaveAttribute("href", "/privacy");
+    const terms = page.getByRole("link", { name: "Terms", exact: true });
+    const privacy = page.getByRole("link", { name: "Privacy Policy", exact: true });
+    await expect(terms).toBeVisible();
+    await expect(privacy).toBeVisible();
+    await expect(terms).toHaveAttribute("href", "/terms");
+    await expect(privacy).toHaveAttribute("href", "/privacy");
     await completePrivyEmail(page);
     await assertAuthenticated(page);
     await page.reload();

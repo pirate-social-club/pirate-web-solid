@@ -3,6 +3,8 @@ import { completePrivyEmail, expect } from "./auth.ts";
 import { readonlyApi } from "./api.ts";
 import { isCreationCall } from "./creation-diagnostics.ts";
 
+export type CommunityAcceptanceObservation = Readonly<{ readonly communityId: string }>;
+
 // Adapted from the preserved community-creation foundation at 9dfb77ac.
 // No API seeding: create the persona and community through the product UI.
 export async function createCommunity(page: Page, marker: string): Promise<string> {
@@ -51,6 +53,7 @@ export async function createCommunityAndVerifyAcceptance(
   page: Page,
   marker: string,
   testInfo: TestInfo,
+  onObservation?: (observation: CommunityAcceptanceObservation) => void,
 ): Promise<string> {
   const starts: Response[] = [];
   let mutations = 0;
@@ -82,6 +85,7 @@ export async function createCommunityAndVerifyAcceptance(
     if (!("authority_version" in resource) || resource.authority_version !== "optional_route_v2") {
       throw new Error("Creation acceptance requires the current optional-route contract");
     }
+    onObservation?.({ communityId: resource.community_id });
     expect(resource.href).toBe(path);
     expect(resource.persona_role_presentation.role).toBe("owner");
     const personaId = resource.persona_role_presentation.persona.persona_id;

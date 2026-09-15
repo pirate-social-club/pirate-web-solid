@@ -1,5 +1,5 @@
-import { requireHappyPathPlaybackEnvironment } from "./happy-path-preflight.ts";
+import { happyPathAttemptContext } from "./happy-path-preflight.ts";
 
 export default function globalPreflight(): void {
-  requireHappyPathPlaybackEnvironment();
+  happyPathAttemptContext();
 }

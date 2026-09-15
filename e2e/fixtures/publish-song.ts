@@ -1,5 +1,12 @@
-import type { Page, TestInfo } from "playwright/test";
+import type { PirateApiClient } from "@pirate/api-client";
+import type { Page, Request, Response, TestInfo } from "playwright/test";
 import { expect, test } from "./auth.ts";
+
+export type SongAcceptanceObservation = Readonly<{
+  readonly lyricsRequestCount: number;
+  readonly instrumentalReviewVisible: boolean;
+  readonly submissionId: string;
+}>;
 
 export async function publishSongAndVerifyPlayback(
   page: Page,
@@ -7,18 +14,28 @@ export async function publishSongAndVerifyPlayback(
   audioFixture: Buffer,
   lyrics = "",
   testInfo: TestInfo = test.info(),
+  onObservation?: (observation: SongAcceptanceObservation) => void,
 ): Promise<void> {
   /** Every publication of this submission, to prove there is exactly one. */
   const publications: string[] = [];
   const lyricsCommands: string[] = [];
-  page.on("response", response => {
+  let lyricsRequestCount = 0;
+  let instrumentalReviewVisible = false;
+  const requestListener = (request: Request) => {
+    if (request.method() === "POST"
+      && /\/media-post-submissions\/[^/]+\/lyrics$/u.test(new URL(request.url()).pathname)) lyricsRequestCount++;
+  };
+  const responseListener = (response: Response) => {
     const path = new URL(response.url()).pathname;
     if (response.request().method() !== "POST" || !response.ok()) return;
     if (/\/media-post-submissions\/[^/]+\/terms$/u.test(path)) publications.push(path);
     if (/\/media-post-submissions\/[^/]+\/lyrics$/u.test(path)) lyricsCommands.push(path);
-  });
+  };
+  page.on("request", requestListener);
+  page.on("response", responseListener);
 
-  await page.locator("#app-root[data-hydrated='true']").waitFor({ state: "attached" });
+  try {
+    await page.locator("#app-root[data-hydrated='true']").waitFor({ state: "attached" });
   await page.getByRole("button", { name: "Post" }).click();
 
   const composer = page.getByRole("form", { name: "Create a post" });
@@ -68,7 +85,11 @@ export async function publishSongAndVerifyPlayback(
   expect((await storedPromise).status()).toBeLessThan(400);
 
   const review = await composer.innerText();
-  if (lyrics === "") expect(review).toContain("Instrumental");
+  instrumentalReviewVisible = review.includes("Instrumental");
+  if (lyrics === "") {
+    expect(review).toContain("Instrumental");
+    expect(lyricsRequestCount).toBe(0);
+  }
   else expect(review).not.toContain("Instrumental");
 
   await composer.getByRole("button", { name: "Publish song" }).click();
@@ -76,6 +97,9 @@ export async function publishSongAndVerifyPlayback(
 
   expect(publications).toHaveLength(1);
   expect(lyricsCommands).toHaveLength(lyrics === "" ? 0 : 1);
+  const submissionId = publications[0]?.match(/^\/api\/media-post-submissions\/([A-Za-z0-9_-]+)\/terms$/u)?.[1];
+  if (!submissionId) throw new Error("Published song did not expose a bounded submission identifier.");
+  onObservation?.({ lyricsRequestCount, instrumentalReviewVisible, submissionId });
 
   testInfo.annotations.push({
     type: "cleanup-required",
@@ -108,5 +132,30 @@ export async function publishSongAndVerifyPlayback(
 
   expect((await playbackState()).error).toBeNull();
   await audio.evaluate(element => (element as HTMLAudioElement).play());
-  await expect.poll(async () => { const state = await playbackState(); return state.currentTime - state.duration / 2; }).toBeGreaterThan(0.2);
+    await expect.poll(async () => { const state = await playbackState(); return state.currentTime - state.duration / 2; }).toBeGreaterThan(0.2);
+  } finally {
+    page.off("request", requestListener);
+    page.off("response", responseListener);
+  }
+}
+
+/** Read the persisted submission through the generated API contract and keep only bounded enums. */
+export async function assertPersistedInstrumentalSong(page: Page, submissionId: string): Promise<"no_lyrics"> {
+  type SubmissionResponse = Awaited<ReturnType<PirateApiClient["get_mediaPostSubmissionsSubmissionId"]>>;
+  // The vendor client is TS-only and cannot be loaded by Playwright's Node
+  // discovery loader. Keep this adapter typed to its generated method while
+  // using the same-origin request context that shares the browser cookies.
+  const response = await page.context().request.fetch(
+    new URL(`/api/media-post-submissions/${encodeURIComponent(submissionId)}`, page.url()).toString(),
+    { method: "GET", failOnStatusCode: false },
+  );
+  if (!response.ok()) throw new Error("Published song readback request was not successful.");
+  const snapshot = await response.json() as SubmissionResponse;
+  if (snapshot.track !== "song" || snapshot.status !== "published") {
+    throw new Error("Published song readback did not return the published song contract.");
+  }
+  if (snapshot.lyrics_state.current.status !== "no_lyrics") {
+    throw new Error("Published instrumental song readback did not persist no_lyrics.");
+  }
+  return "no_lyrics";
 }
