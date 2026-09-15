@@ -79,6 +79,7 @@ async function commandBody(command: PersistedMediaCommand): Promise<MediaCommand
 class MemoryMediaTransport implements MediaSubmissionTransport {
   readonly kinds: string[] = [];
   readonly commands: PersistedMediaCommand[] = [];
+  onDispatch: ((kind: PersistedMediaCommand["kind"]) => void) | null = null;
   uploadCount = 0;
   failOnce: string | null = null;
   conflictOnce: string | null = null;
@@ -89,6 +90,7 @@ class MemoryMediaTransport implements MediaSubmissionTransport {
   async dispatch(command: PersistedMediaCommand): Promise<MediaCommandResult> {
     this.kinds.push(command.kind);
     this.commands.push(command);
+    this.onDispatch?.(command.kind);
     if (this.failOnce === command.kind) {
       this.failOnce = null;
       throw new Error(`ambiguous ${command.kind}`);
@@ -384,8 +386,17 @@ describe("media submission coordinator", () => {
     const transport = new MemoryMediaTransport();
     const coordinator = await started(transport);
     transport.finalizeDelayed = true;
+    let resolveFinalizeDispatch: (() => void) | undefined;
+    const finalizeDispatched = new Promise<void>(resolve => { resolveFinalizeDispatch = resolve; });
+    transport.onDispatch = kind => {
+      if (kind === "finalize") resolveFinalizeDispatch?.();
+    };
     const finalizing = coordinator.uploadAndFinalize();
-    await vi.advanceTimersByTimeAsync(300);
+    // Wait until the command owns the delayed response before advancing the
+    // observation clock. Without this barrier, a slower CI worker can advance
+    // fake time before uploadAndFinalize schedules its first 250 ms tick.
+    await finalizeDispatched;
+    await vi.advanceTimersByTimeAsync(0);
     transport.current = snapshot({ audio_revision: 1, phase: "analysis" });
     await vi.advanceTimersByTimeAsync(300);
     const finalized = await finalizing;
