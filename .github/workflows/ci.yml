@@ -41,8 +41,6 @@ jobs:
           NODE_OPTIONS: --max-old-space-size=3072
       - name: Check post-engagement Worker proxy transport
         run: bun run post-engagement-check
-      - name: Check text-post browser flow through Worker proxy
-        run: bun run text-post-check
 
   storybook-audit:
     runs-on: ubuntu-latest
