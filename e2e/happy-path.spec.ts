@@ -151,6 +151,7 @@ test.describe("M1 D3 happy path", { tag: ["@happy-path", "@staging-mutating"] },
       outcome = "passed";
     } finally {
       for (const detach of detachObservers) detach();
+      await receipt.flushResponseReads();
       try {
         if (context) await context.close();
       } finally {

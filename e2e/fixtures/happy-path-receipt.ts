@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import type { Page, Request, Response, TestInfo } from "playwright/test";
+import type { Frame, Page, Request, Response, TestInfo } from "playwright/test";
 
 type StepStatus = "pending" | "passed" | "failed";
 type AudioEvidence = Readonly<{
@@ -46,6 +46,20 @@ function sourceMatchesHost(source: string, hostname: string): boolean {
   return host === target || (host.startsWith("*.") && target.endsWith(host.slice(1)));
 }
 
+function boundedSubmissionId(value: unknown): string | null {
+  if (value === null || typeof value !== "object" || Array.isArray(value)) return null;
+  const candidate = (value as { readonly submission_id?: unknown }).submission_id;
+  return typeof candidate === "string" && /^[A-Za-z0-9_-]{1,128}$/u.test(candidate) ? candidate : null;
+}
+
+function responseFrame(response: Response): Frame | null {
+  try {
+    return response.request().frame();
+  } catch {
+    return null;
+  }
+}
+
 export function cspAllowsAudioHost(policy: string, hostname: string): boolean {
   const directives = policy.split(";").map(value => value.trim().split(/\s+/u));
   const directive = directives.find(parts => parts[0] === "media-src")
@@ -77,8 +91,10 @@ export class HappyPathReceipt {
   private readonly fixture: Readonly<{ readonly sha256: string; readonly classification: "instrumental_audio" }>;
   private lyricsRequestCount = 0;
   private instrumentalReviewVisible = false;
-  private cspPolicies: string[] = [];
+  private readonly documentPolicies = new Map<Frame, string | null>();
+  private readonly pendingResponseReads = new Set<Promise<void>>();
   private audio: AudioEvidence | null = null;
+  private audioFrame: Frame | null = null;
   private persistedLyricsState: "no_lyrics" | null = null;
   private outcome: "passed" | "failed" = "failed";
 
@@ -119,6 +135,21 @@ export class HappyPathReceipt {
     if (/^[A-Za-z0-9_-]{1,128}$/u.test(value)) this.resources[kind] = value;
   }
 
+  private readCreationSubmissionId(response: Response): void {
+    const pending = response.json()
+      .then(body => {
+        const submissionId = boundedSubmissionId(body);
+        if (submissionId) this.recordResourceId("song_submission_id", submissionId);
+      })
+      .catch(() => undefined);
+    this.pendingResponseReads.add(pending);
+    void pending.finally(() => this.pendingResponseReads.delete(pending));
+  }
+
+  async flushResponseReads(): Promise<void> {
+    await Promise.all([...this.pendingResponseReads]);
+  }
+
   observeRequest(request: Request): void {
     if (request.method() === "POST" && /\/media-post-submissions\/[^/]+\/lyrics$/u.test(new URL(request.url()).pathname)) {
       this.lyricsRequestCount++;
@@ -127,12 +158,22 @@ export class HappyPathReceipt {
 
   observeResponse(response: Response): void {
     const headers = response.headers();
-    const policy = headers["content-security-policy"] ?? headers["content-security-policy-report-only"];
-    if (policy) {
-      this.cspPolicies.push(policy);
-      if (this.audio) this.audio = { ...this.audio, cspHostMatch: this.cspPolicies.some(item => cspAllowsAudioHost(item, this.audio!.hostname)) };
-    }
     const request = response.request();
+    const frame = responseFrame(response);
+    if (request.resourceType() === "document" && frame) {
+      const enforcingPolicy = headers["content-security-policy"] ?? null;
+      this.documentPolicies.set(frame, enforcingPolicy);
+      if (this.audioFrame === frame && this.audio) {
+        this.audio = {
+          ...this.audio,
+          cspHostMatch: enforcingPolicy !== null && cspAllowsAudioHost(enforcingPolicy, this.audio.hostname),
+        };
+      }
+    }
+    const creationPath = /^\/api\/communities\/[A-Za-z0-9_-]+\/media-post-submissions$/u;
+    if (request.method() === "POST" && creationPath.test(new URL(response.url()).pathname)) {
+      this.readCreationSubmissionId(response);
+    }
     const songPath = new URL(response.url()).pathname.match(/^\/api\/media-post-submissions\/([A-Za-z0-9_-]+)\/terms$/u);
     if (request.method() === "POST" && songPath?.[1]) this.recordResourceId("song_submission_id", songPath[1]);
     if (request.method() !== "GET") return;
@@ -141,15 +182,19 @@ export class HappyPathReceipt {
     const hasRange = Boolean(requestHeaders.range);
     if (request.resourceType() !== "media" && !(hasRange && contentType?.startsWith("audio/"))) return;
     const hostname = new URL(response.url()).hostname;
+    const enforcingPolicy = frame === null ? null : this.documentPolicies.get(frame) ?? null;
     const candidate: AudioEvidence = {
       hostname,
       rangeStatus: response.status(),
       contentType,
       contentRange: headers["content-range"] ?? null,
       requestHadRange: hasRange,
-      cspHostMatch: this.cspPolicies.some(item => cspAllowsAudioHost(item, hostname)),
+      cspHostMatch: enforcingPolicy !== null && cspAllowsAudioHost(enforcingPolicy, hostname),
     };
-    if (!this.audio || (candidate.requestHadRange && !this.audio.requestHadRange) || candidate.rangeStatus === 206) this.audio = candidate;
+    if (!this.audio || (candidate.requestHadRange && !this.audio.requestHadRange) || candidate.rangeStatus === 206) {
+      this.audio = candidate;
+      this.audioFrame = frame;
+    }
   }
 
   signedAudioEvidence(): AudioEvidence | null {
