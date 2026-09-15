@@ -6,6 +6,8 @@ import {
 } from "./fixtures/fresh-registration.ts";
 import { requireHappyPathEnvironment } from "./fixtures/happy-path-preflight.ts";
 
+test.use({ trace: "off", screenshot: "off", video: "off" });
+
 test.describe("M1 D0 fresh registration", { tag: "@happy-path" }, () => {
   test.setTimeout(240_000);
 
