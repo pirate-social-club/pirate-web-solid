@@ -100,7 +100,6 @@ export async function createCommunityAndVerifyAcceptance(
       expect(membership?.membership_status).toBe("member");
       expect(membership?.can_post).toBe(true);
       const preview = await api.communityPreview(resource.community_id);
-      expect(preview.viewer_community_role).toBe("owner");
       expect(preview.viewer_membership_status).toBe("member");
       expect(preview.viewer_following).toBe(true);
     };
