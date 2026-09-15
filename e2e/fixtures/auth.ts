@@ -1,11 +1,13 @@
-import { writeFile } from "node:fs/promises";
 import {
   expect,
   test as base,
   type BrowserContext,
   type Page,
 } from "playwright/test";
-import { captureSanitizedNetworkDiagnostics } from "./diagnostics.ts";
+import {
+  captureSanitizedNetworkDiagnostics,
+  persistSanitizedNetworkDiagnostics,
+} from "./diagnostics.ts";
 import { e2eAuthCredentials, e2eBaseURL } from "./environment.ts";
 export { hasE2eAuthCredentials } from "./environment.ts";
 
@@ -77,14 +79,10 @@ export const test = base.extend<AuthTestFixtures, AuthWorkerFixtures>({
   sanitizedDiagnostics: [async ({ page }, use, testInfo) => {
     const diagnostics = captureSanitizedNetworkDiagnostics(page);
     await use();
-    await diagnostics.stop();
     if (testInfo.status !== testInfo.expectedStatus) {
-      const path = testInfo.outputPath("sanitized-network-events.json");
-      await writeFile(path, diagnostics.summary());
-      await testInfo.attach("sanitized-network-events", {
-        path,
-        contentType: "application/json",
-      });
+      await persistSanitizedNetworkDiagnostics([diagnostics], testInfo);
+    } else {
+      await diagnostics.stop();
     }
   }, { auto: true }],
   storageState: async ({ authenticatedStorageState }, use) => {

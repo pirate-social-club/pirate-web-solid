@@ -1,5 +1,4 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { dirname } from "node:path";
+import { readFile } from "node:fs/promises";
 import { expect, test, type BrowserContext, type Page, type TestInfo } from "playwright/test";
 
 import { createCommunityAndVerifyAcceptance } from "./fixtures/create-community.ts";
@@ -10,7 +9,11 @@ import {
 } from "./fixtures/fresh-registration.ts";
 import { happyPathAttemptContext } from "./fixtures/happy-path-preflight.ts";
 import { HappyPathReceipt, observeHappyPathPage } from "./fixtures/happy-path-receipt.ts";
-import { captureSanitizedNetworkDiagnostics, type SanitizedNetworkDiagnostics } from "./fixtures/diagnostics.ts";
+import {
+  captureSanitizedNetworkDiagnostics,
+  persistSanitizedNetworkDiagnostics,
+  type SanitizedNetworkDiagnostics,
+} from "./fixtures/diagnostics.ts";
 import { assertPersistedInstrumentalSong, publishSongAndVerifyPlayback } from "./fixtures/publish-song.ts";
 
 const audioFixture = await readFile(new URL("./fixtures/song-instrumental.mp3", import.meta.url));
@@ -161,13 +164,7 @@ test.describe("M1 D3 happy path", { tag: ["@happy-path", "@staging-mutating"] },
     } finally {
       for (const detach of detachObservers) detach();
       await receipt.flushResponseReads();
-      await Promise.all(diagnostics.map(diagnostic => diagnostic.stop()));
-      if (outcome === "failed") {
-        const path = testInfo.outputPath("sanitized-network-events.json");
-        await mkdir(dirname(path), { recursive: true });
-        await writeFile(path, JSON.stringify({ contexts: diagnostics.map(diagnostic => JSON.parse(diagnostic.summary())) }, null, 2), "utf8");
-        await testInfo.attach("sanitized-network-events", { path, contentType: "application/json" });
-      }
+      if (outcome === "failed") await persistSanitizedNetworkDiagnostics(diagnostics, testInfo);
       try {
         if (context) await context.close();
       } finally {

@@ -1,5 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { mkdtemp, readFile, rm } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { isCreationCall, sanitizeCreationBody } from "../e2e/fixtures/creation-diagnostics.ts";
 
 test("captures creation endpoints only, including commit and excluding provider auth", () => {
@@ -89,4 +92,62 @@ test("capture bounds events and tolerates failed body reads", async () => {
   assert.equal(events.at(-1).status, 409);
   context.emit("request", request);
   assert.equal(bounded.summary(), JSON.stringify(events, null, 2));
+});
+
+test("persists two sanitized context summaries as one attached output artifact", async () => {
+  const { EventEmitter } = await import("node:events");
+  const { captureSanitizedNetworkDiagnostics, persistSanitizedNetworkDiagnostics } = await import("../e2e/fixtures/diagnostics.ts");
+  const contexts = [new EventEmitter(), new EventEmitter()];
+  const diagnostics = contexts.map(context => captureSanitizedNetworkDiagnostics({ context: () => context }));
+  const supplied = JSON.stringify({
+    raw_html: "<html><input value='otp-secret'></html>",
+    authorization: "Bearer authorization-secret",
+    cookie: "session=cookie-secret",
+    otp: "123456",
+    secret: "provider-secret",
+  });
+  for (const [index, context] of contexts.entries()) {
+    const request = {
+      url: () => `https://example.invalid/api/community-creation-intents/context-${index}`,
+      method: () => "POST",
+      resourceType: () => "fetch",
+      postData: () => supplied,
+    };
+    context.emit("request", request);
+    context.emit("response", {
+      request: () => request,
+      url: request.url,
+      status: () => 500,
+      headers: () => ({
+        authorization: "Bearer response-header-secret",
+        "set-cookie": "session=response-cookie-secret",
+      }),
+      text: () => Promise.resolve(supplied),
+    });
+  }
+
+  const directory = await mkdtemp(join(tmpdir(), "sanitized-network-events-"));
+  const attachments = [];
+  const testInfo = {
+    outputPath: name => join(directory, name),
+    attach: async (name, attachment) => attachments.push({ name, attachment }),
+  };
+  try {
+    await persistSanitizedNetworkDiagnostics(diagnostics, testInfo);
+    const outputPath = join(directory, "sanitized-network-events.json");
+    const bytes = await readFile(outputPath, "utf8");
+    const output = JSON.parse(bytes);
+    assert.equal(output.contexts.length, 2);
+    assert.equal(output.contexts[0].length, 2);
+    assert.equal(output.contexts[1].length, 2);
+    assert.deepEqual(attachments, [{
+      name: "sanitized-network-events",
+      attachment: { path: outputPath, contentType: "application/json" },
+    }]);
+    for (const unsafe of ["<html", "otp-secret", "authorization-secret", "cookie-secret", "123456", "provider-secret", "response-header-secret", "response-cookie-secret"]) {
+      assert.equal(bytes.includes(unsafe), false);
+    }
+  } finally {
+    await rm(directory, { recursive: true, force: true });
+  }
 });

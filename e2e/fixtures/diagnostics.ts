@@ -1,4 +1,7 @@
+import { mkdir, writeFile } from "node:fs/promises";
+import { dirname } from "node:path";
 import type { Page, Request, Response } from "playwright/test";
+import type { TestInfo } from "playwright/test";
 import { isCreationCall, sanitizeCreationBody } from "./creation-diagnostics.ts";
 
 const MAX_EVENTS = 100;
@@ -19,6 +22,26 @@ interface NetworkEvent {
 export interface SanitizedNetworkDiagnostics {
   readonly summary: () => string;
   readonly stop: () => Promise<void>;
+}
+
+/**
+ * Persist already-sanitized context summaries as a reporter-independent
+ * failure artifact, then attach the same path for reporters that support
+ * attachments. The capture helper owns redaction; this function only joins
+ * the bounded summaries and writes them under Playwright's output directory.
+ */
+export async function persistSanitizedNetworkDiagnostics(
+  diagnostics: readonly SanitizedNetworkDiagnostics[],
+  testInfo: Pick<TestInfo, "outputPath" | "attach">,
+): Promise<void> {
+  await Promise.all(diagnostics.map(diagnostic => diagnostic.stop()));
+  const path = testInfo.outputPath("sanitized-network-events.json");
+  await mkdir(dirname(path), { recursive: true });
+  const body = JSON.stringify({
+    contexts: diagnostics.map(diagnostic => JSON.parse(diagnostic.summary()) as unknown),
+  }, null, 2);
+  await writeFile(path, body, "utf8");
+  await testInfo.attach("sanitized-network-events", { path, contentType: "application/json" });
 }
 
 function targetOf(url: string): string {
