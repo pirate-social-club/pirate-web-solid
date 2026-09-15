@@ -10,6 +10,7 @@ import {
 import { mediaCommandBody, type PersistedMediaCommand } from "./pending";
 import {
   MediaSubmissionConflictError,
+  RejectedMediaSubmissionError,
   type MediaCommandResult,
   type MediaSubmissionTransport,
 } from "./transport";
@@ -56,6 +57,13 @@ function conflict(): MediaSubmissionConflictError {
   return new MediaSubmissionConflictError(apiError);
 }
 
+function rejected(): RejectedMediaSubmissionError {
+  // SAFETY: the transport error wrapper reads the stable Error message and
+  // numeric status fields supplied by this definitive-rejection fixture.
+  const apiError = Object.assign(new Error("request rejected"), { status: 400 }) as never;
+  return new RejectedMediaSubmissionError(apiError);
+}
+
 interface MediaCommandBodyShape {
   readonly lyrics?: string;
   readonly expected_audio_revision?: number;
@@ -71,15 +79,18 @@ async function commandBody(command: PersistedMediaCommand): Promise<MediaCommand
 class MemoryMediaTransport implements MediaSubmissionTransport {
   readonly kinds: string[] = [];
   readonly commands: PersistedMediaCommand[] = [];
+  onDispatch: ((kind: PersistedMediaCommand["kind"]) => void) | null = null;
   uploadCount = 0;
   failOnce: string | null = null;
   conflictOnce: string | null = null;
+  rejectOnce: string | null = null;
   finalizeDelayed = false;
   current: MediaSubmissionSnapshot | null = null;
 
   async dispatch(command: PersistedMediaCommand): Promise<MediaCommandResult> {
     this.kinds.push(command.kind);
     this.commands.push(command);
+    this.onDispatch?.(command.kind);
     if (this.failOnce === command.kind) {
       this.failOnce = null;
       throw new Error(`ambiguous ${command.kind}`);
@@ -87,6 +98,10 @@ class MemoryMediaTransport implements MediaSubmissionTransport {
     if (this.conflictOnce === command.kind) {
       this.conflictOnce = null;
       throw conflict();
+    }
+    if (this.rejectOnce === command.kind) {
+      this.rejectOnce = null;
+      throw rejected();
     }
     if (command.kind === "reserve") return reservation;
     if (command.kind === "start") {
@@ -120,6 +135,12 @@ class MemoryMediaTransport implements MediaSubmissionTransport {
       });
     } else if (command.kind === "reference") {
       this.current = snapshot({ ...this.current, status: "processing", phase: "analysis" });
+    } else if (command.kind === "cancel") {
+      this.current = snapshot({
+        ...this.current,
+        status: "abandoned",
+        reason_code: "author_cancelled_before_finalize",
+      });
     }
     return this.current;
   }
@@ -128,7 +149,12 @@ class MemoryMediaTransport implements MediaSubmissionTransport {
     return this.current;
   }
 
-  async upload(): Promise<void> {
+  async upload(
+    _reservation: PostCommunitiesCommunityIdMediaUploadReservationsResponse,
+    _audio: Blob,
+    _onProgress?: (sent: number, total: number) => void,
+    _signal?: AbortSignal,
+  ): Promise<void> {
     this.uploadCount += 1;
   }
 }
@@ -169,6 +195,52 @@ describe("media submission coordinator", () => {
     expect(coordinator.currentRecord?.upload_status).toBe("sealed");
   });
 
+  test("rejects oversized audio before retaining a command and accepts a smaller replacement", async () => {
+    const transport = new MemoryMediaTransport();
+    const coordinator = createMediaSubmissionCoordinator({ transport });
+    const oversized = new File([new Uint8Array([1])], "large.mp3", { type: "audio/mpeg" });
+    Object.defineProperty(oversized, "size", { value: 64 * 1024 * 1024 + 1 });
+    await expect(coordinator.begin({
+      communityId: "community-1",
+      personaId: "persona-one",
+      audio: oversized,
+      title: "Too large",
+      songType: "original",
+      authorDeclaredRating: "general",
+    })).rejects.toThrow("Song audio must be 64 MiB or smaller.");
+    expect(coordinator.currentRecord).toBeNull();
+    expect(transport.commands).toHaveLength(0);
+
+    await coordinator.begin({
+      communityId: "community-1",
+      personaId: "persona-one",
+      audio: new File([new Uint8Array([1])], "smaller.mp3", { type: "audio/mpeg" }),
+      title: "Smaller",
+      songType: "original",
+      authorDeclaredRating: "general",
+    });
+    expect(transport.kinds).toEqual(["reserve", "start"]);
+  });
+
+  test("drops a definitively rejected reserve so corrected input starts a new operation", async () => {
+    const transport = new MemoryMediaTransport();
+    const coordinator = createMediaSubmissionCoordinator({ transport });
+    transport.rejectOnce = "reserve";
+    const input = {
+      communityId: "community-1",
+      personaId: "persona-one",
+      audio: new File([new Uint8Array([1])], "song.mp3", { type: "audio/mpeg" }),
+      title: "Signal",
+      songType: "original" as const,
+      authorDeclaredRating: "general" as const,
+    };
+    await expect(coordinator.begin(input)).rejects.toBeInstanceOf(RejectedMediaSubmissionError);
+    expect(coordinator.currentRecord).toBeNull();
+
+    await coordinator.begin({ ...input, title: "Corrected signal" });
+    expect(transport.kinds).toEqual(["reserve", "reserve", "start"]);
+  });
+
   test("replays the exact retained start command after an ambiguous response", async () => {
     const transport = new MemoryMediaTransport();
     const coordinator = createMediaSubmissionCoordinator({ transport });
@@ -196,15 +268,60 @@ describe("media submission coordinator", () => {
     const coordinator = await started(transport);
     let first = true;
     const originalUpload = transport.upload.bind(transport);
-    transport.upload = async () => {
+    transport.upload = async (...input) => {
       if (first) { first = false; throw new Error("upload uncertain"); }
-      await originalUpload();
+      await originalUpload(...input);
     };
     await expect(coordinator.uploadAndFinalize()).rejects.toThrow("upload uncertain");
     const finalized = await coordinator.uploadAndFinalize();
     expect(finalized.audio_revision).toBe(1);
     expect(transport.uploadCount).toBe(1);
     expect(transport.kinds.filter(kind => kind === "finalize")).toHaveLength(1);
+  });
+
+  test("restores a retryable retained upload after caller cancellation", async () => {
+    const transport = new MemoryMediaTransport();
+    const coordinator = await started(transport);
+    const entered = Promise.withResolvers<void>();
+    transport.upload = async (_reservation, audio, onProgress, signal) => {
+      transport.uploadCount += 1;
+      onProgress?.(1, audio.size);
+      entered.resolve();
+      await new Promise<void>((_resolve, reject) => {
+        signal?.addEventListener("abort", () => reject(new Error("upload stopped")), {
+          once: true,
+        });
+      });
+    };
+    const controller = new AbortController();
+    const upload = coordinator.uploadAndFinalize(undefined, controller.signal);
+    await entered.promise;
+    expect(coordinator.state).toEqual({
+      status: "uploading",
+      submissionId: "submission-1",
+      bytesSent: 1,
+      bytesTotal: 3,
+    });
+    controller.abort();
+
+    await expect(upload).rejects.toThrow("upload stopped");
+    expect(coordinator.currentRecord?.upload_status).toBe("not_uploaded");
+    expect(coordinator.state).toMatchObject({ status: "processing", phase: "awaiting_upload" });
+    expect(transport.kinds).not.toContain("finalize");
+  });
+
+  test("refuses an expired upload URL and preserves the cancel-and-restart path", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2100-01-01T00:00:00Z"));
+    const transport = new MemoryMediaTransport();
+    const coordinator = await started(transport);
+    await expect(coordinator.uploadAndFinalize()).rejects.toThrow(
+      "The upload reservation expired. Cancel this submission and start again.",
+    );
+    expect(transport.uploadCount).toBe(0);
+    await expect(coordinator.cancel()).resolves.toMatchObject({ status: "abandoned" });
+    coordinator.discardTerminal();
+    expect(coordinator.currentRecord).toBeNull();
   });
 
   test("drops a conflicting command so a later action starts from the snapshot", async () => {
@@ -217,6 +334,7 @@ describe("media submission coordinator", () => {
       allocations: [{ recipientId: "persona-one", shareBps: 10_000 }],
     })).rejects.toBeInstanceOf(MediaSubmissionConflictError);
     expect(coordinator.currentRecord?.pending_command).toBeNull();
+    expect(coordinator.currentRecord?.commands.some(command => command.kind === "terms")).toBe(false);
 
     await coordinator.bindTerms({
       licensePreset: "non-commercial",
@@ -259,7 +377,7 @@ describe("media submission coordinator", () => {
     expect(transport.kinds).not.toContain("cancel");
 
     transport.current = snapshot();
-    await expect(coordinator.cancel()).resolves.toMatchObject({ status: "processing" });
+    await expect(coordinator.cancel()).resolves.toMatchObject({ status: "abandoned" });
     expect(transport.kinds).toContain("cancel");
   });
 
@@ -268,8 +386,17 @@ describe("media submission coordinator", () => {
     const transport = new MemoryMediaTransport();
     const coordinator = await started(transport);
     transport.finalizeDelayed = true;
+    let resolveFinalizeDispatch: (() => void) | undefined;
+    const finalizeDispatched = new Promise<void>(resolve => { resolveFinalizeDispatch = resolve; });
+    transport.onDispatch = kind => {
+      if (kind === "finalize") resolveFinalizeDispatch?.();
+    };
     const finalizing = coordinator.uploadAndFinalize();
-    await vi.advanceTimersByTimeAsync(300);
+    // Wait until the command owns the delayed response before advancing the
+    // observation clock. Without this barrier, a slower CI worker can advance
+    // fake time before uploadAndFinalize schedules its first 250 ms tick.
+    await finalizeDispatched;
+    await vi.advanceTimersByTimeAsync(0);
     transport.current = snapshot({ audio_revision: 1, phase: "analysis" });
     await vi.advanceTimersByTimeAsync(300);
     const finalized = await finalizing;
@@ -289,6 +416,24 @@ describe("media submission coordinator", () => {
       published_resource: { post_id: "post-1", href: "/posts/post-1" },
     } as MediaSubmissionSnapshot;
     transport.current = published;
+    await coordinator.refresh();
+    coordinator.discardTerminal();
+    expect(coordinator.currentRecord).toBeNull();
+    expect(coordinator.state).toEqual({ status: "editing" });
+  });
+
+  test("allows a non-retryable processing failure to be discarded", async () => {
+    const transport = new MemoryMediaTransport();
+    const coordinator = await started(transport);
+    // SAFETY: the base snapshot is a processing variant; this patch selects
+    // the non-retryable failure variant returned by the API.
+    transport.current = snapshot({
+      status: "processing_failed",
+      phase: undefined,
+      reason_code: "workflow_terminal_unconverged",
+      retry_count: 0,
+      retryable: false,
+    } as Partial<MediaSubmissionSnapshot>);
     await coordinator.refresh();
     coordinator.discardTerminal();
     expect(coordinator.currentRecord).toBeNull();

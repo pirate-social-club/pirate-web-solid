@@ -13,10 +13,7 @@ import {
   TextFieldLabel,
 } from "../../../design-system";
 import type { MediaSubmissionSnapshot } from "../media-submission/contracts";
-import {
-  createMediaSubmissionCoordinator,
-  type MediaSubmissionCoordinator,
-} from "../media-submission/coordinator";
+import { createMediaSubmissionCoordinator } from "../media-submission/coordinator";
 import type { SongSubmissionView } from "../media-submission/projection";
 import type { MediaSubmissionTransport } from "../media-submission/transport";
 import { royaltySplitIssue } from "./earnings-split";
@@ -195,6 +192,7 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
   const [lyricsBusy, setLyricsBusy] = createSignal(false);
   const mediaEnabled = props.principalId !== undefined && personas().length > 0;
   let mediaOperationInFlight = false;
+  let mediaUploadController: AbortController | undefined;
   let finishingPublishedSong = false;
 
   const textCoordinator = createTextSubmissionCoordinator({
@@ -406,6 +404,8 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
     setError("");
     setMediaBusy(true);
     mediaOperationInFlight = true;
+    const uploadController = new AbortController();
+    mediaUploadController = uploadController;
     try {
       const snapshot = await (prepareOnly ? prepareSongComposer : submitSongComposer)({
         coordinator: mediaCoordinator,
@@ -417,6 +417,7 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
         license: license(),
         royaltySplit: royaltySplit(),
         authorDeclaredRating: ageGatePolicy() === "18_plus" ? "adult_18" : "general",
+        signal: uploadController.signal,
       });
       applySnapshot(snapshot);
       if (!prepareOnly && snapshot.status === "published") finishSongPublished();
@@ -425,21 +426,40 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
       setError(submissionError instanceof Error ? submissionError.message : "The song could not be submitted safely.");
       return false;
     } finally {
+      if (mediaUploadController === uploadController) mediaUploadController = undefined;
       mediaOperationInFlight = false;
       setMediaBusy(false);
     }
   }
 
+  function stopSongUpload(): void {
+    mediaUploadController?.abort(new DOMException("Upload stopped", "AbortError"));
+  }
+
   async function refreshSong(automatic = false): Promise<void> {
     if (mediaCoordinator?.currentRecord?.submission_id == null || mediaBusy() || lyricsBusy()) return;
-    if (!automatic) { observationCount = 0; setObservationPaused(false); }
+    if (!automatic) {
+      observationCount = 0;
+      observationFailures = 0;
+      observationRetryAt = 0;
+      setObservationPaused(false);
+    }
     setError("");
     setMediaBusy(true);
     try {
       const snapshot = await mediaCoordinator.refresh();
       if (snapshot !== null) applySnapshot(snapshot);
+      observationFailures = 0;
+      observationRetryAt = 0;
     } catch (refreshError) {
-      if (automatic) setObservationPaused(true);
+      if (automatic) {
+        // A transient status failure must not strand a submission that later
+        // publishes: back off and keep checking until a bounded run of
+        // consecutive failures pauses observation for a manual retry.
+        observationFailures += 1;
+        observationRetryAt = Date.now() + Math.min(30_000, 3_000 * 2 ** (observationFailures - 1));
+        if (observationFailures >= 5) setObservationPaused(true);
+      }
       setError(refreshError instanceof Error ? refreshError.message : "The song status is still uncertain.");
     } finally {
       setMediaBusy(false);
@@ -512,18 +532,27 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
     return mediaCoordinator?.currentRecord?.commands.some(command => command.kind === "terms") ?? false;
   };
   let observationCount = 0;
+  let observationFailures = 0;
+  let observationRetryAt = 0;
   let disposed = false;
   const [observationPaused, setObservationPaused] = createSignal(false);
   const observation = typeof window !== "undefined" && getOwner() ? setInterval(() => {
     if (disposed || !props.open || mode() !== "song" || mediaBusy() || lyricsBusy()
       || observationPaused()) return;
     const view = mediaView();
-    if (view.status !== "processing" && view.status !== "manual_review") return;
+    if (view.status !== "processing"
+      && view.status !== "manual_review"
+      && (view.status !== "processing_failed" || view.retryable)) return;
     if (mediaCoordinator?.currentRecord?.submission_id == null) return;
+    if (Date.now() < observationRetryAt) return;
     if (++observationCount > 200) { setObservationPaused(true); return; }
     void refreshSong(true);
   }, 3_000) : undefined;
-  if (observation !== undefined) onCleanup(() => { disposed = true; clearInterval(observation); });
+  onCleanup(() => {
+    disposed = true;
+    if (observation !== undefined) clearInterval(observation);
+    mediaUploadController?.abort(new DOMException("Composer closed", "AbortError"));
+  });
 
   const canContinueSongSubmit = () => {
     const view = mediaView();
@@ -583,6 +612,9 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
         <p>{mediaSnapshot()?.audio_revision && !songTermsIssued() && mediaView().status === "processing"
           ? "Audio uploaded."
           : mediaStateMessage(mediaView())}</p>
+        <Show when={mediaView().status === "uploading"}>
+          <Button type="button" variant="outline" onClick={stopSongUpload}>Stop upload</Button>
+        </Show>
         <Show when={observationPaused()}><FormNote>Automatic checks paused. Check status to try again.</FormNote></Show>
         <Show when={mediaCoordinator?.currentRecord?.submission_id != null && !terminalMediaView(mediaView())}>
           <Button disabled={mediaBusy()} type="button" variant="outline" onClick={() => void refreshSong()}>Check status</Button>
@@ -604,7 +636,8 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
         <Show when={lyricsCanSave()}>
           <Button disabled={lyricsBusy()} type="button" onClick={() => void saveLyrics()}>Save reviewed lyrics</Button>
         </Show>
-        <Show when={terminalMediaView(mediaView()) && mediaView().status !== "published"}>
+        <Show when={(terminalMediaView(mediaView()) && mediaView().status !== "published")
+          || mediaView().status === "processing_failed"}>
           <Button disabled={mediaBusy()} type="button" variant="outline" onClick={() => discardTerminalSong()}>Discard and start over</Button>
         </Show>
       </div>

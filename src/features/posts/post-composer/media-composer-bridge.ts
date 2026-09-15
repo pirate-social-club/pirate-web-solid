@@ -13,6 +13,7 @@ export interface SongComposerBridgeInput {
   readonly royaltySplit: AssetRoyaltySplitState;
   readonly lyrics?: string;
   readonly authorDeclaredRating: "general" | "adult_18";
+  readonly signal?: AbortSignal;
 }
 
 function bridgeAllocations(split: AssetRoyaltySplitState): readonly SongRoyaltyAllocation[] {
@@ -40,7 +41,7 @@ export async function prepareSongComposer(input: SongComposerBridgeInput): Promi
     });
   }
   await input.coordinator.ensureStarted();
-  return input.coordinator.uploadAndFinalize();
+  return input.coordinator.uploadAndFinalize(undefined, input.signal);
 }
 
 export function validateSongComposerTerms(split: AssetRoyaltySplitState, personaId: string): void {

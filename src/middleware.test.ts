@@ -35,10 +35,10 @@ describe("security policy", () => {
   });
 });
 
- test("video media permits Stream playback and local capture without widening verification routes", () => {
+ test("media permits Stream and signed R2 playback without widening verification routes", () => {
   const policy = securityPolicy("/", "fixture");
   expect(policy).toContain("https://*.cloudflarestream.com");
-  expect(policy).toContain("media-src 'self' blob: https://*.cloudflarestream.com");
+  expect(policy).toContain("media-src 'self' blob: https://08a4c22cf52e2ecae883e36f80a33f4a.r2.cloudflarestorage.com https://*.cloudflarestream.com");
   expect(policy).toContain("worker-src 'self' blob:");
   expect(securityPolicy("/verify/very", "fixture")).not.toContain("cloudflarestream.com");
 });

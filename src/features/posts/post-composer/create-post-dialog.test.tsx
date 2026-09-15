@@ -34,6 +34,7 @@ function render(ui: () => JSX.Element): HTMLElement {
 afterEach(() => {
   for (const dispose of disposers.splice(0)) dispose();
   document.body.replaceChildren();
+  vi.restoreAllMocks();
 });
 
 const activePersona = (personaId: string, displayName: string): ActivePersonaPublicProjection => ({
@@ -53,7 +54,7 @@ const reservation: PostCommunitiesCommunityIdMediaUploadReservationsResponse = {
     method: "PUT",
     url: "https://upload.test/song",
     required_headers: [{ name: "content-type", value: "audio/mpeg" }],
-    expires_at: "2026-08-27T00:00:00Z",
+    expires_at: "2099-01-01T00:00:00Z",
   },
 };
 
@@ -104,6 +105,7 @@ class ProductionMediaTransport implements MediaSubmissionTransport {
   snapshot: MediaSubmissionSnapshot | null = null;
   readonly commands: PersistedMediaCommand[] = [];
   uploadCount = 0;
+  failReads = false;
 
   async dispatch(command: PersistedMediaCommand): Promise<MediaCommandResult> {
     this.commands.push(command);
@@ -141,6 +143,7 @@ class ProductionMediaTransport implements MediaSubmissionTransport {
   }
 
   async read(): Promise<MediaSubmissionSnapshot | null> {
+    if (this.failReads) throw new Error("API response was not valid JSON");
     return this.snapshot;
   }
 
@@ -390,6 +393,46 @@ describe("create post request", () => {
     expect(document.body.querySelector("form[aria-label='Create a post']")).not.toBeNull();
   });
 
+  test("lets the author stop an in-flight song upload and recover the cancel path", async () => {
+    class HangingUploadTransport extends ProductionMediaTransport {
+      override async upload(
+        _reservation: PostCommunitiesCommunityIdMediaUploadReservationsResponse,
+        audio: Blob,
+        onProgress?: (sent: number, total: number) => void,
+        signal?: AbortSignal,
+      ): Promise<void> {
+        this.uploadCount += 1;
+        onProgress?.(1, audio.size);
+        await new Promise<void>((_resolve, reject) => {
+          signal?.addEventListener("abort", () => reject(new Error("upload stopped")), {
+            once: true,
+          });
+        });
+      }
+    }
+    const mediaTransport = new HangingUploadTransport();
+    render(() => <CreatePostDialog
+      communityContext={{ id: "community-one", name: "Harbor" }}
+      mediaTransport={mediaTransport}
+      onOpenChange={() => {}}
+      open
+      personas={[activePersona("persona-one", "Persona One")]}
+      principalId="account-one"
+    />);
+    await new Promise<void>(resolve => setTimeout(resolve, 0));
+    await uploadAudio("stoppable.mp3");
+    await vi.waitFor(() => expect(button("Continue").disabled).toBe(false));
+    button("Continue").click();
+    await vi.waitFor(() => expect(button("Stop upload")).toBeInstanceOf(HTMLButtonElement));
+    button("Stop upload").click();
+
+    await vi.waitFor(() => expect(document.body.textContent).toContain("awaiting upload"));
+    expect(document.body.textContent).not.toContain("Stop upload");
+    await vi.waitFor(() => expect(button("Cancel song submission").disabled).toBe(false));
+    expect(mediaTransport.uploadCount).toBe(1);
+    expect(mediaTransport.commands.map(command => command.kind)).toEqual(["reserve", "start"]);
+  });
+
   test("allows closing after a known manual-review outcome", async () => {
     class ManualReviewTransport extends ProductionMediaTransport {
       override async dispatch(command: PersistedMediaCommand): Promise<MediaCommandResult> {
@@ -423,6 +466,70 @@ describe("create post request", () => {
 
     document.body.querySelector<HTMLButtonElement>("button[aria-label='Close composer']")!.click();
     await vi.waitFor(() => expect(document.body.querySelector("form[aria-label='Create a post']")).toBeNull());
+  });
+
+  test("lets an author discard a non-retryable processing failure", async () => {
+    class NonRetryableFailureTransport extends ProductionMediaTransport {
+      override async dispatch(command: PersistedMediaCommand): Promise<MediaCommandResult> {
+        const result = await super.dispatch(command);
+        if (command.kind === "terms" && this.snapshot !== null) {
+          this.snapshot = mediaSnapshot({
+            ...this.snapshot,
+            status: "processing_failed",
+            reason_code: "workflow_terminal_unconverged",
+            retry_count: 0,
+            retryable: false,
+          });
+          return this.snapshot;
+        }
+        return result;
+      }
+    }
+    let observationTick = () => {};
+    vi.spyOn(globalThis, "setInterval").mockImplementation((callback) => {
+      observationTick = () => callback();
+      return setTimeout(() => {}, 0);
+    });
+    const mediaTransport = new NonRetryableFailureTransport();
+    render(() => <CreatePostDialog
+      communityContext={{ id: "community-one", name: "Harbor" }}
+      mediaTransport={mediaTransport}
+      onOpenChange={() => {}}
+      open
+      personas={[activePersona("persona-one", "Persona One")]}
+      principalId="account-one"
+    />);
+    await new Promise<void>(resolve => setTimeout(resolve, 0));
+    await uploadAudio("failed.mp3");
+    await continueToReview();
+    button("Publish song").click();
+    await vi.waitFor(() => expect(document.body.textContent).toContain("workflow terminal unconverged"));
+    expect([...document.body.querySelectorAll("button")].some(candidate => candidate.textContent?.trim() === "Retry processing")).toBe(false);
+
+    const failedSnapshot = mediaTransport.snapshot;
+    if (failedSnapshot === null) throw new Error("missing failed song fixture");
+    mediaTransport.snapshot = mediaSnapshot({
+      ...failedSnapshot,
+      creation_revision: failedSnapshot.creation_revision + 1,
+      status: "processing",
+      phase: "publish",
+    });
+    observationTick();
+    await vi.waitFor(() => expect(document.body.textContent).not.toContain("workflow terminal unconverged"));
+
+    mediaTransport.snapshot = mediaSnapshot({
+      ...mediaTransport.snapshot,
+      status: "processing_failed",
+      reason_code: "workflow_terminal_unconverged",
+      retry_count: 0,
+      retryable: false,
+    });
+    observationTick();
+    await vi.waitFor(() => expect(document.body.textContent).toContain("workflow terminal unconverged"));
+
+    button("Discard and start over").click();
+    await vi.waitFor(() => expect(document.body.textContent).not.toContain("workflow terminal unconverged"));
+    expect(document.body.querySelector<HTMLInputElement>("input[aria-label='Upload audio']")).not.toBeNull();
   });
 
   test("restores an edited share that exceeds the remainder and keeps the creator minimum", async () => {
@@ -535,7 +642,7 @@ describe("create post request", () => {
     expect(initialOperationPersonaId([])).toBeUndefined();
   });
 
-  test("rejects non-MP3 song files before reservation and accepts an uppercase MP3 filename", async () => {
+  test("rejects invalid or oversized song files before reservation and accepts an uppercase MP3 filename", async () => {
     const mediaTransport = new ProductionMediaTransport();
     render(() => <CreatePostDialog
       communityContext={{ id: "community-one", name: "Harbor" }}
@@ -563,9 +670,22 @@ describe("create post request", () => {
     await vi.waitFor(() => expect(document.body.textContent).not.toContain("Public-song v1 currently accepts MP3 only."));
     expect(document.body.textContent).toContain("RIGHT.MP3");
     expect(mediaTransport.commands).toHaveLength(0);
+    button("Add lyrics (optional)").click();
+    await vi.waitFor(() => expect(
+      document.body.querySelector<HTMLTextAreaElement>("textarea[aria-label='Lyrics']")?.maxLength,
+    ).toBe(200_000));
+
+    const oversized = new File([new Uint8Array([1])], "large.mp3", { type: "audio/mpeg" });
+    Object.defineProperty(oversized, "size", { value: 64 * 1024 * 1024 + 1 });
+    const replacementInput = document.body.querySelector<HTMLInputElement>("input[aria-label='Upload audio']")!;
+    Object.defineProperty(replacementInput, "files", { configurable: true, value: [oversized] });
+    replacementInput.dispatchEvent(new Event("change", { bubbles: true }));
+    await vi.waitFor(() => expect(document.body.textContent).toContain("Song audio must be 64 MiB or smaller."));
+    expect(document.body.textContent).toContain("RIGHT.MP3");
+    expect(mediaTransport.commands).toHaveLength(0);
   });
 
-  test("routes a song through one reserve, start, finalize, and terms flow", async () => {
+  test("routes an author-declared 18+ song through one reserve, start, finalize, and terms flow", async () => {
     const mediaTransport = new ProductionMediaTransport();
     const ids = ["reserve-key", "start-key", "finalize-key", "terms-key"];
     let idIndex = 0;
@@ -581,7 +701,27 @@ describe("create post request", () => {
 
     await new Promise<void>(resolve => setTimeout(resolve, 0));
     await uploadAudio();
-    await continueToReview();
+    const adultRating = document.body.querySelector<HTMLInputElement>('input[aria-label="18+ content"]');
+    expect(adultRating).not.toBeNull();
+    adultRating!.click();
+    await vi.waitFor(() => expect(
+      document.body.querySelector<HTMLInputElement>('input[aria-label="18+ content"]')?.checked,
+    ).toBe(true));
+    await vi.waitFor(() => expect(button("Continue").disabled).toBe(false));
+    button("Continue").click();
+    await vi.waitFor(() => expect(document.body.textContent).toContain("What others may do with this song"));
+    button("Back").click();
+    await vi.waitFor(() => {
+      const retainedRating = document.body.querySelector<HTMLInputElement>('input[aria-label="18+ content"]');
+      expect(retainedRating?.checked).toBe(true);
+      expect(retainedRating?.disabled).toBe(true);
+    });
+    button("Continue").click();
+    await vi.waitFor(() => expect(document.body.textContent).toContain("What others may do with this song"));
+    await vi.waitFor(() => expect(button("Continue").disabled).toBe(false));
+    button("Continue").click();
+    await vi.waitFor(() => expect(document.body.textContent).toContain("Permissions"));
+    await vi.waitFor(() => expect(button("Publish song").disabled).toBe(false));
     button("Publish song").click();
 
     await vi.waitFor(() => expect(mediaTransport.commands.map(command => command.kind)).toEqual([
@@ -600,7 +740,7 @@ describe("create post request", () => {
       return decoded as { persona_id?: string; author_declared_rating?: string };
     }));
     expect(bodies.every(body => body.persona_id === "persona-one")).toBe(true);
-    expect(bodies.find((_body, index) => mediaTransport.commands[index]?.kind === "start")?.author_declared_rating).toBe("general");
+    expect(bodies.find((_body, index) => mediaTransport.commands[index]?.kind === "start")?.author_declared_rating).toBe("adult_18");
   });
 
   test("binds reviewed lyrics and named collaborators before publishing", async () => {
@@ -724,6 +864,46 @@ describe("create post request", () => {
     expect(mediaTransport.commands.filter(command => command.kind === "lyrics")).toHaveLength(0);
     expect(mediaTransport.uploadCount).toBe(1);
   });
+
+  test("keeps observing after a transient status failure and still marks the published song", async () => {
+    const mediaTransport = new ProductionMediaTransport();
+    const onPublished = vi.fn();
+    render(() => <CreatePostDialog
+      communityContext={{ id: "community-one", name: "Pirate Harbor" }}
+      mediaTransport={mediaTransport}
+      onOpenChange={() => {}}
+      onPublished={onPublished}
+      open
+      personas={[activePersona("persona-one", "Persona One")]}
+      principalId="account-one"
+    />);
+    await new Promise<void>(resolve => setTimeout(resolve, 0));
+
+    const audioInput = document.body.querySelector<HTMLInputElement>("input[aria-label='Upload audio']")!;
+    Object.defineProperty(audioInput, "files", { configurable: true, value: [new File([new Uint8Array([1])], "transient.mp3", { type: "audio/mpeg" })] });
+    audioInput.dispatchEvent(new Event("change", { bubbles: true }));
+    await vi.waitFor(() => expect(button("Continue").disabled).toBe(false));
+    button("Continue").click();
+    await vi.waitFor(() => expect(document.body.textContent).toContain("What others may do with this song"));
+    await vi.waitFor(() => expect(button("Continue").disabled).toBe(false));
+    button("Continue").click();
+    await vi.waitFor(() => expect(document.body.textContent).toContain("Instrumental"));
+    await vi.waitFor(() => expect(button("Publish song").disabled).toBe(false));
+    button("Publish song").click();
+    await vi.waitFor(() => expect(mediaTransport.commands.map(command => command.kind)).toEqual([
+      "reserve", "start", "finalize", "terms",
+    ]));
+
+    // One automatic status check fails while the submission later becomes
+    // published. Observation must back off and resume rather than pause
+    // permanently, or the composer strands the published song.
+    mediaTransport.failReads = true;
+    await new Promise<void>(resolve => setTimeout(resolve, 4_000));
+    mediaTransport.snapshot = mediaSnapshot({ ...mediaTransport.snapshot!, status: "published",
+      published_resource: { post_id: "post-transient", href: "/posts/post-transient" } });
+    mediaTransport.failReads = false;
+    await vi.waitFor(() => expect(onPublished).toHaveBeenCalledOnce(), { timeout: 8_000 });
+  }, 20_000);
 
   test("wizard navigation preserves state and supports back", async () => {
     const mediaTransport = new ProductionMediaTransport();

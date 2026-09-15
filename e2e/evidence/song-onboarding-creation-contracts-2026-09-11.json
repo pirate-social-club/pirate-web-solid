@@ -1,0 +1,14 @@
+[
+  {
+    "commit": "480f0e64e7795fdbf772c76f4b103e20f7bcb2ea",
+    "source": "packages/contracts/src/community-creation.ts",
+    "source_sha256": "c1a59b57309f97cf471d7c939bb27c1d2751d74005e0ecc671a1c31f92b74e03",
+    "declaration": "export const CommunityCreationDraftV2 = Schema.Struct({\n  persona_id: PersonaIdV1,\n  name: Schema.NonEmptyString,\n  description: Schema.NullOr(Schema.String),\n  policy: CompiledGatePolicy,\n});"
+  },
+  {
+    "commit": "4b9e84e6ab5b44ea433d8b23a84783054f0a098f",
+    "source": "packages/contracts/src/community-creation.ts",
+    "source_sha256": "1c0437a6de0bab6e000dbd9f6a625b3b00a6524d2df11c76e7b7a186d2769612",
+    "declaration": "export const CommunityCreationDraftV2 = Schema.Struct({\n  /**\n   * Spec 014 section 11.2: the creator persona is either an existing owned\n   * persona or the server-minted create_new choice resolved at the terminal\n   * creation commit. A browser never invents a persona id or a binding.\n   */\n  persona: PersonaCommunityChoiceV1,\n  public_name: Schema.optional(CommunityOwnerPublicName),\n  name: Schema.NonEmptyString,\n  description: Schema.NullOr(Schema.String),\n  policy: CompiledGatePolicy,\n});"
+  }
+]

@@ -24,6 +24,25 @@ export class SongSubmissionContractError extends Error {
   }
 }
 
+export const PUBLIC_SONG_AUDIO_MAX_BYTES = 64 * 1024 * 1024;
+export const PUBLIC_SONG_LYRICS_MAX_CHARACTERS = 200_000;
+export const PUBLIC_SONG_LYRICS_MAX_BYTES = 800_000;
+
+export function publicSongAudioIssue(
+  file: Pick<File, "name" | "size" | "type">,
+): string | null {
+  if (file.type !== "audio/mpeg" || !file.name.toLowerCase().endsWith(".mp3")) {
+    return "Public-song v1 currently accepts MP3 only.";
+  }
+  if (!Number.isSafeInteger(file.size) || file.size <= 0) {
+    return "Audio must have a positive safe byte size.";
+  }
+  if (file.size > PUBLIC_SONG_AUDIO_MAX_BYTES) {
+    return "Song audio must be 64 MiB or smaller.";
+  }
+  return null;
+}
+
 function requiredId(value: string, field: string): string {
   const normalized = value.trim();
   if (normalized === "" || normalized.length > 512 || /[\u0000-\u001f\u007f]/u.test(normalized)) {
@@ -79,16 +98,11 @@ export function buildReserveSongAudioInput(input: {
   readonly communityId: string;
   readonly personaId: string;
   readonly idempotencyKey: string;
-  readonly file: Pick<File, "size" | "type">;
+  readonly file: Pick<File, "name" | "size" | "type">;
   readonly expectedSha256?: string;
 }): PostCommunitiesCommunityIdMediaUploadReservationsInput {
-  if (!Number.isSafeInteger(input.file.size) || input.file.size <= 0) {
-    throw new SongSubmissionContractError("Audio must have a positive safe byte size");
-  }
-  const mediaType = input.file.type.trim().toLowerCase();
-  if (!/^audio\/[a-z0-9!#$&^_.+-]+$/u.test(mediaType)) {
-    throw new SongSubmissionContractError("Audio must have a lowercase audio media type without parameters");
-  }
+  const issue = publicSongAudioIssue(input.file);
+  if (issue !== null) throw new SongSubmissionContractError(issue);
   if (input.expectedSha256 !== undefined && !/^[a-f0-9]{64}$/u.test(input.expectedSha256)) {
     throw new SongSubmissionContractError("Expected SHA-256 must be lowercase hexadecimal");
   }
@@ -99,7 +113,7 @@ export function buildReserveSongAudioInput(input: {
       idempotency_key: requiredId(input.idempotencyKey, "idempotencyKey"),
       track: "song",
       slot: "primary_audio",
-      expected_content_type: mediaType,
+      expected_content_type: "audio/mpeg",
       expected_size_bytes: input.file.size,
       ...(input.expectedSha256 === undefined ? {} : { expected_sha256: input.expectedSha256 }),
     },
@@ -176,7 +190,9 @@ export function buildSongLyricsInput(input: {
   readonly expectedAudioRevision: number;
   readonly lyrics: string;
 }): PostMediaPostSubmissionsSubmissionIdLyricsInput {
-  if (input.lyrics.length === 0 || input.lyrics.length > 200_000 || new TextEncoder().encode(input.lyrics).byteLength > 800_000) {
+  if (input.lyrics.length === 0
+    || input.lyrics.length > PUBLIC_SONG_LYRICS_MAX_CHARACTERS
+    || new TextEncoder().encode(input.lyrics).byteLength > PUBLIC_SONG_LYRICS_MAX_BYTES) {
     throw new SongSubmissionContractError("Lyrics must be non-empty and within the published text bounds");
   }
   if (!Number.isInteger(input.expectedCreationRevision) || input.expectedCreationRevision < 1

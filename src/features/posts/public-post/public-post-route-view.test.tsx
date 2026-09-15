@@ -66,6 +66,24 @@ function contentState(canonical: boolean): PublicPostRouteState {
 }
 
 describe("public post route view", () => {
+  it("renders song playback and API-owned activity paths on the detail page", () => {
+    const state = contentState(true);
+    if (state.kind !== "content") throw new Error("Expected fixture content");
+    const container = render({
+      ...state,
+      response: {
+        ...state.response,
+        content: {
+          ...state.response.content,
+          post: { ...state.response.content.post, post_type: "song", song_title: "A searchable title" },
+        },
+      },
+    });
+    expect(container.querySelector("button[aria-label='Play A searchable title']")).not.toBeNull();
+    expect(container.querySelector("nav[aria-label='Song activities'] a[href='/posts/a-searchable-title/study']")?.textContent).toBe("Study");
+    expect(container.querySelector("nav[aria-label='Song activities'] a[href='/posts/a-searchable-title/karaoke']")?.textContent).toBe("Karaoke");
+  });
+
   it.each(["pending", "ready"] as const)("shows video %s as a safe delivery status without media URLs", status => {
     const state = contentState(true);
     if (state.kind !== "content") throw new Error("Expected fixture content");

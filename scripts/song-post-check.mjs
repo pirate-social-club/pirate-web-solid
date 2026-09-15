@@ -181,6 +181,7 @@ function submissionRecord(submissionId, personaId) {
     finalizeCount: 0,
     termsCount: 0,
     lyricsCount: 0,
+    processingPollCount: 0,
   };
   submissions.set(submissionId, record);
   return record;
@@ -264,6 +265,10 @@ const upstream = createServer(async (incoming, outgoing) => {
       const kind = command[2] ?? "read";
       if (incoming.method === "GET" && kind === "read") {
         mediaCalls.push({ kind, submission: record.submissionId });
+        if (record.status === "processing" && record.phase === "publish") {
+          record.processingPollCount += 1;
+          if (record.processingPollCount >= 2) record.status = "published";
+        }
         return send(200, snapshotFor(record));
       }
       mediaCalls.push({ kind, submission: record.submissionId });
@@ -274,8 +279,10 @@ const upstream = createServer(async (incoming, outgoing) => {
       } else if (kind === "terms") {
         record.termsCount += 1;
         record.creationRevision += 1;
-        // Terms are the last thing the composer binds, so the song publishes.
-        record.status = "published";
+        // Terms make the submission ready for asynchronous processing. The
+        // fixture publishes only after later status reads, exercising the
+        // coordinator's real polling path.
+        record.phase = "publish";
       } else if (kind === "lyrics") {
         record.lyricsCount += 1;
         record.creationRevision += 1;
@@ -495,6 +502,8 @@ try {
     assert(record.status === "published", `${record.submissionId} ended as ${record.status}`);
     assert(record.finalizeCount === 1, `${record.submissionId} finalized ${record.finalizeCount} times`);
     assert(record.termsCount === 1, `${record.submissionId} bound terms ${record.termsCount} times`);
+    assert(record.processingPollCount >= 2,
+      `${record.submissionId} published after only ${record.processingPollCount} status polls`);
     assert(record.audioRevision === 1, `${record.submissionId} published without stored audio`);
   }
   assert(withLyrics.lyricsCount === 1, `lyrics were sent ${withLyrics.lyricsCount} times`);

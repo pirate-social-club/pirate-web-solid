@@ -1,6 +1,7 @@
 import type { Page } from "playwright/test";
 import { completePrivyEmail, expect } from "./auth.ts";
 
+// Adapted from the preserved community-creation foundation at 9dfb77ac.
 // No API seeding: create the persona and community through the product UI.
 export async function createCommunity(page: Page, marker: string): Promise<string> {
   await page.goto("/communities/new");

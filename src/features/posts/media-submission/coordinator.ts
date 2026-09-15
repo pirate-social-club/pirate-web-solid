@@ -22,9 +22,9 @@ import {
 } from "./pending";
 import { projectMediaSubmission, type SongSubmissionView } from "./projection";
 import {
-  AmbiguousMediaSubmissionError,
   createSameOriginMediaSubmissionTransport,
   MediaSubmissionConflictError,
+  RejectedMediaSubmissionError,
   type MediaCommandResult,
   type MediaSubmissionTransport,
 } from "./transport";
@@ -180,12 +180,26 @@ export class MediaSubmissionCoordinator {
     try {
       result = await this.transport.dispatch(command);
     } catch (error) {
-      if (error instanceof MediaSubmissionConflictError) {
-        // The key is bound to different bytes; replaying it can never apply.
-        // Drop it so a later explicit action starts from the authoritative
-        // snapshot instead of retrying the same conflicting command.
-        const conflicted = this.requireRecord();
-        this.save({ ...conflicted, pending_command: null });
+      if (
+        error instanceof MediaSubmissionConflictError ||
+        error instanceof RejectedMediaSubmissionError
+      ) {
+        // A definitive client or idempotency rejection can never succeed on
+        // replay. Before start there is no server submission to retain; after
+        // start, restore the last authoritative snapshot and let the author
+        // correct and issue a fresh command.
+        const rejected = this.requireRecord();
+        if (rejected.submission_id === null) {
+          this.record = null;
+          this.setView({ status: "editing" });
+        } else {
+          this.save({
+            ...rejected,
+            commands: rejected.commands.filter(saved => saved.body_sha256 !== command.body_sha256),
+            pending_command: null,
+          });
+          if (rejected.snapshot !== null) this.setView(projectMediaSubmission(rejected.snapshot));
+        }
       }
       throw error;
     }
@@ -260,6 +274,20 @@ export class MediaSubmissionCoordinator {
 
   async begin(input: BeginSongSubmissionInput): Promise<MediaSubmissionSnapshot> {
     if (this.record !== null) throw new Error("Resolve the active media submission before starting another");
+    const reserveKey = this.createId();
+    const reserveInput = buildReserveSongAudioInput({
+      communityId: input.communityId,
+      personaId: input.personaId,
+      idempotencyKey: reserveKey,
+      file: input.audio,
+      expectedSha256: input.expectedSha256,
+    });
+    const reserve = await createPersistedMediaCommand({
+      kind: "reserve",
+      idempotencyKey: reserveKey,
+      sameOriginPath: `/api/communities/${encodeURIComponent(reserveInput.path.communityId)}/media-upload-reservations`,
+      body: reserveInput.body,
+    });
     this.save({
       version: MEDIA_PENDING_VERSION,
       community_id: input.communityId,
@@ -282,20 +310,6 @@ export class MediaSubmissionCoordinator {
       snapshot: null,
       commands: [],
       pending_command: null,
-    });
-    const reserveKey = this.createId();
-    const reserveInput = buildReserveSongAudioInput({
-      communityId: input.communityId,
-      personaId: input.personaId,
-      idempotencyKey: reserveKey,
-      file: input.audio,
-      expectedSha256: input.expectedSha256,
-    });
-    const reserve = await createPersistedMediaCommand({
-      kind: "reserve",
-      idempotencyKey: reserveKey,
-      sameOriginPath: `/api/communities/${encodeURIComponent(reserveInput.path.communityId)}/media-upload-reservations`,
-      body: reserveInput.body,
     });
     const reservationResult = await this.dispatch(reserve);
     if (snapshotResult(reservationResult)) throw new Error("Reservation command returned a submission snapshot");
@@ -358,24 +372,36 @@ export class MediaSubmissionCoordinator {
     return result;
   }
 
-  async uploadAndFinalize(onProgress?: (sent: number, total: number) => void): Promise<MediaSubmissionSnapshot> {
+  async uploadAndFinalize(
+    onProgress?: (sent: number, total: number) => void,
+    signal?: AbortSignal,
+  ): Promise<MediaSubmissionSnapshot> {
     await this.reconcilePending();
     let snapshot = await this.refresh();
     const current = this.requireRecord();
     if (snapshot === null || current.reservation === null) throw new Error("The upload reservation or submission is missing");
     if (snapshot.status !== "processing" || snapshot.phase !== "awaiting_upload") return snapshot;
     if (current.upload_status !== "uploaded") {
+      if (Date.parse(current.reservation.upload.expires_at) <= Date.now()) {
+        throw new Error("The upload reservation expired. Cancel this submission and start again.");
+      }
       this.save({ ...current, upload_status: "uploading" });
       this.setView({ status: "uploading", submissionId: snapshot.submission_id, bytesSent: 0, bytesTotal: current.audio.size });
       try {
-        await this.transport.upload(current.reservation, current.audio.blob, (sent, total) => {
-          this.setView({ status: "uploading", submissionId: snapshot!.submission_id, bytesSent: sent, bytesTotal: total });
-          onProgress?.(sent, total);
-        });
+        await this.transport.upload(
+          current.reservation,
+          current.audio.blob,
+          (sent, total) => {
+            this.setView({ status: "uploading", submissionId: snapshot!.submission_id, bytesSent: sent, bytesTotal: total });
+            onProgress?.(sent, total);
+          },
+          signal,
+        );
       } catch (error) {
         // The retained Blob and reservation make the same PUT retryable. Do
         // not leave the composer in its transient progress-only state when a
         // browser, CORS, or response failure makes the result ambiguous.
+        this.save({ ...this.requireRecord(), upload_status: "not_uploaded" });
         this.setView(projectMediaSubmission(snapshot));
         throw error;
       }
@@ -478,7 +504,10 @@ export class MediaSubmissionCoordinator {
 
   discardTerminal(): void {
     const current = this.requireRecord();
-    if (current.snapshot === null || !terminal(current.snapshot)) throw new Error("Only a terminal media submission may be discarded");
+    if (
+      current.snapshot === null ||
+      (!terminal(current.snapshot) && current.snapshot.status !== "processing_failed")
+    ) throw new Error("Only a terminal media submission may be discarded");
     this.record = null;
     this.setView({ status: "editing" });
   }

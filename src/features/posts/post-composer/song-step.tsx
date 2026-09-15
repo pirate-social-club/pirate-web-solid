@@ -8,6 +8,8 @@ import { createSignal, Show } from "solid-js";
 import {
   Button,
   CardContent,
+  Checkbox,
+  CheckboxLabel,
   IconCaretDown,
   IconImage,
   IconMusicNote,
@@ -20,6 +22,7 @@ import {
   Type,
 } from "../../../design-system";
 import { cn } from "../../../design-system";
+import { PUBLIC_SONG_LYRICS_MAX_CHARACTERS, publicSongAudioIssue } from "../media-submission/contracts";
 import { extractEmbeddedAudioArtworkFile, extractEmbeddedAudioTitle } from "./audio-artwork";
 import { PostComposerAttachmentCard } from "./attachment-card";
 import { PostComposerDerivativeSection } from "./derivative-section";
@@ -29,8 +32,6 @@ import type { PostComposerController } from "./controller";
 import type { SongFlowRuntime } from "./types";
 
 const acceptedImageMimeTypes = "image/jpeg,image/png,image/webp,image/gif,image/avif";
-const mp3OnlyCopy = "Public-song v1 currently accepts MP3 only.";
-
 function titleFromFilename(name: string): string {
   const index = name.lastIndexOf(".");
   return (index > 0 ? name.slice(0, index) : name).trim();
@@ -63,8 +64,9 @@ export function SongStep(props: {
   async function selectFile(file: File | undefined) {
     if (!file || audioLocked()) return;
     const selection = ++fileSelection;
-    if (file.type !== "audio/mpeg" || !file.name.toLowerCase().endsWith(".mp3")) {
-      setFileError(mp3OnlyCopy);
+    const issue = publicSongAudioIssue(file);
+    if (issue !== null) {
+      setFileError(issue);
       return;
     }
     setFileError(null);
@@ -233,12 +235,28 @@ export function SongStep(props: {
             aria-label="Lyrics"
             class="min-h-48 resize-y"
             disabled={audioLocked()}
-            maxlength={10_000}
+            maxlength={PUBLIC_SONG_LYRICS_MAX_CHARACTERS}
             onChange={(event) => controller.fields.onLyricsValueChange?.(event.currentTarget.value)}
             placeholder="Add lyrics (optional)"
             value={controller.fields.lyricsValue}
           />
         </Show>
+      </section>
+
+      <section class="space-y-3">
+        <Checkbox
+          aria-label="18+ content"
+          checked={controller.audience.ageGatePolicy === "18_plus"}
+          disabled={controller.audience.editingDisabled}
+          onChange={(checked) => controller.audience.setAgeGatePolicy(checked === true ? "18_plus" : "none")}
+        >
+          <CheckboxLabel class="grid gap-1">
+            <span>18+ content</span>
+            <span class="font-normal text-muted-foreground">
+              Mark this song for adults if its audio, lyrics, or artwork contains adult content.
+            </span>
+          </CheckboxLabel>
+        </Checkbox>
       </section>
 
       <section class="space-y-3">
