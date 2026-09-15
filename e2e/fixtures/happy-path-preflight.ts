@@ -22,3 +22,35 @@ export function requireHappyPathEnvironment(env: Readonly<Record<string, string 
   new URL(e2eBaseURL(env));
   e2eAuthCredentials(env);
 }
+
+export function requireHappyPathObservedEnvironment(
+  env: Readonly<Record<string, string | undefined>> = process.env,
+): string {
+  requireHappyPathEnvironment(env);
+  return stagingPairEvidence(env);
+}
+
+export function requireHappyPathPlaybackEnvironment(
+  env: Readonly<Record<string, string | undefined>> = process.env,
+): void {
+  requireHappyPathObservedEnvironment(env);
+  if (env.E2E_SONG_PLAYBACK_READY !== "1") {
+    throw new Error("M1 song acceptance requires E2E_SONG_PLAYBACK_READY=1 after playback infrastructure is observed.");
+  }
+}
+
+export function stagingPairEvidence(
+  env: Readonly<Record<string, string | undefined>> = process.env,
+): string {
+  if (env.E2E_STAGING_PAIR_OBSERVED !== "1") {
+    throw new Error("M1 requires E2E_STAGING_PAIR_OBSERVED=1 after Lane A records the serving pair readback.");
+  }
+  const pair = env.E2E_STAGING_PAIR_ID?.trim();
+  if (!pair) {
+    throw new Error("M1 requires E2E_STAGING_PAIR_ID with the concrete observed API/Solid pair identifiers.");
+  }
+  if (pair.length > 256 || /[\r\n]/u.test(pair)) {
+    throw new Error("E2E_STAGING_PAIR_ID must be a short single-line serving-pair identifier.");
+  }
+  return pair;
+}

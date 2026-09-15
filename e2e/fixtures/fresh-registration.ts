@@ -77,11 +77,21 @@ async function assertAuthenticated(page: Page): Promise<void> {
 export async function registerFreshAccount(browser: Browser): Promise<RegistrationObservation> {
   const context = await browser.newContext({ baseURL: new URL(e2eBaseURL()).origin });
   const page = await context.newPage();
+  try {
+    return await registerFreshAccountOnPage(page);
+  } finally {
+    await context.close();
+  }
+}
+
+export async function registerFreshAccountOnPage(page: Page): Promise<RegistrationObservation> {
   const watcher = observeRegistration(page);
   try {
     await page.goto("/auth/sign-in");
     await expect(page.locator("[data-route-path='/auth/sign-in']")).toBeVisible();
     await expect(page.getByText(/at least 16 years old/u)).toBeVisible();
+    await expect(page.getByRole("link", { name: "Terms", exact: true })).toHaveAttribute("href", "/terms");
+    await expect(page.getByRole("link", { name: "Privacy Policy", exact: true })).toHaveAttribute("href", "/privacy");
     await completePrivyEmail(page);
     await assertAuthenticated(page);
     await page.reload();
@@ -89,13 +99,20 @@ export async function registerFreshAccount(browser: Browser): Promise<Registrati
     return watcher.observation();
   } finally {
     watcher.stop();
-    await context.close();
   }
 }
 
 export async function signInExistingAccount(browser: Browser): Promise<RegistrationObservation> {
   const context = await browser.newContext({ baseURL: new URL(e2eBaseURL()).origin });
   const page = await context.newPage();
+  try {
+    return await signInExistingAccountOnPage(page);
+  } finally {
+    await context.close();
+  }
+}
+
+export async function signInExistingAccountOnPage(page: Page): Promise<RegistrationObservation> {
   const watcher = observeRegistration(page);
   try {
     await page.goto("/auth/sign-in");
@@ -105,6 +122,5 @@ export async function signInExistingAccount(browser: Browser): Promise<Registrat
     return watcher.observation();
   } finally {
     watcher.stop();
-    await context.close();
   }
 }

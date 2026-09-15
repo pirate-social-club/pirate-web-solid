@@ -1,7 +1,13 @@
-import type { Page } from "playwright/test";
+import type { Page, TestInfo } from "playwright/test";
 import { expect, test } from "./auth.ts";
 
-export async function publishSongAndVerifyPlayback(page: Page, marker: string, audioFixture: Buffer, lyrics = ""): Promise<void> {
+export async function publishSongAndVerifyPlayback(
+  page: Page,
+  marker: string,
+  audioFixture: Buffer,
+  lyrics = "",
+  testInfo: TestInfo = test.info(),
+): Promise<void> {
   /** Every publication of this submission, to prove there is exactly one. */
   const publications: string[] = [];
   const lyricsCommands: string[] = [];
@@ -71,7 +77,7 @@ export async function publishSongAndVerifyPlayback(page: Page, marker: string, a
   expect(publications).toHaveLength(1);
   expect(lyricsCommands).toHaveLength(lyrics === "" ? 0 : 1);
 
-  test.info().annotations.push({
+  testInfo.annotations.push({
     type: "cleanup-required",
     description: `No delete contract exists; community ${new URL(page.url()).pathname} and its song use marker ${marker}`,
   });

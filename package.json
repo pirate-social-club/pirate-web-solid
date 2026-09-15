@@ -56,7 +56,8 @@
     "test:e2e:helpers": "node --test --test-concurrency=1 scripts/creation-diagnostics.test.mjs scripts/e2e-environment.test.mjs scripts/e2e-auth.test.mjs",
     "test:e2e:community-creation": "playwright test -c e2e/community-creation.config.ts",
     "test:e2e:community-creation-local": "playwright test -c e2e --grep @local-fixture",
-    "test:e2e:song-onboarding": "E2E_ALLOW_MUTATION=1 playwright test -c e2e/song-onboarding.config.ts"
+    "test:e2e:song-onboarding": "E2E_ALLOW_MUTATION=1 playwright test -c e2e/song-onboarding.config.ts",
+    "test:e2e:happy-path": "playwright test -c e2e/happy-path.config.ts"
   },
   "dependencies": {
     "@pirate/api-client": "file:vendor/api-client/pirate-api-client-0.79.0.tgz",

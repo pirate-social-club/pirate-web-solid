@@ -4,16 +4,20 @@ import {
   registerFreshAccount,
   signInExistingAccount,
 } from "./fixtures/fresh-registration.ts";
-import { requireHappyPathEnvironment } from "./fixtures/happy-path-preflight.ts";
+import {
+  requireHappyPathObservedEnvironment,
+  stagingPairEvidence,
+} from "./fixtures/happy-path-preflight.ts";
 
 test.use({ trace: "off", screenshot: "off", video: "off" });
 
 test.describe("M1 D0 fresh registration", { tag: "@happy-path" }, () => {
   test.setTimeout(240_000);
 
-  test.beforeAll(() => requireHappyPathEnvironment());
+  test.beforeAll(() => requireHappyPathObservedEnvironment());
 
-  test("registers, survives reload, and re-signs in in a new browser context", async ({ browser }) => {
+  test("registers, survives reload, and re-signs in in a new browser context", async ({ browser }, testInfo) => {
+    testInfo.annotations.push({ type: "staging-serving-pair", description: stagingPairEvidence() });
     const first = await registerFreshAccount(browser);
     expect(first.exchangeStatuses).toEqual([401, 200]);
     expect(first.registerStatuses).toEqual([201]);
