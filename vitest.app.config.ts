@@ -1,4 +1,5 @@
 import path from "node:path";
+import { availableParallelism } from "node:os";
 import { defineConfig } from "vitest/config";
 import tailwindcss from "@tailwindcss/vite";
 import solid from "@solidjs/vite-plugin";
@@ -18,9 +19,10 @@ export default defineConfig({
     name: "app-components",
     environment: "jsdom",
     // Each file owns a jsdom environment and a transformed Solid graph. The
-    // default CPU-sized pool can exhaust memory and starve interaction timers
-    // on 16-core runners, so keep the app gate bounded and deterministic.
-    maxWorkers: 4,
+    // The default CPU-sized pool can exhaust memory on large runners. Never
+    // oversubscribe smaller CI guests, where extra jsdom workers instead
+    // starve interaction timers.
+    maxWorkers: Math.min(4, availableParallelism()),
     // The app still has Bun-native .tsx suites; they are intentionally not
     // loaded by Vitest. Add a suite here once it imports Vitest's API, and
     // keep scripts/check-test-discovery.ts green when ownership moves.
