@@ -105,6 +105,40 @@ function render(ui: () => JSX.Element): HTMLElement {
   return container;
 }
 
+function renderPersonaEngagement(): HTMLElement {
+  return render(() => (
+    <CommunityPage
+      client={{
+        get_cPathSegment: async () => route,
+        get_communitiesCommunityIdPreview: async () => preview,
+      }}
+      engagementApi={engagementApi()}
+      handleSalesClient={{ get_communitiesCommunityIdHandleOfferings: async () => ({ items: [], next_cursor: null }) }}
+      loadThreads={async () => ({
+        posts: [{
+          id: "thread-persona",
+          title: "Choose your voice",
+          body: "Persona selection owns comment authorship.",
+          score: 2,
+          publishedAt: "2026-09-01T18:00:00.000Z",
+          commentCount: 4,
+        }],
+        nextCursor: null,
+      })}
+      pathSegment="xn--pokmon-dva"
+      viewerVoteClient={viewerVoteClient(null)}
+      resolveSession={async () => ({
+        status: "authenticated",
+        userId: "usr-account-one",
+        personas: [
+          { personaId: "persona-one", displayName: "Persona One", avatarRef: null, primaryPublicHandle: "one.pirate", communityBinding: { communityId, bindingSource: "first_membership" } },
+          { personaId: "persona-two", displayName: "Persona Two", avatarRef: null, primaryPublicHandle: "two.pirate", communityBinding: { communityId, bindingSource: "first_membership" } },
+        ],
+      })}
+    />
+  ));
+}
+
 /** Kobalte opens on pointerdown, which a bare click() does not produce. */
 function openOverlay(trigger: HTMLElement): void {
   trigger.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, button: 0, isPrimary: true }));
@@ -245,43 +279,10 @@ describe("CommunityPage", () => {
     await vi.waitFor(() => expect(container.querySelector("button[aria-label='Upvote']")?.getAttribute("aria-pressed")).toBe("true"));
   });
 
-  test("offers engagement without a persona and asks for one only to author", async () => {
-    const container = render(() => (
-      <CommunityPage
-        client={{
-          get_cPathSegment: async () => route,
-          get_communitiesCommunityIdPreview: async () => preview,
-        }}
-        engagementApi={engagementApi()}
-        handleSalesClient={{ get_communitiesCommunityIdHandleOfferings: async () => ({ items: [], next_cursor: null }) }}
-        loadThreads={async () => ({
-          posts: [{
-            id: "thread-persona",
-            title: "Choose your voice",
-            body: "Persona selection owns comment authorship.",
-            score: 2,
-            publishedAt: "2026-09-01T18:00:00.000Z",
-            commentCount: 4,
-          }],
-          nextCursor: null,
-        })}
-        pathSegment="xn--pokmon-dva"
-        viewerVoteClient={viewerVoteClient(null)}
-        resolveSession={async () => ({
-          status: "authenticated",
-          userId: "usr-account-one",
-          personas: [
-            { personaId: "persona-one", displayName: "Persona One", avatarRef: null, primaryPublicHandle: "one.pirate", communityBinding: { communityId, bindingSource: "first_membership" } },
-            { personaId: "persona-two", displayName: "Persona Two", avatarRef: null, primaryPublicHandle: "two.pirate", communityBinding: { communityId, bindingSource: "first_membership" } },
-          ],
-        })}
-      />
-    ));
-
+  test("offers account-scoped engagement without a selected persona", async () => {
+    const container = renderPersonaEngagement();
     // No persona is selected yet. Voting is account-scoped, so the real
     // controls mount now rather than leaving the handlerless placeholders up.
-    // Wait for the account and engagement surfaces together instead of
-    // serially polling two consequences of the same session resolution.
     await vi.waitFor(() => {
       expect(container.querySelector("[data-active-persona]")).not.toBeNull();
       expect(container.querySelector("button[aria-label='Comments (4)']")).not.toBeNull();
@@ -294,7 +295,13 @@ describe("CommunityPage", () => {
     await vi.waitFor(() => expect(document.body.querySelector("textarea[aria-label='Write a comment']")).not.toBeNull());
     expect(document.body.querySelector<HTMLTextAreaElement>("textarea[aria-label='Write a comment']")!.disabled).toBe(true);
     expect(document.body.textContent).toContain("Choose a profile to comment as.");
+  });
 
+  test("enables comment authorship only after an explicit persona choice", async () => {
+    const container = renderPersonaEngagement();
+    await vi.waitFor(() => expect(container.querySelector("button[aria-label='Comments (4)']")).not.toBeNull());
+    container.querySelector<HTMLButtonElement>("button[aria-label='Comments (4)']")!.click();
+    await vi.waitFor(() => expect(document.body.querySelector<HTMLTextAreaElement>("textarea[aria-label='Write a comment']")?.disabled).toBe(true));
     container.querySelector<HTMLButtonElement>("[data-active-persona]")!.click();
     await vi.waitFor(() => expect(document.body.textContent).toContain("Persona Two"));
     const personaTwo = document.body.querySelector<HTMLInputElement>("input[value='persona-two']");

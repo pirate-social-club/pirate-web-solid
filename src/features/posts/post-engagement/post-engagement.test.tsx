@@ -343,10 +343,21 @@ describe("PostEngagement", () => {
     await vi.waitFor(() => expect(button("Post comment").disabled).toBe(false));
     button("Post comment").click();
     await vi.waitFor(() => expect(button("Retry retained request")).toBeTruthy());
-    textarea.value = "Edited request";
-    textarea.dispatchEvent(new InputEvent("input", { bubbles: true }));
+    await vi.waitFor(() => expect(button("Post comment").disabled).toBe(false));
+    const editableTextarea = document.querySelector("textarea[aria-label='Write a comment']");
+    if (!(editableTextarea instanceof HTMLTextAreaElement)) throw new Error("comment textarea missing after failure");
+    editableTextarea.value = "Edited request";
+    editableTextarea.dispatchEvent(new InputEvent("input", {
+      bubbles: true,
+      data: "Edited request",
+      inputType: "insertText",
+    }));
+    await Promise.resolve();
+    expect(editableTextarea.value).toBe("Edited request");
     button("Post comment").click();
-    await new Promise(resolve => setTimeout(resolve, 0));
+    await vi.waitFor(() => expect(document.body.textContent).toContain(
+      "Resolve or retry the saved action before starting a different one.",
+    ));
     expect(createComment).toHaveBeenCalledTimes(1);
     expect(generateKey).toHaveBeenCalledTimes(1);
     expect(await decodePendingEngagementAction(createComment.mock.calls[0]?.[0])).toMatchObject({
