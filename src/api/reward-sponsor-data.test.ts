@@ -45,8 +45,24 @@ describe("composed sponsor context", () => {
   });
   it("blocks both kinds when the projected offer can no longer accept legs", () => {
     const context = composeSponsorContext(policy(), pool({ offer_status: "exhausted" }), []);
+    expect(context.offer).toBeNull();
     expect(context.permissions.add_asset_bonus).toEqual({ allowed: false, reason: "offer_not_addable" });
     expect(context.permissions.add_megapot_pool).toEqual({ allowed: false, reason: "offer_not_addable" });
+  });
+  it("joins a newer addable asset offer instead of a terminal pool offer", () => {
+    const context = composeSponsorContext(policy(), pool({ offer_id: "terminal-pool", offer_status: "exhausted" }), [
+      bonus({ offer_id: "newer-asset", offer_status: "active" }),
+    ]);
+    expect(context.offer).toEqual({ offer_id: "newer-asset" });
+    expect(context.permissions.add_asset_bonus).toEqual({ allowed: true, reason: null });
+    expect(context.permissions.add_megapot_pool).toEqual({ allowed: true, reason: null });
+  });
+  it("selects the addable asset offer among multiple visible asset legs", () => {
+    const context = composeSponsorContext(policy(), null, [
+      bonus({ offer_id: "ended-asset", offer_status: "ended" }),
+      bonus({ offer_id: "active-asset", offer_status: "active" }),
+    ]);
+    expect(context.offer).toEqual({ offer_id: "active-asset" });
   });
   it("discovers the existing offer from an asset bonus when no pool exists", () => {
     const context = composeSponsorContext(null, null, [bonus()]);

@@ -27,15 +27,24 @@ const addableOfferStatuses = new Set(["draft", "active"]);
  * the public leg projections. An unreadable policy stays unconfirmed rather than
  * fabricated, and the server remains the authority at offer and leg creation. */
 export function composeSponsorContext(policy: OwnerPolicy | null, pool: MegapotPool, bonuses: AssetBonuses): RewardSponsorContext {
-  const offerId = pool?.offer_id ?? bonuses[0]?.offer_id ?? null;
-  const offerStatus = pool?.offer_status ?? bonuses[0]?.offer_status ?? null;
+  // The server admits one non-terminal offer per post, so an addable leg of
+  // either kind identifies the single offer a new leg may join. The pool
+  // projection ranks a newer addable offer above an older terminal one and a
+  // terminal leg of one kind never masks an addable leg of the other kind.
+  const candidates = [
+    ...(pool === null ? [] : [{ offer_id: pool.offer_id, offer_status: pool.offer_status }]),
+    ...bonuses.map(bonus => ({ offer_id: bonus.offer_id, offer_status: bonus.offer_status })),
+  ];
+  const addable = candidates.find(candidate => addableOfferStatuses.has(candidate.offer_status));
   const offerNotAddable: RewardPermission = { allowed: false, reason: "offer_not_addable" };
   const unconfirmed: RewardPermission = { allowed: "unconfirmed", reason: null };
   const allowed: RewardPermission = { allowed: true, reason: null };
-  const blocked = offerStatus !== null && !addableOfferStatuses.has(offerStatus);
+  // A post with only terminal or unaddable visible legs keeps failing safe;
+  // a post with no visible leg projection opens a new offer.
+  const blocked = addable === undefined && candidates.length > 0;
   const permission = (base: RewardPermission): RewardPermission => blocked ? offerNotAddable : base;
   return {
-    offer: offerId === null ? null : { offer_id: offerId },
+    offer: addable === undefined ? null : { offer_id: addable.offer_id },
     permissions: policy === null
       ? { add_asset_bonus: permission(unconfirmed), add_megapot_pool: permission(unconfirmed) }
       : {
