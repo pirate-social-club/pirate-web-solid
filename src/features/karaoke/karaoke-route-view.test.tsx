@@ -171,6 +171,38 @@ describe("Karaoke community persona selection", () => {
       expect(createSession).toHaveBeenCalledWith(expect.objectContaining({ personaId: "persona-new" }));
     });
   });
+
+  test("a cancelled wallet confirmation keeps the actionable control without side effects", async () => {
+    const prepare = vi.fn(async () => ({
+      activity_presentation: null,
+      community_id: "community-here",
+      object: "activity_persona_preparation" as const,
+      persona_id: "persona-new",
+      persona_status: "pending_wallet" as const,
+    }));
+    const completion = new Promise<{ complete: (authenticated: boolean) => void }>(resolve => {
+      window.addEventListener("pirate:connect", event => {
+        // SAFETY: the sign-in host is the only dispatcher of this event, and its
+        // detail always carries the completion callback this regression drives.
+        resolve((event as CustomEvent<{ complete: (authenticated: boolean) => void }>).detail);
+      }, { once: true });
+    });
+    const { host, createSession } = mount(
+      [persona("elsewhere", "community-other")],
+      async () => ({ status: "authenticated", userId: "account-1",
+        personas: [persona("elsewhere", "community-other")] }),
+      { prepare },
+    );
+    await start(host);
+    await vi.waitFor(() => expect(document.body.textContent).toContain("Set up singing"));
+    document.querySelector<HTMLInputElement>(`input[value="__create_new_persona__"]`)!.click();
+    await vi.waitFor(() => expect(host.textContent).toContain("Confirm wallet and continue"));
+    [...host.querySelectorAll("button")].find(button => button.textContent?.trim() === "Confirm wallet and continue")!.click();
+    (await completion).complete(false);
+    await vi.waitFor(() => expect(host.textContent).toContain("Wallet confirmation was cancelled"));
+    expect(host.textContent).toContain("Confirm wallet and continue");
+    expect(createSession).not.toHaveBeenCalled();
+  });
 });
 
 describe("Karaoke first-use microphone disclosure", () => {
