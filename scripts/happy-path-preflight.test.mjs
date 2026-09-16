@@ -69,6 +69,7 @@ const configured = {
   E2E_ATTEMPT_ID: "m1-a2-01234567-89ab-cdef-0123-456789abcdef",
   E2E_ATTEMPT_NUMBER: "2",
   E2E_ATTEMPT_ROLE: "member",
+  E2E_ATTEMPT_SLOT: "member",
   E2E_ATTEMPT_STARTED_AT: "2026-09-15T12:34:56.000Z",
 };
 
@@ -80,12 +81,14 @@ test("accepts the full observed multi-worker pair identifier without truncation"
   assert.equal(context.playbackHost, "test-account.r2.cloudflarestorage.com");
   assert.equal(context.number, "2");
   assert.equal(context.role, "member");
+  assert.equal(context.identitySlot, "member");
   assert.equal(context.startedAt, "2026-09-15T12:34:56.000Z");
 });
 
 test("requires the secret-runner attempt context and rejects operator variables", () => {
   assert.throws(() => happyPathAttemptContext({ ...configured, E2E_ATTEMPT_ID: undefined }), /E2E_ATTEMPT_ID/);
-  assert.throws(() => happyPathAttemptContext({ ...configured, E2E_ATTEMPT_ROLE: "owner" }), /E2E_ATTEMPT_ROLE/);
+  assert.throws(() => happyPathAttemptContext({ ...configured, E2E_ATTEMPT_ROLE: " " }), /E2E_ATTEMPT_ROLE/);
+  assert.throws(() => happyPathAttemptContext({ ...configured, E2E_ATTEMPT_SLOT: " " }), /E2E_ATTEMPT_SLOT/);
   assert.throws(() => happyPathAttemptContext({ ...configured, MODERATION_E2E_OWNER_EMAIL: "owner@example.invalid" }), /stripped/);
   assert.throws(() => happyPathAttemptContext({ ...configured, E2E_STAGING_PAIR_ID: "api:not-the-manifest|solid:not-the-manifest" }), /does not match/);
   assert.throws(() => happyPathAttemptContext({ ...configured, E2E_STAGING_MANIFEST_SHA256: "0".repeat(64) }), /SHA-256/);
@@ -121,4 +124,16 @@ test("keeps D0 observed-pair preflight independent from the later playback gate"
 test("does not require a duplicated pair environment value when the manifest is bound", () => {
   const withoutPair = { ...configured, E2E_STAGING_PAIR_ID: undefined };
   assert.equal(happyPathAttemptContext(withoutPair).manifestDigest, manifestDigest);
+});
+
+test("accepts a later attempt with an independently selected identity slot", () => {
+  const later = happyPathAttemptContext({
+    ...configured,
+    E2E_ATTEMPT_ID: "m1-a3-01234567-89ab-cdef-0123-456789abcdef",
+    E2E_ATTEMPT_NUMBER: "3",
+    E2E_ATTEMPT_ROLE: "member",
+    E2E_ATTEMPT_SLOT: "viewer",
+  });
+  assert.equal(later.number, "3");
+  assert.equal(later.identitySlot, "viewer");
 });

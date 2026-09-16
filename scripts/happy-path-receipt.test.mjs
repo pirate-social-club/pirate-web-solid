@@ -43,7 +43,7 @@ test("CSP host matching accepts the observed audio host and rejects another host
 test("receipt retains only safe media evidence and counts lyric requests", () => {
   const fixture = Buffer.from("instrumental-fixture");
   const receipt = new HappyPathReceipt(
-    { id: "m1-a1-01234567-89ab-cdef-0123-456789abcdef", number: "1", role: "owner", started_at: "2026-09-15T12:34:56.000Z" },
+    { id: "m1-a1-01234567-89ab-cdef-0123-456789abcdef", number: "1", role: "owner", identity_slot: "owner", started_at: "2026-09-15T12:34:56.000Z" },
     "manifest-sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
     "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
     "2026-09-15T12:34:56.000Z",
@@ -62,6 +62,8 @@ test("receipt retains only safe media evidence and counts lyric requests", () =>
   receipt.recordResourceId("song_submission_id", "submission-123");
   receipt.finalize("failed");
   const snapshot = receipt.snapshot();
+  assert.equal(snapshot.schema, "happy-path-attempt-receipt-v2");
+  assert.equal(snapshot.attempt.identity_slot, "owner");
   assert.equal(snapshot.fixture.sha256, fixtureSha256(fixture));
   assert.equal(snapshot.fixture.classification, "instrumental_audio");
   assert.equal(snapshot.lyrics.request_count, 1);
@@ -79,7 +81,7 @@ test("receipt retains only safe media evidence and counts lyric requests", () =>
 
 test("captures the bounded creation submission ID when terms never arrives", async () => {
   const receipt = new HappyPathReceipt(
-    { id: "m1-a1-01234567-89ab-cdef-0123-456789abcdef", number: "1", role: "owner", started_at: "2026-09-15T12:34:56.000Z" },
+    { id: "m1-a1-01234567-89ab-cdef-0123-456789abcdef", number: "1", role: "owner", identity_slot: "owner", started_at: "2026-09-15T12:34:56.000Z" },
     "manifest-sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
     "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
     "2026-09-15T12:34:56.000Z",
@@ -98,7 +100,7 @@ test("captures the bounded creation submission ID when terms never arrives", asy
 
 test("Report-Only CSP cannot authorize the playing audio source", () => {
   const receipt = new HappyPathReceipt(
-    { id: "m1-a1-01234567-89ab-cdef-0123-456789abcdef", number: "1", role: "owner", started_at: "2026-09-15T12:34:56.000Z" },
+    { id: "m1-a1-01234567-89ab-cdef-0123-456789abcdef", number: "1", role: "owner", identity_slot: "owner", started_at: "2026-09-15T12:34:56.000Z" },
     "manifest-sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
     "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
     "2026-09-15T12:34:56.000Z",
@@ -114,7 +116,7 @@ test("Report-Only CSP cannot authorize the playing audio source", () => {
 
 test("a stale document policy cannot authorize audio after navigation", () => {
   const receipt = new HappyPathReceipt(
-    { id: "m1-a1-01234567-89ab-cdef-0123-456789abcdef", number: "1", role: "owner", started_at: "2026-09-15T12:34:56.000Z" },
+    { id: "m1-a1-01234567-89ab-cdef-0123-456789abcdef", number: "1", role: "owner", identity_slot: "owner", started_at: "2026-09-15T12:34:56.000Z" },
     "manifest-sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
     "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
     "2026-09-15T12:34:56.000Z",
@@ -143,7 +145,7 @@ test("persists a failed partial receipt under the test output and attaches the f
   };
   try {
     const receipt = new HappyPathReceipt(
-      { id: "m1-a1-01234567-89ab-cdef-0123-456789abcdef", number: "1", role: "owner", started_at: "2026-09-15T12:34:56.000Z" },
+      { id: "m1-a1-01234567-89ab-cdef-0123-456789abcdef", number: "1", role: "owner", identity_slot: "owner", started_at: "2026-09-15T12:34:56.000Z" },
       "manifest-sha256:0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
       "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
       "2026-09-15T12:34:56.000Z",

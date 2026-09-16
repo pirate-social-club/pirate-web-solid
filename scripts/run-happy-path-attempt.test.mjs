@@ -7,6 +7,8 @@ const configured = {
   MODERATION_E2E_OWNER_OTP: "123456",
   MODERATION_E2E_MEMBER_EMAIL: "member@example.invalid",
   MODERATION_E2E_MEMBER_OTP: "654321",
+  MODERATION_E2E_VIEWER_EMAIL: "viewer@example.invalid",
+  MODERATION_E2E_VIEWER_OTP: "112233",
   E2E_PRIVY_EMAIL: "old@example.invalid",
   E2E_PRIVY_OTP: "000000",
   E2E_BASE_URL: "https://web-next-staging.pirate.sc",
@@ -15,28 +17,43 @@ const configured = {
   INFISICAL_TOKEN: "must-not-reach-child",
 };
 
-test("selects owner and member credentials only in memory and enforces identity separation", () => {
-  assert.deepEqual(selectAttemptCredentials(configured, 1).selected, { email: "owner@example.invalid", otp: "123456" });
-  assert.deepEqual(selectAttemptCredentials(configured, 2).selected, { email: "member@example.invalid", otp: "654321" });
-  assert.throws(() => selectAttemptCredentials({ ...configured, MODERATION_E2E_MEMBER_EMAIL: "owner@example.invalid" }, 1), /distinct email/);
-  assert.throws(() => selectAttemptCredentials({ ...configured, MODERATION_E2E_MEMBER_OTP: "12345" }, 2), /six-digit/);
+test("selects any explicitly named credential slot without coupling it to the attempt number", () => {
+  assert.deepEqual(selectAttemptCredentials(configured, "owner"), {
+    identitySlot: "owner",
+    selected: { email: "owner@example.invalid", otp: "123456" },
+  });
+  assert.deepEqual(selectAttemptCredentials(configured, "VIEWER"), {
+    identitySlot: "viewer",
+    selected: { email: "viewer@example.invalid", otp: "112233" },
+  });
+  assert.throws(() => selectAttemptCredentials({ ...configured, MODERATION_E2E_VIEWER_OTP: "12345" }, "viewer"), /six-digit/);
+  assert.throws(() => selectAttemptCredentials(configured, "viewer@example"), /identity slot/);
 });
 
 test("builds a child environment with only direct selected credentials and safe attempt context", () => {
-  const result = buildAttemptEnvironment(configured, 2, "01234567-89ab-cdef-0123-456789abcdef");
-  assert.equal(result.id, "m1-a2-01234567-89ab-cdef-0123-456789abcdef");
-  assert.equal(result.number, "2");
+  const result = buildAttemptEnvironment(configured, {
+    attempt: 3,
+    slot: "viewer",
+    role: "member",
+  }, "01234567-89ab-cdef-0123-456789abcdef");
+  assert.equal(result.id, "m1-a3-01234567-89ab-cdef-0123-456789abcdef");
+  assert.equal(result.number, "3");
   assert.equal(result.role, "member");
-  assert.equal(result.env.E2E_PRIVY_EMAIL, "member@example.invalid");
-  assert.equal(result.env.E2E_PRIVY_OTP, "654321");
+  assert.equal(result.identitySlot, "viewer");
+  assert.equal(result.env.E2E_PRIVY_EMAIL, "viewer@example.invalid");
+  assert.equal(result.env.E2E_PRIVY_OTP, "112233");
   assert.equal(result.env.E2E_ALLOW_MUTATION, "1");
   assert.equal(result.env.E2E_FRESH_PRIVY_ACCOUNT, "1");
   assert.equal(result.env.E2E_ATTEMPT_ROLE, "member");
   assert.match(result.env.E2E_ATTEMPT_STARTED_AT, /^\d{4}-\d{2}-\d{2}T/);
+  assert.equal(result.env.E2E_ATTEMPT_NUMBER, "3");
+  assert.equal(result.env.E2E_ATTEMPT_SLOT, "viewer");
   assert.equal(result.env.MODERATION_E2E_OWNER_EMAIL, undefined);
   assert.equal(result.env.MODERATION_E2E_OWNER_OTP, undefined);
   assert.equal(result.env.MODERATION_E2E_MEMBER_EMAIL, undefined);
   assert.equal(result.env.MODERATION_E2E_MEMBER_OTP, undefined);
+  assert.equal(result.env.MODERATION_E2E_VIEWER_EMAIL, undefined);
+  assert.equal(result.env.MODERATION_E2E_VIEWER_OTP, undefined);
   assert.equal(result.env.MODERATION_UNRELATED_SECRET, undefined);
   assert.equal(result.env.INFISICAL_TOKEN, undefined);
   assert.equal(result.env.E2E_BASE_URL, configured.E2E_BASE_URL);

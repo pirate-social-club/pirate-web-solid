@@ -82,7 +82,7 @@ test.describe("M1 D3 happy path", { tag: ["@happy-path", "@staging-mutating"] },
       { type: "happy-path-attempt", description: `${attempt.id} (${attempt.role})` },
     );
     const receipt = new HappyPathReceipt(
-      { id: attempt.id, number: attempt.number, role: attempt.role, started_at: attempt.startedAt },
+      { id: attempt.id, number: attempt.number, role: attempt.role, identity_slot: attempt.identitySlot, started_at: attempt.startedAt },
       attempt.releaseReference,
       attempt.manifestDigest,
       attempt.manifestObservedAt,

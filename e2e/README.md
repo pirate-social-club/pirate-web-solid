@@ -33,20 +33,23 @@ that the pinned widget and QR render, then closes the widget before any palm
 scan. A physical palm remains a manual release boundary.
 
 The M1 happy path is excluded from that generic selector and runs only through
-the attempt runner: `bun run test:e2e:happy-path:attempt -- 1` for the owner
-identity or `... -- 2` for the member identity. The authorized secret runner
-must provide both distinct `MODERATION_E2E_OWNER_*` and
-`MODERATION_E2E_MEMBER_*` pairs, plus `E2E_STAGING_PAIR_ID`,
-`E2E_STAGING_MANIFEST_PATH`, `E2E_STAGING_MANIFEST_SHA256`,
-`E2E_STAGING_PAIR_OBSERVED=1`. The runner
-passes only the selected account as direct `E2E_PRIVY_*` variables, generates
-one attempt ID/role/number/timestamp, and strips operator variables and other
-unrelated environment values before the single Playwright invocation. The
-preflight hashes and reads the observed manifest, verifies its full five-worker
-API/Solid pair, 100% traffic, health readbacks, enabled song playback flag and
-non-empty playback R2 binding, and records only a compact manifest digest in
-the receipt. No readiness boolean substitutes for those readbacks, and no
-retry or second invocation is implicit.
+the attempt runner. Select the attempt number, identity slot and receipt role
+explicitly, for example:
+`bun run test:e2e:happy-path:attempt -- --attempt 1 --slot owner --role owner`.
+The authorized secret runner must provide the matching fixed-OTP pair under
+`MODERATION_E2E_<SLOT>_EMAIL` and `MODERATION_E2E_<SLOT>_OTP`, plus
+`E2E_STAGING_PAIR_ID`, `E2E_STAGING_MANIFEST_PATH`,
+`E2E_STAGING_MANIFEST_SHA256`, and `E2E_STAGING_PAIR_OBSERVED=1`. Slot names
+use letters, digits and underscores; adding a future slot is an environment
+change, not a source change. The runner passes only the selected account as
+direct `E2E_PRIVY_*` variables, records the explicit slot with the attempt
+number and role, and strips operator variables and other unrelated environment
+values before the single Playwright invocation. The preflight hashes and reads
+the observed manifest, verifies its full five-worker API/Solid pair, 100%
+traffic, health readbacks, enabled song playback flag and non-empty playback
+R2 binding, and records only a compact manifest digest in the receipt. No
+readiness boolean substitutes for those readbacks, and no retry or second
+invocation is implicit.
 
 The post-rejection spec uses
 `community-very-staging-fixture-acceptance-v1` by default, or

@@ -19,8 +19,8 @@ export type HappyPathSongObservation = Readonly<{
 }>;
 
 export type HappyPathReceiptSnapshot = Readonly<{
-  readonly schema: "happy-path-attempt-receipt-v1";
-  readonly attempt: Readonly<{ readonly id: string; readonly number: "1" | "2"; readonly role: "owner" | "member"; readonly started_at: string }>;
+  readonly schema: "happy-path-attempt-receipt-v2";
+  readonly attempt: Readonly<{ readonly id: string; readonly number: string; readonly role: string; readonly identity_slot: string; readonly started_at: string }>;
   readonly staging_release_reference: string;
   readonly staging_manifest_sha256: string;
   readonly staging_manifest_observed_at: string;
@@ -74,7 +74,7 @@ export function fixtureSha256(fixture: Buffer): string {
 }
 
 export class HappyPathReceipt {
-  private readonly attempt: Readonly<{ readonly id: string; readonly number: "1" | "2"; readonly role: "owner" | "member"; readonly started_at: string }>;
+  private readonly attempt: Readonly<{ readonly id: string; readonly number: string; readonly role: string; readonly identity_slot: string; readonly started_at: string }>;
   private readonly stagingReleaseReference: string;
   private readonly stagingManifestDigest: string;
   private readonly stagingManifestObservedAt: string;
@@ -101,7 +101,7 @@ export class HappyPathReceipt {
   private outcome: "passed" | "failed" = "failed";
 
   constructor(
-    attempt: Readonly<{ readonly id: string; readonly number: "1" | "2"; readonly role: "owner" | "member"; readonly started_at: string }>,
+    attempt: Readonly<{ readonly id: string; readonly number: string; readonly role: string; readonly identity_slot: string; readonly started_at: string }>,
     stagingReleaseReference: string,
     stagingManifestDigest: string,
     stagingManifestObservedAt: string,
@@ -222,7 +222,7 @@ export class HappyPathReceipt {
   snapshot(): HappyPathReceiptSnapshot {
     const audio = this.audio;
     return {
-      schema: "happy-path-attempt-receipt-v1",
+      schema: "happy-path-attempt-receipt-v2",
       attempt: this.attempt,
       staging_release_reference: this.stagingReleaseReference,
       staging_manifest_sha256: this.stagingManifestDigest,

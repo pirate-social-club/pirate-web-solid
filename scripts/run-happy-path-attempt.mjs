@@ -26,63 +26,109 @@ const PASSTHROUGH_KEYS = new Set([
   "TZ",
 ]);
 
-const ATTEMPTS = Object.freeze({
-  "1": Object.freeze({ role: "owner", email: "MODERATION_E2E_OWNER_EMAIL", otp: "MODERATION_E2E_OWNER_OTP" }),
-  "2": Object.freeze({ role: "member", email: "MODERATION_E2E_MEMBER_EMAIL", otp: "MODERATION_E2E_MEMBER_OTP" }),
-});
+const SLOT_PATTERN = /^[A-Za-z][A-Za-z0-9_]{0,31}$/u;
+const ATTEMPT_PATTERN = /^[1-9]\d{0,5}$/u;
+const ROLE_PATTERN = /^[a-z][a-z0-9_-]{0,31}$/u;
 
 function normalized(value) {
   return typeof value === "string" ? value.trim() : "";
 }
 
-function credentialsFor(env, attempt, descriptor) {
-  const email = normalized(env[descriptor.email]);
-  const otp = normalized(env[descriptor.otp]);
+function normalizedSlot(value) {
+  const slot = normalized(value);
+  if (!SLOT_PATTERN.test(slot)) {
+    throw new Error("M1 requires an identity slot using letters, digits and underscores.");
+  }
+  return slot.toLowerCase();
+}
+
+function normalizedAttempt(value) {
+  const attempt = typeof value === "number" && Number.isSafeInteger(value) ? String(value) : normalized(value);
+  if (!ATTEMPT_PATTERN.test(attempt)) {
+    throw new Error("M1 requires a positive numeric attempt number.");
+  }
+  return String(Number(attempt));
+}
+
+function normalizedRole(value) {
+  const role = normalized(value).toLowerCase();
+  if (!ROLE_PATTERN.test(role)) {
+    throw new Error("M1 requires an explicit identity role using lowercase letters, digits, hyphens or underscores.");
+  }
+  return role;
+}
+
+function credentialsFor(env, slot) {
+  const prefix = `MODERATION_E2E_${slot.toUpperCase()}`;
+  const email = normalized(env[`${prefix}_EMAIL`]);
+  const otp = normalized(env[`${prefix}_OTP`]);
   if (!email || !otp || !/^\d{6}$/u.test(otp)) {
-    throw new Error(`Attempt ${attempt} requires an operator-selected email and six-digit OTP.`);
+    throw new Error(`M1 identity slot ${slot} requires an operator-selected email and six-digit OTP.`);
   }
   return Object.freeze({ email, otp });
 }
 
-export function selectAttemptCredentials(env, attempt) {
-  const key = String(attempt);
-  const descriptor = ATTEMPTS[key];
-  if (!descriptor) throw new Error("Happy-path attempt must be 1 (owner) or 2 (member).");
-
-  const owner = credentialsFor(env, "1", ATTEMPTS["1"]);
-  const member = credentialsFor(env, "2", ATTEMPTS["2"]);
-  if (owner.email.toLowerCase() === member.email.toLowerCase()) {
-    throw new Error("Owner and member attempts must use distinct email identities.");
-  }
-  const selected = descriptor.role === "owner" ? owner : member;
-  return Object.freeze({ selected: Object.freeze({ ...selected }), role: descriptor.role });
+export function selectAttemptCredentials(env, slot) {
+  const identitySlot = normalizedSlot(slot);
+  return Object.freeze({
+    identitySlot,
+    selected: Object.freeze({ ...credentialsFor(env, identitySlot) }),
+  });
 }
 
 function generatedAttemptId(attempt, uuid = randomUUID()) {
   const id = `m1-a${attempt}-${uuid}`;
-  if (!/^m1-a[12]-[0-9a-f-]{20,}$/u.test(id)) throw new Error("Could not create a safe unique attempt identifier.");
+  if (!/^m1-a[1-9]\d{0,5}-[0-9a-f-]{20,}$/u.test(id)) throw new Error("Could not create a safe unique attempt identifier.");
   return id;
 }
 
-export function buildAttemptEnvironment(env, attempt, uuid = randomUUID()) {
-  const key = String(attempt);
-  const selected = selectAttemptCredentials(env, key);
+export function buildAttemptEnvironment(env, { attempt, slot, role }, uuid = randomUUID()) {
+  const number = normalizedAttempt(attempt);
+  const identityRole = normalizedRole(role);
+  const selected = selectAttemptCredentials(env, slot);
   const child = Object.fromEntries(Object.entries(env).filter(([name]) => PASSTHROUGH_KEYS.has(name)));
-  const id = generatedAttemptId(key, uuid);
+  const id = generatedAttemptId(number, uuid);
   const startedAt = new Date().toISOString();
   child.E2E_PRIVY_EMAIL = selected.selected.email;
   child.E2E_PRIVY_OTP = selected.selected.otp;
   child.E2E_ALLOW_MUTATION = "1";
   child.E2E_FRESH_PRIVY_ACCOUNT = "1";
   child.E2E_ATTEMPT_ID = id;
-  child.E2E_ATTEMPT_NUMBER = key;
-  child.E2E_ATTEMPT_ROLE = selected.role;
+  child.E2E_ATTEMPT_NUMBER = number;
+  child.E2E_ATTEMPT_ROLE = identityRole;
+  child.E2E_ATTEMPT_SLOT = selected.identitySlot;
   child.E2E_ATTEMPT_STARTED_AT = startedAt;
-  return Object.freeze({ env: Object.freeze(child), id, number: key, role: selected.role, startedAt });
+  return Object.freeze({ env: Object.freeze(child), id, number, role: identityRole, identitySlot: selected.identitySlot, startedAt });
 }
 
-export function runAttempt({ env = process.env, attempt = process.argv[2] } = {}) {
-  const context = buildAttemptEnvironment(env, attempt);
+function option(args, name) {
+  const prefix = `--${name}=`;
+  const inline = args.find(value => value.startsWith(prefix));
+  if (inline) return inline.slice(prefix.length);
+  const index = args.indexOf(`--${name}`);
+  return index >= 0 ? args[index + 1] : undefined;
+}
+
+function parseInvocation(args) {
+  if (args.some(value => !value.startsWith("--"))) {
+    throw new Error("M1 attempt requires --attempt, --slot and --role options.");
+  }
+  const values = {
+    attempt: option(args, "attempt"),
+    slot: option(args, "slot"),
+    role: option(args, "role"),
+  };
+  if (!values.attempt || !values.slot || !values.role) {
+    throw new Error("M1 attempt requires --attempt, --slot and --role options.");
+  }
+  return values;
+}
+
+export function runAttempt({ env = process.env, attempt, slot, role, args = process.argv.slice(2) } = {}) {
+  const invocation = attempt === undefined || slot === undefined || role === undefined
+    ? parseInvocation(args)
+    : { attempt, slot, role };
+  const context = buildAttemptEnvironment(env, invocation);
   const result = spawnSync("bun", ["run", "test:e2e:happy-path"], {
     env: context.env,
     stdio: "inherit",

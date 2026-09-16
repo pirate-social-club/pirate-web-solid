@@ -35,8 +35,9 @@ export function requireHappyPathObservedEnvironment(
 
 export type HappyPathAttemptContext = Readonly<{
   readonly id: string;
-  readonly number: "1" | "2";
-  readonly role: "owner" | "member";
+  readonly number: string;
+  readonly role: string;
+  readonly identitySlot: string;
   readonly startedAt: string;
   readonly releaseReference: string;
   readonly manifestDigest: string;
@@ -50,28 +51,28 @@ export function happyPathAttemptContext(
   requireHappyPathEnvironment(env);
   const number = env.E2E_ATTEMPT_NUMBER;
   const role = env.E2E_ATTEMPT_ROLE;
+  const identitySlot = env.E2E_ATTEMPT_SLOT?.trim().toLowerCase();
   const id = env.E2E_ATTEMPT_ID?.trim();
   const startedAt = env.E2E_ATTEMPT_STARTED_AT?.trim();
-  if (number !== "1" && number !== "2") {
-    throw new Error("M1 requires E2E_ATTEMPT_NUMBER=1 or 2 from the secret-runner command.");
+  if (!number || !/^[1-9]\d{0,5}$/u.test(number) || String(Number(number)) !== number) {
+    throw new Error("M1 requires a positive numeric E2E_ATTEMPT_NUMBER from the secret-runner command.");
   }
-  const expectedRole = number === "1" ? "owner" : "member";
-  if (role !== expectedRole) {
-    throw new Error(`M1 attempt ${number} requires E2E_ATTEMPT_ROLE=${expectedRole}.`);
+  if (!role || !/^[a-z][a-z0-9_-]{0,31}$/u.test(role)) {
+    throw new Error("M1 requires an explicit safe E2E_ATTEMPT_ROLE from the secret-runner command.");
   }
-  if (!id || !/^m1-a[12]-[0-9a-f-]{20,}$/u.test(id) || id.length > 128) {
+  if (!identitySlot || !/^[a-z][a-z0-9_]{0,31}$/u.test(identitySlot)) {
+    throw new Error("M1 requires a safe E2E_ATTEMPT_SLOT from the secret-runner command.");
+  }
+  if (!id || !/^m1-a[1-9]\d{0,5}-[0-9a-f-]{20,}$/u.test(id) || id.length > 128) {
     throw new Error("M1 requires a safe unique E2E_ATTEMPT_ID from the secret-runner command.");
   }
   if (!startedAt || !/^\d{4}-\d{2}-\d{2}T[^\r\n]+Z$/u.test(startedAt) || Number.isNaN(Date.parse(startedAt))) {
     throw new Error("M1 requires E2E_ATTEMPT_STARTED_AT from the secret-runner command.");
   }
-  for (const name of [
-    "MODERATION_E2E_OWNER_EMAIL",
-    "MODERATION_E2E_OWNER_OTP",
-    "MODERATION_E2E_MEMBER_EMAIL",
-    "MODERATION_E2E_MEMBER_OTP",
-  ]) {
-    if (env[name]) throw new Error("M1 requires operator credential variables to be stripped before Playwright starts.");
+  for (const name of Object.keys(env)) {
+    if (/^MODERATION_E2E_[A-Z][A-Z0-9_]{0,31}_(?:EMAIL|OTP)$/u.test(name) && env[name] !== undefined) {
+      throw new Error("M1 requires operator credential variables to be stripped before Playwright starts.");
+    }
   }
   const manifest = stagingPairEvidence(env, true);
   if (manifest.playbackHost === null) throw new Error("M1 observed staging manifest has no playback origin readback.");
@@ -79,6 +80,7 @@ export function happyPathAttemptContext(
     id,
     number,
     role,
+    identitySlot,
     startedAt,
     releaseReference: manifest.releaseReference,
     manifestDigest: manifest.digest,
