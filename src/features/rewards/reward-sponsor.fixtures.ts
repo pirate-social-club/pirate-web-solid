@@ -29,7 +29,6 @@ export function rewardSponsorFixture(): RewardSponsorDependencies {
         return {
           offer: null,
           permissions: {
-            open_offer: { allowed: true as const, reason: null },
             add_asset_bonus: { allowed: true as const, reason: null },
             add_megapot_pool: { allowed: true as const, reason: null },
           },

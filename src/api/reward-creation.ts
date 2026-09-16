@@ -19,7 +19,7 @@ export interface RewardCreationApi {
 interface RecordV1 {
   readonly version: 1;
   readonly scope: RewardCreationScope;
-  readonly offer: OpenSongRewardOfferInput;
+  readonly offer: OpenSongRewardOfferInput | null;
   readonly leg: RewardLegRequest;
   readonly offerId: string | null;
   readonly target: RewardFundingTarget | null;
@@ -56,11 +56,16 @@ function validLeg(value: unknown): value is RewardLegRequest {
     ((b.empty_pool_policy === "no_purchase" && b.fallback_payout_persona_id === null && b.fallback_disclosure_acknowledged === false) ||
       (b.empty_pool_policy === "funder_fallback" && b.min_score_bps === 7000 && identifier(b.fallback_payout_persona_id) && b.fallback_disclosure_acknowledged === true));
 }
+function validOffer(value: unknown, scope: RewardCreationScope): boolean {
+  return object(value) && object(value.path) && object(value.body) &&
+    value.path.communityId === scope.communityId && value.path.postId === scope.postId &&
+    value.body.persona_id === scope.personaId && identifier(value.body.idempotency_key) &&
+    typeof value.body.starts_at === "string" && typeof value.body.ends_at === "string" &&
+    Number.isFinite(Date.parse(value.body.starts_at)) && Date.parse(value.body.ends_at) > Date.parse(value.body.starts_at);
+}
 function isStoredRecord(v: unknown, scope: RewardCreationScope): v is RecordV1 {
   return !(!object(v) || v.version !== 1 || !object(v.scope) || v.scope.accountId !== scope.accountId || v.scope.personaId !== scope.personaId || v.scope.communityId !== scope.communityId || v.scope.postId !== scope.postId ||
-    !object(v.offer) || !object(v.offer.path) || !object(v.offer.body) || v.offer.path.communityId !== scope.communityId || v.offer.path.postId !== scope.postId ||
-    v.offer.body.persona_id !== scope.personaId || !identifier(v.offer.body.idempotency_key) || typeof v.offer.body.starts_at !== "string" || typeof v.offer.body.ends_at !== "string" ||
-    !Number.isFinite(Date.parse(v.offer.body.starts_at)) || !(Date.parse(v.offer.body.ends_at) > Date.parse(v.offer.body.starts_at)) ||
+    !(v.offer === null ? v.offerId !== null : validOffer(v.offer, scope)) ||
     !validLeg(v.leg) || v.leg.input.body.persona_id !== scope.personaId || !(v.offerId === null || identifier(v.offerId)) ||
     v.leg.input.path.offerId !== (v.offerId ?? "") ||
     !(v.target === null || object(v.target) && v.target.kind === v.leg.kind && identifier(v.target.legId) && identifier(v.target.fundingEffectId) && v.offerId !== null));
@@ -97,6 +102,7 @@ export function createRewardCreation(options: {
     let record = initial;
     assertCurrent();
     if (record.offerId === null) {
+      if (record.offer === null) throw new Error("reward_creation_recovery_corrupt");
       const offerId = await options.api.open(record.offer);
       assertCurrent();
       record = { ...record, offerId, leg: withOfferId(record.leg, offerId) };
@@ -111,7 +117,7 @@ export function createRewardCreation(options: {
   };
   return {
     pending() { const record = read(); return record === null ? null : structuredClone(record); },
-    start(offer: OpenSongRewardOfferInput, leg: RewardLegRequest) {
+    start(offer: OpenSongRewardOfferInput | null, leg: RewardLegRequest) {
       // Capture the reviewed request synchronously, before waiting for another tab's lock.
       const candidate: RecordV1 = structuredClone({ version: 1, scope, offer, leg, offerId: leg.input.path.offerId || null, target: null });
       return options.journal.exclusive(key, async () => {

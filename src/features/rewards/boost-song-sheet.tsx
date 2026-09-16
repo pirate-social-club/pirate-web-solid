@@ -78,8 +78,8 @@ export function BoostAmountField(props: {
 export function BoostProblem(props: { readonly message: string }) {
   return (
     <div class="flex items-start gap-3 rounded-lg border border-destructive/40 bg-destructive/5 p-4">
-      <IconWarningCircle class="mt-0.5 size-5 shrink-0 text-destructive" />
-      <Type as="p" class="text-destructive" variant="body">{props.message}</Type>
+      <IconWarningCircle class="mt-0.5 size-5 shrink-0 text-destructive-text" />
+      <Type as="p" class="text-destructive-text" variant="body">{props.message}</Type>
     </div>
   );
 }

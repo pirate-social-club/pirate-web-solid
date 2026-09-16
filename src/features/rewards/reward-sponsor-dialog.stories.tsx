@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import { Show, createSignal } from "solid-js";
 import { ActionMenu } from "@pirate/web-solid-ui";
 import { RewardSponsorDialog } from "./reward-sponsor-dialog.tsx";
-import { rewardSponsorFixture } from "./reward-sponsor.fixture.ts";
+import { rewardSponsorFixture } from "./reward-sponsor.fixtures.ts";
 const meta = {
   title: "Flows/Rewards/Functional boost",
   parameters: { layout: "centered", docs: { description: { component: "Open the song menu and choose Boost. This uses controlled API and wallet fixtures with the real creation journal and funding controller. Any email and code 123456 work. No funds move. Close and reopen to resume the saved reward." } } },

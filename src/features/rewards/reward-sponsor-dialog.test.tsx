@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { render } from "@solidjs/web";
 import { createRoot, createSignal } from "solid-js";
 import { RewardSponsorDialog } from "./reward-sponsor-dialog.tsx";
-import { rewardSponsorFixture } from "./reward-sponsor.fixture.ts";
+import { rewardSponsorFixture } from "./reward-sponsor.fixtures.ts";
 import { createRewardCreation } from "../../api/reward-creation.ts";
 import { sponsorTerms } from "./reward-sponsor-terms.ts";
 const disposers: Array<() => void> = [];
@@ -32,17 +32,7 @@ describe("composed sponsor journey", () => {
       throw new Error("must not open another offer");
     });
     const add = vi.fn(fixtureApi.add);
-    const existing = {
-      object: "song_reward_offer" as const,
-      offer_id: "existing-offer",
-      community_id: "community",
-      post_id: "song",
-      audio_revision: 3,
-      status: "active" as const,
-      starts_at: "2026-09-07T00:00:00Z",
-      ends_at: "2099-09-20T00:00:00Z",
-      terms_hash: "a".repeat(64),
-    };
+    const existing = { offer_id: "existing-offer" };
     const dependencies = {
       ...fixture,
       data: {
@@ -51,7 +41,6 @@ describe("composed sponsor journey", () => {
           return {
             offer: existing,
             permissions: {
-              open_offer: { allowed: false as const, reason: "existing_offer" as const },
               add_asset_bonus: { allowed: true as const, reason: null },
               add_megapot_pool: { allowed: true as const, reason: null },
             },
@@ -97,7 +86,6 @@ describe("composed sponsor journey", () => {
     });
     const add = vi.fn(fixtureApi.add);
     const permissions = {
-      open_offer: { allowed: true as const, reason: null },
       add_asset_bonus: { allowed: true as const, reason: null },
       add_megapot_pool: { allowed: true as const, reason: null },
     };
@@ -107,20 +95,8 @@ describe("composed sponsor journey", () => {
         ...fixture.data,
         async sponsorContext() {
           return {
-            offer: offerOpened ? {
-              object: "song_reward_offer" as const,
-              offer_id: "offer",
-              community_id: "community",
-              post_id: "song",
-              audio_revision: 3,
-              status: "active" as const,
-              starts_at: "2026-09-08T00:00:00Z",
-              ends_at: "2099-09-15T12:00:00Z",
-              terms_hash: "a".repeat(64),
-            } : null,
-            permissions: offerOpened
-              ? { ...permissions, open_offer: { allowed: false as const, reason: "existing_offer" as const } }
-              : permissions,
+            offer: offerOpened ? { offer_id: "offer" } : null,
+            permissions,
           };
         },
       },

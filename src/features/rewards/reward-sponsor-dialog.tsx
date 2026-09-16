@@ -20,6 +20,10 @@ type Catalog = Awaited<ReturnType<ReturnType<typeof createRewardSponsorData>["ca
 type Terms = ReturnType<typeof sponsorTerms>;
 const rewardKinds: readonly BoostKind[] = ["asset_bonus", "megapot_pool"];
 const rewardActivities: readonly BoostActivity[] = ["karaoke", "study", "either"];
+const permissionFor = (context: RewardSponsorContext | undefined, kind: BoostKind) => kind === "asset_bonus"
+  ? context?.permissions.add_asset_bonus
+  : context?.permissions.add_megapot_pool;
+const kindAllowed = (context: RewardSponsorContext, kind: BoostKind) => permissionFor(context, kind)?.allowed !== false;
 export interface RewardSponsorDependencies {
   readonly data: ReturnType<typeof createRewardSponsorData>;
   readonly journal: RewardCreationJournal;
@@ -85,7 +89,7 @@ export function RewardSponsorDialog(props: { communityId: string; postId: string
     const next = await data.sponsorContext(selectedScope, props.communityId, props.postId);
     if (!alive || scope !== selectedScope) return;
     setSponsorContext(next);
-    const allowedKinds = rewardKinds.filter(kind => kind === "asset_bonus" ? next.permissions.add_asset_bonus.allowed : next.permissions.add_megapot_pool.allowed);
+    const allowedKinds = rewardKinds.filter(kind => kindAllowed(next, kind));
     if (!allowedKinds.includes(draft().kind) && allowedKinds[0]) update("kind", allowedKinds[0]);
     setStep(creation.pending() ? "resume" : "compose");
   };
@@ -112,8 +116,8 @@ export function RewardSponsorDialog(props: { communityId: string; postId: string
     try {
       const context = sponsorContext();
       if (!context) throw new Error("Reward permissions are unavailable. Reload before reviewing.");
-      const permission = draft().kind === "asset_bonus" ? context.permissions.add_asset_bonus : context.permissions.add_megapot_pool;
-      if (!permission.allowed) throw new Error("This persona cannot add that reward.");
+      const permission = permissionFor(context, draft().kind);
+      if (permission?.allowed === false) throw new Error("This persona cannot add that reward.");
       const next = sponsorTerms(scope, draft(), catalog()!.assets.items, catalog()!.policies, new Date(), context.offer);
       setTerms(next); setError(""); setStep("terms");
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Check the reward terms."); }
@@ -148,15 +152,13 @@ export function RewardSponsorDialog(props: { communityId: string; postId: string
   const availableKinds = () => {
     const context = sponsorContext();
     if (!context) return [];
-    return rewardKinds.filter(kind => kind === "asset_bonus"
-      ? context.permissions.add_asset_bonus.allowed
-      : context.permissions.add_megapot_pool.allowed);
+    return rewardKinds.filter(kind => kindAllowed(context, kind));
   };
   const unavailableReason = () => {
     const context = sponsorContext();
     if (!context) return "Reward permissions are unavailable.";
     const reasons = [context.permissions.add_asset_bonus, context.permissions.add_megapot_pool]
-      .filter(permission => !permission.allowed)
+      .filter(permission => permission.allowed === false)
       .map(permission => permission.reason);
     if (reasons.includes("owner_only")) return "Only the song owner can add rewards.";
     if (reasons.includes("offer_not_addable")) return "This reward offer can no longer accept rewards.";
@@ -180,9 +182,7 @@ export function RewardSponsorDialog(props: { communityId: string; postId: string
     if (!alive || scope !== selectedScope) return;
     wallet?.dispose(); wallet = undefined;
     setFunding({ kind: "idle" }); setTerms(undefined); setSponsorContext(next);
-    const allowed = rewardKinds.filter(kind => kind === "asset_bonus"
-      ? next.permissions.add_asset_bonus.allowed
-      : next.permissions.add_megapot_pool.allowed);
+    const allowed = rewardKinds.filter(kind => kindAllowed(next, kind));
     if (!allowed.includes(draft().kind) && allowed[0]) update("kind", allowed[0]);
     setStep("compose");
   };
@@ -227,7 +227,7 @@ export function RewardSponsorDialog(props: { communityId: string; postId: string
             </Show>
             <div aria-label="Qualification requirements"><For each={catalog()?.policies.filter(policy => draft().kind === "asset_bonus" || draft().activities === "either" || draft().activities === policy.activity)}>{policy => <p class="text-sm">{qualificationText(policy)}</p>}</For></div>
             <Show when={sponsorContext()?.offer} fallback={<Field label="Offer ends (your local time)" field="endsAt" type="datetime-local" />}>
-              {offer => <Type as="p" class="text-muted-foreground" variant="caption">This reward joins the existing offer ending {new Date(offer().ends_at).toLocaleString()}.</Type>}
+              <Type as="p" class="text-muted-foreground" variant="caption">This reward joins the existing offer for this song.</Type>
             </Show>
             <Button disabled={busy()} onClick={review}>Review terms</Button>
           </Show>
@@ -235,7 +235,9 @@ export function RewardSponsorDialog(props: { communityId: string; postId: string
       </Match>
       <Match when={step() === "terms" && terms()}>{value => <div class="space-y-3">
         <p>{formatUnits(BigInt(value().leg.input.body.funding_amount_atomic), bonusTerms()?.input.body.token_decimals ?? 6)} {value().tokenSymbol} from {personaLabel()}</p>
-        <p>Ends {new Date(value().offer.body.ends_at).toLocaleString()}</p>
+        <Show when={value().offer} fallback={<p>This reward joins the existing offer for this song.</p>}>
+          {offer => <p>Ends {new Date(offer().body.ends_at).toLocaleString()}</p>}
+        </Show>
         <For each={value().policies}>{policy => <p class="text-sm">{qualificationText(policy)}</p>}</For>
         <Show when={poolTerms()}>{leg => <p class="text-sm">An additional {leg().input.body.min_score_bps / 100}% score floor applies. Qualifiers share net winnings. No ticket is bought without qualifiers.</p>}</Show>
         <Show when={bonusTerms()}>{leg => <p class="text-sm">{formatUnits(BigInt(leg().input.body.amount_per_claim_atomic), leg().input.body.token_decimals)} {value().tokenSymbol} to each of the first {leg().input.body.max_claims} qualifying accounts.</p>}</Show>

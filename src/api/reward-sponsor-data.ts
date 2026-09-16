@@ -1,13 +1,49 @@
 import type {
+  GetCommunitiesCommunityIdPostsPostIdOwnerPolicyResponse,
+  GetCommunitiesCommunityIdPostsPostIdRewardsAssetBonusesResponse,
+  GetCommunitiesCommunityIdPostsPostIdRewardsMegapotPoolResponse,
   GetRewardsBonusAssetsResponse,
   GetRewardsQualificationPoliciesResponse,
-  GetSongRewardSponsorContextResponse,
 } from "@pirate/api-client";
 import type { RewardFundingActor } from "./reward-funding-client.ts";
 import { createPublicApiClient, createSessionApiClient, type PirateApiClient } from "./client.ts";
 export type RewardAsset = GetRewardsBonusAssetsResponse["items"][number];
 export type RewardPolicy = GetRewardsQualificationPoliciesResponse["policies"][number];
-export type RewardSponsorContext = GetSongRewardSponsorContextResponse;
+export type RewardPermission =
+  | Readonly<{ allowed: true; reason: null }>
+  | Readonly<{ allowed: false; reason: "owner_only" | "pool_declined" | "offer_not_addable" }>
+  | Readonly<{ allowed: "unconfirmed"; reason: null }>;
+export interface RewardSponsorContext {
+  readonly offer: Readonly<{ offer_id: string }> | null;
+  readonly permissions: Readonly<{ add_asset_bonus: RewardPermission; add_megapot_pool: RewardPermission }>;
+}
+type OwnerPolicy = GetCommunitiesCommunityIdPostsPostIdOwnerPolicyResponse;
+type MegapotPool = GetCommunitiesCommunityIdPostsPostIdRewardsMegapotPoolResponse["pool"];
+type AssetBonuses = GetCommunitiesCommunityIdPostsPostIdRewardsAssetBonusesResponse["items"];
+const addableOfferStatuses = new Set(["draft", "active"]);
+
+/** The 0.69.0 sponsor-context read is not part of the current contracts. Permission
+ * is composed from the owner-scoped policy read, and existing-offer identity from
+ * the public leg projections. An unreadable policy stays unconfirmed rather than
+ * fabricated, and the server remains the authority at offer and leg creation. */
+export function composeSponsorContext(policy: OwnerPolicy | null, pool: MegapotPool, bonuses: AssetBonuses): RewardSponsorContext {
+  const offerId = pool?.offer_id ?? bonuses[0]?.offer_id ?? null;
+  const offerStatus = pool?.offer_status ?? bonuses[0]?.offer_status ?? null;
+  const offerNotAddable: RewardPermission = { allowed: false, reason: "offer_not_addable" };
+  const unconfirmed: RewardPermission = { allowed: "unconfirmed", reason: null };
+  const allowed: RewardPermission = { allowed: true, reason: null };
+  const blocked = offerStatus !== null && !addableOfferStatuses.has(offerStatus);
+  const permission = (base: RewardPermission): RewardPermission => blocked ? offerNotAddable : base;
+  return {
+    offer: offerId === null ? null : { offer_id: offerId },
+    permissions: policy === null
+      ? { add_asset_bonus: permission(unconfirmed), add_megapot_pool: permission(unconfirmed) }
+      : {
+          add_asset_bonus: permission(allowed),
+          add_megapot_pool: permission(policy.pool_leg === "declined" ? { allowed: false, reason: "pool_declined" } : allowed),
+        },
+  };
+}
 
 export function createRewardSponsorData(client: PirateApiClient = createSessionApiClient(), publicClient: PirateApiClient = createPublicApiClient()) {
   return {
@@ -33,13 +69,16 @@ export function createRewardSponsorData(client: PirateApiClient = createSessionA
       if ((await client.get_usersMe(undefined)).id !== actor.accountId) {
         throw new Error("reward_creation_actor_changed");
       }
-      const context = await client.get_communitiesCommunityIdPostsPostIdRewardsSponsorContext({
-        path: { communityId, postId }, query: { persona_id: actor.personaId },
-      });
+      const path = { communityId, postId };
+      const [policy, pool, bonuses] = await Promise.all([
+        client.get_communitiesCommunityIdPostsPostIdOwnerPolicy({ path, query: { persona_id: actor.personaId } }).catch(() => null),
+        publicClient.get_communitiesCommunityIdPostsPostIdRewardsMegapotPool({ path }),
+        publicClient.get_communitiesCommunityIdPostsPostIdRewardsAssetBonuses({ path }),
+      ]);
       if ((await client.get_usersMe(undefined)).id !== actor.accountId) {
         throw new Error("reward_creation_actor_changed");
       }
-      return context;
+      return composeSponsorContext(policy, pool.pool, bonuses.items);
     },
     async song(communityId: string, postId: string) {
       const path = { communityId, postId };

@@ -26,24 +26,11 @@ describe("reviewed reward terms", () => {
     expect(result.leg.input.body).not.toHaveProperty("min_score_bps");
     expect(result.policies).toHaveLength(2);
   });
-  it("adds a leg to the exact existing offer without replacing its dates", () => {
-    const existing = {
-      object: "song_reward_offer" as const,
-      offer_id: "existing-offer",
-      community_id: "community",
-      post_id: "song",
-      audio_revision: 3,
-      status: "active" as const,
-      starts_at: "2026-09-07T00:00:00Z",
-      ends_at: "2026-09-20T00:00:00Z",
-      terms_hash: "a".repeat(64),
-    };
+  it("adds a leg to the exact existing offer without opening or dating a new one", () => {
+    const existing = { offer_id: "existing-offer" };
     const result = sponsorTerms(scope, { ...draft, endsAt: "bad" }, [asset], policies, now, existing);
     expect(result.leg.input.path.offerId).toBe("existing-offer");
-    expect(result.offer.body).toMatchObject({
-      starts_at: existing.starts_at,
-      ends_at: existing.ends_at,
-    });
+    expect(result.offer).toBeNull();
   });
   it("refuses custom or retired tokens and missing policies", () => {
     expect(() => sponsorTerms(scope,{ ...draft, kind: "asset_bonus" },[],policies,now)).toThrow("available token");
