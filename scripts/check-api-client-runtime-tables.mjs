@@ -8,10 +8,12 @@ const currentClient = resolve(
   appRoot,
   "node_modules/@pirate/api-client/src/generated/client.ts",
 );
-// Client 0.79.0 combines the reviewed recovery enum with nationality creation,
-// joining, independent handle qualification, and renewable document18+ authority.
-// This digest pins the exact success, error, and schema tables consumed here.
-const expectedDigest = "b3935dc829eb7134301e8e9d490cb8934b9d5d2137af7c9989009ecfa3ebcf05";
+// Client 0.82.0 combines the reviewed recovery enum, nationality creation,
+// joining, independent handle qualification and renewable document18+ authority
+// with the additive activity-persona preparation operation consumed by
+// Study and Karaoke entry. This digest pins the exact success, error, and
+// schema tables consumed here.
+const expectedDigest = "7acc862d6dfa02c70f7f55764e6ab5950c1ce233e5104e50e85e34a43a776add";
 
 const operations = [
   "post_postsPostIdVideoPlaybackAccess",
@@ -70,6 +72,7 @@ const operations = [
   "post_communityCreationIntents",
   "post_communityCreationIntentsIntentIdCommit",
   "post_handleQuotes",
+  "post_communitiesCommunityIdActivityPersonasPrepare",
 ];
 
 const tables = [

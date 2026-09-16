@@ -5,10 +5,17 @@ import { isServer } from "@solidjs/web";
 import { ApiClientError } from "@pirate/api-client";
 import { Show, createEffect, createSignal, onCleanup } from "solid-js";
 
-import { onSessionRefreshed, resolveSession, sessionPersonasUnavailable, type AuthenticatedSession, type SessionResolution } from "../../api/session";
+import { onSessionRefreshed, refreshSession, resolveSession, sessionPersonasUnavailable, type ActivePersonaPublicProjection, type AuthenticatedSession, type SessionResolution } from "../../api/session";
 import { Button, FormNote, Type } from "../../design-system";
 import { preloadGlobalSignInAssets, prepareGlobalSignIn, requestGlobalSignIn } from "../auth/global-sign-in-host";
 import { communityOperationPersonas, defaultOperationPersonaId, toOperationPersonas } from "../identity/community-persona-choice";
+import {
+  activityPreparationAdmissible,
+  activityPreparationCandidates,
+  activityPreparationMessage,
+  createActivityPersonaPreparationApi,
+  type ActivityPersonaPreparationApi,
+} from "../identity/activity-persona-preparation";
 import { OperationPersonaControl } from "../identity/operation-persona-control/operation-persona-control";
 import {
   createStudyV2Api,
@@ -36,11 +43,19 @@ type RouteState =
   | { kind: "failed"; message: string }
   | { kind: "unavailable"; message: string }
   | { kind: "configure"; availability: ReadyAvailability; communityId: string; session: AuthenticatedSession }
+  | {
+      kind: "prepare";
+      availability: ReadyAvailability;
+      candidates: readonly ActivePersonaPublicProjection[];
+      communityId: string;
+      session: AuthenticatedSession;
+    }
   | { kind: "lesson"; session: StudySession };
 
 export interface StudyV2RouteViewProps {
   verifyAge?: typeof verifyAdultViewing;
   api?: StudyV2Api;
+  preparationApi?: ActivityPersonaPreparationApi;
   navigate?: (href: string) => void;
   postId: string;
   routePath?: string;
@@ -92,18 +107,22 @@ function timezone(): string {
 
 export function StudyV2RouteView(props: StudyV2RouteViewProps) {
   const api = props.api ?? createStudyV2Api();
+  const preparation = props.preparationApi ?? createActivityPersonaPreparationApi();
   const recorder = props.recorder ?? createStudyingBrowserRecorder();
   const [state, setState] = createSignal<RouteState>({ kind: "loading" });
   const [personaId, setPersonaId] = createSignal("");
+  const [preparePersonaId, setPreparePersonaId] = createSignal("");
   const [targetLanguage, setTargetLanguage] = createSignal("");
   const [learnerBand, setLearnerBand] = createSignal<StudyLearnerBand | "">("");
   const [starting, setStarting] = createSignal(false);
+  const [preparing, setPreparing] = createSignal(false);
   const [message, setMessage] = createSignal("");
   let active = true;
   let loadStarted = false;
   let loadInFlight = false;
   let requestGeneration = 0;
   let createIdempotencyKey = sessionKey(props.postId);
+  let prepareIdempotencyKey = sessionKey(`prepare:${props.postId}`);
 
   const navigate = (href: string) => {
     if (props.navigate) props.navigate(href);
@@ -136,7 +155,19 @@ export function StudyV2RouteView(props: StudyV2RouteViewProps) {
       }
       const eligible = communityOperationPersonas(resolved.personas, loaded.communityId);
       if (eligible.length === 0) {
-        setState({ kind: "failed", message: "Join this community or create a persona there before starting Study." });
+        // Study never requires joining this community. An account without an
+        // exact-community persona prepares one explicitly through the API
+        // instead of being sent through a join or proof flow.
+        const candidates = activityPreparationCandidates(resolved.personas);
+        prepareIdempotencyKey = sessionKey(`prepare:${loaded.communityId}`);
+        setPreparePersonaId(defaultOperationPersonaId(candidates) ?? "");
+        setState({
+          availability: loaded.availability,
+          candidates,
+          communityId: loaded.communityId,
+          kind: "prepare",
+          session: resolved,
+        });
         return;
       }
       if (!preserveChoices || !eligible.some(persona => persona.personaId === personaId())) setPersonaId(defaultOperationPersonaId(eligible) ?? "");
@@ -215,9 +246,58 @@ export function StudyV2RouteView(props: StudyV2RouteViewProps) {
     }
   };
 
+  const prepareIdentity = async (preparationState: Extract<RouteState, { kind: "prepare" }>) => {
+    const candidates = preparationState.candidates;
+    // One unbound candidate is an unambiguous bind; several require an
+    // explicit selection; none mints a fresh pending_wallet identity.
+    const single = defaultOperationPersonaId(candidates);
+    const choice = candidates.length === 0
+      ? { kind: "create_new" as const }
+      : single !== undefined
+        ? { kind: "existing" as const, personaId: single }
+        : preparePersonaId() === ""
+          ? undefined
+          : { kind: "existing" as const, personaId: preparePersonaId() };
+    if (choice === undefined) {
+      setMessage("Choose the persona this community will present.");
+      return;
+    }
+    setPreparing(true);
+    setMessage("");
+    try {
+      const result = await preparation.prepare({
+        choice,
+        communityId: preparationState.communityId,
+        idempotencyKey: prepareIdempotencyKey,
+      });
+      if (!active) return;
+      if (activityPreparationAdmissible(result)) {
+        // The binding is now server-visible; drop the cached session read and
+        // reload so the prepared persona is selectable and starts through the
+        // ordinary session path.
+        refreshSession();
+        await load(true);
+        return;
+      }
+      setMessage("Your new activity identity needs its wallet confirmed before Study. Confirm that persona's wallet, then reload this page.");
+    } catch (error) {
+      if (!active) return;
+      setMessage(activityPreparationMessage(error));
+      if (error instanceof ApiClientError && (error.status === 401 || error.status === 403)) {
+        setState({ kind: "auth-required" });
+      }
+    } finally {
+      if (active) setPreparing(false);
+    }
+  };
+
   const failureState = () => {
     const current = state();
     return current.kind === "failed" || current.kind === "unavailable" ? current : undefined;
+  };
+  const prepareState = () => {
+    const current = state();
+    return current.kind === "prepare" ? current : undefined;
   };
   const configurationState = () => {
     const current = state();
@@ -257,20 +337,70 @@ export function StudyV2RouteView(props: StudyV2RouteViewProps) {
             <Show
               when={configurationState()}
               fallback={(
-                <Show when={lessonState()}>
-                  {(lesson) => (
-                    <StudyingRouteView
-                      client={createStudyV2RuntimeClient({ api, initialSession: lesson().session })}
-                      onExit={() => navigate(props.exitPath ?? "/")}
-                      onKaraoke={() => navigate(props.karaokePath ?? `/p/${encodeURIComponent(props.postId)}/karaoke`)}
-                      onStudyAgain={() => {
-                        createIdempotencyKey = sessionKey(props.postId);
-                        void load();
-                      }}
-                      postId={props.postId}
-                      recorder={recorder}
-                    />
+                <Show
+                  when={prepareState()}
+                  fallback={(
+                    <Show when={lessonState()}>
+                      {(lesson) => (
+                        <StudyingRouteView
+                          client={createStudyV2RuntimeClient({ api, initialSession: lesson().session })}
+                          onExit={() => navigate(props.exitPath ?? "/")}
+                          onKaraoke={() => navigate(props.karaokePath ?? `/p/${encodeURIComponent(props.postId)}/karaoke`)}
+                          onStudyAgain={() => {
+                            createIdempotencyKey = sessionKey(props.postId);
+                            void load();
+                          }}
+                          postId={props.postId}
+                          recorder={recorder}
+                        />
+                      )}
+                    </Show>
                   )}
+                >
+                  {(preparationState) => {
+                    const candidates = () => preparationState().candidates;
+                    const needsChoice = () => defaultOperationPersonaId(candidates()) === undefined;
+                    return (
+                      <div class="mx-auto flex min-h-dvh w-full max-w-xl flex-col gap-6 px-5 py-8">
+                        <header class="space-y-2">
+                          <Type as="h1" variant="h1">Set up Study</Type>
+                          <Type as="p" class="text-muted-foreground" variant="body">
+                            Study does not require membership. Choose an existing persona to bind to this
+                            community, or create a new activity identity. A newly created identity can start
+                            only after its wallet is confirmed.
+                          </Type>
+                        </header>
+                        <Show when={candidates().length > 0}>
+                          <OperationPersonaControl
+                            label="Continue as"
+                            personas={toOperationPersonas(candidates())}
+                            placeholder="Choose a persona"
+                            selectedPersonaId={preparePersonaId()}
+                            onSelect={(id) => {
+                              setPreparePersonaId(id);
+                              prepareIdempotencyKey = sessionKey(`prepare:${preparationState().communityId}`);
+                            }}
+                          />
+                        </Show>
+                        <p class="text-sm text-muted-foreground" data-persona-consequence-note>
+                          Binding an existing persona to this community is one-time. Progress, streaks and
+                          review history stay with your account either way.
+                        </p>
+                        <Show when={message()}>{(error) => <FormNote tone="destructive">{error()}</FormNote>}</Show>
+                        <div class="mt-auto flex gap-3">
+                          <Button class="flex-1" onClick={() => navigate(props.exitPath ?? "/")} variant="secondary">Exit</Button>
+                          <Button
+                            class="flex-1"
+                            disabled={preparing() || (needsChoice() && candidates().length > 0 && preparePersonaId() === "")}
+                            loading={preparing()}
+                            onClick={() => void prepareIdentity(preparationState())}
+                          >
+                            Continue
+                          </Button>
+                        </div>
+                      </div>
+                    );
+                  }}
                 </Show>
               )}
             >

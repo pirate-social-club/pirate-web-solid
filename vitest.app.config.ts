@@ -77,6 +77,7 @@ export default defineConfig({
       "src/features/communities/handle-storefront/handle-storefront.test.tsx",
       "src/features/karaoke/karaoke-api.test.ts",
       "src/features/karaoke/karaoke-route-view.test.tsx",
+      "src/features/identity/activity-persona-preparation.test.ts",
       "src/features/identity/community-persona-choice-sheet.test.tsx",
       "src/features/identity/community-persona-choice.test.ts",
       "src/features/posts/feed/public-feed.test.tsx",

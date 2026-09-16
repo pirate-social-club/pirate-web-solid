@@ -38,6 +38,7 @@ const clients = [
       "post_communitiesCommunityIdHnsRootImportsSessionIdPoll",
       "post_communitiesCommunityIdHnsRootImportsSessionIdActivate",
       "get_usersMeCommunityMemberships",
+      "post_communitiesCommunityIdActivityPersonasPrepare",
     ],
   },
 ];

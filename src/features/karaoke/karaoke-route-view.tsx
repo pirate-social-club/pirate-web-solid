@@ -21,8 +21,15 @@ import { deriveKaraokeFeedback } from "./karaoke-scoring-feedback";
 import { useKaraokeScoring } from "./scoring/use-karaoke-scoring-session";
 import type { RawKaraokeLine } from "./lyric-transform";
 import { preloadGlobalSignInAssets, prepareGlobalSignIn, requestGlobalSignIn } from "../auth/global-sign-in-host";
-import { resolveSession, sessionPersonasUnavailable, onSessionRefreshed, type SessionResolution } from "../../api/session";
-import { communityOperationPersonas, defaultOperationPersonaId } from "../identity/community-persona-choice";
+import { refreshSession, resolveSession, sessionPersonasUnavailable, onSessionRefreshed, type SessionResolution } from "../../api/session";
+import { communityOperationPersonas, defaultOperationPersonaId, type CommunityPersonaChoice } from "../identity/community-persona-choice";
+import {
+  activityPreparationAdmissible,
+  activityPreparationCandidates,
+  activityPreparationMessage,
+  createActivityPersonaPreparationApi,
+  type ActivityPersonaPreparationApi,
+} from "../identity/activity-persona-preparation";
 import { CommunityPersonaChoiceDialog } from "../identity/community-persona-choice-sheet";
 
 function isAgeLocked(error: unknown): boolean { return error instanceof KaraokeApiError && error.code === "age_locked"; }
@@ -47,9 +54,10 @@ export interface KaraokeSessionRouteViewProps {
   exitPath?: string;
   resolveSession?: () => Promise<SessionResolution>;
   createScoring?: typeof useKaraokeScoring;
+  preparationApi?: ActivityPersonaPreparationApi;
 }
 
-function LoadedKaraokeSession(props: { payload: ApiSongKaraokePayload; postId: string; client: KaraokeApiClient; exitPath?: string; resolveSession?: () => Promise<SessionResolution>; createScoring?: typeof useKaraokeScoring }) {
+function LoadedKaraokeSession(props: { payload: ApiSongKaraokePayload; postId: string; client: KaraokeApiClient; exitPath?: string; resolveSession?: () => Promise<SessionResolution>; createScoring?: typeof useKaraokeScoring; preparationApi?: ActivityPersonaPreparationApi }) {
   const navigate = useNavigate();
   const lines = createMemo(() => payloadLines(props.payload));
   const scorableLines = createMemo(() => toScorableKaraokeLines(lines()));
@@ -69,6 +77,16 @@ function LoadedKaraokeSession(props: { payload: ApiSongKaraokePayload; postId: s
     const current = session();
     return communityOperationPersonas(current && current !== "anonymous" ? current.personas : [], communityId);
   };
+  const sessionPersonas = () => {
+    const current = session();
+    return current && current !== "anonymous" ? current.personas : [];
+  };
+  const preparation = props.preparationApi ?? createActivityPersonaPreparationApi();
+  const [preparingPersona, setPreparingPersona] = createSignal(false);
+  // A server-returned prepared identity is activity-admissible before the
+  // refreshed session read lands, so the scored take may start immediately.
+  let preparedPersonaId: string | undefined;
+  let prepareIdempotencyKey = `karaoke-prepare:${props.postId}:${globalThis.crypto?.randomUUID?.() ?? Date.now()}`;
   const loadSession = async () => {
     const epoch = ++sessionEpoch;
     setSessionPending(true);
@@ -107,7 +125,8 @@ function LoadedKaraokeSession(props: { payload: ApiSongKaraokePayload; postId: s
     communityId,
     createKaraokeSession: (community, postId, idempotencyKey, signal) => {
       const selected = attemptPersonaId;
-      if (!selected || !eligible().some(persona => persona.personaId === selected)) {
+      if (!selected
+        || (selected !== preparedPersonaId && !eligible().some(persona => persona.personaId === selected))) {
         return Promise.reject(new Error("Choose a persona bound to this community before singing."));
       }
       return props.client.createSession({ communityId: community, personaId: selected, idempotencyKey, postId, signal });
@@ -171,6 +190,34 @@ function LoadedKaraokeSession(props: { payload: ApiSongKaraokePayload; postId: s
     scoring.controls.start(songMs);
   };
 
+  const prepareIdentity = async (choice: CommunityPersonaChoice) => {
+    if (preparingPersona()) return;
+    setPreparingPersona(true);
+    setPersonaMessage("");
+    try {
+      const result = await preparation.prepare({
+        choice,
+        communityId,
+        idempotencyKey: prepareIdempotencyKey,
+      });
+      if (!active) return;
+      if (activityPreparationAdmissible(result)) {
+        refreshSession();
+        preparedPersonaId = result.persona_id;
+        setPersonaId(result.persona_id);
+        attemptPersonaId = result.persona_id;
+        setChoiceOpen(false);
+        beginScoredTake(pendingSongMs);
+        return;
+      }
+      setPersonaMessage("Your new singing identity needs its wallet confirmed before a scored take. Confirm that persona's wallet, then return here.");
+    } catch (error) {
+      if (active) setPersonaMessage(activityPreparationMessage(error));
+    } finally {
+      if (active) setPreparingPersona(false);
+    }
+  };
+
   const scoringState = () => scoring.state();
   const feedback = () => deriveKaraokeFeedback(scoringState());
 
@@ -207,7 +254,10 @@ function LoadedKaraokeSession(props: { payload: ApiSongKaraokePayload; postId: s
           }
           if (session() === "anonymous") { setAuthError(true); return; }
           if (eligible().length === 0) {
-            setPersonaMessage("Join this community or create a persona there before singing a scored take.");
+            // Singing never requires joining this community: the choice dialog
+            // binds or mints the exact-community identity through preparation.
+            pendingSongMs = songMs;
+            setChoiceOpen(true);
             return;
           }
           if (!eligible().some(persona => persona.personaId === personaId())) {
@@ -235,17 +285,25 @@ function LoadedKaraokeSession(props: { payload: ApiSongKaraokePayload; postId: s
         </div>
       </Show>
       <CommunityPersonaChoiceDialog
-        label="Singing as" personas={eligible()} allowCreateNew={false}
+        label={eligible().length > 0 ? "Singing as" : "Set up singing"}
+        personas={eligible().length > 0 ? eligible() : activityPreparationCandidates(sessionPersonas())}
+        allowCreateNew={eligible().length === 0}
         choice={personaId() ? { kind: "existing", personaId: personaId()! } : undefined}
         open={choiceOpen()} onOpenChange={setChoiceOpen}
-        note="Choose the persona that presents this take in this community. Your private learning history stays with your account."
+        note={eligible().length > 0
+          ? "Choose the persona that presents this take in this community. Your private learning history stays with your account."
+          : "Singing does not require membership. Bind an existing persona to this community, or create a new identity that can sing once its wallet is confirmed."}
         onChoose={choice => {
-          if (choice.kind !== "existing" || !eligible().some(persona => persona.personaId === choice.personaId)) return;
-          setPersonaId(choice.personaId);
-          attemptPersonaId = choice.personaId;
-          setChoiceOpen(false);
-          setPersonaMessage("");
-          beginScoredTake(pendingSongMs);
+          if (choice.kind === "existing" && eligible().some(persona => persona.personaId === choice.personaId)) {
+            setPersonaId(choice.personaId);
+            attemptPersonaId = choice.personaId;
+            setChoiceOpen(false);
+            setPersonaMessage("");
+            beginScoredTake(pendingSongMs);
+            return;
+          }
+          if (eligible().length > 0) return;
+          void prepareIdentity(choice);
         }}
       />
       <Show when={disclosureOpen()}>
@@ -305,7 +363,7 @@ export function KaraokeSessionRouteView(props: KaraokeSessionRouteViewProps) {
 
   return (
       <Show when={payload()} fallback={<Show when={!loading()} fallback={<KaraokeRouteLoadingState label="Loading karaoke" />}><Show when={isAgeLocked(loadError())} fallback={<KaraokeRouteLoadFailureState description={errorMessage(loadError(), "We couldn't load karaoke for this song.")} onGoHome={() => { window.location.href = "/"; }} onRetry={load} title="Karaoke unavailable" />}><AgeAccessPrompt verify={props.verifyAge} onVerified={async () => { await load(); }} /></Show></Show>}>
-      {(loaded) => <LoadedKaraokeSession client={client} exitPath={props.exitPath} payload={loaded()} postId={props.postId} resolveSession={props.resolveSession} createScoring={props.createScoring} />}
+      {(loaded) => <LoadedKaraokeSession client={client} exitPath={props.exitPath} payload={loaded()} postId={props.postId} resolveSession={props.resolveSession} createScoring={props.createScoring} preparationApi={props.preparationApi} />}
     </Show>
   );
 }

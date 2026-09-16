@@ -40,7 +40,11 @@ export function toOperationPersonas(
   }));
 }
 
-/** Posting, Study and Karaoke cannot mint or bind an unbound persona. */
+/**
+ * Posting and community operations cannot mint or bind an unbound persona.
+ * Activity entry reaches unbound personas only through explicit activity
+ * preparation, never through the operation selector.
+ */
 export function communityOperationPersonas(
   personas: readonly ActivePersonaPublicProjection[], communityId: string,
 ): ActivePersonaPublicProjection[] {
