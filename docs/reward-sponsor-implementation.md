@@ -147,3 +147,69 @@ with all rewards tests using one worker passed 55 tests in 11 files. This is
 partitioned verification, not a clean full-suite invocation. No new live browser
 or funded testnet ceremony was run for this presentation checkpoint. The scratch
 shot.mjs file was neither deleted nor included.
+
+## Contract refresh onto Solid main, 2026-09-16
+
+The branch was rebased from 2599268 onto Solid main
+99e193b3e960783052eafb6bfb8679441b0d9a79. The rebase dropped the branch's
+September 8 merge of then-main after verifying it clean: the merge result
+matched each parent for the other side's files. Four shared-file conflicts
+recurred at each replayed commit and were resolved for current main.
+package.json and bun.lock keep the immutable 0.81.0 client pin, the provenance
+record keeps the 0.81.0 artifact, and the runtime-table script keeps the 0.81.0
+tables. public-feed.tsx keeps main's imports and session composition and adds
+the reward action import; vitest.app.config.ts keeps main's worker bound and
+adds the rewards suites. The 0.68.0 and 0.69.0 client archives remain as vendor
+history; no dependency resolves to them.
+
+The 0.69.0 sponsor-context read does not exist in the 0.81.0 contracts. The
+refresh composes the context from the authenticated, owner-scoped owner-policy
+read and the public megapot-pool and asset-bonus projections. The policy yields
+the third-party-reward and pool-leg permissions; the projections yield an
+existing offer identity. A policy the account cannot read stays unconfirmed and
+does not pre-block an attempt: creation remains server-authoritative. Offer
+start and end dates are never fabricated, and the UI no longer claims when an
+unknown existing offer ends. This supersedes the existing-offer limitation in
+the sections above: adding to an offer that has a public leg projection now
+reuses that offer, including a zero-leg offer that the local creation journal
+already recorded.
+
+A junction resolved in the creation journal: `RecordV1.offer` may be null
+exactly when an existing offer identity is present. Replay opens an offer only
+when the record has no offer identity; a record with neither fails closed as
+corrupt. Creation recovery still adds the pending leg without signing or
+broadcasting.
+
+Generated-client coverage. The runtime table now covers 70 operations: main's
+56 unchanged entries plus the fourteen consumed reward operations, including
+the owner-policy read. The 0.81.0 runtime-table digest is
+024f243888852f35b3a09b9d7588824c85dd8ba0fbd7784adc7cc5a015e97e5f. The provenance
+scope must contain every expected operation. Mutating the admitted
+post_communitiesCommunityIdPostsPostIdRewardOffers success status in a temporary
+installed-client copy made the gate report
+9af90523299dd8f04b59d8e157742540eaf22ef948ffe39807f640ca88b51183 and exit 1;
+restoring the client returned the gate to green, and the installed client was
+not left modified.
+
+Verification on the refreshed tree: `bun run tsc --noEmit -p tsconfig.json`
+passes; the full API suite passes 243 tests in 35 files; the focused app reward
+suites pass 27 tests in four files; the SSR suite passes 20 tests in three
+files; `bun run check:test-discovery` owns 193 files; the runtime-table and
+provenance checks pass; `bun run lint` exits 0 with advisory warnings and story
+parity over 44 stories. The full application suite, Worker build, Storybook
+build, dependency audit and the full `bun run verify` command are not rerun in
+this refresh and remain scheduled through the coordinator. Browser fixtures were
+not rerun; the funding controller and recovery modules are unchanged from the
+repair checkpoint, and their reload, refusal and uncertain-submission cases
+remain covered by the earlier browser evidence and the current unit and DOM
+suites.
+
+Lint repairs in the refresh: two bare `text-destructive` tokens in the bump
+sheet became `text-destructive-text`, and the shared reward fixture was renamed
+to `reward-sponsor.fixtures.ts` so the story-parity fixture convention accepts
+the functional story without adding an allowlist entry.
+
+No remote publication, deployment, merge or live funding was performed by the
+refresh. A funded ceremony still requires a deployed candidate, an active
+Megapot attestation, an admitted bonus asset, funded persona wallets and
+explicit owner authorization.
