@@ -130,7 +130,8 @@ describe("Karaoke community persona selection", () => {
     await vi.waitFor(() => expect(createSession).toHaveBeenCalledWith(expect.objectContaining({ personaId: "unbound" })));
   });
 
-  test("a pending wallet identity is not started until its wallet is confirmed", async () => {
+  test("a pending wallet offers an actionable confirmation without joining", async () => {
+    let confirmed = false;
     const prepare = vi.fn(async () => ({
       activity_presentation: null,
       community_id: "community-here",
@@ -138,10 +139,15 @@ describe("Karaoke community persona selection", () => {
       persona_id: "persona-new",
       persona_status: "pending_wallet" as const,
     }));
+    const completion = new Promise<{ complete: (authenticated: boolean) => void }>(resolve => {
+      window.addEventListener("pirate:connect", event => {
+        resolve((event as CustomEvent<{ complete: (authenticated: boolean) => void }>).detail);
+      }, { once: true });
+    });
     const { host, createSession } = mount(
       [persona("elsewhere", "community-other")],
       async () => ({ status: "authenticated", userId: "account-1",
-        personas: [persona("elsewhere", "community-other")] }),
+        personas: confirmed ? [persona("persona-new", "community-here")] : [persona("elsewhere", "community-other")] }),
       { prepare },
     );
     await start(host);
@@ -152,8 +158,16 @@ describe("Karaoke community persona selection", () => {
     await vi.waitFor(() => expect(prepare).toHaveBeenCalledWith(expect.objectContaining({
       choice: { kind: "create_new" },
     })));
-    await vi.waitFor(() => expect(host.textContent).toContain("wallet confirmed"));
+    await vi.waitFor(() => expect(host.textContent).toContain("Confirm wallet and continue"));
     expect(createSession).not.toHaveBeenCalled();
+    confirmed = true;
+    [...host.querySelectorAll("button")].find(button => button.textContent?.trim() === "Confirm wallet and continue")!.click();
+    (await completion).complete(true);
+    await vi.waitFor(() => expect(host.textContent).not.toContain("Confirm wallet and continue"));
+    await vi.waitFor(() => {
+      [...host.querySelectorAll("button")].find(button => button.textContent?.trim() === "Start karaoke")?.click();
+      expect(createSession).toHaveBeenCalledWith(expect.objectContaining({ personaId: "persona-new" }));
+    });
   });
 });
 

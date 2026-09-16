@@ -20,7 +20,7 @@ import { toKaraokeStageLines } from "./lyric-transform";
 import { deriveKaraokeFeedback } from "./karaoke-scoring-feedback";
 import { useKaraokeScoring } from "./scoring/use-karaoke-scoring-session";
 import type { RawKaraokeLine } from "./lyric-transform";
-import { preloadGlobalSignInAssets, prepareGlobalSignIn, requestGlobalSignIn } from "../auth/global-sign-in-host";
+import { preloadGlobalSignInAssets, prepareGlobalSignIn, requestGlobalSignIn, requestGlobalSignInCompletion } from "../auth/global-sign-in-host";
 import { refreshSession, resolveSession, sessionPersonasUnavailable, onSessionRefreshed, type SessionResolution } from "../../api/session";
 import { communityOperationPersonas, defaultOperationPersonaId, type CommunityPersonaChoice } from "../identity/community-persona-choice";
 import {
@@ -83,6 +83,9 @@ function LoadedKaraokeSession(props: { payload: ApiSongKaraokePayload; postId: s
   };
   const preparation = props.preparationApi ?? createActivityPersonaPreparationApi();
   const [preparingPersona, setPreparingPersona] = createSignal(false);
+  const [walletConfirmationRequired, setWalletConfirmationRequired] = createSignal(false);
+  const [walletConfirming, setWalletConfirming] = createSignal(false);
+  let walletConfirmationController: AbortController | undefined;
   // A server-returned prepared identity is activity-admissible before the
   // refreshed session read lands, so the scored take may start immediately.
   let preparedPersonaId: string | undefined;
@@ -118,7 +121,7 @@ function LoadedKaraokeSession(props: { payload: ApiSongKaraokePayload; postId: s
   };
   if (!isServer) queueMicrotask(() => { if (active) void loadSession(); });
   if (!isServer) onCleanup(onSessionRefreshed(() => { void loadSession(); }));
-  onCleanup(() => { active = false; sessionEpoch += 1; });
+  onCleanup(() => { active = false; sessionEpoch += 1; walletConfirmationController?.abort(); });
   // The injected controller factory is fixed for this mounted session.
   const createScoring = untrack(() => props.createScoring) ?? useKaraokeScoring;
   const scoring = createScoring({
@@ -194,6 +197,7 @@ function LoadedKaraokeSession(props: { payload: ApiSongKaraokePayload; postId: s
     if (preparingPersona()) return;
     setPreparingPersona(true);
     setPersonaMessage("");
+    setWalletConfirmationRequired(false);
     try {
       const result = await preparation.prepare({
         choice,
@@ -210,12 +214,42 @@ function LoadedKaraokeSession(props: { payload: ApiSongKaraokePayload; postId: s
         beginScoredTake(pendingSongMs);
         return;
       }
-      setPersonaMessage("Your new singing identity needs its wallet confirmed before a scored take. Confirm that persona's wallet, then return here.");
+      setWalletConfirmationRequired(true);
+      setPersonaMessage("This singing identity needs its wallet confirmed before a scored take. Confirming asks for the wallet email code again and returns you to this take.");
     } catch (error) {
       if (active) setPersonaMessage(activityPreparationMessage(error));
     } finally {
       if (active) setPreparingPersona(false);
     }
+  };
+
+  /**
+   * An actionable confirmation for a freshly minted pending_wallet persona:
+   * the ordinary additional-persona activation runs on the next authenticated
+   * session exchange, which prepares and confirms the pending wallet without
+   * any join, then the dialog state is refreshed for the next scored take.
+   */
+  const confirmPendingWallet = async () => {
+    if (walletConfirming()) return;
+    setWalletConfirming(true);
+    setPersonaMessage("");
+    walletConfirmationController?.abort();
+    const controller = new AbortController();
+    walletConfirmationController = controller;
+    const completion = requestGlobalSignInCompletion(controller.signal);
+    requestGlobalSignIn();
+    const authenticated = await completion;
+    if (walletConfirmationController === controller) walletConfirmationController = undefined;
+    if (!active) return;
+    if (!authenticated) {
+      setPersonaMessage("Wallet confirmation was cancelled. Confirm again when you are ready.");
+      setWalletConfirming(false);
+      return;
+    }
+    refreshSession();
+    setWalletConfirmationRequired(false);
+    await loadSession();
+    if (active) setWalletConfirming(false);
   };
 
   const scoringState = () => scoring.state();
@@ -280,6 +314,11 @@ function LoadedKaraokeSession(props: { payload: ApiSongKaraokePayload; postId: s
           <Show when={sessionFailed() || sessionPending()}>
             <Button type="button" disabled={sessionPending()} onClick={() => void loadSession()}>
               {sessionPending() ? "Checking profiles" : "Retry profiles"}
+            </Button>
+          </Show>
+          <Show when={walletConfirmationRequired()}>
+            <Button type="button" disabled={walletConfirming()} loading={walletConfirming()} onClick={() => void confirmPendingWallet()}>
+              Confirm wallet and continue
             </Button>
           </Show>
         </div>

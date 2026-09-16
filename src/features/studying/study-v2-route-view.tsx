@@ -7,7 +7,7 @@ import { Show, createEffect, createSignal, onCleanup } from "solid-js";
 
 import { onSessionRefreshed, refreshSession, resolveSession, sessionPersonasUnavailable, type ActivePersonaPublicProjection, type AuthenticatedSession, type SessionResolution } from "../../api/session";
 import { Button, FormNote, Type } from "../../design-system";
-import { preloadGlobalSignInAssets, prepareGlobalSignIn, requestGlobalSignIn } from "../auth/global-sign-in-host";
+import { preloadGlobalSignInAssets, prepareGlobalSignIn, requestGlobalSignIn, requestGlobalSignInCompletion } from "../auth/global-sign-in-host";
 import { communityOperationPersonas, defaultOperationPersonaId, toOperationPersonas } from "../identity/community-persona-choice";
 import {
   activityPreparationAdmissible,
@@ -116,6 +116,8 @@ export function StudyV2RouteView(props: StudyV2RouteViewProps) {
   const [learnerBand, setLearnerBand] = createSignal<StudyLearnerBand | "">("");
   const [starting, setStarting] = createSignal(false);
   const [preparing, setPreparing] = createSignal(false);
+  const [walletConfirmationRequired, setWalletConfirmationRequired] = createSignal(false);
+  const [walletConfirming, setWalletConfirming] = createSignal(false);
   const [message, setMessage] = createSignal("");
   let active = true;
   let loadStarted = false;
@@ -123,6 +125,7 @@ export function StudyV2RouteView(props: StudyV2RouteViewProps) {
   let requestGeneration = 0;
   let createIdempotencyKey = sessionKey(props.postId);
   let prepareIdempotencyKey = sessionKey(`prepare:${props.postId}`);
+  let walletConfirmationController: AbortController | undefined;
 
   const navigate = (href: string) => {
     if (props.navigate) props.navigate(href);
@@ -161,6 +164,7 @@ export function StudyV2RouteView(props: StudyV2RouteViewProps) {
         const candidates = activityPreparationCandidates(resolved.personas);
         prepareIdempotencyKey = sessionKey(`prepare:${loaded.communityId}`);
         setPreparePersonaId(defaultOperationPersonaId(candidates) ?? "");
+        setWalletConfirmationRequired(false);
         setState({
           availability: loaded.availability,
           candidates,
@@ -210,7 +214,7 @@ export function StudyV2RouteView(props: StudyV2RouteViewProps) {
       void load();
     }));
   }
-  onCleanup(() => { active = false; });
+  onCleanup(() => { active = false; walletConfirmationController?.abort(); });
 
   const start = async (configuration: Extract<RouteState, { kind: "configure" }>) => {
     const language = targetLanguage();
@@ -264,6 +268,7 @@ export function StudyV2RouteView(props: StudyV2RouteViewProps) {
     }
     setPreparing(true);
     setMessage("");
+    setWalletConfirmationRequired(false);
     try {
       const result = await preparation.prepare({
         choice,
@@ -279,7 +284,8 @@ export function StudyV2RouteView(props: StudyV2RouteViewProps) {
         await load(true);
         return;
       }
-      setMessage("Your new activity identity needs its wallet confirmed before Study. Confirm that persona's wallet, then reload this page.");
+      setWalletConfirmationRequired(true);
+      setMessage("This identity needs its wallet confirmed before Study. Confirming asks for the wallet email code again and continues Study automatically afterwards.");
     } catch (error) {
       if (!active) return;
       setMessage(activityPreparationMessage(error));
@@ -289,6 +295,35 @@ export function StudyV2RouteView(props: StudyV2RouteViewProps) {
     } finally {
       if (active) setPreparing(false);
     }
+  };
+
+  /**
+   * An actionable confirmation for a freshly minted pending_wallet persona:
+   * the ordinary additional-persona activation runs on the next authenticated
+   * session exchange, which prepares and confirms the pending wallet without
+   * any join, then the route reloads into the prepared persona.
+   */
+  const confirmPendingWallet = async () => {
+    if (walletConfirming()) return;
+    setWalletConfirming(true);
+    setMessage("");
+    walletConfirmationController?.abort();
+    const controller = new AbortController();
+    walletConfirmationController = controller;
+    const completion = requestGlobalSignInCompletion(controller.signal);
+    requestGlobalSignIn();
+    const authenticated = await completion;
+    if (walletConfirmationController === controller) walletConfirmationController = undefined;
+    if (!active) return;
+    if (!authenticated) {
+      setMessage("Wallet confirmation was cancelled. Confirm again when you are ready.");
+      setWalletConfirming(false);
+      return;
+    }
+    refreshSession();
+    setWalletConfirmationRequired(false);
+    await load(true);
+    if (active) setWalletConfirming(false);
   };
 
   const failureState = () => {
@@ -387,6 +422,15 @@ export function StudyV2RouteView(props: StudyV2RouteViewProps) {
                           review history stay with your account either way.
                         </p>
                         <Show when={message()}>{(error) => <FormNote tone="destructive">{error()}</FormNote>}</Show>
+                        <Show when={walletConfirmationRequired()}>
+                          <Button
+                            disabled={walletConfirming()}
+                            loading={walletConfirming()}
+                            onClick={() => void confirmPendingWallet()}
+                          >
+                            Confirm wallet and continue
+                          </Button>
+                        </Show>
                         <div class="mt-auto flex gap-3">
                           <Button class="flex-1" onClick={() => navigate(props.exitPath ?? "/")} variant="secondary">Exit</Button>
                           <Button

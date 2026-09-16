@@ -197,6 +197,39 @@ describe("Study v2 production route", () => {
     expect(createSession).not.toHaveBeenCalled();
   });
 
+  test("a pending wallet offers an actionable confirmation without joining", async () => {
+    const createSession = vi.fn(() => new Promise<StudySession>(() => {}));
+    let confirmed = false;
+    const prepare = vi.fn(async () => ({
+      activity_presentation: null,
+      community_id: "community-1",
+      object: "activity_persona_preparation" as const,
+      persona_id: "persona-new",
+      persona_status: "pending_wallet" as const,
+    }));
+    const completion = new Promise<{ complete: (authenticated: boolean) => void }>(resolve => {
+      window.addEventListener("pirate:connect", event => {
+        resolve((event as CustomEvent<{ complete: (authenticated: boolean) => void }>).detail);
+      }, { once: true });
+    });
+    const container = render(() => <StudyV2RouteView api={studyApi(createSession)} preparationApi={{ prepare }} postId="post-1"
+      resolveSession={async () => ({ status: "authenticated", userId: "user-1", personas: [{
+        personaId: "persona-new", displayName: "New", avatarRef: null, primaryPublicHandle: null,
+        communityBinding: confirmed
+          ? { communityId: "community-1", bindingSource: "activity_participation" as const }
+          : null,
+      }] })}
+    />);
+    await vi.waitFor(() => expect(container.textContent).toContain("Set up Study"));
+    [...container.querySelectorAll("button")].find(button => button.textContent?.trim() === "Continue")!.click();
+    await vi.waitFor(() => expect(container.textContent).toContain("Confirm wallet and continue"));
+    confirmed = true;
+    [...container.querySelectorAll("button")].find(button => button.textContent?.trim() === "Confirm wallet and continue")!.click();
+    (await completion).complete(true);
+    await vi.waitFor(() => expect(container.textContent).toContain("Speaking practice only"));
+    expect(createSession).not.toHaveBeenCalled();
+  });
+
   test("binds the single unbound persona and continues into Study", async () => {
     const createSession = vi.fn(() => new Promise<StudySession>(() => {}));
     let bound = false;
