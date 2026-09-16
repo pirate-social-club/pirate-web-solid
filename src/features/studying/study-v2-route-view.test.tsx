@@ -209,6 +209,8 @@ describe("Study v2 production route", () => {
     }));
     const completion = new Promise<{ complete: (authenticated: boolean) => void }>(resolve => {
       window.addEventListener("pirate:connect", event => {
+        // SAFETY: the sign-in host is the only dispatcher of this event, and its
+        // detail always carries the completion callback this regression drives.
         resolve((event as CustomEvent<{ complete: (authenticated: boolean) => void }>).detail);
       }, { once: true });
     });
