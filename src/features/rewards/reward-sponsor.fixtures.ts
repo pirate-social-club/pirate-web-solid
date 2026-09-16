@@ -2,6 +2,78 @@ import { createRewardFundingController } from "../../api/reward-funding-controll
 import type { RewardFunding } from "../../api/reward-funding-client.ts";
 import type { RewardFundingReceipt } from "../../api/reward-funding-recovery.ts";
 import type { RewardSponsorDependencies } from "./reward-sponsor-dialog.tsx";
+
+export type RewardSponsorBrowserScenario = "offer_selection" | "conflict_recovery";
+
+interface ScenarioObservation {
+  readonly addKind?: string;
+  readonly addedOfferId?: string;
+  readonly contextReads?: number;
+  readonly openCalls?: number;
+}
+
+const scenarioRead = (): ScenarioObservation => {
+  const raw = localStorage.getItem("fixture:scenario");
+  if (raw === null) return {};
+  // SAFETY: this fixture owns the key and only ever writes ScenarioObservation.
+  return JSON.parse(raw) as ScenarioObservation;
+};
+
+const scenarioRecord = (patch: ScenarioObservation): void => {
+  localStorage.setItem("fixture:scenario", JSON.stringify({ ...scenarioRead(), ...patch }));
+};
+
+/**
+ * Browser-proof dependencies for the two reviewed offer fixes. The
+ * offer-selection scenario exposes an addable asset-only offer while a
+ * terminal pool offer exists in the projections; the conflict-recovery
+ * scenario refuses the first open with the typed conflict and reveals the
+ * server offer only on rediscovery. Observation lands in localStorage so a
+ * browser driver can assert which offer the leg actually joined.
+ */
+export function rewardSponsorScenarioFixture(
+  scenario: RewardSponsorBrowserScenario,
+): RewardSponsorDependencies {
+  const base = rewardSponsorFixture();
+  const permissions = {
+    add_asset_bonus: { allowed: true as const, reason: null },
+    add_megapot_pool: { allowed: true as const, reason: null },
+  };
+  let contextReads = 0;
+  return {
+    ...base,
+    data: {
+      ...base.data,
+      async sponsorContext() {
+        contextReads += 1;
+        scenarioRecord({ contextReads });
+        if (scenario === "offer_selection") {
+          return { offer: { offer_id: "newer-asset-offer" }, permissions };
+        }
+        return contextReads === 1
+          ? { offer: null, permissions }
+          : { offer: { offer_id: "server-offer" }, permissions };
+      },
+    },
+    creationApi: (scope) => {
+      const real = base.creationApi(scope);
+      return {
+        async open(input) {
+          scenarioRecord({ openCalls: Number(scenarioRead().openCalls ?? 0) + 1 });
+          if (scenario === "conflict_recovery") {
+            throw new Error("reward_creation_offer_conflict");
+          }
+          // Joining an existing offer must never open a second one.
+          throw new Error("unexpected_offer_open");
+        },
+        async add(request) {
+          scenarioRecord({ addKind: request.kind, addedOfferId: request.input.path.offerId });
+          return real.add(request);
+        },
+      };
+    },
+  };
+}
 /** Controlled Storybook/test server and wallet. No network calls or real signing. */
 export function rewardSponsorFixture(): RewardSponsorDependencies {
   const records = new Map<string,string>(), receipts = new Map<string,RewardFundingReceipt>();
