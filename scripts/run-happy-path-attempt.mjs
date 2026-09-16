@@ -29,6 +29,7 @@ const PASSTHROUGH_KEYS = new Set([
 const SLOT_PATTERN = /^[A-Za-z][A-Za-z0-9_]{0,31}$/u;
 const ATTEMPT_PATTERN = /^[1-9]\d{0,5}$/u;
 const ROLE_PATTERN = /^[a-z][a-z0-9_-]{0,31}$/u;
+const INVOCATION_OPTIONS = new Set(["attempt", "slot", "role"]);
 
 function normalized(value) {
   return typeof value === "string" ? value.trim() : "";
@@ -101,24 +102,34 @@ export function buildAttemptEnvironment(env, { attempt, slot, role }, uuid = ran
   return Object.freeze({ env: Object.freeze(child), id, number, role: identityRole, identitySlot: selected.identitySlot, startedAt });
 }
 
-function option(args, name) {
-  const prefix = `--${name}=`;
-  const inline = args.find(value => value.startsWith(prefix));
-  if (inline) return inline.slice(prefix.length);
-  const index = args.indexOf(`--${name}`);
-  return index >= 0 ? args[index + 1] : undefined;
-}
-
-function parseInvocation(args) {
-  if (args.some(value => !value.startsWith("--"))) {
-    throw new Error("M1 attempt requires --attempt, --slot and --role options.");
+export function parseInvocation(args) {
+  const values = {};
+  const seen = new Set();
+  for (let index = 0; index < args.length; index += 1) {
+    const argument = args[index];
+    if (typeof argument !== "string" || argument === "--" || !argument.startsWith("--")) {
+      throw new Error("M1 attempt rejects positional arguments; use --attempt, --slot and --role options.");
+    }
+    const match = /^--([a-z][a-z0-9-]*)(?:=(.*))?$/u.exec(argument);
+    if (!match || !INVOCATION_OPTIONS.has(match[1])) {
+      throw new Error(`M1 attempt does not recognize option ${argument.split("=", 1)[0]}.`);
+    }
+    const name = match[1];
+    if (seen.has(name)) throw new Error(`M1 attempt received duplicate --${name}.`);
+    seen.add(name);
+    let value = match[2];
+    if (value === undefined) {
+      const next = args[index + 1];
+      if (typeof next !== "string" || next === "--" || next.startsWith("--")) {
+        throw new Error(`M1 attempt requires a value for --${name}.`);
+      }
+      value = next;
+      index += 1;
+    }
+    if (!value.trim()) throw new Error(`M1 attempt requires a non-empty value for --${name}.`);
+    values[name] = value;
   }
-  const values = {
-    attempt: option(args, "attempt"),
-    slot: option(args, "slot"),
-    role: option(args, "role"),
-  };
-  if (!values.attempt || !values.slot || !values.role) {
+  if (["attempt", "slot", "role"].some(name => values[name] === undefined)) {
     throw new Error("M1 attempt requires --attempt, --slot and --role options.");
   }
   return values;

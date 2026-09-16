@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildAttemptEnvironment, selectAttemptCredentials } from "./run-happy-path-attempt.mjs";
+import { buildAttemptEnvironment, parseInvocation, selectAttemptCredentials } from "./run-happy-path-attempt.mjs";
 
 const configured = {
   MODERATION_E2E_OWNER_EMAIL: " owner@example.invalid ",
@@ -16,6 +16,31 @@ const configured = {
   MODERATION_UNRELATED_SECRET: "must-not-reach-child",
   INFISICAL_TOKEN: "must-not-reach-child",
 };
+
+test("parses the documented space-separated invocation", () => {
+  assert.deepEqual(parseInvocation(["--attempt", "3", "--slot", "viewer", "--role", "owner"]), {
+    attempt: "3",
+    slot: "viewer",
+    role: "owner",
+  });
+});
+
+test("parses equals-separated options without coupling identity to attempt number", () => {
+  assert.deepEqual(parseInvocation(["--attempt=3", "--slot=viewer", "--role=owner"]), {
+    attempt: "3",
+    slot: "viewer",
+    role: "owner",
+  });
+});
+
+test("rejects unknown, duplicate, missing-value and positional invocation arguments", () => {
+  assert.throws(() => parseInvocation(["--attempt", "3", "--identity", "viewer", "--role", "owner"]), /does not recognize option --identity/);
+  assert.throws(() => parseInvocation(["--attempt", "3", "--attempt=4", "--slot", "viewer", "--role", "owner"]), /duplicate --attempt/);
+  assert.throws(() => parseInvocation(["--attempt", "3", "--slot", "--role", "owner"]), /requires a value for --slot/);
+  assert.throws(() => parseInvocation(["--attempt=", "--slot=viewer", "--role=owner"]), /non-empty value for --attempt/);
+  assert.throws(() => parseInvocation(["3", "--slot", "viewer", "--role", "owner"]), /rejects positional arguments/);
+  assert.throws(() => parseInvocation(["--attempt", "3", "--slot", "viewer", "--role", "owner", "garbage"]), /rejects positional arguments/);
+});
 
 test("selects any explicitly named credential slot without coupling it to the attempt number", () => {
   assert.deepEqual(selectAttemptCredentials(configured, "owner"), {
