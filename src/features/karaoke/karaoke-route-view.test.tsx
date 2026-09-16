@@ -2,6 +2,7 @@ import { KaraokeApiError } from "./karaoke-session-bridge.ts";
 import { render } from "@solidjs/web";
 import { afterEach, describe, expect, test, vi } from "vitest";
 import type { AuthenticatedSession } from "../../api/session";
+import type { ActivityPersonaPreparationApi } from "../identity/activity-persona-preparation";
 import type { KaraokeApiClient } from "./karaoke-api";
 import { KaraokeSessionRouteView } from "./karaoke-route-view";
 import { createRouter, memoryHistory } from "@solidjs/router";
@@ -24,7 +25,7 @@ const persona = (id: string, communityId: string | null) => ({
   communityBinding: communityId === null ? null : { communityId, bindingSource: "first_membership" as const },
 });
 
-function mount(personas: AuthenticatedSession["personas"], resolveSession = async (): Promise<AuthenticatedSession> => ({ status: "authenticated", userId: "account-1", personas })) {
+function mount(personas: AuthenticatedSession["personas"], resolveSession = async (): Promise<AuthenticatedSession> => ({ status: "authenticated", userId: "account-1", personas }), preparationApi?: ActivityPersonaPreparationApi) {
   // Scored-take tests exercise persona and start behavior; the dedicated
   // disclosure tests clear this acknowledgment to prove the capture gate.
   localStorage.setItem("karaoke:microphone-disclosure:v1", "1");
@@ -44,6 +45,7 @@ function mount(personas: AuthenticatedSession["personas"], resolveSession = asyn
     postId="post-1" client={client}
     createScoring={createScoring}
     resolveSession={resolveSession}
+    preparationApi={preparationApi}
   />}</TestRouter>, host);
   disposers.push(() => { dispose(); host.remove(); });
   return { host, createSession };
@@ -100,12 +102,58 @@ describe("Karaoke community persona selection", () => {
     await vi.waitFor(() => expect(createSession).toHaveBeenCalledWith(expect.objectContaining({ personaId: "second" })));
   });
 
-  test("unbound and elsewhere personas cannot start a scored take", async () => {
-    const { host, createSession } = mount([persona("unbound", null), persona("elsewhere", "community-other")]);
+  test("an account without a community persona prepares one instead of joining", async () => {
+    const prepare = vi.fn(async () => ({
+      activity_presentation: null,
+      community_id: "community-here",
+      object: "activity_persona_preparation" as const,
+      persona_id: "unbound",
+      persona_status: "active" as const,
+    }));
+    const { host, createSession } = mount(
+      [persona("unbound", null), persona("elsewhere", "community-other")],
+      async () => ({ status: "authenticated", userId: "account-1",
+        personas: [persona("unbound", null), persona("elsewhere", "community-other")] }),
+      { prepare },
+    );
     await start(host);
-    await vi.waitFor(() => expect(document.body.textContent).toContain("Join this community"));
+    await vi.waitFor(() => expect(document.body.textContent).toContain("Set up singing"));
+    expect(document.body.textContent).not.toContain("Join this community");
     expect(createSession).not.toHaveBeenCalled();
-    expect(document.querySelector('[role="dialog"]')).toBeNull();
+    const option = document.querySelector<HTMLInputElement>('input[value="unbound"]');
+    expect(option).not.toBeNull();
+    option!.click();
+    await vi.waitFor(() => expect(prepare).toHaveBeenCalledWith(expect.objectContaining({
+      choice: { kind: "existing", personaId: "unbound" },
+      communityId: "community-here",
+    })));
+    await vi.waitFor(() => expect(createSession).toHaveBeenCalledWith(expect.objectContaining({ personaId: "unbound" })));
+  });
+
+  test("a pending wallet identity is not started until its wallet is confirmed", async () => {
+    const prepare = vi.fn(async () => ({
+      activity_presentation: null,
+      community_id: "community-here",
+      object: "activity_persona_preparation" as const,
+      persona_id: "persona-new",
+      persona_status: "pending_wallet" as const,
+    }));
+    const { host, createSession } = mount(
+      [persona("elsewhere", "community-other")],
+      async () => ({ status: "authenticated", userId: "account-1",
+        personas: [persona("elsewhere", "community-other")] }),
+      { prepare },
+    );
+    await start(host);
+    await vi.waitFor(() => expect(document.body.textContent).toContain("Set up singing"));
+    const create = document.querySelector<HTMLInputElement>(`input[value="__create_new_persona__"]`);
+    expect(create).not.toBeNull();
+    create!.click();
+    await vi.waitFor(() => expect(prepare).toHaveBeenCalledWith(expect.objectContaining({
+      choice: { kind: "create_new" },
+    })));
+    await vi.waitFor(() => expect(host.textContent).toContain("wallet confirmed"));
+    expect(createSession).not.toHaveBeenCalled();
   });
 });
 

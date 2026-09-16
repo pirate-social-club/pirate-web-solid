@@ -170,17 +170,61 @@ describe("Study v2 production route", () => {
     expect(createSession).not.toHaveBeenCalled();
   });
 
-  test("an elsewhere binding cannot be selected for Study", async () => {
+  test("an account without a community persona prepares one instead of joining", async () => {
     const createSession = vi.fn(() => new Promise<StudySession>(() => {}));
-    const container = render(() => <StudyV2RouteView api={studyApi(createSession)} postId="post-1"
+    const prepare = vi.fn(async () => ({
+      activity_presentation: null,
+      community_id: "community-1",
+      object: "activity_persona_preparation" as const,
+      persona_id: "persona-new",
+      persona_status: "pending_wallet" as const,
+    }));
+    const container = render(() => <StudyV2RouteView api={studyApi(createSession)} preparationApi={{ prepare }} postId="post-1"
       resolveSession={async () => ({ status: "authenticated", userId: "user-1", personas: [{
         personaId: "elsewhere", displayName: "Elsewhere", avatarRef: null, primaryPublicHandle: null,
         communityBinding: { communityId: "community-other", bindingSource: "first_membership" as const },
       }] })}
     />);
-    await vi.waitFor(() => expect(container.textContent).toContain("Join this community"));
+    await vi.waitFor(() => expect(container.textContent).toContain("Set up Study"));
+    expect(container.textContent).not.toContain("Join this community");
     expect(createSession).not.toHaveBeenCalled();
-    expect(container.textContent).not.toContain("Create a new persona");
+    [...container.querySelectorAll("button")].find(button => button.textContent?.trim() === "Continue")!.click();
+    await vi.waitFor(() => expect(prepare).toHaveBeenCalledWith(expect.objectContaining({
+      choice: { kind: "create_new" },
+      communityId: "community-1",
+    })));
+    await vi.waitFor(() => expect(container.textContent).toContain("wallet confirmed"));
+    expect(createSession).not.toHaveBeenCalled();
+  });
+
+  test("binds the single unbound persona and continues into Study", async () => {
+    const createSession = vi.fn(() => new Promise<StudySession>(() => {}));
+    let bound = false;
+    const prepare = vi.fn(async () => {
+      bound = true;
+      return {
+        activity_presentation: null,
+        community_id: "community-1",
+        object: "activity_persona_preparation" as const,
+        persona_id: "unbound",
+        persona_status: "active" as const,
+      };
+    });
+    const container = render(() => <StudyV2RouteView api={studyApi(createSession)} preparationApi={{ prepare }} postId="post-1"
+      resolveSession={async () => ({ status: "authenticated", userId: "user-1", personas: [{
+        personaId: "unbound", displayName: "Unbound", avatarRef: null, primaryPublicHandle: null,
+        communityBinding: bound
+          ? { communityId: "community-1", bindingSource: "activity_participation" as const }
+          : null,
+      }] })}
+    />);
+    await vi.waitFor(() => expect(container.textContent).toContain("Set up Study"));
+    [...container.querySelectorAll("button")].find(button => button.textContent?.trim() === "Continue")!.click();
+    await vi.waitFor(() => expect(prepare).toHaveBeenCalledWith(expect.objectContaining({
+      choice: { kind: "existing", personaId: "unbound" },
+    })));
+    await vi.waitFor(() => expect(container.textContent).toContain("Speaking practice only"));
+    expect(createSession).not.toHaveBeenCalled();
   });
 
   test("does not load member Study availability for an anonymous session", async () => {
