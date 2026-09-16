@@ -14,6 +14,7 @@ export function sponsorFailure(error: unknown): string {
     case "funding_terms_changed": return "Funding instructions changed. Check the status before reviewing again.";
     case "verification_unavailable": case "wallet_auth_unavailable": return "Wallet authorization is unavailable. Your saved creation can be resumed later.";
     case "reward_creation_csrf_required": return "Sign in again, then resume your saved reward.";
+    case "reward_creation_offer_conflict": return "Another reward offer already exists for this song. No transfer was attempted; reopen rewards to join that offer.";
     default: return "This step could not be completed. Keep your saved attempt and check its status before continuing.";
   }
 }

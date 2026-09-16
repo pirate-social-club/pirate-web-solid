@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { createRewardCreation, rewardCreationHistoryKey, rewardCreationKey, type RewardCreationJournal, type RewardCreationScope, type RewardLegRequest } from "./reward-creation.ts";
+import { createRewardCreation, rewardCreationHistoryKey, rewardCreationKey, type RewardCreationApi, type RewardCreationJournal, type RewardCreationScope, type RewardLegRequest } from "./reward-creation.ts";
 const scope = { accountId: "account", personaId: "persona", communityId: "community", postId: "song" };
 const offer = { path: { communityId: "community", postId: "song" }, body: { persona_id: "persona", idempotency_key: "open-key", starts_at: "2026-09-08T00:00:00Z", ends_at: "2026-09-15T00:00:00Z" } };
 const leg: RewardLegRequest = { kind: "asset_bonus", input: { path: { offerId: "" }, body: {
@@ -9,7 +9,7 @@ const leg: RewardLegRequest = { kind: "asset_bonus", input: { path: { offerId: "
 } } };
 const target = { kind: "asset_bonus" as const, legId: "leg", fundingEffectId: "effect" };
 const existingLeg: RewardLegRequest = { ...leg, input: { ...leg.input, path: { offerId: "existing-offer" } } };
-function setup() {
+function setup(options: { rediscoverOffer?: () => Promise<string | null> } = {}) {
   const values = new Map<string,string>();
   let tail = Promise.resolve();
   const journal: RewardCreationJournal = {
@@ -20,9 +20,15 @@ function setup() {
       const result = tail.then(operation); tail = result.then(() => {}, () => {}); return result;
     },
   };
-  const api = { open: vi.fn(async () => "offer"), add: vi.fn(async () => target) };
+  const api = {
+    open: vi.fn(async (_input: Parameters<RewardCreationApi["open"]>[0]) => "offer"),
+    add: vi.fn(async (_request: RewardLegRequest) => target),
+  };
   let current: RewardCreationScope | null = scope;
-  const controller = () => createRewardCreation({ scope, journal, api, currentScope: () => current });
+  const controller = () => createRewardCreation({
+    scope, journal, api, currentScope: () => current,
+    ...(options.rediscoverOffer === undefined ? {} : { rediscoverOffer: options.rediscoverOffer }),
+  });
   return { values, journal, api, controller, switchActor: () => { current = null; } };
 }
 describe("reward creation recovery", () => {
@@ -62,6 +68,30 @@ describe("reward creation recovery", () => {
     expect(await s.controller().recover()).toEqual(target);
     expect(s.api.open).not.toHaveBeenCalled();
     expect(s.api.add.mock.calls[0]).toEqual(s.api.add.mock.calls[1]);
+  });
+  it("adopts a rediscovered server offer after a typed duplicate-open conflict", async () => {
+    const s = setup({ rediscoverOffer: async () => "discovered-offer" });
+    s.api.open.mockRejectedValueOnce(new Error("reward_creation_offer_conflict"));
+    await expect(s.controller().start(offer,leg)).resolves.toEqual(target);
+    expect(s.api.open).toHaveBeenCalledTimes(1);
+    expect(s.api.add.mock.calls[0]?.[0].input.path.offerId).toBe("discovered-offer");
+    expect(s.controller().pending()?.offerId).toBe("discovered-offer");
+  });
+  it("keeps the guard on an unclassified open failure", async () => {
+    const s = setup();
+    s.api.open.mockRejectedValueOnce(new Error("reward_creation_response_mismatch"));
+    await expect(s.controller().start(offer,leg)).rejects.toThrow("reward_creation_response_mismatch");
+    expect(s.api.add).not.toHaveBeenCalled();
+  });
+  it("keeps the guard when a duplicate-open conflict has no visible offer", async () => {
+    const s = setup({ rediscoverOffer: async () => null });
+    s.api.open.mockRejectedValueOnce(new Error("reward_creation_offer_conflict"));
+    await expect(s.controller().start(offer,leg)).rejects.toThrow("reward_creation_offer_conflict");
+    expect(s.api.add).not.toHaveBeenCalled();
+    s.api.open.mockResolvedValueOnce("offer");
+    await expect(s.controller().recover()).resolves.toEqual(target);
+    expect(s.api.open).toHaveBeenCalledTimes(2);
+    expect(s.api.add).toHaveBeenCalledTimes(1);
   });
   it("fails closed when a stored record names neither a reviewed offer nor an existing one", async () => {
     const s = setup();

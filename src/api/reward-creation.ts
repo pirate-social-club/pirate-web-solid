@@ -1,4 +1,4 @@
-import type { AddAssetBonusLegInput, AddMegapotPoolLegInput, OpenSongRewardOfferInput } from "@pirate/api-client";
+import { ApiClientError, type AddAssetBonusLegInput, type AddMegapotPoolLegInput, type OpenSongRewardOfferInput } from "@pirate/api-client";
 import { createSessionApiClient, readCsrfCookie, sessionRequestOptions, type PirateApiClient } from "./client.ts";
 import type { RewardFunding, RewardFundingActor, RewardFundingTarget } from "./reward-funding-client.ts";
 
@@ -86,6 +86,10 @@ function withOfferId(leg: RewardLegRequest, offerId: string): RewardLegRequest {
  * Recovery only replays creation. It never signs, clears a receipt, or replaces uncertain terms. */
 export function createRewardCreation(options: {
   scope: RewardCreationScope; currentScope: () => RewardCreationScope | null; journal: RewardCreationJournal; api: RewardCreationApi;
+  /** Re-reads the public leg projections after the server refuses a second
+   * non-terminal offer. A returned id is server-authoritative and is adopted;
+   * null keeps the guard so the open can be retried without a new effect. */
+  rediscoverOffer?: () => Promise<string | null>;
 }) {
   const scope = { ...options.scope }, key = rewardCreationKey(scope);
   const assertCurrent = () => {
@@ -103,7 +107,15 @@ export function createRewardCreation(options: {
     assertCurrent();
     if (record.offerId === null) {
       if (record.offer === null) throw new Error("reward_creation_recovery_corrupt");
-      const offerId = await options.api.open(record.offer);
+      let offerId: string;
+      try {
+        offerId = await options.api.open(record.offer);
+      } catch (cause) {
+        if (!(cause instanceof Error) || cause.message !== "reward_creation_offer_conflict") throw cause;
+        const discovered = (await options.rediscoverOffer?.()) ?? null;
+        if (discovered === null) throw cause;
+        offerId = discovered;
+      }
       assertCurrent();
       record = { ...record, offerId, leg: withOfferId(record.leg, offerId) };
       write(record);
@@ -187,7 +199,18 @@ export function createRewardCreationApi(actor: RewardFundingActor, client: Pirat
   };
   return {
     async open(input) {
-      const result = await client.post_communitiesCommunityIdPostsPostIdRewardOffers(input, await authorize(input.body.persona_id));
+      let result: Awaited<ReturnType<typeof client.post_communitiesCommunityIdPostsPostIdRewardOffers>>;
+      try {
+        result = await client.post_communitiesCommunityIdPostsPostIdRewardOffers(input, await authorize(input.body.persona_id));
+      } catch (cause) {
+        // The server admits one non-terminal offer per post. A typed conflict
+        // means an offer already exists; rediscovery decides whether its
+        // public leg is visible, and the caller keeps the guard otherwise.
+        if (cause instanceof ApiClientError && cause.status === 409) {
+          throw new Error("reward_creation_offer_conflict");
+        }
+        throw cause;
+      }
       if (result.offer.community_id !== input.path.communityId || result.offer.post_id !== input.path.postId) throw new Error("reward_creation_response_mismatch");
       return result.offer.offer_id;
     },

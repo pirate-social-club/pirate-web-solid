@@ -84,7 +84,17 @@ export function RewardSponsorDialog(props: { communityId: string; postId: string
     setPersonaId(id);
     const selectedScope = { accountId: loaded.accountId, personaId: id, communityId: props.communityId, postId: props.postId };
     scope = selectedScope;
-    creation = createRewardCreation({ scope: selectedScope, currentScope, journal: dependencies?.journal ?? createBrowserRewardCreationJournal(), api: (dependencies?.creationApi ?? createRewardCreationApi)(selectedScope) });
+    creation = createRewardCreation({
+      scope: selectedScope, currentScope,
+      journal: dependencies?.journal ?? createBrowserRewardCreationJournal(),
+      api: (dependencies?.creationApi ?? createRewardCreationApi)(selectedScope),
+      rediscoverOffer: async () => {
+        const next = await data.sponsorContext(selectedScope, props.communityId, props.postId);
+        if (!alive || scope !== selectedScope) return null;
+        setSponsorContext(next);
+        return next.offer?.offer_id ?? null;
+      },
+    });
     setSponsorContext(undefined); setStep("loading");
     const next = await data.sponsorContext(selectedScope, props.communityId, props.postId);
     if (!alive || scope !== selectedScope) return;
