@@ -1,13 +1,16 @@
 import { spawn, type ChildProcess } from "node:child_process";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { connect } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { chromium, expect, test, type BrowserContext, type Page } from "playwright/test";
 
 const repoRoot = join(import.meta.dirname, "..");
 const origin = "http://127.0.0.1:4198";
+const fixturePort = Number(new URL(origin).port);
 const proofPath = "/__video-proof";
 const ledgerKey = "video-browser-proof-server";
+const serverReadyLine = "Video fixture browser proof:";
 
 type FixtureLedger = {
   readonly calls: string[];
@@ -30,6 +33,15 @@ type FixtureProof = {
 
 let server: ChildProcess | undefined;
 let serverOutput = "";
+let mediaDir: string | undefined;
+
+function portIsOccupied(): Promise<boolean> {
+  return new Promise(resolve => {
+    const socket = connect({ host: "127.0.0.1", port: fixturePort });
+    socket.once("connect", () => { socket.destroy(); resolve(true); });
+    socket.once("error", () => { socket.destroy(); resolve(false); });
+  });
+}
 
 async function waitForServer(): Promise<void> {
   const deadline = Date.now() + 60_000;
@@ -37,11 +49,9 @@ async function waitForServer(): Promise<void> {
     if (server?.exitCode !== null && server?.exitCode !== undefined) {
       throw new Error(`fixture server exited with ${server.exitCode}: ${serverOutput.slice(-2_000)}`);
     }
-    try {
-      const response = await fetch(`${origin}${proofPath}`);
-      if (response.ok) return;
-    } catch {
-      void 0;
+    if (serverOutput.includes(serverReadyLine)) {
+      const response = await fetch(`${origin}${proofPath}`).catch(() => undefined);
+      if (response?.ok === true && server?.exitCode === null) return;
     }
     await new Promise(resolve => setTimeout(resolve, 250));
   }
@@ -74,9 +84,25 @@ function click(page: Page, name: string): Promise<void> {
 test.describe.configure({ mode: "serial" });
 
 test.beforeAll(async () => {
+  if (await portIsOccupied()) {
+    throw new Error(`fixture port ${fixturePort} is already occupied; refusing to reuse another server`);
+  }
+  mediaDir = await mkdtemp(join(tmpdir(), "pirate-video-proof-media-"));
+  await writeFile(join(mediaDir, "master.m3u8"), [
+    "#EXTM3U",
+    "#EXT-X-VERSION:3",
+    "#EXT-X-TARGETDURATION:2",
+    "#EXT-X-MEDIA-SEQUENCE:0",
+    "#EXTINF:2.000000,",
+    "segment_000.ts",
+    "#EXT-X-ENDLIST",
+    "",
+  ].join("\n"));
+  await writeFile(join(mediaDir, "segment_000.ts"), new Uint8Array([0x47, 0x40, 0x00, 0x10]));
   server = spawn(process.execPath, ["scripts/video-browser-proof-server.mjs"], {
     cwd: repoRoot,
     stdio: ["ignore", "pipe", "pipe"],
+    env: { ...process.env, VIDEO_PROOF_MEDIA_DIR: mediaDir },
   });
   server.stdout?.on("data", chunk => { serverOutput += String(chunk); });
   server.stderr?.on("data", chunk => { serverOutput += String(chunk); });
@@ -84,11 +110,13 @@ test.beforeAll(async () => {
 });
 
 test.afterAll(async () => {
-  if (server === undefined) return;
-  const exited = new Promise<void>(resolve => { server?.once("exit", () => resolve()); });
-  server.kill("SIGTERM");
-  await Promise.race([exited, new Promise(resolve => setTimeout(resolve, 5_000))]);
-  if (server.exitCode === null) server.kill("SIGKILL");
+  if (server !== undefined) {
+    const exited = new Promise<void>(resolve => { server?.once("exit", () => resolve()); });
+    server.kill("SIGTERM");
+    await Promise.race([exited, new Promise(resolve => setTimeout(resolve, 5_000))]);
+    if (server.exitCode === null) server.kill("SIGKILL");
+  }
+  if (mediaDir !== undefined) await rm(mediaDir, { recursive: true, force: true });
 });
 
 test("retains the interrupted upload across a browser restart and completes one logical submission", async () => {
@@ -166,8 +194,18 @@ test("refuses denied playback access without serving media or minting again", as
     }, ledgerKey);
     const page = context.pages()[0] ?? await context.newPage();
     const mediaRequests: string[] = [];
+    const mediaResponses: { readonly url: string; readonly status: number; readonly contentType: string }[] = [];
     page.on("request", request => {
       if (request.url().includes("/__video-media/")) mediaRequests.push(request.url());
+    });
+    page.on("response", response => {
+      if (response.url().includes("/__video-media/")) {
+        mediaResponses.push({
+          url: response.url(),
+          status: response.status(),
+          contentType: response.headers()["content-type"] ?? "",
+        });
+      }
     });
     await page.goto(`${origin}${proofPath}`);
     const player = page.locator("[data-video-player-state]");
@@ -192,7 +230,11 @@ test("refuses denied playback access without serving media or minting again", as
     }, ledgerKey);
     await page.waitForTimeout(10_500);
     await click(page, "Try playback again");
-    await expect.poll(() => mediaRequests.length, { timeout: 20_000 }).toBeGreaterThan(0);
+    await expect.poll(() => mediaResponses.length, { timeout: 20_000 }).toBeGreaterThan(0);
+    const manifest = mediaResponses.find(response => response.url.endsWith("/master.m3u8"));
+    expect(manifest).toBeDefined();
+    expect(manifest?.status).toBe(200);
+    expect(manifest?.contentType).toContain("mpegurl");
   } finally {
     await context?.close();
     await rm(userDataDir, { recursive: true, force: true });
