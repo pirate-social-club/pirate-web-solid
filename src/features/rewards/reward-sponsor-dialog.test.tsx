@@ -185,6 +185,45 @@ describe("composed sponsor journey", () => {
     expect(document.body.textContent).not.toContain("Confirm transfer");
   });
 
+  it("attempts an unconfirmed permission and surfaces the server refusal", async () => {
+    const fixture = rewardSponsorFixture();
+    const open = vi.fn(async () => { throw new Error("owner-only"); });
+    const dependencies = {
+      ...fixture,
+      data: {
+        ...fixture.data,
+        async sponsorContext() {
+          return {
+            offer: null,
+            permissions: {
+              add_asset_bonus: { allowed: "unconfirmed" as const, reason: null },
+              add_megapot_pool: { allowed: "unconfirmed" as const, reason: null },
+            },
+          };
+        },
+      },
+      creationApi: () => ({ open, add: async () => { throw new Error("unexpected add"); } }),
+    };
+    const root = document.createElement("div");
+    document.body.appendChild(root);
+    createRoot(dispose => {
+      disposers.push(dispose);
+      render(() => (
+        <RewardSponsorDialog communityId="community" postId="song" songTitle="Salt & Static" dependencies={dependencies} onClose={() => {}} />
+      ), root);
+    });
+    await vi.waitFor(() => expect(document.body.textContent).toContain("Review terms"));
+    fill("Total budget", "18");
+    fill("Maximum ticket price", "1");
+    fill("Offer ends", "2099-09-15T12:00");
+    await new Promise(resolve => setTimeout(resolve, 0));
+    button("Review terms").click();
+    await vi.waitFor(() => expect(document.body.textContent).toContain("Create reward"));
+    button("Create reward").click();
+    await vi.waitFor(() => expect(document.body.textContent).toContain("This step could not be completed"));
+    expect(open).toHaveBeenCalledOnce();
+  });
+
   it("closes and disposes private presentation when the application account changes", async () => {
     const dependencies = rewardSponsorFixture(), close = vi.fn();
     const root = document.createElement("div"); document.body.appendChild(root);

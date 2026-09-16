@@ -8,6 +8,7 @@ const leg: RewardLegRequest = { kind: "asset_bonus", input: { path: { offerId: "
   funding_amount_atomic: "10000000", amount_per_claim_atomic: "1000000", max_claims: 10,
 } } };
 const target = { kind: "asset_bonus" as const, legId: "leg", fundingEffectId: "effect" };
+const existingLeg: RewardLegRequest = { ...leg, input: { ...leg.input, path: { offerId: "existing-offer" } } };
 function setup() {
   const values = new Map<string,string>();
   let tail = Promise.resolve();
@@ -51,6 +52,23 @@ describe("reward creation recovery", () => {
     expect(await s.controller().recover()).toEqual(target);
     expect(s.api.open).toHaveBeenCalledTimes(1);
     expect(s.api.add.mock.calls[0]).toEqual(s.api.add.mock.calls[1]);
+  });
+  it("joins an existing offer without opening one, before and after reload", async () => {
+    const s = setup(); s.api.add.mockRejectedValueOnce(new Error("lost response"));
+    await expect(s.controller().start(null,existingLeg)).rejects.toThrow("lost response");
+    expect(s.api.open).not.toHaveBeenCalled();
+    expect(s.controller().pending()?.offer).toBeNull();
+    expect(s.controller().pending()?.offerId).toBe("existing-offer");
+    expect(await s.controller().recover()).toEqual(target);
+    expect(s.api.open).not.toHaveBeenCalled();
+    expect(s.api.add.mock.calls[0]).toEqual(s.api.add.mock.calls[1]);
+  });
+  it("fails closed when a stored record names neither a reviewed offer nor an existing one", async () => {
+    const s = setup();
+    s.values.set(rewardCreationKey(scope), JSON.stringify({ version: 1, scope, offer: null, leg, offerId: null, target: null }));
+    await expect(s.controller().recover()).rejects.toThrow("reward_creation_recovery_corrupt");
+    expect(s.api.open).not.toHaveBeenCalled();
+    expect(s.api.add).not.toHaveBeenCalled();
   });
   it("serializes two tabs on the song, refusing replacement of the pending operation", async () => {
     const s = setup();
