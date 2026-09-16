@@ -14,7 +14,7 @@ const clients = [
       "post_communitiesCommunityIdPostsPostIdRewardOffers",
       "post_rewardOffersOfferIdMegapotPoolLegs",
       "post_rewardOffersOfferIdAssetBonusLegs",
-      "get_communitiesCommunityIdPostsPostIdRewardsSponsorContext",
+      "get_communitiesCommunityIdPostsPostIdOwnerPolicy",
       "get_rewardsQualificationPolicies",
       "get_rewardsBonusAssets",
       "get_communitiesCommunityIdPostsPostIdRewardsMegapotPool",
@@ -25,7 +25,6 @@ const clients = [
       "get_rewardOfferLegsLegIdFundingFundingEffectId",
       "post_assetBonusLegsLegIdFundingFundingEffectIdObservations",
       "get_assetBonusLegsLegIdFundingFundingEffectId",
-
       "post_communityCreationIntents",
       "get_communityCreationIntentsIntentId",
       "patch_communityCreationIntentsIntentId",

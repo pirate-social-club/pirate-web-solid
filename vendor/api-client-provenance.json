@@ -66,6 +66,20 @@
     "post_communitiesCommunityIdHandleNationalityQualificationPolicies",
     "get_handleQualificationIntentsIntentId",
     "post_handleQuotes",
-    "get_meAgeVerification"
+    "get_meAgeVerification",
+    "post_communitiesCommunityIdPostsPostIdRewardOffers",
+    "post_rewardOffersOfferIdMegapotPoolLegs",
+    "post_rewardOffersOfferIdAssetBonusLegs",
+    "get_communitiesCommunityIdPostsPostIdOwnerPolicy",
+    "get_rewardsQualificationPolicies",
+    "get_rewardsBonusAssets",
+    "get_communitiesCommunityIdPostsPostIdRewardsMegapotPool",
+    "get_communitiesCommunityIdPostsPostIdRewardsAssetBonuses",
+    "get_rewardOfferLegsLegIdStanding",
+    "get_rewardsCredits",
+    "post_rewardOfferLegsLegIdFundingFundingEffectIdObservations",
+    "get_rewardOfferLegsLegIdFundingFundingEffectId",
+    "post_assetBonusLegsLegIdFundingFundingEffectIdObservations",
+    "get_assetBonusLegsLegIdFundingFundingEffectId"
   ]
 }

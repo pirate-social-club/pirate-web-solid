@@ -8,10 +8,12 @@ const currentClient = resolve(
   appRoot,
   "node_modules/@pirate/api-client/src/generated/client.ts",
 );
-// Client 0.79.0 combines the reviewed recovery enum with nationality creation,
+// Client 0.81.0 combines the reviewed recovery enum with nationality creation,
 // joining, independent handle qualification, and renewable document18+ authority.
+// It also carries the sponsor reward offers, funding effects, projections,
+// standings and credits consumed by the standalone reward surface.
 // This digest pins the exact success, error, and schema tables consumed here.
-const expectedDigest = "b3935dc829eb7134301e8e9d490cb8934b9d5d2137af7c9989009ecfa3ebcf05";
+const expectedDigest = "024f243888852f35b3a09b9d7588824c85dd8ba0fbd7784adc7cc5a015e97e5f";
 
 const operations = [
   "post_postsPostIdVideoPlaybackAccess",
@@ -70,6 +72,20 @@ const operations = [
   "post_communityCreationIntents",
   "post_communityCreationIntentsIntentIdCommit",
   "post_handleQuotes",
+  "post_communitiesCommunityIdPostsPostIdRewardOffers",
+  "post_rewardOffersOfferIdMegapotPoolLegs",
+  "post_rewardOffersOfferIdAssetBonusLegs",
+  "get_communitiesCommunityIdPostsPostIdOwnerPolicy",
+  "get_rewardsQualificationPolicies",
+  "get_rewardsBonusAssets",
+  "get_communitiesCommunityIdPostsPostIdRewardsMegapotPool",
+  "get_communitiesCommunityIdPostsPostIdRewardsAssetBonuses",
+  "get_rewardOfferLegsLegIdStanding",
+  "get_rewardsCredits",
+  "post_rewardOfferLegsLegIdFundingFundingEffectIdObservations",
+  "get_rewardOfferLegsLegIdFundingFundingEffectId",
+  "post_assetBonusLegsLegIdFundingFundingEffectIdObservations",
+  "get_assetBonusLegsLegIdFundingFundingEffectId",
 ];
 
 const tables = [
