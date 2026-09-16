@@ -103,7 +103,7 @@ export const ProfilesUnavailable: Story = {
   },
 };
 
-/** A persona bound to another community cannot start a session here. */
+/** An account without a persona in this community prepares one instead of joining. */
 export const NoCommunityPersona: Story = {
   args: {
     api: studyApi(),
@@ -112,8 +112,9 @@ export const NoCommunityPersona: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await waitFor(() =>
-      expect(canvas.getByText("Join this community or create a persona there before starting Study.")).toBeInTheDocument(),
+      expect(canvas.getByRole("heading", { name: "Set up Study" })).toBeInTheDocument(),
     );
+    expect(canvas.queryByText("Join this community or create a persona there before starting Study.")).not.toBeInTheDocument();
   },
 };
 
