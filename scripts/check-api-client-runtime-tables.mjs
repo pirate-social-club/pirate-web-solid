@@ -10,10 +10,12 @@ const currentClient = resolve(
 );
 // Client 0.82.0 combines the reviewed recovery enum, nationality creation,
 // joining, independent handle qualification and renewable document18+ authority
-// with the additive activity-persona preparation operation consumed by
-// Study and Karaoke entry. This digest pins the exact success, error, and
-// schema tables consumed here.
-const expectedDigest = "7acc862d6dfa02c70f7f55764e6ab5950c1ce233e5104e50e85e34a43a776add";
+// with the additive activity-persona preparation operation consumed by Study
+// and Karaoke entry, and the sponsor reward offers, funding effects,
+// projections, standings and credits consumed by the standalone reward
+// surface. This digest pins the exact success, error, and schema tables
+// consumed here across both candidates.
+const expectedDigest = "a07442ce6b026f4fc5bee414cb0e17a28d924a59b3a1510dd733648a2bcc8310";
 
 const operations = [
   "post_postsPostIdVideoPlaybackAccess",
@@ -73,6 +75,20 @@ const operations = [
   "post_communityCreationIntentsIntentIdCommit",
   "post_handleQuotes",
   "post_communitiesCommunityIdActivityPersonasPrepare",
+  "post_communitiesCommunityIdPostsPostIdRewardOffers",
+  "post_rewardOffersOfferIdMegapotPoolLegs",
+  "post_rewardOffersOfferIdAssetBonusLegs",
+  "get_communitiesCommunityIdPostsPostIdOwnerPolicy",
+  "get_rewardsQualificationPolicies",
+  "get_rewardsBonusAssets",
+  "get_communitiesCommunityIdPostsPostIdRewardsMegapotPool",
+  "get_communitiesCommunityIdPostsPostIdRewardsAssetBonuses",
+  "get_rewardOfferLegsLegIdStanding",
+  "get_rewardsCredits",
+  "post_rewardOfferLegsLegIdFundingFundingEffectIdObservations",
+  "get_rewardOfferLegsLegIdFundingFundingEffectId",
+  "post_assetBonusLegsLegIdFundingFundingEffectIdObservations",
+  "get_assetBonusLegsLegIdFundingFundingEffectId",
 ];
 
 const tables = [
