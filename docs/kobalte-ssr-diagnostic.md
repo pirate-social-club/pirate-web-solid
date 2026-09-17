@@ -57,9 +57,13 @@ changing the dirty canonical checkout:
 
 Current state: **one patch file, two behavioral areas** — Solid 2 signal
 compatibility in Kobalte internals and the default Button hydration path. The
-patch is reproducible through Bun's `patchedDependencies` entry and is exact
-pinned to `@kobalte/core@2.0.0-alpha.0`; the app runtime check verifies that the
-patched output is present after install. The proposed upstream report is
+patch is reproducible through the vendored tarball build recorded in
+`vendor/kobalte-core-provenance.json`, which applies
+`packages/solid-ui/patches/@kobalte%2Fcore@2.0.0-alpha.0.patch` to the official
+`solid2` source at commit `a8921870`, and is exact pinned to
+`@kobalte/core@2.0.0-alpha.0`; the app runtime check verifies the patch and
+tarball hashes and that the patched output is present after install. The
+proposed upstream report is
 prepared in `kobalte-solid2-upstream-issue.md` and has not been filed
 externally.
 
