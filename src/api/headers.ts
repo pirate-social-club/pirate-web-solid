@@ -30,6 +30,10 @@ const SAFE_REQUEST_HEADERS = new Set([
   "referer",
   "x-csrf-token",
   "x-request-id",
+  // Study v2 raw-answer headers: the API's answer contract requires both for
+  // spoken submissions, so the same-origin proxy must forward them.
+  "x-audio-duration-ms",
+  "x-study-attempt-number",
 ]);
 
 export const MAX_REQUEST_BODY_BYTES = 1_048_576;

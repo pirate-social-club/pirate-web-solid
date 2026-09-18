@@ -58,6 +58,8 @@ describe("same-origin API transport", () => {
         host: "evil.test",
         origin: "https://solid.test",
         "x-csrf-token": "csrf",
+        "x-audio-duration-ms": "1250",
+        "x-study-attempt-number": "2",
         "x-not-allowlisted": "drop",
       },
     });
@@ -68,6 +70,8 @@ describe("same-origin API transport", () => {
     expect(headers.get("x-not-allowlisted")).toBeNull();
     expect(headers.get("cookie")).toBe("__Host-pirate_session=one; __Host-pirate_session=two; a=b");
     expect(headers.get("x-csrf-token")).toBe("csrf");
+    expect(headers.get("x-audio-duration-ms")).toBe("1250");
+    expect(headers.get("x-study-attempt-number")).toBe("2");
   });
 
   it("preserves multiple Set-Cookie values", () => {
