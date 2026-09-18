@@ -9,7 +9,9 @@ import { silenceCaptureWav, toneCaptureWav } from "./study-karaoke-harness/paths
  *
  * Requirements before running:
  * - the api-next harness Worker on http://127.0.0.1:8788 (its README),
- * - the Solid dev server on http://127.0.0.1:8787 (bun run dev),
+ * - the Solid application build previewed on http://127.0.0.1:8787
+ *   (`bun run build` then `bun x vite preview --host 127.0.0.1 --port 8787`);
+ *   the Vite dev server's hydration scripts are blocked by its own CSP,
  * - the seeded harness manifest (api-next tests/study-karaoke-harness).
  *
  * One Chromium worker, no parallel shards. Specs tagged @silent-audio run in
