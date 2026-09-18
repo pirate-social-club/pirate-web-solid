@@ -177,8 +177,20 @@ export function makeAttemptIdempotencyKey(
   return `study:${sessionId}:${exerciseId}:${attemptNumber}:${random}`;
 }
 
+/**
+ * The api-next answer contract bounds the idempotency key at 128 characters
+ * (`Identifier`); real session and session-item identifiers already consume
+ * most of that budget, so the random suffix must stay short. Six random bytes
+ * keep the composite key within the bound while preserving per-mount
+ * uniqueness.
+ */
 function defaultIdempotencyRandom(): string {
-  return globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  const bytes = new Uint8Array(6);
+  if (globalThis.crypto?.getRandomValues !== undefined) {
+    globalThis.crypto.getRandomValues(bytes);
+    return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
+  }
+  return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
 export function clampPercent(value: number): number {

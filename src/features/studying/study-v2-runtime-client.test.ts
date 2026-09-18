@@ -372,3 +372,13 @@ describe("Study v2 runtime client", () => {
     });
   });
 });
+
+describe("study attempt idempotency keys", () => {
+  test("stay within the api-next 128-character Identifier bound for real identifiers", async () => {
+    const { makeAttemptIdempotencyKey } = await import("./studying-model");
+    const sessionId = `study_v2_${"a".repeat(32)}`;
+    const exerciseId = `${sessionId}_item_1`;
+    const key = makeAttemptIdempotencyKey(sessionId, exerciseId, 1);
+    expect(key.length).toBeLessThanOrEqual(128);
+  });
+});
