@@ -203,7 +203,7 @@
     "descriptionPlaceholder": "这个社区是关于什么的？",
     "joinPolicyTitle": "谁可以加入",
     "humanVerificationTitle": "掌纹扫描",
-    "humanVerificationDescription": "证明每位成员都是唯一真人。",
+    "humanVerificationDescription": "成员通过掌纹扫描进行验证。",
     "humanVerificationRequired": "必需",
     "additionalRequirementsTitle": "附加要求",
     "nationalityLabel": "按国籍限制",

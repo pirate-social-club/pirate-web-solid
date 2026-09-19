@@ -68,7 +68,7 @@ export const Empty: Story = {
     await expect(canvas.getByRole("button", { name: "Create" })).toBeDisabled();
     await expect(canvas.getByText("Who can join")).toBeInTheDocument();
     await expect(canvas.getByText("Palm scan")).toBeInTheDocument();
-    await expect(canvas.getByText(/Required · Proves each member is a unique human/)).toBeInTheDocument();
+    await expect(canvas.getByText(/Required · Members verify with a palm scan/)).toBeInTheDocument();
     await expect(canvas.queryByText("Additional requirements")).not.toBeInTheDocument();
     await expect(canvas.getByRole("checkbox", { name: "Limit by nationality" })).not.toBeChecked();
   },

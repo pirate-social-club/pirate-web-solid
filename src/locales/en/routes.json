@@ -203,7 +203,7 @@
     "descriptionPlaceholder": "What is this community about?",
     "joinPolicyTitle": "Who can join",
     "humanVerificationTitle": "Palm scan",
-    "humanVerificationDescription": "Proves each member is a unique human.",
+    "humanVerificationDescription": "Members verify with a palm scan.",
     "humanVerificationRequired": "Required",
     "additionalRequirementsTitle": "Additional requirements",
     "nationalityLabel": "Limit by nationality",
