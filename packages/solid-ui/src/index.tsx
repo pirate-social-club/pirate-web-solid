@@ -128,6 +128,10 @@ export {
   type ComboboxProps,
 } from "./components/forms/combobox/combobox";
 export {
+  MultiCombobox,
+  type MultiComboboxProps,
+} from "./components/forms/combobox/multi-combobox";
+export {
   EditableNumberInput,
   type EditableNumberInputProps,
 } from "./components/forms/editable-number-input/editable-number-input";

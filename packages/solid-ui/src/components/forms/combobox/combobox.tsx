@@ -36,7 +36,7 @@ export interface ComboboxProps<Option> {
   name?: string;
 }
 
-function ComboboxItem(props: ComboboxRootItemComponentProps<unknown>) {
+export function ComboboxItem(props: ComboboxRootItemComponentProps<unknown>) {
   const item = props.item;
 
   return (
