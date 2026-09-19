@@ -15,7 +15,7 @@ export interface NationalityAllowlistCopy {
 /** Default English copy; callers with localized strings pass their own object. */
 export const NATIONALITY_ALLOWLIST_COPY: NationalityAllowlistCopy = {
   label: "Limit by nationality",
-  description: "Joining members prove their nationality on a supported document. You can pick the countries you allow.",
+  description: "Members prove nationality with a supported document.",
   pickerLabel: "Allowed nationalities",
   pickerPlaceholder: "Search countries",
   emptyError: "Choose at least one country.",

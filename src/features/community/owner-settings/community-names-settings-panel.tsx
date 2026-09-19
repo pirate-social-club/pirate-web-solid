@@ -92,7 +92,7 @@ function ReadyNamesCard(props: Pick<CommunityNamesSettingsPanelProps, "busy" | "
             disabled={props.busy !== undefined}
             copy={{
               label: "Require nationality to claim a handle",
-              description: "Buyers prove their nationality on a supported document. Pick the countries you allow.",
+              description: "Buyers prove nationality with a supported document.",
             }}
           />
           <Button type="button" disabled={props.busy !== undefined || countries()?.length === 0} onClick={() => {

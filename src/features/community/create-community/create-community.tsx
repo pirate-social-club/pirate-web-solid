@@ -214,7 +214,6 @@ export function CreateCommunityView(props: CreateCommunityProps) {
           <div class="mb-1" id={joinPolicyLabelId}>
             <Type as="span" variant="body-strong">{copy().joinPolicyTitle}</Type>
           </div>
-          <Type as="p" variant="caption" class="text-sm leading-5">{copy().joinPolicyFraming}</Type>
           <ListRow
             description={`${copy().humanVerificationRequired} \u00b7 ${copy().humanVerificationDescription}`}
             leading={<IconHandPalm class="size-6" />}
