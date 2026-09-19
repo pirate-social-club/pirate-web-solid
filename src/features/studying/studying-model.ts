@@ -182,7 +182,8 @@ export function makeAttemptIdempotencyKey(
  * (`Identifier`); real session and session-item identifiers already consume
  * most of that budget, so the random suffix must stay short. Six random bytes
  * keep the composite key within the bound while preserving per-mount
- * uniqueness.
+ * uniqueness; the fallback path is bounded to the same length so an
+ * environment without `crypto.getRandomValues` cannot exceed it either.
  */
 function defaultIdempotencyRandom(): string {
   const bytes = new Uint8Array(6);
@@ -190,7 +191,9 @@ function defaultIdempotencyRandom(): string {
     globalThis.crypto.getRandomValues(bytes);
     return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
   }
-  return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  let suffix = "";
+  while (suffix.length < 12) suffix += Math.floor(Math.random() * 36).toString(36);
+  return suffix;
 }
 
 export function clampPercent(value: number): number {
