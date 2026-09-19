@@ -5,6 +5,7 @@ import {
   currentStudyPrompt,
   databaseRows,
   harnessManifest,
+  type HarnessManifest,
   resetStudyScripts,
   useAccount,
   waitForDatabaseRow,
@@ -19,7 +20,14 @@ import {
  * Each test owns a distinct synthetic account so spaced-repetition scheduling
  * and completion effects stay isolated.
  */
-const manifest = harnessManifest();
+let manifest: HarnessManifest;
+
+// Read the manifest in a hook, not at module load: Playwright's `--list`
+// discovery loads the spec files on checkouts that have no local harness
+// manifest, and a top-level read would fail the discovery gate there.
+test.beforeAll(() => {
+  manifest = harnessManifest();
+});
 
 interface SessionRow {
   readonly session_id: string;

@@ -5,6 +5,7 @@ import {
   databaseRows,
   expectedApiSocketOrigin,
   harnessManifest,
+  type HarnessManifest,
   useAccount,
   waitForDatabaseRow,
 } from "./fixtures/harness.ts";
@@ -18,7 +19,14 @@ import {
  * The instrumental is served by the Solid dev server at /harness/instrumental.wav,
  * so playback drives song time exactly as in production.
  */
-const manifest = harnessManifest();
+let manifest: HarnessManifest;
+
+// Read the manifest in a hook, not at module load: Playwright's `--list`
+// discovery loads the spec files on checkouts that have no local harness
+// manifest, and a top-level read would fail the discovery gate there.
+test.beforeAll(() => {
+  manifest = harnessManifest();
+});
 
 interface KaraokeAttemptRow {
   readonly attempt_id: string;
