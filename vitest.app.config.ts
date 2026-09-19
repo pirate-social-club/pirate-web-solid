@@ -112,6 +112,7 @@ export default defineConfig({
       "src/features/profiles/persona-public-profile/persona-public-profile.test.tsx",
       "src/features/shell/media-shell/media-shell.test.tsx",
       "src/features/shell/application-chrome-model.test.ts",
+      "src/features/studying/study-session-start-coordinator.test.ts",
       "src/features/studying/study-v2-api.test.ts",
       "src/features/studying/study-v2-route-view.test.tsx",
       "src/features/studying/study-v2-runtime-client.test.ts",

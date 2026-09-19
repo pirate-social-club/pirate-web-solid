@@ -27,6 +27,11 @@ import {
 } from "./study-v2-api";
 import { createStudyV2RuntimeClient } from "./study-v2-runtime-client";
 import { createStudyingBrowserRecorder } from "./studying-browser-recorder";
+import {
+  createStudySessionStartCoordinator,
+  type StudySessionStartCoordinator,
+  type StudySessionStartScope,
+} from "./study-session-start-coordinator.ts";
 import type { StudyingRecorder } from "./studying-route-model";
 import {
   StudyAuthRequiredState,
@@ -38,6 +43,7 @@ import { StudyingRouteView } from "./studying-route-view";
 type ReadyAvailability = Extract<StudyAvailability, { state: "ready" }>;
 type RouteState =
   | { kind: "loading" }
+  | { kind: "starting" }
   | { kind: "auth-required" }
   | { kind: "age-required" }
   | { kind: "failed"; message: string }
@@ -63,6 +69,8 @@ export interface StudyV2RouteViewProps {
   karaokePath?: string;
   recorder?: StudyingRecorder;
   resolveSession?: () => Promise<SessionResolution>;
+  /** Test seam for the cross-tab start coordinator. */
+  startCoordinator?: StudySessionStartCoordinator;
 }
 
 function availabilityMessage(availability: Exclude<StudyAvailability, { state: "ready" }>): string {
@@ -97,18 +105,12 @@ function sessionKey(postId: string): string {
   return `study-session:${postId}:${random}`;
 }
 
-function timezone(): string {
-  try {
-    return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
-  } catch {
-    return "UTC";
-  }
-}
-
 export function StudyV2RouteView(props: StudyV2RouteViewProps) {
   const api = props.api ?? createStudyV2Api();
   const preparation = props.preparationApi ?? createActivityPersonaPreparationApi();
   const recorder = props.recorder ?? createStudyingBrowserRecorder();
+  const startCoordinator =
+    props.startCoordinator ?? createStudySessionStartCoordinator({ api });
   const [state, setState] = createSignal<RouteState>({ kind: "loading" });
   const [personaId, setPersonaId] = createSignal("");
   const [preparePersonaId, setPreparePersonaId] = createSignal("");
@@ -123,13 +125,63 @@ export function StudyV2RouteView(props: StudyV2RouteViewProps) {
   let loadStarted = false;
   let loadInFlight = false;
   let requestGeneration = 0;
-  let createIdempotencyKey = sessionKey(props.postId);
   let prepareIdempotencyKey = sessionKey(`prepare:${props.postId}`);
+  let lastStartScope: StudySessionStartScope | undefined;
   let walletConfirmationController: AbortController | undefined;
 
   const navigate = (href: string) => {
     if (props.navigate) props.navigate(href);
     else if (typeof window !== "undefined") window.location.assign(href);
+  };
+
+  const beginSession = async (input: {
+    readonly availability: ReadyAvailability;
+    readonly communityId: string;
+    readonly learnerBand: StudyLearnerBand | null;
+    readonly personaId: string;
+    readonly session: AuthenticatedSession;
+    readonly targetLanguage: string | null;
+  }): Promise<void> => {
+    setState({ kind: "starting" });
+    setMessage("");
+    const scope: StudySessionStartScope = {
+      accountId: input.session.userId,
+      communityId: input.communityId,
+      learnerBand: input.learnerBand,
+      personaId: input.personaId,
+      postId: props.postId,
+      targetLanguage: input.targetLanguage,
+    };
+    lastStartScope = scope;
+    const result = await startCoordinator.start(scope);
+    if (!active) return;
+    if (result.status === "unavailable") {
+      setMessage(result.message);
+      setState({
+        availability: input.availability,
+        communityId: input.communityId,
+        kind: "configure",
+        session: input.session,
+      });
+      return;
+    }
+    try {
+      const session = await api.getSession({
+        communityId: input.communityId,
+        sessionId: result.sessionId,
+      });
+      if (active) setState({ kind: "lesson", session });
+    } catch {
+      if (active) {
+        setMessage("Study could not open the started session. Refresh the page and retry.");
+        setState({
+          availability: input.availability,
+          communityId: input.communityId,
+          kind: "configure",
+          session: input.session,
+        });
+      }
+    }
   };
 
   const load = async (preserveChoices = false) => {
@@ -176,6 +228,22 @@ export function StudyV2RouteView(props: StudyV2RouteViewProps) {
       }
       if (!preserveChoices || !eligible.some(persona => persona.personaId === personaId())) setPersonaId(defaultOperationPersonaId(eligible) ?? "");
       if (!preserveChoices) { setTargetLanguage(""); setLearnerBand(""); }
+      const preparedPersona = defaultOperationPersonaId(eligible);
+      if (eligible.length === 1 && preparedPersona !== undefined) {
+        // A single prepared persona needs no preparation gate: open the first
+        // exercise directly, source-only, reusing that persona. Capture still
+        // waits for the participant's personal consent inside the lesson.
+        await beginSession({
+          availability: loaded.availability,
+          communityId: loaded.communityId,
+          learnerBand: null,
+          personaId: preparedPersona,
+          session: resolved,
+          targetLanguage: null,
+        });
+        return;
+      }
+      // More than one eligible persona stays explicit: no silent identity choice.
       setState({
         availability: loaded.availability,
         communityId: loaded.communityId,
@@ -228,23 +296,18 @@ export function StudyV2RouteView(props: StudyV2RouteViewProps) {
       setMessage("Choose the persona this session presents in this community.");
       return;
     }
+    const selectedBand: StudyLearnerBand | null = band === "" ? null : band;
     setStarting(true);
     setMessage("");
     try {
-      const session = await api.createSession({
+      await beginSession({
+        availability: configuration.availability,
         communityId: configuration.communityId,
-        idempotencyKey: createIdempotencyKey,
-        learnerBand: language === "" ? null : band || null,
+        learnerBand: language === "" ? null : selectedBand,
         personaId: personaId(),
-        postId: props.postId,
+        session: configuration.session,
         targetLanguage: language || null,
-        timezone: timezone(),
       });
-      if (active) setState({ kind: "lesson", session });
-    } catch (error) {
-      if (active) setMessage(error instanceof ApiClientError && error.status === 409
-        ? "The session requirements changed. Refresh your community personas and Study availability before trying again."
-        : safeFailure(error, "Could not start this Study session. Try again."));
     } finally {
       if (active) setStarting(false);
     }
@@ -346,7 +409,10 @@ export function StudyV2RouteView(props: StudyV2RouteViewProps) {
   return (
     <main data-route-path={props.routePath ?? `/p/${props.postId}/study`} class="min-h-dvh bg-background text-foreground">
       <Title>Study · Pirate</Title>
-      <Show when={state().kind !== "loading"} fallback={<StudyRouteLoadingState label="Loading study" />}>
+      <Show
+        when={state().kind !== "loading" && state().kind !== "starting"}
+        fallback={<StudyRouteLoadingState label={state().kind === "starting" ? "Starting study" : "Loading study"} />}
+      >
         <Show when={state().kind !== "auth-required"} fallback={(
           <StudyAuthRequiredState
             description="Study packs follow the song's community. Sign in to start a lesson."
@@ -363,7 +429,6 @@ export function StudyV2RouteView(props: StudyV2RouteViewProps) {
               description={failureState()?.message ?? "We couldn't load Study for this song."}
               onGoHome={() => navigate(props.exitPath ?? "/")}
               onRetry={() => {
-                createIdempotencyKey = sessionKey(props.postId);
                 void load();
               }}
               title="Study unavailable"
@@ -382,7 +447,7 @@ export function StudyV2RouteView(props: StudyV2RouteViewProps) {
                           onExit={() => navigate(props.exitPath ?? "/")}
                           onKaraoke={() => navigate(props.karaokePath ?? `/p/${encodeURIComponent(props.postId)}/karaoke`)}
                           onStudyAgain={() => {
-                            createIdempotencyKey = sessionKey(props.postId);
+                            if (lastStartScope !== undefined) startCoordinator.forget(lastStartScope);
                             void load();
                           }}
                           postId={props.postId}
