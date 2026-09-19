@@ -120,7 +120,7 @@ describe("MultiCombobox", () => {
     });
     flush();
 
-    expect(within(container).getByRole("button", { name: "Remove Harbor Lights" })).toBeInTheDocument();
+    expect(within(container).getAllByRole("button", { name: /^Remove / })).toHaveLength(2);
     await user.click(within(container).getByRole("button", { name: "Remove Harbor Lights" }));
 
     expect(onChange).toHaveBeenCalledWith(["neon"]);
