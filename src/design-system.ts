@@ -36,6 +36,10 @@ export {
   CardHeader,
   CardTitle,
 } from "@pirate/web-solid-ui";
+export {
+  MultiCombobox,
+  type MultiComboboxProps,
+} from "@pirate/web-solid-ui";
 export { Separator, Type } from "@pirate/web-solid-ui";
 export {
   Toaster,

@@ -86,7 +86,15 @@ function ReadyNamesCard(props: Pick<CommunityNamesSettingsPanelProps, "busy" | "
         <p class="text-sm">{offering()?.qualification_policy.kind === "curated_nationality_v1" ? "A nationality proof is required for these handles." : "These handles have no nationality restriction."} This is separate from joining the community.</p>
         <Show when={editingNationality()} fallback={<Button type="button" variant="secondary" disabled={props.busy !== undefined} onClick={() => { setCountries(offering()?.qualification_policy.kind === "curated_nationality_v1" ? [] : undefined); setEditingNationality(true); }}>Change handle nationality requirement</Button>}>
           <p class="text-sm">Choose the complete replacement allowlist. Saving invalidates outstanding quotes; buyers must request a new quote.</p>
-          <NationalityAllowlistField countries={countries()} onChange={setCountries} disabled={props.busy !== undefined} label="Require nationality to claim a handle" />
+          <NationalityAllowlistField
+            countries={countries()}
+            onChange={setCountries}
+            disabled={props.busy !== undefined}
+            copy={{
+              label: "Require nationality to claim a handle",
+              description: "Buyers prove their nationality on a supported document. Pick the countries you allow.",
+            }}
+          />
           <Button type="button" disabled={props.busy !== undefined || countries()?.length === 0} onClick={() => {
             const current = offering(); if (current) props.onCommand?.({ kind: "set_nationality", offering: current, countries: countries() });
           }}>Save handle requirement</Button>

@@ -220,11 +220,21 @@ export function CreateCommunityView(props: CreateCommunityProps) {
             leading={<IconHandPalm class="size-6" />}
             title={copy().humanVerificationTitle}
           />
-          <NationalityAllowlistField countries={nationality()?.allowedCountries} locale={locale} onChange={countries => props.onDraftChange?.({
-            additionalRequirements: countries === undefined
-              ? props.draft.additionalRequirements.filter(value => value.requirement !== "nationality-allowed")
-              : [...props.draft.additionalRequirements.filter(value => value.requirement !== "nationality-allowed"), { requirement: "nationality-allowed", allowedCountries: [...countries] }],
-          })} />
+          <NationalityAllowlistField
+            countries={nationality()?.allowedCountries}
+            locale={locale}
+            copy={{
+              label: copy().nationalityLabel,
+              description: copy().nationalityDescription,
+              pickerLabel: copy().nationalityPickerLabel,
+              pickerPlaceholder: copy().nationalityPickerPlaceholder,
+              emptyError: copy().nationalityEmptyError,
+            }}
+            onChange={countries => props.onDraftChange?.({
+              additionalRequirements: countries === undefined
+                ? props.draft.additionalRequirements.filter(value => value.requirement !== "nationality-allowed")
+                : [...props.draft.additionalRequirements.filter(value => value.requirement !== "nationality-allowed"), { requirement: "nationality-allowed", allowedCountries: [...countries] }],
+            })} />
         </section>
         </Show>
 

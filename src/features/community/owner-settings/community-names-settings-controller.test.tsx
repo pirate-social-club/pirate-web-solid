@@ -1,4 +1,5 @@
 import { render as solidRender, type JSX } from "@solidjs/web";
+import { userEvent } from "@testing-library/user-event";
 import { createRoot } from "solid-js";
 import { ApiClientError } from "@pirate/api-client";
 import { afterEach, describe, expect, test, vi } from "vitest";
@@ -10,6 +11,15 @@ import {
   NAMES_READY,
   NAMES_SUSPENDED,
 } from "./community-names-settings-fixtures";
+
+if (typeof window !== "undefined") {
+  if (!Element.prototype.scrollIntoView) Element.prototype.scrollIntoView = () => {};
+  if (!Element.prototype.hasPointerCapture) {
+    Element.prototype.hasPointerCapture = () => false;
+    Element.prototype.releasePointerCapture = () => {};
+    Element.prototype.setPointerCapture = () => {};
+  }
+}
 
 const disposers: Array<() => void> = [];
 
@@ -166,7 +176,20 @@ test("authors an independent nationality policy before revising the existing off
   button(container, "Change handle nationality requirement")!.click();
   await vi.waitFor(() => expect(container.querySelector('input[type="checkbox"]')).not.toBeNull());
   container.querySelector<HTMLInputElement>('input[type="checkbox"]')!.click();
-  await vi.waitFor(() => expect(container.querySelector("select[multiple]")).not.toBeNull());
+  const picker = await vi.waitFor(() => {
+    const found = container.querySelector<HTMLInputElement>('input[role="combobox"]');
+    expect(found).not.toBeNull();
+    return found!;
+  });
+  const user = userEvent.setup();
+  await user.type(picker, "United States");
+  const option = await vi.waitFor(() => {
+    const found = [...document.body.querySelectorAll<HTMLElement>('[role="option"]')]
+      .find(candidate => candidate.textContent?.includes("United States"));
+    expect(found).toBeDefined();
+    return found!;
+  });
+  await user.click(option);
   button(container, "Save handle requirement")!.click();
   await vi.waitFor(() => expect(revise).toHaveBeenCalledOnce());
   expect(author).toHaveBeenCalledWith(expect.objectContaining({ communityId: "community_midnight", countries: ["US"] }));
