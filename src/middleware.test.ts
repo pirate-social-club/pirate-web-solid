@@ -33,6 +33,35 @@ describe("security policy", () => {
     expect(policy).toContain("wss://bridge.zkpassport.id");
     expect(policy).toContain("https://auth.privy.io");
   });
+
+  test("adds the exact configured api-next WebSocket origin to ordinary routes", () => {
+    const policy = securityPolicy("/", "nonce-value", "https://api-next-staging.pirate.sc");
+    expect(policy).toContain("wss://api-next-staging.pirate.sc");
+    expect(policy).not.toContain("wss://*");
+    expect(policy).not.toContain("connect-src *");
+  });
+
+  test("maps a loopback http API origin to a loopback ws origin", () => {
+    const policy = securityPolicy("/", "nonce-value", "http://127.0.0.1:8788");
+    expect(policy).toContain("ws://127.0.0.1:8788");
+  });
+
+  test("adds nothing for absent, blank or malformed api origins", () => {
+    const absent = securityPolicy("/", "nonce-value");
+    expect(absent).not.toContain("ws://");
+    expect(securityPolicy("/", "nonce-value", "")).not.toContain("ws://");
+    expect(securityPolicy("/", "nonce-value", "not a url")).not.toContain("not a url");
+    expect(securityPolicy("/", "nonce-value", "ftp://api.example")).not.toContain("api.example");
+  });
+
+  test("does not widen the route-scoped verification policies with the api origin", () => {
+    expect(
+      securityPolicy("/verify/zkpassport", "nonce-value", "https://api-next.pirate.sc"),
+    ).not.toContain("api-next.pirate.sc");
+    expect(securityPolicy("/auth/sign-in", "nonce-value", "https://api-next.pirate.sc")).not.toContain(
+      "api-next.pirate.sc",
+    );
+  });
 });
 
  test("media permits Stream and signed R2 playback without widening verification routes", () => {

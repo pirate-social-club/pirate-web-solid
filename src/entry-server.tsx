@@ -39,10 +39,14 @@ export async function render(
   const event = getRequestEvent();
   const nonce = event?.locals.cspNonce;
   if (event !== undefined) {
-    // SAFETY: this request-local value comes directly from the typed Worker
-    // render context and is read only as that same optional string.
-    const locals = event.locals as typeof event.locals & { publicAppCanonicalOrigin?: string };
+    // SAFETY: these request-local values come directly from the typed Worker
+    // render context and are read only as those optional strings.
+    const locals = event.locals as typeof event.locals & {
+      publicAppCanonicalOrigin?: string;
+      apiNextOrigin?: string;
+    };
     locals.publicAppCanonicalOrigin = context?.PUBLIC_APP_CANONICAL_ORIGIN;
+    locals.apiNextOrigin = context?.API_NEXT_ORIGIN;
   }
   // SAFETY: Vite's runtime manifest includes the `_base` member used by the
   // Solid asset resolver even though AssetManifest's public index signature
