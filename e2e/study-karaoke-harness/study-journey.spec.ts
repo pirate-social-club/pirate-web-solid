@@ -189,13 +189,18 @@ test.describe("local Study journey", () => {
     // request (same idempotency key and body) is sent twice, and the server
     // must answer the replay from the stored result without a second effect.
     let duplicate: { readonly status: number; readonly body: string } | undefined;
+    let originalBody: string | undefined;
     await page.route("**/answers", async (route) => {
       const response = await route.fetch();
+      const body = await response.text();
       if (duplicate === undefined && route.request().method() === "POST") {
+        // Lost-response replay: the identical submission is sent again and must
+        // answer with the stored result byte for byte.
         const second = await route.fetch();
         duplicate = { status: second.status(), body: await second.text() };
+        originalBody = body;
       }
-      await route.fulfill({ response });
+      await route.fulfill({ response, body });
     });
     await page.goto(`/posts/${manifest.postSlug}/study`);
     await expect(page.getByRole("heading", { name: "Start Study" })).toBeVisible();
@@ -210,7 +215,8 @@ test.describe("local Study journey", () => {
       await page.waitForTimeout(250);
     }
     expect(duplicate?.status).toBe(200);
-    expect(duplicate?.body).toContain('"object":"study_answer_result_v2"');
+    expect(duplicate?.body).toBe(originalBody);
+    expect(originalBody).toContain('"object":"study_answer_result_v2"');
 
     const afterReplay = attemptSummary(account.accountId);
     expect(afterReplay[0]?.attempts).toBe(1);
@@ -230,12 +236,19 @@ test.describe("local Study journey", () => {
     expect(studyQualifications(account.accountId)[0]?.count).toBe(0);
   });
 
-  test("a provider failure fabricates no grade, completion or qualification", async ({
+  test("a provider failure fabricates nothing and a new recording retries to one completion", async ({
     context,
     page,
   }) => {
     const account = await useAccount(context, manifest, 5);
+    const submittedKeys: string[] = [];
+    page.on("request", (request) => {
+      if (request.method() !== "POST" || !request.url().includes("/answers")) return;
+      const key = request.headers()["idempotency-key"];
+      if (key !== undefined) submittedKeys.push(key);
+    });
     await startStudyLesson(page);
+    const reference = await currentStudyPrompt(page);
     const action = await answerStudyCardThroughUi(page, manifest, "unavailable", {
       failure: "unavailable",
     });
@@ -261,6 +274,34 @@ test.describe("local Study journey", () => {
         WHERE session.account_id='${account.accountId}'`,
     );
     expect(commands).toEqual([{ state: "retryable_failed", provider_failure_kind: "unavailable" }]);
+
+    // Newly recorded audio is a new submission: it must not reuse the key bound
+    // to the failed recording, and the server reclaims the same logical attempt.
+    await answerStudyCardThroughUi(page, manifest, reference);
+    expect(submittedKeys.length).toBeGreaterThanOrEqual(2);
+    expect(submittedKeys[0]).not.toBe(submittedKeys[1]);
+    await completeStudySessionThroughUi(page, manifest);
+
+    const retried = await waitForDatabaseRow<{ attempts: number; first_pass_correct: number }>(
+      `SELECT count(*)::int AS attempts,
+              count(*) FILTER (WHERE attempt.outcome='correct' AND attempt.first_pass)::int AS first_pass_correct
+         FROM study_attempts_v2 attempt
+         JOIN study_session_items_v2 item ON item.session_item_id=attempt.session_item_id
+         JOIN study_sessions_v2 session ON session.session_id=item.session_id
+        WHERE session.account_id='${account.accountId}'`,
+      (rows) => (rows[0]?.attempts ?? 0) === 4,
+    );
+    expect(retried[0]).toEqual({ attempts: 4, first_pass_correct: 4 });
+    const perItem = databaseRows<{ attempts: number }>(
+      `SELECT count(*)::int AS attempts
+         FROM study_attempts_v2 attempt
+         JOIN study_session_items_v2 item ON item.session_item_id=attempt.session_item_id
+         JOIN study_sessions_v2 session ON session.session_id=item.session_id
+        WHERE session.account_id='${account.accountId}'
+        GROUP BY item.ordinal`,
+    );
+    expect(perItem.every((row) => row.attempts === 1)).toBe(true);
+    expect(studyQualifications(account.accountId)[0]?.count).toBe(1);
   });
 
   test("denied microphone shows the failure and persists no attempt", async ({ context, page }) => {
