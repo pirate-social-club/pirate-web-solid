@@ -206,6 +206,10 @@
     "humanVerificationDescription": "成员扫描手掌，以证明自己是唯一的真人。",
     "humanVerificationRequired": "必需",
     "additionalRequirementsTitle": "附加要求",
+    "joinPolicyFraming": "每位加入者都需扫描手掌。你也可以按国籍限制成员资格。",
+    "profileScope": "此个人资料仅属于该社区。你创建或加入的每个社区都会有各自的个人资料。",
+    "continue": "继续",
+    "back": "返回",
     "submit": "创建"
   }
 }

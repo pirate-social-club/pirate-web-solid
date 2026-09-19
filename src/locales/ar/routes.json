@@ -206,6 +206,10 @@
     "humanVerificationDescription": "يمسح الأعضاء راحة يدهم لإثبات أنهم أشخاص فريدون.",
     "humanVerificationRequired": "مطلوب",
     "additionalRequirementsTitle": "متطلبات إضافية",
+    "joinPolicyFraming": "كل من ينضم يمسح راحة يده. يمكنك أيضًا تحديد العضوية حسب الجنسية.",
+    "profileScope": "هذا الملف الشخصي يخص هذا المجتمع فقط. كل مجتمع تنشئه أو تنضم إليه يحصل على ملفه الشخصي الخاص.",
+    "continue": "متابعة",
+    "back": "رجوع",
     "submit": "إنشاء"
   }
 }

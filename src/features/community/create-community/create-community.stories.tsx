@@ -18,6 +18,7 @@ function CreateStory(props: {
   draft?: CreateCommunityDraft;
   nameError?: string | null;
   submitting?: boolean;
+  steps?: boolean;
   personas?: readonly ActivePersonaPublicProjection[];
 }) {
   const [draft, setDraft] = createSignal<CreateCommunityDraft>(
@@ -29,6 +30,7 @@ function CreateStory(props: {
     <div class="h-dvh bg-background text-foreground">
       <CreateCommunityView
         showMediaFields={false}
+        steps={props.steps}
         draft={draft()}
         personas={props.personas}
         nameError={props.nameError}
@@ -69,6 +71,26 @@ export const Empty: Story = {
     await expect(canvas.getByText(/Required · Members scan their palm/)).toBeInTheDocument();
     await expect(canvas.queryByText("Additional requirements")).not.toBeInTheDocument();
     await expect(canvas.getByRole("checkbox", { name: "Require nationality verification" })).not.toBeChecked();
+  },
+};
+
+export const TwoStep: Story = {
+  name: "Two steps",
+  render: () => <CreateStory steps />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByRole("button", { name: "Continue" })).toBeDisabled();
+
+    await userEvent.type(canvas.getByRole("textbox", { name: "Name" }), "Night Shift");
+    await expect(canvas.getByRole("button", { name: "Continue" })).toBeEnabled();
+    await userEvent.click(canvas.getByRole("button", { name: "Continue" }));
+
+    await expect(canvas.getByText(/This profile belongs to this community only/)).toBeInTheDocument();
+    await expect(canvas.getByRole("textbox", { name: "Public name" })).toBeInTheDocument();
+    await expect(canvas.queryByRole("textbox", { name: "Name" })).toBeNull();
+
+    await userEvent.click(canvas.getByRole("button", { name: "Back" }));
+    await expect(canvas.getByRole("textbox", { name: "Name" })).toHaveValue("Night Shift");
   },
 };
 

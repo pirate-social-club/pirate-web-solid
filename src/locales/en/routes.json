@@ -206,6 +206,10 @@
     "humanVerificationDescription": "Members scan their palm to prove they are a unique human.",
     "humanVerificationRequired": "Required",
     "additionalRequirementsTitle": "Additional requirements",
+    "joinPolicyFraming": "Everyone who joins scans their palm. You can also limit membership by nationality.",
+    "profileScope": "This profile belongs to this community only. Each community you create or join gets its own profile.",
+    "continue": "Continue",
+    "back": "Back",
     "submit": "Create"
   }
 }

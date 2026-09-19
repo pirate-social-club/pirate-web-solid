@@ -3,7 +3,7 @@
 import { NationalityAllowlistField } from "../../verification/nationality-allowlist-field.tsx";
 import type { ActivePersonaPublicProjection } from "../../../api/session";
 import { CommunityOwnerFields } from "./community-owner-fields";
-import { Show, createSignal, createUniqueId } from "solid-js";
+import { Show, createEffect, createSignal, createUniqueId } from "solid-js";
 
 import {
   ActionFooterShell,
@@ -45,6 +45,8 @@ export interface CreateCommunityProps {
   profilesUnavailable?: boolean;
   /** Keep false in production until the community API can persist these assets. */
   showMediaFields?: boolean;
+  /** Enables the two-step layout. The route view flips this on with its tests. */
+  steps?: boolean;
   submitting?: boolean;
   /** A blocked creation intent keeps Create disabled without a loading state. */
   submitDisabled?: boolean;
@@ -85,6 +87,16 @@ export function CreateCommunityView(props: CreateCommunityProps) {
     && (props.requirePersona === false || (validation().personaError === null && validation().publicNameError === null))
     )) && !props.submitting && !props.accountChecking && !props.submitDisabled;
 
+  // Two-step creation: step one never writes an intent; the route view only
+  // persists on the final submit, which lives on step two. actionOnly keeps
+  // the frozen single-surface shape a saved intent already uses.
+  const [step, setStep] = createSignal<1 | 2>(1);
+  const stepped = () => props.steps === true && !props.actionOnly;
+  const stepOneReady = () => nationalityValid() && validation().nameError === null
+    && !props.submitting && !props.accountChecking && !props.submitDisabled;
+  // A rejected commit belongs to the community fields, so show them again.
+  createEffect(() => props.nameError, (nameError) => { if (nameError) setStep(1); });
+
   return (
     <form
       class={cn("h-full", props.class)}
@@ -100,9 +112,22 @@ export function CreateCommunityView(props: CreateCommunityProps) {
               <p role="alert">{props.failureMessage}</p>
               <Show when={props.onRetry}><Button type="button" variant="ghost" disabled={props.accountChecking || props.submitting} onClick={props.onRetry}>{props.retryLabel ?? "Try again"}</Button></Show>
             </div>
-            <Button class="h-11 w-full" disabled={!canSubmit()} loading={props.submitting || props.accountChecking} type="submit">
-              {props.submitLabel ?? copy().submit}
-            </Button>
+            <Show when={stepped() && step() === 1} fallback={
+              <div class="flex flex-col gap-2">
+                <Show when={stepped()}>
+                  <Button class="h-11 w-full" disabled={props.submitting || props.accountChecking} onClick={() => setStep(1)} type="button" variant="outline">
+                    {copy().back}
+                  </Button>
+                </Show>
+                <Button class="h-11 w-full" disabled={!canSubmit()} loading={props.submitting || props.accountChecking} type="submit">
+                  {props.submitLabel ?? copy().submit}
+                </Button>
+              </div>
+            }>
+              <Button class="h-11 w-full" disabled={!stepOneReady()} onClick={() => setStep(2)} type="button">
+                {copy().continue}
+              </Button>
+            </Show>
           </div>
         }
         footerClass="px-5 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-3"
@@ -116,6 +141,7 @@ export function CreateCommunityView(props: CreateCommunityProps) {
         }
       >
         <fieldset disabled={props.fieldsDisabled || props.submitting} class="contents">
+        <Show when={!stepped() || step() === 1}>
         <Show when={props.showMediaFields !== false}>
           <MediaUploadField
             chooseLabel={copy().coverChoose}
@@ -188,6 +214,7 @@ export function CreateCommunityView(props: CreateCommunityProps) {
           <div class="mb-1" id={joinPolicyLabelId}>
             <Type as="span" variant="body-strong">{copy().joinPolicyTitle}</Type>
           </div>
+          <Type as="p" variant="caption" class="text-sm leading-5">{copy().joinPolicyFraming}</Type>
           <ListRow
             description={`${copy().humanVerificationRequired} \u00b7 ${copy().humanVerificationDescription}`}
             leading={<IconHandPalm class="size-6" />}
@@ -199,10 +226,14 @@ export function CreateCommunityView(props: CreateCommunityProps) {
               : [...props.draft.additionalRequirements.filter(value => value.requirement !== "nationality-allowed"), { requirement: "nationality-allowed", allowedCountries: [...countries] }],
           })} />
         </section>
+        </Show>
 
+        <Show when={!stepped() || step() === 2}>
+        <Type as="p" variant="caption" class="text-sm leading-5">{copy().profileScope}</Type>
         <fieldset class="contents" disabled={props.ownerDisabled}>
         <CommunityOwnerFields draft={props.draft} personas={props.personas} profilesUnavailable={props.profilesUnavailable} onChange={props.onDraftChange} />
         </fieldset>
+        </Show>
         </fieldset>
       </ActionFooterShell>
     </form>
