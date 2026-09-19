@@ -28,7 +28,7 @@ export interface StudySessionStartStorage {
   removeItem(key: string): void;
 }
 
-type StoredRecord = Readonly<{ key: string; sessionId: string | null }>;
+type StoredRecord = Readonly<{ key: string; sessionId: string | null; timezone: string }>;
 
 const STORAGE_PREFIX = "study-session-start:v1:";
 
@@ -60,10 +60,16 @@ function readRecord(storage: StudySessionStartStorage, key: string): StoredRecor
   }
   if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) return null;
   if (!("key" in parsed) || typeof parsed.key !== "string") return null;
+  // The timezone is part of the original request and must never be recomputed
+  // while the key is reused; a record without it is untrusted.
+  if (!("timezone" in parsed) || typeof parsed.timezone !== "string" || parsed.timezone === "") {
+    return null;
+  }
   const sessionId = "sessionId" in parsed ? parsed.sessionId : null;
   return {
     key: parsed.key,
     sessionId: typeof sessionId === "string" && sessionId !== "" ? sessionId : null,
+    timezone: parsed.timezone,
   };
 }
 
@@ -171,11 +177,14 @@ export function createStudySessionStartCoordinator(deps: {
           }
         }
         if (record === null) {
-          record = { key: generateKey(scope), sessionId: null };
+          // Resolve the timezone exactly once per scope and persist it with the
+          // key: every retry must reuse the complete original request.
+          record = { key: generateKey(scope), sessionId: null, timezone: timezone() };
           // Persist before the request so a lost response stays reconcilable.
           storage.setItem(recordKey, JSON.stringify(record));
         }
         const key = record.key;
+        const requestTimezone = record.timezone;
         for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
           try {
             const session = await deps.api.createSession({
@@ -185,11 +194,15 @@ export function createStudySessionStartCoordinator(deps: {
               personaId: scope.personaId,
               postId: scope.postId,
               targetLanguage: scope.targetLanguage,
-              timezone: timezone(),
+              timezone: requestTimezone,
             });
             storage.setItem(
               recordKey,
-              JSON.stringify({ key, sessionId: session.session_id } satisfies StoredRecord),
+              JSON.stringify({
+                key,
+                sessionId: session.session_id,
+                timezone: requestTimezone,
+              } satisfies StoredRecord),
             );
             return { status: "started", sessionId: session.session_id };
           } catch (error) {

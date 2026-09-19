@@ -81,7 +81,7 @@ function exclusiveLocks(): StudySessionStartLock {
 }
 
 class FakeApi implements Pick<StudyV2Api, "createSession" | "getSession"> {
-  readonly attempts: { key: string; personaId: string }[] = [];
+  readonly attempts: { key: string; personaId: string; timezone: string }[] = [];
   readonly byKey = new Map<string, StudySession>();
   readonly byId = new Map<string, StudySession>();
   failWith: "network" | "conflict" | null = null;
@@ -96,7 +96,11 @@ class FakeApi implements Pick<StudyV2Api, "createSession" | "getSession"> {
     readonly targetLanguage: string | null;
     readonly timezone: string;
   }): Promise<StudySession> => {
-    this.attempts.push({ key: input.idempotencyKey, personaId: input.personaId });
+    this.attempts.push({
+      key: input.idempotencyKey,
+      personaId: input.personaId,
+      timezone: input.timezone,
+    });
     const failure = this.failWith;
     this.failWith = null;
     if (failure === "conflict") throw conflict();
@@ -172,8 +176,33 @@ describe("Study session start coordinator", () => {
     expect(result.status).toBe("started");
     expect(api.attempts).toHaveLength(2);
     expect(api.attempts[0]!.key).toBe(api.attempts[1]!.key);
+    expect(api.attempts[0]!.timezone).toBe(api.attempts[1]!.timezone);
     expect(api.byKey.size).toBe(1);
     expect(result).toEqual({ status: "started", sessionId: "session-1" });
+  });
+
+  it("reuses the persisted timezone for every retry instead of recomputing it", async () => {
+    const api = new FakeApi();
+    api.failWith = "network";
+    api.commitBeforeNetworkFailure = true;
+    const storage = new MemoryStorage();
+    let resolutions = 0;
+    const coordinator = createStudySessionStartCoordinator({
+      api,
+      storage,
+      locks: exclusiveLocks(),
+      generateKey: () => "generated-zone",
+      timezone: () => (resolutions++ === 0 ? "Europe/Paris" : "America/New_York"),
+    });
+    const result = await coordinator.start(scope());
+    expect(result.status).toBe("started");
+    expect(api.attempts.map((attempt) => attempt.timezone)).toEqual([
+      "Europe/Paris",
+      "Europe/Paris",
+    ]);
+    expect(resolutions).toBe(1);
+    const stored = JSON.parse(storage.getItem(studySessionStartScopeKey(scope())) ?? "{}");
+    expect(stored.timezone).toBe("Europe/Paris");
   });
 
   it("resumes a stored active session without starting another", async () => {
@@ -183,7 +212,7 @@ describe("Study session start coordinator", () => {
     api.byId.set(active.session_id, active);
     storage.setItem(
       studySessionStartScopeKey(scope()),
-      JSON.stringify({ key: "stored-key", sessionId: active.session_id }),
+      JSON.stringify({ key: "stored-key", sessionId: active.session_id, timezone: "UTC" }),
     );
     const coordinator = coordinatorFor(api, storage);
     const result = await coordinator.start(scope());
@@ -198,7 +227,7 @@ describe("Study session start coordinator", () => {
     api.byId.set(completed.session_id, completed);
     storage.setItem(
       studySessionStartScopeKey(scope()),
-      JSON.stringify({ key: "stored-key", sessionId: completed.session_id }),
+      JSON.stringify({ key: "stored-key", sessionId: completed.session_id, timezone: "UTC" }),
     );
     const coordinator = coordinatorFor(api, storage);
     const result = await coordinator.start(scope());
