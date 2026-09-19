@@ -193,9 +193,12 @@ export function createStudySessionStartCoordinator(deps: {
             );
             return { status: "started", sessionId: session.session_id };
           } catch (error) {
-            if (error instanceof ApiClientError && error.status === 409) {
+            if (error instanceof ApiClientError) {
+              // A definite API answer is not an uncertain network outcome.
               return unavailable(
-                "Study could not start this session because its request changed. Refresh the page and retry.",
+                error.status === 409
+                  ? "Study could not start this session because its request changed. Refresh the page and retry."
+                  : "Study could not start this session. Refresh the page and retry.",
               );
             }
             // Uncertain outcome: retry the identical request with the same key.
