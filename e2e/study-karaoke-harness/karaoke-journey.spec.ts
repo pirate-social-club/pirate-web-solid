@@ -1,9 +1,10 @@
 import { expect, test } from "playwright/test";
 import {
   armKaraokeMode,
+  assertBuiltWorkletArtifact,
   databaseRows,
+  expectedApiSocketOrigin,
   harnessManifest,
-  relaxDocumentCspForHarness,
   useAccount,
   waitForDatabaseRow,
 } from "./fixtures/harness.ts";
@@ -49,8 +50,19 @@ function attemptRows(sessionId: string): KaraokeAttemptRow[] {
 }
 
 async function startScoredTake(page: import("playwright/test").Page): Promise<string> {
-  await relaxDocumentCspForHarness(page);
-  await page.goto(`/posts/${manifest.postSlug}/karaoke`);
+  await assertBuiltWorkletArtifact(page.context().request);
+  const sessionResponse = page.waitForResponse(
+    (response) =>
+      response.request().method() === "POST" && response.url().includes("/karaoke/attempts"),
+    { timeout: 90_000 },
+  );
+  const documentResponse = await page.goto(`/posts/${manifest.postSlug}/karaoke`);
+  expect(documentResponse).not.toBeNull();
+  const policy = documentResponse?.headers()["content-security-policy"];
+  expect(policy, "the karaoke document must carry an enforcing CSP header").toBeDefined();
+  expect(policy).toContain(expectedApiSocketOrigin(manifest));
+  expect(policy).not.toContain("connect-src *");
+
   const start = page.getByRole("button", { name: "Start karaoke", exact: true });
   await expect(start).toBeVisible({ timeout: 30_000 });
   const disclosure = page.locator("[data-karaoke-mic-disclosure]");
@@ -61,11 +73,6 @@ async function startScoredTake(page: import("playwright/test").Page): Promise<st
       .catch(() => false);
     if (open) await page.locator("[data-karaoke-mic-disclosure-accept]").click();
   };
-  const sessionResponse = page.waitForResponse(
-    (response) =>
-      response.request().method() === "POST" && response.url().includes("/karaoke/attempts"),
-    { timeout: 90_000 },
-  );
   // The route loads community personas asynchronously and the first-use
   // disclosure opens before the session is created; retry the start until the
   // session request actually begins.

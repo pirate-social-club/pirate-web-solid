@@ -230,6 +230,39 @@ test.describe("local Study journey", () => {
     expect(studyQualifications(account.accountId)[0]?.count).toBe(0);
   });
 
+  test("a provider failure fabricates no grade, completion or qualification", async ({
+    context,
+    page,
+  }) => {
+    const account = await useAccount(context, manifest, 5);
+    await startStudyLesson(page);
+    const action = await answerStudyCardThroughUi(page, manifest, "unavailable", {
+      failure: "unavailable",
+    });
+    // The card returns to an answerable state and surfaces the provider error.
+    expect(action).toBe("record");
+    await expect(
+      page.getByText(/transcription is unavailable|could not check this attempt/iu),
+    ).toBeVisible();
+
+    // Nothing may be fabricated by a provider failure: no attempt row, no
+    // completion and no qualification.
+    expect(attemptSummary(account.accountId)[0]?.attempts).toBe(0);
+    expect(studyQualifications(account.accountId)[0]?.count).toBe(0);
+    const sessions = databaseRows<SessionRow>(
+      `SELECT session_id, status FROM study_sessions_v2 WHERE account_id='${account.accountId}'`,
+    );
+    expect(sessions).toHaveLength(1);
+    expect(sessions[0]?.status).toBe("active");
+    const commands = databaseRows<{ state: string; provider_failure_kind: string | null }>(
+      `SELECT command.state, command.provider_failure_kind
+         FROM study_spoken_answer_commands command
+         JOIN study_sessions_v2 session ON session.session_id=command.session_id
+        WHERE session.account_id='${account.accountId}'`,
+    );
+    expect(commands).toEqual([{ state: "retryable_failed", provider_failure_kind: "unavailable" }]);
+  });
+
   test("denied microphone shows the failure and persists no attempt", async ({ context, page }) => {
     const account = await useAccount(context, manifest, 4);
     await page.addInitScript(() => {

@@ -58,9 +58,11 @@ and completion effects stay isolated.
 
 - Study: a full say-it-back lesson with persisted session, attempts, grading,
   completion and exactly one Study qualification; wrong words with a returned
-  miss; an omitted negation with the missing token persisted; a duplicated
-  submission (the same answer request sent twice) and a reload that leave one
-  persisted attempt; and a denied microphone that persists no attempt.
+  miss; an omitted negation with the missing token persisted; a scripted
+  provider failure that fabricates no grade, completion or qualification; a
+  duplicated submission (the same answer request sent twice) and a reload that
+  leave one persisted attempt; and a denied microphone that persists no
+  attempt.
 - Karaoke: a full scored take with all five line scores, the final score and
   one completion effect; wrong words with a persisted low score; a silent take
   persisted as five unrecognized lines; early and late delivery reflected in
@@ -72,15 +74,23 @@ Row-level assertions read the disposable PostgreSQL directly through `psql`
 presentation findings separately: line highlighting, token (word)
 highlighting, timing calibration numbers, and line/final scores.
 
-## Local browser accommodations
+## Policy and artifact checks
 
-Two browser-boundary adjustments are needed locally; both are reported as
-findings in the harness handoff rather than silently repaired here:
+The Karaoke journeys run with the shipped Content-Security-Policy enforced and
+unmodified. The document policy admits the exact `ws:`/`wss:` origin derived
+from the configured api-next origin (`API_NEXT_ORIGIN`), and `startScoredTake`
+asserts that header is present on the karaoke document and names that origin
+before the take begins.
 
-- The document Content-Security-Policy does not list the api-next origin that
-  `/karaoke/realtime` WebSocket URLs point at, so the scored-take socket is
-  blocked. `relaxDocumentCspForHarness` strips the policy header for the local
-  document only.
-- Chromium 138+ blocks a loopback document's WebSocket to another loopback port
-  with `ERR_BLOCKED_BY_LOCAL_NETWORK_ACCESS_CHECKS`. The harness launch disables
-  that check for its local browser only.
+The same helper asserts the built capture worklet: exactly one
+`karaoke-capture-processor-*.js` asset exists under `dist/client/assets`, a
+built chunk references it, no build chunk carries a `data:video/mp2t` worklet
+fallback, and the dev server serves it with a JavaScript content type. Capture
+cannot start without `audioWorklet.addModule` succeeding, so a passing take is
+the runtime proof that the browser loaded that built module.
+
+One local browser adjustment remains, and it is a local-only accommodation:
+Chromium 138+ blocks a loopback document's WebSocket to another loopback port
+with `ERR_BLOCKED_BY_LOCAL_NETWORK_ACCESS_CHECKS`, so the harness launch
+disables that check for its local browser. It does not change any response or
+policy the application serves.

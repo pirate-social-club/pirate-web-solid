@@ -1,7 +1,8 @@
 import { execFileSync } from "node:child_process";
-import { readFileSync } from "node:fs";
-import { expect, type BrowserContext, type Page } from "playwright/test";
-import { harnessManifestDefault } from "../paths.ts";
+import { readFileSync, readdirSync } from "node:fs";
+import path from "node:path";
+import { expect, type APIRequestContext, type BrowserContext, type Page } from "playwright/test";
+import { harnessManifestDefault, solidRepositoryRoot } from "../paths.ts";
 
 export interface HarnessAccount {
   readonly accountId: string;
@@ -106,30 +107,47 @@ export async function resetStudyScripts(manifest: HarnessManifest): Promise<void
   await harnessPost(manifest, "/__harness__/study/arm", { reset: true });
 }
 
+/** The exact WebSocket origin the document policy must admit for Karaoke. */
+export function expectedApiSocketOrigin(manifest: HarnessManifest): string {
+  const url = new URL(manifest.apiOrigin);
+  return `${url.protocol === "https:" ? "wss:" : "ws:"}//${url.host}`;
+}
+
+let workletArtifactChecked = false;
+
 /**
- * Harness-local document CSP adjustment for the Karaoke WebSocket.
- *
- * The application's document policy lists `connect-src 'self'` and the media
- * providers, but not the api-next origin that `/karaoke/realtime` WebSocket
- * URLs point at, so the scored-take socket is blocked in a real browser. The
- * harness strips the document policy header for its local journeys and reports
- * the omission as a finding; it does not change application behaviour.
+ * Built-artifact proof for the karaoke capture worklet. The harness always runs
+ * against `bun run build` output, so this asserts the emitted asset is compiled
+ * JavaScript at a `.js` path, is referenced by a built chunk, contains no
+ * data-URL worklet fallback, and is served with a JavaScript MIME type. The
+ * take itself then proves the browser loaded that same module: capture cannot
+ * start without `audioWorklet.addModule` succeeding.
  */
-export async function relaxDocumentCspForHarness(page: Page): Promise<void> {
-  const relax = async (route: import("playwright/test").Route): Promise<void> => {
-    if (route.request().resourceType() !== "document") {
-      await route.continue();
-      return;
-    }
-    const response = await route.fetch();
-    const headers = { ...response.headers() };
-    delete headers["content-security-policy"];
-    await route.fulfill({ response, headers });
-    // Stop intercepting after the document so playback, capture and the
-    // WebSocket run on the untouched network path.
-    await page.unroute("**/*", relax);
-  };
-  await page.route("**/*", relax);
+export async function assertBuiltWorkletArtifact(request: APIRequestContext): Promise<void> {
+  if (workletArtifactChecked) return;
+  const assetsDirectory = path.join(solidRepositoryRoot, "dist", "client", "assets");
+  const assets = readdirSync(assetsDirectory);
+  const worklets = assets.filter((name) => /^karaoke-capture-processor-.+\.js$/u.test(name));
+  expect(worklets, "exactly one built capture worklet asset").toHaveLength(1);
+  const worklet = worklets[0];
+  if (worklet === undefined) return;
+
+  const workletSource = readFileSync(path.join(assetsDirectory, worklet), "utf8");
+  const processorRegistration = /registerProcessor\((["`])karaoke-capture-processor\1/u;
+  expect(workletSource).toMatch(processorRegistration);
+  let referenced = false;
+  for (const name of assets.filter((candidate) => candidate.endsWith(".js"))) {
+    const source = readFileSync(path.join(assetsDirectory, name), "utf8");
+    expect(source).not.toContain("data:video/mp2t");
+    if (name !== worklet && source.includes(worklet)) referenced = true;
+  }
+  expect(referenced, "a built chunk must reference the worklet asset path").toBe(true);
+
+  const response = await request.get(`/assets/${worklet}`);
+  expect(response.status()).toBe(200);
+  expect(response.headers()["content-type"] ?? "").toContain("javascript");
+  expect(await response.text()).toMatch(processorRegistration);
+  workletArtifactChecked = true;
 }
 
 export async function armKaraokeMode(
@@ -229,6 +247,7 @@ export async function answerStudyCardThroughUi(
   page: Page,
   manifest: HarnessManifest,
   transcript: string,
+  options: { readonly failure?: string } = {},
 ): Promise<StudyLessonAction> {
   const recordButton = page.getByRole("button", { name: "Record", exact: true });
   await expect(recordButton).toBeEnabled();
@@ -239,7 +258,10 @@ export async function answerStudyCardThroughUi(
   }
   const stopButton = page.getByRole("button", { name: "Stop", exact: true });
   await expect(stopButton).toBeVisible();
-  await armStudyTranscript(manifest, { transcript });
+  await armStudyTranscript(manifest, {
+    transcript,
+    ...(options.failure === undefined ? {} : { failure: options.failure }),
+  });
   await page.waitForTimeout(1_200);
   await stopButton.click();
   return waitForStudyLessonAction(page);
