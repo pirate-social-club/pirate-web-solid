@@ -62,6 +62,43 @@ describe("MultiCombobox", () => {
     expect(onChange).toHaveBeenCalledWith(["harbor"]);
   });
 
+  it("keeps an uncontrolled default selection visible", () => {
+    const container = render(() => (
+      <MultiCombobox
+        aria-label="Allowed nationalities"
+        options={songOptions}
+        optionValue={optionValue}
+        optionLabel={optionLabel}
+        defaultValue={["harbor"]}
+      />
+    ));
+    flush();
+
+    expect(within(container).getByRole("button", { name: "Remove Harbor Lights" })).toBeInTheDocument();
+  });
+
+  it("filters with the caller predicate, including search aliases", async () => {
+    const user = userEvent.setup();
+    const countryOptions = [
+      { value: "US", label: "United States" },
+      { value: "CA", label: "Canada" },
+    ];
+    const container = render(() => (
+      <MultiCombobox
+        aria-label="Allowed nationalities"
+        options={countryOptions}
+        optionValue={optionValue}
+        optionLabel={optionLabel}
+        filter={(option, input) => option.value.toLowerCase().includes(input.trim().toLowerCase())}
+      />
+    ));
+
+    const input = within(container).getByRole("combobox", { name: "Allowed nationalities" });
+    await user.type(input, "us");
+    expect(await screen.findByRole("option", { name: "United States" })).toBeInTheDocument();
+    expect(screen.queryByRole("option", { name: "Canada" })).toBeNull();
+  });
+
   it("removes a chip and reports the remaining values", async () => {
     const user = userEvent.setup();
     const onChange = vi.fn();

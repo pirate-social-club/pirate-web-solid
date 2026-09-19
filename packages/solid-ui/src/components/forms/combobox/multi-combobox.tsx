@@ -39,6 +39,8 @@ export interface MultiComboboxProps<Option> {
   name?: string;
   /** Accessible name for a selected chip's remove control. */
   removeLabel?: (label: string) => string;
+  /** Filter predicate for typed input; use it to match search aliases such as a country code. */
+  filter?: (option: Option, inputValue: string) => boolean;
 }
 
 /**
@@ -75,11 +77,13 @@ export function MultiCombobox<Option>(props: MultiComboboxProps<Option>) {
       optionTextValue: props.optionLabel,
       optionLabel: props.optionLabel,
       optionDisabled: props.optionDisabled,
-      value: selectedOptions(),
+      value: props.value === undefined ? undefined : selectedOptions(),
       defaultValue: defaultOptions(),
+      defaultFilter: props.filter,
       onChange: (next: unknown) => {
-        // Kobalte also replays input events through this handler; only an
-        // actual selection array changes the value.
+        // A selection always arrives as an array. Kobalte can also hand this
+        // handler a non-selection payload, so ignore anything else rather than
+        // mapping it into the value state.
         if (!Array.isArray(next)) return;
         props.onChange?.((next as Option[]).map((option) => props.optionValue(option)));
       },
