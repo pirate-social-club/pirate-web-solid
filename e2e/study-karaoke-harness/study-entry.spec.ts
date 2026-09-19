@@ -99,14 +99,18 @@ test("the post page Study link opens the first exercise", async ({ context, page
   expect(sessions[0]?.status).toBe("active");
 });
 
-// The home video feed cannot expose this entry in the harness: the seeded
-// content is a song post, and `GET /feed/home` returns no items for the seeded
-// accounts, so the feed renders no Study link. The feed component's Study link
-// targets the same `/posts/{slug}/study` route verified by the direct and post
-// tests here and by `src/features/posts/feed/public-feed.test.tsx`. Exercising
-// the feed entry live needs a home-feed video fixture in the harness seed.
-test.fixme("the feed Study entry opens the first exercise (needs a home-feed fixture)", async () => {
-  throw new Error("home feed fixture is not seeded");
+// Verified gap, 2026-09-19: with the harness seed now projecting the song into
+// `home_feed_projection` (GET /feed/home returns the item), the mounted home
+// feed still renders its video-only empty state, "No videos yet. Published
+// community videos will appear here.", because the item is a song and
+// `HomeVideoFeed` only renders video rows. No mounted surface renders the feed
+// card that carries the Study link: `FeedItemCard`/`FeedSurface` in
+// `public-feed.tsx` are used only by tests and by `home-feed.tsx`, which is not
+// mounted. The shipped Study entries are the public post page link/inline view
+// and the direct routes, both covered above. This test stays fixme until a
+// Study action exists on a mounted feed surface.
+test.fixme("the feed Study entry opens the first exercise (no mounted feed Study action)", async () => {
+  throw new Error("the mounted home feed renders no Study action for a song-only feed");
 });
 test("a reload resumes the same session without creating another", async ({ context, page }) => {
   const account = await useAccount(context, manifest, 3);
