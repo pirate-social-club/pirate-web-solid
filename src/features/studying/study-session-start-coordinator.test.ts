@@ -205,6 +205,25 @@ describe("Study session start coordinator", () => {
     expect(stored.timezone).toBe("Europe/Paris");
   });
 
+  it("preserves the key of a legacy record without a timezone instead of rotating", async () => {
+    const api = new FakeApi();
+    const storage = new MemoryStorage();
+    storage.setItem(
+      studySessionStartScopeKey(scope()),
+      JSON.stringify({ key: "legacy-key", sessionId: null }),
+    );
+    const coordinator = coordinatorFor(api, storage);
+    const result = await coordinator.start(scope());
+    expect(result.status).toBe("started");
+    expect(api.attempts).toHaveLength(1);
+    // The prior start under this key may already have committed, so the key is
+    // preserved and only the missing timezone is reconciled.
+    expect(api.attempts[0]!.key).toBe("legacy-key");
+    const stored = JSON.parse(storage.getItem(studySessionStartScopeKey(scope())) ?? "{}");
+    expect(stored.key).toBe("legacy-key");
+    expect(stored.timezone).toBe("UTC");
+  });
+
   it("resumes a stored active session without starting another", async () => {
     const api = new FakeApi();
     const storage = new MemoryStorage();

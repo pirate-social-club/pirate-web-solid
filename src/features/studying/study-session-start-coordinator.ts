@@ -28,7 +28,11 @@ export interface StudySessionStartStorage {
   removeItem(key: string): void;
 }
 
-type StoredRecord = Readonly<{ key: string; sessionId: string | null; timezone: string }>;
+type StoredRecord = Readonly<{
+  key: string;
+  sessionId: string | null;
+  timezone: string | null;
+}>;
 
 const STORAGE_PREFIX = "study-session-start:v1:";
 
@@ -60,16 +64,14 @@ function readRecord(storage: StudySessionStartStorage, key: string): StoredRecor
   }
   if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) return null;
   if (!("key" in parsed) || typeof parsed.key !== "string") return null;
-  // The timezone is part of the original request and must never be recomputed
-  // while the key is reused; a record without it is untrusted.
-  if (!("timezone" in parsed) || typeof parsed.timezone !== "string" || parsed.timezone === "") {
-    return null;
-  }
   const sessionId = "sessionId" in parsed ? parsed.sessionId : null;
+  const timezone = "timezone" in parsed ? parsed.timezone : null;
   return {
     key: parsed.key,
     sessionId: typeof sessionId === "string" && sessionId !== "" ? sessionId : null,
-    timezone: parsed.timezone,
+    // A record written before the timezone was persisted keeps its key: the
+    // caller resolves the timezone once and reconciles, never rotates.
+    timezone: typeof timezone === "string" && timezone !== "" ? timezone : null,
   };
 }
 
@@ -183,8 +185,17 @@ export function createStudySessionStartCoordinator(deps: {
           // Persist before the request so a lost response stays reconcilable.
           storage.setItem(recordKey, JSON.stringify(record));
         }
+        let requestTimezone = record.timezone;
+        if (requestTimezone === null) {
+          // Legacy record without a persisted timezone: preserve the key, since
+          // an earlier start under it may already have committed, and reconcile
+          // with a single resolved timezone. A conflicting replay surfaces as a
+          // visible error rather than a silent second session.
+          requestTimezone = timezone();
+          record = { ...record, timezone: requestTimezone };
+          storage.setItem(recordKey, JSON.stringify(record));
+        }
         const key = record.key;
-        const requestTimezone = record.timezone;
         for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
           try {
             const session = await deps.api.createSession({
