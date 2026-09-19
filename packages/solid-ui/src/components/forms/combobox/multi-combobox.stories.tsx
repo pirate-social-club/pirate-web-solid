@@ -18,15 +18,17 @@ const meta = {
   render: controlledRender<MultiComboboxProps<DemoOption>, readonly string[] | undefined>(
     (args) => args.value,
     (value, setValue, args) => (
-      <MultiCombobox
-        {...args}
-        aria-label="Sort order"
-        value={value()}
-        onChange={(next) => {
-          setValue(next);
-          args.onChange?.(next);
-        }}
-      />
+      <div class="w-96">
+        <MultiCombobox
+          {...args}
+          aria-label="Sort order"
+          value={value()}
+          onChange={(next) => {
+            setValue(next);
+            args.onChange?.(next);
+          }}
+        />
+      </div>
     ),
   ),
   args: {
