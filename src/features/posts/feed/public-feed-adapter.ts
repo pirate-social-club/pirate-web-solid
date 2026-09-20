@@ -67,6 +67,8 @@ export interface PublicFeedItem {
   readonly createdAt: string;
   readonly mediaRefs: readonly unknown[] | null;
   readonly videoDelivery?: VideoDeliveryState;
+  /** Authoritative referenced song for a video with a song soundtrack; never guessed. */
+  readonly songPostId?: string | null;
   readonly analysisState: "pending" | "allow" | "allow_with_required_reference" | "review_required" | "blocked";
   readonly contentSafetyState: "pending" | "safe" | "sensitive" | "adult";
   readonly ageGatePolicy: "none" | "18_plus";
@@ -146,6 +148,19 @@ function normalizeMediaRefs(value: unknown): readonly unknown[] | null {
   return Array.isArray(value) ? value.slice() : null;
 }
 
+/**
+ * The authoritative video-to-song association from the feed envelope. The
+ * server projects `soundtrack.song_reference` from `media_video_song_references`;
+ * titles or other text are never used to guess the link.
+ */
+function readSongPostId(video: unknown): string | null {
+  if (!isRecord(video)) return null;
+  const soundtrack = video.soundtrack;
+  if (!isRecord(soundtrack) || soundtrack.kind !== "song_reference") return null;
+  const reference = soundtrack.song_reference;
+  return isRecord(reference) ? nullableString(reference.song_post_id) : null;
+}
+
 function normalizeCommunity(value: unknown): PublicFeedCommunity | null {
   if (!isRecord(value)) return null;
   const id = nullableString(value.id);
@@ -208,7 +223,9 @@ function normalizeFeedItem(value: unknown): PublicFeedItem | null {
     caption: nullableString(post.caption),
     createdAt: created,
     mediaRefs: normalizeMediaRefs(post.media_refs),
-    ...(postType === "video" ? { videoDelivery: readVideoDelivery(envelope.video) } : {}),
+    ...(postType === "video"
+      ? { videoDelivery: readVideoDelivery(envelope.video), songPostId: readSongPostId(envelope.video) }
+      : {}),
     analysisState,
     contentSafetyState,
     ageGatePolicy,
