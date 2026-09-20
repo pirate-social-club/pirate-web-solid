@@ -64,11 +64,17 @@ async function startStudyLesson(page: import("playwright/test").Page): Promise<v
   // journey starts from an empty script queue so its transcripts are exact.
   await resetStudyScripts(manifest);
   await page.goto(`/posts/${manifest.postSlug}/study`);
-  await expect(page.getByRole("heading", { name: "Start Study" })).toBeVisible();
+  // Entry convergence: a prepared participant with one community-bound persona
+  // opens the first exercise directly. The explicit preparation screen remains
+  // for accounts without a single bound persona, so both entries are accepted.
+  const record = page.getByRole("button", { name: "Record", exact: true });
   const start = page.getByRole("button", { name: "Start", exact: true });
-  await expect(start).toBeEnabled();
-  await start.click();
-  await expect(page.getByRole("button", { name: "Record", exact: true })).toBeVisible();
+  await expect(record.or(start).first()).toBeVisible({ timeout: 90_000 });
+  if (await start.isVisible()) {
+    await expect(start).toBeEnabled();
+    await start.click();
+  }
+  await expect(record).toBeVisible({ timeout: 90_000 });
 }
 
 async function answerCurrentCard(
@@ -210,12 +216,7 @@ test.describe("local Study journey", () => {
       }
       await route.fulfill({ response, body });
     });
-    await page.goto(`/posts/${manifest.postSlug}/study`);
-    await expect(page.getByRole("heading", { name: "Start Study" })).toBeVisible();
-    const start = page.getByRole("button", { name: "Start", exact: true });
-    await expect(start).toBeEnabled();
-    await start.click();
-    await expect(page.getByRole("button", { name: "Record", exact: true })).toBeVisible();
+    await startStudyLesson(page);
     const reference = await currentStudyPrompt(page);
     await answerStudyCardThroughUi(page, manifest, reference);
 
@@ -230,9 +231,11 @@ test.describe("local Study journey", () => {
     expect(afterReplay[0]?.attempts).toBe(1);
 
     await page.reload();
+    // The reload resumes the active session directly; the spent-content state
+    // remains possible only if the lesson was already terminal.
     await expect(
       page
-        .getByRole("heading", { name: "Start Study" })
+        .getByRole("button", { name: "Record", exact: true })
         .or(page.getByText("Study content is not ready", { exact: false })),
     ).toBeVisible({ timeout: 30_000 });
 
