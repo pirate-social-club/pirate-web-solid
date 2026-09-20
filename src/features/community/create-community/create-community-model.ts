@@ -65,12 +65,14 @@ export function gateKindsOf(policy: GatePolicy): GateKind[] {
 }
 
 /**
- * Every community requires unique-human membership; other gates are additive.
+ * Composes the current wire contract: the unique-human membership baseline
+ * plus any additional gates, which the API still treats as one conjunctive
+ * policy.
  *
  * TODO(api-community-document-only-join-policy): package B defines the
- * document-only wire shape. Until then this composes the Palm baseline with
- * the selected requirement exactly as the current contract expects; do not
- * change the composition from the UI alone.
+ * document-only wire shape. Until then the Palm baseline stays in the
+ * composition exactly as the current contract expects; do not change it from
+ * the UI alone.
  */
 export function compileMembershipPolicy(
   additionalRequirements: readonly AdditionalGateRequirement[] = [],

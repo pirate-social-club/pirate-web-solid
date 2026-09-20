@@ -40,7 +40,6 @@ export const GENERATED_LOCALE_CATALOGS = {
         "title": "{name} · بايرت ويب"
       },
       "createCommunity": {
-        "additionalRequirementsTitle": "متطلبات إضافية",
         "avatarChoose": "اختيار صورة",
         "avatarLabel": "صورة المجتمع",
         "avatarReplace": "استبدال الصورة",
@@ -51,9 +50,6 @@ export const GENERATED_LOCALE_CATALOGS = {
         "coverReplace": "استبدال الغلاف",
         "descriptionLabel": "الوصف",
         "descriptionPlaceholder": "عن ماذا يدور هذا المجتمع؟",
-        "humanVerificationDescription": "يتحقق الأعضاء بمسح راحة اليد.",
-        "humanVerificationRequired": "مطلوب",
-        "humanVerificationTitle": "مسح راحة اليد",
         "joinPolicyNationalityTitle": "الأشخاص من الجنسيات المحددة",
         "joinPolicyPalmDescription": "يتحقق الأعضاء بمسح راحة اليد.",
         "joinPolicyPalmTitle": "أي شخص لديه توثيق راحة اليد",
@@ -64,7 +60,6 @@ export const GENERATED_LOCALE_CATALOGS = {
         "nationalityDescription": "يثبت الأعضاء الجنسية بوثيقة مدعومة.",
         "nationalityEmptyError": "اختر دولة واحدة على الأقل.",
         "nationalityHint": "يجب أن يثبت الأعضاء انتماءهم إلى إحدى الجنسيات المحددة.",
-        "nationalityLabel": "التحديد حسب الجنسية",
         "nationalityPickerLabel": "الجنسيات المسموح بها",
         "nationalityPickerPlaceholder": "ابحث عن الدول",
         "profileScope": "هذا الملف الشخصي يخص هذا المجتمع فقط. كل مجتمع تنشئه أو تنضم إليه يحصل على ملفه الشخصي الخاص.",
@@ -294,7 +289,6 @@ export const GENERATED_LOCALE_CATALOGS = {
         "title": "{name} · Pirate Web"
       },
       "createCommunity": {
-        "additionalRequirementsTitle": "Additional requirements",
         "avatarChoose": "Choose image",
         "avatarLabel": "Avatar",
         "avatarReplace": "Replace image",
@@ -305,9 +299,6 @@ export const GENERATED_LOCALE_CATALOGS = {
         "coverReplace": "Replace cover",
         "descriptionLabel": "Description",
         "descriptionPlaceholder": "What is this community about?",
-        "humanVerificationDescription": "Members verify with a palm scan.",
-        "humanVerificationRequired": "Required",
-        "humanVerificationTitle": "Palm scan",
         "joinPolicyNationalityTitle": "People with selected nationalities",
         "joinPolicyPalmDescription": "Members verify with a palm scan.",
         "joinPolicyPalmTitle": "Anyone with Palm verification",
@@ -318,7 +309,6 @@ export const GENERATED_LOCALE_CATALOGS = {
         "nationalityDescription": "Members prove nationality with a supported document.",
         "nationalityEmptyError": "Choose at least one country.",
         "nationalityHint": "Members must prove one of the selected nationalities.",
-        "nationalityLabel": "Limit by nationality",
         "nationalityPickerLabel": "Allowed nationalities",
         "nationalityPickerPlaceholder": "Search countries",
         "profileScope": "This profile belongs to this community only. Each community you create or join gets its own profile.",
@@ -548,7 +538,6 @@ export const GENERATED_LOCALE_CATALOGS = {
         "title": "{name} · Pirate Web"
       },
       "createCommunity": {
-        "additionalRequirementsTitle": "附加要求",
         "avatarChoose": "选择图片",
         "avatarLabel": "社区头像",
         "avatarReplace": "更换图片",
@@ -559,9 +548,6 @@ export const GENERATED_LOCALE_CATALOGS = {
         "coverReplace": "更换封面",
         "descriptionLabel": "简介",
         "descriptionPlaceholder": "这个社区是关于什么的？",
-        "humanVerificationDescription": "成员通过掌纹扫描进行验证。",
-        "humanVerificationRequired": "必需",
-        "humanVerificationTitle": "掌纹扫描",
         "joinPolicyNationalityTitle": "所选国籍的人",
         "joinPolicyPalmDescription": "成员通过掌纹扫描进行验证。",
         "joinPolicyPalmTitle": "任何完成掌纹验证的人",
@@ -572,7 +558,6 @@ export const GENERATED_LOCALE_CATALOGS = {
         "nationalityDescription": "成员用受支持的证件证明国籍。",
         "nationalityEmptyError": "请至少选择一个国家。",
         "nationalityHint": "成员必须证明自己属于所选国籍之一。",
-        "nationalityLabel": "按国籍限制",
         "nationalityPickerLabel": "允许的国籍",
         "nationalityPickerPlaceholder": "搜索国家",
         "profileScope": "此个人资料仅属于该社区。你创建或加入的每个社区都会有各自的个人资料。",

@@ -97,15 +97,17 @@ export function CreateCommunityView(props: CreateCommunityProps) {
 
   // Three-page creation: details, "Who can join?", profile. No page writes an
   // intent; the route view only persists on the final submit, which lives on
-  // the profile page. A saved intent keeps the frozen single-surface shape.
+  // the profile page. A saved intent and the signed-out surface keep the
+  // frozen single-surface shape, where the action is available immediately.
   const [step, setStep] = createSignal<1 | 2 | 3>(1);
-  const stepped = () => props.steps === true && props.resuming !== true;
+  const stepped = () => props.steps === true && !props.actionOnly && props.resuming !== true;
   const stepOneReady = () => validation().nameError === null
     && !props.submitting && !props.accountChecking && !props.submitDisabled;
   const [policyTouched, setPolicyTouched] = createSignal(false);
   const [policyAttempted, setPolicyAttempted] = createSignal(false);
   const joinPolicyKind = (): JoinPolicyKind => (nationality() === undefined ? "palm" : "nationality");
   const setJoinPolicy = (kind: JoinPolicyKind) => {
+    setPolicyTouched(false);
     setPolicyAttempted(false);
     if (kind === "nationality") {
       if (nationality() !== undefined) return;
