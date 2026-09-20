@@ -201,7 +201,6 @@
     "nameRequired": "Name is required.",
     "descriptionLabel": "Description",
     "descriptionPlaceholder": "What is this community about?",
-    "communitySection": "Community",
     "close": "Close",
     "tryAgain": "Try again",
     "joinPolicyTitle": "Who can join?",
@@ -224,7 +223,8 @@
     "ownerNewInstead": "Create a new profile instead",
     "profileScope": "Each community you create or join gets its own profile.",
     "continue": "Continue",
-    "back": "Back",
+    "backToDetails": "Back to community details",
+    "backToPolicy": "Back to join policy",
     "submit": "Create"
   }
 }

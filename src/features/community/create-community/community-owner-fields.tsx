@@ -1,6 +1,6 @@
 import { For, Show, createSignal, createUniqueId } from "solid-js";
 import type { ActivePersonaPublicProjection } from "../../../api/session";
-import { Button, TextField, TextFieldInput, TextFieldLabel, Type } from "../../../design-system";
+import { Button, TextField, TextFieldInput, TextFieldLabel, Type, cn } from "../../../design-system";
 import { communityCreationCandidates } from "../../identity/community-persona-choice";
 import type { CreateCommunityCopy, CreateCommunityDraft } from "./create-community-model";
 
@@ -23,6 +23,12 @@ export function CommunityOwnerFields(props: {
   copy: CommunityOwnerCopy;
   personas?: readonly ActivePersonaPublicProjection[];
   profilesUnavailable?: boolean;
+  /**
+   * Hides the section heading when the page header already carries its text.
+   * The heading element stays in the DOM as the section's accessible name;
+   * it is never removed.
+   */
+  hideHeading?: boolean;
   onChange?: (patch: Partial<CreateCommunityDraft>) => void;
 }) {
   const id = createUniqueId();
@@ -39,7 +45,7 @@ export function CommunityOwnerFields(props: {
   };
   return (
     <section aria-labelledby={`owner-${id}`} class="flex flex-col gap-3 border-t border-border-soft pt-5">
-      <Type as="h2" id={`owner-${id}`} variant="body-strong">{props.copy.ownerHeading}</Type>
+      <Type as="h2" id={`owner-${id}`} variant="body-strong" class={cn(props.hideHeading && "sr-only")}>{props.copy.ownerHeading}</Type>
       <Show when={props.draft.persona?.kind === "existing" || choosingExisting()} fallback={
         <>
           <TextField required value={props.draft.publicName ?? ""} onChange={publicName => props.onChange?.({ publicName })}>

@@ -35,6 +35,8 @@ export interface MultiComboboxProps<Option> {
   contentClass?: string;
   /** Accessible name for the combobox input. */
   "aria-label"?: string;
+  /** Id of an element describing the input, e.g. a helper line above it. */
+  "aria-describedby"?: string;
   /** Native form name. A hidden select is only needed for named form fields. */
   name?: string;
   /** Accessible name for a selected chip's remove control. */
@@ -125,6 +127,7 @@ export function MultiCombobox<Option>(props: MultiComboboxProps<Option>) {
             </For>
             <KCombobox.Input
               aria-label={props["aria-label"]}
+              aria-describedby={props["aria-describedby"]}
               class="h-8 min-w-24 flex-1 border-0 bg-transparent text-base outline-none placeholder:text-muted-foreground"
             />
             <KCombobox.Trigger class="group ms-1 flex size-8 shrink-0 cursor-pointer items-center justify-center rounded-full text-muted-foreground transition-colors hover:bg-muted hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">

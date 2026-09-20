@@ -38,7 +38,7 @@ function continueButton(container: HTMLElement): HTMLButtonElement {
 
 function backButton(container: HTMLElement): HTMLButtonElement {
   return [...container.querySelectorAll<HTMLButtonElement>("button")]
-    .find(button => button.textContent?.trim() === "Back")!;
+    .find(button => button.getAttribute("aria-label")?.startsWith("Back to "))!;
 }
 
 function finalSubmit(container: HTMLElement): HTMLButtonElement | null {

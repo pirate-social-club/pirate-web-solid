@@ -1,7 +1,7 @@
 /** @jsxImportSource @solidjs/web */
 import { Show, createMemo, createUniqueId } from "solid-js";
 
-import { FormNote, MultiCombobox, OptionCard, OptionCardGroup, Type } from "../../../design-system";
+import { FormNote, MultiCombobox, OptionCard, OptionCardGroup, Type, cn } from "../../../design-system";
 import { NATIONALITY_COUNTRY_ALPHA2_CODES, normalizeIdentityCountryAlpha2 } from "../../verification/nationality-country-codes.ts";
 
 export type JoinPolicyKind = "palm" | "nationality";
@@ -36,8 +36,15 @@ export function JoinPolicyField(props: Readonly<{
   disabled?: boolean;
   locale?: string;
   copy: JoinPolicyCopy;
+  /**
+   * Hides the section heading when the page header already carries its text.
+   * The heading element stays in the DOM as the radio group's accessible
+   * name; it is never removed.
+   */
+  hideHeading?: boolean;
 }>) {
   const headingId = createUniqueId();
+  const hintId = `join-policy-hint-${headingId}`;
   const locale = () => props.locale ?? "en";
   const names = createMemo(() => new Intl.DisplayNames([locale()], { type: "region" }));
   const options = createMemo(() =>
@@ -58,7 +65,7 @@ export function JoinPolicyField(props: Readonly<{
 
   return (
     <section aria-labelledby={headingId} class="flex flex-col gap-2" data-community-join-policy>
-      <div class="mb-1" id={headingId}>
+      <div class={cn("mb-1", props.hideHeading && "sr-only")} id={headingId}>
         <Type as="span" variant="body-strong">{props.copy.title}</Type>
       </div>
       <OptionCardGroup
@@ -83,11 +90,15 @@ export function JoinPolicyField(props: Readonly<{
       </OptionCardGroup>
       <Show when={selected() && props.allowNationality}>
         <div class="flex min-w-0 flex-col gap-2 ps-1">
-          <Type as="p" variant="caption" class="text-sm leading-5">{props.copy.nationalityHint}</Type>
-          <MultiCombobox
-            aria-label={props.copy.pickerLabel}
-            class="w-full"
-            disabled={props.disabled}
+          {/* The helper groups with the picker, not with the card above it:
+              tight spacing and aria-describedby make it the picker's lead-in. */}
+          <div class="flex flex-col gap-1">
+            <Type as="p" id={hintId} variant="caption" class="text-sm leading-5">{props.copy.nationalityHint}</Type>
+            <MultiCombobox
+              aria-describedby={hintId}
+              aria-label={props.copy.pickerLabel}
+              class="w-full"
+              disabled={props.disabled}
             filter={(option, input) => {
               const query = input.trim().toLowerCase();
               return query === ""
@@ -104,6 +115,7 @@ export function JoinPolicyField(props: Readonly<{
               return normalized === null ? [] : [normalized];
             })}
           />
+          </div>
           <Show when={emptyErrorVisible()}>
             <FormNote tone="destructive">{props.copy.emptyError}</FormNote>
           </Show>

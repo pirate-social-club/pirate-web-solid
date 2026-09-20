@@ -201,7 +201,6 @@
     "nameRequired": "名称为必填项。",
     "descriptionLabel": "简介",
     "descriptionPlaceholder": "这个社区是关于什么的？",
-    "communitySection": "社区",
     "close": "关闭",
     "tryAgain": "重试",
     "joinPolicyTitle": "谁可以加入？",
@@ -224,7 +223,8 @@
     "ownerNewInstead": "改为创建新资料",
     "profileScope": "你创建或加入的每个社区都会有各自的个人资料。",
     "continue": "继续",
-    "back": "返回",
+    "backToDetails": "返回社区详情",
+    "backToPolicy": "返回加入政策",
     "submit": "创建"
   }
 }

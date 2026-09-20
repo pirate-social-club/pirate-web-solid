@@ -87,7 +87,7 @@ export const ThreePages: Story = {
     await userEvent.click(canvas.getByRole("button", { name: "Continue" }));
 
     // The join policy page offers both options and no community fields.
-    await expect(await canvas.findByText("Who can join?")).toBeInTheDocument();
+    await expect(await canvas.findByRole("heading", { name: "Who can join?" })).toBeInTheDocument();
     await expect(canvas.getByRole("radio", { name: /Anyone with Palm verification/ })).toBeChecked();
     await expect(canvas.getByRole("radio", { name: /People with selected nationalities/ })).toBeInTheDocument();
     await expect(canvas.queryByRole("textbox", { name: "Name" })).toBeNull();
@@ -96,9 +96,10 @@ export const ThreePages: Story = {
     await expect(canvas.getByText(/Each community you create or join gets its own profile/)).toBeInTheDocument();
     await expect(canvas.getByRole("textbox", { name: "Public name" })).toBeInTheDocument();
 
-    await userEvent.click(canvas.getByRole("button", { name: "Back" }));
-    await expect(await canvas.findByText("Who can join?")).toBeInTheDocument();
-    await userEvent.click(canvas.getByRole("button", { name: "Back" }));
+    // Back lives in the header as an arrow, like the post flow's review step.
+    await userEvent.click(canvas.getByRole("button", { name: "Back to join policy" }));
+    await expect(await canvas.findByRole("heading", { name: "Who can join?" })).toBeInTheDocument();
+    await userEvent.click(canvas.getByRole("button", { name: "Back to community details" }));
     await expect(await canvas.findByRole("textbox", { name: "Name" })).toHaveValue("Night Shift");
   },
 };
@@ -161,7 +162,7 @@ export const JoinPolicyValidation: Story = {
     // An empty picker blocks Continue with the note, and the profile page stays closed.
     await userEvent.click(canvas.getByRole("button", { name: "Continue" }));
     await expect(await canvas.findByText("Choose at least one country.")).toBeInTheDocument();
-    await expect(canvas.getByText("Who can join?")).toBeInTheDocument();
+    await expect(canvas.getByRole("heading", { name: "Who can join?" })).toBeInTheDocument();
     await expect(canvas.queryByRole("textbox", { name: "Public name" })).toBeNull();
   },
 };
@@ -172,7 +173,7 @@ export const NationalityHidden: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await userEvent.click(canvas.getByRole("button", { name: "Continue" }));
-    await expect(await canvas.findByText("Who can join?")).toBeInTheDocument();
+    await expect(await canvas.findByRole("heading", { name: "Who can join?" })).toBeInTheDocument();
     await expect(canvas.getByRole("radio", { name: /Anyone with Palm verification/ })).toBeChecked();
     await expect(canvas.queryByRole("radio", { name: /People with selected nationalities/ })).toBeNull();
   },

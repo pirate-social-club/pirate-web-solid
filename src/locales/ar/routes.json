@@ -201,7 +201,6 @@
     "nameRequired": "الاسم مطلوب.",
     "descriptionLabel": "الوصف",
     "descriptionPlaceholder": "عن ماذا يدور هذا المجتمع؟",
-    "communitySection": "المجتمع",
     "close": "إغلاق",
     "tryAgain": "أعد المحاولة",
     "joinPolicyTitle": "من يمكنه الانضمام؟",
@@ -224,7 +223,8 @@
     "ownerNewInstead": "أنشئ ملفًا شخصيًا جديدًا بدلًا من ذلك",
     "profileScope": "كل مجتمع تنشئه أو تنضم إليه يحصل على ملفه الشخصي الخاص.",
     "continue": "متابعة",
-    "back": "رجوع",
+    "backToDetails": "العودة إلى تفاصيل المجتمع",
+    "backToPolicy": "العودة إلى سياسة الانضمام",
     "submit": "إنشاء"
   }
 }

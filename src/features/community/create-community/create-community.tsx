@@ -9,6 +9,7 @@ import {
   ActionFooterShell,
   Button,
   IconButton,
+  IconArrowLeft,
   IconX,
   MediaUploadField,
   TextField,
@@ -136,6 +137,14 @@ export function CreateCommunityView(props: CreateCommunityProps) {
   // A rejected commit belongs to the community fields, so show them again.
   createEffect(() => props.nameError, (nameError) => { if (nameError) setStep(1); });
 
+  // Each stepped page titles itself in the header, like the post flow's review
+  // step; the single surface keeps the flow title.
+  const stepTitle = () => !stepped() || step() === 1
+    ? copy().title
+    : step() === 2
+      ? copy().joinPolicyTitle
+      : copy().ownerHeading;
+
   return (
     <form
       class={cn("h-full", props.class)}
@@ -163,30 +172,19 @@ export function CreateCommunityView(props: CreateCommunityProps) {
               <Show when={props.onRetry}><Button type="button" variant="ghost" disabled={props.accountChecking || props.submitting} onClick={props.onRetry}>{props.retryLabel ?? copy().tryAgain}</Button></Show>
             </div>
             <Show
-              when={stepped() && step() === 1}
+              when={stepped() && step() < 3}
               fallback={
-                <div class="flex flex-col gap-2">
-                  <Show when={stepped()}>
-                    <Button class="h-11 w-full" disabled={props.submitting || props.accountChecking} onClick={() => setStep(step() === 3 ? 2 : 1)} type="button" variant="outline">
-                      {copy().back}
-                    </Button>
-                  </Show>
-                  <Show
-                    when={!stepped() || step() === 3}
-                    fallback={
-                      <Button class="h-11 w-full" disabled={props.submitting || props.accountChecking} onClick={() => { if (continueFromPolicy()) setStep(3); }} type="button">
-                        {copy().continue}
-                      </Button>
-                    }
-                  >
-                    <Button class="h-11 w-full" disabled={!canSubmit()} loading={props.submitting || props.accountChecking} type="submit">
-                      {props.submitLabel ?? copy().submit}
-                    </Button>
-                  </Show>
-                </div>
+                <Button class="h-11 w-full" disabled={!canSubmit()} loading={props.submitting || props.accountChecking} type="submit">
+                  {props.submitLabel ?? copy().submit}
+                </Button>
               }
             >
-              <Button class="h-11 w-full" disabled={!stepOneReady()} onClick={() => setStep(2)} type="button">
+              <Button
+                class="h-11 w-full"
+                disabled={step() === 1 ? !stepOneReady() : props.submitting || props.accountChecking}
+                onClick={() => { if (step() === 1) { if (stepOneReady()) setStep(2); } else if (continueFromPolicy()) setStep(3); }}
+                type="button"
+              >
                 {copy().continue}
               </Button>
             </Show>
@@ -194,12 +192,31 @@ export function CreateCommunityView(props: CreateCommunityProps) {
         }
         footerClass="px-5 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-3"
         header={
-          <div class="mx-auto flex w-full max-w-2xl items-center justify-between px-5 py-3">
-            <Type as="h1" class="text-lg" variant="h4">{copy().title}</Type>
-            <IconButton aria-label={copy().close} onClick={props.onClose} variant="ghost">
-              <IconX class="size-5" />
-            </IconButton>
-          </div>
+          <header class="border-b border-border-soft">
+            <div class="mx-auto flex w-full max-w-2xl items-center gap-3 px-5 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))]">
+              <Show
+                when={stepped() && step() > 1}
+                fallback={<span aria-hidden="true" class="size-10" />}
+              >
+                <IconButton
+                  aria-label={step() === 3 ? copy().backToPolicy : copy().backToDetails}
+                  onClick={() => setStep(step() === 3 ? 2 : 1)}
+                  variant="ghost"
+                >
+                  <IconArrowLeft class="size-5" />
+                </IconButton>
+              </Show>
+              <Type as="h1" variant="body-strong" class="flex-1 text-center">{stepTitle()}</Type>
+              {/*
+                Deliberate difference from the video review surface, which has
+                no exit: every creation page keeps the close action reachable
+                next to the back arrow.
+              */}
+              <IconButton aria-label={copy().close} onClick={props.onClose} variant="ghost">
+                <IconX class="size-5" />
+              </IconButton>
+            </div>
+          </header>
         }
       >
         <fieldset disabled={props.fieldsDisabled || props.submitting} class="contents">
@@ -229,8 +246,6 @@ export function CreateCommunityView(props: CreateCommunityProps) {
             frame="circle"
           />
         </Show>
-
-        <Type as="h2" variant="body-strong">{copy().communitySection}</Type>
 
         {/* Kobalte's TextField exposes no blur hook, so the wrapper marks the
             field touched when focus leaves it. */}
@@ -289,6 +304,7 @@ export function CreateCommunityView(props: CreateCommunityProps) {
             onCountriesChange={setCountries}
             onPolicyChange={setJoinPolicy}
             policy={joinPolicyKind()}
+            hideHeading={stepped()}
             showEmptyError={policyAttempted() || policyTouched()}
           />
         </Show>
@@ -296,7 +312,7 @@ export function CreateCommunityView(props: CreateCommunityProps) {
         <Show when={!stepped() || step() === 3}>
         <Type as="p" variant="caption" class="text-sm leading-5">{copy().profileScope}</Type>
         <fieldset class="contents" disabled={props.ownerDisabled}>
-        <CommunityOwnerFields copy={copy()} draft={props.draft} personas={props.personas} profilesUnavailable={props.profilesUnavailable} onChange={props.onDraftChange} />
+        <CommunityOwnerFields copy={copy()} draft={props.draft} hideHeading={stepped()} personas={props.personas} profilesUnavailable={props.profilesUnavailable} onChange={props.onDraftChange} />
         </fieldset>
         </Show>
         </fieldset>
