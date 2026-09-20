@@ -18,11 +18,11 @@ export type CommunityOwnerCopy = Pick<
   | "ownerLinkedWarning"
   | "ownerNewInstead"
   | "ownerAvatarLabel"
+  | "ownerPublicNameHelp"
   | "mediaPrompt"
   | "mediaChooseFile"
   | "mediaReplace"
   | "mediaRemove"
-  | "profileAvatarHelp"
 >;
 
 export function CommunityOwnerFields(props: {
@@ -72,14 +72,17 @@ export function CommunityOwnerFields(props: {
           */}
           <TextField required value={props.draft.publicName ?? ""} onChange={publicName => props.onChange?.({ publicName })}>
             <TextFieldLabel>{props.copy.ownerPublicNameLabel}</TextFieldLabel>
-            <TextFieldInput maxlength={80} class="rounded-[var(--radius-lg)] bg-card" />
+            <TextFieldInput aria-describedby={`owner-name-help-${id}`} maxlength={80} class="rounded-[var(--radius-lg)] bg-card" />
+            <p class="text-sm text-muted-foreground" id={`owner-name-help-${id}`}>{props.copy.ownerPublicNameHelp}</p>
           </TextField>
+          {/*
+            The generated default shows in the region with no explanatory
+            copy; the pill is the only text beside it.
+          */}
           <MediaPicker
             chooseLabel={props.copy.mediaChooseFile}
-            fallback={<img alt="" class="size-10 shrink-0 rounded-full object-cover" src={generatedAvatarSrc(props.draft.profileAvatarSeed)} />}
-            help={props.copy.profileAvatarHelp}
+            fallback={<img alt="" class="size-16 shrink-0 rounded-full object-cover" src={generatedAvatarSrc(props.draft.profileAvatarSeed)} />}
             label={props.copy.ownerAvatarLabel}
-            prompt={props.copy.mediaPrompt}
             removeLabel={props.copy.mediaRemove}
             replaceLabel={props.copy.mediaReplace}
             onSelect={file => props.onProfileAvatarChange?.(file)}

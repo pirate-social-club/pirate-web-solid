@@ -63,6 +63,6 @@ export const DetailsNationality: Story = {
 };
 
 export const Profile: Story = {
-  parameters: { docs: { description: { story: "Step two: the profile avatar picker with the generated default shown inside the region, and the name field titled for this community, prefilled with a locally generated suggestion. Persistence waits on the avatar API record." } } },
+  parameters: { docs: { description: { story: "Step two: your name in this community (prefilled with a locally generated suggestion) and the profile image picker with the generated default in the region. Persistence waits on the avatar API record." } } },
   render: () => <Screen step={2} draft={withDraftName(createEmptyDraft(personaId), "Night Shift")} />,
 };

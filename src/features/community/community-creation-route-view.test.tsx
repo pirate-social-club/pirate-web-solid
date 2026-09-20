@@ -30,7 +30,7 @@ function nameField(container: HTMLElement): HTMLInputElement {
 }
 
 function publicNameField(container: HTMLElement): HTMLInputElement | null {
-  const label = [...container.querySelectorAll("label")].find(value => value.textContent?.trim() === "Name in this community");
+  const label = [...container.querySelectorAll("label")].find(value => value.textContent?.trim() === "Your name");
   return label ? container.querySelector<HTMLInputElement>(`#${CSS.escape(label.htmlFor)}`) : null;
 }
 function fillPublicName(container: HTMLElement) {
@@ -472,7 +472,7 @@ describe("Community creation production route", () => {
     name.value = "Needs a profile";
     name.dispatchEvent(new InputEvent("input", { bubbles: true }));
     await reachProfilePage(container);
-    expect(container.textContent).toContain("Name in this community");
+    expect(container.textContent).toContain("Your name");
     // The suggestion arrives prefilled; clearing it is what blocks submission.
     const profileName = publicNameField(container)!;
     profileName.value = "";
@@ -1472,7 +1472,7 @@ describe("Create community join policy page", () => {
     // An empty gate keeps Continue disabled; no error is shown untouched.
     expect(continueButton(container).disabled).toBe(true);
     expect(container.textContent).not.toContain("Choose at least one country.");
-    expect(container.textContent).not.toContain("Name in this community");
+    expect(container.textContent).not.toContain("Your name");
 
     // Choosing a country enables Continue; removing everything blocks it
     // again, now with the note.

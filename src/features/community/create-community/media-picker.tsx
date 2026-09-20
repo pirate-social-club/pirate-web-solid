@@ -17,10 +17,10 @@ export function MediaPicker(props: {
   label: string;
   /** Shown in the region before a file is chosen, e.g. the generated default. */
   fallback?: JSX.Element;
-  /** Prompt line in the region before a file is chosen. */
-  prompt: string;
-  /** Help line under the prompt while nothing is chosen. */
-  help: string;
+  /** Prompt line in the region before a file is chosen; omitted when empty. */
+  prompt?: string;
+  /** Help line under the prompt while nothing is chosen; omitted when empty. */
+  help?: string;
   chooseLabel: string;
   replaceLabel: string;
   removeLabel: string;
@@ -51,20 +51,23 @@ export function MediaPicker(props: {
         }}
         type="file"
       />
-      <div class="rounded-[var(--radius-lg)] border border-border-soft bg-card p-4">
-        <div class="flex min-h-24 items-center justify-between gap-4 rounded-[var(--radius-lg)] border border-dashed border-border-soft bg-background p-4">
+      <div class="flex min-h-24 items-center justify-between gap-4 rounded-[var(--radius-lg)] border border-dashed border-border-soft bg-card p-4">
           <div class="flex min-w-0 items-center gap-4">
             <Show when={chosen()} fallback={props.fallback}>
               {(file) => <img alt="" class="size-10 shrink-0 rounded-[var(--radius-lg)] object-cover" src={file().url} />}
             </Show>
-            <div class="min-w-0 space-y-1">
-              <p class="truncate text-base font-medium text-foreground">
-                {chosen()?.name ?? props.prompt}
-              </p>
-              <Show when={!chosen()}>
-                <p class="text-base text-muted-foreground">{props.help}</p>
-              </Show>
-            </div>
+            <Show when={props.prompt || props.help}>
+              <div class="min-w-0 space-y-1">
+                <Show when={props.prompt}>
+                  <p class="truncate text-base font-medium text-foreground">
+                    {chosen()?.name ?? props.prompt}
+                  </p>
+                </Show>
+                <Show when={!chosen() && props.help}>
+                  <p class="text-base text-muted-foreground">{props.help}</p>
+                </Show>
+              </div>
+            </Show>
           </div>
           <div class="flex shrink-0 items-center gap-2">
             <Show when={chosen()}>
@@ -82,7 +85,6 @@ export function MediaPicker(props: {
                 {chosen() ? props.replaceLabel : props.chooseLabel}
               </span>
             </label>
-          </div>
         </div>
       </div>
     </div>

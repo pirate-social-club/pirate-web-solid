@@ -215,7 +215,7 @@ export function CreateCommunityView(props: CreateCommunityProps) {
         <div class="flex flex-col gap-5">
           <MediaPicker
             chooseLabel={copy().mediaChooseFile}
-            fallback={<IconImageSquare class="size-10 shrink-0 text-muted-foreground" />}
+            fallback={<IconImageSquare class="size-12 shrink-0 text-muted-foreground" />}
             help={copy().avatarHelp}
             label={copy().avatarLabel}
             prompt={copy().mediaPrompt}
