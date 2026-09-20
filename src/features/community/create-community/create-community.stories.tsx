@@ -52,23 +52,17 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const Details: Story = {
-  parameters: { docs: { description: { story: "Page one: the community's optional avatar (the circle is the picker, initials until a name exists), name and description." } } },
+  parameters: { docs: { description: { story: "Step one: the community's avatar picker, name, description, and the join policy. With the authoring gate closed (production today) the policy is the one-line Palm fact." } } },
   render: () => <Screen />,
 };
 
-export const JoinPolicy: Story = {
-  name: "Join policy",
-  parameters: { docs: { description: { story: "Page two as production renders it today: with the authoring gate closed there is one policy, stated in one line. Becomes the two-option choice when package B lands." } } },
-  render: () => <Screen step={2} draft={withDraftName(createEmptyDraft(personaId), "Night Shift")} />,
-};
-
-export const JoinPolicyNationality: Story = {
-  name: "Join policy with nationality",
-  parameters: { docs: { description: { story: "Waits on package B (api-community-document-only-join-policy) to be reachable in the app; authoring is off in every environment today. The choice offers Palm scan or Nationality; Nationality opens the Add-nationality sheet with search and checkboxes, and the selection shows as removable chips." } } },
-  render: () => <Screen step={2} nationalityAuthoring draft={withDraftName(createEmptyDraft(personaId), "Night Shift")} />,
+export const DetailsNationality: Story = {
+  name: "Details with nationality gate",
+  parameters: { docs: { description: { story: "Waits on package B (api-community-document-only-join-policy) to be reachable in the app; authoring is off in every environment today. The join-policy section offers Palm scan or Nationality, and Nationality reveals the inline multi-select with chips." } } },
+  render: () => <Screen nationalityAuthoring />,
 };
 
 export const Profile: Story = {
-  parameters: { docs: { description: { story: "Page three: the generated avatar default (the circle is the picker) and the name field titled for this community, prefilled with a locally generated suggestion. Persistence waits on the avatar API record." } } },
-  render: () => <Screen step={3} draft={withDraftName(createEmptyDraft(personaId), "Night Shift")} />,
+  parameters: { docs: { description: { story: "Step two: the profile avatar picker with the generated default shown inside the region, and the name field titled for this community, prefilled with a locally generated suggestion. Persistence waits on the avatar API record." } } },
+  render: () => <Screen step={2} draft={withDraftName(createEmptyDraft(personaId), "Night Shift")} />,
 };

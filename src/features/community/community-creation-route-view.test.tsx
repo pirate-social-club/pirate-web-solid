@@ -74,21 +74,32 @@ async function reachCreate(container: HTMLElement): Promise<HTMLButtonElement> {
   return finalSubmit(container)!;
 }
 
-/** Walks the three-page creation to the profile page, where the final submit lives. */
+/** Walks the creation to the profile page, where the final submit lives. */
 async function reachProfilePage(container: HTMLElement): Promise<void> {
-  await vi.waitFor(() => expect(continueButton(container).disabled).toBe(false));
-  continueButton(container).click();
-  await vi.waitFor(() => expect(container.querySelector("[data-community-join-policy]")).not.toBeNull());
-  continueButton(container).click();
+  await vi.waitFor(() => expect(continueButton(container)).toBeDefined());
+  const next = continueButton(container);
+  if (next) {
+    await vi.waitFor(() => expect(next.disabled).toBe(false));
+    next.click();
+  }
   await vi.waitFor(() => expect(finalSubmit(container)).not.toBeNull());
 }
 
-/** Steps a three-page flow back to its first page, one render at a time. */
+/** Steps the flow back to its first page. */
 async function retreatToFirstPage(container: HTMLElement): Promise<void> {
   backButton(container).click();
-  await vi.waitFor(() => expect(container.querySelector("[data-community-join-policy]")).not.toBeNull());
-  backButton(container).click();
-  await vi.waitFor(() => expect(container.querySelector("[data-community-join-policy]")).toBeNull());
+  await vi.waitFor(() => expect(nameField(container)).toBeDefined());
+}
+
+// jsdom lacks the DOM APIs Kobalte's listbox and pointer interactions need;
+// the same patch the solid-ui suite and the names-settings controller apply.
+if (typeof window !== "undefined") {
+  if (!Element.prototype.scrollIntoView) Element.prototype.scrollIntoView = () => {};
+  if (!Element.prototype.hasPointerCapture) {
+    Element.prototype.hasPointerCapture = () => false;
+    Element.prototype.releasePointerCapture = () => {};
+    Element.prototype.setPointerCapture = () => {};
+  }
 }
 
 const disposers: Array<() => void> = [];
@@ -538,9 +549,8 @@ describe("Community creation production route", () => {
     const name = nameField(container);
     name.value = "Media-free community";
     name.dispatchEvent(new InputEvent("input", { bubbles: true }));
-    await vi.waitFor(() => expect(continueButton(container).disabled).toBe(false));
-    continueButton(container).click();
-    await vi.waitFor(() => expect(container.textContent).toContain("Who can join?"));
+    // The Palm fact lives in the details preview; there is no join-policy
+    // page while the gate is closed.
     expect(container.textContent).toContain("Anyone who completes a palm scan.");
     expect(container.textContent).not.toContain("Nationality");
     await vi.waitFor(() => expect(continueButton(container).disabled).toBe(false));
@@ -1320,6 +1330,10 @@ describe("saved creation revision recovery", () => {
     expect(name.value).toBe("Edited community");
     expect(button.disabled).toBe(true);
     reload().click();
+    // The reload keeps the profile page; step back to the details page,
+    // which now carries the remote name.
+    await vi.waitFor(() => expect(backButton(container)).toBeDefined());
+    backButton(container).click();
     const reloaded: HTMLInputElement = await vi.waitFor(() => {
       const fresh = nameField(container);
       expect(fresh.value).toBe("Remote community");
@@ -1375,10 +1389,8 @@ test("verifies the saved creator requirement in place and requires an explicit c
   current = { ...current, revision: current.revision + 1, status: "commit_ready", nextAction: { kind: "commit" }, nationalityRequirement: { kind: "satisfied" } };
   await vi.waitFor(() => expect(container.textContent).toContain("Nationality verified. Continue"));
   expect(commit).not.toHaveBeenCalled();
-  const back = [...container.querySelectorAll("button")].find(value => value.getAttribute("aria-label") === "Back to join policy")!;
+  const back = [...container.querySelectorAll("button")].find(value => value.getAttribute("aria-label") === "Back to community details")!;
   back.click();
-  await vi.waitFor(() => expect(container.querySelector("[data-community-join-policy]")).not.toBeNull());
-  [...container.querySelectorAll("button")].find(value => value.getAttribute("aria-label") === "Back to community details")!.click();
   await vi.waitFor(() => expect(nameField(container).value).toBe("Saved community"));
 });
 
@@ -1390,14 +1402,13 @@ describe("Create community join policy page", () => {
         draft={draft()}
         nationalityAuthoring={allowNationality}
         onDraftChange={(patch) => setDraft(current => ({ ...current, ...patch }))}
-        initialStep={2}
       />
     ));
     return container;
   }
 
   const openPolicyPage = async (container: HTMLElement) => {
-    // renderPage opens directly on the join-policy page.
+    // The join-policy section renders on the details page.
     await vi.waitFor(() => expect(container.querySelector("[data-community-join-policy]")).not.toBeNull());
   };
 
@@ -1407,6 +1418,13 @@ describe("Create community join policy page", () => {
     expect(option).toBeDefined();
     return option!;
   };
+  /** Clicks the option's card label, the way a user reaches the hidden radio. */
+  const policyLabel = (container: HTMLElement, text: string) => {
+    const label = [...container.querySelectorAll("label")]
+      .find(value => value.textContent?.trim() === text);
+    expect(label).toBeDefined();
+    return label!;
+  };
 
   test("offers both policies only when the authoring gate is open", async () => {
     const container = renderPage(true);
@@ -1415,66 +1433,99 @@ describe("Create community join policy page", () => {
     expect(container.textContent).toContain("Nationality");
     expect(container.querySelector('[role="combobox"]')).toBeNull();
 
-    // Gate closed: one policy, stated in a line instead of a one-card choice.
+    // Gate closed: the section states the one policy; no radio renders.
     const gated = renderPage(false);
     await openPolicyPage(gated);
     expect(gated.textContent).toContain("Anyone who completes a palm scan.");
     expect(gated.querySelectorAll('input[type="radio"]')).toHaveLength(0);
   });
 
-  test("reveals the Add-nationality sheet picker without a helper sentence or a stacked Palm row", async () => {
+  test("reveals the inline chips picker without a helper sentence or a stacked Palm row", async () => {
     const user = userEvent.setup();
     const container = renderPage(true);
     await openPolicyPage(container);
-    await user.click(policyOption(container, "Nationality"));
+    await user.click(policyLabel(container, "Nationality"));
 
     expect(container.textContent).not.toContain("Members must prove one of the selected nationalities.");
     expect(policyOption(container, "Palm scan").checked).toBe(false);
 
-    // Add nationality opens the sheet; search and checkboxes select; the
-    // selection shows as a removable chip.
-    await user.click([...container.querySelectorAll("button")].find(b => b.textContent?.trim() === "Add nationality")!);
-    const findInSheet = <T extends Element>(selector: string) =>
-      vi.waitFor(() => {
-        const found = document.body.querySelector<T>(selector);
-        expect(found).not.toBeNull();
-        return found!;
-      });
-    const search = await findInSheet<HTMLInputElement>('input[aria-label="Search countries"]');
-    await user.type(search, "United States");
-    const unitedStates = await findInSheet<HTMLInputElement>('input[aria-label="United States"]');
-    await user.click(unitedStates);
-    await user.click([...document.body.querySelectorAll("button")].find(b => b.textContent?.trim() === "Done")!);
-    await vi.waitFor(() => expect(container.textContent).toContain("United States"));
-    const chip = [...container.querySelectorAll("button")].find(b => b.getAttribute("aria-label") === "Remove United States")!;
-    expect(chip).toBeDefined();
+    // The multi-select sits inline under the option; typing selects and the
+    // chip removes.
+    const picker = container.querySelector<HTMLInputElement>('input[aria-label="Allowed nationalities"]')!;
+    await user.type(picker, "United States");
+    const option = await vi.waitFor(() => {
+      const found = [...document.body.querySelectorAll('[role="option"]')].find(o => o.textContent?.trim() === "United States")!;
+      expect(found).toBeDefined();
+      return found;
+    });
+    await user.click(option);
+    const chip = await vi.waitFor(() => {
+      const found = [...container.querySelectorAll("button")].find(b => b.getAttribute("aria-label") === "Remove United States");
+      expect(found).toBeDefined();
+      return found!;
+    });
     await user.click(chip);
     await vi.waitFor(() => expect(container.textContent).not.toContain("United States"));
   });
 
-  test("blocks Continue while the nationality picker is empty", async () => {
+  test("keeps Continue blocked while the nationality picker is empty, with the note after interaction", async () => {
     const user = userEvent.setup();
     const container = renderPage(true);
     await openPolicyPage(container);
-    await user.click(policyOption(container, "Nationality"));
-    expect(container.textContent).not.toContain("Choose at least one country.");
+    await user.click(policyLabel(container, "Nationality"));
 
-    await user.click(continueButton(container));
-    await vi.waitFor(() => expect(container.textContent).toContain("Choose at least one country."));
-    expect(container.querySelector("[data-community-join-policy]")).not.toBeNull();
+    // An empty gate keeps Continue disabled; no error is shown untouched.
+    expect(continueButton(container).disabled).toBe(true);
+    expect(container.textContent).not.toContain("Choose at least one country.");
     expect(container.textContent).not.toContain("Name in this community");
+
+    // Choosing a country enables Continue; removing everything blocks it
+    // again, now with the note.
+    const picker = container.querySelector<HTMLInputElement>('input[aria-label="Allowed nationalities"]')!;
+    await user.type(picker, "United States");
+    const option = await vi.waitFor(() => {
+      const found = [...document.body.querySelectorAll('[role="option"]')].find(o => o.textContent?.trim() === "United States")!;
+      expect(found).toBeDefined();
+      return found;
+    });
+    await user.click(option);
+    await vi.waitFor(() => expect(continueButton(container).disabled).toBe(false));
+    const chip = [...container.querySelectorAll("button")].find(b => b.getAttribute("aria-label") === "Remove United States")!;
+    await user.click(chip);
+    await vi.waitFor(() => expect(container.textContent).toContain("Choose at least one country."));
+    expect(continueButton(container).disabled).toBe(true);
   });
 
-  test("resets the empty-picker note when the policy changes", async () => {
+  test("clears the picker note when the policy changes", async () => {
     const user = userEvent.setup();
     const container = renderPage(true);
     await openPolicyPage(container);
-    await user.click(policyOption(container, "Nationality"));
-    await user.click(continueButton(container));
+    await user.click(policyLabel(container, "Nationality"));
+
+    // Surface the note by interacting with the picker, then emptying it.
+    const picker = container.querySelector<HTMLInputElement>('input[aria-label="Allowed nationalities"]')!;
+    await user.type(picker, "Canada");
+    const option = await vi.waitFor(() => {
+      const found = [...document.body.querySelectorAll('[role="option"]')].find(o => o.textContent?.trim() === "Canada")!;
+      expect(found).toBeDefined();
+      return found;
+    });
+    await user.click(option);
+    const chip = await vi.waitFor(() => {
+      const found = [...container.querySelectorAll("button")].find(b => b.getAttribute("aria-label") === "Remove Canada");
+      expect(found).toBeDefined();
+      return found!;
+    });
+    await user.click(chip);
     await vi.waitFor(() => expect(container.textContent).toContain("Choose at least one country."));
 
-    await user.click(policyOption(container, "Palm scan"));
-    await user.click(policyOption(container, "Nationality"));
+    // Switching to Palm and back starts fresh: no lingering note, Continue
+    // blocked only by the empty gate.
+    await user.click(policyLabel(container, "Palm scan"));
+    await vi.waitFor(() => expect(continueButton(container).disabled).toBe(false));
+    await user.click(policyLabel(container, "Nationality"));
     expect(container.textContent).not.toContain("Choose at least one country.");
+    expect(continueButton(container).disabled).toBe(true);
   });
 });
+

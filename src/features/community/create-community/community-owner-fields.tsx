@@ -3,8 +3,8 @@ import type { ActivePersonaPublicProjection } from "../../../api/session";
 import { Button, TextField, TextFieldInput, TextFieldLabel, Type, cn } from "../../../design-system";
 import { communityCreationCandidates } from "../../identity/community-persona-choice";
 import type { CreateCommunityCopy, CreateCommunityDraft } from "./create-community-model";
-import { AvatarPicker } from "./avatar-picker";
 import { generatedAvatarSrc } from "./generated-avatar";
+import { MediaPicker } from "./media-picker";
 
 /** The localized strings this section renders; supplied by the creation view. */
 export type CommunityOwnerCopy = Pick<
@@ -18,6 +18,11 @@ export type CommunityOwnerCopy = Pick<
   | "ownerLinkedWarning"
   | "ownerNewInstead"
   | "ownerAvatarLabel"
+  | "mediaPrompt"
+  | "mediaChooseFile"
+  | "mediaReplace"
+  | "mediaRemove"
+  | "profileAvatarHelp"
 >;
 
 export function CommunityOwnerFields(props: {
@@ -25,8 +30,6 @@ export function CommunityOwnerFields(props: {
   copy: CommunityOwnerCopy;
   personas?: readonly ActivePersonaPublicProjection[];
   profilesUnavailable?: boolean;
-  /** Chosen profile-avatar image; the generated default shows when absent. */
-  profileAvatarSrc?: string | null;
   onProfileAvatarChange?: (file: File | null) => void;
   /**
    * Hides the section heading when the page header already carries its text.
@@ -36,8 +39,8 @@ export function CommunityOwnerFields(props: {
   hideHeading?: boolean;
   /**
    * A saved intent freezes the owner choice. Locked renders one summary line
-   * instead of disabled form controls: a control that cannot be used is
-   * noise, and the line says the same thing.
+   * instead of form controls: a control that cannot be used is noise, and
+   * the line says the same thing.
    */
   locked?: boolean;
   onChange?: (patch: Partial<CreateCommunityDraft>) => void;
@@ -55,31 +58,37 @@ export function CommunityOwnerFields(props: {
     else { setChoosingExisting(true); props.onChange?.({ persona: undefined }); }
   };
   return (
-    <section aria-labelledby={`owner-${id}`} class="flex flex-col gap-3 border-t border-border-soft pt-5">
+    <section aria-labelledby={`owner-${id}`} class="flex flex-col gap-3">
       <Type as="h2" id={`owner-${id}`} variant="body-strong" class={cn(props.hideHeading && "sr-only")}>{props.copy.ownerHeading}</Type>
       <Show when={props.locked} fallback={
         <Show when={props.draft.persona?.kind === "existing" || choosingExisting()} fallback={
-          <>
-            {/*
-              Spec 014 §3.1 as amended 2026-09-20: the avatar default simply
-              appears and the circle is the picker. The name field is titled
-              "Name in this community" and arrives prefilled with a locally
-              generated suggestion.
-            */}
-            <AvatarPicker
-              label={props.copy.ownerAvatarLabel}
-              onChange={props.onProfileAvatarChange}
-              src={props.profileAvatarSrc ?? generatedAvatarSrc(props.draft.profileAvatarSeed)}
-            />
-            <TextField required value={props.draft.publicName ?? ""} onChange={publicName => props.onChange?.({ publicName })}>
-              <TextFieldLabel>{props.copy.ownerPublicNameLabel}</TextFieldLabel>
-              <TextFieldInput maxlength={80} class="rounded-[var(--radius-lg)] bg-card" />
-            </TextField>
-            <div class="h-10">
-              <Button type="button" variant="ghost" class={candidates().length === 0 ? "invisible self-start" : "self-start"} disabled={props.profilesUnavailable || candidates().length === 0} onClick={useExisting}>{props.copy.ownerUseExisting}</Button>
-            </div>
-          </>
-        }>
+        <>
+          {/*
+            Spec 014 §3.1 as amended 2026-09-20: the profile avatar is
+            optional, generated locally by default (shown inside the picker
+            region), uploaded through the same MediaPicker shape. The name
+            field is titled "Name in this community" and arrives prefilled
+            with a locally generated suggestion.
+          */}
+          <TextField required value={props.draft.publicName ?? ""} onChange={publicName => props.onChange?.({ publicName })}>
+            <TextFieldLabel>{props.copy.ownerPublicNameLabel}</TextFieldLabel>
+            <TextFieldInput maxlength={80} class="rounded-[var(--radius-lg)] bg-card" />
+          </TextField>
+          <MediaPicker
+            chooseLabel={props.copy.mediaChooseFile}
+            fallback={<img alt="" class="size-10 shrink-0 rounded-full object-cover" src={generatedAvatarSrc(props.draft.profileAvatarSeed)} />}
+            help={props.copy.profileAvatarHelp}
+            label={props.copy.ownerAvatarLabel}
+            prompt={props.copy.mediaPrompt}
+            removeLabel={props.copy.mediaRemove}
+            replaceLabel={props.copy.mediaReplace}
+            onSelect={file => props.onProfileAvatarChange?.(file)}
+          />
+          <div class="h-10">
+            <Button type="button" variant="ghost" class={candidates().length === 0 ? "invisible self-start" : "self-start"} disabled={props.profilesUnavailable || candidates().length === 0} onClick={useExisting}>{props.copy.ownerUseExisting}</Button>
+          </div>
+        </>
+      }>
         <Show when={existing()} fallback={
           <div class="flex flex-col gap-2">
             <label for={`owner-choice-${id}`}>{props.copy.ownerExistingLabel}</label>
