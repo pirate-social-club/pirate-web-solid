@@ -15,6 +15,12 @@ import {
  * reloads and simultaneous tabs, an uncertain start resolves with the same key,
  * a deliberate later lesson still creates a new session, and consent still
  * gates capture. Persisted session rows are asserted alongside screen state.
+ *
+ * This file owns manifest accounts 12-19. The browser specs partition the
+ * seeded learners so no two spec files share an account, because each account
+ * accumulates a pinned timezone and a study review schedule that the next
+ * spec's journey would otherwise inherit: study-journey uses 0-5 and
+ * karaoke-journey uses 6-11.
  */
 
 let manifest: HarnessManifest;
@@ -77,7 +83,7 @@ test("the direct Study URL opens the first exercise with exactly one session", a
   context,
   page,
 }) => {
-  const account = await useAccount(context, manifest, 0);
+  const account = await useAccount(context, manifest, 12);
   await page.goto(studyUrl());
   await expectFirstExercise(page);
   const sessions = await waitForDatabaseRow<SessionRow>(
@@ -88,7 +94,7 @@ test("the direct Study URL opens the first exercise with exactly one session", a
 });
 
 test("the post page Study link opens the first exercise", async ({ context, page }) => {
-  const account = await useAccount(context, manifest, 1);
+  const account = await useAccount(context, manifest, 13);
   await page.goto(`/posts/${manifest.postSlug}`);
   await page.getByRole("link", { name: "Study", exact: true }).click();
   await expectFirstExercise(page);
@@ -108,7 +114,7 @@ test("the mobile video feed opens Study for a video with a ready referenced song
   context,
   page,
 }) => {
-  const account = await useAccount(context, manifest, 2);
+  const account = await useAccount(context, manifest, 14);
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/communities");
   await page.getByRole("button", { name: "Home", exact: true }).click();
@@ -144,7 +150,7 @@ test("the mobile video feed opens Study for a video with a ready referenced song
   expect(sessions[0]?.status).toBe("active");
 });
 test("a reload resumes the same session without creating another", async ({ context, page }) => {
-  const account = await useAccount(context, manifest, 3);
+  const account = await useAccount(context, manifest, 15);
   await page.goto(studyUrl());
   await expectFirstExercise(page);
   const [first] = await waitForDatabaseRow<SessionRow>(
@@ -159,7 +165,7 @@ test("a reload resumes the same session without creating another", async ({ cont
 });
 
 test("two tabs entering together share one session", async ({ context, page }) => {
-  const account = await useAccount(context, manifest, 4);
+  const account = await useAccount(context, manifest, 16);
   const other = await context.newPage();
   try {
     await Promise.all([
@@ -180,7 +186,7 @@ test("a lost start response resolves with the same key into one session", async 
   context,
   page,
 }) => {
-  const account = await useAccount(context, manifest, 5);
+  const account = await useAccount(context, manifest, 17);
   let aborted = false;
   await page.route("**/study/v2/sessions", async (route) => {
     if (!aborted && route.request().method() === "POST") {
@@ -204,7 +210,7 @@ test("a deliberate new lesson after completion creates a second session", async 
   context,
   page,
 }) => {
-  const account = await useAccount(context, manifest, 6);
+  const account = await useAccount(context, manifest, 18);
   await page.goto(studyUrl());
   await expectFirstExercise(page);
   await completeStudySessionThroughUi(page, manifest);
@@ -226,7 +232,7 @@ test("cancelling the disclosure leaves no audio and no second session", async ({
   context,
   page,
 }) => {
-  const account = await useAccount(context, manifest, 7);
+  const account = await useAccount(context, manifest, 19);
   await page.goto(studyUrl());
   await expectFirstExercise(page);
   await recordButton(page).click();
