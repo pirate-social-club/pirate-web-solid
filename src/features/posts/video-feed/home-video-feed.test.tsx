@@ -423,20 +423,40 @@ test("the feed mute control mutes the playable card and reports its state", asyn
       data={page([linked], null)}
       loadPage={async () => page([], null)}
       loadStudyAvailability={async () => true}
-      mintPlaybackAccess={async () => new Promise<never>(() => {})}
+      mintPlaybackAccess={async () => ({
+        expiresAt: Date.now() + 300_000,
+        renewAt: Date.now() + 240_000,
+        url: "https://customer-fixture.cloudflarestream.com/a.b.c/manifest/video.m3u8",
+      })}
+      attachPlayback={async (input) => {
+        input.video.dispatchEvent(new Event("canplay"));
+        return () => {};
+      }}
       resolveSongLink={async () => null}
     />
   ));
 
   await vi.waitFor(() => expect(container.querySelector("[data-video-feed-card]")).not.toBeNull());
+  await vi.waitFor(() => expect(container.querySelector("[data-video-player-play]")).not.toBeNull());
   const button = container.querySelector<HTMLButtonElement>("[data-video-feed-mute]");
   const player = container.querySelector("video");
   expect(button).not.toBeNull();
   expect(button?.getAttribute("aria-pressed")).toBe("false");
   expect(player?.muted).toBe(false);
 
+  const play = vi.spyOn(HTMLMediaElement.prototype, "play").mockResolvedValue();
   button!.click();
   await vi.waitFor(() => expect(player?.muted).toBe(true));
   expect(button?.getAttribute("aria-pressed")).toBe("true");
   expect(button?.textContent).toBe("Unmute");
+
+  // Mute is sound only: nothing played and the play affordance still shows.
+  expect(play).not.toHaveBeenCalled();
+  const affordance = container.querySelector<HTMLButtonElement>("[data-video-player-play]");
+  expect(affordance).not.toBeNull();
+
+  // The explicit affordance is what starts playback.
+  affordance!.click();
+  expect(play).toHaveBeenCalledTimes(1);
+  play.mockRestore();
 });

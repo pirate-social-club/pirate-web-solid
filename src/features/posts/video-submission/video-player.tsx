@@ -1,5 +1,6 @@
 import { AgeAccessPrompt } from "../../verification/age-access-prompt.tsx";
 import type { verifyAdultViewing } from "../../verification/age-verification.ts";
+import { IconPlay } from "../../../design-system";
 import { createEffect, createSignal, onCleanup, Show } from "solid-js";
 import { attachPlayback } from "./playback-engine";
 import { mintPlaybackAccess, videoPosterPath, type PlaybackGrant } from "./playback-access";
@@ -44,6 +45,9 @@ export function VideoPlayer(props: {
   const [foreground, setForeground] = createSignal(true, { ownedWrite: true });
   const [status, setStatus] = createSignal<"idle" | "loading" | "ready" | "unavailable">("idle", { ownedWrite: true });
   const [poster, setPoster] = createSignal<string | undefined>(undefined, { ownedWrite: true });
+  // Playing is driven by the media element's own events, so the paused overlay
+  // reflects real playback and never a request that was refused.
+  const [playing, setPlaying] = createSignal(false, { ownedWrite: true });
   function rememberPlayback() {
     if (!video || !detach || video.readyState < HTMLMediaElement.HAVE_METADATA) return;
     if (Number.isFinite(video.currentTime)) position = video.currentTime;
@@ -57,6 +61,7 @@ export function VideoPlayer(props: {
       video.pause(); detach?.(); detach = undefined;
       video.removeAttribute("src"); video.load();
     }
+    setPlaying(false);
     setPoster(undefined);
   }
   function fail() { stop(); setStatus("unavailable"); }
@@ -135,12 +140,30 @@ export function VideoPlayer(props: {
     },
   );
   onCleanup(stop);
-  return <section ref={host} aria-label="Published video" data-video-player-state={status()}>
+  return <section ref={host} aria-label="Published video" class="relative" data-video-player-playing={playing()} data-video-player-state={status()}>
     <Show when={props.state.playback === "ready"} fallback={<><VideoDeliveryPending state={props.state} showThumbnailMessage={false} /><Show when={poster()}>{src => <img src={src()} alt="Video thumbnail" onError={() => setPoster(undefined)} />}</Show><Show when={!poster()}><p>{props.state.thumbnail === "pending" ? "Thumbnail is being prepared." : props.state.thumbnail === "ready" ? "Thumbnail could not be loaded yet." : "Thumbnail is unavailable."}</p></Show></>}>
       <video ref={video} controls playsinline preload="metadata" crossorigin="anonymous" muted={props.muted === true} poster={poster()} class="max-h-[80dvh] w-full bg-black object-contain"
         onCanPlay={() => { if (abort && !abort.signal.aborted) setStatus("ready"); }}
         onError={() => { if (status() === "ready" || status() === "loading") fail(); }}
-        onPlay={() => props.onUserInteraction?.()} />
+        onPause={() => setPlaying(false)}
+        onPlay={() => { setPlaying(true); props.onUserInteraction?.(); }} />
+      <Show when={status() === "ready" && !playing()}>
+        <button
+          aria-label="Play video"
+          class="absolute inset-0 m-auto grid size-16 place-items-center rounded-full bg-black/60 text-white shadow-lg"
+          data-video-player-play
+          onClick={() => {
+            // An explicit play affordance: this is the interaction that unlocks
+            // the feed gate. Muting alone never does.
+            props.onUserInteraction?.();
+            const started = video.play();
+            if (started !== undefined) void started.catch(() => {});
+          }}
+          type="button"
+        >
+          <IconPlay class="ml-1 size-8" />
+        </button>
+      </Show>
       <Show when={status() === "loading"}><p role="status">Preparing playback…</p></Show>
       <Show when={status() === "unavailable"}>
         <Show when={props.requiresAgeVerification}><AgeAccessPrompt verify={props.verifyAge} onVerified={async () => { resume = false; if (visible() && foreground()) await acquire(); }} /></Show>

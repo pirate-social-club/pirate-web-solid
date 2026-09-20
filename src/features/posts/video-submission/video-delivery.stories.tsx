@@ -10,10 +10,17 @@ import { VideoPlayer } from "./video-player";
  * creation views, not to public discovery: the feed never renders a video
  * that is still processing as an ordinary full-screen item.
  */
+/** Reports canplay so the ready controls can be reviewed without a host map. */
+const canplayAttach = async (input: { video: HTMLVideoElement }) => {
+  input.video.dispatchEvent(new Event("canplay"));
+  return () => {};
+};
+
 const meta = {
   title: "Screens/Posts/VideoDelivery",
   component: VideoPlayer,
   args: {
+    attach: canplayAttach,
     mint: reviewPlaybackMint,
     postId: "post_harness_video_linked",
     posterPath: reviewPosterPath,
@@ -89,5 +96,16 @@ export const AuthorPlaybackPolicyMuted: Story = {
   play: async ({ canvasElement }) => {
     await waitFor(() => expect(canvasElement.querySelector("video")).not.toBeNull());
     await waitFor(() => expect(canvasElement.querySelector("video")?.muted).toBe(true));
+  },
+};
+
+/** A paused policy state still leads with an explicit play affordance. */
+export const AuthorPlayAffordance: Story = {
+  args: { autoplay: false, state: { playback: "ready", thumbnail: "ready" } },
+  play: async ({ canvasElement }) => {
+    await waitFor(() =>
+      expect(canvasElement.querySelector("[data-video-player-play]")).not.toBeNull(),
+    );
+    expect(canvasElement.querySelector("[data-video-player-play]")?.getAttribute("aria-label")).toBe("Play video");
   },
 };

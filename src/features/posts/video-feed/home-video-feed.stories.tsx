@@ -34,6 +34,16 @@ const missingThumbnail: PublicFeedItem = {
   videoDelivery: { playback: "ready", thumbnail: "pending" },
 };
 
+/**
+ * Storybook has no harness host mapping, so the local fixture's media never
+ * attaches. This seam reports canplay so the player reaches its ready state
+ * and the playback controls can be reviewed.
+ */
+const canplayAttach = async (input: { video: HTMLVideoElement }) => {
+  input.video.dispatchEvent(new Event("canplay"));
+  return () => {};
+};
+
 const meta = {
   title: "Screens/Posts/HomeVideoFeed",
   component: HomeVideoFeed,
@@ -43,6 +53,7 @@ const meta = {
     navigate: () => undefined,
     // The local review fixture plays its own media and resolves its own song
     // link; production keeps the API mint, poster and public read.
+    attachPlayback: canplayAttach,
     loadStudyAvailability: async (songPostId: string) => songPostId === "post_harness_song",
     mintPlaybackAccess: reviewPlaybackMint,
     posterPath: reviewPosterPath,
@@ -302,6 +313,22 @@ export const MuteControlPolicy: Story = {
     await userEvent.click(canvas.getByRole("button", { name: "Mute" }));
     await waitFor(() => expect(player?.muted).toBe(true));
     await expect(canvas.getByRole("button", { name: "Unmute" })).toHaveAttribute("aria-pressed", "true");
+    // Muting is sound only: playback stays paused and the affordance remains.
+    expect(player?.paused).toBe(true);
+    expect(canvasElement.querySelector("[data-video-player-play]")).not.toBeNull();
+  },
+};
+
+/** The initial paused state leads with an explicit play control. */
+export const PlayAffordance: Story = {
+  name: "Play affordance",
+  args: { data: oneVideo(playableLinked) },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await readyState(canvasElement);
+    const affordance = await canvas.findByRole("button", { name: "Play video" });
+    await expect(affordance).toBeInTheDocument();
+    expect(canvasElement.querySelector("video")?.paused).toBe(true);
   },
 };
 

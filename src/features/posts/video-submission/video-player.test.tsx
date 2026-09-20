@@ -199,3 +199,43 @@ test("applies the feed's mute state and reports user-initiated plays", async () 
   video.dispatchEvent(new Event("play"));
   expect(interactions).toHaveLength(1);
 });
+
+test("the paused affordance plays and reports the interaction while mute never does", async () => {
+  const play = vi.spyOn(HTMLMediaElement.prototype, "play").mockResolvedValue();
+  const { root, setMuted, interactions } = mountWithSignals({
+    mint: vi.fn().mockResolvedValue(grant()),
+    autoplay: false,
+  });
+  await flush();
+  const video = root.querySelector("video")!;
+  video.dispatchEvent(new Event("canplay"));
+  await flush();
+
+  // The initial paused state carries an obvious play control.
+  const affordance = root.querySelector<HTMLButtonElement>("[data-video-player-play]");
+  expect(affordance).not.toBeNull();
+  expect(affordance?.getAttribute("aria-label")).toBe("Play video");
+
+  // Muting toggles sound only: no playback starts and no feed interaction is
+  // recorded, so the affordance stays.
+  setMuted(true);
+  await flush();
+  expect(video.muted).toBe(true);
+  expect(play).not.toHaveBeenCalled();
+  expect(interactions).toHaveLength(0);
+  expect(root.querySelector("[data-video-player-play]")).not.toBeNull();
+
+  // The explicit affordance is the interaction that starts playback.
+  affordance!.click();
+  await flush();
+  expect(interactions).toHaveLength(1);
+  expect(play).toHaveBeenCalledTimes(1);
+
+  // Real playback hides the affordance.
+  video.dispatchEvent(new Event("play"));
+  await flush();
+  expect(root.querySelector("[data-video-player-play]")).toBeNull();
+  video.dispatchEvent(new Event("pause"));
+  await flush();
+  expect(root.querySelector("[data-video-player-play]")).not.toBeNull();
+});

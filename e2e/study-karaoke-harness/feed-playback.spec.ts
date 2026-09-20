@@ -49,12 +49,17 @@ test("the active video advances after interaction, and the next video takes over
   await openFeed(context, page, 20);
   const first = page.locator("[data-video-feed-card]").nth(0).locator("video");
 
-  // Feed policy before any interaction: the active card is paused, not playing.
+  // Feed policy before any interaction: the active card is paused and offers
+  // an explicit play affordance instead of starting on its own.
   expect(await isPaused(first)).toBe(true);
+  const firstCard = page.locator("[data-video-feed-card]").nth(0);
+  const affordance = firstCard.locator("[data-video-player-play]");
+  await expect(affordance).toBeVisible();
 
-  // A real click on the player is the interaction that unlocks the feed gate.
-  await first.click();
+  // The affordance is the interaction that unlocks the feed gate.
+  await affordance.click();
   await expect.poll(() => currentTime(first), { timeout: 15_000 }).toBeGreaterThan(0.2);
+  await expect(affordance).toHaveCount(0);
   const firstTime = await currentTime(first);
   await page.waitForTimeout(700);
   expect(await currentTime(first)).toBeGreaterThan(firstTime);
@@ -74,9 +79,10 @@ test("the active video advances after interaction, and the next video takes over
 
 test("the feed mute control mutes every playable card", async ({ context, page }) => {
   await openFeed(context, page, 21);
-  const first = page.locator("[data-video-feed-card]").nth(0).locator("video");
-  const firstMute = page.locator("[data-video-feed-card]").nth(0).locator("[data-video-feed-mute]");
-  await first.click();
+  const firstCard = page.locator("[data-video-feed-card]").nth(0);
+  const first = firstCard.locator("video");
+  const firstMute = firstCard.locator("[data-video-feed-mute]");
+  await firstCard.locator("[data-video-player-play]").click();
   await expect.poll(() => currentTime(first), { timeout: 15_000 }).toBeGreaterThan(0.2);
   expect(await isMuted(first)).toBe(false);
 
@@ -92,8 +98,9 @@ test("the feed mute control mutes every playable card", async ({ context, page }
 
 test("backgrounding pauses playback and returning resumes it", async ({ context, page }) => {
   await openFeed(context, page, 22);
-  const first = page.locator("[data-video-feed-card]").nth(0).locator("video");
-  await first.click();
+  const firstCard = page.locator("[data-video-feed-card]").nth(0);
+  const first = firstCard.locator("video");
+  await firstCard.locator("[data-video-player-play]").click();
   await expect.poll(() => currentTime(first), { timeout: 15_000 }).toBeGreaterThan(0.2);
 
   await page.evaluate(() => {
@@ -107,4 +114,36 @@ test("backgrounding pauses playback and returning resumes it", async ({ context,
     document.dispatchEvent(new Event("visibilitychange"));
   });
   await expect.poll(() => currentTime(first), { timeout: 15_000 }).toBeGreaterThan(0.1);
+});
+
+test("mute toggles sound only, and the play affordance is what unlocks the feed", async ({ context, page }) => {
+  await openFeed(context, page, 23);
+  const firstCard = page.locator("[data-video-feed-card]").nth(0);
+  const first = firstCard.locator("video");
+  const affordance = firstCard.locator("[data-video-player-play]");
+  await expect(affordance).toBeVisible();
+  expect(await isPaused(first)).toBe(true);
+
+  // Muting is sound only: no playback, no gate unlock, affordance untouched.
+  await firstCard.locator("[data-video-feed-mute]").click();
+  await expect.poll(() => isMuted(first), { timeout: 10_000 }).toBe(true);
+  expect(await isPaused(first)).toBe(true);
+  expect(await currentTime(first)).toBe(0);
+  await expect(affordance).toBeVisible();
+
+  // The click did not unlock the feed gate: the next row stays paused.
+  await scrollToRow(page, 1);
+  const second = page.locator("[data-video-feed-card]").nth(1).locator("video");
+  await page.waitForTimeout(500);
+  expect(await isPaused(second)).toBe(true);
+  expect(await currentTime(second)).toBe(0);
+
+  // The explicit affordance plays and unlocks the gate; the next row then
+  // autoplays.
+  await scrollToRow(page, 0);
+  await expect(affordance).toBeVisible();
+  await affordance.click();
+  await expect.poll(() => currentTime(first), { timeout: 15_000 }).toBeGreaterThan(0.2);
+  await scrollToRow(page, 1);
+  await expect.poll(() => currentTime(second), { timeout: 15_000 }).toBeGreaterThan(0.1);
 });
