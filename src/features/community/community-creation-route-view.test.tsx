@@ -1449,8 +1449,8 @@ describe("Create community join policy page", () => {
     expect(card.disabled).toBe(true);
     expect(card.checked).toBe(true);
     expect(container.querySelector('[role="combobox"]')).toBeNull();
-    expect(container.textContent).toContain("Saved join policy");
-    expect(container.textContent).toContain("Members must prove one of the selected nationalities.");
+    expect(container.textContent).toContain("Selected nationalities");
+    expect(container.textContent).toContain("Fixed at creation.");
     expect(container.textContent).toContain("United States");
     expect(container.textContent).toContain("Canada");
   });

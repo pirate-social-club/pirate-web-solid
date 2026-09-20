@@ -23,6 +23,7 @@ function CreateStory(props: {
   actionOnly?: boolean;
   resuming?: boolean;
   ownerDisabled?: boolean;
+  requirePersona?: boolean;
   submitLabel?: string;
   personas?: readonly ActivePersonaPublicProjection[];
 }) {
@@ -40,6 +41,7 @@ function CreateStory(props: {
         actionOnly={props.actionOnly}
         resuming={props.resuming}
         ownerDisabled={props.ownerDisabled}
+        requirePersona={props.requirePersona}
         submitLabel={props.submitLabel}
         draft={draft()}
         personas={props.personas}
@@ -73,20 +75,23 @@ type Story = StoryObj<typeof meta>;
 
 export const SignedOut: Story = {
   name: "Signed-out visitor",
-  parameters: { docs: { description: { story: "The single surface a visitor without a session gets: the whole form stays visible and the primary action opens in-app sign-in, so a typed draft survives signing in." } } },
-  render: () => <CreateStory actionOnly steps submitLabel="Sign in to create" />,
+  parameters: { docs: { description: { story: "The single surface a visitor without a session gets: the community details and join policy stay visible, no profile section renders because no persona can exist yet, and the primary action opens in-app sign-in so a typed draft survives." } } },
+  render: () => <CreateStory actionOnly requirePersona={false} steps submitLabel="Sign in to create" />,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(canvas.getByRole("button", { name: "Sign in to create" })).toBeEnabled();
     await expect(canvas.getByText("Who can join?")).toBeInTheDocument();
     await expect(canvas.getByRole("radio", { name: /Anyone with Palm verification/ })).toBeChecked();
     await expect(canvas.queryByRole("radio", { name: /People with selected nationalities/ })).toBeNull();
+    // No session, no persona: the profile section waits for sign-in.
+    await expect(canvas.queryByRole("textbox", { name: "Public name" })).toBeNull();
+    await expect(canvas.queryByText(/gets its own profile/)).toBeNull();
   },
 };
 
 export const SavedIntent: Story = {
   name: "Saved intent",
-  parameters: { docs: { description: { story: "The frozen single surface a saved creation intent reopens as: both pages' fields sit on one page, the owner fields are locked, a nationality policy that outlives the authoring gate shows as a saved summary, and the action is immediate." } } },
+  parameters: { docs: { description: { story: "The frozen single surface a saved creation intent reopens as: both pages' fields sit on one page, the owner fields are locked, a nationality policy that outlives the authoring gate shows as a selected-nationalities summary, and the action is immediate." } } },
   render: () => (
     <CreateStory
       actionOnly
@@ -104,7 +109,8 @@ export const SavedIntent: Story = {
     // One page carries both the community fields and the profile.
     await expect(canvas.getByRole("textbox", { name: "Name" })).toBeInTheDocument();
     await expect(canvas.getByRole("textbox", { name: "Public name" })).toBeInTheDocument();
-    await expect(canvas.getByText("Saved join policy")).toBeInTheDocument();
+    await expect(canvas.getByText("Selected nationalities")).toBeInTheDocument();
+    await expect(canvas.getByText("Fixed at creation.")).toBeInTheDocument();
     await expect(canvas.getByRole("radio", { name: /People with selected nationalities/ })).toBeDisabled();
     await expect(canvas.getByRole("button", { name: "Create" })).toBeEnabled();
   },
@@ -228,8 +234,8 @@ export const SavedNationalityFrozen: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await userEvent.click(canvas.getByRole("button", { name: "Continue" }));
-    await expect(await canvas.findByText("Saved join policy")).toBeInTheDocument();
-    await expect(canvas.getByText("Members must prove one of the selected nationalities.")).toBeInTheDocument();
+    await expect(await canvas.findByText("Selected nationalities")).toBeInTheDocument();
+    await expect(canvas.getByText("Fixed at creation.")).toBeInTheDocument();
     await expect(canvas.getByText("United States, Canada")).toBeInTheDocument();
     await expect(canvas.queryByRole("combobox")).toBeNull();
     await expect(canvas.getByRole("radio", { name: /People with selected nationalities/ })).toBeDisabled();

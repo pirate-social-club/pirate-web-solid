@@ -309,8 +309,10 @@ export function CreateCommunityView(props: CreateCommunityProps) {
           />
         </Show>
 
-        <Show when={!stepped() || step() === 3}>
-        <Type as="p" variant="caption" class="text-sm leading-5">{copy().profileScope}</Type>
+        {/* No session, no profile section: a signed-out visitor cannot hold a
+            persona, so the fields would be inert. After sign-in the stepped
+            flow presents the profile page where it belongs. */}
+        <Show when={props.requirePersona !== false && (!stepped() || step() === 3)}>
         <fieldset class="contents" disabled={props.ownerDisabled}>
         <CommunityOwnerFields copy={copy()} draft={props.draft} hideHeading={stepped()} personas={props.personas} profilesUnavailable={props.profilesUnavailable} onChange={props.onDraftChange} />
         </fieldset>

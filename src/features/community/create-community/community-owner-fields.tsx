@@ -8,8 +8,8 @@ import type { CreateCommunityCopy, CreateCommunityDraft } from "./create-communi
 export type CommunityOwnerCopy = Pick<
   CreateCommunityCopy,
   | "ownerHeading"
+  | "profileScope"
   | "ownerPublicNameLabel"
-  | "ownerPublicNameHelp"
   | "ownerUseExisting"
   | "ownerExistingLabel"
   | "ownerExistingPlaceholder"
@@ -46,13 +46,13 @@ export function CommunityOwnerFields(props: {
   return (
     <section aria-labelledby={`owner-${id}`} class="flex flex-col gap-3 border-t border-border-soft pt-5">
       <Type as="h2" id={`owner-${id}`} variant="body-strong" class={cn(props.hideHeading && "sr-only")}>{props.copy.ownerHeading}</Type>
+      <Type as="p" variant="caption" class="text-sm leading-5">{props.copy.profileScope}</Type>
       <Show when={props.draft.persona?.kind === "existing" || choosingExisting()} fallback={
         <>
           <TextField required value={props.draft.publicName ?? ""} onChange={publicName => props.onChange?.({ publicName })}>
             <TextFieldLabel>{props.copy.ownerPublicNameLabel}</TextFieldLabel>
-            <TextFieldInput maxlength={80} aria-describedby={`owner-help-${id}`} class="rounded-[var(--radius-lg)] bg-card" />
+            <TextFieldInput maxlength={80} class="rounded-[var(--radius-lg)] bg-card" />
           </TextField>
-          <p id={`owner-help-${id}`} class="text-sm text-muted-foreground">{props.copy.ownerPublicNameHelp}</p>
           <div class="h-10">
             <Button type="button" variant="ghost" class={candidates().length === 0 ? "invisible self-start" : "self-start"} disabled={props.profilesUnavailable || candidates().length === 0} onClick={useExisting}>{props.copy.ownerUseExisting}</Button>
           </div>
