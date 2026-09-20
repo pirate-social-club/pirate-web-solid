@@ -18,6 +18,7 @@ import {
   type CreateCommunityDraft,
   type AdditionalGateRequirement,
 } from "./create-community/create-community-model";
+import { randomAvatarSeed } from "./create-community/generated-avatar";
 import type {
   CommunityCreationIntentView,
   CreationNextAction,
@@ -149,6 +150,8 @@ function mapIntent(response: PostCommunityCreationIntentsResponse): CommunityCre
         ? { kind: "existing", personaId: response.draft.persona.persona_id }
         : { kind: "create_new" },
       additionalRequirements: additionalDraftRequirements(response.draft.policy),
+      // The wire carries no avatar seed; the client re-seeds locally.
+      profileAvatarSeed: randomAvatarSeed(),
     },
     committedHref: response.committed_resource?.href ?? null,
     expiresAt: response.expires_at,

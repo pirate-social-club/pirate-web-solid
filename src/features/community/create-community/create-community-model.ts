@@ -1,6 +1,7 @@
 import { normalizeIdentityCountryAlpha2 } from "../../verification/nationality-country-codes.ts";
 import type { GeneratedLocaleCatalogs } from "../../../locales/generated";
 import type { CommunityPersonaChoice } from "../../identity/community-persona-choice";
+import { randomAvatarSeed } from "./generated-avatar";
 
 /**
  * A subset of api-next's `CompiledGateRequirement`
@@ -96,6 +97,11 @@ export interface CreateCommunityDraft {
   description: string | null;
   /** Configured requirements appended to the mandatory human baseline. */
   additionalRequirements: AdditionalGateRequirement[];
+  /**
+   * Client-only seed for the locally generated profile-avatar default
+   * (Spec 014 §3.1). Not sent anywhere until the avatar API record lands.
+   */
+  profileAvatarSeed: string;
 }
 
 export function createEmptyDraft(persona: CommunityPersonaChoice | undefined): CreateCommunityDraft {
@@ -105,6 +111,7 @@ export function createEmptyDraft(persona: CommunityPersonaChoice | undefined): C
     name: "",
     description: null,
     additionalRequirements: [],
+    profileAvatarSeed: randomAvatarSeed(),
   };
 }
 

@@ -135,7 +135,8 @@ describe("createCommunityCreationApi", () => {
     };
 
     await expect(api.createIntent({ draft, idempotencyKey: "create-key" })).resolves.toEqual({
-      draft,
+      // The adapter re-seeds the client-only avatar seed from the wire view.
+      draft: { ...draft, profileAvatarSeed: expect.any(String) },
       committedHref: null,
       expiresAt: "2026-08-31T00:00:00Z",
       intentId: "creation-1",

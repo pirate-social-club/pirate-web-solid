@@ -19,7 +19,14 @@ import {
 } from "../auth/global-sign-in-host";
 
 function createIntent(overrides: Parameters<typeof createIntentView>[0] = {}) {
-  return createIntentView({ expiresAt: new Date(Date.now() + 86_400_000).toISOString(), draft: { name: "Saved community", publicName: "River Room", description: "Saved description", persona: { kind: "create_new" }, additionalRequirements: [] }, ...overrides });
+  return createIntentView({ expiresAt: new Date(Date.now() + 86_400_000).toISOString(), draft: { name: "Saved community", publicName: "River Room", description: "Saved description", persona: { kind: "create_new" }, additionalRequirements: [], profileAvatarSeed: "saved-seed" }, ...overrides });
+}
+
+function nameField(container: HTMLElement): HTMLInputElement {
+  const label = [...container.querySelectorAll("label")].find(value => value.textContent?.trim() === "Name");
+  const field = label ? container.querySelector<HTMLInputElement>(`#${CSS.escape(label.htmlFor)}`) : null;
+  expect(field).toBeDefined();
+  return field!;
 }
 
 function publicNameField(container: HTMLElement): HTMLInputElement | null {
@@ -192,7 +199,7 @@ describe("Community creation production route", () => {
       if (attempt === 2) return Promise.reject(new Error("network"));
       return new Promise(resolve => { settle = resolve; });
     }} />);
-    const name = container.querySelector<HTMLInputElement>("input")!;
+    const name = nameField(container);
     const description = container.querySelector<HTMLTextAreaElement>("textarea")!;
     name.value = "My community";
     name.dispatchEvent(new InputEvent("input", { bubbles: true }));
@@ -204,14 +211,14 @@ describe("Community creation production route", () => {
     await vi.waitFor(() => expect(settle).toBeTypeOf("function"));
     settle(authenticated);
     await vi.waitFor(() => expect(continueButton(container).disabled).toBe(false));
-    expect(container.querySelector("input")).toBe(name);
+    expect(nameField(container)).toBe(name);
     expect(name.value).toBe("My community");
     expect(description.value).toBe("Keep this description");
 
     refreshSession();
     await vi.waitFor(() => expect(container.textContent).toContain("Could not check your account"));
     expect(submit().disabled).toBe(false);
-    expect(container.querySelector("input")).toBe(name);
+    expect(nameField(container)).toBe(name);
     expect(name.value).toBe("My community");
     expect(client.createIntent).not.toHaveBeenCalled();
     const retry = [...container.querySelectorAll<HTMLButtonElement>("button")]
@@ -220,7 +227,7 @@ describe("Community creation production route", () => {
     await vi.waitFor(() => expect(attempt).toBe(3));
     settle(authenticated);
     await vi.waitFor(() => expect(continueButton(container).disabled).toBe(false));
-    expect(container.querySelector("input")).toBe(name);
+    expect(nameField(container)).toBe(name);
     expect(name.value).toBe("My community");
     expect(description.value).toBe("Keep this description");
   });
@@ -234,7 +241,7 @@ describe("Community creation production route", () => {
         personas: authenticated ? [{ personaId: "persona-1", displayName: "Host", avatarRef: null,
           primaryPublicHandle: null, communityBinding: null }] : [] })}
     />);
-    const name = container.querySelector<HTMLInputElement>("input")!;
+    const name = nameField(container);
     name.value = "My community";
     name.dispatchEvent(new InputEvent("input", { bubbles: true }));
     fillPublicName(container);
@@ -259,7 +266,7 @@ describe("Community creation production route", () => {
     const container = render(() => <CommunityCreationRouteView api={client} intentId="saved-1"
       resolveSession={() => new Promise(resolve => { resolveAccount = resolve; })} />);
     const form = container.querySelector("form");
-    const name = container.querySelector<HTMLInputElement>("input")!;
+    const name = nameField(container);
     expect(form).not.toBeNull();
     expect(name.closest("fieldset")?.disabled).toBe(true);
     expect(container.textContent).not.toContain("Resume community creation");
@@ -270,7 +277,7 @@ describe("Community creation production route", () => {
     await vi.waitFor(() => expect(name.value).toBe("Saved community"));
     expect(container.querySelector("form")).toBe(form);
     refreshSession();
-    expect(container.querySelector("input")).toBe(name);
+    expect(nameField(container)).toBe(name);
     resolveAccount(authenticated);
     await vi.waitFor(() => expect(client.getIntent).toHaveBeenCalledTimes(2));
     expect(name.value).toBe("Saved community");
@@ -289,7 +296,7 @@ describe("Community creation production route", () => {
           personas: [{ personaId: "persona-1", displayName: "Host", avatarRef: null,
             primaryPublicHandle: null, communityBinding: null }] }) : "anonymous"} />);
       await vi.waitFor(() => expect(container.querySelector("main")?.getAttribute("data-creation-state")).toBe("signed-out"));
-      const name = container.querySelector<HTMLInputElement>("input")!;
+      const name = nameField(container);
       name.value = "Retained community";
       name.dispatchEvent(new InputEvent("input", { bubbles: true }));
       fillPublicName(container);
@@ -305,7 +312,7 @@ describe("Community creation production route", () => {
       await vi.waitFor(() => expect(container.querySelector("main")?.getAttribute("data-creation-state")).toBe("ready"));
       expect(createIntentRequest).not.toHaveBeenCalled();
       // The signed-in surface is the three-page flow; the draft survives.
-      const edited = container.querySelector<HTMLInputElement>("input")!;
+      const edited = nameField(container);
       edited.value = "Edited community";
       edited.dispatchEvent(new InputEvent("input", { bubbles: true }));
       await reachProfilePage(container);
@@ -329,7 +336,7 @@ describe("Community creation production route", () => {
           avatarRef: null, primaryPublicHandle: null, communityBinding: null }] };
       }} />);
     await vi.waitFor(() => expect(container.textContent).toContain("Could not check your account"));
-    const name = container.querySelector<HTMLInputElement>("input")!;
+    const name = nameField(container);
     name.value = "Retained community";
     name.dispatchEvent(new InputEvent("input", { bubbles: true }));
     fillPublicName(container);
@@ -362,7 +369,7 @@ describe("Community creation production route", () => {
         : { status: "authenticated", userId: "user-1", personas: [{ personaId: "persona-1", displayName: "Host",
           avatarRef: null, primaryPublicHandle: null, communityBinding: null }] }} />);
     await vi.waitFor(() => expect(container.textContent).toContain("Could not load your existing profiles"));
-    const name = container.querySelector<HTMLInputElement>("input")!;
+    const name = nameField(container);
     name.value = "Retained community";
     name.dispatchEvent(new InputEvent("input", { bubbles: true }));
     fillPublicName(container);
@@ -385,7 +392,7 @@ describe("Community creation production route", () => {
     const createIntentRequest = vi.fn();
     const container = render(() => <CommunityCreationRouteView api={api({ createIntent: createIntentRequest })}
       resolveSession={() => new Promise(resolve => { settle = resolve; })} />);
-    const name = container.querySelector<HTMLInputElement>("input")!;
+    const name = nameField(container);
     name.value = "Pending community";
     name.dispatchEvent(new InputEvent("input", { bubbles: true }));
     fillPublicName(container);
@@ -402,7 +409,7 @@ describe("Community creation production route", () => {
     // The authenticated surface is the three-page flow.
     await vi.waitFor(() => expect(continueButton(container).disabled).toBe(false));
     expect(createIntentRequest).not.toHaveBeenCalled();
-    expect(container.querySelector("input")).toBe(name);
+    expect(nameField(container)).toBe(name);
   });
 
   test("reports a session change during creation instead of silently committing under another account", async () => {
@@ -415,7 +422,7 @@ describe("Community creation production route", () => {
         personas: [{ personaId: "persona-1", displayName: "Host", avatarRef: null,
           primaryPublicHandle: null, communityBinding: null }] })} />);
     await vi.waitFor(() => expect(container.querySelector("main")?.getAttribute("data-creation-state")).toBe("ready"));
-    const name = container.querySelector<HTMLInputElement>("input")!;
+    const name = nameField(container);
     name.value = "Retained draft";
     name.dispatchEvent(new InputEvent("input", { bubbles: true }));
     await reachProfilePage(container);
@@ -446,7 +453,7 @@ describe("Community creation production route", () => {
     await vi.waitFor(() => expect(route().getAttribute("data-creation-state")).toBe("ready"));
     expect(container.textContent).not.toContain("Create a persona first");
     expect(container.textContent).not.toContain("coming soon");
-    const name = container.querySelector<HTMLInputElement>("input")!;
+    const name = nameField(container);
     name.value = "Needs a profile";
     name.dispatchEvent(new InputEvent("input", { bubbles: true }));
     await reachProfilePage(container);
@@ -513,15 +520,16 @@ describe("Community creation production route", () => {
     ));
 
     await vi.waitFor(() => expect(container.querySelector("[data-create-community]")).not.toBeNull());
-    const name = container.querySelector<HTMLInputElement>("input")!;
+    // One avatar picker on the details page, and no cover banner control.
+    expect(container.querySelectorAll("input[type='file']")).toHaveLength(1);
+    const name = nameField(container);
     name.value = "Media-free community";
     name.dispatchEvent(new InputEvent("input", { bubbles: true }));
     await vi.waitFor(() => expect(continueButton(container).disabled).toBe(false));
     continueButton(container).click();
     await vi.waitFor(() => expect(container.textContent).toContain("Who can join?"));
-    expect(container.textContent).toContain("Anyone with Palm verification");
-    expect(container.textContent).not.toContain("People with selected nationalities");
-    expect(container.querySelector("input[type='file']")).toBeNull();
+    expect(container.textContent).toContain("Anyone who completes a palm scan.");
+    expect(container.textContent).not.toContain("Nationality");
     await vi.waitFor(() => expect(continueButton(container).disabled).toBe(false));
     continueButton(container).click();
     await vi.waitFor(() => expect(container.textContent).toContain("Your profile"));
@@ -566,7 +574,7 @@ describe("Community creation production route", () => {
     ));
 
     await vi.waitFor(() => expect(container.querySelector("[data-create-community]")).not.toBeNull());
-    const name = container.querySelector<HTMLInputElement>("input")!;
+    const name = nameField(container);
     name.value = "Community New";
     name.dispatchEvent(new InputEvent("input", { bubbles: true, data: "Community New", inputType: "insertText" }));
     await reachProfilePage(container);
@@ -615,7 +623,7 @@ describe("Community creation production route", () => {
       />
     ));
 
-    await vi.waitFor(() => expect(container.querySelector<HTMLInputElement>("input")?.value).toBe("Saved community"));
+    await vi.waitFor(() => expect(nameField(container).value).toBe("Saved community"));
     expect(container.textContent).toContain("Create community");
     expect(commitIntent).not.toHaveBeenCalled();
   });
@@ -648,7 +656,7 @@ describe("Community creation production route", () => {
     ));
 
     await vi.waitFor(() => expect(container.querySelector("[data-create-community]")).not.toBeNull());
-    const name = container.querySelector<HTMLInputElement>("input")!;
+    const name = nameField(container);
     name.value = "Retry Harbor";
     name.dispatchEvent(new InputEvent("input", { bubbles: true, data: "Retry Harbor", inputType: "insertText" }));
     await reachProfilePage(container);
@@ -773,7 +781,7 @@ describe("Community creation production route", () => {
     ));
 
     await vi.waitFor(() => expect(container.querySelector("[data-create-community]")).not.toBeNull());
-    const name = container.querySelector<HTMLInputElement>("input")!;
+    const name = nameField(container);
     name.value = "Quota Community";
     name.dispatchEvent(new InputEvent("input", { bubbles: true }));
     await reachProfilePage(container);
@@ -848,7 +856,7 @@ describe("Community creation production route", () => {
       />
     ));
 
-    const name = container.querySelector<HTMLInputElement>("input")!;
+    const name = nameField(container);
     await vi.waitFor(() => expect(name.value).toBe("Saved community"));
     name.value = "Edited community";
     name.dispatchEvent(new InputEvent("input", { bubbles: true }));
@@ -878,7 +886,7 @@ describe("Named owner setup", () => {
       commitIntent: vi.fn(async () => activated ? createIntent({ status: "committed", revision: 3, nextAction: { kind: "none", reason: "committed" }, committedHref: "/communities/fresh" }) : pending()),
     });
     const container = render(() => <CommunityCreationRouteView api={client} navigate={navigate} resolveSession={async () => owner} confirmIdentity={confirmIdentity} />);
-    const name = container.querySelector<HTMLInputElement>("input")!;
+    const name = nameField(container);
     name.value = "New place";
     name.dispatchEvent(new InputEvent("input", { bubbles: true }));
     await reachProfilePage(container);
@@ -959,7 +967,7 @@ describe("Stable creation lifecycle", () => {
     let reject!: (error: Error) => void;
     const client = api({ createIntent: () => new Promise((_, fail) => { reject = fail; }) });
     const container = render(() => <CommunityCreationRouteView api={client} resolveSession={async () => owner} />);
-    const name = container.querySelector<HTMLInputElement>("input")!;
+    const name = nameField(container);
     name.value = "A stable community";
     name.dispatchEvent(new InputEvent("input", { bubbles: true }));
     await reachProfilePage(container);
@@ -982,7 +990,7 @@ describe("Stable creation lifecycle", () => {
     expect(labels()).toEqual(initialLabels);
     expect(container.querySelector("form")).toBe(form);
     await retreatToFirstPage(container);
-    expect(container.querySelector<HTMLInputElement>("input")?.value).toBe("A stable community");
+    expect(nameField(container).value).toBe("A stable community");
   });
 });
 
@@ -994,7 +1002,7 @@ describe("Creation wait recovery", () => {
     const commitIntent = vi.fn(async () => createIntent({ status: "committed", revision: 3, nextAction: { kind: "none", reason: "committed" }, committedHref: "/c/ready" }));
     const navigate = vi.fn();
     const container = render(() => <CommunityCreationRouteView api={api({ createIntent: async () => waiting(), getIntent: async () => createIntent({ nextAction: { kind: "commit" }, revision: 2 }), commitIntent })} resolveSession={async () => owner} navigate={navigate} />);
-    const name = container.querySelector<HTMLInputElement>("input")!;
+    const name = nameField(container);
     name.value = "Waiting community";
     name.dispatchEvent(new InputEvent("input", { bubbles: true }));
     await reachProfilePage(container);
@@ -1025,7 +1033,7 @@ test("saves edited community details before retrying a saved intent without chan
   const updateIntent = vi.fn(async () => createIntent({ revision: 3, nextAction: { kind: "commit" } }));
   const commitIntent = vi.fn(async () => createIntent({ revision: 4, status: "committed", nextAction: { kind: "none", reason: "committed" }, committedHref: "/c/updated" }));
   const container = render(() => <CommunityCreationRouteView intentId="saved" api={api({ getIntent: async () => saved, updateIntent, commitIntent })} resolveSession={async () => ({ status: "authenticated", userId: "owner", personas: [] })} navigate={() => {}} />);
-  const name = container.querySelector<HTMLInputElement>("input")!;
+  const name = nameField(container);
   await vi.waitFor(() => expect(name.value).toBe("Saved community"));
   expect(name.matches(":disabled")).toBe(false);
   // The locked profile renders as a summary line, not a disabled field.
@@ -1064,7 +1072,7 @@ test("never opens an identity dialog from wait polling", async () => {
     createIntent: async () => createIntent({ nextAction: { kind: "wait", requirement: null, reasonCode: "operation_pending", retryAfterSeconds: 1 } }),
     getIntent: async () => pending,
   })} resolveSession={async () => ({ status: "authenticated", userId: "owner", personas: [] })} navigate={() => {}} confirmIdentity={confirmIdentity} />);
-  const name = container.querySelector<HTMLInputElement>("input")!;
+  const name = nameField(container);
     name.value = "Timer community";
     name.dispatchEvent(new InputEvent("input", { bubbles: true }));
     await reachProfilePage(container);
@@ -1085,7 +1093,7 @@ describe("saved creation revision recovery", () => {
   const saved = () => createIntent({ intentId: "saved-revision", revision: 2, nextAction: { kind: "commit" } });
 
   async function editName(container: HTMLElement) {
-    const name = container.querySelector<HTMLInputElement>("input")!;
+    const name = nameField(container);
     const button = container.querySelector<HTMLButtonElement>("button[type=submit]")!;
     await vi.waitFor(() => {
       expect(name.value).toBe("Saved community");
@@ -1099,7 +1107,7 @@ describe("saved creation revision recovery", () => {
   test("patches edits against the refreshed revision and commits the resulting revision", async () => {
     const refreshed = createIntent({ ...saved(), revision: 3, draft: {
       additionalRequirements: [], persona: { kind: "create_new" }, description: "Saved description",
-      publicName: "River Room", name: "Saved community",
+      publicName: "River Room", name: "Saved community", profileAvatarSeed: "saved-seed",
     } });
     const updated = createIntent({ ...refreshed, revision: 4 });
     const getIntent = vi.fn().mockResolvedValueOnce(saved()).mockResolvedValue(refreshed);
@@ -1359,7 +1367,7 @@ test("verifies the saved creator requirement in place and requires an explicit c
   current = { ...current, revision: current.revision + 1, status: "commit_ready", nextAction: { kind: "commit" }, nationalityRequirement: { kind: "satisfied" } };
   await vi.waitFor(() => expect(container.textContent).toContain("Nationality verified. Continue"));
   expect(commit).not.toHaveBeenCalled();
-  expect(container.querySelector('input')?.value).toBe("Saved community");
+  expect(nameField(container).value).toBe("Saved community");
 });
 
 describe("Create community join policy page", () => {
@@ -1392,33 +1400,33 @@ describe("Create community join policy page", () => {
   test("offers both policies only when the authoring gate is open", async () => {
     const container = renderPage(true);
     await openPolicyPage(container);
-    expect(container.textContent).toContain("Anyone with Palm verification");
-    expect(container.textContent).toContain("People with selected nationalities");
+    expect(container.textContent).toContain("Palm scan");
+    expect(container.textContent).toContain("Nationality");
     expect(container.querySelector('[role="combobox"]')).toBeNull();
 
+    // Gate closed: one policy, stated in a line instead of a one-card choice.
     const gated = renderPage(false);
     await openPolicyPage(gated);
-    expect(gated.textContent).toContain("Anyone with Palm verification");
-    expect(gated.textContent).not.toContain("People with selected nationalities");
+    expect(gated.textContent).toContain("Anyone who completes a palm scan.");
+    expect(gated.querySelectorAll('input[type="radio"]')).toHaveLength(0);
   });
 
-  test("reveals the empty picker and the any-of hint without a stacked Palm row", async () => {
+  test("reveals the empty picker without a helper sentence or a stacked Palm row", async () => {
     const user = userEvent.setup();
     const container = renderPage(true);
     await openPolicyPage(container);
-    await user.click(policyOption(container, "People with selected nationalities"));
+    await user.click(policyOption(container, "Nationality"));
 
-    expect(container.textContent).toContain("Members must prove one of the selected nationalities.");
     expect(container.querySelector('[role="combobox"]')).not.toBeNull();
-    expect(container.textContent).not.toContain("Required \u00b7 Members verify");
-    expect(policyOption(container, "Anyone with Palm verification").checked).toBe(false);
+    expect(container.textContent).not.toContain("Members must prove one of the selected nationalities.");
+    expect(policyOption(container, "Palm scan").checked).toBe(false);
   });
 
   test("blocks Continue while the nationality picker is empty", async () => {
     const user = userEvent.setup();
     const container = renderPage(true);
     await openPolicyPage(container);
-    await user.click(policyOption(container, "People with selected nationalities"));
+    await user.click(policyOption(container, "Nationality"));
     expect(container.textContent).not.toContain("Choose at least one country.");
 
     await user.click(continueButton(container));
@@ -1431,12 +1439,12 @@ describe("Create community join policy page", () => {
     const user = userEvent.setup();
     const container = renderPage(true);
     await openPolicyPage(container);
-    await user.click(policyOption(container, "People with selected nationalities"));
+    await user.click(policyOption(container, "Nationality"));
     await user.click(continueButton(container));
     await vi.waitFor(() => expect(container.textContent).toContain("Choose at least one country."));
 
-    await user.click(policyOption(container, "Anyone with Palm verification"));
-    await user.click(policyOption(container, "People with selected nationalities"));
+    await user.click(policyOption(container, "Palm scan"));
+    await user.click(policyOption(container, "Nationality"));
     expect(container.textContent).not.toContain("Choose at least one country.");
   });
 });

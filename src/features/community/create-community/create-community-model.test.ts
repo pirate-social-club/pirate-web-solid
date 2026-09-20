@@ -17,6 +17,7 @@ import {
   type AdditionalGateRequirement,
   type CreateCommunityCopy,
 } from "./create-community-model";
+import { generatedAvatarSrc } from "./generated-avatar";
 
 // SAFETY: the generated routes catalog guarantees the createCommunity key shape for every UI locale.
 const copy = getLocaleMessages("en", "routes").createCommunity as CreateCommunityCopy;
@@ -116,4 +117,10 @@ test("nationality authoring preserves Palm and compares normalized full allowlis
   expect(compileMembershipPolicy([nationality]).accessPaths[0].requirements).toEqual([HUMAN_VERIFICATION, nationality]);
   expect(requirementsEqual(nationality, { requirement: "nationality-allowed", allowedCountries: ["CAN", "USA"] })).toBe(true);
   expect(requirementsEqual(nationality, { requirement: "nationality-allowed", allowedCountries: ["US"] })).toBe(false);
+});
+
+test("the generated profile avatar is seed-deterministic", () => {
+  expect(generatedAvatarSrc("seed-1")).toBe(generatedAvatarSrc("seed-1"));
+  expect(generatedAvatarSrc("seed-1")).not.toBe(generatedAvatarSrc("seed-2"));
+  expect(generatedAvatarSrc("seed-1")).toMatch(/^data:image\/svg\+xml,/);
 });

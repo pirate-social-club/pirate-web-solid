@@ -34,16 +34,17 @@ export interface CreateCommunityProps {
   /** Server-supplied name error, e.g. a rejected commit. */
   nameError?: string | null;
   avatarSrc?: string | null;
-  coverSrc?: string | null;
   onAvatarChange?: (file: File | null) => void;
-  onCoverChange?: (file: File | null) => void;
+  /** Chosen profile-avatar image; the generated default shows when absent. */
+  profileAvatarSrc?: string | null;
+  onProfileAvatarChange?: (file: File | null) => void;
   onDraftChange?: (patch: Partial<CreateCommunityDraft>) => void;
   onSubmit?: () => void;
   onClose?: () => void;
   personas?: readonly ActivePersonaPublicProjection[];
   profilesUnavailable?: boolean;
-  /** Keep false in production until the community API can persist these assets. */
-  showMediaFields?: boolean;
+  /** Page the stepped flow opens on; production always starts at one. */
+  initialStep?: 1 | 2 | 3;
   /** Enables the three-page layout. The route view flips this on with its tests. */
   steps?: boolean;
   /**
@@ -100,7 +101,7 @@ export function CreateCommunityView(props: CreateCommunityProps) {
   // intent; the route view only persists on the final submit, which lives on
   // the profile page. A saved intent and the signed-out surface keep the
   // frozen single-surface shape, where the action is available immediately.
-  const [step, setStep] = createSignal<1 | 2 | 3>(1);
+  const [step, setStep] = createSignal<1 | 2 | 3>(props.initialStep ?? 1);
   const stepped = () => props.steps === true && !props.actionOnly && props.resuming !== true;
   const stepOneReady = () => validation().nameError === null
     && !props.submitting && !props.accountChecking && !props.submitDisabled;
@@ -179,11 +180,12 @@ export function CreateCommunityView(props: CreateCommunityProps) {
                 </Button>
               }
             >
+              {/* A submit-typed Continue keeps Enter meaningful on every
+                  stepped page; the form's onSubmit routes by step. */}
               <Button
                 class="h-11 w-full"
-                disabled={step() === 1 ? !stepOneReady() : props.submitting || props.accountChecking}
-                onClick={() => { if (step() === 1) { if (stepOneReady()) setStep(2); } else if (continueFromPolicy()) setStep(3); }}
-                type="button"
+                disabled={step() === 1 ? !stepOneReady() : !!(props.submitting || props.accountChecking)}
+                type="submit"
               >
                 {copy().continue}
               </Button>
@@ -221,19 +223,8 @@ export function CreateCommunityView(props: CreateCommunityProps) {
       >
         <fieldset disabled={props.fieldsDisabled || props.submitting} class="contents">
         <Show when={!stepped() || step() === 1}>
-        <Show when={props.showMediaFields !== false}>
-          <MediaUploadField
-            chooseLabel={copy().coverChoose}
-            clearLabel={copy().removeImage}
-            hideLabel
-            label={copy().coverLabel}
-            onChange={props.onCoverChange}
-            onClear={() => props.onCoverChange?.(null)}
-            previewSrc={props.coverSrc}
-            replaceLabel={copy().coverReplace}
-            frame="banner"
-          />
-
+        {/* Spec 014 §3.1: the details page collects the optional community
+            avatar, name and description. A cover banner is outside creation. */}
           <MediaUploadField
             chooseLabel={copy().avatarChoose}
             clearLabel={copy().removeImage}
@@ -245,7 +236,6 @@ export function CreateCommunityView(props: CreateCommunityProps) {
             replaceLabel={copy().avatarReplace}
             frame="circle"
           />
-        </Show>
 
         {/* Kobalte's TextField exposes no blur hook, so the wrapper marks the
             field touched when focus leaves it. */}
@@ -292,7 +282,7 @@ export function CreateCommunityView(props: CreateCommunityProps) {
               title: copy().joinPolicyTitle,
               palmTitle: copy().joinPolicyPalmTitle,
               nationalityTitle: copy().joinPolicyNationalityTitle,
-              nationalityHint: copy().nationalityHint,
+              statement: copy().joinPolicyStatement,
               pickerLabel: copy().nationalityPickerLabel,
               pickerPlaceholder: copy().nationalityPickerPlaceholder,
               emptyError: copy().nationalityEmptyError,
@@ -311,7 +301,17 @@ export function CreateCommunityView(props: CreateCommunityProps) {
             persona, so the fields would be inert. After sign-in the stepped
             flow presents the profile page where it belongs. */}
         <Show when={props.requirePersona !== false && (!stepped() || step() === 3)}>
-        <CommunityOwnerFields copy={copy()} draft={props.draft} hideHeading={stepped()} locked={props.ownerDisabled} personas={props.personas} profilesUnavailable={props.profilesUnavailable} onChange={props.onDraftChange} />
+        <CommunityOwnerFields
+          copy={copy()}
+          draft={props.draft}
+          hideHeading={stepped()}
+          locked={props.ownerDisabled}
+          onProfileAvatarChange={props.onProfileAvatarChange}
+          personas={props.personas}
+          profileAvatarSrc={props.profileAvatarSrc}
+          profilesUnavailable={props.profilesUnavailable}
+          onChange={props.onDraftChange}
+        />
         </Show>
         </fieldset>
       </ActionFooterShell>

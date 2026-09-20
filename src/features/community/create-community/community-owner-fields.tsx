@@ -1,8 +1,9 @@
 import { For, Show, createSignal, createUniqueId } from "solid-js";
 import type { ActivePersonaPublicProjection } from "../../../api/session";
-import { Button, TextField, TextFieldInput, TextFieldLabel, Type, cn } from "../../../design-system";
+import { Button, MediaUploadField, TextField, TextFieldInput, TextFieldLabel, Type, cn } from "../../../design-system";
 import { communityCreationCandidates } from "../../identity/community-persona-choice";
 import type { CreateCommunityCopy, CreateCommunityDraft } from "./create-community-model";
+import { generatedAvatarSrc, randomAvatarSeed } from "./generated-avatar";
 
 /** The localized strings this section renders; supplied by the creation view. */
 export type CommunityOwnerCopy = Pick<
@@ -16,6 +17,11 @@ export type CommunityOwnerCopy = Pick<
   | "ownerCreatingAs"
   | "ownerLinkedWarning"
   | "ownerNewInstead"
+  | "ownerAvatarLabel"
+  | "ownerAvatarShuffle"
+  | "avatarChoose"
+  | "avatarReplace"
+  | "removeImage"
 >;
 
 export function CommunityOwnerFields(props: {
@@ -23,6 +29,9 @@ export function CommunityOwnerFields(props: {
   copy: CommunityOwnerCopy;
   personas?: readonly ActivePersonaPublicProjection[];
   profilesUnavailable?: boolean;
+  /** Chosen profile-avatar image; the generated default shows when absent. */
+  profileAvatarSrc?: string | null;
+  onProfileAvatarChange?: (file: File | null) => void;
   /**
    * Hides the section heading when the page header already carries its text.
    * The heading element stays in the DOM as the section's accessible name;
@@ -60,6 +69,31 @@ export function CommunityOwnerFields(props: {
       <Show when={!props.locked}>
         <Show when={props.draft.persona?.kind === "existing" || choosingExisting()} fallback={
         <>
+          {/*
+            Spec 014 §3.1: the profile avatar is optional, and when no image
+            is chosen a default is generated locally from a random seed the
+            owner may shuffle. It is never derived from the Public name.
+          */}
+          <div class="flex flex-wrap items-center gap-3">
+            <MediaUploadField
+              chooseLabel={props.copy.avatarChoose}
+              clearLabel={props.copy.removeImage}
+              label={props.copy.ownerAvatarLabel}
+              onChange={props.onProfileAvatarChange}
+              onClear={() => props.onProfileAvatarChange?.(null)}
+              previewSrc={props.profileAvatarSrc ?? generatedAvatarSrc(props.draft.profileAvatarSeed)}
+              replaceLabel={props.copy.avatarReplace}
+              frame="circle"
+            />
+            <Button
+              type="button"
+              variant="ghost"
+              class="self-start"
+              onClick={() => props.onChange?.({ profileAvatarSeed: randomAvatarSeed() })}
+            >
+              {props.copy.ownerAvatarShuffle}
+            </Button>
+          </div>
           <TextField required value={props.draft.publicName ?? ""} onChange={publicName => props.onChange?.({ publicName })}>
             <TextFieldLabel>{props.copy.ownerPublicNameLabel}</TextFieldLabel>
             <TextFieldInput maxlength={80} class="rounded-[var(--radius-lg)] bg-card" />

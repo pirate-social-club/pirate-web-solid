@@ -10,7 +10,8 @@ export interface JoinPolicyCopy {
   readonly title: string;
   readonly palmTitle: string;
   readonly nationalityTitle: string;
-  readonly nationalityHint: string;
+  /** The one-line policy shown while the authoring gate hides the choice. */
+  readonly statement: string;
   readonly pickerLabel: string;
   readonly pickerPlaceholder: string;
   readonly emptyError: string;
@@ -18,10 +19,10 @@ export interface JoinPolicyCopy {
 
 /**
  * The community join policy choice: one mutually exclusive option between the
- * Palm policy and the document-nationality policy. The nationality option is
- * only offered when the authoring context allows it; choosing it reveals the
- * empty country picker and never renders a stacked Palm requirement. No copy
- * names a verification provider.
+ * Palm policy and the document-nationality policy. While the authoring
+ * context hides the nationality option there is no choice to offer, so the
+ * field states the one available policy in a single line instead of rendering
+ * a one-card radio group. No copy names a verification provider.
  *
  * There is deliberately no frozen fallback for a saved nationality policy
  * behind a closed gate: with authoring off, an intent carrying nationality is
@@ -48,7 +49,6 @@ export function JoinPolicyField(props: Readonly<{
   hideHeading?: boolean;
 }>) {
   const headingId = createUniqueId();
-  const hintId = `join-policy-hint-${headingId}`;
   const locale = () => props.locale ?? "en";
   const names = createMemo(() => new Intl.DisplayNames([locale()], { type: "region" }));
   const options = createMemo(() =>
@@ -57,65 +57,61 @@ export function JoinPolicyField(props: Readonly<{
   );
   const selected = () => props.policy === "nationality";
   const emptyErrorVisible = () =>
-    selected() && props.allowNationality && props.countries.length === 0
-    && props.showEmptyError === true;
+    selected() && props.countries.length === 0 && props.showEmptyError === true;
 
   return (
     <section aria-labelledby={headingId} class="flex flex-col gap-2" data-community-join-policy>
       <div class={cn("mb-1", props.hideHeading && "sr-only")} id={headingId}>
         <Type as="span" variant="body-strong">{props.copy.title}</Type>
       </div>
-      <OptionCardGroup
-        labelledBy={headingId}
-        disabled={props.disabled}
-        onChange={(value) => {
-          if (value === "palm" || value === "nationality") props.onPolicyChange(value);
-        }}
-        value={props.policy}
+      <Show
+        when={props.allowNationality}
+        fallback={<Type as="p" variant="body">{props.copy.statement}</Type>}
       >
-        <OptionCard
-          title={props.copy.palmTitle}
-          value="palm"
-        />
-        <Show when={props.allowNationality}>
+        <OptionCardGroup
+          labelledBy={headingId}
+          disabled={props.disabled}
+          onChange={(value) => {
+            if (value === "palm" || value === "nationality") props.onPolicyChange(value);
+          }}
+          value={props.policy}
+        >
+          <OptionCard
+            title={props.copy.palmTitle}
+            value="palm"
+          />
           <OptionCard
             title={props.copy.nationalityTitle}
             value="nationality"
           />
-        </Show>
-      </OptionCardGroup>
-      <Show when={selected() && props.allowNationality}>
-        <div class="flex min-w-0 flex-col gap-2 ps-1">
-          {/* The helper groups with the picker, not with the card above it:
-              tight spacing and aria-describedby make it the picker's lead-in. */}
-          <div class="flex flex-col gap-1">
-            <Type as="p" id={hintId} variant="caption" class="text-sm leading-5">{props.copy.nationalityHint}</Type>
+        </OptionCardGroup>
+        <Show when={selected()}>
+          <div class="flex min-w-0 flex-col gap-2 ps-1">
             <MultiCombobox
-              aria-describedby={hintId}
               aria-label={props.copy.pickerLabel}
               class="w-full"
               disabled={props.disabled}
-            filter={(option, input) => {
-              const query = input.trim().toLowerCase();
-              return query === ""
-                || option.name.toLowerCase().includes(query)
-                || option.code.toLowerCase() === query;
-            }}
-            onChange={codes => props.onCountriesChange(codes)}
-            optionLabel={option => option.name}
-            optionValue={option => option.code}
-            options={options()}
-            placeholder={props.copy.pickerPlaceholder}
-            value={props.countries.flatMap(code => {
-              const normalized = normalizeIdentityCountryAlpha2(code);
-              return normalized === null ? [] : [normalized];
-            })}
-          />
+              filter={(option, input) => {
+                const query = input.trim().toLowerCase();
+                return query === ""
+                  || option.name.toLowerCase().includes(query)
+                  || option.code.toLowerCase() === query;
+              }}
+              onChange={codes => props.onCountriesChange(codes)}
+              optionLabel={option => option.name}
+              optionValue={option => option.code}
+              options={options()}
+              placeholder={props.copy.pickerPlaceholder}
+              value={props.countries.flatMap(code => {
+                const normalized = normalizeIdentityCountryAlpha2(code);
+                return normalized === null ? [] : [normalized];
+              })}
+            />
+            <Show when={emptyErrorVisible()}>
+              <FormNote tone="destructive">{props.copy.emptyError}</FormNote>
+            </Show>
           </div>
-          <Show when={emptyErrorVisible()}>
-            <FormNote tone="destructive">{props.copy.emptyError}</FormNote>
-          </Show>
-        </div>
+        </Show>
       </Show>
     </section>
   );

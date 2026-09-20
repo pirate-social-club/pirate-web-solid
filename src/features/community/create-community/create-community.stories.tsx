@@ -19,6 +19,7 @@ function CreateStory(props: {
   nameError?: string | null;
   submitting?: boolean;
   steps?: boolean;
+  initialStep?: 1 | 2 | 3;
   nationalityAuthoring?: boolean;
   actionOnly?: boolean;
   resuming?: boolean;
@@ -35,8 +36,8 @@ function CreateStory(props: {
   return (
     <div class="h-dvh bg-background text-foreground">
       <CreateCommunityView
-        showMediaFields={false}
         steps={props.steps}
+        initialStep={props.initialStep}
         nationalityAuthoring={props.nationalityAuthoring}
         actionOnly={props.actionOnly}
         resuming={props.resuming}
@@ -63,6 +64,9 @@ const validDraft = () =>
     "A late-night space for music, ideas, and people building after dark.",
   );
 
+/** Every story stages a state reachable with today's flags, or says what it waits on. */
+const waitsOnPackageB = "Waits on package B (api-community-document-only-join-policy) to be reachable in the app; authoring is off in every environment today.";
+
 const meta = {
   title: "Flows/Community/Create",
   component: CreateCommunityView,
@@ -75,17 +79,16 @@ type Story = StoryObj<typeof meta>;
 
 export const SignedOut: Story = {
   name: "Signed-out visitor",
-  parameters: { docs: { description: { story: "The single surface a visitor without a session gets: the community details and join policy stay visible, no profile section renders because no persona can exist yet, and the primary action opens in-app sign-in so a typed draft survives." } } },
+  parameters: { docs: { description: { story: "The single surface a visitor without a session gets: details, avatar and the join-policy statement stay visible, no profile section renders because no persona can exist yet, and the primary action opens in-app sign-in so a typed draft survives." } } },
   render: () => <CreateStory actionOnly requirePersona={false} steps submitLabel="Sign in to create" />,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(canvas.getByRole("button", { name: "Sign in to create" })).toBeEnabled();
     await expect(canvas.getByText("Who can join?")).toBeInTheDocument();
-    await expect(canvas.getByRole("radio", { name: /Anyone with Palm verification/ })).toBeChecked();
-    await expect(canvas.queryByRole("radio", { name: /People with selected nationalities/ })).toBeNull();
+    await expect(canvas.getByText("Anyone who completes a palm scan.")).toBeInTheDocument();
+    await expect(canvas.queryByRole("radio")).toBeNull();
     // No session, no persona: the profile section waits for sign-in.
     await expect(canvas.queryByRole("textbox", { name: "Public name" })).toBeNull();
-    await expect(canvas.queryByText(/gets its own profile/)).toBeNull();
   },
 };
 
@@ -107,8 +110,8 @@ export const SavedIntent: Story = {
     await expect(canvas.getByRole("textbox", { name: "Name" })).toBeInTheDocument();
     await expect(canvas.queryByRole("textbox", { name: "Public name" })).toBeNull();
     await expect(canvas.getByText("Creating as River Room")).toBeInTheDocument();
-    await expect(canvas.getByRole("radio", { name: /Anyone with Palm verification/ })).toBeChecked();
-    await expect(canvas.queryByRole("radio", { name: /People with selected nationalities/ })).toBeNull();
+    await expect(canvas.getByText("Anyone who completes a palm scan.")).toBeInTheDocument();
+    await expect(canvas.queryByRole("radio")).toBeNull();
     await expect(canvas.getByRole("button", { name: "Create" })).toBeEnabled();
   },
 };
@@ -120,19 +123,22 @@ export const ThreePages: Story = {
     const canvas = within(canvasElement);
     await expect(canvas.getByRole("button", { name: "Continue" })).toBeDisabled();
 
+    // The details page collects the optional community avatar, name and description.
+    await expect(canvas.getByText("Choose image")).toBeInTheDocument();
     await userEvent.type(canvas.getByRole("textbox", { name: "Name" }), "Night Shift");
     await expect(canvas.getByRole("button", { name: "Continue" })).toBeEnabled();
     await userEvent.click(canvas.getByRole("button", { name: "Continue" }));
 
     // The join policy page offers both options and no community fields.
     await expect(await canvas.findByRole("heading", { name: "Who can join?" })).toBeInTheDocument();
-    await expect(canvas.getByRole("radio", { name: /Anyone with Palm verification/ })).toBeChecked();
-    await expect(canvas.getByRole("radio", { name: /People with selected nationalities/ })).toBeInTheDocument();
+    await expect(canvas.getByRole("radio", { name: "Palm scan" })).toBeChecked();
+    await expect(canvas.getByRole("radio", { name: "Nationality" })).toBeInTheDocument();
     await expect(canvas.queryByRole("textbox", { name: "Name" })).toBeNull();
 
     await userEvent.click(canvas.getByRole("button", { name: "Continue" }));
     await expect(canvas.getByText(/Each community you create or join gets its own profile/)).toBeInTheDocument();
     await expect(canvas.getByRole("textbox", { name: "Public name" })).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: "Shuffle" })).toBeInTheDocument();
 
     // Back lives in the header as an arrow, like the post flow's review step.
     await userEvent.click(canvas.getByRole("button", { name: "Back to join policy" }));
@@ -143,39 +149,41 @@ export const ThreePages: Story = {
 };
 
 export const ValidDraft: Story = {
-  render: () => <CreateStory draft={validDraft()} />,
+  render: () => <CreateStory steps draft={validDraft()} />,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(canvas.getByRole("button", { name: "Create" })).toBeEnabled();
-    await expect(canvas.getByText("Anyone with Palm verification")).toBeInTheDocument();
-    await userEvent.click(canvas.getByRole("button", { name: "Create" }));
+    await userEvent.click(canvas.getByRole("button", { name: "Continue" }));
+    await userEvent.click(await canvas.findByRole("button", { name: "Continue" }));
+    const create = await canvas.findByRole("button", { name: "Create" });
+    await expect(create).toBeEnabled();
+    await userEvent.click(create);
     await expect(canvas.getByText("Submitted 1 times")).toBeInTheDocument();
   },
 };
 
 export const NationalityPolicy: Story = {
   name: "Nationality policy",
+  parameters: { docs: { description: { story: waitsOnPackageB } } },
   render: () => <CreateStory steps nationalityAuthoring draft={validDraft()} />,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await userEvent.click(canvas.getByRole("button", { name: "Continue" }));
-    await userEvent.click(await canvas.findByRole("radio", { name: /People with selected nationalities/ }));
+    await userEvent.click(await canvas.findByRole("radio", { name: "Nationality" }));
 
-    // The empty picker and the any-of helper appear; no stacked Palm row.
-    await expect(canvas.getByText("Members must prove one of the selected nationalities.")).toBeInTheDocument();
+    // The empty picker appears; the chips carry the meaning, no helper sentence.
     await expect(canvas.getByRole("combobox", { name: "Allowed nationalities" })).toBeInTheDocument();
-    await expect(canvas.getByRole("radio", { name: /Anyone with Palm verification/ })).not.toBeChecked();
-    await expect(canvas.queryByText(/Required · Members verify/)).toBeNull();
+    await expect(canvas.getByRole("radio", { name: "Palm scan" })).not.toBeChecked();
   },
 };
 
 export const NationalityPolicyWithChips: Story = {
   name: "Nationality policy with chips",
+  parameters: { docs: { description: { story: waitsOnPackageB } } },
   render: () => <CreateStory steps nationalityAuthoring draft={validDraft()} />,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await userEvent.click(canvas.getByRole("button", { name: "Continue" }));
-    await userEvent.click(await canvas.findByRole("radio", { name: /People with selected nationalities/ }));
+    await userEvent.click(await canvas.findByRole("radio", { name: "Nationality" }));
 
     const picker = canvas.getByRole("combobox", { name: "Allowed nationalities" });
     await userEvent.type(picker, "United States");
@@ -190,11 +198,12 @@ export const NationalityPolicyWithChips: Story = {
 
 export const JoinPolicyValidation: Story = {
   name: "Join policy validation",
+  parameters: { docs: { description: { story: waitsOnPackageB } } },
   render: () => <CreateStory steps nationalityAuthoring draft={validDraft()} />,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await userEvent.click(canvas.getByRole("button", { name: "Continue" }));
-    await userEvent.click(await canvas.findByRole("radio", { name: /People with selected nationalities/ }));
+    await userEvent.click(await canvas.findByRole("radio", { name: "Nationality" }));
     await expect(canvas.queryByText("Choose at least one country.")).not.toBeInTheDocument();
 
     // An empty picker blocks Continue with the note, and the profile page stays closed.
@@ -205,23 +214,26 @@ export const JoinPolicyValidation: Story = {
   },
 };
 
-export const NationalityHidden: Story = {
-  name: "Nationality option behind the authoring gate",
+export const ClosedGate: Story = {
+  name: "Closed authoring gate",
+  parameters: { docs: { description: { story: "What production shows on page two today: with authoring off there is one policy, so the page states it in one line instead of offering a one-card choice. Becomes the two-option choice when package B lands." } } },
   render: () => <CreateStory steps draft={validDraft()} />,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await userEvent.click(canvas.getByRole("button", { name: "Continue" }));
     await expect(await canvas.findByRole("heading", { name: "Who can join?" })).toBeInTheDocument();
-    await expect(canvas.getByRole("radio", { name: /Anyone with Palm verification/ })).toBeChecked();
-    await expect(canvas.queryByRole("radio", { name: /People with selected nationalities/ })).toBeNull();
+    await expect(canvas.getByText("Anyone who completes a palm scan.")).toBeInTheDocument();
+    await expect(canvas.queryByRole("radio")).toBeNull();
+    await expect(canvas.getByRole("button", { name: "Continue" })).toBeEnabled();
   },
 };
 
 export const NameValidation: Story = {
-  render: () => <CreateStory />,
+  render: () => <CreateStory steps />,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     const name = canvas.getByRole("textbox", { name: "Name" });
+    const next = canvas.getByRole("button", { name: "Continue" });
 
     // Untouched and empty is neutral, not "valid" and not yet an error.
     await expect(name).not.toHaveAttribute("aria-invalid");
@@ -232,28 +244,30 @@ export const NameValidation: Story = {
     await userEvent.tab();
     await expect(canvas.getByText("Name is required.")).toBeInTheDocument();
 
-    await userEvent.type(canvas.getByRole("textbox", { name: "Public name" }), "River Room");
     await userEvent.type(name, "Signal Room");
-    await expect(canvas.getByRole("button", { name: "Create" })).toBeEnabled();
+    await expect(next).toBeEnabled();
     await userEvent.clear(name);
-    await expect(canvas.getByRole("button", { name: "Create" })).toBeDisabled();
+    await expect(next).toBeDisabled();
     await expect(canvas.getByText("Name is required.")).toBeInTheDocument();
     await expect(name).toHaveAttribute("aria-invalid", "true");
   },
 };
 
-export const EnterSubmits: Story = {
-  render: () => <CreateStory draft={validDraft()} />,
+export const EnterContinues: Story = {
+  name: "Enter continues",
+  render: () => <CreateStory steps draft={validDraft()} />,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await userEvent.type(canvas.getByRole("textbox", { name: "Name" }), "{Enter}");
-    await expect(canvas.getByText(/Submitted 1 times/)).toBeInTheDocument();
+    await expect(await canvas.findByRole("heading", { name: "Who can join?" })).toBeInTheDocument();
   },
 };
 
 export const LongContent: Story = {
+  name: "Long content",
   render: () => (
     <CreateStory
+      steps
       draft={withDraftDescription(
         withDraftName(createEmptyDraft(personaId), "A deliberately long community name that should wrap gracefully across the field"),
         "A much longer description that keeps going to exercise wrapping and truncation in the field as a community is being composed.",
@@ -263,7 +277,7 @@ export const LongContent: Story = {
 };
 
 export const Submitting: Story = {
-  render: () => <CreateStory draft={validDraft()} submitting />,
+  render: () => <CreateStory steps initialStep={3} draft={validDraft()} submitting />,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     const button = canvas.getByRole("button", { name: "Create" });
@@ -278,7 +292,7 @@ export const Mobile: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await userEvent.click(canvas.getByRole("button", { name: "Continue" }));
-    await userEvent.click(await canvas.findByRole("radio", { name: /People with selected nationalities/ }));
+    await userEvent.click(await canvas.findByRole("radio", { name: "Nationality" }));
   },
 };
 
@@ -288,29 +302,35 @@ export const Rtl: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await userEvent.click(canvas.getByRole("button", { name: "متابعة" }));
-    await userEvent.click(await canvas.findByRole("radio", { name: /الأشخاص من الجنسيات المحددة/ }));
-    await expect(canvas.getByText("يجب أن يثبت الأعضاء انتماءهم إلى إحدى الجنسيات المحددة.")).toBeInTheDocument();
+    await userEvent.click(await canvas.findByRole("radio", { name: "الجنسية" }));
+    await expect(canvas.getByRole("combobox", { name: "الجنسيات المسموح بها" })).toBeInTheDocument();
   },
 };
 
 export const RejectedCommit: Story = {
   name: "Rejected commit stays retryable",
   render: () => (
-    <CreateStory draft={validDraft()} nameError="That name is already taken." />
+    <CreateStory steps draft={validDraft()} nameError="That name is already taken." />
   ),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
 
+    // A rejected commit belongs to the details page.
     await expect(await canvas.findByText("That name is already taken.")).toBeInTheDocument();
-
-    const submit = canvas.getByRole("button", { name: "Create" });
-    await expect(submit).toBeEnabled();
-    await userEvent.click(submit);
+    await expect(canvas.getByRole("button", { name: "Continue" })).toBeEnabled();
   },
 };
 
 export const ExistingProfile: Story = {
-  render: () => <CreateStory draft={validDraft()} personas={[{ personaId: "unused-profile", displayName: "Harbor keeper", avatarRef: null, primaryPublicHandle: null, communityBinding: null }]} />,
+  name: "Existing profile",
+  render: () => (
+    <CreateStory
+      steps
+      initialStep={3}
+      draft={validDraft()}
+      personas={[{ personaId: "unused-profile", displayName: "Harbor keeper", avatarRef: null, primaryPublicHandle: null, communityBinding: null }]}
+    />
+  ),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(canvas.getByRole("textbox", { name: "Public name" })).toBeInTheDocument();
@@ -318,6 +338,19 @@ export const ExistingProfile: Story = {
     await expect(canvas.getByText("Creating as Harbor keeper")).toBeInTheDocument();
     await expect(canvas.queryByRole("combobox")).not.toBeInTheDocument();
     await expect(canvas.getByText("This profile becomes permanently linked to this community.")).toBeInTheDocument();
-    await expect(canvas.queryByText(/coming soon/)).not.toBeInTheDocument();
+  },
+};
+
+export const ProfileAvatar: Story = {
+  name: "Profile avatar",
+  parameters: { docs: { description: { story: "The generated profile-avatar default of Spec 014 §3.1: local, seeded, never derived from the Public name, shuffable, with upload replacing it. Persistence waits on the avatar API record." } } },
+  render: () => <CreateStory steps initialStep={3} draft={validDraft()} />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const image = () => canvasElement.querySelector("img");
+    await expect(image()).not.toBeNull();
+    const before = image()!.getAttribute("src");
+    await userEvent.click(canvas.getByRole("button", { name: "Shuffle" }));
+    await expect(image()!.getAttribute("src")).not.toBe(before);
   },
 };

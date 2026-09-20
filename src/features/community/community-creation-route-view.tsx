@@ -531,7 +531,6 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
             : undefined}
         personas={displayPersonas()}
         profilesUnavailable={!!currentSession()?.personasUnavailable}
-        showMediaFields={false}
         steps
         resuming={!!intent() || !!props.intentId?.trim()}
         // TODO(api-community-creation-creator-verification-removal): pass the
