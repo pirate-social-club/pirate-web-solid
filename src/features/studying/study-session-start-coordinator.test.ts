@@ -3,6 +3,7 @@ import { ApiClientError } from "@pirate/api-client";
 
 import {
   createStudySessionStartCoordinator,
+  STUDY_CONTENT_NOT_READY_MESSAGE,
   studySessionStartScopeKey,
   type StudySessionStartLock,
   type StudySessionStartScope,
@@ -28,7 +29,13 @@ const session = (sessionId: string, status: "active" | "completed"): StudySessio
 const conflict = (): ApiClientError =>
   new ApiClientError(
     { code: "conflict", name: "Conflict", retryable: false, status: 409 },
-    { error: { code: "idempotency-conflict", message: "conflict", retryable: false } },
+    { error: { code: "idempotency-conflict", message: "Study command conflicts", retryable: false } },
+  );
+
+const contentNotReady = (): ApiClientError =>
+  new ApiClientError(
+    { code: "conflict", name: "Conflict", retryable: false, status: 409 },
+    { error: { code: "insufficient-exercises", message: STUDY_CONTENT_NOT_READY_MESSAGE, retryable: false } },
   );
 
 const missing = (): ApiClientError =>
@@ -84,7 +91,7 @@ class FakeApi implements Pick<StudyV2Api, "createSession" | "getSession"> {
   readonly attempts: { key: string; personaId: string; timezone: string }[] = [];
   readonly byKey = new Map<string, StudySession>();
   readonly byId = new Map<string, StudySession>();
-  failWith: "network" | "conflict" | null = null;
+  failWith: "network" | "conflict" | "content-not-ready" | null = null;
   commitBeforeNetworkFailure = false;
 
   createSession = async (input: {
@@ -104,6 +111,7 @@ class FakeApi implements Pick<StudyV2Api, "createSession" | "getSession"> {
     const failure = this.failWith;
     this.failWith = null;
     if (failure === "conflict") throw conflict();
+    if (failure === "content-not-ready") throw contentNotReady();
     if (failure === "network") {
       if (this.commitBeforeNetworkFailure) {
         const committed =
@@ -311,10 +319,29 @@ describe("Study session start coordinator", () => {
     const storage = new MemoryStorage();
     const coordinator = coordinatorFor(api, storage);
     const result = await coordinator.start(scope());
-    expect(result.status).toBe("unavailable");
+    expect(result).toEqual({
+      status: "unavailable",
+      message: "Study could not start this session because its request changed. Refresh the page and retry.",
+    });
     expect(api.attempts).toHaveLength(1);
     const stored = storage.getItem(studySessionStartScopeKey(scope()));
     expect(stored).not.toBeNull();
+    expect(JSON.parse(stored ?? "{}")).toMatchObject({ key: api.attempts[0]!.key, sessionId: null });
+  });
+
+  it("names a not-due start as scheduled review, not a changed request", async () => {
+    const api = new FakeApi();
+    api.failWith = "content-not-ready";
+    const storage = new MemoryStorage();
+    const coordinator = coordinatorFor(api, storage);
+    const result = await coordinator.start(scope());
+    expect(result).toEqual({
+      status: "unavailable",
+      message: "This song's Study cards are not ready for a new session yet. The review is scheduled; try again when it is due.",
+    });
+    expect(api.attempts).toHaveLength(1);
+    // The refusal is content scheduling, not a replay conflict: the key stays.
+    const stored = storage.getItem(studySessionStartScopeKey(scope()));
     expect(JSON.parse(stored ?? "{}")).toMatchObject({ key: api.attempts[0]!.key, sessionId: null });
   });
 });
