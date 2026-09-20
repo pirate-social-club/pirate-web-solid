@@ -17,8 +17,13 @@ afterEach(() => {
 
 function stubMediaElement() {
   const calls = { play: 0, pause: 0 };
-  HTMLMediaElement.prototype.play = vi.fn(async () => { calls.play += 1; }) as unknown as typeof HTMLMediaElement.prototype.play;
-  HTMLMediaElement.prototype.pause = vi.fn(() => { calls.pause += 1; }) as unknown as typeof HTMLMediaElement.prototype.pause;
+  const play = vi.fn(async () => { calls.play += 1; });
+  const pause = vi.fn(() => { calls.pause += 1; });
+  // SAFETY: jsdom does not implement media playback; the stubs have the same
+  // promise-returning and void shapes the component awaits and calls.
+  HTMLMediaElement.prototype.play = play as typeof HTMLMediaElement.prototype.play;
+  // SAFETY: same as above for the pause stub.
+  HTMLMediaElement.prototype.pause = pause as typeof HTMLMediaElement.prototype.pause;
   return calls;
 }
 
