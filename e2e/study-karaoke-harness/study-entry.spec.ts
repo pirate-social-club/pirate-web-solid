@@ -132,12 +132,19 @@ test("the mobile video feed opens Study for a video with a ready referenced song
   await expect(study).toHaveAttribute("href", `/p/${manifest.postId}/study`);
   const rows = page.locator('[role="region"] > div');
   await expect(rows).toHaveCount(3);
+  await expect(page.locator("[data-video-feed-card]")).toHaveCount(3);
   await expect(rows.nth(0)).toContainText("Harness linked video");
   await expect(rows.nth(0).locator("[data-video-feed-study]")).toHaveCount(1);
   await expect(rows.nth(1)).toContainText("Harness unlinked video");
   await expect(rows.nth(1).locator("[data-video-feed-study]")).toHaveCount(0);
   await expect(rows.nth(2)).toContainText("Harness unavailable-song video");
   await expect(rows.nth(2).locator("[data-video-feed-study]")).toHaveCount(0);
+
+  // The primary fixture plays real local media through the real playback path:
+  // the poster renders and the first player reaches ready with attached HLS.
+  await expect(page.locator("video[poster]")).toHaveCount(1, { timeout: 30_000 });
+  await expect(page.locator('[data-video-player-state="ready"]')).toHaveCount(1, { timeout: 30_000 });
+  await expect(page.getByText("Playback is being prepared.", { exact: true })).toHaveCount(0);
 
   await study.click();
   await expect(page).toHaveURL(new RegExp(`/p/${manifest.postId}/study$`, "u"));

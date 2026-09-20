@@ -27,6 +27,10 @@ const baseArgs = [
   // with ERR_BLOCKED_BY_LOCAL_NETWORK_ACCESS_CHECKS; the harness API socket is
   // explicitly loopback, so the check is disabled for this local browser only.
   "--disable-features=LocalNetworkAccessChecks",
+  // The harness mints Stream-shaped playback grants but serves the media from a
+  // loopback TLS server; map the customer host and trust its local certificate.
+  "--ignore-certificate-errors",
+  "--host-resolver-rules=MAP customer-harness.cloudflarestream.com 127.0.0.1:8443",
 ];
 
 export default defineConfig({
