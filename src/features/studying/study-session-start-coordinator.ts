@@ -36,6 +36,15 @@ type StoredRecord = Readonly<{
 
 const STORAGE_PREFIX = "study-session-start:v1:";
 
+/**
+ * The api-next conflict message for a start that the spaced-repetition policy
+ * refuses because the account's cards are not due again. It is distinct from
+ * an idempotency conflict, and the two must not share one user-facing
+ * explanation: the first is expected review scheduling, the second is a
+ * changed replay of the same key.
+ */
+export const STUDY_CONTENT_NOT_READY_MESSAGE = "Study content is not ready";
+
 export function studySessionStartScopeKey(scope: StudySessionStartScope): string {
   return `${STORAGE_PREFIX}${[
     scope.accountId,
@@ -219,6 +228,11 @@ export function createStudySessionStartCoordinator(deps: {
           } catch (error) {
             if (error instanceof ApiClientError) {
               // A definite API answer is not an uncertain network outcome.
+              if (error.status === 409 && error.message === STUDY_CONTENT_NOT_READY_MESSAGE) {
+                return unavailable(
+                  "This song's Study cards are not ready for a new session yet. The review is scheduled; try again when it is due.",
+                );
+              }
               return unavailable(
                 error.status === 409
                   ? "Study could not start this session because its request changed. Refresh the page and retry."
