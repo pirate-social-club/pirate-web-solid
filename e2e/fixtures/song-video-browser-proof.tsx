@@ -2,7 +2,9 @@
 import "../../src/index.css";
 import { render } from "@solidjs/web";
 import { createRoot, createSignal, Show } from "solid-js";
+import { ALL_FORMATS, BlobSource, BufferTarget, CanvasSink, CanvasSource, Input, Mp4OutputFormat, Output } from "mediabunny";
 import { VideoComposerRuntime, type GuideAudio } from "../../src/features/posts/video-submission/video-composer-runtime";
+import { alignGuidedTake } from "../../src/features/posts/video-submission/guided-take-alignment";
 import { SongVideoEntry, initialVideoSongFromSearch } from "../../src/features/posts/public-post/song-video-entry";
 import { SongAttributionChip } from "../../src/features/posts/song-attribution/song-attribution-chip";
 import type { OriginalVideoCaptureInput, VideoCaptureSession } from "../../src/features/posts/video-submission/capture";
@@ -49,12 +51,17 @@ interface Ledger {
   stopped: number;
   guideFails: boolean;
   slowGuide: boolean;
+  guideNudgeMs: number;
   reserveBody: Record<string, unknown> | null;
+  alignedDurationMs: number | null;
+  alignedFirstFrameMs: number | null;
+  alignedFirstFrameGreen: boolean | null;
 }
 function ledger(): Ledger {
   return JSON.parse(localStorage.getItem(key) ?? "null") ?? {
     calls: [], limitMs: null, guidePlayed: 0, guidePaused: 0, guideStart: null, guideDelayMs: null,
-    stopped: 0, guideFails: false, slowGuide: false, reserveBody: null,
+    stopped: 0, guideFails: false, slowGuide: false, guideNudgeMs: 0, reserveBody: null,
+    alignedDurationMs: null, alignedFirstFrameMs: null, alignedFirstFrameGreen: null,
   };
 }
 function write(next: Ledger): void {
@@ -151,6 +158,10 @@ function createGuide(url: string): FixtureGuide {
       if (state.slowGuide) {
         state.slowGuide = false; write(state);
         await new Promise(resolve => setTimeout(resolve, 900));
+      } else if (state.guideNudgeMs > 0) {
+        const nudge = state.guideNudgeMs;
+        state.guideNudgeMs = 0; write(state);
+        await new Promise(resolve => setTimeout(resolve, nudge));
       }
       await element.play();
     },
@@ -177,7 +188,10 @@ const snapshotBase = {
   author_persona: { object: "persona" as const, persona_id: "persona-fixture", display_name: null, avatar_ref: null, primary_public_handle: null },
   creation_revision: 1, video_revision: 0, caption: "", updated_at: "2026-09-20T00:00:00Z", href: "/media-post-submissions/submission-fixture",
 };
-const upload = { method: "MULTIPART" as const, upload_id: "upload-fixture", part_count: 1, part_size_bytes: 10, expires_at: "2099-01-01T00:00:00Z", parts: [{ part_number: 1, url: "https://upload.fixture.test/1", expires_at: "2099-01-01T00:00:00Z" }] };
+/** The plan has to match the sealed file exactly, as the real server's does. */
+function uploadFor(sizeBytes: number) {
+  return { method: "MULTIPART" as const, upload_id: "upload-fixture", part_count: 1, part_size_bytes: sizeBytes, expires_at: "2099-01-01T00:00:00Z", parts: [{ part_number: 1, url: "https://upload.fixture.test/1", expires_at: "2099-01-01T00:00:00Z" }] };
+}
 
 let finalized = false;
 const transport: VideoTransport = {
@@ -195,6 +209,7 @@ const transport: VideoTransport = {
       state.reserveBody = body as unknown as Record<string, unknown>;
       write(state);
       notify();
+      const upload = uploadFor(body.expected_size_bytes);
       if (body.intent === "original_audio") {
         return { track: "video", intent: "original_audio", status: "awaiting_upload", slot: "primary_video", author_persona_id: "persona-fixture", ingest_policy_revision: 1, reservation_id: "reservation-fixture", upload };
       }
@@ -215,6 +230,66 @@ const transport: VideoTransport = {
   },
 };
 
+/** A real take, encoded locally with canvas frames. Frames before the marker
+ * are one colour and frames from the marker on are another, so a viewer can
+ * see whether the published take starts before or after the guide did. */
+async function makeTake(durationMs: number, markerAtMs: number): Promise<File> {
+  const canvas = document.createElement("canvas");
+  canvas.width = 160;
+  canvas.height = 120;
+  const context = canvas.getContext("2d")!;
+  const target = new BufferTarget();
+  const output = new Output({ format: new Mp4OutputFormat({ fastStart: "fragmented", minimumFragmentDuration: 1 }), target });
+  const source = new CanvasSource(canvas, { codec: "avc", bitrate: 400_000, keyFrameInterval: 1 });
+  output.addVideoTrack(source);
+  await output.start();
+  const frameDuration = 1 / 30;
+  const frameMs = frameDuration * 1_000;
+  // The colour changes on the last frame boundary at or before the guide
+  // started, which is the frame a trim to that moment keeps.
+  const marker = Math.floor(markerAtMs / frameMs) * frameMs;
+  const frames = Math.floor((durationMs / 1_000) / frameDuration);
+  for (let index = 0; index < frames; index += 1) {
+    const atMs = index * frameDuration * 1_000;
+    context.fillStyle = atMs < marker ? "#12345f" : "#1fbf5f";
+    context.fillRect(0, 0, canvas.width, canvas.height);
+    context.fillStyle = "#ffffff";
+    context.font = "16px monospace";
+    context.fillText(String(index), 8, 24);
+    await source.add(index * frameDuration, frameDuration);
+  }
+  await output.finalize();
+  if (!target.buffer) throw new Error("the fixture take did not finalize");
+  return new File([target.buffer], "take.mp4", { type: "video/mp4" });
+}
+
+/** Reads the aligned take back: duration, first timestamp and whether the
+ * first frame is the post-guide colour. This is the alignment evidence. */
+async function inspectAlignedTake(file: File): Promise<void> {
+  const input = new Input({ source: new BlobSource(file), formats: ALL_FORMATS });
+  try {
+    const duration = await input.computeDuration();
+    const first = await input.getFirstTimestamp();
+    const track = await input.getPrimaryVideoTrack();
+    let green = false;
+    if (track) {
+      const sink = new CanvasSink(track, { width: 4, height: 4, fit: "fill" });
+      const wrapped = await sink.getCanvas(0);
+      // The centre of the frame, away from the frame counter in the corner.
+      const data = wrapped?.canvas.getContext("2d")?.getImageData(2, 2, 1, 1).data;
+      green = data !== undefined && data[1] > 120 && data[0] < 120;
+    }
+    const state = ledger();
+    state.alignedDurationMs = Math.round(duration * 1_000);
+    state.alignedFirstFrameMs = Math.round(first * 1_000);
+    state.alignedFirstFrameGreen = green;
+    write(state);
+    notify();
+  } finally {
+    input.dispose();
+  }
+}
+
 const search = Object.fromEntries(new URLSearchParams(location.search).entries());
 const initialSong = initialVideoSongFromSearch(search);
 
@@ -231,7 +306,13 @@ createRoot(() => {
     setTimeout(() => { void input.onLimit(); }, input.limitMs ?? 900);
     return {
       stream: new MediaStream(),
-      stop: async () => { const current = ledger(); current.stopped += 1; write(current); record("capture:stopped"); return new File(["take"], "take.mp4", { type: "video/mp4" }); },
+      stop: async () => {
+        const current = ledger();
+        current.stopped += 1;
+        write(current);
+        record("capture:stopped");
+        return makeTake(6_000, current.guideDelayMs ?? 0);
+      },
       cancel: async () => { record("capture:cancelled"); },
     };
   };
@@ -257,6 +338,11 @@ createRoot(() => {
               inspectFile={async file => file}
               measureDuration={measureDuration}
               onExit={() => undefined}
+              alignTake={async (file, offsetMs) => {
+                const result = await alignGuidedTake(file, offsetMs);
+                if (result.aligned) await inspectAlignedTake(result.file);
+                return result;
+              }}
               onGuideTiming={timing => {
                 const state = ledger(); state.guideDelayMs = timing.startDelayMs; write(state); notify();
               }}
@@ -280,6 +366,7 @@ createRoot(() => {
       </Show>
       <button onClick={() => { const state = ledger(); state.guideFails = true; write(state); notify(); }}>Fail the next guide</button>
       <button onClick={() => { const state = ledger(); state.slowGuide = true; write(state); notify(); }}>Slow the next guide</button>
+      <button onClick={() => { const state = ledger(); state.guideNudgeMs = 300; write(state); notify(); }}>Nudge the next guide 300ms</button>
       <button onClick={() => currentGuide?.emit("waiting")}>Stall the guide now</button>
       <pre data-proof-result>{JSON.stringify({ ...ledger(), version: version() })}</pre>
     </main>

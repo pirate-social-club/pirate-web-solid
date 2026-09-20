@@ -11,6 +11,7 @@ import type { VideoCommand, VideoTransport } from "./transport";
 import type { OriginalVideoReservation, VideoSnapshot } from "./contracts";
 import type { SongIntervalPreflight } from "./song-reference";
 import type { SongSourceReader } from "../post-composer/song-excerpt-source";
+import type { GuidedTakeAlignment } from "./guided-take-alignment";
 
 const disposers: (() => void)[] = [];
 /** The injected capture entry point: tests place the next session here. */
@@ -136,6 +137,7 @@ describe("mounted song-first video flow", () => {
     readonly mobile?: boolean;
     readonly createGuideAudio?: (url: string) => GuideAudio;
     readonly onGuideTiming?: (timing: { readonly startDelayMs: number }) => void;
+    readonly alignTake?: (file: File, offsetMs: number) => Promise<GuidedTakeAlignment>;
     /** Hold each interval preflight open so a stale answer can be resolved on
      * command; timing (no-interval) requests still answer immediately. */
     readonly deferIntervalChecks?: boolean;
@@ -206,6 +208,11 @@ describe("mounted song-first video flow", () => {
       return snapshot;
     } };
     const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(new Response(null, { headers: { etag: "receipt" } }));
+    const alignments: { readonly offsetMs: number; readonly file: File }[] = [];
+    const alignTake = options.alignTake ?? (async (file: File, offsetMs: number) => {
+      alignments.push({ offsetMs, file });
+      return { file, trimmedMs: offsetMs, aligned: true };
+    });
     const songReader: SongSourceReader = options.reader === "failed"
       ? async () => { throw new Error("read failed"); }
       : async request => ({
@@ -219,11 +226,12 @@ describe("mounted song-first video flow", () => {
       measureDuration={async () => options.clipDurationMs ?? null}
       startCapture={startCapture}
       createGuideAudio={options.createGuideAudio}
+      alignTake={alignTake}
       onGuideTiming={options.onGuideTiming}
       songPreflight={preflight} songReader={songReader}
       initialSong={options.initialSong === false ? undefined : { postId: "song-post" }}
       onExit={() => {}} onRetainedPersona={() => {}} />, container); });
-    return { commands, preflightCalls, pendingChecks, fetchImpl, current: () => saved };
+    return { commands, preflightCalls, pendingChecks, fetchImpl, alignments, current: () => saved };
   }
 
   const button = (label: string) => [...document.querySelectorAll("button")].find(candidate => candidate.textContent?.trim() === label);
@@ -356,7 +364,7 @@ describe("mounted song-first video flow", () => {
     readonly manual?: boolean;
   } = {}) {
     const events = new Map<string, () => void>();
-    const calls = { play: 0, pause: 0 };
+    const calls = { play: 0, pause: 0, resolved: 0 };
     let release: (() => void) | undefined;
     const audio: GuideAudio = {
       currentTime: 0,
@@ -369,6 +377,7 @@ describe("mounted song-first video flow", () => {
         } else if (options.manual) {
           await new Promise<void>(resolve => { release = resolve; });
         }
+        calls.resolved += 1;
         events.get("playing")?.();
       },
       pause: () => { calls.pause += 1; },
@@ -413,7 +422,7 @@ describe("mounted song-first video flow", () => {
     const input = startCapture.mock.calls[0]?.[0];
     // Thirty seconds of excerpt plus the tail the render discards, so frame
     // rounding cannot make the take too short.
-    expect(input.limitMs).toBe(30_750);
+    expect(input.limitMs).toBe(31_250);
     await vi.waitFor(() => expect(guide.calls.play).toBe(1));
     expect(guide.audio.currentTime).toBe(0);
     await vi.waitFor(() => expect(document.body.textContent).toContain("Recording to A song"));
@@ -608,6 +617,54 @@ describe("mounted song-first video flow", () => {
     await vi.waitFor(() => expect(document.body.textContent).toContain("recorded to a different excerpt"));
     await publish();
     await vi.waitFor(() => expect(document.body.textContent).toContain("recorded to a different excerpt"));
+    expect(fixture.commands).toHaveLength(0);
+    button("Use original sound")!.click();
+    await publish();
+    await vi.waitFor(() => expect(fixture.commands.map(command => command.kind)).toEqual(["reserve", "start", "finalize"]));
+    expect(fixture.commands[0]?.input.body).toMatchObject({ intent: "original_audio" });
+  });
+
+  test("a guided take is aligned by the measured guide delay", async () => {
+    let stopped = 0;
+    nextSession = () => fakeSession(() => { stopped += 1; });
+    const guide = guideSpy({ startAfterMs: 300 });
+    const fixture = songSetup({
+      preflight: "accepted", mobile: true,
+      createGuideAudio: () => guide.audio,
+    });
+    await loadSongMetadata();
+    await awaitPlan("ready");
+    await startRecording();
+    await vi.waitFor(() => expect(guide.calls.resolved).toBe(1));
+    await stopRecording();
+    await vi.waitFor(() => expect(stopped).toBe(1));
+    await vi.waitFor(() => expect(document.querySelector("textarea")).not.toBeNull());
+    // The measured lead-in is what the take is trimmed by, so the first
+    // published frame is the first frame after the guide started.
+    expect(fixture.alignments).toHaveLength(1);
+    expect(fixture.alignments[0]!.offsetMs).toBeGreaterThanOrEqual(250);
+    expect(fixture.alignments[0]!.offsetMs).toBeLessThan(750);
+  });
+
+  test("a take that cannot be aligned blocks publishing with the song", async () => {
+    let stopped = 0;
+    nextSession = () => fakeSession(() => { stopped += 1; });
+    const guide = guideSpy();
+    const fixture = songSetup({
+      preflight: "accepted", mobile: true, clipDurationMs: 45_000,
+      createGuideAudio: () => guide.audio,
+      alignTake: async file => ({ file, trimmedMs: 0, aligned: false }),
+    });
+    await loadSongMetadata();
+    await awaitPlan("ready");
+    await startRecording();
+    await vi.waitFor(() => expect(guide.calls.resolved).toBe(1));
+    await stopRecording();
+    await vi.waitFor(() => expect(stopped).toBe(1));
+    await vi.waitFor(() => expect(document.querySelector("textarea")).not.toBeNull());
+    await vi.waitFor(() => expect(document.body.textContent).toContain("could not be aligned"));
+    await publish();
+    await vi.waitFor(() => expect(document.body.textContent).toContain("could not be aligned"));
     expect(fixture.commands).toHaveLength(0);
     button("Use original sound")!.click();
     await publish();

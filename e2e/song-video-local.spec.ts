@@ -29,7 +29,11 @@ interface Ledger {
   readonly stopped: number;
   readonly guideFails: boolean;
   readonly slowGuide: boolean;
+  readonly guideNudgeMs: number;
   readonly reserveBody: Record<string, unknown> | null;
+  readonly alignedDurationMs: number | null;
+  readonly alignedFirstFrameMs: number | null;
+  readonly alignedFirstFrameGreen: boolean | null;
 }
 
 let server: ChildProcess | undefined;
@@ -117,7 +121,7 @@ test("the excerpt is chosen before capture, guides the take and ends it", async 
     const during = await readLedger(page);
     // The take is limited to the excerpt plus its tail guard, and the guide
     // starts at the window's start.
-    expect(during.limitMs).toBe(4_750);
+    expect(during.limitMs).toBe(5_250);
     expect(during.guideStart).toBe(0);
     expect(during.guideDelayMs!).toBeLessThan(750);
     // The fake capture stops at the requested duration, not a constant.
@@ -183,6 +187,34 @@ test("a guide that starts too late ends the take", async () => {
     const ledger = await readLedger(page);
     expect(ledger.guideDelayMs).not.toBeNull();
     expect(ledger.guideDelayMs!).toBeGreaterThan(750);
+  } finally {
+    await context?.close();
+    await rm(userDataDir, { recursive: true, force: true });
+  }
+});
+
+test("a guided take is trimmed to the guide's start and its first frame follows it", async () => {
+  const userDataDir = await mkdtemp(join(tmpdir(), "pirate-song-video-"));
+  let context: BrowserContext | undefined;
+  try {
+    context = await open(userDataDir, `${proofPath}?compose=video&song=song-fixture`);
+    const page = context.pages()[0] ?? await context.newPage();
+    await page.getByRole("button", { name: "Nudge the next guide 300ms", exact: true }).click();
+    await page.getByRole("button", { name: "Start recording", exact: true }).click();
+    await expect.poll(async () => (await readLedger(page)).stopped, { timeout: 20_000 }).toBe(1);
+    await expect.poll(async () => (await readLedger(page)).alignedFirstFrameGreen, { timeout: 20_000 }).not.toBeNull();
+    const ledger = await readLedger(page);
+    // The guide was audible a known delay after the encoder started.
+    expect(ledger.guideDelayMs).toBeGreaterThanOrEqual(250);
+    expect(ledger.guideDelayMs).toBeLessThan(750);
+    // The six-second take was generated with its marker at that delay; after
+    // alignment its first frame is the first frame after the guide started,
+    // and its duration lost exactly that lead-in.
+    const expected = 6_000 - ledger.guideDelayMs!;
+    expect(ledger.alignedDurationMs!).toBeGreaterThan(expected - 250);
+    expect(ledger.alignedDurationMs!).toBeLessThan(expected + 250);
+    expect(ledger.alignedFirstFrameMs).toBe(0);
+    expect(ledger.alignedFirstFrameGreen).toBe(true);
   } finally {
     await context?.close();
     await rm(userDataDir, { recursive: true, force: true });

@@ -7,6 +7,7 @@ import type { SongSourceReader } from "../post-composer/song-excerpt-source";
 import { OriginalVideoCaptureSurface, OriginalVideoReviewSurface } from "../post-composer/video-original-audio-surface";
 import type { OriginalVideoCaptureInput, VideoCaptureSession } from "./capture";
 import { captureStopAfterMs, clipFitMessage, fitClipToExcerpt } from "./clip-duration";
+import { alignGuidedTake, type GuidedTakeAlignment } from "./guided-take-alignment";
 import { canDiscardRejectedVideo, VideoCoordinator, type PendingVideo, type VideoStorage } from "./coordinator";
 import { SongReviewPreview, type PreviewAudio } from "./song-review-preview";
 import { createBrowserVideoStorage } from "./storage";
@@ -54,9 +55,20 @@ export function VideoComposerRuntime(props: {
    * a camera or an encoder. The default is the real capture module. */
   readonly startCapture?: (input: OriginalVideoCaptureInput) => Promise<VideoCaptureSession>;
   readonly createGuideAudio?: (url: string) => GuideAudio;
-  /** Instrumentation for the guide's start boundary, in milliseconds between
-   * the encoder starting and the guide's playback beginning. */
+  /** The alignment step for a guided take, injected so it can be driven
+   * without a decoder. The default trims the measured lead-in from the real
+   * file. */
+  readonly alignTake?: (file: File, offsetMs: number) => Promise<GuidedTakeAlignment>;
+  /** Instrumentation for the guide's start boundary: the measured delay
+   * between the encoder starting and the guide's playback beginning. It is
+   * the offset the take is trimmed by, not a synchronization guarantee. */
   readonly onGuideTiming?: (timing: { readonly startDelayMs: number }) => void;
+  /** Instrumentation for the applied compensation. */
+  readonly onTakeAlignment?: (info: {
+    readonly offsetMs: number;
+    readonly trimmedMs: number;
+    readonly aligned: boolean;
+  }) => void;
   readonly fetchImpl?: typeof fetch;
   readonly songPreflight?: SongIntervalPreflight;
   readonly songReader?: SongSourceReader;
@@ -162,6 +174,11 @@ export function VideoComposerRuntime(props: {
   /** The excerpt a guided take was recorded to, when one was. A take danced to
    * one window cannot be published against another. */
   const [takeSoundtrack, setTakeSoundtrack] = createSignal<{ readonly songPostId: string; readonly bounds: ExcerptBounds } | null>(null);
+  /** Whether the guided take was trimmed to the guide's start. An unaligned
+   * take must not be published with the song: the motion would be ahead of
+   * the music by the measured delay. */
+  const [takeAlignment, setTakeAlignment] = createSignal<"none" | "aligned" | "unaligned">("none");
+  let guideStartDelayMs = 0;
   const takeMismatch = createMemo(() => {
     const take = takeSoundtrack();
     const current = selection();
@@ -244,6 +261,8 @@ export function VideoComposerRuntime(props: {
       await session?.cancel(); session = null; setStream(null); setCaptureStatus("idle");
       stopGuide();
       setTakeSoundtrack(null);
+      setTakeAlignment("none");
+      guideStartDelayMs = 0;
       const accepted = props.inspectFile ? await props.inspectFile(next) : await (await import("./capture")).inspectVideoFile(next);
       if (disposed) return;
       showFile(accepted);
@@ -261,7 +280,16 @@ export function VideoComposerRuntime(props: {
     setFinalizing(true);
     try {
       const take = await current.stop();
-      if (!disposed) { showFile(take); await measureClip(take); }
+      let finalTake = take;
+      if (takeSoundtrack()) {
+        const alignment = await (props.alignTake ?? alignGuidedTake)(take, guideStartDelayMs);
+        finalTake = alignment.file;
+        if (!disposed) setTakeAlignment(alignment.aligned ? "aligned" : "unaligned");
+        props.onTakeAlignment?.({ offsetMs: guideStartDelayMs, trimmedMs: alignment.trimmedMs, aligned: alignment.aligned });
+      } else {
+        if (!disposed) setTakeAlignment("none");
+      }
+      if (!disposed) { showFile(finalTake); await measureClip(finalTake); }
     } catch (failure) {
       if (!disposed) setError(failure instanceof Error ? failure.message : "The recording could not be finalized");
     } finally {
@@ -279,7 +307,9 @@ export function VideoComposerRuntime(props: {
       const capture = await import("./capture");
       const guide = songActive() ? selection() : null;
       try {
-        const current = await startCapture({
+        setTakeAlignment("none");
+      guideStartDelayMs = 0;
+      const current = await startCapture({
           onFailure: failure => {
             session = null; stopGuide();
             if (disposed) return;
@@ -295,6 +325,7 @@ export function VideoComposerRuntime(props: {
         const guideStartedAt = performance.now();
         const started = await startGuide(guide);
         const startDelayMs = Math.round(performance.now() - guideStartedAt);
+        guideStartDelayMs = startDelayMs;
         props.onGuideTiming?.({ startDelayMs });
         // A stop may have been honored while the guide was still starting.
         if (session !== current) return;
@@ -304,7 +335,7 @@ export function VideoComposerRuntime(props: {
           throw new Error("The guide song would not play, so this recording did not start. Check your sound settings and try again.");
         }
         if (startDelayMs > GUIDE_START_MAX_DELAY_MS) {
-          await stopCapture("The guide song started too late to keep this take in time, so it was ended. Record again.");
+          await stopCapture("The guide song started too late to align this take, so it was ended. Record again.");
           return;
         }
         setTakeSoundtrack({ songPostId: guide.songPostId, bounds: guide.bounds });
@@ -357,6 +388,10 @@ export function VideoComposerRuntime(props: {
         // one being rendered.
         if (!originalChosen && songChoice().kind !== "none" && takeMismatch()) {
           throw new Error("This take was recorded to a different excerpt. Record again with the current excerpt, or choose “Use original sound” to publish without it.");
+        }
+        // An unaligned take would publish with its motion ahead of the music.
+        if (!originalChosen && songChoice().kind !== "none" && takeSoundtrack() && takeAlignment() === "unaligned") {
+          throw new Error("This take could not be aligned to the song, so publishing with the song is blocked. Record again, or choose “Use original sound”.");
         }
         const attempt = { communityId: props.communityId, personaId: props.personaId, file: selected, caption: caption(), rating: rating() };
         await coordinator.begin(approved !== undefined && !originalChosen && songChoice().kind !== "none"
@@ -457,6 +492,12 @@ export function VideoComposerRuntime(props: {
       </Show>
       <Show when={takeMismatch()}>
         <FormNote tone="warning">This take was recorded to a different excerpt. Record again with the current excerpt, or choose “Use original sound”.</FormNote>
+      </Show>
+      <Show when={takeSoundtrack() && takeAlignment() === "unaligned"}>
+        <FormNote tone="warning">This take could not be aligned to the song, so publishing with the song is blocked. Record again, or choose “Use original sound”.</FormNote>
+      </Show>
+      <Show when={finalizing()}>
+        <p role="status">Aligning the take with the song…</p>
       </Show>
       <OriginalVideoReviewSurface caption={caption()} onCaptionChange={setCaption} submitting={busy()} onPublish={() => { void publish(); }}
         onBack={() => { if (!busy()) { setFile(null); setClipDurationMs(null); const url = preview(); if (url) URL.revokeObjectURL(url); setPreview(undefined); } }}

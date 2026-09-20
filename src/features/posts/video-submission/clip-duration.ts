@@ -1,11 +1,12 @@
 import { excerptLengthMs, formatExcerptTime, type ExcerptBounds } from "../post-composer/song-excerpt";
 
-/** Recording is stopped a little past the excerpt's end. The server renders
- * the master at the excerpt's exact length, so a take that ends a frame early
- * is refused (`source_video_too_short`); a discarded tail costs nothing and
- * absorbs timer and encoder rounding, which no browser measurement can rule
- * out. */
-export const CAPTURE_TAIL_GUARD_MS = 750;
+/** Recording is stopped past the excerpt's end. The server renders the master
+ * at the excerpt's exact length, so a take that ends a frame early is refused
+ * (`source_video_too_short`); a discarded tail costs nothing and absorbs
+ * timer and encoder rounding. It also has to cover the leading offset that is
+ * trimmed away when the take is aligned to the guide, so it is larger than
+ * the maximum compensable offset. */
+export const CAPTURE_TAIL_GUARD_MS = 1_250;
 
 /** A clip longer than the excerpt by less than this is treated as equal, so
  * ordinary frame rounding does not produce a trimming notice. */
