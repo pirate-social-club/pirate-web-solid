@@ -13,6 +13,7 @@ export interface JoinPolicyCopy {
   readonly nationalityTitle: string;
   readonly nationalityDescription: string;
   readonly nationalityHint: string;
+  readonly savedPolicy: string;
   readonly pickerLabel: string;
   readonly pickerPlaceholder: string;
   readonly emptyError: string;
@@ -113,6 +114,7 @@ export function JoinPolicyField(props: Readonly<{
       </Show>
       <Show when={frozenNationality()}>
         <div class="flex min-w-0 flex-col gap-1 ps-1">
+          <Type as="p" variant="label">{props.copy.savedPolicy}</Type>
           <Type as="p" variant="caption" class="text-sm leading-5">{props.copy.nationalityHint}</Type>
           <Type as="p" variant="caption" class="text-sm leading-5">{countryNames()}</Type>
         </div>

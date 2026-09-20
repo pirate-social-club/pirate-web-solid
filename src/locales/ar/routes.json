@@ -206,6 +206,7 @@
     "joinPolicyPalmDescription": "يتحقق الأعضاء بمسح راحة اليد.",
     "joinPolicyNationalityTitle": "الأشخاص من الجنسيات المحددة",
     "nationalityHint": "يجب أن يثبت الأعضاء انتماءهم إلى إحدى الجنسيات المحددة.",
+    "savedPolicy": "سياسة محفوظة",
     "nationalityDescription": "يثبت الأعضاء الجنسية بوثيقة مدعومة.",
     "nationalityPickerLabel": "الجنسيات المسموح بها",
     "nationalityPickerPlaceholder": "ابحث عن الدول",

@@ -280,6 +280,7 @@ export function CreateCommunityView(props: CreateCommunityProps) {
               nationalityTitle: copy().joinPolicyNationalityTitle,
               nationalityDescription: copy().nationalityDescription,
               nationalityHint: copy().nationalityHint,
+              savedPolicy: copy().savedPolicy,
               pickerLabel: copy().nationalityPickerLabel,
               pickerPlaceholder: copy().nationalityPickerPlaceholder,
               emptyError: copy().nationalityEmptyError,

@@ -64,6 +64,7 @@ export const GENERATED_LOCALE_CATALOGS = {
         "nationalityPickerPlaceholder": "ابحث عن الدول",
         "profileScope": "هذا الملف الشخصي يخص هذا المجتمع فقط. كل مجتمع تنشئه أو تنضم إليه يحصل على ملفه الشخصي الخاص.",
         "removeImage": "إزالة الصورة",
+        "savedPolicy": "سياسة محفوظة",
         "submit": "إنشاء",
         "title": "إنشاء مجتمع"
       },
@@ -313,6 +314,7 @@ export const GENERATED_LOCALE_CATALOGS = {
         "nationalityPickerPlaceholder": "Search countries",
         "profileScope": "This profile belongs to this community only. Each community you create or join gets its own profile.",
         "removeImage": "Remove image",
+        "savedPolicy": "Saved policy",
         "submit": "Create",
         "title": "Create community"
       },
@@ -562,6 +564,7 @@ export const GENERATED_LOCALE_CATALOGS = {
         "nationalityPickerPlaceholder": "搜索国家",
         "profileScope": "此个人资料仅属于该社区。你创建或加入的每个社区都会有各自的个人资料。",
         "removeImage": "移除图片",
+        "savedPolicy": "已保存的策略",
         "submit": "创建",
         "title": "创建社区"
       },

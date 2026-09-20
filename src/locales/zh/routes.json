@@ -206,6 +206,7 @@
     "joinPolicyPalmDescription": "成员通过掌纹扫描进行验证。",
     "joinPolicyNationalityTitle": "所选国籍的人",
     "nationalityHint": "成员必须证明自己属于所选国籍之一。",
+    "savedPolicy": "已保存的策略",
     "nationalityDescription": "成员用受支持的证件证明国籍。",
     "nationalityPickerLabel": "允许的国籍",
     "nationalityPickerPlaceholder": "搜索国家",

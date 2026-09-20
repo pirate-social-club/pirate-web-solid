@@ -206,6 +206,7 @@
     "joinPolicyPalmDescription": "Members verify with a palm scan.",
     "joinPolicyNationalityTitle": "People with selected nationalities",
     "nationalityHint": "Members must prove one of the selected nationalities.",
+    "savedPolicy": "Saved policy",
     "nationalityDescription": "Members prove nationality with a supported document.",
     "nationalityPickerLabel": "Allowed nationalities",
     "nationalityPickerPlaceholder": "Search countries",

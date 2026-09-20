@@ -191,7 +191,8 @@ export const SavedNationalityFrozen: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await userEvent.click(canvas.getByRole("button", { name: "Continue" }));
-    await expect(await canvas.findByText("Members must prove one of the selected nationalities.")).toBeInTheDocument();
+    await expect(await canvas.findByText("Saved policy")).toBeInTheDocument();
+    await expect(canvas.getByText("Members must prove one of the selected nationalities.")).toBeInTheDocument();
     await expect(canvas.getByText("United States, Canada")).toBeInTheDocument();
     await expect(canvas.queryByRole("combobox")).toBeNull();
     await expect(canvas.getByRole("radio", { name: /People with selected nationalities/ })).toBeDisabled();
