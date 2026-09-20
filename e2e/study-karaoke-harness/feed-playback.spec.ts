@@ -116,7 +116,7 @@ test("backgrounding pauses playback and returning resumes it", async ({ context,
   await expect.poll(() => currentTime(first), { timeout: 15_000 }).toBeGreaterThan(0.1);
 });
 
-test("mute toggles sound only, and the play affordance is what unlocks the feed @default-autoplay", async ({ context, page }) => {
+test("mute toggles sound only, and the play affordance is what unlocks the feed", async ({ context, page }) => {
   await openFeed(context, page, 23);
   const firstCard = page.locator("[data-video-feed-card]").nth(0);
   const first = firstCard.locator("video");
