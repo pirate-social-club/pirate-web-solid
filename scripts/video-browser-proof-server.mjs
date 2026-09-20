@@ -18,6 +18,11 @@ const server = await createServer({
           }).catch(() => { res.statusCode = 404; res.end(); });
           return;
         }
+        if (req.url === "/__song-video-proof") {
+          res.setHeader("Content-Type", "text/html");
+          res.end('<!doctype html><html><body><div id="app"></div><script type="module" src="/e2e/fixtures/song-video-browser-proof.tsx"></script></body></html>');
+          return;
+        }
         if (req.url !== "/__video-proof") return next();
         res.setHeader("Content-Type", "text/html");
         res.end('<!doctype html><html><body><div id="app"></div><script type="module" src="/e2e/fixtures/video-browser-proof.tsx"></script></body></html>');
