@@ -24,6 +24,8 @@ import type { CommunityCreationIntentView, CreationNextAction } from "./communit
 import { CreateCommunityView } from "./create-community/create-community";
 import { createEmptyDraft, type CreateCommunityDraft } from "./create-community/create-community-model";
 import { communityCreationDraftsEqual } from "./community-creation-draft";
+import { getLocaleMessages } from "../../locales";
+import { useUiLocale } from "../../lib/ui-locale";
 
 type RouteSession = "resolving" | "failed" | SessionResolution;
 
@@ -478,6 +480,10 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
   };
 
   const currentSession = () => signedIn(session());
+  // Read the locale once at setup, like the creation view does: the context
+  // value is a plain code, not a signal.
+  const locale = useUiLocale();
+  const routesCopy = () => getLocaleMessages(locale, "routes").createCommunity;
   const needsSessionRetry = () => session() === "failed" || currentSession()?.personasUnavailable;
   const discardEditsAndReload = () => {
     if (busy() || loadingSaved()) return;
@@ -516,7 +522,13 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
           } else setDraft(current => ({ ...current, ...patch }));
         }}
         onSubmit={() => void submit()}
-        submitLabel={intent()?.nextAction.kind === "verify_nationality" ? "Verify nationality" : undefined}
+        // The signed-out action opens in-app sign-in, so the label says what
+        // the button does there; a saved intent keeps the plain Create.
+        submitLabel={intent()?.nextAction.kind === "verify_nationality"
+          ? "Verify nationality"
+          : creationState() === "signed-out"
+            ? routesCopy().signInToCreate
+            : undefined}
         personas={displayPersonas()}
         profilesUnavailable={!!currentSession()?.personasUnavailable}
         showMediaFields={false}

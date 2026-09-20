@@ -75,6 +75,7 @@ export const GENERATED_LOCALE_CATALOGS = {
         "removeImage": "إزالة الصورة",
         "savedPolicy": "سياسة الانضمام المحفوظة",
         "savedPolicyCaption": "لا يمكن تغيير سياسة الانضمام بعد الإنشاء.",
+        "signInToCreate": "سجّل الدخول للإنشاء",
         "submit": "إنشاء",
         "title": "إنشاء مجتمع",
         "tryAgain": "أعد المحاولة"
@@ -336,6 +337,7 @@ export const GENERATED_LOCALE_CATALOGS = {
         "removeImage": "Remove image",
         "savedPolicy": "Saved join policy",
         "savedPolicyCaption": "The join policy can't be changed after creation.",
+        "signInToCreate": "Sign in to create",
         "submit": "Create",
         "title": "Create community",
         "tryAgain": "Try again"
@@ -597,6 +599,7 @@ export const GENERATED_LOCALE_CATALOGS = {
         "removeImage": "移除图片",
         "savedPolicy": "已保存的加入政策",
         "savedPolicyCaption": "创建后无法更改加入政策。",
+        "signInToCreate": "登录以创建",
         "submit": "创建",
         "title": "创建社区",
         "tryAgain": "重试"

@@ -139,7 +139,7 @@ describe("Community creation production route", () => {
     // A signed-out visitor gets the single surface and its action directly;
     // no community name is required to reach the sign-in request.
     const signIn = finalSubmit(container)!;
-    expect(signIn.textContent?.trim()).toBe("Create");
+    expect(signIn.textContent?.trim()).toBe("Sign in to create");
     const requested = vi.fn();
     window.addEventListener(GLOBAL_SIGN_IN_EVENT, requested);
     try {
@@ -294,7 +294,7 @@ describe("Community creation production route", () => {
       name.dispatchEvent(new InputEvent("input", { bubbles: true }));
       fillPublicName(container);
       const button = finalSubmit(container)!;
-      expect(button.textContent?.trim()).toBe("Create");
+      expect(button.textContent?.trim()).toBe("Sign in to create");
       button.click();
       expect(request).toHaveBeenCalledOnce();
       expect(createIntentRequest).not.toHaveBeenCalled();
