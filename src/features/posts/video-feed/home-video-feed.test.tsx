@@ -330,3 +330,30 @@ test("cancelling age verification keeps the locked row and does not refetch or p
   expect(load).not.toHaveBeenCalled();
   expect(container.querySelector("video")).toBeNull();
 });
+
+test("renders the Study action only for a video whose referenced song is ready", async () => {
+  const loadStudyAvailability = vi.fn(async (songPostId: string) => songPostId === "post_song");
+  const delivery = { playback: "pending", thumbnail: "pending" } as const;
+  const linked = { ...video([]), id: "video-linked", caption: "Linked caption", videoDelivery: delivery, songPostId: "post_song" };
+  const unlinked = { ...video([]), id: "video-unlinked", caption: "Unlinked caption", videoDelivery: delivery };
+  const unavailable = { ...video([]), id: "video-unavailable", caption: "Unavailable caption", videoDelivery: delivery, songPostId: "post_song_unavailable" };
+  const container = render(() => (
+    <HomeVideoFeed
+      data={page([linked, unlinked, unavailable], null)}
+      loadPage={async () => page([], null)}
+      loadStudyAvailability={loadStudyAvailability}
+    />
+  ));
+
+  await vi.waitFor(() => expect(container.querySelectorAll("[data-video-feed-study]")).toHaveLength(1));
+  const study = container.querySelector<HTMLAnchorElement>("[data-video-feed-study]");
+  expect(study?.getAttribute("href")).toBe("/p/post_song/study");
+  const rows = [...container.querySelectorAll('[role="region"] > div')];
+  const linkedRow = rows.find(row => row.textContent?.includes("Linked caption"));
+  const unlinkedRow = rows.find(row => row.textContent?.includes("Unlinked caption"));
+  const unavailableRow = rows.find(row => row.textContent?.includes("Unavailable caption"));
+  expect(linkedRow?.querySelector("[data-video-feed-study]")).not.toBeNull();
+  expect(unlinkedRow?.querySelector("[data-video-feed-study]")).toBeNull();
+  expect(unavailableRow?.querySelector("[data-video-feed-study]")).toBeNull();
+  expect(loadStudyAvailability.mock.calls.map(([songPostId]) => songPostId).sort()).toEqual(["post_song", "post_song_unavailable"]);
+});
