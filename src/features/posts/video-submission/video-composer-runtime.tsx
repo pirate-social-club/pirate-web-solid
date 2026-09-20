@@ -520,24 +520,46 @@ export function VideoComposerRuntime(props: {
           ? `The server reserved this video as posted to the song, from ${selectionSpan(record()!.song!)}, and froze that excerpt.`
           : "Asking the server to post this video to the song…"}</p>
       </Show>
-      <Show when={record()?.rejection}><p role="alert">{songReservationRefusalText(record()?.rejection?.reasonCode)
-        ?? "The video request was rejected. A new attempt will not start automatically."}</p></Show>
-      <Show when={canDiscardRejectedVideo(record())}><Button disabled={busy()} onClick={() => { void run(async () => {
-        const rejected = await coordinator.discardRejected(); showFile(rejected.file); setCaption(rejected.caption); setRating(rejected.rating);
-      }); }}>Edit rejected video</Button></Show>
-      <Show when={state()?.status === "manual_review"}><p>Your video remains private during review. No post is public yet.</p></Show>
-      <Show when={blocked()?.reason_code === "song_reference_invalid"}><p role="status">{songReferenceInvalidText(blocked()?.song_reason_code)}</p></Show>
-      <Show when={state()?.status === "blocked" || state()?.status === "abandoned"}><p>This attempt cannot publish. It will not be retried with a new identity.</p></Show>
-      <Show when={!record()?.rejection && (record()?.pending || awaiting() || !state())}><Button disabled={busy()} onClick={() => { void publish(); }}>Resume video submission</Button></Show>
-      <Show when={awaiting() && Date.parse(record()?.reservation?.upload.expires_at ?? "") <= Date.now()}><p role="status">This upload reservation has expired. Cancel this submission, then select the source again for a new video.</p></Show>
-      <Show when={awaiting()}><Button disabled={busy()} onClick={() => { void run(() => coordinator.revisionCommand("cancel")); }}>Cancel video submission</Button></Show>
-      <Show when={busy()}><Button onClick={() => coordinator.pauseUpload()}>Pause upload</Button></Show>
-      <Show when={failure()?.reason_code === "provider_submission_unconfirmed"}><p role="status">The provider submission is unconfirmed. We need to reconcile it before another attempt is safe.</p></Show>
-      <Show when={failure()?.reason_code === "membership_required"}><p role="status">Restore your community posting eligibility, then retry publication. Your completed analysis is retained.</p></Show>
-      <Show when={failure()?.retryable}><Button disabled={busy()} onClick={() => { void run(() => coordinator.revisionCommand("retry")); }}>{failure()?.reason_code === "membership_required" ? "Retry publication" : "Retry processing"}</Button></Show>
-      <Button disabled={busy()} onClick={() => { void run(() => coordinator.refresh()); }}>Check video status</Button>
-      <Show when={publishedHref()}>{href => <a href={href()}>View published post</a>}</Show>
-      <Show when={state() && ["published", "blocked", "abandoned"].includes(state()!.status)}>
+      <Show when={record()?.rejection}>
+        <p role="alert">{songReservationRefusalText(record()?.rejection?.reasonCode)
+          ?? "The video request was rejected. A new attempt will not start automatically."}</p>
+        <Show when={canDiscardRejectedVideo(record())}><Button disabled={busy()} onClick={() => { void run(async () => {
+          const rejected = await coordinator.discardRejected(); showFile(rejected.file); setCaption(rejected.caption); setRating(rejected.rating);
+        }); }}>Edit rejected video</Button></Show>
+      </Show>
+      {/* One set of actions for the state that is actually on screen: an
+          active upload, a retryable failure, a review hold, a terminal
+          outcome. No state shows every recovery command at once. */}
+      <Show when={!record()?.rejection && (state()?.status === "processing" || state() === undefined)}>
+        <Show when={awaiting()}>
+          <Show when={Date.parse(record()?.reservation?.upload.expires_at ?? "") <= Date.now()}>
+            <p role="status">This upload reservation has expired. Cancel this submission, then select the source again for a new video.</p>
+          </Show>
+          <Button disabled={busy()} onClick={() => { void run(() => coordinator.revisionCommand("cancel")); }}>Cancel video submission</Button>
+        </Show>
+        <Show when={record()?.pending || awaiting() || !state()}><Button disabled={busy()} onClick={() => { void publish(); }}>Resume video submission</Button></Show>
+        <Show when={busy()}><Button onClick={() => coordinator.pauseUpload()}>Pause upload</Button></Show>
+        <Button disabled={busy()} onClick={() => { void run(() => coordinator.refresh()); }}>Check video status</Button>
+      </Show>
+      <Show when={!record()?.rejection && failure()}>
+        <Show when={failure()?.reason_code === "provider_submission_unconfirmed"}><p role="status">The provider submission is unconfirmed. We need to reconcile it before another attempt is safe.</p></Show>
+        <Show when={failure()?.reason_code === "membership_required"}><p role="status">Restore your community posting eligibility, then retry publication. Your completed analysis is retained.</p></Show>
+        <Show when={failure()?.retryable}><Button disabled={busy()} onClick={() => { void run(() => coordinator.revisionCommand("retry")); }}>{failure()?.reason_code === "membership_required" ? "Retry publication" : "Retry processing"}</Button></Show>
+        <Show when={!failure()?.retryable}><Button disabled={busy()} onClick={() => { void run(async () => { await coordinator.discard(); setFile(null); const url = preview(); if (url) URL.revokeObjectURL(url); setPreview(undefined); setCaption(""); }); }}>Start a new video</Button></Show>
+        <Button disabled={busy()} onClick={() => { void run(() => coordinator.refresh()); }}>Check video status</Button>
+      </Show>
+      <Show when={!record()?.rejection && state()?.status === "manual_review"}>
+        <p>Your video remains private during review. No post is public yet.</p>
+        <Button disabled={busy()} onClick={() => { void run(() => coordinator.refresh()); }}>Check video status</Button>
+      </Show>
+      <Show when={!record()?.rejection && (state()?.status === "blocked" || state()?.status === "abandoned")}>
+        <Show when={blocked()?.reason_code === "song_reference_invalid"}><p role="status">{songReferenceInvalidText(blocked()?.song_reason_code)}</p></Show>
+        <p>This attempt cannot publish. It will not be retried with a new identity.</p>
+        <Button disabled={busy()} onClick={() => { void run(() => coordinator.refresh()); }}>Check video status</Button>
+        <Button disabled={busy()} onClick={() => { void run(async () => { await coordinator.discard(); setFile(null); const url = preview(); if (url) URL.revokeObjectURL(url); setPreview(undefined); setCaption(""); }); }}>Start a new video</Button>
+      </Show>
+      <Show when={!record()?.rejection && state()?.status === "published"}>
+        <Show when={publishedHref()}>{href => <a href={href()}>View published post</a>}</Show>
         <Button disabled={busy()} onClick={() => { void run(async () => { await coordinator.discard(); setFile(null); const url = preview(); if (url) URL.revokeObjectURL(url); setPreview(undefined); setCaption(""); }); }}>Start a new video</Button>
       </Show>
     </Show>
