@@ -90,8 +90,6 @@ export default defineConfig({
       "src/features/posts/video-feed/home-feed-study.test.ts",
       "src/features/posts/video-feed/home-video-feed.test.tsx",
       "src/features/posts/feed/public-feed-song-reference.test.ts",
-      "src/features/posts/song-attribution/song-attribution.test.ts",
-      "src/features/posts/song-attribution/song-attribution-chip.test.tsx",
       "src/features/posts/post-engagement/post-engagement-api.test.ts",
       "src/features/posts/post-engagement/post-engagement-model.test.ts",
       "src/features/posts/post-engagement/post-engagement-pending.test.ts",
