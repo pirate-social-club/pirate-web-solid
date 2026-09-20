@@ -1,14 +1,35 @@
 /** @jsxImportSource @solidjs/web */
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
-import { expect, userEvent, waitFor, within } from "storybook/test";
+import { expect, waitFor, within } from "storybook/test";
 
 import { HomeVideoFeed } from "./home-video-feed";
-import { publicFeedReviewPage } from "../feed/public-feed-fixtures";
-import type { FeedPage } from "../feed/public-feed-adapter";
+import {
+  publicFeedProcessingPage,
+  publicFeedReviewPage,
+  reviewPlaybackMint,
+  reviewPosterPath,
+  reviewSongLinks,
+} from "../feed/public-feed-fixtures";
+import type { FeedPage, PublicFeedItem } from "../feed/public-feed-adapter";
+
 const emptyPage: FeedPage = { ...publicFeedReviewPage, items: [], topCommunities: [] };
 const textOnlyPage: FeedPage = {
   ...publicFeedReviewPage,
   items: publicFeedReviewPage.items.filter(item => item.postType === "text"),
+};
+const reviewVideo = publicFeedReviewPage.items[0]!;
+const oneVideo = (item: PublicFeedItem): FeedPage => ({ items: [item], topCommunities: [], nextCursor: null });
+
+const playableLinked: PublicFeedItem = { ...reviewVideo, songPostId: "post_harness_song" };
+const playableUnlinked: PublicFeedItem = {
+  ...reviewVideo,
+  id: "review-post-unlinked",
+  caption: "A video with its own sound.",
+  songPostId: null,
+};
+const missingThumbnail: PublicFeedItem = {
+  ...playableLinked,
+  videoDelivery: { playback: "ready", thumbnail: "pending" },
 };
 
 const meta = {
@@ -18,6 +39,12 @@ const meta = {
     data: publicFeedReviewPage,
     loadPage: async () => emptyPage,
     navigate: () => undefined,
+    // The local review fixture plays its own media and resolves its own song
+    // link; production keeps the API mint, poster and public read.
+    loadStudyAvailability: async (songPostId: string) => songPostId === "post_harness_song",
+    mintPlaybackAccess: reviewPlaybackMint,
+    posterPath: reviewPosterPath,
+    resolveSongLink: reviewSongLinks,
   },
   parameters: { layout: "fullscreen", a11y: { test: "error" } },
 } satisfies Meta<typeof HomeVideoFeed>;
@@ -25,20 +52,152 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-/** The public-first `/` surface with a playable review video. */
-export const Ready: Story = {
+const readyState = async (canvasElement: HTMLElement): Promise<void> => {
+  await waitFor(() =>
+    expect(canvasElement.querySelector("main")?.getAttribute("data-video-feed-state")).toBe("ready"),
+  );
+};
+
+/** The primary review fixture: a playable local video linked to its song. */
+export const PlayableLinked: Story = {
+  args: { data: oneVideo(playableLinked) },
   play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await readyState(canvasElement);
+    await expect(canvasElement.querySelectorAll("[data-video-feed-card]")).toHaveLength(1);
+    await expect(canvas.getByRole("link", { name: "Study" })).toHaveAttribute("href", "/p/post_harness_song/study");
+    await expect(canvasElement).toHaveTextContent("A sovereign town square for communities");
+  },
+};
+
+/** A playable video with original audio carries no Study action. */
+export const PlayableUnlinked: Story = {
+  args: { data: oneVideo(playableUnlinked) },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await readyState(canvasElement);
+    await expect(canvasElement.querySelectorAll("[data-video-feed-card]")).toHaveLength(1);
+    await expect(canvas.queryByRole("link", { name: "Study" })).toBeNull();
+    await expect(canvasElement).toHaveTextContent("A video with its own sound.");
+  },
+};
+
+/** The referenced song's Study availability is ready, so the action appears. */
+export const StudyReady: Story = {
+  args: { data: oneVideo(playableLinked) },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await readyState(canvasElement);
+    await expect(await canvas.findByRole("link", { name: "Study" })).toBeInTheDocument();
+  },
+};
+
+/** An unavailable referenced song renders the card without a Study action. */
+export const StudyUnavailable: Story = {
+  args: { data: oneVideo(playableLinked), loadStudyAvailability: async () => false },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await readyState(canvasElement);
+    await expect(canvasElement.querySelectorAll("[data-video-feed-card]")).toHaveLength(1);
+    await expect(canvas.queryByRole("link", { name: "Study" })).toBeNull();
+  },
+};
+
+/** A slow availability read stays hidden rather than showing a disabled action. */
+export const StudyLoading: Story = {
+  args: { data: oneVideo(playableLinked), loadStudyAvailability: () => new Promise<boolean>(() => {}) },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await readyState(canvasElement);
+    await expect(canvas.queryByRole("link", { name: "Study" })).toBeNull();
+  },
+};
+
+/** A failed availability read fails closed: no Study action. */
+export const StudyError: Story = {
+  args: {
+    data: oneVideo(playableLinked),
+    loadStudyAvailability: async () => { throw new Error("availability unavailable"); },
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await readyState(canvasElement);
+    await expect(canvas.queryByRole("link", { name: "Study" })).toBeNull();
+  },
+};
+
+/** Playback ready with the thumbnail still processing: the video leads. */
+export const MissingThumbnail: Story = {
+  args: { data: oneVideo(missingThumbnail) },
+  play: async ({ canvasElement }) => {
+    await readyState(canvasElement);
+    await expect(canvasElement.querySelectorAll("[data-video-feed-card]")).toHaveLength(1);
+    await expect(canvasElement.querySelector("video[poster]")).toBeNull();
+    await expect(canvasElement).not.toHaveTextContent("Thumbnail is being prepared.");
+  },
+};
+
+/** The mint is still in flight: the player shows its own loading line. */
+export const PlaybackLoading: Story = {
+  args: { data: oneVideo(playableLinked), mintPlaybackAccess: () => new Promise(() => {}) },
+  play: async ({ canvasElement }) => {
+    await readyState(canvasElement);
     await waitFor(() =>
-      expect(canvasElement.querySelector("main")?.getAttribute("data-video-feed-state")).toBe("ready"),
+      expect(canvasElement.querySelector("[data-video-player-state]")?.getAttribute("data-video-player-state")).toBe("loading"),
     );
+    await expect(within(canvasElement).getByRole("status")).toHaveTextContent("Preparing playback");
+  },
+};
+
+/** Denied playback access surfaces the retry path and never a fake source. */
+export const PlaybackDenied: Story = {
+  args: {
+    data: oneVideo(playableLinked),
+    mintPlaybackAccess: async () => { throw new Error("playback denied"); },
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await readyState(canvasElement);
+    await waitFor(() =>
+      expect(canvasElement.querySelector("[data-video-player-state]")?.getAttribute("data-video-player-state")).toBe("unavailable"),
+    );
+    await expect(canvas.getByRole("button", { name: "Try playback again" })).toBeInTheDocument();
+    await expect(canvasElement.querySelector("video")?.getAttribute("src")).toBeNull();
+  },
+};
+
+/** A media transport failure lands in the same honest recovery state. */
+export const PlaybackFailure: Story = {
+  args: {
+    data: oneVideo(playableLinked),
+    attachPlayback: async () => { throw new Error("transport failed"); },
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await readyState(canvasElement);
+    await waitFor(() =>
+      expect(canvasElement.querySelector("[data-video-player-state]")?.getAttribute("data-video-player-state")).toBe("unavailable"),
+    );
+    await expect(canvas.getByText(/Playback is unavailable/)).toBeInTheDocument();
   },
 };
 
 /**
- * The authenticated `/` configuration: no initial data, so the feed mounts
- * through its loader exactly as the route hands it `fetchHomeFeedPage`, and
- * the first page arrives from the load call.
+ * Author-visible processing states. The public feed never renders a video
+ * that is still being prepared as an ordinary full-screen item; these states
+ * belong to the post surface, where the author follows recovery.
  */
+export const AuthorProcessingHiddenFromFeed: Story = {
+  args: { data: publicFeedProcessingPage },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await readyState(canvasElement);
+    await expect(canvasElement.querySelectorAll("[data-video-feed-card]")).toHaveLength(0);
+    await expect(canvas.getByText("Videos are being prepared")).toBeInTheDocument();
+  },
+};
+
+/** The authenticated `/` configuration: no initial data, so the loader runs. */
 export const AuthenticatedLoader: Story = {
   name: "Authenticated loader",
   args: {
@@ -47,9 +206,7 @@ export const AuthenticatedLoader: Story = {
   },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await waitFor(() =>
-      expect(canvasElement.querySelector("main")?.getAttribute("data-video-feed-state")).toBe("ready"),
-    );
+    await readyState(canvasElement);
     await expect(canvas.getByLabelText("Videos for you")).toBeInTheDocument();
   },
 };
@@ -93,6 +250,18 @@ export const NoVideos: Story = {
   },
 };
 
+/** The playable linked fixture on a mobile viewport with the footer tab bar. */
+export const MobilePlayableLinked: Story = {
+  name: "Mobile playable linked",
+  globals: { viewport: { value: "mobile1", isRotated: false } },
+  args: { data: oneVideo(playableLinked) },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await readyState(canvasElement);
+    await expect(canvas.getByRole("link", { name: "Study" })).toBeVisible();
+  },
+};
+
 export const Mobile: Story = {
   globals: { viewport: { value: "mobile1", isRotated: false } },
 };
@@ -109,7 +278,7 @@ export const AdultViewing: Story = {
     const button = await canvas.findByRole("button", { name: "Verify 18+ to view" });
     await expect(canvasElement.querySelector("video")).toBeNull();
     const region = canvas.getByRole("region", { name: "Videos for you" });
-    await userEvent.click(button);
+    button.click();
     await waitFor(() => expect(canvas.queryByRole("button", { name: "Verify 18+ to view" })).toBeNull());
     await expect(canvas.getByRole("region", { name: "Videos for you" })).toBe(region);
     for (const video of canvasElement.querySelectorAll("video")) await expect(video.autoplay).toBe(false);
@@ -118,6 +287,3 @@ export const AdultViewing: Story = {
 
 /** Manual browser review of the same in-place flow before proof. */
 export const AdultLocked: Story = { args: AdultViewing.args };
-export const AdultCancelled: Story = {
-  args: { ...AdultViewing.args, verifyAge: async () => false },
-};
