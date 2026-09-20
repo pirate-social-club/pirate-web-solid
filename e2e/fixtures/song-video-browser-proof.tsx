@@ -6,7 +6,8 @@ import { ALL_FORMATS, BlobSource, CanvasSink, Input } from "mediabunny";
 import sampleTakeUrl from "./media/sample-take.mp4?url";
 import { VideoComposerRuntime, type GuideAudio } from "../../src/features/posts/video-submission/video-composer-runtime";
 import { alignGuidedTake } from "../../src/features/posts/video-submission/guided-take-alignment";
-import { inspectVideoFile } from "../../src/features/posts/video-submission/capture";
+import { inspectVideoFile, measureVideoDuration } from "../../src/features/posts/video-submission/capture";
+import { fitClipToExcerpt } from "../../src/features/posts/video-submission/clip-duration";
 import { SongVideoEntry, initialVideoSongFromSearch } from "../../src/features/posts/public-post/song-video-entry";
 import { SongAttributionChip } from "../../src/features/posts/song-attribution/song-attribution-chip";
 import type { OriginalVideoCaptureInput, VideoCaptureSession } from "../../src/features/posts/video-submission/capture";
@@ -59,6 +60,9 @@ interface Ledger {
   alignedFirstFrameMs: number | null;
   alignedFirstFrameColorMs: number | null;
   alignedVideoCodec: string | null;
+  alignedContainerDurationMs: number | null;
+  takeMeasuredVideoMs: number | null;
+  shortVideoLongAudioRefused: boolean | null;
   alignedAudioCodec: string | null;
   alignedAdmitted: boolean | null;
   alignedRequestedMs: number | null;
@@ -70,7 +74,9 @@ function ledger(): Ledger {
     calls: [], limitMs: null, guidePlayed: 0, guidePaused: 0, guideStart: null, guideDelayMs: null,
     stopped: 0, guideFails: false, slowGuide: false, guideNudgeMs: 0, reserveBody: null,
     alignedDurationMs: null, alignedFirstFrameMs: null, alignedFirstFrameColorMs: null,
-    alignedVideoCodec: null, alignedAudioCodec: null, alignedAdmitted: null,
+    alignedVideoCodec: null, alignedContainerDurationMs: null,
+    takeMeasuredVideoMs: null, shortVideoLongAudioRefused: null,
+    alignedAudioCodec: null, alignedAdmitted: null,
     alignedRequestedMs: null, alignedReportedTrimMs: null, originalTakeBytes: null,
   };
 }
@@ -134,7 +140,14 @@ const preflight: SongIntervalPreflight = async (input) => {
 async function measureDuration(file: File): Promise<number | null> {
   if (file.name === "short.mp4") return 3_000;
   if (file.name === "long.mp4") return 45_000;
-  return null;
+  // The take is measured by the production reader, which reports the video
+  // track, not the container that the copied audio extends.
+  const measured = await measureVideoDuration(file);
+  const state = ledger();
+  state.takeMeasuredVideoMs = measured;
+  write(state);
+  notify();
+  return measured;
 }
 
 interface FixtureGuide extends GuideAudio {
@@ -309,6 +322,13 @@ async function inspectAlignedTake(file: File): Promise<void> {
     }
     const state = ledger();
     state.alignedDurationMs = videoDurationMs;
+    state.alignedContainerDurationMs = Math.round(duration * 1_000);
+    // A clip whose video ends before the excerpt but whose container lasts
+    // longer must be refused: the container duration is not coverage.
+    const measured = await measureVideoDuration(file);
+    state.takeMeasuredVideoMs = measured;
+    state.shortVideoLongAudioRefused = measured !== null
+      && fitClipToExcerpt(measured, { startMs: 0, endMs: 5_900 }).kind === "too_short";
     state.alignedFirstFrameMs = Math.round(first * 1_000);
     state.alignedFirstFrameColorMs = firstFrameColorMs;
     state.alignedVideoCodec = videoCodec;

@@ -1,6 +1,7 @@
 import { ALL_FORMATS, BlobSource, BufferTarget, canEncodeAudio, canEncodeVideo, Input,
   MediaStreamAudioTrackSource, MediaStreamVideoTrackSource, Mp4OutputFormat, Output, Quality } from "mediabunny";
 
+import { GUIDED_TAKE_MAX_DURATION_SECONDS } from "./clip-duration";
 import { createCaptureFailureBoundary, VideoCaptureError } from "./capture-failure";
 export { VideoCaptureError } from "./capture-failure";
 export interface VideoCaptureSession {
@@ -16,13 +17,17 @@ export interface VideoCaptureSession {
 const videoQuality = new Quality({ bitrate: 4_000_000 });
 const audioQuality = new Quality({ bitrate: 128_000 });
 
-/** Measures a chosen file's duration in whole milliseconds, or null when the
- * container cannot answer. The local duration guard uses this; the sealed
- * server probe remains authoritative. */
+/** Measures a chosen file's **video** duration in whole milliseconds, or null
+ * when it cannot be read. The container duration is not the video's: an
+ * aligned take carries the captured audio, which is not trimmed and can run
+ * longer than the video, and a container that lasts longer than the excerpt
+ * says nothing about whether the video itself covers it. The local duration
+ * guard uses the video track; the sealed server probe remains authoritative. */
 export async function measureVideoDuration(file: File): Promise<number | null> {
   const input = new Input({ source: new BlobSource(file), formats: ALL_FORMATS });
   try {
-    const duration = await input.computeDuration();
+    const video = await input.getPrimaryVideoTrack();
+    const duration = video === null ? await input.computeDuration() : await video.computeDuration();
     return Number.isFinite(duration) && duration > 0 ? Math.round(duration * 1_000) : null;
   } catch {
     return null;
@@ -32,9 +37,6 @@ export async function measureVideoDuration(file: File): Promise<number | null> {
 }
 
 const DEFAULT_MAX_DURATION_SECONDS = 180;
-/** A guided take is recorded a little past the excerpt's end so the render's
- * exact cut cannot land on a frame the recording never produced. */
-const GUIDED_CAPTURE_MAX_DURATION_SECONDS = 181.5;
 
 /** Browser admission is an early UX check; the sealed server probe stays authoritative. */
 export async function inspectVideoFile(
@@ -159,7 +161,7 @@ export async function startOriginalVideoCapture(input: OriginalVideoCaptureInput
           return await inspectVideoFile(new File([target.buffer], "original-video.mp4", { type: "video/mp4" }), {
             // Only the app's own guided take is allowed its tail guard; a
             // chosen file keeps the ordinary admission bound.
-            maxDurationSeconds: GUIDED_CAPTURE_MAX_DURATION_SECONDS,
+            maxDurationSeconds: GUIDED_TAKE_MAX_DURATION_SECONDS,
           });
         } finally { release(); }
       },

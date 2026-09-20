@@ -35,6 +35,9 @@ interface Ledger {
   readonly alignedFirstFrameMs: number | null;
   readonly alignedFirstFrameColorMs: number | null;
   readonly alignedVideoCodec: string | null;
+  readonly alignedContainerDurationMs: number | null;
+  readonly takeMeasuredVideoMs: number | null;
+  readonly shortVideoLongAudioRefused: boolean | null;
   readonly alignedAudioCodec: string | null;
   readonly alignedAdmitted: boolean | null;
   readonly alignedRequestedMs: number | null;
@@ -220,6 +223,12 @@ test("a guided take is trimmed to the guide's start and its first frame follows 
     expect(ledger.alignedDurationMs!).toBeGreaterThan(expected - 250);
     expect(ledger.alignedDurationMs!).toBeLessThan(expected + 250);
     expect(ledger.alignedFirstFrameMs).toBe(0);
+    // The container lasts longer than the video because the copied audio is
+    // not trimmed; the fit guard uses the video track, and a 5.9 s excerpt
+    // that the container would have accepted is refused by the video.
+    expect(ledger.alignedContainerDurationMs!).toBeGreaterThan(ledger.alignedDurationMs!);
+    expect(ledger.takeMeasuredVideoMs).toBe(ledger.alignedDurationMs);
+    expect(ledger.shortVideoLongAudioRefused).toBe(true);
     // The first frame's colour encodes its timestamp, and it matches the
     // removal the output container reported: the kept frame is the first one
     // after the guide started.

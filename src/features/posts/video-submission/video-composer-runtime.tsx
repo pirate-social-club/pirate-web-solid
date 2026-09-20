@@ -6,7 +6,7 @@ import { createLocalExcerptDraftStore } from "../post-composer/song-excerpt-draf
 import type { SongSourceReader } from "../post-composer/song-excerpt-source";
 import { OriginalVideoCaptureSurface, OriginalVideoReviewSurface } from "../post-composer/video-original-audio-surface";
 import type { OriginalVideoCaptureInput, VideoCaptureSession } from "./capture";
-import { captureStopAfterMs, clipFitMessage, fitClipToExcerpt } from "./clip-duration";
+import { captureStopAfterMs, clipFitMessage, fitClipToExcerpt, GUIDED_TAKE_MAX_DURATION_SECONDS } from "./clip-duration";
 import { alignGuidedTake, type GuidedTakeAlignment } from "./guided-take-alignment";
 import { canDiscardRejectedVideo, VideoCoordinator, type PendingVideo, type VideoStorage } from "./coordinator";
 import { SongReviewPreview, type PreviewAudio } from "./song-review-preview";
@@ -49,7 +49,7 @@ export function VideoComposerRuntime(props: {
   readonly onPublished?: () => void;
   readonly storage?: VideoStorage;
   readonly transport?: VideoTransport;
-  readonly inspectFile?: (file: File) => Promise<File>;
+  readonly inspectFile?: (file: File, options?: { readonly maxDurationSeconds?: number }) => Promise<File>;
   readonly measureDuration?: (file: File) => Promise<number | null>;
   /** The capture entry point, injected so the guide path can be driven without
    * a camera or an encoder. The default is the real capture module. */
@@ -322,7 +322,9 @@ export function VideoComposerRuntime(props: {
             // codecs is not publishable, whatever the conversion reported.
             try {
               const inspect = props.inspectFile ?? (await import("./capture")).inspectVideoFile;
-              await inspect(candidate);
+              // The aligned artifact keeps the captured audio, so its container
+              // can outlast the chosen-file bound; the guided bound applies.
+              await inspect(candidate, { maxDurationSeconds: GUIDED_TAKE_MAX_DURATION_SECONDS });
             } catch {
               aligned = false;
               candidate = take;

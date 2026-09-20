@@ -12,6 +12,7 @@ import type { OriginalVideoReservation, VideoSnapshot } from "./contracts";
 import type { SongIntervalPreflight } from "./song-reference";
 import type { SongSourceReader } from "../post-composer/song-excerpt-source";
 import type { GuidedTakeAlignment } from "./guided-take-alignment";
+import { GUIDED_TAKE_MAX_DURATION_SECONDS } from "./clip-duration";
 
 const disposers: (() => void)[] = [];
 /** The injected capture entry point: tests place the next session here. */
@@ -211,6 +212,7 @@ describe("mounted song-first video flow", () => {
     } };
     const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(new Response(null, { headers: { etag: "receipt" } }));
     const alignments: { readonly offsetMs: number; readonly file: File }[] = [];
+    const inspectOptions: ({ readonly maxDurationSeconds?: number } | undefined)[] = [];
     const alignTake = options.alignTake ?? (async (file: File, offsetMs: number) => {
       alignments.push({ offsetMs, file });
       return { file, trimmedMs: offsetMs, requestedMs: offsetMs, aligned: true };
@@ -224,7 +226,7 @@ describe("mounted song-first video flow", () => {
       });
     const container = document.createElement("div"); document.body.appendChild(container);
     createRoot(dispose => { disposers.push(() => { dispose(); localStorage.clear(); }); render(() => <VideoComposerRuntime principalId="account" communityId="community" personaId="persona"
-      storage={storage} transport={transport} inspectFile={async file => file} fetchImpl={fetchImpl}
+      storage={storage} transport={transport} inspectFile={async (file, options) => { inspectOptions.push(options); return file; }} fetchImpl={fetchImpl}
       measureDuration={async () => options.clipDurationMs ?? null}
       startCapture={startCapture}
       createGuideAudio={options.createGuideAudio}
@@ -233,7 +235,7 @@ describe("mounted song-first video flow", () => {
       songPreflight={preflight} songReader={songReader}
       initialSong={options.initialSong === false ? undefined : { postId: "song-post" }}
       onExit={() => {}} onRetainedPersona={() => {}} />, container); });
-    return { commands, preflightCalls, pendingChecks, fetchImpl, alignments, current: () => saved };
+    return { commands, preflightCalls, pendingChecks, fetchImpl, alignments, inspectOptions, current: () => saved };
   }
 
   const button = (label: string) => [...document.querySelectorAll("button")].find(candidate => candidate.textContent?.trim() === label);
@@ -648,6 +650,9 @@ describe("mounted song-first video flow", () => {
     expect(fixture.alignments).toHaveLength(1);
     expect(fixture.alignments[0]!.offsetMs).toBeGreaterThanOrEqual(250);
     expect(fixture.alignments[0]!.offsetMs).toBeLessThan(750);
+    // The aligned artifact keeps the captured audio, so its container can
+    // outlast the chosen-file bound; admission uses the guided bound.
+    expect(fixture.inspectOptions.at(-1)?.maxDurationSeconds).toBe(GUIDED_TAKE_MAX_DURATION_SECONDS);
   });
 
   test("a take that cannot be aligned blocks publishing with the song", async () => {
