@@ -2,7 +2,7 @@ import type { verifyAdultViewing } from "../../verification/age-verification.ts"
 import { AgeAccessPrompt } from "../../verification/age-access-prompt.tsx";
 import { feedSlots } from "../feed/feed-slots.ts";
 import { Title } from "@solidjs/meta";
-import { VerticalFeed } from "@pirate/web-solid-ui";
+import { VerticalFeed, type VerticalFeedPlaceholderContext } from "@pirate/web-solid-ui";
 import { Show, createEffect, createSignal, onCleanup, untrack } from "solid-js";
 import { VideoPlayer } from "../video-submission/video-player";
 import type { mintPlaybackAccess } from "../video-submission/playback-access";
@@ -27,9 +27,6 @@ import {
   resolveVideoMedia,
   type HomeVideoPost,
 } from "./home-video-feed-model.ts";
-
-/** One deduplicated availability read per referenced song for the whole feed. */
-const studyAvailability = makeStudyAvailabilityLookup(createStudyV2Api());
 
 /** One canonical-link cache for the whole feed: a song reused across videos
  * resolves its route once. */
@@ -157,12 +154,16 @@ function navigateTo(href: string, navigate?: (href: string) => void): void {
  */
 function StudyAction(props: {
   readonly load: (songPostId: string) => Promise<boolean>;
+  readonly scope: () => string;
   readonly songPostId: string;
   readonly navigate?: (href: string) => void;
 }) {
-  const [ready, setReady] = createSignal(false);
-  createEffect(() => props.songPostId, (songPostId) => {
+  // ownedWrite: the apply phase clears a stale answer when the viewer scope
+  // changes, so one account never keeps another account's ready action.
+  const [ready, setReady] = createSignal(false, { ownedWrite: true });
+  createEffect(() => [props.songPostId, props.scope()] as const, ([songPostId]) => {
     let active = true;
+    setReady(false);
     void props.load(songPostId).then((value) => {
       if (active) setReady(value);
     });
@@ -197,19 +198,25 @@ function StudyAction(props: {
  */
 function FeedVideoCard(props: {
   readonly entry: FeedDelivery;
+  readonly playback: VerticalFeedPlaceholderContext;
   readonly loadStudyAvailability: (songPostId: string) => Promise<boolean>;
+  readonly scope: () => string;
   readonly resolveSongLink: SongAttributionLinkResolver;
   readonly mintPlaybackAccess?: typeof mintPlaybackAccess;
   readonly posterPath?: (postId: string) => string;
   readonly attachPlayback?: typeof attachPlayback;
   readonly navigate?: (href: string) => void;
 }) {
+  const muted = () => props.playback.muted() === true;
   return (
     <article class="flex h-full flex-col justify-center gap-3 px-4 py-8 text-white" data-video-feed-card={props.entry.postId}>
       <div class="mx-auto w-full max-w-3xl">
         <VideoPlayer
           attach={props.attachPlayback}
+          autoplay={props.playback.autoplay() && props.playback.hasUserInteracted()}
           mint={props.mintPlaybackAccess}
+          muted={muted()}
+          onUserInteraction={props.playback.markUserInteracted}
           postId={props.entry.postId}
           posterPath={props.posterPath}
           requiresAgeVerification={props.entry.requiresAgeVerification}
@@ -251,10 +258,20 @@ function FeedVideoCard(props: {
               <StudyAction
                 load={props.loadStudyAvailability}
                 navigate={props.navigate}
+                scope={props.scope}
                 songPostId={songPostId()}
               />
             )}
           </Show>
+          <button
+            aria-pressed={muted() ? "true" : "false"}
+            class="rounded-[var(--radius-lg)] border border-white/30 px-4 py-2 text-sm text-white"
+            data-video-feed-mute
+            onClick={() => props.playback.reportMuteToggle(!muted())}
+            type="button"
+          >
+            {muted() ? "Unmute" : "Mute"}
+          </button>
           <a
             class="rounded-[var(--radius-lg)] border border-white/30 px-4 py-2 text-sm text-white"
             href={props.entry.href}
@@ -310,6 +327,13 @@ export function HomeVideoFeed(props: HomeVideoFeedProps) {
   let ageVerificationActive = false;
   let pages: readonly LoadedPage[] = [];
   const [autoplay, setAutoplay] = createSignal(true);
+  const [feedMuted, setFeedMuted] = createSignal<boolean | undefined>(undefined);
+  // Availability answers belong to one viewer scope. The epoch advances after
+  // an age verification so a denied-then-verified read is retried too.
+  const [availabilityEpoch, setAvailabilityEpoch] = createSignal(0);
+  const studyAvailability = makeStudyAvailabilityLookup(createStudyV2Api());
+  const studyScope = () => `${props.sourceIdentity ?? "anonymous"}:${availabilityEpoch()}`;
+  const loadStudyAvailability = (songPostId: string) => studyAvailability(songPostId, studyScope());
   let refreshing = false;
   let active = true;
   let requestIdentity = 0;
@@ -423,6 +447,7 @@ export function HomeVideoFeed(props: HomeVideoFeedProps) {
       setNextCursor(refreshed.at(-1)?.page.nextCursor ?? null);
       setProcessingCount(refreshed.reduce((sum, entry) => sum + processingVideoCount(entry.page.items), 0));
       setPaginationIssue(null);
+      setAvailabilityEpoch(epoch => epoch + 1);
     } finally {
       refreshing = false;
       if (active && identity === requestIdentity) { loadingMoreInFlight = false; setLoadingMore(false); }
@@ -465,13 +490,17 @@ export function HomeVideoFeed(props: HomeVideoFeedProps) {
                 onShareClick={sharePost}
                 posts={[...posts()]}
                 autoplay={autoplay()}
-                renderPlaceholder={id => {
+                muted={feedMuted()}
+                onMuteToggle={(_postId, muted) => setFeedMuted(muted)}
+                renderPlaceholder={(id, playback) => {
                   const entry = () => delivery().find(candidate => `delivery:${candidate.postId}` === id);
                   return <Show when={entry()} fallback={<div class="grid h-full place-items-center px-4 text-white"><AgeAccessPrompt verify={props.verifyAge} onStart={() => { ageVerificationActive = true; setAutoplay(false); }} onFinish={() => { ageVerificationActive = false; }} onVerified={refreshAuthorized} /></div>}>
                     {video => (
                       <FeedVideoCard
                         entry={video()}
-                        loadStudyAvailability={props.loadStudyAvailability ?? studyAvailability}
+                        playback={playback}
+                        loadStudyAvailability={props.loadStudyAvailability ?? loadStudyAvailability}
+                        scope={studyScope}
                         attachPlayback={props.attachPlayback}
                         mintPlaybackAccess={props.mintPlaybackAccess}
                         navigate={props.navigate}

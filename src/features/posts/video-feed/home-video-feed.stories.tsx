@@ -1,6 +1,6 @@
 /** @jsxImportSource @solidjs/web */
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
-import { expect, waitFor, within } from "storybook/test";
+import { expect, userEvent, waitFor, within } from "storybook/test";
 
 import { HomeVideoFeed } from "./home-video-feed";
 import {
@@ -11,6 +11,8 @@ import {
   reviewSongLinks,
 } from "../feed/public-feed-fixtures";
 import type { FeedPage, PublicFeedItem } from "../feed/public-feed-adapter";
+import { createSignal } from "solid-js";
+import { makeStudyAvailabilityLookup } from "./home-feed-study";
 
 const emptyPage: FeedPage = { ...publicFeedReviewPage, items: [], topCommunities: [] };
 const textOnlyPage: FeedPage = {
@@ -287,3 +289,64 @@ export const AdultViewing: Story = {
 
 /** Manual browser review of the same in-place flow before proof. */
 export const AdultLocked: Story = { args: AdultViewing.args };
+
+/** The feed mute control is one policy for every playable card. */
+export const MuteControlPolicy: Story = {
+  name: "Mute control policy",
+  args: { data: oneVideo(playableLinked) },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await readyState(canvasElement);
+    const player = canvasElement.querySelector("video");
+    expect(player?.muted).toBe(false);
+    await userEvent.click(canvas.getByRole("button", { name: "Mute" }));
+    await waitFor(() => expect(player?.muted).toBe(true));
+    await expect(canvas.getByRole("button", { name: "Unmute" })).toHaveAttribute("aria-pressed", "true");
+  },
+};
+
+/**
+ * Availability is scoped to the viewer: an anonymous miss does not survive
+ * sign-in, and the action appears once the authenticated read answers.
+ */
+export const StudyAfterSignIn: Story = {
+  name: "Study after sign-in",
+  render: () => {
+    const [identity, setIdentity] = createSignal("anonymous");
+    const availability = makeStudyAvailabilityLookup({
+      loadAvailability: async () => ({
+        availability: identity() === "anonymous"
+          ? { reason: "insufficient_exercises" as const, state: "unavailable" as const }
+          : {
+            available_exercise_types: ["say_it_back"],
+            learner_bands: [],
+            learning_language: "en",
+            state: "ready" as const,
+            target_languages: [],
+          },
+        communityId: "community-study",
+      }),
+    });
+    return (
+      <div>
+        <button data-story-sign-in type="button" onClick={() => setIdentity("user:one")}>Sign in</button>
+        <HomeVideoFeed
+          data={oneVideo(playableLinked)}
+          loadPage={async () => emptyPage}
+          loadStudyAvailability={(songPostId) => availability(songPostId, identity())}
+          mintPlaybackAccess={reviewPlaybackMint}
+          posterPath={reviewPosterPath}
+          resolveSongLink={reviewSongLinks}
+          sourceIdentity={identity()}
+        />
+      </div>
+    );
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await readyState(canvasElement);
+    await expect(canvas.queryByRole("link", { name: "Study" })).toBeNull();
+    canvasElement.querySelector<HTMLButtonElement>("[data-story-sign-in]")!.click();
+    await waitFor(() => expect(canvas.getByRole("link", { name: "Study" })).toBeInTheDocument());
+  },
+};

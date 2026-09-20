@@ -28,6 +28,15 @@ interface VideoPlaybackContextValue {
 
 const VideoPlaybackContext = createContext<VideoPlaybackContextValue>();
 
+/**
+ * Read the feed playback gate. Host surfaces that render their own player for
+ * a row receive this through the placeholder context instead of importing it,
+ * but the hook is public so the provider and its consumers stay one contract.
+ */
+export function useVideoPlayback(): VideoPlaybackContextValue | undefined {
+  return useContext(VideoPlaybackContext);
+}
+
 export function VideoPlaybackProvider(props: ParentProps) {
   const [hasUserInteracted, setHasUserInteracted] = createSignal(false);
 

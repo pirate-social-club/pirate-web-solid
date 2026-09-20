@@ -5,6 +5,7 @@ import { afterEach, describe, expect, test, vi } from "vitest";
 import type { UiLocaleCode } from "../../../lib/ui-locale-core.ts";
 import type { FeedPage, PublicFeedItem } from "../feed/public-feed-adapter.ts";
 import { HomeVideoFeed } from "./home-video-feed.tsx";
+import { makeStudyAvailabilityLookup } from "./home-feed-study.ts";
 
 const disposers: Array<() => void> = [];
 
@@ -365,4 +366,77 @@ test("renders the Study action only for a playable video whose referenced song i
   expect(unlinkedRow?.querySelector("[data-video-feed-study]")).toBeNull();
   expect(unavailableRow?.querySelector("[data-video-feed-study]")).toBeNull();
   expect(loadStudyAvailability.mock.calls.map(([songPostId]) => songPostId).sort()).toEqual(["post_song", "post_song_unavailable"]);
+});
+
+test("re-reads Study availability after sign-in and an account switch", async () => {
+  const [identity, setIdentity] = createSignal("anonymous");
+  let availabilityCalls = 0;
+  const availability = makeStudyAvailabilityLookup({
+    loadAvailability: async () => {
+      availabilityCalls += 1;
+      return {
+        availability: identity() === "anonymous"
+          ? { reason: "insufficient_exercises" as const, state: "unavailable" as const }
+          : {
+            available_exercise_types: ["say_it_back"],
+            learner_bands: [],
+            learning_language: "en",
+            state: "ready" as const,
+            target_languages: [],
+          },
+        communityId: "community-1",
+      };
+    },
+  });
+  const delivery = { playback: "ready", thumbnail: "ready" } as const;
+  const linked = { ...video([]), id: "video-identity", caption: "Identity caption", videoDelivery: delivery, songPostId: "post_song" };
+  const container = render(() => (
+    <HomeVideoFeed
+      data={page([linked], null)}
+      loadPage={async () => page([], null)}
+      loadStudyAvailability={(songPostId) => availability(songPostId, identity())}
+      mintPlaybackAccess={async () => new Promise<never>(() => {})}
+      resolveSongLink={async () => null}
+      sourceIdentity={identity()}
+    />
+  ));
+
+  await vi.waitFor(() => expect(container.querySelector("[data-video-feed-card]")).not.toBeNull());
+  expect(container.querySelector("[data-video-feed-study]")).toBeNull();
+
+  // Anonymous to authenticated: the failed anonymous read does not stick.
+  setIdentity("user:one");
+  await vi.waitFor(() => expect(container.querySelector("[data-video-feed-study]")).not.toBeNull());
+  const afterSignIn = availabilityCalls;
+
+  // Account switch: the earlier ready answer does not cross into the new account.
+  setIdentity("user:two");
+  await vi.waitFor(() => expect(container.querySelector("[data-video-feed-study]")).not.toBeNull());
+  expect(availabilityCalls).toBe(afterSignIn + 1);
+});
+
+test("the feed mute control mutes the playable card and reports its state", async () => {
+  const delivery = { playback: "ready", thumbnail: "ready" } as const;
+  const linked = { ...video([]), id: "video-mute", caption: "Mute caption", videoDelivery: delivery, songPostId: "post_song" };
+  const container = render(() => (
+    <HomeVideoFeed
+      data={page([linked], null)}
+      loadPage={async () => page([], null)}
+      loadStudyAvailability={async () => true}
+      mintPlaybackAccess={async () => new Promise<never>(() => {})}
+      resolveSongLink={async () => null}
+    />
+  ));
+
+  await vi.waitFor(() => expect(container.querySelector("[data-video-feed-card]")).not.toBeNull());
+  const button = container.querySelector<HTMLButtonElement>("[data-video-feed-mute]");
+  const player = container.querySelector("video");
+  expect(button).not.toBeNull();
+  expect(button?.getAttribute("aria-pressed")).toBe("false");
+  expect(player?.muted).toBe(false);
+
+  button!.click();
+  await vi.waitFor(() => expect(player?.muted).toBe(true));
+  expect(button?.getAttribute("aria-pressed")).toBe("true");
+  expect(button?.textContent).toBe("Unmute");
 });

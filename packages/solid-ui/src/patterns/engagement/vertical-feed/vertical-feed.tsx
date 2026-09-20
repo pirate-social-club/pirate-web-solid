@@ -1,4 +1,4 @@
-import { createEffect, createSignal, For, onSettled, Show, untrack } from "solid-js";
+import { createEffect, createSignal, For, onSettled, Show, untrack, type Accessor } from "solid-js";
 import type { JSX } from "@solidjs/web";
 
 import { Spinner } from "@/components/feedback/spinner/spinner";
@@ -6,12 +6,38 @@ import { cn } from "@/lib/cn";
 
 import { MediaPost } from "./media-post";
 import type { HapticKind, MediaPostData } from "./types";
-import { VideoPlaybackProvider } from "./video-playback";
+import { useVideoPlayback, VideoPlaybackProvider } from "./video-playback";
+
+/**
+ * Playback policy for one non-media row rendered by the host. The accessors
+ * are reactive: a host player follows the active row, the feed autoplay
+ * policy, the first-interaction gate and the controlled mute without being
+ * re-rendered.
+ */
+export interface VerticalFeedPlaceholderContext {
+  /** True while this row is the feed's active post. */
+  readonly active: Accessor<boolean>;
+  /** True when the feed would autoplay this row (host autoplay, active, not paused). */
+  readonly autoplay: Accessor<boolean>;
+  /** True once any player in the feed saw a user interaction. */
+  readonly hasUserInteracted: Accessor<boolean>;
+  /** Record a user interaction, unlocking autoplay across the feed. */
+  readonly markUserInteracted: () => void;
+  /** Controlled feed mute; undefined means each row owns its audio. */
+  readonly muted: Accessor<boolean | undefined>;
+  /** Report this row's mute toggle to the host. */
+  readonly reportMuteToggle: (muted: boolean) => void;
+}
 
 export interface VerticalFeedProps {
   posts: (MediaPostData | Readonly<{ id: string; placeholder: true }>)[];
-  /** Product-owned content-free rows retain their place without inventing media or authors. */
-  renderPlaceholder?: (id: string) => JSX.Element;
+  /**
+   * Product-owned content-free rows retain their place without inventing media
+   * or authors. The host receives the row's playback policy so an embedded
+   * player can obey the same active-item, interaction and mute rules as a
+   * normal media card.
+   */
+  renderPlaceholder?: (id: string, context: VerticalFeedPlaceholderContext) => JSX.Element;
   /** Disable automatic playback after a host verification or authorization refresh. Manual play remains available. */
   autoplay?: boolean;
   /** Show a loading row at the end of the list. */
@@ -48,6 +74,30 @@ export interface VerticalFeedProps {
   onViewed?: (postId: string) => void;
   /** Haptic hints (scroll snap, like) for the host app to map to vibration. */
   onHaptic?: (kind: HapticKind) => void;
+}
+
+/**
+ * One host-rendered row. This is a component under the playback provider so
+ * the interaction gate reaches the placeholder context even though the host
+ * itself renders outside the provider.
+ */
+function PlaceholderRow(props: {
+  readonly id: string;
+  readonly active: Accessor<boolean>;
+  readonly autoplay: Accessor<boolean>;
+  readonly muted: Accessor<boolean | undefined>;
+  readonly onMuteToggle?: (postId: string, muted: boolean) => void;
+  readonly render?: (id: string, context: VerticalFeedPlaceholderContext) => JSX.Element;
+}) {
+  const playback = useVideoPlayback();
+  return props.render?.(props.id, {
+    active: props.active,
+    autoplay: props.autoplay,
+    hasUserInteracted: () => playback?.hasUserInteracted() ?? false,
+    markUserInteracted: () => playback?.markUserInteracted(),
+    muted: props.muted,
+    reportMuteToggle: (muted) => props.onMuteToggle?.(props.id, muted),
+  });
 }
 
 /**
@@ -154,7 +204,23 @@ export function VerticalFeed(props: VerticalFeedProps) {
               const media = () => { const value = post(); return "placeholder" in value ? undefined : value; };
               return (
               <div class="h-[100dvh] w-full snap-start snap-always md:h-screen">
-                <Show when={media()} fallback={props.renderPlaceholder?.(post().id)}>
+                <Show
+                  when={media()}
+                  fallback={
+                    <PlaceholderRow
+                      id={post().id}
+                      active={() => index() === activeIndex()}
+                      autoplay={() =>
+                        props.autoplay !== false &&
+                        index() === activeIndex() &&
+                        props.pausedPostId !== post().id
+                      }
+                      muted={() => props.muted}
+                      onMuteToggle={props.onMuteToggle}
+                      render={props.renderPlaceholder}
+                    />
+                  }
+                >
                   {entry => <MediaPost
                   id={entry().id}
                   videoUrl={entry().videoUrl}

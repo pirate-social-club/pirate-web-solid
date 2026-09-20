@@ -64,3 +64,30 @@ export const AuthorMissingThumbnail: Story = {
     await expect(canvasElement).not.toHaveTextContent("Thumbnail is being prepared.");
   },
 };
+
+/** The active feed row: playback policy is on and audio follows the feed. */
+export const AuthorPlaybackPolicyOn: Story = {
+  args: { autoplay: true, muted: false, state: { playback: "ready", thumbnail: "ready" } },
+  play: async ({ canvasElement }) => {
+    await waitFor(() => expect(canvasElement.querySelector("video")).not.toBeNull());
+    expect(canvasElement.querySelector("video")?.muted).toBe(false);
+  },
+};
+
+/** A panel or an inactive row turns autoplay off: the player stays paused. */
+export const AuthorPlaybackPolicyPaused: Story = {
+  args: { autoplay: false, state: { playback: "ready", thumbnail: "ready" } },
+  play: async ({ canvasElement }) => {
+    await waitFor(() => expect(canvasElement.querySelector("video")).not.toBeNull());
+    expect(canvasElement.querySelector("video")?.paused).toBe(true);
+  },
+};
+
+/** The feed mute applies to the embedded player. */
+export const AuthorPlaybackPolicyMuted: Story = {
+  args: { autoplay: true, muted: true, state: { playback: "ready", thumbnail: "ready" } },
+  play: async ({ canvasElement }) => {
+    await waitFor(() => expect(canvasElement.querySelector("video")).not.toBeNull());
+    await waitFor(() => expect(canvasElement.querySelector("video")?.muted).toBe(true));
+  },
+};
