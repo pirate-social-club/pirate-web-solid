@@ -524,7 +524,7 @@ describe("Community creation production route", () => {
     expect(container.querySelector("input[type='file']")).toBeNull();
     await vi.waitFor(() => expect(continueButton(container).disabled).toBe(false));
     continueButton(container).click();
-    await vi.waitFor(() => expect(container.textContent).toContain("Your profile here"));
+    await vi.waitFor(() => expect(container.textContent).toContain("Your profile"));
     expect(container.textContent).not.toContain("coming soon");
   });
 
@@ -1449,7 +1449,7 @@ describe("Create community join policy page", () => {
     expect(card.disabled).toBe(true);
     expect(card.checked).toBe(true);
     expect(container.querySelector('[role="combobox"]')).toBeNull();
-    expect(container.textContent).toContain("Saved policy");
+    expect(container.textContent).toContain("Saved join policy");
     expect(container.textContent).toContain("Members must prove one of the selected nationalities.");
     expect(container.textContent).toContain("United States");
     expect(container.textContent).toContain("Canada");

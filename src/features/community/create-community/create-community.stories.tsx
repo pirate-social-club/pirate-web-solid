@@ -63,7 +63,8 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-export const Empty: Story = {
+export const SingleSurface: Story = {
+  name: "Single surface — saved or signed-out",
   render: () => <CreateStory />,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
@@ -92,7 +93,7 @@ export const ThreePages: Story = {
     await expect(canvas.queryByRole("textbox", { name: "Name" })).toBeNull();
 
     await userEvent.click(canvas.getByRole("button", { name: "Continue" }));
-    await expect(canvas.getByText(/This profile belongs to this community only/)).toBeInTheDocument();
+    await expect(canvas.getByText(/Each community you create or join gets its own profile/)).toBeInTheDocument();
     await expect(canvas.getByRole("textbox", { name: "Public name" })).toBeInTheDocument();
 
     await userEvent.click(canvas.getByRole("button", { name: "Back" }));
@@ -191,7 +192,7 @@ export const SavedNationalityFrozen: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await userEvent.click(canvas.getByRole("button", { name: "Continue" }));
-    await expect(await canvas.findByText("Saved policy")).toBeInTheDocument();
+    await expect(await canvas.findByText("Saved join policy")).toBeInTheDocument();
     await expect(canvas.getByText("Members must prove one of the selected nationalities.")).toBeInTheDocument();
     await expect(canvas.getByText("United States, Canada")).toBeInTheDocument();
     await expect(canvas.queryByRole("combobox")).toBeNull();

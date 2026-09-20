@@ -9,11 +9,10 @@ export type JoinPolicyKind = "palm" | "nationality";
 export interface JoinPolicyCopy {
   readonly title: string;
   readonly palmTitle: string;
-  readonly palmDescription: string;
   readonly nationalityTitle: string;
-  readonly nationalityDescription: string;
   readonly nationalityHint: string;
   readonly savedPolicy: string;
+  readonly savedPolicyCaption: string;
   readonly pickerLabel: string;
   readonly pickerPlaceholder: string;
   readonly emptyError: string;
@@ -71,13 +70,11 @@ export function JoinPolicyField(props: Readonly<{
         value={props.policy}
       >
         <OptionCard
-          description={props.copy.palmDescription}
           title={props.copy.palmTitle}
           value="palm"
         />
         <Show when={props.allowNationality || selected()}>
           <OptionCard
-            description={props.copy.nationalityDescription}
             disabled={frozenNationality()}
             title={props.copy.nationalityTitle}
             value="nationality"
@@ -115,6 +112,7 @@ export function JoinPolicyField(props: Readonly<{
       <Show when={frozenNationality()}>
         <div class="flex min-w-0 flex-col gap-1 ps-1">
           <Type as="p" variant="label">{props.copy.savedPolicy}</Type>
+          <Type as="p" variant="caption" class="text-sm leading-5">{props.copy.savedPolicyCaption}</Type>
           <Type as="p" variant="caption" class="text-sm leading-5">{props.copy.nationalityHint}</Type>
           <Type as="p" variant="caption" class="text-sm leading-5">{countryNames()}</Type>
         </div>

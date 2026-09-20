@@ -160,7 +160,7 @@ export function CreateCommunityView(props: CreateCommunityProps) {
           <div class="mx-auto w-full max-w-2xl">
             <div class="h-20 overflow-auto text-sm text-destructive-text" data-creation-feedback>
               <p role="alert">{props.failureMessage}</p>
-              <Show when={props.onRetry}><Button type="button" variant="ghost" disabled={props.accountChecking || props.submitting} onClick={props.onRetry}>{props.retryLabel ?? "Try again"}</Button></Show>
+              <Show when={props.onRetry}><Button type="button" variant="ghost" disabled={props.accountChecking || props.submitting} onClick={props.onRetry}>{props.retryLabel ?? copy().tryAgain}</Button></Show>
             </div>
             <Show
               when={stepped() && step() === 1}
@@ -196,7 +196,7 @@ export function CreateCommunityView(props: CreateCommunityProps) {
         header={
           <div class="mx-auto flex w-full max-w-2xl items-center justify-between px-5 py-3">
             <Type as="h1" class="text-lg" variant="h4">{copy().title}</Type>
-            <IconButton aria-label="Close" onClick={props.onClose} variant="ghost">
+            <IconButton aria-label={copy().close} onClick={props.onClose} variant="ghost">
               <IconX class="size-5" />
             </IconButton>
           </div>
@@ -230,7 +230,7 @@ export function CreateCommunityView(props: CreateCommunityProps) {
           />
         </Show>
 
-        <Type as="h2" variant="body-strong">Community</Type>
+        <Type as="h2" variant="body-strong">{copy().communitySection}</Type>
 
         {/* Kobalte's TextField exposes no blur hook, so the wrapper marks the
             field touched when focus leaves it. */}
@@ -276,11 +276,10 @@ export function CreateCommunityView(props: CreateCommunityProps) {
             copy={{
               title: copy().joinPolicyTitle,
               palmTitle: copy().joinPolicyPalmTitle,
-              palmDescription: copy().joinPolicyPalmDescription,
               nationalityTitle: copy().joinPolicyNationalityTitle,
-              nationalityDescription: copy().nationalityDescription,
               nationalityHint: copy().nationalityHint,
               savedPolicy: copy().savedPolicy,
+              savedPolicyCaption: copy().savedPolicyCaption,
               pickerLabel: copy().nationalityPickerLabel,
               pickerPlaceholder: copy().nationalityPickerPlaceholder,
               emptyError: copy().nationalityEmptyError,
@@ -297,7 +296,7 @@ export function CreateCommunityView(props: CreateCommunityProps) {
         <Show when={!stepped() || step() === 3}>
         <Type as="p" variant="caption" class="text-sm leading-5">{copy().profileScope}</Type>
         <fieldset class="contents" disabled={props.ownerDisabled}>
-        <CommunityOwnerFields draft={props.draft} personas={props.personas} profilesUnavailable={props.profilesUnavailable} onChange={props.onDraftChange} />
+        <CommunityOwnerFields copy={copy()} draft={props.draft} personas={props.personas} profilesUnavailable={props.profilesUnavailable} onChange={props.onDraftChange} />
         </fieldset>
         </Show>
         </fieldset>
