@@ -539,8 +539,10 @@ describe("Community creation production route", () => {
     ));
 
     await vi.waitFor(() => expect(container.querySelector("[data-create-community]")).not.toBeNull());
-    // One avatar picker on the details page, and no cover banner control.
-    expect(container.querySelectorAll("input[type='file']")).toHaveLength(1);
+    // No upload controls render while the avatar API record waits: the app
+    // never offers an upload it cannot persist.
+    expect(container.querySelectorAll("input[type='file']")).toHaveLength(0);
+    expect(container.textContent).not.toContain("Choose file");
     const name = nameField(container);
     name.value = "Media-free community";
     name.dispatchEvent(new InputEvent("input", { bubbles: true }));

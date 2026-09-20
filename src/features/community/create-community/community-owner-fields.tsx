@@ -37,6 +37,8 @@ export function CommunityOwnerFields(props: {
    * it is never removed.
    */
   hideHeading?: boolean;
+  /** Offers the profile image picker; see the view's avatarAuthoring. */
+  avatarAuthoring?: boolean;
   /**
    * A saved intent freezes the owner choice. Locked renders one summary line
    * instead of form controls: a control that cannot be used is noise, and
@@ -75,6 +77,7 @@ export function CommunityOwnerFields(props: {
             <TextFieldInput aria-describedby={`owner-name-help-${id}`} maxlength={80} class="rounded-[var(--radius-lg)] bg-card" />
             <p class="text-sm text-muted-foreground" id={`owner-name-help-${id}`}>{props.copy.ownerPublicNameHelp}</p>
           </TextField>
+          <Show when={props.avatarAuthoring === true}>
           {/*
             The generated default shows in the region with no explanatory
             copy; the pill is the only text beside it.
@@ -87,6 +90,7 @@ export function CommunityOwnerFields(props: {
             replaceLabel={props.copy.mediaReplace}
             onSelect={file => props.onProfileAvatarChange?.(file)}
           />
+          </Show>
           <div class="h-10">
             <Button type="button" variant="ghost" class={candidates().length === 0 ? "invisible self-start" : "self-start"} disabled={props.profilesUnavailable || candidates().length === 0} onClick={useExisting}>{props.copy.ownerUseExisting}</Button>
           </div>

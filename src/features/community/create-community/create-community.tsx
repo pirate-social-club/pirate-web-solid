@@ -43,11 +43,17 @@ export interface CreateCommunityProps {
   /** Page the flow opens on; production always starts at one. */
   initialStep?: 1 | 2 | 3;
   /**
-   * Offers the document-nationality join policy, which adds the "Who can
-   * join?" page. While it is off, creation is the details page then the
-   * profile page and the Palm fact lives in the details preview.
+   * Offers the document-nationality join policy inside the details page's
+   * join-policy section. The route keeps it off until package B
+   * (api-community-document-only-join-policy) ships the compiler side.
    */
   nationalityAuthoring?: boolean;
+  /**
+   * Offers the avatar pickers. The route keeps it off until
+   * api-community-and-persona-avatar ships storage and the persona update
+   * route, so the app never shows an upload it cannot persist.
+   */
+  avatarAuthoring?: boolean;
   submitting?: boolean;
   /** A blocked creation intent keeps Create disabled without a loading state. */
   submitDisabled?: boolean;
@@ -213,6 +219,7 @@ export function CreateCommunityView(props: CreateCommunityProps) {
             section. A cover banner is outside creation, and there is no
             preview card. */}
         <div class="flex flex-col gap-5">
+          <Show when={props.avatarAuthoring === true}>
           <MediaPicker
             chooseLabel={copy().mediaChooseFile}
             fallback={<IconImageSquare class="size-12 shrink-0 text-muted-foreground" />}
@@ -223,6 +230,7 @@ export function CreateCommunityView(props: CreateCommunityProps) {
             replaceLabel={copy().mediaReplace}
             onSelect={file => props.onAvatarChange?.(file)}
           />
+          </Show>
 
           <div onFocusOut={() => setNameTouched(true)}>
             <TextField
@@ -267,6 +275,7 @@ export function CreateCommunityView(props: CreateCommunityProps) {
 
         <Show when={isProfilePage()}>
         <CommunityOwnerFields
+          avatarAuthoring={props.avatarAuthoring === true}
           copy={copy()}
           draft={props.draft}
           hideHeading

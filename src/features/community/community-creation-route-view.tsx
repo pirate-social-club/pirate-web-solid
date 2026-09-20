@@ -543,6 +543,11 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
           // authoring is off in every environment, the option stays hidden so
           // the route cannot store a dead gate_unsupported intent.
           nationalityAuthoring={false}
+          // TODO(api-community-and-persona-avatar): api-next has nowhere to
+          // store a community image and no persona avatar update yet, so the
+          // pickers stay hidden rather than offering an upload that cannot
+          // persist.
+          avatarAuthoring={false}
           fieldsDisabled={loadingSaved() || (!!props.intentId?.trim() && !intent())}
           ownerDisabled={!!intent()}
           accountChecking={session() === "resolving" || loadingSaved()}

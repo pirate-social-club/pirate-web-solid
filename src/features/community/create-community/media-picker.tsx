@@ -51,7 +51,7 @@ export function MediaPicker(props: {
         }}
         type="file"
       />
-      <div class="flex min-h-24 items-center justify-between gap-4 rounded-[var(--radius-lg)] border border-dashed border-border-soft bg-card p-4">
+      <div class="flex min-h-24 items-center justify-between gap-4 rounded-[var(--radius-lg)] border border-border-soft bg-card p-4">
           <div class="flex min-w-0 items-center gap-4">
             <Show when={chosen()} fallback={props.fallback}>
               {(file) => <img alt="" class="size-10 shrink-0 rounded-[var(--radius-lg)] object-cover" src={file().url} />}

@@ -20,6 +20,7 @@ function Screen(props: {
   draft?: CreateCommunityDraft;
   step?: 1 | 2 | 3;
   nationalityAuthoring?: boolean;
+  avatarAuthoring?: boolean;
   ownerDisabled?: boolean;
   personas?: readonly ActivePersonaPublicProjection[];
 }) {
@@ -31,6 +32,7 @@ function Screen(props: {
       <CreateCommunityView
         initialStep={props.step}
         nationalityAuthoring={props.nationalityAuthoring}
+        avatarAuthoring={props.avatarAuthoring}
         ownerDisabled={props.ownerDisabled}
         personas={props.personas}
         draft={draft()}
@@ -52,17 +54,17 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const Details: Story = {
-  parameters: { docs: { description: { story: "Step one: the community's avatar picker, name, and the join policy. With the authoring gate closed (production today) the policy is the one-line Palm fact." } } },
-  render: () => <Screen />,
+  parameters: { docs: { description: { story: "Step one: the community's avatar picker, name, and the join policy. With the authoring gate closed (production today) the policy is the one-line Palm fact; the avatar picker waits on the avatar API record and is off in the app." } } },
+  render: () => <Screen avatarAuthoring />,
 };
 
 export const DetailsNationality: Story = {
   name: "Details with nationality gate",
-  parameters: { docs: { description: { story: "Waits on package B (api-community-document-only-join-policy) to be reachable in the app; authoring is off in every environment today. The join-policy section offers Palm scan or Nationality, and Nationality reveals the inline multi-select with chips." } } },
-  render: () => <Screen nationalityAuthoring />,
+  parameters: { docs: { description: { story: "Waits on package B (api-community-document-only-join-policy) for the gate and the avatar API record for the picker; both are off in the app today. The join-policy section offers Palm scan or Nationality, and Nationality reveals the inline multi-select with chips." } } },
+  render: () => <Screen avatarAuthoring nationalityAuthoring />,
 };
 
 export const Profile: Story = {
-  parameters: { docs: { description: { story: "Step two: your name in this community (prefilled with a locally generated suggestion) and the profile image picker with the generated default in the region. Persistence waits on the avatar API record." } } },
-  render: () => <Screen step={2} draft={withDraftName(createEmptyDraft(personaId), "Night Shift")} />,
+  parameters: { docs: { description: { story: "Step two: your name in this community (prefilled with a locally generated suggestion) and the profile image picker with the generated default in the region. The picker waits on the avatar API record and is off in the app." } } },
+  render: () => <Screen avatarAuthoring step={2} draft={withDraftName(createEmptyDraft(personaId), "Night Shift")} />,
 };
