@@ -12,22 +12,16 @@ export const CAPTURE_TAIL_GUARD_MS = 1_250;
  * ordinary frame rounding does not produce a trimming notice. */
 export const TRIM_NOTICE_EPSILON_MS = 500;
 
-/** The admission probe's bound for the transformed take. */
-export const CAPTURE_ADMISSION_LIMIT_MS = 180_000;
+/** One frame at the server master's 30 fps. The render cuts
+ * `ceil(excerpt / frame)` frames, so a source video whose length merely equals
+ * the excerpt can be one frame short; the guard requires the extra frame. */
+export const SERVER_FRAME_MS = 1_000 / 30;
 
-/** AAC priming and container rounding sit between the capture length and the
- * admitted container, so they must be reserved rather than discovered. */
-export const CAPTURE_ADMISSION_MARGIN_MS = 50;
-
-/**
- * The longest excerpt the guided path can offer and still admit. Recording
- * runs the excerpt plus the capture tail guard, and the aligned artifact's
- * container keeps the captured audio, so anything longer predicts a take the
- * 180-second admission would refuse. This is a supported-length ceiling for
- * the selector, not a change to the server's own limit.
- */
-export const SUPPORTED_RECORDED_EXCERPT_MS =
-  CAPTURE_ADMISSION_LIMIT_MS - CAPTURE_TAIL_GUARD_MS - CAPTURE_ADMISSION_MARGIN_MS;
+/** The longest container a guided take can have: the maximum excerpt plus the
+ * tail guard, with room for rounding. The aligned artifact keeps the captured
+ * audio untrimmed, so its container can last the full recorded length and
+ * admission of a guided take uses this bound, not the chosen-file bound. */
+export const GUIDED_TAKE_MAX_DURATION_SECONDS = 181.5;
 
 /** How a measured clip's length relates to the chosen excerpt. The server
  * still measures and cuts; this is the local answer that stops an impossible
@@ -60,8 +54,10 @@ export function fitClipToExcerpt(
     return { kind: "unmeasured" };
   }
   const clip = Math.round(clipDurationMs);
-  if (clip < excerptMs) {
-    return { kind: "too_short", clipDurationMs: clip, shortfallMs: excerptMs - clip };
+  // The render needs ceil(excerpt/frame) whole frames from the source, so the
+  // video must cover the excerpt plus at least one frame.
+  if (clip < excerptMs + SERVER_FRAME_MS) {
+    return { kind: "too_short", clipDurationMs: clip, shortfallMs: Math.ceil(excerptMs + SERVER_FRAME_MS - clip) };
   }
   const discardedMs = clip - excerptMs;
   return discardedMs > TRIM_NOTICE_EPSILON_MS

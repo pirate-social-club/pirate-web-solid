@@ -90,8 +90,6 @@ export function msAtOrAfter(samples: number): number {
 }
 
 /** The server's timing for a song, in the units the selector works in. */
-import { SUPPORTED_RECORDED_EXCERPT_MS } from "./clip-duration.ts";
-
 export interface CanonicalSongTiming {
   readonly songPostId: string;
   readonly audioRevision: number;
@@ -107,12 +105,7 @@ export function canonicalTiming(response: SongIntervalPreflightResponse): Canoni
     audioRevision: response.audio_revision,
     durationMs: msAtOrBefore(response.canonical_duration_samples),
     minExcerptMs: msAtOrAfter(response.interval_policy.min_clip_duration_samples),
-    // The selector may not offer an excerpt the guided recording could not
-    // admit; the server's own limit still applies when it is lower.
-    maxExcerptMs: Math.min(
-      msAtOrBefore(response.interval_policy.max_clip_duration_samples),
-      SUPPORTED_RECORDED_EXCERPT_MS,
-    ),
+    maxExcerptMs: msAtOrBefore(response.interval_policy.max_clip_duration_samples),
   };
 }
 

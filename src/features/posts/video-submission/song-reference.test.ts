@@ -116,14 +116,12 @@ describe("excerpt bounds become samples exactly", () => {
     expect(msAtOrBefore(10_080_000)).toBe(210_000);
     expect(msAtOrAfter(144_000)).toBe(3_000);
     expect(msAtOrAfter(144_001)).toBe(3_001);
-    // The server allows 180 s, but the guided capture cannot admit an excerpt
-    // that equals it: the capture tail and the AAC margin are reserved.
     expect(canonicalTiming(ready(null))).toEqual({
       songPostId: "song-post",
       audioRevision: 7,
       durationMs: 210_000,
       minExcerptMs: 3_000,
-      maxExcerptMs: 178_700,
+      maxExcerptMs: 180_000,
     });
     expect(canonicalTiming({ state: "measuring", song_post_id: "song-post", audio_revision: 7, retry_after_ms: 2_000 })).toBeNull();
   });

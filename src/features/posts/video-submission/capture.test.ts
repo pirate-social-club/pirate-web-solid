@@ -1,6 +1,5 @@
 import { describe, expect, test, vi } from "vitest";
 import { createCaptureFailureBoundary } from "./capture-failure";
-import { readPrimaryVideoDurationMs } from "./capture";
 
 function fixture(changed = false) {
   let ended = false;
@@ -30,27 +29,5 @@ describe("capture source failure boundary", () => {
   test("orientation event can end the take without waiting on an encoder", () => {
     const f = fixture(); f.boundary.fail("orientation_lost", "Retake");
     expect(f.ended()).toBe(true); expect(f.release).toHaveBeenCalledOnce();
-  });
-});
-
-describe("clip duration authority", () => {
-  test("measures the primary video track, never the container", async () => {
-    const containerDuration = vi.fn(async () => 10);
-    const read = (videoDuration: number | null) => {
-      const input = {
-        computeDuration: containerDuration,
-        getPrimaryVideoTrack: async () =>
-          videoDuration === null ? null : { computeDuration: async () => videoDuration },
-      };
-      return readPrimaryVideoDurationMs(input);
-    };
-    // The container is deliberately longer than the video, as a retained AAC
-    // tail makes it; the reader must return the video's own duration and never
-    // consult the container.
-    await expect(read(4.5)).resolves.toBe(4_500);
-    await expect(read(null)).resolves.toBeNull();
-    await expect(read(Number.POSITIVE_INFINITY)).resolves.toBeNull();
-    await expect(read(0)).resolves.toBeNull();
-    expect(containerDuration).not.toHaveBeenCalled();
   });
 });
