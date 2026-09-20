@@ -208,7 +208,6 @@
     "joinPolicyPalmTitle": "任何完成掌纹验证的人",
     "joinPolicyNationalityTitle": "所选国籍的人",
     "nationalityHint": "成员必须证明自己属于所选国籍之一。",
-    "savedPolicyCaption": "创建后固定。",
     "nationalityPickerLabel": "允许的国籍",
     "nationalityPickerPlaceholder": "搜索国家",
     "nationalityEmptyError": "请至少选择一个国家。",

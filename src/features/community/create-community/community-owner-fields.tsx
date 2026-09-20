@@ -29,6 +29,12 @@ export function CommunityOwnerFields(props: {
    * it is never removed.
    */
   hideHeading?: boolean;
+  /**
+   * A saved intent freezes the owner choice. Locked renders one summary line
+   * instead of disabled form controls: a control that cannot be used is
+   * noise, and the line says the same thing.
+   */
+  locked?: boolean;
   onChange?: (patch: Partial<CreateCommunityDraft>) => void;
 }) {
   const id = createUniqueId();
@@ -46,8 +52,13 @@ export function CommunityOwnerFields(props: {
   return (
     <section aria-labelledby={`owner-${id}`} class="flex flex-col gap-3 border-t border-border-soft pt-5">
       <Type as="h2" id={`owner-${id}`} variant="body-strong" class={cn(props.hideHeading && "sr-only")}>{props.copy.ownerHeading}</Type>
-      <Type as="p" variant="caption" class="text-sm leading-5">{props.copy.profileScope}</Type>
-      <Show when={props.draft.persona?.kind === "existing" || choosingExisting()} fallback={
+      <Show when={props.locked} fallback={
+        <Type as="p" variant="caption" class="text-sm leading-5">{props.copy.profileScope}</Type>
+      }>
+        <Type as="p" variant="body">{props.copy.ownerCreatingAs.replace("{name}", existing()?.displayName ?? props.draft.publicName ?? "")}</Type>
+      </Show>
+      <Show when={!props.locked}>
+        <Show when={props.draft.persona?.kind === "existing" || choosingExisting()} fallback={
         <>
           <TextField required value={props.draft.publicName ?? ""} onChange={publicName => props.onChange?.({ publicName })}>
             <TextFieldLabel>{props.copy.ownerPublicNameLabel}</TextFieldLabel>
@@ -75,6 +86,7 @@ export function CommunityOwnerFields(props: {
           setChoosingExisting(false);
           props.onChange?.({ persona: { kind: "create_new" } });
         }}>{props.copy.ownerNewInstead}</Button>
+      </Show>
       </Show>
     </section>
   );

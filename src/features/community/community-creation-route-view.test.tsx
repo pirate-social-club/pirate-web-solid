@@ -1028,7 +1028,9 @@ test("saves edited community details before retrying a saved intent without chan
   const name = container.querySelector<HTMLInputElement>("input")!;
   await vi.waitFor(() => expect(name.value).toBe("Saved community"));
   expect(name.matches(":disabled")).toBe(false);
-  expect(publicNameField(container)!.matches(":disabled")).toBe(true);
+  // The locked profile renders as a summary line, not a disabled field.
+  expect(publicNameField(container)).toBeNull();
+  expect(container.textContent).toContain("Creating as River Room");
   name.value = "Corrected community";
   name.dispatchEvent(new InputEvent("input", { bubbles: true }));
   refreshSession();
@@ -1436,21 +1438,5 @@ describe("Create community join policy page", () => {
     await user.click(policyOption(container, "Anyone with Palm verification"));
     await user.click(policyOption(container, "People with selected nationalities"));
     expect(container.textContent).not.toContain("Choose at least one country.");
-  });
-
-  test("keeps a saved nationality policy read-only when the option is hidden", async () => {
-    const draft: CreateCommunityDraft = {
-      ...withDraftName(createEmptyDraft({ kind: "create_new" }), "Signal Room"),
-      additionalRequirements: [{ requirement: "nationality-allowed", allowedCountries: ["US", "CA"] }],
-    };
-    const container = renderPage(false, draft);
-    await openPolicyPage(container);
-    const card = policyOption(container, "People with selected nationalities");
-    expect(card.disabled).toBe(true);
-    expect(card.checked).toBe(true);
-    expect(container.querySelector('[role="combobox"]')).toBeNull();
-    expect(container.textContent).toContain("Fixed at creation.");
-    expect(container.textContent).toContain("United States");
-    expect(container.textContent).toContain("Canada");
   });
 });

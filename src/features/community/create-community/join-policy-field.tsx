@@ -11,7 +11,6 @@ export interface JoinPolicyCopy {
   readonly palmTitle: string;
   readonly nationalityTitle: string;
   readonly nationalityHint: string;
-  readonly savedPolicyCaption: string;
   readonly pickerLabel: string;
   readonly pickerPlaceholder: string;
   readonly emptyError: string;
@@ -23,6 +22,12 @@ export interface JoinPolicyCopy {
  * only offered when the authoring context allows it; choosing it reveals the
  * empty country picker and never renders a stacked Palm requirement. No copy
  * names a verification provider.
+ *
+ * There is deliberately no frozen fallback for a saved nationality policy
+ * behind a closed gate: with authoring off, an intent carrying nationality is
+ * stored as gate_unsupported and can never commit, so no reachable draft can
+ * hold one. If package B makes nationality policies real, that case returns
+ * with tests for how it actually arises.
  */
 export function JoinPolicyField(props: Readonly<{
   policy: JoinPolicyKind;
@@ -51,13 +56,6 @@ export function JoinPolicyField(props: Readonly<{
       .sort((left, right) => left.name.localeCompare(right.name, locale())),
   );
   const selected = () => props.policy === "nationality";
-  // A saved nationality policy can outlive the authoring gate. It stays
-  // visible as a frozen summary instead of leaving the group with no checked
-  // option and an editable picker.
-  const frozenNationality = () => selected() && !props.allowNationality;
-  const countryNames = createMemo(() =>
-    props.countries.map(code => names().of(code) ?? code).join(", "),
-  );
   const emptyErrorVisible = () =>
     selected() && props.allowNationality && props.countries.length === 0
     && props.showEmptyError === true;
@@ -79,9 +77,8 @@ export function JoinPolicyField(props: Readonly<{
           title={props.copy.palmTitle}
           value="palm"
         />
-        <Show when={props.allowNationality || selected()}>
+        <Show when={props.allowNationality}>
           <OptionCard
-            disabled={frozenNationality()}
             title={props.copy.nationalityTitle}
             value="nationality"
           />
@@ -118,14 +115,6 @@ export function JoinPolicyField(props: Readonly<{
           <Show when={emptyErrorVisible()}>
             <FormNote tone="destructive">{props.copy.emptyError}</FormNote>
           </Show>
-        </div>
-      </Show>
-      <Show when={frozenNationality()}>
-        {/* The disabled card above already names the policy, so the frozen
-            state is just the saved list and why it can't change. */}
-        <div class="flex min-w-0 flex-col gap-1 ps-1">
-          <Type as="p" variant="caption" class="text-sm leading-5">{countryNames()}</Type>
-          <Type as="p" variant="caption" class="text-sm leading-5">{props.copy.savedPolicyCaption}</Type>
         </div>
       </Show>
     </section>

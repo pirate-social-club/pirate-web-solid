@@ -208,7 +208,6 @@
     "joinPolicyPalmTitle": "أي شخص لديه توثيق راحة اليد",
     "joinPolicyNationalityTitle": "الأشخاص من الجنسيات المحددة",
     "nationalityHint": "يجب أن يثبت الأعضاء انتماءهم إلى إحدى الجنسيات المحددة.",
-    "savedPolicyCaption": "ثابتة عند الإنشاء.",
     "nationalityPickerLabel": "الجنسيات المسموح بها",
     "nationalityPickerPlaceholder": "ابحث عن الدول",
     "nationalityEmptyError": "اختر دولة واحدة على الأقل.",

@@ -91,27 +91,24 @@ export const SignedOut: Story = {
 
 export const SavedIntent: Story = {
   name: "Saved intent",
-  parameters: { docs: { description: { story: "The frozen single surface a saved creation intent reopens as: both pages' fields sit on one page, the owner fields are locked, a nationality policy that outlives the authoring gate shows as a selected-nationalities summary, and the action is immediate." } } },
+  parameters: { docs: { description: { story: "The frozen single surface a saved creation intent reopens as: the community fields sit beside a one-line profile summary, and the action is immediate. Only a Palm-policy intent can exist today, so that is what is staged." } } },
   render: () => (
     <CreateStory
       actionOnly
       ownerDisabled
       resuming
       steps
-      draft={{
-        ...validDraft(),
-        additionalRequirements: [{ requirement: "nationality-allowed", allowedCountries: ["US", "CA"] }],
-      }}
+      draft={validDraft()}
     />
   ),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    // One page carries both the community fields and the profile.
+    // One page carries the community fields and the locked profile summary.
     await expect(canvas.getByRole("textbox", { name: "Name" })).toBeInTheDocument();
-    await expect(canvas.getByRole("textbox", { name: "Public name" })).toBeInTheDocument();
-    await expect(canvas.getByText("Fixed at creation.")).toBeInTheDocument();
-    await expect(canvas.getByText("United States, Canada")).toBeInTheDocument();
-    await expect(canvas.getByRole("radio", { name: /People with selected nationalities/ })).toBeDisabled();
+    await expect(canvas.queryByRole("textbox", { name: "Public name" })).toBeNull();
+    await expect(canvas.getByText("Creating as River Room")).toBeInTheDocument();
+    await expect(canvas.getByRole("radio", { name: /Anyone with Palm verification/ })).toBeChecked();
+    await expect(canvas.queryByRole("radio", { name: /People with selected nationalities/ })).toBeNull();
     await expect(canvas.getByRole("button", { name: "Create" })).toBeEnabled();
   },
 };
@@ -217,27 +214,6 @@ export const NationalityHidden: Story = {
     await expect(await canvas.findByRole("heading", { name: "Who can join?" })).toBeInTheDocument();
     await expect(canvas.getByRole("radio", { name: /Anyone with Palm verification/ })).toBeChecked();
     await expect(canvas.queryByRole("radio", { name: /People with selected nationalities/ })).toBeNull();
-  },
-};
-
-export const SavedNationalityFrozen: Story = {
-  name: "Saved nationality policy behind the gate",
-  render: () => (
-    <CreateStory
-      draft={{
-        ...validDraft(),
-        additionalRequirements: [{ requirement: "nationality-allowed", allowedCountries: ["US", "CA"] }],
-      }}
-      steps
-    />
-  ),
-  play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement);
-    await userEvent.click(canvas.getByRole("button", { name: "Continue" }));
-    await expect(await canvas.findByText("Fixed at creation.")).toBeInTheDocument();
-    await expect(canvas.getByText("United States, Canada")).toBeInTheDocument();
-    await expect(canvas.queryByRole("combobox")).toBeNull();
-    await expect(canvas.getByRole("radio", { name: /People with selected nationalities/ })).toBeDisabled();
   },
 };
 

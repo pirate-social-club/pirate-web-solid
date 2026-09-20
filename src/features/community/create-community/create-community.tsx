@@ -293,7 +293,6 @@ export function CreateCommunityView(props: CreateCommunityProps) {
               palmTitle: copy().joinPolicyPalmTitle,
               nationalityTitle: copy().joinPolicyNationalityTitle,
               nationalityHint: copy().nationalityHint,
-              savedPolicyCaption: copy().savedPolicyCaption,
               pickerLabel: copy().nationalityPickerLabel,
               pickerPlaceholder: copy().nationalityPickerPlaceholder,
               emptyError: copy().nationalityEmptyError,
@@ -312,9 +311,7 @@ export function CreateCommunityView(props: CreateCommunityProps) {
             persona, so the fields would be inert. After sign-in the stepped
             flow presents the profile page where it belongs. */}
         <Show when={props.requirePersona !== false && (!stepped() || step() === 3)}>
-        <fieldset class="contents" disabled={props.ownerDisabled}>
-        <CommunityOwnerFields copy={copy()} draft={props.draft} hideHeading={stepped()} personas={props.personas} profilesUnavailable={props.profilesUnavailable} onChange={props.onDraftChange} />
-        </fieldset>
+        <CommunityOwnerFields copy={copy()} draft={props.draft} hideHeading={stepped()} locked={props.ownerDisabled} personas={props.personas} profilesUnavailable={props.profilesUnavailable} onChange={props.onDraftChange} />
         </Show>
         </fieldset>
       </ActionFooterShell>
