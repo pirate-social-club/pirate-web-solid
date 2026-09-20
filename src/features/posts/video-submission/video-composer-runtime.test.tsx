@@ -135,6 +135,10 @@ describe("mounted song-first video flow", () => {
     readonly initialSong?: boolean;
     readonly mobile?: boolean;
     readonly createGuideAudio?: (url: string) => GuideAudio;
+    readonly onGuideTiming?: (timing: { readonly startDelayMs: number }) => void;
+    /** Hold each interval preflight open so a stale answer can be resolved on
+     * command; timing (no-interval) requests still answer immediately. */
+    readonly deferIntervalChecks?: boolean;
   }) {
     vi.stubGlobal("crypto", webcrypto);
     vi.stubGlobal("URL", class extends URL { static createObjectURL() { return "blob:https://example.test/video"; } static revokeObjectURL() {} });
@@ -162,10 +166,16 @@ describe("mounted song-first video flow", () => {
     const upload = { method: "MULTIPART" as const, upload_id: "upload", part_count: 1, part_size_bytes: 10, expires_at: "2099-01-01T00:00:00Z", parts: [{ part_number: 1, url: "https://upload.example/1", expires_at: "2099-01-01T00:00:00Z" }] };
     const base = { track: "video" as const, status: "awaiting_upload" as const, slot: "primary_video" as const, author_persona_id: "persona", ingest_policy_revision: 1, reservation_id: "reservation", upload };
     const preflightCalls: unknown[] = [];
+    const pendingChecks: (() => void)[] = [];
     const preflight: SongIntervalPreflight = async input => {
       preflightCalls.push(input.body);
       if (options.preflight === "unavailable") throw unavailable();
       if (options.preflight === "pending") return new Promise(() => {});
+      if (options.deferIntervalChecks && input.body.interval !== undefined) {
+        return new Promise(resolve => {
+          pendingChecks.push(() => resolve({ ...ready({ accepted: true as const }), song_post_id: input.body.song_post_id }));
+        });
+      }
       const verdict = options.preflight === "refused" && input.body.interval !== undefined
         ? { accepted: false as const, reason: "interval_too_long" as const }
         : input.body.interval === undefined ? null : { accepted: true as const };
@@ -209,10 +219,11 @@ describe("mounted song-first video flow", () => {
       measureDuration={async () => options.clipDurationMs ?? null}
       startCapture={startCapture}
       createGuideAudio={options.createGuideAudio}
+      onGuideTiming={options.onGuideTiming}
       songPreflight={preflight} songReader={songReader}
       initialSong={options.initialSong === false ? undefined : { postId: "song-post" }}
       onExit={() => {}} onRetainedPersona={() => {}} />, container); });
-    return { commands, preflightCalls, fetchImpl, current: () => saved };
+    return { commands, preflightCalls, pendingChecks, fetchImpl, current: () => saved };
   }
 
   const button = (label: string) => [...document.querySelectorAll("button")].find(candidate => candidate.textContent?.trim() === label);
@@ -335,17 +346,35 @@ describe("mounted song-first video flow", () => {
     expect(fixture.commands[0]?.input.body).toMatchObject({ intent: "song_reference" });
   });
 
-  function guideSpy(options: { readonly fails?: boolean } = {}) {
+  function guideSpy(options: {
+    readonly fails?: boolean;
+    /** Never settle the playback start; the runtime's own timeout must. */
+    readonly stalls?: boolean;
+    /** Settle the playback start after this delay. */
+    readonly startAfterMs?: number;
+    /** Hold the playback start until the test releases it. */
+    readonly manual?: boolean;
+  } = {}) {
     const events = new Map<string, () => void>();
     const calls = { play: 0, pause: 0 };
+    let release: (() => void) | undefined;
     const audio: GuideAudio = {
       currentTime: 0,
-      play: async () => { calls.play += 1; if (options.fails) throw new Error("not allowed"); },
+      play: async () => {
+        calls.play += 1;
+        if (options.fails) throw new Error("not allowed");
+        if (options.stalls) return new Promise<void>(() => {});
+        if (options.startAfterMs !== undefined) {
+          await new Promise<void>(resolve => { release = resolve; setTimeout(resolve, options.startAfterMs); });
+          return;
+        }
+        if (options.manual) await new Promise<void>(resolve => { release = resolve; });
+      },
       pause: () => { calls.pause += 1; },
       addEventListener: (type, listener) => { events.set(type, listener); },
       removeEventListener: (type) => { events.delete(type); },
     };
-    return { audio, calls, events };
+    return { audio, calls, events, release: () => release?.() };
   }
   function fakeSession(stopped: () => void): VideoCaptureSession {
     return {
@@ -360,6 +389,15 @@ describe("mounted song-first video flow", () => {
     await vi.waitFor(() => expect(document.querySelector("[inert]")).toBeNull());
     await vi.waitFor(() => expect(document.querySelector('button[aria-label="Start recording"]')).not.toBeNull());
     document.querySelector<HTMLButtonElement>('button[aria-label="Start recording"]')!.click();
+  }
+  async function stopRecording() {
+    await vi.waitFor(() => expect(document.querySelector('button[aria-label="Stop recording"]')).not.toBeNull());
+    document.querySelector<HTMLButtonElement>('button[aria-label="Stop recording"]')!.click();
+  }
+  function moveWindow(startMs: number) {
+    const range = document.querySelector<HTMLInputElement>('input[aria-label="Song position, moves the excerpt window"]')!;
+    range.value = String(startMs);
+    range.dispatchEvent(new InputEvent("input", { bubbles: true }));
   }
 
   test("recording plays the guide and stops at the excerpt plus its tail guard", async () => {
@@ -423,6 +461,152 @@ describe("mounted song-first video flow", () => {
     // publishing with the video's own sound is an explicit action.
     await publish();
     await vi.waitFor(() => expect(document.body.textContent).toContain("hasn’t been accepted"));
+    expect(fixture.commands).toHaveLength(0);
+    button("Use original sound")!.click();
+    await publish();
+    await vi.waitFor(() => expect(fixture.commands.map(command => command.kind)).toEqual(["reserve", "start", "finalize"]));
+    expect(fixture.commands[0]?.input.body).toMatchObject({ intent: "original_audio" });
+  });
+
+  test("moving the window invalidates the previous approval immediately", async () => {
+    const fixture = songSetup({ preflight: "accepted", clipDurationMs: 45_000 });
+    await loadSongMetadata();
+    await awaitPlan("ready");
+    await chooseFile();
+    moveWindow(2_000);
+    // Publishing immediately, before the debounce can re-check, must not
+    // submit the window the author just moved away from.
+    await publish();
+    await vi.waitFor(() => expect(document.body.textContent).toContain("still being checked"));
+    expect(fixture.commands).toHaveLength(0);
+    await awaitPlan("ready");
+    await publish();
+    await vi.waitFor(() => expect(fixture.commands.map(command => command.kind)).toEqual(["reserve", "start", "finalize"]));
+    expect(fixture.commands[0]?.input.body).toMatchObject({
+      intent: "song_reference", clip_start_samples: 2_000 * 48, clip_duration_samples: 30_000 * 48,
+    });
+  });
+
+  test("a stale preflight answer cannot approve a window that moved", async () => {
+    const fixture = songSetup({ preflight: "accepted", clipDurationMs: 45_000, deferIntervalChecks: true });
+    await loadSongMetadata();
+    await vi.waitFor(() => expect(fixture.pendingChecks.length).toBe(1), { timeout: 3_000 });
+    await chooseFile();
+    moveWindow(2_000);
+    await vi.waitFor(() => expect(fixture.pendingChecks.length).toBe(2), { timeout: 3_000 });
+    // The old window's answer arrives after the move; it must not approve.
+    fixture.pendingChecks[0]!();
+    await new Promise(resolve => setTimeout(resolve, 20));
+    await publish();
+    await vi.waitFor(() => expect(document.body.textContent).toContain("still being checked"));
+    expect(fixture.commands).toHaveLength(0);
+    fixture.pendingChecks[1]!();
+    await awaitPlan("ready");
+    await publish();
+    await vi.waitFor(() => expect(fixture.commands.map(command => command.kind)).toEqual(["reserve", "start", "finalize"]));
+    expect(fixture.commands[0]?.input.body).toMatchObject({ clip_start_samples: 2_000 * 48 });
+  });
+
+  test("a stop during guide startup is honored instead of dropped by the busy gate", async () => {
+    const guide = guideSpy({ manual: true });
+    let stopped = 0;
+    nextSession = () => fakeSession(() => { stopped += 1; });
+    songSetup({ preflight: "accepted", mobile: true, createGuideAudio: () => guide.audio });
+    await loadSongMetadata();
+    await awaitPlan("ready");
+    await startRecording();
+    await vi.waitFor(() => expect(guide.calls.play).toBe(1));
+    Object.defineProperty(document, "visibilityState", { configurable: true, value: "hidden" });
+    try {
+      document.dispatchEvent(new Event("visibilitychange"));
+      await vi.waitFor(() => expect(stopped).toBe(1));
+      guide.release();
+      await vi.waitFor(() => expect(document.body.textContent).toContain("page was hidden"));
+      await vi.waitFor(() => expect(document.querySelector("textarea")).not.toBeNull());
+    } finally {
+      Object.defineProperty(document, "visibilityState", { configurable: true, value: "visible" });
+    }
+  });
+
+  test("a guide that starts too late ends the take and reports the delay", async () => {
+    const timings: number[] = [];
+    let stopped = 0;
+    nextSession = () => fakeSession(() => { stopped += 1; });
+    songSetup({
+      preflight: "accepted", mobile: true,
+      createGuideAudio: () => guideSpy({ startAfterMs: 800 }).audio,
+      onGuideTiming: timing => timings.push(timing.startDelayMs),
+    });
+    await loadSongMetadata();
+    await awaitPlan("ready");
+    await startRecording();
+    await vi.waitFor(() => expect(stopped).toBe(1), { timeout: 3_000 });
+    await vi.waitFor(() => expect(document.body.textContent).toContain("started too late"));
+    expect(timings[0]).toBeGreaterThan(750);
+  });
+
+  test("a guide that never starts times out and cancels the take", async () => {
+    let cancelled = 0;
+    nextSession = () => ({
+      // SAFETY: the viewfinder preview is not exercised; jsdom has no MediaStream.
+      stream: Object.create(null) as MediaStream,
+      stop: async () => new File(["take"], "take.mp4", { type: "video/mp4" }),
+      cancel: async () => { cancelled += 1; },
+    });
+    songSetup({ preflight: "accepted", mobile: true, createGuideAudio: () => guideSpy({ stalls: true }).audio });
+    await loadSongMetadata();
+    await awaitPlan("ready");
+    await startRecording();
+    await vi.waitFor(() => expect(document.body.textContent).toContain("guide song would not play"), { timeout: 3_000 });
+    expect(cancelled).toBe(1);
+  });
+
+  test("a guide that stalls mid-take ends the recording", async () => {
+    const guide = guideSpy();
+    let stopped = 0;
+    nextSession = () => fakeSession(() => { stopped += 1; });
+    songSetup({ preflight: "accepted", mobile: true, createGuideAudio: () => guide.audio });
+    await loadSongMetadata();
+    await awaitPlan("ready");
+    await startRecording();
+    await vi.waitFor(() => expect(guide.calls.play).toBe(1));
+    guide.events.get("waiting")?.();
+    await vi.waitFor(() => expect(stopped).toBe(1));
+    await vi.waitFor(() => expect(document.body.textContent).toContain("stalled"));
+  });
+
+  test("the soundtrack controls are frozen while the take records", async () => {
+    const guide = guideSpy({ manual: true });
+    nextSession = () => fakeSession(() => undefined);
+    songSetup({ preflight: "accepted", mobile: true, createGuideAudio: () => guide.audio });
+    await loadSongMetadata();
+    await awaitPlan("ready");
+    await startRecording();
+    await vi.waitFor(() => expect(guide.calls.play).toBe(1));
+    const range = document.querySelector<HTMLInputElement>('input[aria-label="Song position, moves the excerpt window"]')!;
+    const fieldset = range.closest("fieldset");
+    expect(fieldset?.hasAttribute("disabled")).toBe(true);
+    expect(button("Use original sound")?.closest("fieldset")?.hasAttribute("disabled")).toBe(true);
+    guide.release();
+    await stopRecording();
+    await vi.waitFor(() => expect(document.querySelector("textarea")).not.toBeNull());
+  });
+
+  test("a take recorded to a different excerpt cannot publish with the song", async () => {
+    const guide = guideSpy();
+    nextSession = () => fakeSession(() => undefined);
+    const fixture = songSetup({ preflight: "accepted", mobile: true, clipDurationMs: 45_000, createGuideAudio: () => guide.audio });
+    await loadSongMetadata();
+    await awaitPlan("ready");
+    await startRecording();
+    await vi.waitFor(() => expect(guide.calls.play).toBe(1));
+    await stopRecording();
+    await vi.waitFor(() => expect(document.querySelector("textarea")).not.toBeNull());
+    moveWindow(2_000);
+    await awaitPlan("ready");
+    await vi.waitFor(() => expect(document.body.textContent).toContain("recorded to a different excerpt"));
+    await publish();
+    await vi.waitFor(() => expect(document.body.textContent).toContain("recorded to a different excerpt"));
     expect(fixture.commands).toHaveLength(0);
     button("Use original sound")!.click();
     await publish();

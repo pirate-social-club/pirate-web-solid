@@ -288,6 +288,14 @@ export function SongExcerptComposer(props: {
   const applyWindow = (next: ExcerptBounds, songPostId: string) => {
     setBounds(next);
     setPositionMs(next.startMs);
+    // The previous approval belongs to the previous window. It is invalidated
+    // now, not when the debounce fires: publishing in between must not submit
+    // an interval the author has already moved away from, and an answer still
+    // in flight for the old window must not become the plan.
+    if (preflight && communityId !== undefined) {
+      stopPlanCheck();
+      setPlan({ kind: "checking" });
+    }
     const title = currentTitle();
     const audioUrl = currentAudioUrl();
     if (title !== undefined && audioUrl !== undefined) {

@@ -23,10 +23,21 @@ import { createVideoTransport, type VideoTransport } from "./transport";
 
 /** The guide audio for a recording. Injected so tests and stories can drive a
  * take without a decoder. */
-export interface GuideAudio extends PreviewAudio {
-  addEventListener: (type: "error", listener: () => void) => void;
-  removeEventListener: (type: "error", listener: () => void) => void;
+export interface GuideAudio {
+  currentTime: number;
+  play: () => Promise<void>;
+  pause: () => void;
+  addEventListener: (type: "error" | "waiting" | "stalled" | "playing", listener: () => void) => void;
+  removeEventListener: (type: "error" | "waiting" | "stalled" | "playing", listener: () => void) => void;
 }
+
+/** A guide that has not started within this window has lost the take's start
+ * boundary; a longer wait would only record more video without the song. */
+export const GUIDE_START_TIMEOUT_MS = 1_500;
+/** How late the guide may start after the encoder is running before the take
+ * is ended. The server places the song at video time zero, so this delay is
+ * lip-sync offset; it cannot be corrected later. */
+export const GUIDE_START_MAX_DELAY_MS = 750;
 
 export function VideoComposerRuntime(props: {
   readonly principalId: string;
@@ -43,6 +54,9 @@ export function VideoComposerRuntime(props: {
    * a camera or an encoder. The default is the real capture module. */
   readonly startCapture?: (input: OriginalVideoCaptureInput) => Promise<VideoCaptureSession>;
   readonly createGuideAudio?: (url: string) => GuideAudio;
+  /** Instrumentation for the guide's start boundary, in milliseconds between
+   * the encoder starting and the guide's playback beginning. */
+  readonly onGuideTiming?: (timing: { readonly startDelayMs: number }) => void;
   readonly fetchImpl?: typeof fetch;
   readonly songPreflight?: SongIntervalPreflight;
   readonly songReader?: SongSourceReader;
@@ -66,6 +80,9 @@ export function VideoComposerRuntime(props: {
   const [selection, setSelection] = createSignal<SoundtrackSelection | null>(null);
   const [clipDurationMs, setClipDurationMs] = createSignal<number | null>(null);
   const [measuring, setMeasuring] = createSignal(false);
+  // Finalizing a take is independent of the UI busy gate: a stop must be
+  // honorable while the guide is still starting.
+  const [finalizing, setFinalizing] = createSignal(false);
   const mobile = typeof matchMedia !== "undefined" && matchMedia("(pointer: coarse) and (max-width: 767px)").matches;
   // One draft store per principal, built once. The excerpt is kept beside the
   // video draft rather than inside it: the video record is the coordinator's
@@ -127,30 +144,76 @@ export function VideoComposerRuntime(props: {
     const fit = clipFit();
     return fit.kind === "trims" ? clipFitMessage(fit) : undefined;
   });
+  /** The server's approval, but only while it names exactly what is on screen
+   * now. A plan for a moved window, a different song or a stale revision is
+   * not an approval to publish with; the composer invalidates it on change,
+   * and this is the second check at the moment of publication. */
+  const approvedSelection = createMemo(() => {
+    const plan = songPlan();
+    const current = selection();
+    if (plan.kind !== "ready" || !current) return undefined;
+    if (plan.selection.songPostId !== current.songPostId) return undefined;
+    if (plan.selection.clipStartSamples !== current.bounds.startMs * 48) return undefined;
+    if (plan.selection.clipDurationSamples !== (current.bounds.endMs - current.bounds.startMs) * 48) {
+      return undefined;
+    }
+    return plan.selection;
+  });
+  /** The excerpt a guided take was recorded to, when one was. A take danced to
+   * one window cannot be published against another. */
+  const [takeSoundtrack, setTakeSoundtrack] = createSignal<{ readonly songPostId: string; readonly bounds: ExcerptBounds } | null>(null);
+  const takeMismatch = createMemo(() => {
+    const take = takeSoundtrack();
+    const current = selection();
+    if (!take || !current) return false;
+    return take.songPostId !== current.songPostId
+      || take.bounds.startMs !== current.bounds.startMs
+      || take.bounds.endMs !== current.bounds.endMs;
+  });
 
   const stopGuide = () => {
     const audio = guideAudio;
     guideAudio = undefined;
     if (!audio) return;
     audio.removeEventListener("error", onGuideFailure);
+    audio.removeEventListener("waiting", onGuideInterrupted);
+    audio.removeEventListener("stalled", onGuideInterrupted);
     audio.pause();
   };
   const onGuideFailure = () => {
     if (disposed) return;
     void stopCapture("The guide song stopped unexpectedly, so the recording ended.");
   };
+  /** Buffering mid-take means the guide is no longer keeping time with the
+   * recording; the take ends rather than drifting silently. */
+  const onGuideInterrupted = () => {
+    if (disposed) return;
+    void stopCapture("The guide song stalled, so this recording ended.");
+  };
   async function startGuide(guide: SoundtrackSelection): Promise<boolean> {
     stopGuide();
     const audio = props.createGuideAudio ? props.createGuideAudio(guide.audioUrl) : new Audio(guide.audioUrl);
     guideAudio = audio;
     audio.addEventListener("error", onGuideFailure);
+    audio.addEventListener("waiting", onGuideInterrupted);
+    audio.addEventListener("stalled", onGuideInterrupted);
     audio.currentTime = guide.bounds.startMs / 1_000;
+    let timer: ReturnType<typeof setTimeout> | undefined;
     try {
-      await audio.play();
-      return true;
+      // A stalled playback start must not hold the take open forever.
+      const started = await Promise.race([
+        audio.play().then(() => true),
+        new Promise<false>((resolve) => {
+          timer = setTimeout(() => resolve(false), GUIDE_START_TIMEOUT_MS);
+        }),
+      ]);
+      if (!started) stopGuide();
+      return started;
     } catch {
       stopGuide();
       return false;
+    } finally {
+      if (timer !== undefined) clearTimeout(timer);
     }
   }
 
@@ -172,23 +235,32 @@ export function VideoComposerRuntime(props: {
     await run(async () => {
       await session?.cancel(); session = null; setStream(null); setCaptureStatus("idle");
       stopGuide();
+      setTakeSoundtrack(null);
       const accepted = props.inspectFile ? await props.inspectFile(next) : await (await import("./capture")).inspectVideoFile(next);
       if (disposed) return;
       showFile(accepted);
       await measureClip(accepted);
     });
   }
+  /** Stops the take without the UI busy gate. A limit, a backgrounding or a
+   * guide failure must be honorable while `toggleCapture` is still awaiting
+   * the guide's playback start, and `run` would drop such a request. */
   async function stopCapture(reason?: string) {
     const current = session;
     if (!current) { if (reason && !disposed) setError(reason); return; }
-    await run(async () => {
-      session = null;
-      stopGuide();
-      try { const take = await current.stop(); if (!disposed) { showFile(take); await measureClip(take); } }
-      finally { setStream(null); setCaptureStatus("idle"); }
-    });
-    // `run` clears the error before its action, so the reason the take ended
-    // goes up after the stop rather than before it.
+    session = null;
+    stopGuide();
+    setFinalizing(true);
+    try {
+      const take = await current.stop();
+      if (!disposed) { showFile(take); await measureClip(take); }
+    } catch (failure) {
+      if (!disposed) setError(failure instanceof Error ? failure.message : "The recording could not be finalized");
+    } finally {
+      if (!disposed) { setFinalizing(false); setStream(null); setCaptureStatus("idle"); }
+    }
+    // The stop is what ends the take; the reason goes up after it so the
+    // finalization cannot clear it.
     if (reason && !disposed) setError(reason);
   }
   async function toggleCapture() {
@@ -211,14 +283,23 @@ export function VideoComposerRuntime(props: {
         });
         if (disposed) { await current.cancel(); return; }
         session = current; setStream(current.stream); setCaptureStatus("recording");
-        if (guide) {
-          const started = await startGuide(guide);
-          if (!started) {
-            session = null; setStream(null); setCaptureStatus("idle");
-            await current.cancel().catch(() => {});
-            throw new Error("The guide song would not play, so this recording did not start. Check your sound settings and try again.");
-          }
+        if (!guide) { setTakeSoundtrack(null); return; }
+        const guideStartedAt = performance.now();
+        const started = await startGuide(guide);
+        const startDelayMs = Math.round(performance.now() - guideStartedAt);
+        props.onGuideTiming?.({ startDelayMs });
+        // A stop may have been honored while the guide was still starting.
+        if (session !== current) return;
+        if (!started) {
+          session = null; setStream(null); setCaptureStatus("idle");
+          await current.cancel().catch(() => {});
+          throw new Error("The guide song would not play, so this recording did not start. Check your sound settings and try again.");
         }
+        if (startDelayMs > GUIDE_START_MAX_DELAY_MS) {
+          await stopCapture("The guide song started too late to keep this take in time, so it was ended. Record again.");
+          return;
+        }
+        setTakeSoundtrack({ songPostId: guide.songPostId, bounds: guide.bounds });
       } catch (failure) {
         if (failure instanceof capture.VideoCaptureError) { setCaptureStatus(failure.reason === "camera_denied" ? "camera_denied" : "capability_unavailable"); }
         throw failure;
@@ -229,6 +310,7 @@ export function VideoComposerRuntime(props: {
   // event. The guide then can no longer keep time with the recording, so the
   // take ends there rather than silently drifting. Backgrounding alone is not
   // a take-ending condition for an unguided recording.
+  const interactionBusy = () => busy() || finalizing();
   const onVisibilityChange = () => {
     if (document.visibilityState !== "hidden" || !session || !guideAudio) return;
     void stopCapture("The page was hidden, so the guide song stopped and this recording ended.");
@@ -253,17 +335,25 @@ export function VideoComposerRuntime(props: {
         // accepts an excerpt or the author explicitly switches to the video's
         // own sound. A song switch leaves the plan without a verdict; it must
         // not publish the video's own sound by itself.
-        if (!originalChosen && songChoice().kind !== "none" && plan.kind !== "ready") {
-          throw new Error("This video is set to publish with the song, but the excerpt hasn’t been accepted. Check the excerpt again, or choose “Use original sound” to publish without it.");
+        const approved = approvedSelection();
+        if (!originalChosen && songChoice().kind !== "none" && approved === undefined) {
+          throw new Error("This video is set to publish with the song, but the current excerpt hasn’t been accepted. Check the excerpt again, or choose “Use original sound” to publish without it.");
         }
         // A clip shorter than the excerpt cannot be rendered with it; the
         // server would refuse it after upload for a reason this surface can
         // state now, and a retry of the same bytes cannot change that.
         const impossible = clipProblem();
         if (!originalChosen && songChoice().kind !== "none" && impossible) throw new Error(impossible);
+        // A guided take was danced to one window; publishing it against
+        // another would show the author performing to a song that is not the
+        // one being rendered.
+        if (!originalChosen && songChoice().kind !== "none" && takeMismatch()) {
+          throw new Error("This take was recorded to a different excerpt. Record again with the current excerpt, or choose “Use original sound” to publish without it.");
+        }
         const attempt = { communityId: props.communityId, personaId: props.personaId, file: selected, caption: caption(), rating: rating() };
-        const withSong = !originalChosen && songChoice().kind !== "none" && plan.kind === "ready";
-        await coordinator.begin(withSong ? { ...attempt, song: plan.selection } : attempt);
+        await coordinator.begin(approved !== undefined && !originalChosen && songChoice().kind !== "none"
+          ? { ...attempt, song: approved }
+          : attempt);
       }
       if (disposed) return;
       await coordinator.submit();
@@ -299,6 +389,7 @@ export function VideoComposerRuntime(props: {
       {/* The soundtrack step comes first, always. Its window is the length of
           the recording, so choosing it before capture is what lets the guide
           play and the take stop with the excerpt. */}
+      <fieldset class="contents" disabled={captureStatus() === "recording" || finalizing()}>
       <section aria-label="Soundtrack">
         <SongExcerptComposer store={excerptStore} read={props.songReader} communityId={props.communityId}
           preflight={songPreflight} initialSong={props.initialSong}
@@ -330,8 +421,9 @@ export function VideoComposerRuntime(props: {
           </Show>
         </section>
       </Show>
+      </fieldset>
       <Show when={!file()}>
-        <div inert={busy()}>
+        <div inert={interactionBusy()}>
           <Show when={captureStatus() === "recording"}>
             <p role="status">{selection()
               ? `Recording to ${selection()!.title}. The take ends with the excerpt.`
@@ -354,6 +446,9 @@ export function VideoComposerRuntime(props: {
       </Show>
       <Show when={measuring()}>
         <p role="status">Measuring the clip against the excerpt…</p>
+      </Show>
+      <Show when={takeMismatch()}>
+        <FormNote tone="warning">This take was recorded to a different excerpt. Record again with the current excerpt, or choose “Use original sound”.</FormNote>
       </Show>
       <OriginalVideoReviewSurface caption={caption()} onCaptionChange={setCaption} submitting={busy()} onPublish={() => { void publish(); }}
         onBack={() => { if (!busy()) { setFile(null); setClipDurationMs(null); const url = preview(); if (url) URL.revokeObjectURL(url); setPreview(undefined); } }}
