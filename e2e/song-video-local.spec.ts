@@ -109,18 +109,18 @@ test("the excerpt is chosen before capture, guides the take and ends it", async 
     await expect(page.locator("textarea")).toHaveCount(0);
     await expect(page.getByText("Fixture song", { exact: true }).first()).toBeVisible();
 
+    const startedAt = Date.now();
     await page.getByRole("button", { name: "Start recording", exact: true }).click();
     await expect.poll(async () => (await readLedger(page)).guidePlayed).toBeGreaterThan(0);
+    // The guide is real media, so a start delay is measured rather than assumed.
+    await expect.poll(async () => (await readLedger(page)).guideDelayMs).not.toBeNull();
     const during = await readLedger(page);
     // The take is limited to the excerpt plus its tail guard, and the guide
     // starts at the window's start.
     expect(during.limitMs).toBe(4_750);
     expect(during.guideStart).toBe(0);
-    // The guide is real media, so a start delay is measured rather than assumed.
-    expect(during.guideDelayMs).not.toBeNull();
     expect(during.guideDelayMs!).toBeLessThan(750);
     // The fake capture stops at the requested duration, not a constant.
-    const startedAt = Date.now();
     await expect.poll(async () => (await readLedger(page)).stopped, { timeout: 15_000 }).toBe(1);
     expect(Date.now() - startedAt).toBeGreaterThan(2_500);
 
