@@ -3,6 +3,7 @@ import type { ActivePersonaPublicProjection } from "../../../api/session";
 import { Button, TextField, TextFieldInput, TextFieldLabel, Type, cn } from "../../../design-system";
 import { communityCreationCandidates } from "../../identity/community-persona-choice";
 import type { CreateCommunityCopy, CreateCommunityDraft } from "./create-community-model";
+import { AvatarPicker } from "./avatar-picker";
 import { generatedAvatarSrc } from "./generated-avatar";
 
 /** The localized strings this section renders; supplied by the creation view. */
@@ -17,7 +18,6 @@ export type CommunityOwnerCopy = Pick<
   | "ownerLinkedWarning"
   | "ownerNewInstead"
   | "ownerAvatarLabel"
-  | "avatarReplace"
 >;
 
 export function CommunityOwnerFields(props: {
@@ -62,37 +62,15 @@ export function CommunityOwnerFields(props: {
           <>
             {/*
               Spec 014 §3.1 as amended 2026-09-20: the avatar default simply
-              appears — no shuffle — and "Replace image" is the single
-              control. The name field is titled "Name in this community" and
-              arrives prefilled with a locally generated suggestion.
+              appears and the circle is the picker. The name field is titled
+              "Name in this community" and arrives prefilled with a locally
+              generated suggestion.
             */}
-            <div class="flex items-center gap-4">
-              <label
-                aria-hidden="true"
-                class="block size-[4.5rem] shrink-0 cursor-pointer overflow-hidden rounded-full border border-border-soft bg-card transition-colors hover:border-primary/40"
-                for={`owner-avatar-${id}`}
-              >
-                <img alt="" class="size-full object-cover" src={props.profileAvatarSrc ?? generatedAvatarSrc(props.draft.profileAvatarSeed)} />
-              </label>
-              <input
-                accept="image/*"
-                aria-label={props.copy.ownerAvatarLabel}
-                class="sr-only"
-                id={`owner-avatar-${id}`}
-                onChange={(event) => {
-                  props.onProfileAvatarChange?.(event.currentTarget.files?.[0] ?? null);
-                  event.currentTarget.value = "";
-                }}
-                type="file"
-              />
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => document.getElementById(`owner-avatar-${id}`)?.click()}
-              >
-                {props.copy.avatarReplace}
-              </Button>
-            </div>
+            <AvatarPicker
+              label={props.copy.ownerAvatarLabel}
+              onChange={props.onProfileAvatarChange}
+              src={props.profileAvatarSrc ?? generatedAvatarSrc(props.draft.profileAvatarSeed)}
+            />
             <TextField required value={props.draft.publicName ?? ""} onChange={publicName => props.onChange?.({ publicName })}>
               <TextFieldLabel>{props.copy.ownerPublicNameLabel}</TextFieldLabel>
               <TextFieldInput maxlength={80} class="rounded-[var(--radius-lg)] bg-card" />

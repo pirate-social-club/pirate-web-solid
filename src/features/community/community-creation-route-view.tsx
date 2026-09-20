@@ -1,7 +1,9 @@
 import { requestDocumentVerification } from "../verification/document-verification-host.tsx";
 import { ApiClientError } from "@pirate/api-client";
 import { Title } from "@solidjs/meta";
-import { createEffect, createSignal, onCleanup } from "solid-js";
+import { Show, createEffect, createSignal, onCleanup } from "solid-js";
+
+import { Button, Type } from "../../design-system";
 
 import {
   onSessionRefreshed,
@@ -506,49 +508,51 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
   return (
     <main data-creation-state={creationState()} data-route-path="/communities/new" class="min-h-[calc(100dvh-4rem)] bg-background text-foreground">
       <Title>Create community · Pirate</Title>
-      <CreateCommunityView
-        draft={draft()}
-        onClose={() => navigate("/")}
-        onDraftChange={(patch) => {
-          if (busy() || loadingSaved() || (props.intentId?.trim() && !intent())) return;
-          continuing = false;
-          commandKeys.delete("create");
-          commandKeys.delete("update");
-          const saved = intent();
-          if (saved) {
-            if (!draftEdited()) editBase = { intentId: saved.intentId, draft: saved.draft };
-            setDraftEdited(true);
-            setDraft(current => ({ ...current, name: patch.name ?? current.name, description: patch.description === undefined ? current.description : patch.description, additionalRequirements: patch.additionalRequirements ?? current.additionalRequirements }));
-          } else setDraft(current => ({ ...current, ...patch }));
-        }}
-        onSubmit={() => void submit()}
-        // The signed-out action opens in-app sign-in, so the label says what
-        // the button does there; a saved intent keeps the plain Create.
-        submitLabel={intent()?.nextAction.kind === "verify_nationality"
-          ? "Verify nationality"
-          : creationState() === "signed-out"
-            ? routesCopy().signInToCreate
-            : undefined}
-        personas={displayPersonas()}
-        profilesUnavailable={!!currentSession()?.personasUnavailable}
-        steps
-        resuming={!!intent() || !!props.intentId?.trim()}
-        // TODO(api-community-creation-creator-verification-removal): pass the
-        // fetched nationality authoring context once the API exposes it. While
-        // authoring is off in every environment, the option stays hidden so
-        // the route cannot store a dead gate_unsupported intent.
-        nationalityAuthoring={false}
-        actionOnly={((!!intent() || !!props.intentId?.trim()) && !draftEdited()) || !currentSession()}
-        fieldsDisabled={loadingSaved() || (!!props.intentId?.trim() && !intent())}
-        ownerDisabled={!!intent()}
-        accountChecking={session() === "resolving" || loadingSaved()}
-        submitting={busy() || (intent()?.nextAction.kind === "wait" && !intentReadFailed())}
-        submitDisabled={quotaBlocked() || draftConflict()}
-        requirePersona={!!currentSession()}
-        failureMessage={message() || (session() === "failed" ? "Could not check your account. Your setup is still here." : currentSession()?.personasUnavailable ? "Could not load your existing profiles. You can still create a new profile." : "")}
-        onRetry={needsSessionRetry() ? retrySessionResolution : draftConflict() ? discardEditsAndReload : props.intentId?.trim() && !intent() && message() ? () => void loadIntent(props.intentId!.trim()) : undefined}
-        retryLabel={!needsSessionRetry() && draftConflict() ? "Discard my edits and load saved setup" : undefined}
-      />
+      <Show
+        when={session() !== "anonymous"}
+        fallback={
+          // A signed-out visitor is sent to sign-in and returns to creation;
+          // the form is never shown to someone who cannot submit it.
+          <div class="mx-auto flex h-[calc(100dvh-4rem)] w-full max-w-2xl flex-col items-center justify-center gap-4 px-5 text-center">
+            <Type as="h1" variant="h4" class="text-lg">{routesCopy().title}</Type>
+            <Button class="h-11 w-full max-w-xs" onClick={() => requestGlobalSignIn()}>{routesCopy().signInToCreate}</Button>
+          </div>
+        }
+      >
+        <CreateCommunityView
+          draft={draft()}
+          onClose={() => navigate("/")}
+          onDraftChange={(patch) => {
+            if (busy() || loadingSaved() || (props.intentId?.trim() && !intent())) return;
+            continuing = false;
+            commandKeys.delete("create");
+            commandKeys.delete("update");
+            const saved = intent();
+            if (saved) {
+              if (!draftEdited()) editBase = { intentId: saved.intentId, draft: saved.draft };
+              setDraftEdited(true);
+              setDraft(current => ({ ...current, name: patch.name ?? current.name, description: patch.description === undefined ? current.description : patch.description, additionalRequirements: patch.additionalRequirements ?? current.additionalRequirements }));
+            } else setDraft(current => ({ ...current, ...patch }));
+          }}
+          onSubmit={() => void submit()}
+          submitLabel={intent()?.nextAction.kind === "verify_nationality" ? "Verify nationality" : undefined}
+          personas={displayPersonas()}
+          profilesUnavailable={!!currentSession()?.personasUnavailable}
+          // TODO(api-community-creation-creator-verification-removal): pass the
+          // fetched nationality authoring context once the API exposes it. While
+          // authoring is off in every environment, the option stays hidden so
+          // the route cannot store a dead gate_unsupported intent.
+          nationalityAuthoring={false}
+          fieldsDisabled={loadingSaved() || (!!props.intentId?.trim() && !intent())}
+          ownerDisabled={!!intent()}
+          accountChecking={session() === "resolving" || loadingSaved()}
+          submitting={busy() || (intent()?.nextAction.kind === "wait" && !intentReadFailed())}
+          submitDisabled={quotaBlocked() || draftConflict()}
+          failureMessage={message() || (session() === "failed" ? "Could not check your account. Your setup is still here." : currentSession()?.personasUnavailable ? "Could not load your existing profiles. You can still create a new profile." : "")}
+          onRetry={needsSessionRetry() ? retrySessionResolution : draftConflict() ? discardEditsAndReload : props.intentId?.trim() && !intent() && message() ? () => void loadIntent(props.intentId!.trim()) : undefined}
+          retryLabel={!needsSessionRetry() && draftConflict() ? "Discard my edits and load saved setup" : undefined}
+        />
+      </Show>
     </main>
   );
 }
