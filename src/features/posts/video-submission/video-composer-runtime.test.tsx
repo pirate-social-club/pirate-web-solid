@@ -366,9 +366,10 @@ describe("mounted song-first video flow", () => {
         if (options.stalls) return new Promise<void>(() => {});
         if (options.startAfterMs !== undefined) {
           await new Promise<void>(resolve => { release = resolve; setTimeout(resolve, options.startAfterMs); });
-          return;
+        } else if (options.manual) {
+          await new Promise<void>(resolve => { release = resolve; });
         }
-        if (options.manual) await new Promise<void>(resolve => { release = resolve; });
+        events.get("playing")?.();
       },
       pause: () => { calls.pause += 1; },
       addEventListener: (type, listener) => { events.set(type, listener); },

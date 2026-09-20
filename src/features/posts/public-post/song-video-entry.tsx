@@ -32,6 +32,17 @@ export async function readSongVideoEligibility(input: {
   }
 }
 
+/** The "Use this song" entry names its song in the query, because a link must
+ * carry the song's authoritative identity into the composer. Only the exact
+ * compose marker with one non-empty song id is accepted. */
+export function initialVideoSongFromSearch(
+  search: Record<string, string | string[] | undefined>,
+): { readonly postId: string } | undefined {
+  if (search.compose !== "video") return undefined;
+  const song = Array.isArray(search.song) ? search.song[0] : search.song;
+  return typeof song === "string" && song.trim() !== "" ? { postId: song.trim() } : undefined;
+}
+
 export function songVideoEntryHref(communityId: string, postId: string): string {
   return `/c/${encodeURIComponent(communityId)}?compose=video&song=${encodeURIComponent(postId)}`;
 }

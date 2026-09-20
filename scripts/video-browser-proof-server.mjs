@@ -18,7 +18,8 @@ const server = await createServer({
           }).catch(() => { res.statusCode = 404; res.end(); });
           return;
         }
-        if (req.url === "/__song-video-proof") {
+        const pathname = (req.url ?? "").split("?")[0];
+        if (pathname === "/__song-video-proof" || pathname.startsWith("/c/")) {
           res.setHeader("Content-Type", "text/html");
           res.end('<!doctype html><html><body><div id="app"></div><script type="module" src="/e2e/fixtures/song-video-browser-proof.tsx"></script></body></html>');
           return;

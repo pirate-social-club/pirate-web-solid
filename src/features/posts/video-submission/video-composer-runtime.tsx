@@ -171,13 +171,20 @@ export function VideoComposerRuntime(props: {
       || take.bounds.endMs !== current.bounds.endMs;
   });
 
+  // Whether the guide has actually begun. A `waiting` before the first
+  // `playing` is startup buffering, not a mid-take stall, and ending the take
+  // for it would cancel every recording on a slow network.
+  let guidePlaying = false;
+  const onGuidePlaying = () => { guidePlaying = true; };
   const stopGuide = () => {
     const audio = guideAudio;
     guideAudio = undefined;
+    guidePlaying = false;
     if (!audio) return;
     audio.removeEventListener("error", onGuideFailure);
     audio.removeEventListener("waiting", onGuideInterrupted);
     audio.removeEventListener("stalled", onGuideInterrupted);
+    audio.removeEventListener("playing", onGuidePlaying);
     audio.pause();
   };
   const onGuideFailure = () => {
@@ -187,7 +194,7 @@ export function VideoComposerRuntime(props: {
   /** Buffering mid-take means the guide is no longer keeping time with the
    * recording; the take ends rather than drifting silently. */
   const onGuideInterrupted = () => {
-    if (disposed) return;
+    if (disposed || !guidePlaying) return;
     void stopCapture("The guide song stalled, so this recording ended.");
   };
   async function startGuide(guide: SoundtrackSelection): Promise<boolean> {
@@ -197,6 +204,7 @@ export function VideoComposerRuntime(props: {
     audio.addEventListener("error", onGuideFailure);
     audio.addEventListener("waiting", onGuideInterrupted);
     audio.addEventListener("stalled", onGuideInterrupted);
+    audio.addEventListener("playing", onGuidePlaying);
     audio.currentTime = guide.bounds.startMs / 1_000;
     let timer: ReturnType<typeof setTimeout> | undefined;
     try {

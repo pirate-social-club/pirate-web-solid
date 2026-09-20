@@ -18,6 +18,7 @@ import {
   communityCanonicalOrigin,
   communityRequestOrigin,
 } from "../../../features/communities/community-page/community-page-origin.ts";
+import { initialVideoSongFromSearch } from "../../../features/posts/public-post/song-video-entry.tsx";
 
 export function commitCommunityPageResponse(state: CommunityPageViewState): void {
   const event = getRequestEvent();
@@ -63,15 +64,6 @@ export const route = defineFileRoute("/c/:path_segment", {
     });
   },
 });
-
-/** The "Use this song" entry names its song in the query, because a link must
- * carry the song's authoritative identity into the composer. Only the exact
- * compose marker with one non-empty song id is accepted. */
-function initialVideoSongFromSearch(search: Record<string, string | string[] | undefined>) {
-  if (search.compose !== "video") return undefined;
-  const song = Array.isArray(search.song) ? search.song[0] : search.song;
-  return typeof song === "string" && song.trim() !== "" ? { postId: song.trim() } : undefined;
-}
 
 export default function CommunityRoute(props: RouteProps<typeof route>) {
   const [searchParams] = useSearchParams();

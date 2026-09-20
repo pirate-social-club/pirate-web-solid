@@ -6,6 +6,8 @@ import { VerticalFeed } from "@pirate/web-solid-ui";
 import { Show, createEffect, createSignal, onCleanup, untrack } from "solid-js";
 import { VideoPlayer } from "../video-submission/video-player";
 import type { VideoDeliveryState } from "../video-submission/delivery-state";
+import { SongAttributionChip } from "../song-attribution/song-attribution-chip";
+import { createSongAttributionLinkResolver } from "../song-attribution/song-attribution";
 
 import { Spinner, Type } from "../../../design-system.ts";
 import type { UiLocaleCode } from "../../../lib/ui-locale-core.ts";
@@ -29,10 +31,14 @@ export interface HomeVideoFeedProps {
 }
 
 type HomeFeedRow = HomeVideoPost | Readonly<{ id: string; placeholder: true }>;
+
+/** One canonical-link cache for the whole feed: a song reused across videos
+ * reads its route once. */
+const feedSongLinks = createSongAttributionLinkResolver();
 interface LoadedPage { readonly cursor?: string; readonly page: FeedPage }
 interface VideoPageState {
   readonly pages: readonly LoadedPage[];
-  readonly delivery: readonly { postId: string; requiresAgeVerification: boolean; state: VideoDeliveryState; caption: string | null; href: string }[];
+  readonly delivery: readonly { postId: string; requiresAgeVerification: boolean; state: VideoDeliveryState; caption: string | null; href: string; songPostId: string | null }[];
   readonly posts: readonly HomeFeedRow[];
   readonly nextCursor: string | null;
   readonly unplayableCount: number;
@@ -44,8 +50,8 @@ type LoadState =
   | Readonly<{ readonly kind: "ready" }>;
 
 const MAX_EMPTY_PAGE_SCAN = 4;
-const deliveryStates = (page: FeedPage): { postId: string; requiresAgeVerification: boolean; state: VideoDeliveryState; caption: string | null; href: string }[] => page.items.flatMap(item =>
-  item.postType === "video" && item.status === "published" && item.videoDelivery ? [{ postId: item.id, requiresAgeVerification: item.ageGatePolicy === "18_plus", state: item.videoDelivery, caption: item.caption, href: item.canonicalPath ?? `/p/${encodeURIComponent(item.id)}` }] : []);
+const deliveryStates = (page: FeedPage): { postId: string; requiresAgeVerification: boolean; state: VideoDeliveryState; caption: string | null; href: string; songPostId: string | null }[] => page.items.flatMap(item =>
+  item.postType === "video" && item.status === "published" && item.videoDelivery ? [{ postId: item.id, requiresAgeVerification: item.ageGatePolicy === "18_plus", state: item.videoDelivery, caption: item.caption, href: item.canonicalPath ?? `/p/${encodeURIComponent(item.id)}`, songPostId: typeof item.songPostId === "string" && item.songPostId !== "" ? item.songPostId : null }] : []);
 
 function projectRows(page: FeedPage, key: string): HomeFeedRow[] {
   return feedSlots(page, key).flatMap<HomeFeedRow>(slot => {
@@ -117,7 +123,7 @@ export function HomeVideoFeed(props: HomeVideoFeedProps) {
   const [nextCursor, setNextCursor] = createSignal<string | null>(null);
   const [loadingMore, setLoadingMore] = createSignal(false);
   const [unplayableCount, setUnplayableCount] = createSignal(0);
-  const [delivery, setDelivery] = createSignal<readonly { postId: string; requiresAgeVerification: boolean; state: VideoDeliveryState; caption: string | null; href: string }[]>([]);
+  const [delivery, setDelivery] = createSignal<readonly { postId: string; requiresAgeVerification: boolean; state: VideoDeliveryState; caption: string | null; href: string; songPostId: string | null }[]>([]);
   const [paginationIssue, setPaginationIssue] = createSignal<"error" | "stalled" | null>(null);
   let sourceIdentity = props.sourceIdentity;
   let ageVerificationActive = false;
@@ -281,7 +287,7 @@ export function HomeVideoFeed(props: HomeVideoFeedProps) {
                 renderPlaceholder={id => {
                   const item = () => delivery().find(entry => `delivery:${entry.postId}` === id);
                   return <Show when={item()} fallback={<div class="grid h-full place-items-center px-4 text-white"><AgeAccessPrompt verify={props.verifyAge} onStart={() => { ageVerificationActive = true; setAutoplay(false); }} onFinish={() => { ageVerificationActive = false; }} onVerified={refreshAuthorized} /></div>}>
-                    {entry => <article class="grid h-full content-center gap-3 px-4 py-8 text-white"><VideoPlayer requiresAgeVerification={entry().requiresAgeVerification} postId={entry().postId} state={entry().state} /><Show when={entry().caption}>{caption => <p>{caption()}</p>}</Show><a href={entry().href}>View post</a></article>}
+                    {entry => <article class="grid h-full content-center gap-3 px-4 py-8 text-white"><VideoPlayer requiresAgeVerification={entry().requiresAgeVerification} postId={entry().postId} state={entry().state} /><Show when={entry().caption}>{caption => <p>{caption()}</p>}</Show><Show when={entry().songPostId}>{(songPostId) => <SongAttributionChip attribution={{ songPostId: songPostId() }} resolveLink={feedSongLinks} />}</Show><a href={entry().href}>View post</a></article>}
                   </Show>;
                 }}
               />
