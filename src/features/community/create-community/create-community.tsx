@@ -17,7 +17,6 @@ import {
   TextFieldErrorMessage,
   TextFieldInput,
   TextFieldLabel,
-  Textarea,
   Type,
   cn,
 } from "../../../design-system";
@@ -69,9 +68,6 @@ export function CreateCommunityView(props: CreateCommunityProps) {
   const locale = useUiLocale();
   // SAFETY: the generated routes catalog guarantees the createCommunity key shape for every UI locale.
   const copy = () => getLocaleMessages(locale, "routes").createCommunity as CreateCommunityCopy;
-
-  const fieldId = createUniqueId();
-  const descriptionId = `create-community-description-${fieldId}`;
 
   const [nameTouched, setNameTouched] = createSignal(false);
   const validation = () => validateDraft(props.draft, copy());
@@ -245,22 +241,6 @@ export function CreateCommunityView(props: CreateCommunityProps) {
               />
               <TextFieldErrorMessage>{visibleNameError()}</TextFieldErrorMessage>
             </TextField>
-          </div>
-
-          <div class="flex flex-col gap-2">
-            <label for={descriptionId}>
-              <Type variant="label">{copy().descriptionLabel}</Type>
-            </label>
-            <Textarea
-              class="h-20 min-h-20 resize-none rounded-[var(--radius-lg)] bg-card px-3 py-2"
-              id={descriptionId}
-              onInput={(event) => props.onDraftChange?.({
-                description: event.currentTarget.value === "" ? null : event.currentTarget.value,
-              })}
-              placeholder={copy().descriptionPlaceholder}
-              rows={3}
-              value={props.draft.description ?? ""}
-            />
           </div>
 
           <JoinPolicyField

@@ -90,7 +90,7 @@ export function JoinPolicyField(props: Readonly<{
         </OptionCardGroup>
       </Show>
       <Show when={selected()}>
-        <div class="flex min-w-0 flex-col gap-2 ps-1">
+        <div class="flex min-w-0 flex-col gap-2">
           <MultiCombobox
             aria-label={props.copy.pickerLabel}
             class="w-full"

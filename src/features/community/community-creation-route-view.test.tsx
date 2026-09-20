@@ -232,12 +232,9 @@ describe("Community creation production route", () => {
       return new Promise(resolve => { settle = resolve; });
     }} />);
     const name = nameField(container);
-    const description = container.querySelector<HTMLTextAreaElement>("textarea")!;
     name.value = "My community";
     name.dispatchEvent(new InputEvent("input", { bubbles: true }));
     fillPublicName(container);
-    description.value = "Keep this description";
-    description.dispatchEvent(new InputEvent("input", { bubbles: true }));
     const submit = () => finalSubmit(container)!;
     expect(submit().disabled).toBe(true);
     await vi.waitFor(() => expect(settle).toBeTypeOf("function"));
@@ -245,7 +242,6 @@ describe("Community creation production route", () => {
     await vi.waitFor(() => expect(continueButton(container).disabled).toBe(false));
     expect(nameField(container)).toBe(name);
     expect(name.value).toBe("My community");
-    expect(description.value).toBe("Keep this description");
 
     refreshSession();
     await vi.waitFor(() => expect(container.textContent).toContain("Could not check your account"));
@@ -261,7 +257,6 @@ describe("Community creation production route", () => {
     await vi.waitFor(() => expect(continueButton(container).disabled).toBe(false));
     expect(nameField(container)).toBe(name);
     expect(name.value).toBe("My community");
-    expect(description.value).toBe("Keep this description");
   });
 
   test("does not submit using a persona from the previous session", async () => {

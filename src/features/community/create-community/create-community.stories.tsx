@@ -52,7 +52,7 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const Details: Story = {
-  parameters: { docs: { description: { story: "Step one: the community's avatar picker, name, description, and the join policy. With the authoring gate closed (production today) the policy is the one-line Palm fact." } } },
+  parameters: { docs: { description: { story: "Step one: the community's avatar picker, name, and the join policy. With the authoring gate closed (production today) the policy is the one-line Palm fact." } } },
   render: () => <Screen />,
 };
 
