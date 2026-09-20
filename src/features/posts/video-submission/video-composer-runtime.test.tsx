@@ -165,7 +165,9 @@ describe("mounted song-first video flow", () => {
     }
     let saved: PendingVideo | null = null;
     const storage: VideoStorage = { async exclusive(work) { return work(); }, async load() { return saved; }, async save(record) { saved = record; }, async remove() { saved = null; } };
-    const upload = { method: "MULTIPART" as const, upload_id: "upload", part_count: 1, part_size_bytes: 10, expires_at: "2099-01-01T00:00:00Z", parts: [{ part_number: 1, url: "https://upload.example/1", expires_at: "2099-01-01T00:00:00Z" }] };
+    // The plan must match the sealed file exactly, as the real server's does.
+    const uploadFor = (sizeBytes: number) => ({ method: "MULTIPART" as const, upload_id: "upload", part_count: 1, part_size_bytes: sizeBytes, expires_at: "2099-01-01T00:00:00Z", parts: [{ part_number: 1, url: "https://upload.example/1", expires_at: "2099-01-01T00:00:00Z" }] });
+    const upload = uploadFor(10);
     const base = { track: "video" as const, status: "awaiting_upload" as const, slot: "primary_video" as const, author_persona_id: "persona", ingest_policy_revision: 1, reservation_id: "reservation", upload };
     const preflightCalls: unknown[] = [];
     const pendingChecks: (() => void)[] = [];
@@ -191,10 +193,10 @@ describe("mounted song-first video flow", () => {
       if (command.kind === "reserve") {
         const body = command.input.body;
         if (body.track !== "video") throw new Error("not a video");
-        if (body.intent === "original_audio") return { ...base, intent: "original_audio" };
+        if (body.intent === "original_audio") return { ...base, upload: uploadFor(body.expected_size_bytes), intent: "original_audio" };
         const interval = { clip_start_samples: body.clip_start_samples, clip_duration_samples: body.clip_duration_samples, song_duration_samples: 10_080_047 };
         const echoed = {
-          ...base, intent: "song_reference" as const,
+          ...base, upload: uploadFor(body.expected_size_bytes), intent: "song_reference" as const,
           song_reference: { song_post_id: body.song_post_id, audio_revision: body.audio_revision, song_asset_id: "song-asset" },
           reservation_policy_snapshot: { observed_at_transition: "media_reservation_issued" as const, owner_policy_revision: 3, owner_policy_hash: "a".repeat(64), derivative_video: "allowed" as const, observed_at: "2026-09-11T00:00:00Z" },
           interval: options.reserve === "different_excerpt" ? { ...interval, clip_start_samples: interval.clip_start_samples + 48 } : interval,
@@ -211,7 +213,7 @@ describe("mounted song-first video flow", () => {
     const alignments: { readonly offsetMs: number; readonly file: File }[] = [];
     const alignTake = options.alignTake ?? (async (file: File, offsetMs: number) => {
       alignments.push({ offsetMs, file });
-      return { file, trimmedMs: offsetMs, aligned: true };
+      return { file, trimmedMs: offsetMs, requestedMs: offsetMs, aligned: true };
     });
     const songReader: SongSourceReader = options.reader === "failed"
       ? async () => { throw new Error("read failed"); }
@@ -386,11 +388,12 @@ describe("mounted song-first video flow", () => {
     };
     return { audio, calls, events, release: () => release?.() };
   }
-  function fakeSession(stopped: () => void): VideoCaptureSession {
+  function fakeSession(stopped: () => void, options: { readonly captureOriginMs?: number } = {}): VideoCaptureSession {
     return {
       // SAFETY: the viewfinder preview is not what these tests drive, and
       // jsdom has no MediaStream to give it; the runtime only assigns it.
       stream: Object.create(null) as MediaStream,
+      captureOriginMs: options.captureOriginMs ?? performance.now(),
       stop: async () => { stopped(); return new File(["take"], "take.mp4", { type: "video/mp4" }); },
       cancel: async () => {},
     };
@@ -560,6 +563,7 @@ describe("mounted song-first video flow", () => {
     nextSession = () => ({
       // SAFETY: the viewfinder preview is not exercised; jsdom has no MediaStream.
       stream: Object.create(null) as MediaStream,
+      captureOriginMs: performance.now(),
       stop: async () => new File(["take"], "take.mp4", { type: "video/mp4" }),
       cancel: async () => { cancelled += 1; },
     });
@@ -653,7 +657,7 @@ describe("mounted song-first video flow", () => {
     const fixture = songSetup({
       preflight: "accepted", mobile: true, clipDurationMs: 45_000,
       createGuideAudio: () => guide.audio,
-      alignTake: async file => ({ file, trimmedMs: 0, aligned: false }),
+      alignTake: async (file, offsetMs) => ({ file, trimmedMs: 0, requestedMs: offsetMs, aligned: false }),
     });
     await loadSongMetadata();
     await awaitPlan("ready");
@@ -670,5 +674,114 @@ describe("mounted song-first video flow", () => {
     await publish();
     await vi.waitFor(() => expect(fixture.commands.map(command => command.kind)).toEqual(["reserve", "start", "finalize"]));
     expect(fixture.commands[0]?.input.body).toMatchObject({ intent: "original_audio" });
+  });
+
+  test("publishing with the song uploads the aligned take, and original sound uploads the untouched take", async () => {
+    const original = new File(["original-take"], "take.mp4", { type: "video/mp4" });
+    const aligned = new File(["aligned-take"], "take.mp4", { type: "video/mp4" });
+    const guide = guideSpy();
+    nextSession = () => ({
+      // SAFETY: the viewfinder preview is not exercised; jsdom has no MediaStream.
+      stream: Object.create(null) as MediaStream,
+      captureOriginMs: performance.now(),
+      stop: async () => original,
+      cancel: async () => {},
+    });
+    const fixture = songSetup({
+      preflight: "accepted", mobile: true, clipDurationMs: 45_000,
+      createGuideAudio: () => guide.audio,
+      alignTake: async (file, offsetMs) => ({ file: aligned, trimmedMs: offsetMs, requestedMs: offsetMs, aligned: true }),
+    });
+    await loadSongMetadata();
+    await awaitPlan("ready");
+    await startRecording();
+    await vi.waitFor(() => expect(guide.calls.resolved).toBe(1));
+    await stopRecording();
+    await vi.waitFor(() => expect(document.querySelector("textarea")).not.toBeNull());
+    await publish();
+    await vi.waitFor(() => expect(fixture.commands.map(command => command.kind)).toEqual(["reserve", "start", "finalize"]));
+    expect(fixture.commands[0]?.input.body).toMatchObject({ intent: "song_reference", expected_size_bytes: aligned.size });
+    expect(aligned.size).not.toBe(original.size);
+  });
+
+  test("original sound after a guided take uploads the untouched take", async () => {
+    const original = new File(["original-take"], "take.mp4", { type: "video/mp4" });
+    const aligned = new File(["aligned-take"], "take.mp4", { type: "video/mp4" });
+    const guide = guideSpy();
+    nextSession = () => ({
+      // SAFETY: the viewfinder preview is not exercised; jsdom has no MediaStream.
+      stream: Object.create(null) as MediaStream,
+      captureOriginMs: performance.now(),
+      stop: async () => original,
+      cancel: async () => {},
+    });
+    const fixture = songSetup({
+      preflight: "accepted", mobile: true, clipDurationMs: 45_000,
+      createGuideAudio: () => guide.audio,
+      alignTake: async (file, offsetMs) => ({ file: aligned, trimmedMs: offsetMs, requestedMs: offsetMs, aligned: true }),
+    });
+    await loadSongMetadata();
+    await awaitPlan("ready");
+    await startRecording();
+    await vi.waitFor(() => expect(guide.calls.resolved).toBe(1));
+    await stopRecording();
+    await vi.waitFor(() => expect(document.querySelector("textarea")).not.toBeNull());
+    button("Use original sound")!.click();
+    await publish();
+    await vi.waitFor(() => expect(fixture.commands.map(command => command.kind)).toEqual(["reserve", "start", "finalize"]));
+    expect(fixture.commands[0]?.input.body).toMatchObject({ intent: "original_audio", expected_size_bytes: original.size });
+    expect(fixture.commands[0]?.input.body).not.toHaveProperty("song_post_id");
+  });
+
+  test("a guided take stopped before its guide starts is unaligned and cannot publish with the song", async () => {
+    const guide = guideSpy({ manual: true });
+    const original = new File(["original-take"], "take.mp4", { type: "video/mp4" });
+    nextSession = () => ({
+      // SAFETY: the viewfinder preview is not exercised; jsdom has no MediaStream.
+      stream: Object.create(null) as MediaStream,
+      captureOriginMs: performance.now(),
+      stop: async () => original,
+      cancel: async () => {},
+    });
+    const fixture = songSetup({
+      preflight: "accepted", mobile: true, clipDurationMs: 45_000,
+      createGuideAudio: () => guide.audio,
+    });
+    await loadSongMetadata();
+    await awaitPlan("ready");
+    await startRecording();
+    await vi.waitFor(() => expect(guide.calls.play).toBe(1));
+    // Stop before the guide's playback ever begins: the take was bound to the
+    // guide at startup, so it must not become publishable with the song.
+    await stopRecording();
+    guide.release();
+    await vi.waitFor(() => expect(document.querySelector("textarea")).not.toBeNull());
+    await vi.waitFor(() => expect(document.body.textContent).toContain("could not be aligned"));
+    await publish();
+    await vi.waitFor(() => expect(document.body.textContent).toContain("could not be aligned"));
+    expect(fixture.commands).toHaveLength(0);
+    button("Use original sound")!.click();
+    await publish();
+    await vi.waitFor(() => expect(fixture.commands.map(command => command.kind)).toEqual(["reserve", "start", "finalize"]));
+    expect(fixture.commands[0]?.input.body).toMatchObject({ intent: "original_audio" });
+  });
+
+  test("the guide delay is measured from the capture origin, not from the session returning", async () => {
+    const guide = guideSpy();
+    // The encoder started 200 ms before the caller received the session, as it
+    // does when setup continues after the encoder is running.
+    nextSession = () => fakeSession(() => undefined, { captureOriginMs: performance.now() - 200 });
+    const fixture = songSetup({
+      preflight: "accepted", mobile: true, clipDurationMs: 45_000,
+      createGuideAudio: () => guide.audio,
+    });
+    await loadSongMetadata();
+    await awaitPlan("ready");
+    await startRecording();
+    await vi.waitFor(() => expect(guide.calls.resolved).toBe(1));
+    await stopRecording();
+    await vi.waitFor(() => expect(fixture.alignments).toHaveLength(1));
+    expect(fixture.alignments[0]!.offsetMs).toBeGreaterThanOrEqual(150);
+    expect(fixture.alignments[0]!.offsetMs).toBeLessThan(750);
   });
 });

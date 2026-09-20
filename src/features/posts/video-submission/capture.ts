@@ -5,6 +5,10 @@ import { createCaptureFailureBoundary, VideoCaptureError } from "./capture-failu
 export { VideoCaptureError } from "./capture-failure";
 export interface VideoCaptureSession {
   readonly stream: MediaStream;
+  /** The capture timeline's origin in `performance.now()` terms: the moment
+   * the encoder began. The guide's start is measured against this, not against
+   * the later moment the session object reached its caller. */
+  readonly captureOriginMs: number;
   readonly stop: () => Promise<File>;
   readonly cancel: () => Promise<void>;
 }
@@ -128,7 +132,11 @@ export async function startOriginalVideoCapture(input: OriginalVideoCaptureInput
     for (const track of tracks) track.addEventListener("ended", trackEnded, { once: true });
     await output.start();
     if (ended) throw new VideoCaptureError("encoder_failed", "Capture ended before recording could start");
-    const started = performance.now();
+    // The exposed capture origin: the encoder is running and the file's
+    // timeline begins here. Everything after this in setup time must not be
+    // counted as recorded lead-in.
+    const captureOriginMs = performance.now();
+    const started = captureOriginMs;
     const limitMs = input.limitMs === undefined
       ? 180_000
       : Math.min(Math.max(3_000, input.limitMs), 181_500);
@@ -140,6 +148,7 @@ export async function startOriginalVideoCapture(input: OriginalVideoCaptureInput
     }, 100);
     return {
       stream,
+      captureOriginMs,
       async stop() {
         if (ended) throw new VideoCaptureError("encoder_failed", "Capture has already ended");
         ended = true; clearInterval(timer);

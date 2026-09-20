@@ -2,9 +2,11 @@
 import "../../src/index.css";
 import { render } from "@solidjs/web";
 import { createRoot, createSignal, Show } from "solid-js";
-import { ALL_FORMATS, BlobSource, BufferTarget, CanvasSink, CanvasSource, Input, Mp4OutputFormat, Output } from "mediabunny";
+import { ALL_FORMATS, BlobSource, CanvasSink, Input } from "mediabunny";
+import sampleTakeUrl from "./media/sample-take.mp4?url";
 import { VideoComposerRuntime, type GuideAudio } from "../../src/features/posts/video-submission/video-composer-runtime";
 import { alignGuidedTake } from "../../src/features/posts/video-submission/guided-take-alignment";
+import { inspectVideoFile } from "../../src/features/posts/video-submission/capture";
 import { SongVideoEntry, initialVideoSongFromSearch } from "../../src/features/posts/public-post/song-video-entry";
 import { SongAttributionChip } from "../../src/features/posts/song-attribution/song-attribution-chip";
 import type { OriginalVideoCaptureInput, VideoCaptureSession } from "../../src/features/posts/video-submission/capture";
@@ -55,13 +57,21 @@ interface Ledger {
   reserveBody: Record<string, unknown> | null;
   alignedDurationMs: number | null;
   alignedFirstFrameMs: number | null;
-  alignedFirstFrameGreen: boolean | null;
+  alignedFirstFrameColorMs: number | null;
+  alignedVideoCodec: string | null;
+  alignedAudioCodec: string | null;
+  alignedAdmitted: boolean | null;
+  alignedRequestedMs: number | null;
+  alignedReportedTrimMs: number | null;
+  originalTakeBytes: number | null;
 }
 function ledger(): Ledger {
   return JSON.parse(localStorage.getItem(key) ?? "null") ?? {
     calls: [], limitMs: null, guidePlayed: 0, guidePaused: 0, guideStart: null, guideDelayMs: null,
     stopped: 0, guideFails: false, slowGuide: false, guideNudgeMs: 0, reserveBody: null,
-    alignedDurationMs: null, alignedFirstFrameMs: null, alignedFirstFrameGreen: null,
+    alignedDurationMs: null, alignedFirstFrameMs: null, alignedFirstFrameColorMs: null,
+    alignedVideoCodec: null, alignedAudioCodec: null, alignedAdmitted: null,
+    alignedRequestedMs: null, alignedReportedTrimMs: null, originalTakeBytes: null,
   };
 }
 function write(next: Ledger): void {
@@ -230,59 +240,80 @@ const transport: VideoTransport = {
   },
 };
 
-/** A real take, encoded locally with canvas frames. Frames before the marker
- * are one colour and frames from the marker on are another, so a viewer can
- * see whether the published take starts before or after the guide did. */
-async function makeTake(durationMs: number, markerAtMs: number): Promise<File> {
-  const canvas = document.createElement("canvas");
-  canvas.width = 160;
-  canvas.height = 120;
-  const context = canvas.getContext("2d")!;
-  const target = new BufferTarget();
-  const output = new Output({ format: new Mp4OutputFormat({ fastStart: "fragmented", minimumFragmentDuration: 1 }), target });
-  const source = new CanvasSource(canvas, { codec: "avc", bitrate: 400_000, keyFrameInterval: 1 });
-  output.addVideoTrack(source);
-  await output.start();
-  const frameDuration = 1 / 30;
-  const frameMs = frameDuration * 1_000;
-  // The colour changes on the last frame boundary at or before the guide
-  // started, which is the frame a trim to that moment keeps.
-  const marker = Math.floor(markerAtMs / frameMs) * frameMs;
-  const frames = Math.floor((durationMs / 1_000) / frameDuration);
-  for (let index = 0; index < frames; index += 1) {
-    const atMs = index * frameDuration * 1_000;
-    context.fillStyle = atMs < marker ? "#12345f" : "#1fbf5f";
-    context.fillRect(0, 0, canvas.width, canvas.height);
-    context.fillStyle = "#ffffff";
-    context.font = "16px monospace";
-    context.fillText(String(index), 8, 24);
-    await source.add(index * frameDuration, frameDuration);
-  }
-  await output.finalize();
-  if (!target.buffer) throw new Error("the fixture take did not finalize");
-  return new File([target.buffer], "take.mp4", { type: "video/mp4" });
+/** A real take with H.264 video and AAC audio, generated once with the pinned
+ * FFmpeg and checked in. Each frame's red channel encodes its timestamp, so
+ * the first frame after a trim says exactly when the aligned take starts.
+ * Playwright's Chromium cannot encode AAC, so generating this locally would
+ * not produce a file the admission probe accepts. */
+let sampleTakeFile: Promise<File> | undefined;
+function loadSampleTake(): Promise<File> {
+  sampleTakeFile ??= fetch(sampleTakeUrl).then(async response => {
+    if (!response.ok) throw new Error("the sample take could not be loaded");
+    return new File([await response.arrayBuffer()], "take.mp4", { type: "video/mp4" });
+  });
+  return sampleTakeFile;
 }
 
-/** Reads the aligned take back: duration, first timestamp and whether the
- * first frame is the post-guide colour. This is the alignment evidence. */
+/** Reads the aligned take back: duration, first timestamp, track codecs,
+ * whether the first frame is the post-guide colour, and whether the exact
+ * transformed bytes pass the production admission the server probe mirrors.
+ * This is the alignment evidence. */
 async function inspectAlignedTake(file: File): Promise<void> {
+  let admitted = false;
+  try {
+    await inspectVideoFile(file);
+    admitted = true;
+  } catch {
+    admitted = false;
+  }
   const input = new Input({ source: new BlobSource(file), formats: ALL_FORMATS });
   try {
     const duration = await input.computeDuration();
     const first = await input.getFirstTimestamp();
     const track = await input.getPrimaryVideoTrack();
-    let green = false;
+    // The video track's own duration is the compensation evidence; the
+    // container can be longer because the copied audio is not trimmed.
+    const videoDurationMs = track === null ? Math.round(duration * 1_000) : Math.round((await track.computeDuration()) * 1_000);
+    const audioTrack = await input.getPrimaryAudioTrack();
+    const videoCodec = track ? await track.getCodec() : null;
+    const audioCodec = audioTrack ? await audioTrack.getCodec() : null;
+    let firstFrameColorMs: number | null = null;
     if (track) {
-      const sink = new CanvasSink(track, { width: 4, height: 4, fit: "fill" });
-      const wrapped = await sink.getCanvas(0);
-      // The centre of the frame, away from the frame counter in the corner.
-      const data = wrapped?.canvas.getContext("2d")?.getImageData(2, 2, 1, 1).data;
-      green = data !== undefined && data[1] > 120 && data[0] < 120;
+      const lumaAt = async (sink: CanvasSink, atSeconds: number): Promise<number | null> => {
+        const wrapped = await sink.getCanvas(atSeconds);
+        const pixels = wrapped?.canvas.getContext("2d")?.getImageData(0, 0, 16, 16).data;
+        if (pixels === undefined) return null;
+        let total = 0;
+        for (let index = 0; index < pixels.length; index += 4) total += pixels[index] ?? 0;
+        return total / (pixels.length / 4);
+      };
+      const alignedSink = new CanvasSink(track, { width: 16, height: 16, fit: "fill" });
+      const firstLuma = await lumaAt(alignedSink, 0);
+      // Calibrate the ramp from the untouched sample take: the encoder's
+      // range conversion makes the nominal formula unreliable, so the mapping
+      // comes from the file's own first and last frames.
+      const sample = new Input({ source: new BlobSource(await loadSampleTake()), formats: ALL_FORMATS });
+      try {
+        const sampleTrack = await sample.getPrimaryVideoTrack();
+        if (firstLuma !== null && sampleTrack !== null) {
+          const sampleSink = new CanvasSink(sampleTrack, { width: 16, height: 16, fit: "fill" });
+          const startLuma = await lumaAt(sampleSink, 0);
+          const endLuma = await lumaAt(sampleSink, 5.9);
+          if (startLuma !== null && endLuma !== null && Math.abs(endLuma - startLuma) > 10) {
+            firstFrameColorMs = Math.round(((firstLuma - startLuma) / (endLuma - startLuma)) * 6_000);
+          }
+        }
+      } finally {
+        sample.dispose();
+      }
     }
     const state = ledger();
-    state.alignedDurationMs = Math.round(duration * 1_000);
+    state.alignedDurationMs = videoDurationMs;
     state.alignedFirstFrameMs = Math.round(first * 1_000);
-    state.alignedFirstFrameGreen = green;
+    state.alignedFirstFrameColorMs = firstFrameColorMs;
+    state.alignedVideoCodec = videoCodec;
+    state.alignedAudioCodec = audioCodec;
+    state.alignedAdmitted = admitted;
     write(state);
     notify();
   } finally {
@@ -306,12 +337,18 @@ createRoot(() => {
     setTimeout(() => { void input.onLimit(); }, input.limitMs ?? 900);
     return {
       stream: new MediaStream(),
+      captureOriginMs: performance.now(),
       stop: async () => {
         const current = ledger();
         current.stopped += 1;
         write(current);
         record("capture:stopped");
-        return makeTake(6_000, current.guideDelayMs ?? 0);
+        const take = await loadSampleTake();
+        const withSize = ledger();
+        withSize.originalTakeBytes = take.size;
+        write(withSize);
+        notify();
+        return take;
       },
       cancel: async () => { record("capture:cancelled"); },
     };
@@ -340,6 +377,11 @@ createRoot(() => {
               onExit={() => undefined}
               alignTake={async (file, offsetMs) => {
                 const result = await alignGuidedTake(file, offsetMs);
+                const state = ledger();
+                state.alignedRequestedMs = result.requestedMs;
+                state.alignedReportedTrimMs = result.trimmedMs;
+                write(state);
+                notify();
                 if (result.aligned) await inspectAlignedTake(result.file);
                 return result;
               }}

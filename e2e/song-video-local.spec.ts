@@ -33,7 +33,13 @@ interface Ledger {
   readonly reserveBody: Record<string, unknown> | null;
   readonly alignedDurationMs: number | null;
   readonly alignedFirstFrameMs: number | null;
-  readonly alignedFirstFrameGreen: boolean | null;
+  readonly alignedFirstFrameColorMs: number | null;
+  readonly alignedVideoCodec: string | null;
+  readonly alignedAudioCodec: string | null;
+  readonly alignedAdmitted: boolean | null;
+  readonly alignedRequestedMs: number | null;
+  readonly alignedReportedTrimMs: number | null;
+  readonly originalTakeBytes: number | null;
 }
 
 let server: ChildProcess | undefined;
@@ -202,7 +208,7 @@ test("a guided take is trimmed to the guide's start and its first frame follows 
     await page.getByRole("button", { name: "Nudge the next guide 300ms", exact: true }).click();
     await page.getByRole("button", { name: "Start recording", exact: true }).click();
     await expect.poll(async () => (await readLedger(page)).stopped, { timeout: 20_000 }).toBe(1);
-    await expect.poll(async () => (await readLedger(page)).alignedFirstFrameGreen, { timeout: 20_000 }).not.toBeNull();
+    await expect.poll(async () => (await readLedger(page)).alignedFirstFrameColorMs, { timeout: 20_000 }).not.toBeNull();
     const ledger = await readLedger(page);
     // The guide was audible a known delay after the encoder started.
     expect(ledger.guideDelayMs).toBeGreaterThanOrEqual(250);
@@ -214,7 +220,51 @@ test("a guided take is trimmed to the guide's start and its first frame follows 
     expect(ledger.alignedDurationMs!).toBeGreaterThan(expected - 250);
     expect(ledger.alignedDurationMs!).toBeLessThan(expected + 250);
     expect(ledger.alignedFirstFrameMs).toBe(0);
-    expect(ledger.alignedFirstFrameGreen).toBe(true);
+    // The first frame's colour encodes its timestamp, and it matches the
+    // removal the output container reported: the kept frame is the first one
+    // after the guide started.
+    expect(Math.abs(ledger.alignedFirstFrameColorMs! - ledger.alignedReportedTrimMs!)).toBeLessThanOrEqual(120);
+    // The reported removal is the output's own duration evidence, and the
+    // exact transformed bytes pass the production admission the server probe
+    // mirrors: H.264 video and AAC audio, both tracks kept.
+    expect(ledger.alignedReportedTrimMs!).toBeGreaterThanOrEqual(250);
+    expect(Math.abs(ledger.alignedReportedTrimMs! - (6_000 - ledger.alignedDurationMs!))).toBeLessThanOrEqual(50);
+    expect(Math.abs(ledger.alignedReportedTrimMs! - ledger.guideDelayMs!)).toBeLessThanOrEqual(150);
+    expect(ledger.alignedRequestedMs).toBe(ledger.guideDelayMs);
+    expect(ledger.alignedVideoCodec).toBe("avc");
+    expect(ledger.alignedAudioCodec).toBe("aac");
+    expect(ledger.alignedAdmitted).toBe(true);
+  } finally {
+    await context?.close();
+    await rm(userDataDir, { recursive: true, force: true });
+  }
+});
+
+test("original sound after a guided take publishes the untouched take", async () => {
+  const userDataDir = await mkdtemp(join(tmpdir(), "pirate-song-video-"));
+  let context: BrowserContext | undefined;
+  try {
+    context = await open(userDataDir, `${proofPath}?compose=video&song=song-fixture`);
+    const page = context.pages()[0] ?? await context.newPage();
+    await page.getByRole("button", { name: "Nudge the next guide 300ms", exact: true }).click();
+    await page.getByRole("button", { name: "Start recording", exact: true }).click();
+    await expect.poll(async () => (await readLedger(page)).stopped, { timeout: 20_000 }).toBe(1);
+    await expect.poll(async () => (await readLedger(page)).alignedAdmitted, { timeout: 20_000 }).toBe(true);
+    await expect(page.locator("textarea")).toBeVisible();
+    const aligned = await readLedger(page);
+    expect(aligned.originalTakeBytes).not.toBeNull();
+    expect(aligned.alignedReportedTrimMs!).toBeGreaterThan(0);
+    // Choosing the video's own sound publishes the untouched take, not the
+    // aligned one whose soundtrack was replaced.
+    await page.getByRole("button", { name: "Use original sound", exact: true }).click();
+    await page.getByRole("button", { name: "Publish video", exact: true }).click();
+    await expect(page.getByRole("link", { name: "View published post", exact: true })).toBeVisible({ timeout: 15_000 });
+    const published = await readLedger(page);
+    expect(published.reserveBody).toMatchObject({
+      intent: "original_audio",
+      expected_size_bytes: published.originalTakeBytes,
+    });
+    expect(published.reserveBody).not.toHaveProperty("song_post_id");
   } finally {
     await context?.close();
     await rm(userDataDir, { recursive: true, force: true });

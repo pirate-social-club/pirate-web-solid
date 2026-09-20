@@ -131,6 +131,15 @@ export function VideoComposerRuntime(props: {
     const previous = preview(); if (previous) URL.revokeObjectURL(previous);
     setFile(next); setPreview(URL.createObjectURL(next));
   }
+  function showOriginalTake(next: File) {
+    const previous = originalPreview(); if (previous) URL.revokeObjectURL(previous);
+    setOriginalTake(next); setOriginalPreview(URL.createObjectURL(next));
+  }
+  function clearPreviewUrls() {
+    const retained = preview(); if (retained) URL.revokeObjectURL(retained);
+    const original = originalPreview(); if (original) URL.revokeObjectURL(original);
+    setPreview(undefined); setOriginalPreview(undefined);
+  }
   async function run<T>(action: () => Promise<T>): Promise<void> {
     if (busy() || disposed) return;
     setBusy(true); setError("");
@@ -178,7 +187,17 @@ export function VideoComposerRuntime(props: {
    * take must not be published with the song: the motion would be ahead of
    * the music by the measured delay. */
   const [takeAlignment, setTakeAlignment] = createSignal<"none" | "aligned" | "unaligned">("none");
+  // The untouched take, kept beside the aligned one: the video's own sound
+  // lives here, and choosing "Use original sound" must upload this artifact,
+  // never the one whose soundtrack was replaced.
+  const [originalTake, setOriginalTake] = createSignal<File | null>(null);
+  const [originalPreview, setOriginalPreview] = createSignal<string>();
   let guideStartDelayMs = 0;
+  // Whether the guide actually began, and whether it began too late to
+  // compensate. A guided take that was interrupted before its guide started
+  // is never publishable with the song.
+  let guideStarted = false;
+  let guideStartExceeded = false;
   const takeMismatch = createMemo(() => {
     const take = takeSoundtrack();
     const current = selection();
@@ -263,6 +282,10 @@ export function VideoComposerRuntime(props: {
       setTakeSoundtrack(null);
       setTakeAlignment("none");
       guideStartDelayMs = 0;
+      guideStarted = false;
+      guideStartExceeded = false;
+      const original = originalPreview(); if (original) URL.revokeObjectURL(original);
+      setOriginalTake(null); setOriginalPreview(undefined);
       const accepted = props.inspectFile ? await props.inspectFile(next) : await (await import("./capture")).inspectVideoFile(next);
       if (disposed) return;
       showFile(accepted);
@@ -282,14 +305,37 @@ export function VideoComposerRuntime(props: {
       const take = await current.stop();
       let finalTake = take;
       if (takeSoundtrack()) {
-        const alignment = await (props.alignTake ?? alignGuidedTake)(take, guideStartDelayMs);
-        finalTake = alignment.file;
-        if (!disposed) setTakeAlignment(alignment.aligned ? "aligned" : "unaligned");
-        props.onTakeAlignment?.({ offsetMs: guideStartDelayMs, trimmedMs: alignment.trimmedMs, aligned: alignment.aligned });
+        if (!guideStarted || guideStartExceeded) {
+          // The take was bound to a guide that never began, or began too late
+          // to compensate. It stays reviewable with its own sound but cannot
+          // be published against the song.
+          finalTake = take;
+          if (!disposed) setTakeAlignment("unaligned");
+          props.onTakeAlignment?.({ offsetMs: guideStartDelayMs, trimmedMs: 0, aligned: false });
+        } else {
+          const alignment = await (props.alignTake ?? alignGuidedTake)(take, guideStartDelayMs);
+          let aligned = alignment.aligned;
+          let candidate = alignment.file;
+          if (aligned) {
+            // The transformed bytes go through the same admission the server
+            // probe applies. A conversion that dropped the audio track or the
+            // codecs is not publishable, whatever the conversion reported.
+            try {
+              const inspect = props.inspectFile ?? (await import("./capture")).inspectVideoFile;
+              await inspect(candidate);
+            } catch {
+              aligned = false;
+              candidate = take;
+            }
+          }
+          finalTake = candidate;
+          if (!disposed) setTakeAlignment(aligned ? "aligned" : "unaligned");
+          props.onTakeAlignment?.({ offsetMs: guideStartDelayMs, trimmedMs: aligned ? alignment.trimmedMs : 0, aligned });
+        }
       } else {
         if (!disposed) setTakeAlignment("none");
       }
-      if (!disposed) { showFile(finalTake); await measureClip(finalTake); }
+      if (!disposed) { showOriginalTake(take); showFile(finalTake); await measureClip(finalTake); }
     } catch (failure) {
       if (!disposed) setError(failure instanceof Error ? failure.message : "The recording could not be finalized");
     } finally {
@@ -309,6 +355,13 @@ export function VideoComposerRuntime(props: {
       try {
         setTakeAlignment("none");
       guideStartDelayMs = 0;
+      guideStarted = false;
+      guideStartExceeded = false;
+      // The guided intent is recorded before the asynchronous startup, so an
+      // early stop or an over-limit start cannot finalize an unclassified
+      // take. A take recorded to a guide is bound to it from this moment.
+      if (guide) setTakeSoundtrack({ songPostId: guide.songPostId, bounds: guide.bounds });
+      else setTakeSoundtrack(null);
       const current = await startCapture({
           onFailure: failure => {
             session = null; stopGuide();
@@ -321,10 +374,13 @@ export function VideoComposerRuntime(props: {
         });
         if (disposed) { await current.cancel(); return; }
         session = current; setStream(current.stream); setCaptureStatus("recording");
-        if (!guide) { setTakeSoundtrack(null); return; }
-        const guideStartedAt = performance.now();
+        if (!guide) return;
         const started = await startGuide(guide);
-        const startDelayMs = Math.round(performance.now() - guideStartedAt);
+        // Measured from the encoder's own origin to the moment playback
+        // began, not from the moment the session object was returned: setup
+        // time after the encoder started is part of the recorded lead-in,
+        // and time before it is not.
+        const startDelayMs = Math.max(0, Math.round(performance.now() - current.captureOriginMs));
         guideStartDelayMs = startDelayMs;
         props.onGuideTiming?.({ startDelayMs });
         // A stop may have been honored while the guide was still starting.
@@ -334,11 +390,12 @@ export function VideoComposerRuntime(props: {
           await current.cancel().catch(() => {});
           throw new Error("The guide song would not play, so this recording did not start. Check your sound settings and try again.");
         }
+        guideStarted = true;
         if (startDelayMs > GUIDE_START_MAX_DELAY_MS) {
+          guideStartExceeded = true;
           await stopCapture("The guide song started too late to align this take, so it was ended. Record again.");
           return;
         }
-        setTakeSoundtrack({ songPostId: guide.songPostId, bounds: guide.bounds });
       } catch (failure) {
         if (failure instanceof capture.VideoCaptureError) { setCaptureStatus(failure.reason === "camera_denied" ? "camera_denied" : "capability_unavailable"); }
         throw failure;
@@ -393,7 +450,10 @@ export function VideoComposerRuntime(props: {
         if (!originalChosen && songChoice().kind !== "none" && takeSoundtrack() && takeAlignment() === "unaligned") {
           throw new Error("This take could not be aligned to the song, so publishing with the song is blocked. Record again, or choose “Use original sound”.");
         }
-        const attempt = { communityId: props.communityId, personaId: props.personaId, file: selected, caption: caption(), rating: rating() };
+        // Original sound means the untouched take; the song means the take
+        // aligned to the guide.
+        const uploadFile = originalChosen ? (originalTake() ?? selected) : selected;
+        const attempt = { communityId: props.communityId, personaId: props.personaId, file: uploadFile, caption: caption(), rating: rating() };
         await coordinator.begin(approved !== undefined && !originalChosen && songChoice().kind !== "none"
           ? { ...attempt, song: approved }
           : attempt);
@@ -411,7 +471,7 @@ export function VideoComposerRuntime(props: {
     stopGuide();
     if (typeof document !== "undefined") document.removeEventListener("visibilitychange", onVisibilityChange);
     void session?.cancel(); session = null;
-    const url = preview(); if (url) URL.revokeObjectURL(url);
+    clearPreviewUrls();
   });
   const state = () => record()?.snapshot;
   const failure = () => { const snapshot = state(); return snapshot?.status === "processing_failed" ? snapshot : undefined; };
@@ -500,11 +560,11 @@ export function VideoComposerRuntime(props: {
         <p role="status">Aligning the take with the song…</p>
       </Show>
       <OriginalVideoReviewSurface caption={caption()} onCaptionChange={setCaption} submitting={busy()} onPublish={() => { void publish(); }}
-        onBack={() => { if (!busy()) { setFile(null); setClipDurationMs(null); const url = preview(); if (url) URL.revokeObjectURL(url); setPreview(undefined); } }}
-        preview={songActive() && songPlan().kind === "ready" && selection()
+        onBack={() => { if (!busy()) { setFile(null); setClipDurationMs(null); setOriginalTake(null); clearPreviewUrls(); } }}
+        preview={songActive() && songPlan().kind === "ready" && selection() && takeAlignment() !== "unaligned"
           ? <SongReviewPreview audioUrl={selection()!.audioUrl} bounds={selection()!.bounds} videoUrl={preview()}
               createAudio={props.createGuideAudio} />
-          : <video src={preview()} controls playsinline class="h-full w-full object-contain" />}
+          : <video src={originalPreview() ?? preview()} controls playsinline class="h-full w-full object-contain" />}
         sourceValue={songActive() && selection() ? `Song · ${selection()!.title}` : undefined}
         rightsValue={songActive() && songPlan().kind === "ready"
           ? "Song excerpt · rendered by the server"
@@ -545,7 +605,7 @@ export function VideoComposerRuntime(props: {
         <Show when={failure()?.reason_code === "provider_submission_unconfirmed"}><p role="status">The provider submission is unconfirmed. We need to reconcile it before another attempt is safe.</p></Show>
         <Show when={failure()?.reason_code === "membership_required"}><p role="status">Restore your community posting eligibility, then retry publication. Your completed analysis is retained.</p></Show>
         <Show when={failure()?.retryable}><Button disabled={busy()} onClick={() => { void run(() => coordinator.revisionCommand("retry")); }}>{failure()?.reason_code === "membership_required" ? "Retry publication" : "Retry processing"}</Button></Show>
-        <Show when={!failure()?.retryable}><Button disabled={busy()} onClick={() => { void run(async () => { await coordinator.discard(); setFile(null); const url = preview(); if (url) URL.revokeObjectURL(url); setPreview(undefined); setCaption(""); }); }}>Start a new video</Button></Show>
+        <Show when={!failure()?.retryable}><Button disabled={busy()} onClick={() => { void run(async () => { await coordinator.discard(); setFile(null); setOriginalTake(null); clearPreviewUrls(); setCaption(""); }); }}>Start a new video</Button></Show>
         <Button disabled={busy()} onClick={() => { void run(() => coordinator.refresh()); }}>Check video status</Button>
       </Show>
       <Show when={!record()?.rejection && state()?.status === "manual_review"}>
@@ -556,11 +616,11 @@ export function VideoComposerRuntime(props: {
         <Show when={blocked()?.reason_code === "song_reference_invalid"}><p role="status">{songReferenceInvalidText(blocked()?.song_reason_code)}</p></Show>
         <p>This attempt cannot publish. It will not be retried with a new identity.</p>
         <Button disabled={busy()} onClick={() => { void run(() => coordinator.refresh()); }}>Check video status</Button>
-        <Button disabled={busy()} onClick={() => { void run(async () => { await coordinator.discard(); setFile(null); const url = preview(); if (url) URL.revokeObjectURL(url); setPreview(undefined); setCaption(""); }); }}>Start a new video</Button>
+        <Button disabled={busy()} onClick={() => { void run(async () => { await coordinator.discard(); setFile(null); setOriginalTake(null); clearPreviewUrls(); setCaption(""); }); }}>Start a new video</Button>
       </Show>
       <Show when={!record()?.rejection && state()?.status === "published"}>
         <Show when={publishedHref()}>{href => <a href={href()}>View published post</a>}</Show>
-        <Button disabled={busy()} onClick={() => { void run(async () => { await coordinator.discard(); setFile(null); const url = preview(); if (url) URL.revokeObjectURL(url); setPreview(undefined); setCaption(""); }); }}>Start a new video</Button>
+        <Button disabled={busy()} onClick={() => { void run(async () => { await coordinator.discard(); setFile(null); setOriginalTake(null); clearPreviewUrls(); setCaption(""); }); }}>Start a new video</Button>
       </Show>
     </Show>
   </section>;

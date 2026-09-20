@@ -173,6 +173,7 @@ function captureDouble(options: {
     }
     return {
       stream,
+      captureOriginMs: performance.now(),
       stop: async () => sampleVideoFile(12_000, 0),
       cancel: async () => { for (const track of stream.getTracks()) track.stop(); },
     };
