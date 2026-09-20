@@ -23,7 +23,12 @@ import type { HomeFeedProps } from "../features/posts/feed/home-feed.tsx";
 import { fetchHomeFeedPage } from "../features/posts/feed/home-feed-adapter.ts";
 import type { PublicFeedProps } from "../features/posts/feed/public-feed.tsx";
 import { fetchPublicFeedPage } from "../features/posts/feed/public-feed-adapter.ts";
-import { publicFeedReviewPage } from "../features/posts/feed/public-feed-fixtures.ts";
+import {
+  publicFeedReviewPage,
+  reviewPlaybackMint,
+  reviewPosterPath,
+  reviewSongLinks,
+} from "../features/posts/feed/public-feed-fixtures.ts";
 import { HomeVideoFeed } from "../features/posts/video-feed/home-video-feed.tsx";
 import type { HomeVideoFeedProps } from "../features/posts/video-feed/home-video-feed.tsx";
 import { useApplicationSession } from "../features/shell/application-session.tsx";
@@ -150,6 +155,16 @@ export default function HomeRoute(props: HomeRouteProps = {}) {
             ? fetchHomeFeedPage({ client: props.homeClient, cursor, locale, sort })
             : fetchPublicFeedPage({ client: props.publicClient, cursor, locale, sort })}
           navigate={props.navigate}
+          // The local review fixture plays its own local media; production
+          // keeps the API mint, the cookie-authorized poster and the public
+          // post read.
+          {...(reviewFixture
+            ? {
+              mintPlaybackAccess: reviewPlaybackMint,
+              posterPath: reviewPosterPath,
+              resolveSongLink: reviewSongLinks,
+            }
+            : {})}
         />
         <Show when={hydrationFixtures}>
           <HydrationFixtures />
