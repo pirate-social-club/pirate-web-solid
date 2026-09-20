@@ -14,7 +14,10 @@ export function VideoPlayer(props: {
   readonly state: VideoDeliveryState;
   readonly mint?: typeof mintPlaybackAccess;
   readonly attach?: typeof attachPlayback;
+  /** Test/review seam; production reads the cookie-authorized poster route. */
+  readonly posterPath?: (postId: string) => string;
 }) {
+  const posterPath = (postId: string) => (props.posterPath ?? videoPosterPath)(postId);
   let host!: HTMLElement;
   let video!: HTMLVideoElement;
   let detach: (() => void) | undefined;
@@ -64,7 +67,7 @@ export function VideoPlayer(props: {
       const grant = await (props.mint ?? mintPlaybackAccess)(props.postId, abort.signal);
       if (generation !== expected || abort.signal.aborted) return;
       clearTimeout(requestTimer);
-      if (props.state.thumbnail === "ready") setPoster(videoPosterPath(props.postId));
+      if (props.state.thumbnail === "ready") setPoster(posterPath(props.postId));
       // Expiry still stops buffered playback if a renewal request hangs.
       expiryTimer = setTimeout(() => { if (generation === expected) fail(); }, Math.max(0, grant.expiresAt - Date.now()));
       await attach(grant, expected);
@@ -97,7 +100,7 @@ export function VideoPlayer(props: {
   );
   createEffect(() => [visible(), foreground(), props.postId, props.state.thumbnail, props.state.playback] as const,
     ([inView, inForeground, id, thumbnail]) => {
-      setPoster(inView && inForeground && thumbnail === "ready" ? videoPosterPath(id) : undefined);
+      setPoster(inView && inForeground && thumbnail === "ready" ? posterPath(id) : undefined);
     });
   onCleanup(stop);
   return <section ref={host} aria-label="Published video" data-video-player-state={status()}>

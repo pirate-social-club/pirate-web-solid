@@ -60,11 +60,12 @@ function page(items: readonly PublicFeedItem[], nextCursor: string | null): Feed
   return { items, topCommunities: [], nextCursor };
 }
 
-test.each(["pending", "unavailable"] as const)("shows typed %s without falling back to media refs", async status => {
+test.each(["pending", "unavailable"] as const)("does not expose a %s video as a feed item or fall back to media refs", async status => {
   const item = { ...video([{ playback_url: "https://legacy.example/must-not-play.mp4" }]), videoDelivery: { playback: status, thumbnail: status } };
   const container = render(() => <HomeVideoFeed data={page([item], null)} loadPage={async () => page([], null)} />);
-  await vi.waitFor(() => expect(container.querySelector("[data-video-playback-state]")?.getAttribute("data-video-playback-state")).toBe(status));
-  expect(container.textContent).toContain(status === "pending" ? "Playback is being prepared" : "Playback is unavailable");
+  await vi.waitFor(() => expect(container.textContent).toContain("Videos are being prepared"));
+  expect(container.querySelector("[data-video-playback-state]")).toBeNull();
+  expect(container.querySelector("[data-video-feed-card]")).toBeNull();
   expect(container.querySelector("video, iframe, img[src*='legacy.example']")).toBeNull();
   expect(container.innerHTML).not.toContain("must-not-play");
 });
@@ -93,7 +94,7 @@ describe("HomeVideoFeed", () => {
     expect(loadPage).toHaveBeenCalledOnce();
   });
 
-  test("states the API media gap instead of rendering a fake video", async () => {
+  test("names a waiting video without rendering a fake video", async () => {
     const container = render(() => (
       <HomeVideoFeed
         data={page([video(["opaque-storage-ref"])], null)}
@@ -101,18 +102,18 @@ describe("HomeVideoFeed", () => {
       />
     ));
 
-    await vi.waitFor(() => expect(container.textContent).toContain("Videos are not playable yet"));
-    expect(container.textContent).toContain("the API did not provide playable media");
+    await vi.waitFor(() => expect(container.textContent).toContain("Videos are being prepared"));
+    expect(container.textContent).toContain("Published videos appear here as soon as playback is ready.");
     expect(container.querySelector("video")).toBeNull();
   });
 });
 
-test("does not scan past a normalized video when a next cursor exists", async () => {
-  const item = { ...video([]), videoDelivery: { playback: "pending" as const, thumbnail: "pending" as const } };
-  const loadPage = vi.fn(async () => page([], null));
-  const container = render(() => <HomeVideoFeed data={page([item], "page-2")} loadPage={loadPage} />);
-  await vi.waitFor(() => expect(container.textContent).toContain("Playback is being prepared"));
-  expect(loadPage).not.toHaveBeenCalled();
+test("scans past a processing video to a later playable page", async () => {
+  const processing = { ...video([]), videoDelivery: { playback: "pending" as const, thumbnail: "pending" as const } };
+  const loadPage = vi.fn(async () => page([video([{ playback_url: "https://media.pirate.test/after-processing.mp4" }])], null));
+  const container = render(() => <HomeVideoFeed data={page([processing], "page-2")} loadPage={loadPage} />);
+  await vi.waitFor(() => expect(container.querySelector("video")?.getAttribute("src")).toBe("https://media.pirate.test/after-processing.mp4"));
+  expect(loadPage).toHaveBeenCalledOnce();
 });
 
 test("keeps continuation visible after four video-free pages and loads a later video", async () => {
@@ -152,24 +153,30 @@ test("retains the cursor for retry after a continuation failure", async () => {
   await vi.waitFor(() => expect(container.querySelector("video")?.getAttribute("src")).toBe("https://media.pirate.test/retry.mp4"));
 });
 
-test("does not offer continuation at terminal exhaustion in empty and delivery states", async () => {
+test("does not offer continuation at terminal exhaustion in empty and processing states", async () => {
   const empty = render(() => <HomeVideoFeed data={page([], null)} loadPage={vi.fn()} />);
   await vi.waitFor(() => expect(empty.textContent).toContain("No videos yet"));
   expect(empty.querySelector("[data-video-feed-continuation]")).toBeNull();
 
   const pending = { ...video([]), videoDelivery: { playback: "pending" as const, thumbnail: "pending" as const } };
-  const delivery = render(() => <HomeVideoFeed data={page([pending], null)} loadPage={vi.fn()} />);
-  await vi.waitFor(() => expect(delivery.textContent).toContain("Playback is being prepared"));
-  expect(delivery.querySelector("[data-video-feed-continuation]")).toBeNull();
+  const processing = render(() => <HomeVideoFeed data={page([pending], null)} loadPage={vi.fn()} />);
+  await vi.waitFor(() => expect(processing.textContent).toContain("Videos are being prepared"));
+  expect(processing.querySelector("[data-video-feed-continuation]")).toBeNull();
 });
 
-test("offers continuation from the delivery branch when a cursor remains", async () => {
-  const pending = { ...video([]), videoDelivery: { playback: "pending" as const, thumbnail: "pending" as const } };
+test("offers continuation after a playable delivery row when a cursor remains", async () => {
+  const ready = { ...video([]), id: "video-ready", caption: "Ready caption", videoDelivery: { playback: "ready" as const, thumbnail: "ready" as const } };
   const loadPage = vi.fn(async () => page([video([{ playback_url: "https://media.pirate.test/next.mp4" }])], null));
-  const container = render(() => <HomeVideoFeed data={page([pending], "page-2")} loadPage={loadPage} />);
-  await vi.waitFor(() => expect(container.textContent).toContain("Playback is being prepared"));
+  const container = render(() => (
+    <HomeVideoFeed
+      data={page([ready], "page-2")}
+      loadPage={loadPage}
+      mintPlaybackAccess={async () => new Promise<never>(() => {})}
+    />
+  ));
+  await vi.waitFor(() => expect(container.querySelector("[data-video-feed-card]")).not.toBeNull());
   container.querySelector<HTMLButtonElement>("[data-video-feed-continuation]")!.click();
-  await vi.waitFor(() => expect(container.querySelector("video")?.getAttribute("src")).toBe("https://media.pirate.test/next.mp4"));
+  await vi.waitFor(() => expect(container.querySelector("video[src='https://media.pirate.test/next.mp4']")).not.toBeNull());
   expect(loadPage).toHaveBeenCalledOnce();
 });
 
@@ -331,9 +338,9 @@ test("cancelling age verification keeps the locked row and does not refetch or p
   expect(container.querySelector("video")).toBeNull();
 });
 
-test("renders the Study action only for a video whose referenced song is ready", async () => {
+test("renders the Study action only for a playable video whose referenced song is ready", async () => {
   const loadStudyAvailability = vi.fn(async (songPostId: string) => songPostId === "post_song");
-  const delivery = { playback: "pending", thumbnail: "pending" } as const;
+  const delivery = { playback: "ready", thumbnail: "ready" } as const;
   const linked = { ...video([]), id: "video-linked", caption: "Linked caption", videoDelivery: delivery, songPostId: "post_song" };
   const unlinked = { ...video([]), id: "video-unlinked", caption: "Unlinked caption", videoDelivery: delivery };
   const unavailable = { ...video([]), id: "video-unavailable", caption: "Unavailable caption", videoDelivery: delivery, songPostId: "post_song_unavailable" };
@@ -342,6 +349,8 @@ test("renders the Study action only for a video whose referenced song is ready",
       data={page([linked, unlinked, unavailable], null)}
       loadPage={async () => page([], null)}
       loadStudyAvailability={loadStudyAvailability}
+      mintPlaybackAccess={async () => new Promise<never>(() => {})}
+      resolveSongLink={async () => null}
     />
   ));
 

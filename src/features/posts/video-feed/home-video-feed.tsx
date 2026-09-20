@@ -5,7 +5,14 @@ import { Title } from "@solidjs/meta";
 import { VerticalFeed } from "@pirate/web-solid-ui";
 import { Show, createEffect, createSignal, onCleanup, untrack } from "solid-js";
 import { VideoPlayer } from "../video-submission/video-player";
+import type { mintPlaybackAccess } from "../video-submission/playback-access";
+import type { attachPlayback } from "../video-submission/playback-engine";
 import type { VideoDeliveryState } from "../video-submission/delivery-state";
+import { SongAttributionChip } from "../song-attribution/song-attribution-chip";
+import {
+  createSongAttributionLinkResolver,
+  type SongAttributionLinkResolver,
+} from "../song-attribution/song-attribution";
 
 import { Spinner, Type } from "../../../design-system.ts";
 import type { UiLocaleCode } from "../../../lib/ui-locale-core.ts";
@@ -16,18 +23,31 @@ import type { FeedPageLoader } from "../feed/public-feed.tsx";
 import { linkedSongPostId, makeStudyAvailabilityLookup } from "./home-feed-study.ts";
 import {
   playableHomeVideos,
-  unplayableVideoCount,
+  publisherDestination,
+  resolveVideoMedia,
   type HomeVideoPost,
 } from "./home-video-feed-model.ts";
 
 /** One deduplicated availability read per referenced song for the whole feed. */
 const studyAvailability = makeStudyAvailabilityLookup(createStudyV2Api());
 
+/** One canonical-link cache for the whole feed: a song reused across videos
+ * resolves its route once. */
+const feedSongLinks = createSongAttributionLinkResolver();
+
 export interface HomeVideoFeedProps {
   readonly data?: FeedPage | PromiseLike<FeedPage>;
   readonly verifyAge?: typeof verifyAdultViewing;
   /** Test seam; production uses the deduplicated API-backed availability read. */
   readonly loadStudyAvailability?: (songPostId: string) => Promise<boolean>;
+  /** Test/review seam; production resolves the song link through the public read. */
+  readonly resolveSongLink?: SongAttributionLinkResolver;
+  /** Test/review seam; production mints playback access from the owning API. */
+  readonly mintPlaybackAccess?: typeof mintPlaybackAccess;
+  /** Test/review seam; production reads the cookie-authorized poster route. */
+  readonly posterPath?: (postId: string) => string;
+  /** Test/review seam; production attaches through the hls.js engine. */
+  readonly attachPlayback?: typeof attachPlayback;
   readonly sourceIdentity?: string;
   readonly loadPage: FeedPageLoader;
   readonly locale?: UiLocaleCode;
@@ -42,7 +62,7 @@ interface VideoPageState {
   readonly delivery: readonly FeedDelivery[];
   readonly posts: readonly HomeFeedRow[];
   readonly nextCursor: string | null;
-  readonly unplayableCount: number;
+  readonly processingCount: number;
 }
 
 type LoadState =
@@ -57,18 +77,46 @@ type FeedDelivery = Readonly<{
   caption: string | null;
   href: string;
   songPostId: string | null;
+  authorName: string | null;
+  authorHref: string | null;
 }>;
 
 const MAX_EMPTY_PAGE_SCAN = 4;
-const deliveryStates = (page: FeedPage): FeedDelivery[] => page.items.flatMap(item =>
-  item.postType === "video" && item.status === "published" && item.videoDelivery ? [{ postId: item.id, requiresAgeVerification: item.ageGatePolicy === "18_plus", state: item.videoDelivery, caption: item.caption, href: item.canonicalPath ?? `/p/${encodeURIComponent(item.id)}`, songPostId: linkedSongPostId(item) }] : []);
+
+/**
+ * Only a video whose playback is ready is an ordinary feed item. A published
+ * video that is still processing is not exposed as a full-screen placeholder;
+ * its state stays on the post surface where the author can follow recovery.
+ */
+const readyDeliveryStates = (page: FeedPage): FeedDelivery[] => page.items.flatMap(item => {
+  if (item.postType !== "video" || item.status !== "published" || item.videoDelivery?.playback !== "ready") return [];
+  const authorName = item.authorPrimaryPublicHandle ?? item.authorPublicHandle ?? item.authorDisplayName ?? null;
+  return [{
+    postId: item.id,
+    requiresAgeVerification: item.ageGatePolicy === "18_plus",
+    state: item.videoDelivery,
+    caption: item.caption,
+    href: item.canonicalPath ?? `/p/${encodeURIComponent(item.id)}`,
+    songPostId: linkedSongPostId(item),
+    authorName: authorName?.replace(/^@+/u, "") ?? null,
+    authorHref: publisherDestination(item),
+  }];
+});
+
+const processingVideoCount = (items: FeedPage["items"]): number =>
+  items.filter(item =>
+    item.postType === "video" && item.status === "published"
+      && (item.videoDelivery === undefined
+        ? resolveVideoMedia(item.mediaRefs) === null
+        : item.videoDelivery.playback !== "ready")).length;
 
 function projectRows(page: FeedPage, key: string): HomeFeedRow[] {
   return feedSlots(page, key).flatMap<HomeFeedRow>(slot => {
     if (slot.kind === "age_locked") return [{ id: `age-lock:${slot.key}`, placeholder: true }];
     const playable = playableHomeVideos([slot.item]);
     if (playable.length) return playable;
-    return slot.item.postType === "video" && slot.item.status === "published" && slot.item.videoDelivery
+    return slot.item.postType === "video" && slot.item.status === "published"
+      && slot.item.videoDelivery?.playback === "ready"
       ? [{ id: `delivery:${slot.item.id}`, placeholder: true }] : [];
   });
 }
@@ -80,20 +128,20 @@ async function collectVideoPage(
 ): Promise<VideoPageState> {
   const posts = projectRows(first, "first");
   const pages: LoadedPage[] = [{ page: first }];
-  const delivery = deliveryStates(first);
-  let unplayableCount = unplayableVideoCount(first.items);
+  const delivery = readyDeliveryStates(first);
+  let processingCount = processingVideoCount(first.items);
   let nextCursor = first.nextCursor;
   let scanned = 1;
   while (posts.length === 0 && delivery.length === 0 && nextCursor && scanned < MAX_EMPTY_PAGE_SCAN) {
     const page = await loadPage({ cursor: nextCursor, locale, sort });
     pages.push({ cursor: nextCursor, page });
     posts.push(...projectRows(page, `cursor:${nextCursor}`));
-    delivery.push(...deliveryStates(page));
-    unplayableCount += unplayableVideoCount(page.items);
+    delivery.push(...readyDeliveryStates(page));
+    processingCount += processingVideoCount(page.items);
     nextCursor = page.nextCursor;
     scanned += 1;
   }
-  return { posts, nextCursor, unplayableCount, delivery, pages };
+  return { posts, nextCursor, processingCount, delivery, pages };
 }
 
 function navigateTo(href: string, navigate?: (href: string) => void): void {
@@ -142,6 +190,89 @@ function StudyAction(props: {
 }
 
 /**
+ * One playable published video. The card keeps a clear hierarchy: the player
+ * and its poster lead, then the caption, then attribution (author and linked
+ * song) and the actions. Delivery state is never restated as paragraphs here;
+ * processing and recovery live on the post surface.
+ */
+function FeedVideoCard(props: {
+  readonly entry: FeedDelivery;
+  readonly loadStudyAvailability: (songPostId: string) => Promise<boolean>;
+  readonly resolveSongLink: SongAttributionLinkResolver;
+  readonly mintPlaybackAccess?: typeof mintPlaybackAccess;
+  readonly posterPath?: (postId: string) => string;
+  readonly attachPlayback?: typeof attachPlayback;
+  readonly navigate?: (href: string) => void;
+}) {
+  return (
+    <article class="flex h-full flex-col justify-center gap-3 px-4 py-8 text-white" data-video-feed-card={props.entry.postId}>
+      <div class="mx-auto w-full max-w-3xl">
+        <VideoPlayer
+          attach={props.attachPlayback}
+          mint={props.mintPlaybackAccess}
+          postId={props.entry.postId}
+          posterPath={props.posterPath}
+          requiresAgeVerification={props.entry.requiresAgeVerification}
+          state={props.entry.state}
+        />
+      </div>
+      <div class="mx-auto flex w-full max-w-3xl flex-col gap-2">
+        <Show when={props.entry.caption}>{caption => <p class="text-base leading-6">{caption()}</p>}</Show>
+        <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-white/70">
+          <Show when={props.entry.authorName}>
+            {name => (
+              <a
+                class="hover:underline"
+                data-video-feed-author
+                href={props.entry.authorHref ?? props.entry.href}
+                onClick={(event) => {
+                  if (props.navigate === undefined) return;
+                  event.preventDefault();
+                  props.navigate(props.entry.authorHref ?? props.entry.href);
+                }}
+              >
+                {name()}
+              </a>
+            )}
+          </Show>
+          <Show when={props.entry.songPostId}>
+            {(songPostId) => (
+              <SongAttributionChip
+                attribution={{ songPostId: songPostId() }}
+                navigate={props.navigate}
+                resolveLink={props.resolveSongLink}
+              />
+            )}
+          </Show>
+        </div>
+        <div class="flex flex-wrap items-center gap-2">
+          <Show when={props.entry.songPostId}>
+            {(songPostId) => (
+              <StudyAction
+                load={props.loadStudyAvailability}
+                navigate={props.navigate}
+                songPostId={songPostId()}
+              />
+            )}
+          </Show>
+          <a
+            class="rounded-[var(--radius-lg)] border border-white/30 px-4 py-2 text-sm text-white"
+            href={props.entry.href}
+            onClick={(event) => {
+              if (props.navigate === undefined) return;
+              event.preventDefault();
+              props.navigate(props.entry.href);
+            }}
+          >
+            View post
+          </a>
+        </div>
+      </div>
+    </article>
+  );
+}
+
+/**
  * One continuation control for the branches that do not own an end observer.
  * Rendering nothing at a null cursor is the terminal state: the four-page
  * scan may end with later pages still reachable, so a retained cursor must
@@ -172,7 +303,7 @@ export function HomeVideoFeed(props: HomeVideoFeedProps) {
   const [posts, setPosts] = createSignal<readonly HomeFeedRow[]>([]);
   const [nextCursor, setNextCursor] = createSignal<string | null>(null);
   const [loadingMore, setLoadingMore] = createSignal(false);
-  const [unplayableCount, setUnplayableCount] = createSignal(0);
+  const [processingCount, setProcessingCount] = createSignal(0);
   const [delivery, setDelivery] = createSignal<readonly FeedDelivery[]>([]);
   const [paginationIssue, setPaginationIssue] = createSignal<"error" | "stalled" | null>(null);
   let sourceIdentity = props.sourceIdentity;
@@ -210,7 +341,7 @@ export function HomeVideoFeed(props: HomeVideoFeedProps) {
     setPaginationIssue(null);
     setPosts([]);
     setNextCursor(null);
-    setUnplayableCount(0);
+    setProcessingCount(0);
     setDelivery([]);
     setLoadingMore(false);
     setState({ kind: "loading" });
@@ -224,7 +355,7 @@ export function HomeVideoFeed(props: HomeVideoFeedProps) {
         pages = page.pages;
         setPosts(page.posts);
         setNextCursor(page.nextCursor);
-        setUnplayableCount(page.unplayableCount);
+        setProcessingCount(page.processingCount);
         setDelivery(page.delivery);
         setState({ kind: "ready" });
       })
@@ -255,8 +386,8 @@ export function HomeVideoFeed(props: HomeVideoFeedProps) {
       const playable = projectRows(page, `cursor:${cursor}`);
       pages = [...pages, { cursor, page }];
       setPosts(previous => [...previous, ...playable]);
-      setUnplayableCount(count => count + unplayableVideoCount(page.items));
-      setDelivery(previous => [...previous, ...deliveryStates(page)]);
+      setProcessingCount(count => count + processingVideoCount(page.items));
+      setDelivery(previous => [...previous, ...readyDeliveryStates(page)]);
       setNextCursor(page.nextCursor);
       // A page that adds no playable post cannot move the active index, so
       // the automatic end trigger will not fire again; surface continuation.
@@ -288,9 +419,9 @@ export function HomeVideoFeed(props: HomeVideoFeedProps) {
       }
       pages = refreshed;
       setPosts(refreshed.flatMap((entry, index) => projectRows(entry.page, index === 0 ? "first" : `cursor:${entry.cursor}`)));
-      setDelivery(refreshed.flatMap(entry => deliveryStates(entry.page)));
+      setDelivery(refreshed.flatMap(entry => readyDeliveryStates(entry.page)));
       setNextCursor(refreshed.at(-1)?.page.nextCursor ?? null);
-      setUnplayableCount(refreshed.reduce((sum, entry) => sum + unplayableVideoCount(entry.page.items), 0));
+      setProcessingCount(refreshed.reduce((sum, entry) => sum + processingVideoCount(entry.page.items), 0));
       setPaginationIssue(null);
     } finally {
       refreshing = false;
@@ -316,7 +447,7 @@ export function HomeVideoFeed(props: HomeVideoFeedProps) {
         <Show when={state().kind === "ready"} fallback={<div class="grid h-full place-items-center px-6 text-center"><div><Type variant="h2" class="text-white">Video feed unavailable</Type><Type variant="body" class="mt-2 text-white/70">Try again in a moment.</Type></div></div>}>
           <Show
             when={posts().length > 0}
-            fallback={<div class="grid h-full place-items-center px-6 text-center"><div class="flex flex-col items-center gap-3"><Type variant="h2" class="text-white">{unplayableCount() > 0 ? "Videos are not playable yet" : "No videos yet"}</Type><Type variant="body" class="text-white/70">{unplayableCount() > 0 ? "The feed found video posts, but the API did not provide playable media." : "Published community videos will appear here."}</Type><FeedContinuation cursor={nextCursor()} loading={loadingMore()} onLoadMore={() => { void loadMore(); }} /></div></div>}
+            fallback={<div class="grid h-full place-items-center px-6 text-center"><div class="flex flex-col items-center gap-3"><Type variant="h2" class="text-white">{processingCount() > 0 ? "Videos are being prepared" : "No videos yet"}</Type><Type variant="body" class="text-white/70">{processingCount() > 0 ? "Published videos appear here as soon as playback is ready." : "Published community videos will appear here."}</Type><FeedContinuation cursor={nextCursor()} loading={loadingMore()} onLoadMore={() => { void loadMore(); }} /></div></div>}
           >
             <div class="relative h-full">
               <VerticalFeed
@@ -335,9 +466,19 @@ export function HomeVideoFeed(props: HomeVideoFeedProps) {
                 posts={[...posts()]}
                 autoplay={autoplay()}
                 renderPlaceholder={id => {
-                  const item = () => delivery().find(entry => `delivery:${entry.postId}` === id);
-                  return <Show when={item()} fallback={<div class="grid h-full place-items-center px-4 text-white"><AgeAccessPrompt verify={props.verifyAge} onStart={() => { ageVerificationActive = true; setAutoplay(false); }} onFinish={() => { ageVerificationActive = false; }} onVerified={refreshAuthorized} /></div>}>
-                    {entry => <article class="grid h-full content-center gap-3 px-4 py-8 text-white"><VideoPlayer requiresAgeVerification={entry().requiresAgeVerification} postId={entry().postId} state={entry().state} /><Show when={entry().caption}>{caption => <p>{caption()}</p>}</Show><Show when={entry().songPostId}>{(songPostId) => <StudyAction load={props.loadStudyAvailability ?? studyAvailability} navigate={props.navigate} songPostId={songPostId()} />}</Show><a href={entry().href}>View post</a></article>}
+                  const entry = () => delivery().find(candidate => `delivery:${candidate.postId}` === id);
+                  return <Show when={entry()} fallback={<div class="grid h-full place-items-center px-4 text-white"><AgeAccessPrompt verify={props.verifyAge} onStart={() => { ageVerificationActive = true; setAutoplay(false); }} onFinish={() => { ageVerificationActive = false; }} onVerified={refreshAuthorized} /></div>}>
+                    {video => (
+                      <FeedVideoCard
+                        entry={video()}
+                        loadStudyAvailability={props.loadStudyAvailability ?? studyAvailability}
+                        attachPlayback={props.attachPlayback}
+                        mintPlaybackAccess={props.mintPlaybackAccess}
+                        navigate={props.navigate}
+                        posterPath={props.posterPath}
+                        resolveSongLink={props.resolveSongLink ?? feedSongLinks}
+                      />
+                    )}
                   </Show>;
                 }}
               />

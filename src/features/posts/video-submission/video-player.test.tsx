@@ -55,7 +55,7 @@ test("loads a late authorized thumbnail independently of pending playback", asyn
     render(() => <VideoPlayer postId="post" state={{ playback: "pending", thumbnail: thumbnail() }} mint={mint} />, root);
   });
   await flush(); expect(root.querySelector("img")).toBeNull();
-  expect(root.textContent).toContain("The post is published.");
+  expect(root.textContent).toContain("Playback is being prepared.");
   expect(root.textContent).not.toContain("upload it again");
   ready(); await flush();
   expect(root.querySelector("img")?.getAttribute("src")).toBe("/api/posts/post/video/poster");
