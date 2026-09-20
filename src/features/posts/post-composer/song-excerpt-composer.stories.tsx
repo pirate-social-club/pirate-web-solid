@@ -1,14 +1,12 @@
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 
-import { KaraokeAvailabilityError } from "../../karaoke/karaoke-api";
-import { KaraokeApiError } from "../../karaoke/karaoke-session-bridge";
 import { SongExcerptComposer } from "./song-excerpt-composer";
 import {
   parseStoredExcerptDraft,
   type SongExcerptDraft,
   type SongExcerptDraftStore,
 } from "./song-excerpt-draft";
-import type { SongPayloadReader } from "./song-excerpt-source";
+import { SongSourceError, type SongSourceReader } from "./song-excerpt-source";
 
 /** A stand-in for a real song's canonical audio, generated here in the story.
  *
@@ -78,9 +76,13 @@ function memoryStore(): SongExcerptDraftStore {
   };
 }
 
-function standInReader(title: string, durationMs: number): SongPayloadReader {
+function standInReader(title: string, durationMs: number): SongSourceReader {
   const audioUrl = toneWavUrl(durationMs);
-  return async () => ({ instrumental_audio_url: audioUrl, title });
+  return async request => ({
+    postId: request.kind === "post" ? request.postId : "resolved-from-slug",
+    audioUrl,
+    title,
+  });
 }
 
 const meta = {
@@ -91,7 +93,7 @@ const meta = {
     docs: {
       description: {
         component:
-          "Choosing a real song by link, hearing the selected excerpt of its canonical audio, adjusting it, and reopening the draft with the exact bounds restored. A link is the temporary way in because no catalogue operation exists to browse songs yet; a /p/<post id> link or a bare post id resolves through the Karaoke payload, which is the same read the Karaoke surface plays. A slug link is reported as unsupported rather than guessed at. The composer never substitutes a fixture: loading, unavailable and error are shown as themselves. In these stories the payload read is stood in for, because Storybook has no session and no reachable audio host — the post ids and the tone are not real, and the story that fails is failing deliberately. What a playable full mix proves is narrow: an audio source exists. It does not establish permission to render that audio into a published video or to cut an MP3 from it, so both actions are shown as unavailable and the owner-policy checks behind them remain unbuilt. What is real everywhere is the selection: integer milliseconds from the bounds module, retained against the song post's id and restored unchanged.",
+          "Choosing a real song by an ordinary post link, hearing the fixed window of its full mix, and keeping it with the video draft automatically. The audio is the song playback access grant, the same read the song player uses; it needs nothing from Karaoke. A slug link, a /p/<post id> link and a bare post id all resolve. The composer never substitutes a fixture: loading, unavailable and error are shown as themselves. In these stories the read is stood in for, because Storybook has no session and no reachable audio host — the post ids and the tone are not real, and the story that fails is failing deliberately. What a playable full mix proves is narrow: an audio source exists. Permission to render that audio into a published video is the server's separate decision and is asked through the preflight, never inferred here. What is real everywhere is the selection: one fixed-length window from the bounds module, retained against the song post's id and restored unchanged.",
       },
     },
   },
@@ -100,7 +102,7 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-/** The whole slice. Paste `/p/abc123def456` — or any post id — and load. */
+/** The whole slice. Paste a song post link, a `/p/<post id>` link or a bare post id. */
 export const ChooseHearAndRetain: Story = {
   render: () => (
     <SongExcerptComposer
@@ -133,7 +135,7 @@ export const Loading: Story = {
 export const NoAudioYet: Story = {
   render: () => (
     <SongExcerptComposer
-      read={async () => ({ instrumental_audio_url: null, title: "Still processing" })}
+      read={async request => ({ postId: request.kind === "post" ? request.postId : "slug", audioUrl: "", title: "Still processing" })}
       store={memoryStore()}
     />
   ),
@@ -152,25 +154,26 @@ export const FailedToLoad: Story = {
   ),
 };
 
-/** Still being prepared. Retrying can change this answer, so a retry is
+/** The song is missing or unpublished. Retrying cannot change it, so none is
  * offered. */
-export const StillProcessing: Story = {
+export const SongUnavailable: Story = {
   render: () => (
     <SongExcerptComposer
       read={async () => {
-        throw new KaraokeAvailabilityError("processing", "still_processing");
+        throw new SongSourceError("not_found", "Song not found", false);
       }}
       store={memoryStore()}
     />
   ),
 };
 
-/** No karaoke audio at all. Retrying cannot change it, so none is offered. */
-export const NoKaraokeAudio: Story = {
+/** Playback access is switched off. A different problem from a missing song,
+ * and not fixed by changing the link. */
+export const PlaybackUnavailable: Story = {
   render: () => (
     <SongExcerptComposer
       read={async () => {
-        throw new KaraokeAvailabilityError("unavailable", "no_karaoke");
+        throw new SongSourceError("playback_unavailable", "off", false);
       }}
       store={memoryStore()}
     />
@@ -182,7 +185,7 @@ export const AgeRestricted: Story = {
   render: () => (
     <SongExcerptComposer
       read={async () => {
-        throw new KaraokeApiError("age_locked", "Age verification is required.", 403, false);
+        throw new SongSourceError("age_restricted", "locked", false);
       }}
       store={memoryStore()}
     />
@@ -194,8 +197,9 @@ export const AgeRestricted: Story = {
 export const AudioWontPlay: Story = {
   render: () => (
     <SongExcerptComposer
-      read={async () => ({
-        instrumental_audio_url: "https://audio.invalid/missing.mp3",
+      read={async request => ({
+        postId: request.kind === "post" ? request.postId : "slug",
+        audioUrl: "https://audio.invalid/missing.mp3",
         title: "A song whose audio moved",
       })}
       store={memoryStore()}

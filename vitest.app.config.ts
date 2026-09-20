@@ -102,6 +102,7 @@ export default defineConfig({
       "src/features/posts/video-submission/video-player.test.tsx",
       "src/features/posts/video-submission/video-composer-runtime.test.tsx",
       "src/features/posts/video-submission/song-reference.test.ts",
+      "src/features/posts/video-submission/clip-duration.test.ts",
       "src/features/posts/post-composer/song-excerpt.test.ts",
       "src/features/posts/post-composer/song-excerpt-draft.test.ts",
       "src/features/posts/post-composer/song-excerpt-link.test.ts",

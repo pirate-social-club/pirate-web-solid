@@ -201,8 +201,14 @@ function CaptureSideAction(props: {
 
 export interface OriginalVideoReviewSurfaceProps {
   readonly preview?: JSX.Element;
+  readonly previewNote?: JSX.Element;
   readonly caption?: string;
   readonly submitting?: boolean;
+  /** What this video carries, when the composer knows it differs from a plain
+   *  original-audio video. Defaults describe the original-audio case. */
+  readonly sourceValue?: string;
+  readonly rightsValue?: string;
+  readonly rightsNote?: string;
   readonly onBack?: () => void;
   readonly onCaptionChange?: (value: string) => void;
   readonly onPublish?: () => void;
@@ -236,16 +242,19 @@ export function OriginalVideoReviewSurface(props: OriginalVideoReviewSurfaceProp
       )}
     >
       <div class="mx-auto grid w-full max-w-4xl gap-6 p-4 md:grid-cols-[minmax(15rem,22rem)_1fr] md:p-6">
-        <div class="relative mx-auto aspect-[9/16] h-auto max-h-[58dvh] w-full max-w-sm overflow-hidden rounded-[var(--radius-2xl)] bg-gradient-to-b from-[#262a30] to-[#0d0f12]">
-          <Show when={props.preview} fallback={
-          <IconButton
-            aria-label="Play video preview"
-            class="absolute left-1/2 top-1/2 size-16 -translate-x-1/2 -translate-y-1/2 bg-black/60"
-            variant="secondary"
-          >
-            <IconPlay class="size-7" />
-          </IconButton>
-          }>{props.preview}</Show>
+        <div class="grid gap-3">
+          <div class="relative mx-auto aspect-[9/16] h-auto max-h-[58dvh] w-full max-w-sm overflow-hidden rounded-[var(--radius-2xl)] bg-gradient-to-b from-[#262a30] to-[#0d0f12]">
+            <Show when={props.preview} fallback={
+            <IconButton
+              aria-label="Play video preview"
+              class="absolute left-1/2 top-1/2 size-16 -translate-x-1/2 -translate-y-1/2 bg-black/60"
+              variant="secondary"
+            >
+              <IconPlay class="size-7" />
+            </IconButton>
+            }>{props.preview}</Show>
+          </div>
+          <Show when={props.previewNote}>{note => <div>{note()}</div>}</Show>
         </div>
 
         <div class="space-y-5">
@@ -264,12 +273,12 @@ export function OriginalVideoReviewSurface(props: OriginalVideoReviewSurfaceProp
           <section class="space-y-3" aria-labelledby="video-settings-heading">
             <Type as="h2" id="video-settings-heading" variant="body-strong">Settings</Type>
             <div class="divide-y divide-border-soft rounded-[var(--radius-2xl)] border border-border-soft bg-card px-4">
-              <ReadOnlySetting label="Source" value="Original audio" />
+              <ReadOnlySetting label="Source" value={props.sourceValue ?? "Original audio"} />
               <ReadOnlySetting label="Poster" value="Generated after upload" />
-              <ReadOnlySetting label="Rights" value="Recorded soundtrack · checked before publishing" />
+              <ReadOnlySetting label="Rights" value={props.rightsValue ?? "Recorded soundtrack · checked before publishing"} />
             </div>
             <FormNote tone="muted">
-              The soundtrack in this video is published as its original sound. A known recording may require a different posting flow or manual review.
+              {props.rightsNote ?? "The soundtrack in this video is published as its original sound. A known recording may require a different posting flow or manual review."}
             </FormNote>
           </section>
         </div>

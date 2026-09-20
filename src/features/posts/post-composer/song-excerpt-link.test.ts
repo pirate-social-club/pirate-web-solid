@@ -1,7 +1,5 @@
 import { describe, expect, it } from "vitest";
 
-import { KaraokeAvailabilityError } from "../../karaoke/karaoke-api";
-import { KaraokeApiError } from "../../karaoke/karaoke-session-bridge";
 import { makeSongExcerptDraft, SONG_EXCERPT_DRAFT_VERSION } from "./song-excerpt-draft";
 import {
   createLocalExcerptDraftStore,
@@ -9,7 +7,7 @@ import {
   SongExcerptDraftUnwritable,
 } from "./song-excerpt-draft-store";
 import { parseSongLink } from "./song-excerpt-link";
-import { loadSongSource } from "./song-excerpt-source";
+import { loadSongSource, SongSourceError, type SongSourceRequest } from "./song-excerpt-source";
 
 describe("choosing a song by link", () => {
   it("accepts a post-id link in the form the app actually routes", () => {
@@ -23,16 +21,26 @@ describe("choosing a song by link", () => {
     }
   });
 
-  it("accepts a bare post id, since that is what the payload read takes", () => {
+  it("accepts a bare post id, since that is what the playback access takes", () => {
     expect(parseSongLink("  abc123def456  ")).toEqual({ kind: "post", postId: "abc123def456" });
   });
 
-  it("says a slug link is unsupported rather than guessing a post id from it", () => {
-    // Guessing here would produce a confident failure at the payload read; the
-    // slug lookup is a different call this increment does not make.
-    const result = parseSongLink("https://pirate.sc/posts/some-song-slug");
+  it("accepts an ordinary song post link and resolves the slug instead of rejecting it", () => {
+    // The public post read answers the id from a slug, so this is no longer a
+    // second, unsupported lookup.
+    for (const link of [
+      "https://pirate.sc/posts/some-song-slug",
+      "/posts/some-song-slug",
+      "pirate.sc/posts/some-song-slug/study",
+    ]) {
+      expect(parseSongLink(link)).toEqual({ kind: "slug", slug: "some-song-slug" });
+    }
+  });
+
+  it("refuses a posts path with no usable slug rather than guessing one", () => {
+    const result = parseSongLink("https://pirate.sc/posts/%2F");
     expect(result.kind).toBe("unsupported");
-    if (result.kind === "unsupported") expect(result.reason).toContain("slug");
+    if (result.kind === "unsupported") expect(result.reason.length).toBeGreaterThan(0);
   });
 
   it("refuses empty, unrelated and malformed input with something to act on", () => {
@@ -45,32 +53,47 @@ describe("choosing a song by link", () => {
 });
 
 describe("resolving a song post into a playable source", () => {
-  it("is ready when the payload carries audio", async () => {
-    const state = await loadSongSource("abc123def456", async () => ({
-      instrumental_audio_url: "https://audio.example/full-mix.mp3",
-      title: "A real song",
-    }));
+  const read = (
+    result: { audioUrl: string; postId: string; title: string | null },
+  ) => async (request: SongSourceRequest) => ({
+    ...result,
+    postId: request.kind === "post" ? request.postId : result.postId,
+  });
+
+  it("is ready when playback access names the full mix", async () => {
+    const state = await loadSongSource(
+      { kind: "post", postId: "abc123def456" },
+      read({ audioUrl: "https://audio.example/full-mix", postId: "abc123def456", title: "A real song" }),
+    );
     expect(state).toEqual({
       kind: "ready",
-      audioUrl: "https://audio.example/full-mix.mp3",
+      audioUrl: "https://audio.example/full-mix",
       postId: "abc123def456",
       title: "A real song",
     });
   });
 
-  it("is unavailable, not ready, when the payload has no audio", async () => {
-    // A song whose audio is still processing is a state to show plainly, not a
-    // failure and not something to substitute a fixture for.
-    const state = await loadSongSource("abc123def456", async () => ({
-      instrumental_audio_url: null,
-      title: "Still processing",
+  it("resolves a slug read to the post id the rest of the flow uses", async () => {
+    const state = await loadSongSource({ kind: "slug", slug: "some-song-slug" }, read({
+      audioUrl: "https://audio.example/full-mix",
+      postId: "resolved-post-id",
+      title: "Resolved",
     }));
+    if (state.kind === "ready") expect(state.postId).toBe("resolved-post-id");
+    else throw new Error("expected a ready song");
+  });
+
+  it("is unavailable, not ready, when no playback audio is named", async () => {
+    const state = await loadSongSource(
+      { kind: "post", postId: "abc123def456" },
+      read({ audioUrl: "", postId: "abc123def456", title: "No audio" }),
+    );
     expect(state.kind).toBe("unavailable");
     if (state.kind === "unavailable") expect(state.reason).toContain("no playable audio");
   });
 
   it("reports an error without leaking what threw", async () => {
-    const state = await loadSongSource("abc123def456", async () => {
+    const state = await loadSongSource({ kind: "post", postId: "abc123def456" }, async () => {
       throw new Error("GET https://api.internal/communities/x/posts/y 403 token=secret");
     });
     expect(state.kind).toBe("error");
@@ -84,7 +107,7 @@ describe("resolving a song post into a playable source", () => {
   it("distinguishes a cancelled load from a failed one", async () => {
     const aborted = new Error("aborted");
     aborted.name = "AbortError";
-    const state = await loadSongSource("abc123def456", async () => {
+    const state = await loadSongSource({ kind: "post", postId: "abc123def456" }, async () => {
       throw aborted;
     });
     expect(state.kind).toBe("error");
@@ -92,64 +115,51 @@ describe("resolving a song post into a playable source", () => {
   });
 
   it("falls back to a placeholder title rather than showing nothing", async () => {
-    const state = await loadSongSource("abc123def456", async () => ({
-      instrumental_audio_url: "https://audio.example/full-mix.mp3",
-      title: "",
-    }));
+    const state = await loadSongSource(
+      { kind: "post", postId: "abc123def456" },
+      read({ audioUrl: "https://audio.example/full-mix", postId: "abc123def456", title: "" }),
+    );
     if (state.kind === "ready") expect(state.title).toBe("Untitled song");
   });
 });
 
 describe("telling the refusals apart", () => {
-  // The real error types, not stand-ins: what matters is that the states this
-  // surface shows follow from what the Karaoke read actually throws.
-  const refuse = (error: Error) => loadSongSource("abc123def456", async () => { throw error; });
+  const refuse = (error: Error) =>
+    loadSongSource({ kind: "post", postId: "abc123def456" }, async () => {
+      throw error;
+    });
 
-  it("says a song still being prepared is unavailable for now, and offers a retry", async () => {
-    const state = await refuse(new KaraokeAvailabilityError("processing", "still_processing"));
+  it("says a missing or unpublished song will not become available by retrying", async () => {
+    const state = await refuse(new SongSourceError("not_found", "Song not found", false));
     expect(state.kind).toBe("unavailable");
     if (state.kind === "unavailable") {
-      expect(state.reason).toContain("still being prepared");
-      expect(state.retryable).toBe(true);
+      expect(state.reason).toContain("isn’t available to play");
+      expect(state.retryable).toBe(false);
     }
   });
 
-  it("says a song with no karaoke audio will not become available by retrying", async () => {
-    const state = await refuse(new KaraokeAvailabilityError("unavailable", "no_karaoke"));
+  it("says playback being switched off is a different problem from a missing song", async () => {
+    const state = await refuse(new SongSourceError("playback_unavailable", "off", false));
     expect(state.kind).toBe("unavailable");
     if (state.kind === "unavailable") {
-      expect(state.reason).toContain("no karaoke audio");
+      expect(state.reason).toContain("isn’t available yet");
       expect(state.retryable).toBe(false);
     }
   });
 
   it("keeps age restriction separate, because it is about the viewer not the song", async () => {
-    const state = await refuse(
-      new KaraokeApiError("age_locked", "Age verification is required for this song.", 403, false),
-    );
+    const state = await refuse(new SongSourceError("age_restricted", "locked", false));
     expect(state.kind).toBe("restricted");
     if (state.kind === "restricted") expect(state.reason).toContain("age restricted");
   });
 
-  it("gives the three refusals three different meanings", async () => {
-    const [processing, unavailable, restricted] = await Promise.all([
-      refuse(new KaraokeAvailabilityError("processing", "still_processing")),
-      refuse(new KaraokeAvailabilityError("unavailable", "no_karaoke")),
-      refuse(new KaraokeApiError("age_locked", "Age verification is required.", 403, false)),
-    ]);
-    const reasons = [processing, unavailable, restricted].map((state) =>
-      "reason" in state ? state.reason : "",
-    );
-    expect(new Set(reasons).size).toBe(3);
-  });
-
-  it("does not offer a retry for a failure the API called final", async () => {
-    const state = await refuse(new KaraokeApiError("invalid_karaoke_response", "bad", 502, false));
-    expect(state.kind).toBe("error");
-    if (state.kind === "error") {
-      expect(state.retryable).toBe(false);
-      expect(state.reason).not.toContain("invalid_karaoke_response");
-    }
+  it("offers a retry for a rate limit and not for a final refusal", async () => {
+    const limited = await refuse(new SongSourceError("rate_limited", "slow down", true));
+    expect(limited.kind).toBe("error");
+    if (limited.kind === "error") expect(limited.retryable).toBe(true);
+    const failed = await refuse(new SongSourceError("read_failed", "bad", false));
+    expect(failed.kind).toBe("error");
+    if (failed.kind === "error") expect(failed.retryable).toBe(false);
   });
 });
 

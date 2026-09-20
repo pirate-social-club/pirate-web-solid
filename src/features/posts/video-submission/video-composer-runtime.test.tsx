@@ -4,14 +4,22 @@ import { createRoot } from "solid-js";
 import { webcrypto } from "node:crypto";
 import { ApiClientError } from "@pirate/api-client";
 import { afterEach, describe, expect, test, vi } from "vitest";
-import { VideoComposerRuntime } from "./video-composer-runtime";
+import { VideoComposerRuntime, type GuideAudio } from "./video-composer-runtime";
+import type { OriginalVideoCaptureInput, VideoCaptureSession } from "./capture";
 import type { PendingVideo, VideoStorage } from "./coordinator";
 import type { VideoCommand, VideoTransport } from "./transport";
 import type { OriginalVideoReservation, VideoSnapshot } from "./contracts";
 import type { SongIntervalPreflight } from "./song-reference";
+import type { SongSourceReader } from "../post-composer/song-excerpt-source";
 
 const disposers: (() => void)[] = [];
-afterEach(() => { for (const dispose of disposers.splice(0)) dispose(); document.body.replaceChildren(); vi.unstubAllGlobals(); });
+/** The injected capture entry point: tests place the next session here. */
+let nextSession: (() => VideoCaptureSession) | undefined;
+const startCapture = vi.fn(async (_input: OriginalVideoCaptureInput) => {
+  if (!nextSession) throw new Error("this test did not stage a capture session");
+  return nextSession();
+});
+afterEach(() => { for (const dispose of disposers.splice(0)) dispose(); document.body.replaceChildren(); nextSession = undefined; startCapture.mockClear(); vi.unstubAllGlobals(); });
 function setup(final: "published" | "manual_review" | "provider_submission_unconfirmed" | "membership_required", rejectKind?: "reserve" | "start", beforeExecute?: (command: VideoCommand) => Promise<void>) {
   vi.stubGlobal("crypto", webcrypto);
   const urlApi = class extends URL { static createObjectURL() { return "blob:https://example.test/video"; } static revokeObjectURL() {} };
@@ -105,7 +113,7 @@ test("unmount during reservation preserves it without starting upload", async ()
   expect(fixture.published).not.toHaveBeenCalled();
 });
 
-describe("mounted song-backed video flow", () => {
+describe("mounted song-first video flow", () => {
   const ready = (interval: { accepted: true } | { accepted: false; reason: "interval_too_long" } | null) => ({
     state: "ready" as const, song_post_id: "song-post", audio_revision: 7, canonical_duration_samples: 10_080_047,
     interval_policy: { policy_revision: 1, sample_rate_hz: 48_000 as const, min_clip_duration_samples: 144_000, max_clip_duration_samples: 8_640_000 },
@@ -117,17 +125,37 @@ describe("mounted song-backed video flow", () => {
 
   function songSetup(options: {
     readonly preflight: "unavailable" | "accepted" | "refused" | "pending";
-    readonly reserve?: "echo" | "unavailable" | "different_excerpt";
+    readonly reserve?: "echo" | "different_excerpt";
     readonly finalSnapshot?: "published" | "song_blocked";
-    readonly draft?: { readonly startMs: number; readonly endMs: number };
-    readonly seedDraft?: boolean;
-    readonly reader?: "ready" | "pending" | "failed";
+    readonly reader?: "ready" | "failed";
+    /** What the injected duration measurement answers for the chosen file. */
+    readonly clipDurationMs?: number | null;
+    /** The audio element's length, when the injected metadata reports one. */
+    readonly elementSeconds?: number;
+    readonly initialSong?: boolean;
+    readonly mobile?: boolean;
+    readonly createGuideAudio?: (url: string) => GuideAudio;
   }) {
     vi.stubGlobal("crypto", webcrypto);
     vi.stubGlobal("URL", class extends URL { static createObjectURL() { return "blob:https://example.test/video"; } static revokeObjectURL() {} });
-    const draft = options.draft ?? { startMs: 31_000, endMs: 43_000 };
-    if (options.seedDraft !== false) {
-      localStorage.setItem("song-excerpt-draft:account", JSON.stringify({ version: "song-excerpt-draft-v2", songPostId: "song-post", ...draft }));
+    if (options.mobile) {
+      // jsdom validates srcObject assignments against its own media element
+      // implementation; the viewfinder preview only needs the assignment to
+      // stick, and no media decoding happens in these tests.
+      for (const prototype of [HTMLMediaElement.prototype, HTMLVideoElement.prototype]) {
+        try {
+          Object.defineProperty(prototype, "srcObject", {
+            configurable: true,
+            get(this: { _testSrcObject?: unknown }) { return this._testSrcObject; },
+            set(this: { _testSrcObject?: unknown }, value: unknown) { this._testSrcObject = value; },
+          });
+        } catch { /* the real accessor stays in place */ }
+      }
+      vi.stubGlobal("matchMedia", (query: string) => ({
+        matches: true, media: query, onchange: null,
+        addEventListener: () => {}, removeEventListener: () => {},
+        addListener: () => {}, removeListener: () => {}, dispatchEvent: () => false,
+      }));
     }
     let saved: PendingVideo | null = null;
     const storage: VideoStorage = { async exclusive(work) { return work(); }, async load() { return saved; }, async save(record) { saved = record; }, async remove() { saved = null; } };
@@ -152,7 +180,6 @@ describe("mounted song-backed video flow", () => {
         const body = command.input.body;
         if (body.track !== "video") throw new Error("not a video");
         if (body.intent === "original_audio") return { ...base, intent: "original_audio" };
-        if (options.reserve === "unavailable") throw unavailable();
         const interval = { clip_start_samples: body.clip_start_samples, clip_duration_samples: body.clip_duration_samples, song_duration_samples: 10_080_047 };
         const echoed = {
           ...base, intent: "song_reference" as const,
@@ -169,239 +196,237 @@ describe("mounted song-backed video flow", () => {
       return snapshot;
     } };
     const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(new Response(null, { headers: { etag: "receipt" } }));
-    const songReader = options.reader === "pending"
-      ? async () => new Promise<never>(() => {})
-      : options.reader === "failed"
-        ? async () => { throw new Error("read failed"); }
-        : async () => ({ instrumental_audio_url: "https://audio.example/song.mp3", title: "A song" });
+    const songReader: SongSourceReader = options.reader === "failed"
+      ? async () => { throw new Error("read failed"); }
+      : async request => ({
+        postId: request.kind === "post" ? request.postId : "song-post",
+        audioUrl: "https://audio.example/song.mp3",
+        title: "A song",
+      });
     const container = document.createElement("div"); document.body.appendChild(container);
     createRoot(dispose => { disposers.push(() => { dispose(); localStorage.clear(); }); render(() => <VideoComposerRuntime principalId="account" communityId="community" personaId="persona"
       storage={storage} transport={transport} inspectFile={async file => file} fetchImpl={fetchImpl}
+      measureDuration={async () => options.clipDurationMs ?? null}
+      startCapture={startCapture}
+      createGuideAudio={options.createGuideAudio}
       songPreflight={preflight} songReader={songReader}
+      initialSong={options.initialSong === false ? undefined : { postId: "song-post" }}
       onExit={() => {}} onRetainedPersona={() => {}} />, container); });
     return { commands, preflightCalls, fetchImpl, current: () => saved };
   }
 
   const button = (label: string) => [...document.querySelectorAll("button")].find(candidate => candidate.textContent?.trim() === label);
   const plan = () => document.querySelector("[data-song-plan]");
-  async function chooseVideo() {
+  async function loadSongMetadata(seconds = 210) {
+    await vi.waitFor(() => expect(document.querySelector("audio")).not.toBeNull());
+    const audio = document.querySelector("audio")!;
+    Object.defineProperty(audio, "duration", { configurable: true, value: seconds });
+    audio.dispatchEvent(new Event("loadedmetadata"));
+  }
+  async function awaitPlan(kind: string) {
+    await vi.waitFor(() => expect(plan()?.getAttribute("data-song-plan")).toBe(kind), { timeout: 3_000 });
+  }
+  async function chooseFile() {
     await vi.waitFor(() => expect(document.querySelector("[inert]")).toBeNull());
     const input = document.querySelector<HTMLInputElement>('input[type="file"]')!;
     Object.defineProperty(input, "files", { configurable: true, value: [new File(["video"], "take.mp4", { type: "video/mp4" })] });
     input.dispatchEvent(new Event("change", { bubbles: true }));
-    await vi.waitFor(() => expect(document.querySelector('input[aria-label="Song link or post id"]')).not.toBeNull());
-  }
-  async function chooseVideoAndSong(element: { readonly seconds: number; readonly afterServerTiming: boolean } = { seconds: 210, afterServerTiming: false }) {
-    await chooseVideo();
-    const link = document.querySelector<HTMLInputElement>('input[aria-label="Song link or post id"]')!;
-    link.value = "song-post"; link.dispatchEvent(new InputEvent("input", { bubbles: true }));
-    // Typing and tapping are separate tasks for a person; a signal written in
-    // one is read in the next.
-    await new Promise(resolve => setTimeout(resolve, 0));
-    button("Load")!.click();
-    await vi.waitFor(() => expect(document.querySelector("audio")).not.toBeNull());
-    if (element.afterServerTiming) await vi.waitFor(() => expect(document.body.textContent).toContain("Bounded by the server’s measured length"));
-    // The element's own length, as a browser would report it once metadata loads.
-    const audio = document.querySelector("audio")!;
-    Object.defineProperty(audio, "duration", { configurable: true, value: element.seconds });
-    audio.dispatchEvent(new Event("loadedmetadata"));
-  }
-  async function loadSong(songPostId: string) {
-    const link = document.querySelector<HTMLInputElement>('input[aria-label="Song link or post id"]')!;
-    link.value = songPostId; link.dispatchEvent(new InputEvent("input", { bubbles: true }));
-    // Typing and tapping are separate tasks for a person; a signal written in
-    // one is read in the next.
-    await new Promise(resolve => setTimeout(resolve, 0));
-    button("Load")!.click();
+    await vi.waitFor(() => expect(document.querySelector("textarea")).not.toBeNull());
   }
   async function publish() {
     const control = button("Publish video")!;
     await vi.waitFor(() => expect(control.disabled).toBe(false)); control.click();
   }
 
-  test("with the capability off, a retained excerpt blocks publishing until the author chooses the video's own sound", async () => {
-    const fixture = songSetup({ preflight: "unavailable" });
-    await chooseVideoAndSong();
-    await vi.waitFor(() => expect(plan()?.getAttribute("data-song-plan")).toBe("not_available"));
-    expect(plan()?.textContent).toContain("Posting a video to a song isn’t available yet");
-    await publish();
-    await vi.waitFor(() => expect(document.body.textContent).toContain("hasn’t been accepted"));
-    expect(fixture.commands).toHaveLength(0);
-    button("Use original sound")!.click();
-    await publish();
-    await vi.waitFor(() => expect(fixture.commands.map(command => command.kind)).toEqual(["reserve", "start", "finalize"]));
-    expect(fixture.commands[0]?.input.body).toMatchObject({ intent: "original_audio" });
-    expect(fixture.commands[0]?.input.body).not.toHaveProperty("song_post_id");
-    expect(JSON.parse(localStorage.getItem("song-excerpt-draft:account") ?? "null")).toMatchObject({ songPostId: "song-post", startMs: 31_000, endMs: 43_000 });
-  });
-
-  test("loading a song blocks publishing before any excerpt is retained", async () => {
-    const fixture = songSetup({ preflight: "accepted", seedDraft: false });
-    await chooseVideoAndSong();
-    await vi.waitFor(() => expect(plan()?.getAttribute("data-song-plan")).toBe("none"));
-    expect(plan()?.textContent).toContain("A song is chosen");
-    await publish();
-    await vi.waitFor(() => expect(document.body.textContent).toContain("hasn’t been accepted"));
-    expect(fixture.commands).toHaveLength(0);
-    button("Use original sound")!.click();
-    await publish();
-    await vi.waitFor(() => expect(fixture.commands.map(command => command.kind)).toEqual(["reserve", "start", "finalize"]));
-    expect(fixture.commands[0]?.input.body).toMatchObject({ intent: "original_audio" });
-    expect(fixture.commands[0]?.input.body).not.toHaveProperty("song_post_id");
-  });
-
-  test("publishing is blocked while the first song load is unresolved", async () => {
-    const fixture = songSetup({ preflight: "accepted", reader: "pending" });
-    await chooseVideo();
-    await loadSong("song-pending");
-    await vi.waitFor(() => expect(document.body.textContent).toContain("Loading that song…"));
-    await publish();
-    await vi.waitFor(() => expect(document.body.textContent).toContain("hasn’t been accepted"));
-    expect(fixture.commands).toHaveLength(0);
-    button("Use original sound")!.click();
-    await publish();
-    await vi.waitFor(() => expect(fixture.commands.map(command => command.kind)).toEqual(["reserve", "start", "finalize"]));
-    expect(fixture.commands[0]?.input.body).toMatchObject({ intent: "original_audio" });
-  });
-
-  test("a failed first song load still blocks publishing until the author chooses original sound", async () => {
-    const fixture = songSetup({ preflight: "accepted", reader: "failed" });
-    await chooseVideo();
-    await loadSong("song-missing");
-    await vi.waitFor(() => expect(document.body.textContent).toContain("That song could not be loaded"));
-    await publish();
-    await vi.waitFor(() => expect(document.body.textContent).toContain("hasn’t been accepted"));
-    expect(fixture.commands).toHaveLength(0);
-    button("Use original sound")!.click();
-    await publish();
-    await vi.waitFor(() => expect(fixture.commands.map(command => command.kind)).toEqual(["reserve", "start", "finalize"]));
-    expect(fixture.commands[0]?.input.body).toMatchObject({ intent: "original_audio" });
-  });
-
-  test("switching songs keeps publishing blocked until the new excerpt is accepted", async () => {
+  test("the excerpt is chosen before any clip, and the capture surface sits below it", async () => {
     const fixture = songSetup({ preflight: "accepted" });
-    await chooseVideoAndSong();
-    await vi.waitFor(() => expect(plan()?.getAttribute("data-song-plan")).toBe("ready"));
-    await loadSong("song-two");
-    await vi.waitFor(() => expect(fixture.preflightCalls).toContainEqual({ song_post_id: "song-two" }));
-    await vi.waitFor(() => expect(plan()?.getAttribute("data-song-plan")).toBe("none"));
-    expect(plan()?.textContent).toContain("A song is chosen");
-    await publish();
-    await vi.waitFor(() => expect(document.body.textContent).toContain("hasn’t been accepted"));
-    expect(fixture.commands).toHaveLength(0);
-    button("Use original sound")!.click();
-    await publish();
-    await vi.waitFor(() => expect(fixture.commands.map(command => command.kind)).toEqual(["reserve", "start", "finalize"]));
-    expect(fixture.commands[0]?.input.body).toMatchObject({ intent: "original_audio" });
-  });
-
-  test("explicit original-sound mode publishes while the excerpt is still being checked", async () => {
-    const fixture = songSetup({ preflight: "pending" });
-    await chooseVideoAndSong();
-    await vi.waitFor(() => expect(plan()?.getAttribute("data-song-plan")).toBe("checking"));
-    await publish();
-    await vi.waitFor(() => expect(document.body.textContent).toContain("is still being checked"));
-    expect(fixture.commands).toHaveLength(0);
-    button("Use original sound")!.click();
-    await publish();
-    await vi.waitFor(() => expect(fixture.commands.map(command => command.kind)).toEqual(["reserve", "start", "finalize"]));
-    expect(fixture.commands[0]?.input.body).toMatchObject({ intent: "original_audio" });
-  });
-
-  test("a refused excerpt blocks publishing until the author chooses the video's own sound", async () => {
-    const fixture = songSetup({ preflight: "refused" });
-    await chooseVideoAndSong();
-    await vi.waitFor(() => expect(plan()?.getAttribute("data-song-plan")).toBe("refused"));
-    expect(plan()?.textContent).toContain("longer than the server allows");
-    await publish();
-    await vi.waitFor(() => expect(document.body.textContent).toContain("hasn’t been accepted"));
-    expect(fixture.commands).toHaveLength(0);
-    button("Use original sound")!.click();
-    await publish();
-    await vi.waitFor(() => expect(fixture.commands.map(command => command.kind)).toEqual(["reserve", "start", "finalize"]));
-    expect(fixture.commands[0]?.input.body).toMatchObject({ intent: "original_audio" });
-    expect(fixture.commands[0]?.input.body).not.toHaveProperty("song_post_id");
-  });
-
-  test("an accepted excerpt is replaced by the video's own sound only on the author's explicit choice", async () => {
-    const fixture = songSetup({ preflight: "accepted", reserve: "echo" });
-    await chooseVideoAndSong();
-    await vi.waitFor(() => expect(plan()?.getAttribute("data-song-plan")).toBe("ready"));
-    button("Use original sound")!.click();
-    await vi.waitFor(() => expect(button("Use the song instead")).toBeDefined());
-    await publish();
-    await vi.waitFor(() => expect(fixture.commands.map(command => command.kind)).toEqual(["reserve", "start", "finalize"]));
-    expect(fixture.commands[0]?.input.body).toMatchObject({ intent: "original_audio" });
-    expect(fixture.commands[0]?.input.body).not.toHaveProperty("song_post_id");
-    expect(JSON.parse(localStorage.getItem("song-excerpt-draft:account") ?? "null")).toMatchObject({ songPostId: "song-post", startMs: 31_000, endMs: 43_000 });
-  });
-
-  test("without server timing, a retained excerpt is restored against the element's length", async () => {
-    songSetup({ preflight: "unavailable" });
-    await chooseVideoAndSong();
-    await vi.waitFor(() => expect(document.body.textContent).toContain("Restored 31000–43000 ms from the video draft."));
-    expect(document.body.textContent).toContain("start 31000 ms · end 43000 ms");
-  });
-
-  test("an accepted excerpt is reserved as exact samples at the server's revision, and the frozen echo is confirmed", async () => {
-    const fixture = songSetup({ preflight: "accepted", reserve: "echo" });
-    await chooseVideoAndSong();
-    await vi.waitFor(() => expect(plan()?.getAttribute("data-song-plan")).toBe("ready"));
+    // The song loads from the entry without a paste step or a chosen file.
+    await loadSongMetadata();
+    await awaitPlan("ready");
+    expect(document.querySelector("textarea")).toBeNull();
+    expect(document.querySelector('input[aria-label="Song link or post id"]')).toBeNull();
+    expect(document.body.textContent).toContain("A song");
+    expect(document.querySelector("audio")?.getAttribute("src")).toBe("https://audio.example/song.mp3");
     expect(fixture.preflightCalls).toContainEqual({ song_post_id: "song-post" });
-    expect(fixture.preflightCalls).toContainEqual({ song_post_id: "song-post", interval: { clip_start_samples: 1_488_000, clip_duration_samples: 576_000 } });
-    expect(plan()?.textContent).toContain("0:31 to 0:43");
+    // The default window is the opening thirty seconds, and it is dragged as a
+    // whole: the selector exposes one position control, not endpoint resizers.
+    expect(document.querySelector('input[aria-label="Song position, moves the excerpt window"]')).not.toBeNull();
+    expect(document.querySelector('input[aria-label="Excerpt start, resizes the excerpt without moving its end"]')).toBeNull();
+    // The recording that will carry it is the same length; nothing has been
+    // uploaded or recorded yet.
+    expect(fixture.commands).toHaveLength(0);
+  });
+
+  test("a clip shorter than the excerpt is rejected locally, with no futile retry", async () => {
+    const fixture = songSetup({ preflight: "accepted", clipDurationMs: 9_000 });
+    await loadSongMetadata();
+    await awaitPlan("ready");
+    await chooseFile();
+    await vi.waitFor(() => expect(document.body.textContent).toContain("cannot be stretched"));
+    await publish();
+    await vi.waitFor(() => expect(document.body.textContent).toContain("cannot be stretched"));
+    expect(fixture.commands).toHaveLength(0);
+    // The choice is not silent: original sound remains an explicit way out.
+    expect(button("Use original sound")).toBeDefined();
+  });
+
+  test("a longer clip says it will be trimmed and publishes with the song", async () => {
+    const fixture = songSetup({ preflight: "accepted", clipDurationMs: 45_000 });
+    await loadSongMetadata();
+    await awaitPlan("ready");
+    await chooseFile();
+    await vi.waitFor(() => expect(document.body.textContent).toContain("trimmed to the excerpt"));
     await publish();
     await vi.waitFor(() => expect(fixture.commands.map(command => command.kind)).toEqual(["reserve", "start", "finalize"]));
     expect(fixture.commands[0]?.input.body).toMatchObject({
       intent: "song_reference", song_post_id: "song-post", audio_revision: 7, selected_from: { kind: "library" },
-      clip_start_samples: 1_488_000, clip_duration_samples: 576_000,
+      clip_start_samples: 0, clip_duration_samples: 30_000 * 48,
     });
-    expect(fixture.current()?.version).toBe("song-video-pending-v1");
-    await vi.waitFor(() => expect(document.body.textContent).toContain("reserved this video as posted to the song, from 0:31 to 0:43"));
   });
 
-  test("the server's canonical length bounds the excerpt, not the audio element's", async () => {
-    // The element reports 212 s; the server measured 210 s. A retained 200-212 s
-    // excerpt is clamped to the canonical end before anything is sent.
-    const fixture = songSetup({ preflight: "accepted", draft: { startMs: 200_000, endMs: 212_000 } });
-    await chooseVideoAndSong({ seconds: 212, afterServerTiming: true });
-    await vi.waitFor(() => expect(plan()?.getAttribute("data-song-plan")).toBe("ready"));
-    expect(fixture.preflightCalls).toContainEqual({ song_post_id: "song-post", interval: { clip_start_samples: 9_600_000, clip_duration_samples: 480_000 } });
-    expect(fixture.preflightCalls).not.toContainEqual(expect.objectContaining({ interval: { clip_start_samples: 9_600_000, clip_duration_samples: 576_000 } }));
-    expect(document.body.textContent).toContain("210000 ms, of audio revision 7");
+  test("review plays the intended soundtrack locally and mutes the captured audio", async () => {
+    songSetup({ preflight: "accepted", clipDurationMs: 40_000 });
+    await loadSongMetadata();
+    await awaitPlan("ready");
+    await chooseFile();
+    await vi.waitFor(() => expect(document.body.textContent).toContain("Local preview with the intended soundtrack"));
+    const video = document.querySelector("video")!;
+    // jsdom does not reflect the media `muted` IDL property; the attribute is
+    // what the browser applies on mount.
+    expect(video.hasAttribute("muted")).toBe(true);
+    expect(document.querySelector('button')?.textContent).toBeDefined();
+    expect(button("Play with the song")).toBeDefined();
+    expect(document.body.textContent).toContain("not the final master");
   });
 
-  test("a reservation refused because the capability is off explains it, and editing publishes own sound", async () => {
-    const fixture = songSetup({ preflight: "accepted", reserve: "unavailable" });
-    await chooseVideoAndSong();
-    await vi.waitFor(() => expect(plan()?.getAttribute("data-song-plan")).toBe("ready"));
+  test("with the capability off, publishing with the song is blocked until the author chooses the video's own sound", async () => {
+    const fixture = songSetup({ preflight: "unavailable" });
+    await loadSongMetadata();
+    await awaitPlan("not_available");
+    await chooseFile();
     await publish();
-    await vi.waitFor(() => expect(document.body.textContent).toContain("Edit the video to publish it with its own sound"));
-    expect(fixture.fetchImpl).not.toHaveBeenCalled();
-    button("Edit rejected video")!.click();
-    await vi.waitFor(() => expect(button("Publish video")).toBeDefined());
+    await vi.waitFor(() => expect(document.body.textContent).toContain("hasn’t been accepted"));
+    expect(fixture.commands).toHaveLength(0);
+    button("Use original sound")!.click();
     await publish();
-    await vi.waitFor(() => expect(fixture.commands.filter(command => command.kind === "reserve")).toHaveLength(2));
-    expect(fixture.commands[1]?.input.body).toMatchObject({ intent: "original_audio" });
+    await vi.waitFor(() => expect(fixture.commands.map(command => command.kind)).toEqual(["reserve", "start", "finalize"]));
+    expect(fixture.commands[0]?.input.body).toMatchObject({ intent: "original_audio" });
+    expect(fixture.commands[0]?.input.body).not.toHaveProperty("song_post_id");
   });
 
-  test("an echo of a different excerpt is a visible failure and nothing is uploaded", async () => {
-    const fixture = songSetup({ preflight: "accepted", reserve: "different_excerpt" });
-    await chooseVideoAndSong();
-    await vi.waitFor(() => expect(plan()?.getAttribute("data-song-plan")).toBe("ready"));
+  test("a refused window blocks publishing with the song and says why", async () => {
+    const fixture = songSetup({ preflight: "refused" });
+    await loadSongMetadata();
+    await awaitPlan("refused");
+    expect(document.body.textContent).toContain("longer than the server allows");
+    await chooseFile();
     await publish();
-    await vi.waitFor(() => expect(document.body.textContent).toContain("confirmed a different song or excerpt"));
-    expect(fixture.commands.map(command => command.kind)).toEqual(["reserve"]);
-    expect(fixture.fetchImpl).not.toHaveBeenCalled();
-    expect(button("Edit rejected video")).toBeDefined();
+    await vi.waitFor(() => expect(document.body.textContent).toContain("hasn’t been accepted"));
+    expect(fixture.commands).toHaveLength(0);
   });
 
-  test("a song video blocked because the song can no longer be used says why", async () => {
-    songSetup({ preflight: "accepted", reserve: "echo", finalSnapshot: "song_blocked" });
-    await chooseVideoAndSong();
-    await vi.waitFor(() => expect(plan()?.getAttribute("data-song-plan")).toBe("ready"));
+  test("with no measurement, the server keeps the final word", async () => {
+    const fixture = songSetup({ preflight: "accepted", clipDurationMs: null });
+    await loadSongMetadata();
+    await awaitPlan("ready");
+    await chooseFile();
     await publish();
-    await vi.waitFor(() => expect(document.body.textContent).toContain("no longer allows videos to be posted to it"));
-    expect(document.body.textContent).toContain("Start a new video");
+    await vi.waitFor(() => expect(fixture.commands.map(command => command.kind)).toEqual(["reserve", "start", "finalize"]));
+    expect(fixture.commands[0]?.input.body).toMatchObject({ intent: "song_reference" });
+  });
+
+  function guideSpy(options: { readonly fails?: boolean } = {}) {
+    const events = new Map<string, () => void>();
+    const calls = { play: 0, pause: 0 };
+    const audio: GuideAudio = {
+      currentTime: 0,
+      play: async () => { calls.play += 1; if (options.fails) throw new Error("not allowed"); },
+      pause: () => { calls.pause += 1; },
+      addEventListener: (type, listener) => { events.set(type, listener); },
+      removeEventListener: (type) => { events.delete(type); },
+    };
+    return { audio, calls, events };
+  }
+  function fakeSession(stopped: () => void): VideoCaptureSession {
+    return {
+      // SAFETY: the viewfinder preview is not what these tests drive, and
+      // jsdom has no MediaStream to give it; the runtime only assigns it.
+      stream: Object.create(null) as MediaStream,
+      stop: async () => { stopped(); return new File(["take"], "take.mp4", { type: "video/mp4" }); },
+      cancel: async () => {},
+    };
+  }
+  async function startRecording() {
+    await vi.waitFor(() => expect(document.querySelector("[inert]")).toBeNull());
+    await vi.waitFor(() => expect(document.querySelector('button[aria-label="Start recording"]')).not.toBeNull());
+    document.querySelector<HTMLButtonElement>('button[aria-label="Start recording"]')!.click();
+  }
+
+  test("recording plays the guide and stops at the excerpt plus its tail guard", async () => {
+    const guide = guideSpy();
+    let stopped = 0;
+    nextSession = () => fakeSession(() => { stopped += 1; });
+    songSetup({ preflight: "accepted", mobile: true, createGuideAudio: () => guide.audio });
+    await loadSongMetadata();
+    await awaitPlan("ready");
+    await startRecording();
+    await vi.waitFor(() => expect(startCapture).toHaveBeenCalledTimes(1));
+    const input = startCapture.mock.calls[0]?.[0];
+    // Thirty seconds of excerpt plus the tail the render discards, so frame
+    // rounding cannot make the take too short.
+    expect(input.limitMs).toBe(30_750);
+    await vi.waitFor(() => expect(guide.calls.play).toBe(1));
+    expect(guide.audio.currentTime).toBe(0);
+    await vi.waitFor(() => expect(document.body.textContent).toContain("Recording to A song"));
+    expect(stopped).toBe(0);
+  });
+
+  test("a guide that will not play cancels the take and says so", async () => {
+    const guide = guideSpy({ fails: true });
+    let stopped = 0;
+    nextSession = () => fakeSession(() => { stopped += 1; });
+    const fixture = songSetup({ preflight: "accepted", mobile: true, createGuideAudio: () => guide.audio });
+    await loadSongMetadata();
+    await awaitPlan("ready");
+    await startRecording();
+    await vi.waitFor(() => expect(document.body.textContent).toContain("guide song would not play"));
+    await vi.waitFor(() => expect(document.body.textContent).toContain("did not start"));
+    expect(stopped).toBe(0);
+    expect(fixture.commands).toHaveLength(0);
+    expect(document.querySelector('button[aria-label="Start recording"]')).not.toBeNull();
+  });
+
+  test("hiding the page ends a guided take rather than letting the sound drift", async () => {
+    const guide = guideSpy();
+    let stopped = 0;
+    nextSession = () => fakeSession(() => { stopped += 1; });
+    songSetup({ preflight: "accepted", mobile: true, createGuideAudio: () => guide.audio });
+    await loadSongMetadata();
+    await awaitPlan("ready");
+    await startRecording();
+    await vi.waitFor(() => expect(guide.calls.play).toBe(1));
+    Object.defineProperty(document, "visibilityState", { configurable: true, value: "hidden" });
+    try {
+      document.dispatchEvent(new Event("visibilitychange"));
+      await vi.waitFor(() => expect(document.body.textContent).toContain("page was hidden"));
+      await vi.waitFor(() => expect(stopped).toBe(1));
+    } finally {
+      Object.defineProperty(document, "visibilityState", { configurable: true, value: "visible" });
+    }
+  });
+
+  test("a song that cannot be read keeps the flow on original sound, by an explicit choice", async () => {
+    const fixture = songSetup({ preflight: "accepted", reader: "failed" });
+    await vi.waitFor(() => expect(document.body.textContent).toContain("could not be loaded"));
+    await chooseFile();
+    // A failed read does not silently replace the author's soundtrack intent;
+    // publishing with the video's own sound is an explicit action.
+    await publish();
+    await vi.waitFor(() => expect(document.body.textContent).toContain("hasn’t been accepted"));
+    expect(fixture.commands).toHaveLength(0);
+    button("Use original sound")!.click();
+    await publish();
+    await vi.waitFor(() => expect(fixture.commands.map(command => command.kind)).toEqual(["reserve", "start", "finalize"]));
+    expect(fixture.commands[0]?.input.body).toMatchObject({ intent: "original_audio" });
   });
 });
