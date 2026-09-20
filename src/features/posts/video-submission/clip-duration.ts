@@ -12,6 +12,23 @@ export const CAPTURE_TAIL_GUARD_MS = 1_250;
  * ordinary frame rounding does not produce a trimming notice. */
 export const TRIM_NOTICE_EPSILON_MS = 500;
 
+/** The admission probe's bound for the transformed take. */
+export const CAPTURE_ADMISSION_LIMIT_MS = 180_000;
+
+/** AAC priming and container rounding sit between the capture length and the
+ * admitted container, so they must be reserved rather than discovered. */
+export const CAPTURE_ADMISSION_MARGIN_MS = 50;
+
+/**
+ * The longest excerpt the guided path can offer and still admit. Recording
+ * runs the excerpt plus the capture tail guard, and the aligned artifact's
+ * container keeps the captured audio, so anything longer predicts a take the
+ * 180-second admission would refuse. This is a supported-length ceiling for
+ * the selector, not a change to the server's own limit.
+ */
+export const SUPPORTED_RECORDED_EXCERPT_MS =
+  CAPTURE_ADMISSION_LIMIT_MS - CAPTURE_TAIL_GUARD_MS - CAPTURE_ADMISSION_MARGIN_MS;
+
 /** How a measured clip's length relates to the chosen excerpt. The server
  * still measures and cuts; this is the local answer that stops an impossible
  * combination from being uploaded just to fail in processing. */
