@@ -2,6 +2,7 @@ import { normalizeIdentityCountryAlpha2 } from "../../verification/nationality-c
 import type { GeneratedLocaleCatalogs } from "../../../locales/generated";
 import type { CommunityPersonaChoice } from "../../identity/community-persona-choice";
 import { randomAvatarSeed } from "./generated-avatar";
+import { generatedPublicName } from "./generated-name";
 
 /**
  * A subset of api-next's `CompiledGateRequirement`
@@ -107,7 +108,8 @@ export interface CreateCommunityDraft {
 export function createEmptyDraft(persona: CommunityPersonaChoice | undefined): CreateCommunityDraft {
   return {
     persona: persona ?? { kind: "create_new" },
-    publicName: "",
+    // Prefilled suggestion per Spec 014 §3.1 as amended 2026-09-20.
+    publicName: generatedPublicName(),
     name: "",
     description: null,
     additionalRequirements: [],

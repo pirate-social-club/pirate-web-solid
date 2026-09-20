@@ -30,7 +30,7 @@ function nameField(container: HTMLElement): HTMLInputElement {
 }
 
 function publicNameField(container: HTMLElement): HTMLInputElement | null {
-  const label = [...container.querySelectorAll("label")].find(value => value.textContent?.trim() === "Public name");
+  const label = [...container.querySelectorAll("label")].find(value => value.textContent?.trim() === "Name in this community");
   return label ? container.querySelector<HTMLInputElement>(`#${CSS.escape(label.htmlFor)}`) : null;
 }
 function fillPublicName(container: HTMLElement) {
@@ -457,8 +457,12 @@ describe("Community creation production route", () => {
     name.value = "Needs a profile";
     name.dispatchEvent(new InputEvent("input", { bubbles: true }));
     await reachProfilePage(container);
-    expect(container.textContent).toContain("Public name");
-    expect(finalSubmit(container)?.disabled).toBe(true);
+    expect(container.textContent).toContain("Name in this community");
+    // The suggestion arrives prefilled; clearing it is what blocks submission.
+    const profileName = publicNameField(container)!;
+    profileName.value = "";
+    profileName.dispatchEvent(new InputEvent("input", { bubbles: true }));
+    await vi.waitFor(() => expect(finalSubmit(container)?.disabled).toBe(true));
     container.querySelector("form")?.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
     expect(client.createIntent).not.toHaveBeenCalled();
   });
@@ -1432,7 +1436,7 @@ describe("Create community join policy page", () => {
     await user.click(continueButton(container));
     await vi.waitFor(() => expect(container.textContent).toContain("Choose at least one country."));
     expect(container.querySelector("[data-community-join-policy]")).not.toBeNull();
-    expect(container.textContent).not.toContain("Public name");
+    expect(container.textContent).not.toContain("Name in this community");
   });
 
   test("resets the empty-picker note when the policy changes", async () => {

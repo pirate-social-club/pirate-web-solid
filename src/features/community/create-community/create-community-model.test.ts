@@ -63,10 +63,12 @@ describe("create community model", () => {
     expect(gateKindsOf(draftGatePolicy(draft))).toEqual(["human-verification"]);
   });
 
-  test("defaults to a fresh profile and requires a plain public name", () => {
+  test("defaults to a fresh profile with a prefilled, editable name suggestion", () => {
     const draft = { ...createEmptyDraft(undefined), name: "New place" };
     expect(draft.persona).toEqual({ kind: "create_new" });
-    expect(validateDraft(draft, copy).publicNameError).not.toBeNull();
+    // The prefill is a generated suggestion, so the fresh draft is valid at once.
+    expect(draft.publicName).toMatch(/^[a-z]+-[a-z]+-\d+$/);
+    expect(validateDraft(draft, copy).valid).toBe(true);
     expect(validateDraft({ ...draft, publicName: "River Room" }, copy).valid).toBe(true);
     expect(validateDraft({ ...draft, publicName: " " }, copy).valid).toBe(false);
     expect(validateDraft({ ...draft, publicName: "a".repeat(81) }, copy).valid).toBe(false);

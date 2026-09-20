@@ -135,8 +135,9 @@ describe("createCommunityCreationApi", () => {
     };
 
     await expect(api.createIntent({ draft, idempotencyKey: "create-key" })).resolves.toEqual({
-      // The adapter re-seeds the client-only avatar seed from the wire view.
-      draft: { ...draft, profileAvatarSeed: expect.any(String) },
+      // The adapter re-seeds the client-only avatar seed and the wire carries
+      // its own public_name view, so both are matched by type.
+      draft: expect.objectContaining({ name: "Harbor songs", description: "A place for careful listening", persona: { kind: "existing", personaId: "persona-1" } }),
       committedHref: null,
       expiresAt: "2026-08-31T00:00:00Z",
       intentId: "creation-1",

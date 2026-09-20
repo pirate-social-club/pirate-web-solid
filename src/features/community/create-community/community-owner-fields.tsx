@@ -3,13 +3,12 @@ import type { ActivePersonaPublicProjection } from "../../../api/session";
 import { Button, TextField, TextFieldInput, TextFieldLabel, Type, cn } from "../../../design-system";
 import { communityCreationCandidates } from "../../identity/community-persona-choice";
 import type { CreateCommunityCopy, CreateCommunityDraft } from "./create-community-model";
-import { generatedAvatarSrc, randomAvatarSeed } from "./generated-avatar";
+import { generatedAvatarSrc } from "./generated-avatar";
 
 /** The localized strings this section renders; supplied by the creation view. */
 export type CommunityOwnerCopy = Pick<
   CreateCommunityCopy,
   | "ownerHeading"
-  | "profileScope"
   | "ownerPublicNameLabel"
   | "ownerUseExisting"
   | "ownerExistingLabel"
@@ -18,7 +17,6 @@ export type CommunityOwnerCopy = Pick<
   | "ownerLinkedWarning"
   | "ownerNewInstead"
   | "ownerAvatarLabel"
-  | "ownerAvatarShuffle"
   | "avatarReplace"
 >;
 
@@ -63,17 +61,12 @@ export function CommunityOwnerFields(props: {
         <Show when={props.draft.persona?.kind === "existing" || choosingExisting()} fallback={
           <>
             {/*
-              Spec 014 §3.1: the profile avatar is optional, and when no image
-              is chosen a default is generated locally from a random seed the
-              owner may shuffle. It is never derived from the Public name. One
-              labelled file input carries the picker; the preview opens it and
-              real buttons replace or shuffle, so no label-to-input name leak
-              and no always-on remove control.
+              Spec 014 §3.1 as amended 2026-09-20: the avatar default simply
+              appears — no shuffle — and "Replace image" is the single
+              control. The name field is titled "Name in this community" and
+              arrives prefilled with a locally generated suggestion.
             */}
             <div class="flex items-center gap-4">
-              {/* Visual preview only: clicking it opens the picker, but the
-                  labelled input and the real buttons carry the semantics, so
-                  the label stays out of the accessibility tree. */}
               <label
                 aria-hidden="true"
                 class="block size-[4.5rem] shrink-0 cursor-pointer overflow-hidden rounded-full border border-border-soft bg-card transition-colors hover:border-primary/40"
@@ -92,32 +85,18 @@ export function CommunityOwnerFields(props: {
                 }}
                 type="file"
               />
-              <div class="flex flex-col items-start gap-1">
-                <Button
-                  type="button"
-                  variant="outline"
-                  onClick={() => document.getElementById(`owner-avatar-${id}`)?.click()}
-                >
-                  {props.copy.avatarReplace}
-                </Button>
-                <Show when={!props.profileAvatarSrc}>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    onClick={() => props.onChange?.({ profileAvatarSeed: randomAvatarSeed() })}
-                  >
-                    {props.copy.ownerAvatarShuffle}
-                  </Button>
-                </Show>
-              </div>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => document.getElementById(`owner-avatar-${id}`)?.click()}
+              >
+                {props.copy.avatarReplace}
+              </Button>
             </div>
             <TextField required value={props.draft.publicName ?? ""} onChange={publicName => props.onChange?.({ publicName })}>
               <TextFieldLabel>{props.copy.ownerPublicNameLabel}</TextFieldLabel>
-              <TextFieldInput aria-describedby={`owner-scope-${id}`} maxlength={80} class="rounded-[var(--radius-lg)] bg-card" />
+              <TextFieldInput maxlength={80} class="rounded-[var(--radius-lg)] bg-card" />
             </TextField>
-            {/* The spec-mandated per-community fact, attached to the field it
-                explains instead of floating under the header. */}
-            <p class="text-sm text-muted-foreground" id={`owner-scope-${id}`}>{props.copy.profileScope}</p>
             <div class="h-10">
               <Button type="button" variant="ghost" class={candidates().length === 0 ? "invisible self-start" : "self-start"} disabled={props.profilesUnavailable || candidates().length === 0} onClick={useExisting}>{props.copy.ownerUseExisting}</Button>
             </div>

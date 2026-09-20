@@ -88,7 +88,7 @@ export const SignedOut: Story = {
     await expect(canvas.getByText("Anyone who completes a palm scan.")).toBeInTheDocument();
     await expect(canvas.queryByRole("radio")).toBeNull();
     // No session, no persona: the profile section waits for sign-in.
-    await expect(canvas.queryByRole("textbox", { name: "Public name" })).toBeNull();
+    await expect(canvas.queryByRole("textbox", { name: "Name in this community" })).toBeNull();
   },
 };
 
@@ -108,7 +108,7 @@ export const SavedIntent: Story = {
     const canvas = within(canvasElement);
     // One page carries the community fields and the locked profile summary.
     await expect(canvas.getByRole("textbox", { name: "Name" })).toBeInTheDocument();
-    await expect(canvas.queryByRole("textbox", { name: "Public name" })).toBeNull();
+    await expect(canvas.queryByRole("textbox", { name: "Name in this community" })).toBeNull();
     await expect(canvas.getByText("Creating as River Room")).toBeInTheDocument();
     await expect(canvas.getByText("Anyone who completes a palm scan.")).toBeInTheDocument();
     await expect(canvas.queryByRole("radio")).toBeNull();
@@ -136,9 +136,8 @@ export const ThreePages: Story = {
     await expect(canvas.queryByRole("textbox", { name: "Name" })).toBeNull();
 
     await userEvent.click(canvas.getByRole("button", { name: "Continue" }));
-    await expect(canvas.getByText(/Each community you create or join gets its own profile/)).toBeInTheDocument();
-    await expect(canvas.getByRole("textbox", { name: "Public name" })).toBeInTheDocument();
-    await expect(canvas.getByRole("button", { name: "Shuffle" })).toBeInTheDocument();
+    await expect(canvas.getByRole("textbox", { name: "Name in this community" })).not.toHaveValue("");
+    await expect(canvas.getByRole("button", { name: "Replace image" })).toBeInTheDocument();
 
     // Back lives in the header as an arrow, like the post flow's review step.
     await userEvent.click(canvas.getByRole("button", { name: "Back to join policy" }));
@@ -210,7 +209,7 @@ export const JoinPolicyValidation: Story = {
     await userEvent.click(canvas.getByRole("button", { name: "Continue" }));
     await expect(await canvas.findByText("Choose at least one country.")).toBeInTheDocument();
     await expect(canvas.getByRole("heading", { name: "Who can join?" })).toBeInTheDocument();
-    await expect(canvas.queryByRole("textbox", { name: "Public name" })).toBeNull();
+    await expect(canvas.queryByRole("textbox", { name: "Name in this community" })).toBeNull();
   },
 };
 
@@ -333,7 +332,7 @@ export const ExistingProfile: Story = {
   ),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(canvas.getByRole("textbox", { name: "Public name" })).toBeInTheDocument();
+    await expect(canvas.getByRole("textbox", { name: "Name in this community" })).toBeInTheDocument();
     await userEvent.click(canvas.getByRole("button", { name: "Use an existing profile" }));
     await expect(canvas.getByText("Creating as Harbor keeper")).toBeInTheDocument();
     await expect(canvas.queryByRole("combobox")).not.toBeInTheDocument();
@@ -341,16 +340,18 @@ export const ExistingProfile: Story = {
   },
 };
 
-export const ProfileAvatar: Story = {
-  name: "Profile avatar",
-  parameters: { docs: { description: { story: "The generated profile-avatar default of Spec 014 §3.1: local, seeded, never derived from the Public name, shuffable, with upload replacing it. Persistence waits on the avatar API record." } } },
-  render: () => <CreateStory steps initialStep={3} draft={validDraft()} />,
+export const ProfilePage: Story = {
+  name: "Profile page",
+  parameters: { docs: { description: { story: "The profile page per Spec 014 §3.1 as amended 2026-09-20: the generated avatar default with one Replace-image control, and the name field titled for this community, prefilled with a locally generated suggestion. Persistence waits on the avatar API record." } } },
+  render: () => <CreateStory steps initialStep={3} draft={{ ...createEmptyDraft(personaId), name: "Night Shift" }} />,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    const image = () => canvasElement.querySelector("img");
-    await expect(image()).not.toBeNull();
-    const before = image()!.getAttribute("src");
-    await userEvent.click(canvas.getByRole("button", { name: "Shuffle" }));
-    await expect(image()!.getAttribute("src")).not.toBe(before);
+    await expect(canvasElement.querySelector("img")).not.toBeNull();
+    // SAFETY: testing-library's textbox role types as a generic HTMLElement;
+    // a textbox is an input and only its value is read.
+    const name = canvas.getByRole("textbox", { name: "Name in this community" }) as HTMLInputElement;
+    await expect(name.value ?? "").toMatch(/^[a-z]+-[a-z]+-\d+$/);
+    await expect(canvas.queryByRole("button", { name: "Shuffle" })).toBeNull();
+    await expect(canvas.getByRole("button", { name: "Replace image" })).toBeInTheDocument();
   },
 };
