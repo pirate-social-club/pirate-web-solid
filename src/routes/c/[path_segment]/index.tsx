@@ -1,4 +1,4 @@
-import { query, type RouteProps } from "@solidjs/router";
+import { query, useSearchParams, type RouteProps } from "@solidjs/router";
 import { defineFileRoute } from "@solidjs/router/fs";
 import { getRequestEvent, httpHeader, httpStatus } from "@solidjs/web";
 import { createPublicCommunityRouteClient } from "../../../api/community-route-client.ts";
@@ -64,6 +64,20 @@ export const route = defineFileRoute("/c/:path_segment", {
   },
 });
 
+/** The "Use this song" entry names its song in the query, because a link must
+ * carry the song's authoritative identity into the composer. Only the exact
+ * compose marker with one non-empty song id is accepted. */
+function initialVideoSongFromSearch(search: Record<string, string | string[] | undefined>) {
+  if (search.compose !== "video") return undefined;
+  const song = Array.isArray(search.song) ? search.song[0] : search.song;
+  return typeof song === "string" && song.trim() !== "" ? { postId: song.trim() } : undefined;
+}
+
 export default function CommunityRoute(props: RouteProps<typeof route>) {
-  return <CommunityPage pathSegment={props.params.path_segment} data={props.data} />;
+  const [searchParams] = useSearchParams();
+  return <CommunityPage
+    pathSegment={props.params.path_segment}
+    data={props.data}
+    initialVideoSong={initialVideoSongFromSearch(searchParams)}
+  />;
 }
