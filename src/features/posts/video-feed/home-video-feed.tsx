@@ -26,6 +26,8 @@ const studyAvailability = makeStudyAvailabilityLookup(createStudyV2Api());
 export interface HomeVideoFeedProps {
   readonly data?: FeedPage | PromiseLike<FeedPage>;
   readonly verifyAge?: typeof verifyAdultViewing;
+  /** Test seam; production uses the deduplicated API-backed availability read. */
+  readonly loadStudyAvailability?: (songPostId: string) => Promise<boolean>;
   readonly sourceIdentity?: string;
   readonly loadPage: FeedPageLoader;
   readonly locale?: UiLocaleCode;
@@ -106,13 +108,14 @@ function navigateTo(href: string, navigate?: (href: string) => void): void {
  * action can never appear enabled on an unknown state.
  */
 function StudyAction(props: {
+  readonly load: (songPostId: string) => Promise<boolean>;
   readonly songPostId: string;
   readonly navigate?: (href: string) => void;
 }) {
   const [ready, setReady] = createSignal(false);
-  createEffect(() => {
+  createEffect(() => props.songPostId, (songPostId) => {
     let active = true;
-    void studyAvailability(props.songPostId).then((value) => {
+    void props.load(songPostId).then((value) => {
       if (active) setReady(value);
     });
     onCleanup(() => {
@@ -334,7 +337,7 @@ export function HomeVideoFeed(props: HomeVideoFeedProps) {
                 renderPlaceholder={id => {
                   const item = () => delivery().find(entry => `delivery:${entry.postId}` === id);
                   return <Show when={item()} fallback={<div class="grid h-full place-items-center px-4 text-white"><AgeAccessPrompt verify={props.verifyAge} onStart={() => { ageVerificationActive = true; setAutoplay(false); }} onFinish={() => { ageVerificationActive = false; }} onVerified={refreshAuthorized} /></div>}>
-                    {entry => <article class="grid h-full content-center gap-3 px-4 py-8 text-white"><VideoPlayer requiresAgeVerification={entry().requiresAgeVerification} postId={entry().postId} state={entry().state} /><Show when={entry().caption}>{caption => <p>{caption()}</p>}</Show><Show when={entry().songPostId}>{(songPostId) => <StudyAction navigate={props.navigate} songPostId={songPostId()} />}</Show><a href={entry().href}>View post</a></article>}
+                    {entry => <article class="grid h-full content-center gap-3 px-4 py-8 text-white"><VideoPlayer requiresAgeVerification={entry().requiresAgeVerification} postId={entry().postId} state={entry().state} /><Show when={entry().caption}>{caption => <p>{caption()}</p>}</Show><Show when={entry().songPostId}>{(songPostId) => <StudyAction load={props.loadStudyAvailability ?? studyAvailability} navigate={props.navigate} songPostId={songPostId()} />}</Show><a href={entry().href}>View post</a></article>}
                   </Show>;
                 }}
               />
