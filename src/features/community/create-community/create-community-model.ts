@@ -64,7 +64,14 @@ export function gateKindsOf(policy: GatePolicy): GateKind[] {
   return policy.accessPaths[0].requirements.map((requirement) => requirement.requirement);
 }
 
-/** Every community requires unique-human membership; other gates are additive. */
+/**
+ * Every community requires unique-human membership; other gates are additive.
+ *
+ * TODO(api-community-document-only-join-policy): package B defines the
+ * document-only wire shape. Until then this composes the Palm baseline with
+ * the selected requirement exactly as the current contract expects; do not
+ * change the composition from the UI alone.
+ */
 export function compileMembershipPolicy(
   additionalRequirements: readonly AdditionalGateRequirement[] = [],
 ): GatePolicy {

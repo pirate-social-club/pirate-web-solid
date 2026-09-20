@@ -1,12 +1,16 @@
 import { DocumentVerificationHost } from "../verification/document-verification-host.tsx";
 import type { JSX } from "@solidjs/web";
 import { render as solidRender } from "@solidjs/web";
+import { userEvent } from "@testing-library/user-event";
+import { createSignal } from "solid-js";
 import { afterEach, describe, expect, test, vi } from "vitest";
 
 import type { PrivySessionExchange } from "../../api/privy-session.ts";
 import { onSessionRefreshed, refreshSession } from "../../api/session.ts";
 import type { CommunityCreationApi } from "./community-creation-api";
 import { CommunityCreationRouteView, communityCreationCanUsePersona } from "./community-creation-route-view";
+import { CreateCommunityView } from "./create-community/create-community";
+import { createEmptyDraft, withDraftName } from "./create-community/create-community-model";
 import { createIntentView } from "./community-creation-intent/community-creation-intent-fixtures";
 import {
   GLOBAL_SIGN_IN_EVENT,
@@ -25,6 +29,37 @@ function publicNameField(container: HTMLElement): HTMLInputElement | null {
 function fillPublicName(container: HTMLElement) {
   const field = publicNameField(container);
   if (field) { field.value = "River Room"; field.dispatchEvent(new InputEvent("input", { bubbles: true })); }
+}
+
+function continueButton(container: HTMLElement): HTMLButtonElement {
+  return [...container.querySelectorAll<HTMLButtonElement>("button")]
+    .find(button => button.textContent?.trim() === "Continue")!;
+}
+
+function backButton(container: HTMLElement): HTMLButtonElement {
+  return [...container.querySelectorAll<HTMLButtonElement>("button")]
+    .find(button => button.textContent?.trim() === "Back")!;
+}
+
+function finalSubmit(container: HTMLElement): HTMLButtonElement | null {
+  return container.querySelector<HTMLButtonElement>('button[type="submit"]');
+}
+
+/** Walks the three-page creation to the profile page, where the final submit lives. */
+async function reachProfilePage(container: HTMLElement): Promise<void> {
+  await vi.waitFor(() => expect(continueButton(container).disabled).toBe(false));
+  continueButton(container).click();
+  await vi.waitFor(() => expect(container.querySelector("[data-community-join-policy]")).not.toBeNull());
+  continueButton(container).click();
+  await vi.waitFor(() => expect(finalSubmit(container)).not.toBeNull());
+}
+
+/** Steps a three-page flow back to its first page, one render at a time. */
+async function retreatToFirstPage(container: HTMLElement): Promise<void> {
+  backButton(container).click();
+  await vi.waitFor(() => expect(container.querySelector("[data-community-join-policy]")).not.toBeNull());
+  backButton(container).click();
+  await vi.waitFor(() => expect(container.querySelector("[data-community-join-policy]")).toBeNull());
 }
 
 const disposers: Array<() => void> = [];
@@ -101,9 +136,11 @@ describe("Community creation production route", () => {
 
     await vi.waitFor(() => expect(container.querySelector("main")?.getAttribute("data-creation-state")).toBe("signed-out"));
     expect(container.querySelector("[data-create-community]")).not.toBeNull();
-    const route = container.querySelector("[data-route-path='/communities/new']")!;
-    const signIn = [...route.querySelectorAll<HTMLButtonElement>("button")]
-      .find(button => button.type === "submit")!;
+    const name = container.querySelector<HTMLInputElement>("input")!;
+    name.value = "Sign-in community";
+    name.dispatchEvent(new InputEvent("input", { bubbles: true }));
+    await reachProfilePage(container);
+    const signIn = finalSubmit(container)!;
     const requested = vi.fn();
     window.addEventListener(GLOBAL_SIGN_IN_EVENT, requested);
     try {
@@ -163,18 +200,18 @@ describe("Community creation production route", () => {
     fillPublicName(container);
     description.value = "Keep this description";
     description.dispatchEvent(new InputEvent("input", { bubbles: true }));
-    const submit = () => container.querySelector<HTMLButtonElement>('button[type="submit"]')!;
-    expect(submit().disabled).toBe(true);
+    const next = () => continueButton(container);
+    expect(next().disabled).toBe(true);
     await vi.waitFor(() => expect(settle).toBeTypeOf("function"));
     settle(authenticated);
-    await vi.waitFor(() => expect(submit().disabled).toBe(false));
+    await vi.waitFor(() => expect(next().disabled).toBe(false));
     expect(container.querySelector("input")).toBe(name);
     expect(name.value).toBe("My community");
     expect(description.value).toBe("Keep this description");
 
     refreshSession();
     await vi.waitFor(() => expect(container.textContent).toContain("Could not check your account"));
-    expect(submit().disabled).toBe(false);
+    expect(next().disabled).toBe(false);
     expect(container.querySelector("input")).toBe(name);
     expect(name.value).toBe("My community");
     expect(client.createIntent).not.toHaveBeenCalled();
@@ -183,7 +220,7 @@ describe("Community creation production route", () => {
     retry.click();
     await vi.waitFor(() => expect(attempt).toBe(3));
     settle(authenticated);
-    await vi.waitFor(() => expect(submit().disabled).toBe(false));
+    await vi.waitFor(() => expect(next().disabled).toBe(false));
     expect(container.querySelector("input")).toBe(name);
     expect(name.value).toBe("My community");
     expect(description.value).toBe("Keep this description");
@@ -202,12 +239,12 @@ describe("Community creation production route", () => {
     name.value = "My community";
     name.dispatchEvent(new InputEvent("input", { bubbles: true }));
     fillPublicName(container);
-    const submit = () => container.querySelector<HTMLButtonElement>('button[type="submit"]')!;
-    await vi.waitFor(() => expect(submit().disabled).toBe(false));
+    const next = () => continueButton(container);
+    await vi.waitFor(() => expect(next().disabled).toBe(false));
     authenticated = false;
     refreshSession();
     await vi.waitFor(() => expect(container.querySelector("main")?.getAttribute("data-creation-state")).toBe("ready"));
-    await vi.waitFor(() => expect(submit().disabled).toBe(false));
+    await vi.waitFor(() => expect(next().disabled).toBe(false));
     expect(name.value).toBe("My community");
     expect(communityCreationCanUsePersona({ status: "authenticated", userId: "user-2", personas: [] },
       { kind: "existing", personaId: "persona-1" })).toBe(false);
@@ -256,26 +293,28 @@ describe("Community creation production route", () => {
       const name = container.querySelector<HTMLInputElement>("input")!;
       name.value = "Retained community";
       name.dispatchEvent(new InputEvent("input", { bubbles: true }));
-    fillPublicName(container);
-      const button = container.querySelector<HTMLButtonElement>('button[type="submit"]')!;
-      await vi.waitFor(() => expect(button.disabled).toBe(false));
+      await reachProfilePage(container);
+      fillPublicName(container);
+      const button = finalSubmit(container)!;
       expect(button.textContent?.trim()).toBe("Create");
       button.click();
       expect(request).toHaveBeenCalledOnce();
       expect(createIntentRequest).not.toHaveBeenCalled();
       // Dismissing sign-in leaves no deferred creation, including after edits
       // and a later sign-in from elsewhere in the shell.
-      name.value = "Edited community";
-      name.dispatchEvent(new InputEvent("input", { bubbles: true }));
-    fillPublicName(container);
       authenticated = true;
       refreshSession();
-      await vi.waitFor(() => expect(button.disabled).toBe(false));
-    expect(button.textContent?.trim()).toBe("Create");
-      expect(name.value).toBe("Edited community");
+      await vi.waitFor(() => expect(container.querySelector("main")?.getAttribute("data-creation-state")).toBe("ready"));
       await vi.waitFor(() => expect(container.textContent).toContain("Use an existing profile"));
       expect(createIntentRequest).not.toHaveBeenCalled();
-      button.click();
+      await retreatToFirstPage(container);
+      const edited = container.querySelector<HTMLInputElement>("input")!;
+      edited.value = "Edited community";
+      edited.dispatchEvent(new InputEvent("input", { bubbles: true }));
+      await reachProfilePage(container);
+      fillPublicName(container);
+      await vi.waitFor(() => expect(finalSubmit(container)!.disabled).toBe(false));
+      finalSubmit(container)!.click();
       await vi.waitFor(() => expect(createIntentRequest).toHaveBeenCalledOnce());
       expect(createIntentRequest).toHaveBeenCalledWith(expect.objectContaining({ draft: expect.objectContaining({ name: "Edited community", publicName: "River Room", persona: { kind: "create_new" } }) }));
     } finally {
@@ -296,8 +335,9 @@ describe("Community creation production route", () => {
     const name = container.querySelector<HTMLInputElement>("input")!;
     name.value = "Retained community";
     name.dispatchEvent(new InputEvent("input", { bubbles: true }));
+    await reachProfilePage(container);
     fillPublicName(container);
-    const button = container.querySelector<HTMLButtonElement>('button[type="submit"]')!;
+    const button = finalSubmit(container)!;
     await vi.waitFor(() => expect(button.disabled).toBe(false));
     expect(button.textContent?.trim()).toBe("Create");
     unavailable = false;
@@ -329,15 +369,16 @@ describe("Community creation production route", () => {
     name.value = "Retained community";
     name.dispatchEvent(new InputEvent("input", { bubbles: true }));
     fillPublicName(container);
-    const button = container.querySelector<HTMLButtonElement>('button[type="submit"]')!;
+    const button = continueButton(container);
     await vi.waitFor(() => expect(button.disabled).toBe(false));
-    expect(button.textContent).toContain("Create");
+    expect(button.textContent).toContain("Continue");
     const retryProfiles = [...container.querySelectorAll<HTMLButtonElement>("button")].find(button => button.textContent?.trim() === "Try again")!;
     retryProfiles.click();
     await vi.waitFor(() => expect(button.disabled).toBe(false));
-    expect(button.textContent?.trim()).toBe("Create");
+    expect(button.textContent?.trim()).toBe("Continue");
     expect(attempts).toBe(2);
     expect(name.value).toBe("Retained community");
+    await reachProfilePage(container);
     await vi.waitFor(() => expect(container.textContent).toContain("Use an existing profile"));
     expect(createIntentRequest).not.toHaveBeenCalled();
   });
@@ -351,15 +392,15 @@ describe("Community creation production route", () => {
     name.value = "Pending community";
     name.dispatchEvent(new InputEvent("input", { bubbles: true }));
     fillPublicName(container);
-    const button = container.querySelector<HTMLButtonElement>('button[type="submit"]')!;
-    expect(button.textContent?.trim()).toBe("Create");
+    const button = continueButton(container);
+    expect(button.textContent?.trim()).toBe("Continue");
     await vi.waitFor(() => expect(settle).toBeTypeOf("function"));
     expect(button.disabled).toBe(true);
     button.click();
     settle({ status: "authenticated", userId: "user-1", personas: [{ personaId: "persona-1", displayName: "Host",
       avatarRef: null, primaryPublicHandle: null, communityBinding: null }] });
     await vi.waitFor(() => expect(button.disabled).toBe(false));
-    expect(button.textContent?.trim()).toBe("Create");
+    expect(button.textContent?.trim()).toBe("Continue");
     expect(createIntentRequest).not.toHaveBeenCalled();
     expect(container.querySelector("input")).toBe(name);
   });
@@ -377,8 +418,9 @@ describe("Community creation production route", () => {
     const name = container.querySelector<HTMLInputElement>("input")!;
     name.value = "Retained draft";
     name.dispatchEvent(new InputEvent("input", { bubbles: true }));
+    await reachProfilePage(container);
     fillPublicName(container);
-    const submit = container.querySelector<HTMLButtonElement>('button[type="submit"]')!;
+    const submit = finalSubmit(container)!;
     await vi.waitFor(() => expect(submit.disabled).toBe(false));
     submit.click();
     await vi.waitFor(() => expect(finishCreate).toBeTypeOf("function"));
@@ -404,8 +446,12 @@ describe("Community creation production route", () => {
     await vi.waitFor(() => expect(route().getAttribute("data-creation-state")).toBe("ready"));
     expect(container.textContent).not.toContain("Create a persona first");
     expect(container.textContent).not.toContain("coming soon");
+    const name = container.querySelector<HTMLInputElement>("input")!;
+    name.value = "Needs a profile";
+    name.dispatchEvent(new InputEvent("input", { bubbles: true }));
+    await reachProfilePage(container);
     expect(container.textContent).toContain("Public name");
-    expect(container.querySelector<HTMLButtonElement>('button[type="submit"]')?.disabled).toBe(true);
+    expect(finalSubmit(container)?.disabled).toBe(true);
     container.querySelector("form")?.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
     expect(client.createIntent).not.toHaveBeenCalled();
   });
@@ -467,9 +513,19 @@ describe("Community creation production route", () => {
     ));
 
     await vi.waitFor(() => expect(container.querySelector("[data-create-community]")).not.toBeNull());
-    expect(container.textContent).toContain("Your profile here");
+    const name = container.querySelector<HTMLInputElement>("input")!;
+    name.value = "Media-free community";
+    name.dispatchEvent(new InputEvent("input", { bubbles: true }));
+    await vi.waitFor(() => expect(continueButton(container).disabled).toBe(false));
+    continueButton(container).click();
+    await vi.waitFor(() => expect(container.textContent).toContain("Who can join?"));
+    expect(container.textContent).toContain("Anyone with Palm verification");
+    expect(container.textContent).not.toContain("People with selected nationalities");
     expect(container.querySelector("input[type='file']")).toBeNull();
-    expect(container.textContent).toContain("Palm scan");
+    await vi.waitFor(() => expect(continueButton(container).disabled).toBe(false));
+    continueButton(container).click();
+    await vi.waitFor(() => expect(container.textContent).toContain("Your profile here"));
+    expect(container.textContent).not.toContain("coming soon");
   });
 
   test("continues a submitted commit-ready draft into commit and its Community resource", async () => {
@@ -513,10 +569,10 @@ describe("Community creation production route", () => {
     const name = container.querySelector<HTMLInputElement>("input")!;
     name.value = "Community New";
     name.dispatchEvent(new InputEvent("input", { bubbles: true, data: "Community New", inputType: "insertText" }));
+    await reachProfilePage(container);
     fillPublicName(container);
-    const submit = container.querySelector<HTMLButtonElement>("button[type='submit']")!;
-    await vi.waitFor(() => expect(submit.disabled).toBe(false));
-    submit.click();
+    await vi.waitFor(() => expect(finalSubmit(container)!.disabled).toBe(false));
+    finalSubmit(container)!.click();
 
     await vi.waitFor(() => expect(navigate).toHaveBeenLastCalledWith("/c/community-new", undefined));
     expect(createIntentRequest).toHaveBeenCalledOnce();
@@ -595,10 +651,10 @@ describe("Community creation production route", () => {
     const name = container.querySelector<HTMLInputElement>("input")!;
     name.value = "Retry Harbor";
     name.dispatchEvent(new InputEvent("input", { bubbles: true, data: "Retry Harbor", inputType: "insertText" }));
+    await reachProfilePage(container);
     fillPublicName(container);
-    const submit = container.querySelector<HTMLButtonElement>("button[type='submit']")!;
-    await vi.waitFor(() => expect(submit.disabled).toBe(false));
-    submit.click();
+    await vi.waitFor(() => expect(finalSubmit(container)!.disabled).toBe(false));
+    finalSubmit(container)!.click();
 
     await vi.waitFor(() => expect(container.textContent).toContain("Could not finish creating this community"));
     expect(navigate).toHaveBeenCalledWith(
@@ -720,10 +776,10 @@ describe("Community creation production route", () => {
     const name = container.querySelector<HTMLInputElement>("input")!;
     name.value = "Quota Community";
     name.dispatchEvent(new InputEvent("input", { bubbles: true }));
+    await reachProfilePage(container);
     fillPublicName(container);
-    const submit = container.querySelector<HTMLButtonElement>("button[type='submit']")!;
-    await vi.waitFor(() => expect(submit.disabled).toBe(false));
-    submit.click();
+    await vi.waitFor(() => expect(finalSubmit(container)!.disabled).toBe(false));
+    finalSubmit(container)!.click();
 
     await vi.waitFor(() => expect(container.textContent).toContain("You've reached the limit for new communities."));
     expect(commitIntent).toHaveBeenCalledOnce();
@@ -825,9 +881,10 @@ describe("Named owner setup", () => {
     const name = container.querySelector<HTMLInputElement>("input")!;
     name.value = "New place";
     name.dispatchEvent(new InputEvent("input", { bubbles: true }));
+    await reachProfilePage(container);
     fillPublicName(container);
     expect([...container.querySelectorAll<HTMLButtonElement>("button")].find(button => button.textContent === "Use an existing profile")?.disabled).toBe(true);
-    const button = container.querySelector<HTMLButtonElement>('button[type="submit"]')!;
+    const button = finalSubmit(container)!;
     await vi.waitFor(() => expect(button.disabled).toBe(false));
     button.click();
     await vi.waitFor(() => expect(navigate).toHaveBeenCalledWith("/communities/fresh", undefined));
@@ -905,25 +962,27 @@ describe("Stable creation lifecycle", () => {
     const name = container.querySelector<HTMLInputElement>("input")!;
     name.value = "A stable community";
     name.dispatchEvent(new InputEvent("input", { bubbles: true }));
+    await reachProfilePage(container);
     fillPublicName(container);
     const form = container.querySelector("form");
-    const button = container.querySelector<HTMLButtonElement>("button[type=submit]")!;
+    const button = finalSubmit(container)!;
     const labels = () => [...container.querySelectorAll("label")].map(label => label.textContent);
     const initialLabels = labels();
     await vi.waitFor(() => expect(button.disabled).toBe(false));
     button.click();
     await vi.waitFor(() => expect(reject).toBeTypeOf("function"));
-    expect(name.matches(":disabled")).toBe(true);
+    expect(button.disabled).toBe(true);
     expect(button.textContent?.trim()).toBe("Create");
     expect(labels()).toEqual(initialLabels);
     expect(container.querySelector("form")).toBe(form);
     reject(new Error("unavailable"));
     await vi.waitFor(() => expect(container.querySelector("[role=alert]")?.textContent).toContain("Couldn't create your community"));
-    expect(name.matches(":disabled")).toBe(false);
-    expect(name.value).toBe("A stable community");
+    expect(button.disabled).toBe(false);
     expect(button.textContent?.trim()).toBe("Create");
     expect(labels()).toEqual(initialLabels);
     expect(container.querySelector("form")).toBe(form);
+    await retreatToFirstPage(container);
+    expect(container.querySelector<HTMLInputElement>("input")?.value).toBe("A stable community");
   });
 });
 
@@ -938,10 +997,10 @@ describe("Creation wait recovery", () => {
     const name = container.querySelector<HTMLInputElement>("input")!;
     name.value = "Waiting community";
     name.dispatchEvent(new InputEvent("input", { bubbles: true }));
+    await reachProfilePage(container);
     fillPublicName(container);
-    const button = container.querySelector<HTMLButtonElement>("button[type=submit]")!;
-    await vi.waitFor(() => expect(button.disabled).toBe(false));
-    button.click();
+    await vi.waitFor(() => expect(finalSubmit(container)!.disabled).toBe(false));
+    finalSubmit(container)!.click();
     await vi.waitFor(() => expect(navigate).toHaveBeenCalledWith("/c/ready", undefined), { timeout: 3000 });
     expect(commitIntent).toHaveBeenCalledOnce();
   });
@@ -1004,16 +1063,17 @@ test("never opens an identity dialog from wait polling", async () => {
     getIntent: async () => pending,
   })} resolveSession={async () => ({ status: "authenticated", userId: "owner", personas: [] })} navigate={() => {}} confirmIdentity={confirmIdentity} />);
   const name = container.querySelector<HTMLInputElement>("input")!;
-  name.value = "Timer community";
-  name.dispatchEvent(new InputEvent("input", { bubbles: true }));
-  fillPublicName(container);
-  const button = container.querySelector<HTMLButtonElement>("button[type=submit]")!;
-  await vi.waitFor(() => expect(button.disabled).toBe(false));
-  button.click();
-  await vi.waitFor(() => expect(container.textContent).toContain("Confirm it's you to finish. Select Create."), { timeout: 3000 });
-  expect(confirmIdentity).not.toHaveBeenCalled();
-  expect(button.disabled).toBe(false);
-  button.click();
+    name.value = "Timer community";
+    name.dispatchEvent(new InputEvent("input", { bubbles: true }));
+    await reachProfilePage(container);
+    fillPublicName(container);
+    await vi.waitFor(() => expect(finalSubmit(container)!.disabled).toBe(false));
+    finalSubmit(container)!.click();
+    await vi.waitFor(() => expect(container.textContent).toContain("Confirm it's you to finish. Select Create."), { timeout: 3000 });
+    expect(confirmIdentity).not.toHaveBeenCalled();
+    const retry = finalSubmit(container)!;
+    expect(retry.disabled).toBe(false);
+    retry.click();
   await vi.waitFor(() => expect(confirmIdentity).toHaveBeenCalledOnce());
 });
 
@@ -1298,4 +1358,70 @@ test("verifies the saved creator requirement in place and requires an explicit c
   await vi.waitFor(() => expect(container.textContent).toContain("Nationality verified. Continue"));
   expect(commit).not.toHaveBeenCalled();
   expect(container.querySelector('input')?.value).toBe("Saved community");
+});
+
+describe("Create community join policy page", () => {
+  function renderPage(allowNationality: boolean) {
+    const [draft, setDraft] = createSignal(withDraftName(createEmptyDraft({ kind: "create_new" }), "Signal Room"));
+    const container = render(() => (
+      <CreateCommunityView
+        draft={draft()}
+        nationalityAuthoring={allowNationality}
+        onDraftChange={(patch) => setDraft(current => ({ ...current, ...patch }))}
+        steps
+      />
+    ));
+    return container;
+  }
+
+  const openPolicyPage = async (container: HTMLElement) => {
+    await vi.waitFor(() => expect(continueButton(container).disabled).toBe(false));
+    continueButton(container).click();
+    await vi.waitFor(() => expect(container.querySelector("[data-community-join-policy]")).not.toBeNull());
+  };
+
+  const policyOption = (container: HTMLElement, text: string) => {
+    const option = [...container.querySelectorAll<HTMLInputElement>('input[type="radio"]')]
+      .find(input => (input.labels?.[0]?.textContent ?? "").includes(text));
+    expect(option).toBeDefined();
+    return option!;
+  };
+
+  test("offers both policies only when the authoring gate is open", async () => {
+    const container = renderPage(true);
+    await openPolicyPage(container);
+    expect(container.textContent).toContain("Anyone with Palm verification");
+    expect(container.textContent).toContain("People with selected nationalities");
+    expect(container.querySelector('[role="combobox"]')).toBeNull();
+
+    const gated = renderPage(false);
+    await openPolicyPage(gated);
+    expect(gated.textContent).toContain("Anyone with Palm verification");
+    expect(gated.textContent).not.toContain("People with selected nationalities");
+  });
+
+  test("reveals the empty picker and the any-of hint without a stacked Palm row", async () => {
+    const user = userEvent.setup();
+    const container = renderPage(true);
+    await openPolicyPage(container);
+    await user.click(policyOption(container, "People with selected nationalities"));
+
+    expect(container.textContent).toContain("Members must prove one of the selected nationalities.");
+    expect(container.querySelector('[role="combobox"]')).not.toBeNull();
+    expect(container.textContent).not.toContain("Required \u00b7 Members verify");
+    expect(policyOption(container, "Anyone with Palm verification").checked).toBe(false);
+  });
+
+  test("blocks Continue while the nationality picker is empty", async () => {
+    const user = userEvent.setup();
+    const container = renderPage(true);
+    await openPolicyPage(container);
+    await user.click(policyOption(container, "People with selected nationalities"));
+    expect(container.textContent).not.toContain("Choose at least one country.");
+
+    await user.click(continueButton(container));
+    await vi.waitFor(() => expect(container.textContent).toContain("Choose at least one country."));
+    expect(container.querySelector("[data-community-join-policy]")).not.toBeNull();
+    expect(container.textContent).not.toContain("Public name");
+  });
 });

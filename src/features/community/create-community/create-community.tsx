@@ -1,17 +1,15 @@
 /** @jsxImportSource @solidjs/web */
 
-import { NationalityAllowlistField } from "../../verification/nationality-allowlist-field.tsx";
 import type { ActivePersonaPublicProjection } from "../../../api/session";
 import { CommunityOwnerFields } from "./community-owner-fields";
+import { JoinPolicyField, type JoinPolicyKind } from "./join-policy-field";
 import { Show, createEffect, createSignal, createUniqueId } from "solid-js";
 
 import {
   ActionFooterShell,
   Button,
-  IconHandPalm,
   IconButton,
   IconX,
-  ListRow,
   MediaUploadField,
   TextField,
   TextFieldErrorMessage,
@@ -45,8 +43,19 @@ export interface CreateCommunityProps {
   profilesUnavailable?: boolean;
   /** Keep false in production until the community API can persist these assets. */
   showMediaFields?: boolean;
-  /** Enables the two-step layout. The route view flips this on with its tests. */
+  /** Enables the three-page layout. The route view flips this on with its tests. */
   steps?: boolean;
+  /**
+   * Resuming a saved intent keeps the frozen single-surface shape; the three
+   * pages are only for a creation that has not written an intent yet.
+   */
+  resuming?: boolean;
+  /**
+   * Offers the document-nationality join policy. The route view passes the
+   * fetched authoring context once the API exposes it; until then the option
+   * stays hidden and only the Palm policy can be authored.
+   */
+  nationalityAuthoring?: boolean;
   submitting?: boolean;
   /** A blocked creation intent keeps Create disabled without a loading state. */
   submitDisabled?: boolean;
@@ -71,7 +80,6 @@ export function CreateCommunityView(props: CreateCommunityProps) {
   const copy = () => getLocaleMessages(locale, "routes").createCommunity as CreateCommunityCopy;
 
   const fieldId = createUniqueId();
-  const joinPolicyLabelId = `create-community-join-policy-${fieldId}`;
   const descriptionId = `create-community-description-${fieldId}`;
 
   const [nameTouched, setNameTouched] = createSignal(false);
@@ -87,13 +95,42 @@ export function CreateCommunityView(props: CreateCommunityProps) {
     && (props.requirePersona === false || (validation().personaError === null && validation().publicNameError === null))
     )) && !props.submitting && !props.accountChecking && !props.submitDisabled;
 
-  // Two-step creation: step one never writes an intent; the route view only
-  // persists on the final submit, which lives on step two. actionOnly keeps
-  // the frozen single-surface shape a saved intent already uses.
-  const [step, setStep] = createSignal<1 | 2>(1);
-  const stepped = () => props.steps === true && !props.actionOnly;
-  const stepOneReady = () => nationalityValid() && validation().nameError === null
+  // Three-page creation: details, "Who can join?", profile. No page writes an
+  // intent; the route view only persists on the final submit, which lives on
+  // the profile page. A saved intent keeps the frozen single-surface shape.
+  const [step, setStep] = createSignal<1 | 2 | 3>(1);
+  const stepped = () => props.steps === true && props.resuming !== true;
+  const stepOneReady = () => validation().nameError === null
     && !props.submitting && !props.accountChecking && !props.submitDisabled;
+  const [policyTouched, setPolicyTouched] = createSignal(false);
+  const [policyAttempted, setPolicyAttempted] = createSignal(false);
+  const joinPolicyKind = (): JoinPolicyKind => (nationality() === undefined ? "palm" : "nationality");
+  const setJoinPolicy = (kind: JoinPolicyKind) => {
+    setPolicyAttempted(false);
+    if (kind === "nationality") {
+      if (nationality() !== undefined) return;
+      props.onDraftChange?.({
+        additionalRequirements: [...props.draft.additionalRequirements, { requirement: "nationality-allowed", allowedCountries: [] }],
+      });
+    } else {
+      props.onDraftChange?.({
+        additionalRequirements: props.draft.additionalRequirements.filter(value => value.requirement !== "nationality-allowed"),
+      });
+    }
+  };
+  const setCountries = (countries: readonly string[]) => {
+    setPolicyTouched(true);
+    props.onDraftChange?.({
+      additionalRequirements: [...props.draft.additionalRequirements.filter(value => value.requirement !== "nationality-allowed"), { requirement: "nationality-allowed", allowedCountries: [...countries] }],
+    });
+  };
+  const continueFromPolicy = () => {
+    if (!nationalityValid()) {
+      setPolicyAttempted(true);
+      return false;
+    }
+    return true;
+  };
   // A rejected commit belongs to the community fields, so show them again.
   createEffect(() => props.nameError, (nameError) => { if (nameError) setStep(1); });
 
@@ -102,7 +139,18 @@ export function CreateCommunityView(props: CreateCommunityProps) {
       class={cn("h-full", props.class)}
       novalidate
       data-create-community
-      onSubmit={(event) => { event.preventDefault(); if (canSubmit()) props.onSubmit?.(); }}
+      onSubmit={(event) => {
+        event.preventDefault();
+        if (stepped() && step() === 1) {
+          if (stepOneReady()) setStep(2);
+          return;
+        }
+        if (stepped() && step() === 2) {
+          if (continueFromPolicy()) setStep(3);
+          return;
+        }
+        if (canSubmit()) props.onSubmit?.();
+      }}
     >
       <ActionFooterShell
         bodyClass="mx-auto flex w-full max-w-2xl flex-col gap-5 px-5 py-5"
@@ -112,18 +160,30 @@ export function CreateCommunityView(props: CreateCommunityProps) {
               <p role="alert">{props.failureMessage}</p>
               <Show when={props.onRetry}><Button type="button" variant="ghost" disabled={props.accountChecking || props.submitting} onClick={props.onRetry}>{props.retryLabel ?? "Try again"}</Button></Show>
             </div>
-            <Show when={stepped() && step() === 1} fallback={
-              <div class="flex flex-col gap-2">
-                <Show when={stepped()}>
-                  <Button class="h-11 w-full" disabled={props.submitting || props.accountChecking} onClick={() => setStep(1)} type="button" variant="outline">
-                    {copy().back}
-                  </Button>
-                </Show>
-                <Button class="h-11 w-full" disabled={!canSubmit()} loading={props.submitting || props.accountChecking} type="submit">
-                  {props.submitLabel ?? copy().submit}
-                </Button>
-              </div>
-            }>
+            <Show
+              when={stepped() && step() === 1}
+              fallback={
+                <div class="flex flex-col gap-2">
+                  <Show when={stepped()}>
+                    <Button class="h-11 w-full" disabled={props.submitting || props.accountChecking} onClick={() => setStep(step() === 3 ? 2 : 1)} type="button" variant="outline">
+                      {copy().back}
+                    </Button>
+                  </Show>
+                  <Show
+                    when={!stepped() || step() === 3}
+                    fallback={
+                      <Button class="h-11 w-full" disabled={props.submitting || props.accountChecking} onClick={() => { if (continueFromPolicy()) setStep(3); }} type="button">
+                        {copy().continue}
+                      </Button>
+                    }
+                  >
+                    <Button class="h-11 w-full" disabled={!canSubmit()} loading={props.submitting || props.accountChecking} type="submit">
+                      {props.submitLabel ?? copy().submit}
+                    </Button>
+                  </Show>
+                </div>
+              }
+            >
               <Button class="h-11 w-full" disabled={!stepOneReady()} onClick={() => setStep(2)} type="button">
                 {copy().continue}
               </Button>
@@ -206,38 +266,32 @@ export function CreateCommunityView(props: CreateCommunityProps) {
             value={props.draft.description ?? ""}
           />
         </div>
+        </Show>
 
-        {/*
-          Palm remains mandatory. Nationality adds an independent AND requirement.
-        */}
-        <section aria-labelledby={joinPolicyLabelId} class="flex flex-col gap-2" data-community-join-policy>
-          <div class="mb-1" id={joinPolicyLabelId}>
-            <Type as="span" variant="body-strong">{copy().joinPolicyTitle}</Type>
-          </div>
-          <ListRow
-            description={`${copy().humanVerificationRequired} \u00b7 ${copy().humanVerificationDescription}`}
-            leading={<IconHandPalm class="size-6" />}
-            title={copy().humanVerificationTitle}
-          />
-          <NationalityAllowlistField
-            countries={nationality()?.allowedCountries}
-            locale={locale}
+        <Show when={!stepped() || step() === 2}>
+          <JoinPolicyField
+            allowNationality={props.nationalityAuthoring === true}
             copy={{
-              label: copy().nationalityLabel,
-              description: copy().nationalityDescription,
+              title: copy().joinPolicyTitle,
+              palmTitle: copy().joinPolicyPalmTitle,
+              palmDescription: copy().joinPolicyPalmDescription,
+              nationalityTitle: copy().joinPolicyNationalityTitle,
+              nationalityDescription: copy().nationalityDescription,
+              nationalityHint: copy().nationalityHint,
               pickerLabel: copy().nationalityPickerLabel,
               pickerPlaceholder: copy().nationalityPickerPlaceholder,
               emptyError: copy().nationalityEmptyError,
             }}
-            onChange={countries => props.onDraftChange?.({
-              additionalRequirements: countries === undefined
-                ? props.draft.additionalRequirements.filter(value => value.requirement !== "nationality-allowed")
-                : [...props.draft.additionalRequirements.filter(value => value.requirement !== "nationality-allowed"), { requirement: "nationality-allowed", allowedCountries: [...countries] }],
-            })} />
-        </section>
+            countries={nationality()?.allowedCountries ?? []}
+            locale={locale}
+            onCountriesChange={setCountries}
+            onPolicyChange={setJoinPolicy}
+            policy={joinPolicyKind()}
+            showEmptyError={policyAttempted() || policyTouched()}
+          />
         </Show>
 
-        <Show when={!stepped() || step() === 2}>
+        <Show when={!stepped() || step() === 3}>
         <Type as="p" variant="caption" class="text-sm leading-5">{copy().profileScope}</Type>
         <fieldset class="contents" disabled={props.ownerDisabled}>
         <CommunityOwnerFields draft={props.draft} personas={props.personas} profilesUnavailable={props.profilesUnavailable} onChange={props.onDraftChange} />

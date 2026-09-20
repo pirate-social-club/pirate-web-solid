@@ -520,6 +520,13 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
         personas={displayPersonas()}
         profilesUnavailable={!!currentSession()?.personasUnavailable}
         showMediaFields={false}
+        steps
+        resuming={!!intent() || !!props.intentId?.trim()}
+        // TODO(api-community-creation-creator-verification-removal): pass the
+        // fetched nationality authoring context once the API exposes it. While
+        // authoring is off in every environment, the option stays hidden so
+        // the route cannot store a dead gate_unsupported intent.
+        nationalityAuthoring={false}
         actionOnly={((!!intent() || !!props.intentId?.trim()) && !draftEdited()) || !currentSession()}
         fieldsDisabled={loadingSaved() || (!!props.intentId?.trim() && !intent())}
         ownerDisabled={!!intent()}

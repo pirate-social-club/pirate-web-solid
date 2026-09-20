@@ -19,6 +19,7 @@ function CreateStory(props: {
   nameError?: string | null;
   submitting?: boolean;
   steps?: boolean;
+  nationalityAuthoring?: boolean;
   personas?: readonly ActivePersonaPublicProjection[];
 }) {
   const [draft, setDraft] = createSignal<CreateCommunityDraft>(
@@ -31,6 +32,7 @@ function CreateStory(props: {
       <CreateCommunityView
         showMediaFields={false}
         steps={props.steps}
+        nationalityAuthoring={props.nationalityAuthoring}
         draft={draft()}
         personas={props.personas}
         nameError={props.nameError}
@@ -66,17 +68,15 @@ export const Empty: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(canvas.getByRole("button", { name: "Create" })).toBeDisabled();
-    await expect(canvas.getByText("Who can join")).toBeInTheDocument();
-    await expect(canvas.getByText("Palm scan")).toBeInTheDocument();
-    await expect(canvas.getByText(/Required · Members verify with a palm scan/)).toBeInTheDocument();
-    await expect(canvas.queryByText("Additional requirements")).not.toBeInTheDocument();
-    await expect(canvas.getByRole("checkbox", { name: "Limit by nationality" })).not.toBeChecked();
+    await expect(canvas.getByText("Who can join?")).toBeInTheDocument();
+    await expect(canvas.getByRole("radio", { name: /Anyone with Palm verification/ })).toBeChecked();
+    await expect(canvas.queryByRole("radio", { name: /People with selected nationalities/ })).toBeNull();
   },
 };
 
-export const TwoStep: Story = {
-  name: "Two steps",
-  render: () => <CreateStory steps />,
+export const ThreePages: Story = {
+  name: "Three pages",
+  render: () => <CreateStory steps nationalityAuthoring />,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(canvas.getByRole("button", { name: "Continue" })).toBeDisabled();
@@ -85,12 +85,20 @@ export const TwoStep: Story = {
     await expect(canvas.getByRole("button", { name: "Continue" })).toBeEnabled();
     await userEvent.click(canvas.getByRole("button", { name: "Continue" }));
 
-    await expect(canvas.getByText(/This profile belongs to this community only/)).toBeInTheDocument();
-    await expect(canvas.getByRole("textbox", { name: "Public name" })).toBeInTheDocument();
+    // The join policy page offers both options and no community fields.
+    await expect(await canvas.findByText("Who can join?")).toBeInTheDocument();
+    await expect(canvas.getByRole("radio", { name: /Anyone with Palm verification/ })).toBeChecked();
+    await expect(canvas.getByRole("radio", { name: /People with selected nationalities/ })).toBeInTheDocument();
     await expect(canvas.queryByRole("textbox", { name: "Name" })).toBeNull();
 
+    await userEvent.click(canvas.getByRole("button", { name: "Continue" }));
+    await expect(canvas.getByText(/This profile belongs to this community only/)).toBeInTheDocument();
+    await expect(canvas.getByRole("textbox", { name: "Public name" })).toBeInTheDocument();
+
     await userEvent.click(canvas.getByRole("button", { name: "Back" }));
-    await expect(canvas.getByRole("textbox", { name: "Name" })).toHaveValue("Night Shift");
+    await expect(await canvas.findByText("Who can join?")).toBeInTheDocument();
+    await userEvent.click(canvas.getByRole("button", { name: "Back" }));
+    await expect(await canvas.findByRole("textbox", { name: "Name" })).toHaveValue("Night Shift");
   },
 };
 
@@ -99,31 +107,73 @@ export const ValidDraft: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(canvas.getByRole("button", { name: "Create" })).toBeEnabled();
-    await expect(canvas.getByText("Palm scan")).toBeInTheDocument();
+    await expect(canvas.getByText("Anyone with Palm verification")).toBeInTheDocument();
     await userEvent.click(canvas.getByRole("button", { name: "Create" }));
     await expect(canvas.getByText("Submitted 1 times")).toBeInTheDocument();
   },
 };
 
-export const NationalityAllowed: Story = {
-  render: () => <CreateStory draft={validDraft()} />,
+export const NationalityPolicy: Story = {
+  name: "Nationality policy",
+  render: () => <CreateStory steps nationalityAuthoring draft={validDraft()} />,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await userEvent.click(canvas.getByRole("checkbox", { name: "Limit by nationality" }));
-    await expect(canvas.getByText("Palm scan")).toBeInTheDocument();
+    await userEvent.click(canvas.getByRole("button", { name: "Continue" }));
+    await userEvent.click(await canvas.findByRole("radio", { name: /People with selected nationalities/ }));
 
-    // Ticked but empty blocks submission until a country is chosen.
-    await expect(canvas.getByRole("button", { name: "Create" })).toBeDisabled();
+    // The empty picker and the any-of helper appear; no stacked Palm row.
+    await expect(canvas.getByText("Members must prove one of the selected nationalities.")).toBeInTheDocument();
+    await expect(canvas.getByRole("combobox", { name: "Allowed nationalities" })).toBeInTheDocument();
+    await expect(canvas.getByRole("radio", { name: /Anyone with Palm verification/ })).not.toBeChecked();
+    await expect(canvas.queryByText(/Required · Members verify/)).toBeNull();
+  },
+};
+
+export const NationalityPolicyWithChips: Story = {
+  name: "Nationality policy with chips",
+  render: () => <CreateStory steps nationalityAuthoring draft={validDraft()} />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(canvas.getByRole("button", { name: "Continue" }));
+    await userEvent.click(await canvas.findByRole("radio", { name: /People with selected nationalities/ }));
 
     const picker = canvas.getByRole("combobox", { name: "Allowed nationalities" });
     await userEvent.type(picker, "United States");
-    const option = await within(document.body).findByRole("option", { name: "United States" });
-    await userEvent.click(option);
+    await userEvent.click(await within(document.body).findByRole("option", { name: "United States" }));
     await expect(canvas.getByRole("button", { name: "Remove United States" })).toBeInTheDocument();
-    await expect(canvas.getByRole("button", { name: "Create" })).toBeEnabled();
 
-    await userEvent.click(canvas.getByRole("button", { name: "Create" }));
-    await expect(canvas.getByText("Submitted 1 times")).toBeInTheDocument();
+    await userEvent.type(picker, "Canada");
+    await userEvent.click(await within(document.body).findByRole("option", { name: "Canada" }));
+    await expect(canvas.getByRole("button", { name: "Remove Canada" })).toBeInTheDocument();
+  },
+};
+
+export const JoinPolicyValidation: Story = {
+  name: "Join policy validation",
+  render: () => <CreateStory steps nationalityAuthoring draft={validDraft()} />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(canvas.getByRole("button", { name: "Continue" }));
+    await userEvent.click(await canvas.findByRole("radio", { name: /People with selected nationalities/ }));
+    await expect(canvas.queryByText("Choose at least one country.")).not.toBeInTheDocument();
+
+    // An empty picker blocks Continue with the note, and the profile page stays closed.
+    await userEvent.click(canvas.getByRole("button", { name: "Continue" }));
+    await expect(await canvas.findByText("Choose at least one country.")).toBeInTheDocument();
+    await expect(canvas.getByText("Who can join?")).toBeInTheDocument();
+    await expect(canvas.queryByRole("textbox", { name: "Public name" })).toBeNull();
+  },
+};
+
+export const NationalityHidden: Story = {
+  name: "Nationality option behind the authoring gate",
+  render: () => <CreateStory steps draft={validDraft()} />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(canvas.getByRole("button", { name: "Continue" }));
+    await expect(await canvas.findByText("Who can join?")).toBeInTheDocument();
+    await expect(canvas.getByRole("radio", { name: /Anyone with Palm verification/ })).toBeChecked();
+    await expect(canvas.queryByRole("radio", { name: /People with selected nationalities/ })).toBeNull();
   },
 };
 
@@ -184,12 +234,23 @@ export const Submitting: Story = {
 
 export const Mobile: Story = {
   globals: { viewport: { value: "mobile1", isRotated: false } },
-  render: () => <CreateStory draft={validDraft()} />,
+  render: () => <CreateStory steps nationalityAuthoring draft={validDraft()} />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(canvas.getByRole("button", { name: "Continue" }));
+    await userEvent.click(await canvas.findByRole("radio", { name: /People with selected nationalities/ }));
+  },
 };
 
 export const Rtl: Story = {
   globals: { locale: "ar" },
-  render: () => <CreateStory draft={validDraft()} />,
+  render: () => <CreateStory steps nationalityAuthoring draft={validDraft()} />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(canvas.getByRole("button", { name: "متابعة" }));
+    await userEvent.click(await canvas.findByRole("radio", { name: /الأشخاص من الجنسيات المحددة/ }));
+    await expect(canvas.getByText("يجب أن يثبت الأعضاء انتماءهم إلى إحدى الجنسيات المحددة.")).toBeInTheDocument();
+  },
 };
 
 export const RejectedCommit: Story = {
