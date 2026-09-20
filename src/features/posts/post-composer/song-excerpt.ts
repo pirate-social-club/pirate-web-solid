@@ -36,6 +36,64 @@ export function maxExcerptMs(songDurationMs: number): number {
  * anywhere from 3 to 180 seconds. */
 export const DEFAULT_EXCERPT_MS = 30_000;
 
+/** The fixed window lengths offered before recording. The window is dragged,
+ * never stretched endpoint by endpoint: its length is also the length of the
+ * guided recording, so the two cannot drift apart. */
+export const EXCERPT_WINDOW_LENGTHS_MS = [15_000, 30_000, 60_000] as const;
+
+/** Window lengths this song and the server's policy can hold, smallest first.
+ * Non-empty whenever `canHoldExcerpt` is true: a song shorter than every
+ * preset contributes its own clamped length instead of no choice at all. */
+export function windowLengthsMs(
+  songDurationMs: number,
+  policy: { readonly minExcerptMs?: number; readonly maxExcerptMs?: number } = {},
+): readonly number[] {
+  const duration = whole(songDurationMs);
+  const lowest = whole(policy.minExcerptMs ?? MIN_EXCERPT_MS);
+  const highest = whole(policy.maxExcerptMs ?? MAX_EXCERPT_MS);
+  if (duration < lowest || highest < lowest) return [];
+  const allowed = EXCERPT_WINDOW_LENGTHS_MS.filter(
+    (length) => length >= lowest && length <= highest && length <= duration,
+  );
+  if (allowed.length > 0) return allowed;
+  return [clamp(duration, lowest, highest)];
+}
+
+/** The latest start that keeps a window of this length inside the song. Unlike
+ * `moveExcerpt`, which shortens against the song's end, this preserves the
+ * length: a fixed window only moves, and stays whole at the song's edge. */
+export function windowStartMax(lengthMs: number, songDurationMs: number): number {
+  const duration = whole(songDurationMs);
+  const length = clamp(whole(lengthMs), MIN_EXCERPT_MS, maxExcerptMs(duration));
+  return Math.max(0, duration - length);
+}
+
+/** Move a fixed-length window. The length is held exactly; only a length that
+ * cannot fit inside this song is clamped, which is the one case the author
+ * cannot see the window staying whole. */
+export function slideWindow(
+  bounds: ExcerptBounds,
+  nextStartMs: number,
+  songDurationMs: number,
+): ExcerptBounds {
+  const length = clamp(bounds.endMs - bounds.startMs, MIN_EXCERPT_MS, maxExcerptMs(songDurationMs));
+  const startMs = clamp(whole(nextStartMs), 0, windowStartMax(length, songDurationMs));
+  return { startMs, endMs: startMs + length };
+}
+
+/** Choose a new window length while keeping the window where it is, pulled
+ * back only as far as the song's end requires. */
+export function windowWithLength(
+  bounds: ExcerptBounds,
+  lengthMs: number,
+  songDurationMs: number,
+): ExcerptBounds {
+  const duration = whole(songDurationMs);
+  const length = clamp(whole(lengthMs), MIN_EXCERPT_MS, maxExcerptMs(duration));
+  const startMs = clamp(whole(bounds.startMs), 0, Math.max(0, duration - length));
+  return { startMs, endMs: startMs + length };
+}
+
 /** Where a selection starts when the author has not chosen one: the opening 30
  * seconds, or the whole song when it is shorter. Deliberately the opening rather
  * than a guess at a chorus — a default that pretends to be clever is worse than

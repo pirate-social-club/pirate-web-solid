@@ -14,6 +14,10 @@ import {
   moveExcerpt,
   resizeExcerptEnd,
   resizeExcerptStart,
+  slideWindow,
+  windowLengthsMs,
+  windowStartMax,
+  windowWithLength,
 } from "./song-excerpt";
 
 const SONG = 214_000; // 3:34, a plausible song length.
@@ -122,5 +126,59 @@ describe("song excerpt bounds", () => {
     expect(formatExcerptTime(0)).toBe("0:00");
     expect(formatExcerptTime(9_400)).toBe("0:09");
     expect(formatExcerptTime(214_000)).toBe("3:34");
+  });
+});
+
+describe("fixed-length window", () => {
+  it("offers 15, 30 and 60 second windows for a song that holds them", () => {
+    expect(windowLengthsMs(SONG)).toEqual([15_000, 30_000, 60_000]);
+  });
+
+  it("offers a shorter song's own length when no preset fits", () => {
+    // A 12 second song cannot hold a 15 second window; it still has a choice.
+    expect(windowLengthsMs(12_000)).toEqual([12_000]);
+    // And a song too short for any excerpt offers none, matching canHoldExcerpt.
+    expect(windowLengthsMs(2_000)).toEqual([]);
+  });
+
+  it("respects a policy narrower than the presets", () => {
+    expect(windowLengthsMs(SONG, { minExcerptMs: 20_000, maxExcerptMs: 45_000 })).toEqual([30_000]);
+  });
+
+  it("moves a window without changing its length", () => {
+    const window = { startMs: 30_000, endMs: 45_000 };
+    const moved = slideWindow(window, 120_000, SONG);
+    expect(moved).toEqual({ startMs: 120_000, endMs: 135_000 });
+    expect(excerptLengthMs(moved)).toBe(15_000);
+  });
+
+  it("stops a window whole at the song's end instead of shrinking it", () => {
+    // The failure the three-slider selector had: the position control's travel
+    // went dead near the end and clamping shortened the excerpt quietly.
+    const window = { startMs: 0, endMs: 30_000 };
+    const moved = slideWindow(window, SONG, SONG);
+    expect(moved).toEqual({ startMs: SONG - 30_000, endMs: SONG });
+    expect(excerptLengthMs(moved)).toBe(30_000);
+    expect(windowStartMax(30_000, SONG)).toBe(SONG - 30_000);
+  });
+
+  it("changes the window's length while keeping its start when it can", () => {
+    const window = { startMs: 100_000, endMs: 115_000 };
+    expect(windowWithLength(window, 30_000, SONG)).toEqual({ startMs: 100_000, endMs: 130_000 });
+    // Near the end the start is pulled back only as far as the length needs.
+    expect(windowWithLength({ startMs: SONG - 5_000, endMs: SONG }, 30_000, SONG))
+      .toEqual({ startMs: SONG - 30_000, endMs: SONG });
+  });
+
+  it("never produces fractional or out-of-range windows", () => {
+    let window = { startMs: 0, endMs: 15_000 };
+    for (const value of [12_345.7, -4.4, 999_999.9]) {
+      window = slideWindow(window, value, SONG);
+      expect(Number.isInteger(window.startMs)).toBe(true);
+      expect(Number.isInteger(window.endMs)).toBe(true);
+      expect(isSubmittableExcerpt(window, SONG)).toBe(true);
+      window = windowWithLength(window, value, SONG);
+      expect(isSubmittableExcerpt(window, SONG)).toBe(true);
+    }
   });
 });

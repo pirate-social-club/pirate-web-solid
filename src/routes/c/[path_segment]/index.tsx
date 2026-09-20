@@ -1,4 +1,4 @@
-import { query, type RouteProps } from "@solidjs/router";
+import { query, useSearchParams, type RouteProps } from "@solidjs/router";
 import { defineFileRoute } from "@solidjs/router/fs";
 import { getRequestEvent, httpHeader, httpStatus } from "@solidjs/web";
 import { createPublicCommunityRouteClient } from "../../../api/community-route-client.ts";
@@ -18,6 +18,7 @@ import {
   communityCanonicalOrigin,
   communityRequestOrigin,
 } from "../../../features/communities/community-page/community-page-origin.ts";
+import { initialVideoSongFromSearch } from "../../../features/posts/public-post/song-video-entry.tsx";
 
 export function commitCommunityPageResponse(state: CommunityPageViewState): void {
   const event = getRequestEvent();
@@ -65,5 +66,10 @@ export const route = defineFileRoute("/c/:path_segment", {
 });
 
 export default function CommunityRoute(props: RouteProps<typeof route>) {
-  return <CommunityPage pathSegment={props.params.path_segment} data={props.data} />;
+  const [searchParams] = useSearchParams();
+  return <CommunityPage
+    pathSegment={props.params.path_segment}
+    data={props.data}
+    initialVideoSong={initialVideoSongFromSearch(searchParams)}
+  />;
 }

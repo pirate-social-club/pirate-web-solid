@@ -53,7 +53,7 @@ export default defineConfig({
   projects: [
     {
       name: "chromium",
-      grepInvert: /@silent-audio/u,
+      grepInvert: /@silent-audio|@default-autoplay/u,
       use: {
         ...devices["Desktop Chrome"],
         launchOptions: {
@@ -64,10 +64,28 @@ export default defineConfig({
     {
       name: "chromium-silent",
       grep: /@silent-audio/u,
+      grepInvert: /@default-autoplay/u,
       use: {
         ...devices["Desktop Chrome"],
         launchOptions: {
           args: [...baseArgs, `--use-file-for-fake-audio-capture=${silenceCaptureWav}`],
+        },
+      },
+    },
+    {
+      // The browser's normal autoplay policy. The permissive projects above
+      // prove the application's gate; this project proves the same journey
+      // with autoplay actually blocked, so a user gesture (Play, not Mute) is
+      // what starts playback.
+      name: "chromium-default-autoplay",
+      grep: /@default-autoplay/u,
+      use: {
+        ...devices["Desktop Chrome"],
+        launchOptions: {
+          args: [
+            ...baseArgs.filter(arg => !arg.startsWith("--autoplay-policy")),
+            `--use-file-for-fake-audio-capture=${toneCaptureWav}`,
+          ],
         },
       },
     },

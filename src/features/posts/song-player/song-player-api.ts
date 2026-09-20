@@ -5,10 +5,15 @@ import {
   sessionRequestOptions,
 } from "../../../api/client.ts";
 export type SongPlaybackGrant = CreateSongPlaybackAccessResponse;
-export async function readSongPlaybackAccess(postId: string): Promise<SongPlaybackGrant> {
+export async function readSongPlaybackAccess(
+  postId: string,
+  signal?: AbortSignal,
+): Promise<SongPlaybackGrant> {
   const csrf = readCsrfCookie();
   return createSessionApiClient().post_postsPostIdSongPlaybackAccess(
     { path: { postId } },
-    csrf ? sessionRequestOptions(csrf) : { credentials: "same-origin" },
+    csrf
+      ? sessionRequestOptions(csrf, signal ? { signal } : {})
+      : { credentials: "same-origin", ...(signal ? { signal } : {}) },
   );
 }

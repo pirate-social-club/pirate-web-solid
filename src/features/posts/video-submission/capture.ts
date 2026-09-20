@@ -5,6 +5,10 @@ import { createCaptureFailureBoundary, VideoCaptureError } from "./capture-failu
 export { VideoCaptureError } from "./capture-failure";
 export interface VideoCaptureSession {
   readonly stream: MediaStream;
+  /** The capture timeline's origin in `performance.now()` terms: the moment
+   * the encoder began. The guide's start is measured against this, not against
+   * the later moment the session object reached its caller. */
+  readonly captureOriginMs: number;
   readonly stop: () => Promise<File>;
   readonly cancel: () => Promise<void>;
 }
@@ -12,13 +16,37 @@ export interface VideoCaptureSession {
 const videoQuality = new Quality({ bitrate: 4_000_000 });
 const audioQuality = new Quality({ bitrate: 128_000 });
 
+/** Measures a chosen file's duration in whole milliseconds, or null when the
+ * container cannot answer. The local duration guard uses this; the sealed
+ * server probe remains authoritative. */
+export async function measureVideoDuration(file: File): Promise<number | null> {
+  const input = new Input({ source: new BlobSource(file), formats: ALL_FORMATS });
+  try {
+    const duration = await input.computeDuration();
+    return Number.isFinite(duration) && duration > 0 ? Math.round(duration * 1_000) : null;
+  } catch {
+    return null;
+  } finally {
+    input.dispose();
+  }
+}
+
+const DEFAULT_MAX_DURATION_SECONDS = 180;
+/** A guided take is recorded a little past the excerpt's end so the render's
+ * exact cut cannot land on a frame the recording never produced. */
+const GUIDED_CAPTURE_MAX_DURATION_SECONDS = 181.5;
+
 /** Browser admission is an early UX check; the sealed server probe stays authoritative. */
-export async function inspectVideoFile(file: File): Promise<File> {
+export async function inspectVideoFile(
+  file: File,
+  options: { readonly maxDurationSeconds?: number } = {},
+): Promise<File> {
   const declared = file.type.toLowerCase().split(";")[0]?.trim();
   const type = declared || (/\.mov$/iu.test(file.name) ? "video/quicktime" : /\.mp4$/iu.test(file.name) ? "video/mp4" : "");
   if ((type !== "video/mp4" && type !== "video/quicktime") || file.size < 1 || file.size > 500 * 1024 * 1024) {
     throw new VideoCaptureError("invalid_media", "Choose an MP4 or MOV no larger than 500 MiB");
   }
+  const maxDuration = options.maxDurationSeconds ?? DEFAULT_MAX_DURATION_SECONDS;
   const input = new Input({ source: new BlobSource(file), formats: ALL_FORMATS });
   try {
     const video = await input.getPrimaryVideoTrack();
@@ -27,7 +55,7 @@ export async function inspectVideoFile(file: File): Promise<File> {
     const duration = await input.computeDuration();
     if (!video || !audio || (container !== "video/mp4" && container !== "video/quicktime")
       || await video.getCodec() !== "avc" || await audio.getCodec() !== "aac"
-      || !Number.isFinite(duration) || duration < 3 || duration > 180) {
+      || !Number.isFinite(duration) || duration < 3 || duration > maxDuration) {
       throw new VideoCaptureError("invalid_media", "Video must contain H.264 and AAC and last 3–180 seconds");
     }
     return new File([file], file.name, { type, lastModified: file.lastModified });
@@ -35,10 +63,15 @@ export async function inspectVideoFile(file: File): Promise<File> {
 }
 
 /** Production composition of the proved 1.55.5 fMP4 path; no WebM or AAC polyfill. */
-export async function startOriginalVideoCapture(input: {
+export interface OriginalVideoCaptureInput {
   readonly onFailure: (error: VideoCaptureError) => void;
   readonly onLimit: () => void;
-}): Promise<VideoCaptureSession> {
+  /** Recording stops at this length. A guided take passes the excerpt plus
+   * its tail guard; without one the platform limit stands. */
+  readonly limitMs?: number;
+}
+
+export async function startOriginalVideoCapture(input: OriginalVideoCaptureInput): Promise<VideoCaptureSession> {
   if (!globalThis.isSecureContext || !navigator.mediaDevices?.getUserMedia
     || !("VideoEncoder" in globalThis) || !("AudioEncoder" in globalThis)
     || !await canEncodeVideo("avc", { width: 720, height: 1280, quality: videoQuality,
@@ -99,15 +132,23 @@ export async function startOriginalVideoCapture(input: {
     for (const track of tracks) track.addEventListener("ended", trackEnded, { once: true });
     await output.start();
     if (ended) throw new VideoCaptureError("encoder_failed", "Capture ended before recording could start");
-    const started = performance.now();
+    // The exposed capture origin: the encoder is running and the file's
+    // timeline begins here. Everything after this in setup time must not be
+    // counted as recorded lead-in.
+    const captureOriginMs = performance.now();
+    const started = captureOriginMs;
+    const limitMs = input.limitMs === undefined
+      ? 180_000
+      : Math.min(Math.max(3_000, input.limitMs), 181_500);
     let limitReported = false;
     timer = setInterval(() => {
       const current = video.getSettings();
       if (current.width !== settings.width || current.height !== settings.height) { rotated(); return; }
-      if (!limitReported && performance.now() - started >= 180_000) { limitReported = true; input.onLimit(); }
+      if (!limitReported && performance.now() - started >= limitMs) { limitReported = true; input.onLimit(); }
     }, 100);
     return {
       stream,
+      captureOriginMs,
       async stop() {
         if (ended) throw new VideoCaptureError("encoder_failed", "Capture has already ended");
         ended = true; clearInterval(timer);
@@ -115,7 +156,11 @@ export async function startOriginalVideoCapture(input: {
           await output.finalize();
           boundary.assertFinalized();
           if (!target.buffer) throw new VideoCaptureError("encoder_failed", "Capture did not finalize a file");
-          return await inspectVideoFile(new File([target.buffer], "original-video.mp4", { type: "video/mp4" }));
+          return await inspectVideoFile(new File([target.buffer], "original-video.mp4", { type: "video/mp4" }), {
+            // Only the app's own guided take is allowed its tail guard; a
+            // chosen file keeps the ordinary admission bound.
+            maxDurationSeconds: GUIDED_CAPTURE_MAX_DURATION_SECONDS,
+          });
         } finally { release(); }
       },
       async cancel() { if (ended) return; ended = true; try { await output.cancel(); } finally { release(); } },

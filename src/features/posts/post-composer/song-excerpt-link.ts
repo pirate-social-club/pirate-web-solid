@@ -1,3 +1,5 @@
+import { decodePublicPostSlug } from "../public-post/public-post-route.model";
+
 /** Turning a pasted song link into the post it names.
  *
  * A link is the temporary way to choose a song, because no catalogue operation
@@ -5,14 +7,15 @@
  * no song listing to browse. When one lands, this becomes one of two ways in
  * rather than the only one.
  *
- * Only the post-id form is resolvable here. `getPayload` takes a post id and
- * looks the community up itself, so `/p/<postId>` and a bare id both work. A
- * `/posts/<slug>` link names a post by slug, which is a different lookup that
- * this increment does not do — it is reported as unsupported rather than
- * guessed at, because guessing would produce a confident failure later.
+ * A song post's ordinary `/posts/<slug>` link is resolvable through the public
+ * post read, which answers with the post id the playback access takes. A
+ * `/p/<postId>` link and a bare id resolve directly. Anything else is reported
+ * as unsupported rather than guessed at, because guessing would produce a
+ * confident failure later.
  */
 export type SongLinkResult =
   | { readonly kind: "post"; readonly postId: string }
+  | { readonly kind: "slug"; readonly slug: string }
   | { readonly kind: "unsupported"; readonly reason: string };
 
 const POST_ID = /^[A-Za-z0-9_-]{6,64}$/u;
@@ -23,10 +26,18 @@ function fromPathname(pathname: string): SongLinkResult | null {
   if (legacy >= 0 && segments[legacy + 1] && POST_ID.test(segments[legacy + 1])) {
     return { kind: "post", postId: segments[legacy + 1] };
   }
-  if (segments.includes("posts")) {
+  const posts = segments.indexOf("posts");
+  const rawSlug = posts >= 0 ? segments[posts + 1] : undefined;
+  if (rawSlug) {
+    // A pasted link may carry the post's own activity path; only the first
+    // segment after `posts` names the post, so the activity is ignored.
+    const decoded = decodePublicPostSlug(rawSlug);
+    if (decoded) return { kind: "slug", slug: decoded.logical };
+  }
+  if (posts >= 0) {
     return {
       kind: "unsupported",
-      reason: "That link names a post by slug. Paste a /p/<post id> link or the post id itself.",
+      reason: "That post link doesn’t name a post this composer can read.",
     };
   }
   return null;
@@ -44,7 +55,7 @@ export function parseSongLink(value: string): SongLinkResult {
     return (
       fromPathname(trimmed) ?? {
         kind: "unsupported",
-        reason: "No post id in that path. Paste a /p/<post id> link or the post id itself.",
+        reason: "No post id in that path. Paste a song link or the post id itself.",
       }
     );
   }
@@ -58,7 +69,7 @@ export function parseSongLink(value: string): SongLinkResult {
   return (
     fromPathname(pathname) ?? {
       kind: "unsupported",
-      reason: "No post id in that link. Paste a /p/<post id> link or the post id itself.",
+      reason: "No post id in that link. Paste a song link or the post id itself.",
     }
   );
 }
