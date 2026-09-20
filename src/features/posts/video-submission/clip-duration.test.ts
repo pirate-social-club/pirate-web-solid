@@ -1,10 +1,13 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  CAPTURE_ADMISSION_LIMIT_MS,
+  CAPTURE_ADMISSION_MARGIN_MS,
   CAPTURE_TAIL_GUARD_MS,
   captureStopAfterMs,
   clipFitMessage,
   fitClipToExcerpt,
+  SUPPORTED_RECORDED_EXCERPT_MS,
   TRIM_NOTICE_EPSILON_MS,
 } from "./clip-duration";
 
@@ -49,3 +52,22 @@ describe("clip duration against the chosen excerpt", () => {
   });
 });
 
+
+describe("the supported recorded excerpt stays inside the admission limit", () => {
+  it("reserves the capture tail and the AAC margin under 180 seconds", () => {
+    expect(SUPPORTED_RECORDED_EXCERPT_MS).toBe(178_700);
+    expect(SUPPORTED_RECORDED_EXCERPT_MS + CAPTURE_TAIL_GUARD_MS + CAPTURE_ADMISSION_MARGIN_MS)
+      .toBe(CAPTURE_ADMISSION_LIMIT_MS);
+    expect(captureStopAfterMs({ startMs: 0, endMs: SUPPORTED_RECORDED_EXCERPT_MS }))
+      .toBe(CAPTURE_ADMISSION_LIMIT_MS - CAPTURE_ADMISSION_MARGIN_MS);
+  });
+
+  it("refuses a clip whose container would pass but whose video is too short", () => {
+    // A retained audio tail can make the container 8 s while the video track
+    // is only 4 s. The render needs frames, so the fit guard compares the
+    // measured video duration and refuses before upload.
+    const fit = fitClipToExcerpt(4_000, { startMs: 0, endMs: 8_000 });
+    expect(fit).toEqual({ kind: "too_short", clipDurationMs: 4_000, shortfallMs: 4_000 });
+    expect(clipFitMessage(fit)).toContain("cannot be stretched");
+  });
+});

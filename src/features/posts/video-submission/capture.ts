@@ -19,11 +19,33 @@ const audioQuality = new Quality({ bitrate: 128_000 });
 /** Measures a chosen file's duration in whole milliseconds, or null when the
  * container cannot answer. The local duration guard uses this; the sealed
  * server probe remains authoritative. */
+/** The shape the duration reader needs, injectable for focused tests. */
+export interface PrimaryVideoDurationInput {
+  readonly getPrimaryVideoTrack: () => Promise<
+    { readonly computeDuration: () => Promise<number> } | null
+  >;
+}
+
+/**
+ * The render needs video frames, so the clip length that decides the excerpt
+ * fit is the primary video track's own duration. A container can outlast its
+ * video when a retained audio track remains (the guided alignment keeps the
+ * captured AAC for admission), and a container-only measure would let a clip
+ * with too few frames pass the guard.
+ */
+export async function readPrimaryVideoDurationMs(
+  input: PrimaryVideoDurationInput,
+): Promise<number | null> {
+  const video = await input.getPrimaryVideoTrack();
+  if (video === null) return null;
+  const duration = await video.computeDuration();
+  return Number.isFinite(duration) && duration > 0 ? Math.round(duration * 1_000) : null;
+}
+
 export async function measureVideoDuration(file: File): Promise<number | null> {
   const input = new Input({ source: new BlobSource(file), formats: ALL_FORMATS });
   try {
-    const duration = await input.computeDuration();
-    return Number.isFinite(duration) && duration > 0 ? Math.round(duration * 1_000) : null;
+    return await readPrimaryVideoDurationMs(input);
   } catch {
     return null;
   } finally {
