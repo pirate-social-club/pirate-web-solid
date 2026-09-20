@@ -109,8 +109,8 @@ export const SavedIntent: Story = {
     // One page carries both the community fields and the profile.
     await expect(canvas.getByRole("textbox", { name: "Name" })).toBeInTheDocument();
     await expect(canvas.getByRole("textbox", { name: "Public name" })).toBeInTheDocument();
-    await expect(canvas.getByText("Selected nationalities")).toBeInTheDocument();
     await expect(canvas.getByText("Fixed at creation.")).toBeInTheDocument();
+    await expect(canvas.getByText("United States, Canada")).toBeInTheDocument();
     await expect(canvas.getByRole("radio", { name: /People with selected nationalities/ })).toBeDisabled();
     await expect(canvas.getByRole("button", { name: "Create" })).toBeEnabled();
   },
@@ -234,8 +234,7 @@ export const SavedNationalityFrozen: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await userEvent.click(canvas.getByRole("button", { name: "Continue" }));
-    await expect(await canvas.findByText("Selected nationalities")).toBeInTheDocument();
-    await expect(canvas.getByText("Fixed at creation.")).toBeInTheDocument();
+    await expect(await canvas.findByText("Fixed at creation.")).toBeInTheDocument();
     await expect(canvas.getByText("United States, Canada")).toBeInTheDocument();
     await expect(canvas.queryByRole("combobox")).toBeNull();
     await expect(canvas.getByRole("radio", { name: /People with selected nationalities/ })).toBeDisabled();

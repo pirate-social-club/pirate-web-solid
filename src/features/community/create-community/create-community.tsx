@@ -293,7 +293,6 @@ export function CreateCommunityView(props: CreateCommunityProps) {
               palmTitle: copy().joinPolicyPalmTitle,
               nationalityTitle: copy().joinPolicyNationalityTitle,
               nationalityHint: copy().nationalityHint,
-              savedPolicy: copy().savedPolicy,
               savedPolicyCaption: copy().savedPolicyCaption,
               pickerLabel: copy().nationalityPickerLabel,
               pickerPlaceholder: copy().nationalityPickerPlaceholder,

@@ -208,7 +208,6 @@
     "joinPolicyPalmTitle": "Anyone with Palm verification",
     "joinPolicyNationalityTitle": "People with selected nationalities",
     "nationalityHint": "Members must prove one of the selected nationalities.",
-    "savedPolicy": "Selected nationalities",
     "savedPolicyCaption": "Fixed at creation.",
     "nationalityPickerLabel": "Allowed nationalities",
     "nationalityPickerPlaceholder": "Search countries",
