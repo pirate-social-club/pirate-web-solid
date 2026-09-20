@@ -99,18 +99,49 @@ test("the post page Study link opens the first exercise", async ({ context, page
   expect(sessions[0]?.status).toBe("active");
 });
 
-// Verified gap, 2026-09-19: with the harness seed now projecting the song into
-// `home_feed_projection` (GET /feed/home returns the item), the mounted home
-// feed still renders its video-only empty state, "No videos yet. Published
-// community videos will appear here.", because the item is a song and
-// `HomeVideoFeed` only renders video rows. No mounted surface renders the feed
-// card that carries the Study link: `FeedItemCard`/`FeedSurface` in
-// `public-feed.tsx` are used only by tests and by `home-feed.tsx`, which is not
-// mounted. The shipped Study entries are the public post page link/inline view
-// and the direct routes, both covered above. This test stays fixme until a
-// Study action exists on a mounted feed surface.
-test.fixme("the feed Study entry opens the first exercise (no mounted feed Study action)", async () => {
-  throw new Error("the mounted home feed renders no Study action for a song-only feed");
+// The local app mounts the video feed on the home tab, so the deployed
+// "second mobile tab" journey is exercised by entering the feed through the
+// footer navigation rather than by URL. The seed carries three video posts:
+// one linked to the eligible practice song, one with original audio, and one
+// linked to a published song without Study exercises.
+test("the mobile video feed opens Study for a video with a ready referenced song", async ({
+  context,
+  page,
+}) => {
+  const account = await useAccount(context, manifest, 2);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/communities");
+  await page.getByRole("button", { name: "Home", exact: true }).click();
+  await expect(page).toHaveURL(/\/$/u);
+  await expect(page.locator("main[data-video-feed-state]")).toHaveAttribute(
+    "data-video-feed-state",
+    "ready",
+    { timeout: 30_000 },
+  );
+
+  // Exactly the linked video offers Study, and it points at the referenced
+  // song; the unlinked video and the unavailable-song video render nothing.
+  const study = page.locator("[data-video-feed-study]");
+  await expect(study).toHaveCount(1, { timeout: 30_000 });
+  await expect(study).toHaveAttribute("href", `/p/${manifest.postId}/study`);
+  const rows = page.locator('[role="region"] > div');
+  await expect(rows).toHaveCount(3);
+  await expect(rows.nth(0)).toContainText("Harness linked video");
+  await expect(rows.nth(0).locator("[data-video-feed-study]")).toHaveCount(1);
+  await expect(rows.nth(1)).toContainText("Harness unlinked video");
+  await expect(rows.nth(1).locator("[data-video-feed-study]")).toHaveCount(0);
+  await expect(rows.nth(2)).toContainText("Harness unavailable-song video");
+  await expect(rows.nth(2).locator("[data-video-feed-study]")).toHaveCount(0);
+
+  await study.click();
+  await expect(page).toHaveURL(new RegExp(`/p/${manifest.postId}/study$`, "u"));
+  await expectFirstExercise(page);
+  const sessions = await waitForDatabaseRow<SessionRow>(
+    `SELECT session_id, status FROM study_sessions_v2 WHERE account_id='${account.accountId}'`,
+    (rows) => rows.length === 1,
+  );
+  expect(sessions).toHaveLength(1);
+  expect(sessions[0]?.status).toBe("active");
 });
 test("a reload resumes the same session without creating another", async ({ context, page }) => {
   const account = await useAccount(context, manifest, 3);
