@@ -13,7 +13,7 @@ afterEach(() => {
 const attribution = { songPostId: "song-post-id", title: "A projected song", songAuthorPersonaId: "persona-id" };
 
 function mount(props: {
-  readonly resolveLink?: (value: typeof attribution) => Promise<{ href: string; authorName: string | null } | null>;
+  readonly resolveLink?: (value: { readonly songPostId: string }) => Promise<{ href: string; title: string | null; authorName: string | null } | null>;
   readonly navigate?: (href: string) => void;
 }) {
   const container = document.createElement("div");
@@ -27,7 +27,7 @@ function mount(props: {
 
 describe("the song attribution chip", () => {
   test("links the video back to its song once the route resolves", async () => {
-    const container = mount({ resolveLink: async () => ({ href: "/posts/a-song", authorName: "The author" }) });
+    const container = mount({ resolveLink: async () => ({ href: "/posts/a-song", title: "A projected song", authorName: "The author" }) });
     await vi.waitFor(() => expect(container.querySelector("a")).not.toBeNull());
     const chip = container.querySelector("a")!;
     expect(chip.getAttribute("href")).toBe("/posts/a-song");
@@ -45,7 +45,7 @@ describe("the song attribution chip", () => {
 
   test("routes through the host's navigate when one is given", async () => {
     const navigate = vi.fn();
-    const container = mount({ resolveLink: async () => ({ href: "/posts/a-song", authorName: null }), navigate });
+    const container = mount({ resolveLink: async () => ({ href: "/posts/a-song", title: "A projected song", authorName: null }), navigate });
     await vi.waitFor(() => expect(container.querySelector("a")).not.toBeNull());
     container.querySelector("a")!.click();
     expect(navigate).toHaveBeenCalledWith("/posts/a-song");

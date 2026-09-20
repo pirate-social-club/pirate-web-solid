@@ -2,9 +2,9 @@ import { createSignal, onSettled, Show } from "solid-js";
 import { IconMusicNote } from "../../../design-system";
 import {
   createSongAttributionLinkResolver,
-  type SongAttribution,
   type SongAttributionLink,
   type SongAttributionLinkResolver,
+  type SongAttributionRef,
 } from "./song-attribution.ts";
 
 /** The linked song chip a published song-backed video carries.
@@ -15,7 +15,7 @@ import {
  * resolved, the chip is honest text rather than a dead or invented link.
  */
 export function SongAttributionChip(props: {
-  readonly attribution: SongAttribution;
+  readonly attribution: SongAttributionRef;
   readonly resolveLink?: SongAttributionLinkResolver;
   readonly navigate?: (href: string) => void;
 }) {
@@ -25,8 +25,9 @@ export function SongAttributionChip(props: {
     void resolveLink(props.attribution).then(setLink, () => setLink(null));
   });
   const label = () => {
+    const title = link()?.title ?? props.attribution.title ?? "Song";
     const author = link()?.authorName;
-    return author ? `${props.attribution.title} · ${author}` : props.attribution.title;
+    return author ? `${title} · ${author}` : title;
   };
   return (
     <Show

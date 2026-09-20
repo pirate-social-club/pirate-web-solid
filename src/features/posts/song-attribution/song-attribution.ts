@@ -13,6 +13,14 @@ export interface SongAttribution {
   readonly songAuthorPersonaId: string;
 }
 
+/** What a surface may know about the song before the post read answers: at
+ * minimum the id, and the projected title when the surface has it. */
+export interface SongAttributionRef {
+  readonly songPostId: string;
+  readonly title?: string;
+  readonly songAuthorPersonaId?: string;
+}
+
 type JsonValue = string | number | boolean | null | JsonValue[] | { readonly [key: string]: JsonValue };
 
 function isRecord(value: unknown): value is { readonly [key: string]: JsonValue } {
@@ -41,11 +49,12 @@ export function readSongAttribution(video: unknown): SongAttribution | null {
 
 export interface SongAttributionLink {
   readonly href: string;
+  readonly title: string | null;
   readonly authorName: string | null;
 }
 
 export type SongAttributionLinkResolver = (
-  attribution: SongAttribution,
+  attribution: SongAttributionRef,
 ) => Promise<SongAttributionLink | null>;
 
 /** The slice of the public post read this chip needs. Kept structural so the
@@ -55,6 +64,8 @@ export interface SongAttributionPostRead {
   readonly post_id?: string;
   readonly content?: {
     readonly post: {
+      readonly song_title?: string | null;
+      readonly title?: string | null;
       readonly author_persona?: {
         readonly display_name?: string | null;
         readonly primary_public_handle?: string | null;
@@ -94,9 +105,11 @@ export function createSongAttributionLinkResolver(
         const response = await (client ?? createSessionApiClient())
           .get_publicPostsByIdPostIdCanonicalRoute({ path: { postId: attribution.songPostId } });
         if (response.kind !== "content" || response.content === undefined || response.route == null) return null;
-        const persona = response.content.post.author_persona;
+        const post = response.content.post;
+        const persona = post.author_persona;
+        const title = post.song_title?.trim() || post.title?.trim() || null;
         const authorName = persona?.display_name?.trim() || persona?.primary_public_handle?.trim() || null;
-        return { href: response.route.canonical_path, authorName };
+        return { href: response.route.canonical_path, title, authorName };
       } catch {
         return null;
       }

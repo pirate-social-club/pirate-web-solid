@@ -61,11 +61,11 @@ describe("resolving the chip's link", () => {
       client: client({
         kind: "content",
         post_id: "song-post-id",
-        content: { post: { author_persona: { display_name: "The author", primary_public_handle: "handle" } } },
+        content: { post: { song_title: "The song", author_persona: { display_name: "The author", primary_public_handle: "handle" } } },
         route: { canonical_path: "/posts/a-song" },
       }),
     });
-    expect(await resolve(attribution)).toEqual({ href: "/posts/a-song", authorName: "The author" });
+    expect(await resolve(attribution)).toEqual({ href: "/posts/a-song", title: "The song", authorName: "The author" });
   });
 
   it("falls back to the public handle and then to no name", async () => {
@@ -77,7 +77,7 @@ describe("resolving the chip's link", () => {
         route: { canonical_path: "/posts/a-song" },
       }),
     });
-    expect(await resolve(attribution)).toEqual({ href: "/posts/a-song", authorName: "handle" });
+    expect(await resolve(attribution)).toEqual({ href: "/posts/a-song", title: null, authorName: "handle" });
   });
 
   it("has no link when the song has no canonical route", async () => {

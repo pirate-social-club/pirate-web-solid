@@ -198,7 +198,7 @@ createRoot(() => {
         <SongVideoEntry communityId="community-fixture" postId="song-fixture" read={async () => true} sessionHint={() => true} />
         <SongAttributionChip
           attribution={{ songPostId: "song-fixture", title: "Fixture song", songAuthorPersonaId: "persona-fixture" }}
-          resolveLink={async () => ({ href: "/posts/fixture-song", authorName: "Fixture author" })}
+          resolveLink={async () => ({ href: "/posts/fixture-song", title: "Fixture song", authorName: "Fixture author" })}
         />
       </section>
       <button onClick={() => { const state = ledger(); state.guideFails = true; write(state); notify(); }}>Fail the next guide</button>
