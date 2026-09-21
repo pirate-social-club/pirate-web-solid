@@ -1,6 +1,6 @@
 import { For, Show, createSignal, createUniqueId } from "solid-js";
 import type { ActivePersonaPublicProjection } from "../../../api/session";
-import { Button, IconArrowsClockwise, IconButton, TextField, TextFieldInput, TextFieldLabel, Type, cn } from "../../../design-system";
+import { Button, TextField, TextFieldInput, TextFieldLabel, Type, cn } from "../../../design-system";
 import { communityCreationCandidates } from "../../identity/community-persona-choice";
 import type { CreateCommunityCopy, CreateCommunityDraft } from "./create-community-model";
 import { generatedAvatarSrc } from "./generated-avatar";
@@ -23,7 +23,6 @@ export type CommunityOwnerCopy = Pick<
   | "mediaChooseFile"
   | "mediaReplace"
   | "mediaRemove"
-  | "shuffleAvatar"
 >;
 
 export function CommunityOwnerFields(props: {
@@ -32,7 +31,6 @@ export function CommunityOwnerFields(props: {
   personas?: readonly ActivePersonaPublicProjection[];
   profilesUnavailable?: boolean;
   onProfileAvatarChange?: (file: File | null) => void;
-  onProfileAvatarShuffle?: () => void;
   /**
    * Hides the section heading when the page header already carries its text.
    * The heading element stays in the DOM as the section's accessible name;
@@ -86,14 +84,7 @@ export function CommunityOwnerFields(props: {
           */}
           <MediaPicker
             chooseLabel={props.copy.mediaChooseFile}
-            fallback={
-              <div class="flex items-center gap-2">
-                <img alt="" class="size-16 shrink-0 rounded-full object-cover" src={generatedAvatarSrc(props.draft.profileAvatarSeed)} />
-                <IconButton aria-label={props.copy.shuffleAvatar} onClick={props.onProfileAvatarShuffle} variant="ghost">
-                  <IconArrowsClockwise class="size-5" />
-                </IconButton>
-              </div>
-            }
+            fallback={<img alt="" class="size-16 shrink-0 rounded-full object-cover" src={generatedAvatarSrc(props.draft.profileAvatarSeed)} />}
             label={props.copy.ownerAvatarLabel}
             removeLabel={props.copy.mediaRemove}
             replaceLabel={props.copy.mediaReplace}
@@ -121,14 +112,7 @@ export function CommunityOwnerFields(props: {
           <Show when={props.avatarAuthoring === true && profile().avatarRef === null}>
             <MediaPicker
               chooseLabel={props.copy.mediaChooseFile}
-              fallback={
-                <div class="flex items-center gap-2">
-                  <img alt="" class="size-16 shrink-0 rounded-full object-cover" src={generatedAvatarSrc(props.draft.profileAvatarSeed)} />
-                  <IconButton aria-label={props.copy.shuffleAvatar} onClick={props.onProfileAvatarShuffle} variant="ghost">
-                    <IconArrowsClockwise class="size-5" />
-                  </IconButton>
-                </div>
-              }
+              fallback={<img alt="" class="size-16 shrink-0 rounded-full object-cover" src={generatedAvatarSrc(props.draft.profileAvatarSeed)} />}
               label={props.copy.ownerAvatarLabel}
               removeLabel={props.copy.mediaRemove}
               replaceLabel={props.copy.mediaReplace}

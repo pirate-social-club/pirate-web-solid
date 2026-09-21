@@ -35,7 +35,6 @@ export interface CreateCommunityProps {
   nameError?: string | null;
   onAvatarChange?: (file: File | null) => void;
   onProfileAvatarChange?: (file: File | null) => void;
-  onProfileAvatarShuffle?: () => void;
   onDraftChange?: (patch: Partial<CreateCommunityDraft>) => void;
   onSubmit?: () => void;
   onClose?: () => void;
@@ -281,7 +280,6 @@ export function CreateCommunityView(props: CreateCommunityProps) {
           hideHeading
           locked={props.ownerDisabled}
           onProfileAvatarChange={props.onProfileAvatarChange}
-          onProfileAvatarShuffle={props.onProfileAvatarShuffle}
           personas={props.personas}
           profilesUnavailable={props.profilesUnavailable}
           onChange={props.onDraftChange}

@@ -29,7 +29,7 @@ import {
 import type { CommunityCreationIntentView, CreationNextAction } from "./community-creation-intent/community-creation-intent-model";
 import { CreateCommunityView } from "./create-community/create-community";
 import { createEmptyDraft, type CreateCommunityDraft } from "./create-community/create-community-model";
-import { randomAvatarSeed, rasterizeGeneratedAvatar } from "./create-community/generated-avatar";
+import { rasterizeGeneratedAvatar } from "./create-community/generated-avatar";
 import { communityCreationDraftsEqual } from "./community-creation-draft";
 import { getLocaleMessages } from "../../locales";
 import { useUiLocale } from "../../lib/ui-locale";
@@ -327,15 +327,6 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
       : { personaAvatarRef: undefined });
     if (purpose === "community") setCommunityAvatarFile(file ?? undefined);
     else setPersonaAvatarFile(file ?? undefined);
-  };
-
-  const shuffleProfileAvatar = () => {
-    forgetCommandKey("avatar:persona");
-    forgetAvatarRef("persona");
-    const seed = randomAvatarSeed();
-    rememberNewProfileAvatarSeed(seed);
-    setPersonaAvatarFile(undefined);
-    recordDraftEdit({ personaAvatarRef: undefined, profileAvatarSeed: seed });
   };
 
   const loadIntent = async (
@@ -817,7 +808,6 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
           draft={draft()}
           onAvatarChange={file => changeAvatar("community", file)}
           onProfileAvatarChange={file => changeAvatar("persona", file)}
-          onProfileAvatarShuffle={shuffleProfileAvatar}
           onClose={() => navigate("/")}
           onDraftChange={(patch) => {
             if (busy() || loadingSaved() || (props.intentId?.trim() && !intent())) return;

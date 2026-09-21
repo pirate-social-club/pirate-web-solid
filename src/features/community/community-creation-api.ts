@@ -305,7 +305,7 @@ export function createCommunityCreationApi(
       const expiry = record === undefined ? Number.POSITIVE_INFINITY : Date.parse(record.expiresAt);
       const expired = record !== undefined && !record.finalized && (!Number.isFinite(expiry) || expiry <= Date.now());
       if (record === undefined || expired || record.purpose !== purpose || record.contentType !== contentType || record.size !== file.size) {
-        const reservationKey = expired
+        const reservationKey = expired && record !== undefined
           ? `community:avatar-renew:${record.assetId}`
           : idempotencyKey;
         const reservation = await client().post_avatarUploadReservations({

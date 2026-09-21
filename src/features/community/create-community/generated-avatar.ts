@@ -1,6 +1,6 @@
 /**
  * The locally generated profile-avatar default of Spec 014 §3.1: a
- * deterministic image derived only from a random seed the owner may shuffle.
+ * deterministic image derived only from a random seed.
  * It is never derived from the Public name or the persona id, and no hosted
  * generator is involved. The image is an inline SVG data URI, so it renders
  * identically on the server and the client.
