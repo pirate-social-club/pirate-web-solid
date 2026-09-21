@@ -11,7 +11,7 @@ const currentClient = resolve(
 // Client 0.87.0 retains the consumed operations and removes the obsolete
 // community-creation activate_profile response. This digest pins the exact
 // success, error, and schema tables consumed by Solid.
-const expectedDigest = "57131fec02e35e8b663ee7baf1c0c54b23dba6929324204b237f7de4c7cd3fe4";
+const expectedDigest = "7c6226000d0d1c051275de05ef879fcda0b333418a8b2a32516cf875476fe525";
 
 const operations = [
   "post_postsPostIdVideoPlaybackAccess",
