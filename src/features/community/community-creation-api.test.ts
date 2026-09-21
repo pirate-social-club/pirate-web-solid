@@ -340,7 +340,7 @@ test("restores the generated avatar seed for an existing intent", async () => {
 });
 
 test("reserves, uploads and finalizes an avatar through the signed URL", async () => {
-  localStorage.removeItem("pirate:community-avatar-upload:avatar-key");
+  sessionStorage.removeItem("pirate:community-avatar-upload:avatar-key");
   const requests: Array<{ url: string; init?: RequestInit }> = [];
   // SAFETY: This focused adapter fixture implements only the generated methods exercised by uploadAvatar.
   const client = {
@@ -372,11 +372,13 @@ test("reserves, uploads and finalizes an avatar through the signed URL", async (
   expect(new Headers(requests[0]?.init?.headers).has("x-csrf-token")).toBe(false);
   expect(new Headers(requests[0]?.init?.headers).has("authorization")).toBe(false);
   expect(new Headers(requests[0]?.init?.headers).has("content-length")).toBe(false);
+  expect(localStorage.getItem("pirate:community-avatar-upload:avatar-key")).toBeNull();
+  expect(sessionStorage.getItem("pirate:community-avatar-upload:avatar-key")).not.toBeNull();
 });
 
 test("replays a reserved asset after an ambiguous finalize without reserving again", async () => {
   const key = "avatar-recovery-key";
-  localStorage.removeItem(`pirate:community-avatar-upload:${key}`);
+  sessionStorage.removeItem(`pirate:community-avatar-upload:${key}`);
   let reservations = 0;
   let finalizations = 0;
   let readinessChecks = 0;
@@ -421,7 +423,7 @@ test("replays a reserved asset after an ambiguous finalize without reserving aga
 
 test("replaces an expired reservation with a fresh idempotency key", async () => {
   const key = "avatar-expired-key";
-  localStorage.setItem(`pirate:community-avatar-upload:${key}`, JSON.stringify({
+  sessionStorage.setItem(`pirate:community-avatar-upload:${key}`, JSON.stringify({
     assetId: "avatar-44444444-4444-4444-8444-444444444444",
     contentType: "image/png",
     expiresAt: "2020-01-01T00:00:00Z",

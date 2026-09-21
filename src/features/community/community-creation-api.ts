@@ -170,7 +170,7 @@ function writeSessionStorage(key: string, value: string): void {
 }
 
 function readAvatarUploadRecord(idempotencyKey: string): AvatarUploadRecord | undefined {
-  const raw = readStorage(avatarUploadKey(idempotencyKey));
+  const raw = readSessionStorage(avatarUploadKey(idempotencyKey));
   if (raw === null) return undefined;
   try {
     const record: unknown = JSON.parse(raw);
@@ -188,7 +188,7 @@ function readAvatarUploadRecord(idempotencyKey: string): AvatarUploadRecord | un
 }
 
 function writeAvatarUploadRecord(idempotencyKey: string, record: AvatarUploadRecord): void {
-  writeStorage(avatarUploadKey(idempotencyKey), JSON.stringify(record));
+  writeSessionStorage(avatarUploadKey(idempotencyKey), JSON.stringify(record));
 }
 
 /** Keep the local generated choice stable until the server stores its image. */
