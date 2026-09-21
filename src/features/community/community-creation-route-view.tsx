@@ -20,11 +20,16 @@ import {
 import {
   CommunityCreationApiError,
   createCommunityCreationApi,
+  forgetNewProfileAvatarSeed,
+  readNewProfileAvatarSeed,
+  rememberProfileAvatarSeed,
+  rememberNewProfileAvatarSeed,
   type CommunityCreationApi,
 } from "./community-creation-api";
 import type { CommunityCreationIntentView, CreationNextAction } from "./community-creation-intent/community-creation-intent-model";
 import { CreateCommunityView } from "./create-community/create-community";
 import { createEmptyDraft, type CreateCommunityDraft } from "./create-community/create-community-model";
+import { randomAvatarSeed, rasterizeGeneratedAvatar } from "./create-community/generated-avatar";
 import { communityCreationDraftsEqual } from "./community-creation-draft";
 import { getLocaleMessages } from "../../locales";
 import { useUiLocale } from "../../lib/ui-locale";
@@ -33,6 +38,9 @@ type RouteSession = "resolving" | "failed" | SessionResolution;
 
 export interface CommunityCreationRouteViewProps {
   api?: CommunityCreationApi;
+  /** Story/test seam. Production leaves avatar authoring disabled. */
+  avatarAuthoring?: boolean;
+  rasterizeProfileAvatar?: (seed: string) => Promise<Blob>;
   intentId?: string;
   navigate?: (href: string, options?: { replace?: boolean }) => void;
   resolveSession?: () => Promise<SessionResolution>;
@@ -85,7 +93,13 @@ export function communityCreationCanUsePersona(
 export function CommunityCreationRouteView(props: CommunityCreationRouteViewProps) {
   const api = props.api ?? createCommunityCreationApi();
   const [session, setSession] = createSignal<RouteSession>("resolving");
-  const [draft, setDraft] = createSignal<CreateCommunityDraft>(createEmptyDraft(undefined));
+  const initialDraft = createEmptyDraft(undefined);
+  const restoredNewAvatarSeed = readNewProfileAvatarSeed();
+  if (restoredNewAvatarSeed === undefined) rememberNewProfileAvatarSeed(initialDraft.profileAvatarSeed);
+  const [draft, setDraft] = createSignal<CreateCommunityDraft>({
+    ...initialDraft,
+    profileAvatarSeed: restoredNewAvatarSeed ?? initialDraft.profileAvatarSeed,
+  });
   const [draftEdited, setDraftEdited] = createSignal(false);
   const [draftConflict, setDraftConflict] = createSignal(false);
   // Refreshing lifecycle state must not replace the baseline of unsaved edits.
@@ -99,6 +113,14 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
     if (incoming.nextAction.kind === "wait" && current?.nextAction.kind !== "wait") {
       const expires = Date.parse(incoming.expiresAt);
       setWaitDeadline(Math.min(Date.now() + 60_000, Number.isFinite(expires) ? expires : Infinity));
+    }
+    if (incoming.avatarOutcomes?.community === "attached" || incoming.avatarOutcomes?.community === "omitted_unavailable") {
+      setCommunityAvatarFile(undefined);
+    }
+    if (incoming.avatarOutcomes?.persona === "attached"
+      || incoming.avatarOutcomes?.persona === "omitted_unavailable"
+      || incoming.avatarOutcomes?.persona === "preserved_existing") {
+      setPersonaAvatarFile(undefined);
     }
     setIntent(incoming);
     return incoming;
@@ -116,6 +138,9 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
   let refreshingAfterCommit = false;
   let sessionRequest = 0;
   let sessionInFlight = true;
+  const [communityAvatarFile, setCommunityAvatarFile] = createSignal<Blob>();
+  const [personaAvatarFile, setPersonaAvatarFile] = createSignal<Blob>();
+  const rasterizeProfile = props.rasterizeProfileAvatar ?? rasterizeGeneratedAvatar;
 
   const navigate = (href: string, options?: { replace?: boolean }) => {
     if (props.navigate) {
@@ -128,12 +153,55 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
     }
   };
 
+  const commandStorageKey = (scope: string): string => {
+    const intentScope = intent()?.intentId ?? props.intentId?.trim() ?? "new";
+    return `pirate:community-command:${intentScope}:${scope}`;
+  };
+
   const commandKey = (scope: string): string => {
     const existing = commandKeys.get(scope);
     if (existing) return existing;
-    const created = idempotencyKey(scope);
+    const storageKey = commandStorageKey(scope);
+    let created: string | undefined;
+    try { created = localStorage.getItem(storageKey) ?? undefined; } catch { /* storage is optional */ }
+    if (created === undefined) {
+      created = idempotencyKey(scope);
+      try { localStorage.setItem(storageKey, created); } catch { /* storage is optional */ }
+    }
     commandKeys.set(scope, created);
     return created;
+  };
+
+  const forgetCommandKey = (scope: string) => {
+    commandKeys.delete(scope);
+    try { localStorage.removeItem(commandStorageKey(scope)); } catch { /* storage is optional */ }
+  };
+
+  const recordDraftEdit = (patch: Partial<CreateCommunityDraft>) => {
+    continuing = false;
+    forgetCommandKey("create");
+    forgetCommandKey("update");
+    const saved = intent();
+    if (saved && !draftEdited()) editBase = { intentId: saved.intentId, draft: saved.draft };
+    if (saved) setDraftEdited(true);
+    setDraft(current => ({ ...current, ...patch }));
+  };
+
+  const changeAvatar = (purpose: "community" | "persona", file: File | null) => {
+    forgetCommandKey(`avatar:${purpose}`);
+    recordDraftEdit(purpose === "community"
+      ? { communityAvatarRef: undefined }
+      : { personaAvatarRef: undefined });
+    if (purpose === "community") setCommunityAvatarFile(file ?? undefined);
+    else setPersonaAvatarFile(file ?? undefined);
+  };
+
+  const shuffleProfileAvatar = () => {
+    forgetCommandKey("avatar:persona");
+    const seed = randomAvatarSeed();
+    rememberNewProfileAvatarSeed(seed);
+    setPersonaAvatarFile(undefined);
+    recordDraftEdit({ personaAvatarRef: undefined, profileAvatarSeed: seed });
   };
 
   const loadIntent = async (
@@ -393,6 +461,63 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
     }
   };
 
+  const optionalAvatar = async (
+    file: Blob,
+    purpose: "community" | "persona",
+  ): Promise<string | undefined> => {
+    try {
+      if (api.uploadAvatar === undefined) throw new Error("avatar_upload_unavailable");
+      const controller = new AbortController();
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      const timeout = new Promise<never>((_, reject) => {
+        timer = setTimeout(() => {
+          controller.abort();
+          reject(new Error("avatar_upload_timeout"));
+        }, 30_000);
+      });
+      const upload = api.uploadAvatar({
+        file,
+        idempotencyKey: commandKey(`avatar:${purpose}`),
+        purpose,
+        signal: controller.signal,
+      });
+      try { return await Promise.race([upload, timeout]); }
+      finally { if (timer !== undefined) clearTimeout(timer); }
+    } catch {
+      // Avatar images are deliberately optional. The creation request still
+      // proceeds and the API response records the omission outcome.
+      setMessage("An optional avatar could not be uploaded; creation will continue.");
+      return undefined;
+    }
+  };
+
+  const draftWithOptionalAvatars = async (source: CreateCommunityDraft): Promise<CreateCommunityDraft> => {
+    if (props.avatarAuthoring !== true) return source;
+    const next: CreateCommunityDraft = { ...source };
+    if (next.communityAvatarRef === undefined && communityAvatarFile() !== undefined) {
+      const ref = await optionalAvatar(communityAvatarFile()!, "community");
+      if (ref !== undefined) next.communityAvatarRef = ref;
+    }
+    const personaChoice = next.persona;
+    const selectedPersona = personaChoice?.kind === "existing"
+      ? signedIn(session())?.personas.find(persona => persona.personaId === personaChoice.personaId)
+      : undefined;
+    const personaNeedsAvatar = personaChoice?.kind === "create_new"
+      || (personaChoice?.kind === "existing" && selectedPersona?.avatarRef === null);
+    if (personaNeedsAvatar && next.personaAvatarRef === undefined) {
+      const selected = personaAvatarFile();
+      let generated = selected;
+      if (generated === undefined) {
+        try { generated = await rasterizeProfile(next.profileAvatarSeed); }
+        catch { setMessage("An optional avatar could not be prepared; creation will continue."); }
+      }
+      if (generated === undefined) return next;
+      const ref = await optionalAvatar(generated, "persona");
+      if (ref !== undefined) next.personaAvatarRef = ref;
+    }
+    return next;
+  };
+
   const submit = async () => {
     const currentDraft = draft();
     if (busy() || loadingSaved() || sessionInFlight || draftConflict()) return;
@@ -416,16 +541,19 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
         if (!latest || !active || signedIn(session())?.userId !== owner.userId) return;
         if (latest.committedHref || draftConflict()) return;
         if (draftEdited()) {
+          const draftToSubmit = await draftWithOptionalAvatars(currentDraft);
+          setDraft(draftToSubmit);
           const updated = await api.updateIntent({
             intentId: latest.intentId,
             expectedRevision: latest.revision,
-            draft: currentDraft,
+            draft: draftToSubmit,
             // A new revision changes the request body; unchanged retries keep
             // their key, while draft edits already rotate the update key.
             idempotencyKey: `${commandKey("update")}:${latest.revision}`,
           });
           if (!active || signedIn(session())?.userId !== owner.userId || draftConflict()) return;
           latest = applyIntent(updated);
+          if (latest.draft) setDraft(latest.draft);
           editBase = undefined;
           setDraftEdited(false);
           setMessage("");
@@ -454,8 +582,10 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
     setBusy(true);
     setMessage("");
     try {
+      const draftToSubmit = await draftWithOptionalAvatars(currentDraft);
+      setDraft(draftToSubmit);
       const created = await api.createIntent({
-        draft: currentDraft,
+        draft: draftToSubmit,
         idempotencyKey: commandKey("create"),
       });
       if (!active) return;
@@ -464,7 +594,14 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
         return;
       }
       setIntentOwnerId(owner.userId);
-      applyIntent(created);
+      rememberProfileAvatarSeed(created.intentId, draftToSubmit.profileAvatarSeed);
+      forgetNewProfileAvatarSeed();
+      const createdWithSeed = created.draft === undefined ? created : {
+        ...created,
+        draft: { ...created.draft, profileAvatarSeed: draftToSubmit.profileAvatarSeed },
+      };
+      applyIntent(createdWithSeed);
+      if (createdWithSeed.draft) setDraft(createdWithSeed.draft);
       navigate(`/communities/new?intent_id=${encodeURIComponent(created.intentId)}`, { replace: true });
       if (created.nextAction.kind === "blocked") {
         setMessage(blockedCreationMessage(created.nextAction.reason));
@@ -521,18 +658,29 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
       >
         <CreateCommunityView
           draft={draft()}
+          onAvatarChange={file => changeAvatar("community", file)}
+          onProfileAvatarChange={file => changeAvatar("persona", file)}
+          onProfileAvatarShuffle={shuffleProfileAvatar}
           onClose={() => navigate("/")}
           onDraftChange={(patch) => {
             if (busy() || loadingSaved() || (props.intentId?.trim() && !intent())) return;
             continuing = false;
-            commandKeys.delete("create");
-            commandKeys.delete("update");
+            forgetCommandKey("create");
+            forgetCommandKey("update");
             const saved = intent();
             if (saved) {
               if (!draftEdited()) editBase = { intentId: saved.intentId, draft: saved.draft };
               setDraftEdited(true);
               setDraft(current => ({ ...current, name: patch.name ?? current.name, description: patch.description === undefined ? current.description : patch.description, additionalRequirements: patch.additionalRequirements ?? current.additionalRequirements }));
-            } else setDraft(current => ({ ...current, ...patch }));
+            } else setDraft(current => {
+              const next = { ...current, ...patch };
+              if (patch.persona?.kind === "existing") {
+                setPersonaAvatarFile(undefined);
+                forgetCommandKey("avatar:persona");
+                next.personaAvatarRef = undefined;
+              }
+              return next;
+            });
           }}
           onSubmit={() => void submit()}
           submitLabel={intent()?.nextAction.kind === "verify_nationality" ? "Verify nationality" : undefined}
@@ -543,11 +691,8 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
           // authoring is off in every environment, the option stays hidden so
           // the route cannot store a dead gate_unsupported intent.
           nationalityAuthoring={false}
-          // TODO(api-community-and-persona-avatar): api-next has nowhere to
-          // store a community image and no persona avatar update yet, so the
-          // pickers stay hidden rather than offering an upload that cannot
-          // persist.
-          avatarAuthoring={false}
+          // Live authoring remains off until provider-backed staging acceptance.
+          avatarAuthoring={props.avatarAuthoring === true}
           fieldsDisabled={loadingSaved() || (!!props.intentId?.trim() && !intent())}
           ownerDisabled={!!intent()}
           accountChecking={session() === "resolving" || loadingSaved()}

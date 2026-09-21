@@ -1,9 +1,12 @@
-import { describe, expect, test } from "vitest";
+import { afterEach, describe, expect, test } from "vitest";
 import { createEmptyDraft } from "./create-community/create-community-model";
 import {
   CommunityCreationApiError,
   createCommunityCreationApi,
+  rememberProfileAvatarSeed,
 } from "./community-creation-api";
+
+afterEach(() => localStorage.clear());
 
 const policy = {
   accessPaths: [{
@@ -321,9 +324,22 @@ test("restores optional avatar references from the current creation contract", a
   });
 });
 
+test("restores the generated avatar seed for an existing intent", async () => {
+  rememberProfileAvatarSeed("creation-1", "persisted-avatar-seed");
+  const api = createCommunityCreationApi({
+    origin: "https://web.test",
+    fetchImpl: async () => response(creationIntent()),
+  });
+
+  await expect(api.getIntent({ intentId: "creation-1" })).resolves.toMatchObject({
+    draft: { profileAvatarSeed: "persisted-avatar-seed" },
+  });
+});
+
 test("reserves, uploads and finalizes an avatar through the signed URL", async () => {
   localStorage.removeItem("pirate:community-avatar-upload:avatar-key");
   const requests: Array<{ url: string; init?: RequestInit }> = [];
+  // SAFETY: This focused adapter fixture implements only the generated methods exercised by uploadAvatar.
   const client = {
     post_avatarUploadReservations: async () => ({
       asset_id: "avatar-11111111-1111-4111-8111-111111111111",
@@ -362,6 +378,7 @@ test("replays a reserved asset after an ambiguous finalize without reserving aga
   let finalizations = 0;
   let readinessChecks = 0;
   let rawUploads = 0;
+  // SAFETY: This focused replay fixture implements only the generated methods exercised by uploadAvatar.
   const client = {
     post_avatarUploadReservations: async () => {
       reservations += 1;

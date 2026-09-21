@@ -168,12 +168,14 @@ function readAvatarUploadRecord(idempotencyKey: string): AvatarUploadRecord | un
   try {
     const record: unknown = JSON.parse(raw);
     if (typeof record !== "object" || record === null) return undefined;
+    // SAFETY: The parsed value is treated as partial until every persisted field is checked below.
     const value = record as Partial<AvatarUploadRecord>;
     if (typeof value.assetId !== "string" || typeof value.contentType !== "string"
       || typeof value.expiresAt !== "string" || !Array.isArray(value.headers)
       || (value.purpose !== "community" && value.purpose !== "persona")
       || typeof value.size !== "number" || typeof value.uploadUrl !== "string"
       || typeof value.finalized !== "boolean") return undefined;
+    // SAFETY: Every AvatarUploadRecord field has been checked before this value is returned.
     return value as AvatarUploadRecord;
   } catch { return undefined; }
 }
@@ -207,6 +209,7 @@ function mapIntent(response: PostCommunityCreationIntentsResponse): CommunityCre
   // The 0.85 creation contract no longer emits creator-nationality state, but
   // this narrow legacy read keeps already-saved pre-removal intents diagnosable
   // while they expire. New responses use human_identity and map to blocked.
+  // SAFETY: The extension only reads optional legacy fields and leaves the generated contract intact.
   const legacy = response as Omit<PostCommunityCreationIntentsResponse, "requirements" | "next_action"> & {
     requirements: PostCommunityCreationIntentsResponse["requirements"] & {
       nationality?: {
@@ -323,8 +326,9 @@ export function createCommunityCreationApi(
 
   return {
     async uploadAvatar({ file, idempotencyKey, purpose, signal }) {
-      const contentType = file.type as "image/jpeg" | "image/png" | "image/webp";
-      if (!["image/jpeg", "image/png", "image/webp"].includes(contentType) || !Number.isSafeInteger(file.size) || file.size < 1) {
+      const contentType = file.type;
+      if ((contentType !== "image/jpeg" && contentType !== "image/png" && contentType !== "image/webp")
+        || !Number.isSafeInteger(file.size) || file.size < 1) {
         throw new Error("avatar_upload_invalid");
       }
       let record = readAvatarUploadRecord(idempotencyKey);

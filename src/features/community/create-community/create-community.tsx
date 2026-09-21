@@ -4,7 +4,7 @@ import type { ActivePersonaPublicProjection } from "../../../api/session";
 import { CommunityOwnerFields } from "./community-owner-fields";
 import { JoinPolicyField, type JoinPolicyKind } from "./join-policy-field";
 import { MediaPicker } from "./media-picker";
-import { Show, createEffect, createSignal, createUniqueId } from "solid-js";
+import { Show, createEffect, createSignal } from "solid-js";
 
 import {
   ActionFooterShell,
@@ -35,6 +35,7 @@ export interface CreateCommunityProps {
   nameError?: string | null;
   onAvatarChange?: (file: File | null) => void;
   onProfileAvatarChange?: (file: File | null) => void;
+  onProfileAvatarShuffle?: () => void;
   onDraftChange?: (patch: Partial<CreateCommunityDraft>) => void;
   onSubmit?: () => void;
   onClose?: () => void;
@@ -49,9 +50,8 @@ export interface CreateCommunityProps {
    */
   nationalityAuthoring?: boolean;
   /**
-   * Offers the avatar pickers. The route keeps it off until
-   * api-community-and-persona-avatar ships storage and the persona update
-   * route, so the app never shows an upload it cannot persist.
+   * Offers the avatar pickers. The route keeps it off until provider-backed
+   * staging acceptance proves the upload and attachment path.
    */
   avatarAuthoring?: boolean;
   submitting?: boolean;
@@ -281,6 +281,7 @@ export function CreateCommunityView(props: CreateCommunityProps) {
           hideHeading
           locked={props.ownerDisabled}
           onProfileAvatarChange={props.onProfileAvatarChange}
+          onProfileAvatarShuffle={props.onProfileAvatarShuffle}
           personas={props.personas}
           profilesUnavailable={props.profilesUnavailable}
           onChange={props.onDraftChange}

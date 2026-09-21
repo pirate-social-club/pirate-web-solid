@@ -100,6 +100,8 @@ if (typeof window !== "undefined") {
     Element.prototype.releasePointerCapture = () => {};
     Element.prototype.setPointerCapture = () => {};
   }
+  if (!URL.createObjectURL) URL.createObjectURL = () => "blob:test-avatar";
+  if (!URL.revokeObjectURL) URL.revokeObjectURL = () => {};
 }
 
 const disposers: Array<() => void> = [];
@@ -141,7 +143,216 @@ afterEach(() => {
   for (const dispose of disposers.splice(0)) dispose();
   document.body.replaceChildren();
   document.head.replaceChildren();
+  localStorage.clear();
 });
+
+describe("Community creation avatar authoring candidate", () => {
+  const owner = {
+    status: "authenticated" as const,
+    userId: "avatar-owner",
+    personas: [],
+  };
+  const stoppedIntent = () => createIntent({
+    avatarOutcomes: { community: "attached", persona: "attached" },
+    nextAction: { kind: "blocked", reason: "gate_unsupported" },
+    status: "gate_unsupported",
+  });
+
+  test("uploads both optional images and sends their asset references", async () => {
+    const uploadAvatar = vi.fn()
+      .mockResolvedValueOnce("avatar-11111111-1111-4111-8111-111111111111")
+      .mockResolvedValueOnce("avatar-22222222-2222-4222-8222-222222222222");
+    const createIntentRequest = vi.fn(async (_input: Parameters<CommunityCreationApi["createIntent"]>[0]) => stoppedIntent());
+    const rasterize = vi.fn(async () => new Blob([new Uint8Array([9, 8, 7])], { type: "image/jpeg" }));
+    const container = render(() => <CommunityCreationRouteView
+      api={api({ createIntent: createIntentRequest, uploadAvatar })}
+      avatarAuthoring
+      rasterizeProfileAvatar={rasterize}
+      resolveSession={async () => owner}
+    />);
+
+    await vi.waitFor(() => expect(container.querySelector<HTMLInputElement>('input[type="file"]')).not.toBeNull());
+    chooseAvatar(container.querySelector<HTMLInputElement>('input[type="file"]')!, "community.png");
+    const name = nameField(container);
+    name.value = "Avatar harbor";
+    name.dispatchEvent(new InputEvent("input", { bubbles: true }));
+    await reachProfilePage(container);
+    fillPublicName(container);
+    finalSubmit(container)!.click();
+
+    await vi.waitFor(() => expect(createIntentRequest).toHaveBeenCalledOnce());
+    expect(rasterize).toHaveBeenCalledOnce();
+    expect(uploadAvatar).toHaveBeenCalledTimes(2);
+    expect(uploadAvatar.mock.calls[0]?.[0]).toMatchObject({ purpose: "community" });
+    expect(uploadAvatar.mock.calls[1]?.[0]).toMatchObject({ purpose: "persona" });
+    expect(createIntentRequest).toHaveBeenCalledWith(expect.objectContaining({
+      draft: expect.objectContaining({
+        communityAvatarRef: "avatar-11111111-1111-4111-8111-111111111111",
+        personaAvatarRef: "avatar-22222222-2222-4222-8222-222222222222",
+      }),
+    }));
+  });
+
+  test("continues creation when both optional uploads fail", async () => {
+    const uploadAvatar = vi.fn(async () => { throw new Error("storage unavailable"); });
+    const createIntentRequest = vi.fn(async (_input: Parameters<CommunityCreationApi["createIntent"]>[0]) => stoppedIntent());
+    const container = render(() => <CommunityCreationRouteView
+      api={api({ createIntent: createIntentRequest, uploadAvatar })}
+      avatarAuthoring
+      rasterizeProfileAvatar={async () => new Blob([new Uint8Array([4])], { type: "image/jpeg" })}
+      resolveSession={async () => owner}
+    />);
+
+    await vi.waitFor(() => expect(container.querySelector<HTMLInputElement>('input[type="file"]')).not.toBeNull());
+    chooseAvatar(container.querySelector<HTMLInputElement>('input[type="file"]')!, "community.png");
+    const name = nameField(container);
+    name.value = "Fallback harbor";
+    name.dispatchEvent(new InputEvent("input", { bubbles: true }));
+    await reachProfilePage(container);
+    fillPublicName(container);
+    finalSubmit(container)!.click();
+
+    await vi.waitFor(() => expect(createIntentRequest).toHaveBeenCalledOnce());
+    expect(uploadAvatar).toHaveBeenCalledTimes(2);
+    const submitted = createIntentRequest.mock.calls[0]?.[0].draft;
+    expect(submitted.communityAvatarRef).toBeUndefined();
+    expect(submitted.personaAvatarRef).toBeUndefined();
+  });
+
+  test("keeps the generated default stable across a pre-intent reload", async () => {
+    const first = render(() => <CommunityCreationRouteView api={api()} avatarAuthoring resolveSession={async () => owner} />);
+    const name = nameField(first);
+    name.value = "Reload harbor";
+    name.dispatchEvent(new InputEvent("input", { bubbles: true }));
+    await reachProfilePage(first);
+    const firstSource = first.querySelector<HTMLImageElement>('img[src^="data:image/svg+xml,"]')?.src;
+    expect(firstSource).toBeDefined();
+    disposers.pop()?.();
+
+    const second = render(() => <CommunityCreationRouteView api={api()} avatarAuthoring resolveSession={async () => owner} />);
+    const secondName = nameField(second);
+    secondName.value = "Reload harbor";
+    secondName.dispatchEvent(new InputEvent("input", { bubbles: true }));
+    await reachProfilePage(second);
+    expect(second.querySelector<HTMLImageElement>('img[src^="data:image/svg+xml,"]')?.src).toBe(firstSource);
+  });
+
+  test("preserves an existing persona image without offering or uploading a replacement", async () => {
+    const existingOwner = {
+      ...owner,
+      personas: [{ personaId: "persona-existing", displayName: "Existing profile", avatarRef: "avatar-existing",
+        primaryPublicHandle: null, communityBinding: null }],
+    };
+    const uploadAvatar = vi.fn();
+    const createIntentRequest = vi.fn(async (_input: Parameters<CommunityCreationApi["createIntent"]>[0]) => stoppedIntent());
+    const container = render(() => <CommunityCreationRouteView
+      api={api({ createIntent: createIntentRequest, uploadAvatar })}
+      avatarAuthoring
+      resolveSession={async () => existingOwner}
+    />);
+    const name = nameField(container);
+    name.value = "Existing harbor";
+    name.dispatchEvent(new InputEvent("input", { bubbles: true }));
+    await reachProfilePage(container);
+    const useExisting = [...container.querySelectorAll<HTMLButtonElement>("button")]
+      .find(button => button.textContent?.trim() === "Use an existing profile")!;
+    useExisting.click();
+    await vi.waitFor(() => expect(container.textContent).toContain("Creating as Existing profile"));
+    expect(container.querySelector('input[type="file"]')).toBeNull();
+    finalSubmit(container)!.click();
+
+    await vi.waitFor(() => expect(createIntentRequest).toHaveBeenCalledOnce());
+    expect(uploadAvatar).not.toHaveBeenCalled();
+    expect(createIntentRequest).toHaveBeenCalledWith(expect.objectContaining({
+      draft: expect.objectContaining({ persona: { kind: "existing", personaId: "persona-existing" } }),
+    }));
+  });
+
+  test("offers and uploads a generated avatar for an existing persona without one", async () => {
+    const existingOwner = {
+      ...owner,
+      personas: [{ personaId: "persona-empty", displayName: "Empty profile", avatarRef: null,
+        primaryPublicHandle: null, communityBinding: null }],
+    };
+    const uploadAvatar = vi.fn(async () => "avatar-33333333-3333-4333-8333-333333333333");
+    const createIntentRequest = vi.fn(async (_input: Parameters<CommunityCreationApi["createIntent"]>[0]) => stoppedIntent());
+    const container = render(() => <CommunityCreationRouteView
+      api={api({ createIntent: createIntentRequest, uploadAvatar })}
+      avatarAuthoring
+      rasterizeProfileAvatar={async () => new Blob([new Uint8Array([5])], { type: "image/jpeg" })}
+      resolveSession={async () => existingOwner}
+    />);
+    const name = nameField(container);
+    name.value = "Empty avatar harbor";
+    name.dispatchEvent(new InputEvent("input", { bubbles: true }));
+    await reachProfilePage(container);
+    [...container.querySelectorAll<HTMLButtonElement>("button")]
+      .find(button => button.textContent?.trim() === "Use an existing profile")!.click();
+    await vi.waitFor(() => expect(container.querySelector('input[type="file"]')).not.toBeNull());
+    finalSubmit(container)!.click();
+
+    await vi.waitFor(() => expect(createIntentRequest).toHaveBeenCalledOnce());
+    expect(uploadAvatar).toHaveBeenCalledWith(expect.objectContaining({ purpose: "persona" }));
+    expect(createIntentRequest).toHaveBeenCalledWith(expect.objectContaining({
+      draft: expect.objectContaining({
+        persona: { kind: "existing", personaId: "persona-empty" },
+        personaAvatarRef: "avatar-33333333-3333-4333-8333-333333333333",
+      }),
+    }));
+  });
+
+  test("replacing an uploaded file rotates only that avatar command", async () => {
+    const uploadAvatar = vi.fn()
+      .mockResolvedValueOnce("avatar-11111111-1111-4111-8111-111111111111")
+      .mockResolvedValueOnce("avatar-22222222-2222-4222-8222-222222222222")
+      .mockResolvedValueOnce("avatar-33333333-3333-4333-8333-333333333333");
+    const createIntentRequest = vi.fn(async (_input: Parameters<CommunityCreationApi["createIntent"]>[0]) => stoppedIntent())
+      .mockRejectedValueOnce(new Error("create unavailable"))
+      .mockResolvedValue(stoppedIntent());
+    const container = render(() => <CommunityCreationRouteView
+      api={api({ createIntent: createIntentRequest, uploadAvatar })}
+      avatarAuthoring
+      resolveSession={async () => owner}
+    />);
+    await vi.waitFor(() => expect(container.querySelector<HTMLInputElement>('input[type="file"]')).not.toBeNull());
+    chooseAvatar(container.querySelector<HTMLInputElement>('input[type="file"]')!, "community-one.png");
+    const name = nameField(container);
+    name.value = "Replay harbor";
+    name.dispatchEvent(new InputEvent("input", { bubbles: true }));
+    await reachProfilePage(container);
+    fillPublicName(container);
+    chooseAvatar(container.querySelector<HTMLInputElement>('input[type="file"]')!, "persona.png");
+    finalSubmit(container)!.click();
+    await vi.waitFor(() => expect(createIntentRequest).toHaveBeenCalledTimes(1));
+    await vi.waitFor(() => expect(finalSubmit(container)!.disabled).toBe(false));
+
+    await retreatToFirstPage(container);
+    chooseAvatar(container.querySelector<HTMLInputElement>('input[type="file"]')!, "community-two.png");
+    await reachProfilePage(container);
+    finalSubmit(container)!.click();
+    await vi.waitFor(() => expect(createIntentRequest).toHaveBeenCalledTimes(2));
+
+    expect(uploadAvatar).toHaveBeenCalledTimes(3);
+    const firstCommunityKey = uploadAvatar.mock.calls[0]?.[0].idempotencyKey;
+    const personaKey = uploadAvatar.mock.calls[1]?.[0].idempotencyKey;
+    const secondCommunityKey = uploadAvatar.mock.calls[2]?.[0].idempotencyKey;
+    expect(secondCommunityKey).not.toBe(firstCommunityKey);
+    expect(personaKey).toBeTypeOf("string");
+    expect(createIntentRequest.mock.calls[1]?.[0].idempotencyKey)
+      .not.toBe(createIntentRequest.mock.calls[0]?.[0].idempotencyKey);
+    expect(createIntentRequest.mock.calls[1]?.[0].draft).toMatchObject({
+      communityAvatarRef: "avatar-33333333-3333-4333-8333-333333333333",
+      personaAvatarRef: "avatar-22222222-2222-4222-8222-222222222222",
+    });
+  });
+});
+
+function chooseAvatar(input: HTMLInputElement, name: string, type = "image/png"): File {
+  const file = new File([new Uint8Array([1, 2, 3])], name, { type });
+  Object.defineProperty(input, "files", { configurable: true, value: [file] });
+  input.dispatchEvent(new Event("change", { bubbles: true }));
+  return file;
+}
 
 describe("Community creation production route", () => {
   test("accepts the first global sign-in request during component setup", async () => {
@@ -1525,4 +1736,3 @@ describe("Create community join policy page", () => {
     expect(continueButton(container).disabled).toBe(true);
   });
 });
-

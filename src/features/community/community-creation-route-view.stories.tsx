@@ -1,7 +1,8 @@
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
-import { expect, userEvent, waitFor, within } from "storybook/test";
+import { expect, fn, userEvent, waitFor, within } from "storybook/test";
 
 import type { SessionResolution } from "../../api/session";
+import type { CommunityCreationApi } from "./community-creation-api";
 import { CommunityCreationRouteView } from "./community-creation-route-view";
 import { createIntentView } from "./community-creation-intent/community-creation-intent-fixtures";
 
@@ -25,6 +26,49 @@ const quotaIntent = createIntentView({
   revision: 3,
   status: "quota_exceeded",
 });
+
+const avatarCandidateIntent = createIntentView({
+  avatarOutcomes: { community: "attached", persona: "attached" },
+  nextAction: { kind: "blocked", reason: "gate_unsupported" },
+  status: "gate_unsupported",
+});
+
+const successfulAvatarUpload = fn(async (input: Parameters<NonNullable<CommunityCreationApi["uploadAvatar"]>>[0]) =>
+  input.purpose === "community"
+    ? "avatar-11111111-1111-4111-8111-111111111111"
+    : "avatar-22222222-2222-4222-8222-222222222222",
+);
+const successfulAvatarCreate = fn(async (_input: Parameters<CommunityCreationApi["createIntent"]>[0]) => avatarCandidateIntent);
+const omittedAvatarUpload = fn(async (_input: Parameters<NonNullable<CommunityCreationApi["uploadAvatar"]>>[0]) => {
+  throw new Error("optional upload unavailable");
+});
+const omittedAvatarCreate = fn(async (_input: Parameters<CommunityCreationApi["createIntent"]>[0]) => avatarCandidateIntent);
+
+function avatarStoryApi(
+  uploadAvatar: NonNullable<CommunityCreationApi["uploadAvatar"]>,
+  createIntent: CommunityCreationApi["createIntent"],
+): CommunityCreationApi {
+  return {
+    uploadAvatar,
+    createIntent,
+    getIntent: async () => avatarCandidateIntent,
+    updateIntent: async () => avatarCandidateIntent,
+    commitIntent: async () => avatarCandidateIntent,
+  };
+}
+
+async function completeAvatarStory(canvasElement: HTMLElement): Promise<void> {
+  const canvas = within(canvasElement);
+  await waitFor(() => expect(stateOf(canvasElement)).toBe("ready"));
+  await userEvent.upload(
+    canvasElement.querySelector<HTMLInputElement>('input[type="file"]')!,
+    new File([new Uint8Array([1, 2, 3])], "community.png", { type: "image/png" }),
+  );
+  await userEvent.type(canvas.getByRole("textbox", { name: "Name" }), "Avatar harbor");
+  await userEvent.click(canvas.getByRole("button", { name: "Continue" }));
+  await userEvent.click(await canvas.findByRole("button", { name: "Create" }));
+  await waitFor(() => expect(canvas.getByText("This community requirement is not available right now. Your setup is still here.")).toBeInTheDocument());
+}
 
 const stateOf = (container: HTMLElement) =>
   container.querySelector("main[data-creation-state]")?.getAttribute("data-creation-state");
@@ -124,4 +168,43 @@ export const QuotaExceeded: Story = {
 export const Mobile: Story = {
   args: { resolveSession: async () => authenticated() },
   globals: { viewport: { value: "mobile1", isRotated: false } },
+};
+
+export const AvatarAttachmentCandidate: Story = {
+  name: "Avatar attachment candidate",
+  args: {
+    api: avatarStoryApi(successfulAvatarUpload, successfulAvatarCreate),
+    avatarAuthoring: true,
+    resolveSession: async () => ({ status: "authenticated", userId: "account-one", personas: [] }),
+  },
+  play: async ({ canvasElement }) => {
+    successfulAvatarUpload.mockClear();
+    successfulAvatarCreate.mockClear();
+    await completeAvatarStory(canvasElement);
+    await expect(successfulAvatarUpload).toHaveBeenCalledTimes(2);
+    await expect(successfulAvatarCreate).toHaveBeenCalledWith(expect.objectContaining({
+      draft: expect.objectContaining({
+        communityAvatarRef: "avatar-11111111-1111-4111-8111-111111111111",
+        personaAvatarRef: "avatar-22222222-2222-4222-8222-222222222222",
+      }),
+    }));
+  },
+};
+
+export const AvatarUploadOmitted: Story = {
+  name: "Avatar upload omitted",
+  args: {
+    api: avatarStoryApi(omittedAvatarUpload, omittedAvatarCreate),
+    avatarAuthoring: true,
+    resolveSession: async () => ({ status: "authenticated", userId: "account-one", personas: [] }),
+  },
+  play: async ({ canvasElement }) => {
+    omittedAvatarUpload.mockClear();
+    omittedAvatarCreate.mockClear();
+    await completeAvatarStory(canvasElement);
+    await expect(omittedAvatarUpload).toHaveBeenCalledTimes(2);
+    const submitted = omittedAvatarCreate.mock.calls[0]?.[0].draft;
+    await expect(submitted.communityAvatarRef).toBeUndefined();
+    await expect(submitted.personaAvatarRef).toBeUndefined();
+  },
 };

@@ -1,5 +1,6 @@
 import { createSignal } from "solid-js";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
+import { expect, userEvent, within } from "storybook/test";
 
 import type { ActivePersonaPublicProjection } from "../../../api/session";
 import { CreateCommunityView } from "./create-community";
@@ -8,13 +9,14 @@ import {
   withDraftName,
   type CreateCommunityDraft,
 } from "./create-community-model";
+import { randomAvatarSeed } from "./generated-avatar";
 
 const personaId = { kind: "create_new" } as const;
 
 /**
- * The story set is the four screens a person can see; behaviour lives in the
- * route and unit tests. Phone width and right-to-left are toolbar switches,
- * not stories.
+ * The story set keeps the creation candidate reviewable while the route gate
+ * remains closed in production. Phone width and right-to-left are toolbar
+ * switches, not stories.
  */
 function Screen(props: {
   draft?: CreateCommunityDraft;
@@ -37,6 +39,7 @@ function Screen(props: {
         personas={props.personas}
         draft={draft()}
         onDraftChange={(patch) => setDraft(current => ({ ...current, ...patch }))}
+        onProfileAvatarShuffle={() => setDraft(current => ({ ...current, profileAvatarSeed: randomAvatarSeed() }))}
         onSubmit={() => undefined}
       />
     </div>
@@ -54,17 +57,66 @@ export default meta;
 type Story = StoryObj<typeof meta>;
 
 export const Details: Story = {
-  parameters: { docs: { description: { story: "Step one: the community's avatar picker, name, and the join policy. With the authoring gate closed (production today) the policy is the one-line Palm fact; the avatar picker waits on the avatar API record and is off in the app." } } },
+  parameters: { docs: { description: { story: "Staging candidate: the community avatar picker, name, and join policy. Live route authoring remains disabled until provider-backed acceptance." } } },
   render: () => <Screen avatarAuthoring />,
 };
 
 export const DetailsNationality: Story = {
   name: "Details with nationality gate",
-  parameters: { docs: { description: { story: "Waits on package B (api-community-document-only-join-policy) for the gate and the avatar API record for the picker; both are off in the app today. The join-policy section offers Palm scan or Nationality, and Nationality reveals the inline multi-select with chips." } } },
+  parameters: { docs: { description: { story: "The join-policy section offers Palm scan or Nationality, and Nationality reveals the inline multi-select with chips. Live route authoring remains disabled until provider-backed acceptance." } } },
   render: () => <Screen avatarAuthoring nationalityAuthoring />,
 };
 
 export const Profile: Story = {
-  parameters: { docs: { description: { story: "Step two: your name in this community (prefilled with a locally generated suggestion) and the profile image picker with the generated default in the region. The picker waits on the avatar API record and is off in the app." } } },
+  parameters: { docs: { description: { story: "Step two: your name in this community and the profile image picker with the deterministic generated default." } } },
+  render: () => <Screen avatarAuthoring step={2} draft={withDraftName(createEmptyDraft(personaId), "Night Shift")} />,
+};
+
+export const GeneratedDefault: Story = {
+  name: "Generated default persists",
+  render: () => <Screen avatarAuthoring step={2} draft={withDraftName(createEmptyDraft(personaId), "Night Shift")} />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const avatar = canvas.getByRole("img", { name: "" });
+    expect(avatar.getAttribute("src")).toMatch(/^data:image\/svg\+xml,/u);
+  },
+};
+
+export const ShuffleGeneratedDefault: Story = {
+  name: "Shuffle generated default",
+  render: () => <Screen avatarAuthoring step={2} draft={withDraftName(createEmptyDraft(personaId), "Night Shift")} />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const avatar = canvas.getByRole("img", { name: "" });
+    const before = avatar.getAttribute("src");
+    await userEvent.click(canvas.getByRole("button", { name: "Shuffle avatar" }));
+    expect(avatar.getAttribute("src")).not.toBe(before);
+  },
+};
+
+export const ExistingAvatarPreserved: Story = {
+  name: "Existing profile preserves its avatar",
+  render: () => <Screen
+    avatarAuthoring
+    ownerDisabled
+    step={2}
+    draft={{ ...createEmptyDraft({ kind: "existing", personaId: "persona-existing" }), profileAvatarSeed: "ignored-seed" }}
+    personas={[{ personaId: "persona-existing", displayName: "Existing profile", avatarRef: "avatar-existing", primaryPublicHandle: null, communityBinding: null }]}
+  />,
+};
+
+export const ExistingProfileWithoutAvatar: Story = {
+  name: "Existing profile without avatar",
+  render: () => <Screen
+    avatarAuthoring
+    step={2}
+    draft={{ ...createEmptyDraft({ kind: "existing", personaId: "persona-empty" }), profileAvatarSeed: "existing-empty-seed" }}
+    personas={[{ personaId: "persona-empty", displayName: "Empty profile", avatarRef: null, primaryPublicHandle: null, communityBinding: null }]}
+  />,
+};
+
+export const MobileAvatar: Story = {
+  name: "Mobile avatar authoring",
+  parameters: { viewport: { defaultViewport: "mobile1" } },
   render: () => <Screen avatarAuthoring step={2} draft={withDraftName(createEmptyDraft(personaId), "Night Shift")} />,
 };
