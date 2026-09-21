@@ -70,6 +70,7 @@ export interface CommunityCreationApi {
 }
 
 export interface CommunityCreationAvatarUploadContext {
+  accountId: string;
   file: Blob;
   purpose: "community" | "persona";
   idempotencyKey: string;
@@ -139,8 +140,11 @@ function additionalDraftRequirements(policy: PostCommunityCreationIntentsRespons
 }
 
 const avatarSeedKey = (intentId: string) => `pirate:community-avatar-seed:${intentId}`;
-const newAvatarSeedKey = "pirate:community-avatar-seed:new";
-const avatarUploadKey = (idempotencyKey: string) => `pirate:community-avatar-upload:${idempotencyKey}`;
+const accountStorageScope = (accountId: string) => encodeURIComponent(accountId);
+const newAvatarSeedKey = (accountId: string) =>
+  `pirate:community-avatar-seed:new:${accountStorageScope(accountId)}`;
+const avatarUploadKey = (accountId: string, idempotencyKey: string) =>
+  `pirate:community-avatar-upload:${accountStorageScope(accountId)}:${idempotencyKey}`;
 
 interface AvatarUploadRecord {
   assetId: string;
@@ -169,8 +173,8 @@ function writeSessionStorage(key: string, value: string): void {
   try { sessionStorage.setItem(key, value); } catch { /* storage is optional */ }
 }
 
-function readAvatarUploadRecord(idempotencyKey: string): AvatarUploadRecord | undefined {
-  const raw = readSessionStorage(avatarUploadKey(idempotencyKey));
+function readAvatarUploadRecord(accountId: string, idempotencyKey: string): AvatarUploadRecord | undefined {
+  const raw = readSessionStorage(avatarUploadKey(accountId, idempotencyKey));
   if (raw === null) return undefined;
   try {
     const record: unknown = JSON.parse(raw);
@@ -187,8 +191,8 @@ function readAvatarUploadRecord(idempotencyKey: string): AvatarUploadRecord | un
   } catch { return undefined; }
 }
 
-function writeAvatarUploadRecord(idempotencyKey: string, record: AvatarUploadRecord): void {
-  writeSessionStorage(avatarUploadKey(idempotencyKey), JSON.stringify(record));
+function writeAvatarUploadRecord(accountId: string, idempotencyKey: string, record: AvatarUploadRecord): void {
+  writeSessionStorage(avatarUploadKey(accountId, idempotencyKey), JSON.stringify(record));
 }
 
 /** Keep the local generated choice stable until the server stores its image. */
@@ -196,16 +200,16 @@ export function rememberProfileAvatarSeed(intentId: string, seed: string): void 
   writeStorage(avatarSeedKey(intentId), seed);
 }
 
-export function rememberNewProfileAvatarSeed(seed: string): void {
-  writeSessionStorage(newAvatarSeedKey, seed);
+export function rememberNewProfileAvatarSeed(accountId: string, seed: string): void {
+  writeSessionStorage(newAvatarSeedKey(accountId), seed);
 }
 
-export function readNewProfileAvatarSeed(): string | undefined {
-  return readSessionStorage(newAvatarSeedKey) ?? undefined;
+export function readNewProfileAvatarSeed(accountId: string): string | undefined {
+  return readSessionStorage(newAvatarSeedKey(accountId)) ?? undefined;
 }
 
-export function forgetNewProfileAvatarSeed(): void {
-  try { sessionStorage.removeItem(newAvatarSeedKey); } catch { /* storage is optional */ }
+export function forgetNewProfileAvatarSeed(accountId: string): void {
+  try { sessionStorage.removeItem(newAvatarSeedKey(accountId)); } catch { /* storage is optional */ }
 }
 
 function profileAvatarSeed(intentId: string): string {
@@ -292,13 +296,13 @@ export function createCommunityCreationApi(
   };
 
   return {
-    async uploadAvatar({ file, idempotencyKey, purpose, signal }) {
+    async uploadAvatar({ accountId, file, idempotencyKey, purpose, signal }) {
       const contentType = file.type;
       if ((contentType !== "image/jpeg" && contentType !== "image/png" && contentType !== "image/webp")
         || !Number.isSafeInteger(file.size) || file.size < 1) {
         throw new Error("avatar_upload_invalid");
       }
-      let record = readAvatarUploadRecord(idempotencyKey);
+      let record = readAvatarUploadRecord(accountId, idempotencyKey);
       if (record?.finalized && record.purpose === purpose && record.contentType === contentType && record.size === file.size) {
         return record.assetId;
       }
@@ -321,7 +325,7 @@ export function createCommunityCreationApi(
           uploadUrl: reservation.upload_url,
           finalized: false,
         };
-        writeAvatarUploadRecord(idempotencyKey, record);
+        writeAvatarUploadRecord(accountId, idempotencyKey, record);
       }
       const headers = new Headers();
       for (const header of record.headers) headers.set(header.name, header.value);
@@ -347,7 +351,7 @@ export function createCommunityCreationApi(
         }, { signal });
         if (delivered.status !== 200 && delivered.status !== 304) throw error;
       }
-      writeAvatarUploadRecord(idempotencyKey, { ...record, finalized: true });
+      writeAvatarUploadRecord(accountId, idempotencyKey, { ...record, finalized: true });
       return record.assetId;
     },
     async commitIntent({ expectedRevision, idempotencyKey, intentId, signal }) {

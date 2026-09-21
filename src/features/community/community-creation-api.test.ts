@@ -340,7 +340,7 @@ test("restores the generated avatar seed for an existing intent", async () => {
 });
 
 test("reserves, uploads and finalizes an avatar through the signed URL", async () => {
-  sessionStorage.removeItem("pirate:community-avatar-upload:avatar-key");
+  sessionStorage.removeItem("pirate:community-avatar-upload:account-a:avatar-key");
   const requests: Array<{ url: string; init?: RequestInit }> = [];
   // SAFETY: This focused adapter fixture implements only the generated methods exercised by uploadAvatar.
   const client = {
@@ -364,7 +364,7 @@ test("reserves, uploads and finalizes an avatar through the signed URL", async (
     },
   });
   const file = new Blob([new Uint8Array([1, 2, 3])], { type: "image/png" });
-  await expect(api.uploadAvatar?.({ file, idempotencyKey: "avatar-key", purpose: "community" })).resolves.toBe("avatar-11111111-1111-4111-8111-111111111111");
+  await expect(api.uploadAvatar?.({ accountId: "account-a", file, idempotencyKey: "avatar-key", purpose: "community" })).resolves.toBe("avatar-11111111-1111-4111-8111-111111111111");
   expect(requests[0]?.url).toBe("https://storage.test/ingress/avatar");
   expect(new Headers(requests[0]?.init?.headers).get("content-type")).toBe("image/png");
   expect(requests[0]?.init?.method).toBe("PUT");
@@ -372,13 +372,13 @@ test("reserves, uploads and finalizes an avatar through the signed URL", async (
   expect(new Headers(requests[0]?.init?.headers).has("x-csrf-token")).toBe(false);
   expect(new Headers(requests[0]?.init?.headers).has("authorization")).toBe(false);
   expect(new Headers(requests[0]?.init?.headers).has("content-length")).toBe(false);
-  expect(localStorage.getItem("pirate:community-avatar-upload:avatar-key")).toBeNull();
-  expect(sessionStorage.getItem("pirate:community-avatar-upload:avatar-key")).not.toBeNull();
+  expect(localStorage.getItem("pirate:community-avatar-upload:account-a:avatar-key")).toBeNull();
+  expect(sessionStorage.getItem("pirate:community-avatar-upload:account-a:avatar-key")).not.toBeNull();
 });
 
 test("replays a reserved asset after an ambiguous finalize without reserving again", async () => {
   const key = "avatar-recovery-key";
-  sessionStorage.removeItem(`pirate:community-avatar-upload:${key}`);
+  sessionStorage.removeItem(`pirate:community-avatar-upload:account-a:${key}`);
   let reservations = 0;
   let finalizations = 0;
   let readinessChecks = 0;
@@ -413,17 +413,51 @@ test("replays a reserved asset after an ambiguous finalize without reserving aga
     },
   });
   const file = new Blob([new Uint8Array([4, 5, 6])], { type: "image/png" });
-  await expect(api.uploadAvatar?.({ file, idempotencyKey: key, purpose: "persona" })).rejects.toMatchObject({ status: 404 });
-  await expect(api.uploadAvatar?.({ file, idempotencyKey: key, purpose: "persona" })).resolves.toBe("avatar-33333333-3333-4333-8333-333333333333");
+  await expect(api.uploadAvatar?.({ accountId: "account-a", file, idempotencyKey: key, purpose: "persona" })).rejects.toMatchObject({ status: 404 });
+  await expect(api.uploadAvatar?.({ accountId: "account-a", file, idempotencyKey: key, purpose: "persona" })).resolves.toBe("avatar-33333333-3333-4333-8333-333333333333");
   expect(reservations).toBe(1);
   expect(rawUploads).toBe(2);
   expect(readinessChecks).toBe(1);
   expect(finalizations).toBe(2);
 });
 
+test("does not replay an avatar upload record across accounts", async () => {
+  let reservations = 0;
+  // SAFETY: This focused account-isolation fixture implements only the generated methods exercised by uploadAvatar.
+  const client = {
+    post_avatarUploadReservations: async () => {
+      reservations += 1;
+      const suffix = reservations === 1 ? "66666666-6666-4666-8666-666666666666" : "77777777-7777-4777-8777-777777777777";
+      return {
+        asset_id: `avatar-${suffix}`,
+        upload_url: `https://storage.test/${reservations}`,
+        required_headers: [{ name: "content-type", value: "image/png" }],
+        expires_at: "2099-01-01T00:00:00Z",
+      };
+    },
+    post_avatarUploadReservationsAssetIdFinalize: async (input: { path: { assetId: string } }) => ({
+      asset_id: input.path.assetId,
+      status: "ready" as const,
+    }),
+  } as never;
+  const api = createCommunityCreationApi({
+    client,
+    readCsrfToken: () => "csrf-token",
+    uploadFetch: async () => new Response(null, { status: 200 }),
+  });
+  const file = new Blob([new Uint8Array([1, 2, 3])], { type: "image/png" });
+
+  const first = await api.uploadAvatar?.({ accountId: "account-a", file, idempotencyKey: "shared-key", purpose: "community" });
+  const second = await api.uploadAvatar?.({ accountId: "account-b", file, idempotencyKey: "shared-key", purpose: "community" });
+
+  expect(first).toBe("avatar-66666666-6666-4666-8666-666666666666");
+  expect(second).toBe("avatar-77777777-7777-4777-8777-777777777777");
+  expect(reservations).toBe(2);
+});
+
 test("replaces an expired reservation with a fresh idempotency key", async () => {
   const key = "avatar-expired-key";
-  sessionStorage.setItem(`pirate:community-avatar-upload:${key}`, JSON.stringify({
+  sessionStorage.setItem(`pirate:community-avatar-upload:account-a:${key}`, JSON.stringify({
     assetId: "avatar-44444444-4444-4444-8444-444444444444",
     contentType: "image/png",
     expiresAt: "2020-01-01T00:00:00Z",
@@ -460,6 +494,7 @@ test("replaces an expired reservation with a fresh idempotency key", async () =>
   });
 
   await expect(api.uploadAvatar?.({
+    accountId: "account-a",
     file: new Blob([new Uint8Array([1, 2, 3])], { type: "image/png" }),
     idempotencyKey: key,
     purpose: "community",

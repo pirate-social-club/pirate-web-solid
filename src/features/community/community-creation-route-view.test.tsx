@@ -184,8 +184,8 @@ describe("Community creation avatar authoring candidate", () => {
     await vi.waitFor(() => expect(createIntentRequest).toHaveBeenCalledOnce());
     expect(rasterize).toHaveBeenCalledOnce();
     expect(uploadAvatar).toHaveBeenCalledTimes(2);
-    expect(uploadAvatar.mock.calls[0]?.[0]).toMatchObject({ purpose: "community" });
-    expect(uploadAvatar.mock.calls[1]?.[0]).toMatchObject({ purpose: "persona" });
+    expect(uploadAvatar.mock.calls[0]?.[0]).toMatchObject({ accountId: owner.userId, purpose: "community" });
+    expect(uploadAvatar.mock.calls[1]?.[0]).toMatchObject({ accountId: owner.userId, purpose: "persona" });
     expect(createIntentRequest).toHaveBeenCalledWith(expect.objectContaining({
       draft: expect.objectContaining({
         communityAvatarRef: "avatar-11111111-1111-4111-8111-111111111111",
@@ -218,6 +218,30 @@ describe("Community creation avatar authoring candidate", () => {
     const submitted = createIntentRequest.mock.calls[0]?.[0].draft;
     expect(submitted.communityAvatarRef).toBeUndefined();
     expect(submitted.personaAvatarRef).toBeUndefined();
+  });
+
+  test("continues creation when generated-avatar rasterization never settles", async () => {
+    const uploadAvatar = vi.fn();
+    const createIntentRequest = vi.fn(async (_input: Parameters<CommunityCreationApi["createIntent"]>[0]) => stoppedIntent());
+    const rasterize = vi.fn(() => new Promise<Blob>(() => {}));
+    const container = render(() => <CommunityCreationRouteView
+      api={api({ createIntent: createIntentRequest, uploadAvatar })}
+      avatarAuthoring
+      avatarPreparationTimeoutMs={5}
+      rasterizeProfileAvatar={rasterize}
+      resolveSession={async () => owner}
+    />);
+    const name = nameField(container);
+    name.value = "Bounded harbor";
+    name.dispatchEvent(new InputEvent("input", { bubbles: true }));
+    await reachProfilePage(container);
+    fillPublicName(container);
+    finalSubmit(container)!.click();
+
+    await vi.waitFor(() => expect(createIntentRequest).toHaveBeenCalledOnce());
+    expect(rasterize).toHaveBeenCalledOnce();
+    expect(uploadAvatar).not.toHaveBeenCalled();
+    expect(createIntentRequest.mock.calls[0]?.[0].draft.personaAvatarRef).toBeUndefined();
   });
 
   test("keeps the generated default stable across a pre-intent reload", async () => {
@@ -388,6 +412,111 @@ describe("Community creation avatar authoring candidate", () => {
       communityAvatarRef: "avatar-66666666-6666-4666-8666-666666666666",
       personaAvatarRef: "avatar-77777777-7777-4777-8777-777777777777",
     });
+  });
+
+  test("isolates finalized references across account switches and restores the owning account on reload", async () => {
+    const ownerB = { ...owner, userId: "avatar-owner-b" };
+    let currentOwner = owner;
+    const uploadAvatar = vi.fn(async ({ purpose }: Parameters<NonNullable<CommunityCreationApi["uploadAvatar"]>>[0]) =>
+      purpose === "community"
+        ? "avatar-88888888-8888-4888-8888-888888888888"
+        : "avatar-99999999-9999-4999-8999-999999999999",
+    );
+    const createIntentRequest = vi.fn(async (_input: Parameters<CommunityCreationApi["createIntent"]>[0]) => stoppedIntent())
+      .mockRejectedValueOnce(new Error("response lost"))
+      .mockResolvedValue(stoppedIntent());
+    const view = () => <CommunityCreationRouteView
+      api={api({ createIntent: createIntentRequest, uploadAvatar })}
+      avatarAuthoring
+      rasterizeProfileAvatar={async () => new Blob([new Uint8Array([8])], { type: "image/jpeg" })}
+      resolveSession={async () => currentOwner}
+    />;
+    const first = render(view);
+    await vi.waitFor(() => expect(first.querySelector<HTMLInputElement>('input[type="file"]')).not.toBeNull());
+    chooseAvatar(first.querySelector<HTMLInputElement>('input[type="file"]')!, "community.png");
+    const firstName = nameField(first);
+    firstName.value = "Account A harbor";
+    firstName.dispatchEvent(new InputEvent("input", { bubbles: true }));
+    await reachProfilePage(first);
+    fillPublicName(first);
+    finalSubmit(first)!.click();
+    await vi.waitFor(() => expect(createIntentRequest).toHaveBeenCalledOnce());
+    await vi.waitFor(() => expect(finalSubmit(first)!.disabled).toBe(false));
+    disposers.pop()?.();
+
+    currentOwner = ownerB;
+    const second = render(view);
+    await vi.waitFor(() => expect(second.querySelector("main")?.getAttribute("data-creation-state")).toBe("ready"));
+    expect(nameField(second).value).toBe("");
+    expect(Object.keys(sessionStorage).some(key => key.includes("avatar-owner-b")
+      && sessionStorage.getItem(key)?.includes("88888888"))).toBe(false);
+    disposers.pop()?.();
+
+    currentOwner = owner;
+    const third = render(view);
+    await vi.waitFor(() => expect(nameField(third).value).toBe("Account A harbor"));
+    await reachProfilePage(third);
+    finalSubmit(third)!.click();
+    await vi.waitFor(() => expect(createIntentRequest).toHaveBeenCalledTimes(2));
+
+    expect(uploadAvatar).toHaveBeenCalledTimes(2);
+    expect(createIntentRequest.mock.calls[1]?.[0]).toEqual(createIntentRequest.mock.calls[0]?.[0]);
+  });
+
+  test("aborts a pending account upload and ignores its late result after an account switch", async () => {
+    const ownerB = { ...owner, userId: "avatar-owner-b" };
+    let currentOwner = owner;
+    let resolveUpload!: (assetId: string) => void;
+    let uploadSignal: AbortSignal | undefined;
+    const resolveAccount = vi.fn(async () => currentOwner);
+    const uploadAvatar = vi.fn(({ signal }: Parameters<NonNullable<CommunityCreationApi["uploadAvatar"]>>[0]) => {
+      uploadSignal = signal;
+      return new Promise<string>(resolve => { resolveUpload = resolve; });
+    });
+    const createIntentRequest = vi.fn(async (_input: Parameters<CommunityCreationApi["createIntent"]>[0]) => stoppedIntent());
+    const container = render(() => <CommunityCreationRouteView
+      api={api({ createIntent: createIntentRequest, uploadAvatar })}
+      avatarAuthoring
+      resolveSession={resolveAccount}
+    />);
+    await vi.waitFor(() => expect(container.querySelector<HTMLInputElement>('input[type="file"]')).not.toBeNull());
+    chooseAvatar(container.querySelector<HTMLInputElement>('input[type="file"]')!, "community.png");
+    const field = nameField(container);
+    field.value = "Pending account A harbor";
+    field.dispatchEvent(new InputEvent("input", { bubbles: true }));
+    await reachProfilePage(container);
+    fillPublicName(container);
+    const ownerAvatarSrc = container.querySelector<HTMLImageElement>('img[src^="data:image/svg+xml,"]')?.src;
+    expect(ownerAvatarSrc).toBeTypeOf("string");
+    finalSubmit(container)!.click();
+    await vi.waitFor(() => expect(uploadAvatar).toHaveBeenCalledOnce());
+    const ownerDraftKey = Object.keys(sessionStorage).find(key =>
+      key.startsWith("pirate:community-submitted-draft:new:avatar-owner:"));
+    expect(ownerDraftKey).toBeTypeOf("string");
+    const ownerDraft = JSON.parse(sessionStorage.getItem(ownerDraftKey!)!);
+    expect(ownerDraft).toMatchObject({ name: "Pending account A harbor" });
+    expect(ownerDraft.publicName).toBeTypeOf("string");
+
+    currentOwner = ownerB;
+    refreshSession();
+    await vi.waitFor(() => expect(resolveAccount).toHaveBeenCalledTimes(2));
+    await vi.waitFor(() => expect(container.querySelector("main")?.getAttribute("data-creation-state")).toBe("ready"));
+    await vi.waitFor(() => expect(uploadSignal?.aborted).toBe(true));
+    expect(publicNameField(container)?.value).not.toBe(ownerDraft.publicName);
+    expect(container.querySelector<HTMLImageElement>('img[src^="data:image/svg+xml,"]')?.src).not.toBe(ownerAvatarSrc);
+    expect(sessionStorage.getItem(ownerDraftKey!)).not.toBeNull();
+    resolveUpload("avatar-aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa");
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(createIntentRequest).not.toHaveBeenCalled();
+
+    currentOwner = owner;
+    refreshSession();
+    await vi.waitFor(() => expect(resolveAccount).toHaveBeenCalledTimes(3));
+    await vi.waitFor(() => expect(publicNameField(container)?.value).toBe(ownerDraft.publicName));
+    expect(container.querySelector<HTMLImageElement>('img[src^="data:image/svg+xml,"]')?.src).toBe(ownerAvatarSrc);
+    await retreatToFirstPage(container);
+    expect(nameField(container).value).toBe("Pending account A harbor");
   });
 
   test("rotates the fresh-flow namespace after a successful creation", async () => {
@@ -568,7 +697,7 @@ describe("Community creation production route", () => {
     expect(name.value).toBe("My community");
   });
 
-  test("does not submit using a persona from the previous session", async () => {
+  test("isolates an unfinished draft from the next authenticated account", async () => {
     let authenticated = true;
     const createIntentRequest = vi.fn();
     const container = render(() => <CommunityCreationRouteView
@@ -586,8 +715,8 @@ describe("Community creation production route", () => {
     authenticated = false;
     refreshSession();
     await vi.waitFor(() => expect(container.querySelector("main")?.getAttribute("data-creation-state")).toBe("ready"));
-    await vi.waitFor(() => expect(next().disabled).toBe(false));
-    expect(name.value).toBe("My community");
+    await vi.waitFor(() => expect(nameField(container).value).toBe(""));
+    expect(next().disabled).toBe(true);
     expect(communityCreationCanUsePersona({ status: "authenticated", userId: "user-2", personas: [] },
       { kind: "existing", personaId: "persona-1" })).toBe(false);
     expect(communityCreationCanUsePersona(undefined, { kind: "existing", personaId: "persona-1" })).toBe(false);
@@ -618,6 +747,34 @@ describe("Community creation production route", () => {
     await vi.waitFor(() => expect(client.getIntent).toHaveBeenCalledTimes(2));
     expect(name.value).toBe("Saved community");
     expect(container.querySelector("form")).toBe(form);
+  });
+
+  test("hides a saved intent while a different account is being rejected and restores it for its owner", async () => {
+    let accountId = "user-1";
+    let rejectForeignRead!: (reason?: Error) => void;
+    const saved = createIntent({ intentId: "saved-1", nextAction: { kind: "commit" } });
+    const getIntent = vi.fn(() => accountId === "user-1"
+      ? Promise.resolve(saved)
+      : new Promise<ReturnType<typeof createIntent>>((_resolve, reject) => { rejectForeignRead = reject; }));
+    const container = render(() => <CommunityCreationRouteView
+      api={api({ getIntent })}
+      intentId="saved-1"
+      resolveSession={async () => ({ status: "authenticated", userId: accountId, personas: [] })}
+    />);
+    await vi.waitFor(() => expect(nameField(container).value).toBe("Saved community"));
+
+    accountId = "user-2";
+    refreshSession();
+    await vi.waitFor(() => expect(getIntent).toHaveBeenCalledTimes(2));
+    expect(nameField(container).value).toBe("");
+    expect(container.textContent).not.toContain("River Room");
+    rejectForeignRead(Object.assign(new Error("not found"), { status: 404 }));
+    await vi.waitFor(() => expect(container.textContent).toContain("Couldn't load your community setup"));
+
+    accountId = "user-1";
+    refreshSession();
+    await vi.waitFor(() => expect(getIntent).toHaveBeenCalledTimes(3));
+    await vi.waitFor(() => expect(nameField(container).value).toBe("Saved community"));
   });
 
   test("requires an explicit creation click after sign-in and retains subsequent draft edits", async () => {

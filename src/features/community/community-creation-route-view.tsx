@@ -40,6 +40,7 @@ export interface CommunityCreationRouteViewProps {
   api?: CommunityCreationApi;
   /** Story/test seam. Production leaves avatar authoring disabled. */
   avatarAuthoring?: boolean;
+  avatarPreparationTimeoutMs?: number;
   rasterizeProfileAvatar?: (seed: string) => Promise<Blob>;
   intentId?: string;
   navigate?: (href: string, options?: { replace?: boolean }) => void;
@@ -52,7 +53,9 @@ function idempotencyKey(scope: string): string {
   return `community:${scope}:${random}`;
 }
 
-const freshFlowStorageKey = "pirate:community-creation-flow";
+const accountStorageScope = (accountId: string) => encodeURIComponent(accountId);
+const freshFlowStorageKey = (accountId: string) =>
+  `pirate:community-creation-flow:${accountStorageScope(accountId)}`;
 const avatarAssetPattern = /^avatar-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u;
 
 function readSessionValue(key: string): string | undefined {
@@ -184,21 +187,12 @@ export function communityCreationCanUsePersona(
 export function CommunityCreationRouteView(props: CommunityCreationRouteViewProps) {
   const api = props.api ?? createCommunityCreationApi();
   const suppliedIntentId = props.intentId?.trim() || undefined;
-  let freshFlowId = suppliedIntentId === undefined ? readSessionValue(freshFlowStorageKey) : undefined;
-  if (suppliedIntentId === undefined && freshFlowId === undefined) {
-    freshFlowId = idempotencyKey("flow");
-    writeSessionValue(freshFlowStorageKey, freshFlowId);
-  }
-  const initialFlowScope = suppliedIntentId ?? `new:${freshFlowId}`;
+  let freshFlowId: string | undefined;
+  let freshFlowOwnerId: string | undefined;
+  let initialFlowScope = suppliedIntentId;
   const [session, setSession] = createSignal<RouteSession>("resolving");
   const emptyDraft = createEmptyDraft(undefined);
-  const submittedDraft = readSubmittedDraft(initialFlowScope);
-  const restoredNewAvatarSeed = readNewProfileAvatarSeed();
-  if (submittedDraft === undefined && restoredNewAvatarSeed === undefined) rememberNewProfileAvatarSeed(emptyDraft.profileAvatarSeed);
-  const [draft, setDraft] = createSignal<CreateCommunityDraft>(submittedDraft ?? {
-    ...emptyDraft,
-    profileAvatarSeed: restoredNewAvatarSeed ?? emptyDraft.profileAvatarSeed,
-  });
+  const [draft, setDraft] = createSignal<CreateCommunityDraft>(emptyDraft);
   const [draftEdited, setDraftEdited] = createSignal(false);
   const [draftConflict, setDraftConflict] = createSignal(false);
   // Refreshing lifecycle state must not replace the baseline of unsaved edits.
@@ -234,6 +228,7 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
   const [loadingSaved, setLoadingSaved] = createSignal(!!props.intentId?.trim());
   const commandKeys = new Map<string, string>();
   const activationAbort = new AbortController();
+  let accountAvatarAbort = new AbortController();
   let active = true;
   let sessionStarted = false;
   let refreshingAfterCommit = false;
@@ -242,6 +237,7 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
   const [communityAvatarFile, setCommunityAvatarFile] = createSignal<Blob>();
   const [personaAvatarFile, setPersonaAvatarFile] = createSignal<Blob>();
   const rasterizeProfile = props.rasterizeProfileAvatar ?? rasterizeGeneratedAvatar;
+  const avatarPreparationTimeoutMs = props.avatarPreparationTimeoutMs ?? 30_000;
 
   const navigate = (href: string, options?: { replace?: boolean }) => {
     if (props.navigate) {
@@ -254,7 +250,7 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
     }
   };
 
-  const flowScope = (): string => intent()?.intentId ?? initialFlowScope;
+  const flowScope = (): string => intent()?.intentId ?? initialFlowScope ?? "unbound";
 
   const commandStorageKey = (scope: string, routeScope = flowScope()): string => {
     return `pirate:community-command:${routeScope}:${scope}`;
@@ -263,49 +259,87 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
   const avatarRefStorageKey = (purpose: "community" | "persona", routeScope = flowScope()): string =>
     `pirate:community-avatar-ref:${routeScope}:${purpose}`;
 
-  const readAvatarRef = (purpose: "community" | "persona"): string | undefined => {
-    const value = readSessionValue(avatarRefStorageKey(purpose));
+  const readAvatarRef = (purpose: "community" | "persona", routeScope = flowScope()): string | undefined => {
+    const value = readSessionValue(avatarRefStorageKey(purpose, routeScope));
     return value !== undefined && avatarAssetPattern.test(value) ? value : undefined;
   };
 
-  const rememberAvatarRef = (purpose: "community" | "persona", assetId: string): void => {
-    if (avatarAssetPattern.test(assetId)) writeSessionValue(avatarRefStorageKey(purpose), assetId);
+  const rememberAvatarRef = (purpose: "community" | "persona", assetId: string, routeScope = flowScope()): void => {
+    if (avatarAssetPattern.test(assetId)) writeSessionValue(avatarRefStorageKey(purpose, routeScope), assetId);
   };
 
-  const forgetAvatarRef = (purpose: "community" | "persona"): void => {
-    removeSessionValue(avatarRefStorageKey(purpose));
+  const forgetAvatarRef = (purpose: "community" | "persona", routeScope = flowScope()): void => {
+    removeSessionValue(avatarRefStorageKey(purpose, routeScope));
   };
 
-  const commandKey = (scope: string): string => {
-    const existing = commandKeys.get(scope);
+  const commandKey = (scope: string, routeScope = flowScope()): string => {
+    const memoryKey = `${routeScope}:${scope}`;
+    const existing = commandKeys.get(memoryKey);
     if (existing) return existing;
-    const storageKey = commandStorageKey(scope);
+    const storageKey = commandStorageKey(scope, routeScope);
     let created: string | undefined;
     created = readSessionValue(storageKey);
     if (created === undefined) {
       created = idempotencyKey(scope);
       writeSessionValue(storageKey, created);
     }
-    commandKeys.set(scope, created);
+    commandKeys.set(memoryKey, created);
     return created;
   };
 
-  const forgetCommandKey = (scope: string) => {
-    commandKeys.delete(scope);
-    removeSessionValue(commandStorageKey(scope));
+  const forgetCommandKey = (scope: string, routeScope = flowScope()) => {
+    commandKeys.delete(`${routeScope}:${scope}`);
+    removeSessionValue(commandStorageKey(scope, routeScope));
   };
 
   const clearFreshFlowState = () => {
-    if (freshFlowId === undefined) return;
+    if (freshFlowId === undefined || freshFlowOwnerId === undefined || initialFlowScope === undefined) return;
+    const completedFlowScope = initialFlowScope;
     for (const scope of ["create", "update", "avatar:community", "avatar:persona"]) {
-      removeSessionValue(commandStorageKey(scope, initialFlowScope));
+      removeSessionValue(commandStorageKey(scope, completedFlowScope));
     }
-    removeSessionValue(avatarRefStorageKey("community", initialFlowScope));
-    removeSessionValue(avatarRefStorageKey("persona", initialFlowScope));
-    removeSessionValue(submittedDraftStorageKey(initialFlowScope));
-    if (readSessionValue(freshFlowStorageKey) === freshFlowId) removeSessionValue(freshFlowStorageKey);
+    removeSessionValue(avatarRefStorageKey("community", completedFlowScope));
+    removeSessionValue(avatarRefStorageKey("persona", completedFlowScope));
+    removeSessionValue(submittedDraftStorageKey(completedFlowScope));
+    const flowKey = freshFlowStorageKey(freshFlowOwnerId);
+    if (readSessionValue(flowKey) === freshFlowId) removeSessionValue(flowKey);
     commandKeys.clear();
     freshFlowId = undefined;
+  };
+
+  const bindFreshFlow = (ownerId: string): void => {
+    if (suppliedIntentId !== undefined || freshFlowOwnerId === ownerId) return;
+    const wasUnbound = freshFlowOwnerId === undefined;
+    const unboundDraft = draft();
+    accountAvatarAbort.abort();
+    accountAvatarAbort = new AbortController();
+    freshFlowOwnerId = ownerId;
+    const flowKey = freshFlowStorageKey(ownerId);
+    freshFlowId = readSessionValue(flowKey);
+    if (freshFlowId === undefined) {
+      freshFlowId = idempotencyKey("flow");
+      writeSessionValue(flowKey, freshFlowId);
+    }
+    initialFlowScope = `new:${accountStorageScope(ownerId)}:${freshFlowId}`;
+    const restoredDraft = readSubmittedDraft(initialFlowScope);
+    const restoredSeed = readNewProfileAvatarSeed(ownerId);
+    const nextEmptyDraft = createEmptyDraft(undefined);
+    if (restoredDraft === undefined && restoredSeed === undefined) {
+      rememberNewProfileAvatarSeed(ownerId, wasUnbound ? unboundDraft.profileAvatarSeed : nextEmptyDraft.profileAvatarSeed);
+    }
+    setDraft(restoredDraft ?? {
+      ...(wasUnbound ? unboundDraft : nextEmptyDraft),
+      profileAvatarSeed: restoredSeed ?? (wasUnbound ? unboundDraft.profileAvatarSeed : nextEmptyDraft.profileAvatarSeed),
+    });
+    setCommunityAvatarFile(undefined);
+    setPersonaAvatarFile(undefined);
+    setIntent(undefined);
+    setIntentOwnerId(undefined);
+    setDraftEdited(false);
+    setDraftConflict(false);
+    setMessage("");
+    editBase = undefined;
+    commandKeys.clear();
   };
 
   const recordDraftEdit = (patch: Partial<CreateCommunityDraft>) => {
@@ -383,6 +417,8 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
         sessionInFlight = false;
         setSession(result);
         if (result === "anonymous") {
+          accountAvatarAbort.abort();
+          accountAvatarAbort = new AbortController();
           continuing = false;
           setLoadingSaved(false);
           setDisplayPersonas([]);
@@ -390,8 +426,23 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
           setIntent(undefined);
           setDraftConflict(false);
         } else {
+          bindFreshFlow(result.userId);
           const changedOwner = intentOwnerId() !== undefined && intentOwnerId() !== result.userId;
-          if (changedOwner) { continuing = false; setIntent(undefined); setDraftConflict(false); }
+          if (changedOwner) {
+            accountAvatarAbort.abort();
+            accountAvatarAbort = new AbortController();
+            continuing = false;
+            setIntent(undefined);
+            setIntentOwnerId(undefined);
+            setDraft(createEmptyDraft(undefined));
+            setCommunityAvatarFile(undefined);
+            setPersonaAvatarFile(undefined);
+            setDraftEdited(false);
+            setDraftConflict(false);
+            setMessage("");
+            editBase = undefined;
+            commandKeys.clear();
+          }
           if (!result.personasUnavailable) {
             setDisplayPersonas(result.personas);
             setDraft(current => {
@@ -440,7 +491,7 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
     }));
   }
 
-  onCleanup(() => { active = false; activationAbort.abort(); });
+  onCleanup(() => { active = false; accountAvatarAbort.abort(); activationAbort.abort(); });
 
   createEffect(
     () => ({ current: intent(), deadline: waitDeadline(), failed: intentReadFailed() }),
@@ -586,57 +637,84 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
     }
   };
 
+  interface AvatarPreparationContext {
+    accountId: string;
+    routeScope: string;
+    signal: AbortSignal;
+  }
+
   const optionalAvatar = async (
-    file: Blob,
+    prepare: () => Promise<Blob>,
     purpose: "community" | "persona",
+    context: AvatarPreparationContext,
   ): Promise<string | undefined> => {
+    const controller = new AbortController();
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const abort = () => controller.abort();
     try {
       if (api.uploadAvatar === undefined) throw new Error("avatar_upload_unavailable");
-      const controller = new AbortController();
-      const abortForRoute = () => controller.abort();
-      if (activationAbort.signal.aborted) controller.abort();
-      else activationAbort.signal.addEventListener("abort", abortForRoute, { once: true });
-      let timer: ReturnType<typeof setTimeout> | undefined;
+      if (activationAbort.signal.aborted || context.signal.aborted) controller.abort();
+      else {
+        activationAbort.signal.addEventListener("abort", abort, { once: true });
+        context.signal.addEventListener("abort", abort, { once: true });
+      }
+      const cancelled = new Promise<never>((_, reject) => {
+        if (controller.signal.aborted) reject(new DOMException("aborted", "AbortError"));
+        else controller.signal.addEventListener("abort", () => {
+          reject(new DOMException("aborted", "AbortError"));
+        }, { once: true });
+      });
       const timeout = new Promise<never>((_, reject) => {
         timer = setTimeout(() => {
           controller.abort();
-          reject(new Error("avatar_upload_timeout"));
-        }, 30_000);
+          reject(new Error("avatar_preparation_timeout"));
+        }, avatarPreparationTimeoutMs);
       });
+      const file = await Promise.race([prepare(), cancelled, timeout]);
+      if (controller.signal.aborted) throw new DOMException("aborted", "AbortError");
       const upload = api.uploadAvatar({
+        accountId: context.accountId,
         file,
-        idempotencyKey: commandKey(`avatar:${purpose}`),
+        idempotencyKey: commandKey(`avatar:${purpose}`, context.routeScope),
         purpose,
         signal: controller.signal,
       });
-      try {
-        const assetId = await Promise.race([upload, timeout]);
-        rememberAvatarRef(purpose, assetId);
-        return assetId;
-      } finally {
-        activationAbort.signal.removeEventListener("abort", abortForRoute);
-        if (timer !== undefined) clearTimeout(timer);
-      }
+      const assetId = await Promise.race([upload, cancelled, timeout]);
+      if (controller.signal.aborted || context.signal.aborted || !active
+        || signedIn(session())?.userId !== context.accountId || flowScope() !== context.routeScope) return undefined;
+      rememberAvatarRef(purpose, assetId, context.routeScope);
+      return assetId;
     } catch {
       // Avatar images are deliberately optional. The creation request still
       // proceeds and the API response records the omission outcome.
-      if (active) setMessage("An optional avatar could not be uploaded; creation will continue.");
+      if (active && !context.signal.aborted && signedIn(session())?.userId === context.accountId
+        && flowScope() === context.routeScope) {
+        setMessage("An optional avatar could not be prepared or uploaded; creation will continue.");
+      }
       return undefined;
+    } finally {
+      activationAbort.signal.removeEventListener("abort", abort);
+      context.signal.removeEventListener("abort", abort);
+      if (timer !== undefined) clearTimeout(timer);
     }
   };
 
-  const draftWithOptionalAvatars = async (source: CreateCommunityDraft): Promise<CreateCommunityDraft> => {
+  const draftWithOptionalAvatars = async (
+    source: CreateCommunityDraft,
+    context: AvatarPreparationContext,
+  ): Promise<CreateCommunityDraft> => {
     if (props.avatarAuthoring !== true) return source;
     const next: CreateCommunityDraft = { ...source };
     if (next.communityAvatarRef === undefined) {
-      const recovered = readAvatarRef("community");
+      const recovered = readAvatarRef("community", context.routeScope);
       if (recovered !== undefined) next.communityAvatarRef = recovered;
       else if (communityAvatarFile() !== undefined) {
-        const ref = await optionalAvatar(communityAvatarFile()!, "community");
+        const selected = communityAvatarFile()!;
+        const ref = await optionalAvatar(async () => selected, "community", context);
         if (ref !== undefined) next.communityAvatarRef = ref;
       }
     }
-    if (!active) return next;
+    if (!active || context.signal.aborted) return next;
     const personaChoice = next.persona;
     const selectedPersona = personaChoice?.kind === "existing"
       ? signedIn(session())?.personas.find(persona => persona.personaId === personaChoice.personaId)
@@ -644,19 +722,17 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
     const personaNeedsAvatar = personaChoice?.kind === "create_new"
       || (personaChoice?.kind === "existing" && selectedPersona?.avatarRef === null);
     if (personaNeedsAvatar && next.personaAvatarRef === undefined) {
-      const recovered = readAvatarRef("persona");
+      const recovered = readAvatarRef("persona", context.routeScope);
       if (recovered !== undefined) {
         next.personaAvatarRef = recovered;
         return next;
       }
       const selected = personaAvatarFile();
-      let generated = selected;
-      if (generated === undefined) {
-        try { generated = await rasterizeProfile(next.profileAvatarSeed); }
-        catch { setMessage("An optional avatar could not be prepared; creation will continue."); }
-      }
-      if (generated === undefined) return next;
-      const ref = await optionalAvatar(generated, "persona");
+      const ref = await optionalAvatar(
+        selected === undefined ? () => rasterizeProfile(next.profileAvatarSeed) : async () => selected,
+        "persona",
+        context,
+      );
       if (ref !== undefined) next.personaAvatarRef = ref;
     }
     return next;
@@ -672,6 +748,11 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
       return;
     }
     const saved = intent();
+    const submissionContext: AvatarPreparationContext = {
+      accountId: owner.userId,
+      routeScope: flowScope(),
+      signal: accountAvatarAbort.signal,
+    };
     if (saved) {
       if (intentOwnerId() !== owner.userId) {
         setMessage("Sign in with the account that started this community, then try again.");
@@ -685,7 +766,7 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
         if (!latest || !active || signedIn(session())?.userId !== owner.userId) return;
         if (latest.committedHref || draftConflict()) return;
         if (draftEdited()) {
-          const draftToSubmit = await draftWithOptionalAvatars(currentDraft);
+          const draftToSubmit = await draftWithOptionalAvatars(currentDraft, submissionContext);
           if (!active || signedIn(session())?.userId !== owner.userId) return;
           setDraft(draftToSubmit);
           const updated = await api.updateIntent({
@@ -727,13 +808,17 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
     setBusy(true);
     setMessage("");
     try {
-      const draftToSubmit = await draftWithOptionalAvatars(currentDraft);
+      // Preserve the owning account's recoverable draft before optional media
+      // work starts so an account switch during preparation loses neither
+      // account's state.
+      writeSubmittedDraft(submissionContext.routeScope, currentDraft);
+      const draftToSubmit = await draftWithOptionalAvatars(currentDraft, submissionContext);
       if (!active || signedIn(session())?.userId !== owner.userId) return;
       setDraft(draftToSubmit);
-      writeSubmittedDraft(initialFlowScope, draftToSubmit);
+      writeSubmittedDraft(submissionContext.routeScope, draftToSubmit);
       const created = await api.createIntent({
         draft: draftToSubmit,
-        idempotencyKey: commandKey("create"),
+        idempotencyKey: commandKey("create", submissionContext.routeScope),
       });
       if (!active) return;
       if (signedIn(session())?.userId !== owner.userId) {
@@ -742,7 +827,7 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
       }
       setIntentOwnerId(owner.userId);
       rememberProfileAvatarSeed(created.intentId, draftToSubmit.profileAvatarSeed);
-      forgetNewProfileAvatarSeed();
+      forgetNewProfileAvatarSeed(owner.userId);
       clearFreshFlowState();
       const createdWithSeed = created.draft === undefined ? created : {
         ...created,
