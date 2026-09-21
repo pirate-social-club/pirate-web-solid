@@ -69,12 +69,12 @@ afterEach(() => {
 });
 
 describe("global sign-in host", () => {
-  test("identity confirmation is cancelled by dismissal and by route exit", async () => {
+  test("completion requests reuse ordinary sign-in and cancel on dismissal or route exit", async () => {
     render(() => <GlobalSignInHost createExchange={async () => fakeExchange()} refresh={() => {}} />);
     const first = new AbortController();
     const completion = requestGlobalSignInCompletion(first.signal);
     await settle();
-    expect(document.querySelector('[role="dialog"]')?.getAttribute("aria-label")).toBe("Confirm it’s you");
+    expect(document.querySelector('[role="dialog"]')?.getAttribute("aria-label")).toBe("Join Pirate");
     document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
     await expect(completion).resolves.toBe(false);
     const second = new AbortController();

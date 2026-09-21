@@ -8,12 +8,11 @@ const currentClient = resolve(
   appRoot,
   "node_modules/@pirate/api-client/src/generated/client.ts",
 );
-// The local song-closeout client adds account-owned active-song discovery and
-// typed public song delivery status. It also consumes current API main's
-// creator-ceremony removal and optional avatar fields. Membership nationality
-// policies remain supported; the removed creator ceremony is not reconstructed.
-// Pin the exact consumed success, error and schema tables, not only the archive.
-const expectedDigest = "f0876da336517d11cea2b5e5823bdd24ff8f84b10ddb505d6c24dc2006671fb3";
+// Client 0.87.0 retains the consumed operations and removes the obsolete
+// community-creation activate_profile response while preserving the song,
+// nationality, and avatar contracts consumed by current Solid main. This
+// digest pins the exact success, error, and schema tables consumed by Solid.
+const expectedDigest = "57131fec02e35e8b663ee7baf1c0c54b23dba6929324204b237f7de4c7cd3fe4";
 
 const operations = [
   "post_postsPostIdVideoPlaybackAccess",

@@ -60,7 +60,6 @@ export interface GlobalSignInHostProps {
  */
 export function GlobalSignInHost(props: GlobalSignInHostProps = {}) {
   const [open, setOpen] = createSignal(false);
-  const [confirmIdentity, setConfirmIdentity] = createSignal(false);
   let completion: SignInCompletion | undefined;
   const finishPrompt = (authenticated: boolean) => {
     const pending = completion;
@@ -83,7 +82,6 @@ export function GlobalSignInHost(props: GlobalSignInHostProps = {}) {
     const detail = event instanceof CustomEvent && event.detail !== null ? event.detail as SignInCompletion | undefined : undefined;
     if (completion !== undefined) finishPrompt(false);
     completion = detail;
-    setConfirmIdentity(detail !== undefined);
     setOpen(true);
   };
   const listening = typeof window !== "undefined";
@@ -96,5 +94,5 @@ export function GlobalSignInHost(props: GlobalSignInHostProps = {}) {
     if (listening) window.removeEventListener(GLOBAL_SIGN_IN_EVENT, openSignIn);
   });
 
-  return <SignInModal confirmIdentity={confirmIdentity()} onOpenChange={next => { setOpen(next); if (!next) finishPrompt(false); }} open={open()} session={session} />;
+  return <SignInModal onOpenChange={next => { setOpen(next); if (!next) finishPrompt(false); }} open={open()} session={session} />;
 }

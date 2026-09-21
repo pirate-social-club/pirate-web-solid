@@ -35,7 +35,6 @@ const methodLabel = {
 
 export interface SignInViewProps {
   readonly class?: string;
-  readonly confirmIdentity?: boolean;
   readonly state: SignInState;
   readonly walletAvailable: boolean;
   readonly onBack: () => void;
@@ -58,13 +57,13 @@ function AuthBrandMark(): JSX.Element {
   );
 }
 
-function ChooseHeader(props: { confirmIdentity?: boolean }): JSX.Element {
+function ChooseHeader(): JSX.Element {
   return (
     <div class="flex flex-col items-center text-center">
       <AuthBrandMark />
-      <Type as="h1" variant="h2" class="mt-3 leading-7">{props.confirmIdentity ? "Confirm it’s you" : "Join Pirate"}</Type>
+      <Type as="h1" variant="h2" class="mt-3 leading-7">Join Pirate</Type>
       <Type as="p" variant="caption" class="mt-1 text-sm leading-5">
-        {props.confirmIdentity ? "Use the same account to finish your community profile." : "Share music. Find your people."}
+        Share music. Find your people.
       </Type>
     </div>
   );
@@ -94,7 +93,7 @@ export function SignInView(props: SignInViewProps): JSX.Element {
 
       <Show when={phase() === "choose" || phase() === "unavailable"}>
         <div class="flex flex-col">
-          <ChooseHeader confirmIdentity={props.confirmIdentity} />
+          <ChooseHeader />
 
           <div class="mt-5 flex flex-col gap-2.5">
             <For each={methods()}>
