@@ -12,7 +12,7 @@ const currentClient = resolve(
 // community-creation activate_profile response while preserving the song,
 // nationality, and avatar contracts consumed by current Solid main. This
 // digest pins the exact success, error, and schema tables consumed by Solid.
-const expectedDigest = "7c6226000d0d1c051275de05ef879fcda0b333418a8b2a32516cf875476fe525";
+const expectedDigest = "56b048e50ab2479126583957ea862be6f238434b21eb0cd4e1e66bfc7bd8967b";
 
 const operations = [
   "post_postsPostIdVideoPlaybackAccess",

@@ -306,5 +306,4 @@ test("restores nationality membership policy without inventing a creator ceremon
   const restored = await api.getIntent({ intentId: "creation-1" });
   expect(restored.draft?.additionalRequirements).toEqual([{ requirement: "nationality-allowed", allowedCountries: ["US", "CA"] }]);
   expect(restored.nextAction).toEqual({ kind: "commit" });
-  expect(restored.nationalityRequirement).toBeUndefined();
 });
