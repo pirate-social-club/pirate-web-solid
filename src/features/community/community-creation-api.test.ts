@@ -6,7 +6,10 @@ import {
   rememberProfileAvatarSeed,
 } from "./community-creation-api";
 
-afterEach(() => localStorage.clear());
+afterEach(() => {
+  localStorage.clear();
+  sessionStorage.clear();
+});
 
 const policy = {
   accessPaths: [{
@@ -414,4 +417,50 @@ test("replays a reserved asset after an ambiguous finalize without reserving aga
   expect(rawUploads).toBe(2);
   expect(readinessChecks).toBe(1);
   expect(finalizations).toBe(2);
+});
+
+test("replaces an expired reservation with a fresh idempotency key", async () => {
+  const key = "avatar-expired-key";
+  localStorage.setItem(`pirate:community-avatar-upload:${key}`, JSON.stringify({
+    assetId: "avatar-44444444-4444-4444-8444-444444444444",
+    contentType: "image/png",
+    expiresAt: "2020-01-01T00:00:00Z",
+    finalized: false,
+    headers: [{ name: "content-type", value: "image/png" }],
+    purpose: "community",
+    size: 3,
+    uploadUrl: "https://storage.test/expired/avatar",
+  }));
+  let reservationKey = "";
+  // SAFETY: This focused expiry fixture implements only the generated methods exercised by uploadAvatar.
+  const client = {
+    post_avatarUploadReservations: async (input: { body: { idempotency_key: string } }) => {
+      reservationKey = input.body.idempotency_key;
+      return {
+        asset_id: "avatar-55555555-5555-4555-8555-555555555555",
+        upload_url: "https://storage.test/fresh/avatar",
+        required_headers: [{ name: "content-type", value: "image/png" }],
+        expires_at: "2099-01-01T00:00:00Z",
+      };
+    },
+    post_avatarUploadReservationsAssetIdFinalize: async () => ({
+      asset_id: "avatar-55555555-5555-4555-8555-555555555555",
+      status: "ready" as const,
+    }),
+  } as never;
+  const api = createCommunityCreationApi({
+    client,
+    readCsrfToken: () => "csrf-token",
+    uploadFetch: async input => {
+      expect(input.toString()).toBe("https://storage.test/fresh/avatar");
+      return new Response(null, { status: 200 });
+    },
+  });
+
+  await expect(api.uploadAvatar?.({
+    file: new Blob([new Uint8Array([1, 2, 3])], { type: "image/png" }),
+    idempotencyKey: key,
+    purpose: "community",
+  })).resolves.toBe("avatar-55555555-5555-4555-8555-555555555555");
+  expect(reservationKey).not.toBe(key);
 });

@@ -1,4 +1,3 @@
-import { pendingDocumentRequirement } from "../verification/document-requirement.ts";
 import { normalizeIdentityCountryAlpha2 } from "../verification/nationality-country-codes.ts";
 import {
   createPirateApiClient,
@@ -162,6 +161,14 @@ function writeStorage(key: string, value: string): void {
   try { localStorage.setItem(key, value); } catch { /* storage is optional */ }
 }
 
+function readSessionStorage(key: string): string | null {
+  try { return sessionStorage.getItem(key); } catch { return null; }
+}
+
+function writeSessionStorage(key: string, value: string): void {
+  try { sessionStorage.setItem(key, value); } catch { /* storage is optional */ }
+}
+
 function readAvatarUploadRecord(idempotencyKey: string): AvatarUploadRecord | undefined {
   const raw = readStorage(avatarUploadKey(idempotencyKey));
   if (raw === null) return undefined;
@@ -190,15 +197,15 @@ export function rememberProfileAvatarSeed(intentId: string, seed: string): void 
 }
 
 export function rememberNewProfileAvatarSeed(seed: string): void {
-  writeStorage(newAvatarSeedKey, seed);
+  writeSessionStorage(newAvatarSeedKey, seed);
 }
 
 export function readNewProfileAvatarSeed(): string | undefined {
-  return readStorage(newAvatarSeedKey) ?? undefined;
+  return readSessionStorage(newAvatarSeedKey) ?? undefined;
 }
 
 export function forgetNewProfileAvatarSeed(): void {
-  try { localStorage.removeItem(newAvatarSeedKey); } catch { /* storage is optional */ }
+  try { sessionStorage.removeItem(newAvatarSeedKey); } catch { /* storage is optional */ }
 }
 
 function profileAvatarSeed(intentId: string): string {
@@ -206,47 +213,7 @@ function profileAvatarSeed(intentId: string): string {
 }
 
 function mapIntent(response: PostCommunityCreationIntentsResponse): CommunityCreationIntentView {
-  // The 0.85 creation contract no longer emits creator-nationality state, but
-  // this narrow legacy read keeps already-saved pre-removal intents diagnosable
-  // while they expire. New responses use human_identity and map to blocked.
-  // SAFETY: The extension only reads optional legacy fields and leaves the generated contract intact.
-  const legacy = response as Omit<PostCommunityCreationIntentsResponse, "requirements" | "next_action"> & {
-    requirements: PostCommunityCreationIntentsResponse["requirements"] & {
-      nationality?: {
-        requirement: "nationality";
-        status: "unmet" | "pending" | "satisfied" | "failed" | "expired";
-        requirement_hash: string;
-        provider_id: string;
-        generation: number;
-        ceremony_intent_id: string | null;
-        accepted_provider_ids: readonly string[];
-        satisfied_at: string | null;
-      } | null;
-    };
-    next_action: PostCommunityCreationIntentsResponse["next_action"] | {
-      kind: "start_verification";
-      requirement: "nationality";
-      provider_id: string;
-      creation_intent_id: string;
-      ceremony_intent_id: string;
-      generation: number;
-    };
-  };
-  const nationality = legacy.requirements.nationality;
-  const nationalityRequirement = nationality === undefined || nationality === null ? undefined
-    : nationality.status === "satisfied" ? { kind: "satisfied" as const }
-    : pendingDocumentRequirement({
-        requirement: "nationality", requirementHash: nationality.requirement_hash,
-        intentId: nationality.ceremony_intent_id ?? "", providerId: nationality.provider_id,
-        acceptedProviderIds: nationality.accepted_provider_ids, generation: nationality.generation,
-      });
-  if (legacy.next_action.kind === "start_verification" && legacy.next_action.requirement === "nationality"
-    && (nationalityRequirement?.kind !== "pending" || nationalityRequirement.intentId !== legacy.next_action.ceremony_intent_id
-      || nationalityRequirement.providerId !== legacy.next_action.provider_id || nationalityRequirement.generation !== legacy.next_action.generation)) {
-    throw new CommunityCreationApiError("unsupported_creation_contract", "This verification step changed. Reload the saved setup.");
-  }
   return {
-    ...(nationalityRequirement === undefined ? {} : { nationalityRequirement }),
     ...(response.avatar_outcomes === undefined || response.avatar_outcomes === null ? {} : { avatarOutcomes: response.avatar_outcomes }),
     draft: response.committed_resource ? undefined : {
       name: response.draft.name,
@@ -335,9 +302,14 @@ export function createCommunityCreationApi(
       if (record?.finalized && record.purpose === purpose && record.contentType === contentType && record.size === file.size) {
         return record.assetId;
       }
-      if (record === undefined || record.purpose !== purpose || record.contentType !== contentType || record.size !== file.size) {
+      const expiry = record === undefined ? Number.POSITIVE_INFINITY : Date.parse(record.expiresAt);
+      const expired = record !== undefined && !record.finalized && (!Number.isFinite(expiry) || expiry <= Date.now());
+      if (record === undefined || expired || record.purpose !== purpose || record.contentType !== contentType || record.size !== file.size) {
+        const reservationKey = expired
+          ? `community:avatar-renew:${record.assetId}`
+          : idempotencyKey;
         const reservation = await client().post_avatarUploadReservations({
-          body: { byte_length: file.size, content_type: contentType, idempotency_key: idempotencyKey, purpose },
+          body: { byte_length: file.size, content_type: contentType, idempotency_key: reservationKey, purpose },
         }, writeOptions(signal));
         record = {
           assetId: reservation.asset_id,

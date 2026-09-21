@@ -52,6 +52,97 @@ function idempotencyKey(scope: string): string {
   return `community:${scope}:${random}`;
 }
 
+const freshFlowStorageKey = "pirate:community-creation-flow";
+const avatarAssetPattern = /^avatar-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u;
+
+function readSessionValue(key: string): string | undefined {
+  try { return sessionStorage.getItem(key) ?? undefined; } catch { return undefined; }
+}
+
+function writeSessionValue(key: string, value: string): void {
+  try { sessionStorage.setItem(key, value); } catch { /* storage is optional */ }
+}
+
+function removeSessionValue(key: string): void {
+  try { sessionStorage.removeItem(key); } catch { /* storage is optional */ }
+}
+
+const submittedDraftStorageKey = (flowScope: string) => `pirate:community-submitted-draft:${flowScope}`;
+
+interface StoredDraftCandidate {
+  additionalRequirements?: unknown;
+  communityAvatarRef?: unknown;
+  description?: unknown;
+  name?: unknown;
+  persona?: unknown;
+  personaAvatarRef?: unknown;
+  profileAvatarSeed?: unknown;
+  publicName?: unknown;
+}
+
+interface StoredPersonaCandidate { kind?: unknown; personaId?: unknown }
+interface StoredRequirementCandidate {
+  allowedCountries?: unknown;
+  minimumScore?: unknown;
+  provider?: unknown;
+  requirement?: unknown;
+}
+
+function readSubmittedDraft(flowScope: string): CreateCommunityDraft | undefined {
+  const raw = readSessionValue(submittedDraftStorageKey(flowScope));
+  if (raw === undefined) return undefined;
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (typeof parsed !== "object" || parsed === null) return undefined;
+    // SAFETY: Each field used from the parsed draft is validated before reconstruction.
+    const value = parsed as StoredDraftCandidate;
+    if (typeof value.name !== "string"
+      || (value.description !== null && typeof value.description !== "string")
+      || (value.publicName !== undefined && typeof value.publicName !== "string")
+      || typeof value.profileAvatarSeed !== "string" || !Array.isArray(value.additionalRequirements)
+      || typeof value.persona !== "object" || value.persona === null) return undefined;
+    // SAFETY: The persona candidate is reconstructed only from the two closed variants below.
+    const storedPersona = value.persona as StoredPersonaCandidate;
+    const persona = storedPersona.kind === "create_new"
+      ? { kind: "create_new" as const }
+      : storedPersona.kind === "existing" && typeof storedPersona.personaId === "string"
+        ? { kind: "existing" as const, personaId: storedPersona.personaId }
+        : undefined;
+    if (persona === undefined) return undefined;
+    const additionalRequirements: CreateCommunityDraft["additionalRequirements"] = [];
+    for (const candidate of value.additionalRequirements) {
+      if (typeof candidate !== "object" || candidate === null) return undefined;
+      // SAFETY: The requirement candidate is reconstructed only after its variant fields are validated.
+      const requirement = candidate as StoredRequirementCandidate;
+      if (requirement.requirement === "nationality-allowed" && Array.isArray(requirement.allowedCountries)
+        && requirement.allowedCountries.every(country => typeof country === "string")) {
+        additionalRequirements.push({ requirement: "nationality-allowed", allowedCountries: [...requirement.allowedCountries] });
+      } else if (requirement.requirement === "reputation-score" && requirement.provider === "passport"
+        && typeof requirement.minimumScore === "number" && Number.isFinite(requirement.minimumScore)) {
+        additionalRequirements.push({ requirement: "reputation-score", provider: "passport", minimumScore: requirement.minimumScore });
+      } else return undefined;
+    }
+    const communityAvatarRef = typeof value.communityAvatarRef === "string" && avatarAssetPattern.test(value.communityAvatarRef)
+      ? value.communityAvatarRef : undefined;
+    const personaAvatarRef = typeof value.personaAvatarRef === "string" && avatarAssetPattern.test(value.personaAvatarRef)
+      ? value.personaAvatarRef : undefined;
+    return {
+      additionalRequirements,
+      ...(communityAvatarRef === undefined ? {} : { communityAvatarRef }),
+      description: value.description,
+      name: value.name,
+      persona,
+      ...(personaAvatarRef === undefined ? {} : { personaAvatarRef }),
+      ...(value.publicName === undefined ? {} : { publicName: value.publicName }),
+      profileAvatarSeed: value.profileAvatarSeed,
+    };
+  } catch { return undefined; }
+}
+
+function writeSubmittedDraft(flowScope: string, draft: CreateCommunityDraft): void {
+  writeSessionValue(submittedDraftStorageKey(flowScope), JSON.stringify(draft));
+}
+
 function rejectionStatus(error: unknown): number | undefined {
   if (typeof error !== "object" || error === null || !("status" in error)) return undefined;
   return typeof error.status === "number" ? error.status : undefined;
@@ -92,13 +183,21 @@ export function communityCreationCanUsePersona(
 
 export function CommunityCreationRouteView(props: CommunityCreationRouteViewProps) {
   const api = props.api ?? createCommunityCreationApi();
+  const suppliedIntentId = props.intentId?.trim() || undefined;
+  let freshFlowId = suppliedIntentId === undefined ? readSessionValue(freshFlowStorageKey) : undefined;
+  if (suppliedIntentId === undefined && freshFlowId === undefined) {
+    freshFlowId = idempotencyKey("flow");
+    writeSessionValue(freshFlowStorageKey, freshFlowId);
+  }
+  const initialFlowScope = suppliedIntentId ?? `new:${freshFlowId}`;
   const [session, setSession] = createSignal<RouteSession>("resolving");
-  const initialDraft = createEmptyDraft(undefined);
+  const emptyDraft = createEmptyDraft(undefined);
+  const submittedDraft = readSubmittedDraft(initialFlowScope);
   const restoredNewAvatarSeed = readNewProfileAvatarSeed();
-  if (restoredNewAvatarSeed === undefined) rememberNewProfileAvatarSeed(initialDraft.profileAvatarSeed);
-  const [draft, setDraft] = createSignal<CreateCommunityDraft>({
-    ...initialDraft,
-    profileAvatarSeed: restoredNewAvatarSeed ?? initialDraft.profileAvatarSeed,
+  if (submittedDraft === undefined && restoredNewAvatarSeed === undefined) rememberNewProfileAvatarSeed(emptyDraft.profileAvatarSeed);
+  const [draft, setDraft] = createSignal<CreateCommunityDraft>(submittedDraft ?? {
+    ...emptyDraft,
+    profileAvatarSeed: restoredNewAvatarSeed ?? emptyDraft.profileAvatarSeed,
   });
   const [draftEdited, setDraftEdited] = createSignal(false);
   const [draftConflict, setDraftConflict] = createSignal(false);
@@ -116,11 +215,13 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
     }
     if (incoming.avatarOutcomes?.community === "attached" || incoming.avatarOutcomes?.community === "omitted_unavailable") {
       setCommunityAvatarFile(undefined);
+      forgetAvatarRef("community");
     }
     if (incoming.avatarOutcomes?.persona === "attached"
       || incoming.avatarOutcomes?.persona === "omitted_unavailable"
       || incoming.avatarOutcomes?.persona === "preserved_existing") {
       setPersonaAvatarFile(undefined);
+      forgetAvatarRef("persona");
     }
     setIntent(incoming);
     return incoming;
@@ -153,9 +254,26 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
     }
   };
 
-  const commandStorageKey = (scope: string): string => {
-    const intentScope = intent()?.intentId ?? props.intentId?.trim() ?? "new";
-    return `pirate:community-command:${intentScope}:${scope}`;
+  const flowScope = (): string => intent()?.intentId ?? initialFlowScope;
+
+  const commandStorageKey = (scope: string, routeScope = flowScope()): string => {
+    return `pirate:community-command:${routeScope}:${scope}`;
+  };
+
+  const avatarRefStorageKey = (purpose: "community" | "persona", routeScope = flowScope()): string =>
+    `pirate:community-avatar-ref:${routeScope}:${purpose}`;
+
+  const readAvatarRef = (purpose: "community" | "persona"): string | undefined => {
+    const value = readSessionValue(avatarRefStorageKey(purpose));
+    return value !== undefined && avatarAssetPattern.test(value) ? value : undefined;
+  };
+
+  const rememberAvatarRef = (purpose: "community" | "persona", assetId: string): void => {
+    if (avatarAssetPattern.test(assetId)) writeSessionValue(avatarRefStorageKey(purpose), assetId);
+  };
+
+  const forgetAvatarRef = (purpose: "community" | "persona"): void => {
+    removeSessionValue(avatarRefStorageKey(purpose));
   };
 
   const commandKey = (scope: string): string => {
@@ -163,10 +281,10 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
     if (existing) return existing;
     const storageKey = commandStorageKey(scope);
     let created: string | undefined;
-    try { created = localStorage.getItem(storageKey) ?? undefined; } catch { /* storage is optional */ }
+    created = readSessionValue(storageKey);
     if (created === undefined) {
       created = idempotencyKey(scope);
-      try { localStorage.setItem(storageKey, created); } catch { /* storage is optional */ }
+      writeSessionValue(storageKey, created);
     }
     commandKeys.set(scope, created);
     return created;
@@ -174,11 +292,25 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
 
   const forgetCommandKey = (scope: string) => {
     commandKeys.delete(scope);
-    try { localStorage.removeItem(commandStorageKey(scope)); } catch { /* storage is optional */ }
+    removeSessionValue(commandStorageKey(scope));
+  };
+
+  const clearFreshFlowState = () => {
+    if (freshFlowId === undefined) return;
+    for (const scope of ["create", "update", "avatar:community", "avatar:persona"]) {
+      removeSessionValue(commandStorageKey(scope, initialFlowScope));
+    }
+    removeSessionValue(avatarRefStorageKey("community", initialFlowScope));
+    removeSessionValue(avatarRefStorageKey("persona", initialFlowScope));
+    removeSessionValue(submittedDraftStorageKey(initialFlowScope));
+    if (readSessionValue(freshFlowStorageKey) === freshFlowId) removeSessionValue(freshFlowStorageKey);
+    commandKeys.clear();
+    freshFlowId = undefined;
   };
 
   const recordDraftEdit = (patch: Partial<CreateCommunityDraft>) => {
     continuing = false;
+    removeSessionValue(submittedDraftStorageKey(flowScope()));
     forgetCommandKey("create");
     forgetCommandKey("update");
     const saved = intent();
@@ -189,6 +321,7 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
 
   const changeAvatar = (purpose: "community" | "persona", file: File | null) => {
     forgetCommandKey(`avatar:${purpose}`);
+    forgetAvatarRef(purpose);
     recordDraftEdit(purpose === "community"
       ? { communityAvatarRef: undefined }
       : { personaAvatarRef: undefined });
@@ -198,6 +331,7 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
 
   const shuffleProfileAvatar = () => {
     forgetCommandKey("avatar:persona");
+    forgetAvatarRef("persona");
     const seed = randomAvatarSeed();
     rememberNewProfileAvatarSeed(seed);
     setPersonaAvatarFile(undefined);
@@ -468,6 +602,9 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
     try {
       if (api.uploadAvatar === undefined) throw new Error("avatar_upload_unavailable");
       const controller = new AbortController();
+      const abortForRoute = () => controller.abort();
+      if (activationAbort.signal.aborted) controller.abort();
+      else activationAbort.signal.addEventListener("abort", abortForRoute, { once: true });
       let timer: ReturnType<typeof setTimeout> | undefined;
       const timeout = new Promise<never>((_, reject) => {
         timer = setTimeout(() => {
@@ -481,12 +618,18 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
         purpose,
         signal: controller.signal,
       });
-      try { return await Promise.race([upload, timeout]); }
-      finally { if (timer !== undefined) clearTimeout(timer); }
+      try {
+        const assetId = await Promise.race([upload, timeout]);
+        rememberAvatarRef(purpose, assetId);
+        return assetId;
+      } finally {
+        activationAbort.signal.removeEventListener("abort", abortForRoute);
+        if (timer !== undefined) clearTimeout(timer);
+      }
     } catch {
       // Avatar images are deliberately optional. The creation request still
       // proceeds and the API response records the omission outcome.
-      setMessage("An optional avatar could not be uploaded; creation will continue.");
+      if (active) setMessage("An optional avatar could not be uploaded; creation will continue.");
       return undefined;
     }
   };
@@ -494,10 +637,15 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
   const draftWithOptionalAvatars = async (source: CreateCommunityDraft): Promise<CreateCommunityDraft> => {
     if (props.avatarAuthoring !== true) return source;
     const next: CreateCommunityDraft = { ...source };
-    if (next.communityAvatarRef === undefined && communityAvatarFile() !== undefined) {
-      const ref = await optionalAvatar(communityAvatarFile()!, "community");
-      if (ref !== undefined) next.communityAvatarRef = ref;
+    if (next.communityAvatarRef === undefined) {
+      const recovered = readAvatarRef("community");
+      if (recovered !== undefined) next.communityAvatarRef = recovered;
+      else if (communityAvatarFile() !== undefined) {
+        const ref = await optionalAvatar(communityAvatarFile()!, "community");
+        if (ref !== undefined) next.communityAvatarRef = ref;
+      }
     }
+    if (!active) return next;
     const personaChoice = next.persona;
     const selectedPersona = personaChoice?.kind === "existing"
       ? signedIn(session())?.personas.find(persona => persona.personaId === personaChoice.personaId)
@@ -505,6 +653,11 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
     const personaNeedsAvatar = personaChoice?.kind === "create_new"
       || (personaChoice?.kind === "existing" && selectedPersona?.avatarRef === null);
     if (personaNeedsAvatar && next.personaAvatarRef === undefined) {
+      const recovered = readAvatarRef("persona");
+      if (recovered !== undefined) {
+        next.personaAvatarRef = recovered;
+        return next;
+      }
       const selected = personaAvatarFile();
       let generated = selected;
       if (generated === undefined) {
@@ -542,6 +695,7 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
         if (latest.committedHref || draftConflict()) return;
         if (draftEdited()) {
           const draftToSubmit = await draftWithOptionalAvatars(currentDraft);
+          if (!active || signedIn(session())?.userId !== owner.userId) return;
           setDraft(draftToSubmit);
           const updated = await api.updateIntent({
             intentId: latest.intentId,
@@ -583,7 +737,9 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
     setMessage("");
     try {
       const draftToSubmit = await draftWithOptionalAvatars(currentDraft);
+      if (!active || signedIn(session())?.userId !== owner.userId) return;
       setDraft(draftToSubmit);
+      writeSubmittedDraft(initialFlowScope, draftToSubmit);
       const created = await api.createIntent({
         draft: draftToSubmit,
         idempotencyKey: commandKey("create"),
@@ -596,6 +752,7 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
       setIntentOwnerId(owner.userId);
       rememberProfileAvatarSeed(created.intentId, draftToSubmit.profileAvatarSeed);
       forgetNewProfileAvatarSeed();
+      clearFreshFlowState();
       const createdWithSeed = created.draft === undefined ? created : {
         ...created,
         draft: { ...created.draft, profileAvatarSeed: draftToSubmit.profileAvatarSeed },
@@ -665,6 +822,7 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
           onDraftChange={(patch) => {
             if (busy() || loadingSaved() || (props.intentId?.trim() && !intent())) return;
             continuing = false;
+            removeSessionValue(submittedDraftStorageKey(flowScope()));
             forgetCommandKey("create");
             forgetCommandKey("update");
             const saved = intent();
@@ -677,6 +835,7 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
               if (patch.persona?.kind === "existing") {
                 setPersonaAvatarFile(undefined);
                 forgetCommandKey("avatar:persona");
+                forgetAvatarRef("persona");
                 next.personaAvatarRef = undefined;
               }
               return next;
