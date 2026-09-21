@@ -76,8 +76,9 @@ export const GeneratedDefault: Story = {
   name: "Generated default persists",
   render: () => <Screen avatarAuthoring step={2} draft={withDraftName(createEmptyDraft(personaId), "Night Shift")} />,
   play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement);
-    const avatar = canvas.getByRole("img", { name: "" });
+    const avatar = canvasElement.querySelector<HTMLImageElement>('img[src^="data:image/svg+xml,"]');
+    expect(avatar).not.toBeNull();
+    if (avatar === null) throw new Error("generated avatar missing");
     expect(avatar.getAttribute("src")).toMatch(/^data:image\/svg\+xml,/u);
   },
 };
@@ -87,7 +88,9 @@ export const ShuffleGeneratedDefault: Story = {
   render: () => <Screen avatarAuthoring step={2} draft={withDraftName(createEmptyDraft(personaId), "Night Shift")} />,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    const avatar = canvas.getByRole("img", { name: "" });
+    const avatar = canvasElement.querySelector<HTMLImageElement>('img[src^="data:image/svg+xml,"]');
+    expect(avatar).not.toBeNull();
+    if (avatar === null) throw new Error("generated avatar missing");
     const before = avatar.getAttribute("src");
     await userEvent.click(canvas.getByRole("button", { name: "Shuffle avatar" }));
     expect(avatar.getAttribute("src")).not.toBe(before);

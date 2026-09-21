@@ -105,6 +105,8 @@ export const Ready: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await waitFor(() => expect(stateOf(canvasElement)).toBe("ready"));
+    await userEvent.type(canvas.getByRole("textbox", { name: "Name" }), "Harbor room");
+    await userEvent.click(canvas.getByRole("button", { name: "Continue" }));
     await userEvent.click(canvas.getByRole("button", { name: "Use an existing profile" }));
     await waitFor(() => expect(canvas.getByText("Creating as Harbor Keeper")).toBeInTheDocument());
   },
@@ -144,7 +146,7 @@ export const Unavailable: Story = {
   },
 };
 
-/** A quota-blocked saved intent keeps the reason visible and Create disabled. */
+/** A quota-blocked saved intent keeps the reason visible and continuation disabled. */
 export const QuotaExceeded: Story = {
   args: {
     api: {
@@ -161,7 +163,7 @@ export const QuotaExceeded: Story = {
     await waitFor(() =>
       expect(canvas.getByText("You've reached the limit for new communities.")).toBeInTheDocument(),
     );
-    await expect(canvas.getByRole("button", { name: "Create" })).toBeDisabled();
+    await expect(canvas.getByRole("button", { name: "Continue" })).toBeDisabled();
   },
 };
 
