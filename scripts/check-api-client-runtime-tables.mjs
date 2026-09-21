@@ -8,14 +8,10 @@ const currentClient = resolve(
   appRoot,
   "node_modules/@pirate/api-client/src/generated/client.ts",
 );
-// Client 0.82.0 combines the reviewed recovery enum, nationality creation,
-// joining, independent handle qualification and renewable document18+ authority
-// with the additive activity-persona preparation operation consumed by Study
-// and Karaoke entry, and the sponsor reward offers, funding effects,
-// projections, standings and credits consumed by the standalone reward
-// surface. This digest pins the exact success, error, and schema tables
-// consumed here across both candidates.
-const expectedDigest = "a07442ce6b026f4fc5bee414cb0e17a28d924a59b3a1510dd733648a2bcc8310";
+// Client 0.87.0 retains the consumed operations and removes the obsolete
+// community-creation activate_profile response. This digest pins the exact
+// success, error, and schema tables consumed by Solid.
+const expectedDigest = "57131fec02e35e8b663ee7baf1c0c54b23dba6929324204b237f7de4c7cd3fe4";
 
 const operations = [
   "post_postsPostIdVideoPlaybackAccess",

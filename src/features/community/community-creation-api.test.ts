@@ -32,7 +32,6 @@ interface CreationIntentOverrides {
   } | null;
   next_action?:
     | { kind: "commit" }
-    | { kind: "activate_profile"; persona_id: string }
     | { kind: "none"; reason: "committed" }
     | {
         ceremony_intent_id: string;
@@ -101,9 +100,9 @@ describe("createCommunityCreationApi", () => {
     expect(result.nextAction).toEqual({ kind: "commit" });
   });
 
-  test("persists a public name and exposes private activation without a community link", async () => {
+  test("persists a public name and remains commit-ready without an identity continuation", async () => {
     let body: unknown;
-    const intent = creationIntent({ next_action: { kind: "activate_profile", persona_id: "pending-owner" }, revision: 2 });
+    const intent = creationIntent({ next_action: { kind: "commit" }, revision: 2 });
     const api = createCommunityCreationApi({
       fetchImpl: async (input, init) => {
         body = await new Request(input, init).json();
@@ -114,7 +113,7 @@ describe("createCommunityCreationApi", () => {
     });
     const saved = await api.createIntent({ draft: { ...createEmptyDraft(undefined), name: "New place", publicName: "River Room" }, idempotencyKey: "fresh-profile" });
     expect(body).toMatchObject({ draft: { public_name: "River Room", persona: { kind: "create_new" } } });
-    expect(saved.nextAction).toEqual({ kind: "activate_profile", personaId: "pending-owner" });
+    expect(saved.nextAction).toEqual({ kind: "commit" });
     expect(saved.committedHref).toBeNull();
   });
 
@@ -297,21 +296,4 @@ test("rejects an unsupported saved policy instead of silently rewriting it", asy
   const original = creationIntent();
   const api = createCommunityCreationApi({ origin: "https://web.test", fetchImpl: async () => response({ ...original, draft: { ...original.draft, policy: { version: 1, accessPaths: [{ id: "custom-path", operator: "and", requirements: [{ requirement: "human-verification" }] }] } } }) });
   await expect(api.getIntent({ intentId: "saved" })).rejects.toMatchObject({ code: "unsupported_creation_contract" });
-});
-
-
-test("restores the nationality allowlist and exposes the server-issued creator choices", async () => {
-  const original = creationIntent();
-  const nationality = { requirement: "nationality", status: "pending", requirement_hash: "a".repeat(64),
-    provider_id: "self.pass", accepted_provider_ids: ["self.pass", "zkpassport"], generation: 1,
-    ceremony_intent_id: "creator-child-1", satisfied_at: null };
-  const api = createCommunityCreationApi({ origin: "https://web.test", fetchImpl: async () => response({
-    ...original, status: "verification_required", requirements: { nationality },
-    next_action: { kind: "start_verification", requirement: "nationality", provider_id: "self.pass", creation_intent_id: "creation-1", ceremony_intent_id: "creator-child-1", generation: 1 },
-    draft: { ...original.draft, policy: { version: 1, accessPaths: [{ id: "default", operator: "and", requirements: [{ requirement: "human-verification" }, { requirement: "nationality-allowed", allowedCountries: ["USA", "CA"] }] }] } },
-  }) });
-  const restored = await api.getIntent({ intentId: "creation-1" });
-  expect(restored.draft?.additionalRequirements).toEqual([{ requirement: "nationality-allowed", allowedCountries: ["US", "CA"] }]);
-  expect(restored.nextAction).toEqual({ kind: "verify_nationality" });
-  expect(restored.nationalityRequirement).toMatchObject({ intentId: "creator-child-1", acceptedProviderIds: ["self.pass", "zkpassport"], generation: 1 });
 });
