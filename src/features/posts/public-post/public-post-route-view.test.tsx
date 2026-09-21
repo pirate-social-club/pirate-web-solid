@@ -76,12 +76,46 @@ describe("public post route view", () => {
         content: {
           ...state.response.content,
           post: { ...state.response.content.post, post_type: "song", song_title: "A searchable title" },
+          song_presentation: { alignment: "ready", data_registration: "pending" },
         },
       },
     });
     expect(container.querySelector("button[aria-label='Play A searchable title']")).not.toBeNull();
+    expect(container.querySelector("dl[aria-label='Song delivery status']")?.textContent).toContain("Lyrics timing: Ready.");
+    expect(container.querySelector("dl[aria-label='Song delivery status']")?.textContent).toContain("DATA registration: Pending.");
     expect(container.querySelector("nav[aria-label='Song activities'] a[href='/posts/a-searchable-title/study']")?.textContent).toBe("Study");
     expect(container.querySelector("nav[aria-label='Song activities'] a[href='/posts/a-searchable-title/karaoke']")?.textContent).toBe("Karaoke");
+  });
+
+  it.each([
+    [{ alignment: "unavailable", data_registration: "failed" }, "Lyrics timing: Unavailable.", "DATA registration: Failed."],
+    [{ alignment: "not_applicable", data_registration: "registered" }, "Lyrics timing: Not applicable.", "DATA registration: Complete."],
+  ] as const)("reports song status without hiding API-owned activities", (presentation, alignment, registration) => {
+    const state = contentState(true);
+    if (state.kind !== "content") throw new Error("Expected fixture content");
+    const container = render({ ...state, response: { ...state.response, content: {
+      ...state.response.content,
+      post: { ...state.response.content.post, post_type: "song" },
+      song_presentation: presentation,
+    } } });
+    expect(container.textContent).toContain(alignment);
+    expect(container.textContent).toContain(registration);
+    expect(container.querySelector("nav[aria-label='Song activities'] a[href$='/study']")).not.toBeNull();
+    expect(container.querySelector("nav[aria-label='Song activities'] a[href$='/karaoke']")).not.toBeNull();
+  });
+
+  it.each([undefined, null])("shows unavailable delivery status without hiding API-owned activities", presentation => {
+    const state = contentState(true);
+    if (state.kind !== "content") throw new Error("Expected fixture content");
+    const container = render({ ...state, response: { ...state.response, content: {
+      ...state.response.content,
+      post: { ...state.response.content.post, post_type: "song" },
+      ...(presentation === undefined ? {} : { song_presentation: presentation }),
+    } } });
+    expect(container.textContent).toContain("Lyrics timing and DATA registration status are unavailable.");
+    expect(container.querySelector("dl[aria-label='Song delivery status']")).toBeNull();
+    expect(container.querySelector("nav[aria-label='Song activities'] a[href$='/study']")).not.toBeNull();
+    expect(container.querySelector("nav[aria-label='Song activities'] a[href$='/karaoke']")).not.toBeNull();
   });
 
   it.each(["pending", "ready"] as const)("shows video %s as a safe delivery status without media URLs", status => {

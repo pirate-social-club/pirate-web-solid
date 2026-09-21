@@ -22,6 +22,25 @@ const uploadReservation = {
 } as const;
 
 describe("same-origin media submission transport", () => {
+  test("discovers and reads server submissions using session credentials without a CSRF cookie", async () => {
+    const seen: { url: string; credentials?: RequestCredentials; csrf: string | null }[] = [];
+    const transport = createSameOriginMediaSubmissionTransport({ origin: "https://solid.example", csrfToken: () => undefined,
+      fetchImpl: async (input, init) => {
+        const url = input.toString();
+        seen.push({ url, credentials: init?.credentials, csrf: new Headers(init?.headers).get("x-csrf-token") });
+        const value = url.includes("/communities/")
+          ? { object: "active_song_media_post_submission_page", items: [], next_cursor: null }
+          : { submission_id: "submission-1", author_persona: { object: "persona", persona_id: "persona-1", display_name: null, avatar_ref: null, primary_public_handle: null },
+              href: "/media-post-submissions/submission-1", track: "song", creation_revision: 1, audio_revision: 0,
+              lyrics_state: { current: { status: "not_bound" } }, updated_at: "2026-09-21T00:00:00Z", status: "processing", phase: "awaiting_upload" };
+        return new Response(JSON.stringify(value), { headers: { "content-type": "application/json" } });
+      } });
+    expect((await transport.listActive("community-1", "cursor-1")).items).toEqual([]);
+    expect((await transport.read("submission-1"))?.submission_id).toBe("submission-1");
+    expect(new URL(seen[0]!.url).searchParams.get("cursor")).toBe("cursor-1");
+    expect(new URL(seen[0]!.url).searchParams.get("limit")).toBe("20");
+    expect(seen.every(request => request.credentials === "same-origin" && request.csrf === null)).toBe(true);
+  });
   test("classifies a permanent client response as a definitive rejection", async () => {
     // SAFETY: this test exercises only the reserve command, so the partial API
     // double supplies the sole generated-client method the transport invokes.

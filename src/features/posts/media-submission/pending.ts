@@ -4,9 +4,10 @@ import {
   bytesToBase64Url,
   sha256Hex,
 } from "../post-composer/text-submission-contract";
-import type { MediaSubmissionSnapshot } from "./contracts";
+import type { ActiveSongMediaPostSubmission, MediaSubmissionSnapshot } from "./contracts";
 
 export const MEDIA_PENDING_VERSION = "media-submission-pending-v1" as const;
+export const MEDIA_RECOVERED_VERSION = "media-submission-recovered-v1" as const;
 export const MEDIA_COMMAND_VERSION = "media-submission-command-v1" as const;
 
 export type MediaCommandKind = "reserve" | "start" | "terms" | "finalize" | "lyrics" | "reference" | "retry" | "cancel";
@@ -50,6 +51,19 @@ export interface PendingMediaSubmissionV1 {
   readonly commands: readonly PersistedMediaCommand[];
   readonly pending_command: PersistedMediaCommand | null;
 }
+
+/** Server-owned state attached for this session only, never a saved draft. */
+export interface RecoveredMediaSubmissionV1 extends Omit<PendingMediaSubmissionV1,
+  "version" | "audio" | "reservation" | "submission_id" | "upload_status" | "snapshot"> {
+  readonly version: typeof MEDIA_RECOVERED_VERSION;
+  readonly audio: null;
+  readonly reservation: null;
+  readonly submission_id: string;
+  readonly upload_status: "unavailable" | "sealed";
+  readonly snapshot: MediaSubmissionSnapshot;
+  readonly terms_state: ActiveSongMediaPostSubmission["terms_state"];
+}
+export type MediaSubmissionRecord = PendingMediaSubmissionV1 | RecoveredMediaSubmissionV1;
 
 export class MediaCommandError extends Error {
   constructor(message: string) {

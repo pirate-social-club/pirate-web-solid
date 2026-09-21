@@ -130,14 +130,22 @@ authorization does not expand the separate one-original production canary.
    If no authorized reviewer transition is available, record the transition
    as blocked rather than accepting only the intermediate state.
 7. Exercise the policy-block fixture. Confirm the terminal explanation, no
-   publication, stopped observation and appropriate close behavior. Reopen
-   the retained state and verify it cannot be published by resubmitting.
+   publication, stopped observation and appropriate close behavior. After
+   reopening, verify the blocked submission is absent from active recovery.
+   A direct stale retry must remain rejected by the server.
 8. During processing, disconnect and reconnect the browser; verify visible
    observation failure and manual recovery. Close and reopen the dialog to
-   verify restoration of exact terms, lyrics and submission identity without
-   duplicate publication. Verify a community/persona conflict prevents reuse
-   under a different identity. Exercise cancellation on a separate eligible
-   draft and confirm its actual terminal result.
+   explicitly select the active submission from server-backed recovery. Repeat
+   after a browser reload. Verify recovery of server-owned title, type, persona,
+   terms, submitted lyrics and submission identity without duplicate publication.
+   Unsent edits, selected files, cover previews and local command queues must
+   not return; the product has no saved drafts. Verify account/community/persona
+   authority prevents reuse under another identity. Exercise cancellation of
+   a separate recovered awaiting-upload submission: report the missing local
+   file honestly, issue no upload, and confirm the server cancellation result.
+
+Case 8 follows the workspace owner's 2026-09-21 decision: server-backed active
+submission recovery, no saved drafts. Local fixture tests are not live acceptance.
 
 ## Timing and terminal evidence
 

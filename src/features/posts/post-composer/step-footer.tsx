@@ -50,7 +50,7 @@ export function PostComposerStepFooter(props: {
     if (preparing() || locked() || controller.submit.loading) return false;
     switch (props.steps.current()) {
       case "song":
-        return !controller.requirements.songAudioMissing
+        return (!controller.requirements.songAudioMissing || props.runtime?.prepared === true)
           && Boolean(controller.song.state.title?.trim())
           && !(props.runtime && !props.runtime.personaId);
       case "rights":
@@ -91,7 +91,7 @@ export function PostComposerStepFooter(props: {
   };
 
   const back = () => (
-    <Show when={!props.steps.isFirst()} fallback={<span aria-hidden="true" />}>
+    <Show when={!props.steps.isFirst() && !locked()} fallback={<span aria-hidden="true" />}>
       <Button disabled={preparing() || controller.submit.loading} onClick={goBack} size="lg" variant="outline">
         {controller.copy.actions.back}
       </Button>

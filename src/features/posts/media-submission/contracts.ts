@@ -1,5 +1,6 @@
 import type {
   GetMediaPostSubmissionsSubmissionIdResponse,
+  ListActiveSongMediaPostSubmissionsResponse,
   PostCommunitiesCommunityIdMediaPostSubmissionsInput,
   PostCommunitiesCommunityIdMediaUploadReservationsInput,
   PostMediaPostSubmissionsSubmissionIdLyricsInput,
@@ -11,6 +12,8 @@ export type MediaSubmissionSnapshot = Extract<
   { readonly track: "song" }
 >;
 export type SongLicensePreset = "non-commercial" | "commercial-use" | "commercial-remix";
+export type ActiveSongMediaPostSubmissionPage = ListActiveSongMediaPostSubmissionsResponse;
+export type ActiveSongMediaPostSubmission = ActiveSongMediaPostSubmissionPage["items"][number];
 
 export interface SongRoyaltyAllocation {
   readonly recipientId: string;

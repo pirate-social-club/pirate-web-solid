@@ -63,6 +63,7 @@ function outcomeSnapshot(outcome: StoryOutcome, current: MediaSubmissionSnapshot
 /** In-memory song transport: one reserve/start/upload/finalize pipeline that
  * accepts lyrics and terms and settles on the requested outcome. */
 class StoryMediaTransport implements MediaSubmissionTransport {
+  async listActive() { return { object: "active_song_media_post_submission_page" as const, items: [], next_cursor: null }; }
   snapshot: MediaSubmissionSnapshot | null = null;
   readonly commands: PersistedMediaCommand[] = [];
   uploadCount = 0;

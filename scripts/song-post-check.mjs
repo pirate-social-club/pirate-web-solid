@@ -251,10 +251,19 @@ const upstream = createServer(async (incoming, outgoing) => {
     }
 
     const start = /^\/communities\/(community_[^/]+)\/media-post-submissions$/u.exec(pathname);
+    if (incoming.method === "GET" && start !== null) {
+      const community = communitiesById.get(start[1]);
+      const record = submissions.get(`submission-${community}`);
+      return send(200, { object: "active_song_media_post_submission_page", next_cursor: null,
+        items: record?.status === "processing" ? [{ object: "active_song_media_post_submission",
+          community_id: start[1], title: record.title, song_type: "original", author_declared_rating: "general",
+          terms_state: { current: { status: "not_bound" } }, submission: snapshotFor(record) }] : [] });
+    }
     if (incoming.method === "POST" && start !== null) {
       const community = communitiesById.get(start[1]);
       mediaCalls.push({ kind: "start", community });
       const record = submissionRecord(`submission-${community}`, `persona-song-${community}`);
+      record.title = JSON.parse(body.toString("utf8")).title;
       return send(201, snapshotFor(record));
     }
 
@@ -441,6 +450,23 @@ async function publishSong(page, community, { lyrics }) {
   await waitForForward();
   await forward.click();
   await form.getByRole("heading", { name: "Rights" }).waitFor({ state: "visible" });
+  if (community === "instrumental") {
+    // The file and the in-memory coordinator disappear. Only the server's
+    // finalized submission is offered after a fresh page load.
+    await page.reload({ waitUntil: "domcontentloaded" });
+    await page.locator("#app-root[data-hydrated='true']").waitFor({ state: "attached" });
+    await page.waitForLoadState("networkidle");
+    await page.getByRole("button", { name: "Post", exact: true }).click();
+    await form.getByRole("button", { name: "Resume a song submission", exact: true }).click();
+    await form.getByRole("button", { name: `Resume Fixture song ${community}`, exact: true }).click();
+    await form.getByRole("heading", { name: "Rights" }).waitFor({ state: "visible" });
+    await form.getByRole("button", { name: "Back", exact: true }).click();
+    await form.getByText("Audio is retained by the server; the browser file is unavailable.", { exact: true }).waitFor();
+    assert(await form.getByRole("button", { name: "Add audio", exact: true }).count() === 0, "recovered audio offered a new upload");
+    await waitForForward();
+    await forward.click();
+    await form.getByRole("heading", { name: "Rights" }).waitFor({ state: "visible" });
+  }
   await waitForForward();
   await forward.click();
   await form.getByRole("heading", { name: "Review" }).waitFor({ state: "visible" });
@@ -455,6 +481,7 @@ async function publishSong(page, community, { lyrics }) {
   await form.getByRole("button", { name: "Publish song" }).click();
   try {
     await form.waitFor({ state: "hidden", timeout: 20_000 });
+    await page.waitForURL(`**/posts/post-submission-${community}`);
   } catch (error) {
     process.stderr.write(`publish: ${JSON.stringify((await form.innerText()).slice(0, 500))}\n`);
     process.stderr.write(`calls: ${JSON.stringify(mediaCalls.filter(call => call.kind !== "unmatched"))}\n`);
@@ -519,7 +546,7 @@ try {
 
   console.log(JSON.stringify({
     ok: true,
-    scenarios: ["song_with_lyrics", "song_instrumental"],
+    scenarios: ["song_with_lyrics", "song_instrumental", "server_recovery_after_reload", "published_navigation"],
     publishedOnce: true,
     audioStored: uploads.length,
     principal: "user-song-e2e",

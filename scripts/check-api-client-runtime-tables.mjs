@@ -8,14 +8,12 @@ const currentClient = resolve(
   appRoot,
   "node_modules/@pirate/api-client/src/generated/client.ts",
 );
-// Client 0.82.0 combines the reviewed recovery enum, nationality creation,
-// joining, independent handle qualification and renewable document18+ authority
-// with the additive activity-persona preparation operation consumed by Study
-// and Karaoke entry, and the sponsor reward offers, funding effects,
-// projections, standings and credits consumed by the standalone reward
-// surface. This digest pins the exact success, error, and schema tables
-// consumed here across both candidates.
-const expectedDigest = "a07442ce6b026f4fc5bee414cb0e17a28d924a59b3a1510dd733648a2bcc8310";
+// The local song-closeout client adds account-owned active-song discovery and
+// typed public song delivery status. It also consumes current API main's
+// creator-ceremony removal and optional avatar fields. Membership nationality
+// policies remain supported; the removed creator ceremony is not reconstructed.
+// Pin the exact consumed success, error and schema tables, not only the archive.
+const expectedDigest = "f0876da336517d11cea2b5e5823bdd24ff8f84b10ddb505d6c24dc2006671fb3";
 
 const operations = [
   "post_postsPostIdVideoPlaybackAccess",
@@ -37,6 +35,7 @@ const operations = [
   "post_communitiesCommunityIdSongVideoIntervalPreflights",
   "post_communitiesCommunityIdMediaUploadReservations",
   "post_communitiesCommunityIdMediaPostSubmissions",
+  "get_communitiesCommunityIdMediaPostSubmissions",
   "post_mediaPostSubmissionsSubmissionIdTerms",
   "post_mediaPostSubmissionsSubmissionIdLyrics",
   "post_mediaPostSubmissionsSubmissionIdFinalize",

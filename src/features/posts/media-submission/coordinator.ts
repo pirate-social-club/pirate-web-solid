@@ -11,13 +11,15 @@ import {
   buildSongTermsInput,
   buildStartSongInput,
   type MediaSubmissionSnapshot,
+  type ActiveSongMediaPostSubmission,
   type SongLicensePreset,
   type SongRoyaltyAllocation,
 } from "./contracts";
 import {
   createPersistedMediaCommand,
   MEDIA_PENDING_VERSION,
-  type PendingMediaSubmissionV1,
+  MEDIA_RECOVERED_VERSION,
+  type MediaSubmissionRecord,
   type PersistedMediaCommand,
 } from "./pending";
 import { projectMediaSubmission, type SongSubmissionView } from "./projection";
@@ -88,7 +90,7 @@ function finalizeObservationTick(): Promise<{ readonly kind: "tick" }> {
  */
 export class MediaSubmissionCoordinator {
   readonly transport: MediaSubmissionTransport;
-  private record: PendingMediaSubmissionV1 | null = null;
+  private record: MediaSubmissionRecord | null = null;
   private view: SongSubmissionView = { status: "editing" };
   private readonly createId: () => string;
   private readonly onStateChange?: (view: SongSubmissionView) => void;
@@ -101,7 +103,31 @@ export class MediaSubmissionCoordinator {
     this.onSnapshotChange = options.onSnapshotChange;
   }
 
-  get currentRecord(): PendingMediaSubmissionV1 | null { return this.record; }
+  get currentRecord(): MediaSubmissionRecord | null { return this.record; }
+  get termsIssued(): boolean {
+    return (this.record?.commands.some(command => command.kind === "terms") ?? false)
+      || (this.record?.version === MEDIA_RECOVERED_VERSION && this.record.terms_state.current.status === "ready");
+  }
+  get recoveredUploadUnavailable(): boolean {
+    return this.record?.version === MEDIA_RECOVERED_VERSION && this.record.snapshot.status === "processing"
+      && this.record.snapshot.phase === "awaiting_upload";
+  }
+  listActive(communityId: string, cursor?: string) { return this.transport.listActive(communityId, cursor); }
+  recover(item: ActiveSongMediaPostSubmission): void {
+    if (this.record !== null) throw new Error("Resolve the active media submission before resuming another");
+    if (item.object !== "active_song_media_post_submission" || item.submission.track !== "song"
+      || !item.community_id.trim() || !item.submission.author_persona.persona_id.trim())
+      throw new Error("Invalid server song submission");
+    const snapshot = item.submission;
+    this.save({ version: MEDIA_RECOVERED_VERSION, community_id: item.community_id,
+      persona_id: snapshot.author_persona.persona_id,
+      song_draft: { title: item.title, song_type: item.song_type, author_declared_rating: item.author_declared_rating },
+      audio: null, reservation: null, submission_id: snapshot.submission_id,
+      upload_status: snapshot.status === "processing" && snapshot.phase === "awaiting_upload" ? "unavailable" : "sealed",
+      snapshot, terms_state: item.terms_state, commands: [], pending_command: null });
+    this.setView(projectMediaSubmission(snapshot));
+    this.onSnapshotChange?.(snapshot);
+  }
   get state(): SongSubmissionView { return this.view; }
 
   private setView(view: SongSubmissionView): void {
@@ -109,11 +135,11 @@ export class MediaSubmissionCoordinator {
     this.onStateChange?.(view);
   }
 
-  private save(next: PendingMediaSubmissionV1): void {
+  private save(next: MediaSubmissionRecord): void {
     this.record = next;
   }
 
-  private requireRecord(): PendingMediaSubmissionV1 {
+  private requireRecord(): MediaSubmissionRecord {
     if (this.record === null) throw new Error("No media submission is loaded");
     return this.record;
   }
@@ -129,15 +155,18 @@ export class MediaSubmissionCoordinator {
       ? current.snapshot
       : snapshot;
     const sealed = retainedSnapshot.status !== "processing" || retainedSnapshot.phase !== "awaiting_upload";
-    this.save({
+    this.save(current.version === MEDIA_RECOVERED_VERSION ? {
+      ...current, submission_id: retainedSnapshot.submission_id,
+      upload_status: sealed ? "sealed" : "unavailable", snapshot: retainedSnapshot, pending_command: pendingCommand,
+    } : {
       ...current,
       submission_id: retainedSnapshot.submission_id,
       upload_status: sealed ? "sealed" : current.upload_status,
       snapshot: retainedSnapshot,
       pending_command: pendingCommand,
     });
-    this.onSnapshotChange?.(retainedSnapshot);
     this.setView(projectMediaSubmission(retainedSnapshot));
+    this.onSnapshotChange?.(retainedSnapshot);
   }
 
   private commandAlreadyReflected(command: PersistedMediaCommand, snapshot: MediaSubmissionSnapshot): boolean {
@@ -260,7 +289,9 @@ export class MediaSubmissionCoordinator {
     }
     const result = await this.dispatch(pending);
     if (!snapshotResult(result)) {
-      this.save({ ...this.requireRecord(), reservation: result, pending_command: null });
+      const pendingRecord = this.requireRecord();
+      if (pendingRecord.version !== MEDIA_PENDING_VERSION) throw new Error("A recovered submission cannot reserve another upload");
+      this.save({ ...pendingRecord, reservation: result, pending_command: null });
     }
   }
 
@@ -313,7 +344,9 @@ export class MediaSubmissionCoordinator {
     });
     const reservationResult = await this.dispatch(reserve);
     if (snapshotResult(reservationResult)) throw new Error("Reservation command returned a submission snapshot");
-    this.save({ ...this.requireRecord(), reservation: reservationResult, pending_command: null });
+    const pendingRecord = this.requireRecord();
+    if (pendingRecord.version !== MEDIA_PENDING_VERSION) throw new Error("Unexpected recovered submission during upload reservation");
+    this.save({ ...pendingRecord, reservation: reservationResult, pending_command: null });
 
     return this.ensureStarted();
   }
@@ -379,8 +412,10 @@ export class MediaSubmissionCoordinator {
     await this.reconcilePending();
     let snapshot = await this.refresh();
     const current = this.requireRecord();
-    if (snapshot === null || current.reservation === null) throw new Error("The upload reservation or submission is missing");
+    if (snapshot === null) throw new Error("The submission is missing");
     if (snapshot.status !== "processing" || snapshot.phase !== "awaiting_upload") return snapshot;
+    if (current.version === MEDIA_RECOVERED_VERSION) throw new Error("The original audio file and upload reservation are no longer available. Cancel this song submission and start again.");
+    if (current.reservation === null) throw new Error("The upload reservation is missing");
     if (current.upload_status !== "uploaded") {
       if (Date.parse(current.reservation.upload.expires_at) <= Date.now()) {
         throw new Error("The upload reservation expired. Cancel this submission and start again.");
@@ -401,11 +436,13 @@ export class MediaSubmissionCoordinator {
         // The retained Blob and reservation make the same PUT retryable. Do
         // not leave the composer in its transient progress-only state when a
         // browser, CORS, or response failure makes the result ambiguous.
-        this.save({ ...this.requireRecord(), upload_status: "not_uploaded" });
+        const failed = this.requireRecord();
+        if (failed.version === MEDIA_PENDING_VERSION) this.save({ ...failed, upload_status: "not_uploaded" });
         this.setView(projectMediaSubmission(snapshot));
         throw error;
       }
-      this.save({ ...this.requireRecord(), upload_status: "uploaded" });
+      const uploaded = this.requireRecord();
+      if (uploaded.version === MEDIA_PENDING_VERSION) this.save({ ...uploaded, upload_status: "uploaded" });
     }
     snapshot = await this.refresh();
     if (snapshot === null || snapshot.status !== "processing" || snapshot.phase !== "awaiting_upload") return snapshot!;

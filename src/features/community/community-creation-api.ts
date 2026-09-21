@@ -1,4 +1,3 @@
-import { pendingDocumentRequirement } from "../verification/document-requirement.ts";
 import { normalizeIdentityCountryAlpha2 } from "../verification/nationality-country-codes.ts";
 import {
   createPirateApiClient,
@@ -78,7 +77,7 @@ function mapNextAction(
 ): CreationNextAction {
   switch (action.kind) {
     case "start_verification":
-      return action.requirement === "nationality" ? { kind: "verify_nationality" } : { kind: "blocked", reason: "pre_boundary_verification" };
+      return { kind: "blocked", reason: "pre_boundary_verification" };
     case "activate_profile":
       return { kind: action.kind, personaId: action.persona_id };
     case "commit":
@@ -126,21 +125,7 @@ function additionalDraftRequirements(policy: PostCommunityCreationIntentsRespons
 }
 
 function mapIntent(response: PostCommunityCreationIntentsResponse): CommunityCreationIntentView {
-  const nationality = response.requirements.nationality;
-  const nationalityRequirement = nationality === undefined || nationality === null ? undefined
-    : nationality.status === "satisfied" ? { kind: "satisfied" as const }
-    : pendingDocumentRequirement({
-        requirement: "nationality", requirementHash: nationality.requirement_hash,
-        intentId: nationality.ceremony_intent_id ?? "", providerId: nationality.provider_id,
-        acceptedProviderIds: nationality.accepted_provider_ids, generation: nationality.generation,
-      });
-  if (response.next_action.kind === "start_verification" && response.next_action.requirement === "nationality"
-    && (nationalityRequirement?.kind !== "pending" || nationalityRequirement.intentId !== response.next_action.ceremony_intent_id
-      || nationalityRequirement.providerId !== response.next_action.provider_id || nationalityRequirement.generation !== response.next_action.generation)) {
-    throw new CommunityCreationApiError("unsupported_creation_contract", "This verification step changed. Reload the saved setup.");
-  }
   return {
-    ...(nationalityRequirement === undefined ? {} : { nationalityRequirement }),
     draft: response.committed_resource ? undefined : {
       name: response.draft.name,
       description: response.draft.description,

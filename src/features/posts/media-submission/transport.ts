@@ -14,10 +14,11 @@ import {
 } from "@pirate/api-client";
 import { createApiClient, readCsrfCookie, sessionRequestOptions } from "../../../api/client";
 import type { ApiFetch } from "../../../api/proxy";
-import type { MediaSubmissionSnapshot } from "./contracts";
+import type { ActiveSongMediaPostSubmissionPage, MediaSubmissionSnapshot } from "./contracts";
 import { mediaCommandBody, type PersistedMediaCommand } from "./pending";
 
 type MediaApiClient = Pick<PirateApiClient,
+  | "get_communitiesCommunityIdMediaPostSubmissions"
   | "post_communitiesCommunityIdMediaUploadReservations"
   | "post_communitiesCommunityIdMediaPostSubmissions"
   | "post_mediaPostSubmissionsSubmissionIdTerms"
@@ -32,6 +33,7 @@ type MediaApiClient = Pick<PirateApiClient,
 export type MediaCommandResult = PostCommunitiesCommunityIdMediaUploadReservationsResponse | MediaSubmissionSnapshot;
 
 export interface MediaSubmissionTransport {
+  readonly listActive: (communityId: string, cursor?: string) => Promise<ActiveSongMediaPostSubmissionPage>;
   readonly dispatch: (command: PersistedMediaCommand) => Promise<MediaCommandResult>;
   readonly read: (submissionId: string) => Promise<MediaSubmissionSnapshot | null>;
   readonly upload: (
@@ -281,12 +283,24 @@ export function createSameOriginMediaSubmissionTransport(
         return songSnapshot(
           await api.get_mediaPostSubmissionsSubmissionId(
             { path: { submissionId } },
-            requestOptions(csrfToken),
+            { credentials: "same-origin" },
           ),
         );
       } catch (error) {
         const failure = apiClientError(error);
         if (failure?.status === 404) return null;
+        throw new AmbiguousMediaSubmissionError(error instanceof Error ? error.message : undefined);
+      }
+    },
+    async listActive(communityId, cursor) {
+      try {
+        const page = await api.get_communitiesCommunityIdMediaPostSubmissions({
+          path: { communityId }, query: cursor === undefined ? { limit: "20" } : { limit: "20", cursor },
+        }, { credentials: "same-origin" });
+        if (page.items.some(item => item.community_id !== communityId || item.submission.track !== "song"))
+          throw new AmbiguousMediaSubmissionError("The server returned a different community or media track");
+        return page;
+      } catch (error) {
         throw new AmbiguousMediaSubmissionError(error instanceof Error ? error.message : undefined);
       }
     },
