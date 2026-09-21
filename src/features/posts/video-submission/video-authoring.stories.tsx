@@ -371,6 +371,24 @@ function retainedTransport(snapshot: VideoSnapshot): VideoTransport {
   };
 }
 
+function unresolvedModerationTransport(snapshot: VideoSnapshot): VideoTransport {
+  let current = snapshot;
+  return {
+    async read(): Promise<VideoSnapshot> { return current; },
+    async execute(command: VideoCommand): Promise<VideoCommandResult> {
+      if (command.kind !== "cancel") throw new Error("Only abandonment is available in this story");
+      current = {
+        ...snapshotBase,
+        status: "abandoned",
+        creation_revision: snapshot.creation_revision,
+        video_revision: snapshot.video_revision,
+        reason_code: "author_abandoned_unresolved_provider",
+      };
+      return current;
+    },
+  };
+}
+
 const meta = {
   title: "Flows/Posts/VideoPost/Authoring",
   parameters: {
@@ -570,6 +588,20 @@ export const HeldForReview: Story = {
   render: () => {
     const snapshot: VideoSnapshot = { ...snapshotBase, status: "manual_review", reason_codes: ["media_review_required"], review_ref: "review-story" };
     return <Harness storage={memoryStorage(retainedRecord(snapshot))} transport={retainedTransport(snapshot)} />;
+  },
+};
+
+export const UnresolvedModeration: Story = {
+  name: "Moderation outcome unconfirmed",
+  render: () => {
+    const snapshot: VideoSnapshot = {
+      ...snapshotBase,
+      status: "processing_failed",
+      reason_code: "provider_submission_unconfirmed",
+      retryable: false,
+      retry_count: 0,
+    };
+    return <Harness storage={memoryStorage(retainedRecord(snapshot))} transport={unresolvedModerationTransport(snapshot)} />;
   },
 };
 
