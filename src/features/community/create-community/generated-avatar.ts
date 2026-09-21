@@ -51,3 +51,23 @@ export function generatedAvatarSrc(seed: string): string {
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect fill="${background}" height="100" width="100"/>${cells.join("")}</svg>`;
   return `data:image/svg+xml,${encodeURIComponent(svg)}`;
 }
+
+/** Rasterize the owned generated SVG before it enters the avatar upload path. */
+export async function rasterizeGeneratedAvatar(seed: string): Promise<Blob> {
+  if (typeof document === "undefined" || typeof Image === "undefined") {
+    throw new Error("avatar_rasterizer_unavailable");
+  }
+  const image = new Image();
+  image.decoding = "async";
+  image.src = generatedAvatarSrc(seed);
+  await image.decode();
+  const canvas = document.createElement("canvas");
+  canvas.width = 512;
+  canvas.height = 512;
+  const context = canvas.getContext("2d");
+  if (context === null) throw new Error("avatar_rasterizer_unavailable");
+  context.drawImage(image, 0, 0, canvas.width, canvas.height);
+  const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.92));
+  if (blob === null) throw new Error("avatar_rasterizer_unavailable");
+  return blob;
+}

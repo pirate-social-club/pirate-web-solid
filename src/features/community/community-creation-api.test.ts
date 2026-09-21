@@ -302,18 +302,99 @@ test("rejects an unsupported saved policy instead of silently rewriting it", asy
 });
 
 
-test("restores the nationality allowlist and exposes the server-issued creator choices", async () => {
+test("restores optional avatar references from the current creation contract", async () => {
   const original = creationIntent();
-  const nationality = { requirement: "nationality", status: "pending", requirement_hash: "a".repeat(64),
-    provider_id: "self.pass", accepted_provider_ids: ["self.pass", "zkpassport"], generation: 1,
-    ceremony_intent_id: "creator-child-1", satisfied_at: null };
   const api = createCommunityCreationApi({ origin: "https://web.test", fetchImpl: async () => response({
-    ...original, status: "verification_required", requirements: { nationality },
-    next_action: { kind: "start_verification", requirement: "nationality", provider_id: "self.pass", creation_intent_id: "creation-1", ceremony_intent_id: "creator-child-1", generation: 1 },
-    draft: { ...original.draft, policy: { version: 1, accessPaths: [{ id: "default", operator: "and", requirements: [{ requirement: "human-verification" }, { requirement: "nationality-allowed", allowedCountries: ["USA", "CA"] }] }] } },
+    ...original,
+    draft: {
+      ...original.draft,
+      persona: { kind: "create_new" },
+      community_avatar_ref: "avatar-11111111-1111-4111-8111-111111111111",
+      persona_avatar_ref: "avatar-22222222-2222-4222-8222-222222222222",
+    },
+    persona_role_presentation: null,
   }) });
   const restored = await api.getIntent({ intentId: "creation-1" });
-  expect(restored.draft?.additionalRequirements).toEqual([{ requirement: "nationality-allowed", allowedCountries: ["US", "CA"] }]);
-  expect(restored.nextAction).toEqual({ kind: "verify_nationality" });
-  expect(restored.nationalityRequirement).toMatchObject({ intentId: "creator-child-1", acceptedProviderIds: ["self.pass", "zkpassport"], generation: 1 });
+  expect(restored.draft).toMatchObject({
+    communityAvatarRef: "avatar-11111111-1111-4111-8111-111111111111",
+    personaAvatarRef: "avatar-22222222-2222-4222-8222-222222222222",
+  });
+});
+
+test("reserves, uploads and finalizes an avatar through the signed URL", async () => {
+  localStorage.removeItem("pirate:community-avatar-upload:avatar-key");
+  const requests: Array<{ url: string; init?: RequestInit }> = [];
+  const client = {
+    post_avatarUploadReservations: async () => ({
+      asset_id: "avatar-11111111-1111-4111-8111-111111111111",
+      upload_url: "https://storage.test/ingress/avatar",
+      required_headers: [{ name: "content-type", value: "image/png" }],
+      expires_at: "2099-01-01T00:00:00Z",
+    }),
+    post_avatarUploadReservationsAssetIdFinalize: async () => ({
+      asset_id: "avatar-11111111-1111-4111-8111-111111111111",
+      status: "ready" as const,
+    }),
+  } as never;
+  const api = createCommunityCreationApi({
+    client,
+    readCsrfToken: () => "csrf-token",
+    uploadFetch: async (input, init) => {
+      requests.push({ url: input.toString(), init });
+      return new Response(null, { status: 200 });
+    },
+  });
+  const file = new Blob([new Uint8Array([1, 2, 3])], { type: "image/png" });
+  await expect(api.uploadAvatar?.({ file, idempotencyKey: "avatar-key", purpose: "community" })).resolves.toBe("avatar-11111111-1111-4111-8111-111111111111");
+  expect(requests[0]?.url).toBe("https://storage.test/ingress/avatar");
+  expect(new Headers(requests[0]?.init?.headers).get("content-type")).toBe("image/png");
+  expect(requests[0]?.init?.method).toBe("PUT");
+  expect(requests[0]?.init?.credentials).toBe("omit");
+  expect(new Headers(requests[0]?.init?.headers).has("x-csrf-token")).toBe(false);
+  expect(new Headers(requests[0]?.init?.headers).has("authorization")).toBe(false);
+  expect(new Headers(requests[0]?.init?.headers).has("content-length")).toBe(false);
+});
+
+test("replays a reserved asset after an ambiguous finalize without reserving again", async () => {
+  const key = "avatar-recovery-key";
+  localStorage.removeItem(`pirate:community-avatar-upload:${key}`);
+  let reservations = 0;
+  let finalizations = 0;
+  let readinessChecks = 0;
+  let rawUploads = 0;
+  const client = {
+    post_avatarUploadReservations: async () => {
+      reservations += 1;
+      return {
+        asset_id: "avatar-33333333-3333-4333-8333-333333333333",
+        upload_url: "https://storage.test/replay/avatar",
+        required_headers: [{ name: "content-type", value: "image/png" }],
+        expires_at: "2099-01-01T00:00:00Z",
+      };
+    },
+    post_avatarUploadReservationsAssetIdFinalize: async () => {
+      finalizations += 1;
+      if (finalizations === 1) throw Object.assign(new Error("response lost"), { status: 409 });
+      return { asset_id: "avatar-33333333-3333-4333-8333-333333333333", status: "ready" as const };
+    },
+    get_avatarsAssetId: async () => {
+      readinessChecks += 1;
+      throw Object.assign(new Error("not ready"), { status: 404 });
+    },
+  } as never;
+  const api = createCommunityCreationApi({
+    client,
+    readCsrfToken: () => "csrf-token",
+    uploadFetch: async () => {
+      rawUploads += 1;
+      return new Response(null, { status: 200 });
+    },
+  });
+  const file = new Blob([new Uint8Array([4, 5, 6])], { type: "image/png" });
+  await expect(api.uploadAvatar?.({ file, idempotencyKey: key, purpose: "persona" })).rejects.toMatchObject({ status: 404 });
+  await expect(api.uploadAvatar?.({ file, idempotencyKey: key, purpose: "persona" })).resolves.toBe("avatar-33333333-3333-4333-8333-333333333333");
+  expect(reservations).toBe(1);
+  expect(rawUploads).toBe(2);
+  expect(readinessChecks).toBe(1);
+  expect(finalizations).toBe(2);
 });

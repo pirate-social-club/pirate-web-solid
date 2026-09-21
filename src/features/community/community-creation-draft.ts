@@ -19,8 +19,10 @@ export function communityCreationDraftsEqual(
       && left.additionalRequirements.every((requirement, index) => (
         requirementsEqual(requirement, right.additionalRequirements[index]!)
       )),
-    // The generated avatar seed is client-only until the avatar API record
-    // lands; shuffling it is never a PATCH-sent edit.
+    communityAvatarRef: left.communityAvatarRef === right.communityAvatarRef,
+    personaAvatarRef: left.personaAvatarRef === right.personaAvatarRef,
+    // The generated avatar seed is client-only; shuffling it is never a
+    // PATCH-sent edit.
     profileAvatarSeed: true,
   } satisfies Record<keyof CreateCommunityDraft, boolean>;
   // Adding a draft field requires an explicit comparison decision above.

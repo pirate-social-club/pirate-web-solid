@@ -42,6 +42,10 @@ export type CreationNextAction =
  */
 export interface CommunityCreationIntentView {
   draft?: import("../create-community/create-community-model").CreateCommunityDraft;
+  avatarOutcomes?: {
+    community: "not_requested" | "attached" | "omitted_unavailable";
+    persona: "not_requested" | "attached" | "omitted_unavailable" | "preserved_existing";
+  };
   intentId: string;
   revision: number;
   status: CreationStatus;

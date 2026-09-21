@@ -8,14 +8,14 @@ const currentClient = resolve(
   appRoot,
   "node_modules/@pirate/api-client/src/generated/client.ts",
 );
-// Client 0.82.0 combines the reviewed recovery enum, nationality creation,
+// Client 0.85.0 combines the reviewed recovery enum, avatar-backed creation,
 // joining, independent handle qualification and renewable document18+ authority
 // with the additive activity-persona preparation operation consumed by Study
 // and Karaoke entry, and the sponsor reward offers, funding effects,
 // projections, standings and credits consumed by the standalone reward
 // surface. This digest pins the exact success, error, and schema tables
 // consumed here across both candidates.
-const expectedDigest = "a07442ce6b026f4fc5bee414cb0e17a28d924a59b3a1510dd733648a2bcc8310";
+const expectedDigest = "f0a8dbdb7adffffce1f61557c7790a7b59674a89b11816af6a2d0fadcb59d781";
 
 const operations = [
   "post_postsPostIdVideoPlaybackAccess",
@@ -73,6 +73,10 @@ const operations = [
   "post_communitiesCommunityIdHandleOfferingsOfferingIdRevisions",
   "post_communityCreationIntents",
   "post_communityCreationIntentsIntentIdCommit",
+  "post_avatarUploadReservations",
+  "post_avatarUploadReservationsAssetIdFinalize",
+  "get_avatarsAssetId",
+  "delete_avatarsAssetId",
   "post_handleQuotes",
   "post_communitiesCommunityIdActivityPersonasPrepare",
   "post_communitiesCommunityIdPostsPostIdRewardOffers",

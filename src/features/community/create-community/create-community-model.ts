@@ -98,9 +98,12 @@ export interface CreateCommunityDraft {
   description: string | null;
   /** Configured requirements appended to the mandatory human baseline. */
   additionalRequirements: AdditionalGateRequirement[];
+  /** Optional server-owned avatar assets prepared for this creation intent. */
+  communityAvatarRef?: string;
+  personaAvatarRef?: string;
   /**
    * Client-only seed for the locally generated profile-avatar default
-   * (Spec 014 §3.1). Not sent anywhere until the avatar API record lands.
+   * (Spec 014 §3.1). It is rasterized before an optional upload.
    */
   profileAvatarSeed: string;
 }
