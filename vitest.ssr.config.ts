@@ -15,8 +15,15 @@ export default defineConfig({
     dedupe: ["solid-js", "@solidjs/web"],
     alias: {
       "@": path.resolve(solidUiRoot, "src"),
+      "cloudflare:workers": path.resolve(import.meta.dirname, "test/fixtures/cloudflare-workers.ts"),
       "solid-js/web": "@solidjs/web",
       "@solidjs/meta": path.resolve(import.meta.dirname, "test/fixtures/solid-meta-noop.ts"),
+      "virtual:solid-manifest": path.resolve(import.meta.dirname, "test/fixtures/solid-manifest.ts"),
+      "virtual:file-routes": path.resolve(import.meta.dirname, "test/fixtures/file-routes.ts"),
+      "virtual:solid-ssr-handler": path.resolve(
+        import.meta.dirname,
+        "test/fixtures/solid-ssr-integration-handler.tsx",
+      ),
     },
   },
   test: {
@@ -26,6 +33,7 @@ export default defineConfig({
       "src/features/communities/community-page/community-page-ssr.test.tsx",
       "src/features/activity/activity-progress-header.test.tsx",
       "src/features/profiles/public-profile-page/public-profile-page.model.test.ts",
+      "src/community-creation-avatar-authoring-ssr.test.tsx",
     ],
   },
 });

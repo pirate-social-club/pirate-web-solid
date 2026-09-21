@@ -1,5 +1,6 @@
 import { resolveOwnerSettingsPreflight, ownerSettingsResponseStatus, type OwnerSettingsPreflight } from "./features/community/owner-settings/owner-settings-preflight";
 import { getRequestEvent, httpHeader, httpStatus, renderToStream } from "@solidjs/web";
+import type { Component } from "solid-js";
 import manifest from "virtual:solid-manifest";
 import App from "./App";
 import Document from "./Document";
@@ -23,6 +24,11 @@ import {
   resolvePublicPostPreflight,
   type PublicPostPreflight,
 } from "./features/posts/public-post/public-post-preflight.ts";
+import { bindCommunityCreationAvatarAuthoringRequest } from "./features/community/community-creation-avatar-authoring.ts";
+
+export interface EntryServerRenderDependencies {
+  readonly Application?: Component;
+}
 
 export async function render(
   request: Request,
@@ -36,19 +42,17 @@ export async function render(
     readonly DISABLE_HYDRATION?: boolean;
     readonly PUBLIC_POST_PREFLIGHT?: PublicPostPreflight;
   },
+  dependencies: EntryServerRenderDependencies = {},
 ) {
   const event = getRequestEvent();
   const nonce = event?.locals.cspNonce;
+  const Application = dependencies.Application ?? App;
   if (event !== undefined) {
-    // SAFETY: these request-local values come directly from the typed Worker
-    // render context and retain their declared string and boolean shapes.
-    const locals = event.locals as typeof event.locals & {
-      communityCreationAvatarAuthoring?: boolean;
-      publicAppCanonicalOrigin?: string;
-    };
-    locals.publicAppCanonicalOrigin = context?.PUBLIC_APP_CANONICAL_ORIGIN;
-    locals.communityCreationAvatarAuthoring =
-      context?.COMMUNITY_CREATION_AVATAR_AUTHORING_ENABLED === "true";
+    bindCommunityCreationAvatarAuthoringRequest(
+      event,
+      context?.COMMUNITY_CREATION_AVATAR_AUTHORING_ENABLED,
+      context?.PUBLIC_APP_CANONICAL_ORIGIN,
+    );
   }
   // SAFETY: Vite's runtime manifest includes the `_base` member used by the
   // Solid asset resolver even though AssetManifest's public index signature
@@ -151,7 +155,7 @@ export async function render(
         publicAppCanonicalOrigin={context?.PUBLIC_APP_CANONICAL_ORIGIN}
         hydrate={context?.DISABLE_HYDRATION !== true}
       >
-        <App />
+        <Application />
       </Document>
     ),
     { nonce, manifest: renderManifest },

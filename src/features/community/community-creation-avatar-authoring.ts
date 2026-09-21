@@ -13,6 +13,23 @@ export function communityCreationAvatarAuthoringEnabled(
     canonicalOrigin === COMMUNITY_CREATION_AVATAR_STAGING_ORIGIN;
 }
 
+type SolidRequestEvent = NonNullable<ReturnType<typeof getRequestEvent>>;
+
+export function bindCommunityCreationAvatarAuthoringRequest(
+  event: SolidRequestEvent,
+  configuredValue: string | undefined,
+  canonicalOrigin: string | undefined,
+): void {
+  // SAFETY: this module is the sole writer and reader for these request-local
+  // keys. The Worker render context supplies the optional string values.
+  const locals = event.locals as typeof event.locals & {
+    communityCreationAvatarAuthoring?: boolean;
+    publicAppCanonicalOrigin?: string;
+  };
+  locals.publicAppCanonicalOrigin = canonicalOrigin;
+  locals.communityCreationAvatarAuthoring = configuredValue === "true";
+}
+
 export function currentCommunityCreationAvatarAuthoringEnabled(): boolean {
   const event = getRequestEvent();
   if (event !== undefined) {
@@ -36,4 +53,12 @@ export function currentCommunityCreationAvatarAuthoringEnabled(): boolean {
     browserLocation.origin,
     browserDocument.documentElement.dataset.publicAppCanonicalOrigin,
   );
+}
+
+export interface CommunityCreationRouteRuntimeProps {
+  readonly avatarAuthoring: boolean;
+}
+
+export function currentCommunityCreationRouteRuntimeProps(): CommunityCreationRouteRuntimeProps {
+  return { avatarAuthoring: currentCommunityCreationAvatarAuthoringEnabled() };
 }
