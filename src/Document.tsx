@@ -11,6 +11,7 @@ export default function Document(props: {
   children: JSX.Element;
   clientEntry?: string;
   canonicalAssetOrigin?: string;
+  communityCreationAvatarAuthoring?: boolean;
   publicAppCanonicalOrigin?: string;
   hydrate?: boolean;
 }) {
@@ -40,6 +41,9 @@ export default function Document(props: {
       lang={resolveLocaleLanguageTag(locale)}
       dir={resolveLocaleDirection(locale)}
       data-public-app-canonical-origin={props.publicAppCanonicalOrigin}
+      data-community-creation-avatar-authoring={
+        props.communityCreationAvatarAuthoring === true ? "enabled" : "disabled"
+      }
       data-viewer-session={viewerSessionHint() ? "present" : "absent"}
     >
       <head>

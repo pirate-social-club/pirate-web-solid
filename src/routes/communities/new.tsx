@@ -1,4 +1,5 @@
 import { useNavigate, useSearchParams } from "@solidjs/router";
+import { currentCommunityCreationAvatarAuthoringEnabled } from "../../features/community/community-creation-avatar-authoring.ts";
 import { CommunityCreationRouteView } from "../../features/community/community-creation-route-view";
 
 export default function CreateCommunityRoute() {
@@ -7,6 +8,7 @@ export default function CreateCommunityRoute() {
   const intentId = () => typeof search.intent_id === "string" ? search.intent_id : undefined;
   return (
     <CommunityCreationRouteView
+      avatarAuthoring={currentCommunityCreationAvatarAuthoringEnabled()}
       intentId={intentId()}
       navigate={(href, options) => navigate(href, options)}
     />

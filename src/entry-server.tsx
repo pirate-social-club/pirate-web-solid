@@ -30,6 +30,7 @@ export async function render(
     readonly clientEntry?: string;
     readonly API_NEXT_ORIGIN?: string;
     readonly PUBLIC_APP_CANONICAL_ORIGIN?: string;
+    readonly COMMUNITY_CREATION_AVATAR_AUTHORING_ENABLED?: string;
     readonly PERSONA_PUBLIC_PROFILE_PREFLIGHT?: PersonaPublicProfilePreflight;
     readonly CANONICAL_ASSET_ORIGIN?: string;
     readonly DISABLE_HYDRATION?: boolean;
@@ -39,10 +40,15 @@ export async function render(
   const event = getRequestEvent();
   const nonce = event?.locals.cspNonce;
   if (event !== undefined) {
-    // SAFETY: this request-local value comes directly from the typed Worker
-    // render context and is read only as that same optional string.
-    const locals = event.locals as typeof event.locals & { publicAppCanonicalOrigin?: string };
+    // SAFETY: these request-local values come directly from the typed Worker
+    // render context and retain their declared string and boolean shapes.
+    const locals = event.locals as typeof event.locals & {
+      communityCreationAvatarAuthoring?: boolean;
+      publicAppCanonicalOrigin?: string;
+    };
     locals.publicAppCanonicalOrigin = context?.PUBLIC_APP_CANONICAL_ORIGIN;
+    locals.communityCreationAvatarAuthoring =
+      context?.COMMUNITY_CREATION_AVATAR_AUTHORING_ENABLED === "true";
   }
   // SAFETY: Vite's runtime manifest includes the `_base` member used by the
   // Solid asset resolver even though AssetManifest's public index signature
@@ -139,6 +145,9 @@ export async function render(
       <Document
         clientEntry={context?.clientEntry}
         canonicalAssetOrigin={context?.CANONICAL_ASSET_ORIGIN}
+        communityCreationAvatarAuthoring={
+          context?.COMMUNITY_CREATION_AVATAR_AUTHORING_ENABLED === "true"
+        }
         publicAppCanonicalOrigin={context?.PUBLIC_APP_CANONICAL_ORIGIN}
         hydrate={context?.DISABLE_HYDRATION !== true}
       >

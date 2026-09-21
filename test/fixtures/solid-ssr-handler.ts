@@ -4,6 +4,7 @@ export async function handleRequest(
     readonly context?: Readonly<{
       readonly API_NEXT_ORIGIN?: string;
       readonly PUBLIC_APP_CANONICAL_ORIGIN?: string;
+      readonly COMMUNITY_CREATION_AVATAR_AUTHORING_ENABLED?: string;
     }>;
   }>,
 ): Promise<Response> {
