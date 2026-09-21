@@ -74,10 +74,10 @@ export const GeneratedDefault: Story = {
   name: "Generated default persists",
   render: () => <Screen avatarAuthoring step={2} draft={withDraftName(createEmptyDraft(personaId), "Night Shift")} />,
   play: async ({ canvasElement }) => {
-    const avatar = canvasElement.querySelector<HTMLImageElement>('img[src^="data:image/svg+xml,"]');
+    const avatar = canvasElement.querySelector<HTMLElement>("[data-generated-avatar]");
     expect(avatar).not.toBeNull();
     if (avatar === null) throw new Error("generated avatar missing");
-    expect(avatar.getAttribute("src")).toMatch(/^data:image\/svg\+xml,/u);
+    expect(avatar.children).toHaveLength(25);
   },
 };
 

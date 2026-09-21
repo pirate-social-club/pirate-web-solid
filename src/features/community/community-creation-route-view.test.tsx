@@ -52,6 +52,10 @@ function finalSubmit(container: HTMLElement): HTMLButtonElement | null {
   return container.querySelector<HTMLButtonElement>('button[type="submit"]');
 }
 
+function generatedAvatarMarkup(container: HTMLElement): string | undefined {
+  return container.querySelector<HTMLElement>("[data-generated-avatar]")?.outerHTML;
+}
+
 /**
  * Walks the three pages forward to the profile page's Create. Safe from any
  * page: on the profile page no Continue button exists, so it returns at once.
@@ -250,8 +254,8 @@ describe("Community creation avatar authoring candidate", () => {
     name.value = "Reload harbor";
     name.dispatchEvent(new InputEvent("input", { bubbles: true }));
     await reachProfilePage(first);
-    const firstSource = first.querySelector<HTMLImageElement>('img[src^="data:image/svg+xml,"]')?.src;
-    expect(firstSource).toBeDefined();
+    const firstMarkup = generatedAvatarMarkup(first);
+    expect(firstMarkup).toBeDefined();
     disposers.pop()?.();
 
     const second = render(() => <CommunityCreationRouteView api={api()} avatarAuthoring resolveSession={async () => owner} />);
@@ -259,7 +263,7 @@ describe("Community creation avatar authoring candidate", () => {
     secondName.value = "Reload harbor";
     secondName.dispatchEvent(new InputEvent("input", { bubbles: true }));
     await reachProfilePage(second);
-    expect(second.querySelector<HTMLImageElement>('img[src^="data:image/svg+xml,"]')?.src).toBe(firstSource);
+    expect(generatedAvatarMarkup(second)).toBe(firstMarkup);
   });
 
   test("preserves an existing persona image without offering or uploading a replacement", async () => {
@@ -486,8 +490,8 @@ describe("Community creation avatar authoring candidate", () => {
     field.dispatchEvent(new InputEvent("input", { bubbles: true }));
     await reachProfilePage(container);
     fillPublicName(container);
-    const ownerAvatarSrc = container.querySelector<HTMLImageElement>('img[src^="data:image/svg+xml,"]')?.src;
-    expect(ownerAvatarSrc).toBeTypeOf("string");
+    const ownerAvatarMarkup = generatedAvatarMarkup(container);
+    expect(ownerAvatarMarkup).toBeTypeOf("string");
     finalSubmit(container)!.click();
     await vi.waitFor(() => expect(uploadAvatar).toHaveBeenCalledOnce());
     const ownerDraftKey = Object.keys(sessionStorage).find(key =>
@@ -503,7 +507,7 @@ describe("Community creation avatar authoring candidate", () => {
     await vi.waitFor(() => expect(container.querySelector("main")?.getAttribute("data-creation-state")).toBe("ready"));
     await vi.waitFor(() => expect(uploadSignal?.aborted).toBe(true));
     expect(publicNameField(container)?.value).not.toBe(ownerDraft.publicName);
-    expect(container.querySelector<HTMLImageElement>('img[src^="data:image/svg+xml,"]')?.src).not.toBe(ownerAvatarSrc);
+    expect(generatedAvatarMarkup(container)).not.toBe(ownerAvatarMarkup);
     expect(sessionStorage.getItem(ownerDraftKey!)).not.toBeNull();
     resolveUpload("avatar-aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa");
     await Promise.resolve();
@@ -514,7 +518,7 @@ describe("Community creation avatar authoring candidate", () => {
     refreshSession();
     await vi.waitFor(() => expect(resolveAccount).toHaveBeenCalledTimes(3));
     await vi.waitFor(() => expect(publicNameField(container)?.value).toBe(ownerDraft.publicName));
-    expect(container.querySelector<HTMLImageElement>('img[src^="data:image/svg+xml,"]')?.src).toBe(ownerAvatarSrc);
+    expect(generatedAvatarMarkup(container)).toBe(ownerAvatarMarkup);
     await retreatToFirstPage(container);
     expect(nameField(container).value).toBe("Pending account A harbor");
   });

@@ -1,10 +1,26 @@
-import { For, Show, createSignal, createUniqueId } from "solid-js";
+import { For, Show, createMemo, createSignal, createUniqueId } from "solid-js";
 import type { ActivePersonaPublicProjection } from "../../../api/session";
 import { Button, TextField, TextFieldInput, TextFieldLabel, Type, cn } from "../../../design-system";
 import { communityCreationCandidates } from "../../identity/community-persona-choice";
 import type { CreateCommunityCopy, CreateCommunityDraft } from "./create-community-model";
-import { generatedAvatarSrc } from "./generated-avatar";
+import { generatedAvatarPattern } from "./generated-avatar";
 import { MediaPicker } from "./media-picker";
+
+function GeneratedAvatar(props: { readonly seed: string }) {
+  const pattern = createMemo(() => generatedAvatarPattern(props.seed));
+  return (
+    <span
+      aria-hidden="true"
+      class="grid size-16 shrink-0 grid-cols-5 overflow-hidden rounded-full"
+      data-generated-avatar
+      style={{ "background-color": pattern().background }}
+    >
+      <For each={pattern().cells}>{color => (
+        <span style={{ "background-color": color ?? "transparent" }} />
+      )}</For>
+    </span>
+  );
+}
 
 /** The localized strings this section renders; supplied by the creation view. */
 export type CommunityOwnerCopy = Pick<
@@ -84,7 +100,7 @@ export function CommunityOwnerFields(props: {
           */}
           <MediaPicker
             chooseLabel={props.copy.mediaChooseFile}
-            fallback={<img alt="" class="size-16 shrink-0 rounded-full object-cover" src={generatedAvatarSrc(props.draft.profileAvatarSeed)} />}
+            fallback={<GeneratedAvatar seed={props.draft.profileAvatarSeed} />}
             label={props.copy.ownerAvatarLabel}
             removeLabel={props.copy.mediaRemove}
             replaceLabel={props.copy.mediaReplace}
@@ -112,7 +128,7 @@ export function CommunityOwnerFields(props: {
           <Show when={props.avatarAuthoring === true && profile().avatarRef === null}>
             <MediaPicker
               chooseLabel={props.copy.mediaChooseFile}
-              fallback={<img alt="" class="size-16 shrink-0 rounded-full object-cover" src={generatedAvatarSrc(props.draft.profileAvatarSeed)} />}
+              fallback={<GeneratedAvatar seed={props.draft.profileAvatarSeed} />}
               label={props.copy.ownerAvatarLabel}
               removeLabel={props.copy.mediaRemove}
               replaceLabel={props.copy.mediaReplace}
