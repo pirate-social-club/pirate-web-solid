@@ -93,8 +93,6 @@ function mapNextAction(
   switch (action.kind) {
     case "start_verification":
       return { kind: "blocked", reason: "pre_boundary_verification" };
-    case "activate_profile":
-      return { kind: action.kind, personaId: action.persona_id };
     case "commit":
       return { kind: action.kind };
     case "wait":

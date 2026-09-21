@@ -1,4 +1,3 @@
-import { DocumentVerificationHost } from "../verification/document-verification-host.tsx";
 import type { JSX } from "@solidjs/web";
 import { render as solidRender } from "@solidjs/web";
 import { userEvent } from "@testing-library/user-event";
@@ -1359,61 +1358,49 @@ describe("Community creation production route", () => {
 describe("Named owner setup", () => {
   const owner = { status: "authenticated" as const, userId: "owner-account", personas: [{ personaId: "already-bound", displayName: "Old profile", avatarRef: null, primaryPublicHandle: null, communityBinding: { communityId: "another-community", bindingSource: "first_membership" as const } }] };
   const ready = () => createIntent({ status: "commit_ready", nextAction: { kind: "commit" } });
-  const pending = () => createIntent({ status: "commit_ready", revision: 2, nextAction: { kind: "activate_profile", personaId: "fresh-owner" } });
 
-  test("creates with an already-bound first profile and publishes only after named owner activation", async () => {
-    let activated = false;
+  test("publishes a fresh named owner in one commit without another sign-in request", async () => {
     const navigate = vi.fn();
-    const confirmIdentity = vi.fn(async () => { activated = true; return true; });
+    const signInRequested = vi.fn();
+    window.addEventListener(GLOBAL_SIGN_IN_EVENT, signInRequested);
     const client = api({
       createIntent: vi.fn(async () => ready()),
-      getIntent: vi.fn(async () => activated ? { ...ready(), revision: 2 } : pending()),
-      commitIntent: vi.fn(async () => activated ? createIntent({ status: "committed", revision: 3, nextAction: { kind: "none", reason: "committed" }, committedHref: "/communities/fresh" }) : pending()),
+      commitIntent: vi.fn(async () => createIntent({ status: "committed", revision: 2, nextAction: { kind: "none", reason: "committed" }, committedHref: "/communities/fresh" })),
     });
-    const container = render(() => <CommunityCreationRouteView api={client} navigate={navigate} resolveSession={async () => owner} confirmIdentity={confirmIdentity} />);
-    const name = nameField(container);
-    name.value = "New place";
-    name.dispatchEvent(new InputEvent("input", { bubbles: true }));
-    await reachProfilePage(container);
-    fillPublicName(container);
-    expect([...container.querySelectorAll<HTMLButtonElement>("button")].find(button => button.textContent === "Use an existing profile")?.disabled).toBe(true);
-    const button = finalSubmit(container)!;
-    await vi.waitFor(() => expect(button.disabled).toBe(false));
-    button.click();
-    await vi.waitFor(() => expect(navigate).toHaveBeenCalledWith("/communities/fresh", undefined));
-    expect(client.createIntent).toHaveBeenCalledWith(expect.objectContaining({ draft: expect.objectContaining({ publicName: "River Room", persona: { kind: "create_new" } }) }));
-    expect(confirmIdentity).toHaveBeenCalledOnce();
-    expect(client.commitIntent).toHaveBeenCalledTimes(2);
+    try {
+      const container = render(() => <CommunityCreationRouteView api={client} navigate={navigate} resolveSession={async () => owner} />);
+      const name = nameField(container);
+      name.value = "New place";
+      name.dispatchEvent(new InputEvent("input", { bubbles: true }));
+      await reachProfilePage(container);
+      fillPublicName(container);
+      expect([...container.querySelectorAll<HTMLButtonElement>("button")].find(button => button.textContent === "Use an existing profile")?.disabled).toBe(true);
+      const button = finalSubmit(container)!;
+      await vi.waitFor(() => expect(button.disabled).toBe(false));
+      button.click();
+      await vi.waitFor(() => expect(navigate).toHaveBeenCalledWith("/communities/fresh", undefined));
+      expect(client.createIntent).toHaveBeenCalledWith(expect.objectContaining({ draft: expect.objectContaining({ publicName: "River Room", persona: { kind: "create_new" } }) }));
+      expect(client.commitIntent).toHaveBeenCalledOnce();
+      expect(signInRequested).not.toHaveBeenCalled();
+    } finally {
+      window.removeEventListener(GLOBAL_SIGN_IN_EVENT, signInRequested);
+    }
   });
 
-  test("dismissal leaves setup private and an unrelated sign-in cannot publish it", async () => {
-    const commitIntent = vi.fn();
-    const confirmIdentity = vi.fn(async () => false);
-    const container = render(() => <CommunityCreationRouteView api={api({ getIntent: async () => pending(), commitIntent })} intentId="creation_1" resolveSession={async () => owner} confirmIdentity={confirmIdentity} />);
-    (await reachCreate(container)).click();
-    await vi.waitFor(() => expect(confirmIdentity).toHaveBeenCalledOnce());
-    refreshSession();
-    await vi.waitFor(() => expect(container.querySelector("main")?.getAttribute("data-creation-state")).toBe("ready"));
-    expect(commitIntent).not.toHaveBeenCalled();
-    expect(container.textContent).toContain("Creation was not completed");
-  });
-
-  test("already activated setup commits without asking for another identity proof", async () => {
-    const confirmIdentity = vi.fn();
+  test("a saved authenticated setup commits without opening sign-in", async () => {
+    const signInRequested = vi.fn();
+    window.addEventListener(GLOBAL_SIGN_IN_EVENT, signInRequested);
     const commitIntent = vi.fn(async () => createIntent({ status: "committed", nextAction: { kind: "none", reason: "committed" }, committedHref: "/communities/fresh" }));
-    const container = render(() => <CommunityCreationRouteView api={api({ getIntent: async () => ready(), commitIntent })} intentId="creation_1" resolveSession={async () => owner} confirmIdentity={confirmIdentity} />);
-    (await reachCreate(container)).click();
-    await vi.waitFor(() => expect(commitIntent).toHaveBeenCalledOnce());
-    expect(confirmIdentity).not.toHaveBeenCalled();
-  });
-
-  test("switching accounts during identity confirmation never publishes the saved setup", async () => {
-    let account = owner;
-    const commitIntent = vi.fn();
-    const container = render(() => <CommunityCreationRouteView api={api({ getIntent: async () => pending(), commitIntent })} intentId="creation_1" resolveSession={async () => account} confirmIdentity={async () => { account = { ...owner, userId: "other-account" }; return true; }} />);
-    (await reachCreate(container)).click();
-    await vi.waitFor(() => expect(container.textContent).toContain("account that saved this community"));
-    expect(commitIntent).not.toHaveBeenCalled();
+    try {
+      const container = render(() => <CommunityCreationRouteView api={api({ getIntent: async () => ready(), commitIntent })} intentId="creation_1" resolveSession={async () => owner} />);
+      const button = await reachCreate(container);
+      await vi.waitFor(() => expect(button.disabled).toBe(false));
+      button.click();
+      await vi.waitFor(() => expect(commitIntent).toHaveBeenCalledOnce());
+      expect(signInRequested).not.toHaveBeenCalled();
+    } finally {
+      window.removeEventListener(GLOBAL_SIGN_IN_EVENT, signInRequested);
+    }
   });
 });
 
@@ -1431,18 +1418,6 @@ describe("Stable creation lifecycle", () => {
     expect(container.querySelector("form")).toBe(form);
     expect(client.commitIntent).not.toHaveBeenCalled();
     expect(client.createIntent).not.toHaveBeenCalled();
-  });
-
-  test("follows a committed intent returned after identity confirmation without a second commit", async () => {
-    let confirmed = false;
-    const navigate = vi.fn();
-    const client = api({ getIntent: async () => confirmed ? published() : createIntent({ nextAction: { kind: "activate_profile", personaId: "new-owner" } }), commitIntent: vi.fn() });
-    const container = render(() => <CommunityCreationRouteView intentId="saved" api={client} navigate={navigate} resolveSession={async () => owner} confirmIdentity={async () => { confirmed = true; return true; }} />);
-    const button = await reachCreate(container);
-    await vi.waitFor(() => expect(button.disabled).toBe(false));
-    button.click();
-    await vi.waitFor(() => expect(navigate).toHaveBeenCalledWith("/c/published-community", undefined));
-    expect(client.commitIntent).not.toHaveBeenCalled();
   });
 
   test("retains fields, labels and the button through a delayed submission and failure", async () => {
@@ -1547,25 +1522,29 @@ test("stops a stuck wait at its expiry and lets the same draft be checked again"
   await vi.waitFor(() => expect(commitIntent).toHaveBeenCalledOnce());
 });
 
-test("never opens an identity dialog from wait polling", async () => {
-  const pending = createIntent({ revision: 2, nextAction: { kind: "activate_profile", personaId: "new" } });
-  const confirmIdentity = vi.fn(async () => false);
-  const container = render(() => <CommunityCreationRouteView api={api({
-    createIntent: async () => createIntent({ nextAction: { kind: "wait", requirement: null, reasonCode: "operation_pending", retryAfterSeconds: 1 } }),
-    getIntent: async () => pending,
-  })} resolveSession={async () => ({ status: "authenticated", userId: "owner", personas: [] })} navigate={() => {}} confirmIdentity={confirmIdentity} />);
-  const name = nameField(container);
+test("wait polling commits without opening another sign-in surface", async () => {
+  const commitIntent = vi.fn(async () => createIntent({ revision: 3, status: "committed", nextAction: { kind: "none", reason: "committed" }, committedHref: "/c/done" }));
+  const signInRequested = vi.fn();
+  window.addEventListener(GLOBAL_SIGN_IN_EVENT, signInRequested);
+  try {
+    const container = render(() => <CommunityCreationRouteView api={api({
+      createIntent: async () => createIntent({ nextAction: { kind: "wait", requirement: null, reasonCode: "operation_pending", retryAfterSeconds: 1 } }),
+      getIntent: async () => createIntent({ revision: 2, nextAction: { kind: "commit" } }),
+      commitIntent,
+    })} resolveSession={async () => ({ status: "authenticated", userId: "owner", personas: [] })} navigate={() => {}} />);
+    const name = nameField(container);
     name.value = "Timer community";
     name.dispatchEvent(new InputEvent("input", { bubbles: true }));
     await reachProfilePage(container);
     fillPublicName(container);
-    (await reachCreate(container)).click();
-    await vi.waitFor(() => expect(container.textContent).toContain("Confirm it's you to finish. Select Create."), { timeout: 3000 });
-    expect(confirmIdentity).not.toHaveBeenCalled();
-    const retry = finalSubmit(container)!;
-    expect(retry.disabled).toBe(false);
-    retry.click();
-  await vi.waitFor(() => expect(confirmIdentity).toHaveBeenCalledOnce());
+    const button = finalSubmit(container)!;
+    await vi.waitFor(() => expect(button.disabled).toBe(false));
+    button.click();
+    await vi.waitFor(() => expect(commitIntent).toHaveBeenCalledOnce(), { timeout: 3000 });
+    expect(signInRequested).not.toHaveBeenCalled();
+  } finally {
+    window.removeEventListener(GLOBAL_SIGN_IN_EVENT, signInRequested);
+  }
 });
 
 
@@ -1832,35 +1811,6 @@ describe("saved creation revision recovery", () => {
     expect(commitIntent).not.toHaveBeenCalled();
   });
 });
-
-
-test("verifies the saved creator requirement in place and requires an explicit continuation", async () => {
-  let current = createIntent({ status: "verification_required", nextAction: { kind: "verify_nationality" },
-    nationalityRequirement: { kind: "pending", requirement: "nationality", requirementHash: "country-rule", intentId: "creator-child", providerId: "self.pass", acceptedProviderIds: ["self.pass", "zkpassport"], generation: 1 } });
-  const commit = vi.fn();
-  const client = api({ getIntent: async () => current, commitIntent: commit });
-  const start = vi.fn(async () => {
-    current = { ...current, nationalityRequirement: { kind: "pending", requirement: "nationality", requirementHash: "country-rule", intentId: "creator-child-2", providerId: "zkpassport", acceptedProviderIds: ["self.pass", "zkpassport"], generation: 2 } };
-    return { url: "https://zkpassport.id/r/test", completion: Promise.resolve(), cancel() {} };
-  });
-  const container = render(() => <><DocumentVerificationHost start={start} qr={async () => "data:image/png;base64,AA=="} pollIntervalMs={5} />
-    <CommunityCreationRouteView api={client} intentId={current.intentId} navigate={() => {}} resolveSession={async () => ({ status: "authenticated", userId: "user-1", personas: [] })} /></>);
-  const findButton = (label: string) => [...document.querySelectorAll("button")].find(value => value.textContent?.trim() === label);
-  await reachCreate(container);
-  await vi.waitFor(() => expect(findButton("Verify nationality")?.disabled).toBe(false));
-  findButton("Verify nationality")!.click();
-  await vi.waitFor(() => expect(findButton("Verify with ZKPassport")?.disabled).toBe(false));
-  findButton("Verify with ZKPassport")!.click();
-  await vi.waitFor(() => expect(start).toHaveBeenCalledOnce());
-  expect(commit).not.toHaveBeenCalled();
-  current = { ...current, revision: current.revision + 1, status: "commit_ready", nextAction: { kind: "commit" }, nationalityRequirement: { kind: "satisfied" } };
-  await vi.waitFor(() => expect(container.textContent).toContain("Nationality verified. Continue"));
-  expect(commit).not.toHaveBeenCalled();
-  const back = [...container.querySelectorAll("button")].find(value => value.getAttribute("aria-label") === "Back to community details")!;
-  back.click();
-  await vi.waitFor(() => expect(nameField(container).value).toBe("Saved community"));
-});
-
 describe("Create community join policy page", () => {
   function renderPage(allowNationality: boolean, initial?: CreateCommunityDraft) {
     const [draft, setDraft] = createSignal(initial ?? withDraftName(createEmptyDraft({ kind: "create_new" }), "Signal Room"));

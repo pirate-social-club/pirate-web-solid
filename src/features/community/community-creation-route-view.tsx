@@ -1,4 +1,3 @@
-import { requestDocumentVerification } from "../verification/document-verification-host.tsx";
 import { ApiClientError } from "@pirate/api-client";
 import { Title } from "@solidjs/meta";
 import { Show, createEffect, createSignal, onCleanup } from "solid-js";
@@ -12,7 +11,7 @@ import {
   type AuthenticatedSession,
   type SessionResolution,
 } from "../../api/session";
-import { requestGlobalSignIn, requestGlobalSignInCompletion } from "../auth/global-sign-in-host";
+import { requestGlobalSignIn } from "../auth/global-sign-in-host";
 import {
   communityCreationCandidates,
   type CommunityPersonaChoice,
@@ -45,7 +44,6 @@ export interface CommunityCreationRouteViewProps {
   intentId?: string;
   navigate?: (href: string, options?: { replace?: boolean }) => void;
   resolveSession?: () => Promise<SessionResolution>;
-  confirmIdentity?: (signal: AbortSignal) => Promise<boolean>;
 }
 
 function idempotencyKey(scope: string): string {
@@ -521,8 +519,8 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
         if (!owner || signedIn(session())?.userId !== owner) { continuing = false; return; }
         setBusy(true);
         try {
-          if (latest.nextAction.kind === "commit") await runCommit(latest.revision, latest.intentId, owner, true, false);
-          else if (latest.nextAction.kind === "activate_profile") await activateProfile(latest, owner, false);
+          if (latest.nextAction.kind === "commit")
+            await runCommit(latest.revision, latest.intentId, owner);
         } finally { if (active) setBusy(false); }
       });
     }, delay);
@@ -534,8 +532,6 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
     expectedRevision: number,
     intentId: string,
     expectedOwnerId: string | undefined,
-    continueActivation = false,
-    allowInteractive = true,
   ): Promise<void> => {
     const owner = signedIn(session());
     if (!owner || !expectedOwnerId || expectedOwnerId !== owner.userId) {
@@ -561,7 +557,6 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
         try { refreshSession(); } finally { refreshingAfterCommit = false; }
       }
       if (committed.committedHref) navigate(committed.committedHref);
-      else if (continueActivation && committed.nextAction.kind === "activate_profile") await activateProfile(committed, expectedOwnerId, allowInteractive);
     } catch (error) {
       continuing = false;
       if (!active) return;
@@ -571,69 +566,6 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
       } else {
         setMessage(safeError(error, "Could not finish creating this community. Try again."));
       }
-    }
-  };
-
-  const activateProfile = async (saved: CommunityCreationIntentView, expectedOwner: string | undefined, allowInteractive = true) => {
-    if (!expectedOwner || signedIn(session())?.userId !== expectedOwner) return;
-    setMessage("");
-    try {
-      // A saved active profile needs no provider ceremony. Recheck first in case
-      // another tab or an interrupted sign-in has already finished activation.
-      const latest = await api.getIntent({ intentId: saved.intentId });
-      if (!active || signedIn(session())?.userId !== expectedOwner) return;
-      applyIntent(latest);
-      if (latest.nextAction.kind === "activate_profile") {
-        if (!allowInteractive) {
-          continuing = false;
-          setMessage("Confirm it's you to finish. Select Create.");
-          return;
-        }
-        const confirmed = await (props.confirmIdentity ?? requestGlobalSignInCompletion)(activationAbort.signal);
-        if (!confirmed || !active) {
-          continuing = false;
-          if (active) setMessage("Creation was not completed. Your setup is saved; try again when ready.");
-          return;
-        }
-        const resolved = await (props.resolveSession ?? resolveSession)();
-        if (!active) return;
-        setSession(resolved);
-        if (resolved === "anonymous" || resolved.userId !== expectedOwner) {
-          setMessage("Sign in with the account that saved this community to continue setup.");
-          setIntent(undefined);
-          return;
-        }
-      }
-      const ready = await api.getIntent({ intentId: saved.intentId });
-      if (!active || signedIn(session())?.userId !== expectedOwner) return;
-      applyIntent(ready);
-      if (ready.committedHref) {
-        navigate(ready.committedHref);
-      } else if (ready.nextAction.kind === "commit") {
-        await runCommit(ready.revision, ready.intentId, expectedOwner);
-      } else if (ready.nextAction.kind === "activate_profile") {
-        setMessage("Could not finish creating your profile. Your setup is saved. Try again.");
-      }
-    } catch (error) {
-      continuing = false;
-      if (active) setMessage(safeError(error, "Could not finish profile setup. Your community is still private and saved. Try again."));
-    }
-  };
-
-  const verifyNationality = async (saved: CommunityCreationIntentView, ownerId: string) => {
-    const verified = await requestDocumentVerification({
-      title: "Verify nationality to create this community", signal: activationAbort.signal,
-      load: async signal => {
-        if (signedIn(session())?.userId !== ownerId) throw new Error("account_changed");
-        const latest = await api.getIntent({ intentId: saved.intentId, signal });
-        if (signedIn(session())?.userId !== ownerId || latest.nationalityRequirement === undefined) throw new Error("requirement_changed");
-        return latest.nationalityRequirement;
-      },
-    });
-    if (!active || signedIn(session())?.userId !== ownerId) return;
-    if (verified) {
-      await loadIntent(saved.intentId);
-      setMessage("Nationality verified. Continue to finish creating your community.");
     }
   };
 
@@ -786,9 +718,8 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
         }
         if (latest.nextAction.kind === "blocked") setMessage(blockedCreationMessage(latest.nextAction.reason));
         else if (latest.nextAction.kind === "none" && !latest.committedHref) setMessage("This community setup has ended. Start again.");
-        else if (latest.nextAction.kind === "verify_nationality") await verifyNationality(latest, owner.userId);
-        else if (latest.nextAction.kind === "activate_profile") await activateProfile(latest, owner.userId);
-        else if (latest.nextAction.kind === "commit") await runCommit(latest.revision, latest.intentId, owner.userId, true);
+        else if (latest.nextAction.kind === "commit")
+          await runCommit(latest.revision, latest.intentId, owner.userId);
       } catch (error) {
         continuing = false;
         if (active) setMessage(safeError(error, "Could not save your changes. Your setup is still here. Try again."));
@@ -838,10 +769,8 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
       navigate(`/communities/new?intent_id=${encodeURIComponent(created.intentId)}`, { replace: true });
       if (created.nextAction.kind === "blocked") {
         setMessage(blockedCreationMessage(created.nextAction.reason));
-      } else if (created.nextAction.kind === "verify_nationality") {
-        await verifyNationality(created, owner.userId);
       } else if (created.nextAction.kind === "commit") {
-        await runCommit(created.revision, created.intentId, owner.userId, true);
+        await runCommit(created.revision, created.intentId, owner.userId);
       }
     } catch (error) {
       continuing = false;
@@ -917,7 +846,6 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
             });
           }}
           onSubmit={() => void submit()}
-          submitLabel={intent()?.nextAction.kind === "verify_nationality" ? "Verify nationality" : undefined}
           personas={displayPersonas()}
           profilesUnavailable={!!currentSession()?.personasUnavailable}
           // TODO(api-community-creation-creator-verification-removal): pass the

@@ -11,7 +11,6 @@ import type { SignInSession } from "./sign-in-session.ts";
 export interface SignInModalProps {
   /** Pins the mobile branch for stories and tests. */
   readonly forceMobile?: boolean;
-  readonly confirmIdentity?: boolean;
   readonly onOpenChange: (open: boolean) => void;
   readonly open: boolean;
   readonly session: SignInSession;
@@ -32,14 +31,13 @@ export function SignInModal(props: SignInModalProps): JSX.Element {
   return (
     <Modal forceMobile={props.forceMobile} onOpenChange={props.onOpenChange} open={props.open}>
       <ModalContent
-        aria-label={props.confirmIdentity ? "Confirm it’s you" : copy().title}
+        aria-label={copy().title}
         class="max-h-[90dvh] overflow-y-auto rounded-t-[var(--radius-sheet)] border-border bg-background px-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] pt-4 sm:max-h-[90vh] sm:max-w-lg sm:rounded-[var(--radius-xl)] sm:px-8 sm:pb-8 sm:pt-8"
         mobileSide="bottom"
         onOpenAutoFocus={(event) => event.preventDefault()}
       >
         <div class="flex flex-col gap-6">
           <SignInView
-            confirmIdentity={props.confirmIdentity}
             onBack={props.session.back}
             onChooseMethod={props.session.chooseMethod}
             onCodeChange={props.session.setCode}

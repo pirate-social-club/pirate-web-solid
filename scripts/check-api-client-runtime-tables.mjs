@@ -8,10 +8,11 @@ const currentClient = resolve(
   appRoot,
   "node_modules/@pirate/api-client/src/generated/client.ts",
 );
-// Client 0.86.0 adds account-owned active-song discovery and typed public song
-// delivery status while retaining avatar-backed community creation and upload.
-// Pin the exact consumed success, error and schema tables, not only the archive.
-const expectedDigest = "4a90e8aa7db30d3f7539c4a833c847d810f1f1c59aaa8e2145fe6102a3f42c0e";
+// Client 0.87.0 retains the consumed operations and removes the obsolete
+// community-creation activate_profile response while preserving the song,
+// nationality, and avatar contracts consumed by current Solid main. This
+// digest pins the exact success, error, and schema tables consumed by Solid.
+const expectedDigest = "9b9b138097ad72a70e51f5348b1f54b5957b55b354a6bb0dd878c16d738a9b79";
 
 const operations = [
   "post_postsPostIdVideoPlaybackAccess",
