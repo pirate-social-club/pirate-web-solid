@@ -14,7 +14,6 @@ import {
   IconImage,
   IconMusicNote,
   IconUploadSimple,
-  IconX,
   Input,
   OptionCard,
   OptionCardGroup,
@@ -25,13 +24,11 @@ import { cn } from "../../../design-system";
 import { PUBLIC_SONG_LYRICS_MAX_CHARACTERS, publicSongAudioIssue } from "../media-submission/contracts";
 import { extractEmbeddedAudioArtworkFile, extractEmbeddedAudioTitle } from "./audio-artwork";
 import { PostComposerAttachmentCard } from "./attachment-card";
-import { PostComposerDerivativeSection } from "./derivative-section";
 import { FieldLabel } from "./fields";
 import { createObjectUrl } from "./media-hooks";
 import type { PostComposerController } from "./controller";
 import type { SongFlowRuntime } from "./types";
 
-const acceptedImageMimeTypes = "image/jpeg,image/png,image/webp,image/gif,image/avif";
 function titleFromFilename(name: string): string {
   const index = name.lastIndexOf(".");
   return (index > 0 ? name.slice(0, index) : name).trim();
@@ -52,7 +49,6 @@ export function SongStep(props: {
   const audioLocked = () => props.runtime?.retained === true;
   let dragCounter = 0;
   let audioInput: HTMLInputElement | undefined;
-  let coverInput: HTMLInputElement | undefined;
 
   const attachment = () => {
     const upload = song().primaryAudioUpload;
@@ -82,9 +78,9 @@ export function SongStep(props: {
         primaryAudioUpload: file,
         primaryAudioLabel: file.name,
         title: current.title?.trim() || embeddedTitle || titleFromFilename(file.name),
-        coverUpload: current.coverUpload ?? artwork,
-        coverLabel: current.coverLabel ?? artwork?.name,
-        coverSource: current.coverSource ?? (artwork ? "embedded" : undefined),
+        coverUpload: artwork,
+        coverLabel: artwork?.name,
+        coverSource: artwork ? "embedded" : undefined,
         lyricsEditorState: "hidden",
       }));
     } catch {
@@ -113,15 +109,6 @@ export function SongStep(props: {
     controller.tabs.onTabChange("text");
   };
 
-  const removeCover = () => {
-    controller.song.update((state) => ({
-      ...state,
-      coverLabel: undefined,
-      coverSource: undefined,
-      coverUpload: null,
-    }));
-  };
-
   return (
     <CardContent
       class={cn(
@@ -148,17 +135,12 @@ export function SongStep(props: {
         <Show
           when={coverPreview()}
           fallback={
-            <button
-              aria-label={controller.copy.fields.coverArt}
-              class="grid size-24 shrink-0 cursor-pointer place-items-center rounded-[var(--radius-lg)] border-2 border-dashed border-border-soft text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-              onClick={() => coverInput?.click()}
-              type="button"
-            >
+            <div class="grid size-24 shrink-0 place-items-center rounded-[var(--radius-lg)] border border-border-soft bg-muted/20 text-muted-foreground">
               <span class="flex flex-col items-center gap-1">
                 <IconImage class="size-6" />
-                <Type as="span" variant="caption">Add art</Type>
+                <Type as="span" variant="caption">Artwork from audio</Type>
               </span>
-            </button>
+            </div>
           }
         >
           {(url) => (
@@ -168,14 +150,6 @@ export function SongStep(props: {
                 class="size-24 rounded-[var(--radius-lg)] border border-border-soft object-cover"
                 src={url()}
               />
-              <button
-                aria-label="Remove cover"
-                class="absolute end-1 top-1 grid size-7 cursor-pointer place-items-center rounded-full bg-background/85 text-foreground shadow-sm transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                onClick={removeCover}
-                type="button"
-              >
-                <IconX class="size-4" />
-              </button>
             </div>
           )}
         </Show>
@@ -197,6 +171,7 @@ export function SongStep(props: {
         <Show
           when={attachment()}
           fallback={
+            <Show when={audioLocked()} fallback={
             <button
               class="grid w-full cursor-pointer place-items-center gap-3 rounded-[var(--radius-lg)] border-2 border-dashed border-border-soft bg-muted/20 px-4 py-10 text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               onClick={() => audioInput?.click()}
@@ -205,6 +180,13 @@ export function SongStep(props: {
               <IconMusicNote class="size-8" />
               <Type as="span" variant="body-strong">Add audio</Type>
             </button>
+            }>
+              <Type as="p" variant="caption" class="text-muted-foreground">
+                {props.runtime?.prepared
+                  ? "Audio is retained by the server; the browser file is unavailable."
+                  : "The browser audio file is unavailable. Cancel this submission to start again."}
+              </Type>
+            </Show>
           }
         >
           <PostComposerAttachmentCard
@@ -262,42 +244,21 @@ export function SongStep(props: {
       <section class="space-y-3">
         <FieldLabel label={controller.copy.rights.songKind} />
         <OptionCardGroup
+          disabled={audioLocked()}
           label={controller.copy.rights.songKind}
           onChange={(value) => controller.primary.handleSongModeChange(value === "remix" ? "remix" : "original")}
           value={controller.primary.activeSongMode}
         >
           <OptionCard title={controller.copy.songModes.original} value="original" />
-          <OptionCard title={controller.copy.songModes.remix} value="remix" />
-        </OptionCardGroup>
-        <Show when={controller.primary.activeSongMode === "remix"}>
-          <PostComposerDerivativeSection
-            copy={controller.copy}
-            derivativePickerKey={controller.primary.derivativePickerKey}
-            derivativeSearchResults={controller.primary.derivativeSearchResults}
-            derivativeState={controller.primary.derivativeState}
-            onAdvancePicker={controller.advanceDerivativePicker}
-            updateDerivativeState={controller.primary.updateDerivativeState}
+          <OptionCard
+            disabled
+            disabledHint="Remix publishing is not available yet."
+            title={controller.copy.songModes.remix}
+            value="remix"
           />
-        </Show>
+        </OptionCardGroup>
       </section>
 
-      <input
-        accept={acceptedImageMimeTypes}
-        aria-label={controller.copy.fields.coverArt}
-        class="sr-only"
-        onChange={(event) => {
-          const files = event.currentTarget.files;
-          controller.song.update((current) => ({
-            ...current,
-            coverLabel: files?.[0]?.name ?? current.coverLabel,
-            coverSource: files?.[0] ? "upload" : undefined,
-            coverUpload: files?.[0] ?? null,
-          }));
-          event.currentTarget.value = "";
-        }}
-        ref={coverInput}
-        type="file"
-      />
       <input
         accept=".mp3,audio/mpeg"
         aria-label="Upload audio"

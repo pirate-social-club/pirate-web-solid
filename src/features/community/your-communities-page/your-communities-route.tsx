@@ -248,6 +248,7 @@ export function YourCommunitiesRouteView(props: YourCommunitiesRouteProps = {}) 
             {(community) => (
               <CreatePostDialog
                 communityContext={{ id: community().communityId, name: community().displayName }}
+                onPublished={href => { if (href !== undefined) navigate(href); }}
                 onOpenChange={setComposerOpen}
                 open={composerOpen()}
                 personaId={postingPersonas()[0]?.personaId}

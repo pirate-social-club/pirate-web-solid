@@ -226,7 +226,7 @@ export function SongReviewStep(props: {
       </Show>
       <div class="rounded-[var(--radius-lg)] px-1">
         <ReviewRow
-          action={{ label: controller.copy.review.change, onClick: () => props.steps.set("song") }}
+          action={props.runtime?.locked ? undefined : { label: controller.copy.review.change, onClick: () => props.steps.set("song") }}
           label={controller.copy.review.song}
           value={(
             <span class="flex min-w-0 items-center gap-3">
@@ -244,7 +244,7 @@ export function SongReviewStep(props: {
           )}
         />
         <ReviewRow
-          action={{ label: controller.copy.review.change, onClick: () => props.steps.set("song") }}
+          action={props.runtime?.locked ? undefined : { label: controller.copy.review.change, onClick: () => props.steps.set("song") }}
           label={controller.copy.review.lyrics}
           value={controller.fields.lyricsValue.trim() === ""
             ? "Instrumental"
@@ -252,7 +252,7 @@ export function SongReviewStep(props: {
         />
         <Show when={controller.primary.activeSongMode === "remix"}>
           <ReviewRow
-            action={{ label: controller.copy.review.change, onClick: () => props.steps.set("song") }}
+            action={props.runtime?.locked ? undefined : { label: controller.copy.review.change, onClick: () => props.steps.set("song") }}
             label={controller.copy.review.sources}
             value={references().length === 0
               ? controller.copy.derivative.chooseSource
@@ -260,12 +260,12 @@ export function SongReviewStep(props: {
           />
         </Show>
         <ReviewRow
-          action={{ label: controller.copy.review.change, onClick: () => props.steps.set("rights") }}
+          action={props.runtime?.locked ? undefined : { label: controller.copy.review.change, onClick: () => props.steps.set("rights") }}
           label={controller.copy.review.permissions}
           value={licenseLabel()}
         />
         <ReviewRow
-          action={{ label: controller.copy.review.change, onClick: () => props.steps.set("rights") }}
+          action={props.runtime?.locked ? undefined : { label: controller.copy.review.change, onClick: () => props.steps.set("rights") }}
           label={controller.copy.review.earnings}
           value={earningsSummary()}
         />

@@ -14,6 +14,7 @@ import { SongVideoEntry } from "./song-video-entry.tsx";
 import { SongAttributionChip } from "../song-attribution/song-attribution-chip.tsx";
 import { readSongAttribution } from "../song-attribution/song-attribution.ts";
 import { buttonVariants } from "../../../design-system";
+import { readSongPublishedStatus, songAlignmentStatusLabel, songDataRegistrationStatusLabel } from "./song-published-status";
 
 export interface PublicPostRouteViewProps {
   readonly state: PublicPostRouteState | PromiseLike<PublicPostRouteState>;
@@ -81,6 +82,7 @@ function PublicMetadata(props: { readonly state: Extract<PublicPostRouteState, {
 function PostDetail(props: { readonly response: PublicPostContentResponse }) {
   const body = () => displayBody(props.response);
   const route = () => props.response.route;
+  const songStatus = () => readSongPublishedStatus(props.response.content.song_presentation);
   const title = () => displayTitle(props.response);
   return (
     <main class="mx-auto w-full max-w-3xl px-4 py-8 md:px-8" data-public-post-state="content">
@@ -103,6 +105,20 @@ function PostDetail(props: { readonly response: PublicPostContentResponse }) {
           <div class="mt-4 grid gap-4">
             <SongPlayer postId={props.response.post_id} title={title()} />
             <SongVideoEntry communityId={props.response.content.post.community} postId={props.response.post_id} />
+            <Show when={songStatus()} fallback={<p role="status">Lyrics timing and DATA registration status are unavailable.</p>}>
+              {status => (
+                <dl aria-label="Song delivery status" class="grid gap-1">
+                  <div>
+                    <dt class="inline font-medium">Lyrics timing: </dt>
+                    <dd class="inline">{songAlignmentStatusLabel(status().alignment)}.</dd>
+                  </div>
+                  <div>
+                    <dt class="inline font-medium">DATA registration: </dt>
+                    <dd class="inline">{songDataRegistrationStatusLabel(status().dataRegistration)}.</dd>
+                  </div>
+                </dl>
+              )}
+            </Show>
             <Show when={route()}>
               {(songRoute) => (
                 <nav aria-label="Song activities" class="flex flex-wrap gap-3">

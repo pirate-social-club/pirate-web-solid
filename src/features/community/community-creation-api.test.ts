@@ -501,3 +501,15 @@ test("replaces an expired reservation with a fresh idempotency key", async () =>
   })).resolves.toBe("avatar-55555555-5555-4555-8555-555555555555");
   expect(reservationKey).not.toBe(key);
 });
+
+test("restores nationality membership policy without inventing a creator ceremony", async () => {
+  const original = creationIntent();
+  const api = createCommunityCreationApi({ origin: "https://web.test", fetchImpl: async () => response({
+    ...original, requirements: {}, next_action: { kind: "commit" },
+    draft: { ...original.draft, policy: { version: 1, accessPaths: [{ id: "default", operator: "and", requirements: [{ requirement: "human-verification" }, { requirement: "nationality-allowed", allowedCountries: ["USA", "CA"] }] }] } },
+  }) });
+  const restored = await api.getIntent({ intentId: "creation-1" });
+  expect(restored.draft?.additionalRequirements).toEqual([{ requirement: "nationality-allowed", allowedCountries: ["US", "CA"] }]);
+  expect(restored.nextAction).toEqual({ kind: "commit" });
+  expect(restored.nationalityRequirement).toBeUndefined();
+});

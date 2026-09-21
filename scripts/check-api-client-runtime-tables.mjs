@@ -8,14 +8,10 @@ const currentClient = resolve(
   appRoot,
   "node_modules/@pirate/api-client/src/generated/client.ts",
 );
-// Client 0.85.0 combines the reviewed recovery enum, avatar-backed creation,
-// joining, independent handle qualification and renewable document18+ authority
-// with the additive activity-persona preparation operation consumed by Study
-// and Karaoke entry, and the sponsor reward offers, funding effects,
-// projections, standings and credits consumed by the standalone reward
-// surface. This digest pins the exact success, error, and schema tables
-// consumed here across both candidates.
-const expectedDigest = "f0a8dbdb7adffffce1f61557c7790a7b59674a89b11816af6a2d0fadcb59d781";
+// Client 0.86.0 adds account-owned active-song discovery and typed public song
+// delivery status while retaining avatar-backed community creation and upload.
+// Pin the exact consumed success, error and schema tables, not only the archive.
+const expectedDigest = "4a90e8aa7db30d3f7539c4a833c847d810f1f1c59aaa8e2145fe6102a3f42c0e";
 
 const operations = [
   "post_postsPostIdVideoPlaybackAccess",
@@ -37,6 +33,7 @@ const operations = [
   "post_communitiesCommunityIdSongVideoIntervalPreflights",
   "post_communitiesCommunityIdMediaUploadReservations",
   "post_communitiesCommunityIdMediaPostSubmissions",
+  "get_communitiesCommunityIdMediaPostSubmissions",
   "post_mediaPostSubmissionsSubmissionIdTerms",
   "post_mediaPostSubmissionsSubmissionIdLyrics",
   "post_mediaPostSubmissionsSubmissionIdFinalize",

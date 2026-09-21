@@ -421,6 +421,7 @@ export function createPostComposerController(
   const songGenreMissing = () => false;
   const songLanguageMissing = () => false;
   const songAudioMissing = () => activeTab() === "song"
+    && props.songFlowRuntime?.prepared !== true
     && !songState().primaryAudioUpload
     && !songState().primaryAudioLabel?.trim();
   const ageGateConfirmationPending = () =>

@@ -7,7 +7,7 @@ import type { JSX } from "@solidjs/web";
 import type { PostCommunitiesCommunityIdMediaUploadReservationsResponse } from "@pirate/api-client";
 
 import type { ActivePersonaPublicProjection } from "../../../api/session";
-import type { MediaSubmissionSnapshot } from "../media-submission/contracts";
+import type { ActiveSongMediaPostSubmission, ActiveSongMediaPostSubmissionPage, MediaSubmissionSnapshot } from "../media-submission/contracts";
 import { mediaCommandBody, type PersistedMediaCommand } from "../media-submission/pending";
 import type { MediaCommandResult, MediaSubmissionTransport } from "../media-submission/transport";
 import { buildCreatePostRequest, CreatePostDialog, initialOperationPersonaId } from "./create-post-dialog";
@@ -102,6 +102,7 @@ function envelopeBody(envelope: PendingSubmissionEnvelopeV1): TextPostRequestBod
 }
 
 class ProductionMediaTransport implements MediaSubmissionTransport {
+  async listActive(): Promise<ActiveSongMediaPostSubmissionPage> { return { object: "active_song_media_post_submission_page", items: [], next_cursor: null }; }
   snapshot: MediaSubmissionSnapshot | null = null;
   readonly commands: PersistedMediaCommand[] = [];
   uploadCount = 0;
@@ -160,12 +161,22 @@ function button(label: string): HTMLButtonElement {
   return result!;
 }
 
-async function uploadAudio(name = "signal.mp3"): Promise<void> {
-  const audio = new File([new Uint8Array([1, 2, 3, 4])], name, { type: "audio/mpeg", lastModified: 1 });
+async function selectAudio(audio: File): Promise<void> {
   const audioInput = document.body.querySelector<HTMLInputElement>("input[aria-label='Upload audio']")!;
   Object.defineProperty(audioInput, "files", { configurable: true, value: [audio] });
   audioInput.dispatchEvent(new Event("change", { bubbles: true }));
-  await vi.waitFor(() => expect(document.body.textContent).toContain(name));
+  await vi.waitFor(() => expect(document.body.textContent).toContain(audio.name));
+}
+
+async function uploadAudio(name = "signal.mp3"): Promise<void> {
+  await selectAudio(new File([new Uint8Array([1, 2, 3, 4])], name, { type: "audio/mpeg", lastModified: 1 }));
+}
+
+function audioWithEmbeddedArtwork(name: string): File {
+  const body = [0, ...new TextEncoder().encode("image/png"), 0, 3, 0, 0x89, 0x50, 0x4e, 0x47];
+  const frame = [...new TextEncoder().encode("APIC"), 0, 0, 0, body.length, 0, 0, ...body];
+  const bytes = new Uint8Array([...new TextEncoder().encode("ID3"), 3, 0, 0, 0, 0, 0, frame.length, ...frame]);
+  return new File([bytes], name, { type: "audio/mpeg", lastModified: 1 });
 }
 
 async function continueToReview(): Promise<void> {
@@ -179,6 +190,105 @@ async function continueToReview(): Promise<void> {
 }
 
 describe("create post request", () => {
+  test("explicitly resumes server state after reopen without saving an unsent draft", async () => {
+    const item: ActiveSongMediaPostSubmission = { object: "active_song_media_post_submission", community_id: "community-one",
+      title: "Server recovery title", song_type: "original", author_declared_rating: "adult_18",
+      terms_state: { current: { status: "not_bound" } }, submission: mediaSnapshot() };
+    class RecoveryTransport extends ProductionMediaTransport {
+      lists = 0;
+      override async listActive(): Promise<ActiveSongMediaPostSubmissionPage> {
+        this.lists += 1; return { object: "active_song_media_post_submission_page", items: [item], next_cursor: null };
+      }
+    }
+    const transport = new RecoveryTransport(); transport.snapshot = item.submission;
+    let reopen = () => {};
+    render(() => {
+      const [open, setOpen] = createSignal(true);
+      reopen = () => setOpen(true);
+      return <CreatePostDialog communityContext={{ id: "community-one", name: "Harbor" }} mediaTransport={transport}
+        open={open()} onOpenChange={setOpen} personas={[activePersona("persona-one", "Persona One")]} principalId="account-one" />;
+    });
+    await vi.waitFor(() => expect(button("Resume a song submission")).toBeDefined());
+    button("Resume a song submission").click();
+    await vi.waitFor(() => expect(button("Resume Server recovery title")).toBeDefined());
+    expect(transport.commands).toEqual([]);
+    button("Resume Server recovery title").click();
+    await vi.waitFor(() => expect(document.body.textContent).toContain("The original audio file and upload reservation are no longer available"));
+    expect(document.body.querySelector<HTMLInputElement>("#song-track-title")?.value).toBe("Server recovery title");
+    expect(button("Cancel song submission").disabled).toBe(false);
+    expect([...document.body.querySelectorAll("button")].some(candidate => candidate.textContent?.trim() === "Add audio")).toBe(false);
+    expect(transport.uploadCount).toBe(0);
+    document.body.querySelector<HTMLButtonElement>("button[aria-label='Close composer']")!.click();
+    await vi.waitFor(() => expect(document.body.querySelector("[data-create-post-form]")).toBeNull());
+    reopen();
+    await vi.waitFor(() => expect(button("Resume a song submission")).toBeDefined());
+    expect(document.body.querySelector("#song-track-title")).toBeNull();
+    button("Resume a song submission").click();
+    await vi.waitFor(() => expect(transport.lists).toBe(2));
+    expect(document.body.querySelector<HTMLInputElement>("#song-track-title")?.value).toBe("");
+    expect(button("Resume Server recovery title")).toBeDefined();
+    expect(transport.commands).toEqual([]);
+  });
+
+  test.each([false, true])("recovered finalized audio remains navigable with bound terms=%s", async (bound) => {
+    const item: ActiveSongMediaPostSubmission = {
+      object: "active_song_media_post_submission", community_id: "community-one", title: "Finalized recovery",
+      song_type: "original", author_declared_rating: "general",
+      terms_state: { current: bound ? { status: "ready", license_preset: "non-commercial", access_mode: "public",
+        royalty_allocations: [{ recipient_id: "persona-one", share_bps: 10000 }] } : { status: "not_bound" } },
+      submission: mediaSnapshot({ audio_revision: 1, phase: "analysis" }),
+    };
+    class RecoveryTransport extends ProductionMediaTransport {
+      override async listActive(): Promise<ActiveSongMediaPostSubmissionPage> {
+        return { object: "active_song_media_post_submission_page", items: [item], next_cursor: null };
+      }
+    }
+    const transport = new RecoveryTransport(); transport.snapshot = item.submission;
+    render(() => <CreatePostDialog communityContext={{ id: "community-one", name: "Harbor" }} mediaTransport={transport}
+      open onOpenChange={() => {}} personas={[activePersona("persona-one", "Persona One")]} principalId="account-one" />);
+    await vi.waitFor(() => expect(button("Resume a song submission")).toBeDefined());
+    button("Resume a song submission").click();
+    await vi.waitFor(() => expect(button("Resume Finalized recovery")).toBeDefined());
+    button("Resume Finalized recovery").click();
+    if (bound) {
+      await vi.waitFor(() => expect(document.body.textContent).toContain("Permissions"));
+      expect([...document.body.querySelectorAll("button")].some(candidate => ["Change", "Back"].includes(candidate.textContent?.trim() ?? ""))).toBe(false);
+    } else {
+      await vi.waitFor(() => expect(document.body.textContent).toContain("What others may do with this song"));
+      button("Back").click();
+      await vi.waitFor(() => expect(document.body.textContent).toContain("Audio is retained by the server"));
+      expect(button("Continue").disabled).toBe(false);
+      button("Continue").click();
+      await vi.waitFor(() => expect(document.body.textContent).toContain("What others may do with this song"));
+      button("Continue").click();
+      await vi.waitFor(() => expect(button("Publish song").disabled).toBe(false));
+    }
+    expect(transport.commands).toEqual([]);
+    expect(transport.uploadCount).toBe(0);
+  });
+
+  test("replaces embedded artwork when the selected audio changes", async () => {
+    const transport = new ProductionMediaTransport();
+    render(() => <CreatePostDialog
+      communityContext={{ id: "community-one", name: "Harbor" }}
+      mediaTransport={transport}
+      onOpenChange={() => {}}
+      open
+      personas={[activePersona("persona-one", "Persona One")]}
+      principalId="account-one"
+    />);
+    await new Promise<void>(resolve => setTimeout(resolve, 0));
+    const displayedArtwork = () => document.body.querySelector("#song-track-title")?.closest("section")?.querySelector("img");
+    await selectAudio(audioWithEmbeddedArtwork("with-art.mp3"));
+    await vi.waitFor(() => expect(displayedArtwork()).toBeInstanceOf(HTMLImageElement));
+    await uploadAudio("without-art.mp3");
+    await vi.waitFor(() => expect(displayedArtwork()).toBeNull());
+    expect(document.body.textContent).toContain("Artwork from audio");
+    await selectAudio(audioWithEmbeddedArtwork("new-art.mp3"));
+    await vi.waitFor(() => expect(displayedArtwork()).toBeInstanceOf(HTMLImageElement));
+    expect(transport.commands).toHaveLength(0);
+  });
+
   test("builds the community-scoped text post contract", () => {
     expect(buildCreatePostRequest({ personaId: "persona-one",
       communityId: "  community-1 ",
@@ -702,6 +812,10 @@ describe("create post request", () => {
     await new Promise<void>(resolve => setTimeout(resolve, 0));
     await uploadAudio();
     const adultRating = document.body.querySelector<HTMLInputElement>('input[aria-label="18+ content"]');
+    expect(document.body.querySelector<HTMLInputElement>('input[type="radio"][value="original"]')?.disabled).toBe(false);
+    expect(document.body.querySelector<HTMLInputElement>('input[type="radio"][value="remix"]')?.disabled).toBe(true);
+    expect(document.body.textContent).toContain("Remix publishing is not available yet.");
+    expect(document.body.querySelector('input[type="file"][accept^="image/"]')).toBeNull();
     expect(adultRating).not.toBeNull();
     adultRating!.click();
     await vi.waitFor(() => expect(
@@ -715,6 +829,7 @@ describe("create post request", () => {
       const retainedRating = document.body.querySelector<HTMLInputElement>('input[aria-label="18+ content"]');
       expect(retainedRating?.checked).toBe(true);
       expect(retainedRating?.disabled).toBe(true);
+      expect(document.body.querySelector<HTMLInputElement>('input[type="radio"][value="original"]')?.disabled).toBe(true);
     });
     button("Continue").click();
     await vi.waitFor(() => expect(document.body.textContent).toContain("What others may do with this song"));
@@ -737,10 +852,11 @@ describe("create post request", () => {
       const decoded: unknown = JSON.parse(new TextDecoder().decode(await mediaCommandBody(command)));
       // SAFETY: mediaCommandBody digest-checks command bytes built from
       // generated request bodies; this test reads only their persona field.
-      return decoded as { persona_id?: string; author_declared_rating?: string };
+      return decoded as { persona_id?: string; author_declared_rating?: string; song_type?: string };
     }));
     expect(bodies.every(body => body.persona_id === "persona-one")).toBe(true);
     expect(bodies.find((_body, index) => mediaTransport.commands[index]?.kind === "start")?.author_declared_rating).toBe("adult_18");
+    expect(bodies.find((_body, index) => mediaTransport.commands[index]?.kind === "start")?.song_type).toBe("original");
   });
 
   test("binds reviewed lyrics and named collaborators before publishing", async () => {
@@ -818,6 +934,7 @@ describe("create post request", () => {
     mediaTransport.snapshot = mediaSnapshot({ ...mediaTransport.snapshot!, status: "published",
       published_resource: { post_id: "post-production", href: "/posts/post-production" } });
     await vi.waitFor(() => expect(onPublished).toHaveBeenCalledOnce(), { timeout: 5_000 });
+    expect(onPublished).toHaveBeenCalledWith("/posts/post-production");
     expect(mediaTransport.commands.filter(command => command.kind === "lyrics")).toHaveLength(1);
     expect(mediaTransport.uploadCount).toBe(1);
   });

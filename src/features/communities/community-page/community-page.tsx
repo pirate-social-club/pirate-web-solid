@@ -596,6 +596,7 @@ function SuccessState(props: {
           <CreatePostDialog
             communityContext={{ id: communityId, name: community().name }}
             initialVideoSong={props.initialVideoSong}
+            onPublished={href => { if (href !== undefined) navigate(href); }}
             onOpenChange={setComposerOpen}
             open={composerOpen()}
             personaId={selectedPersonaId()}

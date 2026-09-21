@@ -1,4 +1,4 @@
-import { normalizeRoyaltyAllocations, type MediaSubmissionSnapshot, type SongRoyaltyAllocation } from "../media-submission/contracts";
+import { normalizeRoyaltyAllocations, type ActiveSongMediaPostSubmission, type MediaSubmissionSnapshot, type SongRoyaltyAllocation } from "../media-submission/contracts";
 import type { MediaSubmissionCoordinator } from "../media-submission/coordinator";
 import { projectSongAnalysis } from "../media-submission/projection";
 import type { AssetLicenseState, AssetRoyaltySplitState, SongComposerState, SongMode } from "./types";
@@ -29,8 +29,8 @@ function bridgeAllocations(split: AssetRoyaltySplitState): readonly SongRoyaltyA
 export async function prepareSongComposer(input: SongComposerBridgeInput): Promise<MediaSubmissionSnapshot> {
   const audio = input.song.primaryAudioUpload;
   const title = input.song.title?.trim() ?? "";
-  if (!audio || title === "") throw new Error("A song audio file and title are required");
   if (input.coordinator.currentRecord === null) {
+    if (!audio || title === "") throw new Error("A song audio file and title are required");
     await input.coordinator.begin({
       communityId: input.communityId,
       personaId: input.personaId,
@@ -66,7 +66,7 @@ export async function submitSongComposer(input: SongComposerBridgeInput): Promis
     throw new Error("This song already has accepted lyrics. Restore them before publishing");
   }
   const allocations = bridgeAllocations(input.royaltySplit);
-  const termsAlreadyIssued = input.coordinator.currentRecord?.commands.some(command => command.kind === "terms") ?? false;
+  const termsAlreadyIssued = input.coordinator.termsIssued;
   if (!termsAlreadyIssued && input.license.presetId === "commercial-remix") {
     await input.coordinator.bindTerms({
       licensePreset: input.license.presetId,
@@ -82,6 +82,31 @@ export async function submitSongComposer(input: SongComposerBridgeInput): Promis
 export interface SongComposerSnapshotProjection {
   readonly lyricsValue?: string;
   readonly song: Pick<SongComposerState, "lyricsEditorState">;
+}
+
+interface RecoveredSongComposerProjection {
+  personaId: string; songMode: SongMode; ageGatePolicy: "none" | "18_plus";
+  song: SongComposerState; lyrics: string; license: AssetLicenseState; royaltySplit: AssetRoyaltySplitState;
+}
+
+export function projectActiveSongIntoComposer(item: ActiveSongMediaPostSubmission): RecoveredSongComposerProjection {
+  const personaId = item.submission.author_persona.persona_id;
+  const terms = item.terms_state.current;
+  const projection = projectSnapshotIntoSongComposer(item.submission);
+  const allocations = terms.status === "ready" ? terms.royalty_allocations : [{ recipient_id: personaId, share_bps: 10_000 }];
+  return {
+    personaId, songMode: item.song_type, ageGatePolicy: item.author_declared_rating === "adult_18" ? "18_plus" : "none",
+    song: { title: item.title, primaryAudioUpload: null, ...projection.song },
+    lyrics: projection.lyricsValue ?? "",
+    license: terms.status !== "ready" ? { presetId: "non-commercial" }
+      : terms.license_preset === "commercial-remix" ? { presetId: terms.license_preset, commercialRevShareBps: terms.commercial_rev_share_bps }
+        : { presetId: terms.license_preset },
+    royaltySplit: { allocations: allocations.map((allocation, index) => ({
+      id: `recovered-${index}`, recipientId: allocation.recipient_id,
+      recipientKind: allocation.recipient_id === personaId ? "creator" : "collaborator",
+      shareBps: allocation.share_bps, sharePct: allocation.share_bps / 100,
+    })) },
+  };
 }
 
 export function projectSnapshotIntoSongComposer(snapshot: MediaSubmissionSnapshot): SongComposerSnapshotProjection {

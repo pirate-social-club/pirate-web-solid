@@ -2,7 +2,8 @@ import { afterEach, describe, expect, test, vi } from "vitest";
 
 import type { PostCommunitiesCommunityIdMediaUploadReservationsResponse } from "@pirate/api-client";
 
-import type { MediaSubmissionSnapshot } from "./contracts";
+import type { ActiveSongMediaPostSubmission, MediaSubmissionSnapshot } from "./contracts";
+import { projectActiveSongIntoComposer, submitSongComposer } from "../post-composer/media-composer-bridge";
 import {
   createMediaSubmissionCoordinator,
   type MediaSubmissionCoordinator,
@@ -77,6 +78,7 @@ async function commandBody(command: PersistedMediaCommand): Promise<MediaCommand
 }
 
 class MemoryMediaTransport implements MediaSubmissionTransport {
+  async listActive() { return { object: "active_song_media_post_submission_page" as const, items: [], next_cursor: null }; }
   readonly kinds: string[] = [];
   readonly commands: PersistedMediaCommand[] = [];
   onDispatch: ((kind: PersistedMediaCommand["kind"]) => void) | null = null;
@@ -177,6 +179,43 @@ afterEach(() => {
 });
 
 describe("media submission coordinator", () => {
+  test("recovers only server state and does not repeat upload or bound terms", async () => {
+    const transport = new MemoryMediaTransport();
+    transport.current = snapshot({ audio_revision: 1, phase: "analysis", creation_revision: 3,
+      lyrics_state: { current: { status: "ready", text: "Accepted lyrics", lyrics_revision: 1, audio_revision: 1 } } });
+    const item: ActiveSongMediaPostSubmission = { object: "active_song_media_post_submission",
+      community_id: "community-1", title: "Server title", song_type: "remix", author_declared_rating: "adult_18",
+      terms_state: { current: { status: "ready", license_preset: "commercial-remix", commercial_rev_share_bps: 1250,
+        access_mode: "public", royalty_allocations: [{ recipient_id: "persona-one", share_bps: 7500 }, { recipient_id: "collaborator", share_bps: 2500 }] } },
+      submission: transport.current };
+    const coordinator = createMediaSubmissionCoordinator({ transport });
+    coordinator.recover(item);
+    expect(coordinator.termsIssued).toBe(true);
+    expect(coordinator.currentRecord).toMatchObject({ audio: null, reservation: null, pending_command: null, commands: [] });
+    const projection = projectActiveSongIntoComposer(item);
+    expect(projection).toMatchObject({ personaId: "persona-one", songMode: "remix", ageGatePolicy: "18_plus",
+      song: { title: "Server title", primaryAudioUpload: null }, lyrics: "Accepted lyrics",
+      license: { presetId: "commercial-remix", commercialRevShareBps: 1250 },
+      royaltySplit: { allocations: [{ recipientKind: "creator", shareBps: 7500 }, { recipientKind: "collaborator", shareBps: 2500 }] } });
+    await submitSongComposer({ ...projection, coordinator, communityId: "community-1", authorDeclaredRating: "adult_18" });
+    expect(transport.kinds).toEqual([]);
+    expect(transport.uploadCount).toBe(0);
+  });
+
+  test("recovered unfinished upload requires cancel and never recreates a file", async () => {
+    const transport = new MemoryMediaTransport();
+    transport.current = snapshot();
+    const coordinator = createMediaSubmissionCoordinator({ transport });
+    coordinator.recover({ object: "active_song_media_post_submission", community_id: "community-1",
+      title: "Unfinished upload", song_type: "original", author_declared_rating: "general",
+      terms_state: { current: { status: "not_bound" } }, submission: transport.current });
+    expect(coordinator.recoveredUploadUnavailable).toBe(true);
+    await expect(coordinator.uploadAndFinalize()).rejects.toThrow("The original audio file and upload reservation are no longer available");
+    expect(transport.uploadCount).toBe(0);
+    expect((await coordinator.cancel()).status).toBe("abandoned");
+    expect(transport.kinds).toEqual(["cancel"]);
+  });
+
   test("runs one reserve, start, upload, and finalize for an ordinary song", async () => {
     const transport = new MemoryMediaTransport();
     const coordinator = createMediaSubmissionCoordinator({ transport });
