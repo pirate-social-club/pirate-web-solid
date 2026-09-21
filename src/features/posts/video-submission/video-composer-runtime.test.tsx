@@ -22,7 +22,7 @@ const startCapture = vi.fn(async (_input: OriginalVideoCaptureInput) => {
   return nextSession();
 });
 afterEach(() => { for (const dispose of disposers.splice(0)) dispose(); document.body.replaceChildren(); nextSession = undefined; startCapture.mockClear(); vi.unstubAllGlobals(); });
-function setup(final: "published" | "manual_review" | "provider_submission_unconfirmed" | "membership_required", rejectKind?: "reserve" | "start", beforeExecute?: (command: VideoCommand) => Promise<void>) {
+function setup(final: "published" | "manual_review" | "provider_submission_unconfirmed" | "membership_required" | "transform_failed", rejectKind?: "reserve" | "start", beforeExecute?: (command: VideoCommand) => Promise<void>) {
   vi.stubGlobal("crypto", webcrypto);
   const urlApi = class extends URL { static createObjectURL() { return "blob:https://example.test/video"; } static revokeObjectURL() {} };
   vi.stubGlobal("URL", urlApi);
@@ -102,6 +102,11 @@ describe("mounted original video flow", () => {
     setup("membership_required"); await selectAndPublish();
     await vi.waitFor(() => expect(document.body.textContent).toContain("posting eligibility"));
     expect(document.body.textContent).toContain("Retry publication"); expect(document.body.textContent).not.toContain("Retry processing");
+  });
+  test("an explicit nonretryable processing failure can start a new video", async () => {
+    setup("transform_failed"); await selectAndPublish();
+    await vi.waitFor(() => expect(document.body.textContent).toContain("Start a new video"));
+    expect(document.body.textContent).not.toContain("Abandon unresolved video");
   });
   test("a server review hold stays private and does not claim publication", async () => {
     const fixture = setup("manual_review"); await selectAndPublish();
