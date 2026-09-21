@@ -372,3 +372,45 @@ describe("Study v2 runtime client", () => {
     });
   });
 });
+
+describe("study attempt idempotency keys", () => {
+  const sessionId = `study_v2_${"a".repeat(32)}`;
+  const exerciseId = `${sessionId}_item_1`;
+
+  test("stay within the api-next 128-character Identifier bound for real identifiers", async () => {
+    const { makeAttemptIdempotencyKey } = await import("./studying-model");
+    const key = makeAttemptIdempotencyKey(sessionId, exerciseId, 1);
+    expect(key.length).toBeLessThanOrEqual(128);
+  });
+
+  test("keep the same key for one logical attempt so a replay is idempotent", async () => {
+    const { makeAttemptIdempotencyKey } = await import("./studying-model");
+    const first = makeAttemptIdempotencyKey(sessionId, exerciseId, 2, "0123456789ab");
+    const replay = makeAttemptIdempotencyKey(sessionId, exerciseId, 2, "0123456789ab");
+    expect(replay).toBe(first);
+  });
+
+  test("distinguish different attempt numbers and different mounts", async () => {
+    const { makeAttemptIdempotencyKey } = await import("./studying-model");
+    const attemptOne = makeAttemptIdempotencyKey(sessionId, exerciseId, 1, "0123456789ab");
+    const attemptTwo = makeAttemptIdempotencyKey(sessionId, exerciseId, 2, "0123456789ab");
+    const otherMount = makeAttemptIdempotencyKey(sessionId, exerciseId, 1, "ba9876543210");
+    expect(attemptTwo).not.toBe(attemptOne);
+    expect(otherMount).not.toBe(attemptOne);
+  });
+
+  test("bound the fallback suffix when crypto.getRandomValues is unavailable", async () => {
+    const { makeAttemptIdempotencyKey } = await import("./studying-model");
+    const original = globalThis.crypto;
+    // SAFETY: the test replaces the global with a minimal object for the
+    // duration of one call and restores the runtime value afterwards.
+    Object.defineProperty(globalThis, "crypto", { configurable: true, value: {} });
+    try {
+      const key = makeAttemptIdempotencyKey(sessionId, exerciseId, 1);
+      expect(key.length).toBeLessThanOrEqual(128);
+      expect(key.split(":").at(-1)).toHaveLength(12);
+    } finally {
+      Object.defineProperty(globalThis, "crypto", { configurable: true, value: original });
+    }
+  });
+});

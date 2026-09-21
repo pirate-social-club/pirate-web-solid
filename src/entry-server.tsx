@@ -53,6 +53,12 @@ export async function render(
       context?.COMMUNITY_CREATION_AVATAR_AUTHORING_ENABLED,
       context?.PUBLIC_APP_CANONICAL_ORIGIN,
     );
+    // SAFETY: this request-local value comes directly from the typed Worker
+    // render context and is read only as that same optional string.
+    const locals = event.locals as typeof event.locals & {
+      apiNextOrigin?: string;
+    };
+    locals.apiNextOrigin = context?.API_NEXT_ORIGIN;
   }
   // SAFETY: Vite's runtime manifest includes the `_base` member used by the
   // Solid asset resolver even though AssetManifest's public index signature

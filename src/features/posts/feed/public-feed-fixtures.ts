@@ -1,5 +1,30 @@
 import type { PublicFeedPage } from "./public-feed-adapter.ts";
+import type { PlaybackGrant } from "../video-submission/playback-access.ts";
+import type { SongAttributionLinkResolver } from "../song-attribution/song-attribution.ts";
 import reviewVideoUrl from "../../../../packages/solid-ui/src/patterns/engagement/vertical-feed/fixtures/clip-1.mp4";
+import reviewPosterUrl from "../../../../packages/solid-ui/src/patterns/engagement/vertical-feed/fixtures/poster-1.jpg";
+
+/**
+ * Review seams for the local fixture route and its stories. The primary
+ * review video is a playable delivery-shaped item: the mint answers with the
+ * harness playback URL (Chromium maps the customer host to the loopback TLS
+ * media server) and the poster is a local asset, so the fixture plays without
+ * a provider or a live API.
+ */
+export const reviewPlaybackMint = async (): Promise<PlaybackGrant> => {
+  const now = Date.now();
+  return {
+    url: "https://customer-harness.cloudflarestream.com/harness.harness.harness/manifest/video.m3u8",
+    expiresAt: now + 240_000,
+    renewAt: now + 120_000,
+  };
+};
+export const reviewPosterPath = (): string => reviewPosterUrl;
+export const reviewSongLinks: SongAttributionLinkResolver = async (attribution) => ({
+  href: `/p/${encodeURIComponent(attribution.songPostId)}`,
+  title: "Harness practice song",
+  authorName: "Harness learner 1",
+});
 
 /**
  * Deliberately local review data. It gives the shell a useful visual state
@@ -26,6 +51,8 @@ export const publicFeedReviewPage: PublicFeedPage = {
       caption: "A sovereign town square for communities, creators, and the moments worth sharing.",
       createdAt: "2026-08-19T09:20:00.000Z",
       mediaRefs: [reviewVideoUrl],
+      videoDelivery: { playback: "ready", thumbnail: "ready" },
+      songPostId: "post_harness_song",
       analysisState: "allow",
       contentSafetyState: "safe",
       ageGatePolicy: "none",
@@ -119,5 +146,31 @@ export const publicFeedReviewPage: PublicFeedPage = {
       viewCount: 1200,
     },
   ],
+  nextCursor: null,
+};
+
+/**
+ * Dedicated processing/error fixture. The ordinary review page never renders
+ * these as full-screen items; they exist for the stories and tests that own
+ * the author-visible delivery states.
+ */
+export const publicFeedProcessingPage: PublicFeedPage = {
+  items: [
+    {
+      ...publicFeedReviewPage.items[0]!,
+      id: "review-post-processing",
+      caption: "A video still being prepared.",
+      videoDelivery: { playback: "pending", thumbnail: "pending" },
+      songPostId: "post_harness_song",
+    },
+    {
+      ...publicFeedReviewPage.items[0]!,
+      id: "review-post-unavailable",
+      caption: "A video whose playback failed.",
+      videoDelivery: { playback: "unavailable", thumbnail: "unavailable" },
+      songPostId: null,
+    },
+  ],
+  topCommunities: [],
   nextCursor: null,
 };

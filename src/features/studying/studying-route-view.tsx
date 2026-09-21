@@ -121,6 +121,16 @@ function LoadedStudyingLesson(props: StudyingRouteViewProps & {
     return created;
   };
 
+  /**
+   * A new recording is a new payload. The cached key belongs to the audio it
+   * was minted with, so rotating it here keeps a replay of one submission on
+   * one key while ensuring different audio never reuses a key bound to
+   * another digest. The server reclaims the same logical attempt on retry.
+   */
+  const rotateAttemptIdempotencyKey = (exerciseId: string, attemptNumber: number): void => {
+    idempotencyKeys.delete(`${props.payload.session_id}:${exerciseId}:${attemptNumber}`);
+  };
+
   const recoverFromDivergence = (): boolean => {
     if (divergenceRecoveries >= STUDY_ATTEMPT_DIVERGENCE_RECOVERY_LIMIT) return false;
     divergenceRecoveries += 1;
@@ -263,6 +273,7 @@ function LoadedStudyingLesson(props: StudyingRouteViewProps & {
 
   const beginCapture = (card: SayItBackSurfaceState) => {
     unlockStudyFeedbackAudio();
+    rotateAttemptIdempotencyKey(card.exercise.id, card.attemptNumber);
     const recorder = props.recorder;
     if (!recorder) {
       updateSayItBack(card.exercise.id, (latest, current) => ({

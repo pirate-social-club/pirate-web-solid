@@ -62,6 +62,9 @@ import {
 
 export interface CommunityPageProps {
   readonly pathSegment: string;
+  /** Entering from a song post's "Use this song": the song is carried into the
+   * video composer, which opens once a posting session is resolved. */
+  readonly initialVideoSong?: { readonly postId: string };
   readonly client?: CommunityRouteClient;
   readonly engagementApi?: CommunityEngagementApi;
   readonly handleSalesClient?: PublicHandleSalesApiClient;
@@ -126,6 +129,7 @@ function SuccessState(props: {
   /** The keyed community identity this instance is scoped to. */
   readonly communityId: string;
   readonly engagementApi: CommunityEngagementApi;
+  readonly initialVideoSong?: { readonly postId: string };
   readonly state: CommunityPageSuccess;
   readonly handleSalesClient: PublicHandleSalesApiClient;
   readonly resolveSession?: () => Promise<SessionResolution>;
@@ -384,6 +388,32 @@ function SuccessState(props: {
     }
   };
 
+  // An entry that carries a song opens the video composer through the same
+  // session resolution the Post action uses, once: closing the composer is the
+  // author's decision, not a reason to reopen it.
+  let openedForSong = false;
+  let openingForSong = false;
+  createEffect(
+    () => [props.initialVideoSong, engagement.joined(), engagement.accountIdentity()] as const,
+    ([song, joined, identity]) => {
+      if (openedForSong || openingForSong || !song || !joined || identity === undefined) return;
+      openingForSong = true;
+      setPostingBusy(true);
+      void engagement.resolvePostingSession().then(
+        (resolved) => {
+          if (active && resolved !== undefined) {
+            openedForSong = true;
+            setComposerOpen(true);
+          }
+        },
+        () => undefined,
+      ).finally(() => {
+        openingForSong = false;
+        if (active) setPostingBusy(false);
+      });
+    },
+  );
+
   const personaOptions = () => toOperationPersonas(communityOperationPersonas(
     engagement.postingSession()?.personas ?? [], communityId,
   ));
@@ -565,6 +595,7 @@ function SuccessState(props: {
         {session => (
           <CreatePostDialog
             communityContext={{ id: communityId, name: community().name }}
+            initialVideoSong={props.initialVideoSong}
             onOpenChange={setComposerOpen}
             open={composerOpen()}
             personaId={selectedPersonaId()}
@@ -579,6 +610,7 @@ function SuccessState(props: {
 
 function CommunityState(props: {
   readonly engagementApi: CommunityEngagementApi;
+  readonly initialVideoSong?: { readonly postId: string };
   readonly state: CommunityPageViewState;
   readonly handleSalesClient: PublicHandleSalesApiClient;
   readonly resolveSession?: () => Promise<SessionResolution>;
@@ -601,6 +633,7 @@ function CommunityState(props: {
             <SuccessState
               communityId={communityId}
               engagementApi={props.engagementApi}
+              initialVideoSong={props.initialVideoSong}
               state={state()}
               handleSalesClient={props.handleSalesClient}
               resolveSession={props.resolveSession}
@@ -632,6 +665,7 @@ function CommunityData(props: CommunityPageProps) {
   return (
     <CommunityState
       engagementApi={engagementApi}
+      initialVideoSong={props.initialVideoSong}
       viewerVoteClient={props.viewerVoteClient}
       state={state()}
       handleSalesClient={handleSalesClient}

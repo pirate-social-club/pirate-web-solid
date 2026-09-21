@@ -49,7 +49,7 @@ describe("same-origin API transport", () => {
     );
   });
 
-  it("filters unsafe request headers and leaves duplicate cookie pairs raw", () => {
+  it("forwards only allowlisted request headers and leaves duplicate cookie pairs raw", () => {
     const request = new Request("https://solid.test/api/posts?x=1", {
       headers: {
         accept: "application/json",
@@ -57,7 +57,11 @@ describe("same-origin API transport", () => {
         cookie: "__Host-pirate_session=one; __Host-pirate_session=two; a=b",
         host: "evil.test",
         origin: "https://solid.test",
+        "x-api-key": "should-not-forward",
         "x-csrf-token": "csrf",
+        "x-internal-credential": "should-not-forward",
+        "x-audio-duration-ms": "1250",
+        "x-study-attempt-number": "2",
         "x-not-allowlisted": "drop",
       },
     });
@@ -65,9 +69,13 @@ describe("same-origin API transport", () => {
     expect(headers.get("accept")).toBe("application/json");
     expect(headers.get("authorization")).toBeNull();
     expect(headers.get("host")).toBeNull();
+    expect(headers.get("x-api-key")).toBeNull();
+    expect(headers.get("x-internal-credential")).toBeNull();
     expect(headers.get("x-not-allowlisted")).toBeNull();
     expect(headers.get("cookie")).toBe("__Host-pirate_session=one; __Host-pirate_session=two; a=b");
     expect(headers.get("x-csrf-token")).toBe("csrf");
+    expect(headers.get("x-audio-duration-ms")).toBe("1250");
+    expect(headers.get("x-study-attempt-number")).toBe("2");
   });
 
   it("preserves multiple Set-Cookie values", () => {

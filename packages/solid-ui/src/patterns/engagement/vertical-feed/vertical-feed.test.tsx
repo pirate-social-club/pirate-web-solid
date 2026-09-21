@@ -391,3 +391,61 @@ describe("VerticalFeed", () => {
     await expectNoA11yViolations();
   });
 });
+
+describe("host placeholder playback policy", () => {
+  it("exposes the active row, autoplay policy, interaction gate and controlled mute", async () => {
+    type Placeholder = {
+      readonly id: string;
+      readonly active: () => boolean;
+      readonly autoplay: () => boolean;
+      readonly hasUserInteracted: () => boolean;
+      readonly markUserInteracted: () => void;
+      readonly muted: () => boolean | undefined;
+      readonly reportMuteToggle: (muted: boolean) => void;
+    };
+    const seen: Placeholder[] = [];
+    const onMuteToggle = vi.fn();
+    render(() => (
+      <VerticalFeed
+        autoplay
+        feedLabel="Policy feed"
+        muted
+        onMuteToggle={onMuteToggle}
+        posts={[{ id: "host-1", placeholder: true }, { id: "host-2", placeholder: true }]}
+        renderPlaceholder={(id, context) => {
+          seen.push({ id, ...context });
+          return (
+            <button type="button" onClick={() => context.markUserInteracted()}>
+              play {id}
+            </button>
+          );
+        }}
+      />
+    ));
+    await flush();
+
+    const region = screen.getByRole("region", { name: "Policy feed" });
+    expect(seen.map(entry => entry.id)).toEqual(["host-1", "host-2"]);
+    expect(seen[0]!.active()).toBe(true);
+    expect(seen[1]!.active()).toBe(false);
+    expect(seen[0]!.autoplay()).toBe(true);
+    expect(seen[1]!.autoplay()).toBe(false);
+    expect(seen[0]!.hasUserInteracted()).toBe(false);
+    expect(seen[0]!.muted()).toBe(true);
+
+    // Arrow navigation moves the active row: the policy follows.
+    fireEvent.keyDown(region, { key: "ArrowDown" });
+    await flush();
+    expect(seen[1]!.active()).toBe(true);
+    expect(seen[1]!.autoplay()).toBe(true);
+    expect(seen[0]!.autoplay()).toBe(false);
+
+    // The gate flips through a user event, exactly as the host player reports it.
+    await userEvent.click(screen.getByRole("button", { name: "play host-1" }));
+    expect(seen[0]!.hasUserInteracted()).toBe(true);
+    expect(seen[1]!.hasUserInteracted()).toBe(true);
+
+    seen[1]!.reportMuteToggle(false);
+    expect(onMuteToggle).toHaveBeenCalledWith("host-2", false);
+  });
+});

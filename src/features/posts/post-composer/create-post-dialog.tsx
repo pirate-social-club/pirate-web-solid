@@ -107,6 +107,9 @@ function mediaStateMessage(view: SongSubmissionView): string {
 
 export interface CreatePostDialogProps {
   readonly communityContext?: PostCommunityContext;
+  /** Entering from a song post: open on the video track with this song chosen
+   * before capture. */
+  readonly initialVideoSong?: { readonly postId: string };
   readonly open: boolean;
   readonly onOpenChange: (open: boolean) => void;
   readonly onPublished?: () => void;
@@ -146,7 +149,9 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
   const [body, setBody] = createSignal("");
   const [textAgeGatePolicy, setTextAgeGatePolicy] = createSignal<AuthorAgeGatePolicy>("none");
   const [songAgeGatePolicy, setSongAgeGatePolicy] = createSignal<AuthorAgeGatePolicy>("none");
-  const [mode, setMode] = createSignal<ComposerTab>("text");
+  const [mode, setMode] = createSignal<ComposerTab>(
+    untrack(() => (props.initialVideoSong ? "video" : "text")),
+  );
   const ageGatePolicy = () => mode() === "song" ? songAgeGatePolicy() : textAgeGatePolicy();
   const setAgeGatePolicy = (next: AuthorAgeGatePolicy) => {
     if (mode() === "song") setSongAgeGatePolicy(next);
@@ -676,6 +681,7 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
               fallback={
                 <Show when={props.principalId}>{account => <VideoComposerRuntime
                   principalId={account()} communityId={communityId().trim()} personaId={selectedActivePersonaId()}
+                  initialSong={props.initialVideoSong}
                   storage={props.videoStorage} transport={props.videoTransport} fetchImpl={props.fetchImpl}
                   onExit={() => setMode("text")} onPublished={props.onPublished}
                   onRetainedPersona={(personaId, retainedCommunityId) => {

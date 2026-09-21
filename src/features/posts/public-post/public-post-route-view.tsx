@@ -10,6 +10,9 @@ import type { PublicPostContentResponse, PublicPostRouteState } from "./public-p
 import { projectVideoDelivery } from "../video-submission/delivery-state";
 import { VideoPlayer } from "../video-submission/video-player";
 import { SongPlayer } from "../song-player/song-player.tsx";
+import { SongVideoEntry } from "./song-video-entry.tsx";
+import { SongAttributionChip } from "../song-attribution/song-attribution-chip.tsx";
+import { readSongAttribution } from "../song-attribution/song-attribution.ts";
 import { buttonVariants } from "../../../design-system";
 
 export interface PublicPostRouteViewProps {
@@ -92,10 +95,14 @@ function PostDetail(props: { readonly response: PublicPostContentResponse }) {
         <Show when={body()}>{value => <p class="whitespace-pre-wrap">{value()}</p>}</Show>
         <Show when={props.response.content.post.post_type === "video"}>
           <VideoPlayer requiresAgeVerification={props.response.content.post.age_gate_policy === "18_plus"} postId={props.response.post_id} state={projectVideoDelivery(props.response.content.video)} />
+          <Show when={readSongAttribution(props.response.content.video)}>
+            {attribution => <div class="mt-2"><SongAttributionChip attribution={attribution()} /></div>}
+          </Show>
         </Show>
         <Show when={props.response.content.post.post_type === "song"}>
           <div class="mt-4 grid gap-4">
             <SongPlayer postId={props.response.post_id} title={title()} />
+            <SongVideoEntry communityId={props.response.content.post.community} postId={props.response.post_id} />
             <Show when={route()}>
               {(songRoute) => (
                 <nav aria-label="Song activities" class="flex flex-wrap gap-3">

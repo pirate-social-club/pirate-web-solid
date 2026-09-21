@@ -3,6 +3,11 @@ import type { ScorableKaraokeLine } from "../runtime";
 import type { ApiKaraokeSession } from "../runtime/api-contracts";
 import { createBrowserMicCaptureDeps } from "../capture/karaoke-mic-capture-browser";
 import { KaraokeMicCapture } from "../capture/karaoke-mic-capture";
+// A Vite `new URL(..., import.meta.url)` asset for a TypeScript AudioWorklet is
+// copied verbatim and inlined as a data URL with a non-JavaScript MIME type, so
+// `audioWorklet.addModule` fails in the built application. Asking Vite to bundle
+// the worklet as a module URL emits compiled JavaScript instead.
+import workletModuleUrl from "../capture/karaoke-capture-processor.ts?worker&url";
 import {
   createKaraokeScoringController,
   type KaraokeScoringController,
@@ -10,9 +15,8 @@ import {
 } from "./karaoke-scoring-controller";
 
 function resolveWorkletModuleUrl(): URL {
-  // Vite emits the processor as an independent module asset; keeping the URL
-  // relative to this edge wrapper avoids a hard-coded deployment path.
-  return new URL("../capture/karaoke-capture-processor.ts", import.meta.url);
+  // Vite rewrites this edge wrapper to the emitted worklet module asset URL.
+  return new URL(workletModuleUrl, import.meta.url);
 }
 
 type CreateKaraokeSessionApi = (

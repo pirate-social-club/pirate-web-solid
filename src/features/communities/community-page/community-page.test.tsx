@@ -394,6 +394,37 @@ describe("CommunityPage", () => {
     await vi.waitFor(() => expect(contextualComposerOpen()).toBe(true));
   });
 
+  test("a song entry opens the video composer on that song without a Post action", async () => {
+    const resolveSession = vi.fn(async () => ({
+      status: "authenticated" as const,
+      userId: "account-one",
+      personas: [],
+    }));
+    const container = render(() => (
+      <CommunityPage
+        client={{
+          get_cPathSegment: async () => route,
+          get_communitiesCommunityIdPreview: async () => preview,
+        }}
+        engagementApi={engagementApi({
+          readViewerState: vi.fn(async () => ({ membership: "member" as const, following: false, followerCount: 20 })),
+        })}
+        handleSalesClient={{ get_communitiesCommunityIdHandleOfferings: async () => ({ items: [], next_cursor: null }) }}
+        initialVideoSong={{ postId: "song-post" }}
+        pathSegment="xn--pokmon-dva"
+        resolveSession={resolveSession}
+      />
+    ));
+    await vi.waitFor(() => expect(container.querySelector("h1")?.textContent).toBe("Pirate Harbor"));
+    // No Post click: the song carried by the entry is enough to open the
+    // video composer once the posting session resolves.
+    // The video track has no "Close composer" chrome of its own, so the
+    // open composer is identified by its own surface.
+    await vi.waitFor(() => expect(document.querySelector('[aria-label="Video composer"]')).not.toBeNull());
+    expect(document.querySelector('[aria-label="Soundtrack"]')).not.toBeNull();
+    expect([...document.querySelectorAll("button")].some(button => button.textContent?.trim() === "Publish video")).toBe(false);
+  });
+
   test("profile failure does not open an empty composer and the Post action retries", async () => {
     let unavailable = true;
     const resolveSession = vi.fn(async () => ({
