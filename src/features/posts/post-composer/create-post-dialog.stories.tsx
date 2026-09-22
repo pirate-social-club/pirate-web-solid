@@ -2,7 +2,7 @@
 // component (CreatePostDialog), so every flow reviewed here is the shipped
 // surface; the Parts stories demonstrate the inner components in isolation.
 import { createSignal, Show } from "solid-js";
-import { expect, userEvent, within } from "storybook/test";
+import { expect, userEvent, waitFor, within } from "storybook/test";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import type { PostCommunitiesCommunityIdMediaUploadReservationsResponse } from "@pirate/api-client";
 
@@ -119,6 +119,21 @@ class StoryMediaTransport implements MediaSubmissionTransport {
 const storyMp3 = (name = "midnight-waves.mp3") =>
   new File([new Uint8Array([0x49, 0x44, 0x33, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00])], name, { type: "audio/mpeg" });
 
+async function uploadStorySong(canvas: ReturnType<typeof within>): Promise<void> {
+  await userEvent.upload(await canvas.findByLabelText("Upload audio"), storyMp3());
+  // Upload dispatch does not await metadata extraction. The field can exist
+  // before its value settles, so presence alone is not a readiness assertion.
+  await waitFor(async () => {
+    await expect(canvas.getByRole("textbox", { name: "Song title" })).toHaveValue("midnight-waves");
+  });
+}
+
+async function continueSongStep(canvas: ReturnType<typeof within>): Promise<void> {
+  const button = await canvas.findByRole("button", { name: "Continue" });
+  await waitFor(async () => { await expect(button).toBeEnabled(); });
+  await userEvent.click(button);
+}
+
 interface StoryOptions {
   readonly personaCount?: 1 | 2;
   readonly personaId?: string;
@@ -209,8 +224,10 @@ export const ContextualTextMultiplePersonas: Story = {
   render: () => dialogHarness({ personaCount: 2, personaId: "persona-two" }).render(),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement.ownerDocument.body);
-    await expect(canvas.queryByRole("button", { name: /^Post as: / })).not.toBeInTheDocument();
-    await expect(canvas.getByRole("button", { name: "Publish post" })).toBeInTheDocument();
+    await expect(await canvas.findByRole("button", { name: "Publish post" })).toBeInTheDocument();
+    await waitFor(async () => {
+      await expect(canvas.queryByRole("button", { name: /^Post as: / })).not.toBeInTheDocument();
+    });
   },
 };
 
@@ -219,8 +236,7 @@ export const SongStepSong: Story = {
   render: () => dialogHarness().render(),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement.ownerDocument.body);
-    await userEvent.upload(canvas.getByLabelText("Upload audio"), storyMp3());
-    await expect(canvas.getByRole("textbox", { name: "Song title" })).toHaveValue("midnight-waves");
+    await uploadStorySong(canvas);
   },
 };
 
@@ -235,11 +251,11 @@ export const SongLyricsOnSongStep: Story = {
   render: () => dialogHarness().render(),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement.ownerDocument.body);
-    await userEvent.upload(canvas.getByLabelText("Upload audio"), storyMp3());
+    await uploadStorySong(canvas);
     await userEvent.click(await canvas.findByRole("button", { name: "Add lyrics (optional)" }));
     const lyrics = await canvas.findByLabelText("Lyrics");
     await userEvent.type(lyrics, "A line carried on the tide");
-    await expect(lyrics).toHaveValue("A line carried on the tide");
+    await waitFor(async () => { await expect(lyrics).toHaveValue("A line carried on the tide"); });
   },
 };
 
@@ -248,11 +264,11 @@ export const SongStepRights: Story = {
   render: () => dialogHarness().render(),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement.ownerDocument.body);
-    await userEvent.upload(canvas.getByLabelText("Upload audio"), storyMp3());
-    await userEvent.click(await canvas.findByRole("button", { name: "Continue" }));
-    await expect(canvas.getByText("What others may do with this song")).toBeInTheDocument();
-    await expect(canvas.getByText("Earnings split")).toBeInTheDocument();
-    await expect(canvas.getByText("Persona One")).toBeInTheDocument();
+    await uploadStorySong(canvas);
+    await continueSongStep(canvas);
+    await expect(await canvas.findByText("What others may do with this song")).toBeInTheDocument();
+    await expect(await canvas.findByText("Earnings split")).toBeInTheDocument();
+    await expect(await canvas.findByText("Persona One")).toBeInTheDocument();
   },
 };
 
@@ -262,8 +278,8 @@ export const SongStepRightsCollaborators: Story = {
   render: () => dialogHarness({ personaCount: 2 }).render(),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement.ownerDocument.body);
-    await userEvent.upload(canvas.getByLabelText("Upload audio"), storyMp3());
-    await userEvent.click(await canvas.findByRole("button", { name: "Continue" }));
+    await uploadStorySong(canvas);
+    await continueSongStep(canvas);
     await expect(await canvas.findByText("Earnings split")).toBeInTheDocument();
   },
 };
@@ -273,12 +289,15 @@ export const SongStepReview: Story = {
   render: () => dialogHarness().render(),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement.ownerDocument.body);
-    await userEvent.upload(canvas.getByLabelText("Upload audio"), storyMp3());
-    await userEvent.click(await canvas.findByRole("button", { name: "Continue" }));
-    await userEvent.click(await canvas.findByRole("button", { name: "Continue" }));
-    await expect(canvas.getByText("Permissions")).toBeInTheDocument();
-    await expect(canvas.getByText("Earnings split")).toBeInTheDocument();
-    await expect(canvas.getByText("You 100%")).toBeInTheDocument();
+    await uploadStorySong(canvas);
+    await continueSongStep(canvas);
+    // Both steps name their action Continue. Confirm the new step before
+    // looking up the next action, rather than clicking the old button twice.
+    await expect(await canvas.findByText("What others may do with this song")).toBeInTheDocument();
+    await continueSongStep(canvas);
+    await expect(await canvas.findByText("Permissions")).toBeInTheDocument();
+    await expect(await canvas.findByText("Earnings split")).toBeInTheDocument();
+    await expect(await canvas.findByText("You 100%")).toBeInTheDocument();
   },
 };
 
@@ -287,8 +306,8 @@ export const SongManualReview: Story = {
   render: () => dialogHarness({ mediaTransport: new StoryMediaTransport("manual_review") }).render(),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement.ownerDocument.body);
-    await userEvent.upload(canvas.getByLabelText("Upload audio"), storyMp3());
-    await userEvent.click(await canvas.findByRole("button", { name: "Continue" }));
+    await uploadStorySong(canvas);
+    await continueSongStep(canvas);
     await expect(await canvas.findByText("This song is awaiting manual review.")).toBeInTheDocument();
   },
 };
@@ -298,8 +317,8 @@ export const SongBlocked: Story = {
   render: () => dialogHarness({ mediaTransport: new StoryMediaTransport("blocked") }).render(),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement.ownerDocument.body);
-    await userEvent.upload(canvas.getByLabelText("Upload audio"), storyMp3());
-    await userEvent.click(await canvas.findByRole("button", { name: "Continue" }));
+    await uploadStorySong(canvas);
+    await continueSongStep(canvas);
     await expect(await canvas.findByText("This song was blocked by policy.")).toBeInTheDocument();
   },
 };
@@ -309,9 +328,9 @@ export const SongRetryableFailure: Story = {
   render: () => dialogHarness({ mediaTransport: new StoryMediaTransport("processing_failed") }).render(),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement.ownerDocument.body);
-    await userEvent.upload(canvas.getByLabelText("Upload audio"), storyMp3());
-    await userEvent.click(await canvas.findByRole("button", { name: "Continue" }));
+    await uploadStorySong(canvas);
+    await continueSongStep(canvas);
     await expect(await canvas.findByText(/Song processing failed/)).toBeInTheDocument();
-    await expect(canvas.getByRole("button", { name: "Retry processing" })).toBeInTheDocument();
+    await expect(await canvas.findByRole("button", { name: "Retry processing" })).toBeInTheDocument();
   },
 };
