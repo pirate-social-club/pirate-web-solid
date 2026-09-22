@@ -1,4 +1,5 @@
 import { expect, test, type ConsoleMessage, type Page, type Response } from "playwright/test";
+import { isAnonymousSessionProbe } from "./fixtures/anonymous-probes.ts";
 
 type PageFailures = Readonly<{
   messages: string[];
@@ -13,10 +14,6 @@ type PageFailures = Readonly<{
  * necessary question rather than a fault. It is recognised by request, so any
  * other rejected request still fails the route.
  */
-function isAnonymousSessionProbe(entry: { status: number; method: string; path: string }): boolean {
-  return entry.status === 401 && entry.method === "GET" && entry.path === "/api/users/me";
-}
-
 const resourceErrorText = /^Failed to load resource: the server responded with a status of 401/u;
 
 function collectPageFailures(page: Page): PageFailures {
@@ -76,7 +73,7 @@ test.describe("staging route smoke", { tag: "@staging-readonly" }, () => {
 
         // Every rejected request fails the route unless it is the anonymous
         // session probe, which is asserted rather than merely tolerated.
-        const unexpected = failures.rejected.filter(entry => !isAnonymousSessionProbe(entry));
+        const unexpected = failures.rejected.filter(entry => !isAnonymousSessionProbe(entry, failures.rejected));
         expect(unexpected, `unexpected rejected requests on ${path}`).toEqual([]);
         // The console line carries no request, so it is matched on its own
         // terms. Pairing it with a captured response only made the check

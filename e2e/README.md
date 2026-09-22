@@ -24,6 +24,14 @@ with `bun x playwright install chromium` when preparing an authorized live run.
 authorized secret runner or a git-ignored local `.env`; never place them in a
 script, source file, commit, trace, or bundle.
 
+The separate `@hns-readonly` diagnostic runs
+with `bun x playwright test -c e2e e2e/owner-settings-readonly.spec.ts` through
+the approved staging credential runner. It discovers an existing owner
+community, checks moderation, names and HNS discovery, and visits namespace
+settings twice. Browser API writes are blocked. Missing ownership or disabled
+HNS fails explicitly, rather than creating a community or skipping. This is
+not complete chain/DNS onboarding acceptance and does not access production.
+
 Tests tagged `@staging-mutating` are excluded from the default gate and also
 skip unless `E2E_ALLOW_MUTATION=1`. Run them explicitly with
 `bun run test:e2e:staging:mutating`. The Very scan-boundary test additionally
