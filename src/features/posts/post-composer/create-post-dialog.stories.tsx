@@ -236,9 +236,10 @@ export const SongLyricsOnSongStep: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement.ownerDocument.body);
     await userEvent.upload(canvas.getByLabelText("Upload audio"), storyMp3());
-    await userEvent.click(canvas.getByRole("button", { name: "Add lyrics (optional)" }));
-    await userEvent.type(canvas.getByLabelText("Lyrics"), "A line carried on the tide");
-    await expect(canvas.getByLabelText("Lyrics")).toHaveValue("A line carried on the tide");
+    await userEvent.click(await canvas.findByRole("button", { name: "Add lyrics (optional)" }));
+    const lyrics = await canvas.findByLabelText("Lyrics");
+    await userEvent.type(lyrics, "A line carried on the tide");
+    await expect(lyrics).toHaveValue("A line carried on the tide");
   },
 };
 
