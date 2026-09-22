@@ -32,3 +32,36 @@ The smoke correction accepts persona 401 only alongside an account-probe 401.
 It does not exempt other methods, endpoints, forbidden responses or server
 failures. Full regtest/DNS/gateway onboarding and the production 0qcm incident
 remain unproven. No deployment or wallet operation was performed.
+
+Follow-up correction. The typecheck failure above was an installed dependency
+mismatch, not missing exports in the committed artifact. The tarball and
+recorded client digest are
+c9290fa02294aaac96d5cb3b180bbd03e5194dd784ce7f2e8dd02039c1a9eee6;
+the first cached install produced
+11c8711347978e7dc6dfa56c13981c54528ca95d5022033849253558210000b1.
+A forced frozen install with a fresh isolated Bun cache restored the recorded
+digest without changing the artifact, package version or lockfile. Provenance,
+runtime tables and check:e2e then passed. Do not repair main's contracts based
+on the superseded diagnosis. The task-created temporary cache was removed after
+the install; shared caches and other worktrees were left untouched.
+
+The revised default staging smoke run passed seven tests without skips. It
+does not include HNS or hydration acceptance. The dedicated hydration command
+now fails with a clear missing-fixture error instead of skipping; its negative
+run failed as expected before exercising the browser journey. Thirty-three
+helper tests passed. Read-only membership discovery completed all pages and
+found one community for the approved staging owner; its public threads feed
+returned 200 with zero items. Two historical fixture names returned 404 with
+the maintained feed query. No content was created to make the test pass.
+
+Full repository verification passed the corrected typechecks, 33 helper tests,
+application tests (1,003), SSR tests (21), design-system tests (417), provenance
+and runtime tables. It later failed in unchanged text-post-check.mjs at line
+317: the Publish post locator timed out during click after scrolling began.
+The overall verify command is therefore not green; song-post-check, which
+comes after that command, was not reached by this run.
+
+The isolated text-post-check rerun passed all five scenarios: published,
+manual_review, blocked, typed_conflict and lost_response_replay, including exact
+replay and proxy assertions. This records a successful rerun, not an erasure of
+the earlier full-run timeout.

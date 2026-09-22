@@ -1,4 +1,5 @@
 import { expect, test } from "playwright/test";
+import { requireFeedHydrationFixture } from "./fixtures/feed-hydration-environment.ts";
 
 /**
  * The server resolves the community feed before it answers, and the client
@@ -20,15 +21,11 @@ import { expect, test } from "playwright/test";
  * staging-song-pipeline and community-very-staging-fixture-moderation-e2e,
  * report route_slug null and 404 on /public-communities/<ref>/feed.
  *
- * It reads E2E_FEED_COMMUNITY_PATH_SEGMENT and skips visibly without one.
+ * The dedicated hydration command fails before browser launch without a fixture.
  */
-const pathSegment = process.env.E2E_FEED_COMMUNITY_PATH_SEGMENT?.trim();
-
-test.describe("community feed hydration", { tag: "@staging-readonly" }, () => {
-  test.skip(
-    pathSegment === undefined || pathSegment === "",
-    "Set E2E_FEED_COMMUNITY_PATH_SEGMENT to a community whose public feed has posts.",
-  );
+test.describe("community feed hydration", { tag: "@feed-hydration" }, () => {
+  let pathSegment: string;
+  test.beforeAll(() => { pathSegment = requireFeedHydrationFixture(); });
 
   test("the served feed is adopted rather than read again", async ({ page }) => {
     const feedReads: string[] = [];

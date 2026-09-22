@@ -32,6 +32,13 @@ settings twice. Browser API writes are blocked. Missing ownership or disabled
 HNS fails explicitly, rather than creating a community or skipping. This is
 not complete chain/DNS onboarding acceptance and does not access production.
 
+Feed hydration runs separately with `bun run test:e2e:feed-hydration`. It requires
+`E2E_FEED_COMMUNITY_PATH_SEGMENT` and fails, rather than skips, if the fixture is
+missing or invalid. The generic read-only smoke command excludes this tag and
+does not establish hydration coverage. A designated required hydration job and
+a qualified maintained feed fixture are still needed; merely adding this
+command does not make it a required hosted check.
+
 Tests tagged `@staging-mutating` are excluded from the default gate and also
 skip unless `E2E_ALLOW_MUTATION=1`. Run them explicitly with
 `bun run test:e2e:staging:mutating`. The Very scan-boundary test additionally
