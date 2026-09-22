@@ -2,7 +2,8 @@ import type {
   GetCPathSegmentResponse,
   GetCommunitiesCommunityIdPreviewResponse,
 } from "@pirate/api-client";
-import { renderToStream, type JSX } from "@solidjs/web";
+import { createRequestEvent, renderToStream, type JSX } from "@solidjs/web";
+import { provideRequestEvent } from "@solidjs/web/storage";
 import { describe, expect, test, vi } from "vitest";
 
 import type { CommunityEngagementApi } from "./community-engagement-api.ts";
@@ -119,6 +120,53 @@ function page(overrides: PageOverrides = {}) {
 }
 
 describe("the feed the server sends", () => {
+  test("the default loader renders public posts through the request-origin proxy during SSR", async () => {
+    const origin = "https://community-ssr.example";
+    const feedPath = `/api/public-communities/${communityId}/feed`;
+    const network = vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+      const url = new URL(input instanceof Request ? input.url : input.toString());
+      expect(url.origin).toBe(origin);
+      expect(init?.credentials).toBe("omit");
+      if (url.pathname === "/api/c/harbor") return Response.json(route);
+      if (url.pathname === `/api/communities/${communityId}/preview`) return Response.json(preview);
+      if (url.pathname === `/api/communities/${communityId}/handle-offerings`) {
+        return Response.json({ items: [], next_cursor: null });
+      }
+      if (url.pathname === feedPath) {
+        expect(Object.fromEntries(url.searchParams)).toEqual({ surface: "threads", sort: "new", locale: "en" });
+        return Response.json({
+          community: preview,
+          items: [{
+            post: {
+              id: "post-public-ssr", object: "post", community: communityId,
+              authorship_mode: "human_direct", identity_mode: "public", post_type: "text",
+              status: "published", visibility: "public", analysis_state: "allow",
+              content_safety_state: "safe", age_gate_policy: "none", created: 1_756_752_000,
+              title: "Public default-loader thread", body: "Visible without a session.",
+            },
+            thread_snapshot: null, upvote_count: 3, downvote_count: 0, like_count: 0,
+            viewer_vote: null, viewer_reaction_kinds: [], resolved_locale: "en",
+            translation_state: "ready", machine_translated: false, source_hash: null,
+          }],
+          next_cursor: null,
+        });
+      }
+      throw new Error(`Unexpected SSR request: ${url.pathname}`);
+    });
+    try {
+      const { settled, errors } = await provideRequestEvent(
+        createRequestEvent(new Request(`${origin}/c/harbor`)),
+        () => serverRender(() => <CommunityPage pathSegment="harbor" />),
+      );
+      expect(errors).toEqual([]);
+      expect(settled).toContain("Public default-loader thread");
+      expect(settled).not.toContain("Community posts are temporarily unavailable");
+      expect(network.mock.calls.filter(([input]) => new URL(input instanceof Request ? input.url : input.toString()).pathname === feedPath)).toHaveLength(1);
+    } finally {
+      network.mockRestore();
+    }
+  });
+
   test("a non-empty feed is in the first flush, not added afterwards", async () => {
     const loadThreads = vi.fn(async (): Promise<CommunityThreadPage> => ({
       posts: [thread("Harbor thread")],

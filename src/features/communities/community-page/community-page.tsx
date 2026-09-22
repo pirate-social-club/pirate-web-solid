@@ -43,6 +43,7 @@ import { CommunityPersonaChoiceDialog } from "../../identity/community-persona-c
 import { communityJoinCandidates, communityOperationPersonas, defaultOperationPersonaId, toOperationPersonas } from "../../identity/community-persona-choice.ts";
 import { createCommunityModerationSettingsApi } from "../../community/owner-settings/community-moderation-settings-api.ts";
 import {
+  createCommunityThreadFeedClient,
   loadCommunityThreadPage,
   type CommunityThreadPage,
 } from "./community-thread-feed-api.ts";
@@ -251,7 +252,10 @@ function SuccessState(props: {
       if (authorized) return authorized;
       const injected = props.surfaceData?.posts;
       if (injected !== undefined) return { kind: "ready", posts: injected };
-      const load = props.loadThreads ?? ((id: string) => loadCommunityThreadPage({ communityRef: id }));
+      const load = props.loadThreads ?? ((id: string) => loadCommunityThreadPage({
+        communityRef: id,
+        client: createCommunityThreadFeedClient({ origin: communityRequestOrigin() }),
+      }));
       return load(communityId).then(
         (page): CommunityFeed => ({ kind: "ready", posts: page.posts, ageLockedCount: page.ageLockedCount }),
         (): CommunityFeed => ({ kind: "error" }),
