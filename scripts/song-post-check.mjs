@@ -12,6 +12,7 @@ import { spawn } from "node:child_process";
 import { once } from "node:events";
 import { createServer } from "node:http";
 import { chromium } from "playwright";
+import { songPostHref, songPostRouteFixture } from "./song-post-route-fixture.mjs";
 
 const apiPort = 8791;
 const solidPort = 4184;
@@ -143,7 +144,7 @@ function snapshotFor(record) {
       status: "published",
       published_resource: {
         post_id: `post-${record.submissionId}`,
-        href: `/posts/post-${record.submissionId}`,
+        href: songPostHref(record),
       },
     };
   }
@@ -199,6 +200,12 @@ const upstream = createServer(async (incoming, outgoing) => {
     if (pathname === "/health") return send(200, { ok: true });
     if (pathname === "/users/me") return send(200, userFixture());
     if (pathname === "/personas") return send(200, personasFixture());
+    if (pathname === "/public/posts/by-slug") {
+      const slug = new URL(incoming.url, apiOrigin).searchParams.get("slug");
+      const record = [...submissions.values()].find(item =>
+        item.status === "published" && songPostHref(item) === `/posts/${slug}`);
+      if (record) return send(200, songPostRouteFixture(record));
+    }
 
     const route = /^\/c\/(community_[^/]+)$/u.exec(pathname);
     if (incoming.method === "GET" && route !== null && communitiesById.has(route[1])) {
@@ -264,6 +271,7 @@ const upstream = createServer(async (incoming, outgoing) => {
       mediaCalls.push({ kind: "start", community });
       const record = submissionRecord(`submission-${community}`, `persona-song-${community}`);
       record.title = JSON.parse(body.toString("utf8")).title;
+      record.communityId = start[1];
       return send(201, snapshotFor(record));
     }
 
@@ -481,9 +489,16 @@ async function publishSong(page, community, { lyrics }) {
   await form.getByRole("button", { name: "Publish song" }).click();
   try {
     await form.waitFor({ state: "hidden", timeout: 20_000 });
-    await page.waitForURL(`**/posts/post-submission-${community}`);
+    await page.waitForURL(`**/posts/fixture-song-${community}`);
+    await page.locator('[data-public-post-state="content"]').waitFor();
+    await page.getByRole("heading", { name: `Fixture song ${community}`, exact: true }).waitFor();
+    const destination = await page.request.get(page.url());
+    assert(destination.status() === 200, `published destination returned ${destination.status()}`);
+    assert((await destination.text()).includes('data-public-post-state="content"'), "destination did not SSR the song");
+    const wrong = await page.request.get(`${solidOrigin}/posts/post-submission-${community}`);
+    assert(wrong.status() === 404, "internal post ID incorrectly resolved as a slug");
   } catch (error) {
-    process.stderr.write(`publish: ${JSON.stringify((await form.innerText()).slice(0, 500))}\n`);
+    process.stderr.write(`publish: ${JSON.stringify({ url: page.url(), text: (await page.locator("body").innerText()).slice(0, 1000) })}\n`);
     process.stderr.write(`calls: ${JSON.stringify(mediaCalls.filter(call => call.kind !== "unmatched"))}\n`);
     throw error;
   }

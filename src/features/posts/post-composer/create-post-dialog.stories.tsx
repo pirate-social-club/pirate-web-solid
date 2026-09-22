@@ -54,7 +54,7 @@ function snapshot(patch: Partial<MediaSubmissionSnapshot> = {}): MediaSubmission
 type StoryOutcome = "published" | "manual_review" | "blocked" | "processing_failed";
 
 function outcomeSnapshot(outcome: StoryOutcome, current: MediaSubmissionSnapshot): MediaSubmissionSnapshot {
-  if (outcome === "published") return snapshot({ ...current, status: "published", published_resource: { post_id: "post-story", href: "/posts/post-story" } });
+  if (outcome === "published") return snapshot({ ...current, status: "published", published_resource: { post_id: "post-story", href: "/posts/story-song-title" } });
   if (outcome === "manual_review") return snapshot({ ...current, status: "manual_review", reason_code: "review_required", review_ref: "review-story" });
   if (outcome === "blocked") return snapshot({ ...current, status: "blocked", reason_code: "policy_violation" });
   return snapshot({ ...current, status: "processing_failed", reason_code: "transform_failed", retry_count: 1, retryable: true });

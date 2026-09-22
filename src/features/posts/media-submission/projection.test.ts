@@ -31,7 +31,7 @@ describe("song media projections", () => {
       reasonCode: "review_required",
       reviewRef: "review-1",
     });
-    expect(projectMediaSubmission(snapshot({ status: "published", published_resource: { post_id: "post-1", href: "/posts/post-1" } }))).toMatchObject({ status: "published", postHref: "/posts/post-1" });
+    expect(projectMediaSubmission(snapshot({ status: "published", published_resource: { post_id: "post-1", href: "/posts/a-song-title" } }))).toMatchObject({ status: "published", postHref: "/posts/a-song-title" });
   });
 
   test("projects an empty author editor, accepted lyrics, and no-lyrics publication distinctly", () => {

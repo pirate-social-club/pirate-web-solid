@@ -932,9 +932,9 @@ describe("create post request", () => {
     });
 
     mediaTransport.snapshot = mediaSnapshot({ ...mediaTransport.snapshot!, status: "published",
-      published_resource: { post_id: "post-production", href: "/posts/post-production" } });
+      published_resource: { post_id: "post-production", href: "/posts/production-song-title" } });
     await vi.waitFor(() => expect(onPublished).toHaveBeenCalledOnce(), { timeout: 5_000 });
-    expect(onPublished).toHaveBeenCalledWith("/posts/post-production");
+    expect(onPublished).toHaveBeenCalledWith("/posts/production-song-title");
     expect(mediaTransport.commands.filter(command => command.kind === "lyrics")).toHaveLength(1);
     expect(mediaTransport.uploadCount).toBe(1);
   });
@@ -976,7 +976,7 @@ describe("create post request", () => {
     expect(bodies.every(body => body.persona_id === "persona-two")).toBe(true);
 
     mediaTransport.snapshot = mediaSnapshot({ ...mediaTransport.snapshot!, status: "published",
-      published_resource: { post_id: "post-wordless", href: "/posts/post-wordless" } });
+      published_resource: { post_id: "post-wordless", href: "/posts/wordless-song-title" } });
     await vi.waitFor(() => expect(onPublished).toHaveBeenCalledOnce(), { timeout: 5_000 });
     expect(mediaTransport.commands.filter(command => command.kind === "lyrics")).toHaveLength(0);
     expect(mediaTransport.uploadCount).toBe(1);
@@ -1017,7 +1017,7 @@ describe("create post request", () => {
     mediaTransport.failReads = true;
     await new Promise<void>(resolve => setTimeout(resolve, 4_000));
     mediaTransport.snapshot = mediaSnapshot({ ...mediaTransport.snapshot!, status: "published",
-      published_resource: { post_id: "post-transient", href: "/posts/post-transient" } });
+      published_resource: { post_id: "post-transient", href: "/posts/transient-song-title" } });
     mediaTransport.failReads = false;
     await vi.waitFor(() => expect(onPublished).toHaveBeenCalledOnce(), { timeout: 8_000 });
   }, 20_000);

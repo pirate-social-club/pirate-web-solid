@@ -452,7 +452,7 @@ describe("media submission coordinator", () => {
     const published = {
       ...snapshot(),
       status: "published",
-      published_resource: { post_id: "post-1", href: "/posts/post-1" },
+      published_resource: { post_id: "post-1", href: "/posts/a-song-title" },
     } as MediaSubmissionSnapshot;
     transport.current = published;
     await coordinator.refresh();
