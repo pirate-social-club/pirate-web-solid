@@ -43,21 +43,24 @@ export async function preloadCommunityPage(
 }
 
 const queryCommunityPage = query(
-  async (pathSegment: string) => loadCommunityPage(
-    createPublicCommunityRouteClient({ origin: communityRequestOrigin() }),
-    pathSegment,
-    communityCanonicalOrigin(),
-  ),
+  async (pathSegment: string) => {
+    // Keep preflight adoption inside query: returning from preload before the
+    // query runs would bypass serialization and make hydration fetch again.
+    // SAFETY: entry-server alone writes this validated request-local result.
+    const settled = getRequestEvent()?.locals.communityPagePreflight as CommunityPagePreflight | undefined;
+    if (settled?.requestedPathSegment === pathSegment) return settled.state;
+    return loadCommunityPage(
+      createPublicCommunityRouteClient({ origin: communityRequestOrigin() }),
+      pathSegment,
+      communityCanonicalOrigin(),
+    );
+  },
   "community-page",
 );
 
 export const route = defineFileRoute("/c/:path_segment", {
   preload: ({ params }) => {
     const decoded = decodeCommunityRouteParam(params.path_segment);
-    // SAFETY: entry-server is the sole writer for this request-local key and
-    // stores only a validated CommunityPagePreflight.
-    const settled = getRequestEvent()?.locals.communityPagePreflight as CommunityPagePreflight | undefined;
-    if (settled?.requestedPathSegment === decoded) return settled.state;
     return queryCommunityPage(decoded).then(state => {
       commitCommunityPageResponse(state);
       return state;

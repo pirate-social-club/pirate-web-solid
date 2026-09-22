@@ -2,7 +2,7 @@ import { onSessionRefreshed } from "../../../api/session.ts";
 import { createSessionApiClient } from "../../../api/client.ts";
 import { Link, Meta, Title } from "@solidjs/meta";
 import { getRequestEvent } from "@solidjs/web";
-import { Loading, Show, createEffect, createMemo, createSignal, onCleanup, untrack } from "solid-js";
+import { Loading, Show, createEffect, createMemo, createSignal, onCleanup, sharedConfig, untrack } from "solid-js";
 import { createPublicCommunityRouteClient } from "../../../api/community-route-client.ts";
 import {
   createPublicHandleSalesClient,
@@ -242,6 +242,18 @@ function SuccessState(props: {
   // value rather than rejecting, so the boundary reports it instead of the
   // page falling over.
   const [authorizedFeed, setAuthorizedFeed] = createSignal<CommunityFeed>();
+  const [recoverInitialFeed, setRecoverInitialFeed] = createSignal(false);
+  createEffect(
+    () => state.initialFeed?.kind === "error",
+    (failed) => {
+      if (!failed) return;
+      // Effects do not run during SSR. Defer past the initial hydration pass,
+      // preserving its error markup before starting one browser recovery read.
+      const recover = () => queueMicrotask(() => { if (active) setRecoverInitialFeed(true); });
+      if (sharedConfig.onHydrationEnd) sharedConfig.onHydrationEnd(recover);
+      else recover();
+    },
+  );
   onCleanup(onSessionRefreshed(() => setAuthorizedFeed(undefined)));
   const refreshAgeFeed = async (signal: AbortSignal) => {
     const page = await (props.loadThreads ? props.loadThreads(communityId) : loadCommunityThreadPage({ communityRef: communityId, client: createSessionApiClient() }));
@@ -253,7 +265,10 @@ function SuccessState(props: {
       if (authorized) return authorized;
       const injected = props.surfaceData?.posts;
       if (injected !== undefined) return { kind: "ready", posts: injected };
-      if (state.initialFeed !== undefined) return state.initialFeed;
+      const initialFeed = state.initialFeed;
+      // Adopt identical initial state on both sides, including failures, then
+      // allow one post-hydration recovery. Ready and empty feeds never refetch.
+      if (initialFeed !== undefined && (initialFeed.kind === "ready" || !recoverInitialFeed())) return initialFeed;
       const load = props.loadThreads ?? ((id: string) => loadCommunityThreadPage({
         communityRef: id,
         client: createCommunityThreadFeedClient({ origin: communityRequestOrigin() }),

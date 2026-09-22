@@ -362,7 +362,10 @@ export function CommunityPageShell(props: CommunityPageShellProps) {
    * community's feed controls read on a phone. The icon opens the existing
    * responsive picker: a sheet on small viewports and a select above them.
    */
-  const sortControl = () => (
+  // Own this JSX subtree once. Evaluating an ordinary render helper from a
+  // forwarded prop allocates picker hydration keys in a different order on
+  // the server and client when the initial page data is already settled.
+  const sortControl = createMemo(() => (
     <ResponsiveOptionSelect
       ariaLabel="Sort community feed"
       class="w-auto shrink-0"
@@ -378,7 +381,7 @@ export function CommunityPageShell(props: CommunityPageShellProps) {
       triggerContent={<IconFadersHorizontal class="size-5" />}
       value={sort()}
     />
-  );
+  ));
 
   return (
     <div class="mx-auto w-full max-w-6xl bg-background" data-community-page>

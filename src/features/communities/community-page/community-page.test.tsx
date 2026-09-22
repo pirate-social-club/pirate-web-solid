@@ -14,14 +14,14 @@ import type { CommunityFeed } from "../../community/page-shell/page-shell-model.
 const disposers: Array<() => void> = [];
 
 describe("serialized preflight feed adoption", () => {
-  test.each(["populated", "empty", "failed"] as const)("adopts %s route data without another public feed request", async (mode) => {
+  test.each(["populated", "empty"] as const)("adopts %s route data without another public feed request", async (mode) => {
     const client = {
       get_cPathSegment: async () => route,
       get_communitiesCommunityIdPreview: async () => preview,
     };
     const state = await loadCommunityPage(client, "xn--pokmon-dva", "https://solid.example");
     if (state.kind !== "success") throw new Error("Expected resolved community fixture");
-    const initialFeed: CommunityFeed = mode === "failed" ? { kind: "error" } : {
+    const initialFeed: CommunityFeed = {
       kind: "ready", posts: mode === "empty" ? [] : [{
         id: "post-adopted", title: "Adopted public song", body: "", kind: "song",
         score: 0, publishedAt: "2026-09-01T18:00:00.000Z",
@@ -37,10 +37,40 @@ describe("serialized preflight feed adoption", () => {
       engagementApi={engagementApi()}
       loadThreads={loadThreads}
     />);
-    const expected = mode === "populated" ? "Adopted public song"
-      : mode === "empty" ? "No posts in this community yet" : "Community posts are temporarily unavailable";
+    const expected = mode === "populated" ? "Adopted public song" : "No posts in this community yet";
     await vi.waitFor(() => expect(container.textContent).toContain(expected));
     expect(loadThreads).not.toHaveBeenCalled();
+  });
+
+  test.each(["recovered", "failed"] as const)("retries a failed server feed once in the browser: %s", async (outcome) => {
+    const client = {
+      get_cPathSegment: async () => route,
+      get_communitiesCommunityIdPreview: async () => preview,
+    };
+    const state = await loadCommunityPage(client, "xn--pokmon-dva", "https://solid.example");
+    if (state.kind !== "success") throw new Error("Expected resolved community fixture");
+    const initialFeed: CommunityFeed = { kind: "error" };
+    const adopted: typeof state = JSON.parse(JSON.stringify({ ...state, initialFeed }));
+    const loadThreads = vi.fn(async () => {
+      if (outcome === "failed") throw new TypeError("Recovery still unavailable");
+      return { posts: [{
+        id: "post-recovered", title: "Recovered public song", body: "", kind: "song" as const,
+        score: 0, publishedAt: "2026-09-01T18:00:00.000Z",
+      }], nextCursor: null };
+    });
+    const container = render(() => <CommunityPage
+      pathSegment="xn--pokmon-dva"
+      data={adopted}
+      client={client}
+      engagementApi={engagementApi()}
+      loadThreads={loadThreads}
+    />);
+    await vi.waitFor(() => expect(loadThreads).toHaveBeenCalledTimes(1));
+    await vi.waitFor(() => expect(container.textContent).toContain(outcome === "recovered"
+      ? "Recovered public song" : "Community posts are temporarily unavailable"));
+    expect(container.textContent).not.toContain("No posts in this community yet");
+    expect(loadThreads).toHaveBeenCalledWith(communityId);
+    expect(loadThreads).toHaveBeenCalledTimes(1);
   });
 });
 
