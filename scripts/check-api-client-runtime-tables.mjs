@@ -8,11 +8,11 @@ const currentClient = resolve(
   appRoot,
   "node_modules/@pirate/api-client/src/generated/client.ts",
 );
-// Client 0.87.0 retains the consumed operations and removes the obsolete
+// Client 0.88.0 retains the consumed operations and removes the obsolete
 // community-creation activate_profile response while preserving the song,
 // nationality, and avatar contracts consumed by current Solid main. This
 // digest pins the exact success, error, and schema tables consumed by Solid.
-const expectedDigest = "9b9b138097ad72a70e51f5348b1f54b5957b55b354a6bb0dd878c16d738a9b79";
+const expectedDigest = "dac8f933a2b266d784adb8ed608783d12fd7c320525270592b3add90ea23e00e";
 
 const operations = [
   "post_postsPostIdVideoPlaybackAccess",
