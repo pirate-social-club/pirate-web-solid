@@ -1,6 +1,8 @@
 import { createPirateApiClient, type PirateApiClientOptions } from "@pirate/api-client";
 import { validateApiNextOrigin } from "../../../api/origin.ts";
 import type { ApiFetch } from "../../../api/proxy.ts";
+import { loadCommunityThreadPage } from "./community-thread-feed-api.ts";
+import { reportCommunityFeedFailure } from "./community-feed-diagnostic.ts";
 import {
   loadCommunityPage,
   normalizeCommunityPathSegment,
@@ -59,10 +61,19 @@ export async function resolveCommunityPagePreflight(
     fetchImpl: fetchImpl as typeof fetch,
   };
   const client = createPirateApiClient(`${origin.origin}/`, options);
-  return {
-    requestedPathSegment,
-    state: await loadCommunityPage(client, requestedPathSegment, new URL(request.url).origin),
-  };
+  const state = await loadCommunityPage(client, requestedPathSegment, new URL(request.url).origin);
+  if (state.kind !== "success") return { requestedPathSegment, state };
+  try {
+    // Reuse the direct, credential-free API client. Never fetch this Worker's
+    // public /api proxy from SSR. The route already serializes state for hydration.
+    const page = await loadCommunityThreadPage({ client, communityRef: state.communityId });
+    return { requestedPathSegment, state: { ...state, initialFeed: {
+      kind: "ready", posts: page.posts, ageLockedCount: page.ageLockedCount,
+    } } };
+  } catch (error) {
+    reportCommunityFeedFailure(error, "preflight");
+    return { requestedPathSegment, state: { ...state, initialFeed: { kind: "error" } } };
+  }
 }
 
 export function communityPageResponsePolicy(state: CommunityPageViewState): CommunityPageResponsePolicy {

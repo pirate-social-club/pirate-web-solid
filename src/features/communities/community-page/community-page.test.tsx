@@ -8,8 +8,41 @@ import { createRoot } from "solid-js";
 import { afterEach, describe, expect, test, vi } from "vitest";
 import type { CommunityEngagementApi } from "./community-engagement-api.ts";
 import CommunityPage from "./community-page.tsx";
+import { loadCommunityPage } from "./community-page.model.ts";
+import type { CommunityFeed } from "../../community/page-shell/page-shell-model.ts";
 
 const disposers: Array<() => void> = [];
+
+describe("serialized preflight feed adoption", () => {
+  test.each(["populated", "empty", "failed"] as const)("adopts %s route data without another public feed request", async (mode) => {
+    const client = {
+      get_cPathSegment: async () => route,
+      get_communitiesCommunityIdPreview: async () => preview,
+    };
+    const state = await loadCommunityPage(client, "xn--pokmon-dva", "https://solid.example");
+    if (state.kind !== "success") throw new Error("Expected resolved community fixture");
+    const initialFeed: CommunityFeed = mode === "failed" ? { kind: "error" } : {
+      kind: "ready", posts: mode === "empty" ? [] : [{
+        id: "post-adopted", title: "Adopted public song", body: "", kind: "song",
+        score: 0, publishedAt: "2026-09-01T18:00:00.000Z",
+      }],
+    };
+    // The public route value must survive serialization, not depend on a local promise.
+    const adopted: typeof state = JSON.parse(JSON.stringify({ ...state, initialFeed }));
+    const loadThreads = vi.fn(async () => { throw new Error("Unexpected public feed refetch"); });
+    const container = render(() => <CommunityPage
+      pathSegment="xn--pokmon-dva"
+      data={adopted}
+      client={client}
+      engagementApi={engagementApi()}
+      loadThreads={loadThreads}
+    />);
+    const expected = mode === "populated" ? "Adopted public song"
+      : mode === "empty" ? "No posts in this community yet" : "Community posts are temporarily unavailable";
+    await vi.waitFor(() => expect(container.textContent).toContain(expected));
+    expect(loadThreads).not.toHaveBeenCalled();
+  });
+});
 
 /**
  * The viewer's vote comes from the authenticated post read, so a page under

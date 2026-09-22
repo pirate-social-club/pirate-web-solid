@@ -58,7 +58,7 @@ describe("community page preflight", () => {
       expect(headers.has("cookie")).toBe(false);
       expect(headers.has("authorization")).toBe(false);
       expect(headers.has("x-csrf-token")).toBe(false);
-      return new Response(JSON.stringify(seen.length === 1 ? route : preview), {
+      return new Response(JSON.stringify(seen.length === 1 ? route : seen.length === 2 ? preview : { community: preview, items: [], next_cursor: null }), {
         status: 200,
         headers: { "content-type": "application/json" },
       });
@@ -73,8 +73,10 @@ describe("community page preflight", () => {
     expect(seen).toEqual([
       "https://api-next.test/c/xn--pokmon-dva",
       `https://api-next.test/communities/${communityId}/preview`,
+      `https://api-next.test/public-communities/${communityId}/feed?surface=threads&sort=new&locale=en`,
     ]);
     expect(result?.state).toMatchObject({ kind: "success", communityId, routeFamily: "hns" });
+    expect(result?.state).toMatchObject({ initialFeed: { kind: "ready", posts: [] } });
     expect(JSON.stringify(result)).not.toContain("secret");
   });
 

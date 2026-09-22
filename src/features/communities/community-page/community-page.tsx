@@ -31,6 +31,7 @@ import {
 } from "./community-page-origin.ts";
 import { CommunityPageShell } from "../../community/page-shell/page-shell.tsx";
 import type { CommunityData, CommunityFeed } from "../../community/page-shell/page-shell-model.ts";
+import { reportCommunityFeedFailure } from "./community-feed-diagnostic.ts";
 import { CreatePostDialog } from "../../posts/post-composer/create-post-dialog.tsx";
 import {
   PostEngagement,
@@ -252,13 +253,17 @@ function SuccessState(props: {
       if (authorized) return authorized;
       const injected = props.surfaceData?.posts;
       if (injected !== undefined) return { kind: "ready", posts: injected };
+      if (state.initialFeed !== undefined) return state.initialFeed;
       const load = props.loadThreads ?? ((id: string) => loadCommunityThreadPage({
         communityRef: id,
         client: createCommunityThreadFeedClient({ origin: communityRequestOrigin() }),
       }));
       return load(communityId).then(
         (page): CommunityFeed => ({ kind: "ready", posts: page.posts, ageLockedCount: page.ageLockedCount }),
-        (): CommunityFeed => ({ kind: "error" }),
+        (error): CommunityFeed => {
+          reportCommunityFeedFailure(error, "page");
+          return { kind: "error" };
+        },
       );
     },
     { deferStream: true },
@@ -327,23 +332,30 @@ function SuccessState(props: {
     },
   );
 
+  let postingSessionRequest = 0;
   createEffect(
     () => engagement.postingSession(),
     (session) => {
-      if (session === undefined) {
-        viewerVoteReader?.dispose();
-        viewerVoteReader = undefined;
-        viewerVoteOwner = undefined;
-        setViewerVotes(new Map());
-        selectPersonaId(undefined);
-        return;
-      }
-      const current = selectedPersonaId();
-      const eligible = communityOperationPersonas(session.personas, communityId);
-      if (current !== undefined && eligible.some(persona => persona.personaId === current)) return;
-      const joinedPersona = engagement.joinedPersonaId();
-      selectPersonaId(eligible.some(persona => persona.personaId === joinedPersona)
-        ? joinedPersona : defaultOperationPersonaId(eligible));
+      const request = ++postingSessionRequest;
+      // Preflight data can mount synchronously. Do not write signals in the
+      // effect's owned apply phase; stale sessions must not reset a new owner.
+      queueMicrotask(() => {
+        if (!active || request !== postingSessionRequest) return;
+        if (session === undefined) {
+          viewerVoteReader?.dispose();
+          viewerVoteReader = undefined;
+          viewerVoteOwner = undefined;
+          setViewerVotes(new Map());
+          selectPersonaId(undefined);
+          return;
+        }
+        const current = selectedPersonaId();
+        const eligible = communityOperationPersonas(session.personas, communityId);
+        if (current !== undefined && eligible.some(persona => persona.personaId === current)) return;
+        const joinedPersona = engagement.joinedPersonaId();
+        selectPersonaId(eligible.some(persona => persona.personaId === joinedPersona)
+          ? joinedPersona : defaultOperationPersonaId(eligible));
+      });
     },
   );
 

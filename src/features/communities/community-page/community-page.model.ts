@@ -3,6 +3,7 @@ import type {
   GetCommunitiesCommunityIdPreviewResponse,
 } from "@pirate/api-client";
 import type { CommunityRouteApiClient } from "../../../api/community-route-client.ts";
+import type { CommunityFeed } from "../../community/page-shell/page-shell-model.ts";
 
 export const COMMUNITY_ROUTE_UNAVAILABLE_STATUS = 502 as const;
 
@@ -15,6 +16,8 @@ export type CommunityPageSuccess = Readonly<{
   readonly canonicalPath: string;
   readonly canonicalUrl: string;
   readonly communityId: string;
+  /** Settled anonymous SSR feed, serialized with route data for hydration. */
+  readonly initialFeed?: CommunityFeed;
   readonly routeFamily: "community_id" | "hns" | "spaces";
   readonly routeDisplay: string;
   readonly community: Readonly<{

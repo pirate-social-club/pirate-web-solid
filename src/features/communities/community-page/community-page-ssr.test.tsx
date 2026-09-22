@@ -2,13 +2,15 @@ import type {
   GetCPathSegmentResponse,
   GetCommunitiesCommunityIdPreviewResponse,
 } from "@pirate/api-client";
-import { createRequestEvent, renderToStream, type JSX } from "@solidjs/web";
+import { createRequestEvent, getRequestEvent, renderToStream, type JSX } from "@solidjs/web";
 import { provideRequestEvent } from "@solidjs/web/storage";
 import { describe, expect, test, vi } from "vitest";
 
 import type { CommunityEngagementApi } from "./community-engagement-api.ts";
 import type { CommunityThreadPage } from "./community-thread-feed-api.ts";
 import CommunityPage from "./community-page.tsx";
+import { render } from "../../../entry-server.tsx";
+import type { CommunityPagePreflight } from "./community-page-preflight.ts";
 
 const communityId = "community_123e4567-e89b-42d3-a456-426614174000";
 
@@ -67,6 +69,78 @@ const thread = (title: string) => ({
 });
 
 const emptyFeed = async (): Promise<CommunityThreadPage> => ({ posts: [], nextCursor: null });
+
+describe("entry-server community feed preflight", () => {
+  test.each(["populated", "empty", "failed"] as const)("serves the %s direct preflight without any SSR self-fetch", async (mode) => {
+    const appOrigin = "https://solid.example";
+    const apiOrigin = "https://api-next.example";
+    const seen: string[] = [];
+    const network = vi.spyOn(globalThis, "fetch").mockImplementation(async (input, init) => {
+      const url = new URL(input instanceof Request ? input.url : input.toString());
+      seen.push(url.toString());
+      if (url.origin !== apiOrigin) throw new Error("SSR self-fetch forbidden");
+      expect(init?.credentials).toBe("omit");
+      const headers = new Headers(init?.headers);
+      for (const name of ["cookie", "authorization", "x-csrf-token"]) expect(headers.has(name)).toBe(false);
+      if (url.pathname === "/c/harbor") return Response.json(route);
+      if (url.pathname === `/communities/${communityId}/preview`) return Response.json(preview);
+      if (url.pathname === `/public-communities/${communityId}/feed`) {
+        if (mode === "failed") throw new TypeError("private upstream diagnostic must not be logged");
+        if (mode === "empty") return Response.json({ community: preview, items: [], next_cursor: null });
+        return Response.json({
+          community: preview,
+          items: [{
+            post: {
+              id: "post-preflight", object: "post", community: communityId,
+              authorship_mode: "human_direct", identity_mode: "public", post_type: "text",
+              status: "published", visibility: "public", analysis_state: "allow",
+              content_safety_state: "safe", age_gate_policy: "none", created: 1_756_752_000,
+              title: "Direct preflight thread", body: "Already in the server response.",
+            },
+            thread_snapshot: null, upvote_count: 3, downvote_count: 0, like_count: 0,
+            viewer_vote: null, viewer_reaction_kinds: [], resolved_locale: "en",
+            translation_state: "ready", machine_translated: false, source_hash: null,
+          }], next_cursor: null,
+        });
+      }
+      throw new Error("Unexpected direct API request");
+    });
+    const request = new Request(`${appOrigin}/c/harbor`, {
+      headers: { cookie: "private=secret", authorization: "Bearer secret", "x-csrf-token": "secret" },
+    });
+    function Application() {
+      // SAFETY: real entry-server owns this request-local preflight result.
+      const settled = getRequestEvent()?.locals.communityPagePreflight as CommunityPagePreflight;
+      return <CommunityPage pathSegment="harbor" data={settled.state} />;
+    }
+    const diagnostic = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    try {
+      const response = await provideRequestEvent(createRequestEvent(request), async () => {
+        const stream = await render(request, { API_NEXT_ORIGIN: apiOrigin }, { Application });
+        return stream instanceof Response ? stream.text() : new Response(stream).text();
+      });
+      expect(seen.filter(url => new URL(url).origin === appOrigin)).toEqual([]);
+      expect(seen.filter(url => new URL(url).pathname.endsWith("/feed"))).toHaveLength(1);
+      if (mode === "populated") expect(response).toContain("Direct preflight thread");
+      if (mode === "empty") expect(response).toContain("No posts in this community yet");
+      if (mode === "failed") {
+        expect(response).toContain("Community posts are temporarily unavailable");
+        expect(response).not.toContain("No posts in this community yet");
+        expect(diagnostic).toHaveBeenCalledWith("community.feed.failed", {
+          phase: "preflight", kind: "type_or_network", status: undefined,
+        });
+        expect(JSON.stringify(diagnostic.mock.calls)).not.toContain("private upstream");
+      } else {
+        expect(response).not.toContain("Community posts are temporarily unavailable");
+        expect(diagnostic).not.toHaveBeenCalled();
+      }
+      expect(response).not.toContain("Loading community posts");
+    } finally {
+      network.mockRestore();
+      diagnostic.mockRestore();
+    }
+  });
+});
 
 /**
  * Renders the page the way the server does. `shell` is the first flush, which
