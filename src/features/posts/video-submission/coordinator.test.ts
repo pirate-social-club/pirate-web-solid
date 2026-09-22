@@ -1,7 +1,12 @@
 import { webcrypto } from "node:crypto";
 import { ApiClientError } from "@pirate/api-client";
 import { afterEach, describe, expect, test, vi } from "vitest";
-import { VideoCoordinator, type PendingVideo, type VideoStorage } from "./coordinator";
+import {
+  ORIGINAL_VIDEO_PENDING,
+  VideoCoordinator,
+  type PendingVideo,
+  type VideoStorage,
+} from "./coordinator";
 import { SongReservationMismatch, type OriginalVideoReservation, type SongVideoReservation, type SongVideoSelection,
   type VideoReservation, type VideoSnapshot } from "./contracts";
 import type { VideoCommand, VideoCommandResult, VideoTransport } from "./transport";
@@ -47,6 +52,11 @@ function setup(source: VideoReservation = reservation) {
         parts: source.upload.parts.filter(part => command.input.body.part_numbers.includes(part.part_number))
           .map(part => ({ ...part, expires_at: "2099-01-01T00:00:00Z" })),
       } };
+      if (command.kind === "cancel") {
+        current = { ...initial, status: "abandoned", reason_code: "author_abandoned_unresolved_provider" };
+        results.set(command.input.body.idempotency_key, current);
+        return current;
+      }
       if (command.kind === "finalize") {
         posts++;
         current = { ...initial, status: "published", creation_revision: 2, video_revision: 1, published_resource: { post_id: "post", href: "/posts/post" } };
@@ -64,6 +74,7 @@ function setup(source: VideoReservation = reservation) {
     return coordinator.begin(song ? { ...attempt, song } : attempt);
   };
   return { create, begin, commands, fetchImpl, storage, transport, posts: () => posts,
+    setCurrent: (snapshot: VideoSnapshot) => { current = snapshot; },
     rejectNext: (kind: VideoCommand["kind"], error: Error) => { rejection = { kind, error }; },
   };
 }
@@ -125,6 +136,52 @@ describe("video operation replay", () => {
     expect(JSON.stringify(fixture.commands.at(-1))).toBe(retained);
     expect(fixture.posts()).toBe(1); expect(fixture.fetchImpl).toHaveBeenCalledTimes(1);
     await resumed.submit(); expect(fixture.posts()).toBe(1);
+  });
+  test("lost unresolved-abandonment response replays the exact cancel and remains terminal", async () => {
+    const fixture = setup();
+    const unresolved: VideoSnapshot = {
+      ...initial,
+      status: "processing_failed",
+      reason_code: "provider_submission_unconfirmed",
+      retryable: false,
+      retry_count: 0,
+    };
+    fixture.setCurrent(unresolved);
+    await fixture.storage.save({
+      version: ORIGINAL_VIDEO_PENDING,
+      principalId: "account",
+      communityId: "community",
+      personaId: "persona",
+      file: new File(["video"], "take.mp4", { type: "video/mp4" }),
+      caption: "",
+      rating: "general",
+      reservation,
+      snapshot: unresolved,
+      receipts: [{ part_number: 1, etag: "part-etag" }],
+      pending: null,
+    });
+    const execute = fixture.transport.execute;
+    let loseResponse = true;
+    fixture.transport.execute = async command => {
+      const result = await execute(command);
+      if (command.kind === "cancel" && loseResponse) {
+        loseResponse = false;
+        throw new Error("Lost abandonment response");
+      }
+      return result;
+    };
+    const first = fixture.create(); await first.restore();
+    await expect(first.revisionCommand("cancel")).rejects.toThrow("Lost abandonment response");
+    const retained = JSON.stringify(first.current?.pending?.command);
+    expect(first.current?.snapshot?.status).toBe("processing_failed");
+
+    const resumed = fixture.create(); await resumed.restore();
+    expect(resumed.current?.snapshot).toMatchObject({
+      status: "abandoned",
+      reason_code: "author_abandoned_unresolved_provider",
+    });
+    expect(JSON.stringify(fixture.commands.at(-1))).toBe(retained);
+    expect(fixture.commands.filter(command => command.kind === "cancel")).toHaveLength(2);
   });
   test("another account cannot restore or dispatch the saved video", async () => {
     const fixture = setup(); await fixture.begin(fixture.create());

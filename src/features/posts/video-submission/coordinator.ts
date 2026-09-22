@@ -55,6 +55,10 @@ export function canDiscardRejectedVideo(record: PendingVideo | null): boolean {
     && (record.rejection?.command.kind === "reserve" || record.rejection?.command.kind === "start");
 }
 const terminal = (snapshot: VideoSnapshot) => ["published", "blocked", "abandoned"].includes(snapshot.status);
+const unresolvedProviderDispatch = (snapshot: VideoSnapshot) =>
+  snapshot.status === "processing_failed"
+  && snapshot.reason_code === "provider_submission_unconfirmed"
+  && !snapshot.retryable;
 async function commandDigest(command: VideoCommand): Promise<string> {
   return sha256Hex(new TextEncoder().encode(JSON.stringify(command)));
 }
@@ -273,7 +277,11 @@ export class VideoCoordinator {
       await this.reconcile();
       const snapshot = await this.refreshSnapshot();
       if (!snapshot) throw new VideoContractError("No server submission to change");
-      if (kind === "cancel" && (snapshot.status !== "processing" || snapshot.phase !== "awaiting_upload")) throw new VideoContractError("Video can no longer be cancelled");
+      if (kind === "cancel"
+        && !((snapshot.status === "processing" && snapshot.phase === "awaiting_upload")
+          || unresolvedProviderDispatch(snapshot))) {
+        throw new VideoContractError("Video can no longer be cancelled");
+      }
       if (kind === "retry" && (snapshot.status !== "processing_failed" || !snapshot.retryable)) throw new VideoContractError("Video cannot be retried");
       const result = await this.execute({ kind, input: { path: { submissionId: snapshot.submission_id }, body: {
         persona_id: this.require().personaId, idempotency_key: this.key(), expected_creation_revision: snapshot.creation_revision,

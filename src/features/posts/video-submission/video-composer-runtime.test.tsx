@@ -22,7 +22,7 @@ const startCapture = vi.fn(async (_input: OriginalVideoCaptureInput) => {
   return nextSession();
 });
 afterEach(() => { for (const dispose of disposers.splice(0)) dispose(); document.body.replaceChildren(); nextSession = undefined; startCapture.mockClear(); vi.unstubAllGlobals(); });
-function setup(final: "published" | "manual_review" | "provider_submission_unconfirmed" | "membership_required", rejectKind?: "reserve" | "start", beforeExecute?: (command: VideoCommand) => Promise<void>) {
+function setup(final: "published" | "manual_review" | "provider_submission_unconfirmed" | "membership_required" | "transform_failed", rejectKind?: "reserve" | "start", beforeExecute?: (command: VideoCommand) => Promise<void>) {
   vi.stubGlobal("crypto", webcrypto);
   const urlApi = class extends URL { static createObjectURL() { return "blob:https://example.test/video"; } static revokeObjectURL() {} };
   vi.stubGlobal("URL", urlApi);
@@ -39,6 +39,10 @@ function setup(final: "published" | "manual_review" | "provider_submission_uncon
       { status: 400, code: "bad_request", name: "BadRequest", retryable: false },
       { error: { code: "bad_request", message: "Request refused", retryable: false } });
     if (command.kind === "reserve") return reservation;
+    if (command.kind === "cancel") {
+      snapshot = { ...common, creation_revision: 2, video_revision: 1, status: "abandoned", reason_code: "author_abandoned_unresolved_provider" };
+      return snapshot;
+    }
     if (command.kind === "finalize") snapshot = final === "published"
       ? { ...common, creation_revision: 2, video_revision: 1, status: "published", published_resource: { post_id: "post", href: "/posts/post" } }
       : final === "manual_review"
@@ -84,15 +88,25 @@ describe("mounted original video flow", () => {
     expect(fixture.commands[2]?.input.body).toMatchObject({ parts: [{ part_number: 1, etag: "receipt" }] });
     expect(document.querySelector('a[href="/posts/post"]')?.textContent).toBe("View published post");
   });
-  test("unconfirmed provider submission hides retry and explains reconciliation", async () => {
-    setup("provider_submission_unconfirmed"); await selectAndPublish();
+  test("unconfirmed provider submission persists abandonment before another attempt", async () => {
+    const fixture = setup("provider_submission_unconfirmed"); await selectAndPublish();
     await vi.waitFor(() => expect(document.body.textContent).toContain("provider submission is unconfirmed"));
     expect([...document.querySelectorAll("button")].some(button => /Retry processing|Retry publication/.test(button.textContent ?? ""))).toBe(false);
+    expect(document.body.textContent).not.toContain("Start a new video");
+    const abandon = [...document.querySelectorAll("button")].find(button => button.textContent?.includes("Abandon unresolved video"));
+    expect(abandon).toBeDefined(); abandon!.click();
+    await vi.waitFor(() => expect(document.body.textContent).toContain("Start a new video"));
+    expect(fixture.commands.map(command => command.kind)).toEqual(["reserve", "start", "finalize", "cancel"]);
   });
   test("membership loss offers publication retry with retained analysis", async () => {
     setup("membership_required"); await selectAndPublish();
     await vi.waitFor(() => expect(document.body.textContent).toContain("posting eligibility"));
     expect(document.body.textContent).toContain("Retry publication"); expect(document.body.textContent).not.toContain("Retry processing");
+  });
+  test("an explicit nonretryable processing failure can start a new video", async () => {
+    setup("transform_failed"); await selectAndPublish();
+    await vi.waitFor(() => expect(document.body.textContent).toContain("Start a new video"));
+    expect(document.body.textContent).not.toContain("Abandon unresolved video");
   });
   test("a server review hold stays private and does not claim publication", async () => {
     const fixture = setup("manual_review"); await selectAndPublish();

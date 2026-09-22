@@ -68,6 +68,7 @@ interface Ledger {
   alignedRequestedMs: number | null;
   alignedReportedTrimMs: number | null;
   originalTakeBytes: number | null;
+  serverVideoState: "awaiting_upload" | "published" | "unresolved" | "abandoned";
 }
 function ledger(): Ledger {
   return JSON.parse(localStorage.getItem(key) ?? "null") ?? {
@@ -78,6 +79,7 @@ function ledger(): Ledger {
     takeMeasuredVideoMs: null, shortVideoLongAudioRefused: null,
     alignedAudioCodec: null, alignedAdmitted: null,
     alignedRequestedMs: null, alignedReportedTrimMs: null, originalTakeBytes: null,
+    serverVideoState: "awaiting_upload",
   };
 }
 function write(next: Ledger): void {
@@ -216,12 +218,22 @@ function uploadFor(sizeBytes: number) {
   return { method: "MULTIPART" as const, upload_id: "upload-fixture", part_count: 1, part_size_bytes: sizeBytes, expires_at: "2099-01-01T00:00:00Z", parts: [{ part_number: 1, url: "https://upload.fixture.test/1", expires_at: "2099-01-01T00:00:00Z" }] };
 }
 
-let finalized = false;
+const unresolvedFixture = new URL(location.href).searchParams.get("moderation") === "unresolved";
+function serverSnapshot(): VideoSnapshot {
+  switch (ledger().serverVideoState) {
+    case "published":
+      return { ...snapshotBase, status: "published", creation_revision: 2, video_revision: 1, published_resource: { post_id: "published-fixture", href: "/posts/published-fixture" } };
+    case "unresolved":
+      return { ...snapshotBase, status: "processing_failed", creation_revision: 2, video_revision: 1, reason_code: "provider_submission_unconfirmed", retryable: false, retry_count: 0 };
+    case "abandoned":
+      return { ...snapshotBase, status: "abandoned", creation_revision: 2, video_revision: 1, reason_code: "author_abandoned_unresolved_provider" };
+    case "awaiting_upload":
+      return { ...snapshotBase, status: "processing", phase: "awaiting_upload" };
+  }
+}
 const transport: VideoTransport = {
   async read(): Promise<VideoSnapshot> {
-    return finalized
-      ? { ...snapshotBase, status: "published", creation_revision: 2, video_revision: 1, published_resource: { post_id: "published-fixture", href: "/posts/published-fixture" } }
-      : { ...snapshotBase, status: "processing", phase: "awaiting_upload" };
+    return serverSnapshot();
   },
   async execute(command: VideoCommand): Promise<VideoCommandResult> {
     record(`command:${command.kind}`);
@@ -246,8 +258,12 @@ const transport: VideoTransport = {
       };
     }
     if (command.kind === "finalize") {
-      finalized = true;
-      return { ...snapshotBase, status: "published", creation_revision: 2, video_revision: 1, published_resource: { post_id: "published-fixture", href: "/posts/published-fixture" } };
+      const state = ledger(); state.serverVideoState = unresolvedFixture ? "unresolved" : "published"; write(state); notify();
+      return serverSnapshot();
+    }
+    if (command.kind === "cancel") {
+      const state = ledger(); state.serverVideoState = "abandoned"; write(state); notify();
+      return serverSnapshot();
     }
     return { ...snapshotBase, status: "processing", phase: "awaiting_upload" };
   },

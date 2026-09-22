@@ -43,6 +43,7 @@ interface Ledger {
   readonly alignedRequestedMs: number | null;
   readonly alignedReportedTrimMs: number | null;
   readonly originalTakeBytes: number | null;
+  readonly serverVideoState: "awaiting_upload" | "published" | "unresolved" | "abandoned";
 }
 
 let server: ChildProcess | undefined;
@@ -344,6 +345,40 @@ test("the complete Use this song journey publishes a song-backed video", async (
       clip_duration_samples: 4_000 * 48,
       selected_from: { kind: "library" },
     });
+  } finally {
+    await context?.close();
+    await rm(userDataDir, { recursive: true, force: true });
+  }
+});
+
+test("an unresolved moderation result survives reload and must be abandoned before restart", async () => {
+  const userDataDir = await mkdtemp(join(tmpdir(), "pirate-song-video-"));
+  let context: BrowserContext | undefined;
+  try {
+    context = await open(userDataDir, `${proofPath}?compose=video&song=song-fixture&moderation=unresolved`);
+    const page = context.pages()[0] ?? await context.newPage();
+    const input = page.locator('input[type="file"]');
+    await input.setInputFiles({ name: "long.mp4", mimeType: "video/mp4", buffer: Buffer.from("long") });
+    await expect(page.locator('[data-song-plan="ready"]')).toBeVisible();
+    await page.getByRole("button", { name: "Publish video", exact: true }).click();
+    await expect(page.getByText("provider submission is unconfirmed", { exact: false })).toBeVisible();
+    await expect(page.getByRole("button", { name: /Retry processing|Retry publication/ })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Start a new video", exact: true })).toHaveCount(0);
+    expect((await readLedger(page)).calls.filter(call => call === "command:finalize")).toHaveLength(1);
+
+    await page.reload();
+    await expect(page.getByText("provider submission is unconfirmed", { exact: false })).toBeVisible();
+    expect((await readLedger(page)).calls.filter(call => call === "command:finalize")).toHaveLength(1);
+    await page.getByRole("button", { name: "Abandon unresolved video", exact: true }).click();
+    await expect(page.getByRole("button", { name: "Start a new video", exact: true })).toBeVisible();
+    expect((await readLedger(page)).calls.filter(call => call === "command:cancel")).toHaveLength(1);
+
+    await page.reload();
+    await expect(page.getByText("Video state: abandoned.", { exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Start a new video", exact: true })).toBeVisible();
+    const afterReload = await readLedger(page);
+    expect(afterReload.serverVideoState).toBe("abandoned");
+    expect(afterReload.calls.filter(call => call === "command:cancel")).toHaveLength(1);
   } finally {
     await context?.close();
     await rm(userDataDir, { recursive: true, force: true });
