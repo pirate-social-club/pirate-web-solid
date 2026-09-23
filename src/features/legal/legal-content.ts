@@ -78,7 +78,7 @@ export const termsOfService: LegalDocumentContent = {
       heading: "The service",
       paragraphs: [
         "The app is provided as it is, while we are still building it. Features may change, pause or stop, and we cannot promise it will always be available or error free. To the extent the law allows, we are not liable for indirect losses or for losses caused by blockchains, wallets or other services we do not control.",
-        "You may stop using the app at any time and ask to delete your account. We may suspend or end access for accounts that break these terms.",
+        "You may stop using the app at any time. Deleting an account from the app is not available yet; see the Privacy Policy. We may suspend or end access for accounts that break these terms.",
       ],
     },
     {
@@ -141,7 +141,7 @@ export const privacyPolicy: LegalDocumentContent = {
     {
       heading: "Microphone recordings",
       paragraphs: [
-        "When you practise with your microphone, the recording is sent to ElevenLabs for speech-to-text, and ElevenLabs may keep it under its own policy. We also store the recording privately for up to 24 months. We do not use it to identify you by voice or to train models. You can delete your stored recordings at any time in Settings.",
+        "When you practise with your microphone, the recording is sent to ElevenLabs for speech-to-text, and ElevenLabs may keep it under its own policy. We also store the recording privately and set it to expire 24 months after it is made. We do not use it to identify you by voice or to train models. You can delete your stored recordings at any time in Settings.",
       ],
     },
     {
@@ -153,9 +153,15 @@ export const privacyPolicy: LegalDocumentContent = {
     {
       heading: "Keeping and deleting data",
       paragraphs: [
-        "If you delete your account, we delete your profile details, preferences, follows, drafts, recordings, transcripts and raw verification details. Posts you published stay up under a \"Retired account\" profile, and your handle is retired so no one else can take it. We keep records we need for money movements, blockchain actions, moderation and verification decisions, in minimised form.",
-        "You cannot delete your account while you are the only owner of a community, hold domain authority for one, have a wallet balance, or have a payout pending. Resolve those first.",
         "Original uploads used to make a video are kept for 30 days. Published media is kept for as long as the post exists. Some service logs cannot be deleted for one person and expire on their own schedule.",
+        "Deleting your whole account is not available in the app yet. We are building it to follow these rules: your profile details, preferences, follows, drafts, recordings, transcripts and raw verification details are deleted; posts you published stay up under a \"Retired account\" profile and your handle is retired so no one else can take it; records we need for money movements, blockchain actions, moderation and verification decisions are kept in minimised form; and deletion waits while you are the only owner of a community, hold domain authority for one, have a wallet balance or have a payout pending.",
+      ],
+    },
+    {
+      heading: "Your choices",
+      items: [
+        "Delete your stored Study and Karaoke recordings in Settings.",
+        "Requests to see, correct or delete your data, or to object to how it is used, will be handled through the contact address we publish before launch.",
       ],
     },
     {
