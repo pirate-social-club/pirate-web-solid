@@ -38,12 +38,16 @@ export function SongReviewPreview(props: {
   let video: HTMLVideoElement | undefined;
   let audio: PreviewAudio | undefined;
   let frame: number | undefined;
+  let starting = false;
+  let playGeneration = 0;
 
   const stopWatching = () => {
     if (frame !== undefined) cancelAnimationFrame(frame);
     frame = undefined;
   };
   const stop = () => {
+    playGeneration += 1;
+    starting = false;
     stopWatching();
     video?.pause();
     audio?.pause();
@@ -84,32 +88,36 @@ export function SongReviewPreview(props: {
 
   const resumeBoth = async (intent: boolean) => {
     if (!intent || !video || !audio) return;
+    const generation = playGeneration;
     try {
       await Promise.all([video.play(), audio.play()]);
+      if (generation !== playGeneration || !playing()) return;
+      starting = false;
       watch();
     } catch {
+      if (generation !== playGeneration) return;
       stop();
       setIssue("This preview could not start. Check your sound settings and try again.");
     }
   };
 
   const onVideoWaiting = () => {
-    if (!playing()) return;
+    if (!playing() || starting) return;
     setIssue("The preview paused because the video stalled.");
     audio?.pause();
   };
   const onVideoPlaying = () => {
-    if (!playing() || !audio) return;
+    if (!playing() || starting || !audio) return;
     setIssue(undefined);
     void audio.play().catch(() => undefined);
   };
   const onAudioWaiting = () => {
-    if (!playing()) return;
+    if (!playing() || starting) return;
     setIssue("The preview paused because the song stalled.");
     video?.pause();
   };
   const onAudioPlaying = () => {
-    if (!playing() || !video) return;
+    if (!playing() || starting || !video) return;
     setIssue(undefined);
     void video.play().catch(() => undefined);
   };
@@ -127,6 +135,7 @@ export function SongReviewPreview(props: {
     audio.addEventListener?.("playing", onAudioPlaying);
     audio.currentTime = props.bounds.startMs / 1_000;
     element.currentTime = 0;
+    starting = true;
     setPlaying(true);
     // The intent is passed explicitly: a signal written in this same task is
     // not readable until its update has been applied.

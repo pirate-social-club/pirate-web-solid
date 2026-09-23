@@ -397,7 +397,14 @@ createRoot(() => {
         fallback={
           <section aria-label="Song post fixture">
             <h2>Fixture song post</h2>
-            <SongVideoEntry communityId="community-fixture" postId="song-fixture" read={async () => true} sessionHint={() => true} />
+            <SongVideoEntry communityId="community-fixture" postId="song-fixture" read={async () => true} sessionHint={() => true}
+              resolveSession={async () => ({
+                status: "authenticated", userId: "fixture-user", personas: [{
+                  personaId: "fixture-persona", displayName: "Fixture persona", avatarRef: null,
+                  primaryPublicHandle: null,
+                  communityBinding: { communityId: "community-fixture", bindingSource: "first_membership" },
+                }],
+              })} />
           </section>
         }
       >
