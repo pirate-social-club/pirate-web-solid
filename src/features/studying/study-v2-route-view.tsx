@@ -374,7 +374,6 @@ export function StudyV2RouteView(props: StudyV2RouteViewProps) {
     const controller = new AbortController();
     walletConfirmationController = controller;
     const completion = requestGlobalSignInCompletion(controller.signal);
-    requestGlobalSignIn();
     const authenticated = await completion;
     if (walletConfirmationController === controller) walletConfirmationController = undefined;
     if (!active) return;

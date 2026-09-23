@@ -959,7 +959,7 @@ describe("create post request", () => {
     await vi.waitFor(() => expect(document.body.textContent).toContain("What others may do with this song"));
     await vi.waitFor(() => expect(button("Continue").disabled).toBe(false));
     button("Continue").click();
-    await vi.waitFor(() => expect(document.body.textContent).toContain("Instrumental"));
+    await vi.waitFor(() => expect(document.body.textContent).toContain("No lyrics added"));
     await vi.waitFor(() => expect(button("Publish song").disabled).toBe(false));
     button("Publish song").click();
 
@@ -980,6 +980,35 @@ describe("create post request", () => {
     await vi.waitFor(() => expect(onPublished).toHaveBeenCalledOnce(), { timeout: 5_000 });
     expect(mediaTransport.commands.filter(command => command.kind === "lyrics")).toHaveLength(0);
     expect(mediaTransport.uploadCount).toBe(1);
+  });
+
+  test("shows a failed audio upload on the Song step instead of advancing silently", async () => {
+    class FailingUploadTransport extends ProductionMediaTransport {
+      override async upload(): Promise<void> {
+        throw new Error("The audio upload did not finish. Try again.");
+      }
+    }
+    const mediaTransport = new FailingUploadTransport();
+    render(() => <CreatePostDialog
+      communityContext={{ id: "community-one", name: "Pirate Harbor" }}
+      mediaTransport={mediaTransport}
+      onOpenChange={() => {}}
+      open
+      personas={[activePersona("persona-one", "Persona One")]}
+      principalId="account-one"
+    />);
+    await new Promise<void>(resolve => setTimeout(resolve, 0));
+
+    await uploadAudio("unsent.mp3");
+    await vi.waitFor(() => expect(button("Continue").disabled).toBe(false));
+    button("Continue").click();
+
+    await vi.waitFor(() => {
+      const alerts = [...document.body.querySelectorAll("[role='alert']")].map(node => node.textContent ?? "");
+      expect(alerts.some(text => text.trim() !== "")).toBe(true);
+    });
+    expect(document.body.textContent).not.toContain("What others may do with this song");
+    expect(button("Continue")).toBeInstanceOf(HTMLButtonElement);
   });
 
   test("keeps observing after a transient status failure and still marks the published song", async () => {
@@ -1004,7 +1033,7 @@ describe("create post request", () => {
     await vi.waitFor(() => expect(document.body.textContent).toContain("What others may do with this song"));
     await vi.waitFor(() => expect(button("Continue").disabled).toBe(false));
     button("Continue").click();
-    await vi.waitFor(() => expect(document.body.textContent).toContain("Instrumental"));
+    await vi.waitFor(() => expect(document.body.textContent).toContain("No lyrics added"));
     await vi.waitFor(() => expect(button("Publish song").disabled).toBe(false));
     button("Publish song").click();
     await vi.waitFor(() => expect(mediaTransport.commands.map(command => command.kind)).toEqual([

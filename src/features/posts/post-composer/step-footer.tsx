@@ -6,7 +6,7 @@
 import { Portal } from "@solidjs/web";
 import { createEffect, createSignal, Show } from "solid-js";
 
-import { Button, CardFooter } from "../../../design-system";
+import { Button, CardFooter, FormNote } from "../../../design-system";
 import { cn } from "../../../design-system";
 import type { ComposerSteps } from "./composer-steps";
 import { animateComposerBarEnter } from "./composer-motion";
@@ -123,10 +123,26 @@ export function PostComposerStepFooter(props: {
     </Show>
   );
 
+  // The final step's PublishButton renders the submit error beside itself.
+  // Earlier steps have no such button, so an audio upload that fails on
+  // Continue would otherwise leave the author on Song with no explanation.
+  const stepError = (className?: string) => (
+    <Show when={!props.steps.isLast() && controller.submit.error}>
+      {(message) => (
+        <div aria-live="polite" class={className} role="alert">
+          <FormNote tone="warning">{message()}</FormNote>
+        </div>
+      )}
+    </Show>
+  );
+
   const desktop = (
     <CardFooter class="justify-between gap-3 border-t border-border-soft px-8 py-5">
       {back()}
-      {forward()}
+      <div class="flex min-w-0 flex-1 items-center justify-end gap-3">
+        {stepError()}
+        {forward()}
+      </div>
     </CardFooter>
   );
 
@@ -138,6 +154,7 @@ export function PostComposerStepFooter(props: {
       )}
       ref={mobileBar}
     >
+      {stepError("mb-3")}
       <div class="flex items-center gap-3">
         {back()}
         <div class="min-w-0 flex-1">{forward()}</div>

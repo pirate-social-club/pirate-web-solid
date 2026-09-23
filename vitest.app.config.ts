@@ -47,6 +47,7 @@ export default defineConfig({
       "src/features/auth/global-sign-in-host.test.tsx",
       "src/features/auth/sign-in-model.test.ts",
       "src/features/auth/sign-in-preparation.test.ts",
+      "src/features/auth/sign-in-return.test.ts",
       "src/features/auth/sign-in-session.test.ts",
       "src/features/auth/sign-in-view.test.tsx",
       "src/features/community/community-creation-api.test.ts",

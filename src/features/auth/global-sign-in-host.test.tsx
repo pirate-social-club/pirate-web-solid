@@ -126,4 +126,53 @@ describe("global sign-in host", () => {
     expect(refresh).toHaveBeenCalledTimes(1);
     expect(reload).not.toHaveBeenCalled();
   });
+
+  test("a plain open request keeps a pending continuation, which authentication resolves", async () => {
+    const exchange = fakeExchange();
+    // SAFETY: jsdom defines no injected provider, so this optional property is
+    // absent outside this test and is restored in the finally block below.
+    const originalEthereum = (window as Window & { ethereum?: unknown }).ethereum;
+    Object.defineProperty(window, "ethereum", {
+      configurable: true,
+      value: { request: vi.fn() },
+    });
+    const container = render(() => (
+      <GlobalSignInHost createExchange={async () => exchange} refresh={() => {}} />
+    ));
+
+    try {
+      const controller = new AbortController();
+      let settled: boolean | undefined;
+      const completion = requestGlobalSignInCompletion(controller.signal);
+      void completion.then((authenticated) => { settled = authenticated; });
+      // The Study and Karaoke wallet confirmation used to follow its
+      // continuation with an ordinary open request, which cancelled it.
+      window.dispatchEvent(new CustomEvent(GLOBAL_SIGN_IN_EVENT));
+      await settle();
+      expect(settled).toBeUndefined();
+      expect(document.querySelector("[role='dialog']")).not.toBeNull();
+
+      const walletButton = Array.from(container.ownerDocument.querySelectorAll("button"))
+        .find(button => button.textContent?.trim() === "Connect wallet");
+      expect(walletButton).toBeDefined();
+      // SAFETY: the assertion above proved exactly one match was found, so
+      // the element is that button.
+      (walletButton as HTMLButtonElement).click();
+      await expect(completion).resolves.toBe(true);
+    } finally {
+      Object.defineProperty(window, "ethereum", {
+        configurable: true,
+        value: originalEthereum,
+      });
+    }
+  });
+
+  test("a newer continuation still supersedes an older one", async () => {
+    render(() => <GlobalSignInHost createExchange={async () => fakeExchange()} refresh={() => {}} />);
+    const older = requestGlobalSignInCompletion(new AbortController().signal);
+    const newer = requestGlobalSignInCompletion(new AbortController().signal);
+    await expect(older).resolves.toBe(false);
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+    await expect(newer).resolves.toBe(false);
+  });
 });

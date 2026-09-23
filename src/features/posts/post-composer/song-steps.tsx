@@ -247,7 +247,7 @@ export function SongReviewStep(props: {
           action={props.runtime?.locked ? undefined : { label: controller.copy.review.change, onClick: () => props.steps.set("song") }}
           label={controller.copy.review.lyrics}
           value={controller.fields.lyricsValue.trim() === ""
-            ? "Instrumental"
+            ? controller.copy.review.noLyrics
             : <span class="line-clamp-2">{controller.fields.lyricsValue}</span>}
         />
         <Show when={controller.primary.activeSongMode === "remix"}>

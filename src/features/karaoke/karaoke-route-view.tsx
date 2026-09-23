@@ -237,7 +237,6 @@ function LoadedKaraokeSession(props: { payload: ApiSongKaraokePayload; postId: s
     const controller = new AbortController();
     walletConfirmationController = controller;
     const completion = requestGlobalSignInCompletion(controller.signal);
-    requestGlobalSignIn();
     const authenticated = await completion;
     if (walletConfirmationController === controller) walletConfirmationController = undefined;
     if (!active) return;

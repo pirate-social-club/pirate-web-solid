@@ -2,12 +2,7 @@ import { Title } from "@solidjs/meta";
 
 import { Card, CardContent } from "../../design-system";
 import { SignInPanel } from "../../features/auth/sign-in-panel.tsx";
-
-export function signInReturnPath(href: string): string {
-  const intentId = new URL(href).searchParams.get("community_intent");
-  return intentId && /^[a-zA-Z0-9_-]{1,200}$/.test(intentId)
-    ? `/communities/new?intent_id=${encodeURIComponent(intentId)}` : "/";
-}
+import { signInReturnPath } from "../../features/auth/sign-in-return.ts";
 
 export default function SignInRoute() {
   return (

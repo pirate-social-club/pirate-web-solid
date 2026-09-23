@@ -82,6 +82,7 @@ export interface ComposerCopy {
     change: string;
     earnings: string;
     lyrics: string;
+    noLyrics: string;
     permissions: string;
     rights: string;
     song: string;
@@ -307,6 +308,7 @@ export const defaultComposerCopy: ComposerCopy = {
     change: "Change",
     earnings: "Earnings split",
     lyrics: "Lyrics",
+    noLyrics: "No lyrics added",
     permissions: "Permissions",
     rights: "Rights",
     song: "Song",
