@@ -32,3 +32,22 @@ record and read back the deployed Worker version ID, script etag and bindings
 against the upload receipt. A version tag alone is not source proof. If any
 fingerprinted source or projected setting changes, compute a new reference and
 gateway manifest digest before enabling HNS.
+
+## Scope limits
+
+The identity binds the ingress transport and security boundary: the HNS
+ingress modules, the Worker's dispatch and disabled-host guard, and the
+protected staging configuration listed above. It does not bind the application
+served through that boundary once HNS is enabled. The community composition
+dispatches to the ordinary Solid application, so changes to the SSR bundle,
+`src/api/verification-config.ts`, non-HNS variables such as
+`VERIFICATION_UI_ENABLED` or `PRIVY_APP_ID`, bundler configuration, or a new
+non-HNS binding can change what the protected hostname serves without changing
+this identity. The top-level `assets` configuration is also outside the
+projection: with the default `run_worker_first`, static files are served on the
+protected hostname without invoking the Worker, so they bypass the
+disabled-host guard and, once enabled, forwarder authentication; only Access
+protects them. Production has the same property and those files are public on
+the canonical host. Treat the identity as proof of the ingress boundary, not of
+the served application; release evidence records the full source commit and
+build digest separately.
