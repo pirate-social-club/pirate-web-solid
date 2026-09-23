@@ -388,7 +388,7 @@ test("an unresolved moderation result survives reload and must be abandoned befo
     expect((await readLedger(page)).calls.filter(call => call === "command:cancel")).toHaveLength(1);
 
     await page.reload();
-    await expect(page.getByText("Video state: abandoned.", { exact: true })).toBeVisible();
+    await expect(page.getByText("This video was cancelled.", { exact: true })).toBeVisible();
     await expect(page.getByRole("button", { name: "Start a new video", exact: true })).toBeVisible();
     const afterReload = await readLedger(page);
     expect(afterReload.serverVideoState).toBe("abandoned");
