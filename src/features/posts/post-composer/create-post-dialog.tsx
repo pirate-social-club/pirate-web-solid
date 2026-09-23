@@ -737,7 +737,7 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
   return (
     <form
       aria-label="Create a post"
-      class="fixed inset-0 z-40 overflow-y-auto bg-background px-3 py-4 sm:px-6 sm:py-8"
+      class="fixed inset-0 z-50 overflow-y-auto bg-background px-3 py-4 sm:px-6 sm:py-8"
       data-create-post-form
       onSubmit={event => event.preventDefault()}
     >
