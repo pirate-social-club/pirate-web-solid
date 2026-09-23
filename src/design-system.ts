@@ -206,3 +206,4 @@ export {
   type MobileFooterNavProps,
   type MobilePageHeaderProps,
 } from "@pirate/web-solid-ui";
+export { ConfirmDialog, type ConfirmDialogProps } from "@pirate/web-solid-ui";

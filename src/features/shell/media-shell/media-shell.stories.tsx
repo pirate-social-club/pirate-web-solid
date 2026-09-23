@@ -27,7 +27,7 @@ const communities: readonly DrawerCommunity[] = [
   { communityId: "community_night", displayName: "Night Shift Radio", href: "/c/night-shift" },
 ];
 
-// One profile is bound to a community so the drawer shows the relationship.
+// One profile is bound to a community; the drawer lists that community once.
 const personas: readonly SwitchablePersona[] = switcherPersonas.map(persona =>
   persona.personaId === "persona_night" ? { ...persona, communityId: "community_night" } : persona);
 
@@ -105,9 +105,11 @@ export const MobileDrawerCommunities: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     const page = within(canvasElement.ownerDocument.body);
-    await userEvent.click(await canvas.findByRole("button", { name: "Open profiles and communities" }));
-    const drawer = await page.findByRole("dialog", { name: "Profiles and communities" });
-    await expect(await within(drawer).findByText("In Night Shift Radio")).toBeInTheDocument();
+    await userEvent.click(await canvas.findByRole("button", { name: "Open communities and settings" }));
+    const drawer = await page.findByRole("dialog", { name: "Communities and settings" });
+    await expect(await within(drawer).findByRole("button", { name: "Night Shift Radio" })).toBeInTheDocument();
+    await expect(within(drawer).queryByText("Night Shift")).not.toBeInTheDocument();
+    await expect(within(drawer).queryByText("Studio")).not.toBeInTheDocument();
     await expect(within(drawer).queryByRole("link", { name: "Wallet" })).not.toBeInTheDocument();
     await userEvent.click(await within(drawer).findByRole("button", { name: "Harbor Collective" }));
     await waitFor(() => expect(canvas.getByRole("status")).toHaveTextContent("Destination: /c/harbor"));

@@ -52,12 +52,20 @@ export function resolveApplicationChrome(pathname: string, viewerProfilePath?: s
   const community = first === "c";
   const profile = first === "u" || (first === "p" && !karaoke && !study);
   const ownProfile = viewerProfilePath !== undefined && pathname === viewerProfilePath;
+  // A Study or Karaoke session on a song takes over the screen, like a
+  // Duolingo lesson: its own exit and footer, no app header or tabs. The
+  // leaderboard and the top-level Your songs pages keep the app chrome.
+  const activitySession = (first === "p" || first === "posts") && segments.length === 3
+    && (segments[2] === "study" || segments[2] === "karaoke");
 
   if (isCommunityManagementRoute(pathname)) {
     return { activeItemId: "your-communities", mobileActiveItem: "none", mobileTitle: "Community", mode: "bare" };
   }
   if (first === "auth" || first === "verify" || first === "terms" || first === "privacy") {
     return { activeItemId: "home", mobileActiveItem: "home", mobileTitle: "", mode: "bare" };
+  }
+  if (activitySession) {
+    return { activeItemId: "songs", mobileActiveItem: "songs", mobileTitle: segments[2] === "study" ? "Study" : "Karaoke", mode: "bare" };
   }
   if (segments.length === 0) {
     return { activeItemId: "home", mobileActiveItem: "home", mobileTitle: "", mode: "immersive" };

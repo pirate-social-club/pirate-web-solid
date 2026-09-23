@@ -118,10 +118,17 @@ test("the excerpt is chosen before capture, guides the take and ends it", async 
   try {
     context = await open(userDataDir, `${proofPath}?compose=video&song=song-fixture`);
     const page = context.pages()[0] ?? await context.newPage();
-    // The window control exists before any clip is chosen or recorded.
-    await expect(page.getByLabel("Song position, moves the excerpt window")).toBeVisible();
+    // The camera screen comes first, with the chosen song on a pill. The
+    // excerpt controls are folded behind it until the author asks for them.
+    const pill = page.getByRole("button", { name: /^Song: Fixture song/u });
+    await expect(pill).toBeVisible();
+    await expect(page.getByLabel("Song position, moves the excerpt window")).toBeHidden();
     await expect(page.locator("textarea")).toHaveCount(0);
-    await expect(page.getByText("Fixture song", { exact: true }).first()).toBeVisible();
+    await expect.poll(async () => (await readLedger(page)).calls).toContain("preview:opened");
+    await pill.click();
+    await expect(page.getByLabel("Song position, moves the excerpt window")).toBeVisible();
+    await page.getByRole("button", { name: "Done", exact: true }).click();
+    await expect(page.getByLabel("Song position, moves the excerpt window")).toBeHidden();
 
     const startedAt = Date.now();
     await page.getByRole("button", { name: "Start recording", exact: true }).click();
@@ -138,10 +145,11 @@ test("the excerpt is chosen before capture, guides the take and ends it", async 
     await expect.poll(async () => (await readLedger(page)).stopped, { timeout: 15_000 }).toBe(1);
     expect(Date.now() - startedAt).toBeGreaterThan(2_500);
 
+    // The recording took over the previewed camera instead of reopening it.
+    expect((await readLedger(page)).calls).toContain("capture:preview-handed=yes");
     await expect(page.locator("textarea")).toBeVisible();
-    await expect(page.getByText("Local preview with the intended soundtrack", { exact: false })).toBeVisible();
     await expect(page.locator("video[muted]")).toHaveCount(1);
-    await expect(page.getByText("not the final master", { exact: false }).first()).toBeVisible();
+    await expect(page.getByText("Poster", { exact: true })).toHaveCount(0);
     await page.getByRole("button", { name: "Play with the song", exact: true }).click();
     await expect(page.getByRole("button", { name: "Pause preview", exact: true })).toBeVisible();
     await expect(page.getByText("This preview could not start", { exact: false })).toHaveCount(0);
@@ -157,7 +165,7 @@ test("an uploaded clip is measured against the excerpt before upload", async () 
   try {
     context = await open(userDataDir, `${proofPath}?compose=video&song=song-fixture`);
     const page = context.pages()[0] ?? await context.newPage();
-    await expect(page.getByLabel("Song position, moves the excerpt window")).toBeVisible();
+    await expect(page.getByRole("button", { name: /^Song: Fixture song/u })).toBeVisible();
     const input = page.locator('input[type="file"]');
     await input.setInputFiles({ name: "short.mp4", mimeType: "video/mp4", buffer: Buffer.from("short") });
     await expect(page.getByText("cannot be stretched", { exact: false })).toBeVisible();
@@ -268,7 +276,9 @@ test("original sound after a guided take publishes the untouched take", async ()
     expect(aligned.originalTakeBytes).not.toBeNull();
     expect(aligned.alignedReportedTrimMs!).toBeGreaterThan(0);
     // Choosing the video's own sound publishes the untouched take, not the
-    // aligned one whose soundtrack was replaced.
+    // aligned one whose soundtrack was replaced. The choice sits behind the
+    // song on the review screen.
+    await page.getByRole("button", { name: /^Song: Fixture song.*Change the sound$/u }).click();
     await page.getByRole("button", { name: "Use original sound", exact: true }).click();
     await page.getByRole("button", { name: "Publish video", exact: true }).click();
     await expect(page.getByRole("link", { name: "View published post", exact: true })).toBeVisible({ timeout: 15_000 });
@@ -313,7 +323,7 @@ test("the song entry and the attribution chip link to their songs", async () => 
     await page.getByRole("link", { name: "Use this song", exact: true }).click();
     await expect(page).toHaveURL(new RegExp(`/c/community-fixture\\?compose=video&song=song-fixture$`));
     // The composer opens on that song, and the chip resolves its link.
-    await expect(page.getByLabel("Song position, moves the excerpt window")).toBeVisible();
+    await expect(page.getByRole("button", { name: /^Song: Fixture song/u })).toBeVisible();
     await expect(page.locator('[data-song-chip="song-fixture"]'))
       .toHaveAttribute("href", "/posts/fixture-song");
     await expect(page.locator('[data-song-chip="song-fixture"]'))
@@ -331,7 +341,7 @@ test("the complete Use this song journey publishes a song-backed video", async (
     context = await open(userDataDir);
     const page = context.pages()[0] ?? await context.newPage();
     await page.getByRole("link", { name: "Use this song", exact: true }).click();
-    await expect(page.getByLabel("Song position, moves the excerpt window")).toBeVisible();
+    await expect(page.getByRole("button", { name: /^Song: Fixture song/u })).toBeVisible();
     await page.getByRole("button", { name: "Start recording", exact: true }).click();
     await expect.poll(async () => (await readLedger(page)).stopped, { timeout: 15_000 }).toBe(1);
     await expect(page.locator("textarea")).toBeVisible();
@@ -362,7 +372,8 @@ test("an unresolved moderation result survives reload and must be abandoned befo
     const page = context.pages()[0] ?? await context.newPage();
     const input = page.locator('input[type="file"]');
     await input.setInputFiles({ name: "long.mp4", mimeType: "video/mp4", buffer: Buffer.from("long") });
-    await expect(page.locator('[data-song-plan="ready"]')).toBeVisible();
+    // The song's controls are folded; its plan only needs to be ready.
+    await expect(page.locator('[data-song-plan="ready"]')).toBeAttached();
     await page.getByRole("button", { name: "Publish video", exact: true }).click();
     await expect(page.getByText("provider submission is unconfirmed", { exact: false })).toBeVisible();
     await expect(page.getByRole("button", { name: /Retry processing|Retry publication/ })).toHaveCount(0);

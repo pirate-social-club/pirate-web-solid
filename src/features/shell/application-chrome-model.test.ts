@@ -32,6 +32,16 @@ describe("application chrome policy", () => {
     expect(resolveApplicationChrome("/settings")).toMatchObject({ activeItemId: "settings", mobileActiveItem: "profile", mobileTitle: "Settings" });
   });
 
+  test("gives Study and Karaoke sessions the whole screen", () => {
+    expect(resolveApplicationChrome("/p/post-1/study")).toMatchObject({ mode: "bare", activeItemId: "songs" });
+    expect(resolveApplicationChrome("/p/post-1/karaoke")).toMatchObject({ mode: "bare" });
+    expect(resolveApplicationChrome("/posts/harbor-lights/study")).toMatchObject({ mode: "bare" });
+    expect(resolveApplicationChrome("/posts/harbor-lights/karaoke")).toMatchObject({ mode: "bare" });
+    // The leaderboard and Your songs keep the app chrome.
+    expect(resolveApplicationChrome("/posts/harbor-lights/karaoke/leaderboard")).toMatchObject({ mode: "standard" });
+    expect(resolveApplicationChrome("/study")).toMatchObject({ mode: "standard" });
+  });
+
   test("keeps Study and Karaoke sessions under Your songs", () => {
     expect(resolveApplicationChrome("/p/post-1/study")).toMatchObject({ activeItemId: "songs", mobileActiveItem: "songs", mobileTitle: "Study" });
     expect(resolveApplicationChrome("/p/post-1/karaoke")).toMatchObject({ activeItemId: "songs", mobileActiveItem: "songs", mobileTitle: "Karaoke" });

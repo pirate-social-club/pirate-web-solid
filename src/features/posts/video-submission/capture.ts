@@ -71,9 +71,12 @@ export interface OriginalVideoCaptureInput {
   /** Recording stops at this length. A guided take passes the excerpt plus
    * its tail guard; without one the platform limit stands. */
   readonly limitMs?: number;
+  /** A live camera stream already shown as the preview. The recording takes
+   * ownership of it and stops its tracks when the take ends. */
+  readonly stream?: MediaStream;
 }
 
-export async function startOriginalVideoCapture(input: OriginalVideoCaptureInput): Promise<VideoCaptureSession> {
+async function assertRecordingCapability(): Promise<void> {
   if (!globalThis.isSecureContext || !navigator.mediaDevices?.getUserMedia
     || !("VideoEncoder" in globalThis) || !("AudioEncoder" in globalThis)
     || !await canEncodeVideo("avc", { width: 720, height: 1280, quality: videoQuality,
@@ -81,10 +84,25 @@ export async function startOriginalVideoCapture(input: OriginalVideoCaptureInput
     || !await canEncodeAudio("aac", { numberOfChannels: 1, sampleRate: 48_000, quality: audioQuality })) {
     throw new VideoCaptureError("capability_unavailable", "This browser cannot record H.264 and AAC; choose a compatible video instead");
   }
-  let stream: MediaStream;
+}
+
+async function openCameraStream(): Promise<MediaStream> {
   try {
-    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user", width: { ideal: 720 }, height: { ideal: 1280 }, frameRate: { ideal: 30, max: 30 } }, audio: true });
+    return await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user", width: { ideal: 720 }, height: { ideal: 1280 }, frameRate: { ideal: 30, max: 30 } }, audio: true });
   } catch { throw new VideoCaptureError("camera_denied", "Camera or microphone access is unavailable; upload remains available"); }
+}
+
+/** Opens the camera for a live preview before recording, so the capture
+ * screen shows the camera immediately. The caller stops the tracks when the
+ * preview is abandoned; a recording started from it stops them itself. */
+export async function openCameraPreview(): Promise<MediaStream> {
+  await assertRecordingCapability();
+  return openCameraStream();
+}
+
+export async function startOriginalVideoCapture(input: OriginalVideoCaptureInput): Promise<VideoCaptureSession> {
+  await assertRecordingCapability();
+  const stream = input.stream ?? await openCameraStream();
   const target = new BufferTarget();
   const output = new Output({ target, format: new Mp4OutputFormat({ fastStart: "fragmented", minimumFragmentDuration: 1 }) });
   let ended = false;

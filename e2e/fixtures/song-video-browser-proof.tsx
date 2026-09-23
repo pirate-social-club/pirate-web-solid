@@ -368,11 +368,12 @@ createRoot(() => {
     state.limitMs = input.limitMs ?? null;
     write(state);
     record(`capture:limit=${input.limitMs ?? "none"}`);
+    record(`capture:preview-handed=${input.stream === undefined ? "no" : "yes"}`);
     // The fake capture honors the requested duration rather than a constant,
     // so the proof measures the stop request, not just callback wiring.
     setTimeout(() => { void input.onLimit(); }, input.limitMs ?? 900);
     return {
-      stream: new MediaStream(),
+      stream: input.stream ?? new MediaStream(),
       captureOriginMs: performance.now(),
       stop: async () => {
         const current = ledger();
@@ -388,6 +389,18 @@ createRoot(() => {
       },
       cancel: async () => { record("capture:cancelled"); },
     };
+  };
+  // The camera preview shown before a take. A canvas stream stands in for the
+  // camera: like a real one it has a video track, so the viewfinder loads its
+  // metadata. The proof checks the recording takes it over.
+  const openPreview = async (): Promise<MediaStream> => {
+    record("preview:opened");
+    const canvas = document.createElement("canvas");
+    canvas.width = 90;
+    canvas.height = 160;
+    const context = canvas.getContext("2d");
+    if (context) { context.fillStyle = "#335"; context.fillRect(0, 0, canvas.width, canvas.height); }
+    return canvas.captureStream(5);
   };
   render(() => (
     <main>
@@ -438,6 +451,7 @@ createRoot(() => {
               songPreflight={preflight}
               songReader={songReader}
               startCapture={startCapture}
+              openPreview={openPreview}
               transport={transport}
             />
             <section aria-label="Attribution fixture">

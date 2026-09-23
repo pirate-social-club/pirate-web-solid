@@ -178,8 +178,10 @@ function Failure(props: { readonly state: Exclude<PublicPostRouteState, { readon
       <main class="mx-auto w-full max-w-3xl px-4 py-8 md:px-8" data-public-post-state="age-locked">
         <Title>Age verification required</Title>
         <Meta name="robots" content="noindex, nofollow" />
-        <h1>Age verification required</h1>
+        <h1 class="mb-3 text-2xl font-bold">Age verification required</h1>
         <AgeAccessPrompt onVerified={props.onVerified} verify={props.verifyAge} />
+        {/* Study and Karaoke routes render without app chrome, so the page carries its own way out. */}
+        <a class={buttonVariants({ variant: "secondary", class: "mt-6" })} href="/">Go home</a>
       </main>
     );
   }
@@ -192,9 +194,10 @@ function Failure(props: { readonly state: Exclude<PublicPostRouteState, { readon
     <main class="mx-auto w-full max-w-3xl px-4 py-8 md:px-8" data-public-post-state={state.kind}>
       <Title>Post unavailable</Title>
       <Meta name="robots" content="noindex, nofollow" />
-      <h1>Post unavailable</h1>
-      <p role="alert">{message}</p>
+      <h1 class="mb-2 text-2xl font-bold">Post unavailable</h1>
+      <p class="text-muted-foreground" role="alert">{message}</p>
       <Show when={state.kind === "redirect" ? state.location : undefined}>{href => <a href={href()}>Continue to this post</a>}</Show>
+      <a class={buttonVariants({ variant: "secondary", class: "mt-6" })} href="/">Go home</a>
     </main>
   );
 }

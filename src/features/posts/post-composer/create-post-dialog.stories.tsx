@@ -11,6 +11,7 @@ import type { MediaSubmissionSnapshot } from "../media-submission/contracts";
 import { mediaCommandBody, type PersistedMediaCommand } from "../media-submission/pending";
 import type { MediaCommandResult, MediaSubmissionTransport } from "../media-submission/transport";
 import { CreatePostDialog } from "./create-post-dialog";
+import { MobileFooterNav } from "../../shell/app-shell-chrome/app-shell-chrome";
 
 const personas = (count: 1 | 2 = 1): ActivePersonaPublicProjection[] => [
   { personaId: "persona-one", displayName: "Persona One", avatarRef: null, primaryPublicHandle: "salt-cove.pirate", communityBinding: null },
@@ -226,6 +227,32 @@ export const ContextualTextMobile: Story = {
   globals: { viewport: { value: "mobile1", isRotated: false } },
 };
 
+/** The composer opens over a page whose mobile tab bar stays mounted, as on a
+ * community page. The composer must cover that bar: on a Pixel the bar sat in
+ * the same layer, rendered later, and took the tap meant for "Publish video". */
+export const ContextualTextOverMobileNavigation: Story = {
+  name: "Contextual / Text / Over mobile navigation",
+  globals: { viewport: { value: "mobile1", isRotated: false } },
+  render: () => (
+    <>
+      {dialogHarness().render()}
+      <MobileFooterNav
+        forceMobile
+        labels={{ home: "Home", songs: "Your songs", wallet: "Wallet", profile: "Profile", primaryNavAriaLabel: "Primary navigation" }}
+      />
+    </>
+  ),
+  play: async ({ canvasElement }) => {
+    const form = await within(canvasElement).findByRole("form", { name: "Create a post" });
+    const nav = canvasElement.ownerDocument.querySelector("nav[aria-label='Primary navigation']");
+    await expect(nav).not.toBeNull();
+    const box = nav!.getBoundingClientRect();
+    await expect(box.height).toBeGreaterThan(0);
+    const hit = canvasElement.ownerDocument.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2);
+    await expect(hit !== null && form.contains(hit)).toBe(true);
+  },
+};
+
 export const ContextualTextMultiplePersonas: Story = {
   name: "Contextual / Text / App-selected persona",
   render: () => dialogHarness({ personaCount: 2, personaId: "persona-two" }).render(),
@@ -309,7 +336,7 @@ export const SongStepReview: Story = {
   },
 };
 
-/** A failed upload keeps the author on Song with its reason beside Continue. */
+/** A failed upload shows the retained file, its real error, and a retry. */
 export const SongUploadFailed: Story = {
   name: "Song / States / Upload failed on Continue",
   render: () => dialogHarness({ mediaTransport: new FailingUploadStoryTransport() }).render(),
@@ -318,6 +345,9 @@ export const SongUploadFailed: Story = {
     await uploadStorySong(canvas);
     await continueSongStep(canvas);
     await expect(await canvas.findByRole("alert")).toHaveTextContent("The audio upload did not finish. Try again.");
+    await expect(canvas.getByRole("heading", { name: "Audio upload needs another try" })).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: "Try upload again" })).toBeInTheDocument();
+    await expect(canvas.queryByText(/awaiting upload/i)).not.toBeInTheDocument();
     await expect(canvas.queryByText("What others may do with this song")).not.toBeInTheDocument();
   },
 };

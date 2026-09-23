@@ -11,6 +11,7 @@ import {
   TextFieldDescription,
   TextFieldInput,
   TextFieldLabel,
+  Type,
 } from "../../../design-system";
 import type { ActiveSongMediaPostSubmission, MediaSubmissionSnapshot } from "../media-submission/contracts";
 import { createMediaSubmissionCoordinator } from "../media-submission/coordinator";
@@ -191,6 +192,7 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
   }));
   const [sourceAssetId, setSourceAssetId] = createSignal("");
   const [error, setError] = createSignal("");
+  const [uploadFailure, setUploadFailure] = createSignal<string | null>(null);
   const [textState, setTextState] = createSignal<PostComposerState>(initialPostComposerState);
   const [mediaView, setMediaView] = createSignal<SongSubmissionView>({ status: "editing" });
   const [mediaSnapshot, setMediaSnapshot] = createSignal<MediaSubmissionSnapshot | null>(null);
@@ -344,6 +346,7 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
     setTitle("");
     setSongAgeGatePolicy("none");
     setError("");
+    setUploadFailure(null);
   }
 
   function discardTerminalSong(): void {
@@ -484,10 +487,14 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
         signal: uploadController.signal,
       });
       applySnapshot(snapshot);
+      setUploadFailure(null);
       if (!prepareOnly && snapshot.status === "published") finishSongPublished();
       return snapshot.audio_revision >= 1;
     } catch (submissionError) {
-      setError(submissionError instanceof Error ? submissionError.message : "The song could not be submitted safely.");
+      const message = submissionError instanceof Error ? submissionError.message : "The song could not be submitted safely.";
+      setError(message);
+      if (prepareOnly && canCancelSong() && Boolean(song().primaryAudioUpload)
+        && !mediaCoordinator.recoveredUploadUnavailable) setUploadFailure(message);
       return false;
     } finally {
       if (mediaUploadController === uploadController) mediaUploadController = undefined;
@@ -579,6 +586,12 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
     }
   }
 
+  async function cancelFailedUpload(): Promise<void> {
+    await cancelSong();
+    if (mediaView().status === "abandoned") discardTerminalSong();
+    else if (error()) setUploadFailure(error());
+  }
+
   function submit(): void {
     if (mode() === "text") {
       void submitText();
@@ -651,6 +664,7 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
     const view = mediaView();
     return view.status === "processing" && view.phase === "awaiting_upload";
   };
+  const showUploadRecovery = () => mode() === "song" && uploadFailure() !== null && canCancelSong();
   const canRetrySong = () => {
     const view = mediaView();
     return view.status === "processing_failed" && view.retryable;
@@ -723,7 +737,7 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
   return (
     <form
       aria-label="Create a post"
-      class="fixed inset-0 z-40 overflow-y-auto bg-background px-3 py-4 sm:px-6 sm:py-8"
+      class="fixed inset-0 z-50 overflow-y-auto bg-background px-3 py-4 sm:px-6 sm:py-8"
       data-create-post-form
       onSubmit={event => event.preventDefault()}
     >
@@ -779,6 +793,23 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
                 />}</Show>
               }
             >
+              <Show when={!showUploadRecovery()} fallback={
+                <section aria-labelledby="upload-recovery-title" class="mx-auto flex min-h-[calc(100dvh-2rem)] w-full max-w-md flex-col px-2 pb-4">
+                  <div class="flex justify-end"><Button disabled={mediaBusy()} onClick={() => close(false)} type="button" variant="ghost">Close</Button></div>
+                  <div class="flex flex-1 flex-col justify-center gap-5">
+                    <div class="space-y-2">
+                      <Type as="h2" id="upload-recovery-title" variant="h2">Audio upload needs another try</Type>
+                      <Type class="text-muted-foreground">Your song has not been published.</Type>
+                    </div>
+                    <div aria-live="polite" role="alert"><FormNote tone="warning">{uploadFailure()}</FormNote></div>
+                    <Show when={song().primaryAudioUpload?.name}>{name => <Type class="break-all text-muted-foreground">Selected file: {name()}</Type>}</Show>
+                  </div>
+                  <div class="grid gap-2 pb-[env(safe-area-inset-bottom)]">
+                    <Button disabled={mediaBusy()} loading={mediaBusy()} onClick={() => void submitSong(true)} type="button">Try upload again</Button>
+                    <Button disabled={mediaBusy()} onClick={() => void cancelFailedUpload()} type="button" variant="ghost">Cancel song submission</Button>
+                  </div>
+                </section>
+              }>
               <PostComposer
                 attachmentBarPlacement="inline"
                 audienceEditingDisabled={mode() === "song"
@@ -833,6 +864,7 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
                 titleValue={title()}
                 validateDraftBeforeSubmit={mode() !== "text"}
               />
+              </Show>
             </Show>
         </div>
       </form>

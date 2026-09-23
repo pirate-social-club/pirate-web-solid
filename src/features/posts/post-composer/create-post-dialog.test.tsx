@@ -536,7 +536,9 @@ describe("create post request", () => {
     await vi.waitFor(() => expect(button("Stop upload")).toBeInstanceOf(HTMLButtonElement));
     button("Stop upload").click();
 
-    await vi.waitFor(() => expect(document.body.textContent).toContain("awaiting upload"));
+    await vi.waitFor(() => expect(document.body.textContent).toContain("Audio upload needs another try"));
+    expect(document.body.querySelector("[role='alert']")?.textContent).toContain("upload stopped");
+    expect(document.body.textContent).not.toContain("awaiting upload");
     expect(document.body.textContent).not.toContain("Stop upload");
     await vi.waitFor(() => expect(button("Cancel song submission").disabled).toBe(false));
     expect(mediaTransport.uploadCount).toBe(1);
@@ -984,7 +986,17 @@ describe("create post request", () => {
 
   test("shows a failed audio upload on the Song step instead of advancing silently", async () => {
     class FailingUploadTransport extends ProductionMediaTransport {
+      attempts = 0;
+      override async dispatch(command: PersistedMediaCommand): Promise<MediaCommandResult> {
+        if (command.kind === "cancel") {
+          this.commands.push(command);
+          this.snapshot = mediaSnapshot({ status: "abandoned" });
+          return this.snapshot;
+        }
+        return super.dispatch(command);
+      }
       override async upload(): Promise<void> {
+        this.attempts += 1;
         throw new Error("The audio upload did not finish. Try again.");
       }
     }
@@ -1003,15 +1015,50 @@ describe("create post request", () => {
     await vi.waitFor(() => expect(button("Continue").disabled).toBe(false));
     button("Continue").click();
 
-    // The error must be the upload's own message, rendered in the step footer
-    // beside Continue, not merely some alert elsewhere in the dialog.
+    // A retained failed upload gets a focused recovery screen with the real
+    // error and an action that retries the same audio reservation.
     await vi.waitFor(() => {
-      const alert = [...document.body.querySelectorAll("[role='alert']")]
-        .find(node => node.textContent?.includes("The audio upload did not finish. Try again."));
-      expect(alert).toBeInstanceOf(HTMLElement);
-      expect(alert!.parentElement!.contains(button("Continue"))).toBe(true);
+      expect(document.body.querySelector("#upload-recovery-title")?.textContent).toBe("Audio upload needs another try");
+      expect(document.body.querySelector("[role='alert']")?.textContent).toContain("The audio upload did not finish. Try again.");
     });
+    expect(document.body.textContent).toContain("Selected file: unsent.mp3");
+    expect(document.body.textContent).not.toContain("awaiting upload");
+    expect(document.body.querySelector("#song-track-title")).toBeNull();
+    button("Try upload again").click();
+    await vi.waitFor(() => expect(mediaTransport.attempts).toBe(2));
+    await vi.waitFor(() => expect(document.body.querySelector("[role='alert']")?.textContent).toContain("The audio upload did not finish. Try again."));
     expect(document.body.textContent).not.toContain("What others may do with this song");
+    button("Cancel song submission").click();
+    await vi.waitFor(() => expect(document.body.querySelector("#upload-recovery-title")).toBeNull());
+    expect(mediaTransport.commands.at(-1)?.kind).toBe("cancel");
+  });
+
+  test("retries the retained audio and advances to Rights after upload succeeds", async () => {
+    class FailOnceTransport extends ProductionMediaTransport {
+      attempts = 0;
+      override async upload(reservation: PostCommunitiesCommunityIdMediaUploadReservationsResponse, audio: Blob): Promise<void> {
+        this.attempts += 1;
+        if (this.attempts === 1) throw new Error("The audio upload did not finish. Try again.");
+        await super.upload(reservation, audio);
+      }
+    }
+    const mediaTransport = new FailOnceTransport();
+    render(() => <CreatePostDialog
+      communityContext={{ id: "community-one", name: "Harbor" }}
+      mediaTransport={mediaTransport}
+      onOpenChange={() => {}}
+      open
+      personas={[activePersona("persona-one", "Persona One")]}
+      principalId="account-one"
+    />);
+    await new Promise<void>(resolve => setTimeout(resolve, 0));
+    await uploadAudio("retry.mp3");
+    button("Continue").click();
+    await vi.waitFor(() => expect(button("Try upload again")).toBeInstanceOf(HTMLButtonElement));
+    button("Try upload again").click();
+    await vi.waitFor(() => expect(document.body.textContent).toContain("What others may do with this song"));
+    expect(mediaTransport.attempts).toBe(2);
+    expect(mediaTransport.commands.map(command => command.kind)).toEqual(["reserve", "start", "finalize"]);
   });
 
   test("keeps observing after a transient status failure and still marks the published song", async () => {

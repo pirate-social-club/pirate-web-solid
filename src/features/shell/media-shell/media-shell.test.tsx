@@ -65,7 +65,7 @@ describe("Application navigation", () => {
     expect(navigate).toHaveBeenLastCalledWith("/songs");
   });
 
-  test("the phone drawer holds profiles with their communities and joined communities, not the footer tabs", async () => {
+  test("the phone drawer lists communities once and leaves profile switching to the footer", async () => {
     const navigate = vi.fn();
     const personas = [{ personaId: "one", displayName: "Harbor" }, { personaId: "two", displayName: "Night Shift", communityId: "community-2" }];
     const communities = [
@@ -73,10 +73,12 @@ describe("Application navigation", () => {
       { communityId: "community-2", displayName: "Night Radio", href: "/c/night" },
     ];
     const container = render(() => <ApplicationChrome signedIn navigate={navigate} personas={personas} selectedPersonaId="one" loadCommunities={async () => communities}>Route</ApplicationChrome>);
-    container.querySelector<HTMLButtonElement>('button[aria-label="Open profiles and communities"]')!.click();
+    container.querySelector<HTMLButtonElement>('button[aria-label="Open communities and settings"]')!.click();
     await vi.waitFor(() => expect(document.querySelector('[role="dialog"]')).not.toBeNull());
     const dialog = document.querySelector('[role="dialog"]')!;
-    await vi.waitFor(() => expect(dialog.textContent).toContain("In Night Radio"));
+    await vi.waitFor(() => expect(dialog.textContent).toContain("Night Radio"));
+    expect(dialog.textContent).not.toContain("Night Shift");
+    expect([...dialog.querySelectorAll("button")].some(button => button.textContent?.trim() === "Harbor")).toBe(false);
     expect(dialog.querySelector('a[href="/wallet"], a[href="/songs"]')).toBeNull();
     [...dialog.querySelectorAll<HTMLButtonElement>("button")].find(button => button.textContent?.includes("Harbor Collective"))!.click();
     await vi.waitFor(() => expect(navigate).toHaveBeenCalledWith("/c/harbor"));

@@ -216,7 +216,7 @@ export function ApplicationChrome(props: MediaShellProps) {
     <span class="min-w-0 flex-1"><Type as="span" variant="body-strong" class="block truncate">{selected()?.displayName ?? "Profile"}</Type><Show when={selected()?.publicHandle}><Type as="span" variant="caption" class="block truncate">{selected()?.publicHandle}</Type></Show></span>
   </button>;
   const accountAction = () => <Show when={signedIn() || props.sessionResolving || props.sessionUnavailable} fallback={<Button class="w-full" onClick={requestGlobalSignIn} onFocus={prepareGlobalSignIn} onPointerDown={prepareGlobalSignIn} onPointerEnter={preloadGlobalSignInAssets}>Sign in</Button>}>{profileControl()}</Show>;
-  /** Desktop only: the phone has the footer tabs and the profiles-and-communities drawer. */
+  /** Desktop only: the phone has footer tabs and the communities drawer. */
   function NavigationSidebar() {
     // Create one set per render: repeated prop reads must not recreate JSX
     // during SSR/hydration.
@@ -231,18 +231,15 @@ export function ApplicationChrome(props: MediaShellProps) {
     <div class="flex min-h-screen">
       <NavigationSidebar />
       <Sheet open={menuOpen()} onOpenChange={setMenuOpen}>
-        <SheetContent side="left" onCloseAutoFocus={afterMenuClose} class="flex h-dvh w-80 max-w-[85vw] flex-col gap-0 bg-sidebar p-0 text-sidebar-foreground md:hidden" aria-label="Profiles and communities">
-          <SheetHeader class="sr-only"><SheetTitle>Profiles and communities</SheetTitle></SheetHeader>
+        <SheetContent side="left" onCloseAutoFocus={afterMenuClose} class="flex h-dvh w-80 max-w-[85vw] flex-col gap-0 bg-sidebar p-0 text-sidebar-foreground md:hidden" aria-label="Communities and settings">
+          <SheetHeader class="sr-only"><SheetTitle>Communities and settings</SheetTitle></SheetHeader>
           <NavigationDrawer
             communities={communities()}
             onCreateCommunity={() => go("/communities/new")}
             onOpenCommunity={href => go(href)}
             onRetryCommunities={loadCommunities}
-            onSelectPersona={id => props.onPersonaSelect?.(id)}
             onSettings={() => go("/settings")}
             onSignIn={() => { setMenuOpen(false); requestGlobalSignIn(); }}
-            personas={props.personas ?? []}
-            selectedPersonaId={props.selectedPersonaId}
             signedIn={signedIn()}
           />
         </SheetContent>
@@ -251,7 +248,7 @@ export function ApplicationChrome(props: MediaShellProps) {
         <div class="md:hidden">
           <AppHeader forceMobile hideBrand mobileAppearance={immersive() ? "media-overlay" : "default"}
             mobileCenterContent={<Show when={props.mobileTitle}>{title => <Type as="span" variant="h4" class={immersive() ? "text-white" : undefined}>{title()}</Type>}</Show>}
-            mobileLeadingContent={<IconButton ref={(element: HTMLButtonElement) => { menuTrigger = element; }} aria-label="Open profiles and communities" aria-expanded={menuOpen() ? "true" : "false"} aria-haspopup="dialog" onClick={() => setMenuOpen(true)} variant="ghost" class={immersive() ? "text-white hover:bg-white/10" : undefined}><IconList class="size-6" /></IconButton>}
+            mobileLeadingContent={<IconButton ref={(element: HTMLButtonElement) => { menuTrigger = element; }} aria-label="Open communities and settings" aria-expanded={menuOpen() ? "true" : "false"} aria-haspopup="dialog" onClick={() => setMenuOpen(true)} variant="ghost" class={immersive() ? "text-white hover:bg-white/10" : undefined}><IconList class="size-6" /></IconButton>}
             mobileTrailingContent={<Show when={!signedIn() && !props.sessionResolving && !props.sessionUnavailable}><Button onClick={requestGlobalSignIn} onFocus={prepareGlobalSignIn} onPointerDown={prepareGlobalSignIn} onPointerEnter={preloadGlobalSignInAssets} class={immersive() ? "text-white" : undefined} size="sm" variant="ghost">Sign in</Button></Show>}
             showNotificationsAction={false} showProfileAction={false} showWalletAction={false}
           />
