@@ -157,11 +157,6 @@ export function SongReviewPreview(props: {
       <Button disabled={!props.videoUrl} onClick={() => void toggle()} type="button" variant="secondary">
         {playing() ? "Pause preview" : "Play with the song"}
       </Button>
-      <Type as="p" variant="caption" role="status">
-        Local preview with the intended soundtrack, {formatExcerptTime(props.bounds.startMs)} to{" "}
-        {formatExcerptTime(props.bounds.endMs)}. The published video is rendered by the server from this excerpt;
-        this preview is not the final master.
-      </Type>
       <Show when={issue()}>
         {(message) => <Type as="p" variant="caption" role="alert">{message()}</Type>}
       </Show>

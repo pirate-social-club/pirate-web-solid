@@ -31,7 +31,7 @@ const openPreview = vi.fn(async (): Promise<MediaStream> => {
   const track = { stop: () => { stops += 1; } };
   // SAFETY: the runtime only reads getTracks from the preview and assigns it
   // to the viewfinder; jsdom has no MediaStream.
-  const stream = { getTracks: () => [track, track] } as unknown as MediaStream;
+  const stream = Object.assign(Object.create(null) as MediaStream, { getTracks: () => [track, track] });
   previews.push({ stream, stopped: () => stops > 0 });
   return stream;
 });
@@ -269,6 +269,7 @@ describe("mounted song-first video flow", () => {
 
   const button = (label: string) => [...document.querySelectorAll("button")].find(candidate => candidate.textContent?.trim() === label);
   const plan = () => document.querySelector("[data-song-plan]");
+  const soundtrackPanel = () => document.querySelector('section[aria-label="Soundtrack"]')?.parentElement?.closest<HTMLElement>("div");
   async function loadSongMetadata(seconds = 210) {
     await vi.waitFor(() => expect(document.querySelector("audio")).not.toBeNull());
     const audio = document.querySelector("audio")!;
@@ -341,14 +342,39 @@ describe("mounted song-first video flow", () => {
     await loadSongMetadata();
     await awaitPlan("ready");
     await chooseFile();
-    await vi.waitFor(() => expect(document.body.textContent).toContain("Local preview with the intended soundtrack"));
+    await vi.waitFor(() => expect(button("Play with the song")).toBeDefined());
     const video = document.querySelector("video")!;
     // jsdom does not reflect the media `muted` IDL property; the attribute is
     // what the browser applies on mount.
     expect(video.hasAttribute("muted")).toBe(true);
     expect(document.querySelector('button')?.textContent).toBeDefined();
     expect(button("Play with the song")).toBeDefined();
-    expect(document.body.textContent).toContain("not the final master");
+    // Review names the song and nothing else: no source, poster or rights
+    // summary competes with the caption and Publish.
+    expect(document.body.textContent).toContain("A song · 0:00 to 0:30");
+    expect(document.body.textContent).not.toContain("Poster");
+    expect(document.body.textContent).not.toContain("Rights");
+    expect(soundtrackPanel()?.hidden).toBe(true);
+  });
+
+  test("entering from a song folds its excerpt controls behind the song pill", async () => {
+    songSetup({ preflight: "accepted", mobile: true });
+    await loadSongMetadata();
+    await awaitPlan("ready");
+    await vi.waitFor(() => expect(soundtrackPanel()?.hidden).toBe(true));
+    const pill = document.querySelector<HTMLButtonElement>('button[aria-label^="Song: A song"]')!;
+    expect(pill.textContent).toContain("A song · 0:00 to 0:30");
+    pill.click();
+    await vi.waitFor(() => expect(soundtrackPanel()?.hidden).toBe(false));
+    button("Done")!.click();
+    await vi.waitFor(() => expect(soundtrackPanel()?.hidden).toBe(true));
+  });
+
+  test("a song that needs a decision keeps its controls open", async () => {
+    songSetup({ preflight: "refused", mobile: true });
+    await loadSongMetadata();
+    await awaitPlan("refused");
+    expect(soundtrackPanel()?.hidden).toBe(false);
   });
 
   test("with the capability off, publishing with the song is blocked until the author chooses the video's own sound", async () => {

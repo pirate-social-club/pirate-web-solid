@@ -55,6 +55,26 @@ export const Recording: Story = {
   },
 };
 
+export const CameraReadyWithSong: Story = {
+  name: "1. Capture / Camera ready with a song",
+  globals: mobileViewport,
+  render: () => (
+    <OriginalVideoCaptureSurface
+      onSongTap={() => {}}
+      songLabel="Harbour Lights · 0:00 to 0:15"
+      status="idle"
+    />
+  ),
+  parameters: {
+    docs: {
+      description: {
+        story:
+          "Entering from a song post. The camera fills the screen and the chosen song sits on a pill in place of the title; tapping it opens the excerpt controls. Nothing else competes with the shutter.",
+      },
+    },
+  },
+};
+
 export const CameraDenied: Story = {
   name: "1. Capture / Camera denied",
   globals: mobileViewport,
@@ -118,7 +138,26 @@ export const Review: Story = {
     docs: {
       description: {
         story:
-          "The only authored text is an optional caption. Source, poster and rights are read-only summaries: the server extracts the poster and checks the recorded soundtrack.",
+          "The take, one optional caption and Publish. There are no source, poster or rights summaries: the server extracts the poster and checks the soundtrack.",
+      },
+    },
+  },
+};
+
+export const ReviewWithSong: Story = {
+  name: "2. Review / With a song",
+  globals: mobileViewport,
+  render: () => (
+    <OriginalVideoReviewSurface
+      onSongTap={() => {}}
+      songLabel="Harbour Lights · 0:00 to 0:15"
+    />
+  ),
+  parameters: {
+    docs: {
+      description: {
+        story:
+          "A take recorded to a song. The song is named under the preview; tapping it opens the song controls, where the author can switch to the video's own sound.",
       },
     },
   },
