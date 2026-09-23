@@ -309,7 +309,7 @@ export const SongStepReview: Story = {
   },
 };
 
-/** A failed upload keeps the author on Song with its reason beside Continue. */
+/** A failed upload shows the retained file, its real error, and a retry. */
 export const SongUploadFailed: Story = {
   name: "Song / States / Upload failed on Continue",
   render: () => dialogHarness({ mediaTransport: new FailingUploadStoryTransport() }).render(),
@@ -318,6 +318,9 @@ export const SongUploadFailed: Story = {
     await uploadStorySong(canvas);
     await continueSongStep(canvas);
     await expect(await canvas.findByRole("alert")).toHaveTextContent("The audio upload did not finish. Try again.");
+    await expect(canvas.getByRole("heading", { name: "Audio upload needs another try" })).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: "Try upload again" })).toBeInTheDocument();
+    await expect(canvas.queryByText(/awaiting upload/i)).not.toBeInTheDocument();
     await expect(canvas.queryByText("What others may do with this song")).not.toBeInTheDocument();
   },
 };
