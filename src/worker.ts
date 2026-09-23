@@ -126,6 +126,11 @@ export default {
       } catch {
         return hnsAssemblyFailureResponse();
       }
+      if (
+        (origin === env.HNS_COMMUNITY_APP_INGRESS_ORIGIN || origin === env.HNS_HANDLE_HOST_INGRESS_ORIGIN) &&
+        !community.enabled &&
+        !handle.enabled
+      ) return hnsAssemblyFailureResponse();
       return routeHnsIngressRequest({
         request,
         community,
