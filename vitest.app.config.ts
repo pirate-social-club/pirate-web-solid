@@ -123,6 +123,7 @@ export default defineConfig({
       "src/features/shell/media-shell/media-shell.test.tsx",
       "src/features/shell/application-chrome-model.test.ts",
       "src/features/shell/navigation-model.test.ts",
+      "src/features/karaoke/karaoke-results-model.test.ts",
       "src/features/studying/study-session-start-coordinator.test.ts",
       "src/features/shell/application-personas.test.ts",
       "src/features/songs/your-songs-model.test.ts",

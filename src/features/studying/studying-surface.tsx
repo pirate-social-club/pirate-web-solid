@@ -5,8 +5,8 @@ import {
   Button,
   cn,
   createMediaQuery,
+  IconArrowCounterClockwise,
   IconCheck,
-  IconCheckCircle,
   IconCrown,
   IconFire,
   IconLock,
@@ -18,8 +18,8 @@ import {
   Type,
 } from "../../design-system";
 import { ActivityProgressHeader } from "../activity/activity-progress-header";
+import { ActivityResults, clampResultPercent, resultHeadline, type ActivityResultTone } from "../activity/activity-results";
 import {
-  clampPercent,
   previousStreakForAnimation,
   primaryActionDisabled,
   primaryActionLabel,
@@ -62,11 +62,13 @@ function ActivityFooter(props: {
   primaryVariant?: "default" | "destructive" | "secondary";
   secondaryIcon?: JSX.Element;
   secondaryLabel?: string;
+  /** Results: one primary Continue with a quiet "again" beneath it. */
+  stacked?: boolean;
 }) {
   return (
     <Show when={props.primaryLabel}>
       <footer class="sticky bottom-0 z-10 border-t border-border-soft bg-background/95 px-4 pb-[calc(env(safe-area-inset-bottom)+1.5rem)] pt-4 backdrop-blur-xl sm:px-6">
-        <div class={cn("mx-auto grid w-full max-w-3xl gap-3", props.secondaryLabel && "sm:grid-cols-2")}>
+        <div class={cn("mx-auto grid w-full max-w-3xl gap-3", props.secondaryLabel && !props.stacked && "sm:grid-cols-2")}>
           <Button
             class="h-13 w-full"
             disabled={props.primaryDisabled}
@@ -83,7 +85,7 @@ function ActivityFooter(props: {
               leadingIcon={props.secondaryIcon}
               onClick={props.onSecondaryAction}
               size="lg"
-              variant="secondary"
+              variant={props.stacked ? "ghost" : "secondary"}
             >
               {props.secondaryLabel}
             </Button>
@@ -351,18 +353,6 @@ function StreakSlotNumber(props: { currentStreak: number; previousStreak: number
   );
 }
 
-function PerformanceStat(props: { label: string; value: string }) {
-  return (
-    <div class="text-center">
-      <Type as="p" class="text-xl font-semibold tabular-nums" variant="body-strong">
-        {props.value}
-      </Type>
-      <Type as="p" class="text-muted-foreground" variant="caption">
-        {props.label}
-      </Type>
-    </div>
-  );
-}
 
 function WeekStrip(props: { days: readonly boolean[] }) {
   const labels = ["M", "T", "W", "T", "F", "S", "S"];
@@ -394,37 +384,41 @@ function CompleteState(props: {
   rewardSlot?: JSX.Element;
   state: Extract<StudyingSurfaceState, { kind: "complete" }>;
 }) {
-  const score = () => clampPercent(props.state.scorePercent);
+  const score = () => clampResultPercent(props.state.scorePercent);
   const streak = () => props.state.streak;
   const previousStreak = () => previousStreakForAnimation(streak(), props.state.previousStreak);
   const isStreak = () => Boolean(streak()?.qualifiedToday);
-  const week = () => props.state.streakWeek ?? [true, true, true, false, false, false, false];
+  const missed = () => Math.max(0, props.state.totalCount - props.state.correctCount);
+  const tone = (): ActivityResultTone => (score() >= 70 ? "success" : score() >= 40 ? "primary" : "warning");
 
   return (
-    <div class="mx-auto flex w-full max-w-md flex-1 flex-col items-center justify-center gap-8 px-4 py-10 sm:px-6">
-      <div class="text-center">
-        <div class={cn(
-          "mx-auto mb-5 grid size-24 place-items-center rounded-full",
-          isStreak() ? "bg-[#2e291d] text-warning" : "bg-[#16202e] text-[#4c8df6]",
-        )}
-        >
-          <Show
-            when={isStreak()}
-            fallback={<IconCrown class="size-14" />}
-          >
-            <IconFire class="size-14" filled />
+    <Show
+      when={isStreak()}
+      fallback={(
+        <>
+          <ActivityResults
+            heading={resultHeadline(score(), "Lesson complete!")}
+            icon={<IconCrown class="size-14" />}
+            scoreLabel="Accuracy"
+            scorePercent={score()}
+            stats={[
+              { label: "Correct", value: `${props.state.correctCount}/${props.state.totalCount}`, tone: "success" },
+              { label: "Missed", value: String(missed()), tone: "warning" },
+            ]}
+            tone={tone()}
+          />
+          <Show when={props.rewardSlot}>
+            <div class="mx-auto w-full max-w-md px-4 pb-6">{props.rewardSlot}</div>
           </Show>
-        </div>
-        <Show when={!isStreak()}>
-          <Type as="p" class="text-lg font-semibold text-muted-foreground" variant="body">
-            Session complete
-          </Type>
-        </Show>
-        <Show when={isStreak()} fallback={(
-          <Type as="h2" class="mt-1 text-7xl font-bold leading-none sm:text-8xl">
-            {`${score()}%`}
-          </Type>
-        )}>
+        </>
+      )}
+    >
+      {/* The streak page appears only when the server reports a streak earned today. */}
+      <div class="mx-auto flex w-full max-w-md flex-1 flex-col items-center justify-center gap-8 px-4 py-10 sm:px-6">
+        <div class="text-center">
+          <div class="mx-auto mb-5 grid size-24 place-items-center rounded-full bg-warning/15 text-warning">
+            <IconFire class="size-14" filled />
+          </div>
           <Show
             when={previousStreak() !== undefined}
             fallback={<Type as="h2" class="mt-1 text-7xl font-bold leading-none sm:text-8xl">{streak()?.currentStreak}</Type>}
@@ -432,19 +426,14 @@ function CompleteState(props: {
             <StreakSlotNumber currentStreak={streak()!.currentStreak} previousStreak={previousStreak()!} />
           </Show>
           <Type as="p" class="mt-1 font-semibold text-foreground" variant="body">day streak</Type>
-          <WeekStrip days={week()} />
+          {/* Only a week the server reports; never a placeholder pattern. */}
+          <Show when={props.state.streakWeek}>{week => <WeekStrip days={week()} />}</Show>
+        </div>
+        <Show when={props.rewardSlot}>
+          <div class="w-full">{props.rewardSlot}</div>
         </Show>
       </div>
-
-      <Show when={!isStreak()}>
-        <PerformanceStat label="Correct" value={`${props.state.correctCount}/${props.state.totalCount}`} />
-      </Show>
-
-      <Show when={props.rewardSlot}>
-        <div class="w-full">{props.rewardSlot}</div>
-      </Show>
-
-    </div>
+    </Show>
   );
 }
 
@@ -501,29 +490,18 @@ function primaryActionIcon(state: StudyingSurfaceState): JSX.Element {
 
 export function StudyingSurface(props: StudyingSurfaceProps) {
   const complete = () => props.state.kind === "complete";
+  // Results: one Continue back to the song, with "Study again" as the quiet option.
   const primaryLabel = () => complete()
     ? props.completeActionLabel
-      ?? (props.onStudyAgain
-        ? "Study again"
-        : props.onKaraoke
-          ? "Karaoke"
-          : undefined)
+      ?? (props.onExit ? "Continue" : props.onStudyAgain ? "Study again" : undefined)
     : primaryActionLabel(props.state, props.sayItBackIdleLabel);
   const primaryAction = () => complete()
     ? props.completeActionLabel
       ? props.onPrimaryAction
-      : props.onStudyAgain ?? props.onKaraoke
+      : props.onExit ?? props.onStudyAgain
     : props.onPrimaryAction;
-  const primaryIcon = () => complete()
-    ? props.completeActionLabel
-      ? <IconCheckCircle class="size-5" />
-      : props.onStudyAgain
-        ? <IconCheckCircle class="size-5" />
-        : props.onKaraoke
-          ? <IconMicrophone class="size-5" />
-          : undefined
-    : primaryActionIcon(props.state);
-  const secondaryLabel = () => complete() && props.onStudyAgain && props.onKaraoke ? "Karaoke" : undefined;
+  const primaryIcon = () => complete() ? undefined : primaryActionIcon(props.state);
+  const secondaryLabel = () => complete() && props.onExit && props.onStudyAgain && !props.completeActionLabel ? "Study again" : undefined;
 
   return (
     <section class={cn("flex h-dvh w-full flex-col overflow-y-auto bg-background text-foreground", props.class)}>
@@ -539,12 +517,13 @@ export function StudyingSurface(props: StudyingSurfaceProps) {
       <Body onOptionSelect={props.onOptionSelect} rewardSlot={props.rewardSlot} state={props.state} />
       <ActivityFooter
         onPrimaryAction={primaryAction()}
-        onSecondaryAction={props.onKaraoke}
+        onSecondaryAction={props.onStudyAgain}
         primaryDisabled={primaryActionDisabled(props.state)}
         primaryIcon={primaryIcon()}
         primaryLabel={primaryLabel()}
         primaryVariant={primaryActionVariant(props.state)}
-        secondaryIcon={<IconMicrophone class="size-5" />}
+        secondaryIcon={<IconArrowCounterClockwise class="size-5" />}
+        stacked={complete()}
         secondaryLabel={secondaryLabel()}
       />
     </section>

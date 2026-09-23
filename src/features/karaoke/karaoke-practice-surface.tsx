@@ -6,6 +6,8 @@ import {
   Spinner,
 } from "../../design-system";
 import { ActivityProgressHeader } from "../activity/activity-progress-header";
+import { ActivityResults } from "../activity/activity-results";
+import { karaokeResultsView, type KaraokeResultsSummary } from "./karaoke-results-model";
 import { getLyricDurationMs } from "./karaoke-timing";
 import { KaraokeLyricStage } from "./karaoke-lyric-stage";
 import type { KaraokeLineRating, KaraokeStageLine } from "./karaoke-lyric-stage";
@@ -32,6 +34,10 @@ export interface KaraokePracticeSurfaceProps {
   onPause?: (songMs: number) => void;
   onSeek?: (songMs: number) => void;
   onFinish?: (songMs: number) => void;
+  /** The server's summary for the finished take; null when none arrived. */
+  summary?: KaraokeResultsSummary | null;
+  /** Longest run of well-sung lines, from the client's live feedback. */
+  bestCombo?: number;
 }
 
 interface AudioElementRef {
@@ -91,7 +97,26 @@ export function KaraokePracticeSurface(props: KaraokePracticeSurfaceProps) {
           <div aria-hidden="true" class="absolute inset-0 bg-gradient-to-b from-background/50 via-background/70 to-background" />
         </Show>
         <div class="relative z-10 size-full min-w-0">
-          <Show when={!isLoading()} fallback={<div class="grid size-full place-items-center"><Spinner class="size-8" /></div>}>
+          <Show when={ended()}>
+            {(_) => {
+              const view = () => karaokeResultsView(props.summary ?? null, props.bestCombo ?? 0);
+              return (
+                // A scrollable region must be reachable by keyboard.
+                <div aria-label="Results" class="flex size-full overflow-y-auto focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring" role="region" tabindex="0">
+                  <ActivityResults
+                    heading={view().heading}
+                    icon={<IconMicrophoneStage class="size-14" />}
+                    note={view().note}
+                    scoreLabel="Score"
+                    scorePercent={view().scorePercent}
+                    stats={view().stats}
+                    tone={view().tone}
+                  />
+                </div>
+              );
+            }}
+          </Show>
+          <Show when={!ended() && !isLoading()} fallback={<Show when={!ended()}><div class="grid size-full place-items-center"><Spinner class="size-8" /></div></Show>}>
             <Show
               when={props.lines.length > 0}
             >
@@ -125,15 +150,27 @@ export function KaraokePracticeSurface(props: KaraokePracticeSurfaceProps) {
       />
       <Show when={props.onStartSinging && props.singingStatus !== "active"}>
         <footer class="border-t border-border-soft bg-background/95 px-4 pb-[calc(env(safe-area-inset-bottom)+1.5rem)] pt-4 backdrop-blur-xl sm:px-6">
-          <div class="mx-auto w-full max-w-3xl">
+          <div class="mx-auto grid w-full max-w-3xl gap-3">
+            {/* Results: one Continue back to the song, with "Sing again" as the quiet option. */}
+            <Show when={ended() && props.onExit}>
+              <Button class="h-13 w-full" onClick={props.onExit} size="lg">Continue</Button>
+            </Show>
             <Button
               class="h-13 w-full"
               disabled={busy()}
               leadingIcon={ended() ? <IconArrowCounterClockwise class="size-5" /> : <IconMicrophoneStage class="size-5" />}
               loading={busy()}
-              onClick={() => { pendingPlay = true; props.onStartSinging?.(currentTimeMs()); }}
+              onClick={() => {
+                pendingPlay = true;
+                if (!ended()) { props.onStartSinging?.(currentTimeMs()); return; }
+                // A finished take leaves the track at its end; another take starts from the top.
+                if (audioRef.current) audioRef.current.currentTime = 0;
+                setCurrentTimeMs(0);
+                props.onStartSinging?.(0);
+              }}
+              variant={ended() && props.onExit ? "ghost" : "default"}
             >
-              {ended() ? "Karaoke again" : busy() ? "Start singing" : "Start karaoke"}
+              {ended() ? "Sing again" : busy() ? "Start singing" : "Start karaoke"}
             </Button>
           </div>
         </footer>

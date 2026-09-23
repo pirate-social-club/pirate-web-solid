@@ -236,7 +236,7 @@ export const Completion: Story = {
   parameters: {
     docs: {
       description: {
-        story: "Both cards resolve correctly and the completion view shows the qualified day streak.",
+        story: "Legacy story client that reports a qualified streak: this is the future streak page. Production's v2 adapter reports no streak yet, so production always ends on the results page (see QualificationNotAchieved).",
       },
     },
   },
@@ -283,7 +283,7 @@ export const QualificationNotAchieved: Story = {
   parameters: {
     docs: {
       description: {
-        story: "Completion without the daily qualification: the score is shown instead of a streak.",
+        story: "What production shows today: the results page with accuracy and correct/missed tiles, Continue back to the song and a quiet Study again.",
       },
     },
   },
@@ -295,6 +295,8 @@ export const QualificationNotAchieved: Story = {
     await userEvent.click(await canvas.findByRole("button", { name: "Stop" }));
     await userEvent.click(await canvas.findByRole("button", { name: "I don't know why you left so early" }));
     await userEvent.click(await canvas.findByRole("button", { name: "Continue" }));
-    await waitFor(() => expect(canvas.getByText("Session complete")).toBeInTheDocument());
+    await waitFor(() => expect(canvasElement.querySelector("[data-activity-results]")).not.toBeNull());
+    await expect(canvas.getByRole("button", { name: "Continue" })).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: "Study again" })).toBeInTheDocument();
   },
 };
