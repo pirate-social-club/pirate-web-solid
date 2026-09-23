@@ -83,7 +83,7 @@ async function selectAndPublish() {
 describe("mounted original video flow", () => {
   test.each(["reserve", "start"] as const)("a rejected %s returns to editing only on explicit action", async kind => {
     const fixture = setup("published", kind); await selectAndPublish();
-    await vi.waitFor(() => expect(document.body.textContent).toContain("request rejected"));
+    await vi.waitFor(() => expect(document.body.textContent).toContain("This video wasn’t accepted."));
     const commandCount = fixture.commands.length;
     expect([...document.querySelectorAll("button")].some(button => button.textContent?.includes("Resume video submission"))).toBe(false);
     const edit = [...document.querySelectorAll("button")].find(button => button.textContent?.includes("Edit rejected video"))!;
@@ -121,6 +121,16 @@ describe("mounted original video flow", () => {
     setup("transform_failed"); await selectAndPublish();
     await vi.waitFor(() => expect(document.body.textContent).toContain("Start a new video"));
     expect(document.body.textContent).not.toContain("Abandon unresolved video");
+  });
+  test("says in plain words where the video is, never the raw server state", async () => {
+    setup("published"); await selectAndPublish();
+    await vi.waitFor(() => expect(document.body.textContent).toContain("Your video is posted."));
+    expect(document.body.textContent).not.toMatch(/Video state|Preparing video|bytes/);
+  });
+  test("a failed processing run says so plainly", async () => {
+    setup("transform_failed"); await selectAndPublish();
+    await vi.waitFor(() => expect(document.body.textContent).toContain("Video processing failed."));
+    expect(document.body.textContent).not.toMatch(/Video state|processing failed\.$|transform/);
   });
   test("a server review hold stays private and does not claim publication", async () => {
     const fixture = setup("manual_review"); await selectAndPublish();

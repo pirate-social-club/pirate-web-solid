@@ -155,7 +155,7 @@ export function VideoComposerRuntime(props: {
         publishedId = next.snapshot.published_resource.post_id; props.onPublished?.();
       }
     },
-    onProgress: (sent, total) => { if (!disposed) setProgress(`Uploaded ${sent} of ${total} bytes`); },
+    onProgress: (sent, total) => { if (!disposed) setProgress(total > 0 ? `Uploading video… ${Math.floor((sent / total) * 100)}%` : "Uploading video…"); },
   });
   function showFile(next: File) {
     const previous = preview(); if (previous) URL.revokeObjectURL(previous);
@@ -172,9 +172,9 @@ export function VideoComposerRuntime(props: {
   }
   async function run<T>(action: () => Promise<T>): Promise<void> {
     if (busy() || disposed) return;
-    setBusy(true); setError("");
+    setBusy(true); setError(""); setProgress("");
     try { await action(); } catch (failure) { if (!disposed) setError(failure instanceof Error ? failure.message : "The video attempt could not be completed safely"); }
-    finally { if (!disposed) setBusy(false); }
+    finally { if (!disposed) { setBusy(false); setProgress(""); } }
   }
   void coordinator.restore().then(next => {
     if (!next || disposed) return;
@@ -588,11 +588,25 @@ export function VideoComposerRuntime(props: {
     return url.origin === location.origin ? `${url.pathname}${url.search}` : undefined;
   };
   const blocked = () => { const snapshot = state(); return snapshot?.status === "blocked" ? snapshot : undefined; };
+  // One plain sentence for the submitted video. Raw server states never
+  // reach the screen; while an action runs, only real upload progress shows.
+  const videoStatusText = () => {
+    const current = record(); if (!current || current.rejection) return undefined;
+    const snapshot = state();
+    if (!snapshot || (snapshot.status === "processing" && snapshot.phase === "awaiting_upload"))
+      return busy() ? undefined : "Your video hasn't finished uploading.";
+    if (snapshot.status === "processing") return "Your video is processing. This can take a few minutes.";
+    if (snapshot.status === "processing_failed") return "Video processing failed.";
+    if (snapshot.status === "blocked") return "This video can't be published.";
+    if (snapshot.status === "abandoned") return "This video was cancelled.";
+    if (snapshot.status === "published") return "Your video is posted.";
+    return undefined;
+  };
   const songReserved = () => { const reservation = record()?.reservation; return reservation?.intent === "song_reference" ? reservation : undefined; };
   return <section class="grid gap-3" aria-label="Video composer">
     <input ref={element => { picker = element; }} hidden type="file" accept="video/mp4,video/quicktime,.mp4,.mov" onChange={event => { void chooseFile(event.currentTarget.files?.[0]); event.currentTarget.value = ""; }} />
     <Show when={error()}>{message => <FormNote tone="warning">{message()}</FormNote>}</Show>
-    <Show when={busy()}><p role="status">{progress() || "Preparing video…"}</p></Show>
+    <Show when={busy() && progress()}><p role="status">{progress()}</p></Show>
     <Show when={editing()}>
       {/* The soundtrack step comes first, always. Its window is the length of
           the recording, so choosing it before capture is what lets the guide
@@ -682,15 +696,15 @@ export function VideoComposerRuntime(props: {
         </div>} />
     </Show>
     <Show when={record()}>
-      <p role="status">Video state: {record()?.rejection ? "request rejected" : state()?.status.replaceAll("_", " ") ?? "reservation pending"}.</p>
+      <Show when={videoStatusText()}>{text => <p role="status">{text()}</p>}</Show>
       <Show when={record()?.song && !record()?.rejection}>
         <p role="status">{songReserved()
-          ? `The server reserved this video as posted to the song, from ${selectionSpan(record()!.song!)}, and froze that excerpt.`
-          : "Asking the server to post this video to the song…"}</p>
+          ? `Soundtrack: this song from ${selectionSpan(record()!.song!)}.`
+          : "Adding the song to your video…"}</p>
       </Show>
       <Show when={record()?.rejection}>
         <p role="alert">{songReservationRefusalText(record()?.rejection?.reasonCode)
-          ?? "The video request was rejected. A new attempt will not start automatically."}</p>
+          ?? "This video wasn’t accepted."}</p>
         <Show when={canDiscardRejectedVideo(record())}><Button disabled={busy()} onClick={() => { void run(async () => {
           const rejected = await coordinator.discardRejected(); showFile(rejected.file); setCaption(rejected.caption); setRating(rejected.rating);
         }); }}>Edit rejected video</Button></Show>
@@ -727,7 +741,6 @@ export function VideoComposerRuntime(props: {
       </Show>
       <Show when={!record()?.rejection && (state()?.status === "blocked" || state()?.status === "abandoned")}>
         <Show when={blocked()?.reason_code === "song_reference_invalid"}><p role="status">{songReferenceInvalidText(blocked()?.song_reason_code)}</p></Show>
-        <p>This attempt cannot publish. It will not be retried with a new identity.</p>
         <Button disabled={busy()} onClick={() => { void run(() => coordinator.refresh()); }}>Check video status</Button>
         <Button disabled={busy()} onClick={() => { void run(async () => { await coordinator.discard(); setFile(null); setOriginalTake(null); clearPreviewUrls(); setCaption(""); }); }}>Start a new video</Button>
       </Show>
