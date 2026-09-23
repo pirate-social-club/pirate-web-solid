@@ -241,6 +241,7 @@ export {
   IconFadersHorizontal,
   IconFire,
   IconFileText,
+  IconGearSix,
   IconFlag,
   IconGavel,
   IconGift,

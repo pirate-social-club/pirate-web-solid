@@ -155,6 +155,7 @@ export interface SessionStore {
   resolveAccountSession(options?: AccountSessionResolutionOptions): Promise<AccountSessionResolution>;
   /** Drop the cached resolutions and notify subscribers. */
   refreshSession(): void;
+  clearSession(): void;
   /** Subscribe to `refreshSession` calls; returns the unsubscribe function. */
   onSessionRefreshed(listener: () => void): () => void;
 }
@@ -236,6 +237,11 @@ export function createSessionStore(clientFactory: SessionClientFactory): Session
         return resolveAccountSessionUncached({ client });
       });
     },
+    clearSession() {
+      slots.account.promise = Promise.resolve("anonymous");
+      slots.session.promise = Promise.resolve("anonymous");
+      for (const listener of [...refreshListeners]) listener();
+    },
     refreshSession() {
       slots.account.promise = undefined;
       slots.session.promise = undefined;
@@ -284,4 +290,9 @@ export function refreshSession(): void {
 /** Subscribe to shared `refreshSession` calls; returns the unsubscribe function. */
 export function onSessionRefreshed(listener: () => void): () => void {
   return browserStore.onSessionRefreshed(listener);
+}
+
+/** Clear account-private UI immediately after a successful host-session logout. */
+export function clearSession(): void {
+  browserStore.clearSession();
 }

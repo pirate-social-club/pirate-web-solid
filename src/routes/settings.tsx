@@ -1,5 +1,7 @@
-import { RoutePlaceholder } from "../features/shell/route-placeholder.tsx";
+import { useNavigate } from "@solidjs/router";
+import { AccountPage } from "../features/shell/account-page.tsx";
 
 export default function SettingsRoute() {
-  return <RoutePlaceholder description="Account, privacy, and session controls will live here." path="/settings" title="Settings" />;
+  const navigate = useNavigate();
+  return <AccountPage navigate={href => navigate(href)} />;
 }

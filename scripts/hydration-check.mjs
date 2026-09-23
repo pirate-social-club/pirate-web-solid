@@ -82,7 +82,8 @@ try {
   if (apiDown) {
     let releaseRetry;
     retryAccountResponse = new Promise(resolve => { releaseRetry = resolve; });
-    const retry = page.getByRole("button", { name: "Retry account check" }).first();
+    await page.getByRole("button", { name: "Profile", exact: true }).first().click();
+    const retry = page.getByRole("dialog", { name: "Your profiles" }).getByRole("button", { name: "Try again" });
     await retry.waitFor();
     const accountRequest = page.waitForRequest("**/api/users/me");
     await retry.click();
@@ -90,8 +91,9 @@ try {
     if (await page.getByRole("button", { name: "Sign in", exact: true }).count()) {
       throw new Error("Account retry temporarily rendered signed-out chrome");
     }
-    const checking = page.getByRole("button", { name: "Checking account", exact: true }).first();
-    if (!await checking.isVisible() || !await checking.isDisabled()) throw new Error("Account retry must show disabled pending feedback");
+    const checking = retry;
+    if (!await checking.isDisabled()) throw new Error("Account retry must disable repeated attempts");
+    await page.getByRole("status").filter({ hasText: "Loading profiles" }).waitFor({ state: "visible" });
     // This pins native disabled-control behavior, not the handler's separate
     // in-flight guard (disabled clicks do not reach that handler).
     await checking.evaluate(element => { element.click(); element.click(); });
@@ -183,10 +185,13 @@ try {
       throw new Error("Background refresh discarded authenticated chrome");
     }
     const sidebar = page.locator("aside");
-    if (!await sidebar.getByText("Session active", { exact: true }).isVisible()) {
-      throw new Error("Authenticated footer detail changed during background refresh");
+    if (/Session active|Checking your account|Your Pirate/u.test(await sidebar.innerText())) {
+      throw new Error("Background refresh exposed session diagnostics in navigation");
     }
-    if (!await sidebar.getByRole("link", { name: "Account settings" }).isVisible()) {
+    if (!await sidebar.getByRole("button", { name: "Profile", exact: true }).isVisible()) {
+      throw new Error("Background refresh removed the profile picker");
+    }
+    if (!await sidebar.getByRole("link", { name: "Settings", exact: true }).isVisible()) {
       throw new Error("Background refresh removed account settings access");
     }
     releaseAccount();

@@ -53,9 +53,7 @@ export const Default: Story = {
         appearance="media"
         brandLabel="PIRATE"
         class="sticky top-0 hidden h-screen md:flex"
-        footerActionHref="/settings"
-        footerActionLabel="Account settings"
-        footerDetail="Session active"
+        footer={<Type as="p" variant="body-strong">Account</Type>}
         onNavigate={() => {}}
         primaryItems={primaryItems}
         sections={sections}

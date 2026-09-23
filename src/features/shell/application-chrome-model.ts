@@ -1,7 +1,15 @@
 import type { ShellNavItem } from "./shell-model.ts";
 
 export type ApplicationChromeMode = "bare" | "immersive" | "standard";
-export type ApplicationChromeRoute = "home" | "your-communities" | "create-community" | "none";
+export type ApplicationChromeRoute =
+  | "home"
+  | "songs"
+  | "wallet"
+  | "profile"
+  | "settings"
+  | "your-communities"
+  | "create-community"
+  | "none";
 export type ApplicationMobileItem = ShellNavItem | "none";
 
 export interface ApplicationChromePolicy {
@@ -28,11 +36,12 @@ export function isCommunityManagementRoute(pathname: string): boolean {
 }
 
 /**
- * The navigation keeps only destinations with real pages: Home, Communities
- * and Create community. Search, Live, Activity, Study, Karaoke and Settings
- * keep their routes so old links resolve, but they are unlisted and highlight
- * no item. A viewer's own profile highlights Profile; anyone else's profile
- * highlights nothing, which is what `viewerProfilePath` distinguishes.
+ * The four mobile tabs are Home, Your songs, Wallet and Profile; the sidebar
+ * adds Your communities, Create community and Settings. Search, Live and
+ * Activity keep their routes so old links resolve, but they are unlisted and
+ * highlight no item. A viewer's own public profile highlights Profile; anyone
+ * else's profile highlights nothing, which is what `viewerProfilePath`
+ * distinguishes.
  */
 export function resolveApplicationChrome(pathname: string, viewerProfilePath?: string): ApplicationChromePolicy {
   const segments = pathSegments(pathname);
@@ -45,7 +54,7 @@ export function resolveApplicationChrome(pathname: string, viewerProfilePath?: s
   const ownProfile = viewerProfilePath !== undefined && pathname === viewerProfilePath;
 
   if (isCommunityManagementRoute(pathname)) {
-    return { activeItemId: "your-communities", mobileActiveItem: "communities", mobileTitle: "Community", mode: "bare" };
+    return { activeItemId: "your-communities", mobileActiveItem: "none", mobileTitle: "Community", mode: "bare" };
   }
   if (first === "auth" || first === "verify" || first === "terms" || first === "privacy") {
     return { activeItemId: "home", mobileActiveItem: "home", mobileTitle: "Pirate", mode: "bare" };
@@ -54,18 +63,38 @@ export function resolveApplicationChrome(pathname: string, viewerProfilePath?: s
     return { activeItemId: "home", mobileActiveItem: "home", mobileTitle: "PIRATE", mode: "immersive" };
   }
   if (community) {
-    return { activeItemId: "your-communities", mobileActiveItem: "communities", mobileTitle: "Community", mode: "standard" };
+    return { activeItemId: "your-communities", mobileActiveItem: "none", mobileTitle: "Community", mode: "standard" };
   }
   if (first === "communities") {
     return {
       activeItemId: segments[1] === "new" ? "create-community" : "your-communities",
-      mobileActiveItem: "communities",
+      mobileActiveItem: "none",
       mobileTitle: segments[1] === "new" ? "Create community" : "Your communities",
       mode: "standard",
     };
   }
+  if (first === "songs") {
+    return { activeItemId: "songs", mobileActiveItem: "songs", mobileTitle: "Your songs", mode: "standard" };
+  }
+  // Study and Karaoke sessions belong to Your songs, whether reached from the
+  // library or from a song post.
+  if (karaoke) {
+    return { activeItemId: "songs", mobileActiveItem: "songs", mobileTitle: segments.length === 1 ? "Your songs" : "Karaoke", mode: "standard" };
+  }
+  if (study) {
+    return { activeItemId: "songs", mobileActiveItem: "songs", mobileTitle: segments.length === 1 ? "Your songs" : "Study", mode: "standard" };
+  }
+  if (first === "wallet") {
+    return { activeItemId: "wallet", mobileActiveItem: "wallet", mobileTitle: "Wallet", mode: "standard" };
+  }
+  if (first === "me") {
+    return { activeItemId: "profile", mobileActiveItem: "profile", mobileTitle: "Profile", mode: "standard" };
+  }
   if (profile) {
-    return { activeItemId: "none", mobileActiveItem: ownProfile ? "profile" : "none", mobileTitle: "Profile", mode: "standard" };
+    return { activeItemId: ownProfile ? "profile" : "none", mobileActiveItem: ownProfile ? "profile" : "none", mobileTitle: "Profile", mode: "standard" };
+  }
+  if (first === "settings") {
+    return { activeItemId: "settings", mobileActiveItem: "profile", mobileTitle: "Settings", mode: "standard" };
   }
   if (first === "search") {
     return { activeItemId: "none", mobileActiveItem: "none", mobileTitle: "Search", mode: "standard" };
@@ -75,15 +104,6 @@ export function resolveApplicationChrome(pathname: string, viewerProfilePath?: s
   }
   if (activity) {
     return { activeItemId: "none", mobileActiveItem: "none", mobileTitle: "Activity", mode: "standard" };
-  }
-  if (karaoke) {
-    return { activeItemId: "none", mobileActiveItem: "none", mobileTitle: "Karaoke", mode: "standard" };
-  }
-  if (study) {
-    return { activeItemId: "none", mobileActiveItem: "none", mobileTitle: "Study", mode: "standard" };
-  }
-  if (first === "settings") {
-    return { activeItemId: "none", mobileActiveItem: "none", mobileTitle: "Settings", mode: "standard" };
   }
   return { activeItemId: "home", mobileActiveItem: "home", mobileTitle: "Pirate", mode: "standard" };
 }

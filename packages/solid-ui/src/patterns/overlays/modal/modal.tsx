@@ -83,6 +83,7 @@ export interface ModalContentProps {
   hideCloseButtonOnMobile?: boolean;
   mobileSide?: "top" | "bottom" | "left" | "right";
   onOpenAutoFocus?: (event: Event) => void;
+  onCloseAutoFocus?: (event: Event) => void;
 }
 
 export function ModalContent(props: ParentProps<ModalContentProps>) {
@@ -94,7 +95,7 @@ export function ModalContent(props: ParentProps<ModalContentProps>) {
     <Show
       when={isMobile()}
       fallback={
-        <DialogContent aria-label={props["aria-label"]} dir={props.dir} class={props.class} hideCloseButton={shouldHideCloseButton()} onOpenAutoFocus={props.onOpenAutoFocus}>
+        <DialogContent aria-label={props["aria-label"]} dir={props.dir} class={props.class} hideCloseButton={shouldHideCloseButton()} onOpenAutoFocus={props.onOpenAutoFocus} onCloseAutoFocus={props.onCloseAutoFocus}>
           {props.children}
         </DialogContent>
       }
@@ -105,6 +106,7 @@ export function ModalContent(props: ParentProps<ModalContentProps>) {
         class={props.class}
         hideCloseButton={shouldHideCloseButton()}
         onOpenAutoFocus={props.onOpenAutoFocus}
+        onCloseAutoFocus={props.onCloseAutoFocus}
         side={props.mobileSide ?? "bottom"}
       >
         {props.children}

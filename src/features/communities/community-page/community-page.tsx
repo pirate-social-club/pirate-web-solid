@@ -465,7 +465,7 @@ function SuccessState(props: {
       store.setTarget({
         communityId: targetCommunityId,
         personas,
-        title: "Switch profile",
+        title: "Profile in this community",
       });
     },
   );

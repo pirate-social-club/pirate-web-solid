@@ -145,12 +145,12 @@ export interface MobileFooterNavProps {
   class?: string;
   forceMobile?: boolean;
   labels?: Partial<Record<ShellNavItem, string>> & {
-    communitiesAriaLabel?: string;
     primaryNavAriaLabel?: string;
     profileAriaLabel?: string;
   };
   onHomeClick?: () => void;
-  onCommunitiesClick?: () => void;
+  onSongsClick?: () => void;
+  onWalletClick?: () => void;
   onProfileClick?: () => void;
   /**
    * A second tap on the profile control within the double-tap window. When it
@@ -158,6 +158,8 @@ export interface MobileFooterNavProps {
    * tap waits one window so a double tap can win, then navigates.
    */
   onProfileDoubleTap?: () => void;
+  userAvatarSeed?: string | null;
+  userAvatarSrc?: string | null;
 }
 
 export function MobileFooterNav(props: MobileFooterNavProps) {
@@ -199,15 +201,18 @@ export function MobileFooterNav(props: MobileFooterNavProps) {
         class={cn("md:block", props.class)}
         labels={{
           home: labels().home,
-          communities: labels().communities,
-          communitiesAriaLabel: labels().communitiesAriaLabel,
+          songs: labels().songs,
+          wallet: labels().wallet,
           profile: labels().profile,
           profileAriaLabel: labels().profileAriaLabel,
           primaryNavAriaLabel: labels().primaryNavAriaLabel,
         }}
         onHomeClick={props.onHomeClick}
-        onCommunitiesClick={props.onCommunitiesClick}
+        onSongsClick={props.onSongsClick}
+        onWalletClick={props.onWalletClick}
         onProfileClick={handleProfileTap}
+        userAvatarSeed={props.userAvatarSeed}
+        userAvatarSrc={props.userAvatarSrc}
       />
     </Show>
   );

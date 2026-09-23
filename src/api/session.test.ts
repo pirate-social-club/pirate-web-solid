@@ -298,6 +298,23 @@ describe("shared session store", () => {
     expect(listener).toHaveBeenCalledTimes(1);
   });
 
+  test("logout clears cached personas and ignores a late account response", async () => {
+    let finish!: (value: { id: string }) => void;
+    const spies = stubClient({ usersMe: () => new Promise(resolve => { finish = resolve; }) });
+    const store = storeFrom(spies);
+    const pending = store.resolveAccountSession();
+    const listener = vi.fn();
+    store.onSessionRefreshed(listener);
+    store.clearSession();
+    expect(listener).toHaveBeenCalledOnce();
+    await expect(store.resolveSession()).resolves.toBe("anonymous");
+    finish({ id: "old-account" });
+    await pending;
+    await expect(store.resolveAccountSession()).resolves.toBe("anonymous");
+    expect(spies.get_usersMe).toHaveBeenCalledOnce();
+    expect(spies.get_personas).not.toHaveBeenCalled();
+  });
+
   test("explicit transport bypasses the slots so injected callers stay deterministic", async () => {
     const spies = stubClient();
     const store = storeFrom(spies);

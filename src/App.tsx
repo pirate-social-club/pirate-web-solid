@@ -9,6 +9,7 @@ import { GlobalSignInHost } from "./features/auth/global-sign-in-host.tsx";
 import { ActivePersonaProvider } from "./features/identity/active-persona-store.tsx";
 import { buildPublicProfilePath } from "./features/profiles/public-profile-page/public-profile-page.model.ts";
 import { resolveApplicationChrome } from "./features/shell/application-chrome-model.ts";
+import { ApplicationPersonasContext, createApplicationPersonas } from "./features/shell/application-personas.tsx";
 import {
   ApplicationSessionProvider,
   type ApplicationSessionState,
@@ -42,6 +43,7 @@ function ApplicationRoot(props: { readonly children: JSX.Element }) {
     return handle ? buildPublicProfilePath(handle) : undefined;
   });
   const policy = createMemo(() => resolveApplicationChrome(location.pathname, profileHref()));
+  const personas = createApplicationPersonas(session);
   let active = true;
   let sessionRequest = 0;
   let accountInFlight = false;
@@ -80,23 +82,32 @@ function ApplicationRoot(props: { readonly children: JSX.Element }) {
   return (
     <ActivePersonaProvider>
       <ApplicationSessionProvider state={session}>
+        <ApplicationPersonasContext value={personas}>
         <ApplicationChrome
           activeItemId={policy().activeItemId}
           mobileActiveItem={policy().mobileActiveItem}
           mobileTitle={policy().mobileTitle}
           mode={policy().mode}
           navigate={(href) => navigate(href)}
+          personas={personas.personas()}
+          selectedPersonaId={personas.selected()?.personaId}
+          personasLoading={personas.loading()}
+          personasUnavailable={personas.unavailable()}
+          onPersonasRetry={personas.retry}
+          onPersonaSelect={personas.select}
+          pickerOpen={personas.pickerOpen()}
+          onPickerOpenChange={personas.setPickerOpen}
           signedIn={session() !== "resolving" && session() !== "anonymous" && session() !== "failed"}
           sessionUnavailable={session() === "failed"}
           sessionResolving={session() === "resolving"}
           sessionPending={accountPending()}
           onSessionRetry={retryAccount}
-          profileHref={profileHref()}
         >
           <Errored fallback={(_, reset) => <RootErrorState onHome={() => { reset(); navigate("/"); }} />}>
             {props.children}
           </Errored>
         </ApplicationChrome>
+        </ApplicationPersonasContext>
       </ApplicationSessionProvider>
     </ActivePersonaProvider>
   );

@@ -55,7 +55,7 @@ describe("shell model", () => {
   });
 
   test("keeps the mobile navigation order stable", () => {
-    expect(shellNavItems).toEqual(["home", "communities", "profile"]);
+    expect(shellNavItems).toEqual(["home", "songs", "wallet", "profile"]);
   });
 
   test("resolves deterministic story route titles", () => {

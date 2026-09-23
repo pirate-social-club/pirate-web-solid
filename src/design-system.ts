@@ -110,6 +110,7 @@ export {
   IconCalendarBlank,
   IconCaretDown,
   IconFileText,
+  IconGearSix,
   IconGlobe,
   IconHandPalm,
   IconHeart,

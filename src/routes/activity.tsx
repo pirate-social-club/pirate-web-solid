@@ -1,5 +1,10 @@
-import { RoutePlaceholder } from "../features/shell/route-placeholder.tsx";
+import { useNavigate } from "@solidjs/router";
+import { Button, Type } from "../design-system";
 
 export default function ActivityRoute() {
-  return <RoutePlaceholder description="Your follows, replies, mentions, and community activity will appear here." path="/activity" title="Activity" />;
+  const navigate = useNavigate();
+  return <main data-route-path="/activity" class="mx-auto flex max-w-2xl flex-col gap-4 px-4 py-8">
+    <Type as="h1" variant="h1">Notifications are unavailable</Type>
+    <Button class="self-start" onClick={() => navigate("/")}>Go home</Button>
+  </main>;
 }
