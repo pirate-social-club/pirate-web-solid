@@ -55,6 +55,6 @@ export const RTL: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(document.documentElement).toHaveAttribute("dir", "rtl");
-    await expect(canvas.getByRole("button", { name: "المجتمعات" })).toHaveAttribute("aria-current", "page");
+    await expect(canvas.getByRole("button", { name: "أغانيك" })).toHaveAttribute("aria-current", "page");
   },
 };
