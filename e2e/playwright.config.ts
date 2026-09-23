@@ -9,7 +9,7 @@ export default defineConfig({
   testDir: ".",
   // The M1 suite has a stricter attempt runner and global preflight. It is
   // selected only through e2e/happy-path.config.ts.
-  testIgnore: ["happy-path.spec.ts"],
+  testIgnore: ["happy-path.spec.ts", "hns-staging-handoff.spec.ts"],
   fullyParallel: false,
   workers: 1,
   retries: 0,
