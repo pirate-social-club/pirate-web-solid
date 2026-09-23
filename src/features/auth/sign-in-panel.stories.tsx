@@ -22,7 +22,7 @@ export const DeepLink: Story = {
   name: "Deep link",
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await expect(canvas.getByRole("heading", { name: "Join Pirate" })).toBeInTheDocument();
+    await expect(canvas.getByRole("heading", { name: "Sign in" })).toBeInTheDocument();
     await expect(canvas.getByRole("textbox", { name: "Email" })).toBeInTheDocument();
     await waitFor(() =>
       expect(canvas.getByRole("button", { name: "Continue with email" })).toBeDisabled(),

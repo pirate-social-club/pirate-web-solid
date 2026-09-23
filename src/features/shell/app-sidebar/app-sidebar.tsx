@@ -52,8 +52,9 @@ function SidebarLink(props: { item: SidebarItem; active?: boolean; onNavigate?: 
 export function AppSidebar(props: AppSidebarProps) {
   const headingId = createUniqueId();
   const sections = () => props.sections ?? [];
-  return <aside aria-label={props.brandLabel ?? "Pirate navigation"} class={cn("flex min-h-0 w-[15.5rem] shrink-0 flex-col border-e border-sidebar-border bg-sidebar p-4 text-sidebar-foreground", props.collapsed && "w-20 px-2", props.class)}>
-    <button aria-label={props.homeAriaLabel ?? "Go to home"} class="mb-5 flex cursor-pointer items-center gap-3 rounded-lg px-2 py-2 text-start transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" onClick={props.onHomeClick} type="button"><span aria-hidden="true" class="grid size-9 shrink-0 place-items-center rounded-full border border-white/25 bg-white/10 text-sm font-semibold">P</span><Show when={!props.collapsed}><Type as="span" variant="h4" class="tracking-wide">{props.brandLabel ?? "PIRATE"}</Type></Show></button>
+  return <aside aria-label={props.brandLabel ?? "Navigation"} class={cn("flex min-h-0 w-[15.5rem] shrink-0 flex-col border-e border-sidebar-border bg-sidebar p-4 text-sidebar-foreground", props.collapsed && "w-20 px-2", props.class)}>
+    {/* Each app domain is its own product: no brand block unless a host names one. */}
+    <Show when={props.brandLabel}>{label => <button aria-label={props.homeAriaLabel ?? "Go to home"} class="mb-5 flex cursor-pointer items-center gap-3 rounded-lg px-2 py-2 text-start transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" onClick={props.onHomeClick} type="button"><Show when={!props.collapsed}><Type as="span" variant="h4" class="tracking-wide">{label()}</Type></Show></button>}</Show>
     <Show when={props.mediaAction && !props.collapsed}><div class="mb-4">{props.mediaAction}</div></Show>
     <nav aria-label="Main navigation" class="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto">
       <Show when={props.primaryItems?.length}><div class="flex flex-col gap-1"><For each={props.primaryItems}>{(item) => <SidebarLink active={props.activeItemId === item.id} item={item} onNavigate={props.onNavigate} />}</For></div></Show>

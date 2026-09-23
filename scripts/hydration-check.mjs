@@ -102,9 +102,9 @@ try {
   await page.getByRole("button", { name: "Sign in", exact: true }).first().click();
   if (apiDown && accountRetryRequests !== 1) throw new Error(`Account retry issued ${accountRetryRequests} requests`);
   retryAccountResponse = undefined;
-  const signInDialog = page.getByRole("dialog", { name: "Join Pirate" });
+  const signInDialog = page.getByRole("dialog", { name: "Sign in" });
   await signInDialog.waitFor({ state: "visible" });
-  await signInDialog.getByRole("heading", { name: "Join Pirate" }).waitFor({ state: "visible" });
+  await signInDialog.getByRole("heading", { name: "Sign in" }).waitFor({ state: "visible" });
   await page.keyboard.press("Escape");
   await signInDialog.waitFor({ state: "hidden" });
 

@@ -7,7 +7,7 @@ import { signInReturnPath } from "../../features/auth/sign-in-return.ts";
 export default function SignInRoute() {
   return (
     <main data-route-path="/auth/sign-in" class="mx-auto flex min-h-screen w-full max-w-xl items-center px-5 py-10">
-      <Title>Join Pirate</Title>
+      <Title>Sign in</Title>
       <Card class="w-full">
         <CardContent class="p-6 md:p-8">
           <SignInPanel onAuthenticated={() => window.location.assign(signInReturnPath(window.location.href))} />

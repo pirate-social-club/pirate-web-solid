@@ -1,75 +1,153 @@
 /** @jsxImportSource @solidjs/web */
-import { createSignal } from "solid-js";
+import { createMemo, createSignal, omit } from "solid-js";
 import { expect, userEvent, waitFor, within } from "storybook/test";
 import { switcherPersonas } from "../../identity/persona-switcher-sheet/persona-switcher-fixtures.ts";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 
-import { Card, CardContent, Type } from "../../../design-system";
+import { Type } from "../../../design-system";
+import type { SwitchablePersona } from "../../identity/persona-switcher-sheet/persona-switcher-sheet.tsx";
+import { resolveApplicationChrome } from "../application-chrome-model.ts";
+import type { DrawerCommunity } from "../navigation-drawer.tsx";
 import { MediaShell, type MediaShellProps } from "./media-shell";
 
-const meta = { title: "Screens/Shell/MediaShell", parameters: { layout: "fullscreen", a11y: { test: "error" } } } satisfies Meta;
+const meta = {
+  title: "Screens/Shell/MediaShell",
+  parameters: {
+    layout: "fullscreen",
+    a11y: { test: "error" },
+    docs: { description: { component: "The production chrome driven by the real route policy: tabs, the drawer and the sidebar navigate inside the story, so the active tab and page change as they do in the app. Page bodies are placeholders." } },
+  },
+} satisfies Meta;
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-function FeedPreview() {
+const communities: readonly DrawerCommunity[] = [
+  { communityId: "community_harbor", displayName: "Harbor Collective", href: "/c/harbor" },
+  { communityId: "community_night", displayName: "Night Shift Radio", href: "/c/night-shift" },
+];
+
+// One profile is bound to a community so the drawer shows the relationship.
+const personas: readonly SwitchablePersona[] = switcherPersonas.map(persona =>
+  persona.personaId === "persona_night" ? { ...persona, communityId: "community_night" } : persona);
+
+/** Stands in for the full-bleed home video so the transparent header reads as it does in the app. */
+function VideoFeedPreview() {
   return (
-    <main data-feed-preview class="mx-auto flex min-h-[70vh] max-w-2xl flex-col gap-4">
-      <div>
-        <Type as="p" variant="label" class="text-muted-foreground">For you</Type>
-        <Type as="h1" variant="h1">Public feed</Type>
-      </div>
-      {["A harbor morning", "How we build together", "Late-night karaoke"].map((title, index) => (
-        <Card>
-          <CardContent class="flex min-h-48 flex-col justify-end gap-2 p-5">
-            <Type as="p" variant="caption">c/pirate · {index + 1}h</Type>
-            <Type as="h2" variant="h3">{title}</Type>
-            <Type variant="body" class="text-muted-foreground">A small content card ready to become a richer media post.</Type>
-          </CardContent>
-        </Card>
-      ))}
+    <main data-feed-preview class="grid h-full min-h-[100dvh] place-items-center bg-gradient-to-b from-slate-700 via-slate-900 to-black">
+      <Type class="text-white/70">Video feed</Type>
     </main>
   );
 }
 
-function ShellStory(props: Partial<MediaShellProps>) {
-  const [selected, setSelected] = createSignal(switcherPersonas[0]!.personaId);
-  const [path, setPath] = createSignal("/");
-  return <MediaShell signedIn personas={switcherPersonas} selectedPersonaId={selected()} onPersonaSelect={setSelected} navigate={setPath} {...props}><Type class="sr-only" role="status">Destination: {path()}</Type><FeedPreview /></MediaShell>;
+function PagePreview(props: { title: string; path: string }) {
+  return (
+    <main class="mx-auto flex max-w-2xl flex-col gap-2 px-4 py-8">
+      <Type as="h1" variant="h1">{props.title || "Page"}</Type>
+      <Type class="text-muted-foreground">Placeholder for {props.path}</Type>
+    </main>
+  );
 }
+
+function ShellStory(props: Partial<MediaShellProps> & { readonly initialPath?: string }) {
+  const shellProps = omit(props, "initialPath");
+  const profiles = () => props.personas ?? personas;
+  const [selected, setSelected] = createSignal(profiles()[0]?.personaId);
+  const [path, setPath] = createSignal(props.initialPath ?? "/");
+  const policy = createMemo(() => resolveApplicationChrome(path()));
+  return (
+    <MediaShell
+      signedIn
+      personas={profiles()}
+      selectedPersonaId={selected()}
+      onPersonaSelect={setSelected}
+      loadCommunities={async () => communities}
+      navigate={setPath}
+      activeItemId={policy().activeItemId}
+      mobileActiveItem={policy().mobileActiveItem}
+      mobileTitle={policy().mobileTitle}
+      mode={policy().mode}
+      {...shellProps}
+    >
+      <Type class="sr-only" role="status">Destination: {path()}</Type>
+      {path() === "/" ? <VideoFeedPreview /> : <PagePreview path={path()} title={policy().mobileTitle} />}
+    </MediaShell>
+  );
+}
+
+const phone = { viewport: { value: "mobile1", isRotated: false } };
+
 export const AnonymousDesktop: Story = { render: () => <ShellStory signedIn={false} /> };
 export const AuthenticatedDesktop: Story = { render: () => <ShellStory /> };
 export const ResolvingAccount: Story = { render: () => <ShellStory signedIn={false} personas={[]} sessionResolving /> };
-export const Mobile: Story = { globals: { viewport: { value: "mobile1", isRotated: false } }, render: () => <ShellStory /> };
-export const MobileDrawer: Story = { globals: { viewport: { value: "mobile1", isRotated: false } }, render: () => <ShellStory initialMenuOpen /> };
+export const Mobile: Story = { globals: phone, render: () => <ShellStory /> };
+export const MobileDrawer: Story = { globals: phone, render: () => <ShellStory initialMenuOpen /> };
 export const DesktopPersonaPicker: Story = { render: () => <ShellStory pickerOpen /> };
-export const MobilePersonaPicker: Story = { globals: { viewport: { value: "mobile1", isRotated: false } }, render: () => <ShellStory pickerOpen /> };
-export const MobileNavigation: Story = {
-  globals: { viewport: { value: "mobile1", isRotated: false } }, render: () => <ShellStory />,
+export const MobilePersonaPicker: Story = { globals: phone, render: () => <ShellStory pickerOpen /> };
+
+export const MobileTabs: Story = {
+  globals: phone,
+  render: () => <ShellStory />,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    const page = within(canvasElement.ownerDocument.body);
-    await userEvent.click(await canvas.findByRole("button", { name: "Open navigation" }));
-    const drawer = await page.findByRole("dialog", { name: "Navigation" });
-    await userEvent.click(within(drawer).getByRole("link", { name: "Wallet" }));
-    await waitFor(() => expect(canvas.getByRole("status")).toHaveTextContent("Destination: /wallet"));
-    await expect(page.queryByRole("dialog")).not.toBeInTheDocument();
+    const tabs = within(await canvas.findByRole("navigation", { name: "Primary navigation" }));
+    await userEvent.click(tabs.getByRole("button", { name: "Your songs" }));
+    await waitFor(() => expect(canvas.getByRole("status")).toHaveTextContent("Destination: /songs"));
+    await expect(tabs.getByRole("button", { name: "Your songs" })).toHaveAttribute("aria-current", "page");
+    await userEvent.click(tabs.getByRole("button", { name: "Wallet" }));
+    await waitFor(() => expect(tabs.getByRole("button", { name: "Wallet" })).toHaveAttribute("aria-current", "page"));
   },
 };
 
-export const ProfileSettingsNavigation: Story = {
+export const MobileDrawerCommunities: Story = {
+  globals: phone,
   render: () => <ShellStory />,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     const page = within(canvasElement.ownerDocument.body);
-    await userEvent.click(await canvas.findByRole("button", { name: /Switch profile, currently/ }));
-    const picker = await page.findByRole("dialog", { name: "Your profiles" });
-    await userEvent.click(within(picker).getByRole("button", { name: /^Settings$/ }));
-    await waitFor(() => expect(canvas.getByRole("status")).toHaveTextContent("Destination: /settings"));
-    await expect(page.queryByRole("dialog")).not.toBeInTheDocument();
-    await expect(canvasElement.ownerDocument.body).not.toHaveStyle({ pointerEvents: "none" });
+    await userEvent.click(await canvas.findByRole("button", { name: "Open profiles and communities" }));
+    const drawer = await page.findByRole("dialog", { name: "Profiles and communities" });
+    await expect(await within(drawer).findByText("In Night Shift Radio")).toBeInTheDocument();
+    await expect(within(drawer).queryByRole("link", { name: "Wallet" })).not.toBeInTheDocument();
+    await userEvent.click(await within(drawer).findByRole("button", { name: "Harbor Collective" }));
+    await waitFor(() => expect(canvas.getByRole("status")).toHaveTextContent("Destination: /c/harbor"));
+    await waitFor(() => expect(page.queryByRole("dialog")).not.toBeInTheDocument());
   },
 };
-export const MobileProfileSettingsNavigation: Story = {
-  ...ProfileSettingsNavigation,
-  globals: { viewport: { value: "mobile1", isRotated: false } },
+
+export const ProfileTabOpensProfile: Story = {
+  globals: phone,
+  render: () => <ShellStory />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const tabs = within(await canvas.findByRole("navigation", { name: "Primary navigation" }));
+    await userEvent.click(tabs.getByRole("button", { name: "Profile, Harbor" }));
+    await waitFor(() => expect(canvas.getByRole("status")).toHaveTextContent("Destination: /u/harbor.pirate"));
+  },
+};
+
+/** Two profiles: a double tap toggles between them without opening anything. */
+export const DoubleTapTogglesTwoProfiles: Story = {
+  globals: phone,
+  render: () => <ShellStory personas={personas.slice(0, 2)} />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const tabs = within(await canvas.findByRole("navigation", { name: "Primary navigation" }));
+    await userEvent.dblClick(tabs.getByRole("button", { name: "Profile, Harbor" }));
+    await waitFor(() => expect(tabs.getByRole("button", { name: "Profile, Night Shift" })).toBeInTheDocument());
+    await expect(within(canvasElement.ownerDocument.body).queryByRole("dialog")).not.toBeInTheDocument();
+  },
+};
+
+/** Three or more profiles: a double tap opens the profile sheet. */
+export const DoubleTapOpensProfileSheet: Story = {
+  globals: phone,
+  render: () => <ShellStory />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const tabs = within(await canvas.findByRole("navigation", { name: "Primary navigation" }));
+    await userEvent.dblClick(tabs.getByRole("button", { name: "Profile, Harbor" }));
+    const sheet = await within(canvasElement.ownerDocument.body).findByRole("dialog", { name: "Your profiles" });
+    await expect(within(sheet).queryByRole("button", { name: "Settings" })).not.toBeInTheDocument();
+    await expect(within(sheet).queryByRole("button", { name: "View profile" })).not.toBeInTheDocument();
+  },
 };

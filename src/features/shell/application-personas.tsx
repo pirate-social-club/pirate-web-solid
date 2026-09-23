@@ -56,6 +56,7 @@ export function createApplicationPersonas(
         publicHandle: persona.primaryPublicHandle,
         avatarSrc: persona.avatarRef,
         avatarSeed: persona.displayName ?? persona.primaryPublicHandle ?? "Profile",
+        communityId: persona.communityBinding?.communityId ?? null,
       }));
       setPersonas(next);
       if (!next.some(persona => persona.personaId === selectedId())) {

@@ -74,7 +74,7 @@ describe("global sign-in host", () => {
     const first = new AbortController();
     const completion = requestGlobalSignInCompletion(first.signal);
     await settle();
-    expect(document.querySelector('[role="dialog"]')?.getAttribute("aria-label")).toBe("Join Pirate");
+    expect(document.querySelector('[role="dialog"]')?.getAttribute("aria-label")).toBe("Sign in");
     document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
     await expect(completion).resolves.toBe(false);
     const second = new AbortController();

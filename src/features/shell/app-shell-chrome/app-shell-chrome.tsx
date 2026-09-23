@@ -7,12 +7,12 @@ import {
   MobileFooterNav as DesignSystemMobileFooterNav,
   IconArrowLeft,
   IconBell,
+  IconHouse,
   IconButton,
   IconList,
   IconPlus,
   IconSquare,
   IconWallet,
-  Type,
   cn,
 } from "../../../design-system";
 import { formatUnreadCount, normalizeUnreadCount, type ShellNavItem } from "../shell-model";
@@ -71,15 +71,10 @@ export function AppHeader(props: AppHeaderProps) {
   const notifications = () => props.labels?.notificationsAriaLabel ?? "Notifications";
 
   const brand = () => (
-    <button
-      aria-label={home()}
-      class="inline-flex items-center gap-3 rounded-full p-1 text-start focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-      onClick={props.onHomeClick}
-      type="button"
-    >
-      <span aria-hidden="true" class="grid size-10 place-items-center rounded-full border border-border-soft bg-card text-lg font-semibold">P</span>
-      <Type as="span" variant="h3" class="tracking-wide">PIRATE</Type>
-    </button>
+    // Each app domain is its own product, so the chrome carries no brand name.
+    <IconButton aria-label={home()} onClick={props.onHomeClick} variant="ghost">
+      <IconHouse class="size-6" />
+    </IconButton>
   );
 
   const notificationAction = () => props.showNotificationsAction === false ? null : (
@@ -104,7 +99,7 @@ export function AppHeader(props: AppHeaderProps) {
     <Show
       when={mobile()}
       fallback={
-        <header class={cn("flex min-h-16 items-center justify-between border-b border-border-soft bg-background/95 px-6 py-2", props.class)}>
+        <header class={cn("flex min-h-16 items-center justify-between bg-background px-6 py-2", props.class)}>
           <Show when={!props.hideBrand}>{brand()}</Show>
           <div class="flex items-center gap-1">
             <Show when={props.showCreateAction !== false}><IconButton aria-label={labels().createLabel ?? "Create"} onClick={props.onCreateClick} variant="ghost"><CreateGlyph /></IconButton></Show>
@@ -115,7 +110,7 @@ export function AppHeader(props: AppHeaderProps) {
         </header>
       }
     >
-      <header class={cn("fixed inset-x-0 top-0 z-40 border-b border-border-soft bg-background/95 pt-[env(safe-area-inset-top)] backdrop-blur-md", appearance() === "media-overlay" && "border-transparent bg-transparent text-white", props.class)} data-appearance={appearance()}>
+      <header class={cn("fixed inset-x-0 top-0 z-40 bg-background pt-[env(safe-area-inset-top)]", appearance() === "media-overlay" && "bg-transparent text-white", props.class)} data-appearance={appearance()}>
         <div class="grid h-16 grid-cols-[minmax(0,1fr)_minmax(0,auto)_minmax(0,1fr)] items-center gap-2 px-3">
           <div class="min-w-0 justify-self-start">
             <Show when={props.mobileLeadingContent} fallback={

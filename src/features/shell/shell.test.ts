@@ -59,7 +59,7 @@ describe("shell model", () => {
   });
 
   test("resolves deterministic story route titles", () => {
-    expect(resolveShellTitle("home")).toBe("Pirate");
+    expect(resolveShellTitle("home")).toBe("Home");
     expect(resolveShellTitle("profile")).toBe("story.pirate");
   });
 

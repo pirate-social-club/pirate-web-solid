@@ -14,7 +14,7 @@ export function formatUnreadCount(value: number | undefined): string {
 
 export function resolveShellTitle(route: "home" | "community" | "post" | "wallet" | "profile"): string | null {
   switch (route) {
-    case "home": return "Pirate";
+    case "home": return "Home";
     case "community": return "Builders";
     case "post": return "Post";
     case "wallet": return "Wallet";

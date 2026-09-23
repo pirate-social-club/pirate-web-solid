@@ -57,10 +57,10 @@ export function resolveApplicationChrome(pathname: string, viewerProfilePath?: s
     return { activeItemId: "your-communities", mobileActiveItem: "none", mobileTitle: "Community", mode: "bare" };
   }
   if (first === "auth" || first === "verify" || first === "terms" || first === "privacy") {
-    return { activeItemId: "home", mobileActiveItem: "home", mobileTitle: "Pirate", mode: "bare" };
+    return { activeItemId: "home", mobileActiveItem: "home", mobileTitle: "", mode: "bare" };
   }
   if (segments.length === 0) {
-    return { activeItemId: "home", mobileActiveItem: "home", mobileTitle: "PIRATE", mode: "immersive" };
+    return { activeItemId: "home", mobileActiveItem: "home", mobileTitle: "", mode: "immersive" };
   }
   if (community) {
     return { activeItemId: "your-communities", mobileActiveItem: "none", mobileTitle: "Community", mode: "standard" };
@@ -105,5 +105,5 @@ export function resolveApplicationChrome(pathname: string, viewerProfilePath?: s
   if (activity) {
     return { activeItemId: "none", mobileActiveItem: "none", mobileTitle: "Activity", mode: "standard" };
   }
-  return { activeItemId: "home", mobileActiveItem: "home", mobileTitle: "Pirate", mode: "standard" };
+  return { activeItemId: "home", mobileActiveItem: "home", mobileTitle: "", mode: "standard" };
 }

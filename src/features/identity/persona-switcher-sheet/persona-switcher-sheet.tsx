@@ -19,6 +19,8 @@ export interface SwitchablePersona {
   displayName: string;
   personaId: string;
   publicHandle?: string | null;
+  /** The community this profile is bound to, when it is community-scoped. */
+  communityId?: string | null;
 }
 
 export interface PersonaSwitcherSheetProps {
@@ -32,8 +34,6 @@ export interface PersonaSwitcherSheetProps {
   loading?: boolean;
   unavailable?: boolean;
   onRetry?: () => void;
-  onViewProfile?: () => void;
-  onSettings?: () => void;
   onAfterClose?: () => void;
 }
 
@@ -50,13 +50,13 @@ export function PersonaSwitcherSheet(props: PersonaSwitcherSheetProps) {
       >
         <div aria-hidden="true" class="mx-auto mb-4 h-1 w-12 rounded-full bg-muted md:hidden" />
         <ModalHeader class="px-4 pe-12 pb-4 text-start">
-          <ModalTitle>{props.title ?? "Switch profile"}</ModalTitle>
+          <ModalTitle>{props.title ?? "Your profiles"}</ModalTitle>
         </ModalHeader>
         <Show when={props.loading}><Type class="px-4 pb-4" role="status">Loading profiles…</Type></Show>
         <Show when={props.unavailable}><div class="px-4 pb-4"><Type role="alert">Profiles could not be loaded.</Type><Button onClick={props.onRetry} disabled={props.loading} variant="outline">Try again</Button></div></Show>
         <Show when={!props.loading && !props.unavailable && props.personas.length === 0}><Type class="px-4 pb-4">No active profiles yet.</Type></Show>
         <RadioGroup
-          aria-label={props.title ?? "Switch profile"}
+          aria-label={props.title ?? "Your profiles"}
           class="min-h-0 gap-0 overflow-y-auto rounded-none border-y border-border-soft bg-transparent p-0"
           onChange={props.onSelect}
           value={props.selectedPersonaId}
@@ -89,7 +89,6 @@ export function PersonaSwitcherSheet(props: PersonaSwitcherSheetProps) {
             }}
           </For>
         </RadioGroup>
-        <Show when={props.onViewProfile || props.onSettings}><div class="flex flex-wrap gap-2 px-4 pt-4"><Show when={props.onViewProfile}><Button onClick={props.onViewProfile} variant="outline">View profile</Button></Show><Show when={props.onSettings}><Button onClick={props.onSettings} variant="ghost">Settings</Button></Show></div></Show>
       </ModalContent>
     </Modal>
   );

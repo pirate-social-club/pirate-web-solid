@@ -28,14 +28,21 @@ import storyIconUrl from "../../assets/wallet-icons/story.png";
 
 type Web3IconComponent = Component<Web3IconProps>;
 
+// Story Protocol rebranded as the DATA Foundation ($IP became $DATA one for
+// one; spec 008 §2). Until a DATA mark ships, $DATA and DATA Network use the
+// Story artwork the legacy wallet used.
 const LOCAL_TOKEN_ICON_BY_SYMBOL = new Map([
   ["ATOM", cosmosIconUrl],
   ["IP", ipIconUrl],
+  ["WIP", ipIconUrl],
+  ["$DATA", ipIconUrl],
+  ["DATA", ipIconUrl],
   ["P2P", sentinelIconUrl],
 ]);
 
 const LOCAL_CHAIN_ICON_BY_CHAIN_ID = new Map<WalletHubChainId, string>([
   ["cosmos", cosmosIconUrl],
+  ["data", storyIconUrl],
   ["solana", solanaIconUrl],
   ["story", storyIconUrl],
 ]);
@@ -60,10 +67,6 @@ const WEB3_CHAIN_ICON_BY_CHAIN_ID = new Map<WalletHubChainId, Web3IconComponent>
   ["tempo", NetworkTempo],
 ]);
 
-const fallbackColors = new Map([
-  ["PATHUSD", "#334155"],
-]);
-
 const chainLabels = new Map<WalletHubChainId, string>([
   ["data", "DATA"],
   ["bitcoin", "BTC"],
@@ -76,32 +79,14 @@ const chainLabels = new Map<WalletHubChainId, string>([
   ["tempo", "T"],
 ]);
 
-function VisualMark(props: { color: string; label: string; class?: string }) {
-  return (
-    <span
-      aria-hidden="true"
-      class={cn(
-        "grid size-full place-items-center rounded-full text-center font-bold leading-none text-white",
-        props.class,
-      )}
-      style={{
-        background: props.color,
-        "font-size": props.label.length > 3 ? "7px" : "9px",
-      }}
-    >
-      {props.label}
-    </span>
-  );
-}
-
 function LocalIcon(props: { class?: string; src: string }) {
   return <img alt="" aria-hidden="true" class={cn("block size-full object-contain", props.class)} draggable={false} src={props.src} />;
 }
 
+/** Legacy fallback: the symbol's first letter on the muted surface. */
 function WalletIconFallback(props: { label: string; class?: string }) {
-  const symbol = props.label.toUpperCase();
-  const color = fallbackColors.get(symbol) ?? "#64748b";
-  return <VisualMark class={props.class} color={color} label={symbol.slice(0, 4)} />;
+  const letter = props.label.replace(/^\$/, "").slice(0, 1).toUpperCase();
+  return <span aria-hidden="true" class={cn("grid size-full place-items-center rounded-full bg-muted text-base font-semibold text-foreground", props.class)}>{letter}</span>;
 }
 
 export function ChainIcon(props: {
@@ -111,11 +96,13 @@ export function ChainIcon(props: {
 }) {
   const web3Icon = WEB3_CHAIN_ICON_BY_CHAIN_ID.get(props.chainId);
   const iconUrl = LOCAL_CHAIN_ICON_BY_CHAIN_ID.get(props.chainId);
+  // Framed icons sit inside a white disc; an unframed badge fills its frame.
+  const fit = props.framed === false ? "size-full" : "size-[74%]";
   const content = web3Icon
-    ? <Dynamic component={web3Icon} class="size-[74%]" />
+    ? <Dynamic component={web3Icon} class={fit} />
     : iconUrl
-    ? <LocalIcon class="size-[74%]" src={iconUrl} />
-    : <WalletIconFallback class="size-[74%]" label={chainLabels.get(props.chainId) ?? props.chainId} />;
+    ? <LocalIcon class={fit} src={iconUrl} />
+    : <WalletIconFallback class={fit} label={chainLabels.get(props.chainId) ?? props.chainId} />;
 
   if (props.framed === false) {
     return <span class={cn("grid shrink-0 place-items-center", props.class)}>{content}</span>;
@@ -153,8 +140,10 @@ export function TokenChainIcon(props: {
     <BadgedCircle
       badge={<ChainIcon chainId={props.chainId} class="size-4" framed={false} />}
       badgeLabel={props.chainLabel ? `${props.chainLabel} chain` : undefined}
-      badgeFrameClassName="border border-white/70"
-      badgePadding={2}
+      // Legacy seats the branded network mark on white; the design-system
+      // default card surface hides dark marks such as Ethereum's.
+      badgeFrameClassName="border border-white/70 bg-white"
+      badgePadding={isSmall ? 2 : 3}
       badgeSize={isSmall ? 16 : 18}
       class={circleClass}
     >

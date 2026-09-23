@@ -51,7 +51,6 @@ export const Default: Story = {
       <AppSidebar
         activeItemId="home"
         appearance="media"
-        brandLabel="PIRATE"
         class="sticky top-0 hidden h-screen md:flex"
         footer={<Type as="p" variant="body-strong">Account</Type>}
         onNavigate={() => {}}
