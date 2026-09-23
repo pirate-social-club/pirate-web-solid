@@ -148,7 +148,10 @@ assert.equal(
   staging.vars.HNS_COMMUNITY_APP_ACCESS_AUDIENCE,
   "7921be169b18645bcf2b4bfbf0e4c034a8773979778a904b2a3d3c077aa6d2b7",
 );
-assert.equal(staging.vars.HNS_COMMUNITY_APP_GATEWAY_DEPLOYMENT_REFERENCE, "");
+assert.equal(
+  staging.vars.HNS_COMMUNITY_APP_GATEWAY_DEPLOYMENT_REFERENCE,
+  "hns-community-app-gateway-sha256:ab196ac2500945b16b45e2b7ee2af41aa8a3cd0f9fa89b9b100bfded2fe0de9f",
+);
 assert.equal(
   staging.vars.HNS_FORWARDER_V3_KEY_REGISTRY_REFERENCE,
   "pirate:hns-forwarder-v3:staging-community-app:v1",

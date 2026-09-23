@@ -98,7 +98,7 @@
         "HNS_COMMUNITY_APP_ACCESS_JWKS_URL": "https://piratesocialclub.cloudflareaccess.com/cdn-cgi/access/certs",
         "HNS_COMMUNITY_APP_ACCESS_AUDIENCE": "7921be169b18645bcf2b4bfbf0e4c034a8773979778a904b2a3d3c077aa6d2b7",
         "HNS_COMMUNITY_APP_AUTHORITY_ORIGIN": "https://hns-community-api-staging.pirate.sc",
-        "HNS_COMMUNITY_APP_GATEWAY_DEPLOYMENT_REFERENCE": "",
+        "HNS_COMMUNITY_APP_GATEWAY_DEPLOYMENT_REFERENCE": "hns-community-app-gateway-sha256:ab196ac2500945b16b45e2b7ee2af41aa8a3cd0f9fa89b9b100bfded2fe0de9f",
         "HNS_HANDLE_HOST_INGRESS_ENABLED": "false",
         "HNS_HANDLE_HOST_INGRESS_ORIGIN": "",
         "HNS_HANDLE_HOST_CANONICAL_ORIGIN": "https://pirate.sc",
