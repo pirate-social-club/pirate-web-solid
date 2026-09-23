@@ -1,4 +1,4 @@
-import { createMemo, createSignal, onCleanup, Show, untrack } from "solid-js";
+import { createEffect, createMemo, createSignal, onCleanup, Show, untrack } from "solid-js";
 import { Button, FormNote } from "../../../design-system";
 import { type ExcerptBounds, formatExcerptTime } from "../post-composer/song-excerpt";
 import { SongExcerptComposer, type SoundtrackSelection } from "../post-composer/song-excerpt-composer";
@@ -54,6 +54,12 @@ export function VideoComposerRuntime(props: {
   /** The capture entry point, injected so the guide path can be driven without
    * a camera or an encoder. The default is the real capture module. */
   readonly startCapture?: (input: OriginalVideoCaptureInput) => Promise<VideoCaptureSession>;
+  /** Opens the live camera shown before recording starts. The default is the
+   * real capture module. */
+  readonly openPreview?: () => Promise<MediaStream>;
+  /** Whether this device records with its camera rather than choosing a file.
+   * Defaults to a coarse-pointer phone-width viewport. */
+  readonly cameraCapture?: boolean;
   readonly createGuideAudio?: (url: string) => GuideAudio;
   /** The alignment step for a guided take, injected so it can be driven
    * without a decoder. The default trims the measured lead-in from the real
@@ -95,7 +101,8 @@ export function VideoComposerRuntime(props: {
   // Finalizing a take is independent of the UI busy gate: a stop must be
   // honorable while the guide is still starting.
   const [finalizing, setFinalizing] = createSignal(false);
-  const mobile = typeof matchMedia !== "undefined" && matchMedia("(pointer: coarse) and (max-width: 767px)").matches;
+  const mobile = props.cameraCapture
+    ?? (typeof matchMedia !== "undefined" && matchMedia("(pointer: coarse) and (max-width: 767px)").matches);
   // One draft store per principal, built once. The excerpt is kept beside the
   // video draft rather than inside it: the video record is the coordinator's
   // and is governed by a submission contract this selection is not part of yet.
@@ -112,6 +119,18 @@ export function VideoComposerRuntime(props: {
   const [useOriginalSound, setUseOriginalSound] = createSignal(false);
   let picker: HTMLInputElement | undefined;
   let session: VideoCaptureSession | null = null;
+  // The live camera shown before a take. Recording takes it over; anything
+  // else that leaves the capture screen stops it.
+  let previewStream: MediaStream | null = null;
+  let previewOpening = false;
+  let captureStarting = false;
+  const stopTracks = (media: MediaStream | null) => { for (const track of media?.getTracks() ?? []) track.stop(); };
+  function closePreview() {
+    const open = previewStream;
+    previewStream = null;
+    stopTracks(open);
+    if (open && stream() === open) setStream(null);
+  }
   let guideAudio: GuideAudio | undefined;
   let disposed = false;
   let publishedId: string | undefined;
@@ -277,7 +296,7 @@ export function VideoComposerRuntime(props: {
   async function chooseFile(next: File | undefined) {
     if (!next || record()) return;
     await run(async () => {
-      await session?.cancel(); session = null; setStream(null); setCaptureStatus("idle");
+      await session?.cancel(); session = null; closePreview(); setStream(null); setCaptureStatus("idle");
       stopGuide();
       setTakeSoundtrack(null);
       setTakeAlignment("none");
@@ -364,7 +383,14 @@ export function VideoComposerRuntime(props: {
       // take. A take recorded to a guide is bound to it from this moment.
       if (guide) setTakeSoundtrack({ songPostId: guide.songPostId, bounds: guide.bounds });
       else setTakeSoundtrack(null);
-      const current = await startCapture({
+      // The live preview becomes the recording's stream, so the take starts
+      // from the picture already on screen instead of reopening the camera.
+      const handed = previewStream;
+      previewStream = null;
+      let current: VideoCaptureSession;
+      captureStarting = true;
+      try {
+        current = await startCapture({
           onFailure: failure => {
             session = null; stopGuide();
             if (disposed) return;
@@ -373,7 +399,15 @@ export function VideoComposerRuntime(props: {
           },
           onLimit: () => { void stopCapture(); },
           ...(guide ? { limitMs: captureStopAfterMs(guide.bounds) } : {}),
+          ...(handed ? { stream: handed } : {}),
         });
+      } catch (failure) {
+        stopTracks(handed);
+        if (handed && stream() === handed) setStream(null);
+        throw failure;
+      } finally {
+        captureStarting = false;
+      }
         if (disposed) { await current.cancel(); return; }
         session = current; setStream(current.stream); setCaptureStatus("recording");
         if (!guide) return;
@@ -473,7 +507,39 @@ export function VideoComposerRuntime(props: {
     stopGuide();
     if (typeof document !== "undefined") document.removeEventListener("visibilitychange", onVisibilityChange);
     void session?.cancel(); session = null;
+    closePreview();
     clearPreviewUrls();
+  });
+  // The viewfinder follows the stream after each commit. A ref alone reads the
+  // value from before the write that mounted it, which left the camera blank.
+  let viewfinder: HTMLVideoElement | undefined;
+  createEffect(() => stream(), media => {
+    if (viewfinder && viewfinder.isConnected && viewfinder.srcObject !== media) viewfinder.srcObject = media;
+  });
+  // The camera opens when the capture screen shows, not when recording
+  // starts: the author frames the shot first. It closes when the screen goes
+  // away and reopens after a retake.
+  createEffect(() => mobile && !record() && !file() && captureStatus() === "idle" && !finalizing(), capturing => {
+    if (!capturing) { if (!session) closePreview(); return; }
+    if (session || captureStarting || previewStream || previewOpening) return;
+    previewOpening = true;
+    const open = props.openPreview ?? (async () => (await import("./capture")).openCameraPreview());
+    void open().then(media => {
+      previewOpening = false;
+      const stillCapturing = !disposed && !session && !captureStarting && !record() && !file() && captureStatus() === "idle";
+      if (!stillCapturing || previewStream) { stopTracks(media); return; }
+      previewStream = media;
+      setStream(media);
+    }, async failure => {
+      previewOpening = false;
+      if (disposed) return;
+      const capture = await import("./capture");
+      if (failure instanceof capture.VideoCaptureError) {
+        setCaptureStatus(failure.reason === "camera_denied" ? "camera_denied" : "capability_unavailable");
+      } else {
+        setCaptureStatus("capability_unavailable");
+      }
+    });
   });
   const state = () => record()?.snapshot;
   const failure = () => { const snapshot = state(); return snapshot?.status === "processing_failed" ? snapshot : undefined; };
@@ -537,7 +603,8 @@ export function VideoComposerRuntime(props: {
           <OriginalVideoCaptureSurface channel={mobile ? "camera" : "upload"} status={captureStatus()}
             onClose={props.onExit} onUpload={() => picker?.click()} onRecordToggle={() => { void toggleCapture(); }}
             onRetake={() => { setError(""); setCaptureStatus("idle"); }}
-            preview={<Show when={stream()}><video ref={element => { element.srcObject = untrack(stream); }} autoplay muted playsinline class="h-full w-full object-cover" /></Show>} />
+            preview={<video ref={element => { viewfinder = element; element.srcObject = untrack(stream); }} autoplay muted playsinline
+              class={stream() ? "h-full w-full object-cover" : "hidden"} />} />
         </div>
       </Show>
     </Show>

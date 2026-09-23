@@ -21,7 +21,21 @@ const startCapture = vi.fn(async (_input: OriginalVideoCaptureInput) => {
   if (!nextSession) throw new Error("this test did not stage a capture session");
   return nextSession();
 });
-afterEach(() => { for (const dispose of disposers.splice(0)) dispose(); document.body.replaceChildren(); nextSession = undefined; startCapture.mockClear(); vi.unstubAllGlobals(); });
+/** A fake live camera: its tracks record whether anything stopped them. */
+interface FakePreview { readonly stream: MediaStream; readonly stopped: () => boolean }
+const previews: FakePreview[] = [];
+let previewFailure: Error | undefined;
+const openPreview = vi.fn(async (): Promise<MediaStream> => {
+  if (previewFailure) throw previewFailure;
+  let stops = 0;
+  const track = { stop: () => { stops += 1; } };
+  // SAFETY: the runtime only reads getTracks from the preview and assigns it
+  // to the viewfinder; jsdom has no MediaStream.
+  const stream = { getTracks: () => [track, track] } as unknown as MediaStream;
+  previews.push({ stream, stopped: () => stops > 0 });
+  return stream;
+});
+afterEach(() => { for (const dispose of disposers.splice(0)) dispose(); document.body.replaceChildren(); nextSession = undefined; startCapture.mockClear(); openPreview.mockClear(); previews.length = 0; previewFailure = undefined; vi.unstubAllGlobals(); });
 function setup(final: "published" | "manual_review" | "provider_submission_unconfirmed" | "membership_required" | "transform_failed", rejectKind?: "reserve" | "start", beforeExecute?: (command: VideoCommand) => Promise<void>) {
   vi.stubGlobal("crypto", webcrypto);
   const urlApi = class extends URL { static createObjectURL() { return "blob:https://example.test/video"; } static revokeObjectURL() {} };
@@ -243,6 +257,7 @@ describe("mounted song-first video flow", () => {
       storage={storage} transport={transport} inspectFile={async (file, options) => { inspectOptions.push(options); return file; }} fetchImpl={fetchImpl}
       measureDuration={async () => options.clipDurationMs ?? null}
       startCapture={startCapture}
+      openPreview={openPreview}
       createGuideAudio={options.createGuideAudio}
       alignTake={alignTake}
       onGuideTiming={options.onGuideTiming}
@@ -802,5 +817,66 @@ describe("mounted song-first video flow", () => {
     await vi.waitFor(() => expect(fixture.alignments).toHaveLength(1));
     expect(fixture.alignments[0]!.offsetMs).toBeGreaterThanOrEqual(150);
     expect(fixture.alignments[0]!.offsetMs).toBeLessThan(750);
+  });
+
+  describe("camera preview before recording", () => {
+    const viewfinderStream = () => document.querySelector<HTMLVideoElement>("[data-video-viewfinder] video")?.srcObject;
+
+    test("the camera shows on the capture screen before any take starts", async () => {
+      songSetup({ preflight: "accepted", mobile: true });
+      await vi.waitFor(() => expect(previews).toHaveLength(1));
+      await vi.waitFor(() => expect(viewfinderStream()).toBe(previews[0]!.stream));
+      expect(startCapture).not.toHaveBeenCalled();
+      expect(document.querySelector('button[aria-label="Start recording"]')).not.toBeNull();
+    });
+
+    test("recording takes over the previewed camera instead of reopening it", async () => {
+      nextSession = () => fakeSession(() => undefined);
+      songSetup({ preflight: "accepted", mobile: true, initialSong: false });
+      await vi.waitFor(() => expect(previews).toHaveLength(1));
+      await startRecording();
+      await vi.waitFor(() => expect(startCapture).toHaveBeenCalledTimes(1));
+      expect(startCapture.mock.calls[0]?.[0].stream).toBe(previews[0]!.stream);
+      // The recording owns the tracks now; the runtime must not stop them.
+      expect(previews[0]!.stopped()).toBe(false);
+      expect(openPreview).toHaveBeenCalledTimes(1);
+    });
+
+    test("going back from review reopens the camera", async () => {
+      nextSession = () => fakeSession(() => undefined);
+      songSetup({ preflight: "accepted", mobile: true, initialSong: false });
+      await vi.waitFor(() => expect(previews).toHaveLength(1));
+      await startRecording();
+      await stopRecording();
+      await vi.waitFor(() => expect(document.querySelector("textarea")).not.toBeNull());
+      expect(previews).toHaveLength(1);
+      document.querySelector<HTMLButtonElement>('button[aria-label="Back to capture"]')!.click();
+      await vi.waitFor(() => expect(previews).toHaveLength(2));
+      await vi.waitFor(() => expect(viewfinderStream()).toBe(previews[1]!.stream));
+    });
+
+    test("choosing a file instead releases the camera", async () => {
+      songSetup({ preflight: "accepted", mobile: true, initialSong: false });
+      await vi.waitFor(() => expect(previews).toHaveLength(1));
+      await chooseFile();
+      expect(previews[0]!.stopped()).toBe(true);
+      expect(previews).toHaveLength(1);
+    });
+
+    test("leaving the composer releases the camera", async () => {
+      songSetup({ preflight: "accepted", mobile: true, initialSong: false });
+      await vi.waitFor(() => expect(previews).toHaveLength(1));
+      for (const dispose of disposers.splice(0)) dispose();
+      expect(previews[0]!.stopped()).toBe(true);
+    });
+
+    test("a denied camera says so and keeps upload available", async () => {
+      const { VideoCaptureError } = await import("./capture");
+      previewFailure = new VideoCaptureError("camera_denied", "denied");
+      songSetup({ preflight: "accepted", mobile: true, initialSong: false });
+      await vi.waitFor(() => expect(document.body.textContent).toContain("Camera unavailable"));
+      expect(button("Choose a video instead")).not.toBeUndefined();
+      expect(startCapture).not.toHaveBeenCalled();
+    });
   });
 });
