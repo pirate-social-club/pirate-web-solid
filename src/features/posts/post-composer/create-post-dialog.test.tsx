@@ -994,6 +994,29 @@ describe("create post request", () => {
     expect([...document.body.querySelectorAll("button")].some(candidate => candidate.textContent?.trim() === "Resume a song submission")).toBe(false);
   });
 
+  test("says so in the text composer when the unfinished-song lookup fails, and retries", async () => {
+    const item: ActiveSongMediaPostSubmission = { object: "active_song_media_post_submission", community_id: "community-one",
+      title: "Retry recovery", song_type: "original", author_declared_rating: "general",
+      terms_state: { current: { status: "not_bound" } }, submission: mediaSnapshot() };
+    class FlakyRecoveryTransport extends ProductionMediaTransport {
+      lists = 0;
+      override async listActive(): Promise<ActiveSongMediaPostSubmissionPage> {
+        this.lists += 1;
+        if (this.lists === 1) throw new Error("network down");
+        return { object: "active_song_media_post_submission_page", items: [item], next_cursor: null };
+      }
+    }
+    const transport = new FlakyRecoveryTransport();
+    render(() => <CreatePostDialog communityContext={{ id: "community-one", name: "Harbor" }} mediaTransport={transport}
+      open onOpenChange={() => {}} personas={[activePersona("persona-one", "Persona One")]} principalId="account-one" />);
+    await vi.waitFor(() => expect(document.body.textContent).toContain("Couldn't check for unfinished songs."));
+    expect([...document.body.querySelectorAll("button")].some(candidate => candidate.textContent?.trim() === "Resume a song submission")).toBe(false);
+    button("Check again").click();
+    await vi.waitFor(() => expect(button("Resume a song submission")).toBeDefined());
+    expect(transport.lists).toBe(2);
+    expect(document.body.textContent).not.toContain("Couldn't check for unfinished songs.");
+  });
+
   test("shows no status card while a prepared song is on Rights", async () => {
     const mediaTransport = new ProductionMediaTransport();
     render(() => <CreatePostDialog communityContext={{ id: "community-one", name: "Harbor" }} mediaTransport={mediaTransport}

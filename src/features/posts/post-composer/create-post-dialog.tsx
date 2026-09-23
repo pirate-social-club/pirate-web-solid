@@ -739,13 +739,26 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
     </Show>
   );
 
+  // Song recovery is offered below the text editor, never above the header.
+  const textRecoveryOpen = () => mode() === "text" && textState().status === "editing" && mediaSnapshot() === null && mediaCoordinator !== undefined;
   const textOutcomePanel = () => (
-    <Show when={mode() === "text" && textState().status !== "editing"}>
-      <PostComposerSubmission
-        onRetry={() => void retryText()}
-        state={textState()}
-      />
-    </Show>
+    <>
+      <Show when={mode() === "text" && textState().status !== "editing"}>
+        <PostComposerSubmission
+          onRetry={() => void retryText()}
+          state={textState()}
+        />
+      </Show>
+      <Show when={textRecoveryOpen() && recoverableSongs().length > 0}>
+        <Button type="button" variant="outline" onClick={() => setMode("song")}>Resume a song submission</Button>
+      </Show>
+      <Show when={textRecoveryOpen() && recoveryError()}>
+        <div class="flex items-center justify-between gap-3">
+          <FormNote>Couldn't check for unfinished songs.</FormNote>
+          <Button type="button" variant="outline" disabled={recoveryLoading()} onClick={() => void loadRecoverableSongs()}>Check again</Button>
+        </div>
+      </Show>
+    </>
   );
 
   return (
@@ -765,9 +778,6 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
             </Show>
             <Show when={personas().length === 0}>
               <FormNote tone="warning">Choose a profile for this community before posting.</FormNote>
-            </Show>
-            <Show when={mode() === "text" && textState().status === "editing" && mediaSnapshot() === null && mediaCoordinator !== undefined && recoverableSongs().length > 0}>
-              <Button type="button" variant="outline" onClick={() => setMode("song")}>Resume a song submission</Button>
             </Show>
             <Show when={mode() === "song" && textState().status === "editing" && mediaSnapshot() === null && mediaCoordinator !== undefined}>
               <Show when={recoveryLoading()}><FormNote>Checking for active song submissions…</FormNote></Show>

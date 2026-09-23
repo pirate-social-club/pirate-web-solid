@@ -7,7 +7,7 @@ import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import type { PostCommunitiesCommunityIdMediaUploadReservationsResponse } from "@pirate/api-client";
 
 import type { ActivePersonaPublicProjection } from "../../../api/session";
-import type { MediaSubmissionSnapshot } from "../media-submission/contracts";
+import type { ActiveSongMediaPostSubmissionPage, MediaSubmissionSnapshot } from "../media-submission/contracts";
 import { mediaCommandBody, type PersistedMediaCommand } from "../media-submission/pending";
 import type { MediaCommandResult, MediaSubmissionTransport } from "../media-submission/transport";
 import { CreatePostDialog } from "./create-post-dialog";
@@ -64,7 +64,7 @@ function outcomeSnapshot(outcome: StoryOutcome, current: MediaSubmissionSnapshot
 /** In-memory song transport: one reserve/start/upload/finalize pipeline that
  * accepts lyrics and terms and settles on the requested outcome. */
 class StoryMediaTransport implements MediaSubmissionTransport {
-  async listActive() { return { object: "active_song_media_post_submission_page" as const, items: [], next_cursor: null }; }
+  async listActive(): Promise<ActiveSongMediaPostSubmissionPage> { return { object: "active_song_media_post_submission_page", items: [], next_cursor: null }; }
   snapshot: MediaSubmissionSnapshot | null = null;
   readonly commands: PersistedMediaCommand[] = [];
   uploadCount = 0;
@@ -121,6 +121,28 @@ class StoryMediaTransport implements MediaSubmissionTransport {
 class FailingUploadStoryTransport extends StoryMediaTransport {
   override async upload(): Promise<void> {
     throw new Error("The audio upload did not finish. Try again.");
+  }
+}
+
+/** A transport whose server holds one unfinished song for this community. */
+class ResumableSongStoryTransport extends StoryMediaTransport {
+  override async listActive(): Promise<ActiveSongMediaPostSubmissionPage> {
+    return {
+      object: "active_song_media_post_submission_page",
+      items: [{
+        object: "active_song_media_post_submission", community_id: "community-one", title: "Midnight waves",
+        song_type: "original", author_declared_rating: "general",
+        terms_state: { current: { status: "not_bound" } }, submission: snapshot(),
+      }],
+      next_cursor: null,
+    };
+  }
+}
+
+/** A transport whose unfinished-song lookup fails, as when the network drops. */
+class FailingRecoveryStoryTransport extends StoryMediaTransport {
+  override async listActive(): Promise<never> {
+    throw new Error("Could not load active song submissions");
   }
 }
 
@@ -250,6 +272,33 @@ export const ContextualTextOverMobileNavigation: Story = {
     await expect(box.height).toBeGreaterThan(0);
     const hit = canvasElement.ownerDocument.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2);
     await expect(hit !== null && form.contains(hit)).toBe(true);
+  },
+};
+
+/** The unfinished-song lookup failed. The text composer says so quietly and
+ * offers a retry instead of hiding the resume path without a word. */
+export const ContextualTextRecoveryLookupFailedMobile: Story = {
+  name: "Contextual / Text / Unfinished-song check failed / Mobile",
+  globals: { viewport: { value: "mobile1", isRotated: false } },
+  render: () => dialogHarness({ mediaTransport: new FailingRecoveryStoryTransport() }).render(),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement.ownerDocument.body);
+    await expect(await canvas.findByText("Couldn't check for unfinished songs.")).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: "Check again" })).toBeInTheDocument();
+    await expect(canvas.queryByRole("button", { name: "Resume a song submission" })).not.toBeInTheDocument();
+  },
+};
+
+/** The server holds an unfinished song, so the text composer offers to
+ * resume it below the editor. */
+export const ContextualTextResumeAvailableMobile: Story = {
+  name: "Contextual / Text / Unfinished song to resume / Mobile",
+  globals: { viewport: { value: "mobile1", isRotated: false } },
+  render: () => dialogHarness({ mediaTransport: new ResumableSongStoryTransport() }).render(),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement.ownerDocument.body);
+    await expect(await canvas.findByRole("button", { name: "Resume a song submission" })).toBeInTheDocument();
+    await expect(canvas.queryByText("Couldn't check for unfinished songs.")).not.toBeInTheDocument();
   },
 };
 
