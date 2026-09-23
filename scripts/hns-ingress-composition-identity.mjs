@@ -53,6 +53,27 @@ const excludedVariableNames = new Set([
   "HNS_COMMUNITY_APP_GATEWAY_DEPLOYMENT_REFERENCE",
 ]);
 
+const disabledHandleVariableNames = Object.freeze([
+  "HNS_HANDLE_HOST_INGRESS_ENABLED",
+  "HNS_HANDLE_HOST_INGRESS_ORIGIN",
+  "HNS_HANDLE_HOST_CANONICAL_ORIGIN",
+  "HNS_HANDLE_HOST_PUBLIC_API_ORIGIN",
+  "HNS_HANDLE_HOST_ACCESS_ISSUER",
+  "HNS_HANDLE_HOST_ACCESS_JWKS_URL",
+  "HNS_HANDLE_HOST_ACCESS_AUDIENCE",
+  "HNS_HANDLE_HOST_AUTHORITY_ORIGIN",
+  "HNS_HANDLE_HOST_GATEWAY_DEPLOYMENT_REFERENCE",
+]);
+
+const emptyHandleVariableNames = Object.freeze([
+  "HNS_HANDLE_HOST_INGRESS_ORIGIN",
+  "HNS_HANDLE_HOST_ACCESS_ISSUER",
+  "HNS_HANDLE_HOST_ACCESS_JWKS_URL",
+  "HNS_HANDLE_HOST_ACCESS_AUDIENCE",
+  "HNS_HANDLE_HOST_AUTHORITY_ORIGIN",
+  "HNS_HANDLE_HOST_GATEWAY_DEPLOYMENT_REFERENCE",
+]);
+
 function refuse(message) {
   throw new Error(`hns_ingress_identity_refused:${message}`);
 }
@@ -75,21 +96,42 @@ function uniqueSortedStrings(values, name) {
   return sorted;
 }
 
-export function projectStagingIngressConfiguration(config) {
+export function projectStagingIngressConfiguration(config, packageJson) {
   const staging = config?.env?.staging;
   const vars = staging?.vars;
   if (typeof vars !== "object" || vars === null) refuse("missing_staging_vars");
 
   const protectedVars = {};
   for (const name of protectedVariableNames) protectedVars[name] = stringValue(vars[name], name);
+  const disabledHandleVars = {};
+  for (const name of disabledHandleVariableNames) {
+    disabledHandleVars[name] = stringValue(vars[name], name);
+  }
+  if (disabledHandleVars.HNS_HANDLE_HOST_INGRESS_ENABLED !== "false") {
+    refuse("handle_host_must_remain_disabled");
+  }
+  for (const name of emptyHandleVariableNames) {
+    if (disabledHandleVars[name] !== "") refuse(`handle_host_must_remain_empty_${name}`);
+  }
   for (const name of Object.keys(vars)) {
     if (
-      (name.startsWith("HNS_COMMUNITY_APP_") || name.startsWith("HNS_FORWARDER_V3_")) &&
+      (name.startsWith("HNS_COMMUNITY_APP_") ||
+        name.startsWith("HNS_FORWARDER_V3_") ||
+        name.startsWith("HNS_HANDLE_HOST_")) &&
       !protectedVariableNames.includes(name) &&
+      !disabledHandleVariableNames.includes(name) &&
       !excludedVariableNames.has(name)
     ) {
       refuse(`unbound_variable_${name}`);
     }
+  }
+
+  const apiClientDependency = stringValue(
+    packageJson?.dependencies?.["@pirate/api-client"],
+    "api_client_dependency",
+  );
+  if (!/^file:vendor\/api-client\/pirate-api-client-\d+\.\d+\.\d+\.tgz$/u.test(apiClientDependency)) {
+    refuse("unpinned_api_client_dependency");
   }
 
   let protectedHost;
@@ -123,12 +165,14 @@ export function projectStagingIngressConfiguration(config) {
   if (!Array.isArray(config.migrations)) refuse("missing_replay_migrations");
 
   return {
-    schema: "pirate-solid-hns-staging-ingress-composition-v1",
+    schema: "pirate-solid-hns-staging-ingress-composition-v2",
     main: stringValue(config.main, "worker_entry"),
     compatibility_date: stringValue(config.compatibility_date, "compatibility_date"),
     compatibility_flags: uniqueSortedStrings(config.compatibility_flags, "compatibility_flags"),
     protected_route: matchingRoutes[0],
     protected_vars: protectedVars,
+    disabled_handle_host_vars: disabledHandleVars,
+    api_client_dependency: apiClientDependency,
     required_secret_names: uniqueSortedStrings(staging?.secrets?.required, "required_secrets"),
     replay_bindings: [...replayBindings].sort((left, right) => left.name.localeCompare(right.name)),
     migrations: config.migrations,
@@ -141,14 +185,14 @@ export function assertIngressSourcePaths(discoveredPaths) {
   if (JSON.stringify(actual) !== JSON.stringify(expected)) refuse("source_file_set_changed");
 }
 
-export function stagingIngressCompositionIdentity(config, sources) {
+export function stagingIngressCompositionIdentity(config, sources, packageJson) {
   const sourceFiles = INGRESS_SOURCE_PATHS.map((path) => {
     const bytes = sources.get(path);
     if (!(bytes instanceof Uint8Array)) refuse(`missing_source_${path}`);
     return { path, sha256: sha256(bytes) };
   });
-  const projection = projectStagingIngressConfiguration(config);
-  const canonical = JSON.stringify({ schema: "solid-hns-ingress-fingerprint-v1", sourceFiles, projection });
+  const projection = projectStagingIngressConfiguration(config, packageJson);
+  const canonical = JSON.stringify({ schema: "solid-hns-ingress-fingerprint-v2", sourceFiles, projection });
   return `solid-hns-ingress-sha256:${sha256(canonical)}`;
 }
 
@@ -176,11 +220,12 @@ export async function readStagingIngressCompositionInputs(root = repositoryRoot)
   const sources = new Map();
   for (const path of INGRESS_SOURCE_PATHS) sources.set(path, await readFile(join(root, path)));
   const config = JSON.parse(await readFile(join(root, "wrangler.jsonc"), "utf8"));
-  return { config, sources };
+  const packageJson = JSON.parse(await readFile(join(root, "package.json"), "utf8"));
+  return { config, sources, packageJson };
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   if (process.argv.length !== 2) refuse("unexpected_argument");
-  const { config, sources } = await readStagingIngressCompositionInputs();
-  console.log(stagingIngressCompositionIdentity(config, sources));
+  const { config, sources, packageJson } = await readStagingIngressCompositionInputs();
+  console.log(stagingIngressCompositionIdentity(config, sources, packageJson));
 }
