@@ -16,7 +16,7 @@ export function LegalPlaceholderPage(props: LegalPlaceholderPageProps): JSX.Elem
       class="mx-auto flex min-h-screen w-full max-w-3xl items-center px-5 py-10"
       data-route-path={props.path}
     >
-      <Title>{props.title} · Pirate</Title>
+      <Title>{props.title}</Title>
       <Card class="w-full">
         <CardContent class="flex flex-col gap-4 p-6 md:p-8">
           <Type as="p" variant="label" class="text-muted-foreground">Pre-live placeholder</Type>

@@ -1,11 +1,11 @@
 {
   "home": {
-    "title": "首页 · Pirate Web",
-    "description": "Pirate Web 视频动态",
+    "title": "首页",
+    "description": "视频动态",
     "heading": "Pirate Web Solid 界面"
   },
   "profile": {
-    "title": "@{handle} · Pirate Web",
+    "title": "@{handle}",
     "heading": "个人资料：@{handle}",
     "loading": "正在加载个人资料",
     "invalid": "该个人资料句柄无效。",
@@ -13,18 +13,18 @@
     "error": "该个人资料暂时不可用。",
     "emptyCommunities": "尚未创建社区。",
     "createdCommunities": "已创建的社区",
-    "createdCommunityPluralDescription": "{name} 在 Pirate Web 创建了 {count} 个社区。",
-    "createdCommunitySingularDescription": "{name} 在 Pirate Web 创建了 1 个社区。",
-    "defaultDescription": "{name} 在 Pirate Web 的公开个人资料。",
+    "createdCommunityPluralDescription": "{name} 创建了 {count} 个社区。",
+    "createdCommunitySingularDescription": "{name} 创建了 1 个社区。",
+    "defaultDescription": "{name} 的公开个人资料。",
     "openCommunity": "打开 {name}"
   },
   "community": {
-    "title": "{name} · Pirate Web",
+    "title": "{name}",
     "loading": "正在加载社区",
     "invalid": "该社区路径无效。",
     "notFound": "找不到该社区。",
     "error": "该社区暂时不可用。",
-    "defaultDescription": "{name} 在 Pirate Web 的公开社区页面。",
+    "defaultDescription": "{name} 的公开社区页面。",
     "membership": "成员资格",
     "membershipModes": {
       "open": "开放",
@@ -38,7 +38,7 @@
     "noRules": "没有公开规则。"
   },
   "names": {
-    "title": "{name} 的名称 · Pirate Web",
+    "title": "{name} 的名称",
     "heading": "领取 {root} 中的名称",
     "headingMultiple": "选择社区名称",
     "intro": "为这个免费的公开名称选择一个现有身份。不使用钱包或付款。",

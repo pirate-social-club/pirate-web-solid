@@ -40,7 +40,7 @@ export function YourSongsPage(props: YourSongsPageProps) {
   const ready = () => (props.state ?? "ready") === "ready";
   const songs = createMemo(() => props.songs.filter(song => `${song.title} ${song.artist}`.toLocaleLowerCase().includes(query().trim().toLocaleLowerCase())));
   return <main data-route-path="/songs" class="mx-auto flex w-full max-w-3xl flex-col gap-6 px-4 py-8">
-    <Title>Your songs · Pirate</Title>
+    <Title>Your songs</Title>
     <div class="space-y-2"><Type as="h1" variant="h1">Your songs</Type><Type class="text-muted-foreground">Pick up where you left off, or find something new.</Type></div>
     <section aria-label="Recent activity" class="space-y-4"><Type as="h2" variant="h3">Recent activity</Type>
     <Show when={props.state === "loading"}><Type role="status">Loading your songs…</Type></Show>

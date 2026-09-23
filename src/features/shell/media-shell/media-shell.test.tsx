@@ -185,6 +185,21 @@ describe("Application navigation", () => {
     expect(document.querySelectorAll('[role="dialog"]')).toHaveLength(1);
   });
 
+  test("on a community page with one eligible profile a double tap never switches account profiles", async () => {
+    const Register = communityTarget(1, () => {});
+    const navigate = vi.fn();
+    const onPersonaSelect = vi.fn();
+    const container = render(() => <ActivePersonaProvider><Register /><ApplicationChrome signedIn navigate={navigate} onPersonaSelect={onPersonaSelect} personas={[{ personaId: "one", displayName: "Harbor", publicHandle: "harbor.pirate" }, { personaId: "two", displayName: "Night Shift" }]} selectedPersonaId="one">Route</ApplicationChrome></ActivePersonaProvider>);
+    const profileTab = container.querySelector<HTMLButtonElement>('nav[aria-label="Primary navigation"] button[aria-label="Profile, Harbor"]')!;
+    // Without a double-tap action the single tap is immediate.
+    profileTab.click();
+    expect(navigate).toHaveBeenCalledWith("/u/harbor.pirate");
+    profileTab.click();
+    await new Promise(resolve => setTimeout(resolve, 350));
+    expect(onPersonaSelect).not.toHaveBeenCalled();
+    expect(document.querySelector('[role="dialog"]')).toBeNull();
+  });
+
   test("bare routes omit chrome", () => {
     const container = render(() => <ApplicationChrome mode="bare"><main>Verify</main></ApplicationChrome>);
     expect(container.querySelector("[data-application-chrome]")).toBeNull();

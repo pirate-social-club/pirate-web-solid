@@ -806,7 +806,7 @@ export function CommunityCreationRouteView(props: CommunityCreationRouteViewProp
 
   return (
     <main data-creation-state={creationState()} data-route-path="/communities/new" class="min-h-[calc(100dvh-4rem)] bg-background text-foreground">
-      <Title>Create community · Pirate</Title>
+      <Title>Create community</Title>
       <Show
         when={session() !== "anonymous"}
         fallback={

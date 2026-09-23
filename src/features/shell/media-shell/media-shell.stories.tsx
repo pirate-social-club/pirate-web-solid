@@ -1,10 +1,11 @@
 /** @jsxImportSource @solidjs/web */
-import { createMemo, createSignal, omit } from "solid-js";
+import { createEffect, createMemo, createSignal, omit } from "solid-js";
 import { expect, userEvent, waitFor, within } from "storybook/test";
 import { switcherPersonas } from "../../identity/persona-switcher-sheet/persona-switcher-fixtures.ts";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 
 import { Type } from "../../../design-system";
+import { ActivePersonaProvider, useActivePersonaStore } from "../../identity/active-persona-store.tsx";
 import type { SwitchablePersona } from "../../identity/persona-switcher-sheet/persona-switcher-sheet.tsx";
 import { resolveApplicationChrome } from "../application-chrome-model.ts";
 import type { DrawerCommunity } from "../navigation-drawer.tsx";
@@ -149,5 +150,33 @@ export const DoubleTapOpensProfileSheet: Story = {
     const sheet = await within(canvasElement.ownerDocument.body).findByRole("dialog", { name: "Your profiles" });
     await expect(within(sheet).queryByRole("button", { name: "Settings" })).not.toBeInTheDocument();
     await expect(within(sheet).queryByRole("button", { name: "View profile" })).not.toBeInTheDocument();
+  },
+};
+
+/** Registers a community target the way a community page does. */
+function CommunityTarget(props: { readonly personaIds: readonly string[] }) {
+  const store = useActivePersonaStore();
+  createEffect(() => true, () => store.setTarget({
+    communityId: "community_harbor",
+    personas: personas.filter(persona => props.personaIds.includes(persona.personaId)),
+    title: "Profile in this community",
+  }));
+  return null;
+}
+
+/**
+ * On a community page with one eligible profile the community owns the
+ * gesture: a double tap does nothing, even though the account has three
+ * profiles, and a single tap opens the profile page at once.
+ */
+export const CommunityPageOneEligibleProfile: Story = {
+  globals: phone,
+  render: () => <ActivePersonaProvider><CommunityTarget personaIds={["persona_harbor"]} /><ShellStory initialPath="/c/harbor" /></ActivePersonaProvider>,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const tabs = within(await canvas.findByRole("navigation", { name: "Primary navigation" }));
+    await userEvent.dblClick(tabs.getByRole("button", { name: "Profile, Harbor" }));
+    await expect(within(canvasElement.ownerDocument.body).queryByRole("dialog")).not.toBeInTheDocument();
+    await expect(tabs.getByRole("button", { name: "Profile, Harbor" })).toBeInTheDocument();
   },
 };

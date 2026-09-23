@@ -48,7 +48,7 @@ export function WalletRouteView() {
   };
   createEffect(account, load);
   onCleanup(() => { active = false; request++; });
-  return <main data-route-path="/wallet"><Title>Wallet · Pirate</Title><PageContainer gutter class="flex flex-col gap-6 py-8">
+  return <main data-route-path="/wallet"><Title>Wallet</Title><PageContainer gutter class="flex flex-col gap-6 py-8">
     {/* Signed-in, the Wallet Hub owns the page heading. */}
     <Show when={!authenticated() || loading() || failed()}><Type as="h1" variant="h1">Wallet</Type></Show>
     <Show when={!authenticated()}>

@@ -28,7 +28,7 @@ export function AccountPage(props: { navigate: (href: string) => void; profile?:
     } finally { setPending(false); }
   };
   return <main class="mx-auto flex w-full max-w-2xl flex-col gap-5 px-4 py-8" data-route-path={props.profile ? "/me" : "/settings"}>
-    <Title>{title()} · Pirate</Title><Type as="h1" variant="h1">{title()}</Type>
+    <Title>{title()}</Title><Type as="h1" variant="h1">{title()}</Type>
     <Card><CardContent class="flex flex-col gap-4 p-5">
       <Show when={typeof account() === "object"} fallback={<>
         <Type>{account() === "anonymous" ? "Sign in to manage your profiles." : account() === "failed" ? "Your account could not be checked." : "Checking your account…"}</Type>

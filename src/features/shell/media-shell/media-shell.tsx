@@ -152,7 +152,10 @@ export function ApplicationChrome(props: MediaShellProps) {
    */
   const doubleTapSwitch = () => {
     const target = switchTarget();
-    if (personaStore !== undefined && target !== undefined && switchable()) {
+    // A registered community target owns the gesture, even with a single
+    // eligible profile: it never falls back to switching account profiles.
+    if (personaStore !== undefined && target !== undefined) {
+      if (!switchable()) return;
       const next = profileSwitch(target.personas.map(persona => persona.personaId), selectedSwitchPersonaId() || undefined);
       if (next.kind === "open") personaStore.openSwitcher();
       if (next.kind === "toggle") {
@@ -171,7 +174,11 @@ export function ApplicationChrome(props: MediaShellProps) {
       if (name) setSwitchAnnouncement(`Now using ${name}`);
     }
   };
-  const canSwitchProfile = () => signedIn() && ((switchable() && personaStore !== undefined) || (props.personas?.length ?? 0) > 1);
+  const canSwitchProfile = () => {
+    if (!signedIn()) return false;
+    if (personaStore !== undefined && switchTarget() !== undefined) return switchable();
+    return (props.personas?.length ?? 0) > 1;
+  };
 
   // The drawer loads the account's communities when it opens; a closed drawer
   // or a signed-out viewer fences any late result.

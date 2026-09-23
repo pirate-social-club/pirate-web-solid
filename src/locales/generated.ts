@@ -190,9 +190,9 @@ export const GENERATED_LOCALE_CATALOGS = {
       },
       "profile": {
         "createdCommunities": "المجتمعات التي تم إنشاؤها",
-        "createdCommunityPluralDescription": "أنشأ {name} عدد {count} من المجتمعات على Pirate Web.",
-        "createdCommunitySingularDescription": "أنشأ {name} مجتمعًا واحدًا على Pirate Web.",
-        "defaultDescription": "الملف الشخصي العام لـ {name} على Pirate Web.",
+        "createdCommunityPluralDescription": "أنشأ {name} عدد {count} من المجتمعات.",
+        "createdCommunitySingularDescription": "أنشأ {name} مجتمعًا واحدًا.",
+        "defaultDescription": "الملف الشخصي العام لـ {name}.",
         "emptyCommunities": "لم يتم إنشاء مجتمعات بعد.",
         "error": "الملف الشخصي غير متاح مؤقتًا.",
         "heading": "الملف الشخصي: @{handle}",
@@ -279,7 +279,7 @@ export const GENERATED_LOCALE_CATALOGS = {
     },
     "routes": {
       "community": {
-        "defaultDescription": "Public community page for {name} on Pirate Web.",
+        "defaultDescription": "Public community page for {name}.",
         "error": "This community is temporarily unavailable.",
         "followers": "Followers",
         "invalid": "That community route is not valid.",
@@ -295,7 +295,7 @@ export const GENERATED_LOCALE_CATALOGS = {
         "noRules": "No public rules are listed.",
         "notFound": "This community could not be found.",
         "rules": "Community rules",
-        "title": "{name} · Pirate Web"
+        "title": "{name}"
       },
       "createCommunity": {
         "avatarHelp": "A square image works best.",
@@ -335,9 +335,9 @@ export const GENERATED_LOCALE_CATALOGS = {
         "tryAgain": "Try again"
       },
       "home": {
-        "description": "Pirate Web video feed",
+        "description": "Video feed",
         "heading": "Pirate Web Solid shell",
-        "title": "Home · Pirate Web"
+        "title": "Home"
       },
       "joinRequest": {
         "description": "Tell the moderators why you want to join. Include links or proof that show you are eligible.",
@@ -438,7 +438,7 @@ export const GENERATED_LOCALE_CATALOGS = {
         "signInTitle": "Sign in to choose a persona",
         "successDescription": "{identifier} now belongs to {persona}.",
         "successTitle": "Name claimed",
-        "title": "Names in {name} · Pirate Web",
+        "title": "Names in {name}",
         "unavailable": "The claim could not be completed. Nothing was charged."
       },
       "notFound": {
@@ -448,9 +448,9 @@ export const GENERATED_LOCALE_CATALOGS = {
       },
       "profile": {
         "createdCommunities": "Created communities",
-        "createdCommunityPluralDescription": "{name} created {count} communities on Pirate Web.",
-        "createdCommunitySingularDescription": "{name} created 1 community on Pirate Web.",
-        "defaultDescription": "Public profile for {name} on Pirate Web.",
+        "createdCommunityPluralDescription": "{name} created {count} communities.",
+        "createdCommunitySingularDescription": "{name} created 1 community.",
+        "defaultDescription": "Public profile for {name}.",
         "emptyCommunities": "No communities created yet.",
         "error": "This profile is temporarily unavailable.",
         "heading": "Profile: @{handle}",
@@ -458,7 +458,7 @@ export const GENERATED_LOCALE_CATALOGS = {
         "loading": "Loading profile",
         "notFound": "This profile could not be found.",
         "openCommunity": "Open {name}",
-        "title": "@{handle} · Pirate Web"
+        "title": "@{handle}"
       },
       "settings": {
         "booking": {
@@ -537,7 +537,7 @@ export const GENERATED_LOCALE_CATALOGS = {
     },
     "routes": {
       "community": {
-        "defaultDescription": "{name} 在 Pirate Web 的公开社区页面。",
+        "defaultDescription": "{name} 的公开社区页面。",
         "error": "该社区暂时不可用。",
         "followers": "关注者",
         "invalid": "该社区路径无效。",
@@ -553,7 +553,7 @@ export const GENERATED_LOCALE_CATALOGS = {
         "noRules": "没有公开规则。",
         "notFound": "找不到该社区。",
         "rules": "社区规则",
-        "title": "{name} · Pirate Web"
+        "title": "{name}"
       },
       "createCommunity": {
         "avatarHelp": "方形图片效果最好。",
@@ -593,9 +593,9 @@ export const GENERATED_LOCALE_CATALOGS = {
         "tryAgain": "重试"
       },
       "home": {
-        "description": "Pirate Web 视频动态",
+        "description": "视频动态",
         "heading": "Pirate Web Solid 界面",
-        "title": "首页 · Pirate Web"
+        "title": "首页"
       },
       "joinRequest": {
         "description": "告诉版主你为什么想加入。",
@@ -696,7 +696,7 @@ export const GENERATED_LOCALE_CATALOGS = {
         "signInTitle": "登录以选择身份",
         "successDescription": "{identifier} 现在归 {persona} 所有。",
         "successTitle": "名称已领取",
-        "title": "{name} 的名称 · Pirate Web",
+        "title": "{name} 的名称",
         "unavailable": "无法完成领取。未产生任何费用。"
       },
       "notFound": {
@@ -706,9 +706,9 @@ export const GENERATED_LOCALE_CATALOGS = {
       },
       "profile": {
         "createdCommunities": "已创建的社区",
-        "createdCommunityPluralDescription": "{name} 在 Pirate Web 创建了 {count} 个社区。",
-        "createdCommunitySingularDescription": "{name} 在 Pirate Web 创建了 1 个社区。",
-        "defaultDescription": "{name} 在 Pirate Web 的公开个人资料。",
+        "createdCommunityPluralDescription": "{name} 创建了 {count} 个社区。",
+        "createdCommunitySingularDescription": "{name} 创建了 1 个社区。",
+        "defaultDescription": "{name} 的公开个人资料。",
         "emptyCommunities": "尚未创建社区。",
         "error": "该个人资料暂时不可用。",
         "heading": "个人资料：@{handle}",
@@ -716,7 +716,7 @@ export const GENERATED_LOCALE_CATALOGS = {
         "loading": "正在加载个人资料",
         "notFound": "找不到该个人资料。",
         "openCommunity": "打开 {name}",
-        "title": "@{handle} · Pirate Web"
+        "title": "@{handle}"
       },
       "settings": {
         "booking": {

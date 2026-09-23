@@ -407,7 +407,7 @@ export function StudyV2RouteView(props: StudyV2RouteViewProps) {
 
   return (
     <main data-route-path={props.routePath ?? `/p/${props.postId}/study`} class="min-h-dvh bg-background text-foreground">
-      <Title>Study · Pirate</Title>
+      <Title>Study</Title>
       <Show
         when={state().kind !== "loading" && state().kind !== "starting"}
         fallback={<StudyRouteLoadingState label={state().kind === "starting" ? "Starting study" : "Loading study"} />}

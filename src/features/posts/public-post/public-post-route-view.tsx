@@ -63,7 +63,7 @@ function PublicMetadata(props: { readonly state: Extract<PublicPostRouteState, {
     <Show when={canonical()} fallback={<Meta name="robots" content="noindex, nofollow" />}>
       {url => (
         <>
-          <Title>{`${title()} · Pirate`}</Title>
+          <Title>{`${title()}`}</Title>
           <Meta name="description" content={description(props.state.response)} />
           <Meta property="og:title" content={title()} />
           <Meta property="og:description" content={description(props.state.response)} />
@@ -176,7 +176,7 @@ function Failure(props: { readonly state: Exclude<PublicPostRouteState, { readon
   if (state.kind === "age-locked") {
     return (
       <main class="mx-auto w-full max-w-3xl px-4 py-8 md:px-8" data-public-post-state="age-locked">
-        <Title>Age verification required · Pirate</Title>
+        <Title>Age verification required</Title>
         <Meta name="robots" content="noindex, nofollow" />
         <h1>Age verification required</h1>
         <AgeAccessPrompt onVerified={props.onVerified} verify={props.verifyAge} />
@@ -190,7 +190,7 @@ function Failure(props: { readonly state: Exclude<PublicPostRouteState, { readon
         : "This post could not be loaded.";
   return (
     <main class="mx-auto w-full max-w-3xl px-4 py-8 md:px-8" data-public-post-state={state.kind}>
-      <Title>Post unavailable · Pirate</Title>
+      <Title>Post unavailable</Title>
       <Meta name="robots" content="noindex, nofollow" />
       <h1>Post unavailable</h1>
       <p role="alert">{message}</p>
