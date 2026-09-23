@@ -615,7 +615,7 @@ describe("create post request", () => {
     await uploadAudio("failed.mp3");
     await continueToReview();
     button("Publish song").click();
-    await vi.waitFor(() => expect(document.body.textContent).toContain("workflow terminal unconverged"));
+    await vi.waitFor(() => expect(document.body.textContent).toContain("Song processing failed."));
     expect([...document.body.querySelectorAll("button")].some(candidate => candidate.textContent?.trim() === "Retry processing")).toBe(false);
 
     const failedSnapshot = mediaTransport.snapshot;
@@ -627,7 +627,7 @@ describe("create post request", () => {
       phase: "publish",
     });
     observationTick();
-    await vi.waitFor(() => expect(document.body.textContent).not.toContain("workflow terminal unconverged"));
+    await vi.waitFor(() => expect(document.body.textContent).not.toContain("Song processing failed."));
 
     mediaTransport.snapshot = mediaSnapshot({
       ...mediaTransport.snapshot,
@@ -637,10 +637,10 @@ describe("create post request", () => {
       retryable: false,
     });
     observationTick();
-    await vi.waitFor(() => expect(document.body.textContent).toContain("workflow terminal unconverged"));
+    await vi.waitFor(() => expect(document.body.textContent).toContain("Song processing failed."));
 
     button("Discard and start over").click();
-    await vi.waitFor(() => expect(document.body.textContent).not.toContain("workflow terminal unconverged"));
+    await vi.waitFor(() => expect(document.body.textContent).not.toContain("Song processing failed."));
     expect(document.body.querySelector<HTMLInputElement>("input[aria-label='Upload audio']")).not.toBeNull();
   });
 
@@ -984,6 +984,29 @@ describe("create post request", () => {
     expect(mediaTransport.uploadCount).toBe(1);
   });
 
+  test("offers song resume only when the server has something to resume", async () => {
+    const transport = new ProductionMediaTransport();
+    const listActive = vi.spyOn(transport, "listActive");
+    render(() => <CreatePostDialog communityContext={{ id: "community-one", name: "Harbor" }} mediaTransport={transport}
+      open onOpenChange={() => {}} personas={[activePersona("persona-one", "Persona One")]} principalId="account-one" />);
+    await vi.waitFor(() => expect(listActive).toHaveBeenCalledOnce());
+    await new Promise<void>(resolve => setTimeout(resolve, 0));
+    expect([...document.body.querySelectorAll("button")].some(candidate => candidate.textContent?.trim() === "Resume a song submission")).toBe(false);
+  });
+
+  test("shows no status card while a prepared song is on Rights", async () => {
+    const mediaTransport = new ProductionMediaTransport();
+    render(() => <CreatePostDialog communityContext={{ id: "community-one", name: "Harbor" }} mediaTransport={mediaTransport}
+      open onOpenChange={() => {}} personas={[activePersona("persona-one", "Persona One")]} principalId="account-one" />);
+    await new Promise<void>(resolve => setTimeout(resolve, 0));
+    await uploadAudio("prepared.mp3");
+    await vi.waitFor(() => expect(button("Continue").disabled).toBe(false));
+    button("Continue").click();
+    await vi.waitFor(() => expect(document.body.textContent).toContain("What others may do with this song"));
+    expect(document.body.querySelector("[data-media-composer-state]")).toBeNull();
+    expect(document.body.textContent).not.toContain("Audio uploaded.");
+  });
+
   test("shows a failed audio upload on the Song step instead of advancing silently", async () => {
     class FailingUploadTransport extends ProductionMediaTransport {
       attempts = 0;
@@ -1190,7 +1213,14 @@ test.each([false, true])("retains video authority in global/contextual composer 
     await vi.waitFor(() => expect(resume.disabled).toBe(false)); resume.click();
     if (contextual) {
       await vi.waitFor(() => expect(document.body.textContent).toContain("Resolve this retained video with its original community and persona"));
-      expect(fetchImpl).not.toHaveBeenCalled(); expect(execute).not.toHaveBeenCalled();
+      // The composer may read the community's unfinished songs on open; the
+      // retained video must send nothing.
+      const videoRequests = fetchImpl.mock.calls.filter(([input, init]) => {
+        const url = input instanceof Request ? input.url : String(input);
+        const method = init?.method ?? (input instanceof Request ? input.method : "GET");
+        return !(method === "GET" && url.includes("/media-post-submissions"));
+      });
+      expect(videoRequests).toEqual([]); expect(execute).not.toHaveBeenCalled();
     } else {
       await vi.waitFor(() => expect(execute).toHaveBeenCalledOnce());
       expect(fetchImpl).toHaveBeenCalledOnce();

@@ -92,17 +92,27 @@ function terminalMediaView(view: SongSubmissionView): boolean {
   return view.status === "published" || view.status === "blocked" || view.status === "abandoned";
 }
 
+/** A short, local date and time for the unfinished-songs list. */
+function formatRecoveryTime(updatedAt: string): string {
+  const date = new Date(updatedAt);
+  return Number.isNaN(date.getTime())
+    ? "recently"
+    : date.toLocaleString(undefined, { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" });
+}
+
 function mediaStateMessage(view: SongSubmissionView): string {
   switch (view.status) {
     case "editing": return "Ready to submit your song.";
-    case "reconciling": return "Checking the retained song submission before sending another command…";
-    case "uploading": return `Uploading audio (${view.bytesSent} of ${view.bytesTotal} bytes)…`;
-    case "processing": return `The song is processing (${view.phase.replaceAll("_", " ")}).`;
-    case "action_required": return "A source reference is required before this song can continue.";
+    case "reconciling": return "Checking on your song…";
+    case "uploading": return view.bytesTotal > 0
+      ? `Uploading audio… ${Math.min(100, Math.floor((view.bytesSent / view.bytesTotal) * 100))}%`
+      : "Uploading audio…";
+    case "processing": return "Your song is processing. This can take a minute.";
+    case "action_required": return "This song needs the original song it's based on before it can continue.";
     case "manual_review": return "This song is awaiting manual review.";
     case "published": return "Song published.";
     case "blocked": return "This song was blocked by policy.";
-    case "processing_failed": return `Song processing failed (${view.reasonCode.replaceAll("_", " ")}).`;
+    case "processing_failed": return "Song processing failed.";
     case "abandoned": return "This song submission was cancelled.";
   }
 }
@@ -247,7 +257,9 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
     } finally { if (generation === recoveryGeneration) setRecoveryLoading(false); }
   }
   createEffect(() => [mode(), communityId().trim(), mediaSnapshot()] as const, ([tab, community, snapshot]) => {
-    if (tab !== "song" || snapshot !== null || !community || mediaCoordinator === undefined) {
+    // Checked in text mode too, so the resume prompt appears only when a
+    // resumable song actually exists.
+    if ((tab !== "song" && tab !== "text") || snapshot !== null || !community || mediaCoordinator === undefined) {
       recoveryGeneration += 1;
       recoveryCommunity = "";
       setRecoveryLoading(false); setRecoverableSongs([]); setRecoveryCursor(null); setRecoveryError("");
@@ -679,17 +691,19 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
     return 2;
   };
 
+  // After Continue on the Song step the audio is uploaded and the author is
+  // still editing Rights and Review; that is not a state worth a status card.
+  const preparedDraft = () => Boolean(mediaSnapshot()?.audio_revision) && !songTermsIssued() && mediaView().status === "processing";
+
   const mediaStatusPanel = () => (
-    <Show when={mode() === "song" && mediaView().status !== "editing"}>
+    <Show when={mode() === "song" && mediaView().status !== "editing" && !preparedDraft()}>
       <div
         aria-live="polite"
         class="grid gap-3 rounded-2xl border border-border-soft bg-card p-5 text-base"
         data-media-composer-state={mediaView().status}
         role={mediaView().status === "blocked" || mediaView().status === "processing_failed" ? "alert" : "status"}
       >
-        <p>{mediaSnapshot()?.audio_revision && !songTermsIssued() && mediaView().status === "processing"
-          ? "Audio uploaded."
-          : mediaStateMessage(mediaView())}</p>
+        <p>{mediaStateMessage(mediaView())}</p>
         <Show when={mediaView().status === "uploading"}>
           <Button type="button" variant="outline" onClick={stopSongUpload}>Stop upload</Button>
         </Show>
@@ -752,7 +766,7 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
             <Show when={personas().length === 0}>
               <FormNote tone="warning">Choose a profile for this community before posting.</FormNote>
             </Show>
-            <Show when={mode() === "text" && textState().status === "editing" && mediaSnapshot() === null && mediaCoordinator !== undefined}>
+            <Show when={mode() === "text" && textState().status === "editing" && mediaSnapshot() === null && mediaCoordinator !== undefined && recoverableSongs().length > 0}>
               <Button type="button" variant="outline" onClick={() => setMode("song")}>Resume a song submission</Button>
             </Show>
             <Show when={mode() === "song" && textState().status === "editing" && mediaSnapshot() === null && mediaCoordinator !== undefined}>
@@ -762,11 +776,11 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
               </Show>
               <Show when={recoverableSongs().length > 0}>
                 <section aria-label="Active song submissions" class="grid gap-3 rounded-2xl border border-border-soft p-5">
-                  <h2>Resume a song submission</h2>
-                  <p>Only submitted server state is recovered. Unsent edits and files are not saved.</p>
+                  <h2 class="text-lg font-semibold">Unfinished songs</h2>
+                  <p class="text-muted-foreground">Pick up where you left off. Edits you hadn't sent aren't kept.</p>
                   <For each={recoverableSongs()}>{item => <div class="grid gap-1">
                     <p>{item.title} · {item.submission.author_persona.display_name ?? item.submission.author_persona.primary_public_handle ?? "Profile"}</p>
-                    <p>{item.submission.status.replaceAll("_", " ")} · {item.submission.updated_at}</p>
+                    <p class="text-muted-foreground">Last changed {formatRecoveryTime(item.submission.updated_at)}</p>
                     <Button type="button" variant="outline" disabled={mediaBusy() || !personas().some(persona => persona.personaId === item.submission.author_persona.persona_id)} onClick={() => recoverSong(item)}>Resume {item.title}</Button>
                     <Show when={!personas().some(persona => persona.personaId === item.submission.author_persona.persona_id)}><FormNote>This submission’s profile is not available in this composer.</FormNote></Show>
                   </div>}</For>
