@@ -6,8 +6,9 @@ import { clearSession } from "../../api/session.ts";
 import { requestGlobalSignIn } from "../auth/global-sign-in-host.tsx";
 import { useApplicationPersonas } from "./application-personas.tsx";
 import { useApplicationSession } from "./application-session.tsx";
+import { RecordingsSettings, type DeleteRecordings } from "./recordings-settings.tsx";
 
-export function AccountPage(props: { navigate: (href: string) => void; profile?: boolean }) {
+export function AccountPage(props: { navigate: (href: string) => void; profile?: boolean; deleteRecordings?: DeleteRecordings }) {
   const account = useApplicationSession();
   const personas = useApplicationPersonas();
   const [pending, setPending] = createSignal(false);
@@ -46,6 +47,9 @@ export function AccountPage(props: { navigate: (href: string) => void; profile?:
       </Show>
       <Show when={error()}><Type role="alert">{error()}</Type></Show>
     </CardContent></Card>
+    <Show when={typeof account() === "object"}>
+      <Card><CardContent class="p-5"><RecordingsSettings deleteRecordings={props.deleteRecordings} /></CardContent></Card>
+    </Show>
     <div class="flex gap-4"><a href="/terms">Terms</a><a href="/privacy">Privacy</a></div>
   </main>;
 }
