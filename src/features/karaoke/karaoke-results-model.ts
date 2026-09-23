@@ -1,4 +1,4 @@
-import { clampResultPercent, resultHeadline, type ActivityResultStat, type ActivityResultTone } from "../activity/activity-results";
+import { clampResultPercent, resultHeadline, type ActivityResultStat } from "../activity/activity-results";
 import type { KaraokeSessionSummary, KaraokeTimingTrend } from "./runtime/scoring";
 
 /** The parts of the server session summary the results page reads. */
@@ -7,7 +7,6 @@ export type KaraokeResultsSummary = Pick<KaraokeSessionSummary, "finalScore" | "
 export interface KaraokeResultsView {
   readonly heading: string;
   readonly scorePercent: number | null;
-  readonly tone: ActivityResultTone;
   readonly stats: readonly ActivityResultStat[];
   readonly note?: string;
 }
@@ -30,13 +29,12 @@ function lines(count: number): string {
  */
 export function karaokeResultsView(summary: KaraokeResultsSummary | null, bestCombo: number): KaraokeResultsView {
   if (summary === null) {
-    return { heading: "Take ended", scorePercent: null, tone: "primary", stats: [], note: "Your score for this take wasn't received." };
+    return { heading: "Take ended", scorePercent: null, stats: [], note: "Your score for this take wasn't received." };
   }
   if (summary.scoredLineCount === 0) {
     return {
       heading: "No lines scored",
       scorePercent: null,
-      tone: "warning",
       stats: [],
       note: "We couldn't hear the lyrics this time. Check your microphone and try again.",
     };
@@ -54,7 +52,6 @@ export function karaokeResultsView(summary: KaraokeResultsSummary | null, bestCo
   return {
     heading: resultHeadline(score, "Performance complete!"),
     scorePercent: score,
-    tone: score >= 70 ? "success" : score >= 40 ? "primary" : "warning",
     stats,
     ...(note === undefined ? {} : { note }),
   };

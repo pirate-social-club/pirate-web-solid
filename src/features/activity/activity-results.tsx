@@ -1,5 +1,4 @@
 /** @jsxImportSource @solidjs/web */
-import type { JSX } from "@solidjs/web";
 import { For, Show } from "solid-js";
 
 import { Type, cn } from "../../design-system";
@@ -13,8 +12,6 @@ export interface ActivityResultStat {
 }
 
 export interface ActivityResultsProps {
-  readonly icon: JSX.Element;
-  readonly tone: ActivityResultTone;
   readonly heading: string;
   /** Rounded 0–100 score, or null when no score exists for this session. */
   readonly scorePercent: number | null;
@@ -25,10 +22,10 @@ export interface ActivityResultsProps {
 }
 
 const toneClasses = {
-  success: { ring: "bg-success/15 text-success", tile: "border-success/50", label: "bg-success text-background" },
-  primary: { ring: "bg-primary-subtle text-primary-text", tile: "border-primary/50", label: "bg-primary text-primary-foreground" },
-  warning: { ring: "bg-warning/15 text-warning", tile: "border-warning/50", label: "bg-warning text-background" },
-} satisfies Record<ActivityResultTone, { ring: string; tile: string; label: string }>;
+  success: { tile: "border-success/50", label: "bg-success text-background" },
+  primary: { tile: "border-primary/50", label: "bg-primary text-primary-foreground" },
+  warning: { tile: "border-warning/50", label: "bg-warning text-background" },
+} satisfies Record<ActivityResultTone, { tile: string; label: string }>;
 
 /** Encouragement follows the score; it never claims more than the number shows. */
 export function resultHeadline(scorePercent: number | null, fallback: string): string {
@@ -46,15 +43,14 @@ export function clampResultPercent(value: number): number {
 
 /**
  * The first completion page shared by Study and Karaoke, shaped like a
- * Duolingo lesson result: one celebratory heading, one big number and a row
- * of labelled tiles. The owning surface supplies Continue and "again".
+ * Duolingo lesson result: one heading, one big number and a row of labelled
+ * tiles, with nothing decorative that says nothing about the result. The
+ * owning surface supplies Continue and "again".
  */
 export function ActivityResults(props: ActivityResultsProps) {
-  const tone = () => toneClasses[props.tone];
   return (
     <div class="mx-auto flex w-full max-w-md flex-1 flex-col items-center justify-center gap-8 px-4 py-10 sm:px-6" data-activity-results>
       <div class="flex flex-col items-center gap-4 text-center">
-        <div aria-hidden="true" class={cn("grid size-24 place-items-center rounded-full", tone().ring)}>{props.icon}</div>
         <Type as="h2" variant="h2">{props.heading}</Type>
         <Show when={props.scorePercent !== null}>
           <p aria-label={`${props.scoreLabel} ${props.scorePercent}%`} class="text-7xl font-bold leading-none tabular-nums sm:text-8xl">

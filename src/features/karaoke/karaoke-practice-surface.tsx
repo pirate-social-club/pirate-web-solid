@@ -84,6 +84,8 @@ export function KaraokePracticeSurface(props: KaraokePracticeSurfaceProps) {
   return (
     <section aria-label={props.title} class="flex h-dvh w-full flex-col overflow-hidden bg-background text-foreground">
       <h1 class="sr-only">{props.title}</h1>
+      {/* A finished take needs no exit arrow or progress bar; Continue leaves. */}
+      <Show when={!ended()}>
       <ActivityProgressHeader
         exitLabel="Exit karaoke"
         onExit={props.onExit}
@@ -91,6 +93,7 @@ export function KaraokePracticeSurface(props: KaraokePracticeSurfaceProps) {
         progressValue={currentTimeMs()}
         rewardLabel={props.rewardLabel}
       />
+      </Show>
       <div class="relative min-h-0 min-w-0 flex-1 overflow-hidden">
         <Show when={props.artworkSrc}>
           <img alt="" aria-hidden="true" class="pointer-events-none absolute inset-0 size-full scale-110 object-cover opacity-20 blur-2xl" src={props.artworkSrc} />
@@ -105,12 +108,10 @@ export function KaraokePracticeSurface(props: KaraokePracticeSurfaceProps) {
                 <div aria-label="Results" class="flex size-full overflow-y-auto focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring" role="region" tabindex="0">
                   <ActivityResults
                     heading={view().heading}
-                    icon={<IconMicrophoneStage class="size-14" />}
                     note={view().note}
                     scoreLabel="Score"
                     scorePercent={view().scorePercent}
                     stats={view().stats}
-                    tone={view().tone}
                   />
                 </div>
               );
@@ -150,11 +151,8 @@ export function KaraokePracticeSurface(props: KaraokePracticeSurfaceProps) {
       />
       <Show when={props.onStartSinging && props.singingStatus !== "active"}>
         <footer class="border-t border-border-soft bg-background/95 px-4 pb-[calc(env(safe-area-inset-bottom)+1.5rem)] pt-4 backdrop-blur-xl sm:px-6">
-          <div class="mx-auto grid w-full max-w-3xl gap-3">
-            {/* Results: one Continue back to the song, with "Sing again" as the quiet option. */}
-            <Show when={ended() && props.onExit}>
-              <Button class="h-13 w-full" onClick={props.onExit} size="lg">Continue</Button>
-            </Show>
+          {/* Results: "Sing again" and Continue side by side, Continue on the right. */}
+          <div class={ended() && props.onExit ? "mx-auto grid w-full max-w-3xl grid-cols-2 gap-3" : "mx-auto grid w-full max-w-3xl gap-3"}>
             <Button
               class="h-13 w-full"
               disabled={busy()}
@@ -168,10 +166,13 @@ export function KaraokePracticeSurface(props: KaraokePracticeSurfaceProps) {
                 setCurrentTimeMs(0);
                 props.onStartSinging?.(0);
               }}
-              variant={ended() && props.onExit ? "ghost" : "default"}
+              variant={ended() && props.onExit ? "secondary" : "default"}
             >
               {ended() ? "Sing again" : busy() ? "Start singing" : "Start karaoke"}
             </Button>
+            <Show when={ended() && props.onExit}>
+              <Button class="h-13 w-full" onClick={props.onExit} size="lg">Continue</Button>
+            </Show>
           </div>
         </footer>
       </Show>

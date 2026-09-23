@@ -7,7 +7,6 @@ import {
   createMediaQuery,
   IconArrowCounterClockwise,
   IconCheck,
-  IconCrown,
   IconFire,
   IconLock,
   IconMicrophone,
@@ -18,7 +17,7 @@ import {
   Type,
 } from "../../design-system";
 import { ActivityProgressHeader } from "../activity/activity-progress-header";
-import { ActivityResults, clampResultPercent, resultHeadline, type ActivityResultTone } from "../activity/activity-results";
+import { ActivityResults, clampResultPercent, resultHeadline } from "../activity/activity-results";
 import {
   previousStreakForAnimation,
   primaryActionDisabled,
@@ -62,13 +61,18 @@ function ActivityFooter(props: {
   primaryVariant?: "default" | "destructive" | "secondary";
   secondaryIcon?: JSX.Element;
   secondaryLabel?: string;
-  /** Results: one primary Continue with a quiet "again" beneath it. */
-  stacked?: boolean;
+  /** Results: "again" and Continue side by side, Continue on the right. */
+  results?: boolean;
 }) {
   return (
     <Show when={props.primaryLabel}>
       <footer class="sticky bottom-0 z-10 border-t border-border-soft bg-background/95 px-4 pb-[calc(env(safe-area-inset-bottom)+1.5rem)] pt-4 backdrop-blur-xl sm:px-6">
-        <div class={cn("mx-auto grid w-full max-w-3xl gap-3", props.secondaryLabel && !props.stacked && "sm:grid-cols-2")}>
+        <div class={cn("mx-auto grid w-full max-w-3xl gap-3", props.secondaryLabel && (props.results ? "grid-cols-2" : "sm:grid-cols-2"))}>
+          <Show when={props.results && props.secondaryLabel}>
+            <Button class="h-13 w-full" leadingIcon={props.secondaryIcon} onClick={props.onSecondaryAction} size="lg" variant="secondary">
+              {props.secondaryLabel}
+            </Button>
+          </Show>
           <Button
             class="h-13 w-full"
             disabled={props.primaryDisabled}
@@ -79,13 +83,13 @@ function ActivityFooter(props: {
           >
             {props.primaryLabel}
           </Button>
-          <Show when={props.secondaryLabel}>
+          <Show when={!props.results && props.secondaryLabel}>
             <Button
               class="h-13 w-full"
               leadingIcon={props.secondaryIcon}
               onClick={props.onSecondaryAction}
               size="lg"
-              variant={props.stacked ? "ghost" : "secondary"}
+              variant="secondary"
             >
               {props.secondaryLabel}
             </Button>
@@ -389,7 +393,6 @@ function CompleteState(props: {
   const previousStreak = () => previousStreakForAnimation(streak(), props.state.previousStreak);
   const isStreak = () => Boolean(streak()?.qualifiedToday);
   const missed = () => Math.max(0, props.state.totalCount - props.state.correctCount);
-  const tone = (): ActivityResultTone => (score() >= 70 ? "success" : score() >= 40 ? "primary" : "warning");
 
   return (
     <Show
@@ -398,14 +401,12 @@ function CompleteState(props: {
         <>
           <ActivityResults
             heading={resultHeadline(score(), "Lesson complete!")}
-            icon={<IconCrown class="size-14" />}
             scoreLabel="Accuracy"
             scorePercent={score()}
             stats={[
               { label: "Correct", value: `${props.state.correctCount}/${props.state.totalCount}`, tone: "success" },
               { label: "Missed", value: String(missed()), tone: "warning" },
             ]}
-            tone={tone()}
           />
           <Show when={props.rewardSlot}>
             <div class="mx-auto w-full max-w-md px-4 pb-6">{props.rewardSlot}</div>
@@ -505,6 +506,8 @@ export function StudyingSurface(props: StudyingSurfaceProps) {
 
   return (
     <section class={cn("flex h-dvh w-full flex-col overflow-y-auto bg-background text-foreground", props.class)}>
+      {/* A finished lesson needs no exit arrow or progress bar; Continue leaves. */}
+      <Show when={!complete()}>
       <ActivityProgressHeader
         exitLabel="Exit study"
         onExit={props.onExit}
@@ -514,6 +517,7 @@ export function StudyingSurface(props: StudyingSurfaceProps) {
         rewardLabel={props.state.kind === "locked" ? undefined : props.rewardLabel}
         rewardPresentation="badge"
       />
+      </Show>
       <Body onOptionSelect={props.onOptionSelect} rewardSlot={props.rewardSlot} state={props.state} />
       <ActivityFooter
         onPrimaryAction={primaryAction()}
@@ -523,7 +527,7 @@ export function StudyingSurface(props: StudyingSurfaceProps) {
         primaryLabel={primaryLabel()}
         primaryVariant={primaryActionVariant(props.state)}
         secondaryIcon={<IconArrowCounterClockwise class="size-5" />}
-        stacked={complete()}
+        results={complete()}
         secondaryLabel={secondaryLabel()}
       />
     </section>
