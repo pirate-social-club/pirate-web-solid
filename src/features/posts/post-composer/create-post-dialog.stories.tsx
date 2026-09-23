@@ -116,6 +116,13 @@ class StoryMediaTransport implements MediaSubmissionTransport {
   }
 }
 
+/** A song transport whose audio upload never completes, so Continue fails. */
+class FailingUploadStoryTransport extends StoryMediaTransport {
+  override async upload(): Promise<void> {
+    throw new Error("The audio upload did not finish. Try again.");
+  }
+}
+
 const storyMp3 = (name = "midnight-waves.mp3") =>
   new File([new Uint8Array([0x49, 0x44, 0x33, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00])], name, { type: "audio/mpeg" });
 
@@ -298,7 +305,27 @@ export const SongStepReview: Story = {
     await expect(await canvas.findByText("Permissions")).toBeInTheDocument();
     await expect(await canvas.findByText("Earnings split")).toBeInTheDocument();
     await expect(await canvas.findByText("You 100%")).toBeInTheDocument();
+    await expect(await canvas.findByText("No lyrics added")).toBeInTheDocument();
   },
+};
+
+/** A failed upload keeps the author on Song with its reason beside Continue. */
+export const SongUploadFailed: Story = {
+  name: "Song / States / Upload failed on Continue",
+  render: () => dialogHarness({ mediaTransport: new FailingUploadStoryTransport() }).render(),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement.ownerDocument.body);
+    await uploadStorySong(canvas);
+    await continueSongStep(canvas);
+    await expect(await canvas.findByRole("alert")).toHaveTextContent("The audio upload did not finish. Try again.");
+    await expect(canvas.queryByText("What others may do with this song")).not.toBeInTheDocument();
+  },
+};
+
+export const SongUploadFailedMobile: Story = {
+  ...SongUploadFailed,
+  name: "Song / States / Upload failed on Continue / Mobile",
+  globals: { viewport: { value: "mobile1", isRotated: false } },
 };
 
 export const SongManualReview: Story = {

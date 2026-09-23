@@ -1003,12 +1003,15 @@ describe("create post request", () => {
     await vi.waitFor(() => expect(button("Continue").disabled).toBe(false));
     button("Continue").click();
 
+    // The error must be the upload's own message, rendered in the step footer
+    // beside Continue, not merely some alert elsewhere in the dialog.
     await vi.waitFor(() => {
-      const alerts = [...document.body.querySelectorAll("[role='alert']")].map(node => node.textContent ?? "");
-      expect(alerts.some(text => text.trim() !== "")).toBe(true);
+      const alert = [...document.body.querySelectorAll("[role='alert']")]
+        .find(node => node.textContent?.includes("The audio upload did not finish. Try again."));
+      expect(alert).toBeInstanceOf(HTMLElement);
+      expect(alert!.parentElement!.contains(button("Continue"))).toBe(true);
     });
     expect(document.body.textContent).not.toContain("What others may do with this song");
-    expect(button("Continue")).toBeInstanceOf(HTMLButtonElement);
   });
 
   test("keeps observing after a transient status failure and still marks the published song", async () => {
