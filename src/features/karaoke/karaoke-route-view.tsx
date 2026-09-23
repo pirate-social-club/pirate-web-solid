@@ -303,8 +303,10 @@ function LoadedKaraokeSession(props: { payload: ApiSongKaraokePayload; postId: s
           beginScoredTake(songMs);
         } : undefined}
         onTimeChange={(songMs) => scoring.controls.noteTime(songMs)}
+        bestCombo={feedback().bestCombo}
         rating={feedback().rating}
         singingStatus={scoringState()?.status ?? "idle"}
+        summary={scoringState()?.summary ?? null}
         title={props.payload.title ?? "Karaoke"}
       />
       <Show when={personaMessage()}>

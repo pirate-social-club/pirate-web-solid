@@ -142,6 +142,9 @@ test("the excerpt is chosen before capture, guides the take and ends it", async 
     await expect(page.getByText("Local preview with the intended soundtrack", { exact: false })).toBeVisible();
     await expect(page.locator("video[muted]")).toHaveCount(1);
     await expect(page.getByText("not the final master", { exact: false }).first()).toBeVisible();
+    await page.getByRole("button", { name: "Play with the song", exact: true }).click();
+    await expect(page.getByRole("button", { name: "Pause preview", exact: true })).toBeVisible();
+    await expect(page.getByText("This preview could not start", { exact: false })).toHaveCount(0);
   } finally {
     await context?.close();
     await rm(userDataDir, { recursive: true, force: true });

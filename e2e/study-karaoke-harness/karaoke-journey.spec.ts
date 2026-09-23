@@ -101,7 +101,7 @@ async function startScoredTake(page: import("playwright/test").Page): Promise<st
 }
 
 async function waitForTakeEnd(page: import("playwright/test").Page): Promise<void> {
-  await expect(page.getByRole("button", { name: "Karaoke again", exact: true })).toBeVisible({
+  await expect(page.getByRole("button", { name: "Sing again", exact: true })).toBeVisible({
     timeout: 60_000,
   });
 }

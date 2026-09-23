@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
+import { expect, within } from "storybook/test";
 
 import type { StudyingSurfaceState } from "./studying-model";
 import { StudyingSurface, type StudyingSurfaceProps } from "./studying-surface";
@@ -232,6 +233,7 @@ export const Complete: Story = {
     },
     {
       lessonProgress: completeProgress,
+      onExit: noop,
       onKaraoke: noop,
       onStudyAgain: noop,
     },
@@ -240,9 +242,33 @@ export const Complete: Story = {
     docs: {
       description: {
         story:
-          "Production completion: both footer actions are present and no reward or streak is claimed.",
+          "Production results page: accuracy, correct and missed tiles, one Continue back to the song and a quiet Study again. No reward or streak is claimed.",
       },
     },
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByRole("heading", { name: "Great work!" })).toBeInTheDocument();
+    await expect(canvas.getByText("12/14")).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: "Continue" })).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: "Study again" })).toBeInTheDocument();
+    await expect(canvas.queryByRole("button", { name: "Karaoke" })).not.toBeInTheDocument();
+  },
+};
+
+export const CompleteMobile: Story = {
+  ...Complete,
+  globals: { viewport: { value: "mobile1", isRotated: false } },
+};
+
+export const CompleteLowScore: Story = {
+  render: surface(
+    { kind: "complete", correctCount: 4, scorePercent: (4 / 14) * 100, totalCount: 14 },
+    { lessonProgress: completeProgress, onExit: noop, onStudyAgain: noop },
+  ),
+  parameters: { docs: { description: { story: "A low score keeps the encouragement honest and the same single Continue." } } },
+  play: async ({ canvasElement }) => {
+    await expect(within(canvasElement).getByRole("heading", { name: "Keep practising!" })).toBeInTheDocument();
   },
 };
 

@@ -229,7 +229,9 @@ export async function waitForStudyLessonAction(
   page: Page,
   timeoutMs = 120_000,
 ): Promise<StudyLessonAction> {
-  const completeText = page.getByText("Session complete", { exact: true });
+  // The results page also offers Continue, so completion is identified by the
+  // results surface itself, checked before the in-lesson Continue.
+  const completeText = page.locator("[data-activity-results]");
   const recordButton = page.getByRole("button", { name: "Record", exact: true });
   const continueButton = page.getByRole("button", { name: "Continue", exact: true });
   const deadline = Date.now() + timeoutMs;

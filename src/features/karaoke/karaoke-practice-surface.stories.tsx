@@ -1,4 +1,7 @@
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
+import { expect, within } from "storybook/test";
+
+import type { KaraokeResultsSummary } from "./karaoke-results-model";
 
 import { KaraokePracticeSurface } from "./karaoke-practice-surface";
 import { storyArtworkSrc, storyStageLines } from "./karaoke-story-fixtures";
@@ -11,7 +14,7 @@ const meta = {
     docs: {
       description: {
         component:
-          "Full-screen karaoke surface matching the reviewed mobile design: the shared activity progress header, an artwork-backed lyric stage, and one full-width action before singing starts. Stories cover the designed states — primed, connecting, active, scoring feedback and ended — and do not touch the mic, WebSocket sessions, or real audio. The production route never supplies a reward label, so no story here shows the gift badge.",
+          "Full-screen karaoke surface matching the reviewed mobile design: the shared activity progress header, an artwork-backed lyric stage, and one full-width action before singing starts. Stories cover the designed states — primed, connecting, active, scoring feedback and the results page after a take — and do not touch the mic, WebSocket sessions, or real audio. The production route never supplies a reward label, so no story here shows the gift badge.",
       },
     },
   },
@@ -99,6 +102,16 @@ export const Connecting: Story = {
   },
 };
 
+/** A server summary as it arrives when a scored take ends. */
+const storySummary: KaraokeResultsSummary = {
+  finalScore: 0.82,
+  lyricsScore: 0.88,
+  timingScore: 0.74,
+  scoredLineCount: 12,
+  uncertainLineCount: 0,
+  timingTrend: "on_time",
+};
+
 export const Ended: Story = {
   args: {
     artworkSrc: storyArtworkSrc,
@@ -106,13 +119,41 @@ export const Ended: Story = {
     initialTimeMs: 13600,
     lines: storyStageLines,
     singingStatus: "ended",
+    summary: storySummary,
+    bestCombo: 6,
+    onExit: () => {},
     onStartSinging: () => {},
   },
   parameters: {
     docs: {
       description: {
-        story: "The take is finished; the action becomes Karaoke again behind a restart mark so the singer can run the song back.",
+        story: "The take is finished: the server summary becomes a results page with the score, lyrics accuracy, timing and best combo, one Continue back to the song and a quiet Sing again.",
       },
     },
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByRole("heading", { name: "Great work!" })).toBeInTheDocument();
+    await expect(canvas.getByText("On time")).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: "Continue" })).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: "Sing again" })).toBeInTheDocument();
+  },
+};
+
+export const EndedUnmeasuredLines: Story = {
+  args: { ...Ended.args, summary: { ...storySummary, uncertainLineCount: 2, timingScore: null } },
+  parameters: { docs: { description: { story: "Lines the service could not measure are named and excluded, and timing that did not count reads Not scored." } } },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByText("2 lines couldn't be measured, so they don't count toward your score.")).toBeInTheDocument();
+    await expect(canvas.getByText("Not scored")).toBeInTheDocument();
+  },
+};
+
+export const EndedWithoutSummary: Story = {
+  args: { ...Ended.args, summary: null },
+  parameters: { docs: { description: { story: "When no summary arrives the page says so and shows no score." } } },
+  play: async ({ canvasElement }) => {
+    await expect(within(canvasElement).getByText("Your score for this take wasn't received.")).toBeInTheDocument();
   },
 };
