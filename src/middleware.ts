@@ -46,6 +46,10 @@ async function standaloneMiddleware(request: Request, next: () => Promise<Respon
   return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
 }
 
+// The Privy embedded wallet reads reward funding balances and fees through
+// Privy's own Base Sepolia RPC, not the chain's public endpoint.
+export const PRIVY_REWARD_RPC_ORIGIN = "https://base-sepolia.rpc.privy.systems";
+
 export function securityPolicy(pathname: string, nonce: string, apiNextOrigin?: string): string {
   const verificationRoute = pathname === "/verify/zkpassport";
   const veryRoute = pathname === "/verify/very";
@@ -65,7 +69,7 @@ export function securityPolicy(pathname: string, nonce: string, apiNextOrigin?: 
         : `default-src 'self'; script-src 'nonce-${nonce}' 'strict-dynamic'; frame-src https://auth.privy.io; ${karaokeConnectSrc}; media-src 'self' blob: ${MEDIA_R2_ORIGIN} https://*.cloudflarestream.com; worker-src 'self' blob:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'`;
   // SPA navigation keeps the initial document policy, including entry through
   // sign-in, so every document policy admits the wallet's read-only RPC origins.
-  return policy.replace(/connect-src ([^;]+);/u, (_directive, origins: string) => `connect-src ${origins} ${WALLET_RPC_ORIGINS.join(" ")};`);
+  return policy.replace(/connect-src ([^;]+);/u, (_directive, origins: string) => `connect-src ${origins} ${[...WALLET_RPC_ORIGINS, PRIVY_REWARD_RPC_ORIGIN].join(" ")};`);
 }
 
 export default [standaloneMiddleware];

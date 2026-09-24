@@ -1,7 +1,7 @@
 import { describe, expect, test } from "vitest";
 
 import { WALLET_RPC_ORIGINS } from "./features/wallet/wallet-network-catalog";
-import { securityPolicy } from "./middleware";
+import { securityPolicy, PRIVY_REWARD_RPC_ORIGIN } from "./middleware";
 
 describe("security policy", () => {
   test("allows Privy sign-in on ordinary application routes", () => {
@@ -78,6 +78,7 @@ test("fixed wallet RPC origins remain available after SPA navigation from every 
     const policy = securityPolicy(path, "fixture");
     const connect = policy.split(";").find(directive => directive.trim().startsWith("connect-src"))!;
     for (const origin of WALLET_RPC_ORIGINS) expect(connect).toContain(origin);
+    expect(connect).toContain(PRIVY_REWARD_RPC_ORIGIN);
     expect(WALLET_RPC_ORIGINS.every(origin => !origin.includes("*"))).toBe(true);
   }
 });
