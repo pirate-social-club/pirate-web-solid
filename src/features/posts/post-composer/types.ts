@@ -424,10 +424,6 @@ export interface PostComposerProps extends Partial<PostComposerDraftState>, Post
   attachmentBarPlacement?: "fixed" | "inline";
   songFlowRuntime?: SongFlowRuntime;
   onVideoEntry?: () => void;
-  /** Called when the author taps the song tool. Return true when the host
-   * handled it (for example by opening the Song tab to resume an unfinished
-   * song) instead of opening the audio picker. */
-  onSongEntry?: () => boolean;
   onClose?: () => void;
   // Community policy: enabling 18+ requires an explicit confirmation step.
   ageGateConfirmationRequired?: boolean;

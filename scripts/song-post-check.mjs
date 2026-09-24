@@ -457,25 +457,6 @@ async function publishSong(page, community, { lyrics }) {
   await waitForForward();
   await forward.click();
   await form.getByRole("heading", { name: "Royalties" }).waitFor({ state: "visible" });
-  if (community === "instrumental") {
-    // The file and the in-memory coordinator disappear. Only the server's
-    // finalized submission is offered after a fresh page load.
-    await page.reload({ waitUntil: "domcontentloaded" });
-    await page.locator("#app-root[data-hydrated='true']").waitFor({ state: "attached" });
-    await page.waitForLoadState("networkidle");
-    await page.getByRole("button", { name: "Post", exact: true }).click();
-    // With an unfinished song on the server, the song tool opens the Song tab
-    // and its list instead of the audio picker.
-    await form.getByRole("button", { name: "Song", exact: true }).click();
-    await form.getByRole("button", { name: `Resume Fixture song ${community}`, exact: true }).click();
-    await form.getByRole("heading", { name: "Royalties" }).waitFor({ state: "visible" });
-    await form.getByRole("button", { name: "Back", exact: true }).click();
-    await form.getByText("Audio is retained by the server; the browser file is unavailable.", { exact: true }).waitFor();
-    assert(await form.getByRole("button", { name: "Add audio", exact: true }).count() === 0, "recovered audio offered a new upload");
-    await waitForForward();
-    await forward.click();
-    await form.getByRole("heading", { name: "Royalties" }).waitFor({ state: "visible" });
-  }
   await waitForForward();
   await forward.click();
   await form.getByRole("heading", { name: "Review" }).waitFor({ state: "visible" });
@@ -562,7 +543,7 @@ try {
 
   console.log(JSON.stringify({
     ok: true,
-    scenarios: ["song_with_lyrics", "song_instrumental", "server_recovery_after_reload", "published_navigation"],
+    scenarios: ["song_with_lyrics", "song_instrumental", "published_navigation"],
     publishedOnce: true,
     audioStored: uploads.length,
     principal: "user-song-e2e",

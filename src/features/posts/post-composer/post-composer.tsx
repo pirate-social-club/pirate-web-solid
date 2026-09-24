@@ -32,7 +32,6 @@ export function PostComposer(props: PostComposerProps) {
           <PostComposerWriteStep
             attachmentBarPlacement={props.attachmentBarPlacement}
             onVideoEntry={props.onVideoEntry}
-            onSongEntry={props.onSongEntry}
             controller={controller}
           >
             <PublishButton

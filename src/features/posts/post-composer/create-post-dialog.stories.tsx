@@ -124,21 +124,6 @@ class FailingUploadStoryTransport extends StoryMediaTransport {
   }
 }
 
-/** A transport whose server holds one unfinished song for this community. */
-class ResumableSongStoryTransport extends StoryMediaTransport {
-  override async listActive(): Promise<ActiveSongMediaPostSubmissionPage> {
-    return {
-      object: "active_song_media_post_submission_page",
-      items: [{
-        object: "active_song_media_post_submission", community_id: "community-one", title: "Midnight waves",
-        song_type: "original", author_declared_rating: "general",
-        terms_state: { current: { status: "not_bound" } }, submission: snapshot(),
-      }],
-      next_cursor: null,
-    };
-  }
-}
-
 const storyMp3 = (name = "midnight-waves.mp3") =>
   new File([new Uint8Array([0x49, 0x44, 0x33, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00])], name, { type: "audio/mpeg" });
 
@@ -265,24 +250,6 @@ export const ContextualTextOverMobileNavigation: Story = {
     await expect(box.height).toBeGreaterThan(0);
     const hit = canvasElement.ownerDocument.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2);
     await expect(hit !== null && form.contains(hit)).toBe(true);
-  },
-};
-
-/** The server holds an unfinished song. The song tool opens the Song tab,
- * which lists it beside Add audio, instead of the audio picker. */
-export const SongUnfinishedToResumeMobile: Story = {
-  name: "Song / Unfinished song to resume / Mobile",
-  globals: { viewport: { value: "mobile1", isRotated: false } },
-  render: () => dialogHarness({ mediaTransport: new ResumableSongStoryTransport() }).render(),
-  play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement.ownerDocument.body);
-    // The mobile viewport re-renders the story once; keep tapping the song
-    // tool until the Song tab shows the list, as an author would.
-    await waitFor(async () => {
-      if (!canvas.queryByText("Unfinished songs")) await userEvent.click(canvas.getByRole("button", { name: /^(Song|Audio)$/u }));
-      await expect(canvas.getByText("Unfinished songs")).toBeInTheDocument();
-    }, { timeout: 5000 });
-    await expect(canvas.getByRole("button", { name: "Resume Midnight waves" })).toBeInTheDocument();
   },
 };
 

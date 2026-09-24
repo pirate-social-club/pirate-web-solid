@@ -7,7 +7,7 @@ import type { JSX } from "@solidjs/web";
 import type { PostCommunitiesCommunityIdMediaUploadReservationsResponse } from "@pirate/api-client";
 
 import type { ActivePersonaPublicProjection } from "../../../api/session";
-import type { ActiveSongMediaPostSubmission, ActiveSongMediaPostSubmissionPage, MediaSubmissionSnapshot } from "../media-submission/contracts";
+import type { ActiveSongMediaPostSubmissionPage, MediaSubmissionSnapshot } from "../media-submission/contracts";
 import { mediaCommandBody, type PersistedMediaCommand } from "../media-submission/pending";
 import type { MediaCommandResult, MediaSubmissionTransport } from "../media-submission/transport";
 import { buildCreatePostRequest, CreatePostDialog, initialOperationPersonaId } from "./create-post-dialog";
@@ -162,17 +162,6 @@ function songTool(): HTMLButtonElement {
   return tool;
 }
 
-/** Taps the song tool until the unfinished-songs lookup has landed and the
- * Song tab lists them, as an author would. */
-async function openUnfinishedSongs(): Promise<void> {
-  await vi.waitFor(() => {
-    const picker = document.body.querySelector<HTMLInputElement>('input[aria-label="Upload audio"]');
-    if (picker) vi.spyOn(picker, "click").mockImplementation(() => {});
-    if (!document.body.textContent?.includes("Unfinished songs")) songTool().click();
-    expect(document.body.textContent).toContain("Unfinished songs");
-  });
-}
-
 function button(label: string): HTMLButtonElement {
   const result = [...document.body.querySelectorAll<HTMLButtonElement>("button")]
     .find(button => button.textContent?.trim() === label);
@@ -209,80 +198,6 @@ async function continueToReview(): Promise<void> {
 }
 
 describe("create post request", () => {
-  test("explicitly resumes server state after reopen without saving an unsent draft", async () => {
-    const item: ActiveSongMediaPostSubmission = { object: "active_song_media_post_submission", community_id: "community-one",
-      title: "Server recovery title", song_type: "original", author_declared_rating: "adult_18",
-      terms_state: { current: { status: "not_bound" } }, submission: mediaSnapshot() };
-    class RecoveryTransport extends ProductionMediaTransport {
-      lists = 0;
-      override async listActive(): Promise<ActiveSongMediaPostSubmissionPage> {
-        this.lists += 1; return { object: "active_song_media_post_submission_page", items: [item], next_cursor: null };
-      }
-    }
-    const transport = new RecoveryTransport(); transport.snapshot = item.submission;
-    let reopen = () => {};
-    render(() => {
-      const [open, setOpen] = createSignal(true);
-      reopen = () => setOpen(true);
-      return <CreatePostDialog communityContext={{ id: "community-one", name: "Harbor" }} mediaTransport={transport}
-        open={open()} onOpenChange={setOpen} personas={[activePersona("persona-one", "Persona One")]} principalId="account-one" />;
-    });
-    await openUnfinishedSongs();
-    await vi.waitFor(() => expect(button("Resume Server recovery title")).toBeDefined());
-    expect(transport.commands).toEqual([]);
-    button("Resume Server recovery title").click();
-    await vi.waitFor(() => expect(document.body.textContent).toContain("The original audio file and upload reservation are no longer available"));
-    expect(document.body.querySelector<HTMLInputElement>("#song-track-title")?.value).toBe("Server recovery title");
-    expect(button("Cancel song submission").disabled).toBe(false);
-    expect([...document.body.querySelectorAll("button")].some(candidate => candidate.textContent?.trim() === "Add audio")).toBe(false);
-    expect(transport.uploadCount).toBe(0);
-    document.body.querySelector<HTMLButtonElement>("button[aria-label='Close composer']")!.click();
-    await vi.waitFor(() => expect(document.body.querySelector("[data-create-post-form]")).toBeNull());
-    reopen();
-    await vi.waitFor(() => expect(transport.lists).toBe(2));
-    expect(document.body.querySelector("#song-track-title")).toBeNull();
-    await openUnfinishedSongs();
-    expect(document.body.querySelector<HTMLInputElement>("#song-track-title")?.value).toBe("");
-    expect(button("Resume Server recovery title")).toBeDefined();
-    expect(transport.commands).toEqual([]);
-  });
-
-  test.each([false, true])("recovered finalized audio remains navigable with bound terms=%s", async (bound) => {
-    const item: ActiveSongMediaPostSubmission = {
-      object: "active_song_media_post_submission", community_id: "community-one", title: "Finalized recovery",
-      song_type: "original", author_declared_rating: "general",
-      terms_state: { current: bound ? { status: "ready", license_preset: "non-commercial", access_mode: "public",
-        royalty_allocations: [{ recipient_id: "persona-one", share_bps: 10000 }] } : { status: "not_bound" } },
-      submission: mediaSnapshot({ audio_revision: 1, phase: "analysis" }),
-    };
-    class RecoveryTransport extends ProductionMediaTransport {
-      override async listActive(): Promise<ActiveSongMediaPostSubmissionPage> {
-        return { object: "active_song_media_post_submission_page", items: [item], next_cursor: null };
-      }
-    }
-    const transport = new RecoveryTransport(); transport.snapshot = item.submission;
-    render(() => <CreatePostDialog communityContext={{ id: "community-one", name: "Harbor" }} mediaTransport={transport}
-      open onOpenChange={() => {}} personas={[activePersona("persona-one", "Persona One")]} principalId="account-one" />);
-    await openUnfinishedSongs();
-    await vi.waitFor(() => expect(button("Resume Finalized recovery")).toBeDefined());
-    button("Resume Finalized recovery").click();
-    if (bound) {
-      await vi.waitFor(() => expect(document.body.textContent).toContain("Remix earnings"));
-      expect([...document.body.querySelectorAll("button")].some(candidate => ["Change", "Back"].includes(candidate.textContent?.trim() ?? ""))).toBe(false);
-    } else {
-      await vi.waitFor(() => expect(document.body.textContent).toContain("Your share of remix earnings"));
-      button("Back").click();
-      await vi.waitFor(() => expect(document.body.textContent).toContain("Audio is retained by the server"));
-      expect(button("Continue").disabled).toBe(false);
-      button("Continue").click();
-      await vi.waitFor(() => expect(document.body.textContent).toContain("Your share of remix earnings"));
-      button("Continue").click();
-      await vi.waitFor(() => expect(button("Post song").disabled).toBe(false));
-    }
-    expect(transport.commands).toEqual([]);
-    expect(transport.uploadCount).toBe(0);
-  });
-
   test("replaces embedded artwork when the selected audio changes", async () => {
     const transport = new ProductionMediaTransport();
     render(() => <CreatePostDialog
@@ -993,33 +908,18 @@ describe("create post request", () => {
     expect(mediaTransport.uploadCount).toBe(1);
   });
 
-  test.each([false, true])("the song tool opens the picker only when nothing can be unfinished (lookup failing=%s)", async (failing) => {
-    class QuietRecoveryTransport extends ProductionMediaTransport {
-      lists = 0;
-      override async listActive(): Promise<ActiveSongMediaPostSubmissionPage> {
-        this.lists += 1;
-        if (failing) throw new Error("network down");
-        return { object: "active_song_media_post_submission_page", items: [], next_cursor: null };
-      }
-    }
-    const transport = new QuietRecoveryTransport();
+  test("the song tool opens the audio picker and the composer never looks up unfinished songs", async () => {
+    const transport = new ProductionMediaTransport();
+    const listActive = vi.spyOn(transport, "listActive");
     render(() => <CreatePostDialog communityContext={{ id: "community-one", name: "Harbor" }} mediaTransport={transport}
       open onOpenChange={() => {}} personas={[activePersona("persona-one", "Persona One")]} principalId="account-one" />);
-    await vi.waitFor(() => expect(transport.lists).toBe(1));
     await new Promise<void>(resolve => setTimeout(resolve, 0));
-    expect(document.body.textContent).not.toMatch(/Unfinished songs|Resume a song submission|Couldn't check|Retry loading/);
     const picker = document.body.querySelector<HTMLInputElement>('input[aria-label="Upload audio"]')!;
     const opened = vi.spyOn(picker, "click").mockImplementation(() => {});
     songTool().click();
-    if (!failing) {
-      expect(opened).toHaveBeenCalledOnce();
-      expect(document.body.textContent).not.toContain("Unfinished songs");
-      return;
-    }
-    // A failed check may hide a saved song: the Song tab shows the retry.
-    expect(opened).not.toHaveBeenCalled();
-    await vi.waitFor(() => expect(button("Retry loading submissions")).toBeDefined());
-    expect(button("Add audio")).toBeDefined();
+    expect(opened).toHaveBeenCalledOnce();
+    expect(listActive).not.toHaveBeenCalled();
+    expect(document.body.textContent).not.toMatch(/Unfinished songs|Resume/);
   });
 
   test("shows no status card while a prepared song is on Rights", async () => {
@@ -1240,14 +1140,7 @@ test.each([false, true])("retains video authority in global/contextual composer 
     await vi.waitFor(() => expect(resume.disabled).toBe(false)); resume.click();
     if (contextual) {
       await vi.waitFor(() => expect(document.body.textContent).toContain("Resolve this retained video with its original community and persona"));
-      // The composer may read the community's unfinished songs on open; the
-      // retained video must send nothing.
-      const videoRequests = fetchImpl.mock.calls.filter(([input, init]) => {
-        const url = input instanceof Request ? input.url : String(input);
-        const method = init?.method ?? (input instanceof Request ? input.method : "GET");
-        return !(method === "GET" && url.includes("/media-post-submissions"));
-      });
-      expect(videoRequests).toEqual([]); expect(execute).not.toHaveBeenCalled();
+      expect(fetchImpl).not.toHaveBeenCalled(); expect(execute).not.toHaveBeenCalled();
     } else {
       await vi.waitFor(() => expect(execute).toHaveBeenCalledOnce());
       expect(fetchImpl).toHaveBeenCalledOnce();

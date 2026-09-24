@@ -119,7 +119,6 @@ export function PostComposerWriteStep(props: {
   attachmentBarPlacement?: "fixed" | "inline";
   controller: PostComposerController;
   onVideoEntry?: () => void;
-  onSongEntry?: () => boolean;
   children?: JSX.Element;
 }) {
   const controller = props.controller;
@@ -168,10 +167,7 @@ export function PostComposerWriteStep(props: {
       if (props.onVideoEntry) return props.onVideoEntry();
       return videoInput?.click();
     }
-    if (kind === "song") {
-      if (props.onSongEntry?.()) return;
-      return songInput?.click();
-    }
+    if (kind === "song") return songInput?.click();
     if (kind === "file") return fileInput?.click();
     controller.tabs.onTabChange(kind);
   };
