@@ -615,6 +615,7 @@ export function VideoComposerRuntime(props: {
       <fieldset class="contents" disabled={captureStatus() === "recording" || finalizing()}>
       <section aria-label="Soundtrack">
         <SongExcerptComposer store={excerptStore} read={props.songReader} communityId={props.communityId}
+          onClose={props.onExit}
           preflight={songPreflight} initialSong={props.initialSong}
           onPlan={setSongPlan}
           onChoice={choice => { if (!disposed) setSongChoice(choice); }}

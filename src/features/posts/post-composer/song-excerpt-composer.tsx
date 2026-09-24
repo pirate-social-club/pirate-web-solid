@@ -1,7 +1,7 @@
 import { ApiClientError } from "@pirate/api-client";
 import { createSignal, onCleanup, onSettled, Show } from "solid-js";
 
-import { Button, Type } from "../../../design-system";
+import { Button, IconMusicNote, Type } from "../../../design-system";
 import { PostComposerExcerptSelector } from "./preview-segment-selector";
 import {
   canHoldExcerpt,
@@ -69,6 +69,8 @@ export function SongExcerptComposer(props: {
   initialSong?: { readonly postId: string };
   /** Songs offered in the picker; defaults to the community's songs. */
   songs?: SongPickerSource;
+  /** Leaves the composer from the song picker, before any song is chosen. */
+  onClose?: () => void;
   onSelection?: (selection: SoundtrackSelection | null) => void;
   onPlan?: (state: SongPlanState) => void;
   onChoice?: (choice: SongChoice) => void;
@@ -505,6 +507,8 @@ export function SongExcerptComposer(props: {
           linkProblem={linkProblem()}
           onLink={(value) => { setLink(value); submitLink(); }}
           onPick={(postId) => { setLinkProblem(undefined); void loadSong({ kind: "post", postId }); }}
+          onClose={props.onClose}
+          preview={async (postId, signal) => (await reader({ kind: "post", postId }, signal)).audioUrl}
           {...(props.songs === undefined ? {} : { source: props.songs })}
         />
       </Show>
@@ -546,7 +550,13 @@ export function SongExcerptComposer(props: {
               src={ready().audioUrl}
             />
             <div class="grid gap-1">
-              <Type as="p" variant="body">{ready().title}</Type>
+              <div class="flex items-center gap-3">
+                <span class="grid size-12 shrink-0 place-items-center rounded-[var(--radius-md)] bg-muted">
+                  <IconMusicNote aria-hidden="true" class="size-5" />
+                </span>
+                <Type as="p" class="min-w-0 flex-1 truncate" variant="body-strong">{ready().title}</Type>
+                <Button onClick={resetSong} size="sm" type="button" variant="secondary">Change</Button>
+              </div>
               <Show when={audioProblem()}>
                 {(problem) => (
                   <>
@@ -590,9 +600,6 @@ export function SongExcerptComposer(props: {
             <Show when={note()}>
               {(text) => <Type as="p" variant="caption" role="status">{text()}</Type>}
             </Show>
-            <Button class="justify-self-start" onClick={resetSong} size="sm" type="button" variant="ghost">
-              Change song
-            </Button>
           </>
         )}
       </Show>
