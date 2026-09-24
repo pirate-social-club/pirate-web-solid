@@ -62,7 +62,7 @@ async function analyze(file: File) {
     const audio = await input.getPrimaryAudioTrack();
     if (!video || !audio) throw new Error("Recorded file lacks video or audio");
     // Small frames are enough to see motion and pacing.
-    const small = new CanvasSink(video, { width: 72, height: 128, poolSize: 0 });
+    const small = new CanvasSink(video, { width: 72, height: 128, fit: "fill", poolSize: 0 });
     const timestamps: number[] = [];
     const frames: Float32Array[] = [];
     for await (const wrapped of small.canvases()) {

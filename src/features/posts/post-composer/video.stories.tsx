@@ -49,7 +49,7 @@ export const Recording: Story = {
     docs: {
       description: {
         story:
-          "The host owns the MediaStream and recorder. Backgrounding alone does not end the take; the elapsed timeline resumes when the page returns.",
+          "The host owns the MediaStream and recorder. Leaving the page ends the take, because the camera picture freezes while the page is hidden.",
       },
     },
   },

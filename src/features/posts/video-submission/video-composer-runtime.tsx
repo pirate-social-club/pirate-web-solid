@@ -468,8 +468,8 @@ export function VideoComposerRuntime(props: {
   }
   // A hidden page is where browser media playback is suspended without an
   // event. The guide then can no longer keep time with the recording, so the
-  // take ends there rather than silently drifting. Backgrounding alone is not
-  // a take-ending condition for an unguided recording.
+  // take ends there rather than silently drifting. An unguided take is
+  // cancelled by the capture module instead, because its picture freezes.
   const interactionBusy = () => busy() || finalizing();
   // The camera preview is held only while the page is visible.
   const [pageVisible, setPageVisible] = createSignal(typeof document === "undefined" || document.visibilityState !== "hidden");

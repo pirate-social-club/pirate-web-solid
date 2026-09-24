@@ -92,7 +92,12 @@ async function assertRecordingCapability(): Promise<void> {
 
 async function openCameraStream(): Promise<MediaStream> {
   try {
-    return await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user", width: { ideal: 720 }, height: { ideal: 1280 }, frameRate: { ideal: 30, max: 30 } }, audio: true });
+    // Phone cameras size themselves by their landscape sensor. Asking for
+    // 1920x1080 made the Pixel 8 front camera deliver native 1080x1920
+    // portrait frames, where asking for 720x1280 delivered 1280x720 landscape
+    // and left only a 405x720 portrait crop. Landscape frames still go through
+    // the centered portrait crop below.
+    return await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user", width: { ideal: 1920 }, height: { ideal: 1080 }, frameRate: { ideal: 30, max: 30 } }, audio: true });
   } catch { throw new VideoCaptureError("camera_denied", "Camera or microphone access is unavailable; upload remains available"); }
 }
 
@@ -195,9 +200,10 @@ export async function startOriginalVideoCapture(input: OriginalVideoCaptureInput
   const boundary = createCaptureFailureBoundary({ ended: () => ended, markEnded: () => { ended = true; },
     dimensionsChanged: () => dimensionsChanged(), release, cancel: () => output.cancel(), onFailure: input.onFailure });
   const rotated = () => boundary.fail("orientation_lost", "The phone rotated during capture. Retake in one orientation.");
-  // Portrait frames are painted by the page, and a hidden page stops
-  // painting. The take is cancelled rather than finalized, so a recording
-  // with a frozen stretch never exists to be reviewed or uploaded.
+  // A hidden page stops painting portrait frames, and on the Pixel 8 even the
+  // native camera track kept its frame clock but froze the picture while
+  // hidden. The take is cancelled rather than finalized, so a recording with
+  // a frozen stretch never exists to be reviewed or uploaded.
   const pageHidden = () => {
     if (document.visibilityState === "hidden") {
       boundary.fail("interrupted", "The recording stopped because you left the page. Record again.");
@@ -230,13 +236,11 @@ export async function startOriginalVideoCapture(input: OriginalVideoCaptureInput
     };
     boundary.observe(videoSource.errorPromise);
     boundary.observe(audioSource.errorPromise);
-    if (portraitTrack.track !== video) {
-      portraitTrack.track.addEventListener("ended", trackEnded, { once: true });
-      document.addEventListener("visibilitychange", pageHidden);
-    }
+    if (portraitTrack.track !== video) portraitTrack.track.addEventListener("ended", trackEnded, { once: true });
+    document.addEventListener("visibilitychange", pageHidden);
     output.addVideoTrack(videoSource); output.addAudioTrack(audioSource);
     // Locking is optional platform functionality. Changes are take-ending even
-    // when the browser refuses the lock. Backgrounding alone has no handler.
+    // when the browser refuses the lock. A hidden page ends the take above.
     if (orientation && "lock" in orientation && typeof orientation.lock === "function") {
       try { await orientation.lock(orientation.type); orientationLocked = true; } catch { /* change guard remains active */ }
     }
