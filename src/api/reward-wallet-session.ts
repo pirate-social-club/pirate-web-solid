@@ -94,6 +94,11 @@ export async function createRewardWalletSession(
     if (client.getEmbeddedEthereumProvider === undefined) throw new Error("wallet_provider_unavailable");
     const provider = await client.getEmbeddedEthereumProvider(context.walletIndex, context.funding.sender_address);
     authorized();
+    // Each embedded provider starts on the SDK's default chain, and a switch does
+    // not carry over to the next provider, so every one is moved to Base Sepolia.
+    // verifyProvider still refuses a wallet that ignores the switch.
+    await provider.request({ method: "wallet_switchEthereumChain", params: [{ chainId: toHex(84532) }] });
+    authorized();
     return provider;
   };
   const verifyProvider = async (provider: EthereumProvider, context: RewardFundingContext) => {
@@ -160,9 +165,7 @@ export async function createRewardWalletSession(
       await client.auth.siwe.loginWithSiwe(signature, wallet, message);
     }),
     async selectTestnet(context) {
-      const provider = await providerFor(context);
-      await provider.request({ method: "wallet_switchEthereumChain", params: [{ chainId: toHex(84532) }] });
-      await verifyProvider(provider, context);
+      await verifyProvider(await providerFor(context), context);
     },
     async estimate(context) { return estimateWith(await providerFor(context), context); },
     async send(context, fee, beforeBroadcast) {

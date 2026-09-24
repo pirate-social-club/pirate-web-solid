@@ -51,6 +51,29 @@ describe("explicit persona wallet authorization", () => {
     expect(decodeFunctionData({ abi: erc20Abi, data: tx.data })).toMatchObject({ functionName: "transfer", args: [recipient, 1000000n] });
     expect(h.requests.some(item => item.method === "personal_sign")).toBe(false);
   });
+  it("moves every fresh embedded provider to Base Sepolia before using it", async () => {
+    const h = harness(); const session = await h.create();
+    // A real Privy provider starts on its default chain and forgets a switch
+    // made on an earlier provider instance.
+    h.client.getEmbeddedEthereumProvider = vi.fn(async () => {
+      let chain = "0x1";
+      return { request: vi.fn(async request => {
+        h.requests.push(request);
+        if (request.method === "wallet_switchEthereumChain") {
+          const [target] = request.params ?? [];
+          if (target !== null && typeof target === "object" && "chainId" in target && typeof target.chainId === "string") chain = target.chainId;
+          return null;
+        }
+        if (request.method === "eth_chainId") return chain;
+        return h.responses.get(request.method);
+      }) };
+    });
+    await session.sendCode("operator@example.test"); await session.loginWithCode("operator@example.test", "fixture-code");
+    await session.selectTestnet(context());
+    expect(await session.estimate(context())).toEqual(fee);
+    expect(await session.send(context(), fee, async () => undefined)).toBe(transactionHash);
+    expect(h.client.getEmbeddedEthereumProvider).toHaveBeenCalledTimes(3);
+  });
   it.each([
     ["eth_accounts", [recipient], "wallet_assignment_mismatch"],
     ["eth_chainId", "0x1", "wallet_wrong_chain"],
