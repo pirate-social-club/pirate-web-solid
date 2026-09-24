@@ -111,6 +111,7 @@ test.describe("staging HNS authenticated handoff", { tag: "@hns-mutating" }, () 
         });
       }
       if (!communityId) throw new Error("Community creation did not return its identity.");
+      console.log(JSON.stringify({ event: "hns-community", community_id: communityId }));
       // The root field renders only when the community has no import session,
       // so name the server's state instead of timing out on a missing field.
       const startPath = `/api/communities/${encodeURIComponent(communityId)}/hns-root-imports`;
