@@ -3,16 +3,22 @@ import { test, expect } from "./fixtures/auth.ts";
 import { createCommunityAndVerifyAcceptance } from "./fixtures/create-community.ts";
 import { e2eBaseURL, requireMutationEnvironment } from "./fixtures/environment.ts";
 import { requireHnsJourneyRoot, writeHnsSessionHandoff } from "./fixtures/hns-session-handoff.ts";
+import { publishFreshHnsSessionOnRegtest, verifyRegtestRunnerOnHost } from "./fixtures/hns-regtest-publisher.ts";
 
 test.describe("staging HNS authenticated handoff", { tag: "@hns-mutating" }, () => {
-  test.beforeAll(() => {
+  test.beforeAll(async () => {
     requireMutationEnvironment();
     if (e2eBaseURL() !== "https://web-next-staging.pirate.sc")
       throw new Error("HNS authenticated handoff requires the pinned staging browser origin.");
     requireHnsJourneyRoot(process.env.E2E_HNS_ROOT ?? "");
+    if (process.env.E2E_HNS_PUBLISH_REGTEST === "1" &&
+        !/^[0-9a-f]{64}$/u.test(process.env.E2E_HNS_RUNNER_SHA256 ?? ""))
+      throw new Error("Regtest publication requires the exact reviewed host runner SHA-256 before login.");
+    if (process.env.E2E_HNS_PUBLISH_REGTEST === "1")
+      await verifyRegtestRunnerOnHost(process.env.E2E_HNS_RUNNER_SHA256 ?? "");
   });
 
-  test("starts a provisional import in the UI and captures its exact authenticated session response", async ({ page }, testInfo) => {
+  test("starts a provisional import and binds the authenticated response to optional regtest publication", async ({ page }, testInfo) => {
     test.setTimeout(420_000);
     const root = requireHnsJourneyRoot(process.env.E2E_HNS_ROOT ?? "");
     const marker = `E2E HNS ${randomUUID()}`;
@@ -55,6 +61,33 @@ test.describe("staging HNS authenticated handoff", { tag: "@hns-mutating" }, () 
         });
         console.log(JSON.stringify({ event: "hns-session-handoff", receipt_path: handoff.receiptPath,
           response_path: handoff.bodyPath, response_sha256: handoff.receipt.response_sha256 }));
+        if (process.env.E2E_HNS_PUBLISH_REGTEST === "1") {
+          // Never publish the saved preparation snapshot. Re-read through the
+          // authenticated context immediately before protected copy and UPDATE.
+          const fresh = await page.request.get(sessionPath, { failOnStatusCode: false });
+          if (fresh.status() !== 200) throw new Error(`Fresh authenticated HNS session read returned HTTP ${fresh.status()}.`);
+          const freshBytes = await fresh.body();
+          const freshHandoff = await writeHnsSessionHandoff(freshBytes, fresh.url(), { communityId, root, sessionId });
+          if (freshHandoff.receipt.publish_plan_sha256 !== handoff.receipt.publish_plan_sha256)
+            throw new Error("HNS publication plan drifted after preparation; no chain update attempted.");
+          await testInfo.attach("hns-fresh-session-receipt", {
+            body: JSON.stringify(freshHandoff.receipt), contentType: "application/json",
+          });
+          const published = await publishFreshHnsSessionOnRegtest(
+            freshBytes, fresh.url(), { communityId, root, sessionId },
+            handoff.receipt.publish_plan_sha256, process.env.E2E_HNS_RUNNER_SHA256 ?? "",
+            undefined,
+            async copyReceipt => {
+              await testInfo.attach("hns-protected-copy-receipt", {
+                body: JSON.stringify(copyReceipt), contentType: "application/json",
+              });
+            },
+          );
+          await testInfo.attach("hns-regtest-publication-receipt", {
+            body: JSON.stringify(published), contentType: "application/json",
+          });
+          console.log(JSON.stringify({ event: "hns-regtest-publication", ...published }));
+        }
         return;
       }
       await new Promise(resolve => setTimeout(resolve, 2_000));
