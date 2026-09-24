@@ -41,17 +41,20 @@ test.describe("staging HNS authenticated handoff", { tag: "@hns-mutating" }, () 
     let leaseTaken = false;
     let publishAttempted = false;
     let leaseReleased = false;
+    let leaseReceipt: unknown = null;
     if (publishRegtest) {
       requireBudget(remainingMs(), 800_000, "lease and name acquisition");
       console.log(JSON.stringify({ event: "hns-regtest-selected-root", root }));
-      const lease = await runRegtestJourneyStep("begin", root, runnerSha256);
+      leaseReceipt = await runRegtestJourneyStep("begin", root, runnerSha256);
       leaseTaken = true;
-      await testInfo.attach("hns-regtest-lease-receipt", {
-        body: JSON.stringify(lease), contentType: "application/json",
-      });
     }
+    // The try opens immediately after the lease, so any later failure before an
+    // UPDATE attempt, including attaching the receipt, reaches the release.
     try {
       if (publishRegtest) {
+        await testInfo.attach("hns-regtest-lease-receipt", {
+          body: JSON.stringify(leaseReceipt), contentType: "application/json",
+        });
         // Inside the try: a failed acquisition attempted no UPDATE, so the
         // finally block still releases the lease.
         const acquisition = await runRegtestJourneyStep("acquire", root, runnerSha256);
@@ -116,12 +119,14 @@ test.describe("staging HNS authenticated handoff", { tag: "@hns-mutating" }, () 
             // Copy 30 s + publish 120 s + advance-safe 180 s + end 120 s.
             requireBudget(remainingMs(), 460_000,
               "UPDATE dispatch, safe observation and lease release");
-            publishAttempted = true;
             const published = await publishFreshHnsSessionOnRegtest(
               freshBytes, fresh.url(), { communityId, root, sessionId },
               handoff.receipt.publish_plan_sha256, runnerSha256,
               undefined,
               async copyReceipt => {
+                // Runs only after the verified protected copy and immediately
+                // before dispatch; a failed copy sent nothing and releases.
+                publishAttempted = true;
                 await testInfo.attach("hns-protected-copy-receipt", {
                   body: JSON.stringify(copyReceipt), contentType: "application/json",
                 });
