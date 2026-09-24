@@ -215,3 +215,11 @@ export async function publishFreshHnsSessionOnRegtest(
   return { root: identity.root, remotePath: matched[2]!, responseSha256: inspected.sha256,
     publishPlanSha256: inspected.publishPlanSha256, outcome: result.outcome, txid: result.txid ?? null };
 }
+
+/** Playwright assigns testInfo.duration only after the body ends, so elapsed
+ * time must be measured from the body's own start. A margin is kept for
+ * hooks and attachments. */
+export function remainingTestBudgetMs(timeoutMs: number, startedAtMs: number, nowMs = Date.now(),
+  marginMs = 15_000) {
+  return timeoutMs - (nowMs - startedAtMs) - marginMs;
+}

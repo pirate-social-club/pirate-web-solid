@@ -3,7 +3,7 @@ import { test, expect } from "./fixtures/auth.ts";
 import { createCommunityAndVerifyAcceptance } from "./fixtures/create-community.ts";
 import { e2eBaseURL, requireMutationEnvironment } from "./fixtures/environment.ts";
 import { requireHnsJourneyRoot, writeHnsSessionHandoff } from "./fixtures/hns-session-handoff.ts";
-import { publishFreshHnsSessionOnRegtest, runRegtestJourneyStep,
+import { publishFreshHnsSessionOnRegtest, remainingTestBudgetMs, runRegtestJourneyStep,
   verifyRegtestRunnerOnHost } from "./fixtures/hns-regtest-publisher.ts";
 
 const publishRegtest = process.env.E2E_HNS_PUBLISH_REGTEST === "1";
@@ -30,6 +30,8 @@ test.describe("staging HNS authenticated handoff", { tag: "@hns-mutating" }, () 
 
   test("starts a provisional import and binds the authenticated response to optional regtest publication", async ({ page }, testInfo) => {
     test.setTimeout(1_200_000);
+    const startedAt = Date.now();
+    const remainingMs = () => remainingTestBudgetMs(testInfo.timeout, startedAt);
     if (testInfo.retry !== 0)
       throw new Error("HNS regtest journey refuses Playwright retries after a possible UPDATE.");
     const root = requireHnsJourneyRoot(selectedRoot);
@@ -40,19 +42,23 @@ test.describe("staging HNS authenticated handoff", { tag: "@hns-mutating" }, () 
     let publishAttempted = false;
     let leaseReleased = false;
     if (publishRegtest) {
-      requireBudget(testInfo.timeout - testInfo.duration, 800_000, "lease and name acquisition");
+      requireBudget(remainingMs(), 800_000, "lease and name acquisition");
       console.log(JSON.stringify({ event: "hns-regtest-selected-root", root }));
       const lease = await runRegtestJourneyStep("begin", root, runnerSha256);
       leaseTaken = true;
       await testInfo.attach("hns-regtest-lease-receipt", {
         body: JSON.stringify(lease), contentType: "application/json",
       });
-      const acquisition = await runRegtestJourneyStep("acquire", root, runnerSha256);
-      await testInfo.attach("hns-regtest-acquisition-receipt", {
-        body: JSON.stringify(acquisition), contentType: "application/json",
-      });
     }
     try {
+      if (publishRegtest) {
+        // Inside the try: a failed acquisition attempted no UPDATE, so the
+        // finally block still releases the lease.
+        const acquisition = await runRegtestJourneyStep("acquire", root, runnerSha256);
+        await testInfo.attach("hns-regtest-acquisition-receipt", {
+          body: JSON.stringify(acquisition), contentType: "application/json",
+        });
+      }
       const marker = `E2E HNS ${randomUUID()}`;
       let communityId: string | undefined;
       const path = await createCommunityAndVerifyAcceptance(page, marker, testInfo, observation => {
@@ -77,7 +83,7 @@ test.describe("staging HNS authenticated handoff", { tag: "@hns-mutating" }, () 
       const sessionId = start.root_import_session_id;
       testInfo.annotations.push({ type: "persistent-content", description: `Started staging HNS import for ${root}; no automatic deletion contract.` });
       const sessionPath = `${startPath}/${encodeURIComponent(sessionId)}`;
-      requireBudget(testInfo.timeout - testInfo.duration, publishRegtest ? 550_000 : 210_000,
+      requireBudget(remainingMs(), publishRegtest ? 550_000 : 210_000,
         "provisioning poll and guarded publication");
       const deadline = Date.now() + 180_000;
       while (Date.now() < deadline) {
@@ -108,7 +114,7 @@ test.describe("staging HNS authenticated handoff", { tag: "@hns-mutating" }, () 
               body: JSON.stringify(freshHandoff.receipt), contentType: "application/json",
             });
             // Copy 30 s + publish 120 s + advance-safe 180 s + end 120 s.
-            requireBudget(testInfo.timeout - testInfo.duration, 460_000,
+            requireBudget(remainingMs(), 460_000,
               "UPDATE dispatch, safe observation and lease release");
             publishAttempted = true;
             const published = await publishFreshHnsSessionOnRegtest(
@@ -129,7 +135,7 @@ test.describe("staging HNS authenticated handoff", { tag: "@hns-mutating" }, () 
             });
             console.log(JSON.stringify({ event: "hns-regtest-publication", ...published }));
             // advance-safe 180 s + end 120 s.
-            requireBudget(testInfo.timeout - testInfo.duration, 310_000,
+            requireBudget(remainingMs(), 310_000,
               "safe observation and lease release");
             const safe = await runRegtestJourneyStep("advance-safe", root, runnerSha256, {
               remotePath: published.remotePath, responseSha256: published.responseSha256,

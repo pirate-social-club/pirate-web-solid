@@ -4,7 +4,7 @@ import { createHash } from "node:crypto";
 import { readFile, rm, stat } from "node:fs/promises";
 import { dirname } from "node:path";
 import { fixedRegtestDispatchAmbiguity, fixedRegtestRefusal, HnsRegtestDispatchAmbiguous,
-  HnsRegtestRefusal, publishFreshHnsSessionOnRegtest,
+  HnsRegtestRefusal, publishFreshHnsSessionOnRegtest, remainingTestBudgetMs,
   runRegtestJourneyStep, stagingCopyCommand, verifyRegtestRunnerOnHost,
   type HnsSshTransport } from "../e2e/fixtures/hns-regtest-publisher.ts";
 
@@ -235,4 +235,13 @@ test("an unconfirmed broadcast is accepted only with its returned txid", async (
   };
   expect(await run("d".repeat(64))).toMatchObject({ outcome: "broadcast_unconfirmed", txid: "d".repeat(64) });
   await expect(run(null)).rejects.toThrow("did not reconcile");
+});
+
+test("time budget counts elapsed time from the body's start, not testInfo.duration", () => {
+  const start = 1_000_000;
+  expect(remainingTestBudgetMs(1_200_000, start, start)).toBe(1_185_000);
+  expect(remainingTestBudgetMs(1_200_000, start, start + 900_000)).toBe(285_000);
+  // A 460 s reservation must refuse once 740 s or more of a 1,200 s test have elapsed.
+  expect(remainingTestBudgetMs(1_200_000, start, start + 740_000) < 460_000).toBe(true);
+  expect(remainingTestBudgetMs(1_200_000, start, start + 700_000) < 460_000).toBe(false);
 });
