@@ -6,13 +6,13 @@ import {
 } from "./video-original-audio-surface";
 
 const meta = {
-  title: "Flows/Posts/VideoPost/OriginalAudio",
+  title: "Flows/Posts/VideoPost/Capture",
   parameters: {
     layout: "fullscreen",
     docs: {
       description: {
         component:
-          "Phase-one original-audio video posting. These are presentational states only: no story opens a camera, records, uploads, probes, moderates or publishes. The accepted source is a 3–180 second MP4 or MOV containing H.264 video and AAC audio. There is no title, description, trim, guide song, client-selected poster, paid access or author-selected licence.",
+          "Capture and review for a video post. Every video uses a song, so the camera only shows once one is chosen and its name sits on the pill at the top. These are presentational states only: no story opens a camera, records, uploads, probes, moderates or publishes. The accepted source is a 3–180 second MP4 or MOV containing H.264 video and AAC audio.",
       },
     },
   },
@@ -21,19 +21,20 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
+const song = "Harbour Lights · 0:00 to 0:15";
 const mobileViewport = { viewport: { value: "mobile1", isRotated: false } } as const;
 
 export const CameraReady: Story = {
   name: "1. Capture / Camera ready",
   globals: mobileViewport,
   render: () => (
-    <OriginalVideoCaptureSurface durationLabel="3:00" elapsedLabel="0:00" status="idle" />
+    <OriginalVideoCaptureSurface onSongTap={() => {}} songLabel={song} status="idle" />
   ),
   parameters: {
     docs: {
       description: {
         story:
-          "Mobile capture after capability probing succeeds. The 9:16 viewfinder and safe-area controls reuse the reviewed Dance capture decisions.",
+          "Mobile capture once a song is chosen. The camera fills the screen and the song sits on a pill in place of a title; tapping it opens the excerpt controls.",
       },
     },
   },
@@ -43,33 +44,13 @@ export const Recording: Story = {
   name: "1. Capture / Recording",
   globals: mobileViewport,
   render: () => (
-    <OriginalVideoCaptureSurface durationLabel="3:00" elapsedLabel="0:14" status="recording" />
+    <OriginalVideoCaptureSurface songLabel={song} status="recording" />
   ),
   parameters: {
     docs: {
       description: {
         story:
-          "The host owns the MediaStream and recorder. Leaving the page ends the take, because the camera picture freezes while the page is hidden.",
-      },
-    },
-  },
-};
-
-export const CameraReadyWithSong: Story = {
-  name: "1. Capture / Camera ready with a song",
-  globals: mobileViewport,
-  render: () => (
-    <OriginalVideoCaptureSurface
-      onSongTap={() => {}}
-      songLabel="Harbour Lights · 0:00 to 0:15"
-      status="idle"
-    />
-  ),
-  parameters: {
-    docs: {
-      description: {
-        story:
-          "Entering from a song post. The camera fills the screen and the chosen song sits on a pill in place of the title; tapping it opens the excerpt controls. Nothing else competes with the shutter.",
+          "Recording to the song. The take ends with the excerpt, and leaving the page ends it early because the camera picture freezes while the page is hidden.",
       },
     },
   },
@@ -78,7 +59,7 @@ export const CameraReadyWithSong: Story = {
 export const CameraDenied: Story = {
   name: "1. Capture / Camera denied",
   globals: mobileViewport,
-  render: () => <OriginalVideoCaptureSurface status="camera_denied" />,
+  render: () => <OriginalVideoCaptureSurface songLabel={song} status="camera_denied" />,
   parameters: {
     docs: {
       description: {
@@ -92,12 +73,12 @@ export const CameraDenied: Story = {
 export const CapabilityUnavailable: Story = {
   name: "1. Capture / Codec unavailable",
   globals: mobileViewport,
-  render: () => <OriginalVideoCaptureSurface status="capability_unavailable" />,
+  render: () => <OriginalVideoCaptureSurface songLabel={song} status="capability_unavailable" />,
   parameters: {
     docs: {
       description: {
         story:
-          "The typed pre-capture failure for a browser without usable H.264 and AAC encoding. Phase one does not offer a WebM recorder and fails before creating unusable bytes.",
+          "The typed pre-capture failure for a browser without usable H.264 and AAC encoding. There is no WebM recorder, so capture fails before creating unusable bytes.",
       },
     },
   },
@@ -106,7 +87,7 @@ export const CapabilityUnavailable: Story = {
 export const OrientationLost: Story = {
   name: "1. Capture / Orientation changed",
   globals: mobileViewport,
-  render: () => <OriginalVideoCaptureSurface status="orientation_lost" />,
+  render: () => <OriginalVideoCaptureSurface songLabel={song} status="orientation_lost" />,
   parameters: {
     docs: {
       description: {
@@ -119,7 +100,7 @@ export const OrientationLost: Story = {
 
 export const UploadOnlyDesktop: Story = {
   name: "1. Capture / Desktop upload",
-  render: () => <OriginalVideoCaptureSurface channel="upload" />,
+  render: () => <OriginalVideoCaptureSurface channel="upload" songLabel={song} />,
   parameters: {
     docs: {
       description: {
@@ -133,31 +114,12 @@ export const UploadOnlyDesktop: Story = {
 export const Review: Story = {
   name: "2. Review / Optional caption",
   globals: mobileViewport,
-  render: () => <OriginalVideoReviewSurface caption="A short take from today." />,
+  render: () => <OriginalVideoReviewSurface caption="A short take from today." onSongTap={() => {}} songLabel={song} />,
   parameters: {
     docs: {
       description: {
         story:
-          "The take, one optional caption and Publish. There are no source, poster or rights summaries: the server extracts the poster and checks the soundtrack.",
-      },
-    },
-  },
-};
-
-export const ReviewWithSong: Story = {
-  name: "2. Review / With a song",
-  globals: mobileViewport,
-  render: () => (
-    <OriginalVideoReviewSurface
-      onSongTap={() => {}}
-      songLabel="Harbour Lights · 0:00 to 0:15"
-    />
-  ),
-  parameters: {
-    docs: {
-      description: {
-        story:
-          "A take recorded to a song. The song is named under the preview; tapping it opens the song controls, where the author can switch to the video's own sound.",
+          "The take, its song, one optional caption and Publish. There are no source, poster or rights summaries: the server extracts the poster and checks the soundtrack.",
       },
     },
   },
@@ -166,7 +128,7 @@ export const ReviewWithSong: Story = {
 export const ReviewMobileKeyboard: Story = {
   name: "2. Review / Mobile keyboard and safe area",
   globals: mobileViewport,
-  render: () => <OriginalVideoReviewSurface caption="Caption stays above the pinned publish action." />,
+  render: () => <OriginalVideoReviewSurface caption="Caption stays above the pinned publish action." songLabel={song} />,
   parameters: {
     docs: {
       description: {

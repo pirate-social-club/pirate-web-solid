@@ -261,39 +261,6 @@ test("a guided take is trimmed to the guide's start and its first frame follows 
   }
 });
 
-test("original sound after a guided take publishes the untouched take", async () => {
-  const userDataDir = await mkdtemp(join(tmpdir(), "pirate-song-video-"));
-  let context: BrowserContext | undefined;
-  try {
-    context = await open(userDataDir, `${proofPath}?compose=video&song=song-fixture`);
-    const page = context.pages()[0] ?? await context.newPage();
-    await page.getByRole("button", { name: "Nudge the next guide 300ms", exact: true }).click();
-    await page.getByRole("button", { name: "Start recording", exact: true }).click();
-    await expect.poll(async () => (await readLedger(page)).stopped, { timeout: 20_000 }).toBe(1);
-    await expect.poll(async () => (await readLedger(page)).alignedAdmitted, { timeout: 20_000 }).toBe(true);
-    await expect(page.locator("textarea")).toBeVisible();
-    const aligned = await readLedger(page);
-    expect(aligned.originalTakeBytes).not.toBeNull();
-    expect(aligned.alignedReportedTrimMs!).toBeGreaterThan(0);
-    // Choosing the video's own sound publishes the untouched take, not the
-    // aligned one whose soundtrack was replaced. The choice sits behind the
-    // song on the review screen.
-    await page.getByRole("button", { name: /^Song: Fixture song.*Change the sound$/u }).click();
-    await page.getByRole("button", { name: "Use original sound", exact: true }).click();
-    await page.getByRole("button", { name: "Publish video", exact: true }).click();
-    await expect(page.getByRole("link", { name: "View published post", exact: true })).toBeVisible({ timeout: 15_000 });
-    const published = await readLedger(page);
-    expect(published.reserveBody).toMatchObject({
-      intent: "original_audio",
-      expected_size_bytes: published.originalTakeBytes,
-    });
-    expect(published.reserveBody).not.toHaveProperty("song_post_id");
-  } finally {
-    await context?.close();
-    await rm(userDataDir, { recursive: true, force: true });
-  }
-});
-
 test("a guide that stalls mid-take ends the recording", async () => {
   const userDataDir = await mkdtemp(join(tmpdir(), "pirate-song-video-"));
   let context: BrowserContext | undefined;

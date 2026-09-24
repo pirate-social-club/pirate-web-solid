@@ -100,6 +100,7 @@ export default defineConfig({
       "src/features/posts/post-composer/capability-boundary.test.tsx",
       "src/features/posts/post-composer/create-post-dialog.test.tsx",
       "src/features/posts/post-composer/post-composer-submission.test.tsx",
+      "src/features/posts/post-composer/song-picker.test.tsx",
       "src/features/posts/post-composer/video-original-audio-surface.test.tsx",
       "src/features/posts/media-submission/coordinator.test.ts",
       "src/features/posts/video-submission/multipart.test.ts",
