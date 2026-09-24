@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 
 import { SongExcerptComposer } from "./song-excerpt-composer";
-import type { SongPickerSource } from "./song-picker";
+import type { SongPickerItem, SongPickerSource } from "./song-picker";
 import type { SongIntervalPreflight } from "../video-submission/song-reference";
 import {
   parseStoredExcerptDraft,
@@ -80,10 +80,11 @@ function memoryStore(): SongExcerptDraftStore {
 
 function standInReader(title: string, durationMs: number): SongSourceReader {
   const audioUrl = toneWavUrl(durationMs);
+  // The picked song keeps its own name; the audio is the same stand-in tone.
   return async request => ({
     postId: request.kind === "post" ? request.postId : "resolved-from-slug",
     audioUrl,
-    title,
+    title: standInSongList.find(song => request.kind === "post" && song.postId === request.postId)?.title ?? title,
   });
 }
 
@@ -105,11 +106,12 @@ const meta = {
 
 /** Songs posted in the community, as the picker lists them. Stand-ins: the
  * ids and names are not real posts. */
-const standInSongs: SongPickerSource = async () => [
+const standInSongList: readonly SongPickerItem[] = [
   { postId: "cadence-post", title: "Cadence", artist: "salt-cove.pirate", artworkSrc: null },
   { postId: "low-tide-post", title: "Low Tide", artist: "drift-reef.pirate", artworkSrc: null },
   { postId: "harbor-lights-post", title: "Harbor Lights", artist: "night-owl.pirate", artworkSrc: null },
 ];
+const standInSongs: SongPickerSource = async () => standInSongList;
 
 /** Accepts every excerpt, standing in for the server's rights check. */
 const standInPreflight: SongIntervalPreflight = async input => ({
@@ -127,8 +129,9 @@ export const ChooseHearAndRetain: Story = {
   render: () => (
     <SongExcerptComposer
       communityId="community-story"
+      onClose={() => {}}
       songs={standInSongs}
-      read={standInReader("Cadence (stand-in audio)", 150_000)}
+      read={standInReader("Cadence", 150_000)}
       preflight={standInPreflight}
       store={memoryStore()}
     />
@@ -143,7 +146,7 @@ export const SongPicked: Story = {
       communityId="community-story"
       initialSong={{ postId: "cadence-post" }}
       songs={standInSongs}
-      read={standInReader("Cadence (stand-in audio)", 150_000)}
+      read={standInReader("Cadence", 150_000)}
       preflight={standInPreflight}
       store={memoryStore()}
     />
@@ -156,7 +159,7 @@ export const SongsLoading: Story = {
     <SongExcerptComposer
       communityId="community-story"
       songs={() => new Promise(() => {})}
-      read={standInReader("Cadence (stand-in audio)", 150_000)}
+      read={standInReader("Cadence", 150_000)}
       store={memoryStore()}
     />
   ),
@@ -168,7 +171,7 @@ export const SongsFailed: Story = {
     <SongExcerptComposer
       communityId="community-story"
       songs={async () => { throw new Error("unavailable"); }}
-      read={standInReader("Cadence (stand-in audio)", 150_000)}
+      read={standInReader("Cadence", 150_000)}
       store={memoryStore()}
     />
   ),
@@ -180,7 +183,7 @@ export const NoSongsYet: Story = {
     <SongExcerptComposer
       communityId="community-story"
       songs={async () => []}
-      read={standInReader("Cadence (stand-in audio)", 150_000)}
+      read={standInReader("Cadence", 150_000)}
       store={memoryStore()}
     />
   ),
@@ -194,7 +197,7 @@ export const ShortSong: Story = {
       communityId="community-story"
       initialSong={{ postId: "cadence-post" }}
       songs={standInSongs}
-      read={standInReader("Interlude (stand-in audio)", 8_200)}
+      read={standInReader("Interlude", 8_200)}
       store={memoryStore()}
     />
   ),

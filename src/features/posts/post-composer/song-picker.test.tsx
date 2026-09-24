@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, test, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { render as solidRender } from "@solidjs/web";
 import { createRoot } from "solid-js";
 import type { JSX } from "@solidjs/web";
@@ -22,9 +22,19 @@ function render(ui: () => JSX.Element): HTMLElement {
   return container;
 }
 
+let played: string[] = [];
+let paused = 0;
+beforeEach(() => {
+  played = [];
+  paused = 0;
+  vi.spyOn(HTMLMediaElement.prototype, "play").mockImplementation(async function (this: HTMLMediaElement) { played.push(this.src); });
+  vi.spyOn(HTMLMediaElement.prototype, "pause").mockImplementation(() => { paused += 1; });
+});
 afterEach(() => {
   for (const dispose of disposers.splice(0)) dispose();
+  vi.restoreAllMocks();
 });
+const preview = async (postId: string) => `https://audio.test/${postId}.mp3`;
 
 const songs: SongPickerSource = async () => [
   { postId: "cadence", title: "Cadence", artist: "salt-cove.pirate", artworkSrc: null },
@@ -37,23 +47,66 @@ const type = (container: HTMLElement, value: string) => {
   search.dispatchEvent(new Event("input", { bubbles: true }));
 };
 const rows = (container: HTMLElement) =>
-  [...container.querySelectorAll('ul[aria-label="Songs"] button')].map(row => row.textContent);
+  [...container.querySelectorAll("[data-song-row] > button")].map(row => row.textContent);
+const button = (container: HTMLElement, label: string) =>
+  container.querySelector<HTMLButtonElement>(`button[aria-label="${label}"]`);
 
 describe("song picker", () => {
-  test("lists the community's songs, filters as the author types and picks one", async () => {
-    const onPick = vi.fn();
+  test("lists the community's songs and filters as the author types", async () => {
     const container = render(() => (
-      <SongPicker communityId="community" onLink={() => {}} onPick={onPick} source={songs} />
+      <SongPicker communityId="community" onLink={() => {}} onPick={() => {}} source={songs} />
     ));
     await vi.waitFor(() => expect(rows(container)).toEqual(["Cadencesalt-cove.pirate", "Low Tidedrift-reef.pirate"]));
     type(container, "tide");
     await vi.waitFor(() => expect(rows(container)).toEqual(["Low Tidedrift-reef.pirate"]));
     type(container, "nothing like it");
-    await vi.waitFor(() => expect(container.textContent).toContain("No matches."));
-    type(container, "cad");
-    await vi.waitFor(() => expect(rows(container)).toHaveLength(1));
-    container.querySelector<HTMLButtonElement>('ul[aria-label="Songs"] button')!.click();
+    await vi.waitFor(() => expect(container.textContent).toContain("No songs match."));
+  });
+
+  test("tapping a song previews it; only Use picks it", async () => {
+    const onPick = vi.fn();
+    const container = render(() => (
+      <SongPicker communityId="community" onLink={() => {}} onPick={onPick} preview={preview} source={songs} />
+    ));
+    await vi.waitFor(() => expect(rows(container)).toHaveLength(2));
+    button(container, "Play Cadence by salt-cove.pirate")!.click();
+    await vi.waitFor(() => expect(played).toEqual(["https://audio.test/cadence.mp3"]));
+    expect(onPick).not.toHaveBeenCalled();
+    expect(button(container, "Pause Cadence")).not.toBeNull();
+    // A second song replaces the first preview; only its row offers Use.
+    button(container, "Play Low Tide by drift-reef.pirate")!.click();
+    await vi.waitFor(() => expect(played).toEqual(["https://audio.test/cadence.mp3", "https://audio.test/low-tide.mp3"]));
+    expect(button(container, "Use Cadence")).toBeNull();
+    const pausesBeforeUse = paused;
+    button(container, "Use Low Tide")!.click();
+    expect(onPick).toHaveBeenCalledWith("low-tide");
+    expect(paused).toBeGreaterThan(pausesBeforeUse);
+  });
+
+  test("a song whose preview cannot play can still be used", async () => {
+    const onPick = vi.fn();
+    const container = render(() => (
+      <SongPicker communityId="community" onLink={() => {}} onPick={onPick} preview={async () => ""} source={songs} />
+    ));
+    await vi.waitFor(() => expect(rows(container)).toHaveLength(2));
+    button(container, "Play Cadence by salt-cove.pirate")!.click();
+    await vi.waitFor(() => expect(container.textContent).toContain("Preview unavailable"));
+    button(container, "Use Cadence")!.click();
     expect(onPick).toHaveBeenCalledWith("cadence");
+  });
+
+  test("closing stops the preview and leaves", async () => {
+    const onClose = vi.fn();
+    const container = render(() => (
+      <SongPicker communityId="community" onClose={onClose} onLink={() => {}} onPick={() => {}} preview={preview} source={songs} />
+    ));
+    await vi.waitFor(() => expect(rows(container)).toHaveLength(2));
+    button(container, "Play Cadence by salt-cove.pirate")!.click();
+    await vi.waitFor(() => expect(played).toHaveLength(1));
+    const pausesBeforeClose = paused;
+    button(container, "Close")!.click();
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(paused).toBeGreaterThan(pausesBeforeClose);
   });
 
   test("a pasted link offers to use it instead of searching", async () => {
@@ -64,7 +117,7 @@ describe("song picker", () => {
     await vi.waitFor(() => expect(rows(container)).toHaveLength(2));
     type(container, "https://pirate.test/posts/cadence");
     const use = await vi.waitFor(() => {
-      const button = [...container.querySelectorAll("button")].find(candidate => candidate.textContent === "Use this link");
+      const button = [...container.querySelectorAll("button")].find(candidate => candidate.textContent === "Use the song at this link");
       expect(button).toBeDefined();
       return button!;
     });
