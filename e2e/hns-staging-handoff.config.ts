@@ -3,7 +3,7 @@ import shared from "./playwright.config.ts";
 
 export default defineConfig(shared, {
   testIgnore: [],
-  testMatch: "hns-staging-handoff.spec.ts",
+  testMatch: ["hns-staging-handoff.spec.ts", "hns-staging-activation.spec.ts"],
   timeout: 420_000,
   workers: 1,
   retries: 0,

@@ -33,6 +33,7 @@
     "test:e2e:staging:manual": "E2E_BASE_URL=https://web-next-staging.pirate.sc playwright test -c e2e --grep @staging-manual",
     "test:e2e:hns-handoff": "E2E_BASE_URL=https://web-next-staging.pirate.sc playwright test -c e2e/hns-staging-handoff.config.ts",
     "test:e2e:hns-regtest-publish": "E2E_BASE_URL=https://web-next-staging.pirate.sc E2E_HNS_PUBLISH_REGTEST=1 playwright test -c e2e/hns-staging-handoff.config.ts",
+    "test:e2e:hns-activate": "E2E_BASE_URL=https://web-next-staging.pirate.sc E2E_HNS_ACTIVATE=1 playwright test -c e2e/hns-staging-handoff.config.ts hns-staging-activation.spec.ts",
     "dev": "vite dev --host 0.0.0.0",
     "preview": "vite preview --host 0.0.0.0",
     "probe": "node scripts/probe.mjs",
