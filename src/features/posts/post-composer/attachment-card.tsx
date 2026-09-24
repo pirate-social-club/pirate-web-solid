@@ -257,7 +257,7 @@ export function PostComposerAttachmentCard(props: {
                   <span class="grid size-12 shrink-0 place-items-center overflow-hidden rounded-[var(--radius-md)] bg-background text-muted-foreground">
                     <Show when={song().artworkUrl} fallback={<IconMusicNote class="size-6" />}>
                       {(artworkUrl) => (
-                        <img alt="" class="size-full object-cover" src={artworkUrl()} />
+                        <img alt="" class="size-full object-cover" data-song-artwork src={artworkUrl()} />
                       )}
                     </Show>
                   </span>

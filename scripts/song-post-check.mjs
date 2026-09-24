@@ -439,8 +439,7 @@ async function publishSong(page, community, { lyrics }) {
   // Lyrics are optional and live on the Song step; they are bound when the
   // song is published rather than saved from a separate step.
   if (lyrics !== "") {
-    await form.getByRole("button", { name: "Add lyrics (optional)" }).click();
-    await form.getByLabel("Lyrics", { exact: true }).fill(lyrics);
+    await form.getByLabel("Lyrics (optional)", { exact: true }).fill(lyrics);
   }
 
   // The footer's forward control advances Song -> Rights -> Review.
@@ -457,7 +456,7 @@ async function publishSong(page, community, { lyrics }) {
   };
   await waitForForward();
   await forward.click();
-  await form.getByRole("heading", { name: "Rights" }).waitFor({ state: "visible" });
+  await form.getByRole("heading", { name: "Royalties" }).waitFor({ state: "visible" });
   if (community === "instrumental") {
     // The file and the in-memory coordinator disappear. Only the server's
     // finalized submission is offered after a fresh page load.
@@ -465,15 +464,17 @@ async function publishSong(page, community, { lyrics }) {
     await page.locator("#app-root[data-hydrated='true']").waitFor({ state: "attached" });
     await page.waitForLoadState("networkidle");
     await page.getByRole("button", { name: "Post", exact: true }).click();
-    await form.getByRole("button", { name: "Resume a song submission", exact: true }).click();
+    // With an unfinished song on the server, the song tool opens the Song tab
+    // and its list instead of the audio picker.
+    await form.getByRole("button", { name: "Song", exact: true }).click();
     await form.getByRole("button", { name: `Resume Fixture song ${community}`, exact: true }).click();
-    await form.getByRole("heading", { name: "Rights" }).waitFor({ state: "visible" });
+    await form.getByRole("heading", { name: "Royalties" }).waitFor({ state: "visible" });
     await form.getByRole("button", { name: "Back", exact: true }).click();
     await form.getByText("Audio is retained by the server; the browser file is unavailable.", { exact: true }).waitFor();
     assert(await form.getByRole("button", { name: "Add audio", exact: true }).count() === 0, "recovered audio offered a new upload");
     await waitForForward();
     await forward.click();
-    await form.getByRole("heading", { name: "Rights" }).waitFor({ state: "visible" });
+    await form.getByRole("heading", { name: "Royalties" }).waitFor({ state: "visible" });
   }
   await waitForForward();
   await forward.click();
@@ -484,9 +485,9 @@ async function publishSong(page, community, { lyrics }) {
     assert(!review.includes("Instrumental"),
       `reviewed lyrics never reached the submission: ${review.slice(0, 300)}`);
   }
-  assert(await form.getByRole("button", { name: "Publish song" }).count() > 0,
+  assert(await form.getByRole("button", { name: "Post song" }).count() > 0,
     `the review step was never reached: ${(await form.innerText()).slice(0, 300)}`);
-  await form.getByRole("button", { name: "Publish song" }).click();
+  await form.getByRole("button", { name: "Post song" }).click();
   try {
     await form.waitFor({ state: "hidden", timeout: 20_000 });
     await page.waitForURL(`**/posts/fixture-song-${community}`);

@@ -314,7 +314,7 @@ async function openComposer(page, community, body) {
   assert(await form.getByLabel("Community ID").count() === 0, "contextual composer exposed the raw Community ID field");
   await form.getByLabel("Title").fill(`Fixture ${community}`);
   await form.getByLabel("Post", { exact: true }).fill(body);
-  await form.getByRole("button", { name: "Publish post" }).click();
+  await form.getByRole("button", { name: "Post", exact: true }).click();
   return form;
 }
 
@@ -326,7 +326,7 @@ async function runTerminalScenario(browser, community, expectedText) {
       await form.waitFor({ state: "hidden" });
       await page.getByRole("button", { name: "Post" }).click();
       const freshForm = page.getByRole("form", { name: "Create a post" });
-      const freshPublish = freshForm.getByRole("button", { name: "Publish post" });
+      const freshPublish = freshForm.getByRole("button", { name: "Post", exact: true });
       assert(await freshForm.getByLabel("Community ID").count() === 0, "fresh contextual draft exposed the raw Community ID field");
       assert(await freshPublish.isDisabled(), "fresh contextual draft allowed publishing without content");
       await freshForm.getByLabel("Title").fill("Fresh contextual draft");

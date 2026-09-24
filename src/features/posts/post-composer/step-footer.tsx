@@ -17,6 +17,9 @@ import { getNextComposerStep, getPreviousComposerStep } from "./utils";
 import type { SongFlowRuntime } from "./types";
 
 export function PostComposerStepFooter(props: {
+  /** Render only the actions, for a host that supplies the footer chrome
+   * (the shared ActionFooterShell on mobile). */
+  bare?: boolean;
   controller: PostComposerController;
   /** Where the mobile footer belongs. Same rule as the attachment bar: a host
    * that already owns the viewport gets `inline`, because a portalled footer
@@ -162,6 +165,17 @@ export function PostComposerStepFooter(props: {
     </div>
   );
 
+  if (controller.isMobile() && props.bare) {
+    return (
+      <div>
+        {stepError("mb-3")}
+        <div class="flex items-center gap-3">
+          {back()}
+          <div class="min-w-0 flex-1">{forward()}</div>
+        </div>
+      </div>
+    );
+  }
   if (controller.isMobile()) {
     if (placement() === "inline" || typeof document === "undefined") return mobile;
     return <Portal>{mobile}</Portal>;

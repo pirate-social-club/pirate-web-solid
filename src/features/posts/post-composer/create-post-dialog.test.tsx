@@ -154,6 +154,25 @@ class ProductionMediaTransport implements MediaSubmissionTransport {
   }
 }
 
+/** The composer's song tool, labelled "Song" or "Audio" by toolbar. */
+function songTool(): HTMLButtonElement {
+  const tool = [...document.body.querySelectorAll<HTMLButtonElement>("button")]
+    .find(candidate => ["Song", "Audio"].includes(candidate.getAttribute("aria-label") ?? candidate.textContent?.trim() ?? ""));
+  if (!tool) throw new Error("song tool not found");
+  return tool;
+}
+
+/** Taps the song tool until the unfinished-songs lookup has landed and the
+ * Song tab lists them, as an author would. */
+async function openUnfinishedSongs(): Promise<void> {
+  await vi.waitFor(() => {
+    const picker = document.body.querySelector<HTMLInputElement>('input[aria-label="Upload audio"]');
+    if (picker) vi.spyOn(picker, "click").mockImplementation(() => {});
+    if (!document.body.textContent?.includes("Unfinished songs")) songTool().click();
+    expect(document.body.textContent).toContain("Unfinished songs");
+  });
+}
+
 function button(label: string): HTMLButtonElement {
   const result = [...document.body.querySelectorAll<HTMLButtonElement>("button")]
     .find(button => button.textContent?.trim() === label);
@@ -182,11 +201,11 @@ function audioWithEmbeddedArtwork(name: string): File {
 async function continueToReview(): Promise<void> {
   await vi.waitFor(() => expect(button("Continue").disabled).toBe(false));
   button("Continue").click();
-  await vi.waitFor(() => expect(document.body.textContent).toContain("What others may do with this song"));
+  await vi.waitFor(() => expect(document.body.textContent).toContain("Your share of remix earnings"));
   await vi.waitFor(() => expect(button("Continue").disabled).toBe(false));
   button("Continue").click();
-  await vi.waitFor(() => expect(document.body.textContent).toContain("Permissions"));
-  await vi.waitFor(() => expect(button("Publish song").disabled).toBe(false));
+  await vi.waitFor(() => expect(document.body.textContent).toContain("Remix earnings"));
+  await vi.waitFor(() => expect(button("Post song").disabled).toBe(false));
 }
 
 describe("create post request", () => {
@@ -208,8 +227,7 @@ describe("create post request", () => {
       return <CreatePostDialog communityContext={{ id: "community-one", name: "Harbor" }} mediaTransport={transport}
         open={open()} onOpenChange={setOpen} personas={[activePersona("persona-one", "Persona One")]} principalId="account-one" />;
     });
-    await vi.waitFor(() => expect(button("Resume a song submission")).toBeDefined());
-    button("Resume a song submission").click();
+    await openUnfinishedSongs();
     await vi.waitFor(() => expect(button("Resume Server recovery title")).toBeDefined());
     expect(transport.commands).toEqual([]);
     button("Resume Server recovery title").click();
@@ -221,10 +239,9 @@ describe("create post request", () => {
     document.body.querySelector<HTMLButtonElement>("button[aria-label='Close composer']")!.click();
     await vi.waitFor(() => expect(document.body.querySelector("[data-create-post-form]")).toBeNull());
     reopen();
-    await vi.waitFor(() => expect(button("Resume a song submission")).toBeDefined());
-    expect(document.body.querySelector("#song-track-title")).toBeNull();
-    button("Resume a song submission").click();
     await vi.waitFor(() => expect(transport.lists).toBe(2));
+    expect(document.body.querySelector("#song-track-title")).toBeNull();
+    await openUnfinishedSongs();
     expect(document.body.querySelector<HTMLInputElement>("#song-track-title")?.value).toBe("");
     expect(button("Resume Server recovery title")).toBeDefined();
     expect(transport.commands).toEqual([]);
@@ -246,22 +263,21 @@ describe("create post request", () => {
     const transport = new RecoveryTransport(); transport.snapshot = item.submission;
     render(() => <CreatePostDialog communityContext={{ id: "community-one", name: "Harbor" }} mediaTransport={transport}
       open onOpenChange={() => {}} personas={[activePersona("persona-one", "Persona One")]} principalId="account-one" />);
-    await vi.waitFor(() => expect(button("Resume a song submission")).toBeDefined());
-    button("Resume a song submission").click();
+    await openUnfinishedSongs();
     await vi.waitFor(() => expect(button("Resume Finalized recovery")).toBeDefined());
     button("Resume Finalized recovery").click();
     if (bound) {
-      await vi.waitFor(() => expect(document.body.textContent).toContain("Permissions"));
+      await vi.waitFor(() => expect(document.body.textContent).toContain("Remix earnings"));
       expect([...document.body.querySelectorAll("button")].some(candidate => ["Change", "Back"].includes(candidate.textContent?.trim() ?? ""))).toBe(false);
     } else {
-      await vi.waitFor(() => expect(document.body.textContent).toContain("What others may do with this song"));
+      await vi.waitFor(() => expect(document.body.textContent).toContain("Your share of remix earnings"));
       button("Back").click();
       await vi.waitFor(() => expect(document.body.textContent).toContain("Audio is retained by the server"));
       expect(button("Continue").disabled).toBe(false);
       button("Continue").click();
-      await vi.waitFor(() => expect(document.body.textContent).toContain("What others may do with this song"));
+      await vi.waitFor(() => expect(document.body.textContent).toContain("Your share of remix earnings"));
       button("Continue").click();
-      await vi.waitFor(() => expect(button("Publish song").disabled).toBe(false));
+      await vi.waitFor(() => expect(button("Post song").disabled).toBe(false));
     }
     expect(transport.commands).toEqual([]);
     expect(transport.uploadCount).toBe(0);
@@ -278,12 +294,11 @@ describe("create post request", () => {
       principalId="account-one"
     />);
     await new Promise<void>(resolve => setTimeout(resolve, 0));
-    const displayedArtwork = () => document.body.querySelector("#song-track-title")?.closest("section")?.querySelector("img");
+    const displayedArtwork = () => document.body.querySelector("img[data-song-artwork]");
     await selectAudio(audioWithEmbeddedArtwork("with-art.mp3"));
     await vi.waitFor(() => expect(displayedArtwork()).toBeInstanceOf(HTMLImageElement));
     await uploadAudio("without-art.mp3");
     await vi.waitFor(() => expect(displayedArtwork()).toBeNull());
-    expect(document.body.textContent).toContain("Artwork from audio");
     await selectAudio(audioWithEmbeddedArtwork("new-art.mp3"));
     await vi.waitFor(() => expect(displayedArtwork()).toBeInstanceOf(HTMLImageElement));
     expect(transport.commands).toHaveLength(0);
@@ -341,7 +356,7 @@ describe("create post request", () => {
     expect(document.body.querySelector("input[name='community-id']")).toBeNull();
 
     const publishButtons = [...document.body.querySelectorAll<HTMLButtonElement>("button")]
-      .filter(button => button.textContent?.trim() === "Publish post");
+      .filter(button => button.textContent?.trim() === "Post");
     expect(publishButtons).toHaveLength(1);
     expect(publishButtons[0]?.disabled).toBe(true);
 
@@ -376,7 +391,7 @@ describe("create post request", () => {
     const body = document.body.querySelector<HTMLTextAreaElement>("#create-post-body")!;
     body.value = "A persona-authored text post";
     body.dispatchEvent(new InputEvent("input", { bubbles: true }));
-    const publish = button("Publish post");
+    const publish = button("Post");
     await vi.waitFor(() => expect(publish.disabled).toBe(false));
     publish.click();
     await vi.waitFor(() => expect(dispatched).toHaveLength(1));
@@ -407,7 +422,7 @@ describe("create post request", () => {
     const body = document.body.querySelector<HTMLTextAreaElement>("#create-post-body")!;
     body.value = "A retried post";
     body.dispatchEvent(new InputEvent("input", { bubbles: true }));
-    const publish = button("Publish post");
+    const publish = button("Post");
     await vi.waitFor(() => expect(publish.disabled).toBe(false));
     publish.click();
 
@@ -466,7 +481,7 @@ describe("create post request", () => {
     const body = document.body.querySelector<HTMLTextAreaElement>("#create-post-body")!;
     body.value = "A post with an unknown outcome";
     body.dispatchEvent(new InputEvent("input", { bubbles: true }));
-    const publish = button("Publish post");
+    const publish = button("Post");
     await vi.waitFor(() => expect(publish.disabled).toBe(false));
     publish.click();
     await vi.waitFor(() => expect(document.body.textContent).toContain("Checking whether your post was accepted"));
@@ -495,7 +510,7 @@ describe("create post request", () => {
     await new Promise<void>(resolve => setTimeout(resolve, 0));
     await uploadAudio("unresolved.mp3");
     await continueToReview();
-    button("Publish song").click();
+    button("Post song").click();
     await vi.waitFor(() => expect(document.body.textContent).toContain("network uncertain"));
 
     document.body.querySelector<HTMLButtonElement>("button[aria-label='Close composer']")!.click();
@@ -573,7 +588,7 @@ describe("create post request", () => {
     await new Promise<void>(resolve => setTimeout(resolve, 0));
     await uploadAudio("moderated.mp3");
     await continueToReview();
-    button("Publish song").click();
+    button("Post song").click();
     await vi.waitFor(() => expect(document.body.textContent).toContain("This song is awaiting manual review."));
 
     document.body.querySelector<HTMLButtonElement>("button[aria-label='Close composer']")!.click();
@@ -614,7 +629,7 @@ describe("create post request", () => {
     await new Promise<void>(resolve => setTimeout(resolve, 0));
     await uploadAudio("failed.mp3");
     await continueToReview();
-    button("Publish song").click();
+    button("Post song").click();
     await vi.waitFor(() => expect(document.body.textContent).toContain("Song processing failed."));
     expect([...document.body.querySelectorAll("button")].some(candidate => candidate.textContent?.trim() === "Retry processing")).toBe(false);
 
@@ -657,7 +672,7 @@ describe("create post request", () => {
     await new Promise<void>(resolve => setTimeout(resolve, 0));
     await uploadAudio("shares.mp3");
     button("Continue").click();
-    await vi.waitFor(() => expect(document.body.textContent).toContain("What others may do with this song"));
+    await vi.waitFor(() => expect(document.body.textContent).toContain("Your share of remix earnings"));
     button("Add collaborator").click();
     await vi.waitFor(() => expect(document.querySelector('[role="dialog"]')).not.toBeNull());
     await vi.waitFor(() => expect(document.body.textContent).toContain("Only your profiles bound to this community can be added for now."));
@@ -703,7 +718,7 @@ describe("create post request", () => {
     await new Promise<void>(resolve => setTimeout(resolve, 0));
     await uploadAudio("sheet-reset.mp3");
     button("Continue").click();
-    await vi.waitFor(() => expect(document.body.textContent).toContain("What others may do with this song"));
+    await vi.waitFor(() => expect(document.body.textContent).toContain("Your share of remix earnings"));
 
     button("Add collaborator").click();
     await vi.waitFor(() => expect(document.querySelector('[role="dialog"]')).not.toBeNull());
@@ -782,9 +797,8 @@ describe("create post request", () => {
     await vi.waitFor(() => expect(document.body.textContent).not.toContain("Public-song v1 currently accepts MP3 only."));
     expect(document.body.textContent).toContain("RIGHT.MP3");
     expect(mediaTransport.commands).toHaveLength(0);
-    button("Add lyrics (optional)").click();
     await vi.waitFor(() => expect(
-      document.body.querySelector<HTMLTextAreaElement>("textarea[aria-label='Lyrics']")?.maxLength,
+      document.body.querySelector<HTMLTextAreaElement>("textarea#song-lyrics")?.maxLength,
     ).toBe(200_000));
 
     const oversized = new File([new Uint8Array([1])], "large.mp3", { type: "audio/mpeg" });
@@ -814,9 +828,7 @@ describe("create post request", () => {
     await new Promise<void>(resolve => setTimeout(resolve, 0));
     await uploadAudio();
     const adultRating = document.body.querySelector<HTMLInputElement>('input[aria-label="18+ content"]');
-    expect(document.body.querySelector<HTMLInputElement>('input[type="radio"][value="original"]')?.disabled).toBe(false);
-    expect(document.body.querySelector<HTMLInputElement>('input[type="radio"][value="remix"]')?.disabled).toBe(true);
-    expect(document.body.textContent).toContain("Remix publishing is not available yet.");
+    expect(document.body.textContent).not.toContain("Is this your own song");
     expect(document.body.querySelector('input[type="file"][accept^="image/"]')).toBeNull();
     expect(adultRating).not.toBeNull();
     adultRating!.click();
@@ -825,21 +837,20 @@ describe("create post request", () => {
     ).toBe(true));
     await vi.waitFor(() => expect(button("Continue").disabled).toBe(false));
     button("Continue").click();
-    await vi.waitFor(() => expect(document.body.textContent).toContain("What others may do with this song"));
+    await vi.waitFor(() => expect(document.body.textContent).toContain("Your share of remix earnings"));
     button("Back").click();
     await vi.waitFor(() => {
       const retainedRating = document.body.querySelector<HTMLInputElement>('input[aria-label="18+ content"]');
       expect(retainedRating?.checked).toBe(true);
       expect(retainedRating?.disabled).toBe(true);
-      expect(document.body.querySelector<HTMLInputElement>('input[type="radio"][value="original"]')?.disabled).toBe(true);
     });
     button("Continue").click();
-    await vi.waitFor(() => expect(document.body.textContent).toContain("What others may do with this song"));
+    await vi.waitFor(() => expect(document.body.textContent).toContain("Your share of remix earnings"));
     await vi.waitFor(() => expect(button("Continue").disabled).toBe(false));
     button("Continue").click();
-    await vi.waitFor(() => expect(document.body.textContent).toContain("Permissions"));
-    await vi.waitFor(() => expect(button("Publish song").disabled).toBe(false));
-    button("Publish song").click();
+    await vi.waitFor(() => expect(document.body.textContent).toContain("Remix earnings"));
+    await vi.waitFor(() => expect(button("Post song").disabled).toBe(false));
+    button("Post song").click();
 
     await vi.waitFor(() => expect(mediaTransport.commands.map(command => command.kind)).toEqual([
       "reserve",
@@ -876,9 +887,8 @@ describe("create post request", () => {
     await new Promise<void>(resolve => setTimeout(resolve, 0));
     await uploadAudio("words.mp3");
 
-    button("Add lyrics (optional)").click();
     const lyrics = await vi.waitFor(() => {
-      const value = document.querySelector<HTMLTextAreaElement>('textarea[aria-label="Lyrics"]');
+      const value = document.querySelector<HTMLTextAreaElement>('textarea#song-lyrics');
       expect(value).not.toBeNull();
       return value!;
     });
@@ -886,7 +896,7 @@ describe("create post request", () => {
     lyrics.dispatchEvent(new Event("change", { bubbles: true }));
 
     button("Continue").click();
-    await vi.waitFor(() => expect(document.body.textContent).toContain("What others may do with this song"));
+    await vi.waitFor(() => expect(document.body.textContent).toContain("Your share of remix earnings"));
 
     button("Add collaborator").click();
     await vi.waitFor(() => expect(document.querySelector('[role="dialog"]')).not.toBeNull());
@@ -908,7 +918,6 @@ describe("create post request", () => {
     await vi.waitFor(() => expect(document.body.textContent).toContain("Persona One75%"));
     expect(document.body.textContent).not.toContain("Your share — 100%");
 
-    document.querySelector<HTMLInputElement>('input[type="radio"][value="commercial-remix"]')!.click();
     const revShare = await vi.waitFor(() => {
       const input = document.querySelector<HTMLInputElement>('input[aria-label="Your share of remix earnings"]');
       expect(input).not.toBeNull();
@@ -919,9 +928,9 @@ describe("create post request", () => {
 
     await vi.waitFor(() => expect(button("Continue").disabled).toBe(false));
     button("Continue").click();
-    await vi.waitFor(() => expect(document.body.textContent).toContain("Permissions"));
-    await vi.waitFor(() => expect(button("Publish song").disabled).toBe(false));
-    button("Publish song").click();
+    await vi.waitFor(() => expect(document.body.textContent).toContain("Remix earnings"));
+    await vi.waitFor(() => expect(button("Post song").disabled).toBe(false));
+    button("Post song").click();
 
     await vi.waitFor(() => expect(mediaTransport.commands.map(command => command.kind)).toEqual([
       "reserve", "start", "finalize", "lyrics", "terms",
@@ -958,12 +967,12 @@ describe("create post request", () => {
 
     await uploadAudio("wordless.mp3");
     button("Continue").click();
-    await vi.waitFor(() => expect(document.body.textContent).toContain("What others may do with this song"));
+    await vi.waitFor(() => expect(document.body.textContent).toContain("Your share of remix earnings"));
     await vi.waitFor(() => expect(button("Continue").disabled).toBe(false));
     button("Continue").click();
     await vi.waitFor(() => expect(document.body.textContent).toContain("No lyrics added"));
-    await vi.waitFor(() => expect(button("Publish song").disabled).toBe(false));
-    button("Publish song").click();
+    await vi.waitFor(() => expect(button("Post song").disabled).toBe(false));
+    button("Post song").click();
 
     // Deliberately empty lyrics never bind: no lyrics command is issued.
     await vi.waitFor(() => expect(mediaTransport.commands.map(command => command.kind)).toEqual([
@@ -984,37 +993,25 @@ describe("create post request", () => {
     expect(mediaTransport.uploadCount).toBe(1);
   });
 
-  test("offers song resume only when the server has something to resume", async () => {
-    const transport = new ProductionMediaTransport();
-    const listActive = vi.spyOn(transport, "listActive");
-    render(() => <CreatePostDialog communityContext={{ id: "community-one", name: "Harbor" }} mediaTransport={transport}
-      open onOpenChange={() => {}} personas={[activePersona("persona-one", "Persona One")]} principalId="account-one" />);
-    await vi.waitFor(() => expect(listActive).toHaveBeenCalledOnce());
-    await new Promise<void>(resolve => setTimeout(resolve, 0));
-    expect([...document.body.querySelectorAll("button")].some(candidate => candidate.textContent?.trim() === "Resume a song submission")).toBe(false);
-  });
-
-  test("says so in the text composer when the unfinished-song lookup fails, and retries", async () => {
-    const item: ActiveSongMediaPostSubmission = { object: "active_song_media_post_submission", community_id: "community-one",
-      title: "Retry recovery", song_type: "original", author_declared_rating: "general",
-      terms_state: { current: { status: "not_bound" } }, submission: mediaSnapshot() };
-    class FlakyRecoveryTransport extends ProductionMediaTransport {
+  test.each([false, true])("the song tool opens the audio picker when nothing is unfinished (lookup failing=%s)", async (failing) => {
+    class QuietRecoveryTransport extends ProductionMediaTransport {
       lists = 0;
       override async listActive(): Promise<ActiveSongMediaPostSubmissionPage> {
         this.lists += 1;
-        if (this.lists === 1) throw new Error("network down");
-        return { object: "active_song_media_post_submission_page", items: [item], next_cursor: null };
+        if (failing) throw new Error("network down");
+        return { object: "active_song_media_post_submission_page", items: [], next_cursor: null };
       }
     }
-    const transport = new FlakyRecoveryTransport();
+    const transport = new QuietRecoveryTransport();
     render(() => <CreatePostDialog communityContext={{ id: "community-one", name: "Harbor" }} mediaTransport={transport}
       open onOpenChange={() => {}} personas={[activePersona("persona-one", "Persona One")]} principalId="account-one" />);
-    await vi.waitFor(() => expect(document.body.textContent).toContain("Couldn't check for unfinished songs."));
-    expect([...document.body.querySelectorAll("button")].some(candidate => candidate.textContent?.trim() === "Resume a song submission")).toBe(false);
-    button("Check again").click();
-    await vi.waitFor(() => expect(button("Resume a song submission")).toBeDefined());
-    expect(transport.lists).toBe(2);
-    expect(document.body.textContent).not.toContain("Couldn't check for unfinished songs.");
+    await vi.waitFor(() => expect(transport.lists).toBe(1));
+    await new Promise<void>(resolve => setTimeout(resolve, 0));
+    const picker = document.body.querySelector<HTMLInputElement>('input[aria-label="Upload audio"]')!;
+    const opened = vi.spyOn(picker, "click").mockImplementation(() => {});
+    songTool().click();
+    expect(opened).toHaveBeenCalledOnce();
+    expect(document.body.textContent).not.toMatch(/Unfinished songs|Resume a song submission|Couldn't check/);
   });
 
   test("shows no status card while a prepared song is on Rights", async () => {
@@ -1025,7 +1022,7 @@ describe("create post request", () => {
     await uploadAudio("prepared.mp3");
     await vi.waitFor(() => expect(button("Continue").disabled).toBe(false));
     button("Continue").click();
-    await vi.waitFor(() => expect(document.body.textContent).toContain("What others may do with this song"));
+    await vi.waitFor(() => expect(document.body.textContent).toContain("Your share of remix earnings"));
     expect(document.body.querySelector("[data-media-composer-state]")).toBeNull();
     expect(document.body.textContent).not.toContain("Audio uploaded.");
   });
@@ -1073,7 +1070,7 @@ describe("create post request", () => {
     button("Try upload again").click();
     await vi.waitFor(() => expect(mediaTransport.attempts).toBe(2));
     await vi.waitFor(() => expect(document.body.querySelector("[role='alert']")?.textContent).toContain("The audio upload did not finish. Try again."));
-    expect(document.body.textContent).not.toContain("What others may do with this song");
+    expect(document.body.textContent).not.toContain("Your share of remix earnings");
     button("Cancel song submission").click();
     await vi.waitFor(() => expect(document.body.querySelector("#upload-recovery-title")).toBeNull());
     expect(mediaTransport.commands.at(-1)?.kind).toBe("cancel");
@@ -1102,7 +1099,7 @@ describe("create post request", () => {
     button("Continue").click();
     await vi.waitFor(() => expect(button("Try upload again")).toBeInstanceOf(HTMLButtonElement));
     button("Try upload again").click();
-    await vi.waitFor(() => expect(document.body.textContent).toContain("What others may do with this song"));
+    await vi.waitFor(() => expect(document.body.textContent).toContain("Your share of remix earnings"));
     expect(mediaTransport.attempts).toBe(2);
     expect(mediaTransport.commands.map(command => command.kind)).toEqual(["reserve", "start", "finalize"]);
   });
@@ -1126,12 +1123,12 @@ describe("create post request", () => {
     audioInput.dispatchEvent(new Event("change", { bubbles: true }));
     await vi.waitFor(() => expect(button("Continue").disabled).toBe(false));
     button("Continue").click();
-    await vi.waitFor(() => expect(document.body.textContent).toContain("What others may do with this song"));
+    await vi.waitFor(() => expect(document.body.textContent).toContain("Your share of remix earnings"));
     await vi.waitFor(() => expect(button("Continue").disabled).toBe(false));
     button("Continue").click();
     await vi.waitFor(() => expect(document.body.textContent).toContain("No lyrics added"));
-    await vi.waitFor(() => expect(button("Publish song").disabled).toBe(false));
-    button("Publish song").click();
+    await vi.waitFor(() => expect(button("Post song").disabled).toBe(false));
+    button("Post song").click();
     await vi.waitFor(() => expect(mediaTransport.commands.map(command => command.kind)).toEqual([
       "reserve", "start", "finalize", "terms",
     ]));
@@ -1160,20 +1157,19 @@ describe("create post request", () => {
     await new Promise<void>(resolve => setTimeout(resolve, 0));
 
     await uploadAudio("carry-through.mp3");
-    button("Add lyrics (optional)").click();
     const lyrics = await vi.waitFor(() => {
-      const value = document.querySelector<HTMLTextAreaElement>('textarea[aria-label="Lyrics"]');
+      const value = document.querySelector<HTMLTextAreaElement>('textarea#song-lyrics');
       expect(value).not.toBeNull();
       return value!;
     });
     lyrics.value = "Verse one carries through";
     lyrics.dispatchEvent(new Event("change", { bubbles: true }));
     button("Continue").click();
-    await vi.waitFor(() => expect(document.body.textContent).toContain("What others may do with this song"));
+    await vi.waitFor(() => expect(document.body.textContent).toContain("Your share of remix earnings"));
 
     button("Back").click();
     await vi.waitFor(() => expect(document.body.textContent).toContain("carry-through.mp3"));
-    const lyricsAgain = document.querySelector<HTMLTextAreaElement>('textarea[aria-label="Lyrics"]')!;
+    const lyricsAgain = document.querySelector<HTMLTextAreaElement>('textarea#song-lyrics')!;
     expect(lyricsAgain.value).toBe("Verse one carries through");
     const title = document.body.querySelector<HTMLInputElement>("input#song-track-title")!;
     expect(title.value).toBe("carry-through");

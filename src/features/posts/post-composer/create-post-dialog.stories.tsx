@@ -139,13 +139,6 @@ class ResumableSongStoryTransport extends StoryMediaTransport {
   }
 }
 
-/** A transport whose unfinished-song lookup fails, as when the network drops. */
-class FailingRecoveryStoryTransport extends StoryMediaTransport {
-  override async listActive(): Promise<never> {
-    throw new Error("Could not load active song submissions");
-  }
-}
-
 const storyMp3 = (name = "midnight-waves.mp3") =>
   new File([new Uint8Array([0x49, 0x44, 0x33, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00])], name, { type: "audio/mpeg" });
 
@@ -275,30 +268,21 @@ export const ContextualTextOverMobileNavigation: Story = {
   },
 };
 
-/** The unfinished-song lookup failed. The text composer says so quietly and
- * offers a retry instead of hiding the resume path without a word. */
-export const ContextualTextRecoveryLookupFailedMobile: Story = {
-  name: "Contextual / Text / Unfinished-song check failed / Mobile",
-  globals: { viewport: { value: "mobile1", isRotated: false } },
-  render: () => dialogHarness({ mediaTransport: new FailingRecoveryStoryTransport() }).render(),
-  play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement.ownerDocument.body);
-    await expect(await canvas.findByText("Couldn't check for unfinished songs.")).toBeInTheDocument();
-    await expect(canvas.getByRole("button", { name: "Check again" })).toBeInTheDocument();
-    await expect(canvas.queryByRole("button", { name: "Resume a song submission" })).not.toBeInTheDocument();
-  },
-};
-
-/** The server holds an unfinished song, so the text composer offers to
- * resume it below the editor. */
-export const ContextualTextResumeAvailableMobile: Story = {
-  name: "Contextual / Text / Unfinished song to resume / Mobile",
+/** The server holds an unfinished song. The song tool opens the Song tab,
+ * which lists it beside Add audio, instead of the audio picker. */
+export const SongUnfinishedToResumeMobile: Story = {
+  name: "Song / Unfinished song to resume / Mobile",
   globals: { viewport: { value: "mobile1", isRotated: false } },
   render: () => dialogHarness({ mediaTransport: new ResumableSongStoryTransport() }).render(),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement.ownerDocument.body);
-    await expect(await canvas.findByRole("button", { name: "Resume a song submission" })).toBeInTheDocument();
-    await expect(canvas.queryByText("Couldn't check for unfinished songs.")).not.toBeInTheDocument();
+    // The mobile viewport re-renders the story once; keep tapping the song
+    // tool until the Song tab shows the list, as an author would.
+    await waitFor(async () => {
+      if (!canvas.queryByText("Unfinished songs")) await userEvent.click(canvas.getByRole("button", { name: /^(Song|Audio)$/u }));
+      await expect(canvas.getByText("Unfinished songs")).toBeInTheDocument();
+    }, { timeout: 5000 });
+    await expect(canvas.getByRole("button", { name: "Resume Midnight waves" })).toBeInTheDocument();
   },
 };
 
@@ -307,7 +291,7 @@ export const ContextualTextMultiplePersonas: Story = {
   render: () => dialogHarness({ personaCount: 2, personaId: "persona-two" }).render(),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement.ownerDocument.body);
-    await expect(await canvas.findByRole("button", { name: "Publish post" })).toBeInTheDocument();
+    await expect(await canvas.findByRole("button", { name: "Post" })).toBeInTheDocument();
     await waitFor(async () => {
       await expect(canvas.queryByRole("button", { name: /^Post as: / })).not.toBeInTheDocument();
     });
@@ -335,8 +319,7 @@ export const SongLyricsOnSongStep: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement.ownerDocument.body);
     await uploadStorySong(canvas);
-    await userEvent.click(await canvas.findByRole("button", { name: "Add lyrics (optional)" }));
-    const lyrics = await canvas.findByLabelText("Lyrics");
+    const lyrics = await canvas.findByLabelText("Lyrics (optional)");
     await userEvent.type(lyrics, "A line carried on the tide");
     await waitFor(async () => { await expect(lyrics).toHaveValue("A line carried on the tide"); });
   },
@@ -349,7 +332,7 @@ export const SongStepRights: Story = {
     const canvas = within(canvasElement.ownerDocument.body);
     await uploadStorySong(canvas);
     await continueSongStep(canvas);
-    await expect(await canvas.findByText("What others may do with this song")).toBeInTheDocument();
+    await expect(await canvas.findByText("Your share of remix earnings")).toBeInTheDocument();
     await expect(await canvas.findByText("Earnings split")).toBeInTheDocument();
     await expect(await canvas.findByText("Persona One")).toBeInTheDocument();
   },
@@ -376,9 +359,9 @@ export const SongStepReview: Story = {
     await continueSongStep(canvas);
     // Both steps name their action Continue. Confirm the new step before
     // looking up the next action, rather than clicking the old button twice.
-    await expect(await canvas.findByText("What others may do with this song")).toBeInTheDocument();
+    await expect(await canvas.findByText("Your share of remix earnings")).toBeInTheDocument();
     await continueSongStep(canvas);
-    await expect(await canvas.findByText("Permissions")).toBeInTheDocument();
+    await expect(await canvas.findByText("Remix earnings")).toBeInTheDocument();
     await expect(await canvas.findByText("Earnings split")).toBeInTheDocument();
     await expect(await canvas.findByText("You 100%")).toBeInTheDocument();
     await expect(await canvas.findByText("No lyrics added")).toBeInTheDocument();
@@ -397,7 +380,7 @@ export const SongUploadFailed: Story = {
     await expect(canvas.getByRole("heading", { name: "Audio upload needs another try" })).toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: "Try upload again" })).toBeInTheDocument();
     await expect(canvas.queryByText(/awaiting upload/i)).not.toBeInTheDocument();
-    await expect(canvas.queryByText("What others may do with this song")).not.toBeInTheDocument();
+    await expect(canvas.queryByText("Your share of remix earnings")).not.toBeInTheDocument();
   },
 };
 

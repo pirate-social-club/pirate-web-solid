@@ -1,6 +1,6 @@
 import { createSignal, Show } from "solid-js";
 
-import { Card, IconButton, IconX, createIsMobile, cn } from "../../../design-system";
+import { ActionFooterShell, Card, IconButton, IconX, createIsMobile, cn } from "../../../design-system";
 import { createComposerSteps } from "./composer-steps";
 import { PostComposerRequiredSheet } from "./required-post-sheet";
 import { PublishButton } from "./submit-actions";
@@ -32,6 +32,7 @@ export function PostComposer(props: PostComposerProps) {
           <PostComposerWriteStep
             attachmentBarPlacement={props.attachmentBarPlacement}
             onVideoEntry={props.onVideoEntry}
+            onSongEntry={props.onSongEntry}
             controller={controller}
           >
             <PublishButton
@@ -68,29 +69,32 @@ export function PostComposer(props: PostComposerProps) {
     }
   };
 
+  // Mobile header: close on the left; a single-step post publishes from an
+  // icon button on the right, whose accessible name is the post label.
+  const mobileHeader = () => (
+    <header class="flex min-h-12 items-center justify-between gap-2 px-1">
+      <IconButton
+        aria-label="Close composer"
+        onClick={() => props.onClose?.()}
+        variant="ghost"
+      >
+        <IconX class="size-5" />
+      </IconButton>
+      <Show when={!isMultiStep()}>
+        <PublishButton
+          compact
+          controller={controller}
+          label={controller.submit.label}
+          onClick={requestPost}
+        />
+      </Show>
+    </header>
+  );
+
   return (
     <>
       <div class={cn("w-full space-y-2", !controller.isMobile() && "pt-0")}>
-        <Show when={controller.isMobile()}>
-          <header class="flex min-h-12 items-center justify-between gap-2 px-1">
-            <IconButton
-              aria-label="Close composer"
-              onClick={() => props.onClose?.()}
-              variant="ghost"
-            >
-              <IconX class="size-5" />
-            </IconButton>
-            <Show when={!isMultiStep()}>
-              <PublishButton
-                class="h-9 min-w-0 px-5"
-                compact={false}
-                controller={controller}
-                label={controller.submit.label}
-                onClick={requestPost}
-              />
-            </Show>
-          </header>
-        </Show>
+        <Show when={controller.isMobile() && !isMultiStep()}>{mobileHeader()}</Show>
 
         <Show
           when={controller.isMobile()}
@@ -117,18 +121,31 @@ export function PostComposer(props: PostComposerProps) {
             </Card>
           }
         >
-          <Show when={props.mediaStatus}>{props.mediaStatus!()}</Show>
-          {stepContent()}
-          <Show when={isMultiStep()}>
-            <Show when={props.attachmentBarPlacement !== "inline"}>
-              <div class="h-24" aria-hidden="true" />
-            </Show>
-            <PostComposerStepFooter
-              controller={controller}
-              placement={props.attachmentBarPlacement}
-              runtime={props.songFlowRuntime}
-              steps={steps}
-            />
+          {/* A multi-step track keeps Continue pinned at the bottom in the
+              shared action footer; a single-step post publishes from the header. */}
+          <Show
+            when={isMultiStep()}
+            fallback={<>
+              <Show when={props.mediaStatus}>{props.mediaStatus!()}</Show>
+              {stepContent()}
+            </>}
+          >
+            <ActionFooterShell
+              class="h-[calc(100dvh-2rem)]"
+              header={mobileHeader()}
+              footer={(
+                <PostComposerStepFooter
+                  bare
+                  controller={controller}
+                  placement={props.attachmentBarPlacement}
+                  runtime={props.songFlowRuntime}
+                  steps={steps}
+                />
+              )}
+            >
+              <Show when={props.mediaStatus}>{props.mediaStatus!()}</Show>
+              {stepContent()}
+            </ActionFooterShell>
           </Show>
         </Show>
       </div>

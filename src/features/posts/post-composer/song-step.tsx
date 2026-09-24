@@ -1,22 +1,17 @@
-// Song step: the song's identity first — artwork beside the title — then the
-// audio, an optional lyrics field, and whether this is an original or a remix.
+// Song step: the audio first (its card shows the embedded artwork), then the
+// title, optional lyrics and the 18+ toggle, one full-width field per row.
 // The audio file is the only hard requirement; the title is prefilled from ID3
 // or the filename and stays editable.
 
 import { createSignal, Show } from "solid-js";
 
 import {
-  Button,
   CardContent,
   Checkbox,
   CheckboxLabel,
-  IconCaretDown,
-  IconImage,
   IconMusicNote,
   IconUploadSimple,
   Input,
-  OptionCard,
-  OptionCardGroup,
   Textarea,
   Type,
 } from "../../../design-system";
@@ -44,8 +39,6 @@ export function SongStep(props: {
   const [dragging, setDragging] = createSignal(false);
   const [readingFile, setReadingFile] = createSignal(false);
   const [fileError, setFileError] = createSignal<string | null>(null);
-  const [lyricsExpanded, setLyricsExpanded] = createSignal(false);
-  const lyricsOpen = () => lyricsExpanded() || controller.fields.lyricsValue.trim() !== "";
   const audioLocked = () => props.runtime?.retained === true;
   let dragCounter = 0;
   let audioInput: HTMLInputElement | undefined;
@@ -131,41 +124,6 @@ export function SongStep(props: {
         </div>
       </Show>
 
-      <section class="flex items-start gap-4">
-        <Show
-          when={coverPreview()}
-          fallback={
-            <div class="grid size-24 shrink-0 place-items-center rounded-[var(--radius-lg)] border border-border-soft bg-muted/20 text-muted-foreground">
-              <span class="flex flex-col items-center gap-1">
-                <IconImage class="size-6" />
-                <Type as="span" variant="caption">Artwork from audio</Type>
-              </span>
-            </div>
-          }
-        >
-          {(url) => (
-            <div class="relative size-24 shrink-0">
-              <img
-                alt=""
-                class="size-24 rounded-[var(--radius-lg)] border border-border-soft object-cover"
-                src={url()}
-              />
-            </div>
-          )}
-        </Show>
-        <div class="min-w-0 flex-1 space-y-2">
-          <FieldLabel htmlFor="song-track-title" label="Song title" required />
-          <Input
-            id="song-track-title"
-            disabled={audioLocked() || readingFile()}
-            maxlength={300}
-            onChange={(event) => controller.song.update((current) => ({ ...current, title: event.currentTarget.value }))}
-            placeholder="Song title"
-            value={song().title ?? ""}
-          />
-        </div>
-      </section>
-
       <section class="space-y-3">
         <FieldLabel label="Audio" required />
         <Show
@@ -201,63 +159,38 @@ export function SongStep(props: {
         </Show>
       </section>
 
-      <section class="space-y-3">
-        <Button
-          aria-expanded={lyricsOpen() ? "true" : "false"}
-          class="px-0 text-foreground"
-          onClick={() => setLyricsExpanded((current) => !current)}
-          size="sm"
-          variant="ghost"
-        >
-          <IconCaretDown class={cn("size-4 transition-transform", lyricsOpen() && "rotate-180")} />
-          {lyricsOpen() ? controller.copy.fields.hideLyrics : controller.copy.fields.addLyrics}
-        </Button>
-        <Show when={lyricsOpen()}>
-          <Textarea
-            aria-label="Lyrics"
-            class="min-h-48 resize-y"
-            disabled={audioLocked()}
-            maxlength={PUBLIC_SONG_LYRICS_MAX_CHARACTERS}
-            onChange={(event) => controller.fields.onLyricsValueChange?.(event.currentTarget.value)}
-            placeholder="Add lyrics (optional)"
-            value={controller.fields.lyricsValue}
-          />
-        </Show>
+      <section>
+        <FieldLabel htmlFor="song-track-title" label="Song title" required />
+        <Input
+          id="song-track-title"
+          disabled={audioLocked() || readingFile()}
+          maxlength={300}
+          onChange={(event) => controller.song.update((current) => ({ ...current, title: event.currentTarget.value }))}
+          placeholder="Song title"
+          value={song().title ?? ""}
+        />
       </section>
 
-      <section class="space-y-3">
-        <Checkbox
-          aria-label="18+ content"
-          checked={controller.audience.ageGatePolicy === "18_plus"}
-          disabled={controller.audience.editingDisabled}
-          onChange={(checked) => controller.audience.setAgeGatePolicy(checked === true ? "18_plus" : "none")}
-        >
-          <CheckboxLabel class="grid gap-1">
-            <span>18+ content</span>
-            <span class="font-normal text-muted-foreground">
-              Mark this song for adults if its audio, lyrics, or artwork contains adult content.
-            </span>
-          </CheckboxLabel>
-        </Checkbox>
-      </section>
-
-      <section class="space-y-3">
-        <FieldLabel label={controller.copy.rights.songKind} />
-        <OptionCardGroup
+      <section>
+        <FieldLabel htmlFor="song-lyrics" label="Lyrics (optional)" />
+        <Textarea
+          id="song-lyrics"
+          class="min-h-32 resize-y"
           disabled={audioLocked()}
-          label={controller.copy.rights.songKind}
-          onChange={(value) => controller.primary.handleSongModeChange(value === "remix" ? "remix" : "original")}
-          value={controller.primary.activeSongMode}
-        >
-          <OptionCard title={controller.copy.songModes.original} value="original" />
-          <OptionCard
-            disabled
-            disabledHint="Remix publishing is not available yet."
-            title={controller.copy.songModes.remix}
-            value="remix"
-          />
-        </OptionCardGroup>
+          maxlength={PUBLIC_SONG_LYRICS_MAX_CHARACTERS}
+          onChange={(event) => controller.fields.onLyricsValueChange?.(event.currentTarget.value)}
+          value={controller.fields.lyricsValue}
+        />
       </section>
+
+      <Checkbox
+        aria-label="18+ content"
+        checked={controller.audience.ageGatePolicy === "18_plus"}
+        disabled={controller.audience.editingDisabled}
+        onChange={(checked) => controller.audience.setAgeGatePolicy(checked === true ? "18_plus" : "none")}
+      >
+        <CheckboxLabel>18+ content</CheckboxLabel>
+      </Checkbox>
 
       <input
         accept=".mp3,audio/mpeg"

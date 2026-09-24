@@ -105,6 +105,7 @@ export interface ComposerCopy {
     permissionsTitle: string;
     positiveShares: string;
     revShare: string;
+    revShareHint: string;
     searchProfiles: string;
     share: string;
     songKind: string;
@@ -309,8 +310,8 @@ export const defaultComposerCopy: ComposerCopy = {
     earnings: "Earnings split",
     lyrics: "Lyrics",
     noLyrics: "No lyrics added",
-    permissions: "Permissions",
-    rights: "Rights",
+    permissions: "Remix earnings",
+    rights: "Royalties",
     song: "Song",
     sources: "Remix source",
     you: "You",
@@ -331,6 +332,7 @@ export const defaultComposerCopy: ComposerCopy = {
     permissionsTitle: "What others may do with this song",
     positiveShares: "Each share must be more than 0%.",
     revShare: "Your share of remix earnings",
+    revShareHint: "Anyone can remix and sell this song with credit. This is your cut of what their remixes earn.",
     searchProfiles: "Search profiles",
     share: "Share",
     songKind: "Is this your own song?",
@@ -355,7 +357,7 @@ export const defaultComposerCopy: ComposerCopy = {
   steps: {
     lyrics: "Lyrics",
     review: "Review",
-    rights: "Rights",
+    rights: "Royalties",
     song: "Song",
   },
   tabs: {
