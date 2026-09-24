@@ -538,8 +538,15 @@ export function VideoComposerRuntime(props: {
   // The viewfinder follows the stream after each commit. A ref alone reads the
   // value from before the write that mounted it, which left the camera blank.
   let viewfinder: HTMLVideoElement | undefined;
+  // `autoplay` alone left the Pixel's viewfinder paused on its first frame, so
+  // the author saw no live picture while recording. Play explicitly; it is
+  // muted, so the browser allows it.
+  const showLive = (element: HTMLVideoElement, media: MediaStream | null) => {
+    if (element.srcObject !== media) element.srcObject = media;
+    if (media && element.paused) void element.play()?.catch(() => {});
+  };
   createEffect(() => stream(), media => {
-    if (viewfinder && viewfinder.isConnected && viewfinder.srcObject !== media) viewfinder.srcObject = media;
+    if (viewfinder && viewfinder.isConnected) showLive(viewfinder, media);
   });
   // The camera opens when the capture screen shows, once a song is chosen,
   // not when recording starts: the author frames the shot first. It closes when the screen goes
@@ -649,7 +656,7 @@ export function VideoComposerRuntime(props: {
             songLabel={songLabel()} onSongTap={props.initialSong ? toggleSongPanel : undefined}
             onClose={props.onExit} onUpload={() => picker?.click()} onRecordToggle={() => { void toggleCapture(); }}
             onRetake={() => { setError(""); setCaptureStatus("idle"); }}
-            preview={<video ref={element => { viewfinder = element; element.srcObject = untrack(stream); }} autoplay muted playsinline
+            preview={<video ref={element => { viewfinder = element; showLive(element, untrack(stream)); }} autoplay muted playsinline
               class={stream() ? "h-full w-full object-cover" : "hidden"} />} />
         </div>
       </Show>

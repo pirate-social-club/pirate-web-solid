@@ -936,6 +936,15 @@ describe("mounted song-first video flow", () => {
       expect(document.querySelector('button[aria-label="Start recording"]')).not.toBeNull();
     });
 
+    test("the viewfinder plays the live camera rather than relying on autoplay", async () => {
+      const play = vi.spyOn(HTMLMediaElement.prototype, "play").mockResolvedValue();
+      songSetup({ preflight: "accepted", mobile: true });
+      await loadSongMetadata();
+      await vi.waitFor(() => expect(viewfinderStream()).toBe(previews[0]!.stream));
+      expect(play).toHaveBeenCalled();
+      play.mockRestore();
+    });
+
     test("recording takes over the previewed camera instead of reopening it", async () => {
       nextSession = () => fakeSession(() => undefined);
       songSetup({ preflight: "accepted", mobile: true, createGuideAudio: () => guideSpy().audio });
