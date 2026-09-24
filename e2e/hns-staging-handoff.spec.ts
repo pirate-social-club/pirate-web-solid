@@ -113,31 +113,42 @@ test.describe("staging HNS authenticated handoff", { tag: "@hns-mutating" }, () 
       if (!communityId) throw new Error("Community creation did not return its identity.");
       // The root field renders only when the community has no import session,
       // so name the server's state instead of timing out on a missing field.
-      const snapshotResponse = await page.request.get(
-        `/api/communities/${encodeURIComponent(communityId)}/hns-root-imports`, { failOnStatusCode: false });
+      const startPath = `/api/communities/${encodeURIComponent(communityId)}/hns-root-imports`;
+      const snapshotResponse = await page.request.get(startPath, { failOnStatusCode: false });
       if (snapshotResponse.status() !== 200)
         throw new Error(`HNS namespace snapshot returned HTTP ${snapshotResponse.status()}.`);
-      const snapshot = await snapshotResponse.json() as { session?: { status?: unknown } | null };
-      if (snapshot.session !== null)
-        throw new Error(`HNS namespace snapshot already holds a session in ${JSON.stringify(snapshot.session?.status ?? null)}.`);
-      await page.goto(`${path}/settings/namespace`);
-      await expect(page.locator("[data-community-namespace-settings]")).toBeVisible({ timeout: 45_000 });
-      // The required marker is part of the label, so match the name's start.
-      await page.getByRole("textbox", { name: /^Handshake root\b/u }).fill(root);
-      await page.getByRole("button", { name: "Continue", exact: true }).click();
-      const startPath = `/api/communities/${encodeURIComponent(communityId)}/hns-root-imports`;
-      const [started] = await Promise.all([
-        page.waitForResponse(response => response.request().method() === "POST" &&
-          new URL(response.url()).pathname === startPath, { timeout: 60_000 }),
-        page.getByRole("button", { name: "Start verification", exact: true }).click(),
-      ]);
-      if (!started.ok()) throw new Error(`HNS preparation returned HTTP ${started.status()}.`);
-      const start = await started.json() as { root_import_session_id?: unknown; root_label?: unknown; community_id?: unknown };
-      if (typeof start.root_import_session_id !== "string" || start.root_import_session_id.length === 0 ||
-          start.root_label !== root || start.community_id !== communityId)
-        throw new Error("HNS preparation did not bind the requested community and root.");
-      const sessionId = start.root_import_session_id;
-      testInfo.annotations.push({ type: "persistent-content", description: `Started staging HNS import for ${root}; no automatic deletion contract.` });
+      const snapshot = await snapshotResponse.json() as {
+        session?: { status?: unknown; root_label?: unknown; community_id?: unknown; root_import_session_id?: unknown } | null;
+      };
+      let sessionId: string;
+      if (snapshot.session !== null) {
+        // Only a reused community may resume, and only its own session for
+        // exactly this root; the chain side stays fenced by the runner lease.
+        const existing = snapshot.session;
+        if (!reusedCommunityId || existing?.root_label !== root || existing.community_id !== communityId ||
+            typeof existing.root_import_session_id !== "string" || existing.root_import_session_id.length === 0)
+          throw new Error(`HNS namespace snapshot already holds a session in ${JSON.stringify(existing?.status ?? null)}.`);
+        sessionId = existing.root_import_session_id;
+        console.log(JSON.stringify({ event: "hns-resumed-session", status: existing.status ?? null }));
+      } else {
+        await page.goto(`${path}/settings/namespace`);
+        await expect(page.locator("[data-community-namespace-settings]")).toBeVisible({ timeout: 45_000 });
+        // The required marker is part of the label, so match the name's start.
+        await page.getByRole("textbox", { name: /^Handshake root\b/u }).fill(root);
+        await page.getByRole("button", { name: "Continue", exact: true }).click();
+        const [started] = await Promise.all([
+          page.waitForResponse(response => response.request().method() === "POST" &&
+            new URL(response.url()).pathname === startPath, { timeout: 60_000 }),
+          page.getByRole("button", { name: "Start verification", exact: true }).click(),
+        ]);
+        if (!started.ok()) throw new Error(`HNS preparation returned HTTP ${started.status()}.`);
+        const start = await started.json() as { root_import_session_id?: unknown; root_label?: unknown; community_id?: unknown };
+        if (typeof start.root_import_session_id !== "string" || start.root_import_session_id.length === 0 ||
+            start.root_label !== root || start.community_id !== communityId)
+          throw new Error("HNS preparation did not bind the requested community and root.");
+        sessionId = start.root_import_session_id;
+        testInfo.annotations.push({ type: "persistent-content", description: `Started staging HNS import for ${root}; no automatic deletion contract.` });
+      }
       const sessionPath = `${startPath}/${encodeURIComponent(sessionId)}`;
       requireBudget(remainingMs(), publishRegtest ? 550_000 : 210_000,
         "provisioning poll and guarded publication");
