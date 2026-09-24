@@ -134,9 +134,29 @@ describe("mounted original video flow", () => {
   });
   test("a server review hold stays private and does not claim publication", async () => {
     const fixture = setup("manual_review"); await selectAndPublish();
-    await vi.waitFor(() => expect(document.body.textContent).toContain("No post is public yet"));
+    await vi.waitFor(() => expect(document.body.textContent).toContain("Waiting for review"));
+    expect(document.body.textContent).toContain("A community moderator must approve this video");
+    expect(document.body.textContent).toContain("It stays private until then");
+    expect(document.body.textContent).not.toContain("Soundtrack: this song");
+    expect([...document.querySelectorAll("button")].map(button => button.textContent?.trim())).toContain("Done");
+    expect(document.body.textContent).not.toContain("Check video status");
     expect(fixture.published).not.toHaveBeenCalled(); expect(document.querySelector("a")).toBeNull();
   });
+  test("passive review polling leaves the one exit action stable", async () => {
+    setup("manual_review"); await selectAndPublish();
+    const button = await vi.waitFor(() => {
+      const found = [...document.querySelectorAll("button")].find(item => item.textContent?.trim() === "Done");
+      expect(found?.disabled).toBe(false);
+      return found!;
+    });
+    const disabledChanges: boolean[] = [];
+    const observer = new MutationObserver(() => { disabledChanges.push(button.disabled); });
+    observer.observe(button, { attributes: true, attributeFilter: ["disabled"] });
+    await new Promise(resolve => setTimeout(resolve, 3_250));
+    observer.disconnect();
+    expect(disabledChanges).toEqual([]);
+    expect(button.disabled).toBe(false);
+  }, 5_000);
 });
 
 

@@ -61,7 +61,7 @@ export function OriginalVideoCaptureSurface(props: OriginalVideoCaptureSurfacePr
     <section class="relative h-dvh overflow-hidden bg-black text-white">
       <div class="absolute inset-0 flex items-center justify-center">
         <div
-          class="relative h-full max-h-full w-full bg-gradient-to-b from-[#262a30] to-[#0d0f12] sm:aspect-[9/16] sm:w-auto"
+          class="relative aspect-[9/16] w-full max-w-[56.25dvh] overflow-hidden bg-gradient-to-b from-[#262a30] to-[#0d0f12]"
           data-video-viewfinder
         >
           {props.preview}

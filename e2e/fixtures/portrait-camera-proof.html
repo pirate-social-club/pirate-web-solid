@@ -1,0 +1,12 @@
+<!doctype html>
+<html lang="en">
+  <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head>
+  <body>
+    <h1>Local portrait camera proof</h1>
+    <p>No upload or provider request is made.</p>
+    <button id="record" type="button">Record four seconds locally</button>
+    <pre id="result" role="status">Ready</pre>
+    <video id="playback" controls playsinline muted style="width: min(80vw, 320px); aspect-ratio: 9 / 16; object-fit: contain"></video>
+    <script type="module" src="./portrait-camera-proof.ts"></script>
+  </body>
+</html>
