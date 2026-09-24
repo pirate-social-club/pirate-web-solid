@@ -93,7 +93,9 @@ export function PostComposer(props: PostComposerProps) {
   return (
     <>
       <div class={cn("w-full space-y-2", !controller.isMobile() && "pt-0")}>
-        <Show when={controller.isMobile() && !isMultiStep()}>{mobileHeader()}</Show>
+        <Show when={controller.isMobile() && !isMultiStep()}>
+          <div class="sticky top-0 z-20 bg-background">{mobileHeader()}</div>
+        </Show>
 
         <Show
           when={controller.isMobile()}
@@ -130,6 +132,9 @@ export function PostComposer(props: PostComposerProps) {
               {stepContent()}
             </>}
           >
+            {/* The header carries Continue and Post, so it stays in reach
+                however long the lyrics or collaborator list grow. */}
+            <div class="sticky top-0 z-20 bg-background">
             <PostComposerStepFooter
               controller={controller}
               layout="header"
@@ -137,6 +142,7 @@ export function PostComposer(props: PostComposerProps) {
               runtime={props.songFlowRuntime}
               steps={steps}
             />
+            </div>
             <Show when={props.mediaStatus}>{props.mediaStatus!()}</Show>
             {stepContent()}
           </Show>

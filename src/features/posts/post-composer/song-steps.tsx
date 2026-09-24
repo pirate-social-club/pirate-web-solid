@@ -3,19 +3,17 @@
 // split between collaborators, and Review confirms the submission.
 
 import type { JSX } from "@solidjs/web";
-import { Show, type ParentProps } from "solid-js";
+import { For, Show, type ParentProps } from "solid-js";
 
 import {
   Button,
   CardContent,
   FormNote,
-  Input,
   Type,
 } from "../../../design-system";
 import { cn } from "../../../design-system";
 import {
   basisPointsToPercentText,
-  percentTextToBasisPoints,
 } from "../media-submission/contracts";
 import type { ComposerSteps } from "./composer-steps";
 import type { PostComposerController } from "./controller";
@@ -67,33 +65,40 @@ export function SongRightsStep(props: {
   const license = () => controller.license.state.presetId;
   const issue = () => songTermsIssue(controller, props.runtime);
 
+  // The author's cut of remix sales: one line, a few preset shares.
+  const shareOptions = () => {
+    const current = controller.license.state.commercialRevShareBps ?? 1_000;
+    const presets = [500, 1_000, 2_000, 3_000];
+    return presets.includes(current) ? presets : [...presets, current].sort((a, b) => a - b);
+  };
+  const selectShare = (shareBps: number) => controller.license.update(current => ({
+    ...current, commercialRevShareBps: shareBps, commercialRevSharePct: shareBps / 100,
+  }));
   const remixShare = () => (
-    <label class="block space-y-2">
-      <Type as="span" variant="body-strong">{controller.copy.rights.revShare}</Type>
-      <Type as="p" variant="caption" class="text-muted-foreground">{controller.copy.rights.revShareHint}</Type>
-      <div class="grid max-w-40 grid-cols-[1fr_auto] items-center rounded-[var(--radius-lg)] border border-border-soft px-4">
-        <Input
-          aria-label={controller.copy.rights.revShare}
-          class="border-0 px-0 shadow-none"
-          inputmode="decimal"
-          onChange={(event) => {
-            try {
-              const shareBps = percentTextToBasisPoints(event.currentTarget.value);
-              controller.license.update(current => ({
-                ...current,
-                commercialRevShareBps: shareBps,
-                commercialRevSharePct: shareBps / 100,
-              }));
-            } catch {
-              event.currentTarget.value = basisPointsToPercentText(
-                controller.license.state.commercialRevShareBps ?? 1_000);
-            }
+    <div class="grid gap-3">
+      <Type as="span" id="remix-share-label" variant="body-strong">{controller.copy.rights.revShare}</Type>
+      <div aria-labelledby="remix-share-label" class="flex flex-wrap gap-2" role="radiogroup">
+        <For each={shareOptions()}>
+          {(shareBps) => {
+            const selected = () => (controller.license.state.commercialRevShareBps ?? 1_000) === shareBps;
+            return (
+              <button
+                aria-checked={selected() ? "true" : "false"}
+                class={cn(
+                  "h-10 min-w-16 rounded-full border px-4 text-base font-semibold tabular-nums transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                  selected() ? "border-primary bg-primary text-primary-foreground" : "border-border-soft bg-card text-foreground hover:bg-muted",
+                )}
+                onClick={() => selectShare(shareBps)}
+                role="radio"
+                type="button"
+              >
+                {basisPointsToPercentText(shareBps)}%
+              </button>
+            );
           }}
-          value={basisPointsToPercentText(controller.license.state.commercialRevShareBps ?? 1_000)}
-        />
-        <span class="text-muted-foreground">%</span>
+        </For>
       </div>
-    </label>
+    </div>
   );
 
   // Every new song is "Remix and sell"; the author only chooses their share.

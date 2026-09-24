@@ -280,6 +280,38 @@ export const SongStepSongMobile: Story = {
   globals: { viewport: { value: "mobile1", isRotated: false } },
 };
 
+/** Long lyrics on a phone: after scrolling to the bottom of the form, the
+ * header with Continue stays on screen. */
+export const SongStepLongLyricsMobile: Story = {
+  name: "Song / Step 1 — Song / Long lyrics / Mobile",
+  globals: { viewport: { value: "mobile1", isRotated: false } },
+  render: () => dialogHarness().render(),
+  play: async ({ canvasElement }) => {
+    const doc = canvasElement.ownerDocument;
+    const canvas = within(doc.body);
+    await uploadStorySong(canvas);
+    const lyrics = await canvas.findByLabelText("Lyrics (optional)");
+    await waitFor(async () => {
+      const field = canvas.getByLabelText<HTMLTextAreaElement>("Lyrics (optional)");
+      if (field.value === "") {
+        field.value = Array.from({ length: 80 }, (_, line) => `Line ${line + 1} of a very long song`).join("\n");
+        field.dispatchEvent(new Event("change", { bubbles: true }));
+      }
+      await expect(field.value.split("\n")).toHaveLength(80);
+    });
+    await expect(lyrics).toBeInTheDocument();
+    const form = doc.querySelector<HTMLElement>("[data-create-post-form]")!;
+    form.scrollTop = form.scrollHeight;
+    await waitFor(async () => {
+      const forward = doc.querySelector<HTMLElement>("[data-composer-forward]")!;
+      const box = forward.getBoundingClientRect();
+      await expect(form.scrollTop).toBeGreaterThan(0);
+      await expect(box.top).toBeGreaterThanOrEqual(0);
+      await expect(box.bottom).toBeLessThanOrEqual(doc.defaultView!.innerHeight);
+    });
+  },
+};
+
 export const SongLyricsOnSongStep: Story = {
   name: "Song / Lyrics on the Song step",
   render: () => dialogHarness().render(),
@@ -293,27 +325,29 @@ export const SongLyricsOnSongStep: Story = {
 };
 
 export const SongStepRights: Story = {
-  name: "Song / Step 2 — Rights",
+  name: "Song / Step 2 — Royalties",
   render: () => dialogHarness().render(),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement.ownerDocument.body);
     await uploadStorySong(canvas);
     await continueSongStep(canvas);
-    await expect(await canvas.findByText("Your share of remix earnings")).toBeInTheDocument();
-    await expect(await canvas.findByText("Earnings split")).toBeInTheDocument();
-    await expect(await canvas.findByText("Persona One")).toBeInTheDocument();
+    await expect(await canvas.findByText("Your cut of remix sales")).toBeInTheDocument();
+    await expect(canvas.getByRole("radio", { name: "10%" })).toHaveAttribute("aria-checked", "true");
+    await expect(await canvas.findByText("All earnings go to you")).toBeInTheDocument();
   },
 };
 
 /** Two eligible profiles so the collaborator picker can be exercised. */
 export const SongStepRightsCollaborators: Story = {
-  name: "Song / Step 2 — Rights / Collaborators",
+  name: "Song / Step 2 — Royalties / Collaborators",
   render: () => dialogHarness({ personaCount: 2 }).render(),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement.ownerDocument.body);
     await uploadStorySong(canvas);
     await continueSongStep(canvas);
-    await expect(await canvas.findByText("Earnings split")).toBeInTheDocument();
+    await userEvent.click(await canvas.findByRole("button", { name: "Add collaborator" }));
+    await expect(await canvas.findByRole("button", { name: /Persona Two/u })).toBeInTheDocument();
+    await expect(canvas.queryByText(/Only your profiles/u)).not.toBeInTheDocument();
   },
 };
 
@@ -326,7 +360,7 @@ export const SongStepReview: Story = {
     await continueSongStep(canvas);
     // Both steps name their action Continue. Confirm the new step before
     // looking up the next action, rather than clicking the old button twice.
-    await expect(await canvas.findByText("Your share of remix earnings")).toBeInTheDocument();
+    await expect(await canvas.findByText("Your cut of remix sales")).toBeInTheDocument();
     await continueSongStep(canvas);
     await expect(await canvas.findByText("Remix earnings")).toBeInTheDocument();
     await expect(await canvas.findByText("Earnings split")).toBeInTheDocument();
@@ -347,7 +381,7 @@ export const SongUploadFailed: Story = {
     await expect(canvas.getByRole("heading", { name: "Audio upload needs another try" })).toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: "Try upload again" })).toBeInTheDocument();
     await expect(canvas.queryByText(/awaiting upload/i)).not.toBeInTheDocument();
-    await expect(canvas.queryByText("Your share of remix earnings")).not.toBeInTheDocument();
+    await expect(canvas.queryByText("Your cut of remix sales")).not.toBeInTheDocument();
   },
 };
 

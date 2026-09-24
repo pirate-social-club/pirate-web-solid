@@ -1,5 +1,6 @@
 // Song step: the audio first (its card shows the embedded artwork), then the
-// title, optional lyrics and the 18+ toggle, one full-width field per row.
+// title and optional lyrics, one full-width field per row. The server's
+// analysis rates the song; the author is not asked about 18+.
 // The audio file is the only hard requirement; the title is prefilled from ID3
 // or the filename and stays editable.
 
@@ -7,8 +8,6 @@ import { createSignal, Show } from "solid-js";
 
 import {
   CardContent,
-  Checkbox,
-  CheckboxLabel,
   IconMusicNote,
   IconUploadSimple,
   Input,
@@ -185,14 +184,6 @@ export function SongStep(props: {
         />
       </section>
 
-      <Checkbox
-        aria-label="18+ content"
-        checked={controller.audience.ageGatePolicy === "18_plus"}
-        disabled={controller.audience.editingDisabled}
-        onChange={(checked) => controller.audience.setAgeGatePolicy(checked === true ? "18_plus" : "none")}
-      >
-        <CheckboxLabel>18+ content</CheckboxLabel>
-      </Checkbox>
 
       <input
         accept=".mp3,audio/mpeg"

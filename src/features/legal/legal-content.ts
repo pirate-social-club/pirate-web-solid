@@ -56,7 +56,7 @@ export const termsOfService: LegalDocumentContent = {
       items: [
         "Do not post content you do not have the rights to.",
         "Do not post sexual content involving anyone under 18. We remove it, and those decisions cannot be appealed.",
-        "Mark adult content as 18+. Content our checks find to be sexual or graphically violent is rated 18+ and cannot be rated lower.",
+        "Mark adult content as 18+ where the app asks you to. Songs are rated by our checks rather than by you. Content our checks find to be sexual or graphically violent is rated 18+ and cannot be rated lower.",
         "Do not harass, threaten or impersonate others, and do not use the app for anything illegal.",
         "Do not interfere with the service, other people's accounts or the scoring of Study and Karaoke.",
       ],

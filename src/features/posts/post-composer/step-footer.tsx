@@ -6,7 +6,7 @@
 import { Portal } from "@solidjs/web";
 import { createEffect, createSignal, Show } from "solid-js";
 
-import { Button, CardFooter, FormNote, IconArrowLeft, IconButton, IconX, Type } from "../../../design-system";
+import { Button, CardFooter, FormNote, IconArrowLeft, IconArrowRight, IconArrowUp, IconButton, IconX } from "../../../design-system";
 import { cn } from "../../../design-system";
 import type { ComposerSteps } from "./composer-steps";
 import { animateComposerBarEnter } from "./composer-motion";
@@ -167,24 +167,33 @@ export function PostComposerStepFooter(props: {
   );
 
   if (controller.isMobile() && props.layout === "header") {
-    const stepLabel = () => controller.copy.steps[props.steps.current()];
+    // Two equal icon buttons: close or back on the left, forward or publish
+    // on the right. The step needs no title; the form says what it is.
     const headerForward = () => (
       <Show
         when={props.steps.isLast()}
         fallback={
-          <Button data-composer-forward disabled={!canAdvance()} loading={preparing()} onClick={() => void goNext()} size="sm">
-            {controller.copy.actions.continue}
-          </Button>
+          <IconButton
+            aria-label={controller.copy.actions.continue}
+            data-composer-forward
+            disabled={!canAdvance()}
+            loading={preparing()}
+            onClick={() => void goNext()}
+            variant="default"
+          >
+            <IconArrowRight class="size-5" />
+          </IconButton>
         }
       >
-        <Button
+        <IconButton
+          aria-label={controller.submit.label}
           disabled={controller.submit.disabled || controller.submit.progress?.phase === "done"}
           loading={controller.submit.loading}
           onClick={() => controller.submit.onSubmit?.()}
-          size="sm"
+          variant="default"
         >
-          {controller.submit.label}
-        </Button>
+          <IconArrowUp class="size-5" />
+        </IconButton>
       </Show>
     );
     const headerError = () => (
@@ -198,7 +207,7 @@ export function PostComposerStepFooter(props: {
     );
     return (
       <div>
-        <header class="grid min-h-12 grid-cols-[2.75rem_minmax(0,1fr)_auto] items-center gap-2 px-1">
+        <header class="flex min-h-14 items-center justify-between px-1">
           <Show
             when={!props.steps.isFirst() && !locked()}
             fallback={
@@ -211,7 +220,6 @@ export function PostComposerStepFooter(props: {
               <IconArrowLeft class="size-5" />
             </IconButton>
           </Show>
-          <Type as="span" class="truncate text-center text-muted-foreground" variant="caption">{stepLabel()}</Type>
           {headerForward()}
         </header>
         {headerError()}
