@@ -6,7 +6,7 @@
 import { Portal } from "@solidjs/web";
 import { createEffect, createSignal, Show } from "solid-js";
 
-import { Button, CardFooter, FormNote } from "../../../design-system";
+import { Button, CardFooter, FormNote, IconArrowLeft, IconButton, IconX, Type } from "../../../design-system";
 import { cn } from "../../../design-system";
 import type { ComposerSteps } from "./composer-steps";
 import { animateComposerBarEnter } from "./composer-motion";
@@ -17,9 +17,10 @@ import { getNextComposerStep, getPreviousComposerStep } from "./utils";
 import type { SongFlowRuntime } from "./types";
 
 export function PostComposerStepFooter(props: {
-  /** Render only the actions, for a host that supplies the footer chrome
-   * (the shared ActionFooterShell on mobile). */
-  bare?: boolean;
+  /** Mobile header navigation: close or back on the left, the step name in
+   * the middle, and the forward or publish action on the right. */
+  layout?: "footer" | "header";
+  onClose?: () => void;
   controller: PostComposerController;
   /** Where the mobile footer belongs. Same rule as the attachment bar: a host
    * that already owns the viewport gets `inline`, because a portalled footer
@@ -165,14 +166,55 @@ export function PostComposerStepFooter(props: {
     </div>
   );
 
-  if (controller.isMobile() && props.bare) {
+  if (controller.isMobile() && props.layout === "header") {
+    const stepLabel = () => controller.copy.steps[props.steps.current()];
+    const headerForward = () => (
+      <Show
+        when={props.steps.isLast()}
+        fallback={
+          <Button data-composer-forward disabled={!canAdvance()} loading={preparing()} onClick={() => void goNext()} size="sm">
+            {controller.copy.actions.continue}
+          </Button>
+        }
+      >
+        <Button
+          disabled={controller.submit.disabled || controller.submit.progress?.phase === "done"}
+          loading={controller.submit.loading}
+          onClick={() => controller.submit.onSubmit?.()}
+          size="sm"
+        >
+          {controller.submit.label}
+        </Button>
+      </Show>
+    );
+    const headerError = () => (
+      <Show when={controller.submit.error}>
+        {(message) => (
+          <div aria-live="polite" class="px-1 pb-2" role="alert">
+            <FormNote tone="warning">{message()}</FormNote>
+          </div>
+        )}
+      </Show>
+    );
     return (
       <div>
-        {stepError("mb-3")}
-        <div class="flex items-center gap-3">
-          {back()}
-          <div class="min-w-0 flex-1">{forward()}</div>
-        </div>
+        <header class="grid min-h-12 grid-cols-[2.75rem_minmax(0,1fr)_auto] items-center gap-2 px-1">
+          <Show
+            when={!props.steps.isFirst() && !locked()}
+            fallback={
+              <IconButton aria-label="Close composer" onClick={() => props.onClose?.()} variant="ghost">
+                <IconX class="size-5" />
+              </IconButton>
+            }
+          >
+            <IconButton aria-label={controller.copy.actions.back} disabled={preparing() || controller.submit.loading} onClick={goBack} variant="ghost">
+              <IconArrowLeft class="size-5" />
+            </IconButton>
+          </Show>
+          <Type as="span" class="truncate text-center text-muted-foreground" variant="caption">{stepLabel()}</Type>
+          {headerForward()}
+        </header>
+        {headerError()}
       </div>
     );
   }

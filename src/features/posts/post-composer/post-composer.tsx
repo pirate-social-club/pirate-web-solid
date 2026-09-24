@@ -1,6 +1,6 @@
 import { createSignal, Show } from "solid-js";
 
-import { ActionFooterShell, Card, IconButton, IconX, createIsMobile, cn } from "../../../design-system";
+import { Card, IconButton, IconX, createIsMobile, cn } from "../../../design-system";
 import { createComposerSteps } from "./composer-steps";
 import { PostComposerRequiredSheet } from "./required-post-sheet";
 import { PublishButton } from "./submit-actions";
@@ -120,8 +120,9 @@ export function PostComposer(props: PostComposerProps) {
             </Card>
           }
         >
-          {/* A multi-step track keeps Continue pinned at the bottom in the
-              shared action footer; a single-step post publishes from the header. */}
+          {/* Every mobile composer acts from its header: a single-step post
+              publishes top right, and a multi-step track moves between steps
+              there too, so no footer crowds the form or hides under the keyboard. */}
           <Show
             when={isMultiStep()}
             fallback={<>
@@ -129,22 +130,15 @@ export function PostComposer(props: PostComposerProps) {
               {stepContent()}
             </>}
           >
-            <ActionFooterShell
-              class="h-[calc(100dvh-2rem)]"
-              header={mobileHeader()}
-              footer={(
-                <PostComposerStepFooter
-                  bare
-                  controller={controller}
-                  placement={props.attachmentBarPlacement}
-                  runtime={props.songFlowRuntime}
-                  steps={steps}
-                />
-              )}
-            >
-              <Show when={props.mediaStatus}>{props.mediaStatus!()}</Show>
-              {stepContent()}
-            </ActionFooterShell>
+            <PostComposerStepFooter
+              controller={controller}
+              layout="header"
+              onClose={() => props.onClose?.()}
+              runtime={props.songFlowRuntime}
+              steps={steps}
+            />
+            <Show when={props.mediaStatus}>{props.mediaStatus!()}</Show>
+            {stepContent()}
           </Show>
         </Show>
       </div>
