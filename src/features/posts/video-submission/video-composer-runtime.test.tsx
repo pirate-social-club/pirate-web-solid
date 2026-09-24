@@ -8,7 +8,7 @@ import { VideoComposerRuntime, type GuideAudio } from "./video-composer-runtime"
 import type { OriginalVideoCaptureInput, VideoCaptureSession } from "./capture";
 import type { PendingVideo, VideoStorage } from "./coordinator";
 import type { VideoCommand, VideoTransport } from "./transport";
-import type { OriginalVideoReservation, VideoSnapshot } from "./contracts";
+import type { VideoSnapshot } from "./contracts";
 import type { SongIntervalPreflight } from "./song-reference";
 import type { SongSourceReader } from "../post-composer/song-excerpt-source";
 import type { GuidedTakeAlignment } from "./guided-take-alignment";
@@ -42,9 +42,20 @@ function setup(final: "published" | "manual_review" | "provider_submission_uncon
   vi.stubGlobal("URL", urlApi);
   let saved: PendingVideo | null = null;
   const storage: VideoStorage = { async exclusive(work) { return work(); }, async load() { return saved; }, async save(record) { saved = record; }, async remove() { saved = null; } };
-  const reservation: OriginalVideoReservation = { track: "video", intent: "original_audio", status: "awaiting_upload", slot: "primary_video", author_persona_id: "persona", ingest_policy_revision: 1, reservation_id: "reservation",
-    upload: { method: "MULTIPART", upload_id: "upload", part_count: 1, part_size_bytes: 10, expires_at: "2099-01-01T00:00:00Z", parts: [{ part_number: 1, url: "https://upload.example/1", expires_at: "2099-01-01T00:00:00Z" }] } };
-  const common = { track: "video" as const, intent: "original_audio" as const, submission_id: "submission", author_persona: { object: "persona" as const, persona_id: "persona", display_name: null, avatar_ref: null, primary_public_handle: null }, creation_revision: 1, video_revision: 0, caption: "", updated_at: "2026-09-05T00:00:00Z", href: "/media-post-submissions/submission" };
+  // Every video references a song: the reservation echoes the chosen excerpt.
+  const reserveEcho = async (body: VideoCommand["input"]["body"]) => {
+    if (!("track" in body) || body.track !== "video" || body.intent !== "song_reference") throw new Error("expected a song video reservation");
+    const echoed = {
+      track: "video" as const, status: "awaiting_upload" as const, slot: "primary_video" as const, author_persona_id: "persona",
+      ingest_policy_revision: 1, reservation_id: "reservation", intent: "song_reference" as const,
+      upload: { method: "MULTIPART" as const, upload_id: "upload", part_count: 1, part_size_bytes: body.expected_size_bytes, expires_at: "2099-01-01T00:00:00Z", parts: [{ part_number: 1, url: "https://upload.example/1", expires_at: "2099-01-01T00:00:00Z" }] },
+      song_reference: { song_post_id: body.song_post_id, audio_revision: body.audio_revision, song_asset_id: "song-asset" },
+      reservation_policy_snapshot: { observed_at_transition: "media_reservation_issued" as const, owner_policy_revision: 3, owner_policy_hash: "a".repeat(64), derivative_video: "allowed" as const, observed_at: "2026-09-11T00:00:00Z" },
+      interval: { clip_start_samples: body.clip_start_samples, clip_duration_samples: body.clip_duration_samples, song_duration_samples: 10_080_047 },
+    };
+    return (await import("./contracts")).verifySongReservation(body, echoed);
+  };
+  const common = { track: "video" as const, intent: "song_reference" as const, submission_id: "submission", author_persona: { object: "persona" as const, persona_id: "persona", display_name: null, avatar_ref: null, primary_public_handle: null }, creation_revision: 1, video_revision: 0, caption: "", updated_at: "2026-09-05T00:00:00Z", href: "/media-post-submissions/submission" };
   let snapshot: VideoSnapshot = { ...common, status: "processing", phase: "awaiting_upload" };
   const commands: VideoCommand[] = [];
   const transport: VideoTransport = { async read() { return snapshot; }, async execute(command) {
@@ -52,7 +63,7 @@ function setup(final: "published" | "manual_review" | "provider_submission_uncon
     if (command.kind === rejectKind) throw new ApiClientError(
       { status: 400, code: "bad_request", name: "BadRequest", retryable: false },
       { error: { code: "bad_request", message: "Request refused", retryable: false } });
-    if (command.kind === "reserve") return reservation;
+    if (command.kind === "reserve") return reserveEcho(command.input.body);
     if (command.kind === "cancel") {
       snapshot = { ...common, creation_revision: 2, video_revision: 1, status: "abandoned", reason_code: "author_abandoned_unresolved_provider" };
       return snapshot;
@@ -68,10 +79,28 @@ function setup(final: "published" | "manual_review" | "provider_submission_uncon
   createRoot(dispose => { disposers.push(dispose); render(() => <VideoComposerRuntime principalId="account" communityId="community" personaId="persona"
     storage={storage} transport={transport} inspectFile={async file => file}
     fetchImpl={vi.fn<typeof fetch>().mockResolvedValue(new Response(null, { headers: { etag: "receipt" } }))}
+    songPreflight={acceptedPreflight} songReader={readableSong} initialSong={{ postId: "song-post" }}
     onExit={() => {}} onRetainedPersona={() => {}} onPublished={published} />, container); });
   return { commands, published };
 }
+/** An interval preflight that measures the song and accepts every excerpt. */
+const acceptedPreflight: SongIntervalPreflight = async input => ({
+  state: "ready", song_post_id: input.body.song_post_id, audio_revision: 7, canonical_duration_samples: 10_080_047,
+  interval_policy: { policy_revision: 1, sample_rate_hz: 48_000, min_clip_duration_samples: 144_000, max_clip_duration_samples: 8_640_000 },
+  interval: input.body.interval === undefined ? null : { accepted: true },
+});
+const readableSong: SongSourceReader = async request => ({
+  postId: request.kind === "post" ? request.postId : "song-post",
+  audioUrl: "https://audio.example/song.mp3",
+  title: "A song",
+});
 async function selectAndPublish() {
+  // The song loads and its excerpt is accepted before the take is published.
+  await vi.waitFor(() => expect(document.querySelector("audio")).not.toBeNull());
+  const audio = document.querySelector("audio")!;
+  Object.defineProperty(audio, "duration", { configurable: true, value: 210 });
+  audio.dispatchEvent(new Event("loadedmetadata"));
+  await vi.waitFor(() => expect(document.querySelector("[data-song-plan]")?.getAttribute("data-song-plan")).toBe("ready"), { timeout: 3_000 });
   await vi.waitFor(() => expect(document.querySelector("[inert]")).toBeNull());
   const input = document.querySelector<HTMLInputElement>('input[type="file"]')!;
   Object.defineProperty(input, "files", { configurable: true, value: [new File(["video"], "take.mp4", { type: "video/mp4" })] });
@@ -80,7 +109,7 @@ async function selectAndPublish() {
   const publish = [...document.querySelectorAll("button")].find(button => button.textContent?.trim() === "Publish video")!;
   await vi.waitFor(() => expect(publish.disabled).toBe(false)); publish.click();
 }
-describe("mounted original video flow", () => {
+describe("mounted video flow", () => {
   test.each(["reserve", "start"] as const)("a rejected %s returns to editing only on explicit action", async kind => {
     const fixture = setup("published", kind); await selectAndPublish();
     await vi.waitFor(() => expect(document.body.textContent).toContain("This video wasn’t accepted."));
@@ -97,7 +126,7 @@ describe("mounted original video flow", () => {
     const fixture = setup("published"); await selectAndPublish();
     await vi.waitFor(() => expect(fixture.published).toHaveBeenCalledOnce());
     expect(fixture.commands.map(command => command.kind)).toEqual(["reserve", "start", "finalize"]);
-    expect(fixture.commands[0]?.input.body).toMatchObject({ intent: "original_audio", persona_id: "persona" });
+    expect(fixture.commands[0]?.input.body).toMatchObject({ intent: "song_reference", persona_id: "persona", song_post_id: "song-post" });
     expect(fixture.commands[1]?.input.body).not.toHaveProperty("title");
     expect(fixture.commands[2]?.input.body).toMatchObject({ parts: [{ part_number: 1, etag: "receipt" }] });
     expect(document.querySelector('a[href="/posts/post"]')?.textContent).toBe("View published post");
@@ -349,8 +378,7 @@ describe("mounted song-first video flow", () => {
     await publish();
     await vi.waitFor(() => expect(document.body.textContent).toContain("cannot be stretched"));
     expect(fixture.commands).toHaveLength(0);
-    // The choice is not silent: original sound remains an explicit way out.
-    expect(button("Use original sound")).toBeDefined();
+    expect(button("Use original sound")).toBeUndefined();
   });
 
   test("a longer clip says it will be trimmed and publishes with the song", async () => {
@@ -407,7 +435,7 @@ describe("mounted song-first video flow", () => {
     expect(soundtrackPanel()?.hidden).toBe(false);
   });
 
-  test("with the capability off, publishing with the song is blocked until the author chooses the video's own sound", async () => {
+  test("with the capability off, the video cannot be published", async () => {
     const fixture = songSetup({ preflight: "unavailable" });
     await loadSongMetadata();
     await awaitPlan("not_available");
@@ -415,11 +443,8 @@ describe("mounted song-first video flow", () => {
     await publish();
     await vi.waitFor(() => expect(document.body.textContent).toContain("hasn’t been accepted"));
     expect(fixture.commands).toHaveLength(0);
-    button("Use original sound")!.click();
-    await publish();
-    await vi.waitFor(() => expect(fixture.commands.map(command => command.kind)).toEqual(["reserve", "start", "finalize"]));
-    expect(fixture.commands[0]?.input.body).toMatchObject({ intent: "original_audio" });
-    expect(fixture.commands[0]?.input.body).not.toHaveProperty("song_post_id");
+    // Every video references a song: there is no way to publish without it.
+    expect(button("Use original sound")).toBeUndefined();
   });
 
   test("a refused window blocks publishing with the song and says why", async () => {
@@ -553,19 +578,16 @@ describe("mounted song-first video flow", () => {
     }
   });
 
-  test("a song that cannot be read keeps the flow on original sound, by an explicit choice", async () => {
+  test("a song that cannot be read blocks publishing", async () => {
     const fixture = songSetup({ preflight: "accepted", reader: "failed" });
-    await vi.waitFor(() => expect(document.body.textContent).toContain("could not be loaded"));
+    await vi.waitFor(() => expect(document.body.textContent).toContain("couldn’t load"));
     await chooseFile();
-    // A failed read does not silently replace the author's soundtrack intent;
-    // publishing with the video's own sound is an explicit action.
+    // A failed read keeps the author's song choice; nothing publishes without it.
     await publish();
     await vi.waitFor(() => expect(document.body.textContent).toContain("hasn’t been accepted"));
     expect(fixture.commands).toHaveLength(0);
-    button("Use original sound")!.click();
-    await publish();
-    await vi.waitFor(() => expect(fixture.commands.map(command => command.kind)).toEqual(["reserve", "start", "finalize"]));
-    expect(fixture.commands[0]?.input.body).toMatchObject({ intent: "original_audio" });
+    // Every video references a song: there is no way to publish without it.
+    expect(button("Use original sound")).toBeUndefined();
   });
 
   test("moving the window invalidates the previous approval immediately", async () => {
@@ -687,7 +709,6 @@ describe("mounted song-first video flow", () => {
     const range = document.querySelector<HTMLInputElement>('input[aria-label="Song position, moves the excerpt window"]')!;
     const fieldset = range.closest("fieldset");
     expect(fieldset?.hasAttribute("disabled")).toBe(true);
-    expect(button("Use original sound")?.closest("fieldset")?.hasAttribute("disabled")).toBe(true);
     guide.release();
     await stopRecording();
     await vi.waitFor(() => expect(document.querySelector("textarea")).not.toBeNull());
@@ -705,14 +726,12 @@ describe("mounted song-first video flow", () => {
     await vi.waitFor(() => expect(document.querySelector("textarea")).not.toBeNull());
     moveWindow(2_000);
     await awaitPlan("ready");
-    await vi.waitFor(() => expect(document.body.textContent).toContain("recorded to a different excerpt"));
+    await vi.waitFor(() => expect(document.body.textContent).toContain("recorded to a different part of the song"));
     await publish();
-    await vi.waitFor(() => expect(document.body.textContent).toContain("recorded to a different excerpt"));
+    await vi.waitFor(() => expect(document.body.textContent).toContain("recorded to a different part of the song"));
     expect(fixture.commands).toHaveLength(0);
-    button("Use original sound")!.click();
-    await publish();
-    await vi.waitFor(() => expect(fixture.commands.map(command => command.kind)).toEqual(["reserve", "start", "finalize"]));
-    expect(fixture.commands[0]?.input.body).toMatchObject({ intent: "original_audio" });
+    // Every video references a song: there is no way to publish without it.
+    expect(button("Use original sound")).toBeUndefined();
   });
 
   test("a guided take is aligned by the measured guide delay", async () => {
@@ -756,17 +775,15 @@ describe("mounted song-first video flow", () => {
     await stopRecording();
     await vi.waitFor(() => expect(stopped).toBe(1));
     await vi.waitFor(() => expect(document.querySelector("textarea")).not.toBeNull());
-    await vi.waitFor(() => expect(document.body.textContent).toContain("could not be aligned"));
+    await vi.waitFor(() => expect(document.body.textContent).toContain("couldn’t be lined up with the song"));
     await publish();
-    await vi.waitFor(() => expect(document.body.textContent).toContain("could not be aligned"));
+    await vi.waitFor(() => expect(document.body.textContent).toContain("couldn’t be lined up with the song"));
     expect(fixture.commands).toHaveLength(0);
-    button("Use original sound")!.click();
-    await publish();
-    await vi.waitFor(() => expect(fixture.commands.map(command => command.kind)).toEqual(["reserve", "start", "finalize"]));
-    expect(fixture.commands[0]?.input.body).toMatchObject({ intent: "original_audio" });
+    // Every video references a song: there is no way to publish without it.
+    expect(button("Use original sound")).toBeUndefined();
   });
 
-  test("publishing with the song uploads the aligned take, and original sound uploads the untouched take", async () => {
+  test("publishing with the song uploads the aligned take", async () => {
     const original = new File(["original-take"], "take.mp4", { type: "video/mp4" });
     const aligned = new File(["aligned-take"], "take.mp4", { type: "video/mp4" });
     const guide = guideSpy();
@@ -794,35 +811,6 @@ describe("mounted song-first video flow", () => {
     expect(aligned.size).not.toBe(original.size);
   });
 
-  test("original sound after a guided take uploads the untouched take", async () => {
-    const original = new File(["original-take"], "take.mp4", { type: "video/mp4" });
-    const aligned = new File(["aligned-take"], "take.mp4", { type: "video/mp4" });
-    const guide = guideSpy();
-    nextSession = () => ({
-      // SAFETY: the viewfinder preview is not exercised; jsdom has no MediaStream.
-      stream: Object.create(null) as MediaStream,
-      captureOriginMs: performance.now(),
-      stop: async () => original,
-      cancel: async () => {},
-    });
-    const fixture = songSetup({
-      preflight: "accepted", mobile: true, clipDurationMs: 45_000,
-      createGuideAudio: () => guide.audio,
-      alignTake: async (file, offsetMs) => ({ file: aligned, trimmedMs: offsetMs, requestedMs: offsetMs, aligned: true }),
-    });
-    await loadSongMetadata();
-    await awaitPlan("ready");
-    await startRecording();
-    await vi.waitFor(() => expect(guide.calls.resolved).toBe(1));
-    await stopRecording();
-    await vi.waitFor(() => expect(document.querySelector("textarea")).not.toBeNull());
-    button("Use original sound")!.click();
-    await publish();
-    await vi.waitFor(() => expect(fixture.commands.map(command => command.kind)).toEqual(["reserve", "start", "finalize"]));
-    expect(fixture.commands[0]?.input.body).toMatchObject({ intent: "original_audio", expected_size_bytes: original.size });
-    expect(fixture.commands[0]?.input.body).not.toHaveProperty("song_post_id");
-  });
-
   test("a guided take stopped before its guide starts is unaligned and cannot publish with the song", async () => {
     const guide = guideSpy({ manual: true });
     const original = new File(["original-take"], "take.mp4", { type: "video/mp4" });
@@ -846,14 +834,12 @@ describe("mounted song-first video flow", () => {
     await stopRecording();
     guide.release();
     await vi.waitFor(() => expect(document.querySelector("textarea")).not.toBeNull());
-    await vi.waitFor(() => expect(document.body.textContent).toContain("could not be aligned"));
+    await vi.waitFor(() => expect(document.body.textContent).toContain("couldn’t be lined up with the song"));
     await publish();
-    await vi.waitFor(() => expect(document.body.textContent).toContain("could not be aligned"));
+    await vi.waitFor(() => expect(document.body.textContent).toContain("couldn’t be lined up with the song"));
     expect(fixture.commands).toHaveLength(0);
-    button("Use original sound")!.click();
-    await publish();
-    await vi.waitFor(() => expect(fixture.commands.map(command => command.kind)).toEqual(["reserve", "start", "finalize"]));
-    expect(fixture.commands[0]?.input.body).toMatchObject({ intent: "original_audio" });
+    // Every video references a song: there is no way to publish without it.
+    expect(button("Use original sound")).toBeUndefined();
   });
 
   test("the guide delay is measured from the capture origin, not from the session returning", async () => {
@@ -878,8 +864,17 @@ describe("mounted song-first video flow", () => {
   describe("camera preview before recording", () => {
     const viewfinderStream = () => document.querySelector<HTMLVideoElement>("[data-video-viewfinder] video")?.srcObject;
 
+    test("the camera waits for a song", async () => {
+      songSetup({ preflight: "accepted", mobile: true, initialSong: false });
+      await vi.waitFor(() => expect(document.querySelector('section[aria-label="Soundtrack"]')).not.toBeNull());
+      await Promise.resolve();
+      expect(openPreview).not.toHaveBeenCalled();
+      expect(document.querySelector('button[aria-label="Start recording"]')).toBeNull();
+    });
+
     test("the camera shows on the capture screen before any take starts", async () => {
       songSetup({ preflight: "accepted", mobile: true });
+      await loadSongMetadata();
       await vi.waitFor(() => expect(previews).toHaveLength(1));
       await vi.waitFor(() => expect(viewfinderStream()).toBe(previews[0]!.stream));
       expect(startCapture).not.toHaveBeenCalled();
@@ -888,7 +883,9 @@ describe("mounted song-first video flow", () => {
 
     test("recording takes over the previewed camera instead of reopening it", async () => {
       nextSession = () => fakeSession(() => undefined);
-      songSetup({ preflight: "accepted", mobile: true, initialSong: false });
+      songSetup({ preflight: "accepted", mobile: true, createGuideAudio: () => guideSpy().audio });
+      await loadSongMetadata();
+      await awaitPlan("ready");
       await vi.waitFor(() => expect(previews).toHaveLength(1));
       await startRecording();
       await vi.waitFor(() => expect(startCapture).toHaveBeenCalledTimes(1));
@@ -900,7 +897,9 @@ describe("mounted song-first video flow", () => {
 
     test("going back from review reopens the camera", async () => {
       nextSession = () => fakeSession(() => undefined);
-      songSetup({ preflight: "accepted", mobile: true, initialSong: false });
+      songSetup({ preflight: "accepted", mobile: true, createGuideAudio: () => guideSpy().audio });
+      await loadSongMetadata();
+      await awaitPlan("ready");
       await vi.waitFor(() => expect(previews).toHaveLength(1));
       await startRecording();
       await stopRecording();
@@ -912,7 +911,8 @@ describe("mounted song-first video flow", () => {
     });
 
     test("choosing a file instead releases the camera", async () => {
-      songSetup({ preflight: "accepted", mobile: true, initialSong: false });
+      songSetup({ preflight: "accepted", mobile: true });
+      await loadSongMetadata();
       await vi.waitFor(() => expect(previews).toHaveLength(1));
       await chooseFile();
       expect(previews[0]!.stopped()).toBe(true);
@@ -920,7 +920,8 @@ describe("mounted song-first video flow", () => {
     });
 
     test("leaving the composer releases the camera", async () => {
-      songSetup({ preflight: "accepted", mobile: true, initialSong: false });
+      songSetup({ preflight: "accepted", mobile: true });
+      await loadSongMetadata();
       await vi.waitFor(() => expect(previews).toHaveLength(1));
       for (const dispose of disposers.splice(0)) dispose();
       expect(previews[0]!.stopped()).toBe(true);
@@ -929,7 +930,8 @@ describe("mounted song-first video flow", () => {
     test("a denied camera says so and keeps upload available", async () => {
       const { VideoCaptureError } = await import("./capture");
       previewFailure = new VideoCaptureError("camera_denied", "denied");
-      songSetup({ preflight: "accepted", mobile: true, initialSong: false });
+      songSetup({ preflight: "accepted", mobile: true });
+      await loadSongMetadata();
       await vi.waitFor(() => expect(document.body.textContent).toContain("Camera unavailable"));
       expect(button("Choose a video instead")).not.toBeUndefined();
       expect(startCapture).not.toHaveBeenCalled();
@@ -944,7 +946,9 @@ describe("mounted song-first video flow", () => {
       const { VideoCaptureError } = await import("./capture");
       let stopped = 0;
       nextSession = () => fakeSession(() => { stopped += 1; });
-      const fixture = songSetup({ preflight: "accepted", mobile: true, initialSong: false });
+      const fixture = songSetup({ preflight: "accepted", mobile: true, createGuideAudio: () => guideSpy().audio });
+      await loadSongMetadata();
+      await awaitPlan("ready");
       await vi.waitFor(() => expect(previews).toHaveLength(1));
       await startRecording();
       await vi.waitFor(() => expect(startCapture).toHaveBeenCalledTimes(1));
@@ -966,7 +970,8 @@ describe("mounted song-first video flow", () => {
 
     test("the camera is released while the page is hidden and reopens when it returns", async () => {
       try {
-        songSetup({ preflight: "accepted", mobile: true, initialSong: false });
+        songSetup({ preflight: "accepted", mobile: true });
+        await loadSongMetadata();
         await vi.waitFor(() => expect(previews).toHaveLength(1));
         setVisibility("hidden");
         await vi.waitFor(() => expect(previews[0]!.stopped()).toBe(true));

@@ -10,7 +10,7 @@ import { captureStopAfterMs, clipFitMessage, fitClipToExcerpt, GUIDED_TAKE_MAX_D
 import type { VideoSnapshot } from "./contracts";
 import { alignGuidedTake, type GuidedTakeAlignment } from "./guided-take-alignment";
 import { canDiscardRejectedVideo, VideoCoordinator, type PendingVideo, type VideoStorage } from "./coordinator";
-import { SongReviewPreview, type PreviewAudio } from "./song-review-preview";
+import { SongReviewPreview } from "./song-review-preview";
 import { createBrowserVideoStorage } from "./storage";
 import {
   createSongIntervalPreflight,
@@ -113,11 +113,10 @@ export function VideoComposerRuntime(props: {
   // separate from the author's soundtrack choice below: loading another song
   // resets the verdict, never the intent.
   const [songPlan, setSongPlan] = createSignal<SongPlanState>({ kind: "none" });
-  // The author's soundtrack choice. Once a song loads it stays the choice —
-  // through pending checks and song switches — until the author explicitly
-  // replaces it with the video's own sound.
+  // The author's soundtrack choice. Every video references a song (owner
+  // ruling 2026-09-24), so once a song loads it stays the choice through
+  // pending checks and song switches.
   const [songChoice, setSongChoice] = createSignal<SongChoice>({ kind: "none" });
-  const [useOriginalSound, setUseOriginalSound] = createSignal(false);
   // Entering from a song post, the song is already chosen: its excerpt
   // controls stay folded behind the song pill unless the author opens them or
   // something about the song needs their decision.
@@ -164,7 +163,7 @@ export function VideoComposerRuntime(props: {
   }
   function showOriginalTake(next: File) {
     const previous = originalPreview(); if (previous) URL.revokeObjectURL(previous);
-    setOriginalTake(next); setOriginalPreview(URL.createObjectURL(next));
+    setOriginalPreview(URL.createObjectURL(next));
   }
   function clearPreviewUrls() {
     const retained = preview(); if (retained) URL.revokeObjectURL(retained);
@@ -183,12 +182,13 @@ export function VideoComposerRuntime(props: {
   }).catch(failure => { if (!disposed) setError(failure instanceof Error ? failure.message : "Video restore failed"); })
     .finally(() => { if (!disposed) setBusy(false); });
 
-  /** The song is the soundtrack only while it is the author's live intent: an
-   * explicit switch to the video's own sound replaces it everywhere. */
-  const songActive = () => songChoice().kind !== "none" && !useOriginalSound();
+  /** Whether a song has been chosen as the soundtrack. */
+  const songActive = () => songChoice().kind !== "none";
+  /** Every video uses a song, so the camera waits until one is chosen. */
+  const songChosen = () => songActive() && selection() !== null;
   const songNeedsAttention = () => {
     const kind = songPlan().kind;
-    return selection() === null || useOriginalSound()
+    return selection() === null
       || kind === "not_available" || kind === "timing_unavailable" || kind === "refused"
       || kind === "ineligible" || kind === "failed"
       // A take that cannot publish with the song needs the choice below it.
@@ -231,10 +231,8 @@ export function VideoComposerRuntime(props: {
    * take must not be published with the song: the motion would be ahead of
    * the music by the measured delay. */
   const [takeAlignment, setTakeAlignment] = createSignal<"none" | "aligned" | "unaligned">("none");
-  // The untouched take, kept beside the aligned one: the video's own sound
-  // lives here, and choosing "Use original sound" must upload this artifact,
-  // never the one whose soundtrack was replaced.
-  const [originalTake, setOriginalTake] = createSignal<File | null>(null);
+  // The untouched take's preview, kept beside the aligned one for review
+  // when the take could not be aligned to the song.
   const [originalPreview, setOriginalPreview] = createSignal<string>();
   let guideStartDelayMs = 0;
   // Whether the guide actually began, and whether it began too late to
@@ -329,7 +327,7 @@ export function VideoComposerRuntime(props: {
       guideStarted = false;
       guideStartExceeded = false;
       const original = originalPreview(); if (original) URL.revokeObjectURL(original);
-      setOriginalTake(null); setOriginalPreview(undefined);
+      setOriginalPreview(undefined);
       const accepted = props.inspectFile ? await props.inspectFile(next) : await (await import("./capture")).inspectVideoFile(next);
       if (disposed) return;
       showFile(accepted);
@@ -487,43 +485,31 @@ export function VideoComposerRuntime(props: {
       if (!retained) {
         const selected = file(); if (!selected || !props.personaId || !props.communityId) throw new Error("Choose a community, persona and compatible video");
         const plan = songPlan();
-        const originalChosen = useOriginalSound();
-        // Publishing mid-check would silently decide for the author which
-        // soundtrack they get, so it waits for the server's answer — unless
-        // the author has explicitly chosen the video's own sound.
-        if (!originalChosen && plan.kind === "checking") {
-          throw new Error("The excerpt is still being checked. Publish again once it has an answer, or choose “Use original sound” to publish without it.");
-        }
-        // A chosen song is this video's soundtrack intent until the server
-        // accepts an excerpt or the author explicitly switches to the video's
-        // own sound. A song switch leaves the plan without a verdict; it must
-        // not publish the video's own sound by itself.
+        // Every video references a song. Publishing waits for a chosen song
+        // and the server's acceptance of its excerpt.
+        if (songChoice().kind === "none") throw new Error("Choose a song for this video.");
+        if (plan.kind === "checking") throw new Error("The excerpt is still being checked. Publish again once it has an answer.");
+        // A song switch leaves the plan without a verdict; only the excerpt
+        // on screen, accepted by the server, can be published.
         const approved = approvedSelection();
-        if (!originalChosen && songChoice().kind !== "none" && approved === undefined) {
-          throw new Error("This video is set to publish with the song, but the current excerpt hasn’t been accepted. Check the excerpt again, or choose “Use original sound” to publish without it.");
-        }
+        if (approved === undefined) throw new Error("This excerpt hasn’t been accepted yet. Check it again or choose another part of the song.");
         // A clip shorter than the excerpt cannot be rendered with it; the
         // server would refuse it after upload for a reason this surface can
         // state now, and a retry of the same bytes cannot change that.
         const impossible = clipProblem();
-        if (!originalChosen && songChoice().kind !== "none" && impossible) throw new Error(impossible);
+        if (impossible) throw new Error(impossible);
         // A guided take was danced to one window; publishing it against
         // another would show the author performing to a song that is not the
         // one being rendered.
-        if (!originalChosen && songChoice().kind !== "none" && takeMismatch()) {
-          throw new Error("This take was recorded to a different excerpt. Record again with the current excerpt, or choose “Use original sound” to publish without it.");
-        }
+        if (takeMismatch()) throw new Error("This take was recorded to a different excerpt. Record again with the current excerpt.");
         // An unaligned take would publish with its motion ahead of the music.
-        if (!originalChosen && songChoice().kind !== "none" && takeSoundtrack() && takeAlignment() === "unaligned") {
-          throw new Error("This take could not be aligned to the song, so publishing with the song is blocked. Record again, or choose “Use original sound”.");
+        if (takeSoundtrack() && takeAlignment() === "unaligned") {
+          throw new Error("This take could not be aligned to the song. Record it again.");
         }
-        // Original sound means the untouched take; the song means the take
-        // aligned to the guide.
-        const uploadFile = originalChosen ? (originalTake() ?? selected) : selected;
-        const attempt = { communityId: props.communityId, personaId: props.personaId, file: uploadFile, caption: caption(), rating: rating() };
-        await coordinator.begin(approved !== undefined && !originalChosen && songChoice().kind !== "none"
-          ? { ...attempt, song: approved }
-          : attempt);
+        await coordinator.begin({
+          communityId: props.communityId, personaId: props.personaId, file: selected,
+          caption: caption(), rating: rating(), song: approved,
+        });
       }
       if (disposed) return;
       await coordinator.submit();
@@ -553,10 +539,10 @@ export function VideoComposerRuntime(props: {
   createEffect(() => stream(), media => {
     if (viewfinder && viewfinder.isConnected && viewfinder.srcObject !== media) viewfinder.srcObject = media;
   });
-  // The camera opens when the capture screen shows, not when recording
-  // starts: the author frames the shot first. It closes when the screen goes
+  // The camera opens when the capture screen shows, once a song is chosen,
+  // not when recording starts: the author frames the shot first. It closes when the screen goes
   // away and reopens after a retake.
-  createEffect(() => mobile && pageVisible() && !record() && !file() && captureStatus() === "idle" && !finalizing(), capturing => {
+  createEffect(() => mobile && songChosen() && pageVisible() && !record() && !file() && captureStatus() === "idle" && !finalizing(), capturing => {
     if (!capturing) {
       // The camera stops now; the viewfinder signal is cleared outside the
       // effect's owned scope.
@@ -642,28 +628,12 @@ export function VideoComposerRuntime(props: {
             if (next && current && !hadSelection) void measureClip(current);
           }} />
       </section>
-      <Show when={songChoice().kind !== "none"}>
-        <section class="grid gap-2" aria-label="Soundtrack choice">
-          <Show when={useOriginalSound()}
-            fallback={<p role="status">{songPlan().kind === "ready" && selection()
-              ? `Publishing will post this video to the song, from ${windowSpan(selection()!.bounds)}.`
-              : "A song is chosen as this video’s soundtrack, so publishing with the song is blocked until the server accepts an excerpt for it."}</p>}>
-            <p role="status">Publishing will use this video’s own sound; the retained excerpt stays with the draft.</p>
-          </Show>
-          <Show when={!useOriginalSound()}>
-            <Button disabled={busy()} onClick={() => setUseOriginalSound(true)}>Use original sound</Button>
-          </Show>
-          <Show when={useOriginalSound()}>
-            <Button disabled={busy()} onClick={() => setUseOriginalSound(false)}>Use the song instead</Button>
-          </Show>
-        </section>
-      </Show>
       </fieldset>
       <Show when={props.initialSong && songPanelOpen() && !songNeedsAttention()}>
         <Button variant="secondary" onClick={() => setSongPanelOpen(false)}>Done</Button>
       </Show>
       </div>
-      <Show when={!file()}>
+      <Show when={!file() && songChosen()}>
         <div inert={interactionBusy()}>
           <Show when={captureStatus() === "recording"}>
             <p role="status" class="sr-only">{selection()
@@ -681,7 +651,7 @@ export function VideoComposerRuntime(props: {
     </Show>
     <Show when={editing() && file()}>
       <OriginalVideoReviewSurface caption={caption()} onCaptionChange={setCaption} submitting={busy()} onPublish={() => { void publish(); }}
-        onBack={() => { if (!busy()) { setFile(null); setClipDurationMs(null); setOriginalTake(null); clearPreviewUrls(); } }}
+        onBack={() => { if (!busy()) { setFile(null); setClipDurationMs(null); clearPreviewUrls(); } }}
         preview={songActive() && songPlan().kind === "ready" && selection() && takeAlignment() !== "unaligned"
           ? <SongReviewPreview audioUrl={selection()!.audioUrl} bounds={selection()!.bounds} videoUrl={preview()}
               createAudio={props.createGuideAudio} />
@@ -699,10 +669,10 @@ export function VideoComposerRuntime(props: {
           <p role="status">Measuring the clip against the excerpt…</p>
         </Show>
         <Show when={takeMismatch()}>
-          <FormNote tone="warning">This take was recorded to a different excerpt. Record again with the current excerpt, or choose “Use original sound”.</FormNote>
+          <FormNote tone="warning">This take was recorded to a different part of the song. Record again with the current excerpt.</FormNote>
         </Show>
         <Show when={takeSoundtrack() && takeAlignment() === "unaligned"}>
-          <FormNote tone="warning">This take could not be aligned to the song, so publishing with the song is blocked. Record again, or choose “Use original sound”.</FormNote>
+          <FormNote tone="warning">This take couldn’t be lined up with the song. Record it again.</FormNote>
         </Show>
         <Show when={finalizing()}>
           <p role="status">Aligning the take with the song…</p>
@@ -745,7 +715,7 @@ export function VideoComposerRuntime(props: {
         <Show when={failure()?.reason_code === "membership_required"}><p role="status">Restore your community posting eligibility, then retry publication. Your completed analysis is retained.</p></Show>
         <Show when={failure()?.retryable}><Button disabled={busy()} onClick={() => { void run(() => coordinator.revisionCommand("retry")); }}>{failure()?.reason_code === "membership_required" ? "Retry publication" : "Retry processing"}</Button></Show>
         <Show when={!failure()?.retryable && failure()?.reason_code !== "provider_submission_unconfirmed"}>
-          <Button disabled={busy()} onClick={() => { void run(async () => { await coordinator.discard(); setFile(null); setOriginalTake(null); clearPreviewUrls(); setCaption(""); }); }}>Start a new video</Button>
+          <Button disabled={busy()} onClick={() => { void run(async () => { await coordinator.discard(); setFile(null); clearPreviewUrls(); setCaption(""); }); }}>Start a new video</Button>
         </Show>
         <Button disabled={busy()} onClick={() => { void run(() => coordinator.refresh()); }}>Check video status</Button>
       </Show>
@@ -764,11 +734,11 @@ export function VideoComposerRuntime(props: {
       <Show when={!record()?.rejection && (state()?.status === "blocked" || state()?.status === "abandoned")}>
         <Show when={blocked()?.reason_code === "song_reference_invalid"}><p role="status">{songReferenceInvalidText(blocked()?.song_reason_code)}</p></Show>
         <Button disabled={busy()} onClick={() => { void run(() => coordinator.refresh()); }}>Check video status</Button>
-        <Button disabled={busy()} onClick={() => { void run(async () => { await coordinator.discard(); setFile(null); setOriginalTake(null); clearPreviewUrls(); setCaption(""); }); }}>Start a new video</Button>
+        <Button disabled={busy()} onClick={() => { void run(async () => { await coordinator.discard(); setFile(null); clearPreviewUrls(); setCaption(""); }); }}>Start a new video</Button>
       </Show>
       <Show when={!record()?.rejection && state()?.status === "published"}>
         <Show when={publishedHref()}>{href => <a href={href()}>View published post</a>}</Show>
-        <Button disabled={busy()} onClick={() => { void run(async () => { await coordinator.discard(); setFile(null); setOriginalTake(null); clearPreviewUrls(); setCaption(""); }); }}>Start a new video</Button>
+        <Button disabled={busy()} onClick={() => { void run(async () => { await coordinator.discard(); setFile(null); clearPreviewUrls(); setCaption(""); }); }}>Start a new video</Button>
       </Show>
     </Show>
   </section>;

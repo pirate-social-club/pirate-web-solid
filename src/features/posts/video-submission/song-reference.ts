@@ -228,7 +228,7 @@ export function isDefinitiveSongRefusal(error: ApiClientError): boolean {
   return reason === "song_audio_revision_changed" || reason === "canonical_timing_unavailable";
 }
 
-const OWN_SOUND = "Publishing with the song is blocked until the excerpt is accepted; you can choose “Use original sound” to publish without it.";
+const OWN_SOUND = "Publishing with the song is blocked until the excerpt is accepted; choose another part of the song or a different song.";
 
 function refusalText(reason: SongIntervalRefusal): string {
   switch (reason) {
@@ -259,12 +259,11 @@ export function selectionSpan(selection: SongVideoSelection): string {
 }
 
 /** What publishing will do, in every state. Only `ready` carries the song into
- * a publication, and even then as the server's decision; a retained excerpt in
- * any other state blocks publishing until the author chooses the video's own
- * sound. */
+ * a publication, and even then as the server's decision; any other state
+ * blocks publishing, because every video uses a song. */
 export function songPlanText(state: SongPlanState): string {
   switch (state.kind) {
-    case "none": return "Retain an excerpt to ask whether this video can be posted to the song. Until then, publishing sends this video with its own sound.";
+    case "none": return "Retain an excerpt to ask whether this video can be posted to the song. Every video uses a song, so publishing waits for it.";
     case "checking": return "Checking this excerpt with the server…";
     case "not_available":
       return `Posting a video to a song isn’t available yet. ${OWN_SOUND}`;

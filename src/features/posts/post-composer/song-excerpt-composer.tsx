@@ -1,7 +1,7 @@
 import { ApiClientError } from "@pirate/api-client";
 import { createSignal, onCleanup, onSettled, Show } from "solid-js";
 
-import { Type } from "../../../design-system";
+import { Button, Type } from "../../../design-system";
 import { PostComposerExcerptSelector } from "./preview-segment-selector";
 import {
   canHoldExcerpt,
@@ -18,6 +18,7 @@ import {
   type SongExcerptDraftStore,
 } from "./song-excerpt-draft";
 import { parseSongLink } from "./song-excerpt-link";
+import { SongPicker, type SongPickerSource } from "./song-picker";
 import {
   createSongSourceReader,
   loadSongSource,
@@ -66,6 +67,8 @@ export function SongExcerptComposer(props: {
   communityId?: string;
   preflight?: SongIntervalPreflight;
   initialSong?: { readonly postId: string };
+  /** Songs offered in the picker; defaults to the community's songs. */
+  songs?: SongPickerSource;
   onSelection?: (selection: SoundtrackSelection | null) => void;
   onPlan?: (state: SongPlanState) => void;
   onChoice?: (choice: SongChoice) => void;
@@ -345,8 +348,7 @@ export function SongExcerptComposer(props: {
     const mine = ++generation;
     setSource({ kind: "loading" });
     // Loading a valid song link is the author's choice, made before the reader
-    // answers. A pending or failed read must not silently revert the video to
-    // its own sound; only an explicit choice does that.
+    // answers. A pending or failed read keeps that choice.
     if (request.kind === "post") reportChoice?.({ kind: "song", songPostId: request.postId });
     const next = await loadSongSource(request, reader, pending.signal);
     if (mine !== generation) return;
@@ -461,7 +463,7 @@ export function SongExcerptComposer(props: {
 
   /** The status line, in the words an author acts on. A chosen song with no
    * verdict yet is not the same as no song at all: publishing waits for the
-   * server's answer rather than silently using the video's own sound. */
+   * server's answer. */
   const planText = () => {
     const current = plan();
     switch (current.kind) {
@@ -498,32 +500,13 @@ export function SongExcerptComposer(props: {
   return (
     <section class="grid gap-3" aria-label="Song excerpt">
       <Show when={source().kind === "idle"}>
-        <div class="grid gap-2">
-          <Type as="h2" variant="h4">Choose a song</Type>
-          <Type as="p" variant="caption">
-            Paste a song post link or its post id. Browsing a list of songs isn’t available yet.
-          </Type>
-          <div class="flex gap-2">
-            <input
-              aria-label="Song link or post id"
-              class="min-w-0 flex-1 rounded-[var(--radius-lg)] border border-border bg-card p-3"
-              onInput={(event) => setLink(event.currentTarget.value)}
-              placeholder="/posts/<song post> or /p/<post id>"
-              type="text"
-              value={link()}
-            />
-            <button
-              class="rounded-[var(--radius-lg)] bg-primary p-3 text-primary-foreground"
-              onClick={submitLink}
-              type="button"
-            >
-              Load
-            </button>
-          </div>
-          <Show when={linkProblem()}>
-            {(problem) => <Type as="p" variant="caption" role="alert">{problem()}</Type>}
-          </Show>
-        </div>
+        <SongPicker
+          communityId={communityId}
+          linkProblem={linkProblem()}
+          onLink={(value) => { setLink(value); submitLink(); }}
+          onPick={(postId) => { setLinkProblem(undefined); void loadSong({ kind: "post", postId }); }}
+          {...(props.songs === undefined ? {} : { source: props.songs })}
+        />
       </Show>
 
       <Show when={source().kind === "loading"}>
@@ -535,21 +518,13 @@ export function SongExcerptComposer(props: {
             <Type as="p" variant="caption" role="alert">{reason()}</Type>
             <div class="flex gap-2">
               <Show when={retryableProblem(source()) && lastRequest}>
-                <button
-                  class="rounded-[var(--radius-lg)] border border-border p-3"
-                  onClick={() => { if (lastRequest) void loadSong(lastRequest); }}
-                  type="button"
-                >
-                  Try loading it again
-                </button>
+                <Button onClick={() => { if (lastRequest) void loadSong(lastRequest); }} size="sm" type="button" variant="secondary">
+                  Try again
+                </Button>
               </Show>
-              <button
-                class="rounded-[var(--radius-lg)] border border-border p-3"
-                onClick={resetSong}
-                type="button"
-              >
-                Choose a different song
-              </button>
+              <Button onClick={resetSong} size="sm" type="button" variant="ghost">
+                Change song
+              </Button>
             </div>
           </div>
         )}
@@ -576,13 +551,9 @@ export function SongExcerptComposer(props: {
                 {(problem) => (
                   <>
                     <Type as="p" variant="caption" role="alert">{problem()}</Type>
-                    <button
-                      class="justify-self-start rounded-[var(--radius-lg)] border border-border p-3"
-                      onClick={resetSong}
-                      type="button"
-                    >
-                      Choose a different song
-                    </button>
+                    <Button class="justify-self-start" onClick={resetSong} size="sm" type="button" variant="ghost">
+                      Change song
+                    </Button>
                   </>
                 )}
               </Show>
@@ -604,23 +575,24 @@ export function SongExcerptComposer(props: {
               />
             </Show>
 
-            <div class="rounded-[var(--radius-lg)] border border-dashed border-muted-foreground/40 p-3" data-song-plan={preflight ? plan().kind : "unchecked"}>
+            {/* Once accepted, the window above already says what the video uses;
+                the confirmation stays for screen readers only. */}
+            <div
+              class={preflight && plan().kind === "ready" ? "sr-only" : "rounded-[var(--radius-lg)] border border-dashed border-muted-foreground/40 p-3"}
+              data-song-plan={preflight ? plan().kind : "unchecked"}
+            >
               <Type as="p" variant="caption" role="status">
                 {preflight
                   ? planText()
-                  : `The excerpt is kept with the video draft, but publishing sends the video with its own sound.`}
+                  : `This excerpt can’t be checked here, so the video can’t be posted yet.`}
               </Type>
             </div>
             <Show when={note()}>
               {(text) => <Type as="p" variant="caption" role="status">{text()}</Type>}
             </Show>
-            <button
-              class="justify-self-start rounded-[var(--radius-lg)] border border-border p-3"
-              onClick={resetSong}
-              type="button"
-            >
-              Choose a different song
-            </button>
+            <Button class="justify-self-start" onClick={resetSong} size="sm" type="button" variant="ghost">
+              Change song
+            </Button>
           </>
         )}
       </Show>
