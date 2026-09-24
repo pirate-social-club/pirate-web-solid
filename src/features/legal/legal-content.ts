@@ -47,7 +47,7 @@ export const termsOfService: LegalDocumentContent = {
       heading: "What you post",
       paragraphs: [
         "You keep ownership of the songs, videos, images, lyrics, posts and comments you publish. You give us permission to store, process and show them in the app. That includes transcoding media, checking it for policy violations, matching audio against a fingerprint database, transcribing it and translating it.",
-        "When you publish a song, its audio, artwork and details are stored on IPFS and registered on the DATA Network (formerly Story) under a commercial remix licence: others may remix it and sell their remix with credit, and you receive the share of their remix earnings you set when you publish. These public records are permanent. We cannot remove them from IPFS or the chain, even if you later delete the post or your account.",
+        "When you publish a song, its audio, artwork and details are stored on IPFS and registered on the DATA Network (formerly Story) under a commercial remix licence: others may remix it and sell their remix with credit, and you receive the share of their remix earnings you set when you publish. A song submission that was given a different licence before 24 September 2026 keeps that licence. These public records are permanent. We cannot remove them from IPFS or the chain, even if you later delete the post or your account.",
         "You must have the rights to what you post. A fingerprint match with a known recording blocks publication, but passing that check is not a copyright clearance.",
       ],
     },
