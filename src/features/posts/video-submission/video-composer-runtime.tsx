@@ -6,7 +6,7 @@ import { createLocalExcerptDraftStore } from "../post-composer/song-excerpt-draf
 import type { SongSourceReader } from "../post-composer/song-excerpt-source";
 import { OriginalVideoCaptureSurface, OriginalVideoReviewSurface } from "../post-composer/video-original-audio-surface";
 import type { OriginalVideoCaptureInput, VideoCaptureSession } from "./capture";
-import { captureStopAfterMs, clipFitMessage, fitClipToExcerpt, GUIDED_TAKE_MAX_DURATION_SECONDS } from "./clip-duration";
+import { captureStopAfterMs, clipFitMessage, fitClipToExcerpt, GUIDED_TAKE_MAX_DURATION_SECONDS, songLengthForClip } from "./clip-duration";
 import type { VideoSnapshot } from "./contracts";
 import { alignGuidedTake, type GuidedTakeAlignment } from "./guided-take-alignment";
 import { canDiscardRejectedVideo, VideoCoordinator, type PendingVideo, type VideoStorage } from "./coordinator";
@@ -203,7 +203,7 @@ export function VideoComposerRuntime(props: {
   const clipFit = createMemo(() => fitClipToExcerpt(clipDurationMs(), selection()?.bounds));
   const clipProblem = createMemo(() => {
     const fit = clipFit();
-    return fit.kind === "too_short" ? clipFitMessage(fit) : undefined;
+    return fit.kind === "too_short" || fit.kind === "too_long" ? clipFitMessage(fit) : undefined;
   });
   const clipNote = createMemo(() => {
     const fit = clipFit();
@@ -244,9 +244,11 @@ export function VideoComposerRuntime(props: {
     const take = takeSoundtrack();
     const current = selection();
     if (!take || !current) return false;
+    // A take shortens the song part from the same start, so a shorter window
+    // still matches; a moved start or a longer window does not.
     return take.songPostId !== current.songPostId
       || take.bounds.startMs !== current.bounds.startMs
-      || take.bounds.endMs !== current.bounds.endMs;
+      || current.bounds.endMs > take.bounds.endMs;
   });
 
   // Whether the guide has actually begun. A `waiting` before the first
@@ -616,6 +618,7 @@ export function VideoComposerRuntime(props: {
       <section aria-label="Soundtrack">
         <SongExcerptComposer store={excerptStore} read={props.songReader} communityId={props.communityId}
           onClose={props.onExit}
+          clipLengthMs={songLengthForClip(clipDurationMs())}
           preflight={songPreflight} initialSong={props.initialSong}
           onPlan={setSongPlan}
           onChoice={choice => { if (!disposed) setSongChoice(choice); }}

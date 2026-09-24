@@ -23,13 +23,14 @@ import {
 const SONG = 214_000; // 3:34, a plausible song length.
 
 describe("song excerpt bounds", () => {
-  it("defaults to the opening 30 seconds, or the whole song when shorter", () => {
+  it("defaults to the opening 15 seconds, or the whole song when shorter", () => {
     expect(defaultExcerpt(SONG)).toEqual({ startMs: 0, endMs: DEFAULT_EXCERPT_MS });
-    expect(DEFAULT_EXCERPT_MS).toBe(30_000);
+    expect(DEFAULT_EXCERPT_MS).toBe(15_000);
+    expect(MAX_EXCERPT_MS).toBe(15_000);
     // A song shorter than the default yields the whole song, not an interval
     // that runs past its end.
     expect(defaultExcerpt(12_000)).toEqual({ startMs: 0, endMs: 12_000 });
-    // The default is a starting point: the author can still stretch to 180 s.
+    // The default is also the longest a video may be.
     expect(maxExcerptMs(SONG)).toBe(MAX_EXCERPT_MS);
   });
 
@@ -46,9 +47,9 @@ describe("song excerpt bounds", () => {
   });
 
   it("dragging the span moves it and preserves its duration", () => {
-    const bounds = { startMs: 10_000, endMs: 28_000 };
+    const bounds = { startMs: 10_000, endMs: 22_000 };
     const moved = moveExcerpt(bounds, 90_000, SONG);
-    expect(moved).toEqual({ startMs: 90_000, endMs: 108_000 });
+    expect(moved).toEqual({ startMs: 90_000, endMs: 102_000 });
     expect(excerptLengthMs(moved)).toBe(excerptLengthMs(bounds));
   });
 
@@ -61,7 +62,7 @@ describe("song excerpt bounds", () => {
     expect(excerptLengthMs(resized)).toBe(12_000);
   });
 
-  it("resizing from either endpoint stays within three and 180 seconds", () => {
+  it("resizing from either endpoint stays within three and 15 seconds", () => {
     // Late enough in the song that the maximum, not the song's opening, is
     // what stops the start from being dragged further back.
     const bounds = { startMs: 190_000, endMs: 200_000 };
@@ -72,17 +73,17 @@ describe("song excerpt bounds", () => {
   });
 
   it("shortens rather than overrunning when the span nears the end of the song", () => {
-    const moved = moveExcerpt({ startMs: 0, endMs: 30_000 }, SONG - 9_000, SONG);
+    const moved = moveExcerpt({ startMs: 0, endMs: 15_000 }, SONG - 9_000, SONG);
     expect(moved.endMs).toBe(SONG);
     expect(excerptLengthMs(moved)).toBe(9_000);
   });
 
   it("holds the start when the end moves, so the end control sets the length", () => {
-    const bounds = { startMs: 40_000, endMs: 55_000 };
-    expect(resizeExcerptEnd(bounds, 62_000, SONG)).toEqual({ startMs: 40_000, endMs: 62_000 });
+    const bounds = { startMs: 40_000, endMs: 45_000 };
+    expect(resizeExcerptEnd(bounds, 52_000, SONG)).toEqual({ startMs: 40_000, endMs: 52_000 });
   });
 
-  it("keeps the length within three and 180 seconds from either control", () => {
+  it("keeps the length within three and 15 seconds from either control", () => {
     const bounds = { startMs: 20_000, endMs: 35_000 };
     // Dragged far below the minimum and far above the maximum.
     expect(excerptLengthMs(resizeExcerptEnd(bounds, 20_100, SONG))).toBe(MIN_EXCERPT_MS);
@@ -130,8 +131,8 @@ describe("song excerpt bounds", () => {
 });
 
 describe("fixed-length window", () => {
-  it("offers 15, 30 and 60 second windows for a song that holds them", () => {
-    expect(windowLengthsMs(SONG)).toEqual([15_000, 30_000, 60_000]);
+  it("offers one 15 second window: the clip, not a choice, sets the length", () => {
+    expect(windowLengthsMs(SONG)).toEqual([15_000]);
   });
 
   it("offers a shorter song's own length when no preset fits", () => {
@@ -141,8 +142,10 @@ describe("fixed-length window", () => {
     expect(windowLengthsMs(2_000)).toEqual([]);
   });
 
-  it("respects a policy narrower than the presets", () => {
-    expect(windowLengthsMs(SONG, { minExcerptMs: 20_000, maxExcerptMs: 45_000 })).toEqual([30_000]);
+  it("respects a policy narrower than the cap, and never exceeds the cap", () => {
+    expect(windowLengthsMs(SONG, { minExcerptMs: 3_000, maxExcerptMs: 10_000 })).toEqual([10_000]);
+    expect(windowLengthsMs(SONG, { maxExcerptMs: 180_000 })).toEqual([15_000]);
+    expect(windowLengthsMs(SONG, { minExcerptMs: 20_000, maxExcerptMs: 45_000 })).toEqual([]);
   });
 
   it("moves a window without changing its length", () => {
@@ -155,19 +158,20 @@ describe("fixed-length window", () => {
   it("stops a window whole at the song's end instead of shrinking it", () => {
     // The failure the three-slider selector had: the position control's travel
     // went dead near the end and clamping shortened the excerpt quietly.
-    const window = { startMs: 0, endMs: 30_000 };
+    const window = { startMs: 0, endMs: 15_000 };
     const moved = slideWindow(window, SONG, SONG);
-    expect(moved).toEqual({ startMs: SONG - 30_000, endMs: SONG });
-    expect(excerptLengthMs(moved)).toBe(30_000);
-    expect(windowStartMax(30_000, SONG)).toBe(SONG - 30_000);
+    expect(moved).toEqual({ startMs: SONG - 15_000, endMs: SONG });
+    expect(excerptLengthMs(moved)).toBe(15_000);
+    expect(windowStartMax(15_000, SONG)).toBe(SONG - 15_000);
   });
 
   it("changes the window's length while keeping its start when it can", () => {
+    // A shorter clip shortens the song part from the same start.
     const window = { startMs: 100_000, endMs: 115_000 };
-    expect(windowWithLength(window, 30_000, SONG)).toEqual({ startMs: 100_000, endMs: 130_000 });
+    expect(windowWithLength(window, 8_000, SONG)).toEqual({ startMs: 100_000, endMs: 108_000 });
     // Near the end the start is pulled back only as far as the length needs.
-    expect(windowWithLength({ startMs: SONG - 5_000, endMs: SONG }, 30_000, SONG))
-      .toEqual({ startMs: SONG - 30_000, endMs: SONG });
+    expect(windowWithLength({ startMs: SONG - 5_000, endMs: SONG }, 15_000, SONG))
+      .toEqual({ startMs: SONG - 15_000, endMs: SONG });
   });
 
   it("never produces fractional or out-of-range windows", () => {

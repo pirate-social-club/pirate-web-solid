@@ -2,8 +2,9 @@
  *
  * Under Spec 013 §5A a song-backed video publishes a server-rendered master
  * whose soundtrack is this interval of the canonical song, so the interval is
- * bounded like the video itself: 3 to 180 seconds, and contained within the
- * song. It is not the Dance segment. Spec 021's scored segment is a separate,
+ * bounded like the video itself and contained within the song. The server
+ * accepts 3 to 180 seconds; the owner set new song videos to 3 to 15 seconds on
+ * 2026-09-24, so the client never offers more than 15. It is not the Dance segment. Spec 021's scored segment is a separate,
  * opt-in, later-authored 6 to 30 seconds chosen on an already-published video,
  * and publishing an ordinary song-backed video does not create one. This module
  * enforced the Dance limit until 2026-09-10, which conflated the two.
@@ -14,7 +15,7 @@
  * against the canonical song's own duration, and its answer is the authority.
  */
 export const MIN_EXCERPT_MS = 3_000;
-export const MAX_EXCERPT_MS = 180_000;
+export const MAX_EXCERPT_MS = 15_000;
 
 export type ExcerptBounds = { readonly startMs: number; readonly endMs: number };
 
@@ -31,15 +32,14 @@ export function maxExcerptMs(songDurationMs: number): number {
   return Math.min(MAX_EXCERPT_MS, whole(songDurationMs));
 }
 
-/** How long the selection is before the author touches it, set by the owner on
- * 2026-09-10. It is a starting point, not a limit: the author can still adjust
- * anywhere from 3 to 180 seconds. */
-export const DEFAULT_EXCERPT_MS = 30_000;
+/** How long the selection is before a clip exists: the longest a video may
+ * be. A shorter clip then shortens it from the same start. */
+export const DEFAULT_EXCERPT_MS = MAX_EXCERPT_MS;
 
-/** The fixed window lengths offered before recording. The window is dragged,
- * never stretched endpoint by endpoint: its length is also the length of the
- * guided recording, so the two cannot drift apart. */
-export const EXCERPT_WINDOW_LENGTHS_MS = [15_000, 30_000, 60_000] as const;
+/** The window length offered before recording. There is no choice of length:
+ * the author picks where the song starts, and the finished clip decides how
+ * much of the song is used. */
+export const EXCERPT_WINDOW_LENGTHS_MS = [MAX_EXCERPT_MS] as const;
 
 /** Window lengths this song and the server's policy can hold, smallest first.
  * Non-empty whenever `canHoldExcerpt` is true: a song shorter than every
@@ -50,7 +50,8 @@ export function windowLengthsMs(
 ): readonly number[] {
   const duration = whole(songDurationMs);
   const lowest = whole(policy.minExcerptMs ?? MIN_EXCERPT_MS);
-  const highest = whole(policy.maxExcerptMs ?? MAX_EXCERPT_MS);
+  // The server may allow more than a video may last; the product cap wins.
+  const highest = Math.min(MAX_EXCERPT_MS, whole(policy.maxExcerptMs ?? MAX_EXCERPT_MS));
   if (duration < lowest || highest < lowest) return [];
   const allowed = EXCERPT_WINDOW_LENGTHS_MS.filter(
     (length) => length >= lowest && length <= highest && length <= duration,
@@ -94,7 +95,7 @@ export function windowWithLength(
   return { startMs, endMs: startMs + length };
 }
 
-/** Where a selection starts when the author has not chosen one: the opening 30
+/** Where a selection starts when the author has not chosen one: the opening 15
  * seconds, or the whole song when it is shorter. Deliberately the opening rather
  * than a guess at a chorus — a default that pretends to be clever is worse than
  * one the author can see is arbitrary. A song shorter than the 3 second minimum

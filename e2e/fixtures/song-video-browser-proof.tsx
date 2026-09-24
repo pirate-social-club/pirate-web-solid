@@ -142,6 +142,7 @@ const preflight: SongIntervalPreflight = async (input) => {
 async function measureDuration(file: File): Promise<number | null> {
   if (file.name === "short.mp4") return 3_000;
   if (file.name === "long.mp4") return 45_000;
+  if (file.name === "fits.mp4") return 10_000;
   // The take is measured by the production reader, which reports the video
   // track, not the container that the copied audio extends.
   const measured = await measureVideoDuration(file);

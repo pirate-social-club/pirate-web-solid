@@ -8,26 +8,21 @@ import {
   windowStartMax,
 } from "./song-excerpt";
 
-/** Selects the part of a song a song-backed video plays.
+/** Chooses where the song starts in a song-backed video.
  *
- * One window, dragged as a whole: its length is the length of the recording
- * that will carry it, so the two cannot drift apart. The earlier three-control
- * selector resized each endpoint and slid the span separately, and its position
- * control ran out of travel near the song's end, quietly clamping the excerpt
- * shorter. A fixed window stays whole; only its position moves.
+ * One window, dragged as a whole. Before a clip exists it is as long as a
+ * video may be; the finished clip then shortens it from the same start, so the
+ * author only ever chooses the start.
  */
 export function PostComposerExcerptSelector(props: {
   bounds: ExcerptBounds;
-  readonly lengths: readonly number[];
   onChange: (bounds: ExcerptBounds) => void;
-  onLengthChange: (lengthMs: number) => void;
   onTogglePreview: () => void;
   readonly playing: boolean;
   readonly positionMs: number;
   readonly songDurationMs: number;
 }) {
   const length = () => excerptLengthMs(props.bounds);
-  const lengthSeconds = () => Math.round(length() / 1_000);
   const spanWidth = () =>
     props.songDurationMs > 0 ? (length() / props.songDurationMs) * 100 : 100;
   const spanOffset = () =>
@@ -38,40 +33,27 @@ export function PostComposerExcerptSelector(props: {
       : 0;
   const timeRange = () =>
     `${formatExcerptTime(props.bounds.startMs)} – ${formatExcerptTime(props.bounds.endMs)}`;
+  const start = () => formatExcerptTime(props.bounds.startMs);
 
   return (
     <PostComposerField
-      counter={<output class="tabular-nums">{timeRange()}</output>}
-      label="Song excerpt"
+      counter={<output class="tabular-nums">{start()}</output>}
+      label="Song starts at"
       tone="muted"
     >
       <div class="rounded-[var(--radius-xl)] bg-card p-3">
         <div class="mb-3 flex items-center gap-3">
           <IconButton
             active={props.playing}
-            aria-label={props.playing ? "Pause the song excerpt" : "Play the song excerpt"}
+            aria-label={props.playing ? "Pause the song" : "Play from here"}
             class="size-9 shrink-0 rounded-full border-0 bg-primary text-primary-foreground hover:bg-primary/90"
             onClick={props.onTogglePreview}
           >
             {props.playing ? <IconPause class="size-4" /> : <IconPlay class="size-4" filled />}
           </IconButton>
-          <Type as="span" variant="caption" class="flex-1">
-            {lengthSeconds()} second excerpt
+          <Type as="span" variant="caption" class="flex-1 text-muted-foreground">
+            Up to 15 seconds, as long as your video
           </Type>
-          <div class="flex gap-1" role="group" aria-label="Excerpt length">
-            {props.lengths.map(seconds => (
-              <button
-                aria-pressed={length() === seconds ? "true" : "false"}
-                class={length() === seconds
-                  ? "rounded-[var(--radius-lg)] border border-primary bg-primary px-2 py-1 text-xs tabular-nums text-primary-foreground"
-                  : "rounded-[var(--radius-lg)] border border-border px-2 py-1 text-xs tabular-nums"}
-                onClick={() => props.onLengthChange(seconds)}
-                type="button"
-              >
-                {Math.round(seconds / 1_000)}s
-              </button>
-            ))}
-          </div>
         </div>
 
         <div class="relative mb-3 h-7 rounded-md" data-excerpt-track>
@@ -95,11 +77,11 @@ export function PostComposerExcerptSelector(props: {
 
         <label class="grid gap-1">
           <Type as="span" variant="caption" class="text-muted-foreground">
-            Drag to move the excerpt through the song
+            Drag to choose where the song starts
           </Type>
           <input
-            aria-label="Song position, moves the excerpt window"
-            aria-valuetext={`Excerpt ${timeRange()}`}
+            aria-label="Where the song starts"
+            aria-valuetext={`Starts at ${start()}, plays ${timeRange()}`}
             class="w-full"
             max={windowStartMax(length(), props.songDurationMs)}
             min="0"

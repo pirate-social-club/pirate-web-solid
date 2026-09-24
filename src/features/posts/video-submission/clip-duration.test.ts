@@ -6,7 +6,9 @@ import {
   clipFitMessage,
   fitClipToExcerpt,
   GUIDED_TAKE_MAX_DURATION_SECONDS,
+  MAX_CLIP_MS,
   SERVER_FRAME_MS,
+  songLengthForClip,
   TRIM_NOTICE_EPSILON_MS,
 } from "./clip-duration";
 
@@ -26,10 +28,24 @@ describe("clip duration against the chosen excerpt", () => {
     expect(fitClipToExcerpt(12_000 + TRIM_NOTICE_EPSILON_MS, EXCERPT)).toEqual({ kind: "exact" });
   });
 
-  it("explains trimming when the clip runs past the excerpt", () => {
-    const fit = fitClipToExcerpt(20_000, EXCERPT);
-    expect(fit).toEqual({ kind: "trims", clipDurationMs: 20_000, discardedMs: 8_000 });
+  it("explains trimming when the clip runs a little past the excerpt", () => {
+    const fit = fitClipToExcerpt(13_500, EXCERPT);
+    expect(fit).toEqual({ kind: "trims", clipDurationMs: 13_500, discardedMs: 1_500 });
     expect(clipFitMessage(fit)).toContain("trimmed");
+  });
+
+  it("refuses a clip longer than a video may be instead of cutting it", () => {
+    const fit = fitClipToExcerpt(20_000, EXCERPT);
+    expect(fit).toEqual({ kind: "too_long", clipDurationMs: 20_000 });
+    expect(clipFitMessage(fit)).toContain("up to 15 seconds");
+    expect(fitClipToExcerpt(MAX_CLIP_MS, EXCERPT).kind).toBe("trims");
+    expect(fitClipToExcerpt(MAX_CLIP_MS + 1, EXCERPT).kind).toBe("too_long");
+  });
+
+  it("says how much song a clip can carry: one frame less than the clip", () => {
+    expect(songLengthForClip(8_000)).toBe(Math.floor(8_000 - SERVER_FRAME_MS));
+    expect(songLengthForClip(null)).toBeNull();
+    expect(songLengthForClip(Number.NaN)).toBeNull();
   });
 
   it("rejects a clip shorter than the excerpt with the shortfall named", () => {
@@ -38,7 +54,8 @@ describe("clip duration against the chosen excerpt", () => {
     const message = clipFitMessage(fit);
     expect(message).toContain("0:09");
     expect(message).toContain("0:12");
-    expect(message).toContain("cannot be stretched");
+    expect(message).toContain("Record again");
+    expect(clipFitMessage(fitClipToExcerpt(2_000, { startMs: 0, endMs: 3_000 }))).toBe("Videos need to be at least 3 seconds long.");
   });
 
   it("fails closed on a measurement it cannot use", () => {

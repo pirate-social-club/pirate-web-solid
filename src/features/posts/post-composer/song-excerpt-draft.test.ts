@@ -28,14 +28,14 @@ function memoryStore() {
 describe("retaining an excerpt with the video draft", () => {
   it("restores the exact integer milliseconds that were chosen", async () => {
     const store = memoryStore();
-    const bounds = { startMs: 87_300, endMs: 104_900 };
+    const bounds = { startMs: 87_300, endMs: 99_900 };
     await retainSongExcerpt(store, SONG.id, bounds);
     const restored = await restoreSongExcerpt(store, SONG);
     // Not "close to": the same integers, because publication and MP3
     // extraction use these exact values.
     expect(restored).toEqual({ bounds, songPostId: SONG.id });
     expect(restored?.bounds.startMs).toBe(87_300);
-    expect(restored?.bounds.endMs).toBe(104_900);
+    expect(restored?.bounds.endMs).toBe(99_900);
   });
 
   it("survives a JSON round trip without drifting", async () => {

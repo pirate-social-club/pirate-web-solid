@@ -1,5 +1,5 @@
 import { ApiClientError } from "@pirate/api-client";
-import { createSignal, onCleanup, onSettled, Show } from "solid-js";
+import { createEffect, createSignal, onCleanup, onSettled, Show } from "solid-js";
 
 import { Button, IconMusicNote, Type } from "../../../design-system";
 import { PostComposerExcerptSelector } from "./preview-segment-selector";
@@ -8,8 +8,10 @@ import {
   clampExcerpt,
   defaultExcerpt,
   type ExcerptBounds,
+  excerptLengthMs,
   formatExcerptTime,
   isSubmittableExcerpt,
+  MIN_EXCERPT_MS,
   windowLengthsMs,
   windowWithLength,
 } from "./song-excerpt";
@@ -71,6 +73,10 @@ export function SongExcerptComposer(props: {
   songs?: SongPickerSource;
   /** Leaves the composer from the song picker, before any song is chosen. */
   onClose?: () => void;
+  /** How much song the finished clip can carry, once there is a clip. The
+   * window shortens to it from the same start; without a clip it is as long
+   * as a video may be. */
+  clipLengthMs?: number | null;
   onSelection?: (selection: SoundtrackSelection | null) => void;
   onPlan?: (state: SongPlanState) => void;
   onChoice?: (choice: SongChoice) => void;
@@ -313,6 +319,27 @@ export function SongExcerptComposer(props: {
       if (atMs < next.startMs || atMs >= next.endMs) audio.currentTime = next.startMs / 1_000;
     }
   };
+
+  /** The window's length: as long as a video may be, until a shorter clip
+   * says how much of the song it uses. The author only chooses the start. */
+  const wantedLengthMs = () => {
+    const longest = windowLengthsMs(lengthMs(), timing() ?? {})[0] ?? 0;
+    const clip = props.clipLengthMs;
+    return clip === undefined || clip === null ? longest : Math.min(longest, Math.max(MIN_EXCERPT_MS, Math.floor(clip)));
+  };
+  const readySong = () => { const state = source(); return state.kind === "ready" ? state : undefined; };
+  createEffect(
+    () => ({ want: wantedLengthMs(), ready: readySong(), current: bounds() }),
+    ({ want, ready, current }) => {
+      if (!ready || want <= 0 || excerptLengthMs(current) <= 0 || excerptLengthMs(current) === want) return;
+      // Written outside the effect's owned scope, as Solid requires.
+      queueMicrotask(() => {
+        const song = readySong();
+        if (song?.postId !== ready.postId || excerptLengthMs(bounds()) === want) return;
+        applyWindow(windowWithLength(bounds(), want, lengthMs()), ready.postId);
+      });
+    },
+  );
 
   const resetSong = () => {
     stopPlayback();
@@ -575,9 +602,7 @@ export function SongExcerptComposer(props: {
             <Show when={!audioProblem() && lengthMs() > 0 && canHoldExcerpt(lengthMs())}>
               <PostComposerExcerptSelector
                 bounds={bounds()}
-                lengths={windowLengthsMs(lengthMs(), timing() ?? {})}
                 onChange={(next) => applyWindow(next, ready().postId)}
-                onLengthChange={(length) => applyWindow(windowWithLength(bounds(), length, lengthMs()), ready().postId)}
                 onTogglePreview={togglePlayback}
                 playing={playing()}
                 positionMs={positionMs()}

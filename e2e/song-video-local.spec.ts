@@ -122,13 +122,13 @@ test("the excerpt is chosen before capture, guides the take and ends it", async 
     // excerpt controls are folded behind it until the author asks for them.
     const pill = page.getByRole("button", { name: /^Song: Fixture song/u });
     await expect(pill).toBeVisible();
-    await expect(page.getByLabel("Song position, moves the excerpt window")).toBeHidden();
+    await expect(page.getByLabel("Where the song starts")).toBeHidden();
     await expect(page.locator("textarea")).toHaveCount(0);
     await expect.poll(async () => (await readLedger(page)).calls).toContain("preview:opened");
     await pill.click();
-    await expect(page.getByLabel("Song position, moves the excerpt window")).toBeVisible();
+    await expect(page.getByLabel("Where the song starts")).toBeVisible();
     await page.getByRole("button", { name: "Done", exact: true }).click();
-    await expect(page.getByLabel("Song position, moves the excerpt window")).toBeHidden();
+    await expect(page.getByLabel("Where the song starts")).toBeHidden();
 
     const startedAt = Date.now();
     await page.getByRole("button", { name: "Start recording", exact: true }).click();
@@ -159,7 +159,7 @@ test("the excerpt is chosen before capture, guides the take and ends it", async 
   }
 });
 
-test("an uploaded clip is measured against the excerpt before upload", async () => {
+test("an uploaded clip is measured against the 3 to 15 second limit before upload", async () => {
   const userDataDir = await mkdtemp(join(tmpdir(), "pirate-song-video-"));
   let context: BrowserContext | undefined;
   try {
@@ -168,12 +168,12 @@ test("an uploaded clip is measured against the excerpt before upload", async () 
     await expect(page.getByRole("button", { name: /^Song: Fixture song/u })).toBeVisible();
     const input = page.locator('input[type="file"]');
     await input.setInputFiles({ name: "short.mp4", mimeType: "video/mp4", buffer: Buffer.from("short") });
-    await expect(page.getByText("cannot be stretched", { exact: false })).toBeVisible();
+    await expect(page.getByText("at least 3 seconds", { exact: false })).toBeVisible();
 
     await page.getByRole("button", { name: "Back to capture", exact: true }).click();
     await expect(page.locator("textarea")).toHaveCount(0);
     await input.setInputFiles({ name: "long.mp4", mimeType: "video/mp4", buffer: Buffer.from("long") });
-    await expect(page.getByText("trimmed to the excerpt", { exact: false })).toBeVisible();
+    await expect(page.getByText("Videos can be up to 15 seconds", { exact: false })).toBeVisible();
   } finally {
     await context?.close();
     await rm(userDataDir, { recursive: true, force: true });
@@ -338,7 +338,7 @@ test("an unresolved moderation result survives reload and must be abandoned befo
     context = await open(userDataDir, `${proofPath}?compose=video&song=song-fixture&moderation=unresolved`);
     const page = context.pages()[0] ?? await context.newPage();
     const input = page.locator('input[type="file"]');
-    await input.setInputFiles({ name: "long.mp4", mimeType: "video/mp4", buffer: Buffer.from("long") });
+    await input.setInputFiles({ name: "fits.mp4", mimeType: "video/mp4", buffer: Buffer.from("long") });
     // The song's controls are folded; its plan only needs to be ready.
     await expect(page.locator('[data-song-plan="ready"]')).toBeAttached();
     await page.getByRole("button", { name: "Publish video", exact: true }).click();
