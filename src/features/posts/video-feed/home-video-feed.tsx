@@ -207,13 +207,21 @@ function FeedVideoCard(props: {
   readonly attachPlayback?: typeof attachPlayback;
   readonly navigate?: (href: string) => void;
 }) {
-  const muted = () => props.playback.muted() === true;
+  // Browsers only autoplay muted before a gesture, so the active card plays
+  // muted until the viewer taps. An explicit mute choice always wins.
+  const muted = () => props.playback.muted() ?? !props.playback.hasUserInteracted();
   return (
-    <article class="flex h-full flex-col justify-center gap-3 px-4 py-8 text-white" data-video-feed-card={props.entry.postId}>
+    <article
+      class="flex h-full flex-col justify-center gap-3 px-4 py-8 text-white"
+      data-video-feed-card={props.entry.postId}
+      // Bubbles after the card's own controls, so a first tap on Unmute reads
+      // the muted state it saw. Automatic playback never dispatches a click.
+      onClick={props.playback.markUserInteracted}
+    >
       <div class="mx-auto w-full max-w-3xl">
         <VideoPlayer
           attach={props.attachPlayback}
-          autoplay={props.playback.autoplay() && props.playback.hasUserInteracted()}
+          autoplay={props.playback.autoplay()}
           mint={props.mintPlaybackAccess}
           muted={muted()}
           onUserInteraction={props.playback.markUserInteracted}
@@ -357,18 +365,26 @@ export function HomeVideoFeed(props: HomeVideoFeedProps) {
     // Sign-in opened from this gate keeps the scroll surface mounted. The
     // authorized refresh below uses the newly authenticated loader. Other
     // account changes still invalidate the surface normally.
-    if (ageVerificationActive && priorSource === "anonymous" && sourceIdentity?.startsWith("user:")) return;
+    const signingIn = priorSource === "anonymous" && sourceIdentity?.startsWith("user:") === true;
+    if (ageVerificationActive && signingIn) return;
+    // The anonymous-to-signed-in step keeps the public surface, and so its
+    // mounted players and grants, while the signed-in page loads. Rows are
+    // keyed by post, so only posts that leave or change are torn down. Any
+    // other identity change clears the surface.
+    const keepSurface = signingIn && untrack(() => state().kind === "ready" && posts().length > 0);
     const loadPage = untrack(() => props.loadPage);
     const identity = ++requestIdentity;
     paginationGeneration += 1;
     loadingMoreInFlight = false;
     setPaginationIssue(null);
-    setPosts([]);
     setNextCursor(null);
-    setProcessingCount(0);
-    setDelivery([]);
     setLoadingMore(false);
-    setState({ kind: "loading" });
+    if (!keepSurface) {
+      setPosts([]);
+      setProcessingCount(0);
+      setDelivery([]);
+      setState({ kind: "loading" });
+    }
     const first = input.initial === undefined
       ? loadPage({ locale: input.locale, sort: input.sort })
       : Promise.resolve(input.initial);
@@ -494,7 +510,11 @@ export function HomeVideoFeed(props: HomeVideoFeedProps) {
                 onMuteToggle={(_postId, muted) => setFeedMuted(muted)}
                 renderPlaceholder={(id, playback) => {
                   const entry = () => delivery().find(candidate => `delivery:${candidate.postId}` === id);
-                  return <Show when={entry()} fallback={<div class="grid h-full place-items-center px-4 text-white"><AgeAccessPrompt verify={props.verifyAge} onStart={() => { ageVerificationActive = true; setAutoplay(false); }} onFinish={() => { ageVerificationActive = false; }} onVerified={refreshAuthorized} /></div>}>
+                  // A refresh that keeps the same post and age policy keeps the
+                  // mounted player and its grant; a policy change remounts it.
+                  const playbackIdentity = () => { const value = entry(); return value && `${value.postId}:${value.requiresAgeVerification}`; };
+                  return <Show when={playbackIdentity()} keyed fallback={<div class="grid h-full place-items-center px-4 text-white"><AgeAccessPrompt verify={props.verifyAge} onStart={() => { ageVerificationActive = true; setAutoplay(false); }} onFinish={() => { ageVerificationActive = false; }} onVerified={refreshAuthorized} /></div>}>
+                    {_identity => <Show when={entry()}>
                     {video => (
                       <FeedVideoCard
                         entry={video()}
@@ -508,6 +528,7 @@ export function HomeVideoFeed(props: HomeVideoFeedProps) {
                         resolveSongLink={props.resolveSongLink ?? feedSongLinks}
                       />
                     )}
+                    </Show>}
                   </Show>;
                 }}
               />

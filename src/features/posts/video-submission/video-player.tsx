@@ -25,7 +25,10 @@ export function VideoPlayer(props: {
   readonly autoplay?: boolean;
   /** Controlled audio state from the feed. */
   readonly muted?: boolean;
-  /** Called on a user-initiated play so the feed can unlock its autoplay gate. */
+  /**
+   * Called on an explicit play tap so the feed can unmute. Media `play` events
+   * do not call it: automatic playback is not a user interaction.
+   */
   readonly onUserInteraction?: () => void;
 }) {
   const posterPath = (postId: string) => (props.posterPath ?? videoPosterPath)(postId);
@@ -41,6 +44,7 @@ export function VideoPlayer(props: {
   let resume = false;
   let lastMint = 0;
   let lastPost = props.postId;
+  let appliedDelivery = "";
   const [visible, setVisible] = createSignal(false, { ownedWrite: true });
   const [foreground, setForeground] = createSignal(true, { ownedWrite: true });
   const [status, setStatus] = createSignal<"idle" | "loading" | "ready" | "unavailable">("idle", { ownedWrite: true });
@@ -108,6 +112,10 @@ export function VideoPlayer(props: {
   createEffect(
     () => [visible(), foreground(), props.postId, props.state.playback] as const,
     ([inView, inForeground, _id, state]) => {
+      // A refreshed delivery object with the same values keeps the grant.
+      const key = `${inView}:${inForeground}:${_id}:${state}`;
+      if (key === appliedDelivery) return;
+      appliedDelivery = key;
       stop(); setStatus("idle");
       if (lastPost !== _id) { lastPost = _id; position = 0; resume = false; }
       if (inView && inForeground && state === "ready") void acquire();
@@ -146,7 +154,7 @@ export function VideoPlayer(props: {
         onCanPlay={() => { if (abort && !abort.signal.aborted) setStatus("ready"); }}
         onError={() => { if (status() === "ready" || status() === "loading") fail(); }}
         onPause={() => setPlaying(false)}
-        onPlay={() => { setPlaying(true); props.onUserInteraction?.(); }} />
+        onPlay={() => setPlaying(true)} />
       <Show when={status() === "ready" && !playing()}>
         <button
           aria-label="Play video"

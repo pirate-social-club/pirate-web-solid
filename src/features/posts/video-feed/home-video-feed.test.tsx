@@ -415,10 +415,10 @@ test("re-reads Study availability after sign-in and an account switch", async ()
   expect(availabilityCalls).toBe(afterSignIn + 1);
 });
 
-test("the feed mute control mutes the playable card and reports its state", async () => {
+function mutedFeed(id: string) {
   const delivery = { playback: "ready", thumbnail: "ready" } as const;
-  const linked = { ...video([]), id: "video-mute", caption: "Mute caption", videoDelivery: delivery, songPostId: "post_song" };
-  const container = render(() => (
+  const linked = { ...video([]), id, caption: "Mute caption", videoDelivery: delivery, songPostId: "post_song" };
+  return render(() => (
     <HomeVideoFeed
       data={page([linked], null)}
       loadPage={async () => page([], null)}
@@ -435,28 +435,115 @@ test("the feed mute control mutes the playable card and reports its state", asyn
       resolveSongLink={async () => null}
     />
   ));
+}
 
-  await vi.waitFor(() => expect(container.querySelector("[data-video-feed-card]")).not.toBeNull());
-  await vi.waitFor(() => expect(container.querySelector("[data-video-player-play]")).not.toBeNull());
-  const button = container.querySelector<HTMLButtonElement>("[data-video-feed-mute]");
-  const player = container.querySelector("video");
-  expect(button).not.toBeNull();
-  expect(button?.getAttribute("aria-pressed")).toBe("false");
-  expect(player?.muted).toBe(false);
-
+test("the active card autoplays muted, and automatic playback does not unmute", async () => {
   const play = vi.spyOn(HTMLMediaElement.prototype, "play").mockResolvedValue();
-  button!.click();
-  await vi.waitFor(() => expect(player?.muted).toBe(true));
+  const container = mutedFeed("video-mute");
+  await vi.waitFor(() => expect(play).toHaveBeenCalled());
+  const button = container.querySelector<HTMLButtonElement>("[data-video-feed-mute]");
+  const player = container.querySelector("video")!;
+  expect(player.muted).toBe(true);
   expect(button?.getAttribute("aria-pressed")).toBe("true");
   expect(button?.textContent).toBe("Unmute");
 
-  // Mute is sound only: nothing played and the play affordance still shows.
-  expect(play).not.toHaveBeenCalled();
-  const affordance = container.querySelector<HTMLButtonElement>("[data-video-player-play]");
-  expect(affordance).not.toBeNull();
-
-  // The explicit affordance is what starts playback.
-  affordance!.click();
-  expect(play).toHaveBeenCalledTimes(1);
+  player.dispatchEvent(new Event("play"));
+  await Promise.resolve();
+  expect(player.muted).toBe(true);
   play.mockRestore();
+});
+
+test("a first tap on the card unmutes, and an explicit mute still wins", async () => {
+  const play = vi.spyOn(HTMLMediaElement.prototype, "play").mockResolvedValue();
+  const container = mutedFeed("video-tap");
+  await vi.waitFor(() => expect(play).toHaveBeenCalled());
+  const player = container.querySelector("video")!;
+  expect(player.muted).toBe(true);
+
+  player.click();
+  await vi.waitFor(() => expect(player.muted).toBe(false));
+  const button = container.querySelector<HTMLButtonElement>("[data-video-feed-mute]")!;
+  expect(button.getAttribute("aria-pressed")).toBe("false");
+
+  button.click();
+  await vi.waitFor(() => expect(player.muted).toBe(true));
+  expect(button.textContent).toBe("Unmute");
+  play.mockRestore();
+});
+
+test("a first tap on Unmute unmutes rather than toggling back", async () => {
+  const play = vi.spyOn(HTMLMediaElement.prototype, "play").mockResolvedValue();
+  const container = mutedFeed("video-unmute");
+  await vi.waitFor(() => expect(play).toHaveBeenCalled());
+  const button = container.querySelector<HTMLButtonElement>("[data-video-feed-mute]")!;
+  button.click();
+  await vi.waitFor(() => expect(container.querySelector("video")!.muted).toBe(false));
+  expect(button.getAttribute("aria-pressed")).toBe("false");
+  play.mockRestore();
+});
+
+describe("sign-in continuity", () => {
+  const delivery = { playback: "ready", thumbnail: "ready" } as const;
+  const kept = { ...video([]), id: "video-kept", caption: "Kept caption", videoDelivery: delivery };
+  const other = { ...video([]), id: "video-other", caption: "Other caption", videoDelivery: delivery };
+
+  function mount() {
+    const [identity, setIdentity] = createSignal("anonymous");
+    const [data, setData] = createSignal<FeedPage>(page([kept], null));
+    let mints = 0;
+    const container = render(() => (
+      <HomeVideoFeed
+        data={data()}
+        loadPage={async () => page([], null)}
+        loadStudyAvailability={async () => false}
+        mintPlaybackAccess={async () => {
+          mints += 1;
+          return {
+            expiresAt: Date.now() + 300_000,
+            renewAt: Date.now() + 240_000,
+            url: "https://customer-fixture.cloudflarestream.com/a.b.c/manifest/video.m3u8",
+          };
+        }}
+        attachPlayback={async () => () => {}}
+        resolveSongLink={async () => null}
+        sourceIdentity={identity()}
+      />
+    ));
+    return { container, setIdentity, setData, mints: () => mints };
+  }
+  const card = (container: HTMLElement, id: string) => container.querySelector(`[data-video-feed-card="${id}"]`);
+
+  test("keeps the mounted player and its grant when the same post survives sign-in", async () => {
+    const feed = mount();
+    await vi.waitFor(() => expect(feed.mints()).toBe(1));
+    const before = card(feed.container, "video-kept");
+    feed.setData(page([{ ...kept }], null));
+    feed.setIdentity("user:one");
+    await vi.waitFor(() => expect(feed.container.querySelector("main")?.getAttribute("data-video-feed-state")).toBe("ready"));
+    await new Promise(resolve => setTimeout(resolve, 20));
+    expect(card(feed.container, "video-kept")).toBe(before);
+    expect(feed.mints()).toBe(1);
+  });
+
+  test("drops a post the signed-in page no longer contains", async () => {
+    const feed = mount();
+    await vi.waitFor(() => expect(feed.mints()).toBe(1));
+    feed.setData(page([other], null));
+    feed.setIdentity("user:one");
+    await vi.waitFor(() => expect(card(feed.container, "video-other")).not.toBeNull());
+    expect(card(feed.container, "video-kept")).toBeNull();
+  });
+
+  test("an account switch clears the surface and mints again", async () => {
+    const feed = mount();
+    await vi.waitFor(() => expect(feed.mints()).toBe(1));
+    feed.setIdentity("user:one");
+    await new Promise(resolve => setTimeout(resolve, 20));
+    const signedIn = card(feed.container, "video-kept");
+    expect(feed.mints()).toBe(1);
+    feed.setData(page([{ ...kept }], null));
+    feed.setIdentity("user:two");
+    await vi.waitFor(() => expect(feed.mints()).toBe(2));
+    expect(card(feed.container, "video-kept")).not.toBe(signedIn);
+  });
 });
