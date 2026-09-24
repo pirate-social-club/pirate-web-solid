@@ -1,4 +1,6 @@
 import { randomUUID } from "node:crypto";
+import type { Page } from "playwright/test";
+import type { GetUsersMeCommunityMembershipsResponse } from "@pirate/api-client";
 import { test, expect } from "./fixtures/auth.ts";
 import { readonlyApi } from "./fixtures/api.ts";
 import { createCommunityAndVerifyAcceptance } from "./fixtures/create-community.ts";
@@ -17,6 +19,29 @@ const reusedCommunityId = process.env.E2E_HNS_COMMUNITY_ID ?? "";
 function requireBudget(remainingMs: number, minimumMs: number, stage: string) {
   if (remainingMs < minimumMs)
     throw new Error(`Insufficient Playwright time for ${stage}; no further regtest command attempted.`);
+}
+
+// Only communities this spec created are candidates, so another lane's test
+// community is never given an HNS import.
+async function findSpareHnsCommunity(page: Page): Promise<string> {
+  let cursor: string | null = null;
+  for (let index = 0; index < 20; index++) {
+    const query: string = new URLSearchParams({ limit: "100", ...(cursor ? { cursor } : {}) }).toString();
+    const response = await page.request.get(`/api/users/me/community-memberships?${query}`);
+    if (response.status() !== 200) throw new Error(`Membership listing returned HTTP ${response.status()}.`);
+    const result = await response.json() as GetUsersMeCommunityMembershipsResponse;
+    for (const item of result.items) {
+      if (!item.display_name.startsWith("E2E HNS ") || item.canonical_route !== null) continue;
+      const imports = await page.request.get(
+        `/api/communities/${encodeURIComponent(item.community_id)}/hns-root-imports`, { failOnStatusCode: false });
+      if (imports.status() !== 200) continue;
+      const snapshot = await imports.json() as { session?: unknown; attachment?: unknown };
+      if (snapshot.session === null && snapshot.attachment === null) return item.community_id;
+    }
+    if (result.next_cursor === null) break;
+    cursor = result.next_cursor;
+  }
+  throw new Error("No spare E2E HNS community without an import; set E2E_HNS_COMMUNITY_ID or free a persona slot.");
 }
 
 test.describe("staging HNS authenticated handoff", { tag: "@hns-mutating" }, () => {
@@ -69,15 +94,17 @@ test.describe("staging HNS authenticated handoff", { tag: "@hns-mutating" }, () 
       let communityId: string | undefined;
       let path: string;
       if (reusedCommunityId) {
-        if (!/^community_[0-9a-f-]{36}$/u.test(reusedCommunityId))
-          throw new Error("E2E_HNS_COMMUNITY_ID must be a community identifier.");
+        const chosen = reusedCommunityId === "auto" ? await findSpareHnsCommunity(page) : reusedCommunityId;
+        if (!/^community_[0-9a-f-]{36}$/u.test(chosen))
+          throw new Error("E2E_HNS_COMMUNITY_ID must be a community identifier or auto.");
         const api = readonlyApi(page);
-        const capabilities = await api.ownerCapabilities(reusedCommunityId);
+        const capabilities = await api.ownerCapabilities(chosen);
         if (capabilities.role !== "owner") throw new Error("The reused HNS community is not owned by the test account.");
         // A route is optional; without one the community answers at its identifier.
-        const preview = await api.communityPreview(reusedCommunityId);
-        communityId = reusedCommunityId;
-        path = `/c/${encodeURIComponent(preview.route_slug || reusedCommunityId)}`;
+        const preview = await api.communityPreview(chosen);
+        communityId = chosen;
+        path = `/c/${encodeURIComponent(preview.route_slug || chosen)}`;
+        console.log(JSON.stringify({ event: "hns-reused-community", community_id: chosen }));
       } else {
         path = await createCommunityAndVerifyAcceptance(page, `E2E HNS ${randomUUID()}`, testInfo, observation => {
           communityId = observation.communityId;
