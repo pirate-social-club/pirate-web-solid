@@ -848,9 +848,11 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
                 onModeChange={setMode}
                 onVideoEntry={() => setMode("video")}
                 onSongEntry={() => {
-                  // With an unfinished song on the server, the song tool opens
-                  // the Song tab, which lists it beside Add audio.
-                  if (recoverableSongs().length === 0) return false;
+                  // With an unfinished song on the server, or while that is
+                  // still unknown (checking, or the check failed), the song
+                  // tool opens the Song tab: it lists the song, or shows the
+                  // check with its retry, beside Add audio.
+                  if (recoverableSongs().length === 0 && !recoveryLoading() && !recoveryError()) return false;
                   setMode("song");
                   return true;
                 }}

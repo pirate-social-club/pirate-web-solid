@@ -993,7 +993,7 @@ describe("create post request", () => {
     expect(mediaTransport.uploadCount).toBe(1);
   });
 
-  test.each([false, true])("the song tool opens the audio picker when nothing is unfinished (lookup failing=%s)", async (failing) => {
+  test.each([false, true])("the song tool opens the picker only when nothing can be unfinished (lookup failing=%s)", async (failing) => {
     class QuietRecoveryTransport extends ProductionMediaTransport {
       lists = 0;
       override async listActive(): Promise<ActiveSongMediaPostSubmissionPage> {
@@ -1007,11 +1007,19 @@ describe("create post request", () => {
       open onOpenChange={() => {}} personas={[activePersona("persona-one", "Persona One")]} principalId="account-one" />);
     await vi.waitFor(() => expect(transport.lists).toBe(1));
     await new Promise<void>(resolve => setTimeout(resolve, 0));
+    expect(document.body.textContent).not.toMatch(/Unfinished songs|Resume a song submission|Couldn't check|Retry loading/);
     const picker = document.body.querySelector<HTMLInputElement>('input[aria-label="Upload audio"]')!;
     const opened = vi.spyOn(picker, "click").mockImplementation(() => {});
     songTool().click();
-    expect(opened).toHaveBeenCalledOnce();
-    expect(document.body.textContent).not.toMatch(/Unfinished songs|Resume a song submission|Couldn't check/);
+    if (!failing) {
+      expect(opened).toHaveBeenCalledOnce();
+      expect(document.body.textContent).not.toContain("Unfinished songs");
+      return;
+    }
+    // A failed check may hide a saved song: the Song tab shows the retry.
+    expect(opened).not.toHaveBeenCalled();
+    await vi.waitFor(() => expect(button("Retry loading submissions")).toBeDefined());
+    expect(button("Add audio")).toBeDefined();
   });
 
   test("shows no status card while a prepared song is on Rights", async () => {
