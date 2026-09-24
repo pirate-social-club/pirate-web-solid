@@ -1,7 +1,6 @@
-// Song steps: Rights and Review. The song itself, including optional lyrics
-// and the original/remix choice, lives on the Song step; these steps decide
-// what others may do with the song, how its earnings are shared, and confirm
-// the whole submission in readable terms.
+// Song steps: Royalties and Review. Every new song is published as "Remix and
+// sell"; the Royalties step sets the author's share of remix earnings and the
+// split between collaborators, and Review confirms the submission.
 
 import type { JSX } from "@solidjs/web";
 import { For, Show, type ParentProps } from "solid-js";
@@ -10,15 +9,11 @@ import {
   Button,
   CardContent,
   FormNote,
-  Input,
-  OptionCard,
-  OptionCardGroup,
   Type,
 } from "../../../design-system";
 import { cn } from "../../../design-system";
 import {
   basisPointsToPercentText,
-  percentTextToBasisPoints,
 } from "../media-submission/contracts";
 import type { ComposerSteps } from "./composer-steps";
 import type { PostComposerController } from "./controller";
@@ -26,17 +21,10 @@ import { EarningsSplit, royaltySplitIssue } from "./earnings-split";
 import { FieldLabel } from "./fields";
 import { createObjectUrl } from "./media-hooks";
 import type {
-  AssetLicensePresetId,
   AssetRoyaltyAllocation,
   ComposerRecipientProfile,
   SongFlowRuntime,
 } from "./types";
-
-const licensePresets: readonly AssetLicensePresetId[] = [
-  "non-commercial",
-  "commercial-use",
-  "commercial-remix",
-];
 
 function allocationBps(allocation: AssetRoyaltyAllocation): number {
   return allocation.shareBps ?? Math.round(allocation.sharePct * 100);
@@ -58,7 +46,10 @@ function StepCard(props: ParentProps<{
 }>) {
   return (
     <CardContent class={cn("space-y-6 p-8", props.controller.isMobile() && "px-0 pb-4 pt-1")}>
-      <Type as="h2" variant="h3">{props.title}</Type>
+      {/* On mobile the step name sits in the header. */}
+      <Show when={!props.controller.isMobile()}>
+        <Type as="h2" variant="h3">{props.title}</Type>
+      </Show>
       {props.children}
     </CardContent>
   );
@@ -74,85 +65,53 @@ export function SongRightsStep(props: {
   const license = () => controller.license.state.presetId;
   const issue = () => songTermsIssue(controller, props.runtime);
 
-  const selectLicense = (preset: AssetLicensePresetId) => {
-    controller.license.update((current) => ({
-      presetId: preset,
-      commercialRevShareBps: preset === "commercial-remix"
-        ? current.commercialRevShareBps ?? 1_000
-        : undefined,
-      commercialRevSharePct: preset === "commercial-remix"
-        ? current.commercialRevSharePct ?? 10
-        : undefined,
-    }));
+  // The author's cut of remix sales: one line, a few preset shares.
+  const shareOptions = () => {
+    const current = controller.license.state.commercialRevShareBps ?? 1_000;
+    const presets = [500, 1_000, 2_000, 3_000];
+    return presets.includes(current) ? presets : [...presets, current].sort((a, b) => a - b);
   };
+  const selectShare = (shareBps: number) => controller.license.update(current => ({
+    ...current, commercialRevShareBps: shareBps, commercialRevSharePct: shareBps / 100,
+  }));
+  const remixShare = () => (
+    <div class="grid gap-3">
+      <Type as="span" id="remix-share-label" variant="body-strong">{controller.copy.rights.revShare}</Type>
+      <div aria-labelledby="remix-share-label" class="flex flex-wrap gap-2" role="radiogroup">
+        <For each={shareOptions()}>
+          {(shareBps) => {
+            const selected = () => (controller.license.state.commercialRevShareBps ?? 1_000) === shareBps;
+            return (
+              <button
+                aria-checked={selected() ? "true" : "false"}
+                class={cn(
+                  "h-10 min-w-16 rounded-full border px-4 text-base font-semibold tabular-nums transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                  selected() ? "border-primary bg-primary text-primary-foreground" : "border-border-soft bg-card text-foreground hover:bg-muted",
+                )}
+                onClick={() => selectShare(shareBps)}
+                role="radio"
+                type="button"
+              >
+                {basisPointsToPercentText(shareBps)}%
+              </button>
+            );
+          }}
+        </For>
+      </div>
+    </div>
+  );
 
+  // Every new song is "Remix and sell"; the author only chooses their share.
+  // A recovered submission bound to another preset keeps it, read-only.
   return (
     <StepCard controller={controller} title={controller.copy.steps.rights}>
       <fieldset class="space-y-8" disabled={locked()}>
-        <section class="space-y-3">
-          <FieldLabel label={controller.copy.rights.permissionsTitle} />
-          <OptionCardGroup
-            label={controller.copy.rights.permissionsTitle}
-            onChange={(value) => {
-              const preset = licensePresets.find(candidate => candidate === value);
-              if (preset) selectLicense(preset);
-            }}
-            value={license()}
-          >
-            <For each={[...licensePresets]}>
-              {(preset) => (
-                <OptionCard
-                  description={controller.copy.assetLicense.song[`${preset}Description`]}
-                  title={controller.copy.assetLicense.song[preset]}
-                  value={preset}
-                />
-              )}
-            </For>
-          </OptionCardGroup>
-          <Show when={license() === "commercial-remix"}>
-            <label class="block space-y-2">
-              <Type as="span" variant="body-strong">{controller.copy.rights.revShare}</Type>
-              <div class="grid max-w-xs grid-cols-[1fr_auto] items-center rounded-[var(--radius-lg)] border border-border-soft px-4">
-                <Input
-                  aria-label="Your share of remix earnings"
-                  class="border-0 px-0 shadow-none"
-                  inputmode="decimal"
-                  onChange={(event) => {
-                    try {
-                      const shareBps = percentTextToBasisPoints(event.currentTarget.value);
-                      controller.license.update(current => ({
-                        ...current,
-                        commercialRevShareBps: shareBps,
-                        commercialRevSharePct: shareBps / 100,
-                      }));
-                    } catch {
-                      event.currentTarget.value = basisPointsToPercentText(
-                        controller.license.state.commercialRevShareBps ?? 1_000);
-                    }
-                  }}
-                  value={basisPointsToPercentText(controller.license.state.commercialRevShareBps ?? 1_000)}
-                />
-                <span class="text-muted-foreground">%</span>
-              </div>
-            </label>
-          </Show>
-          <details class="text-base text-muted-foreground">
-            <summary class="cursor-pointer select-none font-medium text-foreground">
-              {controller.copy.rights.fullTerms}
-            </summary>
-            <ul class="mt-2 space-y-2">
-              <For each={[...licensePresets]}>
-                {(preset) => (
-                  <li>
-                    <Type as="span" variant="body-strong">{controller.copy.assetLicense.song[preset]}</Type>
-                    {" — "}
-                    {controller.copy.assetLicense.song[`${preset}Terms`]}
-                  </li>
-                )}
-              </For>
-            </ul>
-          </details>
-        </section>
+        <Show
+          when={license() === "commercial-remix"}
+          fallback={<Type as="p" class="text-muted-foreground">{controller.copy.assetLicense.song[license()]}</Type>}
+        >
+          {remixShare()}
+        </Show>
 
         <EarningsSplit
           authorPersonaId={props.runtime?.personaId}
@@ -212,7 +171,9 @@ export function SongReviewStep(props: {
   const song = () => controller.song.state;
   const cover = createObjectUrl(() => controller.song.state.coverUpload);
   const issue = () => songTermsIssue(controller, props.runtime);
-  const licenseLabel = () => controller.copy.assetLicense.song[controller.license.state.presetId];
+  const licenseLabel = () => controller.license.state.presetId === "commercial-remix"
+    ? `${basisPointsToPercentText(controller.license.state.commercialRevShareBps ?? 1_000)}%`
+    : controller.copy.assetLicense.song[controller.license.state.presetId];
   const references = () => controller.primary.derivativeState?.references ?? [];
   const earningsSummary = () => controller.royaltySplit.state.allocations
     .map(allocation =>

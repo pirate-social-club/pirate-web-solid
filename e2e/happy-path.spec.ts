@@ -38,7 +38,7 @@ async function publishTextPost(
 
   const published = page.waitForResponse(response => response.request().method() === "POST"
     && /\/api\/communities\/[^/]+\/posts$/u.test(new URL(response.url()).pathname));
-  await composer.getByRole("button", { name: "Publish post", exact: true }).click();
+  await composer.getByRole("button", { name: "Post", exact: true }).click();
   expect((await published).status()).toBe(201);
   await expect(composer).toBeHidden();
 

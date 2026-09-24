@@ -13,18 +13,18 @@ import {
   TextFieldLabel,
   Type,
 } from "../../../design-system";
-import type { ActiveSongMediaPostSubmission, MediaSubmissionSnapshot } from "../media-submission/contracts";
+import type { MediaSubmissionSnapshot } from "../media-submission/contracts";
 import { createMediaSubmissionCoordinator } from "../media-submission/coordinator";
 import type { SongSubmissionView } from "../media-submission/projection";
 import type { MediaSubmissionTransport } from "../media-submission/transport";
 import { royaltySplitIssue } from "./earnings-split";
 import {
   prepareSongComposer,
-  projectActiveSongIntoComposer,
   projectSnapshotIntoSongComposer,
   submitComposerLyrics,
   submitSongComposer,
 } from "./media-composer-bridge";
+import { DEFAULT_SONG_LICENSE } from "./defaults";
 import { PostComposer } from "./post-composer";
 import { VideoComposerRuntime } from "../video-submission/video-composer-runtime";
 import { PostComposerSubmission } from "./post-composer-submission";
@@ -92,13 +92,6 @@ function terminalMediaView(view: SongSubmissionView): boolean {
   return view.status === "published" || view.status === "blocked" || view.status === "abandoned";
 }
 
-/** A short, local date and time for the unfinished-songs list. */
-function formatRecoveryTime(updatedAt: string): string {
-  const date = new Date(updatedAt);
-  return Number.isNaN(date.getTime())
-    ? "recently"
-    : date.toLocaleString(undefined, { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" });
-}
 
 function mediaStateMessage(view: SongSubmissionView): string {
   switch (view.status) {
@@ -177,7 +170,7 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
   });
   const [lyrics, setLyrics] = createSignal("");
   let lyricsEdited = false;
-  const [license, setLicense] = createSignal<AssetLicenseState>({ presetId: "non-commercial" });
+  const [license, setLicense] = createSignal<AssetLicenseState>(DEFAULT_SONG_LICENSE);
   const [royaltySplit, setRoyaltySplit] = createSignal<AssetRoyaltySplitState>({
     allocations: initialPersonaId === undefined ? [] : [{
       id: "creator",
@@ -227,63 +220,6 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
     onStateChange: setMediaView,
     onSnapshotChange: applySnapshot,
   });
-
-  const [recoverableSongs, setRecoverableSongs] = createSignal<readonly ActiveSongMediaPostSubmission[]>([], { ownedWrite: true });
-  const [recoveryCursor, setRecoveryCursor] = createSignal<string | null>(null, { ownedWrite: true });
-  const [recoveryLoading, setRecoveryLoading] = createSignal(false, { ownedWrite: true });
-  const [recoveryError, setRecoveryError] = createSignal("", { ownedWrite: true });
-  let recoveryGeneration = 0;
-  let recoveryCommunity = "";
-  async function loadRecoverableSongs(more = false): Promise<void> {
-    if (mediaCoordinator === undefined || mediaCoordinator.currentRecord !== null) return;
-    const community = communityId().trim();
-    if (!community) return;
-    const generation = ++recoveryGeneration;
-    const cursor = more ? recoveryCursor() : null;
-    setRecoveryLoading(true); setRecoveryError("");
-    try {
-      const page = await mediaCoordinator.listActive(community, cursor ?? undefined);
-      if (generation !== recoveryGeneration || community !== communityId().trim() || mediaCoordinator.currentRecord !== null) return;
-      if (page.next_cursor !== null && (!page.next_cursor.trim() || page.next_cursor === cursor))
-        throw new Error("The server returned an invalid recovery cursor");
-      setRecoverableSongs(previous => {
-        const combined = more ? [...previous, ...page.items] : page.items;
-        return [...new Map(combined.map(item => [item.submission.submission_id, item])).values()];
-      });
-      setRecoveryCursor(page.next_cursor);
-    } catch (failure) {
-      if (generation === recoveryGeneration && mediaCoordinator.currentRecord === null)
-        setRecoveryError(failure instanceof Error ? failure.message : "Could not load active song submissions");
-    } finally { if (generation === recoveryGeneration) setRecoveryLoading(false); }
-  }
-  createEffect(() => [mode(), communityId().trim(), mediaSnapshot()] as const, ([tab, community, snapshot]) => {
-    // Checked in text mode too, so the resume prompt appears only when a
-    // resumable song actually exists.
-    if ((tab !== "song" && tab !== "text") || snapshot !== null || !community || mediaCoordinator === undefined) {
-      recoveryGeneration += 1;
-      recoveryCommunity = "";
-      setRecoveryLoading(false); setRecoverableSongs([]); setRecoveryCursor(null); setRecoveryError("");
-      return;
-    }
-    if (community === recoveryCommunity) return;
-    recoveryCommunity = community;
-    setRecoverableSongs([]); setRecoveryCursor(null);
-    void loadRecoverableSongs();
-  });
-  onCleanup(() => { recoveryGeneration += 1; });
-  function recoverSong(item: ActiveSongMediaPostSubmission): void {
-    if (mediaCoordinator === undefined || mediaBusy() || textState().status !== "editing" || mediaCoordinator.currentRecord !== null
-      || item.community_id !== communityId().trim()
-      || !personas().some(persona => persona.personaId === item.submission.author_persona.persona_id)) return;
-    const recovered = projectActiveSongIntoComposer(item);
-    recoveryGeneration += 1; setRecoveryLoading(false); setRecoverableSongs([]); setRecoveryError("");
-    setSongPersonaId(recovered.personaId); setSongMode(recovered.songMode); setSongAgeGatePolicy(recovered.ageGatePolicy);
-    setSong(recovered.song); setLyrics(recovered.lyrics); lyricsEdited = false;
-    setLicense(recovered.license); setRoyaltySplit(recovered.royaltySplit);
-    setMode("song");
-    mediaCoordinator.recover(item);
-    void refreshSong();
-  }
 
   function applySnapshot(snapshot: MediaSubmissionSnapshot): void {
     setMediaSnapshot(snapshot);
@@ -339,7 +275,7 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
     setSong({ title: "", primaryAudioUpload: null, lyricsEditorState: "hidden" });
     setLyrics("");
     lyricsEdited = false;
-    setLicense({ presetId: "non-commercial" });
+    setLicense(DEFAULT_SONG_LICENSE);
     const nextPersonaId = initialOperationPersonaId(personas(), props.personaId);
     setRoyaltySplit({
       allocations: nextPersonaId === undefined ? [] : [{
@@ -739,26 +675,14 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
     </Show>
   );
 
-  // Song recovery is offered below the text editor, never above the header.
-  const textRecoveryOpen = () => mode() === "text" && textState().status === "editing" && mediaSnapshot() === null && mediaCoordinator !== undefined;
+  // Unfinished songs are listed on the Song tab; the text composer stays clean.
   const textOutcomePanel = () => (
-    <>
-      <Show when={mode() === "text" && textState().status !== "editing"}>
-        <PostComposerSubmission
-          onRetry={() => void retryText()}
-          state={textState()}
-        />
-      </Show>
-      <Show when={textRecoveryOpen() && recoverableSongs().length > 0}>
-        <Button type="button" variant="outline" onClick={() => setMode("song")}>Resume a song submission</Button>
-      </Show>
-      <Show when={textRecoveryOpen() && recoveryError()}>
-        <div class="flex items-center justify-between gap-3">
-          <FormNote>Couldn't check for unfinished songs.</FormNote>
-          <Button type="button" variant="outline" disabled={recoveryLoading()} onClick={() => void loadRecoverableSongs()}>Check again</Button>
-        </div>
-      </Show>
-    </>
+    <Show when={mode() === "text" && textState().status !== "editing"}>
+      <PostComposerSubmission
+        onRetry={() => void retryText()}
+        state={textState()}
+      />
+    </Show>
   );
 
   return (
@@ -778,25 +702,6 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
             </Show>
             <Show when={personas().length === 0}>
               <FormNote tone="warning">Choose a profile for this community before posting.</FormNote>
-            </Show>
-            <Show when={mode() === "song" && textState().status === "editing" && mediaSnapshot() === null && mediaCoordinator !== undefined}>
-              <Show when={recoveryLoading()}><FormNote>Checking for active song submissions…</FormNote></Show>
-              <Show when={recoveryError()}><FormNote tone="warning">{recoveryError()} You can retry or start a new song.</FormNote>
-                <Button type="button" variant="outline" disabled={recoveryLoading()} onClick={() => void loadRecoverableSongs()}>Retry loading submissions</Button>
-              </Show>
-              <Show when={recoverableSongs().length > 0}>
-                <section aria-label="Active song submissions" class="grid gap-3 rounded-2xl border border-border-soft p-5">
-                  <h2 class="text-lg font-semibold">Unfinished songs</h2>
-                  <p class="text-muted-foreground">Pick up where you left off. Edits you hadn't sent aren't kept.</p>
-                  <For each={recoverableSongs()}>{item => <div class="grid gap-1">
-                    <p>{item.title} · {item.submission.author_persona.display_name ?? item.submission.author_persona.primary_public_handle ?? "Profile"}</p>
-                    <p class="text-muted-foreground">Last changed {formatRecoveryTime(item.submission.updated_at)}</p>
-                    <Button type="button" variant="outline" disabled={mediaBusy() || !personas().some(persona => persona.personaId === item.submission.author_persona.persona_id)} onClick={() => recoverSong(item)}>Resume {item.title}</Button>
-                    <Show when={!personas().some(persona => persona.personaId === item.submission.author_persona.persona_id)}><FormNote>This submission’s profile is not available in this composer.</FormNote></Show>
-                  </div>}</For>
-                  <Show when={recoveryCursor()}><Button type="button" variant="outline" disabled={recoveryLoading()} onClick={() => void loadRecoverableSongs(true)}>Load more submissions</Button></Show>
-                </section>
-              </Show>
             </Show>
             <Show
               when={mode() !== "video"}
@@ -879,7 +784,7 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
                 submit={{
                   get disabled() { return submitDisabled(); },
                   get error() { return error() || null; },
-                  get label() { return mode() === "song" ? "Publish song" : "Publish post"; },
+                  get label() { return mode() === "song" ? "Post song" : "Post"; },
                   get loading() { return mode() === "song" ? mediaBusy() : textState().status === "submitting"; },
                   onSubmit: submit,
                 }}

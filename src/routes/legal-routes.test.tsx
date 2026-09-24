@@ -49,4 +49,14 @@ describe("public legal routes", () => {
     expect(container.textContent).not.toContain("placeholder");
     expect(container.querySelector("a[href='/']")?.textContent).toContain("Go home");
   });
+
+  test("describes the one song licence the composer applies", () => {
+    // Every new song is published as commercial remix with an author-set
+    // share; the Terms must not offer a licence choice the app no longer has.
+    const text = renderRoute(() => <TermsRoute />).textContent ?? "";
+    expect(text).toContain("under a commercial remix licence");
+    expect(text).not.toContain("the licence you choose");
+    // A resumed submission keeps a licence it was already given.
+    expect(text).toContain("given a different licence before 24 September 2026 keeps that licence");
+  });
 });

@@ -3,6 +3,7 @@ import { ALL_FORMATS, BlobSource, BufferTarget, canEncodeAudio, canEncodeVideo, 
 
 import { GUIDED_TAKE_MAX_DURATION_SECONDS } from "./clip-duration";
 import { createCaptureFailureBoundary, VideoCaptureError } from "./capture-failure";
+import { isPortraitFrame, portraitCoverCrop, PORTRAIT_HEIGHT, PORTRAIT_WIDTH } from "./portrait-crop";
 export { VideoCaptureError } from "./capture-failure";
 export interface VideoCaptureSession {
   readonly stream: MediaStream;
@@ -41,7 +42,7 @@ const DEFAULT_MAX_DURATION_SECONDS = 180;
 /** Browser admission is an early UX check; the sealed server probe stays authoritative. */
 export async function inspectVideoFile(
   file: File,
-  options: { readonly maxDurationSeconds?: number } = {},
+  options: { readonly maxDurationSeconds?: number; readonly requirePortrait?: boolean } = {},
 ): Promise<File> {
   const declared = file.type.toLowerCase().split(";")[0]?.trim();
   const type = declared || (/\.mov$/iu.test(file.name) ? "video/quicktime" : /\.mp4$/iu.test(file.name) ? "video/mp4" : "");
@@ -59,6 +60,9 @@ export async function inspectVideoFile(
       || await video.getCodec() !== "avc" || await audio.getCodec() !== "aac"
       || !Number.isFinite(duration) || duration < 3 || duration > maxDuration) {
       throw new VideoCaptureError("invalid_media", "Video must contain H.264 and AAC and last 3–180 seconds");
+    }
+    if (options.requirePortrait && !isPortraitFrame(await video.getDisplayWidth(), await video.getDisplayHeight())) {
+      throw new VideoCaptureError("invalid_media", "The camera did not save a 9:16 video. Retake before uploading.");
     }
     return new File([file], file.name, { type, lastModified: file.lastModified });
   } finally { input.dispose(); }
@@ -88,7 +92,12 @@ async function assertRecordingCapability(): Promise<void> {
 
 async function openCameraStream(): Promise<MediaStream> {
   try {
-    return await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user", width: { ideal: 720 }, height: { ideal: 1280 }, frameRate: { ideal: 30, max: 30 } }, audio: true });
+    // Phone cameras size themselves by their landscape sensor. Asking for
+    // 1920x1080 made the Pixel 8 front camera deliver native 1080x1920
+    // portrait frames, where asking for 720x1280 delivered 1280x720 landscape
+    // and left only a 405x720 portrait crop. Landscape frames still go through
+    // the centered portrait crop below.
+    return await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user", width: { ideal: 1920 }, height: { ideal: 1080 }, frameRate: { ideal: 30, max: 30 } }, audio: true });
   } catch { throw new VideoCaptureError("camera_denied", "Camera or microphone access is unavailable; upload remains available"); }
 }
 
@@ -100,19 +109,90 @@ export async function openCameraPreview(): Promise<MediaStream> {
   return openCameraStream();
 }
 
+/** Android may return landscape camera frames even for exact portrait media
+ * constraints. Encode the same centered cover shown in the 9:16 viewfinder;
+ * never silently upload the underlying landscape track. */
+async function portraitEncodingTrack(stream: MediaStream, camera: MediaStreamVideoTrack, onFrameFailure: () => void): Promise<{
+  readonly track: MediaStreamVideoTrack;
+  readonly width: number;
+  readonly height: number;
+  readonly close: () => void;
+}> {
+  const settings = camera.getSettings();
+  if (isPortraitFrame(settings.width ?? 0, settings.height ?? 0)) {
+    return { track: camera, width: settings.width!, height: settings.height!, close: () => undefined };
+  }
+  const canvas = document.createElement("canvas");
+  canvas.width = PORTRAIT_WIDTH;
+  canvas.height = PORTRAIT_HEIGHT;
+  const context = canvas.getContext("2d", { alpha: false });
+  if (!context || typeof canvas.captureStream !== "function") {
+    throw new VideoCaptureError("capability_unavailable", "This browser cannot save portrait video. Choose a compatible browser.");
+  }
+  const cameraView = document.createElement("video");
+  cameraView.muted = true;
+  cameraView.playsInline = true;
+  cameraView.srcObject = stream;
+  let frame = 0;
+  let closed = false;
+  let firstFrame = true;
+  let outputTrack: MediaStreamVideoTrack | undefined;
+  const close = () => {
+    closed = true;
+    cancelAnimationFrame(frame);
+    outputTrack?.stop();
+    cameraView.pause();
+    cameraView.srcObject = null;
+  };
+  try {
+    await cameraView.play();
+    if (!cameraView.videoWidth || !cameraView.videoHeight) {
+      throw new VideoCaptureError("capability_unavailable", "The camera did not provide a usable frame. Retake the video.");
+    }
+    const paint = () => {
+      if (closed) return;
+      try {
+        const crop = portraitCoverCrop(cameraView.videoWidth, cameraView.videoHeight);
+        context.drawImage(cameraView, crop.x, crop.y, crop.width, crop.height,
+          0, 0, PORTRAIT_WIDTH, PORTRAIT_HEIGHT);
+      } catch {
+        if (firstFrame) throw new VideoCaptureError("capability_unavailable", "The camera could not draw a portrait frame.");
+        onFrameFailure();
+        return;
+      }
+      firstFrame = false;
+      frame = requestAnimationFrame(paint);
+    };
+    paint();
+    outputTrack = canvas.captureStream(30).getVideoTracks()[0];
+    if (!outputTrack) {
+      throw new VideoCaptureError("capability_unavailable", "The camera could not provide a portrait recording track.");
+    }
+    return { track: outputTrack, width: PORTRAIT_WIDTH, height: PORTRAIT_HEIGHT, close };
+  } catch (error) {
+    close();
+    throw error;
+  }
+}
+
 export async function startOriginalVideoCapture(input: OriginalVideoCaptureInput): Promise<VideoCaptureSession> {
   await assertRecordingCapability();
   const stream = input.stream ?? await openCameraStream();
   const target = new BufferTarget();
   const output = new Output({ target, format: new Mp4OutputFormat({ fastStart: "fragmented", minimumFragmentDuration: 1 }) });
   let ended = false;
+  let frameFailed = false;
   let orientationLocked = false;
   let timer: ReturnType<typeof setInterval> | undefined;
+  let portraitTrack: Awaited<ReturnType<typeof portraitEncodingTrack>> | undefined;
   const tracks = stream.getTracks();
   const orientation = globalThis.screen?.orientation;
   const release = () => {
     clearInterval(timer);
     orientation?.removeEventListener("change", rotated);
+    portraitTrack?.track.removeEventListener("ended", trackEnded);
+    if (typeof document !== "undefined") document.removeEventListener("visibilitychange", pageHidden);
+    portraitTrack?.close();
     for (const track of tracks) { track.removeEventListener("ended", trackEnded); track.stop(); }
     if (orientationLocked) orientation?.unlock();
   };
@@ -120,12 +200,25 @@ export async function startOriginalVideoCapture(input: OriginalVideoCaptureInput
   const boundary = createCaptureFailureBoundary({ ended: () => ended, markEnded: () => { ended = true; },
     dimensionsChanged: () => dimensionsChanged(), release, cancel: () => output.cancel(), onFailure: input.onFailure });
   const rotated = () => boundary.fail("orientation_lost", "The phone rotated during capture. Retake in one orientation.");
+  // A hidden page stops painting portrait frames, and on the Pixel 8 even the
+  // native camera track kept its frame clock but froze the picture while
+  // hidden. The take is cancelled rather than finalized, so a recording with
+  // a frozen stretch never exists to be reviewed or uploaded.
+  const pageHidden = () => {
+    if (document.visibilityState === "hidden") {
+      boundary.fail("interrupted", "The recording stopped because you left the page. Record again.");
+    }
+  };
   const trackEnded = () => boundary.fail("encoder_failed", "A camera or microphone source ended. Retake the video.");
   try {
     const video = stream.getVideoTracks()[0]; const audio = stream.getAudioTracks()[0];
     if (!video || !audio) throw new VideoCaptureError("capability_unavailable", "Both camera and microphone tracks are required");
     const settings = video.getSettings(); const sound = audio.getSettings();
-    const width = settings.width ?? 720; const height = settings.height ?? 1280;
+    portraitTrack = await portraitEncodingTrack(stream, video, () => {
+      frameFailed = true;
+      boundary.fail("encoder_failed", "Portrait frame processing stopped. Retake the video.");
+    });
+    const { width, height } = portraitTrack;
     const pixels = width * height;
     const profile = pixels <= 640 * 480 ? "avc1.42e01e" : pixels <= 720 * 1280 ? "avc1.42e01f" : "avc1.42e028";
     if (pixels > 1080 * 1920 || !await canEncodeVideo("avc", { width, height, quality: videoQuality,
@@ -133,8 +226,9 @@ export async function startOriginalVideoCapture(input: OriginalVideoCaptureInput
       || !await canEncodeAudio("aac", { numberOfChannels: sound.channelCount ?? 1, sampleRate: sound.sampleRate ?? 48_000, quality: audioQuality })) {
       throw new VideoCaptureError("capability_unavailable", "The actual camera and microphone configuration is unsupported");
     }
-    const videoSource = new MediaStreamVideoTrackSource(video, { codec: "avc", quality: videoQuality,
-      fullCodecString: profile, keyFrameInterval: 1, hardwareAcceleration: "prefer-hardware", latencyMode: "realtime" });
+    const videoSource = new MediaStreamVideoTrackSource(portraitTrack.track, { codec: "avc", quality: videoQuality,
+      fullCodecString: profile, keyFrameInterval: 1, hardwareAcceleration: "prefer-hardware", latencyMode: "realtime" },
+    { frameRate: 30 });
     const audioSource = new MediaStreamAudioTrackSource(audio, { codec: "aac", quality: audioQuality });
     dimensionsChanged = () => {
       const current = video.getSettings();
@@ -142,9 +236,11 @@ export async function startOriginalVideoCapture(input: OriginalVideoCaptureInput
     };
     boundary.observe(videoSource.errorPromise);
     boundary.observe(audioSource.errorPromise);
+    if (portraitTrack.track !== video) portraitTrack.track.addEventListener("ended", trackEnded, { once: true });
+    document.addEventListener("visibilitychange", pageHidden);
     output.addVideoTrack(videoSource); output.addAudioTrack(audioSource);
     // Locking is optional platform functionality. Changes are take-ending even
-    // when the browser refuses the lock. Backgrounding alone has no handler.
+    // when the browser refuses the lock. A hidden page ends the take above.
     if (orientation && "lock" in orientation && typeof orientation.lock === "function") {
       try { await orientation.lock(orientation.type); orientationLocked = true; } catch { /* change guard remains active */ }
     }
@@ -175,11 +271,13 @@ export async function startOriginalVideoCapture(input: OriginalVideoCaptureInput
         try {
           await output.finalize();
           boundary.assertFinalized();
+          if (frameFailed) throw new VideoCaptureError("encoder_failed", "Portrait frame processing stopped. Retake the video.");
           if (!target.buffer) throw new VideoCaptureError("encoder_failed", "Capture did not finalize a file");
           return await inspectVideoFile(new File([target.buffer], "original-video.mp4", { type: "video/mp4" }), {
             // Only the app's own guided take is allowed its tail guard; a
             // chosen file keeps the ordinary admission bound.
             maxDurationSeconds: GUIDED_TAKE_MAX_DURATION_SECONDS,
+            requirePortrait: true,
           });
         } finally { release(); }
       },

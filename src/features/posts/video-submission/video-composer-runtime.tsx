@@ -1,5 +1,5 @@
 import { createEffect, createMemo, createSignal, onCleanup, Show, untrack } from "solid-js";
-import { Button, FormNote } from "../../../design-system";
+import { Button, FormNote, IconQueue } from "../../../design-system";
 import { type ExcerptBounds, formatExcerptTime } from "../post-composer/song-excerpt";
 import { SongExcerptComposer, type SoundtrackSelection } from "../post-composer/song-excerpt-composer";
 import { createLocalExcerptDraftStore } from "../post-composer/song-excerpt-draft-store";
@@ -7,6 +7,7 @@ import type { SongSourceReader } from "../post-composer/song-excerpt-source";
 import { OriginalVideoCaptureSurface, OriginalVideoReviewSurface } from "../post-composer/video-original-audio-surface";
 import type { OriginalVideoCaptureInput, VideoCaptureSession } from "./capture";
 import { captureStopAfterMs, clipFitMessage, fitClipToExcerpt, GUIDED_TAKE_MAX_DURATION_SECONDS } from "./clip-duration";
+import type { VideoSnapshot } from "./contracts";
 import { alignGuidedTake, type GuidedTakeAlignment } from "./guided-take-alignment";
 import { canDiscardRejectedVideo, VideoCoordinator, type PendingVideo, type VideoStorage } from "./coordinator";
 import { SongReviewPreview, type PreviewAudio } from "./song-review-preview";
@@ -419,7 +420,10 @@ export function VideoComposerRuntime(props: {
             session = null; stopGuide();
             if (disposed) return;
             setStream(null); setError(failure.message);
-            setCaptureStatus(failure.reason === "orientation_lost" ? "orientation_lost" : "capability_unavailable");
+            // An interrupted take was cancelled, not saved: the author is
+            // back at the camera and can simply record again.
+            setCaptureStatus(failure.reason === "orientation_lost" ? "orientation_lost"
+              : failure.reason === "interrupted" ? "idle" : "capability_unavailable");
           },
           onLimit: () => { void stopCapture(); },
           ...(guide ? { limitMs: captureStopAfterMs(guide.bounds) } : {}),
@@ -464,10 +468,13 @@ export function VideoComposerRuntime(props: {
   }
   // A hidden page is where browser media playback is suspended without an
   // event. The guide then can no longer keep time with the recording, so the
-  // take ends there rather than silently drifting. Backgrounding alone is not
-  // a take-ending condition for an unguided recording.
+  // take ends there rather than silently drifting. An unguided take is
+  // cancelled by the capture module instead, because its picture freezes.
   const interactionBusy = () => busy() || finalizing();
+  // The camera preview is held only while the page is visible.
+  const [pageVisible, setPageVisible] = createSignal(typeof document === "undefined" || document.visibilityState !== "hidden");
   const onVisibilityChange = () => {
+    setPageVisible(document.visibilityState !== "hidden");
     if (document.visibilityState !== "hidden" || !session || !guideAudio) return;
     void stopCapture("The page was hidden, so the guide song stopped and this recording ended.");
   };
@@ -522,9 +529,15 @@ export function VideoComposerRuntime(props: {
       await coordinator.submit();
     });
   }
+  let backgroundRefresh: Promise<VideoSnapshot | null> | null = null;
   const poll = setInterval(() => {
     const state = record()?.snapshot;
-    if ((state?.status === "manual_review" || (state?.status === "processing" && state.phase !== "awaiting_upload")) && !busy()) void run(() => coordinator.refresh());
+    if ((state?.status === "manual_review" || (state?.status === "processing" && state.phase !== "awaiting_upload"))
+      && !busy() && !backgroundRefresh) {
+      // A passive read must not flash the action button every three seconds.
+      backgroundRefresh = coordinator.refresh();
+      void backgroundRefresh.catch(() => null).finally(() => { backgroundRefresh = null; });
+    }
   }, 3_000);
   onCleanup(() => {
     disposed = true; clearInterval(poll); coordinator.pauseUpload();
@@ -543,7 +556,7 @@ export function VideoComposerRuntime(props: {
   // The camera opens when the capture screen shows, not when recording
   // starts: the author frames the shot first. It closes when the screen goes
   // away and reopens after a retake.
-  createEffect(() => mobile && !record() && !file() && captureStatus() === "idle" && !finalizing(), capturing => {
+  createEffect(() => mobile && pageVisible() && !record() && !file() && captureStatus() === "idle" && !finalizing(), capturing => {
     if (!capturing) {
       // The camera stops now; the viewfinder signal is cleared outside the
       // effect's owned scope.
@@ -564,7 +577,8 @@ export function VideoComposerRuntime(props: {
       if (disposed) { previewOpening = false; return; }
       void open().then(media => {
         previewOpening = false;
-        const stillCapturing = !disposed && !session && !captureStarting && !record() && !file() && captureStatus() === "idle";
+        const stillCapturing = !disposed && !session && !captureStarting && !record() && !file()
+          && captureStatus() === "idle" && document.visibilityState !== "hidden";
         if (!stillCapturing || previewStream) { stopTracks(media); return; }
         previewStream = media;
         setStream(media);
@@ -697,7 +711,7 @@ export function VideoComposerRuntime(props: {
     </Show>
     <Show when={record()}>
       <Show when={videoStatusText()}>{text => <p role="status">{text()}</p>}</Show>
-      <Show when={record()?.song && !record()?.rejection}>
+      <Show when={record()?.song && !record()?.rejection && state()?.status !== "manual_review"}>
         <p role="status">{songReserved()
           ? `Soundtrack: this song from ${selectionSpan(record()!.song!)}.`
           : "Adding the song to your video…"}</p>
@@ -736,8 +750,16 @@ export function VideoComposerRuntime(props: {
         <Button disabled={busy()} onClick={() => { void run(() => coordinator.refresh()); }}>Check video status</Button>
       </Show>
       <Show when={!record()?.rejection && state()?.status === "manual_review"}>
-        <p>Your video remains private during review. No post is public yet.</p>
-        <Button disabled={busy()} onClick={() => { void run(() => coordinator.refresh()); }}>Check video status</Button>
+        <div class="mx-auto flex min-h-[70dvh] w-full max-w-sm flex-col items-center justify-center gap-5 px-6 text-center" role="status">
+          <span class="grid size-16 place-items-center rounded-full bg-primary/10 text-primary" aria-hidden="true">
+            <IconQueue class="size-8" />
+          </span>
+          <div class="space-y-2">
+            <h2 class="text-xl font-semibold">Waiting for review</h2>
+            <p class="text-sm text-muted-foreground">A community moderator must approve this video before it can be posted. It stays private until then.</p>
+          </div>
+          <Button class="w-full" onClick={props.onExit}>Done</Button>
+        </div>
       </Show>
       <Show when={!record()?.rejection && (state()?.status === "blocked" || state()?.status === "abandoned")}>
         <Show when={blocked()?.reason_code === "song_reference_invalid"}><p role="status">{songReferenceInvalidText(blocked()?.song_reason_code)}</p></Show>

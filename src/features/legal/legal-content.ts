@@ -47,7 +47,7 @@ export const termsOfService: LegalDocumentContent = {
       heading: "What you post",
       paragraphs: [
         "You keep ownership of the songs, videos, images, lyrics, posts and comments you publish. You give us permission to store, process and show them in the app. That includes transcoding media, checking it for policy violations, matching audio against a fingerprint database, transcribing it and translating it.",
-        "When you publish a song, its audio, artwork and details are stored on IPFS and registered on the DATA Network (formerly Story) with the licence you choose: non-commercial, commercial use, or commercial remix with a revenue share. These public records are permanent. We cannot remove them from IPFS or the chain, even if you later delete the post or your account.",
+        "When you publish a song, its audio, artwork and details are stored on IPFS and registered on the DATA Network (formerly Story) under a commercial remix licence: others may remix it and sell their remix with credit, and you receive the share of their remix earnings you set when you publish. A song submission that was given a different licence before 24 September 2026 keeps that licence. These public records are permanent. We cannot remove them from IPFS or the chain, even if you later delete the post or your account.",
         "You must have the rights to what you post. A fingerprint match with a known recording blocks publication, but passing that check is not a copyright clearance.",
       ],
     },
@@ -56,7 +56,7 @@ export const termsOfService: LegalDocumentContent = {
       items: [
         "Do not post content you do not have the rights to.",
         "Do not post sexual content involving anyone under 18. We remove it, and those decisions cannot be appealed.",
-        "Mark adult content as 18+. Content our checks find to be sexual or graphically violent is rated 18+ and cannot be rated lower.",
+        "Mark adult content as 18+ where the app asks you to. Songs are rated by our checks rather than by you. Content our checks find to be sexual or graphically violent is rated 18+ and cannot be rated lower.",
         "Do not harass, threaten or impersonate others, and do not use the app for anything illegal.",
         "Do not interfere with the service, other people's accounts or the scoring of Study and Karaoke.",
       ],

@@ -57,8 +57,7 @@ export async function publishSongAndVerifyPlayback(
   if (await title.count() > 0) await title.fill(marker);
 
   if (lyrics !== "") {
-    await composer.getByRole("button", { name: "Add lyrics (optional)" }).click();
-    await composer.getByLabel("Lyrics", { exact: true }).fill(lyrics);
+    await composer.getByLabel("Lyrics (optional)", { exact: true }).fill(lyrics);
   }
 
   // Song, Rights, Review. Each advance waits for the exact next
@@ -69,7 +68,7 @@ export async function publishSongAndVerifyPlayback(
     .and(composer.locator('[aria-current="step"]'));
 
   await forward.click();
-  await expect(currentStep("Rights")).toBeVisible({ timeout: 120_000 });
+  await expect(currentStep("Royalties")).toBeVisible({ timeout: 120_000 });
   if (lyrics !== "") {
     const [saved] = await Promise.all([
       page.waitForResponse(response => response.request().method() === "POST"
@@ -92,7 +91,7 @@ export async function publishSongAndVerifyPlayback(
   }
   else expect(review).not.toContain("Instrumental");
 
-  await composer.getByRole("button", { name: "Publish song" }).click();
+  await composer.getByRole("button", { name: "Post song" }).click();
   await expect(composer).toBeHidden({ timeout: 180_000 });
 
   expect(publications).toHaveLength(1);

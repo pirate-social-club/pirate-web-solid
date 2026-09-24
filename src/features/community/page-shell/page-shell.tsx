@@ -1,5 +1,6 @@
 import { AgeAccessPrompt } from "../../verification/age-access-prompt.tsx";
 import { SongPlayer } from "../../posts/song-player/song-player.tsx";
+import { RewardSponsorAction } from "../../rewards/reward-sponsor-action.tsx";
 /** @jsxImportSource @solidjs/web */
 import type { JSX } from "@solidjs/web";
 import { For, Loading, Show, createMemo, createSignal } from "solid-js";
@@ -155,7 +156,7 @@ function SongPost(props: { post: CommunityPost }) {
   );
 }
 
-function FeedPost(props: { post: CommunityPost; actions?: JSX.Element }) {
+function FeedPost(props: { post: CommunityPost; communityId?: string; actions?: JSX.Element }) {
   // The feed adapter always resolves a handle, including "Anonymous" and a
   // generic public label. This covers a caller that supplied none, and says so
   // rather than attributing the post to an invented account.
@@ -171,7 +172,9 @@ function FeedPost(props: { post: CommunityPost; actions?: JSX.Element }) {
         />
         <Type as="span" variant="label">{author()}</Type>
         <Type as="span" variant="caption">· {postTimestamp(props.post.publishedAt)}</Type>
-
+        <Show when={props.post.kind === "song" && props.communityId}>
+          {communityId => <div class="ml-auto"><RewardSponsorAction communityId={communityId()} postId={props.post.id} songTitle={props.post.mediaTitle ?? props.post.title} /></div>}
+        </Show>
       </div>
       <Show when={props.post.kind === "song"} fallback={
         <>
@@ -354,7 +357,7 @@ export function CommunityPageShell(props: CommunityPageShellProps) {
   });
   const songs = createMemo(() => sortedPosts().filter(post => post.kind === "song"));
   const renderPost = (post: CommunityPost) => {
-    const render = (actions?: JSX.Element) => <FeedPost actions={actions} post={post} />;
+    const render = (actions?: JSX.Element) => <FeedPost actions={actions} communityId={props.community.id} post={post} />;
     return props.renderPost?.(post, render) ?? render();
   };
   /**

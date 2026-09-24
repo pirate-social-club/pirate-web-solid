@@ -194,12 +194,6 @@ function CollaboratorPicker(props: {
             placeholder={props.copy.rights.searchProfiles}
             value={query()}
           />
-          {/* The search covers the account's profiles bound to this community
-              until a public profile-search contract exists; say so rather
-              than implying a lookup across other members. */}
-          <div class="pt-2">
-            <FormNote>{props.copy.rights.collaboratorScope}</FormNote>
-          </div>
         </div>
         <div class="min-h-0 flex-1 overflow-y-auto px-2 sm:px-3">
           <For each={filtered()}>
@@ -295,7 +289,6 @@ export function EarningsSplit(props: {
   });
   const profileFor = (personaId: string | undefined) =>
     props.recipients.find(profile => profile.personaId === personaId);
-  const authorProfile = () => profileFor(props.authorPersonaId);
   const pickerCandidates = () => props.recipients.filter(profile =>
     profile.personaId !== props.authorPersonaId
     && !collaborators().some(allocation => allocation.recipientId === profile.personaId));
@@ -336,28 +329,51 @@ export function EarningsSplit(props: {
     props.onChange(withDerivedCreator(props.split.allocations.filter(allocation => allocation.id !== id)));
   };
 
+  const addButton = () => (
+    <Button
+      disabled={props.disabled}
+      leadingIcon={<IconPlus class="size-4" />}
+      onClick={() => setPickerOpen(true)}
+      size="sm"
+      variant="ghost"
+    >
+      {props.copy.rights.addCollaborator}
+    </Button>
+  );
+
   return (
     <section class="space-y-3">
+      {/* Alone, the author gets everything: one line and a way to add someone. */}
+      <Show when={collaborators().length > 0} fallback={
+        <div class="flex items-center justify-between gap-3">
+          <Type as="p" class="min-w-0 flex-1" variant="body-strong">{props.copy.rights.allYours}</Type>
+          <Button
+            aria-label={props.copy.rights.addCollaborator}
+            class="shrink-0"
+            disabled={props.disabled}
+            leadingIcon={<IconPlus class="size-4" />}
+            onClick={() => setPickerOpen(true)}
+            size="sm"
+            variant="ghost"
+          >
+            {props.copy.rights.addProfile}
+          </Button>
+        </div>
+      }>
       <Type as="h3" variant="body-strong">{props.copy.rights.earningsTitle}</Type>
       <div class="divide-y divide-border-soft overflow-hidden rounded-[var(--radius-lg)] border border-border-soft">
-        <div class="grid grid-cols-[minmax(0,1fr)_5.5rem_2.5rem] items-center gap-2 px-3 py-2">
-          <div class="flex min-w-0 items-center gap-2.5">
-            <ProfileRowContent
-              fallback={collaborators().length === 0 ? props.copy.rights.yourShare : props.copy.review.you}
-              profile={authorProfile()}
-            />
-          </div>
+        <div class="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-3 py-3">
+          <Type as="span" variant="body-strong">{props.copy.review.you}</Type>
           <Type as="span" class="text-end text-base tabular-nums" variant="body-strong">
             {basisPointsToPercentText(creatorBps())}%
           </Type>
-          <span aria-hidden="true" />
         </div>
         <For each={collaborators()}>
           {(allocation) => {
             const profile = () => profileFor(allocation.recipientId);
             const name = () => authorLabel(profile(), "Collaborator");
             return (
-              <div class="grid grid-cols-[minmax(0,1fr)_5.5rem_2.5rem] items-center gap-2 px-3 py-2">
+              <div class="grid grid-cols-[minmax(0,1fr)_4.5rem_2.5rem] items-center gap-2 px-3 py-2">
                 <div class="flex min-w-0 items-center gap-2.5">
                   <ProfileRowContent fallback={name()} profile={profile()} />
                 </div>
@@ -389,15 +405,8 @@ export function EarningsSplit(props: {
       <Show when={shareError()}>
         <FormNote tone="warning">{shareError()}</FormNote>
       </Show>
-      <Button
-        disabled={props.disabled}
-        leadingIcon={<IconPlus class="size-4" />}
-        onClick={() => setPickerOpen(true)}
-        size="sm"
-        variant="outline"
-      >
-        {props.copy.rights.addCollaborator}
-      </Button>
+      {addButton()}
+      </Show>
       <CollaboratorPicker
         candidates={pickerCandidates()}
         copy={props.copy}

@@ -1,4 +1,6 @@
-export type VideoCaptureFailure = "capability_unavailable" | "camera_denied" | "orientation_lost" | "encoder_failed" | "invalid_media";
+export type VideoCaptureFailure = "capability_unavailable" | "camera_denied" | "orientation_lost" | "encoder_failed" | "invalid_media"
+  /** The page was hidden while a take depended on page-driven frames. */
+  | "interrupted";
 export class VideoCaptureError extends Error {
   constructor(readonly reason: VideoCaptureFailure, message: string) { super(message); this.name = "VideoCaptureError"; }
 }

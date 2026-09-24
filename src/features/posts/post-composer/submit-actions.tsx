@@ -82,7 +82,6 @@ export function PublishButton(props: {
       </Show>
       <SubmitProgressStatus progress={submit.progress} />
       <Button
-        aria-label={compact() ? buttonLabel() : undefined}
         class={compact() ? "size-11 p-0" : props.class ?? "min-w-40 justify-center"}
         disabled={submit.disabled || submit.progress?.phase === "done"}
         leadingIcon={showRing() ? <SubmitProgressRing progress={submit.progress!} /> : compact() ? <IconArrowUp class="size-5" /> : undefined}

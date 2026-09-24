@@ -124,28 +124,6 @@ class FailingUploadStoryTransport extends StoryMediaTransport {
   }
 }
 
-/** A transport whose server holds one unfinished song for this community. */
-class ResumableSongStoryTransport extends StoryMediaTransport {
-  override async listActive(): Promise<ActiveSongMediaPostSubmissionPage> {
-    return {
-      object: "active_song_media_post_submission_page",
-      items: [{
-        object: "active_song_media_post_submission", community_id: "community-one", title: "Midnight waves",
-        song_type: "original", author_declared_rating: "general",
-        terms_state: { current: { status: "not_bound" } }, submission: snapshot(),
-      }],
-      next_cursor: null,
-    };
-  }
-}
-
-/** A transport whose unfinished-song lookup fails, as when the network drops. */
-class FailingRecoveryStoryTransport extends StoryMediaTransport {
-  override async listActive(): Promise<never> {
-    throw new Error("Could not load active song submissions");
-  }
-}
-
 const storyMp3 = (name = "midnight-waves.mp3") =>
   new File([new Uint8Array([0x49, 0x44, 0x33, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00])], name, { type: "audio/mpeg" });
 
@@ -275,39 +253,12 @@ export const ContextualTextOverMobileNavigation: Story = {
   },
 };
 
-/** The unfinished-song lookup failed. The text composer says so quietly and
- * offers a retry instead of hiding the resume path without a word. */
-export const ContextualTextRecoveryLookupFailedMobile: Story = {
-  name: "Contextual / Text / Unfinished-song check failed / Mobile",
-  globals: { viewport: { value: "mobile1", isRotated: false } },
-  render: () => dialogHarness({ mediaTransport: new FailingRecoveryStoryTransport() }).render(),
-  play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement.ownerDocument.body);
-    await expect(await canvas.findByText("Couldn't check for unfinished songs.")).toBeInTheDocument();
-    await expect(canvas.getByRole("button", { name: "Check again" })).toBeInTheDocument();
-    await expect(canvas.queryByRole("button", { name: "Resume a song submission" })).not.toBeInTheDocument();
-  },
-};
-
-/** The server holds an unfinished song, so the text composer offers to
- * resume it below the editor. */
-export const ContextualTextResumeAvailableMobile: Story = {
-  name: "Contextual / Text / Unfinished song to resume / Mobile",
-  globals: { viewport: { value: "mobile1", isRotated: false } },
-  render: () => dialogHarness({ mediaTransport: new ResumableSongStoryTransport() }).render(),
-  play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement.ownerDocument.body);
-    await expect(await canvas.findByRole("button", { name: "Resume a song submission" })).toBeInTheDocument();
-    await expect(canvas.queryByText("Couldn't check for unfinished songs.")).not.toBeInTheDocument();
-  },
-};
-
 export const ContextualTextMultiplePersonas: Story = {
   name: "Contextual / Text / App-selected persona",
   render: () => dialogHarness({ personaCount: 2, personaId: "persona-two" }).render(),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement.ownerDocument.body);
-    await expect(await canvas.findByRole("button", { name: "Publish post" })).toBeInTheDocument();
+    await expect(await canvas.findByRole("button", { name: "Post" })).toBeInTheDocument();
     await waitFor(async () => {
       await expect(canvas.queryByRole("button", { name: /^Post as: / })).not.toBeInTheDocument();
     });
@@ -329,41 +280,77 @@ export const SongStepSongMobile: Story = {
   globals: { viewport: { value: "mobile1", isRotated: false } },
 };
 
+/** Long lyrics on a phone: after scrolling to the bottom of the form, the
+ * header with Continue stays on screen. */
+export const SongStepLongLyricsMobile: Story = {
+  name: "Song / Step 1 — Song / Long lyrics / Mobile",
+  globals: { viewport: { value: "mobile1", isRotated: false } },
+  render: () => dialogHarness().render(),
+  play: async ({ canvasElement }) => {
+    const doc = canvasElement.ownerDocument;
+    const canvas = within(doc.body);
+    await uploadStorySong(canvas);
+    const lyrics = await canvas.findByLabelText("Lyrics (optional)");
+    await waitFor(async () => {
+      const field = canvas.getByLabelText<HTMLTextAreaElement>("Lyrics (optional)");
+      if (field.value === "") {
+        field.value = Array.from({ length: 80 }, (_, line) => `Line ${line + 1} of a very long song`).join("\n");
+        field.dispatchEvent(new Event("change", { bubbles: true }));
+      }
+      await expect(field.value.split("\n")).toHaveLength(80);
+    });
+    await expect(lyrics).toBeInTheDocument();
+    const form = doc.querySelector<HTMLElement>("[data-create-post-form]")!;
+    form.scrollTop = form.scrollHeight;
+    await waitFor(async () => {
+      const forward = doc.querySelector<HTMLElement>("[data-composer-forward]")!;
+      const box = forward.getBoundingClientRect();
+      await expect(form.scrollTop).toBeGreaterThan(0);
+      await expect(box.top).toBeGreaterThanOrEqual(0);
+      await expect(box.bottom).toBeLessThanOrEqual(doc.defaultView!.innerHeight);
+      // Nothing scrolls visibly above the header: the top edge is the header.
+      const topEdge = doc.elementFromPoint(doc.defaultView!.innerWidth / 2, 2);
+      await expect(topEdge?.closest("[data-composer-sticky-header]")).not.toBeNull();
+    });
+  },
+};
+
 export const SongLyricsOnSongStep: Story = {
   name: "Song / Lyrics on the Song step",
   render: () => dialogHarness().render(),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement.ownerDocument.body);
     await uploadStorySong(canvas);
-    await userEvent.click(await canvas.findByRole("button", { name: "Add lyrics (optional)" }));
-    const lyrics = await canvas.findByLabelText("Lyrics");
+    const lyrics = await canvas.findByLabelText("Lyrics (optional)");
     await userEvent.type(lyrics, "A line carried on the tide");
     await waitFor(async () => { await expect(lyrics).toHaveValue("A line carried on the tide"); });
   },
 };
 
 export const SongStepRights: Story = {
-  name: "Song / Step 2 — Rights",
+  name: "Song / Step 2 — Royalties",
   render: () => dialogHarness().render(),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement.ownerDocument.body);
     await uploadStorySong(canvas);
     await continueSongStep(canvas);
-    await expect(await canvas.findByText("What others may do with this song")).toBeInTheDocument();
-    await expect(await canvas.findByText("Earnings split")).toBeInTheDocument();
-    await expect(await canvas.findByText("Persona One")).toBeInTheDocument();
+    await expect(await canvas.findByText("Your cut of remix sales")).toBeInTheDocument();
+    await expect(canvas.getByRole("radio", { name: "10%" })).toHaveAttribute("aria-checked", "true");
+    await expect(await canvas.findByText("All earnings go to you")).toBeInTheDocument();
   },
 };
 
 /** Two eligible profiles so the collaborator picker can be exercised. */
 export const SongStepRightsCollaborators: Story = {
-  name: "Song / Step 2 — Rights / Collaborators",
+  name: "Song / Step 2 — Royalties / Collaborators",
   render: () => dialogHarness({ personaCount: 2 }).render(),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement.ownerDocument.body);
     await uploadStorySong(canvas);
     await continueSongStep(canvas);
-    await expect(await canvas.findByText("Earnings split")).toBeInTheDocument();
+    await userEvent.click(await canvas.findByRole("button", { name: "Add collaborator" }));
+    await expect(await canvas.findByRole("button", { name: /Persona Two/u })).toBeInTheDocument();
+    await expect(canvas.queryByText(/Only your profiles/u)).not.toBeInTheDocument();
   },
 };
 
@@ -376,9 +363,9 @@ export const SongStepReview: Story = {
     await continueSongStep(canvas);
     // Both steps name their action Continue. Confirm the new step before
     // looking up the next action, rather than clicking the old button twice.
-    await expect(await canvas.findByText("What others may do with this song")).toBeInTheDocument();
+    await expect(await canvas.findByText("Your cut of remix sales")).toBeInTheDocument();
     await continueSongStep(canvas);
-    await expect(await canvas.findByText("Permissions")).toBeInTheDocument();
+    await expect(await canvas.findByText("Remix earnings")).toBeInTheDocument();
     await expect(await canvas.findByText("Earnings split")).toBeInTheDocument();
     await expect(await canvas.findByText("You 100%")).toBeInTheDocument();
     await expect(await canvas.findByText("No lyrics added")).toBeInTheDocument();
@@ -397,7 +384,7 @@ export const SongUploadFailed: Story = {
     await expect(canvas.getByRole("heading", { name: "Audio upload needs another try" })).toBeInTheDocument();
     await expect(canvas.getByRole("button", { name: "Try upload again" })).toBeInTheDocument();
     await expect(canvas.queryByText(/awaiting upload/i)).not.toBeInTheDocument();
-    await expect(canvas.queryByText("What others may do with this song")).not.toBeInTheDocument();
+    await expect(canvas.queryByText("Your cut of remix sales")).not.toBeInTheDocument();
   },
 };
 

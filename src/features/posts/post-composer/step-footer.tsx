@@ -6,7 +6,7 @@
 import { Portal } from "@solidjs/web";
 import { createEffect, createSignal, Show } from "solid-js";
 
-import { Button, CardFooter, FormNote } from "../../../design-system";
+import { Button, CardFooter, FormNote, IconArrowLeft, IconArrowRight, IconArrowUp, IconButton, IconX } from "../../../design-system";
 import { cn } from "../../../design-system";
 import type { ComposerSteps } from "./composer-steps";
 import { animateComposerBarEnter } from "./composer-motion";
@@ -17,6 +17,10 @@ import { getNextComposerStep, getPreviousComposerStep } from "./utils";
 import type { SongFlowRuntime } from "./types";
 
 export function PostComposerStepFooter(props: {
+  /** Mobile header navigation: close or back on the left, the step name in
+   * the middle, and the forward or publish action on the right. */
+  layout?: "footer" | "header";
+  onClose?: () => void;
   controller: PostComposerController;
   /** Where the mobile footer belongs. Same rule as the attachment bar: a host
    * that already owns the viewport gets `inline`, because a portalled footer
@@ -162,6 +166,66 @@ export function PostComposerStepFooter(props: {
     </div>
   );
 
+  if (controller.isMobile() && props.layout === "header") {
+    // Two equal icon buttons: close or back on the left, forward or publish
+    // on the right. The step needs no title; the form says what it is.
+    const headerForward = () => (
+      <Show
+        when={props.steps.isLast()}
+        fallback={
+          <IconButton
+            aria-label={controller.copy.actions.continue}
+            data-composer-forward
+            disabled={!canAdvance()}
+            loading={preparing()}
+            onClick={() => void goNext()}
+            variant="default"
+          >
+            <IconArrowRight class="size-5" />
+          </IconButton>
+        }
+      >
+        <IconButton
+          aria-label={controller.submit.label}
+          disabled={controller.submit.disabled || controller.submit.progress?.phase === "done"}
+          loading={controller.submit.loading}
+          onClick={() => controller.submit.onSubmit?.()}
+          variant="default"
+        >
+          <IconArrowUp class="size-5" />
+        </IconButton>
+      </Show>
+    );
+    const headerError = () => (
+      <Show when={controller.submit.error}>
+        {(message) => (
+          <div aria-live="polite" class="px-1 pb-2" role="alert">
+            <FormNote tone="warning">{message()}</FormNote>
+          </div>
+        )}
+      </Show>
+    );
+    return (
+      <div>
+        <header class="flex min-h-14 items-center justify-between px-1">
+          <Show
+            when={!props.steps.isFirst() && !locked()}
+            fallback={
+              <IconButton aria-label="Close composer" onClick={() => props.onClose?.()} variant="ghost">
+                <IconX class="size-5" />
+              </IconButton>
+            }
+          >
+            <IconButton aria-label={controller.copy.actions.back} disabled={preparing() || controller.submit.loading} onClick={goBack} variant="ghost">
+              <IconArrowLeft class="size-5" />
+            </IconButton>
+          </Show>
+          {headerForward()}
+        </header>
+        {headerError()}
+      </div>
+    );
+  }
   if (controller.isMobile()) {
     if (placement() === "inline" || typeof document === "undefined") return mobile;
     return <Portal>{mobile}</Portal>;

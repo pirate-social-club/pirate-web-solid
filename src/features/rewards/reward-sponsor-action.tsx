@@ -6,7 +6,7 @@ import { RewardSponsorDialog } from "./reward-sponsor-dialog.tsx";
 export function RewardSponsorAction(props: { communityId: string; postId: string; songTitle: string }) {
   const [open, setOpen] = createSignal(false);
   return <>
-    <ActionMenu items={[{ key: "boost", label: "Boost" }]} onAction={key => { if (key === "boost") setOpen(true); }} />
+    <ActionMenu label="Song actions" items={[{ key: "boost", label: "Boost" }]} onAction={key => { if (key === "boost") setOpen(true); }} />
     <Show when={open()}><RewardSponsorDialog communityId={props.communityId} postId={props.postId} songTitle={props.songTitle} onClose={() => setOpen(false)} /></Show>
   </>;
 }

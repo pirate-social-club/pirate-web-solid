@@ -134,9 +134,29 @@ describe("mounted original video flow", () => {
   });
   test("a server review hold stays private and does not claim publication", async () => {
     const fixture = setup("manual_review"); await selectAndPublish();
-    await vi.waitFor(() => expect(document.body.textContent).toContain("No post is public yet"));
+    await vi.waitFor(() => expect(document.body.textContent).toContain("Waiting for review"));
+    expect(document.body.textContent).toContain("A community moderator must approve this video");
+    expect(document.body.textContent).toContain("It stays private until then");
+    expect(document.body.textContent).not.toContain("Soundtrack: this song");
+    expect([...document.querySelectorAll("button")].map(button => button.textContent?.trim())).toContain("Done");
+    expect(document.body.textContent).not.toContain("Check video status");
     expect(fixture.published).not.toHaveBeenCalled(); expect(document.querySelector("a")).toBeNull();
   });
+  test("passive review polling leaves the one exit action stable", async () => {
+    setup("manual_review"); await selectAndPublish();
+    const button = await vi.waitFor(() => {
+      const found = [...document.querySelectorAll("button")].find(item => item.textContent?.trim() === "Done");
+      expect(found?.disabled).toBe(false);
+      return found!;
+    });
+    const disabledChanges: boolean[] = [];
+    const observer = new MutationObserver(() => { disabledChanges.push(button.disabled); });
+    observer.observe(button, { attributes: true, attributeFilter: ["disabled"] });
+    await new Promise(resolve => setTimeout(resolve, 3_250));
+    observer.disconnect();
+    expect(disabledChanges).toEqual([]);
+    expect(button.disabled).toBe(false);
+  }, 5_000);
 });
 
 
@@ -913,6 +933,50 @@ describe("mounted song-first video flow", () => {
       await vi.waitFor(() => expect(document.body.textContent).toContain("Camera unavailable"));
       expect(button("Choose a video instead")).not.toBeUndefined();
       expect(startCapture).not.toHaveBeenCalled();
+    });
+
+    function setVisibility(state: "hidden" | "visible") {
+      Object.defineProperty(document, "visibilityState", { configurable: true, get: () => state });
+      document.dispatchEvent(new Event("visibilitychange"));
+    }
+
+    test("a take interrupted by leaving the page is discarded and can never be uploaded", async () => {
+      const { VideoCaptureError } = await import("./capture");
+      let stopped = 0;
+      nextSession = () => fakeSession(() => { stopped += 1; });
+      const fixture = songSetup({ preflight: "accepted", mobile: true, initialSong: false });
+      await vi.waitFor(() => expect(previews).toHaveLength(1));
+      await startRecording();
+      await vi.waitFor(() => expect(startCapture).toHaveBeenCalledTimes(1));
+      await vi.waitFor(() => expect(document.querySelector('button[aria-label="Stop recording"]')).not.toBeNull());
+      // The capture module cancels the take and reports the interruption.
+      startCapture.mock.calls[0]![0].onFailure(new VideoCaptureError("interrupted", "The recording stopped because you left the page. Record again."));
+      await vi.waitFor(() => expect(document.body.textContent).toContain("you left the page"));
+      // Back at the camera, ready to record again: not a failure screen, and
+      // no review, file or upload exists for the cancelled take.
+      await vi.waitFor(() => expect(document.querySelector('button[aria-label="Start recording"]')).not.toBeNull());
+      expect(document.body.textContent).not.toContain("Recording is not supported here");
+      expect(document.querySelector("textarea")).toBeNull();
+      expect(button("Publish video")).toBeUndefined();
+      expect(stopped).toBe(0);
+      await vi.waitFor(() => expect(previews).toHaveLength(2));
+      expect(fixture.commands).toHaveLength(0);
+      expect(fixture.fetchImpl).not.toHaveBeenCalled();
+    });
+
+    test("the camera is released while the page is hidden and reopens when it returns", async () => {
+      try {
+        songSetup({ preflight: "accepted", mobile: true, initialSong: false });
+        await vi.waitFor(() => expect(previews).toHaveLength(1));
+        setVisibility("hidden");
+        await vi.waitFor(() => expect(previews[0]!.stopped()).toBe(true));
+        expect(previews).toHaveLength(1);
+        setVisibility("visible");
+        await vi.waitFor(() => expect(previews).toHaveLength(2));
+        expect(previews[1]!.stopped()).toBe(false);
+      } finally {
+        Reflect.deleteProperty(document, "visibilityState");
+      }
     });
   });
 });

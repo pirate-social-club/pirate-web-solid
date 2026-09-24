@@ -1,6 +1,7 @@
 import { normalizeRoyaltyAllocations, type ActiveSongMediaPostSubmission, type MediaSubmissionSnapshot, type SongRoyaltyAllocation } from "../media-submission/contracts";
 import type { MediaSubmissionCoordinator } from "../media-submission/coordinator";
 import { projectSongAnalysis } from "../media-submission/projection";
+import { DEFAULT_SONG_LICENSE } from "./defaults";
 import type { AssetLicenseState, AssetRoyaltySplitState, SongComposerState, SongMode } from "./types";
 
 export interface SongComposerBridgeInput {
@@ -98,7 +99,7 @@ export function projectActiveSongIntoComposer(item: ActiveSongMediaPostSubmissio
     personaId, songMode: item.song_type, ageGatePolicy: item.author_declared_rating === "adult_18" ? "18_plus" : "none",
     song: { title: item.title, primaryAudioUpload: null, ...projection.song },
     lyrics: projection.lyricsValue ?? "",
-    license: terms.status !== "ready" ? { presetId: "non-commercial" }
+    license: terms.status !== "ready" ? DEFAULT_SONG_LICENSE
       : terms.license_preset === "commercial-remix" ? { presetId: terms.license_preset, commercialRevShareBps: terms.commercial_rev_share_bps }
         : { presetId: terms.license_preset },
     royaltySplit: { allocations: allocations.map((allocation, index) => ({
