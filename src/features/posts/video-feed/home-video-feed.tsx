@@ -400,7 +400,11 @@ export function HomeVideoFeed(props: HomeVideoFeedProps) {
         setState({ kind: "ready" });
       })
       .catch(() => {
-        if (active && identity === requestIdentity) setState({ kind: "error" });
+        if (!active || identity !== requestIdentity) return;
+        // A failed signed-in upgrade keeps the public videos already playing;
+        // only a surface with nothing to show becomes an error. The public
+        // cursor is not resumed, since the loader is now the signed-in one.
+        if (!keepSurface) setState({ kind: "error" });
       });
   };
 

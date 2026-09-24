@@ -489,7 +489,7 @@ describe("sign-in continuity", () => {
 
   function mount() {
     const [identity, setIdentity] = createSignal("anonymous");
-    const [data, setData] = createSignal<FeedPage>(page([kept], null));
+    const [data, setData] = createSignal<FeedPage | PromiseLike<FeedPage>>(page([kept], null));
     let mints = 0;
     const container = render(() => (
       <HomeVideoFeed
@@ -521,6 +521,21 @@ describe("sign-in continuity", () => {
     feed.setIdentity("user:one");
     await vi.waitFor(() => expect(feed.container.querySelector("main")?.getAttribute("data-video-feed-state")).toBe("ready"));
     await new Promise(resolve => setTimeout(resolve, 20));
+    expect(card(feed.container, "video-kept")).toBe(before);
+    expect(feed.mints()).toBe(1);
+  });
+
+  test("a failed signed-in upgrade keeps the public videos playing", async () => {
+    const feed = mount();
+    await vi.waitFor(() => expect(feed.mints()).toBe(1));
+    const before = card(feed.container, "video-kept");
+    const failed = Promise.reject(new Error("feed timed out"));
+    failed.catch(() => {});
+    feed.setData(failed);
+    feed.setIdentity("user:one");
+    await new Promise(resolve => setTimeout(resolve, 20));
+    expect(feed.container.querySelector("main")?.getAttribute("data-video-feed-state")).toBe("ready");
+    expect(feed.container.textContent).not.toContain("Video feed unavailable");
     expect(card(feed.container, "video-kept")).toBe(before);
     expect(feed.mints()).toBe(1);
   });
