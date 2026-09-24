@@ -1,11 +1,23 @@
 <!doctype html>
 <html lang="en">
   <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head>
-  <body>
+  <body style="font-family: sans-serif">
     <h1>Local portrait camera proof</h1>
     <p>No upload or provider request is made.</p>
-    <button id="record" type="button">Record four seconds locally</button>
-    <pre id="result" role="status">Ready</pre>
+    <button id="record" type="button">Record locally</button>
+    <div style="display: flex; gap: 8px; align-items: flex-start">
+      <figure style="margin: 0">
+        <figcaption>Viewfinder</figcaption>
+        <div style="width: 150px; aspect-ratio: 9 / 16; overflow: hidden; background: #111">
+          <video id="viewfinder" autoplay muted playsinline style="width: 100%; height: 100%; object-fit: cover"></video>
+        </div>
+      </figure>
+      <figure style="margin: 0">
+        <figcaption>Recorded frame</figcaption>
+        <img id="recorded" alt="" style="width: 150px; aspect-ratio: 9 / 16; object-fit: contain; background: #111">
+      </figure>
+    </div>
+    <pre id="result" role="status" style="white-space: pre-wrap; word-break: break-all">Ready</pre>
     <video id="playback" controls playsinline muted style="width: min(80vw, 320px); aspect-ratio: 9 / 16; object-fit: contain"></video>
     <script type="module" src="./portrait-camera-proof.ts"></script>
   </body>

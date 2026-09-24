@@ -420,7 +420,10 @@ export function VideoComposerRuntime(props: {
             session = null; stopGuide();
             if (disposed) return;
             setStream(null); setError(failure.message);
-            setCaptureStatus(failure.reason === "orientation_lost" ? "orientation_lost" : "capability_unavailable");
+            // An interrupted take was cancelled, not saved: the author is
+            // back at the camera and can simply record again.
+            setCaptureStatus(failure.reason === "orientation_lost" ? "orientation_lost"
+              : failure.reason === "interrupted" ? "idle" : "capability_unavailable");
           },
           onLimit: () => { void stopCapture(); },
           ...(guide ? { limitMs: captureStopAfterMs(guide.bounds) } : {}),
@@ -468,7 +471,10 @@ export function VideoComposerRuntime(props: {
   // take ends there rather than silently drifting. Backgrounding alone is not
   // a take-ending condition for an unguided recording.
   const interactionBusy = () => busy() || finalizing();
+  // The camera preview is held only while the page is visible.
+  const [pageVisible, setPageVisible] = createSignal(typeof document === "undefined" || document.visibilityState !== "hidden");
   const onVisibilityChange = () => {
+    setPageVisible(document.visibilityState !== "hidden");
     if (document.visibilityState !== "hidden" || !session || !guideAudio) return;
     void stopCapture("The page was hidden, so the guide song stopped and this recording ended.");
   };
@@ -550,7 +556,7 @@ export function VideoComposerRuntime(props: {
   // The camera opens when the capture screen shows, not when recording
   // starts: the author frames the shot first. It closes when the screen goes
   // away and reopens after a retake.
-  createEffect(() => mobile && !record() && !file() && captureStatus() === "idle" && !finalizing(), capturing => {
+  createEffect(() => mobile && pageVisible() && !record() && !file() && captureStatus() === "idle" && !finalizing(), capturing => {
     if (!capturing) {
       // The camera stops now; the viewfinder signal is cleared outside the
       // effect's owned scope.
@@ -571,7 +577,8 @@ export function VideoComposerRuntime(props: {
       if (disposed) { previewOpening = false; return; }
       void open().then(media => {
         previewOpening = false;
-        const stillCapturing = !disposed && !session && !captureStarting && !record() && !file() && captureStatus() === "idle";
+        const stillCapturing = !disposed && !session && !captureStarting && !record() && !file()
+          && captureStatus() === "idle" && document.visibilityState !== "hidden";
         if (!stillCapturing || previewStream) { stopTracks(media); return; }
         previewStream = media;
         setStream(media);

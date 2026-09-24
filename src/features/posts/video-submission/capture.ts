@@ -186,6 +186,7 @@ export async function startOriginalVideoCapture(input: OriginalVideoCaptureInput
     clearInterval(timer);
     orientation?.removeEventListener("change", rotated);
     portraitTrack?.track.removeEventListener("ended", trackEnded);
+    if (typeof document !== "undefined") document.removeEventListener("visibilitychange", pageHidden);
     portraitTrack?.close();
     for (const track of tracks) { track.removeEventListener("ended", trackEnded); track.stop(); }
     if (orientationLocked) orientation?.unlock();
@@ -194,6 +195,14 @@ export async function startOriginalVideoCapture(input: OriginalVideoCaptureInput
   const boundary = createCaptureFailureBoundary({ ended: () => ended, markEnded: () => { ended = true; },
     dimensionsChanged: () => dimensionsChanged(), release, cancel: () => output.cancel(), onFailure: input.onFailure });
   const rotated = () => boundary.fail("orientation_lost", "The phone rotated during capture. Retake in one orientation.");
+  // Portrait frames are painted by the page, and a hidden page stops
+  // painting. The take is cancelled rather than finalized, so a recording
+  // with a frozen stretch never exists to be reviewed or uploaded.
+  const pageHidden = () => {
+    if (document.visibilityState === "hidden") {
+      boundary.fail("interrupted", "The recording stopped because you left the page. Record again.");
+    }
+  };
   const trackEnded = () => boundary.fail("encoder_failed", "A camera or microphone source ended. Retake the video.");
   try {
     const video = stream.getVideoTracks()[0]; const audio = stream.getAudioTracks()[0];
@@ -221,7 +230,10 @@ export async function startOriginalVideoCapture(input: OriginalVideoCaptureInput
     };
     boundary.observe(videoSource.errorPromise);
     boundary.observe(audioSource.errorPromise);
-    if (portraitTrack.track !== video) portraitTrack.track.addEventListener("ended", trackEnded, { once: true });
+    if (portraitTrack.track !== video) {
+      portraitTrack.track.addEventListener("ended", trackEnded, { once: true });
+      document.addEventListener("visibilitychange", pageHidden);
+    }
     output.addVideoTrack(videoSource); output.addAudioTrack(audioSource);
     // Locking is optional platform functionality. Changes are take-ending even
     // when the browser refuses the lock. Backgrounding alone has no handler.
