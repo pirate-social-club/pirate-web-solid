@@ -308,6 +308,9 @@ export const SongStepLongLyricsMobile: Story = {
       await expect(form.scrollTop).toBeGreaterThan(0);
       await expect(box.top).toBeGreaterThanOrEqual(0);
       await expect(box.bottom).toBeLessThanOrEqual(doc.defaultView!.innerHeight);
+      // Nothing scrolls visibly above the header: the top edge is the header.
+      const topEdge = doc.elementFromPoint(doc.defaultView!.innerWidth / 2, 2);
+      await expect(topEdge?.closest("[data-composer-sticky-header]")).not.toBeNull();
     });
   },
 };

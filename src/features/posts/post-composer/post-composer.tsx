@@ -94,7 +94,7 @@ export function PostComposer(props: PostComposerProps) {
     <>
       <div class={cn("w-full space-y-2", !controller.isMobile() && "pt-0")}>
         <Show when={controller.isMobile() && !isMultiStep()}>
-          <div class="sticky top-0 z-20 bg-background">{mobileHeader()}</div>
+          <div class="sticky -top-4 z-20 -mt-4 bg-background pt-4" data-composer-sticky-header>{mobileHeader()}</div>
         </Show>
 
         <Show
@@ -134,7 +134,9 @@ export function PostComposer(props: PostComposerProps) {
           >
             {/* The header carries Continue and Post, so it stays in reach
                 however long the lyrics or collaborator list grow. */}
-            <div class="sticky top-0 z-20 bg-background">
+            {/* Pinned at the scroll edge; its padding paints over the form's
+                top padding so nothing is seen scrolling above the header. */}
+            <div class="sticky -top-4 z-20 -mt-4 bg-background pt-4" data-composer-sticky-header>
             <PostComposerStepFooter
               controller={controller}
               layout="header"
