@@ -941,7 +941,25 @@ describe("mounted song-first video flow", () => {
       songSetup({ preflight: "accepted", mobile: true });
       await loadSongMetadata();
       await vi.waitFor(() => expect(viewfinderStream()).toBe(previews[0]!.stream));
-      expect(play).toHaveBeenCalled();
+      const viewfinder = document.querySelector("[data-video-viewfinder] video");
+      await vi.waitFor(() => expect(play.mock.contexts).toContain(viewfinder));
+      expect(document.querySelector("[data-video-viewfinder-resume]")).toBeNull();
+      play.mockRestore();
+    });
+
+    test("a refused viewfinder play shows a tap target that starts the camera", async () => {
+      const play = vi.spyOn(HTMLMediaElement.prototype, "play").mockRejectedValue(new Error("NotAllowedError"));
+      songSetup({ preflight: "accepted", mobile: true });
+      await loadSongMetadata();
+      await vi.waitFor(() => expect(viewfinderStream()).toBe(previews[0]!.stream));
+      const resume = await vi.waitFor(() => {
+        const button = document.querySelector<HTMLButtonElement>("[data-video-viewfinder-resume]");
+        expect(button?.textContent).toContain("Tap to show the camera");
+        return button!;
+      });
+      play.mockResolvedValue();
+      resume.click();
+      await vi.waitFor(() => expect(document.querySelector("[data-video-viewfinder-resume]")).toBeNull());
       play.mockRestore();
     });
 

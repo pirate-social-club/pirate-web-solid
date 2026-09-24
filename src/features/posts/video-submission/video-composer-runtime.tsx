@@ -541,9 +541,15 @@ export function VideoComposerRuntime(props: {
   // `autoplay` alone left the Pixel's viewfinder paused on its first frame, so
   // the author saw no live picture while recording. Play explicitly; it is
   // muted, so the browser allows it.
+  // A refused play is shown as a tap target, never as a dark viewfinder: a
+  // tap is a gesture the browser honors.
+  const [viewfinderStalled, setViewfinderStalled] = createSignal(false);
+  const playLive = (element: HTMLVideoElement) => {
+    void element.play()?.then(() => setViewfinderStalled(false), () => setViewfinderStalled(true));
+  };
   const showLive = (element: HTMLVideoElement, media: MediaStream | null) => {
     if (element.srcObject !== media) element.srcObject = media;
-    if (media && element.paused) void element.play()?.catch(() => {});
+    if (media && element.paused) playLive(element);
   };
   createEffect(() => stream(), media => {
     if (viewfinder && viewfinder.isConnected) showLive(viewfinder, media);
@@ -656,8 +662,17 @@ export function VideoComposerRuntime(props: {
             songLabel={songLabel()} onSongTap={props.initialSong ? toggleSongPanel : undefined}
             onClose={props.onExit} onUpload={() => picker?.click()} onRecordToggle={() => { void toggleCapture(); }}
             onRetake={() => { setError(""); setCaptureStatus("idle"); }}
-            preview={<video ref={element => { viewfinder = element; showLive(element, untrack(stream)); }} autoplay muted playsinline
-              class={stream() ? "h-full w-full object-cover" : "hidden"} />} />
+            preview={<>
+              <video ref={element => { viewfinder = element; showLive(element, untrack(stream)); }} autoplay muted playsinline
+                class={stream() ? "h-full w-full object-cover" : "hidden"} />
+              <Show when={stream() && viewfinderStalled()}>
+                <button type="button" data-video-viewfinder-resume
+                  class="absolute inset-x-0 top-1/2 z-10 mx-auto w-fit -translate-y-1/2 rounded-[var(--radius-lg)] bg-black/70 px-4 py-2 text-sm text-white"
+                  onClick={() => { if (viewfinder) playLive(viewfinder); }}>
+                  Tap to show the camera
+                </button>
+              </Show>
+            </>} />
         </div>
       </Show>
     </Show>
