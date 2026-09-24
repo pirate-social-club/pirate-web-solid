@@ -14,17 +14,48 @@ export class HnsRegtestRefusal extends Error {
   }
 }
 
-export function fixedRegtestRefusal(stderr: string): HnsRegtestRefusal | null {
+/** A failure after the runner's dispatch claim: an update may already be on
+ * chain. Never a refusal, never retried; carries a txid only if the wallet
+ * returned one. */
+export class HnsRegtestDispatchAmbiguous extends Error {
+  constructor(readonly code: string, readonly txid: string | null, readonly receipt: string) {
+    super(`Regtest UPDATE dispatch is ambiguous (${code}${txid ? `, txid ${txid}` : ", no txid"}); ` +
+      `reconcile the chain and the host receipt ${receipt} by hand, never retry automatically.`);
+  }
+}
+
+const RECEIPT = /^\/[A-Za-z0-9._/-]+\/publish-e2e[a-z0-9]{6,40}\.json$/u;
+
+function fixedRecord(stderr: string): Record<string, unknown> | null {
   if (stderr.length > 4096) return null;
   let value: unknown;
   try { value = JSON.parse(stderr.trim()) as unknown; }
   catch { return null; }
   if (typeof value !== "object" || value === null || Array.isArray(value)) return null;
   const record = value as Record<string, unknown>;
-  if (record.outcome !== "journey_chain_refused" || typeof record.code !== "string" ||
-      !/^[a-z][a-z0-9_]{0,80}$/u.test(record.code) || Object.keys(record).length !== 2)
+  if (typeof record.code !== "string" || !/^[a-z][a-z0-9_]{0,80}$/u.test(record.code)) return null;
+  return record;
+}
+
+/** Exit 1 with exactly {outcome, code}: a definite refusal before any claim. */
+export function fixedRegtestRefusal(stderr: string, exitCode = 1): HnsRegtestRefusal | null {
+  const record = fixedRecord(stderr);
+  if (!record || exitCode !== 1 || record.outcome !== "journey_chain_refused" ||
+      Object.keys(record).length !== 2)
     return null;
-  return new HnsRegtestRefusal(record.code);
+  return new HnsRegtestRefusal(record.code as string);
+}
+
+/** Exit 3 with the exact post-claim shape. Anything malformed stays a generic
+ * ambiguity, never a refusal. */
+export function fixedRegtestDispatchAmbiguity(stderr: string, exitCode = 3): HnsRegtestDispatchAmbiguous | null {
+  const record = fixedRecord(stderr);
+  if (!record || exitCode !== 3 || record.outcome !== "journey_chain_dispatch_ambiguous" ||
+      JSON.stringify(Object.keys(record).sort()) !== JSON.stringify(["code", "outcome", "receipt", "root", "txid"]) ||
+      !(record.txid === null || (typeof record.txid === "string" && SHA256.test(record.txid))) ||
+      typeof record.receipt !== "string" || !RECEIPT.test(record.receipt))
+    return null;
+  return new HnsRegtestDispatchAmbiguous(record.code as string, record.txid as string | null, record.receipt);
 }
 
 export type HnsSshTransport = (command: string, input: Uint8Array, timeoutMs: number) => Promise<string>;
@@ -68,8 +99,10 @@ export const sshToStagingHost: HnsSshTransport = (command, input, timeoutMs) => 
   child.once("close", code => {
     clearTimeout(timer);
     if (failed || code !== 0) {
-      const refusal = !failed ? fixedRegtestRefusal(Buffer.concat(errors).toString("utf8")) : null;
-      reject(refusal ?? new Error("Staging SSH transport failed; outcome must be reconciled before retry."));
+      const stderr = Buffer.concat(errors).toString("utf8");
+      const outcome = failed ? null
+        : fixedRegtestRefusal(stderr, code ?? -1) ?? fixedRegtestDispatchAmbiguity(stderr, code ?? -1);
+      reject(outcome ?? new Error("Staging SSH transport failed; outcome must be reconciled before retry."));
     }
     else resolve(Buffer.concat(chunks).toString("utf8").trim());
   });
@@ -128,7 +161,7 @@ export async function runRegtestJourneyStep(
   try {
     raw = await transport(command, new Uint8Array(), step === "advance-safe" ? 180_000 : 120_000);
   } catch (error) {
-    if (error instanceof HnsRegtestRefusal) throw error;
+    if (error instanceof HnsRegtestRefusal || error instanceof HnsRegtestDispatchAmbiguous) throw error;
     throw new Error(`Regtest ${step} outcome is ambiguous; inspect the host before any retry.`);
   }
   let result: Record<string, unknown>;
@@ -168,15 +201,16 @@ export async function publishFreshHnsSessionOnRegtest(
   try {
     raw = await transport(publishCommand(identity.root, matched[2]!, inspected.sha256, runnerSha256), new Uint8Array(), 120_000);
   } catch (error) {
-    if (error instanceof HnsRegtestRefusal) throw error;
+    if (error instanceof HnsRegtestRefusal || error instanceof HnsRegtestDispatchAmbiguous) throw error;
     throw new Error("Regtest UPDATE outcome is ambiguous; inspect chain and host receipt, never retry automatically.");
   }
   let result: Record<string, unknown>;
   try { result = JSON.parse(raw) as Record<string, unknown>; }
   catch { throw new Error("Regtest UPDATE response is ambiguous; inspect chain and host receipt, never retry automatically."); }
-  if ((result.outcome !== "published" && result.outcome !== "already_current") ||
+  const dispatched = result.outcome === "published" || result.outcome === "broadcast_unconfirmed";
+  if ((!dispatched && result.outcome !== "already_current") ||
       result.root !== identity.root || result.response_sha256 !== inspected.sha256 ||
-      (result.outcome === "published" && (typeof result.txid !== "string" || !SHA256.test(result.txid))))
+      (dispatched && (typeof result.txid !== "string" || !SHA256.test(result.txid))))
     throw new Error("Regtest UPDATE response did not reconcile; inspect chain and host receipt, never retry automatically.");
   return { root: identity.root, remotePath: matched[2]!, responseSha256: inspected.sha256,
     publishPlanSha256: inspected.publishPlanSha256, outcome: result.outcome, txid: result.txid ?? null };

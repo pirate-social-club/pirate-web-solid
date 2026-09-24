@@ -3,7 +3,8 @@ import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
 import { readFile, rm, stat } from "node:fs/promises";
 import { dirname } from "node:path";
-import { fixedRegtestRefusal, HnsRegtestRefusal, publishFreshHnsSessionOnRegtest,
+import { fixedRegtestDispatchAmbiguity, fixedRegtestRefusal, HnsRegtestDispatchAmbiguous,
+  HnsRegtestRefusal, publishFreshHnsSessionOnRegtest,
   runRegtestJourneyStep, stagingCopyCommand, verifyRegtestRunnerOnHost,
   type HnsSshTransport } from "../e2e/fixtures/hns-regtest-publisher.ts";
 
@@ -186,4 +187,52 @@ test("regtest steps refuse malformed receipts and never dispatch invalid roots",
   await expect(runRegtestJourneyStep("begin", identity.root, runnerHash, undefined, transport))
     .rejects.toThrow("did not reconcile");
   expect(calls).toBe(1);
+});
+
+const receiptPath = "/home/ubuntu/.local/state/pirate-hns-staging-journey/publish-e2eabc123.json";
+const ambiguous = (fields: Record<string, unknown>) => JSON.stringify({
+  outcome: "journey_chain_dispatch_ambiguous", code: "post_claim_failure", root: "e2eabc123",
+  txid: null, receipt: receiptPath, ...fields });
+
+test("post-claim runner outcomes are ambiguous with only a returned txid, never refusals", () => {
+  const withTxid = fixedRegtestDispatchAmbiguity(ambiguous({ code: "not_an_update", txid: "c".repeat(64) }), 3);
+  expect(withTxid).toBeInstanceOf(HnsRegtestDispatchAmbiguous);
+  expect(withTxid?.txid).toBe("c".repeat(64));
+  expect(withTxid?.message).toContain("never retry automatically");
+  expect(fixedRegtestDispatchAmbiguity(ambiguous({}), 3)?.txid).toBeNull();
+  // The same shape on the wrong exit status, a made-up txid or an untrusted
+  // receipt path is not accepted as a classified outcome.
+  expect(fixedRegtestDispatchAmbiguity(ambiguous({}), 1)).toBeNull();
+  expect(fixedRegtestDispatchAmbiguity(ambiguous({ txid: "not-a-txid" }), 3)).toBeNull();
+  expect(fixedRegtestDispatchAmbiguity(ambiguous({ receipt: "relative/publish-e2eabc123.json" }), 3)).toBeNull();
+  expect(fixedRegtestDispatchAmbiguity(ambiguous({ extra: "x" }), 3)).toBeNull();
+  // A refusal printed with the ambiguity exit status is not a definite refusal.
+  expect(fixedRegtestRefusal('{"outcome":"journey_chain_refused","code":"run_lease_missing"}', 3)).toBeNull();
+  expect(fixedRegtestRefusal(ambiguous({}), 1)).toBeNull();
+});
+
+test("a post-claim ambiguity from the runner surfaces unchanged and is never retried", async () => {
+  let calls = 0;
+  const transport: HnsSshTransport = async () => {
+    calls++;
+    if (calls === 1) return `${digest}  ${remotePath}`;
+    throw new HnsRegtestDispatchAmbiguous("post_claim_failure", null, receiptPath);
+  };
+  await expect(publishFreshHnsSessionOnRegtest(bytes, url, identity, planHash, runnerHash, transport))
+    .rejects.toBeInstanceOf(HnsRegtestDispatchAmbiguous);
+  expect(calls).toBe(2);
+});
+
+test("an unconfirmed broadcast is accepted only with its returned txid", async () => {
+  const run = async (txid: unknown) => {
+    let calls = 0;
+    const transport: HnsSshTransport = async () => {
+      calls++;
+      if (calls === 1) return `${digest}  ${remotePath}`;
+      return JSON.stringify({ outcome: "broadcast_unconfirmed", root: identity.root, response_sha256: digest, txid });
+    };
+    return publishFreshHnsSessionOnRegtest(bytes, url, identity, planHash, runnerHash, transport);
+  };
+  expect(await run("d".repeat(64))).toMatchObject({ outcome: "broadcast_unconfirmed", txid: "d".repeat(64) });
+  await expect(run(null)).rejects.toThrow("did not reconcile");
 });
