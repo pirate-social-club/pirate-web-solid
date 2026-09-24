@@ -42,7 +42,22 @@ export async function prepareSongComposer(input: SongComposerBridgeInput): Promi
     });
   }
   await input.coordinator.ensureStarted();
-  return input.coordinator.uploadAndFinalize(undefined, input.signal);
+  let snapshot = await input.coordinator.uploadAndFinalize(undefined, input.signal);
+  // Optional stems follow the sealed song; both enable Karaoke and Study.
+  const stems = [
+    ["instrumental_audio", input.song.instrumentalAudioUpload],
+    ["vocal_audio", input.song.vocalAudioUpload],
+  ] as const;
+  for (const [slot, file] of stems) {
+    if (file instanceof File && snapshot.stems?.[slot] == null) {
+      snapshot = await input.coordinator.attachStem({
+        slot,
+        file,
+        ...(input.signal === undefined ? {} : { signal: input.signal }),
+      });
+    }
+  }
+  return snapshot;
 }
 
 export function validateSongComposerTerms(split: AssetRoyaltySplitState, personaId: string): void {

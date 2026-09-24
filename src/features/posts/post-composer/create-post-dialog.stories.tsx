@@ -4,7 +4,11 @@
 import { createSignal, Show } from "solid-js";
 import { expect, userEvent, waitFor, within } from "storybook/test";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
-import type { PostCommunitiesCommunityIdMediaUploadReservationsResponse } from "@pirate/api-client";
+import type {
+  PostCommunitiesCommunityIdMediaUploadReservationsInput,
+  PostCommunitiesCommunityIdMediaUploadReservationsResponse,
+  PostMediaPostSubmissionsSubmissionIdStemsInput,
+} from "@pirate/api-client";
 
 import type { ActivePersonaPublicProjection } from "../../../api/session";
 import type { ActiveSongMediaPostSubmissionPage, MediaSubmissionSnapshot } from "../media-submission/contracts";
@@ -63,7 +67,32 @@ function outcomeSnapshot(outcome: StoryOutcome, current: MediaSubmissionSnapshot
 
 /** In-memory song transport: one reserve/start/upload/finalize pipeline that
  * accepts lyrics and terms and settles on the requested outcome. */
+const STEM_RESERVATION: Extract<PostCommunitiesCommunityIdMediaUploadReservationsResponse, { readonly track: "song" }> = {
+  reservation_id: "stem-reservation",
+  track: "song",
+  slot: "vocal_audio",
+  status: "awaiting_upload",
+  upload: { method: "PUT", url: "https://upload.test/stem", required_headers: [{ name: "content-type", value: "audio/mpeg" }], expires_at: "2027-01-01T00:00:00Z" },
+};
+
 class StoryMediaTransport implements MediaSubmissionTransport {
+  readonly stemCalls: string[] = [];
+  async reserveStem(input: PostCommunitiesCommunityIdMediaUploadReservationsInput): Promise<PostCommunitiesCommunityIdMediaUploadReservationsResponse> {
+    if (input.body.track !== "song") throw new Error("stems are song audio");
+    const slot = input.body.slot;
+    this.stemCalls.push(`reserve:${slot}`);
+    return { ...STEM_RESERVATION, reservation_id: `stem-reservation-${slot}`, slot };
+  }
+  async attachStem(input: PostMediaPostSubmissionsSubmissionIdStemsInput): Promise<MediaSubmissionSnapshot> {
+    this.stemCalls.push(`attach:${input.body.slot}`);
+    const current = this.snapshot;
+    if (current === null) throw new Error("missing stem submission");
+    const stems = { instrumental_audio: current.stems?.instrumental_audio ?? null, vocal_audio: current.stems?.vocal_audio ?? null };
+    stems[input.body.slot] = { status: "sealed", content_type: "audio/mpeg", size_bytes: 16 };
+    const next = { ...current, stems };
+    this.snapshot = next;
+    return next;
+  }
   async listActive(): Promise<ActiveSongMediaPostSubmissionPage> { return { object: "active_song_media_post_submission_page", items: [], next_cursor: null }; }
   snapshot: MediaSubmissionSnapshot | null = null;
   readonly commands: PersistedMediaCommand[] = [];
@@ -278,6 +307,23 @@ export const SongStepSongMobile: Story = {
   ...SongStepSong,
   name: "Song / Step 1 — Song / Mobile",
   globals: { viewport: { value: "mobile1", isRotated: false } },
+};
+
+/** The author adds the instrumental and vocals, which unlock Karaoke and
+ * Study; both upload after the song on Continue. */
+export const SongStepStemsMobile: Story = {
+  name: "Song / Step 1 — Song / Instrumental and vocals / Mobile",
+  globals: { viewport: { value: "mobile1", isRotated: false } },
+  render: () => dialogHarness().render(),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement.ownerDocument.body);
+    await uploadStorySong(canvas);
+    await userEvent.upload(await canvas.findByLabelText("Upload instrumental"), storyMp3("midnight-waves-instrumental.mp3"));
+    await userEvent.upload(await canvas.findByLabelText("Upload vocals"), storyMp3("midnight-waves-vocals.mp3"));
+    await expect(await canvas.findByText("midnight-waves-instrumental.mp3")).toBeInTheDocument();
+    await expect(await canvas.findByText("midnight-waves-vocals.mp3")).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: "Remove vocals" })).toBeInTheDocument();
+  },
 };
 
 /** Long lyrics on a phone: after scrolling to the bottom of the form, the

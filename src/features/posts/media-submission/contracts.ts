@@ -4,6 +4,7 @@ import type {
   PostCommunitiesCommunityIdMediaPostSubmissionsInput,
   PostCommunitiesCommunityIdMediaUploadReservationsInput,
   PostMediaPostSubmissionsSubmissionIdLyricsInput,
+  PostMediaPostSubmissionsSubmissionIdStemsInput,
   PostMediaPostSubmissionsSubmissionIdTermsInput,
 } from "@pirate/api-client";
 
@@ -97,12 +98,16 @@ export function normalizeRoyaltyAllocations(
   return normalized;
 }
 
+export type SongStemSlot = "instrumental_audio" | "vocal_audio";
+
 export function buildReserveSongAudioInput(input: {
   readonly communityId: string;
   readonly personaId: string;
   readonly idempotencyKey: string;
   readonly file: Pick<File, "name" | "size" | "type">;
   readonly expectedSha256?: string;
+  /** Omitted means the song's primary audio. */
+  readonly slot?: "primary_audio" | SongStemSlot;
 }): PostCommunitiesCommunityIdMediaUploadReservationsInput {
   const issue = publicSongAudioIssue(input.file);
   if (issue !== null) throw new SongSubmissionContractError(issue);
@@ -115,10 +120,30 @@ export function buildReserveSongAudioInput(input: {
       persona_id: requiredId(input.personaId, "personaId"),
       idempotency_key: requiredId(input.idempotencyKey, "idempotencyKey"),
       track: "song",
-      slot: "primary_audio",
+      slot: input.slot ?? "primary_audio",
       expected_content_type: "audio/mpeg",
       expected_size_bytes: input.file.size,
       ...(input.expectedSha256 === undefined ? {} : { expected_sha256: input.expectedSha256 }),
+    },
+  };
+}
+
+export function buildAttachSongStemInput(input: {
+  readonly submissionId: string;
+  readonly personaId: string;
+  readonly idempotencyKey: string;
+  readonly expectedCreationRevision: number;
+  readonly slot: SongStemSlot;
+  readonly reservationId: string;
+}): PostMediaPostSubmissionsSubmissionIdStemsInput {
+  return {
+    path: { submissionId: requiredId(input.submissionId, "submissionId") },
+    body: {
+      persona_id: requiredId(input.personaId, "personaId"),
+      idempotency_key: requiredId(input.idempotencyKey, "idempotencyKey"),
+      expected_creation_revision: input.expectedCreationRevision,
+      slot: input.slot,
+      reservation_id: requiredId(input.reservationId, "reservationId"),
     },
   };
 }

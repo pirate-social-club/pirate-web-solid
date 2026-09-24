@@ -4,7 +4,11 @@ import { render as solidRender } from "@solidjs/web";
 import { createRoot, createSignal } from "solid-js";
 import type { JSX } from "@solidjs/web";
 
-import type { PostCommunitiesCommunityIdMediaUploadReservationsResponse } from "@pirate/api-client";
+import type {
+  PostCommunitiesCommunityIdMediaUploadReservationsInput,
+  PostCommunitiesCommunityIdMediaUploadReservationsResponse,
+  PostMediaPostSubmissionsSubmissionIdStemsInput,
+} from "@pirate/api-client";
 
 import type { ActivePersonaPublicProjection } from "../../../api/session";
 import type { ActiveSongMediaPostSubmissionPage, MediaSubmissionSnapshot } from "../media-submission/contracts";
@@ -101,7 +105,32 @@ function envelopeBody(envelope: PendingSubmissionEnvelopeV1): TextPostRequestBod
   return JSON.parse(new TextDecoder().decode(pendingBodyBytes(envelope))) as TextPostRequestBody;
 }
 
+const STEM_RESERVATION: Extract<PostCommunitiesCommunityIdMediaUploadReservationsResponse, { readonly track: "song" }> = {
+  reservation_id: "stem-reservation",
+  track: "song",
+  slot: "vocal_audio",
+  status: "awaiting_upload",
+  upload: { method: "PUT", url: "https://upload.test/stem", required_headers: [{ name: "content-type", value: "audio/mpeg" }], expires_at: "2027-01-01T00:00:00Z" },
+};
+
 class ProductionMediaTransport implements MediaSubmissionTransport {
+  readonly stemCalls: string[] = [];
+  async reserveStem(input: PostCommunitiesCommunityIdMediaUploadReservationsInput): Promise<PostCommunitiesCommunityIdMediaUploadReservationsResponse> {
+    if (input.body.track !== "song") throw new Error("stems are song audio");
+    const slot = input.body.slot;
+    this.stemCalls.push(`reserve:${slot}`);
+    return { ...STEM_RESERVATION, reservation_id: `stem-reservation-${slot}`, slot };
+  }
+  async attachStem(input: PostMediaPostSubmissionsSubmissionIdStemsInput): Promise<MediaSubmissionSnapshot> {
+    this.stemCalls.push(`attach:${input.body.slot}`);
+    const current = this.snapshot;
+    if (current === null) throw new Error("missing stem submission");
+    const stems = { instrumental_audio: current.stems?.instrumental_audio ?? null, vocal_audio: current.stems?.vocal_audio ?? null };
+    stems[input.body.slot] = { status: "sealed", content_type: "audio/mpeg", size_bytes: 16 };
+    const next = { ...current, stems };
+    this.snapshot = next;
+    return next;
+  }
   async listActive(): Promise<ActiveSongMediaPostSubmissionPage> { return { object: "active_song_media_post_submission_page", items: [], next_cursor: null }; }
   snapshot: MediaSubmissionSnapshot | null = null;
   readonly commands: PersistedMediaCommand[] = [];
@@ -772,6 +801,53 @@ describe("create post request", () => {
     const start = bodies.find((_body, index) => mediaTransport.commands[index]?.kind === "start");
     expect(start?.author_declared_rating).toBe("general");
     expect(start?.song_type).toBe("original");
+  });
+
+  test("uploads the chosen instrumental and vocals after the song and before Royalties", async () => {
+    const mediaTransport = new ProductionMediaTransport();
+    render(() => <CreatePostDialog
+      communityContext={{ id: "community-one", name: "Harbor" }}
+      mediaTransport={mediaTransport}
+      onOpenChange={() => {}}
+      open
+      personas={[activePersona("persona-one", "Persona One")]}
+      principalId="account-one"
+    />);
+    await new Promise<void>(resolve => setTimeout(resolve, 0));
+    await uploadAudio("master.mp3");
+    expect(document.body.textContent).toContain("Add both to unlock Karaoke and Study.");
+    for (const [label, name] of [["Upload instrumental", "backing.mp3"], ["Upload vocals", "voice.mp3"]] as const) {
+      const input = document.body.querySelector<HTMLInputElement>(`input[aria-label='${label}']`)!;
+      Object.defineProperty(input, "files", { configurable: true, value: [new File([new Uint8Array([1])], name, { type: "audio/mpeg" })] });
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+      await vi.waitFor(() => expect(document.body.textContent).toContain(name));
+    }
+    await vi.waitFor(() => expect(button("Continue").disabled).toBe(false));
+    button("Continue").click();
+    await vi.waitFor(() => expect(document.body.textContent).toContain("Your cut of remix sales"));
+    expect(mediaTransport.stemCalls).toEqual([
+      "reserve:instrumental_audio", "attach:instrumental_audio", "reserve:vocal_audio", "attach:vocal_audio",
+    ]);
+    expect(mediaTransport.commands.map(command => command.kind)).toEqual(["reserve", "start", "finalize"]);
+  });
+
+  test("refuses a non-MP3 stem and keeps the row empty", async () => {
+    render(() => <CreatePostDialog
+      communityContext={{ id: "community-one", name: "Harbor" }}
+      mediaTransport={new ProductionMediaTransport()}
+      onOpenChange={() => {}}
+      open
+      personas={[activePersona("persona-one", "Persona One")]}
+      principalId="account-one"
+    />);
+    await new Promise<void>(resolve => setTimeout(resolve, 0));
+    await uploadAudio("master.mp3");
+    const input = document.body.querySelector<HTMLInputElement>("input[aria-label='Upload vocals']")!;
+    Object.defineProperty(input, "files", { configurable: true, value: [new File([new Uint8Array([1])], "voice.wav", { type: "audio/wav" })] });
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+    await vi.waitFor(() => expect(document.body.textContent).toContain("MP3 only"));
+    expect(document.body.textContent).not.toContain("voice.wav");
+    expect(button("Add vocals")).toBeDefined();
   });
 
   test("binds reviewed lyrics and named collaborators before publishing", async () => {

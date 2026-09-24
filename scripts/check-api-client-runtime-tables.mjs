@@ -8,11 +8,12 @@ const currentClient = resolve(
   appRoot,
   "node_modules/@pirate/api-client/src/generated/client.ts",
 );
-// Client 0.88.0 retains the consumed operations and removes the obsolete
-// community-creation activate_profile response while preserving the song,
-// nationality, and avatar contracts consumed by current Solid main. This
-// digest pins the exact success, error, and schema tables consumed by Solid.
-const expectedDigest = "dac8f933a2b266d784adb8ed608783d12fd7c320525270592b3add90ea23e00e";
+// Client 0.90.0 adds song stems: the reservation slot accepts the
+// instrumental and vocals stems, and the stems attach operation is consumed.
+// It otherwise retains the 0.88.0 tables (song, nationality, avatar and
+// community-creation contracts). This digest pins the exact success, error,
+// and schema tables consumed by Solid.
+const expectedDigest = "52b3e1b841464469ca94bf9c1cee5486b0892f649fbe0983b471e69185b7a9a5";
 
 const operations = [
   "post_postsPostIdVideoPlaybackAccess",
@@ -41,6 +42,7 @@ const operations = [
   "get_mediaPostSubmissionsSubmissionId",
   "post_mediaPostSubmissionsSubmissionIdRetry",
   "post_mediaPostSubmissionsSubmissionIdCancel",
+  "post_mediaPostSubmissionsSubmissionIdStems",
   "post_mediaUploadReservationsReservationIdPartsRenew",
   "get_postsPostId",
   "get_feedHomePublic",

@@ -6,6 +6,7 @@ import type {
 } from "@pirate/api-client";
 import { base64UrlToBytes } from "../post-composer/text-submission-contract";
 import {
+  buildAttachSongStemInput,
   buildReserveSongAudioInput,
   buildSongLyricsInput,
   buildSongTermsInput,
@@ -14,6 +15,7 @@ import {
   type ActiveSongMediaPostSubmission,
   type SongLicensePreset,
   type SongRoyaltyAllocation,
+  type SongStemSlot,
 } from "./contracts";
 import {
   createPersistedMediaCommand,
@@ -113,6 +115,46 @@ export class MediaSubmissionCoordinator {
       && this.record.snapshot.phase === "awaiting_upload";
   }
   listActive(communityId: string, cursor?: string) { return this.transport.listActive(communityId, cursor); }
+
+  /**
+   * Uploads one stem (instrumental or vocals) and seals it onto the current
+   * submission. A stem already on the server is left alone. The attempt is
+   * not journaled: an interrupted attempt starts again from a new reservation.
+   */
+  async attachStem(input: {
+    readonly slot: SongStemSlot;
+    readonly file: File;
+    readonly signal?: AbortSignal;
+    readonly onProgress?: (sent: number, total: number) => void;
+  }): Promise<MediaSubmissionSnapshot> {
+    const record = this.requireRecord();
+    if (record.submission_id === null || record.snapshot === null) {
+      throw new Error("Upload the song before adding its instrumental and vocals");
+    }
+    if (record.snapshot.stems?.[input.slot] != null) return record.snapshot;
+    const reservation = await this.transport.reserveStem(buildReserveSongAudioInput({
+      communityId: record.community_id,
+      personaId: record.persona_id,
+      idempotencyKey: this.createId(),
+      file: input.file,
+      slot: input.slot,
+    }));
+    await this.transport.upload(reservation, input.file, input.onProgress, input.signal);
+    const current = this.requireRecord();
+    if (current.submission_id === null || current.snapshot === null) {
+      throw new Error("Upload the song before adding its instrumental and vocals");
+    }
+    const snapshot = await this.transport.attachStem(buildAttachSongStemInput({
+      submissionId: current.submission_id,
+      personaId: current.persona_id,
+      idempotencyKey: this.createId(),
+      expectedCreationRevision: current.snapshot.creation_revision,
+      slot: input.slot,
+      reservationId: reservation.reservation_id,
+    }));
+    this.saveSnapshot(snapshot, this.requireRecord().pending_command);
+    return this.requireRecord().snapshot ?? snapshot;
+  }
   recover(item: ActiveSongMediaPostSubmission): void {
     if (this.record !== null) throw new Error("Resolve the active media submission before resuming another");
     if (item.object !== "active_song_media_post_submission" || item.submission.track !== "song"
