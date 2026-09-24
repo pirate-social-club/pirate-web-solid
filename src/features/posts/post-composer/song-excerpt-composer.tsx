@@ -68,6 +68,7 @@ export function SongExcerptComposer(props: {
   store: SongExcerptDraftStore;
   communityId?: string;
   preflight?: SongIntervalPreflight;
+  disabled?: boolean;
   initialSong?: { readonly postId: string };
   /** Songs offered in the picker; defaults to the community's songs. */
   songs?: SongPickerSource;
@@ -100,7 +101,6 @@ export function SongExcerptComposer(props: {
   const [durationMs, setDurationMs] = createSignal(0);
   const [bounds, setBounds] = createSignal<ExcerptBounds>({ startMs: 0, endMs: 0 });
   const [playing, setPlaying] = createSignal(false);
-  const [positionMs, setPositionMs] = createSignal(0);
   const [note, setNote] = createSignal<string>();
   // A payload can read cleanly and still yield audio this browser cannot use: a
   // grant that does not fetch, a container it cannot decode, or a stream whose
@@ -171,7 +171,6 @@ export function SongExcerptComposer(props: {
 
   /** The excerpt ends where the author said it ends, not where the song does. */
   const observe = (atMs: number) => {
-    setPositionMs(Math.round(atMs));
     if (!playing()) return;
     if (atMs < bounds().startMs - 500) {
       stopPlayback();
@@ -298,7 +297,6 @@ export function SongExcerptComposer(props: {
 
   const applyWindow = (next: ExcerptBounds, songPostId: string) => {
     setBounds(next);
-    setPositionMs(next.startMs);
     // The previous approval belongs to the previous window. It is invalidated
     // now, not when the debounce fires: publishing in between must not submit
     // an interval the author has already moved away from, and an answer still
@@ -351,7 +349,6 @@ export function SongExcerptComposer(props: {
     setPlan({ kind: "none" });
     setSource({ kind: "idle" });
     setDurationMs(0);
-    setPositionMs(0);
     setBounds({ startMs: 0, endMs: 0 });
     setLink("");
     setLinkProblem(undefined);
@@ -369,7 +366,6 @@ export function SongExcerptComposer(props: {
     setTiming(undefined);
     setPlan({ kind: "none" });
     setDurationMs(0);
-    setPositionMs(0);
     setBounds({ startMs: 0, endMs: 0 });
     reportSelection?.(null);
     pending?.abort();
@@ -444,7 +440,6 @@ export function SongExcerptComposer(props: {
       const current = bounds();
       const next = current.endMs > 0 ? clampExcerpt(current, length) : defaultExcerpt(length);
       setBounds(next);
-      setPositionMs(next.startMs);
       const title = currentTitle();
       const audioUrl = currentAudioUrl();
       if (title !== undefined && audioUrl !== undefined) {
@@ -478,7 +473,6 @@ export function SongExcerptComposer(props: {
       return;
     }
     audio.currentTime = bounds().startMs / 1_000;
-    setPositionMs(bounds().startMs);
     setPlaying(true);
     watch();
     void audio.play().catch(() => {
@@ -503,7 +497,7 @@ export function SongExcerptComposer(props: {
       case "not_available":
         return "Posting a video to a song isn’t available yet.";
       case "measuring":
-        return "The server is still measuring this song’s length; checking again shortly…";
+        return "Getting this song ready…";
       case "timing_unavailable":
         return "This song’s length couldn’t be measured, so a video can’t be posted to it.";
       case "refused":
@@ -511,11 +505,12 @@ export function SongExcerptComposer(props: {
       case "ineligible":
         return planIneligibleText(current);
       case "failed":
-        return "This part of the song couldn’t be checked. It will be checked again.";
+        return "Couldn’t use this part of the song.";
       case "ready":
         return `Your video will use ${excerptClock(current.selection.clipStartSamples, current.selection.clipStartSamples + current.selection.clipDurationSamples)} of this song.`;
     }
   };
+  const showPlanMessage = () => !preflight || !["none", "checking", "ready"].includes(plan().kind);
 
   const readyOf = (state: SongSourceState) => (state.kind === "ready" ? state : undefined);
   const problemOf = (state: SongSourceState): string | undefined =>
@@ -602,25 +597,28 @@ export function SongExcerptComposer(props: {
             <Show when={!audioProblem() && lengthMs() > 0 && canHoldExcerpt(lengthMs())}>
               <PostComposerExcerptSelector
                 bounds={bounds()}
+                disabled={props.disabled}
                 onChange={(next) => applyWindow(next, ready().postId)}
                 onTogglePreview={togglePlayback}
                 playing={playing()}
-                positionMs={positionMs()}
                 songDurationMs={lengthMs()}
               />
             </Show>
 
-            {/* Once accepted, the window above already says what the video uses;
-                the confirmation stays for screen readers only. */}
             <div
-              class={preflight && plan().kind === "ready" ? "sr-only" : "rounded-[var(--radius-lg)] border border-dashed border-muted-foreground/40 p-3"}
+              class={showPlanMessage() ? "flex items-center gap-3 text-muted-foreground" : "hidden"}
               data-song-plan={preflight ? plan().kind : "unchecked"}
             >
-              <Type as="p" variant="caption" role="status">
-                {preflight
-                  ? planText()
-                  : `This excerpt can’t be checked here, so the video can’t be posted yet.`}
-              </Type>
+              <Show when={showPlanMessage()}>
+                <Type as="p" variant="caption" role={plan().kind === "measuring" ? "status" : "alert"}>
+                  {preflight ? planText() : "This song can’t be checked here, so the video can’t be posted yet."}
+                </Type>
+                <Show when={plan().kind === "failed" && currentPostId()}>
+                  <Button onClick={() => { const id = currentPostId(); if (id) void checkPlan(id, bounds()); }} size="sm" type="button" variant="secondary">
+                    Try again
+                  </Button>
+                </Show>
+              </Show>
             </div>
             <Show when={note()}>
               {(text) => <Type as="p" variant="caption" role="status">{text()}</Type>}

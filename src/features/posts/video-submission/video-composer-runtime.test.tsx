@@ -1,6 +1,6 @@
 /** @jsxImportSource @solidjs/web */
 import { render } from "@solidjs/web";
-import { createRoot } from "solid-js";
+import { createRoot, flush } from "solid-js";
 import { webcrypto } from "node:crypto";
 import { ApiClientError } from "@pirate/api-client";
 import { afterEach, describe, expect, test, vi } from "vitest";
@@ -362,7 +362,9 @@ describe("mounted song-first video flow", () => {
     expect(fixture.preflightCalls).toContainEqual({ song_post_id: "song-post" });
     // The default window is the opening fifteen seconds, and it is dragged as a
     // whole: the selector exposes one position control, not endpoint resizers.
-    expect(document.querySelector('input[aria-label="Where the song starts"]')).not.toBeNull();
+    expect(document.querySelector('[role="slider"][aria-label="Where the song starts"]')).not.toBeNull();
+    expect(document.querySelectorAll('[role="slider"]')).toHaveLength(1);
+    expect(document.querySelector('[data-excerpt-track]')).toBeNull();
     expect(document.querySelector('input[aria-label="Excerpt start, resizes the excerpt without moving its end"]')).toBeNull();
     // The recording that will carry it is the same length; nothing has been
     // uploaded or recorded yet.
@@ -546,9 +548,13 @@ describe("mounted song-first video flow", () => {
     document.querySelector<HTMLButtonElement>('button[aria-label="Stop recording"]')!.click();
   }
   function moveWindow(startMs: number) {
-    const range = document.querySelector<HTMLInputElement>('input[aria-label="Where the song starts"]')!;
-    range.value = String(startMs);
-    range.dispatchEvent(new InputEvent("input", { bubbles: true }));
+    const slider = document.querySelector<HTMLElement>('[role="slider"][aria-label="Where the song starts"]')!;
+    slider.focus();
+    for (let step = 0; step < startMs / 1_000; step += 1) {
+      slider.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }));
+      flush();
+    }
+    expect(slider.getAttribute("aria-valuenow")).toBe(String(startMs));
   }
 
   test("recording plays the guide and stops at the excerpt plus its tail guard", async () => {
@@ -622,6 +628,8 @@ describe("mounted song-first video flow", () => {
     await awaitPlan("ready");
     await chooseFile();
     moveWindow(2_000);
+    expect(document.querySelector('[data-song-plan="checking"]')?.classList.contains("hidden")).toBe(true);
+    expect(document.body.textContent).not.toContain("Checking this part of the song");
     // Publishing immediately, before the debounce can re-check, must not
     // submit the window the author just moved away from.
     await publish();
@@ -732,9 +740,10 @@ describe("mounted song-first video flow", () => {
     await awaitPlan("ready");
     await startRecording();
     await vi.waitFor(() => expect(guide.calls.play).toBe(1));
-    const range = document.querySelector<HTMLInputElement>('input[aria-label="Where the song starts"]')!;
-    const fieldset = range.closest("fieldset");
+    const slider = document.querySelector<HTMLElement>('[role="slider"][aria-label="Where the song starts"]')!;
+    const fieldset = slider.closest("fieldset");
     expect(fieldset?.hasAttribute("disabled")).toBe(true);
+    expect(slider.hasAttribute("data-disabled")).toBe(true);
     guide.release();
     await stopRecording();
     await vi.waitFor(() => expect(document.querySelector("textarea")).not.toBeNull());
