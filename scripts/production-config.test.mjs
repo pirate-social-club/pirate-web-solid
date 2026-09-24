@@ -55,8 +55,12 @@ assert.deepEqual(config.migrations, [
   { tag: "v1", new_sqlite_classes: ["HnsCommunityAppReplayStoreDO"] },
 ]);
 
+// The base config stays disabled. Staging enables only the community ingress
+// (HNS staging flags-on, 2026-09-24) and must then name its gateway manifest.
+assert.equal(config.vars.HNS_COMMUNITY_APP_INGRESS_ENABLED, "false");
+assert.equal(staging.vars.HNS_COMMUNITY_APP_INGRESS_ENABLED, "true");
+assert.match(staging.vars.HNS_COMMUNITY_APP_GATEWAY_DEPLOYMENT_REFERENCE, /^hns-community-app-gateway-sha256:[0-9a-f]{64}$/);
 for (const environment of [config, staging]) {
-  assert.equal(environment.vars.HNS_COMMUNITY_APP_INGRESS_ENABLED, "false");
   assert.equal(environment.vars.HNS_HANDLE_HOST_INGRESS_ENABLED, "false");
   for (const name of hnsVars) assert.equal(typeof environment.vars[name], "string", `${name} must be explicit`);
   assert.deepEqual(environment.durable_objects?.bindings, replayBinding);

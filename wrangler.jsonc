@@ -90,7 +90,7 @@
         "COMMUNITY_CREATION_AVATAR_AUTHORING_ENABLED": "true",
         "VERIFICATION_UI_ENABLED": "true",
         "PRIVY_APP_ID": "cmsw5pis300b80cladbxx7bsr",
-        "HNS_COMMUNITY_APP_INGRESS_ENABLED": "false",
+        "HNS_COMMUNITY_APP_INGRESS_ENABLED": "true",
         "HNS_COMMUNITY_APP_INGRESS_ORIGIN": "https://hns-community-ingress-staging.pirate.sc",
         "HNS_COMMUNITY_APP_CANONICAL_ORIGIN": "https://web-next-staging.pirate.sc",
         "HNS_COMMUNITY_APP_API_ORIGIN": "https://hns-community-api-staging.pirate.sc",
