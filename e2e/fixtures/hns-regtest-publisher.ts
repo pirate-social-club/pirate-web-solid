@@ -5,8 +5,27 @@ const HOST = "ubuntu@94.103.168.209";
 const RUNNER = "/opt/pirate-hns-staging/journey-chain.js";
 const SHA256 = /^[0-9a-f]{64}$/u;
 const REMOTE_RESPONSE = /^\/var\/tmp\/pirate-hns-handoff-[A-Za-z0-9]{10}\/session-response\.json$/u;
-const SSH_OPTIONS = ["-o", "BatchMode=yes", "-o", "StrictHostKeyChecking=yes",
+const SSH_OPTIONS = ["-F", "/dev/null", "-o", "BatchMode=yes", "-o", "StrictHostKeyChecking=yes",
   "-o", "ConnectTimeout=10", "-o", "ServerAliveInterval=10", "-o", "ServerAliveCountMax=1"];
+
+export class HnsRegtestRefusal extends Error {
+  constructor(readonly code: string) {
+    super(`Regtest runner refused with ${code}; inspect its host receipt before any retry.`);
+  }
+}
+
+export function fixedRegtestRefusal(stderr: string): HnsRegtestRefusal | null {
+  if (stderr.length > 4096) return null;
+  let value: unknown;
+  try { value = JSON.parse(stderr.trim()) as unknown; }
+  catch { return null; }
+  if (typeof value !== "object" || value === null || Array.isArray(value)) return null;
+  const record = value as Record<string, unknown>;
+  if (record.outcome !== "journey_chain_refused" || typeof record.code !== "string" ||
+      !/^[a-z][a-z0-9_]{0,80}$/u.test(record.code) || Object.keys(record).length !== 2)
+    return null;
+  return new HnsRegtestRefusal(record.code);
+}
 
 export type HnsSshTransport = (command: string, input: Uint8Array, timeoutMs: number) => Promise<string>;
 export type HnsProtectedCopyReceipt = Readonly<{
@@ -15,23 +34,31 @@ export type HnsProtectedCopyReceipt = Readonly<{
   responseSha256: string;
 }>;
 
-/** Never retain SSH stderr: an unexpected remote error can echo request bytes. */
+/** Retain at most a fixed refusal JSON, never raw SSH stderr. An unexpected
+ * remote error could echo request bytes and must not enter logs or receipts. */
 export const sshToStagingHost: HnsSshTransport = (command, input, timeoutMs) => new Promise((resolve, reject) => {
   const child = spawn("ssh", [...SSH_OPTIONS, HOST, command], {
     shell: false,
-    stdio: ["pipe", "pipe", "ignore"],
+    stdio: ["pipe", "pipe", "pipe"],
     // The Worker augments ProcessEnv with required bindings; SSH receives only
     // these local transport fields, never the E2E credential environment.
     env: { PATH: process.env.PATH, HOME: process.env.HOME, SSH_AUTH_SOCK: process.env.SSH_AUTH_SOCK } as unknown as NodeJS.ProcessEnv,
   });
   const chunks: Buffer[] = [];
+  const errors: Buffer[] = [];
   let length = 0;
+  let errorLength = 0;
   let failed = false;
   const timer = setTimeout(() => { failed = true; child.kill("SIGKILL"); }, timeoutMs);
   child.stdout.on("data", (chunk: Buffer) => {
     length += chunk.length;
     if (length > 65_536) { failed = true; child.kill("SIGKILL"); }
     else chunks.push(chunk);
+  });
+  child.stderr.on("data", (chunk: Buffer) => {
+    errorLength += chunk.length;
+    if (errorLength > 4096) { failed = true; child.kill("SIGKILL"); }
+    else errors.push(chunk);
   });
   child.stdin.on("error", () => { failed = true; child.kill("SIGKILL"); });
   child.once("error", () => {
@@ -40,7 +67,10 @@ export const sshToStagingHost: HnsSshTransport = (command, input, timeoutMs) => 
   });
   child.once("close", code => {
     clearTimeout(timer);
-    if (failed || code !== 0) reject(new Error("Staging SSH transport failed; outcome must be reconciled before retry."));
+    if (failed || code !== 0) {
+      const refusal = !failed ? fixedRegtestRefusal(Buffer.concat(errors).toString("utf8")) : null;
+      reject(refusal ?? new Error("Staging SSH transport failed; outcome must be reconciled before retry."));
+    }
     else resolve(Buffer.concat(chunks).toString("utf8").trim());
   });
   child.stdin.end(input);
@@ -71,6 +101,46 @@ function publishCommand(root: string, remotePath: string, responseSha256: string
     `bun ${RUNNER} publish --root ${root} --plan ${remotePath} --response-sha256 ${responseSha256}`;
 }
 
+type RegtestStep = "begin" | "acquire" | "advance-safe" | "end";
+
+/** Commands use the same reviewed runner and root grammar as publication.
+ * Any uncertain transport or malformed receipt is stop-only. */
+export async function runRegtestJourneyStep(
+  step: RegtestStep,
+  root: string,
+  runnerSha256: string,
+  plan?: { remotePath: string; responseSha256: string },
+  transport: HnsSshTransport = sshToStagingHost,
+) {
+  if (step !== "begin" && step !== "acquire" && step !== "advance-safe" && step !== "end")
+    throw new Error("Unexpected regtest journey command.");
+  requireHnsJourneyRoot(root);
+  if (!SHA256.test(runnerSha256)) throw new Error("Reviewed regtest runner digest is required.");
+  if (step === "advance-safe") {
+    if (!plan || !REMOTE_RESPONSE.test(plan.remotePath) || !SHA256.test(plan.responseSha256))
+      throw new Error("Safe advancement requires the verified protected-copy receipt.");
+  } else if (plan) throw new Error("Unexpected plan on regtest journey step.");
+  const argumentsForStep = step === "advance-safe"
+    ? ` --plan ${plan!.remotePath} --response-sha256 ${plan!.responseSha256}` : "";
+  const command = `set -eu; test "$(sha256sum ${RUNNER} | cut -d' ' -f1)" = ${runnerSha256}; ` +
+    `bun ${RUNNER} ${step} --root ${root}${argumentsForStep}`;
+  let raw: string;
+  try {
+    raw = await transport(command, new Uint8Array(), step === "advance-safe" ? 180_000 : 120_000);
+  } catch (error) {
+    if (error instanceof HnsRegtestRefusal) throw error;
+    throw new Error(`Regtest ${step} outcome is ambiguous; inspect the host before any retry.`);
+  }
+  let result: Record<string, unknown>;
+  try { result = JSON.parse(raw) as Record<string, unknown>; }
+  catch { throw new Error(`Regtest ${step} response is ambiguous; inspect the host before any retry.`); }
+  const expected = { begin: "lease_taken", acquire: "acquired", "advance-safe": "safe", end: "lease_released" }[step];
+  if (result.outcome !== expected || result.root !== root ||
+      (step === "advance-safe" && result.response_sha256 !== plan?.responseSha256))
+    throw new Error(`Regtest ${step} response did not reconcile; inspect the host before any retry.`);
+  return result;
+}
+
 /** A fresh authenticated browser response is the only caller input. The
  * fixture host receives its bytes privately, checks the digest itself, then
  * invokes the pinned regtest runner once. Any uncertain result is stop-only. */
@@ -97,7 +167,8 @@ export async function publishFreshHnsSessionOnRegtest(
   let raw: string;
   try {
     raw = await transport(publishCommand(identity.root, matched[2]!, inspected.sha256, runnerSha256), new Uint8Array(), 120_000);
-  } catch {
+  } catch (error) {
+    if (error instanceof HnsRegtestRefusal) throw error;
     throw new Error("Regtest UPDATE outcome is ambiguous; inspect chain and host receipt, never retry automatically.");
   }
   let result: Record<string, unknown>;

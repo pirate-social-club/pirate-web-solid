@@ -3,24 +3,49 @@ import { test, expect } from "./fixtures/auth.ts";
 import { createCommunityAndVerifyAcceptance } from "./fixtures/create-community.ts";
 import { e2eBaseURL, requireMutationEnvironment } from "./fixtures/environment.ts";
 import { requireHnsJourneyRoot, writeHnsSessionHandoff } from "./fixtures/hns-session-handoff.ts";
-import { publishFreshHnsSessionOnRegtest, verifyRegtestRunnerOnHost } from "./fixtures/hns-regtest-publisher.ts";
+import { publishFreshHnsSessionOnRegtest, runRegtestJourneyStep,
+  verifyRegtestRunnerOnHost } from "./fixtures/hns-regtest-publisher.ts";
+
+const publishRegtest = process.env.E2E_HNS_PUBLISH_REGTEST === "1";
+const generatedRoot = `e2e${randomUUID().replaceAll("-", "").slice(0, 24)}`;
+const selectedRoot = process.env.E2E_HNS_ROOT ?? (publishRegtest ? generatedRoot : "");
+
+function requireBudget(remainingMs: number, minimumMs: number, stage: string) {
+  if (remainingMs < minimumMs)
+    throw new Error(`Insufficient Playwright time for ${stage}; no further regtest command attempted.`);
+}
 
 test.describe("staging HNS authenticated handoff", { tag: "@hns-mutating" }, () => {
   test.beforeAll(async () => {
     requireMutationEnvironment();
     if (e2eBaseURL() !== "https://web-next-staging.pirate.sc")
       throw new Error("HNS authenticated handoff requires the pinned staging browser origin.");
-    requireHnsJourneyRoot(process.env.E2E_HNS_ROOT ?? "");
-    if (process.env.E2E_HNS_PUBLISH_REGTEST === "1" &&
+    requireHnsJourneyRoot(selectedRoot);
+    if (publishRegtest &&
         !/^[0-9a-f]{64}$/u.test(process.env.E2E_HNS_RUNNER_SHA256 ?? ""))
       throw new Error("Regtest publication requires the exact reviewed host runner SHA-256 before login.");
-    if (process.env.E2E_HNS_PUBLISH_REGTEST === "1")
+    if (publishRegtest)
       await verifyRegtestRunnerOnHost(process.env.E2E_HNS_RUNNER_SHA256 ?? "");
   });
 
   test("starts a provisional import and binds the authenticated response to optional regtest publication", async ({ page }, testInfo) => {
-    test.setTimeout(420_000);
-    const root = requireHnsJourneyRoot(process.env.E2E_HNS_ROOT ?? "");
+    test.setTimeout(1_200_000);
+    if (testInfo.retry !== 0)
+      throw new Error("HNS regtest journey refuses Playwright retries after a possible UPDATE.");
+    const root = requireHnsJourneyRoot(selectedRoot);
+    const runnerSha256 = process.env.E2E_HNS_RUNNER_SHA256 ?? "";
+    if (publishRegtest) {
+      requireBudget(testInfo.timeout - testInfo.duration, 800_000, "lease and name acquisition");
+      console.log(JSON.stringify({ event: "hns-regtest-selected-root", root }));
+      const lease = await runRegtestJourneyStep("begin", root, runnerSha256);
+      await testInfo.attach("hns-regtest-lease-receipt", {
+        body: JSON.stringify(lease), contentType: "application/json",
+      });
+      const acquisition = await runRegtestJourneyStep("acquire", root, runnerSha256);
+      await testInfo.attach("hns-regtest-acquisition-receipt", {
+        body: JSON.stringify(acquisition), contentType: "application/json",
+      });
+    }
     const marker = `E2E HNS ${randomUUID()}`;
     let communityId: string | undefined;
     const path = await createCommunityAndVerifyAcceptance(page, marker, testInfo, observation => {
@@ -45,6 +70,8 @@ test.describe("staging HNS authenticated handoff", { tag: "@hns-mutating" }, () 
     const sessionId = start.root_import_session_id;
     testInfo.annotations.push({ type: "persistent-content", description: `Started staging HNS import for ${root}; no automatic deletion contract.` });
     const sessionPath = `${startPath}/${encodeURIComponent(sessionId)}`;
+    requireBudget(testInfo.timeout - testInfo.duration, publishRegtest ? 550_000 : 210_000,
+      "provisioning poll and guarded publication");
     const deadline = Date.now() + 180_000;
     while (Date.now() < deadline) {
       const response = await page.request.get(sessionPath, { failOnStatusCode: false });
@@ -61,7 +88,7 @@ test.describe("staging HNS authenticated handoff", { tag: "@hns-mutating" }, () 
         });
         console.log(JSON.stringify({ event: "hns-session-handoff", receipt_path: handoff.receiptPath,
           response_path: handoff.bodyPath, response_sha256: handoff.receipt.response_sha256 }));
-        if (process.env.E2E_HNS_PUBLISH_REGTEST === "1") {
+        if (publishRegtest) {
           // Never publish the saved preparation snapshot. Re-read through the
           // authenticated context immediately before protected copy and UPDATE.
           const fresh = await page.request.get(sessionPath, { failOnStatusCode: false });
@@ -73,20 +100,37 @@ test.describe("staging HNS authenticated handoff", { tag: "@hns-mutating" }, () 
           await testInfo.attach("hns-fresh-session-receipt", {
             body: JSON.stringify(freshHandoff.receipt), contentType: "application/json",
           });
+          requireBudget(testInfo.timeout - testInfo.duration, 370_000,
+            "UPDATE dispatch, safe observation and lease release");
           const published = await publishFreshHnsSessionOnRegtest(
             freshBytes, fresh.url(), { communityId, root, sessionId },
-            handoff.receipt.publish_plan_sha256, process.env.E2E_HNS_RUNNER_SHA256 ?? "",
+            handoff.receipt.publish_plan_sha256, runnerSha256,
             undefined,
             async copyReceipt => {
               await testInfo.attach("hns-protected-copy-receipt", {
                 body: JSON.stringify(copyReceipt), contentType: "application/json",
               });
+              console.log(JSON.stringify({ event: "hns-regtest-update-dispatch-fence",
+                root, response_sha256: copyReceipt.responseSha256,
+                interrupted_outcome: "ambiguous_stop_and_reconcile_no_retry" }));
             },
           );
           await testInfo.attach("hns-regtest-publication-receipt", {
             body: JSON.stringify(published), contentType: "application/json",
           });
           console.log(JSON.stringify({ event: "hns-regtest-publication", ...published }));
+          requireBudget(testInfo.timeout - testInfo.duration, 220_000,
+            "safe observation and lease release");
+          const safe = await runRegtestJourneyStep("advance-safe", root, runnerSha256, {
+            remotePath: published.remotePath, responseSha256: published.responseSha256,
+          });
+          await testInfo.attach("hns-regtest-safe-receipt", {
+            body: JSON.stringify(safe), contentType: "application/json",
+          });
+          const released = await runRegtestJourneyStep("end", root, runnerSha256);
+          await testInfo.attach("hns-regtest-lease-release-receipt", {
+            body: JSON.stringify(released), contentType: "application/json",
+          });
         }
         return;
       }

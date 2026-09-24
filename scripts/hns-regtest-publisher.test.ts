@@ -3,7 +3,9 @@ import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
 import { readFile, rm, stat } from "node:fs/promises";
 import { dirname } from "node:path";
-import { publishFreshHnsSessionOnRegtest, stagingCopyCommand, verifyRegtestRunnerOnHost, type HnsSshTransport } from "../e2e/fixtures/hns-regtest-publisher.ts";
+import { fixedRegtestRefusal, HnsRegtestRefusal, publishFreshHnsSessionOnRegtest,
+  runRegtestJourneyStep, stagingCopyCommand, verifyRegtestRunnerOnHost,
+  type HnsSshTransport } from "../e2e/fixtures/hns-regtest-publisher.ts";
 
 const identity = { communityId: "community_fixture", root: "e2eabc123", sessionId: "session_fixture" };
 const url = "https://web-next-staging.pirate.sc/api/communities/community_fixture/hns-root-imports/session_fixture";
@@ -113,4 +115,75 @@ test("a malformed publication receipt is ambiguous rather than accepted", async 
   };
   await expect(publishFreshHnsSessionOnRegtest(bytes, url, identity, planHash, runnerHash, transport)).rejects.toThrow("did not reconcile");
   expect(calls).toBe(2);
+});
+
+test("a fixed pre-dispatch runner refusal stays distinct from a lost SSH response", async () => {
+  let calls = 0;
+  const transport: HnsSshTransport = async () => {
+    calls++;
+    if (calls === 1) return `${digest}  ${remotePath}`;
+    throw new HnsRegtestRefusal("run_lease_missing");
+  };
+  await expect(publishFreshHnsSessionOnRegtest(bytes, url, identity, planHash, runnerHash, transport))
+    .rejects.toMatchObject({ code: "run_lease_missing" });
+  expect(calls).toBe(2);
+});
+
+test("already-current publication is accepted without inventing a transaction id", async () => {
+  let calls = 0;
+  const transport: HnsSshTransport = async () => {
+    calls++;
+    if (calls === 1) return `${digest}  ${remotePath}`;
+    return JSON.stringify({ outcome: "already_current", root: identity.root, response_sha256: digest });
+  };
+  const result = await publishFreshHnsSessionOnRegtest(bytes, url, identity, planHash, runnerHash, transport);
+  expect(result).toMatchObject({ outcome: "already_current", txid: null });
+  expect(calls).toBe(2);
+});
+
+test("fixed runner refusals are classified without retaining arbitrary SSH errors", () => {
+  expect(fixedRegtestRefusal('{"outcome":"journey_chain_refused","code":"run_lease_missing"}\n'))
+    .toBeInstanceOf(HnsRegtestRefusal);
+  expect(fixedRegtestRefusal('{"outcome":"journey_chain_refused","code":"run_lease_missing"}\n')?.code)
+    .toBe("run_lease_missing");
+  expect(fixedRegtestRefusal("Permission denied (publickey)." )).toBeNull();
+  expect(fixedRegtestRefusal('{"outcome":"journey_chain_refused","code":"run_lease_missing","secret":"x"}'))
+    .toBeNull();
+});
+
+test("lease, name acquisition, safe observation and release use the pinned runner", async () => {
+  const steps = ["begin", "acquire", "advance-safe", "end"] as const;
+  const outcomes = ["lease_taken", "acquired", "safe", "lease_released"];
+  const calls: string[] = [];
+  const transport: HnsSshTransport = async command => {
+    calls.push(command);
+    const index = calls.length - 1;
+    return JSON.stringify({ outcome: outcomes[index], root: identity.root,
+      response_sha256: index === 2 ? digest : undefined });
+  };
+  for (const step of steps) {
+    const plan = step === "advance-safe" ? { remotePath, responseSha256: digest } : undefined;
+    expect((await runRegtestJourneyStep(step, identity.root, runnerHash, plan, transport)).outcome)
+      .toBe(outcomes[calls.length - 1]);
+  }
+  expect(calls).toHaveLength(4);
+  expect(calls[0]).toContain(`begin --root ${identity.root}`);
+  expect(calls[1]).toContain(`acquire --root ${identity.root}`);
+  expect(calls[2]).toContain(`advance-safe --root ${identity.root} --plan ${remotePath} --response-sha256 ${digest}`);
+  expect(calls[3]).toContain(`end --root ${identity.root}`);
+  expect(calls.every(command => command.includes(`= ${runnerHash}`))).toBe(true);
+});
+
+test("regtest steps refuse malformed receipts and never dispatch invalid roots", async () => {
+  let calls = 0;
+  const transport: HnsSshTransport = async () => { calls++; return "{}"; };
+  await expect(runRegtestJourneyStep("begin", "0qcm", runnerHash, undefined, transport))
+    .rejects.toThrow("generated e2e root");
+  await expect(runRegtestJourneyStep("advance-safe", identity.root, runnerHash,
+    { remotePath: "/tmp/forged", responseSha256: digest }, transport))
+    .rejects.toThrow("verified protected-copy receipt");
+  expect(calls).toBe(0);
+  await expect(runRegtestJourneyStep("begin", identity.root, runnerHash, undefined, transport))
+    .rejects.toThrow("did not reconcile");
+  expect(calls).toBe(1);
 });
