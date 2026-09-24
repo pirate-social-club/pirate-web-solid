@@ -10,9 +10,11 @@ export type CommunityAcceptanceObservation = Readonly<{ readonly communityId: st
 export async function createCommunity(page: Page, marker: string): Promise<string> {
   await page.goto("/communities/new");
   await expect(page.locator("[data-creation-state='ready']")).toBeVisible();
+  // Two pages since the 2026-09-20 amendment: details, then the owner profile.
   await page.getByRole("textbox", { name: "Name", exact: true }).fill(marker);
-  await page.getByRole("textbox", { name: "Description", exact: true }).fill("Automated community creation acceptance");
-  const publicName = page.getByRole("textbox", { name: "Public name", exact: true });
+  await page.getByRole("button", { name: "Continue", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Create", exact: true })).toBeVisible();
+  const publicName = page.getByRole("textbox", { name: "Your name", exact: true });
   if (await publicName.isVisible()) await publicName.fill("Community test creator");
   const [created] = await Promise.all([
     page.waitForResponse(response => response.request().method() === "POST"

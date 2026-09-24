@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { test, expect } from "./fixtures/auth.ts";
+import { readonlyApi } from "./fixtures/api.ts";
 import { createCommunityAndVerifyAcceptance } from "./fixtures/create-community.ts";
 import { e2eBaseURL, requireMutationEnvironment } from "./fixtures/environment.ts";
 import { requireHnsJourneyRoot, writeHnsSessionHandoff } from "./fixtures/hns-session-handoff.ts";
@@ -9,6 +10,9 @@ import { publishFreshHnsSessionOnRegtest, remainingTestBudgetMs, runRegtestJourn
 const publishRegtest = process.env.E2E_HNS_PUBLISH_REGTEST === "1";
 const generatedRoot = `e2e${randomUUID().replaceAll("-", "").slice(0, 24)}`;
 const selectedRoot = process.env.E2E_HNS_ROOT ?? (publishRegtest ? generatedRoot : "");
+// Each fresh community creates a persona, and accounts hold at most ten, three
+// of them new per day. A named community the account owns can be reused instead.
+const reusedCommunityId = process.env.E2E_HNS_COMMUNITY_ID ?? "";
 
 function requireBudget(remainingMs: number, minimumMs: number, stage: string) {
   if (remainingMs < minimumMs)
@@ -62,15 +66,37 @@ test.describe("staging HNS authenticated handoff", { tag: "@hns-mutating" }, () 
           body: JSON.stringify(acquisition), contentType: "application/json",
         });
       }
-      const marker = `E2E HNS ${randomUUID()}`;
       let communityId: string | undefined;
-      const path = await createCommunityAndVerifyAcceptance(page, marker, testInfo, observation => {
-        communityId = observation.communityId;
-      });
+      let path: string;
+      if (reusedCommunityId) {
+        if (!/^community_[0-9a-f-]{36}$/u.test(reusedCommunityId))
+          throw new Error("E2E_HNS_COMMUNITY_ID must be a community identifier.");
+        const api = readonlyApi(page);
+        const capabilities = await api.ownerCapabilities(reusedCommunityId);
+        if (capabilities.role !== "owner") throw new Error("The reused HNS community is not owned by the test account.");
+        // A route is optional; without one the community answers at its identifier.
+        const preview = await api.communityPreview(reusedCommunityId);
+        communityId = reusedCommunityId;
+        path = `/c/${encodeURIComponent(preview.route_slug || reusedCommunityId)}`;
+      } else {
+        path = await createCommunityAndVerifyAcceptance(page, `E2E HNS ${randomUUID()}`, testInfo, observation => {
+          communityId = observation.communityId;
+        });
+      }
       if (!communityId) throw new Error("Community creation did not return its identity.");
+      // The root field renders only when the community has no import session,
+      // so name the server's state instead of timing out on a missing field.
+      const snapshotResponse = await page.request.get(
+        `/api/communities/${encodeURIComponent(communityId)}/hns-root-imports`, { failOnStatusCode: false });
+      if (snapshotResponse.status() !== 200)
+        throw new Error(`HNS namespace snapshot returned HTTP ${snapshotResponse.status()}.`);
+      const snapshot = await snapshotResponse.json() as { session?: { status?: unknown } | null };
+      if (snapshot.session !== null)
+        throw new Error(`HNS namespace snapshot already holds a session in ${JSON.stringify(snapshot.session?.status ?? null)}.`);
       await page.goto(`${path}/settings/namespace`);
-      await expect(page.locator("[data-community-namespace-settings]")).toBeVisible();
-      await page.getByLabel("Handshake root", { exact: true }).fill(root);
+      await expect(page.locator("[data-community-namespace-settings]")).toBeVisible({ timeout: 45_000 });
+      // The required marker is part of the label, so match the name's start.
+      await page.getByRole("textbox", { name: /^Handshake root\b/u }).fill(root);
       await page.getByRole("button", { name: "Continue", exact: true }).click();
       const startPath = `/api/communities/${encodeURIComponent(communityId)}/hns-root-imports`;
       const [started] = await Promise.all([
