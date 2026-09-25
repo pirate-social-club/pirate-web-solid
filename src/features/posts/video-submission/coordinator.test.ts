@@ -150,6 +150,48 @@ describe("video operation replay", () => {
     expect(fixture.posts()).toBe(1); expect(fixture.fetchImpl).toHaveBeenCalledTimes(1);
     await resumed.submit(); expect(fixture.posts()).toBe(1);
   });
+  test("a finalize lost after the server committed settles by reading, with no replay or second post", async () => {
+    const fixture = setup(); const first = fixture.create(); await fixture.begin(first);
+    await expect(first.submit()).rejects.toThrow("Lost finalize response");
+    const sent = fixture.commands.length;
+    expect(await first.settleFinalize()).toBe(true);
+    expect(fixture.commands).toHaveLength(sent);
+    expect(await fixture.storage.load()).toBeNull();
+    expect(first.current).toBeNull();
+    expect(fixture.posts()).toBe(1); expect(fixture.fetchImpl).toHaveBeenCalledTimes(1);
+  });
+  test("a finalize lost before the server committed stays retained and replays the same command", async () => {
+    const fixture = setup(); const first = fixture.create(); await fixture.begin(first);
+    fixture.rejectNext("finalize", new Error("offline"));
+    await expect(first.submit()).rejects.toThrow("offline");
+    const retained = JSON.stringify(first.current?.pending?.command);
+    expect(await first.settleFinalize()).toBe(false);
+    expect(JSON.stringify(first.current?.pending?.command)).toBe(retained);
+    expect(fixture.posts()).toBe(0);
+    await expect(first.submit()).rejects.toThrow("Lost finalize response");
+    expect(JSON.stringify(fixture.commands.at(-1))).toBe(retained);
+    expect(await first.settleFinalize()).toBe(true);
+    expect(fixture.posts()).toBe(1); expect(fixture.fetchImpl).toHaveBeenCalledTimes(1);
+  });
+  test("settling never forgets a video on a read of another submission or a failed read", async () => {
+    const fixture = setup(); const first = fixture.create(); await fixture.begin(first);
+    await expect(first.submit()).rejects.toThrow("Lost finalize response");
+    const published: VideoSnapshot = { ...initial, status: "published", creation_revision: 2, video_revision: 1,
+      published_resource: { post_id: "post", href: "/posts/post" } };
+    fixture.setCurrent({ ...published, submission_id: "other" });
+    await expect(first.settleFinalize()).rejects.toThrow(/authority/);
+    fixture.setCurrent({ ...published, author_persona: { ...published.author_persona, persona_id: "someone-else" } });
+    await expect(first.settleFinalize()).rejects.toThrow(/authority/);
+    fixture.transport.read = async () => { throw new Error("offline"); };
+    await expect(first.settleFinalize()).rejects.toThrow("offline");
+    expect((await fixture.storage.load())?.pending?.command.kind).toBe("finalize");
+  });
+  test("settling is a no-op without an unconfirmed finalize", async () => {
+    const fixture = setup(); const first = fixture.create(); await fixture.begin(first);
+    fixture.rejectNext("reserve", new Error("unused"));
+    expect(await first.settleFinalize()).toBe(false);
+    expect(await fixture.storage.load()).not.toBeNull();
+  });
   test("lost unresolved-abandonment response replays the exact cancel and remains terminal", async () => {
     const fixture = setup();
     const unresolved: VideoSnapshot = {
