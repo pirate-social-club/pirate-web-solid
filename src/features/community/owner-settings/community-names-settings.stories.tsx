@@ -2,7 +2,7 @@ import { createSignal } from "solid-js";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import { fn } from "storybook/test";
 import { CommunityNamesSettingsPanel, type CommunityNamesSettingsPanelProps } from "./community-names-settings-panel";
-import { NAMES_ACTIVATION_PENDING, NAMES_ACTIVE, NAMES_EMPTY, NAMES_INEFFECTIVE, NAMES_PAUSED, NAMES_READY, NAMES_REVOKED, NAMES_SUSPENDED, SPACES_YAHOO_PENDING, SPACES_YAHOO_READY, unavailableNames } from "./community-names-settings-fixtures";
+import { NAMES_ACTIVATION_PENDING, NAMES_ACTIVE, NAMES_EMPTY, NAMES_INEFFECTIVE, NAMES_PAUSED, NAMES_READY, NAMES_REVOKED, NAMES_SUSPENDED, SPACES_YAHOO_ACTIVE, SPACES_YAHOO_PAUSED, SPACES_YAHOO_PENDING, SPACES_YAHOO_READY, unavailableNames } from "./community-names-settings-fixtures";
 
 const meta = {
   title: "Screens/Community/OwnerSettings/Names",
@@ -27,6 +27,8 @@ export const ReadyToEnable: Story = { render: (args) => <InteractiveNames {...ar
 export const Active: Story = { args: { snapshot: NAMES_ACTIVE }, render: (args) => <InteractiveNames {...args} /> };
 export const SpacesFundingPaused: Story = { args: { snapshot: SPACES_YAHOO_PENDING } };
 export const SpacesReadyToEnable: Story = { args: { snapshot: SPACES_YAHOO_READY } };
+export const SpacesActive: Story = { args: { snapshot: SPACES_YAHOO_ACTIVE } };
+export const SpacesPaused: Story = { args: { snapshot: SPACES_YAHOO_PAUSED } };
 export const ActivationPending: Story = { args: { snapshot: NAMES_ACTIVATION_PENDING } };
 export const Revoked: Story = { args: { snapshot: NAMES_REVOKED } };
 export const Suspended: Story = { args: { snapshot: NAMES_SUSPENDED } };

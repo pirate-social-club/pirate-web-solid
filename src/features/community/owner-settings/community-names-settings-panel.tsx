@@ -79,10 +79,10 @@ function SpacesNamesCards(props: Pick<CommunityNamesSettingsPanelProps, "busy" |
     const [fundingAcknowledged, setFundingAcknowledged] = createSignal(false);
     const activation = () => root.activation;
     const readyCandidate = () => root.candidate?.kind === "ready_v1" ? root.candidate : undefined;
-    const offeringExists = () => props.snapshot.spaces?.offerings.some((item) => (
+    const offering = () => props.snapshot.spaces?.offerings.find((item) => (
       item.offering.sale_namespace_activation_id === activation()?.activation.sale_namespace_activation_id
         && item.offering.label_scope.kind === "label_rule_v2"
-    )) ?? false;
+    ))?.offering;
     const readiness = () => activation()?.readiness;
     const notReadyReason = () => {
       const current = readiness();
@@ -109,7 +109,18 @@ function SpacesNamesCards(props: Pick<CommunityNamesSettingsPanelProps, "busy" |
           <p class="text-xs text-muted-foreground">Balance last checked {current().observed_at}.</p>
         </div>}</Show>
       </Show>
-      <Show when={readyCandidate() && (!activation() || (activation()?.activation.status === "active" && !offeringExists()))}>
+      <Show when={offering()}>{(current) => <div class="space-y-2">
+        <p class="text-sm">Free name requests: {current().status}.</p>
+        <Show when={current().status === "active" || current().status === "paused"}>
+          <Button type="button" variant={current().status === "active" ? "secondary" : undefined}
+            disabled={props.busy !== undefined}
+            loading={props.busy === "pause_spaces_names" || props.busy === "resume_spaces_names"}
+            onClick={() => props.onCommand?.({ kind: current().status === "active" ? "pause_spaces_names" : "resume_spaces_names", offering: current() })}>
+            {current().status === "active" ? "Pause new requests" : "Resume new requests"}
+          </Button>
+        </Show>
+      </div>}</Show>
+      <Show when={readyCandidate() && (!activation() || (activation()?.activation.status === "active" && !offering()))}>
         <Show when={!activation()}>
           <label class="flex items-start gap-2 text-sm">
             <input type="checkbox" checked={fundingAcknowledged()}

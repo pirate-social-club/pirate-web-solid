@@ -12,6 +12,8 @@ import {
   NAMES_SUSPENDED,
   SPACES_YAHOO_PENDING,
   SPACES_YAHOO_READY,
+  SPACES_YAHOO_ACTIVE,
+  SPACES_YAHOO_PAUSED,
 } from "./community-names-settings-fixtures";
 
 if (typeof window !== "undefined") {
@@ -60,6 +62,34 @@ function button(container: HTMLElement, label: string): HTMLButtonElement | unde
 }
 
 describe("CommunityNamesSettingsController", () => {
+  test("pauses new Spaces requests using the current offering hash", async () => {
+    const revisions: Parameters<CommunityNamesSettingsApi["reviseOffering"]>[0][] = [];
+    const container = render(() => <CommunityNamesSettingsController
+      api={namesApi({ getSnapshot: async () => SPACES_YAHOO_ACTIVE,
+        reviseOffering: async (input) => { revisions.push(input); } })}
+      communityId="community_midnight"
+    />);
+    await vi.waitFor(() => expect(button(container, "Pause new requests")).toBeDefined());
+    await userEvent.setup().click(button(container, "Pause new requests")!);
+    await vi.waitFor(() => expect(revisions).toHaveLength(1));
+    expect(revisions[0]).toMatchObject({ body: {
+      expected_offering_hash: "offering-yahoo-hash", requested_status: "paused",
+      terms: { label_scope: { label_grammar_id: "spaces_subspace_label_v1" }, fulfillment_kind: "spaces_native_v1" },
+    } });
+  });
+
+  test("resumes paused Spaces requests from the current offering", async () => {
+    const revisions: Parameters<CommunityNamesSettingsApi["reviseOffering"]>[0][] = [];
+    const container = render(() => <CommunityNamesSettingsController
+      api={namesApi({ getSnapshot: async () => SPACES_YAHOO_PAUSED,
+        reviseOffering: async (input) => { revisions.push(input); } })}
+      communityId="community_midnight"
+    />);
+    await vi.waitFor(() => expect(button(container, "Resume new requests")).toBeDefined());
+    await userEvent.setup().click(button(container, "Resume new requests")!);
+    await vi.waitFor(() => expect(revisions[0]?.body.requested_status).toBe("active"));
+  });
+
   test("requires owner fee acknowledgement before opening free Spaces names", async () => {
     const activationInputs: Parameters<CommunityNamesSettingsApi["activateSpacesSaleNamespace"]>[0][] = [];
     const offeringInputs: Parameters<CommunityNamesSettingsApi["createOffering"]>[0][] = [];

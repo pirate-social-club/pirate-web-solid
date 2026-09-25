@@ -65,6 +65,8 @@ export type CommunityNamesSettingsCommand =
   | Readonly<{ kind: "set_nationality"; offering: CommunityNamesOffering["offering"]; countries: readonly string[] | undefined }>
   | Readonly<{ candidate: CommunityNamesReadyCandidate; kind: "enable_names" }>
   | Readonly<{ candidate: CommunitySpacesReadyCandidate; kind: "enable_spaces_names" }>
+  | Readonly<{ kind: "pause_spaces_names"; offering: CommunitySpacesOffering["offering"] }>
+  | Readonly<{ kind: "resume_spaces_names"; offering: CommunitySpacesOffering["offering"] }>
   | Readonly<{ kind: "pause_names"; offering: CommunityNamesOffering["offering"] }>
   | Readonly<{ kind: "resume_names"; offering: CommunityNamesOffering["offering"] }>
   | Readonly<{ activation: CommunityNamesSaleNamespaceActivation; kind: "resume_name_hosting" }>;
@@ -145,6 +147,45 @@ export function spacesBroadNamesOfferingInput(input: {
         expected_issuance_driver_version: preset.expected_issuance_driver_version,
         quote_ttl_seconds: preset.quote_ttl_seconds,
         reservation_ttl_seconds: preset.reservation_ttl_seconds,
+      },
+    },
+  };
+}
+
+export function spacesNamesOfferingRevisionInput(input: {
+  communityId: string;
+  idempotencyKey: string;
+  offering: CommunitySpacesOffering["offering"];
+  status: "active" | "paused";
+}): PostCommunitiesCommunityIdHandleOfferingsOfferingIdRevisionsInput {
+  const offering = input.offering;
+  return {
+    path: { communityId: input.communityId, offeringId: offering.offering_id },
+    body: {
+      idempotency_key: input.idempotencyKey,
+      expected_offering_hash: offering.offering_hash,
+      requested_status: input.status,
+      terms: {
+        sale_namespace_activation_id: offering.sale_namespace_activation_id,
+        expected_sale_namespace_activation_generation: offering.sale_namespace_activation_generation,
+        label_scope: {
+          kind: "label_rule_v2",
+          label_grammar_id: "spaces_subspace_label_v1",
+          reserved_labels_id: offering.label_scope.reserved_labels_id,
+          expected_reserved_labels_revision: offering.label_scope.reserved_labels_revision,
+          availability: offering.label_scope.availability,
+        },
+        allocation_kind: "first_come_v1",
+        max_active_grants_per_account: offering.max_active_grants_per_account,
+        fulfillment_kind: "spaces_native_v1",
+        qualification_policy_id: offering.qualification_policy.policy_id,
+        expected_qualification_policy_revision: offering.qualification_policy.policy_revision,
+        pricing_id: offering.pricing.pricing_id,
+        expected_pricing_revision: offering.pricing.pricing_revision,
+        issuance_driver_id: offering.issuance.driver_id,
+        expected_issuance_driver_version: offering.issuance.driver_version,
+        quote_ttl_seconds: offering.quote_ttl_seconds,
+        reservation_ttl_seconds: offering.reservation_ttl_seconds,
       },
     },
   };

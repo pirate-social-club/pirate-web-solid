@@ -4,6 +4,7 @@ import type {
   CommunityNamesOffering,
   CommunityNamesSaleNamespace,
   CommunitySpacesSaleNamespace,
+  CommunitySpacesOffering,
 } from "./community-names-settings-model";
 
 const PRESET: Extract<CommunityNamesManagementContext["offering_authoring_presets"][number], { kind: "hns_hosted_persona_free_v1" }> = {
@@ -137,6 +138,41 @@ export const SPACES_YAHOO_READY: CommunityNamesManagementSnapshot = {
     display_root: "yahoo", namespace_authority_reference: "authority-yahoo",
     expected_namespace_authority_generation: 1, operator_assignment_id: "assignment-yahoo",
     expected_operator_assignment_generation: 1 }], offerings: [], saleNamespaces: [] },
+};
+const SPACES_YAHOO_OFFERING: CommunitySpacesOffering = {
+  offering: {
+    offering_id: "offering-yahoo-free", offering_revision: 1, offering_hash: "offering-yahoo-hash",
+    community_id: "community_midnight", family: "spaces", namespace_root: "yahoo", display_root: "yahoo",
+    sale_namespace_activation_id: "spaces-yahoo", sale_namespace_activation_generation: 1,
+    label_scope: { kind: "label_rule_v2", label_grammar_id: "spaces_subspace_label_v1",
+      reserved_labels_id: "spaces-reserved", reserved_labels_revision: 1, reserved_labels_hash: "reserved-hash",
+      availability: { kind: "length_band_v1", min_label_length: 8, max_label_length: 32 } },
+    allocation: { kind: "first_come_v1" }, max_active_grants_per_account: null,
+    fulfillment: { kind: "spaces_native_v1" },
+    qualification_policy: { kind: "curated_policy_v1", policy_id: "spaces-members", policy_revision: 1,
+      policy_hash: "members-hash", provider_binding_hash: "binding-hash" },
+    pricing: { kind: "free_v1", pricing_id: "spaces-free", pricing_revision: 1, pricing_hash: "free-hash", atomic_amount: "0" },
+    issuance: { family: "spaces", driver_id: "spaces-driver", driver_version: "1" },
+    quote_ttl_seconds: 120, reservation_ttl_seconds: 300, status: "active", created_at: "2026-09-25T00:00:00Z",
+  },
+  effectiveness: { kind: "effective_v1" },
+};
+export const SPACES_YAHOO_ACTIVE: CommunityNamesManagementSnapshot = {
+  context: SPACES_YAHOO_READY.context,
+  saleNamespaces: [], offerings: [],
+  spaces: { candidates: [], offerings: [SPACES_YAHOO_OFFERING], saleNamespaces: [{
+    ...SPACES_YAHOO, activation: { ...SPACES_YAHOO.activation, status: "active" },
+    readiness: { kind: "ready_v1" },
+    funding: { ...SPACES_YAHOO.funding, status: "funded_v1", confirmed_balance_sats: "2500" },
+  }] },
+};
+export const SPACES_YAHOO_PAUSED: CommunityNamesManagementSnapshot = {
+  ...SPACES_YAHOO_ACTIVE,
+  spaces: { ...SPACES_YAHOO_ACTIVE.spaces!, offerings: [{
+    ...SPACES_YAHOO_OFFERING,
+    offering: { ...SPACES_YAHOO_OFFERING.offering, status: "paused" },
+    effectiveness: { kind: "ineffective_v1", reason: "offering_inactive" },
+  }] },
 };
 export const NAMES_ACTIVATION_PENDING: CommunityNamesManagementSnapshot = {
   context: READY_CONTEXT,

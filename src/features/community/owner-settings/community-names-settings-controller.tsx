@@ -12,6 +12,7 @@ import {
   saleNamespaceActivationInput,
   spacesBroadNamesOfferingInput,
   spacesSaleNamespaceActivationInput,
+  spacesNamesOfferingRevisionInput,
   saleNamespaceRevisionInput,
   type CommunityNamesManagementSnapshot,
   type CommunityNamesSettingsCommand,
@@ -134,6 +135,14 @@ export function CommunityNamesSettingsController(
             idempotencyKey: commandKey(`spaces-offer:${activation.sale_namespace_activation_id}:${activation.sale_namespace_activation_generation}`),
           }));
         }
+      } else if (command.kind === "pause_spaces_names" || command.kind === "resume_spaces_names") {
+        const requestedStatus = command.kind === "pause_spaces_names" ? "paused" : "active";
+        await api.reviseOffering(spacesNamesOfferingRevisionInput({
+          communityId: props.communityId,
+          idempotencyKey: commandKey(`spaces-offering:${command.offering.offering_id}:${command.offering.offering_hash}:${requestedStatus}`),
+          offering: command.offering,
+          status: requestedStatus,
+        }));
       } else if (command.kind === "set_nationality") {
         if (command.offering.label_scope.kind !== "label_rule_v2" || command.offering.allocation.kind !== "first_come_v1"
           || command.offering.status === "retired" || (command.countries !== undefined && command.countries.length === 0)) throw new Error("unsupported_offering");
