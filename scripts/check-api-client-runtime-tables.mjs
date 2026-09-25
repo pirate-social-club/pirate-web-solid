@@ -8,11 +8,11 @@ const currentClient = resolve(
   appRoot,
   "node_modules/@pirate/api-client/src/generated/client.ts",
 );
-// Client 0.88.0 retains the consumed operations and removes the obsolete
-// community-creation activate_profile response while preserving the song,
-// nationality, and avatar contracts consumed by current Solid main. This
-// digest pins the exact success, error, and schema tables consumed by Solid.
-const expectedDigest = "dac8f933a2b266d784adb8ed608783d12fd7c320525270592b3add90ea23e00e";
+// Client 0.90.0 retains the consumed operations, adds the claim object to
+// reward credits, and adds the participant claim and reward-claim Very intent
+// operations (Spec 015 §5.2a). This digest pins the exact success, error, and
+// schema tables consumed by Solid.
+const expectedDigest = "f0b2357aa64f5f5746363f168bc49e103a0e4c9b483c0d82e9975f0853976a57";
 
 const operations = [
   "post_postsPostIdVideoPlaybackAccess",
@@ -87,6 +87,8 @@ const operations = [
   "get_communitiesCommunityIdPostsPostIdRewardsAssetBonuses",
   "get_rewardOfferLegsLegIdStanding",
   "get_rewardsCredits",
+  "post_rewardsCreditsCreditIdClaim",
+  "post_rewardsClaimVerificationIntents",
   "post_rewardOfferLegsLegIdFundingFundingEffectIdObservations",
   "get_rewardOfferLegsLegIdFundingFundingEffectId",
   "post_assetBonusLegsLegIdFundingFundingEffectIdObservations",

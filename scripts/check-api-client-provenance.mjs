@@ -21,6 +21,8 @@ const clients = [
       "get_communitiesCommunityIdPostsPostIdRewardsAssetBonuses",
       "get_rewardOfferLegsLegIdStanding",
       "get_rewardsCredits",
+      "post_rewardsCreditsCreditIdClaim",
+      "post_rewardsClaimVerificationIntents",
       "post_rewardOfferLegsLegIdFundingFundingEffectIdObservations",
       "get_rewardOfferLegsLegIdFundingFundingEffectId",
       "post_assetBonusLegsLegIdFundingFundingEffectIdObservations",
