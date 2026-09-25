@@ -8,11 +8,10 @@ const currentClient = resolve(
   appRoot,
   "node_modules/@pirate/api-client/src/generated/client.ts",
 );
-// Client 0.90.0 retains the consumed operations, adds the claim object to
-// reward credits, and adds the participant claim and reward-claim Very intent
-// operations (Spec 015 §5.2a). This digest pins the exact success, error, and
-// schema tables consumed by Solid.
-const expectedDigest = "f0b2357aa64f5f5746363f168bc49e103a0e4c9b483c0d82e9975f0853976a57";
+// Client 0.91.0 retains the consumed operations and adds the winner gas
+// top-up request and read operations (Spec 015 §5.2a). This digest pins the
+// exact success, error, and schema tables consumed by Solid.
+const expectedDigest = "660bcaeab16b94fa1e59c547ace91364eea0bf10d0a44b6a526d4de41c6be890";
 
 const operations = [
   "post_postsPostIdVideoPlaybackAccess",
@@ -89,6 +88,8 @@ const operations = [
   "get_rewardsCredits",
   "post_rewardsCreditsCreditIdClaim",
   "post_rewardsClaimVerificationIntents",
+  "post_rewardsGasTopups",
+  "get_rewardsGasTopupsTopupId",
   "post_rewardOfferLegsLegIdFundingFundingEffectIdObservations",
   "get_rewardOfferLegsLegIdFundingFundingEffectId",
   "post_assetBonusLegsLegIdFundingFundingEffectIdObservations",

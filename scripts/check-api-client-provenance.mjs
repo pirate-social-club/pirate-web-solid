@@ -23,6 +23,8 @@ const clients = [
       "get_rewardsCredits",
       "post_rewardsCreditsCreditIdClaim",
       "post_rewardsClaimVerificationIntents",
+      "post_rewardsGasTopups",
+      "get_rewardsGasTopupsTopupId",
       "post_rewardOfferLegsLegIdFundingFundingEffectIdObservations",
       "get_rewardOfferLegsLegIdFundingFundingEffectId",
       "post_assetBonusLegsLegIdFundingFundingEffectIdObservations",
