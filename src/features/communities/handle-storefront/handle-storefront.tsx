@@ -348,13 +348,13 @@ function BuyerPanel(props: {
       ? current.personas.find(persona => persona.personaId === selectedPersonaId())
       : undefined;
   });
-  const normalizedLabel = createMemo(() => normalizeDesiredHandleLabel(label()));
+  const normalizedLabel = createMemo(() => normalizeDesiredHandleLabel(label(), selectedNamespace()?.family ?? "hns"));
   const identifier = createMemo(() => {
     const namespace = selectedNamespace();
     const desired = normalizedLabel();
     return namespace === undefined || desired === null
       ? undefined
-      : `${desired}.${namespace.displayRoot}`;
+      : namespace.family === "spaces" ? `${desired}@${namespace.displayRoot}` : `${desired}.${namespace.displayRoot}`;
   });
   const busy = createMemo(() => claimState().kind === "progress");
   const canClaim = createMemo(() =>
@@ -472,6 +472,10 @@ function BuyerPanel(props: {
         });
       } else if (result.kind === "pending") {
         setClaimState({ kind: "pending" });
+      } else if (result.kind === "recipient_wallet_required") {
+        attemptKeys = undefined;
+        attemptSignature = undefined;
+        setClaimState({ kind: "verification", message: "This persona needs a Bitcoin Taproot wallet before it can receive a Spaces name." });
       } else if (result.kind === "nationality_required") {
         attemptKeys = undefined;
         attemptSignature = undefined;
@@ -620,8 +624,10 @@ function BuyerPanel(props: {
                   <div>
                     <CardTitle as="h2">{selectedNamespace() === undefined
                       ? copy.headingMultiple
-                      : interpolateMessage(copy.heading, { root: selectedNamespace()?.displayRoot ?? "" })}</CardTitle>
-                    <CardDescription>{copy.intro}</CardDescription>
+                      : interpolateMessage(copy.heading, { root: selectedNamespace()?.family === "spaces"
+                        ? `@${selectedNamespace()?.displayRoot ?? ""}` : selectedNamespace()?.displayRoot ?? "" })}</CardTitle>
+                    <CardDescription>{selectedNamespace()?.family === "spaces"
+                      ? "Choose a persona with a Bitcoin Taproot wallet for this free name." : copy.intro}</CardDescription>
                   </div>
                   <span class="rounded-full bg-primary/10 px-3 py-1 text-sm font-semibold text-primary-text">{copy.free}</span>
                 </div>
@@ -641,7 +647,7 @@ function BuyerPanel(props: {
                     >
                       <option value="">{copy.namespacePlaceholder}</option>
                       <For each={namespaceChoices}>{choice =>
-                        <option value={choice.activationId}>.{choice.displayRoot}</option>
+                        <option value={choice.activationId}>{choice.family === "spaces" ? `@${choice.displayRoot}` : `.${choice.displayRoot}`}</option>
                       }</For>
                     </select>
                   </div>
@@ -655,7 +661,7 @@ function BuyerPanel(props: {
                     autocomplete="off"
                     disabled={busy()}
                     inputmode="text"
-                    maxlength={63}
+                    maxlength={selectedNamespace()?.family === "spaces" ? 62 : 63}
                     onInput={event => {
                       if (!busy()) {
                         setLabel(event.currentTarget.value);
@@ -724,8 +730,9 @@ function BuyerPanel(props: {
                 </Show>
                 <Show when={claimState().kind === "pending"}>
                   <div role="status" class="rounded-xl bg-muted p-4" data-handle-claim-state="pending">
-                    <p class="font-semibold">{copy.pendingTitle}</p>
-                    <p>{copy.pendingDescription}</p>
+                    <p class="font-semibold">{selectedNamespace()?.family === "spaces" ? "Registration pending" : copy.pendingTitle}</p>
+                    <p>{selectedNamespace()?.family === "spaces"
+                      ? "Only you can see this requested name until its Bitcoin registration is final." : copy.pendingDescription}</p>
                     <Button class="mt-3" variant="outline" onClick={() => void claim()}>{copy.retry}</Button>
                   </div>
                 </Show>
@@ -761,13 +768,16 @@ function SuccessState(props: {
   const title = interpolateMessage(copy.title, { name: state.community.community.displayName });
   const namespaces = projectSaleNamespaceChoices(state.offerings);
   const storefrontHeading = namespaces.length === 1
-    ? interpolateMessage(copy.heading, { root: namespaces[0]?.displayRoot ?? "" })
+    ? interpolateMessage(copy.heading, { root: namespaces[0]?.family === "spaces"
+      ? `@${namespaces[0]?.displayRoot ?? ""}` : namespaces[0]?.displayRoot ?? "" })
     : copy.headingMultiple;
   return <main data-handle-storefront-state="success" class="mx-auto flex w-full max-w-5xl flex-col gap-6 px-4 py-8 md:px-8">
     <Title>{title}</Title>
-    <Meta name="description" content={copy.intro} />
+    <Meta name="description" content={namespaces.some((item) => item.family === "spaces")
+      ? "Choose a persona to claim a community Spaces name." : copy.intro} />
     <Meta property="og:title" content={title} />
-    <Meta property="og:description" content={copy.intro} />
+    <Meta property="og:description" content={namespaces.some((item) => item.family === "spaces")
+      ? "Choose a persona to claim a community Spaces name." : copy.intro} />
     <Meta property="og:url" content={canonicalUrl} />
     <Link rel="canonical" href={canonicalUrl} />
     <div>
@@ -777,7 +787,8 @@ function SuccessState(props: {
       <Type as="h1" variant="h1" class="mt-3">
         {storefrontHeading}
       </Type>
-      <Type as="p" variant="body" class="mt-2 text-muted-foreground">{copy.intro}</Type>
+      <Type as="p" variant="body" class="mt-2 text-muted-foreground">{namespaces.some((item) => item.family === "spaces")
+        ? "Choose a persona with a Bitcoin Taproot wallet. A requested name stays private until registration is final." : copy.intro}</Type>
     </div>
     <Show when={state.offerings.length > 0} fallback={
       <Card><CardContent class="p-6"><p role="status">{copy.noOfferings}</p></CardContent></Card>

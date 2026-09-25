@@ -168,6 +168,23 @@ function input(apiClient: SessionHandleSalesApiClient) {
 }
 
 describe("free handle storefront flow", () => {
+  test("stops a Spaces claim before reservation when the persona lacks a Taproot recipient", async () => {
+    const spaces = { ...offering, family: "spaces", namespace_root: "yahoo", display_root: "yahoo",
+      label_scope: { ...offering.label_scope, label_grammar_id: "spaces_subspace_label_v1",
+        availability: { kind: "length_band_v1", min_label_length: 1, max_label_length: 32 } },
+      fulfillment: { kind: "spaces_native_v1" },
+      qualification_policy: { kind: "curated_policy_v1", policy_id: "policy-1", policy_revision: 1,
+        policy_hash: "policy-hash", provider_binding_hash: "provider-hash" },
+      issuance: { family: "spaces", driver_id: "spaces-native", driver_version: "1" } } as const satisfies SupportedHandleOffering;
+    const apiClient = client(claim("issued"));
+    apiClient.post_handlePersonaLinkConfirmations = vi.fn(async (): Promise<PostHandlePersonaLinkConfirmationsResponse> => ({ ...confirmation,
+      family: "spaces", namespace_root: "yahoo" }));
+    apiClient.post_handleQuotes = vi.fn(async (): Promise<PostHandleQuotesResponse> => ({ kind: "recipient_wallet_required",
+      offering_id: spaces.offering_id, owner_persona_id: personaId, reason: "recipient_wallet_required" }));
+    await expect(runFreeHandleClaim({ ...input(apiClient), offering: spaces })).resolves.toEqual({ kind: "recipient_wallet_required" });
+    expect(apiClient.post_handleReservations).not.toHaveBeenCalled();
+    expect(apiClient.post_handleClaims).not.toHaveBeenCalled();
+  });
   test("runs confirmation, quote, reservation, and claim with exact immutable parents", async () => {
     const apiClient = client(claim("issued"));
     await expect(runFreeHandleClaim(input(apiClient))).resolves.toMatchObject({

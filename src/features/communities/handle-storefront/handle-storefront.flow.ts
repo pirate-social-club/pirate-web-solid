@@ -26,6 +26,7 @@ export type HandleStorefrontProgressUpdate = Readonly<{
 }>;
 
 export type HandleStorefrontResult =
+  | Readonly<{ kind: "recipient_wallet_required" }>
   | Readonly<{ kind: "nationality_required"; qualificationIntentId: string }>
   | Readonly<{
       readonly kind: "issued";
@@ -275,6 +276,11 @@ export async function runFreeHandleClaim(
     assert(quoteResult.offering_id === input.offering.offering_id
       && quoteResult.owner_persona_id === input.personaId && quoteResult.qualification_intent_id.length > 0);
     return { kind: "nationality_required", qualificationIntentId: quoteResult.qualification_intent_id };
+  }
+  if (quoteResult.kind === "recipient_wallet_required") {
+    assert(quoteResult.offering_id === input.offering.offering_id
+      && quoteResult.owner_persona_id === input.personaId && input.offering.family === "spaces");
+    return { kind: "recipient_wallet_required" };
   }
   if (quoteResult.kind !== "quoted") {
     throw new Error("Unsupported handle quote response");

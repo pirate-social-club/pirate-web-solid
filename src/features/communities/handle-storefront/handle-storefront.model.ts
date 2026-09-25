@@ -14,9 +14,10 @@ import {
 export type PublicHandleOffering =
   GetCommunitiesCommunityIdHandleOfferingsResponse["items"][number];
 type HnsOffering = Extract<PublicHandleOffering, { family: "hns" }>;
+type SpacesOffering = Extract<PublicHandleOffering, { family: "spaces" }>;
 export type AccountPersona = GetPersonasResponse["personas"][number];
 
-export type SupportedHandleOffering = HnsOffering & Readonly<{
+export type SupportedHnsOffering = HnsOffering & Readonly<{
   readonly family: "hns";
   readonly fulfillment: Readonly<{ readonly kind: "hosted_persona_v1" }>;
   readonly pricing: Readonly<{
@@ -24,6 +25,12 @@ export type SupportedHandleOffering = HnsOffering & Readonly<{
     readonly atomic_amount: "0";
   }>;
 }>;
+type SupportedSpacesOffering = SpacesOffering & Readonly<{
+  readonly family: "spaces";
+  readonly fulfillment: Readonly<{ readonly kind: "spaces_native_v1" }>;
+  readonly pricing: Readonly<{ readonly kind: "free_v1"; readonly atomic_amount: "0" }>;
+}>;
+export type SupportedHandleOffering = SupportedHnsOffering | SupportedSpacesOffering;
 
 export type HandleStorefrontPublicSuccess = Readonly<{
   readonly kind: "success";
@@ -45,6 +52,7 @@ export type PersonaChoice = Readonly<{
 }>;
 
 export type SaleNamespaceChoice = Readonly<{
+  readonly family: "hns" | "spaces";
   readonly activationId: string;
   readonly activationGeneration: number;
   readonly namespaceRoot: string;
@@ -55,16 +63,26 @@ const labelGrammar = /^[a-z0-9]+(?:-[a-z0-9]+)*$/u;
 const publicOfferingPageLimit = "100";
 const maximumPublicOfferingPages = 100;
 
-export function normalizeDesiredHandleLabel(value: unknown): string | null {
+export function normalizeDesiredHandleLabel(value: unknown, family: "hns" | "spaces" = "hns"): string | null {
   if (typeof value !== "string" || value === "" || value !== value.trim()) return null;
-  if (value.length > 63 || value !== value.toLowerCase() || !labelGrammar.test(value)) return null;
+  if (value.length > (family === "spaces" ? 62 : 63) || value !== value.toLowerCase() || !labelGrammar.test(value)) return null;
+  if (family === "spaces" && value.startsWith("xn--")) return null;
   return value;
 }
 
 export function isSupportedHandleOffering(
   offering: PublicHandleOffering,
 ): offering is SupportedHandleOffering {
-  if (offering.family !== "hns") return false;
+  if (offering.family === "spaces") {
+    return offering.status === "active" && offering.pricing.kind === "free_v1"
+      && offering.pricing.atomic_amount === "0" && offering.fulfillment.kind === "spaces_native_v1"
+      && offering.issuance.family === "spaces" && offering.allocation.kind === "first_come_v1"
+      && offering.label_scope.kind === "label_rule_v2"
+      && offering.label_scope.label_grammar_id === "spaces_subspace_label_v1"
+      && offering.label_scope.availability.min_label_length >= 1
+      && offering.label_scope.availability.max_label_length <= 62
+      && offering.label_scope.availability.min_label_length <= offering.label_scope.availability.max_label_length;
+  }
   const supportedTerms = offering.label_scope.kind === "label_rule_v2"
     ? offering.allocation.kind === "first_come_v1"
       && (offering.qualification_policy.kind === "none_v1" || offering.qualification_policy.kind === "curated_nationality_v1")
@@ -90,7 +108,7 @@ export function offeringAppliesToLabel(
   offering: SupportedHandleOffering,
   label: string,
 ): boolean {
-  const normalized = normalizeDesiredHandleLabel(label);
+  const normalized = normalizeDesiredHandleLabel(label, offering.family);
   if (normalized === null) return false;
   if (offering.label_scope.kind === "exact_label_v2") {
     return offering.label_scope.handle_label === normalized;
@@ -129,6 +147,7 @@ export function projectSaleNamespaceChoices(
   const choices = new Map<string, SaleNamespaceChoice>();
   for (const offering of offerings) {
     const choice = {
+      family: offering.family,
       activationId: offering.sale_namespace_activation_id,
       activationGeneration: offering.sale_namespace_activation_generation,
       namespaceRoot: offering.namespace_root,
@@ -137,6 +156,7 @@ export function projectSaleNamespaceChoices(
     const prior = choices.get(choice.activationId);
     if (prior !== undefined && (
       prior.activationGeneration !== choice.activationGeneration
+      || prior.family !== choice.family
       || prior.namespaceRoot !== choice.namespaceRoot
       || prior.displayRoot !== choice.displayRoot
     )) {
