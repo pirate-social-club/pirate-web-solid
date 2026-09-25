@@ -99,6 +99,8 @@ test("the pinned vendored API client dependency is part of the fingerprint", () 
   assert.notEqual(identity(config, sources, changed), original);
   changed.dependencies["@pirate/api-client"] = "*";
   assert.throws(() => identity(config, sources, changed), /unpinned_api_client_dependency/u);
+  changed.dependencies["@pirate/api-client"] = "file:vendor/api-client/pirate-api-client-0.93.0-latest.tgz";
+  assert.throws(() => identity(config, sources, changed), /unpinned_api_client_dependency/u);
 });
 
 test("protected route, Access, registry, secrets and replay binding are bound", () => {

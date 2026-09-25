@@ -130,7 +130,7 @@ export function projectStagingIngressConfiguration(config, packageJson) {
     packageJson?.dependencies?.["@pirate/api-client"],
     "api_client_dependency",
   );
-  if (!/^file:vendor\/api-client\/pirate-api-client-\d+\.\d+\.\d+\.tgz$/u.test(apiClientDependency)) {
+  if (!/^file:vendor\/api-client\/pirate-api-client-\d+\.\d+\.\d+(?:-[a-f0-9]{8})?\.tgz$/u.test(apiClientDependency)) {
     refuse("unpinned_api_client_dependency");
   }
 
