@@ -1,11 +1,11 @@
 {
   "name": "@pirate/api-client",
-  "version": "0.92.0",
-  "artifact": "vendor/api-client/pirate-api-client-0.92.0.tgz",
-  "sha256": "5885531109947bbf1b682dfb5032f543b6f5c9ab16b314a35f046263c1ec4b2c",
-  "source": "api-next-contracts@2a2f4ddb2b316627f343b6120d93c13a85f5900e4409e51862089fdd9e27979b",
-  "openapiSha256": "2a2f4ddb2b316627f343b6120d93c13a85f5900e4409e51862089fdd9e27979b",
-  "clientSha256": "6142770dbd1279ca666f5a97467620621e03c2a64c1775f270d36aa1a63ac876",
+  "version": "0.93.0",
+  "artifact": "vendor/api-client/pirate-api-client-0.93.0.tgz",
+  "sha256": "08d3ba951cc4a3e1c894800c6bee204b83e36dc76b49c51b1b582b6f21f755b4",
+  "source": "api-next-contracts@59ad84d63fb58855c51cd78b1cb21392b90c52d1ebcb787beb95c545cdb42ffb",
+  "openapiSha256": "59ad84d63fb58855c51cd78b1cb21392b90c52d1ebcb787beb95c545cdb42ffb",
+  "clientSha256": "8c95501e1cf37d8cbac7c8e9baf1202819c06d95e91b27fe13f4557c14dc0603",
   "scope": [
     "get_communitiesCommunityIdMediaPostSubmissions",
     "post_avatarUploadReservations",
@@ -90,6 +90,8 @@
     "post_assetBonusLegsLegIdFundingFundingEffectIdObservations",
     "get_assetBonusLegsLegIdFundingFundingEffectId",
     "post_communitiesCommunityIdSpacesOwnershipStart",
-    "post_communitiesCommunityIdSpacesOwnershipPoll"
+    "post_communitiesCommunityIdSpacesOwnershipPoll",
+    "get_communitiesCommunityIdSpacesOperatorAssignments",
+    "post_communitiesCommunityIdSpacesOperatorAssignmentsConfirm"
   ]
 }

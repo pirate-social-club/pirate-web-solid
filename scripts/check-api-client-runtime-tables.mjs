@@ -8,13 +8,15 @@ const currentClient = resolve(
   appRoot,
   "node_modules/@pirate/api-client/src/generated/client.ts",
 );
-// Client 0.92.0 adds Spaces owner proof and widens handle contracts by family.
+// Client 0.93.0 adds Spaces operator assignment to the owner proof wire.
 // This digest pins the exact success, error, and schema tables Solid consumes.
-const expectedDigest = "392d465a2cc072447e0d101318d2e5004a8216eec1cbde727111d24325408bbc";
+const expectedDigest = "edf197a6f4ac91503490b75bfa79b8aab0d1332a239fa2c2ec657e49a0aeff8c";
 
 const operations = [
   "post_communitiesCommunityIdSpacesOwnershipStart",
   "post_communitiesCommunityIdSpacesOwnershipPoll",
+  "get_communitiesCommunityIdSpacesOperatorAssignments",
+  "post_communitiesCommunityIdSpacesOperatorAssignmentsConfirm",
   "post_postsPostIdVideoPlaybackAccess",
   "get_postsPostIdVideoPoster",
   "get_personas",

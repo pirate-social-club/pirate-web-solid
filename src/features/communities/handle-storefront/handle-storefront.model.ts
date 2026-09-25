@@ -217,11 +217,12 @@ export function initialHandleLabel(
   label: string | null | undefined,
   requestedOfferingId?: string | null,
 ): string {
-  const normalized = normalizeDesiredHandleLabel(label);
-  if (normalized !== null) return normalized;
   const requested = requestedOfferingId
     ? offerings.find(offering => offering.offering_id === requestedOfferingId)
     : undefined;
+  const family = requested?.family ?? (offerings.length === 1 ? offerings[0]?.family : undefined) ?? "hns";
+  const normalized = normalizeDesiredHandleLabel(label, family);
+  if (normalized !== null) return normalized;
   return requested?.label_scope.kind === "exact_label_v2"
     ? requested.label_scope.handle_label
     : "";

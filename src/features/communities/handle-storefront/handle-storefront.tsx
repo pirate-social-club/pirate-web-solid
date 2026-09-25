@@ -57,6 +57,7 @@ import {
   initialSaleNamespaceActivationId,
   loadHandleStorefrontPublic,
   normalizeDesiredHandleLabel,
+  offeringAppliesToLabel,
   projectPersonaChoices,
   projectSaleNamespaceChoices,
   selectHandleOffering,
@@ -91,7 +92,7 @@ type ClaimUiState =
       readonly expiresAt?: string;
     }>
   | Readonly<{ readonly kind: "issued"; readonly identifier: string; readonly persona: string }>
-  | Readonly<{ readonly kind: "pending" }>
+  | Readonly<{ readonly kind: "pending"; readonly claimId?: string }>
   | Readonly<{ readonly kind: "verification"; readonly message: string }>
   | Readonly<{ readonly kind: "error"; readonly message: string }>;
 
@@ -323,6 +324,7 @@ function BuyerPanel(props: {
   const [claimState, setClaimState] = createSignal<ClaimUiState>({ kind: "idle" });
   const [authOpen, setAuthOpen] = createSignal(false);
   const [hnsServed, setHnsServed] = createSignal(false);
+  const savedClaimKey = `spaces-claim:${state.community.communityId}`;
   let sessionGeneration = 0;
   let activeAttempt: AbortController | undefined;
   let attemptSignature: string | undefined;
@@ -357,14 +359,17 @@ function BuyerPanel(props: {
       : namespace.family === "spaces" ? `${desired}@${namespace.displayRoot}` : `${desired}.${namespace.displayRoot}`;
   });
   const busy = createMemo(() => claimState().kind === "progress");
-  const canClaim = createMemo(() =>
-    session().kind === "ready"
-    && selectedPersona() !== undefined
-    && activeOffering() !== undefined
-    && normalizedLabel() !== null
-    && linkConfirmed()
-    && !busy(),
-  );
+  const canClaim = createMemo(() => {
+    const offering = activeOffering();
+    const desired = normalizedLabel();
+    return session().kind === "ready"
+      && selectedPersona() !== undefined
+      && offering !== undefined
+      && desired !== null
+      && offeringAppliesToLabel(offering, desired)
+      && linkConfirmed()
+      && !busy();
+  });
 
   const loadPersonas = async () => {
     const generation = ++sessionGeneration;
@@ -377,6 +382,41 @@ function BuyerPanel(props: {
       if (!personas.some(persona => persona.personaId === selectedPersonaId())) {
         setSelectedPersonaId(null);
         setLinkConfirmed(false);
+      }
+      if (typeof sessionStorage !== "undefined") {
+        const savedClaimId = sessionStorage.getItem(savedClaimKey);
+        if (savedClaimId !== null && /^[a-zA-Z0-9_-]{1,128}$/u.test(savedClaimId)) {
+          try {
+            const saved = await client.get_handleClaimsClaimId({ path: { claimId: savedClaimId } },
+              { credentials: "same-origin" });
+            if (generation !== sessionGeneration) return;
+            const matches = saved.handle.family === "spaces"
+              && personas.some((persona) => persona.personaId === saved.owner_persona_id)
+              && state.offerings.some((item) => item.family === "spaces"
+                && item.offering_id === saved.offering_id
+                && item.sale_namespace_activation_id === saved.sale_namespace_activation_id);
+            if (matches) {
+              setSelectedPersonaId(saved.owner_persona_id);
+              setSelectedActivationId(saved.sale_namespace_activation_id);
+              setLabel(saved.handle.handle_label);
+              if (saved.state === "issued" && saved.grant?.status === "active") {
+                setClaimState({ kind: "issued", identifier: saved.display_identifier,
+                  persona: personas.find((persona) => persona.personaId === saved.owner_persona_id)?.displayName ?? "your persona" });
+                sessionStorage.removeItem(savedClaimKey);
+              } else if (saved.state === "issuance_pending") {
+                setClaimState({ kind: "pending", claimId: saved.claim_id });
+              } else {
+                sessionStorage.removeItem(savedClaimKey);
+              }
+            } else {
+              sessionStorage.removeItem(savedClaimKey);
+            }
+          } catch (error) {
+            if (error instanceof ApiClientError && (error.status === 401 || error.status === 404)) {
+              sessionStorage.removeItem(savedClaimKey);
+            }
+          }
+        }
       }
     } catch (error: unknown) {
       if (generation !== sessionGeneration) return;
@@ -465,13 +505,15 @@ function BuyerPanel(props: {
         onProgress: update => setClaimState({ kind: "progress", ...update }),
       });
       if (result.kind === "issued") {
+        if (offering.family === "spaces" && typeof sessionStorage !== "undefined") sessionStorage.removeItem(savedClaimKey);
         setClaimState({
           kind: "issued",
           identifier: result.grant.display_identifier,
           persona: persona.displayName,
         });
       } else if (result.kind === "pending") {
-        setClaimState({ kind: "pending" });
+        if (offering.family === "spaces" && typeof sessionStorage !== "undefined") sessionStorage.setItem(savedClaimKey, result.claim.claim_id);
+        setClaimState({ kind: "pending", claimId: offering.family === "spaces" ? result.claim.claim_id : undefined });
       } else if (result.kind === "recipient_wallet_required") {
         attemptKeys = undefined;
         attemptSignature = undefined;
@@ -539,6 +581,10 @@ function BuyerPanel(props: {
   const issuedClaim = createMemo(() => {
     const current = claimState();
     return current.kind === "issued" ? current : undefined;
+  });
+  const pendingClaim = createMemo(() => {
+    const current = claimState();
+    return current.kind === "pending" ? current : undefined;
   });
   const claimError = createMemo(() => {
     const current = claimState();
@@ -733,7 +779,14 @@ function BuyerPanel(props: {
                     <p class="font-semibold">{selectedNamespace()?.family === "spaces" ? "Registration pending" : copy.pendingTitle}</p>
                     <p>{selectedNamespace()?.family === "spaces"
                       ? "Only you can see this requested name until its Bitcoin registration is final." : copy.pendingDescription}</p>
-                    <Button class="mt-3" variant="outline" onClick={() => void claim()}>{copy.retry}</Button>
+                    <Show when={selectedNamespace()?.family === "spaces" ? pendingClaim()?.claimId : undefined}>
+                      {claimId => <a class="mt-3 block underline" href={`${canonicalNamesUrl(state).replace(/\/names$/u, "/name-order")}/${encodeURIComponent(claimId())}`}>
+                        View registration status
+                      </a>}
+                    </Show>
+                    <Show when={selectedNamespace()?.family !== "spaces"}>
+                      <Button class="mt-3" variant="outline" onClick={() => void claim()}>{copy.retry}</Button>
+                    </Show>
                   </div>
                 </Show>
                 <Show when={(() => { const value = claimState(); return value.kind === "verification" ? value : undefined; })()}>

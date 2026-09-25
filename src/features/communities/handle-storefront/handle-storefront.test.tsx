@@ -2,7 +2,7 @@ import { render as solidRender, type JSX } from "@solidjs/web";
 import { createRoot } from "solid-js";
 import { afterEach, describe, expect, test, vi } from "vitest";
 
-import { ApiClientError } from "@pirate/api-client";
+import { ApiClientError, type GetHandleClaimsClaimIdResponse } from "@pirate/api-client";
 
 import type { SessionHandleSalesApiClient } from "../../../api/handle-sales-client.ts";
 import HandleStorefront, { canonicalNamesUrl } from "./handle-storefront.tsx";
@@ -43,6 +43,14 @@ const offering = {
   status: "active",
   created_at: "2026-08-26T12:00:00.000Z",
 } as const satisfies SupportedHandleOffering;
+
+const spacesOffering = { ...offering, family: "spaces", namespace_root: "yahoo", display_root: "yahoo",
+  label_scope: { ...offering.label_scope, label_grammar_id: "spaces_subspace_label_v1",
+    availability: { kind: "length_band_v1", min_label_length: 1, max_label_length: 32 } },
+  fulfillment: { kind: "spaces_native_v1" },
+  qualification_policy: { kind: "curated_policy_v1", policy_id: "policy-1", policy_revision: 1,
+    policy_hash: "policy-hash", provider_binding_hash: "provider-hash" },
+  issuance: { family: "spaces", driver_id: "spaces-native", driver_version: "1" } } as const satisfies SupportedHandleOffering;
 
 function publicState(
   offerings: readonly SupportedHandleOffering[] = [offering],
@@ -245,6 +253,7 @@ function confirmationKey(client: SessionHandleSalesApiClient, ordinal: number): 
 }
 
 afterEach(() => {
+  sessionStorage.removeItem(`spaces-claim:${communityId}`);
   for (const dispose of disposers.splice(0)) dispose();
   document.head.replaceChildren();
   document.body.replaceChildren();
@@ -252,16 +261,27 @@ afterEach(() => {
 
 describe("community handle storefront", () => {
   test("shows a Spaces root with @ and its Taproot requirement", () => {
-    const spaces = { ...offering, family: "spaces", namespace_root: "yahoo", display_root: "yahoo",
-      label_scope: { ...offering.label_scope, label_grammar_id: "spaces_subspace_label_v1",
-        availability: { kind: "length_band_v1", min_label_length: 1, max_label_length: 32 } },
-      fulfillment: { kind: "spaces_native_v1" },
-      qualification_policy: { kind: "curated_policy_v1", policy_id: "policy-1", policy_revision: 1,
-        policy_hash: "policy-hash", provider_binding_hash: "provider-hash" },
-      issuance: { family: "spaces", driver_id: "spaces-native", driver_version: "1" } } as const satisfies SupportedHandleOffering;
-    const container = render(() => <HandleStorefront pathSegment="charizard" data={publicState([spaces])} sessionClient={sessionClient()} />);
+    const container = render(() => <HandleStorefront pathSegment="charizard" data={publicState([spacesOffering])} sessionClient={sessionClient()} />);
     expect(container.textContent).toContain("Claim a name in @yahoo");
     expect(container.textContent).toContain("Bitcoin Taproot wallet");
+  });
+  test("restores only an authenticated Spaces pending claim after reload", async () => {
+    sessionStorage.setItem(`spaces-claim:${communityId}`, "claim-1");
+    const client = sessionClient();
+    const original = client.get_handleClaimsClaimId;
+    client.get_handleClaimsClaimId = vi.fn(async (): Promise<GetHandleClaimsClaimIdResponse> => {
+      const prior = await original({ path: { claimId: "claim-1" } });
+      return { ...prior, fulfillment: { kind: "spaces_native_v1" },
+        recipient: { kind: "persona_taproot_v1", network: "mainnet", script_pubkey_hex: "5120" + "a".repeat(64) },
+        handle: { family: "spaces", namespace_root: "yahoo", handle_label: "alice" },
+        display_identifier: "alice@yahoo", state: "issuance_pending", delayed: false, grant: null };
+    });
+    const container = render(() => <HandleStorefront pathSegment="charizard"
+      data={publicState([spacesOffering])} sessionClient={client} />);
+    await vi.waitFor(() => expect(container.querySelector('[data-handle-claim-state="pending"]')).not.toBeNull());
+    expect(container.textContent).toContain("Registration pending");
+    expect(container.textContent).toContain("Only you can see this requested name");
+    sessionStorage.removeItem(`spaces-claim:${communityId}`);
   });
   test("requires an explicit persona and public-link confirmation before the real free claim", async () => {
     const client = sessionClient();

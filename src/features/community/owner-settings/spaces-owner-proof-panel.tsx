@@ -4,6 +4,7 @@ import { Show, createSignal } from "solid-js";
 import { createSpacesOwnerProofApi, type SpacesOwnerProofApi } from "./spaces-owner-proof-api";
 
 type Challenge = Awaited<ReturnType<SpacesOwnerProofApi["start"]>>;
+type Assignment = NonNullable<Awaited<ReturnType<SpacesOwnerProofApi["assignment"]>>["candidate"]>;
 
 function newKey(): string {
   const random = new Uint8Array(16);
@@ -20,6 +21,9 @@ export function SpacesOwnerProofPanel(props: { api?: SpacesOwnerProofApi; commun
   const [busy, setBusy] = createSignal(false);
   const [message, setMessage] = createSignal("");
   const [verifiedUntil, setVerifiedUntil] = createSignal("");
+  const [authority, setAuthority] = createSignal<{ reference: string; generation: number }>();
+  const [candidate, setCandidate] = createSignal<Assignment>();
+  const [confirmed, setConfirmed] = createSignal(false);
 
   const storageKey = (canonicalRoot: string) => `spaces-owner-proof:${props.communityId}:${canonicalRoot}`;
   const clearSavedKey = () => {
@@ -37,6 +41,9 @@ export function SpacesOwnerProofPanel(props: { api?: SpacesOwnerProofApi; commun
     setBusy(true);
     setMessage("");
     setVerifiedUntil("");
+    setAuthority(undefined);
+    setCandidate(undefined);
+    setConfirmed(false);
     try {
       let idempotencyKey = typeof sessionStorage === "undefined" ? null : sessionStorage.getItem(storageKey(canonicalRoot));
       if (idempotencyKey === null) {
@@ -75,9 +82,11 @@ export function SpacesOwnerProofPanel(props: { api?: SpacesOwnerProofApi; commun
       if (result.status === "verified") {
         clearSavedKey();
         setVerifiedUntil(result.fresh_until);
+        setAuthority({ reference: result.namespace_authority_reference,
+          generation: result.namespace_authority_generation });
         setChallenge(undefined);
         setSignature("");
-        setMessage("Ownership verified. The operator setup can continue.");
+        setMessage("Ownership verified. Complete the Spaces operate transaction, then check for the operator address here.");
       } else if (result.status === "verification_pending") {
         setPollKey(newKey());
         setMessage("The Spaces chain is updating. Check this proof again after its next checkpoint.");
@@ -91,6 +100,48 @@ export function SpacesOwnerProofPanel(props: { api?: SpacesOwnerProofApi; commun
       }
     } catch {
       setMessage("The signature could not be checked. You can try the same signature again.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const checkAssignment = async () => {
+    if (busy() || authority() === undefined) return;
+    setBusy(true);
+    try {
+      const response = await api.assignment({ communityId: props.communityId, root: root().replace(/^@/u, "") });
+      setCandidate(response.candidate ?? undefined);
+      setMessage(response.candidate === null
+        ? "The operator address is not ready yet. Check again after operate is confirmed and the chain catches up."
+        : "Check this address against your Spaces wallet before assigning it.");
+    } catch {
+      setMessage("The operator address could not be loaded. Try again.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const confirmAssignment = async () => {
+    const selected = candidate();
+    const proof = authority();
+    if (busy() || selected === undefined || proof === undefined) return;
+    setBusy(true);
+    const keyName = `spaces-operator-assignment:${props.communityId}:${selected.operator_assignment_id}`;
+    let idempotencyKey = typeof sessionStorage === "undefined" ? null : sessionStorage.getItem(keyName);
+    if (idempotencyKey === null) {
+      idempotencyKey = newKey();
+      if (typeof sessionStorage !== "undefined") sessionStorage.setItem(keyName, idempotencyKey);
+    }
+    try {
+      const result = await api.confirmAssignment({ communityId: props.communityId, idempotencyKey,
+        assignmentId: selected.operator_assignment_id, generation: selected.generation,
+        authorityReference: proof.reference, authorityGeneration: proof.generation });
+      if (typeof sessionStorage !== "undefined") sessionStorage.removeItem(keyName);
+      setCandidate(result);
+      setConfirmed(true);
+      setMessage("Operator address confirmed. Delegate this Spaces root to the address shown below in your Spaces wallet.");
+    } catch {
+      setMessage("The assignment could not be confirmed. Check that ownership and the operator address are still current, then retry.");
     } finally {
       setBusy(false);
     }
@@ -127,6 +178,17 @@ export function SpacesOwnerProofPanel(props: { api?: SpacesOwnerProofApi; commun
       )}</Show>
       <Show when={message()}><p role="status" class="text-sm">{message()}</p></Show>
       <Show when={verifiedUntil()}><p class="text-xs text-muted-foreground">Authority check expires at {verifiedUntil()}.</p></Show>
+      <Show when={authority()}>
+        <Button type="button" variant="secondary" disabled={busy()} onClick={() => void checkAssignment()}>Check operator address</Button>
+      </Show>
+      <Show when={candidate()}>{selected => <div class="space-y-3 rounded-md border p-3" data-spaces-operator-assignment>
+        <p class="text-sm">Delegation address for @{selected().canonical_root}</p>
+        <p class="break-all font-mono text-sm" data-spaces-delegation-address>{selected().delegation_address}</p>
+        <Show when={!confirmed()}>
+          <Button type="button" disabled={busy()} onClick={() => void confirmAssignment()}>Confirm this operator address</Button>
+        </Show>
+        <Show when={confirmed()}><p role="status">Address confirmed. Delegate from your Spaces wallet when ready.</p></Show>
+      </div>}</Show>
     </Card>
   );
 }
