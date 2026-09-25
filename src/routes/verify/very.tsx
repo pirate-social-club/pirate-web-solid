@@ -1,5 +1,6 @@
 import { Show, createSignal, onCleanup } from "solid-js";
 import { getRequestEvent } from "@solidjs/web";
+import { createRewardClaimData } from "../../api/reward-claim";
 import { resolveSession, sessionPersonasUnavailable, refreshSession, type ActivePersonaPublicProjection } from "../../api/session";
 import { communityJoinCandidates, defaultCommunityPersonaChoice, toCommunityPersonaChoiceWire, PERSONA_CREATION_UNAVAILABLE, type CommunityPersonaChoice } from "../../features/identity/community-persona-choice";
 import { CommunityPersonaChoiceDialog } from "../../features/identity/community-persona-choice-sheet";
@@ -135,6 +136,11 @@ function initialCreationTarget(): VeryCreationTarget | "invalid" | undefined {
   };
 }
 
+/** Spec 015 §5.2a: a reward winner verifies to claim held winnings. */
+function initialRewardClaim(): boolean {
+  return routeUrl()?.searchParams.get("purpose") === "reward_claim";
+}
+
 function initialReturnTo(): string {
   const value = routeUrl()?.searchParams.get("return_to") ?? "/";
   return value.startsWith("/") && !value.startsWith("//") ? value : "/";
@@ -151,12 +157,14 @@ export type VeryVerificationRouteProps = Readonly<{
   createCeremony?: typeof createVeryWebCeremony;
   resolveCommunityAction?: typeof resolveVeryCommunityAction;
   joinCommunity?: typeof joinVeryCommunity;
+  issueRewardClaimIntent?: () => Promise<string>;
 }>;
 export default function VeryVerificationRoute(props: VeryVerificationRouteProps = {}) {
   const [communityId, setCommunityId] = createSignal(initialCommunityId());
   const parsedCreationTarget = initialCreationTarget();
   const creationTarget = parsedCreationTarget === "invalid" ? undefined : parsedCreationTarget;
   const invalidCreationTarget = parsedCreationTarget === "invalid";
+  const rewardClaim = !invalidCreationTarget && creationTarget === undefined && initialRewardClaim();
   const returnTo = initialReturnTo();
   const [phase, setPhase] = createSignal<Phase>(invalidCreationTarget ? "error" : "idle");
   const [message, setMessage] = createSignal(
@@ -178,7 +186,8 @@ export default function VeryVerificationRoute(props: VeryVerificationRouteProps 
   let operationEpoch = 0;
   let pollingEpoch: number | undefined;
 
-  const operationTarget = () => creationTarget?.ceremonyIntentId ?? communityId().trim();
+  const operationTarget = () =>
+    creationTarget?.ceremonyIntentId ?? (rewardClaim ? "reward_claim" : communityId().trim());
 
   function operationIsCurrent(epoch: number, target: string): boolean {
     return active && operationEpoch === epoch && operationTarget() === target;
@@ -223,7 +232,7 @@ export default function VeryVerificationRoute(props: VeryVerificationRouteProps 
   async function finishVerification(result: VeryWebCompletion, target: string, epoch: number) {
     if (!operationIsCurrent(epoch, target)) return;
     setCompletion(result);
-    if (creationTarget !== undefined) {
+    if (creationTarget !== undefined || rewardClaim) {
       setMessage("");
       setPhase("verified");
       return;
@@ -357,6 +366,10 @@ export default function VeryVerificationRoute(props: VeryVerificationRouteProps 
       let created: VeryWebCeremony;
       if (creationTarget !== undefined) {
         created = await (props.createCeremony ?? createVeryWebCeremony)({ creation: creationTarget });
+      } else if (rewardClaim) {
+        const intentId = await (props.issueRewardClaimIntent ?? (() => createRewardClaimData().issueVerificationIntent()))();
+        if (!operationIsCurrent(epoch, value)) return;
+        created = await (props.createCeremony ?? createVeryWebCeremony)({ intentId });
       } else {
         let action = await (props.resolveCommunityAction ?? resolveVeryCommunityAction)({ communityId: value });
         while (operationIsCurrent(epoch, value) && action.kind === "wait") {
@@ -490,7 +503,10 @@ export default function VeryVerificationRoute(props: VeryVerificationRouteProps 
 
       <Show when={phase() === "idle" || phase() === "error"}>
         <Show when={!invalidCreationTarget}>
-          <Show when={creationTarget === undefined}>
+          <Show when={rewardClaim}>
+            <p>Verify with a palm scan to claim your winnings. You only need to do this once.</p>
+          </Show>
+          <Show when={creationTarget === undefined && !rewardClaim}>
             <TextField name="community-id" value={communityId()} onChange={setCommunityId}>
               <TextFieldLabel>Gated community ID</TextFieldLabel>
               <TextFieldInput autocomplete="off" />
@@ -508,7 +524,7 @@ export default function VeryVerificationRoute(props: VeryVerificationRouteProps 
 
       <Show when={phase() === "starting"}>
         <p role="status">
-          {creationTarget !== undefined ? "Starting palm verification…" : "Checking the gated-community join requirements…"}
+          {creationTarget !== undefined || rewardClaim ? "Starting palm verification…" : "Checking the gated-community join requirements…"}
         </p>
       </Show>
 
@@ -571,7 +587,11 @@ export default function VeryVerificationRoute(props: VeryVerificationRouteProps 
       <Show when={phase() === "verified"}>
         <section aria-label="Verification complete" role="status" class="flex flex-col gap-3">
           <h2 class="text-xl font-semibold">Verification complete</h2>
-          <p>Your Very proof was accepted. Continue to finish the pending action.</p>
+          <p>
+            {rewardClaim
+              ? "Your palm scan was accepted. Continue to claim your winnings."
+              : "Your Very proof was accepted. Continue to finish the pending action."}
+          </p>
           <Show when={completion() !== undefined}>
             <p class="break-all text-sm">Proof session: {completion()?.proofSessionId}</p>
           </Show>

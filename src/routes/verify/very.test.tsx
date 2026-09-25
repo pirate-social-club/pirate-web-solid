@@ -141,6 +141,35 @@ describe("Very verification route", () => {
     expect(container.textContent).toContain("Continue");
   });
 
+  it("starts a reward-claim ceremony from an issued intent and returns to the claim", async () => {
+    window.history.replaceState(
+      null,
+      "",
+      "/verify/very?purpose=reward_claim&return_to=%2Fwallet%3Fclaim%3Dcredit-1",
+    );
+    const issueRewardClaimIntent = vi.fn(async () => "reward-claim_1");
+    const createCeremony = vi.spyOn(veryApi, "createVeryWebCeremony").mockResolvedValue({
+      cancel: vi.fn(),
+      completeWithWidget: vi.fn(),
+      initialCompletion: { proofSessionId: "proof-session-2", replayed: false, status: "completed" },
+      pollBridge: vi.fn(),
+      presentation: undefined,
+      proofSessionId: "proof-session-2",
+    });
+
+    const container = render(() => <VeryVerificationRoute issueRewardClaimIntent={issueRewardClaimIntent} />);
+    expect(container.textContent).not.toContain("Gated community ID");
+    expect(container.textContent).toContain("claim your winnings");
+    container.querySelector("button")?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+    await vi.waitFor(() => expect(container.textContent).toContain("Verification complete"));
+    expect(issueRewardClaimIntent).toHaveBeenCalledTimes(1);
+    expect(createCeremony).toHaveBeenCalledWith({ intentId: "reward-claim_1" });
+    expect(veryApi.resolveVeryCommunityAction).not.toHaveBeenCalled();
+    expect(veryApi.joinVeryCommunity).not.toHaveBeenCalled();
+    expect(container.textContent).toContain("Continue to claim your winnings");
+  });
+
   it("rejects an incomplete or legacy creation target without resolving a join", () => {
     window.history.replaceState(null, "", "/verify/very?intent_id=creation-ceremony-1");
     const createCeremony = vi.spyOn(veryApi, "createVeryWebCeremony");

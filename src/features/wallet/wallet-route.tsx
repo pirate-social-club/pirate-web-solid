@@ -11,6 +11,21 @@ import { createWalletBalances } from "./wallet-balances.ts";
 import { readWalletBalances } from "./wallet-balance-reader.ts";
 import type { WalletNetworkMode } from "./wallet-network-catalog.ts";
 import { WalletPortfolio } from "./wallet-portfolio.tsx";
+import { createRewardClaimData } from "../../api/reward-claim.ts";
+import { WalletWinnings } from "../rewards/wallet-winnings.tsx";
+
+/** A claim to resume after returning from the palm scan (browser only). */
+function resumeClaimId(): string | undefined {
+  if (typeof window === "undefined") return undefined;
+  const value = new URL(window.location.href).searchParams.get("claim");
+  return value !== null && value.length > 0 && value.length <= 128 ? value : undefined;
+}
+
+function dropResumeClaim() {
+  const url = new URL(window.location.href);
+  url.searchParams.delete("claim");
+  window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`);
+}
 
 export function WalletRouteView() {
   const account = useApplicationSession();
@@ -65,6 +80,7 @@ export function WalletRouteView() {
     <Show when={authenticated()}>
       <Show when={loading()}><Type role="status">Loading wallets…</Type></Show>
       <Show when={failed()}><Card><CardContent class="flex flex-col items-start gap-4 p-6"><Type role="alert">Your wallets could not be loaded.</Type><Button variant="outline" onClick={load}>Try again</Button></CardContent></Card></Show>
+      <WalletWinnings data={createRewardClaimData()} resumeCreditId={resumeClaimId()} onResumeConsumed={dropResumeClaim} />
       <Show when={!loading() && !failed()}><WalletPortfolio chainSections={balances.sections()} balancesLoading={balances.loading()} onRefresh={balances.reload} networkMode={networkMode()} onNetworkModeChange={setNetworkMode} wallets={ownedWallets()} selectedPersonaId={profiles?.selected()?.personaId} onSelect={id => profiles?.select(id)} onChangeProfile={() => profiles?.setPickerOpen(true)} /></Show>
     </Show>
   </PageContainer></main>;
