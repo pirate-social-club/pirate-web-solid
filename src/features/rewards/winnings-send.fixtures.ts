@@ -1,6 +1,5 @@
 import type { RewardCredit } from "../../api/reward-claim.ts";
-import type { GasTopupRequest, TransferReceipt } from "../../api/reward-winnings-send.ts";
-import { createMemorySendMarkerStore, type SendMarker } from "./winnings-send-marker.ts";
+import type { GasTopupRequest, WinnerSendRecord } from "../../api/reward-winnings-send.ts";
 import type { WinningsSendDependencies, WinningsSendWallet } from "./winnings-send-sheet.tsx";
 
 /** Story data for sending paid winnings. The fixture code is 123456. */
@@ -10,26 +9,28 @@ export const paidWinning: RewardCredit = {
   amount_atomic: "12500000", available_atomic: "0", reserved_atomic: "0", paid_atomic: "12500000",
   source_kind: "megapot_allocation", state: "sent", created_at: "2026-09-25T00:00:00.000Z",
   updated_at: "2026-09-25T00:00:00.000Z", settled_at: "2026-09-25T00:00:00.000Z",
-  claim: { status: "accepted", payout_status: "confirmed" },
+  claim: { status: "accepted", payout_status: "confirmed" }, send: null,
 };
-
 export const fixtureSender = "0x7a3c1f6e2b9d4a5c8e0f1b2c3d4e5f6a7b8c9d0e";
 export const fixtureRecipient = "0x9b8a7c6d5e4f3a2b1c0d9e8f7a6b5c4d3e2f1a0b";
 export const fixtureHash = `0x${"5e".repeat(32)}`;
+export const fixtureRecord: WinnerSendRecord = {
+  object: "reward_winner_send", send_id: "winner-send_story", credit_id: paidWinning.credit_id,
+  status: "retryable", chain_id: 84532, sender: fixtureSender, recipient: fixtureRecipient,
+  token_address: paidWinning.token_address, amount_atomic: paidWinning.paid_atomic,
+  nonce: 7, attempt: 1, transaction_hashes: [], cancellation_hashes: [],
+};
 
 export type SendFixtureOptions = Readonly<{
   gas?: GasTopupRequest;
-  /** The wallet has no ETH of its own for the fee. */
   noEth?: boolean;
   uncertain?: boolean;
-  receipt?: TransferReceipt;
-  walletBusy?: boolean;
-  /** A transfer from an earlier visit that reached the broadcast step. */
-  previous?: SendMarker;
+  record?: WinnerSendRecord;
 }>;
 
 export function sendFixture(options: SendFixtureOptions = {}): WinningsSendDependencies {
   let authorized = false;
+  let record = options.record ?? null;
   const wallet: WinningsSendWallet = {
     async sendCode() {},
     async loginWithCode(_email, code) {
@@ -47,23 +48,34 @@ export function sendFixture(options: SendFixtureOptions = {}): WinningsSendDepen
       if (options.uncertain) throw new Error("wallet_submission_uncertain");
       return fixtureHash;
     },
+    async estimateCancellation() {
+      return { gasLimit: "25200", gasPriceAtomic: "1000000000", executionFeeAtomic: "25200000000000" };
+    },
+    async sendCancellation(_transfer, _fee, beforeBroadcast) { await beforeBroadcast(); return fixtureHash; },
     dispose() { authorized = false; },
   };
-  let reads = 0;
   return {
     data: {
       async sender() { return { address: fixtureSender, walletIndex: 0 }; },
       async tokenBalance() { return 12_500_000n; },
-      async transferReceipt() { return options.receipt ?? "confirmed"; },
-      async walletBusy() { return options.walletBusy ?? false; },
-      async requestGasTopup() { return options.gas ?? { status: "pending", topup_id: "gas-topup_story", amount_wei: "30000000000000" }; },
-      async readGasTopup() {
-        reads += 1;
-        return { status: reads > 1 ? "confirmed" : "broadcast", amount_wei: "30000000000000", transaction_hash: null };
+      async readSend() { return record; },
+      async requestSend(_creditId, recipient, amountAtomic) {
+        record = { ...fixtureRecord, recipient, amount_atomic: amountAtomic };
+        return record;
       },
+      async attachTransfer(_sendId, hash) {
+        record = { ...record!, status: "pending", transaction_hashes: [...record!.transaction_hashes, hash] };
+        return record;
+      },
+      async attachCancellation(_sendId, hash) {
+        record = { ...record!, status: "pending", cancellation_hashes: [...record!.cancellation_hashes, hash] };
+        return record;
+      },
+      async replacementGasPrice() { return 1_000_000_000n; },
+      async requestGasTopup() { return options.gas ?? { status: "not_needed", topup_id: null, amount_wei: null }; },
+      async readGasTopup() { return { status: "confirmed", amount_wei: "30000000000000", transaction_hash: null }; },
     },
     openWallet: async () => wallet,
-    markers: createMemorySendMarkerStore(options.previous === undefined ? [] : [options.previous]),
     poll: { intervalMs: 200, timeoutMs: 10_000 },
   };
 }

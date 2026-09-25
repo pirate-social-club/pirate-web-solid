@@ -9,7 +9,13 @@ const credit: RewardCredit = {
   amount_atomic: "2000000", available_atomic: "0", reserved_atomic: "0", paid_atomic: "2000000",
   source_kind: "megapot_allocation", state: "sent", created_at: "2026-09-25T00:00:00.000Z",
   updated_at: "2026-09-25T00:00:00.000Z", settled_at: "2026-09-25T00:00:00.000Z",
-  claim: { status: "accepted", payout_status: "confirmed" },
+  claim: { status: "accepted", payout_status: "confirmed" }, send: null,
+};
+const record = {
+  object: "reward_winner_send", send_id: "send_1", credit_id: credit.credit_id, status: "retryable",
+  chain_id: 84532, sender: "0xabcdefabcdefabcdefabcdefabcdefabcdefabcd",
+  recipient: "0x5555555555555555555555555555555555555555", token_address: credit.token_address,
+  amount_atomic: "2000000", nonce: 7, attempt: 1, transaction_hashes: [], cancellation_hashes: [],
 };
 
 type PersonaRow = Readonly<{ id: string; status: string; address: string | null; index: number }>;
@@ -23,7 +29,7 @@ function persona(row: PersonaRow) {
   };
 }
 
-function harness(rows: readonly PersonaRow[], csrf: () => string | undefined = () => "csrf-fixture") {
+function harness(rows: readonly PersonaRow[], csrf: () => string | undefined = () => "csrf-fixture", sendMissing = false) {
   const fetchImpl = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = new URL(input instanceof Request ? input.url : input.toString());
     const path = url.pathname.slice(4);
@@ -33,11 +39,19 @@ function harness(rows: readonly PersonaRow[], csrf: () => string | undefined = (
       expect(new Headers(init.headers).get("x-csrf-token")).toBe("csrf-fixture");
       response = { status: "pending", topup_id: "gas-topup_1", amount_wei: "1000" };
     } else if (path === "/rewards/gas-topups/gas-topup_1") response = { status: "confirmed", amount_wei: "1000", transaction_hash: null };
+    else if (path === "/rewards/credits/credit_1/send") {
+      if (sendMissing && init?.method !== "POST") {
+        return new Response(JSON.stringify({ code: "not_found", message: "not found" }), { status: 404, headers: { "content-type": "application/json" } });
+      }
+      response = record;
+    }
+    else if (path === "/rewards/winner-sends/send_1/transactions") response = { ...record, status: "pending", transaction_hashes: [`0x${"ab".repeat(32)}`] };
+    else if (path === "/rewards/winner-sends/send_1/cancellation") response = { ...record, status: "pending", cancellation_hashes: [`0x${"ab".repeat(32)}`] };
     else throw new Error(`unexpected ${path}`);
     return new Response(JSON.stringify(response), { status: 200, headers: { "content-type": "application/json" } });
   });
   const data = createWinningsSendData(createSessionApiClient({ origin: "https://app.example", fetchImpl }), csrf, {
-    tokenBalance: async () => 0n, transferReceipt: async () => "pending", walletBusy: async () => false,
+    tokenBalance: async () => 0n, replacementGasPrice: async () => 1n,
   });
   return { data, fetchImpl };
 }
@@ -69,5 +83,21 @@ describe("winnings send data", () => {
     const { data, fetchImpl } = harness([], () => undefined);
     await expect(data.requestGasTopup("credit_1", "key-1")).rejects.toThrow("winnings_send_csrf_required");
     expect(fetchImpl).not.toHaveBeenCalled();
+  });
+  it("treats only a missing server send as a blank form", async () => {
+    const { data } = harness([], () => "csrf-fixture", true);
+    expect(await data.readSend("credit_1")).toBeNull();
+  });
+  it("records a send before signing and attaches the reported hash with CSRF", async () => {
+    const { data, fetchImpl } = harness([]);
+    const created = await data.requestSend("credit_1", record.recipient, "2000000", "key-1");
+    expect(created.nonce).toBe(7);
+    expect(await data.readSend("credit_1")).toMatchObject({ send_id: "send_1", nonce: 7 });
+    await data.attachTransfer("send_1", `0x${"ab".repeat(32)}`);
+    await data.attachCancellation("send_1", `0x${"ab".repeat(32)}`);
+    const writes = fetchImpl.mock.calls.filter(([, init]) => init?.method === "POST");
+    expect(writes).toHaveLength(3);
+    for (const [, init] of writes) expect(new Headers(init?.headers).get("x-csrf-token")).toBe("csrf-fixture");
+    expect(JSON.parse(String(writes[0]?.[1]?.body))).toEqual({ recipient: record.recipient, amount_atomic: "2000000", idempotency_key: "key-1" });
   });
 });

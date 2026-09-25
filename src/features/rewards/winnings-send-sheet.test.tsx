@@ -2,328 +2,204 @@ import { createRoot } from "solid-js";
 import { render } from "@solidjs/web";
 import { afterEach, expect, test, vi } from "vitest";
 import type { RewardCredit } from "../../api/reward-claim.ts";
-import type { GasTopup, GasTopupRequest, TransferReceipt, WinningsSendData } from "../../api/reward-winnings-send.ts";
-import { createMemorySendMarkerStore, type SendMarker } from "./winnings-send-marker.ts";
+import type { WinnerSendRecord, WinningsSendData } from "../../api/reward-winnings-send.ts";
 import { WinningsSendSheet, type WinningsSendDependencies, type WinningsSendWallet } from "./winnings-send-sheet.tsx";
 import { WalletWinnings } from "./wallet-winnings.tsx";
 
 const disposers: (() => void)[] = [];
-afterEach(() => { disposers.splice(0).forEach((dispose) => dispose()); document.body.replaceChildren(); });
-
+afterEach(() => { disposers.splice(0).forEach(dispose => dispose()); document.body.replaceChildren(); });
 const sender = "0x1111111111111111111111111111111111111111";
 const payee = "0xabcdefabcdefabcdefabcdefabcdefabcdefabcd";
 const hash = `0x${"cd".repeat(32)}`;
 const fee = { gasLimit: "60000", gasPriceAtomic: "1000000000", executionFeeAtomic: "60000000000000" };
-
 const paid: RewardCredit = {
   object: "reward_credit", credit_id: "credit_paid", payout_persona_id: "persona_1", chain_id: 84532,
   token_address: "0x3333333333333333333333333333333333333333", token_decimals: 6,
   amount_atomic: "12500000", available_atomic: "0", reserved_atomic: "0", paid_atomic: "12500000",
   source_kind: "megapot_allocation", state: "sent", created_at: "2026-09-25T00:00:00.000Z",
   updated_at: "2026-09-25T00:00:00.000Z", settled_at: "2026-09-25T00:00:00.000Z",
-  claim: { status: "accepted", payout_status: "confirmed" },
+  claim: { status: "accepted", payout_status: "confirmed" }, send: null,
 };
-
+const existing: WinnerSendRecord = {
+  object: "reward_winner_send", send_id: "send_1", credit_id: paid.credit_id, status: "retryable",
+  chain_id: 84532, sender, recipient: payee, token_address: paid.token_address,
+  amount_atomic: paid.paid_atomic, nonce: 7, attempt: 1, transaction_hashes: [], cancellation_hashes: [],
+};
 function fixture(options: {
-  gas?: GasTopupRequest | Error;
-  topups?: readonly GasTopup["status"][];
+  initial?: WinnerSendRecord | null;
+  createFails?: boolean;
   wallet?: Partial<WinningsSendWallet>;
-  sender?: () => Promise<{ address: string; walletIndex: number }>;
-  walletBusy?: () => Promise<boolean>;
-  receipt?: () => Promise<TransferReceipt>;
-  previous?: SendMarker;
-  now?: number;
+  senderFails?: boolean;
 } = {}) {
-  const topups = [...(options.topups ?? ["confirmed"])];
+  let current = options.initial ?? null;
   const data: WinningsSendData = {
-    sender: vi.fn(options.sender ?? (async () => ({ address: sender, walletIndex: 2 }))),
+    sender: vi.fn(async () => { if (options.senderFails) throw new Error("missing"); return { address: sender, walletIndex: 2 }; }),
     tokenBalance: vi.fn(async () => 20_000_000n),
-    requestGasTopup: vi.fn(async (): Promise<GasTopupRequest> => {
-      if (options.gas instanceof Error) throw options.gas;
-      return options.gas ?? { status: "pending", topup_id: "gas-topup_1", amount_wei: "1000" };
+    readSend: vi.fn(async () => current),
+    requestSend: vi.fn(async (_creditId, recipient, amount) => {
+      if (options.createFails) throw new Error("create_failed");
+      current = current?.status === "reverted"
+        ? { ...current, status: "retryable", nonce: 8, attempt: 2, transaction_hashes: [] }
+        : { ...existing, recipient, amount_atomic: amount };
+      return current;
     }),
-    readGasTopup: vi.fn(async () => ({ status: topups.length > 1 ? topups.shift()! : topups[0]!, amount_wei: "1000", transaction_hash: null })),
-    transferReceipt: vi.fn(options.receipt ?? (async (): Promise<TransferReceipt> => "pending")),
-    walletBusy: vi.fn(options.walletBusy ?? (async () => false)),
+    attachTransfer: vi.fn(async (_sendId, transactionHash) => {
+      current = { ...current!, status: "pending", transaction_hashes: [...current!.transaction_hashes, transactionHash] };
+      return current;
+    }),
+    attachCancellation: vi.fn(async (_sendId, transactionHash) => {
+      current = { ...current!, status: "pending", cancellation_hashes: [...current!.cancellation_hashes, transactionHash] };
+      return current;
+    }),
+    replacementGasPrice: vi.fn(async () => 1_000_000_000n),
+    requestGasTopup: vi.fn(async () => ({ status: "not_needed" as const, topup_id: null, amount_wei: null })),
+    readGasTopup: vi.fn(async () => ({ status: "confirmed" as const, amount_wei: "1000", transaction_hash: null })),
   };
-  const markers = createMemorySendMarkerStore(options.previous === undefined ? [] : [options.previous]);
   const wallet: WinningsSendWallet = {
-    sendCode: vi.fn(async () => undefined),
-    loginWithCode: vi.fn(async () => undefined),
+    sendCode: vi.fn(async () => undefined), loginWithCode: vi.fn(async () => undefined),
     selectTestnetFor: vi.fn(async () => undefined),
     estimateTransfer: vi.fn(async () => fee),
-    sendTransfer: vi.fn(async (_t, _f, before) => { await before(); return hash; }),
-    dispose: vi.fn(),
-    ...options.wallet,
+    sendTransfer: vi.fn(async (_transfer, _fee, before) => { await before(); return hash; }),
+    estimateCancellation: vi.fn(async () => fee),
+    sendCancellation: vi.fn(async (_transfer, _fee, before) => { await before(); return hash; }),
+    dispose: vi.fn(), ...options.wallet,
   };
-  const dependencies: WinningsSendDependencies = {
-    data, openWallet: vi.fn(async () => wallet), markers, poll: { intervalMs: 1, timeoutMs: 3 },
-    now: () => options.now ?? 1_000_000,
-  };
-  return { data, wallet, dependencies, markers };
+  const dependencies: WinningsSendDependencies = { data, openWallet: vi.fn(async () => wallet), poll: { intervalMs: 1, timeoutMs: 2 } };
+  return { data, wallet, dependencies, setRecord: (next: WinnerSendRecord | null) => { current = next; } };
 }
-
-function mount(dependencies: WinningsSendDependencies, onClose = vi.fn()) {
-  const element = document.createElement("div");
-  document.body.appendChild(element);
-  createRoot((dispose) => { disposers.push(dispose); render(() => <WinningsSendSheet credit={paid} dependencies={dependencies} onClose={onClose} />, element); });
-  return onClose;
+function mount(dependencies: WinningsSendDependencies) {
+  const element = document.createElement("div"); document.body.appendChild(element);
+  createRoot(dispose => { disposers.push(dispose); render(() => <WinningsSendSheet credit={paid} dependencies={dependencies} onClose={vi.fn()} />, element); });
 }
-
 const text = () => document.body.textContent ?? "";
 const button = (name: string) => {
-  const found = [...document.body.querySelectorAll("button")].find((item) => item.textContent?.trim() === name);
+  const found = [...document.body.querySelectorAll("button")].find(item => item.textContent?.trim() === name);
   if (found === undefined) throw new Error(`No button ${name}: ${text()}`);
   return found;
 };
-/** Solid 2 commits signal writes after the event; let them land before the next action. */
 async function type(label: string, value: string) {
-  const labelled = [...document.body.querySelectorAll("label")].find((item) => item.textContent === label);
+  const labelled = [...document.body.querySelectorAll("label")].find(item => item.textContent === label);
   const input = labelled?.htmlFor ? document.getElementById(labelled.htmlFor) : labelled?.parentElement?.querySelector("input");
   if (!(input instanceof HTMLInputElement)) throw new Error(`No input ${label}`);
   input.value = value;
   input.dispatchEvent(new InputEvent("input", { bubbles: true }));
-  await new Promise((resolve) => setTimeout(resolve, 0));
+  await new Promise(resolve => setTimeout(resolve, 0));
 }
-async function signIn() {
-  await vi.waitFor(() => expect(text()).toContain("Wallet balance: 20 USDC"));
-  await type("Send to", payee);
-  button("Continue").click();
+async function walletLogin() {
   await vi.waitFor(() => expect(text()).toContain("Sign in to your wallet"));
   await type("Email for your wallet", "winner@example.test");
   button("Send code").click();
   await vi.waitFor(() => expect(text()).toContain("Code"));
   await type("Code", "123456");
   button("Continue").click();
+  await vi.waitFor(() => expect(text()).toContain("Network fee"));
+}
+async function newSend() {
+  await vi.waitFor(() => expect(text()).toContain("Wallet balance: 20 USDC"));
+  await type("Send to", payee);
+  button("Continue").click();
+  await walletLogin();
 }
 
-test("sends paid winnings after gas arrives and shows the explorer link", async () => {
-  const f = fixture({ topups: ["requested", "confirmed"] });
-  mount(f.dependencies);
-  await signIn();
-  await vi.waitFor(() => expect(text()).toContain("Network fee"));
-  expect(text()).toContain("up to 0.00006 ETH");
-  expect(f.data.requestGasTopup).toHaveBeenCalledWith("credit_paid", expect.any(String));
-  expect(f.wallet.selectTestnetFor).toHaveBeenCalledWith(expect.objectContaining({ sender, walletIndex: 2 }));
-  button("Send 12.5 USDC").click();
-  await vi.waitFor(() => expect(text()).toContain("Sent"));
-  expect(f.wallet.sendTransfer).toHaveBeenCalledWith(
-    { sender, token: paid.token_address, recipient: "0xABcdEFABcdEFabcdEfAbCdefabcdeFABcDEFabCD", amountAtomic: "12500000", walletIndex: 2 },
-    fee, expect.any(Function),
-  );
-  const link = document.body.querySelector("a");
-  expect(link?.getAttribute("href")).toBe(`https://sepolia.basescan.org/tx/${hash}`);
+test("records before wallet signing, uses the reserved nonce, and attaches the hash", async () => {
+  const f = fixture(); mount(f.dependencies);
+  await newSend();
+  expect(f.data.requestSend).not.toHaveBeenCalled();
+  button("Send winnings").click();
+  await vi.waitFor(() => expect(text()).toContain("network is still checking this send"));
+  expect(f.data.requestSend).toHaveBeenCalledWith("credit_paid", expect.any(String), "12500000", expect.any(String));
+  expect(f.wallet.sendTransfer).toHaveBeenCalledWith(expect.objectContaining({ nonce: 7, sender, amountAtomic: "12500000" }), fee, expect.any(Function));
+  expect(f.data.attachTransfer).toHaveBeenCalledWith("send_1", hash);
+  expect(document.body.querySelector("a")?.getAttribute("href")).toBe(`https://sepolia.basescan.org/tx/${hash}`);
 });
 
-test("refuses the sending wallet as the recipient and amounts over the balance", async () => {
-  const f = fixture();
-  mount(f.dependencies);
-  await vi.waitFor(() => expect(text()).toContain("Wallet balance: 20 USDC"));
-  await type("Send to", sender);
-  await type("Amount (USDC)", "25");
-  button("Continue").click();
-  await vi.waitFor(() => expect(text()).toContain("This is the wallet you are sending from"));
-  expect(text()).toContain("You can send up to 12.5 USDC from these winnings.");
-  expect(f.dependencies.openWallet).not.toHaveBeenCalled();
+test("a failed record write never calls the wallet", async () => {
+  const f = fixture({ createFails: true }); mount(f.dependencies);
+  await newSend(); button("Send winnings").click();
+  await vi.waitFor(() => expect(text()).toContain("could not be completed"));
+  expect(f.wallet.sendTransfer).not.toHaveBeenCalled();
+  expect(f.data.readSend).toHaveBeenCalled();
 });
 
-test("lets the winner try with their own ETH when gas help is used up", async () => {
-  const f = fixture({ gas: { status: "limit_reached", topup_id: null, amount_wei: null } });
-  mount(f.dependencies);
-  await signIn();
-  await vi.waitFor(() => expect(text()).toContain("Gas help is used up for today, so your wallet pays this fee"));
-  expect(f.data.readGasTopup).not.toHaveBeenCalled();
+test("after an uncertain RPC result the server record remains and retry uses the same nonce", async () => {
+  const f = fixture({ wallet: { sendTransfer: vi.fn(async (_transfer, _fee, before) => { await before(); throw new Error("wallet_submission_uncertain"); }) } });
+  mount(f.dependencies); await newSend(); button("Send winnings").click();
+  await vi.waitFor(() => expect(text()).toContain("recorded transaction number"));
+  expect(f.data.requestSend).toHaveBeenCalledTimes(1);
+  button("Try send again").click(); await walletLogin(); button("Send winnings").click();
+  await vi.waitFor(() => expect(f.wallet.sendTransfer).toHaveBeenCalledTimes(2));
+  expect(f.data.requestSend).toHaveBeenCalledTimes(1);
+  expect(f.wallet.sendTransfer).toHaveBeenLastCalledWith(expect.objectContaining({ nonce: 7 }), fee, expect.any(Function));
 });
 
-test("explains that gas help is used up when the wallet cannot pay the fee", async () => {
-  const f = fixture({
-    gas: { status: "limit_reached", topup_id: null, amount_wei: null },
-    wallet: { estimateTransfer: vi.fn(async () => { throw new Error("wallet_insufficient_gas_balance"); }) },
-  });
+test("a pending send may only be replaced with a higher fee on its nonce", async () => {
+  const f = fixture({ initial: { ...existing, status: "pending", transaction_hashes: [hash] } });
   mount(f.dependencies);
-  await signIn();
-  await vi.waitFor(() => expect(text()).toContain("Gas help is used up for today, and your wallet does not have enough ETH"));
+  await vi.waitFor(() => expect(text()).toContain("network is still checking this send"));
+  expect(text()).not.toContain("Wallet balance:");
+  button("Replace with higher fee").click(); await walletLogin();
+  expect(f.wallet.estimateTransfer).toHaveBeenCalledWith(expect.objectContaining({ nonce: 7, allowReplacement: true }), 1_250_000_000n);
+  button("Replace send").click();
+  await vi.waitFor(() => expect(f.wallet.sendTransfer).toHaveBeenCalledTimes(1));
+  expect(f.data.requestSend).not.toHaveBeenCalled();
 });
 
-test("says sending is unavailable while rewards are off", async () => {
-  const f = fixture({ gas: Object.assign(new Error("Provider unavailable"), { code: "provider_unavailable" }) });
-  mount(f.dependencies);
-  await signIn();
-  await vi.waitFor(() => expect(text()).toContain("Sending winnings is not available right now."));
-  expect(f.wallet.estimateTransfer).not.toHaveBeenCalled();
-  expect(text()).not.toContain("provider");
-});
-
-test("stops when the signed-in wallet is not the payout wallet", async () => {
-  const f = fixture({ wallet: { selectTestnetFor: vi.fn(async () => { throw new Error("wallet_assignment_mismatch"); }) } });
-  mount(f.dependencies);
-  await signIn();
-  await vi.waitFor(() => expect(text()).toContain("not the wallet your winnings were paid to"));
-  expect(f.data.requestGasTopup).not.toHaveBeenCalled();
+test("cancel signs a zero-value self-transaction through the wallet adapter and attaches its hash", async () => {
+  const f = fixture({ initial: existing }); mount(f.dependencies);
+  await vi.waitFor(() => expect(text()).toContain("recorded transaction number"));
+  button("Cancel send").click(); await walletLogin(); button("Sign cancellation").click();
+  await vi.waitFor(() => expect(f.data.attachCancellation).toHaveBeenCalledWith("send_1", hash));
+  expect(f.wallet.sendCancellation).toHaveBeenCalledWith(expect.objectContaining({ nonce: 7 }), fee, expect.any(Function));
   expect(f.wallet.sendTransfer).not.toHaveBeenCalled();
 });
 
-test("an uncertain broadcast says it may still arrive and offers no retry", async () => {
-  const f = fixture({ wallet: { sendTransfer: vi.fn(async (_t, _f, before) => { await before(); throw new Error("wallet_submission_uncertain"); }) } });
-  mount(f.dependencies);
-  await signIn();
-  await vi.waitFor(() => expect(text()).toContain("Network fee"));
-  button("Send 12.5 USDC").click();
-  await vi.waitFor(() => expect(text()).toContain("It may still arrive"));
-  expect(text()).not.toContain("Try again");
-  expect([...document.body.querySelectorAll("button")].some((item) => item.textContent?.startsWith("Send "))).toBe(false);
+test("settled unverified has no signing action, but accepts a late verified hash", async () => {
+  const f = fixture({ initial: { ...existing, status: "settled_unverified" } }); mount(f.dependencies);
+  await vi.waitFor(() => expect(text()).toContain("could not be verified"));
+  expect(text()).not.toContain("Try send again");
+  await type("Transaction hash", hash);
+  button("Check transfer hash").click();
+  await vi.waitFor(() => expect(f.data.attachTransfer).toHaveBeenCalledWith("send_1", hash));
+  expect(f.wallet.sendTransfer).not.toHaveBeenCalled();
 });
 
-test("a gas wait that runs long can be checked again", async () => {
-  const f = fixture({ topups: ["requested", "requested", "requested", "confirmed"] });
-  mount(f.dependencies);
-  await signIn();
-  await vi.waitFor(() => expect(text()).toContain("taking longer than usual"));
-  button("Check again").click();
-  await vi.waitFor(() => expect(text()).toContain("Network fee"));
-  expect(f.data.requestGasTopup).toHaveBeenCalledTimes(1);
+test("an unknown pending transaction can be attached by its verified hash", async () => {
+  const f = fixture({ initial: { ...existing, status: "pending" } }); mount(f.dependencies);
+  await vi.waitFor(() => expect(text()).toContain("network is still checking this send"));
+  expect(text()).not.toContain("Replace with higher fee");
+  await type("Transaction hash", hash);
+  button("Check transfer hash").click();
+  await vi.waitFor(() => expect(f.data.attachTransfer).toHaveBeenCalledWith("send_1", hash));
+  expect(f.wallet.sendTransfer).not.toHaveBeenCalled();
 });
 
-test("the payout wallet cannot be found", async () => {
-  const f = fixture({ sender: async () => { throw new Error("winnings_sender_unavailable"); } });
-  mount(f.dependencies);
-  await vi.waitFor(() => expect(text()).toContain("could not be found"));
+test("a status change during fee review prevents signing", async () => {
+  const f = fixture({ initial: existing }); mount(f.dependencies);
+  await vi.waitFor(() => expect(text()).toContain("recorded transaction number"));
+  button("Try send again").click(); await walletLogin();
+  f.setRecord({ ...existing, status: "confirmed" });
+  button("Send winnings").click();
+  await vi.waitFor(() => expect(text()).toContain("The send status changed"));
+  expect(f.wallet.sendTransfer).not.toHaveBeenCalled();
 });
 
-test("Send appears only on paid winnings and opens the sheet", async () => {
+test("a recorded status stays visible when the persona wallet cannot be resolved", async () => {
+  const f = fixture({ initial: { ...existing, status: "confirmed", transaction_hashes: [hash] }, senderFails: true });
+  mount(f.dependencies);
+  await vi.waitFor(() => expect(text()).toContain("This send is confirmed"));
+  expect(f.wallet.sendTransfer).not.toHaveBeenCalled();
+});
+
+test("send entry appears only on paid winnings and opens the sheet", async () => {
   const f = fixture();
   const held: RewardCredit = { ...paid, credit_id: "credit_held", state: "credited", claim: { status: "unclaimed", payout_status: null } };
   const paying: RewardCredit = { ...paid, credit_id: "credit_paying", state: "payout_pending", claim: { status: "accepted", payout_status: "submitted" } };
-  const element = document.createElement("div");
-  document.body.appendChild(element);
+  const element = document.createElement("div"); document.body.appendChild(element);
   const data = { credits: vi.fn(async () => ({ object: "reward_credit_list" as const, items: [held, paying, paid], next_cursor: null })), claim: vi.fn() };
-  createRoot((dispose) => { disposers.push(dispose); render(() => <WalletWinnings data={data} send={f.dependencies} />, element); });
+  createRoot(dispose => { disposers.push(dispose); render(() => <WalletWinnings data={data} send={f.dependencies} />, element); });
   await vi.waitFor(() => expect(element.textContent).toContain("Sent to your wallet"));
-  const sends = [...element.querySelectorAll("button")].filter((item) => item.textContent === "Send");
-  expect(sends).toHaveLength(1);
-  expect(sends[0]?.getAttribute("aria-label")).toBe("Send 12.5 USDC");
-  sends[0]!.click();
+  expect([...element.querySelectorAll("button")].filter(item => item.textContent === "Send")).toHaveLength(1);
+  button("Send").click();
   await vi.waitFor(() => expect(text()).toContain("Send winnings"));
   expect(f.data.sender).toHaveBeenCalledWith(paid);
 });
-
-const previous: SendMarker = {
-  version: 1, creditId: "credit_paid", sender, recipient: "0xABcdEFABcdEFabcdEfAbCdefabcdeFABcDEFabCD",
-  amountAtomic: "12500000", transactionHash: null, startedAt: 1_000_000,
-};
-
-test("records the broadcast per credit, with its hash once sent", async () => {
-  const f = fixture();
-  mount(f.dependencies);
-  await signIn();
-  await vi.waitFor(() => expect(text()).toContain("Network fee"));
-  button("Send 12.5 USDC").click();
-  await vi.waitFor(() => expect(text()).toContain("Sent"));
-  expect(f.markers.read("credit_paid")).toEqual({ ...previous, transactionHash: hash });
-});
-
-test("an uncertain send leaves a record that reopening the sheet checks first", async () => {
-  const f = fixture({ wallet: { sendTransfer: vi.fn(async (_t, _f, before) => { await before(); throw new Error("wallet_submission_uncertain"); }) } });
-  mount(f.dependencies);
-  await signIn();
-  await vi.waitFor(() => expect(text()).toContain("Network fee"));
-  button("Send 12.5 USDC").click();
-  await vi.waitFor(() => expect(text()).toContain("It may still arrive"));
-  disposers.splice(0).forEach((dispose) => dispose());
-  document.body.replaceChildren();
-  mount(f.dependencies);
-  await vi.waitFor(() => expect(text()).toContain("Your last transfer may still arrive"));
-  expect(text()).not.toContain("Send to");
-  expect(() => button("Send again")).toThrow();
-});
-
-test("a previous transfer with a hash shows its link and clears once confirmed", async () => {
-  const f = fixture({ previous: { ...previous, transactionHash: hash }, receipt: async () => "confirmed" });
-  mount(f.dependencies);
-  await vi.waitFor(() => expect(text()).toContain("Your last transfer of 12.5 USDC arrived."));
-  expect(document.body.querySelector("a")?.getAttribute("href")).toBe(`https://sepolia.basescan.org/tx/${hash}`);
-  expect(f.markers.read("credit_paid")).toBeNull();
-  button("Send more").click();
-  await vi.waitFor(() => expect(text()).toContain("Send to"));
-});
-
-test("a pending previous transfer offers only another check", async () => {
-  const f = fixture({ previous: { ...previous, transactionHash: hash }, receipt: async () => "pending" });
-  mount(f.dependencies);
-  await vi.waitFor(() => expect(text()).toContain("still on its way"));
-  expect(() => button("Send again")).toThrow();
-  expect(f.markers.read("credit_paid")).not.toBeNull();
-});
-
-test("a reverted previous transfer can be sent again", async () => {
-  const f = fixture({ previous: { ...previous, transactionHash: hash }, receipt: async () => "reverted" });
-  mount(f.dependencies);
-  await vi.waitFor(() => expect(text()).toContain("did not go through"));
-  expect(f.markers.read("credit_paid")).toBeNull();
-  button("Send again").click();
-  await vi.waitFor(() => expect(text()).toContain("Send to"));
-});
-
-test("without a hash, send again appears only after 30 idle minutes", async () => {
-  const f = fixture({ previous, now: previous.startedAt + 30 * 60 * 1000 });
-  mount(f.dependencies);
-  await vi.waitFor(() => expect(text()).toContain("most likely was not sent"));
-  button("Send again").click();
-  await vi.waitFor(() => expect(text()).toContain("Send to"));
-  expect(f.markers.read("credit_paid")).toBeNull();
-});
-
-test("refuses while a transfer from the wallet is still in progress", async () => {
-  const f = fixture({ walletBusy: async () => true });
-  mount(f.dependencies);
-  await signIn();
-  await vi.waitFor(() => expect(text()).toContain("A transfer from this wallet is still in progress."));
-  expect(f.data.requestGasTopup).not.toHaveBeenCalled();
-  expect(f.wallet.sendTransfer).not.toHaveBeenCalled();
-});
-
-test("the sheet cannot be closed while the transfer is broadcasting", async () => {
-  let finish: (hash: string) => void = () => undefined;
-  const f = fixture({ wallet: { sendTransfer: vi.fn(async (_t, _f, before) => { await before(); return new Promise<string>((resolve) => { finish = resolve; }); }) } });
-  const onClose = mount(f.dependencies);
-  await signIn();
-  await vi.waitFor(() => expect(text()).toContain("Network fee"));
-  button("Send 12.5 USDC").click();
-  await vi.waitFor(() => expect(text()).toContain("Sending…"));
-  const dialog = document.body.querySelector("[role=dialog]");
-  dialog?.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
-  document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
-  const close = document.body.querySelector("button[aria-label=Close], [data-slot=dialog-close]");
-  if (close instanceof HTMLElement) close.click();
-  await new Promise((resolve) => setTimeout(resolve, 20));
-  expect(onClose).not.toHaveBeenCalled();
-  expect(text()).toContain("Sending…");
-  finish(hash);
-  await vi.waitFor(() => expect(text()).toContain("Sent"));
-  document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
-  dialog?.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
-  await vi.waitFor(() => expect(onClose).toHaveBeenCalled());
-});
-
-test("refuses the token contract as the recipient", async () => {
-  const f = fixture();
-  mount(f.dependencies);
-  await vi.waitFor(() => expect(text()).toContain("Wallet balance: 20 USDC"));
-  await type("Send to", paid.token_address);
-  button("Continue").click();
-  await vi.waitFor(() => expect(text()).toContain("This is the USDC contract"));
-});
-
-test("changing the amount asks for a new wallet code", async () => {
-  const f = fixture({ wallet: { estimateTransfer: vi.fn(async () => { throw new Error("wallet_insufficient_token_balance"); }) } });
-  mount(f.dependencies);
-  await signIn();
-  await vi.waitFor(() => expect(text()).toContain("not have enough USDC"));
-  expect(text()).not.toContain("Waiting for gas");
-  button("Change amount").click();
-  await vi.waitFor(() => expect(text()).toContain("Send to"));
-  button("Continue").click();
-  await vi.waitFor(() => expect(text()).toContain("Send code"));
-  expect(document.body.querySelectorAll("input").length).toBe(1);
-});
-

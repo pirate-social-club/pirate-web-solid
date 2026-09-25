@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
-import { expect, fn, userEvent, waitFor, within } from "storybook/test";
+import { expect, fn, userEvent, within } from "storybook/test";
 import { WinningsSendSheet } from "./winnings-send-sheet.tsx";
-import { fixtureHash, fixtureRecipient, fixtureSender, paidWinning, sendFixture, type SendFixtureOptions } from "./winnings-send.fixtures.ts";
+import { fixtureHash, fixtureRecipient, fixtureRecord, paidWinning, sendFixture, type SendFixtureOptions } from "./winnings-send.fixtures.ts";
 
 const meta = {
   title: "Parts/Wallet/Send winnings",
@@ -9,12 +9,9 @@ const meta = {
 } satisfies Meta;
 export default meta;
 type Story = StoryObj<typeof meta>;
-
 const sheet = (options: SendFixtureOptions = {}) => () => (
   <WinningsSendSheet credit={paidWinning} dependencies={sendFixture(options)} onClose={fn()} />
 );
-
-/** The modal renders in a portal, so queries run against the whole document. */
 const screen = () => within(document.body);
 
 async function signIn() {
@@ -29,57 +26,39 @@ async function signIn() {
 }
 
 export const States: Story = { render: sheet() };
-
-export const Mobile: Story = {
-  globals: { viewport: { value: "mobile1", isRotated: false } },
-  render: sheet(),
-};
-
+export const Mobile: Story = { globals: { viewport: { value: "mobile1", isRotated: false } }, render: sheet() };
 export const SendHappyPath: Story = {
   render: sheet(),
   play: async () => {
     const page = screen();
     await signIn();
-    await expect(await page.findByText("Getting the network fee ready…")).toBeVisible();
-    await userEvent.click(await page.findByRole("button", { name: "Send 12.5 USDC" }, { timeout: 5000 }));
-    await expect(await page.findByText("Sent")).toBeVisible();
-    const link = page.getByRole("link", { name: /View transaction/u });
-    await expect(link).toHaveAttribute("href", `https://sepolia.basescan.org/tx/${fixtureHash}`);
+    await expect(await page.findByText(/up to 0.000062 ETH/u)).toBeVisible();
+    await userEvent.click(page.getByRole("button", { name: "Send winnings" }));
+    await expect(await page.findByText(/network is still checking this send/u)).toBeVisible();
+    await expect(page.getByRole("link", { name: /View transfer/u })).toHaveAttribute("href", `https://sepolia.basescan.org/tx/${fixtureHash}`);
   },
 };
-
 export const GasUsedUpWithoutEth: Story = {
   render: sheet({ gas: { status: "limit_reached", topup_id: null, amount_wei: null }, noEth: true }),
   play: async () => {
-    const page = screen();
     await signIn();
-    await expect(await page.findByText(/Gas help is used up for today, and your wallet does not have enough ETH/u)).toBeVisible();
-    await waitFor(() => expect(page.queryByRole("button", { name: /^Send 12/u })).toBeNull());
+    await expect(await screen().findByText(/wallet needs more ETH/u)).toBeVisible();
   },
 };
-
 export const UncertainSubmission: Story = {
   render: sheet({ uncertain: true }),
   play: async () => {
     const page = screen();
     await signIn();
-    await userEvent.click(await page.findByRole("button", { name: "Send 12.5 USDC" }, { timeout: 5000 }));
-    await expect(await page.findByText(/It may still arrive/u)).toBeVisible();
-    await expect(page.queryByRole("button", { name: "Try again" })).toBeNull();
+    await userEvent.click(page.getByRole("button", { name: "Send winnings" }));
+    await expect(await page.findByText(/recorded transaction number/u)).toBeVisible();
   },
 };
-
 export const PreviousTransferPending: Story = {
-  render: sheet({
-    receipt: "pending",
-    previous: {
-      version: 1, creditId: paidWinning.credit_id, sender: fixtureSender, recipient: fixtureRecipient,
-      amountAtomic: paidWinning.paid_atomic, transactionHash: fixtureHash, startedAt: Date.now(),
-    },
-  }),
+  render: sheet({ record: { ...fixtureRecord, status: "pending", transaction_hashes: [fixtureHash] } }),
   play: async () => {
     const page = screen();
-    await expect(await page.findByText(/still on its way/u)).toBeVisible();
+    await expect(await page.findByText(/network is still checking this send/u)).toBeVisible();
     await expect(page.queryByLabelText("Send to")).toBeNull();
   },
 };

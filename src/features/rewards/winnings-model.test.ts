@@ -19,6 +19,7 @@ const credit = (id: string, claim: RewardCredit["claim"], state: RewardCredit["s
   updated_at: "2026-09-25T00:00:00.000Z",
   settled_at: null,
   claim,
+  send: null,
 });
 
 test("lists only claimable pool winnings with plain states and no projections", () => {

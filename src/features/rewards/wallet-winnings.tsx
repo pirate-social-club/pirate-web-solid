@@ -102,10 +102,10 @@ export function WalletWinnings(props: WalletWinningsProps) {
                   <Show when={view.canSend}>
                     <Button
                       variant="outline"
-                      aria-label={`Send ${view.amount}`}
+                      aria-label={`${view.sendActionLabel} ${view.amount}`}
                       onClick={() => setSending(credits()?.find((item) => item.credit_id === view.creditId))}
                     >
-                      Send
+                      {view.sendActionLabel}
                     </Button>
                   </Show>
                   <Show when={view.canClaim}>
