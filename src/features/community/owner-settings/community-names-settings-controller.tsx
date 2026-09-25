@@ -91,7 +91,7 @@ export function CommunityNamesSettingsController(
     setMessage("");
     try {
       if (command.kind === "enable_names") {
-        const existing = current.saleNamespaces.find((item) => (
+      const existing = current.saleNamespaces.find((item) => (
           item.activation.canonical_root === command.candidate.canonical_root
         ));
         const activation = existing?.activation ?? await api.activateSaleNamespace(saleNamespaceActivationInput({
@@ -112,8 +112,10 @@ export function CommunityNamesSettingsController(
         if (command.offering.label_scope.kind !== "label_rule_v2" || command.offering.allocation.kind !== "first_come_v1"
           || command.offering.status === "retired" || (command.countries !== undefined && command.countries.length === 0)) throw new Error("unsupported_offering");
         const scope = `${command.offering.offering_hash}:${JSON.stringify(command.countries ?? null)}`;
-        let qualification = { policy_id: current.context.offering_authoring_preset.broad_qualification_policy_id,
-          policy_revision: current.context.offering_authoring_preset.expected_broad_qualification_policy_revision };
+        const preset = current.context.offering_authoring_presets.find((item) => item.kind === "hns_hosted_persona_free_v1");
+        if (preset === undefined) throw new Error("HNS offering preset unavailable");
+        let qualification = { policy_id: preset.broad_qualification_policy_id,
+          policy_revision: preset.expected_broad_qualification_policy_revision };
         if (command.countries !== undefined) {
           if (api.authorNationalityPolicy === undefined) throw new Error("authoring_unavailable");
           qualification = await api.authorNationalityPolicy({ communityId: props.communityId, countries: command.countries,

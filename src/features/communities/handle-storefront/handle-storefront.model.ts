@@ -13,9 +13,10 @@ import {
 
 export type PublicHandleOffering =
   GetCommunitiesCommunityIdHandleOfferingsResponse["items"][number];
+type HnsOffering = Extract<PublicHandleOffering, { family: "hns" }>;
 export type AccountPersona = GetPersonasResponse["personas"][number];
 
-export type SupportedHandleOffering = PublicHandleOffering & Readonly<{
+export type SupportedHandleOffering = HnsOffering & Readonly<{
   readonly family: "hns";
   readonly fulfillment: Readonly<{ readonly kind: "hosted_persona_v1" }>;
   readonly pricing: Readonly<{
@@ -63,6 +64,7 @@ export function normalizeDesiredHandleLabel(value: unknown): string | null {
 export function isSupportedHandleOffering(
   offering: PublicHandleOffering,
 ): offering is SupportedHandleOffering {
+  if (offering.family !== "hns") return false;
   const supportedTerms = offering.label_scope.kind === "label_rule_v2"
     ? offering.allocation.kind === "first_come_v1"
       && (offering.qualification_policy.kind === "none_v1" || offering.qualification_policy.kind === "curated_nationality_v1")

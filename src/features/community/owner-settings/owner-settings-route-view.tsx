@@ -10,6 +10,8 @@ import { CommunityNamespaceSettingsController } from "./community-namespace-sett
 import { CommunityModerationSettingsController } from "./community-moderation-settings-controller";
 import type { CommunityNamesSettingsApi } from "./community-names-settings-api";
 import { CommunityNamesSettingsController } from "./community-names-settings-controller";
+import { SpacesOwnerProofPanel } from "./spaces-owner-proof-panel";
+import type { SpacesOwnerProofApi } from "./spaces-owner-proof-api";
 import { CommunityManagementSections, CommunityManagementShell } from "./community-management-shell";
 import {
   firstRoutedOwnerSettingsSection,
@@ -29,6 +31,7 @@ export interface OwnerSettingsRouteViewProps {
   telegramApi?: CommunityTelegramSettingsApi;
   namespaceApi?: CommunityNamespaceSettingsPort;
   namesApi?: CommunityNamesSettingsApi;
+  spacesOwnerProofApi?: SpacesOwnerProofApi;
   navigate: (href: string, options?: { replace?: boolean }) => void;
   /** `null` renders the management index instead of a section. */
   requestedSection: string | null;
@@ -216,6 +219,7 @@ function ResolvedOwnerSettingsRouteView(props: ResolvedOwnerSettingsRouteViewPro
                 <CommunityTelegramSettingsController api={props.telegramApi} communityId={state().communityId} section={section() === "assistant" ? "assistant" : "telegram"} />
               </Show>
               <Show when={section() === "namespace"}>
+                <SpacesOwnerProofPanel api={props.spacesOwnerProofApi} communityId={state().communityId} />
                 <CommunityNamespaceSettingsController
                   api={props.namespaceApi}
                   communityId={state().communityId}

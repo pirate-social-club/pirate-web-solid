@@ -10,6 +10,8 @@ import type { ApiFetch } from "../../../api/proxy";
 import type {
   CommunityNamesManagementPort,
   CommunityNamesManagementSnapshot,
+  CommunityNamesOffering,
+  CommunityNamesSaleNamespace,
   CommunityNamesOfferingCreateInput,
   CommunityNamesOfferingRevisionInput,
   CommunityNamesSaleNamespaceActivation,
@@ -116,7 +118,7 @@ export function createCommunityNamesSettingsApi(
         input,
         writeOptions(signal),
       );
-      assertProtocol(response.activation.community_id === input.path.communityId);
+      assertProtocol(response.activation.community_id === input.path.communityId && response.activation.family === "hns");
       return response.activation;
     },
     async createOffering({ signal, ...input }) {
@@ -156,7 +158,11 @@ export function createCommunityNamesSettingsApi(
         saleNamespaces.every((item) => item.activation.community_id === communityId)
           && offerings.every((item) => item.offering.community_id === communityId),
       );
-      return { context, offerings, saleNamespaces };
+      return {
+        context: { ...context, sale_namespace_candidates: context.sale_namespace_candidates.filter((item) => item.family === "hns") },
+        offerings: offerings.filter((item): item is CommunityNamesOffering => item.offering.family === "hns"),
+        saleNamespaces: saleNamespaces.filter((item): item is CommunityNamesSaleNamespace => "effectiveness" in item),
+      };
     },
     async reviseOffering({ signal, ...input }) {
       const response = await client().post_communitiesCommunityIdHandleOfferingsOfferingIdRevisions(

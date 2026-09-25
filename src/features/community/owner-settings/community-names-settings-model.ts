@@ -23,12 +23,18 @@ export type CommunityNamesManagementPort = Pick<
   | "post_communitiesCommunityIdHandleSaleNamespacesActivationIdRevisions"
 >;
 
-export type CommunityNamesManagementContext = GetCommunitiesCommunityIdHandleSalesManagementResponse;
-export type CommunityNamesCandidate = CommunityNamesManagementContext["sale_namespace_candidates"][number];
+export type CommunityNamesCandidate = Extract<GetCommunitiesCommunityIdHandleSalesManagementResponse["sale_namespace_candidates"][number], { family: "hns" }>;
+export type CommunityNamesManagementContext = Omit<GetCommunitiesCommunityIdHandleSalesManagementResponse, "sale_namespace_candidates"> & {
+  readonly sale_namespace_candidates: ReadonlyArray<CommunityNamesCandidate>;
+};
 export type CommunityNamesReadyCandidate = Extract<CommunityNamesCandidate, { readonly kind: "ready_v1" }>;
-export type CommunityNamesSaleNamespace = GetCommunitiesCommunityIdHandleSalesManagementSaleNamespacesResponse["items"][number];
+type SaleNamespaceItem = GetCommunitiesCommunityIdHandleSalesManagementSaleNamespacesResponse["items"][number];
+export type CommunityNamesSaleNamespace = Extract<SaleNamespaceItem, { effectiveness: unknown }>;
 export type CommunityNamesSaleNamespaceActivation = CommunityNamesSaleNamespace["activation"];
-export type CommunityNamesOffering = GetCommunitiesCommunityIdHandleSalesManagementOfferingsResponse["items"][number];
+type OfferingItem = GetCommunitiesCommunityIdHandleSalesManagementOfferingsResponse["items"][number];
+export type CommunityNamesOffering = OfferingItem & {
+  readonly offering: Extract<OfferingItem["offering"], { family: "hns" }>;
+};
 export type CommunityNamesSaleNamespaceActivationInput = PostCommunitiesCommunityIdHandleSaleNamespacesInput;
 export type CommunityNamesSaleNamespaceRevisionInput = PostCommunitiesCommunityIdHandleSaleNamespacesActivationIdRevisionsInput;
 export type CommunityNamesOfferingCreateInput = PostCommunitiesCommunityIdHandleOfferingsInput;
@@ -77,7 +83,8 @@ export function broadNamesOfferingInput(input: {
   context: CommunityNamesManagementContext;
   idempotencyKey: string;
 }): PostCommunitiesCommunityIdHandleOfferingsInput {
-  const preset = input.context.offering_authoring_preset;
+  const preset = input.context.offering_authoring_presets.find((item) => item.kind === "hns_hosted_persona_free_v1");
+  if (preset === undefined || input.activation.family !== "hns") throw new Error("HNS offering preset unavailable");
   return {
     path: { communityId: input.context.community_id },
     body: {

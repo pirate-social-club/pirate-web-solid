@@ -5,7 +5,7 @@ import type {
   CommunityNamesSaleNamespace,
 } from "./community-names-settings-model";
 
-const PRESET: CommunityNamesManagementContext["offering_authoring_preset"] = {
+const PRESET: Extract<CommunityNamesManagementContext["offering_authoring_presets"][number], { kind: "hns_hosted_persona_free_v1" }> = {
   kind: "hns_hosted_persona_free_v1",
   reserved_labels_id: "reserved_labels_midnight",
   expected_reserved_labels_revision: 4,
@@ -32,7 +32,7 @@ const READY_CONTEXT: CommunityNamesManagementContext = {
     dns_zone_activation_id: "dns_zone_midnight",
     expected_dns_zone_activation_generation: 3,
   }],
-  offering_authoring_preset: PRESET,
+  offering_authoring_presets: [PRESET],
   observed_at: "2026-09-01T12:00:00Z",
 };
 

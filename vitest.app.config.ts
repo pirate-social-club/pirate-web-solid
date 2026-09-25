@@ -72,6 +72,8 @@ export default defineConfig({
       "src/features/community/owner-settings/owner-settings-model.test.ts",
       "src/features/community/owner-settings/owner-settings-route-model.test.ts",
       "src/features/community/owner-settings/owner-settings-route-view.test.tsx",
+      "src/features/community/owner-settings/spaces-owner-proof-panel.test.tsx",
+      "src/features/community/owner-settings/spaces-owner-proof-api.test.ts",
       "src/features/communities/community-page/community-page.model.test.ts",
       "src/features/communities/community-page/community-engagement-api.test.ts",
       "src/features/communities/community-page/community-engagement-controller.test.tsx",

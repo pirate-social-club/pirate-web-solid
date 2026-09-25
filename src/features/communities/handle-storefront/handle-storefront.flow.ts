@@ -276,6 +276,9 @@ export async function runFreeHandleClaim(
       && quoteResult.owner_persona_id === input.personaId && quoteResult.qualification_intent_id.length > 0);
     return { kind: "nationality_required", qualificationIntentId: quoteResult.qualification_intent_id };
   }
+  if (quoteResult.kind !== "quoted") {
+    throw new Error("Unsupported handle quote response");
+  }
   validateQuote(quoteResult, input);
 
   input.onProgress?.({ progress: "reserving", expiresAt: quoteResult.quote.expires_at });

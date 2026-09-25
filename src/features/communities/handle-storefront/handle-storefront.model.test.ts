@@ -50,7 +50,7 @@ const preview = {
 
 function offering(
   id: string,
-  labelScope: PublicHandleOffering["label_scope"],
+  labelScope: Extract<PublicHandleOffering, { family: "hns" }>["label_scope"],
 ): SupportedHandleOffering {
   return {
     offering_id: id,
@@ -150,7 +150,12 @@ describe("community handle storefront model", () => {
     if (broadScope.kind !== "label_rule_v2") throw new Error("broad fixture must use a label rule");
     expect(isSupportedHandleOffering(broad)).toBe(true);
     expect(isSupportedHandleOffering({ ...broad, status: "paused" })).toBe(false);
-    expect(isSupportedHandleOffering({ ...broad, family: "spaces", issuance: { ...broad.issuance, family: "spaces" } })).toBe(false);
+    expect(isSupportedHandleOffering({ ...broad, family: "spaces",
+      label_scope: { ...broadScope, label_grammar_id: "spaces_subspace_label_v1" },
+      allocation: { kind: "first_come_v1" }, fulfillment: { kind: "spaces_native_v1" },
+      qualification_policy: { kind: "curated_policy_v1", policy_id: "policy-1", policy_revision: 1,
+        policy_hash: "policy-hash", provider_binding_hash: "provider-hash" },
+      issuance: { ...broad.issuance, family: "spaces" } })).toBe(false);
     expect(isSupportedHandleOffering({ ...broad, fulfillment: { kind: "delegated_zone_v1" } })).toBe(false);
     expect(isSupportedHandleOffering({ ...broad, allocation: { kind: "auction_v1" } })).toBe(false);
     expect(isSupportedHandleOffering({

@@ -30,7 +30,9 @@ const persona = {
   primary_public_handle: null,
 };
 
-function body(): GetPublicPersonasPersonaIdResponse {
+type HnsGrant = Extract<GetPublicPersonasPersonaIdResponse["handle_grants"][number], { handle: { family: "hns" } }>;
+
+function body(): GetPublicPersonasPersonaIdResponse & { handle_grants: HnsGrant[] } {
   return {
     persona,
     profile: { revision: 1, cover_ref: null, bio: "Public bio" },

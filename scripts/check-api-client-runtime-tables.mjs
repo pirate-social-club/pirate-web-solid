@@ -8,13 +8,13 @@ const currentClient = resolve(
   appRoot,
   "node_modules/@pirate/api-client/src/generated/client.ts",
 );
-// Client 0.90.0 retains the consumed operations, adds the claim object to
-// reward credits, and adds the participant claim and reward-claim Very intent
-// operations (Spec 015 §5.2a). This digest pins the exact success, error, and
-// schema tables consumed by Solid.
-const expectedDigest = "f0b2357aa64f5f5746363f168bc49e103a0e4c9b483c0d82e9975f0853976a57";
+// Client 0.92.0 adds Spaces owner proof and widens handle contracts by family.
+// This digest pins the exact success, error, and schema tables Solid consumes.
+const expectedDigest = "392d465a2cc072447e0d101318d2e5004a8216eec1cbde727111d24325408bbc";
 
 const operations = [
+  "post_communitiesCommunityIdSpacesOwnershipStart",
+  "post_communitiesCommunityIdSpacesOwnershipPoll",
   "post_postsPostIdVideoPlaybackAccess",
   "get_postsPostIdVideoPoster",
   "get_personas",
