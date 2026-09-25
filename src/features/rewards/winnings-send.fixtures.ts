@@ -1,5 +1,6 @@
 import type { RewardCredit } from "../../api/reward-claim.ts";
-import type { GasTopupRequest } from "../../api/reward-winnings-send.ts";
+import type { GasTopupRequest, TransferReceipt } from "../../api/reward-winnings-send.ts";
+import { createMemorySendMarkerStore, type SendMarker } from "./winnings-send-marker.ts";
 import type { WinningsSendDependencies, WinningsSendWallet } from "./winnings-send-sheet.tsx";
 
 /** Story data for sending paid winnings. The fixture code is 123456. */
@@ -21,6 +22,10 @@ export type SendFixtureOptions = Readonly<{
   /** The wallet has no ETH of its own for the fee. */
   noEth?: boolean;
   uncertain?: boolean;
+  receipt?: TransferReceipt;
+  walletBusy?: boolean;
+  /** A transfer from an earlier visit that reached the broadcast step. */
+  previous?: SendMarker;
 }>;
 
 export function sendFixture(options: SendFixtureOptions = {}): WinningsSendDependencies {
@@ -49,6 +54,8 @@ export function sendFixture(options: SendFixtureOptions = {}): WinningsSendDepen
     data: {
       async sender() { return { address: fixtureSender, walletIndex: 0 }; },
       async tokenBalance() { return 12_500_000n; },
+      async transferReceipt() { return options.receipt ?? "confirmed"; },
+      async walletBusy() { return options.walletBusy ?? false; },
       async requestGasTopup() { return options.gas ?? { status: "pending", topup_id: "gas-topup_story", amount_wei: "30000000000000" }; },
       async readGasTopup() {
         reads += 1;
@@ -56,6 +63,7 @@ export function sendFixture(options: SendFixtureOptions = {}): WinningsSendDepen
       },
     },
     openWallet: async () => wallet,
+    markers: createMemorySendMarkerStore(options.previous === undefined ? [] : [options.previous]),
     poll: { intervalMs: 200, timeoutMs: 10_000 },
   };
 }

@@ -36,7 +36,9 @@ function harness(rows: readonly PersonaRow[], csrf: () => string | undefined = (
     else throw new Error(`unexpected ${path}`);
     return new Response(JSON.stringify(response), { status: 200, headers: { "content-type": "application/json" } });
   });
-  const data = createWinningsSendData(createSessionApiClient({ origin: "https://app.example", fetchImpl }), csrf, async () => 0n);
+  const data = createWinningsSendData(createSessionApiClient({ origin: "https://app.example", fetchImpl }), csrf, {
+    tokenBalance: async () => 0n, transferReceipt: async () => "pending", walletBusy: async () => false,
+  });
   return { data, fetchImpl };
 }
 

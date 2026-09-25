@@ -1,6 +1,7 @@
 import { formatUnits, getAddress, isAddress, parseUnits, zeroAddress } from "viem";
 import type { RewardCredit } from "../../api/reward-claim.ts";
-import type { GasTopup, GasTopupRequest, WinningsSender } from "../../api/reward-winnings-send.ts";
+import type { GasTopup, GasTopupRequest, WinningsChainReads, WinningsSender } from "../../api/reward-winnings-send.ts";
+import type { SendMarker } from "./winnings-send-marker.ts";
 import {
   isWalletRefusal, RewardFundingNotBroadcastError,
   type RewardFeeEstimate, type RewardTokenTransfer, type RewardTransferWallet,
@@ -17,39 +18,53 @@ export function explorerTransactionUrl(hash: string): string {
 
 export type RecipientCheck = Readonly<{ ok: true; address: string }> | Readonly<{ ok: false; message: string }>;
 
-/** Checksum-insensitive: any 0x address with 40 hex digits, never the sender itself. */
-export function checkRecipient(input: string, sender: string): RecipientCheck {
+/**
+ * A 0x address with 40 hex digits. All-lowercase or all-uppercase hex carries
+ * no checksum and is accepted; mixed case must match its EIP-55 checksum,
+ * since a mismatch usually means a mistyped address. Never the sender itself
+ * or the token contract.
+ */
+export function checkRecipient(input: string, sender: string, token: string): RecipientCheck {
   const value = input.trim();
   if (value.length === 0) return { ok: false, message: "Enter the address to send to." };
   if (!/^0x[0-9a-fA-F]{40}$/u.test(value) || !isAddress(value, { strict: false })) {
     return { ok: false, message: "Enter a valid address that starts with 0x." };
   }
+  const digits = value.slice(2);
   const address = getAddress(value.toLowerCase());
+  if (/[a-f]/u.test(digits) && /[A-F]/u.test(digits) && address !== `0x${digits}`) {
+    return { ok: false, message: "This address does not match its capital letters. Copy it again from where you found it." };
+  }
   if (address === zeroAddress) return { ok: false, message: "This address cannot receive USDC." };
   if (address === getAddress(sender.toLowerCase())) return { ok: false, message: "This is the wallet you are sending from. Enter a different address." };
+  if (address === getAddress(token.toLowerCase())) return { ok: false, message: "This is the USDC contract, not a wallet. Sending to it would lose the USDC." };
   return { ok: true, address };
 }
 
 export type AmountCheck = Readonly<{ ok: true; atomic: bigint }> | Readonly<{ ok: false; message: string }>;
 
-/** A positive USDC amount, never more than the known wallet balance. */
-export function checkAmount(input: string, decimals: number, balance: bigint | undefined): AmountCheck {
+/** The most this sheet sends: the paid winnings, and never more than the wallet holds. */
+export function sendableAtomic(credit: RewardCredit, balance: bigint | undefined): bigint {
+  const paid = BigInt(credit.paid_atomic);
+  return balance !== undefined && balance < paid ? balance : paid;
+}
+
+/** A positive USDC amount, never more than the sendable limit. */
+export function checkAmount(input: string, decimals: number, limit: bigint): AmountCheck {
   const value = input.trim();
   const pattern = new RegExp(`^(?:0|[1-9][0-9]*)(?:\\.[0-9]{1,${decimals}})?$`, "u");
   if (!pattern.test(value)) return { ok: false, message: `Enter an amount with up to ${decimals} decimal places.` };
   const atomic = parseUnits(value, decimals);
   if (atomic <= 0n) return { ok: false, message: "Enter an amount above zero." };
-  if (balance !== undefined && atomic > balance) {
-    return { ok: false, message: `You can send up to ${formatUnits(balance, decimals)} USDC.` };
+  if (atomic > limit) {
+    return { ok: false, message: `You can send up to ${formatUnits(limit, decimals)} USDC from these winnings.` };
   }
   return { ok: true, atomic };
 }
 
-/** The credit amount, lowered to the wallet balance when the wallet holds less. */
+/** The paid winnings, lowered to the wallet balance when the wallet holds less. */
 export function defaultAmount(credit: RewardCredit, balance: bigint | undefined): string {
-  const credited = BigInt(credit.amount_atomic);
-  const amount = balance !== undefined && balance < credited ? balance : credited;
-  return formatUnits(amount, credit.token_decimals);
+  return formatUnits(sendableAtomic(credit, balance), credit.token_decimals);
 }
 
 export type GasWait = "confirmed" | "released" | "timeout";
@@ -91,7 +106,7 @@ export async function waitForGasTopup(
 export type SendFailure =
   | "unavailable" | "gas_failed" | "gas_timeout" | "gas_limit_no_eth" | "no_eth"
   | "insufficient_usdc" | "wrong_wallet" | "wrong_network" | "signed_out" | "refused"
-  | "not_sent" | "failed";
+  | "in_progress" | "check_failed" | "not_sent" | "failed";
 
 export type SendState =
   | Readonly<{ kind: "gas" }>
@@ -119,6 +134,8 @@ export function walletFailure(error: unknown, gasLimitReached: boolean): SendFai
     case "wallet_assignment_mismatch": return "wrong_wallet";
     case "wallet_wrong_chain": return "wrong_network";
     case "wallet_reauthentication_required": case "wallet_session_closed": return "signed_out";
+    case "wallet_transfer_in_progress": return "in_progress";
+    case "wallet_transfer_check_failed": return "check_failed";
     default: return "failed";
   }
 }
@@ -135,6 +152,8 @@ export function failureMessage(reason: SendFailure): string {
     case "wrong_network": return "Your wallet could not switch to Base Sepolia. Nothing was sent.";
     case "signed_out": return "Your wallet sign-in expired. Sign in again to continue.";
     case "refused": return "You declined the transfer in your wallet. Nothing was sent.";
+    case "in_progress": return "A transfer from this wallet is still in progress. Wait for it to finish, then try again.";
+    case "check_failed": return "We could not check your wallet's recent transfers, so nothing was sent. Try again.";
     case "not_sent": return "The transfer could not be started. Nothing was sent.";
     case "failed": return "The transfer could not be prepared. Nothing was sent.";
   }
@@ -147,6 +166,14 @@ export type WinningsSendControllerOptions = Readonly<{
   requestGasTopup(creditId: string, idempotencyKey: string): Promise<GasTopupRequest>;
   readGasTopup(topupId: string): Promise<GasTopup>;
   onState(state: SendState): void;
+  /** Pending nonce above latest: an earlier transfer is still in the mempool. */
+  walletBusy(): Promise<boolean>;
+  /** Called just before the send RPC, with the hash once known, or when nothing was sent after all. */
+  broadcast?: Readonly<{
+    started(): void;
+    hashed(transactionHash: string): void;
+    abandoned(): void;
+  }>;
   newKey?: () => string;
   poll?: GasPollOptions | undefined;
 }>;
@@ -185,6 +212,13 @@ export function createWinningsSendController(options: WinningsSendControllerOpti
       return publish({ kind: "failed", reason: walletFailure(error, gasLimitReached) });
     }
   };
+  /** Refuses while an earlier transfer from this wallet is still pending. */
+  const assertIdle = async () => {
+    let busyWallet: boolean;
+    try { busyWallet = await options.walletBusy(); }
+    catch { throw new Error("wallet_transfer_check_failed"); }
+    if (busyWallet) throw new Error("wallet_transfer_in_progress");
+  };
   const awaitGas = async (topupId: string) => {
     const outcome = await waitForGasTopup(options.readGasTopup, topupId, { ...options.poll, cancelled: () => closed });
     if (outcome === "confirmed") return estimate(false);
@@ -196,6 +230,8 @@ export function createWinningsSendController(options: WinningsSendControllerOpti
     prepare: () => exclusive(async () => {
       publish({ kind: "gas" });
       gasLimitReached = false;
+      try { await assertIdle(); }
+      catch (error) { return publish({ kind: "failed", reason: walletFailure(error, false) }); }
       let request: GasTopupRequest;
       try { request = await options.requestGasTopup(options.creditId, newKey()); }
       catch (error) {
@@ -228,10 +264,14 @@ export function createWinningsSendController(options: WinningsSendControllerOpti
       try {
         const hash = await options.wallet.sendTransfer(transfer, fee, async () => {
           if (closed) throw new Error("winnings_send_closed");
+          await assertIdle();
+          if (closed) throw new Error("winnings_send_closed");
+          options.broadcast?.started();
           started = true;
           broadcastStarted = true;
           publish({ kind: "sending" });
         });
+        options.broadcast?.hashed(hash);
         return publish({ kind: "sent", transactionHash: hash });
       } catch (error) {
         if (!started) {
@@ -242,10 +282,12 @@ export function createWinningsSendController(options: WinningsSendControllerOpti
         // to sign (EIP-1193 4001), sent nothing. Anything else may have been sent.
         if (error instanceof RewardFundingNotBroadcastError) {
           broadcastStarted = false;
+          options.broadcast?.abandoned();
           return publish({ kind: "failed", reason: walletFailure(error.cause, gasLimitReached) === "signed_out" ? "signed_out" : "not_sent" });
         }
         if (isWalletRefusal(error)) {
           broadcastStarted = false;
+          options.broadcast?.abandoned();
           return publish({ kind: "failed", reason: "refused" });
         }
         return publish({ kind: "uncertain" });
@@ -259,4 +301,29 @@ export type WinningsSendController = ReturnType<typeof createWinningsSendControl
 
 export function transferFor(credit: RewardCredit, sender: WinningsSender, recipient: string, atomic: bigint): RewardTokenTransfer {
   return { sender: sender.address, token: credit.token_address, recipient, amountAtomic: atomic.toString(), walletIndex: sender.walletIndex };
+}
+
+export const SEND_AGAIN_AFTER_MS = 30 * 60 * 1000;
+
+export type MarkerStatus =
+  | Readonly<{ kind: "confirmed" | "reverted" | "pending" | "check_failed" }>
+  | Readonly<{ kind: "unknown"; canSendAgain: boolean }>;
+
+/**
+ * What became of a transfer that reached the broadcast step. Without a hash
+ * nothing can be looked up, so another send is only offered once nothing is
+ * pending from the wallet and 30 minutes have passed.
+ */
+export async function checkSendMarker(
+  marker: SendMarker,
+  reads: Pick<WinningsChainReads, "transferReceipt" | "walletBusy">,
+  now: number,
+): Promise<MarkerStatus> {
+  try {
+    if (marker.transactionHash !== null) return { kind: await reads.transferReceipt(marker.transactionHash) };
+    if (await reads.walletBusy(marker.sender)) return { kind: "pending" };
+    return { kind: "unknown", canSendAgain: now - marker.startedAt >= SEND_AGAIN_AFTER_MS };
+  } catch {
+    return { kind: "check_failed" };
+  }
 }

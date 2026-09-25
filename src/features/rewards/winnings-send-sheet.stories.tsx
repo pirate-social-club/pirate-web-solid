@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import { expect, fn, userEvent, waitFor, within } from "storybook/test";
 import { WinningsSendSheet } from "./winnings-send-sheet.tsx";
-import { fixtureHash, fixtureRecipient, paidWinning, sendFixture, type SendFixtureOptions } from "./winnings-send.fixtures.ts";
+import { fixtureHash, fixtureRecipient, fixtureSender, paidWinning, sendFixture, type SendFixtureOptions } from "./winnings-send.fixtures.ts";
 
 const meta = {
   title: "Parts/Wallet/Send winnings",
@@ -19,7 +19,7 @@ const screen = () => within(document.body);
 
 async function signIn() {
   const page = screen();
-  await expect(await page.findByText("Balance: 12.5 USDC")).toBeVisible();
+  await expect(await page.findByText("Wallet balance: 12.5 USDC")).toBeVisible();
   await userEvent.type(page.getByLabelText("Send to"), fixtureRecipient);
   await userEvent.click(page.getByRole("button", { name: "Continue" }));
   await userEvent.type(await page.findByLabelText("Email for your wallet"), "winner@example.test");
@@ -40,7 +40,7 @@ export const SendHappyPath: Story = {
   play: async () => {
     const page = screen();
     await signIn();
-    await expect(await page.findByText(/Waiting for gas/u)).toBeVisible();
+    await expect(await page.findByText("Getting the network fee ready…")).toBeVisible();
     await userEvent.click(await page.findByRole("button", { name: "Send 12.5 USDC" }, { timeout: 5000 }));
     await expect(await page.findByText("Sent")).toBeVisible();
     const link = page.getByRole("link", { name: /View transaction/u });
@@ -66,5 +66,20 @@ export const UncertainSubmission: Story = {
     await userEvent.click(await page.findByRole("button", { name: "Send 12.5 USDC" }, { timeout: 5000 }));
     await expect(await page.findByText(/It may still arrive/u)).toBeVisible();
     await expect(page.queryByRole("button", { name: "Try again" })).toBeNull();
+  },
+};
+
+export const PreviousTransferPending: Story = {
+  render: sheet({
+    receipt: "pending",
+    previous: {
+      version: 1, creditId: paidWinning.credit_id, sender: fixtureSender, recipient: fixtureRecipient,
+      amountAtomic: paidWinning.paid_atomic, transactionHash: fixtureHash, startedAt: Date.now(),
+    },
+  }),
+  play: async () => {
+    const page = screen();
+    await expect(await page.findByText(/still on its way/u)).toBeVisible();
+    await expect(page.queryByLabelText("Send to")).toBeNull();
   },
 };

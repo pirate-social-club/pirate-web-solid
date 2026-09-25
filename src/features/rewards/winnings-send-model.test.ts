@@ -3,8 +3,8 @@ import type { RewardCredit } from "../../api/reward-claim.ts";
 import type { GasTopup, GasTopupRequest } from "../../api/reward-winnings-send.ts";
 import { RewardFundingNotBroadcastError, type RewardTokenTransfer } from "../../api/reward-wallet-session.ts";
 import {
-  canSendWinning, checkAmount, checkRecipient, createWinningsSendController, defaultAmount,
-  explorerTransactionUrl, waitForGasTopup, type SendState,
+  canSendWinning, checkAmount, checkRecipient, checkSendMarker, createWinningsSendController, defaultAmount,
+  explorerTransactionUrl, sendableAtomic, waitForGasTopup, SEND_AGAIN_AFTER_MS, type SendState,
 } from "./winnings-send-model.ts";
 
 afterEach(() => { vi.useRealTimers(); });
@@ -34,27 +34,41 @@ describe("send eligibility and input", () => {
     expect(canSendWinning({ ...paid, claim: null })).toBe(false);
     expect(canSendWinning({ ...paid, chain_id: 8453 })).toBe(false);
   });
-  it("accepts any-case addresses and refuses bad ones and the sender", () => {
-    expect(checkRecipient("0xABCDEFABCDEFABCDEFABCDEFABCDEFABCDEFABCD", sender))
+  it("accepts unchecksummed addresses and refuses bad ones, the sender and the token", () => {
+    const token = transfer.token;
+    expect(checkRecipient("0xABCDEFABCDEFABCDEFABCDEFABCDEFABCDEFABCD", sender, token))
       .toEqual({ ok: true, address: "0xABcdEFABcdEFabcdEfAbCdefabcdeFABcDEFabCD" });
-    expect(checkRecipient("  0xabcdefabcdefabcdefabcdefabcdefabcdefabcd ", sender).ok).toBe(true);
-    expect(checkRecipient("0xabc", sender).ok).toBe(false);
-    expect(checkRecipient("", sender).ok).toBe(false);
-    expect(checkRecipient("0x0000000000000000000000000000000000000000", sender).ok).toBe(false);
-    expect(checkRecipient(sender.toUpperCase().replace("0X", "0x"), sender))
+    expect(checkRecipient("  0xabcdefabcdefabcdefabcdefabcdefabcdefabcd ", sender, token).ok).toBe(true);
+    expect(checkRecipient("0xabc", sender, token).ok).toBe(false);
+    expect(checkRecipient("", sender, token).ok).toBe(false);
+    expect(checkRecipient("0x0000000000000000000000000000000000000000", sender, token).ok).toBe(false);
+    expect(checkRecipient(sender.toUpperCase().replace("0X", "0x"), sender, token))
       .toEqual({ ok: false, message: "This is the wallet you are sending from. Enter a different address." });
+    expect(checkRecipient(token, sender, token))
+      .toEqual({ ok: false, message: "This is the USDC contract, not a wallet. Sending to it would lose the USDC." });
   });
-  it("never allows more than the balance", () => {
+  it("accepts a correct EIP-55 checksum and refuses a broken one", () => {
+    const token = transfer.token;
+    expect(checkRecipient("0xABcdEFABcdEFabcdEfAbCdefabcdeFABcDEFabCD", sender, token).ok).toBe(true);
+    // One letter's case flipped from the checksummed form above.
+    expect(checkRecipient("0xAbcdEFABcdEFabcdEfAbCdefabcdeFABcDEFabCD", sender, token))
+      .toEqual({ ok: false, message: "This address does not match its capital letters. Copy it again from where you found it." });
+  });
+  it("caps the amount at the limit", () => {
     expect(checkAmount("2.5", 6, 3_000_000n)).toEqual({ ok: true, atomic: 2_500_000n });
-    expect(checkAmount("3.000001", 6, 3_000_000n)).toEqual({ ok: false, message: "You can send up to 3 USDC." });
+    expect(checkAmount("3.000001", 6, 3_000_000n)).toEqual({ ok: false, message: "You can send up to 3 USDC from these winnings." });
     expect(checkAmount("0", 6, 3_000_000n).ok).toBe(false);
-    expect(checkAmount("1.1234567", 6, undefined).ok).toBe(false);
-    expect(checkAmount("abc", 6, undefined).ok).toBe(false);
+    expect(checkAmount("1.1234567", 6, 3_000_000n).ok).toBe(false);
+    expect(checkAmount("abc", 6, 3_000_000n).ok).toBe(false);
   });
-  it("defaults to the credit amount, lowered to the balance", () => {
-    expect(defaultAmount(paid, undefined)).toBe("12.5");
-    expect(defaultAmount(paid, 20_000_000n)).toBe("12.5");
-    expect(defaultAmount(paid, 4_000_000n)).toBe("4");
+  it("limits sending to the paid winnings and the wallet balance", () => {
+    const partial: RewardCredit = { ...paid, amount_atomic: "12500000", paid_atomic: "10000000" };
+    expect(sendableAtomic(partial, undefined)).toBe(10_000_000n);
+    expect(sendableAtomic(partial, 50_000_000n)).toBe(10_000_000n);
+    expect(sendableAtomic(partial, 4_000_000n)).toBe(4_000_000n);
+    expect(defaultAmount(partial, undefined)).toBe("10");
+    expect(defaultAmount(partial, 50_000_000n)).toBe("10");
+    expect(defaultAmount(partial, 4_000_000n)).toBe("4");
   });
   it("links the transaction on the Base Sepolia explorer", () => {
     expect(explorerTransactionUrl(hash)).toBe(`https://sepolia.basescan.org/tx/${hash}`);
@@ -99,13 +113,15 @@ function harness(overrides: Partial<Parameters<typeof createWinningsSendControll
   };
   const requestGasTopup = vi.fn(async (_creditId: string, _key: string): Promise<GasTopupRequest> => ({ status: "not_needed", topup_id: null, amount_wei: null }));
   const readGasTopup = vi.fn(async () => topup("confirmed"));
+  const walletBusy = vi.fn(async () => false);
+  const broadcast = { started: vi.fn(), hashed: vi.fn(), abandoned: vi.fn() };
   let keys = 0;
   const controller = createWinningsSendController({
-    creditId: "credit_1", transfer, wallet, requestGasTopup, readGasTopup,
+    creditId: "credit_1", transfer, wallet, requestGasTopup, readGasTopup, walletBusy, broadcast,
     onState: state => states.push(state), newKey: () => `key-${++keys}`,
     poll: { intervalMs: 10, timeoutMs: 30, sleep: async () => undefined }, ...overrides,
   });
-  return { controller, wallet, requestGasTopup, readGasTopup, states };
+  return { controller, wallet, requestGasTopup, readGasTopup, walletBusy, broadcast, states };
 }
 
 describe("send controller", () => {
@@ -199,5 +215,75 @@ describe("send controller", () => {
     const h = harness();
     h.wallet.estimateTransfer.mockRejectedValueOnce(new Error(message));
     expect(await h.controller.prepare()).toEqual({ kind: "failed", reason });
+  });
+  it("records the broadcast before the send RPC and its hash after", async () => {
+    const h = harness();
+    await h.controller.prepare();
+    h.wallet.sendTransfer.mockImplementationOnce(async (_t, _f, before) => {
+      await before();
+      expect(h.broadcast.started).toHaveBeenCalledOnce();
+      return hash;
+    });
+    await h.controller.confirm();
+    expect(h.broadcast.hashed).toHaveBeenCalledWith(hash);
+    expect(h.broadcast.abandoned).not.toHaveBeenCalled();
+  });
+  it("forgets the broadcast record when the wallet declines", async () => {
+    const h = harness();
+    await h.controller.prepare();
+    h.wallet.sendTransfer.mockImplementationOnce(async (_t, _f, before) => { await before(); throw Object.assign(new Error("declined"), { code: 4001 }); });
+    await h.controller.confirm();
+    expect(h.broadcast.abandoned).toHaveBeenCalledOnce();
+  });
+  it("keeps the broadcast record after an uncertain send", async () => {
+    const h = harness();
+    await h.controller.prepare();
+    h.wallet.sendTransfer.mockImplementationOnce(async (_t, _f, before) => { await before(); throw new Error("wallet_submission_uncertain"); });
+    await h.controller.confirm();
+    expect(h.broadcast.started).toHaveBeenCalledOnce();
+    expect(h.broadcast.abandoned).not.toHaveBeenCalled();
+    expect(h.broadcast.hashed).not.toHaveBeenCalled();
+  });
+  it("refuses to prepare while a transfer from the wallet is pending", async () => {
+    const h = harness();
+    h.walletBusy.mockResolvedValueOnce(true);
+    expect(await h.controller.prepare()).toEqual({ kind: "failed", reason: "in_progress" });
+    expect(h.requestGasTopup).not.toHaveBeenCalled();
+  });
+  it("refuses to broadcast when a transfer appears pending at the last moment", async () => {
+    const h = harness();
+    await h.controller.prepare();
+    h.walletBusy.mockResolvedValueOnce(true);
+    expect(await h.controller.confirm()).toEqual({ kind: "failed", reason: "in_progress" });
+    expect(h.broadcast.started).not.toHaveBeenCalled();
+  });
+  it("fails closed when pending transfers cannot be checked", async () => {
+    const h = harness();
+    h.walletBusy.mockRejectedValueOnce(new Error("rpc down"));
+    expect(await h.controller.prepare()).toEqual({ kind: "failed", reason: "check_failed" });
+  });
+});
+
+describe("previous send check", () => {
+  const base = {
+    version: 1 as const, creditId: "credit_1", sender, recipient: transfer.recipient,
+    amountAtomic: "2000000", transactionHash: null, startedAt: 1_000_000,
+  };
+  const reads = (receipt: "confirmed" | "reverted" | "pending", busy = false) => ({
+    transferReceipt: vi.fn(async () => receipt), walletBusy: vi.fn(async () => busy),
+  });
+  it("reads the receipt when the hash is known", async () => {
+    expect(await checkSendMarker({ ...base, transactionHash: hash }, reads("confirmed"), 0)).toEqual({ kind: "confirmed" });
+    expect(await checkSendMarker({ ...base, transactionHash: hash }, reads("reverted"), 0)).toEqual({ kind: "reverted" });
+    expect(await checkSendMarker({ ...base, transactionHash: hash }, reads("pending"), 0)).toEqual({ kind: "pending" });
+  });
+  it("offers another send without a hash only after 30 idle minutes", async () => {
+    expect(await checkSendMarker(base, reads("pending", true), base.startedAt + SEND_AGAIN_AFTER_MS)).toEqual({ kind: "pending" });
+    expect(await checkSendMarker(base, reads("pending"), base.startedAt + SEND_AGAIN_AFTER_MS - 1)).toEqual({ kind: "unknown", canSendAgain: false });
+    expect(await checkSendMarker(base, reads("pending"), base.startedAt + SEND_AGAIN_AFTER_MS)).toEqual({ kind: "unknown", canSendAgain: true });
+  });
+  it("reports a failed check rather than guessing", async () => {
+    const failing = { transferReceipt: vi.fn(async () => { throw new Error("rpc"); }), walletBusy: vi.fn(async () => false) };
+    expect(await checkSendMarker({ ...base, transactionHash: hash }, failing, 0)).toEqual({ kind: "check_failed" });
   });
 });
