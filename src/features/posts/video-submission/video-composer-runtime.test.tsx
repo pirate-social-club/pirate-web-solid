@@ -75,13 +75,13 @@ function setup(final: "published" | "manual_review" | "provider_submission_uncon
         : { ...common, creation_revision: 2, video_revision: 1, status: "processing_failed", reason_code: final, retryable: final === "membership_required", retry_count: 0 };
     return snapshot;
   } };
-  const published = vi.fn(); const container = document.createElement("div"); document.body.appendChild(container);
+  const published = vi.fn(); const posted = vi.fn(); const container = document.createElement("div"); document.body.appendChild(container);
   createRoot(dispose => { disposers.push(dispose); render(() => <VideoComposerRuntime principalId="account" communityId="community" personaId="persona"
     storage={storage} transport={transport} inspectFile={async file => file}
     fetchImpl={vi.fn<typeof fetch>().mockResolvedValue(new Response(null, { headers: { etag: "receipt" } }))}
     songPreflight={acceptedPreflight} songReader={readableSong} initialSong={{ postId: "song-post" }}
-    onExit={() => {}} onRetainedPersona={() => {}} onPublished={published} />, container); });
-  return { commands, published };
+    onExit={() => {}} onRetainedPersona={() => {}} onPublished={published} onPosted={posted} />, container); });
+  return { commands, published, posted, retained: () => saved };
 }
 /** An interval preflight that measures the song and accepts every excerpt. */
 const acceptedPreflight: SongIntervalPreflight = async input => ({
@@ -124,68 +124,21 @@ describe("mounted video flow", () => {
   });
   test("reserves, uploads and finalizes without a title, terms or client poster", async () => {
     const fixture = setup("published"); await selectAndPublish();
-    await vi.waitFor(() => expect(fixture.published).toHaveBeenCalledOnce());
+    await vi.waitFor(() => expect(fixture.posted).toHaveBeenCalledOnce());
+    expect(fixture.published).toHaveBeenCalledOnce();
     expect(fixture.commands.map(command => command.kind)).toEqual(["reserve", "start", "finalize"]);
     expect(fixture.commands[0]?.input.body).toMatchObject({ intent: "song_reference", persona_id: "persona", song_post_id: "song-post" });
     expect(fixture.commands[1]?.input.body).not.toHaveProperty("title");
     expect(fixture.commands[2]?.input.body).toMatchObject({ parts: [{ part_number: 1, etag: "receipt" }] });
-    expect(document.querySelector('a[href="/posts/post"]')?.textContent).toBe("View published post");
   });
-  test("unconfirmed provider submission persists abandonment before another attempt", async () => {
-    const fixture = setup("provider_submission_unconfirmed"); await selectAndPublish();
-    await vi.waitFor(() => expect(document.body.textContent).toContain("provider submission is unconfirmed"));
-    expect([...document.querySelectorAll("button")].some(button => /Retry processing|Retry publication/.test(button.textContent ?? ""))).toBe(false);
-    expect(document.body.textContent).not.toContain("Start a new video");
-    const abandon = [...document.querySelectorAll("button")].find(button => button.textContent?.includes("Abandon unresolved video"));
-    expect(abandon).toBeDefined(); abandon!.click();
-    await vi.waitFor(() => expect(document.body.textContent).toContain("Start a new video"));
-    expect(fixture.commands.map(command => command.kind)).toEqual(["reserve", "start", "finalize", "cancel"]);
-  });
-  test("membership loss offers publication retry with retained analysis", async () => {
-    setup("membership_required"); await selectAndPublish();
-    await vi.waitFor(() => expect(document.body.textContent).toContain("posting eligibility"));
-    expect(document.body.textContent).toContain("Retry publication"); expect(document.body.textContent).not.toContain("Retry processing");
-  });
-  test("an explicit nonretryable processing failure can start a new video", async () => {
-    setup("transform_failed"); await selectAndPublish();
-    await vi.waitFor(() => expect(document.body.textContent).toContain("Start a new video"));
-    expect(document.body.textContent).not.toContain("Abandon unresolved video");
-  });
-  test("says in plain words where the video is, never the raw server state", async () => {
-    setup("published"); await selectAndPublish();
-    await vi.waitFor(() => expect(document.body.textContent).toContain("Your video is posted."));
-    expect(document.body.textContent).not.toMatch(/Video state|Preparing video|bytes/);
-  });
-  test("a failed processing run says so plainly", async () => {
-    setup("transform_failed"); await selectAndPublish();
-    await vi.waitFor(() => expect(document.body.textContent).toContain("Video processing failed."));
-    expect(document.body.textContent).not.toMatch(/Video state|processing failed\.$|transform/);
-  });
-  test("a server review hold stays private and does not claim publication", async () => {
-    const fixture = setup("manual_review"); await selectAndPublish();
-    await vi.waitFor(() => expect(document.body.textContent).toContain("Waiting for review"));
-    expect(document.body.textContent).toContain("A community moderator must approve this video");
-    expect(document.body.textContent).toContain("It stays private until then");
-    expect(document.body.textContent).not.toContain("Soundtrack: this song");
-    expect([...document.querySelectorAll("button")].map(button => button.textContent?.trim())).toContain("Done");
-    expect(document.body.textContent).not.toContain("Check video status");
-    expect(fixture.published).not.toHaveBeenCalled(); expect(document.querySelector("a")).toBeNull();
-  });
-  test("passive review polling leaves the one exit action stable", async () => {
-    setup("manual_review"); await selectAndPublish();
-    const button = await vi.waitFor(() => {
-      const found = [...document.querySelectorAll("button")].find(item => item.textContent?.trim() === "Done");
-      expect(found?.disabled).toBe(false);
-      return found!;
+  test.each(["published", "manual_review", "transform_failed", "membership_required", "provider_submission_unconfirmed"] as const)(
+    "once the upload is sealed (%s) the author goes to the feed and the device forgets the video", async final => {
+      const fixture = setup(final); await selectAndPublish();
+      await vi.waitFor(() => expect(fixture.posted).toHaveBeenCalledOnce());
+      expect(fixture.retained()).toBeNull();
+      expect(fixture.commands.map(command => command.kind)).toEqual(["reserve", "start", "finalize"]);
+      expect(document.body.textContent).not.toMatch(/Waiting for review|Check video status|Start a new video|Retry|Resume video submission|Abandon/);
     });
-    const disabledChanges: boolean[] = [];
-    const observer = new MutationObserver(() => { disabledChanges.push(button.disabled); });
-    observer.observe(button, { attributes: true, attributeFilter: ["disabled"] });
-    await new Promise(resolve => setTimeout(resolve, 3_250));
-    observer.disconnect();
-    expect(disabledChanges).toEqual([]);
-    expect(button.disabled).toBe(false);
-  }, 5_000);
 });
 
 

@@ -1,5 +1,5 @@
 import { createEffect, createMemo, createSignal, onCleanup, Show, untrack } from "solid-js";
-import { Button, FormNote, IconQueue } from "../../../design-system";
+import { Button, FormNote } from "../../../design-system";
 import { type ExcerptBounds, formatExcerptTime } from "../post-composer/song-excerpt";
 import { SongExcerptComposer, type SoundtrackSelection } from "../post-composer/song-excerpt-composer";
 import { createLocalExcerptDraftStore } from "../post-composer/song-excerpt-draft-store";
@@ -48,6 +48,9 @@ export function VideoComposerRuntime(props: {
   readonly onExit: () => void;
   readonly onRetainedPersona: (personaId: string | null, communityId?: string) => void;
   readonly onPublished?: () => void;
+  /** Where the author lands once the upload is sealed. Defaults to Home, where
+   * the video appears as soon as it is playable. */
+  readonly onPosted?: () => void;
   readonly storage?: VideoStorage;
   readonly transport?: VideoTransport;
   readonly inspectFile?: (file: File, options?: { readonly maxDurationSeconds?: number }) => Promise<File>;
@@ -176,8 +179,12 @@ export function VideoComposerRuntime(props: {
     try { await action(); } catch (failure) { if (!disposed) setError(failure instanceof Error ? failure.message : "The video attempt could not be completed safely"); }
     finally { if (!disposed) { setBusy(false); setProgress(""); } }
   }
-  void coordinator.restore().then(next => {
+  const posted = () => (props.onPosted ?? (() => globalThis.location?.assign("/")))();
+  void coordinator.restore().then(async next => {
     if (!next || disposed) return;
+    // A video whose upload already finished belongs to the server; it is never
+    // shown again as a pending state here.
+    if (await coordinator.release()) return;
     showFile(next.file); setCaption(next.caption); setRating(next.rating);
   }).catch(failure => { if (!disposed) setError(failure instanceof Error ? failure.message : "Video restore failed"); })
     .finally(() => { if (!disposed) setBusy(false); });
@@ -515,6 +522,7 @@ export function VideoComposerRuntime(props: {
       }
       if (disposed) return;
       await coordinator.submit();
+      if (!disposed && await coordinator.release()) posted();
     });
   }
   let backgroundRefresh: Promise<VideoSnapshot | null> | null = null;
@@ -597,11 +605,6 @@ export function VideoComposerRuntime(props: {
   const failure = () => { const snapshot = state(); return snapshot?.status === "processing_failed" ? snapshot : undefined; };
   const editing = () => !record();
   const awaiting = () => { const snapshot = state(); return snapshot?.status === "processing" && snapshot.phase === "awaiting_upload"; };
-  const publishedHref = () => {
-    const snapshot = state(); if (snapshot?.status !== "published") return undefined;
-    const url = new URL(snapshot.published_resource.href, location.origin);
-    return url.origin === location.origin ? `${url.pathname}${url.search}` : undefined;
-  };
   const blocked = () => { const snapshot = state(); return snapshot?.status === "blocked" ? snapshot : undefined; };
   // One plain sentence for the submitted video. Raw server states never
   // reach the screen; while an action runs, only real upload progress shows.
@@ -746,25 +749,9 @@ export function VideoComposerRuntime(props: {
         </Show>
         <Button disabled={busy()} onClick={() => { void run(() => coordinator.refresh()); }}>Check video status</Button>
       </Show>
-      <Show when={!record()?.rejection && state()?.status === "manual_review"}>
-        <div class="mx-auto flex min-h-[70dvh] w-full max-w-sm flex-col items-center justify-center gap-5 px-6 text-center" role="status">
-          <span class="grid size-16 place-items-center rounded-full bg-primary/10 text-primary" aria-hidden="true">
-            <IconQueue class="size-8" />
-          </span>
-          <div class="space-y-2">
-            <h2 class="text-xl font-semibold">Waiting for review</h2>
-            <p class="text-sm text-muted-foreground">A community moderator must approve this video before it can be posted. It stays private until then.</p>
-          </div>
-          <Button class="w-full" onClick={props.onExit}>Done</Button>
-        </div>
-      </Show>
       <Show when={!record()?.rejection && (state()?.status === "blocked" || state()?.status === "abandoned")}>
         <Show when={blocked()?.reason_code === "song_reference_invalid"}><p role="status">{songReferenceInvalidText(blocked()?.song_reason_code)}</p></Show>
         <Button disabled={busy()} onClick={() => { void run(() => coordinator.refresh()); }}>Check video status</Button>
-        <Button disabled={busy()} onClick={() => { void run(async () => { await coordinator.discard(); setFile(null); clearPreviewUrls(); setCaption(""); }); }}>Start a new video</Button>
-      </Show>
-      <Show when={!record()?.rejection && state()?.status === "published"}>
-        <Show when={publishedHref()}>{href => <a href={href()}>View published post</a>}</Show>
         <Button disabled={busy()} onClick={() => { void run(async () => { await coordinator.discard(); setFile(null); clearPreviewUrls(); setCaption(""); }); }}>Start a new video</Button>
       </Show>
     </Show>

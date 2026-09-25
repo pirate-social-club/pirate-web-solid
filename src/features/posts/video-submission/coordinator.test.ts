@@ -114,6 +114,19 @@ describe("video operation replay", () => {
     await expect(first.discardRejected()).rejects.toThrow(/definitively/);
     expect(first.current?.snapshot?.submission_id).toBe("submission");
   });
+  test("release forgets only a video whose upload is sealed and confirmed", async () => {
+    const fixture = setup(); const first = fixture.create(); await fixture.begin(first);
+    expect(await first.release()).toBe(false);
+    // The fixture loses the first finalize response: it must stay replayable.
+    await expect(first.submit()).rejects.toThrow("Lost finalize response");
+    expect(await first.release()).toBe(false);
+    expect(await fixture.storage.load()).not.toBeNull();
+    await first.submit();
+    expect(await first.release()).toBe(true);
+    expect(await fixture.storage.load()).toBeNull();
+    expect(first.current).toBeNull();
+    expect(fixture.posts()).toBe(1);
+  });
   test("partial renewal preserves the complete durable upload plan", async () => {
     const fixture = setup({ ...reservation, upload: { ...reservation.upload, part_size_bytes: 3, part_count: 2,
       parts: [1, 2].map(part_number => ({ part_number, url: `https://upload.example/${part_number}`,

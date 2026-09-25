@@ -298,6 +298,18 @@ export class VideoCoordinator {
       await this.options.storage.remove(); this.record = null; this.options.onChange?.(null);
     });
   }
+  /** Once the upload is sealed the server owns the video: this device forgets
+   * it without cancelling anything, so the author goes straight back to the
+   * feed and can record again. Returns false while bytes are still owed. */
+  async release(): Promise<boolean> {
+    return this.exclusive(async () => {
+      const snapshot = this.record?.snapshot;
+      // An unconfirmed command (a lost finalize response) must stay replayable.
+      if (!snapshot || this.record?.pending || (snapshot.status === "processing" && snapshot.phase === "awaiting_upload")) return false;
+      await this.options.storage.remove(); this.record = null; this.options.onChange?.(null);
+      return true;
+    });
+  }
   /** Explicit edit/discard after a refused reserve/start; never on ambiguity. */
   async discardRejected(): Promise<PendingVideo> {
     return this.exclusive(async () => {
