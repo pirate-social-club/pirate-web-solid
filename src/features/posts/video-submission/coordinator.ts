@@ -310,6 +310,25 @@ export class VideoCoordinator {
       return true;
     });
   }
+  /** Settles a finalize whose answer never arrived. The server may have
+   * accepted it anyway, so this reads the same submission (identity checked
+   * by the read) instead of assuming failure. Once the submission has left
+   * the upload phase the finalize is proven accepted and this device forgets
+   * the video, as `release` does. Returns false while the upload is still
+   * owed; the retained command then stays replayable. A failed read throws
+   * and changes nothing. */
+  async settleFinalize(): Promise<boolean> {
+    return this.exclusive(async () => {
+      const record = this.record;
+      const command = record?.pending?.command;
+      if (!record?.snapshot || command?.kind !== "finalize"
+        || command.input.path.submissionId !== record.snapshot.submission_id) return false;
+      const snapshot = await this.refreshSnapshot();
+      if (!snapshot || (snapshot.status === "processing" && snapshot.phase === "awaiting_upload")) return false;
+      await this.options.storage.remove(); this.record = null; this.options.onChange?.(null);
+      return true;
+    });
+  }
   /** Explicit edit/discard after a refused reserve/start; never on ambiguity. */
   async discardRejected(): Promise<PendingVideo> {
     return this.exclusive(async () => {

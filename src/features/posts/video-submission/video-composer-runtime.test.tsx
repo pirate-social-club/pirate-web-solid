@@ -182,6 +182,11 @@ describe("mounted song-first video flow", () => {
     /** Hold each interval preflight open so a stale answer can be resolved on
      * command; timing (no-interval) requests still answer immediately. */
     readonly deferIntervalChecks?: boolean;
+    /** Lose the first finalize response, before or after the server commits it. */
+    readonly loseFinalize?: "before_commit" | "after_commit";
+    /** While set, reading the submission fails as a network error would. */
+    readonly readFails?: { value: boolean };
+    readonly onPosted?: () => void;
   }) {
     vi.stubGlobal("crypto", webcrypto);
     vi.stubGlobal("URL", class extends URL { static createObjectURL() { return "blob:https://example.test/video"; } static revokeObjectURL() {} });
@@ -229,8 +234,13 @@ describe("mounted song-first video flow", () => {
     const common = { track: "video" as const, intent: "song_reference" as const, submission_id: "submission", author_persona: { object: "persona" as const, persona_id: "persona", display_name: null, avatar_ref: null, primary_public_handle: null }, creation_revision: 1, video_revision: 0, caption: "", updated_at: "2026-09-11T00:00:00Z", href: "/media-post-submissions/submission" };
     let snapshot: VideoSnapshot = { ...common, status: "processing", phase: "awaiting_upload" };
     const commands: VideoCommand[] = [];
-    const transport: VideoTransport = { async read() { return snapshot; }, async execute(command) {
+    let loseFinalize = options.loseFinalize;
+    const transport: VideoTransport = { async read() {
+      if (options.readFails?.value) throw new Error("offline");
+      return snapshot;
+    }, async execute(command) {
       commands.push(command);
+      if (command.kind === "finalize" && loseFinalize === "before_commit") { loseFinalize = undefined; throw new Error("provider_unavailable"); }
       if (command.kind === "reserve") {
         const body = command.input.body;
         if (body.track !== "video") throw new Error("not a video");
@@ -248,6 +258,7 @@ describe("mounted song-first video flow", () => {
       if (command.kind === "finalize") snapshot = options.finalSnapshot === "song_blocked"
         ? { ...common, creation_revision: 2, video_revision: 1, status: "blocked", reason_code: "song_reference_invalid", song_post_id: "song-post", song_reason_code: "derivative_video_blocked" }
         : { ...common, creation_revision: 2, video_revision: 1, status: "published", published_resource: { post_id: "post", href: "/posts/post" } };
+      if (command.kind === "finalize" && loseFinalize === "after_commit") { loseFinalize = undefined; throw new Error("provider_unavailable"); }
       return snapshot;
     } };
     const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(new Response(null, { headers: { etag: "receipt" } }));
@@ -275,6 +286,7 @@ describe("mounted song-first video flow", () => {
       onGuideTiming={options.onGuideTiming}
       songPreflight={preflight} songReader={songReader}
       initialSong={options.initialSong === false ? undefined : { postId: "song-post" }}
+      {...(options.onPosted ? { onPosted: options.onPosted } : {})}
       onExit={() => {}} onRetainedPersona={() => {}} />, container); });
     return { commands, preflightCalls, pendingChecks, fetchImpl, alignments, inspectOptions, current: () => saved };
   }
@@ -457,6 +469,9 @@ describe("mounted song-first video flow", () => {
     readonly startAfterMs?: number;
     /** Hold the playback start until the test releases it. */
     readonly manual?: boolean;
+    /** How far the element holds the song from 0, in seconds; absent means
+     * the element cannot report it. */
+    readonly buffered?: { end: number };
   } = {}) {
     const events = new Map<string, () => void>();
     const calls = { play: 0, pause: 0, resolved: 0 };
@@ -479,6 +494,11 @@ describe("mounted song-first video flow", () => {
       addEventListener: (type, listener) => { events.set(type, listener); },
       removeEventListener: (type) => { events.delete(type); },
     };
+    const held = options.buffered;
+    if (held) Object.defineProperty(audio, "buffered", { value: {
+      get length() { return held.end > 0 ? 1 : 0; },
+      start: () => 0, end: () => held.end,
+    } });
     return { audio, calls, events, release: () => release?.() };
   }
   function fakeSession(stopped: () => void, options: { readonly captureOriginMs?: number } = {}): VideoCaptureSession {
@@ -683,6 +703,91 @@ describe("mounted song-first video flow", () => {
     guide.events.get("waiting")?.();
     await vi.waitFor(() => expect(stopped).toBe(1));
     await vi.waitFor(() => expect(document.body.textContent).toContain("stalled"));
+  });
+
+  test("a cold song is loaded before the camera starts, then the take plays it", async () => {
+    const held = { end: 0 };
+    const guide = guideSpy({ buffered: held });
+    nextSession = () => fakeSession(() => undefined);
+    songSetup({ preflight: "accepted", mobile: true, createGuideAudio: () => guide.audio });
+    await loadSongMetadata();
+    await awaitPlan("ready");
+    await startRecording();
+    await vi.waitFor(() => expect(document.body.textContent).toContain("Loading the song"));
+    await new Promise(resolve => setTimeout(resolve, 300));
+    expect(startCapture).not.toHaveBeenCalled();
+    expect(guide.audio.preload).toBe("auto");
+    held.end = 20;
+    guide.events.get("progress")?.();
+    await vi.waitFor(() => expect(startCapture).toHaveBeenCalledTimes(1));
+    await vi.waitFor(() => expect(guide.calls.play).toBe(1));
+  });
+
+  test("a song that fails to load never starts a take", async () => {
+    const guide = guideSpy({ buffered: { end: 0 } });
+    songSetup({ preflight: "accepted", mobile: true, createGuideAudio: () => guide.audio });
+    await loadSongMetadata();
+    await awaitPlan("ready");
+    await startRecording();
+    await vi.waitFor(() => expect(guide.events.get("error")).toBeDefined());
+    guide.events.get("error")?.();
+    await vi.waitFor(() => expect(document.body.textContent).toContain("didn't finish loading"));
+    expect(startCapture).not.toHaveBeenCalled();
+    expect(guide.calls.play).toBe(0);
+  });
+
+  test("a paused download mid-take does not end a take that is still playing", async () => {
+    const guide = guideSpy({ buffered: { end: 210 } });
+    let stopped = 0;
+    nextSession = () => fakeSession(() => { stopped += 1; });
+    songSetup({ preflight: "accepted", mobile: true, createGuideAudio: () => guide.audio });
+    await loadSongMetadata();
+    await awaitPlan("ready");
+    await startRecording();
+    await vi.waitFor(() => expect(guide.calls.play).toBe(1));
+    // `stalled` only says the network paused; nothing listens for it.
+    expect(guide.events.get("stalled")).toBeUndefined();
+    await new Promise(resolve => setTimeout(resolve, 100));
+    expect(stopped).toBe(0);
+    expect(document.body.textContent).toContain("Recording to A song");
+  });
+
+  test("a finalize answer lost after the server committed goes Home without a second finalize", async () => {
+    let posted = 0;
+    const fixture = songSetup({ preflight: "accepted", loseFinalize: "after_commit", onPosted: () => { posted += 1; } });
+    await loadSongMetadata();
+    await awaitPlan("ready");
+    await chooseFile();
+    await publish();
+    await vi.waitFor(() => expect(posted).toBe(1));
+    expect(fixture.commands.filter(command => command.kind === "finalize")).toHaveLength(1);
+    expect(fixture.current()).toBeNull();
+    expect(document.body.textContent).not.toContain("provider_unavailable");
+    expect(document.body.textContent).not.toContain("hasn't finished uploading");
+  });
+
+  test("an unconfirmed finalize shows a checking state, then replays the same command", async () => {
+    let posted = 0;
+    const readFails = { value: false };
+    const fixture = songSetup({ preflight: "accepted", loseFinalize: "before_commit", readFails, onPosted: () => { posted += 1; } });
+    await loadSongMetadata();
+    await awaitPlan("ready");
+    await chooseFile();
+    readFails.value = false;
+    await publish();
+    await vi.waitFor(() => expect(document.body.textContent).toContain("couldn't confirm it arrived"));
+    readFails.value = true;
+    await vi.waitFor(() => expect(document.body.textContent).toContain("Checking that your video arrived"));
+    expect(document.body.textContent).not.toContain("hasn't finished uploading");
+    expect(posted).toBe(0);
+    expect(fixture.current()?.pending?.command.kind).toBe("finalize");
+    readFails.value = false;
+    await vi.waitFor(() => expect(button("Resume video submission")).toBeDefined());
+    button("Resume video submission")!.click();
+    await vi.waitFor(() => expect(posted).toBe(1), { timeout: 5_000 });
+    const finalizes = fixture.commands.filter(command => command.kind === "finalize");
+    expect(finalizes).toHaveLength(2);
+    expect(finalizes[1]?.input.body.idempotency_key).toBe(finalizes[0]?.input.body.idempotency_key);
   });
 
   test("the soundtrack controls are frozen while the take records", async () => {

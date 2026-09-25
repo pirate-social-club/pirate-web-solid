@@ -27,10 +27,30 @@ import { createVideoTransport, type VideoTransport } from "./transport";
  * take without a decoder. */
 export interface GuideAudio {
   currentTime: number;
+  preload?: string;
+  /** What the element holds, in seconds. Absent where it cannot be read, in
+   * which case there is nothing to wait for before recording. */
+  readonly buffered?: { readonly length: number; start: (index: number) => number; end: (index: number) => number };
   play: () => Promise<void>;
   pause: () => void;
-  addEventListener: (type: "error" | "waiting" | "stalled" | "playing", listener: () => void) => void;
-  removeEventListener: (type: "error" | "waiting" | "stalled" | "playing", listener: () => void) => void;
+  addEventListener: (type: GuideAudioEvent, listener: () => void) => void;
+  removeEventListener: (type: GuideAudioEvent, listener: () => void) => void;
+}
+type GuideAudioEvent = "error" | "waiting" | "stalled" | "playing" | "progress" | "canplaythrough";
+
+/** How long the excerpt may take to load before a take. A song that is not
+ * held by then is still streaming, and a take would stall on it. */
+export const GUIDE_BUFFER_TIMEOUT_MS = 12_000;
+
+/** Whether one buffered range covers the whole excerpt. */
+export function excerptBuffered(audio: GuideAudio, bounds: { readonly startMs: number; readonly endMs: number }): boolean {
+  const ranges = audio.buffered;
+  if (!ranges) return true;
+  const start = bounds.startMs / 1_000; const end = bounds.endMs / 1_000;
+  for (let index = 0; index < ranges.length; index += 1) {
+    if (ranges.start(index) <= start + 0.05 && ranges.end(index) >= end - 0.05) return true;
+  }
+  return false;
 }
 
 /** A guide that has not started within this window has lost the take's start
@@ -260,7 +280,9 @@ export function VideoComposerRuntime(props: {
 
   // Whether the guide has actually begun. A `waiting` before the first
   // `playing` is startup buffering, not a mid-take stall, and ending the take
-  // for it would cancel every recording on a slow network.
+  // for it would cancel every recording on a slow network. `stalled` is not
+  // listened for: it only says the download paused, and playback continues
+  // from what is buffered. The excerpt is loaded before the take starts.
   let guidePlaying = false;
   const onGuidePlaying = () => { guidePlaying = true; };
   const stopGuide = () => {
@@ -270,7 +292,6 @@ export function VideoComposerRuntime(props: {
     if (!audio) return;
     audio.removeEventListener("error", onGuideFailure);
     audio.removeEventListener("waiting", onGuideInterrupted);
-    audio.removeEventListener("stalled", onGuideInterrupted);
     audio.removeEventListener("playing", onGuidePlaying);
     audio.pause();
   };
@@ -278,19 +299,49 @@ export function VideoComposerRuntime(props: {
     if (disposed) return;
     void stopCapture("The guide song stopped unexpectedly, so the recording ended.");
   };
-  /** Buffering mid-take means the guide is no longer keeping time with the
-   * recording; the take ends rather than drifting silently. */
+  /** Playback waiting for data mid-take means the guide is no longer keeping
+   * time with the recording; the take ends rather than drifting silently. */
   const onGuideInterrupted = () => {
     if (disposed || !guidePlaying) return;
     void stopCapture("The guide song stalled, so this recording ended.");
   };
-  async function startGuide(guide: SoundtrackSelection): Promise<boolean> {
+  const createGuide = (url: string): GuideAudio => props.createGuideAudio ? props.createGuideAudio(url) : new Audio(url);
+  /** Loads the excerpt before the camera starts, so a take never begins on a
+   * song that is still streaming. Resolves with the element once one buffered
+   * range covers the whole excerpt, or null when that does not happen in time
+   * or the song fails to load. */
+  async function prepareGuide(guide: SoundtrackSelection): Promise<GuideAudio | null> {
+    const audio = createGuide(guide.audioUrl);
+    audio.preload = "auto";
+    audio.currentTime = guide.bounds.startMs / 1_000;
+    if (excerptBuffered(audio, guide.bounds)) return audio;
+    return new Promise(resolve => {
+      let settled = false;
+      const finish = (ready: boolean) => {
+        if (settled) return;
+        settled = true;
+        clearInterval(poll); clearTimeout(timer);
+        audio.removeEventListener("progress", check);
+        audio.removeEventListener("canplaythrough", check);
+        audio.removeEventListener("error", fail);
+        if (!ready) audio.pause();
+        resolve(ready && !disposed ? audio : null);
+      };
+      const check = () => { if (disposed || excerptBuffered(audio, guide.bounds)) finish(!disposed); };
+      const fail = () => finish(false);
+      audio.addEventListener("progress", check);
+      audio.addEventListener("canplaythrough", check);
+      audio.addEventListener("error", fail);
+      const poll = setInterval(check, 250);
+      const timer = setTimeout(() => finish(false), GUIDE_BUFFER_TIMEOUT_MS);
+    });
+  }
+  async function startGuide(guide: SoundtrackSelection, prepared?: GuideAudio): Promise<boolean> {
     stopGuide();
-    const audio = props.createGuideAudio ? props.createGuideAudio(guide.audioUrl) : new Audio(guide.audioUrl);
+    const audio = prepared ?? createGuide(guide.audioUrl);
     guideAudio = audio;
     audio.addEventListener("error", onGuideFailure);
     audio.addEventListener("waiting", onGuideInterrupted);
-    audio.addEventListener("stalled", onGuideInterrupted);
     audio.addEventListener("playing", onGuidePlaying);
     audio.currentTime = guide.bounds.startMs / 1_000;
     let timer: ReturnType<typeof setTimeout> | undefined;
@@ -405,6 +456,17 @@ export function VideoComposerRuntime(props: {
         ?? (async (input: OriginalVideoCaptureInput) => (await import("./capture")).startOriginalVideoCapture(input));
       const capture = await import("./capture");
       const guide = songActive() ? selection() : null;
+      // The excerpt is loaded before the camera starts, so a take never begins
+      // on a song that is still streaming from the network.
+      let prepared: GuideAudio | undefined;
+      if (guide) {
+        setProgress("Loading the song…");
+        const ready = await prepareGuide(guide);
+        if (disposed) return;
+        setProgress("");
+        if (!ready) throw new Error("The song didn't finish loading, so recording didn't start. Check your connection and try again.");
+        prepared = ready;
+      }
       try {
         setTakeAlignment("none");
       guideStartDelayMs = 0;
@@ -437,6 +499,7 @@ export function VideoComposerRuntime(props: {
           ...(handed ? { stream: handed } : {}),
         });
       } catch (failure) {
+        prepared?.pause();
         stopTracks(handed);
         if (handed && stream() === handed) setStream(null);
         throw failure;
@@ -446,7 +509,7 @@ export function VideoComposerRuntime(props: {
         if (disposed) { await current.cancel(); return; }
         session = current; setStream(current.stream); setCaptureStatus("recording");
         if (!guide) return;
-        const started = await startGuide(guide);
+        const started = await startGuide(guide, prepared);
         // Measured from the encoder's own origin to the moment playback
         // began, not from the moment the session object was returned: setup
         // time after the encoder started is part of the recorded lead-in,
@@ -521,12 +584,32 @@ export function VideoComposerRuntime(props: {
         });
       }
       if (disposed) return;
-      await coordinator.submit();
+      try { await coordinator.submit(); }
+      catch (failure) {
+        // A finalize whose answer was lost may still have been accepted. The
+        // submission is read before the author is told anything failed.
+        if (!finalizeUnconfirmed()) throw failure;
+        if (await settleFinalize()) return;
+        throw new Error("Your video is uploaded, but we couldn't confirm it arrived yet. Checking again…");
+      }
       if (!disposed && await coordinator.release()) posted();
     });
   }
-  let backgroundRefresh: Promise<VideoSnapshot | null> | null = null;
+  /** Whether a finalize was sent and its answer never arrived. */
+  const finalizeUnconfirmed = () => record()?.pending?.command.kind === "finalize";
+  /** Reads the submission behind an unconfirmed finalize; goes Home once the
+   * server has it. A failed read leaves everything retained. */
+  async function settleFinalize(): Promise<boolean> {
+    const settled = await coordinator.settleFinalize().catch(() => false);
+    if (settled && !disposed) posted();
+    return settled;
+  }
+  let backgroundRefresh: Promise<VideoSnapshot | null | boolean> | null = null;
   const poll = setInterval(() => {
+    if (finalizeUnconfirmed() && !busy() && !backgroundRefresh) {
+      backgroundRefresh = settleFinalize().finally(() => { backgroundRefresh = null; });
+      return;
+    }
     const state = record()?.snapshot;
     if ((state?.status === "manual_review" || (state?.status === "processing" && state.phase !== "awaiting_upload"))
       && !busy() && !backgroundRefresh) {
@@ -611,6 +694,7 @@ export function VideoComposerRuntime(props: {
   const videoStatusText = () => {
     const current = record(); if (!current || current.rejection) return undefined;
     const snapshot = state();
+    if (finalizeUnconfirmed()) return busy() ? undefined : "Checking that your video arrived…";
     if (!snapshot || (snapshot.status === "processing" && snapshot.phase === "awaiting_upload"))
       return busy() ? undefined : "Your video hasn't finished uploading.";
     if (snapshot.status === "processing") return "Your video is processing. This can take a few minutes.";
