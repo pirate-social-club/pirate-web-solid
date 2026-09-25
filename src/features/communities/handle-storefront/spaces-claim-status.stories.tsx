@@ -1,6 +1,6 @@
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 
-import { SpacesClaimStateCard, type SpacesClaimDisplay } from "./spaces-claim-status.tsx";
+import { SpacesClaimStateCard, type SpacesClaimDisplay } from "./spaces-claim-state.tsx";
 
 const pending: SpacesClaimDisplay = { state: "issuance_pending", delayed: false,
   display_identifier: "alice@yahoo", grant: null };

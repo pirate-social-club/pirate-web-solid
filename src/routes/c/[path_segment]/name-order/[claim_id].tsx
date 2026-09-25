@@ -2,8 +2,8 @@ import { type RouteProps } from "@solidjs/router";
 import { defineFileRoute } from "@solidjs/router/fs";
 import { getRequestEvent, httpHeader, httpStatus } from "@solidjs/web";
 
-import SpacesClaimStatus from "../../../../../features/communities/handle-storefront/spaces-claim-status.tsx";
-import { decodeCommunityRouteParam } from "../../../../../features/communities/community-page/community-page-preflight.ts";
+import SpacesClaimStatus from "../../../../features/communities/handle-storefront/spaces-claim-status.tsx";
+import { decodeCommunityRouteParam } from "../../../../features/communities/community-page/community-page-preflight.ts";
 
 export const route = defineFileRoute("/c/:path_segment/name-order/:claim_id", {
   preload: ({ params }) => {

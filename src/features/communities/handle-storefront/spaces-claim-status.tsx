@@ -4,11 +4,9 @@ import { Show, createEffect, createMemo, createSignal } from "solid-js";
 
 import { createSessionHandleSalesClient, type SessionHandleSalesApiClient } from "../../../api/handle-sales-client.ts";
 import { Button, Card, CardContent, CardHeader } from "../../../design-system.ts";
+import { SpacesClaimStateCard } from "./spaces-claim-state.tsx";
 
 type SpacesClaim = Extract<GetHandleClaimsClaimIdResponse, { readonly handle: { readonly family: "spaces" } }>;
-export type SpacesClaimDisplay = Pick<SpacesClaim, "state" | "delayed" | "display_identifier"> & {
-  readonly grant: Pick<NonNullable<SpacesClaim["grant"]>, "status"> | null;
-};
 type ClaimStatus =
   | { readonly kind: "loading" }
   | { readonly kind: "signed-out" | "not-found" | "error" }
@@ -16,26 +14,6 @@ type ClaimStatus =
 
 function isSpacesClaim(claim: GetHandleClaimsClaimIdResponse): claim is SpacesClaim {
   return claim.fulfillment.kind === "spaces_native_v1" && claim.handle.family === "spaces";
-}
-
-export function spacesClaimStatus(claim: SpacesClaimDisplay) {
-  if (claim.state === "issued" && claim.grant?.status === "active") {
-    return { title: `${claim.display_identifier} is registered`, detail: "Your name is ready to use." };
-  }
-  if (claim.state === "issuance_failed") {
-    return { title: "Registration needs attention", detail: "This name could not be registered. Contact the community owner before requesting it again." };
-  }
-  return { title: "Registration pending", detail: claim.delayed
-    ? "Registration is taking longer than expected. Only you can see this requested name while it is pending."
-    : "Only you can see this requested name until its Bitcoin registration is final." };
-}
-
-export function SpacesClaimStateCard(props: { readonly claim: SpacesClaimDisplay }) {
-  const display = () => spacesClaimStatus(props.claim);
-  return <div data-spaces-claim-state={props.claim.state} role="status">
-    <h2 class="font-semibold">{display().title}</h2>
-    <p>{display().detail}</p>
-  </div>;
 }
 
 export default function SpacesClaimStatus(props: {

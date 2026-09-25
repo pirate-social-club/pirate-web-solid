@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 
-import { spacesClaimStatus } from "./spaces-claim-status.tsx";
+import { spacesClaimStatus } from "./spaces-claim-state.tsx";
 
 describe("private Spaces registration status", () => {
   test("keeps pending and delayed names private, and announces only an active grant as ready", () => {
