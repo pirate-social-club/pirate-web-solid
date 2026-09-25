@@ -39,6 +39,8 @@ export interface PrivyAuthClient {
   getAccessToken(): Promise<string | null>;
   ensureEmbeddedEthereumWallet?(walletIndex: number, idempotencyKey: string): Promise<void>;
   getEmbeddedEthereumProvider?(walletIndex: number, address: string): Promise<EthereumProvider>;
+  addEmbeddedTaprootWallet?(): Promise<void>;
+  signEmbeddedTaprootHash?(providerWalletId: string, digestHex: string): Promise<string>;
   dispose?(): void;
 }
 
@@ -123,6 +125,7 @@ export async function defaultPrivyFactory(config: VerificationPublicConfig, stor
     default: Privy,
     getAllUserEmbeddedEthereumWallets,
     getEntropyDetailsFromAccount,
+    rawSign,
   } = await preloadPrivySdk();
   const client = new Privy({ appId: config.privyAppId, clientId: config.privyClientId, storage });
   let embeddedWalletFrame: HTMLIFrameElement | undefined;
@@ -218,6 +221,29 @@ export async function defaultPrivyFactory(config: VerificationPublicConfig, stor
       if (!wallets.some((wallet) => wallet.wallet_index === walletIndex)) {
         throw new Error("wallet_index_mismatch");
       }
+    },
+    async addEmbeddedTaprootWallet() {
+      ensureEmbeddedWalletBridge();
+      const { user } = await client.user.get();
+      const root = getAllUserEmbeddedEthereumWallets(user).find(wallet => wallet.wallet_index === 0);
+      if (root === undefined) throw new Error("wallet_root_unavailable");
+      await client.embeddedWallet.add({
+        chainType: "bitcoin-taproot",
+        hdWalletIndex: 0,
+        ...getEntropyDetailsFromAccount(root),
+      });
+    },
+    async signEmbeddedTaprootHash(providerWalletId, digestHex) {
+      ensureEmbeddedWalletBridge();
+      if (!/^[0-9a-f]{64}$/u.test(digestHex)) throw new Error("wallet_invalid_digest");
+      const response = await rawSign(
+        client,
+        input => client.embeddedWallet.signWithUserSigner(input),
+        { wallet_id: providerWalletId, params: { hash: `0x${digestHex}` } },
+      );
+      const signature = response.data.signature;
+      if (!/^0x[0-9a-f]{128}$/iu.test(signature)) throw new Error("wallet_invalid_signature");
+      return signature.slice(2).toLowerCase();
     },
     dispose() {
       if (embeddedWalletListener !== undefined) {

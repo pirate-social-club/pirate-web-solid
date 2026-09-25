@@ -265,6 +265,31 @@ describe("community handle storefront", () => {
     expect(container.textContent).toContain("Claim a name in @yahoo");
     expect(container.textContent).toContain("Bitcoin Taproot wallet");
   });
+  test("offers wallet setup only after a Spaces quote requires a recipient", async () => {
+    const client = sessionClient();
+    const originalConfirmation = client.post_handlePersonaLinkConfirmations;
+    client.post_handlePersonaLinkConfirmations = vi.fn(async (input, options) => ({
+      ...await originalConfirmation(input, options),
+      family: "spaces" as const, namespace_root: "yahoo",
+    }));
+    client.post_handleQuotes = vi.fn(async () => ({ kind: "recipient_wallet_required" as const,
+      offering_id: spacesOffering.offering_id, owner_persona_id: personaId,
+      reason: "recipient_wallet_required" as const }));
+    const container = render(() => <HandleStorefront pathSegment="charizard" initialLabel="alice"
+      data={publicState([spacesOffering])} sessionClient={client} readCsrf={() => "csrf-token"} />);
+    await vi.waitFor(() => expect(container.querySelector<HTMLInputElement>("input[type='radio']")).not.toBeNull());
+    expect(container.querySelector("[data-spaces-wallet-setup]")).toBeNull();
+    container.querySelector<HTMLInputElement>("input[type='radio']")?.click();
+    await vi.waitFor(() => expect(container.querySelector<HTMLInputElement>("input[type='checkbox']")?.disabled).toBe(false));
+    container.querySelector<HTMLInputElement>("input[type='checkbox']")?.click();
+    await vi.waitFor(() => expect([...container.querySelectorAll("button")]
+      .find(button => button.textContent?.includes("Claim alice@yahoo"))?.disabled).toBe(false));
+    [...container.querySelectorAll("button")]
+      .find(button => button.textContent?.includes("Claim alice@yahoo"))?.click();
+    await vi.waitFor(() => expect(container.querySelector("[data-spaces-wallet-setup]")).not.toBeNull());
+    expect(client.post_handleReservations).not.toHaveBeenCalled();
+    expect(client.post_handleClaims).not.toHaveBeenCalled();
+  });
   test("restores only an authenticated Spaces pending claim after reload", async () => {
     sessionStorage.setItem(`spaces-claim:${communityId}`, "claim-1");
     const client = sessionClient();

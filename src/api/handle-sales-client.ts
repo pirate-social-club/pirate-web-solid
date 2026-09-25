@@ -24,6 +24,13 @@ export type SessionHandleSalesApiClient = Pick<
   | "post_handleReservations"
 >;
 
+export type SessionSpacesTaprootApiClient = Pick<
+  PirateApiClient,
+  | "post_personasPersonaIdWalletsSpacesTaprootPrepare"
+  | "post_personasPersonaIdWalletsSpacesTaprootStatus"
+  | "post_personasPersonaIdWalletsSpacesTaprootConfirm"
+>;
+
 export interface HandleSalesClientFactoryOptions {
   readonly origin?: string | URL;
   readonly fetchImpl?: ApiFetch;
@@ -74,6 +81,12 @@ export function createPublicHandleSalesClient(
 export function createSessionHandleSalesClient(
   options: HandleSalesClientFactoryOptions = {},
 ): SessionHandleSalesApiClient {
+  return createHandleSalesClient(options, { credentials: "same-origin" });
+}
+
+export function createSessionSpacesTaprootClient(
+  options: HandleSalesClientFactoryOptions = {},
+): SessionSpacesTaprootApiClient {
   return createHandleSalesClient(options, { credentials: "same-origin" });
 }
 

@@ -1,4 +1,5 @@
 import { createSessionApiClient } from "../../../api/client.ts";
+import { createSpacesTaprootWalletSession, type SpacesTaprootWalletSession } from "../../../api/spaces-taproot-wallet-session.ts";
 import { requestDocumentVerification } from "../../verification/document-verification-host.tsx";
 import { handleNationalityRequirement } from "../../verification/document-requirement.ts";
 import { ApiClientError } from "@pirate/api-client";
@@ -323,12 +324,63 @@ function BuyerPanel(props: {
   const [linkConfirmed, setLinkConfirmed] = createSignal(false);
   const [claimState, setClaimState] = createSignal<ClaimUiState>({ kind: "idle" });
   const [authOpen, setAuthOpen] = createSignal(false);
+  const [walletEmail, setWalletEmail] = createSignal("");
+  const [walletCode, setWalletCode] = createSignal("");
+  const [walletStep, setWalletStep] = createSignal<"idle" | "sending" | "code" | "working">("idle");
+  const [walletNeeded, setWalletNeeded] = createSignal(false);
+  let walletSession: SpacesTaprootWalletSession | undefined;
   const [hnsServed, setHnsServed] = createSignal(false);
   const savedClaimKey = `spaces-claim:${state.community.communityId}`;
   let sessionGeneration = 0;
   let activeAttempt: AbortController | undefined;
   let attemptSignature: string | undefined;
   let attemptKeys: HandleStorefrontAttemptKeys | undefined;
+  onCleanup(() => walletSession?.dispose());
+
+  const beginWalletSetup = async () => {
+    const email = walletEmail().trim();
+    if (email === "" || walletStep() === "working") return;
+    setWalletStep("sending");
+    try {
+      walletSession?.dispose();
+      walletSession = await createSpacesTaprootWalletSession();
+      await walletSession.sendCode(email);
+      setWalletStep("code");
+      setClaimState({ kind: "verification", message: "Enter the code sent to your email to set up the receiving wallet." });
+    } catch {
+      walletSession?.dispose();
+      walletSession = undefined;
+      setWalletStep("idle");
+      setClaimState({ kind: "error", message: "Wallet authorization is unavailable. Try again later." });
+    }
+  };
+
+  const completeWalletSetup = async () => {
+    const session = walletSession;
+    const persona = selectedPersona();
+    const csrf = readCsrf();
+    if (session === undefined || persona === undefined || csrf === undefined || walletCode().trim() === "") return;
+    setWalletStep("working");
+    try {
+      await session.loginWithCode(walletEmail().trim(), walletCode().trim());
+      const result = await session.setup(persona.personaId, csrf);
+      if (result.kind === "active") {
+        setWalletNeeded(false);
+        setClaimState({ kind: "verification", message: "Receiving wallet ready. Select Claim again to request your name." });
+      } else if (result.kind === "ambiguous") {
+        setClaimState({ kind: "error", message: "Wallet setup needs review. No additional wallet will be created automatically." });
+      } else {
+        setClaimState({ kind: "verification", message: "Wallet setup is pending. Check again later; no additional wallet will be created automatically." });
+      }
+    } catch {
+      setClaimState({ kind: "error", message: "Wallet setup could not be confirmed. Try again later; the service will check the existing attempt before creating anything." });
+    } finally {
+      session.dispose();
+      walletSession = undefined;
+      setWalletCode("");
+      setWalletStep("idle");
+    }
+  };
 
   const activeOffering = createMemo(() => selectHandleOffering(
     state.offerings,
@@ -358,7 +410,8 @@ function BuyerPanel(props: {
       ? undefined
       : namespace.family === "spaces" ? `${desired}@${namespace.displayRoot}` : `${desired}.${namespace.displayRoot}`;
   });
-  const busy = createMemo(() => claimState().kind === "progress");
+  const busy = createMemo(() => claimState().kind === "progress" ||
+    walletStep() === "sending" || walletStep() === "working");
   const canClaim = createMemo(() => {
     const offering = activeOffering();
     const desired = normalizedLabel();
@@ -451,6 +504,10 @@ function BuyerPanel(props: {
   const selectPersona = (personaId: string) => {
     if (busy()) return;
     setSelectedPersonaId(personaId);
+    setWalletNeeded(false);
+    walletSession?.dispose();
+    walletSession = undefined;
+    setWalletStep("idle");
     setLinkConfirmed(false);
     setClaimState({ kind: "idle" });
   };
@@ -458,6 +515,10 @@ function BuyerPanel(props: {
   const selectNamespace = (activationId: string) => {
     if (busy()) return;
     setSelectedActivationId(activationId === "" ? null : activationId);
+    setWalletNeeded(false);
+    walletSession?.dispose();
+    walletSession = undefined;
+    setWalletStep("idle");
     setPreferredOfferingId(null);
     setLinkConfirmed(false);
     setClaimState({ kind: "idle" });
@@ -515,6 +576,7 @@ function BuyerPanel(props: {
         if (offering.family === "spaces" && typeof sessionStorage !== "undefined") sessionStorage.setItem(savedClaimKey, result.claim.claim_id);
         setClaimState({ kind: "pending", claimId: offering.family === "spaces" ? result.claim.claim_id : undefined });
       } else if (result.kind === "recipient_wallet_required") {
+        setWalletNeeded(true);
         attemptKeys = undefined;
         attemptSignature = undefined;
         setClaimState({ kind: "verification", message: "This persona needs a Bitcoin Taproot wallet before it can receive a Spaces name." });
@@ -791,6 +853,25 @@ function BuyerPanel(props: {
                 </Show>
                 <Show when={(() => { const value = claimState(); return value.kind === "verification" ? value : undefined; })()}>
                   {verification => <p role="status">{verification().message}</p>}
+                </Show>
+                <Show when={selectedNamespace()?.family === "spaces" && walletNeeded()}>
+                  <div class="rounded-xl border border-border-soft p-4" data-spaces-wallet-setup>
+                    <p class="font-semibold">Set up a receiving wallet</p>
+                    <p class="text-sm text-muted-foreground">Confirm your account by email. This does not send bitcoin.</p>
+                    <label class="mt-3 block text-sm" for="spaces-wallet-email">Account email</label>
+                    <Input id="spaces-wallet-email" type="email" autocomplete="email" value={walletEmail()}
+                      disabled={walletStep() !== "idle"} onInput={event => setWalletEmail(event.currentTarget.value)} />
+                    <Show when={walletStep() === "code" || walletStep() === "working"}>
+                      <label class="mt-3 block text-sm" for="spaces-wallet-code">Email code</label>
+                      <Input id="spaces-wallet-code" type="text" inputmode="numeric" autocomplete="one-time-code"
+                        value={walletCode()} disabled={walletStep() === "working"}
+                        onInput={event => setWalletCode(event.currentTarget.value)} />
+                    </Show>
+                    <Button class="mt-3" disabled={walletStep() === "sending" || walletStep() === "working"}
+                      onClick={() => void (walletStep() === "code" ? completeWalletSetup() : beginWalletSetup())}>
+                      {walletStep() === "code" ? "Confirm wallet" : walletStep() === "working" ? "Checking wallet" : "Send code"}
+                    </Button>
+                  </div>
                 </Show>
                 <Show when={claimError()}>
                   {errorState => <p role="alert" class="text-destructive-text">{errorState().message}</p>}
