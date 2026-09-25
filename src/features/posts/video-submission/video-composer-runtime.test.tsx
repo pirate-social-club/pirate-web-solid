@@ -723,6 +723,19 @@ describe("mounted song-first video flow", () => {
     await vi.waitFor(() => expect(guide.calls.play).toBe(1));
   });
 
+  test("a guide ready to play through starts the take before the whole excerpt is held", async () => {
+    // What the Pixel does: about 7 s held, the download idled, HAVE_ENOUGH_DATA.
+    const guide = guideSpy({ buffered: { end: 6.73 } });
+    Object.defineProperty(guide.audio, "readyState", { value: 4 });
+    nextSession = () => fakeSession(() => undefined);
+    songSetup({ preflight: "accepted", mobile: true, createGuideAudio: () => guide.audio });
+    await loadSongMetadata();
+    await awaitPlan("ready");
+    await startRecording();
+    await vi.waitFor(() => expect(startCapture).toHaveBeenCalledTimes(1));
+    await vi.waitFor(() => expect(guide.calls.play).toBe(1));
+  });
+
   test("a song that fails to load never starts a take", async () => {
     const guide = guideSpy({ buffered: { end: 0 } });
     songSetup({ preflight: "accepted", mobile: true, createGuideAudio: () => guide.audio });

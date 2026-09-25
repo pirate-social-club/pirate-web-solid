@@ -28,6 +28,8 @@ import { createVideoTransport, type VideoTransport } from "./transport";
 export interface GuideAudio {
   currentTime: number;
   preload?: string;
+  /** The media element's readiness; 4 is HAVE_ENOUGH_DATA. */
+  readonly readyState?: number;
   /** What the element holds, in seconds. Absent where it cannot be read, in
    * which case there is nothing to wait for before recording. */
   readonly buffered?: { readonly length: number; start: (index: number) => number; end: (index: number) => number };
@@ -42,10 +44,15 @@ type GuideAudioEvent = "error" | "waiting" | "stalled" | "playing" | "progress" 
  * held by then is still streaming, and a take would stall on it. */
 export const GUIDE_BUFFER_TIMEOUT_MS = 12_000;
 
-/** Whether one buffered range covers the whole excerpt. */
+/** Whether the guide can play the excerpt without waiting on the network:
+ * the browser reports enough data to play through (HAVE_ENOUGH_DATA), or one
+ * buffered range already covers the whole excerpt. A paused element buffers
+ * only a few seconds ahead (Chrome on Android holds about 7 s, then idles the
+ * download), so full coverage alone would never be reached before playback. */
 export function excerptBuffered(audio: GuideAudio, bounds: { readonly startMs: number; readonly endMs: number }): boolean {
+  if ((audio.readyState ?? 0) >= 4) return true;
   const ranges = audio.buffered;
-  if (!ranges) return true;
+  if (!ranges) return audio.readyState === undefined;
   const start = bounds.startMs / 1_000; const end = bounds.endMs / 1_000;
   for (let index = 0; index < ranges.length; index += 1) {
     if (ranges.start(index) <= start + 0.05 && ranges.end(index) >= end - 0.05) return true;
@@ -307,9 +314,9 @@ export function VideoComposerRuntime(props: {
   };
   const createGuide = (url: string): GuideAudio => props.createGuideAudio ? props.createGuideAudio(url) : new Audio(url);
   /** Loads the excerpt before the camera starts, so a take never begins on a
-   * song that is still streaming. Resolves with the element once one buffered
-   * range covers the whole excerpt, or null when that does not happen in time
-   * or the song fails to load. */
+   * song that has not arrived. Resolves with the element once it can play the
+   * excerpt through, or null when that does not happen in time or the song
+   * fails to load. */
   async function prepareGuide(guide: SoundtrackSelection): Promise<GuideAudio | null> {
     const audio = createGuide(guide.audioUrl);
     audio.preload = "auto";
