@@ -3,6 +3,7 @@ import type {
   CommunityNamesManagementSnapshot,
   CommunityNamesOffering,
   CommunityNamesSaleNamespace,
+  CommunitySpacesSaleNamespace,
 } from "./community-names-settings-model";
 
 const PRESET: Extract<CommunityNamesManagementContext["offering_authoring_presets"][number], { kind: "hns_hosted_persona_free_v1" }> = {
@@ -92,6 +93,36 @@ const ACTIVE_OFFERING: CommunityNamesOffering = {
 
 export const NAMES_READY: CommunityNamesManagementSnapshot = { context: READY_CONTEXT, saleNamespaces: [], offerings: [] };
 export const NAMES_ACTIVE: CommunityNamesManagementSnapshot = { context: READY_CONTEXT, saleNamespaces: [ACTIVE_SALE_NAMESPACE], offerings: [ACTIVE_OFFERING] };
+const SPACES_YAHOO: CommunitySpacesSaleNamespace = {
+  activation: {
+    sale_namespace_activation_id: "spaces-yahoo",
+    sale_namespace_activation_generation: 1,
+    sale_namespace_activation_hash: "activation-hash",
+    community_id: "community_midnight",
+    family: "spaces",
+    network: "mainnet",
+    canonical_root: "yahoo",
+    display_root: "yahoo",
+    namespace_authority: { kind: "verified_namespace_v1", namespace_authority_reference: "authority-yahoo", namespace_authority_generation: 1 },
+    operator: { kind: "spaces_operator_assignment_v1", operator_assignment_id: "assignment-yahoo", operator_assignment_generation: 1 },
+    operator_funding_terms: { kind: "spaces_operator_funding_confirm_v1", confirmed: true },
+    status: "pending",
+    created_at: "2026-09-25T00:00:00Z",
+    activated_at: null,
+    suspended_at: null,
+    revoked_at: null,
+  },
+  readiness: { kind: "not_ready_v1", reason: "driver_disabled" },
+  funding: { status: "commits_paused_insufficient_funds_v1", confirmed_balance_sats: "0",
+    top_up_address: "bc1ptest", observed_at: "2026-09-25T00:00:00Z" },
+  pending_claim_count: 0,
+};
+export const SPACES_YAHOO_PENDING: CommunityNamesManagementSnapshot = {
+  context: { ...READY_CONTEXT, sale_namespace_candidates: [] },
+  saleNamespaces: [],
+  offerings: [],
+  spaces: { candidates: [], saleNamespaces: [SPACES_YAHOO] },
+};
 export const NAMES_ACTIVATION_PENDING: CommunityNamesManagementSnapshot = {
   context: READY_CONTEXT,
   saleNamespaces: [{

@@ -10,6 +10,7 @@ import {
   NAMES_ACTIVE,
   NAMES_READY,
   NAMES_SUSPENDED,
+  SPACES_YAHOO_PENDING,
 } from "./community-names-settings-fixtures";
 
 if (typeof window !== "undefined") {
@@ -57,6 +58,20 @@ function button(container: HTMLElement, label: string): HTMLButtonElement | unde
 }
 
 describe("CommunityNamesSettingsController", () => {
+  test("shows a Spaces-only root's private funding and disabled intake state", async () => {
+    const container = render(() => <CommunityNamesSettingsController
+      api={namesApi({ getSnapshot: async () => SPACES_YAHOO_PENDING })}
+      communityId="community_midnight"
+    />);
+    await vi.waitFor(() => expect(container.querySelector('[data-spaces-names-root="yahoo"]')).not.toBeNull());
+    expect(container.textContent).toContain("Names under @yahoo");
+    expect(container.textContent).toContain("Operator fee balance: 0 sats");
+    expect(container.textContent).toContain("Issuance is paused");
+    expect(container.textContent).toContain("Name requests are not open yet");
+    expect(container.textContent).not.toContain("No namespace is currently available");
+    expect(button(container, "Enable names")).toBeUndefined();
+  });
+
   test("activates a ready namespace and authors the broad free offering with stable fences", async () => {
     const activationInputs: Parameters<CommunityNamesSettingsApi["activateSaleNamespace"]>[0][] = [];
     const offeringInputs: Parameters<CommunityNamesSettingsApi["createOffering"]>[0][] = [];

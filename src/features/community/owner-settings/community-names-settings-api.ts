@@ -12,6 +12,7 @@ import type {
   CommunityNamesManagementSnapshot,
   CommunityNamesOffering,
   CommunityNamesSaleNamespace,
+  CommunitySpacesSaleNamespace,
   CommunityNamesOfferingCreateInput,
   CommunityNamesOfferingRevisionInput,
   CommunityNamesSaleNamespaceActivation,
@@ -162,6 +163,10 @@ export function createCommunityNamesSettingsApi(
         context: { ...context, sale_namespace_candidates: context.sale_namespace_candidates.filter((item) => item.family === "hns") },
         offerings: offerings.filter((item): item is CommunityNamesOffering => item.offering.family === "hns"),
         saleNamespaces: saleNamespaces.filter((item): item is CommunityNamesSaleNamespace => "effectiveness" in item),
+        spaces: {
+          candidates: context.sale_namespace_candidates.filter((item) => item.family === "spaces"),
+          saleNamespaces: saleNamespaces.filter((item): item is CommunitySpacesSaleNamespace => "readiness" in item),
+        },
       };
     },
     async reviseOffering({ signal, ...input }) {

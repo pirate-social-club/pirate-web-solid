@@ -1,6 +1,6 @@
 import { NationalityAllowlistField } from "../../verification/nationality-allowlist-field.tsx";
 import { For, Show, createSignal } from "solid-js";
-import { Button, Card, FormNote, Spinner, Type } from "@pirate/web-solid-ui";
+import { Button, Card, CopyField, FormNote, Spinner, Type } from "@pirate/web-solid-ui";
 import type {
   CommunityNamesCandidate,
   CommunityNamesManagementSnapshot,
@@ -43,6 +43,66 @@ function NamesSummary(props: { maximum: number; minimum: number; root: string })
       </Type>
     </div>
   );
+}
+
+function spacesReadinessCopy(reason: string): string {
+  switch (reason) {
+    case "namespace_authority_unavailable": return "Prove ownership of this Spaces root in Namespace settings.";
+    case "owner_challenge_required": return "Sign the ownership message in Namespace settings.";
+    case "anchor_pending": return "Waiting for the Spaces chain to record the owner change.";
+    case "publication_unverified": return "Waiting for independent verification of the Spaces root.";
+    case "delegation_required": return "Delegate this root to the confirmed operator address.";
+    case "operator_capability_unverified": return "Waiting for the operator to confirm it can issue names.";
+    case "commitment_history_unverified": return "Waiting for the operator's commitment history to be checked.";
+    case "driver_disabled": return "Name requests are not open yet.";
+    default: return "This Spaces root is not ready for name requests.";
+  }
+}
+
+function SpacesNamesCards(props: { snapshot: CommunityNamesManagementSnapshot }) {
+  const roots = () => {
+    const spaces = props.snapshot.spaces;
+    if (spaces === undefined) return [];
+    const byRoot = new Map<string, { displayRoot: string; candidate?: typeof spaces.candidates[number];
+      activation?: typeof spaces.saleNamespaces[number] }>();
+    for (const candidate of spaces.candidates) {
+      byRoot.set(candidate.canonical_root, { displayRoot: candidate.display_root, candidate });
+    }
+    for (const activation of spaces.saleNamespaces) {
+      const root = activation.activation.canonical_root;
+      byRoot.set(root, { ...byRoot.get(root), displayRoot: activation.activation.display_root, activation });
+    }
+    return [...byRoot.values()];
+  };
+
+  return <For each={roots()}>{(root) => {
+    const activation = () => root.activation;
+    const readiness = () => activation()?.readiness;
+    const notReadyReason = () => {
+      const current = readiness();
+      return current?.kind === "not_ready_v1" ? current.reason : undefined;
+    };
+    const funding = () => activation()?.funding;
+    return <Card class="space-y-4 p-5 md:p-6" data-spaces-names-root={root.displayRoot}>
+      <div class="flex flex-wrap items-center justify-between gap-3">
+        <Type as="h3" variant="h3">Names under @{root.displayRoot}</Type>
+        <span class="rounded-full bg-muted px-3 py-1 text-sm font-semibold">Spaces</span>
+      </div>
+      <Show when={activation()} fallback={<FormNote>Finish proving ownership and setting up the operator in Namespace settings. Name requests are not open yet.</FormNote>}>
+        <p class="text-sm">Status: {activation()!.activation.status}. {activation()!.pending_claim_count} name requests waiting.</p>
+        <Show when={notReadyReason()}>{(reason) => <FormNote tone="warning">{spacesReadinessCopy(reason())}</FormNote>}</Show>
+        <Show when={readiness()?.kind === "ready_v1"}><FormNote>Operator checks passed. Name availability still depends on the offering and intake state.</FormNote></Show>
+        <Show when={funding()}>{(current) => <div class="space-y-2">
+          <p class="text-sm">Operator fee balance: {current().confirmed_balance_sats} sats.</p>
+          <Show when={current().status === "commits_paused_insufficient_funds_v1"}>
+            <FormNote tone="warning">Issuance is paused until the operator wallet has enough bitcoin for a batch.</FormNote>
+          </Show>
+          <Show when={current().top_up_address}>{(address) => <CopyField copyLabel="Spaces operator funding address" value={address()} wrap />}</Show>
+          <p class="text-xs text-muted-foreground">Balance last checked {current().observed_at}.</p>
+        </div>}</Show>
+      </Show>
+    </Card>;
+  }}</For>;
 }
 
 function ReadyNamesCard(props: Pick<CommunityNamesSettingsPanelProps, "busy" | "onCommand" | "snapshot" | "nationalityAuthoring"> & { candidate: CommunityNamesReadyCandidate }) {
@@ -131,18 +191,21 @@ export function CommunityNamesSettingsPanel(props: CommunityNamesSettingsPanelPr
     <section class="mx-auto flex w-full max-w-5xl flex-col gap-6 md:gap-8" data-community-names-settings>
       <Show when={props.showHeading !== false}><div class="space-y-2">
         <Type as="h2" responsiveSize="desktop4xl" variant="h1">Community names</Type>
-        <Type as="p" class="text-muted-foreground" variant="body">Offer free names under a connected Handshake namespace.</Type>
+        <Type as="p" class="text-muted-foreground" variant="body">Offer free names under a connected community namespace.</Type>
       </div></Show>
 
       <Show when={props.errorMessage}><FormNote tone="destructive">{props.errorMessage}</FormNote></Show>
       <Show when={!props.loading} fallback={<Card class="grid min-h-64 place-items-center" role="status"><div class="flex items-center gap-3"><Spinner class="size-5" /><Type variant="body">Loading names…</Type></div></Card>}>
+          <SpacesNamesCards snapshot={props.snapshot} />
           <Show when={props.snapshot.context.sale_namespace_candidates.length > 0} fallback={
+            <Show when={(props.snapshot.spaces?.candidates.length ?? 0) === 0 && (props.snapshot.spaces?.saleNamespaces.length ?? 0) === 0}>
             <Card class="space-y-4 p-6">
               <Type as="p" variant="body-strong">No namespace is currently available for community names.</Type>
               <Show when={props.onReviewAddress} fallback={<FormNote>Connecting a new community address is not available yet.</FormNote>}>
                 <Button onClick={props.onReviewAddress} variant="secondary">Review address</Button>
               </Show>
             </Card>
+            </Show>
           }>
             <div class="flex flex-col gap-4">
               <For each={props.snapshot.context.sale_namespace_candidates}>{(candidate) => candidate.kind === "ready_v1"

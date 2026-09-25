@@ -24,12 +24,14 @@ export type CommunityNamesManagementPort = Pick<
 >;
 
 export type CommunityNamesCandidate = Extract<GetCommunitiesCommunityIdHandleSalesManagementResponse["sale_namespace_candidates"][number], { family: "hns" }>;
+export type CommunitySpacesCandidate = Extract<GetCommunitiesCommunityIdHandleSalesManagementResponse["sale_namespace_candidates"][number], { family: "spaces" }>;
 export type CommunityNamesManagementContext = Omit<GetCommunitiesCommunityIdHandleSalesManagementResponse, "sale_namespace_candidates"> & {
   readonly sale_namespace_candidates: ReadonlyArray<CommunityNamesCandidate>;
 };
 export type CommunityNamesReadyCandidate = Extract<CommunityNamesCandidate, { readonly kind: "ready_v1" }>;
 type SaleNamespaceItem = GetCommunitiesCommunityIdHandleSalesManagementSaleNamespacesResponse["items"][number];
 export type CommunityNamesSaleNamespace = Extract<SaleNamespaceItem, { effectiveness: unknown }>;
+export type CommunitySpacesSaleNamespace = Extract<SaleNamespaceItem, { activation: { family: "spaces" } }>;
 export type CommunityNamesSaleNamespaceActivation = CommunityNamesSaleNamespace["activation"];
 type OfferingItem = GetCommunitiesCommunityIdHandleSalesManagementOfferingsResponse["items"][number];
 export type CommunityNamesOffering = OfferingItem & {
@@ -44,6 +46,10 @@ export type CommunityNamesManagementSnapshot = Readonly<{
   context: CommunityNamesManagementContext;
   offerings: ReadonlyArray<CommunityNamesOffering>;
   saleNamespaces: ReadonlyArray<CommunityNamesSaleNamespace>;
+  spaces?: Readonly<{
+    candidates: ReadonlyArray<CommunitySpacesCandidate>;
+    saleNamespaces: ReadonlyArray<CommunitySpacesSaleNamespace>;
+  }>;
 }>;
 
 export type CommunityNamesSettingsCommand =
