@@ -59,10 +59,35 @@ test("a resumed claim that still needs verification does not loop back to the sc
   const navigate = vi.fn();
   const data = {
     credits: vi.fn(async () => ({ object: "reward_credit_list" as const, items: [held], next_cursor: null })),
-    claim: vi.fn(async () => ({ outcome: "verification_failed" as const, credit: held })),
+    claim: vi.fn(async () => ({ outcome: "verification_stale" as const, credit: held })),
   };
   const element = mount({ data, navigate, resumeCreditId: "credit_1" });
   await vi.waitFor(() => expect(element.textContent).toContain("could not be used to claim yet"));
+  expect(navigate).not.toHaveBeenCalled();
+});
+
+test("renders nothing while rewards are unavailable and skips a resumed claim", async () => {
+  const data = {
+    credits: vi.fn(async () => { throw new Error("provider_unavailable"); }),
+    claim: vi.fn(),
+  };
+  const element = mount({ data, resumeCreditId: "credit_1" });
+  await vi.waitFor(() => expect(data.credits).toHaveBeenCalled());
+  await Promise.resolve();
+  expect(element.textContent).toBe("");
+  expect(data.claim).not.toHaveBeenCalled();
+});
+
+test("a permanent verification refusal points to support instead of the scan", async () => {
+  const navigate = vi.fn();
+  const data = {
+    credits: vi.fn(async () => ({ object: "reward_credit_list" as const, items: [held], next_cursor: null })),
+    claim: vi.fn(async () => ({ outcome: "verification_failed" as const, credit: held })),
+  };
+  const element = mount({ data, navigate });
+  await vi.waitFor(() => expect(element.textContent).toContain("Held for you"));
+  [...element.querySelectorAll("button")].find((button) => button.textContent === "Verify to claim")!.click();
+  await vi.waitFor(() => expect(element.textContent).toContain("Contact support"));
   expect(navigate).not.toHaveBeenCalled();
 });
 

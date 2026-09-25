@@ -19,8 +19,17 @@ export function createRewardClaimData(
     return sessionRequestOptions(token);
   };
   return {
-    credits() {
-      return client.get_rewardsCredits({ query: { limit: "50" } });
+    /** Every page of the account's credits (bounded), so no winning is missed. */
+    async credits() {
+      const items: RewardCredit[] = [];
+      let cursor: string | null = null;
+      for (let page = 0; page < 20; page += 1) {
+        const result = await client.get_rewardsCredits({ query: { limit: "100", cursor } });
+        items.push(...result.items);
+        cursor = result.next_cursor;
+        if (cursor === null) break;
+      }
+      return { object: "reward_credit_list" as const, items, next_cursor: null };
     },
     claim(creditId: string) {
       return client.post_rewardsCreditsCreditIdClaim({ path: { creditId } }, write());

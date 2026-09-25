@@ -43,11 +43,11 @@ export const Mobile: Story = {
   globals: { viewport: { value: "mobile1", isRotated: false } },
   render: () => <div class="p-5"><WalletWinnings data={data(mixed)} navigate={fn()} /></div>,
 };
-export const LoadFailure: Story = {
+export const RewardsUnavailable: Story = {
   render: () => <div class="p-5"><WalletWinnings data={data([], true)} navigate={fn()} /></div>,
   play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement);
-    await expect(await canvas.findByRole("alert")).toHaveTextContent("could not be loaded");
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    await expect(canvasElement.textContent).toBe("");
   },
 };
 const navigate = fn();

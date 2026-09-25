@@ -48,6 +48,7 @@ export type ClaimStep =
   | Readonly<{ kind: "done" }>
   | Readonly<{ kind: "verify" }>
   | Readonly<{ kind: "held" }>
+  | Readonly<{ kind: "support" }>
   | Readonly<{ kind: "unavailable" }>;
 
 export function claimStep(outcome: RewardClaimOutcome): ClaimStep {
@@ -56,8 +57,11 @@ export function claimStep(outcome: RewardClaimOutcome): ClaimStep {
       return { kind: "done" };
     case "verification_missing":
     case "verification_stale":
-    case "verification_failed":
       return { kind: "verify" };
+    // Evidence for more than one Very subject is refused permanently; another
+    // scan cannot fix it, so never send the user back round the scan.
+    case "verification_failed":
+      return { kind: "support" };
     case "subject_conflict":
       return { kind: "held" };
     default:

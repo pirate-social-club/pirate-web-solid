@@ -16,16 +16,21 @@ export type WalletWinningsProps = Readonly<{
 export function WalletWinnings(props: WalletWinningsProps) {
   const [credits, setCredits] = createSignal<readonly RewardCredit[]>();
   const [failed, setFailed] = createSignal(false);
+  const [leaving, setLeaving] = createSignal(false);
   const [busy, setBusy] = createSignal<string>();
   const [notice, setNotice] = createSignal("");
   const navigate = (url: string) => (props.navigate ?? ((next: string) => window.location.assign(next)))(url);
 
-  const load = async () => {
+  // While rewards are disabled the API answers unavailable. Without known
+  // winnings a failed load renders nothing rather than alarming every user.
+  const load = async (): Promise<boolean> => {
     setFailed(false);
     try {
       setCredits((await props.data.credits()).items);
+      return true;
     } catch {
-      setFailed(true);
+      setFailed(credits() !== undefined);
+      return false;
     }
   };
 
@@ -41,8 +46,12 @@ export function WalletWinnings(props: WalletWinningsProps) {
           setNotice("Your palm scan could not be used to claim yet. Try verifying again.");
           return;
         }
+        setLeaving(true);
         navigate(verifyToClaimUrl(creditId));
         return;
+      }
+      if (step.kind === "support") {
+        setNotice("This amount stays held for you, but it cannot be claimed with your current verification. Contact support.");
       }
       if (step.kind === "unavailable") setNotice("This amount cannot be claimed.");
     } catch {
@@ -57,9 +66,9 @@ export function WalletWinnings(props: WalletWinningsProps) {
   onSettled(() => {
     void Promise.resolve()
       .then(load)
-      .then(() => {
+      .then((loaded) => {
         const resume = props.resumeCreditId;
-        if (resume === undefined) return;
+        if (resume === undefined || !loaded) return;
         props.onResumeConsumed?.();
         return claim(resume, true);
       });
@@ -67,7 +76,7 @@ export function WalletWinnings(props: WalletWinningsProps) {
 
   const views = () => winningViews(credits() ?? []);
   return (
-    <Show when={failed() || views().length > 0}>
+    <Show when={failed() || views().length > 0 || notice().length > 0}>
       <section aria-labelledby="wallet-winnings-heading">
         <Card>
           <CardContent class="flex flex-col gap-4 p-6">
@@ -85,7 +94,7 @@ export function WalletWinnings(props: WalletWinningsProps) {
                     <Show when={view.detail}>{(detail) => <Type class="text-sm">{detail()}</Type>}</Show>
                   </div>
                   <Show when={view.canClaim}>
-                    <Button disabled={busy() !== undefined} onClick={() => void claim(view.creditId, false)}>
+                    <Button disabled={busy() !== undefined || leaving()} onClick={() => void claim(view.creditId, false)}>
                       {busy() === view.creditId ? "Claiming…" : "Verify to claim"}
                     </Button>
                   </Show>

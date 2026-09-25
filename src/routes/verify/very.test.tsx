@@ -170,6 +170,27 @@ describe("Very verification route", () => {
     expect(container.textContent).toContain("Continue to claim your winnings");
   });
 
+  it("never returns a reward claim to another origin", async () => {
+    window.history.replaceState(null, "", "/verify/very?purpose=reward_claim&return_to=%2F%5Cevil.example");
+    vi.spyOn(veryApi, "createVeryWebCeremony").mockResolvedValue({
+      cancel: vi.fn(),
+      completeWithWidget: vi.fn(),
+      initialCompletion: { proofSessionId: "proof-session-3", replayed: false, status: "completed" },
+      pollBridge: vi.fn(),
+      presentation: undefined,
+      proofSessionId: "proof-session-3",
+    });
+    const assign = vi.fn();
+    vi.spyOn(window, "location", "get").mockReturnValue({ ...window.location, assign });
+    const container = render(() => <VeryVerificationRoute issueRewardClaimIntent={async () => "reward-claim_2"} />);
+    container.querySelector("button")?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    await vi.waitFor(() => expect(container.textContent).toContain("Verification complete"));
+    expect(container.textContent).not.toContain("Proof session");
+    [...container.querySelectorAll("button")].find((button) => button.textContent === "Continue")!
+      .dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    expect(assign).toHaveBeenCalledWith("/");
+  });
+
   it("rejects an incomplete or legacy creation target without resolving a join", () => {
     window.history.replaceState(null, "", "/verify/very?intent_id=creation-ceremony-1");
     const createCeremony = vi.spyOn(veryApi, "createVeryWebCeremony");

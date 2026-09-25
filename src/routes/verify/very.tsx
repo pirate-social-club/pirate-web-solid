@@ -1,6 +1,7 @@
 import { Show, createSignal, onCleanup } from "solid-js";
 import { getRequestEvent } from "@solidjs/web";
 import { createRewardClaimData } from "../../api/reward-claim";
+import { safeReturnPath } from "../../features/auth/sign-in-return";
 import { resolveSession, sessionPersonasUnavailable, refreshSession, type ActivePersonaPublicProjection } from "../../api/session";
 import { communityJoinCandidates, defaultCommunityPersonaChoice, toCommunityPersonaChoiceWire, PERSONA_CREATION_UNAVAILABLE, type CommunityPersonaChoice } from "../../features/identity/community-persona-choice";
 import { CommunityPersonaChoiceDialog } from "../../features/identity/community-persona-choice-sheet";
@@ -142,8 +143,9 @@ function initialRewardClaim(): boolean {
 }
 
 function initialReturnTo(): string {
-  const value = routeUrl()?.searchParams.get("return_to") ?? "/";
-  return value.startsWith("/") && !value.startsWith("//") ? value : "/";
+  const url = routeUrl();
+  if (!url) return "/";
+  return safeReturnPath(url.searchParams.get("return_to"), url.origin) ?? "/";
 }
 
 function mobileRuntime(): boolean {
@@ -504,7 +506,7 @@ export default function VeryVerificationRoute(props: VeryVerificationRouteProps 
       <Show when={phase() === "idle" || phase() === "error"}>
         <Show when={!invalidCreationTarget}>
           <Show when={rewardClaim}>
-            <p>Verify with a palm scan to claim your winnings. You only need to do this once.</p>
+            <p>Verify with a palm scan to claim your winnings. Very may label this scan as a community check.</p>
           </Show>
           <Show when={creationTarget === undefined && !rewardClaim}>
             <TextField name="community-id" value={communityId()} onChange={setCommunityId}>
@@ -592,7 +594,7 @@ export default function VeryVerificationRoute(props: VeryVerificationRouteProps 
               ? "Your palm scan was accepted. Continue to claim your winnings."
               : "Your Very proof was accepted. Continue to finish the pending action."}
           </p>
-          <Show when={completion() !== undefined}>
+          <Show when={completion() !== undefined && !rewardClaim}>
             <p class="break-all text-sm">Proof session: {completion()?.proofSessionId}</p>
           </Show>
           <Button type="button" onClick={() => window.location.assign(returnTo)}>Continue</Button>

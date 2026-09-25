@@ -45,7 +45,7 @@ test("maps claim outcomes to the next step and builds a same-origin resume path"
   expect(claimStep("accepted")).toEqual({ kind: "done" });
   expect(claimStep("verification_missing")).toEqual({ kind: "verify" });
   expect(claimStep("verification_stale")).toEqual({ kind: "verify" });
-  expect(claimStep("verification_failed")).toEqual({ kind: "verify" });
+  expect(claimStep("verification_failed")).toEqual({ kind: "support" });
   expect(claimStep("subject_conflict")).toEqual({ kind: "held" });
   expect(claimStep("not_claimable")).toEqual({ kind: "unavailable" });
   const url = new URL(verifyToClaimUrl("credit 1"), "https://app.pirate.test");
