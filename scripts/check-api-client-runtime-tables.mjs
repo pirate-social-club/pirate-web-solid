@@ -8,10 +8,10 @@ const currentClient = resolve(
   appRoot,
   "node_modules/@pirate/api-client/src/generated/client.ts",
 );
-// Client 0.91.0 retains the consumed operations and adds the winner gas
-// top-up request and read operations (Spec 015 §5.2a). This digest pins the
+// Client 0.92.0 adds the durable winner send record and status operations.
+// This digest pins the
 // exact success, error, and schema tables consumed by Solid.
-const expectedDigest = "660bcaeab16b94fa1e59c547ace91364eea0bf10d0a44b6a526d4de41c6be890";
+const expectedDigest = "ce2131da98b36c2b05227f6aee9829e83229d7995a6c1dd3e39c4ce70e7079eb";
 
 const operations = [
   "post_postsPostIdVideoPlaybackAccess",
@@ -90,6 +90,11 @@ const operations = [
   "post_rewardsClaimVerificationIntents",
   "post_rewardsGasTopups",
   "get_rewardsGasTopupsTopupId",
+  "post_rewardsCreditsCreditIdSend",
+  "get_rewardsCreditsCreditIdSend",
+  "post_rewardsWinnerSendsSendIdTransactions",
+  "post_rewardsWinnerSendsSendIdCancellation",
+  "get_rewardsWinnerSendsSendId",
   "post_rewardOfferLegsLegIdFundingFundingEffectIdObservations",
   "get_rewardOfferLegsLegIdFundingFundingEffectId",
   "post_assetBonusLegsLegIdFundingFundingEffectIdObservations",
