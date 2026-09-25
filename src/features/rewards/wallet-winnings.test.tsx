@@ -12,7 +12,7 @@ const held: RewardCredit = {
   token_address: "0x1111111111111111111111111111111111111111", token_decimals: 6,
   amount_atomic: "2000000", available_atomic: "2000000", reserved_atomic: "0", paid_atomic: "0",
   source_kind: "megapot_allocation", state: "credited", created_at: "2026-09-25T00:00:00.000Z",
-  updated_at: "2026-09-25T00:00:00.000Z", settled_at: null, claim: { status: "unclaimed", payout_status: null },
+  updated_at: "2026-09-25T00:00:00.000Z", settled_at: null, claim: { status: "unclaimed", payout_status: null }, send: null,
 };
 
 function mount(props: Parameters<typeof WalletWinnings>[0]) {

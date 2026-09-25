@@ -10,13 +10,16 @@ const currentClient = resolve(
 );
 // Client 0.93.0 adds Spaces operator assignment to the owner proof wire.
 // This digest pins the exact success, error, and schema tables Solid consumes.
-const expectedDigest = "edf197a6f4ac91503490b75bfa79b8aab0d1332a239fa2c2ec657e49a0aeff8c";
+const expectedDigest = "3dd2cf6ee4d6d34b5f5c26047a43a586d0465e24f640e37a77a5bbafe2df2979";
 
 const operations = [
   "post_communitiesCommunityIdSpacesOwnershipStart",
   "post_communitiesCommunityIdSpacesOwnershipPoll",
   "get_communitiesCommunityIdSpacesOperatorAssignments",
   "post_communitiesCommunityIdSpacesOperatorAssignmentsConfirm",
+  "post_personasPersonaIdWalletsSpacesTaprootPrepare",
+  "post_personasPersonaIdWalletsSpacesTaprootStatus",
+  "post_personasPersonaIdWalletsSpacesTaprootConfirm",
   "post_postsPostIdVideoPlaybackAccess",
   "get_postsPostIdVideoPoster",
   "get_personas",

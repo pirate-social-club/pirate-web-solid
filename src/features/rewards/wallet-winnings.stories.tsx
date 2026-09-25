@@ -8,7 +8,7 @@ const credit = (id: string, amount: string, claim: RewardCredit["claim"], state:
   token_address: "0x1111111111111111111111111111111111111111", token_decimals: 6,
   amount_atomic: amount, available_atomic: amount, reserved_atomic: "0", paid_atomic: "0",
   source_kind: "megapot_allocation", state, created_at: "2026-09-25T00:00:00.000Z",
-  updated_at: "2026-09-25T00:00:00.000Z", settled_at: null, claim,
+  updated_at: "2026-09-25T00:00:00.000Z", settled_at: null, claim, send: null,
 });
 
 const mixed: readonly RewardCredit[] = [
