@@ -2,6 +2,7 @@ import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import { expect, fn, userEvent, within } from "storybook/test";
 import type { RewardCredit } from "../../api/reward-claim.ts";
 import { WalletWinnings } from "./wallet-winnings.tsx";
+import { sendFixture } from "./winnings-send.fixtures.ts";
 
 const credit = (id: string, amount: string, claim: RewardCredit["claim"], state: RewardCredit["state"] = "credited"): RewardCredit => ({
   object: "reward_credit", credit_id: id, payout_persona_id: "persona_harbor", chain_id: 84532,
@@ -38,13 +39,13 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-export const States: Story = { render: () => <div class="p-5"><WalletWinnings data={data(mixed)} navigate={fn()} /></div> };
+export const States: Story = { render: () => <div class="p-5"><WalletWinnings data={data(mixed)} navigate={fn()} send={sendFixture()} /></div> };
 export const Mobile: Story = {
   globals: { viewport: { value: "mobile1", isRotated: false } },
-  render: () => <div class="p-5"><WalletWinnings data={data(mixed)} navigate={fn()} /></div>,
+  render: () => <div class="p-5"><WalletWinnings data={data(mixed)} navigate={fn()} send={sendFixture()} /></div>,
 };
 export const RewardsUnavailable: Story = {
-  render: () => <div class="p-5"><WalletWinnings data={data([], true)} navigate={fn()} /></div>,
+  render: () => <div class="p-5"><WalletWinnings data={data([], true)} navigate={fn()} send={sendFixture()} /></div>,
   play: async ({ canvasElement }) => {
     await new Promise((resolve) => setTimeout(resolve, 50));
     await expect(canvasElement.textContent).toBe("");
@@ -52,11 +53,12 @@ export const RewardsUnavailable: Story = {
 };
 const navigate = fn();
 export const VerifyToClaim: Story = {
-  render: () => <div class="p-5"><WalletWinnings data={data(mixed)} navigate={navigate} /></div>,
+  render: () => <div class="p-5"><WalletWinnings data={data(mixed)} navigate={navigate} send={sendFixture()} /></div>,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(await canvas.findByText("150.25 USDC")).toBeVisible();
     await expect(canvas.getByText("Sent to your wallet")).toBeVisible();
+    await expect(canvas.getAllByRole("button", { name: /^Send / })).toHaveLength(1);
     await userEvent.click(canvas.getByRole("button", { name: "Verify to claim" }));
     await expect(navigate).toHaveBeenCalledWith(
       "/verify/very?purpose=reward_claim&return_to=%2Fwallet%3Fclaim%3Dheld",
