@@ -314,3 +314,137 @@ test("a deadline the server still reports as pending is asked about once, not in
   expect(container.textContent).toContain("Publish these 3 records to midnight/");
   expect(container.textContent).not.toContain("Verification expired");
 });
+
+/*
+ * Publication controls after a refusal or a passed deadline.
+ *
+ * The Bob action broadcasts a Handshake UPDATE before acknowledgement asks the
+ * API, so a stale publish card must never reach the wallet once the server has
+ * closed the window, when the follow-up status read failed, or while a passed
+ * publication deadline awaits the server's answer. Each case offers Retry
+ * status instead of declaring anything locally.
+ */
+
+type BobScope = { bob3?: { connect: () => Promise<{ sendUpdate: (...args: unknown[]) => Promise<void>; signWithName: () => Promise<string> }> } };
+
+function installBob() {
+  const sendUpdate = vi.fn(async () => {});
+  // SAFETY: the controller reads the optional Bob provider from globalThis;
+  // this installs exactly that one optional property for the test.
+  const scope = globalThis as BobScope;
+  scope.bob3 = { connect: async () => ({ sendUpdate, signWithName: async () => "signature" }) };
+  disposers.push(() => { delete scope.bob3; });
+  return sendUpdate;
+}
+
+const walletPublishSnapshot: NamespaceSettingsSnapshot = {
+  ...publishSnapshot,
+  next_action: {
+    kind: "publish_resource",
+    acknowledgement_required: true,
+    replacement_semantics: "complete_resource",
+    records: [{ record_type: "NS", supported: true, value: "ns1.pirate.", wallet_record: { type: "NS", ns: "ns1.pirate." } }],
+    added_records: [],
+    preserved_records: [],
+    removed_records: [],
+    preserved_unknown_record_types: [],
+  },
+};
+
+const button = (container: HTMLElement, label: string) =>
+  buttons(container).find((candidate) => candidate.textContent === label);
+
+async function expectPublicationBlocked(container: HTMLElement, sendUpdate: ReturnType<typeof vi.fn>) {
+  const bob = button(container, "Publish to midnight/ with Bob Wallet");
+  const manual = button(container, "I published all records manually");
+  expect(bob?.disabled).toBe(true);
+  expect(manual?.disabled).toBe(true);
+  bob?.click();
+  manual?.click();
+  await vi.advanceTimersByTimeAsync(0);
+  expect(sendUpdate).not.toHaveBeenCalled();
+  expect(container.querySelector("[data-testid=namespace-publication-blocked]")).not.toBeNull();
+  expect(button(container, "Retry status")).toBeDefined();
+  expect(container.textContent).not.toContain("Verification expired");
+}
+
+test.each([
+  [{ reason: "publication_window_closed", window_reason: "deadline_passed", next_action: "operator_recovery" }],
+  [{ reason: "ownership_check_attempts_exhausted", next_action: "operator_recovery" }],
+])("an operator-recovery refusal blocks the Bob publish (%o)", async (details) => {
+  vi.useFakeTimers();
+  const sendUpdate = installBob();
+  const execute = vi.fn<CommunityNamespaceSettingsPort["execute"]>().mockRejectedValue(conflict(details));
+  const { container } = mount(scriptedPort(walletPublishSnapshot, execute));
+  await vi.advanceTimersByTimeAsync(0);
+  expect(button(container, "Publish to midnight/ with Bob Wallet")?.disabled).toBe(false);
+  button(container, "I published all records manually")?.click();
+  await vi.advanceTimersByTimeAsync(0);
+  await expectPublicationBlocked(container, sendUpdate);
+  expect(execute).toHaveBeenCalledTimes(1);
+});
+
+test("a failed status read after the window moved on blocks the Bob publish", async () => {
+  vi.useFakeTimers();
+  const sendUpdate = installBob();
+  const execute = vi.fn<CommunityNamespaceSettingsPort["execute"]>()
+    .mockRejectedValueOnce(conflict({ reason: "publication_window_closed", window_reason: "phase_closed", next_action: "read_import_status" }))
+    .mockRejectedValueOnce(new Error("offline"));
+  const { container } = mount(scriptedPort(walletPublishSnapshot, execute));
+  await vi.advanceTimersByTimeAsync(0);
+  button(container, "I published all records manually")?.click();
+  await vi.advanceTimersByTimeAsync(0);
+  expect(execute).toHaveBeenCalledTimes(2);
+  await expectPublicationBlocked(container, sendUpdate);
+});
+
+test("Retry status unblocks publication only when the server returns a newer snapshot", async () => {
+  vi.useFakeTimers();
+  const sendUpdate = installBob();
+  const reopened: NamespaceSettingsSnapshot = { ...walletPublishSnapshot, generation: 5 };
+  const execute = vi.fn<CommunityNamespaceSettingsPort["execute"]>()
+    .mockRejectedValueOnce(conflict({ reason: "publication_window_closed", window_reason: "deadline_passed", next_action: "operator_recovery" }))
+    .mockResolvedValueOnce(reopened);
+  const { container } = mount(scriptedPort(walletPublishSnapshot, execute));
+  await vi.advanceTimersByTimeAsync(0);
+  button(container, "I published all records manually")?.click();
+  await vi.advanceTimersByTimeAsync(0);
+  await expectPublicationBlocked(container, sendUpdate);
+  button(container, "Retry status")?.click();
+  await vi.advanceTimersByTimeAsync(0);
+  expect(execute.mock.calls[1]?.[0]).toMatchObject({ kind: "poll" });
+  expect(button(container, "Publish to midnight/ with Bob Wallet")?.disabled).toBe(false);
+  expect(container.querySelector("[data-testid=namespace-publication-blocked]")).toBeNull();
+  // Once the server has answered with a newer snapshot, the wallet path works.
+  button(container, "Publish to midnight/ with Bob Wallet")?.click();
+  await vi.advanceTimersByTimeAsync(0);
+  expect(sendUpdate).toHaveBeenCalledTimes(1);
+});
+
+test("a passed publication deadline blocks the Bob publish while and after the server is asked", async () => {
+  vi.useFakeTimers();
+  vi.setSystemTime(NOW);
+  const sendUpdate = installBob();
+  const session = exposedSession(lifecycle("awaiting_publication", {
+    deadline: { at: new Date(NOW + HOUR).toISOString(), kind: "publication" },
+  }));
+  let answer!: (value: SessionFixture) => void;
+  const get = vi.fn(() => new Promise<SessionFixture>((resolve) => { answer = resolve; }));
+  const { container } = mount(makeApi(session, get));
+  await vi.advanceTimersByTimeAsync(0);
+  expect(button(container, "Publish to midnight/ with Bob Wallet")?.disabled).toBe(false);
+
+  await vi.advanceTimersByTimeAsync(HOUR + 1_000);
+  expect(get).toHaveBeenCalledTimes(1);
+  // The status read is still in flight.
+  expect(button(container, "Publish to midnight/ with Bob Wallet")?.disabled).toBe(true);
+  button(container, "Publish to midnight/ with Bob Wallet")?.click();
+  await vi.advanceTimersByTimeAsync(0);
+  expect(sendUpdate).not.toHaveBeenCalled();
+
+  // The server answers without moving the import on; the deadline has still
+  // passed, so publication stays blocked and Retry status is offered.
+  answer({ ...session });
+  await vi.advanceTimersByTimeAsync(0);
+  await expectPublicationBlocked(container, sendUpdate);
+});

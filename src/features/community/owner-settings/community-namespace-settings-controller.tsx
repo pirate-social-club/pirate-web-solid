@@ -197,6 +197,27 @@ export function CommunityNamespaceSettingsController(
   }
   const [keys, setKeys] = createSignal(operationKeys());
   let deadlineAsked: string | undefined;
+  // The snapshot the server has refused to accept publication for. Publishing
+  // stays blocked until the server returns a newer snapshot.
+  const [refusedSnapshot, setRefusedSnapshot] = createSignal<NamespaceSettingsSnapshot>();
+  // Re-evaluates a passed deadline when its timer fires.
+  const [clockTick, setClockTick] = createSignal(0);
+  /**
+   * Publication controls are blocked when the server refused publication for
+   * the snapshot on screen, or when that snapshot's lifecycle deadline has
+   * passed and the server has not yet said what happens next. The Bob action
+   * broadcasts before the API is asked, so it must not run against an import
+   * the server may already have closed. The server stays the authority: this
+   * never declares the import expired, it offers Retry status.
+   */
+  const publicationBlocked = () => {
+    clockTick();
+    const current = snapshot();
+    if (current === undefined || current.next_action.kind !== "publish_resource") return false;
+    if (refusedSnapshot() === current) return true;
+    const deadline = current.lifecycle?.deadline;
+    return deadline != null && deadline.kind === "publication" && Date.parse(deadline.at) <= Date.now();
+  };
   let active = true;
   let requestGeneration = 0;
 
@@ -279,9 +300,16 @@ export function CommunityNamespaceSettingsController(
             setKeys((currentKeys) => ({ ...currentKeys, poll: nextOperationKey("poll") }));
           } catch (readError) {
             if (!active) return;
+            setRefusedSnapshot(current);
             setPollFailed(true);
             showFailure("Could not refresh verification status. Select Retry status to reconnect.", readError);
           }
+          return;
+        }
+        if (refused?.nextAction === "operator_recovery" && current !== undefined) {
+          setRefusedSnapshot(current);
+          setPollFailed(true);
+          showFailure(commandError(error), error);
           return;
         }
         setPollFailed(command.kind === "poll");
@@ -335,6 +363,7 @@ export function CommunityNamespaceSettingsController(
       const timer = setTimeout(() => {
         if (Date.parse(deadline) > Date.now()) return;
         if (exposed) {
+          setClockTick((tick) => tick + 1);
           if (snapshot() === current) {
             deadlineAsked = deadline;
             void execute({ expected_generation: current.generation, idempotency_key: keys().poll, kind: "poll" });
@@ -395,6 +424,7 @@ export function CommunityNamespaceSettingsController(
               <CommunityNamespaceSettingsPanel
                 busy={busy() && activeCommand() !== "poll"}
                 preparationDisabled={preparationRetryAt() !== undefined}
+                publicationBlocked={publicationBlocked()}
                 draftRootLabel={draftRootLabel()}
                 idempotencyKeys={keys()}
                 onCommand={(command) => void execute(command)}
@@ -410,7 +440,7 @@ export function CommunityNamespaceSettingsController(
                     {" "}<span class="whitespace-nowrap">Reference <code class="select-all font-mono" data-testid="namespace-failure-reference">{messageReference()}</code></span>
                   </Show>
                 </FormNote></Show></div>
-                <Show when={pollFailed()}>
+                <Show when={pollFailed() || publicationBlocked()}>
                   <Button loading={busy()} onClick={() => {
                     const current = snapshot();
                     if (current) void execute({ kind: "poll", expected_generation: current.generation, idempotency_key: keys().poll });

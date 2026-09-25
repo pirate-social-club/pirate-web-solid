@@ -31,6 +31,8 @@ import type { CommunityHnsWallet } from "./community-hns-wallet";
 export interface CommunityNamespaceSettingsPanelProps {
   busy?: boolean;
   preparationDisabled?: boolean;
+  /** The server has not accepted publication for this snapshot; see the controller. */
+  publicationBlocked?: boolean;
   draftRootLabel: string;
   idempotencyKeys: NamespaceCommandIdempotencyKeys;
   onCommand: (command: NamespaceSettingsCommand) => void;
@@ -232,7 +234,7 @@ function activationAction(action: NamespaceNextAction): Extract<NamespaceNextAct
   return action.kind === "ready_to_activate" ? action : null;
 }
 
-function ServerDirectedAction(props: Pick<CommunityNamespaceSettingsPanelProps, "busy" | "preparationDisabled" | "idempotencyKeys" | "onCommand" | "showHeading" | "snapshot" | "wallet">) {
+function ServerDirectedAction(props: Pick<CommunityNamespaceSettingsPanelProps, "busy" | "preparationDisabled" | "publicationBlocked" | "idempotencyKeys" | "onCommand" | "showHeading" | "snapshot" | "wallet">) {
   const action = () => props.snapshot.next_action;
   const preparing = () => { const current = action(); return current.kind === "wait" && current.reason_code === "preparation_pending"; };
   const [walletBusy, setWalletBusy] = createSignal(false);
@@ -375,12 +377,15 @@ function ServerDirectedAction(props: Pick<CommunityNamespaceSettingsPanelProps, 
               <SecondaryAction idempotencyKeys={props.idempotencyKeys} onCommand={props.onCommand} snapshot={props.snapshot} />
               <Show when={!hasUnsupportedNamespaceRecords(current())}>
                 <div class="flex flex-wrap gap-3">
-                  <Button loading={props.busy} disabled={current().check_pending} onClick={() => dispatch({ kind: "acknowledge_complete_resource" })} variant="secondary">I published all records manually</Button>
+                  <Button loading={props.busy} disabled={current().check_pending || props.publicationBlocked} onClick={() => dispatch({ kind: "acknowledge_complete_resource" })} variant="secondary">I published all records manually</Button>
                   <Show when={props.wallet?.isAvailable() && current().records.every((record) => record.wallet_record)}>
                     <Button
                       loading={props.busy || walletBusy()}
-                      disabled={current().check_pending}
+                      disabled={current().check_pending || props.publicationBlocked}
                       onClick={() => runWalletAction("Bob Wallet could not publish the update. You can retry or publish the complete record list manually.", async () => {
+                        // The broadcast happens before the API is asked, so a
+                        // blocked snapshot must never reach the wallet.
+                        if (props.publicationBlocked || current().check_pending) return;
                         const records = current().records.flatMap((record) => record.wallet_record ? [record.wallet_record] : []);
                         await props.wallet!.publishCompleteResource(props.snapshot.root_label, records);
                         dispatch({ kind: "acknowledge_complete_resource" });
@@ -393,6 +398,9 @@ function ServerDirectedAction(props: Pick<CommunityNamespaceSettingsPanelProps, 
               </Show>
             </div>
             <Show when={walletError()}><FormNote tone="warning">{walletError()}</FormNote></Show>
+            <Show when={props.publicationBlocked}>
+              <div data-testid="namespace-publication-blocked"><FormNote tone="warning">Publishing is paused until this import's status is confirmed. Select Retry status.</FormNote></div>
+            </Show>
           </>
         )}
       </Show>
@@ -557,7 +565,7 @@ export function CommunityNamespaceSettingsPanel(props: CommunityNamespaceSetting
           </Card>
         )}
       </Show>
-      <Show when={props.snapshot.next_action.kind === "choose_namespace"} fallback={<ServerDirectedAction busy={props.busy} preparationDisabled={props.preparationDisabled} idempotencyKeys={props.idempotencyKeys} onCommand={props.onCommand} showHeading={props.showHeading} snapshot={props.snapshot} wallet={props.wallet} />}>
+      <Show when={props.snapshot.next_action.kind === "choose_namespace"} fallback={<ServerDirectedAction busy={props.busy} preparationDisabled={props.preparationDisabled} publicationBlocked={props.publicationBlocked} idempotencyKeys={props.idempotencyKeys} onCommand={props.onCommand} showHeading={props.showHeading} snapshot={props.snapshot} wallet={props.wallet} />}>
         <div class="space-y-6">
           <Show when={props.snapshot.next_action.kind === "choose_namespace" && props.snapshot.next_action.no_account_import}>
             <FormNote>No import found for your account.</FormNote>
