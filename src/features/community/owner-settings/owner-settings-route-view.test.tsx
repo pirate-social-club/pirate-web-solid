@@ -55,6 +55,7 @@ const success: OwnerSettingsRouteState = {
 function namesApi(): CommunityNamesSettingsApi {
   return {
     activateSaleNamespace: async () => { throw new Error("not called"); },
+    activateSpacesSaleNamespace: async () => { throw new Error("not called"); },
     createOffering: async () => undefined,
     getSnapshot: async () => NAMES_READY,
     reviseOffering: async () => undefined,

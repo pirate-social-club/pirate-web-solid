@@ -121,7 +121,22 @@ export const SPACES_YAHOO_PENDING: CommunityNamesManagementSnapshot = {
   context: { ...READY_CONTEXT, sale_namespace_candidates: [] },
   saleNamespaces: [],
   offerings: [],
-  spaces: { candidates: [], saleNamespaces: [SPACES_YAHOO] },
+  spaces: { candidates: [], offerings: [], saleNamespaces: [SPACES_YAHOO] },
+};
+export const SPACES_YAHOO_READY: CommunityNamesManagementSnapshot = {
+  context: { ...READY_CONTEXT, sale_namespace_candidates: [], offering_authoring_presets: [
+    ...READY_CONTEXT.offering_authoring_presets,
+    { kind: "spaces_native_free_v1", reserved_labels_id: "spaces-reserved", expected_reserved_labels_revision: 1,
+      broad_qualification_policy_id: "spaces-members", expected_broad_qualification_policy_revision: 1,
+      pricing_id: "spaces-free", expected_pricing_revision: 1, issuance_driver_id: "spaces-driver",
+      expected_issuance_driver_version: "1", quote_ttl_seconds: 120, reservation_ttl_seconds: 300 },
+  ] },
+  saleNamespaces: [],
+  offerings: [],
+  spaces: { candidates: [{ kind: "ready_v1", family: "spaces", network: "mainnet", canonical_root: "yahoo",
+    display_root: "yahoo", namespace_authority_reference: "authority-yahoo",
+    expected_namespace_authority_generation: 1, operator_assignment_id: "assignment-yahoo",
+    expected_operator_assignment_generation: 1 }], offerings: [], saleNamespaces: [] },
 };
 export const NAMES_ACTIVATION_PENDING: CommunityNamesManagementSnapshot = {
   context: READY_CONTEXT,

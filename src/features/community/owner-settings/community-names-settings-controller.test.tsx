@@ -11,6 +11,7 @@ import {
   NAMES_READY,
   NAMES_SUSPENDED,
   SPACES_YAHOO_PENDING,
+  SPACES_YAHOO_READY,
 } from "./community-names-settings-fixtures";
 
 if (typeof window !== "undefined") {
@@ -44,6 +45,7 @@ afterEach(() => {
 function namesApi(overrides: Partial<CommunityNamesSettingsApi> = {}): CommunityNamesSettingsApi {
   return {
     activateSaleNamespace: async () => NAMES_ACTIVE.saleNamespaces[0]!.activation,
+    activateSpacesSaleNamespace: async () => { throw new Error("not called"); },
     createOffering: async () => undefined,
     getSnapshot: async () => NAMES_READY,
     reviseOffering: async () => undefined,
@@ -58,6 +60,35 @@ function button(container: HTMLElement, label: string): HTMLButtonElement | unde
 }
 
 describe("CommunityNamesSettingsController", () => {
+  test("requires owner fee acknowledgement before opening free Spaces names", async () => {
+    const activationInputs: Parameters<CommunityNamesSettingsApi["activateSpacesSaleNamespace"]>[0][] = [];
+    const offeringInputs: Parameters<CommunityNamesSettingsApi["createOffering"]>[0][] = [];
+    const api = namesApi({
+      getSnapshot: async () => SPACES_YAHOO_READY,
+      activateSpacesSaleNamespace: async (input) => {
+        activationInputs.push(input);
+        return { ...SPACES_YAHOO_PENDING.spaces!.saleNamespaces[0]!.activation, status: "active" };
+      },
+      createOffering: async (input) => { offeringInputs.push(input); },
+    });
+    const container = render(() => <CommunityNamesSettingsController api={api} communityId="community_midnight" />);
+    await vi.waitFor(() => expect(button(container, "Enable free Spaces names")).toBeDefined());
+    const enable = button(container, "Enable free Spaces names")!;
+    expect(enable.disabled).toBe(true);
+    await userEvent.setup().click(container.querySelector<HTMLInputElement>('input[type="checkbox"]')!);
+    expect(enable.disabled).toBe(false);
+    await userEvent.setup().click(enable);
+    await vi.waitFor(() => expect(offeringInputs).toHaveLength(1));
+    expect(activationInputs[0]).toMatchObject({ path: { communityId: "community_midnight" }, body: {
+      family: "spaces", operator_funding_terms_confirmed: true,
+      operator_assignment_id: "assignment-yahoo", expected_operator_assignment_generation: 1,
+    } });
+    expect(offeringInputs[0]).toMatchObject({ body: { terms: {
+      label_scope: { label_grammar_id: "spaces_subspace_label_v1" },
+      fulfillment_kind: "spaces_native_v1", allocation_kind: "first_come_v1",
+    } } });
+  });
+
   test("shows a Spaces-only root's private funding and disabled intake state", async () => {
     const container = render(() => <CommunityNamesSettingsController
       api={namesApi({ getSnapshot: async () => SPACES_YAHOO_PENDING })}

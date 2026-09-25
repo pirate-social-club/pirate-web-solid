@@ -13,6 +13,9 @@ import type {
   CommunityNamesOffering,
   CommunityNamesSaleNamespace,
   CommunitySpacesSaleNamespace,
+  CommunitySpacesSaleNamespaceActivation,
+  CommunitySpacesSaleNamespaceActivationInput,
+  CommunitySpacesOffering,
   CommunityNamesOfferingCreateInput,
   CommunityNamesOfferingRevisionInput,
   CommunityNamesSaleNamespaceActivation,
@@ -25,6 +28,9 @@ export interface CommunityNamesSettingsApi {
   activateSaleNamespace(
     input: CommunityNamesSaleNamespaceActivationInput & { signal?: AbortSignal },
   ): Promise<CommunityNamesSaleNamespaceActivation>;
+  activateSpacesSaleNamespace(
+    input: CommunitySpacesSaleNamespaceActivationInput & { signal?: AbortSignal },
+  ): Promise<CommunitySpacesSaleNamespaceActivation>;
   createOffering(input: CommunityNamesOfferingCreateInput & { signal?: AbortSignal }): Promise<void>;
   getSnapshot(input: { communityId: string; signal?: AbortSignal }): Promise<CommunityNamesManagementSnapshot>;
   reviseOffering(input: CommunityNamesOfferingRevisionInput & { signal?: AbortSignal }): Promise<void>;
@@ -122,6 +128,11 @@ export function createCommunityNamesSettingsApi(
       assertProtocol(response.activation.community_id === input.path.communityId && response.activation.family === "hns");
       return response.activation;
     },
+    async activateSpacesSaleNamespace({ signal, ...input }) {
+      const response = await client().post_communitiesCommunityIdHandleSaleNamespaces(input, writeOptions(signal));
+      assertProtocol(response.activation.community_id === input.path.communityId && response.activation.family === "spaces");
+      return response.activation;
+    },
     async createOffering({ signal, ...input }) {
       const response = await client().post_communitiesCommunityIdHandleOfferings(
         input,
@@ -165,6 +176,7 @@ export function createCommunityNamesSettingsApi(
         saleNamespaces: saleNamespaces.filter((item): item is CommunityNamesSaleNamespace => "effectiveness" in item),
         spaces: {
           candidates: context.sale_namespace_candidates.filter((item) => item.family === "spaces"),
+          offerings: offerings.filter((item): item is CommunitySpacesOffering => item.offering.family === "spaces"),
           saleNamespaces: saleNamespaces.filter((item): item is CommunitySpacesSaleNamespace => "readiness" in item),
         },
       };

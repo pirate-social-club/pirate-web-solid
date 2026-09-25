@@ -5,6 +5,7 @@ import {
   NAMES_READY,
   NAMES_SUSPENDED,
   SPACES_YAHOO_PENDING,
+  SPACES_YAHOO_READY,
 } from "./community-names-settings-fixtures";
 import {
   CommunityNamesSettingsApiError,
@@ -16,6 +17,7 @@ import {
   namesOfferingRevisionInput,
   saleNamespaceActivationInput,
   saleNamespaceRevisionInput,
+  spacesSaleNamespaceActivationInput,
 } from "./community-names-settings-model";
 
 function response(body: object, status = 200): Response {
@@ -32,6 +34,25 @@ function readyCandidate() {
 }
 
 describe("createCommunityNamesSettingsApi", () => {
+  test("sends the Spaces funding acknowledgement with CSRF and authority fences", async () => {
+    const requests: Request[] = [];
+    const activation = SPACES_YAHOO_PENDING.spaces!.saleNamespaces[0]!.activation;
+    const candidate = SPACES_YAHOO_READY.spaces!.candidates[0]!;
+    if (candidate.kind !== "ready_v1") throw new Error("expected ready Spaces root");
+    const input = spacesSaleNamespaceActivationInput({ candidate, communityId: "community_midnight", idempotencyKey: "spaces-activate-1" });
+    const api = createCommunityNamesSettingsApi({
+      fetchImpl: async (requestInput, init) => {
+        requests.push(new Request(requestInput, init));
+        return response({ activation, replayed: false }, 201);
+      },
+      origin: "https://web.test",
+      readCsrfToken: () => "csrf-1",
+    });
+    await expect(api.activateSpacesSaleNamespace(input)).resolves.toEqual(activation);
+    expect(requests[0]?.headers.get("x-csrf-token")).toBe("csrf-1");
+    await expect(requests[0]!.json()).resolves.toEqual(input.body);
+  });
+
   test("keeps Spaces readiness and funding visible beside HNS management", async () => {
     const spaces = SPACES_YAHOO_PENDING.spaces!.saleNamespaces[0]!;
     const api = createCommunityNamesSettingsApi({
@@ -66,7 +87,7 @@ describe("createCommunityNamesSettingsApi", () => {
 
     await expect(api.getSnapshot({ communityId: "community_midnight" })).resolves.toEqual({
       ...NAMES_ACTIVE,
-      spaces: { candidates: [], saleNamespaces: [] },
+      spaces: { candidates: [], offerings: [], saleNamespaces: [] },
     });
     expect(requests.map((request) => `${request.method} ${request.url}`)).toEqual([
       "GET https://web.test/api/communities/community_midnight/handle-sales-management",

@@ -59,7 +59,7 @@ function spacesReadinessCopy(reason: string): string {
   }
 }
 
-function SpacesNamesCards(props: { snapshot: CommunityNamesManagementSnapshot }) {
+function SpacesNamesCards(props: Pick<CommunityNamesSettingsPanelProps, "busy" | "onCommand" | "snapshot">) {
   const roots = () => {
     const spaces = props.snapshot.spaces;
     if (spaces === undefined) return [];
@@ -76,7 +76,13 @@ function SpacesNamesCards(props: { snapshot: CommunityNamesManagementSnapshot })
   };
 
   return <For each={roots()}>{(root) => {
+    const [fundingAcknowledged, setFundingAcknowledged] = createSignal(false);
     const activation = () => root.activation;
+    const readyCandidate = () => root.candidate?.kind === "ready_v1" ? root.candidate : undefined;
+    const offeringExists = () => props.snapshot.spaces?.offerings.some((item) => (
+      item.offering.sale_namespace_activation_id === activation()?.activation.sale_namespace_activation_id
+        && item.offering.label_scope.kind === "label_rule_v2"
+    )) ?? false;
     const readiness = () => activation()?.readiness;
     const notReadyReason = () => {
       const current = readiness();
@@ -88,7 +94,9 @@ function SpacesNamesCards(props: { snapshot: CommunityNamesManagementSnapshot })
         <Type as="h3" variant="h3">Names under @{root.displayRoot}</Type>
         <span class="rounded-full bg-muted px-3 py-1 text-sm font-semibold">Spaces</span>
       </div>
-      <Show when={activation()} fallback={<FormNote>Finish proving ownership and setting up the operator in Namespace settings. Name requests are not open yet.</FormNote>}>
+      <Show when={activation()} fallback={<FormNote>{readyCandidate()
+        ? "The root and operator are ready. Confirm fee funding to open free name requests."
+        : "Finish proving ownership and setting up the operator in Namespace settings. Name requests are not open yet."}</FormNote>}>
         <p class="text-sm">Status: {activation()!.activation.status}. {activation()!.pending_claim_count} name requests waiting.</p>
         <Show when={notReadyReason()}>{(reason) => <FormNote tone="warning">{spacesReadinessCopy(reason())}</FormNote>}</Show>
         <Show when={readiness()?.kind === "ready_v1"}><FormNote>Operator checks passed. Name availability still depends on the offering and intake state.</FormNote></Show>
@@ -100,6 +108,21 @@ function SpacesNamesCards(props: { snapshot: CommunityNamesManagementSnapshot })
           <Show when={current().top_up_address}>{(address) => <CopyField copyLabel="Spaces operator funding address" value={address()} wrap />}</Show>
           <p class="text-xs text-muted-foreground">Balance last checked {current().observed_at}.</p>
         </div>}</Show>
+      </Show>
+      <Show when={readyCandidate() && (!activation() || (activation()?.activation.status === "active" && !offeringExists()))}>
+        <Show when={!activation()}>
+          <label class="flex items-start gap-2 text-sm">
+            <input type="checkbox" checked={fundingAcknowledged()}
+              onChange={(event) => setFundingAcknowledged(event.currentTarget.checked)} />
+            <span>I will add bitcoin to this space's operator wallet to cover name batch network fees. Pirate covers proof computing.</span>
+          </label>
+        </Show>
+        <Button type="button" class="self-start" disabled={props.busy !== undefined || (!activation() && !fundingAcknowledged())}
+          loading={props.busy === "enable_spaces_names"}
+          onClick={() => {
+            const candidate = readyCandidate();
+            if (candidate && (activation() || fundingAcknowledged())) props.onCommand?.({ candidate, kind: "enable_spaces_names" });
+          }}>Enable free Spaces names</Button>
       </Show>
     </Card>;
   }}</For>;
@@ -196,7 +219,7 @@ export function CommunityNamesSettingsPanel(props: CommunityNamesSettingsPanelPr
 
       <Show when={props.errorMessage}><FormNote tone="destructive">{props.errorMessage}</FormNote></Show>
       <Show when={!props.loading} fallback={<Card class="grid min-h-64 place-items-center" role="status"><div class="flex items-center gap-3"><Spinner class="size-5" /><Type variant="body">Loading names…</Type></div></Card>}>
-          <SpacesNamesCards snapshot={props.snapshot} />
+          <SpacesNamesCards busy={props.busy} onCommand={props.onCommand} snapshot={props.snapshot} />
           <Show when={props.snapshot.context.sale_namespace_candidates.length > 0} fallback={
             <Show when={(props.snapshot.spaces?.candidates.length ?? 0) === 0 && (props.snapshot.spaces?.saleNamespaces.length ?? 0) === 0}>
             <Card class="space-y-4 p-6">

@@ -10,6 +10,8 @@ import {
   broadNamesOfferingInput,
   namesOfferingRevisionInput,
   saleNamespaceActivationInput,
+  spacesBroadNamesOfferingInput,
+  spacesSaleNamespaceActivationInput,
   saleNamespaceRevisionInput,
   type CommunityNamesManagementSnapshot,
   type CommunityNamesSettingsCommand,
@@ -108,6 +110,30 @@ export function CommunityNamesSettingsController(
           context: current.context,
           idempotencyKey: commandKey(`offer:${activation.sale_namespace_activation_id}:${activation.sale_namespace_activation_generation}`),
         }));
+      } else if (command.kind === "enable_spaces_names") {
+        const existing = current.spaces?.saleNamespaces.find((item) => (
+          item.activation.canonical_root === command.candidate.canonical_root
+        ));
+        const activation = existing?.activation ?? await api.activateSpacesSaleNamespace(spacesSaleNamespaceActivationInput({
+          candidate: command.candidate,
+          communityId: props.communityId,
+          idempotencyKey: commandKey(`spaces-activate:${command.candidate.canonical_root}:${command.candidate.expected_namespace_authority_generation}:${command.candidate.expected_operator_assignment_generation}`),
+        }));
+        if (activation.status !== "active") {
+          await load();
+          return;
+        }
+        const offeringExists = current.spaces?.offerings.some((item) => (
+          item.offering.sale_namespace_activation_id === activation.sale_namespace_activation_id
+            && item.offering.label_scope.kind === "label_rule_v2"
+        ));
+        if (!offeringExists) {
+          await api.createOffering(spacesBroadNamesOfferingInput({
+            activation,
+            context: current.context,
+            idempotencyKey: commandKey(`spaces-offer:${activation.sale_namespace_activation_id}:${activation.sale_namespace_activation_generation}`),
+          }));
+        }
       } else if (command.kind === "set_nationality") {
         if (command.offering.label_scope.kind !== "label_rule_v2" || command.offering.allocation.kind !== "first_come_v1"
           || command.offering.status === "retired" || (command.countries !== undefined && command.countries.length === 0)) throw new Error("unsupported_offering");
