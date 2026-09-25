@@ -8,9 +8,9 @@ const currentClient = resolve(
   appRoot,
   "node_modules/@pirate/api-client/src/generated/client.ts",
 );
-// Client 0.93.0 adds Spaces operator assignment to the owner proof wire.
-// This digest pins the exact success, error, and schema tables Solid consumes.
-const expectedDigest = "3dd2cf6ee4d6d34b5f5c26047a43a586d0465e24f640e37a77a5bbafe2df2979";
+// Client 0.93.0 includes durable rewards sends and Spaces owner and recipient
+// operations. This digest pins the exact tables Solid consumes.
+const expectedDigest = "ec66ba6bc0f71d719643663c8408340604ba5a4d72ea43eb7c988ac42a158e02";
 
 const operations = [
   "post_communitiesCommunityIdSpacesOwnershipStart",
@@ -94,6 +94,13 @@ const operations = [
   "get_rewardsCredits",
   "post_rewardsCreditsCreditIdClaim",
   "post_rewardsClaimVerificationIntents",
+  "post_rewardsGasTopups",
+  "get_rewardsGasTopupsTopupId",
+  "post_rewardsCreditsCreditIdSend",
+  "get_rewardsCreditsCreditIdSend",
+  "post_rewardsWinnerSendsSendIdTransactions",
+  "post_rewardsWinnerSendsSendIdCancellation",
+  "get_rewardsWinnerSendsSendId",
   "post_rewardOfferLegsLegIdFundingFundingEffectIdObservations",
   "get_rewardOfferLegsLegIdFundingFundingEffectId",
   "post_assetBonusLegsLegIdFundingFundingEffectIdObservations",

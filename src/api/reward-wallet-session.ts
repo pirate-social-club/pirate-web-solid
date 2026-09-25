@@ -17,7 +17,30 @@ export interface RewardWallet {
   send(context: RewardFundingContext, fee: RewardFeeEstimate, beforeBroadcast: () => Promise<void>): Promise<string>;
   dispose(): void;
 }
-export interface RewardWalletSession extends RewardWallet {
+/**
+ * One ERC-20 transfer on Base Sepolia from a persona's embedded wallet. The
+ * funding flow and the winnings send both describe their transfer this way,
+ * so they share one signing path.
+ */
+export interface RewardTokenTransfer {
+  readonly sender: string;
+  readonly token: string;
+  readonly recipient: string;
+  readonly amountAtomic: string;
+  readonly walletIndex: number;
+  /** Reserved by api-next before a winner signs. Funding has no reserved nonce. */
+  readonly nonce?: number;
+  readonly allowReplacement?: boolean;
+}
+export interface RewardTransferWallet {
+  selectTestnetFor(transfer: RewardTokenTransfer): Promise<void>;
+  estimateTransfer(transfer: RewardTokenTransfer, minimumGasPriceAtomic?: bigint): Promise<RewardFeeEstimate>;
+  sendTransfer(transfer: RewardTokenTransfer, fee: RewardFeeEstimate, beforeBroadcast: () => Promise<void>): Promise<string>;
+  estimateCancellation(transfer: RewardTokenTransfer, minimumGasPriceAtomic?: bigint): Promise<RewardFeeEstimate>;
+  sendCancellation(transfer: RewardTokenTransfer, fee: RewardFeeEstimate, beforeBroadcast: () => Promise<void>): Promise<string>;
+  dispose(): void;
+}
+export interface RewardWalletSession extends RewardWallet, RewardTransferWallet {
   sendCode(email: string): Promise<void>;
   loginWithCode(email: string, code: string): Promise<void>;
   beginOAuth(provider: OAuthProvider, redirectURI: string): Promise<string>;
@@ -41,16 +64,29 @@ function rpcInteger(value: unknown): bigint {
   if (typeof value !== "string" || !/^0x[0-9a-f]+$/iu.test(value)) throw new Error("wallet_invalid_response");
   return BigInt(value);
 }
-export function rewardTransfer(context: RewardFundingContext) {
+/** The funding instruction as a transfer; its checks run first, so funding errors are unchanged. */
+export function fundingTransfer(context: RewardFundingContext): RewardTokenTransfer {
   const f = context.funding;
   if (f.chain_id !== 84532 || !/^[1-9][0-9]*$/u.test(f.expected_amount_atomic)) throw new Error("funding_instruction_mismatch");
-  const amount = BigInt(f.expected_amount_atomic);
-  if (amount >= 2n ** 256n) throw new Error("funding_amount_out_of_range");
+  if (BigInt(f.expected_amount_atomic) >= 2n ** 256n) throw new Error("funding_amount_out_of_range");
   return {
-    from: getAddress(f.sender_address), to: getAddress(f.token_address),
-    value: "0x0" as const, chainId: toHex(84532),
-    data: encodeFunctionData({ abi: erc20Abi, functionName: "transfer", args: [getAddress(f.recipient_address), amount] }),
+    sender: f.sender_address, token: f.token_address, recipient: f.recipient_address,
+    amountAtomic: f.expected_amount_atomic, walletIndex: context.walletIndex,
   };
+}
+export function tokenTransfer(transfer: RewardTokenTransfer) {
+  if (!/^[1-9][0-9]*$/u.test(transfer.amountAtomic)) throw new Error("transfer_invalid_amount");
+  const amount = BigInt(transfer.amountAtomic);
+  if (amount >= 2n ** 256n) throw new Error("transfer_invalid_amount");
+  return {
+    from: getAddress(transfer.sender), to: getAddress(transfer.token),
+    value: "0x0" as const, chainId: toHex(84532),
+    data: encodeFunctionData({ abi: erc20Abi, functionName: "transfer", args: [getAddress(transfer.recipient), amount] }),
+    ...(transfer.nonce === undefined ? {} : { nonce: toHex(transfer.nonce) }),
+  };
+}
+export function rewardTransfer(context: RewardFundingContext) {
+  return tokenTransfer(fundingTransfer(context));
 }
 
 /** A separate, short-lived Privy login. It never exchanges or replaces the app cookie. */
@@ -89,10 +125,10 @@ export async function createRewardWalletSession(
       if (disposed) cleanup();
     }
   };
-  const providerFor = async (context: RewardFundingContext) => {
+  const providerFor = async (transfer: RewardTokenTransfer) => {
     authorized();
     if (client.getEmbeddedEthereumProvider === undefined) throw new Error("wallet_provider_unavailable");
-    const provider = await client.getEmbeddedEthereumProvider(context.walletIndex, context.funding.sender_address);
+    const provider = await client.getEmbeddedEthereumProvider(transfer.walletIndex, transfer.sender);
     authorized();
     // Each embedded provider starts on the SDK's default chain, and a switch does
     // not carry over to the next provider, so every one is moved to Base Sepolia.
@@ -101,31 +137,47 @@ export async function createRewardWalletSession(
     authorized();
     return provider;
   };
-  const verifyProvider = async (provider: EthereumProvider, context: RewardFundingContext) => {
+  const verifyProvider = async (provider: EthereumProvider, transfer: RewardTokenTransfer) => {
     const accounts = await provider.request({ method: "eth_accounts" });
     authorized();
     if (!Array.isArray(accounts) || accounts.length !== 1 || typeof accounts[0] !== "string" ||
-        getAddress(accounts[0]) !== getAddress(context.funding.sender_address)) throw new Error("wallet_assignment_mismatch");
+        getAddress(accounts[0]) !== getAddress(transfer.sender)) throw new Error("wallet_assignment_mismatch");
     const chain = rpcInteger(await provider.request({ method: "eth_chainId" }));
     authorized();
     if (chain !== 84532n) throw new Error("wallet_wrong_chain");
   };
-  const estimateWith = async (provider: EthereumProvider, context: RewardFundingContext) => {
-    await verifyProvider(provider, context);
-    const tx = rewardTransfer(context);
+  const estimateWith = async (provider: EthereumProvider, transfer: RewardTokenTransfer, minimumGasPriceAtomic = 0n) => {
+    await verifyProvider(provider, transfer);
+    const tx = tokenTransfer({ ...transfer, nonce: undefined });
     const tokenBalance = rpcInteger(await provider.request({ method: "eth_call", params: [{
       to: tx.to, data: encodeFunctionData({ abi: erc20Abi, functionName: "balanceOf", args: [tx.from] }),
     }, "latest"] }));
     authorized();
-    if (tokenBalance < BigInt(context.funding.expected_amount_atomic)) throw new Error("wallet_insufficient_token_balance");
+    if (tokenBalance < BigInt(transfer.amountAtomic)) throw new Error("wallet_insufficient_token_balance");
     const gas = rpcInteger(await provider.request({ method: "eth_estimateGas", params: [tx] }));
-    const price = rpcInteger(await provider.request({ method: "eth_gasPrice" }));
+    const suggestedPrice = rpcInteger(await provider.request({ method: "eth_gasPrice" }));
+    const price = suggestedPrice > minimumGasPriceAtomic ? suggestedPrice : minimumGasPriceAtomic;
     const native = rpcInteger(await provider.request({ method: "eth_getBalance", params: [tx.from, "pending"] }));
     authorized();
     if (gas <= 0n || price <= 0n) throw new Error("wallet_invalid_fee_estimate");
     const gasLimit = (gas * 120n + 99n) / 100n;
     if (native < gasLimit * price) throw new Error("wallet_insufficient_gas_balance");
     return { gasLimit: gasLimit.toString(), gasPriceAtomic: price.toString(), executionFeeAtomic: (gasLimit * price).toString() };
+  };
+  const assertReservedNonce = async (provider: EthereumProvider, transfer: RewardTokenTransfer) => {
+    if (transfer.nonce === undefined) return;
+    if (!Number.isSafeInteger(transfer.nonce) || transfer.nonce < 0) throw new Error("wallet_reserved_nonce_invalid");
+    const from = getAddress(transfer.sender);
+    const [latest, pending] = await Promise.all([
+      provider.request({ method: "eth_getTransactionCount", params: [from, "latest"] }),
+      provider.request({ method: "eth_getTransactionCount", params: [from, "pending"] }),
+    ]);
+    authorized();
+    const reserved = BigInt(transfer.nonce);
+    if (rpcInteger(latest) > reserved ||
+        (transfer.allowReplacement ? rpcInteger(pending) < reserved : rpcInteger(pending) !== reserved)) {
+      throw new Error("wallet_reserved_nonce_mismatch");
+    }
   };
   return {
     async sendCode(email) {
@@ -164,30 +216,77 @@ export async function createRewardWalletSession(
       if (typeof signature !== "string" || !/^0x[0-9a-f]+$/iu.test(signature)) throw new Error("wallet_auth_failed");
       await client.auth.siwe.loginWithSiwe(signature, wallet, message);
     }),
-    async selectTestnet(context) {
-      await verifyProvider(await providerFor(context), context);
-    },
-    async estimate(context) { return estimateWith(await providerFor(context), context); },
-    async send(context, fee, beforeBroadcast) {
-      const provider = await providerFor(context);
-      const current = await estimateWith(provider, context);
-      if (BigInt(current.executionFeeAtomic) > BigInt(fee.executionFeeAtomic) ||
-          BigInt(current.gasLimit) > BigInt(fee.gasLimit) ||
-          BigInt(current.gasPriceAtomic) > BigInt(fee.gasPriceAtomic)) throw new Error("wallet_fee_changed");
-      await verifyProvider(provider, context);
-      await beforeBroadcast();
-      let transaction;
-      try {
-        authorized();
-        transaction = { ...rewardTransfer(context), gas: toHex(BigInt(fee.gasLimit)), gasPrice: toHex(BigInt(fee.gasPriceAtomic)) };
-      } catch (cause) {
-        // No provider call occurs inside this block. Provider errors must never authorize retry.
-        throw new RewardFundingNotBroadcastError(cause);
-      }
-      const result = await provider.request({ method: "eth_sendTransaction", params: [transaction] });
-      if (typeof result !== "string" || !/^0x[0-9a-f]{64}$/iu.test(result)) throw new Error("wallet_submission_uncertain");
-      return result.toLowerCase();
-    },
+    selectTestnet: async context => selectTestnetFor(fundingTransfer(context)),
+    selectTestnetFor,
+    estimate: async context => estimateTransfer(fundingTransfer(context)),
+    estimateTransfer,
+    send: async (context, fee, beforeBroadcast) => sendTransfer(fundingTransfer(context), fee, beforeBroadcast),
+    sendTransfer,
+    estimateCancellation,
+    sendCancellation,
     dispose() { disposed = true; authorizedUntil = 0; cleanup(); },
   };
+  async function selectTestnetFor(transfer: RewardTokenTransfer) {
+    await verifyProvider(await providerFor(transfer), transfer);
+  }
+  async function estimateTransfer(transfer: RewardTokenTransfer, minimumGasPriceAtomic?: bigint) {
+    return estimateWith(await providerFor(transfer), transfer, minimumGasPriceAtomic);
+  }
+  async function sendTransfer(transfer: RewardTokenTransfer, fee: RewardFeeEstimate, beforeBroadcast: () => Promise<void>) {
+    const provider = await providerFor(transfer);
+    const current = await estimateWith(provider, transfer);
+    if (BigInt(current.executionFeeAtomic) > BigInt(fee.executionFeeAtomic) ||
+        BigInt(current.gasLimit) > BigInt(fee.gasLimit) ||
+        BigInt(current.gasPriceAtomic) > BigInt(fee.gasPriceAtomic)) throw new Error("wallet_fee_changed");
+    await verifyProvider(provider, transfer);
+    const native = rpcInteger(await provider.request({ method: "eth_getBalance", params: [getAddress(transfer.sender), "pending"] }));
+    if (native < BigInt(fee.executionFeeAtomic)) throw new Error("wallet_insufficient_gas_balance");
+    await assertReservedNonce(provider, transfer);
+    await beforeBroadcast();
+    let transaction;
+    try {
+      authorized();
+      transaction = { ...tokenTransfer(transfer), gas: toHex(BigInt(fee.gasLimit)), gasPrice: toHex(BigInt(fee.gasPriceAtomic)) };
+    } catch (cause) {
+      // No provider call occurs inside this block. Provider errors must never authorize retry.
+      throw new RewardFundingNotBroadcastError(cause);
+    }
+    const result = await provider.request({ method: "eth_sendTransaction", params: [transaction] });
+    if (typeof result !== "string" || !/^0x[0-9a-f]{64}$/iu.test(result)) throw new Error("wallet_submission_uncertain");
+    return result.toLowerCase();
+  }
+  async function estimateCancellation(transfer: RewardTokenTransfer, minimumGasPriceAtomic = 0n) {
+    if (transfer.nonce === undefined) throw new Error("wallet_reserved_nonce_invalid");
+    const provider = await providerFor(transfer);
+    await verifyProvider(provider, transfer);
+    const tx = { from: getAddress(transfer.sender), to: getAddress(transfer.sender), value: "0x0", chainId: toHex(84532) };
+    const gas = rpcInteger(await provider.request({ method: "eth_estimateGas", params: [tx] }));
+    const suggestedPrice = rpcInteger(await provider.request({ method: "eth_gasPrice" }));
+    const price = suggestedPrice > minimumGasPriceAtomic ? suggestedPrice : minimumGasPriceAtomic;
+    const gasLimit = (gas * 120n + 99n) / 100n;
+    const native = rpcInteger(await provider.request({ method: "eth_getBalance", params: [tx.from, "pending"] }));
+    if (gas <= 0n || price <= 0n || native < gasLimit * price) throw new Error("wallet_insufficient_gas_balance");
+    return { gasLimit: gasLimit.toString(), gasPriceAtomic: price.toString(), executionFeeAtomic: (gasLimit * price).toString() };
+  }
+  async function sendCancellation(transfer: RewardTokenTransfer, fee: RewardFeeEstimate, beforeBroadcast: () => Promise<void>) {
+    if (transfer.nonce === undefined) throw new Error("wallet_reserved_nonce_invalid");
+    const provider = await providerFor(transfer);
+    await verifyProvider(provider, transfer);
+    const current = await estimateCancellation(transfer);
+    if (BigInt(current.gasLimit) > BigInt(fee.gasLimit) || BigInt(current.gasPriceAtomic) > BigInt(fee.gasPriceAtomic)) {
+      throw new Error("wallet_fee_changed");
+    }
+    const native = rpcInteger(await provider.request({ method: "eth_getBalance", params: [getAddress(transfer.sender), "pending"] }));
+    if (native < BigInt(fee.executionFeeAtomic)) throw new Error("wallet_insufficient_gas_balance");
+    await assertReservedNonce(provider, transfer);
+    await beforeBroadcast();
+    authorized();
+    const transaction = {
+      from: getAddress(transfer.sender), to: getAddress(transfer.sender), value: "0x0", chainId: toHex(84532),
+      nonce: toHex(transfer.nonce), gas: toHex(BigInt(fee.gasLimit)), gasPrice: toHex(BigInt(fee.gasPriceAtomic)),
+    };
+    const result = await provider.request({ method: "eth_sendTransaction", params: [transaction] });
+    if (typeof result !== "string" || !/^0x[0-9a-f]{64}$/iu.test(result)) throw new Error("wallet_submission_uncertain");
+    return result.toLowerCase();
+  }
 }

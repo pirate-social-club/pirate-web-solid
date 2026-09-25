@@ -1,5 +1,6 @@
 import { formatUnits } from "viem";
 import type { RewardClaimOutcome, RewardCredit } from "../../api/reward-claim.ts";
+import { canSendWinning } from "./winnings-send-model.ts";
 
 export type WinningView = Readonly<{
   creditId: string;
@@ -7,6 +8,9 @@ export type WinningView = Readonly<{
   status: string;
   detail: string | null;
   canClaim: boolean;
+  /** Claimed and paid to the persona wallet, so it can be sent on. */
+  canSend: boolean;
+  sendActionLabel: string;
 }>;
 
 /**
@@ -19,7 +23,7 @@ export function winningViews(credits: readonly RewardCredit[]): readonly Winning
     const claim = credit.claim;
     if (claim === null) return [];
     const amount = `${formatUnits(BigInt(credit.amount_atomic), credit.token_decimals)} USDC`;
-    const base = { creditId: credit.credit_id, amount };
+    const base = { creditId: credit.credit_id, amount, canSend: false, sendActionLabel: credit.send === null ? "Send" : "View send" };
     if (claim.status === "unclaimed") {
       return [{ ...base, status: "Held for you", detail: "Verify with a palm scan to claim it.", canClaim: true }];
     }
@@ -33,7 +37,7 @@ export function winningViews(credits: readonly RewardCredit[]): readonly Winning
     }
     switch (claim.payout_status) {
       case "confirmed":
-        return [{ ...base, status: "Sent to your wallet", detail: null, canClaim: false }];
+        return [{ ...base, status: "Sent to your wallet", detail: credit.send === null ? null : `Onward send: ${credit.send.status.replaceAll("_", " ")}.`, canClaim: false, canSend: canSendWinning(credit) }];
       case "recipient_pending":
         return [{ ...base, status: "Claimed", detail: "Waiting for your wallet to be ready.", canClaim: false }];
       case "failed_retrying":
