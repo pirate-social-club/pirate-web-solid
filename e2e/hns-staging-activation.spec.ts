@@ -1,7 +1,9 @@
+import { randomUUID } from "node:crypto";
 import type { Page } from "playwright/test";
-import { test, expect } from "./fixtures/auth.ts";
+import { test, expect, completePrivyEmail } from "./fixtures/auth.ts";
 import { readonlyApi } from "./fixtures/api.ts";
 import { e2eBaseURL, requireMutationEnvironment } from "./fixtures/environment.ts";
+import { probePrivateGateway } from "./fixtures/hns-gateway-probe.ts";
 import { requireHnsJourneyRoot } from "./fixtures/hns-session-handoff.ts";
 
 // The phase after a regtest UPDATE: the owner confirms publication in the
@@ -67,7 +69,7 @@ test.describe("staging HNS activation", { tag: "@hns-mutating" }, () => {
       throw new Error("E2E_HNS_READY_WAIT_MS must be between one minute and one hour.");
   });
 
-  test("confirms publication, waits for readiness and activates the community address", async ({ page }) => {
+  test("confirms publication, waits for readiness and activates the community address", async ({ page, browser }) => {
     test.setTimeout(readyWaitMs + 300_000);
     const capabilities = await readonlyApi(page).ownerCapabilities(communityId);
     if (capabilities.role !== "owner") throw new Error("The HNS community is not owned by the test account.");
@@ -132,5 +134,30 @@ test.describe("staging HNS activation", { tag: "@hns-mutating" }, () => {
     if (snapshot.attachment?.status !== "active" || snapshot.attachment.canonical_route?.root_label !== root)
       throw new Error("The community address is not attached after activation.");
     console.log(JSON.stringify({ event: "hns-attachment", app_host: snapshot.attachment.canonical_route?.app_host ?? null }));
+
+    // The app host serves this community through the private TLS gateway, and
+    // a host the gateway does not hold is refused with 421.
+    const preview = await readonlyApi(page).communityPreview(communityId);
+    const served = await probePrivateGateway(`app.${root}`, preview.display_name);
+    console.log(JSON.stringify({ event: "hns-app-host", ...served }));
+    expect(served).toEqual({ status: 200, markerFound: true });
+    const unclaimedHost = `app.e2eunclaimed${randomUUID().replaceAll("-", "").slice(0, 16)}`;
+    const unclaimed = await probePrivateGateway(unclaimedHost, preview.display_name);
+    console.log(JSON.stringify({ event: "hns-unclaimed-host", status: unclaimed.status }));
+    expect(unclaimed.status).toBe(421);
+
+    // A fresh browser session signs in again and reads the same attachment.
+    const fresh = await browser.newContext({ baseURL: e2eBaseURL() });
+    try {
+      const again = await fresh.newPage();
+      await again.goto("/auth/sign-in");
+      await completePrivyEmail(again);
+      await again.waitForURL(url => url.pathname === "/", { timeout: 60_000 });
+      await again.goto(namespacePath);
+      await expect(again.locator("[data-namespace-attachment]")).toContainText(root, { timeout: 45_000 });
+      console.log(JSON.stringify({ event: "hns-attachment-after-sign-in" }));
+    } finally {
+      await fresh.close();
+    }
   });
 });
