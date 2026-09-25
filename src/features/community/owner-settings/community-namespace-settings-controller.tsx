@@ -14,6 +14,7 @@ import { useApplicationSession } from "../../shell/application-session";
 import type {
   CommunityNamespaceSettingsPort,
   NamespaceCommandIdempotencyKeys,
+  NamespaceNextAction,
   NamespaceSettingsCommand,
   NamespaceSettingsSnapshot,
 } from "./owner-settings-model";
@@ -29,6 +30,10 @@ export interface CommunityNamespaceSettingsControllerProps {
 type LoadStatus = "loading" | "ready" | "denied" | "error";
 
 const PREPARATION_RETRY_STORAGE_PREFIX = "pirate:hns-preparation-retry:";
+
+/** Actions before the server has exposed a plan to the owner. */
+const PRE_EXPOSURE_ACTIONS: ReadonlySet<NamespaceNextAction["kind"]> = new Set(["start_verification", "sign_ownership"]);
+const TERMINAL_ACTIONS: ReadonlySet<NamespaceNextAction["kind"]> = new Set(["verified", "expired", "failed", "recovery_required"]);
 
 function storedPreparationRetryAt(userId: string): number | undefined {
   if (typeof sessionStorage === "undefined") return undefined;
@@ -53,8 +58,33 @@ function nextOperationKey(kind: NamespaceSettingsCommand["kind"]): string {
   return operationKeys()[kind];
 }
 
+/** States the status poll already refreshes from the server. */
+function polledState(
+  action: NamespaceNextAction,
+): action is Extract<NamespaceNextAction, { kind: "wait" | "publish_resource" }> {
+  return action.kind === "wait" || (action.kind === "publish_resource" && action.check_pending === true);
+}
+
+/**
+ * The next action a 409 refusal names, when the server named one. These
+ * refusals are final for the request that met them; waiting does not help.
+ */
+function refusal(error: unknown): { reason: string; nextAction: string } | undefined {
+  if (!(error instanceof ApiClientError) || error.status !== 409) return undefined;
+  const reason = error.details?.reason;
+  const nextAction = error.details?.next_action;
+  return typeof reason === "string" && typeof nextAction === "string" ? { reason, nextAction } : undefined;
+}
+
 function commandError(error: unknown): string {
   if (error instanceof CommunityNamespaceSettingsApiError) return error.message;
+  const refused = refusal(error);
+  if (refused?.reason === "ownership_check_attempts_exhausted") {
+    return "The ownership check was refused three times, so this import needs recovery. It is held while recovery is reviewed; once it is retired you can start a new import.";
+  }
+  if (refused?.reason === "publication_window_closed" && refused.nextAction === "operator_recovery") {
+    return "The publication window for this import has closed. It is held while recovery is reviewed, so nothing more can be published for it.";
+  }
   if (error instanceof ApiClientError && error.status === 401) {
     return "Your sign-in has expired. Sign in again, then retry. Your namespace is saved.";
   }
@@ -166,6 +196,7 @@ export function CommunityNamespaceSettingsController(
     onCleanup(() => document.removeEventListener("visibilitychange", updateVisibility));
   }
   const [keys, setKeys] = createSignal(operationKeys());
+  let deadlineAsked: string | undefined;
   let active = true;
   let requestGeneration = 0;
 
@@ -227,6 +258,32 @@ export function CommunityNamespaceSettingsController(
       }
     } catch (error) {
       if (active) {
+        const refused = refusal(error);
+        const current = snapshot();
+        if (refused?.nextAction === "start_new_import" && current !== undefined) {
+          // The preparation expired before its session existed. The expired
+          // state offers the fresh start, with the same namespace kept.
+          setSnapshot({ ...current, next_action: { kind: "expired" } });
+          clearMessage();
+          return;
+        }
+        if (refused?.nextAction === "read_import_status" && current !== undefined) {
+          // The window closed because the import moved on; show where it is
+          // now. The read runs while this command still holds `busy`.
+          try {
+            const next = await api.execute({ expected_generation: current.generation, idempotency_key: keys().poll, kind: "poll" });
+            if (!active) return;
+            setSnapshot(next);
+            setDraftRootLabel(next.root_label);
+            clearMessage();
+            setKeys((currentKeys) => ({ ...currentKeys, poll: nextOperationKey("poll") }));
+          } catch (readError) {
+            if (!active) return;
+            setPollFailed(true);
+            showFailure("Could not refresh verification status. Select Retry status to reconnect.", readError);
+          }
+          return;
+        }
         setPollFailed(command.kind === "poll");
         if (error instanceof ApiClientError && error.status === 429 && error.details?.reason === "hns_preparation_daily_limit") {
           const seconds = error.details.retry_after_seconds;
@@ -254,16 +311,36 @@ export function CommunityNamespaceSettingsController(
     }
   };
 
-  // A page waiting for wallet publication has no progress polling. Its deadline
-  // must still end the attempt, including when the tab resumes after suspension.
+  // A page waiting for wallet publication has no progress polling, so its
+  // deadline needs a timer, including when the tab resumes after suspension.
+  // Before plan exposure the session bound may end the attempt locally. With
+  // the lifecycle block, after exposure `expires_at` is not the owner's clock:
+  // the lifecycle deadline is, and reaching it only asks the server what it
+  // decided, because the server holds a missed deadline for recovery rather
+  // than expiring the import. The degraded shape without the block predates
+  // separated clocks, so its session expiry is still final.
   createEffect(
     () => ({ snapshot: snapshot(), visible: pageVisible() }),
     ({ snapshot: current, visible }) => {
-      if (!visible || !current?.expires_at || ["verified", "expired", "failed"].includes(current.next_action.kind)) return;
-      const remaining = Date.parse(current.expires_at) - Date.now();
+      if (!visible || !current) return;
+      const kind = current.next_action.kind;
+      const exposed = current.lifecycle != null && !PRE_EXPOSURE_ACTIONS.has(kind);
+      const deadline = exposed ? current.lifecycle?.deadline?.at : current.expires_at;
+      if (!deadline || TERMINAL_ACTIONS.has(kind)) return;
+      // Polled states already learn the server's decision; a deadline asks at
+      // most once, so a server that still reports it pending is not re-asked.
+      if (exposed && (polledState(current.next_action) || deadlineAsked === deadline)) return;
+      const remaining = Date.parse(deadline) - Date.now();
       if (!Number.isFinite(remaining)) return;
       const timer = setTimeout(() => {
-        if (Date.parse(current.expires_at!) > Date.now()) return;
+        if (Date.parse(deadline) > Date.now()) return;
+        if (exposed) {
+          if (snapshot() === current) {
+            deadlineAsked = deadline;
+            void execute({ expected_generation: current.generation, idempotency_key: keys().poll, kind: "poll" });
+          }
+          return;
+        }
         setSnapshot((latest) => latest === current ? { ...current, next_action: { kind: "expired" } } : latest);
       }, Math.max(0, Math.min(remaining, 2_147_483_647)));
       return () => clearTimeout(timer);
@@ -275,7 +352,7 @@ export function CommunityNamespaceSettingsController(
     ({ busy: polling, pollKey, snapshot: current, status: loadStatus, failed, visible, attempts }) => {
       if (!visible || failed || !current || polling || loadStatus !== "ready") return;
       const action = current.next_action;
-      if (action.kind !== "wait" && !(action.kind === "publish_resource" && action.check_pending)) return;
+      if (!polledState(action)) return;
       // Back off unchanged snapshots: 2, 4, 8, 16, then 30 seconds.
       // A longer server hint always takes precedence.
       const delayMs = Math.max(action.retry_after_seconds ?? 2, Math.min(30, 2 ** (attempts + 1))) * 1_000;

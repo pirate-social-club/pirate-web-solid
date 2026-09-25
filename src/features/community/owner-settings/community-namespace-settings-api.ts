@@ -173,6 +173,9 @@ function recoveryReason(pendingReason: string | null): NamespaceRecoveryReasonCo
   if (pendingReason === "publication_deadline_reached") return "publication_deadline_reached";
   if (pendingReason === "finality_deadline_reached") return "finality_deadline_reached";
   if (pendingReason === "superseded") return "superseded";
+  if (pendingReason === "pre_separated_clocks_challenge_expiry") return "pre_separated_clocks_challenge_expiry";
+  if (pendingReason === "sources_inconsistent") return "sources_inconsistent";
+  if (pendingReason === "ownership_check_attempts_exhausted") return "ownership_check_attempts_exhausted";
   return "other";
 }
 

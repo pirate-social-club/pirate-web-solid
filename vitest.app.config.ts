@@ -69,6 +69,7 @@ export default defineConfig({
       "src/features/community/owner-settings/community-namespace-admission.test.tsx",
       "src/features/community/owner-settings/community-namespace-lifecycle.test.tsx",
       "src/features/community/owner-settings/community-namespace-failure-reference.test.tsx",
+      "src/features/community/owner-settings/community-namespace-separated-clocks.test.tsx",
       "src/features/community/owner-settings/owner-settings-model.test.ts",
       "src/features/community/owner-settings/owner-settings-route-model.test.ts",
       "src/features/community/owner-settings/owner-settings-route-view.test.tsx",

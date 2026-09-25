@@ -5,7 +5,7 @@ import { expect, fn, userEvent, within } from "storybook/test";
 import { CommunityNamespaceSettingsPanel } from "./community-namespace-settings-panel";
 import { createFakeNamespaceSettingsPort, hnsChangeClassification, hnsCompleteResource, namespaceIdempotencyKeys, namespaceState, unsupportedHnsRecords } from "./fake-owner-settings-port";
 import type { CommunityHnsWallet } from "./community-hns-wallet";
-import type { NamespaceNextAction, NamespaceSettingsSnapshot } from "./owner-settings-model";
+import type { NamespaceNextAction, NamespaceRecoveryReasonCode, NamespaceSettingsSnapshot } from "./owner-settings-model";
 
 function argsFor(nextAction: NamespaceNextAction) {
   return {
@@ -162,6 +162,77 @@ export const ResourceMismatch: Story = {
     missing_records: [hnsCompleteResource[3]],
     unexpected_records: [{ record_type: "NS", value: "old-nameserver.invalid.", supported: true }],
   }),
+};
+
+function withLifecycle(
+  nextAction: NamespaceNextAction,
+  phase: NonNullable<NamespaceSettingsSnapshot["lifecycle"]>["phase"],
+  pendingReason: string | null,
+  deadlineAt: string,
+) {
+  const args = argsFor(nextAction);
+  return {
+    ...args,
+    snapshot: {
+      ...args.snapshot,
+      // The retired one-hour challenge expiry that must not be shown.
+      expires_at: "2099-09-04T13:00:00.000Z",
+      lifecycle: {
+        deadline: { at: deadlineAt, kind: "publication" as const },
+        next_check_at: null,
+        observation: null,
+        pending_reason: pendingReason,
+        permitted_actions: phase === "recovery_required" ? ["poll" as const, "recover" as const] : ["poll" as const, "acknowledge" as const],
+        phase,
+        retry_hint_seconds: null,
+        server_time: "2099-09-04T12:00:00.000Z",
+      },
+    },
+  };
+}
+
+const heldAction = (reason: NamespaceRecoveryReasonCode): NamespaceNextAction => ({
+  kind: "recovery_required",
+  deadline_kind: "publication",
+  reason_code: reason,
+  server_reason: reason,
+});
+
+export const CompleteResourceLifecycleDeadline: Story = {
+  args: withLifecycle(
+    { kind: "publish_resource", acknowledgement_required: true, replacement_semantics: "complete_resource", records: hnsCompleteResource, ...hnsChangeClassification },
+    "awaiting_publication",
+    null,
+    "2099-09-18T12:00:00.000Z",
+  ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByText(/Publish by/)).toBeInTheDocument();
+    await expect(canvasElement.querySelector('time[datetime="2099-09-18T12:00:00.000Z"]')).not.toBeNull();
+    await expect(canvasElement.querySelector('time[datetime="2099-09-04T13:00:00.000Z"]')).toBeNull();
+  },
+};
+
+export const HeldPreSeparatedClocks: Story = {
+  args: withLifecycle(heldAction("pre_separated_clocks_challenge_expiry"), "recovery_required", "pre_separated_clocks_challenge_expiry", "2099-09-04T11:00:00.000Z"),
+  play: async ({ canvasElement }) => {
+    await expect(within(canvasElement).getByText(/issued with a one-hour publication window/)).toBeInTheDocument();
+  },
+};
+
+export const HeldSourcesInconsistent: Story = {
+  args: withLifecycle(heldAction("sources_inconsistent"), "recovery_required", "sources_inconsistent", "2099-09-04T11:00:00.000Z"),
+  play: async ({ canvasElement }) => {
+    await expect(within(canvasElement).getByText(/Handshake sources gave conflicting answers/)).toBeInTheDocument();
+  },
+};
+
+export const HeldOwnershipChecksExhausted: Story = {
+  args: withLifecycle(heldAction("ownership_check_attempts_exhausted"), "recovery_required", "ownership_check_attempts_exhausted", "2099-09-18T12:00:00.000Z"),
+  play: async ({ canvasElement }) => {
+    await expect(within(canvasElement).getByText(/The ownership check was refused three times/)).toBeInTheDocument();
+    await expect(within(canvasElement).queryByRole("button", { name: "Try a new verification" })).toBeNull();
+  },
 };
 
 export const Failed: Story = {

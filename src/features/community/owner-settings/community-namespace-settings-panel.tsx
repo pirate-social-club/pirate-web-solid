@@ -19,6 +19,7 @@ import {
   namespaceRecordRows,
   type NamespaceRecordRow,
   type NamespaceCommandIdempotencyKeys,
+  type NamespaceLifecycle,
   type NamespaceNextAction,
   type NamespaceResourceRecord,
   type NamespaceSettingsCommand,
@@ -125,14 +126,45 @@ function NamespaceRecordPlan(props: { rows: ReadonlyArray<NamespaceRecordRow> })
   );
 }
 
+function localTimestamp(value: string): string {
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? value : parsed.toLocaleString();
+}
+
 function RecordListExpiry(props: { expiresAt: string }) {
-  const localTime = () => {
-    const parsed = new Date(props.expiresAt);
-    return Number.isNaN(parsed.getTime()) ? props.expiresAt : parsed.toLocaleString();
-  };
   return (
-    <FormNote>Expires <time datetime={props.expiresAt}>{localTime()}</time>, after which you need a new list.</FormNote>
+    <FormNote>Expires <time datetime={props.expiresAt}>{localTimestamp(props.expiresAt)}</time>, after which you need a new list.</FormNote>
   );
+}
+
+/**
+ * The server's lifecycle deadline for an exposed plan. Once a plan is exposed
+ * the session `expires_at` is no longer the owner's clock (it is either the
+ * pre-exposure bound or a retired one-hour challenge expiry), so this is the
+ * only deadline shown from then on.
+ */
+function LifecycleDeadline(props: { deadline: NonNullable<NamespaceLifecycle["deadline"]> }) {
+  return (
+    <FormNote>
+      {props.deadline.kind === "publication" ? "Publish by " : "Handshake must settle this update by "}
+      <time datetime={props.deadline.at}>{localTimestamp(props.deadline.at)}</time>.
+    </FormNote>
+  );
+}
+
+/**
+ * Which deadline the publish step shows. With the lifecycle block present the
+ * server's deadline is the only clock, and none is shown when it has none.
+ * Only the degraded shape without the block falls back to the session expiry.
+ */
+function publishDeadline(snapshot: NamespaceSettingsSnapshot):
+  | Readonly<{ kind: "lifecycle"; deadline: NonNullable<NamespaceLifecycle["deadline"]> }>
+  | Readonly<{ kind: "session"; expiresAt: string }>
+  | null {
+  if (snapshot.lifecycle != null) {
+    return snapshot.lifecycle.deadline === null ? null : { kind: "lifecycle", deadline: snapshot.lifecycle.deadline };
+  }
+  return snapshot.expires_at ? { kind: "session", expiresAt: snapshot.expires_at } : null;
 }
 
 function ConnectedNameCard(props: { action: Extract<NamespaceNextAction, { kind: "verified" }> }) {
@@ -282,8 +314,13 @@ function ServerDirectedAction(props: Pick<CommunityNamespaceSettingsPanelProps, 
                 </div>
               </Show>
 
-              <Show when={props.snapshot.expires_at}>
-                {(expiresAt) => <RecordListExpiry expiresAt={expiresAt()} />}
+              <Show when={publishDeadline(props.snapshot)}>
+                {(deadline) => {
+                  const shown = deadline();
+                  return shown.kind === "lifecycle"
+                    ? <LifecycleDeadline deadline={shown.deadline} />
+                    : <RecordListExpiry expiresAt={shown.expiresAt} />;
+                }}
               </Show>
 
               <NamespaceRecordPlan rows={namespaceRecordRows(current())} />
@@ -468,6 +505,9 @@ function ServerDirectedAction(props: Pick<CommunityNamespaceSettingsPanelProps, 
               publication_deadline_reached: "The window to publish these records has passed. This operation is paused. We're retaining its authority setup while recovery is reviewed.",
               finality_deadline_reached: "Handshake did not settle the published records in time. This operation is paused. We're retaining its authority setup while recovery is reviewed.",
               superseded: "This record list was replaced. This operation is paused. We're retaining its authority setup while recovery is reviewed.",
+              pre_separated_clocks_challenge_expiry: "This record list was issued with a one-hour publication window, and that window passed. This operation is paused. We're retaining its authority setup while recovery is reviewed.",
+              sources_inconsistent: "Handshake sources gave conflicting answers about this name. This operation is paused. We're retaining its authority setup while recovery is reviewed.",
+              ownership_check_attempts_exhausted: "The ownership check was refused three times, so this import needs recovery. This operation is paused. We're retaining its authority setup while recovery is reviewed.",
               other: "This operation is paused. We're retaining its authority setup while recovery is reviewed.",
             }[current().reason_code]}</FormNote>
             {/* Nothing is offered here. Recovery is the server's decision to
@@ -476,6 +516,9 @@ function ServerDirectedAction(props: Pick<CommunityNamespaceSettingsPanelProps, 
             <Show when={current().deadline_kind !== null}>
               <Type as="p" variant="caption">
                 {current().deadline_kind === "publication" ? "Publication deadline" : "Finality deadline"}
+                <Show when={props.snapshot.lifecycle?.deadline}>
+                  {(deadline) => <>{" "}<time datetime={deadline().at}>{localTimestamp(deadline().at)}</time></>}
+                </Show>
               </Type>
             </Show>
           </Card>
