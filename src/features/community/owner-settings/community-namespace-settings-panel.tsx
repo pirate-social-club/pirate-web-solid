@@ -154,6 +154,12 @@ function LifecycleDeadline(props: { deadline: NonNullable<NamespaceLifecycle["de
   );
 }
 
+/** Whether the server's publication deadline for this snapshot has passed. */
+function publicationDeadlinePassed(snapshot: NamespaceSettingsSnapshot): boolean {
+  const deadline = snapshot.lifecycle?.deadline;
+  return deadline != null && deadline.kind === "publication" && Date.parse(deadline.at) <= Date.now();
+}
+
 /**
  * Which deadline the publish step shows. With the lifecycle block present the
  * server's deadline is the only clock, and none is shown when it has none.
@@ -385,7 +391,7 @@ function ServerDirectedAction(props: Pick<CommunityNamespaceSettingsPanelProps, 
                       onClick={() => runWalletAction("Bob Wallet could not publish the update. You can retry or publish the complete record list manually.", async () => {
                         // The broadcast happens before the API is asked, so a
                         // blocked snapshot must never reach the wallet.
-                        if (props.publicationBlocked || current().check_pending) return;
+                        if (props.publicationBlocked || current().check_pending || publicationDeadlinePassed(props.snapshot)) return;
                         const records = current().records.flatMap((record) => record.wallet_record ? [record.wallet_record] : []);
                         await props.wallet!.publishCompleteResource(props.snapshot.root_label, records);
                         dispatch({ kind: "acknowledge_complete_resource" });

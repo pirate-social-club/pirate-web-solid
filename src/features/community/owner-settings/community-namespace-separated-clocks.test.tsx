@@ -4,6 +4,8 @@ import { createRoot } from "solid-js";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { createCommunityNamespaceSettingsApi } from "./community-namespace-settings-api";
 import { CommunityNamespaceSettingsController } from "./community-namespace-settings-controller";
+import { namespaceIdempotencyKeys } from "./community-namespace-idempotency";
+import { CommunityNamespaceSettingsPanel } from "./community-namespace-settings-panel";
 import type { CommunityNamespaceSettingsPort, NamespaceSettingsSnapshot } from "./owner-settings-model";
 
 /**
@@ -447,4 +449,78 @@ test("a passed publication deadline blocks the Bob publish while and after the s
   answer({ ...session });
   await vi.advanceTimersByTimeAsync(0);
   await expectPublicationBlocked(container, sendUpdate);
+});
+
+test("a same-revision status read after a refusal keeps publication blocked", async () => {
+  vi.useFakeTimers();
+  const sendUpdate = installBob();
+  // A new object with the same revision is not a change of state.
+  const sameRevision: NamespaceSettingsSnapshot = { ...walletPublishSnapshot, next_action: { ...walletPublishSnapshot.next_action } };
+  const execute = vi.fn<CommunityNamespaceSettingsPort["execute"]>()
+    .mockRejectedValueOnce(conflict({ reason: "publication_window_closed", window_reason: "deadline_passed", next_action: "operator_recovery" }))
+    .mockResolvedValue(sameRevision);
+  const { container } = mount(scriptedPort(walletPublishSnapshot, execute));
+  await vi.advanceTimersByTimeAsync(0);
+  button(container, "I published all records manually")?.click();
+  await vi.advanceTimersByTimeAsync(0);
+  await expectPublicationBlocked(container, sendUpdate);
+  button(container, "Retry status")?.click();
+  await vi.advanceTimersByTimeAsync(0);
+  expect(execute.mock.calls[1]?.[0]).toMatchObject({ kind: "poll" });
+  await expectPublicationBlocked(container, sendUpdate);
+});
+
+test("a same-revision read after a failed status refresh keeps publication blocked", async () => {
+  vi.useFakeTimers();
+  const sendUpdate = installBob();
+  const execute = vi.fn<CommunityNamespaceSettingsPort["execute"]>()
+    .mockRejectedValueOnce(conflict({ reason: "publication_window_closed", window_reason: "phase_closed", next_action: "read_import_status" }))
+    .mockRejectedValueOnce(new Error("offline"))
+    .mockResolvedValue({ ...walletPublishSnapshot });
+  const { container } = mount(scriptedPort(walletPublishSnapshot, execute));
+  await vi.advanceTimersByTimeAsync(0);
+  button(container, "I published all records manually")?.click();
+  await vi.advanceTimersByTimeAsync(0);
+  await expectPublicationBlocked(container, sendUpdate);
+  button(container, "Retry status")?.click();
+  await vi.advanceTimersByTimeAsync(0);
+  await expectPublicationBlocked(container, sendUpdate);
+});
+
+test("the Bob click checks the publication deadline itself, even before the panel re-renders", async () => {
+  vi.useFakeTimers();
+  vi.setSystemTime(NOW);
+  const publishCompleteResource = vi.fn(async () => {});
+  const onCommand = vi.fn();
+  const snapshot: NamespaceSettingsSnapshot = {
+    ...walletPublishSnapshot,
+    lifecycle: {
+      deadline: { at: new Date(NOW + 60_000).toISOString(), kind: "publication" },
+      next_check_at: null,
+      observation: null,
+      pending_reason: null,
+      permitted_actions: ["poll", "acknowledge"],
+      phase: "awaiting_publication",
+      retry_hint_seconds: null,
+      server_time: new Date(NOW).toISOString(),
+    },
+  };
+  const { container } = render(() => (
+    <CommunityNamespaceSettingsPanel
+      draftRootLabel="midnight"
+      idempotencyKeys={namespaceIdempotencyKeys("deadline-click")}
+      onCommand={onCommand}
+      onDraftRootLabelChange={() => {}}
+      snapshot={snapshot}
+      wallet={{ isAvailable: () => true, publishCompleteResource, signRootOwnership: async () => "signature" }}
+    />
+  ));
+  const bob = button(container, "Publish to midnight/ with Bob Wallet");
+  expect(bob?.disabled).toBe(false);
+  // The deadline passes; nothing has re-rendered the panel yet.
+  vi.setSystemTime(NOW + 61_000);
+  bob?.click();
+  await vi.advanceTimersByTimeAsync(0);
+  expect(publishCompleteResource).not.toHaveBeenCalled();
+  expect(onCommand).not.toHaveBeenCalled();
 });

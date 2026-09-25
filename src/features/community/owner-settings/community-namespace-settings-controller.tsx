@@ -197,14 +197,18 @@ export function CommunityNamespaceSettingsController(
   }
   const [keys, setKeys] = createSignal(operationKeys());
   let deadlineAsked: string | undefined;
-  // The snapshot the server has refused to accept publication for. Publishing
-  // stays blocked until the server returns a newer snapshot.
-  const [refusedSnapshot, setRefusedSnapshot] = createSignal<NamespaceSettingsSnapshot>();
+  // The import revision the server refused publication for. Publishing stays
+  // blocked for that revision: a status read that returns the same revision is
+  // not a change of state, however new the object. Only a server revision past
+  // it, which the server produces when the state actually changes, reopens it.
+  const [refusedRevision, setRefusedRevision] = createSignal<Readonly<{ rootLabel: string; generation: number }>>();
+  const refuse = (current: NamespaceSettingsSnapshot) =>
+    setRefusedRevision({ rootLabel: current.root_label, generation: current.generation });
   // Re-evaluates a passed deadline when its timer fires.
   const [clockTick, setClockTick] = createSignal(0);
   /**
    * Publication controls are blocked when the server refused publication for
-   * the snapshot on screen, or when that snapshot's lifecycle deadline has
+   * the revision on screen, or when that snapshot's lifecycle deadline has
    * passed and the server has not yet said what happens next. The Bob action
    * broadcasts before the API is asked, so it must not run against an import
    * the server may already have closed. The server stays the authority: this
@@ -214,7 +218,8 @@ export function CommunityNamespaceSettingsController(
     clockTick();
     const current = snapshot();
     if (current === undefined || current.next_action.kind !== "publish_resource") return false;
-    if (refusedSnapshot() === current) return true;
+    const refused = refusedRevision();
+    if (refused !== undefined && refused.rootLabel === current.root_label && current.generation <= refused.generation) return true;
     const deadline = current.lifecycle?.deadline;
     return deadline != null && deadline.kind === "publication" && Date.parse(deadline.at) <= Date.now();
   };
@@ -300,14 +305,14 @@ export function CommunityNamespaceSettingsController(
             setKeys((currentKeys) => ({ ...currentKeys, poll: nextOperationKey("poll") }));
           } catch (readError) {
             if (!active) return;
-            setRefusedSnapshot(current);
+            refuse(current);
             setPollFailed(true);
             showFailure("Could not refresh verification status. Select Retry status to reconnect.", readError);
           }
           return;
         }
         if (refused?.nextAction === "operator_recovery" && current !== undefined) {
-          setRefusedSnapshot(current);
+          refuse(current);
           setPollFailed(true);
           showFailure(commandError(error), error);
           return;
