@@ -1,9 +1,11 @@
-import { Show } from "solid-js";
+import { For, Show } from "solid-js";
 
 import { Avatar } from "@/components/data-display/avatar/avatar";
 import { Type } from "@/components/data-display/type/type";
 import {
+  IconChatCircleDots,
   IconHeart,
+  IconMicrophoneStage,
   IconMusicNote,
   IconPlus,
   IconShareNetwork,
@@ -143,6 +145,34 @@ export function MediaActions(props: MediaActionsProps) {
           </div>
         </button>
       </Show>
+
+      {/* Host-offered activities, each labelled under its icon */}
+      <For each={props.activities ?? []}>
+        {(activity) => (
+          <button
+            type="button"
+            aria-label={activity.label}
+            class="flex cursor-pointer flex-col items-center"
+            data-media-activity={activity.id}
+            onClick={(event) => {
+              event.stopPropagation();
+              props.onActivityClick?.(activity.id);
+            }}
+          >
+            <div class={iconButtonClass}>
+              <Show
+                when={activity.icon === "microphone"}
+                fallback={<IconChatCircleDots class="size-8 text-foreground md:size-7" />}
+              >
+                <IconMicrophoneStage class="size-8 text-foreground md:size-7" />
+              </Show>
+            </div>
+            <Type as="span" variant="caption" class="font-semibold text-foreground">
+              {activity.label}
+            </Type>
+          </button>
+        )}
+      </For>
 
       {/* Soundtrack / attached media (hidden when unwired) */}
       <Show when={(props.title || props.artist) && props.onSoundtrackClick}>

@@ -5,7 +5,12 @@ import { Spinner } from "@/components/feedback/spinner/spinner";
 import { cn } from "@/lib/cn";
 
 import { MediaPost } from "./media-post";
-import type { HapticKind, MediaPostData, VideoSourceAttacher } from "./types";
+import type {
+  HapticKind,
+  MediaActivityAction,
+  MediaPostData,
+  VideoSourceAttacher,
+} from "./types";
 import { useVideoPlayback, VideoPlaybackProvider } from "./video-playback";
 
 /**
@@ -71,6 +76,9 @@ export interface VerticalFeedProps {
   onFollowClick?: (postId: string) => void;
   onAuthorClick?: (postId: string) => void;
   onSoundtrackClick?: (postId: string) => void;
+  /** Host-offered activities per post (e.g. Study, Karaoke), shown in the rail. */
+  activities?: (postId: string) => readonly MediaActivityAction[] | undefined;
+  onActivityClick?: (postId: string, activityId: string) => void;
   onMuteToggle?: (postId: string, muted: boolean) => void;
   /** Reports playback progress for the exact post that emitted it. */
   onTimeUpdate?: (postId: string, currentTime: number, duration: number) => void;
@@ -270,6 +278,12 @@ export function VerticalFeed(props: VerticalFeedProps) {
                   onSoundtrackClick={
                     props.onSoundtrackClick
                       ? () => props.onSoundtrackClick?.(entry().id)
+                      : undefined
+                  }
+                  activities={props.activities?.(entry().id)}
+                  onActivityClick={
+                    props.onActivityClick
+                      ? (activityId) => props.onActivityClick?.(entry().id, activityId)
                       : undefined
                   }
                   onMuteToggle={(muted) => props.onMuteToggle?.(entry().id, muted)}

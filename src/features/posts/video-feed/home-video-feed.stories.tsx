@@ -1,6 +1,6 @@
 /** @jsxImportSource @solidjs/web */
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
-import { expect, userEvent, waitFor, within } from "storybook/test";
+import { expect, fn, userEvent, waitFor, within } from "storybook/test";
 
 import { HomeVideoFeed } from "./home-video-feed";
 import {
@@ -55,6 +55,7 @@ const meta = {
     mintPlaybackAccess: reviewPlaybackMint,
     posterPath: reviewPosterPath,
     resolveSongLink: reviewSongLinks,
+    studyReady: async (): Promise<boolean> => false,
   },
   parameters: { layout: "fullscreen", a11y: { test: "error" } },
 } satisfies Meta<typeof HomeVideoFeed>;
@@ -83,6 +84,32 @@ export const PlayableLinked: Story = {
     await expect(canvasElement).toHaveTextContent("A sovereign town square for communities");
     await expect(canvasElement).not.toHaveTextContent(/Preparing playback|View post|Study/);
     await expect(canvasElement.querySelector("video")?.hasAttribute("controls")).toBe(false);
+  },
+};
+
+/**
+ * A video whose song is ready to study and has aligned lyrics: Study and
+ * Karaoke sit in the rail above the soundtrack button and open the song's
+ * own pages.
+ */
+export const SongActivities: Story = {
+  args: {
+    data: oneVideo(playableLinked),
+    studyReady: async () => true,
+    resolveSongLink: async (attribution) => ({
+      ...(await reviewSongLinks(attribution))!,
+      activityPaths: { study: "/p/harbor-lights/study", karaoke: "/p/harbor-lights/karaoke" },
+      karaokeReady: true,
+    }),
+    navigate: fn(),
+  },
+  play: async ({ canvasElement, args }) => {
+    const canvas = within(canvasElement);
+    await readyState(canvasElement);
+    const karaoke = await canvas.findAllByRole("button", { name: "Karaoke" });
+    await expect(canvas.getAllByRole("button", { name: "Study" }).length).toBeGreaterThan(0);
+    await userEvent.click(karaoke[0]!);
+    await expect(args.navigate).toHaveBeenCalledWith("/p/harbor-lights/karaoke");
   },
 };
 

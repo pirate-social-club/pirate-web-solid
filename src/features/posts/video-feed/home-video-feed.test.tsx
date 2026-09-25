@@ -354,7 +354,12 @@ const grantFixture = () => ({
   url: "https://customer-fixture.cloudflarestream.com/a.b.c/manifest/video.m3u8",
 });
 
-function streamedFeed(options: { readonly songTitle?: string; readonly navigate?: (href: string) => void } = {}) {
+function streamedFeed(options: {
+  readonly songTitle?: string;
+  readonly navigate?: (href: string) => void;
+  readonly studyReady?: boolean;
+  readonly karaokeReady?: boolean;
+} = {}) {
   const item = { ...video([]), id: "video-stream", caption: "Stream caption", videoDelivery: delivered, songPostId: "post_song", songTitle: options.songTitle ?? "Harbor song" };
   let mints = 0;
   const attached: HTMLVideoElement[] = [];
@@ -369,7 +374,14 @@ function streamedFeed(options: { readonly songTitle?: string; readonly navigate?
         return () => {};
       }}
       posterPath={(postId) => `/poster/${postId}.jpg`}
-      resolveSongLink={async () => ({ href: "/posts/harbor-song", title: "Harbor song", authorName: null })}
+      resolveSongLink={async () => ({
+        href: "/posts/harbor-song",
+        title: "Harbor song",
+        authorName: null,
+        activityPaths: { study: "/posts/harbor-song/study", karaoke: "/posts/harbor-song/karaoke" },
+        karaokeReady: options.karaokeReady ?? false,
+      })}
+      studyReady={async () => options.studyReady ?? false}
       {...(options.navigate ? { navigate: options.navigate } : {})}
     />
   ));
@@ -416,6 +428,26 @@ test("the soundtrack line opens the referenced song", async () => {
   expect(soundtrack).toBeDefined();
   soundtrack!.click();
   await vi.waitFor(() => expect(navigate).toHaveBeenCalledWith("/posts/harbor-song"));
+});
+
+test("Study and Karaoke appear in the rail when ready and open the song's pages", async () => {
+  const navigate = vi.fn();
+  const feed = streamedFeed({ navigate, studyReady: true, karaokeReady: true });
+  const study = await vi.waitFor(() => {
+    const button = feed.container.querySelector<HTMLButtonElement>('[data-media-activity="study"]');
+    expect(button).not.toBeNull();
+    return button!;
+  });
+  study.click();
+  expect(navigate).toHaveBeenCalledWith("/posts/harbor-song/study");
+  feed.container.querySelector<HTMLButtonElement>('[data-media-activity="karaoke"]')!.click();
+  expect(navigate).toHaveBeenCalledWith("/posts/harbor-song/karaoke");
+});
+
+test("only the ready activity shows: Karaoke without aligned lyrics stays hidden", async () => {
+  const feed = streamedFeed({ studyReady: true, karaokeReady: false });
+  await vi.waitFor(() => expect(feed.container.querySelector('[data-media-activity="study"]')).not.toBeNull());
+  expect(feed.container.querySelector('[data-media-activity="karaoke"]')).toBeNull();
 });
 
 describe("sign-in continuity", () => {

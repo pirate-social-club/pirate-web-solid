@@ -23,16 +23,24 @@ import {
   type HomeVideoPost,
 } from "./home-video-feed-model.ts";
 import { signedStreamSource } from "./signed-stream-source.ts";
+import { makeStudyAvailabilityLookup, type StudyAvailabilityLookup } from "./home-feed-study.ts";
+import { resolveSongActivities, type HomeSongActivity } from "./home-feed-song-activities.ts";
+import { createStudyV2Api } from "../../studying/study-v2-api.ts";
 
 /** One canonical-link cache for the whole feed: a song reused across videos
  * resolves its route once. */
 const feedSongLinks = createSongAttributionLinkResolver();
+let feedStudyReady: StudyAvailabilityLookup | undefined;
+const defaultStudyReady = (songPostId: string, scope: string) =>
+  (feedStudyReady ??= makeStudyAvailabilityLookup(createStudyV2Api()))(songPostId, scope);
 
 export interface HomeVideoFeedProps {
   readonly data?: FeedPage | PromiseLike<FeedPage>;
   readonly verifyAge?: typeof verifyAdultViewing;
   /** Test/review seam; production resolves the song link through the public read. */
   readonly resolveSongLink?: SongAttributionLinkResolver;
+  /** Test/review seam; production asks Study v2 whether the song is ready. */
+  readonly studyReady?: (songPostId: string, scope: string) => Promise<boolean>;
   /** Test/review seam; production mints playback access from the owning API. */
   readonly mintPlaybackAccess?: typeof mintPlaybackAccess;
   /** Test/review seam; production reads the cookie-authorized poster route. */
@@ -298,6 +306,40 @@ export function HomeVideoFeed(props: HomeVideoFeedProps) {
       .then(link => { if (link?.href) navigateTo(link.href, props.navigate); })
       .catch(() => {});
   };
+  // Study and Karaoke per song, resolved once per viewer scope. A song shared
+  // by many videos is read once; the rail shows only what is ready.
+  const [songActivities, setSongActivities] = createSignal<ReadonlyMap<string, readonly HomeSongActivity[]>>(new Map());
+  let activityScope: string | undefined;
+  const requestedSongs = new Set<string>();
+  createEffect(
+    () => ({ songs: posts().flatMap(post => ("placeholder" in post || !post.songPostId ? [] : [post.songPostId])), scope: props.sourceIdentity ?? "anonymous" }),
+    ({ songs, scope }) => {
+      if (scope !== activityScope) {
+        activityScope = scope;
+        requestedSongs.clear();
+        queueMicrotask(() => { if (activityScope === scope) setSongActivities(new Map()); });
+      }
+      for (const songPostId of songs) {
+        if (requestedSongs.has(songPostId)) continue;
+        requestedSongs.add(songPostId);
+        void resolveSongActivities(songPostId, scope, {
+          resolveLink: props.resolveSongLink ?? feedSongLinks,
+          studyReady: props.studyReady ?? defaultStudyReady,
+        }).then(activities => {
+          if (!active || activityScope !== scope || activities.length === 0) return;
+          setSongActivities(current => new Map(current).set(songPostId, activities));
+        });
+      }
+    },
+  );
+  const postActivities = (postId: string) => {
+    const songPostId = mediaPost(postId)?.songPostId;
+    return songPostId ? songActivities().get(songPostId) : undefined;
+  };
+  const openActivity = (postId: string, activityId: string) => {
+    const href = postActivities(postId)?.find(activity => activity.id === activityId)?.href;
+    if (href) navigateTo(href, props.navigate);
+  };
   const sharePost = (postId: string) => {
     const href = mediaPost(postId)?.communityDestination;
     if (!href || typeof navigator === "undefined") return;
@@ -339,6 +381,8 @@ export function HomeVideoFeed(props: HomeVideoFeedProps) {
                 onMuteToggle={(_postId, muted) => setFeedMuted(muted)}
                 attachVideo={attachVideo}
                 onSoundtrackClick={openSong}
+                activities={postActivities}
+                onActivityClick={openActivity}
                 renderPlaceholder={() => (
                   <div class="grid h-full place-items-center px-4 text-white">
                     <AgeAccessPrompt verify={props.verifyAge} onStart={() => { ageVerificationActive = true; setAutoplay(false); }} onFinish={() => { ageVerificationActive = false; }} onVerified={refreshAuthorized} />

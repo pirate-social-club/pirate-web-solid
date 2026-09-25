@@ -206,6 +206,38 @@ describe("VerticalFeed", () => {
     expect(onAuthorClick).toHaveBeenCalledWith("post-1");
   });
 
+  it("shows host activities only on the posts that offer them and reports the pick", async () => {
+    const user = userEvent.setup();
+    const onActivityClick = vi.fn();
+    const container = render(() => (
+      <VerticalFeed
+        posts={testPosts}
+        activities={(postId) =>
+          postId === "post-1"
+            ? [
+                { id: "study", label: "Study", icon: "speech" },
+                { id: "karaoke", label: "Karaoke", icon: "microphone" },
+              ]
+            : undefined
+        }
+        onActivityClick={onActivityClick}
+      />
+    ));
+    flush();
+
+    const view = within(container);
+    // Mobile and desktop rails both render, so each activity appears twice.
+    expect(view.getAllByRole("button", { name: "Study" })).toHaveLength(2);
+    expect(view.getAllByRole("button", { name: "Karaoke" })).toHaveLength(2);
+    const second = container.querySelector('[data-media-post="post-2"]')!;
+    expect(second.querySelector("[data-media-activity]")).toBeNull();
+
+    await user.click(view.getAllByRole("button", { name: "Karaoke" })[0]);
+    expect(onActivityClick).toHaveBeenCalledWith("post-1", "karaoke");
+    await user.click(view.getAllByRole("button", { name: "Study" })[0]);
+    expect(onActivityClick).toHaveBeenCalledWith("post-1", "study");
+  });
+
   it("keeps playback gated until the first user interaction", async () => {
     const user = userEvent.setup();
     const container = render(() => <VerticalFeed posts={testPosts} />);

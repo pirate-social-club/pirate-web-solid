@@ -20,6 +20,7 @@ const meta = {
     onFollowClick: fn(),
     onAuthorClick: fn(),
     onSoundtrackClick: fn(),
+    onActivityClick: fn(),
     onMuteToggle: fn(),
     onViewed: fn(),
     onHaptic: fn(),
@@ -34,6 +35,8 @@ const meta = {
     onFollowClick: { table: { disable: true } },
     onAuthorClick: { table: { disable: true } },
     onSoundtrackClick: { table: { disable: true } },
+    activities: { table: { disable: true } },
+    onActivityClick: { table: { disable: true } },
     onMuteToggle: { table: { disable: true } },
     onViewed: { table: { disable: true } },
     onHaptic: { table: { disable: true } },
@@ -105,6 +108,25 @@ export const Default: Story = {
     await waitFor(() =>
       expect(args.onActivePostChange).toHaveBeenCalledWith("post-1", 0),
     );
+  },
+};
+
+export const WithActivities: Story = {
+  args: {
+    activities: (postId) =>
+      postId === "post-1"
+        ? [
+            { id: "study", label: "Study", icon: "speech" },
+            { id: "karaoke", label: "Karaoke", icon: "microphone" },
+          ]
+        : undefined,
+  },
+  render: (args) => <InteractiveFeed {...args} />,
+  play: async ({ canvasElement, args }) => {
+    const canvas = within(canvasElement);
+    const karaoke = await canvas.findAllByRole("button", { name: "Karaoke" });
+    await userEvent.click(karaoke[0]);
+    await expect(args.onActivityClick).toHaveBeenCalledWith("post-1", "karaoke");
   },
 };
 

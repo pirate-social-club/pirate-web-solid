@@ -55,6 +55,17 @@ export interface VideoPlayerProps {
   onTimeUpdate?: (currentTime: number, duration: number) => void;
 }
 
+/**
+ * An activity a host offers for a post, shown in the action rail with a
+ * label under its icon (e.g. practising or singing the post's soundtrack).
+ * Plain data: the host decides availability and handles the selection.
+ */
+export interface MediaActivityAction {
+  readonly id: string;
+  readonly label: string;
+  readonly icon: "speech" | "microphone";
+}
+
 export interface MediaActionsProps {
   authorName: string;
   authorAvatarUrl?: string;
@@ -71,6 +82,9 @@ export interface MediaActionsProps {
   onLikeClick?: () => void;
   onShareClick?: () => void;
   onSoundtrackClick?: () => void;
+  /** Host-offered activities, shown above the soundtrack button. */
+  activities?: readonly MediaActivityAction[];
+  onActivityClick?: (activityId: string) => void;
   onToggleMute?: () => void;
   onHaptic?: (kind: HapticKind) => void;
 }

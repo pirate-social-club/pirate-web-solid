@@ -65,7 +65,7 @@ describe("resolving the chip's link", () => {
         route: { canonical_path: "/posts/a-song" },
       }),
     });
-    expect(await resolve(attribution)).toEqual({ href: "/posts/a-song", title: "The song", authorName: "The author" });
+    expect(await resolve(attribution)).toEqual({ href: "/posts/a-song", title: "The song", authorName: "The author", karaokeReady: false });
   });
 
   it("falls back to the public handle and then to no name", async () => {
@@ -77,7 +77,26 @@ describe("resolving the chip's link", () => {
         route: { canonical_path: "/posts/a-song" },
       }),
     });
-    expect(await resolve(attribution)).toEqual({ href: "/posts/a-song", title: null, authorName: "handle" });
+    expect(await resolve(attribution)).toEqual({ href: "/posts/a-song", title: null, authorName: "handle", karaokeReady: false });
+  });
+
+  it("carries the Study and Karaoke paths, and Karaoke only with aligned lyrics", async () => {
+    const read = (alignment: string) => createSongAttributionLinkResolver({
+      client: client({
+        kind: "content",
+        post_id: "song-post-id",
+        content: { song_presentation: { alignment, data_registration: "pending" }, post: { song_title: "The song" } },
+        route: {
+          canonical_path: "/posts/a-song",
+          activity_paths: { study: "/posts/a-song/study", karaoke: "/posts/a-song/karaoke" },
+        },
+      }),
+    })(attribution);
+    expect(await read("ready")).toMatchObject({
+      activityPaths: { study: "/posts/a-song/study", karaoke: "/posts/a-song/karaoke" },
+      karaokeReady: true,
+    });
+    expect(await read("pending")).toMatchObject({ karaokeReady: false });
   });
 
   it("has no link when the song has no canonical route", async () => {
