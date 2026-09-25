@@ -1,6 +1,6 @@
 import { render as solidRender, type JSX } from "@solidjs/web";
 import { createRoot, createSignal } from "solid-js";
-import { afterEach, describe, expect, test, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 
 import type { UiLocaleCode } from "../../../lib/ui-locale-core.ts";
 import type { FeedPage, PublicFeedItem } from "../feed/public-feed-adapter.ts";
@@ -71,7 +71,15 @@ test.each(["pending", "unavailable"] as const)("does not expose a %s video as a 
   expect(container.innerHTML).not.toContain("must-not-play");
 });
 
+// jsdom's media element has no playback; the feed's player expects promises.
+beforeEach(() => {
+  vi.spyOn(HTMLMediaElement.prototype, "play").mockResolvedValue();
+  vi.spyOn(HTMLMediaElement.prototype, "pause").mockImplementation(() => {});
+  vi.spyOn(HTMLMediaElement.prototype, "load").mockImplementation(() => {});
+});
+
 afterEach(() => {
+  vi.restoreAllMocks();
   for (const dispose of disposers.splice(0)) dispose();
   document.body.replaceChildren();
   document.head.replaceChildren();
@@ -165,7 +173,7 @@ test("does not offer continuation at terminal exhaustion in empty and processing
   expect(processing.querySelector("[data-video-feed-continuation]")).toBeNull();
 });
 
-test("offers continuation after a playable delivery row when a cursor remains", async () => {
+test("a Stream video row pages in the next video without a continuation button", async () => {
   const ready = { ...video([]), id: "video-ready", caption: "Ready caption", videoDelivery: { playback: "ready" as const, thumbnail: "ready" as const } };
   const loadPage = vi.fn(async () => page([video([{ playback_url: "https://media.pirate.test/next.mp4" }])], null));
   const container = render(() => (
@@ -175,10 +183,10 @@ test("offers continuation after a playable delivery row when a cursor remains", 
       mintPlaybackAccess={async () => new Promise<never>(() => {})}
     />
   ));
-  await vi.waitFor(() => expect(container.querySelector("[data-video-feed-card]")).not.toBeNull());
-  container.querySelector<HTMLButtonElement>("[data-video-feed-continuation]")!.click();
-  await vi.waitFor(() => expect(container.querySelector("video[src='https://media.pirate.test/next.mp4']")).not.toBeNull());
-  expect(loadPage).toHaveBeenCalledOnce();
+  await vi.waitFor(() => expect(container.querySelector('[data-media-post="video-ready"]')).not.toBeNull());
+  await vi.waitFor(() => expect(loadPage).toHaveBeenCalledOnce());
+  await vi.waitFor(() => expect(container.querySelector('[data-media-post="video-1"]')).not.toBeNull());
+  expect(container.querySelector("[data-video-feed-continuation]")).toBeNull();
 });
 
 test("reloads for a new locale identity", async () => {
@@ -339,153 +347,80 @@ test("cancelling age verification keeps the locked row and does not refetch or p
   expect(container.querySelector("video")).toBeNull();
 });
 
-test("renders the Study action only for a playable video whose referenced song is ready", async () => {
-  const loadStudyAvailability = vi.fn(async (songPostId: string) => songPostId === "post_song");
-  const delivery = { playback: "ready", thumbnail: "ready" } as const;
-  const linked = { ...video([]), id: "video-linked", caption: "Linked caption", videoDelivery: delivery, songPostId: "post_song" };
-  const unlinked = { ...video([]), id: "video-unlinked", caption: "Unlinked caption", videoDelivery: delivery };
-  const unavailable = { ...video([]), id: "video-unavailable", caption: "Unavailable caption", videoDelivery: delivery, songPostId: "post_song_unavailable" };
-  const container = render(() => (
-    <HomeVideoFeed
-      data={page([linked, unlinked, unavailable], null)}
-      loadPage={async () => page([], null)}
-      loadStudyAvailability={loadStudyAvailability}
-      mintPlaybackAccess={async () => new Promise<never>(() => {})}
-      resolveSongLink={async () => null}
-    />
-  ));
-
-  await vi.waitFor(() => expect(container.querySelectorAll("[data-video-feed-study]")).toHaveLength(1));
-  const study = container.querySelector<HTMLAnchorElement>("[data-video-feed-study]");
-  expect(study?.getAttribute("href")).toBe("/p/post_song/study");
-  const rows = [...container.querySelectorAll('[role="region"] > div')];
-  const linkedRow = rows.find(row => row.textContent?.includes("Linked caption"));
-  const unlinkedRow = rows.find(row => row.textContent?.includes("Unlinked caption"));
-  const unavailableRow = rows.find(row => row.textContent?.includes("Unavailable caption"));
-  expect(linkedRow?.querySelector("[data-video-feed-study]")).not.toBeNull();
-  expect(unlinkedRow?.querySelector("[data-video-feed-study]")).toBeNull();
-  expect(unavailableRow?.querySelector("[data-video-feed-study]")).toBeNull();
-  expect(loadStudyAvailability.mock.calls.map(([songPostId]) => songPostId).sort()).toEqual(["post_song", "post_song_unavailable"]);
+const delivered = { playback: "ready", thumbnail: "ready" } as const;
+const grantFixture = () => ({
+  expiresAt: Date.now() + 300_000,
+  renewAt: Date.now() + 240_000,
+  url: "https://customer-fixture.cloudflarestream.com/a.b.c/manifest/video.m3u8",
 });
 
-test("re-reads Study availability after sign-in and an account switch", async () => {
-  const [identity, setIdentity] = createSignal("anonymous");
-  let availabilityCalls = 0;
-  const availability = makeStudyAvailabilityLookup({
-    loadAvailability: async () => {
-      availabilityCalls += 1;
-      return {
-        availability: identity() === "anonymous"
-          ? { reason: "insufficient_exercises" as const, state: "unavailable" as const }
-          : {
-            available_exercise_types: ["say_it_back"],
-            learner_bands: [],
-            learning_language: "en",
-            state: "ready" as const,
-            target_languages: [],
-          },
-        communityId: "community-1",
-      };
-    },
-  });
-  const delivery = { playback: "ready", thumbnail: "ready" } as const;
-  const linked = { ...video([]), id: "video-identity", caption: "Identity caption", videoDelivery: delivery, songPostId: "post_song" };
+function streamedFeed(options: { readonly songTitle?: string; readonly navigate?: (href: string) => void } = {}) {
+  const item = { ...video([]), id: "video-stream", caption: "Stream caption", videoDelivery: delivered, songPostId: "post_song", songTitle: options.songTitle ?? "Harbor song" };
+  let mints = 0;
+  const attached: HTMLVideoElement[] = [];
   const container = render(() => (
     <HomeVideoFeed
-      data={page([linked], null)}
+      data={page([item], null)}
       loadPage={async () => page([], null)}
-      loadStudyAvailability={(songPostId) => availability(songPostId, identity())}
-      mintPlaybackAccess={async () => new Promise<never>(() => {})}
-      resolveSongLink={async () => null}
-      sourceIdentity={identity()}
-    />
-  ));
-
-  await vi.waitFor(() => expect(container.querySelector("[data-video-feed-card]")).not.toBeNull());
-  expect(container.querySelector("[data-video-feed-study]")).toBeNull();
-
-  // Anonymous to authenticated: the failed anonymous read does not stick.
-  setIdentity("user:one");
-  await vi.waitFor(() => expect(container.querySelector("[data-video-feed-study]")).not.toBeNull());
-  const afterSignIn = availabilityCalls;
-
-  // Account switch: the earlier ready answer does not cross into the new account.
-  setIdentity("user:two");
-  await vi.waitFor(() => expect(container.querySelector("[data-video-feed-study]")).not.toBeNull());
-  expect(availabilityCalls).toBe(afterSignIn + 1);
-});
-
-function mutedFeed(id: string) {
-  const delivery = { playback: "ready", thumbnail: "ready" } as const;
-  const linked = { ...video([]), id, caption: "Mute caption", videoDelivery: delivery, songPostId: "post_song" };
-  return render(() => (
-    <HomeVideoFeed
-      data={page([linked], null)}
-      loadPage={async () => page([], null)}
-      loadStudyAvailability={async () => true}
-      mintPlaybackAccess={async () => ({
-        expiresAt: Date.now() + 300_000,
-        renewAt: Date.now() + 240_000,
-        url: "https://customer-fixture.cloudflarestream.com/a.b.c/manifest/video.m3u8",
-      })}
+      mintPlaybackAccess={async () => { mints += 1; return grantFixture(); }}
       attachPlayback={async (input) => {
-        input.video.dispatchEvent(new Event("canplay"));
+        attached.push(input.video);
+        input.video.dispatchEvent(new Event("loadedmetadata"));
         return () => {};
       }}
-      resolveSongLink={async () => null}
+      posterPath={(postId) => `/poster/${postId}.jpg`}
+      resolveSongLink={async () => ({ href: "/posts/harbor-song", title: "Harbor song", authorName: null })}
+      {...(options.navigate ? { navigate: options.navigate } : {})}
     />
   ));
+  return { container, mints: () => mints, attached };
 }
 
-test("the active card autoplays muted, and automatic playback does not unmute", async () => {
-  const play = vi.spyOn(HTMLMediaElement.prototype, "play").mockResolvedValue();
-  const container = mutedFeed("video-mute");
-  await vi.waitFor(() => expect(play).toHaveBeenCalled());
-  const button = container.querySelector<HTMLButtonElement>("[data-video-feed-mute]");
-  const player = container.querySelector("video")!;
-  expect(player.muted).toBe(true);
-  expect(button?.getAttribute("aria-pressed")).toBe("true");
-  expect(button?.textContent).toBe("Unmute");
+test("a Stream video renders in the full-screen feed layout with signed playback and no extra chrome", async () => {
+  const feed = streamedFeed();
+  await vi.waitFor(() => expect(feed.mints()).toBe(1));
+  const post = feed.container.querySelector('[data-media-post="video-stream"]');
+  expect(post).not.toBeNull();
+  // Signed playback is attached to the feed's own video element.
+  expect(feed.attached[0]).toBe(post!.querySelector("video"));
+  expect(post!.querySelector("video")?.hasAttribute("controls")).toBe(false);
+  expect(post!.querySelector("img")?.getAttribute("src")).toBe("/poster/video-stream.jpg");
+  expect(feed.container.textContent).toContain("Stream caption");
+  expect(feed.container.textContent).toContain("Harbor song");
+  // None of the old card's status text or buttons.
+  expect(feed.container.textContent).not.toMatch(/Preparing playback|View post|Study/);
+  expect(feed.container.querySelector("[data-video-feed-card]")).toBeNull();
+});
 
-  player.dispatchEvent(new Event("play"));
-  await Promise.resolve();
-  expect(player.muted).toBe(true);
+test("the feed starts muted, and the design-system mute control unmutes", async () => {
+  const play = vi.spyOn(HTMLMediaElement.prototype, "play").mockResolvedValue();
+  const feed = streamedFeed();
+  await vi.waitFor(() => expect(feed.mints()).toBe(1));
+  const mute = await vi.waitFor(() => {
+    const button = feed.container.querySelector<HTMLButtonElement>('button[aria-label="Unmute video"]');
+    expect(button).not.toBeNull();
+    return button!;
+  });
+  expect(feed.container.querySelector("video")!.muted).toBe(true);
+  mute.click();
+  await vi.waitFor(() => expect(feed.container.querySelector("video")!.muted).toBe(false));
+  expect(feed.container.querySelector('button[aria-label="Mute video"]')).not.toBeNull();
   play.mockRestore();
 });
 
-test("a first tap on the card unmutes, and an explicit mute still wins", async () => {
-  const play = vi.spyOn(HTMLMediaElement.prototype, "play").mockResolvedValue();
-  const container = mutedFeed("video-tap");
-  await vi.waitFor(() => expect(play).toHaveBeenCalled());
-  const player = container.querySelector("video")!;
-  expect(player.muted).toBe(true);
-
-  player.click();
-  await vi.waitFor(() => expect(player.muted).toBe(false));
-  const button = container.querySelector<HTMLButtonElement>("[data-video-feed-mute]")!;
-  expect(button.getAttribute("aria-pressed")).toBe("false");
-
-  button.click();
-  await vi.waitFor(() => expect(player.muted).toBe(true));
-  expect(button.textContent).toBe("Unmute");
-  play.mockRestore();
-});
-
-test("a first tap on Unmute unmutes rather than toggling back", async () => {
-  const play = vi.spyOn(HTMLMediaElement.prototype, "play").mockResolvedValue();
-  const container = mutedFeed("video-unmute");
-  await vi.waitFor(() => expect(play).toHaveBeenCalled());
-  const button = container.querySelector<HTMLButtonElement>("[data-video-feed-mute]")!;
-  button.click();
-  await vi.waitFor(() => expect(container.querySelector("video")!.muted).toBe(false));
-  expect(button.getAttribute("aria-pressed")).toBe("false");
-  play.mockRestore();
+test("the soundtrack line opens the referenced song", async () => {
+  const navigate = vi.fn();
+  const feed = streamedFeed({ navigate });
+  await vi.waitFor(() => expect(feed.mints()).toBe(1));
+  const soundtrack = [...feed.container.querySelectorAll("button")].find(button => button.textContent?.includes("Harbor song"));
+  expect(soundtrack).toBeDefined();
+  soundtrack!.click();
+  await vi.waitFor(() => expect(navigate).toHaveBeenCalledWith("/posts/harbor-song"));
 });
 
 describe("sign-in continuity", () => {
-  const delivery = { playback: "ready", thumbnail: "ready" } as const;
-  const kept = { ...video([]), id: "video-kept", caption: "Kept caption", videoDelivery: delivery };
-  const other = { ...video([]), id: "video-other", caption: "Other caption", videoDelivery: delivery };
+  const kept = { ...video([]), id: "video-kept", caption: "Kept caption", videoDelivery: delivered };
+  const other = { ...video([]), id: "video-other", caption: "Other caption", videoDelivery: delivered };
 
   function mount() {
     const [identity, setIdentity] = createSignal("anonymous");
@@ -495,15 +430,7 @@ describe("sign-in continuity", () => {
       <HomeVideoFeed
         data={data()}
         loadPage={async () => page([], null)}
-        loadStudyAvailability={async () => false}
-        mintPlaybackAccess={async () => {
-          mints += 1;
-          return {
-            expiresAt: Date.now() + 300_000,
-            renewAt: Date.now() + 240_000,
-            url: "https://customer-fixture.cloudflarestream.com/a.b.c/manifest/video.m3u8",
-          };
-        }}
+        mintPlaybackAccess={async () => { mints += 1; return grantFixture(); }}
         attachPlayback={async () => () => {}}
         resolveSongLink={async () => null}
         sourceIdentity={identity()}
@@ -511,24 +438,24 @@ describe("sign-in continuity", () => {
     ));
     return { container, setIdentity, setData, mints: () => mints };
   }
-  const card = (container: HTMLElement, id: string) => container.querySelector(`[data-video-feed-card="${id}"]`);
+  const row = (container: HTMLElement, id: string) => container.querySelector(`[data-media-post="${id}"]`);
 
   test("keeps the mounted player and its grant when the same post survives sign-in", async () => {
     const feed = mount();
     await vi.waitFor(() => expect(feed.mints()).toBe(1));
-    const before = card(feed.container, "video-kept");
+    const before = row(feed.container, "video-kept");
     feed.setData(page([{ ...kept }], null));
     feed.setIdentity("user:one");
     await vi.waitFor(() => expect(feed.container.querySelector("main")?.getAttribute("data-video-feed-state")).toBe("ready"));
     await new Promise(resolve => setTimeout(resolve, 20));
-    expect(card(feed.container, "video-kept")).toBe(before);
+    expect(row(feed.container, "video-kept")).toBe(before);
     expect(feed.mints()).toBe(1);
   });
 
   test("a failed signed-in upgrade keeps the public videos playing", async () => {
     const feed = mount();
     await vi.waitFor(() => expect(feed.mints()).toBe(1));
-    const before = card(feed.container, "video-kept");
+    const before = row(feed.container, "video-kept");
     const failed = Promise.reject(new Error("feed timed out"));
     failed.catch(() => {});
     feed.setData(failed);
@@ -536,7 +463,7 @@ describe("sign-in continuity", () => {
     await new Promise(resolve => setTimeout(resolve, 20));
     expect(feed.container.querySelector("main")?.getAttribute("data-video-feed-state")).toBe("ready");
     expect(feed.container.textContent).not.toContain("Video feed unavailable");
-    expect(card(feed.container, "video-kept")).toBe(before);
+    expect(row(feed.container, "video-kept")).toBe(before);
     expect(feed.mints()).toBe(1);
   });
 
@@ -545,8 +472,8 @@ describe("sign-in continuity", () => {
     await vi.waitFor(() => expect(feed.mints()).toBe(1));
     feed.setData(page([other], null));
     feed.setIdentity("user:one");
-    await vi.waitFor(() => expect(card(feed.container, "video-other")).not.toBeNull());
-    expect(card(feed.container, "video-kept")).toBeNull();
+    await vi.waitFor(() => expect(row(feed.container, "video-other")).not.toBeNull());
+    expect(row(feed.container, "video-kept")).toBeNull();
   });
 
   test("an account switch clears the surface and mints again", async () => {
@@ -554,11 +481,11 @@ describe("sign-in continuity", () => {
     await vi.waitFor(() => expect(feed.mints()).toBe(1));
     feed.setIdentity("user:one");
     await new Promise(resolve => setTimeout(resolve, 20));
-    const signedIn = card(feed.container, "video-kept");
+    const signedIn = row(feed.container, "video-kept");
     expect(feed.mints()).toBe(1);
     feed.setData(page([{ ...kept }], null));
     feed.setIdentity("user:two");
     await vi.waitFor(() => expect(feed.mints()).toBe(2));
-    expect(card(feed.container, "video-kept")).not.toBe(signedIn);
+    expect(row(feed.container, "video-kept")).not.toBe(signedIn);
   });
 });

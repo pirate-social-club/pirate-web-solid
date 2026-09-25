@@ -1,6 +1,6 @@
 import { fireEvent, screen, within } from "@testing-library/dom";
 import { userEvent } from "@testing-library/user-event";
-import { createSignal, flush } from "solid-js";
+import { createSignal, flush, Show } from "solid-js";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { expectNoA11yViolations, render } from "@/test/test-utils";
@@ -447,5 +447,51 @@ describe("host placeholder playback policy", () => {
 
     seen[1]!.reportMuteToggle(false);
     expect(onMuteToggle).toHaveBeenCalledWith("host-2", false);
+  });
+});
+
+describe("host-attached video sources", () => {
+  const streamed: MediaPostData = {
+    id: "post-streamed",
+    posterUrl: "/poster-streamed.jpg",
+    authorName: "streamer",
+    caption: "Signed playback.",
+    likeCount: 1,
+  };
+
+  it("attaches once to the active post's own video element, keeps it across a refresh, and releases it on unmount", async () => {
+    const attach = vi.fn<(video: HTMLVideoElement) => () => void>();
+    const release = vi.fn();
+    attach.mockReturnValue(release);
+    const attacher = (video: HTMLVideoElement) => attach(video);
+    const [posts, setPosts] = createSignal<MediaPostData[]>([streamed]);
+    const [shown, setShown] = createSignal(true);
+    const container = render(() => (
+      <Show when={shown()}>
+        <VerticalFeed posts={posts()} attachVideo={() => attacher} />
+      </Show>
+    ));
+    flush();
+    await vi.waitFor(() => expect(attach).toHaveBeenCalledTimes(1));
+    expect(attach.mock.calls[0]?.[0]).toBe(container.querySelector("video"));
+
+    // A host refresh hands over new row objects with the same attacher.
+    setPosts([{ ...streamed }]);
+    flush();
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    expect(attach).toHaveBeenCalledTimes(1);
+    expect(release).not.toHaveBeenCalled();
+
+    setShown(false);
+    flush();
+    await vi.waitFor(() => expect(release).toHaveBeenCalledTimes(1));
+  });
+
+  it("a post with a direct videoUrl ignores the host attacher", async () => {
+    const attach = vi.fn(() => () => {});
+    render(() => <VerticalFeed posts={testPosts} attachVideo={() => attach} />);
+    flush();
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    expect(attach).not.toHaveBeenCalled();
   });
 });

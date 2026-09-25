@@ -1,11 +1,11 @@
-import { createEffect, createSignal, Show } from "solid-js";
+import { createEffect, createSignal, onCleanup, Show, untrack } from "solid-js";
 
 import { Spinner } from "@/components/feedback/spinner/spinner";
 import { IconPlay } from "@/components/media/icons";
 import { Type } from "@/components/data-display/type/type";
 import { cn } from "@/lib/cn";
 
-import type { VideoPlayerProps } from "./types";
+import type { VideoPlayerProps, VideoSourceAttacher } from "./types";
 
 /**
  * VideoPlayer - video surface with a play/pause toggle, poster, loading, and
@@ -14,6 +14,11 @@ import type { VideoPlayerProps } from "./types";
  */
 export function VideoPlayer(props: VideoPlayerProps) {
   let videoRef: HTMLVideoElement | undefined;
+  // The element as a signal: a ref alone is read before it commits, so an
+  // effect reading only the ref would miss the element it should attach to.
+  const [videoEl, setVideoEl] = createSignal<HTMLVideoElement | undefined>(undefined, {
+    ownedWrite: true,
+  });
 
   const [isLoaded, setIsLoaded] = createSignal(false);
   const [hasStartedPlaying, setHasStartedPlaying] = createSignal(false);
@@ -23,10 +28,12 @@ export function VideoPlayer(props: VideoPlayerProps) {
     ownedWrite: true,
   });
 
+  const hasSource = () => !!props.videoUrl || !!props.attachVideo;
+
   // Play/pause directly in the click handler for autoplay-policy compliance.
   const handlePlayPause = () => {
     const el = videoRef;
-    if (!el || !props.videoUrl) return;
+    if (!el || !hasSource()) return;
 
     if (el.paused) {
       el.play().catch((e: DOMException) => {
@@ -49,6 +56,27 @@ export function VideoPlayer(props: VideoPlayerProps) {
       setError(null);
       el.src = url;
       el.load();
+    },
+  );
+
+  // A host-attached source loads while this post is eager (active or next).
+  // A host-attached source loads while this post is eager (active or next).
+  // Effects re-apply whenever their input recomputes, even to an equal value,
+  // so the attachment is tracked here: the same attacher on the same element
+  // keeps its attachment (and its grant) across host refreshes.
+  let attached: { readonly attach: VideoSourceAttacher; readonly el: HTMLVideoElement; readonly release: () => void } | undefined;
+  const detachSource = () => { attached?.release(); attached = undefined; };
+  onCleanup(detachSource);
+  createEffect(
+    () => (props.priorityLoad === true && videoEl() !== undefined && !props.videoUrl ? props.attachVideo : undefined),
+    (attach) => {
+      const el = untrack(videoEl);
+      if (attach && el && attached?.attach === attach && attached.el === el) return;
+      detachSource();
+      if (!attach || !el) return;
+      setIsLoading(true);
+      setError(null);
+      attached = { attach, el, release: attach(el) };
     },
   );
 
@@ -95,10 +123,11 @@ export function VideoPlayer(props: VideoPlayerProps) {
         )}
       </Show>
 
-      <Show when={props.videoUrl}>
+      <Show when={hasSource()}>
         <video
           ref={(el) => {
             videoRef = el;
+            setVideoEl(el);
           }}
           class={cn(
             "absolute inset-0 h-full w-full object-cover",
@@ -130,14 +159,14 @@ export function VideoPlayer(props: VideoPlayerProps) {
         />
       </Show>
 
-      <Show when={!props.videoUrl && !props.posterUrl}>
+      <Show when={!hasSource() && !props.posterUrl}>
         <div class="absolute inset-0 z-0 flex h-full w-full items-center justify-center bg-background">
           <span class="text-muted-foreground">No media</span>
         </div>
       </Show>
 
       {/* Play/pause toggle: covers the surface and stays keyboard accessible. */}
-      <Show when={props.videoUrl}>
+      <Show when={hasSource()}>
         <button
           type="button"
           aria-label={props.isPlaying ? "Pause video" : "Play video"}

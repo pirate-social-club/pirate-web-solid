@@ -2,13 +2,10 @@ import type { verifyAdultViewing } from "../../verification/age-verification.ts"
 import { AgeAccessPrompt } from "../../verification/age-access-prompt.tsx";
 import { feedSlots } from "../feed/feed-slots.ts";
 import { Title } from "@solidjs/meta";
-import { VerticalFeed, type VerticalFeedPlaceholderContext } from "@pirate/web-solid-ui";
+import { VerticalFeed, type VideoSourceAttacher } from "@pirate/web-solid-ui";
 import { Show, createEffect, createSignal, onCleanup, untrack } from "solid-js";
-import { VideoPlayer } from "../video-submission/video-player";
-import type { mintPlaybackAccess } from "../video-submission/playback-access";
+import { videoPosterPath, type mintPlaybackAccess } from "../video-submission/playback-access";
 import type { attachPlayback } from "../video-submission/playback-engine";
-import type { VideoDeliveryState } from "../video-submission/delivery-state";
-import { SongAttributionChip } from "../song-attribution/song-attribution-chip";
 import {
   createSongAttributionLinkResolver,
   type SongAttributionLinkResolver,
@@ -16,17 +13,16 @@ import {
 
 import { Spinner, Type } from "../../../design-system.ts";
 import type { UiLocaleCode } from "../../../lib/ui-locale-core.ts";
-import { createStudyV2Api } from "../../studying/study-v2-api.ts";
 import type { FeedSort } from "../feed/feed-model.ts";
 import type { FeedPage } from "../feed/public-feed-adapter.ts";
 import type { FeedPageLoader } from "../feed/public-feed.tsx";
-import { linkedSongPostId, makeStudyAvailabilityLookup } from "./home-feed-study.ts";
 import {
   playableHomeVideos,
-  publisherDestination,
   resolveVideoMedia,
+  toStreamedHomeVideoPost,
   type HomeVideoPost,
 } from "./home-video-feed-model.ts";
+import { signedStreamSource } from "./signed-stream-source.ts";
 
 /** One canonical-link cache for the whole feed: a song reused across videos
  * resolves its route once. */
@@ -35,8 +31,6 @@ const feedSongLinks = createSongAttributionLinkResolver();
 export interface HomeVideoFeedProps {
   readonly data?: FeedPage | PromiseLike<FeedPage>;
   readonly verifyAge?: typeof verifyAdultViewing;
-  /** Test seam; production uses the deduplicated API-backed availability read. */
-  readonly loadStudyAvailability?: (songPostId: string) => Promise<boolean>;
   /** Test/review seam; production resolves the song link through the public read. */
   readonly resolveSongLink?: SongAttributionLinkResolver;
   /** Test/review seam; production mints playback access from the owning API. */
@@ -56,7 +50,6 @@ type HomeFeedRow = HomeVideoPost | Readonly<{ id: string; placeholder: true }>;
 interface LoadedPage { readonly cursor?: string; readonly page: FeedPage }
 interface VideoPageState {
   readonly pages: readonly LoadedPage[];
-  readonly delivery: readonly FeedDelivery[];
   readonly posts: readonly HomeFeedRow[];
   readonly nextCursor: string | null;
   readonly processingCount: number;
@@ -67,38 +60,7 @@ type LoadState =
   | Readonly<{ readonly kind: "error" }>
   | Readonly<{ readonly kind: "ready" }>;
 
-type FeedDelivery = Readonly<{
-  postId: string;
-  requiresAgeVerification: boolean;
-  state: VideoDeliveryState;
-  caption: string | null;
-  href: string;
-  songPostId: string | null;
-  authorName: string | null;
-  authorHref: string | null;
-}>;
-
 const MAX_EMPTY_PAGE_SCAN = 4;
-
-/**
- * Only a video whose playback is ready is an ordinary feed item. A published
- * video that is still processing is not exposed as a full-screen placeholder;
- * its state stays on the post surface where the author can follow recovery.
- */
-const readyDeliveryStates = (page: FeedPage): FeedDelivery[] => page.items.flatMap(item => {
-  if (item.postType !== "video" || item.status !== "published" || item.videoDelivery?.playback !== "ready") return [];
-  const authorName = item.authorPrimaryPublicHandle ?? item.authorPublicHandle ?? item.authorDisplayName ?? null;
-  return [{
-    postId: item.id,
-    requiresAgeVerification: item.ageGatePolicy === "18_plus",
-    state: item.videoDelivery,
-    caption: item.caption,
-    href: item.canonicalPath ?? `/p/${encodeURIComponent(item.id)}`,
-    songPostId: linkedSongPostId(item),
-    authorName: authorName?.replace(/^@+/u, "") ?? null,
-    authorHref: publisherDestination(item),
-  }];
-});
 
 const processingVideoCount = (items: FeedPage["items"]): number =>
   items.filter(item =>
@@ -107,14 +69,15 @@ const processingVideoCount = (items: FeedPage["items"]): number =>
         ? resolveVideoMedia(item.mediaRefs) === null
         : item.videoDelivery.playback !== "ready")).length;
 
-function projectRows(page: FeedPage, key: string): HomeFeedRow[] {
+/** Every playable video, direct or Stream-delivered, is an ordinary
+ * full-screen feed post; only an age-locked slot is a placeholder. */
+function projectRows(page: FeedPage, key: string, posterPath: (postId: string) => string): HomeFeedRow[] {
   return feedSlots(page, key).flatMap<HomeFeedRow>(slot => {
     if (slot.kind === "age_locked") return [{ id: `age-lock:${slot.key}`, placeholder: true }];
     const playable = playableHomeVideos([slot.item]);
     if (playable.length) return playable;
-    return slot.item.postType === "video" && slot.item.status === "published"
-      && slot.item.videoDelivery?.playback === "ready"
-      ? [{ id: `delivery:${slot.item.id}`, placeholder: true }] : [];
+    const streamed = toStreamedHomeVideoPost(slot.item, posterPath);
+    return streamed ? [streamed] : [];
   });
 }
 async function collectVideoPage(
@@ -122,179 +85,27 @@ async function collectVideoPage(
   loadPage: FeedPageLoader,
   locale: UiLocaleCode,
   sort: FeedSort,
+  posterPath: (postId: string) => string,
 ): Promise<VideoPageState> {
-  const posts = projectRows(first, "first");
+  const posts = projectRows(first, "first", posterPath);
   const pages: LoadedPage[] = [{ page: first }];
-  const delivery = readyDeliveryStates(first);
   let processingCount = processingVideoCount(first.items);
   let nextCursor = first.nextCursor;
   let scanned = 1;
-  while (posts.length === 0 && delivery.length === 0 && nextCursor && scanned < MAX_EMPTY_PAGE_SCAN) {
+  while (posts.length === 0 && nextCursor && scanned < MAX_EMPTY_PAGE_SCAN) {
     const page = await loadPage({ cursor: nextCursor, locale, sort });
     pages.push({ cursor: nextCursor, page });
-    posts.push(...projectRows(page, `cursor:${nextCursor}`));
-    delivery.push(...readyDeliveryStates(page));
+    posts.push(...projectRows(page, `cursor:${nextCursor}`, posterPath));
     processingCount += processingVideoCount(page.items);
     nextCursor = page.nextCursor;
     scanned += 1;
   }
-  return { posts, nextCursor, processingCount, delivery, pages };
+  return { posts, nextCursor, processingCount, pages };
 }
 
 function navigateTo(href: string, navigate?: (href: string) => void): void {
   if (navigate) navigate(href);
   else globalThis.location?.assign(href);
-}
-
-/**
- * Study entry for a video with an authoritative song reference. The link is
- * rendered only after the referenced song's availability reads ready; loading,
- * read errors, unavailable songs and unlinked videos render nothing so the
- * action can never appear enabled on an unknown state.
- */
-function StudyAction(props: {
-  readonly load: (songPostId: string) => Promise<boolean>;
-  readonly scope: () => string;
-  readonly songPostId: string;
-  readonly navigate?: (href: string) => void;
-}) {
-  // ownedWrite: the apply phase clears a stale answer when the viewer scope
-  // changes, so one account never keeps another account's ready action.
-  const [ready, setReady] = createSignal(false, { ownedWrite: true });
-  createEffect(() => [props.songPostId, props.scope()] as const, ([songPostId]) => {
-    let active = true;
-    setReady(false);
-    void props.load(songPostId).then((value) => {
-      if (active) setReady(value);
-    });
-    onCleanup(() => {
-      active = false;
-    });
-  });
-  const href = (): string => `/p/${encodeURIComponent(props.songPostId)}/study`;
-  return (
-    <Show when={ready()}>
-      <a
-        class="justify-self-start rounded-[var(--radius-lg)] border border-white/30 px-4 py-2 text-sm text-white"
-        data-video-feed-study
-        href={href()}
-        onClick={(event) => {
-          if (props.navigate === undefined) return;
-          event.preventDefault();
-          props.navigate(href());
-        }}
-      >
-        Study
-      </a>
-    </Show>
-  );
-}
-
-/**
- * One playable published video. The card keeps a clear hierarchy: the player
- * and its poster lead, then the caption, then attribution (author and linked
- * song) and the actions. Delivery state is never restated as paragraphs here;
- * processing and recovery live on the post surface.
- */
-function FeedVideoCard(props: {
-  readonly entry: FeedDelivery;
-  readonly playback: VerticalFeedPlaceholderContext;
-  readonly loadStudyAvailability: (songPostId: string) => Promise<boolean>;
-  readonly scope: () => string;
-  readonly resolveSongLink: SongAttributionLinkResolver;
-  readonly mintPlaybackAccess?: typeof mintPlaybackAccess;
-  readonly posterPath?: (postId: string) => string;
-  readonly attachPlayback?: typeof attachPlayback;
-  readonly navigate?: (href: string) => void;
-}) {
-  // Browsers only autoplay muted before a gesture, so the active card plays
-  // muted until the viewer taps. An explicit mute choice always wins.
-  const muted = () => props.playback.muted() ?? !props.playback.hasUserInteracted();
-  return (
-    <article
-      class="flex h-full flex-col justify-center gap-3 px-4 py-8 text-white"
-      data-video-feed-card={props.entry.postId}
-      // Bubbles after the card's own controls, so a first tap on Unmute reads
-      // the muted state it saw. Automatic playback never dispatches a click.
-      onClick={props.playback.markUserInteracted}
-    >
-      <div class="mx-auto w-full max-w-3xl">
-        <VideoPlayer
-          attach={props.attachPlayback}
-          autoplay={props.playback.autoplay()}
-          mint={props.mintPlaybackAccess}
-          muted={muted()}
-          onUserInteraction={props.playback.markUserInteracted}
-          postId={props.entry.postId}
-          posterPath={props.posterPath}
-          requiresAgeVerification={props.entry.requiresAgeVerification}
-          state={props.entry.state}
-        />
-      </div>
-      <div class="mx-auto flex w-full max-w-3xl flex-col gap-2">
-        <Show when={props.entry.caption}>{caption => <p class="text-base leading-6">{caption()}</p>}</Show>
-        <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-white/70">
-          <Show when={props.entry.authorName}>
-            {name => (
-              <a
-                class="hover:underline"
-                data-video-feed-author
-                href={props.entry.authorHref ?? props.entry.href}
-                onClick={(event) => {
-                  if (props.navigate === undefined) return;
-                  event.preventDefault();
-                  props.navigate(props.entry.authorHref ?? props.entry.href);
-                }}
-              >
-                {name()}
-              </a>
-            )}
-          </Show>
-          <Show when={props.entry.songPostId}>
-            {(songPostId) => (
-              <SongAttributionChip
-                attribution={{ songPostId: songPostId() }}
-                navigate={props.navigate}
-                resolveLink={props.resolveSongLink}
-              />
-            )}
-          </Show>
-        </div>
-        <div class="flex flex-wrap items-center gap-2">
-          <Show when={props.entry.songPostId}>
-            {(songPostId) => (
-              <StudyAction
-                load={props.loadStudyAvailability}
-                navigate={props.navigate}
-                scope={props.scope}
-                songPostId={songPostId()}
-              />
-            )}
-          </Show>
-          <button
-            aria-pressed={muted() ? "true" : "false"}
-            class="rounded-[var(--radius-lg)] border border-white/30 px-4 py-2 text-sm text-white"
-            data-video-feed-mute
-            onClick={() => props.playback.reportMuteToggle(!muted())}
-            type="button"
-          >
-            {muted() ? "Unmute" : "Mute"}
-          </button>
-          <a
-            class="rounded-[var(--radius-lg)] border border-white/30 px-4 py-2 text-sm text-white"
-            href={props.entry.href}
-            onClick={(event) => {
-              if (props.navigate === undefined) return;
-              event.preventDefault();
-              props.navigate(props.entry.href);
-            }}
-          >
-            View post
-          </a>
-        </div>
-      </div>
-    </article>
-  );
 }
 
 /**
@@ -329,19 +140,18 @@ export function HomeVideoFeed(props: HomeVideoFeedProps) {
   const [nextCursor, setNextCursor] = createSignal<string | null>(null);
   const [loadingMore, setLoadingMore] = createSignal(false);
   const [processingCount, setProcessingCount] = createSignal(0);
-  const [delivery, setDelivery] = createSignal<readonly FeedDelivery[]>([]);
   const [paginationIssue, setPaginationIssue] = createSignal<"error" | "stalled" | null>(null);
   let sourceIdentity = props.sourceIdentity;
   let ageVerificationActive = false;
   let pages: readonly LoadedPage[] = [];
   const [autoplay, setAutoplay] = createSignal(true);
-  const [feedMuted, setFeedMuted] = createSignal<boolean | undefined>(undefined);
-  // Availability answers belong to one viewer scope. The epoch advances after
-  // an age verification so a denied-then-verified read is retried too.
-  const [availabilityEpoch, setAvailabilityEpoch] = createSignal(0);
-  const studyAvailability = makeStudyAvailabilityLookup(createStudyV2Api());
-  const studyScope = () => `${props.sourceIdentity ?? "anonymous"}:${availabilityEpoch()}`;
-  const loadStudyAvailability = (songPostId: string) => studyAvailability(songPostId, studyScope());
+  // Browsers only autoplay muted before a gesture: the feed starts muted and
+  // the first tap on a playing video unmutes it (the feed's own behavior).
+  const [feedMuted, setFeedMuted] = createSignal(true);
+  const posterPath = (postId: string) => (props.posterPath ?? videoPosterPath)(postId);
+  // One attacher per post: a refreshed row object keeps its mounted player and
+  // grant, because the feed sees the same attacher for the same post.
+  const attachers = new Map<string, VideoSourceAttacher>();
   let refreshing = false;
   let active = true;
   let requestIdentity = 0;
@@ -382,21 +192,19 @@ export function HomeVideoFeed(props: HomeVideoFeedProps) {
     if (!keepSurface) {
       setPosts([]);
       setProcessingCount(0);
-      setDelivery([]);
       setState({ kind: "loading" });
     }
     const first = input.initial === undefined
       ? loadPage({ locale: input.locale, sort: input.sort })
       : Promise.resolve(input.initial);
     void first
-      .then(page => collectVideoPage(page, loadPage, input.locale, input.sort))
+      .then(page => collectVideoPage(page, loadPage, input.locale, input.sort, posterPath))
       .then(page => {
         if (!active || identity !== requestIdentity) return;
         pages = page.pages;
         setPosts(page.posts);
         setNextCursor(page.nextCursor);
         setProcessingCount(page.processingCount);
-        setDelivery(page.delivery);
         setState({ kind: "ready" });
       })
       .catch(() => {
@@ -427,11 +235,10 @@ export function HomeVideoFeed(props: HomeVideoFeedProps) {
     try {
       const page = await props.loadPage({ cursor, locale: props.locale ?? "en", sort: props.sort ?? "best" });
       if (!active || identity !== requestIdentity || generation !== paginationGeneration) return;
-      const playable = projectRows(page, `cursor:${cursor}`);
+      const playable = projectRows(page, `cursor:${cursor}`, posterPath);
       pages = [...pages, { cursor, page }];
       setPosts(previous => [...previous, ...playable]);
       setProcessingCount(count => count + processingVideoCount(page.items));
-      setDelivery(previous => [...previous, ...readyDeliveryStates(page)]);
       setNextCursor(page.nextCursor);
       // A page that adds no playable post cannot move the active index, so
       // the automatic end trigger will not fire again; surface continuation.
@@ -462,18 +269,35 @@ export function HomeVideoFeed(props: HomeVideoFeedProps) {
         refreshed.push({ ...current, page });
       }
       pages = refreshed;
-      setPosts(refreshed.flatMap((entry, index) => projectRows(entry.page, index === 0 ? "first" : `cursor:${entry.cursor}`)));
-      setDelivery(refreshed.flatMap(entry => readyDeliveryStates(entry.page)));
+      setPosts(refreshed.flatMap((entry, index) => projectRows(entry.page, index === 0 ? "first" : `cursor:${entry.cursor}`, posterPath)));
       setNextCursor(refreshed.at(-1)?.page.nextCursor ?? null);
       setProcessingCount(refreshed.reduce((sum, entry) => sum + processingVideoCount(entry.page.items), 0));
       setPaginationIssue(null);
-      setAvailabilityEpoch(epoch => epoch + 1);
     } finally {
       refreshing = false;
       if (active && identity === requestIdentity) { loadingMoreInFlight = false; setLoadingMore(false); }
     }
   };
   const publisherHref = (postId: string) => mediaPost(postId)?.destination;
+  const attachVideo = (postId: string): VideoSourceAttacher | undefined => {
+    if (!mediaPost(postId)?.streamed) return undefined;
+    let attacher = attachers.get(postId);
+    if (!attacher) {
+      attacher = signedStreamSource(postId, {
+        ...(props.mintPlaybackAccess ? { mint: props.mintPlaybackAccess } : {}),
+        ...(props.attachPlayback ? { attach: props.attachPlayback } : {}),
+      });
+      attachers.set(postId, attacher);
+    }
+    return attacher;
+  };
+  const openSong = (postId: string) => {
+    const songPostId = mediaPost(postId)?.songPostId;
+    if (!songPostId) return;
+    void (props.resolveSongLink ?? feedSongLinks)({ songPostId })
+      .then(link => { if (link?.href) navigateTo(link.href, props.navigate); })
+      .catch(() => {});
+  };
   const sharePost = (postId: string) => {
     const href = mediaPost(postId)?.communityDestination;
     if (!href || typeof navigator === "undefined") return;
@@ -510,31 +334,16 @@ export function HomeVideoFeed(props: HomeVideoFeedProps) {
                 onShareClick={sharePost}
                 posts={[...posts()]}
                 autoplay={autoplay()}
+                forceAutoplay
                 muted={feedMuted()}
                 onMuteToggle={(_postId, muted) => setFeedMuted(muted)}
-                renderPlaceholder={(id, playback) => {
-                  const entry = () => delivery().find(candidate => `delivery:${candidate.postId}` === id);
-                  // A refresh that keeps the same post and age policy keeps the
-                  // mounted player and its grant; a policy change remounts it.
-                  const playbackIdentity = () => { const value = entry(); return value && `${value.postId}:${value.requiresAgeVerification}`; };
-                  return <Show when={playbackIdentity()} keyed fallback={<div class="grid h-full place-items-center px-4 text-white"><AgeAccessPrompt verify={props.verifyAge} onStart={() => { ageVerificationActive = true; setAutoplay(false); }} onFinish={() => { ageVerificationActive = false; }} onVerified={refreshAuthorized} /></div>}>
-                    {_identity => <Show when={entry()}>
-                    {video => (
-                      <FeedVideoCard
-                        entry={video()}
-                        playback={playback}
-                        loadStudyAvailability={props.loadStudyAvailability ?? loadStudyAvailability}
-                        scope={studyScope}
-                        attachPlayback={props.attachPlayback}
-                        mintPlaybackAccess={props.mintPlaybackAccess}
-                        navigate={props.navigate}
-                        posterPath={props.posterPath}
-                        resolveSongLink={props.resolveSongLink ?? feedSongLinks}
-                      />
-                    )}
-                    </Show>}
-                  </Show>;
-                }}
+                attachVideo={attachVideo}
+                onSoundtrackClick={openSong}
+                renderPlaceholder={() => (
+                  <div class="grid h-full place-items-center px-4 text-white">
+                    <AgeAccessPrompt verify={props.verifyAge} onStart={() => { ageVerificationActive = true; setAutoplay(false); }} onFinish={() => { ageVerificationActive = false; }} onVerified={refreshAuthorized} />
+                  </div>
+                )}
               />
               <Show when={(paginationIssue() !== null || posts().some(post => "placeholder" in post)) && nextCursor() !== null}>
                 <div class="pointer-events-none absolute inset-x-0 bottom-20 z-10 flex justify-center">

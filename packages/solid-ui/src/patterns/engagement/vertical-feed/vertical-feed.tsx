@@ -5,7 +5,7 @@ import { Spinner } from "@/components/feedback/spinner/spinner";
 import { cn } from "@/lib/cn";
 
 import { MediaPost } from "./media-post";
-import type { HapticKind, MediaPostData } from "./types";
+import type { HapticKind, MediaPostData, VideoSourceAttacher } from "./types";
 import { useVideoPlayback, VideoPlaybackProvider } from "./video-playback";
 
 /**
@@ -48,6 +48,10 @@ export interface VerticalFeedProps {
   initialPostId?: string;
   /** Controlled feed-wide audio state. */
   muted?: boolean;
+  /** Autoplay the active post without waiting for a first interaction (host keeps it muted until a tap). */
+  forceAutoplay?: boolean;
+  /** Host-owned delivery: returns the source attacher for a post with no direct videoUrl. */
+  attachVideo?: (postId: string) => VideoSourceAttacher | undefined;
   /** Temporarily pause this post while a host panel obscures playback. */
   pausedPostId?: string;
   /** Hide shared author/action chrome when the product host renders its own. */
@@ -238,6 +242,8 @@ export function VerticalFeed(props: VerticalFeedProps) {
                     props.autoplay !== false && index() === activeIndex() && props.pausedPostId !== entry().id
                   }
                   muted={props.muted}
+                  forceAutoplay={props.forceAutoplay}
+                  attachVideo={entry().videoUrl ? undefined : props.attachVideo?.(entry().id)}
                   showChrome={props.showChrome}
                   priorityLoad={Math.abs(index() - activeIndex()) <= 1}
                   hasMobileFooter={props.hasMobileFooter}

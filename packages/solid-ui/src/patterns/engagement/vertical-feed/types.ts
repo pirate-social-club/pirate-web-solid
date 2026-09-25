@@ -32,8 +32,17 @@ export interface MediaPostData {
   isFollowing?: boolean;
 }
 
+/**
+ * Attaches a host-owned source (e.g. signed adaptive streaming) to the
+ * design-system video element and returns its cleanup. Lets a host keep the
+ * feed layout while owning delivery; the pattern never fetches by itself.
+ */
+export type VideoSourceAttacher = (video: HTMLVideoElement) => () => void;
+
 export interface VideoPlayerProps {
   videoUrl?: string;
+  /** Host-attached source, used instead of videoUrl. Attached while eager. */
+  attachVideo?: VideoSourceAttacher;
   posterUrl?: string;
   isPlaying: boolean;
   isMuted: boolean;

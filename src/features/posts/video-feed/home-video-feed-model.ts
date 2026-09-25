@@ -18,6 +18,10 @@ interface MediaReferenceCandidate {
 export interface HomeVideoPost extends MediaPostData {
   readonly destination: string;
   readonly communityDestination: string;
+  /** Stream-delivered: the feed attaches signed playback; there is no videoUrl. */
+  readonly streamed?: true;
+  /** The referenced song, for the soundtrack line's link. */
+  readonly songPostId?: string;
 }
 
 function isRecord(value: unknown): value is MediaReferenceCandidate {
@@ -125,6 +129,35 @@ export function toHomeVideoPost(item: PublicFeedItem): HomeVideoPost | null {
     isLiked: item.viewerVote === 1,
     destination: publisherDestination(item),
     communityDestination: destination,
+  };
+}
+
+/**
+ * A published video whose Stream delivery is ready. It renders in the same
+ * full-screen feed layout; the host attaches signed playback to the feed's
+ * video element, so the row carries no media URL of its own.
+ */
+export function toStreamedHomeVideoPost(
+  item: PublicFeedItem,
+  posterPath: (postId: string) => string,
+): HomeVideoPost | null {
+  if (item.postType !== "video" || item.status !== "published" || item.videoDelivery?.playback !== "ready") return null;
+  const avatarUrl = safeMediaUrl(item.authorAvatarRef ?? item.communityAvatarRef);
+  const postCaption = caption(item);
+  const songTitle = item.songTitle?.trim();
+  return {
+    id: item.id,
+    streamed: true,
+    ...(item.videoDelivery.thumbnail === "ready" ? { posterUrl: posterPath(item.id) } : {}),
+    authorName: publisherName(item),
+    ...(avatarUrl ? { authorAvatarUrl: avatarUrl } : {}),
+    ...(postCaption ? { caption: postCaption } : {}),
+    ...(songTitle ? { title: songTitle } : {}),
+    ...(item.songPostId ? { songPostId: item.songPostId } : {}),
+    likeCount: item.likeCount ?? item.upvoteCount ?? 0,
+    isLiked: item.viewerVote === 1,
+    destination: publisherDestination(item),
+    communityDestination: communityDestination(item),
   };
 }
 

@@ -69,6 +69,8 @@ export interface PublicFeedItem {
   readonly videoDelivery?: VideoDeliveryState;
   /** Authoritative referenced song for a video with a song soundtrack; never guessed. */
   readonly songPostId?: string | null;
+  /** The referenced song's title, projected with the song reference. */
+  readonly songTitle?: string | null;
   readonly analysisState: "pending" | "allow" | "allow_with_required_reference" | "review_required" | "blocked";
   readonly contentSafetyState: "pending" | "safe" | "sensitive" | "adult";
   readonly ageGatePolicy: "none" | "18_plus";
@@ -153,6 +155,15 @@ function normalizeMediaRefs(value: unknown): readonly unknown[] | null {
  * server projects `soundtrack.song_reference` from `media_video_song_references`;
  * titles or other text are never used to guess the link.
  */
+/** The referenced song's title as the server projects it, when present. */
+function readSongTitle(video: unknown): string | null {
+  if (!isRecord(video)) return null;
+  const soundtrack = video.soundtrack;
+  if (!isRecord(soundtrack) || soundtrack.kind !== "song_reference") return null;
+  const reference = soundtrack.song_reference;
+  return isRecord(reference) ? nullableString(reference.song_title) : null;
+}
+
 function readSongPostId(video: unknown): string | null {
   if (!isRecord(video)) return null;
   const soundtrack = video.soundtrack;
@@ -224,7 +235,11 @@ function normalizeFeedItem(value: unknown): PublicFeedItem | null {
     createdAt: created,
     mediaRefs: normalizeMediaRefs(post.media_refs),
     ...(postType === "video"
-      ? { videoDelivery: readVideoDelivery(envelope.video), songPostId: readSongPostId(envelope.video) }
+      ? {
+          videoDelivery: readVideoDelivery(envelope.video),
+          songPostId: readSongPostId(envelope.video),
+          songTitle: readSongTitle(envelope.video),
+        }
       : {}),
     analysisState,
     contentSafetyState,

@@ -11,8 +11,6 @@ import {
   reviewSongLinks,
 } from "../feed/public-feed-fixtures";
 import type { FeedPage, PublicFeedItem } from "../feed/public-feed-adapter";
-import { createSignal } from "solid-js";
-import { makeStudyAvailabilityLookup } from "./home-feed-study";
 
 const emptyPage: FeedPage = { ...publicFeedReviewPage, items: [], topCommunities: [] };
 const textOnlyPage: FeedPage = {
@@ -22,7 +20,7 @@ const textOnlyPage: FeedPage = {
 const reviewVideo = publicFeedReviewPage.items[0]!;
 const oneVideo = (item: PublicFeedItem): FeedPage => ({ items: [item], topCommunities: [], nextCursor: null });
 
-const playableLinked: PublicFeedItem = { ...reviewVideo, songPostId: "post_harness_song" };
+const playableLinked: PublicFeedItem = { ...reviewVideo, songPostId: "post_harness_song", songTitle: "Harbor lights" };
 const playableUnlinked: PublicFeedItem = {
   ...reviewVideo,
   id: "review-post-unlinked",
@@ -36,11 +34,11 @@ const missingThumbnail: PublicFeedItem = {
 
 /**
  * Storybook has no harness host mapping, so the local fixture's media never
- * attaches. This seam reports canplay so the player reaches its ready state
- * and the playback controls can be reviewed.
+ * attaches. This seam reports loaded metadata so the feed's own player reaches
+ * its ready state and the full-screen layout can be reviewed.
  */
-const canplayAttach = async (input: { video: HTMLVideoElement }) => {
-  input.video.dispatchEvent(new Event("canplay"));
+const loadedAttach = async (input: { video: HTMLVideoElement }) => {
+  input.video.dispatchEvent(new Event("loadedmetadata"));
   return () => {};
 };
 
@@ -53,8 +51,7 @@ const meta = {
     navigate: () => undefined,
     // The local review fixture plays its own media and resolves its own song
     // link; production keeps the API mint, poster and public read.
-    attachPlayback: canplayAttach,
-    loadStudyAvailability: async (songPostId: string) => songPostId === "post_harness_song",
+    attachPlayback: loadedAttach,
     mintPlaybackAccess: reviewPlaybackMint,
     posterPath: reviewPosterPath,
     resolveSongLink: reviewSongLinks,
@@ -71,127 +68,58 @@ const readyState = async (canvasElement: HTMLElement): Promise<void> => {
   );
 };
 
-/** The primary review fixture: a playable local video linked to its song. */
+/**
+ * The primary review fixture: a playable video linked to its song, in the
+ * feed's full-screen layout with its action rail and soundtrack line. No
+ * status text, native controls or extra buttons.
+ */
 export const PlayableLinked: Story = {
   args: { data: oneVideo(playableLinked) },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await readyState(canvasElement);
-    await expect(canvasElement.querySelectorAll("[data-video-feed-card]")).toHaveLength(1);
-    await expect(canvas.getByRole("link", { name: "Study" })).toHaveAttribute("href", "/p/post_harness_song/study");
+    await waitFor(() => expect(canvasElement.querySelectorAll("[data-media-post]")).toHaveLength(1));
+    await expect(canvas.getByRole("button", { name: /Harbor lights/ })).toBeInTheDocument();
     await expect(canvasElement).toHaveTextContent("A sovereign town square for communities");
+    await expect(canvasElement).not.toHaveTextContent(/Preparing playback|View post|Study/);
+    await expect(canvasElement.querySelector("video")?.hasAttribute("controls")).toBe(false);
   },
 };
 
-/** A playable video with original audio carries no Study action. */
+/** A playable video with its own sound carries no soundtrack line. */
 export const PlayableUnlinked: Story = {
   args: { data: oneVideo(playableUnlinked) },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await readyState(canvasElement);
-    await expect(canvasElement.querySelectorAll("[data-video-feed-card]")).toHaveLength(1);
-    await expect(canvas.queryByRole("link", { name: "Study" })).toBeNull();
+    await waitFor(() => expect(canvasElement.querySelectorAll("[data-media-post]")).toHaveLength(1));
+    await expect(canvas.queryByRole("button", { name: /Harbor lights/ })).toBeNull();
     await expect(canvasElement).toHaveTextContent("A video with its own sound.");
   },
 };
 
-/** The referenced song's Study availability is ready, so the action appears. */
-export const StudyReady: Story = {
-  args: { data: oneVideo(playableLinked) },
-  play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement);
-    await readyState(canvasElement);
-    await expect(await canvas.findByRole("link", { name: "Study" })).toBeInTheDocument();
-  },
-};
-
-/** An unavailable referenced song renders the card without a Study action. */
-export const StudyUnavailable: Story = {
-  args: { data: oneVideo(playableLinked), loadStudyAvailability: async () => false },
-  play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement);
-    await readyState(canvasElement);
-    await expect(canvasElement.querySelectorAll("[data-video-feed-card]")).toHaveLength(1);
-    await expect(canvas.queryByRole("link", { name: "Study" })).toBeNull();
-  },
-};
-
-/** A slow availability read stays hidden rather than showing a disabled action. */
-export const StudyLoading: Story = {
-  args: { data: oneVideo(playableLinked), loadStudyAvailability: () => new Promise<boolean>(() => {}) },
-  play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement);
-    await readyState(canvasElement);
-    await expect(canvas.queryByRole("link", { name: "Study" })).toBeNull();
-  },
-};
-
-/** A failed availability read fails closed: no Study action. */
-export const StudyError: Story = {
-  args: {
-    data: oneVideo(playableLinked),
-    loadStudyAvailability: async () => { throw new Error("availability unavailable"); },
-  },
-  play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement);
-    await readyState(canvasElement);
-    await expect(canvas.queryByRole("link", { name: "Study" })).toBeNull();
-  },
-};
-
-/** Playback ready with the thumbnail still processing: the video leads. */
+/** Playback ready with the thumbnail still processing: the video leads, no poster. */
 export const MissingThumbnail: Story = {
   args: { data: oneVideo(missingThumbnail) },
   play: async ({ canvasElement }) => {
     await readyState(canvasElement);
-    await expect(canvasElement.querySelectorAll("[data-video-feed-card]")).toHaveLength(1);
-    await expect(canvasElement.querySelector("video[poster]")).toBeNull();
-    await expect(canvasElement).not.toHaveTextContent("Thumbnail is being prepared.");
+    await waitFor(() => expect(canvasElement.querySelectorAll("[data-media-post]")).toHaveLength(1));
+    await expect(canvasElement.querySelector("[data-media-post] img")).toBeNull();
   },
 };
 
-/** The mint is still in flight: the player shows its own loading line. */
-export const PlaybackLoading: Story = {
-  args: { data: oneVideo(playableLinked), mintPlaybackAccess: () => new Promise(() => {}) },
-  play: async ({ canvasElement }) => {
-    await readyState(canvasElement);
-    await waitFor(() =>
-      expect(canvasElement.querySelector("[data-video-player-state]")?.getAttribute("data-video-player-state")).toBe("loading"),
-    );
-    await expect(within(canvasElement).getByRole("status")).toHaveTextContent("Preparing playback");
-  },
-};
-
-/** Denied playback access surfaces the retry path and never a fake source. */
-export const PlaybackDenied: Story = {
-  args: {
-    data: oneVideo(playableLinked),
-    mintPlaybackAccess: async () => { throw new Error("playback denied"); },
-  },
+/** Muted first, as browsers require for autoplay; the mute control unmutes. */
+export const MuteControlPolicy: Story = {
+  name: "Mute control policy",
+  args: { data: oneVideo(playableLinked) },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await readyState(canvasElement);
-    await waitFor(() =>
-      expect(canvasElement.querySelector("[data-video-player-state]")?.getAttribute("data-video-player-state")).toBe("unavailable"),
-    );
-    await expect(canvas.getByRole("button", { name: "Try playback again" })).toBeInTheDocument();
-    await expect(canvasElement.querySelector("video")?.getAttribute("src")).toBeNull();
-  },
-};
-
-/** A media transport failure lands in the same honest recovery state. */
-export const PlaybackFailure: Story = {
-  args: {
-    data: oneVideo(playableLinked),
-    attachPlayback: async () => { throw new Error("transport failed"); },
-  },
-  play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement);
-    await readyState(canvasElement);
-    await waitFor(() =>
-      expect(canvasElement.querySelector("[data-video-player-state]")?.getAttribute("data-video-player-state")).toBe("unavailable"),
-    );
-    await expect(canvas.getByText(/Playback is unavailable/)).toBeInTheDocument();
+    const player = await waitFor(() => { const video = canvasElement.querySelector("video"); expect(video).not.toBeNull(); return video!; });
+    await waitFor(() => expect(player.muted).toBe(true));
+    await userEvent.click(canvas.getByRole("button", { name: "Unmute video" }));
+    await waitFor(() => expect(player.muted).toBe(false));
+    await expect(canvas.getByRole("button", { name: "Mute video" })).toHaveAttribute("aria-pressed", "false");
   },
 };
 
@@ -205,7 +133,7 @@ export const AuthorProcessingHiddenFromFeed: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await readyState(canvasElement);
-    await expect(canvasElement.querySelectorAll("[data-video-feed-card]")).toHaveLength(0);
+    await expect(canvasElement.querySelectorAll("[data-media-post]")).toHaveLength(0);
     await expect(canvas.getByText("Videos are being prepared")).toBeInTheDocument();
   },
 };
@@ -271,7 +199,8 @@ export const MobilePlayableLinked: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await readyState(canvasElement);
-    await expect(canvas.getByRole("link", { name: "Study" })).toBeVisible();
+    await waitFor(() => expect(canvasElement.querySelector('[data-media-post="review-post-video"]')).not.toBeNull());
+    await expect(canvas.getByRole("button", { name: /Harbor lights/ })).toBeVisible();
   },
 };
 
@@ -300,80 +229,3 @@ export const AdultViewing: Story = {
 
 /** Manual browser review of the same in-place flow before proof. */
 export const AdultLocked: Story = { args: AdultViewing.args };
-
-/** The feed mute control is one policy for every playable card. */
-export const MuteControlPolicy: Story = {
-  name: "Mute control policy",
-  args: { data: oneVideo(playableLinked) },
-  play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement);
-    await readyState(canvasElement);
-    const player = canvasElement.querySelector("video");
-    expect(player?.muted).toBe(false);
-    await userEvent.click(canvas.getByRole("button", { name: "Mute" }));
-    await waitFor(() => expect(player?.muted).toBe(true));
-    await expect(canvas.getByRole("button", { name: "Unmute" })).toHaveAttribute("aria-pressed", "true");
-    // Muting is sound only: playback stays paused and the affordance remains.
-    expect(player?.paused).toBe(true);
-    expect(canvasElement.querySelector("[data-video-player-play]")).not.toBeNull();
-  },
-};
-
-/** The initial paused state leads with an explicit play control. */
-export const PlayAffordance: Story = {
-  name: "Play affordance",
-  args: { data: oneVideo(playableLinked) },
-  play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement);
-    await readyState(canvasElement);
-    const affordance = await canvas.findByRole("button", { name: "Play video" });
-    await expect(affordance).toBeInTheDocument();
-    expect(canvasElement.querySelector("video")?.paused).toBe(true);
-  },
-};
-
-/**
- * Availability is scoped to the viewer: an anonymous miss does not survive
- * sign-in, and the action appears once the authenticated read answers.
- */
-export const StudyAfterSignIn: Story = {
-  name: "Study after sign-in",
-  render: () => {
-    const [identity, setIdentity] = createSignal("anonymous");
-    const availability = makeStudyAvailabilityLookup({
-      loadAvailability: async () => ({
-        availability: identity() === "anonymous"
-          ? { reason: "insufficient_exercises" as const, state: "unavailable" as const }
-          : {
-            available_exercise_types: ["say_it_back"],
-            learner_bands: [],
-            learning_language: "en",
-            state: "ready" as const,
-            target_languages: [],
-          },
-        communityId: "community-study",
-      }),
-    });
-    return (
-      <div>
-        <button data-story-sign-in type="button" onClick={() => setIdentity("user:one")}>Sign in</button>
-        <HomeVideoFeed
-          data={oneVideo(playableLinked)}
-          loadPage={async () => emptyPage}
-          loadStudyAvailability={(songPostId) => availability(songPostId, identity())}
-          mintPlaybackAccess={reviewPlaybackMint}
-          posterPath={reviewPosterPath}
-          resolveSongLink={reviewSongLinks}
-          sourceIdentity={identity()}
-        />
-      </div>
-    );
-  },
-  play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement);
-    await readyState(canvasElement);
-    await expect(canvas.queryByRole("link", { name: "Study" })).toBeNull();
-    canvasElement.querySelector<HTMLButtonElement>("[data-story-sign-in]")!.click();
-    await waitFor(() => expect(canvas.getByRole("link", { name: "Study" })).toBeInTheDocument());
-  },
-};
