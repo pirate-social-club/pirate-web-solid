@@ -50,6 +50,8 @@ export interface YourCommunitiesRouteProps {
   readonly videoSongPreflight?: import("../../posts/video-submission/song-reference").SongIntervalPreflight;
   readonly videoSongReader?: import("../../posts/post-composer/song-excerpt-source").SongSourceReader;
   readonly videoStorage?: import("../../posts/video-submission/coordinator").VideoStorage;
+  readonly videoOpenPreview?: () => Promise<MediaStream>;
+  readonly videoStartCapture?: (input: import("../../posts/video-submission/capture").OriginalVideoCaptureInput) => Promise<import("../../posts/video-submission/capture").VideoCaptureSession>;
 }
 
 function summary(membership: AccountCommunityMembership): YourCommunitySummary {
@@ -321,6 +323,8 @@ export function YourCommunitiesRouteView(props: YourCommunitiesRouteProps = {}) 
                 videoSongPreflight={props.videoSongPreflight}
                 videoSongReader={props.videoSongReader}
                 videoStorage={props.videoStorage}
+                videoOpenPreview={props.videoOpenPreview}
+                videoStartCapture={props.videoStartCapture}
                 onPublished={href => { if (href !== undefined) navigate(href); }}
                 onOpenChange={(open) => {
                   setComposerOpen(open);

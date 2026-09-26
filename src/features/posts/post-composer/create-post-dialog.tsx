@@ -27,6 +27,7 @@ import {
 import { DEFAULT_SONG_LICENSE } from "./defaults";
 import { PostComposer } from "./post-composer";
 import { VideoComposerRuntime } from "../video-submission/video-composer-runtime";
+import type { OriginalVideoCaptureInput, VideoCaptureSession } from "../video-submission/capture";
 import type { SongIntervalPreflight } from "../video-submission/song-reference";
 import type { SongSourceReader } from "./song-excerpt-source";
 import { OperationPersonaControl } from "../../identity/operation-persona-control/operation-persona-control";
@@ -139,6 +140,11 @@ export interface CreatePostDialogProps {
   readonly videoSongPreflight?: SongIntervalPreflight;
   /** The song source read standing in for the song playback grant. */
   readonly videoSongReader?: SongSourceReader;
+  /** The camera preview standing in for a device camera, so stories can
+   * show the settled capture surface rather than a permission failure. */
+  readonly videoOpenPreview?: () => Promise<MediaStream>;
+  /** The capture session standing in for a real recording. */
+  readonly videoStartCapture?: (input: OriginalVideoCaptureInput) => Promise<VideoCaptureSession>;
   readonly createMediaId?: () => string;
   readonly origin?: string | URL;
   readonly fetchImpl?: typeof fetch;
@@ -747,6 +753,8 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
                   readSongEligibility={props.videoSongEligibility}
                   songPreflight={props.videoSongPreflight}
                   songReader={props.videoSongReader}
+                  openPreview={props.videoOpenPreview}
+                  startCapture={props.videoStartCapture}
                   onExit={() => setMode("text")} onPublished={props.onPublished}
                   onRetainedPersona={(personaId, retainedCommunityId) => {
                     if (personaId !== null) {

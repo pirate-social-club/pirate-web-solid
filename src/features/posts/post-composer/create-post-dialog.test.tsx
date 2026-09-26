@@ -1198,7 +1198,7 @@ describe("video mode profile choice", () => {
       audio.dispatchEvent(new Event("loadedmetadata"));
       // The first profile is denied the song; the denial is visible.
       await vi.waitFor(() => expect(asked).toEqual(["persona-one"]), { timeout: 3_000 });
-      await vi.waitFor(() => expect(document.body.textContent).toContain("This song’s owner doesn’t allow videos by this profile."));
+      await vi.waitFor(() => expect(document.body.textContent).toContain("This profile can’t post a video to this song"));
       // Switching profile through the video flow's own control re-asks.
       container.querySelector<HTMLButtonElement>("[data-operation-persona] button[aria-haspopup='dialog']")!.click();
       const option = await vi.waitFor(() => {
@@ -1208,7 +1208,7 @@ describe("video mode profile choice", () => {
       });
       option.click();
       await vi.waitFor(() => expect(asked).toEqual(["persona-one", "persona-two"]));
-      await vi.waitFor(() => expect(document.body.textContent).not.toContain("This song’s owner doesn’t allow videos by this profile."));
+      await vi.waitFor(() => expect(document.body.textContent).not.toContain("can’t post a video to this song"));
     } finally {
       for (const dispose of disposers.splice(0)) dispose();
     }

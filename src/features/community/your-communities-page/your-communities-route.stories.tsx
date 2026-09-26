@@ -117,6 +117,13 @@ function JourneyScreen(props: { readonly policy: PolicyFixture }) {
           })}
           videoSongReader={async () => ({ postId: "cadence-post", audioUrl: toneWavUrl(SONG_MS), title: "Cadence" })}
           videoStorage={{ exclusive: async work => work(), load: async () => null, save: async () => {}, remove: async () => {} }}
+          videoOpenPreview={async () => new MediaStream()}
+          videoStartCapture={async () => ({
+            stream: new MediaStream(),
+            captureOriginMs: performance.now(),
+            stop: async () => new File([new Blob(["storybook-take"])], "take.mp4", { type: "video/mp4" }),
+            cancel: async () => {},
+          })}
         />
       </Show>
     </ApplicationChrome>
@@ -182,19 +189,25 @@ export const PlusToCaptureAllowed: Story = {
       input.dispatchEvent(new Event("input", { bubbles: true }));
       const use = await canvas.findByText("Use the song at this link", undefined, { timeout: 8_000 });
       (use.closest("button") as HTMLButtonElement).click();
+      // The assertion is on the settled screen, not the moment the button
+      // first appears: the preview fixture keeps the camera state stable
+      // where a real permission failure would collapse it.
       await canvas.findByLabelText("Start recording", undefined, { timeout: 12_000 });
+      await new Promise(resolve => setTimeout(resolve, 800));
+      expect(canvas.queryByLabelText("Start recording")).not.toBeNull();
+      expect(canvas.queryByText("Recording is not supported here")).toBeNull();
     });
   },
 };
 
 export const PlusDenied: Story = {
-  name: "+ to a profile the song's owner refuses",
+  name: "+ to a profile the song refuses",
   globals: { viewport: { value: "mobile1", isRotated: false } },
   render: () => <JourneyScreen policy="denied" />,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await openComposerAndPickSong(canvasElement);
-    const denial = await canvas.findByText(/doesn’t allow videos by this profile/, undefined, { timeout: 12_000 });
+    const denial = await canvas.findByText(/This profile can’t post a video to this song/, undefined, { timeout: 12_000 });
     expect(denial).toBeTruthy();
     expect(canvas.queryByLabelText("Start recording")).toBeNull();
     await canvas.findByText("Change song");
@@ -211,5 +224,16 @@ export const PlusFailedRead: Story = {
     const retry = await canvas.findByText("Try the check again", undefined, { timeout: 12_000 });
     (retry.closest("button") as HTMLButtonElement).click();
     await canvas.findByLabelText("Start recording", undefined, { timeout: 12_000 });
+    await new Promise(resolve => setTimeout(resolve, 800));
+    expect(canvas.queryByText("Recording is not supported here")).toBeNull();
   },
+};
+
+/** The same journey with no play function, so a reviewer walks it by hand:
+ * the footer's +, the community row, the pasted song link, the excerpt, the
+ * profile switch, and the record and stop controls. */
+export const JourneyManual: Story = {
+  name: "The whole journey by hand",
+  globals: { viewport: { value: "mobile1", isRotated: false } },
+  render: () => <JourneyScreen policy="allowed" />,
 };

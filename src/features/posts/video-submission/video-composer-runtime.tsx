@@ -878,7 +878,11 @@ export function VideoComposerRuntime(props: {
       </Show>
       <Show when={!file() && eligibilityDenied() && approvedSelection() !== undefined && !takeMismatch()}>
         <div class="grid gap-2" role="alert">
-          <FormNote tone="warning">This song’s owner doesn’t allow videos by this profile. Choose another song, or switch profile and check again.</FormNote>
+          {/* The owner-policy read answers one boolean for several causes —
+           * membership, capability and the owner's own setting among them —
+           * so the message states the fact it knows and stays neutral about
+           * the reason. */}
+          <FormNote tone="warning">This profile can’t post a video to this song here. Choose another song, or switch profile and check again.</FormNote>
           <Button onClick={() => setSongPanelOpen(true)} size="sm" type="button" variant="secondary">Change song</Button>
         </div>
       </Show>

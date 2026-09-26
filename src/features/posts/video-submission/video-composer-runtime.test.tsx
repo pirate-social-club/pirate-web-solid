@@ -690,14 +690,14 @@ describe("mounted song-first video flow", () => {
     // allowing answer opens capture.
     await vi.waitFor(() => expect(asked).toContainEqual({ communityId: "community", postId: "song-post", personaId: "persona" }));
     await vi.waitFor(() => expect(document.querySelector('button[aria-label="Start recording"]')).not.toBeNull());
-    expect(document.body.textContent).not.toContain("doesn’t allow videos by this profile");
+    expect(document.body.textContent).not.toContain("can’t post a video to this song");
   });
 
   test("a profile the song's owner refuses never opens capture", async () => {
     songSetup({ preflight: "accepted", mobile: true, songEligibility: async () => false });
     await loadSongMetadata();
     await awaitPlan("ready");
-    await vi.waitFor(() => expect(document.body.textContent).toContain("This song’s owner doesn’t allow videos by this profile."));
+    await vi.waitFor(() => expect(document.body.textContent).toContain("This profile can’t post a video to this song"));
     expect(document.querySelector('button[aria-label="Start recording"]')).toBeNull();
     expect(previews).toHaveLength(0);
     expect(startCapture).not.toHaveBeenCalled();

@@ -40,6 +40,18 @@ window.matchMedia = (query: string): MediaQueryList => ({
 
 const SONG_MS = 214_000;
 
+/** An empty live stream stands in for the camera preview: Storybook has no
+ * guarantee of camera permission, and the settled story must be the state it
+ * names rather than the not-supported fallback. */
+function storyPreview(): () => Promise<MediaStream> {
+  return async () => {
+    if (typeof MediaStream !== "undefined") return new MediaStream();
+    // The unit-test environment has no MediaStream constructor; the runtime
+    // only reads getTracks and assigns the stream.
+    return Object.assign(Object.create(null), { getTracks: () => [] }) as unknown as MediaStream;
+  };
+}
+
 function toneReader(title = "Cadence (sample tone)"): SongSourceReader {
   const audioUrl = toneWavUrl(SONG_MS);
   return async request => ({
@@ -277,6 +289,10 @@ function Harness(props: {
    * and hide the state the story exists to show. */
   readonly eligibility?: (input: { readonly communityId: string; readonly postId: string; readonly personaId: string }) => Promise<boolean>;
   readonly startCapture?: (input: OriginalVideoCaptureInput) => Promise<VideoCaptureSession>;
+  /** The live camera preview; a real getUserMedia in Storybook would fail
+   * and settle the story on the not-supported state instead of the one it
+   * names, so an empty stream stands in. */
+  readonly openPreview?: () => Promise<MediaStream>;
   readonly measureDuration?: (file: File) => Promise<number | null>;
   readonly storage?: VideoStorage;
   readonly transport?: VideoTransport;
@@ -336,6 +352,7 @@ function Harness(props: {
         songPreflight={props.preflight ?? readyPreflight()}
         songReader={props.reader ?? toneReader()}
         readSongEligibility={props.eligibility ?? (async () => true)}
+        openPreview={props.openPreview ?? storyPreview()}
         startCapture={props.startCapture ?? captureDouble()}
         storage={props.storage ?? memoryStorage()}
         transport={props.transport ?? storyTransport()}
