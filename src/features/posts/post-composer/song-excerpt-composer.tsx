@@ -513,10 +513,11 @@ export function SongExcerptComposer(props: {
         return `Your video will use ${excerptClock(current.selection.clipStartSamples, current.selection.clipStartSamples + current.selection.clipDurationSamples)} of this song.`;
     }
   };
-  /** The plan message shows for every state an author must wait on or act
-   * on. `none` and `ready` need no line, but a pending check does: capture
-   * stays closed until it resolves, so the wait must be visible. */
-  const showPlanMessage = () => !preflight || !["none", "ready"].includes(plan().kind);
+  /** The plan message shows only what the author can act on: a refusal, a
+   * failure, a song that cannot be measured. A pending check is machinery —
+   * moving the scrubber fires one on every adjustment — and surfaces only on
+   * the confirm action, never as ambient text. */
+  const showPlanMessage = () => !preflight || !["none", "checking", "ready"].includes(plan().kind);
 
   const readyOf = (state: SongSourceState) => (state.kind === "ready" ? state : undefined);
   const problemOf = (state: SongSourceState): string | undefined =>

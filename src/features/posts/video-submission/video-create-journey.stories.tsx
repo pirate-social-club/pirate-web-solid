@@ -214,8 +214,11 @@ export const PlusFailedRead: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await openCaptureAndChooseSong(canvasElement);
-    const retry = await canvas.findByText("Try the check again", undefined, { timeout: 12_000 });
-    (retry.closest("button") as HTMLButtonElement).click();
+    // The retry affordance appears on both the capture view and the open
+    // sheet; either one drives the same re-check.
+    const retries = await canvas.findAllByText("Try the check again", undefined, { timeout: 12_000 });
+    expect(retries.length).toBeGreaterThan(0);
+    (retries[0]!.closest("button") as HTMLButtonElement).click();
     await canvas.findByLabelText("Start recording", undefined, { timeout: 12_000 });
     await new Promise(resolve => setTimeout(resolve, 800));
     expect(canvas.queryByText("Recording is not supported here")).toBeNull();

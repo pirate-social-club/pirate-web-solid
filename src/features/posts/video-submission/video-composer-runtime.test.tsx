@@ -641,10 +641,12 @@ describe("mounted song-first video flow", () => {
     await awaitPlan("ready");
     await chooseFile();
     moveWindow(2_000);
-    // The moved window is announced as a pending check: capture stays closed
-    // until it resolves, so the wait is visible rather than silent.
-    expect(document.querySelector('[data-song-plan="checking"]')?.classList.contains("hidden")).toBe(false);
-    expect(document.body.textContent).toContain("Checking this part of the song");
+    // The moved window is still tracked — the pending state is the composer's
+    // data attribute — but it is machinery, not copy: no status text appears
+    // for the author to read on every scrub adjustment.
+    expect(document.querySelector('[data-song-plan="checking"]')).not.toBeNull();
+    expect(document.body.textContent).not.toContain("Checking this part of the song");
+    expect(document.body.textContent).not.toContain("Waiting for the song check");
     // Publishing immediately, before the debounce can re-check, must not
     // submit the window the author just moved away from.
     await publish();
@@ -662,11 +664,13 @@ describe("mounted song-first video flow", () => {
     nextSession = () => fakeSession(() => {});
     const fixture = songSetup({ preflight: "accepted", mobile: true, deferIntervalChecks: true });
     await loadSongMetadata();
-    // The interval check is held open: while it pends, no capture channel is
-    // offered, the wait is announced, and the camera preview never opens.
+    // The interval check is held open: while it pends, no status text
+    // appears anywhere — the pending state lives on the confirm action —
+    // and no capture channel opens.
     await awaitPlan("checking");
     await vi.waitFor(() => expect(fixture.pendingChecks.length).toBe(1), { timeout: 3_000 });
-    await vi.waitFor(() => expect(document.body.textContent).toContain("Waiting for the song check"));
+    expect(document.body.textContent).not.toContain("Checking this part of the song");
+    expect(document.body.textContent).not.toContain("Waiting for the song check");
     // The record control is present but inert: without a song nothing
     // starts, and the view says what is missing instead.
     document.querySelector<HTMLButtonElement>('button[aria-label="Start recording"]')?.click();
@@ -705,6 +709,27 @@ describe("mounted song-first video flow", () => {
     option.click();
     await vi.waitFor(() => expect(asked).toEqual(["persona", "persona-two"]));
     await vi.waitFor(() => expect(document.body.textContent).toContain("can’t post a video to this song"));
+  });
+
+  test("confirming the sound waits for the check and closes the sheet itself", async () => {
+    const fixture = songSetup({ preflight: "accepted", mobile: true, deferIntervalChecks: true });
+    await loadSongMetadata();
+    await vi.waitFor(() => expect(fixture.pendingChecks.length).toBe(1), { timeout: 3_000 });
+    // The sheet opens over the capture view; confirming while the excerpt is
+    // still being checked puts the progress on the button, not in ambient
+    // text, and the acceptance closes the sheet on its own.
+    const chip = document.querySelector<HTMLButtonElement>('button[aria-label^="Song: A song"]');
+    expect(chip).not.toBeNull();
+    chip!.click();
+    await vi.waitFor(() => expect(document.querySelector("[data-add-sound-sheet]")?.getAttribute("aria-hidden")).toBeNull());
+    const confirm = [...document.querySelectorAll("button")].find(button => button.textContent === "Use this sound")!;
+    expect(confirm).toBeDefined();
+    confirm.click();
+    await vi.waitFor(() => expect([...document.querySelectorAll("button")].some(button => button.textContent === "Checking this sound…")).toBe(true));
+    expect(document.querySelector("[data-add-sound-sheet]")?.getAttribute("aria-hidden")).toBeNull();
+    fixture.pendingChecks[0]!();
+    await awaitPlan("ready");
+    await vi.waitFor(() => expect(document.querySelector("[data-add-sound-sheet]")?.getAttribute("aria-hidden")).toBe("true"));
   });
 
   test("a refused excerpt never opens capture", async () => {

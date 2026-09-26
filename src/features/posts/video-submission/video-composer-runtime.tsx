@@ -324,8 +324,12 @@ export function VideoComposerRuntime(props: {
   const [songEligibility, setSongEligibility] = createSignal<SongEligibility>({ kind: "unknown" }, { ownedWrite: true });
   const [songEligibilityAttempt, setSongEligibilityAttempt] = createSignal(0, { ownedWrite: true });
   let eligibilityRequest = 0;
+  /** The chosen song's id alone: excerpt bounds change the selection object
+   * on every scrub, and a verdict must not be re-asked for the same song,
+   * profile and community each time the window moves. */
+  const selectedSongPostId = createMemo(() => selection()?.songPostId);
   const eligibilityKey = (): EligibilityKey | undefined => {
-    const song = selection()?.songPostId;
+    const song = selectedSongPostId();
     const personaId = chosenPersonaId();
     const communityId = chosenCommunityId();
     return song !== undefined && personaId !== undefined && personaId !== "" && communityId !== undefined && communityId !== ""
@@ -335,9 +339,10 @@ export function VideoComposerRuntime(props: {
   const sameEligibilityKey = (left: EligibilityKey, right: EligibilityKey) =>
     left.communityId === right.communityId && left.postId === right.postId && left.personaId === right.personaId;
   const retrySongEligibility = () => { setSongEligibilityAttempt(attempt => attempt + 1); };
+  let eligibilityAttemptSeen = -1;
   createEffect(
     () => ({ key: eligibilityKey(), attempt: songEligibilityAttempt() }),
-    ({ key }) => {
+    ({ key, attempt }) => {
       // Every run invalidates any read still in flight, including the run
       // that finds no key at all: an old answer must never install a verdict.
       const epoch = ++eligibilityRequest;
@@ -345,6 +350,16 @@ export function VideoComposerRuntime(props: {
         setSongEligibility({ kind: "unknown" });
         return;
       }
+      // A settled verdict for exactly this key stands unless the author asked
+      // for a retry; re-running the read would only race it.
+      if (attempt === eligibilityAttemptSeen) {
+        const settled = untrack(songEligibility);
+        if ((settled.kind === "allowed" || settled.kind === "denied" || settled.kind === "failed")
+          && sameEligibilityKey(settled.key, key)) {
+          return;
+        }
+      }
+      eligibilityAttemptSeen = attempt;
       setSongEligibility({ kind: "checking", key });
       void (props.readSongEligibility ?? readSongVideoPolicy)(key).then(
         allowed => { if (!disposed && epoch === eligibilityRequest) setSongEligibility({ kind: allowed ? "allowed" : "denied", key }); },
@@ -862,14 +877,40 @@ export function VideoComposerRuntime(props: {
   };
   const songReserved = () => { const reservation = record()?.reservation; return reservation?.intent === "song_reference" ? reservation : undefined; };
   const openSongSheet = () => setSongSheetOpen(true);
+  /** Confirming the sound: an accepted excerpt closes the sheet; anything
+   * still pending puts its progress on the confirm button and closes by
+   * itself once the exact excerpt is accepted; a refusal keeps the sheet
+   * open with its actions. */
+  const [confirmingSound, setConfirmingSound] = createSignal(false, { ownedWrite: true });
+  const confirmSound = () => {
+    if (approvedSelection() !== undefined) {
+      setConfirmingSound(false);
+      setSongSheetOpen(false);
+      return;
+    }
+    const kind = songPlan().kind;
+    if (kind === "checking" || kind === "measuring" || eligibilityChecking()) setConfirmingSound(true);
+  };
+  createEffect(
+    () => ({ confirming: confirmingSound(), approved: approvedSelection() !== undefined, settled: songPlan().kind }),
+    ({ confirming, approved, settled }) => {
+      if (!confirming) return;
+      if (approved) {
+        setConfirmingSound(false);
+        setSongSheetOpen(false);
+        return;
+      }
+      if (settled === "refused" || settled === "failed" || settled === "ineligible" || settled === "not_available" || settled === "timing_unavailable") {
+        setConfirmingSound(false);
+      }
+    },
+  );
   /** The states the author must know about before recording, shown over the
-   * capture view; their resolving controls live in the sound sheet. */
+   * capture view. Pending checks are machinery, not information: they say
+   * nothing here and surface only on the sound sheet's confirm action. */
   const captureNotice = () => {
     if (file()) return undefined;
     if (chosenPersonaId() === "") return <p class="rounded-[var(--radius-lg)] bg-black/60 px-3 py-2 text-center text-sm text-white" role="status">Choose a profile before recording.</p>;
-    if (songChosen() && !captureReady() && (songPlan().kind === "checking" || songPlan().kind === "measuring" || eligibilityChecking())) {
-      return <p class="rounded-[var(--radius-lg)] bg-black/60 px-3 py-2 text-center text-sm text-white" role="status">Waiting for the song check before recording opens…</p>;
-    }
     if (eligibilityFailed()) {
       return (
         <div class="grid gap-2" role="alert">
@@ -966,9 +1007,6 @@ export function VideoComposerRuntime(props: {
               }} />
           </section>
           </fieldset>
-          <Show when={songChosen() && !captureReady() && (songPlan().kind === "checking" || songPlan().kind === "measuring" || eligibilityChecking())}>
-            <p class="text-sm text-muted-foreground" role="status">Waiting for the song check before recording opens…</p>
-          </Show>
           <Show when={eligibilityFailed()}>
             <div class="grid gap-2" role="alert">
               <FormNote tone="warning">This song couldn’t be checked for your profile. Nothing was recorded.</FormNote>
@@ -979,8 +1017,17 @@ export function VideoComposerRuntime(props: {
             <FormNote tone="warning">This profile can’t post a video to this song here. Choose another song, or switch profile and check again.</FormNote>
           </Show>
           <div class="flex justify-end gap-2">
-            <Button disabled={approvedSelection() === undefined} onClick={() => setSongSheetOpen(false)} type="button">
-              Use this sound
+            {/* Confirming asks the server about the excerpt on screen: the
+                progress lives on this button, and the sheet closes by itself
+                once the exact excerpt is accepted. A refusal stays on the
+                sheet with its actions instead. */}
+            <Button
+              disabled={confirmingSound()}
+              loading={confirmingSound()}
+              onClick={confirmSound}
+              type="button"
+            >
+              {confirmingSound() ? "Checking this sound…" : "Use this sound"}
             </Button>
           </div>
       </div>
