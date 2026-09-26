@@ -4,11 +4,12 @@ import { expect, within } from "storybook/test";
 import { createSignal, For, Show } from "solid-js";
 import type { JSX } from "@solidjs/web";
 
-import { Button, IconMusicNote, IconPlay, IconPlus, Type } from "../../../design-system";
+import { Button, IconMusicNote, IconPlay, Type } from "../../../design-system";
+import dancePosterSheet from "./fixtures/dance-poster-sheet.png";
 
 /** The dance create journeys, as fixture-backed design prototypes on the
  * capture-first flow. They establish what the Dance successor must build:
- * song chooser → what to make with it → fixed section or trim → capture →
+ * song chooser → that song's dance grid → fixed section or trim → capture →
  * review or a labelled private score. The camera's song control returns to
  * the chooser, which leads back through the dances for that song. Nothing here contacts a
  * server, opens a camera, grades anything, or pays anything. The score and
@@ -16,7 +17,7 @@ import { Button, IconMusicNote, IconPlay, IconPlus, Type } from "../../../design
  * still planned, no grading provider is selected, and posting the same
  * graded recording needs the recorded media-handoff amendment. */
 
-type Screen = "capture" | "chooser" | "preview" | "make" | "detail" | "review" | "score";
+type Screen = "capture" | "chooser" | "preview" | "dances" | "detail" | "review" | "score";
 
 interface FixtureSong {
   readonly postId: string;
@@ -32,6 +33,7 @@ interface FixtureDance {
   readonly creator: string;
   readonly duration: string;
   readonly section: string;
+  readonly posterIndex: 0 | 1 | 2 | 3;
 }
 
 const songs: readonly FixtureSong[] = [
@@ -40,11 +42,20 @@ const songs: readonly FixtureSong[] = [
 ];
 
 const dances: readonly FixtureDance[] = [
-  { id: "step-back", songPostId: "cadence", name: "Step Back", creator: "@salt-cove", duration: "0:12", section: "Cadence · 0:42–0:54" },
-  { id: "side-turn", songPostId: "low-tide", name: "Side Turn", creator: "@night-owl", duration: "0:09", section: "Low Tide · 0:03–0:12" },
+  { id: "step-back", songPostId: "cadence", name: "Step Back", creator: "@salt-cove", duration: "0:12", section: "Cadence · 0:42–0:54", posterIndex: 0 },
+  { id: "cross-step", songPostId: "cadence", name: "Cross Step", creator: "@harbor-beat", duration: "0:11", section: "Cadence · 0:18–0:29", posterIndex: 1 },
+  { id: "turn-and-clap", songPostId: "cadence", name: "Turn & Clap", creator: "@sunward", duration: "0:13", section: "Cadence · 1:02–1:15", posterIndex: 2 },
+  { id: "backbeat", songPostId: "cadence", name: "Backbeat", creator: "@blue-wake", duration: "0:10", section: "Cadence · 0:54–1:04", posterIndex: 3 },
+  { id: "side-turn", songPostId: "low-tide", name: "Side Turn", creator: "@night-owl", duration: "0:09", section: "Low Tide · 0:03–0:12", posterIndex: 2 },
+  { id: "low-step", songPostId: "low-tide", name: "Low Step", creator: "@reef-light", duration: "0:12", section: "Low Tide · 0:40–0:52", posterIndex: 3 },
 ];
 const profiles = ["@harbor-persona", "@reef-persona"] as const;
 const formatTime = (seconds: number) => `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
+const posterStyle = (index: 0 | 1 | 2 | 3): JSX.CSSProperties => ({
+  "background-image": `url(${dancePosterSheet})`,
+  "background-size": "auto 100%",
+  "background-position": `${index * 100 / 3}% center`,
+});
 
 function FixtureBadge(props: { readonly label: string }) {
   return (
@@ -57,10 +68,10 @@ function FixtureBadge(props: { readonly label: string }) {
 /** One reusable full-screen vertical stage: video fills the viewport,
  * a back button sits top-left, and each surface supplies its own overlay.
  * A real 9:16 video would cover this frame as it does in the feed. */
-function VerticalStage(props: { readonly onBack: () => void; readonly children?: JSX.Element }) {
+function VerticalStage(props: { readonly onBack: () => void; readonly posterIndex?: 0 | 1 | 2 | 3; readonly children?: JSX.Element }) {
   return (
     <div class="relative h-dvh overflow-hidden bg-black text-white" data-vertical-stage>
-      <div class="absolute inset-0 bg-gradient-to-b from-[#262a30] to-[#0d0f12]">
+      <div class="absolute inset-0 bg-gradient-to-b from-[#262a30] to-[#0d0f12]" style={props.posterIndex === undefined ? undefined : posterStyle(props.posterIndex)}>
         <div class="relative grid h-full w-full place-items-center" data-video-viewfinder>
           {props.children ?? <span class="text-sm text-white/70">Video (fixture)</span>}
         </div>
@@ -78,11 +89,11 @@ function VerticalStage(props: { readonly onBack: () => void; readonly children?:
 }
 
 function JourneyFrame(props: {
-  /** The make-with screen starts with ready dances, or with none yet. */
+  /** The selected song's grid starts with ready dances, or with none yet. */
   readonly withDances?: boolean;
 }) {
   const [screen, setScreen] = createSignal<Screen>("capture");
-  const [chooserReturn, setChooserReturn] = createSignal<"capture" | "make">("capture");
+  const [chooserReturn, setChooserReturn] = createSignal<"capture" | "dances">("capture");
   const [trimOpen, setTrimOpen] = createSignal(false);
   const [song, setSong] = createSignal<FixtureSong>();
   const [dance, setDance] = createSignal<FixtureDance | "new">();
@@ -106,7 +117,7 @@ function JourneyFrame(props: {
     setDance(undefined);
     setRecording(false);
     setSectionStart(42);
-    setScreen("make");
+    setScreen("dances");
   };
   const visibleDances = () => props.withDances === false
     ? []
@@ -145,7 +156,6 @@ function JourneyFrame(props: {
             >
               <span class={recording() ? "size-7 rounded-md bg-[#f0453a]" : "size-[58px] rounded-full bg-[#f0453a]"} />
             </button>
-            <Show when={!song()}><span class="pt-2 text-xs text-white/70">Choose a song to record</span></Show>
           </div>
         </div>
       </Show>
@@ -156,7 +166,7 @@ function JourneyFrame(props: {
          * header. */}
         <div class="flex h-dvh flex-col overflow-hidden bg-background p-3" data-song-chooser>
           <div class="flex items-center gap-2 pb-3">
-            <Button aria-label={chooserReturn() === "make" ? "Back to dances" : "Back to capture"} onClick={() => setScreen(chooserReturn())} variant="ghost">‹</Button>
+            <Button aria-label={chooserReturn() === "dances" ? "Back to dances" : "Back to capture"} onClick={() => setScreen(chooserReturn())} variant="ghost">‹</Button>
             <input
               aria-label="Search songs"
               class="min-w-0 flex-1 rounded-full border border-border-soft bg-background px-4 py-2 text-base"
@@ -199,61 +209,56 @@ function JourneyFrame(props: {
         </VerticalStage>
       </Show>
 
-      <Show when={screen() === "make"}>
-        <div class="min-h-dvh bg-background p-4" data-make-with>
-          <div class="flex items-center justify-between pb-4">
-            <Type as="h1" variant="h2">{song()?.title ?? "Choose a song"}</Type>
-            <Button onClick={() => { setChooserReturn("make"); setScreen("chooser"); }} variant="ghost">Change</Button>
-          </div>
-          <Type as="p" variant="body" class="pb-3 text-muted-foreground">What do you want to make?</Type>
-          <button
-            class="mb-5 grid w-full cursor-pointer gap-1 rounded-[var(--radius-xl)] border border-primary bg-primary-subtle p-4 text-start"
-            data-create-new-dance
-            onClick={() => { setDance("new"); setCaptureMode("post"); setTrimOpen(true); }}
-            type="button"
-          >
-            <span class="flex items-center gap-2 text-base font-semibold"><IconPlus class="size-5" /> Create a new dance</span>
-            <span class="text-sm text-muted-foreground">Pick your section, record the reference</span>
-          </button>
-          <Type as="h2" variant="overline" class="pb-2 text-muted-foreground">Dances to {song()?.title ?? "this song"}</Type>
-          <Show
-            when={visibleDances().length > 0}
-            fallback={
-              <div class="grid gap-2 pb-5" data-no-dances>
-                <Type as="p" variant="body">No dances to {song()?.title ?? "this song"} yet.</Type>
-                <Button class="w-fit" onClick={() => { setDance("new"); setCaptureMode("post"); setTrimOpen(true); }}>Create the first one</Button>
-              </div>
-            }
-          >
-            <ul class="grid gap-2 pb-5">
+      <Show when={screen() === "dances"}>
+        <div class="flex h-dvh flex-col overflow-hidden bg-background" data-dance-grid>
+          <header class="flex h-14 shrink-0 items-center gap-3 px-3">
+            <Button aria-label="Back to songs" onClick={() => { setChooserReturn("dances"); setScreen("chooser"); }} size="icon" variant="ghost">‹</Button>
+            <span class="min-w-0 truncate text-sm font-semibold">{song()?.title}</span>
+          </header>
+          <div class="min-h-0 flex-1 overflow-y-auto">
+            <ul aria-label={`Dances to ${song()?.title ?? "this song"}`} class="grid grid-cols-3 gap-0.5">
+              <li>
+                <button
+                  aria-label="Create new dance"
+                  class="grid aspect-[9/16] w-full cursor-pointer place-items-center border border-border-soft bg-background p-3 text-center text-xs font-medium text-foreground"
+                  data-create-new-dance
+                  onClick={() => { setDance("new"); setCaptureMode("post"); setTrimOpen(true); }}
+                  type="button"
+                >
+                  Create new dance
+                </button>
+              </li>
               <For each={visibleDances()}>
                 {candidate => (
                   <li>
                     <button
-                      class="flex w-full cursor-pointer items-center gap-3 rounded-[var(--radius-xl)] border border-border-soft p-3 text-start hover:bg-muted"
+                      aria-label={`Watch ${candidate.name} by ${candidate.creator}`}
+                      class="relative block aspect-[9/16] w-full cursor-pointer overflow-hidden bg-[#20242b] text-start text-white"
                       data-dance-row={candidate.id}
                       onClick={() => { setDance(candidate); setScreen("detail"); }}
                       type="button"
                     >
-                      <span class="grid size-16 place-items-center rounded-[var(--radius-lg)] bg-muted"><IconPlay class="size-6" /></span>
-                      <span class="min-w-0">
-                        <Type as="span" variant="body-strong" class="block truncate">{candidate.name}</Type>
-                        <Type as="span" variant="caption" class="block truncate text-muted-foreground">by {candidate.creator} · {candidate.duration}</Type>
+                      <span class="absolute inset-0" style={posterStyle(candidate.posterIndex)} aria-hidden="true" />
+                      <span class="absolute inset-x-0 bottom-0 grid gap-0.5 bg-gradient-to-t from-black/80 to-transparent px-2 pb-2 pt-8">
+                        <span class="truncate text-xs font-semibold">{candidate.name}</span>
+                        <span class="truncate text-[11px] text-white/75">{candidate.creator}</span>
                       </span>
                     </button>
                   </li>
                 )}
               </For>
             </ul>
-          </Show>
-          <button
-            class="flex w-full cursor-pointer items-center justify-between rounded-[var(--radius-lg)] px-2 py-3 text-start text-sm text-muted-foreground hover:bg-muted"
-            onClick={() => { setDance(undefined); setCaptureMode("post"); setScreen("capture"); }}
-            type="button"
-          >
-            Post a regular video with this song
-            <span aria-hidden="true">›</span>
-          </button>
+            <Show when={visibleDances().length === 0}>
+              <p class="px-4 py-5 text-sm text-muted-foreground" data-no-dances>No dances to {song()?.title} yet.</p>
+            </Show>
+            <button
+              class="mx-3 my-4 cursor-pointer text-start text-sm text-muted-foreground"
+              onClick={() => { setDance(undefined); setCaptureMode("post"); setScreen("capture"); }}
+              type="button"
+            >
+              Post a regular video with this song
+            </button>
+          </div>
         </div>
       </Show>
 
@@ -261,7 +266,7 @@ function JourneyFrame(props: {
         {/* The reference is the page: the same reusable full-screen stage
          * the feed and song previews use, with the dance's facts and
          * actions as the overlay. */}
-        <VerticalStage onBack={() => setScreen("make")}>
+        <VerticalStage onBack={() => setScreen("dances")} posterIndex={referenceDance()?.posterIndex}>
           <div class="absolute inset-x-0 bottom-0 z-10 grid gap-3 bg-gradient-to-t from-black/80 to-transparent p-4 pb-[max(1.25rem,env(safe-area-inset-bottom))] text-start" data-dance-detail>
             <div class="grid gap-0.5">
               <Type as="p" variant="body-strong" class="text-white">{referenceDance()?.name}</Type>
@@ -370,7 +375,7 @@ const meta = {
     docs: {
       description: {
         component:
-          "Design prototypes for the dance create flow: song chooser, what to make with a song, a fixed section for an existing dance or a movable 12-second section for a new one, capture with one song control leading back through the dances for that song, and a labelled private-score fixture. Fixture-backed and unpowered: nothing contacts a server, opens a camera, grades, or pays. The score and Post this take are fixtures; production dance work stays in its contract-backed lane.",
+          "Design prototypes for the dance create flow: song chooser, a 9:16 grid of dances for that song with a blank Create new dance tile first, a full-screen reference for each existing dance, a fixed section for an existing dance or a movable 12-second section for a new one, capture, and a labelled private-score fixture. Fixture-backed and unpowered: nothing contacts a server, opens a camera, grades, or pays. The score and Post this take are fixtures; production dance work stays in its contract-backed lane.",
       },
     },
   },
@@ -393,7 +398,7 @@ const chooseCadence = async (canvasElement: HTMLElement) => {
   const canvas = within(canvasElement);
   const song = await canvas.findByText("Cadence", undefined, { timeout: 8_000 });
   song.closest("button")!.click();
-  await canvas.findByText("What do you want to make?");
+  await canvas.findByRole("list", { name: "Dances to Cadence" });
 };
 
 export const NewDanceJourney: Story = {
@@ -415,11 +420,11 @@ export const NewDanceJourney: Story = {
       canvas.getAllByRole("button", { name: "Back" })[0]!.click();
       await canvas.findByLabelText("Search songs");
     });
-    await step("choosing the song shows what to make", async () => {
+    await step("choosing the song opens its dance video grid", async () => {
       await chooseCadence(canvasElement);
     });
-    await step("Create a new dance opens the trim sheet", async () => {
-      canvas.getByText("Create a new dance").closest("button")!.click();;
+    await step("the first grid tile opens the trim sheet", async () => {
+      canvas.getByRole("button", { name: "Create new dance" })!.click();
       await canvas.findByRole("dialog", { name: "Choose the section" });
       // Use this section closes to the camera, where Record is a separate
       // deliberate tap.
@@ -440,7 +445,7 @@ export const ExistingDanceJourney: Story = {
     const canvas = within(canvasElement);
     await step("a dance row opens its detail", async () => {
       await openChooser(canvasElement); await chooseCadence(canvasElement);
-      canvas.getByText("Step Back").closest("button")!.click();;
+      canvas.getByRole("button", { name: "Watch Step Back by @salt-cove" })!.click();
       await canvas.findByText(/fixed section/);
       await canvas.findByText("Dancing as @harbor-persona");
     });
@@ -467,14 +472,14 @@ export const ExistingDanceJourney: Story = {
 };
 
 export const NoDancesYet: Story = {
-  name: "No dances yet: creating the first one is the action",
+  name: "No dances yet: the create tile remains first",
   globals: { viewport: { value: "mobile1", isRotated: false } },
   render: () => <JourneyFrame withDances={false} />,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await openChooser(canvasElement); await chooseCadence(canvasElement);
     await canvas.findByText("No dances to Cadence yet.");
-    const first = canvas.getByRole("button", { name: "Create the first one" });
+    const first = canvas.getByRole("button", { name: "Create new dance" });
     first.click();
     await canvas.findByRole("dialog", { name: "Choose the section" });
   },
