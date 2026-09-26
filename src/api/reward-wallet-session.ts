@@ -61,6 +61,11 @@ export function isWalletRefusal(error: unknown): boolean {
   return error !== null && typeof error === "object" && "code" in error && error.code === 4001;
 }
 function rpcInteger(value: unknown): bigint {
+  // Privy's embedded provider may normalize JSON-RPC integer results to bigint.
+  if (typeof value === "bigint") {
+    if (value < 0n) throw new Error("wallet_invalid_response");
+    return value;
+  }
   if (typeof value !== "string" || !/^0x[0-9a-f]+$/iu.test(value)) throw new Error("wallet_invalid_response");
   return BigInt(value);
 }

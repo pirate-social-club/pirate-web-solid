@@ -75,6 +75,24 @@ describe("explicit persona wallet authorization", () => {
     expect(await session.send(context(), fee, async () => undefined)).toBe(transactionHash);
     expect(h.client.getEmbeddedEthereumProvider).toHaveBeenCalledTimes(3);
   });
+  it("accepts Privy bigint integer responses through fee review and send", async () => {
+    const h = harness(); const session = await h.create(); await session.loginWithCode("a", "b");
+    h.responses.set("eth_chainId", 84532n);
+    h.responses.set("eth_call", 10000000n);
+    h.responses.set("eth_estimateGas", 50000n);
+    h.responses.set("eth_gasPrice", 2n);
+    h.responses.set("eth_getBalance", 10000000n);
+    h.responses.set("eth_getTransactionCount", 7n);
+    expect(await session.estimate(context())).toEqual(fee);
+    expect(await session.send(context(), fee, async () => undefined)).toBe(transactionHash);
+    expect(h.requests.filter(item => item.method === "eth_sendTransaction")).toHaveLength(1);
+  });
+  it.each([-1n, 0, null, "10000000", "0x"])("rejects malformed integer response %s before broadcast", async value => {
+    const h = harness(); const session = await h.create(); await session.loginWithCode("a", "b");
+    h.responses.set("eth_call", value);
+    await expect(session.send(context(), fee, async () => undefined)).rejects.toThrow("wallet_invalid_response");
+    expect(h.requests.some(item => item.method === "eth_sendTransaction")).toBe(false);
+  });
   it.each([
     ["eth_accounts", [recipient], "wallet_assignment_mismatch"],
     ["eth_chainId", "0x1", "wallet_wrong_chain"],
