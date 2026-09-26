@@ -138,6 +138,23 @@ export const ChooseHearAndRetain: Story = {
   ),
 };
 
+/** The community's songs a feed page at a time: Load more reaches the next
+ * page, and the search says it covers loaded songs only while pages remain. */
+export const PagedSongChoice: Story = {
+  render: () => (
+    <SongExcerptComposer
+      communityId="community-story"
+      onClose={() => {}}
+      songs={async (_communityId, cursor) => cursor === null
+        ? { songs: standInSongList.slice(0, 2), nextCursor: "story-page-2" }
+        : { songs: standInSongList.slice(2), nextCursor: null }}
+      read={standInReader("Cadence", 150_000)}
+      preflight={standInPreflight}
+      store={memoryStore()}
+    />
+  ),
+};
+
 /** A song picked from the list: its window plays and the excerpt controls
  * take the picker's place. */
 export const SongPicked: Story = {

@@ -1,5 +1,6 @@
 /** @jsxImportSource @solidjs/web */
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
+import { createSignal, Show } from "solid-js";
 
 import { Type } from "../../../design-system";
 import { AppHeader, MobileFooterNav } from "./app-shell-chrome";
@@ -20,4 +21,24 @@ export const MobileFooter: Story = { globals: { viewport: { value: "mobile1", is
 export const MobileFooterOnSongs: Story = { globals: { viewport: { value: "mobile1", isRotated: false } }, render: () => <div class="min-h-screen bg-background px-3 pb-28 pt-6"><Body>Mobile footer on the Your songs destination</Body><MobileFooterNav activeItem="songs" forceMobile labels={footerLabels} /></div> };
 // The shell's footer carries the center create action: a command that opens
 // the video create entry, never a destination that can be the current page.
-export const MobileFooterWithCreate: Story = { globals: { viewport: { value: "mobile1", isRotated: false } }, render: () => <div class="min-h-screen bg-background px-3 pb-28 pt-6"><Body>Mobile footer with the center create action between Your songs and Wallet</Body><MobileFooterNav activeItem="home" forceMobile labels={{ ...footerLabels, createAriaLabel: "Post a video" }} onCreateClick={() => {}} /></div> };
+// The story answers the tap visibly, because Storybook has no router.
+export const MobileFooterWithCreate: Story = {
+  globals: { viewport: { value: "mobile1", isRotated: false } },
+  render: () => {
+    const [opened, setOpened] = createSignal(false);
+    return (
+      <div class="min-h-screen bg-background px-3 pb-28 pt-6">
+        <Body>Mobile footer with the center create action between Your songs and Wallet</Body>
+        <Show when={opened()}>
+          <p class="pb-3 text-sm text-muted-foreground" role="status">The create action opens /communities?compose=video.</p>
+        </Show>
+        <MobileFooterNav
+          activeItem="home"
+          forceMobile
+          labels={{ ...footerLabels, createAriaLabel: "Post a video" }}
+          onCreateClick={() => setOpened(true)}
+        />
+      </div>
+    );
+  },
+};

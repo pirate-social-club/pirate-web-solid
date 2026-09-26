@@ -5,7 +5,7 @@ import { SongExcerptComposer, type SoundtrackSelection } from "../post-composer/
 import { createLocalExcerptDraftStore } from "../post-composer/song-excerpt-draft-store";
 import type { SongSourceReader } from "../post-composer/song-excerpt-source";
 import { OriginalVideoCaptureSurface, OriginalVideoReviewSurface } from "../post-composer/video-original-audio-surface";
-import { readSongVideoEligibility } from "../public-post/song-video-entry";
+import { readSongVideoPolicy } from "../public-post/song-video-entry";
 import type { OriginalVideoCaptureInput, VideoCaptureSession } from "./capture";
 import { captureStopAfterMs, clipFitMessage, fitClipToExcerpt, GUIDED_TAKE_MAX_DURATION_SECONDS, songLengthForClip } from "./clip-duration";
 import type { VideoSnapshot } from "./contracts";
@@ -232,11 +232,15 @@ export function VideoComposerRuntime(props: {
   const songNeedsAttention = () => {
     const kind = songPlan().kind;
     // A pending check needs the author's attention too: the capture surface
-    // below stays closed until it resolves, so the panel must say why.
+    // below stays closed until it resolves, so the panel must say why. A
+    // profile refusal or an unreadable policy opens the panel as well,
+    // because changing the song is one of the two ways out and its controls
+    // live there.
     return selection() === null
       || kind === "checking" || kind === "measuring"
       || kind === "not_available" || kind === "timing_unavailable" || kind === "refused"
       || kind === "ineligible" || kind === "failed"
+      || eligibilityDenied() || eligibilityFailed()
       // A take that cannot publish with the song needs the choice below it.
       || takeMismatch() || (takeSoundtrack() !== null && takeAlignment() === "unaligned") || clipProblem() !== undefined;
   };
@@ -270,36 +274,81 @@ export function VideoComposerRuntime(props: {
     }
     return plan.selection;
   });
-  /** The owner-policy answer for this exact persona and song. "Use this song"
-   * asks the same question at its entry; the global entry asks it here,
-   * because the interval preflight is account-scoped and cannot see persona
-   * restrictions. A missing persona keeps capture closed rather than
-   * unchecked, and an unreadable answer fails closed with the chance to
-   * retry by changing song or profile. */
-  const [songEligibility, setSongEligibility] = createSignal<"unknown" | "checking" | "allowed" | "denied">("unknown", { ownedWrite: true });
+  /** The owner-policy verdict for one exact community, song and persona,
+   * stored with the key it answered, so a verdict for an input the author
+   * has already changed away from is never treated as current. "Use this
+   * song" asks the same question at its entry; the global entry asks it
+   * here, because the interval preflight is account-scoped and cannot see
+   * persona restrictions. A missing persona keeps capture closed, an
+   * unreadable answer is distinct from a refusal so it can be retried, and
+   * both fail closed. */
+  interface EligibilityKey {
+    readonly communityId: string;
+    readonly postId: string;
+    readonly personaId: string;
+  }
+  type SongEligibility =
+    | { readonly kind: "unknown" }
+    | { readonly kind: "checking" | "allowed" | "denied" | "failed"; readonly key: EligibilityKey };
+  const [songEligibility, setSongEligibility] = createSignal<SongEligibility>({ kind: "unknown" }, { ownedWrite: true });
+  const [songEligibilityAttempt, setSongEligibilityAttempt] = createSignal(0, { ownedWrite: true });
   let eligibilityRequest = 0;
+  const eligibilityKey = (): EligibilityKey | undefined => {
+    const song = selection()?.songPostId;
+    const personaId = props.personaId?.trim();
+    const communityId = props.communityId?.trim();
+    return song !== undefined && personaId !== undefined && personaId !== "" && communityId !== undefined && communityId !== ""
+      ? { communityId, postId: song, personaId }
+      : undefined;
+  };
+  const sameEligibilityKey = (left: EligibilityKey, right: EligibilityKey) =>
+    left.communityId === right.communityId && left.postId === right.postId && left.personaId === right.personaId;
+  const retrySongEligibility = () => { setSongEligibilityAttempt(attempt => attempt + 1); };
   createEffect(
-    () => ({ song: selection()?.songPostId, personaId: props.personaId, communityId: props.communityId?.trim() }),
-    ({ song, personaId, communityId }) => {
-      if (song === undefined || personaId === undefined || personaId.trim() === "" || communityId === undefined || communityId === "") {
-        setSongEligibility("unknown");
+    () => ({ key: eligibilityKey(), attempt: songEligibilityAttempt() }),
+    ({ key }) => {
+      // Every run invalidates any read still in flight, including the run
+      // that finds no key at all: an old answer must never install a verdict.
+      const epoch = ++eligibilityRequest;
+      if (key === undefined) {
+        setSongEligibility({ kind: "unknown" });
         return;
       }
-      setSongEligibility("checking");
-      const epoch = ++eligibilityRequest;
-      void (props.readSongEligibility ?? readSongVideoEligibility)({ communityId, postId: song, personaId }).then(
-        allowed => { if (!disposed && epoch === eligibilityRequest) setSongEligibility(allowed ? "allowed" : "denied"); },
-        () => { if (!disposed && epoch === eligibilityRequest) setSongEligibility("denied"); },
+      setSongEligibility({ kind: "checking", key });
+      void (props.readSongEligibility ?? readSongVideoPolicy)(key).then(
+        allowed => { if (!disposed && epoch === eligibilityRequest) setSongEligibility({ kind: allowed ? "allowed" : "denied", key }); },
+        () => { if (!disposed && epoch === eligibilityRequest) setSongEligibility({ kind: "failed", key }); },
       );
     },
   );
+  const eligibilityAllowed = () => {
+    const verdict = songEligibility();
+    const key = eligibilityKey();
+    return verdict.kind === "allowed" && key !== undefined && sameEligibilityKey(verdict.key, key);
+  };
+  const eligibilityDenied = () => {
+    const verdict = songEligibility();
+    const key = eligibilityKey();
+    return verdict.kind === "denied" && key !== undefined && sameEligibilityKey(verdict.key, key);
+  };
+  const eligibilityFailed = () => {
+    const verdict = songEligibility();
+    const key = eligibilityKey();
+    return verdict.kind === "failed" && key !== undefined && sameEligibilityKey(verdict.key, key);
+  };
+  const eligibilityChecking = () => {
+    const verdict = songEligibility();
+    const key = eligibilityKey();
+    return (verdict.kind === "checking" && key !== undefined && sameEligibilityKey(verdict.key, key))
+      || (verdict.kind === "unknown" && key !== undefined);
+  };
   /** Whether recording or upload may start: a song and excerpt are chosen,
    * the server has accepted exactly that selection, and the chosen profile
    * is allowed to post a video to that song. A pending or refused plan, an
    * approval for a window the author has moved away from, or an unanswered
    * profile question keeps both capture channels closed; the reservation
    * still re-checks at publish. */
-  const captureReady = () => songChosen() && approvedSelection() !== undefined && songEligibility() === "allowed";
+  const captureReady = () => songChosen() && approvedSelection() !== undefined && eligibilityAllowed();
   /** The excerpt a guided take was recorded to, when one was. A take danced to
    * one window cannot be published against another. */
   const [takeSoundtrack, setTakeSoundtrack] = createSignal<{ readonly songPostId: string; readonly bounds: ExcerptBounds } | null>(null);
@@ -501,6 +550,17 @@ export function VideoComposerRuntime(props: {
     // finalization cannot clear it.
     if (reason && !disposed) setError(reason);
   }
+  /** A guide prepared from one exact excerpt is only usable while that exact
+   * excerpt is still the chosen one: a take danced to one window cannot be
+   * started against another, however quickly the new window is approved. */
+  function guideStillCurrent(guide: SoundtrackSelection): boolean {
+    const current = selection();
+    return current !== null
+      && current.songPostId === guide.songPostId
+      && current.bounds.startMs === guide.bounds.startMs
+      && current.bounds.endMs === guide.bounds.endMs;
+  }
+
   async function toggleCapture() {
     // Stopping is always available; only starting is gated on acceptance.
     if (session) { await stopCapture(); return; }
@@ -518,8 +578,10 @@ export function VideoComposerRuntime(props: {
         const ready = await prepareGuide(guide);
         if (disposed) return;
         // The song panel can change while the guide loads; the approval that
-        // opened the capture surface is not a license that survives it.
-        if (!captureReady()) return;
+        // opened the capture surface is not a license that survives it, and
+        // a newly approved excerpt must not be recorded against the guide
+        // prepared for the old one.
+        if (!captureReady() || !guideStillCurrent(guide)) return;
         setProgress("");
         if (!ready) throw new Error("The song didn't finish loading, so recording didn't start. Check your connection and try again.");
         prepared = ready;
@@ -542,9 +604,10 @@ export function VideoComposerRuntime(props: {
       captureStarting = true;
       try {
         // The last synchronous boundary before the camera rolls: every await
-        // above could have raced a song-panel change, so the gate is asked
-        // once more, immediately before the take begins.
-        if (!captureReady()) { captureStarting = false; return; }
+        // above could have raced a song-panel change, so both the gate and
+        // the guide's identity are asked once more, immediately before the
+        // take begins.
+        if (!captureReady() || (guide !== null && !guideStillCurrent(guide))) { captureStarting = false; return; }
         current = await startCapture({
           onFailure: failure => {
             session = null; stopGuide();
@@ -800,13 +863,26 @@ export function VideoComposerRuntime(props: {
         <Button variant="secondary" onClick={() => setSongPanelOpen(false)}>Done</Button>
       </Show>
       </div>
-      <Show when={!file() && songChosen() && !captureReady() && (songPlan().kind === "checking" || songPlan().kind === "measuring" || songEligibility() === "checking" || songEligibility() === "unknown")}>
-        <p class="text-sm text-muted-foreground" role="status">Waiting for the song check before recording opens…</p>
+      <Show when={!file() && songChosen() && !captureReady() && (songPlan().kind === "checking" || songPlan().kind === "measuring" || eligibilityChecking())}>
+        <p class="text-sm text-muted-foreground" role="status">
+          {props.personaId === undefined || props.personaId.trim() === ""
+            ? "Choose a profile for this community before recording."
+            : "Waiting for the song check before recording opens…"}
+        </p>
       </Show>
-      <Show when={!file() && songEligibility() === "denied" && approvedSelection() !== undefined && !takeMismatch()}>
-        <FormNote tone="warning">This song can’t be posted by the chosen profile. Choose another song, or switch profile and check again.</FormNote>
+      <Show when={!file() && eligibilityFailed()}>
+        <div class="grid gap-2" role="alert">
+          <FormNote tone="warning">This song couldn’t be checked for your profile. Nothing was recorded.</FormNote>
+          <Button onClick={retrySongEligibility} size="sm" type="button" variant="secondary">Try the check again</Button>
+        </div>
       </Show>
-      <Show when={!file() && captureReady()}>
+      <Show when={!file() && eligibilityDenied() && approvedSelection() !== undefined && !takeMismatch()}>
+        <div class="grid gap-2" role="alert">
+          <FormNote tone="warning">This song’s owner doesn’t allow videos by this profile. Choose another song, or switch profile and check again.</FormNote>
+          <Button onClick={() => setSongPanelOpen(true)} size="sm" type="button" variant="secondary">Change song</Button>
+        </div>
+      </Show>
+      <Show when={!file() && (captureReady() || captureStatus() === "recording" || finalizing())}>
         <div inert={interactionBusy()}>
           <Show when={captureStatus() === "recording"}>
             <p role="status" class="sr-only">{selection()

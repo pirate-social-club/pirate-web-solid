@@ -67,6 +67,9 @@ export interface CommunityPageProps {
   /** Entering from a song post's "Use this song": the song is carried into the
    * video composer, which opens once a posting session is resolved. */
   readonly initialVideoSong?: { readonly postId: string };
+  /** Clears the compose marker from the URL once the song-entry composer has
+   * been opened and dismissed, so a reload browses instead of reopening it. */
+  readonly clearVideoSongIntent?: () => void;
   readonly client?: CommunityRouteClient;
   readonly engagementApi?: CommunityEngagementApi;
   readonly handleSalesClient?: PublicHandleSalesApiClient;
@@ -132,6 +135,8 @@ function SuccessState(props: {
   readonly communityId: string;
   readonly engagementApi: CommunityEngagementApi;
   readonly initialVideoSong?: { readonly postId: string };
+  /** Clears the song-entry compose marker once its composer is dismissed. */
+  readonly clearVideoSongIntent?: () => void;
   readonly state: CommunityPageSuccess;
   readonly handleSalesClient: PublicHandleSalesApiClient;
   readonly resolveSession?: () => Promise<SessionResolution>;
@@ -628,7 +633,15 @@ function SuccessState(props: {
             communityContext={{ id: communityId, name: community().name }}
             initialVideoSong={props.initialVideoSong}
             onPublished={href => { if (href !== undefined) navigate(href); }}
-            onOpenChange={setComposerOpen}
+            onOpenChange={(open) => {
+              setComposerOpen(open);
+              // Dismissing the composer the song entry opened also clears
+              // the URL marker, so a reload cannot reopen it.
+              if (!open && openedForSong) {
+                openedForSong = false;
+                props.clearVideoSongIntent?.();
+              }
+            }}
             open={composerOpen()}
             personaId={selectedPersonaId()}
             personas={communityOperationPersonas(session().personas, communityId)}
@@ -643,6 +656,8 @@ function SuccessState(props: {
 function CommunityState(props: {
   readonly engagementApi: CommunityEngagementApi;
   readonly initialVideoSong?: { readonly postId: string };
+  /** Clears the song-entry compose marker once its composer is dismissed. */
+  readonly clearVideoSongIntent?: () => void;
   readonly state: CommunityPageViewState;
   readonly handleSalesClient: PublicHandleSalesApiClient;
   readonly resolveSession?: () => Promise<SessionResolution>;
@@ -666,6 +681,7 @@ function CommunityState(props: {
               communityId={communityId}
               engagementApi={props.engagementApi}
               initialVideoSong={props.initialVideoSong}
+              clearVideoSongIntent={props.clearVideoSongIntent}
               state={state()}
               handleSalesClient={props.handleSalesClient}
               resolveSession={props.resolveSession}
@@ -698,6 +714,7 @@ function CommunityData(props: CommunityPageProps) {
     <CommunityState
       engagementApi={engagementApi}
       initialVideoSong={props.initialVideoSong}
+      clearVideoSongIntent={props.clearVideoSongIntent}
       viewerVoteClient={props.viewerVoteClient}
       state={state()}
       handleSalesClient={handleSalesClient}

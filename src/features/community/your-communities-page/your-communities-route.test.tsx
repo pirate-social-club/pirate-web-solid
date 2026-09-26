@@ -341,6 +341,44 @@ describe("YourCommunitiesRouteView", () => {
     expect(container.textContent).not.toContain("Choose a community for your video.");
     setIntent("video");
     await vi.waitFor(() => expect(container.textContent).toContain("Choose a community for your video."));
+    // Browser Back removing the marker stands the page down again, unless a
+    // composer the intent opened is still up.
+    setIntent(undefined);
+    await vi.waitFor(() => expect(container.textContent).not.toContain("Choose a community for your video."));
+  });
+
+  test("create mode withdraws the duplicate Post here action", async () => {
+    const container = render(() => (
+      <YourCommunitiesRouteView
+        createIntent="video"
+        applicationSession={() => ({ status: "authenticated", userId: "account-one" })}
+        loadMemberships={async () => [routedMembership]}
+        resolvePostingSession={vi.fn(async () => ({ status: "authenticated" as const, userId: "account-one", personas: [] }))}
+      />
+    ));
+    await vi.waitFor(() => expect(container.textContent).toContain("Choose a community for your video."));
+    // The row is the one way to choose; Post here is withdrawn until the
+    // page browses again.
+    expect(container.querySelector("[data-post-community-id]")).toBeNull();
+  });
+
+  test("a failed membership load offers its own retry", async () => {
+    let attempts = 0;
+    const container = render(() => (
+      <YourCommunitiesRouteView
+        applicationSession={() => ({ status: "authenticated", userId: "account-one" })}
+        loadMemberships={vi.fn(async () => {
+          attempts += 1;
+          if (attempts === 1) throw new Error("offline");
+          return [routedMembership];
+        })}
+      />
+    ));
+    await vi.waitFor(() => expect(container.textContent).toContain("We couldn't load your Communities."));
+    const retry = [...container.querySelectorAll("button")].find(button => button.textContent === "Try again");
+    expect(retry).toBeDefined();
+    retry!.click();
+    await vi.waitFor(() => expect(container.textContent).toContain("Harbor"));
   });
 
   test("a route-less community row is a choice in create mode", async () => {

@@ -321,6 +321,25 @@ describe("mounted song-first video flow", () => {
     Object.defineProperty(input, "files", { configurable: true, value: [new File(["video"], "take.mp4", { type: "video/mp4" })] });
     input.dispatchEvent(new Event("change", { bubbles: true }));
   }
+  /** Chooses a song by pasting its `/p/<id>` link into the picker; a song
+   * already loaded is changed out first through the composer's control. */
+  async function pickSongByLink(link: string) {
+    const change = [...document.querySelectorAll("button")].find(candidate => candidate.textContent === "Change song" || candidate.textContent === "Change");
+    if (change !== undefined) {
+      change.click();
+      await vi.waitFor(() => expect(document.querySelector('input[aria-label="Search songs"]')).not.toBeNull());
+    }
+    const input = document.querySelector<HTMLInputElement>('input[aria-label="Search songs"]');
+    if (input === null) throw new Error("the song picker is not on screen");
+    input.value = link;
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    const use = await vi.waitFor(() => {
+      const button = [...document.querySelectorAll("button")].find(candidate => candidate.textContent === "Use the song at this link");
+      expect(button).toBeDefined();
+      return button as HTMLButtonElement;
+    });
+    use.click();
+  }
   async function publish() {
     const control = button("Publish video")!;
     await vi.waitFor(() => expect(control.disabled).toBe(false)); control.click();
@@ -671,17 +690,105 @@ describe("mounted song-first video flow", () => {
     // allowing answer opens capture.
     await vi.waitFor(() => expect(asked).toContainEqual({ communityId: "community", postId: "song-post", personaId: "persona" }));
     await vi.waitFor(() => expect(document.querySelector('button[aria-label="Start recording"]')).not.toBeNull());
-    expect(document.body.textContent).not.toContain("can’t be posted by the chosen profile");
+    expect(document.body.textContent).not.toContain("doesn’t allow videos by this profile");
   });
 
   test("a profile the song's owner refuses never opens capture", async () => {
     songSetup({ preflight: "accepted", mobile: true, songEligibility: async () => false });
     await loadSongMetadata();
     await awaitPlan("ready");
-    await vi.waitFor(() => expect(document.body.textContent).toContain("can’t be posted by the chosen profile"));
+    await vi.waitFor(() => expect(document.body.textContent).toContain("This song’s owner doesn’t allow videos by this profile."));
     expect(document.querySelector('button[aria-label="Start recording"]')).toBeNull();
     expect(previews).toHaveLength(0);
     expect(startCapture).not.toHaveBeenCalled();
+  });
+
+  test("a verdict for a song the author left never applies", async () => {
+    const releases: ((allowed: boolean) => void)[] = [];
+    songSetup({
+      preflight: "accepted",
+      mobile: true,
+      initialSong: false,
+      songEligibility: () => new Promise<boolean>(resolve => { releases.push(resolve); }),
+    });
+    // Two songs chosen one after the other, each with its policy read held
+    // open; the first song's late answer must not install a verdict for the
+    // second, whichever way it goes.
+    await pickSongByLink("https://pirate.test/p/song-post");
+    await loadSongMetadata();
+    await awaitPlan("ready");
+    await vi.waitFor(() => expect(releases.length).toBe(1));
+    await pickSongByLink("https://pirate.test/p/another-post");
+    await loadSongMetadata();
+    await awaitPlan("ready");
+    await vi.waitFor(() => expect(releases.length).toBe(2));
+    releases[0]!(true);
+    await new Promise(resolve => setTimeout(resolve, 20));
+    expect(document.querySelector('button[aria-label="Start recording"]')).toBeNull();
+    releases[1]!(true);
+    await vi.waitFor(() => expect(document.querySelector('button[aria-label="Start recording"]')).not.toBeNull());
+  });
+
+  test("an unreadable policy is a retryable failure, not a refusal", async () => {
+    let calls = 0;
+    songSetup({
+      preflight: "accepted",
+      mobile: true,
+      songEligibility: async () => { calls += 1; return calls === 1 ? Promise.reject(new Error("offline")) : true; },
+    });
+    await loadSongMetadata();
+    await awaitPlan("ready");
+    await vi.waitFor(() => expect(document.body.textContent).toContain("couldn’t be checked for your profile"));
+    expect(document.querySelector('button[aria-label="Start recording"]')).toBeNull();
+    const retry = [...document.querySelectorAll("button")].find(button => button.textContent === "Try the check again")!;
+    expect(retry).toBeDefined();
+    retry.click();
+    await vi.waitFor(() => expect(document.querySelector('button[aria-label="Start recording"]')).not.toBeNull());
+    expect(document.body.textContent).not.toContain("couldn’t be checked for your profile");
+  });
+
+  test("recording survives losing approval and can still be stopped", async () => {
+    const verdict = { allowed: true };
+    const guide = guideSpy();
+    nextSession = () => fakeSession(() => {});
+    songSetup({ preflight: "accepted", mobile: true, createGuideAudio: () => guide.audio, songEligibility: async () => verdict.allowed });
+    await loadSongMetadata();
+    await awaitPlan("ready");
+    await startRecording();
+    // The policy flipping against the author mid-take must not remove the
+    // stop control; the take is stopped, never stranded.
+    verdict.allowed = false;
+    await vi.waitFor(() => expect(document.querySelector('button[aria-label="Stop recording"]')).not.toBeNull());
+    await stopRecording();
+    await vi.waitFor(() => expect(document.querySelector("textarea")).not.toBeNull());
+  });
+
+  test("a guide prepared for a moved window never starts the take", async () => {
+    const guide = guideSpy({ manual: true });
+    nextSession = () => fakeSession(() => {});
+    const fixture = songSetup({
+      preflight: "accepted",
+      mobile: true,
+      clipDurationMs: 16_000,
+      deferIntervalChecks: true,
+      createGuideAudio: () => guide.audio,
+      songEligibility: async () => true,
+    });
+    await loadSongMetadata();
+    await vi.waitFor(() => expect(fixture.pendingChecks.length).toBe(1), { timeout: 3_000 });
+    fixture.pendingChecks[0]!();
+    await awaitPlan("ready");
+    await startRecording();
+    // While the guide loads, the author moves to another window and that
+    // window is accepted too; the prepared guide is for the old one.
+    moveWindow(2_000);
+    await vi.waitFor(() => expect(fixture.pendingChecks.length).toBe(2), { timeout: 3_000 });
+    fixture.pendingChecks[1]!();
+    await awaitPlan("ready");
+    guide.release();
+    await new Promise(resolve => setTimeout(resolve, 50));
+    expect(startCapture).not.toHaveBeenCalled();
+    expect(document.querySelector('button[aria-label="Stop recording"]')).toBeNull();
   });
 
   test("a stale preflight answer cannot approve a window that moved", async () => {

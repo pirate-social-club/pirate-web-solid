@@ -28,14 +28,25 @@ export async function readSongVideoEligibility(input: {
   readonly personaId: string;
 }): Promise<boolean> {
   try {
-    const response = await createSessionApiClient().get_communitiesCommunityIdPostsPostIdOwnerPolicyPublic({
-      path: { communityId: input.communityId, postId: input.postId },
-      query: { persona_id: input.personaId },
-    });
-    return response.can_post_with_song === true;
+    return await readSongVideoPolicy(input);
   } catch {
     return false;
   }
+}
+
+/** The same owner-policy read without the catch: the video runtime must tell
+ * an unreadable policy apart from a refusing one, because one retries and
+ * the other changes song or profile. */
+export async function readSongVideoPolicy(input: {
+  readonly communityId: string;
+  readonly postId: string;
+  readonly personaId: string;
+}): Promise<boolean> {
+  const response = await createSessionApiClient().get_communitiesCommunityIdPostsPostIdOwnerPolicyPublic({
+    path: { communityId: input.communityId, postId: input.postId },
+    query: { persona_id: input.personaId },
+  });
+  return response.can_post_with_song === true;
 }
 
 /** The "Use this song" entry names its song in the query, because a link must

@@ -37,12 +37,19 @@ export interface YourCommunitiesRouteProps {
   readonly createIntent?: "video";
   /** Removes the compose marker from the URL, preserving other query
    * parameters, when the intent is consumed by a cancel or a composer
-   * dismissal — so a reload cannot restore an intent the page says ended. */
+   * dismissal — so a reload cannot restore an intent the UI says ended. */
   readonly clearCreateIntent?: () => void;
   readonly applicationSession?: Accessor<ApplicationSessionState | undefined>;
   readonly loadMemberships?: () => Promise<readonly AccountCommunityMembership[]>;
   readonly resolvePostingSession?: () => Promise<SessionResolution>;
   readonly navigate?: (href: string) => void;
+  /** Story and test seams for the create flow's video runtime: the song
+   * read, the excerpt preflight, the per-persona owner policy and the video
+   * draft store. Production leaves all four to the runtime's own clients. */
+  readonly videoSongEligibility?: (input: { readonly communityId: string; readonly postId: string; readonly personaId: string }) => Promise<boolean>;
+  readonly videoSongPreflight?: import("../../posts/video-submission/song-reference").SongIntervalPreflight;
+  readonly videoSongReader?: import("../../posts/post-composer/song-excerpt-source").SongSourceReader;
+  readonly videoStorage?: import("../../posts/video-submission/coordinator").VideoStorage;
 }
 
 function summary(membership: AccountCommunityMembership): YourCommunitySummary {
@@ -68,7 +75,13 @@ export function YourCommunitiesRouteView(props: YourCommunitiesRouteProps = {}) 
   const [createMode, setCreateMode] = createSignal(props.createIntent === "video", { ownedWrite: true });
   createEffect(
     () => props.createIntent,
-    intent => { if (intent === "video") setCreateMode(true); },
+    intent => {
+      if (intent === "video") setCreateMode(true);
+      // Browser Back can remove the marker while this page stays mounted;
+      // the page follows the URL unless a composer the intent opened is
+      // still in flight, so the state never disagrees with the address.
+      else if (!composerOpen()) setCreateMode(false);
+    },
   );
   const consumeCreateIntent = () => {
     setCreateMode(false);
@@ -104,9 +117,18 @@ export function YourCommunitiesRouteView(props: YourCommunitiesRouteProps = {}) 
         if (error instanceof ApiClientError && error.status === 401) {
           setState({ kind: "anonymous" });
         } else {
-          setState({ kind: "error", message: "We couldn't load your Communities. Try again." });
+          setState({ kind: "error", message: "We couldn't load your Communities." });
         }
       });
+  };
+
+  /** The error state's own retry control: the session effect that first
+   * drove the load will not run again on its own. */
+  const retryLoad = () => {
+    const current = session();
+    if (current === undefined || current === "resolving") return;
+    if (current === "anonymous" || current === "failed") return;
+    load(current);
   };
 
   createEffect(
@@ -234,6 +256,11 @@ export function YourCommunitiesRouteView(props: YourCommunitiesRouteProps = {}) 
           <Type as="p" role="alert">
             {errorMessage()}
           </Type>
+          <Show when={session() !== undefined && session() !== "resolving" && session() !== "anonymous" && session() !== "failed"}>
+            <Button class="w-fit" onClick={retryLoad} type="button" variant="secondary">
+              Try again
+            </Button>
+          </Show>
         </PageContainer>
       </Show>
       <Show when={state().kind === "ready"}>
@@ -247,15 +274,16 @@ export function YourCommunitiesRouteView(props: YourCommunitiesRouteProps = {}) 
         </Show>
         <YourCommunitiesPageView
           createCommunityLabel="Create community"
-          emptyJoinedLabel={createMode()
-            ? "You aren't a member of a community yet. Join one to post your video."
-            : "You aren't a member of a community yet."}
+          emptyJoinedLabel="You aren't a member of a community yet."
           joinedCommunities={joinedCommunities()}
           joinedLabel="Communities"
           onCreateCommunity={() => navigate("/communities/new")}
-          onPostHere={(community) => void openPostComposer(community)}
-          // In create mode every row is a community choice, including a
-          // route-less community whose row would otherwise not select.
+          // In create mode every row is a community choice, so the separate
+          // Post here button would be a second way to do the same thing and
+          // is withdrawn until the page browses again.
+          onPostHere={createMode() ? undefined : (community) => void openPostComposer(community)}
+          // In create mode every row is a choice, including a route-less
+          // community whose row would otherwise not select.
           selectableWithoutRoute={createMode()}
           onSelectCommunity={(community) => {
             // In create mode a row pick is the community choice itself; the
@@ -289,6 +317,10 @@ export function YourCommunitiesRouteView(props: YourCommunitiesRouteProps = {}) 
               <CreatePostDialog
                 communityContext={{ id: community().communityId, name: community().displayName }}
                 initialMode={createMode() ? "video" : undefined}
+                videoSongEligibility={props.videoSongEligibility}
+                videoSongPreflight={props.videoSongPreflight}
+                videoSongReader={props.videoSongReader}
+                videoStorage={props.videoStorage}
                 onPublished={href => { if (href !== undefined) navigate(href); }}
                 onOpenChange={(open) => {
                   setComposerOpen(open);

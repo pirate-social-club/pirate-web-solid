@@ -27,6 +27,9 @@ import {
 import { DEFAULT_SONG_LICENSE } from "./defaults";
 import { PostComposer } from "./post-composer";
 import { VideoComposerRuntime } from "../video-submission/video-composer-runtime";
+import type { SongIntervalPreflight } from "../video-submission/song-reference";
+import type { SongSourceReader } from "./song-excerpt-source";
+import { OperationPersonaControl } from "../../identity/operation-persona-control/operation-persona-control";
 import { PostComposerSubmission } from "./post-composer-submission";
 import { initialPostComposerState, type PostComposerState } from "./post-composer-state";
 import type { TextContentSubmissionRequestEnvelopeV1 } from "./text-submission-contract";
@@ -131,6 +134,11 @@ export interface CreatePostDialogProps {
   /** The per-persona song owner-policy read the video runtime asks before
    * capture; injected so tests and stories can stand in for the server. */
   readonly videoSongEligibility?: (input: { readonly communityId: string; readonly postId: string; readonly personaId: string }) => Promise<boolean>;
+  /** The interval preflight standing in for the server's excerpt checks in
+   * stories and tests; production leaves it to the runtime's own client. */
+  readonly videoSongPreflight?: SongIntervalPreflight;
+  /** The song source read standing in for the song playback grant. */
+  readonly videoSongReader?: SongSourceReader;
   readonly createMediaId?: () => string;
   readonly origin?: string | URL;
   readonly fetchImpl?: typeof fetch;
@@ -709,14 +717,36 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
             <Show when={personas().length === 0}>
               <FormNote tone="warning">Choose a profile for this community before posting.</FormNote>
             </Show>
-            <Show
-              when={mode() !== "video"}
-              fallback={
-                <Show when={props.principalId}>{account => <VideoComposerRuntime
-                  principalId={account()} communityId={communityId().trim()} personaId={selectedActivePersonaId()}
+              <Show
+                when={mode() !== "video"}
+                fallback={
+                  <Show when={props.principalId}>{account => <>
+                    {/* The video flow replaces the composer's own identity
+                        control, so the profile choice must appear here or a
+                        song this profile cannot use strands the author with
+                        an instruction they cannot act on. */}
+                    <Show when={personas().length > 1}>
+                      <OperationPersonaControl
+                        class="mx-auto w-full max-w-md pb-2"
+                        label="Posting as"
+                        onSelect={(personaId) => setVideoPersonaId(personaId)}
+                        personas={personas().map(persona => ({
+                          personaId: persona.personaId,
+                          displayName: persona.displayName ?? persona.primaryPublicHandle ?? "Profile",
+                          avatarSrc: persona.avatarRef,
+                          publicHandle: persona.primaryPublicHandle,
+                        }))}
+                        placeholder="Choose a profile"
+                        selectedPersonaId={videoPersonaId()}
+                      />
+                    </Show>
+                    <VideoComposerRuntime
+                      principalId={account()} communityId={communityId().trim()} personaId={selectedActivePersonaId()}
                   initialSong={props.initialVideoSong}
                   storage={props.videoStorage} transport={props.videoTransport} fetchImpl={props.fetchImpl}
                   readSongEligibility={props.videoSongEligibility}
+                  songPreflight={props.videoSongPreflight}
+                  songReader={props.videoSongReader}
                   onExit={() => setMode("text")} onPublished={props.onPublished}
                   onRetainedPersona={(personaId, retainedCommunityId) => {
                     if (personaId !== null) {
@@ -726,7 +756,8 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
                       if (retainedCommunityId && !props.communityContext) setCommunityId(retainedCommunityId);
                     }
                   }}
-                />}</Show>
+                />
+                  </>}</Show>
               }
             >
               <Show when={!showUploadRecovery()} fallback={

@@ -488,6 +488,51 @@ describe("CommunityPage", () => {
     expect([...document.querySelectorAll("button")].some(button => button.textContent?.trim() === "Publish video")).toBe(false);
   });
 
+  test("dismissing the song-entry composer clears the URL marker", async () => {
+    const resolveSession = vi.fn(async () => ({
+      status: "authenticated" as const,
+      userId: "account-one",
+      personas: [],
+    }));
+    const clearVideoSongIntent = vi.fn();
+    const container = render(() => (
+      <CommunityPage
+        client={{
+          get_cPathSegment: async () => route,
+          get_communitiesCommunityIdPreview: async () => preview,
+        }}
+        clearVideoSongIntent={clearVideoSongIntent}
+        engagementApi={engagementApi({
+          readViewerState: vi.fn(async () => ({ membership: "member" as const, following: false, followerCount: 20 })),
+        })}
+        handleSalesClient={{ get_communitiesCommunityIdHandleOfferings: async () => ({ items: [], next_cursor: null }) }}
+        initialVideoSong={{ postId: "song-post" }}
+        pathSegment="xn--pokmon-dva"
+        resolveSession={resolveSession}
+      />
+    ));
+    await vi.waitFor(() => expect(document.querySelector('[aria-label="Video composer"]')).not.toBeNull());
+    // The author backs out of the song step, then closes the composer; the
+    // marker that opened it leaves the URL with them.
+    const change = [...document.querySelectorAll("button")].find(button => button.textContent === "Change song" || button.textContent === "Change");
+    expect(change).toBeDefined();
+    change!.click();
+    const songClose = await vi.waitFor(() => {
+      const button = document.querySelector<HTMLButtonElement>("button[aria-label='Close']");
+      expect(button).not.toBeNull();
+      return button!;
+    });
+    songClose.click();
+    const composerClose = await vi.waitFor(() => {
+      const button = document.querySelector<HTMLButtonElement>("button[aria-label='Close composer']");
+      expect(button).not.toBeNull();
+      return button!;
+    });
+    composerClose.click();
+    await vi.waitFor(() => expect(clearVideoSongIntent).toHaveBeenCalledTimes(1));
+    expect(document.querySelector('[aria-label="Video composer"]')).toBeNull();
+  });
+
   test("profile failure does not open an empty composer and the Post action retries", async () => {
     let unavailable = true;
     const resolveSession = vi.fn(async () => ({

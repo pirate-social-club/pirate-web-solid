@@ -69,10 +69,11 @@ export const route = defineFileRoute("/c/:path_segment", {
 });
 
 export default function CommunityRoute(props: RouteProps<typeof route>) {
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   return <CommunityPage
     pathSegment={props.params.path_segment}
     data={props.data}
     initialVideoSong={initialVideoSongFromSearch(searchParams)}
+    clearVideoSongIntent={() => setSearchParams({ compose: undefined, song: undefined }, { replace: true, scroll: false })}
   />;
 }

@@ -392,8 +392,11 @@ export function SongExcerptComposer(props: {
     }
   };
 
-  const submitLink = () => {
-    const parsed = parseSongLink(link());
+  // The value is passed in rather than re-read from the signal: a write is
+  // not visible to a same-tick read under the current signals runtime, so
+  // the just-pasted link would parse as empty.
+  const submitLink = (pending?: string) => {
+    const parsed = parseSongLink(pending ?? link());
     if (parsed.kind === "unsupported") {
       setLinkProblem(parsed.reason);
       return;
@@ -530,7 +533,7 @@ export function SongExcerptComposer(props: {
         <SongPicker
           communityId={communityId}
           linkProblem={linkProblem()}
-          onLink={(value) => { setLink(value); submitLink(); }}
+          onLink={(value) => { setLink(value); submitLink(value); }}
           onPick={(postId) => { setLinkProblem(undefined); void loadSong({ kind: "post", postId }); }}
           onClose={props.onClose}
           preview={async (postId, signal) => (await reader({ kind: "post", postId }, signal)).audioUrl}
