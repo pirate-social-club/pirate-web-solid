@@ -152,26 +152,27 @@ test("fixed runner refusals are classified without retaining arbitrary SSH error
     .toBeNull();
 });
 
-test("lease, name acquisition, safe observation and release use the pinned runner", async () => {
-  const steps = ["begin", "acquire", "advance-safe", "end"] as const;
-  const outcomes = ["lease_taken", "acquired", "safe", "lease_released"];
+test("lease, name acquisition, status, safe observation and release use the pinned runner", async () => {
+  const steps = ["begin", "acquire", "status", "advance-safe", "end"] as const;
+  const outcomes = ["lease_taken", "acquired", "status", "safe", "lease_released"];
   const calls: string[] = [];
   const transport: HnsSshTransport = async command => {
     calls.push(command);
     const index = calls.length - 1;
     return JSON.stringify({ outcome: outcomes[index], root: identity.root,
-      response_sha256: index === 2 ? digest : undefined });
+      response_sha256: index === 3 ? digest : undefined });
   };
   for (const step of steps) {
     const plan = step === "advance-safe" ? { remotePath, responseSha256: digest } : undefined;
     expect((await runRegtestJourneyStep(step, identity.root, runnerHash, plan, transport)).outcome)
       .toBe(outcomes[calls.length - 1]);
   }
-  expect(calls).toHaveLength(4);
+  expect(calls).toHaveLength(5);
   expect(calls[0]).toContain(`begin --root ${identity.root}`);
   expect(calls[1]).toContain(`acquire --root ${identity.root}`);
-  expect(calls[2]).toContain(`advance-safe --root ${identity.root} --plan ${remotePath} --response-sha256 ${digest}`);
-  expect(calls[3]).toContain(`end --root ${identity.root}`);
+  expect(calls[2]).toContain(`status --root ${identity.root}`);
+  expect(calls[3]).toContain(`advance-safe --root ${identity.root} --plan ${remotePath} --response-sha256 ${digest}`);
+  expect(calls[4]).toContain(`end --root ${identity.root}`);
   expect(calls.every(command => command.includes(`= ${runnerHash}`))).toBe(true);
 });
 

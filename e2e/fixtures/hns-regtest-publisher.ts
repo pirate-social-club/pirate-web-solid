@@ -134,7 +134,7 @@ function publishCommand(root: string, remotePath: string, responseSha256: string
     `bun ${RUNNER} publish --root ${root} --plan ${remotePath} --response-sha256 ${responseSha256}`;
 }
 
-type RegtestStep = "begin" | "acquire" | "advance-safe" | "end";
+type RegtestStep = "begin" | "acquire" | "advance-safe" | "end" | "status";
 
 /** Commands use the same reviewed runner and root grammar as publication.
  * Any uncertain transport or malformed receipt is stop-only. */
@@ -145,7 +145,7 @@ export async function runRegtestJourneyStep(
   plan?: { remotePath: string; responseSha256: string },
   transport: HnsSshTransport = sshToStagingHost,
 ) {
-  if (step !== "begin" && step !== "acquire" && step !== "advance-safe" && step !== "end")
+  if (step !== "begin" && step !== "acquire" && step !== "advance-safe" && step !== "end" && step !== "status")
     throw new Error("Unexpected regtest journey command.");
   requireHnsJourneyRoot(root);
   if (!SHA256.test(runnerSha256)) throw new Error("Reviewed regtest runner digest is required.");
@@ -167,7 +167,7 @@ export async function runRegtestJourneyStep(
   let result: Record<string, unknown>;
   try { result = JSON.parse(raw) as Record<string, unknown>; }
   catch { throw new Error(`Regtest ${step} response is ambiguous; inspect the host before any retry.`); }
-  const expected = { begin: "lease_taken", acquire: "acquired", "advance-safe": "safe", end: "lease_released" }[step];
+  const expected = { begin: "lease_taken", acquire: "acquired", "advance-safe": "safe", end: "lease_released", status: "status" }[step];
   if (result.outcome !== expected || result.root !== root ||
       (step === "advance-safe" && result.response_sha256 !== plan?.responseSha256))
     throw new Error(`Regtest ${step} response did not reconcile; inspect the host before any retry.`);

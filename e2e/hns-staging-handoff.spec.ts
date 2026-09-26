@@ -6,7 +6,7 @@ import { readonlyApi } from "./fixtures/api.ts";
 import { createCommunityAndVerifyAcceptance } from "./fixtures/create-community.ts";
 import { e2eBaseURL, requireMutationEnvironment } from "./fixtures/environment.ts";
 import { requireHnsJourneyRoot, writeHnsSessionHandoff } from "./fixtures/hns-session-handoff.ts";
-import { publishFreshHnsSessionOnRegtest, remainingTestBudgetMs, runRegtestJourneyStep,
+import { HnsRegtestRefusal, type HnsProtectedCopyReceipt, publishFreshHnsSessionOnRegtest, remainingTestBudgetMs, runRegtestJourneyStep,
   verifyRegtestRunnerOnHost } from "./fixtures/hns-regtest-publisher.ts";
 
 const publishRegtest = process.env.E2E_HNS_PUBLISH_REGTEST === "1";
@@ -71,6 +71,7 @@ test.describe("staging HNS authenticated handoff", { tag: "@hns-mutating" }, () 
     let publishAttempted = false;
     let leaseReleased = false;
     let leaseReceipt: unknown = null;
+    const publicationState: { protectedCopy: HnsProtectedCopyReceipt | null } = { protectedCopy: null };
     if (publishRegtest) {
       requireBudget(remainingMs(), 800_000, "lease and name acquisition");
       console.log(JSON.stringify({ event: "hns-regtest-selected-root", root }));
@@ -184,31 +185,51 @@ test.describe("staging HNS authenticated handoff", { tag: "@hns-mutating" }, () 
             // Copy 30 s + publish 120 s + advance-safe 180 s + end 120 s.
             requireBudget(remainingMs(), 460_000,
               "UPDATE dispatch, safe observation and lease release");
-            const published = await publishFreshHnsSessionOnRegtest(
-              freshBytes, fresh.url(), { communityId, root, sessionId },
-              handoff.receipt.publish_plan_sha256, runnerSha256,
-              undefined,
-              async copyReceipt => {
-                // Runs only after the verified protected copy and immediately
-                // before dispatch; a failed copy sent nothing and releases.
-                publishAttempted = true;
-                await testInfo.attach("hns-protected-copy-receipt", {
-                  body: JSON.stringify(copyReceipt), contentType: "application/json",
-                });
-                console.log(JSON.stringify({ event: "hns-regtest-update-dispatch-fence",
-                  root, response_sha256: copyReceipt.responseSha256,
-                  interrupted_outcome: "ambiguous_stop_and_reconcile_no_retry" }));
-              },
-            );
-            await testInfo.attach("hns-regtest-publication-receipt", {
-              body: JSON.stringify(published), contentType: "application/json",
-            });
-            console.log(JSON.stringify({ event: "hns-regtest-publication", ...published }));
+            try {
+              const published = await publishFreshHnsSessionOnRegtest(
+                freshBytes, fresh.url(), { communityId, root, sessionId },
+                handoff.receipt.publish_plan_sha256, runnerSha256,
+                undefined,
+                async copyReceipt => {
+                  // Runs only after the verified protected copy and immediately
+                  // before dispatch; a failed copy sent nothing and releases.
+                  publicationState.protectedCopy = copyReceipt;
+                  publishAttempted = true;
+                  await testInfo.attach("hns-protected-copy-receipt", {
+                    body: JSON.stringify(copyReceipt), contentType: "application/json",
+                  });
+                  console.log(JSON.stringify({ event: "hns-regtest-update-dispatch-fence",
+                    root, response_sha256: copyReceipt.responseSha256,
+                    interrupted_outcome: "reconcile_receipt_and_chain_no_retry" }));
+                },
+              );
+              await testInfo.attach("hns-regtest-publication-receipt", {
+                body: JSON.stringify(published), contentType: "application/json",
+              });
+              console.log(JSON.stringify({ event: "hns-regtest-publication", ...published }));
+            } catch (error) {
+              const protectedCopy = publicationState.protectedCopy;
+              if (!publishAttempted || protectedCopy === null || error instanceof HnsRegtestRefusal) throw error;
+              // A lost SSH response can follow a successful UPDATE. The host
+              // receipt and advance-safe bind the copied response without
+              // calling publish again; an unproved claim stays fenced.
+              const observed = await runRegtestJourneyStep("status", root, runnerSha256);
+              await testInfo.attach("hns-regtest-reconciliation-status", {
+                body: JSON.stringify(observed), contentType: "application/json",
+              });
+              const receipt = observed.receipt as { state?: unknown; response_sha256?: unknown } | undefined;
+              if (receipt?.state !== "present" || receipt.response_sha256 !== protectedCopy.responseSha256)
+                throw new Error("Ambiguous UPDATE has no matching host receipt; retain the lease and reconcile manually.");
+              console.log(JSON.stringify({ event: "hns-regtest-dispatch-reconciled", root,
+                response_sha256: protectedCopy.responseSha256 }));
+            }
+            const protectedCopy = publicationState.protectedCopy;
+            if (protectedCopy === null) throw new Error("Protected copy receipt is missing after publication.");
             // advance-safe 180 s + end 120 s.
             requireBudget(remainingMs(), 310_000,
               "safe observation and lease release");
             const safe = await runRegtestJourneyStep("advance-safe", root, runnerSha256, {
-              remotePath: published.remotePath, responseSha256: published.responseSha256,
+              remotePath: protectedCopy.remotePath, responseSha256: protectedCopy.responseSha256,
             });
             await testInfo.attach("hns-regtest-safe-receipt", {
               body: JSON.stringify(safe), contentType: "application/json",
