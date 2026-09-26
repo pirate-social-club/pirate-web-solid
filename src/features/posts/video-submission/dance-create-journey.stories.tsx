@@ -7,9 +7,9 @@ import { Button, IconMusicNote, IconPlay, IconPlus, Type } from "../../../design
 
 /** The dance create journeys, as fixture-backed design prototypes on the
  * capture-first flow. They establish what the Dance successor must build:
- * song chooser → what to make with it → fixed section or trim → capture with
- * a song control above and dance context beside the recording controls →
- * review or a labelled private score. Nothing here contacts a
+ * song chooser → what to make with it → fixed section or trim → capture →
+ * review or a labelled private score. The camera's song control returns to
+ * the chooser, which leads back through the dances for that song. Nothing here contacts a
  * server, opens a camera, grades anything, or pays anything. The score and
  * Post this take screens are labelled fixtures: the private-attempt lane is
  * still planned, no grading provider is selected, and posting the same
@@ -94,19 +94,6 @@ function JourneyFrame(props: {
               <span class="truncate">{song() ? song()!.title : "Add sound"}</span>
             </button>
           </header>
-          <Show when={song() && dance()}>
-            <div class="absolute inset-x-4 z-10 flex justify-center" style={{ bottom: "calc(7.75rem + env(safe-area-inset-bottom))" }}>
-              <button
-                aria-label={dance() === "new" ? "New dance. Choose a different target" : `Dance: ${referenceDance()!.name}. Choose a different target`}
-                class="inline-flex max-w-full cursor-pointer items-center gap-2 rounded-[var(--radius-lg)] border border-white/20 bg-black/55 px-3 py-2 text-sm text-white backdrop-blur-sm"
-                onClick={() => setScreen("make")}
-                type="button"
-              >
-                <span class="truncate">{dance() === "new" ? "New dance" : referenceDance()!.name}</span>
-                <span class="shrink-0 text-white/70">Change</span>
-              </button>
-            </div>
-          </Show>
           <div class="absolute inset-x-0 bottom-0 z-10 grid place-items-center px-6 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
             <button
               aria-label="Start recording"
@@ -315,7 +302,7 @@ const meta = {
     docs: {
       description: {
         component:
-          "Design prototypes for the dance create flow: song chooser, what to make with a song, a fixed section for an existing dance or a 6–15s trim for a new one, capture with separate song and dance controls, and a labelled private-score fixture. Fixture-backed and unpowered: nothing contacts a server, opens a camera, grades, or pays. The score and Post this take are fixtures; production dance work stays in its contract-backed lane.",
+          "Design prototypes for the dance create flow: song chooser, what to make with a song, a fixed section for an existing dance or a 6–15s trim for a new one, capture with one song control leading back through the dances for that song, and a labelled private-score fixture. Fixture-backed and unpowered: nothing contacts a server, opens a camera, grades, or pays. The score and Post this take are fixtures; production dance work stays in its contract-backed lane.",
       },
     },
   },
@@ -350,9 +337,8 @@ export const NewDanceJourney: Story = {
       canvas.getByRole("button", { name: "Use this section" })!.click();;
       await canvas.findByRole("button", { name: "Start recording" });
     });
-    await step("capture shows the song and dance choices", async () => {
+    await step("capture retains the chosen song", async () => {
       await canvas.findByRole("button", { name: /Song: Cadence/ });
-      await canvas.findByRole("button", { name: /New dance/ });
     });
   },
 };
@@ -371,7 +357,7 @@ export const ExistingDanceJourney: Story = {
     });
     await step("a private score needs no posting path", async () => {
       canvas.getByRole("button", { name: "Try for a private score" })!.click();;
-      await canvas.findByRole("button", { name: /Dance: Step Back/ });
+      await canvas.findByRole("button", { name: /Song: Cadence/ });
       canvas.getByRole("button", { name: "Start recording" })!.click();;
     });
     await step("the result is a labelled fixture, and posting is separate", async () => {
