@@ -71,8 +71,8 @@ async function driveToLoaded(container: HTMLElement, eligibility: (input: { read
     />
   ));
   void container;
-  await vi.waitFor(() => expect(view.querySelector("button[aria-label='Add sound']")).not.toBeNull());
-  view.querySelector<HTMLButtonElement>("button[aria-label='Add sound']")!.click();
+  await vi.waitFor(() => expect(view.querySelector("button[aria-label='Add song']")).not.toBeNull());
+  view.querySelector<HTMLButtonElement>("button[aria-label='Add song']")!.click();
   await vi.waitFor(() => expect(document.querySelector('input[aria-label="Search songs"]')).not.toBeNull());
   pickSongByLink();
   const use = await vi.waitFor(() => {
@@ -92,7 +92,7 @@ async function driveToLoaded(container: HTMLElement, eligibility: (input: { read
 }
 
 describe("video create route", () => {
-  test("resolves the session and opens the capture view with Add sound", async () => {
+  test("resolves the session and opens the capture view with Add song", async () => {
     const view = render(() => (
       <VideoCreateRouteView
         loadMemberships={async () => memberships}
@@ -100,7 +100,7 @@ describe("video create route", () => {
         resolveSession={async () => session as SessionResolution}
       />
     ));
-    await vi.waitFor(() => expect(view.querySelector("button[aria-label='Add sound']")).not.toBeNull());
+    await vi.waitFor(() => expect(view.querySelector("button[aria-label='Add song']")).not.toBeNull());
     expect(view.querySelector("[data-add-sound-sheet]")?.getAttribute("aria-hidden")).toBe("true");
   });
 
@@ -113,7 +113,7 @@ describe("video create route", () => {
       />
     ));
     await vi.waitFor(() => expect(view.textContent).toContain("Sign in to post a video."));
-    expect(view.querySelector("button[aria-label='Add sound']")).toBeNull();
+    expect(view.querySelector("button[aria-label='Add song']")).toBeNull();
   });
 
   test("an unreadable policy is a retryable failure on the capture view", async () => {

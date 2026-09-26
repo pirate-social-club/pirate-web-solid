@@ -976,7 +976,7 @@ export function VideoComposerRuntime(props: {
       </Show>
       <div
         aria-hidden={songSheetOpen() ? undefined : "true"}
-        aria-label="Add sound"
+        aria-label="Add song"
         aria-modal="true"
         class={cn(
           "fixed inset-x-0 bottom-0 z-50 grid max-h-[85dvh] gap-4 overflow-y-auto rounded-t-[var(--radius-sheet)] border-t border-border bg-card p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] shadow-xl transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none",
@@ -1027,7 +1027,7 @@ export function VideoComposerRuntime(props: {
               onClick={confirmSound}
               type="button"
             >
-              {confirmingSound() ? "Checking this sound…" : "Use this sound"}
+              {confirmingSound() ? "Checking this song…" : "Use this song"}
             </Button>
           </div>
       </div>

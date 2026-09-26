@@ -124,13 +124,13 @@ export function OriginalVideoCaptureSurface(props: OriginalVideoCaptureSurfacePr
               <Type as="h1" variant="body-strong" class="text-center text-white">New video</Type>
             }>
               <button
-                aria-label="Add sound"
+                aria-label="Add song"
                 class="inline-flex min-w-0 max-w-full cursor-pointer items-center gap-2 rounded-full bg-black/45 px-3 py-2 text-sm font-medium text-white backdrop-blur-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
                 onClick={() => props.onSongTap?.()}
                 type="button"
               >
                 <IconMusicNote aria-hidden="true" class="size-4 shrink-0" />
-                <span>Add sound</span>
+                <span>Add song</span>
               </button>
             </Show>
           }>

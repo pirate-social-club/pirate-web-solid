@@ -452,7 +452,7 @@ describe("mounted song-first video flow", () => {
     expect(chip.textContent).toContain("A song · 0:00 to 0:15");
     chip.click();
     await vi.waitFor(() => expect(sheet()?.getAttribute("aria-hidden")).toBeNull());
-    button("Use this sound")!.click();
+    button("Use this song")!.click();
     await vi.waitFor(() => expect(sheet()?.getAttribute("aria-hidden")).toBe("true"));
   });
 
@@ -722,10 +722,10 @@ describe("mounted song-first video flow", () => {
     expect(chip).not.toBeNull();
     chip!.click();
     await vi.waitFor(() => expect(document.querySelector("[data-add-sound-sheet]")?.getAttribute("aria-hidden")).toBeNull());
-    const confirm = [...document.querySelectorAll("button")].find(button => button.textContent === "Use this sound")!;
+    const confirm = [...document.querySelectorAll("button")].find(button => button.textContent === "Use this song")!;
     expect(confirm).toBeDefined();
     confirm.click();
-    await vi.waitFor(() => expect([...document.querySelectorAll("button")].some(button => button.textContent === "Checking this sound…")).toBe(true));
+    await vi.waitFor(() => expect([...document.querySelectorAll("button")].some(button => button.textContent === "Checking this song…")).toBe(true));
     expect(document.querySelector("[data-add-sound-sheet]")?.getAttribute("aria-hidden")).toBeNull();
     fixture.pendingChecks[0]!();
     await awaitPlan("ready");

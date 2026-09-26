@@ -3,6 +3,7 @@ import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import { expect, within } from "storybook/test";
 import { createSignal, For, Show } from "solid-js";
 import type { JSX } from "@solidjs/web";
+import { AppHeader } from "@pirate/web-solid-ui";
 
 import { Button, IconMusicNote, IconPlay, Type } from "../../../design-system";
 import dancePosterSheet from "./fixtures/dance-poster-sheet.png";
@@ -65,8 +66,34 @@ function FixtureBadge(props: { readonly label: string }) {
   );
 }
 
+function JourneyHeader(props: {
+  readonly backAriaLabel: string;
+  readonly center?: JSX.Element;
+  readonly mediaOverlay?: boolean;
+  readonly onBack: () => void;
+}) {
+  return (
+    <AppHeader
+      forceMobile
+      hideBrand
+      hideMobileBrand
+      labels={{ backAriaLabel: props.backAriaLabel }}
+      mobileAppearance={props.mediaOverlay ? "media-overlay" : "default"}
+      mobileCenterContent={props.center ?? <span />}
+      mobileTrailingContent={<span aria-hidden="true" class="block size-11" />}
+      onBackClick={props.onBack}
+      showChatAction={false}
+      showConnectAction={false}
+      showCreateAction={false}
+      showNotificationsAction={false}
+      showProfileAction={false}
+      showWalletAction={false}
+    />
+  );
+}
+
 /** One reusable full-screen vertical stage: video fills the viewport,
- * a back button sits top-left, and each surface supplies its own overlay.
+ * the app's media header sits on top, and each surface supplies its overlay.
  * A real 9:16 video would cover this frame as it does in the feed. */
 function VerticalStage(props: { readonly onBack: () => void; readonly posterIndex?: 0 | 1 | 2 | 3; readonly children?: JSX.Element }) {
   return (
@@ -76,14 +103,7 @@ function VerticalStage(props: { readonly onBack: () => void; readonly posterInde
           {props.children ?? <span class="text-sm text-white/70">Video (fixture)</span>}
         </div>
       </div>
-      <button
-        aria-label="Back"
-        class="absolute start-4 top-[max(0.75rem,env(safe-area-inset-top))] z-10 grid size-10 cursor-pointer place-items-center rounded-full bg-black/45 text-white backdrop-blur-sm"
-        onClick={() => props.onBack()}
-        type="button"
-      >
-        ‹
-      </button>
+      <JourneyHeader backAriaLabel="Back" mediaOverlay onBack={props.onBack} />
     </div>
   );
 }
@@ -132,14 +152,14 @@ function JourneyFrame(props: {
           </div>
           <header class="absolute inset-x-0 top-0 z-10 flex justify-center px-4 pt-[max(0.75rem,env(safe-area-inset-top))]">
             <button
-              aria-label={song() ? `Song: ${song()!.title}. Change the song` : "Add sound"}
+              aria-label={song() ? `Song: ${song()!.title}. Change the song` : "Add song"}
               class="inline-flex max-w-full cursor-pointer items-center gap-2 rounded-full bg-black/45 px-3 py-2 text-sm font-medium text-white backdrop-blur-sm"
               disabled={recording()}
               onClick={() => { setChooserReturn("capture"); setScreen("chooser"); }}
               type="button"
             >
               <IconMusicNote aria-hidden="true" class="size-4 shrink-0" />
-              <span class="truncate">{song() ? song()!.title : "Add sound"}</span>
+              <span class="truncate">{song() ? song()!.title : "Add song"}</span>
             </button>
           </header>
           <div class="absolute inset-x-0 bottom-0 z-10 grid place-items-center px-6 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
@@ -164,19 +184,21 @@ function JourneyFrame(props: {
         {/* Fixed, TikTok-shaped: the screen never scrolls; the list owns
          * any overflow. A back button and the search field are the whole
          * header. */}
-        <div class="flex h-dvh flex-col overflow-hidden bg-background p-3" data-song-chooser>
-          <div class="flex items-center gap-2 pb-3">
-            <Button aria-label={chooserReturn() === "dances" ? "Back to dances" : "Back to capture"} onClick={() => setScreen(chooserReturn())} variant="ghost">‹</Button>
-            <input
+        <div class="flex h-dvh flex-col overflow-hidden bg-background" data-song-chooser>
+          <JourneyHeader
+            backAriaLabel={chooserReturn() === "dances" ? "Back to dances" : "Back to capture"}
+            center={<input
               aria-label="Search songs"
-              class="min-w-0 flex-1 rounded-full border border-border-soft bg-background px-4 py-2 text-base"
+              class="w-56 min-w-0 max-w-full rounded-full border border-border-soft bg-background px-4 py-2 text-base"
               onInput={event => setQuery(event.currentTarget.value)}
               placeholder="Search songs"
               type="search"
               value={query()}
-            />
-          </div>
-          <ul aria-label="Songs" class="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto">
+            />}
+            onBack={() => setScreen(chooserReturn())}
+          />
+          <div aria-hidden="true" class="shrink-0" style={{ height: "calc(var(--header-height) + env(safe-area-inset-top))" }} />
+          <ul aria-label="Songs" class="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto px-3">
             <For each={songs.filter(candidate => candidate.title.toLowerCase().includes(query().trim().toLowerCase()))}>
               {candidate => (
                 <li class="flex items-center gap-3 rounded-[var(--radius-lg)] p-2">
@@ -211,10 +233,12 @@ function JourneyFrame(props: {
 
       <Show when={screen() === "dances"}>
         <div class="flex h-dvh flex-col overflow-hidden bg-background" data-dance-grid>
-          <header class="flex h-14 shrink-0 items-center gap-3 px-3">
-            <Button aria-label="Back to songs" onClick={() => { setChooserReturn("dances"); setScreen("chooser"); }} size="icon" variant="ghost">‹</Button>
-            <span class="min-w-0 truncate text-sm font-semibold">{song()?.title}</span>
-          </header>
+          <JourneyHeader
+            backAriaLabel="Back to songs"
+            center={<span class="block min-w-0 truncate text-sm font-semibold">{song()?.title}</span>}
+            onBack={() => { setChooserReturn("dances"); setScreen("chooser"); }}
+          />
+          <div aria-hidden="true" class="shrink-0" style={{ height: "calc(var(--header-height) + env(safe-area-inset-top))" }} />
           <div class="min-h-0 flex-1 overflow-y-auto">
             <ul aria-label={`Dances to ${song()?.title ?? "this song"}`} class="grid grid-cols-3 gap-0.5">
               <li>
@@ -386,8 +410,8 @@ type Story = StoryObj<typeof meta>;
 
 const openChooser = async (canvasElement: HTMLElement) => {
   const canvas = within(canvasElement);
-  const addSound = await canvas.findByRole("button", { name: "Add sound" }, { timeout: 8_000 });
-  addSound.click();
+  const addSong = await canvas.findByRole("button", { name: "Add song" }, { timeout: 8_000 });
+  addSong.click();
   // The chooser screen never scrolls: back and search are its header, and
   // the list owns overflow.
   const search = await canvas.findByLabelText("Search songs", undefined, { timeout: 8_000 });

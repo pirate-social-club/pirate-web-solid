@@ -130,7 +130,7 @@ const meta = {
     docs: {
       description: {
         component:
-          "The connected create journey: the footer's + opens the capture view, Add sound opens a sheet holding the song choice, excerpt and every server verdict, and posting details come at review. The session, communities, song audio, excerpt preflight, owner policy, picker, camera preview, take and alignment are Storybook stand-ins; no story contacts a server, and publishing is not stubbed — it shows its honest failure state.",
+          "The connected create journey: the footer's + opens the capture view, Add song opens a sheet holding the song choice, excerpt and every server verdict, and posting details come at review. The session, communities, song audio, excerpt preflight, owner policy, picker, camera preview, take and alignment are Storybook stand-ins; no story contacts a server, and publishing is not stubbed — it shows its honest failure state.",
       },
     },
   },
@@ -145,9 +145,9 @@ async function openCaptureAndChooseSong(canvasElement: HTMLElement) {
   const canvas = within(canvasElement);
   const create = await canvas.findByRole("button", { name: "Post a video" }, { timeout: 8_000 });
   create.click();
-  // The capture view opens full-screen with its own Add sound control.
-  const addSound = await canvas.findByRole("button", { name: "Add sound" }, { timeout: 8_000 });
-  addSound.click();
+  // The capture view opens full-screen with its own Add song control.
+  const addSong = await canvas.findByRole("button", { name: "Add song" }, { timeout: 8_000 });
+  addSong.click();
   const input = await canvas.findByLabelText("Search songs", undefined, { timeout: 8_000 }) as HTMLInputElement;
   input.value = "https://pirate.test/p/cadence-post";
   input.dispatchEvent(new Event("input", { bubbles: true }));
@@ -164,17 +164,17 @@ export const PlusToCaptureAllowed: Story = {
     await step("the footer's + opens the capture view", async () => {
       const create = await canvas.findByRole("button", { name: "Post a video" }, { timeout: 8_000 });
       create.click();
-      await canvas.findByRole("button", { name: "Add sound" }, { timeout: 8_000 });
+      await canvas.findByRole("button", { name: "Add song" }, { timeout: 8_000 });
     });
-    await step("Add sound opens the sheet and the song is chosen there", async () => {
-      (canvas.getByRole("button", { name: "Add sound" }) as HTMLButtonElement).click();
+    await step("Add song opens the sheet and the song is chosen there", async () => {
+      (canvas.getByRole("button", { name: "Add song" }) as HTMLButtonElement).click();
       const input = await canvas.findByLabelText("Search songs", undefined, { timeout: 8_000 }) as HTMLInputElement;
       input.value = "https://pirate.test/p/cadence-post";
       input.dispatchEvent(new Event("input", { bubbles: true }));
       const use = await canvas.findByText("Use the song at this link", undefined, { timeout: 8_000 });
       (use.closest("button") as HTMLButtonElement).click();
       // Confirming returns to the capture view with an editable song chip.
-      const confirm = await canvas.findByRole("button", { name: "Use this sound" }, { timeout: 8_000 });
+      const confirm = await canvas.findByRole("button", { name: "Use this song" }, { timeout: 8_000 });
       confirm.click();
       await canvas.findByRole("button", { name: /Song: Cadence/ }, { timeout: 8_000 });
     });
@@ -226,8 +226,8 @@ export const PlusFailedRead: Story = {
 };
 
 /** The same journey with no play function, so a reviewer walks it by hand:
- * the footer's +, Add sound, the pasted song link, the excerpt, Use this
- * sound, record and stop, and the review step's posting details. */
+ * the footer's +, Add song, the pasted song link, the excerpt, Use this
+ * song, record and stop, and the review step's posting details. */
 export const JourneyManual: Story = {
   name: "The whole journey by hand",
   globals: { viewport: { value: "mobile1", isRotated: false } },

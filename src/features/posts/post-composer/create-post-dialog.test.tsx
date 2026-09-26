@@ -1141,7 +1141,7 @@ test.each([false, true])("retains video authority in global/contextual composer 
 });
 
 describe("video mode capture view", () => {
-  test("opens the capture view with Add sound, and no posting details above it", async () => {
+  test("opens the capture view with Add song, and no posting details above it", async () => {
     const eligibility = vi.fn(async () => true);
     const disposers: (() => void)[] = [];
     try {
@@ -1163,10 +1163,10 @@ describe("video mode capture view", () => {
         />, container);
       });
       disposers.push(() => { dispose(); container.remove(); });
-      // The capture view is the dialog: its own Add sound control, and the
+      // The capture view is the dialog: its own Add song control, and the
       // posting details wait for review rather than sitting above it.
       const addSound = await vi.waitFor(() => {
-        const button = document.querySelector<HTMLButtonElement>("button[aria-label='Add sound']");
+        const button = document.querySelector<HTMLButtonElement>("button[aria-label='Add song']");
         expect(button).not.toBeNull();
         return button!;
       });
