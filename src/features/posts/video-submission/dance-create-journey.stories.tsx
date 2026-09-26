@@ -16,7 +16,7 @@ import { Button, IconMusicNote, IconPlay, IconPlus, Type } from "../../../design
  * still planned, no grading provider is selected, and posting the same
  * graded recording needs the recorded media-handoff amendment. */
 
-type Screen = "capture" | "chooser" | "make" | "detail" | "review" | "score";
+type Screen = "capture" | "chooser" | "preview" | "make" | "detail" | "review" | "score";
 
 interface FixtureSong {
   readonly postId: string;
@@ -27,6 +27,7 @@ interface FixtureSong {
 
 interface FixtureDance {
   readonly id: string;
+  readonly songPostId: string;
   readonly name: string;
   readonly creator: string;
   readonly duration: string;
@@ -39,8 +40,8 @@ const songs: readonly FixtureSong[] = [
 ];
 
 const dances: readonly FixtureDance[] = [
-  { id: "step-back", name: "Step Back", creator: "@salt-cove", duration: "0:12", section: "Cadence · 0:42–0:54" },
-  { id: "side-turn", name: "Side Turn", creator: "@night-owl", duration: "0:09", section: "Cadence · 0:03–0:12" },
+  { id: "step-back", songPostId: "cadence", name: "Step Back", creator: "@salt-cove", duration: "0:12", section: "Cadence · 0:42–0:54" },
+  { id: "side-turn", songPostId: "low-tide", name: "Side Turn", creator: "@night-owl", duration: "0:09", section: "Low Tide · 0:03–0:12" },
 ];
 
 function FixtureBadge(props: { readonly label: string }) {
@@ -51,15 +52,14 @@ function FixtureBadge(props: { readonly label: string }) {
   );
 }
 
-/** One reusable full-screen vertical stage: a 9:16 frame filling the
- * viewport, a back button top-left, no other chrome. The feed, song
- * previews and dance references all present video this way; whatever
- * each surface needs on top arrives as overlay content. */
+/** One reusable full-screen vertical stage: video fills the viewport,
+ * a back button sits top-left, and each surface supplies its own overlay.
+ * A real 9:16 video would cover this frame as it does in the feed. */
 function VerticalStage(props: { readonly onBack: () => void; readonly children?: JSX.Element }) {
   return (
     <div class="relative h-dvh overflow-hidden bg-black text-white" data-vertical-stage>
-      <div class="absolute inset-0 grid place-items-center">
-        <div class="aspect-[9/16] h-full max-h-full w-auto max-w-full" data-video-viewfinder>
+      <div class="absolute inset-0 bg-gradient-to-b from-[#262a30] to-[#0d0f12]">
+        <div class="relative grid h-full w-full place-items-center" data-video-viewfinder>
           {props.children ?? <span class="text-sm text-white/70">Video (fixture)</span>}
         </div>
       </div>
@@ -78,12 +78,13 @@ function VerticalStage(props: { readonly onBack: () => void; readonly children?:
 function JourneyFrame(props: {
   /** The make-with screen starts with ready dances, or with none yet. */
   readonly withDances?: boolean;
-  readonly manual?: boolean;
 }) {
-  const [screen, setScreen] = createSignal<Screen>(props.manual ? "capture" : "capture");
+  const [screen, setScreen] = createSignal<Screen>("capture");
+  const [chooserReturn, setChooserReturn] = createSignal<"capture" | "make">("capture");
   const [trimOpen, setTrimOpen] = createSignal(false);
   const [song, setSong] = createSignal<FixtureSong>();
   const [dance, setDance] = createSignal<FixtureDance | "new">();
+  const [captureMode, setCaptureMode] = createSignal<"post" | "score">("post");
   const [query, setQuery] = createSignal("");
   const [previewing, setPreviewing] = createSignal<FixtureSong>();
   const profile = "@harbor-persona";
@@ -100,7 +101,9 @@ function JourneyFrame(props: {
     setDance(undefined);
     setScreen("make");
   };
-  const visibleDances = () => (props.withDances === false ? [] : dances);
+  const visibleDances = () => props.withDances === false
+    ? []
+    : dances.filter(candidate => candidate.songPostId === song()?.postId);
 
   return (
     <div class="min-h-dvh bg-background text-foreground" data-dance-journey data-screen={screen()}>
@@ -113,7 +116,7 @@ function JourneyFrame(props: {
             <button
               aria-label={song() ? `Song: ${song()!.title}. Change the song` : "Add sound"}
               class="inline-flex max-w-full cursor-pointer items-center gap-2 rounded-full bg-black/45 px-3 py-2 text-sm font-medium text-white backdrop-blur-sm"
-              onClick={() => setScreen("chooser")}
+              onClick={() => { setChooserReturn("capture"); setScreen("chooser"); }}
               type="button"
             >
               <IconMusicNote aria-hidden="true" class="size-4 shrink-0" />
@@ -124,7 +127,7 @@ function JourneyFrame(props: {
             <button
               aria-label="Start recording"
               class="grid size-[74px] cursor-pointer place-items-center rounded-full border-4 border-white"
-              onClick={() => setScreen(props.manual ? "review" : "score")}
+              onClick={() => setScreen(captureMode() === "score" ? "score" : "review")}
               type="button"
             >
               <span class="size-[58px] rounded-full bg-[#f0453a]" />
@@ -139,7 +142,7 @@ function JourneyFrame(props: {
          * header. */}
         <div class="flex h-dvh flex-col overflow-hidden bg-background p-3" data-song-chooser>
           <div class="flex items-center gap-2 pb-3">
-            <Button aria-label="Back to capture" onClick={() => setScreen("capture")} variant="ghost">‹</Button>
+            <Button aria-label={chooserReturn() === "make" ? "Back to dances" : "Back to capture"} onClick={() => setScreen(chooserReturn())} variant="ghost">‹</Button>
             <input
               aria-label="Search songs"
               class="min-w-0 flex-1 rounded-full border border-border-soft bg-background px-4 py-2 text-base"
@@ -149,14 +152,14 @@ function JourneyFrame(props: {
               value={query()}
             />
           </div>
-          <ul aria-label="Songs" class="grid min-h-0 flex-1 content-start gap-1 overflow-y-auto">
+          <ul aria-label="Songs" class="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto">
             <For each={songs.filter(candidate => candidate.title.toLowerCase().includes(query().trim().toLowerCase()))}>
               {candidate => (
                 <li class="flex items-center gap-3 rounded-[var(--radius-lg)] p-2">
                   <button
                     aria-label={`Play ${candidate.title}`}
                     class="grid size-11 shrink-0 cursor-pointer place-items-center rounded-[var(--radius-md)] bg-muted text-foreground"
-                    onClick={() => setPreviewing(candidate)}
+                    onClick={() => { setPreviewing(candidate); setScreen("preview"); }}
                     type="button"
                   >
                     <IconPlay class="size-5" />
@@ -176,17 +179,23 @@ function JourneyFrame(props: {
         </div>
       </Show>
 
+      <Show when={screen() === "preview"}>
+        <VerticalStage onBack={() => { setPreviewing(undefined); setScreen("chooser"); }}>
+          <span class="text-sm text-white/70">{previewing()?.title} · video (fixture)</span>
+        </VerticalStage>
+      </Show>
+
       <Show when={screen() === "make"}>
         <div class="min-h-dvh bg-background p-4" data-make-with>
           <div class="flex items-center justify-between pb-4">
             <Type as="h1" variant="h2">{song()?.title ?? "Choose a song"}</Type>
-            <Button onClick={() => setScreen("chooser")} variant="ghost">Change</Button>
+            <Button onClick={() => { setChooserReturn("make"); setScreen("chooser"); }} variant="ghost">Change</Button>
           </div>
           <Type as="p" variant="body" class="pb-3 text-muted-foreground">What do you want to make?</Type>
           <button
             class="mb-5 grid w-full cursor-pointer gap-1 rounded-[var(--radius-xl)] border border-primary bg-primary-subtle p-4 text-start"
             data-create-new-dance
-            onClick={() => { setDance("new"); setTrimOpen(true); }}
+            onClick={() => { setDance("new"); setCaptureMode("post"); setTrimOpen(true); }}
             type="button"
           >
             <span class="flex items-center gap-2 text-base font-semibold"><IconPlus class="size-5" /> Create a new dance</span>
@@ -198,7 +207,7 @@ function JourneyFrame(props: {
             fallback={
               <div class="grid gap-2 pb-5" data-no-dances>
                 <Type as="p" variant="body">No dances to {song()?.title ?? "this song"} yet.</Type>
-                <Button class="w-fit" onClick={() => { setDance("new"); setTrimOpen(true); }}>Create the first one</Button>
+                <Button class="w-fit" onClick={() => { setDance("new"); setCaptureMode("post"); setTrimOpen(true); }}>Create the first one</Button>
               </div>
             }
           >
@@ -225,7 +234,7 @@ function JourneyFrame(props: {
           </Show>
           <button
             class="flex w-full cursor-pointer items-center justify-between rounded-[var(--radius-lg)] px-2 py-3 text-start text-sm text-muted-foreground hover:bg-muted"
-            onClick={() => { setDance(undefined); setScreen("capture"); }}
+            onClick={() => { setDance(undefined); setCaptureMode("post"); setScreen("capture"); }}
             type="button"
           >
             Post a regular video with this song
@@ -254,8 +263,8 @@ function JourneyFrame(props: {
               <Button size="sm" variant="ghost">Change</Button>
             </div>
             <div class="grid gap-2">
-              <Button data-try-score onClick={() => setScreen("capture")} size="lg">Try for a private score</Button>
-              <Button data-record-to-post onClick={() => setScreen("capture")} size="lg" variant="secondary">Record a take to post</Button>
+              <Button data-try-score onClick={() => { setCaptureMode("score"); setScreen("capture"); }} size="lg">Try for a private score</Button>
+              <Button data-record-to-post onClick={() => { setCaptureMode("post"); setScreen("capture"); }} size="lg" variant="secondary">Record a take to post</Button>
             </div>
           </div>
         </VerticalStage>
@@ -285,16 +294,6 @@ function JourneyFrame(props: {
             </div>
           </div>
         </div>
-      </Show>
-
-      {/* Song previews play on the same reusable stage, over whatever
-       * screen opened them. */}
-      <Show when={previewing()}>
-        {preview => (
-          <VerticalStage onBack={() => setPreviewing(undefined)}>
-            <span class="text-sm text-white/70">{preview().title} · video (fixture)</span>
-          </VerticalStage>
-        )}
       </Show>
 
       {/* The new-dance trim sheet: the only place a section is chosen. */}
@@ -381,6 +380,9 @@ export const NewDanceJourney: Story = {
       canvas.getByRole("button", { name: "Play Cadence" })!.click();
       const stage = await canvas.findByText(/Cadence · video \(fixture\)/, undefined, { timeout: 8_000 });
       expect(stage.closest("[data-vertical-stage]")).not.toBeNull();
+      expect(canvasElement.querySelector("[data-dance-journey]")?.getAttribute("data-screen")).toBe("preview");
+      expect(canvasElement.querySelector("[data-song-chooser]")).toBeNull();
+      expect(stage.closest("[data-vertical-stage]")!.getBoundingClientRect().top).toBe(0);
       canvas.getAllByRole("button", { name: "Back" })[0]!.click();
       await canvas.findByLabelText("Search songs");
     });
@@ -445,5 +447,5 @@ export const NoDancesYet: Story = {
 export const DanceJourneyManual: Story = {
   name: "The dance journey by hand",
   globals: { viewport: { value: "mobile1", isRotated: false } },
-  render: () => <JourneyFrame manual />,
+  render: () => <JourneyFrame />,
 };
