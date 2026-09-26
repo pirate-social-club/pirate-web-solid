@@ -128,6 +128,9 @@ export interface CreatePostDialogProps {
   readonly mediaTransport?: MediaSubmissionTransport;
   readonly videoStorage?: import("../video-submission/coordinator").VideoStorage;
   readonly videoTransport?: import("../video-submission/transport").VideoTransport;
+  /** The per-persona song owner-policy read the video runtime asks before
+   * capture; injected so tests and stories can stand in for the server. */
+  readonly videoSongEligibility?: (input: { readonly communityId: string; readonly postId: string; readonly personaId: string }) => Promise<boolean>;
   readonly createMediaId?: () => string;
   readonly origin?: string | URL;
   readonly fetchImpl?: typeof fetch;
@@ -713,6 +716,7 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
                   principalId={account()} communityId={communityId().trim()} personaId={selectedActivePersonaId()}
                   initialSong={props.initialVideoSong}
                   storage={props.videoStorage} transport={props.videoTransport} fetchImpl={props.fetchImpl}
+                  readSongEligibility={props.videoSongEligibility}
                   onExit={() => setMode("text")} onPublished={props.onPublished}
                   onRetainedPersona={(personaId, retainedCommunityId) => {
                     if (personaId !== null) {

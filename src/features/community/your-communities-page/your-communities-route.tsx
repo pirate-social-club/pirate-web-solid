@@ -35,6 +35,10 @@ export interface YourCommunitiesRouteProps {
    * video in, rather than browsing. The URL keeps the intent through the
    * in-place sign-in sheet, because that sheet never navigates. */
   readonly createIntent?: "video";
+  /** Removes the compose marker from the URL, preserving other query
+   * parameters, when the intent is consumed by a cancel or a composer
+   * dismissal — so a reload cannot restore an intent the page says ended. */
+  readonly clearCreateIntent?: () => void;
   readonly applicationSession?: Accessor<ApplicationSessionState | undefined>;
   readonly loadMemberships?: () => Promise<readonly AccountCommunityMembership[]>;
   readonly resolvePostingSession?: () => Promise<SessionResolution>;
@@ -57,9 +61,19 @@ export function YourCommunitiesRouteView(props: YourCommunitiesRouteProps = {}) 
   const resolvePostingSession = props.resolvePostingSession ?? resolveApplicationSession;
   const [state, setState] = createSignal<MembershipRouteState>({ kind: "loading" });
   const [composerOpen, setComposerOpen] = createSignal(false);
-  // Create mode survives session changes and the sign-in sheet; it ends when
-  // the composer it opened closes, or when the author cancels it.
-  const [createMode, setCreateMode] = createSignal(props.createIntent === "video");
+  // Create mode follows the URL marker: arming again on a query-only
+  // navigation to ?compose=video on this already-mounted page. It ends when
+  // the composer it opened closes or the author cancels it, and that
+  // consumption also clears the marker so a reload agrees with the page.
+  const [createMode, setCreateMode] = createSignal(props.createIntent === "video", { ownedWrite: true });
+  createEffect(
+    () => props.createIntent,
+    intent => { if (intent === "video") setCreateMode(true); },
+  );
+  const consumeCreateIntent = () => {
+    setCreateMode(false);
+    props.clearCreateIntent?.();
+  };
   const [selectedMembership, setSelectedMembership] = createSignal<AccountCommunityMembership>();
   const [postingSession, setPostingSession] = createSignal<AuthenticatedSession>();
   const [postingCommunityId, setPostingCommunityId] = createSignal<string>();
@@ -227,7 +241,7 @@ export function YourCommunitiesRouteView(props: YourCommunitiesRouteProps = {}) 
           <PageContainer>
             <div class="flex flex-wrap items-center justify-between gap-3 pb-4">
               <Type as="p" variant="body">Choose a community for your video.</Type>
-              <Button onClick={() => setCreateMode(false)} size="sm" type="button" variant="secondary">Cancel</Button>
+              <Button onClick={() => consumeCreateIntent()} size="sm" type="button" variant="secondary">Cancel</Button>
             </div>
           </PageContainer>
         </Show>
@@ -240,6 +254,9 @@ export function YourCommunitiesRouteView(props: YourCommunitiesRouteProps = {}) 
           joinedLabel="Communities"
           onCreateCommunity={() => navigate("/communities/new")}
           onPostHere={(community) => void openPostComposer(community)}
+          // In create mode every row is a community choice, including a
+          // route-less community whose row would otherwise not select.
+          selectableWithoutRoute={createMode()}
           onSelectCommunity={(community) => {
             // In create mode a row pick is the community choice itself; the
             // can_post recheck inside openPostComposer still applies.
@@ -276,8 +293,9 @@ export function YourCommunitiesRouteView(props: YourCommunitiesRouteProps = {}) 
                 onOpenChange={(open) => {
                   setComposerOpen(open);
                   // The create intent was consumed by this open; a dismiss
-                  // returns the page to browsing rather than reopening video.
-                  if (!open && createMode()) setCreateMode(false);
+                  // returns the page to browsing and clears the URL marker,
+                  // rather than reopening video or arming again on reload.
+                  if (!open && createMode()) consumeCreateIntent();
                 }}
                 open={composerOpen()}
                 personaId={postingPersonas()[0]?.personaId}

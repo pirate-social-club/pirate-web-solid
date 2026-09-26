@@ -5,6 +5,7 @@ import { SongExcerptComposer, type SoundtrackSelection } from "../post-composer/
 import { createLocalExcerptDraftStore } from "../post-composer/song-excerpt-draft-store";
 import type { SongSourceReader } from "../post-composer/song-excerpt-source";
 import { OriginalVideoCaptureSurface, OriginalVideoReviewSurface } from "../post-composer/video-original-audio-surface";
+import { readSongVideoEligibility } from "../public-post/song-video-entry";
 import type { OriginalVideoCaptureInput, VideoCaptureSession } from "./capture";
 import { captureStopAfterMs, clipFitMessage, fitClipToExcerpt, GUIDED_TAKE_MAX_DURATION_SECONDS, songLengthForClip } from "./clip-duration";
 import type { VideoSnapshot } from "./contracts";
@@ -109,6 +110,14 @@ export function VideoComposerRuntime(props: {
   readonly fetchImpl?: typeof fetch;
   readonly songPreflight?: SongIntervalPreflight;
   readonly songReader?: SongSourceReader;
+  /** The owner-policy read for one persona and song, asked before capture.
+   * The interval preflight carries no persona, so this is the check that
+   * catches an owner-only or persona-restricted song before a take exists. */
+  readonly readSongEligibility?: (input: {
+    readonly communityId: string;
+    readonly postId: string;
+    readonly personaId: string;
+  }) => Promise<boolean>;
   /** Entering from a song post: the song is chosen before capture and the
    * recording plays it as a guide. */
   readonly initialSong?: { readonly postId: string };
@@ -261,11 +270,36 @@ export function VideoComposerRuntime(props: {
     }
     return plan.selection;
   });
-  /** Whether recording or upload may start: a song and excerpt are chosen and
-   * the server has accepted exactly that selection. A pending or refused plan,
-   * or an approval for a window the author has moved away from, keeps both
-   * capture channels closed; the reservation still re-checks at publish. */
-  const captureReady = () => songChosen() && approvedSelection() !== undefined;
+  /** The owner-policy answer for this exact persona and song. "Use this song"
+   * asks the same question at its entry; the global entry asks it here,
+   * because the interval preflight is account-scoped and cannot see persona
+   * restrictions. A missing persona keeps capture closed rather than
+   * unchecked, and an unreadable answer fails closed with the chance to
+   * retry by changing song or profile. */
+  const [songEligibility, setSongEligibility] = createSignal<"unknown" | "checking" | "allowed" | "denied">("unknown", { ownedWrite: true });
+  let eligibilityRequest = 0;
+  createEffect(
+    () => ({ song: selection()?.songPostId, personaId: props.personaId, communityId: props.communityId?.trim() }),
+    ({ song, personaId, communityId }) => {
+      if (song === undefined || personaId === undefined || personaId.trim() === "" || communityId === undefined || communityId === "") {
+        setSongEligibility("unknown");
+        return;
+      }
+      setSongEligibility("checking");
+      const epoch = ++eligibilityRequest;
+      void (props.readSongEligibility ?? readSongVideoEligibility)({ communityId, postId: song, personaId }).then(
+        allowed => { if (!disposed && epoch === eligibilityRequest) setSongEligibility(allowed ? "allowed" : "denied"); },
+        () => { if (!disposed && epoch === eligibilityRequest) setSongEligibility("denied"); },
+      );
+    },
+  );
+  /** Whether recording or upload may start: a song and excerpt are chosen,
+   * the server has accepted exactly that selection, and the chosen profile
+   * is allowed to post a video to that song. A pending or refused plan, an
+   * approval for a window the author has moved away from, or an unanswered
+   * profile question keeps both capture channels closed; the reservation
+   * still re-checks at publish. */
+  const captureReady = () => songChosen() && approvedSelection() !== undefined && songEligibility() === "allowed";
   /** The excerpt a guided take was recorded to, when one was. A take danced to
    * one window cannot be published against another. */
   const [takeSoundtrack, setTakeSoundtrack] = createSignal<{ readonly songPostId: string; readonly bounds: ExcerptBounds } | null>(null);
@@ -393,6 +427,9 @@ export function VideoComposerRuntime(props: {
 
   async function chooseFile(next: File | undefined) {
     if (!next || record()) return;
+    // The upload channel shares the capture gate: a take must not be sealed
+    // against an excerpt the server has not accepted for this profile.
+    if (!captureReady()) return;
     await run(async () => {
       await session?.cancel(); session = null; closePreview(); setStream(null); setCaptureStatus("idle");
       stopGuide();
@@ -465,7 +502,9 @@ export function VideoComposerRuntime(props: {
     if (reason && !disposed) setError(reason);
   }
   async function toggleCapture() {
+    // Stopping is always available; only starting is gated on acceptance.
     if (session) { await stopCapture(); return; }
+    if (!captureReady()) return;
     await run(async () => {
       const startCapture = props.startCapture
         ?? (async (input: OriginalVideoCaptureInput) => (await import("./capture")).startOriginalVideoCapture(input));
@@ -478,6 +517,9 @@ export function VideoComposerRuntime(props: {
         setProgress("Loading the song…");
         const ready = await prepareGuide(guide);
         if (disposed) return;
+        // The song panel can change while the guide loads; the approval that
+        // opened the capture surface is not a license that survives it.
+        if (!captureReady()) return;
         setProgress("");
         if (!ready) throw new Error("The song didn't finish loading, so recording didn't start. Check your connection and try again.");
         prepared = ready;
@@ -499,6 +541,10 @@ export function VideoComposerRuntime(props: {
       let current: VideoCaptureSession;
       captureStarting = true;
       try {
+        // The last synchronous boundary before the camera rolls: every await
+        // above could have raced a song-panel change, so the gate is asked
+        // once more, immediately before the take begins.
+        if (!captureReady()) { captureStarting = false; return; }
         current = await startCapture({
           onFailure: failure => {
             session = null; stopGuide();
@@ -685,7 +731,7 @@ export function VideoComposerRuntime(props: {
       if (disposed) { previewOpening = false; return; }
       void open().then(media => {
         previewOpening = false;
-        const stillCapturing = !disposed && !session && !captureStarting && !record() && !file()
+        const stillCapturing = !disposed && !session && !captureStarting && !record() && !file() && captureReady()
           && captureStatus() === "idle" && document.visibilityState !== "hidden";
         if (!stillCapturing || previewStream) { stopTracks(media); return; }
         previewStream = media;
@@ -754,8 +800,11 @@ export function VideoComposerRuntime(props: {
         <Button variant="secondary" onClick={() => setSongPanelOpen(false)}>Done</Button>
       </Show>
       </div>
-      <Show when={!file() && songChosen() && !captureReady() && (songPlan().kind === "checking" || songPlan().kind === "measuring")}>
+      <Show when={!file() && songChosen() && !captureReady() && (songPlan().kind === "checking" || songPlan().kind === "measuring" || songEligibility() === "checking" || songEligibility() === "unknown")}>
         <p class="text-sm text-muted-foreground" role="status">Waiting for the song check before recording opens…</p>
+      </Show>
+      <Show when={!file() && songEligibility() === "denied" && approvedSelection() !== undefined && !takeMismatch()}>
+        <FormNote tone="warning">This song can’t be posted by the chosen profile. Choose another song, or switch profile and check again.</FormNote>
       </Show>
       <Show when={!file() && captureReady()}>
         <div inert={interactionBusy()}>

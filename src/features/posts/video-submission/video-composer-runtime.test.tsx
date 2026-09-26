@@ -79,7 +79,7 @@ function setup(final: "published" | "manual_review" | "provider_submission_uncon
   createRoot(dispose => { disposers.push(dispose); render(() => <VideoComposerRuntime principalId="account" communityId="community" personaId="persona"
     storage={storage} transport={transport} inspectFile={async file => file}
     fetchImpl={vi.fn<typeof fetch>().mockResolvedValue(new Response(null, { headers: { etag: "receipt" } }))}
-    songPreflight={acceptedPreflight} songReader={readableSong} initialSong={{ postId: "song-post" }}
+    songPreflight={acceptedPreflight} songReader={readableSong} readSongEligibility={async () => true} initialSong={{ postId: "song-post" }}
     onExit={() => {}} onRetainedPersona={() => {}} onPublished={published} onPosted={posted} />, container); });
   return { commands, published, posted, retained: () => saved };
 }
@@ -167,6 +167,8 @@ describe("mounted song-first video flow", () => {
 
   function songSetup(options: {
     readonly preflight: "unavailable" | "accepted" | "refused" | "pending";
+    /** The per-persona owner-policy read; defaults to allowing every song. */
+    readonly songEligibility?: (input: { readonly communityId: string; readonly postId: string; readonly personaId: string }) => Promise<boolean>;
     readonly reserve?: "echo" | "different_excerpt";
     readonly finalSnapshot?: "published" | "song_blocked";
     readonly reader?: "ready" | "failed";
@@ -285,6 +287,7 @@ describe("mounted song-first video flow", () => {
       alignTake={alignTake}
       onGuideTiming={options.onGuideTiming}
       songPreflight={preflight} songReader={songReader}
+      readSongEligibility={options.songEligibility ?? (async () => true)}
       initialSong={options.initialSong === false ? undefined : { postId: "song-post" }}
       {...(options.onPosted ? { onPosted: options.onPosted } : {})}
       onExit={() => {}} onRetainedPersona={() => {}} />, container); });
@@ -309,6 +312,14 @@ describe("mounted song-first video flow", () => {
     Object.defineProperty(input, "files", { configurable: true, value: [new File(["video"], "take.mp4", { type: "video/mp4" })] });
     input.dispatchEvent(new Event("change", { bubbles: true }));
     await vi.waitFor(() => expect(document.querySelector("textarea")).not.toBeNull());
+  }
+  /** Stages a file through the hidden input without waiting for the review
+   * screen, for asserting the capture gate refuses it. */
+  function attemptFile() {
+    const input = document.querySelector<HTMLInputElement>('input[type="file"]');
+    if (input === null) return;
+    Object.defineProperty(input, "files", { configurable: true, value: [new File(["video"], "take.mp4", { type: "video/mp4" })] });
+    input.dispatchEvent(new Event("change", { bubbles: true }));
   }
   async function publish() {
     const control = button("Publish video")!;
@@ -428,26 +439,28 @@ describe("mounted song-first video flow", () => {
     expect(soundtrackPanel()?.hidden).toBe(false);
   });
 
-  test("with the capability off, the video cannot be published", async () => {
+  test("with the capability off, the video cannot be captured or published", async () => {
     const fixture = songSetup({ preflight: "unavailable" });
     await loadSongMetadata();
     await awaitPlan("not_available");
-    await chooseFile();
-    await publish();
-    await vi.waitFor(() => expect(document.body.textContent).toContain("hasn’t been accepted"));
+    // Both capture channels are gated on an accepted excerpt, so a staged
+    // file is refused rather than surfacing the refusal at publish.
+    attemptFile();
+    await new Promise(resolve => setTimeout(resolve, 20));
+    expect(document.querySelector("textarea")).toBeNull();
     expect(fixture.commands).toHaveLength(0);
     // Every video references a song: there is no way to publish without it.
     expect(button("Use original sound")).toBeUndefined();
   });
 
-  test("a refused window blocks publishing with the song and says why", async () => {
+  test("a refused window blocks capture and publishing with the song, and says why", async () => {
     const fixture = songSetup({ preflight: "refused" });
     await loadSongMetadata();
     await awaitPlan("refused");
     expect(document.body.textContent).toContain("longer than the server allows");
-    await chooseFile();
-    await publish();
-    await vi.waitFor(() => expect(document.body.textContent).toContain("hasn’t been accepted"));
+    attemptFile();
+    await new Promise(resolve => setTimeout(resolve, 20));
+    expect(document.querySelector("textarea")).toBeNull();
     expect(fixture.commands).toHaveLength(0);
   });
 
@@ -583,13 +596,14 @@ describe("mounted song-first video flow", () => {
     }
   });
 
-  test("a song that cannot be read blocks publishing", async () => {
+  test("a song that cannot be read blocks capture and publishing", async () => {
     const fixture = songSetup({ preflight: "accepted", reader: "failed" });
     await vi.waitFor(() => expect(document.body.textContent).toContain("couldn’t load"));
-    await chooseFile();
-    // A failed read keeps the author's song choice; nothing publishes without it.
-    await publish();
-    await vi.waitFor(() => expect(document.body.textContent).toContain("hasn’t been accepted"));
+    // A failed read keeps the author's song choice but no excerpt can be
+    // accepted, so neither capture channel opens and nothing is staged.
+    attemptFile();
+    await new Promise(resolve => setTimeout(resolve, 20));
+    expect(document.querySelector("textarea")).toBeNull();
     expect(fixture.commands).toHaveLength(0);
     // Every video references a song: there is no way to publish without it.
     expect(button("Use original sound")).toBeUndefined();
@@ -644,14 +658,43 @@ describe("mounted song-first video flow", () => {
     expect(previews).toHaveLength(0);
   });
 
+  test("the chosen profile must be allowed the song before capture", async () => {
+    const asked: { readonly communityId: string; readonly postId: string; readonly personaId: string }[] = [];
+    songSetup({
+      preflight: "accepted",
+      mobile: true,
+      songEligibility: async input => { asked.push(input); return input.personaId === "persona"; },
+    });
+    await loadSongMetadata();
+    await awaitPlan("ready");
+    // The read is asked for this exact community, song and persona, and an
+    // allowing answer opens capture.
+    await vi.waitFor(() => expect(asked).toContainEqual({ communityId: "community", postId: "song-post", personaId: "persona" }));
+    await vi.waitFor(() => expect(document.querySelector('button[aria-label="Start recording"]')).not.toBeNull());
+    expect(document.body.textContent).not.toContain("can’t be posted by the chosen profile");
+  });
+
+  test("a profile the song's owner refuses never opens capture", async () => {
+    songSetup({ preflight: "accepted", mobile: true, songEligibility: async () => false });
+    await loadSongMetadata();
+    await awaitPlan("ready");
+    await vi.waitFor(() => expect(document.body.textContent).toContain("can’t be posted by the chosen profile"));
+    expect(document.querySelector('button[aria-label="Start recording"]')).toBeNull();
+    expect(previews).toHaveLength(0);
+    expect(startCapture).not.toHaveBeenCalled();
+  });
+
   test("a stale preflight answer cannot approve a window that moved", async () => {
     const fixture = songSetup({ preflight: "accepted", clipDurationMs: 16_000, deferIntervalChecks: true });
     await loadSongMetadata();
     await vi.waitFor(() => expect(fixture.pendingChecks.length).toBe(1), { timeout: 3_000 });
+    // The take is staged while the current window is accepted, then the
+    // window moves and the old answer arrives late; it must not approve.
+    fixture.pendingChecks[0]!();
+    await awaitPlan("ready");
     await chooseFile();
     moveWindow(2_000);
     await vi.waitFor(() => expect(fixture.pendingChecks.length).toBe(2), { timeout: 3_000 });
-    // The old window's answer arrives after the move; it must not approve.
     fixture.pendingChecks[0]!();
     await new Promise(resolve => setTimeout(resolve, 20));
     await publish();

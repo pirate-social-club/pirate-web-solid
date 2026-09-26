@@ -172,17 +172,30 @@ describe("song picker", () => {
     ));
     await vi.waitFor(() => expect(rows(container)).toEqual(["Cadencesalt-cove.pirate"]));
     expect(container.textContent).toContain("Showing loaded songs.");
+    // A query with no match among loaded songs still offers more pages; the
+    // button must not hide behind the empty match list.
     type(container, "tide");
     await vi.waitFor(() => expect(container.textContent).toContain("No loaded songs match."));
-    type(container, "");
     const more = await vi.waitFor(() => {
       const button = [...container.querySelectorAll("button")].find(candidate => candidate.textContent === "Load more songs");
       expect(button).toBeDefined();
       return button!;
     });
     more.click();
-    await vi.waitFor(() => expect(rows(container)).toEqual(["Cadencesalt-cove.pirate", "Low Tidedrift-reef.pirate"]));
+    await vi.waitFor(() => expect(rows(container)).toEqual(["Low Tidedrift-reef.pirate"]));
     await vi.waitFor(() => expect(container.textContent).not.toContain("Showing loaded songs."));
     expect(calls).toBe(2);
+  });
+
+  test("a first page with no songs still offers the next page", async () => {
+    const paged: SongPickerSource = async (_communityId, cursor) => cursor === null
+      ? { songs: [], nextCursor: "page-2" }
+      : { songs: [{ postId: "cadence", title: "Cadence", artist: "salt-cove.pirate", artworkSrc: null }], nextCursor: null };
+    const container = render(() => (
+      <SongPicker communityId="community" onLink={() => {}} onPick={() => {}} source={paged} />
+    ));
+    await vi.waitFor(() => expect(container.textContent).toContain("No songs in the loaded pages yet."));
+    [...container.querySelectorAll("button")].find(button => button.textContent === "Load more songs")!.click();
+    await vi.waitFor(() => expect(rows(container)).toEqual(["Cadencesalt-cove.pirate"]));
   });
 });

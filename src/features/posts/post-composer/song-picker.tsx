@@ -222,7 +222,9 @@ export function SongPicker(props: {
           fallback={
             <Type as="p" variant="caption" class="px-2 text-muted-foreground">
               {songs().length === 0
-                ? "No songs here yet. Paste a song link to use one from elsewhere."
+                ? nextCursor() !== null
+                  ? "No songs in the loaded pages yet. Load more, or paste a song link."
+                  : "No songs here yet. Paste a song link to use one from elsewhere."
                 : nextCursor() !== null
                   ? "No loaded songs match. Load more, or paste a song link."
                   : "No songs match."}
@@ -273,22 +275,25 @@ export function SongPicker(props: {
               }}
             </For>
           </ul>
-          <Show when={nextCursor() !== null}>
-            <div class="flex flex-wrap items-center justify-between gap-2 px-2">
-              <Type as="p" variant="caption" class="text-muted-foreground">
-                {moreState() === "failed" ? "More songs couldn’t load." : "Showing loaded songs. Load more to see the rest."}
-              </Type>
-              <Button
-                disabled={moreState() === "loading"}
-                onClick={loadMore}
-                size="sm"
-                type="button"
-                variant="secondary"
-              >
-                {moreState() === "loading" ? "Loading…" : moreState() === "failed" ? "Try again" : "Load more songs"}
-              </Button>
-            </div>
-          </Show>
+        </Show>
+        {/* Outside the matched-rows gate: an empty first page or a search
+            with no match among loaded songs is exactly when more pages may
+            still hold the song the author is looking for. */}
+        <Show when={nextCursor() !== null}>
+          <div class="flex flex-wrap items-center justify-between gap-2 px-2">
+            <Type as="p" variant="caption" class="text-muted-foreground">
+              {moreState() === "failed" ? "More songs couldn’t load." : "Showing loaded songs. Load more to see the rest."}
+            </Type>
+            <Button
+              disabled={moreState() === "loading"}
+              onClick={loadMore}
+              size="sm"
+              type="button"
+              variant="secondary"
+            >
+              {moreState() === "loading" ? "Loading…" : moreState() === "failed" ? "Try again" : "Load more songs"}
+            </Button>
+          </div>
         </Show>
       </Show>
     </div>

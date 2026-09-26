@@ -10,10 +10,11 @@ export function createIntentFromSearch(search: Record<string, string | string[] 
 
 export default function YourCommunitiesRoute() {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   return (
     <YourCommunitiesRouteView
       createIntent={createIntentFromSearch(searchParams)}
+      clearCreateIntent={() => setSearchParams({ compose: undefined }, { replace: true, scroll: false })}
       navigate={(href) => navigate(href)}
     />
   );

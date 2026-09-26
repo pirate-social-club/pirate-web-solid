@@ -257,6 +257,7 @@ describe("YourCommunitiesRouteView", () => {
   });
 
   test("the create intent opens the composer in video mode and is consumed on dismiss", async () => {
+    const clearCreateIntent = vi.fn();
     const loadMemberships = vi.fn(async () => [routedMembership]);
     const resolvePostingSession = vi.fn(async () => ({
       status: "authenticated" as const,
@@ -266,6 +267,7 @@ describe("YourCommunitiesRouteView", () => {
     const container = render(() => (
       <YourCommunitiesRouteView
         createIntent="video"
+        clearCreateIntent={clearCreateIntent}
         applicationSession={() => ({ status: "authenticated", userId: "account-one" })}
         loadMemberships={loadMemberships}
         resolvePostingSession={resolvePostingSession}
@@ -286,6 +288,8 @@ describe("YourCommunitiesRouteView", () => {
     document.querySelector<HTMLButtonElement>("button[aria-label='Close composer']")!.click();
     await vi.waitFor(() => expect(contextualComposerOpen()).toBe(false));
     await vi.waitFor(() => expect(container.textContent).not.toContain("Choose a community for your video."));
+    // Dismissal consumes the intent and clears the URL marker with it.
+    expect(clearCreateIntent).toHaveBeenCalledTimes(1);
     container.querySelector<HTMLButtonElement>("[data-post-community-id='community-routed']")!.click();
     await vi.waitFor(() => expect(contextualComposerOpen()).toBe(true));
     expect(loadMemberships).toHaveBeenCalledTimes(3);
@@ -303,10 +307,12 @@ describe("YourCommunitiesRouteView", () => {
   });
 
   test("create mode cancels back to browsing", async () => {
+    const clearCreateIntent = vi.fn();
     const navigate = vi.fn();
     const container = render(() => (
       <YourCommunitiesRouteView
         createIntent="video"
+        clearCreateIntent={clearCreateIntent}
         applicationSession={() => ({ status: "authenticated", userId: "account-one" })}
         loadMemberships={async () => [routedMembership]}
         navigate={navigate}
@@ -315,8 +321,47 @@ describe("YourCommunitiesRouteView", () => {
     await vi.waitFor(() => expect(container.textContent).toContain("Choose a community for your video."));
     [...container.querySelectorAll("button")].find(button => button.textContent === "Cancel")!.click();
     await vi.waitFor(() => expect(container.textContent).not.toContain("Choose a community for your video."));
+    // Cancelling also clears the URL marker, so a reload cannot re-arm it.
+    expect(clearCreateIntent).toHaveBeenCalledTimes(1);
     // Browsing still works: a row pick navigates rather than composing.
     container.querySelector<HTMLButtonElement>("#community-community-routed button:not([data-post-community-id])")!.click();
     expect(navigate).toHaveBeenCalledWith("/c/harbor");
+  });
+
+  test("a query change on the mounted page re-arms create mode", async () => {
+    const [intent, setIntent] = createSignal<"video" | undefined>(undefined);
+    const container = render(() => (
+      <YourCommunitiesRouteView
+        createIntent={intent()}
+        applicationSession={() => ({ status: "authenticated", userId: "account-one" })}
+        loadMemberships={async () => [routedMembership]}
+      />
+    ));
+    await vi.waitFor(() => expect(container.textContent).toContain("Harbor"));
+    expect(container.textContent).not.toContain("Choose a community for your video.");
+    setIntent("video");
+    await vi.waitFor(() => expect(container.textContent).toContain("Choose a community for your video."));
+  });
+
+  test("a route-less community row is a choice in create mode", async () => {
+    const loadMemberships = vi.fn(async () => [routeLessMembership]);
+    const resolvePostingSession = vi.fn(async () => ({
+      status: "authenticated" as const,
+      userId: "account-one",
+      personas: [],
+    }));
+    const container = render(() => (
+      <YourCommunitiesRouteView
+        createIntent="video"
+        applicationSession={() => ({ status: "authenticated", userId: "account-one" })}
+        loadMemberships={loadMemberships}
+        resolvePostingSession={resolvePostingSession}
+      />
+    ));
+    await vi.waitFor(() => expect(container.textContent).toContain("Choose a community for your video."));
+    // In browse mode this row has no select control; in create mode the row
+    // itself opens the composer.
+    container.querySelector<HTMLButtonElement>("#community-community-route-less button:not([data-post-community-id])")!.click();
+    await vi.waitFor(() => expect(document.querySelector('input[aria-label="Search songs"]')).not.toBeNull());
   });
 });
