@@ -55,6 +55,18 @@ function describe(session: Session | null) {
   };
 }
 
+function requireLiveLifecycleDeadline(session: Session | null) {
+  const lifecycle = session?.lifecycle;
+  const deadlineAt = lifecycle?.deadline?.at;
+  if (deadlineAt === undefined) return;
+  const deadlineMs = Date.parse(deadlineAt);
+  const observedMs = Date.parse(lifecycle?.server_time ?? new Date().toISOString());
+  if (!Number.isFinite(deadlineMs) || !Number.isFinite(observedMs))
+    throw new Error("HNS lifecycle deadline could not be read; reconcile before continuing.");
+  if (observedMs >= deadlineMs)
+    throw new Error("HNS lifecycle deadline passed; reconcile before continuing.");
+}
+
 test.describe("staging HNS activation", { tag: "@hns-mutating" }, () => {
   test.skip(!activate, "Set E2E_HNS_ACTIVATE=1 to run the post-publication phase.");
 
@@ -79,6 +91,7 @@ test.describe("staging HNS activation", { tag: "@hns-mutating" }, () => {
     const session = snapshot.session;
     if (!session || session.root_label !== root || session.community_id !== communityId)
       throw new Error("The community holds no import session for this root.");
+    requireLiveLifecycleDeadline(session);
     console.log(JSON.stringify({ event: "hns-activation-start", ...describe(session) }));
 
     // The owner confirms the complete resource was published; the product
@@ -101,6 +114,7 @@ test.describe("staging HNS activation", { tag: "@hns-mutating" }, () => {
     let last = "";
     while (Date.now() < deadline) {
       snapshot = await readSnapshot(page);
+      requireLiveLifecycleDeadline(snapshot.session);
       const current = describe(snapshot.session);
       const key = JSON.stringify(current);
       if (key !== last) {
@@ -116,6 +130,7 @@ test.describe("staging HNS activation", { tag: "@hns-mutating" }, () => {
       throw new Error(`HNS session was not ready within ${Math.round(readyWaitMs / 60_000)} minutes.`);
 
     if (snapshot.session?.status === "ready") {
+      requireLiveLifecycleDeadline(snapshot.session);
       await page.goto(namespacePath);
       const activatePath = `/api/communities/${encodeURIComponent(communityId)}/hns-root-imports/${encodeURIComponent(snapshot.session.root_import_session_id ?? "")}/activate`;
       const [activated] = await Promise.all([
