@@ -18,3 +18,6 @@ const footerLabels = { home: "Home", songs: "Your songs", wallet: "Wallet", prof
 
 export const MobileFooter: Story = { globals: { viewport: { value: "mobile1", isRotated: false } }, render: () => <div class="min-h-screen bg-background px-3 pb-28 pt-6"><Body>Mobile footer navigation</Body><MobileFooterNav forceMobile labels={footerLabels} /></div> };
 export const MobileFooterOnSongs: Story = { globals: { viewport: { value: "mobile1", isRotated: false } }, render: () => <div class="min-h-screen bg-background px-3 pb-28 pt-6"><Body>Mobile footer on the Your songs destination</Body><MobileFooterNav activeItem="songs" forceMobile labels={footerLabels} /></div> };
+// The shell's footer carries the center create action: a command that opens
+// the video create entry, never a destination that can be the current page.
+export const MobileFooterWithCreate: Story = { globals: { viewport: { value: "mobile1", isRotated: false } }, render: () => <div class="min-h-screen bg-background px-3 pb-28 pt-6"><Body>Mobile footer with the center create action between Your songs and Wallet</Body><MobileFooterNav activeItem="home" forceMobile labels={{ ...footerLabels, createAriaLabel: "Post a video" }} onCreateClick={() => {}} /></div> };

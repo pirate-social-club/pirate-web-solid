@@ -36,10 +36,13 @@ afterEach(() => {
 });
 const preview = async (postId: string) => `https://audio.test/${postId}.mp3`;
 
-const songs: SongPickerSource = async () => [
-  { postId: "cadence", title: "Cadence", artist: "salt-cove.pirate", artworkSrc: null },
-  { postId: "low-tide", title: "Low Tide", artist: "drift-reef.pirate", artworkSrc: null },
-];
+const songs: SongPickerSource = async () => ({
+  songs: [
+    { postId: "cadence", title: "Cadence", artist: "salt-cove.pirate", artworkSrc: null },
+    { postId: "low-tide", title: "Low Tide", artist: "drift-reef.pirate", artworkSrc: null },
+  ],
+  nextCursor: null,
+});
 
 const type = (container: HTMLElement, value: string) => {
   const search = container.querySelector<HTMLInputElement>('input[aria-label="Search songs"]')!;
@@ -128,7 +131,7 @@ describe("song picker", () => {
 
   test("says when the community has no songs, and offers a retry when loading fails", async () => {
     const empty = render(() => (
-      <SongPicker communityId="community" onLink={() => {}} onPick={() => {}} source={async () => []} />
+      <SongPicker communityId="community" onLink={() => {}} onPick={() => {}} source={async () => ({ songs: [], nextCursor: null })} />
     ));
     await vi.waitFor(() => expect(empty.textContent).toContain("No songs here yet."));
     let attempts = 0;
@@ -140,12 +143,46 @@ describe("song picker", () => {
         source={async () => {
           attempts += 1;
           if (attempts === 1) throw new Error("offline");
-          return [];
+          return { songs: [], nextCursor: null };
         }}
       />
     ));
     await vi.waitFor(() => expect(failing.textContent).toContain("Songs couldn’t load."));
     [...failing.querySelectorAll("button")].find(button => button.textContent === "Try again")!.click();
     await vi.waitFor(() => expect(failing.textContent).toContain("No songs here yet."));
+  });
+
+  test("loads another page on request, and says the search covers loaded songs only", async () => {
+    let calls = 0;
+    const paged: SongPickerSource = async (_communityId, cursor) => {
+      calls += 1;
+      if (cursor === null) {
+        return {
+          songs: [{ postId: "cadence", title: "Cadence", artist: "salt-cove.pirate", artworkSrc: null }],
+          nextCursor: "page-2",
+        };
+      }
+      return {
+        songs: [{ postId: "low-tide", title: "Low Tide", artist: "drift-reef.pirate", artworkSrc: null }],
+        nextCursor: null,
+      };
+    };
+    const container = render(() => (
+      <SongPicker communityId="community" onLink={() => {}} onPick={() => {}} source={paged} />
+    ));
+    await vi.waitFor(() => expect(rows(container)).toEqual(["Cadencesalt-cove.pirate"]));
+    expect(container.textContent).toContain("Showing loaded songs.");
+    type(container, "tide");
+    await vi.waitFor(() => expect(container.textContent).toContain("No loaded songs match."));
+    type(container, "");
+    const more = await vi.waitFor(() => {
+      const button = [...container.querySelectorAll("button")].find(candidate => candidate.textContent === "Load more songs");
+      expect(button).toBeDefined();
+      return button!;
+    });
+    more.click();
+    await vi.waitFor(() => expect(rows(container)).toEqual(["Cadencesalt-cove.pirate", "Low Tidedrift-reef.pirate"]));
+    await vi.waitFor(() => expect(container.textContent).not.toContain("Showing loaded songs."));
+    expect(calls).toBe(2);
   });
 });

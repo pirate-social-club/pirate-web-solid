@@ -222,7 +222,10 @@ export function VideoComposerRuntime(props: {
   const songChosen = () => songActive() && selection() !== null;
   const songNeedsAttention = () => {
     const kind = songPlan().kind;
+    // A pending check needs the author's attention too: the capture surface
+    // below stays closed until it resolves, so the panel must say why.
     return selection() === null
+      || kind === "checking" || kind === "measuring"
       || kind === "not_available" || kind === "timing_unavailable" || kind === "refused"
       || kind === "ineligible" || kind === "failed"
       // A take that cannot publish with the song needs the choice below it.
@@ -258,6 +261,11 @@ export function VideoComposerRuntime(props: {
     }
     return plan.selection;
   });
+  /** Whether recording or upload may start: a song and excerpt are chosen and
+   * the server has accepted exactly that selection. A pending or refused plan,
+   * or an approval for a window the author has moved away from, keeps both
+   * capture channels closed; the reservation still re-checks at publish. */
+  const captureReady = () => songChosen() && approvedSelection() !== undefined;
   /** The excerpt a guided take was recorded to, when one was. A take danced to
    * one window cannot be published against another. */
   const [takeSoundtrack, setTakeSoundtrack] = createSignal<{ readonly songPostId: string; readonly bounds: ExcerptBounds } | null>(null);
@@ -652,10 +660,11 @@ export function VideoComposerRuntime(props: {
   createEffect(() => stream(), media => {
     if (viewfinder && viewfinder.isConnected) showLive(viewfinder, media);
   });
-  // The camera opens when the capture screen shows, once a song is chosen,
-  // not when recording starts: the author frames the shot first. It closes when the screen goes
-  // away and reopens after a retake.
-  createEffect(() => mobile && songChosen() && pageVisible() && !record() && !file() && captureStatus() === "idle" && !finalizing(), capturing => {
+  // The camera opens when the capture screen shows, once the chosen excerpt
+  // has been accepted by the server, not when recording starts: the author
+  // frames the shot first. It closes when the screen goes away, and again
+  // while a moved window waits for a new acceptance.
+  createEffect(() => mobile && captureReady() && pageVisible() && !record() && !file() && captureStatus() === "idle" && !finalizing(), capturing => {
     if (!capturing) {
       // The camera stops now; the viewfinder signal is cleared outside the
       // effect's owned scope.
@@ -745,7 +754,10 @@ export function VideoComposerRuntime(props: {
         <Button variant="secondary" onClick={() => setSongPanelOpen(false)}>Done</Button>
       </Show>
       </div>
-      <Show when={!file() && songChosen()}>
+      <Show when={!file() && songChosen() && !captureReady() && (songPlan().kind === "checking" || songPlan().kind === "measuring")}>
+        <p class="text-sm text-muted-foreground" role="status">Waiting for the song check before recording opens…</p>
+      </Show>
+      <Show when={!file() && captureReady()}>
         <div inert={interactionBusy()}>
           <Show when={captureStatus() === "recording"}>
             <p role="status" class="sr-only">{selection()

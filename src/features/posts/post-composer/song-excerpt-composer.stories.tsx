@@ -111,7 +111,7 @@ const standInSongList: readonly SongPickerItem[] = [
   { postId: "low-tide-post", title: "Low Tide", artist: "drift-reef.pirate", artworkSrc: null },
   { postId: "harbor-lights-post", title: "Harbor Lights", artist: "night-owl.pirate", artworkSrc: null },
 ];
-const standInSongs: SongPickerSource = async () => standInSongList;
+const standInSongs: SongPickerSource = async () => ({ songs: standInSongList, nextCursor: null });
 
 /** Accepts every excerpt, standing in for the server's rights check. */
 const standInPreflight: SongIntervalPreflight = async input => ({
@@ -182,7 +182,7 @@ export const NoSongsYet: Story = {
   render: () => (
     <SongExcerptComposer
       communityId="community-story"
-      songs={async () => []}
+      songs={async () => ({ songs: [], nextCursor: null })}
       read={standInReader("Cadence", 150_000)}
       store={memoryStore()}
     />

@@ -255,4 +255,68 @@ describe("YourCommunitiesRouteView", () => {
     );
     expect(container.textContent).toContain("You aren't a member of a community yet.");
   });
+
+  test("the create intent opens the composer in video mode and is consumed on dismiss", async () => {
+    const loadMemberships = vi.fn(async () => [routedMembership]);
+    const resolvePostingSession = vi.fn(async () => ({
+      status: "authenticated" as const,
+      userId: "account-one",
+      personas: [],
+    }));
+    const container = render(() => (
+      <YourCommunitiesRouteView
+        createIntent="video"
+        applicationSession={() => ({ status: "authenticated", userId: "account-one" })}
+        loadMemberships={loadMemberships}
+        resolvePostingSession={resolvePostingSession}
+      />
+    ));
+    await vi.waitFor(() => expect(container.textContent).toContain("Choose a community for your video."));
+    // A row pick in create mode is the community choice itself.
+    container.querySelector<HTMLButtonElement>("#community-community-routed button:not([data-post-community-id])")!.click();
+    // Video mode opens on the song step, so its picker is the composer's
+    // first surface; the community choice is carried, not asked again.
+    await vi.waitFor(() => expect(document.querySelector('input[aria-label="Search songs"]')).not.toBeNull());
+    expect(document.querySelector("input[name='community-id']")).toBeNull();
+    // Dismissing consumes the intent: the song step's Close returns to the
+    // tabbed composer, whose Close composer dismisses it; the page browses
+    // again and a later Post here opens the ordinary composer, not video.
+    document.querySelector<HTMLButtonElement>("button[aria-label='Close']")!.click();
+    await vi.waitFor(() => expect(document.querySelector('input[aria-label="Search songs"]')).toBeNull());
+    document.querySelector<HTMLButtonElement>("button[aria-label='Close composer']")!.click();
+    await vi.waitFor(() => expect(contextualComposerOpen()).toBe(false));
+    await vi.waitFor(() => expect(container.textContent).not.toContain("Choose a community for your video."));
+    container.querySelector<HTMLButtonElement>("[data-post-community-id='community-routed']")!.click();
+    await vi.waitFor(() => expect(contextualComposerOpen()).toBe(true));
+    expect(loadMemberships).toHaveBeenCalledTimes(3);
+    await vi.waitFor(() => expect(document.querySelector('input[aria-label="Search songs"]')).toBeNull());
+  });
+
+  test("create mode survives into the anonymous sign-in prompt", async () => {
+    const container = render(() => (
+      <YourCommunitiesRouteView
+        createIntent="video"
+        applicationSession={() => "anonymous"}
+      />
+    ));
+    await vi.waitFor(() => expect(container.textContent).toContain("Sign in to choose a community for your video."));
+  });
+
+  test("create mode cancels back to browsing", async () => {
+    const navigate = vi.fn();
+    const container = render(() => (
+      <YourCommunitiesRouteView
+        createIntent="video"
+        applicationSession={() => ({ status: "authenticated", userId: "account-one" })}
+        loadMemberships={async () => [routedMembership]}
+        navigate={navigate}
+      />
+    ));
+    await vi.waitFor(() => expect(container.textContent).toContain("Choose a community for your video."));
+    [...container.querySelectorAll("button")].find(button => button.textContent === "Cancel")!.click();
+    await vi.waitFor(() => expect(container.textContent).not.toContain("Choose a community for your video."));
+    // Browsing still works: a row pick navigates rather than composing.
+    container.querySelector<HTMLButtonElement>("#community-community-routed button:not([data-post-community-id])")!.click();
+    expect(navigate).toHaveBeenCalledWith("/c/harbor");
+  });
 });

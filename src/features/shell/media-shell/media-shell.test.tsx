@@ -50,19 +50,31 @@ describe("Application navigation", () => {
     for (const path of ["/search", "/live", "/study", "/karaoke", "/terms", "/privacy", "/activity"]) expect(container.querySelector(`a[href="${path}"]`)).toBeNull();
     [...container.querySelectorAll<HTMLButtonElement>("aside button")].find(button => button.textContent === "Create community")!.click();
     expect(navigate).toHaveBeenLastCalledWith("/communities/new");
+    // The desktop create control joins the same video create entry as the
+    // mobile footer's center action.
+    [...container.querySelectorAll<HTMLButtonElement>("aside button")].find(button => button.textContent === "Create")!.click();
+    expect(navigate).toHaveBeenLastCalledWith("/communities?compose=video");
     expect(container.textContent).not.toContain("Notifications");
   });
 
-  test("mobile has four tabs and Wallet opens the wallet route", () => {
+  test("mobile has four tabs, a center create action, and Wallet opens the wallet route", () => {
     const navigate = vi.fn();
     const container = render(() => <ApplicationChrome navigate={navigate} mobileActiveItem="wallet">Route</ApplicationChrome>);
     const footer = container.querySelector('nav[aria-label="Primary navigation"]')!;
-    expect(footer.querySelectorAll("button")).toHaveLength(4);
+    expect(footer.querySelectorAll("button")).toHaveLength(5);
+    // The create action sits between Your songs and Wallet and is never the
+    // current page; it opens the video create entry. An unsigned profile tab
+    // reads Sign in, matching what a tap there does.
+    const labels = [...footer.querySelectorAll("button")].map(control => control.getAttribute("aria-label"));
+    expect(labels).toEqual(["Home", "Your songs", "Post a video", "Wallet", "Sign in"]);
+    expect(footer.querySelector('button[aria-label="Post a video"]')?.getAttribute("aria-current")).toBeNull();
     footer.querySelector<HTMLButtonElement>('button[aria-label="Wallet"]')!.click();
     expect(navigate).toHaveBeenCalledWith("/wallet");
     expect(footer.querySelector('[aria-current="page"]')?.textContent).toBe("Wallet");
     footer.querySelector<HTMLButtonElement>('button[aria-label="Your songs"]')!.click();
     expect(navigate).toHaveBeenLastCalledWith("/songs");
+    footer.querySelector<HTMLButtonElement>('button[aria-label="Post a video"]')!.click();
+    expect(navigate).toHaveBeenLastCalledWith("/communities?compose=video");
   });
 
   test("the phone drawer lists communities once and leaves profile switching to the footer", async () => {

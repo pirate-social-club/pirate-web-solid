@@ -601,8 +601,10 @@ describe("mounted song-first video flow", () => {
     await awaitPlan("ready");
     await chooseFile();
     moveWindow(2_000);
-    expect(document.querySelector('[data-song-plan="checking"]')?.classList.contains("hidden")).toBe(true);
-    expect(document.body.textContent).not.toContain("Checking this part of the song");
+    // The moved window is announced as a pending check: capture stays closed
+    // until it resolves, so the wait is visible rather than silent.
+    expect(document.querySelector('[data-song-plan="checking"]')?.classList.contains("hidden")).toBe(false);
+    expect(document.body.textContent).toContain("Checking this part of the song");
     // Publishing immediately, before the debounce can re-check, must not
     // submit the window the author just moved away from.
     await publish();
@@ -614,6 +616,32 @@ describe("mounted song-first video flow", () => {
     expect(fixture.commands[0]?.input.body).toMatchObject({
       intent: "song_reference", clip_start_samples: 2_000 * 48, clip_duration_samples: 15_000 * 48,
     });
+  });
+
+  test("capture stays closed until the server accepts this exact excerpt", async () => {
+    nextSession = () => fakeSession(() => {});
+    const fixture = songSetup({ preflight: "accepted", mobile: true, deferIntervalChecks: true });
+    await loadSongMetadata();
+    // The interval check is held open: while it pends, no capture channel is
+    // offered, the wait is announced, and the camera preview never opens.
+    await awaitPlan("checking");
+    await vi.waitFor(() => expect(fixture.pendingChecks.length).toBe(1), { timeout: 3_000 });
+    await vi.waitFor(() => expect(document.body.textContent).toContain("Waiting for the song check"));
+    expect(document.querySelector('button[aria-label="Start recording"]')).toBeNull();
+    expect(previews).toHaveLength(0);
+    fixture.pendingChecks.forEach(resolve => resolve());
+    await awaitPlan("ready");
+    await vi.waitFor(() => expect(document.querySelector('button[aria-label="Start recording"]')).not.toBeNull());
+    expect(startCapture).not.toHaveBeenCalled();
+  });
+
+  test("a refused excerpt never opens capture", async () => {
+    songSetup({ preflight: "refused", mobile: true });
+    await loadSongMetadata();
+    await awaitPlan("refused");
+    expect(document.body.textContent).toContain("longer than the server allows");
+    expect(document.querySelector('button[aria-label="Start recording"]')).toBeNull();
+    expect(previews).toHaveLength(0);
   });
 
   test("a stale preflight answer cannot approve a window that moved", async () => {

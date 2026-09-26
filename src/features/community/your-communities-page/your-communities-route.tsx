@@ -31,6 +31,10 @@ type MembershipRouteState =
   | Readonly<{ kind: "error"; message: string }>;
 
 export interface YourCommunitiesRouteProps {
+  /** `/communities?compose=video`: the entry asks for a community to post a
+   * video in, rather than browsing. The URL keeps the intent through the
+   * in-place sign-in sheet, because that sheet never navigates. */
+  readonly createIntent?: "video";
   readonly applicationSession?: Accessor<ApplicationSessionState | undefined>;
   readonly loadMemberships?: () => Promise<readonly AccountCommunityMembership[]>;
   readonly resolvePostingSession?: () => Promise<SessionResolution>;
@@ -53,6 +57,9 @@ export function YourCommunitiesRouteView(props: YourCommunitiesRouteProps = {}) 
   const resolvePostingSession = props.resolvePostingSession ?? resolveApplicationSession;
   const [state, setState] = createSignal<MembershipRouteState>({ kind: "loading" });
   const [composerOpen, setComposerOpen] = createSignal(false);
+  // Create mode survives session changes and the sign-in sheet; it ends when
+  // the composer it opened closes, or when the author cancels it.
+  const [createMode, setCreateMode] = createSignal(props.createIntent === "video");
   const [selectedMembership, setSelectedMembership] = createSignal<AccountCommunityMembership>();
   const [postingSession, setPostingSession] = createSignal<AuthenticatedSession>();
   const [postingCommunityId, setPostingCommunityId] = createSignal<string>();
@@ -199,7 +206,7 @@ export function YourCommunitiesRouteView(props: YourCommunitiesRouteProps = {}) 
           <Type as="h1" variant="h1">
             Your communities
           </Type>
-          <Type as="p">Sign in to see your communities.</Type>
+          <Type as="p">{createMode() ? "Sign in to choose a community for your video." : "Sign in to see your communities."}</Type>
           <Button class="w-fit" onClick={requestGlobalSignIn}>
             Sign in
           </Button>
@@ -216,14 +223,30 @@ export function YourCommunitiesRouteView(props: YourCommunitiesRouteProps = {}) 
         </PageContainer>
       </Show>
       <Show when={state().kind === "ready"}>
+        <Show when={createMode()}>
+          <PageContainer>
+            <div class="flex flex-wrap items-center justify-between gap-3 pb-4">
+              <Type as="p" variant="body">Choose a community for your video.</Type>
+              <Button onClick={() => setCreateMode(false)} size="sm" type="button" variant="secondary">Cancel</Button>
+            </div>
+          </PageContainer>
+        </Show>
         <YourCommunitiesPageView
           createCommunityLabel="Create community"
-          emptyJoinedLabel="You aren't a member of a community yet."
+          emptyJoinedLabel={createMode()
+            ? "You aren't a member of a community yet. Join one to post your video."
+            : "You aren't a member of a community yet."}
           joinedCommunities={joinedCommunities()}
           joinedLabel="Communities"
           onCreateCommunity={() => navigate("/communities/new")}
           onPostHere={(community) => void openPostComposer(community)}
           onSelectCommunity={(community) => {
+            // In create mode a row pick is the community choice itself; the
+            // can_post recheck inside openPostComposer still applies.
+            if (createMode()) {
+              void openPostComposer(community);
+              return;
+            }
             if (community.resourceHref !== null && community.resourceHref !== undefined)
               navigate(community.resourceHref);
           }}
@@ -248,8 +271,14 @@ export function YourCommunitiesRouteView(props: YourCommunitiesRouteProps = {}) 
             {(community) => (
               <CreatePostDialog
                 communityContext={{ id: community().communityId, name: community().displayName }}
+                initialMode={createMode() ? "video" : undefined}
                 onPublished={href => { if (href !== undefined) navigate(href); }}
-                onOpenChange={setComposerOpen}
+                onOpenChange={(open) => {
+                  setComposerOpen(open);
+                  // The create intent was consumed by this open; a dismiss
+                  // returns the page to browsing rather than reopening video.
+                  if (!open && createMode()) setCreateMode(false);
+                }}
                 open={composerOpen()}
                 personaId={postingPersonas()[0]?.personaId}
                 personas={postingPersonas()}

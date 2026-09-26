@@ -510,7 +510,10 @@ export function SongExcerptComposer(props: {
         return `Your video will use ${excerptClock(current.selection.clipStartSamples, current.selection.clipStartSamples + current.selection.clipDurationSamples)} of this song.`;
     }
   };
-  const showPlanMessage = () => !preflight || !["none", "checking", "ready"].includes(plan().kind);
+  /** The plan message shows for every state an author must wait on or act
+   * on. `none` and `ready` need no line, but a pending check does: capture
+   * stays closed until it resolves, so the wait must be visible. */
+  const showPlanMessage = () => !preflight || !["none", "ready"].includes(plan().kind);
 
   const readyOf = (state: SongSourceState) => (state.kind === "ready" ? state : undefined);
   const problemOf = (state: SongSourceState): string | undefined =>
@@ -610,7 +613,7 @@ export function SongExcerptComposer(props: {
               data-song-plan={preflight ? plan().kind : "unchecked"}
             >
               <Show when={showPlanMessage()}>
-                <Type as="p" variant="caption" role={plan().kind === "measuring" ? "status" : "alert"}>
+                <Type as="p" variant="caption" role={plan().kind === "measuring" || plan().kind === "checking" ? "status" : "alert"}>
                   {preflight ? planText() : "This song can’t be checked here, so the video can’t be posted yet."}
                 </Type>
                 <Show when={plan().kind === "failed" && currentPostId()}>

@@ -1,6 +1,6 @@
 import { within } from "@testing-library/dom";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { expectNoA11yViolations, render } from "@/test/test-utils";
 
@@ -33,6 +33,21 @@ describe("MobileFooterNav", () => {
   it("supports injected icon factories", () => {
     const container = render(() => <MobileFooterNav icons={{ home: () => <span data-testid="home-icon" /> }} />);
     expect(within(container).getByTestId("home-icon")).toBeInTheDocument();
+  });
+
+  it("renders the center create action between songs and wallet", async () => {
+    const user = userEvent.setup();
+    const create = vi.fn();
+    const container = render(() => <MobileFooterNav activeItem="songs" onCreateClick={create} />);
+    const buttons = within(container).getAllByRole("button");
+    expect(buttons).toHaveLength(5);
+    expect(buttons.map((button) => button.getAttribute("aria-label"))).toEqual(["Home", "Your songs", "Create", "Wallet", "Profile"]);
+    const createButton = within(container).getByRole("button", { name: "Create" });
+    // The create control is an action, never the current page.
+    expect(createButton).not.toHaveAttribute("aria-current");
+    expect(within(container).getByRole("button", { name: "Your songs" })).toHaveAttribute("aria-current", "page");
+    await user.click(createButton);
+    expect(create).toHaveBeenCalledTimes(1);
   });
 
   it("has no automated a11y violations", async () => {
