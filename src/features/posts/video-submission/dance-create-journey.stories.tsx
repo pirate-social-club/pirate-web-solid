@@ -2,6 +2,7 @@
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import { expect, within } from "storybook/test";
 import { createSignal, For, Show } from "solid-js";
+import type { JSX } from "@solidjs/web";
 
 import { Button, IconMusicNote, IconPlay, IconPlus, Type } from "../../../design-system";
 
@@ -50,6 +51,30 @@ function FixtureBadge(props: { readonly label: string }) {
   );
 }
 
+/** One reusable full-screen vertical stage: a 9:16 frame filling the
+ * viewport, a back button top-left, no other chrome. The feed, song
+ * previews and dance references all present video this way; whatever
+ * each surface needs on top arrives as overlay content. */
+function VerticalStage(props: { readonly onBack: () => void; readonly children?: JSX.Element }) {
+  return (
+    <div class="relative h-dvh overflow-hidden bg-black text-white" data-vertical-stage>
+      <div class="absolute inset-0 grid place-items-center">
+        <div class="aspect-[9/16] h-full max-h-full w-auto max-w-full" data-video-viewfinder>
+          {props.children ?? <span class="text-sm text-white/70">Video (fixture)</span>}
+        </div>
+      </div>
+      <button
+        aria-label="Back"
+        class="absolute start-4 top-[max(0.75rem,env(safe-area-inset-top))] z-10 grid size-10 cursor-pointer place-items-center rounded-full bg-black/45 text-white backdrop-blur-sm"
+        onClick={() => props.onBack()}
+        type="button"
+      >
+        ‹
+      </button>
+    </div>
+  );
+}
+
 function JourneyFrame(props: {
   /** The make-with screen starts with ready dances, or with none yet. */
   readonly withDances?: boolean;
@@ -60,6 +85,7 @@ function JourneyFrame(props: {
   const [song, setSong] = createSignal<FixtureSong>();
   const [dance, setDance] = createSignal<FixtureDance | "new">();
   const [query, setQuery] = createSignal("");
+  const [previewing, setPreviewing] = createSignal<FixtureSong>();
   const profile = "@harbor-persona";
   /** The chosen reference dance, narrowed away from the "new" marker; the
    * detail screen only renders while a concrete dance is chosen. */
@@ -108,35 +134,40 @@ function JourneyFrame(props: {
       </Show>
 
       <Show when={screen() === "chooser"}>
-        <div class="min-h-dvh bg-background p-4" data-song-chooser>
-          <div class="flex items-center gap-3 pb-4">
-            <Button aria-label="Back to capture" onClick={() => setScreen("capture")} variant="ghost">✕</Button>
+        {/* Fixed, TikTok-shaped: the screen never scrolls; the list owns
+         * any overflow. A back button and the search field are the whole
+         * header. */}
+        <div class="flex h-dvh flex-col overflow-hidden bg-background p-3" data-song-chooser>
+          <div class="flex items-center gap-2 pb-3">
+            <Button aria-label="Back to capture" onClick={() => setScreen("capture")} variant="ghost">‹</Button>
             <input
               aria-label="Search songs"
-              class="min-w-0 flex-1 rounded-[var(--radius-lg)] border border-border-soft bg-background px-3 py-2 text-base"
+              class="min-w-0 flex-1 rounded-full border border-border-soft bg-background px-4 py-2 text-base"
               onInput={event => setQuery(event.currentTarget.value)}
               placeholder="Search songs"
               type="search"
               value={query()}
             />
           </div>
-          {/* The production picker searches loaded feed pages; a catalog
-              search operation is a recorded dependency of this flow. */}
-          <p class="pb-2 text-xs text-muted-foreground">Searching the song catalog (fixture)</p>
-          <ul aria-label="Songs" class="grid gap-1">
+          <ul aria-label="Songs" class="grid min-h-0 flex-1 content-start gap-1 overflow-y-auto">
             <For each={songs.filter(candidate => candidate.title.toLowerCase().includes(query().trim().toLowerCase()))}>
               {candidate => (
-                <li>
+                <li class="flex items-center gap-3 rounded-[var(--radius-lg)] p-2">
                   <button
-                    class="flex w-full cursor-pointer items-center gap-3 rounded-[var(--radius-lg)] p-2 text-start hover:bg-muted"
+                    aria-label={`Play ${candidate.title}`}
+                    class="grid size-11 shrink-0 cursor-pointer place-items-center rounded-[var(--radius-md)] bg-muted text-foreground"
+                    onClick={() => setPreviewing(candidate)}
+                    type="button"
+                  >
+                    <IconPlay class="size-5" />
+                  </button>
+                  <button
+                    class="min-w-0 flex-1 cursor-pointer truncate text-start"
                     onClick={() => chooseSong(candidate)}
                     type="button"
                   >
-                    <span class="grid size-11 place-items-center rounded-[var(--radius-md)] bg-muted"><IconPlay class="size-5" /></span>
-                    <span class="min-w-0">
-                      <Type as="span" variant="body-strong" class="block truncate">{candidate.title}</Type>
-                      <Type as="span" variant="caption" class="block truncate text-muted-foreground">{candidate.artist} · {candidate.length}</Type>
-                    </span>
+                    <Type as="span" variant="body-strong" class="block truncate">{candidate.title}</Type>
+                    <Type as="span" variant="caption" class="block truncate text-muted-foreground">{candidate.artist} · {candidate.length}</Type>
                   </button>
                 </li>
               )}
@@ -204,31 +235,30 @@ function JourneyFrame(props: {
       </Show>
 
       <Show when={screen() === "detail"}>
-        <div class="min-h-dvh bg-background p-4" data-dance-detail>
-          <div class="flex items-center gap-3 pb-3">
-            <Button aria-label="Back to dances" onClick={() => setScreen("make")} variant="ghost">‹</Button>
-            <Type as="h1" variant="h2">{referenceDance()?.name}</Type>
+        {/* The reference is the page: the same reusable full-screen stage
+         * the feed and song previews use, with the dance's facts and
+         * actions as the overlay. */}
+        <VerticalStage onBack={() => setScreen("make")}>
+          <div class="absolute inset-x-0 bottom-0 z-10 grid gap-3 bg-gradient-to-t from-black/80 to-transparent p-4 pb-[max(1.25rem,env(safe-area-inset-bottom))] text-start" data-dance-detail>
+            <div class="grid gap-0.5">
+              <Type as="p" variant="body-strong" class="text-white">{referenceDance()?.name}</Type>
+              <Type as="p" variant="caption" class="text-white/80">{referenceDance() ? `${referenceDance()!.creator} · ${referenceDance()!.duration}` : ""}</Type>
+              {/* Spec 021 binds the movement to its excerpt: an existing
+                  dance's section is stated, never edited. */}
+              <Type as="p" variant="caption" class="text-white/70">{referenceDance()?.section} · fixed section</Type>
+            </div>
+            {/* The Dance session freezes this profile and the exact revision
+                before capture; posting eligibility is a separate gate. */}
+            <div class="flex items-center justify-between rounded-[var(--radius-lg)] bg-white/10 px-3 py-2 backdrop-blur-sm">
+              <Type as="p" variant="caption" class="text-white">Dancing as {profile}</Type>
+              <Button size="sm" variant="ghost">Change</Button>
+            </div>
+            <div class="grid gap-2">
+              <Button data-try-score onClick={() => setScreen("capture")} size="lg">Try for a private score</Button>
+              <Button data-record-to-post onClick={() => setScreen("capture")} size="lg" variant="secondary">Record a take to post</Button>
+            </div>
           </div>
-          <div class="mx-auto grid aspect-[9/16] max-h-[52dvh] w-full max-w-sm place-items-center overflow-hidden rounded-[var(--radius-2xl)] bg-gradient-to-b from-[#262a30] to-[#0d0f12] text-white">
-            <span class="flex items-center gap-2 text-sm text-white/80"><IconPlay class="size-5" /> Reference video (fixture)</span>
-          </div>
-          <div class="mx-auto grid max-w-sm gap-1 py-3">
-            <Type as="p" variant="body">{referenceDance() ? `${referenceDance()!.creator} · ${referenceDance()!.duration}` : ""}</Type>
-            {/* Spec 021 binds the movement to its excerpt: an existing
-                dance's section is stated, never edited. */}
-            <Type as="p" variant="caption" class="text-muted-foreground">{referenceDance()?.section} · fixed section</Type>
-          </div>
-          {/* The Dance session freezes this profile and the exact revision
-              before capture; posting eligibility is a separate gate. */}
-          <div class="mx-auto flex max-w-sm items-center justify-between rounded-[var(--radius-lg)] border border-border-soft p-3">
-            <Type as="p" variant="caption">Dancing as {profile}</Type>
-            <Button size="sm" variant="ghost">Change</Button>
-          </div>
-          <div class="mx-auto grid max-w-sm gap-2 py-4">
-            <Button data-try-score onClick={() => setScreen("capture")} size="lg">Try for a private score</Button>
-            <Button data-record-to-post onClick={() => setScreen("capture")} size="lg" variant="secondary">Record a take to post</Button>
-          </div>
-        </div>
+        </VerticalStage>
       </Show>
 
       <Show when={screen() === "review"}>
@@ -255,6 +285,16 @@ function JourneyFrame(props: {
             </div>
           </div>
         </div>
+      </Show>
+
+      {/* Song previews play on the same reusable stage, over whatever
+       * screen opened them. */}
+      <Show when={previewing()}>
+        {preview => (
+          <VerticalStage onBack={() => setPreviewing(undefined)}>
+            <span class="text-sm text-white/70">{preview().title} · video (fixture)</span>
+          </VerticalStage>
+        )}
       </Show>
 
       {/* The new-dance trim sheet: the only place a section is chosen. */}
@@ -311,12 +351,20 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-const openThroughSongChoice = async (canvasElement: HTMLElement) => {
+const openChooser = async (canvasElement: HTMLElement) => {
   const canvas = within(canvasElement);
   const addSound = await canvas.findByRole("button", { name: "Add sound" }, { timeout: 8_000 });
   addSound.click();
+  // The chooser screen never scrolls: back and search are its header, and
+  // the list owns overflow.
+  const search = await canvas.findByLabelText("Search songs", undefined, { timeout: 8_000 });
+  expect(search.closest("[data-song-chooser]")).not.toBeNull();
+};
+
+const chooseCadence = async (canvasElement: HTMLElement) => {
+  const canvas = within(canvasElement);
   const song = await canvas.findByText("Cadence", undefined, { timeout: 8_000 });
-  song.closest("button")!.click();;
+  song.closest("button")!.click();
   await canvas.findByText("What do you want to make?");
 };
 
@@ -326,8 +374,18 @@ export const NewDanceJourney: Story = {
   render: () => <JourneyFrame />,
   play: async ({ canvasElement, step }) => {
     const canvas = within(canvasElement);
-    await step("song chooser → what to make", async () => {
-      await openThroughSongChoice(canvasElement);
+    await step("the chooser opens fixed, without page scroll", async () => {
+      await openChooser(canvasElement);
+    });
+    await step("playing a song opens the reusable full-screen stage", async () => {
+      canvas.getByRole("button", { name: "Play Cadence" })!.click();
+      const stage = await canvas.findByText(/Cadence · video \(fixture\)/, undefined, { timeout: 8_000 });
+      expect(stage.closest("[data-vertical-stage]")).not.toBeNull();
+      canvas.getAllByRole("button", { name: "Back" })[0]!.click();
+      await canvas.findByLabelText("Search songs");
+    });
+    await step("choosing the song shows what to make", async () => {
+      await chooseCadence(canvasElement);
     });
     await step("Create a new dance opens the trim sheet", async () => {
       canvas.getByText("Create a new dance").closest("button")!.click();;
@@ -350,7 +408,7 @@ export const ExistingDanceJourney: Story = {
   play: async ({ canvasElement, step }) => {
     const canvas = within(canvasElement);
     await step("a dance row opens its detail", async () => {
-      await openThroughSongChoice(canvasElement);
+      await openChooser(canvasElement); await chooseCadence(canvasElement);
       canvas.getByText("Step Back").closest("button")!.click();;
       await canvas.findByText(/fixed section/);
       await canvas.findByText("Dancing as @harbor-persona");
@@ -376,7 +434,7 @@ export const NoDancesYet: Story = {
   render: () => <JourneyFrame withDances={false} />,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await openThroughSongChoice(canvasElement);
+    await openChooser(canvasElement); await chooseCadence(canvasElement);
     await canvas.findByText("No dances to Cadence yet.");
     const first = canvas.getByRole("button", { name: "Create the first one" });
     first.click();
