@@ -7,8 +7,9 @@ import { Button, IconMusicNote, IconPlay, IconPlus, Type } from "../../../design
 
 /** The dance create journeys, as fixture-backed design prototypes on the
  * capture-first flow. They establish what the Dance successor must build:
- * song chooser → what to make with it → fixed section or trim → dual-chip
- * capture → review or a labelled private score. Nothing here contacts a
+ * song chooser → what to make with it → fixed section or trim → capture with
+ * a song control above and dance context beside the recording controls →
+ * review or a labelled private score. Nothing here contacts a
  * server, opens a camera, grades anything, or pays anything. The score and
  * Post this take screens are labelled fixtures: the private-attempt lane is
  * still planned, no grading provider is selected, and posting the same
@@ -82,32 +83,30 @@ function JourneyFrame(props: {
           <div class="absolute inset-0 grid place-items-center">
             <div class="aspect-[9/16] w-full max-w-[56.25dvh] bg-gradient-to-b from-[#262a30] to-[#0d0f12]" data-video-viewfinder />
           </div>
-          <header class="absolute inset-x-0 top-0 z-10 flex items-center gap-2 px-4 pt-[max(0.75rem,env(safe-area-inset-top))]">
-            <span class="size-10" aria-hidden="true" />
-            <div class="flex min-w-0 flex-1 flex-wrap items-center justify-center gap-2">
+          <header class="absolute inset-x-0 top-0 z-10 flex justify-center px-4 pt-[max(0.75rem,env(safe-area-inset-top))]">
+            <button
+              aria-label={song() ? `Song: ${song()!.title}. Change the song` : "Add sound"}
+              class="inline-flex max-w-full cursor-pointer items-center gap-2 rounded-full bg-black/45 px-3 py-2 text-sm font-medium text-white backdrop-blur-sm"
+              onClick={() => setScreen("chooser")}
+              type="button"
+            >
+              <IconMusicNote aria-hidden="true" class="size-4 shrink-0" />
+              <span class="truncate">{song() ? song()!.title : "Add sound"}</span>
+            </button>
+          </header>
+          <Show when={song() && dance()}>
+            <div class="absolute inset-x-4 z-10 flex justify-center" style={{ bottom: "calc(7.75rem + env(safe-area-inset-bottom))" }}>
               <button
-                aria-label={song() ? `Song: ${song()!.title}. Change the song` : "Add sound"}
-                class="inline-flex min-w-0 cursor-pointer items-center gap-2 rounded-full bg-black/45 px-3 py-2 text-sm font-medium text-white backdrop-blur-sm"
-                onClick={() => setScreen("chooser")}
+                aria-label={dance() === "new" ? "New dance. Choose a different target" : `Dance: ${referenceDance()!.name}. Choose a different target`}
+                class="inline-flex max-w-full cursor-pointer items-center gap-2 rounded-[var(--radius-lg)] border border-white/20 bg-black/55 px-3 py-2 text-sm text-white backdrop-blur-sm"
+                onClick={() => setScreen("make")}
                 type="button"
               >
-                <IconMusicNote aria-hidden="true" class="size-4 shrink-0" />
-                <span class="truncate">{song() ? song()!.title : "Add sound"}</span>
+                <span class="truncate">{dance() === "new" ? "New dance" : referenceDance()!.name}</span>
+                <span class="shrink-0 text-white/70">Change</span>
               </button>
-              <Show when={song()}>
-                <button
-                  aria-label={dance() === "new" ? "New dance. Choose a different target" : referenceDance() ? `Dance: ${referenceDance()!.name}. Choose a different target` : "Choose a dance"}
-                  class="inline-flex min-w-0 cursor-pointer items-center gap-2 rounded-full bg-black/45 px-3 py-2 text-sm font-medium text-white backdrop-blur-sm"
-                  onClick={() => setScreen("make")}
-                  type="button"
-                >
-                  {dance() === "new" ? <IconPlus aria-hidden="true" class="size-4 shrink-0" /> : null}
-                  <span class="truncate">{dance() === "new" ? "New dance" : referenceDance() ? referenceDance()!.name : "Choose a dance"}</span>
-                </button>
-              </Show>
             </div>
-            <span class="size-10" aria-hidden="true" />
-          </header>
+          </Show>
           <div class="absolute inset-x-0 bottom-0 z-10 grid place-items-center px-6 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
             <button
               aria-label="Start recording"
@@ -274,38 +273,37 @@ function JourneyFrame(props: {
       {/* The new-dance trim sheet: the only place a section is chosen. */}
       <Show when={trimOpen()}>
         <div class="fixed inset-0 z-40 bg-black/55" data-trim-scrim onClick={() => setTrimOpen(false)} />
-      </Show>
-      <div
-        aria-hidden={trimOpen() ? undefined : "true"}
-        aria-label="Choose the section"
-        aria-modal="true"
-        class="fixed inset-x-0 bottom-0 z-50 grid max-h-[70dvh] gap-4 rounded-t-[var(--radius-sheet)] border-t border-border bg-card p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] shadow-xl"
-        data-trim-sheet
-        role="dialog"
-      >
-        <Type as="h2" variant="h3">New dance to {song()?.title}</Type>
-        <div class="grid gap-2">
-          <input
-            aria-label="Where the song starts"
-            class="w-full accent-primary"
-            max="120"
-            min="0"
-            onInput={() => undefined}
-            step="1"
-            type="range"
-            value="42"
-          />
-          <div class="flex items-center justify-between">
-            <Type as="p" variant="caption" class="text-muted-foreground">0:42 – 0:54 · 12s</Type>
-            <Type as="p" variant="caption" class="text-muted-foreground">section 6–15s</Type>
+        <div
+          aria-label="Choose the section"
+          aria-modal="true"
+          class="fixed inset-x-0 bottom-0 z-50 grid max-h-[70dvh] gap-4 rounded-t-[var(--radius-sheet)] border-t border-border bg-card p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] shadow-xl"
+          data-trim-sheet
+          role="dialog"
+        >
+          <Type as="h2" variant="h3">New dance to {song()?.title}</Type>
+          <div class="grid gap-2">
+            <input
+              aria-label="Where the song starts"
+              class="w-full accent-primary"
+              max="120"
+              min="0"
+              onInput={() => undefined}
+              step="1"
+              type="range"
+              value="42"
+            />
+            <div class="flex items-center justify-between">
+              <Type as="p" variant="caption" class="text-muted-foreground">0:42 – 0:54 · 12s</Type>
+              <Type as="p" variant="caption" class="text-muted-foreground">section 6–15s</Type>
+            </div>
+          </div>
+          <div class="flex justify-end">
+            {/* Closes to the camera so the author frames the shot, then
+                deliberately taps Record. */}
+            <Button data-use-section onClick={() => { setTrimOpen(false); setScreen("capture"); }} size="lg">Use this section</Button>
           </div>
         </div>
-        <div class="flex justify-end">
-          {/* Closes to the camera so the author frames the shot, then
-              deliberately taps Record. */}
-          <Button data-use-section onClick={() => { setTrimOpen(false); setScreen("capture"); }} size="lg">Use this section</Button>
-        </div>
-      </div>
+      </Show>
     </div>
   );
 }
@@ -317,7 +315,7 @@ const meta = {
     docs: {
       description: {
         component:
-          "Design prototypes for the dance create flow: song chooser, what to make with a song, a fixed section for an existing dance or a 6–15s trim for a new one, dual-chip capture, and a labelled private-score fixture. Fixture-backed and unpowered: nothing contacts a server, opens a camera, grades, or pays. The score and Post this take are fixtures; production dance work stays in its contract-backed lane.",
+          "Design prototypes for the dance create flow: song chooser, what to make with a song, a fixed section for an existing dance or a 6–15s trim for a new one, capture with separate song and dance controls, and a labelled private-score fixture. Fixture-backed and unpowered: nothing contacts a server, opens a camera, grades, or pays. The score and Post this take are fixtures; production dance work stays in its contract-backed lane.",
       },
     },
   },
@@ -352,7 +350,7 @@ export const NewDanceJourney: Story = {
       canvas.getByRole("button", { name: "Use this section" })!.click();;
       await canvas.findByRole("button", { name: "Start recording" });
     });
-    await step("capture shows both choices as chips", async () => {
+    await step("capture shows the song and dance choices", async () => {
       await canvas.findByRole("button", { name: /Song: Cadence/ });
       await canvas.findByRole("button", { name: /New dance/ });
     });
