@@ -668,6 +668,26 @@ describe("mounted song-first video flow", () => {
     expect(startCapture).not.toHaveBeenCalled();
   });
 
+  test("the capture surface scrolls into view when it opens", async () => {
+    const scrolled: Element[] = [];
+    const original = Element.prototype.scrollIntoView;
+    Element.prototype.scrollIntoView = function (this: Element) { scrolled.push(this); };
+    try {
+      songSetup({ preflight: "accepted", mobile: true });
+      await loadSongMetadata();
+      await awaitPlan("ready");
+      await vi.waitFor(() => expect(document.querySelector('button[aria-label="Start recording"]')).not.toBeNull());
+      // The record control opens below the song controls in the composer's
+      // scrolling page; it must be brought into view, not left below the
+      // fold for the author to guess at.
+      await vi.waitFor(() =>
+        expect(scrolled.some(element => element.querySelector('button[aria-label="Start recording"]') !== null)).toBe(true));
+    } finally {
+      if (original === undefined) delete (Element.prototype as Partial<Element>).scrollIntoView;
+      else Element.prototype.scrollIntoView = original;
+    }
+  });
+
   test("a refused excerpt never opens capture", async () => {
     songSetup({ preflight: "refused", mobile: true });
     await loadSongMetadata();

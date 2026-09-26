@@ -117,6 +117,10 @@ function JourneyScreen(props: { readonly policy: PolicyFixture }) {
           })}
           videoSongReader={async () => ({ postId: "cadence-post", audioUrl: toneWavUrl(SONG_MS), title: "Cadence" })}
           videoStorage={{ exclusive: async work => work(), load: async () => null, save: async () => {}, remove: async () => {} }}
+          videoSongPicker={async () => ({
+            songs: [{ postId: "cadence-post", title: "Cadence", artist: "salt-cove.pirate", artworkSrc: null }],
+            nextCursor: null,
+          })}
           videoOpenPreview={async () => new MediaStream()}
           videoStartCapture={async () => ({
             stream: new MediaStream(),
@@ -124,6 +128,7 @@ function JourneyScreen(props: { readonly policy: PolicyFixture }) {
             stop: async () => new File([new Blob(["storybook-take"])], "take.mp4", { type: "video/mp4" }),
             cancel: async () => {},
           })}
+          videoAlignTake={async file => ({ file, trimmedMs: 0, requestedMs: 0, aligned: true })}
         />
       </Show>
     </ApplicationChrome>
@@ -137,7 +142,7 @@ const meta = {
     docs: {
       description: {
         component:
-          "The connected create journey from the footer's center create action: community choice, profile, song, and the capture gate. The song's audio, the excerpt preflight and the per-persona owner policy are Storybook stand-ins; no story contacts a server.",
+          "The connected create journey from the footer's center create action: community choice, profile, song, and the capture gate. The song's audio, the excerpt preflight, the per-persona owner policy, the picker's song list, the camera preview, the take and its alignment are Storybook stand-ins; no story contacts a server, and publishing is not stubbed — it shows its honest failure state.",
       },
     },
   },

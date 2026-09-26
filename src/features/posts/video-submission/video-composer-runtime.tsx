@@ -4,6 +4,7 @@ import { type ExcerptBounds, formatExcerptTime } from "../post-composer/song-exc
 import { SongExcerptComposer, type SoundtrackSelection } from "../post-composer/song-excerpt-composer";
 import { createLocalExcerptDraftStore } from "../post-composer/song-excerpt-draft-store";
 import type { SongSourceReader } from "../post-composer/song-excerpt-source";
+import type { SongPickerSource } from "../post-composer/song-picker";
 import { OriginalVideoCaptureSurface, OriginalVideoReviewSurface } from "../post-composer/video-original-audio-surface";
 import { readSongVideoPolicy } from "../public-post/song-video-entry";
 import type { OriginalVideoCaptureInput, VideoCaptureSession } from "./capture";
@@ -110,6 +111,9 @@ export function VideoComposerRuntime(props: {
   readonly fetchImpl?: typeof fetch;
   readonly songPreflight?: SongIntervalPreflight;
   readonly songReader?: SongSourceReader;
+  /** The picker's song source; production leaves it to the community feed
+   * read, stories and tests stand in for it. */
+  readonly songPicker?: SongPickerSource;
   /** The owner-policy read for one persona and song, asked before capture.
    * The interval preflight carries no persona, so this is the check that
    * catches an owner-only or persona-restricted song before a take exists. */
@@ -161,6 +165,10 @@ export function VideoComposerRuntime(props: {
   // something about the song needs their decision.
   const [songPanelOpen, setSongPanelOpen] = createSignal(false);
   let songPanel: HTMLDivElement | undefined;
+  // The capture surface opens below the song controls inside the composer's
+  // scrolling page, and takes most of a viewport: without a scroll the
+  // record control sits below the fold and the author must guess.
+  let captureSurface: HTMLDivElement | undefined;
   /** Opens or closes the song controls, bringing them into view when opened. */
   const toggleSongPanel = () => {
     const opening = !songPanelOpen();
@@ -349,6 +357,12 @@ export function VideoComposerRuntime(props: {
    * profile question keeps both capture channels closed; the reservation
    * still re-checks at publish. */
   const captureReady = () => songChosen() && approvedSelection() !== undefined && eligibilityAllowed();
+  createEffect(
+    () => !file() && captureReady() && captureStatus() === "idle",
+    opened => {
+      if (opened) queueMicrotask(() => captureSurface?.scrollIntoView?.({ block: "start", behavior: "smooth" }));
+    },
+  );
   /** The excerpt a guided take was recorded to, when one was. A take danced to
    * one window cannot be published against another. */
   const [takeSoundtrack, setTakeSoundtrack] = createSignal<{ readonly songPostId: string; readonly bounds: ExcerptBounds } | null>(null);
@@ -846,6 +860,7 @@ export function VideoComposerRuntime(props: {
           onClose={props.onExit}
           clipLengthMs={songLengthForClip(clipDurationMs())}
           preflight={songPreflight} initialSong={props.initialSong}
+          {...(props.songPicker === undefined ? {} : { songs: props.songPicker })}
           onPlan={setSongPlan}
           onChoice={choice => { if (!disposed) setSongChoice(choice); }}
           onSelection={next => {
@@ -887,7 +902,7 @@ export function VideoComposerRuntime(props: {
         </div>
       </Show>
       <Show when={!file() && (captureReady() || captureStatus() === "recording" || finalizing())}>
-        <div inert={interactionBusy()}>
+        <div inert={interactionBusy()} ref={element => { captureSurface = element; }}>
           <Show when={captureStatus() === "recording"}>
             <p role="status" class="sr-only">{selection()
               ? `Recording to ${selection()!.title}. The take ends with the excerpt.`

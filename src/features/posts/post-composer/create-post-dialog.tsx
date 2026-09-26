@@ -140,6 +140,10 @@ export interface CreatePostDialogProps {
   readonly videoSongPreflight?: SongIntervalPreflight;
   /** The song source read standing in for the song playback grant. */
   readonly videoSongReader?: SongSourceReader;
+  /** The picker's song list standing in for the community feed. */
+  readonly videoSongPicker?: import("./song-picker").SongPickerSource;
+  /** The take alignment standing in for the guided-take trim. */
+  readonly videoAlignTake?: (file: File, offsetMs: number) => Promise<import("../video-submission/guided-take-alignment").GuidedTakeAlignment>;
   /** The camera preview standing in for a device camera, so stories can
    * show the settled capture surface rather than a permission failure. */
   readonly videoOpenPreview?: () => Promise<MediaStream>;
@@ -753,6 +757,8 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
                   readSongEligibility={props.videoSongEligibility}
                   songPreflight={props.videoSongPreflight}
                   songReader={props.videoSongReader}
+                  {...(props.videoSongPicker === undefined ? {} : { songPicker: props.videoSongPicker })}
+                  alignTake={props.videoAlignTake}
                   openPreview={props.videoOpenPreview}
                   startCapture={props.videoStartCapture}
                   onExit={() => setMode("text")} onPublished={props.onPublished}
