@@ -709,13 +709,19 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
     </Show>
   );
 
+  // The video flow is its own full-screen capture experience — close, sound
+  // and record on one screen, posting details at review — not a tab inside
+  // the scrolling post form. It replaces the form entirely while it runs.
   return (
-    <form
-      aria-label="Create a post"
-      class="fixed inset-0 z-50 overflow-y-auto bg-background px-3 py-4 sm:px-6 sm:py-8"
-      data-create-post-form
-      onSubmit={event => event.preventDefault()}
-    >
+    <Show
+      when={mode() === "video"}
+      fallback={
+      <form
+        aria-label="Create a post"
+        class="fixed inset-0 z-50 overflow-y-auto bg-background px-3 py-4 sm:px-6 sm:py-8"
+        data-create-post-form
+        onSubmit={event => event.preventDefault()}
+      >
       <div class="mx-auto grid w-full max-w-3xl gap-3">
             <Show when={!props.communityContext}>
               <TextField name="community-id" value={communityId()} onChange={setCommunityId}>
@@ -727,53 +733,6 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
             <Show when={personas().length === 0}>
               <FormNote tone="warning">Choose a profile for this community before posting.</FormNote>
             </Show>
-              <Show
-                when={mode() !== "video"}
-                fallback={
-                  <Show when={props.principalId}>{account => <>
-                    {/* The video flow replaces the composer's own identity
-                        control, so the profile choice must appear here or a
-                        song this profile cannot use strands the author with
-                        an instruction they cannot act on. */}
-                    <Show when={personas().length > 1}>
-                      <OperationPersonaControl
-                        class="mx-auto w-full max-w-md pb-2"
-                        label="Posting as"
-                        onSelect={(personaId) => setVideoPersonaId(personaId)}
-                        personas={personas().map(persona => ({
-                          personaId: persona.personaId,
-                          displayName: persona.displayName ?? persona.primaryPublicHandle ?? "Profile",
-                          avatarSrc: persona.avatarRef,
-                          publicHandle: persona.primaryPublicHandle,
-                        }))}
-                        placeholder="Choose a profile"
-                        selectedPersonaId={videoPersonaId()}
-                      />
-                    </Show>
-                    <VideoComposerRuntime
-                      principalId={account()} communityId={communityId().trim()} personaId={selectedActivePersonaId()}
-                  initialSong={props.initialVideoSong}
-                  storage={props.videoStorage} transport={props.videoTransport} fetchImpl={props.fetchImpl}
-                  readSongEligibility={props.videoSongEligibility}
-                  songPreflight={props.videoSongPreflight}
-                  songReader={props.videoSongReader}
-                  {...(props.videoSongPicker === undefined ? {} : { songPicker: props.videoSongPicker })}
-                  alignTake={props.videoAlignTake}
-                  openPreview={props.videoOpenPreview}
-                  startCapture={props.videoStartCapture}
-                  onExit={() => setMode("text")} onPublished={props.onPublished}
-                  onRetainedPersona={(personaId, retainedCommunityId) => {
-                    if (personaId !== null) {
-                      setVideoPersonaId(personaId);
-                      // A contextual composer keeps its page community; the
-                      // runtime then reports the retained video's mismatch.
-                      if (retainedCommunityId && !props.communityContext) setCommunityId(retainedCommunityId);
-                    }
-                  }}
-                />
-                  </>}</Show>
-              }
-            >
               <Show when={!showUploadRecovery()} fallback={
                 <section aria-labelledby="upload-recovery-title" class="mx-auto flex min-h-[calc(100dvh-2rem)] w-full max-w-md flex-col px-2 pb-4">
                   <div class="flex justify-end"><Button disabled={mediaBusy()} onClick={() => close(false)} type="button" variant="ghost">Close</Button></div>
@@ -846,8 +805,49 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
                 validateDraftBeforeSubmit={mode() !== "text"}
               />
               </Show>
-            </Show>
         </div>
       </form>
+      }
+    >
+      <Show
+        when={props.principalId}
+        fallback={
+          <div class="fixed inset-0 z-50 grid place-items-center bg-background p-6" data-create-video-signed-out>
+            <FormNote tone="warning">Sign in to post a video.</FormNote>
+          </div>
+        }
+      >
+        {account => (
+          <VideoComposerRuntime
+            principalId={account()}
+            communityId={communityId().trim() || undefined}
+            communityName={props.communityContext?.name}
+            personaId={videoPersonaId()}
+            personaOptions={personas().map(persona => ({
+              id: persona.personaId,
+              label: persona.displayName ?? persona.primaryPublicHandle ?? "Profile",
+            }))}
+            initialSong={props.initialVideoSong}
+            storage={props.videoStorage} transport={props.videoTransport} fetchImpl={props.fetchImpl}
+            readSongEligibility={props.videoSongEligibility}
+            songPreflight={props.videoSongPreflight}
+            songReader={props.videoSongReader}
+            {...(props.videoSongPicker === undefined ? {} : { songPicker: props.videoSongPicker })}
+            alignTake={props.videoAlignTake}
+            openPreview={props.videoOpenPreview}
+            startCapture={props.videoStartCapture}
+            onExit={() => setMode("text")} onPublished={props.onPublished}
+            onRetainedPersona={(personaId, retainedCommunityId) => {
+              if (personaId !== null) {
+                setVideoPersonaId(personaId);
+                // A contextual composer keeps its page community; the
+                // runtime then reports the retained video's mismatch.
+                if (retainedCommunityId && !props.communityContext) setCommunityId(retainedCommunityId);
+              }
+            }}
+          />
+        )}
+      </Show>
+    </Show>
   );
 }

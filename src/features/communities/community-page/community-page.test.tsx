@@ -512,17 +512,14 @@ describe("CommunityPage", () => {
       />
     ));
     await vi.waitFor(() => expect(document.querySelector('[aria-label="Video composer"]')).not.toBeNull());
-    // The author backs out of the song step, then closes the composer; the
-    // marker that opened it leaves the URL with them.
-    const change = [...document.querySelectorAll("button")].find(button => button.textContent === "Change song" || button.textContent === "Change");
-    expect(change).toBeDefined();
-    change!.click();
-    const songClose = await vi.waitFor(() => {
-      const button = document.querySelector<HTMLButtonElement>("button[aria-label='Close']");
+    // The author closes the capture view, then the composer; the marker that
+    // opened it leaves the URL with them.
+    const closeCapture = await vi.waitFor(() => {
+      const button = document.querySelector<HTMLButtonElement>("button[aria-label='Close video capture']");
       expect(button).not.toBeNull();
       return button!;
     });
-    songClose.click();
+    closeCapture.click();
     const composerClose = await vi.waitFor(() => {
       const button = document.querySelector<HTMLButtonElement>("button[aria-label='Close composer']");
       expect(button).not.toBeNull();

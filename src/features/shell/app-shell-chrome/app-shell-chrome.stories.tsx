@@ -30,7 +30,7 @@ export const MobileFooterWithCreate: Story = {
       <div class="min-h-screen bg-background px-3 pb-28 pt-6">
         <Body>Mobile footer with the center create action between Your songs and Wallet</Body>
         <Show when={opened()}>
-          <p class="pb-3 text-sm text-muted-foreground" role="status">The create action opens /communities?compose=video.</p>
+          <p class="pb-3 text-sm text-muted-foreground" role="status">The create action opens /create/video.</p>
         </Show>
         <MobileFooterNav
           activeItem="home"

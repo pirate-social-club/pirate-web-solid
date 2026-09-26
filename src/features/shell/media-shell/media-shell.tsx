@@ -228,7 +228,7 @@ export function ApplicationChrome(props: MediaShellProps) {
       <Button
         class="w-full justify-start"
         leadingIcon={<IconPlus class="size-4" />}
-        onClick={() => go("/communities?compose=video")}
+        onClick={() => go("/create/video")}
         type="button"
       >
         Create
@@ -280,7 +280,7 @@ export function ApplicationChrome(props: MediaShellProps) {
             // The v1 create path picks a community and a song, then records.
             createAriaLabel: "Post a video",
           }}
-          onCreateClick={() => go("/communities?compose=video")}
+          onCreateClick={() => go("/create/video")}
           onHomeClick={() => go("/")}
           onSongsClick={() => go("/songs")}
           onWalletClick={() => go("/wallet")}

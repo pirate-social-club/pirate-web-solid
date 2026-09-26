@@ -18,9 +18,6 @@ export interface YourCommunitiesPageProps {
   onCreateCommunity: () => void;
   onPostHere?: (community: YourCommunitySummary) => void;
   onSelectCommunity: (community: YourCommunitySummary) => void;
-  /** Every row is a choice, so a community without a public route still
-   * selects. The create entry sets this; browsing keeps the plain row. */
-  selectableWithoutRoute?: boolean;
   title: string;
 }
 
@@ -28,7 +25,6 @@ function YourCommunityListItem(props: {
   community: YourCommunitySummary;
   onPostHere?: (community: YourCommunitySummary) => void;
   onSelectCommunity: (community: YourCommunitySummary) => void;
-  selectableWithoutRoute?: boolean;
 }) {
   const community = () => props.community;
   // A community without a route shows no caption at all; "no route" is
@@ -48,10 +44,7 @@ function YourCommunityListItem(props: {
       data-community-id={community().communityId}
       id={`community-${community().communityId}`}
     >
-      <Show
-        when={community().resourceHref || props.selectableWithoutRoute}
-        fallback={<div class="flex min-w-0 flex-1 items-center gap-3">{content()}</div>}
-      >
+      <Show when={community().resourceHref} fallback={<div class="flex min-w-0 flex-1 items-center gap-3">{content()}</div>}>
         <button class={selectClasses} onClick={() => props.onSelectCommunity(community())} type="button">
           {content()}
         </button>
@@ -79,7 +72,7 @@ export function YourCommunitiesPageView(props: YourCommunitiesPageProps) {
         <Show when={props.joinedCommunities.length > 0} fallback={<Type as="p" variant="caption" class="py-4">{props.emptyJoinedLabel}</Type>}>
           <div>
             <For each={props.joinedCommunities}>
-              {(community) => <YourCommunityListItem community={community} onPostHere={props.onPostHere} onSelectCommunity={props.onSelectCommunity} selectableWithoutRoute={props.selectableWithoutRoute} />}
+              {(community) => <YourCommunityListItem community={community} onPostHere={props.onPostHere} onSelectCommunity={props.onSelectCommunity} />}
             </For>
           </div>
         </Show>

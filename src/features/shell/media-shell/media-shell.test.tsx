@@ -53,7 +53,7 @@ describe("Application navigation", () => {
     // The desktop create control joins the same video create entry as the
     // mobile footer's center action.
     [...container.querySelectorAll<HTMLButtonElement>("aside button")].find(button => button.textContent === "Create")!.click();
-    expect(navigate).toHaveBeenLastCalledWith("/communities?compose=video");
+    expect(navigate).toHaveBeenLastCalledWith("/create/video");
     expect(container.textContent).not.toContain("Notifications");
   });
 
@@ -74,7 +74,7 @@ describe("Application navigation", () => {
     footer.querySelector<HTMLButtonElement>('button[aria-label="Your songs"]')!.click();
     expect(navigate).toHaveBeenLastCalledWith("/songs");
     footer.querySelector<HTMLButtonElement>('button[aria-label="Post a video"]')!.click();
-    expect(navigate).toHaveBeenLastCalledWith("/communities?compose=video");
+    expect(navigate).toHaveBeenLastCalledWith("/create/video");
   });
 
   test("the phone drawer lists communities once and leaves profile switching to the footer", async () => {

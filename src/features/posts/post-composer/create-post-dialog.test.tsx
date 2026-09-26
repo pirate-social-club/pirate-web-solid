@@ -1122,7 +1122,12 @@ test.each([false, true])("retains video authority in global/contextual composer 
     expect(tab).toBeDefined(); await vi.waitFor(() => expect(tab.disabled).toBe(false)); tab.focus(); tab.click();
     await vi.waitFor(() => expect(document.body.textContent).toContain("Resume video submission"));
     expect(pickerClick).not.toHaveBeenCalled();
-    if (!contextual) expect(document.querySelector<HTMLInputElement>('input[name="community-id"]')?.value).toBe("retained-community");
+    if (!contextual) {
+      // The video flow has no community field: the retained video's
+      // community is adopted internally and surfaces through the runtime's
+      // mismatch reporting, not through an editable input.
+      expect(document.querySelector<HTMLInputElement>('input[name="community-id"]')).toBeNull();
+    }
     const resume = [...document.querySelectorAll("button")].find(button => button.textContent?.includes("Resume video submission"))!;
     await vi.waitFor(() => expect(resume.disabled).toBe(false)); resume.click();
     if (contextual) {
@@ -1135,19 +1140,9 @@ test.each([false, true])("retains video authority in global/contextual composer 
   } finally { for (const dispose of disposers.splice(0)) dispose(); pickerClick.mockRestore(); vi.stubGlobal("crypto", originalCrypto); vi.stubGlobal("URL", originalUrl); }
 });
 
-describe("video mode profile choice", () => {
-  test("offers the profile in the video flow and re-checks the song policy on switch", async () => {
-    const asked: string[] = [];
-    const eligibility = vi.fn(async (input: { readonly personaId: string }) => {
-      asked.push(input.personaId);
-      return input.personaId === "persona-two";
-    });
-    const preflight = vi.fn(async () => ({
-      state: "ready" as const, song_post_id: "song-post", audio_revision: 7, canonical_duration_samples: 10_080_047,
-      interval_policy: { policy_revision: 1, sample_rate_hz: 48_000 as const, min_clip_duration_samples: 144_000, max_clip_duration_samples: 8_640_000 },
-      interval: { accepted: true as const },
-    }));
-    const reader = vi.fn(async () => ({ postId: "song-post", audioUrl: "https://audio.example/song.mp3", title: "A song" }));
+describe("video mode capture view", () => {
+  test("opens the capture view with Add sound, and no posting details above it", async () => {
+    const eligibility = vi.fn(async () => true);
     const disposers: (() => void)[] = [];
     try {
       const { render } = await import("@solidjs/web");
@@ -1165,50 +1160,19 @@ describe("video mode profile choice", () => {
           personas={[activePersona("persona-one", "Persona One"), activePersona("persona-two", "Persona Two")]}
           principalId="account-one"
           videoSongEligibility={eligibility}
-          videoSongPreflight={preflight}
-          videoSongReader={reader}
         />, container);
       });
       disposers.push(() => { dispose(); container.remove(); });
-      // The video flow replaces the composer's identity control, so it must
-      // carry its own before a song can strand the author.
-      await vi.waitFor(() => expect(container.querySelector("[data-operation-persona] button[aria-haspopup='dialog']")).not.toBeNull());
-      // Choose a song through the picker's pasted link.
-      const input = await vi.waitFor(() => {
-        const field = document.querySelector<HTMLInputElement>('input[aria-label="Search songs"]');
-        expect(field).not.toBeNull();
-        return field!;
+      // The capture view is the dialog: its own Add sound control, and the
+      // posting details wait for review rather than sitting above it.
+      const addSound = await vi.waitFor(() => {
+        const button = document.querySelector<HTMLButtonElement>("button[aria-label='Add sound']");
+        expect(button).not.toBeNull();
+        return button!;
       });
-      input.value = "https://pirate.test/p/song-post";
-      input.dispatchEvent(new Event("input", { bubbles: true }));
-      const use = await vi.waitFor(() => {
-        const button = [...document.querySelectorAll("button")].find(candidate => candidate.textContent === "Use the song at this link");
-        expect(button).toBeDefined();
-        return button as HTMLButtonElement;
-      });
-      use.click();
-      // The song's length arrives from the audio element; drive it as a
-      // browser would so the excerpt and its server check can happen.
-      const audio = await vi.waitFor(() => {
-        const element = document.querySelector<HTMLAudioElement>("audio[src]");
-        expect(element).not.toBeNull();
-        return element!;
-      });
-      Object.defineProperty(audio, "duration", { configurable: true, value: 210 });
-      audio.dispatchEvent(new Event("loadedmetadata"));
-      // The first profile is denied the song; the denial is visible.
-      await vi.waitFor(() => expect(asked).toEqual(["persona-one"]), { timeout: 3_000 });
-      await vi.waitFor(() => expect(document.body.textContent).toContain("This profile can’t post a video to this song"));
-      // Switching profile through the video flow's own control re-asks.
-      container.querySelector<HTMLButtonElement>("[data-operation-persona] button[aria-haspopup='dialog']")!.click();
-      const option = await vi.waitFor(() => {
-        const candidate = [...document.querySelectorAll("label, [role='radio']")].find(node => node.textContent?.includes("Persona Two"));
-        expect(candidate).toBeDefined();
-        return candidate as HTMLElement;
-      });
-      option.click();
-      await vi.waitFor(() => expect(asked).toEqual(["persona-one", "persona-two"]));
-      await vi.waitFor(() => expect(document.body.textContent).not.toContain("can’t post a video to this song"));
+      expect(document.querySelector("[data-operation-persona]")).toBeNull();
+      addSound.click();
+      await vi.waitFor(() => expect(document.querySelector('input[aria-label="Search songs"]')).not.toBeNull());
     } finally {
       for (const dispose of disposers.splice(0)) dispose();
     }
