@@ -43,6 +43,8 @@ const dances: readonly FixtureDance[] = [
   { id: "step-back", songPostId: "cadence", name: "Step Back", creator: "@salt-cove", duration: "0:12", section: "Cadence · 0:42–0:54" },
   { id: "side-turn", songPostId: "low-tide", name: "Side Turn", creator: "@night-owl", duration: "0:09", section: "Low Tide · 0:03–0:12" },
 ];
+const profiles = ["@harbor-persona", "@reef-persona"] as const;
+const formatTime = (seconds: number) => `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
 
 function FixtureBadge(props: { readonly label: string }) {
   return (
@@ -85,9 +87,12 @@ function JourneyFrame(props: {
   const [song, setSong] = createSignal<FixtureSong>();
   const [dance, setDance] = createSignal<FixtureDance | "new">();
   const [captureMode, setCaptureMode] = createSignal<"post" | "score">("post");
+  const [recording, setRecording] = createSignal(false);
+  const [sectionStart, setSectionStart] = createSignal(42);
+  const [profile, setProfile] = createSignal<(typeof profiles)[number]>(profiles[0]);
+  const [profileOpen, setProfileOpen] = createSignal(false);
   const [query, setQuery] = createSignal("");
   const [previewing, setPreviewing] = createSignal<FixtureSong>();
-  const profile = "@harbor-persona";
   /** The chosen reference dance, narrowed away from the "new" marker; the
    * detail screen only renders while a concrete dance is chosen. */
   const referenceDance = () => {
@@ -99,6 +104,8 @@ function JourneyFrame(props: {
     // the song it was made for.
     setSong(next);
     setDance(undefined);
+    setRecording(false);
+    setSectionStart(42);
     setScreen("make");
   };
   const visibleDances = () => props.withDances === false
@@ -116,6 +123,7 @@ function JourneyFrame(props: {
             <button
               aria-label={song() ? `Song: ${song()!.title}. Change the song` : "Add sound"}
               class="inline-flex max-w-full cursor-pointer items-center gap-2 rounded-full bg-black/45 px-3 py-2 text-sm font-medium text-white backdrop-blur-sm"
+              disabled={recording()}
               onClick={() => { setChooserReturn("capture"); setScreen("chooser"); }}
               type="button"
             >
@@ -125,13 +133,19 @@ function JourneyFrame(props: {
           </header>
           <div class="absolute inset-x-0 bottom-0 z-10 grid place-items-center px-6 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
             <button
-              aria-label="Start recording"
-              class="grid size-[74px] cursor-pointer place-items-center rounded-full border-4 border-white"
-              onClick={() => setScreen(captureMode() === "score" ? "score" : "review")}
+              aria-label={recording() ? "Stop recording" : "Start recording"}
+              class="grid size-[74px] cursor-pointer place-items-center rounded-full border-4 border-white disabled:cursor-not-allowed disabled:opacity-50"
+              disabled={!song()}
+              onClick={() => {
+                if (!recording()) { setRecording(true); return; }
+                setRecording(false);
+                setScreen(captureMode() === "score" ? "score" : "review");
+              }}
               type="button"
             >
-              <span class="size-[58px] rounded-full bg-[#f0453a]" />
+              <span class={recording() ? "size-7 rounded-md bg-[#f0453a]" : "size-[58px] rounded-full bg-[#f0453a]"} />
             </button>
+            <Show when={!song()}><span class="pt-2 text-xs text-white/70">Choose a song to record</span></Show>
           </div>
         </div>
       </Show>
@@ -259,8 +273,8 @@ function JourneyFrame(props: {
             {/* The Dance session freezes this profile and the exact revision
                 before capture; posting eligibility is a separate gate. */}
             <div class="flex items-center justify-between rounded-[var(--radius-lg)] bg-white/10 px-3 py-2 backdrop-blur-sm">
-              <Type as="p" variant="caption" class="text-white">Dancing as {profile}</Type>
-              <Button size="sm" variant="ghost">Change</Button>
+              <Type as="p" variant="caption" class="text-white">Dancing as {profile()}</Type>
+              <Button onClick={() => setProfileOpen(true)} size="sm" variant="ghost">Change</Button>
             </div>
             <div class="grid gap-2">
               <Button data-try-score onClick={() => { setCaptureMode("score"); setScreen("capture"); }} size="lg">Try for a private score</Button>
@@ -274,7 +288,7 @@ function JourneyFrame(props: {
         <div class="min-h-dvh bg-background p-4" data-review>
           <Type as="h1" variant="h2" class="pb-3">Review video</Type>
           <div class="mx-auto grid aspect-[9/16] max-h-[52dvh] w-full max-w-sm place-items-center rounded-[var(--radius-2xl)] bg-gradient-to-b from-[#262a30] to-[#0d0f12] text-sm text-white/70">Your take (fixture)</div>
-          <p class="mx-auto max-w-sm pt-3 text-sm text-muted-foreground">Posting as {profile} · destination and caption confirm here · Publish</p>
+          <p class="mx-auto max-w-sm pt-3 text-sm text-muted-foreground">Posting as {profile()} · destination and caption confirm here · Publish</p>
         </div>
       </Show>
 
@@ -313,14 +327,14 @@ function JourneyFrame(props: {
               class="w-full accent-primary"
               max="120"
               min="0"
-              onInput={() => undefined}
+              onInput={event => setSectionStart(Number(event.currentTarget.value))}
               step="1"
               type="range"
-              value="42"
+              value={sectionStart()}
             />
             <div class="flex items-center justify-between">
-              <Type as="p" variant="caption" class="text-muted-foreground">0:42 – 0:54 · 12s</Type>
-              <Type as="p" variant="caption" class="text-muted-foreground">section 6–15s</Type>
+              <Type as="p" variant="caption" class="text-muted-foreground">{formatTime(sectionStart())} – {formatTime(sectionStart() + 12)} · 12s</Type>
+              <Type as="p" variant="caption" class="text-muted-foreground">12s section</Type>
             </div>
           </div>
           <div class="flex justify-end">
@@ -328,6 +342,21 @@ function JourneyFrame(props: {
                 deliberately taps Record. */}
             <Button data-use-section onClick={() => { setTrimOpen(false); setScreen("capture"); }} size="lg">Use this section</Button>
           </div>
+        </div>
+      </Show>
+
+      <Show when={profileOpen()}>
+        <div class="fixed inset-0 z-40 bg-black/55" onClick={() => setProfileOpen(false)} />
+        <div
+          aria-label="Choose a profile"
+          aria-modal="true"
+          class="fixed inset-x-0 bottom-0 z-50 grid gap-3 rounded-t-[var(--radius-sheet)] border-t border-border bg-card p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] shadow-xl"
+          role="dialog"
+        >
+          <Type as="h2" variant="h3">Dance as</Type>
+          <For each={profiles}>
+            {candidate => <Button onClick={() => { setProfile(candidate); setProfileOpen(false); }} variant={candidate === profile() ? "default" : "secondary"}>{candidate}</Button>}
+          </For>
         </div>
       </Show>
     </div>
@@ -341,7 +370,7 @@ const meta = {
     docs: {
       description: {
         component:
-          "Design prototypes for the dance create flow: song chooser, what to make with a song, a fixed section for an existing dance or a 6–15s trim for a new one, capture with one song control leading back through the dances for that song, and a labelled private-score fixture. Fixture-backed and unpowered: nothing contacts a server, opens a camera, grades, or pays. The score and Post this take are fixtures; production dance work stays in its contract-backed lane.",
+          "Design prototypes for the dance create flow: song chooser, what to make with a song, a fixed section for an existing dance or a movable 12-second section for a new one, capture with one song control leading back through the dances for that song, and a labelled private-score fixture. Fixture-backed and unpowered: nothing contacts a server, opens a camera, grades, or pays. The score and Post this take are fixtures; production dance work stays in its contract-backed lane.",
       },
     },
   },
@@ -415,10 +444,17 @@ export const ExistingDanceJourney: Story = {
       await canvas.findByText(/fixed section/);
       await canvas.findByText("Dancing as @harbor-persona");
     });
+    await step("the dancer can change profile before capture", async () => {
+      canvas.getByRole("button", { name: "Change" })!.click();
+      await canvas.findByRole("dialog", { name: "Choose a profile" });
+      canvas.getByRole("button", { name: "@reef-persona" })!.click();
+      await canvas.findByText("Dancing as @reef-persona");
+    });
     await step("a private score needs no posting path", async () => {
       canvas.getByRole("button", { name: "Try for a private score" })!.click();;
       await canvas.findByRole("button", { name: /Song: Cadence/ });
       canvas.getByRole("button", { name: "Start recording" })!.click();;
+      canvas.getByRole("button", { name: "Stop recording" })!.click();;
     });
     await step("the result is a labelled fixture, and posting is separate", async () => {
       const score = await canvas.findByText("78");
