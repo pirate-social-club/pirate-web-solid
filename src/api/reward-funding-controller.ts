@@ -198,6 +198,21 @@ export function createRewardFundingController(options: {
         const { receipt, problem } = read();
         const drift = receipt !== null && receipt.instructionDigest !== await instructionDigest(context);
         assertCurrent();
+        if ((funding.status === "confirming" || funding.status === "reconciliation_required") && funding.transaction_hash !== null) {
+          if (receipt?.transactionHash && receipt.transactionHash !== funding.transaction_hash) {
+            return reconcile("transaction_mismatch", receipt.transactionHash, funding.transaction_hash);
+          }
+          // A bound hash still needs fresh chain observation after more blocks arrive.
+          // This endpoint only reconciles that hash; it cannot sign another transfer.
+          try {
+            const observed = await api.observe(target, actor, funding.transaction_hash, receipt?.observationKey ?? crypto.randomUUID());
+            assertCurrent();
+            return serverResult(observed, receipt, problem ?? (drift ? "terms_changed" : undefined));
+          } catch {
+            assertCurrent();
+            return serverResult(funding, receipt, problem ?? (drift ? "terms_changed" : undefined));
+          }
+        }
         if (funding.status !== "planned" || funding.transaction_hash !== null) return serverResult(funding, receipt, problem ?? (drift ? "terms_changed" : undefined));
         if (problem !== undefined) return reconcile(problem, null);
         if (receipt === null) return publish({ kind: "idle" });

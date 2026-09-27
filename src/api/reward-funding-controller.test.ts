@@ -57,6 +57,24 @@ describe("persona reward funding submission", () => {
     expect(await h.controller.recover()).toMatchObject({ kind: "server", funding: { status: "confirmed" } });
     expect(h.wallet.send).toHaveBeenCalledTimes(1);
   });
+  it("reobserves a bound funding hash after more confirmations without sending again", async () => {
+    const h = harness("megapot_pool");
+    const r = await review(h.controller);
+    await h.controller.confirm(r.id);
+    h.server({ ...context("megapot_pool"), funding: { ...context("megapot_pool").funding, status: "confirming", transaction_hash: transactionHash } });
+    h.api.observe = vi.fn().mockResolvedValue({ ...context("megapot_pool").funding, status: "confirmed", transaction_hash: transactionHash, confirmed_amount_atomic: "1000000" });
+    expect(await h.create().recover()).toMatchObject({ kind: "server", funding: { status: "confirmed" } });
+    expect(h.api.observe).toHaveBeenCalledWith({ ...target, kind: "megapot_pool" }, actor, transactionHash, [...h.receipts.values()][0]?.observationKey);
+    expect(h.wallet.send).toHaveBeenCalledTimes(1);
+  });
+  it("can reconcile a server-bound hash when this browser has no recovery marker", async () => {
+    const h = harness("megapot_pool");
+    h.server({ ...context("megapot_pool"), funding: { ...context("megapot_pool").funding, status: "confirming", transaction_hash: transactionHash } });
+    h.api.observe = vi.fn().mockResolvedValue({ ...context("megapot_pool").funding, status: "confirmed", transaction_hash: transactionHash, confirmed_amount_atomic: "1000000" });
+    expect(await h.controller.recover()).toMatchObject({ kind: "server", funding: { status: "confirmed" } });
+    expect(h.api.observe).toHaveBeenCalledWith({ ...target, kind: "megapot_pool" }, actor, transactionHash, expect.any(String));
+    expect(h.wallet.send).not.toHaveBeenCalled();
+  });
   it("requires the exact explicit review token", async () => {
     const h = harness();
     await expect(h.controller.confirm("guessed")).rejects.toThrow("funding_review_required");
