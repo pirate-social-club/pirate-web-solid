@@ -27,7 +27,8 @@ export type OriginalVideoCaptureStatus =
   | "recording"
   | "camera_denied"
   | "capability_unavailable"
-  | "orientation_lost";
+  | "orientation_lost"
+  | "guide_interrupted";
 
 export interface OriginalVideoCaptureSurfaceProps {
   readonly preview?: JSX.Element;
@@ -102,6 +103,15 @@ export function OriginalVideoCaptureSurface(props: OriginalVideoCaptureSurfacePr
                 body="The phone rotated while recording, so this take ended before it could be finalized. Keep the next take in one orientation."
                 icon={<IconArrowsClockwise class="size-7" />}
                 title="Retake in one orientation"
+                onAction={props.onRetake}
+              />
+            </Match>
+            <Match when={status() === "guide_interrupted"}>
+              <CaptureMessage
+                action="Record again"
+                body="The song stopped during recording, so that take was discarded to keep the video in time with the song."
+                icon={<IconArrowsClockwise class="size-7" />}
+                title="That take ended"
                 onAction={props.onRetake}
               />
             </Match>

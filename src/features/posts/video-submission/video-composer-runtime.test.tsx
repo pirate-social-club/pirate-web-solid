@@ -339,7 +339,8 @@ describe("mounted song-first video flow", () => {
     const use = await vi.waitFor(() => {
       const button = [...document.querySelectorAll("button")].find(candidate => candidate.textContent === "Use the song at this link");
       expect(button).toBeDefined();
-      return button as HTMLButtonElement;
+      if (!button) throw new Error("song link action is missing");
+      return button;
     });
     use.click();
   }
@@ -704,7 +705,8 @@ describe("mounted song-first video flow", () => {
     const option = await vi.waitFor(() => {
       const candidate = [...document.querySelectorAll("label, [role='radio']")].find(node => node.textContent?.includes("Persona Two"));
       expect(candidate).toBeDefined();
-      return candidate as HTMLElement;
+      if (!(candidate instanceof HTMLElement)) throw new Error("persona option is missing");
+      return candidate;
     });
     option.click();
     await vi.waitFor(() => expect(asked).toEqual(["persona", "persona-two"]));
@@ -945,7 +947,7 @@ describe("mounted song-first video flow", () => {
     expect(cancelled).toBe(1);
   });
 
-  test("a guide that stalls mid-take ends the recording", async () => {
+  test("a brief waiting event does not discard a guide that keeps playing", async () => {
     const guide = guideSpy();
     let stopped = 0;
     nextSession = () => fakeSession(() => { stopped += 1; });
@@ -955,8 +957,56 @@ describe("mounted song-first video flow", () => {
     await startRecording();
     await vi.waitFor(() => expect(guide.calls.play).toBe(1));
     guide.events.get("waiting")?.();
-    await vi.waitFor(() => expect(stopped).toBe(1));
-    await vi.waitFor(() => expect(document.body.textContent).toContain("stalled"));
+    guide.audio.currentTime += 0.08;
+    await new Promise(resolve => setTimeout(resolve, 120));
+    expect(stopped).toBe(0);
+    expect(document.querySelector('button[aria-label="Stop recording"]')).not.toBeNull();
+  });
+
+  test("a real guide gap discards the take and offers a retake in the camera", async () => {
+    const guide = guideSpy();
+    let stopped = 0;
+    let cancelled = 0;
+    nextSession = () => ({
+      ...fakeSession(() => { stopped += 1; }),
+      cancel: async () => { cancelled += 1; },
+    });
+    songSetup({ preflight: "accepted", mobile: true, createGuideAudio: () => guide.audio });
+    await loadSongMetadata();
+    await awaitPlan("ready");
+    await startRecording();
+    await vi.waitFor(() => expect(guide.calls.play).toBe(1));
+    guide.events.get("waiting")?.();
+    await vi.waitFor(() => expect(cancelled).toBe(1));
+    expect(stopped).toBe(0);
+    expect(document.querySelector("textarea")).toBeNull();
+    const viewfinder = document.querySelector("[data-video-viewfinder]");
+    expect(viewfinder?.textContent).toContain("The song stopped during recording");
+    expect(document.body.textContent).not.toContain("The guide song stalled");
+    const retake = [...document.querySelectorAll("button")].find(button => button.textContent === "Record again");
+    expect(retake).toBeDefined();
+    retake?.click();
+    await vi.waitFor(() => expect(document.querySelector('button[aria-label="Start recording"]')).not.toBeNull());
+  });
+
+  test("a guide playback error cancels the take without a partial review", async () => {
+    const guide = guideSpy();
+    let stopped = 0;
+    let cancelled = 0;
+    nextSession = () => ({
+      ...fakeSession(() => { stopped += 1; }),
+      cancel: async () => { cancelled += 1; },
+    });
+    songSetup({ preflight: "accepted", mobile: true, createGuideAudio: () => guide.audio });
+    await loadSongMetadata();
+    await awaitPlan("ready");
+    await startRecording();
+    await vi.waitFor(() => expect(guide.calls.play).toBe(1));
+    guide.events.get("error")?.();
+    await vi.waitFor(() => expect(cancelled).toBe(1));
+    expect(stopped).toBe(0);
+    expect(document.querySelector("textarea")).toBeNull();
+    expect(document.querySelector("[data-video-viewfinder]")?.textContent).toContain("Record again");
   });
 
   test("a cold song is loaded before the camera starts, then the take plays it", async () => {

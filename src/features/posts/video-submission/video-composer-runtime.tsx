@@ -152,7 +152,7 @@ export function VideoComposerRuntime(props: {
   const [busy, setBusy] = createSignal(true);
   const [error, setError] = createSignal("");
   const [progress, setProgress] = createSignal("");
-  const [captureStatus, setCaptureStatus] = createSignal<"idle" | "recording" | "camera_denied" | "capability_unavailable" | "orientation_lost">("idle");
+  const [captureStatus, setCaptureStatus] = createSignal<"idle" | "recording" | "camera_denied" | "capability_unavailable" | "orientation_lost" | "guide_interrupted">("idle");
   const [stream, setStream] = createSignal<MediaStream | null>(null);
   // The chosen excerpt and the audio that will replace the recording, both
   // reported by the excerpt composer. They survive the move from choosing to
@@ -428,8 +428,15 @@ export function VideoComposerRuntime(props: {
   // listened for: it only says the download paused, and playback continues
   // from what is buffered. The excerpt is loaded before the take starts.
   let guidePlaying = false;
+  let guideWaitTimer: ReturnType<typeof setTimeout> | undefined;
+  // `waiting` may be a short buffer transition while playback keeps moving.
+  // Confirm a real gap before discarding the take, while limiting drift.
+  const GUIDE_WAIT_CONFIRM_MS = 80;
+  const GUIDE_WAIT_MIN_PROGRESS_SECONDS = 0.04;
   const onGuidePlaying = () => { guidePlaying = true; };
   const stopGuide = () => {
+    if (guideWaitTimer !== undefined) clearTimeout(guideWaitTimer);
+    guideWaitTimer = undefined;
     const audio = guideAudio;
     guideAudio = undefined;
     guidePlaying = false;
@@ -441,13 +448,19 @@ export function VideoComposerRuntime(props: {
   };
   const onGuideFailure = () => {
     if (disposed) return;
-    void stopCapture("The guide song stopped unexpectedly, so the recording ended.");
+    void cancelInterruptedTake();
   };
-  /** Playback waiting for data mid-take means the guide is no longer keeping
-   * time with the recording; the take ends rather than drifting silently. */
+  /** A sustained playback gap would put the author behind the final song. */
   const onGuideInterrupted = () => {
-    if (disposed || !guidePlaying) return;
-    void stopCapture("The guide song stalled, so this recording ended.");
+    const audio = guideAudio;
+    if (disposed || !guidePlaying || !audio || guideWaitTimer !== undefined) return;
+    const before = audio.currentTime;
+    guideWaitTimer = setTimeout(() => {
+      guideWaitTimer = undefined;
+      if (disposed || guideAudio !== audio || !session) return;
+      if (audio.currentTime - before >= GUIDE_WAIT_MIN_PROGRESS_SECONDS) return;
+      void cancelInterruptedTake();
+    }, GUIDE_WAIT_CONFIRM_MS);
   };
   const createGuide = (url: string): GuideAudio => props.createGuideAudio ? props.createGuideAudio(url) : new Audio(url);
   /** Loads the excerpt before the camera starts, so a take never begins on a
@@ -595,6 +608,24 @@ export function VideoComposerRuntime(props: {
     // The stop is what ends the take; the reason goes up after it so the
     // finalization cannot clear it.
     if (reason && !disposed) setError(reason);
+  }
+  /** An interrupted guide invalidates the take. It must never enter review or
+   * become a retained video; the chosen song remains ready for another try. */
+  async function cancelInterruptedTake() {
+    const current = session;
+    if (!current) return;
+    session = null;
+    stopGuide();
+    setTakeSoundtrack(null);
+    setTakeAlignment("none");
+    guideStarted = false;
+    guideStartExceeded = false;
+    if (!disposed) {
+      setStream(null);
+      setError("");
+      setCaptureStatus("guide_interrupted");
+    }
+    await current.cancel().catch(() => {});
   }
   /** A guide prepared from one exact excerpt is only usable while that exact
    * excerpt is still the chosen one: a take danced to one window cannot be
