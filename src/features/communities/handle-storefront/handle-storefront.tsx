@@ -1,4 +1,5 @@
 import { createSessionApiClient } from "../../../api/client.ts";
+import { createSpacesTaprootWalletSession, type SpacesTaprootWalletSession } from "../../../api/spaces-taproot-wallet-session.ts";
 import { requestDocumentVerification } from "../../verification/document-verification-host.tsx";
 import { handleNationalityRequirement } from "../../verification/document-requirement.ts";
 import { ApiClientError } from "@pirate/api-client";
@@ -57,6 +58,7 @@ import {
   initialSaleNamespaceActivationId,
   loadHandleStorefrontPublic,
   normalizeDesiredHandleLabel,
+  offeringAppliesToLabel,
   projectPersonaChoices,
   projectSaleNamespaceChoices,
   selectHandleOffering,
@@ -91,7 +93,7 @@ type ClaimUiState =
       readonly expiresAt?: string;
     }>
   | Readonly<{ readonly kind: "issued"; readonly identifier: string; readonly persona: string }>
-  | Readonly<{ readonly kind: "pending" }>
+  | Readonly<{ readonly kind: "pending"; readonly claimId?: string }>
   | Readonly<{ readonly kind: "verification"; readonly message: string }>
   | Readonly<{ readonly kind: "error"; readonly message: string }>;
 
@@ -322,11 +324,63 @@ function BuyerPanel(props: {
   const [linkConfirmed, setLinkConfirmed] = createSignal(false);
   const [claimState, setClaimState] = createSignal<ClaimUiState>({ kind: "idle" });
   const [authOpen, setAuthOpen] = createSignal(false);
+  const [walletEmail, setWalletEmail] = createSignal("");
+  const [walletCode, setWalletCode] = createSignal("");
+  const [walletStep, setWalletStep] = createSignal<"idle" | "sending" | "code" | "working">("idle");
+  const [walletNeeded, setWalletNeeded] = createSignal(false);
+  let walletSession: SpacesTaprootWalletSession | undefined;
   const [hnsServed, setHnsServed] = createSignal(false);
+  const savedClaimKey = `spaces-claim:${state.community.communityId}`;
   let sessionGeneration = 0;
   let activeAttempt: AbortController | undefined;
   let attemptSignature: string | undefined;
   let attemptKeys: HandleStorefrontAttemptKeys | undefined;
+  onCleanup(() => walletSession?.dispose());
+
+  const beginWalletSetup = async () => {
+    const email = walletEmail().trim();
+    if (email === "" || walletStep() === "working") return;
+    setWalletStep("sending");
+    try {
+      walletSession?.dispose();
+      walletSession = await createSpacesTaprootWalletSession();
+      await walletSession.sendCode(email);
+      setWalletStep("code");
+      setClaimState({ kind: "verification", message: "Enter the code sent to your email to set up the receiving wallet." });
+    } catch {
+      walletSession?.dispose();
+      walletSession = undefined;
+      setWalletStep("idle");
+      setClaimState({ kind: "error", message: "Wallet authorization is unavailable. Try again later." });
+    }
+  };
+
+  const completeWalletSetup = async () => {
+    const session = walletSession;
+    const persona = selectedPersona();
+    const csrf = readCsrf();
+    if (session === undefined || persona === undefined || csrf === undefined || walletCode().trim() === "") return;
+    setWalletStep("working");
+    try {
+      await session.loginWithCode(walletEmail().trim(), walletCode().trim());
+      const result = await session.setup(persona.personaId, csrf);
+      if (result.kind === "active") {
+        setWalletNeeded(false);
+        setClaimState({ kind: "verification", message: "Receiving wallet ready. Select Claim again to request your name." });
+      } else if (result.kind === "ambiguous") {
+        setClaimState({ kind: "error", message: "Wallet setup needs review. No additional wallet will be created automatically." });
+      } else {
+        setClaimState({ kind: "verification", message: "Wallet setup is pending. Check again later; no additional wallet will be created automatically." });
+      }
+    } catch {
+      setClaimState({ kind: "error", message: "Wallet setup could not be confirmed. Try again later; the service will check the existing attempt before creating anything." });
+    } finally {
+      session.dispose();
+      walletSession = undefined;
+      setWalletCode("");
+      setWalletStep("idle");
+    }
+  };
 
   const activeOffering = createMemo(() => selectHandleOffering(
     state.offerings,
@@ -348,23 +402,27 @@ function BuyerPanel(props: {
       ? current.personas.find(persona => persona.personaId === selectedPersonaId())
       : undefined;
   });
-  const normalizedLabel = createMemo(() => normalizeDesiredHandleLabel(label()));
+  const normalizedLabel = createMemo(() => normalizeDesiredHandleLabel(label(), selectedNamespace()?.family ?? "hns"));
   const identifier = createMemo(() => {
     const namespace = selectedNamespace();
     const desired = normalizedLabel();
     return namespace === undefined || desired === null
       ? undefined
-      : `${desired}.${namespace.displayRoot}`;
+      : namespace.family === "spaces" ? `${desired}@${namespace.displayRoot}` : `${desired}.${namespace.displayRoot}`;
   });
-  const busy = createMemo(() => claimState().kind === "progress");
-  const canClaim = createMemo(() =>
-    session().kind === "ready"
-    && selectedPersona() !== undefined
-    && activeOffering() !== undefined
-    && normalizedLabel() !== null
-    && linkConfirmed()
-    && !busy(),
-  );
+  const busy = createMemo(() => claimState().kind === "progress" ||
+    walletStep() === "sending" || walletStep() === "working");
+  const canClaim = createMemo(() => {
+    const offering = activeOffering();
+    const desired = normalizedLabel();
+    return session().kind === "ready"
+      && selectedPersona() !== undefined
+      && offering !== undefined
+      && desired !== null
+      && offeringAppliesToLabel(offering, desired)
+      && linkConfirmed()
+      && !busy();
+  });
 
   const loadPersonas = async () => {
     const generation = ++sessionGeneration;
@@ -377,6 +435,41 @@ function BuyerPanel(props: {
       if (!personas.some(persona => persona.personaId === selectedPersonaId())) {
         setSelectedPersonaId(null);
         setLinkConfirmed(false);
+      }
+      if (typeof sessionStorage !== "undefined") {
+        const savedClaimId = sessionStorage.getItem(savedClaimKey);
+        if (savedClaimId !== null && /^[a-zA-Z0-9_-]{1,128}$/u.test(savedClaimId)) {
+          try {
+            const saved = await client.get_handleClaimsClaimId({ path: { claimId: savedClaimId } },
+              { credentials: "same-origin" });
+            if (generation !== sessionGeneration) return;
+            const matches = saved.handle.family === "spaces"
+              && personas.some((persona) => persona.personaId === saved.owner_persona_id)
+              && state.offerings.some((item) => item.family === "spaces"
+                && item.offering_id === saved.offering_id
+                && item.sale_namespace_activation_id === saved.sale_namespace_activation_id);
+            if (matches) {
+              setSelectedPersonaId(saved.owner_persona_id);
+              setSelectedActivationId(saved.sale_namespace_activation_id);
+              setLabel(saved.handle.handle_label);
+              if (saved.state === "issued" && saved.grant?.status === "active") {
+                setClaimState({ kind: "issued", identifier: saved.display_identifier,
+                  persona: personas.find((persona) => persona.personaId === saved.owner_persona_id)?.displayName ?? "your persona" });
+                sessionStorage.removeItem(savedClaimKey);
+              } else if (saved.state === "issuance_pending") {
+                setClaimState({ kind: "pending", claimId: saved.claim_id });
+              } else {
+                sessionStorage.removeItem(savedClaimKey);
+              }
+            } else {
+              sessionStorage.removeItem(savedClaimKey);
+            }
+          } catch (error) {
+            if (error instanceof ApiClientError && (error.status === 401 || error.status === 404)) {
+              sessionStorage.removeItem(savedClaimKey);
+            }
+          }
+        }
       }
     } catch (error: unknown) {
       if (generation !== sessionGeneration) return;
@@ -411,6 +504,10 @@ function BuyerPanel(props: {
   const selectPersona = (personaId: string) => {
     if (busy()) return;
     setSelectedPersonaId(personaId);
+    setWalletNeeded(false);
+    walletSession?.dispose();
+    walletSession = undefined;
+    setWalletStep("idle");
     setLinkConfirmed(false);
     setClaimState({ kind: "idle" });
   };
@@ -418,6 +515,10 @@ function BuyerPanel(props: {
   const selectNamespace = (activationId: string) => {
     if (busy()) return;
     setSelectedActivationId(activationId === "" ? null : activationId);
+    setWalletNeeded(false);
+    walletSession?.dispose();
+    walletSession = undefined;
+    setWalletStep("idle");
     setPreferredOfferingId(null);
     setLinkConfirmed(false);
     setClaimState({ kind: "idle" });
@@ -465,13 +566,20 @@ function BuyerPanel(props: {
         onProgress: update => setClaimState({ kind: "progress", ...update }),
       });
       if (result.kind === "issued") {
+        if (offering.family === "spaces" && typeof sessionStorage !== "undefined") sessionStorage.removeItem(savedClaimKey);
         setClaimState({
           kind: "issued",
           identifier: result.grant.display_identifier,
           persona: persona.displayName,
         });
       } else if (result.kind === "pending") {
-        setClaimState({ kind: "pending" });
+        if (offering.family === "spaces" && typeof sessionStorage !== "undefined") sessionStorage.setItem(savedClaimKey, result.claim.claim_id);
+        setClaimState({ kind: "pending", claimId: offering.family === "spaces" ? result.claim.claim_id : undefined });
+      } else if (result.kind === "recipient_wallet_required") {
+        setWalletNeeded(true);
+        attemptKeys = undefined;
+        attemptSignature = undefined;
+        setClaimState({ kind: "verification", message: "This persona needs a Bitcoin Taproot wallet before it can receive a Spaces name." });
       } else if (result.kind === "nationality_required") {
         attemptKeys = undefined;
         attemptSignature = undefined;
@@ -535,6 +643,10 @@ function BuyerPanel(props: {
   const issuedClaim = createMemo(() => {
     const current = claimState();
     return current.kind === "issued" ? current : undefined;
+  });
+  const pendingClaim = createMemo(() => {
+    const current = claimState();
+    return current.kind === "pending" ? current : undefined;
   });
   const claimError = createMemo(() => {
     const current = claimState();
@@ -620,8 +732,10 @@ function BuyerPanel(props: {
                   <div>
                     <CardTitle as="h2">{selectedNamespace() === undefined
                       ? copy.headingMultiple
-                      : interpolateMessage(copy.heading, { root: selectedNamespace()?.displayRoot ?? "" })}</CardTitle>
-                    <CardDescription>{copy.intro}</CardDescription>
+                      : interpolateMessage(copy.heading, { root: selectedNamespace()?.family === "spaces"
+                        ? `@${selectedNamespace()?.displayRoot ?? ""}` : selectedNamespace()?.displayRoot ?? "" })}</CardTitle>
+                    <CardDescription>{selectedNamespace()?.family === "spaces"
+                      ? "Choose a persona with a Bitcoin Taproot wallet for this free name." : copy.intro}</CardDescription>
                   </div>
                   <span class="rounded-full bg-primary/10 px-3 py-1 text-sm font-semibold text-primary-text">{copy.free}</span>
                 </div>
@@ -641,7 +755,7 @@ function BuyerPanel(props: {
                     >
                       <option value="">{copy.namespacePlaceholder}</option>
                       <For each={namespaceChoices}>{choice =>
-                        <option value={choice.activationId}>.{choice.displayRoot}</option>
+                        <option value={choice.activationId}>{choice.family === "spaces" ? `@${choice.displayRoot}` : `.${choice.displayRoot}`}</option>
                       }</For>
                     </select>
                   </div>
@@ -655,7 +769,7 @@ function BuyerPanel(props: {
                     autocomplete="off"
                     disabled={busy()}
                     inputmode="text"
-                    maxlength={63}
+                    maxlength={selectedNamespace()?.family === "spaces" ? 62 : 63}
                     onInput={event => {
                       if (!busy()) {
                         setLabel(event.currentTarget.value);
@@ -724,13 +838,40 @@ function BuyerPanel(props: {
                 </Show>
                 <Show when={claimState().kind === "pending"}>
                   <div role="status" class="rounded-xl bg-muted p-4" data-handle-claim-state="pending">
-                    <p class="font-semibold">{copy.pendingTitle}</p>
-                    <p>{copy.pendingDescription}</p>
-                    <Button class="mt-3" variant="outline" onClick={() => void claim()}>{copy.retry}</Button>
+                    <p class="font-semibold">{selectedNamespace()?.family === "spaces" ? "Registration pending" : copy.pendingTitle}</p>
+                    <p>{selectedNamespace()?.family === "spaces"
+                      ? "Only you can see this requested name until its Bitcoin registration is final." : copy.pendingDescription}</p>
+                    <Show when={selectedNamespace()?.family === "spaces" ? pendingClaim()?.claimId : undefined}>
+                      {claimId => <a class="mt-3 block underline" href={`${canonicalNamesUrl(state).replace(/\/names$/u, "/name-order")}/${encodeURIComponent(claimId())}`}>
+                        View registration status
+                      </a>}
+                    </Show>
+                    <Show when={selectedNamespace()?.family !== "spaces"}>
+                      <Button class="mt-3" variant="outline" onClick={() => void claim()}>{copy.retry}</Button>
+                    </Show>
                   </div>
                 </Show>
                 <Show when={(() => { const value = claimState(); return value.kind === "verification" ? value : undefined; })()}>
                   {verification => <p role="status">{verification().message}</p>}
+                </Show>
+                <Show when={selectedNamespace()?.family === "spaces" && walletNeeded()}>
+                  <div class="rounded-xl border border-border-soft p-4" data-spaces-wallet-setup>
+                    <p class="font-semibold">Set up a receiving wallet</p>
+                    <p class="text-sm text-muted-foreground">Confirm your account by email. This does not send bitcoin.</p>
+                    <label class="mt-3 block text-sm" for="spaces-wallet-email">Account email</label>
+                    <Input id="spaces-wallet-email" type="email" autocomplete="email" value={walletEmail()}
+                      disabled={walletStep() !== "idle"} onInput={event => setWalletEmail(event.currentTarget.value)} />
+                    <Show when={walletStep() === "code" || walletStep() === "working"}>
+                      <label class="mt-3 block text-sm" for="spaces-wallet-code">Email code</label>
+                      <Input id="spaces-wallet-code" type="text" inputmode="numeric" autocomplete="one-time-code"
+                        value={walletCode()} disabled={walletStep() === "working"}
+                        onInput={event => setWalletCode(event.currentTarget.value)} />
+                    </Show>
+                    <Button class="mt-3" disabled={walletStep() === "sending" || walletStep() === "working"}
+                      onClick={() => void (walletStep() === "code" ? completeWalletSetup() : beginWalletSetup())}>
+                      {walletStep() === "code" ? "Confirm wallet" : walletStep() === "working" ? "Checking wallet" : "Send code"}
+                    </Button>
+                  </div>
                 </Show>
                 <Show when={claimError()}>
                   {errorState => <p role="alert" class="text-destructive-text">{errorState().message}</p>}
@@ -761,13 +902,16 @@ function SuccessState(props: {
   const title = interpolateMessage(copy.title, { name: state.community.community.displayName });
   const namespaces = projectSaleNamespaceChoices(state.offerings);
   const storefrontHeading = namespaces.length === 1
-    ? interpolateMessage(copy.heading, { root: namespaces[0]?.displayRoot ?? "" })
+    ? interpolateMessage(copy.heading, { root: namespaces[0]?.family === "spaces"
+      ? `@${namespaces[0]?.displayRoot ?? ""}` : namespaces[0]?.displayRoot ?? "" })
     : copy.headingMultiple;
   return <main data-handle-storefront-state="success" class="mx-auto flex w-full max-w-5xl flex-col gap-6 px-4 py-8 md:px-8">
     <Title>{title}</Title>
-    <Meta name="description" content={copy.intro} />
+    <Meta name="description" content={namespaces.some((item) => item.family === "spaces")
+      ? "Choose a persona to claim a community Spaces name." : copy.intro} />
     <Meta property="og:title" content={title} />
-    <Meta property="og:description" content={copy.intro} />
+    <Meta property="og:description" content={namespaces.some((item) => item.family === "spaces")
+      ? "Choose a persona to claim a community Spaces name." : copy.intro} />
     <Meta property="og:url" content={canonicalUrl} />
     <Link rel="canonical" href={canonicalUrl} />
     <div>
@@ -777,7 +921,8 @@ function SuccessState(props: {
       <Type as="h1" variant="h1" class="mt-3">
         {storefrontHeading}
       </Type>
-      <Type as="p" variant="body" class="mt-2 text-muted-foreground">{copy.intro}</Type>
+      <Type as="p" variant="body" class="mt-2 text-muted-foreground">{namespaces.some((item) => item.family === "spaces")
+        ? "Choose a persona with a Bitcoin Taproot wallet. A requested name stays private until registration is final." : copy.intro}</Type>
     </div>
     <Show when={state.offerings.length > 0} fallback={
       <Card><CardContent class="p-6"><p role="status">{copy.noOfferings}</p></CardContent></Card>

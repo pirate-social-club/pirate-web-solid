@@ -11,21 +11,26 @@ import {
   TextFieldDescription,
   TextFieldInput,
   TextFieldLabel,
+  Type,
 } from "../../../design-system";
-import type { ActiveSongMediaPostSubmission, MediaSubmissionSnapshot } from "../media-submission/contracts";
+import type { MediaSubmissionSnapshot } from "../media-submission/contracts";
 import { createMediaSubmissionCoordinator } from "../media-submission/coordinator";
 import type { SongSubmissionView } from "../media-submission/projection";
 import type { MediaSubmissionTransport } from "../media-submission/transport";
 import { royaltySplitIssue } from "./earnings-split";
 import {
   prepareSongComposer,
-  projectActiveSongIntoComposer,
   projectSnapshotIntoSongComposer,
   submitComposerLyrics,
   submitSongComposer,
 } from "./media-composer-bridge";
+import { DEFAULT_SONG_LICENSE } from "./defaults";
 import { PostComposer } from "./post-composer";
 import { VideoComposerRuntime } from "../video-submission/video-composer-runtime";
+import type { OriginalVideoCaptureInput, VideoCaptureSession } from "../video-submission/capture";
+import type { SongIntervalPreflight } from "../video-submission/song-reference";
+import type { SongSourceReader } from "./song-excerpt-source";
+import { OperationPersonaControl } from "../../identity/operation-persona-control/operation-persona-control";
 import { PostComposerSubmission } from "./post-composer-submission";
 import { initialPostComposerState, type PostComposerState } from "./post-composer-state";
 import type { TextContentSubmissionRequestEnvelopeV1 } from "./text-submission-contract";
@@ -91,17 +96,20 @@ function terminalMediaView(view: SongSubmissionView): boolean {
   return view.status === "published" || view.status === "blocked" || view.status === "abandoned";
 }
 
+
 function mediaStateMessage(view: SongSubmissionView): string {
   switch (view.status) {
     case "editing": return "Ready to submit your song.";
-    case "reconciling": return "Checking the retained song submission before sending another command…";
-    case "uploading": return `Uploading audio (${view.bytesSent} of ${view.bytesTotal} bytes)…`;
-    case "processing": return `The song is processing (${view.phase.replaceAll("_", " ")}).`;
-    case "action_required": return "A source reference is required before this song can continue.";
+    case "reconciling": return "Checking on your song…";
+    case "uploading": return view.bytesTotal > 0
+      ? `Uploading audio… ${Math.min(100, Math.floor((view.bytesSent / view.bytesTotal) * 100))}%`
+      : "Uploading audio…";
+    case "processing": return "Your song is processing. This can take a minute.";
+    case "action_required": return "This song needs the original song it's based on before it can continue.";
     case "manual_review": return "This song is awaiting manual review.";
     case "published": return "Song published.";
     case "blocked": return "This song was blocked by policy.";
-    case "processing_failed": return `Song processing failed (${view.reasonCode.replaceAll("_", " ")}).`;
+    case "processing_failed": return "Song processing failed.";
     case "abandoned": return "This song submission was cancelled.";
   }
 }
@@ -111,6 +119,9 @@ export interface CreatePostDialogProps {
   /** Entering from a song post: open on the video track with this song chosen
    * before capture. */
   readonly initialVideoSong?: { readonly postId: string };
+  /** Entering from the global create control: open on the video track with no
+   * song chosen yet; the composer's song step still comes first. */
+  readonly initialMode?: "video";
   readonly open: boolean;
   readonly onOpenChange: (open: boolean) => void;
   readonly onPublished?: (href?: string) => void;
@@ -121,6 +132,23 @@ export interface CreatePostDialogProps {
   readonly mediaTransport?: MediaSubmissionTransport;
   readonly videoStorage?: import("../video-submission/coordinator").VideoStorage;
   readonly videoTransport?: import("../video-submission/transport").VideoTransport;
+  /** The per-persona song owner-policy read the video runtime asks before
+   * capture; injected so tests and stories can stand in for the server. */
+  readonly videoSongEligibility?: (input: { readonly communityId: string; readonly postId: string; readonly personaId: string }) => Promise<boolean>;
+  /** The interval preflight standing in for the server's excerpt checks in
+   * stories and tests; production leaves it to the runtime's own client. */
+  readonly videoSongPreflight?: SongIntervalPreflight;
+  /** The song source read standing in for the song playback grant. */
+  readonly videoSongReader?: SongSourceReader;
+  /** The picker's song list standing in for the community feed. */
+  readonly videoSongPicker?: import("./song-picker").SongPickerSource;
+  /** The take alignment standing in for the guided-take trim. */
+  readonly videoAlignTake?: (file: File, offsetMs: number) => Promise<import("../video-submission/guided-take-alignment").GuidedTakeAlignment>;
+  /** The camera preview standing in for a device camera, so stories can
+   * show the settled capture surface rather than a permission failure. */
+  readonly videoOpenPreview?: () => Promise<MediaStream>;
+  /** The capture session standing in for a real recording. */
+  readonly videoStartCapture?: (input: OriginalVideoCaptureInput) => Promise<VideoCaptureSession>;
   readonly createMediaId?: () => string;
   readonly origin?: string | URL;
   readonly fetchImpl?: typeof fetch;
@@ -151,7 +179,7 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
   const [textAgeGatePolicy, setTextAgeGatePolicy] = createSignal<AuthorAgeGatePolicy>("none");
   const [songAgeGatePolicy, setSongAgeGatePolicy] = createSignal<AuthorAgeGatePolicy>("none");
   const [mode, setMode] = createSignal<ComposerTab>(
-    untrack(() => (props.initialVideoSong ? "video" : "text")),
+    untrack(() => (props.initialVideoSong || props.initialMode === "video" ? "video" : "text")),
   );
   const ageGatePolicy = () => mode() === "song" ? songAgeGatePolicy() : textAgeGatePolicy();
   const setAgeGatePolicy = (next: AuthorAgeGatePolicy) => {
@@ -166,7 +194,7 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
   });
   const [lyrics, setLyrics] = createSignal("");
   let lyricsEdited = false;
-  const [license, setLicense] = createSignal<AssetLicenseState>({ presetId: "non-commercial" });
+  const [license, setLicense] = createSignal<AssetLicenseState>(DEFAULT_SONG_LICENSE);
   const [royaltySplit, setRoyaltySplit] = createSignal<AssetRoyaltySplitState>({
     allocations: initialPersonaId === undefined ? [] : [{
       id: "creator",
@@ -191,6 +219,7 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
   }));
   const [sourceAssetId, setSourceAssetId] = createSignal("");
   const [error, setError] = createSignal("");
+  const [uploadFailure, setUploadFailure] = createSignal<string | null>(null);
   const [textState, setTextState] = createSignal<PostComposerState>(initialPostComposerState);
   const [mediaView, setMediaView] = createSignal<SongSubmissionView>({ status: "editing" });
   const [mediaSnapshot, setMediaSnapshot] = createSignal<MediaSubmissionSnapshot | null>(null);
@@ -215,61 +244,6 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
     onStateChange: setMediaView,
     onSnapshotChange: applySnapshot,
   });
-
-  const [recoverableSongs, setRecoverableSongs] = createSignal<readonly ActiveSongMediaPostSubmission[]>([], { ownedWrite: true });
-  const [recoveryCursor, setRecoveryCursor] = createSignal<string | null>(null, { ownedWrite: true });
-  const [recoveryLoading, setRecoveryLoading] = createSignal(false, { ownedWrite: true });
-  const [recoveryError, setRecoveryError] = createSignal("", { ownedWrite: true });
-  let recoveryGeneration = 0;
-  let recoveryCommunity = "";
-  async function loadRecoverableSongs(more = false): Promise<void> {
-    if (mediaCoordinator === undefined || mediaCoordinator.currentRecord !== null) return;
-    const community = communityId().trim();
-    if (!community) return;
-    const generation = ++recoveryGeneration;
-    const cursor = more ? recoveryCursor() : null;
-    setRecoveryLoading(true); setRecoveryError("");
-    try {
-      const page = await mediaCoordinator.listActive(community, cursor ?? undefined);
-      if (generation !== recoveryGeneration || community !== communityId().trim() || mediaCoordinator.currentRecord !== null) return;
-      if (page.next_cursor !== null && (!page.next_cursor.trim() || page.next_cursor === cursor))
-        throw new Error("The server returned an invalid recovery cursor");
-      setRecoverableSongs(previous => {
-        const combined = more ? [...previous, ...page.items] : page.items;
-        return [...new Map(combined.map(item => [item.submission.submission_id, item])).values()];
-      });
-      setRecoveryCursor(page.next_cursor);
-    } catch (failure) {
-      if (generation === recoveryGeneration && mediaCoordinator.currentRecord === null)
-        setRecoveryError(failure instanceof Error ? failure.message : "Could not load active song submissions");
-    } finally { if (generation === recoveryGeneration) setRecoveryLoading(false); }
-  }
-  createEffect(() => [mode(), communityId().trim(), mediaSnapshot()] as const, ([tab, community, snapshot]) => {
-    if (tab !== "song" || snapshot !== null || !community || mediaCoordinator === undefined) {
-      recoveryGeneration += 1;
-      recoveryCommunity = "";
-      setRecoveryLoading(false); setRecoverableSongs([]); setRecoveryCursor(null); setRecoveryError("");
-      return;
-    }
-    if (community === recoveryCommunity) return;
-    recoveryCommunity = community;
-    setRecoverableSongs([]); setRecoveryCursor(null);
-    void loadRecoverableSongs();
-  });
-  onCleanup(() => { recoveryGeneration += 1; });
-  function recoverSong(item: ActiveSongMediaPostSubmission): void {
-    if (mediaCoordinator === undefined || mediaBusy() || textState().status !== "editing" || mediaCoordinator.currentRecord !== null
-      || item.community_id !== communityId().trim()
-      || !personas().some(persona => persona.personaId === item.submission.author_persona.persona_id)) return;
-    const recovered = projectActiveSongIntoComposer(item);
-    recoveryGeneration += 1; setRecoveryLoading(false); setRecoverableSongs([]); setRecoveryError("");
-    setSongPersonaId(recovered.personaId); setSongMode(recovered.songMode); setSongAgeGatePolicy(recovered.ageGatePolicy);
-    setSong(recovered.song); setLyrics(recovered.lyrics); lyricsEdited = false;
-    setLicense(recovered.license); setRoyaltySplit(recovered.royaltySplit);
-    setMode("song");
-    mediaCoordinator.recover(item);
-    void refreshSong();
-  }
 
   function applySnapshot(snapshot: MediaSubmissionSnapshot): void {
     setMediaSnapshot(snapshot);
@@ -325,7 +299,7 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
     setSong({ title: "", primaryAudioUpload: null, lyricsEditorState: "hidden" });
     setLyrics("");
     lyricsEdited = false;
-    setLicense({ presetId: "non-commercial" });
+    setLicense(DEFAULT_SONG_LICENSE);
     const nextPersonaId = initialOperationPersonaId(personas(), props.personaId);
     setRoyaltySplit({
       allocations: nextPersonaId === undefined ? [] : [{
@@ -344,6 +318,7 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
     setTitle("");
     setSongAgeGatePolicy("none");
     setError("");
+    setUploadFailure(null);
   }
 
   function discardTerminalSong(): void {
@@ -484,10 +459,14 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
         signal: uploadController.signal,
       });
       applySnapshot(snapshot);
+      setUploadFailure(null);
       if (!prepareOnly && snapshot.status === "published") finishSongPublished();
       return snapshot.audio_revision >= 1;
     } catch (submissionError) {
-      setError(submissionError instanceof Error ? submissionError.message : "The song could not be submitted safely.");
+      const message = submissionError instanceof Error ? submissionError.message : "The song could not be submitted safely.";
+      setError(message);
+      if (prepareOnly && canCancelSong() && Boolean(song().primaryAudioUpload)
+        && !mediaCoordinator.recoveredUploadUnavailable) setUploadFailure(message);
       return false;
     } finally {
       if (mediaUploadController === uploadController) mediaUploadController = undefined;
@@ -579,6 +558,12 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
     }
   }
 
+  async function cancelFailedUpload(): Promise<void> {
+    await cancelSong();
+    if (mediaView().status === "abandoned") discardTerminalSong();
+    else if (error()) setUploadFailure(error());
+  }
+
   function submit(): void {
     if (mode() === "text") {
       void submitText();
@@ -651,6 +636,7 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
     const view = mediaView();
     return view.status === "processing" && view.phase === "awaiting_upload";
   };
+  const showUploadRecovery = () => mode() === "song" && uploadFailure() !== null && canCancelSong();
   const canRetrySong = () => {
     const view = mediaView();
     return view.status === "processing_failed" && view.retryable;
@@ -665,17 +651,19 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
     return 2;
   };
 
+  // After Continue on the Song step the audio is uploaded and the author is
+  // still editing Rights and Review; that is not a state worth a status card.
+  const preparedDraft = () => Boolean(mediaSnapshot()?.audio_revision) && !songTermsIssued() && mediaView().status === "processing";
+
   const mediaStatusPanel = () => (
-    <Show when={mode() === "song" && mediaView().status !== "editing"}>
+    <Show when={mode() === "song" && mediaView().status !== "editing" && !preparedDraft()}>
       <div
         aria-live="polite"
         class="grid gap-3 rounded-2xl border border-border-soft bg-card p-5 text-base"
         data-media-composer-state={mediaView().status}
         role={mediaView().status === "blocked" || mediaView().status === "processing_failed" ? "alert" : "status"}
       >
-        <p>{mediaSnapshot()?.audio_revision && !songTermsIssued() && mediaView().status === "processing"
-          ? "Audio uploaded."
-          : mediaStateMessage(mediaView())}</p>
+        <p>{mediaStateMessage(mediaView())}</p>
         <Show when={mediaView().status === "uploading"}>
           <Button type="button" variant="outline" onClick={stopSongUpload}>Stop upload</Button>
         </Show>
@@ -711,6 +699,7 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
     </Show>
   );
 
+  // Unfinished songs are listed on the Song tab; the text composer stays clean.
   const textOutcomePanel = () => (
     <Show when={mode() === "text" && textState().status !== "editing"}>
       <PostComposerSubmission
@@ -720,13 +709,19 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
     </Show>
   );
 
+  // The video flow is its own full-screen capture experience — close, sound
+  // and record on one screen, posting details at review — not a tab inside
+  // the scrolling post form. It replaces the form entirely while it runs.
   return (
-    <form
-      aria-label="Create a post"
-      class="fixed inset-0 z-40 overflow-y-auto bg-background px-3 py-4 sm:px-6 sm:py-8"
-      data-create-post-form
-      onSubmit={event => event.preventDefault()}
-    >
+    <Show
+      when={mode() === "video"}
+      fallback={
+      <form
+        aria-label="Create a post"
+        class="fixed inset-0 z-50 overflow-y-auto bg-background px-3 py-4 sm:px-6 sm:py-8"
+        data-create-post-form
+        onSubmit={event => event.preventDefault()}
+      >
       <div class="mx-auto grid w-full max-w-3xl gap-3">
             <Show when={!props.communityContext}>
               <TextField name="community-id" value={communityId()} onChange={setCommunityId}>
@@ -738,47 +733,23 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
             <Show when={personas().length === 0}>
               <FormNote tone="warning">Choose a profile for this community before posting.</FormNote>
             </Show>
-            <Show when={mode() === "text" && textState().status === "editing" && mediaSnapshot() === null && mediaCoordinator !== undefined}>
-              <Button type="button" variant="outline" onClick={() => setMode("song")}>Resume a song submission</Button>
-            </Show>
-            <Show when={mode() === "song" && textState().status === "editing" && mediaSnapshot() === null && mediaCoordinator !== undefined}>
-              <Show when={recoveryLoading()}><FormNote>Checking for active song submissions…</FormNote></Show>
-              <Show when={recoveryError()}><FormNote tone="warning">{recoveryError()} You can retry or start a new song.</FormNote>
-                <Button type="button" variant="outline" disabled={recoveryLoading()} onClick={() => void loadRecoverableSongs()}>Retry loading submissions</Button>
-              </Show>
-              <Show when={recoverableSongs().length > 0}>
-                <section aria-label="Active song submissions" class="grid gap-3 rounded-2xl border border-border-soft p-5">
-                  <h2>Resume a song submission</h2>
-                  <p>Only submitted server state is recovered. Unsent edits and files are not saved.</p>
-                  <For each={recoverableSongs()}>{item => <div class="grid gap-1">
-                    <p>{item.title} · {item.submission.author_persona.display_name ?? item.submission.author_persona.primary_public_handle ?? "Profile"}</p>
-                    <p>{item.submission.status.replaceAll("_", " ")} · {item.submission.updated_at}</p>
-                    <Button type="button" variant="outline" disabled={mediaBusy() || !personas().some(persona => persona.personaId === item.submission.author_persona.persona_id)} onClick={() => recoverSong(item)}>Resume {item.title}</Button>
-                    <Show when={!personas().some(persona => persona.personaId === item.submission.author_persona.persona_id)}><FormNote>This submission’s profile is not available in this composer.</FormNote></Show>
-                  </div>}</For>
-                  <Show when={recoveryCursor()}><Button type="button" variant="outline" disabled={recoveryLoading()} onClick={() => void loadRecoverableSongs(true)}>Load more submissions</Button></Show>
+              <Show when={!showUploadRecovery()} fallback={
+                <section aria-labelledby="upload-recovery-title" class="mx-auto flex min-h-[calc(100dvh-2rem)] w-full max-w-md flex-col px-2 pb-4">
+                  <div class="flex justify-end"><Button disabled={mediaBusy()} onClick={() => close(false)} type="button" variant="ghost">Close</Button></div>
+                  <div class="flex flex-1 flex-col justify-center gap-5">
+                    <div class="space-y-2">
+                      <Type as="h2" id="upload-recovery-title" variant="h2">Audio upload needs another try</Type>
+                      <Type class="text-muted-foreground">Your song has not been published.</Type>
+                    </div>
+                    <div aria-live="polite" role="alert"><FormNote tone="warning">{uploadFailure()}</FormNote></div>
+                    <Show when={song().primaryAudioUpload?.name}>{name => <Type class="break-all text-muted-foreground">Selected file: {name()}</Type>}</Show>
+                  </div>
+                  <div class="grid gap-2 pb-[env(safe-area-inset-bottom)]">
+                    <Button disabled={mediaBusy()} loading={mediaBusy()} onClick={() => void submitSong(true)} type="button">Try upload again</Button>
+                    <Button disabled={mediaBusy()} onClick={() => void cancelFailedUpload()} type="button" variant="ghost">Cancel song submission</Button>
+                  </div>
                 </section>
-              </Show>
-            </Show>
-            <Show
-              when={mode() !== "video"}
-              fallback={
-                <Show when={props.principalId}>{account => <VideoComposerRuntime
-                  principalId={account()} communityId={communityId().trim()} personaId={selectedActivePersonaId()}
-                  initialSong={props.initialVideoSong}
-                  storage={props.videoStorage} transport={props.videoTransport} fetchImpl={props.fetchImpl}
-                  onExit={() => setMode("text")} onPublished={props.onPublished}
-                  onRetainedPersona={(personaId, retainedCommunityId) => {
-                    if (personaId !== null) {
-                      setVideoPersonaId(personaId);
-                      // A contextual composer keeps its page community; the
-                      // runtime then reports the retained video's mismatch.
-                      if (retainedCommunityId && !props.communityContext) setCommunityId(retainedCommunityId);
-                    }
-                  }}
-                />}</Show>
-              }
-            >
+              }>
               <PostComposer
                 attachmentBarPlacement="inline"
                 audienceEditingDisabled={mode() === "song"
@@ -824,7 +795,7 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
                 submit={{
                   get disabled() { return submitDisabled(); },
                   get error() { return error() || null; },
-                  get label() { return mode() === "song" ? "Publish song" : "Publish post"; },
+                  get label() { return mode() === "song" ? "Post song" : "Post"; },
                   get loading() { return mode() === "song" ? mediaBusy() : textState().status === "submitting"; },
                   onSubmit: submit,
                 }}
@@ -833,8 +804,50 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
                 titleValue={title()}
                 validateDraftBeforeSubmit={mode() !== "text"}
               />
-            </Show>
+              </Show>
         </div>
       </form>
+      }
+    >
+      <Show
+        when={props.principalId}
+        fallback={
+          <div class="fixed inset-0 z-50 grid place-items-center bg-background p-6" data-create-video-signed-out>
+            <FormNote tone="warning">Sign in to post a video.</FormNote>
+          </div>
+        }
+      >
+        {account => (
+          <VideoComposerRuntime
+            principalId={account()}
+            communityId={communityId().trim() || undefined}
+            communityName={props.communityContext?.name}
+            personaId={videoPersonaId()}
+            personaOptions={personas().map(persona => ({
+              id: persona.personaId,
+              label: persona.displayName ?? persona.primaryPublicHandle ?? "Profile",
+            }))}
+            initialSong={props.initialVideoSong}
+            storage={props.videoStorage} transport={props.videoTransport} fetchImpl={props.fetchImpl}
+            readSongEligibility={props.videoSongEligibility}
+            songPreflight={props.videoSongPreflight}
+            songReader={props.videoSongReader}
+            {...(props.videoSongPicker === undefined ? {} : { songPicker: props.videoSongPicker })}
+            alignTake={props.videoAlignTake}
+            openPreview={props.videoOpenPreview}
+            startCapture={props.videoStartCapture}
+            onExit={() => setMode("text")} onPublished={props.onPublished}
+            onRetainedPersona={(personaId, retainedCommunityId) => {
+              if (personaId !== null) {
+                setVideoPersonaId(personaId);
+                // A contextual composer keeps its page community; the
+                // runtime then reports the retained video's mismatch.
+                if (retainedCommunityId && !props.communityContext) setCommunityId(retainedCommunityId);
+              }
+            }}
+          />
+        )}
+      </Show>
+    </Show>
   );
 }

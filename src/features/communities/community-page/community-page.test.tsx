@@ -8,8 +8,71 @@ import { createRoot } from "solid-js";
 import { afterEach, describe, expect, test, vi } from "vitest";
 import type { CommunityEngagementApi } from "./community-engagement-api.ts";
 import CommunityPage from "./community-page.tsx";
+import { loadCommunityPage } from "./community-page.model.ts";
+import type { CommunityFeed } from "../../community/page-shell/page-shell-model.ts";
 
 const disposers: Array<() => void> = [];
+
+describe("serialized preflight feed adoption", () => {
+  test.each(["populated", "empty"] as const)("adopts %s route data without another public feed request", async (mode) => {
+    const client = {
+      get_cPathSegment: async () => route,
+      get_communitiesCommunityIdPreview: async () => preview,
+    };
+    const state = await loadCommunityPage(client, "xn--pokmon-dva", "https://solid.example");
+    if (state.kind !== "success") throw new Error("Expected resolved community fixture");
+    const initialFeed: CommunityFeed = {
+      kind: "ready", posts: mode === "empty" ? [] : [{
+        id: "post-adopted", title: "Adopted public song", body: "", kind: "song",
+        score: 0, publishedAt: "2026-09-01T18:00:00.000Z",
+      }],
+    };
+    // The public route value must survive serialization, not depend on a local promise.
+    const adopted: typeof state = JSON.parse(JSON.stringify({ ...state, initialFeed }));
+    const loadThreads = vi.fn(async () => { throw new Error("Unexpected public feed refetch"); });
+    const container = render(() => <CommunityPage
+      pathSegment="xn--pokmon-dva"
+      data={adopted}
+      client={client}
+      engagementApi={engagementApi()}
+      loadThreads={loadThreads}
+    />);
+    const expected = mode === "populated" ? "Adopted public song" : "No posts in this community yet";
+    await vi.waitFor(() => expect(container.textContent).toContain(expected));
+    expect(loadThreads).not.toHaveBeenCalled();
+  });
+
+  test.each(["recovered", "failed"] as const)("retries a failed server feed once in the browser: %s", async (outcome) => {
+    const client = {
+      get_cPathSegment: async () => route,
+      get_communitiesCommunityIdPreview: async () => preview,
+    };
+    const state = await loadCommunityPage(client, "xn--pokmon-dva", "https://solid.example");
+    if (state.kind !== "success") throw new Error("Expected resolved community fixture");
+    const initialFeed: CommunityFeed = { kind: "error" };
+    const adopted: typeof state = JSON.parse(JSON.stringify({ ...state, initialFeed }));
+    const loadThreads = vi.fn(async () => {
+      if (outcome === "failed") throw new TypeError("Recovery still unavailable");
+      return { posts: [{
+        id: "post-recovered", title: "Recovered public song", body: "", kind: "song" as const,
+        score: 0, publishedAt: "2026-09-01T18:00:00.000Z",
+      }], nextCursor: null };
+    });
+    const container = render(() => <CommunityPage
+      pathSegment="xn--pokmon-dva"
+      data={adopted}
+      client={client}
+      engagementApi={engagementApi()}
+      loadThreads={loadThreads}
+    />);
+    await vi.waitFor(() => expect(loadThreads).toHaveBeenCalledTimes(1));
+    await vi.waitFor(() => expect(container.textContent).toContain(outcome === "recovered"
+      ? "Recovered public song" : "Community posts are temporarily unavailable"));
+    expect(container.textContent).not.toContain("No posts in this community yet");
+    expect(loadThreads).toHaveBeenCalledWith(communityId);
+    expect(loadThreads).toHaveBeenCalledTimes(1);
+  });
+});
 
 /**
  * The viewer's vote comes from the authenticated post read, so a page under
@@ -423,6 +486,48 @@ describe("CommunityPage", () => {
     await vi.waitFor(() => expect(document.querySelector('[aria-label="Video composer"]')).not.toBeNull());
     expect(document.querySelector('[aria-label="Soundtrack"]')).not.toBeNull();
     expect([...document.querySelectorAll("button")].some(button => button.textContent?.trim() === "Publish video")).toBe(false);
+  });
+
+  test("dismissing the song-entry composer clears the URL marker", async () => {
+    const resolveSession = vi.fn(async () => ({
+      status: "authenticated" as const,
+      userId: "account-one",
+      personas: [],
+    }));
+    const clearVideoSongIntent = vi.fn();
+    const container = render(() => (
+      <CommunityPage
+        client={{
+          get_cPathSegment: async () => route,
+          get_communitiesCommunityIdPreview: async () => preview,
+        }}
+        clearVideoSongIntent={clearVideoSongIntent}
+        engagementApi={engagementApi({
+          readViewerState: vi.fn(async () => ({ membership: "member" as const, following: false, followerCount: 20 })),
+        })}
+        handleSalesClient={{ get_communitiesCommunityIdHandleOfferings: async () => ({ items: [], next_cursor: null }) }}
+        initialVideoSong={{ postId: "song-post" }}
+        pathSegment="xn--pokmon-dva"
+        resolveSession={resolveSession}
+      />
+    ));
+    await vi.waitFor(() => expect(document.querySelector('[aria-label="Video composer"]')).not.toBeNull());
+    // The author closes the capture view, then the composer; the marker that
+    // opened it leaves the URL with them.
+    const closeCapture = await vi.waitFor(() => {
+      const button = document.querySelector<HTMLButtonElement>("button[aria-label='Close video capture']");
+      expect(button).not.toBeNull();
+      return button!;
+    });
+    closeCapture.click();
+    const composerClose = await vi.waitFor(() => {
+      const button = document.querySelector<HTMLButtonElement>("button[aria-label='Close composer']");
+      expect(button).not.toBeNull();
+      return button!;
+    });
+    composerClose.click();
+    await vi.waitFor(() => expect(clearVideoSongIntent).toHaveBeenCalledTimes(1));
+    expect(document.querySelector('[aria-label="Video composer"]')).toBeNull();
   });
 
   test("profile failure does not open an empty composer and the Post action retries", async () => {

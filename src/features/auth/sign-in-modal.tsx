@@ -17,7 +17,7 @@ export interface SignInModalProps {
 }
 
 const signInCopy = {
-  title: "Join Pirate",
+  title: "Sign in",
 };
 
 /**

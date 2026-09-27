@@ -1,0 +1,128 @@
+import { For, Show, createSignal, onSettled } from "solid-js";
+import { Button, Card, CardContent, Type } from "../../design-system";
+import type { RewardClaimData, RewardCredit } from "../../api/reward-claim.ts";
+import { claimStep, verifyToClaimUrl, winningViews } from "./winnings-model.ts";
+import { browserWinningsSend, WinningsSendSheet, type WinningsSendDependencies } from "./winnings-send-sheet.tsx";
+
+export type WalletWinningsProps = Readonly<{
+  data: Pick<RewardClaimData, "credits" | "claim">;
+  /** A claim to resume once, after returning from the palm scan. */
+  resumeCreditId?: string;
+  navigate?: (url: string) => void;
+  /** Called once the resumed claim starts, so the caller can drop it from the URL. */
+  onResumeConsumed?: () => void;
+  /** Sending paid winnings on; the browser wallet and API by default. */
+  send?: WinningsSendDependencies;
+}>;
+
+/** Spec 015 §5.2a: held pool winnings and the verify-to-claim action. */
+export function WalletWinnings(props: WalletWinningsProps) {
+  const [credits, setCredits] = createSignal<readonly RewardCredit[]>();
+  const [failed, setFailed] = createSignal(false);
+  const [leaving, setLeaving] = createSignal(false);
+  const [busy, setBusy] = createSignal<string>();
+  const [notice, setNotice] = createSignal("");
+  const [sending, setSending] = createSignal<RewardCredit>();
+  let sendDependencies: WinningsSendDependencies | undefined;
+  const sendWith = () => (sendDependencies ??= props.send ?? browserWinningsSend());
+  const navigate = (url: string) => (props.navigate ?? ((next: string) => window.location.assign(next)))(url);
+
+  // While rewards are disabled the API answers unavailable. Without known
+  // winnings a failed load renders nothing rather than alarming every user.
+  const load = async (): Promise<boolean> => {
+    setFailed(false);
+    try {
+      setCredits((await props.data.credits()).items);
+      return true;
+    } catch {
+      setFailed(credits() !== undefined);
+      return false;
+    }
+  };
+
+  const claim = async (creditId: string, resumed: boolean) => {
+    setBusy(creditId);
+    setNotice("");
+    try {
+      const result = await props.data.claim(creditId);
+      setCredits((current) => current?.map((item) => (item.credit_id === creditId ? result.credit : item)));
+      const step = claimStep(result.outcome);
+      if (step.kind === "verify") {
+        if (resumed) {
+          setNotice("Your palm scan could not be used to claim yet. Try verifying again.");
+          return;
+        }
+        setLeaving(true);
+        navigate(verifyToClaimUrl(creditId));
+        return;
+      }
+      if (step.kind === "support") {
+        setNotice("This amount stays held for you, but it cannot be claimed with your current verification. Contact support.");
+      }
+      if (step.kind === "unavailable") setNotice("This amount cannot be claimed.");
+    } catch {
+      setNotice("Claiming failed. Try again.");
+    } finally {
+      setBusy(undefined);
+    }
+  };
+
+  // Start after the settle callback returns: Solid 2 rejects signal writes
+  // made synchronously inside effect callbacks.
+  onSettled(() => {
+    void Promise.resolve()
+      .then(load)
+      .then((loaded) => {
+        const resume = props.resumeCreditId;
+        if (resume === undefined || !loaded) return;
+        props.onResumeConsumed?.();
+        return claim(resume, true);
+      });
+  });
+
+  const views = () => winningViews(credits() ?? []);
+  return (
+    <Show when={failed() || views().length > 0 || notice().length > 0}>
+      <section aria-labelledby="wallet-winnings-heading">
+        <Card>
+          <CardContent class="flex flex-col gap-4 p-6">
+            <Type as="h2" variant="h3" id="wallet-winnings-heading">Winnings</Type>
+            <Show when={failed()}>
+              <Type role="alert">Your winnings could not be loaded.</Type>
+              <Button variant="outline" onClick={() => void load()}>Try again</Button>
+            </Show>
+            <For each={views()}>
+              {(view) => (
+                <div class="flex flex-wrap items-center justify-between gap-3">
+                  <div class="flex flex-col gap-1">
+                    <Type class="font-semibold">{view.amount}</Type>
+                    <Type>{view.status}</Type>
+                    <Show when={view.detail}>{(detail) => <Type class="text-sm">{detail()}</Type>}</Show>
+                  </div>
+                  <Show when={view.canSend}>
+                    <Button
+                      variant="outline"
+                      aria-label={`${view.sendActionLabel} ${view.amount}`}
+                      onClick={() => setSending(credits()?.find((item) => item.credit_id === view.creditId))}
+                    >
+                      {view.sendActionLabel}
+                    </Button>
+                  </Show>
+                  <Show when={view.canClaim}>
+                    <Button disabled={busy() !== undefined || leaving()} onClick={() => void claim(view.creditId, false)}>
+                      {busy() === view.creditId ? "Claiming…" : "Verify to claim"}
+                    </Button>
+                  </Show>
+                </div>
+              )}
+            </For>
+            <Show when={notice().length > 0}><Type role="status">{notice()}</Type></Show>
+            <Show when={sending()} keyed>
+              {(credit) => <WinningsSendSheet credit={credit} dependencies={sendWith()} onClose={() => setSending(undefined)} />}
+            </Show>
+          </CardContent>
+        </Card>
+      </section>
+    </Show>
+  );
+}

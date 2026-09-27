@@ -1,6 +1,7 @@
 import { describe, expect, test } from "vitest";
 
-import { securityPolicy } from "./middleware";
+import { WALLET_RPC_ORIGINS } from "./features/wallet/wallet-network-catalog";
+import { securityPolicy, PRIVY_REWARD_RPC_ORIGIN } from "./middleware";
 
 describe("security policy", () => {
   test("allows Privy sign-in on ordinary application routes", () => {
@@ -70,4 +71,14 @@ describe("security policy", () => {
   expect(policy).toContain("media-src 'self' blob: https://08a4c22cf52e2ecae883e36f80a33f4a.r2.cloudflarestorage.com https://*.cloudflarestream.com");
   expect(policy).toContain("worker-src 'self' blob:");
   expect(securityPolicy("/verify/very", "fixture")).not.toContain("cloudflarestream.com");
+});
+
+test("fixed wallet RPC origins remain available after SPA navigation from every entry route", () => {
+  for (const path of ["/", "/wallet", "/auth/sign-in", "/verify/very", "/verify/zkpassport"]) {
+    const policy = securityPolicy(path, "fixture");
+    const connect = policy.split(";").find(directive => directive.trim().startsWith("connect-src"))!;
+    for (const origin of WALLET_RPC_ORIGINS) expect(connect).toContain(origin);
+    expect(connect).toContain(PRIVY_REWARD_RPC_ORIGIN);
+    expect(WALLET_RPC_ORIGINS.every(origin => !origin.includes("*"))).toBe(true);
+  }
 });

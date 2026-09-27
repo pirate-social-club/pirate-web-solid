@@ -89,6 +89,19 @@ function resolveEnvironment(environment: ReturnType<typeof enabledMisconfiguredE
 }
 
 describe("Solid Worker HNS isolation", () => {
+  it("refuses a reserved ingress origin while HNS is disabled without affecting the ordinary host", async () => {
+    const environment = enabledMisconfiguredEnvironment();
+    environment.HNS_COMMUNITY_APP_INGRESS_ENABLED = "false";
+
+    const reserved = await fetchWorker(new Request(`${ingressOrigin}/c/example`), environment);
+    expect(reserved.status).toBe(503);
+    expect(reserved.headers.get("cache-control")).toBe("no-store");
+    await expect(reserved.json()).resolves.toEqual({ error: "hns_ingress_unavailable" });
+
+    const ordinary = await fetchWorker(new Request("https://pirate.sc/c/example"), environment);
+    expect(ordinary.status).toBe(200);
+  });
+
   it("serves public verification configuration through verified application dispatch", async () => {
     // SAFETY: the fixture defines every environment member read by this dispatch path.
     const response = await applicationRequest(

@@ -80,8 +80,13 @@ export function GlobalSignInHost(props: GlobalSignInHostProps = {}) {
   const openSignIn = (event: Event) => {
     // SAFETY: this app-owned event is dispatched only by the request helpers above and carries no credentials.
     const detail = event instanceof CustomEvent && event.detail !== null ? event.detail as SignInCompletion | undefined : undefined;
-    if (completion !== undefined) finishPrompt(false);
-    completion = detail;
+    // One sheet serves both kinds of request, so only a newer continuation
+    // supersedes a pending one. A plain open request keeps it: cancelling
+    // there reported "cancelled" while the sheet was still open.
+    if (detail !== undefined) {
+      if (completion !== undefined) finishPrompt(false);
+      completion = detail;
+    }
     setOpen(true);
   };
   const listening = typeof window !== "undefined";

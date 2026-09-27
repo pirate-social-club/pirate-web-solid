@@ -82,6 +82,7 @@ export interface ComposerCopy {
     change: string;
     earnings: string;
     lyrics: string;
+    noLyrics: string;
     permissions: string;
     rights: string;
     song: string;
@@ -103,6 +104,7 @@ export interface ComposerCopy {
     overRemaining: string;
     permissionsTitle: string;
     positiveShares: string;
+    allYours: string;
     revShare: string;
     searchProfiles: string;
     share: string;
@@ -307,8 +309,9 @@ export const defaultComposerCopy: ComposerCopy = {
     change: "Change",
     earnings: "Earnings split",
     lyrics: "Lyrics",
-    permissions: "Permissions",
-    rights: "Rights",
+    noLyrics: "No lyrics added",
+    permissions: "Remix earnings",
+    rights: "Royalties",
     song: "Song",
     sources: "Remix source",
     you: "You",
@@ -318,17 +321,18 @@ export const defaultComposerCopy: ComposerCopy = {
     addProfile: "Add",
     collaboratorScope: "Only your profiles bound to this community can be added for now.",
     earningsTitle: "Earnings split",
-    everyProfileHasShare: "No profiles left to add in this community.",
+    everyProfileHasShare: "No one to add yet.",
     fullTerms: "Full terms",
     includeCreator: "The split must include you.",
     invalidShare: "Enter a share between 0.01% and 100%.",
     license: "License",
     missingRecipient: "Every recipient needs a profile.",
-    noMatchingProfiles: "No matching profiles in this community.",
+    noMatchingProfiles: "No matches.",
     overRemaining: "That share leaves no room for your share.",
     permissionsTitle: "What others may do with this song",
     positiveShares: "Each share must be more than 0%.",
-    revShare: "Your share of remix earnings",
+    allYours: "All earnings go to you",
+    revShare: "Your cut of remix sales",
     searchProfiles: "Search profiles",
     share: "Share",
     songKind: "Is this your own song?",
@@ -353,7 +357,7 @@ export const defaultComposerCopy: ComposerCopy = {
   steps: {
     lyrics: "Lyrics",
     review: "Review",
-    rights: "Rights",
+    rights: "Royalties",
     song: "Song",
   },
   tabs: {

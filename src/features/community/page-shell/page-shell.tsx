@@ -1,5 +1,6 @@
 import { AgeAccessPrompt } from "../../verification/age-access-prompt.tsx";
 import { SongPlayer } from "../../posts/song-player/song-player.tsx";
+import { RewardSponsorAction } from "../../rewards/reward-sponsor-action.tsx";
 /** @jsxImportSource @solidjs/web */
 import type { JSX } from "@solidjs/web";
 import { For, Loading, Show, createMemo, createSignal } from "solid-js";
@@ -155,7 +156,7 @@ function SongPost(props: { post: CommunityPost }) {
   );
 }
 
-function FeedPost(props: { post: CommunityPost; actions?: JSX.Element }) {
+function FeedPost(props: { post: CommunityPost; communityId?: string; actions?: JSX.Element }) {
   // The feed adapter always resolves a handle, including "Anonymous" and a
   // generic public label. This covers a caller that supplied none, and says so
   // rather than attributing the post to an invented account.
@@ -171,7 +172,9 @@ function FeedPost(props: { post: CommunityPost; actions?: JSX.Element }) {
         />
         <Type as="span" variant="label">{author()}</Type>
         <Type as="span" variant="caption">· {postTimestamp(props.post.publishedAt)}</Type>
-
+        <Show when={props.post.kind === "song" && props.communityId}>
+          {communityId => <div class="ml-auto"><RewardSponsorAction communityId={communityId()} postId={props.post.id} songTitle={props.post.mediaTitle ?? props.post.title} /></div>}
+        </Show>
       </div>
       <Show when={props.post.kind === "song"} fallback={
         <>
@@ -354,7 +357,7 @@ export function CommunityPageShell(props: CommunityPageShellProps) {
   });
   const songs = createMemo(() => sortedPosts().filter(post => post.kind === "song"));
   const renderPost = (post: CommunityPost) => {
-    const render = (actions?: JSX.Element) => <FeedPost actions={actions} post={post} />;
+    const render = (actions?: JSX.Element) => <FeedPost actions={actions} communityId={props.community.id} post={post} />;
     return props.renderPost?.(post, render) ?? render();
   };
   /**
@@ -362,7 +365,10 @@ export function CommunityPageShell(props: CommunityPageShellProps) {
    * community's feed controls read on a phone. The icon opens the existing
    * responsive picker: a sheet on small viewports and a select above them.
    */
-  const sortControl = () => (
+  // Own this JSX subtree once. Evaluating an ordinary render helper from a
+  // forwarded prop allocates picker hydration keys in a different order on
+  // the server and client when the initial page data is already settled.
+  const sortControl = createMemo(() => (
     <ResponsiveOptionSelect
       ariaLabel="Sort community feed"
       class="w-auto shrink-0"
@@ -378,7 +384,7 @@ export function CommunityPageShell(props: CommunityPageShellProps) {
       triggerContent={<IconFadersHorizontal class="size-5" />}
       value={sort()}
     />
-  );
+  ));
 
   return (
     <div class="mx-auto w-full max-w-6xl bg-background" data-community-page>

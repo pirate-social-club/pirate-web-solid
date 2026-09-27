@@ -4,6 +4,8 @@ import {
   NAMES_ACTIVE,
   NAMES_READY,
   NAMES_SUSPENDED,
+  SPACES_YAHOO_PENDING,
+  SPACES_YAHOO_READY,
 } from "./community-names-settings-fixtures";
 import {
   CommunityNamesSettingsApiError,
@@ -15,6 +17,7 @@ import {
   namesOfferingRevisionInput,
   saleNamespaceActivationInput,
   saleNamespaceRevisionInput,
+  spacesSaleNamespaceActivationInput,
 } from "./community-names-settings-model";
 
 function response(body: object, status = 200): Response {
@@ -31,6 +34,42 @@ function readyCandidate() {
 }
 
 describe("createCommunityNamesSettingsApi", () => {
+  test("sends the Spaces funding acknowledgement with CSRF and authority fences", async () => {
+    const requests: Request[] = [];
+    const activation = SPACES_YAHOO_PENDING.spaces!.saleNamespaces[0]!.activation;
+    const candidate = SPACES_YAHOO_READY.spaces!.candidates[0]!;
+    if (candidate.kind !== "ready_v1") throw new Error("expected ready Spaces root");
+    const input = spacesSaleNamespaceActivationInput({ candidate, communityId: "community_midnight", idempotencyKey: "spaces-activate-1" });
+    const api = createCommunityNamesSettingsApi({
+      fetchImpl: async (requestInput, init) => {
+        requests.push(new Request(requestInput, init));
+        return response({ activation, replayed: false }, 201);
+      },
+      origin: "https://web.test",
+      readCsrfToken: () => "csrf-1",
+    });
+    await expect(api.activateSpacesSaleNamespace(input)).resolves.toEqual(activation);
+    expect(requests[0]?.headers.get("x-csrf-token")).toBe("csrf-1");
+    await expect(requests[0]!.json()).resolves.toEqual(input.body);
+  });
+
+  test("keeps Spaces readiness and funding visible beside HNS management", async () => {
+    const spaces = SPACES_YAHOO_PENDING.spaces!.saleNamespaces[0]!;
+    const api = createCommunityNamesSettingsApi({
+      fetchImpl: async (input, init) => {
+        const request = new Request(input, init);
+        if (request.url.endsWith("/handle-sales-management")) return response(NAMES_ACTIVE.context);
+        if (request.url.includes("/sale-namespaces")) return response({ items: [...NAMES_ACTIVE.saleNamespaces, spaces], next_cursor: null });
+        return response({ items: NAMES_ACTIVE.offerings, next_cursor: null });
+      },
+      origin: "https://web.test",
+    });
+    const snapshot = await api.getSnapshot({ communityId: "community_midnight" });
+    expect(snapshot.saleNamespaces).toEqual(NAMES_ACTIVE.saleNamespaces);
+    expect(snapshot.spaces?.saleNamespaces).toEqual([spaces]);
+    expect(snapshot.spaces?.saleNamespaces[0]?.funding.top_up_address).toBe("bc1ptest");
+  });
+
   test("loads the owner-only context, namespaces and offerings through the generated client", async () => {
     const requests: Request[] = [];
     const api = createCommunityNamesSettingsApi({
@@ -46,7 +85,10 @@ describe("createCommunityNamesSettingsApi", () => {
       origin: "https://web.test",
     });
 
-    await expect(api.getSnapshot({ communityId: "community_midnight" })).resolves.toEqual(NAMES_ACTIVE);
+    await expect(api.getSnapshot({ communityId: "community_midnight" })).resolves.toEqual({
+      ...NAMES_ACTIVE,
+      spaces: { candidates: [], offerings: [], saleNamespaces: [] },
+    });
     expect(requests.map((request) => `${request.method} ${request.url}`)).toEqual([
       "GET https://web.test/api/communities/community_midnight/handle-sales-management",
       "GET https://web.test/api/communities/community_midnight/handle-sales-management/sale-namespaces?limit=50",

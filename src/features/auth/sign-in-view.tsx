@@ -46,22 +46,11 @@ export interface SignInViewProps {
   readonly onSubmitCode: () => void;
 }
 
-function AuthBrandMark(): JSX.Element {
-  return (
-    <span
-      aria-hidden="true"
-      class="grid size-10 place-items-center rounded-full border border-border-soft bg-muted text-base font-medium text-foreground"
-    >
-      P
-    </span>
-  );
-}
 
 function ChooseHeader(): JSX.Element {
   return (
     <div class="flex flex-col items-center text-center">
-      <AuthBrandMark />
-      <Type as="h1" variant="h2" class="mt-3 leading-7">Join Pirate</Type>
+      <Type as="h1" variant="h2" class="leading-7">Sign in</Type>
       <Type as="p" variant="caption" class="mt-1 text-sm leading-5">
         Share music. Find your people.
       </Type>

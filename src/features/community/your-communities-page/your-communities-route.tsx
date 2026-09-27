@@ -83,9 +83,18 @@ export function YourCommunitiesRouteView(props: YourCommunitiesRouteProps = {}) 
         if (error instanceof ApiClientError && error.status === 401) {
           setState({ kind: "anonymous" });
         } else {
-          setState({ kind: "error", message: "We couldn't load your Communities. Try again." });
+          setState({ kind: "error", message: "We couldn't load your Communities." });
         }
       });
+  };
+
+  /** The error state's own retry control: the session effect that first
+   * drove the load will not run again on its own. */
+  const retryLoad = () => {
+    const current = session();
+    if (current === undefined || current === "resolving") return;
+    if (current === "anonymous" || current === "failed") return;
+    load(current);
   };
 
   createEffect(
@@ -213,6 +222,11 @@ export function YourCommunitiesRouteView(props: YourCommunitiesRouteProps = {}) 
           <Type as="p" role="alert">
             {errorMessage()}
           </Type>
+          <Show when={session() !== undefined && session() !== "resolving" && session() !== "anonymous" && session() !== "failed"}>
+            <Button class="w-fit" onClick={retryLoad} type="button" variant="secondary">
+              Try again
+            </Button>
+          </Show>
         </PageContainer>
       </Show>
       <Show when={state().kind === "ready"}>

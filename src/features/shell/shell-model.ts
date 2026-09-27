@@ -1,6 +1,6 @@
-export type ShellNavItem = "home" | "communities" | "profile";
+export type ShellNavItem = "home" | "songs" | "wallet" | "profile";
 
-export const shellNavItems = ["home", "communities", "profile"] as const;
+export const shellNavItems = ["home", "songs", "wallet", "profile"] as const;
 
 export function normalizeUnreadCount(value: number | undefined): number {
   if (value === undefined || !Number.isFinite(value)) return 0;
@@ -14,7 +14,7 @@ export function formatUnreadCount(value: number | undefined): string {
 
 export function resolveShellTitle(route: "home" | "community" | "post" | "wallet" | "profile"): string | null {
   switch (route) {
-    case "home": return "Pirate";
+    case "home": return "Home";
     case "community": return "Builders";
     case "post": return "Post";
     case "wallet": return "Wallet";

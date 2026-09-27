@@ -1,5 +1,7 @@
 import { getRequestEvent } from "@solidjs/web";
 
+import { WALLET_RPC_ORIGINS } from "./features/wallet/wallet-network-catalog";
+
 // One R2 account host serves the ingress upload target and the immutable
 // originals bucket whose signed GET grants song playback in the audio element.
 const MEDIA_R2_ORIGIN = "https://08a4c22cf52e2ecae883e36f80a33f4a.r2.cloudflarestorage.com";
@@ -44,6 +46,10 @@ async function standaloneMiddleware(request: Request, next: () => Promise<Respon
   return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
 }
 
+// The Privy embedded wallet reads reward funding balances and fees through
+// Privy's own Base Sepolia RPC, not the chain's public endpoint.
+export const PRIVY_REWARD_RPC_ORIGIN = "https://base-sepolia.rpc.privy.systems";
+
 export function securityPolicy(pathname: string, nonce: string, apiNextOrigin?: string): string {
   const verificationRoute = pathname === "/verify/zkpassport";
   const veryRoute = pathname === "/verify/very";
@@ -52,7 +58,7 @@ export function securityPolicy(pathname: string, nonce: string, apiNextOrigin?: 
   const karaokeConnectSrc = `connect-src 'self' https://auth.privy.io ${MEDIA_R2_ORIGIN} https://*.cloudflarestream.com${
     apiSocketOrigin === null ? "" : ` ${apiSocketOrigin}`
   }`;
-  return verificationRoute
+  const policy = verificationRoute
     ? `default-src 'self'; script-src 'nonce-${nonce}' 'strict-dynamic' 'wasm-unsafe-eval'; img-src 'self' data:; frame-src https://auth.privy.io https://challenges.cloudflare.com; connect-src 'self' https://auth.privy.io wss://bridge.zkpassport.id https://certificates.zkpassport.id https://circuits2.zkpassport.id https://ipfs.zkpassport.id https://eth-sepolia.g.alchemy.com; worker-src 'self' blob:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'`
     : veryRoute
       // Route-scoped compatibility exception: pinned @veryai/widget 1.0.22
@@ -61,6 +67,9 @@ export function securityPolicy(pathname: string, nonce: string, apiNextOrigin?: 
       : signInRoute
         ? `default-src 'self'; script-src 'nonce-${nonce}' 'strict-dynamic'; img-src 'self' data: https://auth.privy.io; frame-src https://auth.privy.io; connect-src 'self' https://auth.privy.io; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'`
         : `default-src 'self'; script-src 'nonce-${nonce}' 'strict-dynamic'; frame-src https://auth.privy.io; ${karaokeConnectSrc}; media-src 'self' blob: ${MEDIA_R2_ORIGIN} https://*.cloudflarestream.com; worker-src 'self' blob:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'`;
+  // SPA navigation keeps the initial document policy, including entry through
+  // sign-in, so every document policy admits the wallet's read-only RPC origins.
+  return policy.replace(/connect-src ([^;]+);/u, (_directive, origins: string) => `connect-src ${origins} ${[...WALLET_RPC_ORIGINS, PRIVY_REWARD_RPC_ORIGIN].join(" ")};`);
 }
 
 export default [standaloneMiddleware];

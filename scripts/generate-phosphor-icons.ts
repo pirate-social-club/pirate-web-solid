@@ -16,6 +16,7 @@ const PHOSPHOR_PACKAGE = "@phosphor-icons/core";
 
 const iconSpecs: readonly IconSpec[] = [
   { component: "IconX", asset: "x" },
+  { component: "IconGearSix", asset: "gear-six" },
   { component: "IconFileText", asset: "file-text" },
   { component: "IconImage", asset: "image" },
   { component: "IconMaskHappy", asset: "mask-happy" },

@@ -1,7 +1,8 @@
 /** @jsxImportSource @solidjs/web */
 import { render as solidRender, type JSX } from "@solidjs/web";
+import { userEvent } from "@testing-library/user-event";
 import { createRoot } from "solid-js";
-import { afterEach, describe, expect, test } from "vitest";
+import { afterEach, describe, expect, test, vi } from "vitest";
 
 import type { CommunityData } from "./page-shell-model.ts";
 import { CommunityPageShell } from "./page-shell.tsx";
@@ -47,5 +48,28 @@ describe("community page shell header actions", () => {
     expect(row).not.toBeNull();
     expect(row?.getAttribute("role")).toBe("group");
     expect(row?.getAttribute("aria-label")).toBe("Community actions");
+  });
+
+  test("exposes the existing Boost entry point on community songs only", async () => {
+    const container = render(() => (
+      <CommunityPageShell
+        community={{ ...community, id: "community-1" }}
+        following={false}
+        joined={false}
+        feed={() => ({ kind: "ready", posts: [
+          { id: "song-1", title: "Practice song", body: "", kind: "song", score: 0, publishedAt: "2026-09-24T08:00:00.000Z" },
+          { id: "text-1", title: "Discussion", body: "Notes", kind: "text", score: 0, publishedAt: "2026-09-24T08:00:00.000Z" },
+        ] })}
+      />
+    ));
+
+    const song = container.querySelector('[data-community-post="song-1"]');
+    const text = container.querySelector('[data-community-post="text-1"]');
+    const songActions = [...song!.querySelectorAll("button")].find(button => button.textContent?.trim() === "Song actions");
+    expect(songActions).toBeDefined();
+    expect([...text!.querySelectorAll("button")].some(button => button.textContent?.trim() === "Song actions")).toBe(false);
+
+    await userEvent.setup().click(songActions!);
+    await vi.waitFor(() => expect([...document.querySelectorAll('[role="menuitem"]')].some(item => item.textContent?.trim() === "Boost")).toBe(true));
   });
 });

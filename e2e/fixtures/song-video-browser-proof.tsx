@@ -68,6 +68,7 @@ interface Ledger {
   alignedRequestedMs: number | null;
   alignedReportedTrimMs: number | null;
   originalTakeBytes: number | null;
+  serverVideoState: "awaiting_upload" | "published" | "unresolved" | "abandoned";
 }
 function ledger(): Ledger {
   return JSON.parse(localStorage.getItem(key) ?? "null") ?? {
@@ -78,6 +79,7 @@ function ledger(): Ledger {
     takeMeasuredVideoMs: null, shortVideoLongAudioRefused: null,
     alignedAudioCodec: null, alignedAdmitted: null,
     alignedRequestedMs: null, alignedReportedTrimMs: null, originalTakeBytes: null,
+    serverVideoState: "awaiting_upload",
   };
 }
 function write(next: Ledger): void {
@@ -140,6 +142,7 @@ const preflight: SongIntervalPreflight = async (input) => {
 async function measureDuration(file: File): Promise<number | null> {
   if (file.name === "short.mp4") return 3_000;
   if (file.name === "long.mp4") return 45_000;
+  if (file.name === "fits.mp4") return 10_000;
   // The take is measured by the production reader, which reports the video
   // track, not the container that the copied audio extends.
   const measured = await measureVideoDuration(file);
@@ -216,12 +219,22 @@ function uploadFor(sizeBytes: number) {
   return { method: "MULTIPART" as const, upload_id: "upload-fixture", part_count: 1, part_size_bytes: sizeBytes, expires_at: "2099-01-01T00:00:00Z", parts: [{ part_number: 1, url: "https://upload.fixture.test/1", expires_at: "2099-01-01T00:00:00Z" }] };
 }
 
-let finalized = false;
+const unresolvedFixture = new URL(location.href).searchParams.get("moderation") === "unresolved";
+function serverSnapshot(): VideoSnapshot {
+  switch (ledger().serverVideoState) {
+    case "published":
+      return { ...snapshotBase, status: "published", creation_revision: 2, video_revision: 1, published_resource: { post_id: "published-fixture", href: "/posts/published-fixture" } };
+    case "unresolved":
+      return { ...snapshotBase, status: "processing_failed", creation_revision: 2, video_revision: 1, reason_code: "provider_submission_unconfirmed", retryable: false, retry_count: 0 };
+    case "abandoned":
+      return { ...snapshotBase, status: "abandoned", creation_revision: 2, video_revision: 1, reason_code: "author_abandoned_unresolved_provider" };
+    case "awaiting_upload":
+      return { ...snapshotBase, status: "processing", phase: "awaiting_upload" };
+  }
+}
 const transport: VideoTransport = {
   async read(): Promise<VideoSnapshot> {
-    return finalized
-      ? { ...snapshotBase, status: "published", creation_revision: 2, video_revision: 1, published_resource: { post_id: "published-fixture", href: "/posts/published-fixture" } }
-      : { ...snapshotBase, status: "processing", phase: "awaiting_upload" };
+    return serverSnapshot();
   },
   async execute(command: VideoCommand): Promise<VideoCommandResult> {
     record(`command:${command.kind}`);
@@ -246,8 +259,12 @@ const transport: VideoTransport = {
       };
     }
     if (command.kind === "finalize") {
-      finalized = true;
-      return { ...snapshotBase, status: "published", creation_revision: 2, video_revision: 1, published_resource: { post_id: "published-fixture", href: "/posts/published-fixture" } };
+      const state = ledger(); state.serverVideoState = unresolvedFixture ? "unresolved" : "published"; write(state); notify();
+      return serverSnapshot();
+    }
+    if (command.kind === "cancel") {
+      const state = ledger(); state.serverVideoState = "abandoned"; write(state); notify();
+      return serverSnapshot();
     }
     return { ...snapshotBase, status: "processing", phase: "awaiting_upload" };
   },
@@ -352,11 +369,12 @@ createRoot(() => {
     state.limitMs = input.limitMs ?? null;
     write(state);
     record(`capture:limit=${input.limitMs ?? "none"}`);
+    record(`capture:preview-handed=${input.stream === undefined ? "no" : "yes"}`);
     // The fake capture honors the requested duration rather than a constant,
     // so the proof measures the stop request, not just callback wiring.
     setTimeout(() => { void input.onLimit(); }, input.limitMs ?? 900);
     return {
-      stream: new MediaStream(),
+      stream: input.stream ?? new MediaStream(),
       captureOriginMs: performance.now(),
       stop: async () => {
         const current = ledger();
@@ -373,6 +391,18 @@ createRoot(() => {
       cancel: async () => { record("capture:cancelled"); },
     };
   };
+  // The camera preview shown before a take. A canvas stream stands in for the
+  // camera: like a real one it has a video track, so the viewfinder loads its
+  // metadata. The proof checks the recording takes it over.
+  const openPreview = async (): Promise<MediaStream> => {
+    record("preview:opened");
+    const canvas = document.createElement("canvas");
+    canvas.width = 90;
+    canvas.height = 160;
+    const context = canvas.getContext("2d");
+    if (context) { context.fillStyle = "#335"; context.fillRect(0, 0, canvas.width, canvas.height); }
+    return canvas.captureStream(5);
+  };
   render(() => (
     <main>
       <h1>Local song-first video proof</h1>
@@ -381,7 +411,14 @@ createRoot(() => {
         fallback={
           <section aria-label="Song post fixture">
             <h2>Fixture song post</h2>
-            <SongVideoEntry communityId="community-fixture" postId="song-fixture" read={async () => true} sessionHint={() => true} />
+            <SongVideoEntry communityId="community-fixture" postId="song-fixture" read={async () => true} sessionHint={() => true}
+              resolveSession={async () => ({
+                status: "authenticated", userId: "fixture-user", personas: [{
+                  personaId: "fixture-persona", displayName: "Fixture persona", avatarRef: null,
+                  primaryPublicHandle: null,
+                  communityBinding: { communityId: "community-fixture", bindingSource: "first_membership" },
+                }],
+              })} />
           </section>
         }
       >
@@ -415,6 +452,7 @@ createRoot(() => {
               songPreflight={preflight}
               songReader={songReader}
               startCapture={startCapture}
+              openPreview={openPreview}
               transport={transport}
             />
             <section aria-label="Attribution fixture">

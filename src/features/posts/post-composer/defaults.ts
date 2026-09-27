@@ -103,8 +103,16 @@ export function defaultSongState(song?: SongComposerState): SongComposerState {
   };
 }
 
+/** Every new song is published as "Remix and sell" with a 10% share of remix
+ * earnings; the author adjusts the share (owner decision, 2026-09-24). */
+export const DEFAULT_SONG_LICENSE: AssetLicenseState = {
+  presetId: "commercial-remix",
+  commercialRevShareBps: 1_000,
+  commercialRevSharePct: 10,
+};
+
 export function defaultAssetLicenseState(license?: AssetLicenseState): AssetLicenseState {
-  const presetId = license?.presetId ?? "non-commercial";
+  const presetId = license?.presetId ?? DEFAULT_SONG_LICENSE.presetId;
   return {
     presetId,
     commercialRevShareBps: presetId === "commercial-remix"

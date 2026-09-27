@@ -176,6 +176,9 @@ export type NamespaceRecoveryReasonCode =
   | "publication_deadline_reached"
   | "finality_deadline_reached"
   | "superseded"
+  | "pre_separated_clocks_challenge_expiry"
+  | "sources_inconsistent"
+  | "ownership_check_attempts_exhausted"
   | "other";
 
 export type NamespaceNextAction =

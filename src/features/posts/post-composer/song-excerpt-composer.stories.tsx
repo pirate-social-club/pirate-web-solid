@@ -1,6 +1,8 @@
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 
 import { SongExcerptComposer } from "./song-excerpt-composer";
+import type { SongPickerItem, SongPickerSource } from "./song-picker";
+import type { SongIntervalPreflight } from "../video-submission/song-reference";
 import {
   parseStoredExcerptDraft,
   type SongExcerptDraft,
@@ -78,35 +80,127 @@ function memoryStore(): SongExcerptDraftStore {
 
 function standInReader(title: string, durationMs: number): SongSourceReader {
   const audioUrl = toneWavUrl(durationMs);
+  // The picked song keeps its own name; the audio is the same stand-in tone.
   return async request => ({
     postId: request.kind === "post" ? request.postId : "resolved-from-slug",
     audioUrl,
-    title,
+    title: standInSongList.find(song => request.kind === "post" && song.postId === request.postId)?.title ?? title,
   });
 }
 
 const meta = {
-  title: "Flows/Posts/VideoPost/SongExcerptByLink",
+  title: "Flows/Posts/VideoPost/SongChoice",
   globals: { viewport: { value: "mobile1", isRotated: false } },
+  decorators: [Story => <div class="p-4"><Story /></div>],
   parameters: {
     layout: "fullscreen",
     docs: {
       description: {
         component:
-          "Choosing a real song by an ordinary post link, hearing the fixed window of its full mix, and keeping it with the video draft automatically. The audio is the song playback access grant, the same read the song player uses; it needs nothing from Karaoke. A slug link, a /p/<post id> link and a bare post id all resolve. The composer never substitutes a fixture: loading, unavailable and error are shown as themselves. In these stories the read is stood in for, because Storybook has no session and no reachable audio host — the post ids and the tone are not real, and the story that fails is failing deliberately. What a playable full mix proves is narrow: an audio source exists. Permission to render that audio into a published video is the server's separate decision and is asked through the preflight, never inferred here. What is real everywhere is the selection: one fixed-length window from the bounds module, retained against the song post's id and restored unchanged.",
+          "Choosing the video's song: pick one of the community's songs, or paste a song post link, hear the fixed window of its full mix, and keep it with the video automatically. The audio is the song playback access grant, the same read the song player uses. The composer never substitutes a fixture: loading, unavailable and error are shown as themselves. In these stories the song list and the read are stood in for, because Storybook has no session and no reachable audio host; the post ids and the tone are not real, and the story that fails is failing deliberately. Permission to render the audio into a published video is the server's decision, asked through the preflight and never inferred here.",
+
       },
     },
   },
 } satisfies Meta;
 
+/** Songs posted in the community, as the picker lists them. Stand-ins: the
+ * ids and names are not real posts. */
+const standInSongList: readonly SongPickerItem[] = [
+  { postId: "cadence-post", title: "Cadence", artist: "salt-cove.pirate", artworkSrc: null },
+  { postId: "low-tide-post", title: "Low Tide", artist: "drift-reef.pirate", artworkSrc: null },
+  { postId: "harbor-lights-post", title: "Harbor Lights", artist: "night-owl.pirate", artworkSrc: null },
+];
+const standInSongs: SongPickerSource = async () => ({ songs: standInSongList, nextCursor: null });
+
+/** Accepts every excerpt, standing in for the server's rights check. */
+const standInPreflight: SongIntervalPreflight = async input => ({
+  state: "ready", song_post_id: input.body.song_post_id, audio_revision: 1, canonical_duration_samples: 7_200_000,
+  interval_policy: { policy_revision: 1, sample_rate_hz: 48_000, min_clip_duration_samples: 144_000, max_clip_duration_samples: 8_640_000 },
+  interval: input.body.interval === undefined ? null : { accepted: true },
+});
+
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-/** The whole slice. Paste a song post link, a `/p/<post id>` link or a bare post id. */
+/** The starting point: the community's songs, searchable, with a pasted
+ * link accepted in the same field. */
 export const ChooseHearAndRetain: Story = {
   render: () => (
     <SongExcerptComposer
-      read={standInReader("Cadence (stand-in audio)", 150_000)}
+      communityId="community-story"
+      onClose={() => {}}
+      songs={standInSongs}
+      read={standInReader("Cadence", 150_000)}
+      preflight={standInPreflight}
+      store={memoryStore()}
+    />
+  ),
+};
+
+/** The community's songs a feed page at a time: Load more reaches the next
+ * page, and the search says it covers loaded songs only while pages remain. */
+export const PagedSongChoice: Story = {
+  render: () => (
+    <SongExcerptComposer
+      communityId="community-story"
+      onClose={() => {}}
+      songs={async (_communityId, cursor) => cursor === null
+        ? { songs: standInSongList.slice(0, 2), nextCursor: "story-page-2" }
+        : { songs: standInSongList.slice(2), nextCursor: null }}
+      read={standInReader("Cadence", 150_000)}
+      preflight={standInPreflight}
+      store={memoryStore()}
+    />
+  ),
+};
+
+/** A song picked from the list: its window plays and the excerpt controls
+ * take the picker's place. */
+export const SongPicked: Story = {
+  render: () => (
+    <SongExcerptComposer
+      communityId="community-story"
+      initialSong={{ postId: "cadence-post" }}
+      songs={standInSongs}
+      read={standInReader("Cadence", 150_000)}
+      preflight={standInPreflight}
+      store={memoryStore()}
+    />
+  ),
+};
+
+/** The community's songs are still loading. */
+export const SongsLoading: Story = {
+  render: () => (
+    <SongExcerptComposer
+      communityId="community-story"
+      songs={() => new Promise(() => {})}
+      read={standInReader("Cadence", 150_000)}
+      store={memoryStore()}
+    />
+  ),
+};
+
+/** The song list failed to load. Pasting a link still works. */
+export const SongsFailed: Story = {
+  render: () => (
+    <SongExcerptComposer
+      communityId="community-story"
+      songs={async () => { throw new Error("unavailable"); }}
+      read={standInReader("Cadence", 150_000)}
+      store={memoryStore()}
+    />
+  ),
+};
+
+/** A community with no songs yet. */
+export const NoSongsYet: Story = {
+  render: () => (
+    <SongExcerptComposer
+      communityId="community-story"
+      songs={async () => ({ songs: [], nextCursor: null })}
+      read={standInReader("Cadence", 150_000)}
       store={memoryStore()}
     />
   ),
@@ -117,7 +211,10 @@ export const ChooseHearAndRetain: Story = {
 export const ShortSong: Story = {
   render: () => (
     <SongExcerptComposer
-      read={standInReader("Interlude (stand-in audio)", 8_200)}
+      communityId="community-story"
+      initialSong={{ postId: "cadence-post" }}
+      songs={standInSongs}
+      read={standInReader("Interlude", 8_200)}
       store={memoryStore()}
     />
   ),
@@ -126,7 +223,10 @@ export const ShortSong: Story = {
 /** The read never settles, so the loading state stays on screen. */
 export const Loading: Story = {
   render: () => (
-    <SongExcerptComposer read={() => new Promise(() => {})} store={memoryStore()} />
+    <SongExcerptComposer
+      communityId="community-story"
+      initialSong={{ postId: "cadence-post" }}
+      songs={standInSongs} read={() => new Promise(() => {})} store={memoryStore()} />
   ),
 };
 
@@ -135,6 +235,9 @@ export const Loading: Story = {
 export const NoAudioYet: Story = {
   render: () => (
     <SongExcerptComposer
+      communityId="community-story"
+      initialSong={{ postId: "cadence-post" }}
+      songs={standInSongs}
       read={async request => ({ postId: request.kind === "post" ? request.postId : "slug", audioUrl: "", title: "Still processing" })}
       store={memoryStore()}
     />
@@ -146,6 +249,9 @@ export const NoAudioYet: Story = {
 export const FailedToLoad: Story = {
   render: () => (
     <SongExcerptComposer
+      communityId="community-story"
+      initialSong={{ postId: "cadence-post" }}
+      songs={standInSongs}
       read={async () => {
         throw new Error("GET /communities/x/posts/y 403");
       }}
@@ -159,6 +265,9 @@ export const FailedToLoad: Story = {
 export const SongUnavailable: Story = {
   render: () => (
     <SongExcerptComposer
+      communityId="community-story"
+      initialSong={{ postId: "cadence-post" }}
+      songs={standInSongs}
       read={async () => {
         throw new SongSourceError("not_found", "Song not found", false);
       }}
@@ -172,6 +281,9 @@ export const SongUnavailable: Story = {
 export const PlaybackUnavailable: Story = {
   render: () => (
     <SongExcerptComposer
+      communityId="community-story"
+      initialSong={{ postId: "cadence-post" }}
+      songs={standInSongs}
       read={async () => {
         throw new SongSourceError("playback_unavailable", "off", false);
       }}
@@ -184,6 +296,9 @@ export const PlaybackUnavailable: Story = {
 export const AgeRestricted: Story = {
   render: () => (
     <SongExcerptComposer
+      communityId="community-story"
+      initialSong={{ postId: "cadence-post" }}
+      songs={standInSongs}
       read={async () => {
         throw new SongSourceError("age_restricted", "locked", false);
       }}
@@ -197,6 +312,9 @@ export const AgeRestricted: Story = {
 export const AudioWontPlay: Story = {
   render: () => (
     <SongExcerptComposer
+      communityId="community-story"
+      initialSong={{ postId: "cadence-post" }}
+      songs={standInSongs}
       read={async request => ({
         postId: request.kind === "post" ? request.postId : "slug",
         audioUrl: "https://audio.invalid/missing.mp3",

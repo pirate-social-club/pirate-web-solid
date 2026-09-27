@@ -68,28 +68,33 @@ export function PostComposer(props: PostComposerProps) {
     }
   };
 
+  // Mobile header: close on the left; a single-step post publishes from an
+  // icon button on the right, whose accessible name is the post label.
+  const mobileHeader = () => (
+    <header class="flex min-h-12 items-center justify-between gap-2 px-1">
+      <IconButton
+        aria-label="Close composer"
+        onClick={() => props.onClose?.()}
+        variant="ghost"
+      >
+        <IconX class="size-5" />
+      </IconButton>
+      <Show when={!isMultiStep()}>
+        <PublishButton
+          compact
+          controller={controller}
+          label={controller.submit.label}
+          onClick={requestPost}
+        />
+      </Show>
+    </header>
+  );
+
   return (
     <>
       <div class={cn("w-full space-y-2", !controller.isMobile() && "pt-0")}>
-        <Show when={controller.isMobile()}>
-          <header class="flex min-h-12 items-center justify-between gap-2 px-1">
-            <IconButton
-              aria-label="Close composer"
-              onClick={() => props.onClose?.()}
-              variant="ghost"
-            >
-              <IconX class="size-5" />
-            </IconButton>
-            <Show when={!isMultiStep()}>
-              <PublishButton
-                class="h-9 min-w-0 px-5"
-                compact={false}
-                controller={controller}
-                label={controller.submit.label}
-                onClick={requestPost}
-              />
-            </Show>
-          </header>
+        <Show when={controller.isMobile() && !isMultiStep()}>
+          <div class="sticky -top-4 z-20 -mt-4 bg-background pt-4" data-composer-sticky-header>{mobileHeader()}</div>
         </Show>
 
         <Show
@@ -117,18 +122,31 @@ export function PostComposer(props: PostComposerProps) {
             </Card>
           }
         >
-          <Show when={props.mediaStatus}>{props.mediaStatus!()}</Show>
-          {stepContent()}
-          <Show when={isMultiStep()}>
-            <Show when={props.attachmentBarPlacement !== "inline"}>
-              <div class="h-24" aria-hidden="true" />
-            </Show>
+          {/* Every mobile composer acts from its header: a single-step post
+              publishes top right, and a multi-step track moves between steps
+              there too, so no footer crowds the form or hides under the keyboard. */}
+          <Show
+            when={isMultiStep()}
+            fallback={<>
+              <Show when={props.mediaStatus}>{props.mediaStatus!()}</Show>
+              {stepContent()}
+            </>}
+          >
+            {/* The header carries Continue and Post, so it stays in reach
+                however long the lyrics or collaborator list grow. */}
+            {/* Pinned at the scroll edge; its padding paints over the form's
+                top padding so nothing is seen scrolling above the header. */}
+            <div class="sticky -top-4 z-20 -mt-4 bg-background pt-4" data-composer-sticky-header>
             <PostComposerStepFooter
               controller={controller}
-              placement={props.attachmentBarPlacement}
+              layout="header"
+              onClose={() => props.onClose?.()}
               runtime={props.songFlowRuntime}
               steps={steps}
             />
+            </div>
+            <Show when={props.mediaStatus}>{props.mediaStatus!()}</Show>
+            {stepContent()}
           </Show>
         </Show>
       </div>

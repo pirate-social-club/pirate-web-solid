@@ -25,6 +25,7 @@ export function RewardSongStatus(props: { song: Song; actor: RewardFundingActor;
     <Show when={props.song.pool}>{pool => <section aria-label="Song Megapot reward">
       <p>Megapot shared winnings · {pool().leg_status.replaceAll("_", " ")}</p>
       <p>Pirate buys and holds the ticket. Qualifiers share net winnings.</p>
+      <p>If your pool wins, your amount is held until you verify to claim it.</p>
       <p>{formatUnits(BigInt(pool().available_budget_atomic),6)} USDC available · additional score floor {pool().min_score_bps / 100}%</p>
       <Show when={pool().qualification_policies} fallback={<p>Original qualification terms are unavailable for this older reward.</p>}>{policies => <For each={policies()}>{policy => <p class="text-sm">{qualificationText(policy)}</p>}</For>}</Show>
       <Show when={pool().drawing}>{drawing => <p>Drawing: {drawing().state.replaceAll("_", " ")} · {drawing().beneficiary_count} qualifiers</p>}</Show>

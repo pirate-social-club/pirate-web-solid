@@ -25,7 +25,7 @@ afterEach(() => {
   document.head.replaceChildren();
 });
 
-describe("public legal placeholder routes", () => {
+describe("public legal routes", () => {
   test("registers both sign-in destinations as filesystem routes", async () => {
     const router = new PageFileSystemRouter({
       dir: resolve("src/routes"),
@@ -38,14 +38,25 @@ describe("public legal placeholder routes", () => {
   });
 
   test.each([
-    ["/terms", "Terms", TermsRoute],
-    ["/privacy", "Privacy Policy", PrivacyRoute],
-  ] as const)("renders %s as an explicit placeholder", (path, title, Route) => {
+    ["/terms", "Terms of Service", TermsRoute, "What you post"],
+    ["/privacy", "Privacy Policy", PrivacyRoute, "Microphone recordings"],
+  ] as const)("renders %s with its sections and a way home", (path, title, Route, section) => {
     const container = renderRoute(() => <Route />);
 
     expect(container.querySelector("main")?.dataset.routePath).toBe(path);
     expect(container.querySelector("h1")?.textContent).toBe(title);
-    expect(container.textContent).toContain("Approved legal copy has not been published yet.");
-    expect(container.querySelector("a[href='/auth/sign-in']")?.textContent).toContain("Back to sign in");
+    expect([...container.querySelectorAll("h2")].map(heading => heading.textContent)).toContain(section);
+    expect(container.textContent).not.toContain("placeholder");
+    expect(container.querySelector("a[href='/']")?.textContent).toContain("Go home");
+  });
+
+  test("describes the one song licence the composer applies", () => {
+    // Every new song is published as commercial remix with an author-set
+    // share; the Terms must not offer a licence choice the app no longer has.
+    const text = renderRoute(() => <TermsRoute />).textContent ?? "";
+    expect(text).toContain("under a commercial remix licence");
+    expect(text).not.toContain("the licence you choose");
+    // A resumed submission keeps a licence it was already given.
+    expect(text).toContain("given a different licence before 24 September 2026 keeps that licence");
   });
 });

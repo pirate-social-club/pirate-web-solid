@@ -591,7 +591,7 @@ describe("Community creation production route", () => {
     requestGlobalSignIn();
 
     await vi.waitFor(() => {
-      expect(document.body.querySelector("[aria-label='Join Pirate']")).not.toBeNull();
+      expect(document.body.querySelector("[aria-label='Sign in']")).not.toBeNull();
     });
   });
 

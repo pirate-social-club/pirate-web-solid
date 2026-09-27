@@ -19,6 +19,7 @@ import {
   namespaceRecordRows,
   type NamespaceRecordRow,
   type NamespaceCommandIdempotencyKeys,
+  type NamespaceLifecycle,
   type NamespaceNextAction,
   type NamespaceResourceRecord,
   type NamespaceSettingsCommand,
@@ -30,6 +31,8 @@ import type { CommunityHnsWallet } from "./community-hns-wallet";
 export interface CommunityNamespaceSettingsPanelProps {
   busy?: boolean;
   preparationDisabled?: boolean;
+  /** The server has not accepted publication for this snapshot; see the controller. */
+  publicationBlocked?: boolean;
   draftRootLabel: string;
   idempotencyKeys: NamespaceCommandIdempotencyKeys;
   onCommand: (command: NamespaceSettingsCommand) => void;
@@ -125,14 +128,51 @@ function NamespaceRecordPlan(props: { rows: ReadonlyArray<NamespaceRecordRow> })
   );
 }
 
+function localTimestamp(value: string): string {
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? value : parsed.toLocaleString();
+}
+
 function RecordListExpiry(props: { expiresAt: string }) {
-  const localTime = () => {
-    const parsed = new Date(props.expiresAt);
-    return Number.isNaN(parsed.getTime()) ? props.expiresAt : parsed.toLocaleString();
-  };
   return (
-    <FormNote>Expires <time datetime={props.expiresAt}>{localTime()}</time>, after which you need a new list.</FormNote>
+    <FormNote>Expires <time datetime={props.expiresAt}>{localTimestamp(props.expiresAt)}</time>, after which you need a new list.</FormNote>
   );
+}
+
+/**
+ * The server's lifecycle deadline for an exposed plan. Once a plan is exposed
+ * the session `expires_at` is no longer the owner's clock (it is either the
+ * pre-exposure bound or a retired one-hour challenge expiry), so this is the
+ * only deadline shown from then on.
+ */
+function LifecycleDeadline(props: { deadline: NonNullable<NamespaceLifecycle["deadline"]> }) {
+  return (
+    <FormNote>
+      {props.deadline.kind === "publication" ? "Publish by " : "Handshake must settle this update by "}
+      <time datetime={props.deadline.at}>{localTimestamp(props.deadline.at)}</time>.
+    </FormNote>
+  );
+}
+
+/** Whether the server's publication deadline for this snapshot has passed. */
+function publicationDeadlinePassed(snapshot: NamespaceSettingsSnapshot): boolean {
+  const deadline = snapshot.lifecycle?.deadline;
+  return deadline != null && deadline.kind === "publication" && Date.parse(deadline.at) <= Date.now();
+}
+
+/**
+ * Which deadline the publish step shows. With the lifecycle block present the
+ * server's deadline is the only clock, and none is shown when it has none.
+ * Only the degraded shape without the block falls back to the session expiry.
+ */
+function publishDeadline(snapshot: NamespaceSettingsSnapshot):
+  | Readonly<{ kind: "lifecycle"; deadline: NonNullable<NamespaceLifecycle["deadline"]> }>
+  | Readonly<{ kind: "session"; expiresAt: string }>
+  | null {
+  if (snapshot.lifecycle != null) {
+    return snapshot.lifecycle.deadline === null ? null : { kind: "lifecycle", deadline: snapshot.lifecycle.deadline };
+  }
+  return snapshot.expires_at ? { kind: "session", expiresAt: snapshot.expires_at } : null;
 }
 
 function ConnectedNameCard(props: { action: Extract<NamespaceNextAction, { kind: "verified" }> }) {
@@ -200,7 +240,7 @@ function activationAction(action: NamespaceNextAction): Extract<NamespaceNextAct
   return action.kind === "ready_to_activate" ? action : null;
 }
 
-function ServerDirectedAction(props: Pick<CommunityNamespaceSettingsPanelProps, "busy" | "preparationDisabled" | "idempotencyKeys" | "onCommand" | "showHeading" | "snapshot" | "wallet">) {
+function ServerDirectedAction(props: Pick<CommunityNamespaceSettingsPanelProps, "busy" | "preparationDisabled" | "publicationBlocked" | "idempotencyKeys" | "onCommand" | "showHeading" | "snapshot" | "wallet">) {
   const action = () => props.snapshot.next_action;
   const preparing = () => { const current = action(); return current.kind === "wait" && current.reason_code === "preparation_pending"; };
   const [walletBusy, setWalletBusy] = createSignal(false);
@@ -282,8 +322,13 @@ function ServerDirectedAction(props: Pick<CommunityNamespaceSettingsPanelProps, 
                 </div>
               </Show>
 
-              <Show when={props.snapshot.expires_at}>
-                {(expiresAt) => <RecordListExpiry expiresAt={expiresAt()} />}
+              <Show when={publishDeadline(props.snapshot)}>
+                {(deadline) => {
+                  const shown = deadline();
+                  return shown.kind === "lifecycle"
+                    ? <LifecycleDeadline deadline={shown.deadline} />
+                    : <RecordListExpiry expiresAt={shown.expiresAt} />;
+                }}
               </Show>
 
               <NamespaceRecordPlan rows={namespaceRecordRows(current())} />
@@ -338,12 +383,15 @@ function ServerDirectedAction(props: Pick<CommunityNamespaceSettingsPanelProps, 
               <SecondaryAction idempotencyKeys={props.idempotencyKeys} onCommand={props.onCommand} snapshot={props.snapshot} />
               <Show when={!hasUnsupportedNamespaceRecords(current())}>
                 <div class="flex flex-wrap gap-3">
-                  <Button loading={props.busy} disabled={current().check_pending} onClick={() => dispatch({ kind: "acknowledge_complete_resource" })} variant="secondary">I published all records manually</Button>
+                  <Button loading={props.busy} disabled={current().check_pending || props.publicationBlocked} onClick={() => dispatch({ kind: "acknowledge_complete_resource" })} variant="secondary">I published all records manually</Button>
                   <Show when={props.wallet?.isAvailable() && current().records.every((record) => record.wallet_record)}>
                     <Button
                       loading={props.busy || walletBusy()}
-                      disabled={current().check_pending}
+                      disabled={current().check_pending || props.publicationBlocked}
                       onClick={() => runWalletAction("Bob Wallet could not publish the update. You can retry or publish the complete record list manually.", async () => {
+                        // The broadcast happens before the API is asked, so a
+                        // blocked snapshot must never reach the wallet.
+                        if (props.publicationBlocked || current().check_pending || publicationDeadlinePassed(props.snapshot)) return;
                         const records = current().records.flatMap((record) => record.wallet_record ? [record.wallet_record] : []);
                         await props.wallet!.publishCompleteResource(props.snapshot.root_label, records);
                         dispatch({ kind: "acknowledge_complete_resource" });
@@ -356,6 +404,9 @@ function ServerDirectedAction(props: Pick<CommunityNamespaceSettingsPanelProps, 
               </Show>
             </div>
             <Show when={walletError()}><FormNote tone="warning">{walletError()}</FormNote></Show>
+            <Show when={props.publicationBlocked}>
+              <div data-testid="namespace-publication-blocked"><FormNote tone="warning">Publishing is paused until this import's status is confirmed. Select Retry status.</FormNote></div>
+            </Show>
           </>
         )}
       </Show>
@@ -468,6 +519,9 @@ function ServerDirectedAction(props: Pick<CommunityNamespaceSettingsPanelProps, 
               publication_deadline_reached: "The window to publish these records has passed. This operation is paused. We're retaining its authority setup while recovery is reviewed.",
               finality_deadline_reached: "Handshake did not settle the published records in time. This operation is paused. We're retaining its authority setup while recovery is reviewed.",
               superseded: "This record list was replaced. This operation is paused. We're retaining its authority setup while recovery is reviewed.",
+              pre_separated_clocks_challenge_expiry: "This record list was issued with a one-hour publication window, and that window passed. This operation is paused. We're retaining its authority setup while recovery is reviewed.",
+              sources_inconsistent: "Handshake sources gave conflicting answers about this name. This operation is paused. We're retaining its authority setup while recovery is reviewed.",
+              ownership_check_attempts_exhausted: "The ownership check was refused three times, so this import needs recovery. This operation is paused. We're retaining its authority setup while recovery is reviewed.",
               other: "This operation is paused. We're retaining its authority setup while recovery is reviewed.",
             }[current().reason_code]}</FormNote>
             {/* Nothing is offered here. Recovery is the server's decision to
@@ -476,6 +530,9 @@ function ServerDirectedAction(props: Pick<CommunityNamespaceSettingsPanelProps, 
             <Show when={current().deadline_kind !== null}>
               <Type as="p" variant="caption">
                 {current().deadline_kind === "publication" ? "Publication deadline" : "Finality deadline"}
+                <Show when={props.snapshot.lifecycle?.deadline}>
+                  {(deadline) => <>{" "}<time datetime={deadline().at}>{localTimestamp(deadline().at)}</time></>}
+                </Show>
               </Type>
             </Show>
           </Card>
@@ -514,7 +571,7 @@ export function CommunityNamespaceSettingsPanel(props: CommunityNamespaceSetting
           </Card>
         )}
       </Show>
-      <Show when={props.snapshot.next_action.kind === "choose_namespace"} fallback={<ServerDirectedAction busy={props.busy} preparationDisabled={props.preparationDisabled} idempotencyKeys={props.idempotencyKeys} onCommand={props.onCommand} showHeading={props.showHeading} snapshot={props.snapshot} wallet={props.wallet} />}>
+      <Show when={props.snapshot.next_action.kind === "choose_namespace"} fallback={<ServerDirectedAction busy={props.busy} preparationDisabled={props.preparationDisabled} publicationBlocked={props.publicationBlocked} idempotencyKeys={props.idempotencyKeys} onCommand={props.onCommand} showHeading={props.showHeading} snapshot={props.snapshot} wallet={props.wallet} />}>
         <div class="space-y-6">
           <Show when={props.snapshot.next_action.kind === "choose_namespace" && props.snapshot.next_action.no_account_import}>
             <FormNote>No import found for your account.</FormNote>

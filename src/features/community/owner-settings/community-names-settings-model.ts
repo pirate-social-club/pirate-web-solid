@@ -23,13 +23,29 @@ export type CommunityNamesManagementPort = Pick<
   | "post_communitiesCommunityIdHandleSaleNamespacesActivationIdRevisions"
 >;
 
-export type CommunityNamesManagementContext = GetCommunitiesCommunityIdHandleSalesManagementResponse;
-export type CommunityNamesCandidate = CommunityNamesManagementContext["sale_namespace_candidates"][number];
+export type CommunityNamesCandidate = Extract<GetCommunitiesCommunityIdHandleSalesManagementResponse["sale_namespace_candidates"][number], { family: "hns" }>;
+export type CommunitySpacesCandidate = Extract<GetCommunitiesCommunityIdHandleSalesManagementResponse["sale_namespace_candidates"][number], { family: "spaces" }>;
+export type CommunitySpacesReadyCandidate = Extract<CommunitySpacesCandidate, { kind: "ready_v1" }>;
+export type CommunityNamesManagementContext = Omit<GetCommunitiesCommunityIdHandleSalesManagementResponse, "sale_namespace_candidates"> & {
+  readonly sale_namespace_candidates: ReadonlyArray<CommunityNamesCandidate>;
+};
 export type CommunityNamesReadyCandidate = Extract<CommunityNamesCandidate, { readonly kind: "ready_v1" }>;
-export type CommunityNamesSaleNamespace = GetCommunitiesCommunityIdHandleSalesManagementSaleNamespacesResponse["items"][number];
+type SaleNamespaceItem = GetCommunitiesCommunityIdHandleSalesManagementSaleNamespacesResponse["items"][number];
+export type CommunityNamesSaleNamespace = Extract<SaleNamespaceItem, { effectiveness: unknown }>;
+export type CommunitySpacesSaleNamespace = Extract<SaleNamespaceItem, { activation: { family: "spaces" } }>;
+export type CommunitySpacesSaleNamespaceActivation = CommunitySpacesSaleNamespace["activation"];
 export type CommunityNamesSaleNamespaceActivation = CommunityNamesSaleNamespace["activation"];
-export type CommunityNamesOffering = GetCommunitiesCommunityIdHandleSalesManagementOfferingsResponse["items"][number];
+type OfferingItem = GetCommunitiesCommunityIdHandleSalesManagementOfferingsResponse["items"][number];
+export type CommunityNamesOffering = OfferingItem & {
+  readonly offering: Extract<OfferingItem["offering"], { family: "hns" }>;
+};
+export type CommunitySpacesOffering = OfferingItem & {
+  readonly offering: Extract<OfferingItem["offering"], { family: "spaces" }>;
+};
 export type CommunityNamesSaleNamespaceActivationInput = PostCommunitiesCommunityIdHandleSaleNamespacesInput;
+export type CommunitySpacesSaleNamespaceActivationInput = PostCommunitiesCommunityIdHandleSaleNamespacesInput & {
+  readonly body: Extract<PostCommunitiesCommunityIdHandleSaleNamespacesInput["body"], { family: "spaces" }>;
+};
 export type CommunityNamesSaleNamespaceRevisionInput = PostCommunitiesCommunityIdHandleSaleNamespacesActivationIdRevisionsInput;
 export type CommunityNamesOfferingCreateInput = PostCommunitiesCommunityIdHandleOfferingsInput;
 export type CommunityNamesOfferingRevisionInput = PostCommunitiesCommunityIdHandleOfferingsOfferingIdRevisionsInput;
@@ -38,11 +54,19 @@ export type CommunityNamesManagementSnapshot = Readonly<{
   context: CommunityNamesManagementContext;
   offerings: ReadonlyArray<CommunityNamesOffering>;
   saleNamespaces: ReadonlyArray<CommunityNamesSaleNamespace>;
+  spaces?: Readonly<{
+    candidates: ReadonlyArray<CommunitySpacesCandidate>;
+    offerings: ReadonlyArray<CommunitySpacesOffering>;
+    saleNamespaces: ReadonlyArray<CommunitySpacesSaleNamespace>;
+  }>;
 }>;
 
 export type CommunityNamesSettingsCommand =
   | Readonly<{ kind: "set_nationality"; offering: CommunityNamesOffering["offering"]; countries: readonly string[] | undefined }>
   | Readonly<{ candidate: CommunityNamesReadyCandidate; kind: "enable_names" }>
+  | Readonly<{ candidate: CommunitySpacesReadyCandidate; kind: "enable_spaces_names" }>
+  | Readonly<{ kind: "pause_spaces_names"; offering: CommunitySpacesOffering["offering"] }>
+  | Readonly<{ kind: "resume_spaces_names"; offering: CommunitySpacesOffering["offering"] }>
   | Readonly<{ kind: "pause_names"; offering: CommunityNamesOffering["offering"] }>
   | Readonly<{ kind: "resume_names"; offering: CommunityNamesOffering["offering"] }>
   | Readonly<{ activation: CommunityNamesSaleNamespaceActivation; kind: "resume_name_hosting" }>;
@@ -72,12 +96,108 @@ export function saleNamespaceActivationInput(input: {
   };
 }
 
+export function spacesSaleNamespaceActivationInput(input: {
+  candidate: CommunitySpacesReadyCandidate;
+  communityId: string;
+  idempotencyKey: string;
+}): CommunitySpacesSaleNamespaceActivationInput {
+  return {
+    path: { communityId: input.communityId },
+    body: {
+      idempotency_key: input.idempotencyKey,
+      family: "spaces",
+      namespace_authority_reference: input.candidate.namespace_authority_reference,
+      expected_namespace_authority_generation: input.candidate.expected_namespace_authority_generation,
+      operator_assignment_id: input.candidate.operator_assignment_id,
+      expected_operator_assignment_generation: input.candidate.expected_operator_assignment_generation,
+      operator_funding_terms_confirmed: true,
+    },
+  };
+}
+
+export function spacesBroadNamesOfferingInput(input: {
+  activation: CommunitySpacesSaleNamespaceActivation;
+  context: CommunityNamesManagementContext;
+  idempotencyKey: string;
+}): PostCommunitiesCommunityIdHandleOfferingsInput {
+  const preset = input.context.offering_authoring_presets.find((item) => item.kind === "spaces_native_free_v1");
+  if (preset === undefined) throw new Error("Spaces offering preset unavailable");
+  return {
+    path: { communityId: input.context.community_id },
+    body: {
+      idempotency_key: input.idempotencyKey,
+      terms: {
+        sale_namespace_activation_id: input.activation.sale_namespace_activation_id,
+        expected_sale_namespace_activation_generation: input.activation.sale_namespace_activation_generation,
+        label_scope: {
+          kind: "label_rule_v2",
+          label_grammar_id: "spaces_subspace_label_v1",
+          reserved_labels_id: preset.reserved_labels_id,
+          expected_reserved_labels_revision: preset.expected_reserved_labels_revision,
+          availability: { kind: "length_band_v1", min_label_length: 8, max_label_length: 32 },
+        },
+        allocation_kind: "first_come_v1",
+        max_active_grants_per_account: null,
+        fulfillment_kind: "spaces_native_v1",
+        qualification_policy_id: preset.broad_qualification_policy_id,
+        expected_qualification_policy_revision: preset.expected_broad_qualification_policy_revision,
+        pricing_id: preset.pricing_id,
+        expected_pricing_revision: preset.expected_pricing_revision,
+        issuance_driver_id: preset.issuance_driver_id,
+        expected_issuance_driver_version: preset.expected_issuance_driver_version,
+        quote_ttl_seconds: preset.quote_ttl_seconds,
+        reservation_ttl_seconds: preset.reservation_ttl_seconds,
+      },
+    },
+  };
+}
+
+export function spacesNamesOfferingRevisionInput(input: {
+  communityId: string;
+  idempotencyKey: string;
+  offering: CommunitySpacesOffering["offering"];
+  status: "active" | "paused";
+}): PostCommunitiesCommunityIdHandleOfferingsOfferingIdRevisionsInput {
+  const offering = input.offering;
+  return {
+    path: { communityId: input.communityId, offeringId: offering.offering_id },
+    body: {
+      idempotency_key: input.idempotencyKey,
+      expected_offering_hash: offering.offering_hash,
+      requested_status: input.status,
+      terms: {
+        sale_namespace_activation_id: offering.sale_namespace_activation_id,
+        expected_sale_namespace_activation_generation: offering.sale_namespace_activation_generation,
+        label_scope: {
+          kind: "label_rule_v2",
+          label_grammar_id: "spaces_subspace_label_v1",
+          reserved_labels_id: offering.label_scope.reserved_labels_id,
+          expected_reserved_labels_revision: offering.label_scope.reserved_labels_revision,
+          availability: offering.label_scope.availability,
+        },
+        allocation_kind: "first_come_v1",
+        max_active_grants_per_account: offering.max_active_grants_per_account,
+        fulfillment_kind: "spaces_native_v1",
+        qualification_policy_id: offering.qualification_policy.policy_id,
+        expected_qualification_policy_revision: offering.qualification_policy.policy_revision,
+        pricing_id: offering.pricing.pricing_id,
+        expected_pricing_revision: offering.pricing.pricing_revision,
+        issuance_driver_id: offering.issuance.driver_id,
+        expected_issuance_driver_version: offering.issuance.driver_version,
+        quote_ttl_seconds: offering.quote_ttl_seconds,
+        reservation_ttl_seconds: offering.reservation_ttl_seconds,
+      },
+    },
+  };
+}
+
 export function broadNamesOfferingInput(input: {
   activation: CommunityNamesSaleNamespace["activation"];
   context: CommunityNamesManagementContext;
   idempotencyKey: string;
 }): PostCommunitiesCommunityIdHandleOfferingsInput {
-  const preset = input.context.offering_authoring_preset;
+  const preset = input.context.offering_authoring_presets.find((item) => item.kind === "hns_hosted_persona_free_v1");
+  if (preset === undefined || input.activation.family !== "hns") throw new Error("HNS offering preset unavailable");
   return {
     path: { communityId: input.context.community_id },
     body: {

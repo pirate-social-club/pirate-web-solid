@@ -4,7 +4,12 @@ import { Type } from "@/components/data-display/type/type";
 import { cn } from "@/lib/cn";
 
 import { MediaActions } from "./media-actions";
-import type { HapticKind, MediaPostData } from "./types";
+import type {
+  HapticKind,
+  MediaActivityAction,
+  MediaPostData,
+  VideoSourceAttacher,
+} from "./types";
 import { createVideoPlayback } from "./video-playback";
 import { VideoPlayer } from "./video-player";
 
@@ -19,6 +24,8 @@ export interface MediaPostProps extends MediaPostData {
   forceAutoplay?: boolean;
   /** Controlled audio state supplied by the feed host. */
   muted?: boolean;
+  /** Host-attached source for posts without a direct videoUrl. */
+  attachVideo?: VideoSourceAttacher;
   /** Hide the shared author/action overlays when a product host owns chrome. */
   showChrome?: boolean;
   class?: string;
@@ -27,6 +34,9 @@ export interface MediaPostProps extends MediaPostData {
   onFollowClick?: () => void;
   onAuthorClick?: () => void;
   onSoundtrackClick?: () => void;
+  /** Host-offered activities for this post's rail. */
+  activities?: readonly MediaActivityAction[];
+  onActivityClick?: (activityId: string) => void;
   onMuteToggle?: (muted: boolean) => void;
   onTimeUpdate?: (postId: string, currentTime: number, duration: number) => void;
   /** Called once per post after 3 seconds of cumulative watch time. */
@@ -130,11 +140,13 @@ export function MediaPost(props: MediaPostProps) {
         "relative flex h-[100dvh] w-full snap-start items-center justify-center bg-background md:h-screen",
         props.class,
       )}
+      data-media-post={props.id}
     >
       {/* Video container - responsive sizing */}
       <div class="relative h-full w-full overflow-hidden bg-background md:h-[90vh] md:max-h-[800px] md:w-[50.625vh] md:max-w-[450px] md:rounded-lg">
         <VideoPlayer
           videoUrl={props.videoUrl}
+          attachVideo={props.attachVideo}
           posterUrl={props.posterUrl}
           isPlaying={playback.isPlaying()}
           isMuted={playback.isMuted()}
@@ -270,6 +282,8 @@ export function MediaPost(props: MediaPostProps) {
           onLikeClick={props.onLikeClick}
           onShareClick={props.onShareClick}
           onSoundtrackClick={props.onSoundtrackClick}
+          activities={props.activities}
+          onActivityClick={props.onActivityClick}
           onToggleMute={handleToggleMute}
           onHaptic={props.onHaptic}
         />
@@ -292,6 +306,8 @@ export function MediaPost(props: MediaPostProps) {
           onLikeClick={props.onLikeClick}
           onShareClick={props.onShareClick}
           onSoundtrackClick={props.onSoundtrackClick}
+          activities={props.activities}
+          onActivityClick={props.onActivityClick}
           onToggleMute={handleToggleMute}
           onHaptic={props.onHaptic}
         />

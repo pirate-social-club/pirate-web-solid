@@ -1,5 +1,6 @@
-import { LegalPlaceholderPage } from "../features/legal/legal-placeholder-page.tsx";
+import { privacyPolicy } from "../features/legal/legal-content.ts";
+import { LegalDocument } from "../features/legal/legal-document.tsx";
 
 export default function PrivacyRoute() {
-  return <LegalPlaceholderPage path="/privacy" title="Privacy Policy" />;
+  return <LegalDocument document={privacyPolicy} />;
 }

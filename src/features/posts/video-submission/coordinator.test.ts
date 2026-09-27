@@ -1,7 +1,12 @@
 import { webcrypto } from "node:crypto";
 import { ApiClientError } from "@pirate/api-client";
 import { afterEach, describe, expect, test, vi } from "vitest";
-import { VideoCoordinator, type PendingVideo, type VideoStorage } from "./coordinator";
+import {
+  ORIGINAL_VIDEO_PENDING,
+  VideoCoordinator,
+  type PendingVideo,
+  type VideoStorage,
+} from "./coordinator";
 import { SongReservationMismatch, type OriginalVideoReservation, type SongVideoReservation, type SongVideoSelection,
   type VideoReservation, type VideoSnapshot } from "./contracts";
 import type { VideoCommand, VideoCommandResult, VideoTransport } from "./transport";
@@ -47,6 +52,11 @@ function setup(source: VideoReservation = reservation) {
         parts: source.upload.parts.filter(part => command.input.body.part_numbers.includes(part.part_number))
           .map(part => ({ ...part, expires_at: "2099-01-01T00:00:00Z" })),
       } };
+      if (command.kind === "cancel") {
+        current = { ...initial, status: "abandoned", reason_code: "author_abandoned_unresolved_provider" };
+        results.set(command.input.body.idempotency_key, current);
+        return current;
+      }
       if (command.kind === "finalize") {
         posts++;
         current = { ...initial, status: "published", creation_revision: 2, video_revision: 1, published_resource: { post_id: "post", href: "/posts/post" } };
@@ -64,6 +74,7 @@ function setup(source: VideoReservation = reservation) {
     return coordinator.begin(song ? { ...attempt, song } : attempt);
   };
   return { create, begin, commands, fetchImpl, storage, transport, posts: () => posts,
+    setCurrent: (snapshot: VideoSnapshot) => { current = snapshot; },
     rejectNext: (kind: VideoCommand["kind"], error: Error) => { rejection = { kind, error }; },
   };
 }
@@ -103,6 +114,19 @@ describe("video operation replay", () => {
     await expect(first.discardRejected()).rejects.toThrow(/definitively/);
     expect(first.current?.snapshot?.submission_id).toBe("submission");
   });
+  test("release forgets only a video whose upload is sealed and confirmed", async () => {
+    const fixture = setup(); const first = fixture.create(); await fixture.begin(first);
+    expect(await first.release()).toBe(false);
+    // The fixture loses the first finalize response: it must stay replayable.
+    await expect(first.submit()).rejects.toThrow("Lost finalize response");
+    expect(await first.release()).toBe(false);
+    expect(await fixture.storage.load()).not.toBeNull();
+    await first.submit();
+    expect(await first.release()).toBe(true);
+    expect(await fixture.storage.load()).toBeNull();
+    expect(first.current).toBeNull();
+    expect(fixture.posts()).toBe(1);
+  });
   test("partial renewal preserves the complete durable upload plan", async () => {
     const fixture = setup({ ...reservation, upload: { ...reservation.upload, part_size_bytes: 3, part_count: 2,
       parts: [1, 2].map(part_number => ({ part_number, url: `https://upload.example/${part_number}`,
@@ -125,6 +149,94 @@ describe("video operation replay", () => {
     expect(JSON.stringify(fixture.commands.at(-1))).toBe(retained);
     expect(fixture.posts()).toBe(1); expect(fixture.fetchImpl).toHaveBeenCalledTimes(1);
     await resumed.submit(); expect(fixture.posts()).toBe(1);
+  });
+  test("a finalize lost after the server committed settles by reading, with no replay or second post", async () => {
+    const fixture = setup(); const first = fixture.create(); await fixture.begin(first);
+    await expect(first.submit()).rejects.toThrow("Lost finalize response");
+    const sent = fixture.commands.length;
+    expect(await first.settleFinalize()).toBe(true);
+    expect(fixture.commands).toHaveLength(sent);
+    expect(await fixture.storage.load()).toBeNull();
+    expect(first.current).toBeNull();
+    expect(fixture.posts()).toBe(1); expect(fixture.fetchImpl).toHaveBeenCalledTimes(1);
+  });
+  test("a finalize lost before the server committed stays retained and replays the same command", async () => {
+    const fixture = setup(); const first = fixture.create(); await fixture.begin(first);
+    fixture.rejectNext("finalize", new Error("offline"));
+    await expect(first.submit()).rejects.toThrow("offline");
+    const retained = JSON.stringify(first.current?.pending?.command);
+    expect(await first.settleFinalize()).toBe(false);
+    expect(JSON.stringify(first.current?.pending?.command)).toBe(retained);
+    expect(fixture.posts()).toBe(0);
+    await expect(first.submit()).rejects.toThrow("Lost finalize response");
+    expect(JSON.stringify(fixture.commands.at(-1))).toBe(retained);
+    expect(await first.settleFinalize()).toBe(true);
+    expect(fixture.posts()).toBe(1); expect(fixture.fetchImpl).toHaveBeenCalledTimes(1);
+  });
+  test("settling never forgets a video on a read of another submission or a failed read", async () => {
+    const fixture = setup(); const first = fixture.create(); await fixture.begin(first);
+    await expect(first.submit()).rejects.toThrow("Lost finalize response");
+    const published: VideoSnapshot = { ...initial, status: "published", creation_revision: 2, video_revision: 1,
+      published_resource: { post_id: "post", href: "/posts/post" } };
+    fixture.setCurrent({ ...published, submission_id: "other" });
+    await expect(first.settleFinalize()).rejects.toThrow(/authority/);
+    fixture.setCurrent({ ...published, author_persona: { ...published.author_persona, persona_id: "someone-else" } });
+    await expect(first.settleFinalize()).rejects.toThrow(/authority/);
+    fixture.transport.read = async () => { throw new Error("offline"); };
+    await expect(first.settleFinalize()).rejects.toThrow("offline");
+    expect((await fixture.storage.load())?.pending?.command.kind).toBe("finalize");
+  });
+  test("settling is a no-op without an unconfirmed finalize", async () => {
+    const fixture = setup(); const first = fixture.create(); await fixture.begin(first);
+    fixture.rejectNext("reserve", new Error("unused"));
+    expect(await first.settleFinalize()).toBe(false);
+    expect(await fixture.storage.load()).not.toBeNull();
+  });
+  test("lost unresolved-abandonment response replays the exact cancel and remains terminal", async () => {
+    const fixture = setup();
+    const unresolved: VideoSnapshot = {
+      ...initial,
+      status: "processing_failed",
+      reason_code: "provider_submission_unconfirmed",
+      retryable: false,
+      retry_count: 0,
+    };
+    fixture.setCurrent(unresolved);
+    await fixture.storage.save({
+      version: ORIGINAL_VIDEO_PENDING,
+      principalId: "account",
+      communityId: "community",
+      personaId: "persona",
+      file: new File(["video"], "take.mp4", { type: "video/mp4" }),
+      caption: "",
+      rating: "general",
+      reservation,
+      snapshot: unresolved,
+      receipts: [{ part_number: 1, etag: "part-etag" }],
+      pending: null,
+    });
+    const execute = fixture.transport.execute;
+    let loseResponse = true;
+    fixture.transport.execute = async command => {
+      const result = await execute(command);
+      if (command.kind === "cancel" && loseResponse) {
+        loseResponse = false;
+        throw new Error("Lost abandonment response");
+      }
+      return result;
+    };
+    const first = fixture.create(); await first.restore();
+    await expect(first.revisionCommand("cancel")).rejects.toThrow("Lost abandonment response");
+    const retained = JSON.stringify(first.current?.pending?.command);
+    expect(first.current?.snapshot?.status).toBe("processing_failed");
+
+    const resumed = fixture.create(); await resumed.restore();
+    expect(resumed.current?.snapshot).toMatchObject({
+      status: "abandoned",
+      reason_code: "author_abandoned_unresolved_provider",
+    });
+    expect(JSON.stringify(fixture.commands.at(-1))).toBe(retained);
+    expect(fixture.commands.filter(command => command.kind === "cancel")).toHaveLength(2);
   });
   test("another account cannot restore or dispatch the saved video", async () => {
     const fixture = setup(); await fixture.begin(fixture.create());

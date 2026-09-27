@@ -21,7 +21,9 @@ const persona = {
   primary_public_handle: null,
 };
 
-function response(): GetPublicPersonasPersonaIdResponse {
+type HnsGrant = Extract<GetPublicPersonasPersonaIdResponse["handle_grants"][number], { handle: { family: "hns" } }>;
+
+function response(): GetPublicPersonasPersonaIdResponse & { handle_grants: HnsGrant[] } {
   return {
     persona,
     profile: { revision: 1, cover_ref: null, bio: "A public persona profile." },

@@ -55,8 +55,12 @@ assert.deepEqual(config.migrations, [
   { tag: "v1", new_sqlite_classes: ["HnsCommunityAppReplayStoreDO"] },
 ]);
 
+// The base config stays disabled. Staging enables only the community ingress
+// (HNS staging flags-on, 2026-09-24) and must then name its gateway manifest.
+assert.equal(config.vars.HNS_COMMUNITY_APP_INGRESS_ENABLED, "false");
+assert.equal(staging.vars.HNS_COMMUNITY_APP_INGRESS_ENABLED, "true");
+assert.match(staging.vars.HNS_COMMUNITY_APP_GATEWAY_DEPLOYMENT_REFERENCE, /^hns-community-app-gateway-sha256:[0-9a-f]{64}$/);
 for (const environment of [config, staging]) {
-  assert.equal(environment.vars.HNS_COMMUNITY_APP_INGRESS_ENABLED, "false");
   assert.equal(environment.vars.HNS_HANDLE_HOST_INGRESS_ENABLED, "false");
   for (const name of hnsVars) assert.equal(typeof environment.vars[name], "string", `${name} must be explicit`);
   assert.deepEqual(environment.durable_objects?.bindings, replayBinding);
@@ -67,7 +71,7 @@ for (const name of hnsVars) assert.equal(typeof production.vars[name], "string",
 assert.deepEqual(production.durable_objects?.bindings, replayBinding);
 
 assert.deepEqual(config.secrets?.required, allRequiredSecrets);
-assert.deepEqual(staging.secrets?.required, allRequiredSecrets);
+assert.deepEqual(staging.secrets?.required, communityRequiredSecrets);
 assert.deepEqual(production.secrets?.required, communityRequiredSecrets);
 
 assert.deepEqual(production.routes, [
@@ -127,12 +131,38 @@ assert.equal(
 );
 assert.equal(production.vars.PRIVY_APP_ID, "cmnbdx9xk00ty0clapn2q8pdj");
 
-assert.deepEqual(staging.routes, [{ pattern: "web-next-staging.pirate.sc", custom_domain: true }]);
+assert.deepEqual(staging.routes, [
+  { pattern: "web-next-staging.pirate.sc", custom_domain: true },
+  { pattern: "hns-community-ingress-staging.pirate.sc", custom_domain: true },
+]);
 assert.equal(staging.vars.API_NEXT_ORIGIN, "https://api-next-staging.pirate.sc");
 assert.equal(staging.vars.PUBLIC_APP_CANONICAL_ORIGIN, "https://web-next-staging.pirate.sc");
 assert.equal(staging.vars.COMMUNITY_CREATION_AVATAR_AUTHORING_ENABLED, "true");
 assert.equal(config.vars.COMMUNITY_CREATION_AVATAR_AUTHORING_ENABLED, "false");
 assert.equal(staging.vars.HNS_COMMUNITY_APP_CANONICAL_ORIGIN, "https://web-next-staging.pirate.sc");
+assert.equal(staging.vars.HNS_COMMUNITY_APP_INGRESS_ORIGIN, "https://hns-community-ingress-staging.pirate.sc");
+assert.equal(staging.vars.HNS_COMMUNITY_APP_API_ORIGIN, "https://hns-community-api-staging.pirate.sc");
+assert.equal(staging.vars.HNS_COMMUNITY_APP_AUTHORITY_ORIGIN, "https://hns-community-api-staging.pirate.sc");
+assert.equal(staging.vars.HNS_COMMUNITY_APP_ACCESS_ISSUER, "https://piratesocialclub.cloudflareaccess.com");
+assert.equal(
+  staging.vars.HNS_COMMUNITY_APP_ACCESS_JWKS_URL,
+  "https://piratesocialclub.cloudflareaccess.com/cdn-cgi/access/certs",
+);
+assert.equal(
+  staging.vars.HNS_COMMUNITY_APP_ACCESS_AUDIENCE,
+  "7921be169b18645bcf2b4bfbf0e4c034a8773979778a904b2a3d3c077aa6d2b7",
+);
+assert.equal(
+  staging.vars.HNS_COMMUNITY_APP_GATEWAY_DEPLOYMENT_REFERENCE,
+  "hns-community-app-gateway-sha256:1b2a0e01eb1ba62ecd02f41c3be0d53d5623e9b446258630b6c664738b860ed5",
+);
+assert.equal(
+  staging.vars.HNS_FORWARDER_V3_KEY_REGISTRY_REFERENCE,
+  "pirate:hns-forwarder-v3:staging-community-app:v1",
+);
+assert.equal(staging.vars.HNS_FORWARDER_V3_KEY_REGISTRY_VERSION, "2026-09-23-01");
+assert.equal(staging.vars.HNS_FORWARDER_V3_FRESHNESS_WINDOW_SECONDS, "300");
+assert.equal(staging.vars.HNS_FORWARDER_V3_FUTURE_CLOCK_SKEW_SECONDS, "5");
 assert.equal(staging.vars.HNS_HANDLE_HOST_CANONICAL_ORIGIN, "https://pirate.sc");
 assert.equal(staging.vars.HNS_HANDLE_HOST_PUBLIC_API_ORIGIN, "https://api-next-staging.pirate.sc");
 assert.equal(staging.vars.PRIVY_APP_ID, "cmsw5pis300b80cladbxx7bsr");

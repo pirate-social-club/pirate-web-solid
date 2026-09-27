@@ -3,7 +3,7 @@ import { buildRouteTree, PageFileSystemRouter } from "filesystem-routing";
 import { describe, expect, test } from "vitest";
 
 describe("community file-route structure", () => {
-  test("keeps the community page and names page as independently matchable leaves", async () => {
+  test("keeps the community page, names page, and private order page independently matchable", async () => {
     const router = new PageFileSystemRouter({
       dir: resolve("src/routes"),
       extensions: ["js", "jsx", "ts", "tsx"],
@@ -11,13 +11,14 @@ describe("community file-route structure", () => {
     const communityRoutes = buildRouteTree(await router.getRoutes())
       .filter(route => route.path.startsWith("/c/:path_segment"));
 
-    expect(communityRoutes.map(route => ({ path: route.path, children: route.children }))).toEqual([
+    expect(communityRoutes.map(route => ({ path: route.path, children: route.children?.map(child => child.path) }))).toEqual([
       { path: "/c/:path_segment/", children: undefined },
       { path: "/c/:path_segment/names", children: undefined },
       // The management index is its own leaf so a small viewport can drill into
       // a section and step back out through browser history.
       { path: "/c/:path_segment/settings/", children: undefined },
       { path: "/c/:path_segment/settings/:section", children: undefined },
+      { path: "/c/:path_segment/name-order/:claim_id", children: undefined },
     ]);
   });
 

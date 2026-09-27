@@ -10,6 +10,7 @@ import {
   IconButton,
   IconCheckCircle,
   IconImage,
+  IconMusicNote,
   IconPlay,
   IconUploadSimple,
   IconWarningCircle,
@@ -26,7 +27,8 @@ export type OriginalVideoCaptureStatus =
   | "recording"
   | "camera_denied"
   | "capability_unavailable"
-  | "orientation_lost";
+  | "orientation_lost"
+  | "guide_interrupted";
 
 export interface OriginalVideoCaptureSurfaceProps {
   readonly preview?: JSX.Element;
@@ -39,6 +41,13 @@ export interface OriginalVideoCaptureSurfaceProps {
   readonly onUpload?: () => void;
   readonly onRetake?: () => void;
   readonly onFlipCamera?: () => void;
+  /** The song this take is recorded to, shown in place of the title. */
+  readonly songLabel?: string;
+  /** Opens the song's excerpt controls. */
+  readonly onSongTap?: () => void;
+  /** A state the author must know before recording: a pending check, a
+   * refusal, a retryable failure. Rendered over the viewfinder. */
+  readonly notice?: JSX.Element;
 }
 
 /**
@@ -56,7 +65,7 @@ export function OriginalVideoCaptureSurface(props: OriginalVideoCaptureSurfacePr
     <section class="relative h-dvh overflow-hidden bg-black text-white">
       <div class="absolute inset-0 flex items-center justify-center">
         <div
-          class="relative h-full max-h-full w-full bg-gradient-to-b from-[#262a30] to-[#0d0f12] sm:aspect-[9/16] sm:w-auto"
+          class="relative aspect-[9/16] w-full max-w-[56.25dvh] overflow-hidden bg-gradient-to-b from-[#262a30] to-[#0d0f12]"
           data-video-viewfinder
         >
           {props.preview}
@@ -97,6 +106,15 @@ export function OriginalVideoCaptureSurface(props: OriginalVideoCaptureSurfacePr
                 onAction={props.onRetake}
               />
             </Match>
+            <Match when={status() === "guide_interrupted"}>
+              <CaptureMessage
+                action="Record again"
+                body="The song stopped during recording, so that take was discarded to keep the video in time with the song."
+                icon={<IconArrowsClockwise class="size-7" />}
+                title="That take ended"
+                onAction={props.onRetake}
+              />
+            </Match>
           </Switch>
         </div>
       </div>
@@ -110,11 +128,44 @@ export function OriginalVideoCaptureSurface(props: OriginalVideoCaptureSurfacePr
         >
           <IconX class="size-5" />
         </IconButton>
-        <Type as="h1" variant="body-strong" class="min-w-0 flex-1 text-center text-white">
-          New video
-        </Type>
+        <div class="flex min-w-0 flex-1 justify-center">
+          <Show when={props.songLabel} fallback={
+            <Show when={props.onSongTap} fallback={
+              <Type as="h1" variant="body-strong" class="text-center text-white">New video</Type>
+            }>
+              <button
+                aria-label="Add song"
+                class="inline-flex min-w-0 max-w-full cursor-pointer items-center gap-2 rounded-full bg-black/45 px-3 py-2 text-sm font-medium text-white backdrop-blur-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                onClick={() => props.onSongTap?.()}
+                type="button"
+              >
+                <IconMusicNote aria-hidden="true" class="size-4 shrink-0" />
+                <span>Add song</span>
+              </button>
+            </Show>
+          }>
+            {label => (
+              <button
+                aria-label={`Song: ${label()}. Adjust the part of the song`}
+                class="inline-flex min-w-0 max-w-full cursor-pointer items-center gap-2 rounded-full bg-black/45 px-3 py-2 text-sm font-medium text-white backdrop-blur-sm outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-default"
+                disabled={!props.onSongTap || recording()}
+                onClick={() => props.onSongTap?.()}
+                type="button"
+              >
+                <IconMusicNote aria-hidden="true" class="size-4 shrink-0" />
+                <span class="truncate">{label()}</span>
+              </button>
+            )}
+          </Show>
+        </div>
         <span aria-hidden="true" class="size-10" />
       </header>
+
+      <Show when={props.notice}>
+        <div class="absolute inset-x-0 top-[calc(3.75rem+env(safe-area-inset-top))] z-10 px-4">
+          {props.notice}
+        </div>
+      </Show>
 
       <Show when={cameraControls()}>
         <div class="absolute inset-x-0 bottom-0 z-10 px-6 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
@@ -201,20 +252,21 @@ function CaptureSideAction(props: {
 
 export interface OriginalVideoReviewSurfaceProps {
   readonly preview?: JSX.Element;
-  readonly previewNote?: JSX.Element;
   readonly caption?: string;
   readonly submitting?: boolean;
-  /** What this video carries, when the composer knows it differs from a plain
-   *  original-audio video. Defaults describe the original-audio case. */
-  readonly sourceValue?: string;
-  readonly rightsValue?: string;
-  readonly rightsNote?: string;
+  /** The song this video is posted to, when it has one. */
+  readonly songLabel?: string;
+  /** Opens the song's controls, where the author can change the sound. */
+  readonly onSongTap?: () => void;
+  /** Anything the author must see before publishing, such as the audience
+   *  setting or a problem with the take. */
+  readonly details?: JSX.Element;
   readonly onBack?: () => void;
   readonly onCaptionChange?: (value: string) => void;
   readonly onPublish?: () => void;
 }
 
-/** Review step with one optional caption and read-only phase-one settings. */
+/** Review step: the take, its song, one optional caption and Publish. */
 export function OriginalVideoReviewSurface(props: OriginalVideoReviewSurfaceProps) {
   return (
     <ActionFooterShell
@@ -241,7 +293,7 @@ export function OriginalVideoReviewSurface(props: OriginalVideoReviewSurfaceProp
         </header>
       )}
     >
-      <div class="mx-auto grid w-full max-w-4xl gap-6 p-4 md:grid-cols-[minmax(15rem,22rem)_1fr] md:p-6">
+      <div class="mx-auto grid w-full max-w-4xl gap-5 p-4 md:grid-cols-[minmax(15rem,22rem)_1fr] md:p-6">
         <div class="grid gap-3">
           <div class="relative mx-auto aspect-[9/16] h-auto max-h-[58dvh] w-full max-w-sm overflow-hidden rounded-[var(--radius-2xl)] bg-gradient-to-b from-[#262a30] to-[#0d0f12]">
             <Show when={props.preview} fallback={
@@ -254,10 +306,23 @@ export function OriginalVideoReviewSurface(props: OriginalVideoReviewSurfaceProp
             </IconButton>
             }>{props.preview}</Show>
           </div>
-          <Show when={props.previewNote}>{note => <div>{note()}</div>}</Show>
+          <Show when={props.songLabel}>
+            {label => (
+              <button
+                aria-label={`Song: ${label()}. Change the sound`}
+                class="mx-auto inline-flex min-w-0 max-w-full cursor-pointer items-center gap-2 rounded-full px-3 py-1.5 text-sm text-muted-foreground outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-default disabled:hover:bg-transparent"
+                disabled={!props.onSongTap || props.submitting}
+                onClick={() => props.onSongTap?.()}
+                type="button"
+              >
+                <IconMusicNote aria-hidden="true" class="size-4 shrink-0" />
+                <span class="truncate">{label()}</span>
+              </button>
+            )}
+          </Show>
         </div>
 
-        <div class="space-y-5">
+        <div class="space-y-4">
           <div class="space-y-2">
             <label for="original-video-caption" class="text-sm font-medium">Caption <span class="text-muted-foreground">optional</span></label>
             <Textarea
@@ -265,34 +330,13 @@ export function OriginalVideoReviewSurface(props: OriginalVideoReviewSurfaceProp
               maxlength={2_200}
               onInput={(event) => props.onCaptionChange?.(event.currentTarget.value)}
               placeholder="Say something about this video"
-              rows={4}
+              rows={3}
               value={props.caption ?? ""}
             />
           </div>
-
-          <section class="space-y-3" aria-labelledby="video-settings-heading">
-            <Type as="h2" id="video-settings-heading" variant="body-strong">Settings</Type>
-            <div class="divide-y divide-border-soft rounded-[var(--radius-2xl)] border border-border-soft bg-card px-4">
-              <ReadOnlySetting label="Source" value={props.sourceValue ?? "Original audio"} />
-              <ReadOnlySetting label="Poster" value="Generated after upload" />
-              <ReadOnlySetting label="Rights" value={props.rightsValue ?? "Recorded soundtrack · checked before publishing"} />
-            </div>
-            <FormNote tone="muted">
-              {props.rightsNote ?? "The soundtrack in this video is published as its original sound. A known recording may require a different posting flow or manual review."}
-            </FormNote>
-          </section>
+          {props.details}
         </div>
       </div>
     </ActionFooterShell>
   );
 }
-
-function ReadOnlySetting(props: { readonly label: string; readonly value: string }) {
-  return (
-    <div class="flex items-start justify-between gap-4 py-4">
-      <Type as="span" variant="body" class="text-muted-foreground">{props.label}</Type>
-      <Type as="span" variant="body-strong" class="text-right">{props.value}</Type>
-    </div>
-  );
-}
-

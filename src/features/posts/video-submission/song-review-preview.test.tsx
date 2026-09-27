@@ -55,6 +55,10 @@ function mount(createAudio: () => PreviewAudio) {
   return container;
 }
 
+async function letStartupSettle() {
+  await new Promise(resolve => setTimeout(resolve, 0));
+}
+
 describe("the intended-soundtrack preview", () => {
   test("starts the song at the excerpt and the video at its beginning", async () => {
     stubMediaElement();
@@ -72,6 +76,7 @@ describe("the intended-soundtrack preview", () => {
     const container = mount(() => spy.audio);
     [...container.querySelectorAll("button")].find(button => button.textContent === "Play with the song")!.click();
     await vi.waitFor(() => expect(spy.calls.play).toBe(1));
+    await letStartupSettle();
     const video = container.querySelector("video")!;
     video.dispatchEvent(new Event("waiting"));
     await vi.waitFor(() => expect(spy.calls.pause).toBe(1));
@@ -86,6 +91,7 @@ describe("the intended-soundtrack preview", () => {
     const container = mount(() => spy.audio);
     [...container.querySelectorAll("button")].find(button => button.textContent === "Play with the song")!.click();
     await vi.waitFor(() => expect(spy.calls.play).toBe(1));
+    await letStartupSettle();
     spy.events.get("waiting")?.();
     await vi.waitFor(() => expect(container.textContent).toContain("song stalled"));
     const pauses = calls.pause;
@@ -108,5 +114,39 @@ describe("the intended-soundtrack preview", () => {
     spy.audio.currentTime = 41;
     await vi.waitFor(() => expect(spy.calls.pause).toBeGreaterThan(0));
     expect(container.textContent).toContain("Play with the song");
+  });
+
+  test("initial buffering cannot pause the other player's pending play request", async () => {
+    let resolveVideo!: () => void;
+    let resolveAudio!: () => void;
+    const videoReady = new Promise<void>(resolve => { resolveVideo = resolve; });
+    const audioReady = new Promise<void>(resolve => { resolveAudio = resolve; });
+    const videoPause = vi.fn();
+    HTMLMediaElement.prototype.play = vi.fn(() => videoReady);
+    HTMLMediaElement.prototype.pause = videoPause;
+    const events = new Map<string, () => void>();
+    const audioPause = vi.fn();
+    const audio: PreviewAudio = {
+      currentTime: 0,
+      play: vi.fn(() => audioReady),
+      pause: audioPause,
+      addEventListener: (type, listener) => { events.set(type, listener); },
+      removeEventListener: (type) => { events.delete(type); },
+    };
+    const container = mount(() => audio);
+    container.querySelector("button")!.click();
+    const video = container.querySelector("video")!;
+    video.dispatchEvent(new Event("waiting"));
+    events.get("waiting")?.();
+    expect(videoPause).not.toHaveBeenCalled();
+    expect(audioPause).not.toHaveBeenCalled();
+    expect(container.textContent).not.toContain("could not start");
+
+    resolveVideo();
+    resolveAudio();
+    await letStartupSettle();
+    expect(container.textContent).toContain("Pause preview");
+    video.dispatchEvent(new Event("waiting"));
+    expect(audioPause).toHaveBeenCalledTimes(1);
   });
 });

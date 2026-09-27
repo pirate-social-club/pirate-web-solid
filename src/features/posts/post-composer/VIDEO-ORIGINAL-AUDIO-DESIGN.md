@@ -14,7 +14,10 @@ MP4 or MOV instead. Desktop offers upload only in the same 9:16 frame.
 
 Rotation ends the current take with a retake explanation because physical-device
 evidence showed that a mid-recording sample-size change prevents fragmented-MP4
-finalization. Backgrounding by itself does not end a take.
+finalization. Hiding the page ends a take too: a guided take is finalized
+at that moment, and an unguided take is discarded. Physical-device evidence
+on 2026-09-24 showed the camera picture freezing while the page was hidden,
+so the take is never kept with a frozen stretch.
 
 Review contains the video preview and one optional caption. It has no title,
 description, trim, guide song, price, licence selector, royalty editor, or

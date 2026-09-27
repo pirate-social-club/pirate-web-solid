@@ -32,8 +32,17 @@ export interface MediaPostData {
   isFollowing?: boolean;
 }
 
+/**
+ * Attaches a host-owned source (e.g. signed adaptive streaming) to the
+ * design-system video element and returns its cleanup. Lets a host keep the
+ * feed layout while owning delivery; the pattern never fetches by itself.
+ */
+export type VideoSourceAttacher = (video: HTMLVideoElement) => () => void;
+
 export interface VideoPlayerProps {
   videoUrl?: string;
+  /** Host-attached source, used instead of videoUrl. Attached while eager. */
+  attachVideo?: VideoSourceAttacher;
   posterUrl?: string;
   isPlaying: boolean;
   isMuted: boolean;
@@ -44,6 +53,17 @@ export interface VideoPlayerProps {
   /** Called when the browser blocks playback (autoplay policy). */
   onPlayFailed?: () => void;
   onTimeUpdate?: (currentTime: number, duration: number) => void;
+}
+
+/**
+ * An activity a host offers for a post, shown in the action rail with a
+ * label under its icon (e.g. practising or singing the post's soundtrack).
+ * Plain data: the host decides availability and handles the selection.
+ */
+export interface MediaActivityAction {
+  readonly id: string;
+  readonly label: string;
+  readonly icon: "speech" | "microphone";
 }
 
 export interface MediaActionsProps {
@@ -62,6 +82,9 @@ export interface MediaActionsProps {
   onLikeClick?: () => void;
   onShareClick?: () => void;
   onSoundtrackClick?: () => void;
+  /** Host-offered activities, shown above the soundtrack button. */
+  activities?: readonly MediaActivityAction[];
+  onActivityClick?: (activityId: string) => void;
   onToggleMute?: () => void;
   onHaptic?: (kind: HapticKind) => void;
 }

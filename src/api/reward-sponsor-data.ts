@@ -21,6 +21,7 @@ type OwnerPolicy = GetCommunitiesCommunityIdPostsPostIdOwnerPolicyResponse;
 type MegapotPool = GetCommunitiesCommunityIdPostsPostIdRewardsMegapotPoolResponse["pool"];
 type AssetBonuses = GetCommunitiesCommunityIdPostsPostIdRewardsAssetBonusesResponse["items"];
 const addableOfferStatuses = new Set(["draft", "active"]);
+const terminalOfferStatuses = new Set(["exhausted", "expired", "ended"]);
 
 /** The 0.69.0 sponsor-context read is not part of the current contracts. Permission
  * is composed from the owner-scoped policy read, and existing-offer identity from
@@ -39,9 +40,9 @@ export function composeSponsorContext(policy: OwnerPolicy | null, pool: MegapotP
   const offerNotAddable: RewardPermission = { allowed: false, reason: "offer_not_addable" };
   const unconfirmed: RewardPermission = { allowed: "unconfirmed", reason: null };
   const allowed: RewardPermission = { allowed: true, reason: null };
-  // A post with only terminal or unaddable visible legs keeps failing safe;
-  // a post with no visible leg projection opens a new offer.
-  const blocked = addable === undefined && candidates.length > 0;
+  // A terminal offer is history: the server permits a new offer once the
+  // prior one ends. A paused or unknown nonterminal offer still blocks here.
+  const blocked = addable === undefined && candidates.some(candidate => !terminalOfferStatuses.has(candidate.offer_status));
   const permission = (base: RewardPermission): RewardPermission => blocked ? offerNotAddable : base;
   return {
     offer: addable === undefined ? null : { offer_id: addable.offer_id },

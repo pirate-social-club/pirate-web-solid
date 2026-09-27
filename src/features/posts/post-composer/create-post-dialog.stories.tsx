@@ -2,15 +2,16 @@
 // component (CreatePostDialog), so every flow reviewed here is the shipped
 // surface; the Parts stories demonstrate the inner components in isolation.
 import { createSignal, Show } from "solid-js";
-import { expect, userEvent, within } from "storybook/test";
+import { expect, userEvent, waitFor, within } from "storybook/test";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import type { PostCommunitiesCommunityIdMediaUploadReservationsResponse } from "@pirate/api-client";
 
 import type { ActivePersonaPublicProjection } from "../../../api/session";
-import type { MediaSubmissionSnapshot } from "../media-submission/contracts";
+import type { ActiveSongMediaPostSubmissionPage, MediaSubmissionSnapshot } from "../media-submission/contracts";
 import { mediaCommandBody, type PersistedMediaCommand } from "../media-submission/pending";
 import type { MediaCommandResult, MediaSubmissionTransport } from "../media-submission/transport";
 import { CreatePostDialog } from "./create-post-dialog";
+import { MobileFooterNav } from "../../shell/app-shell-chrome/app-shell-chrome";
 
 const personas = (count: 1 | 2 = 1): ActivePersonaPublicProjection[] => [
   { personaId: "persona-one", displayName: "Persona One", avatarRef: null, primaryPublicHandle: "salt-cove.pirate", communityBinding: null },
@@ -54,7 +55,7 @@ function snapshot(patch: Partial<MediaSubmissionSnapshot> = {}): MediaSubmission
 type StoryOutcome = "published" | "manual_review" | "blocked" | "processing_failed";
 
 function outcomeSnapshot(outcome: StoryOutcome, current: MediaSubmissionSnapshot): MediaSubmissionSnapshot {
-  if (outcome === "published") return snapshot({ ...current, status: "published", published_resource: { post_id: "post-story", href: "/posts/post-story" } });
+  if (outcome === "published") return snapshot({ ...current, status: "published", published_resource: { post_id: "post-story", href: "/posts/story-song-title" } });
   if (outcome === "manual_review") return snapshot({ ...current, status: "manual_review", reason_code: "review_required", review_ref: "review-story" });
   if (outcome === "blocked") return snapshot({ ...current, status: "blocked", reason_code: "policy_violation" });
   return snapshot({ ...current, status: "processing_failed", reason_code: "transform_failed", retry_count: 1, retryable: true });
@@ -63,7 +64,7 @@ function outcomeSnapshot(outcome: StoryOutcome, current: MediaSubmissionSnapshot
 /** In-memory song transport: one reserve/start/upload/finalize pipeline that
  * accepts lyrics and terms and settles on the requested outcome. */
 class StoryMediaTransport implements MediaSubmissionTransport {
-  async listActive() { return { object: "active_song_media_post_submission_page" as const, items: [], next_cursor: null }; }
+  async listActive(): Promise<ActiveSongMediaPostSubmissionPage> { return { object: "active_song_media_post_submission_page", items: [], next_cursor: null }; }
   snapshot: MediaSubmissionSnapshot | null = null;
   readonly commands: PersistedMediaCommand[] = [];
   uploadCount = 0;
@@ -116,8 +117,30 @@ class StoryMediaTransport implements MediaSubmissionTransport {
   }
 }
 
+/** A song transport whose audio upload never completes, so Continue fails. */
+class FailingUploadStoryTransport extends StoryMediaTransport {
+  override async upload(): Promise<void> {
+    throw new Error("The audio upload did not finish. Try again.");
+  }
+}
+
 const storyMp3 = (name = "midnight-waves.mp3") =>
   new File([new Uint8Array([0x49, 0x44, 0x33, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00])], name, { type: "audio/mpeg" });
+
+async function uploadStorySong(canvas: ReturnType<typeof within>): Promise<void> {
+  await userEvent.upload(await canvas.findByLabelText("Upload audio"), storyMp3());
+  // Upload dispatch does not await metadata extraction. The field can exist
+  // before its value settles, so presence alone is not a readiness assertion.
+  await waitFor(async () => {
+    await expect(canvas.getByRole("textbox", { name: "Song title" })).toHaveValue("midnight-waves");
+  });
+}
+
+async function continueSongStep(canvas: ReturnType<typeof within>): Promise<void> {
+  const button = await canvas.findByRole("button", { name: "Continue" });
+  await waitFor(async () => { await expect(button).toBeEnabled(); });
+  await userEvent.click(button);
+}
 
 interface StoryOptions {
   readonly personaCount?: 1 | 2;
@@ -204,13 +227,41 @@ export const ContextualTextMobile: Story = {
   globals: { viewport: { value: "mobile1", isRotated: false } },
 };
 
+/** The composer opens over a page whose mobile tab bar stays mounted, as on a
+ * community page. The composer must cover that bar: on a Pixel the bar sat in
+ * the same layer, rendered later, and took the tap meant for "Publish video". */
+export const ContextualTextOverMobileNavigation: Story = {
+  name: "Contextual / Text / Over mobile navigation",
+  globals: { viewport: { value: "mobile1", isRotated: false } },
+  render: () => (
+    <>
+      {dialogHarness().render()}
+      <MobileFooterNav
+        forceMobile
+        labels={{ home: "Home", songs: "Your songs", wallet: "Wallet", profile: "Profile", primaryNavAriaLabel: "Primary navigation" }}
+      />
+    </>
+  ),
+  play: async ({ canvasElement }) => {
+    const form = await within(canvasElement).findByRole("form", { name: "Create a post" });
+    const nav = canvasElement.ownerDocument.querySelector("nav[aria-label='Primary navigation']");
+    await expect(nav).not.toBeNull();
+    const box = nav!.getBoundingClientRect();
+    await expect(box.height).toBeGreaterThan(0);
+    const hit = canvasElement.ownerDocument.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2);
+    await expect(hit !== null && form.contains(hit)).toBe(true);
+  },
+};
+
 export const ContextualTextMultiplePersonas: Story = {
   name: "Contextual / Text / App-selected persona",
   render: () => dialogHarness({ personaCount: 2, personaId: "persona-two" }).render(),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement.ownerDocument.body);
-    await expect(canvas.queryByRole("button", { name: /^Post as: / })).not.toBeInTheDocument();
-    await expect(canvas.getByRole("button", { name: "Publish post" })).toBeInTheDocument();
+    await expect(await canvas.findByRole("button", { name: "Post" })).toBeInTheDocument();
+    await waitFor(async () => {
+      await expect(canvas.queryByRole("button", { name: /^Post as: / })).not.toBeInTheDocument();
+    });
   },
 };
 
@@ -219,8 +270,7 @@ export const SongStepSong: Story = {
   render: () => dialogHarness().render(),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement.ownerDocument.body);
-    await userEvent.upload(canvas.getByLabelText("Upload audio"), storyMp3());
-    await expect(canvas.getByRole("textbox", { name: "Song title" })).toHaveValue("midnight-waves");
+    await uploadStorySong(canvas);
   },
 };
 
@@ -230,40 +280,77 @@ export const SongStepSongMobile: Story = {
   globals: { viewport: { value: "mobile1", isRotated: false } },
 };
 
+/** Long lyrics on a phone: after scrolling to the bottom of the form, the
+ * header with Continue stays on screen. */
+export const SongStepLongLyricsMobile: Story = {
+  name: "Song / Step 1 — Song / Long lyrics / Mobile",
+  globals: { viewport: { value: "mobile1", isRotated: false } },
+  render: () => dialogHarness().render(),
+  play: async ({ canvasElement }) => {
+    const doc = canvasElement.ownerDocument;
+    const canvas = within(doc.body);
+    await uploadStorySong(canvas);
+    const lyrics = await canvas.findByLabelText("Lyrics (optional)");
+    await waitFor(async () => {
+      const field = canvas.getByLabelText<HTMLTextAreaElement>("Lyrics (optional)");
+      if (field.value === "") {
+        field.value = Array.from({ length: 80 }, (_, line) => `Line ${line + 1} of a very long song`).join("\n");
+        field.dispatchEvent(new Event("change", { bubbles: true }));
+      }
+      await expect(field.value.split("\n")).toHaveLength(80);
+    });
+    await expect(lyrics).toBeInTheDocument();
+    const form = doc.querySelector<HTMLElement>("[data-create-post-form]")!;
+    form.scrollTop = form.scrollHeight;
+    await waitFor(async () => {
+      const forward = doc.querySelector<HTMLElement>("[data-composer-forward]")!;
+      const box = forward.getBoundingClientRect();
+      await expect(form.scrollTop).toBeGreaterThan(0);
+      await expect(box.top).toBeGreaterThanOrEqual(0);
+      await expect(box.bottom).toBeLessThanOrEqual(doc.defaultView!.innerHeight);
+      // Nothing scrolls visibly above the header: the top edge is the header.
+      const topEdge = doc.elementFromPoint(doc.defaultView!.innerWidth / 2, 2);
+      await expect(topEdge?.closest("[data-composer-sticky-header]")).not.toBeNull();
+    });
+  },
+};
+
 export const SongLyricsOnSongStep: Story = {
   name: "Song / Lyrics on the Song step",
   render: () => dialogHarness().render(),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement.ownerDocument.body);
-    await userEvent.upload(canvas.getByLabelText("Upload audio"), storyMp3());
-    await userEvent.click(canvas.getByRole("button", { name: "Add lyrics (optional)" }));
-    await userEvent.type(canvas.getByLabelText("Lyrics"), "A line carried on the tide");
-    await expect(canvas.getByLabelText("Lyrics")).toHaveValue("A line carried on the tide");
+    await uploadStorySong(canvas);
+    const lyrics = await canvas.findByLabelText("Lyrics (optional)");
+    await userEvent.type(lyrics, "A line carried on the tide");
+    await waitFor(async () => { await expect(lyrics).toHaveValue("A line carried on the tide"); });
   },
 };
 
 export const SongStepRights: Story = {
-  name: "Song / Step 2 — Rights",
+  name: "Song / Step 2 — Royalties",
   render: () => dialogHarness().render(),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement.ownerDocument.body);
-    await userEvent.upload(canvas.getByLabelText("Upload audio"), storyMp3());
-    await userEvent.click(await canvas.findByRole("button", { name: "Continue" }));
-    await expect(canvas.getByText("What others may do with this song")).toBeInTheDocument();
-    await expect(canvas.getByText("Earnings split")).toBeInTheDocument();
-    await expect(canvas.getByText("Persona One")).toBeInTheDocument();
+    await uploadStorySong(canvas);
+    await continueSongStep(canvas);
+    await expect(await canvas.findByText("Your cut of remix sales")).toBeInTheDocument();
+    await expect(canvas.getByRole("radio", { name: "10%" })).toHaveAttribute("aria-checked", "true");
+    await expect(await canvas.findByText("All earnings go to you")).toBeInTheDocument();
   },
 };
 
 /** Two eligible profiles so the collaborator picker can be exercised. */
 export const SongStepRightsCollaborators: Story = {
-  name: "Song / Step 2 — Rights / Collaborators",
+  name: "Song / Step 2 — Royalties / Collaborators",
   render: () => dialogHarness({ personaCount: 2 }).render(),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement.ownerDocument.body);
-    await userEvent.upload(canvas.getByLabelText("Upload audio"), storyMp3());
-    await userEvent.click(await canvas.findByRole("button", { name: "Continue" }));
-    await expect(await canvas.findByText("Earnings split")).toBeInTheDocument();
+    await uploadStorySong(canvas);
+    await continueSongStep(canvas);
+    await userEvent.click(await canvas.findByRole("button", { name: "Add collaborator" }));
+    await expect(await canvas.findByRole("button", { name: /Persona Two/u })).toBeInTheDocument();
+    await expect(canvas.queryByText(/Only your profiles/u)).not.toBeInTheDocument();
   },
 };
 
@@ -272,13 +359,39 @@ export const SongStepReview: Story = {
   render: () => dialogHarness().render(),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement.ownerDocument.body);
-    await userEvent.upload(canvas.getByLabelText("Upload audio"), storyMp3());
-    await userEvent.click(await canvas.findByRole("button", { name: "Continue" }));
-    await userEvent.click(await canvas.findByRole("button", { name: "Continue" }));
-    await expect(canvas.getByText("Permissions")).toBeInTheDocument();
-    await expect(canvas.getByText("Earnings split")).toBeInTheDocument();
-    await expect(canvas.getByText("You 100%")).toBeInTheDocument();
+    await uploadStorySong(canvas);
+    await continueSongStep(canvas);
+    // Both steps name their action Continue. Confirm the new step before
+    // looking up the next action, rather than clicking the old button twice.
+    await expect(await canvas.findByText("Your cut of remix sales")).toBeInTheDocument();
+    await continueSongStep(canvas);
+    await expect(await canvas.findByText("Remix earnings")).toBeInTheDocument();
+    await expect(await canvas.findByText("Earnings split")).toBeInTheDocument();
+    await expect(await canvas.findByText("You 100%")).toBeInTheDocument();
+    await expect(await canvas.findByText("No lyrics added")).toBeInTheDocument();
   },
+};
+
+/** A failed upload shows the retained file, its real error, and a retry. */
+export const SongUploadFailed: Story = {
+  name: "Song / States / Upload failed on Continue",
+  render: () => dialogHarness({ mediaTransport: new FailingUploadStoryTransport() }).render(),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement.ownerDocument.body);
+    await uploadStorySong(canvas);
+    await continueSongStep(canvas);
+    await expect(await canvas.findByRole("alert")).toHaveTextContent("The audio upload did not finish. Try again.");
+    await expect(canvas.getByRole("heading", { name: "Audio upload needs another try" })).toBeInTheDocument();
+    await expect(canvas.getByRole("button", { name: "Try upload again" })).toBeInTheDocument();
+    await expect(canvas.queryByText(/awaiting upload/i)).not.toBeInTheDocument();
+    await expect(canvas.queryByText("Your cut of remix sales")).not.toBeInTheDocument();
+  },
+};
+
+export const SongUploadFailedMobile: Story = {
+  ...SongUploadFailed,
+  name: "Song / States / Upload failed on Continue / Mobile",
+  globals: { viewport: { value: "mobile1", isRotated: false } },
 };
 
 export const SongManualReview: Story = {
@@ -286,8 +399,8 @@ export const SongManualReview: Story = {
   render: () => dialogHarness({ mediaTransport: new StoryMediaTransport("manual_review") }).render(),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement.ownerDocument.body);
-    await userEvent.upload(canvas.getByLabelText("Upload audio"), storyMp3());
-    await userEvent.click(await canvas.findByRole("button", { name: "Continue" }));
+    await uploadStorySong(canvas);
+    await continueSongStep(canvas);
     await expect(await canvas.findByText("This song is awaiting manual review.")).toBeInTheDocument();
   },
 };
@@ -297,8 +410,8 @@ export const SongBlocked: Story = {
   render: () => dialogHarness({ mediaTransport: new StoryMediaTransport("blocked") }).render(),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement.ownerDocument.body);
-    await userEvent.upload(canvas.getByLabelText("Upload audio"), storyMp3());
-    await userEvent.click(await canvas.findByRole("button", { name: "Continue" }));
+    await uploadStorySong(canvas);
+    await continueSongStep(canvas);
     await expect(await canvas.findByText("This song was blocked by policy.")).toBeInTheDocument();
   },
 };
@@ -308,9 +421,9 @@ export const SongRetryableFailure: Story = {
   render: () => dialogHarness({ mediaTransport: new StoryMediaTransport("processing_failed") }).render(),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement.ownerDocument.body);
-    await userEvent.upload(canvas.getByLabelText("Upload audio"), storyMp3());
-    await userEvent.click(await canvas.findByRole("button", { name: "Continue" }));
+    await uploadStorySong(canvas);
+    await continueSongStep(canvas);
     await expect(await canvas.findByText(/Song processing failed/)).toBeInTheDocument();
-    await expect(canvas.getByRole("button", { name: "Retry processing" })).toBeInTheDocument();
+    await expect(await canvas.findByRole("button", { name: "Retry processing" })).toBeInTheDocument();
   },
 };

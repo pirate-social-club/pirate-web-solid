@@ -1,7 +1,10 @@
-import { createSignal, onSettled, Show } from "solid-js";
+import { createSignal, onCleanup, onSettled, Show } from "solid-js";
 import { buttonVariants } from "../../../design-system";
 import { createSessionApiClient } from "../../../api/client.ts";
+import { resolveSession, type SessionResolution } from "../../../api/session.ts";
 import { viewerSessionHint } from "../../../lib/viewer-session-hint.ts";
+import { communityOperationPersonas } from "../../identity/community-persona-choice.ts";
+import { useActivePersonaStoreOptional } from "../../identity/active-persona-store.tsx";
 
 /** The "Use this song" entry on a song post.
  *
@@ -16,20 +19,34 @@ import { viewerSessionHint } from "../../../lib/viewer-session-hint.ts";
 export type SongVideoEligibilityReader = (input: {
   readonly communityId: string;
   readonly postId: string;
+  readonly personaId: string;
 }) => Promise<boolean>;
 
 export async function readSongVideoEligibility(input: {
   readonly communityId: string;
   readonly postId: string;
+  readonly personaId: string;
 }): Promise<boolean> {
   try {
-    const response = await createSessionApiClient().get_communitiesCommunityIdPostsPostIdOwnerPolicyPublic({
-      path: { communityId: input.communityId, postId: input.postId },
-    });
-    return response.can_post_with_song === true;
+    return await readSongVideoPolicy(input);
   } catch {
     return false;
   }
+}
+
+/** The same owner-policy read without the catch: the video runtime must tell
+ * an unreadable policy apart from a refusing one, because one retries and
+ * the other changes song or profile. */
+export async function readSongVideoPolicy(input: {
+  readonly communityId: string;
+  readonly postId: string;
+  readonly personaId: string;
+}): Promise<boolean> {
+  const response = await createSessionApiClient().get_communitiesCommunityIdPostsPostIdOwnerPolicyPublic({
+    path: { communityId: input.communityId, postId: input.postId },
+    query: { persona_id: input.personaId },
+  });
+  return response.can_post_with_song === true;
 }
 
 /** The "Use this song" entry names its song in the query, because a link must
@@ -52,18 +69,35 @@ export function SongVideoEntry(props: {
   readonly postId: string;
   readonly read?: SongVideoEligibilityReader;
   readonly sessionHint?: () => boolean;
+  readonly resolveSession?: () => Promise<SessionResolution>;
 }) {
   const read = props.read ?? readSongVideoEligibility;
   const hint = props.sessionHint ?? viewerSessionHint;
+  const session = props.resolveSession ?? resolveSession;
+  const personaStore = useActivePersonaStoreOptional();
   const [eligible, setEligible] = createSignal(false);
+  let active = true;
+  onCleanup(() => { active = false; });
   // After the first render: a server render has no session to read for and
   // must not start a credentialed request.
   onSettled(() => {
     if (!hint()) return;
-    void read({ communityId: props.communityId, postId: props.postId }).then(
-      setEligible,
-      () => setEligible(false),
-    );
+    void session().then(async resolved => {
+      if (resolved === "anonymous" || resolved.personasUnavailable) return false;
+      const candidates = communityOperationPersonas(resolved.personas, props.communityId);
+      const selectedId = personaStore?.activePersonaId(props.communityId);
+      const selected = candidates.find(persona => persona.personaId === selectedId);
+      // A selected persona is the author the composer will use. Without a
+      // selection, any bound persona can open the composer and choose there.
+      for (const persona of selected === undefined ? candidates : [selected]) {
+        if (await read({ communityId: props.communityId, postId: props.postId, personaId: persona.personaId })) return true;
+      }
+      return false;
+    }).then(value => {
+      if (active) setEligible(value);
+    }, () => {
+      if (active) setEligible(false);
+    });
   });
   return (
     <Show when={eligible()}>

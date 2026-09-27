@@ -1,8 +1,9 @@
 import type { JSX } from "@solidjs/web";
 import { render as solidRender } from "@solidjs/web";
-import { createRoot, createSignal } from "solid-js";
+import { createEffect, createRoot, createSignal } from "solid-js";
 import { afterEach, describe, expect, test, vi } from "vitest";
 
+import { ActivePersonaProvider, useActivePersonaStore } from "../../identity/active-persona-store.tsx";
 import { ApplicationChrome } from "./media-shell";
 
 const disposers: Array<() => void> = [];
@@ -27,118 +28,194 @@ afterEach(() => {
   document.body.replaceChildren();
 });
 
-describe("Media shell production navigation", () => {
-  test("dispatches the global sign-in request from anonymous application chrome", () => {
-    const signInRequested = vi.fn();
-    window.addEventListener("pirate:connect", signInRequested, { once: true });
-    const container = render(() => <ApplicationChrome><main>Current route</main></ApplicationChrome>);
-
-    const signIn = Array.from(container.querySelectorAll<HTMLButtonElement>("button"))
-      .find(button => button.textContent?.trim() === "Sign in");
-    signIn?.click();
-
-    expect(signIn).toBeDefined();
-    expect(signInRequested).toHaveBeenCalledOnce();
+describe("Application navigation", () => {
+  test("keeps chrome free of session diagnostics during initial and background checks", async () => {
+    const [resolving, setResolving] = createSignal(true);
+    const container = render(() => <ApplicationChrome sessionResolving={resolving()} signedIn={!resolving()} sessionPending>Route</ApplicationChrome>);
+    expect(container.textContent).not.toMatch(/Checking (your )?account|Your Pirate|Session active/);
+    setResolving(false);
+    await vi.waitFor(() => expect(container.querySelector("[data-shell-auth]")?.getAttribute("data-shell-auth")).toBe("authenticated"));
+    expect(container.textContent).not.toMatch(/Checking (your )?account|Your Pirate|Session active/);
   });
 
-  test("renders a neutral initial account check without sign-in messaging", () => {
-    const container = render(() => <ApplicationChrome sessionResolving><main>Current route</main></ApplicationChrome>);
-    expect(container.querySelector("[data-shell-auth]")?.getAttribute("data-shell-auth")).toBe("resolving");
-    expect(container.textContent).toContain("Checking your account");
-    expect(container.textContent).not.toContain("Join Pirate");
-    expect(container.textContent).not.toContain("Your Pirate");
-    const checking = [...container.querySelectorAll<HTMLButtonElement>("button")].find(button => button.textContent === "Checking account")!;
-    expect(checking.disabled).toBe(true);
-    expect(container.textContent).not.toContain("Sign in");
-    expect(container.textContent).not.toContain("Save, follow, and post");
+  test("connects desktop destinations and keeps native link targets", () => {
+    const navigate = vi.fn();
+    const container = render(() => <ApplicationChrome navigate={navigate}>Route</ApplicationChrome>);
+    for (const path of ["/", "/songs", "/wallet", "/communities", "/settings"]) {
+      const link = container.querySelector<HTMLAnchorElement>(`aside a[href="${path}"]`)!;
+      expect(link).not.toBeNull();
+      link.click();
+      expect(navigate).toHaveBeenLastCalledWith(path);
+    }
+    for (const path of ["/search", "/live", "/study", "/karaoke", "/terms", "/privacy", "/activity"]) expect(container.querySelector(`a[href="${path}"]`)).toBeNull();
+    [...container.querySelectorAll<HTMLButtonElement>("aside button")].find(button => button.textContent === "Create community")!.click();
+    expect(navigate).toHaveBeenLastCalledWith("/communities/new");
+    // The desktop create control joins the same video create entry as the
+    // mobile footer's center action.
+    [...container.querySelectorAll<HTMLButtonElement>("aside button")].find(button => button.textContent === "Create")!.click();
+    expect(navigate).toHaveBeenLastCalledWith("/create/video");
+    expect(container.textContent).not.toContain("Notifications");
   });
 
-  test("offers account-check recovery instead of sign-in when the session check fails", () => {
+  test("mobile has four tabs, a center create action, and Wallet opens the wallet route", () => {
+    const navigate = vi.fn();
+    const container = render(() => <ApplicationChrome navigate={navigate} mobileActiveItem="wallet">Route</ApplicationChrome>);
+    const footer = container.querySelector('nav[aria-label="Primary navigation"]')!;
+    expect(footer.querySelectorAll("button")).toHaveLength(5);
+    // The create action sits between Your songs and Wallet and is never the
+    // current page; it opens the video create entry. An unsigned profile tab
+    // reads Sign in, matching what a tap there does.
+    const labels = [...footer.querySelectorAll("button")].map(control => control.getAttribute("aria-label"));
+    expect(labels).toEqual(["Home", "Your songs", "Post a video", "Wallet", "Sign in"]);
+    expect(footer.querySelector('button[aria-label="Post a video"]')?.getAttribute("aria-current")).toBeNull();
+    footer.querySelector<HTMLButtonElement>('button[aria-label="Wallet"]')!.click();
+    expect(navigate).toHaveBeenCalledWith("/wallet");
+    expect(footer.querySelector('[aria-current="page"]')?.textContent).toBe("Wallet");
+    footer.querySelector<HTMLButtonElement>('button[aria-label="Your songs"]')!.click();
+    expect(navigate).toHaveBeenLastCalledWith("/songs");
+    footer.querySelector<HTMLButtonElement>('button[aria-label="Post a video"]')!.click();
+    expect(navigate).toHaveBeenLastCalledWith("/create/video");
+  });
+
+  test("the phone drawer lists communities once and leaves profile switching to the footer", async () => {
+    const navigate = vi.fn();
+    const personas = [{ personaId: "one", displayName: "Harbor" }, { personaId: "two", displayName: "Night Shift", communityId: "community-2" }];
+    const communities = [
+      { communityId: "community-1", displayName: "Harbor Collective", href: "/c/harbor" },
+      { communityId: "community-2", displayName: "Night Radio", href: "/c/night" },
+    ];
+    const container = render(() => <ApplicationChrome signedIn navigate={navigate} personas={personas} selectedPersonaId="one" loadCommunities={async () => communities}>Route</ApplicationChrome>);
+    container.querySelector<HTMLButtonElement>('button[aria-label="Open communities and settings"]')!.click();
+    await vi.waitFor(() => expect(document.querySelector('[role="dialog"]')).not.toBeNull());
+    const dialog = document.querySelector('[role="dialog"]')!;
+    await vi.waitFor(() => expect(dialog.textContent).toContain("Night Radio"));
+    expect(dialog.textContent).not.toContain("Night Shift");
+    expect([...dialog.querySelectorAll("button")].some(button => button.textContent?.trim() === "Harbor")).toBe(false);
+    expect(dialog.querySelector('a[href="/wallet"], a[href="/songs"]')).toBeNull();
+    [...dialog.querySelectorAll<HTMLButtonElement>("button")].find(button => button.textContent?.includes("Harbor Collective"))!.click();
+    await vi.waitFor(() => expect(navigate).toHaveBeenCalledWith("/c/harbor"));
+    expect(document.body.style.pointerEvents).not.toBe("none");
+    await vi.waitFor(() => expect(document.querySelector('[role="dialog"]')).toBeNull());
+  });
+
+  test("a single tap on the profile tab opens the selected profile's page", async () => {
+    const navigate = vi.fn();
+    const container = render(() => <ApplicationChrome signedIn navigate={navigate} personas={[{ personaId: "one", displayName: "Harbor", publicHandle: "harbor.pirate" }, { personaId: "two", displayName: "Night Shift" }]} selectedPersonaId="one">Route</ApplicationChrome>);
+    container.querySelector<HTMLButtonElement>('nav[aria-label="Primary navigation"] button[aria-label="Profile, Harbor"]')!.click();
+    await vi.waitFor(() => expect(navigate).toHaveBeenCalledWith("/u/harbor.pirate"));
+    expect(document.querySelector('[role="dialog"]')).toBeNull();
+  });
+
+  test("a double tap with two account profiles toggles between them without a sheet", async () => {
+    const onPersonaSelect = vi.fn();
+    const container = render(() => <ApplicationChrome signedIn onPersonaSelect={onPersonaSelect} personas={[{ personaId: "one", displayName: "Harbor" }, { personaId: "two", displayName: "Night Shift" }]} selectedPersonaId="one">Route</ApplicationChrome>);
+    const profileTab = container.querySelector<HTMLButtonElement>('nav[aria-label="Primary navigation"] button[aria-label="Profile, Harbor"]')!;
+    profileTab.click();
+    profileTab.click();
+    expect(onPersonaSelect).toHaveBeenCalledWith("two");
+    await new Promise(resolve => setTimeout(resolve, 350));
+    expect(document.querySelector('[role="dialog"]')).toBeNull();
+  });
+
+  test("a double tap with three or more account profiles opens the profile sheet", async () => {
+    const container = render(() => <ApplicationChrome signedIn personas={[{ personaId: "one", displayName: "Harbor" }, { personaId: "two", displayName: "Night Shift" }, { personaId: "three", displayName: "Studio" }]} selectedPersonaId="one">Route</ApplicationChrome>);
+    const profileTab = container.querySelector<HTMLButtonElement>('nav[aria-label="Primary navigation"] button[aria-label="Profile, Harbor"]')!;
+    profileTab.click();
+    profileTab.click();
+    await vi.waitFor(() => expect(document.querySelector('[role="dialog"]')?.getAttribute("aria-label") ?? document.querySelector('[role="dialog"]')?.textContent).toContain("Your profiles"));
+    expect(document.querySelector('[role="dialog"]')?.textContent).not.toContain("Settings");
+  });
+
+  test("profile opens the picker and changes the avatar identity without navigating", async () => {
+    const navigate = vi.fn();
+    const personas = [{ personaId: "one", displayName: "Harbor" }, { personaId: "two", displayName: "Night Shift" }];
+    const [selected, setSelected] = createSignal("one");
+    const container = render(() => <ApplicationChrome signedIn personas={personas} selectedPersonaId={selected()} onPersonaSelect={setSelected} navigate={navigate}>Route</ApplicationChrome>);
+    container.querySelector<HTMLButtonElement>('aside button[aria-label="Switch profile, currently Harbor"]')!.click();
+    await vi.waitFor(() => expect(document.querySelectorAll('input[type="radio"]').length).toBe(2));
+    document.querySelectorAll<HTMLElement>('input[type="radio"]')[1]!.click();
+    await vi.waitFor(() => expect(selected()).toBe("two"));
+    expect(navigate).not.toHaveBeenCalled();
+    expect(container.querySelector('aside button[aria-label="Switch profile, currently Night Shift"]')).not.toBeNull();
+    await vi.waitFor(() => expect(document.querySelector('[role="dialog"]')).toBeNull());
+  });
+
+  test("account failures recover inside the profile dialog", async () => {
     const retry = vi.fn();
-    const container = render(() => <ApplicationChrome sessionUnavailable onSessionRetry={retry}><main>Current route</main></ApplicationChrome>);
-    expect(container.querySelector("[data-shell-auth]")?.getAttribute("data-shell-auth")).toBe("unavailable");
-    const buttons = [...container.querySelectorAll<HTMLButtonElement>("button")];
-    expect(buttons.some(button => button.textContent?.trim() === "Sign in")).toBe(false);
-    buttons.find(button => button.textContent?.trim() === "Retry account check")!.click();
+    const container = render(() => <ApplicationChrome sessionUnavailable onSessionRetry={retry}>Route</ApplicationChrome>);
+    expect(container.textContent).not.toContain("could not");
+    container.querySelector<HTMLButtonElement>('aside button[aria-label="Profile"]')!.click();
+    await vi.waitFor(() => expect(document.querySelector('[role="dialog"]')).not.toBeNull());
+    [...document.querySelectorAll<HTMLButtonElement>('[role="dialog"] button')].find(button => button.textContent === "Try again")!.click();
     expect(retry).toHaveBeenCalledOnce();
   });
 
-  test("disables account retry and shows pending feedback without claiming sign-out", () => {
-    const retry = vi.fn();
-    const container = render(() => <ApplicationChrome sessionUnavailable sessionPending onSessionRetry={retry}>Route</ApplicationChrome>);
-    const checking = [...container.querySelectorAll<HTMLButtonElement>("button")].filter(button => button.textContent === "Checking account");
-    expect(checking.length).toBeGreaterThan(0);
-    for (const button of checking) { expect(button.disabled).toBe(true); button.click(); }
-    expect(retry).not.toHaveBeenCalled();
-    expect(container.textContent).toContain("Checking your account");
-    expect(container.textContent).not.toContain("Sign in");
+  test("anonymous profile and sign-in controls open the owned sign-in host", () => {
+    const requested = vi.fn();
+    window.addEventListener("pirate:connect", requested, { once: true });
+    const container = render(() => <ApplicationChrome>Route</ApplicationChrome>);
+    container.querySelector<HTMLButtonElement>('nav[aria-label="Primary navigation"] button[aria-label="Sign in"]')!.click();
+    expect(requested).toHaveBeenCalledOnce();
   });
 
-  test("leaves authenticated footer content and profile access stable during background reads", async () => {
-    const [pending, setPending] = createSignal(false);
-    const container = render(() => <ApplicationChrome signedIn profileHref="/u/story.pirate" sessionPending={pending()}>Route</ApplicationChrome>);
-    const sidebar = container.querySelector("aside")!;
-    const before = sidebar.textContent;
-    const profile = sidebar.querySelector<HTMLAnchorElement>('a[href="/u/story.pirate"]')!;
-    setPending(true);
-    await new Promise(resolve => setTimeout(resolve, 0));
-    expect(sidebar.textContent).toBe(before);
-    expect(profile.hidden).toBe(false);
-    expect(profile.getAttribute("aria-disabled")).not.toBe("true");
-    expect(sidebar.textContent).toContain("View your public profile");
-    expect(sidebar.textContent).not.toContain("Checking your account");
+  function communityTarget(personaCount: number, capture: (store: ReturnType<typeof useActivePersonaStore>) => void) {
+    // Registers from an effect, exactly as the community page does.
+    return function RegisterCommunityTarget() {
+      const store = useActivePersonaStore();
+      capture(store);
+      createEffect(() => true, () => store.setTarget({
+        communityId: "community-1",
+        personas: [{ personaId: "one", displayName: "Harbor" }, { personaId: "two", displayName: "Night Shift" }, { personaId: "three", displayName: "Studio" }].slice(0, personaCount),
+        title: "Profile in this community",
+      }));
+      return null;
+    };
+  }
+
+  test("on a community page a double tap with two eligible profiles toggles the community profile", async () => {
+    let store: ReturnType<typeof useActivePersonaStore> | undefined;
+    const Register = communityTarget(2, captured => { store = captured; });
+    const onPersonaSelect = vi.fn();
+    const container = render(() => <ActivePersonaProvider><Register /><ApplicationChrome signedIn onPersonaSelect={onPersonaSelect} personas={[{ personaId: "one", displayName: "Harbor" }]} selectedPersonaId="one">Route</ApplicationChrome></ActivePersonaProvider>);
+    const profileTab = container.querySelector<HTMLButtonElement>('nav[aria-label="Primary navigation"] button[aria-label="Profile, Harbor"]')!;
+    profileTab.click();
+    profileTab.click();
+    await vi.waitFor(() => expect(store!.activePersonaId("community-1")).toBe("two"));
+    await new Promise(resolve => setTimeout(resolve, 350));
+    profileTab.click();
+    profileTab.click();
+    await vi.waitFor(() => expect(store!.activePersonaId("community-1")).toBe("one"));
+    expect(onPersonaSelect).not.toHaveBeenCalled();
+    expect(document.querySelector('[role="dialog"]')).toBeNull();
   });
 
-  test("does not disable the anonymous sign-in action merely because pending is set", () => {
-    const container = render(() => <ApplicationChrome sessionPending>Route</ApplicationChrome>);
-    const signIn = [...container.querySelectorAll<HTMLButtonElement>("button")].find(button => button.textContent === "Sign in")!;
-    expect(signIn.disabled).toBe(false);
-    expect(container.textContent).toContain("Save, follow, and post");
-    expect(container.textContent).not.toContain("Checking your account");
+  test("on a community page a double tap with three eligible profiles opens that community's sheet", async () => {
+    const Register = communityTarget(3, () => {});
+    const container = render(() => <ActivePersonaProvider><Register /><ApplicationChrome signedIn personas={[{ personaId: "one", displayName: "Harbor" }]} selectedPersonaId="one">Route</ApplicationChrome></ActivePersonaProvider>);
+    const profileTab = container.querySelector<HTMLButtonElement>('nav[aria-label="Primary navigation"] button[aria-label="Profile, Harbor"]')!;
+    profileTab.click();
+    profileTab.click();
+    await vi.waitFor(() => expect(document.querySelector('[role="dialog"]')?.textContent).toContain("Profile in this community"));
+    expect(document.querySelectorAll('[role="dialog"]')).toHaveLength(1);
   });
 
-  test("offers community creation without advertising global post or placeholder Study actions", () => {
-    const container = render(() => <ApplicationChrome><main>Current route</main></ApplicationChrome>);
-    const navigationLabels = Array.from(container.querySelectorAll("nav button"))
-      .map((button) => button.textContent?.trim());
-
-    expect(navigationLabels).toContain("Create community");
-    expect(navigationLabels).toContain("Communities");
-    expect(navigationLabels).not.toContain("Study");
-    expect(navigationLabels).not.toContain("Karaoke");
-    expect(navigationLabels).not.toContain("Search");
-    expect(navigationLabels).not.toContain("Live");
-    expect(navigationLabels).not.toContain("Activity");
-    expect(container.querySelector("header button[aria-label='Go home']")).not.toBeNull();
-    expect(container.textContent).not.toContain("Create post");
-  });
-
-  test("routes membership discovery and creation through distinct shell actions", () => {
+  test("on a community page with one eligible profile a double tap never switches account profiles", async () => {
+    const Register = communityTarget(1, () => {});
     const navigate = vi.fn();
-    const container = render(() => <ApplicationChrome navigate={navigate}><main>Current route</main></ApplicationChrome>);
-    const buttons = [...container.querySelectorAll<HTMLButtonElement>("nav button")];
-    buttons.find(button => button.textContent?.trim() === "Communities")?.click();
-    buttons.find(button => button.textContent?.trim() === "Create community")?.click();
-    expect(navigate).toHaveBeenNthCalledWith(1, "/communities");
-    expect(navigate).toHaveBeenNthCalledWith(2, "/communities/new");
+    const onPersonaSelect = vi.fn();
+    const container = render(() => <ActivePersonaProvider><Register /><ApplicationChrome signedIn navigate={navigate} onPersonaSelect={onPersonaSelect} personas={[{ personaId: "one", displayName: "Harbor", publicHandle: "harbor.pirate" }, { personaId: "two", displayName: "Night Shift" }]} selectedPersonaId="one">Route</ApplicationChrome></ActivePersonaProvider>);
+    const profileTab = container.querySelector<HTMLButtonElement>('nav[aria-label="Primary navigation"] button[aria-label="Profile, Harbor"]')!;
+    // Without a double-tap action the single tap is immediate.
+    profileTab.click();
+    expect(navigate).toHaveBeenCalledWith("/u/harbor.pirate");
+    profileTab.click();
+    await new Promise(resolve => setTimeout(resolve, 350));
+    expect(onPersonaSelect).not.toHaveBeenCalled();
+    expect(document.querySelector('[role="dialog"]')).toBeNull();
   });
 
-  test("keeps immersive controls and mobile selection inside the same chrome owner", () => {
-    const navigate = vi.fn();
-    const container = render(() => (
-      <ApplicationChrome mobileActiveItem="communities" mode="immersive" navigate={navigate}>
-        <main>Video route</main>
-      </ApplicationChrome>
-    ));
-
-    container.querySelector<HTMLButtonElement>("header button[aria-label='Create community']")?.click();
-    expect(navigate).toHaveBeenCalledWith("/communities/new");
-    expect(container.querySelector("nav[aria-label='Primary navigation'] button[aria-current='page']")?.textContent).toContain("Communities");
-  });
-
-  test("renders ceremony routes without application chrome", () => {
-    const container = render(() => <ApplicationChrome mode="bare"><main data-ceremony>Verify</main></ApplicationChrome>);
+  test("bare routes omit chrome", () => {
+    const container = render(() => <ApplicationChrome mode="bare"><main>Verify</main></ApplicationChrome>);
     expect(container.querySelector("[data-application-chrome]")).toBeNull();
-    expect(container.querySelector("[data-ceremony]")).not.toBeNull();
   });
 });

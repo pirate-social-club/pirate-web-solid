@@ -1,5 +1,6 @@
-import { LegalPlaceholderPage } from "../features/legal/legal-placeholder-page.tsx";
+import { termsOfService } from "../features/legal/legal-content.ts";
+import { LegalDocument } from "../features/legal/legal-document.tsx";
 
 export default function TermsRoute() {
-  return <LegalPlaceholderPage path="/terms" title="Terms" />;
+  return <LegalDocument document={termsOfService} />;
 }

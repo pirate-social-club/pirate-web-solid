@@ -1,11 +1,11 @@
 {
   "home": {
-    "title": "Home · Pirate Web",
-    "description": "Pirate Web video feed",
+    "title": "Home",
+    "description": "Video feed",
     "heading": "Pirate Web Solid shell"
   },
   "profile": {
-    "title": "@{handle} · Pirate Web",
+    "title": "@{handle}",
     "heading": "Profile: @{handle}",
     "loading": "Loading profile",
     "invalid": "That profile handle is not valid.",
@@ -13,18 +13,18 @@
     "error": "This profile is temporarily unavailable.",
     "emptyCommunities": "No communities created yet.",
     "createdCommunities": "Created communities",
-    "createdCommunityPluralDescription": "{name} created {count} communities on Pirate Web.",
-    "createdCommunitySingularDescription": "{name} created 1 community on Pirate Web.",
-    "defaultDescription": "Public profile for {name} on Pirate Web.",
+    "createdCommunityPluralDescription": "{name} created {count} communities.",
+    "createdCommunitySingularDescription": "{name} created 1 community.",
+    "defaultDescription": "Public profile for {name}.",
     "openCommunity": "Open {name}"
   },
   "community": {
-    "title": "{name} · Pirate Web",
+    "title": "{name}",
     "loading": "Loading community",
     "invalid": "That community route is not valid.",
     "notFound": "This community could not be found.",
     "error": "This community is temporarily unavailable.",
-    "defaultDescription": "Public community page for {name} on Pirate Web.",
+    "defaultDescription": "Public community page for {name}.",
     "membership": "Membership",
     "membershipModes": {
       "open": "Open",
@@ -38,7 +38,7 @@
     "noRules": "No public rules are listed."
   },
   "names": {
-    "title": "Names in {name} · Pirate Web",
+    "title": "Names in {name}",
     "heading": "Claim a name in {root}",
     "headingMultiple": "Choose a community name",
     "intro": "Choose an existing persona for this free public name. No wallet or payment is used.",

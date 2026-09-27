@@ -237,7 +237,6 @@ function LoadedKaraokeSession(props: { payload: ApiSongKaraokePayload; postId: s
     const controller = new AbortController();
     walletConfirmationController = controller;
     const completion = requestGlobalSignInCompletion(controller.signal);
-    requestGlobalSignIn();
     const authenticated = await completion;
     if (walletConfirmationController === controller) walletConfirmationController = undefined;
     if (!active) return;
@@ -304,8 +303,10 @@ function LoadedKaraokeSession(props: { payload: ApiSongKaraokePayload; postId: s
           beginScoredTake(songMs);
         } : undefined}
         onTimeChange={(songMs) => scoring.controls.noteTime(songMs)}
+        bestCombo={feedback().bestCombo}
         rating={feedback().rating}
         singingStatus={scoringState()?.status ?? "idle"}
+        summary={scoringState()?.summary ?? null}
         title={props.payload.title ?? "Karaoke"}
       />
       <Show when={personaMessage()}>

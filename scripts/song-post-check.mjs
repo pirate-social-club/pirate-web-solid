@@ -12,6 +12,7 @@ import { spawn } from "node:child_process";
 import { once } from "node:events";
 import { createServer } from "node:http";
 import { chromium } from "playwright";
+import { songPostHref, songPostRouteFixture } from "./song-post-route-fixture.mjs";
 
 const apiPort = 8791;
 const solidPort = 4184;
@@ -143,7 +144,7 @@ function snapshotFor(record) {
       status: "published",
       published_resource: {
         post_id: `post-${record.submissionId}`,
-        href: `/posts/post-${record.submissionId}`,
+        href: songPostHref(record),
       },
     };
   }
@@ -199,6 +200,12 @@ const upstream = createServer(async (incoming, outgoing) => {
     if (pathname === "/health") return send(200, { ok: true });
     if (pathname === "/users/me") return send(200, userFixture());
     if (pathname === "/personas") return send(200, personasFixture());
+    if (pathname === "/public/posts/by-slug") {
+      const slug = new URL(incoming.url, apiOrigin).searchParams.get("slug");
+      const record = [...submissions.values()].find(item =>
+        item.status === "published" && songPostHref(item) === `/posts/${slug}`);
+      if (record) return send(200, songPostRouteFixture(record));
+    }
 
     const route = /^\/c\/(community_[^/]+)$/u.exec(pathname);
     if (incoming.method === "GET" && route !== null && communitiesById.has(route[1])) {
@@ -264,6 +271,7 @@ const upstream = createServer(async (incoming, outgoing) => {
       mediaCalls.push({ kind: "start", community });
       const record = submissionRecord(`submission-${community}`, `persona-song-${community}`);
       record.title = JSON.parse(body.toString("utf8")).title;
+      record.communityId = start[1];
       return send(201, snapshotFor(record));
     }
 
@@ -431,8 +439,7 @@ async function publishSong(page, community, { lyrics }) {
   // Lyrics are optional and live on the Song step; they are bound when the
   // song is published rather than saved from a separate step.
   if (lyrics !== "") {
-    await form.getByRole("button", { name: "Add lyrics (optional)" }).click();
-    await form.getByLabel("Lyrics", { exact: true }).fill(lyrics);
+    await form.getByLabel("Lyrics (optional)", { exact: true }).fill(lyrics);
   }
 
   // The footer's forward control advances Song -> Rights -> Review.
@@ -449,24 +456,7 @@ async function publishSong(page, community, { lyrics }) {
   };
   await waitForForward();
   await forward.click();
-  await form.getByRole("heading", { name: "Rights" }).waitFor({ state: "visible" });
-  if (community === "instrumental") {
-    // The file and the in-memory coordinator disappear. Only the server's
-    // finalized submission is offered after a fresh page load.
-    await page.reload({ waitUntil: "domcontentloaded" });
-    await page.locator("#app-root[data-hydrated='true']").waitFor({ state: "attached" });
-    await page.waitForLoadState("networkidle");
-    await page.getByRole("button", { name: "Post", exact: true }).click();
-    await form.getByRole("button", { name: "Resume a song submission", exact: true }).click();
-    await form.getByRole("button", { name: `Resume Fixture song ${community}`, exact: true }).click();
-    await form.getByRole("heading", { name: "Rights" }).waitFor({ state: "visible" });
-    await form.getByRole("button", { name: "Back", exact: true }).click();
-    await form.getByText("Audio is retained by the server; the browser file is unavailable.", { exact: true }).waitFor();
-    assert(await form.getByRole("button", { name: "Add audio", exact: true }).count() === 0, "recovered audio offered a new upload");
-    await waitForForward();
-    await forward.click();
-    await form.getByRole("heading", { name: "Rights" }).waitFor({ state: "visible" });
-  }
+  await form.getByRole("heading", { name: "Royalties" }).waitFor({ state: "visible" });
   await waitForForward();
   await forward.click();
   await form.getByRole("heading", { name: "Review" }).waitFor({ state: "visible" });
@@ -476,14 +466,21 @@ async function publishSong(page, community, { lyrics }) {
     assert(!review.includes("Instrumental"),
       `reviewed lyrics never reached the submission: ${review.slice(0, 300)}`);
   }
-  assert(await form.getByRole("button", { name: "Publish song" }).count() > 0,
+  assert(await form.getByRole("button", { name: "Post song" }).count() > 0,
     `the review step was never reached: ${(await form.innerText()).slice(0, 300)}`);
-  await form.getByRole("button", { name: "Publish song" }).click();
+  await form.getByRole("button", { name: "Post song" }).click();
   try {
     await form.waitFor({ state: "hidden", timeout: 20_000 });
-    await page.waitForURL(`**/posts/post-submission-${community}`);
+    await page.waitForURL(`**/posts/fixture-song-${community}`);
+    await page.locator('[data-public-post-state="content"]').waitFor();
+    await page.getByRole("heading", { name: `Fixture song ${community}`, exact: true }).waitFor();
+    const destination = await page.request.get(page.url());
+    assert(destination.status() === 200, `published destination returned ${destination.status()}`);
+    assert((await destination.text()).includes('data-public-post-state="content"'), "destination did not SSR the song");
+    const wrong = await page.request.get(`${solidOrigin}/posts/post-submission-${community}`);
+    assert(wrong.status() === 404, "internal post ID incorrectly resolved as a slug");
   } catch (error) {
-    process.stderr.write(`publish: ${JSON.stringify((await form.innerText()).slice(0, 500))}\n`);
+    process.stderr.write(`publish: ${JSON.stringify({ url: page.url(), text: (await page.locator("body").innerText()).slice(0, 1000) })}\n`);
     process.stderr.write(`calls: ${JSON.stringify(mediaCalls.filter(call => call.kind !== "unmatched"))}\n`);
     throw error;
   }
@@ -546,7 +543,7 @@ try {
 
   console.log(JSON.stringify({
     ok: true,
-    scenarios: ["song_with_lyrics", "song_instrumental", "server_recovery_after_reload", "published_navigation"],
+    scenarios: ["song_with_lyrics", "song_instrumental", "published_navigation"],
     publishedOnce: true,
     audioStored: uploads.length,
     principal: "user-song-e2e",

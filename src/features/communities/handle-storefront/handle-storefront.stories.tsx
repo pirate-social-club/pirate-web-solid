@@ -6,6 +6,7 @@ import { HandleStorefront } from "./handle-storefront";
 import type {
   HandleStorefrontPublicState,
   SupportedHandleOffering,
+  SupportedHnsOffering,
 } from "./handle-storefront.model";
 
 const community: CommunityPageSuccess = {
@@ -27,7 +28,9 @@ const community: CommunityPageSuccess = {
   },
 };
 
-function offering(overrides: Partial<Extract<SupportedHandleOffering, { readonly qualification_policy: { readonly kind: "none_v1" | "curated_policy_v1" } }>> = {}): SupportedHandleOffering {
+function offering(overrides: Partial<SupportedHnsOffering> = {}): SupportedHnsOffering {
+  // SAFETY: this Storybook fixture starts from a complete supported HNS offering;
+  // each story only overrides known HNS fields to show a specific state.
   return {
     offering_id: "offering_open_claims",
     offering_revision: 1,
@@ -68,7 +71,7 @@ function offering(overrides: Partial<Extract<SupportedHandleOffering, { readonly
     status: "active",
     created_at: "2026-08-20T10:00:00.000Z",
     ...overrides,
-  };
+  } as SupportedHnsOffering;
 }
 
 function success(

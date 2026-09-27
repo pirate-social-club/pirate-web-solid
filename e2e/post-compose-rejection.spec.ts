@@ -20,7 +20,7 @@ test.describe("post rejection without route authority", { tag: "@staging-mutatin
       response.request().method() === "POST"
       && new URL(response.url()).pathname === `/api/communities/${communityId}/posts`
     );
-    await dialog.getByRole("button", { name: "Publish post" }).click();
+    await dialog.getByRole("button", { name: "Post", exact: true }).click();
     const response = await rejected;
     expect(response.status()).toBe(404);
     const payload = await response.json() as { readonly error?: { readonly code?: unknown; readonly retryable?: unknown } };

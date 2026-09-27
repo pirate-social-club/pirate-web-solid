@@ -89,7 +89,7 @@ export const Default: Story = {
   render: () => <SignInStory />,
   play: async () => {
     const dialog = await within(document.body).findByRole("dialog");
-    await expect(within(dialog).getByRole("heading", { name: "Join Pirate" })).toBeInTheDocument();
+    await expect(within(dialog).getByRole("heading", { name: "Sign in" })).toBeInTheDocument();
     await expect(within(dialog).getByRole("button", { name: "Continue with Google" })).toBeInTheDocument();
     await expect(within(dialog).getByRole("button", { name: "Continue with X" })).toBeInTheDocument();
     await expect(within(dialog).queryByRole("button", { name: /Wallet/ })).toBeNull();
@@ -104,7 +104,7 @@ export const MobileSheet: Story = {
   render: () => <SignInStory forceMobile />,
   play: async () => {
     const dialog = await within(document.body).findByRole("dialog");
-    await expect(within(dialog).getByRole("heading", { name: "Join Pirate" })).toBeInTheDocument();
+    await expect(within(dialog).getByRole("heading", { name: "Sign in" })).toBeInTheDocument();
     await expect(within(dialog).getByText("Share music. Find your people.")).toBeInTheDocument();
     await expect(within(dialog).getByText(/By continuing, you confirm you are at least 16 years old and agree to the/)).toBeInTheDocument();
   },
@@ -150,7 +150,7 @@ export const CodeStep: Story = {
     await expect(within(dialog).getAllByRole("textbox")).toHaveLength(6);
     await expect(within(dialog).getByRole("button", { name: /Resend code/ })).toBeInTheDocument();
     await userEvent.click(within(dialog).getByRole("button", { name: "Back" }));
-    await expect(within(dialog).getByRole("heading", { name: "Join Pirate" })).toBeInTheDocument();
+    await expect(within(dialog).getByRole("heading", { name: "Sign in" })).toBeInTheDocument();
     await expect(within(dialog).getByRole("textbox", { name: "Email" })).toHaveValue("operator@example.test");
   },
 };

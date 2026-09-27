@@ -32,9 +32,11 @@ export interface ActivePersonaStore {
 }
 
 function createActivePersonaStore(): ActivePersonaStore {
-  const [selections, setSelections] = createSignal<Readonly<Record<string, string>>>({});
-  const [target, setTarget] = createSignal<PersonaSwitchTarget | undefined>(undefined);
-  const [open, setOpen] = createSignal(false);
+  // Pages register their target from an effect and composers select from
+  // theirs, so these app-scoped signals are written from owned scopes by design.
+  const [selections, setSelections] = createSignal<Readonly<Record<string, string>>>({}, { ownedWrite: true });
+  const [target, setTarget] = createSignal<PersonaSwitchTarget | undefined>(undefined, { ownedWrite: true });
+  const [open, setOpen] = createSignal(false, { ownedWrite: true });
 
   const activePersonaId = (communityId: string) => selections()[communityId];
 

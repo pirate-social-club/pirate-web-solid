@@ -2,7 +2,7 @@ import { onSessionRefreshed } from "../../../api/session.ts";
 import { createSessionApiClient } from "../../../api/client.ts";
 import { Link, Meta, Title } from "@solidjs/meta";
 import { getRequestEvent } from "@solidjs/web";
-import { Loading, Show, createEffect, createMemo, createSignal, onCleanup, untrack } from "solid-js";
+import { Loading, Show, createEffect, createMemo, createSignal, onCleanup, sharedConfig, untrack } from "solid-js";
 import { createPublicCommunityRouteClient } from "../../../api/community-route-client.ts";
 import {
   createPublicHandleSalesClient,
@@ -31,6 +31,7 @@ import {
 } from "./community-page-origin.ts";
 import { CommunityPageShell } from "../../community/page-shell/page-shell.tsx";
 import type { CommunityData, CommunityFeed } from "../../community/page-shell/page-shell-model.ts";
+import { reportCommunityFeedFailure } from "./community-feed-diagnostic.ts";
 import { CreatePostDialog } from "../../posts/post-composer/create-post-dialog.tsx";
 import {
   PostEngagement,
@@ -43,6 +44,7 @@ import { CommunityPersonaChoiceDialog } from "../../identity/community-persona-c
 import { communityJoinCandidates, communityOperationPersonas, defaultOperationPersonaId, toOperationPersonas } from "../../identity/community-persona-choice.ts";
 import { createCommunityModerationSettingsApi } from "../../community/owner-settings/community-moderation-settings-api.ts";
 import {
+  createCommunityThreadFeedClient,
   loadCommunityThreadPage,
   type CommunityThreadPage,
 } from "./community-thread-feed-api.ts";
@@ -65,6 +67,9 @@ export interface CommunityPageProps {
   /** Entering from a song post's "Use this song": the song is carried into the
    * video composer, which opens once a posting session is resolved. */
   readonly initialVideoSong?: { readonly postId: string };
+  /** Clears the compose marker from the URL once the song-entry composer has
+   * been opened and dismissed, so a reload browses instead of reopening it. */
+  readonly clearVideoSongIntent?: () => void;
   readonly client?: CommunityRouteClient;
   readonly engagementApi?: CommunityEngagementApi;
   readonly handleSalesClient?: PublicHandleSalesApiClient;
@@ -130,6 +135,8 @@ function SuccessState(props: {
   readonly communityId: string;
   readonly engagementApi: CommunityEngagementApi;
   readonly initialVideoSong?: { readonly postId: string };
+  /** Clears the song-entry compose marker once its composer is dismissed. */
+  readonly clearVideoSongIntent?: () => void;
   readonly state: CommunityPageSuccess;
   readonly handleSalesClient: PublicHandleSalesApiClient;
   readonly resolveSession?: () => Promise<SessionResolution>;
@@ -240,6 +247,18 @@ function SuccessState(props: {
   // value rather than rejecting, so the boundary reports it instead of the
   // page falling over.
   const [authorizedFeed, setAuthorizedFeed] = createSignal<CommunityFeed>();
+  const [recoverInitialFeed, setRecoverInitialFeed] = createSignal(false);
+  createEffect(
+    () => state.initialFeed?.kind === "error",
+    (failed) => {
+      if (!failed) return;
+      // Effects do not run during SSR. Defer past the initial hydration pass,
+      // preserving its error markup before starting one browser recovery read.
+      const recover = () => queueMicrotask(() => { if (active) setRecoverInitialFeed(true); });
+      if (sharedConfig.onHydrationEnd) sharedConfig.onHydrationEnd(recover);
+      else recover();
+    },
+  );
   onCleanup(onSessionRefreshed(() => setAuthorizedFeed(undefined)));
   const refreshAgeFeed = async (signal: AbortSignal) => {
     const page = await (props.loadThreads ? props.loadThreads(communityId) : loadCommunityThreadPage({ communityRef: communityId, client: createSessionApiClient() }));
@@ -251,10 +270,20 @@ function SuccessState(props: {
       if (authorized) return authorized;
       const injected = props.surfaceData?.posts;
       if (injected !== undefined) return { kind: "ready", posts: injected };
-      const load = props.loadThreads ?? ((id: string) => loadCommunityThreadPage({ communityRef: id }));
+      const initialFeed = state.initialFeed;
+      // Adopt identical initial state on both sides, including failures, then
+      // allow one post-hydration recovery. Ready and empty feeds never refetch.
+      if (initialFeed !== undefined && (initialFeed.kind === "ready" || !recoverInitialFeed())) return initialFeed;
+      const load = props.loadThreads ?? ((id: string) => loadCommunityThreadPage({
+        communityRef: id,
+        client: createCommunityThreadFeedClient({ origin: communityRequestOrigin() }),
+      }));
       return load(communityId).then(
         (page): CommunityFeed => ({ kind: "ready", posts: page.posts, ageLockedCount: page.ageLockedCount }),
-        (): CommunityFeed => ({ kind: "error" }),
+        (error): CommunityFeed => {
+          reportCommunityFeedFailure(error, "page");
+          return { kind: "error" };
+        },
       );
     },
     { deferStream: true },
@@ -323,23 +352,30 @@ function SuccessState(props: {
     },
   );
 
+  let postingSessionRequest = 0;
   createEffect(
     () => engagement.postingSession(),
     (session) => {
-      if (session === undefined) {
-        viewerVoteReader?.dispose();
-        viewerVoteReader = undefined;
-        viewerVoteOwner = undefined;
-        setViewerVotes(new Map());
-        selectPersonaId(undefined);
-        return;
-      }
-      const current = selectedPersonaId();
-      const eligible = communityOperationPersonas(session.personas, communityId);
-      if (current !== undefined && eligible.some(persona => persona.personaId === current)) return;
-      const joinedPersona = engagement.joinedPersonaId();
-      selectPersonaId(eligible.some(persona => persona.personaId === joinedPersona)
-        ? joinedPersona : defaultOperationPersonaId(eligible));
+      const request = ++postingSessionRequest;
+      // Preflight data can mount synchronously. Do not write signals in the
+      // effect's owned apply phase; stale sessions must not reset a new owner.
+      queueMicrotask(() => {
+        if (!active || request !== postingSessionRequest) return;
+        if (session === undefined) {
+          viewerVoteReader?.dispose();
+          viewerVoteReader = undefined;
+          viewerVoteOwner = undefined;
+          setViewerVotes(new Map());
+          selectPersonaId(undefined);
+          return;
+        }
+        const current = selectedPersonaId();
+        const eligible = communityOperationPersonas(session.personas, communityId);
+        if (current !== undefined && eligible.some(persona => persona.personaId === current)) return;
+        const joinedPersona = engagement.joinedPersonaId();
+        selectPersonaId(eligible.some(persona => persona.personaId === joinedPersona)
+          ? joinedPersona : defaultOperationPersonaId(eligible));
+      });
     },
   );
 
@@ -434,7 +470,7 @@ function SuccessState(props: {
       store.setTarget({
         communityId: targetCommunityId,
         personas,
-        title: "Switch profile",
+        title: "Profile in this community",
       });
     },
   );
@@ -597,7 +633,15 @@ function SuccessState(props: {
             communityContext={{ id: communityId, name: community().name }}
             initialVideoSong={props.initialVideoSong}
             onPublished={href => { if (href !== undefined) navigate(href); }}
-            onOpenChange={setComposerOpen}
+            onOpenChange={(open) => {
+              setComposerOpen(open);
+              // Dismissing the composer the song entry opened also clears
+              // the URL marker, so a reload cannot reopen it.
+              if (!open && openedForSong) {
+                openedForSong = false;
+                props.clearVideoSongIntent?.();
+              }
+            }}
             open={composerOpen()}
             personaId={selectedPersonaId()}
             personas={communityOperationPersonas(session().personas, communityId)}
@@ -612,6 +656,8 @@ function SuccessState(props: {
 function CommunityState(props: {
   readonly engagementApi: CommunityEngagementApi;
   readonly initialVideoSong?: { readonly postId: string };
+  /** Clears the song-entry compose marker once its composer is dismissed. */
+  readonly clearVideoSongIntent?: () => void;
   readonly state: CommunityPageViewState;
   readonly handleSalesClient: PublicHandleSalesApiClient;
   readonly resolveSession?: () => Promise<SessionResolution>;
@@ -635,6 +681,7 @@ function CommunityState(props: {
               communityId={communityId}
               engagementApi={props.engagementApi}
               initialVideoSong={props.initialVideoSong}
+              clearVideoSongIntent={props.clearVideoSongIntent}
               state={state()}
               handleSalesClient={props.handleSalesClient}
               resolveSession={props.resolveSession}
@@ -667,6 +714,7 @@ function CommunityData(props: CommunityPageProps) {
     <CommunityState
       engagementApi={engagementApi}
       initialVideoSong={props.initialVideoSong}
+      clearVideoSongIntent={props.clearVideoSongIntent}
       viewerVoteClient={props.viewerVoteClient}
       state={state()}
       handleSalesClient={handleSalesClient}

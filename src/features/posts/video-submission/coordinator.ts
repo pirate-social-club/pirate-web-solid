@@ -55,6 +55,10 @@ export function canDiscardRejectedVideo(record: PendingVideo | null): boolean {
     && (record.rejection?.command.kind === "reserve" || record.rejection?.command.kind === "start");
 }
 const terminal = (snapshot: VideoSnapshot) => ["published", "blocked", "abandoned"].includes(snapshot.status);
+const unresolvedProviderDispatch = (snapshot: VideoSnapshot) =>
+  snapshot.status === "processing_failed"
+  && snapshot.reason_code === "provider_submission_unconfirmed"
+  && !snapshot.retryable;
 async function commandDigest(command: VideoCommand): Promise<string> {
   return sha256Hex(new TextEncoder().encode(JSON.stringify(command)));
 }
@@ -273,7 +277,11 @@ export class VideoCoordinator {
       await this.reconcile();
       const snapshot = await this.refreshSnapshot();
       if (!snapshot) throw new VideoContractError("No server submission to change");
-      if (kind === "cancel" && (snapshot.status !== "processing" || snapshot.phase !== "awaiting_upload")) throw new VideoContractError("Video can no longer be cancelled");
+      if (kind === "cancel"
+        && !((snapshot.status === "processing" && snapshot.phase === "awaiting_upload")
+          || unresolvedProviderDispatch(snapshot))) {
+        throw new VideoContractError("Video can no longer be cancelled");
+      }
       if (kind === "retry" && (snapshot.status !== "processing_failed" || !snapshot.retryable)) throw new VideoContractError("Video cannot be retried");
       const result = await this.execute({ kind, input: { path: { submissionId: snapshot.submission_id }, body: {
         persona_id: this.require().personaId, idempotency_key: this.key(), expected_creation_revision: snapshot.creation_revision,
@@ -288,6 +296,37 @@ export class VideoCoordinator {
       const snapshot = await this.refreshSnapshot();
       if (!snapshot || !terminal(snapshot)) throw new VideoContractError("Only a terminal video attempt can be discarded");
       await this.options.storage.remove(); this.record = null; this.options.onChange?.(null);
+    });
+  }
+  /** Once the upload is sealed the server owns the video: this device forgets
+   * it without cancelling anything, so the author goes straight back to the
+   * feed and can record again. Returns false while bytes are still owed. */
+  async release(): Promise<boolean> {
+    return this.exclusive(async () => {
+      const snapshot = this.record?.snapshot;
+      // An unconfirmed command (a lost finalize response) must stay replayable.
+      if (!snapshot || this.record?.pending || (snapshot.status === "processing" && snapshot.phase === "awaiting_upload")) return false;
+      await this.options.storage.remove(); this.record = null; this.options.onChange?.(null);
+      return true;
+    });
+  }
+  /** Settles a finalize whose answer never arrived. The server may have
+   * accepted it anyway, so this reads the same submission (identity checked
+   * by the read) instead of assuming failure. Once the submission has left
+   * the upload phase the finalize is proven accepted and this device forgets
+   * the video, as `release` does. Returns false while the upload is still
+   * owed; the retained command then stays replayable. A failed read throws
+   * and changes nothing. */
+  async settleFinalize(): Promise<boolean> {
+    return this.exclusive(async () => {
+      const record = this.record;
+      const command = record?.pending?.command;
+      if (!record?.snapshot || command?.kind !== "finalize"
+        || command.input.path.submissionId !== record.snapshot.submission_id) return false;
+      const snapshot = await this.refreshSnapshot();
+      if (!snapshot || (snapshot.status === "processing" && snapshot.phase === "awaiting_upload")) return false;
+      await this.options.storage.remove(); this.record = null; this.options.onChange?.(null);
+      return true;
     });
   }
   /** Explicit edit/discard after a refused reserve/start; never on ambiguity. */

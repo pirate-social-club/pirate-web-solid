@@ -1,4 +1,5 @@
 import { createSessionApiClient } from "../../../api/client.ts";
+import { readSongPublishedStatus } from "../public-post/song-published-status.ts";
 
 /** The song a video was published to, as the server projects it.
  *
@@ -51,6 +52,10 @@ export interface SongAttributionLink {
   readonly href: string;
   readonly title: string | null;
   readonly authorName: string | null;
+  /** The song's Study and Karaoke pages, when the read names them. */
+  readonly activityPaths?: { readonly study: string; readonly karaoke: string };
+  /** Karaoke needs timed lyrics: true only when alignment is ready. */
+  readonly karaokeReady?: boolean;
 }
 
 export type SongAttributionLinkResolver = (
@@ -63,6 +68,7 @@ export interface SongAttributionPostRead {
   readonly kind: "content" | "age_locked";
   readonly post_id?: string;
   readonly content?: {
+    readonly song_presentation?: unknown;
     readonly post: {
       readonly song_title?: string | null;
       readonly title?: string | null;
@@ -72,7 +78,10 @@ export interface SongAttributionPostRead {
       } | null;
     };
   };
-  readonly route?: { readonly canonical_path: string } | null;
+  readonly route?: {
+    readonly canonical_path: string;
+    readonly activity_paths?: { readonly study: string; readonly karaoke: string };
+  } | null;
 }
 
 export interface SongAttributionClient {
@@ -109,7 +118,14 @@ export function createSongAttributionLinkResolver(
         const persona = post.author_persona;
         const title = post.song_title?.trim() || post.title?.trim() || null;
         const authorName = persona?.display_name?.trim() || persona?.primary_public_handle?.trim() || null;
-        return { href: response.route.canonical_path, title, authorName };
+        const paths = response.route.activity_paths;
+        return {
+          href: response.route.canonical_path,
+          title,
+          authorName,
+          ...(paths ? { activityPaths: { study: paths.study, karaoke: paths.karaoke } } : {}),
+          karaokeReady: readSongPublishedStatus(response.content.song_presentation)?.alignment === "ready",
+        };
       } catch {
         return null;
       }

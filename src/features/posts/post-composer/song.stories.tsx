@@ -38,7 +38,7 @@ function StatefulRightsStep() {
     ]}
     lyricsValue={lyrics()} onLyricsValueChange={setLyrics} license={license()} onLicenseChange={setLicense}
     royaltySplit={royaltySplit()} onRoyaltySplitChange={setRoyaltySplit}
-    submit={{ canPost: true, label: "Publish song", onSubmit: () => undefined }} /></ComposerFrame>;
+    submit={{ canPost: true, label: "Post song", onSubmit: () => undefined }} /></ComposerFrame>;
 }
 
 export const RightsCollaborators: Story = {

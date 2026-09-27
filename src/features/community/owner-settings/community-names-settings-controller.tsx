@@ -10,6 +10,9 @@ import {
   broadNamesOfferingInput,
   namesOfferingRevisionInput,
   saleNamespaceActivationInput,
+  spacesBroadNamesOfferingInput,
+  spacesSaleNamespaceActivationInput,
+  spacesNamesOfferingRevisionInput,
   saleNamespaceRevisionInput,
   type CommunityNamesManagementSnapshot,
   type CommunityNamesSettingsCommand,
@@ -91,7 +94,7 @@ export function CommunityNamesSettingsController(
     setMessage("");
     try {
       if (command.kind === "enable_names") {
-        const existing = current.saleNamespaces.find((item) => (
+      const existing = current.saleNamespaces.find((item) => (
           item.activation.canonical_root === command.candidate.canonical_root
         ));
         const activation = existing?.activation ?? await api.activateSaleNamespace(saleNamespaceActivationInput({
@@ -108,12 +111,46 @@ export function CommunityNamesSettingsController(
           context: current.context,
           idempotencyKey: commandKey(`offer:${activation.sale_namespace_activation_id}:${activation.sale_namespace_activation_generation}`),
         }));
+      } else if (command.kind === "enable_spaces_names") {
+        const existing = current.spaces?.saleNamespaces.find((item) => (
+          item.activation.canonical_root === command.candidate.canonical_root
+        ));
+        const activation = existing?.activation ?? await api.activateSpacesSaleNamespace(spacesSaleNamespaceActivationInput({
+          candidate: command.candidate,
+          communityId: props.communityId,
+          idempotencyKey: commandKey(`spaces-activate:${command.candidate.canonical_root}:${command.candidate.expected_namespace_authority_generation}:${command.candidate.expected_operator_assignment_generation}`),
+        }));
+        if (activation.status !== "active") {
+          await load();
+          return;
+        }
+        const offeringExists = current.spaces?.offerings.some((item) => (
+          item.offering.sale_namespace_activation_id === activation.sale_namespace_activation_id
+            && item.offering.label_scope.kind === "label_rule_v2"
+        ));
+        if (!offeringExists) {
+          await api.createOffering(spacesBroadNamesOfferingInput({
+            activation,
+            context: current.context,
+            idempotencyKey: commandKey(`spaces-offer:${activation.sale_namespace_activation_id}:${activation.sale_namespace_activation_generation}`),
+          }));
+        }
+      } else if (command.kind === "pause_spaces_names" || command.kind === "resume_spaces_names") {
+        const requestedStatus = command.kind === "pause_spaces_names" ? "paused" : "active";
+        await api.reviseOffering(spacesNamesOfferingRevisionInput({
+          communityId: props.communityId,
+          idempotencyKey: commandKey(`spaces-offering:${command.offering.offering_id}:${command.offering.offering_hash}:${requestedStatus}`),
+          offering: command.offering,
+          status: requestedStatus,
+        }));
       } else if (command.kind === "set_nationality") {
         if (command.offering.label_scope.kind !== "label_rule_v2" || command.offering.allocation.kind !== "first_come_v1"
           || command.offering.status === "retired" || (command.countries !== undefined && command.countries.length === 0)) throw new Error("unsupported_offering");
         const scope = `${command.offering.offering_hash}:${JSON.stringify(command.countries ?? null)}`;
-        let qualification = { policy_id: current.context.offering_authoring_preset.broad_qualification_policy_id,
-          policy_revision: current.context.offering_authoring_preset.expected_broad_qualification_policy_revision };
+        const preset = current.context.offering_authoring_presets.find((item) => item.kind === "hns_hosted_persona_free_v1");
+        if (preset === undefined) throw new Error("HNS offering preset unavailable");
+        let qualification = { policy_id: preset.broad_qualification_policy_id,
+          policy_revision: preset.expected_broad_qualification_policy_revision };
         if (command.countries !== undefined) {
           if (api.authorNationalityPolicy === undefined) throw new Error("authoring_unavailable");
           qualification = await api.authorNationalityPolicy({ communityId: props.communityId, countries: command.countries,

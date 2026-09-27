@@ -256,7 +256,7 @@ describe("the designed rights step", () => {
     });
     disposers.push(() => { dispose(); container.remove(); });
     const add = [...container.querySelectorAll<HTMLButtonElement>("button")]
-      .find(button => button.textContent?.trim() === "Add collaborator")!;
+      .find(button => (button.getAttribute("aria-label") ?? button.textContent?.trim()) === "Add collaborator")!;
     expect(add).toBeInstanceOf(HTMLButtonElement);
     add.click();
     await new Promise<void>(resolve => setTimeout(resolve, 50));
@@ -273,7 +273,7 @@ describe("the designed rights step", () => {
     await vi.waitFor(() => expect(confirm.disabled).toBe(false));
     confirm.click();
     await vi.waitFor(() => expect(document.querySelector('[role="dialog"]')).toBeNull());
-    await vi.waitFor(() => expect(container.textContent).toContain("one.pirate75%"));
+    await vi.waitFor(() => expect(container.textContent).toContain("You75%"));
     expect(container.querySelector("input[aria-label='Recipient 2 id']")).toBeNull();
     expect(container.textContent).not.toContain("100.01%");
   });

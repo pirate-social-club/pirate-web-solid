@@ -42,13 +42,16 @@ describe("original-audio video design surfaces", () => {
     )).toBe(true);
   });
 
-  test("keeps review to one optional caption and read-only server settings", () => {
-    render(() => <OriginalVideoReviewSurface caption="One caption" />);
+  test("keeps review to the take, its song, one optional caption and Publish", () => {
+    render(() => <OriginalVideoReviewSurface caption="One caption" songLabel="A song · 0:00 to 0:15" />);
 
     expect(document.querySelector("textarea")?.value).toBe("One caption");
     expect(document.querySelector("input[aria-label='Title']")).toBeNull();
-    expect(document.body.textContent).toContain("Generated after upload");
-    expect(document.body.textContent).toContain("Recorded soundtrack");
+    expect(document.body.textContent).toContain("A song · 0:00 to 0:15");
+    expect(document.body.textContent).toContain("Publish video");
+    expect(document.body.textContent).not.toContain("Settings");
+    expect(document.body.textContent).not.toContain("Poster");
+    expect(document.body.textContent).not.toContain("Rights");
     expect(document.body.textContent).not.toContain("Commercial remix");
     expect(document.body.textContent).not.toContain("Paid unlock");
   });

@@ -100,7 +100,7 @@ describe("resolving a song post into a playable source", () => {
     if (state.kind === "error") {
       expect(state.reason).not.toContain("token");
       expect(state.reason).not.toContain("api.internal");
-      expect(state.reason).toContain("could not be loaded");
+      expect(state.reason).toContain("couldn’t load");
     }
   });
 

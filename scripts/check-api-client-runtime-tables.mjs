@@ -8,13 +8,18 @@ const currentClient = resolve(
   appRoot,
   "node_modules/@pirate/api-client/src/generated/client.ts",
 );
-// Client 0.87.0 retains the consumed operations and removes the obsolete
-// community-creation activate_profile response while preserving the song,
-// nationality, and avatar contracts consumed by current Solid main. This
-// digest pins the exact success, error, and schema tables consumed by Solid.
-const expectedDigest = "9b9b138097ad72a70e51f5348b1f54b5957b55b354a6bb0dd878c16d738a9b79";
+// Client 0.93.0 includes durable rewards sends and Spaces owner and recipient
+// operations. This digest pins the exact tables Solid consumes.
+const expectedDigest = "ec66ba6bc0f71d719643663c8408340604ba5a4d72ea43eb7c988ac42a158e02";
 
 const operations = [
+  "post_communitiesCommunityIdSpacesOwnershipStart",
+  "post_communitiesCommunityIdSpacesOwnershipPoll",
+  "get_communitiesCommunityIdSpacesOperatorAssignments",
+  "post_communitiesCommunityIdSpacesOperatorAssignmentsConfirm",
+  "post_personasPersonaIdWalletsSpacesTaprootPrepare",
+  "post_personasPersonaIdWalletsSpacesTaprootStatus",
+  "post_personasPersonaIdWalletsSpacesTaprootConfirm",
   "post_postsPostIdVideoPlaybackAccess",
   "get_postsPostIdVideoPoster",
   "get_personas",
@@ -87,6 +92,15 @@ const operations = [
   "get_communitiesCommunityIdPostsPostIdRewardsAssetBonuses",
   "get_rewardOfferLegsLegIdStanding",
   "get_rewardsCredits",
+  "post_rewardsCreditsCreditIdClaim",
+  "post_rewardsClaimVerificationIntents",
+  "post_rewardsGasTopups",
+  "get_rewardsGasTopupsTopupId",
+  "post_rewardsCreditsCreditIdSend",
+  "get_rewardsCreditsCreditIdSend",
+  "post_rewardsWinnerSendsSendIdTransactions",
+  "post_rewardsWinnerSendsSendIdCancellation",
+  "get_rewardsWinnerSendsSendId",
   "post_rewardOfferLegsLegIdFundingFundingEffectIdObservations",
   "get_rewardOfferLegsLegIdFundingFundingEffectId",
   "post_assetBonusLegsLegIdFundingFundingEffectIdObservations",

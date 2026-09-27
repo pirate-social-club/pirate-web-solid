@@ -43,8 +43,14 @@ describe("composed sponsor context", () => {
     expect(context.permissions.add_asset_bonus).toEqual({ allowed: "unconfirmed", reason: null });
     expect(context.permissions.add_megapot_pool).toEqual({ allowed: "unconfirmed", reason: null });
   });
-  it("blocks both kinds when the projected offer can no longer accept legs", () => {
-    const context = composeSponsorContext(policy(), pool({ offer_status: "exhausted" }), []);
+  it.each(["exhausted", "expired", "ended"] as const)("allows a new offer after a %s offer", status => {
+    const context = composeSponsorContext(policy(), pool({ offer_status: status }), []);
+    expect(context.offer).toBeNull();
+    expect(context.permissions.add_asset_bonus).toEqual({ allowed: true, reason: null });
+    expect(context.permissions.add_megapot_pool).toEqual({ allowed: true, reason: null });
+  });
+  it.each(["paused", "operational_hold"] as const)("blocks a new offer while the old offer is %s", status => {
+    const context = composeSponsorContext(policy(), pool({ offer_status: status }), []);
     expect(context.offer).toBeNull();
     expect(context.permissions.add_asset_bonus).toEqual({ allowed: false, reason: "offer_not_addable" });
     expect(context.permissions.add_megapot_pool).toEqual({ allowed: false, reason: "offer_not_addable" });

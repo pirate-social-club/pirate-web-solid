@@ -183,7 +183,7 @@ test("plays the active video once its media is ready and pauses when the policy 
   expect(play.mock.calls.length).toBe(callsAfterPause + 1);
 });
 
-test("applies the feed's mute state and reports user-initiated plays", async () => {
+test("applies the feed's mute state and reports only an explicit play tap", async () => {
   vi.spyOn(HTMLMediaElement.prototype, "play").mockResolvedValue();
   const { root, setMuted, interactions } = mountWithSignals({ mint: vi.fn().mockResolvedValue(grant()) });
   await flush();
@@ -196,7 +196,13 @@ test("applies the feed's mute state and reports user-initiated plays", async () 
   await flush();
   expect(video.muted).toBe(true);
 
+  // Automatic playback is not a user interaction.
   video.dispatchEvent(new Event("play"));
+  expect(interactions).toHaveLength(0);
+
+  video.dispatchEvent(new Event("pause"));
+  await flush();
+  root.querySelector<HTMLButtonElement>("[data-video-player-play]")!.click();
   expect(interactions).toHaveLength(1);
 });
 

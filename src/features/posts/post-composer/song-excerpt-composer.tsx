@@ -1,15 +1,17 @@
 import { ApiClientError } from "@pirate/api-client";
-import { createSignal, onCleanup, onSettled, Show } from "solid-js";
+import { createEffect, createSignal, onCleanup, onSettled, Show } from "solid-js";
 
-import { Type } from "../../../design-system";
+import { Button, IconMusicNote, Type } from "../../../design-system";
 import { PostComposerExcerptSelector } from "./preview-segment-selector";
 import {
   canHoldExcerpt,
   clampExcerpt,
   defaultExcerpt,
   type ExcerptBounds,
+  excerptLengthMs,
   formatExcerptTime,
   isSubmittableExcerpt,
+  MIN_EXCERPT_MS,
   windowLengthsMs,
   windowWithLength,
 } from "./song-excerpt";
@@ -18,6 +20,7 @@ import {
   type SongExcerptDraftStore,
 } from "./song-excerpt-draft";
 import { parseSongLink } from "./song-excerpt-link";
+import { SongPicker, type SongPickerSource } from "./song-picker";
 import {
   createSongSourceReader,
   loadSongSource,
@@ -65,7 +68,16 @@ export function SongExcerptComposer(props: {
   store: SongExcerptDraftStore;
   communityId?: string;
   preflight?: SongIntervalPreflight;
+  disabled?: boolean;
   initialSong?: { readonly postId: string };
+  /** Songs offered in the picker; defaults to the community's songs. */
+  songs?: SongPickerSource;
+  /** Leaves the composer from the song picker, before any song is chosen. */
+  onClose?: () => void;
+  /** How much song the finished clip can carry, once there is a clip. The
+   * window shortens to it from the same start; without a clip it is as long
+   * as a video may be. */
+  clipLengthMs?: number | null;
   onSelection?: (selection: SoundtrackSelection | null) => void;
   onPlan?: (state: SongPlanState) => void;
   onChoice?: (choice: SongChoice) => void;
@@ -89,7 +101,6 @@ export function SongExcerptComposer(props: {
   const [durationMs, setDurationMs] = createSignal(0);
   const [bounds, setBounds] = createSignal<ExcerptBounds>({ startMs: 0, endMs: 0 });
   const [playing, setPlaying] = createSignal(false);
-  const [positionMs, setPositionMs] = createSignal(0);
   const [note, setNote] = createSignal<string>();
   // A payload can read cleanly and still yield audio this browser cannot use: a
   // grant that does not fetch, a container it cannot decode, or a stream whose
@@ -160,7 +171,6 @@ export function SongExcerptComposer(props: {
 
   /** The excerpt ends where the author said it ends, not where the song does. */
   const observe = (atMs: number) => {
-    setPositionMs(Math.round(atMs));
     if (!playing()) return;
     if (atMs < bounds().startMs - 500) {
       stopPlayback();
@@ -287,7 +297,6 @@ export function SongExcerptComposer(props: {
 
   const applyWindow = (next: ExcerptBounds, songPostId: string) => {
     setBounds(next);
-    setPositionMs(next.startMs);
     // The previous approval belongs to the previous window. It is invalidated
     // now, not when the debounce fires: publishing in between must not submit
     // an interval the author has already moved away from, and an answer still
@@ -309,6 +318,27 @@ export function SongExcerptComposer(props: {
     }
   };
 
+  /** The window's length: as long as a video may be, until a shorter clip
+   * says how much of the song it uses. The author only chooses the start. */
+  const wantedLengthMs = () => {
+    const longest = windowLengthsMs(lengthMs(), timing() ?? {})[0] ?? 0;
+    const clip = props.clipLengthMs;
+    return clip === undefined || clip === null ? longest : Math.min(longest, Math.max(MIN_EXCERPT_MS, Math.floor(clip)));
+  };
+  const readySong = () => { const state = source(); return state.kind === "ready" ? state : undefined; };
+  createEffect(
+    () => ({ want: wantedLengthMs(), ready: readySong(), current: bounds() }),
+    ({ want, ready, current }) => {
+      if (!ready || want <= 0 || excerptLengthMs(current) <= 0 || excerptLengthMs(current) === want) return;
+      // Written outside the effect's owned scope, as Solid requires.
+      queueMicrotask(() => {
+        const song = readySong();
+        if (song?.postId !== ready.postId || excerptLengthMs(bounds()) === want) return;
+        applyWindow(windowWithLength(bounds(), want, lengthMs()), ready.postId);
+      });
+    },
+  );
+
   const resetSong = () => {
     stopPlayback();
     stopChecking();
@@ -319,7 +349,6 @@ export function SongExcerptComposer(props: {
     setPlan({ kind: "none" });
     setSource({ kind: "idle" });
     setDurationMs(0);
-    setPositionMs(0);
     setBounds({ startMs: 0, endMs: 0 });
     setLink("");
     setLinkProblem(undefined);
@@ -337,7 +366,6 @@ export function SongExcerptComposer(props: {
     setTiming(undefined);
     setPlan({ kind: "none" });
     setDurationMs(0);
-    setPositionMs(0);
     setBounds({ startMs: 0, endMs: 0 });
     reportSelection?.(null);
     pending?.abort();
@@ -345,8 +373,7 @@ export function SongExcerptComposer(props: {
     const mine = ++generation;
     setSource({ kind: "loading" });
     // Loading a valid song link is the author's choice, made before the reader
-    // answers. A pending or failed read must not silently revert the video to
-    // its own sound; only an explicit choice does that.
+    // answers. A pending or failed read keeps that choice.
     if (request.kind === "post") reportChoice?.({ kind: "song", songPostId: request.postId });
     const next = await loadSongSource(request, reader, pending.signal);
     if (mine !== generation) return;
@@ -365,8 +392,11 @@ export function SongExcerptComposer(props: {
     }
   };
 
-  const submitLink = () => {
-    const parsed = parseSongLink(link());
+  // The value is passed in rather than re-read from the signal: a write is
+  // not visible to a same-tick read under the current signals runtime, so
+  // the just-pasted link would parse as empty.
+  const submitLink = (pending?: string) => {
+    const parsed = parseSongLink(pending ?? link());
     if (parsed.kind === "unsupported") {
       setLinkProblem(parsed.reason);
       return;
@@ -413,7 +443,6 @@ export function SongExcerptComposer(props: {
       const current = bounds();
       const next = current.endMs > 0 ? clampExcerpt(current, length) : defaultExcerpt(length);
       setBounds(next);
-      setPositionMs(next.startMs);
       const title = currentTitle();
       const audioUrl = currentAudioUrl();
       if (title !== undefined && audioUrl !== undefined) {
@@ -447,7 +476,6 @@ export function SongExcerptComposer(props: {
       return;
     }
     audio.currentTime = bounds().startMs / 1_000;
-    setPositionMs(bounds().startMs);
     setPlaying(true);
     watch();
     void audio.play().catch(() => {
@@ -461,7 +489,7 @@ export function SongExcerptComposer(props: {
 
   /** The status line, in the words an author acts on. A chosen song with no
    * verdict yet is not the same as no song at all: publishing waits for the
-   * server's answer rather than silently using the video's own sound. */
+   * server's answer. */
   const planText = () => {
     const current = plan();
     switch (current.kind) {
@@ -472,7 +500,7 @@ export function SongExcerptComposer(props: {
       case "not_available":
         return "Posting a video to a song isn’t available yet.";
       case "measuring":
-        return "The server is still measuring this song’s length; checking again shortly…";
+        return "Getting this song ready…";
       case "timing_unavailable":
         return "This song’s length couldn’t be measured, so a video can’t be posted to it.";
       case "refused":
@@ -480,11 +508,16 @@ export function SongExcerptComposer(props: {
       case "ineligible":
         return planIneligibleText(current);
       case "failed":
-        return "This part of the song couldn’t be checked. It will be checked again.";
+        return "Couldn’t use this part of the song.";
       case "ready":
         return `Your video will use ${excerptClock(current.selection.clipStartSamples, current.selection.clipStartSamples + current.selection.clipDurationSamples)} of this song.`;
     }
   };
+  /** The plan message shows only what the author can act on: a refusal, a
+   * failure, a song that cannot be measured. A pending check is machinery —
+   * moving the scrubber fires one on every adjustment — and surfaces only on
+   * the confirm action, never as ambient text. */
+  const showPlanMessage = () => !preflight || !["none", "checking", "ready"].includes(plan().kind);
 
   const readyOf = (state: SongSourceState) => (state.kind === "ready" ? state : undefined);
   const problemOf = (state: SongSourceState): string | undefined =>
@@ -498,32 +531,15 @@ export function SongExcerptComposer(props: {
   return (
     <section class="grid gap-3" aria-label="Song excerpt">
       <Show when={source().kind === "idle"}>
-        <div class="grid gap-2">
-          <Type as="h2" variant="h4">Choose a song</Type>
-          <Type as="p" variant="caption">
-            Paste a song post link or its post id. Browsing a list of songs isn’t available yet.
-          </Type>
-          <div class="flex gap-2">
-            <input
-              aria-label="Song link or post id"
-              class="min-w-0 flex-1 rounded-[var(--radius-lg)] border border-border bg-card p-3"
-              onInput={(event) => setLink(event.currentTarget.value)}
-              placeholder="/posts/<song post> or /p/<post id>"
-              type="text"
-              value={link()}
-            />
-            <button
-              class="rounded-[var(--radius-lg)] bg-primary p-3 text-primary-foreground"
-              onClick={submitLink}
-              type="button"
-            >
-              Load
-            </button>
-          </div>
-          <Show when={linkProblem()}>
-            {(problem) => <Type as="p" variant="caption" role="alert">{problem()}</Type>}
-          </Show>
-        </div>
+        <SongPicker
+          communityId={communityId}
+          linkProblem={linkProblem()}
+          onLink={(value) => { setLink(value); submitLink(value); }}
+          onPick={(postId) => { setLinkProblem(undefined); void loadSong({ kind: "post", postId }); }}
+          onClose={props.onClose}
+          preview={async (postId, signal) => (await reader({ kind: "post", postId }, signal)).audioUrl}
+          {...(props.songs === undefined ? {} : { source: props.songs })}
+        />
       </Show>
 
       <Show when={source().kind === "loading"}>
@@ -535,21 +551,13 @@ export function SongExcerptComposer(props: {
             <Type as="p" variant="caption" role="alert">{reason()}</Type>
             <div class="flex gap-2">
               <Show when={retryableProblem(source()) && lastRequest}>
-                <button
-                  class="rounded-[var(--radius-lg)] border border-border p-3"
-                  onClick={() => { if (lastRequest) void loadSong(lastRequest); }}
-                  type="button"
-                >
-                  Try loading it again
-                </button>
+                <Button onClick={() => { if (lastRequest) void loadSong(lastRequest); }} size="sm" type="button" variant="secondary">
+                  Try again
+                </Button>
               </Show>
-              <button
-                class="rounded-[var(--radius-lg)] border border-border p-3"
-                onClick={resetSong}
-                type="button"
-              >
-                Choose a different song
-              </button>
+              <Button onClick={resetSong} size="sm" type="button" variant="ghost">
+                Change song
+              </Button>
             </div>
           </div>
         )}
@@ -571,18 +579,20 @@ export function SongExcerptComposer(props: {
               src={ready().audioUrl}
             />
             <div class="grid gap-1">
-              <Type as="p" variant="body">{ready().title}</Type>
+              <div class="flex items-center gap-3">
+                <span class="grid size-12 shrink-0 place-items-center rounded-[var(--radius-md)] bg-muted">
+                  <IconMusicNote aria-hidden="true" class="size-5" />
+                </span>
+                <Type as="p" class="min-w-0 flex-1 truncate" variant="body-strong">{ready().title}</Type>
+                <Button onClick={resetSong} size="sm" type="button" variant="secondary">Change</Button>
+              </div>
               <Show when={audioProblem()}>
                 {(problem) => (
                   <>
                     <Type as="p" variant="caption" role="alert">{problem()}</Type>
-                    <button
-                      class="justify-self-start rounded-[var(--radius-lg)] border border-border p-3"
-                      onClick={resetSong}
-                      type="button"
-                    >
-                      Choose a different song
-                    </button>
+                    <Button class="justify-self-start" onClick={resetSong} size="sm" type="button" variant="ghost">
+                      Change song
+                    </Button>
                   </>
                 )}
               </Show>
@@ -594,33 +604,32 @@ export function SongExcerptComposer(props: {
             <Show when={!audioProblem() && lengthMs() > 0 && canHoldExcerpt(lengthMs())}>
               <PostComposerExcerptSelector
                 bounds={bounds()}
-                lengths={windowLengthsMs(lengthMs(), timing() ?? {})}
+                disabled={props.disabled}
                 onChange={(next) => applyWindow(next, ready().postId)}
-                onLengthChange={(length) => applyWindow(windowWithLength(bounds(), length, lengthMs()), ready().postId)}
                 onTogglePreview={togglePlayback}
                 playing={playing()}
-                positionMs={positionMs()}
                 songDurationMs={lengthMs()}
               />
             </Show>
 
-            <div class="rounded-[var(--radius-lg)] border border-dashed border-muted-foreground/40 p-3" data-song-plan={preflight ? plan().kind : "unchecked"}>
-              <Type as="p" variant="caption" role="status">
-                {preflight
-                  ? planText()
-                  : `The excerpt is kept with the video draft, but publishing sends the video with its own sound.`}
-              </Type>
+            <div
+              class={showPlanMessage() ? "flex items-center gap-3 text-muted-foreground" : "hidden"}
+              data-song-plan={preflight ? plan().kind : "unchecked"}
+            >
+              <Show when={showPlanMessage()}>
+                <Type as="p" variant="caption" role={plan().kind === "measuring" || plan().kind === "checking" ? "status" : "alert"}>
+                  {preflight ? planText() : "This song can’t be checked here, so the video can’t be posted yet."}
+                </Type>
+                <Show when={plan().kind === "failed" && currentPostId()}>
+                  <Button onClick={() => { const id = currentPostId(); if (id) void checkPlan(id, bounds()); }} size="sm" type="button" variant="secondary">
+                    Try again
+                  </Button>
+                </Show>
+              </Show>
             </div>
             <Show when={note()}>
               {(text) => <Type as="p" variant="caption" role="status">{text()}</Type>}
             </Show>
-            <button
-              class="justify-self-start rounded-[var(--radius-lg)] border border-border p-3"
-              onClick={resetSong}
-              type="button"
-            >
-              Choose a different song
-            </button>
           </>
         )}
       </Show>

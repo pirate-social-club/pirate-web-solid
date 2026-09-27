@@ -13,9 +13,9 @@
     "error": "الملف الشخصي غير متاح مؤقتًا.",
     "emptyCommunities": "لم يتم إنشاء مجتمعات بعد.",
     "createdCommunities": "المجتمعات التي تم إنشاؤها",
-    "createdCommunityPluralDescription": "أنشأ {name} عدد {count} من المجتمعات على Pirate Web.",
-    "createdCommunitySingularDescription": "أنشأ {name} مجتمعًا واحدًا على Pirate Web.",
-    "defaultDescription": "الملف الشخصي العام لـ {name} على Pirate Web.",
+    "createdCommunityPluralDescription": "أنشأ {name} عدد {count} من المجتمعات.",
+    "createdCommunitySingularDescription": "أنشأ {name} مجتمعًا واحدًا.",
+    "defaultDescription": "الملف الشخصي العام لـ {name}.",
     "openCommunity": "فتح {name}"
   },
   "community": {

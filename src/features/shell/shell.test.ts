@@ -55,11 +55,11 @@ describe("shell model", () => {
   });
 
   test("keeps the mobile navigation order stable", () => {
-    expect(shellNavItems).toEqual(["home", "communities", "profile"]);
+    expect(shellNavItems).toEqual(["home", "songs", "wallet", "profile"]);
   });
 
   test("resolves deterministic story route titles", () => {
-    expect(resolveShellTitle("home")).toBe("Pirate");
+    expect(resolveShellTitle("home")).toBe("Home");
     expect(resolveShellTitle("profile")).toBe("story.pirate");
   });
 

@@ -93,7 +93,7 @@ function stateFromSourceError(error: SongSourceError): SongSourceState {
     case "read_failed":
       return {
         kind: "error",
-        reason: "That song could not be loaded. Check the link, or try again.",
+        reason: "That song couldn’t load.",
         retryable: error.retryable,
       };
   }
@@ -138,7 +138,7 @@ export async function loadSongSource(
     }
     return {
       kind: "error",
-      reason: "That song could not be loaded. Check the link, or try again.",
+      reason: "That song couldn’t load.",
       retryable: error instanceof ApiClientError ? error.retryable : true,
     };
   }
