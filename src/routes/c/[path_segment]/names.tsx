@@ -11,6 +11,10 @@ import {
 } from "../../../features/communities/handle-storefront/handle-storefront.model.ts";
 import { decodeCommunityRouteParam } from "../../../features/communities/community-page/community-page-preflight.ts";
 import {
+  handleStorefrontResponsePolicy,
+  type HandleStorefrontPreflight,
+} from "../../../features/communities/handle-storefront/handle-storefront-preflight.ts";
+import {
   communityCanonicalOrigin,
   communityRequestOrigin,
 } from "../../../features/communities/community-page/community-page-origin.ts";
@@ -38,15 +42,16 @@ function boundedSearchParam(name: string): string | null {
 export function commitHandleStorefrontResponse(state: HandleStorefrontPublicState): void {
   const event = getRequestEvent();
   if (event === undefined) return;
-  const status = state.kind === "success"
-    ? 200
-    : state.kind === "invalid" ? 400 : state.kind === "not-found" ? 404 : 502;
-  httpStatus(status);
-  httpHeader("Cache-Control", "no-store");
-  httpHeader("Vary", "Accept-Language");
+  const policy = handleStorefrontResponsePolicy(state);
+  httpStatus(policy.status, policy.statusText);
+  policy.headers.forEach((value, name) => httpHeader(name, value));
 }
 
 const queryHandleStorefront = query(async (pathSegment: string) => {
+  // Reuse the direct api-next SSR preflight and serialize it for hydration.
+  // SAFETY: entry-server alone writes this typed request-local result.
+  const settled = getRequestEvent()?.locals.handleStorefrontPreflight as HandleStorefrontPreflight | undefined;
+  if (settled?.requestedPathSegment === pathSegment) return settled.state;
   const requestOrigin = communityRequestOrigin();
   const state = await loadHandleStorefrontPublic(
     createPublicCommunityRouteClient({ origin: requestOrigin }),

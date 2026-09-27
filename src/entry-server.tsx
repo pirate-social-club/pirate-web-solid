@@ -25,6 +25,11 @@ import {
   type PublicPostPreflight,
 } from "./features/posts/public-post/public-post-preflight.ts";
 import { bindCommunityCreationAvatarAuthoringRequest } from "./features/community/community-creation-avatar-authoring.ts";
+import {
+  handleStorefrontResponsePolicy,
+  resolveHandleStorefrontPreflight,
+  type HandleStorefrontPreflight,
+} from "./features/communities/handle-storefront/handle-storefront-preflight.ts";
 
 export interface EntryServerRenderDependencies {
   readonly Application?: Component;
@@ -128,6 +133,17 @@ export async function render(
       locals.communityPagePreflight = communityPreflight;
     }
     const policy = communityPageResponsePolicy(communityPreflight.state);
+    httpStatus(policy.status, policy.statusText);
+    policy.headers.forEach((value, name) => httpHeader(name, value));
+  }
+  const storefrontPreflight = await resolveHandleStorefrontPreflight(request, context?.API_NEXT_ORIGIN);
+  if (storefrontPreflight !== undefined) {
+    if (event !== undefined) {
+      // SAFETY: entry-server alone writes this typed request-local result.
+      const locals = event.locals as typeof event.locals & { handleStorefrontPreflight?: HandleStorefrontPreflight };
+      locals.handleStorefrontPreflight = storefrontPreflight;
+    }
+    const policy = handleStorefrontResponsePolicy(storefrontPreflight.state);
     httpStatus(policy.status, policy.statusText);
     policy.headers.forEach((value, name) => httpHeader(name, value));
   }
