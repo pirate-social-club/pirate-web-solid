@@ -89,6 +89,7 @@ export default defineConfig({
       "src/features/communities/handle-storefront/handle-storefront.model.test.ts",
       "src/features/communities/handle-storefront/handle-storefront.test.tsx",
       "src/features/communities/handle-storefront/spaces-claim-status.test.ts",
+      "src/features/communities/handle-storefront/spaces-claim-status-hydration.test.tsx",
       "src/features/karaoke/karaoke-api.test.ts",
       "src/features/karaoke/karaoke-route-view.test.tsx",
       "src/features/identity/activity-persona-preparation.test.ts",

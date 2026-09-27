@@ -1,4 +1,4 @@
-import { describe, expect, mock, test } from "bun:test";
+import { describe, expect, test, vi } from "vitest";
 
 import {
   handleStorefrontPathSegmentFromRequest,
@@ -58,7 +58,7 @@ describe("Names route SSR preflight", () => {
   test("direct load uses api-next without a Worker self-fetch or credentials", async () => {
     const seen: string[] = [];
     const requestInfo: string[] = [];
-    const fetchImpl = mock<NonNullable<Parameters<typeof resolveHandleStorefrontPreflight>[2]>>(async (input, init) => {
+    const fetchImpl = vi.fn<NonNullable<Parameters<typeof resolveHandleStorefrontPreflight>[2]>>(async (input, init) => {
       const url = new URL(input instanceof Request ? input.url : input.toString());
       seen.push(url.toString());
       requestInfo.push(`${input instanceof Request ? input.credentials : init?.credentials}/${input instanceof Request ? input.headers.has("cookie") : new Headers(init?.headers).has("cookie")}`);
@@ -82,7 +82,7 @@ describe("Names route SSR preflight", () => {
   });
 
   test("invalid path and missing API origin fail before any request", async () => {
-    const fetchImpl = mock(async () => new Response());
+    const fetchImpl = vi.fn(async () => new Response());
     const invalid = await resolveHandleStorefrontPreflight(
       new Request(`${base}/c/%252F/names`), "https://api-next-staging.pirate.sc", fetchImpl,
     );

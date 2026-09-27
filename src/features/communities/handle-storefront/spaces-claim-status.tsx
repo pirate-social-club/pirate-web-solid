@@ -1,6 +1,6 @@
 import { ApiClientError, type GetHandleClaimsClaimIdResponse } from "@pirate/api-client";
 import { Title } from "@solidjs/meta";
-import { Show, createEffect, createMemo, createSignal } from "solid-js";
+import { Show, createEffect, createMemo, createSignal, sharedConfig } from "solid-js";
 
 import { createSessionHandleSalesClient, type SessionHandleSalesApiClient } from "../../../api/handle-sales-client.ts";
 import { Button, Card, CardContent, CardHeader } from "../../../design-system.ts";
@@ -19,7 +19,7 @@ function isSpacesClaim(claim: GetHandleClaimsClaimIdResponse): claim is SpacesCl
 export default function SpacesClaimStatus(props: {
   readonly claimId: string;
   readonly communityPath: string;
-  readonly client?: SessionHandleSalesApiClient;
+  readonly client?: Pick<SessionHandleSalesApiClient, "get_handleClaimsClaimId">;
 }) {
   const [status, setStatus] = createSignal<ClaimStatus>({ kind: "loading" });
   const ready = createMemo(() => {
@@ -44,7 +44,15 @@ export default function SpacesClaimStatus(props: {
         : error instanceof ApiClientError && error.status === 404 ? "not-found" : "error" });
     }
   };
-  createEffect(() => { void refresh(); });
+  createEffect(
+    () => props.claimId,
+    () => {
+      // Keep the server's loading shell intact until its DOM is hydrated.
+      const load = () => queueMicrotask(() => { void refresh(); });
+      if (sharedConfig.onHydrationEnd) sharedConfig.onHydrationEnd(load);
+      else load();
+    },
+  );
   return <main class="mx-auto max-w-2xl p-4" data-spaces-claim-order>
     <Title>Spaces name registration</Title>
     <Card>
