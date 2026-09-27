@@ -53,8 +53,10 @@ export function CommunityHnsTxtController(props: CommunityHnsTxtControllerProps)
     try {
       const stored = sessionStorage.getItem(startKeyName());
       if (stored !== null) {
-        const attempt = JSON.parse(stored) as { root?: string; idempotencyKey?: string };
-        if (attempt.root === root && typeof attempt.idempotencyKey === "string") {
+        const attempt: unknown = JSON.parse(stored);
+        if (typeof attempt === "object" && attempt !== null
+          && "root" in attempt && attempt.root === root
+          && "idempotencyKey" in attempt && typeof attempt.idempotencyKey === "string") {
           startAttempt = { root, idempotencyKey: attempt.idempotencyKey };
           return attempt.idempotencyKey;
         }
