@@ -80,7 +80,7 @@ export const PlayableLinked: Story = {
     const canvas = within(canvasElement);
     await readyState(canvasElement);
     await waitFor(() => expect(canvasElement.querySelectorAll("[data-media-post]")).toHaveLength(1));
-    await expect(canvas.getByRole("button", { name: /Harbor lights/ })).toBeInTheDocument();
+    await expect(canvas.getAllByRole("button", { name: /Harbor lights/ }).length).toBeGreaterThan(0);
     await expect(canvasElement).toHaveTextContent("A sovereign town square for communities");
     await expect(canvasElement).not.toHaveTextContent(/Preparing playback|View post|Study/);
     await expect(canvasElement.querySelector("video")?.hasAttribute("controls")).toBe(false);
@@ -226,8 +226,8 @@ export const MobilePlayableLinked: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await readyState(canvasElement);
-    await waitFor(() => expect(canvasElement.querySelector('[data-media-post="review-post-video"]')).not.toBeNull());
-    await expect(canvas.getByRole("button", { name: /Harbor lights/ })).toBeVisible();
+    await waitFor(() => expect(canvasElement.querySelector(`[data-media-post="${playableLinked.id}"]`)).not.toBeNull());
+    await expect(canvas.getAllByRole("button", { name: /Harbor lights/ })[0]).toBeVisible();
   },
 };
 

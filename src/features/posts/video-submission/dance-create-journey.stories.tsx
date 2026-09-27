@@ -483,7 +483,7 @@ export const ExistingDanceJourney: Story = {
       canvas.getByRole("button", { name: "Try for a private score" })!.click();;
       await canvas.findByRole("button", { name: /Song: Cadence/ });
       canvas.getByRole("button", { name: "Start recording" })!.click();;
-      canvas.getByRole("button", { name: "Stop recording" })!.click();;
+      (await canvas.findByRole("button", { name: "Stop recording" })).click();
     });
     await step("the result is a labelled fixture, and posting is separate", async () => {
       const score = await canvas.findByText("78");
