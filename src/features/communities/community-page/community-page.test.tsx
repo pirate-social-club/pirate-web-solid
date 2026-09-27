@@ -223,6 +223,7 @@ afterEach(() => {
 
 describe("CommunityPage", () => {
   test("loads real Community threads into the Reddit-style feed", async () => {
+    const navigate = vi.fn();
     const loadThreads = vi.fn(async () => ({
       posts: [{
         id: "thread-1",
@@ -243,6 +244,7 @@ describe("CommunityPage", () => {
         }}
         handleSalesClient={{ get_communitiesCommunityIdHandleOfferings: async () => ({ items: [], next_cursor: null }) }}
         loadThreads={loadThreads}
+        navigate={navigate}
         pathSegment="xn--pokmon-dva"
       />
     ));
@@ -251,6 +253,8 @@ describe("CommunityPage", () => {
     expect(container.textContent).toContain("This came from the public Community feed.");
     expect(container.querySelector("[data-community-post='thread-1']")).not.toBeNull();
     expect(loadThreads).toHaveBeenCalledWith(communityId);
+    container.querySelector<HTMLButtonElement>('button[aria-label="Go back"]')!.click();
+    expect(navigate).toHaveBeenCalledWith("/communities");
 
     // No session was resolved, so nothing here can act. The counts are shown,
     // and no control is offered that has no handler behind it.

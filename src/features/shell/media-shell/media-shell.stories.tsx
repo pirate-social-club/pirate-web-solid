@@ -5,6 +5,7 @@ import { switcherPersonas } from "../../identity/persona-switcher-sheet/persona-
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 
 import { Type } from "../../../design-system";
+import { CommunityPageShell } from "../../community/page-shell/page-shell.tsx";
 import { ActivePersonaProvider, useActivePersonaStore } from "../../identity/active-persona-store.tsx";
 import type { SwitchablePersona } from "../../identity/persona-switcher-sheet/persona-switcher-sheet.tsx";
 import { resolveApplicationChrome } from "../application-chrome-model.ts";
@@ -66,11 +67,20 @@ function ShellStory(props: Partial<MediaShellProps> & { readonly initialPath?: s
       activeItemId={policy().activeItemId}
       mobileActiveItem={policy().mobileActiveItem}
       mobileTitle={policy().mobileTitle}
+      hideMobileHeader={policy().hideMobileHeader}
       mode={policy().mode}
       {...shellProps}
     >
       <Type class="sr-only" role="status">Destination: {path()}</Type>
-      {path() === "/" ? <VideoFeedPreview /> : <PagePreview path={path()} title={policy().mobileTitle} />}
+      {path() === "/" ? <VideoFeedPreview /> : path() === "/c/harbor" ? (
+        <CommunityPageShell
+          community={{ id: "community_harbor", name: "Harbor Collective", handle: "c/harbor", description: "A place for songs and their stories.", members: 124, followers: 87, posts: [] }}
+          feed={() => ({ kind: "ready", posts: [] })}
+          following={false}
+          joined={true}
+          onBack={() => setPath("/communities")}
+        />
+      ) : <PagePreview path={path()} title={policy().mobileTitle} />}
     </MediaShell>
   );
 }
@@ -81,6 +91,7 @@ export const AnonymousDesktop: Story = { render: () => <ShellStory signedIn={fal
 export const AuthenticatedDesktop: Story = { render: () => <ShellStory /> };
 export const ResolvingAccount: Story = { render: () => <ShellStory signedIn={false} personas={[]} sessionResolving /> };
 export const Mobile: Story = { globals: phone, render: () => <ShellStory /> };
+export const CommunityDetailMobile: Story = { globals: phone, render: () => <ShellStory initialPath="/c/harbor" /> };
 export const MobileDrawer: Story = { globals: phone, render: () => <ShellStory initialMenuOpen /> };
 export const DesktopPersonaPicker: Story = { render: () => <ShellStory pickerOpen /> };
 export const MobilePersonaPicker: Story = { globals: phone, render: () => <ShellStory pickerOpen /> };

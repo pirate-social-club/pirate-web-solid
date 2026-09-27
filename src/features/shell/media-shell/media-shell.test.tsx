@@ -29,6 +29,13 @@ afterEach(() => {
 });
 
 describe("Application navigation", () => {
+  test("lets a community banner reach the top without the generic phone header", () => {
+    const container = render(() => <ApplicationChrome hideMobileHeader mobileTitle="Community">Banner</ApplicationChrome>);
+    expect(container.querySelector('button[aria-label="Open communities and settings"]')).toBeNull();
+    expect(container.querySelector('nav[aria-label="Primary navigation"]')).not.toBeNull();
+    expect(container.textContent).toContain("Banner");
+  });
+
   test("keeps chrome free of session diagnostics during initial and background checks", async () => {
     const [resolving, setResolving] = createSignal(true);
     const container = render(() => <ApplicationChrome sessionResolving={resolving()} signedIn={!resolving()} sessionPending>Route</ApplicationChrome>);

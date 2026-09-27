@@ -21,7 +21,9 @@ describe("application chrome policy", () => {
       mode: "standard",
       activeItemId: "your-communities",
       mobileActiveItem: "none",
+      hideMobileHeader: true,
     });
+    expect(resolveApplicationChrome("/c/harbor/names").hideMobileHeader).toBe(false);
   });
 
   test("maps the four mobile tabs: Home, Your songs, Wallet and Profile", () => {

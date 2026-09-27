@@ -12,7 +12,7 @@ import { VideoCreateRouteView } from "../video-submission/video-create-route";
  * capture view directly; sound is chosen in a sheet over it, and posting
  * details come at review. Everything the server would answer is stood in
  * for — the session, the postable communities, the song read, the excerpt
- * preflight, the per-persona owner policy, the picker's song list, the
+ * preflight, the picker's song list, the
  * camera preview, the take and its alignment — because Storybook has no
  * session. Each story's play function asserts the flow reached the state
  * the story names, and a manual variant walks it by hand. */
@@ -48,11 +48,9 @@ const memberships: readonly AccountCommunityMembership[] = [
 ];
 
 const personas = [
-  { personaId: "persona-one", displayName: "Harbor Persona", avatarRef: null, primaryPublicHandle: "harbor.pirate", communityBinding: null },
-  { personaId: "persona-two", displayName: "Night Persona", avatarRef: null, primaryPublicHandle: "night.pirate", communityBinding: null },
+  { personaId: "persona-one", displayName: "Harbor Persona", avatarRef: null, primaryPublicHandle: "harbor.pirate", communityBinding: { communityId: "harbor", bindingSource: "first_membership" as const } },
+  { personaId: "persona-two", displayName: "Night Persona", avatarRef: null, primaryPublicHandle: "night.pirate", communityBinding: { communityId: "open-sea", bindingSource: "first_membership" as const } },
 ];
-
-type PolicyFixture = "allowed" | "denied" | "failed-then-allowed";
 
 // The journey is a phone flow: the recording controls live on the camera
 // channel, which the runtime turns on for coarse pointers. Storybook runs on
@@ -69,19 +67,10 @@ window.matchMedia = (query: string): MediaQueryList => ({
   dispatchEvent: () => false,
 });
 
-function JourneyScreen(props: { readonly policy: PolicyFixture }) {
+function JourneyScreen() {
   // The + navigates to /create/video; Storybook has no router, so the story
   // holds the route in its own state.
   const [open, setOpen] = createSignal(false);
-  let policyCalls = 0;
-  const eligibility = async () => {
-    if (props.policy === "denied") return false;
-    if (props.policy === "failed-then-allowed") {
-      policyCalls += 1;
-      return policyCalls === 1 ? Promise.reject(new Error("storybook offline")) : true;
-    }
-    return true;
-  };
   return (
     <ApplicationChrome
       mobileActiveItem="none"
@@ -94,7 +83,6 @@ function JourneyScreen(props: { readonly policy: PolicyFixture }) {
           navigate={() => undefined}
           onExit={() => setOpen(false)}
           resolveSession={async () => ({ status: "authenticated" as const, userId: "storybook-account", personas })}
-          videoSongEligibility={eligibility}
           videoSongPreflight={async () => ({
             state: "ready" as const,
             song_post_id: "cadence-post",
@@ -130,7 +118,7 @@ const meta = {
     docs: {
       description: {
         component:
-          "The connected create journey: the footer's + opens the capture view, Add song opens a sheet holding the song choice, excerpt and every server verdict, and posting details come at review. The session, communities, song audio, excerpt preflight, owner policy, picker, camera preview, take and alignment are Storybook stand-ins; no story contacts a server, and publishing is not stubbed — it shows its honest failure state.",
+          "The connected create journey: the footer's + opens the capture view, Add song opens a sheet holding the song choice, excerpt and server preflight, and posting details come at review. The session, communities, song audio, excerpt preflight, picker, camera preview, take and alignment are Storybook stand-ins; no story contacts a server, and publishing is not stubbed — it shows its honest failure state.",
       },
     },
   },
@@ -139,29 +127,10 @@ const meta = {
 export default meta;
 type Story = StoryObj<typeof meta>;
 
-/** Opens the capture view and chooses the song through the sound sheet,
-   leaving the flow ready to record. */
-async function openCaptureAndChooseSong(canvasElement: HTMLElement) {
-  const canvas = within(canvasElement);
-  const create = await canvas.findByRole("button", { name: "Post a video" }, { timeout: 8_000 });
-  create.click();
-  // The capture view opens full-screen with its own Add song control.
-  const addSong = await canvas.findByRole("button", { name: "Add song" }, { timeout: 8_000 });
-  addSong.click();
-  const input = await canvas.findByLabelText("Search songs", undefined, { timeout: 8_000 });
-  if (!(input instanceof HTMLInputElement)) throw new Error("song search is not an input");
-  input.value = "https://pirate.test/p/cadence-post";
-  input.dispatchEvent(new Event("input", { bubbles: true }));
-  const use = await canvas.findByText("Use the song at this link", undefined, { timeout: 8_000 });
-  const useButton = use.closest("button");
-  if (!useButton) throw new Error("song link action is missing");
-  useButton.click();
-}
-
 export const PlusToCaptureAllowed: Story = {
-  name: "+ to capture, policy allows",
+  name: "+ to capture, song accepted",
   globals: { viewport: { value: "mobile1", isRotated: false } },
-  render: () => <JourneyScreen policy="allowed" />,
+  render: () => <JourneyScreen />,
   play: async ({ canvasElement, step }) => {
     const canvas = within(canvasElement);
     await step("the footer's + opens the capture view", async () => {
@@ -195,49 +164,11 @@ export const PlusToCaptureAllowed: Story = {
   },
 };
 
-export const PlusDenied: Story = {
-  name: "+ to a profile the song refuses",
-  globals: { viewport: { value: "mobile1", isRotated: false } },
-  render: () => <JourneyScreen policy="denied" />,
-  play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement);
-    await openCaptureAndChooseSong(canvasElement);
-    const denials = await canvas.findAllByText(/This profile can’t post a video to this song/, undefined, { timeout: 12_000 });
-    expect(denials.length).toBeGreaterThan(0);
-    // The record control is present but inert under the refusal: pressing it
-    // starts nothing.
-    const record = canvas.getByLabelText("Start recording");
-    record.click();
-    await new Promise(resolve => setTimeout(resolve, 300));
-    expect(canvas.queryByLabelText("Stop recording")).toBeNull();
-  },
-};
-
-export const PlusFailedRead: Story = {
-  name: "+ through an unreadable policy and a retry",
-  globals: { viewport: { value: "mobile1", isRotated: false } },
-  render: () => <JourneyScreen policy="failed-then-allowed" />,
-  play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement);
-    await openCaptureAndChooseSong(canvasElement);
-    // The retry affordance appears on both the capture view and the open
-    // sheet; either one drives the same re-check.
-    const retries = await canvas.findAllByText("Try the check again", undefined, { timeout: 12_000 });
-    expect(retries.length).toBeGreaterThan(0);
-    const retryButton = retries[0]!.closest("button");
-    if (!retryButton) throw new Error("eligibility retry is missing");
-    retryButton.click();
-    await canvas.findByLabelText("Start recording", undefined, { timeout: 12_000 });
-    await new Promise(resolve => setTimeout(resolve, 800));
-    expect(canvas.queryByText("Recording is not supported here")).toBeNull();
-  },
-};
-
 /** The same journey with no play function, so a reviewer walks it by hand:
  * the footer's +, Add song, the pasted song link, the excerpt, Use this
  * song, record and stop, and the review step's posting details. */
 export const JourneyManual: Story = {
   name: "The whole journey by hand",
   globals: { viewport: { value: "mobile1", isRotated: false } },
-  render: () => <JourneyScreen policy="allowed" />,
+  render: () => <JourneyScreen />,
 };

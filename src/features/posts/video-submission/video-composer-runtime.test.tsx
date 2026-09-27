@@ -79,7 +79,7 @@ function setup(final: "published" | "manual_review" | "provider_submission_uncon
   createRoot(dispose => { disposers.push(dispose); render(() => <VideoComposerRuntime principalId="account" communityId="community" personaId="persona"
     storage={storage} transport={transport} inspectFile={async file => file}
     fetchImpl={vi.fn<typeof fetch>().mockResolvedValue(new Response(null, { headers: { etag: "receipt" } }))}
-    songPreflight={acceptedPreflight} songReader={readableSong} readSongEligibility={async () => true} initialSong={{ postId: "song-post" }}
+    songPreflight={acceptedPreflight} songReader={readableSong} initialSong={{ postId: "song-post" }}
     onExit={() => {}} onRetainedPersona={() => {}} onPublished={published} onPosted={posted} />, container); });
   return { commands, published, posted, retained: () => saved };
 }
@@ -167,10 +167,8 @@ describe("mounted song-first video flow", () => {
 
   function songSetup(options: {
     readonly preflight: "unavailable" | "accepted" | "refused" | "pending";
-    /** The per-persona owner-policy read; defaults to allowing every song. */
-    readonly songEligibility?: (input: { readonly communityId: string; readonly postId: string; readonly personaId: string }) => Promise<boolean>;
     /** The review-time profile choices, when the host offers them. */
-    readonly personaOptions?: readonly { readonly id: string; readonly label: string }[];
+    readonly personaOptions?: readonly { readonly id: string; readonly label: string; readonly communityId?: string }[];
     readonly reserve?: "echo" | "different_excerpt";
     readonly finalSnapshot?: "published" | "song_blocked";
     readonly reader?: "ready" | "failed";
@@ -289,7 +287,6 @@ describe("mounted song-first video flow", () => {
       alignTake={alignTake}
       onGuideTiming={options.onGuideTiming}
       songPreflight={preflight} songReader={songReader}
-      readSongEligibility={options.songEligibility ?? (async () => true)}
       personaOptions={options.personaOptions}
       initialSong={options.initialSong === false ? undefined : { postId: "song-post" }}
       {...(options.onPosted ? { onPosted: options.onPosted } : {})}
@@ -684,35 +681,6 @@ describe("mounted song-first video flow", () => {
   });
 
 
-  test("changing the profile at review re-checks the song policy", async () => {
-    const asked: string[] = [];
-    songSetup({
-      preflight: "accepted",
-      personaOptions: [{ id: "persona", label: "Persona One" }, { id: "persona-two", label: "Persona Two" }],
-      songEligibility: async input => { asked.push(input.personaId); return input.personaId === "persona"; },
-    });
-    await loadSongMetadata();
-    await awaitPlan("ready");
-    await chooseFile();
-    // Review carries the posting details; the second profile is refused the
-    // song the take was recorded to, visibly and without a new take.
-    const control = await vi.waitFor(() => {
-      const trigger = document.querySelector<HTMLButtonElement>("[data-operation-persona] button[aria-haspopup='dialog']");
-      expect(trigger).not.toBeNull();
-      return trigger!;
-    });
-    control.click();
-    const option = await vi.waitFor(() => {
-      const candidate = [...document.querySelectorAll("label, [role='radio']")].find(node => node.textContent?.includes("Persona Two"));
-      expect(candidate).toBeDefined();
-      if (!(candidate instanceof HTMLElement)) throw new Error("persona option is missing");
-      return candidate;
-    });
-    option.click();
-    await vi.waitFor(() => expect(asked).toEqual(["persona", "persona-two"]));
-    await vi.waitFor(() => expect(document.body.textContent).toContain("can’t post a video to this song"));
-  });
-
   test("confirming the sound waits for the check and closes the sheet itself", async () => {
     const fixture = songSetup({ preflight: "accepted", mobile: true, deferIntervalChecks: true });
     await loadSongMetadata();
@@ -746,96 +714,37 @@ describe("mounted song-first video flow", () => {
     expect(previews).toHaveLength(0);
   });
 
-  test("the chosen profile must be allowed the song before capture", async () => {
-    const asked: { readonly communityId: string; readonly postId: string; readonly personaId: string }[] = [];
+  test("an accepted song opens capture without a second policy request", async () => {
+    songSetup({ preflight: "accepted", mobile: true });
+    await loadSongMetadata();
+    await awaitPlan("ready");
+    await vi.waitFor(() => expect(document.querySelector('button[aria-label="Start recording"]')).not.toBeNull());
+    expect(document.body.textContent).not.toContain("couldn’t be checked for your profile");
+    expect(document.body.textContent).not.toContain("Try the check again");
+  });
+
+  test("a profile bound to another community cannot start capture", async () => {
     songSetup({
       preflight: "accepted",
       mobile: true,
-      songEligibility: async input => { asked.push(input); return input.personaId === "persona"; },
+      personaOptions: [{ id: "persona", label: "Other profile", communityId: "other-community" }],
     });
     await loadSongMetadata();
     await awaitPlan("ready");
-    // The read is asked for this exact community, song and persona, and an
-    // allowing answer opens capture.
-    await vi.waitFor(() => expect(asked).toContainEqual({ communityId: "community", postId: "song-post", personaId: "persona" }));
-    await vi.waitFor(() => expect(document.querySelector('button[aria-label="Start recording"]')).not.toBeNull());
-    expect(document.body.textContent).not.toContain("can’t post a video to this song");
-  });
-
-  test("a profile the song's owner refuses never opens capture", async () => {
-    songSetup({ preflight: "accepted", mobile: true, songEligibility: async () => false });
-    await loadSongMetadata();
-    await awaitPlan("ready");
-    await vi.waitFor(() => expect(document.body.textContent).toContain("This profile can’t post a video to this song"));
-    // The record control is present but inert: without a song nothing
-    // starts, and the view says what is missing instead.
+    expect(document.body.textContent).toContain("Choose a community where you have a posting profile.");
     document.querySelector<HTMLButtonElement>('button[aria-label="Start recording"]')?.click();
-    expect(startCapture).not.toHaveBeenCalled();
     expect(previews).toHaveLength(0);
     expect(startCapture).not.toHaveBeenCalled();
   });
 
-  test("a verdict for a song the author left never applies", async () => {
-    const releases: ((allowed: boolean) => void)[] = [];
-    songSetup({
-      preflight: "accepted",
-      mobile: true,
-      initialSong: false,
-      songEligibility: () => new Promise<boolean>(resolve => { releases.push(resolve); }),
-    });
-    // Two songs chosen one after the other, each with its policy read held
-    // open; the first song's late answer must not install a verdict for the
-    // second, whichever way it goes.
-    await pickSongByLink("https://pirate.test/p/song-post");
-    await loadSongMetadata();
-    await awaitPlan("ready");
-    await vi.waitFor(() => expect(releases.length).toBe(1));
-    await pickSongByLink("https://pirate.test/p/another-post");
-    await loadSongMetadata();
-    await awaitPlan("ready");
-    await vi.waitFor(() => expect(releases.length).toBe(2));
-    releases[0]!(true);
-    await new Promise(resolve => setTimeout(resolve, 20));
-    // The record control is present but inert: without a song nothing
-    // starts, and the view says what is missing instead.
-    document.querySelector<HTMLButtonElement>('button[aria-label="Start recording"]')?.click();
-    expect(startCapture).not.toHaveBeenCalled();
-    releases[1]!(true);
-    await vi.waitFor(() => expect(document.querySelector('button[aria-label="Start recording"]')).not.toBeNull());
-  });
-
-  test("an unreadable policy is a retryable failure, not a refusal", async () => {
-    let calls = 0;
-    songSetup({
-      preflight: "accepted",
-      mobile: true,
-      songEligibility: async () => { calls += 1; return calls === 1 ? Promise.reject(new Error("offline")) : true; },
-    });
-    await loadSongMetadata();
-    await awaitPlan("ready");
-    await vi.waitFor(() => expect(document.body.textContent).toContain("couldn’t be checked for your profile"));
-    // The record control is present but inert: without a song nothing
-    // starts, and the view says what is missing instead.
-    document.querySelector<HTMLButtonElement>('button[aria-label="Start recording"]')?.click();
-    expect(startCapture).not.toHaveBeenCalled();
-    const retry = [...document.querySelectorAll("button")].find(button => button.textContent === "Try the check again")!;
-    expect(retry).toBeDefined();
-    retry.click();
-    await vi.waitFor(() => expect(document.querySelector('button[aria-label="Start recording"]')).not.toBeNull());
-    expect(document.body.textContent).not.toContain("couldn’t be checked for your profile");
-  });
-
   test("recording survives losing approval and can still be stopped", async () => {
-    const verdict = { allowed: true };
     const guide = guideSpy();
     nextSession = () => fakeSession(() => {});
-    songSetup({ preflight: "accepted", mobile: true, createGuideAudio: () => guide.audio, songEligibility: async () => verdict.allowed });
+    songSetup({ preflight: "accepted", mobile: true, createGuideAudio: () => guide.audio });
     await loadSongMetadata();
     await awaitPlan("ready");
     await startRecording();
-    // The policy flipping against the author mid-take must not remove the
-    // stop control; the take is stopped, never stranded.
-    verdict.allowed = false;
+    // A take in progress keeps its stop control.
     await vi.waitFor(() => expect(document.querySelector('button[aria-label="Stop recording"]')).not.toBeNull());
     await stopRecording();
     await vi.waitFor(() => expect(document.querySelector("textarea")).not.toBeNull());
@@ -850,7 +759,6 @@ describe("mounted song-first video flow", () => {
       clipDurationMs: 16_000,
       deferIntervalChecks: true,
       createGuideAudio: () => guide.audio,
-      songEligibility: async () => true,
     });
     await loadSongMetadata();
     await vi.waitFor(() => expect(fixture.pendingChecks.length).toBe(1), { timeout: 3_000 });

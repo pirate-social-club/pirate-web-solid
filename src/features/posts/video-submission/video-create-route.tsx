@@ -35,7 +35,6 @@ export function VideoCreateRouteView(props: {
   readonly navigate?: (href: string) => void;
   readonly onExit?: () => void;
   /** Story and test seams, passed through to the runtime unchanged. */
-  readonly videoSongEligibility?: (input: { readonly communityId: string; readonly postId: string; readonly personaId: string }) => Promise<boolean>;
   readonly videoSongPreflight?: SongIntervalPreflight;
   readonly videoSongReader?: SongSourceReader;
   readonly videoSongPicker?: SongPickerSource;
@@ -74,6 +73,7 @@ export function VideoCreateRouteView(props: {
             personas: session.personas.map(persona => ({
               id: persona.personaId,
               label: persona.displayName ?? persona.primaryPublicHandle ?? "Profile",
+              communityId: persona.communityBinding?.communityId,
             })),
             communities: memberships
               .filter(membership => membership.membership_status === "member" && membership.can_post === true)
@@ -116,7 +116,6 @@ export function VideoCreateRouteView(props: {
             onExit={() => (props.onExit ? props.onExit() : go("/"))}
             onPosted={() => go("/")}
             onRetainedPersona={() => undefined}
-            readSongEligibility={props.videoSongEligibility}
             songPreflight={props.videoSongPreflight}
             songReader={props.videoSongReader}
             {...(props.videoSongPicker === undefined ? {} : { songPicker: props.videoSongPicker })}
