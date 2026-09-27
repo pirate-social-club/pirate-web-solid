@@ -37,7 +37,7 @@ export function RewardSponsorDialog(props: { communityId: string; postId: string
   const applicationSession = useApplicationSession();
   const [catalog, setCatalog] = createSignal<Catalog>();
   const [personaId, setPersonaId] = createSignal("");
-  const [draft, setDraft] = createSignal<SponsorDraft>({ kind: "megapot_pool", amount: "", perClaim: "", claims: "10", assetAddress: "", activities: "either", minimumScore: "70", ticketCeiling: "", cutoffSeconds: "60", endsAt: "" });
+  const [draft, setDraft] = createSignal<SponsorDraft>({ kind: "megapot_pool", amount: "", perClaim: "", claims: "10", assetAddress: "", activities: "either", minimumScore: "70", ticketCeiling: "", cutoffSeconds: "600", endsAt: "" });
   const [step, setStep] = createSignal<"loading" | "unavailable" | "compose" | "terms" | "resume" | "authorize" | "funding">("loading");
   const [terms, setTerms] = createSignal<Terms>();
   const [busy, setBusy] = createSignal(false);

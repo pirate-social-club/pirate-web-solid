@@ -69,6 +69,7 @@ export function sponsorTerms(
     const score = Number(draft.minimumScore) * 100;
     if (!Number.isInteger(score) || score < 7000 || score > 10000) throw new Error("Choose an additional score floor from 70% to 100%.");
     if (!/^[1-9][0-9]*$/u.test(draft.cutoffSeconds) || !Number.isSafeInteger(Number(draft.cutoffSeconds))) throw new Error("Enter a whole number of cutoff seconds.");
+    if (Number(draft.cutoffSeconds) < 300) throw new Error("Entries must close at least 300 seconds before the drawing so the ticket can be bought safely.");
     leg = { kind: "megapot_pool", input: { path: { offerId: existingOfferId ?? "" }, body: {
       ...common, funding_amount_atomic: rewardAtomic(draft.amount, 6), max_ticket_price_atomic: rewardAtomic(draft.ticketCeiling, 6),
       entry_cutoff_seconds: Number(draft.cutoffSeconds), eligible_activities: [...activities], min_score_bps: score,

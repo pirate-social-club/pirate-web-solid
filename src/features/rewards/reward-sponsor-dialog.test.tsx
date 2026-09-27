@@ -156,7 +156,7 @@ describe("composed sponsor journey", () => {
     const scope = { accountId: "account", personaId: "persona", communityId: "community", postId: "song" };
     const reviewed = sponsorTerms(scope, {
       kind: "megapot_pool", amount: "18", perClaim: "", claims: "10", assetAddress: "",
-      activities: "either", minimumScore: "70", ticketCeiling: "1", cutoffSeconds: "60",
+      activities: "either", minimumScore: "70", ticketCeiling: "1", cutoffSeconds: "600",
       endsAt: "2099-09-15T12:00",
     }, catalog.assets.items, catalog.policies, new Date("2026-09-08T00:00:00Z"));
     const creationApi = dependencies.creationApi(scope);
