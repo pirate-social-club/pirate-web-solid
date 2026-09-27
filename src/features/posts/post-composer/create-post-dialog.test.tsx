@@ -1142,7 +1142,6 @@ test.each([false, true])("retains video authority in global/contextual composer 
 
 describe("video mode capture view", () => {
   test("opens the capture view with Add song, and no posting details above it", async () => {
-    const eligibility = vi.fn(async () => true);
     const disposers: (() => void)[] = [];
     try {
       const { render } = await import("@solidjs/web");
@@ -1159,7 +1158,6 @@ describe("video mode capture view", () => {
           open
           personas={[activePersona("persona-one", "Persona One"), activePersona("persona-two", "Persona Two")]}
           principalId="account-one"
-          videoSongEligibility={eligibility}
         />, container);
       });
       disposers.push(() => { dispose(); container.remove(); });

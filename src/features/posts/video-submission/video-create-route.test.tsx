@@ -39,7 +39,7 @@ const memberships: readonly AccountCommunityMembership[] = [{
 }];
 
 const personas = [
-  { personaId: "persona-one", displayName: "Persona One", avatarRef: null, primaryPublicHandle: "persona-one.pirate", communityBinding: null },
+  { personaId: "persona-one", displayName: "Persona One", avatarRef: null, primaryPublicHandle: "persona-one.pirate", communityBinding: { communityId: "harbor", bindingSource: "first_membership" as const } },
 ];
 
 const session: SessionResolution = { status: "authenticated", userId: "account-one", personas };
@@ -59,13 +59,12 @@ function pickSongByLink() {
   input.dispatchEvent(new Event("input", { bubbles: true }));
 }
 
-async function driveToLoaded(container: HTMLElement, eligibility: (input: { readonly personaId: string }) => Promise<boolean>) {
+async function driveToLoaded(container: HTMLElement) {
   const view = render(() => (
     <VideoCreateRouteView
       loadMemberships={async () => memberships}
       navigate={() => undefined}
       resolveSession={async () => session}
-      videoSongEligibility={eligibility}
       videoSongPreflight={preflight}
       videoSongReader={reader}
     />
@@ -117,20 +116,10 @@ describe("video create route", () => {
     expect(view.querySelector("button[aria-label='Add song']")).toBeNull();
   });
 
-  test("an unreadable policy is a retryable failure on the capture view", async () => {
-    let calls = 0;
-    const view = await driveToLoaded(document.createElement("div"), async () => {
-      calls += 1;
-      return calls === 1 ? Promise.reject(new Error("offline")) : true;
-    });
-    await vi.waitFor(() => expect(calls).toBe(1));
-    const retry = await vi.waitFor(() => {
-      const button = [...view.querySelectorAll("button")].find(candidate => candidate.textContent === "Try the check again");
-      expect(button).toBeDefined();
-      if (!button) throw new Error("eligibility retry is missing");
-      return button;
-    });
-    retry.click();
-    await vi.waitFor(() => expect(calls).toBe(2));
+  test("an accepted excerpt does not show a duplicate profile check failure", async () => {
+    const view = await driveToLoaded(document.createElement("div"));
+    await vi.waitFor(() => expect(view.querySelector('[data-song-plan="ready"]')).not.toBeNull());
+    expect(view.textContent).not.toContain("couldn’t be checked for your profile");
+    expect(view.textContent).not.toContain("Try the check again");
   });
 });

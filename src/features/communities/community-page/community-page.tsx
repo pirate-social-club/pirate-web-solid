@@ -502,6 +502,7 @@ function SuccessState(props: {
       <Link rel="canonical" href={canonicalUrl()} />
       <div class="min-h-[calc(100dvh-4rem)] bg-background">
           <CommunityPageShell
+            onBack={() => navigate("/communities")}
             canJoin
             community={community()}
             createPostBusy={postingBusy()}

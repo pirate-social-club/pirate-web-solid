@@ -17,6 +17,7 @@ export interface ApplicationChromePolicy {
   readonly mobileActiveItem: ApplicationMobileItem;
   readonly mobileTitle: string;
   readonly mode: ApplicationChromeMode;
+  readonly hideMobileHeader?: boolean;
 }
 
 function pathSegments(pathname: string): readonly string[] {
@@ -71,7 +72,7 @@ export function resolveApplicationChrome(pathname: string, viewerProfilePath?: s
     return { activeItemId: "home", mobileActiveItem: "home", mobileTitle: "", mode: "immersive" };
   }
   if (community) {
-    return { activeItemId: "your-communities", mobileActiveItem: "none", mobileTitle: "Community", mode: "standard" };
+    return { activeItemId: "your-communities", mobileActiveItem: "none", mobileTitle: "Community", mode: "standard", hideMobileHeader: segments.length === 2 };
   }
   if (first === "communities") {
     return {

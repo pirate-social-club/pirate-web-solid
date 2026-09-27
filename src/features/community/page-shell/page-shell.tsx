@@ -267,7 +267,7 @@ function CommunityBanner(props: {
       {/* The scrim darkens the lower cover so the overlay controls stay
           readable over a light or busy image. */}
       <div aria-hidden="true" class="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/5 via-transparent to-black/45" />
-      <div class="absolute inset-x-0 top-0 flex items-center justify-between p-3 md:p-5">
+      <div class="absolute inset-x-0 top-0 flex items-center justify-between px-3 pb-3 pt-[calc(env(safe-area-inset-top)+0.75rem)] md:p-5">
         <IconButton aria-label="Go back" class="bg-background/75 text-foreground shadow-sm backdrop-blur-sm" onClick={props.onBack} variant="ghost">
           <IconArrowLeft class="size-5" />
         </IconButton>

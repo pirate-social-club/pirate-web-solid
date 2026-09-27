@@ -41,6 +41,7 @@ export interface MediaShellProps {
   readonly activeItemId?: MediaShellRoute;
   readonly mobileActiveItem?: ShellNavItem | "none";
   readonly mobileTitle?: string;
+  readonly hideMobileHeader?: boolean;
   readonly mode?: ApplicationChromeMode;
   readonly navigate?: (href: string) => void;
   readonly signedIn?: boolean;
@@ -255,6 +256,7 @@ export function ApplicationChrome(props: MediaShellProps) {
         </SheetContent>
       </Sheet>
       <SidebarContent class={immersive() ? "h-[100dvh] overflow-hidden bg-black md:h-screen" : "min-h-[100dvh] bg-background pb-20 md:min-h-screen md:pb-0"}>
+        <Show when={!props.hideMobileHeader}>
         <div class="md:hidden">
           <AppHeader forceMobile hideBrand mobileAppearance={immersive() ? "media-overlay" : "default"}
             mobileCenterContent={<Show when={props.mobileTitle}>{title => <Type as="span" variant="h4" class={immersive() ? "text-white" : undefined}>{title()}</Type>}</Show>}
@@ -263,7 +265,8 @@ export function ApplicationChrome(props: MediaShellProps) {
             showNotificationsAction={false} showProfileAction={false} showWalletAction={false}
           />
         </div>
-        <div class={immersive() ? "h-[100dvh] w-full md:h-screen" : "min-h-[100dvh] w-full pt-[calc(env(safe-area-inset-top)+4rem)] md:min-h-screen md:pt-0"}>{props.children}</div>
+        </Show>
+        <div class={immersive() ? "h-[100dvh] w-full md:h-screen" : props.hideMobileHeader ? "min-h-[100dvh] w-full md:min-h-screen" : "min-h-[100dvh] w-full pt-[calc(env(safe-area-inset-top)+4rem)] md:min-h-screen md:pt-0"}>{props.children}</div>
         <MobileFooterNav
           class="md:hidden"
           forceMobile
