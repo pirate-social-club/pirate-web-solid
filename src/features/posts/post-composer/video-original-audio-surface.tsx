@@ -27,7 +27,8 @@ export type OriginalVideoCaptureStatus =
   | "recording"
   | "camera_denied"
   | "capability_unavailable"
-  | "orientation_lost";
+  | "orientation_lost"
+  | "guide_interrupted";
 
 export interface OriginalVideoCaptureSurfaceProps {
   readonly preview?: JSX.Element;
@@ -44,6 +45,9 @@ export interface OriginalVideoCaptureSurfaceProps {
   readonly songLabel?: string;
   /** Opens the song's excerpt controls. */
   readonly onSongTap?: () => void;
+  /** A state the author must know before recording: a pending check, a
+   * refusal, a retryable failure. Rendered over the viewfinder. */
+  readonly notice?: JSX.Element;
 }
 
 /**
@@ -102,6 +106,15 @@ export function OriginalVideoCaptureSurface(props: OriginalVideoCaptureSurfacePr
                 onAction={props.onRetake}
               />
             </Match>
+            <Match when={status() === "guide_interrupted"}>
+              <CaptureMessage
+                action="Record again"
+                body="The song stopped during recording, so that take was discarded to keep the video in time with the song."
+                icon={<IconArrowsClockwise class="size-7" />}
+                title="That take ended"
+                onAction={props.onRetake}
+              />
+            </Match>
           </Switch>
         </div>
       </div>
@@ -117,7 +130,19 @@ export function OriginalVideoCaptureSurface(props: OriginalVideoCaptureSurfacePr
         </IconButton>
         <div class="flex min-w-0 flex-1 justify-center">
           <Show when={props.songLabel} fallback={
-            <Type as="h1" variant="body-strong" class="text-center text-white">New video</Type>
+            <Show when={props.onSongTap} fallback={
+              <Type as="h1" variant="body-strong" class="text-center text-white">New video</Type>
+            }>
+              <button
+                aria-label="Add song"
+                class="inline-flex min-w-0 max-w-full cursor-pointer items-center gap-2 rounded-full bg-black/45 px-3 py-2 text-sm font-medium text-white backdrop-blur-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                onClick={() => props.onSongTap?.()}
+                type="button"
+              >
+                <IconMusicNote aria-hidden="true" class="size-4 shrink-0" />
+                <span>Add song</span>
+              </button>
+            </Show>
           }>
             {label => (
               <button
@@ -135,6 +160,12 @@ export function OriginalVideoCaptureSurface(props: OriginalVideoCaptureSurfacePr
         </div>
         <span aria-hidden="true" class="size-10" />
       </header>
+
+      <Show when={props.notice}>
+        <div class="absolute inset-x-0 top-[calc(3.75rem+env(safe-area-inset-top))] z-10 px-4">
+          {props.notice}
+        </div>
+      </Show>
 
       <Show when={cameraControls()}>
         <div class="absolute inset-x-0 bottom-0 z-10 px-6 pb-[max(1.5rem,env(safe-area-inset-bottom))]">

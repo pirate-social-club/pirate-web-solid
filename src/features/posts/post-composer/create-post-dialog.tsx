@@ -27,6 +27,10 @@ import {
 import { DEFAULT_SONG_LICENSE } from "./defaults";
 import { PostComposer } from "./post-composer";
 import { VideoComposerRuntime } from "../video-submission/video-composer-runtime";
+import type { OriginalVideoCaptureInput, VideoCaptureSession } from "../video-submission/capture";
+import type { SongIntervalPreflight } from "../video-submission/song-reference";
+import type { SongSourceReader } from "./song-excerpt-source";
+import { OperationPersonaControl } from "../../identity/operation-persona-control/operation-persona-control";
 import { PostComposerSubmission } from "./post-composer-submission";
 import { initialPostComposerState, type PostComposerState } from "./post-composer-state";
 import type { TextContentSubmissionRequestEnvelopeV1 } from "./text-submission-contract";
@@ -115,6 +119,9 @@ export interface CreatePostDialogProps {
   /** Entering from a song post: open on the video track with this song chosen
    * before capture. */
   readonly initialVideoSong?: { readonly postId: string };
+  /** Entering from the global create control: open on the video track with no
+   * song chosen yet; the composer's song step still comes first. */
+  readonly initialMode?: "video";
   readonly open: boolean;
   readonly onOpenChange: (open: boolean) => void;
   readonly onPublished?: (href?: string) => void;
@@ -125,6 +132,23 @@ export interface CreatePostDialogProps {
   readonly mediaTransport?: MediaSubmissionTransport;
   readonly videoStorage?: import("../video-submission/coordinator").VideoStorage;
   readonly videoTransport?: import("../video-submission/transport").VideoTransport;
+  /** The per-persona song owner-policy read the video runtime asks before
+   * capture; injected so tests and stories can stand in for the server. */
+  readonly videoSongEligibility?: (input: { readonly communityId: string; readonly postId: string; readonly personaId: string }) => Promise<boolean>;
+  /** The interval preflight standing in for the server's excerpt checks in
+   * stories and tests; production leaves it to the runtime's own client. */
+  readonly videoSongPreflight?: SongIntervalPreflight;
+  /** The song source read standing in for the song playback grant. */
+  readonly videoSongReader?: SongSourceReader;
+  /** The picker's song list standing in for the community feed. */
+  readonly videoSongPicker?: import("./song-picker").SongPickerSource;
+  /** The take alignment standing in for the guided-take trim. */
+  readonly videoAlignTake?: (file: File, offsetMs: number) => Promise<import("../video-submission/guided-take-alignment").GuidedTakeAlignment>;
+  /** The camera preview standing in for a device camera, so stories can
+   * show the settled capture surface rather than a permission failure. */
+  readonly videoOpenPreview?: () => Promise<MediaStream>;
+  /** The capture session standing in for a real recording. */
+  readonly videoStartCapture?: (input: OriginalVideoCaptureInput) => Promise<VideoCaptureSession>;
   readonly createMediaId?: () => string;
   readonly origin?: string | URL;
   readonly fetchImpl?: typeof fetch;
@@ -155,7 +179,7 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
   const [textAgeGatePolicy, setTextAgeGatePolicy] = createSignal<AuthorAgeGatePolicy>("none");
   const [songAgeGatePolicy, setSongAgeGatePolicy] = createSignal<AuthorAgeGatePolicy>("none");
   const [mode, setMode] = createSignal<ComposerTab>(
-    untrack(() => (props.initialVideoSong ? "video" : "text")),
+    untrack(() => (props.initialVideoSong || props.initialMode === "video" ? "video" : "text")),
   );
   const ageGatePolicy = () => mode() === "song" ? songAgeGatePolicy() : textAgeGatePolicy();
   const setAgeGatePolicy = (next: AuthorAgeGatePolicy) => {
@@ -685,13 +709,19 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
     </Show>
   );
 
+  // The video flow is its own full-screen capture experience — close, sound
+  // and record on one screen, posting details at review — not a tab inside
+  // the scrolling post form. It replaces the form entirely while it runs.
   return (
-    <form
-      aria-label="Create a post"
-      class="fixed inset-0 z-50 overflow-y-auto bg-background px-3 py-4 sm:px-6 sm:py-8"
-      data-create-post-form
-      onSubmit={event => event.preventDefault()}
-    >
+    <Show
+      when={mode() === "video"}
+      fallback={
+      <form
+        aria-label="Create a post"
+        class="fixed inset-0 z-50 overflow-y-auto bg-background px-3 py-4 sm:px-6 sm:py-8"
+        data-create-post-form
+        onSubmit={event => event.preventDefault()}
+      >
       <div class="mx-auto grid w-full max-w-3xl gap-3">
             <Show when={!props.communityContext}>
               <TextField name="community-id" value={communityId()} onChange={setCommunityId}>
@@ -703,25 +733,6 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
             <Show when={personas().length === 0}>
               <FormNote tone="warning">Choose a profile for this community before posting.</FormNote>
             </Show>
-            <Show
-              when={mode() !== "video"}
-              fallback={
-                <Show when={props.principalId}>{account => <VideoComposerRuntime
-                  principalId={account()} communityId={communityId().trim()} personaId={selectedActivePersonaId()}
-                  initialSong={props.initialVideoSong}
-                  storage={props.videoStorage} transport={props.videoTransport} fetchImpl={props.fetchImpl}
-                  onExit={() => setMode("text")} onPublished={props.onPublished}
-                  onRetainedPersona={(personaId, retainedCommunityId) => {
-                    if (personaId !== null) {
-                      setVideoPersonaId(personaId);
-                      // A contextual composer keeps its page community; the
-                      // runtime then reports the retained video's mismatch.
-                      if (retainedCommunityId && !props.communityContext) setCommunityId(retainedCommunityId);
-                    }
-                  }}
-                />}</Show>
-              }
-            >
               <Show when={!showUploadRecovery()} fallback={
                 <section aria-labelledby="upload-recovery-title" class="mx-auto flex min-h-[calc(100dvh-2rem)] w-full max-w-md flex-col px-2 pb-4">
                   <div class="flex justify-end"><Button disabled={mediaBusy()} onClick={() => close(false)} type="button" variant="ghost">Close</Button></div>
@@ -794,8 +805,49 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
                 validateDraftBeforeSubmit={mode() !== "text"}
               />
               </Show>
-            </Show>
         </div>
       </form>
+      }
+    >
+      <Show
+        when={props.principalId}
+        fallback={
+          <div class="fixed inset-0 z-50 grid place-items-center bg-background p-6" data-create-video-signed-out>
+            <FormNote tone="warning">Sign in to post a video.</FormNote>
+          </div>
+        }
+      >
+        {account => (
+          <VideoComposerRuntime
+            principalId={account()}
+            communityId={communityId().trim() || undefined}
+            communityName={props.communityContext?.name}
+            personaId={videoPersonaId()}
+            personaOptions={personas().map(persona => ({
+              id: persona.personaId,
+              label: persona.displayName ?? persona.primaryPublicHandle ?? "Profile",
+            }))}
+            initialSong={props.initialVideoSong}
+            storage={props.videoStorage} transport={props.videoTransport} fetchImpl={props.fetchImpl}
+            readSongEligibility={props.videoSongEligibility}
+            songPreflight={props.videoSongPreflight}
+            songReader={props.videoSongReader}
+            {...(props.videoSongPicker === undefined ? {} : { songPicker: props.videoSongPicker })}
+            alignTake={props.videoAlignTake}
+            openPreview={props.videoOpenPreview}
+            startCapture={props.videoStartCapture}
+            onExit={() => setMode("text")} onPublished={props.onPublished}
+            onRetainedPersona={(personaId, retainedCommunityId) => {
+              if (personaId !== null) {
+                setVideoPersonaId(personaId);
+                // A contextual composer keeps its page community; the
+                // runtime then reports the retained video's mismatch.
+                if (retainedCommunityId && !props.communityContext) setCommunityId(retainedCommunityId);
+              }
+            }}
+          />
+        )}
+      </Show>
+    </Show>
   );
 }

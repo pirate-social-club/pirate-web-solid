@@ -111,7 +111,7 @@ const standInSongList: readonly SongPickerItem[] = [
   { postId: "low-tide-post", title: "Low Tide", artist: "drift-reef.pirate", artworkSrc: null },
   { postId: "harbor-lights-post", title: "Harbor Lights", artist: "night-owl.pirate", artworkSrc: null },
 ];
-const standInSongs: SongPickerSource = async () => standInSongList;
+const standInSongs: SongPickerSource = async () => ({ songs: standInSongList, nextCursor: null });
 
 /** Accepts every excerpt, standing in for the server's rights check. */
 const standInPreflight: SongIntervalPreflight = async input => ({
@@ -131,6 +131,23 @@ export const ChooseHearAndRetain: Story = {
       communityId="community-story"
       onClose={() => {}}
       songs={standInSongs}
+      read={standInReader("Cadence", 150_000)}
+      preflight={standInPreflight}
+      store={memoryStore()}
+    />
+  ),
+};
+
+/** The community's songs a feed page at a time: Load more reaches the next
+ * page, and the search says it covers loaded songs only while pages remain. */
+export const PagedSongChoice: Story = {
+  render: () => (
+    <SongExcerptComposer
+      communityId="community-story"
+      onClose={() => {}}
+      songs={async (_communityId, cursor) => cursor === null
+        ? { songs: standInSongList.slice(0, 2), nextCursor: "story-page-2" }
+        : { songs: standInSongList.slice(2), nextCursor: null }}
       read={standInReader("Cadence", 150_000)}
       preflight={standInPreflight}
       store={memoryStore()}
@@ -182,7 +199,7 @@ export const NoSongsYet: Story = {
   render: () => (
     <SongExcerptComposer
       communityId="community-story"
-      songs={async () => []}
+      songs={async () => ({ songs: [], nextCursor: null })}
       read={standInReader("Cadence", 150_000)}
       store={memoryStore()}
     />

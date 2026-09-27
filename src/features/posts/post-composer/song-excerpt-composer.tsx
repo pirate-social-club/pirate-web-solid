@@ -392,8 +392,11 @@ export function SongExcerptComposer(props: {
     }
   };
 
-  const submitLink = () => {
-    const parsed = parseSongLink(link());
+  // The value is passed in rather than re-read from the signal: a write is
+  // not visible to a same-tick read under the current signals runtime, so
+  // the just-pasted link would parse as empty.
+  const submitLink = (pending?: string) => {
+    const parsed = parseSongLink(pending ?? link());
     if (parsed.kind === "unsupported") {
       setLinkProblem(parsed.reason);
       return;
@@ -510,6 +513,10 @@ export function SongExcerptComposer(props: {
         return `Your video will use ${excerptClock(current.selection.clipStartSamples, current.selection.clipStartSamples + current.selection.clipDurationSamples)} of this song.`;
     }
   };
+  /** The plan message shows only what the author can act on: a refusal, a
+   * failure, a song that cannot be measured. A pending check is machinery —
+   * moving the scrubber fires one on every adjustment — and surfaces only on
+   * the confirm action, never as ambient text. */
   const showPlanMessage = () => !preflight || !["none", "checking", "ready"].includes(plan().kind);
 
   const readyOf = (state: SongSourceState) => (state.kind === "ready" ? state : undefined);
@@ -527,7 +534,7 @@ export function SongExcerptComposer(props: {
         <SongPicker
           communityId={communityId}
           linkProblem={linkProblem()}
-          onLink={(value) => { setLink(value); submitLink(); }}
+          onLink={(value) => { setLink(value); submitLink(value); }}
           onPick={(postId) => { setLinkProblem(undefined); void loadSong({ kind: "post", postId }); }}
           onClose={props.onClose}
           preview={async (postId, signal) => (await reader({ kind: "post", postId }, signal)).audioUrl}
@@ -610,7 +617,7 @@ export function SongExcerptComposer(props: {
               data-song-plan={preflight ? plan().kind : "unchecked"}
             >
               <Show when={showPlanMessage()}>
-                <Type as="p" variant="caption" role={plan().kind === "measuring" ? "status" : "alert"}>
+                <Type as="p" variant="caption" role={plan().kind === "measuring" || plan().kind === "checking" ? "status" : "alert"}>
                   {preflight ? planText() : "This song can’t be checked here, so the video can’t be posted yet."}
                 </Type>
                 <Show when={plan().kind === "failed" && currentPostId()}>

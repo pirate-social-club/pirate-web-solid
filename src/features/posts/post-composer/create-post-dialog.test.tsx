@@ -1122,7 +1122,12 @@ test.each([false, true])("retains video authority in global/contextual composer 
     expect(tab).toBeDefined(); await vi.waitFor(() => expect(tab.disabled).toBe(false)); tab.focus(); tab.click();
     await vi.waitFor(() => expect(document.body.textContent).toContain("Resume video submission"));
     expect(pickerClick).not.toHaveBeenCalled();
-    if (!contextual) expect(document.querySelector<HTMLInputElement>('input[name="community-id"]')?.value).toBe("retained-community");
+    if (!contextual) {
+      // The video flow has no community field: the retained video's
+      // community is adopted internally and surfaces through the runtime's
+      // mismatch reporting, not through an editable input.
+      expect(document.querySelector<HTMLInputElement>('input[name="community-id"]')).toBeNull();
+    }
     const resume = [...document.querySelectorAll("button")].find(button => button.textContent?.includes("Resume video submission"))!;
     await vi.waitFor(() => expect(resume.disabled).toBe(false)); resume.click();
     if (contextual) {
@@ -1133,4 +1138,43 @@ test.each([false, true])("retains video authority in global/contextual composer 
       expect(fetchImpl).toHaveBeenCalledOnce();
     }
   } finally { for (const dispose of disposers.splice(0)) dispose(); pickerClick.mockRestore(); vi.stubGlobal("crypto", originalCrypto); vi.stubGlobal("URL", originalUrl); }
+});
+
+describe("video mode capture view", () => {
+  test("opens the capture view with Add song, and no posting details above it", async () => {
+    const eligibility = vi.fn(async () => true);
+    const disposers: (() => void)[] = [];
+    try {
+      const { render } = await import("@solidjs/web");
+      const { createRoot } = await import("solid-js");
+      const container = document.createElement("div");
+      document.body.appendChild(container);
+      let dispose = () => {};
+      createRoot((rootDispose) => {
+        dispose = rootDispose;
+        render(() => <CreatePostDialog
+          communityContext={{ id: "community-one", name: "Harbor" }}
+          initialMode="video"
+          onOpenChange={() => {}}
+          open
+          personas={[activePersona("persona-one", "Persona One"), activePersona("persona-two", "Persona Two")]}
+          principalId="account-one"
+          videoSongEligibility={eligibility}
+        />, container);
+      });
+      disposers.push(() => { dispose(); container.remove(); });
+      // The capture view is the dialog: its own Add song control, and the
+      // posting details wait for review rather than sitting above it.
+      const addSound = await vi.waitFor(() => {
+        const button = document.querySelector<HTMLButtonElement>("button[aria-label='Add song']");
+        expect(button).not.toBeNull();
+        return button!;
+      });
+      expect(document.querySelector("[data-operation-persona]")).toBeNull();
+      addSound.click();
+      await vi.waitFor(() => expect(document.querySelector('input[aria-label="Search songs"]')).not.toBeNull());
+    } finally {
+      for (const dispose of disposers.splice(0)) dispose();
+    }
+  });
 });

@@ -37,6 +37,7 @@ function YourCommunityListItem(props: {
       <Show when={routeLabel()}>{label => <Type as="div" variant="caption" class="truncate">{label()}</Type>}</Show>
     </div>
   </>;
+  const selectClasses = "flex min-w-0 flex-1 items-center gap-3 text-start transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring";
   return (
     <div
       class="flex w-full items-center gap-3 border-b border-border-soft py-4 last:border-b-0"
@@ -44,7 +45,7 @@ function YourCommunityListItem(props: {
       id={`community-${community().communityId}`}
     >
       <Show when={community().resourceHref} fallback={<div class="flex min-w-0 flex-1 items-center gap-3">{content()}</div>}>
-        <button class="flex min-w-0 flex-1 items-center gap-3 text-start transition-colors hover:text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" onClick={() => props.onSelectCommunity(community())} type="button">
+        <button class={selectClasses} onClick={() => props.onSelectCommunity(community())} type="button">
           {content()}
         </button>
       </Show>

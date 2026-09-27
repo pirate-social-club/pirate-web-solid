@@ -1,10 +1,13 @@
-import { createEffect, createMemo, createSignal, onCleanup, Show, untrack } from "solid-js";
-import { Button, FormNote } from "../../../design-system";
+import { createEffect, createMemo, createSignal, For, onCleanup, Show, untrack } from "solid-js";
+import { Button, cn, FormNote, Type } from "../../../design-system";
+import { OperationPersonaControl } from "../../identity/operation-persona-control/operation-persona-control";
 import { type ExcerptBounds, formatExcerptTime } from "../post-composer/song-excerpt";
 import { SongExcerptComposer, type SoundtrackSelection } from "../post-composer/song-excerpt-composer";
 import { createLocalExcerptDraftStore } from "../post-composer/song-excerpt-draft-store";
 import type { SongSourceReader } from "../post-composer/song-excerpt-source";
+import type { SongPickerSource } from "../post-composer/song-picker";
 import { OriginalVideoCaptureSurface, OriginalVideoReviewSurface } from "../post-composer/video-original-audio-surface";
+import { readSongVideoPolicy } from "../public-post/song-video-entry";
 import type { OriginalVideoCaptureInput, VideoCaptureSession } from "./capture";
 import { captureStopAfterMs, clipFitMessage, fitClipToExcerpt, GUIDED_TAKE_MAX_DURATION_SECONDS, songLengthForClip } from "./clip-duration";
 import type { VideoSnapshot } from "./contracts";
@@ -68,10 +71,27 @@ export const GUIDE_START_TIMEOUT_MS = 1_500;
  * lip-sync offset; it cannot be corrected later. */
 export const GUIDE_START_MAX_DELAY_MS = 750;
 
+/** A posting identity or destination offered on the review step. */
+export interface VideoPostingOption {
+  readonly id: string;
+  readonly label: string;
+}
+
 export function VideoComposerRuntime(props: {
   readonly principalId: string;
-  readonly communityId: string;
+  /** A contextual entry's fixed community. The global entry leaves it unset
+   * and the author chooses the destination on review. */
+  readonly communityId?: string;
   readonly personaId?: string;
+  /** The profiles that may author this video, when the host knows them; two
+   * or more offer the choice on review, and a change re-checks eligibility. */
+  readonly personaOptions?: readonly VideoPostingOption[];
+  /** The communities this video may be posted to, when the host offers the
+   * choice; a change re-checks eligibility. */
+  readonly communityOptions?: readonly VideoPostingOption[];
+  /** The contextual entry's community name, shown on review when the
+   * destination is fixed. */
+  readonly communityName?: string;
   readonly onExit: () => void;
   readonly onRetainedPersona: (personaId: string | null, communityId?: string) => void;
   readonly onPublished?: () => void;
@@ -109,6 +129,17 @@ export function VideoComposerRuntime(props: {
   readonly fetchImpl?: typeof fetch;
   readonly songPreflight?: SongIntervalPreflight;
   readonly songReader?: SongSourceReader;
+  /** The picker's song source; production leaves it to the community feed
+   * read, stories and tests stand in for it. */
+  readonly songPicker?: SongPickerSource;
+  /** The owner-policy read for one persona and song, asked before capture.
+   * The interval preflight carries no persona, so this is the check that
+   * catches an owner-only or persona-restricted song before a take exists. */
+  readonly readSongEligibility?: (input: {
+    readonly communityId: string;
+    readonly postId: string;
+    readonly personaId: string;
+  }) => Promise<boolean>;
   /** Entering from a song post: the song is chosen before capture and the
    * recording plays it as a guide. */
   readonly initialSong?: { readonly postId: string };
@@ -121,7 +152,7 @@ export function VideoComposerRuntime(props: {
   const [busy, setBusy] = createSignal(true);
   const [error, setError] = createSignal("");
   const [progress, setProgress] = createSignal("");
-  const [captureStatus, setCaptureStatus] = createSignal<"idle" | "recording" | "camera_denied" | "capability_unavailable" | "orientation_lost">("idle");
+  const [captureStatus, setCaptureStatus] = createSignal<"idle" | "recording" | "camera_denied" | "capability_unavailable" | "orientation_lost" | "guide_interrupted">("idle");
   const [stream, setStream] = createSignal<MediaStream | null>(null);
   // The chosen excerpt and the audio that will replace the recording, both
   // reported by the excerpt composer. They survive the move from choosing to
@@ -147,17 +178,21 @@ export function VideoComposerRuntime(props: {
   // ruling 2026-09-24), so once a song loads it stays the choice through
   // pending checks and song switches.
   const [songChoice, setSongChoice] = createSignal<SongChoice>({ kind: "none" });
-  // Entering from a song post, the song is already chosen: its excerpt
-  // controls stay folded behind the song pill unless the author opens them or
-  // something about the song needs their decision.
-  const [songPanelOpen, setSongPanelOpen] = createSignal(false);
-  let songPanel: HTMLDivElement | undefined;
-  /** Opens or closes the song controls, bringing them into view when opened. */
-  const toggleSongPanel = () => {
-    const opening = !songPanelOpen();
-    setSongPanelOpen(opening);
-    if (opening) queueMicrotask(() => songPanel?.scrollIntoView?.({ block: "start", behavior: "smooth" }));
-  };
+  // The sound sheet: choosing a song, trimming its excerpt and reading the
+  // server's verdicts all happen there, over the capture view. Its content
+  // stays mounted so the draft survives closes.
+  const [songSheetOpen, setSongSheetOpen] = createSignal(false, { ownedWrite: true });
+  // The posting identity and destination. A contextual entry fixes them; the
+  // global entry seeds them from the first option and the author changes
+  // them on review; any change re-checks eligibility.
+  const [chosenCommunityId, setChosenCommunityId] = createSignal(
+    props.communityId?.trim() || props.communityOptions?.[0]?.id || "",
+    { ownedWrite: true },
+  );
+  const [chosenPersonaId, setChosenPersonaId] = createSignal(
+    props.personaId?.trim() || props.personaOptions?.[0]?.id || "",
+    { ownedWrite: true },
+  );
   let picker: HTMLInputElement | undefined;
   let session: VideoCaptureSession | null = null;
   // The live camera shown before a take. Recording takes it over; anything
@@ -181,6 +216,13 @@ export function VideoComposerRuntime(props: {
     onChange: next => {
       if (disposed) return;
       setRecord(next); props.onRetainedPersona(next?.personaId ?? null, next?.communityId);
+      // A retained video knows its own community and persona; the global
+      // entry adopts them so the mismatch is about real changes, not about
+      // choices that were never made.
+      if (next !== null) {
+        if (next.communityId && !chosenCommunityId()) setChosenCommunityId(next.communityId);
+        if (next.personaId && !chosenPersonaId()) setChosenPersonaId(next.personaId);
+      }
       if (next?.snapshot?.status === "published" && next.snapshot.published_resource.post_id !== publishedId) {
         publishedId = next.snapshot.published_resource.post_id; props.onPublished?.();
       }
@@ -220,15 +262,20 @@ export function VideoComposerRuntime(props: {
   const songActive = () => songChoice().kind !== "none";
   /** Every video uses a song, so the camera waits until one is chosen. */
   const songChosen = () => songActive() && selection() !== null;
+  /** Whether the sound sheet holds something the author must act on or wait
+   * on: a pending or refused check, a profile refusal or an unreadable
+   * policy. The capture view shows these as its notice as well, but the
+   * controls that resolve them live in the sheet. */
   const songNeedsAttention = () => {
     const kind = songPlan().kind;
     return selection() === null
+      || kind === "checking" || kind === "measuring"
       || kind === "not_available" || kind === "timing_unavailable" || kind === "refused"
       || kind === "ineligible" || kind === "failed"
+      || eligibilityDenied() || eligibilityFailed()
       // A take that cannot publish with the song needs the choice below it.
       || takeMismatch() || (takeSoundtrack() !== null && takeAlignment() === "unaligned") || clipProblem() !== undefined;
   };
-  const songPanelVisible = () => !props.initialSong || songPanelOpen() || songNeedsAttention();
   const songLabel = () => {
     const current = selection();
     return songActive() && current ? `${current.title} · ${windowSpan(current.bounds)}` : undefined;
@@ -258,6 +305,96 @@ export function VideoComposerRuntime(props: {
     }
     return plan.selection;
   });
+  /** The owner-policy verdict for one exact community, song and persona,
+   * stored with the key it answered, so a verdict for an input the author
+   * has already changed away from is never treated as current. "Use this
+   * song" asks the same question at its entry; the global entry asks it
+   * here, because the interval preflight is account-scoped and cannot see
+   * persona restrictions. A missing persona keeps capture closed, an
+   * unreadable answer is distinct from a refusal so it can be retried, and
+   * both fail closed. */
+  interface EligibilityKey {
+    readonly communityId: string;
+    readonly postId: string;
+    readonly personaId: string;
+  }
+  type SongEligibility =
+    | { readonly kind: "unknown" }
+    | { readonly kind: "checking" | "allowed" | "denied" | "failed"; readonly key: EligibilityKey };
+  const [songEligibility, setSongEligibility] = createSignal<SongEligibility>({ kind: "unknown" }, { ownedWrite: true });
+  const [songEligibilityAttempt, setSongEligibilityAttempt] = createSignal(0, { ownedWrite: true });
+  let eligibilityRequest = 0;
+  /** The chosen song's id alone: excerpt bounds change the selection object
+   * on every scrub, and a verdict must not be re-asked for the same song,
+   * profile and community each time the window moves. */
+  const selectedSongPostId = createMemo(() => selection()?.songPostId);
+  const eligibilityKey = (): EligibilityKey | undefined => {
+    const song = selectedSongPostId();
+    const personaId = chosenPersonaId();
+    const communityId = chosenCommunityId();
+    return song !== undefined && personaId !== undefined && personaId !== "" && communityId !== undefined && communityId !== ""
+      ? { communityId, postId: song, personaId }
+      : undefined;
+  };
+  const sameEligibilityKey = (left: EligibilityKey, right: EligibilityKey) =>
+    left.communityId === right.communityId && left.postId === right.postId && left.personaId === right.personaId;
+  const retrySongEligibility = () => { setSongEligibilityAttempt(attempt => attempt + 1); };
+  let eligibilityAttemptSeen = -1;
+  createEffect(
+    () => ({ key: eligibilityKey(), attempt: songEligibilityAttempt() }),
+    ({ key, attempt }) => {
+      // Every run invalidates any read still in flight, including the run
+      // that finds no key at all: an old answer must never install a verdict.
+      const epoch = ++eligibilityRequest;
+      if (key === undefined) {
+        setSongEligibility({ kind: "unknown" });
+        return;
+      }
+      // A settled verdict for exactly this key stands unless the author asked
+      // for a retry; re-running the read would only race it.
+      if (attempt === eligibilityAttemptSeen) {
+        const settled = untrack(songEligibility);
+        if ((settled.kind === "allowed" || settled.kind === "denied" || settled.kind === "failed")
+          && sameEligibilityKey(settled.key, key)) {
+          return;
+        }
+      }
+      eligibilityAttemptSeen = attempt;
+      setSongEligibility({ kind: "checking", key });
+      void (props.readSongEligibility ?? readSongVideoPolicy)(key).then(
+        allowed => { if (!disposed && epoch === eligibilityRequest) setSongEligibility({ kind: allowed ? "allowed" : "denied", key }); },
+        () => { if (!disposed && epoch === eligibilityRequest) setSongEligibility({ kind: "failed", key }); },
+      );
+    },
+  );
+  const eligibilityAllowed = () => {
+    const verdict = songEligibility();
+    const key = eligibilityKey();
+    return verdict.kind === "allowed" && key !== undefined && sameEligibilityKey(verdict.key, key);
+  };
+  const eligibilityDenied = () => {
+    const verdict = songEligibility();
+    const key = eligibilityKey();
+    return verdict.kind === "denied" && key !== undefined && sameEligibilityKey(verdict.key, key);
+  };
+  const eligibilityFailed = () => {
+    const verdict = songEligibility();
+    const key = eligibilityKey();
+    return verdict.kind === "failed" && key !== undefined && sameEligibilityKey(verdict.key, key);
+  };
+  const eligibilityChecking = () => {
+    const verdict = songEligibility();
+    const key = eligibilityKey();
+    return (verdict.kind === "checking" && key !== undefined && sameEligibilityKey(verdict.key, key))
+      || (verdict.kind === "unknown" && key !== undefined);
+  };
+  /** Whether recording or upload may start: a song and excerpt are chosen,
+   * the server has accepted exactly that selection, and the chosen profile
+   * is allowed to post a video to that song. A pending or refused plan, an
+   * approval for a window the author has moved away from, or an unanswered
+   * profile question keeps both capture channels closed; the reservation
+    * still re-checks at publish. */
+  const captureReady = () => songChosen() && approvedSelection() !== undefined && eligibilityAllowed();
   /** The excerpt a guided take was recorded to, when one was. A take danced to
    * one window cannot be published against another. */
   const [takeSoundtrack, setTakeSoundtrack] = createSignal<{ readonly songPostId: string; readonly bounds: ExcerptBounds } | null>(null);
@@ -291,8 +428,15 @@ export function VideoComposerRuntime(props: {
   // listened for: it only says the download paused, and playback continues
   // from what is buffered. The excerpt is loaded before the take starts.
   let guidePlaying = false;
+  let guideWaitTimer: ReturnType<typeof setTimeout> | undefined;
+  // `waiting` may be a short buffer transition while playback keeps moving.
+  // Confirm a real gap before discarding the take, while limiting drift.
+  const GUIDE_WAIT_CONFIRM_MS = 80;
+  const GUIDE_WAIT_MIN_PROGRESS_SECONDS = 0.04;
   const onGuidePlaying = () => { guidePlaying = true; };
   const stopGuide = () => {
+    if (guideWaitTimer !== undefined) clearTimeout(guideWaitTimer);
+    guideWaitTimer = undefined;
     const audio = guideAudio;
     guideAudio = undefined;
     guidePlaying = false;
@@ -304,13 +448,19 @@ export function VideoComposerRuntime(props: {
   };
   const onGuideFailure = () => {
     if (disposed) return;
-    void stopCapture("The guide song stopped unexpectedly, so the recording ended.");
+    void cancelInterruptedTake();
   };
-  /** Playback waiting for data mid-take means the guide is no longer keeping
-   * time with the recording; the take ends rather than drifting silently. */
+  /** A sustained playback gap would put the author behind the final song. */
   const onGuideInterrupted = () => {
-    if (disposed || !guidePlaying) return;
-    void stopCapture("The guide song stalled, so this recording ended.");
+    const audio = guideAudio;
+    if (disposed || !guidePlaying || !audio || guideWaitTimer !== undefined) return;
+    const before = audio.currentTime;
+    guideWaitTimer = setTimeout(() => {
+      guideWaitTimer = undefined;
+      if (disposed || guideAudio !== audio || !session) return;
+      if (audio.currentTime - before >= GUIDE_WAIT_MIN_PROGRESS_SECONDS) return;
+      void cancelInterruptedTake();
+    }, GUIDE_WAIT_CONFIRM_MS);
   };
   const createGuide = (url: string): GuideAudio => props.createGuideAudio ? props.createGuideAudio(url) : new Audio(url);
   /** Loads the excerpt before the camera starts, so a take never begins on a
@@ -385,6 +535,9 @@ export function VideoComposerRuntime(props: {
 
   async function chooseFile(next: File | undefined) {
     if (!next || record()) return;
+    // The upload channel shares the capture gate: a take must not be sealed
+    // against an excerpt the server has not accepted for this profile.
+    if (!captureReady()) return;
     await run(async () => {
       await session?.cancel(); session = null; closePreview(); setStream(null); setCaptureStatus("idle");
       stopGuide();
@@ -456,8 +609,39 @@ export function VideoComposerRuntime(props: {
     // finalization cannot clear it.
     if (reason && !disposed) setError(reason);
   }
+  /** An interrupted guide invalidates the take. It must never enter review or
+   * become a retained video; the chosen song remains ready for another try. */
+  async function cancelInterruptedTake() {
+    const current = session;
+    if (!current) return;
+    session = null;
+    stopGuide();
+    setTakeSoundtrack(null);
+    setTakeAlignment("none");
+    guideStarted = false;
+    guideStartExceeded = false;
+    if (!disposed) {
+      setStream(null);
+      setError("");
+      setCaptureStatus("guide_interrupted");
+    }
+    await current.cancel().catch(() => {});
+  }
+  /** A guide prepared from one exact excerpt is only usable while that exact
+   * excerpt is still the chosen one: a take danced to one window cannot be
+   * started against another, however quickly the new window is approved. */
+  function guideStillCurrent(guide: SoundtrackSelection): boolean {
+    const current = selection();
+    return current !== null
+      && current.songPostId === guide.songPostId
+      && current.bounds.startMs === guide.bounds.startMs
+      && current.bounds.endMs === guide.bounds.endMs;
+  }
+
   async function toggleCapture() {
+    // Stopping is always available; only starting is gated on acceptance.
     if (session) { await stopCapture(); return; }
+    if (!captureReady()) return;
     await run(async () => {
       const startCapture = props.startCapture
         ?? (async (input: OriginalVideoCaptureInput) => (await import("./capture")).startOriginalVideoCapture(input));
@@ -470,6 +654,11 @@ export function VideoComposerRuntime(props: {
         setProgress("Loading the song…");
         const ready = await prepareGuide(guide);
         if (disposed) return;
+        // The song panel can change while the guide loads; the approval that
+        // opened the capture surface is not a license that survives it, and
+        // a newly approved excerpt must not be recorded against the guide
+        // prepared for the old one.
+        if (!captureReady() || !guideStillCurrent(guide)) return;
         setProgress("");
         if (!ready) throw new Error("The song didn't finish loading, so recording didn't start. Check your connection and try again.");
         prepared = ready;
@@ -491,6 +680,11 @@ export function VideoComposerRuntime(props: {
       let current: VideoCaptureSession;
       captureStarting = true;
       try {
+        // The last synchronous boundary before the camera rolls: every await
+        // above could have raced a song-panel change, so both the gate and
+        // the guide's identity are asked once more, immediately before the
+        // take begins.
+        if (!captureReady() || (guide !== null && !guideStillCurrent(guide))) { captureStarting = false; return; }
         current = await startCapture({
           onFailure: failure => {
             session = null; stopGuide();
@@ -560,9 +754,9 @@ export function VideoComposerRuntime(props: {
   async function publish() {
     await run(async () => {
       const retained = coordinator.current;
-      if (retained && (retained.communityId !== props.communityId || retained.personaId !== props.personaId)) throw new Error("Resolve this retained video with its original community and persona");
+      if (retained && (retained.communityId !== chosenCommunityId() || retained.personaId !== chosenPersonaId())) throw new Error("Resolve this retained video with its original community and persona");
       if (!retained) {
-        const selected = file(); if (!selected || !props.personaId || !props.communityId) throw new Error("Choose a community, persona and compatible video");
+        const selected = file(); if (!selected || !chosenPersonaId() || !chosenCommunityId()) throw new Error("Choose a community, persona and compatible video");
         const plan = songPlan();
         // Every video references a song. Publishing waits for a chosen song
         // and the server's acceptance of its excerpt.
@@ -586,7 +780,7 @@ export function VideoComposerRuntime(props: {
           throw new Error("This take could not be aligned to the song. Record it again.");
         }
         await coordinator.begin({
-          communityId: props.communityId, personaId: props.personaId, file: selected,
+          communityId: chosenCommunityId(), personaId: chosenPersonaId(), file: selected,
           caption: caption(), rating: rating(), song: approved,
         });
       }
@@ -652,10 +846,11 @@ export function VideoComposerRuntime(props: {
   createEffect(() => stream(), media => {
     if (viewfinder && viewfinder.isConnected) showLive(viewfinder, media);
   });
-  // The camera opens when the capture screen shows, once a song is chosen,
-  // not when recording starts: the author frames the shot first. It closes when the screen goes
-  // away and reopens after a retake.
-  createEffect(() => mobile && songChosen() && pageVisible() && !record() && !file() && captureStatus() === "idle" && !finalizing(), capturing => {
+  // The camera opens when the capture screen shows, once the chosen excerpt
+  // has been accepted by the server, not when recording starts: the author
+  // frames the shot first. It closes when the screen goes away, and again
+  // while a moved window waits for a new acceptance.
+  createEffect(() => mobile && captureReady() && pageVisible() && !record() && !file() && captureStatus() === "idle" && !finalizing(), capturing => {
     if (!capturing) {
       // The camera stops now; the viewfinder signal is cleared outside the
       // effect's owned scope.
@@ -676,7 +871,7 @@ export function VideoComposerRuntime(props: {
       if (disposed) { previewOpening = false; return; }
       void open().then(media => {
         previewOpening = false;
-        const stillCapturing = !disposed && !session && !captureStarting && !record() && !file()
+        const stillCapturing = !disposed && !session && !captureStarting && !record() && !file() && captureReady()
           && captureStatus() === "idle" && document.visibilityState !== "hidden";
         if (!stillCapturing || previewStream) { stopTracks(media); return; }
         previewStream = media;
@@ -712,63 +907,161 @@ export function VideoComposerRuntime(props: {
     return undefined;
   };
   const songReserved = () => { const reservation = record()?.reservation; return reservation?.intent === "song_reference" ? reservation : undefined; };
+  const openSongSheet = () => setSongSheetOpen(true);
+  /** Confirming the sound: an accepted excerpt closes the sheet; anything
+   * still pending puts its progress on the confirm button and closes by
+   * itself once the exact excerpt is accepted; a refusal keeps the sheet
+   * open with its actions. */
+  const [confirmingSound, setConfirmingSound] = createSignal(false, { ownedWrite: true });
+  const confirmSound = () => {
+    if (approvedSelection() !== undefined) {
+      setConfirmingSound(false);
+      setSongSheetOpen(false);
+      return;
+    }
+    const kind = songPlan().kind;
+    if (kind === "checking" || kind === "measuring" || eligibilityChecking()) setConfirmingSound(true);
+  };
+  createEffect(
+    () => ({ confirming: confirmingSound(), approved: approvedSelection() !== undefined, settled: songPlan().kind }),
+    ({ confirming, approved, settled }) => {
+      if (!confirming) return;
+      if (approved) {
+        setConfirmingSound(false);
+        setSongSheetOpen(false);
+        return;
+      }
+      if (settled === "refused" || settled === "failed" || settled === "ineligible" || settled === "not_available" || settled === "timing_unavailable") {
+        setConfirmingSound(false);
+      }
+    },
+  );
+  /** The states the author must know about before recording, shown over the
+   * capture view. Pending checks are machinery, not information: they say
+   * nothing here and surface only on the sound sheet's confirm action. */
+  const captureNotice = () => {
+    if (file()) return undefined;
+    if (chosenPersonaId() === "") return <p class="rounded-[var(--radius-lg)] bg-black/60 px-3 py-2 text-center text-sm text-white" role="status">Choose a profile before recording.</p>;
+    if (eligibilityFailed()) {
+      return (
+        <div class="grid gap-2" role="alert">
+          <FormNote tone="warning">This song couldn’t be checked for your profile. Nothing was recorded.</FormNote>
+          <Button onClick={retrySongEligibility} size="sm" type="button" variant="secondary">Try the check again</Button>
+        </div>
+      );
+    }
+    if (eligibilityDenied() && approvedSelection() !== undefined && !takeMismatch()) {
+      return (
+        <div class="grid gap-2" role="alert">
+          {/* The owner-policy read answers one boolean for several causes —
+           * membership, capability and the owner's own setting among them —
+           * so the message states the fact it knows and stays neutral about
+           * the reason. */}
+          <FormNote tone="warning">This profile can’t post a video to this song here. Choose another song, or switch profile and check again.</FormNote>
+          <Button onClick={openSongSheet} size="sm" type="button" variant="secondary">Change song</Button>
+        </div>
+      );
+    }
+    return undefined;
+  };
   return <section class="grid gap-3" aria-label="Video composer">
     <input ref={element => { picker = element; }} hidden type="file" accept="video/mp4,video/quicktime,.mp4,.mov" onChange={event => { void chooseFile(event.currentTarget.files?.[0]); event.currentTarget.value = ""; }} />
     <Show when={error()}>{message => <FormNote tone="warning">{message()}</FormNote>}</Show>
     <Show when={busy() && progress()}><p role="status">{progress()}</p></Show>
     <Show when={editing()}>
-      {/* The soundtrack step comes first, always. Its window is the length of
-          the recording, so choosing it before capture is what lets the guide
-          play and the take stop with the excerpt. */}
-      <div ref={element => { songPanel = element; }} hidden={!songPanelVisible()} class="grid gap-3">
-      <fieldset class="contents" disabled={captureStatus() === "recording" || finalizing()}>
-      <section aria-label="Soundtrack">
-        <SongExcerptComposer store={excerptStore} read={props.songReader} communityId={props.communityId}
-          disabled={captureStatus() === "recording" || finalizing()}
-          onClose={props.onExit}
-          clipLengthMs={songLengthForClip(clipDurationMs())}
-          preflight={songPreflight} initialSong={props.initialSong}
-          onPlan={setSongPlan}
-          onChoice={choice => { if (!disposed) setSongChoice(choice); }}
-          onSelection={next => {
-            if (disposed) return;
-            const hadSelection = selection() !== null;
-            setSelection(next);
-            // A clip chosen before the song is measured now, so the duration
-            // guard applies whether the song came first or second.
-            const current = file();
-            if (next && current && !hadSelection) void measureClip(current);
-          }} />
-      </section>
-      </fieldset>
-      <Show when={props.initialSong && songPanelOpen() && !songNeedsAttention()}>
-        <Button variant="secondary" onClick={() => setSongPanelOpen(false)}>Done</Button>
-      </Show>
+      {/* Capture is the flow's home screen: close, sound, upload and record
+          all live on it. The song's choice, excerpt and every server verdict
+          live in the sheet the sound control opens; posting details come at
+          review. The sheet outlives the take so its draft and the server's
+          verdicts survive the move to review and back. */}
+      <Show when={!file()}>
+      <div inert={interactionBusy()}>
+        <Show when={captureStatus() === "recording"}>
+          <p role="status" class="sr-only">{selection()
+            ? `Recording to ${selection()!.title}. The take ends with the excerpt.`
+            : "Recording. The take ends at the platform limit."}</p>
+        </Show>
+        <OriginalVideoCaptureSurface channel={mobile ? "camera" : "upload"} status={captureStatus()}
+          songLabel={songLabel()} onSongTap={openSongSheet}
+          onClose={props.onExit} onUpload={() => picker?.click()} onRecordToggle={() => { void toggleCapture(); }}
+          onRetake={() => { setError(""); setCaptureStatus("idle"); }}
+          notice={captureNotice()}
+          preview={<>
+            <video ref={element => { viewfinder = element; showLive(element, untrack(stream)); }} autoplay muted playsinline
+              class={stream() ? "h-full w-full object-cover" : "hidden"} />
+            <Show when={stream() && viewfinderStalled()}>
+              <button type="button" data-video-viewfinder-resume
+                class="absolute inset-x-0 top-1/2 z-10 mx-auto w-fit -translate-y-1/2 rounded-[var(--radius-lg)] bg-black/70 px-4 py-2 text-sm text-white"
+                onClick={() => { if (viewfinder) playLive(viewfinder); }}>
+                Tap to show the camera
+              </button>
+            </Show>
+          </>} />
       </div>
-      <Show when={!file() && songChosen()}>
-        <div inert={interactionBusy()}>
-          <Show when={captureStatus() === "recording"}>
-            <p role="status" class="sr-only">{selection()
-              ? `Recording to ${selection()!.title}. The take ends with the excerpt.`
-              : "Recording. The take ends at the platform limit."}</p>
-          </Show>
-          <OriginalVideoCaptureSurface channel={mobile ? "camera" : "upload"} status={captureStatus()}
-            songLabel={songLabel()} onSongTap={props.initialSong ? toggleSongPanel : undefined}
-            onClose={props.onExit} onUpload={() => picker?.click()} onRecordToggle={() => { void toggleCapture(); }}
-            onRetake={() => { setError(""); setCaptureStatus("idle"); }}
-            preview={<>
-              <video ref={element => { viewfinder = element; showLive(element, untrack(stream)); }} autoplay muted playsinline
-                class={stream() ? "h-full w-full object-cover" : "hidden"} />
-              <Show when={stream() && viewfinderStalled()}>
-                <button type="button" data-video-viewfinder-resume
-                  class="absolute inset-x-0 top-1/2 z-10 mx-auto w-fit -translate-y-1/2 rounded-[var(--radius-lg)] bg-black/70 px-4 py-2 text-sm text-white"
-                  onClick={() => { if (viewfinder) playLive(viewfinder); }}>
-                  Tap to show the camera
-                </button>
-              </Show>
-            </>} />
-        </div>
       </Show>
+      {/* The sound sheet: its content stays mounted — closed it is inert
+          and translated off-screen — so the song draft survives closes and
+          the server's verdicts keep updating behind it. */}
+      <Show when={songSheetOpen()}>
+        <div class="fixed inset-0 z-40 bg-black/55 backdrop-blur-sm" data-add-sound-scrim onClick={() => setSongSheetOpen(false)} />
+      </Show>
+      <div
+        aria-hidden={songSheetOpen() ? undefined : "true"}
+        aria-label="Add song"
+        aria-modal="true"
+        class={cn(
+          "fixed inset-x-0 bottom-0 z-50 grid max-h-[85dvh] gap-4 overflow-y-auto rounded-t-[var(--radius-sheet)] border-t border-border bg-card p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] shadow-xl transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none",
+          songSheetOpen() ? "translate-y-0" : "pointer-events-none invisible translate-y-full",
+        )}
+        data-add-sound-sheet
+        role="dialog"
+      >
+        <div class="mx-auto h-1 w-12 rounded-full bg-muted" aria-hidden="true" />
+          <fieldset class="contents" disabled={captureStatus() === "recording" || finalizing()}>
+          <section aria-label="Soundtrack">
+            <SongExcerptComposer store={excerptStore} read={props.songReader} communityId={chosenCommunityId() || undefined}
+              disabled={captureStatus() === "recording" || finalizing()}
+              onClose={() => setSongSheetOpen(false)}
+              clipLengthMs={songLengthForClip(clipDurationMs())}
+              preflight={songPreflight} initialSong={props.initialSong}
+              {...(props.songPicker === undefined ? {} : { songs: props.songPicker })}
+              onPlan={setSongPlan}
+              onChoice={choice => { if (!disposed) setSongChoice(choice); }}
+              onSelection={next => {
+                if (disposed) return;
+                const hadSelection = selection() !== null;
+                setSelection(next);
+                // A clip chosen before the song is measured now, so the duration
+                // guard applies whether the song came first or second.
+                const current = file();
+                if (next && current && !hadSelection) void measureClip(current);
+              }} />
+          </section>
+          </fieldset>
+          <Show when={eligibilityFailed()}>
+            <div class="grid gap-2" role="alert">
+              <FormNote tone="warning">This song couldn’t be checked for your profile. Nothing was recorded.</FormNote>
+              <Button onClick={retrySongEligibility} size="sm" type="button" variant="secondary">Try the check again</Button>
+            </div>
+          </Show>
+          <Show when={eligibilityDenied() && approvedSelection() !== undefined && !takeMismatch()}>
+            <FormNote tone="warning">This profile can’t post a video to this song here. Choose another song, or switch profile and check again.</FormNote>
+          </Show>
+          <div class="flex justify-end gap-2">
+            {/* Confirming asks the server about the excerpt on screen: the
+                progress lives on this button, and the sheet closes by itself
+                once the exact excerpt is accepted. A refusal stays on the
+                sheet with its actions instead. */}
+            <Button
+              disabled={confirmingSound()}
+              loading={confirmingSound()}
+              onClick={confirmSound}
+              type="button"
+            >
+              {confirmingSound() ? "Checking this song…" : "Use this song"}
+            </Button>
+          </div>
+      </div>
     </Show>
     <Show when={editing() && file()}>
       <OriginalVideoReviewSurface caption={caption()} onCaptionChange={setCaption} submitting={busy()} onPublish={() => { void publish(); }}
@@ -777,8 +1070,57 @@ export function VideoComposerRuntime(props: {
           ? <SongReviewPreview audioUrl={selection()!.audioUrl} bounds={selection()!.bounds} videoUrl={preview()}
               createAudio={props.createGuideAudio} />
           : <video src={originalPreview() ?? preview()} controls playsinline class="h-full w-full object-contain" />}
-        songLabel={songLabel()} onSongTap={props.initialSong ? toggleSongPanel : undefined}
+        songLabel={songLabel()} onSongTap={openSongSheet}
         details={<div class="grid gap-3">
+        {/* Posting details belong to review: destination and profile are
+            chosen here for the global entry, and any change re-checks the
+            song policy for the new pair. */}
+        <Show when={(props.communityOptions?.length ?? 0) > 0}>
+          <div class="grid gap-2">
+            <Type as="span" variant="caption">Posting in</Type>
+            <div class="flex flex-wrap gap-2">
+              <For each={props.communityOptions}>
+                {option => (
+                  <button
+                    aria-pressed={chosenCommunityId() === option.id ? "true" : "false"}
+                    class={cn(
+                      "cursor-pointer rounded-full border px-3 py-1.5 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                      chosenCommunityId() === option.id
+                        ? "border-primary bg-primary text-primary-foreground"
+                        : "border-border-soft bg-background text-foreground hover:bg-muted",
+                    )}
+                    disabled={busy()}
+                    onClick={() => setChosenCommunityId(option.id)}
+                    type="button"
+                  >
+                    {option.label}
+                  </button>
+                )}
+              </For>
+            </div>
+          </div>
+        </Show>
+        <Show when={props.communityOptions === undefined && props.communityName}>
+          {name => <Type as="p" variant="caption">Posting in {name()}</Type>}
+        </Show>
+        <Show when={(props.personaOptions?.length ?? 0) > 1}>
+          <OperationPersonaControl
+            label="Posting as"
+            onSelect={personaId => setChosenPersonaId(personaId)}
+            personas={props.personaOptions!.map(option => ({ personaId: option.id, displayName: option.label }))}
+            placeholder="Choose a profile"
+            selectedPersonaId={chosenPersonaId()}
+          />
+        </Show>
+        <Show when={eligibilityChecking()}>
+          <p class="text-sm text-muted-foreground" role="status">Checking this song for the chosen profile and community…</p>
+        </Show>
+        <Show when={eligibilityDenied()}>
+          <FormNote tone="warning">This profile can’t post a video to this song in the chosen community. Change the song, profile or destination and check again.</FormNote>
+        </Show>
+        <Show when={eligibilityFailed()}>
+          <FormNote tone="warning">This song couldn’t be checked for your profile.</FormNote>
+        </Show>
         <label><input type="checkbox" checked={rating() === "adult_18"} disabled={busy()} onChange={event => setRating(event.currentTarget.checked ? "adult_18" : "general")} /> This video is for adults (18+)</label>
         <Show when={clipProblem()}>
           {(problem) => <FormNote tone="warning">{problem()}</FormNote>}
