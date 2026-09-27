@@ -15,9 +15,8 @@ import type { CommunityNamesSettingsApi } from "./community-names-settings-api";
 import { NAMES_READY } from "./community-names-settings-fixtures";
 import { TELEGRAM_CONNECTED } from "./community-telegram-fixtures";
 import type { OwnerSettingsRouteState } from "./owner-settings-route-model";
-import type { CommunityNamespaceSettingsPort } from "./owner-settings-model";
+import type { CommunityHnsTxtApi } from "./community-hns-txt-api";
 import { OwnerSettingsRouteView } from "./owner-settings-route-view";
-import { createCommunityNamespaceSettingsApi } from "./community-namespace-settings-api";
 
 const disposers: Array<() => void> = [];
 
@@ -73,16 +72,11 @@ function moderationApi(): CommunityModerationSettingsApi {
   };
 }
 
-function namespaceApi(): CommunityNamespaceSettingsPort {
+function txtApi(): CommunityHnsTxtApi {
   return {
-    execute: async () => { throw new Error("not called"); },
-    read: async () => ({
-      community_id: "community_midnight",
-      family: null,
-      generation: 1,
-      next_action: { kind: "choose_namespace" },
-      root_label: "",
-    }),
+    current: async () => null,
+    start: async () => { throw new Error("not called"); },
+    check: async () => { throw new Error("not called"); },
   };
 }
 
@@ -93,7 +87,7 @@ describe("OwnerSettingsRouteView", () => {
       <OwnerSettingsRouteView
         moderationApi={moderationApi()}
         namesApi={namesApi()}
-        namespaceApi={namespaceApi()}
+        txtAttachmentApi={txtApi()}
         navigate={navigate}
         requestedSection="names"
         state={success}
@@ -119,7 +113,7 @@ describe("OwnerSettingsRouteView", () => {
       <OwnerSettingsRouteView
         moderationApi={moderationApi()}
         namesApi={namesApi()}
-        namespaceApi={namespaceApi()}
+        txtAttachmentApi={txtApi()}
         navigate={() => undefined}
         requestedSection="namespace"
         state={success}
@@ -167,6 +161,19 @@ describe("OwnerSettingsRouteView", () => {
     expect(getCapabilities).not.toHaveBeenCalled();
   });
 
+  test("offers sign-in for a 401 owner settings response", () => {
+    const container = render(() => (
+      <OwnerSettingsRouteView
+        navigate={() => undefined}
+        requestedSection="namespace"
+        state={{ kind: "sign-in-required" }}
+      />
+    ));
+    expect(container.querySelector("[data-owner-settings-route-state='sign-in-required']")).not.toBeNull();
+    expect(container.querySelector("button")?.textContent).toBe("Sign in");
+    expect(container.textContent).not.toContain("Owner access required");
+  });
+
   test("loads a moderation deep link for the resolved community id", async () => {
     const getCases = vi.fn(async () => ({ cases: OPEN_MODERATION_CASES, details: OPEN_MODERATION_CASE_DETAILS }));
     const container = render(() => (
@@ -185,30 +192,32 @@ describe("OwnerSettingsRouteView", () => {
 });
 
 
-test("address navigation and a reload rediscover the account import without a URL locator", async () => {
-  const discovery = vi.fn(async () => ({
-    community_id: success.communityId, attachment: null,
-    session: { community_id: success.communityId, root_import_session_id: "session-navigation",
-      root_label: "midnight", revision: 3, status: "awaiting_owner_update",
-      publication_check_pending: true, retry_after_seconds: 30,
-      publish_plan: { replacement_records: [] } },
-  }));
+test("address navigation and reload restore the TXT challenge", async () => {
+  const challenge = {
+    attachment_intent_id: "intent-midnight",
+    root_label: "midnight",
+    status: "awaiting_txt" as const,
+    challenge: { name: "midnight", value: "pirate-verification=nvs_example" },
+    expires_at: "2026-09-28T12:00:00.000Z",
+    route_href: null,
+    retry_after_seconds: null,
+  };
+  const discovery = vi.fn(async () => challenge);
+  const api: CommunityHnsTxtApi = {
+    current: discovery,
+    start: async () => { throw new Error("not called"); },
+    check: async () => { throw new Error("not called"); },
+  };
   const navigate = vi.fn();
-  const freshApi = () => createCommunityNamespaceSettingsApi({
-    // SAFETY: The fake returns the generated pending discovery fields used by the mounted route.
-    client: { get_communitiesCommunityIdHnsRootImports: discovery } as never,
-    communityId: success.communityId, communityPath: success.communityPath,
-    locator: { read: () => null, write: () => {}, clear: () => {} },
-  });
   const mountAddress = () => render(() => <OwnerSettingsRouteView
-    namespaceApi={freshApi()} namesApi={namesApi()} moderationApi={moderationApi()}
+    txtAttachmentApi={api} namesApi={namesApi()} moderationApi={moderationApi()}
     navigate={navigate} requestedSection="namespace" state={success} />);
   const first = mountAddress();
-  await vi.waitFor(() => expect(first.textContent).toContain("Checking published records"));
+  await vi.waitFor(() => expect(first.querySelector("[data-hns-txt-value]")?.textContent).toBe(challenge.challenge.value));
   [...first.querySelectorAll<HTMLButtonElement>("button")].find((button) => button.textContent?.trim() === "Names")!.click();
   expect(navigate).toHaveBeenLastCalledWith("/c/midnight/settings/names");
   disposers.pop()!();
-  const names = render(() => <OwnerSettingsRouteView namespaceApi={freshApi()} namesApi={namesApi()}
+  const names = render(() => <OwnerSettingsRouteView txtAttachmentApi={api} namesApi={namesApi()}
     moderationApi={moderationApi()} navigate={navigate} requestedSection="names" state={success} />);
   await vi.waitFor(() => expect(names.textContent).toContain("yourname.midnight"));
   [...names.querySelectorAll<HTMLButtonElement>("button")].find((button) => button.textContent?.trim() === "Address")!.click();
@@ -216,13 +225,11 @@ test("address navigation and a reload rediscover the account import without a UR
   disposers.pop()!();
   for (let visit = 0; visit < 2; visit += 1) {
     const returned = mountAddress();
-    await vi.waitFor(() => expect(returned.textContent).toContain("Checking published records"));
-    expect(returned.textContent).not.toContain("Handshake root");
+    await vi.waitFor(() => expect(returned.querySelector("[data-hns-txt-value]")?.textContent).toBe(challenge.challenge.value));
     disposers.pop()!();
   }
   expect(discovery).toHaveBeenCalledTimes(3);
 });
-
 
 test("keeps failed moderation visible without granting access or redirecting to names", async () => {
   const navigate = vi.fn();
@@ -271,7 +278,7 @@ describe("management deep links", () => {
     setLocation(IMPORT_SEARCH);
     const container = render(() => (
       <OwnerSettingsRouteView
-        namespaceApi={namespaceApi()}
+        txtAttachmentApi={txtApi()}
         namesApi={namesApi()}
         navigate={navigate}
         requestedSection="namespace"
@@ -348,7 +355,7 @@ describe("management deep links", () => {
       <OwnerSettingsRouteView
         moderationApi={moderationApi()}
         namesApi={namesApi()}
-        namespaceApi={namespaceApi()}
+        txtAttachmentApi={txtApi()}
         navigate={navigate}
         requestedSection="namespace"
         state={success}
@@ -390,7 +397,7 @@ describe("management deep links", () => {
       <OwnerSettingsRouteView
         moderationApi={moderationApi()}
         namesApi={namesApi()}
-        namespaceApi={namespaceApi()}
+        txtAttachmentApi={txtApi()}
         navigate={navigate}
         requestedSection={requested()}
         state={success}
@@ -442,7 +449,7 @@ describe("management deep links", () => {
     setLocation(IMPORT_SEARCH);
     const container = render(() => (
       <OwnerSettingsRouteView
-        namespaceApi={namespaceApi()}
+        txtAttachmentApi={txtApi()}
         namesApi={namesApi()}
         navigate={navigate}
         requestedSection="namespace"
@@ -536,5 +543,24 @@ describe("management deep links", () => {
       "/c/midnight/settings/moderation_queue",
       { replace: true },
     ));
+  });
+
+  test("a deferred bot 401 replaces owner settings with sign-in", async () => {
+    const unauthorized = new ApiClientError(
+      { code: "auth_error", name: "AuthError", retryable: false, status: 401 },
+      { error: { code: "auth_error", message: "Authentication required", retryable: false } },
+    );
+    const container = render(() => (
+      <OwnerSettingsRouteView
+        moderationApi={moderationApi()}
+        namesApi={namesApi()}
+        navigate={() => undefined}
+        requestedSection="telegram"
+        botProbeApi={{ getSettings: async () => { throw unauthorized; } }}
+        state={success}
+      />
+    ));
+    await vi.waitFor(() => expect(container.querySelector("[data-owner-settings-route-state='sign-in-required']")).not.toBeNull());
+    expect(container.textContent).toContain("Sign in required");
   });
 });

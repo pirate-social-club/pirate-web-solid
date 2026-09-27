@@ -71,11 +71,13 @@ describe("owner settings route model", () => {
     // The deferred probe is what decides the pair, and it still requires
     // independent owner authority.
     await expect(settledBotAccess({ telegramApi: { getSettings: async () => TELEGRAM_CONNECTED } }, "community_1"))
-      .resolves.toEqual({ granted: true, unavailable: false });
+      .resolves.toEqual({ granted: true, unavailable: false, signInRequired: false });
     await expect(settledBotAccess({ telegramApi: { getSettings: async () => { throw apiError(404); } } }, "community_1"))
-      .resolves.toEqual({ granted: false, unavailable: false });
+      .resolves.toEqual({ granted: false, unavailable: false, signInRequired: false });
     await expect(settledBotAccess({ telegramApi: { getSettings: async () => { throw new Error("offline"); } } }, "community_1"))
-      .resolves.toEqual({ granted: false, unavailable: true });
+      .resolves.toEqual({ granted: false, unavailable: true, signInRequired: false });
+    await expect(settledBotAccess({ telegramApi: { getSettings: async () => { throw apiError(401); } } }, "community_1"))
+      .resolves.toEqual({ granted: false, unavailable: false, signInRequired: true });
   });
 
   test("consults the bot probe only when nothing else authorized the owner", async () => {
@@ -127,7 +129,7 @@ describe("owner settings route model", () => {
     await expect(loadOwnerSettingsRoute("harbor", dependencies({
       moderationApi: { getCapabilities: async () => { throw apiError(401); } },
       namesApi: { getSnapshot: async () => { throw apiError(404); } },
-    }))).resolves.toEqual({ kind: "denied" });
+    }))).resolves.toEqual({ kind: "sign-in-required" });
 
     await expect(loadOwnerSettingsRoute("harbor", dependencies({
       moderationApi: { getCapabilities: async () => { throw new Error("upstream unavailable"); } },

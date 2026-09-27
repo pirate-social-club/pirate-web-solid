@@ -8,9 +8,9 @@ const currentClient = resolve(
   appRoot,
   "node_modules/@pirate/api-client/src/generated/client.ts",
 );
-// Client 0.93.0 includes durable rewards sends and Spaces owner and recipient
-// operations. This digest pins the exact tables Solid consumes.
-const expectedDigest = "ec66ba6bc0f71d719643663c8408340604ba5a4d72ea43eb7c988ac42a158e02";
+// Client 0.97.0 adds TXT-only HNS attachment operations. This digest pins the
+// exact tables Solid consumes.
+const expectedDigest = "54f4bc5db65200c2ca2ac7c38950f368243d53fbc57077dd3cfc2d5ebb845a05";
 
 const operations = [
   "post_communitiesCommunityIdSpacesOwnershipStart",
@@ -65,6 +65,9 @@ const operations = [
   "get_communitiesCommunityIdHnsRootImportsSessionId",
   "post_communitiesCommunityIdHnsRootImportsSessionIdPoll",
   "post_communitiesCommunityIdHnsRootImportsSessionIdActivate",
+  "post_communitiesCommunityIdHnsTxtAttachments",
+  "get_communitiesCommunityIdHnsTxtAttachments",
+  "post_communitiesCommunityIdHnsTxtAttachmentsAttachmentIntentIdCheck",
   "get_communitiesCommunityIdHandleNationalityAuthoring",
   "get_handleQualificationIntentsIntentId",
   "post_communitiesCommunityIdHandleNationalityQualificationPolicies",

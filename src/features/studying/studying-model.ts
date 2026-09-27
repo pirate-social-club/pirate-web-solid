@@ -123,7 +123,7 @@ export interface StudyingAttemptResult {
     exercises: StudyingServerExercise[];
     resolved_count?: number;
   };
-  outcome?: "correct" | "incorrect";
+  outcome?: "correct" | "incorrect" | "ungraded_rerecord";
   session?: {
     first_pass_correct_count?: number;
     status?: string;

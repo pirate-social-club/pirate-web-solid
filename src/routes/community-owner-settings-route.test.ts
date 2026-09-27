@@ -49,11 +49,11 @@ describe("owner settings SSR preflight", () => {
     expect(ownerSettingsResponseStatus(result!.state)).toBe(200);
   });
 
-  test("signed-out requests become denied rather than a transport failure", async () => {
+  test("signed-out requests ask for sign-in rather than owner access", async () => {
     const { fetchImpl } = fixture(401);
     const result = await resolveOwnerSettingsPreflight(new Request("https://web.test/c/midnight/settings/names"), "https://api-next.test", fetchImpl);
-    expect(result?.state).toEqual({ kind: "denied" });
-    expect(ownerSettingsResponseStatus(result!.state)).toBe(404);
+    expect(result?.state).toEqual({ kind: "sign-in-required" });
+    expect(ownerSettingsResponseStatus(result!.state)).toBe(401);
   });
 
   test("failed private probes retain retryable sections without granting access", async () => {

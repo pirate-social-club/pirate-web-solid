@@ -23,6 +23,7 @@ import {
   CommunityModerationPolicyPanel,
   CommunityModerationQueuePanel,
 } from "./community-moderation-settings-panel";
+import { OwnerSettingsSignInCard } from "./owner-settings-sign-in-card";
 
 export type CommunityModerationSettingsSection = "moderation_queue" | "content_policy";
 
@@ -38,7 +39,7 @@ export interface CommunityModerationSettingsControllerProps {
   section: CommunityModerationSettingsSection;
 }
 
-type LoadStatus = "loading" | "ready" | "denied" | "error";
+type LoadStatus = "loading" | "ready" | "denied" | "error" | "sign-in";
 
 /**
  * A response is only applied when the community and view it was issued for are
@@ -126,7 +127,11 @@ export function CommunityModerationSettingsController(
     } catch (error) {
       if (stale(token)) return;
       const failure = safeError(error instanceof ApiClientError ? error : undefined, "The moderation queue could not be loaded.");
-      if (error instanceof ApiClientError && (error.status === 401 || error.status === 404)) {
+      if (error instanceof ApiClientError && error.status === 401) {
+        setStatus("sign-in");
+        return;
+      }
+      if (error instanceof ApiClientError && error.status === 404) {
         setStatus("denied");
         return;
       }
@@ -152,6 +157,10 @@ export function CommunityModerationSettingsController(
       setStatus("ready");
     } catch (error) {
       if (stale(token)) return;
+      if (error instanceof ApiClientError && error.status === 401) {
+        setStatus("sign-in");
+        return;
+      }
       setMessage(safeError(error instanceof ApiClientError ? error : undefined, "The content policy could not be loaded."));
       if (policy() === undefined) setStatus("error");
     } finally {
@@ -177,7 +186,11 @@ export function CommunityModerationSettingsController(
       else await loadPolicy(token);
     } catch (error) {
       if (stale(token)) return;
-      if (error instanceof ApiClientError && (error.status === 401 || error.status === 404)) {
+      if (error instanceof ApiClientError && error.status === 401) {
+        setStatus("sign-in");
+        return;
+      }
+      if (error instanceof ApiClientError && error.status === 404) {
         setStatus("denied");
         return;
       }
@@ -221,7 +234,10 @@ export function CommunityModerationSettingsController(
       // A background refresh after the action; the list it replaces stays put.
       await loadQueue(caseView());
     } catch (error) {
-      if (active) setMessage(safeError(error instanceof ApiClientError ? error : undefined, "The moderation action could not be completed."));
+      if (active) {
+        if (error instanceof ApiClientError && error.status === 401) setStatus("sign-in");
+        else setMessage(safeError(error instanceof ApiClientError ? error : undefined, "The moderation action could not be completed."));
+      }
     } finally {
       if (active) setActionBusy(undefined);
     }
@@ -246,7 +262,10 @@ export function CommunityModerationSettingsController(
       setPolicyDecisions(moderationPolicyDecisions(updated));
       setPolicyDirty(false);
     } catch (error) {
-      if (active) setMessage(safeError(error instanceof ApiClientError ? error : undefined, "The content policy could not be saved."));
+      if (active) {
+        if (error instanceof ApiClientError && error.status === 401) setStatus("sign-in");
+        else setMessage(safeError(error instanceof ApiClientError ? error : undefined, "The content policy could not be saved."));
+      }
     } finally {
       if (active) setPolicySaving(false);
     }
@@ -258,6 +277,7 @@ export function CommunityModerationSettingsController(
         <div class="flex items-center gap-3"><Spinner class="size-5" /><Type variant="body">Loading moderation settings…</Type></div>
       </Card>
     )}>
+      <Show when={status() !== "sign-in"} fallback={<OwnerSettingsSignInCard />}>
       <Show when={status() !== "denied"} fallback={(
         <Card class="p-6" data-owner-settings-denied>
           <Type as="h2" variant="h2">Owner access required</Type>
@@ -301,6 +321,7 @@ export function CommunityModerationSettingsController(
             />
           </Show>
         </Show>
+      </Show>
       </Show>
     </Show>
   );

@@ -5,6 +5,7 @@ import { CommunityAssistantSettingsPanel } from "./community-assistant-settings-
 import { CommunityTelegramSettingsPanel } from "./community-telegram-settings-panel";
 import { createCommunityTelegramSettingsApi, type CommunityTelegramSettingsApi } from "./community-telegram-settings-api";
 import type { AssistantOption, CommunityTelegramDelivery, CommunityTelegramSettings, CommunityTelegramSetup } from "./community-telegram-model";
+import { OwnerSettingsSignInCard } from "./owner-settings-sign-in-card";
 
 export function CommunityTelegramSettingsController(props: { communityId: string; section: "telegram" | "assistant"; api?: CommunityTelegramSettingsApi }) {
   const api = props.api ?? createCommunityTelegramSettingsApi();
@@ -17,13 +18,14 @@ export function CommunityTelegramSettingsController(props: { communityId: string
   const [busy, setBusy] = createSignal(false);
   const [error, setError] = createSignal("");
   const [success, setSuccess] = createSignal("");
+  const [authRequired, setAuthRequired] = createSignal(false);
   let active = true;
   let generation = 0;
   onCleanup(() => { active = false; generation += 1; });
   const key = () => `telegram:${crypto.randomUUID()}`;
   const failure = (reason: unknown) => reason instanceof ApiClientError && reason.status === 409
     ? "These settings changed in another session. Refresh before saving again."
-    : reason instanceof ApiClientError && (reason.status === 401 || reason.status === 404)
+    : reason instanceof ApiClientError && reason.status === 404
       ? "Only a community owner can access these settings."
       : "That change could not be completed. Refresh to check the current status.";
 
@@ -35,6 +37,10 @@ export function CommunityTelegramSettingsController(props: { communityId: string
     if (!active || props.communityId !== current.community_id) return;
     if (results[0].status === "fulfilled") setModels(results[0].value.items);
     if (results[1].status === "fulfilled") setVoices(results[1].value.items);
+    if (results.some((result) => result.status === "rejected" && result.reason instanceof ApiClientError && result.reason.status === 401)) {
+      setAuthRequired(true);
+      return;
+    }
     if (results.some((result) => result.status === "rejected")) setError("Some models or voices could not be loaded. Your saved settings are still available.");
   }
   async function load() {
@@ -48,11 +54,16 @@ export function CommunityTelegramSettingsController(props: { communityId: string
       if (!active || request !== generation) return;
       setDeliveries(activity.items); setSetup(selection);
       await options(current);
-    } catch (reason) { if (active && request === generation) setError(failure(reason)); }
+    } catch (reason) {
+      if (active && request === generation) {
+        if (reason instanceof ApiClientError && reason.status === 401) setAuthRequired(true);
+        else setError(failure(reason));
+      }
+    }
     finally { if (active && request === generation) setLoading(false); }
   }
   createEffect(() => props.communityId, () => {
-    setSettings(undefined); setSetup(undefined); setModels([]); setVoices([]); setDeliveries([]);
+    setSettings(undefined); setSetup(undefined); setModels([]); setVoices([]); setDeliveries([]); setAuthRequired(false);
     queueMicrotask(() => { if (active) void load(); });
   });
 
@@ -66,12 +77,19 @@ export function CommunityTelegramSettingsController(props: { communityId: string
       if (!active || request !== generation) return;
       if (next) setSettings(next);
       setSuccess("Settings saved.");
-    } catch (reason) { if (active && request === generation) setError(failure(reason)); throw reason; }
+    } catch (reason) {
+      if (active && request === generation) {
+        if (reason instanceof ApiClientError && reason.status === 401) setAuthRequired(true);
+        else setError(failure(reason));
+      }
+      throw reason;
+    }
     finally { if (active) setBusy(false); }
   }
   const run = (action: Parameters<typeof execute>[0]) => { void execute(action).catch(() => {}); };
 
-  return <Show when={settings()} fallback={<div class="space-y-4"><p role={loading() ? "status" : "alert"}>{loading() ? "Loading community bot settings…" : error()}</p><Show when={!loading()}><Button onClick={() => void load()}>Try again</Button></Show></div>}>
+  return <Show when={!authRequired()} fallback={<OwnerSettingsSignInCard />}>
+    <Show when={settings()} fallback={<div class="space-y-4"><p role={loading() ? "status" : "alert"}>{loading() ? "Loading community bot settings…" : error()}</p><Show when={!loading()}><Button onClick={() => void load()}>Try again</Button></Show></div>}>
     {(current) => <Show when={props.section === "assistant"} fallback={<CommunityTelegramSettingsPanel showHeading={false}
       settings={current()} setup={setup()} deliveries={deliveries()} loading={loading()} saving={busy()} errorMessage={error() || undefined}
       onConnect={(token) => execute((snapshot, commandKey) => api.connect(snapshot, token, commandKey))}
@@ -88,5 +106,6 @@ export function CommunityTelegramSettingsController(props: { communityId: string
       onCredentialSave={(provider, credential) => execute(async (snapshot, commandKey) => { const result = await api.saveCredential(snapshot, provider, credential, commandKey); await options(result); return { ...result, assistant: snapshot.assistant }; })}
       onRefreshOptions={() => void options(current())}
     /></Show>}
+    </Show>
   </Show>;
 }

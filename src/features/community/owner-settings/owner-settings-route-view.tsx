@@ -6,7 +6,9 @@ import { getRequestEvent } from "@solidjs/web";
 import type { CommunityModerationSettingsApi } from "./community-moderation-settings-api";
 import type { CommunityTelegramSettingsApi } from "./community-telegram-settings-api";
 import { CommunityTelegramSettingsController } from "./community-telegram-settings-controller";
-import { CommunityNamespaceSettingsController } from "./community-namespace-settings-controller";
+import { CommunityHnsTxtController } from "./community-hns-txt-controller";
+import type { CommunityHnsTxtApi } from "./community-hns-txt-api";
+import { requestGlobalSignInCompletion } from "../../auth/global-sign-in-host";
 import { CommunityModerationSettingsController } from "./community-moderation-settings-controller";
 import type { CommunityNamesSettingsApi } from "./community-names-settings-api";
 import { CommunityNamesSettingsController } from "./community-names-settings-controller";
@@ -22,14 +24,13 @@ import {
 import { visibleOwnerSettingsGroups } from "./owner-settings-model";
 import { settledBotAccess, type OwnerSettingsBotAccess } from "./owner-settings-route-model";
 import { createCommunityTelegramSettingsApi } from "./community-telegram-settings-api";
-import type { CommunityNamespaceSettingsPort } from "./owner-settings-model";
 
 export interface OwnerSettingsRouteViewProps {
   /** The deferred bot probe needs only this read, so it is injected narrowly. */
   botProbeApi?: Pick<CommunityTelegramSettingsApi, "getSettings">;
   moderationApi?: CommunityModerationSettingsApi;
   telegramApi?: CommunityTelegramSettingsApi;
-  namespaceApi?: CommunityNamespaceSettingsPort;
+  txtAttachmentApi?: CommunityHnsTxtApi;
   namesApi?: CommunityNamesSettingsApi;
   spacesOwnerProofApi?: SpacesOwnerProofApi;
   navigate: (href: string, options?: { replace?: boolean }) => void;
@@ -66,7 +67,15 @@ export function ownerSettingsSectionHref(
 }
 
 function RouteMessage(props: { state: OwnerSettingsRouteState }) {
+  const signInController = new AbortController();
+  onCleanup(() => signInController.abort());
+  const signIn = async () => {
+    if (await requestGlobalSignInCompletion(signInController.signal)) window.location.reload();
+  };
   const copy = () => {
+    if (props.state.kind === "sign-in-required") {
+      return { body: "Sign in to manage this community's settings.", title: "Sign in required" };
+    }
     if (props.state.kind === "denied") {
       return {
         body: "These settings are available only to this community's owner.",
@@ -90,6 +99,9 @@ function RouteMessage(props: { state: OwnerSettingsRouteState }) {
       <Card class="w-full max-w-lg p-6">
         <Type as="h1" variant="h2">{copy().title}</Type>
         <Type as="p" class="mt-2 text-muted-foreground" variant="body">{copy().body}</Type>
+        <Show when={props.state.kind === "sign-in-required"}>
+          <Button class="mt-4" onClick={() => void signIn()}>Sign in</Button>
+        </Show>
         <Show when={props.state.kind === "error" || props.state.kind === "unavailable"}>
           <Button class="mt-4" onClick={() => window.location.reload()}>Try again</Button>
         </Show>
@@ -99,17 +111,21 @@ function RouteMessage(props: { state: OwnerSettingsRouteState }) {
 }
 
 function ResolvedOwnerSettingsRouteView(props: ResolvedOwnerSettingsRouteViewProps) {
-  const success = () => props.state.kind === "success" ? props.state : undefined;
-  const indexMode = () => props.requestedSection === null;
-
   // Resolved after entry, so the sections the route already authorized are
   // usable while this is still in flight.
   const [botAccess, setBotAccess] = createSignal<OwnerSettingsBotAccess>();
   const [botPending, setBotPending] = createSignal(true);
+  const effectiveState = (): OwnerSettingsRouteState =>
+    botAccess()?.signInRequired === true ? { kind: "sign-in-required" } : props.state;
+  const success = () => {
+    const state = effectiveState();
+    return state.kind === "success" ? state : undefined;
+  };
+  const indexMode = () => props.requestedSection === null;
   let live = true;
   onCleanup(() => { live = false; });
   createEffect(
-    () => success()?.communityId,
+    () => props.state.kind === "success" ? props.state.communityId : undefined,
     (communityId) => {
       if (communityId === undefined) return;
       queueMicrotask(() => {
@@ -166,7 +182,7 @@ function ResolvedOwnerSettingsRouteView(props: ResolvedOwnerSettingsRouteViewPro
   );
 
   return (
-    <Show when={success()} fallback={<RouteMessage state={props.state} />}>
+    <Show when={success()} fallback={<RouteMessage state={effectiveState()} />}>
       {(state) => (
         <Show
           when={!indexMode()}
@@ -220,10 +236,9 @@ function ResolvedOwnerSettingsRouteView(props: ResolvedOwnerSettingsRouteViewPro
               </Show>
               <Show when={section() === "namespace"}>
                 <SpacesOwnerProofPanel api={props.spacesOwnerProofApi} communityId={state().communityId} />
-                <CommunityNamespaceSettingsController
-                  api={props.namespaceApi}
+                <CommunityHnsTxtController
+                  api={props.txtAttachmentApi}
                   communityId={state().communityId}
-                  communityPath={state().communityPath}
                 />
               </Show>
               <Show when={section() === "moderation_queue" || section() === "content_policy"}>

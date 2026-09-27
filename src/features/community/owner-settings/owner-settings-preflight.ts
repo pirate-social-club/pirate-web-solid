@@ -49,5 +49,6 @@ export async function resolveOwnerSettingsPreflight(
 
 export function ownerSettingsResponseStatus(state: OwnerSettingsRouteState): number {
   return state.kind === "success" ? 200 : state.kind === "invalid" ? 400
+    : state.kind === "sign-in-required" ? 401
     : state.kind === "denied" || state.kind === "not-found" ? 404 : 502;
 }

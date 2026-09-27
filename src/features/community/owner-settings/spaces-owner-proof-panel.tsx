@@ -1,7 +1,9 @@
 import { Button, Card, Type } from "@pirate/web-solid-ui";
+import { ApiClientError } from "@pirate/api-client";
 import { Show, createSignal } from "solid-js";
 
 import { createSpacesOwnerProofApi, type SpacesOwnerProofApi } from "./spaces-owner-proof-api";
+import { OwnerSettingsSignInCard } from "./owner-settings-sign-in-card";
 
 type Challenge = Awaited<ReturnType<SpacesOwnerProofApi["start"]>>;
 type Assignment = NonNullable<Awaited<ReturnType<SpacesOwnerProofApi["assignment"]>>["candidate"]>;
@@ -24,6 +26,11 @@ export function SpacesOwnerProofPanel(props: { api?: SpacesOwnerProofApi; commun
   const [authority, setAuthority] = createSignal<{ reference: string; generation: number }>();
   const [candidate, setCandidate] = createSignal<Assignment>();
   const [confirmed, setConfirmed] = createSignal(false);
+  const [authRequired, setAuthRequired] = createSignal(false);
+  const reportFailure = (reason: unknown, message: string) => {
+    if (reason instanceof ApiClientError && reason.status === 401) setAuthRequired(true);
+    else setMessage(message);
+  };
 
   const storageKey = (canonicalRoot: string) => `spaces-owner-proof:${props.communityId}:${canonicalRoot}`;
   const clearSavedKey = () => {
@@ -59,8 +66,8 @@ export function SpacesOwnerProofPanel(props: { api?: SpacesOwnerProofApi; commun
       setPollKey(newKey());
       setSignature("");
       setChallenge(response);
-    } catch {
-      setMessage("Ownership proof could not start. Check that this root belongs to you and try again.");
+    } catch (reason) {
+      reportFailure(reason, "Ownership proof could not start. Check that this root belongs to you and try again.");
     } finally {
       setBusy(false);
     }
@@ -98,8 +105,8 @@ export function SpacesOwnerProofPanel(props: { api?: SpacesOwnerProofApi; commun
           ? "That signature did not match the owner key. Start a new proof."
           : "The root changed or the challenge expired. Start a new proof.");
       }
-    } catch {
-      setMessage("The signature could not be checked. You can try the same signature again.");
+    } catch (reason) {
+      reportFailure(reason, "The signature could not be checked. You can try the same signature again.");
     } finally {
       setBusy(false);
     }
@@ -114,8 +121,8 @@ export function SpacesOwnerProofPanel(props: { api?: SpacesOwnerProofApi; commun
       setMessage(response.candidate === null
         ? "The operator address is not ready yet. Check again after operate is confirmed and the chain catches up."
         : "Check this address against your Spaces wallet before assigning it.");
-    } catch {
-      setMessage("The operator address could not be loaded. Try again.");
+    } catch (reason) {
+      reportFailure(reason, "The operator address could not be loaded. Try again.");
     } finally {
       setBusy(false);
     }
@@ -140,14 +147,15 @@ export function SpacesOwnerProofPanel(props: { api?: SpacesOwnerProofApi; commun
       setCandidate(result);
       setConfirmed(true);
       setMessage("Operator address confirmed. Delegate this Spaces root to the address shown below in your Spaces wallet.");
-    } catch {
-      setMessage("The assignment could not be confirmed. Check that ownership and the operator address are still current, then retry.");
+    } catch (reason) {
+      reportFailure(reason, "The assignment could not be confirmed. Check that ownership and the operator address are still current, then retry.");
     } finally {
       setBusy(false);
     }
   };
 
   return (
+    <Show when={!authRequired()} fallback={<OwnerSettingsSignInCard />}>
     <Card class="space-y-4 p-5 md:p-6" data-spaces-owner-proof>
       <Type as="h2" variant="h3">Prove your Spaces root</Type>
       <p class="text-sm text-muted-foreground">Use the Spaces wallet that owns the root. This check signs a message and sends no Bitcoin transaction.</p>
@@ -190,5 +198,6 @@ export function SpacesOwnerProofPanel(props: { api?: SpacesOwnerProofApi; commun
         <Show when={confirmed()}><p role="status">Address confirmed. Delegate from your Spaces wallet when ready.</p></Show>
       </div>}</Show>
     </Card>
+    </Show>
   );
 }

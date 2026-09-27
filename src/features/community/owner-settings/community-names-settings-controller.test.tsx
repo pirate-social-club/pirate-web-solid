@@ -240,6 +240,23 @@ describe("CommunityNamesSettingsController", () => {
     await vi.waitFor(() => expect(container.querySelector("[data-owner-settings-denied]")).not.toBeNull());
     expect(container.textContent).not.toContain("Enable names");
   });
+
+  test("offers sign-in when the owner session is missing", async () => {
+    const unauthorized = new ApiClientError(
+      { code: "auth_error", name: "AuthError", retryable: false, status: 401 },
+      { error: { code: "auth_error", message: "Authentication required", retryable: false } },
+    );
+    const container = render(() => (
+      <CommunityNamesSettingsController
+        api={namesApi({ getSnapshot: async () => { throw unauthorized; } })}
+        communityId="community_midnight"
+      />
+    ));
+
+    await vi.waitFor(() => expect(container.querySelector("[data-owner-settings-sign-in]")).not.toBeNull());
+    expect(button(container, "Sign in")).toBeDefined();
+    expect(container.textContent).not.toContain("Owner access required");
+  });
 });
 
 

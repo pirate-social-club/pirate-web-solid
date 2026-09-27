@@ -236,4 +236,23 @@ describe("CommunityModerationSettingsController", () => {
 
     await vi.waitFor(() => expect(container.textContent).toContain("Owner access required"));
   });
+
+  test("offers sign-in when the queue read returns 401", async () => {
+    const unauthorized = new ApiClientError(
+      { code: "auth_error", name: "AuthError", retryable: false, status: 401 },
+      { error: { code: "auth_error", message: "Authentication required", retryable: false } },
+    );
+    const container = render(() => (
+      <CommunityModerationSettingsController
+        api={moderationApi({ getCases: async () => { throw unauthorized; } })}
+        capabilities={MODERATION_VIEW_AND_ACT}
+        communityId="community_midnight"
+        section="moderation_queue"
+      />
+    ));
+
+    await vi.waitFor(() => expect(container.querySelector("[data-owner-settings-sign-in]")).not.toBeNull());
+    expect(container.textContent).toContain("Sign in required");
+    expect(container.textContent).not.toContain("Owner access required");
+  });
 });

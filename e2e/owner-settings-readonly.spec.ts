@@ -47,7 +47,7 @@ test.describe("authenticated owner settings", { tag: "@hns-readonly" }, () => {
     expect(selected, "No eligible existing owner community; do not create a substitute automatically").toBeDefined();
     if (!selected) return;
     const prefix = `/api/communities/${encodeURIComponent(selected.community_id)}`;
-    for (const suffix of ["handle-sales-management", "handle-sales-management/sale-namespaces", "handle-sales-management/offerings", "hns-root-imports"]) {
+    for (const suffix of ["handle-sales-management", "handle-sales-management/sale-namespaces", "handle-sales-management/offerings", "hns-txt-attachments"]) {
       const response = await page.request.get(`${prefix}/${suffix}`);
       probes.push({ path: `${prefix}/${suffix}`, status: response.status() });
     }

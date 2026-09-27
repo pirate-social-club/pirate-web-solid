@@ -163,8 +163,21 @@ function LoadedStudyingLesson(props: StudyingRouteViewProps & {
       // A landed attempt proves we are back in step with the server; spend the
       // recovery budget again only if we drift a second time.
       divergenceRecoveries = 0;
-      if (result.outcome) {
+      if (result.outcome === "correct" || result.outcome === "incorrect") {
         playStudyFeedbackSound(result.outcome === "correct" ? "correct" : "incorrect");
+      }
+      if (result.outcome === "ungraded_rerecord") {
+        if (input.type !== "say_it_back") { props.onReload(); return; }
+        updateSayItBack(exerciseId, (surface, current) => ({
+          ...current,
+          lastAttemptResult: result,
+          surface: {
+            ...surface,
+            phase: "idle" as const,
+            submitError: "That recording could not be graded. Record it again.",
+          },
+        }));
+        return;
       }
       if (input.type === "translation_choice") {
         updateMultipleChoice(exerciseId, (surface, current) => {

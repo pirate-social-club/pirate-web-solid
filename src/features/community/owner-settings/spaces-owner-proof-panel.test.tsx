@@ -1,6 +1,7 @@
 import { render } from "@solidjs/web";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, test } from "vitest";
+import { ApiClientError } from "@pirate/api-client";
 
 import { SpacesOwnerProofPanel } from "./spaces-owner-proof-panel";
 import type { SpacesOwnerProofApi } from "./spaces-owner-proof-api";
@@ -11,6 +12,29 @@ afterEach(() => { for (const node of nodes.splice(0)) node.remove(); });
 async function settle() { await new Promise((resolve) => setTimeout(resolve, 0)); }
 
 describe("Spaces owner proof", () => {
+  test("offers sign-in when starting proof returns 401", async () => {
+    const unauthorized = new ApiClientError(
+      { code: "auth_error", name: "AuthError", retryable: false, status: 401 },
+      { error: { code: "auth_error", message: "Authentication required", retryable: false } },
+    );
+    const api: SpacesOwnerProofApi = {
+      async start() { throw unauthorized; },
+      async poll() { throw new Error("Not reached"); },
+      async assignment() { throw new Error("Not reached"); },
+      async confirmAssignment() { throw new Error("Not reached"); },
+    };
+    const node = document.createElement("div");
+    document.body.appendChild(node);
+    nodes.push(node);
+    render(() => <SpacesOwnerProofPanel api={api} communityId="community-1" />, node);
+    const user = userEvent.setup();
+    await user.type(node.querySelector<HTMLInputElement>("#spaces-owner-root")!, "@yahoo");
+    await user.click([...node.querySelectorAll("button")].find(button => button.textContent === "Get ownership message")!);
+    await settle();
+    expect(node.querySelector("[data-owner-settings-sign-in]")).not.toBeNull();
+    expect(node.textContent).toContain("Sign in required");
+  });
+
   test("shows the prepared address and requires owner confirmation before delegation", async () => {
     const calls: unknown[] = [];
     const candidate = { operator_assignment_id: "assignment-1", generation: 2, network: "mainnet" as const,

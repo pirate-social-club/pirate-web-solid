@@ -27,7 +27,7 @@ import {
   createCommunityTelegramSettingsApi,
   type CommunityTelegramSettingsApi,
 } from "./community-telegram-settings-api";
-import { createFakeNamespaceSettingsPort } from "./fake-owner-settings-port";
+import type { CommunityHnsTxtApi } from "./community-hns-txt-api";
 import { OwnerSettingsRouteView } from "./owner-settings-route-view";
 
 /**
@@ -98,7 +98,11 @@ const namesSectionApi: CommunityNamesSettingsApi = {
   getSnapshot: async () => NAMES_ACTIVE,
 };
 
-const namespaceSectionApi = createFakeNamespaceSettingsPort();
+const txtSectionApi: CommunityHnsTxtApi = {
+  current: async () => null,
+  start: async () => { throw new Error("Story action is not connected"); },
+  check: async () => { throw new Error("Story action is not connected"); },
+};
 
 const telegramSectionApi: CommunityTelegramSettingsApi = {
   ...createCommunityTelegramSettingsApi(),
@@ -202,13 +206,13 @@ export const SectionNames: Story = {
   },
 };
 
-/** `/c/<segment>/settings/namespace` drives the real namespace controller through its fake port. */
+/** `/c/<segment>/settings/namespace` shows the TXT-only attachment entry. */
 export const SectionAddress: Story = {
   name: "Section address",
-  args: { requestedSection: "namespace", namespaceApi: namespaceSectionApi, state: successState() },
+  args: { requestedSection: "namespace", txtAttachmentApi: txtSectionApi, state: successState() },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await waitFor(() => expect(canvas.getByRole("button", { name: "Continue" })).toBeInTheDocument());
+    await waitFor(() => expect(canvas.getByRole("button", { name: "Start verification" })).toBeInTheDocument());
   },
 };
 

@@ -18,6 +18,7 @@ import {
   type CommunityNamesSettingsCommand,
 } from "./community-names-settings-model";
 import { CommunityNamesSettingsPanel } from "./community-names-settings-panel";
+import { OwnerSettingsSignInCard } from "./owner-settings-sign-in-card";
 
 export interface CommunityNamesSettingsControllerProps {
   api?: CommunityNamesSettingsApi;
@@ -25,7 +26,7 @@ export interface CommunityNamesSettingsControllerProps {
   onReviewAddress?: () => void;
 }
 
-type LoadStatus = "loading" | "ready" | "denied" | "error";
+type LoadStatus = "loading" | "ready" | "denied" | "error" | "sign-in";
 
 function idempotencyKey(scope: string): string {
   const random = globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`;
@@ -73,7 +74,11 @@ export function CommunityNamesSettingsController(
       setStatus("ready");
     } catch (error) {
       if (!active || request !== requestGeneration) return;
-      if (error instanceof ApiClientError && (error.status === 401 || error.status === 404)) {
+      if (error instanceof ApiClientError && error.status === 401) {
+        setStatus("sign-in");
+        return;
+      }
+      if (error instanceof ApiClientError && error.status === 404) {
         setStatus("denied");
         return;
       }
@@ -178,7 +183,10 @@ export function CommunityNamesSettingsController(
       }
       if (active) await load();
     } catch (error) {
-      if (active) setMessage(safeCommandError(error instanceof ApiClientError ? error : undefined));
+      if (active) {
+        if (error instanceof ApiClientError && error.status === 401) setStatus("sign-in");
+        else setMessage(safeCommandError(error instanceof ApiClientError ? error : undefined));
+      }
     } finally {
       if (active) setBusy(undefined);
     }
@@ -190,6 +198,7 @@ export function CommunityNamesSettingsController(
         <div class="flex items-center gap-3"><Spinner class="size-5" /><Type variant="body">Loading Community Names…</Type></div>
       </Card>
     )}>
+      <Show when={status() !== "sign-in"} fallback={<OwnerSettingsSignInCard />}>
       <Show when={status() !== "denied"} fallback={(
         <Card class="p-6" data-owner-settings-denied>
           <Type as="h2" variant="h2">Owner access required</Type>
@@ -214,6 +223,7 @@ export function CommunityNamesSettingsController(
             />
           )}</Show>
         </Show>
+      </Show>
       </Show>
     </Show>
   );

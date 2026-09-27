@@ -25,6 +25,7 @@ export type RoutedOwnerSettingsSection = typeof ROUTED_OWNER_SETTINGS_SECTIONS[n
 export type OwnerSettingsRouteState =
   | Readonly<{ kind: "invalid" | "not-found" | "unavailable" }>
   | Readonly<{ kind: "denied" }>
+  | Readonly<{ kind: "sign-in-required" }>
   | Readonly<{ kind: "error" }>
   | Readonly<{
       access: OwnerSettingsAccess;
@@ -59,12 +60,17 @@ export function firstRoutedOwnerSettingsSection(access: OwnerSettingsAccess, una
 }
 
 function isRedactedOwnerResponse(reason: Error): boolean {
-  return reason instanceof ApiClientError && (reason.status === 401 || reason.status === 404);
+  return reason instanceof ApiClientError && reason.status === 404;
+}
+
+function isUnauthorizedResponse(reason: unknown): boolean {
+  return reason instanceof ApiClientError && reason.status === 401;
 }
 
 export interface OwnerSettingsBotAccess {
   granted: boolean;
   unavailable: boolean;
+  signInRequired: boolean;
 }
 
 /**
@@ -76,17 +82,18 @@ export async function settledBotAccess(
   dependencies: Pick<OwnerSettingsRouteDependencies, "telegramApi">,
   communityId: string,
 ): Promise<OwnerSettingsBotAccess> {
-  if (dependencies.telegramApi === undefined) return { granted: false, unavailable: false };
+  if (dependencies.telegramApi === undefined) return { granted: false, unavailable: false, signInRequired: false };
   try {
-    // A settings read that returns at all is the authority signal; the endpoint
-    // redacts to 401 or 404 for an owner without it.
+    // A settings read that returns at all is the authority signal. A 401 asks
+    // for sign-in, while a 404 remains an ambiguous redacted denial.
     await dependencies.telegramApi.getSettings({ communityId });
-    return { granted: true, unavailable: false };
+    return { granted: true, unavailable: false, signInRequired: false };
   } catch (reason) {
+    if (isUnauthorizedResponse(reason)) return { granted: false, unavailable: false, signInRequired: true };
     if (reason instanceof Error && isRedactedOwnerResponse(reason)) {
-      return { granted: false, unavailable: false };
+      return { granted: false, unavailable: false, signInRequired: false };
     }
-    return { granted: false, unavailable: true };
+    return { granted: false, unavailable: true, signInRequired: false };
   }
 }
 
@@ -109,6 +116,10 @@ export async function loadOwnerSettingsRoute(
     dependencies.moderationApi.getCapabilities({ communityId: community.communityId }),
     dependencies.namesApi.getSnapshot({ communityId: community.communityId }),
   ]);
+  if (
+    (moderation.status === "rejected" && isUnauthorizedResponse(moderation.reason)) ||
+    (names.status === "rejected" && isUnauthorizedResponse(names.reason))
+  ) return { kind: "sign-in-required" };
   const unavailableSections: RoutedOwnerSettingsSection[] = [];
   if (moderation.status === "rejected" && !isRedactedOwnerResponse(moderation.reason)) unavailableSections.push("moderation_queue", "content_policy");
   if (names.status === "rejected" && !isRedactedOwnerResponse(names.reason)) unavailableSections.push("namespace", "names");
@@ -123,6 +134,7 @@ export async function loadOwnerSettingsRoute(
   // because a community whose sole authority is the bot would look empty here.
   if (firstRoutedOwnerSettingsSection(access, unavailableSections) === null) {
     const telegram = await settledBotAccess(dependencies, community.communityId);
+    if (telegram.signInRequired) return { kind: "sign-in-required" };
     if (telegram.unavailable) unavailableSections.push("telegram", "assistant");
     if (!telegram.granted && !telegram.unavailable) return { kind: "denied" };
     if (telegram.granted) access = { ...access, "community.bot.manage": true };
