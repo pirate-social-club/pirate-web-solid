@@ -11,9 +11,8 @@ export async function createCommunity(page: Page, marker: string): Promise<strin
   await page.goto("/communities/new");
   await expect(page.locator("[data-creation-state='ready']")).toBeVisible();
   await page.getByRole("textbox", { name: "Name", exact: true }).fill(marker);
-  await page.getByRole("textbox", { name: "Description", exact: true }).fill("Automated community creation acceptance");
-  const publicName = page.getByRole("textbox", { name: "Public name", exact: true });
-  if (await publicName.isVisible()) await publicName.fill("Community test creator");
+  await page.getByRole("button", { name: "Continue", exact: true }).click();
+  await page.getByRole("textbox", { name: "Your name", exact: true }).fill("Community test creator");
   const [created] = await Promise.all([
     page.waitForResponse(response => response.request().method() === "POST"
       && /^\/(?:api\/)?community-creation-intents$/u.test(new URL(response.url()).pathname),

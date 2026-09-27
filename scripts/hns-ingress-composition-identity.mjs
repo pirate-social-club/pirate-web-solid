@@ -41,6 +41,12 @@ const protectedVariableNames = Object.freeze([
   "HNS_COMMUNITY_APP_ACCESS_AUDIENCE",
   "HNS_COMMUNITY_APP_AUTHORITY_ORIGIN",
   "HNS_HANDLE_HOST_INGRESS_ORIGIN",
+  "HNS_HANDLE_HOST_CANONICAL_ORIGIN",
+  "HNS_HANDLE_HOST_PUBLIC_API_ORIGIN",
+  "HNS_HANDLE_HOST_ACCESS_ISSUER",
+  "HNS_HANDLE_HOST_ACCESS_JWKS_URL",
+  "HNS_HANDLE_HOST_ACCESS_AUDIENCE",
+  "HNS_HANDLE_HOST_AUTHORITY_ORIGIN",
   "HNS_FORWARDER_V3_KEY_REGISTRY_REFERENCE",
   "HNS_FORWARDER_V3_KEY_REGISTRY_VERSION",
   "HNS_FORWARDER_V3_FRESHNESS_WINDOW_SECONDS",
@@ -51,26 +57,7 @@ const protectedVariableNames = Object.freeze([
 const excludedVariableNames = new Set([
   "HNS_COMMUNITY_APP_INGRESS_ENABLED",
   "HNS_COMMUNITY_APP_GATEWAY_DEPLOYMENT_REFERENCE",
-]);
-
-const disabledHandleVariableNames = Object.freeze([
   "HNS_HANDLE_HOST_INGRESS_ENABLED",
-  "HNS_HANDLE_HOST_INGRESS_ORIGIN",
-  "HNS_HANDLE_HOST_CANONICAL_ORIGIN",
-  "HNS_HANDLE_HOST_PUBLIC_API_ORIGIN",
-  "HNS_HANDLE_HOST_ACCESS_ISSUER",
-  "HNS_HANDLE_HOST_ACCESS_JWKS_URL",
-  "HNS_HANDLE_HOST_ACCESS_AUDIENCE",
-  "HNS_HANDLE_HOST_AUTHORITY_ORIGIN",
-  "HNS_HANDLE_HOST_GATEWAY_DEPLOYMENT_REFERENCE",
-]);
-
-const emptyHandleVariableNames = Object.freeze([
-  "HNS_HANDLE_HOST_INGRESS_ORIGIN",
-  "HNS_HANDLE_HOST_ACCESS_ISSUER",
-  "HNS_HANDLE_HOST_ACCESS_JWKS_URL",
-  "HNS_HANDLE_HOST_ACCESS_AUDIENCE",
-  "HNS_HANDLE_HOST_AUTHORITY_ORIGIN",
   "HNS_HANDLE_HOST_GATEWAY_DEPLOYMENT_REFERENCE",
 ]);
 
@@ -103,15 +90,14 @@ export function projectStagingIngressConfiguration(config, packageJson) {
 
   const protectedVars = {};
   for (const name of protectedVariableNames) protectedVars[name] = stringValue(vars[name], name);
-  const disabledHandleVars = {};
-  for (const name of disabledHandleVariableNames) {
-    disabledHandleVars[name] = stringValue(vars[name], name);
+  if (vars.HNS_COMMUNITY_APP_INGRESS_ENABLED !== "true" || vars.HNS_HANDLE_HOST_INGRESS_ENABLED !== "true") {
+    refuse("staging_ingress_must_be_enabled");
   }
-  if (disabledHandleVars.HNS_HANDLE_HOST_INGRESS_ENABLED !== "false") {
-    refuse("handle_host_must_remain_disabled");
+  if (vars.HNS_HANDLE_HOST_INGRESS_ORIGIN !== vars.HNS_COMMUNITY_APP_INGRESS_ORIGIN) {
+    refuse("staging_ingress_origin_mismatch");
   }
-  for (const name of emptyHandleVariableNames) {
-    if (disabledHandleVars[name] !== "") refuse(`handle_host_must_remain_empty_${name}`);
+  if (vars.HNS_HANDLE_HOST_GATEWAY_DEPLOYMENT_REFERENCE !== vars.HNS_COMMUNITY_APP_GATEWAY_DEPLOYMENT_REFERENCE) {
+    refuse("staging_gateway_reference_mismatch");
   }
   for (const name of Object.keys(vars)) {
     if (
@@ -119,7 +105,6 @@ export function projectStagingIngressConfiguration(config, packageJson) {
         name.startsWith("HNS_FORWARDER_V3_") ||
         name.startsWith("HNS_HANDLE_HOST_")) &&
       !protectedVariableNames.includes(name) &&
-      !disabledHandleVariableNames.includes(name) &&
       !excludedVariableNames.has(name)
     ) {
       refuse(`unbound_variable_${name}`);
@@ -165,13 +150,12 @@ export function projectStagingIngressConfiguration(config, packageJson) {
   if (!Array.isArray(config.migrations)) refuse("missing_replay_migrations");
 
   return {
-    schema: "pirate-solid-hns-staging-ingress-composition-v2",
+    schema: "pirate-solid-hns-staging-ingress-composition-v3",
     main: stringValue(config.main, "worker_entry"),
     compatibility_date: stringValue(config.compatibility_date, "compatibility_date"),
     compatibility_flags: uniqueSortedStrings(config.compatibility_flags, "compatibility_flags"),
     protected_route: matchingRoutes[0],
     protected_vars: protectedVars,
-    disabled_handle_host_vars: disabledHandleVars,
     api_client_dependency: apiClientDependency,
     required_secret_names: uniqueSortedStrings(staging?.secrets?.required, "required_secrets"),
     replay_bindings: [...replayBindings].sort((left, right) => left.name.localeCompare(right.name)),
@@ -192,7 +176,7 @@ export function stagingIngressCompositionIdentity(config, sources, packageJson) 
     return { path, sha256: sha256(bytes) };
   });
   const projection = projectStagingIngressConfiguration(config, packageJson);
-  const canonical = JSON.stringify({ schema: "solid-hns-ingress-fingerprint-v2", sourceFiles, projection });
+  const canonical = JSON.stringify({ schema: "solid-hns-ingress-fingerprint-v3", sourceFiles, projection });
   return `solid-hns-ingress-sha256:${sha256(canonical)}`;
 }
 

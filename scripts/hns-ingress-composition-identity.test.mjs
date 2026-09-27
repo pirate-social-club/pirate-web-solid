@@ -57,33 +57,35 @@ test("gateway reference and rollout flags cannot create a fingerprint cycle", ()
   const original = identity();
   const changed = changedConfig((copy) => {
     copy.env.staging.vars.HNS_COMMUNITY_APP_GATEWAY_DEPLOYMENT_REFERENCE =
-      `hns-community-app-gateway-sha256:${"a".repeat(64)}`;
+      `hns-community-app-handle-gateway-sha256:${"a".repeat(64)}`;
+    copy.env.staging.vars.HNS_HANDLE_HOST_GATEWAY_DEPLOYMENT_REFERENCE =
+      copy.env.staging.vars.HNS_COMMUNITY_APP_GATEWAY_DEPLOYMENT_REFERENCE;
     copy.env.staging.vars.HNS_COMMUNITY_APP_INGRESS_ENABLED = "true";
+    copy.env.staging.vars.HNS_HANDLE_HOST_INGRESS_ENABLED = "true";
   });
   assert.deepEqual(projection(changed), projection());
   assert.equal(identity(changed), original);
 });
 
-test("staging handle-host settings remain explicitly disabled and fingerprinted", () => {
+test("staging handle-host settings are enabled, bound and fingerprinted", () => {
   const original = identity();
-  const baseline = projection().disabled_handle_host_vars;
-  assert.equal(baseline.HNS_HANDLE_HOST_INGRESS_ENABLED, "false");
-  assert.equal(baseline.HNS_HANDLE_HOST_INGRESS_ORIGIN, "");
+  const baseline = projection().protected_vars;
+  assert.equal(config.env.staging.vars.HNS_HANDLE_HOST_INGRESS_ENABLED, "true");
+  assert.equal(baseline.HNS_HANDLE_HOST_INGRESS_ORIGIN, baseline.HNS_COMMUNITY_APP_INGRESS_ORIGIN);
 
   for (const [name, value] of [
-    ["HNS_HANDLE_HOST_INGRESS_ENABLED", "true"],
+    ["HNS_HANDLE_HOST_INGRESS_ENABLED", "false"],
     ["HNS_HANDLE_HOST_INGRESS_ORIGIN", "https://handle-staging.pirate.sc"],
-    ["HNS_HANDLE_HOST_ACCESS_AUDIENCE", "new-audience"],
     ["HNS_HANDLE_HOST_GATEWAY_DEPLOYMENT_REFERENCE", "new-gateway"],
   ]) {
     const changed = changedConfig((copy) => { copy.env.staging.vars[name] = value; });
-    assert.throws(() => identity(changed), /handle_host_must_remain_/u);
+    assert.throws(() => identity(changed), /staging_(?:ingress|gateway)/u);
   }
 
-  const changedCanonical = changedConfig((copy) => {
-    copy.env.staging.vars.HNS_HANDLE_HOST_CANONICAL_ORIGIN = "https://other.example";
-  });
-  assert.notEqual(identity(changedCanonical), original);
+  for (const name of ["HNS_HANDLE_HOST_CANONICAL_ORIGIN", "HNS_HANDLE_HOST_ACCESS_AUDIENCE"]) {
+    const changed = changedConfig((copy) => { copy.env.staging.vars[name] = "different"; });
+    assert.notEqual(identity(changed), original);
+  }
 
   const added = changedConfig((copy) => {
     copy.env.staging.vars.HNS_HANDLE_HOST_NEW_ROUTING_SETTING = "enabled";
