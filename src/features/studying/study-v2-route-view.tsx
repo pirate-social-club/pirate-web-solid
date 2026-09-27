@@ -156,13 +156,7 @@ export function StudyV2RouteView(props: StudyV2RouteViewProps) {
     const result = await startCoordinator.start(scope);
     if (!active) return;
     if (result.status === "unavailable") {
-      setMessage(result.message);
-      setState({
-        availability: input.availability,
-        communityId: input.communityId,
-        kind: "configure",
-        session: input.session,
-      });
+      setState({ kind: "unavailable", message: result.message });
       return;
     }
     try {
@@ -173,13 +167,7 @@ export function StudyV2RouteView(props: StudyV2RouteViewProps) {
       if (active) setState({ kind: "lesson", session });
     } catch {
       if (active) {
-        setMessage("Study could not open the started session. Refresh the page and retry.");
-        setState({
-          availability: input.availability,
-          communityId: input.communityId,
-          kind: "configure",
-          session: input.session,
-        });
+        setState({ kind: "failed", message: "Study could not open the started session. Retry once the connection is stable." });
       }
     }
   };

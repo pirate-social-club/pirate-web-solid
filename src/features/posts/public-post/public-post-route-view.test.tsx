@@ -2,6 +2,7 @@ import { render as solidRender } from "@solidjs/web";
 import { createRoot } from "solid-js";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { GetPublicPostsBySlugResponse } from "@pirate/api-client";
+import { refreshSession } from "../../../api/session.ts";
 import { PublicPostRouteView } from "./public-post-route-view.tsx";
 import type { PublicPostRouteState } from "./public-post-route.model.ts";
 
@@ -66,6 +67,19 @@ function contentState(canonical: boolean): PublicPostRouteState {
 }
 
 describe("public post route view", () => {
+  it("shows a loading state during session refresh without flashing post unavailable", async () => {
+    let finish: ((state: PublicPostRouteState) => void) | undefined;
+    const reload = vi.fn(() => new Promise<PublicPostRouteState>(resolve => { finish = resolve; }));
+    const container = render(contentState(true), reload);
+    refreshSession();
+    await vi.waitFor(() => expect(container.textContent).toContain("Loading post"));
+    expect(container.textContent).not.toContain("Post unavailable");
+    await vi.waitFor(() => expect(reload).toHaveBeenCalledOnce());
+    finish?.(contentState(true));
+    await vi.waitFor(() => expect(container.textContent).toContain("A searchable title"));
+    expect(container.textContent).not.toContain("Post unavailable");
+  });
+
   it("renders song playback and API-owned activity paths on the detail page", () => {
     const state = contentState(true);
     if (state.kind !== "content") throw new Error("Expected fixture content");

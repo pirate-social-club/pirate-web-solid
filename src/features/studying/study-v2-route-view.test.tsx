@@ -576,7 +576,7 @@ describe("Study v2 production route", () => {
     expect(loadAvailability).not.toHaveBeenCalled();
     authenticated = true;
     refreshSession();
-    await vi.waitFor(() => expect(container.textContent).toContain("Speaking practice only"));
+    await vi.waitFor(() => expect(container.textContent).toContain("Study unavailable"));
     expect(loadAvailability).toHaveBeenCalledOnce();
   });
 
@@ -601,7 +601,7 @@ describe("Study v2 production route", () => {
     await vi.waitFor(() => expect(resolveContinuation).toHaveBeenCalledOnce());
     expect(requests).toHaveLength(1);
     requests[0]!(learnerSession);
-    await vi.waitFor(() => expect(container.textContent).toContain("Speaking practice only"));
+    await vi.waitFor(() => expect(container.textContent).toContain("Study unavailable"));
     expect(loadAvailability).toHaveBeenCalledOnce();
   });
 
@@ -634,22 +634,22 @@ describe("Study v2 production route", () => {
     retry.click();
     await vi.waitFor(() => expect(requests).toHaveLength(2));
     requests[1]!(learnerSession);
-    await vi.waitFor(() => expect(container.textContent).toContain("Speaking practice only"));
+    await vi.waitFor(() => expect(container.textContent).toContain("Study unavailable"));
     requests[0]!("anonymous");
     await new Promise(resolve => setTimeout(resolve, 20));
-    expect(container.textContent).toContain("Speaking practice only");
+    expect(container.textContent).toContain("Study unavailable");
     expect(container.textContent).not.toContain("Sign in to study");
     expect(loadAvailability).toHaveBeenCalledOnce();
   });
 
-  test("does not restart a configured session on an unrelated refresh", async () => {
+  test("does not restart a failed start on an unrelated refresh", async () => {
     const api = studyApi();
     const loadAvailability = vi.spyOn(api, "loadAvailability");
     const container = render(() => (
       <StudyV2RouteView api={api} postId="post-1" resolveSession={async () => learnerSession} />
     ));
 
-    await vi.waitFor(() => expect(container.textContent).toContain("Speaking practice only"));
+    await vi.waitFor(() => expect(container.textContent).toContain("Study unavailable"));
     expect(loadAvailability).toHaveBeenCalledOnce();
     refreshSession();
     await Promise.resolve();
@@ -709,6 +709,7 @@ test("fails visibly when cross-tab coordination is unavailable", async () => {
   ));
   await vi.waitFor(() => expect(container.textContent).toContain("Study cannot coordinate this session"));
   expect(createSession).not.toHaveBeenCalled();
-  // The failure is visible and the explicit Start remains available.
-  expect(container.textContent).toContain("Start Study");
+  // A failed auto-start stays visible without sending a single-persona user to setup.
+  expect(container.textContent).toContain("Try Again");
+  expect(container.textContent).not.toContain("Start Study");
 });

@@ -329,7 +329,7 @@ describe("Study session start coordinator", () => {
     expect(JSON.parse(stored ?? "{}")).toMatchObject({ key: api.attempts[0]!.key, sessionId: null });
   });
 
-  it("names a not-due start as scheduled review, not a changed request", async () => {
+  it("reports missing Study content without suggesting a scheduled review", async () => {
     const api = new FakeApi();
     api.failWith = "content-not-ready";
     const storage = new MemoryStorage();
@@ -337,10 +337,10 @@ describe("Study session start coordinator", () => {
     const result = await coordinator.start(scope());
     expect(result).toEqual({
       status: "unavailable",
-      message: "This song's Study cards are not ready for a new session yet. The review is scheduled; try again when it is due.",
+      message: "This song does not have enough ready Study exercises yet.",
     });
     expect(api.attempts).toHaveLength(1);
-    // The refusal is content scheduling, not a replay conflict: the key stays.
+    // A definite content refusal retains the key for a safe retry.
     const stored = storage.getItem(studySessionStartScopeKey(scope()));
     expect(JSON.parse(stored ?? "{}")).toMatchObject({ key: api.attempts[0]!.key, sessionId: null });
   });

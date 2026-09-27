@@ -204,6 +204,7 @@ function Failure(props: { readonly state: Exclude<PublicPostRouteState, { readon
 
 export function PublicPostRouteView(props: PublicPostRouteViewProps) {
   const [refreshed, setRefreshed] = createSignal<{ source: PublicPostRouteViewProps["state"]; state: PublicPostRouteState }>();
+  const [refreshing, setRefreshing] = createSignal(false);
   const state = createMemo(() => refreshed()?.source === props.state ? refreshed()?.state : props.state, { deferStream: true });
   let authorityRefresh: AbortController | undefined;
   onCleanup(() => authorityRefresh?.abort());
@@ -214,12 +215,15 @@ export function PublicPostRouteView(props: PublicPostRouteViewProps) {
     const prior = untrack(state);
     if (prior && typeof prior === "object" && "kind" in prior && prior.kind === "age-locked") return;
     // Drop rendered content immediately; the new account must win its own read.
+    setRefreshing(true);
     setRefreshed({ source, state: { kind: "unavailable", status: 502 } });
     void Promise.resolve(prior).then(async current => {
       if (!current || !("activity" in current)) return;
       const next = await (props.reload ?? reloadCurrentPublicPostRoute)(current.activity, request.signal);
       if (!request.signal.aborted && source === props.state) setRefreshed({ source, state: next });
-    }).catch(() => undefined);
+    }).catch(() => undefined).finally(() => {
+      if (!request.signal.aborted && source === props.state) setRefreshing(false);
+    });
   }));
   const verified = async (signal: AbortSignal) => {
     const source = props.state;
@@ -229,11 +233,13 @@ export function PublicPostRouteView(props: PublicPostRouteViewProps) {
     if (!signal.aborted && source === props.state) setRefreshed({ source, state: next });
   };
   return (
-    <Loading fallback={<main aria-busy="true"><h1>Loading post</h1></main>}>
-      <Show when={state()} keyed>
-        {resolved => <Resolved state={resolved} onVerified={verified} verifyAge={props.verifyAge} />}
-      </Show>
-    </Loading>
+    <Show when={!refreshing()} fallback={<main aria-busy="true"><h1>Loading post</h1></main>}>
+      <Loading fallback={<main aria-busy="true"><h1>Loading post</h1></main>}>
+        <Show when={state()} keyed>
+          {resolved => <Resolved state={resolved} onVerified={verified} verifyAge={props.verifyAge} />}
+        </Show>
+      </Loading>
+    </Show>
   );
 }
 
