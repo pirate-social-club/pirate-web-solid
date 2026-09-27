@@ -829,7 +829,10 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
             alignTake={props.videoAlignTake}
             openPreview={props.videoOpenPreview}
             startCapture={props.videoStartCapture}
-            onExit={() => setMode("text")} onPublished={props.onPublished}
+            onExit={() => {
+              if (props.initialVideoSong) close(false);
+              else setMode("text");
+            }} onPublished={props.onPublished}
             onRetainedPersona={(personaId, retainedCommunityId) => {
               if (personaId !== null) {
                 setVideoPersonaId(personaId);

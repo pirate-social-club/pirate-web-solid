@@ -516,20 +516,16 @@ describe("CommunityPage", () => {
       />
     ));
     await vi.waitFor(() => expect(document.querySelector('[aria-label="Video composer"]')).not.toBeNull());
-    // The author closes the capture view, then the composer; the marker that
-    // opened it leaves the URL with them.
-    const closeCapture = await vi.waitFor(() => {
-      const button = document.querySelector<HTMLButtonElement>("button[aria-label='Close video capture']");
+    // Song choice now opens before capture. Back dismisses the composer and
+    // removes the URL marker that opened it.
+    const back = await vi.waitFor(() => {
+      const sheet = document.querySelector('[data-song-choice-screen]');
+      const button = [...(sheet?.querySelectorAll<HTMLButtonElement>("button") ?? [])]
+        .find(candidate => candidate.textContent?.trim() === "Back");
       expect(button).not.toBeNull();
       return button!;
     });
-    closeCapture.click();
-    const composerClose = await vi.waitFor(() => {
-      const button = document.querySelector<HTMLButtonElement>("button[aria-label='Close composer']");
-      expect(button).not.toBeNull();
-      return button!;
-    });
-    composerClose.click();
+    back.click();
     await vi.waitFor(() => expect(clearVideoSongIntent).toHaveBeenCalledTimes(1));
     expect(document.querySelector('[aria-label="Video composer"]')).toBeNull();
   });
