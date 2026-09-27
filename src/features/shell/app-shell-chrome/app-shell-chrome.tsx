@@ -142,10 +142,7 @@ export interface MobileFooterNavProps {
   labels?: Partial<Record<ShellNavItem, string>> & {
     primaryNavAriaLabel?: string;
     profileAriaLabel?: string;
-    createAriaLabel?: string;
   };
-  /** The center create action; widens the footer to five positions. */
-  onCreateClick?: () => void;
   onHomeClick?: () => void;
   onSongsClick?: () => void;
   onWalletClick?: () => void;
@@ -204,9 +201,7 @@ export function MobileFooterNav(props: MobileFooterNavProps) {
           profile: labels().profile,
           profileAriaLabel: labels().profileAriaLabel,
           primaryNavAriaLabel: labels().primaryNavAriaLabel,
-          createAriaLabel: labels().createAriaLabel,
         }}
-        onCreateClick={props.onCreateClick}
         onHomeClick={props.onHomeClick}
         onSongsClick={props.onSongsClick}
         onWalletClick={props.onWalletClick}

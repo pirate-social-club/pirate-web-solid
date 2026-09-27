@@ -22,11 +22,12 @@ export function PostComposerExcerptSelector(props: {
 
   return (
     <PostComposerField
+      class="min-w-0 grid-cols-1"
       counter={<output class="tabular-nums">{start()}</output>}
       label="Song starts at"
       tone="muted"
     >
-      <div class="flex items-center gap-3 rounded-[var(--radius-xl)] bg-card px-3 py-2">
+      <div class="flex min-w-0 items-center gap-3 rounded-[var(--radius-xl)] bg-card px-3 py-2">
         <IconButton
           active={props.playing}
           aria-label={props.playing ? "Pause the song" : "Play from here"}

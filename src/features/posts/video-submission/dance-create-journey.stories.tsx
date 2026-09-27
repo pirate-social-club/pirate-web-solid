@@ -5,26 +5,21 @@ import { createSignal, For, Show } from "solid-js";
 import type { JSX } from "@solidjs/web";
 import { AppHeader } from "@pirate/web-solid-ui";
 
-import { Button, IconMusicNote, IconPlay, Type } from "../../../design-system";
+import { Button, IconMusicNote, Type } from "../../../design-system";
+import { SongPicker } from "../post-composer/song-picker";
+import { toneWavUrl } from "./story-fixtures-media";
 import dancePosterSheet from "./fixtures/dance-poster-sheet.png";
 
-/** The dance create journeys, as fixture-backed design prototypes on the
- * capture-first flow. They establish what the Dance successor must build:
- * song chooser → that song's dance grid → fixed section or trim → capture →
- * review or a labelled private score. The camera's song control returns to
- * the chooser, which leads back through the dances for that song. Nothing here contacts a
- * server, opens a camera, grades anything, or pays anything. The score and
- * Post this take screens are labelled fixtures: the private-attempt lane is
- * still planned, no grading provider is selected, and posting the same
- * graded recording needs the recorded media-handoff amendment. */
+/** Fixture-backed Dance design after the production song picker. The private
+ * score is separate from public video posting. No camera, grader, publisher or
+ * reward service is connected here. */
 
-type Screen = "capture" | "chooser" | "preview" | "dances" | "detail" | "review" | "score";
+type Screen = "capture" | "chooser" | "dances" | "detail" | "review" | "score";
 
 interface FixtureSong {
   readonly postId: string;
   readonly title: string;
   readonly artist: string;
-  readonly length: string;
 }
 
 interface FixtureDance {
@@ -38,8 +33,8 @@ interface FixtureDance {
 }
 
 const songs: readonly FixtureSong[] = [
-  { postId: "cadence", title: "Cadence", artist: "salt-cove.pirate", length: "2:14" },
-  { postId: "low-tide", title: "Low Tide", artist: "drift-reef.pirate", length: "3:01" },
+  { postId: "cadence", title: "Cadence", artist: "salt-cove.pirate" },
+  { postId: "low-tide", title: "Low Tide", artist: "drift-reef.pirate" },
 ];
 
 const dances: readonly FixtureDance[] = [
@@ -112,7 +107,7 @@ function JourneyFrame(props: {
   /** The selected song's grid starts with ready dances, or with none yet. */
   readonly withDances?: boolean;
 }) {
-  const [screen, setScreen] = createSignal<Screen>("capture");
+  const [screen, setScreen] = createSignal<Screen>("chooser");
   const [chooserReturn, setChooserReturn] = createSignal<"capture" | "dances">("capture");
   const [trimOpen, setTrimOpen] = createSignal(false);
   const [song, setSong] = createSignal<FixtureSong>();
@@ -122,8 +117,7 @@ function JourneyFrame(props: {
   const [sectionStart, setSectionStart] = createSignal(42);
   const [profile, setProfile] = createSignal<(typeof profiles)[number]>(profiles[0]);
   const [profileOpen, setProfileOpen] = createSignal(false);
-  const [query, setQuery] = createSignal("");
-  const [previewing, setPreviewing] = createSignal<FixtureSong>();
+  const [linkProblem, setLinkProblem] = createSignal<string>();
   /** The chosen reference dance, narrowed away from the "new" marker; the
    * detail screen only renders while a concrete dance is chosen. */
   const referenceDance = () => {
@@ -134,6 +128,7 @@ function JourneyFrame(props: {
     // Choosing a song always clears the dance: the target must belong to
     // the song it was made for.
     setSong(next);
+    setLinkProblem(undefined);
     setDance(undefined);
     setRecording(false);
     setSectionStart(42);
@@ -181,54 +176,26 @@ function JourneyFrame(props: {
       </Show>
 
       <Show when={screen() === "chooser"}>
-        {/* Fixed, TikTok-shaped: the screen never scrolls; the list owns
-         * any overflow. A back button and the search field are the whole
-         * header. */}
         <div class="flex h-dvh flex-col overflow-hidden bg-background" data-song-chooser>
-          <JourneyHeader
-            backAriaLabel={chooserReturn() === "dances" ? "Back to dances" : "Back to capture"}
-            center={<input
-              aria-label="Search songs"
-              class="w-56 min-w-0 max-w-full rounded-full border border-border-soft bg-background px-4 py-2 text-base"
-              onInput={event => setQuery(event.currentTarget.value)}
-              placeholder="Search songs"
-              type="search"
-              value={query()}
-            />}
-            onBack={() => setScreen(chooserReturn())}
-          />
-          <div aria-hidden="true" class="shrink-0" style={{ height: "calc(var(--header-height) + env(safe-area-inset-top))" }} />
-          <ul aria-label="Songs" class="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto px-3">
-            <For each={songs.filter(candidate => candidate.title.toLowerCase().includes(query().trim().toLowerCase()))}>
-              {candidate => (
-                <li class="flex items-center gap-3 rounded-[var(--radius-lg)] p-2">
-                  <button
-                    aria-label={`Play ${candidate.title}`}
-                    class="grid size-11 shrink-0 cursor-pointer place-items-center rounded-[var(--radius-md)] bg-muted text-foreground"
-                    onClick={() => { setPreviewing(candidate); setScreen("preview"); }}
-                    type="button"
-                  >
-                    <IconPlay class="size-5" />
-                  </button>
-                  <button
-                    class="min-w-0 flex-1 cursor-pointer truncate text-start"
-                    onClick={() => chooseSong(candidate)}
-                    type="button"
-                  >
-                    <Type as="span" variant="body-strong" class="block truncate">{candidate.title}</Type>
-                    <Type as="span" variant="caption" class="block truncate text-muted-foreground">{candidate.artist} · {candidate.length}</Type>
-                  </button>
-                </li>
-              )}
-            </For>
-          </ul>
+          <div class="flex items-center justify-between px-4 py-4">
+            <Type as="h1" variant="h3">Choose a song</Type>
+            <Show when={song()}><Button onClick={() => setScreen(chooserReturn())} variant="ghost">Back</Button></Show>
+          </div>
+          <div class="min-h-0 flex-1 overflow-y-auto px-3">
+            <SongPicker
+              communityId="harbor"
+              linkProblem={linkProblem()}
+              source={async () => ({ songs: songs.map(candidate => ({ ...candidate, artworkSrc: null })), nextCursor: null })}
+              preview={async () => toneWavUrl(8_000)}
+              onPick={postId => { const picked = songs.find(candidate => candidate.postId === postId); if (picked) chooseSong(picked); }}
+              onLink={link => {
+                const picked = songs.find(candidate => link.endsWith(`/p/${candidate.postId}`));
+                if (picked) chooseSong(picked);
+                else setLinkProblem("This fixture has only the two sample songs.");
+              }}
+            />
+          </div>
         </div>
-      </Show>
-
-      <Show when={screen() === "preview"}>
-        <VerticalStage onBack={() => { setPreviewing(undefined); setScreen("chooser"); }}>
-          <span class="text-sm text-white/70">{previewing()?.title} · video (fixture)</span>
-        </VerticalStage>
       </Show>
 
       <Show when={screen() === "dances"}>
@@ -307,7 +274,6 @@ function JourneyFrame(props: {
             </div>
             <div class="grid gap-2">
               <Button data-try-score onClick={() => { setCaptureMode("score"); setScreen("capture"); }} size="lg">Try for a private score</Button>
-              <Button data-record-to-post onClick={() => { setCaptureMode("post"); setScreen("capture"); }} size="lg" variant="secondary">Record a take to post</Button>
             </div>
           </div>
         </VerticalStage>
@@ -317,7 +283,7 @@ function JourneyFrame(props: {
         <div class="min-h-dvh bg-background p-4" data-review>
           <Type as="h1" variant="h2" class="pb-3">Review video</Type>
           <div class="mx-auto grid aspect-[9/16] max-h-[52dvh] w-full max-w-sm place-items-center rounded-[var(--radius-2xl)] bg-gradient-to-b from-[#262a30] to-[#0d0f12] text-sm text-white/70">Your take (fixture)</div>
-          <p class="mx-auto max-w-sm pt-3 text-sm text-muted-foreground">Posting as {profile()} · destination and caption confirm here · Publish</p>
+          <p class="mx-auto max-w-sm pt-3 text-sm text-muted-foreground">Public video review is handled by the community Post flow. This Dance screen is a fixture.</p>
         </div>
       </Show>
 
@@ -331,10 +297,7 @@ function JourneyFrame(props: {
           <p class="pb-6 text-sm text-muted-foreground">Private diagnostics only. No streak, no reward, no lottery.</p>
           <div class="grid gap-2">
             <Button size="lg" onClick={() => setScreen("capture")}>Retake</Button>
-            <div class="flex items-center gap-2">
-              <Button size="lg" variant="secondary">Post this take</Button>
-              <FixtureBadge label="Fixture — needs the media-handoff amendment" />
-            </div>
+            <Button size="lg" variant="secondary" onClick={() => setScreen("dances")}>Done</Button>
           </div>
         </div>
       </Show>
@@ -399,7 +362,7 @@ const meta = {
     docs: {
       description: {
         component:
-          "Design prototypes for the dance create flow: song chooser, a 9:16 grid of dances for that song with a blank Create new dance tile first, a full-screen reference for each existing dance, a fixed section for an existing dance or a movable 12-second section for a new one, capture, and a labelled private-score fixture. Fixture-backed and unpowered: nothing contacts a server, opens a camera, grades, or pays. The score and Post this take are fixtures; production dance work stays in its contract-backed lane.",
+          "Dance design fixtures after the production song picker: a dance grid, a reference detail, a new-dance section, and a separate private score. No camera, grading, publishing or rewards are connected. Public video posting remains in the community Post flow.",
       },
     },
   },
@@ -410,18 +373,15 @@ type Story = StoryObj<typeof meta>;
 
 const openChooser = async (canvasElement: HTMLElement) => {
   const canvas = within(canvasElement);
-  const addSong = await canvas.findByRole("button", { name: "Add song" }, { timeout: 8_000 });
-  addSong.click();
-  // The chooser screen never scrolls: back and search are its header, and
-  // the list owns overflow.
   const search = await canvas.findByLabelText("Search songs", undefined, { timeout: 8_000 });
   expect(search.closest("[data-song-chooser]")).not.toBeNull();
 };
 
 const chooseCadence = async (canvasElement: HTMLElement) => {
   const canvas = within(canvasElement);
-  const song = await canvas.findByText("Cadence", undefined, { timeout: 8_000 });
-  song.closest("button")!.click();
+  const preview = await canvas.findByRole("button", { name: /Play Cadence by/ }, { timeout: 8_000 });
+  preview.click();
+  (await canvas.findByRole("button", { name: "Use Cadence" })).click();
   await canvas.findByRole("list", { name: "Dances to Cadence" });
 };
 
@@ -434,16 +394,6 @@ export const NewDanceJourney: Story = {
     await step("the chooser opens fixed, without page scroll", async () => {
       await openChooser(canvasElement);
     });
-    await step("playing a song opens the reusable full-screen stage", async () => {
-      canvas.getByRole("button", { name: "Play Cadence" })!.click();
-      const stage = await canvas.findByText(/Cadence · video \(fixture\)/, undefined, { timeout: 8_000 });
-      expect(stage.closest("[data-vertical-stage]")).not.toBeNull();
-      expect(canvasElement.querySelector("[data-dance-journey]")?.getAttribute("data-screen")).toBe("preview");
-      expect(canvasElement.querySelector("[data-song-chooser]")).toBeNull();
-      expect(stage.closest("[data-vertical-stage]")!.getBoundingClientRect().top).toBe(0);
-      canvas.getAllByRole("button", { name: "Back" })[0]!.click();
-      await canvas.findByLabelText("Search songs");
-    });
     await step("choosing the song opens its dance video grid", async () => {
       await chooseCadence(canvasElement);
     });
@@ -452,7 +402,7 @@ export const NewDanceJourney: Story = {
       await canvas.findByRole("dialog", { name: "Choose the section" });
       // Use this section closes to the camera, where Record is a separate
       // deliberate tap.
-      canvas.getByRole("button", { name: "Use this section" })!.click();;
+      canvas.getByRole("button", { name: "Use this section" })!.click();
       await canvas.findByRole("button", { name: "Start recording" });
     });
     await step("capture retains the chosen song", async () => {
@@ -480,17 +430,17 @@ export const ExistingDanceJourney: Story = {
       await canvas.findByText("Dancing as @reef-persona");
     });
     await step("a private score needs no posting path", async () => {
-      canvas.getByRole("button", { name: "Try for a private score" })!.click();;
+      canvas.getByRole("button", { name: "Try for a private score" })!.click();
       await canvas.findByRole("button", { name: /Song: Cadence/ });
-      canvas.getByRole("button", { name: "Start recording" })!.click();;
+      canvas.getByRole("button", { name: "Start recording" })!.click();
       (await canvas.findByRole("button", { name: "Stop recording" })).click();
     });
-    await step("the result is a labelled fixture, and posting is separate", async () => {
+    await step("the result is a private fixture with no posting action", async () => {
       const score = await canvas.findByText("78");
       expect(score).toBeTruthy();
       await canvas.findByText("Fixture — not a live promise");
-      await canvas.findByText("Fixture — needs the media-handoff amendment");
       await canvas.findByText(/No streak, no reward, no lottery/);
+      expect(canvas.queryByRole("button", { name: /Post this take/ })).toBeNull();
     });
   },
 };

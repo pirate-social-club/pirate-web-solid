@@ -12,6 +12,7 @@ import { mediaCommandBody, type PersistedMediaCommand } from "../media-submissio
 import type { MediaCommandResult, MediaSubmissionTransport } from "../media-submission/transport";
 import { CreatePostDialog } from "./create-post-dialog";
 import { MobileFooterNav } from "../../shell/app-shell-chrome/app-shell-chrome";
+import { toneWavUrl } from "../video-submission/story-fixtures-media";
 
 const personas = (count: 1 | 2 = 1): ActivePersonaPublicProjection[] => [
   { personaId: "persona-one", displayName: "Persona One", avatarRef: null, primaryPublicHandle: "salt-cove.pirate", communityBinding: null },
@@ -225,6 +226,49 @@ export const ContextualTextMobile: Story = {
   ...ContextualText,
   name: "Contextual / Text / Mobile",
   globals: { viewport: { value: "mobile1", isRotated: false } },
+};
+
+export const ContextualVideoMobile: Story = {
+  name: "Contextual / Video / Choose song first",
+  globals: { viewport: { value: "mobile1", isRotated: false } },
+  render: () => (
+    <CreatePostDialog
+      communityContext={{ id: "community-one", name: "Pirate Harbor" }}
+      onOpenChange={() => {}}
+      open
+      personas={personas(1)}
+      principalId="account-one"
+      videoSongPicker={async () => ({
+        songs: [{ postId: "cadence", title: "Cadence", artist: "salt-cove.pirate", artworkSrc: null }],
+        nextCursor: null,
+      })}
+      videoSongReader={async request => ({
+        postId: request.kind === "post" ? request.postId : "cadence",
+        audioUrl: toneWavUrl(120_000),
+        title: "Cadence",
+      })}
+      videoSongPreflight={async input => ({
+        state: "ready",
+        song_post_id: input.body.song_post_id,
+        audio_revision: 7,
+        canonical_duration_samples: 120_000 * 48,
+        interval_policy: {
+          policy_revision: 1,
+          sample_rate_hz: 48_000,
+          min_clip_duration_samples: 3_000 * 48,
+          max_clip_duration_samples: 120_000 * 48,
+        },
+        interval: input.body.interval ? { accepted: true } : null,
+      })}
+    />
+  ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement.ownerDocument.body);
+    (await canvas.findByRole("button", { name: "Video" })).click();
+    await canvas.findByRole("dialog", { name: "Choose a song" });
+    await canvas.findByRole("searchbox", { name: "Search songs" });
+    expect(canvas.queryByRole("button", { name: "Start recording" })).toBeNull();
+  },
 };
 
 /** The composer opens over a page whose mobile tab bar stays mounted, as on a

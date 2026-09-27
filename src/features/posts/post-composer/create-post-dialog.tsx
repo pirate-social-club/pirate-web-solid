@@ -119,9 +119,6 @@ export interface CreatePostDialogProps {
   /** Entering from a song post: open on the video track with this song chosen
    * before capture. */
   readonly initialVideoSong?: { readonly postId: string };
-  /** Entering from the global create control: open on the video track with no
-   * song chosen yet; the composer's song step still comes first. */
-  readonly initialMode?: "video";
   readonly open: boolean;
   readonly onOpenChange: (open: boolean) => void;
   readonly onPublished?: (href?: string) => void;
@@ -132,8 +129,6 @@ export interface CreatePostDialogProps {
   readonly mediaTransport?: MediaSubmissionTransport;
   readonly videoStorage?: import("../video-submission/coordinator").VideoStorage;
   readonly videoTransport?: import("../video-submission/transport").VideoTransport;
-  /** The per-persona song owner-policy read the video runtime asks before
-   * capture; injected so tests and stories can stand in for the server. */
   /** The interval preflight standing in for the server's excerpt checks in
    * stories and tests; production leaves it to the runtime's own client. */
   readonly videoSongPreflight?: SongIntervalPreflight;
@@ -178,7 +173,7 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
   const [textAgeGatePolicy, setTextAgeGatePolicy] = createSignal<AuthorAgeGatePolicy>("none");
   const [songAgeGatePolicy, setSongAgeGatePolicy] = createSignal<AuthorAgeGatePolicy>("none");
   const [mode, setMode] = createSignal<ComposerTab>(
-    untrack(() => (props.initialVideoSong || props.initialMode === "video" ? "video" : "text")),
+    untrack(() => (props.initialVideoSong ? "video" : "text")),
   );
   const ageGatePolicy = () => mode() === "song" ? songAgeGatePolicy() : textAgeGatePolicy();
   const setAgeGatePolicy = (next: AuthorAgeGatePolicy) => {

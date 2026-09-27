@@ -1140,8 +1140,8 @@ test.each([false, true])("retains video authority in global/contextual composer 
   } finally { for (const dispose of disposers.splice(0)) dispose(); pickerClick.mockRestore(); vi.stubGlobal("crypto", originalCrypto); vi.stubGlobal("URL", originalUrl); }
 });
 
-describe("video mode capture view", () => {
-  test("opens the capture view with Add song, and no posting details above it", async () => {
+describe("community Video entry", () => {
+  test("opens a full-screen song choice before capture, without posting details", async () => {
     const disposers: (() => void)[] = [];
     try {
       const { render } = await import("@solidjs/web");
@@ -1153,7 +1153,6 @@ describe("video mode capture view", () => {
         dispose = rootDispose;
         render(() => <CreatePostDialog
           communityContext={{ id: "community-one", name: "Harbor" }}
-          initialMode="video"
           onOpenChange={() => {}}
           open
           personas={[activePersona("persona-one", "Persona One"), activePersona("persona-two", "Persona Two")]}
@@ -1161,16 +1160,21 @@ describe("video mode capture view", () => {
         />, container);
       });
       disposers.push(() => { dispose(); container.remove(); });
-      // The capture view is the dialog: its own Add song control, and the
-      // posting details wait for review rather than sitting above it.
-      const addSound = await vi.waitFor(() => {
-        const button = document.querySelector<HTMLButtonElement>("button[aria-label='Add song']");
-        expect(button).not.toBeNull();
+      const video = await vi.waitFor(() => {
+        const button = [...document.querySelectorAll<HTMLButtonElement>("button")]
+          .find(candidate => candidate.textContent?.trim() === "Video");
+        expect(button).toBeDefined();
         return button!;
       });
+      video.click();
+      const songChoice = await vi.waitFor(() => {
+        const screen = document.querySelector<HTMLElement>("[data-song-choice-screen]");
+        expect(screen?.getAttribute("aria-hidden")).toBeNull();
+        return screen!;
+      });
       expect(document.querySelector("[data-operation-persona]")).toBeNull();
-      addSound.click();
-      await vi.waitFor(() => expect(document.querySelector('input[aria-label="Search songs"]')).not.toBeNull());
+      expect(songChoice.querySelector('input[aria-label="Search songs"]')).not.toBeNull();
+      expect(document.querySelector('button[aria-label="Start recording"]')).toBeNull();
     } finally {
       for (const dispose of disposers.splice(0)) dispose();
     }

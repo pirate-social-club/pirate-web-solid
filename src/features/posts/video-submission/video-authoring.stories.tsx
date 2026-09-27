@@ -293,6 +293,7 @@ function Harness(props: {
   readonly transport?: VideoTransport;
   readonly fetchImpl?: typeof fetch;
   readonly chooseFile?: () => Promise<File | null>;
+  readonly autoContinue?: boolean;
   readonly autoStart?: boolean;
   readonly autoPublish?: boolean;
   readonly controls?: JSX.Element;
@@ -300,20 +301,37 @@ function Harness(props: {
   let container: HTMLDivElement | undefined;
   onSettled(() => {
     if (!props.chooseFile) return;
+    let cancelled = false;
+    let timer: ReturnType<typeof setInterval> | undefined;
     void props.chooseFile().then(file => {
-      if (file === null) return;
-      const input = container?.querySelector<HTMLInputElement>('input[type="file"]');
-      if (!input) return;
-      const transfer = new DataTransfer();
-      transfer.items.add(file);
-      input.files = transfer.files;
-      input.dispatchEvent(new Event("change", { bubbles: true }));
+      if (file === null || cancelled) return;
+      timer = setInterval(() => {
+        const screen = container?.querySelector('[data-song-choice-screen][aria-hidden="true"]');
+        const input = container?.querySelector<HTMLInputElement>('input[type="file"]');
+        if (!screen || !input) return;
+        clearInterval(timer);
+        timer = undefined;
+        const transfer = new DataTransfer();
+        transfer.items.add(file);
+        input.files = transfer.files;
+        input.dispatchEvent(new Event("change", { bubbles: true }));
+      }, 100);
     });
+    return () => { cancelled = true; if (timer !== undefined) clearInterval(timer); };
   });
   onSettled(() => {
-    if (!props.autoStart && !props.autoPublish) return;
+    if (!props.autoContinue && !props.autoStart && !props.autoPublish && !props.chooseFile) return;
     const timer = setInterval(() => {
       const plan = container?.querySelector('[data-song-plan="ready"]');
+      const continueButton = [...(container?.querySelectorAll<HTMLButtonElement>('[data-song-choice-screen] button') ?? [])]
+        .find(button => button.textContent?.trim() === "Continue to video" && !button.disabled);
+      if (plan && continueButton && container?.querySelector('[data-song-choice-screen]')?.getAttribute("aria-hidden") !== "true") {
+        continueButton.click();
+      }
+      if ((props.autoContinue || props.chooseFile) && !props.autoStart && !props.autoPublish) {
+        if (container?.querySelector('[data-song-choice-screen]')?.getAttribute("aria-hidden") === "true") clearInterval(timer);
+        return;
+      }
       const start = [...(container?.querySelectorAll("button") ?? [])]
         .find(button => button.getAttribute("aria-label") === "Start recording");
       if (props.autoStart && plan && start) {
@@ -453,7 +471,7 @@ export const PreflightRefused: Story = {
 
 export const RecordingReady: Story = {
   name: "Ready to record with the song",
-  render: () => <Harness startCapture={captureDouble({ autoStopAfterMs: 60_000 })} />,
+  render: () => <Harness autoContinue startCapture={captureDouble({ autoStopAfterMs: 60_000 })} />,
 };
 
 export const GuidedRecording: Story = {

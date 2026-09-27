@@ -529,7 +529,7 @@ export function SongExcerptComposer(props: {
     (state.kind === "unavailable" || state.kind === "error") && state.retryable;
 
   return (
-    <section class="grid gap-3" aria-label="Song excerpt">
+    <section class="grid min-w-0 grid-cols-1 gap-3" aria-label="Song excerpt">
       <Show when={source().kind === "idle"}>
         <SongPicker
           communityId={communityId}
@@ -578,13 +578,13 @@ export function SongExcerptComposer(props: {
               }}
               src={ready().audioUrl}
             />
-            <div class="grid gap-1">
-              <div class="flex items-center gap-3">
+            <div class="grid min-w-0 grid-cols-1 gap-1">
+              <div class="flex min-w-0 items-center gap-3">
                 <span class="grid size-12 shrink-0 place-items-center rounded-[var(--radius-md)] bg-muted">
                   <IconMusicNote aria-hidden="true" class="size-5" />
                 </span>
                 <Type as="p" class="min-w-0 flex-1 truncate" variant="body-strong">{ready().title}</Type>
-                <Button onClick={resetSong} size="sm" type="button" variant="secondary">Change</Button>
+                <Button class="shrink-0" onClick={resetSong} size="sm" type="button" variant="secondary">Change</Button>
               </div>
               <Show when={audioProblem()}>
                 {(problem) => (

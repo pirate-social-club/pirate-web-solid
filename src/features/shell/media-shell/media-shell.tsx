@@ -225,17 +225,7 @@ export function ApplicationChrome(props: MediaShellProps) {
     const groups = sections();
     const links = resources();
     const footer = accountAction();
-    const create = (
-      <Button
-        class="w-full justify-start"
-        leadingIcon={<IconPlus class="size-4" />}
-        onClick={() => go("/create/video")}
-        type="button"
-      >
-        Create
-      </Button>
-    );
-    return <AppSidebar activeItemId={activeItem()} class="sticky top-0 hidden h-dvh md:flex" footer={footer} homeAriaLabel="Go home" mediaAction={create} onHomeClick={() => go("/")} onNavigate={navigateById} primaryItems={items} resourceItems={links} sections={groups} />;
+    return <AppSidebar activeItemId={activeItem()} class="sticky top-0 hidden h-dvh md:flex" footer={footer} homeAriaLabel="Go home" onHomeClick={() => go("/")} onNavigate={navigateById} primaryItems={items} resourceItems={links} sections={groups} />;
   }
 
   return <Show when={mode() !== "bare"} fallback={props.children}><div data-application-chrome data-media-shell data-shell-mode={mode()} data-shell-auth={props.sessionResolving ? "resolving" : props.sessionUnavailable ? "unavailable" : signedIn() ? "authenticated" : "anonymous"} class={`min-h-screen bg-background text-foreground ${props.class ?? ""}`}>
@@ -280,10 +270,7 @@ export function ApplicationChrome(props: MediaShellProps) {
             // Matches what a tap does: the selected profile's page, the profile
             // sheet while the account check is pending or failed, or sign-in.
             profileAriaLabel: selected() ? `Profile, ${selected()!.displayName}` : signedIn() || accountPending() ? "Your profiles" : "Sign in",
-            // The v1 create path picks a community and a song, then records.
-            createAriaLabel: "Post a video",
           }}
-          onCreateClick={() => go("/create/video")}
           onHomeClick={() => go("/")}
           onSongsClick={() => go("/songs")}
           onWalletClick={() => go("/wallet")}

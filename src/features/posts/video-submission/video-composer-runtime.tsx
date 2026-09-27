@@ -1,4 +1,4 @@
-import { createEffect, createMemo, createSignal, For, onCleanup, Show, untrack } from "solid-js";
+import { createEffect, createMemo, createSignal, onCleanup, Show, untrack } from "solid-js";
 import { Button, cn, FormNote, Type } from "../../../design-system";
 import { OperationPersonaControl } from "../../identity/operation-persona-control/operation-persona-control";
 import { type ExcerptBounds, formatExcerptTime } from "../post-composer/song-excerpt";
@@ -74,23 +74,18 @@ export const GUIDE_START_MAX_DELAY_MS = 750;
 export interface VideoPostingOption {
   readonly id: string;
   readonly label: string;
-  /** Present for profiles in the global Create route; the selected posting
-   * community must match their established community binding. */
+  /** The selected posting community must match the profile's binding. */
   readonly communityId?: string;
 }
 
 export function VideoComposerRuntime(props: {
   readonly principalId: string;
-  /** A contextual entry's fixed community. The global entry leaves it unset
-   * and the author chooses the destination on review. */
+  /** The community page's fixed posting destination. */
   readonly communityId?: string;
   readonly personaId?: string;
   /** The profiles that may author this video, when the host knows them; two
    * or more offer the choice on review, and a change re-checks eligibility. */
   readonly personaOptions?: readonly VideoPostingOption[];
-  /** The communities this video may be posted to, when the host offers the
-   * choice; a change re-checks eligibility. */
-  readonly communityOptions?: readonly VideoPostingOption[];
   /** The contextual entry's community name, shown on review when the
    * destination is fixed. */
   readonly communityName?: string;
@@ -172,15 +167,14 @@ export function VideoComposerRuntime(props: {
   // ruling 2026-09-24), so once a song loads it stays the choice through
   // pending checks and song switches.
   const [songChoice, setSongChoice] = createSignal<SongChoice>({ kind: "none" });
-  // The sound sheet: choosing a song, trimming its excerpt and reading the
-  // server's verdicts all happen there, over the capture view. Its content
-  // stays mounted so the draft survives closes.
-  const [songSheetOpen, setSongSheetOpen] = createSignal(false, { ownedWrite: true });
-  // The posting identity and destination. A contextual entry fixes them; the
-  // global entry seeds them from the first option and the author changes
-  // them on review. A profile is offered only in its bound community.
+  // Song choice is the first screen. Keep it mounted after continuing so the
+  // excerpt and server verdict survive capture, review and a later song change.
+  const [songSheetOpen, setSongSheetOpen] = createSignal(true, { ownedWrite: true });
+  const [enteredCapture, setEnteredCapture] = createSignal(false);
+  // The community page fixes the destination. Profiles are offered only in
+  // their bound community, with the selected one carried into review.
   const [chosenCommunityId, setChosenCommunityId] = createSignal(
-    props.communityId?.trim() || props.communityOptions?.[0]?.id || "",
+    props.communityId?.trim() || "",
     { ownedWrite: true },
   );
   const personasForDestination = createMemo(() => (props.personaOptions ?? [])
@@ -189,11 +183,6 @@ export function VideoComposerRuntime(props: {
     props.personaId?.trim() || personasForDestination()[0]?.id || "",
     { ownedWrite: true },
   );
-  const chooseCommunity = (communityId: string) => {
-    setChosenCommunityId(communityId);
-    const eligible = (props.personaOptions ?? []).filter(option => option.communityId === undefined || option.communityId === communityId);
-    if (!eligible.some(option => option.id === chosenPersonaId())) setChosenPersonaId(eligible[0]?.id ?? "");
-  };
   let picker: HTMLInputElement | undefined;
   let session: VideoCaptureSession | null = null;
   // The live camera shown before a take. Recording takes it over; anything
@@ -217,9 +206,8 @@ export function VideoComposerRuntime(props: {
     onChange: next => {
       if (disposed) return;
       setRecord(next); props.onRetainedPersona(next?.personaId ?? null, next?.communityId);
-      // A retained video knows its own community and persona; the global
-      // entry adopts them so the mismatch is about real changes, not about
-      // choices that were never made.
+      // A retained video knows its own community and persona. Adopt them so
+      // recovery reports an actual mismatch rather than an empty context.
       if (next !== null) {
         if (next.communityId && !chosenCommunityId()) setChosenCommunityId(next.communityId);
         if (next.personaId && !chosenPersonaId()) setChosenPersonaId(next.personaId);
@@ -767,7 +755,7 @@ export function VideoComposerRuntime(props: {
   // has been accepted by the server, not when recording starts: the author
   // frames the shot first. It closes when the screen goes away, and again
   // while a moved window waits for a new acceptance.
-  createEffect(() => mobile && captureReady() && pageVisible() && !record() && !file() && captureStatus() === "idle" && !finalizing(), capturing => {
+  createEffect(() => mobile && captureReady() && !songSheetOpen() && pageVisible() && !record() && !file() && captureStatus() === "idle" && !finalizing(), capturing => {
     if (!capturing) {
       // The camera stops now; the viewfinder signal is cleared outside the
       // effect's owned scope.
@@ -788,7 +776,7 @@ export function VideoComposerRuntime(props: {
       if (disposed) { previewOpening = false; return; }
       void open().then(media => {
         previewOpening = false;
-        const stillCapturing = !disposed && !session && !captureStarting && !record() && !file() && captureReady()
+        const stillCapturing = !disposed && !session && !captureStarting && !record() && !file() && captureReady() && !songSheetOpen()
           && captureStatus() === "idle" && document.visibilityState !== "hidden";
         if (!stillCapturing || previewStream) { stopTracks(media); return; }
         previewStream = media;
@@ -833,6 +821,7 @@ export function VideoComposerRuntime(props: {
   const confirmSound = () => {
     if (approvedSelection() !== undefined) {
       setConfirmingSound(false);
+      setEnteredCapture(true);
       setSongSheetOpen(false);
       return;
     }
@@ -845,6 +834,7 @@ export function VideoComposerRuntime(props: {
       if (!confirming) return;
       if (approved) {
         setConfirmingSound(false);
+        setEnteredCapture(true);
         setSongSheetOpen(false);
         return;
       }
@@ -859,7 +849,7 @@ export function VideoComposerRuntime(props: {
   const captureNotice = () => {
     if (file()) return undefined;
     if (props.personaOptions !== undefined && personasForDestination().length === 0) {
-      return <p class="rounded-[var(--radius-lg)] bg-black/60 px-3 py-2 text-center text-sm text-white" role="status">Choose a community where you have a posting profile.</p>;
+      return <p class="rounded-[var(--radius-lg)] bg-black/60 px-3 py-2 text-center text-sm text-white" role="status">Choose a posting profile for this community.</p>;
     }
     if (chosenPersonaId() === "") return <p class="rounded-[var(--radius-lg)] bg-black/60 px-3 py-2 text-center text-sm text-white" role="status">Choose a profile before recording.</p>;
     return undefined;
@@ -869,12 +859,9 @@ export function VideoComposerRuntime(props: {
     <Show when={error()}>{message => <FormNote tone="warning">{message()}</FormNote>}</Show>
     <Show when={busy() && progress()}><p role="status">{progress()}</p></Show>
     <Show when={editing()}>
-      {/* Capture is the flow's home screen: close, sound, upload and record
-          all live on it. The song's choice, excerpt and every server verdict
-          live in the sheet the sound control opens; posting details come at
-          review. The sheet outlives the take so its draft and the server's
-          verdicts survive the move to review and back. */}
-      <Show when={!file()}>
+      {/* After song and excerpt choice, capture carries a way to change the
+          song. Posting details remain on review. */}
+      <Show when={!file() && !songSheetOpen()}>
       <div inert={interactionBusy()}>
         <Show when={captureStatus() === "recording"}>
           <p role="status" class="sr-only">{selection()
@@ -899,29 +886,29 @@ export function VideoComposerRuntime(props: {
           </>} />
       </div>
       </Show>
-      {/* The sound sheet: its content stays mounted — closed it is inert
-          and translated off-screen — so the song draft survives closes and
-          the server's verdicts keep updating behind it. */}
-      <Show when={songSheetOpen()}>
-        <div class="fixed inset-0 z-40 bg-black/55 backdrop-blur-sm" data-add-sound-scrim onClick={() => setSongSheetOpen(false)} />
-      </Show>
+      {/* Full-screen song choice stays mounted while hidden so a draft and its
+          current eligibility verdict remain available at review. */}
       <div
         aria-hidden={songSheetOpen() ? undefined : "true"}
-        aria-label="Add song"
+        aria-label="Choose a song"
         aria-modal="true"
+        inert={!songSheetOpen()}
         class={cn(
-          "fixed inset-x-0 bottom-0 z-50 grid max-h-[85dvh] gap-4 overflow-y-auto rounded-t-[var(--radius-sheet)] border-t border-border bg-card p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] shadow-xl transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none",
-          songSheetOpen() ? "translate-y-0" : "pointer-events-none invisible translate-y-full",
+          "fixed inset-0 z-50 overflow-y-auto bg-background px-4 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-[max(1rem,env(safe-area-inset-top))]",
+          songSheetOpen() ? "" : "pointer-events-none invisible",
         )}
-        data-add-sound-sheet
+        data-song-choice-screen
         role="dialog"
       >
-        <div class="mx-auto h-1 w-12 rounded-full bg-muted" aria-hidden="true" />
+        <div class="mx-auto grid min-w-0 w-full max-w-md grid-cols-1 gap-5">
+          <div class="flex min-w-0 items-center justify-between gap-3">
+            <Type as="h1" class="min-w-0 flex-1" variant="h3">Choose a song</Type>
+            <Button class="shrink-0" onClick={() => { if (enteredCapture() || file()) setSongSheetOpen(false); else props.onExit(); }} type="button" variant="ghost">Back</Button>
+          </div>
           <fieldset class="contents" disabled={captureStatus() === "recording" || finalizing()}>
-          <section aria-label="Soundtrack">
+          <section aria-label="Soundtrack" class="min-w-0">
             <SongExcerptComposer store={excerptStore} read={props.songReader} communityId={chosenCommunityId() || undefined}
               disabled={captureStatus() === "recording" || finalizing()}
-              onClose={() => setSongSheetOpen(false)}
               clipLengthMs={songLengthForClip(clipDurationMs())}
               preflight={songPreflight} initialSong={props.initialSong}
               {...(props.songPicker === undefined ? {} : { songs: props.songPicker })}
@@ -944,14 +931,15 @@ export function VideoComposerRuntime(props: {
                 once the exact excerpt is accepted. A refusal stays on the
                 sheet with its actions instead. */}
             <Button
-              disabled={confirmingSound()}
+              disabled={confirmingSound() || !selection() || !["ready", "checking", "measuring"].includes(songPlan().kind)}
               loading={confirmingSound()}
               onClick={confirmSound}
               type="button"
             >
-              {confirmingSound() ? "Checking this song…" : "Use this song"}
+              {confirmingSound() ? "Checking this song…" : "Continue to video"}
             </Button>
           </div>
+        </div>
       </div>
     </Show>
     <Show when={editing() && file()}>
@@ -963,35 +951,8 @@ export function VideoComposerRuntime(props: {
           : <video src={originalPreview() ?? preview()} controls playsinline class="h-full w-full object-contain" />}
         songLabel={songLabel()} onSongTap={openSongSheet}
         details={<div class="grid gap-3">
-        {/* Posting details belong to review: destination and profile are
-            chosen here for the global entry, and any change re-checks the
-            song policy for the new pair. */}
-        <Show when={(props.communityOptions?.length ?? 0) > 0}>
-          <div class="grid gap-2">
-            <Type as="span" variant="caption">Posting in</Type>
-            <div class="flex flex-wrap gap-2">
-              <For each={props.communityOptions}>
-                {option => (
-                  <button
-                    aria-pressed={chosenCommunityId() === option.id ? "true" : "false"}
-                    class={cn(
-                      "cursor-pointer rounded-full border px-3 py-1.5 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
-                      chosenCommunityId() === option.id
-                        ? "border-primary bg-primary text-primary-foreground"
-                        : "border-border-soft bg-background text-foreground hover:bg-muted",
-                    )}
-                    disabled={busy()}
-                    onClick={() => chooseCommunity(option.id)}
-                    type="button"
-                  >
-                    {option.label}
-                  </button>
-                )}
-              </For>
-            </div>
-          </div>
-        </Show>
-        <Show when={props.communityOptions === undefined && props.communityName}>
+        {/* Review confirms the known community and posting profile. */}
+        <Show when={props.communityName}>
           {name => <Type as="p" variant="caption">Posting in {name()}</Type>}
         </Show>
         <Show when={personasForDestination().length > 1}>
@@ -1004,7 +965,7 @@ export function VideoComposerRuntime(props: {
           />
         </Show>
         <Show when={props.personaOptions !== undefined && personasForDestination().length === 0}>
-          <FormNote tone="warning">Choose a community where you have a posting profile.</FormNote>
+          <FormNote tone="warning">Choose a posting profile for this community.</FormNote>
         </Show>
         <label><input type="checkbox" checked={rating() === "adult_18"} disabled={busy()} onChange={event => setRating(event.currentTarget.checked ? "adult_18" : "general")} /> This video is for adults (18+)</label>
         <Show when={clipProblem()}>
