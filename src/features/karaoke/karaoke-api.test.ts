@@ -154,6 +154,41 @@ describe("createKaraokeApiClient", () => {
     expect(requests.every(({ credentials }) => credentials === "same-origin")).toBe(true);
   });
 
+  test("resolves a media reference to signed playback access before giving it to the audio player", async () => {
+    const requests: Request[] = [];
+    const client = createKaraokeApiClient({
+      fetchImpl: async (input, init) => {
+        const request = new Request(input, init);
+        requests.push(request);
+        if (request.url.endsWith("/song/playback-access")) {
+          return response({
+            kind: "full_mix",
+            playback_url: "https://media.test/signed/full-mix.mp3",
+            expires_at: 2_000_000_000,
+            renew_after: 1_999_999_000,
+          });
+        }
+        if (request.url.endsWith("/api/posts/pst_1")) return response(postDetail);
+        return response({
+          ...readyPayload,
+          playback_audio: { kind: "full_mix", ref: "media://immutable/song/audio/1" },
+        });
+      },
+      origin: "https://web.test",
+      readCsrfToken: () => "csrf-1",
+    });
+
+    await expect(client.getPayload("pst_1")).resolves.toMatchObject({
+      instrumental_audio_url: "https://media.test/signed/full-mix.mp3",
+    });
+    expect(requests.map((request) => request.url)).toEqual([
+      "https://web.test/api/posts/pst_1",
+      "https://web.test/api/communities/com_1/posts/pst_1/karaoke",
+      "https://web.test/api/posts/pst_1/song/playback-access",
+    ]);
+    expect(requests[2]?.headers.get("x-csrf-token")).toBe("csrf-1");
+  });
+
   test("preserves the processing state instead of treating it as a ready payload", async () => {
     const client = createKaraokeApiClient({
       fetchImpl: async (input) => response(new URL(input.toString()).pathname.includes("/posts/")

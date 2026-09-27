@@ -105,6 +105,7 @@ type KaraokeGeneratedClient = Pick<
   | "get_communitiesCommunityIdPostsPostIdKaraoke"
   | "get_communitiesCommunityIdPostsPostIdKaraokeLeaderboard"
   | "get_postsPostId"
+  | "post_postsPostIdSongPlaybackAccess"
   | "post_communitiesCommunityIdPostsPostIdKaraokeAttempts"
 >;
 
@@ -167,11 +168,12 @@ async function callApi<T>(request: () => Promise<T>): Promise<T> {
 
 function mapPayload(
   response: Extract<GetCommunitiesCommunityIdPostsPostIdKaraokeResponse, { state: "ready" }>,
+  playbackUrl: string,
 ): ApiSongKaraokePayload {
   return {
     community: response.community_id,
     id: response.karaoke_revision_id,
-    instrumental_audio_url: response.playback_audio.ref,
+    instrumental_audio_url: playbackUrl,
     karaoke_lines: response.karaoke_lines.map((line) => ({
       end_ms: finiteNumber(line.end_ms, "karaoke line end"),
       id: line.id,
@@ -373,7 +375,22 @@ export function createKaraokeApiClient(options: KaraokeApiClientOptions = {}): K
       if (response.state !== "ready") {
         throw new KaraokeAvailabilityError(response.state, response.reason);
       }
-      return mapPayload(response);
+      let playbackUrl = response.playback_audio.ref;
+      if (playbackUrl.startsWith("media://")) {
+        const token = csrfToken();
+        const grant = await callApi(() => client().post_postsPostIdSongPlaybackAccess(
+          { path: { postId } },
+          token
+            ? sessionRequestOptions(token, { signal })
+            : { credentials: "same-origin", ...(signal ? { signal } : {}) },
+        ));
+        const url = new URL(grant.playback_url);
+        if (url.protocol !== "https:" || url.username || url.password) {
+          throw new KaraokeApiError("invalid_playback_grant", "Karaoke audio could not be loaded.", 502, false);
+        }
+        playbackUrl = url.href;
+      }
+      return mapPayload(response, playbackUrl);
     },
   };
 }
