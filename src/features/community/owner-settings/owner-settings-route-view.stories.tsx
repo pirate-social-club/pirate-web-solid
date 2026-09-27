@@ -3,7 +3,7 @@ import { expect, waitFor, within } from "storybook/test";
 import type { GetCommunitiesCommunityIdTelegramResponse } from "@pirate/api-client";
 
 import type { OwnerSettingsRouteState } from "./owner-settings-route-model";
-import type { OwnerSettingsAccess } from "./owner-settings-model";
+import type { CommunityNamespaceSettingsPort, OwnerSettingsAccess } from "./owner-settings-model";
 import {
   ownerSettingsAccessFromModerationCapabilities,
 } from "./community-moderation-settings-model";
@@ -27,7 +27,6 @@ import {
   createCommunityTelegramSettingsApi,
   type CommunityTelegramSettingsApi,
 } from "./community-telegram-settings-api";
-import type { CommunityHnsTxtApi } from "./community-hns-txt-api";
 import { OwnerSettingsRouteView } from "./owner-settings-route-view";
 
 /**
@@ -98,10 +97,15 @@ const namesSectionApi: CommunityNamesSettingsApi = {
   getSnapshot: async () => NAMES_ACTIVE,
 };
 
-const txtSectionApi: CommunityHnsTxtApi = {
-  current: async () => null,
-  start: async () => { throw new Error("Story action is not connected"); },
-  check: async () => { throw new Error("Story action is not connected"); },
+const namespaceSectionApi: CommunityNamespaceSettingsPort = {
+  read: async () => ({
+    community_id: "community-harbor",
+    family: "hns",
+    generation: 1,
+    next_action: { kind: "start_verification", family: "hns", root_label: "8s28" },
+    root_label: "8s28",
+  }),
+  execute: async () => { throw new Error("Story action is not connected"); },
 };
 
 const telegramSectionApi: CommunityTelegramSettingsApi = {
@@ -206,10 +210,10 @@ export const SectionNames: Story = {
   },
 };
 
-/** `/c/<segment>/settings/namespace` shows the TXT-only attachment entry. */
+/** `/c/<segment>/settings/namespace` mounts the complete Handshake import. */
 export const SectionAddress: Story = {
   name: "Section address",
-  args: { requestedSection: "namespace", txtAttachmentApi: txtSectionApi, state: successState() },
+  args: { requestedSection: "namespace", namespaceApi: namespaceSectionApi, state: successState() },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await waitFor(() => expect(canvas.getByRole("button", { name: "Start verification" })).toBeInTheDocument());

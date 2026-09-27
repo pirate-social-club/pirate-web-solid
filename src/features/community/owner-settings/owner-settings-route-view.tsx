@@ -6,8 +6,8 @@ import { getRequestEvent } from "@solidjs/web";
 import type { CommunityModerationSettingsApi } from "./community-moderation-settings-api";
 import type { CommunityTelegramSettingsApi } from "./community-telegram-settings-api";
 import { CommunityTelegramSettingsController } from "./community-telegram-settings-controller";
-import { CommunityHnsTxtController } from "./community-hns-txt-controller";
-import type { CommunityHnsTxtApi } from "./community-hns-txt-api";
+import { CommunityNamespaceSettingsController } from "./community-namespace-settings-controller";
+import type { CommunityNamespaceSettingsPort } from "./owner-settings-model";
 import { requestGlobalSignInCompletion } from "../../auth/global-sign-in-host";
 import { CommunityModerationSettingsController } from "./community-moderation-settings-controller";
 import type { CommunityNamesSettingsApi } from "./community-names-settings-api";
@@ -30,7 +30,7 @@ export interface OwnerSettingsRouteViewProps {
   botProbeApi?: Pick<CommunityTelegramSettingsApi, "getSettings">;
   moderationApi?: CommunityModerationSettingsApi;
   telegramApi?: CommunityTelegramSettingsApi;
-  txtAttachmentApi?: CommunityHnsTxtApi;
+  namespaceApi?: CommunityNamespaceSettingsPort;
   namesApi?: CommunityNamesSettingsApi;
   spacesOwnerProofApi?: SpacesOwnerProofApi;
   navigate: (href: string, options?: { replace?: boolean }) => void;
@@ -236,9 +236,10 @@ function ResolvedOwnerSettingsRouteView(props: ResolvedOwnerSettingsRouteViewPro
               </Show>
               <Show when={section() === "namespace"}>
                 <SpacesOwnerProofPanel api={props.spacesOwnerProofApi} communityId={state().communityId} />
-                <CommunityHnsTxtController
-                  api={props.txtAttachmentApi}
+                <CommunityNamespaceSettingsController
+                  api={props.namespaceApi}
                   communityId={state().communityId}
+                  communityPath={state().communityPath}
                 />
               </Show>
               <Show when={section() === "moderation_queue" || section() === "content_policy"}>

@@ -15,7 +15,11 @@ import type { CommunityNamesSettingsApi } from "./community-names-settings-api";
 import { NAMES_READY } from "./community-names-settings-fixtures";
 import { TELEGRAM_CONNECTED } from "./community-telegram-fixtures";
 import type { OwnerSettingsRouteState } from "./owner-settings-route-model";
-import type { CommunityHnsTxtApi } from "./community-hns-txt-api";
+import type {
+  CommunityNamespaceSettingsPort,
+  NamespaceResourceRecord,
+  NamespaceSettingsSnapshot,
+} from "./owner-settings-model";
 import { OwnerSettingsRouteView } from "./owner-settings-route-view";
 
 const disposers: Array<() => void> = [];
@@ -72,11 +76,18 @@ function moderationApi(): CommunityModerationSettingsApi {
   };
 }
 
-function txtApi(): CommunityHnsTxtApi {
+const namespaceSnapshot: NamespaceSettingsSnapshot = {
+  community_id: "community_midnight",
+  family: null,
+  generation: 0,
+  next_action: { kind: "choose_namespace" },
+  root_label: "",
+};
+
+function namespaceApi(snapshot: NamespaceSettingsSnapshot = namespaceSnapshot): CommunityNamespaceSettingsPort {
   return {
-    current: async () => null,
-    start: async () => { throw new Error("not called"); },
-    check: async () => { throw new Error("not called"); },
+    read: async () => snapshot,
+    execute: async () => { throw new Error("not called"); },
   };
 }
 
@@ -87,7 +98,7 @@ describe("OwnerSettingsRouteView", () => {
       <OwnerSettingsRouteView
         moderationApi={moderationApi()}
         namesApi={namesApi()}
-        txtAttachmentApi={txtApi()}
+        namespaceApi={namespaceApi()}
         navigate={navigate}
         requestedSection="names"
         state={success}
@@ -113,7 +124,7 @@ describe("OwnerSettingsRouteView", () => {
       <OwnerSettingsRouteView
         moderationApi={moderationApi()}
         namesApi={namesApi()}
-        txtAttachmentApi={txtApi()}
+        namespaceApi={namespaceApi()}
         navigate={() => undefined}
         requestedSection="namespace"
         state={success}
@@ -192,43 +203,48 @@ describe("OwnerSettingsRouteView", () => {
 });
 
 
-test("address navigation and reload restore the TXT challenge", async () => {
-  const challenge = {
-    attachment_intent_id: "intent-midnight",
-    root_label: "midnight",
-    status: "awaiting_txt" as const,
-    challenge: { name: "midnight", value: "pirate-verification=nvs_example" },
-    expires_at: "2026-09-28T12:00:00.000Z",
-    route_href: null,
-    retry_after_seconds: null,
+test("owner address shows the full NS, glue, DS and TXT plan after reload", async () => {
+  const records: NamespaceResourceRecord[] = [
+    { record_type: "NS", supported: true, value: "ns1.8s28.", wallet_record: { type: "NS", ns: "ns1.8s28." } },
+    { record_type: "NS", supported: true, value: "ns2.8s28.", wallet_record: { type: "NS", ns: "ns2.8s28." } },
+    { record_type: "GLUE4", supported: true, value: "ns1.8s28. 81.15.150.167", wallet_record: { type: "GLUE4", ns: "ns1.8s28.", address: "81.15.150.167" } },
+    { record_type: "GLUE4", supported: true, value: "ns2.8s28. 94.103.168.209", wallet_record: { type: "GLUE4", ns: "ns2.8s28.", address: "94.103.168.209" } },
+    { record_type: "DS", supported: true, value: "10875 13 2 digest", wallet_record: { type: "DS", keyTag: 10875, algorithm: 13, digestType: 2, digest: "a".repeat(64) } },
+    { record_type: "TXT", supported: true, value: "pirate-verification=staging-8s28", wallet_record: { type: "TXT", txt: ["pirate-verification=staging-8s28"] } },
+  ];
+  const read = vi.fn(async (): Promise<NamespaceSettingsSnapshot> => ({
+    community_id: "community_midnight",
+    family: "hns",
+    generation: 3,
+    root_label: "8s28",
+    next_action: {
+      kind: "publish_resource",
+      acknowledgement_required: true,
+      replacement_semantics: "complete_resource",
+      records,
+      added_records: records,
+      removed_records: [],
+      preserved_records: [],
+      preserved_unknown_record_types: [],
+    },
+  }));
+  const api: CommunityNamespaceSettingsPort = {
+    read,
+    execute: async () => { throw new Error("not called"); },
   };
-  const discovery = vi.fn(async () => challenge);
-  const api: CommunityHnsTxtApi = {
-    current: discovery,
-    start: async () => { throw new Error("not called"); },
-    check: async () => { throw new Error("not called"); },
-  };
-  const navigate = vi.fn();
-  const mountAddress = () => render(() => <OwnerSettingsRouteView
-    txtAttachmentApi={api} namesApi={namesApi()} moderationApi={moderationApi()}
-    navigate={navigate} requestedSection="namespace" state={success} />);
-  const first = mountAddress();
-  await vi.waitFor(() => expect(first.querySelector("[data-hns-txt-value]")?.textContent).toBe(challenge.challenge.value));
-  [...first.querySelectorAll<HTMLButtonElement>("button")].find((button) => button.textContent?.trim() === "Names")!.click();
-  expect(navigate).toHaveBeenLastCalledWith("/c/midnight/settings/names");
-  disposers.pop()!();
-  const names = render(() => <OwnerSettingsRouteView txtAttachmentApi={api} namesApi={namesApi()}
-    moderationApi={moderationApi()} navigate={navigate} requestedSection="names" state={success} />);
-  await vi.waitFor(() => expect(names.textContent).toContain("yourname.midnight"));
-  [...names.querySelectorAll<HTMLButtonElement>("button")].find((button) => button.textContent?.trim() === "Address")!.click();
-  expect(navigate).toHaveBeenLastCalledWith("/c/midnight/settings/namespace");
-  disposers.pop()!();
+  const mount = () => render(() => <OwnerSettingsRouteView
+    namespaceApi={api} namesApi={namesApi()} moderationApi={moderationApi()}
+    navigate={() => undefined} requestedSection="namespace" state={success} />);
   for (let visit = 0; visit < 2; visit += 1) {
-    const returned = mountAddress();
-    await vi.waitFor(() => expect(returned.querySelector("[data-hns-txt-value]")?.textContent).toBe(challenge.challenge.value));
+    const container = mount();
+    await vi.waitFor(() => expect(container.textContent).toContain("Publish these 6 records to 8s28/"));
+    expect(container.textContent).toContain("ns1.8s28.");
+    expect(container.textContent).toContain("94.103.168.209");
+    expect(container.textContent).toContain("DS");
+    expect(container.textContent).toContain("pirate-verification=staging-8s28");
     disposers.pop()!();
   }
-  expect(discovery).toHaveBeenCalledTimes(3);
+  expect(read).toHaveBeenCalledTimes(2);
 });
 
 test("keeps failed moderation visible without granting access or redirecting to names", async () => {
@@ -278,7 +294,7 @@ describe("management deep links", () => {
     setLocation(IMPORT_SEARCH);
     const container = render(() => (
       <OwnerSettingsRouteView
-        txtAttachmentApi={txtApi()}
+        namespaceApi={namespaceApi()}
         namesApi={namesApi()}
         navigate={navigate}
         requestedSection="namespace"
@@ -355,7 +371,7 @@ describe("management deep links", () => {
       <OwnerSettingsRouteView
         moderationApi={moderationApi()}
         namesApi={namesApi()}
-        txtAttachmentApi={txtApi()}
+        namespaceApi={namespaceApi()}
         navigate={navigate}
         requestedSection="namespace"
         state={success}
@@ -397,7 +413,7 @@ describe("management deep links", () => {
       <OwnerSettingsRouteView
         moderationApi={moderationApi()}
         namesApi={namesApi()}
-        txtAttachmentApi={txtApi()}
+        namespaceApi={namespaceApi()}
         navigate={navigate}
         requestedSection={requested()}
         state={success}
@@ -449,7 +465,7 @@ describe("management deep links", () => {
     setLocation(IMPORT_SEARCH);
     const container = render(() => (
       <OwnerSettingsRouteView
-        txtAttachmentApi={txtApi()}
+        namespaceApi={namespaceApi()}
         namesApi={namesApi()}
         navigate={navigate}
         requestedSection="namespace"
