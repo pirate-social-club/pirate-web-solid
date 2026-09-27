@@ -1,5 +1,6 @@
 import { ApiClientError } from "@pirate/api-client";
 import { render as solidRender, type JSX } from "@solidjs/web";
+import userEvent from "@testing-library/user-event";
 import { createRoot } from "solid-js";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { createCommunityNamespaceSettingsApi } from "./community-namespace-settings-api";
@@ -355,6 +356,39 @@ const walletPublishSnapshot: NamespaceSettingsSnapshot = {
 
 const button = (container: HTMLElement, label: string) =>
   buttons(container).find((candidate) => candidate.textContent === label);
+
+test("Bob desktop signatures can complete the owner proof without a browser extension", async () => {
+  const onCommand = vi.fn();
+  const snapshot: NamespaceSettingsSnapshot = {
+    ...startSnapshot,
+    next_action: {
+      kind: "sign_ownership",
+      root_label: "midnight",
+      message: "Pirate HNS ownership proof\nexact challenge",
+      expires_at: new Date(NOW + HOUR).toISOString(),
+    },
+  };
+  const { container } = render(() => (
+    <CommunityNamespaceSettingsPanel
+      draftRootLabel="midnight"
+      idempotencyKeys={namespaceIdempotencyKeys("desktop-signature")}
+      onCommand={onCommand}
+      onDraftRootLabelChange={() => {}}
+      snapshot={snapshot}
+    />
+  ));
+  expect(container.textContent).toContain("Bob desktop app");
+  expect(container.textContent).toContain("Pirate HNS ownership proof");
+  const signature = container.querySelector<HTMLTextAreaElement>("#hns-name-signature")!;
+  const user = userEvent.setup();
+  await user.type(signature, "  signed-by-bob  ");
+  await user.click(button(container, "Submit Bob signature")!);
+  expect(onCommand).toHaveBeenCalledWith(expect.objectContaining({
+    kind: "submit_name_signature",
+    signature: "signed-by-bob",
+    expected_generation: snapshot.generation,
+  }));
+});
 
 async function expectPublicationBlocked(container: HTMLElement, sendUpdate: ReturnType<typeof vi.fn>) {
   const bob = button(container, "Publish to midnight/ with Bob Wallet");

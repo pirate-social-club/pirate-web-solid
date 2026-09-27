@@ -10,6 +10,7 @@ import {
   IconGlobe,
   IconWarningCircle,
   PrefixInput,
+  Textarea,
   Type,
   buttonVariants,
 } from "@pirate/web-solid-ui";
@@ -245,6 +246,7 @@ function ServerDirectedAction(props: Pick<CommunityNamespaceSettingsPanelProps, 
   const preparing = () => { const current = action(); return current.kind === "wait" && current.reason_code === "preparation_pending"; };
   const [walletBusy, setWalletBusy] = createSignal(false);
   const [walletError, setWalletError] = createSignal<string | null>(null);
+  const [manualSignature, setManualSignature] = createSignal("");
   const dispatch = (value: NamespaceSettingsCommandInput) => {
     props.onCommand(command(props.idempotencyKeys, props.snapshot, value));
   };
@@ -276,11 +278,12 @@ function ServerDirectedAction(props: Pick<CommunityNamespaceSettingsPanelProps, 
           <>
             <Card class="space-y-4 p-5 md:p-6">
               <Type as="h2" variant="h2">Prove ownership with Bob Wallet</Type>
-              <FormNote>Bob will ask you to sign a Pirate verification message with the key that owns .{current().root_label}. This does not broadcast a transaction or change the name.</FormNote>
+              <FormNote>Sign this exact message with .{current().root_label} in Bob. Signing does not broadcast a transaction or change the name.</FormNote>
+              <CopyField copyLabel="ownership message" value={current().message} wrap />
               <Show when={walletError()}><FormNote tone="warning">{walletError()}</FormNote></Show>
               <Show
                 when={props.wallet?.isAvailable()}
-                fallback={<FormNote tone="warning">Bob Wallet was not detected. Open this page in the browser where the extension is installed.</FormNote>}
+                fallback={<FormNote>Bob's browser extension is unavailable. You can sign the message in the Bob desktop app and paste its signature below.</FormNote>}
               >
                 <Button
                   loading={props.busy || walletBusy()}
@@ -292,6 +295,22 @@ function ServerDirectedAction(props: Pick<CommunityNamespaceSettingsPanelProps, 
                   Sign ownership with Bob Wallet
                 </Button>
               </Show>
+              <div class="space-y-2">
+                <FormFieldLabel htmlFor="hns-name-signature" label="Signature from Bob" />
+                <Textarea
+                  id="hns-name-signature"
+                  value={manualSignature()}
+                  onInput={(event) => setManualSignature(event.currentTarget.value)}
+                  placeholder="Paste the signature Bob returned"
+                />
+                <Button
+                  disabled={props.busy || walletBusy() || manualSignature().trim().length === 0}
+                  onClick={() => dispatch({ kind: "submit_name_signature", signature: manualSignature().trim() })}
+                  variant="secondary"
+                >
+                  Submit Bob signature
+                </Button>
+              </div>
             </Card>
             <SecondaryAction idempotencyKeys={props.idempotencyKeys} onCommand={props.onCommand} snapshot={props.snapshot} />
           </>
