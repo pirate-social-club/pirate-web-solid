@@ -148,11 +148,14 @@ async function openCaptureAndChooseSong(canvasElement: HTMLElement) {
   // The capture view opens full-screen with its own Add song control.
   const addSong = await canvas.findByRole("button", { name: "Add song" }, { timeout: 8_000 });
   addSong.click();
-  const input = await canvas.findByLabelText("Search songs", undefined, { timeout: 8_000 }) as HTMLInputElement;
+  const input = await canvas.findByLabelText("Search songs", undefined, { timeout: 8_000 });
+  if (!(input instanceof HTMLInputElement)) throw new Error("song search is not an input");
   input.value = "https://pirate.test/p/cadence-post";
   input.dispatchEvent(new Event("input", { bubbles: true }));
   const use = await canvas.findByText("Use the song at this link", undefined, { timeout: 8_000 });
-  (use.closest("button") as HTMLButtonElement).click();
+  const useButton = use.closest("button");
+  if (!useButton) throw new Error("song link action is missing");
+  useButton.click();
 }
 
 export const PlusToCaptureAllowed: Story = {
@@ -167,12 +170,15 @@ export const PlusToCaptureAllowed: Story = {
       await canvas.findByRole("button", { name: "Add song" }, { timeout: 8_000 });
     });
     await step("Add song opens the sheet and the song is chosen there", async () => {
-      (canvas.getByRole("button", { name: "Add song" }) as HTMLButtonElement).click();
-      const input = await canvas.findByLabelText("Search songs", undefined, { timeout: 8_000 }) as HTMLInputElement;
+      canvas.getByRole("button", { name: "Add song" }).click();
+      const input = await canvas.findByLabelText("Search songs", undefined, { timeout: 8_000 });
+      if (!(input instanceof HTMLInputElement)) throw new Error("song search is not an input");
       input.value = "https://pirate.test/p/cadence-post";
       input.dispatchEvent(new Event("input", { bubbles: true }));
       const use = await canvas.findByText("Use the song at this link", undefined, { timeout: 8_000 });
-      (use.closest("button") as HTMLButtonElement).click();
+      const useButton = use.closest("button");
+      if (!useButton) throw new Error("song link action is missing");
+      useButton.click();
       // Confirming returns to the capture view with an editable song chip.
       const confirm = await canvas.findByRole("button", { name: "Use this song" }, { timeout: 8_000 });
       confirm.click();
@@ -200,7 +206,7 @@ export const PlusDenied: Story = {
     expect(denials.length).toBeGreaterThan(0);
     // The record control is present but inert under the refusal: pressing it
     // starts nothing.
-    const record = canvas.getByLabelText("Start recording") as HTMLButtonElement;
+    const record = canvas.getByLabelText("Start recording");
     record.click();
     await new Promise(resolve => setTimeout(resolve, 300));
     expect(canvas.queryByLabelText("Stop recording")).toBeNull();
@@ -218,7 +224,9 @@ export const PlusFailedRead: Story = {
     // sheet; either one drives the same re-check.
     const retries = await canvas.findAllByText("Try the check again", undefined, { timeout: 12_000 });
     expect(retries.length).toBeGreaterThan(0);
-    (retries[0]!.closest("button") as HTMLButtonElement).click();
+    const retryButton = retries[0]!.closest("button");
+    if (!retryButton) throw new Error("eligibility retry is missing");
+    retryButton.click();
     await canvas.findByLabelText("Start recording", undefined, { timeout: 12_000 });
     await new Promise(resolve => setTimeout(resolve, 800));
     expect(canvas.queryByText("Recording is not supported here")).toBeNull();

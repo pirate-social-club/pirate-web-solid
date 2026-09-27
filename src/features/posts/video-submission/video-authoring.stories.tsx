@@ -46,9 +46,8 @@ const SONG_MS = 214_000;
 function storyPreview(): () => Promise<MediaStream> {
   return async () => {
     if (typeof MediaStream !== "undefined") return new MediaStream();
-    // The unit-test environment has no MediaStream constructor; the runtime
-    // only reads getTracks and assigns the stream.
-    return Object.assign(Object.create(null), { getTracks: () => [] }) as unknown as MediaStream;
+    // SAFETY: The no-camera fixture needs only getTracks; it never enters an encoder.
+    return Object.assign(Object.create(null) as MediaStream, { getTracks: () => [] });
   };
 }
 

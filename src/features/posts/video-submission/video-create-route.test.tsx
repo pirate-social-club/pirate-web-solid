@@ -42,7 +42,7 @@ const personas = [
   { personaId: "persona-one", displayName: "Persona One", avatarRef: null, primaryPublicHandle: "persona-one.pirate", communityBinding: null },
 ];
 
-const session = { status: "authenticated" as const, userId: "account-one", personas };
+const session: SessionResolution = { status: "authenticated", userId: "account-one", personas };
 
 const preflight = vi.fn(async () => ({
   state: "ready" as const, song_post_id: "song-post", audio_revision: 7, canonical_duration_samples: 150_000 * 48,
@@ -64,7 +64,7 @@ async function driveToLoaded(container: HTMLElement, eligibility: (input: { read
     <VideoCreateRouteView
       loadMemberships={async () => memberships}
       navigate={() => undefined}
-      resolveSession={async () => session as SessionResolution}
+      resolveSession={async () => session}
       videoSongEligibility={eligibility}
       videoSongPreflight={preflight}
       videoSongReader={reader}
@@ -78,7 +78,8 @@ async function driveToLoaded(container: HTMLElement, eligibility: (input: { read
   const use = await vi.waitFor(() => {
     const button = [...document.querySelectorAll("button")].find(candidate => candidate.textContent === "Use the song at this link");
     expect(button).toBeDefined();
-    return button as HTMLButtonElement;
+    if (!button) throw new Error("song link action is missing");
+    return button;
   });
   use.click();
   const audio = await vi.waitFor(() => {
@@ -97,7 +98,7 @@ describe("video create route", () => {
       <VideoCreateRouteView
         loadMemberships={async () => memberships}
         navigate={() => undefined}
-        resolveSession={async () => session as SessionResolution}
+        resolveSession={async () => session}
       />
     ));
     await vi.waitFor(() => expect(view.querySelector("button[aria-label='Add song']")).not.toBeNull());
@@ -109,7 +110,7 @@ describe("video create route", () => {
       <VideoCreateRouteView
         loadMemberships={async () => memberships}
         navigate={() => undefined}
-        resolveSession={async () => "anonymous" as SessionResolution}
+        resolveSession={async () => "anonymous"}
       />
     ));
     await vi.waitFor(() => expect(view.textContent).toContain("Sign in to post a video."));
@@ -126,7 +127,8 @@ describe("video create route", () => {
     const retry = await vi.waitFor(() => {
       const button = [...view.querySelectorAll("button")].find(candidate => candidate.textContent === "Try the check again");
       expect(button).toBeDefined();
-      return button as HTMLButtonElement;
+      if (!button) throw new Error("eligibility retry is missing");
+      return button;
     });
     retry.click();
     await vi.waitFor(() => expect(calls).toBe(2));
