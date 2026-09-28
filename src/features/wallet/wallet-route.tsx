@@ -30,7 +30,6 @@ function dropResumeClaim() {
 export function WalletRouteView() {
   const account = useApplicationSession();
   const profiles = useApplicationPersonas();
-  const rewardData = createRewardClaimData();
   const [wallets, setWallets] = createSignal<readonly PersonaWallet[]>([]);
   const [walletOwner, setWalletOwner] = createSignal<string>();
   const ownedWallets = () => { const session = account(); return typeof session === "object" && walletOwner() === session.userId ? wallets() : []; };
@@ -83,7 +82,7 @@ export function WalletRouteView() {
     <Show when={authenticated()}>
       <Show when={loading()}><Type role="status">Loading wallets…</Type></Show>
       <Show when={failed()}><Card><CardContent class="flex flex-col items-start gap-4 p-6"><Type role="alert">Your wallets could not be loaded.</Type><Button variant="outline" onClick={load}>Try again</Button></CardContent></Card></Show>
-      <Show when={!loading() && !failed()}><WalletPortfolio chainSections={balances.sections()} balancesLoading={balances.loading()} onRefresh={balances.reload} networkMode={networkMode()} onNetworkModeChange={setNetworkMode} wallets={ownedWallets()} selectedPersonaId={profiles?.selected()?.personaId} onSelect={id => profiles?.select(id)} onChangeProfile={() => profiles?.setPickerOpen(true)} renderBaseUsdc={wallet => <WalletWinnings data={rewardData} personaId={wallet.personaId} resumeCreditId={resumeClaimId()} onResumeConsumed={dropResumeClaim} />} /></Show>
+      <Show when={!loading() && !failed()}><WalletPortfolio chainSections={balances.sections()} balancesLoading={balances.loading()} onRefresh={balances.reload} networkMode={networkMode()} onNetworkModeChange={setNetworkMode} wallets={ownedWallets()} selectedPersonaId={profiles?.selected()?.personaId} onSelect={id => profiles?.select(id)} onChangeProfile={() => profiles?.setPickerOpen(true)} renderBaseUsdc={wallet => <WalletWinnings data={createRewardClaimData()} personaId={wallet.personaId} resumeCreditId={resumeClaimId()} onResumeConsumed={dropResumeClaim} />} /></Show>
     </Show>
   </PageContainer></main>;
 }

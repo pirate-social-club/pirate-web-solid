@@ -36,6 +36,7 @@ export default defineConfig({
       "src/features/activity/activity-progress-header.test.tsx",
       "src/features/profiles/public-profile-page/public-profile-page.model.test.ts",
       "src/community-creation-avatar-authoring-ssr.test.tsx",
+      "src/features/wallet/wallet-route-ssr.test.tsx",
     ],
   },
 });
