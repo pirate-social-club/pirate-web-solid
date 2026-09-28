@@ -4,6 +4,8 @@ import test from "node:test";
 import {
   assertIngressSourcePaths,
   INGRESS_SOURCE_PATHS,
+  productionIngressCompositionIdentity,
+  projectProductionIngressConfiguration,
   projectStagingIngressConfiguration,
   readStagingIngressCompositionInputs,
   stagingIngressCompositionIdentity,
@@ -138,4 +140,31 @@ test("the CLI identity has the bounded gateway-compatible format and is determin
   assert.equal(reference, identity());
   const workerBytes = await readFile(new URL("../src/worker.ts", import.meta.url));
   assert.deepEqual(workerBytes, sources.get("src/worker.ts"));
+});
+
+test("production ingress has its own fingerprint with a valid protected route", () => {
+  const staging = identity();
+  assert.equal(staging, "solid-hns-ingress-sha256:b5780160035b457a14f6fa95c056aa138472d60d64d871935a8788dcd56e0cbc");
+  const production = productionIngressCompositionIdentity(config, sources, packageJson);
+  assert.match(production, /^solid-hns-ingress-sha256:[a-f0-9]{64}$/u);
+  assert.notEqual(production, staging);
+  const projection = projectProductionIngressConfiguration(config, packageJson);
+  assert.equal(projection.schema, "pirate-solid-hns-production-ingress-composition-v3");
+  assert.equal(projection.protected_route.pattern, "hns-community-ingress.pirate.sc");
+
+  const changedReference = changedConfig((copy) => {
+    copy.env.production.vars.HNS_COMMUNITY_APP_GATEWAY_DEPLOYMENT_REFERENCE = "next";
+    copy.env.production.vars.HNS_HANDLE_HOST_GATEWAY_DEPLOYMENT_REFERENCE = "next";
+  });
+  assert.equal(
+    productionIngressCompositionIdentity(changedReference, sources, packageJson),
+    production,
+  );
+  const changedOrigin = changedConfig((copy) => {
+    copy.env.production.vars.HNS_HANDLE_HOST_INGRESS_ORIGIN = "https://different.pirate.sc";
+  });
+  assert.throws(
+    () => productionIngressCompositionIdentity(changedOrigin, sources, packageJson),
+    /production_ingress_origin_mismatch/u,
+  );
 });

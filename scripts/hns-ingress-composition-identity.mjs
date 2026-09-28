@@ -83,21 +83,22 @@ function uniqueSortedStrings(values, name) {
   return sorted;
 }
 
-export function projectStagingIngressConfiguration(config, packageJson) {
-  const staging = config?.env?.staging;
-  const vars = staging?.vars;
-  if (typeof vars !== "object" || vars === null) refuse("missing_staging_vars");
+function projectIngressConfiguration(config, packageJson, environment) {
+  if (environment !== "staging" && environment !== "production") refuse("invalid_environment");
+  const target = config?.env?.[environment];
+  const vars = target?.vars;
+  if (typeof vars !== "object" || vars === null) refuse("missing_" + environment + "_vars");
 
   const protectedVars = {};
   for (const name of protectedVariableNames) protectedVars[name] = stringValue(vars[name], name);
   if (vars.HNS_COMMUNITY_APP_INGRESS_ENABLED !== "true" || vars.HNS_HANDLE_HOST_INGRESS_ENABLED !== "true") {
-    refuse("staging_ingress_must_be_enabled");
+    refuse(environment + "_ingress_must_be_enabled");
   }
   if (vars.HNS_HANDLE_HOST_INGRESS_ORIGIN !== vars.HNS_COMMUNITY_APP_INGRESS_ORIGIN) {
-    refuse("staging_ingress_origin_mismatch");
+    refuse(environment + "_ingress_origin_mismatch");
   }
   if (vars.HNS_HANDLE_HOST_GATEWAY_DEPLOYMENT_REFERENCE !== vars.HNS_COMMUNITY_APP_GATEWAY_DEPLOYMENT_REFERENCE) {
-    refuse("staging_gateway_reference_mismatch");
+    refuse(environment + "_gateway_reference_mismatch");
   }
   for (const name of Object.keys(vars)) {
     if (
@@ -129,8 +130,8 @@ export function projectStagingIngressConfiguration(config, packageJson) {
   } catch {
     refuse("invalid_protected_origin");
   }
-  const routes = staging.routes;
-  if (!Array.isArray(routes)) refuse("missing_staging_routes");
+  const routes = target.routes;
+  if (!Array.isArray(routes)) refuse("missing_" + environment + "_routes");
   const matchingRoutes = routes.filter((route) => route?.pattern === protectedHost);
   if (
     matchingRoutes.length !== 1 ||
@@ -140,7 +141,7 @@ export function projectStagingIngressConfiguration(config, packageJson) {
     refuse("protected_route_mismatch");
   }
 
-  const replayBindings = staging?.durable_objects?.bindings;
+  const replayBindings = target?.durable_objects?.bindings;
   if (!Array.isArray(replayBindings)) refuse("missing_replay_bindings");
   if (
     replayBindings.filter((binding) => binding?.name === "HNS_COMMUNITY_APP_REPLAY").length !== 1
@@ -150,17 +151,25 @@ export function projectStagingIngressConfiguration(config, packageJson) {
   if (!Array.isArray(config.migrations)) refuse("missing_replay_migrations");
 
   return {
-    schema: "pirate-solid-hns-staging-ingress-composition-v3",
+    schema: "pirate-solid-hns-" + environment + "-ingress-composition-v3",
     main: stringValue(config.main, "worker_entry"),
     compatibility_date: stringValue(config.compatibility_date, "compatibility_date"),
     compatibility_flags: uniqueSortedStrings(config.compatibility_flags, "compatibility_flags"),
     protected_route: matchingRoutes[0],
     protected_vars: protectedVars,
     api_client_dependency: apiClientDependency,
-    required_secret_names: uniqueSortedStrings(staging?.secrets?.required, "required_secrets"),
+    required_secret_names: uniqueSortedStrings(target?.secrets?.required, "required_secrets"),
     replay_bindings: [...replayBindings].sort((left, right) => left.name.localeCompare(right.name)),
     migrations: config.migrations,
   };
+}
+
+export function projectStagingIngressConfiguration(config, packageJson) {
+  return projectIngressConfiguration(config, packageJson, "staging");
+}
+
+export function projectProductionIngressConfiguration(config, packageJson) {
+  return projectIngressConfiguration(config, packageJson, "production");
 }
 
 export function assertIngressSourcePaths(discoveredPaths) {
@@ -169,15 +178,23 @@ export function assertIngressSourcePaths(discoveredPaths) {
   if (JSON.stringify(actual) !== JSON.stringify(expected)) refuse("source_file_set_changed");
 }
 
-export function stagingIngressCompositionIdentity(config, sources, packageJson) {
+function ingressCompositionIdentity(config, sources, packageJson, environment) {
   const sourceFiles = INGRESS_SOURCE_PATHS.map((path) => {
     const bytes = sources.get(path);
     if (!(bytes instanceof Uint8Array)) refuse(`missing_source_${path}`);
     return { path, sha256: sha256(bytes) };
   });
-  const projection = projectStagingIngressConfiguration(config, packageJson);
+  const projection = projectIngressConfiguration(config, packageJson, environment);
   const canonical = JSON.stringify({ schema: "solid-hns-ingress-fingerprint-v3", sourceFiles, projection });
   return `solid-hns-ingress-sha256:${sha256(canonical)}`;
+}
+
+export function stagingIngressCompositionIdentity(config, sources, packageJson) {
+  return ingressCompositionIdentity(config, sources, packageJson, "staging");
+}
+
+export function productionIngressCompositionIdentity(config, sources, packageJson) {
+  return ingressCompositionIdentity(config, sources, packageJson, "production");
 }
 
 async function discoverIngressSourcePaths(directory, prefix = "src/hns-ingress") {
@@ -207,6 +224,8 @@ export async function readStagingIngressCompositionInputs(root = repositoryRoot)
   const packageJson = JSON.parse(await readFile(join(root, "package.json"), "utf8"));
   return { config, sources, packageJson };
 }
+
+export const readIngressCompositionInputs = readStagingIngressCompositionInputs;
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   if (process.argv.length !== 2) refuse("unexpected_argument");

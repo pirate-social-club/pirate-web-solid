@@ -38,6 +38,14 @@ source.
   8s28 serving and browser checks after deployment. Do not bypass it with a
   direct Wrangler deploy. A planned gateway rotation must update the active
   manifest and Worker reference together before the command can pass.
+- Production HNS releases use `bun run prepare:production:hns-guarded
+  /absolute/candidate-manifest.json` from published `main` before the
+  gateway rotation. This builds and pins the exact Worker bytes against the
+  reviewed candidate manifest without sending traffic. After the coordinated
+  gateway rotation and explicit deployment approval, use
+  `bun run deploy:production:hns-guarded`; it checks the active gateway,
+  prepared bytes, source and Worker references before deploying. Do not run a
+  direct production Wrangler deploy for this release.
 
 ### Home route session upgrade
 
