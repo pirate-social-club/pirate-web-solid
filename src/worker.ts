@@ -60,7 +60,7 @@ async function handleComposition(env: Env): Promise<ProductionHnsHandlePersonaIn
               personaId: persona.persona.persona_id,
               state,
             },
-            CANONICAL_ASSET_ORIGIN: "https://pirate.sc",
+            CANONICAL_ASSET_ORIGIN: env.HNS_HANDLE_HOST_CANONICAL_ORIGIN,
             DISABLE_HYDRATION: true,
           },
         });

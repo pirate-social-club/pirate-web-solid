@@ -32,6 +32,16 @@ settings twice. Browser API writes are blocked. Missing ownership or disabled
 HNS fails explicitly, rather than creating a community or skipping. This is
 not complete chain/DNS onboarding acceptance and does not access production.
 
+After a complete staging mainnet import, run `bun run test:e2e:hns-mainnet-route`
+with `E2E_HNS_ROOT`, `E2E_HNS_COMMUNITY_ID`, `E2E_HNS_SESSION_ID`, and
+`E2E_HNS_COMMUNITY_NAME` set to that run's exact values. Inject the staging
+Privy fixed-OTP pair through the authorized secret runner. This read-only test
+requires the owner panel to show the verified import and the community route
+to load anonymously, after reload, and after a fresh sign-in. It refuses a
+different origin or missing fixture values. The chain, DNSSEC, DANE, app host,
+claimed host, and unclaimed-host assertions remain separate parts of the full
+mainnet acceptance run; this browser smoke does not claim them.
+
 Feed hydration runs separately with `bun run test:e2e:feed-hydration`. It requires
 `E2E_FEED_COMMUNITY_PATH_SEGMENT` and fails, rather than skips, if the fixture is
 missing or invalid. The generic read-only smoke command excludes this tag and

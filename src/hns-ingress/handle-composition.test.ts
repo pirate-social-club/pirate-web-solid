@@ -87,6 +87,7 @@ async function signedRequest(method: "GET" | "HEAD" = "GET", extra: Record<strin
 }
 
 async function composition(overrides: {
+  readonly canonicalOrigin?: string;
   readonly authority?: HnsHandleAuthorityResolutionV1;
   readonly authorityFailure?: "not_found";
   readonly onSsr?: (request: Request, persona: GetPublicPersonasPersonaIdResponse) => Promise<Response>;
@@ -96,7 +97,7 @@ async function composition(overrides: {
     profile: HNS_HANDLE_PERSONA_PUBLIC_PROFILE_V2,
     profileSha256: HNS_HANDLE_PERSONA_PUBLIC_PROFILE_V2_SHA256,
     ingressOrigin,
-    canonicalOrigin: "https://pirate.sc",
+    canonicalOrigin: overrides.canonicalOrigin ?? "https://pirate.sc",
     accessJwtValidator: { verify: async () => { overrides.onAccess?.(); } },
     authorityClient: { resolve: async () => {
       if (overrides.authorityFailure !== undefined) throw new HnsIngressFailure(overrides.authorityFailure);
@@ -113,6 +114,21 @@ async function composition(overrides: {
 }
 
 describe("public handle-persona HNS composition", () => {
+  it("renders staging profiles and limits assets to the staging canonical host", async () => {
+    const ingress = await composition({
+      canonicalOrigin: "https://web-next-staging.pirate.sc",
+      onSsr: async (request) => {
+        expect(request.url).toBe("https://web-next-staging.pirate.sc/p/persona_public_01");
+        return new Response("staging profile", { headers: { "content-type": "text/html" } });
+      },
+    });
+    const response = await ingress.fetch(await signedRequest());
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-security-policy")).toBe(
+      "default-src 'none'; style-src https://web-next-staging.pirate.sc; img-src https://web-next-staging.pirate.sc; font-src https://web-next-staging.pirate.sc; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'",
+    );
+  });
+
   it("validates before rendering, supplies only canonical public state, and sanitizes the response", async () => {
     let accessCalls = 0;
     const ingress = await composition({
