@@ -1,5 +1,5 @@
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
-import { expect, fn, userEvent, within } from "storybook/test";
+import { expect, fn, userEvent, waitFor, within } from "storybook/test";
 import { WinningsSendSheet } from "./winnings-send-sheet.tsx";
 import { fixtureHash, fixtureRecipient, fixtureRecord, paidWinning, sendFixture, type SendFixtureOptions } from "./winnings-send.fixtures.ts";
 
@@ -14,15 +14,28 @@ const sheet = (options: SendFixtureOptions = {}) => () => (
 );
 const screen = () => within(document.body);
 
+async function clickReady(name: string) {
+  const page = screen();
+  await waitFor(() => {
+    const button = page.getByRole("button", { name });
+    expect(button).toBeEnabled();
+    expect(getComputedStyle(button).pointerEvents).not.toBe("none");
+  });
+  await userEvent.click(page.getByRole("button", { name }));
+}
+
 async function signIn() {
   const page = screen();
   await expect(await page.findByText("Wallet balance: 12.5 USDC")).toBeVisible();
   await userEvent.type(page.getByLabelText("Send to"), fixtureRecipient);
-  await userEvent.click(page.getByRole("button", { name: "Continue" }));
+  await clickReady("Continue");
   await userEvent.type(await page.findByLabelText("Email for your wallet"), "winner@example.test");
-  await userEvent.click(page.getByRole("button", { name: "Send code" }));
-  await userEvent.type(await page.findByLabelText("Code"), "123456");
-  await userEvent.click(page.getByRole("button", { name: "Continue" }));
+  await clickReady("Send code");
+  await waitFor(() => expect(page.getByRole("button", { name: "Send a new code" })).toBeEnabled());
+  const code = await page.findByLabelText("Code");
+  await userEvent.type(code, "123456");
+  await waitFor(() => expect(code).toHaveValue("123456"));
+  await clickReady("Continue");
 }
 
 export const States: Story = { render: sheet() };
@@ -33,7 +46,7 @@ export const SendHappyPath: Story = {
     const page = screen();
     await signIn();
     await expect(await page.findByText(/up to 0.000062 ETH/u)).toBeVisible();
-    await userEvent.click(page.getByRole("button", { name: "Send winnings" }));
+    await clickReady("Send winnings");
     await expect(await page.findByText(/network is still checking this send/u)).toBeVisible();
     await expect(page.getByRole("link", { name: /View transfer/u })).toHaveAttribute("href", `https://sepolia.basescan.org/tx/${fixtureHash}`);
   },
@@ -50,7 +63,7 @@ export const UncertainSubmission: Story = {
   play: async () => {
     const page = screen();
     await signIn();
-    await userEvent.click(page.getByRole("button", { name: "Send winnings" }));
+    await clickReady("Send winnings");
     await expect(await page.findByText(/recorded transaction number/u)).toBeVisible();
   },
 };
