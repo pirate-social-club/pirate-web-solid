@@ -46,7 +46,7 @@ export async function readSongVideoPolicy(input: {
     path: { communityId: input.communityId, postId: input.postId },
     query: { persona_id: input.personaId },
   });
-  return response.can_post_with_song === true;
+  return response.can_post_with_song === true && response.video_ready === true;
 }
 
 /** The "Use this song" entry names its song in the query, because a link must

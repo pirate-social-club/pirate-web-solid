@@ -137,8 +137,7 @@ export function createSongIntervalPreflight(options: ApiClientFactoryOptions & {
 }
 
 /** Where a retained excerpt stands with the server. Only `ready` lets a
- * publication name the song; while any other retained state stands, publishing
- * is blocked until the author explicitly chooses the video's own sound. */
+ * publication name the song; any other retained state blocks publishing. */
 export type SongPlanState =
   | { readonly kind: "none" }
   | { readonly kind: "checking" }
@@ -153,7 +152,7 @@ export type SongPlanState =
 /** The author's soundtrack choice, tracked apart from the server's verdict on
  * it. Once a song is chosen it stays this video's intent — including while a
  * fresh preflight answer is pending or the author switches songs — until the
- * author explicitly replaces it with the video's own sound. */
+ * author explicitly chooses another song. */
 export type SongChoice =
   | Readonly<{ kind: "none" }>
   | Readonly<{ kind: "song"; songPostId: string }>;
@@ -228,7 +227,7 @@ export function isDefinitiveSongRefusal(error: ApiClientError): boolean {
   return reason === "song_audio_revision_changed" || reason === "canonical_timing_unavailable";
 }
 
-const OWN_SOUND = "Publishing with the song is blocked until the excerpt is accepted; choose another part of the song or a different song.";
+const SONG_BLOCKED = "Publishing waits until the excerpt is accepted; choose another part of the song or a different song.";
 
 function refusalText(reason: SongIntervalRefusal): string {
   switch (reason) {
@@ -266,17 +265,17 @@ export function songPlanText(state: SongPlanState): string {
     case "none": return "Retain an excerpt to ask whether this video can be posted to the song. Every video uses a song, so publishing waits for it.";
     case "checking": return "Checking this excerpt with the server…";
     case "not_available":
-      return `Posting a video to a song isn’t available yet. ${OWN_SOUND}`;
+      return `Posting a video to a song isn’t available yet. ${SONG_BLOCKED}`;
     case "measuring":
-      return `The server is still measuring this song’s exact length and will check again in a moment. ${OWN_SOUND}`;
+      return `The song is still being prepared for video; it will be checked again in a moment. ${SONG_BLOCKED}`;
     case "timing_unavailable":
-      return `This song’s length couldn’t be measured, so a video can’t be posted to it. ${OWN_SOUND}`;
-    case "refused": return `${refusalText(state.reason)} ${OWN_SOUND}`;
-    case "ineligible": return `${ineligibleText(state.reasonCode)} ${OWN_SOUND}`;
+      return `This song’s length couldn’t be measured, so a video can’t be posted to it. ${SONG_BLOCKED}`;
+    case "refused": return `${refusalText(state.reason)} ${SONG_BLOCKED}`;
+    case "ineligible": return `${ineligibleText(state.reasonCode)} ${SONG_BLOCKED}`;
     case "failed":
       return state.retryable
-        ? `This excerpt couldn’t be checked. Check it again. ${OWN_SOUND}`
-        : `This excerpt couldn’t be checked. ${OWN_SOUND}`;
+        ? `This excerpt couldn’t be checked. Check it again. ${SONG_BLOCKED}`
+        : `This excerpt couldn’t be checked. ${SONG_BLOCKED}`;
     case "ready":
       return `Publishing asks the server to post this video to the song, from ${selectionSpan(state.selection)}. It checks the excerpt again then, and the video is posted to the song only if it accepts.`;
   }
@@ -287,13 +286,13 @@ export function songReservationRefusalText(reasonCode: SongRejectionCode | undef
   switch (reasonCode) {
     case undefined: return undefined;
     case "capability_unavailable":
-      return "Posting a video to a song isn’t available yet. Edit the video to publish it with its own sound; the excerpt stays with the draft.";
+      return "Posting a video to a song isn’t available yet. Choose another song and check its excerpt.";
     case "song_audio_revision_changed":
       return "The song’s audio changed after the excerpt was chosen. Edit the video and check the excerpt again.";
     case "canonical_timing_pending":
-      return "The server is still measuring this song’s exact length. Edit the video and check the excerpt again in a moment.";
+      return "The song is still being prepared for video. Edit the video and check the excerpt again in a moment.";
     case "canonical_timing_unavailable":
-      return "This song’s length couldn’t be measured, so a video can’t be posted to it. Edit the video to publish it with its own sound.";
+      return "This song’s length couldn’t be measured, so a video can’t be posted to it. Choose another song.";
     case "song_reference_mismatch":
       return "The server confirmed a different song or excerpt than the one chosen, so nothing was uploaded. Edit the video to try again.";
     case "invalid_interval":
@@ -306,13 +305,13 @@ export function songReservationRefusalText(reasonCode: SongRejectionCode | undef
     case "song_owner_policy_unavailable":
     case "derivative_video_blocked":
     case "derivative_video_owner_only":
-      return `${ineligibleText(reasonCode)} Edit the video to publish it with its own sound.`;
+      return `${ineligibleText(reasonCode)} Choose another song.`;
   }
 }
 
 /** A blocked song-backed video: why the song can no longer be used. */
 export function songReferenceInvalidText(code: SongReasonCode | null | undefined): string {
-  const next = "Start a new video to choose a song again or to publish with its own sound.";
+  const next = "Start a new video and choose a song again.";
   switch (code) {
     case "song_not_published":
       return `The song this video was posted to is no longer published, so the video can’t be published with it. ${next}`;

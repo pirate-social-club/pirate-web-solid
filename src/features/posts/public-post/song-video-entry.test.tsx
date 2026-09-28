@@ -89,7 +89,7 @@ describe("the song-to-video entry", () => {
       requested = input;
       return new Response(JSON.stringify({
       object: "song_owner_policy", community_id: "community-id", post_id: "song-post-id",
-      policy_revision: 1, derivative_video: "allowed", can_post_with_song: true,
+      policy_revision: 1, derivative_video: "allowed", can_post_with_song: true, video_ready: true,
       }), { status: 200, headers: { "content-type": "application/json" } });
     });
     vi.stubGlobal("fetch", ownerPolicy);
@@ -100,6 +100,16 @@ describe("the song-to-video entry", () => {
     const url = new URL(String(requested));
     expect(url.pathname).toBe("/api/communities/community-id/posts/song-post-id/owner-policy/public");
     expect(url.searchParams.get("persona_id")).toBe("persona-id");
+  });
+
+  test("hides the entry when the song has no admitted video reference", async () => {
+    vi.stubGlobal("fetch", async () => new Response(JSON.stringify({
+      object: "song_owner_policy", community_id: "community-id", post_id: "song-post-id",
+      policy_revision: 1, derivative_video: "allowed", can_post_with_song: true, video_ready: false,
+    }), { status: 200, headers: { "content-type": "application/json" } }));
+    await expect(readSongVideoEligibility({
+      communityId: "community-id", postId: "song-post-id", personaId: "persona-id",
+    })).resolves.toBe(false);
   });
 
   test("does not offer the entry without an active persona bound to this community", async () => {
