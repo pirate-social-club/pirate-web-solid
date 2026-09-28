@@ -31,6 +31,7 @@ const queryPersonaProfile = query(async (personaId: string) => {
   const state = await loadPersonaPublicProfile(
     createPublicHandleSalesClient({ origin: requestOrigin() }),
     personaId,
+    requestOrigin(),
   );
   commit(state);
   return state;

@@ -1,7 +1,6 @@
 import { Link, Meta, Title } from "@solidjs/meta";
 import { For, Loading, Show, createMemo } from "solid-js";
 import {
-  CANONICAL_PUBLIC_ORIGIN,
   type PersonaPublicProfileState,
   type PersonaPublicProfileSuccess,
 } from "./persona-public-profile.model.ts";
@@ -18,10 +17,15 @@ function failureCopy(state: PersonaPublicProfileState): string {
         : "The profile could not be loaded.";
 }
 
-function canonicalMediaUrl(reference: string): string | undefined {
+/**
+ * Media references returned by the API are relative paths that must be
+ * fetched from the environment serving the page, not from the production
+ * canonical origin used for links and social metadata.
+ */
+function servingMediaUrl(reference: string, servingOrigin: string): string | undefined {
   try {
-    const resolved = new URL(reference, CANONICAL_PUBLIC_ORIGIN);
-    return resolved.origin === CANONICAL_PUBLIC_ORIGIN ? resolved.toString() : undefined;
+    const resolved = new URL(reference, servingOrigin);
+    return resolved.origin === servingOrigin ? resolved.toString() : undefined;
   } catch {
     return undefined;
   }
@@ -34,11 +38,11 @@ function Success(props: { readonly state: PersonaPublicProfileSuccess }) {
   const handle = () => persona().primary_public_handle?.trim();
   const avatar = () => {
     const reference = persona().avatar_ref;
-    return reference === null ? undefined : canonicalMediaUrl(reference);
+    return reference === null ? undefined : servingMediaUrl(reference, props.state.servingOrigin);
   };
   const cover = () => {
     const reference = props.state.response.profile.cover_ref;
-    return reference === null ? undefined : canonicalMediaUrl(reference);
+    return reference === null ? undefined : servingMediaUrl(reference, props.state.servingOrigin);
   };
   return (
     <main class="mx-auto w-full max-w-4xl pb-24 md:pb-12" data-persona-profile-state="success" data-persona-id={persona().persona_id}>

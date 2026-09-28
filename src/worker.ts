@@ -48,7 +48,7 @@ async function handleComposition(env: Env): Promise<ProductionHnsHandlePersonaIn
     },
     dispatch: {
       ssr: (request, persona) => {
-        const state = projectPersonaPublicProfile(persona, persona.persona.persona_id);
+        const state = projectPersonaPublicProfile(persona, persona.persona.persona_id, new URL(request.url).origin);
         if (state.kind !== "success") throw new Error("invalid public persona projection");
         return handleRequest(request, {
           context: {

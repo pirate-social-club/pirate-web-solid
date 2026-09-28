@@ -56,7 +56,12 @@ describe("persona-native public profile", () => {
     expect(projectPersonaPublicProfile(response(), "persona_public_01")).toMatchObject({
       kind: "success",
       canonicalUrl: "https://pirate.sc/p/persona_public_01",
+      servingOrigin: "https://pirate.sc",
     });
+    expect(projectPersonaPublicProfile(response(), "persona_public_01", "https://web-next-staging.pirate.sc"))
+      .toMatchObject({ kind: "success", servingOrigin: "https://web-next-staging.pirate.sc" });
+    expect(projectPersonaPublicProfile(response(), "persona_public_01", "https://pirate.sc/p/path"))
+      .toEqual({ kind: "unavailable", status: 502 });
     expect(projectPersonaPublicProfile({
       ...response(),
       handle_grants: [{ ...response().handle_grants[0]!, owner_persona: { ...persona, persona_id: "sibling" } }],
@@ -102,5 +107,56 @@ describe("persona-native public profile", () => {
     await vi.waitFor(() => expect(document.head.querySelector("link[rel='canonical']")?.getAttribute("href"))
       .toBe("https://pirate.sc/p/persona_public_01"));
     expect(container.querySelector("button, input, form")).toBeNull();
+  });
+
+  it("resolves media against the serving environment while links stay canonical", async () => {
+    const stagingPersona = { ...persona, avatar_ref: "/api/avatars/avatar-public" };
+    const staging = projectPersonaPublicProfile(
+      {
+        ...response(),
+        persona: stagingPersona,
+        handle_grants: [{ ...response().handle_grants[0]!, owner_persona: stagingPersona }],
+      },
+      "persona_public_01",
+      "https://web-next-staging.pirate.sc",
+    );
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    let dispose: () => void = () => undefined;
+    createRoot(rootDispose => {
+      dispose = rootDispose;
+      solidRender(() => <PersonaPublicProfile state={staging} />, container);
+    });
+    cleanups.push(() => { dispose(); container.remove(); });
+    expect(container.querySelector("img")?.getAttribute("src"))
+      .toBe("https://web-next-staging.pirate.sc/api/avatars/avatar-public");
+    for (const element of container.querySelectorAll("a[href]")) {
+      expect(element.getAttribute("href")?.startsWith("https://pirate.sc")).toBe(true);
+    }
+    await vi.waitFor(() => expect(document.head.querySelector("link[rel='canonical']")?.getAttribute("href"))
+      .toBe("https://pirate.sc/p/persona_public_01"));
+  });
+
+  it("falls back to the initial when an absolute media reference targets another origin", () => {
+    const foreignPersona = { ...persona, avatar_ref: "https://evil.example/avatar.png" };
+    const foreign = projectPersonaPublicProfile(
+      {
+        ...response(),
+        persona: foreignPersona,
+        handle_grants: [{ ...response().handle_grants[0]!, owner_persona: foreignPersona }],
+      },
+      "persona_public_01",
+      "https://web-next-staging.pirate.sc",
+    );
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    let dispose: () => void = () => undefined;
+    createRoot(rootDispose => {
+      dispose = rootDispose;
+      solidRender(() => <PersonaPublicProfile state={foreign} />, container);
+    });
+    cleanups.push(() => { dispose(); container.remove(); });
+    expect(container.querySelector("img")).toBeNull();
+    expect(container.textContent).toContain("P");
   });
 });
