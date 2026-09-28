@@ -91,6 +91,16 @@ export const AnonymousDesktop: Story = { render: () => <ShellStory signedIn={fal
 export const AuthenticatedDesktop: Story = { render: () => <ShellStory /> };
 export const ResolvingAccount: Story = { render: () => <ShellStory signedIn={false} personas={[]} sessionResolving /> };
 export const Mobile: Story = { globals: phone, render: () => <ShellStory /> };
+export const MobilePostingEntry: Story = {
+  globals: phone,
+  render: () => <ShellStory />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const phonePost = canvas.queryByRole("button", { name: "Choose a community to post in" });
+    await userEvent.click(phonePost ?? canvas.getByRole("link", { name: "Post" }));
+    await expect(canvas.getByRole("status")).toHaveTextContent("Destination: /communities");
+  },
+};
 export const CommunityDetailMobile: Story = { globals: phone, render: () => <ShellStory initialPath="/c/harbor" /> };
 export const MobileDrawer: Story = { globals: phone, render: () => <ShellStory initialMenuOpen /> };
 export const DesktopPersonaPicker: Story = { render: () => <ShellStory pickerOpen /> };

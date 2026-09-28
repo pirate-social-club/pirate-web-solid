@@ -803,6 +803,7 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
       </form>
       }
     >
+      <div class="fixed inset-0 z-[60] overflow-y-auto bg-black" data-create-video-overlay>
       <Show
         when={props.principalId}
         fallback={
@@ -844,6 +845,7 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
           />
         )}
       </Show>
+      </div>
     </Show>
   );
 }

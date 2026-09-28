@@ -1,6 +1,6 @@
 /** One destination map for desktop, the mobile drawer and the four mobile tabs. */
 export const navigationPaths = {
-  home: "/", songs: "/songs",
+  home: "/", post: "/communities", songs: "/songs",
   wallet: "/wallet", profile: "/me", settings: "/settings",
   "your-communities": "/communities", "create-community": "/communities/new",
 } as const;

@@ -99,44 +99,47 @@ function SuccessState(props: { readonly state: PublicProfileSuccess; readonly na
   const title = () => interpolateMessage(copy.title, { handle: state().profile.handle });
 
   return (
-    <main class="mx-auto w-full max-w-5xl px-4 py-8 md:px-8" data-profile-state={state().isCanonical ? "success" : "alias"}>
+    <main class="mx-auto w-full max-w-4xl pb-24 md:pb-12" data-profile-state={state().isCanonical ? "success" : "alias"}>
       <Title>{title()}</Title>
       <Meta name="description" content={description()} />
       <Meta property="og:title" content={title()} />
       <Meta property="og:description" content={description()} />
       <Meta property="og:url" content={canonicalUrl()} />
       <Link rel="canonical" href={canonicalUrl()} />
-      <h1>{displayName()}</h1>
-      <p data-profile-handle={state().profile.handle}>@{state().profile.handle}</p>
-      <Show when={state().profile.bio}>
-        {bio => <p>{bio()}</p>}
-      </Show>
-      <section aria-labelledby="created-communities-heading">
-        <h2 id="created-communities-heading">{copy.createdCommunities}</h2>
-        <Show when={state().communities.length > 0} fallback={<p role="status">{copy.emptyCommunities}</p>}>
-          <ul>
-            <For each={state().communities}>
-              {community => (
-                <li>
-                  <Show when={community.href} fallback={<span>{community.name}</span>}>
-                    <a href={community.href} aria-label={interpolateMessage(copy.openCommunity, { name: community.name })}>
-                      {community.name}
-                    </a>
-                  </Show>
-                </li>
-              )}
-            </For>
-          </ul>
-          <p class="sr-only">
-            {state().communities.length === 1
-              ? interpolateMessage(copy.createdCommunitySingularDescription, { name: displayName() })
-              : interpolateMessage(copy.createdCommunityPluralDescription, { name: displayName(), count: state().communities.length })}
-          </p>
+      <div class="h-36 w-full bg-gradient-to-br from-primary/30 via-secondary to-background md:h-52" />
+      <div class="px-4 md:px-8">
+        <div class="-mt-10 grid size-20 place-items-center rounded-full border-4 border-background bg-muted text-2xl font-semibold md:-mt-12 md:size-24" aria-hidden="true">
+          {displayName().slice(0, 1).toUpperCase()}
+        </div>
+        <div class="mt-4 min-w-0">
+          <h1 class="break-words text-2xl font-bold tracking-tight md:text-3xl">{displayName()}</h1>
+          <p class="mt-1 break-all text-sm text-muted-foreground" data-profile-handle={state().profile.handle}>@{state().profile.handle}</p>
+          <Show when={state().profile.bio}>
+            {bio => <p class="mt-5 max-w-2xl whitespace-pre-wrap break-words leading-relaxed">{bio()}</p>}
+          </Show>
+        </div>
+        <Show when={state().communities.length > 0}>
+          <section class="mt-8 border-t border-border-soft pt-6" aria-labelledby="created-communities-heading">
+            <h2 id="created-communities-heading" class="mb-3 text-sm font-semibold">{copy.createdCommunities}</h2>
+            <ul class="flex flex-wrap gap-2">
+              <For each={state().communities}>
+                {community => (
+                  <li>
+                    <Show when={community.href} fallback={<span class="inline-block rounded-full border border-border-soft px-3 py-1 text-sm">{community.name}</span>}>
+                      <a class="inline-block rounded-full border border-border-soft px-3 py-1 text-sm hover:bg-muted" href={community.href} aria-label={interpolateMessage(copy.openCommunity, { name: community.name })}>
+                        {community.name}
+                      </a>
+                    </Show>
+                  </li>
+                )}
+              </For>
+            </ul>
+          </section>
         </Show>
-      </section>
-      <Show when={!state().isCanonical}>
-        <AliasRedirect state={state()} navigate={props.navigate} />
-      </Show>
+        <Show when={!state().isCanonical}>
+          <AliasRedirect state={state()} navigate={props.navigate} />
+        </Show>
+      </div>
     </main>
   );
 }

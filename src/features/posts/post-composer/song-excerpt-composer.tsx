@@ -67,6 +67,7 @@ export function SongExcerptComposer(props: {
   read?: SongSourceReader;
   store: SongExcerptDraftStore;
   communityId?: string;
+  personaId?: string;
   preflight?: SongIntervalPreflight;
   disabled?: boolean;
   initialSong?: { readonly postId: string };
@@ -533,6 +534,7 @@ export function SongExcerptComposer(props: {
       <Show when={source().kind === "idle"}>
         <SongPicker
           communityId={communityId}
+          personaId={props.personaId}
           linkProblem={linkProblem()}
           onLink={(value) => { setLink(value); submitLink(value); }}
           onPick={(postId) => { setLinkProblem(undefined); void loadSong({ kind: "post", postId }); }}

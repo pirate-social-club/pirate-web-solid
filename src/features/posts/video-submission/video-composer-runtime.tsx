@@ -908,6 +908,7 @@ export function VideoComposerRuntime(props: {
           <fieldset class="contents" disabled={captureStatus() === "recording" || finalizing()}>
           <section aria-label="Soundtrack" class="min-w-0">
             <SongExcerptComposer store={excerptStore} read={props.songReader} communityId={chosenCommunityId() || undefined}
+              personaId={chosenPersonaId() || undefined}
               disabled={captureStatus() === "recording" || finalizing()}
               clipLengthMs={songLengthForClip(clipDurationMs())}
               preflight={songPreflight} initialSong={props.initialSong}

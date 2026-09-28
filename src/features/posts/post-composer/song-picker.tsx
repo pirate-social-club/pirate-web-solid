@@ -5,7 +5,7 @@
 // The search field filters only loaded rows, so while more pages remain the
 // list says so rather than implying a community-wide search.
 
-import { createMemo, createSignal, For, onCleanup, onSettled, Show } from "solid-js";
+import { createEffect, createMemo, createSignal, For, onCleanup, Show } from "solid-js";
 
 import { createSessionApiClient } from "../../../api/client";
 import { Button, IconButton, IconLink, IconMagnifyingGlass, IconPause, IconPlay, IconX, Input, Type } from "../../../design-system";
@@ -25,7 +25,25 @@ export interface SongPickerPage {
   readonly nextCursor: string | null;
 }
 
-export type SongPickerSource = (communityId: string, cursor: string | null) => Promise<SongPickerPage>;
+export type SongPickerSource = (communityId: string, cursor: string | null, personaId?: string) => Promise<SongPickerPage>;
+
+export async function filterVideoReadySongs(
+  candidates: readonly SongPickerItem[],
+  read: (postId: string) => Promise<Readonly<{ can_post_with_song: boolean; video_ready: boolean }>>,
+): Promise<readonly SongPickerItem[]> {
+  const ready = Array.from({ length: candidates.length }, () => false);
+  let index = 0;
+  // A feed page is bounded, but checking all its songs at once would burst
+  // authenticated policy reads and exact-object HEADs at the API.
+  await Promise.all(Array.from({ length: Math.min(4, candidates.length) }, async () => {
+    while (index < candidates.length) {
+      const at = index++;
+      const policy = await read(candidates[at]!.postId);
+      ready[at] = policy.can_post_with_song === true && policy.video_ready === true;
+    }
+  }));
+  return candidates.filter((_, at) => ready[at]);
+}
 
 /** Resolves a song's playable audio for a preview; an empty string means the
  * song has no audio yet. */
@@ -33,17 +51,25 @@ export type SongPreviewSource = (postId: string, signal: AbortSignal) => Promise
 
 /** The community's published songs, newest first, one public-feed page at a
  * time. */
-export const loadCommunitySongs: SongPickerSource = async (communityId, cursor) => {
-  const page = await loadCommunityThreadPage({ communityRef: communityId, cursor, client: createSessionApiClient() });
+export const loadCommunitySongs: SongPickerSource = async (communityId, cursor, personaId) => {
+  if (!personaId?.trim()) throw new Error("Choose a profile before loading video songs");
+  const client = createSessionApiClient();
+  const page = await loadCommunityThreadPage({ communityRef: communityId, cursor, client });
+  const candidates = page.posts
+    .filter(post => post.kind === "song")
+    .map(post => ({
+      postId: post.id,
+      title: post.mediaTitle ?? post.title,
+      artist: post.authorHandle ?? "",
+      artworkSrc: post.authorAvatarSrc ?? null,
+    }));
+  const songs = await filterVideoReadySongs(candidates, postId =>
+    client.get_communitiesCommunityIdPostsPostIdOwnerPolicyPublic({
+      path: { communityId, postId },
+      query: { persona_id: personaId },
+    }));
   return {
-    songs: page.posts
-      .filter(post => post.kind === "song")
-      .map(post => ({
-        postId: post.id,
-        title: post.mediaTitle ?? post.title,
-        artist: post.authorHandle ?? "",
-        artworkSrc: post.authorAvatarSrc ?? null,
-      })),
+    songs,
     nextCursor: page.nextCursor,
   };
 };
@@ -57,6 +83,7 @@ type PreviewState =
 
 export function SongPicker(props: {
   communityId?: string;
+  personaId?: string;
   source?: SongPickerSource;
   preview?: SongPreviewSource;
   onPick: (postId: string) => void;
@@ -67,41 +94,58 @@ export function SongPicker(props: {
   const source = props.source ?? loadCommunitySongs;
   const previewSource = props.preview;
   const [songs, setSongs] = createSignal<readonly SongPickerItem[]>([], { ownedWrite: true });
-  const [state, setState] = createSignal<"loading" | "ready" | "failed">("loading", { ownedWrite: true });
+  const [state, setState] = createSignal<"loading" | "ready" | "failed" | "choose_profile">("loading", { ownedWrite: true });
   const [nextCursor, setNextCursor] = createSignal<string | null>(null, { ownedWrite: true });
   const [moreState, setMoreState] = createSignal<"idle" | "loading" | "failed">("idle", { ownedWrite: true });
   const [query, setQuery] = createSignal("");
   const [preview, setPreview] = createSignal<PreviewState>({ kind: "idle" }, { ownedWrite: true });
   let audio: HTMLAudioElement | undefined;
   let pending: AbortController | undefined;
+  let loadGeneration = 0;
 
-  const load = () => {
-    const communityId = props.communityId;
+  const load = (communityId: string | undefined, personaId: string | undefined) => {
+    const generation = ++loadGeneration;
     if (communityId === undefined) {
+      setSongs([]);
       setState("ready");
+      return;
+    }
+    setSongs([]);
+    setNextCursor(null);
+    if (props.source === undefined && !personaId?.trim()) {
+      setState("choose_profile");
       return;
     }
     setState("loading");
     setMoreState("idle");
-    void source(communityId, null).then(
-      (page) => { setSongs(page.songs); setNextCursor(page.nextCursor); setState("ready"); },
-      () => setState("failed"),
+    void source(communityId, null, personaId).then(
+      (page) => {
+        if (generation !== loadGeneration) return;
+        setSongs(page.songs); setNextCursor(page.nextCursor); setState("ready");
+      },
+      () => { if (generation === loadGeneration) setState("failed"); },
     );
   };
-  onSettled(load);
+  createEffect(
+    () => [props.communityId, props.personaId] as const,
+    ([communityId, personaId]) => load(communityId, personaId),
+  );
 
   const loadMore = () => {
     const communityId = props.communityId;
+    const personaId = props.personaId;
     const cursor = nextCursor();
     if (communityId === undefined || cursor === null || moreState() === "loading") return;
+    const generation = loadGeneration;
     setMoreState("loading");
-    void source(communityId, cursor).then(
+    void source(communityId, cursor, personaId).then(
       (page) => {
+        if (generation !== loadGeneration) return;
         setSongs(current => [...current, ...page.songs]);
         setNextCursor(page.nextCursor);
         setMoreState("idle");
       },
-      () => setMoreState("failed"),
+      () => { if (generation === loadGeneration) setMoreState("failed"); },
     );
   };
 
@@ -110,7 +154,7 @@ export function SongPicker(props: {
     pending = undefined;
     audio?.pause();
   };
-  onCleanup(stopPreview);
+  onCleanup(() => { ++loadGeneration; stopPreview(); });
 
   /** The row the author last tapped, whether or not its audio is playing. */
   const activeId = () => {
@@ -210,10 +254,13 @@ export function SongPicker(props: {
       <Show when={state() === "loading" && !isLink()}>
         <Type as="p" variant="caption" class="px-2 text-muted-foreground" role="status">Loading songs…</Type>
       </Show>
+      <Show when={state() === "choose_profile" && !isLink()}>
+        <Type as="p" variant="caption" class="px-2 text-muted-foreground">Choose a profile to see video-ready songs.</Type>
+      </Show>
       <Show when={state() === "failed" && !isLink()}>
         <div class="flex items-center justify-between gap-3 px-2">
           <Type as="p" variant="caption" class="text-muted-foreground">Songs couldn’t load.</Type>
-          <Button onClick={load} size="sm" type="button" variant="secondary">Try again</Button>
+          <Button onClick={() => load(props.communityId, props.personaId)} size="sm" type="button" variant="secondary">Try again</Button>
         </div>
       </Show>
       <Show when={state() === "ready" && !isLink()}>
@@ -223,8 +270,8 @@ export function SongPicker(props: {
             <Type as="p" variant="caption" class="px-2 text-muted-foreground">
               {songs().length === 0
                 ? nextCursor() !== null
-                  ? "No songs in the loaded pages yet. Load more, or paste a song link."
-                  : "No songs here yet. Paste a song link to use one from elsewhere."
+                  ? "No video-ready songs in the loaded pages yet. Load more, or paste a song link."
+                  : "No video-ready songs here yet. Paste a song link to use one from elsewhere."
                 : nextCursor() !== null
                   ? "No loaded songs match. Load more, or paste a song link."
                   : "No songs match."}

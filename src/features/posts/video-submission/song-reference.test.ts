@@ -174,7 +174,7 @@ describe("the server's answer decides the plan", () => {
       { kind: "ineligible", reasonCode: "derivative_video_blocked" },
       { kind: "failed", retryable: true },
     ] as const) {
-      expect(songPlanText(state)).toContain("Publishing with the song is blocked");
+      expect(songPlanText(state)).toContain("Publishing waits until the excerpt is accepted");
       expect(songPlanText(state)).not.toContain("original sound");
     }
     expect(songPlanText({ kind: "not_available" })).toContain("isn’t available yet");

@@ -168,13 +168,13 @@ export function SongPlayer(props: SongPlayerProps) {
     }
   };
   return (
-    <div class={props.compact ? "contents" : "flex flex-col gap-2"} data-song-player={props.postId}>
+    <div class={props.compact ? "contents" : "flex min-w-0 flex-col gap-2"} data-song-player={props.postId}>
       <Show
         when={grant()}
         fallback={
           <Button
             aria-label={`Play ${props.title}`}
-            class={props.compact ? "ml-auto size-9 shrink-0 rounded-full px-0" : undefined}
+            class={props.compact ? "ml-auto size-9 shrink-0 rounded-full px-0" : "max-w-full"}
             disabled={busy()}
             loading={props.compact ? busy() : undefined}
             onClick={() => void renew(true)}
@@ -184,7 +184,7 @@ export function SongPlayer(props: SongPlayerProps) {
           >
             {props.compact
               ? (busy() ? undefined : <IconPlay aria-hidden="true" class="size-4" />)
-              : busy() ? "Loading audio…" : `Play ${props.title}`}
+              : busy() ? "Loading audio…" : "Play song"}
           </Button>
         }
       >
