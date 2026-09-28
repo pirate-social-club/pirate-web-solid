@@ -1297,6 +1297,28 @@ describe("mounted song-first video flow", () => {
       expect(openPreview).toHaveBeenCalledTimes(1);
     });
 
+    test("record stops when first-use camera permission is denied", async () => {
+      const { VideoCaptureError } = await import("./capture");
+      let denyPreview: ((error: Error) => void) | undefined;
+      const permission = new Promise<MediaStream>((_resolve, reject) => { denyPreview = reject; });
+      openPreview.mockImplementationOnce(() => permission);
+      nextSession = () => fakeSession(() => undefined);
+      songSetup({ preflight: "accepted", mobile: true, createGuideAudio: () => guideSpy().audio });
+      await loadSongMetadata();
+      await awaitPlan("ready");
+      await vi.waitFor(() => expect(openPreview).toHaveBeenCalledTimes(1));
+      await startRecording();
+      await Promise.resolve();
+      expect(startCapture).not.toHaveBeenCalled();
+
+      if (!denyPreview) throw new Error("camera permission request was not started");
+      denyPreview(new VideoCaptureError("camera_denied", "denied"));
+      await vi.waitFor(() => expect(document.body.textContent).toContain("Camera unavailable"));
+      expect(button("Choose a video instead")).not.toBeUndefined();
+      expect(startCapture).not.toHaveBeenCalled();
+      expect(openPreview).toHaveBeenCalledTimes(1);
+    });
+
     test("going back from review reopens the camera", async () => {
       nextSession = () => fakeSession(() => undefined);
       songSetup({ preflight: "accepted", mobile: true, createGuideAudio: () => guideSpy().audio });
