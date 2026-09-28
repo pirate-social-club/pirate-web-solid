@@ -90,10 +90,11 @@ describe("PublicProfilePage", () => {
     expect(container.querySelector("button")).toBeNull();
   });
 
-  test("renders a safe empty state without viewer controls", async () => {
+  test("keeps a minimal public profile free of empty sections and viewer controls", async () => {
     const container = render(() => <PublicProfilePage handle="captain-one" client={client(profileResponse())} />);
     await vi.waitFor(() => expect(container.querySelector("h1")?.textContent).toBe("Captain One"));
-    expect(container.querySelector("[role='status']")?.textContent).toContain("No communities created yet.");
+    expect(container.querySelector("#created-communities-heading")).toBeNull();
+    expect(container.querySelector("[data-profile-handle]")?.textContent).toBe("@captain-one.pirate");
     expect(container.querySelector("button, input, textarea, [data-viewer-control]")).toBeNull();
   });
 

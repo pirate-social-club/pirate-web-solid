@@ -63,7 +63,7 @@ describe("Application navigation", () => {
 
   test("mobile has four destinations and Wallet opens the wallet route", () => {
     const navigate = vi.fn();
-    const container = render(() => <ApplicationChrome navigate={navigate} mobileActiveItem="wallet">Route</ApplicationChrome>);
+    const container = render(() => <ApplicationChrome navigate={navigate} mobileActiveItem="wallet" mode="immersive">Route</ApplicationChrome>);
     const footer = container.querySelector('nav[aria-label="Primary navigation"]')!;
     expect(footer.querySelectorAll("button")).toHaveLength(4);
     // An unsigned profile tab reads Sign in, matching what a tap there does.
@@ -74,6 +74,10 @@ describe("Application navigation", () => {
     expect(footer.querySelector('[aria-current="page"]')?.textContent).toBe("Wallet");
     footer.querySelector<HTMLButtonElement>('button[aria-label="Your songs"]')!.click();
     expect(navigate).toHaveBeenLastCalledWith("/songs");
+    const post = container.querySelector<HTMLButtonElement>('button[aria-label="Choose a community to post in"]');
+    expect(post?.textContent).toBe("Post");
+    post!.click();
+    expect(navigate).toHaveBeenLastCalledWith("/communities");
   });
 
   test("the phone drawer lists communities once and leaves profile switching to the footer", async () => {

@@ -7,6 +7,7 @@ import {
   Button,
   IconButton,
   IconGearSix,
+  IconFileText,
   IconHouse,
   IconList,
   IconPlaylist,
@@ -199,6 +200,7 @@ export function ApplicationChrome(props: MediaShellProps) {
   createEffect(desktop, wide => { if (wide) setMenuOpen(false); });
   const primaryItems = (): readonly SidebarItem[] => [
     { id: "home", href: "/", label: "Home", icon: <IconHouse class="size-5" /> },
+    { id: "post", href: "/communities", label: "Post", icon: <IconFileText class="size-5" /> },
     { id: "songs", href: "/songs", label: "Your songs", icon: <IconPlaylist class="size-5" /> },
     { id: "wallet", href: "/wallet", label: "Wallet", icon: <IconWallet class="size-5" /> },
     { id: "profile", href: selected() ? profilePath(selected()!) : "/me", label: "Profile", icon: <Avatar class="size-5" fallback={selected()?.displayName ?? "Profile"} fallbackSeed={selected()?.avatarSeed ?? selected()?.displayName} size="sm" src={selected()?.avatarSrc ?? undefined} /> },
@@ -251,7 +253,16 @@ export function ApplicationChrome(props: MediaShellProps) {
           <AppHeader forceMobile hideBrand mobileAppearance={immersive() ? "media-overlay" : "default"}
             mobileCenterContent={<Show when={props.mobileTitle}>{title => <Type as="span" variant="h4" class={immersive() ? "text-white" : undefined}>{title()}</Type>}</Show>}
             mobileLeadingContent={<IconButton ref={(element: HTMLButtonElement) => { menuTrigger = element; }} aria-label="Open communities and settings" aria-expanded={menuOpen() ? "true" : "false"} aria-haspopup="dialog" onClick={() => setMenuOpen(true)} variant="ghost" class={immersive() ? "text-white hover:bg-white/10" : undefined}><IconList class="size-6" /></IconButton>}
-            mobileTrailingContent={<Show when={!signedIn() && !props.sessionResolving && !props.sessionUnavailable}><Button onClick={requestGlobalSignIn} onFocus={prepareGlobalSignIn} onPointerDown={prepareGlobalSignIn} onPointerEnter={preloadGlobalSignInAssets} class={immersive() ? "text-white" : undefined} size="sm" variant="ghost">Sign in</Button></Show>}
+            mobileTrailingContent={
+              <div class="flex items-center gap-1">
+                <Show when={immersive()}>
+                  <Button aria-label="Choose a community to post in" onClick={() => go("/communities")} class="text-white" size="sm" variant="ghost">Post</Button>
+                </Show>
+                <Show when={!signedIn() && !props.sessionResolving && !props.sessionUnavailable}>
+                  <Button onClick={requestGlobalSignIn} onFocus={prepareGlobalSignIn} onPointerDown={prepareGlobalSignIn} onPointerEnter={preloadGlobalSignInAssets} class={immersive() ? "text-white" : undefined} size="sm" variant="ghost">Sign in</Button>
+                </Show>
+              </div>
+            }
             showNotificationsAction={false} showProfileAction={false} showWalletAction={false}
           />
         </div>

@@ -64,6 +64,27 @@ const translatedState = (): PublicPostRouteState => {
   };
 };
 
+const songState = (): PublicPostRouteState => {
+  const state = contentState(true);
+  if (state.kind !== "content") throw new Error("expected content fixture");
+  return {
+    ...state,
+    response: {
+      ...state.response,
+      content: {
+        ...state.response.content,
+        post: {
+          ...state.response.content.post,
+          post_type: "song",
+          title: "A long song title that still fits on a narrow phone without widening the page",
+          song_title: "A long song title that still fits on a narrow phone without widening the page",
+        },
+        song_presentation: { alignment: "ready", data_registration: "registered" },
+      },
+    },
+  };
+};
+
 const meta = {
   title: "Screens/Posts/PublicPostRoute",
   component: PublicPostRouteView,
@@ -91,6 +112,17 @@ export const Detail: Story = {
     await expect(canvas.getByText("Public creator")).toBeInTheDocument();
     await expect(canvas.getByText("A bounded public description.")).toBeInTheDocument();
     await expect(canvasElement.querySelector("main")?.getAttribute("data-public-post-state")).toBe("content");
+  },
+};
+
+export const SongPostMobile: Story = {
+  args: { state: songState() },
+  globals: { viewport: { value: "mobile1", isRotated: false } },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByRole("button", { name: /Play A long song title/u })).toBeInTheDocument();
+    await expect(canvas.getByRole("navigation", { name: "Song activities" })).toBeInTheDocument();
+    await expect(canvas.queryByRole("list", { name: "Song delivery status" })).toBeNull();
   },
 };
 

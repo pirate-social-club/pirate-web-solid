@@ -45,7 +45,7 @@ test("requests audio only on play and exposes native controls for the granted au
   }));
   mount(read, undefined, "song-access");
   expect(read).not.toHaveBeenCalled();
-  button("Play Original song").click();
+  button("Play song").click();
   await vi.waitFor(() =>
     expect(document.querySelector("audio")?.src).toBe("https://audio.example.test/signed"),
   );
@@ -65,12 +65,12 @@ test("failed access is retryable and never installs an audio URL", async () => {
       renew_after: 1840,
     });
   mount(read, undefined, "song-retry");
-  button("Play Original song").click();
+  button("Play song").click();
   await vi.waitFor(() =>
     expect(document.body.textContent).toContain("This song could not be played."),
   );
   expect(document.querySelector("audio")).toBeNull();
-  button("Play Original song").click();
+  button("Play song").click();
   await vi.waitFor(() => expect(document.querySelector("audio")).not.toBeNull());
 });
 test("compact mode keeps a labelled trigger and wraps the granted audio", async () => {
@@ -107,7 +107,7 @@ test("resumes a cached grant after a feed re-render replaces the player", async 
     renew_after: 1840,
   }));
   mount(read, undefined, "song-cache");
-  button("Play Original song").click();
+  button("Play song").click();
   await vi.waitFor(() => expect(document.querySelector("audio")).not.toBeNull());
   expect(read).toHaveBeenCalledTimes(1);
 
@@ -127,7 +127,7 @@ test("delivers an in-flight grant to the replacement player", async () => {
   let resolveRead: ((value: Grant) => void) | undefined;
   const read = vi.fn((): Promise<Grant> => new Promise(resolve => { resolveRead = resolve; }));
   mount(read, undefined, "song-inflight");
-  button("Play Original song").click();
+  button("Play song").click();
   // The feed can replace the card while the access request is still pending.
   for (const dispose of disposers.splice(0)) dispose();
   document.body.replaceChildren();
@@ -147,7 +147,7 @@ test("a retry with a valid cached grant resumes instead of pausing", async () =>
     renew_after: 1840,
   }));
   mount(read, undefined, "song-retry-grant");
-  button("Play Original song").click();
+  button("Play song").click();
   await vi.waitFor(() => expect(document.querySelector("audio")).not.toBeNull());
   const audio = document.querySelector("audio")!;
   pause.mockClear();

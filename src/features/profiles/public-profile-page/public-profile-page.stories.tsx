@@ -75,4 +75,9 @@ export const Unavailable: Story = {
 export const Mobile: Story = {
   name: "Mobile",
   globals: { viewport: { value: "mobile1", isRotated: false } },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await expect(canvas.getByRole("heading", { name: "Night Shift" })).toBeInTheDocument();
+    await expect(canvas.getByRole("link", { name: /Night Shift/u })).toBeInTheDocument();
+  },
 };
