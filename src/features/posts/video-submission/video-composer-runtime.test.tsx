@@ -1274,6 +1274,29 @@ describe("mounted song-first video flow", () => {
       expect(openPreview).toHaveBeenCalledTimes(1);
     });
 
+    test("record waits for first-use camera permission rather than opening a second camera", async () => {
+      let grantPreview: ((stream: MediaStream) => void) | undefined;
+      const permission = new Promise<MediaStream>(resolve => { grantPreview = resolve; });
+      openPreview.mockImplementationOnce(() => permission);
+      nextSession = () => fakeSession(() => undefined);
+      songSetup({ preflight: "accepted", mobile: true, createGuideAudio: () => guideSpy().audio });
+      await loadSongMetadata();
+      await awaitPlan("ready");
+      await vi.waitFor(() => expect(openPreview).toHaveBeenCalledTimes(1));
+      await startRecording();
+      await Promise.resolve();
+      expect(startCapture).not.toHaveBeenCalled();
+
+      const track = { stop: vi.fn() };
+      // SAFETY: the runtime only calls getTracks on this test stream; jsdom
+      // has no MediaStream constructor to provide the same minimal object.
+      const stream = Object.assign(Object.create(null) as MediaStream, { getTracks: () => [track] });
+      grantPreview!(stream);
+      await vi.waitFor(() => expect(startCapture).toHaveBeenCalledTimes(1));
+      expect(startCapture.mock.calls[0]?.[0].stream).toBe(stream);
+      expect(openPreview).toHaveBeenCalledTimes(1);
+    });
+
     test("going back from review reopens the camera", async () => {
       nextSession = () => fakeSession(() => undefined);
       songSetup({ preflight: "accepted", mobile: true, createGuideAudio: () => guideSpy().audio });

@@ -189,6 +189,7 @@ export function VideoComposerRuntime(props: {
   // else that leaves the capture screen stops it.
   let previewStream: MediaStream | null = null;
   let previewOpening = false;
+  let previewRequest: Promise<void> | null = null;
   let captureStarting = false;
   const stopTracks = (media: MediaStream | null) => { for (const track of media?.getTracks() ?? []) track.stop(); };
   function closePreview() {
@@ -578,6 +579,11 @@ export function VideoComposerRuntime(props: {
       // take. A take recorded to a guide is bound to it from this moment.
       if (guide) setTakeSoundtrack({ songPostId: guide.songPostId, bounds: guide.bounds });
       else setTakeSoundtrack(null);
+      // A first-use camera permission prompt can still be open when Record is
+      // tapped. Wait for that request instead of starting a second competing
+      // getUserMedia call, which can make both requests fail on the phone.
+      if (previewRequest) await previewRequest;
+      if (captureStatus() !== "idle" || !captureReady()) return;
       // The live preview becomes the recording's stream, so the take starts
       // from the picture already on screen instead of reopening the camera.
       const handed = previewStream;
@@ -772,9 +778,9 @@ export function VideoComposerRuntime(props: {
     const open = props.openPreview ?? (async () => (await import("./capture")).openCameraPreview());
     // Opened outside the effect's owned scope: the camera callbacks write
     // signals, which Solid refuses inside it.
-    queueMicrotask(() => {
-      if (disposed) { previewOpening = false; return; }
-      void open().then(media => {
+    const request = Promise.resolve().then(() => {
+      if (disposed) return;
+      return open().then(media => {
         previewOpening = false;
         const stillCapturing = !disposed && !session && !captureStarting && !record() && !file() && captureReady() && !songSheetOpen()
           && captureStatus() === "idle" && document.visibilityState !== "hidden";
@@ -790,6 +796,8 @@ export function VideoComposerRuntime(props: {
           : "capability_unavailable");
       });
     });
+    previewRequest = request;
+    void request.then(() => { if (previewRequest === request) previewRequest = null; });
   });
   const state = () => record()?.snapshot;
   const failure = () => { const snapshot = state(); return snapshot?.status === "processing_failed" ? snapshot : undefined; };
