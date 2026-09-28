@@ -40,6 +40,8 @@ export interface PrivyAuthClient {
   getAccessToken(): Promise<string | null>;
   ensureEmbeddedEthereumWallet?(walletIndex: number, idempotencyKey: string): Promise<void>;
   getEmbeddedEthereumProvider?(walletIndex: number, address: string): Promise<EthereumProvider>;
+  getEmbeddedEthereumWalletId?(walletIndex: number, address: string): Promise<string>;
+  signAuthorizationPayload?(payloadBase64: string): Promise<string>;
   addEmbeddedTaprootWallet?(): Promise<void>;
   signEmbeddedTaprootHash?(providerWalletId: string, digestHex: string): Promise<string>;
   dispose?(): void;
@@ -105,6 +107,7 @@ export async function defaultPrivyFactory(config: VerificationPublicConfig, stor
   if (typeof window === "undefined") throw new Error("browser_required");
   const {
     default: Privy,
+    generateAuthorizationSignature,
     getAllUserEmbeddedEthereumWallets,
     getEntropyDetailsFromAccount,
     rawSign,
@@ -176,6 +179,28 @@ export async function defaultPrivyFactory(config: VerificationPublicConfig, stor
         method: args.method,
         ...(args.params === undefined ? {} : { params: [...args.params] }),
       }) };
+    },
+    async getEmbeddedEthereumWalletId(walletIndex, address) {
+      const { user } = await client.user.get();
+      const wallet = selectAssignedEmbeddedWallet(
+        getAllUserEmbeddedEthereumWallets(user), walletIndex, address,
+      );
+      if (typeof wallet.id !== "string" || wallet.id.length === 0) throw new Error("wallet_id_unavailable");
+      return wallet.id;
+    },
+    async signAuthorizationPayload(payloadBase64) {
+      ensureEmbeddedWalletBridge();
+      if (!/^[A-Za-z0-9+/]+={0,2}$/u.test(payloadBase64) || payloadBase64.length % 4 !== 0) {
+        throw new Error("wallet_invalid_authorization_payload");
+      }
+      const payload = Uint8Array.from(atob(payloadBase64), character => character.charCodeAt(0));
+      const { signature } = await generateAuthorizationSignature(
+        ({ message }) => client.embeddedWallet.signWithUserSigner({ message }), payload,
+      );
+      if (!/^[A-Za-z0-9+/]+={0,2}$/u.test(signature) || signature.length % 4 !== 0) {
+        throw new Error("wallet_invalid_authorization_signature");
+      }
+      return signature;
     },
     async ensureEmbeddedEthereumWallet(walletIndex, idempotencyKey) {
       ensureEmbeddedWalletBridge();

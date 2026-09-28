@@ -44,6 +44,8 @@ export interface RewardTransferWallet {
 export interface RewardWalletSession extends RewardWallet, RewardTransferWallet {
   /** Reopen the same tab's Privy authorization after a claim return. */
   restoreAuthorization(): Promise<boolean>;
+  /** Sign the server's exact request only for the assigned payout wallet. */
+  signSponsoredRequest(transfer: RewardTokenTransfer, walletId: string, payloadBase64: string): Promise<string>;
   sendCode(email: string): Promise<void>;
   loginWithCode(email: string, code: string): Promise<void>;
   beginOAuth(provider: OAuthProvider, redirectURI: string): Promise<string>;
@@ -205,6 +207,19 @@ export async function createRewardWalletSession(
         authorizedUntil = 0;
         return false;
       }
+    },
+    async signSponsoredRequest(transfer, walletId, payloadBase64) {
+      authorized();
+      if (client.getEmbeddedEthereumWalletId === undefined || client.signAuthorizationPayload === undefined) {
+        throw new Error("wallet_authorization_unavailable");
+      }
+      await verifyProvider(await providerFor(transfer), transfer);
+      const assignedId = await client.getEmbeddedEthereumWalletId(transfer.walletIndex, transfer.sender);
+      authorized();
+      if (assignedId !== walletId) throw new Error("wallet_assignment_mismatch");
+      const signature = await client.signAuthorizationPayload(payloadBase64);
+      authorized();
+      return signature;
     },
     async sendCode(email) {
       alive();

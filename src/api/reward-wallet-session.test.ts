@@ -26,12 +26,27 @@ function harness() {
       siwe: { init: vi.fn(async () => ({ message: "login challenge" })), loginWithSiwe: vi.fn(async () => undefined) },
     },
     getEmbeddedEthereumProvider: vi.fn(async () => provider), dispose: vi.fn(),
+    getEmbeddedEthereumWalletId: vi.fn(async () => "wallet_payout"),
+    signAuthorizationPayload: vi.fn(async () => "c2lnbmF0dXJl"),
   };
   const create = () => createRewardWalletSession({ enabled: true, privyAppId: "app" }, async (_config, memory) => { storage = memory; return client; });
   return { create, client, provider, responses, requests, storage: () => storage };
 }
 
 describe("explicit persona wallet authorization", () => {
+  it("signs the server payload only for the assigned payout wallet, even with no ETH", async () => {
+    const h = harness(); const session = await h.create();
+    await session.loginWithCode("operator@example.test", "fixture-code");
+    h.responses.set("eth_getBalance", "0x0");
+    const transfer = { sender, token, recipient, amountAtomic: "1000000", walletIndex: 3 };
+    expect(await session.signSponsoredRequest(transfer, "wallet_payout", "cGF5bG9hZA=="))
+      .toBe("c2lnbmF0dXJl");
+    expect(h.client.signAuthorizationPayload).toHaveBeenCalledWith("cGF5bG9hZA==");
+    expect(h.requests.some(item => item.method === "eth_sendTransaction")).toBe(false);
+    await expect(session.signSponsoredRequest(transfer, "wallet_other", "cGF5bG9hZA=="))
+      .rejects.toThrow("wallet_assignment_mismatch");
+    expect(h.client.signAuthorizationPayload).toHaveBeenCalledTimes(1);
+  });
   it("requires separate authentication before touching a provider", async () => {
     const h = harness(); const session = await h.create();
     await expect(session.estimate(context())).rejects.toThrow("wallet_reauthentication_required");

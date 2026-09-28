@@ -5,6 +5,7 @@ import type { RewardCredit } from "../../api/reward-claim.ts";
 import type { WinnerSendRecord, WinningsSendData } from "../../api/reward-winnings-send.ts";
 import { WinningsSendSheet, type WinningsSendDependencies, type WinningsSendWallet } from "./winnings-send-sheet.tsx";
 import { WalletWinnings } from "./wallet-winnings.tsx";
+import { sponsoredFixture } from "./sponsored-send.fixtures.ts";
 
 const disposers: (() => void)[] = [];
 afterEach(() => { disposers.splice(0).forEach(dispose => dispose()); document.body.replaceChildren(); });
@@ -209,15 +210,13 @@ test("a recorded status stays visible when the persona wallet cannot be resolved
 });
 
 test("send entry appears only on paid winnings and opens the sheet", async () => {
-  const f = fixture();
   const held: RewardCredit = { ...paid, credit_id: "credit_held", state: "credited", claim: { status: "unclaimed", payout_status: null } };
   const paying: RewardCredit = { ...paid, credit_id: "credit_paying", state: "payout_pending", claim: { status: "accepted", payout_status: "submitted" } };
   const element = document.createElement("div"); document.body.appendChild(element);
   const data = { credits: vi.fn(async () => ({ object: "reward_credit_list" as const, items: [held, paying, paid], next_cursor: null })), claim: vi.fn() };
-  createRoot(dispose => { disposers.push(dispose); render(() => <WalletWinnings data={data} send={f.dependencies} />, element); });
+  createRoot(dispose => { disposers.push(dispose); render(() => <WalletWinnings data={data} send={sponsoredFixture()} />, element); });
   await vi.waitFor(() => expect(element.textContent).toContain("Sent to your wallet"));
   expect([...element.querySelectorAll("button")].filter(item => item.textContent === "Send")).toHaveLength(1);
   button("Send").click();
-  await vi.waitFor(() => expect(text()).toContain("Send winnings"));
-  expect(f.data.sender).toHaveBeenCalledWith(paid);
+  await vi.waitFor(() => expect(text()).toContain("Send USDC"));
 });

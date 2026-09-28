@@ -2,7 +2,7 @@ import { For, Show, createSignal, onSettled } from "solid-js";
 import { Button, Type } from "../../design-system";
 import type { RewardClaimData, RewardCredit } from "../../api/reward-claim.ts";
 import { claimStep, verifyToClaimUrl, winningViews } from "./winnings-model.ts";
-import { browserWinningsSend, WinningsSendSheet, type WinningsSendDependencies } from "./winnings-send-sheet.tsx";
+import { browserSponsoredSend, SponsoredSendSheet, type SponsoredSendDependencies } from "./sponsored-send-sheet.tsx";
 
 export type WalletWinningsProps = Readonly<{
   data: Pick<RewardClaimData, "credits" | "claim">;
@@ -12,7 +12,7 @@ export type WalletWinningsProps = Readonly<{
   /** Called once the resumed claim starts, so the caller can drop it from the URL. */
   onResumeConsumed?: () => void;
   /** Sending paid winnings on; the browser wallet and API by default. */
-  send?: WinningsSendDependencies;
+  send?: SponsoredSendDependencies;
   /** Show only winnings belonging to the selected wallet persona. */
   personaId?: string;
 }>;
@@ -25,8 +25,8 @@ export function WalletWinnings(props: WalletWinningsProps) {
   const [busy, setBusy] = createSignal<string>();
   const [notice, setNotice] = createSignal("");
   const [sending, setSending] = createSignal<RewardCredit>();
-  let sendDependencies: WinningsSendDependencies | undefined;
-  const sendWith = () => (sendDependencies ??= props.send ?? browserWinningsSend());
+  let sendDependencies: SponsoredSendDependencies | undefined;
+  const sendWith = () => (sendDependencies ??= props.send ?? browserSponsoredSend());
   const navigate = (url: string) => (props.navigate ?? ((next: string) => window.location.assign(next)))(url);
 
   // While rewards are disabled the API answers unavailable. Without known
@@ -118,7 +118,7 @@ export function WalletWinnings(props: WalletWinningsProps) {
         </For>
         <Show when={notice().length > 0}><Type role="status">{notice()}</Type></Show>
         <Show when={sending()} keyed>
-          {(credit) => <WinningsSendSheet credit={credit} dependencies={sendWith()} onClose={() => setSending(undefined)} />}
+          {(credit) => <SponsoredSendSheet credit={credit} dependencies={sendWith()} onClose={() => setSending(undefined)} />}
         </Show>
       </div>
     </Show>
