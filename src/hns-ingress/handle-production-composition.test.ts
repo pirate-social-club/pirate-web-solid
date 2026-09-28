@@ -56,6 +56,10 @@ describe("production handle-persona composition", () => {
       dispatch: { ssr: async () => new Response() },
     })).resolves.toMatchObject({ enabled: true, ingressOrigin: "https://solid-handle-ingress.test" });
     await expect(makeProductionHnsHandlePersonaIngressCompositionV1({
+      env: { ...environment(), HNS_HANDLE_HOST_CANONICAL_ORIGIN: "https://web-next-staging.pirate.sc" },
+      dispatch: { ssr: async () => new Response() },
+    })).resolves.toMatchObject({ enabled: true, ingressOrigin: "https://solid-handle-ingress.test" });
+    await expect(makeProductionHnsHandlePersonaIngressCompositionV1({
       env: { ...environment(), HNS_HANDLE_HOST_AUTHORITY_ORIGIN: "" },
       dispatch: { ssr: async () => new Response() },
     })).rejects.toMatchObject({ reason: "misconfigured" });

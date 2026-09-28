@@ -66,6 +66,10 @@ const safeResponseHeaders = new Set([
 export const HNS_HANDLE_STATIC_CONTENT_SECURITY_POLICY =
   "default-src 'none'; style-src https://pirate.sc; img-src https://pirate.sc; font-src https://pirate.sc; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'" as const;
 
+function staticContentSecurityPolicy(canonicalOrigin: string): string {
+  return `default-src 'none'; style-src ${canonicalOrigin}; img-src ${canonicalOrigin}; font-src ${canonicalOrigin}; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'`;
+}
+
 function ownedArrayBuffer(bytes: Uint8Array): ArrayBuffer {
   const owned = new Uint8Array(bytes.byteLength);
   owned.set(bytes);
@@ -149,12 +153,12 @@ async function readRendered(response: Response, interrupt: Promise<never>): Prom
   return bytes;
 }
 
-function responseHeaders(upstream: Response, length: number): Headers {
+function responseHeaders(upstream: Response, length: number, canonicalOrigin: string): Headers {
   const headers = new Headers({ "cache-control": "no-store", "content-length": String(length) });
   for (const [name, value] of upstream.headers) {
     if (safeResponseHeaders.has(name.toLowerCase())) headers.set(name, value);
   }
-  headers.set("content-security-policy", HNS_HANDLE_STATIC_CONTENT_SECURITY_POLICY);
+  headers.set("content-security-policy", staticContentSecurityPolicy(canonicalOrigin));
   headers.set("referrer-policy", "no-referrer");
   return headers;
 }
@@ -183,7 +187,8 @@ export async function makeHnsHandlePersonaIngressCompositionV1(options: {
   const ingressHost = new URL(ingressOrigin).host;
   const canonicalOrigin = exactHttpsOrigin(options.canonicalOrigin);
   if (
-    canonicalOrigin !== "https://pirate.sc" || ingressOrigin === canonicalOrigin ||
+    !["https://pirate.sc", "https://web-next-staging.pirate.sc"].includes(canonicalOrigin) ||
+    ingressOrigin === canonicalOrigin ||
     options.profile !== HNS_HANDLE_PERSONA_PUBLIC_PROFILE_V2 ||
     options.profileSha256 !== HNS_HANDLE_PERSONA_PUBLIC_PROFILE_V2_SHA256 ||
     encoder.encode(options.profile).byteLength !== HNS_HANDLE_PERSONA_PUBLIC_PROFILE_V2_BYTES ||
@@ -228,7 +233,7 @@ export async function makeHnsHandlePersonaIngressCompositionV1(options: {
           if (rendered.status !== 200) throw new HnsIngressFailure("upstream_unavailable");
           const bytes = await readRendered(rendered, bounded.interrupt);
           const outgoing = request.method === "HEAD" ? new Uint8Array() : bytes;
-          return new Response(ownedArrayBuffer(outgoing), { status: 200, headers: responseHeaders(rendered, outgoing.byteLength) });
+          return new Response(ownedArrayBuffer(outgoing), { status: 200, headers: responseHeaders(rendered, outgoing.byteLength, canonicalOrigin) });
         } finally {
           bounded.finish();
         }
