@@ -60,7 +60,7 @@ export async function resolvePersonaPublicProfilePreflight(
     fetchImpl: fetchImpl as typeof fetch,
   };
   const client = createPirateApiClient(`${origin.origin}/`, options);
-  return { personaId, state: await loadPersonaPublicProfile(client, personaId) };
+  return { personaId, state: await loadPersonaPublicProfile(client, personaId, new URL(request.url).origin) };
 }
 
 export function personaPublicProfileResponsePolicy(

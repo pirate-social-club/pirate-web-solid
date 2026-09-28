@@ -12,6 +12,7 @@ export type PersonaPublicProfileSuccess = Readonly<{
   readonly kind: "success";
   readonly status: 200;
   readonly canonicalUrl: string;
+  readonly servingOrigin: string;
   readonly response: GetPublicPersonasPersonaIdResponse;
 }>;
 
@@ -72,10 +73,20 @@ function samePersona(
     left.primary_public_handle === right.primary_public_handle;
 }
 
+function parseServingOrigin(value: string): URL | null {
+  try {
+    const parsed = new URL(value);
+    return parsed.href === `${parsed.origin}/` ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
 /** Enforce the cross-row privacy and ordering invariants above the generated wire validator. */
 export function projectPersonaPublicProfile(
   response: GetPublicPersonasPersonaIdResponse,
   expectedPersonaId: string,
+  servingOrigin: string = CANONICAL_PUBLIC_ORIGIN,
 ): PersonaPublicProfileState {
   if (
     response.persona.object !== "persona" ||
@@ -96,10 +107,13 @@ export function projectPersonaPublicProfile(
       return { kind: "unavailable", status: 502 };
     }
   }
+  const serving = parseServingOrigin(servingOrigin);
+  if (serving === null) return { kind: "unavailable", status: 502 };
   return {
     kind: "success",
     status: 200,
     canonicalUrl: canonicalPersonaUrl(expectedPersonaId),
+    servingOrigin: serving.origin,
     response,
   };
 }
@@ -115,11 +129,12 @@ function errorStatus(error: unknown): number | undefined {
 export async function loadPersonaPublicProfile(
   client: PersonaPublicProfileClient,
   rawPersonaId: unknown,
+  servingOrigin?: string,
 ): Promise<PersonaPublicProfileState> {
   if (!isPublicPersonaId(rawPersonaId)) return { kind: "invalid", status: 400 };
   try {
     const response = await client.get_publicPersonasPersonaId({ path: { personaId: rawPersonaId } });
-    return projectPersonaPublicProfile(response, rawPersonaId);
+    return projectPersonaPublicProfile(response, rawPersonaId, servingOrigin);
   } catch (error: unknown) {
     return errorStatus(error) === 404
       ? { kind: "not-found", status: 404 }

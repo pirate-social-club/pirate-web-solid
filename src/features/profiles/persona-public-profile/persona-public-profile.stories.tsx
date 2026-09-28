@@ -31,11 +31,12 @@ const grant: PersonaPublicProfileSuccess["response"]["handle_grants"][number] = 
 
 function success(
   response: Partial<PersonaPublicProfileSuccess["response"]> = {},
-): PersonaPublicProfileState {
+): PersonaPublicProfileSuccess {
   return {
     kind: "success",
     status: 200,
     canonicalUrl: "https://pirate.sc/p/persona_night_shift",
+    servingOrigin: "https://pirate.sc",
     response: {
       persona,
       profile: { revision: 3, cover_ref: null, bio: "Late-night sets and long-form mixes." },
@@ -88,6 +89,26 @@ export const HandleAsName: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await expect(canvas.getByRole("heading", { name: "nightshift.pirate" })).toBeInTheDocument();
+  },
+};
+
+/**
+ * A relative avatar reference resolves against the serving environment, so a
+ * staging deployment fetches staging media while links stay canonically
+ * production.
+ */
+export const StagingMediaOrigin: Story = {
+  name: "Resolves media against the serving environment",
+  args: {
+    state: {
+      ...success({ persona: { ...persona, avatar_ref: "/api/avatars/avatar_staging" } }),
+      servingOrigin: "https://web-next-staging.pirate.sc",
+    },
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const avatar = canvas.getByRole("img", { name: "" });
+    await expect(avatar).toHaveAttribute("src", "https://web-next-staging.pirate.sc/api/avatars/avatar_staging");
   },
 };
 
