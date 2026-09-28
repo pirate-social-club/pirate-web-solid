@@ -106,8 +106,8 @@ export const StagingMediaOrigin: Story = {
     },
   },
   play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement);
-    const avatar = canvas.getByRole("img", { name: "" });
+    const avatar = canvasElement.querySelector("img");
+    await expect(avatar).not.toBeNull();
     await expect(avatar).toHaveAttribute("src", "https://web-next-staging.pirate.sc/api/avatars/avatar_staging");
   },
 };
