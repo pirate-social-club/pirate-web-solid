@@ -42,6 +42,18 @@ different origin or missing fixture values. The chain, DNSSEC, DANE, app host,
 claimed host, and unclaimed-host assertions remain separate parts of the full
 mainnet acceptance run; this browser smoke does not claim them.
 
+The routine staging HNS serving gate is `bun run check:staging:hns-route`.
+It checks the active gateway fingerprint against the built staging Worker,
+reads the current safe Handshake mainnet records, validates DNSSEC and DANE
+through both staging nameservers, and requires app.8s28 and membertest.8s28
+to serve the expected content while an unclaimed host returns 421. It then
+runs the browser route test with the staging import owner's fixed-OTP Privy
+identity from Infisical. The tunnel closes when the check ends. The guarded
+staging deploy command builds from published main, refuses a mismatched
+gateway, deploys, and runs the same serving gate immediately afterward.
+This check reuses the attached route; a fresh import needs staging cleanup
+and a new Bob TXT challenge update.
+
 Feed hydration runs separately with `bun run test:e2e:feed-hydration`. It requires
 `E2E_FEED_COMMUNITY_PATH_SEGMENT` and fails, rather than skips, if the fixture is
 missing or invalid. The generic read-only smoke command excludes this tag and

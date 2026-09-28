@@ -32,6 +32,12 @@ source.
 - Secrets are bindings, never source or checked-in configuration. No deploy,
   binding mutation, secret provisioning, or remote push without explicit human
   authorization.
+- Staging deploys use `bun run deploy:staging:hns-guarded` from published `main`.
+  The command reads the active staging gateway manifest, checks the source and
+  built Worker ingress fingerprints and gateway references, and runs the live
+  8s28 serving and browser checks after deployment. Do not bypass it with a
+  direct Wrangler deploy. A planned gateway rotation must update the active
+  manifest and Worker reference together before the command can pass.
 
 ### Home route session upgrade
 
