@@ -1172,6 +1172,10 @@ describe("community Video entry", () => {
         expect(screen?.getAttribute("aria-hidden")).toBeNull();
         return screen!;
       });
+      const overlay = document.querySelector<HTMLElement>("[data-create-video-overlay]");
+      expect(overlay?.contains(songChoice)).toBe(true);
+      expect(overlay?.classList.contains("fixed")).toBe(true);
+      expect(overlay?.classList.contains("inset-0")).toBe(true);
       expect(document.querySelector("[data-operation-persona]")).toBeNull();
       expect(songChoice.querySelector('input[aria-label="Search songs"]')).not.toBeNull();
       expect(document.querySelector('button[aria-label="Start recording"]')).toBeNull();
