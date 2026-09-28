@@ -31,6 +31,7 @@ type MembershipRouteState =
   | Readonly<{ kind: "error"; message: string }>;
 
 export interface YourCommunitiesRouteProps {
+  readonly initialVideoSong?: { readonly postId: string };
   readonly applicationSession?: Accessor<ApplicationSessionState | undefined>;
   readonly loadMemberships?: () => Promise<readonly AccountCommunityMembership[]>;
   readonly resolvePostingSession?: () => Promise<SessionResolution>;
@@ -125,7 +126,9 @@ export function YourCommunitiesRouteView(props: YourCommunitiesRouteProps = {}) 
     const current = state();
     return current.kind === "ready" ? current.memberships : [];
   });
-  const joinedCommunities = createMemo(() => memberships().map(summary));
+  const joinedCommunities = createMemo(() => memberships()
+    .filter(item => props.initialVideoSong === undefined || (item.membership_status === "member" && item.can_post === true))
+    .map(summary));
   const errorMessage = createMemo(() => {
     const current = state();
     return current.kind === "error" ? current.message : "";
@@ -208,7 +211,9 @@ export function YourCommunitiesRouteView(props: YourCommunitiesRouteProps = {}) 
           <Type as="h1" variant="h1">
             Your communities
           </Type>
-          <Type as="p">Sign in to see your communities.</Type>
+          <Type as="p">{props.initialVideoSong === undefined
+            ? "Sign in to see your communities."
+            : "Sign in to choose where to post your video."}</Type>
           <Button class="w-fit" onClick={requestGlobalSignIn}>
             Sign in
           </Button>
@@ -232,7 +237,9 @@ export function YourCommunitiesRouteView(props: YourCommunitiesRouteProps = {}) 
       <Show when={state().kind === "ready"}>
         <YourCommunitiesPageView
           createCommunityLabel="Create community"
-          emptyJoinedLabel="You aren't a member of a community yet."
+          emptyJoinedLabel={props.initialVideoSong === undefined
+            ? "You aren't a member of a community yet."
+            : "You don't have a community where you can post this video yet."}
           joinedCommunities={joinedCommunities()}
           joinedLabel="Communities"
           onCreateCommunity={() => navigate("/communities/new")}
@@ -262,6 +269,7 @@ export function YourCommunitiesRouteView(props: YourCommunitiesRouteProps = {}) 
             {(community) => (
               <CreatePostDialog
                 communityContext={{ id: community().communityId, name: community().displayName }}
+                initialVideoSong={props.initialVideoSong}
                 onPublished={href => { if (href !== undefined) navigate(href); }}
                 onOpenChange={setComposerOpen}
                 open={composerOpen()}

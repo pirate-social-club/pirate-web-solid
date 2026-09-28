@@ -256,6 +256,35 @@ describe("YourCommunitiesRouteView", () => {
     expect(container.textContent).toContain("You aren't a member of a community yet.");
   });
 
+  test("a preselected song offers only posting destinations and explains when there are none", async () => {
+    const container = render(() => (
+      <YourCommunitiesRouteView
+        applicationSession={() => ({ status: "authenticated", userId: "account-one" })}
+        initialVideoSong={{ postId: "song-post-id" }}
+        loadMemberships={async () => []}
+      />
+    ));
+    await vi.waitFor(() => expect(routeRoot(container).getAttribute("data-communities-state")).toBe("ready"));
+    expect(container.querySelector("[data-post-community-id]")).toBeNull();
+    expect(container.textContent).toContain("You don't have a community where you can post this video yet.");
+    expect(container.textContent).toContain("Create community");
+  });
+
+  test("a preselected song opens video creation in the chosen destination", async () => {
+    const container = render(() => (
+      <YourCommunitiesRouteView
+        applicationSession={() => ({ status: "authenticated", userId: "account-one" })}
+        initialVideoSong={{ postId: "song-post-id" }}
+        loadMemberships={async () => [routeLessMembership]}
+        resolvePostingSession={async () => ({ status: "authenticated", userId: "account-one", personas: [] })}
+      />
+    ));
+    await vi.waitFor(() => expect(container.querySelector("[data-post-community-id='community-route-less']")).not.toBeNull());
+    container.querySelector<HTMLButtonElement>("[data-post-community-id='community-route-less']")!.click();
+    await vi.waitFor(() => expect(container.querySelector("[data-create-video-overlay]")).not.toBeNull());
+    expect(container.querySelector("input[name='community-id']")).toBeNull();
+  });
+
   test("a failed membership load offers its own retry", async () => {
     let attempts = 0;
     const container = render(() => (

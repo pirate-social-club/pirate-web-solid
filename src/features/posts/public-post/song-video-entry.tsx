@@ -3,29 +3,25 @@ import { buttonVariants } from "../../../design-system";
 import { createSessionApiClient } from "../../../api/client.ts";
 import { resolveSession, type SessionResolution } from "../../../api/session.ts";
 import { viewerSessionHint } from "../../../lib/viewer-session-hint.ts";
-import { communityOperationPersonas } from "../../identity/community-persona-choice.ts";
-import { useActivePersonaStoreOptional } from "../../identity/active-persona-store.tsx";
 
 /** The "Use this song" entry on a song post.
  *
  * A song post is the place a video to that song starts, and the song's own
- * identity is what the link must carry. Whether this viewer may post a video
- * to this song is the server's public owner-policy answer, read per song and
- * never assumed from the post being visible; the entry is simply absent when
- * the answer is no or cannot be read. A signed-out viewer has no session to
- * post under, so the read is not even attempted for them.
+ * identity is what the link must carry. This checks only the song owner's
+ * derivative-video rule and video readiness. The destination chooser and
+ * reservation check posting eligibility in the chosen community.
  */
 
 export type SongVideoEligibilityReader = (input: {
   readonly communityId: string;
   readonly postId: string;
-  readonly personaId: string;
+  readonly personaId?: string;
 }) => Promise<boolean>;
 
 export async function readSongVideoEligibility(input: {
   readonly communityId: string;
   readonly postId: string;
-  readonly personaId: string;
+  readonly personaId?: string;
 }): Promise<boolean> {
   try {
     return await readSongVideoPolicy(input);
@@ -34,19 +30,29 @@ export async function readSongVideoEligibility(input: {
   }
 }
 
-/** The same owner-policy read without the catch: the video runtime must tell
- * an unreadable policy apart from a refusing one, because one retries and
- * the other changes song or profile. */
+/** Read the song policy without the destination-community membership check.
+ * The private management read is available only to the song owner, and does
+ * not require membership in the community where the song was posted. */
 export async function readSongVideoPolicy(input: {
   readonly communityId: string;
   readonly postId: string;
-  readonly personaId: string;
+  readonly personaId?: string;
 }): Promise<boolean> {
-  const response = await createSessionApiClient().get_communitiesCommunityIdPostsPostIdOwnerPolicyPublic({
-    path: { communityId: input.communityId, postId: input.postId },
-    query: { persona_id: input.personaId },
+  const client = createSessionApiClient();
+  const path = { communityId: input.communityId, postId: input.postId };
+  const response = await client.get_communitiesCommunityIdPostsPostIdOwnerPolicyPublic({
+    path,
+    query: {},
   });
-  return response.can_post_with_song === true && response.video_ready === true;
+  if (response.video_ready !== true) return false;
+  if (response.derivative_video === "allowed") return true;
+  if (response.derivative_video !== "owner_only" || input.personaId === undefined) return false;
+  try {
+    await client.get_communitiesCommunityIdPostsPostIdOwnerPolicy({ path, query: { persona_id: input.personaId } });
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 /** The "Use this song" entry names its song in the query, because a link must
@@ -60,8 +66,8 @@ export function initialVideoSongFromSearch(
   return typeof song === "string" && song.trim() !== "" ? { postId: song.trim() } : undefined;
 }
 
-export function songVideoEntryHref(communityId: string, postId: string): string {
-  return `/c/${encodeURIComponent(communityId)}?compose=video&song=${encodeURIComponent(postId)}`;
+export function songVideoEntryHref(postId: string): string {
+  return `/communities?compose=video&song=${encodeURIComponent(postId)}`;
 }
 
 export function SongVideoEntry(props: {
@@ -74,26 +80,18 @@ export function SongVideoEntry(props: {
   const read = props.read ?? readSongVideoEligibility;
   const hint = props.sessionHint ?? viewerSessionHint;
   const session = props.resolveSession ?? resolveSession;
-  const personaStore = useActivePersonaStoreOptional();
   const [eligible, setEligible] = createSignal(false);
   let active = true;
   onCleanup(() => { active = false; });
-  // After the first render: a server render has no session to read for and
-  // must not start a credentialed request.
+  // Read only after the first client render, never during server rendering.
   onSettled(() => {
-    if (!hint()) return;
-    void session().then(async resolved => {
-      if (resolved === "anonymous" || resolved.personasUnavailable) return false;
-      const candidates = communityOperationPersonas(resolved.personas, props.communityId);
-      const selectedId = personaStore?.activePersonaId(props.communityId);
-      const selected = candidates.find(persona => persona.personaId === selectedId);
-      // A selected persona is the author the composer will use. Without a
-      // selection, any bound persona can open the composer and choose there.
-      for (const persona of selected === undefined ? candidates : [selected]) {
-        if (await read({ communityId: props.communityId, postId: props.postId, personaId: persona.personaId })) return true;
-      }
-      return false;
-    }).then(value => {
+    void (async () => {
+      const resolved = hint() ? await session().catch(() => "anonymous" as const) : "anonymous";
+      const personaId = resolved !== "anonymous" && !resolved.personasUnavailable
+        ? resolved.personas[0]?.personaId
+        : undefined;
+      return read({ communityId: props.communityId, postId: props.postId, personaId });
+    })().then(value => {
       if (active) setEligible(value);
     }, () => {
       if (active) setEligible(false);
@@ -101,7 +99,7 @@ export function SongVideoEntry(props: {
   });
   return (
     <Show when={eligible()}>
-      <a class={buttonVariants({ variant: "secondary" })} href={songVideoEntryHref(props.communityId, props.postId)}>
+      <a class={buttonVariants({ variant: "secondary" })} href={songVideoEntryHref(props.postId)}>
         Use this song
       </a>
     </Show>

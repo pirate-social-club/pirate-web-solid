@@ -1,8 +1,10 @@
-import { useNavigate } from "@solidjs/router";
+import { useNavigate, useSearchParams } from "@solidjs/router";
 
 import { YourCommunitiesRouteView } from "../../features/community/your-communities-page/your-communities-route.tsx";
+import { initialVideoSongFromSearch } from "../../features/posts/public-post/song-video-entry.tsx";
 
 export default function YourCommunitiesRoute() {
   const navigate = useNavigate();
-  return <YourCommunitiesRouteView navigate={(href) => navigate(href)} />;
+  const [searchParams] = useSearchParams();
+  return <YourCommunitiesRouteView initialVideoSong={initialVideoSongFromSearch(searchParams)} navigate={(href) => navigate(href)} />;
 }
