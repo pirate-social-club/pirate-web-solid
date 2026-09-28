@@ -7,6 +7,7 @@ import { type PersonaWallet } from "./wallet-portfolio-model.ts";
 
 import { walletAssetSections, type WalletNetworkMode } from "./wallet-network-catalog.ts";
 import type { WalletHubChainSection } from "./wallet-hub.types.ts";
+import type { WalletHubSheetControls } from "./wallet-hub.types.ts";
 
 export interface WalletPortfolioProps {
   chainSections?: WalletHubChainSection[];
@@ -19,6 +20,7 @@ export interface WalletPortfolioProps {
   onSelect: (personaId: string) => void;
   onChangeProfile: () => void;
   renderBaseUsdc?: (wallet: PersonaWallet) => JSX.Element;
+  renderSendSheet?: (wallet: PersonaWallet, controls: WalletHubSheetControls) => JSX.Element;
 }
 
 /** Private account portfolio. Receive always names one selected persona address. */
@@ -41,6 +43,8 @@ export function WalletPortfolio(props: WalletPortfolioProps) {
         renderAssetSupplement={(chainId, token) => props.networkMode === "testnet" && chainId === "base" && token.id === "usdc"
           ? props.renderBaseUsdc?.(wallet()) : undefined}
         renderReceiveSheet={wallet().address ? controls => <WalletReceiveSheet {...controls} chainSections={sections()} walletAddress={wallet().address} /> : undefined}
+        renderSendSheet={props.networkMode === "testnet" && wallet().address && props.renderSendSheet
+          ? controls => props.renderSendSheet?.(wallet(), controls) : undefined}
       />}
     </Show>
     <Card>

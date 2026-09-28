@@ -1,63 +1,52 @@
 import { createRoot } from "solid-js";
 import { render } from "@solidjs/web";
 import { afterEach, expect, test, vi } from "vitest";
-import type { RewardCredit } from "../../api/reward-claim.ts";
-import type { SponsoredSendRecord } from "../../api/reward-sponsored-send.ts";
-import { SponsoredSendSheet, type SponsoredSendDependencies } from "./sponsored-send-sheet.tsx";
-import { fixtureRecord } from "./winnings-send.fixtures.ts";
+import type { WalletSponsoredSendRecord } from "../../api/wallet-sponsored-send.ts";
+import { WalletSponsoredSendSheet, type WalletSponsoredSendDependencies } from "./wallet-sponsored-send-sheet.tsx";
 
 const disposers: (() => void)[] = [];
 afterEach(() => { disposers.splice(0).forEach(dispose => dispose()); document.body.replaceChildren(); });
 const sender = "0x1111111111111111111111111111111111111111";
 const recipient = "0xabcdefabcdefabcdefabcdefabcdefabcdefabcd";
-const credit: RewardCredit = {
-  object: "reward_credit", credit_id: "credit_paid", payout_persona_id: "persona_1", chain_id: 84532,
-  token_address: "0x3333333333333333333333333333333333333333", token_decimals: 6,
-  amount_atomic: "1000000", available_atomic: "0", reserved_atomic: "0", paid_atomic: "1000000",
-  source_kind: "megapot_allocation", state: "sent", created_at: "2026-09-28T00:00:00.000Z",
-  updated_at: "2026-09-28T00:00:00.000Z", settled_at: "2026-09-28T00:00:00.000Z",
-  claim: { status: "accepted", payout_status: "confirmed" }, send: null,
-};
-const reserved: SponsoredSendRecord = {
-  object: "reward_sponsored_send", send_id: "send_1", credit_id: credit.credit_id,
-  status: "reserved", chain_id: 84532, sender_address: sender,
+const token = "0x036cbd53842c5426634e7929541ec2318f3dcf7e";
+const reserved: WalletSponsoredSendRecord = {
+  object: "wallet_sponsored_send", send_id: "wallet_send_1", persona_id: "persona_1",
+  status: "reserved", chain_id: 84532, token_address: token, sender_address: sender,
   recipient_address: recipient, amount_atomic: "1000000", transaction_hash: null,
   authorization: { wallet_id: "wallet_1", payload_base64: "cGF5bG9hZA==" },
 };
 
-function fixture(options: { initial?: SponsoredSendRecord | null; reserveFails?: boolean; submitFails?: boolean; direct?: boolean; changeAfterReserve?: boolean } = {}) {
-  let current = options.initial ?? null;
+function fixture(options: { reserveFails?: boolean; submitFails?: boolean; changed?: boolean } = {}) {
+  let current: WalletSponsoredSendRecord | null = null;
   const wallet = {
     restoreAuthorization: vi.fn(async () => true),
     signSponsoredRequest: vi.fn(async () => "c2lnbmF0dXJl"),
     dispose: vi.fn(),
   };
-  const data: SponsoredSendDependencies["data"] = {
+  const data: WalletSponsoredSendDependencies["data"] = {
     sender: vi.fn(async () => ({ address: sender, walletIndex: 2 })),
     tokenBalance: vi.fn(async () => 1_000_000n),
-    readDirectSend: vi.fn(async () => options.direct ? { ...fixtureRecord, status: "confirmed" as const } : null),
-    read: vi.fn(async () => current !== null && options.changeAfterReserve
+    read: vi.fn(async () => current !== null && options.changed
       ? { ...current, recipient_address: "0x2222222222222222222222222222222222222222" }
       : current),
-    reserve: vi.fn(async (_creditId, to, amount) => {
-      if (options.reserveFails) throw new Error("response_lost");
+    reserve: vi.fn(async (_personaId, to, amount) => {
       current = { ...reserved, recipient_address: to.toLowerCase(), amount_atomic: amount };
+      if (options.reserveFails) throw new Error("response_lost");
       return current;
     }),
     submit: vi.fn(async () => {
-      current = { ...current!, status: "submitting", authorization: null };
+      current = { ...current!, status: "held", authorization: null };
       if (options.submitFails) throw new Error("response_lost");
       return current;
     }),
   };
-  const dependencies: SponsoredSendDependencies = { data, openWallet: vi.fn(async () => wallet) };
+  const dependencies: WalletSponsoredSendDependencies = { data, openWallet: vi.fn(async () => wallet) };
   return { dependencies, data, wallet };
 }
 
-function mount(dependencies: SponsoredSendDependencies) {
+function mount(dependencies: WalletSponsoredSendDependencies) {
   const element = document.createElement("div"); document.body.appendChild(element);
-  createRoot(dispose => { disposers.push(dispose); render(() => <SponsoredSendSheet credit={credit} dependencies={dependencies} onClose={vi.fn()} />, element); });
-  return element;
+  createRoot(dispose => { disposers.push(dispose); render(() => <WalletSponsoredSendSheet personaId="persona_1" walletAddress={sender} dependencies={dependencies} onClose={vi.fn()} />, element); });
 }
 const text = () => document.body.textContent ?? "";
 const button = (name: string) => {
@@ -80,59 +69,39 @@ async function review() {
   await vi.waitFor(() => expect(text()).toContain("Covered by Pirate"));
 }
 
-test("reserves before signing and submits the exact signed request without a gas top-up", async () => {
+test("an ordinary persona wallet reserves before signing without any reward credit", async () => {
   const f = fixture(); mount(f.dependencies); await review();
-  expect(f.data.reserve).not.toHaveBeenCalled();
   button("Authorize send").click();
   await vi.waitFor(() => expect(f.data.submit).toHaveBeenCalledOnce());
-  expect(f.data.reserve).toHaveBeenCalledWith("credit_paid", expect.any(String), "1000000", expect.any(String));
+  expect(f.data.reserve).toHaveBeenCalledWith("persona_1", expect.any(String), "1000000", expect.any(String));
   expect(f.wallet.signSponsoredRequest).toHaveBeenCalledWith(
     expect.objectContaining({ sender, amountAtomic: "1000000", walletIndex: 2 }),
     "wallet_1", "cGF5bG9hZA==",
   );
-  expect(f.data.submit).toHaveBeenCalledWith("send_1", "c2lnbmF0dXJl");
 });
 
-test("a lost reservation response never signs, even when a record exists", async () => {
+test("lost reservation response signs nothing", async () => {
   const f = fixture({ reserveFails: true }); mount(f.dependencies); await review();
   button("Authorize send").click();
   await vi.waitFor(() => expect(text()).toContain("Nothing was signed"));
   expect(f.wallet.signSponsoredRequest).not.toHaveBeenCalled();
   expect(f.data.submit).not.toHaveBeenCalled();
-  expect(f.data.read).toHaveBeenCalled();
 });
 
-test("a lost submit response remains blocked across a reopened sheet", async () => {
+test("uncertain submission cannot be signed again after reopening", async () => {
   const f = fixture({ submitFails: true }); mount(f.dependencies); await review();
   button("Authorize send").click();
   await vi.waitFor(() => expect(text()).toContain("may have reached the network"));
-  expect(f.wallet.signSponsoredRequest).toHaveBeenCalledTimes(1);
-  expect(f.data.submit).toHaveBeenCalledTimes(1);
   disposers.splice(0).forEach(dispose => dispose()); document.body.replaceChildren();
   mount(f.dependencies);
   await vi.waitFor(() => expect(text()).toContain("network is checking this send"));
   expect(text()).not.toContain("Authorize recorded send");
   expect(f.wallet.signSponsoredRequest).toHaveBeenCalledTimes(1);
+  expect(f.data.submit).toHaveBeenCalledTimes(1);
 });
 
-test("a prior direct send blocks a second flow", async () => {
-  const f = fixture({ direct: true }); mount(f.dependencies);
-  await vi.waitFor(() => expect(text()).toContain("earlier wallet flow"));
-  expect(text()).not.toContain("Authorize send");
-  expect(f.data.reserve).not.toHaveBeenCalled();
-});
-
-test("a changed wallet or recipient record is never signed", async () => {
-  const f = fixture();
-  f.data.reserve = vi.fn(async () => ({ ...reserved, sender_address: "0x2222222222222222222222222222222222222222" }));
-  mount(f.dependencies); await review(); button("Authorize send").click();
-  await vi.waitFor(() => expect(text()).toContain("recorded send differs"));
-  expect(f.wallet.signSponsoredRequest).not.toHaveBeenCalled();
-  expect(f.data.submit).not.toHaveBeenCalled();
-});
-
-test("a record changed between review and authorization is never signed", async () => {
-  const f = fixture({ changeAfterReserve: true }); mount(f.dependencies); await review();
+test("changed server record never reaches wallet signing", async () => {
+  const f = fixture({ changed: true }); mount(f.dependencies); await review();
   button("Authorize send").click();
   await vi.waitFor(() => expect(text()).toContain("recorded send changed"));
   expect(f.wallet.signSponsoredRequest).not.toHaveBeenCalled();

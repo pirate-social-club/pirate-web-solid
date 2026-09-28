@@ -120,8 +120,6 @@ export function WalletHub(props: WalletHubProps) {
           >
             {view().actions.receive.label}
           </Button>
-          {/* Sending has no product path yet; a permanently disabled Send
-              button would only advertise it. */}
           <Show when={props.onSend || props.renderSendSheet}>
             <Button
               class="flex-1"

@@ -2,7 +2,6 @@ import { For, Show, createSignal, onSettled } from "solid-js";
 import { Button, Type } from "../../design-system";
 import type { RewardClaimData, RewardCredit } from "../../api/reward-claim.ts";
 import { claimStep, verifyToClaimUrl, winningViews } from "./winnings-model.ts";
-import { browserSponsoredSend, SponsoredSendSheet, type SponsoredSendDependencies } from "./sponsored-send-sheet.tsx";
 
 export type WalletWinningsProps = Readonly<{
   data: Pick<RewardClaimData, "credits" | "claim">;
@@ -11,8 +10,6 @@ export type WalletWinningsProps = Readonly<{
   navigate?: (url: string) => void;
   /** Called once the resumed claim starts, so the caller can drop it from the URL. */
   onResumeConsumed?: () => void;
-  /** Sending paid winnings on; the browser wallet and API by default. */
-  send?: SponsoredSendDependencies;
   /** Show only winnings belonging to the selected wallet persona. */
   personaId?: string;
 }>;
@@ -24,9 +21,6 @@ export function WalletWinnings(props: WalletWinningsProps) {
   const [leaving, setLeaving] = createSignal(false);
   const [busy, setBusy] = createSignal<string>();
   const [notice, setNotice] = createSignal("");
-  const [sending, setSending] = createSignal<RewardCredit>();
-  let sendDependencies: SponsoredSendDependencies | undefined;
-  const sendWith = () => (sendDependencies ??= props.send ?? browserSponsoredSend());
   const navigate = (url: string) => (props.navigate ?? ((next: string) => window.location.assign(next)))(url);
 
   // While rewards are disabled the API answers unavailable. Without known
@@ -99,15 +93,6 @@ export function WalletWinnings(props: WalletWinningsProps) {
                 <Type>{view.status}</Type>
                 <Show when={view.detail}>{(detail) => <Type class="text-sm">{detail()}</Type>}</Show>
               </div>
-              <Show when={view.canSend}>
-                <Button
-                  variant="outline"
-                  aria-label={`${view.sendActionLabel} ${view.amount}`}
-                  onClick={() => setSending(credits()?.find((item) => item.credit_id === view.creditId))}
-                >
-                  {view.sendActionLabel}
-                </Button>
-              </Show>
               <Show when={view.canClaim}>
                 <Button disabled={busy() !== undefined || leaving()} onClick={() => void claim(view.creditId, false)}>
                   {busy() === view.creditId ? "Claiming…" : "Verify to claim"}
@@ -117,9 +102,6 @@ export function WalletWinnings(props: WalletWinningsProps) {
           )}
         </For>
         <Show when={notice().length > 0}><Type role="status">{notice()}</Type></Show>
-        <Show when={sending()} keyed>
-          {(credit) => <SponsoredSendSheet credit={credit} dependencies={sendWith()} onClose={() => setSending(undefined)} />}
-        </Show>
       </div>
     </Show>
   );

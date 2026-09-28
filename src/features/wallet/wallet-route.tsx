@@ -13,6 +13,7 @@ import type { WalletNetworkMode } from "./wallet-network-catalog.ts";
 import { WalletPortfolio } from "./wallet-portfolio.tsx";
 import { createRewardClaimData } from "../../api/reward-claim.ts";
 import { WalletWinnings } from "../rewards/wallet-winnings.tsx";
+import { WalletSponsoredSendSheet } from "./wallet-sponsored-send-sheet.tsx";
 
 /** A claim to resume after returning from the palm scan (browser only). */
 function resumeClaimId(): string | undefined {
@@ -82,7 +83,8 @@ export function WalletRouteView() {
     <Show when={authenticated()}>
       <Show when={loading()}><Type role="status">Loading wallets…</Type></Show>
       <Show when={failed()}><Card><CardContent class="flex flex-col items-start gap-4 p-6"><Type role="alert">Your wallets could not be loaded.</Type><Button variant="outline" onClick={load}>Try again</Button></CardContent></Card></Show>
-      <Show when={!loading() && !failed()}><WalletPortfolio chainSections={balances.sections()} balancesLoading={balances.loading()} onRefresh={balances.reload} networkMode={networkMode()} onNetworkModeChange={setNetworkMode} wallets={ownedWallets()} selectedPersonaId={profiles?.selected()?.personaId} onSelect={id => profiles?.select(id)} onChangeProfile={() => profiles?.setPickerOpen(true)} renderBaseUsdc={wallet => <WalletWinnings data={createRewardClaimData()} personaId={wallet.personaId} resumeCreditId={resumeClaimId()} onResumeConsumed={dropResumeClaim} />} /></Show>
+      <Show when={!loading() && !failed()}><WalletPortfolio chainSections={balances.sections()} balancesLoading={balances.loading()} onRefresh={balances.reload} networkMode={networkMode()} onNetworkModeChange={setNetworkMode} wallets={ownedWallets()} selectedPersonaId={profiles?.selected()?.personaId} onSelect={id => profiles?.select(id)} onChangeProfile={() => profiles?.setPickerOpen(true)} renderBaseUsdc={wallet => <WalletWinnings data={createRewardClaimData()} personaId={wallet.personaId} resumeCreditId={resumeClaimId()} onResumeConsumed={dropResumeClaim} />} renderSendSheet={(wallet, controls) => controls.open && wallet.address
+        ? <WalletSponsoredSendSheet personaId={wallet.personaId} walletAddress={wallet.address} onClose={() => controls.onOpenChange(false)} /> : null} /></Show>
     </Show>
   </PageContainer></main>;
 }

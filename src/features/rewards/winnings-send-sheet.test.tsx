@@ -5,7 +5,6 @@ import type { RewardCredit } from "../../api/reward-claim.ts";
 import type { WinnerSendRecord, WinningsSendData } from "../../api/reward-winnings-send.ts";
 import { WinningsSendSheet, type WinningsSendDependencies, type WinningsSendWallet } from "./winnings-send-sheet.tsx";
 import { WalletWinnings } from "./wallet-winnings.tsx";
-import { sponsoredFixture } from "./sponsored-send.fixtures.ts";
 
 const disposers: (() => void)[] = [];
 afterEach(() => { disposers.splice(0).forEach(dispose => dispose()); document.body.replaceChildren(); });
@@ -209,14 +208,12 @@ test("a recorded status stays visible when the persona wallet cannot be resolved
   expect(f.wallet.sendTransfer).not.toHaveBeenCalled();
 });
 
-test("send entry appears only on paid winnings and opens the sheet", async () => {
+test("Winnings shows payout status and leaves sending to the Wallet action", async () => {
   const held: RewardCredit = { ...paid, credit_id: "credit_held", state: "credited", claim: { status: "unclaimed", payout_status: null } };
   const paying: RewardCredit = { ...paid, credit_id: "credit_paying", state: "payout_pending", claim: { status: "accepted", payout_status: "submitted" } };
   const element = document.createElement("div"); document.body.appendChild(element);
   const data = { credits: vi.fn(async () => ({ object: "reward_credit_list" as const, items: [held, paying, paid], next_cursor: null })), claim: vi.fn() };
-  createRoot(dispose => { disposers.push(dispose); render(() => <WalletWinnings data={data} send={sponsoredFixture()} />, element); });
+  createRoot(dispose => { disposers.push(dispose); render(() => <WalletWinnings data={data} />, element); });
   await vi.waitFor(() => expect(element.textContent).toContain("Sent to your wallet"));
-  expect([...element.querySelectorAll("button")].filter(item => item.textContent === "Send")).toHaveLength(1);
-  button("Send").click();
-  await vi.waitFor(() => expect(text()).toContain("Send USDC"));
+  expect([...element.querySelectorAll("button")].filter(item => item.textContent === "Send")).toHaveLength(0);
 });

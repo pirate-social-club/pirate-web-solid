@@ -139,6 +139,7 @@ export default defineConfig({
       "src/features/shell/application-personas.test.ts",
       "src/features/songs/your-songs-model.test.ts",
       "src/features/wallet/wallet-portfolio.test.tsx",
+      "src/features/wallet/wallet-sponsored-send-sheet.test.tsx",
       "src/features/wallet/wallet-balances.test.ts",
       "src/features/wallet/wallet-balance-reader.test.ts",
       "src/features/wallet/wallet-hub-model.test.ts",
