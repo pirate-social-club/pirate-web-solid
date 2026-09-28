@@ -47,13 +47,13 @@ test.describe("authenticated owner settings", { tag: "@hns-readonly" }, () => {
     expect(selected, "No eligible existing owner community; do not create a substitute automatically").toBeDefined();
     if (!selected) return;
     const prefix = `/api/communities/${encodeURIComponent(selected.community_id)}`;
-    for (const suffix of ["handle-sales-management", "handle-sales-management/sale-namespaces", "handle-sales-management/offerings", "hns-txt-attachments"]) {
+    for (const suffix of ["handle-sales-management", "handle-sales-management/sale-namespaces", "handle-sales-management/offerings", "hns-root-imports"]) {
       const response = await page.request.get(`${prefix}/${suffix}`);
       probes.push({ path: `${prefix}/${suffix}`, status: response.status() });
     }
     await testInfo.attach("namespace-probe-statuses", { body: JSON.stringify(probes), contentType: "application/json" });
     const path = `/c/${encodeURIComponent(selected.community_id)}/settings/namespace`;
-    const documents: Array<{ status: number | undefined; routeDenied: boolean; namespaceDenied: boolean }> = [];
+    const documents: Array<{ status: number | undefined; routeDenied: boolean; namespaceDenied: boolean; namespaceVisible: boolean }> = [];
     for (let attempt = 0; attempt < 2; attempt++) {
       const response = attempt === 0 ? await page.goto(path) : await page.reload();
       await page.waitForLoadState("networkidle");
@@ -61,11 +61,12 @@ test.describe("authenticated owner settings", { tag: "@hns-readonly" }, () => {
         status: response?.status(),
         routeDenied: await page.locator("[data-owner-settings-route-state='denied']").count() > 0,
         namespaceDenied: await page.locator("[data-owner-settings-denied]").count() > 0,
+        namespaceVisible: await page.locator("[data-community-namespace-settings]").count() > 0,
       });
     }
     console.log(JSON.stringify({ event: "hns-owner-readonly", probes, documents, blockedWrites }));
     for (const probe of probes.slice(-4)) expect.soft(probe.status, probe.path).toBe(200);
-    for (const document of documents) expect.soft(document).toEqual({ status: 200, routeDenied: false, namespaceDenied: false });
+    for (const document of documents) expect.soft(document).toEqual({ status: 200, routeDenied: false, namespaceDenied: false, namespaceVisible: true });
     expect(blockedWrites, "read-only page must not attempt product writes").toEqual([]);
   });
 });
