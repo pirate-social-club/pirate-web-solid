@@ -17,6 +17,7 @@ import { TokenChainIcon } from "./wallet-visuals";
 function ChainSection(props: {
   fiatByTokenId: Record<string, string | null>;
   section: WalletHubChainSection;
+  renderAssetSupplement?: WalletHubProps["renderAssetSupplement"];
 }) {
   return (
     <section aria-label={props.section.title} class="flex flex-col gap-2">
@@ -32,20 +33,23 @@ function ChainSection(props: {
             {(token) => {
               const fiatValue = () => props.fiatByTokenId[`${props.section.chainId}:${token.id}`];
               return (
-                <li class="flex items-center justify-between gap-3 py-3">
-                  <div class="flex min-w-0 items-center gap-3">
-                    <TokenChainIcon chainId={props.section.chainId} chainLabel={props.section.title} showChainBadge token={token} size="sm" />
-                    <div class="flex min-w-0 flex-col">
-                      <Type variant="body-strong">{token.symbol}</Type>
-                      <Type variant="caption" class="truncate">{token.name}</Type>
+                <li class="flex flex-col gap-2 py-3">
+                  <div class="flex items-center justify-between gap-3">
+                    <div class="flex min-w-0 items-center gap-3">
+                      <TokenChainIcon chainId={props.section.chainId} chainLabel={props.section.title} showChainBadge token={token} size="sm" />
+                      <div class="flex min-w-0 flex-col">
+                        <Type variant="body-strong">{token.symbol}</Type>
+                        <Type variant="caption" class="truncate">{token.name}</Type>
+                      </div>
+                    </div>
+                    <div class="flex shrink-0 flex-col items-end">
+                      <Type variant="body-strong">{token.balance ?? (props.section.balancesUnavailable ? "Unavailable" : "0")}</Type>
+                      <Show when={fiatValue()}>
+                        {(value) => <Type variant="caption">{value()}</Type>}
+                      </Show>
                     </div>
                   </div>
-                  <div class="flex shrink-0 flex-col items-end">
-                    <Type variant="body-strong">{token.balance ?? (props.section.balancesUnavailable ? "Unavailable" : "0")}</Type>
-                    <Show when={fiatValue()}>
-                      {(value) => <Type variant="caption">{value()}</Type>}
-                    </Show>
-                  </div>
+                  {props.renderAssetSupplement?.(props.section.chainId, token)}
                 </li>
               );
             }}
@@ -202,11 +206,11 @@ export function WalletHub(props: WalletHubProps) {
             }
           >
             <For each={view().readySections}>
-              {(section) => <ChainSection section={section} fiatByTokenId={view().fiatByTokenId} />}
+              {(section) => <ChainSection section={section} fiatByTokenId={view().fiatByTokenId} renderAssetSupplement={props.renderAssetSupplement} />}
             </For>
           </Show>
           <For each={view().laterSections}>
-            {(section) => <ChainSection section={section} fiatByTokenId={view().fiatByTokenId} />}
+            {(section) => <ChainSection section={section} fiatByTokenId={view().fiatByTokenId} renderAssetSupplement={props.renderAssetSupplement} />}
           </For>
         </CardContent>
       </Card>

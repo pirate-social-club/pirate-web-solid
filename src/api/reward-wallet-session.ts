@@ -6,6 +6,7 @@ import {
 } from "./privy-session.ts";
 import type { RewardFundingContext } from "./reward-funding-client.ts";
 import type { VerificationPublicConfig } from "./verification-config.ts";
+import { clearWalletAuthorization, privyAccessTokenSubject, restoreWalletAuthorization } from "./privy-wallet-authorization.ts";
 
 export interface RewardFeeEstimate {
   readonly gasLimit: string;
@@ -41,6 +42,8 @@ export interface RewardTransferWallet {
   dispose(): void;
 }
 export interface RewardWalletSession extends RewardWallet, RewardTransferWallet {
+  /** Reopen the same tab's Privy authorization after a claim return. */
+  restoreAuthorization(): Promise<boolean>;
   sendCode(email: string): Promise<void>;
   loginWithCode(email: string, code: string): Promise<void>;
   beginOAuth(provider: OAuthProvider, redirectURI: string): Promise<string>;
@@ -98,9 +101,11 @@ export function rewardTransfer(context: RewardFundingContext) {
 export async function createRewardWalletSession(
   config: VerificationPublicConfig,
   factory: PrivyFactory = defaultPrivyFactory,
+  options: Readonly<{ restoreSaved?: boolean }> = {},
 ): Promise<RewardWalletSession> {
   if (!config.enabled || !config.privyAppId) throw new Error("wallet_auth_unavailable");
   const storage = new MemoryOnlyStorage();
+  const savedAuthorization = options.restoreSaved ? restoreWalletAuthorization(storage, config.privyAppId) : undefined;
   const client = await factory(config, storage);
   try { await client.initialize(); }
   catch (error) { storage.clear(); client.dispose?.(); throw error; }
@@ -185,6 +190,22 @@ export async function createRewardWalletSession(
     }
   };
   return {
+    async restoreAuthorization() {
+      alive();
+      if (savedAuthorization === undefined) return false;
+      try {
+        if (Date.now() >= savedAuthorization.expiresAt) throw new Error("wallet_authorization_expired");
+        const token = await client.getAccessToken();
+        alive();
+        if (token === null || privyAccessTokenSubject(token) !== savedAuthorization.subject) throw new Error("wallet_identity_mismatch");
+        authorizedUntil = Math.min(Date.now() + 5 * 60_000, savedAuthorization.expiresAt);
+        return true;
+      } catch {
+        clearWalletAuthorization();
+        authorizedUntil = 0;
+        return false;
+      }
+    },
     async sendCode(email) {
       alive();
       const response = await client.auth.email.sendCode(email);

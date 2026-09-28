@@ -68,6 +68,8 @@ export interface WalletHubProps {
   renderReceiveSheet?: (controls: WalletHubSheetControls) => JSX.Element;
   /** Render callback hosting the controlled send sheet; the hub owns its open state. */
   renderSendSheet?: (controls: WalletHubSheetControls) => JSX.Element;
+  /** Extra controls inside an asset row, such as a paid USDC winning. */
+  renderAssetSupplement?: (chainId: WalletHubChainId, token: WalletHubToken) => JSX.Element | undefined;
   rewardsSummary?: WalletHubRewardsSummary;
   chainSections: WalletHubChainSection[];
 }

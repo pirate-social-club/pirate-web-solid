@@ -56,7 +56,7 @@ function fixture(options: {
     readGasTopup: vi.fn(async () => ({ status: "confirmed" as const, amount_wei: "1000", transaction_hash: null })),
   };
   const wallet: WinningsSendWallet = {
-    sendCode: vi.fn(async () => undefined), loginWithCode: vi.fn(async () => undefined),
+    restoreAuthorization: vi.fn(async () => true),
     selectTestnetFor: vi.fn(async () => undefined),
     estimateTransfer: vi.fn(async () => fee),
     sendTransfer: vi.fn(async (_transfer, _fee, before) => { await before(); return hash; }),
@@ -86,12 +86,6 @@ async function type(label: string, value: string) {
   await new Promise(resolve => setTimeout(resolve, 0));
 }
 async function walletLogin() {
-  await vi.waitFor(() => expect(text()).toContain("Sign in to your wallet"));
-  await type("Email for your wallet", "winner@example.test");
-  button("Send code").click();
-  await vi.waitFor(() => expect(text()).toContain("Code"));
-  await type("Code", "123456");
-  button("Continue").click();
   await vi.waitFor(() => expect(text()).toContain("Network fee"));
 }
 async function newSend() {
@@ -111,6 +105,30 @@ test("records before wallet signing, uses the reserved nonce, and attaches the h
   expect(f.wallet.sendTransfer).toHaveBeenCalledWith(expect.objectContaining({ nonce: 7, sender, amountAtomic: "12500000" }), fee, expect.any(Function));
   expect(f.data.attachTransfer).toHaveBeenCalledWith("send_1", hash);
   expect(document.body.querySelector("a")?.getAttribute("href")).toBe(`https://sepolia.basescan.org/tx/${hash}`);
+});
+
+test("requires the normal sign-in when this tab has no Privy authorization", async () => {
+  const f = fixture({ wallet: { restoreAuthorization: vi.fn(async () => false) } });
+  mount(f.dependencies);
+  await vi.waitFor(() => expect(text()).toContain("Wallet balance: 20 USDC"));
+  await type("Send to", payee);
+  button("Continue").click();
+  await vi.waitFor(() => expect(text()).toContain("Use the usual sign-in"));
+  expect(text()).not.toContain("Email for your wallet");
+  expect(f.data.requestGasTopup).not.toHaveBeenCalled();
+  expect(f.data.requestSend).not.toHaveBeenCalled();
+  expect(f.wallet.sendTransfer).not.toHaveBeenCalled();
+});
+
+test("does not record or sign when wallet authorization ends after fee review", async () => {
+  let checks = 0;
+  const f = fixture({ wallet: { restoreAuthorization: vi.fn(async () => ++checks === 1) } });
+  mount(f.dependencies);
+  await newSend();
+  button("Send winnings").click();
+  await vi.waitFor(() => expect(text()).toContain("Use the usual sign-in"));
+  expect(f.data.requestSend).not.toHaveBeenCalled();
+  expect(f.wallet.sendTransfer).not.toHaveBeenCalled();
 });
 
 test("a failed record write never calls the wallet", async () => {

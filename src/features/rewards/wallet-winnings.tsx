@@ -1,5 +1,5 @@
 import { For, Show, createSignal, onSettled } from "solid-js";
-import { Button, Card, CardContent, Type } from "../../design-system";
+import { Button, Type } from "../../design-system";
 import type { RewardClaimData, RewardCredit } from "../../api/reward-claim.ts";
 import { claimStep, verifyToClaimUrl, winningViews } from "./winnings-model.ts";
 import { browserWinningsSend, WinningsSendSheet, type WinningsSendDependencies } from "./winnings-send-sheet.tsx";
@@ -13,6 +13,8 @@ export type WalletWinningsProps = Readonly<{
   onResumeConsumed?: () => void;
   /** Sending paid winnings on; the browser wallet and API by default. */
   send?: WinningsSendDependencies;
+  /** Show only winnings belonging to the selected wallet persona. */
+  personaId?: string;
 }>;
 
 /** Spec 015 §5.2a: held pool winnings and the verify-to-claim action. */
@@ -80,49 +82,45 @@ export function WalletWinnings(props: WalletWinningsProps) {
       });
   });
 
-  const views = () => winningViews(credits() ?? []);
+  const views = () => winningViews((credits() ?? []).filter(credit =>
+    props.personaId === undefined || credit.payout_persona_id === props.personaId));
   return (
     <Show when={failed() || views().length > 0 || notice().length > 0}>
-      <section aria-labelledby="wallet-winnings-heading">
-        <Card>
-          <CardContent class="flex flex-col gap-4 p-6">
-            <Type as="h2" variant="h3" id="wallet-winnings-heading">Winnings</Type>
-            <Show when={failed()}>
-              <Type role="alert">Your winnings could not be loaded.</Type>
-              <Button variant="outline" onClick={() => void load()}>Try again</Button>
-            </Show>
-            <For each={views()}>
-              {(view) => (
-                <div class="flex flex-wrap items-center justify-between gap-3">
-                  <div class="flex flex-col gap-1">
-                    <Type class="font-semibold">{view.amount}</Type>
-                    <Type>{view.status}</Type>
-                    <Show when={view.detail}>{(detail) => <Type class="text-sm">{detail()}</Type>}</Show>
-                  </div>
-                  <Show when={view.canSend}>
-                    <Button
-                      variant="outline"
-                      aria-label={`${view.sendActionLabel} ${view.amount}`}
-                      onClick={() => setSending(credits()?.find((item) => item.credit_id === view.creditId))}
-                    >
-                      {view.sendActionLabel}
-                    </Button>
-                  </Show>
-                  <Show when={view.canClaim}>
-                    <Button disabled={busy() !== undefined || leaving()} onClick={() => void claim(view.creditId, false)}>
-                      {busy() === view.creditId ? "Claiming…" : "Verify to claim"}
-                    </Button>
-                  </Show>
-                </div>
-              )}
-            </For>
-            <Show when={notice().length > 0}><Type role="status">{notice()}</Type></Show>
-            <Show when={sending()} keyed>
-              {(credit) => <WinningsSendSheet credit={credit} dependencies={sendWith()} onClose={() => setSending(undefined)} />}
-            </Show>
-          </CardContent>
-        </Card>
-      </section>
+      <div role="group" aria-label="Pool winnings" class="flex flex-col gap-3 border-t border-border-soft pt-3">
+        <Show when={failed()}>
+          <Type role="alert">Your winnings could not be loaded.</Type>
+          <Button variant="outline" onClick={() => void load()}>Try again</Button>
+        </Show>
+        <For each={views()}>
+          {(view) => (
+            <div class="flex flex-wrap items-center justify-between gap-3">
+              <div class="flex flex-col gap-1">
+                <Type class="font-semibold">{view.amount}</Type>
+                <Type>{view.status}</Type>
+                <Show when={view.detail}>{(detail) => <Type class="text-sm">{detail()}</Type>}</Show>
+              </div>
+              <Show when={view.canSend}>
+                <Button
+                  variant="outline"
+                  aria-label={`${view.sendActionLabel} ${view.amount}`}
+                  onClick={() => setSending(credits()?.find((item) => item.credit_id === view.creditId))}
+                >
+                  {view.sendActionLabel}
+                </Button>
+              </Show>
+              <Show when={view.canClaim}>
+                <Button disabled={busy() !== undefined || leaving()} onClick={() => void claim(view.creditId, false)}>
+                  {busy() === view.creditId ? "Claiming…" : "Verify to claim"}
+                </Button>
+              </Show>
+            </div>
+          )}
+        </For>
+        <Show when={notice().length > 0}><Type role="status">{notice()}</Type></Show>
+        <Show when={sending()} keyed>
+          {(credit) => <WinningsSendSheet credit={credit} dependencies={sendWith()} onClose={() => setSending(undefined)} />}
+        </Show>
+      </div>
     </Show>
   );
 }

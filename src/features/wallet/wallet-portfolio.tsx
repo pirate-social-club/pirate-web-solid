@@ -1,4 +1,5 @@
 import { For, Show } from "solid-js";
+import type { JSX } from "@solidjs/web";
 import { Avatar, Button, Card, CardContent, CardHeader, Type } from "../../design-system";
 import { WalletHub } from "./wallet-hub.tsx";
 import { WalletReceiveSheet } from "./wallet-receive-sheet.tsx";
@@ -17,6 +18,7 @@ export interface WalletPortfolioProps {
   selectedPersonaId?: string;
   onSelect: (personaId: string) => void;
   onChangeProfile: () => void;
+  renderBaseUsdc?: (wallet: PersonaWallet) => JSX.Element;
 }
 
 /** Private account portfolio. Receive always names one selected persona address. */
@@ -36,6 +38,8 @@ export function WalletPortfolio(props: WalletPortfolioProps) {
       {(wallet) => <WalletHub walletLabel={wallet().displayName} walletAddress={wallet().address}
         assetsUnavailable totalBalanceUsd={null} changeWalletLabel="Switch profile" onChangeWallet={props.onChangeProfile}
         chainSections={sections()}
+        renderAssetSupplement={(chainId, token) => props.networkMode === "testnet" && chainId === "base" && token.id === "usdc"
+          ? props.renderBaseUsdc?.(wallet()) : undefined}
         renderReceiveSheet={wallet().address ? controls => <WalletReceiveSheet {...controls} chainSections={sections()} walletAddress={wallet().address} /> : undefined}
       />}
     </Show>

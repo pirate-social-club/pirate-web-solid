@@ -8,6 +8,8 @@ import type { RewardCredit } from "../../api/reward-claim.ts";
 import { createWinningsSendData, type WinnerSendRecord, type WinningsSendData, type WinningsSender } from "../../api/reward-winnings-send.ts";
 import { createRewardWalletSession, type RewardFeeEstimate, type RewardTokenTransfer, type RewardWalletSession } from "../../api/reward-wallet-session.ts";
 import { fetchVerificationConfig } from "../../api/verification-config.ts";
+import { defaultPrivyFactory } from "../../api/privy-session.ts";
+import { requestGlobalSignInCompletion } from "../auth/global-sign-in-host.tsx";
 import {
   canBroadcast, checkAmount, checkRecipient, defaultAmount, explorerTransactionUrl,
   recordMatches, recordedTransfer, replacementFloor, sendableAtomic, sendFailureMessage,
@@ -15,7 +17,7 @@ import {
 } from "./winnings-send-model.ts";
 
 export type WinningsSendWallet = Pick<RewardWalletSession,
-  "sendCode" | "loginWithCode" | "selectTestnetFor" | "estimateTransfer" | "sendTransfer" |
+  "restoreAuthorization" | "selectTestnetFor" | "estimateTransfer" | "sendTransfer" |
   "estimateCancellation" | "sendCancellation" | "dispose">;
 
 export type WinningsSendDependencies = Readonly<{
@@ -27,11 +29,11 @@ export type WinningsSendDependencies = Readonly<{
 export function browserWinningsSend(): WinningsSendDependencies {
   return {
     data: createWinningsSendData(),
-    openWallet: async () => createRewardWalletSession(await fetchVerificationConfig()),
+    openWallet: async () => createRewardWalletSession(await fetchVerificationConfig(), defaultPrivyFactory, { restoreSaved: true }),
   };
 }
 
-type Step = "loading" | "unavailable" | "details" | "sign_in" | "preparing" | "review" | "status";
+type Step = "loading" | "unavailable" | "details" | "wallet_authorization" | "preparing" | "review" | "status";
 type Action = "new" | "retry" | "replace" | "cancel";
 type UnattachedHash = Readonly<{ hash: string; kind: "transfer" | "cancel"; sendId: string }>;
 
@@ -46,9 +48,6 @@ export function WinningsSendSheet(props: Readonly<{ credit: RewardCredit; depend
   const [recipient, setRecipient] = createSignal("");
   const [amount, setAmount] = createSignal("");
   const [touched, setTouched] = createSignal(false);
-  const [email, setEmail] = createSignal("");
-  const [code, setCode] = createSignal("");
-  const [codeSent, setCodeSent] = createSignal(false);
   const [action, setAction] = createSignal<Action>("new");
   const [fee, setFee] = createSignal<RewardFeeEstimate>();
   const [gasLimitReached, setGasLimitReached] = createSignal(false);
@@ -60,8 +59,9 @@ export function WinningsSendSheet(props: Readonly<{ credit: RewardCredit; depend
   const [recoveryHash, setRecoveryHash] = createSignal("");
   let alive = true;
   let wallet: WinningsSendWallet | undefined;
+  const signInAbort = new AbortController();
 
-  const shutdown = () => { alive = false; wallet?.dispose(); wallet = undefined; };
+  const shutdown = () => { alive = false; signInAbort.abort(); wallet?.dispose(); wallet = undefined; };
   onCleanup(shutdown);
   const close = () => { shutdown(); props.onClose(); };
   const requestClose = () => { if (!broadcasting() && (!busy() || step() === "preparing")) close(); };
@@ -125,8 +125,7 @@ export function WinningsSendSheet(props: Readonly<{ credit: RewardCredit; depend
     setAction("new");
     setRecipient(to.address);
     setAmount(formatUnits(atomic.atomic, credit.token_decimals));
-    setCode(""); setCodeSent(false);
-    setStep("sign_in");
+    void authorizeAndPrepare();
   };
   const beginRecorded = (next: Exclude<Action, "new">) => {
     const current = record();
@@ -134,8 +133,7 @@ export function WinningsSendSheet(props: Readonly<{ credit: RewardCredit; depend
     if (next !== "retry" && !canBroadcast(current.status, next)) return;
     if (next === "retry" && current.status !== "retryable" && current.status !== "reverted") return;
     setAction(next);
-    setCode(""); setCodeSent(false);
-    setStep("sign_in");
+    void authorizeAndPrepare();
   };
   const transfer = (): RewardTokenTransfer => {
     const current = record();
@@ -152,10 +150,6 @@ export function WinningsSendSheet(props: Readonly<{ credit: RewardCredit; depend
     wallet = opened;
     return opened;
   };
-  const sendCode = () => run(async () => {
-    try { await (await openWallet()).sendCode(email().trim()); if (alive) setCodeSent(true); }
-    catch { if (alive) setError("The code could not be sent. Check the email and try again."); }
-  });
   const prepareFee = async (currentWallet: WinningsSendWallet) => {
     const current = record();
     let minimumPrice = 0n;
@@ -202,17 +196,35 @@ export function WinningsSendSheet(props: Readonly<{ credit: RewardCredit; depend
     if (response.topup_id === null) throw new Error("gas_topup_unavailable");
     await waitForGas(response.topup_id, currentWallet);
   };
-  const signIn = () => run(async () => {
+  const authorizeAndPrepare = () => run(async () => {
+    setStep("preparing");
     const currentWallet = await openWallet();
-    try { await currentWallet.loginWithCode(email().trim(), code().trim()); }
-    catch { setError("That code did not work. Check it and try again."); return; }
+    if (!await currentWallet.restoreAuthorization()) {
+      setStep("wallet_authorization");
+      return;
+    }
+    await currentWallet.selectTestnetFor(transfer());
+    await prepare(currentWallet);
+  });
+  const useNormalSignIn = () => run(async () => {
+    const authenticated = await requestGlobalSignInCompletion(signInAbort.signal);
+    if (!alive || !authenticated) return;
+    wallet?.dispose();
+    wallet = undefined;
+    const currentWallet = await openWallet();
+    if (!await currentWallet.restoreAuthorization()) {
+      setError("Wallet authorization could not be restored. Sign in again from the Wallet page.");
+      return;
+    }
     await currentWallet.selectTestnetFor(transfer());
     await prepare(currentWallet);
   });
   const checkGasAgain = () => run(async () => {
     const id = gasTopupId();
     if (id === undefined) return;
-    await waitForGas(id, await openWallet());
+    const currentWallet = await openWallet();
+    if (!await currentWallet.restoreAuthorization()) { setStep("wallet_authorization"); return; }
+    await waitForGas(id, currentWallet);
   });
   const checkStatus = () => run(refresh);
 
@@ -239,6 +251,7 @@ export function WinningsSendSheet(props: Readonly<{ credit: RewardCredit; depend
 
   const confirm = () => run(async () => {
     const currentWallet = await openWallet();
+    if (!await currentWallet.restoreAuthorization()) { setStep("wallet_authorization"); return; }
     const shownFee = fee();
     if (shownFee === undefined) return;
     const intended = transfer();
@@ -326,21 +339,10 @@ export function WinningsSendSheet(props: Readonly<{ credit: RewardCredit; depend
               <Show when={gasTopupId()}><Button variant="outline" disabled={busy()} onClick={() => void checkGasAgain()}>Check gas again</Button></Show>
             </div>
           </Match>
-          <Match when={step() === "sign_in"}>
+          <Match when={step() === "wallet_authorization"}>
             <div class="flex flex-col gap-4">
-              <Type>Sign in to your wallet. You will review the network fee before signing.</Type>
-              <TextField value={email()} onChange={setEmail}>
-                <TextFieldLabel>Email for your wallet</TextFieldLabel><TextFieldInput inputmode="email" autocomplete="email" />
-              </TextField>
-              <Button variant={codeSent() ? "outline" : "default"} disabled={busy() || email().trim().length === 0} onClick={() => void sendCode()}>
-                {codeSent() ? "Send a new code" : "Send code"}
-              </Button>
-              <Show when={codeSent()}>
-                <TextField value={code()} onChange={setCode}>
-                  <TextFieldLabel>Code</TextFieldLabel><TextFieldInput inputmode="numeric" autocomplete="one-time-code" />
-                </TextField>
-                <Button disabled={busy() || code().trim().length === 0} onClick={() => void signIn()}>Continue</Button>
-              </Show>
+              <Type>Your wallet authorization has ended. Use the usual sign-in to reconnect it before sending.</Type>
+              <Button disabled={busy()} onClick={() => void useNormalSignIn()}>Sign in</Button>
               <Button variant="ghost" disabled={busy()} onClick={() => setStep(record() === null ? "details" : "status")}>Back</Button>
             </div>
           </Match>

@@ -1,5 +1,6 @@
 import { ApiClientError, type PirateApiClient } from "@pirate/api-client";
 import { createSessionApiClient } from "./client.ts";
+import { clearWalletAuthorization } from "./privy-wallet-authorization.ts";
 import type { ApiFetch } from "./proxy.ts";
 
 export interface AuthenticatedSession {
@@ -294,5 +295,6 @@ export function onSessionRefreshed(listener: () => void): () => void {
 
 /** Clear account-private UI immediately after a successful host-session logout. */
 export function clearSession(): void {
+  clearWalletAuthorization();
   browserStore.clearSession();
 }

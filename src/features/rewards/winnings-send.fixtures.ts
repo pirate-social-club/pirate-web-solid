@@ -2,7 +2,7 @@ import type { RewardCredit } from "../../api/reward-claim.ts";
 import type { GasTopupRequest, WinnerSendRecord } from "../../api/reward-winnings-send.ts";
 import type { WinningsSendDependencies, WinningsSendWallet } from "./winnings-send-sheet.tsx";
 
-/** Story data for sending paid winnings. The fixture code is 123456. */
+/** Story data for sending paid winnings with an existing wallet session. */
 export const paidWinning: RewardCredit = {
   object: "reward_credit", credit_id: "sent", payout_persona_id: "persona_harbor", chain_id: 84532,
   token_address: "0x036CbD53842c5426634e7929541eC2318f3dCF7e", token_decimals: 6,
@@ -32,11 +32,7 @@ export function sendFixture(options: SendFixtureOptions = {}): WinningsSendDepen
   let authorized = false;
   let record = options.record ?? null;
   const wallet: WinningsSendWallet = {
-    async sendCode() {},
-    async loginWithCode(_email, code) {
-      if (code !== "123456") throw new Error("Use fixture code 123456.");
-      authorized = true;
-    },
+    async restoreAuthorization() { authorized = true; return true; },
     async selectTestnetFor() {},
     async estimateTransfer() {
       if (!authorized) throw new Error("wallet_reauthentication_required");

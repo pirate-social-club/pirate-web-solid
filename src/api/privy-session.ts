@@ -12,6 +12,7 @@ import {
   sessionRequestOptions,
 } from "./client.ts";
 import type { VerificationPublicConfig } from "./verification-config.ts";
+import { clearWalletAuthorization, privyAccessTokenSubject, rememberWalletAuthorization } from "./privy-wallet-authorization.ts";
 
 export class MemoryOnlyStorage implements Storage {
   readonly #values = new Map<string, unknown>();
@@ -87,25 +88,6 @@ export class PrivyIdentityBootstrapRequired extends Error {
   constructor(readonly sourceUserId: string) {
     super("identity_bootstrap_required");
     this.name = "PrivyIdentityBootstrapRequired";
-  }
-}
-
-function accessTokenSubject(token: string): string | undefined {
-  try {
-    const payload = token.split(".")[1];
-    if (payload === undefined) return undefined;
-    const base64 = payload.replaceAll("-", "+").replaceAll("_", "/");
-    const decoded: unknown = JSON.parse(
-      atob(`${base64}${"=".repeat((4 - (base64.length % 4)) % 4)}`),
-    );
-    if (decoded === null || typeof decoded !== "object" || Array.isArray(decoded)) return undefined;
-    // SAFETY: the object boundary above is checked before reading the optional dynamic claim.
-    const subject = (decoded as { readonly sub?: unknown }).sub;
-    return typeof subject === "string" && /^did:privy:[A-Za-z0-9._:-]+$/u.test(subject)
-      ? subject
-      : undefined;
-  } catch {
-    return undefined;
   }
 }
 
@@ -582,8 +564,9 @@ export async function createPrivySessionExchange(
       }
     }
   };
-  const finishSession = () => {
+  const finishSession = (accessToken: string) => {
     if ((dependencies.csrf ?? readCsrfCookie)() === undefined) throw new Error("session_failed");
+    rememberWalletAuthorization(storage, accessToken, config.privyAppId ?? "");
     pendingRegistrationToken = undefined;
     walletPreparationKeys.clear();
     terminal = true;
@@ -593,7 +576,7 @@ export async function createPrivySessionExchange(
   const establishSession = async () => {
     const accessToken = await client.getAccessToken();
     if (accessToken === null || accessToken.length === 0) throw new Error("auth_failed");
-    const sourceUserId = accessTokenSubject(accessToken);
+    const sourceUserId = privyAccessTokenSubject(accessToken);
     try {
       await exchange(accessToken);
     } catch (error) {
@@ -606,7 +589,7 @@ export async function createPrivySessionExchange(
     }
     try {
       await resumeExistingWallets(accessToken);
-      finishSession();
+      finishSession(accessToken);
     } catch (error) {
       storage.clear();
       client.dispose?.();
@@ -621,6 +604,7 @@ export async function createPrivySessionExchange(
     },
     async loginWithCode(email, code) {
       if (terminal) throw new Error("auth_expired");
+      clearWalletAuthorization();
       await client.auth.email.loginWithCode(email, code);
       await establishSession();
     },
@@ -633,6 +617,7 @@ export async function createPrivySessionExchange(
     },
     async completeOAuth(provider, authorizationCode, returnedStateCode) {
       if (terminal) throw new Error("auth_expired");
+      clearWalletAuthorization();
       const oauth = client.auth.oauth;
       if (oauth === undefined) throw new Error("oauth_unavailable");
       await oauth.loginWithCode(
@@ -644,6 +629,7 @@ export async function createPrivySessionExchange(
     },
     async loginWithWallet() {
       if (terminal) throw new Error("auth_expired");
+      clearWalletAuthorization();
       const siwe = client.auth.siwe;
       if (siwe === undefined) throw new Error("wallet_unavailable");
       const provider = browserEthereumProvider();
@@ -692,7 +678,7 @@ export async function createPrivySessionExchange(
       // narrow setup session with the ordinary application session only after
       // that durable transition succeeds.
       await exchange(accessToken);
-      finishSession();
+      finishSession(accessToken);
     },
     clear() {
       terminal = true;
