@@ -595,7 +595,14 @@ export function VideoComposerRuntime(props: {
         // above could have raced a song-panel change, so both the gate and
         // the guide's identity are asked once more, immediately before the
         // take begins.
-        if (!captureReady() || (guide !== null && !guideStillCurrent(guide))) { captureStarting = false; return; }
+        if (!captureReady() || (guide !== null && !guideStillCurrent(guide))) {
+          captureStarting = false;
+          // The preview stream was taken above and nothing holds it now, so
+          // release it here or the camera stays on.
+          stopTracks(handed);
+          if (handed && stream() === handed) setStream(null);
+          return;
+        }
         current = await startCapture({
           onFailure: failure => {
             session = null; stopGuide();

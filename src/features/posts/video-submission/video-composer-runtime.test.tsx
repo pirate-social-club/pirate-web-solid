@@ -1319,6 +1319,45 @@ describe("mounted song-first video flow", () => {
       expect(openPreview).toHaveBeenCalledTimes(1);
     });
 
+    test("a take abandoned because the excerpt moved during camera permission releases the granted camera", async () => {
+      let grantPreview: ((stream: MediaStream) => void) | undefined;
+      const permission = new Promise<MediaStream>(resolve => { grantPreview = resolve; });
+      openPreview.mockImplementationOnce(() => permission);
+      nextSession = () => fakeSession(() => undefined);
+      const fixture = songSetup({
+        preflight: "accepted",
+        mobile: true,
+        deferIntervalChecks: true,
+        createGuideAudio: () => guideSpy().audio,
+      });
+      await loadSongMetadata();
+      await vi.waitFor(() => expect(fixture.pendingChecks.length).toBe(1), { timeout: 3_000 });
+      fixture.pendingChecks[0]!();
+      await awaitPlan("ready");
+      await vi.waitFor(() => expect(openPreview).toHaveBeenCalledTimes(1));
+      await startRecording();
+      // The guide is ready at once, so Record is now waiting on the camera
+      // request. Moving the window earlier would stop the take at the earlier
+      // guide check, before any stream is taken, and prove nothing.
+      await new Promise(resolve => setTimeout(resolve, 50));
+      moveWindow(2_000);
+      await vi.waitFor(() => expect(fixture.pendingChecks.length).toBe(2), { timeout: 3_000 });
+      fixture.pendingChecks[1]!();
+      await awaitPlan("ready");
+      expect(startCapture).not.toHaveBeenCalled();
+
+      const track = { stop: vi.fn() };
+      // SAFETY: the runtime only calls getTracks on this test stream; jsdom
+      // has no MediaStream constructor to provide the same minimal object.
+      const stream = Object.assign(Object.create(null) as MediaStream, { getTracks: () => [track] });
+      grantPreview!(stream);
+      await new Promise(resolve => setTimeout(resolve, 50));
+      // The new window is approved but the take was for the old one: it must
+      // not start, and the camera Record took over must not stay on.
+      expect(startCapture).not.toHaveBeenCalled();
+      expect(track.stop).toHaveBeenCalled();
+    });
+
     test("going back from review reopens the camera", async () => {
       nextSession = () => fakeSession(() => undefined);
       songSetup({ preflight: "accepted", mobile: true, createGuideAudio: () => guideSpy().audio });
