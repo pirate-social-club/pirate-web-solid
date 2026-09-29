@@ -4,7 +4,7 @@ import { OperationPersonaControl } from "../../identity/operation-persona-contro
 import { type ExcerptBounds, formatExcerptTime } from "../post-composer/song-excerpt";
 import { SongExcerptComposer, type SoundtrackSelection } from "../post-composer/song-excerpt-composer";
 import { createLocalExcerptDraftStore } from "../post-composer/song-excerpt-draft-store";
-import type { SongSourceReader } from "../post-composer/song-excerpt-source";
+import type { SongSourceReader, SongSourceState } from "../post-composer/song-excerpt-source";
 import type { SongPickerSource } from "../post-composer/song-picker";
 import { OriginalVideoCaptureSurface, OriginalVideoReviewSurface } from "../post-composer/video-original-audio-surface";
 import type { OriginalVideoCaptureInput, VideoCaptureSession } from "./capture";
@@ -167,6 +167,9 @@ export function VideoComposerRuntime(props: {
   // ruling 2026-09-24), so once a song loads it stays the choice through
   // pending checks and song switches.
   const [songChoice, setSongChoice] = createSignal<SongChoice>({ kind: "none" });
+  // Where the song read stands, for the sheet's heading: a song that is loading
+  // or loaded is a song already chosen, one that failed to load is not.
+  const [songSource, setSongSource] = createSignal<SongSourceState["kind"]>("idle");
   // Song choice is the first screen. Keep it mounted after continuing so the
   // excerpt and server verdict survive capture, review and a later song change.
   const [songSheetOpen, setSongSheetOpen] = createSignal(true, { ownedWrite: true });
@@ -252,10 +255,11 @@ export function VideoComposerRuntime(props: {
   const songActive = () => songChoice().kind !== "none";
   /** Every video uses a song, so the camera waits until one is chosen. */
   const songChosen = () => songActive() && selection() !== null;
-  /** Once a song's excerpt exists the sheet is about where it starts. Until
-   * then, including while a chosen song loads or fails to, it is still about
-   * choosing one. */
-  const songSheetTitle = () => songChosen() ? "Choose the starting point" : "Choose a song";
+  /** A song that is loading or loaded is already chosen, so the sheet is about
+   * where it starts. With none chosen, or one that failed to load, it is still
+   * about choosing one. */
+  const songSheetTitle = () =>
+    songSource() === "loading" || songSource() === "ready" ? "Choose the starting point" : "Choose a song";
   /** Whether the sound sheet holds something the author must act on or wait
    * on. The server's interval preflight checks the song owner's policy before
    * capture, and reservation checks it again before issuing upload authority. */
@@ -934,6 +938,7 @@ export function VideoComposerRuntime(props: {
               {...(props.songPicker === undefined ? {} : { songs: props.songPicker })}
               onPlan={setSongPlan}
               onChoice={choice => { if (!disposed) setSongChoice(choice); }}
+              onSource={kind => { if (!disposed) setSongSource(kind); }}
               onSelection={next => {
                 if (disposed) return;
                 const hadSelection = selection() !== null;

@@ -432,7 +432,8 @@ export const SongLoading: Story = {
   render: () => <Harness reader={async () => new Promise(() => {})} />,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await canvas.findByRole("dialog", { name: "Choose a song" });
+    // The song is already chosen while it loads, so the sheet says so.
+    await canvas.findByRole("dialog", { name: "Choose the starting point" });
     await canvas.findByText("Loading that song…");
     expect(canvas.getByRole("button", { name: "Continue to video" })).toBeDisabled();
     expect(canvas.queryByText("Choose a song to continue.")).toBeNull();

@@ -13,6 +13,9 @@ export type { YourCommunitySummary } from "./your-communities-page-model";
 export interface YourCommunitiesPageProps {
   /** Without a label and a handler the Create action is not offered. */
   createCommunityLabel?: string;
+  /** Show the Create action under the description instead of beside the title,
+   * for a page whose explanation has to be read before the action. */
+  createCommunityBelow?: boolean;
   /** A line under the title, for a page that has a task to name. */
   description?: string;
   emptyJoinedLabel: string;
@@ -80,22 +83,28 @@ function YourCommunityListItem(props: {
 }
 
 export function YourCommunitiesPageView(props: YourCommunitiesPageProps) {
+  const createOffered = () => props.createCommunityLabel !== undefined && props.onCreateCommunity !== undefined;
+  const createAction = () => (
+    <div class="flex shrink-0 flex-wrap gap-3">
+      <Button onClick={props.onCreateCommunity} variant="secondary">{props.createCommunityLabel}</Button>
+    </div>
+  );
   return (
     <PageContainer class="flex min-w-0 flex-1 flex-col gap-6 pt-6 md:pt-10" gutter>
       {/* The title and the Create action are reachable at every width; a
           phone otherwise offers no way to start a community. */}
       <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <Type as="h1" variant="h1">{props.title}</Type>
-        <Show when={props.createCommunityLabel !== undefined && props.onCreateCommunity !== undefined}>
-          <div class="flex shrink-0 flex-wrap gap-3">
-            <Button onClick={props.onCreateCommunity} variant="secondary">{props.createCommunityLabel}</Button>
-          </div>
-        </Show>
+        <Show when={createOffered() && !props.createCommunityBelow}>{createAction()}</Show>
       </div>
       <Show when={props.description}>{text => <Type as="p" class="-mt-3">{text()}</Type>}</Show>
+      <Show when={createOffered() && props.createCommunityBelow}>{createAction()}</Show>
 
       <section class="min-w-0" aria-label={props.joinedLabel}>
-        <Show when={props.joinedCommunities.length > 0} fallback={<Type as="p" variant="caption" class="py-4">{props.emptyJoinedLabel}</Type>}>
+        <Show
+          when={props.joinedCommunities.length > 0}
+          fallback={<Show when={props.emptyJoinedLabel !== ""}><Type as="p" variant="caption" class="py-4">{props.emptyJoinedLabel}</Type></Show>}
+        >
           <div>
             <For each={props.joinedCommunities}>
               {(community) => <YourCommunityListItem

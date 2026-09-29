@@ -82,6 +82,8 @@ export function SongExcerptComposer(props: {
   onSelection?: (selection: SoundtrackSelection | null) => void;
   onPlan?: (state: SongPlanState) => void;
   onChoice?: (choice: SongChoice) => void;
+  /** Where the song read stands, so a host can title its screen for it. */
+  onSource?: (kind: SongSourceState["kind"]) => void;
 }) {
   // The store, reader and initial song are captured once, not read per call. A
   // caller writing `store={makeStore()}` passes a prop getter that builds a new
@@ -95,10 +97,15 @@ export function SongExcerptComposer(props: {
   const reportPlan = props.onPlan;
   const reportChoice = props.onChoice;
   const reportSelection = props.onSelection;
+  const reportSource = props.onSource;
 
   const [link, setLink] = createSignal("");
   const [linkProblem, setLinkProblem] = createSignal<string>();
-  const [source, setSource] = createSignal<SongSourceState>({ kind: "idle" });
+  const [source, setSourceState] = createSignal<SongSourceState>({ kind: "idle" });
+  const setSource = (next: SongSourceState) => {
+    setSourceState(next);
+    reportSource?.(next.kind);
+  };
   const [durationMs, setDurationMs] = createSignal(0);
   const [bounds, setBounds] = createSignal<ExcerptBounds>({ startMs: 0, endMs: 0 });
   const [playing, setPlaying] = createSignal(false);

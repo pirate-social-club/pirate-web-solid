@@ -267,7 +267,14 @@ describe("YourCommunitiesRouteView", () => {
     await vi.waitFor(() => expect(routeRoot(container).getAttribute("data-communities-state")).toBe("ready"));
     expect(container.querySelector("[data-post-community-id]")).toBeNull();
     expect(container.textContent).toContain("You don't have a community where you can post this video yet.");
-    expect(container.textContent).toContain("Create community");
+    // Creating a community leaves the step and drops the song, so the page
+    // says what to do afterward, and says it before offering the action.
+    const explanation = [...container.querySelectorAll("p")].find(paragraph =>
+      paragraph.textContent?.includes("come back to the song and choose Use this song again"));
+    const create = [...container.querySelectorAll("button")].find(control => control.textContent === "Create community");
+    expect(explanation).toBeDefined();
+    expect(create).toBeDefined();
+    expect(explanation!.compareDocumentPosition(create!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     // There is nothing to choose, so the page does not ask for a choice.
     expect(container.textContent).not.toContain("Choose a community to post it in.");
   });

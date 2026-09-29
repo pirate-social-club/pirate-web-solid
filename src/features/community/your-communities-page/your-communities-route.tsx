@@ -155,8 +155,10 @@ export function YourCommunitiesRouteView(props: YourCommunitiesRouteProps = {}) 
     },
   );
   // Creating a community leaves the step and drops the song, so it is offered
-  // only where it is the way forward: with no community to post in.
-  const offerCreate = () => !songPending() || joinedCommunities().length === 0;
+  // only where it is the way forward: with no community to post in. There the
+  // page says what will happen before it offers the action.
+  const noDestination = () => songPending() && joinedCommunities().length === 0;
+  const offerCreate = () => !songPending() || noDestination();
   const heading = () => {
     if (!songPending()) return "Your communities";
     const title = songTitle();
@@ -270,10 +272,11 @@ export function YourCommunitiesRouteView(props: YourCommunitiesRouteProps = {}) 
       <Show when={state().kind === "ready"}>
         <YourCommunitiesPageView
           createCommunityLabel={offerCreate() ? "Create community" : undefined}
-          description={songPending() && joinedCommunities().length > 0 ? "Choose a community to post it in." : undefined}
-          emptyJoinedLabel={props.initialVideoSong === undefined
-            ? "You aren't a member of a community yet."
-            : "You don't have a community where you can post this video yet."}
+          createCommunityBelow={noDestination()}
+          description={!songPending() ? undefined : noDestination()
+            ? "You don't have a community where you can post this video yet. Create one, then come back to the song and choose Use this song again."
+            : "Choose a community to post it in."}
+          emptyJoinedLabel={songPending() ? "" : "You aren't a member of a community yet."}
           joinedCommunities={joinedCommunities()}
           joinedLabel="Communities"
           onCreateCommunity={offerCreate() ? () => navigate("/communities/new") : undefined}

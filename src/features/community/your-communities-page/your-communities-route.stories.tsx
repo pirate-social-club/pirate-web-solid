@@ -128,9 +128,12 @@ export const NoPostableCommunity: Story = {
   ),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await canvas.findByText("You don't have a community where you can post this video yet.");
-    // With nowhere to post, creating a community is the way forward.
-    await canvas.findByRole("button", { name: "Create community" });
+    const explanation = await canvas.findByText(/come back to the song and choose Use this song again/);
+    await canvas.findByText(/You don't have a community where you can post this video yet\./);
+    // With nowhere to post, creating a community is the way forward, but it
+    // leaves the song behind: the page says so before it offers the action.
+    const create = await canvas.findByRole("button", { name: "Create community" });
+    expect(explanation.compareDocumentPosition(create) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(canvas.queryByRole("button", { name: /^Post video in / })).toBeNull();
     expect(canvas.queryByText("Choose a community to post it in.")).toBeNull();
   },

@@ -174,7 +174,7 @@ describe("mounted song-first video flow", () => {
     readonly personaOptions?: readonly { readonly id: string; readonly label: string; readonly communityId?: string }[];
     readonly reserve?: "echo" | "different_excerpt";
     readonly finalSnapshot?: "published" | "song_blocked";
-    readonly reader?: "ready" | "failed";
+    readonly reader?: "ready" | "failed" | "pending";
     /** What the injected duration measurement answers for the chosen file. */
     readonly clipDurationMs?: number | null;
     /** The audio element's length, when the injected metadata reports one. */
@@ -275,6 +275,8 @@ describe("mounted song-first video flow", () => {
     });
     const songReader: SongSourceReader = options.reader === "failed"
       ? async () => { throw new Error("read failed"); }
+      : options.reader === "pending"
+      ? () => new Promise(() => {})
       : async request => ({
         postId: request.kind === "post" ? request.postId : "song-post",
         audioUrl: "https://audio.example/song.mp3",
@@ -1221,19 +1223,27 @@ describe("mounted song-first video flow", () => {
       expect(continueControl()!.getAttribute("aria-describedby")).toBe("song-continue-hint");
     });
 
-    test("a preselected song is titled for where it starts once its excerpt exists", async () => {
+    test("a preselected song is already chosen while it loads, so the sheet is about where it starts", async () => {
+      songSetup({ preflight: "accepted", reader: "pending" });
+      await vi.waitFor(() => expect(soundtrackPanel()!.textContent).toContain("Loading that song…"));
+      expect(sheetTitle()).toBe("Choose the starting point");
+      expect(soundtrackPanel()!.getAttribute("aria-label")).toBe("Choose the starting point");
+      expect(continueControl()!.disabled).toBe(true);
+      expect(document.getElementById("song-continue-hint")).toBeNull();
+    });
+
+    test("a loaded song is about where it starts, and says it is waiting for its length", async () => {
       songSetup({ preflight: "pending" });
       await vi.waitFor(() => expect(document.querySelector("audio")).not.toBeNull());
-      // Loaded, length unknown: still choosing, and the sheet says it is waiting.
-      expect(sheetTitle()).toBe("Choose a song");
+      // Loaded, length unknown: the sheet is about where it starts and says it is waiting.
+      expect(sheetTitle()).toBe("Choose the starting point");
       expect(soundtrackPanel()!.textContent).toContain("Getting this song ready…");
       expect(continueControl()!.disabled).toBe(true);
       // The song is chosen, so the "no song" line does not apply.
       expect(document.getElementById("song-continue-hint")).toBeNull();
       await loadSongMetadata();
-      await vi.waitFor(() => expect(sheetTitle()).toBe("Choose the starting point"));
-      expect(soundtrackPanel()!.getAttribute("aria-label")).toBe("Choose the starting point");
-      expect(soundtrackPanel()!.textContent).not.toContain("Getting this song ready…");
+      await vi.waitFor(() => expect(soundtrackPanel()!.textContent).not.toContain("Getting this song ready…"));
+      expect(sheetTitle()).toBe("Choose the starting point");
     });
 
     test("a song that fails to load keeps the sheet on choosing and says why once", async () => {
