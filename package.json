@@ -90,8 +90,8 @@
     "@oxlint/plugins": "1.78.0",
     "@phosphor-icons/core": "2.1.1",
     "@solidjs/vite-plugin": "3.0.0-next.27",
-    "@storybook/addon-a11y": "10.5.8",
-    "@storybook/addon-docs": "10.5.8",
+    "@storybook/addon-a11y": "10.6.0",
+    "@storybook/addon-docs": "10.6.0",
     "@tailwindcss/vite": "4.3.3",
     "@testing-library/jest-dom": "7.0.1",
     "@testing-library/user-event": "14.6.4",
@@ -100,14 +100,14 @@
     "@web3icons/react": "4.1.17",
     "bun-types": "1.4.0",
     "oxlint": "1.78.0",
-    "playwright": "1.60.0",
+    "playwright": "1.63.0",
     "remark-gfm": "4.0.1",
     "solid-doctor": "0.1.0",
-    "storybook": "10.5.10",
+    "storybook": "10.6.0",
     "storybook-solidjs-vite": "10.6.0",
     "tailwindcss": "4.3.3",
     "typescript": "5.9.3",
-    "vite": "8.2.1",
+    "vite": "8.3.1",
     "vite-plugin-solid": "3.0.0-next.27",
     "vitest": "4.1.11",
     "wrangler": "4.123.0"
@@ -117,7 +117,7 @@
     "@veryai/widget@1.0.22": "patches/@veryai%2Fwidget@1.0.22.patch"
   },
   "overrides": {
-    "@storybook/builder-vite": "10.5.10",
+    "@storybook/builder-vite": "10.6.0",
     "@storybook/csf-plugin": "10.5.10",
     "ethers>ws": "8.21.3",
     "miniflare>sharp": "0.35.4"

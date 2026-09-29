@@ -29,6 +29,9 @@ export default defineConfig({
   test: {
     name: "server-markup",
     environment: "node",
+    // Concurrent agent sessions each run this suite; the default of one
+    // worker per core saturates a shared workstation.
+    maxWorkers: 4,
     include: [
       "src/features/communities/community-page/community-page-ssr.test.tsx",
       "src/features/communities/handle-storefront/spaces-claim-status-ssr.test.tsx",

@@ -13,6 +13,9 @@ export default defineConfig({
   },
   test: {
     environment: "node",
+    // Concurrent agent sessions each run this suite; the default of one
+    // worker per core saturates a shared workstation.
+    maxWorkers: 4,
     include: ["src/api/**/*.test.ts", "src/hns-ingress/**/*.test.ts", "src/worker.test.ts"],
   },
 });
