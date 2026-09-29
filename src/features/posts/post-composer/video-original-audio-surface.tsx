@@ -27,6 +27,8 @@ export type OriginalVideoCaptureStatus =
   | "recording"
   | "camera_denied"
   | "capability_unavailable"
+  /** A recording that started and then ended without a usable file. */
+  | "recording_failed"
   | "orientation_lost"
   | "guide_interrupted";
 
@@ -73,7 +75,7 @@ export function OriginalVideoCaptureSurface(props: OriginalVideoCaptureSurfacePr
             <Match when={channel() === "upload"}>
               <CaptureMessage
                 action="Choose a video"
-                body="Choose a vertical MP4 or MOV with H.264 video and AAC audio."
+                body="Choose a vertical video (MP4 or MOV) that is 3 to 15 seconds long."
                 icon={<IconUploadSimple class="size-7" />}
                 title="Upload a video"
                 onAction={props.onUpload}
@@ -81,20 +83,33 @@ export function OriginalVideoCaptureSurface(props: OriginalVideoCaptureSurfacePr
             </Match>
             <Match when={status() === "camera_denied"}>
               <CaptureMessage
-                action="Choose a video instead"
-                body="Camera access is off. You can allow it in browser settings or upload a compatible video."
+                action="Try again"
+                body="Camera or microphone access is off. Allow it in your browser settings, then try again, or upload a video instead."
                 icon={<IconWarningCircle class="size-7" />}
                 title="Camera unavailable"
-                onAction={props.onUpload}
+                onAction={props.onRetake}
+                onSecondaryAction={props.onUpload}
+                secondaryAction="Choose a video instead"
               />
             </Match>
             <Match when={status() === "capability_unavailable"}>
               <CaptureMessage
-                action="Choose a compatible video"
-                body="This browser cannot record H.264 video with AAC audio. WebM recording is not available for this release."
+                action="Upload a video"
+                body="This browser can’t record video. You can upload a video from your device instead."
                 icon={<IconWarningCircle class="size-7" />}
-                title="Recording is not supported here"
+                title="Recording isn’t available here"
                 onAction={props.onUpload}
+              />
+            </Match>
+            <Match when={status() === "recording_failed"}>
+              <CaptureMessage
+                action="Try again"
+                body="The recording ended before it finished, so nothing was saved. Try again, or upload a video instead."
+                icon={<IconWarningCircle class="size-7" />}
+                title="Recording stopped"
+                onAction={props.onRetake}
+                onSecondaryAction={props.onUpload}
+                secondaryAction="Upload a video"
               />
             </Match>
             <Match when={status() === "orientation_lost"}>
@@ -182,6 +197,7 @@ export function OriginalVideoCaptureSurface(props: OriginalVideoCaptureSurfacePr
           </Show>
           <div class="grid grid-cols-3 items-center justify-items-center">
             <CaptureSideAction
+              disabled={recording()}
               icon={<IconImage class="size-5" />}
               label="Upload"
               onClick={() => props.onUpload?.()}
@@ -218,6 +234,9 @@ function CaptureMessage(props: {
   readonly icon: JSX.Element;
   readonly title: string;
   readonly onAction?: () => void;
+  /** A second way forward, offered beside the first. */
+  readonly secondaryAction?: string;
+  readonly onSecondaryAction?: () => void;
 }) {
   return (
     <div class="flex h-full flex-col items-center justify-center gap-4 px-8 text-center">
@@ -226,19 +245,26 @@ function CaptureMessage(props: {
         <Type as="h2" variant="h3" class="text-white">{props.title}</Type>
         <Type as="p" variant="body" class="max-w-sm text-white/70">{props.body}</Type>
       </div>
-      <Button onClick={() => props.onAction?.()} size="lg">{props.action}</Button>
+      <div class="flex flex-col items-center gap-2">
+        <Button onClick={() => props.onAction?.()} size="lg">{props.action}</Button>
+        <Show when={props.secondaryAction}>
+          {label => <Button onClick={() => props.onSecondaryAction?.()} size="lg" variant="ghost">{label()}</Button>}
+        </Show>
+      </div>
     </div>
   );
 }
 
 function CaptureSideAction(props: {
+  readonly disabled?: boolean;
   readonly icon: JSX.Element;
   readonly label: string;
   readonly onClick: () => void;
 }) {
   return (
     <button
-      class="flex cursor-pointer flex-col items-center gap-1.5 rounded-[var(--radius-lg)] p-1 outline-none focus-visible:ring-2 focus-visible:ring-ring"
+      class="flex cursor-pointer flex-col items-center gap-1.5 rounded-[var(--radius-lg)] p-1 outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-40"
+      disabled={props.disabled}
       onClick={props.onClick}
       type="button"
     >

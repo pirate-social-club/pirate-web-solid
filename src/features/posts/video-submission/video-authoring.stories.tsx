@@ -173,16 +173,23 @@ function canvasStream(): MediaStream {
 function captureDouble(options: {
   readonly fail?: "camera_denied" | "capability_unavailable";
   readonly autoStopAfterMs?: number;
+  /** The encoder or a camera source fails this long after recording starts. */
+  readonly encoderFailsAfterMs?: number;
 } = {}) {
   return async (input: OriginalVideoCaptureInput): Promise<VideoCaptureSession> => {
     if (options.fail !== undefined) {
       throw new VideoCaptureError(options.fail, options.fail === "camera_denied"
-        ? "Camera or microphone access is unavailable; upload remains available"
-        : "This browser cannot record H.264 and AAC; choose a compatible video instead");
+        ? "Camera or microphone access is off."
+        : "This browser can’t record video. Upload a video instead.");
     }
     const stream = canvasStream();
     if (options.autoStopAfterMs !== undefined) {
       setTimeout(() => { void input.onLimit(); }, options.autoStopAfterMs);
+    }
+    if (options.encoderFailsAfterMs !== undefined) {
+      setTimeout(() => {
+        input.onFailure(new VideoCaptureError("encoder_failed", "Recording failed. Try again or upload a video."));
+      }, options.encoderFailsAfterMs);
     }
     return {
       stream,
@@ -692,6 +699,35 @@ export const ReopenedAfterUploadFinished: Story = {
 export const CameraDenied: Story = {
   name: "Camera permission denied",
   render: () => <Harness autoStart startCapture={captureDouble({ fail: "camera_denied" })} />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await canvas.findByRole("heading", { name: "Camera unavailable" }, { timeout: 20_000 });
+    await canvas.findByRole("button", { name: "Try again" });
+    await canvas.findByRole("button", { name: "Choose a video instead" });
+  },
+};
+
+export const RecordingStopped: Story = {
+  name: "Recording failed after it started",
+  render: () => <Harness autoStart startCapture={captureDouble({ encoderFailsAfterMs: 600 })} />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await canvas.findByRole("heading", { name: "Recording stopped" }, { timeout: 20_000 });
+    await canvas.findByRole("button", { name: "Try again" });
+    // A failed recording is not an unsupported browser.
+    expect(canvas.queryByText("Recording isn’t available here")).toBeNull();
+  },
+};
+
+export const RecordingUnavailable: Story = {
+  name: "Browser cannot record",
+  render: () => <Harness autoStart startCapture={captureDouble({ fail: "capability_unavailable" })} />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await canvas.findByRole("heading", { name: "Recording isn’t available here" }, { timeout: 20_000 });
+    await canvas.findByRole("button", { name: "Upload a video" });
+    expect(canvas.queryByRole("button", { name: "Try again" })).toBeNull();
+  },
 };
 
 export const AuthoringNote: Story = {

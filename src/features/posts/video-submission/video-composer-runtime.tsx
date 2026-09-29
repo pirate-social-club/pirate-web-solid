@@ -78,6 +78,14 @@ export interface VideoPostingOption {
   readonly communityId?: string;
 }
 
+/** The panel a capture failure is shown as. A recording that started and then
+ * failed can simply be tried again, and says nothing about the browser; only a
+ * browser that cannot record at all is called unsupported. */
+function failureStatus(reason: string): "camera_denied" | "recording_failed" | "capability_unavailable" {
+  if (reason === "camera_denied") return "camera_denied";
+  return reason === "encoder_failed" ? "recording_failed" : "capability_unavailable";
+}
+
 export function VideoComposerRuntime(props: {
   readonly principalId: string;
   /** The community page's fixed posting destination. */
@@ -141,7 +149,10 @@ export function VideoComposerRuntime(props: {
   const [busy, setBusy] = createSignal(true);
   const [error, setError] = createSignal("");
   const [progress, setProgress] = createSignal("");
-  const [captureStatus, setCaptureStatus] = createSignal<"idle" | "recording" | "camera_denied" | "capability_unavailable" | "orientation_lost" | "guide_interrupted">("idle");
+  const [captureStatus, setCaptureStatus] = createSignal<"idle" | "recording" | "camera_denied" | "capability_unavailable" | "recording_failed" | "orientation_lost" | "guide_interrupted">("idle");
+  // The capture screen shows a panel for every state but these two, and the
+  // panel says what happened, so the raw message would only repeat it.
+  const panelShown = () => captureStatus() !== "idle" && captureStatus() !== "recording";
   const [stream, setStream] = createSignal<MediaStream | null>(null);
   // The chosen excerpt and the audio that will replace the recording, both
   // reported by the excerpt composer. They survive the move from choosing to
@@ -619,7 +630,7 @@ export function VideoComposerRuntime(props: {
             // An interrupted take was cancelled, not saved: the author is
             // back at the camera and can simply record again.
             setCaptureStatus(failure.reason === "orientation_lost" ? "orientation_lost"
-              : failure.reason === "interrupted" ? "idle" : "capability_unavailable");
+              : failure.reason === "interrupted" ? "idle" : failureStatus(failure.reason));
           },
           onLimit: () => { void stopCapture(); },
           ...(guide ? { limitMs: captureStopAfterMs(guide.bounds) } : {}),
@@ -658,7 +669,7 @@ export function VideoComposerRuntime(props: {
           return;
         }
       } catch (failure) {
-        if (failure instanceof capture.VideoCaptureError) { setCaptureStatus(failure.reason === "camera_denied" ? "camera_denied" : "capability_unavailable"); }
+        if (failure instanceof capture.VideoCaptureError) { setCaptureStatus(failureStatus(failure.reason)); }
         throw failure;
       }
     });
@@ -871,6 +882,7 @@ export function VideoComposerRuntime(props: {
    * nothing here and surface only on the sound sheet's confirm action. */
   const captureNotice = () => {
     if (file()) return undefined;
+    if (finalizing()) return <p class="rounded-[var(--radius-lg)] bg-black/60 px-3 py-2 text-center text-sm text-white" role="status">Finishing your video…</p>;
     if (props.personaOptions !== undefined && personasForDestination().length === 0) {
       return <p class="rounded-[var(--radius-lg)] bg-black/60 px-3 py-2 text-center text-sm text-white" role="status">Choose a posting profile for this community.</p>;
     }
@@ -879,7 +891,7 @@ export function VideoComposerRuntime(props: {
   };
   return <section class="grid gap-3" aria-label="Video composer">
     <input ref={element => { picker = element; }} hidden type="file" accept="video/mp4,video/quicktime,.mp4,.mov" onChange={event => { void chooseFile(event.currentTarget.files?.[0]); event.currentTarget.value = ""; }} />
-    <Show when={error()}>{message => <FormNote tone="warning">{message()}</FormNote>}</Show>
+    <Show when={panelShown() ? "" : error()}>{message => <FormNote tone="warning">{message()}</FormNote>}</Show>
     <Show when={busy() && progress()}><p role="status">{progress()}</p></Show>
     <Show when={editing()}>
       {/* After song and excerpt choice, capture carries a way to change the

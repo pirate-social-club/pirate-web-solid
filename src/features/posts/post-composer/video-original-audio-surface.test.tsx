@@ -2,7 +2,7 @@
 import type { JSX } from "@solidjs/web";
 import { render as solidRender } from "@solidjs/web";
 import { createRoot } from "solid-js";
-import { afterEach, describe, expect, test } from "vitest";
+import { afterEach, describe, expect, test, vi } from "vitest";
 
 import {
   OriginalVideoCaptureSurface,
@@ -31,15 +31,69 @@ afterEach(() => {
 });
 
 describe("original-audio video design surfaces", () => {
-  test("fails unsupported recording before capture while preserving upload", () => {
-    render(() => <OriginalVideoCaptureSurface status="capability_unavailable" />);
+  const control = (label: string) =>
+    [...document.querySelectorAll("button")].find(candidate => candidate.textContent?.trim() === label);
 
-    expect(document.body.textContent).toContain("Recording is not supported here");
-    expect(document.body.textContent).toContain("WebM recording is not available");
+  test("fails unsupported recording before capture while preserving upload", () => {
+    const onUpload = vi.fn();
+    render(() => <OriginalVideoCaptureSurface onUpload={onUpload} status="capability_unavailable" />);
+
+    expect(document.body.textContent).toContain("Recording isn’t available here");
+    // A person cannot act on codec names, so none are shown.
+    expect(document.body.textContent).not.toMatch(/H\.264|AAC|WebM/);
     expect(document.querySelector("button[aria-label='Start recording']")).toBeNull();
-    expect([...document.querySelectorAll("button")].some((button) =>
-      button.textContent?.trim() === "Choose a compatible video"
-    )).toBe(true);
+    // Trying again cannot change what a browser can do.
+    expect(control("Try again")).toBeUndefined();
+    control("Upload a video")!.click();
+    expect(onUpload).toHaveBeenCalledOnce();
+  });
+
+  test("a denied camera offers to try again beside the upload action", () => {
+    const onRetake = vi.fn();
+    const onUpload = vi.fn();
+    render(() => <OriginalVideoCaptureSurface onRetake={onRetake} onUpload={onUpload} status="camera_denied" />);
+
+    expect(document.body.textContent).toContain("Camera unavailable");
+    expect(document.body.textContent).toContain("Allow it in your browser settings");
+    control("Try again")!.click();
+    expect(onRetake).toHaveBeenCalledOnce();
+    expect(onUpload).not.toHaveBeenCalled();
+    control("Choose a video instead")!.click();
+    expect(onUpload).toHaveBeenCalledOnce();
+  });
+
+  test("a recording that stopped says so and offers to try again", () => {
+    const onRetake = vi.fn();
+    const onUpload = vi.fn();
+    render(() => <OriginalVideoCaptureSurface onRetake={onRetake} onUpload={onUpload} status="recording_failed" />);
+
+    expect(document.body.textContent).toContain("Recording stopped");
+    expect(document.body.textContent).toContain("nothing was saved");
+    // It is not a statement about the browser.
+    expect(document.body.textContent).not.toContain("isn’t available here");
+    control("Try again")!.click();
+    expect(onRetake).toHaveBeenCalledOnce();
+    control("Upload a video")!.click();
+    expect(onUpload).toHaveBeenCalledOnce();
+  });
+
+  test("the upload panel states what a video must be without naming codecs", () => {
+    render(() => <OriginalVideoCaptureSurface channel="upload" />);
+
+    expect(document.body.textContent).toContain("3 to 15 seconds");
+    expect(document.body.textContent).not.toMatch(/H\.264|AAC/);
+  });
+
+  test("upload is not offered while a take is recording", () => {
+    render(() => <OriginalVideoCaptureSurface status="recording" />);
+
+    expect(control("Upload")!.disabled).toBe(true);
+  });
+
+  test("upload is offered before a take starts", () => {
+    render(() => <OriginalVideoCaptureSurface status="idle" />);
+
+    expect(control("Upload")!.disabled).toBe(false);
   });
 
   test("keeps review to the take, its song, one optional caption and Publish", () => {

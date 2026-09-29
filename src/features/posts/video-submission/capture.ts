@@ -2,7 +2,7 @@ import { ALL_FORMATS, BlobSource, BufferTarget, canEncodeAudio, canEncodeVideo, 
   MediaStreamAudioTrackSource, MediaStreamVideoTrackSource, Mp4OutputFormat, Output, Quality } from "mediabunny";
 
 import { GUIDED_TAKE_MAX_DURATION_SECONDS } from "./clip-duration";
-import { createCaptureFailureBoundary, VideoCaptureError } from "./capture-failure";
+import { createCaptureFailureBoundary, VideoCaptureError, videoAdmissionProblem } from "./capture-failure";
 import { isPortraitFrame, portraitCoverCrop, PORTRAIT_HEIGHT, PORTRAIT_WIDTH } from "./portrait-crop";
 export { VideoCaptureError } from "./capture-failure";
 export interface VideoCaptureSession {
@@ -56,13 +56,18 @@ export async function inspectVideoFile(
     const audio = await input.getPrimaryAudioTrack();
     const container = (await input.getMimeType()).split(";")[0]?.trim();
     const duration = await input.computeDuration();
-    if (!video || !audio || (container !== "video/mp4" && container !== "video/quicktime")
-      || await video.getCodec() !== "avc" || await audio.getCodec() !== "aac"
-      || !Number.isFinite(duration) || duration < 3 || duration > maxDuration) {
-      throw new VideoCaptureError("invalid_media", "Video must contain H.264 and AAC and last 3–180 seconds");
-    }
+    const problem = videoAdmissionProblem({
+      container,
+      hasVideo: video !== null,
+      hasAudio: audio !== null,
+      videoCodec: video === null ? null : await video.getCodec(),
+      audioCodec: audio === null ? null : await audio.getCodec(),
+      durationSeconds: duration,
+      maxDurationSeconds: maxDuration,
+    });
+    if (problem !== null || video === null) throw new VideoCaptureError("invalid_media", problem ?? "That video has no picture.");
     if (options.requirePortrait && !isPortraitFrame(await video.getDisplayWidth(), await video.getDisplayHeight())) {
-      throw new VideoCaptureError("invalid_media", "The camera did not save a 9:16 video. Retake before uploading.");
+      throw new VideoCaptureError("invalid_media", "The camera didn’t save a vertical video. Record again before uploading.");
     }
     return new File([file], file.name, { type, lastModified: file.lastModified });
   } finally { input.dispose(); }
@@ -86,7 +91,7 @@ async function assertRecordingCapability(): Promise<void> {
     || !await canEncodeVideo("avc", { width: 720, height: 1280, quality: videoQuality,
       fullCodecString: "avc1.42e01f", hardwareAcceleration: "prefer-hardware", latencyMode: "realtime" })
     || !await canEncodeAudio("aac", { numberOfChannels: 1, sampleRate: 48_000, quality: audioQuality })) {
-    throw new VideoCaptureError("capability_unavailable", "This browser cannot record H.264 and AAC; choose a compatible video instead");
+    throw new VideoCaptureError("capability_unavailable", "This browser can’t record video. Upload a video instead.");
   }
 }
 
@@ -98,7 +103,7 @@ async function openCameraStream(): Promise<MediaStream> {
     // and left only a 405x720 portrait crop. Landscape frames still go through
     // the centered portrait crop below.
     return await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user", width: { ideal: 1920 }, height: { ideal: 1080 }, frameRate: { ideal: 30, max: 30 } }, audio: true });
-  } catch { throw new VideoCaptureError("camera_denied", "Camera or microphone access is unavailable; upload remains available"); }
+  } catch { throw new VideoCaptureError("camera_denied", "Camera or microphone access is off."); }
 }
 
 /** Opens the camera for a live preview before recording, so the capture
@@ -127,7 +132,7 @@ async function portraitEncodingTrack(stream: MediaStream, camera: MediaStreamVid
   canvas.height = PORTRAIT_HEIGHT;
   const context = canvas.getContext("2d", { alpha: false });
   if (!context || typeof canvas.captureStream !== "function") {
-    throw new VideoCaptureError("capability_unavailable", "This browser cannot save portrait video. Choose a compatible browser.");
+    throw new VideoCaptureError("capability_unavailable", "This browser can’t save vertical video. Upload a video instead.");
   }
   const cameraView = document.createElement("video");
   cameraView.muted = true;
@@ -209,14 +214,14 @@ export async function startOriginalVideoCapture(input: OriginalVideoCaptureInput
       boundary.fail("interrupted", "The recording stopped because you left the page. Record again.");
     }
   };
-  const trackEnded = () => boundary.fail("encoder_failed", "A camera or microphone source ended. Retake the video.");
+  const trackEnded = () => boundary.fail("encoder_failed", "The camera or microphone stopped. Try recording again.");
   try {
     const video = stream.getVideoTracks()[0]; const audio = stream.getAudioTracks()[0];
-    if (!video || !audio) throw new VideoCaptureError("capability_unavailable", "Both camera and microphone tracks are required");
+    if (!video || !audio) throw new VideoCaptureError("capability_unavailable", "A camera and a microphone are both needed to record.");
     const settings = video.getSettings(); const sound = audio.getSettings();
     portraitTrack = await portraitEncodingTrack(stream, video, () => {
       frameFailed = true;
-      boundary.fail("encoder_failed", "Portrait frame processing stopped. Retake the video.");
+      boundary.fail("encoder_failed", "Recording stopped. Try again.");
     });
     const { width, height } = portraitTrack;
     const pixels = width * height;
@@ -224,7 +229,7 @@ export async function startOriginalVideoCapture(input: OriginalVideoCaptureInput
     if (pixels > 1080 * 1920 || !await canEncodeVideo("avc", { width, height, quality: videoQuality,
       fullCodecString: profile, hardwareAcceleration: "prefer-hardware", latencyMode: "realtime" })
       || !await canEncodeAudio("aac", { numberOfChannels: sound.channelCount ?? 1, sampleRate: sound.sampleRate ?? 48_000, quality: audioQuality })) {
-      throw new VideoCaptureError("capability_unavailable", "The actual camera and microphone configuration is unsupported");
+      throw new VideoCaptureError("capability_unavailable", "This browser can’t record with this phone’s camera and microphone.");
     }
     const videoSource = new MediaStreamVideoTrackSource(portraitTrack.track, { codec: "avc", quality: videoQuality,
       fullCodecString: profile, keyFrameInterval: 1, hardwareAcceleration: "prefer-hardware", latencyMode: "realtime" },
@@ -247,7 +252,7 @@ export async function startOriginalVideoCapture(input: OriginalVideoCaptureInput
     orientation?.addEventListener("change", rotated);
     for (const track of tracks) track.addEventListener("ended", trackEnded, { once: true });
     await output.start();
-    if (ended) throw new VideoCaptureError("encoder_failed", "Capture ended before recording could start");
+    if (ended) throw new VideoCaptureError("encoder_failed", "The recording didn’t start. Try again.");
     // The exposed capture origin: the encoder is running and the file's
     // timeline begins here. Everything after this in setup time must not be
     // counted as recorded lead-in.
@@ -271,8 +276,8 @@ export async function startOriginalVideoCapture(input: OriginalVideoCaptureInput
         try {
           await output.finalize();
           boundary.assertFinalized();
-          if (frameFailed) throw new VideoCaptureError("encoder_failed", "Portrait frame processing stopped. Retake the video.");
-          if (!target.buffer) throw new VideoCaptureError("encoder_failed", "Capture did not finalize a file");
+          if (frameFailed) throw new VideoCaptureError("encoder_failed", "Recording stopped. Try again.");
+          if (!target.buffer) throw new VideoCaptureError("encoder_failed", "The recording couldn’t be saved. Try again.");
           return await inspectVideoFile(new File([target.buffer], "original-video.mp4", { type: "video/mp4" }), {
             // Only the app's own guided take is allowed its tail guard; a
             // chosen file keeps the ordinary admission bound.

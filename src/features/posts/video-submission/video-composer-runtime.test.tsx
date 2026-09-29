@@ -1460,6 +1460,94 @@ describe("mounted song-first video flow", () => {
       expect(startCapture).not.toHaveBeenCalled();
     });
 
+    test("Try again after a denied camera asks for the camera again", async () => {
+      const { VideoCaptureError } = await import("./capture");
+      previewFailure = new VideoCaptureError("camera_denied", "denied");
+      songSetup({ preflight: "accepted", mobile: true });
+      await loadSongMetadata();
+      await awaitPlan("ready");
+      await vi.waitFor(() => expect(document.body.textContent).toContain("Camera unavailable"));
+      expect(openPreview).toHaveBeenCalledTimes(1);
+      // The person allowed the camera in the browser's settings.
+      previewFailure = undefined;
+      button("Try again")!.click();
+      await vi.waitFor(() => expect(previews).toHaveLength(1));
+      await vi.waitFor(() => expect(document.querySelector('button[aria-label="Start recording"]')).not.toBeNull());
+      expect(document.body.textContent).not.toContain("Camera unavailable");
+    });
+
+    test("a browser that cannot record says so plainly and offers only the upload", async () => {
+      const { VideoCaptureError } = await import("./capture");
+      previewFailure = new VideoCaptureError("capability_unavailable", "This browser can’t record video. Upload a video instead.");
+      songSetup({ preflight: "accepted", mobile: true });
+      await loadSongMetadata();
+      await awaitPlan("ready");
+      await vi.waitFor(() => expect(document.body.textContent).toContain("Recording isn’t available here"));
+      expect(button("Upload a video")).not.toBeUndefined();
+      expect(button("Try again")).toBeUndefined();
+      expect(document.body.textContent).not.toMatch(/H\.264|AAC|WebM/);
+      // The panel says it once: the raw message is not repeated above it.
+      expect(document.body.textContent!.match(/can’t record video/g)).toHaveLength(1);
+    });
+
+    test("a recording that fails after it started is a retryable stop, not an unsupported browser", async () => {
+      const { VideoCaptureError } = await import("./capture");
+      nextSession = () => fakeSession(() => undefined);
+      songSetup({ preflight: "accepted", mobile: true, createGuideAudio: () => guideSpy().audio });
+      await loadSongMetadata();
+      await awaitPlan("ready");
+      await vi.waitFor(() => expect(previews).toHaveLength(1));
+      await startRecording();
+      await vi.waitFor(() => expect(startCapture).toHaveBeenCalledTimes(1));
+      await vi.waitFor(() => expect(document.querySelector('button[aria-label="Stop recording"]')).not.toBeNull());
+      startCapture.mock.calls[0]![0].onFailure(new VideoCaptureError("encoder_failed", "Recording failed. Try again or upload a video."));
+      await vi.waitFor(() => expect(document.body.textContent).toContain("Recording stopped"));
+      expect(document.body.textContent).not.toContain("isn’t available here");
+      // The panel says it; the raw message is not repeated above it.
+      expect(document.body.textContent).not.toContain("Recording failed.");
+      expect(document.querySelector("textarea")).toBeNull();
+      button("Try again")!.click();
+      await vi.waitFor(() => expect(document.querySelector('button[aria-label="Start recording"]')).not.toBeNull());
+      expect(document.body.textContent).not.toContain("Recording stopped");
+    });
+
+    test("after Stop the capture screen says the take is being finished", async () => {
+      let finish = () => {};
+      const held = new Promise<void>(resolve => { finish = resolve; });
+      nextSession = () => fakeSession(() => undefined);
+      songSetup({
+        preflight: "accepted", mobile: true, createGuideAudio: () => guideSpy().audio,
+        alignTake: async (file, offsetMs) => {
+          await held;
+          return { file, trimmedMs: offsetMs, requestedMs: offsetMs, aligned: true };
+        },
+      });
+      await loadSongMetadata();
+      await awaitPlan("ready");
+      await vi.waitFor(() => expect(previews).toHaveLength(1));
+      await startRecording();
+      await vi.waitFor(() => expect(startCapture).toHaveBeenCalledTimes(1));
+      await vi.waitFor(() => expect(document.querySelector('button[aria-label="Stop recording"]')).not.toBeNull());
+      expect(document.body.textContent).not.toContain("Finishing your video");
+      await stopRecording();
+      await vi.waitFor(() => expect(document.body.textContent).toContain("Finishing your video…"));
+      finish();
+      await vi.waitFor(() => expect(document.querySelector("textarea")).not.toBeNull());
+      expect(document.body.textContent).not.toContain("Finishing your video");
+    });
+
+    test("upload is not offered while a take is recording", async () => {
+      nextSession = () => fakeSession(() => undefined);
+      songSetup({ preflight: "accepted", mobile: true, createGuideAudio: () => guideSpy().audio });
+      await loadSongMetadata();
+      await awaitPlan("ready");
+      await vi.waitFor(() => expect(previews).toHaveLength(1));
+      expect(button("Upload")!.disabled).toBe(false);
+      await startRecording();
+      await vi.waitFor(() => expect(document.querySelector('button[aria-label="Stop recording"]')).not.toBeNull());
+      expect(button("Upload")!.disabled).toBe(true);
+    });
+
     function setVisibility(state: "hidden" | "visible") {
       Object.defineProperty(document, "visibilityState", { configurable: true, get: () => state });
       document.dispatchEvent(new Event("visibilitychange"));
