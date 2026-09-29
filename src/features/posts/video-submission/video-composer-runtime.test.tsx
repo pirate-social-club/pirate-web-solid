@@ -164,14 +164,14 @@ function reopenedWithSubmittedUpload(options: {
   };
   const snapshot: VideoSnapshot = { ...base, status: "processing", phase: "awaiting_upload" };
   const sealedAt = { ...base, creation_revision: 2, video_revision: 1 };
-  const sealedSnapshots: Record<typeof SEALED_OUTCOMES[number], VideoSnapshot> = {
+  const sealedSnapshots = {
     processing: { ...sealedAt, status: "processing", phase: "analysis" },
     manual_review: { ...sealedAt, status: "manual_review", reason_codes: ["media_review_required"], review_ref: "review" },
     processing_failed: { ...sealedAt, status: "processing_failed", reason_code: "transform_failed", retryable: false, retry_count: 0 },
     blocked: { ...sealedAt, status: "blocked", reason_code: "policy_violation" },
     abandoned: { ...sealedAt, status: "abandoned", reason_code: "author_cancelled_before_finalize" },
     published: { ...sealedAt, status: "published", published_resource: { post_id: "post", href: "/posts/post" } },
-  };
+  } satisfies Record<typeof SEALED_OUTCOMES[number], VideoSnapshot>;
   const held = options.sealed ? sealedSnapshots[options.sealed] : snapshot;
   let saved: PendingVideo | null = {
     version: "original-video-pending-v1", principalId: "account", communityId: options.communityId ?? "community", personaId: "persona",
