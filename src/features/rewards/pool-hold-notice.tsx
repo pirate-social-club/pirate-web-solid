@@ -1,4 +1,4 @@
-import { Show, createSignal, onCleanup } from "solid-js";
+import { Show, createSignal, onSettled } from "solid-js";
 import { createPublicApiClient, type PirateApiClient } from "../../api/client.ts";
 import type { GetCommunitiesCommunityIdPostsPostIdRewardsMegapotPoolResponse } from "@pirate/api-client";
 
@@ -23,21 +23,24 @@ export function PoolHoldNotice(props: {
   readonly postId: string;
   readonly client?: PirateApiClient;
 }) {
-  const client = props.client ?? createPublicApiClient();
   const [pool, setPool] = createSignal<Pool | undefined>(undefined);
-  let cancelled = false;
-  void (async () => {
-    try {
-      const result = await client.get_communitiesCommunityIdPostsPostIdRewardsMegapotPool({
-        path: { communityId: props.communityId, postId: props.postId },
-      });
-      if (!cancelled) setPool(result.pool);
-    } catch {
-      if (!cancelled) setPool(null);
-    }
-  })();
-  onCleanup(() => {
-    cancelled = true;
+  onSettled(() => {
+    let cancelled = false;
+    // The optional read belongs to the browser. Defer it past the settle
+    // callback so even a synchronous client failure can safely update state.
+    void Promise.resolve().then(async () => {
+      if (cancelled) return;
+      try {
+        const client = props.client ?? createPublicApiClient();
+        const result = await client.get_communitiesCommunityIdPostsPostIdRewardsMegapotPool({
+          path: { communityId: props.communityId, postId: props.postId },
+        });
+        if (!cancelled) setPool(result.pool);
+      } catch {
+        if (!cancelled) setPool(null);
+      }
+    });
+    return () => { cancelled = true; };
   });
   const visible = () => {
     const current = pool();

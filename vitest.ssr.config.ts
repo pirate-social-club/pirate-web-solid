@@ -40,6 +40,7 @@ export default defineConfig({
       "src/features/profiles/public-profile-page/public-profile-page.model.test.ts",
       "src/community-creation-avatar-authoring-ssr.test.tsx",
       "src/features/wallet/wallet-route-ssr.test.tsx",
+      "src/features/posts/public-post/public-post-activities-ssr.test.tsx",
     ],
   },
 });

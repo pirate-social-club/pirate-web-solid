@@ -44,12 +44,15 @@ const client = (result: () => Promise<{ readonly pool: Pool }>) =>
   get_communitiesCommunityIdPostsPostIdRewardsMegapotPool: vi.fn(async () => result()),
 });
 
+const disposers: (() => void)[] = [];
+
 const mount = (poolResult: () => Promise<{ readonly pool: Pool }>) => {
   const host = document.createElement("div");
   document.body.appendChild(host);
   // SAFETY: the fake exposes only the pool read, which is all the notice calls.
   const fakeClient = client(poolResult) as never;
-  createRoot(() => {
+  createRoot(dispose => {
+    disposers.push(dispose);
     render(
       () => (
         <PoolHoldNotice client={fakeClient} communityId="community-1" postId="post-1" />
@@ -61,6 +64,8 @@ const mount = (poolResult: () => Promise<{ readonly pool: Pool }>) => {
 };
 
 afterEach(() => {
+  disposers.splice(0).forEach(dispose => dispose());
+  vi.unstubAllGlobals();
   document.body.replaceChildren();
 });
 
@@ -84,4 +89,31 @@ it("renders nothing without a pool, for a terminal leg, or when the read fails",
   );
   await new Promise((resolve) => setTimeout(resolve, 0));
   expect(failed.querySelector("[data-pool-hold-notice]")).toBeNull();
+});
+
+it("keeps the activity available when constructing the optional client fails", async () => {
+  vi.stubGlobal("location", undefined);
+  const host = document.createElement("div");
+  document.body.appendChild(host);
+  expect(() => createRoot(dispose => {
+    disposers.push(dispose);
+    render(() => <>
+      <PoolHoldNotice communityId="community-1" postId="post-1" />
+      <p>Activity available</p>
+    </>, host);
+  })).not.toThrow();
+  await new Promise(resolve => setTimeout(resolve, 0));
+  expect(host.textContent).toBe("Activity available");
+  expect(host.querySelector("[data-pool-hold-notice]")).toBeNull();
+});
+
+it("ignores a pool read that resolves after the activity is disposed", async () => {
+  let resolvePool: (value: { readonly pool: Pool }) => void = () => {};
+  const read = vi.fn(() => new Promise<{ readonly pool: Pool }>(resolve => { resolvePool = resolve; }));
+  const host = mount(read);
+  await vi.waitFor(() => expect(read).toHaveBeenCalledOnce());
+  disposers.splice(0).forEach(dispose => dispose());
+  resolvePool({ pool: pool("active") });
+  await new Promise(resolve => setTimeout(resolve, 0));
+  expect(host.querySelector("[data-pool-hold-notice]")).toBeNull();
 });
