@@ -82,7 +82,7 @@ function NamespaceRecordList(props: { records: ReadonlyArray<NamespaceResourceRe
     <div class="space-y-4">
       <For each={props.records}>
         {(record) => (
-          <div class="space-y-2">
+          <div class="space-y-2" data-hns-record-type={record.record_type} data-hns-record-value={record.value}>
             <div class="flex items-center justify-between gap-3">
               <Type as="div" variant="caption">{record.record_type}</Type>
               <Show when={!record.supported}>
@@ -113,7 +113,7 @@ function NamespaceRecordPlan(props: { rows: ReadonlyArray<NamespaceRecordRow> })
     <ul class="space-y-3">
       <For each={props.rows}>
         {(row) => (
-            <li class="space-y-3 rounded-lg border border-border p-3">
+            <li class="space-y-3 rounded-lg border border-border p-3" data-hns-record-type={row.record.record_type} data-hns-record-value={row.record.value} data-hns-record-change={row.change}>
               <div class="flex flex-wrap items-center gap-2">
                 <Type as="span" variant="caption">{row.record.record_type}</Type>
                 <RecordChangeBadge change={row.change} />
