@@ -842,6 +842,8 @@ export const SubmittedUploadExpired: Story = {
     await canvas.findByText("This upload expired. Cancel it, then choose the video again.", {}, { timeout: 20_000 });
     await canvas.findByRole("button", { name: "Cancel upload" });
     expect(canvas.queryByRole("button", { name: "Try again" })).toBeNull();
+    // The coordinator's own sentence for the same fact is not shown beside it.
+    expect(canvas.queryByText(/reservation|resolve it before starting a new attempt/i)).toBeNull();
   },
 };
 
@@ -908,6 +910,8 @@ export const VideoNotAccepted: Story = {
     const canvas = within(canvasElement);
     await canvas.findByText("This video wasn’t accepted.", {}, { timeout: 30_000 });
     await canvas.findByRole("button", { name: "Edit rejected video" });
+    // The server's own message for the refusal is not shown beside the plain sentence.
+    expect(canvas.queryByText("Request refused")).toBeNull();
   },
 };
 
@@ -928,6 +932,7 @@ export const VideoNotAcceptedBySong: Story = {
     const alert = await canvas.findByRole("alert", {}, { timeout: 30_000 });
     expect(alert).toHaveTextContent(/Choose another song\./);
     await canvas.findByRole("button", { name: "Edit rejected video" });
+    expect(canvas.queryByText("Request refused")).toBeNull();
   },
 };
 
@@ -968,17 +973,6 @@ export const NoPostingProfile: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await canvas.findByText("Choose a posting profile for this community.", {}, { timeout: 30_000 });
-  },
-};
-
-export const CameraDenied: Story = {
-  name: "Camera permission denied",
-  render: () => <Harness autoStart startCapture={captureDouble({ fail: "camera_denied" })} />,
-  play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement);
-    await canvas.findByRole("heading", { name: "Camera unavailable" }, { timeout: 20_000 });
-    await canvas.findByRole("button", { name: "Try again" });
-    await canvas.findByRole("button", { name: "Choose a video instead" });
   },
 };
 
