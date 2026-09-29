@@ -248,10 +248,13 @@ export function VideoComposerRuntime(props: {
     const original = originalPreview(); if (original) URL.revokeObjectURL(original);
     setPreview(undefined); setOriginalPreview(undefined);
   }
-  async function run<T>(action: () => Promise<T>): Promise<void> {
+  /** `explained` says the screen already reports this failure in its own words,
+   * so the raw message would only repeat it; only an action that can itself
+   * produce that state passes it. A later action that fails is a new fact. */
+  async function run<T>(action: () => Promise<T>, explained?: () => boolean): Promise<void> {
     if (busy() || disposed) return;
     setBusy(true); setError(""); setProgress("");
-    try { await action(); } catch (failure) { if (!disposed) setError(failure instanceof Error ? failure.message : "The video attempt could not be completed safely"); }
+    try { await action(); } catch (failure) { if (!disposed && !explained?.()) setError(failure instanceof Error ? failure.message : "The video attempt could not be completed safely"); }
     finally { if (!disposed) { setBusy(false); setProgress(""); } }
   }
   const posted = () => (props.onPosted ?? (() => globalThis.location?.assign("/")))();
@@ -746,7 +749,7 @@ export function VideoComposerRuntime(props: {
         throw new Error("Your video is uploaded, but we couldn't confirm it arrived yet. Checking again…");
       }
       if (!disposed && await coordinator.release()) posted();
-    });
+    }, publishFailureExplained);
   }
   /** Whether a finalize was sent and its answer never arrived. */
   const finalizeUnconfirmed = () => record()?.pending?.command.kind === "finalize";
@@ -845,12 +848,21 @@ export function VideoComposerRuntime(props: {
   const editing = () => !record();
   const awaiting = () => { const snapshot = state(); return snapshot?.status === "processing" && snapshot.phase === "awaiting_upload"; };
   /** An upload whose window has closed cannot be resumed, only cancelled. */
-  const reservationExpired = () => awaiting() && Date.parse(record()?.reservation?.upload.expires_at ?? "") <= Date.now();
-  /** Whether the screen already says what went wrong in its own words: a capture
-   * panel, a refused video's sentence, an expired upload's notice. The warning
-   * carries the server's or coordinator's wording for the same fact, so it would
-   * only repeat it in words the author was never meant to read. */
-  const ownWordsShown = () => panelShown() || record()?.rejection !== undefined || reservationExpired();
+  const uploadExpired = (current: PendingVideo | null) => {
+    const snapshot = current?.snapshot;
+    return snapshot?.status === "processing" && snapshot.phase === "awaiting_upload"
+      && Date.parse(current?.reservation?.upload.expires_at ?? "") <= Date.now();
+  };
+  const reservationExpired = () => uploadExpired(record());
+  /** Whether a failed publish attempt is already explained on screen: the server
+   * refused the video, or its upload window has closed. Each has a plain sentence
+   * of its own, and the failure carries the server's or coordinator's wording for
+   * the same fact. Read from the coordinator, because a write to the record signal
+   * is not visible to a read in the same tick. */
+  const publishFailureExplained = () => {
+    const current = coordinator.current;
+    return current?.rejection !== undefined || uploadExpired(current);
+  };
   const blocked = () => { const snapshot = state(); return snapshot?.status === "blocked" ? snapshot : undefined; };
   // One plain sentence for the submitted video. Raw server states never
   // reach the screen; while an action runs, only real upload progress shows.
@@ -913,7 +925,7 @@ export function VideoComposerRuntime(props: {
   };
   return <section class="grid gap-3" aria-label="Video composer">
     <input ref={element => { picker = element; }} hidden type="file" accept="video/mp4,video/quicktime,.mp4,.mov" onChange={event => { void chooseFile(event.currentTarget.files?.[0]); event.currentTarget.value = ""; }} />
-    <Show when={ownWordsShown() ? "" : error()}>{message => <FormNote tone="warning">{message()}</FormNote>}</Show>
+    <Show when={panelShown() ? "" : error()}>{message => <FormNote tone="warning">{message()}</FormNote>}</Show>
     <Show when={busy() && progress()}><p role="status">{progress()}</p></Show>
     <Show when={editing()}>
       {/* After song and excerpt choice, capture carries a way to change the

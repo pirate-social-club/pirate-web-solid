@@ -169,6 +169,8 @@ function reopenedWithSubmittedUpload(options: {
   readonly sealed?: typeof SEALED_OUTCOMES[number];
   /** When the retained upload's window closes; the default is far in the future. */
   readonly uploadExpiresAt?: string;
+  /** Cancelling fails as it does when the connection is lost. */
+  readonly failCancel?: boolean;
 } = {}) {
   vi.stubGlobal("crypto", webcrypto);
   const urlApi = class extends URL { static createObjectURL() { return "blob:https://example.test/video"; } static revokeObjectURL() {} };
@@ -198,7 +200,10 @@ function reopenedWithSubmittedUpload(options: {
   const storage: VideoStorage = {
     async exclusive(work) { return work(); }, async load() { return saved; }, async save(record) { saved = record; }, async remove() { saved = null; },
   };
-  const execute = vi.fn(async () => ({ ...snapshot, phase: "analysis" as const }));
+  const execute = vi.fn(async (command: VideoCommand) => {
+    if (options.failCancel && command.kind === "cancel") throw new Error("The connection dropped");
+    return { ...snapshot, phase: "analysis" as const };
+  });
   let uploads = 0;
   const fetchImpl = vi.fn<typeof fetch>();
   fetchImpl.mockImplementation(async () => {
@@ -260,6 +265,15 @@ describe("a submitted upload when the composer is reopened", () => {
     expect(document.body.textContent).not.toMatch(/reservation|resolve it before starting a new attempt/i);
     expect(controlLabels()).toContain("Cancel upload");
     expect(controlLabels()).not.toContain("Try again");
+  });
+
+  test("cancelling an expired upload still reports its own failure beside the expiry notice", async () => {
+    reopenedWithSubmittedUpload({ uploadExpiresAt: "2026-01-01T00:00:00Z", failCancel: true });
+    await vi.waitFor(() => expect(controlLabeled("Cancel upload")).toBeDefined(), { timeout: 5_000 });
+    controlLabeled("Cancel upload")!.click();
+    // The expiry notice explains the state; it does not explain why this action failed.
+    await vi.waitFor(() => expect(document.body.textContent).toContain("The connection dropped"), { timeout: 5_000 });
+    expect(document.body.textContent).toContain("This upload expired. Cancel it, then choose the video again.");
   });
 
   test("a video that belongs to another community waits and says so plainly", async () => {
