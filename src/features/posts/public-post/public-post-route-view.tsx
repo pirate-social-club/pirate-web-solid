@@ -5,6 +5,7 @@ import { reloadCurrentPublicPostRoute } from "./public-post-route-loader.ts";
 import { Link, Meta, Title } from "@solidjs/meta";
 import { Loading, Show, createMemo, createSignal, onCleanup, untrack } from "solid-js";
 import { KaraokeLeaderboardRouteView, KaraokeSessionRouteView } from "../../karaoke/karaoke-route-view.tsx";
+import { PoolHoldNotice } from "../../rewards/pool-hold-notice.tsx";
 import { StudyV2RouteView } from "../../studying/study-v2-route-view.tsx";
 import type { PublicPostContentResponse, PublicPostRouteState } from "./public-post-route.model.ts";
 import { projectVideoDelivery } from "../video-submission/delivery-state";
@@ -143,12 +144,20 @@ function Content(props: { readonly state: Extract<PublicPostRouteState, { readon
               postId={props.state.response.post_id}
             />
           )}>
+            <PoolHoldNotice
+              communityId={props.state.response.content.post.community}
+              postId={props.state.response.post_id}
+            />
             <KaraokeSessionRouteView
               exitPath={detailPath()}
               postId={props.state.response.post_id}
             />
           </Show>
         )}>
+          <PoolHoldNotice
+            communityId={props.state.response.content.post.community}
+            postId={props.state.response.post_id}
+          />
           <StudyV2RouteView
             exitPath={detailPath()}
             karaokePath={karaokePath()}

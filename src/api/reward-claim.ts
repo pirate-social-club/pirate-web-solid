@@ -19,16 +19,22 @@ export function createRewardClaimData(
     return sessionRequestOptions(token);
   };
   return {
-    /** Every page of the account's credits (bounded), so no winning is missed. */
+    /** Every page of the account's credits, so no winning is missed however
+     * many credits the account holds. A repeated cursor or the hard page
+     * ceiling fails loudly instead of silently truncating the list. */
     async credits() {
       const items: RewardCredit[] = [];
+      const seenCursors = new Set<string>();
       let cursor: string | null = null;
-      for (let page = 0; page < 20; page += 1) {
+      for (let page = 0; page < 10_000; page += 1) {
         const result = await client.get_rewardsCredits({ query: { limit: "100", cursor } });
         items.push(...result.items);
         cursor = result.next_cursor;
         if (cursor === null) break;
+        if (seenCursors.has(cursor)) throw new Error("reward_credit_cursor_repeated");
+        seenCursors.add(cursor);
       }
+      if (cursor !== null) throw new Error("reward_credit_page_ceiling_exceeded");
       return { object: "reward_credit_list" as const, items, next_cursor: null };
     },
     claim(creditId: string) {
