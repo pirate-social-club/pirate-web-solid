@@ -10,14 +10,17 @@ import { StudyV2RouteView } from "../../studying/study-v2-route-view.tsx";
 import type { PublicPostContentResponse, PublicPostRouteState } from "./public-post-route.model.ts";
 import { projectVideoDelivery } from "../video-submission/delivery-state";
 import { VideoPlayer } from "../video-submission/video-player";
-import { SongPlayer } from "../song-player/song-player.tsx";
 import { SongVideoEntry } from "./song-video-entry.tsx";
 import { SongAttributionChip } from "../song-attribution/song-attribution-chip.tsx";
 import { readSongAttribution } from "../song-attribution/song-attribution.ts";
-import { IconMusicNote, buttonVariants } from "../../../design-system";
+import { CommunityPostCard } from "../../community/page-shell/page-shell";
+import { PublicPostEngagement, type PublicPostEngagementDependencies } from "./public-post-engagement";
+import type { CommunityPost } from "../../community/page-shell/page-shell-model";
+import { buttonVariants } from "../../../design-system";
 
 export interface PublicPostRouteViewProps {
   readonly state: PublicPostRouteState | PromiseLike<PublicPostRouteState>;
+  readonly engagement?: PublicPostEngagementDependencies;
   readonly reload?: typeof reloadCurrentPublicPostRoute;
   readonly verifyAge?: typeof verifyAdultViewing;
 }
@@ -79,10 +82,18 @@ function PublicMetadata(props: { readonly state: Extract<PublicPostRouteState, {
   );
 }
 
-function PostDetail(props: { readonly response: PublicPostContentResponse }) {
+function PostDetail(props: { readonly response: PublicPostContentResponse; readonly engagement?: PublicPostEngagementDependencies }) {
   const body = () => displayBody(props.response);
   const route = () => props.response.route;
   const title = () => displayTitle(props.response);
+  const count = (value: unknown): number => typeof value === "number" && Number.isFinite(value) ? value : 0;
+  const songPost = (): CommunityPost => ({
+    id: props.response.post_id, title: title(), body: body() ?? "", kind: "song",
+    mediaTitle: title(), authorHandle: author(props.response), authorAvatarSrc: props.response.content.post.author_persona?.avatar_ref,
+    publishedAt: typeof props.response.content.post.created === "number" ? new Date(props.response.content.post.created * 1000).toISOString() : "",
+    score: count(props.response.content.upvote_count) - count(props.response.content.downvote_count),
+    upvoteCount: count(props.response.content.upvote_count), downvoteCount: count(props.response.content.downvote_count), commentCount: count(props.response.content.comment_count),
+  });
   return (
     <main class="mx-auto w-full max-w-3xl min-w-0 px-4 pb-24 pt-6 md:px-8 md:py-10" data-public-post-state="content">
       <article
@@ -90,11 +101,13 @@ function PostDetail(props: { readonly response: PublicPostContentResponse }) {
         dir={contentDirection(props.response.content.resolved_locale)}
         lang={props.response.content.resolved_locale}
       >
+        <Show when={props.response.content.post.post_type !== "song"}>
         <header class="min-w-0 border-b border-border-soft pb-5">
           <p class="mb-2 text-sm text-muted-foreground">{author(props.response)}</p>
           <h1 class="break-words text-2xl font-bold tracking-tight md:text-3xl">{title()}</h1>
         </header>
         <Show when={body()}>{value => <p class="mt-5 whitespace-pre-wrap break-words leading-relaxed">{value()}</p>}</Show>
+        </Show>
         <Show when={props.response.content.post.post_type === "video"}>
           <div class="mt-6"><VideoPlayer requiresAgeVerification={props.response.content.post.age_gate_policy === "18_plus"} postId={props.response.post_id} state={projectVideoDelivery(props.response.content.video)} /></div>
           <Show when={readSongAttribution(props.response.content.video)}>
@@ -103,14 +116,11 @@ function PostDetail(props: { readonly response: PublicPostContentResponse }) {
         </Show>
         <Show when={props.response.content.post.post_type === "song"}>
           <div class="mt-6 grid min-w-0 gap-5">
-            <div class="flex min-w-0 items-center gap-4 rounded-2xl border border-border-soft bg-card p-4">
-              <div class="grid size-16 shrink-0 place-items-center rounded-xl bg-muted"><IconMusicNote class="size-8 text-muted-foreground" aria-hidden="true" /></div>
-              <div class="min-w-0 flex-1">
-                <p class="truncate text-sm font-semibold">{title()}</p>
-                <p class="truncate text-sm text-muted-foreground">{author(props.response)}</p>
-                <div class="mt-3 min-w-0"><SongPlayer postId={props.response.post_id} title={title()} /></div>
-              </div>
-            </div>
+            <h1 class="sr-only">{title()}</h1>
+            <PublicPostEngagement dependencies={props.engagement} communityId={props.response.content.post.community}
+              post={{ id: props.response.post_id, upvoteCount: songPost().upvoteCount ?? null, downvoteCount: songPost().downvoteCount ?? null, commentCount: songPost().commentCount ?? null }}>
+              {controls => <CommunityPostCard post={songPost()} actions={controls} />}
+            </PublicPostEngagement>
             <SongVideoEntry communityId={props.response.content.post.community} postId={props.response.post_id} />
             <Show when={route()}>
               {(songRoute) => (
@@ -127,7 +137,7 @@ function PostDetail(props: { readonly response: PublicPostContentResponse }) {
   );
 }
 
-function Content(props: { readonly state: Extract<PublicPostRouteState, { readonly kind: "content" }> }) {
+function Content(props: { readonly state: Extract<PublicPostRouteState, { readonly kind: "content" }>; readonly engagement?: PublicPostEngagementDependencies }) {
   const route = () => props.state.response.route;
   const detailPath = () => route()?.canonical_path ?? "/";
   const karaokePath = () => route()?.activity_paths.karaoke ?? "/";
@@ -166,7 +176,7 @@ function Content(props: { readonly state: Extract<PublicPostRouteState, { readon
           />
         </Show>
       )}>
-        <PostDetail response={props.state.response} />
+        <PostDetail response={props.state.response} engagement={props.engagement} />
       </Show>
     </>
   );
@@ -237,15 +247,15 @@ export function PublicPostRouteView(props: PublicPostRouteViewProps) {
     <Show when={!refreshing()} fallback={<main aria-busy="true"><h1>Loading post</h1></main>}>
       <Loading fallback={<main aria-busy="true"><h1>Loading post</h1></main>}>
         <Show when={state()} keyed>
-          {resolved => <Resolved state={resolved} onVerified={verified} verifyAge={props.verifyAge} />}
+          {resolved => <Resolved state={resolved} onVerified={verified} verifyAge={props.verifyAge} engagement={props.engagement} />}
         </Show>
       </Loading>
     </Show>
   );
 }
 
-function Resolved(props: { readonly state: PublicPostRouteState; readonly onVerified: (signal: AbortSignal) => Promise<void>; readonly verifyAge?: typeof verifyAdultViewing }) {
+function Resolved(props: { readonly engagement?: PublicPostEngagementDependencies; readonly state: PublicPostRouteState; readonly onVerified: (signal: AbortSignal) => Promise<void>; readonly verifyAge?: typeof verifyAdultViewing }) {
   const state = untrack(() => props.state);
-  if (state.kind === "content") return <Content state={state} />;
+  if (state.kind === "content") return <Content state={state} engagement={props.engagement} />;
   return <Failure state={state} onVerified={props.onVerified} verifyAge={props.verifyAge} />;
 }

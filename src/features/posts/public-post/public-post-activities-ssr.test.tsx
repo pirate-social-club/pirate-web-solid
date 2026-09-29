@@ -4,7 +4,7 @@ import { afterEach, expect, test, vi } from "vitest";
 import type { PublicPostContentResponse, PublicPostRouteState } from "./public-post-route.model.ts";
 import { PublicPostRouteView } from "./public-post-route-view.tsx";
 
-function activityState(activity: "study" | "karaoke"): PublicPostRouteState {
+function activityState(activity: "study" | "karaoke" | "detail"): PublicPostRouteState {
   const fixture = {
     kind: "content",
     post_id: "song-post",
@@ -62,3 +62,17 @@ test.each(["study", "karaoke"] as const)(
     expect(fetch).not.toHaveBeenCalled();
   },
 );
+
+test("song detail renders the shared post and counts without private session or vote reads", () => {
+  const session = vi.fn(async () => "anonymous" as const);
+  const vote = vi.fn(async () => null);
+  const fetch = vi.fn(() => Promise.reject(new Error("No browser reads during SSR")));
+  vi.stubGlobal("fetch", fetch);
+  const markup = renderToString(() => <PublicPostRouteView state={activityState("detail")} engagement={{ resolveSession: session, readViewerVote: vote }} />);
+  expect(markup).toContain('data-community-post="song-post"');
+  expect(markup).toContain('data-post-counts');
+  expect(markup).toContain('/posts/activity-song/study');
+  expect(session).not.toHaveBeenCalled();
+  expect(vote).not.toHaveBeenCalled();
+  expect(fetch).not.toHaveBeenCalled();
+});

@@ -156,7 +156,7 @@ function SongPost(props: { post: CommunityPost }) {
   );
 }
 
-function FeedPost(props: { post: CommunityPost; communityId?: string; actions?: JSX.Element }) {
+export function CommunityPostCard(props: { post: CommunityPost; communityId?: string; actions?: JSX.Element }) {
   // The feed adapter always resolves a handle, including "Anonymous" and a
   // generic public label. This covers a caller that supplied none, and says so
   // rather than attributing the post to an invented account.
@@ -357,7 +357,7 @@ export function CommunityPageShell(props: CommunityPageShellProps) {
   });
   const songs = createMemo(() => sortedPosts().filter(post => post.kind === "song"));
   const renderPost = (post: CommunityPost) => {
-    const render = (actions?: JSX.Element) => <FeedPost actions={actions} communityId={props.community.id} post={post} />;
+    const render = (actions?: JSX.Element) => <CommunityPostCard actions={actions} communityId={props.community.id} post={post} />;
     return props.renderPost?.(post, render) ?? render();
   };
   /**

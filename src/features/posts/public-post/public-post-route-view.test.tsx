@@ -2,6 +2,8 @@ import { render as solidRender } from "@solidjs/web";
 import { createRoot } from "solid-js";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { GetPublicPostsBySlugResponse } from "@pirate/api-client";
+import type { PostEngagementTransport } from "../post-engagement/post-engagement-api";
+import { createMemoryPendingEngagementStorage, decodePendingEngagementAction } from "../post-engagement/post-engagement-pending";
 import { refreshSession } from "../../../api/session.ts";
 import { PublicPostRouteView } from "./public-post-route-view.tsx";
 import type { PublicPostRouteState } from "./public-post-route.model.ts";
@@ -16,13 +18,13 @@ afterEach(() => {
   document.body.replaceChildren();
 });
 
-function render(state: PublicPostRouteState, reload?: Parameters<typeof PublicPostRouteView>[0]["reload"]): HTMLElement {
+function render(state: PublicPostRouteState, reload?: Parameters<typeof PublicPostRouteView>[0]["reload"], engagement?: Parameters<typeof PublicPostRouteView>[0]["engagement"]): HTMLElement {
   const container = document.createElement("div");
   document.body.appendChild(container);
   let dispose: () => void = () => undefined;
   createRoot(rootDispose => {
     dispose = rootDispose;
-    solidRender(() => <PublicPostRouteView state={state} reload={reload} verifyAge={ageProof} />, container);
+    solidRender(() => <PublicPostRouteView state={state} reload={reload} verifyAge={ageProof} engagement={engagement} />, container);
   });
   cleanups.push(() => { dispose(); container.remove(); });
   return container;
@@ -96,7 +98,7 @@ describe("public post route view", () => {
     });
     expect(container.querySelector("button[aria-label='Play A searchable title']")).not.toBeNull();
     expect(container.querySelector("dl[aria-label='Song delivery status']")).toBeNull();
-    expect(container.textContent).toContain("Play song");
+    expect(container.querySelector("[data-community-post='post-1']")).not.toBeNull();
     expect(container.querySelector("nav[aria-label='Song activities'] a[href='/posts/a-searchable-title/study']")?.textContent).toBe("Study");
     expect(container.querySelector("nav[aria-label='Song activities'] a[href='/posts/a-searchable-title/karaoke']")?.textContent).toBe("Karaoke");
   });
@@ -199,4 +201,43 @@ it("unlocks post detail only after proof and a fresh guarded read, without navig
   await vi.waitFor(() => expect(container.textContent).toContain("A searchable title"));
   expect(reload).toHaveBeenCalledOnce();
   expect(location.href).toBe(before);
+});
+
+it("uses the standard song post card and opens its persisted comment thread", async () => {
+  window.scrollTo = vi.fn();
+  const state = contentState(true);
+  if (state.kind !== "content") throw new Error("Expected content");
+  const readComments = vi.fn(async () => ({ items: [{ comment_id: "comment", parent_comment_id: null, body: "A real thread", depth: 0, reply_count: 0, status: "published" as const, content_rating: "general" as const, created_at: "2026-09-29T00:00:00Z", author_persona: null }], next_cursor: null }));
+  const createComment = vi.fn<PostEngagementTransport["createComment"]>(async () => ({ submission_id: "submission", href: "/comments/new", surface: "comment" as const, status: "published" as const, result: { decision: "allow" as const, reason_code: null }, review_ref: null, created_at: "2026-09-30T00:00:00Z", updated_at: "2026-09-30T00:00:00Z", published_resource: { kind: "comment" as const, comment_id: "new", href: "/comments/new" } }));
+  const container = render({ ...state, response: { ...state.response, content: { ...state.response.content, post: { ...state.response.content.post, community: "community", post_type: "song", created: 1_790_720_000 }, upvote_count: 3, downvote_count: 1, comment_count: 1 } } }, undefined, {
+    resolveSession: async () => ({ status: "authenticated", userId: "account", personas: [{ personaId: "profile", displayName: "Profile", avatarRef: null, primaryPublicHandle: null, communityBinding: { communityId: "community", bindingSource: "first_membership" } }] }),
+    readViewerVote: async () => 1, readComments, pendingStorage: createMemoryPendingEngagementStorage(),
+    transport: { createComment, createReply: vi.fn(), castVote: vi.fn(), clearVote: vi.fn(), reportComment: vi.fn(), readModerationCase: vi.fn(), moderateCase: vi.fn(), readSubmission: vi.fn() },
+  });
+  expect(container.querySelector("[data-community-post='post-1']")).not.toBeNull();
+  await vi.waitFor(() => expect(container.querySelector("button[aria-label='Comments (1)']")).not.toBeNull());
+  container.querySelector<HTMLButtonElement>("button[aria-label='Comments (1)']")!.click();
+  await vi.waitFor(() => expect(document.body.textContent).toContain("A real thread"));
+  const input = document.querySelector<HTMLTextAreaElement>("textarea")!;
+  input.value = "After studying"; input.dispatchEvent(new InputEvent("input", { bubbles: true }));
+  await vi.waitFor(() => expect([...document.querySelectorAll<HTMLButtonElement>("button")].find(button => button.textContent?.trim() === "Post comment")?.disabled).toBe(false));
+  [...document.querySelectorAll<HTMLButtonElement>("button")].find(button => button.textContent?.trim() === "Post comment")!.click();
+  await vi.waitFor(() => expect(createComment).toHaveBeenCalledOnce());
+  expect(await decodePendingEngagementAction(createComment.mock.calls[0]![0])).toMatchObject({ kind: "comment", personaId: "profile", postId: "post-1", body: "After studying" });
+});
+
+it("waits for the private vote and never treats a failed read as an unvoted account", async () => {
+  const state = contentState(true);
+  if (state.kind !== "content") throw new Error("Expected content");
+  const readViewerVote = vi.fn().mockRejectedValueOnce(new Error("offline")).mockResolvedValueOnce(-1);
+  const container = render({ ...state, response: { ...state.response, content: { ...state.response.content, post: { ...state.response.content.post, community: "community", post_type: "song" } } } }, undefined, {
+    resolveSession: async () => ({ status: "authenticated", userId: "account", personas: [] }),
+    readViewerVote, pendingStorage: createMemoryPendingEngagementStorage(),
+  });
+  expect(container.querySelector("button[aria-label^='Comments']")).toBeNull();
+  await vi.waitFor(() => expect(container.textContent).toContain("Your post actions could not be checked"));
+  expect(container.querySelector("button[aria-label^='Comments']")).toBeNull();
+  [...container.querySelectorAll<HTMLButtonElement>("button")].find(button => button.textContent?.trim() === "Retry")!.click();
+  await vi.waitFor(() => expect(container.querySelector("button[aria-label^='Comments']")).not.toBeNull());
+  expect(readViewerVote).toHaveBeenCalledTimes(2);
 });
