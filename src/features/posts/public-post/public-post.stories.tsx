@@ -1,9 +1,10 @@
 /** @jsxImportSource @solidjs/web */
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
-import { expect, within } from "storybook/test";
+import { expect, userEvent, within } from "storybook/test";
 import type { GetPublicPostsBySlugResponse } from "@pirate/api-client";
 
 import { PublicPostRouteView } from "./public-post-route-view";
+import { createMemoryPendingEngagementStorage } from "../post-engagement/post-engagement-pending";
 import type { PublicPostRouteState } from "./public-post-route.model";
 
 function contentState(canonical: boolean): PublicPostRouteState {
@@ -76,6 +77,8 @@ const songState = (): PublicPostRouteState => {
         post: {
           ...state.response.content.post,
           post_type: "song",
+          community: "community-story",
+          created: 1_790_700_000,
           title: "A long song title that still fits on a narrow phone without widening the page",
           song_title: "A long song title that still fits on a narrow phone without widening the page",
         },
@@ -88,6 +91,7 @@ const songState = (): PublicPostRouteState => {
 const meta = {
   title: "Screens/Posts/PublicPostRoute",
   component: PublicPostRouteView,
+  args: { engagement: { resolveSession: async () => "anonymous" as const } },
   parameters: { layout: "fullscreen", a11y: { test: "error" } },
 } satisfies Meta<typeof PublicPostRouteView>;
 
@@ -215,4 +219,25 @@ export const Unavailable: Story = {
 export const Mobile: Story = {
   args: { state: contentState(true) },
   globals: { viewport: { value: "mobile1", isRotated: false } },
+};
+
+/** A signed-in song landing reuses the community card and persisted comment panel. */
+export const SongPostComments: Story = {
+  args: {
+    state: songState(),
+    engagement: {
+      resolveSession: async () => ({ status: "authenticated", userId: "story-account", personas: [{ personaId: "story-profile", displayName: "Your profile", avatarRef: null, primaryPublicHandle: null, communityBinding: { communityId: "community-story", bindingSource: "first_membership" } }] }),
+      readViewerVote: async () => null,
+      pendingStorage: createMemoryPendingEngagementStorage(),
+      readComments: async () => ({ items: [{ comment_id: "story-comment", parent_comment_id: null, body: "A comment on this song", depth: 0, reply_count: 0, status: "published", content_rating: "general", created_at: "2026-09-29T00:00:00Z", author_persona: null }], next_cursor: null }),
+    },
+  },
+  globals: { viewport: { value: "mobile1", isRotated: false } },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(await canvas.findByRole("button", { name: "Comments (0)" }));
+    const page = within(document.body);
+    await expect(await page.findByText("A comment on this song")).toBeInTheDocument();
+    await expect(page.getByRole("textbox", { name: "Write a comment" })).toBeEnabled();
+  },
 };

@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
-import { expect, within } from "storybook/test";
+import { createSignal, onCleanup, onSettled } from "solid-js";
+import { expect, userEvent, within } from "storybook/test";
 
 import type { KaraokeResultsSummary } from "./karaoke-results-model";
 
@@ -155,5 +156,30 @@ export const EndedWithoutSummary: Story = {
   parameters: { docs: { description: { story: "When no summary arrives the page says so and shows no score." } } },
   play: async ({ canvasElement }) => {
     await expect(within(canvasElement).getByText("Your score for this take wasn't received.")).toBeInTheDocument();
+  },
+};
+
+/** Only the browser play promise is doubled; the production recovery UI runs normally. */
+export const PlaybackRefused: Story = {
+  args: { title: "Paper Moon", lines: storyStageLines },
+  render: args => {
+    const [status, setStatus] = createSignal<"idle" | "active">("idle");
+    let host!: HTMLDivElement;
+    let restore: (() => void) | undefined;
+    onSettled(() => {
+      const audio = host.querySelector("audio")!;
+      const original = audio.play;
+      audio.play = () => Promise.reject(new DOMException("Playback refused", "NotAllowedError"));
+      restore = () => { audio.play = original; };
+    });
+    onCleanup(() => restore?.());
+    return <div ref={host}><KaraokePracticeSurface {...args} singingStatus={status()} onStartSinging={() => setStatus("active")} /></div>;
+  },
+  parameters: { docs: { description: { story: "A refused browser play promise offers a direct retry and pauses capture. This uses a play-promise double and proves no Pixel or autoplay behavior." } } },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await userEvent.click(canvas.getByRole("button", { name: "Start karaoke" }));
+    await expect(await canvas.findByRole("button", { name: "Start backing track" })).toBeInTheDocument();
+    await expect(canvas.getByRole("status")).toHaveTextContent("The backing track could not start");
   },
 };
