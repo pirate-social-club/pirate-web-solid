@@ -55,11 +55,18 @@ export async function uploadVideoParts(input: {
     const url = new URL(part.url);
     if (url.protocol !== "https:" || url.username || url.password) throw new VideoContractError("Upload parts require credential-free HTTPS URLs");
     input.signal?.throwIfAborted();
-    const response = await fetchImpl(url, {
-      method: "PUT", credentials: "omit", redirect: "error", signal: input.signal,
-      body: input.file.slice((number - 1) * upload.part_size_bytes, (number - 1) * upload.part_size_bytes + partSize(number)),
-    });
-    if (!response.ok) throw new VideoContractError(`Video part upload failed (${response.status}); retry this retained attempt`);
+    let response: Response;
+    try {
+      response = await fetchImpl(url, {
+        method: "PUT", credentials: "omit", redirect: "error", signal: input.signal,
+        body: input.file.slice((number - 1) * upload.part_size_bytes, (number - 1) * upload.part_size_bytes + partSize(number)),
+      });
+    } catch (error) {
+      // A stop the composer asked for is not a failure to report.
+      if (input.signal?.aborted) throw error;
+      throw new VideoContractError("We couldn’t reach the upload server. Check your connection and try again.");
+    }
+    if (!response.ok) throw new VideoContractError("The upload didn’t go through. Try again.");
     const receipt = { part_number: number, etag: videoPartEtag(response.headers.get("etag")) };
     await input.saveReceipt(receipt);
     receipts.set(number, receipt);

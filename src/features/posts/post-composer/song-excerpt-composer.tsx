@@ -296,10 +296,7 @@ export function SongExcerptComposer(props: {
     if (retainTimer !== undefined) clearTimeout(retainTimer);
     retainTimer = setTimeout(() => {
       retainTimer = undefined;
-      void retainSongExcerpt(store, songPostId, chosen).then(
-        () => setNote(undefined),
-        () => setNote("The excerpt couldn’t be kept with the video draft."),
-      );
+      void retainSongExcerpt(store, songPostId, chosen).catch(() => undefined);
     }, 400);
   };
 

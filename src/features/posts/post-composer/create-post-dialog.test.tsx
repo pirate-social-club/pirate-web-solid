@@ -1120,22 +1120,25 @@ test.each([false, true])("retains video authority in global/contextual composer 
       videoStorage={videoStorage} videoTransport={{ execute, async read() { return snapshot; } }} fetchImpl={fetchImpl} />);
     const tab = [...document.querySelectorAll("button")].find(button => button.textContent?.trim() === "Video")!;
     expect(tab).toBeDefined(); await vi.waitFor(() => expect(tab.disabled).toBe(false)); tab.focus(); tab.click();
-    await vi.waitFor(() => expect(document.body.textContent).toContain("Resume video submission"));
     expect(pickerClick).not.toHaveBeenCalled();
     if (!contextual) {
       // The video flow has no community field: the retained video's
-      // community is adopted internally and surfaces through the runtime's
-      // mismatch reporting, not through an editable input.
-      expect(document.querySelector<HTMLInputElement>('input[name="community-id"]')).toBeNull();
-    }
-    const resume = [...document.querySelectorAll("button")].find(button => button.textContent?.includes("Resume video submission"))!;
-    await vi.waitFor(() => expect(resume.disabled).toBe(false)); resume.click();
-    if (contextual) {
-      await vi.waitFor(() => expect(document.body.textContent).toContain("Resolve this retained video with its original community and persona"));
-      expect(fetchImpl).not.toHaveBeenCalled(); expect(execute).not.toHaveBeenCalled();
-    } else {
+      // community is adopted internally, not through an editable input, and
+      // an upload the author already submitted resumes on its own.
       await vi.waitFor(() => expect(execute).toHaveBeenCalledOnce());
+      expect(document.querySelector<HTMLInputElement>('input[name="community-id"]')).toBeNull();
       expect(fetchImpl).toHaveBeenCalledOnce();
+      expect(document.body.textContent).not.toMatch(/Resume video submission|Pause upload|Check video status/);
+    } else {
+      // A composer for another community never sends a video that belongs to
+      // this one. It says so, and nothing is sent until that community opens.
+      await vi.waitFor(() => expect(document.body.textContent).toContain("Your video hasn't finished uploading."));
+      await new Promise(resolve => setTimeout(resolve, 50));
+      expect(fetchImpl).not.toHaveBeenCalled(); expect(execute).not.toHaveBeenCalled();
+      const retry = [...document.querySelectorAll("button")].find(button => button.textContent?.trim() === "Try again")!;
+      await vi.waitFor(() => expect(retry.disabled).toBe(false)); retry.click();
+      await vi.waitFor(() => expect(document.body.textContent).toContain("Your earlier video is still uploading for another community. Open that community to finish it."));
+      expect(fetchImpl).not.toHaveBeenCalled(); expect(execute).not.toHaveBeenCalled();
     }
   } finally { for (const dispose of disposers.splice(0)) dispose(); pickerClick.mockRestore(); vi.stubGlobal("crypto", originalCrypto); vi.stubGlobal("URL", originalUrl); }
 });

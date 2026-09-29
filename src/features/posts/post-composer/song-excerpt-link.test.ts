@@ -1,11 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { makeSongExcerptDraft, SONG_EXCERPT_DRAFT_VERSION } from "./song-excerpt-draft";
-import {
-  createLocalExcerptDraftStore,
-  excerptDraftStorageKey,
-  SongExcerptDraftUnwritable,
-} from "./song-excerpt-draft-store";
+import { createMemoryExcerptDraftStore, makeSongExcerptDraft, SONG_EXCERPT_DRAFT_VERSION } from "./song-excerpt-draft";
 import { looksLikeSongLink, parseSongLink } from "./song-excerpt-link";
 import { loadSongSource, SongSourceError, type SongSourceRequest } from "./song-excerpt-source";
 
@@ -189,9 +184,10 @@ describe("telling the refusals apart", () => {
   });
 });
 
-describe("keeping the excerpt across a closed composer", () => {
-  it("round-trips a draft through the browser store", async () => {
-    const store = createLocalExcerptDraftStore("principal-1");
+describe("keeping the excerpt while the composer is open", () => {
+  it("keeps a draft for the life of the store", async () => {
+    const store = createMemoryExcerptDraftStore();
+    expect(await store.load()).toBeNull();
     await store.save(makeSongExcerptDraft("abc123def456", { startMs: 62_400, endMs: 76_400 }));
     expect(await store.load()).toEqual({
       endMs: 76_400,
@@ -201,25 +197,12 @@ describe("keeping the excerpt across a closed composer", () => {
     });
   });
 
-  it("reports a refused write rather than pretending the excerpt was kept", async () => {
-    const original = Storage.prototype.setItem;
-    Storage.prototype.setItem = () => {
-      throw new Error("QuotaExceededError");
-    };
-    try {
-      const store = createLocalExcerptDraftStore("principal-2");
-      await expect(
-        store.save(makeSongExcerptDraft("abc123def456", { startMs: 0, endMs: 9_000 })),
-      ).rejects.toBeInstanceOf(SongExcerptDraftUnwritable);
-    } finally {
-      Storage.prototype.setItem = original;
-    }
-  });
-
-  it("treats bytes that are not a draft as nothing to restore", async () => {
-    localStorage.setItem(excerptDraftStorageKey("principal-3"), "{not json");
-    expect(await createLocalExcerptDraftStore("principal-3").load()).toBeNull();
-    localStorage.setItem(excerptDraftStorageKey("principal-4"), JSON.stringify({ startMs: 0 }));
-    expect(await createLocalExcerptDraftStore("principal-4").load()).toBeNull();
+  it("starts fresh in a new store and writes nothing a later session could read", async () => {
+    const before = Object.keys(localStorage).length;
+    const first = createMemoryExcerptDraftStore();
+    await first.save(makeSongExcerptDraft("abc123def456", { startMs: 0, endMs: 9_000 }));
+    // Reopening the composer makes a new store.
+    expect(await createMemoryExcerptDraftStore().load()).toBeNull();
+    expect(Object.keys(localStorage)).toHaveLength(before);
   });
 });

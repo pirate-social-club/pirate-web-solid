@@ -28,6 +28,18 @@ export type SongExcerptDraftStore = {
   readonly save: (draft: SongExcerptDraft) => Promise<void>;
 };
 
+/** A store that lives only as long as the composer that made it. The
+ * selection stays while the composer is open, across a change of song and back,
+ * and starts fresh when it is reopened: nothing is written anywhere a later
+ * session could read. */
+export function createMemoryExcerptDraftStore(): SongExcerptDraftStore {
+  let held: SongExcerptDraft | null = null;
+  return {
+    load: async () => held,
+    save: async (draft) => { held = draft; },
+  };
+}
+
 export function makeSongExcerptDraft(songPostId: string, bounds: ExcerptBounds): SongExcerptDraft {
   return {
     endMs: bounds.endMs,

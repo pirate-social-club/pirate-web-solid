@@ -117,7 +117,7 @@ describe("mounted video flow", () => {
     const fixture = setup("published", kind); await selectAndPublish();
     await vi.waitFor(() => expect(document.body.textContent).toContain("This video wasn’t accepted."));
     const commandCount = fixture.commands.length;
-    expect([...document.querySelectorAll("button")].some(button => button.textContent?.includes("Resume video submission"))).toBe(false);
+    expect([...document.querySelectorAll("button")].some(button => button.textContent?.includes("Try again"))).toBe(false);
     const edit = [...document.querySelectorAll("button")].find(button => button.textContent?.includes("Edit rejected video"))!;
     await vi.waitFor(() => expect(edit.disabled).toBe(false)); edit.click();
     await vi.waitFor(() => expect(document.querySelector("textarea")).not.toBeNull());
@@ -140,10 +140,87 @@ describe("mounted video flow", () => {
       await vi.waitFor(() => expect(fixture.posted).toHaveBeenCalledOnce());
       expect(fixture.retained()).toBeNull();
       expect(fixture.commands.map(command => command.kind)).toEqual(["reserve", "start", "finalize"]);
-      expect(document.body.textContent).not.toMatch(/Waiting for review|Check video status|Start a new video|Retry|Resume video submission|Abandon/);
+      expect(document.body.textContent).not.toMatch(/Waiting for review|Check video status|Start a new video|Start over|Retry|Try again|Cancel upload|Resume video submission|Abandon/);
     });
 });
 
+
+/** A video the author already submitted for publication, retained with its
+ * upload still owed, and the composer opened on it again. */
+function reopenedWithSubmittedUpload(options: { readonly communityId?: string; readonly failFirstUpload?: boolean } = {}) {
+  vi.stubGlobal("crypto", webcrypto);
+  const urlApi = class extends URL { static createObjectURL() { return "blob:https://example.test/video"; } static revokeObjectURL() {} };
+  vi.stubGlobal("URL", urlApi);
+  const snapshot: VideoSnapshot = {
+    submission_id: "video-submission", author_persona: { object: "persona", persona_id: "persona", display_name: null, avatar_ref: null, primary_public_handle: null },
+    href: "/media-post-submissions/video-submission", track: "video", intent: "original_audio", creation_revision: 1,
+    video_revision: 0, caption: "", updated_at: "2026-09-05T00:00:00Z", status: "processing", phase: "awaiting_upload",
+  };
+  let saved: PendingVideo | null = {
+    version: "original-video-pending-v1", principalId: "account", communityId: options.communityId ?? "community", personaId: "persona",
+    file: new File(["video"], "take.mp4", { type: "video/mp4" }), caption: "", rating: "general", receipts: [], pending: null, snapshot,
+    reservation: { reservation_id: "reservation", track: "video", intent: "original_audio", slot: "primary_video", status: "awaiting_upload", author_persona_id: "persona", ingest_policy_revision: 1,
+      upload: { method: "MULTIPART", upload_id: "upload", part_size_bytes: 10, part_count: 1, expires_at: "2099-01-01T00:00:00Z", parts: [{ part_number: 1, url: "https://upload.example/1", expires_at: "2099-01-01T00:00:00Z" }] } },
+  };
+  const storage: VideoStorage = {
+    async exclusive(work) { return work(); }, async load() { return saved; }, async save(record) { saved = record; }, async remove() { saved = null; },
+  };
+  const execute = vi.fn(async () => ({ ...snapshot, phase: "analysis" as const }));
+  let uploads = 0;
+  const fetchImpl = vi.fn<typeof fetch>();
+  fetchImpl.mockImplementation(async () => {
+    uploads += 1;
+    if (options.failFirstUpload && uploads === 1) throw new TypeError("network down");
+    return new Response(null, { headers: { etag: "receipt" } });
+  });
+  const posted = vi.fn();
+  const container = document.createElement("div"); document.body.appendChild(container);
+  createRoot(dispose => { disposers.push(dispose); render(() => <VideoComposerRuntime principalId="account" communityId="community" personaId="persona"
+    storage={storage} transport={{ execute, async read() { return snapshot; } }} inspectFile={async file => file} fetchImpl={fetchImpl}
+    songPreflight={acceptedPreflight} songReader={readableSong} initialSong={{ postId: "song-post" }}
+    onExit={() => {}} onRetainedPersona={() => {}} onPosted={posted} />, container); });
+  return { execute, fetchImpl, posted, retained: () => saved };
+}
+const controlLabels = () => [...document.querySelectorAll("button")].map(control => control.textContent?.trim());
+const controlLabeled = (label: string) => [...document.querySelectorAll("button")].find(control => control.textContent?.trim() === label);
+
+describe("a submitted upload when the composer is reopened", () => {
+  test("resumes on its own and never asks the author to press anything", async () => {
+    const fixture = reopenedWithSubmittedUpload();
+    await vi.waitFor(() => expect(fixture.posted).toHaveBeenCalledOnce(), { timeout: 5_000 });
+    expect(fixture.fetchImpl).toHaveBeenCalledOnce();
+    expect(fixture.execute).toHaveBeenCalledOnce();
+    expect(fixture.retained()).toBeNull();
+    expect(document.body.textContent).not.toMatch(/Resume video submission|Pause upload|Check video status|Cancel video submission/);
+  });
+
+  test("after a failed attempt offers Try again and Cancel upload and nothing else", async () => {
+    const fixture = reopenedWithSubmittedUpload({ failFirstUpload: true });
+    await vi.waitFor(() => expect(document.body.textContent).toContain("Your video hasn't finished uploading."), { timeout: 5_000 });
+    expect(document.body.textContent).toContain("We couldn’t reach the upload server. Check your connection and try again.");
+    expect(document.body.textContent).not.toMatch(/network down|Failed to fetch/);
+    expect(controlLabels()).toEqual(expect.arrayContaining(["Try again", "Cancel upload"]));
+    expect(document.body.textContent).not.toMatch(/Resume video submission|Pause upload|Check video status/);
+    expect(fixture.posted).not.toHaveBeenCalled();
+    controlLabeled("Try again")!.click();
+    await vi.waitFor(() => expect(fixture.posted).toHaveBeenCalledOnce(), { timeout: 5_000 });
+    expect(fixture.fetchImpl).toHaveBeenCalledTimes(2);
+  });
+
+  test("a video that belongs to another community waits and says so plainly", async () => {
+    const fixture = reopenedWithSubmittedUpload({ communityId: "another-community" });
+    await vi.waitFor(() => expect(document.body.textContent).toContain("Your video hasn't finished uploading."));
+    await new Promise(resolve => setTimeout(resolve, 50));
+    expect(fixture.fetchImpl).not.toHaveBeenCalled();
+    expect(fixture.execute).not.toHaveBeenCalled();
+    controlLabeled("Try again")!.click();
+    await vi.waitFor(() => expect(document.body.textContent).toContain("Your earlier video is still uploading for another community. Open that community to finish it."));
+    // No identifiers and no word the author has to know.
+    expect(document.body.textContent).not.toMatch(/persona|retained|original community/i);
+    expect(fixture.fetchImpl).not.toHaveBeenCalled();
+    expect(fixture.retained()).not.toBeNull();
+  });
+});
 
 test("unmount during reservation preserves it without starting upload", async () => {
   let release!: () => void; const waiting = new Promise<void>(resolve => { release = resolve; });
@@ -1017,8 +1094,8 @@ describe("mounted song-first video flow", () => {
     expect(posted).toBe(0);
     expect(fixture.current()?.pending?.command.kind).toBe("finalize");
     readFails.value = false;
-    await vi.waitFor(() => expect(button("Resume video submission")).toBeDefined());
-    button("Resume video submission")!.click();
+    await vi.waitFor(() => expect(button("Try again")).toBeDefined());
+    button("Try again")!.click();
     await vi.waitFor(() => expect(posted).toBe(1), { timeout: 5_000 });
     const finalizes = fixture.commands.filter(command => command.kind === "finalize");
     expect(finalizes).toHaveLength(2);
@@ -1207,6 +1284,33 @@ describe("mounted song-first video flow", () => {
     await vi.waitFor(() => expect(fixture.alignments).toHaveLength(1));
     expect(fixture.alignments[0]!.offsetMs).toBeGreaterThanOrEqual(150);
     expect(fixture.alignments[0]!.offsetMs).toBeLessThan(750);
+  });
+
+  describe("the chosen part of a song", () => {
+    const startSlider = () => document.querySelector<HTMLElement>('[role="slider"][aria-label="Where the song starts"]');
+
+    test("is not written anywhere a later session could read", async () => {
+      songSetup({ preflight: "accepted" });
+      await loadSongMetadata();
+      await vi.waitFor(() => expect(plan()?.getAttribute("data-song-plan")).toBe("ready"), { timeout: 3_000 });
+      moveWindow(2_000);
+      // Past the debounce that keeps the selection while the composer is open.
+      await new Promise(resolve => setTimeout(resolve, 600));
+      expect(Object.keys(localStorage).filter(key => key.startsWith("song-excerpt-draft"))).toEqual([]);
+    });
+
+    test("starts fresh when the composer is opened again", async () => {
+      songSetup({ preflight: "accepted" });
+      await loadSongMetadata();
+      await vi.waitFor(() => expect(plan()?.getAttribute("data-song-plan")).toBe("ready"), { timeout: 3_000 });
+      moveWindow(2_000);
+      await new Promise(resolve => setTimeout(resolve, 600));
+      for (const dispose of disposers.splice(0)) dispose();
+      document.body.replaceChildren();
+      songSetup({ preflight: "accepted" });
+      await loadSongMetadata();
+      await vi.waitFor(() => expect(startSlider()?.getAttribute("aria-valuenow")).toBe("0"));
+    });
   });
 
   describe("song sheet title and Continue", () => {

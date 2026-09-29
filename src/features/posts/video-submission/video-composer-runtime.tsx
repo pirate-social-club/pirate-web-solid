@@ -3,7 +3,7 @@ import { Button, cn, FormNote, Type } from "../../../design-system";
 import { OperationPersonaControl } from "../../identity/operation-persona-control/operation-persona-control";
 import { type ExcerptBounds, formatExcerptTime } from "../post-composer/song-excerpt";
 import { SongExcerptComposer, type SoundtrackSelection } from "../post-composer/song-excerpt-composer";
-import { createLocalExcerptDraftStore } from "../post-composer/song-excerpt-draft-store";
+import { createMemoryExcerptDraftStore } from "../post-composer/song-excerpt-draft";
 import type { SongSourceReader, SongSourceState } from "../post-composer/song-excerpt-source";
 import type { SongPickerSource } from "../post-composer/song-picker";
 import { OriginalVideoCaptureSurface, OriginalVideoReviewSurface } from "../post-composer/video-original-audio-surface";
@@ -168,7 +168,9 @@ export function VideoComposerRuntime(props: {
   // One draft store per principal, built once. The excerpt is kept beside the
   // video draft rather than inside it: the video record is the coordinator's
   // and is governed by a submission contract this selection is not part of yet.
-  const excerptStore = createLocalExcerptDraftStore(props.principalId);
+  // The selection is kept while the composer is open and starts fresh when it is
+  // reopened; nothing is stored for a later session.
+  const excerptStore = createMemoryExcerptDraftStore();
   const songPreflight = props.songPreflight ?? createSongIntervalPreflight();
   // Where the retained excerpt stands with the server. That verdict is
   // separate from the author's soundtrack choice below: loading another song
@@ -253,14 +255,27 @@ export function VideoComposerRuntime(props: {
     finally { if (!disposed) { setBusy(false); setProgress(""); } }
   }
   const posted = () => (props.onPosted ?? (() => globalThis.location?.assign("/")))();
+  let resumeSubmitted = false;
   void coordinator.restore().then(async next => {
     if (!next || disposed) return;
     // A video whose upload already finished belongs to the server; it is never
     // shown again as a pending state here.
     if (await coordinator.release()) return;
     showFile(next.file); setCaption(next.caption); setRating(next.rating);
+    // Only a video the author already submitted for publication is ever kept.
+    // One that still owes its upload picks up where it stopped, with no control
+    // to press. One that belongs to another community waits for that community.
+    resumeSubmitted = !next.rejection
+      && (next.pending !== null || !next.snapshot || (next.snapshot.status === "processing" && next.snapshot.phase === "awaiting_upload"))
+      && next.communityId === chosenCommunityId() && next.personaId === chosenPersonaId();
   }).catch(failure => { if (!disposed) setError(failure instanceof Error ? failure.message : "Video restore failed"); })
-    .finally(() => { if (!disposed) setBusy(false); });
+    .finally(() => {
+      if (disposed) return;
+      setBusy(false);
+      // A write is not visible to a read in the same tick, so the resume waits
+      // one tick for the busy gate to open.
+      if (resumeSubmitted) setTimeout(() => { if (!disposed) void publish(); }, 0);
+    });
 
   /** Whether a song has been chosen as the soundtrack. */
   const songActive = () => songChoice().kind !== "none";
@@ -691,7 +706,7 @@ export function VideoComposerRuntime(props: {
   async function publish() {
     await run(async () => {
       const retained = coordinator.current;
-      if (retained && (retained.communityId !== chosenCommunityId() || retained.personaId !== chosenPersonaId())) throw new Error("Resolve this retained video with its original community and persona");
+      if (retained && (retained.communityId !== chosenCommunityId() || retained.personaId !== chosenPersonaId())) throw new Error("Your earlier video is still uploading for another community. Open that community to finish it.");
       if (!retained) {
         const selected = file(); if (!selected || !chosenPersonaId() || !chosenCommunityId()) throw new Error("Choose a community, persona and compatible video");
         const plan = songPlan();
@@ -829,6 +844,8 @@ export function VideoComposerRuntime(props: {
   const failure = () => { const snapshot = state(); return snapshot?.status === "processing_failed" ? snapshot : undefined; };
   const editing = () => !record();
   const awaiting = () => { const snapshot = state(); return snapshot?.status === "processing" && snapshot.phase === "awaiting_upload"; };
+  /** An upload whose window has closed cannot be resumed, only cancelled. */
+  const reservationExpired = () => awaiting() && Date.parse(record()?.reservation?.upload.expires_at ?? "") <= Date.now();
   const blocked = () => { const snapshot = state(); return snapshot?.status === "blocked" ? snapshot : undefined; };
   // One plain sentence for the submitted video. Raw server states never
   // reach the screen; while an action runs, only real upload progress shows.
@@ -1048,35 +1065,37 @@ export function VideoComposerRuntime(props: {
           const rejected = await coordinator.discardRejected(); showFile(rejected.file); setCaption(rejected.caption); setRating(rejected.rating);
         }); }}>Edit rejected video</Button></Show>
       </Show>
-      {/* One set of actions for the state that is actually on screen: an
-          active upload, a retryable failure, a review hold, a terminal
-          outcome. No state shows every recovery command at once. */}
+      {/* One set of actions for the state that is actually on screen. An upload
+          in progress shows only its progress and resumes by itself; a failed
+          attempt offers Try again and Cancel upload; a terminal outcome offers
+          a new video. Nothing here is a control the author must press to keep
+          a video going. */}
       <Show when={!record()?.rejection && (state()?.status === "processing" || state() === undefined)}>
-        <Show when={awaiting()}>
-          <Show when={Date.parse(record()?.reservation?.upload.expires_at ?? "") <= Date.now()}>
-            <p role="status">This upload reservation has expired. Cancel this submission, then select the source again for a new video.</p>
+        <Show when={!busy()}>
+          <Show when={reservationExpired()}>
+            <p role="status">This upload expired. Cancel it, then choose the video again.</p>
           </Show>
-          <Button disabled={busy()} onClick={() => { void run(() => coordinator.revisionCommand("cancel")); }}>Cancel video submission</Button>
+          <Show when={(record()?.pending || awaiting() || !state()) && !reservationExpired()}>
+            <Button onClick={() => { void publish(); }}>Try again</Button>
+          </Show>
+          <Show when={awaiting()}>
+            <Button onClick={() => { void run(() => coordinator.revisionCommand("cancel")); }} variant="secondary">Cancel upload</Button>
+          </Show>
         </Show>
-        <Show when={record()?.pending || awaiting() || !state()}><Button disabled={busy()} onClick={() => { void publish(); }}>Resume video submission</Button></Show>
-        <Show when={busy()}><Button onClick={() => coordinator.pauseUpload()}>Pause upload</Button></Show>
-        <Button disabled={busy()} onClick={() => { void run(() => coordinator.refresh()); }}>Check video status</Button>
       </Show>
       <Show when={!record()?.rejection && failure()}>
         <Show when={failure()?.reason_code === "provider_submission_unconfirmed"}>
-          <p role="status">The provider submission is unconfirmed. It cannot be retried safely. You may keep it for reconciliation or abandon this attempt.</p>
-          <Button disabled={busy()} onClick={() => { void run(() => coordinator.revisionCommand("cancel")); }}>Abandon unresolved video</Button>
+          <p role="status">We couldn’t confirm that your video was received, and sending it again isn’t safe.</p>
+          <Button disabled={busy()} onClick={() => { void run(() => coordinator.revisionCommand("cancel")); }}>Start over</Button>
         </Show>
-        <Show when={failure()?.reason_code === "membership_required"}><p role="status">Restore your community posting eligibility, then retry publication. Your completed analysis is retained.</p></Show>
-        <Show when={failure()?.retryable}><Button disabled={busy()} onClick={() => { void run(() => coordinator.revisionCommand("retry")); }}>{failure()?.reason_code === "membership_required" ? "Retry publication" : "Retry processing"}</Button></Show>
+        <Show when={failure()?.reason_code === "membership_required"}><p role="status">You can’t post in this community right now. Once that’s fixed, try again.</p></Show>
+        <Show when={failure()?.retryable}><Button disabled={busy()} onClick={() => { void run(() => coordinator.revisionCommand("retry")); }}>Try again</Button></Show>
         <Show when={!failure()?.retryable && failure()?.reason_code !== "provider_submission_unconfirmed"}>
           <Button disabled={busy()} onClick={() => { void run(async () => { await coordinator.discard(); setFile(null); clearPreviewUrls(); setCaption(""); }); }}>Start a new video</Button>
         </Show>
-        <Button disabled={busy()} onClick={() => { void run(() => coordinator.refresh()); }}>Check video status</Button>
       </Show>
       <Show when={!record()?.rejection && (state()?.status === "blocked" || state()?.status === "abandoned")}>
         <Show when={blocked()?.reason_code === "song_reference_invalid"}><p role="status">{songReferenceInvalidText(blocked()?.song_reason_code)}</p></Show>
-        <Button disabled={busy()} onClick={() => { void run(() => coordinator.refresh()); }}>Check video status</Button>
         <Button disabled={busy()} onClick={() => { void run(async () => { await coordinator.discard(); setFile(null); clearPreviewUrls(); setCaption(""); }); }}>Start a new video</Button>
       </Show>
     </Show>

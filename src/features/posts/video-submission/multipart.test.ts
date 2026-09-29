@@ -63,6 +63,25 @@ describe("durable video multipart boundary", () => {
     await expect(uploadVideoParts({ reservation, file, receipts: [], renew, saveReceipt: vi.fn(), fetchImpl, signal: controller.signal })).rejects.toThrow();
     expect(fetchImpl).not.toHaveBeenCalled(); expect(renew).not.toHaveBeenCalled();
   });
+  test("a network failure says so in plain words and keeps nothing technical", async () => {
+    const fetchImpl = vi.fn<typeof fetch>().mockRejectedValue(new TypeError("Failed to fetch"));
+    const attempt = uploadVideoParts({ reservation, file, receipts: [], renew: vi.fn(), saveReceipt: vi.fn(), fetchImpl });
+    await expect(attempt).rejects.toThrow("We couldn’t reach the upload server. Check your connection and try again.");
+    await expect(attempt).rejects.not.toThrow(/Failed to fetch|retained|part/);
+  });
+  test("a refused part says the upload did not go through, without a status code or jargon", async () => {
+    const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(new Response(null, { status: 503 }));
+    const attempt = uploadVideoParts({ reservation, file, receipts: [], renew: vi.fn(), saveReceipt: vi.fn(), fetchImpl });
+    await expect(attempt).rejects.toThrow("The upload didn’t go through. Try again.");
+    await expect(attempt).rejects.not.toThrow(/503|retained|part/);
+  });
+  test("a stop the composer asked for is not reported as a network failure", async () => {
+    const controller = new AbortController();
+    const abort = new DOMException("stopped", "AbortError");
+    const fetchImpl = vi.fn<typeof fetch>().mockImplementation(async () => { controller.abort(); throw abort; });
+    const attempt = uploadVideoParts({ reservation, file, receipts: [], renew: vi.fn(), saveReceipt: vi.fn(), fetchImpl, signal: controller.signal });
+    await expect(attempt).rejects.toBe(abort);
+  });
   test("expired reservations cannot silently become new uploads", async () => {
     const fetchImpl = vi.fn<typeof fetch>(); const renew = vi.fn();
     await expect(uploadVideoParts({ reservation: { ...reservation, upload: { ...reservation.upload, expires_at: "2000-01-01T00:00:00Z" } }, file, receipts: [], renew, saveReceipt: vi.fn(), fetchImpl })).rejects.toThrow(/reservation expired/);

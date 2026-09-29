@@ -277,8 +277,9 @@ function storyTransport(options: {
   };
 }
 
-function storyFetch(options: { readonly delayMs?: number } = {}): typeof fetch {
+function storyFetch(options: { readonly delayMs?: number; readonly fails?: boolean } = {}): typeof fetch {
   const impl = async () => {
+    if (options.fails) throw new TypeError("network down");
     if (options.delayMs !== undefined) await new Promise(resolve => setTimeout(resolve, options.delayMs));
     return new Response(null, { headers: { etag: "receipt-story" } });
   };
@@ -388,12 +389,15 @@ function Harness(props: {
 }
 
 function retainedRecord(snapshot: VideoSnapshot): PendingVideo {
+  // The upload plan describes this exact file: a resume refuses a plan that
+  // does not match the bytes it holds.
+  const file = new File(["take"], "take.mp4", { type: "video/mp4" });
   return {
     version: SONG_VIDEO_PENDING,
     principalId: "storybook-account",
     communityId: "community",
     personaId: "persona",
-    file: new File(["take"], "take.mp4", { type: "video/mp4" }),
+    file,
     caption: "",
     rating: "general",
     song: { songPostId: "song-post", audioRevision: 7, clipStartSamples: 0, clipDurationSamples: 15_000 * 48, selectedFrom: { kind: "library" } },
@@ -403,7 +407,7 @@ function retainedRecord(snapshot: VideoSnapshot): PendingVideo {
       song_reference: { song_post_id: "song-post", audio_revision: 7, song_asset_id: "song-asset" },
       reservation_policy_snapshot: { observed_at_transition: "media_reservation_issued", owner_policy_revision: 3, owner_policy_hash: "a".repeat(64), derivative_video: "allowed", observed_at: "2026-09-20T00:00:00Z" },
       interval: { clip_start_samples: 0, clip_duration_samples: 15_000 * 48, song_duration_samples: SONG_MS * 48 },
-      upload: uploadPlan(1),
+      upload: uploadPlan(file.size),
     },
     snapshot,
     receipts: [],
@@ -693,6 +697,53 @@ export const ReopenedAfterUploadFinished: Story = {
     const canvas = within(canvasElement);
     await canvas.findByRole("button", { name: "Start recording" }, { timeout: 15_000 });
     expect(canvas.queryByText(/Resume video submission|Check video status|Cancel video submission/)).toBeNull();
+  },
+};
+
+/** A video the author already submitted for publication, kept because its
+ * upload was still owed when the composer closed. Reopening picks it up where it
+ * stopped, without a control to press. */
+export const SubmittedUploadResumes: Story = {
+  name: "Submitted upload resumes by itself",
+  render: () => {
+    const snapshot: VideoSnapshot = { ...snapshotBase, status: "processing", phase: "awaiting_upload" };
+    return (
+      <Harness
+        fetchImpl={storyFetch({ delayMs: 120_000 })}
+        storage={memoryStorage(retainedRecord(snapshot))}
+        transport={retainedTransport(snapshot)}
+      />
+    );
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await canvas.findByText(/Uploading video/, {}, { timeout: 20_000 });
+    // Nothing here is a control the author has to press to keep it going.
+    expect(canvas.queryByRole("button", { name: /Resume video submission|Pause upload|Check video status|Cancel video submission/ })).toBeNull();
+  },
+};
+
+export const SubmittedUploadNeedsAnotherTry: Story = {
+  name: "Submitted upload needs another try",
+  render: () => {
+    const snapshot: VideoSnapshot = { ...snapshotBase, status: "processing", phase: "awaiting_upload" };
+    return (
+      <Harness
+        fetchImpl={storyFetch({ fails: true })}
+        storage={memoryStorage(retainedRecord(snapshot))}
+        transport={retainedTransport(snapshot)}
+      />
+    );
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await canvas.findByText("Your video hasn't finished uploading.", {}, { timeout: 20_000 });
+    // What happened, in words the author can act on: not the browser's error.
+    await canvas.findByText("We couldn’t reach the upload server. Check your connection and try again.");
+    expect(canvas.queryByText(/network down|Failed to fetch/)).toBeNull();
+    await canvas.findByRole("button", { name: "Try again" });
+    await canvas.findByRole("button", { name: "Cancel upload" });
+    expect(canvas.queryByRole("button", { name: /Resume video submission|Pause upload|Check video status/ })).toBeNull();
   },
 };
 
