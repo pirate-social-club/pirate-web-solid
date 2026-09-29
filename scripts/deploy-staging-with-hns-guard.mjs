@@ -1,8 +1,20 @@
 import { execFileSync, spawnSync } from "node:child_process";
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { checkLiveStagingGateway } from "./hns-staging-gateway-preflight.mjs";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
+// The repository pins its Playwright browsers in .playwright-browsers. Export
+// the path for the generated test processes so deploys do not depend on the
+// operator's ambient cache.
+{
+  const pinned = join(root, ".playwright-browsers");
+  if (!process.env.PLAYWRIGHT_BROWSERS_PATH && existsSync(pinned)) {
+    process.env.PLAYWRIGHT_BROWSERS_PATH = pinned;
+  }
+}
+
 const expectedRemote = "https://github.com/pirate-social-club/pirate-web-solid.git";
 const stagingFixture = {
   E2E_BASE_URL: "https://web-next-staging.pirate.sc",
