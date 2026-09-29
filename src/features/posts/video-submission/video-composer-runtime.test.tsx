@@ -1207,6 +1207,53 @@ describe("mounted song-first video flow", () => {
     expect(fixture.alignments[0]!.offsetMs).toBeLessThan(750);
   });
 
+  describe("song sheet title and Continue", () => {
+    const sheetTitle = () => soundtrackPanel()?.querySelector("h1")?.textContent;
+    const continueControl = () => button("Continue to video");
+
+    test("with no song chosen the sheet asks for one and Continue says why it waits", async () => {
+      songSetup({ preflight: "accepted", initialSong: false });
+      await vi.waitFor(() => expect(soundtrackPanel()).not.toBeNull());
+      expect(sheetTitle()).toBe("Choose a song");
+      expect(soundtrackPanel()!.getAttribute("aria-label")).toBe("Choose a song");
+      expect(continueControl()!.disabled).toBe(true);
+      expect(document.getElementById("song-continue-hint")?.textContent).toBe("Choose a song to continue.");
+      expect(continueControl()!.getAttribute("aria-describedby")).toBe("song-continue-hint");
+    });
+
+    test("a preselected song is titled for where it starts once its excerpt exists", async () => {
+      songSetup({ preflight: "pending" });
+      await vi.waitFor(() => expect(document.querySelector("audio")).not.toBeNull());
+      // Loaded, length unknown: still choosing, and the sheet says it is waiting.
+      expect(sheetTitle()).toBe("Choose a song");
+      expect(soundtrackPanel()!.textContent).toContain("Getting this song ready…");
+      expect(continueControl()!.disabled).toBe(true);
+      // The song is chosen, so the "no song" line does not apply.
+      expect(document.getElementById("song-continue-hint")).toBeNull();
+      await loadSongMetadata();
+      await vi.waitFor(() => expect(sheetTitle()).toBe("Choose the starting point"));
+      expect(soundtrackPanel()!.getAttribute("aria-label")).toBe("Choose the starting point");
+      expect(soundtrackPanel()!.textContent).not.toContain("Getting this song ready…");
+    });
+
+    test("a song that fails to load keeps the sheet on choosing and says why once", async () => {
+      songSetup({ preflight: "accepted", reader: "failed" });
+      await vi.waitFor(() => expect(soundtrackPanel()!.textContent).toContain("couldn’t load"));
+      expect(sheetTitle()).toBe("Choose a song");
+      expect(continueControl()!.disabled).toBe(true);
+      expect(document.getElementById("song-continue-hint")).toBeNull();
+    });
+
+    test("Continue enables when the chosen part of the song is accepted", async () => {
+      songSetup({ preflight: "accepted" });
+      await loadSongMetadata();
+      await vi.waitFor(() => expect(plan()?.getAttribute("data-song-plan")).toBe("ready"), { timeout: 3_000 });
+      expect(sheetTitle()).toBe("Choose the starting point");
+      expect(continueControl()!.disabled).toBe(false);
+      expect(document.getElementById("song-continue-hint")).toBeNull();
+    });
+  });
+
   describe("camera preview before recording", () => {
     const viewfinderStream = () => document.querySelector<HTMLVideoElement>("[data-video-viewfinder] video")?.srcObject;
 

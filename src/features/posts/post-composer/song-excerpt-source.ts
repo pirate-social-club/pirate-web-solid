@@ -155,6 +155,22 @@ type PublicPostContent = {
   };
 };
 
+/** A song's title from the public post read alone. It mints no playback
+ * access, so a screen that only names the song can ask without starting a
+ * listen. Anything unreadable is an unnamed song, not an error: naming the song
+ * is a courtesy and must never block the step it appears on. */
+export async function readSongTitle(postId: string): Promise<string | null> {
+  try {
+    const response: PublicPostContent = await createSessionApiClient()
+      .get_publicPostsByIdPostIdCanonicalRoute({ path: { postId } });
+    const post = response.kind === "content" ? response.content?.post : undefined;
+    if (post?.post_type !== "song") return null;
+    return post.song_title?.trim() || post.title?.trim() || null;
+  } catch {
+    return null;
+  }
+}
+
 /** The real read, built once. Nothing here falls back to a fixture. */
 export function createSongSourceReader(): SongSourceReader {
   const client = createSessionApiClient();

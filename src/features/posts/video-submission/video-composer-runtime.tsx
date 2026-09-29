@@ -252,6 +252,10 @@ export function VideoComposerRuntime(props: {
   const songActive = () => songChoice().kind !== "none";
   /** Every video uses a song, so the camera waits until one is chosen. */
   const songChosen = () => songActive() && selection() !== null;
+  /** Once a song's excerpt exists the sheet is about where it starts. Until
+   * then, including while a chosen song loads or fails to, it is still about
+   * choosing one. */
+  const songSheetTitle = () => songChosen() ? "Choose the starting point" : "Choose a song";
   /** Whether the sound sheet holds something the author must act on or wait
    * on. The server's interval preflight checks the song owner's policy before
    * capture, and reservation checks it again before issuing upload authority. */
@@ -905,7 +909,7 @@ export function VideoComposerRuntime(props: {
           current eligibility verdict remain available at review. */}
       <div
         aria-hidden={songSheetOpen() ? undefined : "true"}
-        aria-label="Choose a song"
+        aria-label={songSheetTitle()}
         aria-modal="true"
         inert={!songSheetOpen()}
         class={cn(
@@ -917,7 +921,7 @@ export function VideoComposerRuntime(props: {
       >
         <div class="mx-auto grid min-w-0 w-full max-w-md grid-cols-1 gap-5">
           <div class="flex min-w-0 items-center justify-between gap-3">
-            <Type as="h1" class="min-w-0 flex-1" variant="h3">Choose a song</Type>
+            <Type as="h1" class="min-w-0 flex-1" variant="h3">{songSheetTitle()}</Type>
             <Button class="shrink-0" onClick={() => { if (enteredCapture() || file()) setSongSheetOpen(false); else props.onExit(); }} type="button" variant="ghost">Back</Button>
           </div>
           <fieldset class="contents" disabled={captureStatus() === "recording" || finalizing()}>
@@ -941,12 +945,21 @@ export function VideoComposerRuntime(props: {
               }} />
           </section>
           </fieldset>
-          <div class="flex justify-end gap-2">
+          <div class="flex items-center justify-end gap-3">
             {/* Confirming asks the server about the excerpt on screen: the
                 progress lives on this button, and the sheet closes by itself
                 once the exact excerpt is accepted. A refusal stays on the
-                sheet with its actions instead. */}
+                sheet with its actions instead. A disabled Continue says why
+                when nothing else on the sheet does: a chosen song that is
+                loading, refused or unavailable already shows its own message
+                above, so only the state with no song needs a line here. */}
+            <Show when={!songActive()}>
+              <Type as="p" class="min-w-0 flex-1 text-muted-foreground" id="song-continue-hint" variant="caption">
+                Choose a song to continue.
+              </Type>
+            </Show>
             <Button
+              aria-describedby={songActive() ? undefined : "song-continue-hint"}
               disabled={confirmingSound() || !selection() || !["ready", "checking", "measuring"].includes(songPlan().kind)}
               loading={confirmingSound()}
               onClick={confirmSound}

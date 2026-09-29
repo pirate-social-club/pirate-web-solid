@@ -598,6 +598,12 @@ export function SongExcerptComposer(props: {
                   </>
                 )}
               </Show>
+              {/* A loaded song whose length is not known yet has nothing to
+                  choose from, and Continue stays disabled: say so, unless the
+                  plan line below already does. */}
+              <Show when={!audioProblem() && lengthMs() === 0 && plan().kind !== "measuring"}>
+                <Type as="p" variant="caption" role="status">Getting this song ready…</Type>
+              </Show>
               <Show when={!audioProblem() && lengthMs() > 0 && !canHoldExcerpt(lengthMs())}>
                 <Type as="p" variant="caption">That song is too short to hold a three second excerpt.</Type>
               </Show>

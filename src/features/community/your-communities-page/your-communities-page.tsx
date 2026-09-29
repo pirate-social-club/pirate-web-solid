@@ -11,13 +11,23 @@ import { communityRouteLabel, type YourCommunitySummary } from "./your-communiti
 export type { YourCommunitySummary } from "./your-communities-page-model";
 
 export interface YourCommunitiesPageProps {
-  createCommunityLabel: string;
+  /** Without a label and a handler the Create action is not offered. */
+  createCommunityLabel?: string;
+  /** A line under the title, for a page that has a task to name. */
+  description?: string;
   emptyJoinedLabel: string;
   joinedCommunities: YourCommunitySummary[];
   joinedLabel: string;
-  onCreateCommunity: () => void;
+  onCreateCommunity?: () => void;
   onPostHere?: (community: YourCommunitySummary) => void;
   onSelectCommunity: (community: YourCommunitySummary) => void;
+  /** The name a screen reader hears for each post action, which the visible
+   * text must be part of. Without it the action is named by its text alone. */
+  postActionLabel?: (community: YourCommunitySummary) => string;
+  /** The visible text of every post action. */
+  postActionText?: string;
+  /** The community whose post action is working; the others wait for it. */
+  postingCommunityId?: string;
   title: string;
 }
 
@@ -25,6 +35,9 @@ function YourCommunityListItem(props: {
   community: YourCommunitySummary;
   onPostHere?: (community: YourCommunitySummary) => void;
   onSelectCommunity: (community: YourCommunitySummary) => void;
+  postActionLabel?: (community: YourCommunitySummary) => string;
+  postActionText?: string;
+  postingCommunityId?: string;
 }) {
   const community = () => props.community;
   // A community without a route shows no caption at all; "no route" is
@@ -50,7 +63,17 @@ function YourCommunityListItem(props: {
         </button>
       </Show>
       <Show when={props.onPostHere}>
-        <Button data-post-community-id={community().communityId} onClick={() => props.onPostHere?.(community())} size="sm" variant="secondary">Post here</Button>
+        <Button
+          aria-label={props.postActionLabel?.(community())}
+          data-post-community-id={community().communityId}
+          disabled={props.postingCommunityId !== undefined && props.postingCommunityId !== community().communityId}
+          loading={props.postingCommunityId === community().communityId}
+          onClick={() => props.onPostHere?.(community())}
+          size="sm"
+          variant="secondary"
+        >
+          {props.postActionText ?? "Post here"}
+        </Button>
       </Show>
     </div>
   );
@@ -63,16 +86,26 @@ export function YourCommunitiesPageView(props: YourCommunitiesPageProps) {
           phone otherwise offers no way to start a community. */}
       <div class="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <Type as="h1" variant="h1">{props.title}</Type>
-        <div class="flex shrink-0 flex-wrap gap-3">
-          <Button onClick={props.onCreateCommunity} variant="secondary">{props.createCommunityLabel}</Button>
-        </div>
+        <Show when={props.createCommunityLabel !== undefined && props.onCreateCommunity !== undefined}>
+          <div class="flex shrink-0 flex-wrap gap-3">
+            <Button onClick={props.onCreateCommunity} variant="secondary">{props.createCommunityLabel}</Button>
+          </div>
+        </Show>
       </div>
+      <Show when={props.description}>{text => <Type as="p" class="-mt-3">{text()}</Type>}</Show>
 
       <section class="min-w-0" aria-label={props.joinedLabel}>
         <Show when={props.joinedCommunities.length > 0} fallback={<Type as="p" variant="caption" class="py-4">{props.emptyJoinedLabel}</Type>}>
           <div>
             <For each={props.joinedCommunities}>
-              {(community) => <YourCommunityListItem community={community} onPostHere={props.onPostHere} onSelectCommunity={props.onSelectCommunity} />}
+              {(community) => <YourCommunityListItem
+                community={community}
+                onPostHere={props.onPostHere}
+                onSelectCommunity={props.onSelectCommunity}
+                postActionLabel={props.postActionLabel}
+                postActionText={props.postActionText}
+                postingCommunityId={props.postingCommunityId}
+              />}
             </For>
           </div>
         </Show>

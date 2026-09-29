@@ -2,6 +2,7 @@ import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import { ApiClientError } from "@pirate/api-client";
 import type { JSX } from "@solidjs/web";
 import { createSignal, onCleanup, onSettled, Show } from "solid-js";
+import { expect, waitFor, within } from "storybook/test";
 
 import { Button, FormNote, Type } from "../../../design-system";
 import { SongReviewPreview, type PreviewAudio } from "./song-review-preview";
@@ -10,6 +11,7 @@ import { VideoCaptureError, type OriginalVideoCaptureInput, type VideoCaptureSes
 import { SONG_VIDEO_PENDING, type PendingVideo, type VideoStorage } from "./coordinator";
 import type { VideoCommand, VideoCommandResult, VideoTransport } from "./transport";
 import { SongSourceError, type SongSourceReader } from "../post-composer/song-excerpt-source";
+import type { SongPickerSource } from "../post-composer/song-picker";
 import type { SongIntervalPreflight } from "./song-reference";
 import type { VideoSnapshot } from "./contracts";
 import { sampleVideoFile, toneWavUrl } from "./story-fixtures-media";
@@ -294,6 +296,9 @@ function Harness(props: {
   readonly fetchImpl?: typeof fetch;
   readonly chooseFile?: () => Promise<File | null>;
   readonly autoContinue?: boolean;
+  /** Open the composer with no song chosen, as from the composer's own entry. */
+  readonly noInitialSong?: boolean;
+  readonly songPicker?: SongPickerSource;
   readonly autoStart?: boolean;
   readonly autoPublish?: boolean;
   readonly controls?: JSX.Element;
@@ -354,7 +359,7 @@ function Harness(props: {
         communityId="community"
         createGuideAudio={() => storyGuide()}
         fetchImpl={props.fetchImpl ?? storyFetch()}
-        initialSong={{ postId: "song-post" }}
+        initialSong={props.noInitialSong ? undefined : { postId: "song-post" }}
         inspectFile={async file => file}
         measureDuration={props.measureDuration}
         onExit={() => undefined}
@@ -363,6 +368,7 @@ function Harness(props: {
         personaId="persona"
         principalId="storybook-account"
         songPreflight={props.preflight ?? readyPreflight()}
+        songPicker={props.songPicker}
         songReader={props.reader ?? toneReader()}
         openPreview={props.openPreview ?? storyPreview()}
         startCapture={props.startCapture ?? captureDouble()}
@@ -405,24 +411,6 @@ function retainedTransport(snapshot: VideoSnapshot): VideoTransport {
   };
 }
 
-function unresolvedModerationTransport(snapshot: VideoSnapshot): VideoTransport {
-  let current = snapshot;
-  return {
-    async read(): Promise<VideoSnapshot> { return current; },
-    async execute(command: VideoCommand): Promise<VideoCommandResult> {
-      if (command.kind !== "cancel") throw new Error("Only abandonment is available in this story");
-      current = {
-        ...snapshotBase,
-        status: "abandoned",
-        creation_revision: snapshot.creation_revision,
-        video_revision: snapshot.video_revision,
-        reason_code: "author_abandoned_unresolved_provider",
-      };
-      return current;
-    },
-  };
-}
-
 const meta = {
   title: "Flows/Posts/VideoPost/Authoring",
   parameters: {
@@ -442,21 +430,67 @@ type Story = StoryObj<typeof meta>;
 export const SongLoading: Story = {
   name: "Song loading",
   render: () => <Harness reader={async () => new Promise(() => {})} />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await canvas.findByRole("dialog", { name: "Choose a song" });
+    await canvas.findByText("Loading that song…");
+    expect(canvas.getByRole("button", { name: "Continue to video" })).toBeDisabled();
+    expect(canvas.queryByText("Choose a song to continue.")).toBeNull();
+  },
 };
 
 export const SongUnavailable: Story = {
   name: "Song unavailable",
   render: () => <Harness reader={async () => { throw new SongSourceError("not_found", "Song not found", false); }} />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await canvas.findByRole("dialog", { name: "Choose a song" });
+    await canvas.findByText("That song isn’t available to play.");
+    expect(canvas.getByRole("button", { name: "Continue to video" })).toBeDisabled();
+    expect(canvas.queryByText("Choose a song to continue.")).toBeNull();
+  },
+};
+
+export const NoSongChosen: Story = {
+  name: "No song chosen yet",
+  render: () => (
+    <Harness
+      noInitialSong
+      songPicker={async () => ({
+        songs: [{ postId: "cadence", title: "Cadence", artist: "salt-cove.pirate", artworkSrc: null }],
+        nextCursor: null,
+      })}
+    />
+  ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await canvas.findByRole("dialog", { name: "Choose a song" });
+    await canvas.findByText("Choose a song to continue.");
+    const control = canvas.getByRole("button", { name: "Continue to video" });
+    expect(control).toBeDisabled();
+    expect(control).toHaveAccessibleDescription("Choose a song to continue.");
+  },
 };
 
 export const SongForbidden: Story = {
   name: "Song forbidden by its owner",
   render: () => <Harness preflight={forbiddenPreflight()} />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await canvas.findByText(/owner doesn’t allow videos/);
+    expect(canvas.getByRole("button", { name: "Continue to video" })).toBeDisabled();
+  },
 };
 
 export const ExcerptSelection: Story = {
   name: "Excerpt selection",
   render: () => <Harness />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await canvas.findByRole("dialog", { name: "Choose the starting point" });
+    await waitFor(() => expect(canvas.getByRole("button", { name: "Continue to video" })).toBeEnabled(), { timeout: 10_000 });
+    expect(canvas.queryByText("Choose a song to continue.")).toBeNull();
+  },
 };
 
 export const PreflightPending: Story = {
@@ -467,6 +501,11 @@ export const PreflightPending: Story = {
 export const PreflightRefused: Story = {
   name: "Preflight refused",
   render: () => <Harness preflight={refusedPreflight()} />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await canvas.findByRole("alert");
+    expect(canvas.getByRole("button", { name: "Continue to video" })).toBeDisabled();
+  },
 };
 
 export const RecordingReady: Story = {
@@ -508,16 +547,31 @@ export const Backgrounded: Story = {
 export const ShortUploadedClip: Story = {
   name: "Uploaded clip shorter than the excerpt",
   render: () => <Harness chooseFile={() => sampleVideoFile(8_000)} measureDuration={async () => 9_000} />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await canvas.findByText("Review video", {}, { timeout: 20_000 });
+    await canvas.findByRole("button", { name: "Publish video" });
+  },
 };
 
 export const ExplainedTrimming: Story = {
   name: "Uploaded clip that will be trimmed",
-  render: () => <Harness chooseFile={() => sampleVideoFile(12_000)} measureDuration={async () => 45_000} />,
+  render: () => <Harness chooseFile={() => sampleVideoFile(16_000)} measureDuration={async () => 16_000} />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await canvas.findByText(/will be trimmed to the excerpt/, {}, { timeout: 20_000 });
+  },
 };
 
 export const ReviewPlayback: Story = {
   name: "Review with the intended soundtrack",
-  render: () => <Harness chooseFile={() => sampleVideoFile(32_000)} measureDuration={async () => 32_000} />,
+  render: () => <Harness chooseFile={() => sampleVideoFile(12_000)} measureDuration={async () => 12_000} />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await canvas.findByText("Review video", {}, { timeout: 20_000 });
+    await canvas.findByRole("button", { name: "Publish video" });
+    expect(canvas.queryByText(/choose a shorter one/)).toBeNull();
+  },
 };
 
 /** The preview surface with a real sample video; the stall and error seams
@@ -591,59 +645,46 @@ export const UploadProgress: Story = {
       autoPublish
       chooseFile={() => sampleVideoFile(12_000)}
       fetchImpl={storyFetch({ delayMs: 2_000 })}
-      measureDuration={async () => 45_000}
+      measureDuration={async () => 12_000}
       transport={storyTransport({ slowParts: true })}
     />
   ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await canvas.findByText(/Uploading video… \d+%/, {}, { timeout: 20_000 });
+  },
 };
 
 export const UploadFailure: Story = {
-  name: "Upload failure with a retry",
+  name: "Upload finished but not confirmed",
   render: () => (
     <Harness
       autoPublish
       chooseFile={() => sampleVideoFile(12_000)}
-      measureDuration={async () => 45_000}
+      measureDuration={async () => 12_000}
       transport={storyTransport({ finalize: "retryable_failure" })}
     />
   ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await canvas.findByText(/couldn't confirm it arrived yet/, {}, { timeout: 20_000 });
+  },
 };
 
-export const Processing: Story = {
-  name: "Processing after upload",
+/** A video whose upload finished belongs to the server: the composer forgets it
+ * and never shows it as pending. Processing, held-for-review, unconfirmed and
+ * published videos all reopen the same way, at a fresh camera, so one story
+ * stands for them and asserts that nothing pending is shown. */
+export const ReopenedAfterUploadFinished: Story = {
+  name: "Reopened after the upload finished",
   render: () => {
     const snapshot: VideoSnapshot = { ...snapshotBase, status: "processing", phase: "analysis" };
-    return <Harness storage={memoryStorage(retainedRecord(snapshot))} transport={retainedTransport(snapshot)} />;
+    return <Harness autoContinue storage={memoryStorage(retainedRecord(snapshot))} transport={retainedTransport(snapshot)} />;
   },
-};
-
-export const HeldForReview: Story = {
-  name: "Held for review",
-  render: () => {
-    const snapshot: VideoSnapshot = { ...snapshotBase, status: "manual_review", reason_codes: ["media_review_required"], review_ref: "review-story" };
-    return <Harness storage={memoryStorage(retainedRecord(snapshot))} transport={retainedTransport(snapshot)} />;
-  },
-};
-
-export const UnresolvedModeration: Story = {
-  name: "Moderation outcome unconfirmed",
-  render: () => {
-    const snapshot: VideoSnapshot = {
-      ...snapshotBase,
-      status: "processing_failed",
-      reason_code: "provider_submission_unconfirmed",
-      retryable: false,
-      retry_count: 0,
-    };
-    return <Harness storage={memoryStorage(retainedRecord(snapshot))} transport={unresolvedModerationTransport(snapshot)} />;
-  },
-};
-
-export const Published: Story = {
-  name: "Published",
-  render: () => {
-    const snapshot: VideoSnapshot = { ...snapshotBase, status: "published", creation_revision: 2, video_revision: 1, published_resource: { post_id: "post-story", href: "/posts/post-story" } };
-    return <Harness storage={memoryStorage(retainedRecord(snapshot))} transport={retainedTransport(snapshot)} />;
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await canvas.findByRole("button", { name: "Start recording" }, { timeout: 15_000 });
+    expect(canvas.queryByText(/Resume video submission|Check video status|Cancel video submission/)).toBeNull();
   },
 };
 

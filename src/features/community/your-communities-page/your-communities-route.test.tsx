@@ -268,6 +268,8 @@ describe("YourCommunitiesRouteView", () => {
     expect(container.querySelector("[data-post-community-id]")).toBeNull();
     expect(container.textContent).toContain("You don't have a community where you can post this video yet.");
     expect(container.textContent).toContain("Create community");
+    // There is nothing to choose, so the page does not ask for a choice.
+    expect(container.textContent).not.toContain("Choose a community to post it in.");
   });
 
   test("a preselected song opens video creation in the chosen destination", async () => {
@@ -283,6 +285,86 @@ describe("YourCommunitiesRouteView", () => {
     container.querySelector<HTMLButtonElement>("[data-post-community-id='community-route-less']")!.click();
     await vi.waitFor(() => expect(container.querySelector("[data-create-video-overlay]")).not.toBeNull());
     expect(container.querySelector("input[name='community-id']")).toBeNull();
+  });
+
+  const signedIn = () => ({ status: "authenticated" as const, userId: "account-one" });
+  const actionButtons = (container: HTMLElement) =>
+    [...container.querySelectorAll<HTMLButtonElement>("[data-post-community-id]")];
+
+  test("a pending song is named, its actions say which community, and the exits that lose it are gone", async () => {
+    const container = render(() => (
+      <YourCommunitiesRouteView
+        applicationSession={signedIn}
+        initialVideoSong={{ postId: "song-post-id" }}
+        loadMemberships={async () => [routedMembership, routeLessMembership]}
+        readSongTitle={async () => "Cadence"}
+      />
+    ));
+    await vi.waitFor(() => expect(container.querySelector("h1")?.textContent).toBe("Post a video with “Cadence”"));
+    expect(container.textContent).toContain("Choose a community to post it in.");
+    const actions = actionButtons(container);
+    expect(actions.map(action => action.getAttribute("aria-label"))).toEqual(["Post video in Harbor", "Post video in Open Sea"]);
+    expect(actions.every(action => action.textContent?.trim() === "Post video")).toBe(true);
+    expect([...container.querySelectorAll("button")].some(control => control.textContent === "Create community")).toBe(false);
+    // A community with an address is only a name here: opening it would leave
+    // the step and drop the song.
+    expect(container.querySelector("#community-community-routed button:not([data-post-community-id])")).toBeNull();
+  });
+
+  test("a song whose title cannot be read is still named as this song", async () => {
+    const container = render(() => (
+      <YourCommunitiesRouteView
+        applicationSession={signedIn}
+        initialVideoSong={{ postId: "song-post-id" }}
+        loadMemberships={async () => [routedMembership]}
+        readSongTitle={async () => { throw new Error("offline"); }}
+      />
+    ));
+    await vi.waitFor(() => expect(actionButtons(container)).toHaveLength(1));
+    await new Promise(resolve => setTimeout(resolve, 0));
+    expect(container.querySelector("h1")?.textContent).toBe("Post a video with this song");
+  });
+
+  test("the tapped action shows it is working and the other communities wait", async () => {
+    let release = () => {};
+    const held = new Promise<void>(resolve => { release = resolve; });
+    const container = render(() => (
+      <YourCommunitiesRouteView
+        applicationSession={signedIn}
+        initialVideoSong={{ postId: "song-post-id" }}
+        loadMemberships={async () => [routedMembership, routeLessMembership]}
+        readSongTitle={async () => "Cadence"}
+        resolvePostingSession={async () => {
+          await held;
+          return { status: "authenticated", userId: "account-one", personas: [] };
+        }}
+      />
+    ));
+    await vi.waitFor(() => expect(actionButtons(container)).toHaveLength(2));
+    const [harbor, openSea] = actionButtons(container);
+    if (harbor === undefined || openSea === undefined) throw new Error("both post actions should be rendered");
+    expect(harbor.getAttribute("aria-busy")).not.toBe("true");
+    harbor.click();
+    await vi.waitFor(() => expect(harbor.getAttribute("aria-busy")).toBe("true"));
+    expect(openSea.disabled).toBe(true);
+    release();
+    await vi.waitFor(() => expect(container.querySelector("[data-create-video-overlay]")).not.toBeNull());
+  });
+
+  test("without a pending song the page keeps its own title, Create action and generic post action", async () => {
+    const container = render(() => (
+      <YourCommunitiesRouteView
+        applicationSession={signedIn}
+        loadMemberships={async () => [routedMembership]}
+      />
+    ));
+    await vi.waitFor(() => expect(actionButtons(container)).toHaveLength(1));
+    expect(container.querySelector("h1")?.textContent).toBe("Your communities");
+    expect([...container.querySelectorAll("button")].some(control => control.textContent === "Create community")).toBe(true);
+    const [action] = actionButtons(container);
+    if (action === undefined) throw new Error("the post action should be rendered");
+    expect(action.textContent?.trim()).toBe("Post here");
+    expect(action.hasAttribute("aria-label")).toBe(false);
   });
 
   test("a failed membership load offers its own retry", async () => {
