@@ -2,11 +2,11 @@ import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import { ApiClientError } from "@pirate/api-client";
 import type { JSX } from "@solidjs/web";
 import { createSignal, onCleanup, onSettled, Show } from "solid-js";
-import { expect, waitFor, within } from "storybook/test";
+import { expect, userEvent, waitFor, within } from "storybook/test";
 
 import { Button, FormNote, Type } from "../../../design-system";
 import { SongReviewPreview, type PreviewAudio } from "./song-review-preview";
-import { VideoComposerRuntime, type GuideAudio } from "./video-composer-runtime";
+import { VideoComposerRuntime, type GuideAudio, type VideoPostingOption } from "./video-composer-runtime";
 import { VideoCaptureError, type OriginalVideoCaptureInput, type VideoCaptureSession } from "./capture";
 import { SONG_VIDEO_PENDING, type PendingVideo, type VideoStorage } from "./coordinator";
 import type { VideoCommand, VideoCommandResult, VideoTransport } from "./transport";
@@ -118,31 +118,41 @@ function refusedPreflight(): SongIntervalPreflight {
 }
 
 interface StoryGuide extends GuideAudio {
-  readonly emit: (type: "waiting" | "stalled" | "error") => void;
+  /** Freeze the guide's clock and report a playback gap, as a stalled stream does. */
+  readonly stall: () => void;
 }
 
 let activeGuide: StoryGuide | undefined;
 
-/** A real audio element behind the guide interface, with a seam for the
- * interruption states a story needs to show on demand. */
-function storyGuide(): StoryGuide {
-  const element = new Audio(toneWavUrl(SONG_MS));
+/** A guide with its own clock rather than an audio element. A real element is
+ * refused by most browsers until the page has had a user gesture, which put
+ * every recording story in the "would not play" state whenever it opened
+ * unattended, whatever it was named for. This one starts when asked, so each
+ * story shows the state it names; `blocked` makes it refuse the way a browser
+ * does, for the one story about that refusal. The sound is not played: what
+ * these stories show is the take's timing and its interruptions. */
+function storyGuide(options: { readonly blocked?: boolean } = {}): StoryGuide {
   const listeners = new Map<string, Set<() => void>>();
   const emit = (type: string) => { for (const listener of listeners.get(type) ?? []) listener(); };
-  element.addEventListener("waiting", () => emit("waiting"));
-  element.addEventListener("stalled", () => emit("stalled"));
-  element.addEventListener("playing", () => emit("playing"));
+  let base = 0;
+  let startedAt = 0;
+  let playing = false;
+  const now = () => (playing ? base + (performance.now() - startedAt) / 1_000 : base);
   const guide: StoryGuide = {
-    get currentTime() { return element.currentTime; },
-    set currentTime(value: number) { element.currentTime = value; },
-    play: () => element.play(),
-    pause: () => element.pause(),
+    get currentTime() { return now(); },
+    set currentTime(value: number) { base = value; startedAt = performance.now(); },
+    play: async () => {
+      if (options.blocked) throw new DOMException("play() failed because the user didn't interact with the document first.", "NotAllowedError");
+      if (!playing) { base = now(); startedAt = performance.now(); playing = true; }
+      queueMicrotask(() => emit("playing"));
+    },
+    pause: () => { base = now(); playing = false; },
     addEventListener: (type, listener) => {
       const set = listeners.get(type) ?? new Set<() => void>();
       set.add(listener); listeners.set(type, set);
     },
     removeEventListener: (type, listener) => { listeners.get(type)?.delete(listener); },
-    emit,
+    stall: () => { base = now(); playing = false; emit("waiting"); },
   };
   activeGuide = guide;
   return guide;
@@ -210,18 +220,18 @@ function memoryStorage(seed: PendingVideo | null = null): VideoStorage {
   };
 }
 
-function uploadPlan(sizeBytes: number, parts = 1) {
+function uploadPlan(sizeBytes: number, parts = 1, expiresAt = "2099-01-01T00:00:00Z") {
   const partSize = Math.max(1, Math.ceil(sizeBytes / parts));
   return {
     method: "MULTIPART" as const,
     upload_id: "upload-story",
     part_count: parts,
     part_size_bytes: partSize,
-    expires_at: "2099-01-01T00:00:00Z",
+    expires_at: expiresAt,
     parts: Array.from({ length: parts }, (_, index) => ({
       part_number: index + 1,
       url: `https://upload.story.test/${index + 1}`,
-      expires_at: "2099-01-01T00:00:00Z",
+      expires_at: expiresAt,
     })),
   };
 }
@@ -241,6 +251,9 @@ const snapshotBase = {
 function storyTransport(options: {
   readonly finalize?: "published" | "retryable_failure";
   readonly slowParts?: boolean;
+  /** Refuse the reservation as the server does: definitively, with or without
+   * a named song reason. */
+  readonly refuse?: { readonly songReason?: "derivative_video_blocked" };
 } = {}): VideoTransport {
   return {
     async read(): Promise<VideoSnapshot> {
@@ -250,6 +263,19 @@ function storyTransport(options: {
       if (command.kind === "reserve") {
         const body = command.input.body;
         if (body.track !== "video") throw new Error("not a video");
+        if (options.refuse) {
+          throw new ApiClientError(
+            { status: 400, code: "bad_request", name: "BadRequest", retryable: false },
+            { error: {
+              code: "bad_request",
+              message: "Request refused",
+              retryable: false,
+              ...(options.refuse.songReason === undefined ? {} : {
+                details: { reason_code: options.refuse.songReason, track: "video", capability: "song_reference" },
+              }),
+            } },
+          );
+        }
         const upload = uploadPlan(body.expected_size_bytes, options.slowParts ? 3 : 1);
         if (body.intent === "original_audio") {
           return { track: "video", intent: "original_audio", status: "awaiting_upload", slot: "primary_video", author_persona_id: "persona", ingest_policy_revision: 1, reservation_id: "reservation-story", upload };
@@ -277,9 +303,17 @@ function storyTransport(options: {
   };
 }
 
-function storyFetch(options: { readonly delayMs?: number; readonly fails?: boolean } = {}): typeof fetch {
-  const impl = async () => {
+function storyFetch(options: {
+  readonly delayMs?: number;
+  readonly fails?: boolean;
+  /** Answer this many uploads, then leave the next one in flight for good. */
+  readonly hangAfter?: number;
+} = {}): typeof fetch {
+  let calls = 0;
+  const impl = async (): Promise<Response> => {
+    calls += 1;
     if (options.fails) throw new TypeError("network down");
+    if (options.hangAfter !== undefined && calls > options.hangAfter) return new Promise<Response>(() => undefined);
     if (options.delayMs !== undefined) await new Promise(resolve => setTimeout(resolve, options.delayMs));
     return new Response(null, { headers: { etag: "receipt-story" } });
   };
@@ -309,6 +343,11 @@ function Harness(props: {
   readonly songPicker?: SongPickerSource;
   readonly autoStart?: boolean;
   readonly autoPublish?: boolean;
+  /** The guide song is refused by the browser, as it is before any gesture. */
+  readonly guideBlocked?: boolean;
+  /** The profiles that may author the video, and the community named on review. */
+  readonly personaOptions?: readonly VideoPostingOption[];
+  readonly communityName?: string;
   readonly controls?: JSX.Element;
 }) {
   let container: HTMLDivElement | undefined;
@@ -365,15 +404,18 @@ function Harness(props: {
     <div ref={element => { container = element; }} class="mx-auto max-w-md">
       <VideoComposerRuntime
         communityId="community"
-        createGuideAudio={() => storyGuide()}
+        createGuideAudio={() => storyGuide({ blocked: props.guideBlocked })}
         fetchImpl={props.fetchImpl ?? storyFetch()}
         initialSong={props.noInitialSong ? undefined : { postId: "song-post" }}
         inspectFile={async file => file}
         measureDuration={props.measureDuration}
+        communityName={props.communityName}
         onExit={() => undefined}
+        onPosted={() => undefined}
         onPublished={() => undefined}
         onRetainedPersona={() => undefined}
         personaId="persona"
+        personaOptions={props.personaOptions}
         principalId="storybook-account"
         songPreflight={props.preflight ?? readyPreflight()}
         songPicker={props.songPicker}
@@ -388,14 +430,17 @@ function Harness(props: {
   );
 }
 
-function retainedRecord(snapshot: VideoSnapshot): PendingVideo {
+function retainedRecord(
+  snapshot: VideoSnapshot,
+  options: { readonly communityId?: string; readonly uploadExpiresAt?: string } = {},
+): PendingVideo {
   // The upload plan describes this exact file: a resume refuses a plan that
   // does not match the bytes it holds.
   const file = new File(["take"], "take.mp4", { type: "video/mp4" });
   return {
     version: SONG_VIDEO_PENDING,
     principalId: "storybook-account",
-    communityId: "community",
+    communityId: options.communityId ?? "community",
     personaId: "persona",
     file,
     caption: "",
@@ -407,7 +452,7 @@ function retainedRecord(snapshot: VideoSnapshot): PendingVideo {
       song_reference: { song_post_id: "song-post", audio_revision: 7, song_asset_id: "song-asset" },
       reservation_policy_snapshot: { observed_at_transition: "media_reservation_issued", owner_policy_revision: 3, owner_policy_hash: "a".repeat(64), derivative_video: "allowed", observed_at: "2026-09-20T00:00:00Z" },
       interval: { clip_start_samples: 0, clip_duration_samples: 15_000 * 48, song_duration_samples: SONG_MS * 48 },
-      upload: uploadPlan(file.size),
+      upload: uploadPlan(file.size, 1, options.uploadExpiresAt),
     },
     snapshot,
     receipts: [],
@@ -419,6 +464,23 @@ function retainedTransport(snapshot: VideoSnapshot): VideoTransport {
   return {
     async read(): Promise<VideoSnapshot> { return snapshot; },
     async execute(): Promise<VideoCommandResult> { return snapshot; },
+  };
+}
+
+/** A retained video that the server lets the author cancel. */
+function cancellableTransport(snapshot: VideoSnapshot): VideoTransport {
+  return {
+    async read(): Promise<VideoSnapshot> { return snapshot; },
+    async execute(command: VideoCommand): Promise<VideoCommandResult> {
+      if (command.kind !== "cancel") return snapshot;
+      return {
+        ...snapshotBase,
+        status: "abandoned",
+        creation_revision: snapshot.creation_revision,
+        video_revision: snapshot.video_revision,
+        reason_code: "author_cancelled_before_finalize",
+      };
+    },
   };
 }
 
@@ -528,6 +590,23 @@ export const RecordingReady: Story = {
 export const GuidedRecording: Story = {
   name: "Recording with the guide",
   render: () => <Harness autoStart startCapture={captureDouble({ autoStopAfterMs: 60_000 })} />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await canvas.findByText(/Recording to Cadence/, {}, { timeout: 20_000 });
+    expect(canvas.queryByText(/would not play/)).toBeNull();
+  },
+};
+
+/** The one story about a refused guide: a browser that has had no gesture
+ * refuses to start the song, and the take does not begin. */
+export const GuideBlocked: Story = {
+  name: "Guide blocked by the browser",
+  render: () => <Harness autoStart guideBlocked startCapture={captureDouble({ autoStopAfterMs: 60_000 })} />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await canvas.findByText(/The guide song would not play, so this recording did not start/, {}, { timeout: 20_000 });
+    expect(canvas.queryByText(/Recording to Cadence/)).toBeNull();
+  },
 };
 
 export const GuideInterrupted: Story = {
@@ -536,9 +615,16 @@ export const GuideInterrupted: Story = {
     <Harness
       autoStart
       startCapture={captureDouble({ autoStopAfterMs: 60_000 })}
-      controls={<Button class="mt-3" onClick={() => activeGuide?.emit("waiting")} variant="secondary">Stall the guide</Button>}
+      controls={<Button class="mt-3" onClick={() => activeGuide?.stall()} variant="secondary">Stall the guide</Button>}
     />
   ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await canvas.findByText(/Recording to Cadence/, {}, { timeout: 20_000 });
+    await userEvent.click(canvas.getByRole("button", { name: "Stall the guide" }));
+    await canvas.findByText("That take ended", {}, { timeout: 20_000 });
+    await canvas.findByRole("button", { name: "Record again" });
+  },
 };
 
 export const Backgrounded: Story = {
@@ -554,6 +640,12 @@ export const Backgrounded: Story = {
       }} variant="secondary">Simulate backgrounding</Button>}
     />
   ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await canvas.findByText(/Recording to Cadence/, {}, { timeout: 20_000 });
+    await userEvent.click(canvas.getByRole("button", { name: "Simulate backgrounding" }));
+    await canvas.findByText("The page was hidden, so the guide song stopped and this recording ended.", {}, { timeout: 30_000 });
+  },
 };
 
 export const ShortUploadedClip: Story = {
@@ -656,14 +748,16 @@ export const UploadProgress: Story = {
     <Harness
       autoPublish
       chooseFile={() => sampleVideoFile(12_000)}
-      fetchImpl={storyFetch({ delayMs: 2_000 })}
+      fetchImpl={storyFetch({ hangAfter: 2 })}
       measureDuration={async () => 12_000}
       transport={storyTransport({ slowParts: true })}
     />
   ),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await canvas.findByText(/Uploading video… \d+%/, {}, { timeout: 20_000 });
+    // Two of three parts are sent and the third stays in flight, so the
+    // story holds at partial progress instead of finishing and leaving.
+    await canvas.findByText("Uploading video… 66%", {}, { timeout: 20_000 });
   },
 };
 
@@ -680,23 +774,6 @@ export const UploadFailure: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await canvas.findByText(/couldn't confirm it arrived yet/, {}, { timeout: 20_000 });
-  },
-};
-
-/** A video whose upload finished belongs to the server: the composer forgets it
- * and never shows it as pending. Processing, held-for-review, unconfirmed and
- * published videos all reopen the same way, at a fresh camera, so one story
- * stands for them and asserts that nothing pending is shown. */
-export const ReopenedAfterUploadFinished: Story = {
-  name: "Reopened after the upload finished",
-  render: () => {
-    const snapshot: VideoSnapshot = { ...snapshotBase, status: "processing", phase: "analysis" };
-    return <Harness autoContinue storage={memoryStorage(retainedRecord(snapshot))} transport={retainedTransport(snapshot)} />;
-  },
-  play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement);
-    await canvas.findByRole("button", { name: "Start recording" }, { timeout: 15_000 });
-    expect(canvas.queryByText(/Resume video submission|Check video status|Cancel video submission/)).toBeNull();
   },
 };
 
@@ -744,6 +821,153 @@ export const SubmittedUploadNeedsAnotherTry: Story = {
     await canvas.findByRole("button", { name: "Try again" });
     await canvas.findByRole("button", { name: "Cancel upload" });
     expect(canvas.queryByRole("button", { name: /Resume video submission|Pause upload|Check video status/ })).toBeNull();
+  },
+};
+
+/** The reservation's window closed while the composer was away. It cannot be
+ * resumed, only cancelled. */
+export const SubmittedUploadExpired: Story = {
+  name: "Submitted upload expired",
+  render: () => {
+    const snapshot: VideoSnapshot = { ...snapshotBase, status: "processing", phase: "awaiting_upload" };
+    return (
+      <Harness
+        storage={memoryStorage(retainedRecord(snapshot, { uploadExpiresAt: "2026-01-01T00:00:00Z" }))}
+        transport={retainedTransport(snapshot)}
+      />
+    );
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await canvas.findByText("This upload expired. Cancel it, then choose the video again.", {}, { timeout: 20_000 });
+    await canvas.findByRole("button", { name: "Cancel upload" });
+    expect(canvas.queryByRole("button", { name: "Try again" })).toBeNull();
+  },
+};
+
+/** Cancelling a submitted upload ends it: the video is cancelled and the only
+ * way on is a new one. */
+export const SubmittedUploadCancelled: Story = {
+  name: "Submitted upload cancelled",
+  render: () => {
+    const snapshot: VideoSnapshot = { ...snapshotBase, status: "processing", phase: "awaiting_upload" };
+    return (
+      <Harness
+        fetchImpl={storyFetch({ fails: true })}
+        storage={memoryStorage(retainedRecord(snapshot))}
+        transport={cancellableTransport(snapshot)}
+      />
+    );
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    // The upload resumes by itself and fails; act only once that has settled,
+    // or the click lands on a control that is about to be replaced.
+    await canvas.findByText("We couldn’t reach the upload server. Check your connection and try again.", {}, { timeout: 20_000 });
+    await userEvent.click(canvas.getByRole("button", { name: "Cancel upload" }));
+    await canvas.findByText("This video was cancelled.", {}, { timeout: 20_000 });
+    await canvas.findByRole("button", { name: "Start a new video" });
+    expect(canvas.queryByRole("button", { name: /Try again|Cancel upload|Check video status/ })).toBeNull();
+  },
+};
+
+/** A submitted upload belongs to the community it was started in. Opened from
+ * another one it waits, and says where to finish it. */
+export const SubmittedUploadInAnotherCommunity: Story = {
+  name: "Submitted upload belongs to another community",
+  render: () => {
+    const snapshot: VideoSnapshot = { ...snapshotBase, status: "processing", phase: "awaiting_upload" };
+    return (
+      <Harness
+        storage={memoryStorage(retainedRecord(snapshot, { communityId: "another-community" }))}
+        transport={retainedTransport(snapshot)}
+      />
+    );
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await canvas.findByText("Your video hasn't finished uploading.", {}, { timeout: 20_000 });
+    await userEvent.click(await canvas.findByRole("button", { name: "Try again" }));
+    await canvas.findByText("Your earlier video is still uploading for another community. Open that community to finish it.", {}, { timeout: 20_000 });
+  },
+};
+
+/** The server refused the video outright. Nothing was uploaded, and the author
+ * can edit it and try again. */
+export const VideoNotAccepted: Story = {
+  name: "Video not accepted",
+  render: () => (
+    <Harness
+      autoPublish
+      chooseFile={() => sampleVideoFile(12_000)}
+      measureDuration={async () => 12_000}
+      transport={storyTransport({ refuse: {} })}
+    />
+  ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await canvas.findByText("This video wasn’t accepted.", {}, { timeout: 30_000 });
+    await canvas.findByRole("button", { name: "Edit rejected video" });
+  },
+};
+
+/** The refusal names the song: its owner stopped allowing videos after the
+ * excerpt was accepted. The message says to choose another song. */
+export const VideoNotAcceptedBySong: Story = {
+  name: "Video not accepted because of the song",
+  render: () => (
+    <Harness
+      autoPublish
+      chooseFile={() => sampleVideoFile(12_000)}
+      measureDuration={async () => 12_000}
+      transport={storyTransport({ refuse: { songReason: "derivative_video_blocked" } })}
+    />
+  ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    const alert = await canvas.findByRole("alert", {}, { timeout: 30_000 });
+    expect(alert).toHaveTextContent(/Choose another song\./);
+    await canvas.findByRole("button", { name: "Edit rejected video" });
+  },
+};
+
+const PROFILES: readonly VideoPostingOption[] = [
+  { id: "persona", label: "Harbour Lights" },
+  { id: "persona-night-shift", label: "Night Shift" },
+];
+
+/** Two profiles may author here: review names the community and lets the
+ * author choose which one posts. */
+export const ReviewPostingAs: Story = {
+  name: "Review with a choice of profile",
+  render: () => (
+    <Harness
+      chooseFile={() => sampleVideoFile(12_000)}
+      communityName="Pirate Harbor"
+      measureDuration={async () => 12_000}
+      personaOptions={PROFILES}
+    />
+  ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await canvas.findByText("Posting in Pirate Harbor", {}, { timeout: 30_000 });
+    await canvas.findByText("Posting as");
+  },
+};
+
+/** None of the author's profiles can post in this community, so capture is
+ * closed and says why. */
+export const NoPostingProfile: Story = {
+  name: "No profile can post in this community",
+  render: () => (
+    <Harness
+      autoContinue
+      personaOptions={[{ id: "persona-elsewhere", label: "Elsewhere", communityId: "another-community" }]}
+    />
+  ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await canvas.findByText("Choose a posting profile for this community.", {}, { timeout: 30_000 });
   },
 };
 
