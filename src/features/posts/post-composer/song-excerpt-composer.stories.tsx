@@ -1,4 +1,5 @@
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
+import { expect, userEvent, waitFor, within } from "storybook/test";
 
 import { SongExcerptComposer } from "./song-excerpt-composer";
 import type { SongPickerItem, SongPickerSource } from "./song-picker";
@@ -136,6 +137,61 @@ export const ChooseHearAndRetain: Story = {
       store={memoryStore()}
     />
   ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await canvas.findByRole("searchbox", { name: "Search songs or paste a link" });
+    expect(await canvas.findAllByRole("listitem")).toHaveLength(3);
+  },
+};
+
+/** A title with a slash is still a search: the list narrows to it and no link
+ * is offered. */
+export const SearchWithSlash: Story = {
+  render: () => (
+    <SongExcerptComposer
+      communityId="community-story"
+      onClose={() => {}}
+      songs={async () => ({
+        songs: [
+          { postId: "back-in-black", title: "Back in Black (AC/DC cover)", artist: "salt-cove.pirate", artworkSrc: null },
+          ...standInSongList,
+        ],
+        nextCursor: null,
+      })}
+      read={standInReader("Cadence", 150_000)}
+      preflight={standInPreflight}
+      store={memoryStore()}
+    />
+  ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await canvas.findByText("Back in Black (AC/DC cover)");
+    await userEvent.type(canvas.getByRole("searchbox", { name: "Search songs or paste a link" }), "AC/DC");
+    await waitFor(() => expect(canvas.getAllByRole("listitem")).toHaveLength(1));
+    expect(canvas.getByText("Back in Black (AC/DC cover)")).toBeVisible();
+    expect(canvas.queryByRole("button", { name: "Use the song at this link" })).toBeNull();
+  },
+};
+
+/** A pasted song post link replaces the list with the one action that uses it. */
+export const PastedPostLink: Story = {
+  render: () => (
+    <SongExcerptComposer
+      communityId="community-story"
+      onClose={() => {}}
+      songs={standInSongs}
+      read={standInReader("Cadence", 150_000)}
+      preflight={standInPreflight}
+      store={memoryStore()}
+    />
+  ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await canvas.findByText("Low Tide");
+    await userEvent.type(canvas.getByRole("searchbox", { name: "Search songs or paste a link" }), "https://pirate.sc/posts/low-tide-story");
+    await canvas.findByRole("button", { name: "Use the song at this link" });
+    expect(canvas.queryByRole("listitem")).toBeNull();
+  },
 };
 
 /** The community's songs a feed page at a time: Load more reaches the next
@@ -153,6 +209,18 @@ export const PagedSongChoice: Story = {
       store={memoryStore()}
     />
   ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await canvas.findByRole("button", { name: "Load more songs" });
+    // Without a search there is nothing to qualify.
+    expect(canvas.queryByText("Search covers the songs loaded so far.")).toBeNull();
+    await userEvent.type(canvas.getByRole("searchbox", { name: "Search songs or paste a link" }), "harbor");
+    await canvas.findByText("No songs match yet. Load more, or paste a song link.");
+    await canvas.findByText("Search covers the songs loaded so far.");
+    await userEvent.click(canvas.getByRole("button", { name: "Load more songs" }));
+    await canvas.findByText("Harbor Lights");
+    expect(canvas.queryByText("Search covers the songs loaded so far.")).toBeNull();
+  },
 };
 
 /** A song picked from the list: its window plays and the excerpt controls
@@ -192,6 +260,11 @@ export const SongsFailed: Story = {
       store={memoryStore()}
     />
   ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    expect(await canvas.findByRole("alert")).toHaveTextContent("Songs couldn’t load.");
+    await canvas.findByRole("button", { name: "Try again" });
+  },
 };
 
 /** A community with no songs yet. */
@@ -204,6 +277,12 @@ export const NoSongsYet: Story = {
       store={memoryStore()}
     />
   ),
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    expect(await canvas.findByRole("status")).toHaveTextContent(
+      "No songs here can be used in a video yet. Paste a song link to use one from elsewhere.",
+    );
+  },
 };
 
 /** A song barely longer than the minimum excerpt, where the controls have

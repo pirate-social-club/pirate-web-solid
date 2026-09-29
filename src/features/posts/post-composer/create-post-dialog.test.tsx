@@ -1177,7 +1177,7 @@ describe("community Video entry", () => {
       expect(overlay?.classList.contains("fixed")).toBe(true);
       expect(overlay?.classList.contains("inset-0")).toBe(true);
       expect(document.querySelector("[data-operation-persona]")).toBeNull();
-      expect(songChoice.querySelector('input[aria-label="Search songs"]')).not.toBeNull();
+      expect(songChoice.querySelector('input[aria-label="Search songs or paste a link"]')).not.toBeNull();
       expect(document.querySelector('button[aria-label="Start recording"]')).toBeNull();
     } finally {
       for (const dispose of disposers.splice(0)) dispose();

@@ -6,8 +6,34 @@ import {
   excerptDraftStorageKey,
   SongExcerptDraftUnwritable,
 } from "./song-excerpt-draft-store";
-import { parseSongLink } from "./song-excerpt-link";
+import { looksLikeSongLink, parseSongLink } from "./song-excerpt-link";
 import { loadSongSource, SongSourceError, type SongSourceRequest } from "./song-excerpt-source";
+
+describe("telling a pasted link from a search", () => {
+  it("keeps a title with a slash a search", () => {
+    for (const text of ["AC/DC", "ac/dc", "Mr.Big/Wild", "Night/Day (remix)", "cadence", "Low Tide"]) {
+      expect(looksLikeSongLink(text)).toBe(false);
+    }
+  });
+
+  it("reads a scheme or a leading slash as a link even when it names no post", () => {
+    for (const text of ["https://pirate.sc/posts/some-song", "http://example.com/nothing", "/p/abc123def456", "/somewhere/else"]) {
+      expect(looksLikeSongLink(text)).toBe(true);
+    }
+  });
+
+  it("reads a bare host and path as a link only when it names a post", () => {
+    expect(looksLikeSongLink("pirate.sc/p/abc123def456")).toBe(true);
+    expect(looksLikeSongLink("pirate.sc/posts/some-song")).toBe(true);
+    expect(looksLikeSongLink("example.com/nothing")).toBe(false);
+  });
+
+  it("never reads a bare word as a link, though the parser reads it as a post id", () => {
+    expect(parseSongLink("cadence")).toEqual({ kind: "post", postId: "cadence" });
+    expect(looksLikeSongLink("cadence")).toBe(false);
+    expect(looksLikeSongLink("  ")).toBe(false);
+  });
+});
 
 describe("choosing a song by link", () => {
   it("accepts a post-id link in the form the app actually routes", () => {

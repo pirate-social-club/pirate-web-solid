@@ -340,9 +340,9 @@ describe("mounted song-first video flow", () => {
     const change = [...document.querySelectorAll("button")].find(candidate => candidate.textContent === "Change song" || candidate.textContent === "Change");
     if (change !== undefined) {
       change.click();
-      await vi.waitFor(() => expect(document.querySelector('input[aria-label="Search songs"]')).not.toBeNull());
+      await vi.waitFor(() => expect(document.querySelector('input[aria-label="Search songs or paste a link"]')).not.toBeNull());
     }
-    const input = document.querySelector<HTMLInputElement>('input[aria-label="Search songs"]');
+    const input = document.querySelector<HTMLInputElement>('input[aria-label="Search songs or paste a link"]');
     if (input === null) throw new Error("the song picker is not on screen");
     input.value = link;
     input.dispatchEvent(new Event("input", { bubbles: true }));

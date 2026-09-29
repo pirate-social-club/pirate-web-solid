@@ -2,14 +2,16 @@
 // loaded a feed page at a time and filtered as the author types. Tapping a
 // song plays a preview; "Use" commits it. Pasting a song link in the same
 // field loads that song instead, so there is no separate "paste a link" step.
-// The search field filters only loaded rows, so while more pages remain the
-// list says so rather than implying a community-wide search.
+// The search field filters only loaded rows, so while a search is typed and
+// more pages remain the list says so rather than implying a community-wide
+// search.
 
 import { createEffect, createMemo, createSignal, For, onCleanup, Show } from "solid-js";
 
 import { createSessionApiClient } from "../../../api/client";
 import { Button, IconButton, IconLink, IconMagnifyingGlass, IconPause, IconPlay, IconX, Input, Type } from "../../../design-system";
 import { loadCommunityThreadPage } from "../../communities/community-page/community-thread-feed-api";
+import { looksLikeSongLink } from "./song-excerpt-link";
 
 export interface SongPickerItem {
   readonly postId: string;
@@ -199,7 +201,8 @@ export function SongPicker(props: {
     props.onPick(postId);
   };
 
-  const isLink = () => query().trim().includes("/");
+  const isLink = () => looksLikeSongLink(query());
+  const searching = () => query().trim() !== "";
   const matches = createMemo(() => {
     const needle = query().trim().toLowerCase();
     if (needle === "" || isLink()) return songs();
@@ -225,10 +228,10 @@ export function SongPicker(props: {
         <div class="relative min-w-0 flex-1">
           <IconMagnifyingGlass aria-hidden="true" class="pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
           <Input
-            aria-label="Search songs"
+            aria-label="Search songs or paste a link"
             class="ps-9"
             onInput={(event) => setQuery(event.currentTarget.value)}
-            placeholder="Search songs"
+            placeholder="Search songs or paste a link"
             type="search"
             value={query()}
           />
@@ -255,11 +258,13 @@ export function SongPicker(props: {
         <Type as="p" variant="caption" class="px-2 text-muted-foreground" role="status">Loading songs…</Type>
       </Show>
       <Show when={state() === "choose_profile" && !isLink()}>
-        <Type as="p" variant="caption" class="px-2 text-muted-foreground">Choose a profile to see video-ready songs.</Type>
+        <Type as="p" variant="caption" class="px-2 text-muted-foreground" role="status">
+          Songs you can use appear here once a posting profile is chosen for this community.
+        </Type>
       </Show>
       <Show when={state() === "failed" && !isLink()}>
         <div class="flex items-center justify-between gap-3 px-2">
-          <Type as="p" variant="caption" class="text-muted-foreground">Songs couldn’t load.</Type>
+          <Type as="p" variant="caption" class="text-muted-foreground" role="alert">Songs couldn’t load.</Type>
           <Button onClick={() => load(props.communityId, props.personaId)} size="sm" type="button" variant="secondary">Try again</Button>
         </div>
       </Show>
@@ -267,13 +272,13 @@ export function SongPicker(props: {
         <Show
           when={matches().length > 0}
           fallback={
-            <Type as="p" variant="caption" class="px-2 text-muted-foreground">
+            <Type as="p" variant="caption" class="px-2 text-muted-foreground" role="status">
               {songs().length === 0
                 ? nextCursor() !== null
-                  ? "No video-ready songs in the loaded pages yet. Load more, or paste a song link."
-                  : "No video-ready songs here yet. Paste a song link to use one from elsewhere."
+                  ? "None of the songs loaded so far can be used in a video yet. Load more, or paste a song link."
+                  : "No songs here can be used in a video yet. Paste a song link to use one from elsewhere."
                 : nextCursor() !== null
-                  ? "No loaded songs match. Load more, or paste a song link."
+                  ? "No songs match yet. Load more, or paste a song link."
                   : "No songs match."}
             </Type>
           }
@@ -289,7 +294,7 @@ export function SongPicker(props: {
                     data-song-row={song.postId}
                   >
                     <button
-                      aria-label={status() === "playing" ? `Pause ${song.title}` : `Play ${song.title} by ${song.artist}`}
+                      aria-label={status() === "playing" ? `Pause ${song.title}` : `Play ${song.title}${song.artist ? ` by ${song.artist}` : ""}`}
                       aria-pressed={status() === "playing" ? "true" : "false"}
                       class="flex min-w-0 flex-1 items-center gap-3 rounded-[var(--radius-lg)] p-2 text-start hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
                       onClick={() => togglePreview(song.postId)}
@@ -328,9 +333,11 @@ export function SongPicker(props: {
             still hold the song the author is looking for. */}
         <Show when={nextCursor() !== null}>
           <div class="flex flex-wrap items-center justify-between gap-2 px-2">
-            <Type as="p" variant="caption" class="text-muted-foreground">
-              {moreState() === "failed" ? "More songs couldn’t load." : "Showing loaded songs. Load more to see the rest."}
-            </Type>
+            <Show when={moreState() === "failed" || searching()}>
+              <Type as="p" variant="caption" class="text-muted-foreground" role={moreState() === "failed" ? "alert" : undefined}>
+                {moreState() === "failed" ? "More songs couldn’t load." : "Search covers the songs loaded so far."}
+              </Type>
+            </Show>
             <Button
               disabled={moreState() === "loading"}
               onClick={loadMore}

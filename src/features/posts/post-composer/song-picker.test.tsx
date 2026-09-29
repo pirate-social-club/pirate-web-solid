@@ -45,7 +45,7 @@ const songs: SongPickerSource = async () => ({
 });
 
 const type = (container: HTMLElement, value: string) => {
-  const search = container.querySelector<HTMLInputElement>('input[aria-label="Search songs"]')!;
+  const search = container.querySelector<HTMLInputElement>('input[aria-label="Search songs or paste a link"]')!;
   search.value = value;
   search.dispatchEvent(new Event("input", { bubbles: true }));
 };
@@ -59,7 +59,10 @@ describe("song picker", () => {
     const container = render(() => (
       <SongPicker communityId="community" onLink={() => {}} onPick={() => {}} />
     ));
-    await vi.waitFor(() => expect(container.textContent).toContain("Choose a profile to see video-ready songs."));
+    await vi.waitFor(() => expect(container.textContent).toContain(
+      "Songs you can use appear here once a posting profile is chosen for this community.",
+    ));
+    expect(container.querySelector('[role="status"]')?.textContent).toContain("posting profile");
     expect(rows(container)).toEqual([]);
   });
 
@@ -166,11 +169,59 @@ describe("song picker", () => {
     expect(onLink).toHaveBeenCalledWith("https://pirate.test/posts/cadence");
   });
 
+  test("a search with a slash in it stays a search", async () => {
+    const withSlash: SongPickerSource = async () => ({
+      songs: [
+        { postId: "back-in-black", title: "Back in Black (AC/DC cover)", artist: "salt-cove.pirate", artworkSrc: null },
+        { postId: "low-tide", title: "Low Tide", artist: "drift-reef.pirate", artworkSrc: null },
+      ],
+      nextCursor: null,
+    });
+    const container = render(() => (
+      <SongPicker communityId="community" onLink={() => {}} onPick={() => {}} source={withSlash} />
+    ));
+    await vi.waitFor(() => expect(rows(container)).toHaveLength(2));
+    type(container, "AC/DC");
+    await vi.waitFor(() => expect(rows(container)).toEqual(["Back in Black (AC/DC cover)salt-cove.pirate"]));
+    expect([...container.querySelectorAll("button")].some(candidate => candidate.textContent === "Use the song at this link")).toBe(false);
+  });
+
+  test("a link that names no post is still handed on, so the composer can say why", async () => {
+    const onLink = vi.fn();
+    const container = render(() => (
+      <SongPicker communityId="community" onLink={onLink} onPick={() => {}} source={songs} />
+    ));
+    await vi.waitFor(() => expect(rows(container)).toHaveLength(2));
+    type(container, "https://example.com/nothing");
+    const use = await vi.waitFor(() => {
+      const control = [...container.querySelectorAll("button")].find(candidate => candidate.textContent === "Use the song at this link");
+      expect(control).toBeDefined();
+      return control!;
+    });
+    use.click();
+    expect(onLink).toHaveBeenCalledWith("https://example.com/nothing");
+  });
+
+  test("a song with no artist is named by its title alone", async () => {
+    const container = render(() => (
+      <SongPicker
+        communityId="community"
+        onLink={() => {}}
+        onPick={() => {}}
+        source={async () => ({ songs: [{ postId: "cadence", title: "Cadence", artist: "", artworkSrc: null }], nextCursor: null })}
+      />
+    ));
+    await vi.waitFor(() => expect(button(container, "Play Cadence")).not.toBeNull());
+    expect(container.querySelector('button[aria-label="Play Cadence by "]')).toBeNull();
+  });
+
   test("says when the community has no songs, and offers a retry when loading fails", async () => {
     const empty = render(() => (
       <SongPicker communityId="community" onLink={() => {}} onPick={() => {}} source={async () => ({ songs: [], nextCursor: null })} />
     ));
-    await vi.waitFor(() => expect(empty.textContent).toContain("No video-ready songs here yet."));
+    await vi.waitFor(() => expect(empty.textContent).toContain("No songs here can be used in a video yet."));
+    expect(empty.textContent).not.toContain("video-ready");
+    expect(empty.querySelector('[role="status"]')?.textContent).toContain("No songs here can be used in a video yet.");
     let attempts = 0;
     const failing = render(() => (
       <SongPicker
@@ -185,8 +236,9 @@ describe("song picker", () => {
       />
     ));
     await vi.waitFor(() => expect(failing.textContent).toContain("Songs couldn’t load."));
+    expect(failing.querySelector('[role="alert"]')?.textContent).toBe("Songs couldn’t load.");
     [...failing.querySelectorAll("button")].find(button => button.textContent === "Try again")!.click();
-    await vi.waitFor(() => expect(failing.textContent).toContain("No video-ready songs here yet."));
+    await vi.waitFor(() => expect(failing.textContent).toContain("No songs here can be used in a video yet."));
   });
 
   test("loads another page on request, and says the search covers loaded songs only", async () => {
@@ -208,11 +260,14 @@ describe("song picker", () => {
       <SongPicker communityId="community" personaId="persona-one" onLink={() => {}} onPick={() => {}} source={paged} />
     ));
     await vi.waitFor(() => expect(rows(container)).toEqual(["Cadencesalt-cove.pirate"]));
-    expect(container.textContent).toContain("Showing loaded songs.");
+    // Without a search there is nothing to qualify: the action stands alone.
+    expect(container.textContent).not.toContain("Search covers the songs loaded so far.");
+    expect([...container.querySelectorAll("button")].some(candidate => candidate.textContent === "Load more songs")).toBe(true);
     // A query with no match among loaded songs still offers more pages; the
     // button must not hide behind the empty match list.
     type(container, "tide");
-    await vi.waitFor(() => expect(container.textContent).toContain("No loaded songs match."));
+    await vi.waitFor(() => expect(container.textContent).toContain("No songs match yet."));
+    expect(container.textContent).toContain("Search covers the songs loaded so far.");
     const more = await vi.waitFor(() => {
       const button = [...container.querySelectorAll("button")].find(candidate => candidate.textContent === "Load more songs");
       expect(button).toBeDefined();
@@ -220,7 +275,7 @@ describe("song picker", () => {
     });
     more.click();
     await vi.waitFor(() => expect(rows(container)).toEqual(["Low Tidedrift-reef.pirate"]));
-    await vi.waitFor(() => expect(container.textContent).not.toContain("Showing loaded songs."));
+    await vi.waitFor(() => expect(container.textContent).not.toContain("Search covers the songs loaded so far."));
     expect(calls).toBe(2);
     expect(paged).toHaveBeenNthCalledWith(1, "community", null, "persona-one");
     expect(paged).toHaveBeenNthCalledWith(2, "community", "page-2", "persona-one");
@@ -233,7 +288,9 @@ describe("song picker", () => {
     const container = render(() => (
       <SongPicker communityId="community" onLink={() => {}} onPick={() => {}} source={paged} />
     ));
-    await vi.waitFor(() => expect(container.textContent).toContain("No video-ready songs in the loaded pages yet."));
+    await vi.waitFor(() => expect(container.textContent).toContain("None of the songs loaded so far can be used in a video yet."));
+    expect(container.textContent).not.toContain("video-ready");
+    expect(container.textContent).not.toContain("loaded pages");
     [...container.querySelectorAll("button")].find(button => button.textContent === "Load more songs")!.click();
     await vi.waitFor(() => expect(rows(container)).toEqual(["Cadencesalt-cove.pirate"]));
   });

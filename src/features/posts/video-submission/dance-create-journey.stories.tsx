@@ -373,7 +373,7 @@ type Story = StoryObj<typeof meta>;
 
 const openChooser = async (canvasElement: HTMLElement) => {
   const canvas = within(canvasElement);
-  const search = await canvas.findByLabelText("Search songs", undefined, { timeout: 8_000 });
+  const search = await canvas.findByLabelText("Search songs or paste a link", undefined, { timeout: 8_000 });
   expect(search.closest("[data-song-chooser]")).not.toBeNull();
 };
 

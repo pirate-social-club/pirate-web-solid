@@ -73,3 +73,17 @@ export function parseSongLink(value: string): SongLinkResult {
     }
   );
 }
+
+const LINK_SHAPE = /^(?:[a-z][a-z0-9+.-]*:\/\/|\/)/iu;
+
+/** Whether text typed into a search field is a pasted link rather than a
+ * search. A scheme or a leading slash says so outright, and an unsupported one
+ * still goes to the composer, which says why it cannot be used. Any other text
+ * that contains a slash counts only when the parser reads it as a post or a
+ * slug, so a title such as "AC/DC" stays a search. A bare word never counts:
+ * the parser reads any six to sixty-four letter word as a post id. */
+export function looksLikeSongLink(value: string): boolean {
+  const trimmed = value.trim();
+  if (LINK_SHAPE.test(trimmed)) return true;
+  return trimmed.includes("/") && parseSongLink(trimmed).kind !== "unsupported";
+}

@@ -266,7 +266,7 @@ export const ContextualVideoMobile: Story = {
     const canvas = within(canvasElement.ownerDocument.body);
     (await canvas.findByRole("button", { name: "Video" })).click();
     await canvas.findByRole("dialog", { name: "Choose a song" });
-    await canvas.findByRole("searchbox", { name: "Search songs" });
+    await canvas.findByRole("searchbox", { name: "Search songs or paste a link" });
     expect(canvas.queryByRole("button", { name: "Start recording" })).toBeNull();
   },
 };
