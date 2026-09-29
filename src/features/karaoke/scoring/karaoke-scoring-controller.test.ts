@@ -68,6 +68,7 @@ interface Harness {
     micError: (error: { code: string; message: string }) => void;
     bridgeError: (error: KaraokeBridgeError) => void;
     setCaptureClock: (ms: number) => void;
+    snapshotServerEvents: () => (event: KaraokeServerEvent) => void;
   };
   controller: ReturnType<typeof createKaraokeScoringController>;
   setNow: (ms: number) => void;
@@ -146,6 +147,7 @@ function makeHarness(opts: { failStart?: Error } = {}): Harness {
       emit: (event) => onServerEvent?.(event),
       micError: (error) => onCaptureError?.(error),
       setCaptureClock: (ms) => { captureClock = ms; },
+      snapshotServerEvents: () => onServerEvent!,
       setPhase: (next) => { phase = next; onPhaseChange?.(next); },
     },
     events,
@@ -267,8 +269,77 @@ describe("createKaraokeScoringController", () => {
     h.driver.setPhase("live");
     await settle();
     h.controller.noteFinish(4_000);
+    await settle();
     expect(h.events.finishes).toEqual([4_000]);
     expect(h.controller.getState().status).toBe("finishing");
+  });
+
+  test("song end flushes and releases capture while waiting for the summary", async () => {
+    const h = makeHarness();
+    await h.controller.start(0);
+    h.driver.setPhase("live");
+    await settle();
+    h.controller.noteFinish(4_000);
+    h.controller.noteFinish(4_000);
+    await settle();
+    expect(h.capture.deactivateCalls).toBe(1);
+    expect(h.capture.stopCalls).toBe(1);
+    expect(h.events.finishes).toEqual([4_000]);
+    expect(h.events.closed).toBe(0);
+    expect(h.controller.getState().status).toBe("finishing");
+    h.controller.notePlay(0);
+    h.driver.setPhase("live");
+    await settle();
+    expect(h.capture.activateStamps).toHaveLength(1);
+    expect(h.controller.getState().status).toBe("finishing");
+  });
+
+  test("song end during reconnect still releases the device and finishes once live", async () => {
+    const h = makeHarness();
+    await h.controller.start(0);
+    h.driver.setPhase("live"); await settle();
+    h.driver.setPhase("reconnecting");
+    h.controller.noteFinish(4_000); await settle();
+    expect(h.capture.stopCalls).toBe(1);
+    expect(h.events.finishes).toEqual([]);
+    h.driver.setPhase("live"); await settle();
+    expect(h.events.finishes).toEqual([4_000]);
+    expect(h.controller.getState().status).toBe("finishing");
+    expect(h.capture.activateStamps).toHaveLength(1);
+  });
+
+  test("a prior take cannot score or stop the next take", async () => {
+    const h = makeHarness();
+    await h.controller.start(0);
+    const oldEmit = h.driver.snapshotServerEvents();
+    h.driver.emit({ type: "line_score", result: lineScore("l0", 0, 0.9) } as KaraokeServerEvent);
+    h.driver.emit({ type: "summary", summary: {} } as KaraokeServerEvent);
+    await settle();
+    await h.controller.start(0);
+    h.driver.setPhase("live"); await settle();
+    oldEmit({ type: "summary", summary: {} } as KaraokeServerEvent);
+    oldEmit({ type: "line_score", result: lineScore("l0", 0, 0.9) } as KaraokeServerEvent);
+    expect(h.capture.stopCalls).toBe(1);
+    expect(h.controller.getState().status).toBe("active");
+    expect(h.controller.getState().lineScores).toEqual([]);
+  });
+
+  test.each(["summary", "session_error", "abort", "stop", "dispose", "bridge_error"])("%s releases capture exactly once", async (ending) => {
+    const h = makeHarness();
+    await h.controller.start(0);
+    h.driver.setPhase("live");
+    await settle();
+    if (ending === "summary") h.driver.emit({ type: "summary", summary: {} } as KaraokeServerEvent);
+    if (ending === "session_error") h.driver.emit({ type: "session_error", code: "session_aborted", message: "Lost connection" } as KaraokeServerEvent);
+    if (ending === "abort") h.controller.abort("cancelled");
+    if (ending === "stop") h.controller.stop();
+    if (ending === "dispose") h.controller.dispose();
+    if (ending === "bridge_error") h.driver.bridgeError({ code: "failed", message: "Lost connection", retryable: false, status: null });
+    await settle();
+    expect(h.capture.stopCalls).toBe(1);
+    h.controller.dispose();
+    await settle();
+    expect(h.capture.stopCalls).toBe(1);
   });
 
   test("a mic failure during start surfaces a terminal mic error and never creates a session", async () => {

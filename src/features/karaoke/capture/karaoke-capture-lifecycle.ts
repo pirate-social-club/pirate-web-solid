@@ -52,8 +52,11 @@ export function createKaraokeCaptureLifecycle(options: KaraokeCaptureLifecycleOp
   const { capture } = options;
   const getPlaybackRate = options.getPlaybackRate ?? (() => 1);
   let client: CaptureAnchorSink | null = null;
+  let stopped = false;
+  let teardown: Promise<void> | null = null;
 
   const anchorAndActivate = async (): Promise<void> => {
+    if (stopped) return;
     if (!client) {
       options.onError?.({ code: "karaoke_capture_not_attached", message: "capture lifecycle has no transport client" });
       return;
@@ -78,13 +81,17 @@ export function createKaraokeCaptureLifecycle(options: KaraokeCaptureLifecycleOp
     },
     resumeCapture: anchorAndActivate,
     suspendCapture: async () => {
+      if (stopped) return;
       // Stop emission + drain the worklet first, then clear the anchor so paused
       // capture-clock time is never folded into song time (SPEC §4.3).
       await capture.deactivateAndFlush();
       client?.clearCaptureAnchor();
     },
-    teardownCapture: async () => {
-      await capture.stop();
+    teardownCapture: () => {
+      if (teardown) return teardown;
+      stopped = true;
+      teardown = capture.stop();
+      return teardown;
     },
   };
 }

@@ -51,6 +51,21 @@ export function KaraokePracticeSurface(props: KaraokePracticeSurfaceProps) {
   const [isPlaying, setIsPlaying] = createSignal(false);
   const [isLoading, setIsLoading] = createSignal(Boolean(props.instrumentalAudioUrl));
   let pendingPlay = false;
+  let disposed = false;
+  let playRequest = 0;
+  const [playbackIssue, setPlaybackIssue] = createSignal(false);
+  const playBackingTrack = () => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    const request = ++playRequest;
+    setPlaybackIssue(false);
+    void audio.play().catch(() => {
+      if (disposed || request !== playRequest || props.singingStatus !== "active") return;
+      setIsPlaying(false);
+      setPlaybackIssue(true);
+      props.onPause?.(currentTimeMs());
+    });
+  };
   const firstLineStartMs = props.lines[0]?.startMs ?? Number.POSITIVE_INFINITY;
   const ended = () => props.singingStatus === "ended";
   const busy = () => props.singingStatus === "requesting-mic" || props.singingStatus === "connecting" || props.singingStatus === "reconnecting";
@@ -70,16 +85,20 @@ export function KaraokePracticeSurface(props: KaraokePracticeSurfaceProps) {
     () => props.singingStatus,
     (singingStatus) => {
       if (singingStatus !== "active") {
-        if (singingStatus === "idle" || singingStatus === "ended" || singingStatus === "error") pendingPlay = false;
+        if (singingStatus === "idle" || singingStatus === "ended" || singingStatus === "error") {
+          pendingPlay = false;
+          playRequest += 1;
+          audioRef.current?.pause();
+        }
         return;
       }
       if (!pendingPlay) return;
       pendingPlay = false;
       const audio = audioRef.current;
-      if (audio && !isPlaying()) void audio.play().catch(() => setIsPlaying(false));
+      if (audio && !isPlaying()) playBackingTrack();
     },
   );
-  onCleanup(() => audioRef.current?.pause());
+  onCleanup(() => { disposed = true; playRequest += 1; audioRef.current?.pause(); });
 
   return (
     <section aria-label={props.title} class="flex h-dvh w-full flex-col overflow-hidden bg-background text-foreground">
@@ -149,6 +168,12 @@ export function KaraokePracticeSurface(props: KaraokePracticeSurfaceProps) {
         onPlay={() => { setIsPlaying(true); props.onPlay?.(currentTimeMs()); }}
         onTimeUpdate={syncTime}
       />
+      <Show when={playbackIssue() && props.singingStatus === "active"}>
+        <footer class="border-t border-border-soft bg-background px-4 pb-[calc(env(safe-area-inset-bottom)+1.5rem)] pt-4">
+          <p role="status" class="mb-3 text-center text-sm text-muted-foreground">The backing track could not start. Press play to continue.</p>
+          <Button class="h-13 w-full" onClick={playBackingTrack}>Start backing track</Button>
+        </footer>
+      </Show>
       <Show when={props.onStartSinging && props.singingStatus !== "active"}>
         <footer class="border-t border-border-soft bg-background/95 px-4 pb-[calc(env(safe-area-inset-bottom)+1.5rem)] pt-4 backdrop-blur-xl sm:px-6">
           {/* Results: "Sing again" and Continue side by side, Continue on the right. */}

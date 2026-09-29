@@ -191,6 +191,9 @@ export function createKaraokeScoringController(
   let activatedInitial = false;
   let isPlaying = false;
   let disposed = false;
+  let captureEnded = false;
+  let generation = 0;
+  let pendingFinish: { client: KaraokeSessionBridgeHandle; songMs: number } | null = null;
   let lastSyncAtMs = Number.NEGATIVE_INFINITY;
   let lastBoundaryLineId: string | null = null;
 
@@ -212,21 +215,29 @@ export function createKaraokeScoringController(
     localChain = localChain.then(task, task).catch(() => undefined);
   }
 
+  function releaseCapture(): void {
+    captureEnded = true;
+    pendingFinish = null;
+    isPlaying = false;
+    void (lifecycle ? lifecycle.teardownCapture() : engine?.stop());
+  }
+
   /** Re-anchor + reactivate capture for a local resume/seek-while-playing (live only). */
   function localResume(): void {
-    if (!lifecycle || handle?.getPhase() !== "live") return;
+    if (captureEnded || !lifecycle || handle?.getPhase() !== "live") return;
+    const currentCapture = lifecycle;
+    const currentClient = handle;
     enqueueLocal(async () => {
-      if (handle?.getPhase() !== "live") return;
-      await lifecycle!.resumeCapture();
+      if (captureEnded || handle !== currentClient || currentClient?.getPhase() !== "live") return;
+      await currentCapture.resumeCapture();
     });
   }
 
   /** Flush + clear anchor for a local pause/seek (live only). */
   function localSuspend(): void {
-    if (!lifecycle || handle?.getPhase() !== "live") return;
-    enqueueLocal(async () => {
-      await lifecycle!.suspendCapture();
-    });
+    if (captureEnded || !lifecycle || handle?.getPhase() !== "live") return;
+    const currentCapture = lifecycle;
+    enqueueLocal(async () => { await currentCapture.suspendCapture(); });
   }
 
   function recordLineScore(score: KaraokeLineScore): void {
@@ -236,24 +247,39 @@ export function createKaraokeScoringController(
     setState({ latestLineId: score.lineId, lineScores: next, partialTranscript: "" });
   }
 
+  function sendPendingFinish(): void {
+    if (!disposed && pendingFinish?.client.getPhase() === "live") {
+      const finished = pendingFinish;
+      pendingFinish = null;
+      finished.client.finish(finished.songMs);
+    }
+  }
+
   function handlePhaseChange(phase: KaraokeClientPhase): void {
-    if (phase === "live") {
+    if (phase === "live") sendPendingFinish();
+    if (phase === "live" && !captureEnded) {
       hasBeenLive = true;
       // Initial activation is owned by the orchestrator (SPEC §4.3): set the
       // anchor + activate the mic the first time the socket reaches live.
       // Reconnect re-activation is owned by the transport's resumeCapture hook.
       if (!activatedInitial && lifecycle) {
         activatedInitial = true;
+        const currentCapture = lifecycle;
+        const currentClient = handle;
         enqueueLocal(async () => {
-          if (handle?.getPhase() !== "live") return;
-          await lifecycle!.activateInitial();
+          if (captureEnded || handle !== currentClient || currentClient?.getPhase() !== "live") return;
+          await currentCapture.activateInitial();
         });
       }
     }
-    setState({ phase, status: statusForPhase(phase, hasBeenLive) });
+    if (["closed", "aborted", "expired", "capture_failed"].includes(phase)) releaseCapture();
+    const status = captureEnded && ["live", "reconnecting", "connecting"].includes(phase)
+      ? state.status : statusForPhase(phase, hasBeenLive);
+    setState({ phase, status });
   }
 
   function handleBridgeError(error: KaraokeBridgeError): void {
+    if (!error.retryable) releaseCapture();
     // Non-retryable creation/transport failures are terminal; retryable ones are
     // surfaced but the transport keeps reconnecting, so don't flip to a terminal UI.
     setState({
@@ -275,6 +301,7 @@ export function createKaraokeScoringController(
         recordLineScore(event.result);
         return;
       case "summary":
+        releaseCapture();
         setState({ status: "ended", summary: event.summary });
         return;
       case "session_error":
@@ -287,6 +314,7 @@ export function createKaraokeScoringController(
         // Surface the provider/connect detail, not just the code. The server
         // attaches the real cause (e.g. elevenlabs_stt_token_mint_failed_401) in
         // `message`; the code alone (session_aborted) hides it.
+        releaseCapture();
         console.error("[karaoke] session_error", { code: event.code, message: event.message });
         setState({
           error: {
@@ -302,6 +330,7 @@ export function createKaraokeScoringController(
   }
 
   function handleCaptureError(error: KaraokeScoringSimpleError): void {
+    releaseCapture();
     setState({ micError: error });
     // A device failure mid-session (e.g. track ended) — the engine stops itself;
     // abort the transport so the session ends cleanly rather than streaming silence.
@@ -317,28 +346,44 @@ export function createKaraokeScoringController(
 
   return {
     abort: (code) => {
+      releaseCapture();
       handle?.abort(code);
     },
     dispose: () => {
       if (disposed) return;
       disposed = true;
       listeners.clear();
-      // close() drives the transport's teardownCapture (mic stop) deterministically.
-      // If the session never started, stop the engine directly.
-      if (handle) handle.close();
-      else void engine?.stop();
+      releaseCapture();
+      handle?.close();
     },
     getState: () => state,
     noteFinish: (nextSongMs) => {
       songMs = Math.max(0, nextSongMs);
-      if (!handle || handle.getPhase() !== "live") return;
+      if (captureEnded || !handle || !lifecycle) return;
+      captureEnded = true;
+      isPlaying = false;
+      const finishingClient = handle;
+      const finishingCapture = lifecycle;
+      const finishedAt = songMs;
       setState({ status: "finishing" });
-      handle.finish(songMs);
+      // Flush the final PCM while its anchor and socket are still valid, then
+      // release the device. Keep the socket open for finalized scores/summary.
+      enqueueLocal(async () => {
+        try {
+          await finishingCapture.suspendCapture();
+        } finally {
+          await finishingCapture.teardownCapture();
+          if (!disposed && handle === finishingClient && state.status === "finishing") {
+            pendingFinish = { client: finishingClient, songMs: finishedAt };
+            sendPendingFinish();
+          }
+        }
+      });
     },
     notePause: (nextSongMs) => {
       songMs = Math.max(0, nextSongMs);
       isPlaying = false;
-      if (!handle || handle.getPhase() !== "live") return;
+      if (captureEnded || !handle || handle.getPhase() !== "live") return;
       // Send the pause frame first, then stop folding paused capture-clock time
       // into song time (SPEC §4.3).
       handle.pause(songMs);
@@ -347,7 +392,7 @@ export function createKaraokeScoringController(
     notePlay: (nextSongMs) => {
       songMs = Math.max(0, nextSongMs);
       isPlaying = true;
-      if (!handle || handle.getPhase() !== "live") return;
+      if (captureEnded || !handle || handle.getPhase() !== "live") return;
       // Re-anchor at the current song position + reactivate, then announce resume.
       localResume();
       handle.resume(songMs);
@@ -355,7 +400,7 @@ export function createKaraokeScoringController(
     noteSeek: (nextSongMs) => {
       songMs = Math.max(0, nextSongMs);
       lastBoundaryLineId = null; // re-fire boundary for the line we land in
-      if (!handle || handle.getPhase() !== "live") return;
+      if (captureEnded || !handle || handle.getPhase() !== "live") return;
       handle.seek(songMs);
       // A seek decouples capture time from song time → new epoch. While playing,
       // re-anchor; while paused the anchor is already cleared (resume re-anchors).
@@ -366,7 +411,7 @@ export function createKaraokeScoringController(
     },
     noteTime: (nextSongMs) => {
       songMs = Math.max(0, nextSongMs);
-      if (!handle || handle.getPhase() !== "live") return;
+      if (captureEnded || !handle || handle.getPhase() !== "live") return;
       // Throttled heartbeat so the server tracks playback position/rate.
       const t = now();
       if (t - lastSyncAtMs >= playbackSyncIntervalMs) {
@@ -386,19 +431,25 @@ export function createKaraokeScoringController(
     start: async (startedAtAudioMs) => {
       if (disposed) return;
       if (state.status !== "idle" && state.status !== "ended" && state.status !== "error") return;
+      const attempt = ++generation;
+      handle?.close();
+      handle = null;
+      lifecycle = null;
+      captureEnded = false;
+      pendingFinish = null;
       songMs = Math.max(0, startedAtAudioMs);
       isPlaying = true;
       hasBeenLive = false;
       activatedInitial = false;
       lastBoundaryLineId = null;
       lastSyncAtMs = Number.NEGATIVE_INFINITY;
-      setState({ error: null, micError: null, status: "requesting-mic", summary: null });
+      setState({ ...initialState(), status: "requesting-mic" });
 
       // 1. Acquire the mic FIRST so a permission/device failure never leaves a
       //    server-side session orphaned.
       const captureEngine = options.createCaptureEngine({
-        onChunk: (pcm16, capturedAtMs) => handle?.pushAudio(pcm16, capturedAtMs),
-        onError: handleCaptureError,
+        onChunk: (pcm16, capturedAtMs) => { if (attempt === generation && !disposed) handle?.pushAudio(pcm16, capturedAtMs); },
+        onError: error => { if (attempt === generation && !disposed) handleCaptureError(error); },
       });
       engine = captureEngine;
       try {
@@ -406,14 +457,14 @@ export function createKaraokeScoringController(
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         const code = (error as { code?: string }).code ?? "karaoke_mic_failed";
-        setState({ micError: { code, message }, status: "error" });
+        if (!disposed && attempt === generation) setState({ micError: { code, message }, status: "error" });
         void captureEngine.stop();
-        engine = null;
+        if (engine === captureEngine) engine = null;
         return;
       }
-      if (disposed) {
+      if (disposed || captureEnded || attempt !== generation) {
         void captureEngine.stop();
-        engine = null;
+        if (engine === captureEngine) engine = null;
         return;
       }
 
@@ -422,7 +473,7 @@ export function createKaraokeScoringController(
         capture: captureEngine,
         getPlaybackRate: () => 1,
         getSongMs: () => songMs,
-        onError: (error) => handleCaptureError(error),
+        onError: error => { if (attempt === generation && !disposed) handleCaptureError(error); },
       });
       lifecycle = captureLifecycle;
 
@@ -430,9 +481,9 @@ export function createKaraokeScoringController(
       const sessionClient = createSessionClient({
         communityId: options.communityId,
         createKaraokeSession: options.createKaraokeSession,
-        onError: handleBridgeError,
-        onPhaseChange: handlePhaseChange,
-        onServerEvent: handleServerEvent,
+        onError: error => { if (attempt === generation && !disposed) handleBridgeError(error); },
+        onPhaseChange: phase => { if (attempt === generation && !disposed) handlePhaseChange(phase); },
+        onServerEvent: event => { if (attempt === generation && !disposed) handleServerEvent(event); },
         postId: options.postId,
         resumeCapture: () => captureLifecycle.resumeCapture(),
         suspendCapture: () => captureLifecycle.suspendCapture(),
@@ -445,6 +496,7 @@ export function createKaraokeScoringController(
       await sessionClient.start({ startedAtAudioMs: songMs });
     },
     stop: () => {
+      releaseCapture();
       handle?.close();
     },
     subscribe: (listener) => {

@@ -93,4 +93,14 @@ describe("createKaraokeCaptureLifecycle", () => {
     expect(h.events).toEqual(["deactivate", "clearAnchor", "setAnchor", "activate"]);
     expect(h.anchors[0]).toEqual({ captureMs: 9_000, playbackRate: 1, songMs: 20_000 });
   });
+  test("teardown is idempotent and late reconnects cannot reacquire capture", async () => {
+    const h = harness();
+    h.lifecycle.attachClient(h.client);
+    await h.lifecycle.activateInitial();
+    await Promise.all([h.lifecycle.teardownCapture(), h.lifecycle.teardownCapture()]);
+    await h.lifecycle.resumeCapture();
+    await h.lifecycle.suspendCapture();
+    expect(h.events).toEqual(["setAnchor", "activate", "stop"]);
+  });
+
 });

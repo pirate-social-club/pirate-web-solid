@@ -59,11 +59,11 @@ export function KaraokeLyricStage(props: KaraokeLyricStageProps) {
   const visible = () => displayLines(props.lines, props.currentTimeMs);
   return (
     <div aria-live="off" class="karaoke-stage">
-      <Show keyed when={props.rating}>
-        {(rating) => (
-          <div class={`karaoke-stage-rating${props.ratingPersistent ? " karaoke-stage-rating-static" : ""}`} data-rating-tone={rating.tone}>
-            <span class="karaoke-stage-rating-label">{rating.label}</span>
-            <span class="karaoke-stage-rating-points">+{rating.points}</span>
+      <Show keyed when={props.rating?.key}>
+        {(ratingKey) => (
+          <div data-rating-key={ratingKey} class={`karaoke-stage-rating${props.ratingPersistent ? " karaoke-stage-rating-static" : ""}`} data-rating-tone={props.rating?.tone}>
+            <span class="karaoke-stage-rating-label">{props.rating?.label}</span>
+            <span class="karaoke-stage-rating-points">+{props.rating?.points}</span>
           </div>
         )}
       </Show>
