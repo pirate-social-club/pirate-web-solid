@@ -147,18 +147,35 @@ describe("mounted video flow", () => {
 
 /** A video the author already submitted for publication, retained with its
  * upload still owed, and the composer opened on it again. */
-function reopenedWithSubmittedUpload(options: { readonly communityId?: string; readonly failFirstUpload?: boolean } = {}) {
+const SEALED_OUTCOMES = ["processing", "manual_review", "processing_failed", "blocked", "abandoned", "published"] as const;
+function reopenedWithSubmittedUpload(options: {
+  readonly communityId?: string;
+  readonly failFirstUpload?: boolean;
+  /** The retained video's upload finished: the server owns it, in this outcome. */
+  readonly sealed?: typeof SEALED_OUTCOMES[number];
+} = {}) {
   vi.stubGlobal("crypto", webcrypto);
   const urlApi = class extends URL { static createObjectURL() { return "blob:https://example.test/video"; } static revokeObjectURL() {} };
   vi.stubGlobal("URL", urlApi);
-  const snapshot: VideoSnapshot = {
-    submission_id: "video-submission", author_persona: { object: "persona", persona_id: "persona", display_name: null, avatar_ref: null, primary_public_handle: null },
-    href: "/media-post-submissions/video-submission", track: "video", intent: "original_audio", creation_revision: 1,
-    video_revision: 0, caption: "", updated_at: "2026-09-05T00:00:00Z", status: "processing", phase: "awaiting_upload",
+  const base = {
+    submission_id: "video-submission", author_persona: { object: "persona" as const, persona_id: "persona", display_name: null, avatar_ref: null, primary_public_handle: null },
+    href: "/media-post-submissions/video-submission", track: "video" as const, intent: "original_audio" as const, creation_revision: 1,
+    video_revision: 0, caption: "", updated_at: "2026-09-05T00:00:00Z",
   };
+  const snapshot: VideoSnapshot = { ...base, status: "processing", phase: "awaiting_upload" };
+  const sealedAt = { ...base, creation_revision: 2, video_revision: 1 };
+  const sealedSnapshots: Record<typeof SEALED_OUTCOMES[number], VideoSnapshot> = {
+    processing: { ...sealedAt, status: "processing", phase: "analysis" },
+    manual_review: { ...sealedAt, status: "manual_review", reason_codes: ["media_review_required"], review_ref: "review" },
+    processing_failed: { ...sealedAt, status: "processing_failed", reason_code: "transform_failed", retryable: false, retry_count: 0 },
+    blocked: { ...sealedAt, status: "blocked", reason_code: "policy_violation" },
+    abandoned: { ...sealedAt, status: "abandoned", reason_code: "author_cancelled_before_finalize" },
+    published: { ...sealedAt, status: "published", published_resource: { post_id: "post", href: "/posts/post" } },
+  };
+  const held = options.sealed ? sealedSnapshots[options.sealed] : snapshot;
   let saved: PendingVideo | null = {
     version: "original-video-pending-v1", principalId: "account", communityId: options.communityId ?? "community", personaId: "persona",
-    file: new File(["video"], "take.mp4", { type: "video/mp4" }), caption: "", rating: "general", receipts: [], pending: null, snapshot,
+    file: new File(["video"], "take.mp4", { type: "video/mp4" }), caption: "", rating: "general", receipts: [], pending: null, snapshot: held,
     reservation: { reservation_id: "reservation", track: "video", intent: "original_audio", slot: "primary_video", status: "awaiting_upload", author_persona_id: "persona", ingest_policy_revision: 1,
       upload: { method: "MULTIPART", upload_id: "upload", part_size_bytes: 10, part_count: 1, expires_at: "2099-01-01T00:00:00Z", parts: [{ part_number: 1, url: "https://upload.example/1", expires_at: "2099-01-01T00:00:00Z" }] } },
   };
@@ -176,7 +193,7 @@ function reopenedWithSubmittedUpload(options: { readonly communityId?: string; r
   const posted = vi.fn();
   const container = document.createElement("div"); document.body.appendChild(container);
   createRoot(dispose => { disposers.push(dispose); render(() => <VideoComposerRuntime principalId="account" communityId="community" personaId="persona"
-    storage={storage} transport={{ execute, async read() { return snapshot; } }} inspectFile={async file => file} fetchImpl={fetchImpl}
+    storage={storage} transport={{ execute, async read() { return held; } }} inspectFile={async file => file} fetchImpl={fetchImpl}
     songPreflight={acceptedPreflight} songReader={readableSong} initialSong={{ postId: "song-post" }}
     onExit={() => {}} onRetainedPersona={() => {}} onPosted={posted} />, container); });
   return { execute, fetchImpl, posted, retained: () => saved };
@@ -205,6 +222,18 @@ describe("a submitted upload when the composer is reopened", () => {
     controlLabeled("Try again")!.click();
     await vi.waitFor(() => expect(fixture.posted).toHaveBeenCalledOnce(), { timeout: 5_000 });
     expect(fixture.fetchImpl).toHaveBeenCalledTimes(2);
+  });
+
+  test.each(SEALED_OUTCOMES)("a video whose upload already finished (%s) is forgotten and the composer opens fresh", async sealed => {
+    const fixture = reopenedWithSubmittedUpload({ sealed });
+    await vi.waitFor(() => expect(fixture.retained()).toBeNull(), { timeout: 5_000 });
+    // The author is back at the start of a new video, with nothing to resume,
+    // check, cancel or retry, and nothing was uploaded or sent again.
+    await vi.waitFor(() => expect(document.querySelector("[data-song-choice-screen]")).not.toBeNull());
+    expect(document.body.textContent).not.toMatch(/Resume video submission|Pause upload|Check video status|Cancel video submission|Cancel upload|Try again|Start over|Start a new video|Uploading video|hasn't finished uploading/);
+    expect(fixture.fetchImpl).not.toHaveBeenCalled();
+    expect(fixture.execute).not.toHaveBeenCalled();
+    expect(fixture.posted).not.toHaveBeenCalled();
   });
 
   test("a video that belongs to another community waits and says so plainly", async () => {
