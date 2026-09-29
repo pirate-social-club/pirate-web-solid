@@ -846,6 +846,11 @@ export function VideoComposerRuntime(props: {
   const awaiting = () => { const snapshot = state(); return snapshot?.status === "processing" && snapshot.phase === "awaiting_upload"; };
   /** An upload whose window has closed cannot be resumed, only cancelled. */
   const reservationExpired = () => awaiting() && Date.parse(record()?.reservation?.upload.expires_at ?? "") <= Date.now();
+  /** Whether the screen already says what went wrong in its own words: a capture
+   * panel, a refused video's sentence, an expired upload's notice. The warning
+   * carries the server's or coordinator's wording for the same fact, so it would
+   * only repeat it in words the author was never meant to read. */
+  const ownWordsShown = () => panelShown() || record()?.rejection !== undefined || reservationExpired();
   const blocked = () => { const snapshot = state(); return snapshot?.status === "blocked" ? snapshot : undefined; };
   // One plain sentence for the submitted video. Raw server states never
   // reach the screen; while an action runs, only real upload progress shows.
@@ -908,7 +913,7 @@ export function VideoComposerRuntime(props: {
   };
   return <section class="grid gap-3" aria-label="Video composer">
     <input ref={element => { picker = element; }} hidden type="file" accept="video/mp4,video/quicktime,.mp4,.mov" onChange={event => { void chooseFile(event.currentTarget.files?.[0]); event.currentTarget.value = ""; }} />
-    <Show when={panelShown() ? "" : error()}>{message => <FormNote tone="warning">{message()}</FormNote>}</Show>
+    <Show when={ownWordsShown() ? "" : error()}>{message => <FormNote tone="warning">{message()}</FormNote>}</Show>
     <Show when={busy() && progress()}><p role="status">{progress()}</p></Show>
     <Show when={editing()}>
       {/* After song and excerpt choice, capture carries a way to change the

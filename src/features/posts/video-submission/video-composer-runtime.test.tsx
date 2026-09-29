@@ -118,6 +118,8 @@ describe("mounted video flow", () => {
     await vi.waitFor(() => expect(document.body.textContent).toContain("This video wasn’t accepted."));
     const commandCount = fixture.commands.length;
     expect([...document.querySelectorAll("button")].some(button => button.textContent?.includes("Try again"))).toBe(false);
+    // The server's own message for the refusal is not shown beside the plain sentence.
+    expect(document.body.textContent).not.toContain("Request refused");
     const edit = [...document.querySelectorAll("button")].find(button => button.textContent?.includes("Edit rejected video"))!;
     await vi.waitFor(() => expect(edit.disabled).toBe(false)); edit.click();
     await vi.waitFor(() => expect(document.querySelector("textarea")).not.toBeNull());
@@ -125,6 +127,18 @@ describe("mounted video flow", () => {
     expect(fixture.commands).toHaveLength(commandCount);
     expect(fixture.published).not.toHaveBeenCalled();
   });
+  test("a refusal that names the song shows its plain sentence and not the server's message", async () => {
+    const owner = new ApiClientError(
+      { status: 400, code: "bad_request", name: "BadRequest", retryable: false },
+      { error: { code: "bad_request", message: "Owner policy rejected the derivative", retryable: false,
+        details: { reason_code: "derivative_video_blocked", track: "video", capability: "song_reference" } } });
+    setup("published", undefined, async command => { if (command.kind === "reserve") throw owner; });
+    await selectAndPublish();
+    await vi.waitFor(() => expect(document.querySelector('[role="alert"]')?.textContent).toMatch(/Choose another song\./));
+    expect(document.body.textContent).not.toContain("Owner policy rejected the derivative");
+    expect(document.body.textContent).toContain("Edit rejected video");
+  });
+
   test("reserves, uploads and finalizes without a title, terms or client poster", async () => {
     const fixture = setup("published"); await selectAndPublish();
     await vi.waitFor(() => expect(fixture.posted).toHaveBeenCalledOnce());
@@ -153,6 +167,8 @@ function reopenedWithSubmittedUpload(options: {
   readonly failFirstUpload?: boolean;
   /** The retained video's upload finished: the server owns it, in this outcome. */
   readonly sealed?: typeof SEALED_OUTCOMES[number];
+  /** When the retained upload's window closes; the default is far in the future. */
+  readonly uploadExpiresAt?: string;
 } = {}) {
   vi.stubGlobal("crypto", webcrypto);
   const urlApi = class extends URL { static createObjectURL() { return "blob:https://example.test/video"; } static revokeObjectURL() {} };
@@ -177,7 +193,7 @@ function reopenedWithSubmittedUpload(options: {
     version: "original-video-pending-v1", principalId: "account", communityId: options.communityId ?? "community", personaId: "persona",
     file: new File(["video"], "take.mp4", { type: "video/mp4" }), caption: "", rating: "general", receipts: [], pending: null, snapshot: held,
     reservation: { reservation_id: "reservation", track: "video", intent: "original_audio", slot: "primary_video", status: "awaiting_upload", author_persona_id: "persona", ingest_policy_revision: 1,
-      upload: { method: "MULTIPART", upload_id: "upload", part_size_bytes: 10, part_count: 1, expires_at: "2099-01-01T00:00:00Z", parts: [{ part_number: 1, url: "https://upload.example/1", expires_at: "2099-01-01T00:00:00Z" }] } },
+      upload: { method: "MULTIPART", upload_id: "upload", part_size_bytes: 10, part_count: 1, expires_at: options.uploadExpiresAt ?? "2099-01-01T00:00:00Z", parts: [{ part_number: 1, url: "https://upload.example/1", expires_at: options.uploadExpiresAt ?? "2099-01-01T00:00:00Z" }] } },
   };
   const storage: VideoStorage = {
     async exclusive(work) { return work(); }, async load() { return saved; }, async save(record) { saved = record; }, async remove() { saved = null; },
@@ -234,6 +250,16 @@ describe("a submitted upload when the composer is reopened", () => {
     expect(fixture.fetchImpl).not.toHaveBeenCalled();
     expect(fixture.execute).not.toHaveBeenCalled();
     expect(fixture.posted).not.toHaveBeenCalled();
+  });
+
+  test("an expired upload says so once, in plain words, and only offers Cancel upload", async () => {
+    reopenedWithSubmittedUpload({ uploadExpiresAt: "2026-01-01T00:00:00Z" });
+    await vi.waitFor(() => expect(document.body.textContent).toContain("This upload expired. Cancel it, then choose the video again."), { timeout: 5_000 });
+    await new Promise(resolve => setTimeout(resolve, 50));
+    // The coordinator's own message for the same fact is not shown beside it.
+    expect(document.body.textContent).not.toMatch(/reservation|resolve it before starting a new attempt/i);
+    expect(controlLabels()).toContain("Cancel upload");
+    expect(controlLabels()).not.toContain("Try again");
   });
 
   test("a video that belongs to another community waits and says so plainly", async () => {
