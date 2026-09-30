@@ -18,11 +18,21 @@ and the frozen public-persona schema and generated validator. Type-only imports
 do not enter the graph. Direct and transitive API-client runtime imports,
 reexports and dynamic imports refuse, as do computed loads, require/eval,
 unreviewed external packages, unresolved paths and symlink escapes. Relative
-file and index resolution is supported; unreviewed alias/package edges refuse
+imports must name an exact existing file; extension and index inference refuse.
+All import.meta use refuses, including Vite glob loads and their aliases.
+Unreviewed alias/package edges refuse
 rather than silently omit source coverage. Platform runtime modules are pinned
 by the existing Worker compatibility settings. The candidate's existing graph
 passes the Worker build and API/SSR checks. Unsupported resolution forms refuse
 before an identity is emitted; adding support requires its own resolver review.
+
+Independent graph review found that extension inference could select .ts while
+Vite emitted .js, and that import.meta.glob could emit modules omitted from the
+protected closure. These two P1 findings applied to 4ff6f626 and 5a603275.
+The refusal-only correction above rejects those unsupported inputs without
+changing today's protected closure, source bytes or v4 fingerprint schema.
+Matching references survive only after that invariance is checked against the
+actual candidate and the corrected source receives re-review.
 
 The fingerprint keeps its solid-hns-ingress-sha256 reference format and versions
 its canonical schema and environment projection to v4. Protected routes,

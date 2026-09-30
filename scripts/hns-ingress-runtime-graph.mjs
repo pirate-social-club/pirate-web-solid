@@ -30,6 +30,9 @@ export function runtimeEdges(path, bytes) {
     edges.push(node.text);
   }
   function visit(node) {
+    if (ts.isMetaProperty(node) && node.keywordToken === ts.SyntaxKind.ImportKeyword) {
+      refuse(`unsupported_import_meta_${path}`);
+    }
     if (ts.isImportDeclaration(node)) {
       const clause = node.importClause;
       const bindings = clause?.namedBindings;
@@ -60,14 +63,9 @@ function localPath(from, specifier, sources) {
   if (!specifier.startsWith(".")) refuse(`unreviewed_runtime_package_${specifier}`);
   const candidate = relative(".", resolve(dirname(from), specifier)).replaceAll("\\", "/");
   if (!candidate.startsWith("src/") || candidate.includes("/../")) refuse(`source_escape_${from}`);
-  const exact = sources.has(candidate) ? candidate : null;
-  if (exact) return exact;
-  // Resolution deliberately supports only the reviewed Worker graph's file
-  // forms. New aliases, directory imports and package imports fail closed.
-  const choices = [candidate + ".ts", candidate + ".tsx", candidate + ".js", candidate + "/index.ts"];
-  const matches = choices.filter((path) => sources.has(path));
-  if (matches.length !== 1) refuse(`unresolved_import_${from}_${specifier}`);
-  return matches[0];
+  // Never infer an extension or index: Vite's precedence can differ from ours.
+  if (!sources.has(candidate)) refuse(`unresolved_import_${from}_${specifier}`);
+  return candidate;
 }
 
 export function ingressRuntimePaths(sources) {
@@ -121,18 +119,16 @@ export async function readIngressRuntimeSources(root) {
       if (!edge.startsWith(".")) refuse(`unreviewed_runtime_package_${edge}`);
       const candidate = relative(canonicalRoot, resolve(dirname(absolute), edge)).replaceAll("\\", "/");
       if (!candidate.startsWith("src/")) refuse(`source_escape_${path}`);
-      let target = null;
-      for (const option of [candidate, candidate + ".ts", candidate + ".tsx", candidate + ".js", candidate + "/index.ts"]) {
-        try {
-          const stat = await lstat(join(canonicalRoot, option));
-          if (stat.isSymbolicLink()) refuse(`symlinked_source_${option}`);
-          if (stat.isFile()) { target = option; break; }
-        } catch (error) {
-          if (error.code !== "ENOENT" && error.code !== "ENOTDIR") throw error;
-        }
+      let stat;
+      try {
+        stat = await lstat(join(canonicalRoot, candidate));
+      } catch (error) {
+        if (error.code !== "ENOENT" && error.code !== "ENOTDIR") throw error;
+        refuse(`unresolved_import_${path}_${edge}`);
       }
-      if (target === null) refuse(`unresolved_import_${path}_${edge}`);
-      await load(target);
+      if (stat.isSymbolicLink()) refuse(`symlinked_source_${candidate}`);
+      if (!stat.isFile()) refuse(`unresolved_import_${path}_${edge}`);
+      await load(candidate);
     }
   }
   await load(ADAPTER);
