@@ -404,6 +404,7 @@ function Harness(props: {
     <div ref={element => { container = element; }} class="mx-auto max-w-md">
       <VideoComposerRuntime
         communityId="community"
+        prepareGuideSource={async () => ({url: "blob:https://example.test/guide", release() {}})}
         createGuideAudio={() => storyGuide({ blocked: props.guideBlocked })}
         fetchImpl={props.fetchImpl ?? storyFetch()}
         initialSong={props.noInitialSong ? undefined : { postId: "song-post" }}

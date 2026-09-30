@@ -10,6 +10,7 @@ import { OriginalVideoCaptureSurface, OriginalVideoReviewSurface } from "../post
 import type { OriginalVideoCaptureInput, VideoCaptureSession } from "./capture";
 import { captureStopAfterMs, clipFitMessage, fitClipToExcerpt, GUIDED_TAKE_MAX_DURATION_SECONDS, songLengthForClip } from "./clip-duration";
 import type { VideoSnapshot } from "./contracts";
+import { prepareBufferedGuide, type GuideSourcePreparation } from "./buffered-guide";
 import { alignGuidedTake, type GuidedTakeAlignment } from "./guided-take-alignment";
 import { canDiscardRejectedVideo, VideoCoordinator, type PendingVideo, type VideoStorage } from "./coordinator";
 import { SongReviewPreview } from "./song-review-preview";
@@ -47,10 +48,9 @@ type GuideAudioEvent = "error" | "waiting" | "stalled" | "playing" | "progress" 
 export const GUIDE_BUFFER_TIMEOUT_MS = 12_000;
 
 /** Whether the guide can play the excerpt without waiting on the network:
- * the browser reports enough data to play through (HAVE_ENOUGH_DATA), or one
- * buffered range already covers the whole excerpt. A paused element buffers
- * only a few seconds ahead (Chrome on Android holds about 7 s, then idles the
- * download), so full coverage alone would never be reached before playback. */
+ * After full Blob preparation, the decoder reports enough data or one
+ * buffered range covers the excerpt. This is decoder readiness; it is never
+ * accepted as proof that a remote download completed. */
 export function excerptBuffered(audio: GuideAudio, bounds: { readonly startMs: number; readonly endMs: number }): boolean {
   if ((audio.readyState ?? 0) >= 4) return true;
   const ranges = audio.buffered;
@@ -117,6 +117,7 @@ export function VideoComposerRuntime(props: {
    * Defaults to a coarse-pointer phone-width viewport. */
   readonly cameraCapture?: boolean;
   readonly createGuideAudio?: (url: string) => GuideAudio;
+  readonly prepareGuideSource?: GuideSourcePreparation;
   /** The alignment step for a guided take, injected so it can be driven
    * without a decoder. The default trims the measured lead-in from the real
    * file. */
@@ -370,6 +371,9 @@ export function VideoComposerRuntime(props: {
   // for it would cancel every recording on a slow network. `stalled` is not
   // listened for: it only says the download paused, and playback continues
   // from what is buffered. The excerpt is loaded before the take starts.
+  let guidePreparation: AbortController | undefined;
+  const guideReleases = new WeakMap<GuideAudio, () => void>();
+  const releaseGuide = (audio: GuideAudio) => { guideReleases.get(audio)?.(); guideReleases.delete(audio); };
   let guidePlaying = false;
   let guideWaitTimer: ReturnType<typeof setTimeout> | undefined;
   // `waiting` may be a short buffer transition while playback keeps moving.
@@ -388,6 +392,7 @@ export function VideoComposerRuntime(props: {
     audio.removeEventListener("waiting", onGuideInterrupted);
     audio.removeEventListener("playing", onGuidePlaying);
     audio.pause();
+    releaseGuide(audio);
   };
   const onGuideFailure = () => {
     if (disposed) return;
@@ -411,10 +416,19 @@ export function VideoComposerRuntime(props: {
    * excerpt through, or null when that does not happen in time or the song
    * fails to load. */
   async function prepareGuide(guide: SoundtrackSelection): Promise<GuideAudio | null> {
-    const audio = createGuide(guide.audioUrl);
+    guidePreparation?.abort();
+    const controller = new AbortController();
+    guidePreparation = controller;
+    let source;
+    try { source = await (props.prepareGuideSource ?? prepareBufferedGuide)(guide.songPostId, controller.signal); }
+    catch { if (guidePreparation === controller) guidePreparation = undefined; return null; }
+    if (disposed || controller.signal.aborted || !guideStillCurrent(guide)) { source.release(); return null; }
+    let audio: GuideAudio;
+    try { audio = createGuide(source.url); } catch { source.release(); return null; }
+    guideReleases.set(audio, source.release);
     audio.preload = "auto";
     audio.currentTime = guide.bounds.startMs / 1_000;
-    if (excerptBuffered(audio, guide.bounds)) return audio;
+    if (excerptBuffered(audio, guide.bounds)) { if (guidePreparation === controller) guidePreparation = undefined; return audio; }
     return new Promise(resolve => {
       let settled = false;
       const finish = (ready: boolean) => {
@@ -424,11 +438,14 @@ export function VideoComposerRuntime(props: {
         audio.removeEventListener("progress", check);
         audio.removeEventListener("canplaythrough", check);
         audio.removeEventListener("error", fail);
-        if (!ready) audio.pause();
+        controller.signal.removeEventListener("abort", fail);
+        if (guidePreparation === controller) guidePreparation = undefined;
+        if (!ready || disposed) { audio.pause(); releaseGuide(audio); }
         resolve(ready && !disposed ? audio : null);
       };
       const check = () => { if (disposed || excerptBuffered(audio, guide.bounds)) finish(!disposed); };
       const fail = () => finish(false);
+      controller.signal.addEventListener("abort", fail, { once: true });
       audio.addEventListener("progress", check);
       audio.addEventListener("canplaythrough", check);
       audio.addEventListener("error", fail);
@@ -436,9 +453,9 @@ export function VideoComposerRuntime(props: {
       const timer = setTimeout(() => finish(false), GUIDE_BUFFER_TIMEOUT_MS);
     });
   }
-  async function startGuide(guide: SoundtrackSelection, prepared?: GuideAudio): Promise<boolean> {
+  async function startGuide(guide: SoundtrackSelection, prepared: GuideAudio): Promise<boolean> {
     stopGuide();
-    const audio = prepared ?? createGuide(guide.audioUrl);
+    const audio = prepared;
     guideAudio = audio;
     audio.addEventListener("error", onGuideFailure);
     audio.addEventListener("waiting", onGuideInterrupted);
@@ -596,12 +613,12 @@ export function VideoComposerRuntime(props: {
       if (guide) {
         setProgress("Loading the song…");
         const ready = await prepareGuide(guide);
-        if (disposed) return;
+        if (disposed) { if (ready) { ready.pause(); releaseGuide(ready); } return; }
         // The song panel can change while the guide loads; the approval that
         // opened the capture surface is not a license that survives it, and
         // a newly approved excerpt must not be recorded against the guide
         // prepared for the old one.
-        if (!captureReady() || !guideStillCurrent(guide)) return;
+        if (!captureReady() || !guideStillCurrent(guide)) { if (ready) { ready.pause(); releaseGuide(ready); } return; }
         setProgress("");
         if (!ready) throw new Error("The song didn't finish loading, so recording didn't start. Check your connection and try again.");
         prepared = ready;
@@ -665,6 +682,7 @@ export function VideoComposerRuntime(props: {
         if (disposed) { await current.cancel(); return; }
         session = current; setStream(current.stream); setCaptureStatus("recording");
         if (!guide) return;
+        if (!prepared) throw new Error("The song did not finish loading.");
         const started = await startGuide(guide, prepared);
         // Measured from the encoder's own origin to the moment playback
         // began, not from the moment the session object was returned: setup
@@ -689,6 +707,8 @@ export function VideoComposerRuntime(props: {
       } catch (failure) {
         if (failure instanceof capture.VideoCaptureError) { setCaptureStatus(failureStatus(failure.reason)); }
         throw failure;
+      } finally {
+        if (prepared && guideAudio !== prepared) { prepared.pause(); releaseGuide(prepared); }
       }
     });
   }
@@ -775,7 +795,7 @@ export function VideoComposerRuntime(props: {
     }
   }, 3_000);
   onCleanup(() => {
-    disposed = true; clearInterval(poll); coordinator.pauseUpload();
+    disposed = true; guidePreparation?.abort(); clearInterval(poll); coordinator.pauseUpload();
     stopGuide();
     if (typeof document !== "undefined") document.removeEventListener("visibilitychange", onVisibilityChange);
     void session?.cancel(); session = null;
@@ -987,6 +1007,7 @@ export function VideoComposerRuntime(props: {
               onSource={kind => { if (!disposed) setSongSource(kind); }}
               onSelection={next => {
                 if (disposed) return;
+                guidePreparation?.abort();
                 const hadSelection = selection() !== null;
                 setSelection(next);
                 // A clip chosen before the song is measured now, so the duration

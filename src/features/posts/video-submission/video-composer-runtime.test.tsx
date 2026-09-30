@@ -11,6 +11,7 @@ import type { VideoCommand, VideoTransport } from "./transport";
 import type { VideoSnapshot } from "./contracts";
 import type { SongIntervalPreflight } from "./song-reference";
 import type { SongSourceReader } from "../post-composer/song-excerpt-source";
+import type { GuideSourcePreparation } from "./buffered-guide";
 import type { GuidedTakeAlignment } from "./guided-take-alignment";
 import { GUIDED_TAKE_MAX_DURATION_SECONDS } from "./clip-duration";
 
@@ -328,6 +329,7 @@ describe("mounted song-first video flow", () => {
     readonly initialSong?: boolean;
     readonly mobile?: boolean;
     readonly createGuideAudio?: (url: string) => GuideAudio;
+    readonly prepareGuideSource?: GuideSourcePreparation;
     readonly onGuideTiming?: (timing: { readonly startDelayMs: number }) => void;
     readonly alignTake?: (file: File, offsetMs: number) => Promise<GuidedTakeAlignment>;
     /** Hold each interval preflight open so a stale answer can be resolved on
@@ -434,6 +436,7 @@ describe("mounted song-first video flow", () => {
       measureDuration={async () => options.clipDurationMs ?? null}
       startCapture={startCapture}
       openPreview={openPreview}
+      prepareGuideSource={options.prepareGuideSource ?? (async () => ({url: "blob:https://example.test/guide", release() {}}))}
       createGuideAudio={options.createGuideAudio}
       alignTake={alignTake}
       onGuideTiming={options.onGuideTiming}
@@ -744,6 +747,33 @@ describe("mounted song-first video flow", () => {
     expect(guide.audio.currentTime).toBe(0);
     await vi.waitFor(() => expect(document.body.textContent).toContain("Recording to A song"));
     expect(stopped).toBe(0);
+  });
+
+  test("the complete local guide precedes capture and is released on stop", async () => {
+    const guide = guideSpy();
+    const release = vi.fn();
+    let complete!: (source: {url: string; release: () => void}) => void;
+    const prepare = vi.fn(() => new Promise<{url: string; release: () => void}>(resolve => {complete = resolve;}));
+    const createAudio = vi.fn(() => guide.audio);
+    nextSession = () => fakeSession(() => {});
+    songSetup({preflight: "accepted", mobile: true, createGuideAudio: createAudio, prepareGuideSource: prepare});
+    await loadSongMetadata(); await awaitPlan("ready"); await startRecording();
+    await vi.waitFor(() => expect(prepare).toHaveBeenCalledOnce());
+    expect(startCapture).not.toHaveBeenCalled(); expect(createAudio).not.toHaveBeenCalled();
+    complete({url: "blob:https://example.test/complete-guide", release});
+    await vi.waitFor(() => expect(startCapture).toHaveBeenCalledOnce());
+    expect(createAudio).toHaveBeenCalledWith("blob:https://example.test/complete-guide");
+    await stopRecording(); await vi.waitFor(() => expect(release).toHaveBeenCalledOnce());
+  });
+
+  test("an incomplete guide refuses capture without exposing request detail", async () => {
+    nextSession = () => fakeSession(() => {});
+    songSetup({preflight: "accepted", mobile: true, createGuideAudio: () => guideSpy().audio,
+      prepareGuideSource: async () => {throw new TypeError("signed private download detail");}});
+    await loadSongMetadata(); await awaitPlan("ready"); await startRecording();
+    await vi.waitFor(() => expect(document.body.textContent).toContain("song didn't finish loading"));
+    expect(startCapture).not.toHaveBeenCalled();
+    expect(document.body.textContent).not.toContain("signed private download detail");
   });
 
   test("a guide that will not play cancels the take and says so", async () => {
