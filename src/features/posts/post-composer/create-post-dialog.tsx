@@ -258,7 +258,7 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
       const textUnresolved = textState().status === "submitting" || textState().status === "reconciling";
       if (!textUnresolved) setTextPersonaId(nextPersonaId);
       if (mediaCoordinator?.currentRecord == null) selectSongPersona(nextPersonaId);
-      if (untrack(mode) !== "video") setVideoPersonaId(props.personaId?.trim() || undefined);
+      if (untrack(mode) !== "video" || untrack(videoPersonaId) === undefined) setVideoPersonaId(props.personaId?.trim() || undefined);
     },
   );
 

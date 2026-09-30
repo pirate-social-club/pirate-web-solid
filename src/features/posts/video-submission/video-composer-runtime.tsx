@@ -94,6 +94,15 @@ export function VideoComposerRuntime(props: Parameters<typeof VideoComposerSessi
     return { communityId, principalId: props.principalId, hasProfiles: eligible === undefined || eligible.length > 0, ready: Boolean(personaId) && (eligible === undefined || eligible.some(option => option.id === personaId)) };
   });
   const storage = untrack(() => props.storage ?? createBrowserVideoStorage(props.principalId));
+  const [admitted, setAdmitted] = createSignal(entry.ready, { ownedWrite: true });
+  // The page may still be resolving its active profile. Accept it before the
+  // session mounts, then keep that session even if the shell profile changes.
+  createEffect(() => {
+    if (admitted()) return true;
+    const personaId = props.personaId?.trim();
+    const eligible = props.personaOptions?.filter(option => !option.communityId || option.communityId === props.communityId?.trim());
+    return Boolean(personaId) && (eligible === undefined || eligible.some(option => option.id === personaId));
+  }, ready => { if (ready) setAdmitted(true); });
   const [retained, setRetained] = createSignal(false);
   const [checking, setChecking] = createSignal(!entry.ready);
   const [failed, setFailed] = createSignal(false);
@@ -110,7 +119,7 @@ export function VideoComposerRuntime(props: Parameters<typeof VideoComposerSessi
     finally { if (!disposed) setChecking(false); }
   };
   if (!entry.ready) void Promise.resolve().then(checkRetained);
-  return <Show when={entry.ready || retained()} fallback={
+  return <Show when={admitted() || retained()} fallback={
     <ActionFooterShell fullViewport header={<MobilePageHeader class="relative z-10" title="Create video" onBackClick={props.onExit} />}
       footer={<Show when={!checking()}><div class="mx-auto w-full max-w-md">
         <Show when={failed()} fallback={entry.communityId

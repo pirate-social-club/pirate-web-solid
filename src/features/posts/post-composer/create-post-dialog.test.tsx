@@ -1143,6 +1143,37 @@ test.each([false, true])("retains video authority in global/contextual composer 
 });
 
 describe("community Video entry", () => {
+  test("waits for the page profile, then keeps the mounted video session", async () => {
+    let chooseActive!: (id: string | undefined) => void;
+    const reader = vi.fn(async () => ({ postId: "song-post", audioUrl: "https://example.test/song.mp3", title: "Song" }));
+    const storage: import("../video-submission/coordinator").VideoStorage = {
+      exclusive: async work => work(), load: async () => null,
+      save: async () => {}, remove: async () => {},
+    };
+    render(() => {
+      const [active, setActive] = createSignal<string>();
+      chooseActive = setActive;
+      return <CreatePostDialog open onOpenChange={() => {}} principalId="account-one"
+        communityContext={{ id: "community-one", name: "Harbor" }}
+        initialVideoSong={{ postId: "song-post" }} personaId={active()}
+        personas={[activePersona("persona-one", "Profile One")]}
+        videoStorage={storage} videoSongReader={reader} />;
+    });
+    await vi.waitFor(() => expect(document.body.textContent).toContain("Choose your profile on the community page."));
+    expect(reader).not.toHaveBeenCalled();
+    chooseActive("persona-one");
+    const screen = await vi.waitFor(() => {
+      const screen = document.querySelector('[data-song-choice-screen]');
+      expect(screen).not.toBeNull();
+      return screen;
+    });
+    await vi.waitFor(() => expect(reader).toHaveBeenCalledOnce());
+    chooseActive(undefined);
+    await new Promise(resolve => setTimeout(resolve, 20));
+    expect(document.querySelector('[data-song-choice-screen]')).toBe(screen);
+    expect(document.querySelector('[data-video-entry-prerequisite]')).toBeNull();
+  });
+
   test.each([undefined, "missing-profile"])("requires a valid active profile before song entry (%s)", async personaId => {
     const { render } = await import("@solidjs/web");
     const { createRoot } = await import("solid-js");

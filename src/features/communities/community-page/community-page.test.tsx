@@ -465,7 +465,7 @@ describe("CommunityPage", () => {
     const resolveSession = vi.fn(async () => ({
       status: "authenticated" as const,
       userId: "account-one",
-      personas: [],
+      personas: [{ personaId: "persona-one", displayName: "Profile One", avatarRef: null, primaryPublicHandle: null, communityBinding: { communityId, bindingSource: "first_membership" as const } }],
     }));
     const container = render(() => (
       <CommunityPage
@@ -496,7 +496,7 @@ describe("CommunityPage", () => {
     const resolveSession = vi.fn(async () => ({
       status: "authenticated" as const,
       userId: "account-one",
-      personas: [],
+      personas: [{ personaId: "persona-one", displayName: "Profile One", avatarRef: null, primaryPublicHandle: null, communityBinding: { communityId, bindingSource: "first_membership" as const } }],
     }));
     const clearVideoSongIntent = vi.fn();
     const container = render(() => (
