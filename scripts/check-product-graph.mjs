@@ -1,15 +1,11 @@
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
+import { hasForbiddenProductReference } from "./product-boundary-references.mjs";
 
 const root = path.resolve(import.meta.dirname, "..");
 const requireBuild = process.argv.includes("--require-build");
 const sourceExtensions = new Set([".cjs", ".css", ".js", ".json", ".mjs", ".ts", ".tsx"]);
 const importReactPattern = /(?:from\s*|import\s*\(|require\s*\()\s*["'](?:react|react-dom)(?:["'/]|$)/u;
-const forbiddenReferences = [
-  /@pirate\/web-platform/u,
-  /(?:^|[\\/])web[\\/]solid(?:[\\/]|$)/u,
-  /api-staging\.pirate\.sc/u,
-];
 
 const violations = [];
 const scannedSourceFiles = [];
@@ -31,10 +27,8 @@ function scanFile(filePath, scope, collection) {
   if (importReactPattern.test(text)) {
     violations.push(`${scope}: React import in ${path.relative(root, filePath)}`);
   }
-  for (const pattern of forbiddenReferences) {
-    if (pattern.test(text)) {
-      violations.push(`${scope}: forbidden legacy reference in ${path.relative(root, filePath)}`);
-    }
+  if (hasForbiddenProductReference(text)) {
+    violations.push(`${scope}: forbidden legacy reference in ${path.relative(root, filePath)}`);
   }
 }
 
