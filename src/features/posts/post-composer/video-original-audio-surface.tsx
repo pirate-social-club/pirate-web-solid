@@ -124,9 +124,9 @@ export function OriginalVideoCaptureSurface(props: OriginalVideoCaptureSurfacePr
             <Match when={status() === "guide_interrupted"}>
               <CaptureMessage
                 action="Record again"
-                body="The song stopped during recording, so that take was discarded to keep the video in time with the song."
+                body="The song stopped. Record a new take."
                 icon={<IconArrowsClockwise class="size-7" />}
-                title="That take ended"
+                title="Recording interrupted"
                 onAction={props.onRetake}
               />
             </Match>

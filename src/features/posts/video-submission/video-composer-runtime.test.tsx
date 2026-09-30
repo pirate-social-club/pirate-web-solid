@@ -328,6 +328,7 @@ describe("mounted song-first video flow", () => {
     readonly elementSeconds?: number;
     readonly initialSong?: boolean;
     readonly mobile?: boolean;
+    readonly playbackCheck?: GuideAudio;
     readonly createGuideAudio?: (url: string) => GuideAudio;
     readonly prepareGuideSource?: GuideSourcePreparation;
     readonly onGuideTiming?: (timing: { readonly startDelayMs: number }) => void;
@@ -430,6 +431,7 @@ describe("mounted song-first video flow", () => {
         audioUrl: "https://audio.example/song.mp3",
         title: "A song",
       });
+    let guideCreation = 0;
     const container = document.createElement("div"); document.body.appendChild(container);
     createRoot(dispose => { disposers.push(() => { dispose(); localStorage.clear(); }); render(() => <VideoComposerRuntime principalId="account" communityId="community" personaId="persona"
       storage={storage} transport={transport} inspectFile={async (file, options) => { inspectOptions.push(options); return file; }} fetchImpl={fetchImpl}
@@ -437,7 +439,10 @@ describe("mounted song-first video flow", () => {
       startCapture={startCapture}
       openPreview={openPreview}
       prepareGuideSource={options.prepareGuideSource ?? (async () => ({url: "blob:https://example.test/guide", release() {}}))}
-      createGuideAudio={options.createGuideAudio}
+      createGuideAudio={url => {
+        if (options.mobile && guideCreation++ === 0) return options.playbackCheck ?? guideSpy().audio;
+        return options.createGuideAudio?.(url) ?? guideSpy().audio;
+      }}
       alignTake={alignTake}
       onGuideTiming={options.onGuideTiming}
       songPreflight={preflight} songReader={songReader}
@@ -535,7 +540,7 @@ describe("mounted song-first video flow", () => {
     await awaitPlan("ready");
     await chooseFile();
     console.log("SHORTER CLIP TEXT:", document.body.textContent?.slice(0, 400));
-    await vi.waitFor(() => expect(document.body.textContent).toContain("A song · 0:00 to 0:09"));
+    await vi.waitFor(() => expect(document.body.textContent).toContain("A song"));
     await awaitPlan("ready");
     expect(document.body.textContent).not.toContain("Record again");
     await publish();
@@ -596,7 +601,7 @@ describe("mounted song-first video flow", () => {
     expect(button("Play with the song")).toBeDefined();
     // Review names the song and nothing else: no source, poster or rights
     // summary competes with the caption and Publish.
-    expect(document.body.textContent).toContain("A song · 0:00 to 0:15");
+    expect(document.body.textContent).toContain("A song");
     expect(document.body.textContent).not.toContain("Poster");
     expect(document.body.textContent).not.toContain("Rights");
     expect(soundtrackPanel()?.getAttribute("aria-hidden")).toBe("true");
@@ -609,7 +614,7 @@ describe("mounted song-first video flow", () => {
     const sheet = () => document.querySelector<HTMLElement>("[data-song-choice-screen]");
     await vi.waitFor(() => expect(sheet()?.getAttribute("aria-hidden")).toBe("true"));
     const chip = document.querySelector<HTMLButtonElement>('button[aria-label^="Song: A song"]')!;
-    expect(chip.textContent).toContain("A song · 0:00 to 0:15");
+    expect(chip.textContent).toContain("A song");
     chip.click();
     await vi.waitFor(() => expect(sheet()?.getAttribute("aria-hidden")).toBeNull());
     button("Continue to video")!.click();
@@ -623,7 +628,7 @@ describe("mounted song-first video flow", () => {
     const sheet = () => document.querySelector<HTMLElement>("[data-song-choice-screen]");
     expect(sheet()?.getAttribute("aria-hidden")).toBeNull();
     expect(document.querySelector('button[aria-label="Start recording"]')).toBeNull();
-    expect(document.body.textContent).toContain("longer than the server allows");
+    expect(document.body.textContent).toContain("This song clip can’t be used");
   });
 
   test("with the capability off, the video cannot be captured or published", async () => {
@@ -644,7 +649,7 @@ describe("mounted song-first video flow", () => {
     const fixture = songSetup({ preflight: "refused" });
     await loadSongMetadata();
     await awaitPlan("refused");
-    expect(document.body.textContent).toContain("longer than the server allows");
+    expect(document.body.textContent).toContain("This song clip can’t be used");
     attemptFile();
     await new Promise(resolve => setTimeout(resolve, 20));
     expect(document.querySelector("textarea")).toBeNull();
@@ -776,6 +781,49 @@ describe("mounted song-first video flow", () => {
     expect(document.body.textContent).not.toContain("signed private download detail");
   });
 
+  test("refused song playback keeps the author on song choice without starting capture", async () => {
+    const check = guideSpy({ fails: true });
+    songSetup({ preflight: "accepted", mobile: true, playbackCheck: check.audio });
+    await loadSongMetadata();
+    await vi.waitFor(() => expect(plan()?.getAttribute("data-song-plan")).toBe("ready"));
+    button("Continue to video")!.click();
+    await vi.waitFor(() => expect(soundtrackPanel()?.textContent).toContain("This song won’t play"));
+    expect(soundtrackPanel()?.getAttribute("aria-hidden")).not.toBe("true");
+    expect(startCapture).not.toHaveBeenCalled();
+    expect(openPreview).not.toHaveBeenCalled();
+    expect(check.calls.pause).toBeGreaterThan(0);
+    expect(button("Try again")).toBeDefined();
+    button("Try again")!.click();
+    await vi.waitFor(() => expect(soundtrackPanel()?.getAttribute("aria-hidden")).toBe("true"));
+  });
+
+  test("changing the song while playback is checked cannot advance the old selection", async () => {
+    const check = guideSpy({ manual: true });
+    songSetup({ preflight: "accepted", mobile: true, playbackCheck: check.audio });
+    await loadSongMetadata();
+    await vi.waitFor(() => expect(plan()?.getAttribute("data-song-plan")).toBe("ready"));
+    button("Continue to video")!.click();
+    await vi.waitFor(() => expect(check.calls.play).toBe(1));
+    button("Change")!.click();
+    check.release();
+    await vi.waitFor(() => expect(check.calls.pause).toBeGreaterThan(0));
+    expect(soundtrackPanel()?.getAttribute("aria-hidden")).not.toBe("true");
+    expect(startCapture).not.toHaveBeenCalled();
+    expect(openPreview).not.toHaveBeenCalled();
+  });
+
+  test("desktop uses upload without checking recording playback or opening the camera", async () => {
+    const check = guideSpy({ fails: true });
+    songSetup({ preflight: "accepted", mobile: false, playbackCheck: check.audio });
+    await loadSongMetadata();
+    await awaitPlan("ready");
+    expect(button("Choose a video")).toBeDefined();
+    expect(document.querySelector('button[aria-label="Start recording"]')).toBeNull();
+    expect(check.calls.play).toBe(0);
+    expect(openPreview).not.toHaveBeenCalled();
+    expect(startCapture).not.toHaveBeenCalled();
+  });
+
   test("a guide that will not play cancels the take and says so", async () => {
     const guide = guideSpy({ fails: true });
     let stopped = 0;
@@ -784,11 +832,12 @@ describe("mounted song-first video flow", () => {
     await loadSongMetadata();
     await awaitPlan("ready");
     await startRecording();
-    await vi.waitFor(() => expect(document.body.textContent).toContain("song couldn’t start"));
-    expect(document.querySelector("[data-video-viewfinder]")?.parentElement?.parentElement?.textContent).toContain("Try recording again");
+    await vi.waitFor(() => expect(document.body.textContent).toContain("This song won’t play"));
+    expect(soundtrackPanel()?.getAttribute("aria-hidden")).not.toBe("true");
+    expect(soundtrackPanel()?.textContent).toContain("choose another song");
     expect(stopped).toBe(0);
     expect(fixture.commands).toHaveLength(0);
-    expect(document.querySelector('button[aria-label="Start recording"]')).not.toBeNull();
+    expect(document.querySelector('button[aria-label="Start recording"]')).toBeNull();
   });
 
   test("hiding the page ends a guided take rather than letting the sound drift", async () => {
@@ -892,7 +941,7 @@ describe("mounted song-first video flow", () => {
     songSetup({ preflight: "refused", mobile: true });
     await loadSongMetadata();
     await awaitPlan("refused");
-    expect(document.body.textContent).toContain("longer than the server allows");
+    expect(document.body.textContent).toContain("This song clip can’t be used");
     // The record control is present but inert: without a song nothing
     // starts, and the view says what is missing instead.
     document.querySelector<HTMLButtonElement>('button[aria-label="Start recording"]')?.click();
@@ -1037,7 +1086,7 @@ describe("mounted song-first video flow", () => {
     await loadSongMetadata();
     await awaitPlan("ready");
     await startRecording();
-    await vi.waitFor(() => expect(document.body.textContent).toContain("song couldn’t start"), { timeout: 3_000 });
+    await vi.waitFor(() => expect(document.body.textContent).toContain("This song won’t play"), { timeout: 3_000 });
     expect(cancelled).toBe(1);
   });
 
@@ -1075,7 +1124,7 @@ describe("mounted song-first video flow", () => {
     expect(stopped).toBe(0);
     expect(document.querySelector("textarea")).toBeNull();
     const viewfinder = document.querySelector("[data-video-viewfinder]");
-    expect(viewfinder?.textContent).toContain("The song stopped during recording");
+    expect(viewfinder?.textContent).toContain("The song stopped. Record a new take.");
     expect(document.body.textContent).not.toContain("The guide song stalled");
     const retake = [...document.querySelectorAll("button")].find(button => button.textContent === "Record again");
     expect(retake).toBeDefined();
@@ -1228,7 +1277,7 @@ describe("mounted song-first video flow", () => {
     await vi.waitFor(() => expect(guide.calls.play).toBe(1));
     await stopRecording();
     await vi.waitFor(() => expect(document.querySelector("textarea")).not.toBeNull());
-    await vi.waitFor(() => expect(document.body.textContent).toContain("A song · 0:00 to 0:08"));
+    await vi.waitFor(() => expect(document.body.textContent).toContain("A song"));
     await awaitPlan("ready");
     expect(document.body.textContent).not.toContain("recorded to a different part of the song");
     await publish();
@@ -1436,7 +1485,7 @@ describe("mounted song-first video flow", () => {
     test("the selected song waits for its duration with a spinner", async () => {
       songSetup({ preflight: "pending" });
       await vi.waitFor(() => expect(document.querySelector("audio")).not.toBeNull());
-      expect(sheetTitle()).toBe("Choose the starting point");
+      expect(sheetTitle()).toBe("Song");
       expect(soundtrackPanel()!.querySelector('[aria-label="Preparing song"]')).not.toBeNull();
       expect(continueControl()).toBeUndefined();
       await loadSongMetadata();
@@ -1455,7 +1504,7 @@ describe("mounted song-first video flow", () => {
       songSetup({ preflight: "accepted" });
       await loadSongMetadata();
       await vi.waitFor(() => expect(plan()?.getAttribute("data-song-plan")).toBe("ready"), { timeout: 3_000 });
-      expect(sheetTitle()).toBe("Choose the starting point");
+      expect(sheetTitle()).toBe("Song");
       expect(continueControl()!.disabled).toBe(false);
       expect(document.getElementById("song-continue-hint")).toBeNull();
     });

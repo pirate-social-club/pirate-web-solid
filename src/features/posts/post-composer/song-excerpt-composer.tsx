@@ -533,6 +533,12 @@ export function SongExcerptComposer(props: {
   const retryableProblem = (state: SongSourceState): boolean =>
     (state.kind === "unavailable" || state.kind === "error") && state.retryable;
 
+  const requiresAnotherSong = () => {
+    const current = plan();
+    return current.kind === "ineligible" || (current.kind === "refused"
+      && (current.reason === "interval_too_long" || current.reason === "interval_too_short"));
+  };
+
   return (
     <section class="grid min-w-0 grid-cols-1 gap-3" aria-label="Song excerpt">
       <Show when={source().kind === "idle"}>
@@ -590,7 +596,7 @@ export function SongExcerptComposer(props: {
                   <IconMusicNote aria-hidden="true" class="size-5" />
                 </span>
                 <Type as="p" class="min-w-0 flex-1 truncate" variant="body-strong">{ready().title}</Type>
-                <Button class="shrink-0" onClick={resetSong} size="sm" type="button" variant="secondary">Change</Button>
+                <Show when={!requiresAnotherSong()}><Button class="shrink-0" onClick={resetSong} size="sm" type="button" variant="secondary">Change</Button></Show>
               </div>
               <Show when={audioProblem()}>
                 {(problem) => (
@@ -613,7 +619,7 @@ export function SongExcerptComposer(props: {
               </Show>
             </div>
 
-            <Show when={!audioProblem() && lengthMs() > 0 && canHoldExcerpt(lengthMs())}>
+            <Show when={!requiresAnotherSong() && !audioProblem() && lengthMs() > 0 && canHoldExcerpt(lengthMs())}>
               <PostComposerExcerptSelector
                 bounds={bounds()}
                 disabled={props.disabled}
@@ -640,6 +646,9 @@ export function SongExcerptComposer(props: {
                 </Show>
               </Show>
             </div>
+            <Show when={requiresAnotherSong()}>
+              <Button class="justify-self-start" onClick={resetSong} type="button">Choose another song</Button>
+            </Show>
             <Show when={note()}>
               {(text) => <Type as="p" variant="caption" role="status">{text()}</Type>}
             </Show>
@@ -658,8 +667,8 @@ function excerptClock(fromSamples: number, toSamples: number): string {
 function planRefusalText(state: Extract<SongPlanState, { kind: "refused" }>): string {
   switch (state.reason) {
     case "invalid_interval": return "The server couldn’t read this excerpt. Move the window and try again.";
-    case "interval_too_short": return "This excerpt is shorter than the server allows. Choose a longer one.";
-    case "interval_too_long": return "This excerpt is longer than the server allows. Choose a shorter one.";
+    case "interval_too_short": return "This song clip can’t be used.";
+    case "interval_too_long": return "This song clip can’t be used.";
     case "canonical_song_interval_uncovered":
       return "This excerpt runs past the end of the song’s audio. Move the window earlier.";
   }
@@ -671,7 +680,7 @@ function planIneligibleText(state: Extract<SongPlanState, { kind: "ineligible" }
     case "age_restricted": return "That song is age restricted for this account, so a video can’t be posted to it.";
     case "song_owner_policy_unavailable":
       return "This song’s owner settings couldn’t be read, so a video can’t be posted to it yet.";
-    case "derivative_video_blocked": return "This song’s owner doesn’t allow videos to be posted to it.";
-    case "derivative_video_owner_only": return "Only this song’s owner can post videos to it.";
+    case "derivative_video_blocked": return "This song isn’t available for videos.";
+    case "derivative_video_owner_only": return "Choose another song. This one is only available to its owner.";
   }
 }

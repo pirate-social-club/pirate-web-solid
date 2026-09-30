@@ -1,6 +1,5 @@
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import { ApiClientError } from "@pirate/api-client";
-import type { JSX } from "@solidjs/web";
 import { createSignal, onCleanup, onSettled, Show } from "solid-js";
 import { expect, userEvent, waitFor, within } from "storybook/test";
 
@@ -25,20 +24,10 @@ import { sampleVideoFile, toneWavUrl } from "./story-fixtures-media";
  * and device synchronization are validated on a device, never here.
  *
  * The stories drive the same component the app ships; the only story-local
- * seam is the phone check, because Storybook runs on a desktop viewport and
- * the recording controls live on the camera channel.
+ * mode is explicit: recording stories use the camera channel and desktop
+ * stories use upload. They do not replace global viewport detection.
  */
 
-window.matchMedia = (query: string): MediaQueryList => ({
-  matches: query.includes("pointer: coarse"),
-  media: query,
-  onchange: null,
-  addEventListener: () => undefined,
-  removeEventListener: () => undefined,
-  addListener: () => undefined,
-  removeListener: () => undefined,
-  dispatchEvent: () => false,
-});
 
 const SONG_MS = 214_000;
 
@@ -47,7 +36,7 @@ function storyPreview(): () => Promise<MediaStream> {
   return async () => canvasStream();
 }
 
-function toneReader(title = "Cadence (sample tone)"): SongSourceReader {
+function toneReader(title = "Cadence"): SongSourceReader {
   const audioUrl = toneWavUrl(SONG_MS);
   return async request => ({
     postId: request.kind === "post" ? request.postId : "song-post",
@@ -318,6 +307,7 @@ function storyFetch(options: {
 /** The story harness: the shipped runtime with story-local doubles and, where
  * a state needs an action, a control the reviewer can press. */
 function Harness(props: {
+  readonly cameraCapture?: boolean;
   readonly reader?: SongSourceReader;
   readonly preflight?: SongIntervalPreflight;
   readonly startCapture?: (input: OriginalVideoCaptureInput) => Promise<VideoCaptureSession>;
@@ -341,7 +331,6 @@ function Harness(props: {
   /** The profiles that may author the video, and the community named on review. */
   readonly personaOptions?: readonly VideoPostingOption[];
   readonly communityName?: string;
-  readonly controls?: JSX.Element;
 }) {
   let container: HTMLDivElement | undefined;
   onSettled(() => {
@@ -396,6 +385,7 @@ function Harness(props: {
   return (
     <div ref={element => { container = element; }} class="mx-auto max-w-md">
       <VideoComposerRuntime
+        cameraCapture={props.cameraCapture ?? true}
         communityId="community"
         prepareGuideSource={async () => ({url: "blob:https://example.test/guide", release() {}})}
         createGuideAudio={() => storyGuide({ blocked: props.guideBlocked })}
@@ -419,7 +409,6 @@ function Harness(props: {
         storage={props.storage ?? memoryStorage()}
         transport={props.transport ?? storyTransport()}
       />
-      {props.controls}
     </div>
   );
 }
@@ -541,8 +530,10 @@ export const SongForbidden: Story = {
   render: () => <Harness preflight={forbiddenPreflight()} />,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await canvas.findByText(/owner doesn’t allow videos/);
+    await canvas.findByText("This song isn’t available for videos.");
     expect(canvas.queryByRole("button", { name: "Continue to video" })).toBeNull();
+    await canvas.findByRole("button", { name: "Choose another song" });
+    expect(canvas.queryByRole("slider")).toBeNull();
   },
 };
 
@@ -551,7 +542,7 @@ export const ExcerptSelection: Story = {
   render: () => <Harness />,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await canvas.findByRole("dialog", { name: "Choose the starting point" });
+    await canvas.findByRole("dialog", { name: "Song" });
     await waitFor(() => expect(canvas.getByRole("button", { name: "Continue to video" })).toBeEnabled(), { timeout: 10_000 });
     expect(canvas.queryByText("Choose a song to continue.")).toBeNull();
   },
@@ -591,11 +582,13 @@ export const GuidedRecording: Story = {
  * refuses to start the song, and the take does not begin. */
 export const GuideBlocked: Story = {
   name: "Guide blocked by the browser",
-  render: () => <Harness autoStart guideBlocked startCapture={captureDouble({ autoStopAfterMs: 60_000 })} />,
+  render: () => <Harness autoContinue guideBlocked startCapture={captureDouble({ autoStopAfterMs: 60_000 })} />,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await canvas.findByText(/The song couldn’t start/, {}, { timeout: 20_000 });
-    expect(canvas.queryByText(/Recording to Cadence/)).toBeNull();
+    await canvas.findByText(/This song won’t play/, {}, { timeout: 20_000 });
+    expect(canvas.queryByRole("button", { name: "Start recording" })).toBeNull();
+    expect(canvas.getByRole("dialog", { name: "Song" })).toBeVisible();
+    await canvas.findByRole("button", { name: "Try again" });
   },
 };
 
@@ -605,14 +598,14 @@ export const GuideInterrupted: Story = {
     <Harness
       autoStart
       startCapture={captureDouble({ autoStopAfterMs: 60_000 })}
-      controls={<Button class="mt-3" onClick={() => activeGuide?.stall()} variant="secondary">Stall the guide</Button>}
     />
   ),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await canvas.findByText(/Recording to Cadence/, {}, { timeout: 20_000 });
-    await userEvent.click(canvas.getByRole("button", { name: "Stall the guide" }));
-    await canvas.findByText("That take ended", {}, { timeout: 20_000 });
+    activeGuide?.stall();
+    await canvas.findByText("Recording interrupted", {}, { timeout: 20_000 });
+    expect(canvas.queryByText("Stall the guide")).toBeNull();
     await canvas.findByRole("button", { name: "Record again" });
   },
 };
@@ -623,17 +616,14 @@ export const Backgrounded: Story = {
     <Harness
       autoStart
       startCapture={captureDouble({ autoStopAfterMs: 60_000 })}
-      controls={<Button class="mt-3" onClick={() => {
-        Object.defineProperty(document, "visibilityState", { configurable: true, value: "hidden" });
-        document.dispatchEvent(new Event("visibilitychange"));
-        Object.defineProperty(document, "visibilityState", { configurable: true, value: "visible" });
-      }} variant="secondary">Simulate backgrounding</Button>}
     />
   ),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await canvas.findByText(/Recording to Cadence/, {}, { timeout: 20_000 });
-    await userEvent.click(canvas.getByRole("button", { name: "Simulate backgrounding" }));
+    Object.defineProperty(document, "visibilityState", { configurable: true, value: "hidden" });
+    document.dispatchEvent(new Event("visibilitychange"));
+    Object.defineProperty(document, "visibilityState", { configurable: true, value: "visible" });
     await canvas.findByText("Recording stopped when you left this page.", {}, { timeout: 30_000 });
     expect(canvas.queryByRole("checkbox")).toBeNull();
   },
@@ -1002,4 +992,25 @@ export const AuthoringNote: Story = {
       </FormNote>
     </div>
   ),
+};
+
+export const DesktopUpload: Story = {
+  name: "Desktop: choose a video to upload",
+  render: () => <Harness cameraCapture={false} autoContinue />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await canvas.findByRole("button", { name: "Choose a video" });
+    expect(canvas.queryByRole("button", { name: "Start recording" })).toBeNull();
+  },
+};
+
+export const DesktopReview: Story = {
+  name: "Desktop: review an uploaded video",
+  render: () => <Harness cameraCapture={false} chooseFile={() => sampleVideoFile(12_000)} />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await canvas.findByRole("button", { name: "Publish video" });
+    expect(canvas.queryByRole("button", { name: "Start recording" })).toBeNull();
+    expect(canvas.queryByRole("checkbox")).toBeNull();
+  },
 };

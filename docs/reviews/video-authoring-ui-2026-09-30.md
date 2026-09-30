@@ -46,3 +46,26 @@ quality. Continue reviewing actual rendered states at phone width.
 
 This is local UI work. It does not alter recording interruption detection,
 renderer contracts, publication holds, staging, or the Pixel acceptance result.
+
+Further owner review exposed behavior as well as copy problems. Mobile advance
+now checks song playback before opening capture. A refusal remains on the song
+screen with an explicit retry, and a later refusal during recording cancels the
+take and returns to song choice. The capture/review song label contains only the
+title. The playback check is bounded and invalidated if the selection changes.
+
+Length refusal had instructed the author to shorten a clip using a start-only
+slider. The corrected refusal offers another song instead of an impossible
+operation. Ineligible songs also stay on song choice, without excerpt controls.
+The policy reasons remain in the internal contract. The UI does not expose
+server terminology or owner policy mechanics.
+
+Simulation buttons are removed from the story harness. Story interaction code
+triggers guide interruption and backgrounding directly. Recording interruption
+now states that the song stopped and asks for a new take. Camera and upload
+stories explicitly select their mode instead of replacing window.matchMedia
+for the whole catalog. Dedicated desktop upload and review stories cover the
+shared flow's upload branch. Real desktop chooses upload by the existing input
+and viewport detection; no new desktop recording branch was added.
+
+The archived source-stamp Storybook on 6006 was stopped at the owner's request.
+The updated local UI review continues on 6008. No staging change occurred.

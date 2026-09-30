@@ -1,7 +1,7 @@
 import { createEffect, createMemo, createSignal, onCleanup, Show, untrack } from "solid-js";
 import { ActionFooterShell, Button, cn, FormNote, MobilePageHeader, Spinner, Type } from "../../../design-system";
 import { OperationPersonaControl } from "../../identity/operation-persona-control/operation-persona-control";
-import { type ExcerptBounds, formatExcerptTime } from "../post-composer/song-excerpt";
+import { type ExcerptBounds } from "../post-composer/song-excerpt";
 import { SongExcerptComposer, type SoundtrackSelection } from "../post-composer/song-excerpt-composer";
 import { createMemoryExcerptDraftStore } from "../post-composer/song-excerpt-draft";
 import type { SongSourceReader, SongSourceState } from "../post-composer/song-excerpt-source";
@@ -287,7 +287,7 @@ export function VideoComposerRuntime(props: {
   const songChosen = () => songActive() && selection() !== null;
   /** Excerpt controls appear only after the song loads. */
   const songSheetTitle = () =>
-    songSource() === "ready" ? "Choose the starting point" : "Choose a song";
+    songSource() === "ready" && !["refused", "ineligible", "not_available", "timing_unavailable"].includes(songPlan().kind) ? "Song" : "Choose a song";
   /** Whether the sound sheet holds something the author must act on or wait
    * on. The server's interval preflight checks the song owner's policy before
    * capture, and reservation checks it again before issuing upload authority. */
@@ -302,7 +302,7 @@ export function VideoComposerRuntime(props: {
   };
   const songLabel = () => {
     const current = selection();
-    return songActive() && current ? `${current.title} · ${windowSpan(current.bounds)}` : undefined;
+    return songActive() && current ? current.title : undefined;
   };
   /** The length the clip must reach for the current excerpt. */
   const clipFit = createMemo(() => fitClipToExcerpt(clipDurationMs(), selection()?.bounds));
@@ -694,7 +694,8 @@ export function VideoComposerRuntime(props: {
         if (!started) {
           session = null; setStream(null); setCaptureStatus("idle");
           await current.cancel().catch(() => {});
-          throw new Error("The song couldn’t start. Try recording again.");
+          setTakeSoundtrack(null); setTakeAlignment("none"); setPlaybackFailed(true); setSongSheetOpen(true);
+          throw new Error("This song won’t play. Try again or choose another song.");
         }
         guideStarted = true;
         if (startDelayMs > GUIDE_START_MAX_DELAY_MS) {
@@ -904,11 +905,48 @@ export function VideoComposerRuntime(props: {
    * itself once the exact excerpt is accepted; a refusal keeps the sheet
    * open with its actions. */
   const [confirmingSound, setConfirmingSound] = createSignal(false, { ownedWrite: true });
+  const [checkingPlayback, setCheckingPlayback] = createSignal(false);
+  const [playbackFailed, setPlaybackFailed] = createSignal(false);
+  let checkingAudio: GuideAudio | undefined;
+  let playbackCheckRevision = 0;
+  onCleanup(() => checkingAudio?.pause());
+  const enterCapture = async () => {
+    const approved = approvedSelection();
+    const chosen = selection();
+    if (!approved || !chosen || checkingPlayback()) return;
+    const revision = ++playbackCheckRevision;
+    setConfirmingSound(false); setPlaybackFailed(false); setError("");
+    if (mobile && !file()) {
+      setCheckingPlayback(true);
+      let audio: GuideAudio | undefined;
+      let timer: ReturnType<typeof setTimeout> | undefined;
+      try {
+        audio = createGuide(chosen.audioUrl);
+        checkingAudio = audio;
+        audio.currentTime = chosen.bounds.startMs / 1_000;
+        const played = await Promise.race([
+          audio.play().then(() => true),
+          new Promise<false>(resolve => { timer = setTimeout(() => resolve(false), GUIDE_BUFFER_TIMEOUT_MS); }),
+        ]);
+        if (!played) throw new Error("Playback did not start");
+      } catch {
+        if (!disposed && revision === playbackCheckRevision && guideStillCurrent(chosen)) { setPlaybackFailed(true); setError("This song won’t play. Try again or choose another song."); }
+        return;
+      } finally {
+        if (timer !== undefined) clearTimeout(timer);
+        audio?.pause();
+        if (revision === playbackCheckRevision) {
+          checkingAudio = undefined;
+          if (!disposed) setCheckingPlayback(false);
+        }
+      }
+    }
+    if (disposed || revision !== playbackCheckRevision || !songSheetOpen() || !guideStillCurrent(chosen) || approvedSelection() === undefined) return;
+    setEnteredCapture(true); setSongSheetOpen(false);
+  };
   const confirmSound = () => {
     if (approvedSelection() !== undefined) {
-      setConfirmingSound(false);
-      setEnteredCapture(true);
-      setSongSheetOpen(false);
+      void enterCapture();
       return;
     }
     const kind = songPlan().kind;
@@ -919,9 +957,7 @@ export function VideoComposerRuntime(props: {
     ({ confirming, approved, settled }) => {
       if (!confirming) return;
       if (approved) {
-        setConfirmingSound(false);
-        setEnteredCapture(true);
-        setSongSheetOpen(false);
+        void enterCapture();
         return;
       }
       if (settled === "refused" || settled === "failed" || settled === "ineligible" || settled === "not_available" || settled === "timing_unavailable") {
@@ -995,13 +1031,14 @@ export function VideoComposerRuntime(props: {
           footerClass={selection() && ["ready", "checking", "measuring"].includes(songPlan().kind) ? undefined : "hidden"}
           footer={<Show when={selection() && ["ready", "checking", "measuring"].includes(songPlan().kind)}>
             <div class="mx-auto w-full max-w-md">
-              <Button class="w-full" disabled={confirmingSound()}
-                loading={confirmingSound()} onClick={confirmSound} type="button">Continue to video</Button>
+              <Button class="w-full" disabled={confirmingSound() || checkingPlayback()}
+                loading={confirmingSound() || checkingPlayback()} onClick={confirmSound} type="button">{playbackFailed() ? "Try again" : "Continue to video"}</Button>
             </div>
           </Show>}
         >
         <div class="mx-auto grid min-w-0 w-full max-w-md grid-cols-1 gap-5 p-4">
           <h1 class="sr-only">{songSheetTitle()}</h1>
+          <Show when={songSheetOpen() && error()}>{message => <FormNote tone="warning">{message()}</FormNote>}</Show>
           <fieldset class="contents" disabled={captureStatus() === "recording" || finalizing()}>
           <section aria-label="Soundtrack" class="min-w-0">
             <SongExcerptComposer store={excerptStore} read={props.songReader} communityId={chosenCommunityId() || undefined}
@@ -1011,7 +1048,10 @@ export function VideoComposerRuntime(props: {
               preflight={songPreflight} initialSong={props.initialSong}
               {...(props.songPicker === undefined ? {} : { songs: props.songPicker })}
               onPlan={setSongPlan}
-              onChoice={choice => { if (!disposed) setSongChoice(choice); }}
+              onChoice={choice => { if (!disposed) {
+                ++playbackCheckRevision; checkingAudio?.pause(); checkingAudio = undefined;
+                setCheckingPlayback(false); setSongChoice(choice); setPlaybackFailed(false); setError("");
+              } }}
               onSource={kind => { if (!disposed) setSongSource(kind); }}
               onSelection={next => {
                 if (disposed) return;
@@ -1124,9 +1164,4 @@ export function VideoComposerRuntime(props: {
       </Show>
     </Show>
   </section>;
-}
-
-/** The local excerpt window for display, from integer milliseconds. */
-function windowSpan(bounds: ExcerptBounds): string {
-  return `${formatExcerptTime(bounds.startMs)} to ${formatExcerptTime(bounds.endMs)}`;
 }
