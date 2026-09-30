@@ -236,7 +236,11 @@ export const ContextualVideoMobile: Story = {
       communityContext={{ id: "community-one", name: "Pirate Harbor" }}
       onOpenChange={() => {}}
       open
-      personas={personas(1)}
+      personaId="persona-one"
+      personas={personas(1).map(persona => ({
+        ...persona,
+        communityBinding: { communityId: "community-one", bindingSource: "first_membership" as const },
+      }))}
       principalId="account-one"
       videoSongPicker={async () => ({
         songs: [{ postId: "cadence", title: "Cadence", artist: "salt-cove.pirate", artworkSrc: null }],
