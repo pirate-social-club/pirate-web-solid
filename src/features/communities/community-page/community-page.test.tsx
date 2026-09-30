@@ -521,8 +521,8 @@ describe("CommunityPage", () => {
     const back = await vi.waitFor(() => {
       const sheet = document.querySelector('[data-song-choice-screen]');
       const button = [...(sheet?.querySelectorAll<HTMLButtonElement>("button") ?? [])]
-        .find(candidate => candidate.textContent?.trim() === "Back");
-      expect(button).not.toBeNull();
+        .find(candidate => candidate.getAttribute("aria-label") === "Back");
+      expect(button).toBeDefined();
       return button!;
     });
     back.click();

@@ -1132,19 +1132,18 @@ test.each([false, true])("retains video authority in global/contextual composer 
     } else {
       // A composer for another community never sends a video that belongs to
       // this one. It says so, and nothing is sent until that community opens.
-      await vi.waitFor(() => expect(document.body.textContent).toContain("Your video hasn't finished uploading."));
+      await vi.waitFor(() => expect(document.body.textContent).toContain("Finish this upload in the community where you started it."));
       await new Promise(resolve => setTimeout(resolve, 50));
       expect(fetchImpl).not.toHaveBeenCalled(); expect(execute).not.toHaveBeenCalled();
-      const retry = [...document.querySelectorAll("button")].find(button => button.textContent?.trim() === "Try again")!;
-      await vi.waitFor(() => expect(retry.disabled).toBe(false)); retry.click();
-      await vi.waitFor(() => expect(document.body.textContent).toContain("Your earlier video is still uploading for another community. Open that community to finish it."));
+      expect(document.querySelector('a[href="/c/retained-community"]')?.textContent).toBe("Open community");
+      expect([...document.querySelectorAll("button")].some(button => button.textContent?.trim() === "Try again")).toBe(false);
       expect(fetchImpl).not.toHaveBeenCalled(); expect(execute).not.toHaveBeenCalled();
     }
   } finally { for (const dispose of disposers.splice(0)) dispose(); pickerClick.mockRestore(); vi.stubGlobal("crypto", originalCrypto); vi.stubGlobal("URL", originalUrl); }
 });
 
 describe("community Video entry", () => {
-  test("opens a full-screen song choice before capture, without posting details", async () => {
+  test("opens full-screen song choice and profile selection before capture", async () => {
     const disposers: (() => void)[] = [];
     try {
       const { render } = await import("@solidjs/web");
@@ -1179,7 +1178,8 @@ describe("community Video entry", () => {
       expect(overlay?.contains(songChoice)).toBe(true);
       expect(overlay?.classList.contains("fixed")).toBe(true);
       expect(overlay?.classList.contains("inset-0")).toBe(true);
-      expect(document.querySelector("[data-operation-persona]")).toBeNull();
+      expect(songChoice.querySelector("[data-operation-persona]")).not.toBeNull();
+      expect(songChoice.textContent).toContain("Posting as");
       expect(songChoice.querySelector('input[aria-label="Search songs or paste a link"]')).not.toBeNull();
       expect(document.querySelector('button[aria-label="Start recording"]')).toBeNull();
     } finally {
