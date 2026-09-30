@@ -42,6 +42,19 @@ without rewriting files or failing on ordinary drift. Existing projection,
 privacy, authority lineage, ordering and grant equality checks remain above the
 wire validator. Changing frozen validator bytes changes the ingress identity.
 
+Independent review found two inherited gaps. The frozen generated algorithm's
+use of `in` accepts undeclared Object.prototype property names, including
+constructor, toString and __proto__. The persona JSON parser now rejects those
+wire keys at every depth before invoking the unchanged frozen algorithm. The
+current endpoint declares none of those property names. This is deliberate
+ingress hardening beyond the generated client's behavior; the conformance test
+still compares the frozen algorithm itself with that client.
+
+Stream cancellation runs as best-effort cleanup without delaying rejection.
+An upstream cancellation promise that never settles therefore cannot hold a
+timed-out or parent-cancelled request open. Regression tests exercise both
+interruptions with stalled stream cancellation.
+
 For release, compute the reference from a clean, reviewed source checkout.
 Record that checkout's commit and local build digest separately. After upload,
 record and read back the deployed Worker version ID, script etag and bindings

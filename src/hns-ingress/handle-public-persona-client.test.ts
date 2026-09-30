@@ -163,6 +163,55 @@ describe("bounded public-persona client", () => {
     await vi.advanceTimersByTimeAsync(2_000);
     await timedOut;
   });
+
+  it("rejects prototype-named wire properties outside the frozen algorithm", async () => {
+    for (const key of Object.getOwnPropertyNames(Object.prototype)) {
+      const malformed = body();
+      Object.defineProperty(malformed.profile, key, { value: "unexpected wire data", enumerable: true });
+      const serialized = JSON.stringify(malformed);
+      // Record the inherited generated-validator gap without altering its bytes.
+      expect(isPublicPersonaResponse(JSON.parse(serialized))).toBe(true);
+      const client = makeHnsPublicPersonaClientV1({
+        origin: "https://api-next.pirate.sc",
+        fetchImpl: async () => new Response(serialized, { headers: { "content-type": "application/json" } }),
+      });
+      await expect(client.loadExact(authority)).rejects.toMatchObject({ reason: "upstream_unavailable" });
+    }
+  });
+
+  it("settles its deadline when stream cancellation never finishes", async () => {
+    vi.useFakeTimers();
+    const cancel = vi.fn(() => new Promise<void>(() => undefined));
+    const client = makeHnsPublicPersonaClientV1({
+      origin: "https://api-next.pirate.sc",
+      fetchImpl: async () => new Response(new ReadableStream<Uint8Array>({
+        pull: () => new Promise<void>(() => undefined),
+        cancel,
+      }), { headers: { "content-type": "application/json" } }),
+    });
+    const timedOut = expect(client.loadExact(authority)).rejects.toMatchObject({ reason: "upstream_unavailable" });
+    await vi.advanceTimersByTimeAsync(2_000);
+    await timedOut;
+    expect(cancel).toHaveBeenCalledOnce();
+  });
+
+  it("settles parent cancellation when stream cancellation never finishes", async () => {
+    const parent = new AbortController();
+    const cancel = vi.fn(() => new Promise<void>(() => undefined));
+    const client = makeHnsPublicPersonaClientV1({
+      origin: "https://api-next.pirate.sc",
+      fetchImpl: async () => new Response(new ReadableStream<Uint8Array>({
+        pull: () => new Promise<void>(() => undefined),
+        cancel,
+      }), { headers: { "content-type": "application/json" } }),
+    });
+    const reason = new DOMException("Parent cancelled", "AbortError");
+    const interrupted = expect(client.loadExact(authority, parent.signal)).rejects.toBe(reason);
+    await new Promise(resolve => setTimeout(resolve, 0));
+    parent.abort(reason);
+    await interrupted;
+    expect(cancel).toHaveBeenCalledOnce();
+  });
 });
 
 

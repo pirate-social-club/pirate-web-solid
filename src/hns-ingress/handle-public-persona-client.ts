@@ -48,7 +48,9 @@ async function readBounded(response: Response, interrupt: Promise<never>): Promi
       chunks.push(part.value);
     }
   } catch (error) {
-    await reader.cancel(error).catch(() => undefined);
+    // Cancellation is cleanup, and an upstream can leave its promise pending.
+    // The request must still settle at its deadline or parent interruption.
+    void reader.cancel(error).catch(() => undefined);
     throw error;
   } finally {
     reader.releaseLock();
@@ -107,7 +109,14 @@ export function makeHnsPublicPersonaClientV1(options: {
           throw new HnsIngressFailure("upstream_unavailable");
         }
         const bytes = await readBounded(upstream, bounded.interrupt);
-        const response: unknown = JSON.parse(new TextDecoder().decode(bytes));
+        // oxlint-disable-next-line anti-slop/no-unknown-parameters, anti-slop/no-unknown-returns -- The JSON reviver checks raw wire keys before endpoint validation establishes the response type.
+        const response: unknown = JSON.parse(new TextDecoder().decode(bytes), (key: string, value: unknown): unknown => {
+          // This endpoint declares none of Object.prototype's property names.
+          // Reject these wire keys separately: the frozen generated algorithm
+          // uses `in` and otherwise mistakes them for declared schema fields.
+          if (Object.hasOwn(Object.prototype, key)) throw new HnsIngressFailure("upstream_unavailable");
+          return value;
+        });
         if (!isPublicPersonaResponse(response)) throw new HnsIngressFailure("upstream_unavailable");
         if (projectPersonaPublicProfile(response, authority.ownerPersonaId).kind !== "success" || exactGrantCount(response, authority) !== 1) {
           throw new HnsIngressFailure("upstream_unavailable");
