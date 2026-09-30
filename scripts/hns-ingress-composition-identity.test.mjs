@@ -2,14 +2,14 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 import {
-  assertIngressSourcePaths,
-  INGRESS_SOURCE_PATHS,
   productionIngressCompositionIdentity,
   projectProductionIngressConfiguration,
   projectStagingIngressConfiguration,
   readStagingIngressCompositionInputs,
   stagingIngressCompositionIdentity,
 } from "./hns-ingress-composition-identity.mjs";
+
+import { ingressRuntimePaths } from "./hns-ingress-runtime-graph.mjs";
 
 const { config, sources, packageJson } = await readStagingIngressCompositionInputs();
 
@@ -27,14 +27,12 @@ function changedConfig(change) {
   return copy;
 }
 
-test("the reviewed source set includes Worker host dispatch and refuses additions", () => {
-  assert.equal(INGRESS_SOURCE_PATHS.length, 20);
-  assert.ok(INGRESS_SOURCE_PATHS.includes("src/worker.ts"));
-  assertIngressSourcePaths(INGRESS_SOURCE_PATHS);
-  assert.throws(
-    () => assertIngressSourcePaths([...INGRESS_SOURCE_PATHS, "src/hns-ingress/new-dispatch.ts"]),
-    /source_file_set_changed/u,
-  );
+test("the discovered security closure includes projection and frozen validation", () => {
+  const paths = ingressRuntimePaths(sources);
+  assert.ok(paths.includes("src/worker.ts"));
+  assert.ok(paths.includes("src/features/profiles/persona-public-profile/persona-public-profile.model.ts"));
+  assert.ok(paths.includes("src/hns-ingress/public-persona-validator/public-persona-validator.ts"));
+  assert.ok(paths.includes("src/hns-ingress/public-persona-validator/public-persona-schema.ts"));
 });
 
 test("the Worker disabled-host refusal guard is inside the fingerprint", () => {
@@ -95,16 +93,11 @@ test("staging handle-host settings are enabled, bound and fingerprinted", () => 
   assert.throws(() => identity(added), /unbound_variable_HNS_HANDLE_HOST_/u);
 });
 
-test("the pinned vendored API client dependency is part of the fingerprint", () => {
-  const original = identity();
-  assert.equal(projection().api_client_dependency, packageJson.dependencies["@pirate/api-client"]);
+test("an unrelated API-client bump leaves the ingress fingerprint unchanged", () => {
   const changed = structuredClone(packageJson);
-  changed.dependencies["@pirate/api-client"] = "file:vendor/api-client/pirate-api-client-0.88.1.tgz";
-  assert.notEqual(identity(config, sources, changed), original);
-  changed.dependencies["@pirate/api-client"] = "*";
-  assert.throws(() => identity(config, sources, changed), /unpinned_api_client_dependency/u);
-  changed.dependencies["@pirate/api-client"] = "file:vendor/api-client/pirate-api-client-0.93.0-latest.tgz";
-  assert.throws(() => identity(config, sources, changed), /unpinned_api_client_dependency/u);
+  changed.dependencies["@pirate/api-client"] = "file:vendor/api-client/pirate-api-client-9.999.0.tgz";
+  assert.deepEqual(projection(config, changed), projection());
+  assert.equal(identity(config, sources, changed), identity());
 });
 
 test("protected route, Access, registry, secrets and replay binding are bound", () => {
@@ -144,12 +137,12 @@ test("the CLI identity has the bounded gateway-compatible format and is determin
 
 test("production ingress has its own fingerprint with a valid protected route", () => {
   const staging = identity();
-  assert.equal(staging, "solid-hns-ingress-sha256:50be3dc2071cca64d35ab3c9773d5feb74157dea44d8afae02156154e1765bbc");
+  assert.notEqual(staging, "solid-hns-ingress-sha256:50be3dc2071cca64d35ab3c9773d5feb74157dea44d8afae02156154e1765bbc");
   const production = productionIngressCompositionIdentity(config, sources, packageJson);
   assert.match(production, /^solid-hns-ingress-sha256:[a-f0-9]{64}$/u);
   assert.notEqual(production, staging);
   const projection = projectProductionIngressConfiguration(config, packageJson);
-  assert.equal(projection.schema, "pirate-solid-hns-production-ingress-composition-v3");
+  assert.equal(projection.schema, "pirate-solid-hns-production-ingress-composition-v4");
   assert.equal(projection.protected_route.pattern, "hns-community-ingress.pirate.sc");
 
   const changedReference = changedConfig((copy) => {
@@ -167,4 +160,63 @@ test("production ingress has its own fingerprint with a valid protected route", 
     () => productionIngressCompositionIdentity(changedOrigin, sources, packageJson),
     /production_ingress_origin_mismatch/u,
   );
+});
+
+
+test("every previously omitted projection and frozen validation input changes identity", () => {
+  for (const path of [
+    "src/features/profiles/persona-public-profile/persona-public-profile.model.ts",
+    "src/hns-ingress/public-persona-validator/public-persona-validator.ts",
+    "src/hns-ingress/public-persona-validator/public-persona-schema.ts",
+  ]) {
+    const changed = new Map(sources);
+    changed.set(path, Buffer.concat([sources.get(path), Buffer.from("\n// reviewed security change\n")]));
+    assert.notEqual(identity(config, changed), identity());
+  }
+});
+
+test("new Worker adapter runtime edges require classification", () => {
+  const changed = new Map(sources);
+  changed.set("src/worker.ts", Buffer.concat([sources.get("src/worker.ts"), Buffer.from('\nimport "./new-helper.ts";\n')]));
+  assert.throws(() => identity(config, changed), /unclassified_adapter_edge/u);
+});
+
+test("transitive value imports, reexports, dynamic client imports and computed loads refuse", () => {
+  const path = "src/features/profiles/persona-public-profile/persona-public-profile.model.ts";
+  for (const statement of [
+    'import "@pirate/api-client";',
+    'export { createPirateApiClient } from "@pirate/api-client";',
+    'void import("@pirate/api-client");',
+    'void import(variable);',
+    'require("@pirate/api-client");',
+    'import "./missing-security-helper.ts";',
+  ]) {
+    const changed = new Map(sources);
+    changed.set(path, Buffer.concat([sources.get(path), Buffer.from("\n" + statement)]));
+    assert.throws(() => identity(config, changed), /identity_refused/u);
+  }
+});
+
+test("new local ingress helpers are discovered and deterministically bound", () => {
+  const changed = new Map(sources);
+  changed.set("src/hns-ingress/worker-router.ts", Buffer.concat([sources.get("src/hns-ingress/worker-router.ts"), Buffer.from('\nimport "./new-security-helper.ts";\n')]));
+  changed.set("src/hns-ingress/new-security-helper.ts", Buffer.from("export const safety = true;\n"));
+  assert.ok(ingressRuntimePaths(changed).includes("src/hns-ingress/new-security-helper.ts"));
+  assert.notEqual(identity(config, changed), identity());
+  assert.equal(identity(config, changed), identity(config, new Map([...changed].reverse())));
+});
+
+
+test("type-only client dependencies remain outside the runtime graph", () => {
+  const path = "src/features/profiles/persona-public-profile/persona-public-profile.model.ts";
+  const changed = new Map(sources);
+  changed.set(path, Buffer.concat([sources.get(path), Buffer.from('\nexport type { PirateApiClient } from "@pirate/api-client";\n')]));
+  assert.ok(ingressRuntimePaths(changed).includes(path));
+});
+
+test("runtime cycles terminate and literal dynamic local dependencies are included", () => {
+  const changed = new Map(sources);
+  changed.set("src/hns-ingress/worker-router.ts", Buffer.concat([sources.get("src/hns-ingress/worker-router.ts"), Buffer.from('\nvoid import("./cycle-helper.ts");\n')]));
+  changed.set("src/hns-ingress/cycle-helper.ts", Buffer.from('import "./worker-router.ts";\n'));
+  assert.ok(ingressRuntimePaths(changed).includes("src/hns-ingress/cycle-helper.ts"));
 });

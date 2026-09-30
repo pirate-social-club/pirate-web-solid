@@ -1,10 +1,12 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import type { GetPublicPersonasPersonaIdResponse } from "@pirate/api-client";
+import { createPirateApiClient, type GetPublicPersonasPersonaIdResponse } from "@pirate/api-client";
 import {
   makeHnsPublicPersonaClientV1,
   type HnsHandleAuthorityResolutionV1,
   type HnsHandlePersonaAuthorityV1,
 } from "./index.ts";
+
+import { isPublicPersonaResponse } from "./public-persona-validator/public-persona-validator.ts";
 
 const authorityTuple = [
   "handle_persona_v1",
@@ -160,5 +162,54 @@ describe("bounded public-persona client", () => {
     const timedOut = expect(client.loadExact(authority)).rejects.toMatchObject({ reason: "upstream_unavailable" });
     await vi.advanceTimersByTimeAsync(2_000);
     await timedOut;
+  });
+});
+
+
+describe("frozen public-persona wire-validator conformance", () => {
+  it("matches the generated endpoint validator on valid unions and malformed wire values", async () => {
+    const hns = body();
+    const spaces = {
+      ...hns.handle_grants[0],
+      grant_id: "spaces_grant_01",
+      fulfillment: { kind: "spaces_native_v1" },
+      handle: { family: "spaces", namespace_root: "workspace_root", handle_label: "operator" },
+      display_identifier: "operator",
+      host: { kind: "not_applicable" },
+    };
+    const variants: unknown[] = [
+      hns,
+      { ...hns, handle_grants: [spaces] },
+      { ...hns, handle_grants: [...hns.handle_grants, spaces] },
+      { ...hns, handle_grants: [{ ...hns.handle_grants[0], fulfillment: { kind: "delegated_zone_v1" } }] },
+      null, [], {},
+      { ...hns, unexpected_private_field: "refuse" },
+      { ...hns, persona: { ...hns.persona, unexpected: true } },
+      { ...hns, profile: { ...hns.profile, revision: null } },
+      { ...hns, profile: { ...hns.profile, revision: 0 } },
+      { ...hns, profile: { ...hns.profile, revision: Number.MAX_SAFE_INTEGER + 1 } },
+      { ...hns, profile: { ...hns.profile, revision: 1.5 } },
+      { ...hns, handle_grants: [{ ...hns.handle_grants[0], host: { kind: "unknown" } }] },
+      { ...hns, handle_grants: [{ ...hns.handle_grants[0], grant_generation: 0 }] },
+      { ...hns, handle_grants: [{ ...spaces, fulfillment: { kind: "hosted_persona_v1" } }] },
+    ];
+    for (const value of variants) {
+      const serialized = JSON.stringify(value);
+      const generated = createPirateApiClient("https://api-next.pirate.sc/", {
+        fetchImpl: Object.assign(
+          async () => new Response(serialized, { headers: { "content-type": "application/json" } }),
+          { preconnect: () => undefined },
+        ),
+      });
+      let accepted = false;
+      try {
+        await generated.get_publicPersonasPersonaId({ path: { personaId: "persona_public_01" } });
+        accepted = true;
+      } catch { /* The generated validator's rejection is the comparison outcome. */ }
+      expect(isPublicPersonaResponse(JSON.parse(serialized))).toBe(accepted);
+    }
+    expect(isPublicPersonaResponse(hns)).toBe(true);
+    expect(isPublicPersonaResponse({ ...hns, handle_grants: [...hns.handle_grants, spaces] })).toBe(true);
+    expect(isPublicPersonaResponse({ ...hns, unexpected_private_field: "refuse" })).toBe(false);
   });
 });

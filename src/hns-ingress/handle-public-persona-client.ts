@@ -1,7 +1,5 @@
-import {
-  createPirateApiClient,
-  type GetPublicPersonasPersonaIdResponse,
-} from "@pirate/api-client";
+import type { GetPublicPersonasPersonaIdResponse } from "@pirate/api-client";
+import { isPublicPersonaResponse } from "./public-persona-validator/public-persona-validator.ts";
 import { projectPersonaPublicProfile } from "../features/profiles/persona-public-profile/persona-public-profile.model.ts";
 import {
   HNS_HANDLE_PUBLIC_PERSONA_DEADLINE_MS,
@@ -18,12 +16,6 @@ export interface HnsPublicPersonaClientV1 {
     authority: HnsHandleAuthorityResolutionV1,
     signal?: AbortSignal,
   ) => Promise<GetPublicPersonasPersonaIdResponse>;
-}
-
-function ownedArrayBuffer(bytes: Uint8Array): ArrayBuffer {
-  const owned = new Uint8Array(bytes.byteLength);
-  owned.set(bytes);
-  return owned.buffer;
 }
 
 function exactHttpsOrigin(value: string): string {
@@ -99,9 +91,7 @@ export function makeHnsPublicPersonaClientV1(options: {
     loadExact: async (authority: HnsHandleAuthorityResolutionV1, parentSignal?: AbortSignal) => {
       const expectedUrl = new URL(`/public-personas/${encodeURIComponent(authority.ownerPersonaId)}`, origin).toString();
       const bounded = makeInterruptDeadline(parentSignal, HNS_HANDLE_PUBLIC_PERSONA_DEADLINE_MS);
-      const boundedFetch: HnsPublicPersonaFetch = async (input, init) => {
-        const actual = new URL(input instanceof Request ? input.url : input.toString()).toString();
-        if (actual !== expectedUrl || init?.method !== "GET") throw new HnsIngressFailure("upstream_unavailable");
+      try {
         const upstream = await Promise.race([
           (options.fetchImpl ?? fetch)(expectedUrl, {
             method: "GET",
@@ -117,23 +107,8 @@ export function makeHnsPublicPersonaClientV1(options: {
           throw new HnsIngressFailure("upstream_unavailable");
         }
         const bytes = await readBounded(upstream, bounded.interrupt);
-        return new Response(ownedArrayBuffer(bytes), {
-          status: 200,
-          headers: { "content-type": "application/json", "cache-control": "no-store" },
-        });
-      };
-      try {
-        // SAFETY: the adapter implements only the standard Fetch call shape
-        // consumed by the generated client; runtime-specific static members
-        // are neither read nor invoked.
-        const client = createPirateApiClient(`${origin}/`, {
-          credentials: "omit",
-          signal: bounded.signal,
-          fetchImpl: boundedFetch as typeof fetch,
-        });
-        const response = await client.get_publicPersonasPersonaId({
-          path: { personaId: authority.ownerPersonaId },
-        });
+        const response: unknown = JSON.parse(new TextDecoder().decode(bytes));
+        if (!isPublicPersonaResponse(response)) throw new HnsIngressFailure("upstream_unavailable");
         if (projectPersonaPublicProfile(response, authority.ownerPersonaId).kind !== "success" || exactGrantCount(response, authority) !== 1) {
           throw new HnsIngressFailure("upstream_unavailable");
         }

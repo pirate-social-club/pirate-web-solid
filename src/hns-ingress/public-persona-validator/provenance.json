@@ -1,0 +1,13 @@
+{
+  "schema": "hns-public-persona-validator-provenance-v1",
+  "operation": "get_publicPersonasPersonaId",
+  "clientVersion": "0.102.0",
+  "artifact": "file:vendor/api-client/pirate-api-client-0.102.0-a7719db2.tgz",
+  "artifactSha256": "a7719db21169f4c2225e5fc2ba9d5a6cb4481fa11a9c20db5382d6561a7ec9ef",
+  "generatedSourceSha256": "78ad19f6f3e54cb0ae5541124430807add54e2f36a7b88fc6b23b7dd24ee5cd7",
+  "endpointSchemaSha256": "158b6d2f45a0da8494a1a4617a5d02d42ce2b050fd6a1ece3323e81c8979b45b",
+  "validatorAlgorithmSha256": "013e4e5938ffca19d6864d947495edc9bcff654e583b2540776b312b00ad5def",
+  "schemaModuleSha256": "4df770f0602a8a82b063be2ae4a0cbb62cd758e92c7923490667d0b30213051c",
+  "validatorModuleSha256": "1ddfdd59225bdd97abc4839c68f8c7b46e9301ab0b368cc29ab65e13ca839063",
+  "extraction": "python3 scripts/hns-public-persona-validator.py --write"
+}

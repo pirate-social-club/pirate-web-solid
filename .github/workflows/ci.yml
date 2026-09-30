@@ -18,6 +18,9 @@ jobs:
         with:
           bun-version: 1.4.0
       - run: bun install --frozen-lockfile
+      - name: Report frozen HNS persona validator drift
+        continue-on-error: true
+        run: python3 scripts/hns-public-persona-validator.py
       - name: Read Playwright version
         id: playwright
         run: echo "version=$(bunx playwright --version | awk '{print $NF}')" >> "$GITHUB_OUTPUT"

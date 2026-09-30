@@ -1,34 +1,11 @@
 import { createHash } from "node:crypto";
-import { readFile, readdir } from "node:fs/promises";
+import { readFile } from "node:fs/promises";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const repositoryRoot = fileURLToPath(new URL("../", import.meta.url));
 
-// This is a reviewed source boundary, not a discovery glob. The discovery check
-// below refuses a newly added ingress module until this list is updated.
-export const INGRESS_SOURCE_PATHS = Object.freeze([
-  "src/hns-ingress/access-jwt.ts",
-  "src/hns-ingress/authority-client.ts",
-  "src/hns-ingress/composition.ts",
-  "src/hns-ingress/forwarder-key-registry.ts",
-  "src/hns-ingress/handle-authority-client.ts",
-  "src/hns-ingress/handle-composition.ts",
-  "src/hns-ingress/handle-production-composition.ts",
-  "src/hns-ingress/handle-public-persona-client.ts",
-  "src/hns-ingress/handle-wire.ts",
-  "src/hns-ingress/index.ts",
-  "src/hns-ingress/interrupt-deadline.ts",
-  "src/hns-ingress/production-composition.ts",
-  "src/hns-ingress/replay-store-do.ts",
-  "src/hns-ingress/replay-store-sql.ts",
-  "src/hns-ingress/replay-store.ts",
-  "src/hns-ingress/request-diagnostics.ts",
-  "src/hns-ingress/transport.ts",
-  "src/hns-ingress/wire.ts",
-  "src/hns-ingress/worker-router.ts",
-  "src/worker.ts",
-]);
+import { ingressRuntimePaths, readIngressRuntimeSources } from "./hns-ingress-runtime-graph.mjs";
 
 const protectedVariableNames = Object.freeze([
   "API_NEXT_ORIGIN",
@@ -112,14 +89,6 @@ function projectIngressConfiguration(config, packageJson, environment) {
     }
   }
 
-  const apiClientDependency = stringValue(
-    packageJson?.dependencies?.["@pirate/api-client"],
-    "api_client_dependency",
-  );
-  if (!/^file:vendor\/api-client\/pirate-api-client-\d+\.\d+\.\d+(?:-[a-f0-9]{8})?\.tgz$/u.test(apiClientDependency)) {
-    refuse("unpinned_api_client_dependency");
-  }
-
   let protectedHost;
   try {
     const origin = new URL(protectedVars.HNS_COMMUNITY_APP_INGRESS_ORIGIN);
@@ -151,13 +120,12 @@ function projectIngressConfiguration(config, packageJson, environment) {
   if (!Array.isArray(config.migrations)) refuse("missing_replay_migrations");
 
   return {
-    schema: "pirate-solid-hns-" + environment + "-ingress-composition-v3",
+    schema: "pirate-solid-hns-" + environment + "-ingress-composition-v4",
     main: stringValue(config.main, "worker_entry"),
     compatibility_date: stringValue(config.compatibility_date, "compatibility_date"),
     compatibility_flags: uniqueSortedStrings(config.compatibility_flags, "compatibility_flags"),
     protected_route: matchingRoutes[0],
     protected_vars: protectedVars,
-    api_client_dependency: apiClientDependency,
     required_secret_names: uniqueSortedStrings(target?.secrets?.required, "required_secrets"),
     replay_bindings: [...replayBindings].sort((left, right) => left.name.localeCompare(right.name)),
     migrations: config.migrations,
@@ -172,20 +140,14 @@ export function projectProductionIngressConfiguration(config, packageJson) {
   return projectIngressConfiguration(config, packageJson, "production");
 }
 
-export function assertIngressSourcePaths(discoveredPaths) {
-  const expected = [...INGRESS_SOURCE_PATHS].sort();
-  const actual = uniqueSortedStrings(discoveredPaths, "source_paths");
-  if (JSON.stringify(actual) !== JSON.stringify(expected)) refuse("source_file_set_changed");
-}
-
 function ingressCompositionIdentity(config, sources, packageJson, environment) {
-  const sourceFiles = INGRESS_SOURCE_PATHS.map((path) => {
+  const sourceFiles = ingressRuntimePaths(sources).map((path) => {
     const bytes = sources.get(path);
     if (!(bytes instanceof Uint8Array)) refuse(`missing_source_${path}`);
     return { path, sha256: sha256(bytes) };
   });
   const projection = projectIngressConfiguration(config, packageJson, environment);
-  const canonical = JSON.stringify({ schema: "solid-hns-ingress-fingerprint-v3", sourceFiles, projection });
+  const canonical = JSON.stringify({ schema: "solid-hns-ingress-fingerprint-v4", sourceFiles, projection });
   return `solid-hns-ingress-sha256:${sha256(canonical)}`;
 }
 
@@ -197,29 +159,8 @@ export function productionIngressCompositionIdentity(config, sources, packageJso
   return ingressCompositionIdentity(config, sources, packageJson, "production");
 }
 
-async function discoverIngressSourcePaths(directory, prefix = "src/hns-ingress") {
-  const paths = [];
-  for (const entry of await readdir(directory, { withFileTypes: true })) {
-    const relative = `${prefix}/${entry.name}`;
-    if (entry.isDirectory()) {
-      paths.push(...(await discoverIngressSourcePaths(join(directory, entry.name), relative)));
-    } else if (entry.isSymbolicLink()) {
-      refuse("symlinked_ingress_source");
-    } else if (
-      /\.(?:[cm]?[jt]s|tsx|jsx)$/u.test(entry.name) &&
-      !/\.test\.(?:[cm]?[jt]s|tsx|jsx)$/u.test(entry.name)
-    ) {
-      paths.push(relative);
-    }
-  }
-  return paths;
-}
-
 export async function readStagingIngressCompositionInputs(root = repositoryRoot) {
-  const discovered = await discoverIngressSourcePaths(join(root, "src/hns-ingress"));
-  assertIngressSourcePaths([...discovered, "src/worker.ts"]);
-  const sources = new Map();
-  for (const path of INGRESS_SOURCE_PATHS) sources.set(path, await readFile(join(root, path)));
+  const sources = await readIngressRuntimeSources(root);
   const config = JSON.parse(await readFile(join(root, "wrangler.jsonc"), "utf8"));
   const packageJson = JSON.parse(await readFile(join(root, "package.json"), "utf8"));
   return { config, sources, packageJson };
