@@ -110,8 +110,13 @@ async function selectAndPublish() {
   Object.defineProperty(input, "files", { configurable: true, value: [new File(["video"], "take.mp4", { type: "video/mp4" })] });
   input.dispatchEvent(new Event("change", { bubbles: true }));
   await vi.waitFor(() => expect(document.querySelector("[data-video-review-frame]")).not.toBeNull());
-  const publish = [...document.querySelectorAll("button")].find(button => button.textContent?.trim() === "Publish video")!;
-  await vi.waitFor(() => expect(publish.disabled).toBe(false)); publish.click();
+  const publish = await vi.waitFor(() => {
+    const control = [...document.querySelectorAll("button")].find(button => button.textContent?.trim() === "Publish video");
+    expect(control).toBeDefined();
+    expect(control!.disabled).toBe(false);
+    return control!;
+  });
+  publish.click();
 }
 describe("mounted video flow", () => {
   test.each(["reserve", "start"] as const)("a rejected %s returns to editing only on explicit action", async kind => {
