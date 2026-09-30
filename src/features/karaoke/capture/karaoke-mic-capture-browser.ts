@@ -19,18 +19,23 @@ const WORKLET_PROCESSOR_NAME = "karaoke-capture-processor";
  * @param workletModuleUrl built URL of `karaoke-capture-processor.ts`, e.g.
  *   `new URL("./karaoke-capture-processor.ts", import.meta.url)` (Vite bundles it).
  */
-export function createBrowserMicCaptureDeps(workletModuleUrl: URL | string): KaraokeMicCaptureDeps {
+const loadedModules = new WeakMap<AudioContext, Promise<void>>();
+
+export function createBrowserMicCaptureDeps(workletModuleUrl: URL | string, sharedContext?: () => AudioContext): KaraokeMicCaptureDeps {
   return {
-    addWorkletModule: (context) =>
-      (context as unknown as AudioContext).audioWorklet.addModule(
-        typeof workletModuleUrl === "string" ? workletModuleUrl : workletModuleUrl.href,
-      ),
-    createContext: () =>
-      // Use the hardware-native rate. Forcing { sampleRate: 16000 } makes the mic
-      // MediaStreamSource emit SILENCE in Chrome/Firefox (sample-rate mismatch with
-      // the capture device) — observed as a steady ~0 peak/RMS on staging. The
-      // worklet's StreamingResampler downsamples the native rate to 16 kHz output.
-      new AudioContext() as unknown as MicAudioContext,
+    addWorkletModule: (context) => {
+      const audioContext = context as unknown as AudioContext;
+      let loaded = loadedModules.get(audioContext);
+      if (!loaded) {
+        loaded = audioContext.audioWorklet.addModule(typeof workletModuleUrl === "string" ? workletModuleUrl : workletModuleUrl.href);
+        loadedModules.set(audioContext, loaded);
+        void loaded.catch(() => loadedModules.delete(audioContext));
+      }
+      return loaded;
+    },
+    // Native rate; the worklet resamples microphone input to 16 kHz.
+    createContext: () => (sharedContext ? sharedContext() : new AudioContext()) as unknown as MicAudioContext,
+    ...(sharedContext ? { releaseContext: async () => {} } : {}),
     createWorkletNode: (context) =>
       new AudioWorkletNode(context as unknown as BaseAudioContext, WORKLET_PROCESSOR_NAME) as unknown as ReturnType<
         KaraokeMicCaptureDeps["createWorkletNode"]

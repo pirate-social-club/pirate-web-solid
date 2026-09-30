@@ -10,11 +10,14 @@ afterEach(() => { cleanups.splice(0).forEach(dispose => dispose()); vi.restoreAl
 function mount() {
   const [status, setStatus] = createSignal<"idle" | "connecting" | "active">("idle");
   const onPause = vi.fn();
+  const onPlay = vi.fn();
+  const onTimeChange = vi.fn();
+  const onPlaybackElement = vi.fn();
   const host = document.createElement("div"); document.body.appendChild(host);
   const dispose = mountUi(() => <KaraokePracticeSurface title="Fixture song" lines={[]} instrumentalAudioUrl="/fixture.mp3"
-    singingStatus={status()} onStartSinging={() => setStatus("connecting")} onPause={onPause} />, host);
+    singingStatus={status()} onStartSinging={() => setStatus("connecting")} onPause={onPause} onPlay={onPlay} onTimeChange={onTimeChange} onPlaybackElement={onPlaybackElement} />, host);
   cleanups.push(dispose);
-  return { host, setStatus, onPause };
+  return { host, setStatus, onPause, onPlay, onTimeChange, onPlaybackElement, dispose };
 }
 const button = (host: HTMLElement, name: string) => [...host.querySelectorAll("button")].find(element => element.textContent?.trim() === name);
 
@@ -39,4 +42,35 @@ test("offers a direct playback retry and pauses scoring when the browser refuses
   button(host, "Start backing track")!.click();
   await vi.waitFor(() => expect(play).toHaveBeenCalledTimes(2));
   await vi.waitFor(() => expect(host.textContent).not.toContain("Start backing track"));
+});
+
+
+test("capture waits for playing and suspends on waiting and stalled", () => {
+  vi.spyOn(HTMLMediaElement.prototype, "pause").mockImplementation(() => {});
+  const { host, onPlay, onPause } = mount();
+  const audio = host.querySelector("audio")!;
+  audio.currentTime = 1.25;
+  audio.dispatchEvent(new Event("play"));
+  expect(onPlay).not.toHaveBeenCalled();
+  audio.dispatchEvent(new Event("playing"));
+  expect(onPlay).toHaveBeenCalledWith(1250);
+  audio.currentTime = 1.5;
+  audio.dispatchEvent(new Event("waiting"));
+  audio.dispatchEvent(new Event("stalled"));
+  expect(onPause.mock.calls).toEqual([[1500], [1500]]);
+});
+
+test("samples the real media position between timeupdate events and stops on cleanup", async () => {
+  vi.spyOn(HTMLMediaElement.prototype, "pause").mockImplementation(() => {});
+  const { host, setStatus, onTimeChange, onPlaybackElement } = mount();
+  const audio = host.querySelector("audio")!;
+  expect(onPlaybackElement).toHaveBeenCalledWith(audio);
+  setStatus("active");
+  audio.currentTime = 2;
+  await vi.waitFor(() => expect(onTimeChange).toHaveBeenCalledWith(2000));
+  cleanups.splice(0).forEach(dispose => dispose());
+  expect(onPlaybackElement).toHaveBeenLastCalledWith(null);
+  const calls = onTimeChange.mock.calls.length;
+  await new Promise(resolve => setTimeout(resolve, 80));
+  expect(onTimeChange).toHaveBeenCalledTimes(calls);
 });

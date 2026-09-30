@@ -32,6 +32,8 @@ export interface KaraokeCaptureLifecycleOptions {
   getSongMs: () => number;
   /** Current playback rate (default 1). */
   getPlaybackRate?: () => number;
+  isPlaying?: () => boolean;
+  onAnchor?: (anchor: { captureMs: number; songMs: number; playbackRate: number }) => void;
   onError?: (error: { code: string; message: string }) => void;
 }
 
@@ -57,6 +59,7 @@ export function createKaraokeCaptureLifecycle(options: KaraokeCaptureLifecycleOp
 
   const anchorAndActivate = async (): Promise<void> => {
     if (stopped) return;
+    if (options.isPlaying && !options.isPlaying()) return;
     if (!client) {
       options.onError?.({ code: "karaoke_capture_not_attached", message: "capture lifecycle has no transport client" });
       return;
@@ -66,11 +69,13 @@ export function createKaraokeCaptureLifecycle(options: KaraokeCaptureLifecycleOp
     // BEFORE activate() tells the worklet to emit, so no audio flows unanchored
     // (SPEC §4.3).
     const captureMs = capture.captureClockMs();
-    client.setCaptureAnchor({
+    const anchor = {
       captureMs,
       playbackRate: getPlaybackRate(),
       songMs: options.getSongMs(),
-    });
+    };
+    options.onAnchor?.(anchor);
+    client.setCaptureAnchor(anchor);
     await capture.activate(captureMs);
   };
 

@@ -14,6 +14,7 @@ import { KaraokeCaptureDsp } from "./karaoke-capture-dsp";
 
 // Minimal ambient declarations for the AudioWorklet scope (not in the DOM lib).
 declare const sampleRate: number;
+declare const currentTime: number;
 declare function registerProcessor(name: string, ctor: unknown): void;
 declare abstract class AudioWorkletProcessor {
   readonly port: {
@@ -37,6 +38,10 @@ class KaraokeCaptureProcessor extends AudioWorkletProcessor {
   private active = false;
   private stopped = false;
   private dsp: KaraokeCaptureDsp | null = null;
+  private inputSamples = 0;
+  private renderQuanta = 0;
+  private outputSamples = 0;
+  private firstInputMs: number | null = null;
 
   constructor() {
     super();
@@ -52,12 +57,13 @@ class KaraokeCaptureProcessor extends AudioWorkletProcessor {
         break;
       case "activate":
         this.epoch = message.epoch;
-        this.dsp = new KaraokeCaptureDsp({
-          chunkSamples: this.chunkSamples,
-          halfTaps: this.halfTaps,
-          inputRate: this.inputRate,
-          startTimeMs: message.startTimeMs,
-        });
+        // The activate message can wait in a queue. Sample timestamps start at
+        // the first input quantum that actually runs, not when it was posted.
+        this.dsp = null;
+        this.inputSamples = 0;
+        this.renderQuanta = 0;
+        this.outputSamples = 0;
+        this.firstInputMs = null;
         this.active = true;
         break;
       case "deactivate":
@@ -77,19 +83,38 @@ class KaraokeCaptureProcessor extends AudioWorkletProcessor {
   private flushTail(): void {
     if (!this.dsp) return;
     for (const chunk of this.dsp.flush()) {
-      this.port.postMessage({ capturedAtMs: chunk.capturedAtMs, epoch: this.epoch, pcm16: chunk.pcm16, type: "chunk" }, [chunk.pcm16]);
+      this.emitChunk(chunk);
     }
+  }
+
+  private emitChunk(chunk: { capturedAtMs: number; pcm16: ArrayBuffer }): void {
+    this.outputSamples += chunk.pcm16.byteLength / 2;
+    this.port.postMessage({
+      capturedAtMs: chunk.capturedAtMs, epoch: this.epoch, pcm16: chunk.pcm16, type: "chunk",
+      accounting: { renderQuanta: this.renderQuanta, inputSamples: this.inputSamples, outputSamples: this.outputSamples, firstInputMs: this.firstInputMs, inputRate: this.inputRate },
+    }, [chunk.pcm16]);
   }
 
   process(inputs: Float32Array[][]): boolean {
     if (this.stopped) return false; // terminate the processor
-    if (!this.active || !this.dsp) return true;
+    if (!this.active) return true;
     const input = inputs[0];
     if (!input || input.length === 0) return true;
     const frames = input[0]?.length ?? 0;
     if (frames === 0) return true;
+    if (!this.dsp) {
+      this.firstInputMs = currentTime * 1000;
+      this.dsp = new KaraokeCaptureDsp({
+        chunkSamples: this.chunkSamples,
+        halfTaps: this.halfTaps,
+        inputRate: this.inputRate,
+        startTimeMs: this.firstInputMs,
+      });
+    }
+    this.renderQuanta += 1;
+    this.inputSamples += frames;
     for (const chunk of this.dsp.processQuantum(input, frames)) {
-      this.port.postMessage({ capturedAtMs: chunk.capturedAtMs, epoch: this.epoch, pcm16: chunk.pcm16, type: "chunk" }, [chunk.pcm16]);
+      this.emitChunk(chunk);
     }
     return true;
   }

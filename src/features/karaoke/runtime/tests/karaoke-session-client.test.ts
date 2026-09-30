@@ -821,3 +821,14 @@ describe("KaraokeSessionClient transport", () => {
     expect(h.client.getPhase()).toBe("closed")
   })
 })
+
+
+test("sends both measured song endpoints without reapplying the initial clock rate", async () => {
+  const h = harness()
+  await h.client.start({ postId: "post-1" }); h.sockets[0]!.open()
+  h.client.setCaptureAnchor({ captureMs: 1000, playbackRate: 1, songMs: 0 })
+  h.client.pushAudio(new Uint8Array(3200).buffer, 1200, { songStartMs: 80, songEndMs: 160 })
+  const decoded = decodeKaraokeBinaryFrame(h.sockets[0]!.binarySent()[0]!, { attemptId: "attempt-1", sessionId: "session-1" })
+  expect(decoded.frame?.songStartMs).toBe(80)
+  expect(decoded.frame?.songEndMs).toBe(160)
+})

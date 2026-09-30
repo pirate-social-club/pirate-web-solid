@@ -115,6 +115,7 @@ function harness(overrides: Partial<KaraokeMicCaptureDeps> & { getUserMedia?: Ka
     createContext: overrides.createContext ?? (() => context),
     createWorkletNode: overrides.createWorkletNode ?? (() => node),
     getUserMedia: overrides.getUserMedia ?? (async () => stream),
+    releaseContext: overrides.releaseContext,
   };
 
   const capture = new KaraokeMicCapture({
@@ -289,4 +290,19 @@ describe("KaraokeMicCapture", () => {
     h.node.port.emit(chunkMsg(1)); // queued chunks can no longer continue
     expect(h.chunks).toHaveLength(0);
   });
+});
+
+
+test("a borrowed playback context survives mic teardown while every mic resource is released", async () => {
+  let released = 0;
+  const h = harness({ releaseContext: async () => { released += 1; } });
+  await h.capture.start();
+  await h.capture.activate();
+  await h.capture.stop();
+  await h.capture.stop();
+  expect(h.stream.tracks.every(track => track.stopped)).toBe(true);
+  expect(h.node.disconnected).toBe(true);
+  expect(h.context.source.disconnected).toBe(true);
+  expect(h.context.closed).toBe(false);
+  expect(released).toBe(1);
 });

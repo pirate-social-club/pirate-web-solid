@@ -143,7 +143,7 @@ function LoadedKaraokeSession(props: { payload: ApiSongKaraokePayload; postId: s
     () => scoring.state(),
     (state) => {
       const error = state?.error;
-      if (error?.code === "auth_error" || error?.code === "unauthorized") setAuthError(true);
+      if (error?.code === "auth_error" || error?.code === "unauthorized" || error?.code === "csrf_required") setAuthError(true);
     },
   );
 
@@ -277,6 +277,7 @@ function LoadedKaraokeSession(props: { payload: ApiSongKaraokePayload; postId: s
         onExit={() => navigate(props.exitPath ?? "/")}
         onFinish={(songMs) => scoring.controls.noteFinish(songMs)}
         onPause={(songMs) => scoring.controls.notePause(songMs)}
+        onPlaybackElement={scoring.controls.attachPlaybackElement}
         onPlay={(songMs) => scoring.controls.notePlay(songMs)}
         onSeek={(songMs) => scoring.controls.noteSeek(songMs)}
         onStartSinging={communityId && scorableLines().length > 0 ? (songMs) => {
@@ -309,6 +310,17 @@ function LoadedKaraokeSession(props: { payload: ApiSongKaraokePayload; postId: s
         summary={scoringState()?.summary ?? null}
         title={props.payload.title ?? "Karaoke"}
       />
+      <Show when={scoringState()?.status === "error" && (scoringState()?.micError || scoringState()?.error)}>
+        <div role="alert" class="fixed inset-x-4 bottom-24 z-50 rounded-lg bg-card p-4 text-center">
+          <p>{scoringState()?.micError?.code === "permission_denied"
+            ? "Microphone access is blocked. Allow microphone access in your browser and try again."
+            : scoringState()?.micError?.code === "no_device"
+              ? "No microphone is available. Connect a microphone and try again."
+              : scoringState()?.micError
+                ? "Audio capture could not start. Refresh Karaoke and try again."
+                : "Scoring could not connect. Try starting your take again."}</p>
+        </div>
+      </Show>
       <Show when={personaMessage()}>
         <div class="fixed inset-x-4 bottom-24 z-50 space-y-3 rounded-lg bg-card p-4 text-center">
           <p role="status">{personaMessage()}</p>

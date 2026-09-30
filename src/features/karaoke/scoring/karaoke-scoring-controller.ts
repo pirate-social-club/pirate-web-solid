@@ -24,6 +24,8 @@
  * transport owns capture suspend/resume itself (SPEC §6).
  */
 
+import { KaraokePlaybackClock } from "../capture/karaoke-playback-clock";
+
 import type {
   KaraokeClientPhase,
   KaraokeLineScore,
@@ -104,6 +106,10 @@ export interface KaraokeScoringControllerOptions {
   createSessionClient?: CreateScoringSessionClient;
   /** Min ms between `playback_sync` heartbeats (default 1000). */
   playbackSyncIntervalMs?: number;
+  /** Samples the actual media element, independently of capture delivery. */
+  getPlaybackPosition?: () => { songMs: number; playbackRate: number } | null;
+  /** Production waits for playing, including after stalls and reconnects. */
+  deferCaptureUntilPlaying?: boolean;
   now?: () => number;
 }
 
@@ -179,6 +185,7 @@ export function createKaraokeScoringController(
   const createSessionClient = options.createSessionClient ?? createKaraokeSessionClient;
   const scorableLines = options.scorableLines;
 
+  const playbackClock = new KaraokePlaybackClock();
   const listeners = new Set<(state: KaraokeScoringState) => void>();
   let state = initialState();
 
@@ -213,6 +220,13 @@ export function createKaraokeScoringController(
 
   function enqueueLocal(task: () => Promise<void>): void {
     localChain = localChain.then(task, task).catch(() => undefined);
+  }
+
+  function observePlayback(): void {
+    const position = options.getPlaybackPosition?.();
+    if (!position || !engine) return;
+    songMs = Math.max(0, position.songMs);
+    playbackClock.observe({ captureMs: engine.captureClockMs(), songMs });
   }
 
   function releaseCapture(): void {
@@ -256,13 +270,14 @@ export function createKaraokeScoringController(
   }
 
   function handlePhaseChange(phase: KaraokeClientPhase): void {
+    if (state.summary) { setState({ phase, status: "ended" }); return; }
     if (phase === "live") sendPendingFinish();
     if (phase === "live" && !captureEnded) {
       hasBeenLive = true;
       // Initial activation is owned by the orchestrator (SPEC §4.3): set the
       // anchor + activate the mic the first time the socket reaches live.
       // Reconnect re-activation is owned by the transport's resumeCapture hook.
-      if (!activatedInitial && lifecycle) {
+      if (!activatedInitial && lifecycle && isPlaying) {
         activatedInitial = true;
         const currentCapture = lifecycle;
         const currentClient = handle;
@@ -279,6 +294,7 @@ export function createKaraokeScoringController(
   }
 
   function handleBridgeError(error: KaraokeBridgeError): void {
+    if (state.summary) return;
     if (!error.retryable) releaseCapture();
     // Non-retryable creation/transport failures are terminal; retryable ones are
     // surfaced but the transport keeps reconnecting, so don't flip to a terminal UI.
@@ -289,6 +305,7 @@ export function createKaraokeScoringController(
   }
 
   function handleServerEvent(event: KaraokeServerEvent): void {
+    if (state.summary) return;
     switch (event.type) {
       case "stt_partial":
         setState({ partialTranscript: event.text });
@@ -303,6 +320,9 @@ export function createKaraokeScoringController(
       case "summary":
         releaseCapture();
         setState({ status: "ended", summary: event.summary });
+        // A completed take needs no reconnect or expiry timer. Closing prevents
+        // an idle socket from later replacing its results with a startup error.
+        handle?.close();
         return;
       case "session_error":
         // Transient scoring hiccups (a line-boundary the server didn't expect, or
@@ -391,8 +411,10 @@ export function createKaraokeScoringController(
     },
     notePlay: (nextSongMs) => {
       songMs = Math.max(0, nextSongMs);
+      if (isPlaying) return;
       isPlaying = true;
       if (captureEnded || !handle || handle.getPhase() !== "live") return;
+      activatedInitial = true;
       // Re-anchor at the current song position + reactivate, then announce resume.
       localResume();
       handle.resume(songMs);
@@ -411,6 +433,7 @@ export function createKaraokeScoringController(
     },
     noteTime: (nextSongMs) => {
       songMs = Math.max(0, nextSongMs);
+      if (isPlaying) observePlayback();
       if (captureEnded || !handle || handle.getPhase() !== "live") return;
       // Throttled heartbeat so the server tracks playback position/rate.
       const t = now();
@@ -438,7 +461,8 @@ export function createKaraokeScoringController(
       captureEnded = false;
       pendingFinish = null;
       songMs = Math.max(0, startedAtAudioMs);
-      isPlaying = true;
+      isPlaying = !options.deferCaptureUntilPlaying;
+      playbackClock.reset();
       hasBeenLive = false;
       activatedInitial = false;
       lastBoundaryLineId = null;
@@ -448,7 +472,18 @@ export function createKaraokeScoringController(
       // 1. Acquire the mic FIRST so a permission/device failure never leaves a
       //    server-side session orphaned.
       const captureEngine = options.createCaptureEngine({
-        onChunk: (pcm16, capturedAtMs) => { if (attempt === generation && !disposed) handle?.pushAudio(pcm16, capturedAtMs); },
+        onChunk: (pcm16, capturedAtMs) => {
+          if (attempt !== generation || disposed) return;
+          if (!options.getPlaybackPosition) { handle?.pushAudio(pcm16, capturedAtMs); return; }
+          observePlayback();
+          const durationMs = pcm16.byteLength / 2 / 16_000 * 1000;
+          const range = playbackClock.mapRange(capturedAtMs - durationMs, capturedAtMs);
+          if (!range) {
+            handleCaptureError({ code: "karaoke_clock_unavailable", message: "Playback timing could not be measured. Start a new take." });
+            return;
+          }
+          handle?.pushAudio(pcm16, capturedAtMs, range);
+        },
         onError: error => { if (attempt === generation && !disposed) handleCaptureError(error); },
       });
       engine = captureEngine;
@@ -471,8 +506,10 @@ export function createKaraokeScoringController(
       // 2. Wire the capture lifecycle to the transport's reconnect hooks.
       const captureLifecycle = createKaraokeCaptureLifecycle({
         capture: captureEngine,
-        getPlaybackRate: () => 1,
-        getSongMs: () => songMs,
+        getPlaybackRate: () => options.getPlaybackPosition?.()?.playbackRate ?? 1,
+        getSongMs: () => options.getPlaybackPosition?.()?.songMs ?? songMs,
+        isPlaying: () => isPlaying,
+        onAnchor: (anchor) => playbackClock.reset(anchor),
         onError: error => { if (attempt === generation && !disposed) handleCaptureError(error); },
       });
       lifecycle = captureLifecycle;

@@ -237,7 +237,7 @@ export class KaraokeSessionClient {
    * (SPEC §4.2), keeping capture timing separate from playback timing. Dropped
    * silently unless the session is live AND an anchor exists.
    */
-  pushAudio(pcm16: ArrayBuffer, capturedAtMs: number): void {
+  pushAudio(pcm16: ArrayBuffer, capturedAtMs: number, songRange?: { songStartMs: number; songEndMs: number }): void {
     if (this.phase !== "live" || !this.socket || !this.descriptor) return;
     const anchor = this.anchor;
     if (!anchor) return; // unanchored → dropped (anchored timing is mandatory)
@@ -248,9 +248,9 @@ export class KaraokeSessionClient {
     if (capturedAtMs < anchor.captureMs) return;
     if (this.lastCapturedAtMs !== null && capturedAtMs < this.lastCapturedAtMs) return;
     const durationMs = (pcm16.byteLength / 2 / this.sampleRate) * 1000;
-    const songEndMs = anchor.songMs + (capturedAtMs - anchor.captureMs) * anchor.playbackRate;
+    const songEndMs = songRange?.songEndMs ?? anchor.songMs + (capturedAtMs - anchor.captureMs) * anchor.playbackRate;
     if (!Number.isFinite(songEndMs) || songEndMs < 0) return;
-    const songStartMs = Math.max(0, songEndMs - durationMs * anchor.playbackRate);
+    const songStartMs = songRange?.songStartMs ?? Math.max(0, songEndMs - durationMs * anchor.playbackRate);
     this.lastCapturedAtMs = capturedAtMs;
     this.sendBinary(pcm16, Math.round(songStartMs), Math.round(songEndMs));
   }

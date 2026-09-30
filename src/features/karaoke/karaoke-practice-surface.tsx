@@ -30,6 +30,7 @@ export interface KaraokePracticeSurfaceProps {
   singingStatus?: "idle" | "requesting-mic" | "connecting" | "reconnecting" | "active" | "finishing" | "ended" | "error";
   onTimeChange?: (songMs: number) => void;
   /** Internal playback lifecycle notifications for scoring; no visible controls. */
+  onPlaybackElement?: (element: HTMLAudioElement | null) => void;
   onPlay?: (songMs: number) => void;
   onPause?: (songMs: number) => void;
   onSeek?: (songMs: number) => void;
@@ -74,6 +75,7 @@ export function KaraokePracticeSurface(props: KaraokePracticeSurfaceProps) {
     const songMs = (audioRef.current?.currentTime ?? 0) * 1000;
     setCurrentTimeMs(songMs);
     props.onTimeChange?.(songMs);
+    return songMs;
   };
   createEffect(
     () => props.instrumentalAudioUrl,
@@ -98,7 +100,12 @@ export function KaraokePracticeSurface(props: KaraokePracticeSurfaceProps) {
       if (audio && !isPlaying()) playBackingTrack();
     },
   );
-  onCleanup(() => { disposed = true; playRequest += 1; audioRef.current?.pause(); });
+  let clockTimer: ReturnType<typeof setInterval> | undefined;
+  createEffect(() => props.singingStatus, (status) => {
+    clearInterval(clockTimer);
+    clockTimer = status === "active" ? setInterval(syncTime, 50) : undefined;
+  });
+  onCleanup(() => { clearInterval(clockTimer); props.onPlaybackElement?.(null); disposed = true; playRequest += 1; audioRef.current?.pause(); });
 
   return (
     <section aria-label={props.title} class="flex h-dvh w-full flex-col overflow-hidden bg-background text-foreground">
@@ -152,8 +159,9 @@ export function KaraokePracticeSurface(props: KaraokePracticeSurfaceProps) {
         </div>
       </div>
       <audio
-        ref={(element) => { audioRef.current = element; }}
-        preload="metadata"
+        ref={(element) => { audioRef.current = element; props.onPlaybackElement?.(element); }}
+        crossorigin="anonymous"
+        preload="auto"
         src={props.instrumentalAudioUrl}
         onCanPlay={() => setIsLoading(false)}
         onDurationChange={(event) => {
@@ -162,10 +170,13 @@ export function KaraokePracticeSurface(props: KaraokePracticeSurfaceProps) {
             setDurationMs(Math.round(nextDurationMs));
           }
         }}
-        onEnded={() => { setIsPlaying(false); syncTime(); props.onFinish?.(currentTimeMs()); }}
+        onEnded={() => { setIsPlaying(false); props.onFinish?.(syncTime()); }}
         onError={() => setIsLoading(false)}
-        onPause={() => { setIsPlaying(false); props.onPause?.(currentTimeMs()); }}
-        onPlay={() => { setIsPlaying(true); props.onPlay?.(currentTimeMs()); }}
+        onPause={() => { setIsPlaying(false); props.onPause?.(syncTime()); }}
+        onPlay={() => setIsPlaying(true)}
+        onPlaying={() => { setIsPlaying(true); props.onPlay?.(syncTime()); }}
+        onWaiting={() => { props.onPause?.(syncTime()); }}
+        onStalled={() => { props.onPause?.(syncTime()); }}
         onTimeUpdate={syncTime}
       />
       <Show when={playbackIssue() && props.singingStatus === "active"}>

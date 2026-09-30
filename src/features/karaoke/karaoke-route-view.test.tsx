@@ -1,12 +1,14 @@
 import { KaraokeApiError } from "./karaoke-session-bridge.ts";
 import { render } from "@solidjs/web";
 import { afterEach, describe, expect, test, vi } from "vitest";
+import { createSignal } from "solid-js";
 import type { AuthenticatedSession } from "../../api/session";
 import type { ActivityPersonaPreparationApi } from "../identity/activity-persona-preparation";
 import type { KaraokeApiClient } from "./karaoke-api";
 import { KaraokeSessionRouteView } from "./karaoke-route-view";
 import { createRouter, memoryHistory } from "@solidjs/router";
 import type { UseKaraokeScoringOptions, UseKaraokeScoringResult } from "./scoring/use-karaoke-scoring-session";
+import type { KaraokeScoringState } from "./scoring/karaoke-scoring-controller";
 
 // Faithful start boundary without requesting a microphone or opening a socket.
 function createScoring(options: UseKaraokeScoringOptions): UseKaraokeScoringResult {
@@ -25,7 +27,7 @@ const persona = (id: string, communityId: string | null) => ({
   communityBinding: communityId === null ? null : { communityId, bindingSource: "first_membership" as const },
 });
 
-function mount(personas: AuthenticatedSession["personas"], resolveSession = async (): Promise<AuthenticatedSession> => ({ status: "authenticated", userId: "account-1", personas }), preparationApi?: ActivityPersonaPreparationApi) {
+function mount(personas: AuthenticatedSession["personas"], resolveSession = async (): Promise<AuthenticatedSession> => ({ status: "authenticated", userId: "account-1", personas }), preparationApi?: ActivityPersonaPreparationApi, scoringFactory = createScoring) {
   // Scored-take tests exercise persona and start behavior; the dedicated
   // disclosure tests clear this acknowledgment to prove the capture gate.
   localStorage.setItem("karaoke:microphone-disclosure:v1", "1");
@@ -43,7 +45,7 @@ function mount(personas: AuthenticatedSession["personas"], resolveSession = asyn
   const TestRouter = createRouter({ history: memoryHistory(), routes: [{ path: "/" }] });
   const dispose = render(() => <TestRouter>{() => <KaraokeSessionRouteView
     postId="post-1" client={client}
-    createScoring={createScoring}
+    createScoring={scoringFactory}
     resolveSession={resolveSession}
     preparationApi={preparationApi}
   />}</TestRouter>, host);
@@ -61,6 +63,46 @@ async function start(host: HTMLElement) {
 afterEach(() => {
   for (const dispose of disposers.splice(0)) dispose();
   document.body.replaceChildren();
+});
+
+function failingScoring(code: string, microphone: boolean) {
+  return (options: UseKaraokeScoringOptions): UseKaraokeScoringResult => {
+    const [state, setState] = createSignal<KaraokeScoringState | null>(null);
+    return {
+      enabled: () => options.enabled,
+      state,
+      controls: {
+        start: () => setState({
+          status: "error", phase: "aborted", lineScores: [], latestLineId: null,
+          partialTranscript: "", summary: null,
+          error: microphone ? null : { code, message: "Startup failed" },
+          micError: microphone ? { code, message: "Capture failed" } : null,
+        }),
+        noteFinish() {}, notePause() {}, notePlay() {}, noteSeek() {}, noteTime() {}, stop() {}, abort() {},
+      },
+    };
+  };
+}
+
+describe("Karaoke startup recovery", () => {
+  test("offers sign-in when the cached account has lost its CSRF cookie", async () => {
+    const { host, createSession } = mount([persona("here", "community-here")], undefined, undefined,
+      failingScoring("csrf_required", false));
+    await start(host);
+    await vi.waitFor(() => expect(host.textContent).toContain("Sign in to sing"));
+    expect([...host.querySelectorAll("button")].some(button => button.textContent?.trim() === "Sign in")).toBe(true);
+    expect(host.textContent).not.toContain("Start karaoke");
+    expect(createSession).not.toHaveBeenCalled();
+  });
+
+  test("explains blocked microphone access while keeping the start control available", async () => {
+    const { host, createSession } = mount([persona("here", "community-here")], undefined, undefined,
+      failingScoring("permission_denied", true));
+    await start(host);
+    await vi.waitFor(() => expect(host.querySelector('[role="alert"]')?.textContent).toContain("Allow microphone access"));
+    expect([...host.querySelectorAll("button")].find(button => button.textContent?.trim() === "Start karaoke")?.disabled).toBe(false);
+    expect(createSession).not.toHaveBeenCalled();
+  });
 });
 
 describe("Karaoke community persona selection", () => {

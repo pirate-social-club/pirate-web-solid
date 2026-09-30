@@ -50,7 +50,7 @@ interface Harness {
     started: Array<{ startedAtAudioMs?: number } | undefined>;
     anchors: Array<{ captureMs: number; songMs: number; playbackRate: number }>;
     cleared: number;
-    pushed: Array<{ bytes: number; ms: number }>;
+    pushed: Array<{ bytes: number; ms: number; range?: { songStartMs: number; songEndMs: number } }>;
     playbackSyncs: Array<{ ms: number; playing: boolean }>;
     pauses: number[];
     resumes: number[];
@@ -74,7 +74,7 @@ interface Harness {
   setNow: (ms: number) => void;
 }
 
-function makeHarness(opts: { failStart?: Error } = {}): Harness {
+function makeHarness(opts: { failStart?: Error; getPlaybackPosition?: () => { songMs: number; playbackRate: number }; deferCaptureUntilPlaying?: boolean } = {}): Harness {
   const events: Harness["events"] = {
     aborted: [], anchors: [], cleared: 0, closed: 0, finishes: [], lineBoundaries: [],
     pauses: [], playbackSyncs: [], pushed: [], resumes: [], seeks: [], started: [],
@@ -100,7 +100,7 @@ function makeHarness(opts: { failStart?: Error } = {}): Harness {
     lineBoundary: (line, ms) => events.lineBoundaries.push({ lineId: line.lineId, ms }),
     pause: (ms) => events.pauses.push(ms),
     playbackSync: (ms, playing) => events.playbackSyncs.push({ ms, playing }),
-    pushAudio: (pcm16, ms) => events.pushed.push({ bytes: pcm16.byteLength, ms }),
+    pushAudio: (pcm16, ms, range) => events.pushed.push({ bytes: pcm16.byteLength, ms, ...(range ? { range } : {}) }),
     resume: (ms) => events.resumes.push(ms),
     seek: (ms) => events.seeks.push(ms),
     setCaptureAnchor: (anchor) => events.anchors.push(anchor),
@@ -134,6 +134,8 @@ function makeHarness(opts: { failStart?: Error } = {}): Harness {
     createKaraokeSession: async () => { throw new Error("unused: session client is faked"); },
     createSessionClient,
     now: () => nowMs,
+    getPlaybackPosition: opts.getPlaybackPosition,
+    deferCaptureUntilPlaying: opts.deferCaptureUntilPlaying,
     postId: "pst_1",
     scorableLines: LINES,
   });
@@ -403,4 +405,57 @@ describe("createKaraokeScoringController", () => {
     expect(seen).toContain("connecting");
     expect(seen).not.toContain("active"); // unsubscribed before live
   });
+});
+
+
+describe("measured playback clock", () => {
+  test("does not capture during startup waiting; playing starts the epoch", async () => {
+    const h = makeHarness({ deferCaptureUntilPlaying: true });
+    await h.controller.start(0);
+    h.driver.setPhase("live"); await settle();
+    expect(h.capture.activateStamps).toEqual([]);
+    h.controller.notePlay(0); await settle();
+    expect(h.capture.activateStamps).toEqual([1000]);
+    h.controller.notePlay(0); await settle();
+    expect(h.capture.activateStamps).toEqual([1000]);
+    h.controller.notePause(100); await settle();
+    h.controller.notePlay(100); await settle();
+    expect(h.capture.activateStamps).toHaveLength(2);
+  });
+
+  test("a queued chunk retains capture-time song positions during 0.8 playback", async () => {
+    let songMs = 0;
+    const h = makeHarness({ getPlaybackPosition: () => ({ songMs, playbackRate: 1 }) });
+    await h.controller.start(0); h.driver.setPhase("live"); await settle();
+    h.driver.setCaptureClock(1100); songMs = 80; h.controller.noteTime(songMs);
+    h.driver.setCaptureClock(1200); songMs = 160; h.controller.noteTime(songMs);
+    h.driver.setCaptureClock(1500); songMs = 400; h.controller.noteTime(songMs);
+    h.driver.chunk(3200, 1200);
+    expect(h.events.pushed).toEqual([{ bytes: 3200, ms: 1200, range: { songStartMs: 80, songEndMs: 160 } }]);
+  });
+
+  test("missing capture-time history fails honestly instead of inventing a grade", async () => {
+    const h = makeHarness({ getPlaybackPosition: () => ({ songMs: 0, playbackRate: 1 }) });
+    await h.controller.start(0); h.driver.setPhase("live"); await settle();
+    h.driver.chunk(3200, 5000);
+    expect(h.events.pushed).toEqual([]);
+    expect(h.events.aborted).toEqual(["karaoke_mic_lost"]);
+    expect(h.controller.getState().micError?.code).toBe("karaoke_clock_unavailable");
+  });
+});
+
+
+test("completed results remain ended when the idle connection later expires", async () => {
+  const h = makeHarness();
+  await h.controller.start(0); h.driver.setPhase("live"); await settle();
+  const summary = { finalScore: 0.92 } as KaraokeSessionSummary;
+  h.driver.emit({ type: "summary", summary } as KaraokeServerEvent);
+  expect(h.events.closed).toBe(1);
+  h.driver.bridgeError({ code: "karaoke_session_expired", message: "Session expired", retryable: false, status: null });
+  h.driver.setPhase("expired");
+  h.driver.emit({ type: "session_error", code: "session_expired" } as KaraokeServerEvent);
+  expect(h.controller.getState()).toMatchObject({ status: "ended", summary, error: null });
+  await h.controller.start(0);
+  expect(h.controller.getState().status).toBe("connecting");
+  expect(h.controller.getState().summary).toBeNull();
 });

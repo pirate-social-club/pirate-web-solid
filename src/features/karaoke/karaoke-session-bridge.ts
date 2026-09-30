@@ -264,7 +264,7 @@ export interface KaraokeSessionBridgeHandle {
   setCaptureAnchor(anchor: KaraokeCaptureAnchor): void;
   clearCaptureAnchor(): void;
   /** Feeds a mic PCM16 buffer captured at `capturedAtMs` (mapped via the anchor). */
-  pushAudio(pcm16: ArrayBuffer, capturedAtMs: number): void;
+  pushAudio(pcm16: ArrayBuffer, capturedAtMs: number, songRange?: { songStartMs: number; songEndMs: number }): void;
   playbackSync(audioTimeMs: number, playing: boolean): void;
   pause(audioTimeMs: number): void;
   resume(audioTimeMs: number): void;
@@ -359,7 +359,7 @@ export function createKaraokeSessionClient(options: CreateKaraokeSessionClientOp
     lineBoundary: (line, audioTimeMs) => client.lineBoundary(line, audioTimeMs),
     pause: (audioTimeMs) => client.pause(audioTimeMs),
     playbackSync: (audioTimeMs, playing) => client.playbackSync(audioTimeMs, playing),
-    pushAudio: (pcm16, capturedAtMs) => client.pushAudio(pcm16, capturedAtMs),
+    pushAudio: (pcm16, capturedAtMs, songRange) => client.pushAudio(pcm16, capturedAtMs, songRange),
     resume: (audioTimeMs) => client.resume(audioTimeMs),
     seek: (audioTimeMs) => client.seek(audioTimeMs),
     setCaptureAnchor: (anchor) => client.setCaptureAnchor(anchor),

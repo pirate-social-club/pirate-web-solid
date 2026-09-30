@@ -67,6 +67,8 @@ export interface KaraokeMicCaptureDeps {
   createContext: () => MicAudioContext | Promise<MicAudioContext>;
   addWorkletModule: (context: MicAudioContext) => Promise<void>;
   createWorkletNode: (context: MicAudioContext) => MicWorkletNode;
+  /** A playback owner may lend its context; stop still releases every mic node and track. */
+  releaseContext?: (context: MicAudioContext) => Promise<void>;
 }
 
 export interface KaraokeMicCaptureOptions {
@@ -276,7 +278,10 @@ export class KaraokeMicCapture {
     }
     this.stopTracks();
     try {
-      await this.context?.close();
+      if (this.context) {
+        if (this.deps.releaseContext) await this.deps.releaseContext(this.context);
+        else await this.context.close();
+      }
     } catch {
       // best-effort
     }
