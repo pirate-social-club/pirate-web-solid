@@ -10,6 +10,9 @@ const asset = { chain_id: 84532 as const, token_address: `0x${"a".repeat(40)}`, 
 const draft: SponsorDraft = { kind: "megapot_pool", amount: "18", perClaim: "0.1", claims: "3", assetAddress: asset.token_address, activities: "either", minimumScore: "80", ticketCeiling: "1", cutoffSeconds: "600", endsAt: "2026-09-15T00:00:00Z" };
 const now = new Date("2026-09-08T00:00:00Z");
 describe("reviewed reward terms", () => {
+  it("identifies the required ticket price when the budget is valid", () => {
+    expect(() => sponsorTerms(scope, { ...draft, amount: "1", ticketCeiling: "" }, [asset], policies, now)).toThrow("Maximum ticket price: Enter a positive amount without commas.");
+  });
   it("uses exact atomic arithmetic and rejects silent rounding", () => {
     expect(rewardAtomic("0.1",6)).toBe("100000");
     expect(() => rewardAtomic("0.0000001",6)).toThrow("decimal places");

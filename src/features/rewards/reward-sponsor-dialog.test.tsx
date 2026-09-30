@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { render } from "@solidjs/web";
 import { createRoot, createSignal } from "solid-js";
 import { RewardSponsorDialog } from "./reward-sponsor-dialog.tsx";
-import { rewardSponsorFixture } from "./reward-sponsor.fixtures.ts";
+import { rewardSponsorFixture, rewardSponsorExpiredFixture } from "./reward-sponsor.fixtures.ts";
 import { createRewardCreation } from "../../api/reward-creation.ts";
 import { sponsorTerms } from "./reward-sponsor-terms.ts";
 const disposers: Array<() => void> = [];
@@ -25,6 +25,21 @@ function fill(label: string, value: string) {
   input.value = value; input.dispatchEvent(new Event("input", { bubbles: true })); input.dispatchEvent(new Event("change", { bubbles: true }));
 }
 describe("composed sponsor journey", () => {
+  it.each([false, true])("retires expired unsubmitted attempts but keeps uncertain wallet evidence: %s", async uncertain => {
+    const dependencies = await rewardSponsorExpiredFixture(uncertain);
+    const constructWallet = vi.fn(dependencies.funding);
+    const root = document.createElement("div"); document.body.appendChild(root);
+    createRoot(dispose => { disposers.push(dispose); render(() => <RewardSponsorDialog communityId="community" postId="song" songTitle="Salt & Static" dependencies={{ ...dependencies, funding: constructWallet }} onClose={() => {}} />, root); });
+    await vi.waitFor(() => expect(document.body.textContent).toContain(uncertain ? "Check saved transfer" : "Review terms"));
+    expect(constructWallet).not.toHaveBeenCalled();
+    if (uncertain) {
+      expect(document.body.textContent).not.toContain("Resume saved reward");
+      button("Check saved transfer").click();
+      await vi.waitFor(() => expect(document.body.textContent).toContain("wallet may have sent"));
+      expect(document.body.textContent).not.toContain("Add another reward");
+      expect(document.body.textContent).not.toContain("Confirm transfer");
+    } else expect(document.body.textContent).not.toContain("Resume saved reward");
+  });
   it("adds a reward to a zero-leg existing offer without opening another offer", async () => {
     const fixture = rewardSponsorFixture();
     const fixtureApi = fixture.creationApi({ accountId: "account", personaId: "persona" });

@@ -1,8 +1,8 @@
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
-import { Show, createSignal } from "solid-js";
+import { Show, createSignal, createEffect } from "solid-js";
 import { ActionMenu } from "@pirate/web-solid-ui";
 import { RewardSponsorDialog } from "./reward-sponsor-dialog.tsx";
-import { rewardSponsorFixture, rewardSponsorScenarioFixture } from "./reward-sponsor.fixtures.ts";
+import { rewardSponsorFixture, rewardSponsorScenarioFixture, rewardSponsorExpiredFixture } from "./reward-sponsor.fixtures.ts";
 const meta = {
   title: "Flows/Rewards/Functional boost",
   parameters: { layout: "centered", docs: { description: { component: "Open the song menu and choose Boost. This uses controlled API and wallet fixtures with the real creation journal and funding controller. Any email and code 123456 work. No funds move. Close and reopen to resume the saved reward." } } },
@@ -32,3 +32,11 @@ export const ConflictRecoveryAdoptsServerOffer: Story = {
   render: () => <RewardSponsorDialog communityId="community" postId="song" songTitle="Salt & Static"
     dependencies={rewardSponsorScenarioFixture("conflict_recovery")} onClose={() => {}} />,
 };
+
+function ExpiredAttempt(props: { uncertain: boolean }) {
+  const [dependencies, setDependencies] = createSignal<Awaited<ReturnType<typeof rewardSponsorExpiredFixture>>>();
+  createEffect(() => true, () => { void rewardSponsorExpiredFixture(props.uncertain).then(setDependencies); });
+  return <Show when={dependencies()}>{value => <RewardSponsorDialog communityId="community" postId="song" songTitle="Salt & Static" dependencies={value()} onClose={() => {}} />}</Show>;
+}
+export const ExpiredUnsubmittedAttempt: Story = { render: () => <ExpiredAttempt uncertain={false} /> };
+export const ExpiredUncertainWalletAttempt: Story = { render: () => <ExpiredAttempt uncertain={true} /> };

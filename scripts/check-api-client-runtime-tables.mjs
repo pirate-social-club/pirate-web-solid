@@ -8,9 +8,9 @@ const currentClient = resolve(
   appRoot,
   "node_modules/@pirate/api-client/src/generated/client.ts",
 );
-// Client 0.97.0 adds TXT-only HNS attachment operations. This digest pins the
-// exact tables Solid consumes.
-const expectedDigest = "54f4bc5db65200c2ca2ac7c38950f368243d53fbc57077dd3cfc2d5ebb845a05";
+// Client 0.102.0 declares expired_unfunded and the deliberate pause response.
+// Reviewed drift is limited to reward funding enums and 503 rewards_paused.
+const expectedDigest = "d35b90835891769e1857711d4d1eb3b9d2ada01349e3d567e359c3e43328ac7b";
 
 const operations = [
   "post_communitiesCommunityIdSpacesOwnershipStart",

@@ -65,11 +65,11 @@ export function BoostAmountField(props: {
   readonly onChange: (value: string) => void;
 }) {
   return (
-    <TextField value={props.value} onChange={props.onChange}>
+    <TextField value={props.value}>
       <TextFieldLabel class="mb-2 block text-muted-foreground">{props.label}</TextFieldLabel>
       <div class="relative">
         <Show when={props.prefix}>{prefix => <span class="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground">{prefix()}</span>}</Show>
-        <TextFieldInput class={cn(props.prefix && "pl-8", props.invalid && "border-destructive")} id={props.id} />
+        <TextFieldInput class={cn(props.prefix && "pl-8", props.invalid && "border-destructive")} id={props.id} inputmode="decimal" onInput={event => { if (event.currentTarget instanceof HTMLInputElement) props.onChange(event.currentTarget.value); }} />
       </div>
     </TextField>
   );

@@ -1,6 +1,10 @@
+import { createRewardCreation } from "../../api/reward-creation.ts";
+import { instructionDigest } from "../../api/reward-funding-controller.ts";
+import { rewardFundingRecoveryKey } from "../../api/reward-funding-recovery.ts";
+import { sponsorTerms } from "./reward-sponsor-terms.ts";
 import { createRewardFundingController } from "../../api/reward-funding-controller.ts";
 import type { RewardFunding } from "../../api/reward-funding-client.ts";
-import type { RewardFundingReceipt } from "../../api/reward-funding-recovery.ts";
+import type { RewardFundingReceipt, RewardFundingRecovery } from "../../api/reward-funding-recovery.ts";
 import type { RewardSponsorDependencies } from "./reward-sponsor-dialog.tsx";
 
 export type RewardSponsorBrowserScenario = "offer_selection" | "conflict_recovery";
@@ -75,15 +79,21 @@ export function rewardSponsorScenarioFixture(
   };
 }
 /** Controlled Storybook/test server and wallet. No network calls or real signing. */
-export function rewardSponsorFixture(): RewardSponsorDependencies {
+export function rewardSponsorFixture(options: { afterCreationStatus?: "expired_unfunded" } = {}): RewardSponsorDependencies {
   const records = new Map<string,string>(), receipts = new Map<string,RewardFundingReceipt>();
-  let queue = Promise.resolve();
-  const exclusive = <T,>(_key: string, operation: () => Promise<T>): Promise<T> => {
-    const result = queue.then(operation); queue = result.then(() => {}, () => {}); return result;
+  const queues = new Map<string, Promise<void>>();
+  const exclusive = <T,>(key: string, operation: () => Promise<T>): Promise<T> => {
+    const result = (queues.get(key) ?? Promise.resolve()).then(operation); queues.set(key, result.then(() => {}, () => {})); return result;
   };
   const asset = { chain_id: 84532 as const, token_address: `0x${"a".repeat(40)}`, token_decimals: 6, token_symbol: "PSTB", asset_policy_version: "staging-token-v1" };
   let funding: RewardFunding = { object: "asset_bonus_funding", action: "fund_with_asset", funding_effect_id: "effect", leg_id: "leg", status: "planned", chain_id: 84532, token_address: asset.token_address, token_decimals: 6, sender_address: `0x${"b".repeat(40)}`, recipient_address: `0x${"c".repeat(40)}`, expected_amount_atomic: "10000000", confirmed_amount_atomic: null, required_confirmations: 2, transaction_hash: null };
+  const fundingRecovery: RewardFundingRecovery = { read: key => receipts.get(key) ?? null, write: (key, receipt) => { receipts.set(key, receipt); }, remove: key => { receipts.delete(key); }, exclusive };
   return {
+    fundingRecovery,
+    fundingApi: {
+      async load(_target, actor) { return { actor, walletIndex: 0, funding }; },
+      async observe(_target, _actor, hash) { funding = { ...funding, status: "confirmed", transaction_hash: hash, confirmed_amount_atomic: funding.expected_amount_atomic }; return funding; },
+    },
     journal: {
       read: key => records.get(key) ?? null,
       write: (key,raw) => { records.set(key,raw); },
@@ -115,6 +125,7 @@ export function rewardSponsorFixture(): RewardSponsorDependencies {
         const nextLeg = funding.leg_id === "leg" ? "leg-2" : "leg-3";
         if (request.kind === "asset_bonus") funding = { ...funding, object: "asset_bonus_funding", action: "fund_with_asset", funding_effect_id: nextEffect, leg_id: nextLeg, status: "planned", token_decimals: request.input.body.token_decimals, expected_amount_atomic: request.input.body.funding_amount_atomic, confirmed_amount_atomic: null, transaction_hash: null };
         else funding = { ...funding, object: "megapot_pool_funding", action: "fund_with_usdc", funding_effect_id: nextEffect, leg_id: nextLeg, status: "planned", token_decimals: 6, expected_amount_atomic: request.input.body.funding_amount_atomic, confirmed_amount_atomic: null, transaction_hash: null };
+        if (options.afterCreationStatus) funding = { ...funding, status: options.afterCreationStatus };
         return { kind: request.kind, legId: funding.leg_id, fundingEffectId: funding.funding_effect_id };
       },
     }),
@@ -131,7 +142,7 @@ export function rewardSponsorFixture(): RewardSponsorDependencies {
           async send(_context,_fee,beforeBroadcast) { await beforeBroadcast(); return `0x${"d".repeat(64)}`; },
           dispose() { authorized = false; },
         },
-        recovery: { read: key => receipts.get(key) ?? null, write: (key,receipt) => { receipts.set(key,receipt); }, remove: key => { receipts.delete(key); }, exclusive },
+        recovery: fundingRecovery,
       });
       return {
         controller,
@@ -143,4 +154,22 @@ export function rewardSponsorFixture(): RewardSponsorDependencies {
       };
     },
   };
+}
+
+/** Saved server-expired attempt, with optional uncertain wallet evidence. */
+export async function rewardSponsorExpiredFixture(uncertain = false): Promise<RewardSponsorDependencies> {
+  const dependencies = rewardSponsorFixture({ afterCreationStatus: "expired_unfunded" });
+  const scope = { accountId: "account", personaId: "persona", communityId: "community", postId: "song" };
+  const catalog = await dependencies.data.catalog();
+  const terms = sponsorTerms(scope, {
+    kind: "megapot_pool", amount: "1", perClaim: "", claims: "10", assetAddress: "", activities: "either", minimumScore: "70", ticketCeiling: "1", cutoffSeconds: "600", endsAt: "2099-09-15T12:00",
+  }, catalog.assets.items, catalog.policies, new Date("2026-09-08T00:00:00Z"));
+  const target = await createRewardCreation({ scope, currentScope: () => scope, journal: dependencies.journal, api: dependencies.creationApi(scope) }).start(terms.offer, terms.leg);
+  if (uncertain && dependencies.fundingApi && dependencies.fundingRecovery) {
+    const context = await dependencies.fundingApi.load(target, scope);
+    dependencies.fundingRecovery.write(rewardFundingRecoveryKey(scope, target), {
+      version: 1, instructionDigest: await instructionDigest(context), observationKey: crypto.randomUUID(), transactionHash: null,
+    });
+  }
+  return dependencies;
 }

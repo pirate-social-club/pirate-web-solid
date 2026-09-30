@@ -28,7 +28,7 @@ interface HistoryV1 {
   readonly version: 1;
   readonly creation: RecordV1;
   readonly resolution: Readonly<{
-    status: "confirmed" | "reverted";
+    status: "confirmed" | "reverted" | "expired_unfunded";
     transactionHash: string | null;
   }>;
 }
@@ -90,6 +90,8 @@ export function createRewardCreation(options: {
    * non-terminal offer. A returned id is server-authoritative and is adopted;
    * null keeps the guard so the open can be retried without a new effect. */
   rediscoverOffer?: () => Promise<string | null>;
+  /** Must hold the funding journal lock and prove no local submission before archiving. */
+  retireExpiredUnfunded?: (target: RewardFundingTarget, archive: (funding: RewardFunding) => Promise<void>) => Promise<boolean>;
 }) {
   const scope = { ...options.scope }, key = rewardCreationKey(scope);
   const assertCurrent = () => {
@@ -127,7 +129,40 @@ export function createRewardCreation(options: {
     // The returned identities are durable before a caller can construct the signer.
     return { ...record.target! };
   };
+  const archive = async (record: RecordV1 & { target: RewardFundingTarget }, funding: RewardFunding) => {
+    assertCurrent();
+    const target = record.target;
+    if (funding.leg_id !== target.legId || funding.funding_effect_id !== target.fundingEffectId || funding.object !== `${target.kind}_funding` ||
+        (funding.status !== "confirmed" && funding.status !== "reverted" && funding.status !== "expired_unfunded")) throw new Error("reward_creation_completion_unproven");
+    const historyKey = rewardCreationHistoryKey(scope, target);
+    const history: HistoryV1 = {
+      version: 1,
+      creation: record,
+      resolution: { status: funding.status, transactionHash: funding.transaction_hash },
+    };
+    const raw = JSON.stringify(history);
+    options.journal.write(historyKey, raw);
+    if (options.journal.read(historyKey) !== raw) {
+      throw new Error("reward_creation_recovery_unavailable");
+    }
+    options.journal.remove(key);
+    if (options.journal.read(key) !== null) {
+      throw new Error("reward_creation_recovery_unavailable");
+    }
+  };
   return {
+    reconcilePending() {
+      return options.journal.exclusive(key, async () => {
+        const record = read();
+        if (!record?.target || !options.retireExpiredUnfunded) return false;
+        const target = record.target;
+        return options.retireExpiredUnfunded(target, async funding => {
+          assertCurrent();
+          if (funding.status !== "expired_unfunded" || funding.transaction_hash !== null) throw new Error("reward_creation_completion_unproven");
+          await archive({ ...record, target }, funding);
+        });
+      });
+    },
     pending() { const record = read(); return record === null ? null : structuredClone(record); },
     start(offer: OpenSongRewardOfferInput | null, leg: RewardLegRequest) {
       // Capture the reviewed request synchronously, before waiting for another tab's lock.
@@ -161,21 +196,7 @@ export function createRewardCreation(options: {
         ) {
           throw new Error("reward_creation_completion_unproven");
         }
-        const historyKey = rewardCreationHistoryKey(scope, target);
-        const history: HistoryV1 = {
-          version: 1,
-          creation: record,
-          resolution: { status: funding.status, transactionHash: funding.transaction_hash },
-        };
-        const raw = JSON.stringify(history);
-        options.journal.write(historyKey, raw);
-        if (options.journal.read(historyKey) !== raw) {
-          throw new Error("reward_creation_recovery_unavailable");
-        }
-        options.journal.remove(key);
-        if (options.journal.read(key) !== null) {
-          throw new Error("reward_creation_recovery_unavailable");
-        }
+        await archive({ ...record, target }, funding);
       });
     },
   };

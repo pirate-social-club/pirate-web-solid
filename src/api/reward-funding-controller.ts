@@ -23,7 +23,7 @@ export type RewardFundingState =
 function snapshot(context: RewardFundingContext): RewardFundingContext {
   return Object.freeze({ ...context, actor: Object.freeze({ ...context.actor }), funding: Object.freeze({ ...context.funding }) });
 }
-async function instructionDigest(c: RewardFundingContext): Promise<string> {
+export async function instructionDigest(c: RewardFundingContext): Promise<string> {
   const f = c.funding;
   const bytes = new TextEncoder().encode(JSON.stringify([
     c.actor.accountId, c.actor.personaId, c.walletIndex, f.object, f.action, f.leg_id,
@@ -104,6 +104,10 @@ export function createRewardFundingController(options: {
   const serverResult = (funding: RewardFunding, receipt: RewardFundingReceipt | null, problem?: RewardFundingReconciliationReason) => {
     if (receipt?.transactionHash && funding.transaction_hash !== receipt.transactionHash) {
       return reconcile("transaction_mismatch", receipt.transactionHash, funding.transaction_hash);
+    }
+    if (funding.status === "expired_unfunded") {
+      if (problem !== undefined) return reconcile(problem, receipt?.transactionHash ?? null);
+      if (receipt !== null && receipt.terminalStatus !== "expired_unfunded") return held(receipt);
     }
     return status(funding, problem);
   };

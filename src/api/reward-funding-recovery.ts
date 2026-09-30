@@ -5,6 +5,8 @@ export interface RewardFundingReceipt {
   readonly instructionDigest: string;
   readonly observationKey: string;
   readonly transactionHash: string | null;
+  /** Retained fence for an expired effect that was never submitted locally. */
+  readonly terminalStatus?: "expired_unfunded";
 }
 export interface RewardFundingRecovery {
   read(key: string): RewardFundingReceipt | null;
@@ -26,7 +28,8 @@ function decodeReceipt(raw: string): RewardFundingReceipt {
         typeof value.transactionHash === "string" && /^0x[0-9a-f]{64}$/u.test(value.transactionHash))) {
     throw new Error("funding_recovery_corrupt");
   }
-  return { version: 1, instructionDigest: value.instructionDigest, observationKey: value.observationKey, transactionHash: value.transactionHash };
+  if ("terminalStatus" in value && (value.terminalStatus !== "expired_unfunded" || value.transactionHash !== null)) throw new Error("funding_recovery_corrupt");
+  return { ...( "terminalStatus" in value ? { terminalStatus: "expired_unfunded" as const } : {}), version: 1, instructionDigest: value.instructionDigest, observationKey: value.observationKey, transactionHash: value.transactionHash };
 }
 
 /** Persists identifiers only. Web Locks serialize the same economic effect across tabs. */

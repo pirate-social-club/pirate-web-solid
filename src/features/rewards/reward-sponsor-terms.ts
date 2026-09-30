@@ -71,11 +71,16 @@ export function sponsorTerms(
     if (!/^[1-9][0-9]*$/u.test(draft.cutoffSeconds) || !Number.isSafeInteger(Number(draft.cutoffSeconds))) throw new Error("Enter a whole number of cutoff seconds.");
     if (Number(draft.cutoffSeconds) < 300) throw new Error("Entries must close at least 300 seconds before the drawing so the ticket can be bought safely.");
     leg = { kind: "megapot_pool", input: { path: { offerId: existingOfferId ?? "" }, body: {
-      ...common, funding_amount_atomic: rewardAtomic(draft.amount, 6), max_ticket_price_atomic: rewardAtomic(draft.ticketCeiling, 6),
+      ...common, funding_amount_atomic: rewardAtomic(draft.amount, 6), max_ticket_price_atomic: ticketPriceAtomic(draft.ticketCeiling),
       entry_cutoff_seconds: Number(draft.cutoffSeconds), eligible_activities: [...activities], min_score_bps: score,
       empty_pool_policy: "no_purchase", fallback_payout_persona_id: null, fallback_disclosure_acknowledged: false,
     } } };
     tokenSymbol = "USDC";
   }
   return { offer, leg, policies: reviewed, tokenSymbol };
+}
+
+function ticketPriceAtomic(value: string): string {
+  try { return rewardAtomic(value, 6); }
+  catch (cause) { throw new Error(`Maximum ticket price: ${cause instanceof Error ? cause.message : "Enter a positive amount."}`); }
 }

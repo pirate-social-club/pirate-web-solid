@@ -1,4 +1,7 @@
+import { ApiClientError } from "@pirate/api-client";
+
 export function sponsorFailure(error: unknown): string {
+  if (error instanceof ApiClientError && error.code === "rewards_paused") return "Rewards are paused. Your saved attempt is kept; check its status after rewards resume.";
   const reason = error instanceof Error ? error.message : "";
   switch (reason) {
     case "reward_creation_recovery_required": return "A saved creation already exists. Resume that reward to continue.";

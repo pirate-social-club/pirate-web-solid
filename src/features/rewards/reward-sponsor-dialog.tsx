@@ -1,3 +1,6 @@
+import { expiredRewardCreationRetirement } from "../../api/reward-expired-creation.ts";
+import { createRewardFundingApi, type RewardFundingApi } from "../../api/reward-funding-client.ts";
+import { createBrowserRewardFundingRecovery, type RewardFundingRecovery } from "../../api/reward-funding-recovery.ts";
 import { useApplicationSession } from "../shell/application-session.tsx";
 import { RewardSongStatus } from "./reward-song-status.tsx";
 import { sponsorFailure } from "./reward-sponsor-errors.ts";
@@ -30,6 +33,8 @@ export interface RewardSponsorDependencies {
   readonly creationApi: typeof createRewardCreationApi;
   readonly funding: typeof createBrowserRewardFunding;
   readonly config: typeof fetchVerificationConfig;
+  readonly fundingApi?: RewardFundingApi;
+  readonly fundingRecovery?: RewardFundingRecovery;
 }
 export function RewardSponsorDialog(props: { communityId: string; postId: string; songTitle: string; onClose: () => void; dependencies?: RewardSponsorDependencies }) {
   const dependencies = untrack(() => props.dependencies);
@@ -42,6 +47,7 @@ export function RewardSponsorDialog(props: { communityId: string; postId: string
   const [terms, setTerms] = createSignal<Terms>();
   const [busy, setBusy] = createSignal(false);
   const [error, setError] = createSignal("");
+  const [expiredPending, setExpiredPending] = createSignal(false);
   const [funding, setFunding] = createSignal<RewardFundingState>({ kind: "idle" });
   const [email, setEmail] = createSignal("");
   const [code, setCode] = createSignal("");
@@ -81,13 +87,18 @@ export function RewardSponsorDialog(props: { communityId: string; postId: string
   const selectPersona = async (id: string, loaded = catalog()) => {
     wallet?.dispose(); wallet = undefined; setFunding({ kind: "idle" }); setTerms(undefined); setEmail(""); setCode(""); setCodeSent(false);
     if (!loaded || !loaded.personas.some(p => p.persona_id === id)) throw new Error("Choose a persona with a wallet.");
-    setPersonaId(id);
+    setPersonaId(id); setExpiredPending(false);
     const selectedScope = { accountId: loaded.accountId, personaId: id, communityId: props.communityId, postId: props.postId };
     scope = selectedScope;
     creation = createRewardCreation({
       scope: selectedScope, currentScope,
       journal: dependencies?.journal ?? createBrowserRewardCreationJournal(),
       api: (dependencies?.creationApi ?? createRewardCreationApi)(selectedScope),
+      retireExpiredUnfunded: (target, archive) => expiredRewardCreationRetirement({
+        actor: selectedScope, currentActor: currentScope, onExpiredUnfunded: () => setExpiredPending(true),
+        api: dependencies?.fundingApi ?? createRewardFundingApi(),
+        recovery: dependencies?.fundingRecovery ?? createBrowserRewardFundingRecovery(),
+      })(target, archive),
       rediscoverOffer: async () => {
         const next = await data.sponsorContext(selectedScope, props.communityId, props.postId);
         if (!alive || scope !== selectedScope) return null;
@@ -101,6 +112,8 @@ export function RewardSponsorDialog(props: { communityId: string; postId: string
     setSponsorContext(next);
     const allowedKinds = rewardKinds.filter(kind => kindAllowed(next, kind));
     if (!allowedKinds.includes(draft().kind) && allowedKinds[0]) update("kind", allowedKinds[0]);
+    await creation.reconcilePending();
+    if (!alive || scope !== selectedScope) return;
     setStep(creation.pending() ? "resume" : "compose");
   };
   createEffect(() => true, () => { queueMicrotask(() => { void run(async () => {
@@ -177,7 +190,7 @@ export function RewardSponsorDialog(props: { communityId: string; postId: string
   };
   const terminalFunding = () => {
     const state = funding();
-    return state.kind === "server" && (state.funding.status === "confirmed" || state.funding.status === "reverted")
+    return state.kind === "server" && (state.funding.status === "confirmed" || state.funding.status === "reverted" || state.funding.status === "expired_unfunded")
       ? state.funding
       : undefined;
   };
@@ -186,7 +199,9 @@ export function RewardSponsorDialog(props: { communityId: string; postId: string
     if (!scope || !creation || !serverFunding) {
       throw new Error("reward_creation_completion_unproven");
     }
-    await creation.complete(serverFunding);
+    if (serverFunding.status === "expired_unfunded") {
+      if (!await creation.reconcilePending()) throw new Error("reward_creation_completion_unproven");
+    } else await creation.complete(serverFunding);
     const selectedScope = scope;
     const next = await data.sponsorContext(selectedScope, props.communityId, props.postId);
     if (!alive || scope !== selectedScope) return;
@@ -218,9 +233,9 @@ export function RewardSponsorDialog(props: { communityId: string; postId: string
             <Show when={draft().kind === "asset_bonus"} fallback={<>
               <RewardRadioCardGroup label="People earn by" labels={activityTitle} options={rewardActivities} value={draft().activities} onChange={activity => update("activities", activity)} />
               <Field label="Total budget (USDC)" field="amount" />
+              <Field label="Maximum ticket price (USDC)" field="ticketCeiling" />
               <details class="rounded-lg border border-border-soft px-4 py-3"><summary class="cursor-pointer">More options</summary><div class="mt-4 space-y-4">
                 <Field label="Additional score floor (%)" field="minimumScore" />
-                <Field label="Maximum ticket price (USDC)" field="ticketCeiling" />
                 <Field label="Entry cutoff before drawing (seconds)" field="cutoffSeconds" />
               </div></details>
               <Type as="p" class="text-muted-foreground" variant="caption">{activityCaption("megapot_pool", draft().activities)} Pirate buys and holds the tickets. Qualifiers share net winnings. If nobody qualifies, no ticket is purchased.</Type>
@@ -257,7 +272,7 @@ export function RewardSponsorDialog(props: { communityId: string; postId: string
         <Button variant="ghost" disabled={busy()} onClick={() => setStep("compose")}>Back</Button>
       </div>}</Match>
       <Match when={step() === "resume"}><p>A saved reward creation is available for this persona.</p>
-        <label>Persona<select value={personaId()} disabled={busy()} onChange={event => { void run(() => selectPersona(event.currentTarget.value)); }}><For each={catalog()?.personas}>{p => <option value={p.persona_id}>{p.profile.display_name ?? p.persona_id}</option>}</For></select></label><Button disabled={busy()} onClick={() => { void run(() => attach(true)); }}>Resume saved reward</Button></Match>
+        <label>Persona<select value={personaId()} disabled={busy()} onChange={event => { void run(() => selectPersona(event.currentTarget.value)); }}><For each={catalog()?.personas}>{p => <option value={p.persona_id}>{p.profile.display_name ?? p.persona_id}</option>}</For></select></label><Button disabled={busy()} onClick={() => { void run(() => attach(true)); }}>{expiredPending() ? "Check saved transfer" : "Resume saved reward"}</Button></Match>
       <Match when={step() === "authorize"}><div class="space-y-3">
         <p>Confirm access to {personaLabel()}'s wallet. You will review the transfer before sending.</p>
         <TextField value={email()} onChange={setEmail}><TextFieldLabel>Email for your wallet</TextFieldLabel><TextFieldInput inputmode="email" /></TextField>

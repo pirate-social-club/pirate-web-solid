@@ -41,7 +41,7 @@ export function RewardFundingPanel(props: RewardFundingPanelProps) {
       <Match when={props.state.kind === "submitted"}><p>Transfer submitted. Waiting for confirmation.</p></Match>
       <Match when={props.state.kind === "server" && props.state}>{state => <p>{({
         planned: "Funding has not been confirmed.", confirming: "Transfer is confirming.", confirmed: "Funding confirmed.",
-        reverted: "The transfer reverted. This reward is not funded.", reconciliation_required: "Funding needs reconciliation.",
+        reverted: "The transfer reverted. This reward is not funded.", expired_unfunded: "This reward expired before funding was confirmed.", reconciliation_required: "Funding needs reconciliation.",
       })[state().funding.status]}</p>}</Match>
       <Match when={props.state.kind === "closed"}><p>Reopen rewards with the current persona.</p></Match>
     </Switch>

@@ -144,7 +144,7 @@ test("the CLI identity has the bounded gateway-compatible format and is determin
 
 test("production ingress has its own fingerprint with a valid protected route", () => {
   const staging = identity();
-  assert.equal(staging, "solid-hns-ingress-sha256:8b9a8472c3c17140a5c848d735fbd4b813c75d2fd1ec28851916138dee9514b9");
+  assert.equal(staging, "solid-hns-ingress-sha256:50be3dc2071cca64d35ab3c9773d5feb74157dea44d8afae02156154e1765bbc");
   const production = productionIngressCompositionIdentity(config, sources, packageJson);
   assert.match(production, /^solid-hns-ingress-sha256:[a-f0-9]{64}$/u);
   assert.notEqual(production, staging);

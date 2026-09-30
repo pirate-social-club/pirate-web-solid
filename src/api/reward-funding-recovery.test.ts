@@ -11,6 +11,15 @@ function browser() {
 }
 const receipt: RewardFundingReceipt = { version: 1, instructionDigest: "a".repeat(64), observationKey: "12345678-1234-4234-8234-123456789012", transactionHash };
 describe("durable funding recovery", () => {
+  it("retains the expiry fence across reload and rejects malformed terminal markers", () => {
+    const b = browser(); const fence = { ...receipt, transactionHash: null, terminalStatus: "expired_unfunded" as const };
+    createBrowserRewardFundingRecovery().write("key", fence);
+    expect(createBrowserRewardFundingRecovery().read("key")).toEqual(fence);
+    b.data.set("key", JSON.stringify({ ...fence, transactionHash }));
+    expect(() => createBrowserRewardFundingRecovery().read("key")).toThrow("funding_recovery_corrupt");
+    b.data.set("key", JSON.stringify({ ...fence, terminalStatus: "confirmed" }));
+    expect(() => createBrowserRewardFundingRecovery().read("key")).toThrow("funding_recovery_corrupt");
+  });
   it("roundtrips identifiers across instances and acquires the effect lock", async () => {
     const b = browser(); const key = rewardFundingRecoveryKey(actor, target);
     createBrowserRewardFundingRecovery().write(key, receipt);
