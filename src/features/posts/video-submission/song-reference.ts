@@ -285,27 +285,20 @@ export function songPlanText(state: SongPlanState): string {
 export function songReservationRefusalText(reasonCode: SongRejectionCode | undefined): string | undefined {
   switch (reasonCode) {
     case undefined: return undefined;
-    case "capability_unavailable":
-      return "Posting a video to a song isn’t available yet. Choose another song and check its excerpt.";
-    case "song_audio_revision_changed":
-      return "The song’s audio changed after the excerpt was chosen. Edit the video and check the excerpt again.";
-    case "canonical_timing_pending":
-      return "The song is still being prepared for video. Edit the video and check the excerpt again in a moment.";
-    case "canonical_timing_unavailable":
-      return "This song’s length couldn’t be measured, so a video can’t be posted to it. Choose another song.";
-    case "song_reference_mismatch":
-      return "The server confirmed a different song or excerpt than the one chosen, so nothing was uploaded. Edit the video to try again.";
-    case "invalid_interval":
-    case "interval_too_short":
-    case "interval_too_long":
-    case "canonical_song_interval_uncovered":
-      return `${refusalText(reasonCode)} Edit the video to do that.`;
-    case "song_not_found":
-    case "age_restricted":
-    case "song_owner_policy_unavailable":
-    case "derivative_video_blocked":
-    case "derivative_video_owner_only":
-      return `${ineligibleText(reasonCode)} Choose another song.`;
+    case "capability_unavailable": return "Video posts aren’t available right now.";
+    case "song_audio_revision_changed": return "The song changed. Choose it again before recording.";
+    case "canonical_timing_pending": return "This song is still getting ready for videos.";
+    case "canonical_timing_unavailable": return "This song’s length couldn’t load.";
+    case "song_reference_mismatch": return "The song couldn’t be confirmed. Nothing was uploaded.";
+    case "invalid_interval": return "Choose a different part of the song.";
+    case "interval_too_short": return "This song needs a longer video.";
+    case "interval_too_long": return "This song allows only shorter videos.";
+    case "canonical_song_interval_uncovered": return "Choose an earlier part of the song.";
+    case "song_not_found": return "This song is no longer available.";
+    case "age_restricted": return "Your account can’t use this age-restricted song.";
+    case "song_owner_policy_unavailable": return "This song’s video settings couldn’t load.";
+    case "derivative_video_blocked": return "This song is closed to video posts.";
+    case "derivative_video_owner_only": return "Only the song’s creator can use it for video posts.";
   }
 }
 

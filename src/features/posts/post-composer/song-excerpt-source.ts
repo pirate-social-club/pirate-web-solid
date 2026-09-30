@@ -76,12 +76,12 @@ function stateFromSourceError(error: SongSourceError): SongSourceState {
     case "age_restricted":
       return {
         kind: "restricted",
-        reason: "This song isn’t available for videos.",
+        reason: "Your account can’t use this age-restricted song.",
       };
     case "playback_unavailable":
       return {
         kind: "unavailable",
-        reason: "This song isn’t available for videos.",
+        reason: "This song has no playable audio.",
         retryable: false,
       };
     case "rate_limited":

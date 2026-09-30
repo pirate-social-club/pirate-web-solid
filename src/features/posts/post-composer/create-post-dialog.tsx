@@ -258,7 +258,7 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
       const textUnresolved = textState().status === "submitting" || textState().status === "reconciling";
       if (!textUnresolved) setTextPersonaId(nextPersonaId);
       if (mediaCoordinator?.currentRecord == null) selectSongPersona(nextPersonaId);
-      setVideoPersonaId(nextPersonaId);
+      if (untrack(mode) !== "video") setVideoPersonaId(props.personaId?.trim() || undefined);
     },
   );
 
@@ -761,7 +761,7 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
                 onAgeGatePolicyChange={setAgeGatePolicy}
                 onLyricsValueChange={value => { lyricsEdited = true; setLyrics(value); }}
                 onModeChange={setMode}
-                onVideoEntry={() => setMode("video")}
+                onVideoEntry={() => { setVideoPersonaId(props.personaId?.trim() || undefined); setMode("video"); }}
                 onRoyaltySplitChange={setRoyaltySplit}
                 onSongChange={next => {
                   setSong(next);

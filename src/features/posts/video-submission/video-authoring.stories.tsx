@@ -534,7 +534,7 @@ export const SongForbidden: Story = {
   render: () => <Harness preflight={forbiddenPreflight()} />,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await canvas.findByText("This song isn’t available for videos.");
+    await canvas.findByText("This song is closed to video posts.");
     expect(canvas.queryByRole("button", { name: "Continue to video" })).toBeNull();
     await canvas.findByRole("button", { name: "Choose another song" });
     expect(canvas.queryByRole("slider")).toBeNull();
@@ -562,7 +562,8 @@ export const PreflightRefused: Story = {
   render: () => <Harness preflight={refusedPreflight()} />,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await canvas.findByRole("alert");
+    await canvas.findByText("This song allows only shorter videos.");
+    await canvas.findByRole("button", { name: "Choose another song" });
     expect(canvas.queryByRole("button", { name: "Continue to video" })).toBeNull();
   },
 };
@@ -869,7 +870,7 @@ export const VideoNotAcceptedBySong: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     const alert = await canvas.findByRole("alert", {}, { timeout: 30_000 });
-    expect(alert).toHaveTextContent("This song isn’t available for videos.");
+    expect(alert).toHaveTextContent("This song is closed to video posts.");
     await canvas.findByRole("button", { name: "Start over" });
     expect(canvas.queryByText("Request refused")).toBeNull();
   },
@@ -912,7 +913,12 @@ export const NoPostingProfile: Story = {
   ),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await canvas.findByText("Choose your active community profile before creating a video.", {}, { timeout: 30_000 });
+    await canvas.findByText("You need a profile in this community to create a video.", {}, { timeout: 30_000 });
+    const community = await canvas.findByRole("link", { name: "Open community" });
+    expect(community).toHaveAttribute("href", "/c/community");
+    expect(canvas.queryByRole("dialog", { name: "Song" })).toBeNull();
+    expect(canvas.queryByRole("button", { name: "Start recording" })).toBeNull();
+    expect(canvas.queryByRole("textbox")).toBeNull();
   },
 };
 
@@ -975,7 +981,7 @@ export const AgeRestrictedSong: Story = {
   render: () => <Harness reader={async () => { throw new SongSourceError("age_restricted", "restricted", false); }} />,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await canvas.findByText("This song isn’t available for videos.");
+    await canvas.findByText("Your account can’t use this age-restricted song.");
     await canvas.findByRole("button", { name: "Change song" });
     expect(canvas.queryByText(/Verify your age/)).toBeNull();
   },

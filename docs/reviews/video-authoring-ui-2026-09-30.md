@@ -147,3 +147,32 @@ pending for this continuation. The previously passed visual checks apply only
 to eb96fd9. A new Storybook ratio assertion will verify the portrait fix when
 the visual gate resumes. Private Dance API work and the broader shared-flow
 prototype remain with their separately registered follow-on lanes.
+
+## Follow-up from independent review
+
+The branch was rebased onto d4377cbb096e14df4ddf6c8a6c65039ca6227ad4.
+A missing or invalid inherited community profile now shows an entry prerequisite
+with a real community link, before mounting song choice or capture. It does not
+choose another profile. A retained submitted upload keeps its original identity
+and remains recoverable. The host no longer substitutes its first profile when
+entering video or resets the video identity through its text/song effect.
+
+Song refusal copy distinguishes permission, missing songs, age restrictions,
+length and settings-read failure. The song settings-read failure offers a retry;
+length and permanent song restrictions offer another song. An invalid part keeps
+the selector, and a late definitive refusal retains one Start over action.
+
+The earlier 15 incomplete axe rules per sweep were eight color-contrast checks
+and seven video-caption checks. Capture error text had no independent backdrop
+over a live video. Those panels now have a black background and explicit white
+secondary actions, so text contrast does not depend on camera imagery. Review
+error text remains white on 75% black; even a white underlying pixel yields a
+background no lighter than rgb(64, 64, 64), with contrast above 10:1.
+
+The seven caption checks concern generated story media: canvas video contains
+no spoken dialogue, and the song fixture is a tone. They do not demonstrate
+accessibility of arbitrary uploaded speech or song lyrics. Closed captions are
+a separate missing capability; removing the post description field does not
+resolve that question. No caption-support claim or real-device acceptance is
+made by this audit. The browser checks will assess the final rendered panels
+and keep the remaining incomplete rules visible in their ledgers.

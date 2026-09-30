@@ -34,6 +34,7 @@ import {
   type SongChoice,
   type SongIntervalPreflight,
   songPlanFromError,
+  songReservationRefusalText,
   songPlanFromPreflight,
   type SongPlanState,
 } from "../video-submission/song-reference";
@@ -461,7 +462,7 @@ export function SongExcerptComposer(props: {
     if (settled) {
       setDurationMs(0);
       setAudioProblem(
-        "This song isn’t available for videos.",
+        "This song’s length couldn’t load.",
       );
     }
   };
@@ -506,11 +507,11 @@ export function SongExcerptComposer(props: {
       case "measuring":
         return "Getting this song ready…";
       case "timing_unavailable":
-        return "This song’s length couldn’t be measured, so a video can’t be posted to it.";
+        return "This song’s length couldn’t load.";
       case "refused":
-        return planRefusalText(current);
+        return songReservationRefusalText(current.reason);
       case "ineligible":
-        return planIneligibleText(current);
+        return songReservationRefusalText(current.reasonCode);
       case "failed":
         return "Couldn’t use this part of the song.";
       case "ready":
@@ -534,8 +535,13 @@ export function SongExcerptComposer(props: {
 
   const requiresAnotherSong = () => {
     const current = plan();
-    return current.kind === "ineligible" || (current.kind === "refused"
+    return (current.kind === "ineligible" && current.reasonCode !== "song_owner_policy_unavailable") || (current.kind === "refused"
       && (current.reason === "interval_too_long" || current.reason === "interval_too_short"));
+  };
+
+  const canRetryPlan = () => {
+    const current = plan();
+    return current.kind === "failed" || (current.kind === "ineligible" && current.reasonCode === "song_owner_policy_unavailable");
   };
 
   return (
@@ -635,10 +641,10 @@ export function SongExcerptComposer(props: {
             >
               <Show when={showPlanMessage()}>
                 <Show when={plan().kind === "measuring" || plan().kind === "checking"}
-                  fallback={<Type as="p" variant="caption" role="alert">{preflight ? planText() : "This song isn’t available for videos."}</Type>}>
+                  fallback={<Type as="p" variant="caption" role="alert">{preflight ? planText() : "Video posts aren’t available right now."}</Type>}>
                   <Spinner label="Checking song" />
                 </Show>
-                <Show when={plan().kind === "failed" && currentPostId()}>
+                <Show when={canRetryPlan() && currentPostId()}>
                   <Button onClick={() => { const id = currentPostId(); if (id) void checkPlan(id, bounds()); }} size="sm" type="button" variant="secondary">
                     Try again
                   </Button>
@@ -656,25 +662,4 @@ export function SongExcerptComposer(props: {
       </Show>
     </section>
   );
-}
-
-function planRefusalText(state: Extract<SongPlanState, { kind: "refused" }>): string {
-  switch (state.reason) {
-    case "invalid_interval": return "Choose a different part of the song.";
-    case "interval_too_short": return "This song isn’t available for videos.";
-    case "interval_too_long": return "This song isn’t available for videos.";
-    case "canonical_song_interval_uncovered":
-      return "Choose an earlier part of the song.";
-  }
-}
-
-function planIneligibleText(state: Extract<SongPlanState, { kind: "ineligible" }>): string {
-  switch (state.reasonCode) {
-    case "song_not_found": return "This song isn’t available for videos.";
-    case "age_restricted": return "This song isn’t available for videos.";
-    case "song_owner_policy_unavailable":
-      return "This song couldn’t load. Try again.";
-    case "derivative_video_blocked": return "This song isn’t available for videos.";
-    case "derivative_video_owner_only": return "This song isn’t available for videos.";
-  }
 }

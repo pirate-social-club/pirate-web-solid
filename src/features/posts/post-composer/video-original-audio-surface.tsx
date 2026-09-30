@@ -251,7 +251,7 @@ function CaptureMessage(props: {
   readonly onSecondaryAction?: () => void;
 }) {
   return (
-    <div class="flex h-full flex-col items-center justify-center gap-4 px-8 text-center">
+    <div class="flex h-full flex-col items-center justify-center gap-4 bg-black px-8 text-center">
       <span class="grid size-16 place-items-center rounded-full bg-white/10">{props.icon}</span>
       <div class="space-y-2">
         <Type as="h2" variant="h3" class="text-white">{props.title}</Type>
@@ -260,7 +260,7 @@ function CaptureMessage(props: {
       <div class="flex flex-col items-center gap-2">
         <Button onClick={() => props.onAction?.()} size="lg">{props.action}</Button>
         <Show when={props.secondaryAction}>
-          {label => <Button onClick={() => props.onSecondaryAction?.()} size="lg" variant="ghost">{label()}</Button>}
+          {label => <Button class="text-white hover:bg-white/10 hover:text-white" onClick={() => props.onSecondaryAction?.()} size="lg" variant="ghost">{label()}</Button>}
         </Show>
       </div>
     </div>

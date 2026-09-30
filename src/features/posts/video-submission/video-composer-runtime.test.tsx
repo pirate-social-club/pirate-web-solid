@@ -140,7 +140,7 @@ describe("mounted video flow", () => {
         details: { reason_code: "derivative_video_blocked", track: "video", capability: "song_reference" } } });
     setup("published", undefined, async command => { if (command.kind === "reserve") throw owner; });
     await selectAndPublish();
-    await vi.waitFor(() => expect(document.querySelector('[role="alert"]')?.textContent).toContain("This song isn’t available for videos."));
+    await vi.waitFor(() => expect(document.querySelector('[role="alert"]')?.textContent).toContain("This song is closed to video posts."));
     expect(document.body.textContent).not.toContain("Owner policy rejected the derivative");
     expect(document.body.textContent).toContain("Start over");
   });
@@ -638,7 +638,7 @@ describe("mounted song-first video flow", () => {
     const sheet = () => document.querySelector<HTMLElement>("[data-song-choice-screen]");
     expect(sheet()?.getAttribute("aria-hidden")).toBeNull();
     expect(document.querySelector('button[aria-label="Start recording"]')).toBeNull();
-    expect(document.body.textContent).toContain("This song isn’t available for videos");
+    expect(document.body.textContent).toContain("This song allows only shorter videos.");
   });
 
   test("with the capability off, the video cannot be captured or published", async () => {
@@ -659,7 +659,7 @@ describe("mounted song-first video flow", () => {
     const fixture = songSetup({ preflight: "refused" });
     await loadSongMetadata();
     await awaitPlan("refused");
-    expect(document.body.textContent).toContain("This song isn’t available for videos");
+    expect(document.body.textContent).toContain("This song allows only shorter videos.");
     attemptFile();
     await new Promise(resolve => setTimeout(resolve, 20));
     expect(document.querySelector("[data-video-review-frame]")).toBeNull();
@@ -973,7 +973,7 @@ describe("mounted song-first video flow", () => {
     songSetup({ preflight: "refused", mobile: true });
     await loadSongMetadata();
     await awaitPlan("refused");
-    expect(document.body.textContent).toContain("This song isn’t available for videos");
+    expect(document.body.textContent).toContain("This song allows only shorter videos.");
     // The record control is present but inert: without a song nothing
     // starts, and the view says what is missing instead.
     document.querySelector<HTMLButtonElement>('button[aria-label="Start recording"]')?.click();
@@ -991,12 +991,15 @@ describe("mounted song-first video flow", () => {
   });
 
   test("an invalid active profile does not silently select another eligible profile", async () => {
-    songSetup({ preflight: "accepted", mobile: true,
+    const fixture = songSetup({ preflight: "accepted", mobile: true,
       personaOptions: [{ id: "another-profile", label: "Another profile", communityId: "community" }],
     });
-    await loadSongMetadata();
-    await vi.waitFor(() => expect(document.body.textContent).toContain("Choose your active community profile before creating a video."));
+    await vi.waitFor(() => expect(document.body.textContent).toContain("Choose your profile on the community page."));
+    expect(document.querySelector('[data-song-choice-screen]')).toBeNull();
+    expect(document.querySelector('a[href="/c/community"]')?.textContent).toBe("Open community");
     expect(document.querySelector('[data-operation-persona]')).toBeNull();
+    expect(fixture.preflightCalls).toHaveLength(0);
+    expect(fixture.commands).toHaveLength(0);
     expect(previews).toHaveLength(0);
     expect(startCapture).not.toHaveBeenCalled();
   });
@@ -1037,9 +1040,9 @@ describe("mounted song-first video flow", () => {
       mobile: true,
       personaOptions: [{ id: "persona", label: "Other profile", communityId: "other-community" }],
     });
-    await loadSongMetadata();
-    await awaitPlan("ready");
-    expect(document.body.textContent).toContain("Choose your active community profile before creating a video.");
+    await vi.waitFor(() => expect(document.body.textContent).toContain("You need a profile in this community to create a video."));
+    expect(document.querySelector('[data-song-choice-screen]')).toBeNull();
+    expect(document.querySelector('a[href="/c/community"]')?.textContent).toBe("Open community");
     document.querySelector<HTMLButtonElement>('button[aria-label="Start recording"]')?.click();
     expect(previews).toHaveLength(0);
     expect(startCapture).not.toHaveBeenCalled();

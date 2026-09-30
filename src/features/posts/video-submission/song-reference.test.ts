@@ -181,9 +181,9 @@ describe("the server's answer decides the plan", () => {
     const accepted = songPlanText({ kind: "ready", selection });
     expect(accepted).toContain("0:31 to 0:43");
     expect(accepted).toContain("only if it accepts");
-    expect(songReservationRefusalText("capability_unavailable")).toContain("isn’t available yet");
+    expect(songReservationRefusalText("capability_unavailable")).toContain("aren’t available right now");
     expect(songReservationRefusalText(undefined)).toBeUndefined();
-    expect(songReservationRefusalText("song_reference_mismatch")).toContain("nothing was uploaded");
+    expect(songReservationRefusalText("song_reference_mismatch")).toContain("Nothing was uploaded");
     expect(songReferenceInvalidText("derivative_video_owner_only")).toContain("Only the song’s owner");
     expect(songReferenceInvalidText(null)).toContain("can no longer be used");
   });

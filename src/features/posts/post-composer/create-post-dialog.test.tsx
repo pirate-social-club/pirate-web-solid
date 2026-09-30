@@ -1143,6 +1143,34 @@ test.each([false, true])("retains video authority in global/contextual composer 
 });
 
 describe("community Video entry", () => {
+  test.each([undefined, "missing-profile"])("requires a valid active profile before song entry (%s)", async personaId => {
+    const { render } = await import("@solidjs/web");
+    const { createRoot } = await import("solid-js");
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    let dispose = () => {};
+    const reader = vi.fn(async () => ({ postId: "song-post", audioUrl: "https://example.test/song.mp3", title: "Song" }));
+    const storage: import("../video-submission/coordinator").VideoStorage = {
+      exclusive: async work => work(), load: async () => null,
+      save: async () => {}, remove: async () => {},
+    };
+    try {
+      createRoot(rootDispose => {
+        dispose = rootDispose;
+        render(() => <CreatePostDialog open onOpenChange={() => {}} principalId="account-one"
+          communityContext={{ id: "community-one", name: "Harbor" }}
+          initialVideoSong={{ postId: "song-post" }} personaId={personaId}
+          personas={[activePersona("persona-one", "Persona One")]}
+          videoStorage={storage} videoSongReader={reader} />, container);
+      });
+      await vi.waitFor(() => expect(document.body.textContent).toContain("Choose your profile on the community page."));
+      expect(document.querySelector('a[href="/c/community-one"]')?.textContent).toBe("Open community");
+      expect(document.querySelector('[data-song-choice-screen]')).toBeNull();
+      expect(document.querySelector('button[aria-label="Start recording"]')).toBeNull();
+      expect(reader).not.toHaveBeenCalled();
+    } finally { dispose(); container.remove(); }
+  });
+
   test("opens full-screen song choice without an in-flow profile selector", async () => {
     const disposers: (() => void)[] = [];
     try {
@@ -1158,6 +1186,7 @@ describe("community Video entry", () => {
           onOpenChange={() => {}}
           open
           personas={[activePersona("persona-one", "Persona One"), activePersona("persona-two", "Persona Two")]}
+          personaId="persona-two"
           principalId="account-one"
         />, container);
       });

@@ -11,7 +11,7 @@ import { captureStopAfterMs, clipFitMessage, fitClipToExcerpt, GUIDED_TAKE_MAX_D
 import type { VideoSnapshot } from "./contracts";
 import { prepareBufferedGuide, type GuideSourcePreparation } from "./buffered-guide";
 import { alignGuidedTake, type GuidedTakeAlignment } from "./guided-take-alignment";
-import { VideoCoordinator, type PendingVideo, type VideoStorage } from "./coordinator";
+import { isRetainedVersion, VideoCoordinator, type PendingVideo, type VideoStorage } from "./coordinator";
 import { SongReviewPreview } from "./song-review-preview";
 import { createBrowserVideoStorage } from "./storage";
 import {
@@ -19,6 +19,7 @@ import {
   type SongChoice,
   type SongIntervalPreflight,
   type SongPlanState,
+  songReservationRefusalText,
 } from "./song-reference";
 import { createVideoTransport, type VideoTransport } from "./transport";
 
@@ -66,7 +67,7 @@ export const GUIDE_START_TIMEOUT_MS = 1_500;
  * lip-sync offset; it cannot be corrected later. */
 export const GUIDE_START_MAX_DELAY_MS = 750;
 
-/** A posting identity or destination offered on the review step. */
+/** A community profile the host allows to author this video. */
 export interface VideoPostingOption {
   readonly id: string;
   readonly label: string;
@@ -82,16 +83,61 @@ function failureStatus(reason: string): "camera_denied" | "recording_failed" | "
   return reason === "encoder_failed" ? "recording_failed" : "capability_unavailable";
 }
 
-export function VideoComposerRuntime(props: {
+/** Resolve identity before mounting song choice or capture. A retained upload
+ * keeps its original identity and remains recoverable even without an active
+ * profile on the current page. No profile choice is made inside this flow. */
+export function VideoComposerRuntime(props: Parameters<typeof VideoComposerSession>[0]) {
+  const entry = untrack(() => {
+    const personaId = props.personaId?.trim();
+    const communityId = props.communityId?.trim();
+    const eligible = props.personaOptions?.filter(option => !option.communityId || option.communityId === communityId);
+    return { communityId, principalId: props.principalId, hasProfiles: eligible === undefined || eligible.length > 0, ready: Boolean(personaId) && (eligible === undefined || eligible.some(option => option.id === personaId)) };
+  });
+  const storage = untrack(() => props.storage ?? createBrowserVideoStorage(props.principalId));
+  const [retained, setRetained] = createSignal(false);
+  const [checking, setChecking] = createSignal(!entry.ready);
+  const [failed, setFailed] = createSignal(false);
+  let disposed = false;
+  onCleanup(() => { disposed = true; });
+  const checkRetained = async () => {
+    if (disposed) return;
+    setChecking(true); setFailed(false);
+    try {
+      const previous = await storage.exclusive(() => storage.load());
+      if (previous !== null && (previous.principalId !== entry.principalId || !isRetainedVersion(previous))) throw new Error("Stored video could not be restored");
+      if (!disposed) setRetained(previous !== null);
+    } catch { if (!disposed) setFailed(true); }
+    finally { if (!disposed) setChecking(false); }
+  };
+  if (!entry.ready) void Promise.resolve().then(checkRetained);
+  return <Show when={entry.ready || retained()} fallback={
+    <ActionFooterShell fullViewport header={<MobilePageHeader class="relative z-10" title="Create video" onBackClick={props.onExit} />}
+      footer={<Show when={!checking()}><div class="mx-auto w-full max-w-md">
+        <Show when={failed()} fallback={entry.communityId
+          ? <a class={cn(buttonVariants(), "w-full")} href={`/c/${encodeURIComponent(entry.communityId)}`}>Open community</a>
+          : <Button class="w-full" onClick={props.onExit}>Back</Button>}>
+          <Button class="w-full" onClick={() => { void checkRetained(); }}>Try again</Button>
+        </Show>
+      </div></Show>}>
+      <div class="mx-auto grid w-full max-w-md gap-4 p-4" data-video-entry-prerequisite>
+        <Show when={checking()} fallback={<p role={failed() ? "alert" : "status"}>{failed()
+          ? "Your video couldn’t load. Try again."
+          : entry.communityId ? entry.hasProfiles ? "Choose your profile on the community page." : "You need a profile in this community to create a video." : "Choose a community and profile before creating a video."}</p>}>
+          <Spinner label="Preparing video" />
+        </Show>
+      </div>
+    </ActionFooterShell>
+  }><VideoComposerSession {...props} storage={storage} /></Show>;
+}
+
+function VideoComposerSession(props: {
   readonly principalId: string;
   /** The community page's fixed posting destination. */
   readonly communityId?: string;
   readonly personaId?: string;
-  /** The profiles that may author this video, when the host knows them; two
-   * or more offer the choice on review, and a change re-checks eligibility. */
+  /** Eligible profiles, used only to validate the inherited active identity. */
   readonly personaOptions?: readonly VideoPostingOption[];
-  /** The contextual entry's community name, shown on review when the
-   * destination is fixed. */
+  /** The entry community. */
   readonly communityName?: string;
   readonly onExit: () => void;
   readonly onRetainedPersona: (personaId: string | null, communityId?: string) => void;
@@ -877,7 +923,7 @@ export function VideoComposerRuntime(props: {
   const completedUpload = () => finalizeUnconfirmed() || (!awaiting() && state() !== undefined && !record()?.rejection);
   const statusText = () => {
     if (otherDestination()) return "Finish this upload in the community where you started it.";
-    if (record()?.rejection) return record()?.rejection?.reasonCode ? "This song isn’t available for videos." : "This video wasn’t accepted.";
+    if (record()?.rejection) return songReservationRefusalText(record()?.rejection?.reasonCode) ?? "This video wasn’t accepted.";
     if (reservationExpired()) return error() ? "Couldn’t start over. Try again." : "This upload expired.";
     if (completedUpload()) return "Your video has uploaded.";
     if (busy()) return progress() || "Uploading video…";
