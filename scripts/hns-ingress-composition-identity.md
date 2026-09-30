@@ -19,6 +19,8 @@ do not enter the graph. Direct and transitive API-client runtime imports,
 reexports and dynamic imports refuse, as do computed loads, require/eval,
 unreviewed external packages, unresolved paths and symlink escapes. Relative
 imports must name an exact existing file; extension and index inference refuse.
+Query, fragment, percent-encoded and backslash module specifiers refuse before
+resolution; these can have different URL/path semantics in Vite.
 All import.meta use refuses, including Vite glob loads and their aliases.
 Unreviewed alias/package edges refuse
 rather than silently omit source coverage. Platform runtime modules are pinned
@@ -33,6 +35,12 @@ The refusal-only correction above rejects those unsupported inputs without
 changing today's protected closure, source bytes or v4 fingerprint schema.
 Matching references survive only after that invariance is checked against the
 actual candidate and the corrected source receives re-review.
+
+Re-review of 053a5d9 found a further P1: a query-bearing import could hash a
+literal filename decoy while Vite bundled the file before the query suffix.
+The module-specifier refusals above close that gap in the shared parser used
+by both graph traversals. Filesystem regressions retain both the real payload
+and decoy and require refusal before and after changing the real payload.
 
 The fingerprint keeps its solid-hns-ingress-sha256 reference format and versions
 its canonical schema and environment projection to v4. Protected routes,

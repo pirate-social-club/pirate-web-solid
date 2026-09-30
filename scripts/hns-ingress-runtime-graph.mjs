@@ -27,6 +27,9 @@ export function runtimeEdges(path, bytes) {
   const edges = [];
   function literal(node) {
     if (!ts.isStringLiteral(node)) refuse(`computed_load_${path}`);
+    // Vite interprets URL modifiers and path escapes before resolving files.
+    // Exact filesystem lookup must never hash a literal decoy for those forms.
+    if (/[?#%\\]/u.test(node.text)) refuse(`unsupported_module_specifier_${path}`);
     edges.push(node.text);
   }
   function visit(node) {

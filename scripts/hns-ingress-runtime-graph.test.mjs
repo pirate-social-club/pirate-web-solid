@@ -25,6 +25,34 @@ test("the parser refuses direct, computed and aliased import.meta loads", () => 
   ]) assert.throws(() => runtimeEdges("module.ts", Buffer.from(source)), /unsupported_import_meta/u);
 });
 
+test("runtime loads refuse URL and path modifiers before either graph resolver", () => {
+  for (const specifier of ["./payload.ts?raw", "./payload.ts#fragment", "./payload%2Ets", "./directory\\payload.ts"]) {
+    for (const source of [
+      `import ${JSON.stringify(specifier)};`,
+      `export * from ${JSON.stringify(specifier)};`,
+      `void import(${JSON.stringify(specifier)});`,
+    ]) assert.throws(() => runtimeEdges("module.ts", Buffer.from(source)), /unsupported_module_specifier/u);
+  }
+});
+
+test("filesystem graph refuses Vite query and fragment filename decoys", async () => {
+  const root = await mkdtemp(join(tmpdir(), "hns-no-url-modifier-"));
+  try {
+    await mkdir(join(root, "src/hns-ingress"), { recursive: true });
+    await writeFile(join(root, "src/worker.ts"), 'import "./hns-ingress/root.ts";');
+    await writeFile(join(root, "src/hns-ingress/payload.ts"), "export const safety = 'before';");
+    for (const suffix of ["?raw", "#fragment"]) {
+      await writeFile(join(root, "src/hns-ingress/root.ts"), `import ${JSON.stringify("./payload.ts" + suffix)};`);
+      await writeFile(join(root, "src/hns-ingress/payload.ts" + suffix), "export const decoy = true;");
+      await assert.rejects(readIngressRuntimeSources(root), /unsupported_module_specifier/u);
+      await writeFile(join(root, "src/hns-ingress/payload.ts"), "export const safety = 'after';");
+      await assert.rejects(readIngressRuntimeSources(root), /unsupported_module_specifier/u);
+    }
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
 test("in-memory graph refuses extension and index inference on every load form", () => {
   for (const load of [
     'import "./choice";',
