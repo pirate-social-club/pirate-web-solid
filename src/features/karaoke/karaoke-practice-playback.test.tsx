@@ -60,6 +60,19 @@ test("capture waits for playing and suspends on waiting and stalled", () => {
   expect(onPause.mock.calls).toEqual([[1500], [1500]]);
 });
 
+test("keeps capture active when a stalled download still has buffered playback", () => {
+  vi.spyOn(HTMLMediaElement.prototype, "pause").mockImplementation(() => {});
+  const { host, onPlay, onPause, onTimeChange } = mount();
+  const audio = host.querySelector("audio")!;
+  Object.defineProperty(audio, "readyState", { configurable: true, value: HTMLMediaElement.HAVE_FUTURE_DATA });
+  audio.dispatchEvent(new Event("playing"));
+  audio.currentTime = 2;
+  audio.dispatchEvent(new Event("stalled"));
+  expect(onPlay).toHaveBeenCalledOnce();
+  expect(onPause).not.toHaveBeenCalled();
+  expect(onTimeChange).toHaveBeenLastCalledWith(2000);
+});
+
 test("samples the real media position between timeupdate events and stops on cleanup", async () => {
   vi.spyOn(HTMLMediaElement.prototype, "pause").mockImplementation(() => {});
   const { host, setStatus, onTimeChange, onPlaybackElement } = mount();

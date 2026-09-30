@@ -176,7 +176,11 @@ export function KaraokePracticeSurface(props: KaraokePracticeSurfaceProps) {
         onPlay={() => setIsPlaying(true)}
         onPlaying={() => { setIsPlaying(true); props.onPlay?.(syncTime()); }}
         onWaiting={() => { props.onPause?.(syncTime()); }}
-        onStalled={() => { props.onPause?.(syncTime()); }}
+        onStalled={(event) => {
+          const songMs = syncTime();
+          // A stalled download can leave enough buffered audio to keep playing.
+          if (event.currentTarget.readyState < HTMLMediaElement.HAVE_FUTURE_DATA) props.onPause?.(songMs);
+        }}
         onTimeUpdate={syncTime}
       />
       <Show when={playbackIssue() && props.singingStatus === "active"}>
