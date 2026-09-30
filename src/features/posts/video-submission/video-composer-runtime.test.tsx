@@ -191,7 +191,7 @@ function reopenedWithSubmittedUpload(options: {
     abandoned: { ...sealedAt, status: "abandoned", reason_code: "author_cancelled_before_finalize" },
     published: { ...sealedAt, status: "published", published_resource: { post_id: "post", href: "/posts/post" } },
   } satisfies Record<typeof SEALED_OUTCOMES[number], VideoSnapshot>;
-  const held = options.sealed ? sealedSnapshots[options.sealed] : snapshot;
+  let held: VideoSnapshot = options.sealed ? sealedSnapshots[options.sealed] : snapshot;
   let saved: PendingVideo | null = {
     version: "original-video-pending-v1", principalId: "account", communityId: options.communityId ?? "community", personaId: "persona",
     file: new File(["video"], "take.mp4", { type: "video/mp4" }), caption: "", rating: "general", receipts: [], pending: null, snapshot: held,
@@ -203,7 +203,8 @@ function reopenedWithSubmittedUpload(options: {
   };
   const execute = vi.fn(async (command: VideoCommand) => {
     if (options.failCancel && command.kind === "cancel") throw new Error("The connection dropped");
-    return { ...snapshot, phase: "analysis" as const };
+    if (command.kind === "cancel") held = { ...base, status: "abandoned", creation_revision: 2, reason_code: "author_cancelled_before_finalize" };
+    return command.kind === "cancel" ? held : { ...snapshot, phase: "analysis" as const };
   });
   let uploads = 0;
   const fetchImpl = vi.fn<typeof fetch>();
@@ -266,6 +267,17 @@ describe("a submitted upload when the composer is reopened", () => {
     expect(document.body.textContent).not.toMatch(/reservation|resolve it before starting a new attempt/i);
     expect(controlLabels()).toContain("Start over");
     expect(controlLabels()).not.toContain("Try again");
+  });
+
+  test("Start over cancels an expired upload and clears it in one action", async () => {
+    const fixture = reopenedWithSubmittedUpload({ uploadExpiresAt: "2026-01-01T00:00:00Z" });
+    await vi.waitFor(() => expect(controlLabeled("Start over")?.disabled).toBe(false));
+    controlLabeled("Start over")!.click();
+    await vi.waitFor(() => expect(fixture.retained()).toBeNull());
+    expect(fixture.execute.mock.calls.map(([command]) => command.kind)).toEqual(["cancel"]);
+    expect(document.querySelector("textarea")).toBeNull();
+    expect(document.querySelector("[data-song-choice-screen]")?.getAttribute("aria-hidden")).toBeNull();
+    expect(fixture.fetchImpl).not.toHaveBeenCalled();
   });
 
   test("Start over failure stays actionable without stacking messages", async () => {

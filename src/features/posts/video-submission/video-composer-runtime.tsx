@@ -1099,14 +1099,14 @@ export function VideoComposerRuntime(props: {
         </div>} />
     </Show>
     <Show when={record()}>
-      <ActionFooterShell class="bg-background text-foreground" fullViewport header={<MobilePageHeader title="Upload video" onBackClick={props.onExit} />}
+      <ActionFooterShell class="bg-background text-foreground" fullViewport header={<MobilePageHeader class="relative z-10" title="Upload video" onBackClick={props.onExit} />}
         footer={<div class="mx-auto w-full max-w-md">
           <Show when={otherDestination()} fallback={
             <Button class="w-full" disabled={busy()} loading={busy()} onClick={() => {
               if (completedUpload()) posted();
               else if (reservationExpired() || record()?.rejection) void run(startOver);
               else void publish();
-            }}>{completedUpload() ? "Home" : reservationExpired() || record()?.rejection ? "Start over" : "Try again"}</Button>
+            }}>{busy() ? "Uploading" : completedUpload() ? "Home" : reservationExpired() || record()?.rejection ? "Start over" : "Try again"}</Button>
           }>
             <a class={cn(buttonVariants(), "w-full")} href={`/c/${encodeURIComponent(record()!.communityId)}`}>Open community</a>
           </Show>

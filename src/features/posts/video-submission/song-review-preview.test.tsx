@@ -80,7 +80,7 @@ describe("the intended-soundtrack preview", () => {
     const video = container.querySelector("video")!;
     video.dispatchEvent(new Event("waiting"));
     await vi.waitFor(() => expect(spy.calls.pause).toBe(1));
-    expect(container.textContent).toContain("video stalled");
+    expect(container.textContent).toContain("The video stopped");
     video.dispatchEvent(new Event("playing"));
     await vi.waitFor(() => expect(spy.calls.play).toBe(2));
   });
@@ -93,7 +93,7 @@ describe("the intended-soundtrack preview", () => {
     await vi.waitFor(() => expect(spy.calls.play).toBe(1));
     await letStartupSettle();
     spy.events.get("waiting")?.();
-    await vi.waitFor(() => expect(container.textContent).toContain("song stalled"));
+    await vi.waitFor(() => expect(container.textContent).toContain("The song stopped"));
     const pauses = calls.pause;
     expect(pauses).toBeGreaterThan(0);
     spy.events.get("playing")?.();
@@ -140,7 +140,7 @@ describe("the intended-soundtrack preview", () => {
     events.get("waiting")?.();
     expect(videoPause).not.toHaveBeenCalled();
     expect(audioPause).not.toHaveBeenCalled();
-    expect(container.textContent).not.toContain("could not start");
+    expect(container.textContent).not.toContain("won’t play");
 
     resolveVideo();
     resolveAudio();

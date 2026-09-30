@@ -9,7 +9,6 @@ import {
   defaultExcerpt,
   type ExcerptBounds,
   excerptLengthMs,
-  formatExcerptTime,
   isSubmittableExcerpt,
   MIN_EXCERPT_MS,
   windowLengthsMs,
@@ -499,9 +498,9 @@ export function SongExcerptComposer(props: {
     const current = plan();
     switch (current.kind) {
       case "none":
-        return "Choose the part of the song your video will use.";
+        return undefined;
       case "checking":
-        return "Checking this part of the song…";
+        return undefined;
       case "not_available":
         return "Posting a video to a song isn’t available yet.";
       case "measuring":
@@ -515,7 +514,7 @@ export function SongExcerptComposer(props: {
       case "failed":
         return "Couldn’t use this part of the song.";
       case "ready":
-        return `Your video will use ${excerptClock(current.selection.clipStartSamples, current.selection.clipStartSamples + current.selection.clipDurationSamples)} of this song.`;
+        return undefined;
     }
   };
   /** The plan message shows only what the author can act on: a refusal, a
@@ -657,11 +656,6 @@ export function SongExcerptComposer(props: {
       </Show>
     </section>
   );
-}
-
-function excerptClock(fromSamples: number, toSamples: number): string {
-  const samplesPerMs = 48;
-  return `${formatExcerptTime(fromSamples / samplesPerMs)} to ${formatExcerptTime(toSamples / samplesPerMs)}`;
 }
 
 function planRefusalText(state: Extract<SongPlanState, { kind: "refused" }>): string {

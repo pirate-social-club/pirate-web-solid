@@ -169,6 +169,7 @@ export function OriginalVideoCaptureSurface(props: OriginalVideoCaptureSurfacePr
         <span aria-hidden="true" class="size-10" />
       </header>
 
+      <Show when={props.details}>{details => <div class="mx-auto w-full max-w-4xl px-4 pt-4 md:px-6">{details()}</div>}</Show>
       <Show when={props.notice}>
         <div class="absolute inset-x-0 top-[calc(3.75rem+env(safe-area-inset-top))] z-10 px-4">
           {props.notice}
@@ -335,7 +336,7 @@ export function OriginalVideoReviewSurface(props: OriginalVideoReviewSurfaceProp
       <Show when={props.notice}>{message => <FormNote tone="warning" class="mx-auto w-full max-w-4xl px-4 pt-4">{message()}</FormNote>}</Show>
       <div class="mx-auto grid w-full max-w-4xl gap-5 p-4 md:grid-cols-[minmax(15rem,22rem)_1fr] md:p-6">
         <div class="grid gap-3">
-          <div class="relative mx-auto aspect-[9/16] h-auto max-h-[58dvh] w-full max-w-sm overflow-hidden rounded-[var(--radius-2xl)] bg-gradient-to-b from-[#262a30] to-[#0d0f12]">
+          <div data-video-review-frame class="relative mx-auto aspect-[9/16] h-auto max-h-[58dvh] w-full max-w-sm overflow-hidden rounded-[var(--radius-2xl)] bg-gradient-to-b from-[#262a30] to-[#0d0f12]">
             <Show when={props.preview} fallback={
             <IconButton
               aria-label="Play video preview"
@@ -374,7 +375,6 @@ export function OriginalVideoReviewSurface(props: OriginalVideoReviewSurfaceProp
               value={props.caption ?? ""}
             />
           </div>
-          {props.details}
         </div>
       </div>
     </ActionFooterShell>

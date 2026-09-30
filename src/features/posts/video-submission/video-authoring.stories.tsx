@@ -1,7 +1,7 @@
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import { ApiClientError } from "@pirate/api-client";
 import { createSignal, onCleanup, onSettled } from "solid-js";
-import { expect, fn, userEvent, waitFor, within } from "storybook/test";
+import { expect, userEvent, waitFor, within } from "storybook/test";
 
 import { OriginalVideoReviewSurface } from "../post-composer/video-original-audio-surface";
 import { SongReviewPreview, type PreviewAudio } from "./song-review-preview";
@@ -676,7 +676,7 @@ function PreviewStage(props: { readonly mode: "stall" | "error" }) {
   };
   return (
     <div class="w-full">
-    <OriginalVideoReviewSurface caption="" onCaptionChange={() => undefined} onPublish={() => undefined} songLabel="Cadence" preview={<div>
+    <OriginalVideoReviewSurface caption="" onCaptionChange={() => undefined} onPublish={() => undefined} songLabel="Cadence" preview={<div class="h-full">
       <SongReviewPreview
         audioUrl={toneWavUrl(SONG_MS)}
         bounds={{ startMs: 31_000, endMs: 43_000 }}
@@ -700,7 +700,8 @@ export const ReviewStall: Story = {
     await waitFor(() => expect(video.paused).toBe(false));
     video.pause();
     video.dispatchEvent(new Event("waiting"));
-    await canvas.findByText("The preview paused because the video stalled.");
+    const issue = await canvas.findByText("The video stopped. Try again.");
+    expect(issue.getBoundingClientRect().bottom).toBeLessThanOrEqual(canvasElement.querySelector("[data-video-review-frame]")!.getBoundingClientRect().bottom);
     expect(canvas.queryByText("Stall the video")).toBeNull();
   },
 };
@@ -712,7 +713,8 @@ export const ReviewError: Story = {
     const canvas = within(canvasElement);
     await waitFor(() => expect(canvasElement.querySelector("video")?.getAttribute("src")).toBeTruthy());
     await userEvent.click(await canvas.findByRole("button", { name: "Play with the song" }));
-    await canvas.findByText("This preview could not start. Check your sound settings and try again.");
+    const issue = await canvas.findByText("This video won’t play. Try again.");
+    expect(issue.getBoundingClientRect().bottom).toBeLessThanOrEqual(canvasElement.querySelector("[data-video-review-frame]")!.getBoundingClientRect().bottom);
   },
 };
 
@@ -733,14 +735,6 @@ export const UploadProgress: Story = {
     // story holds at partial progress instead of finishing and leaving.
     await canvas.findByText("Uploading video… 66%", {}, { timeout: 20_000 });
   },
-};
-
-const goHome = fn();
-export const UploadFailure: Story = {
-  name: "Finished upload goes Home even if confirmation is delayed",
-  render: () => <Harness autoPublish chooseFile={() => sampleVideoFile(12_000)} measureDuration={async () => 12_000}
-    transport={storyTransport({ finalize: "retryable_failure" })} onPosted={goHome} />,
-  play: async () => { await waitFor(() => expect(goHome).toHaveBeenCalled(), { timeout: 20_000 }); },
 };
 
 /** A video the author already submitted for publication, kept because its
@@ -780,7 +774,8 @@ export const SubmittedUploadNeedsAnotherTry: Story = {
   },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await canvas.findByText("Your video couldn’t upload. Try again.", {}, { timeout: 20_000 });
+    const status = await canvas.findByText("Your video couldn’t upload. Try again.", {}, { timeout: 20_000 });
+    expect(status.getBoundingClientRect().top).toBeGreaterThanOrEqual(canvasElement.querySelector("header")!.getBoundingClientRect().bottom);
     // What happened, in words the author can act on: not the browser's error.
 
     expect(canvas.queryByText(/network down|Failed to fetch/)).toBeNull();
@@ -807,8 +802,7 @@ export const SubmittedUploadExpired: Story = {
     const canvas = within(canvasElement);
     await canvas.findByText("This upload expired.", {}, { timeout: 20_000 });
     expect(canvas.queryByRole("button", { name: "Cancel upload" })).toBeNull();
-    await userEvent.click(await canvas.findByRole("button", { name: "Start over" }));
-    await canvas.findByRole("dialog", { name: "Song" });
+    await canvas.findByRole("button", { name: "Start over" });
     // The coordinator's own sentence for the same fact is not shown beside it.
     expect(canvas.queryByText(/reservation|resolve it before starting a new attempt/i)).toBeNull();
   },
@@ -896,7 +890,8 @@ export const ReviewPostingAs: Story = {
   ),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await canvas.findByText("Posting in Pirate Harbor", {}, { timeout: 30_000 });
+    const destination = await canvas.findByText("Posting in Pirate Harbor", {}, { timeout: 30_000 });
+    expect(destination.getBoundingClientRect().bottom).toBeLessThan(canvasElement.querySelector("[data-video-review-frame]")!.getBoundingClientRect().top);
     expect(canvas.getAllByText("Posting as").some(element => element.closest('[aria-hidden="true"]') === null)).toBe(true);
   },
 };
@@ -977,8 +972,7 @@ export const AgeRestrictedSong: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await canvas.findByText("This song isn’t available for videos.");
-    await userEvent.click(await canvas.findByRole("button", { name: "Change song" }));
-    await canvas.findByRole("searchbox", { name: "Search songs or paste a link" });
+    await canvas.findByRole("button", { name: "Change song" });
     expect(canvas.queryByText(/Verify your age/)).toBeNull();
   },
 };

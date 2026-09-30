@@ -107,3 +107,18 @@ cancelled-upload, and prose documentation stories are removed. Preview failures
 have asserted play functions and contain no simulation buttons. The generated
 camera and guide clock remain simulations; these checks do not establish real
 Pixel synchronization or settle the previously unexplained discarded recording.
+
+Phone inspection then found two failures that text-presence assertions missed:
+a fixed shared header covered the status sentence, and the portrait preview
+clipped its playback control and error message. Status headers now occupy their
+normal page space. Preview media shrinks around its controls and feedback.
+Browser bounds assertions check the status is below the header and preview
+feedback is inside its frame. Posting details now precede the preview, making
+the destination and profile visible before Publish. Preview copy avoids guessing
+that sound settings caused a refusal. Unused song-range status prose is removed.
+
+Age restriction and upload-expiry stories finish in their named states. The
+one-action expiry recovery is exercised separately by the runtime regression.
+The upload-confirmation story is removed because successful bytes go Home;
+the runtime tests prove navigation and preserved receipt identity without
+presenting a mock navigation callback as another composer screen.

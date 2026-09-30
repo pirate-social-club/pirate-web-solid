@@ -75,7 +75,7 @@ export function SongReviewPreview(props: {
       }
       if (video.ended) {
         stop();
-        setIssue("This clip ends before the excerpt does, so the preview stopped early.");
+        setIssue("This video ended early.");
         return;
       }
       const expected = (audio.currentTime * 1_000 - props.bounds.startMs) / 1_000;
@@ -97,13 +97,13 @@ export function SongReviewPreview(props: {
     } catch {
       if (generation !== playGeneration) return;
       stop();
-      setIssue("This preview could not start. Check your sound settings and try again.");
+      setIssue("This video won’t play. Try again.");
     }
   };
 
   const onVideoWaiting = () => {
     if (!playing() || starting) return;
-    setIssue("The preview paused because the video stalled.");
+    setIssue("The video stopped. Try again.");
     audio?.pause();
   };
   const onVideoPlaying = () => {
@@ -113,7 +113,7 @@ export function SongReviewPreview(props: {
   };
   const onAudioWaiting = () => {
     if (!playing() || starting) return;
-    setIssue("The preview paused because the song stalled.");
+    setIssue("The song stopped. Try again.");
     video?.pause();
   };
   const onAudioPlaying = () => {
@@ -143,9 +143,9 @@ export function SongReviewPreview(props: {
   };
 
   return (
-    <div class="grid gap-2">
+    <div class="flex h-full min-h-0 flex-col gap-2">
       <video
-        class="h-full w-full object-contain"
+        class="min-h-0 w-full flex-1 object-contain"
         muted
         playsinline
         poster={props.posterUrl}
@@ -154,11 +154,11 @@ export function SongReviewPreview(props: {
         onWaiting={onVideoWaiting}
         onPlaying={onVideoPlaying}
       />
-      <Button disabled={!props.videoUrl} onClick={() => void toggle()} type="button" variant="secondary">
+      <Button class="shrink-0" disabled={!props.videoUrl} onClick={() => void toggle()} type="button" variant="secondary">
         {playing() ? "Pause preview" : "Play with the song"}
       </Button>
       <Show when={issue()}>
-        {(message) => <Type as="p" variant="caption" role="alert">{message()}</Type>}
+        {(message) => <Type as="p" variant="caption" class="shrink-0" role="alert">{message()}</Type>}
       </Show>
     </div>
   );
