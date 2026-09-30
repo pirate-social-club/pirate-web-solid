@@ -935,7 +935,7 @@ export function VideoComposerRuntime(props: {
   const captureNotice = () => {
     if (file()) return undefined;
     if (finalizing()) return <div class="flex justify-center"><Spinner label="Finishing video" /></div>;
-    if (!panelShown() && error()) return <FormNote tone="warning">{error()}</FormNote>;
+    if (!panelShown() && error()) return <FormNote class="rounded-[var(--radius-lg)] bg-black/70 px-3 py-2" tone="warning">{error()}</FormNote>;
     if (props.personaOptions !== undefined && personasForDestination().length === 0) {
       return <p class="rounded-[var(--radius-lg)] bg-black/60 px-3 py-2 text-center text-sm text-white" role="status">Choose a posting profile for this community.</p>;
     }

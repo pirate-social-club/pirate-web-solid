@@ -166,9 +166,6 @@ function canvasStream(): MediaStream {
     context.fillRect(0, 0, canvas.width, canvas.height);
     context.fillStyle = "#7dd3fc";
     context.fillRect((frame % 24) * 10, 300, 30, 30);
-    context.fillStyle = "#ffffff";
-    context.font = "18px monospace";
-    context.fillText(`simulated viewfinder ${frame}`, 12, 30);
     frame += 1;
     requestAnimationFrame(draw);
   };

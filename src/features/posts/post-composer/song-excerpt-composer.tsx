@@ -561,7 +561,7 @@ export function SongExcerptComposer(props: {
                   Try again
                 </Button>
               </Show>
-              <Button onClick={resetSong} size="sm" type="button" variant="ghost">
+              <Button onClick={resetSong} type="button" variant={retryableProblem(source()) ? "secondary" : "default"}>
                 Change song
               </Button>
             </div>
