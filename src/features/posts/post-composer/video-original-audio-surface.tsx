@@ -108,7 +108,7 @@ export function OriginalVideoCaptureSurface(props: OriginalVideoCaptureSurfacePr
             <Match when={status() === "orientation_lost"}>
               <CaptureMessage
                 action="Retake video"
-                body="The phone rotated while recording, so this take ended before it could be finalized. Keep the next take in one orientation."
+                body="The phone rotated. Keep it upright and record again."
                 icon={<IconArrowsClockwise class="size-7" />}
                 title="Retake in one orientation"
                 onAction={props.onRetake}
@@ -117,7 +117,7 @@ export function OriginalVideoCaptureSurface(props: OriginalVideoCaptureSurfacePr
             <Match when={status() === "guide_interrupted"}>
               <CaptureMessage
                 action="Record again"
-                body="The song stopped. Record a new take."
+                body="The recording stopped. Record a new video."
                 icon={<IconArrowsClockwise class="size-7" />}
                 title="Recording interrupted"
                 onAction={props.onRetake}
@@ -296,6 +296,8 @@ export interface OriginalVideoReviewSurfaceProps {
   readonly preview?: JSX.Element;
   readonly caption?: string;
   readonly submitting?: boolean;
+  readonly publishDisabled?: boolean;
+  readonly notice?: string;
   /** The song this video is posted to, when it has one. */
   readonly songLabel?: string;
   /** Opens the song's controls, where the author can change the sound. */
@@ -316,7 +318,7 @@ export function OriginalVideoReviewSurface(props: OriginalVideoReviewSurfaceProp
       footer={(
         <Button
           class="mx-auto flex w-full max-w-4xl"
-          disabled={props.submitting}
+          disabled={props.submitting || props.publishDisabled}
           loading={props.submitting}
           onClick={() => props.onPublish?.()}
           size="lg"
@@ -330,6 +332,7 @@ export function OriginalVideoReviewSurface(props: OriginalVideoReviewSurfaceProp
           backAriaLabel="Back to capture" onBackClick={() => props.onBack?.()} />
       )}
     >
+      <Show when={props.notice}>{message => <FormNote tone="warning" class="mx-auto w-full max-w-4xl px-4 pt-4">{message()}</FormNote>}</Show>
       <div class="mx-auto grid w-full max-w-4xl gap-5 p-4 md:grid-cols-[minmax(15rem,22rem)_1fr] md:p-6">
         <div class="grid gap-3">
           <div class="relative mx-auto aspect-[9/16] h-auto max-h-[58dvh] w-full max-w-sm overflow-hidden rounded-[var(--radius-2xl)] bg-gradient-to-b from-[#262a30] to-[#0d0f12]">

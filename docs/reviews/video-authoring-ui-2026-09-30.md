@@ -76,3 +76,34 @@ a narrow strip. The harness now matches the full-width production overlay.
 Upload mode uses shared page navigation and the pinned file-picker action rather
 than camera chrome. It returns to song choice with Back. Review remains shared
 and its action follows the content's maximum width.
+
+The second rendered audit identified the remaining submitted-video screens,
+profile and community dead ends, inconsistent backgrounding, and duplicate
+Capture stories. These findings supersede the earlier local completion claim.
+
+Submitted videos now use the shared page frame, one status sentence, and one
+primary action. An expired upload cancels and clears its receipt through one
+Start over action. A definitive refusal also starts fresh. Upload failures offer
+one retry. Another-community uploads link to the existing community-ID route.
+A finished upload goes Home, including a lost finalization response; its durable
+receipt remains for reconciliation and duplicate prevention. That receipt is
+created only after Publish, and is not an editable draft.
+
+Profile selection is available before capture, and capture cannot open without
+an eligible profile. Age-restricted songs offer another song without promising
+an unavailable verification flow. Backgrounding and song interruption both
+cancel recording and discard the partial video. Backgrounding during asynchronous
+capture startup also cancels the returned session. The guide stall detector is
+unchanged.
+
+Review blockers appear before the preview and disable Publish. Uploaded files
+are admitted with the advertised 15-second maximum; a separate measured-duration
+guard catches a bypassed inspector. Guided recordings preserve their required
+timing tail. Desktop shares these review and status components.
+
+The separate Capture catalog is removed. Its camera permission and orientation
+recovery cases now run through Authoring. Obsolete shorter-clip, trimming,
+cancelled-upload, and prose documentation stories are removed. Preview failures
+have asserted play functions and contain no simulation buttons. The generated
+camera and guide clock remain simulations; these checks do not establish real
+Pixel synchronization or settle the previously unexplained discarded recording.

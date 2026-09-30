@@ -1,5 +1,5 @@
 import { createEffect, createMemo, createSignal, onCleanup, Show, untrack } from "solid-js";
-import { ActionFooterShell, Button, cn, FormNote, MobilePageHeader, Spinner, Type } from "../../../design-system";
+import { ActionFooterShell, Button, buttonVariants, cn, FormNote, MobilePageHeader, Spinner, Type } from "../../../design-system";
 import { OperationPersonaControl } from "../../identity/operation-persona-control/operation-persona-control";
 import { type ExcerptBounds } from "../post-composer/song-excerpt";
 import { SongExcerptComposer, type SoundtrackSelection } from "../post-composer/song-excerpt-composer";
@@ -12,14 +12,11 @@ import { captureStopAfterMs, clipFitMessage, fitClipToExcerpt, GUIDED_TAKE_MAX_D
 import type { VideoSnapshot } from "./contracts";
 import { prepareBufferedGuide, type GuideSourcePreparation } from "./buffered-guide";
 import { alignGuidedTake, type GuidedTakeAlignment } from "./guided-take-alignment";
-import { canDiscardRejectedVideo, VideoCoordinator, type PendingVideo, type VideoStorage } from "./coordinator";
+import { VideoCoordinator, type PendingVideo, type VideoStorage } from "./coordinator";
 import { SongReviewPreview } from "./song-review-preview";
 import { createBrowserVideoStorage } from "./storage";
 import {
   createSongIntervalPreflight,
-  selectionSpan,
-  songReferenceInvalidText,
-  songReservationRefusalText,
   type SongChoice,
   type SongIntervalPreflight,
   type SongPlanState,
@@ -197,7 +194,8 @@ export function VideoComposerRuntime(props: {
   const personasForDestination = createMemo(() => (props.personaOptions ?? [])
     .filter(option => option.communityId === undefined || option.communityId === chosenCommunityId()));
   const [chosenPersonaId, setChosenPersonaId] = createSignal(
-    props.personaId?.trim() || personasForDestination()[0]?.id || "",
+    props.personaOptions === undefined ? props.personaId?.trim() || ""
+      : personasForDestination().find(option => option.id === props.personaId?.trim())?.id || personasForDestination()[0]?.id || "",
     { ownedWrite: true },
   );
   let picker: HTMLInputElement | undefined;
@@ -258,7 +256,8 @@ export function VideoComposerRuntime(props: {
     try { await action(); } catch (failure) { if (!disposed && !explained?.()) setError(failure instanceof Error ? failure.message : "The video attempt could not be completed safely"); }
     finally { if (!disposed) { setBusy(false); setProgress(""); } }
   }
-  const posted = () => (props.onPosted ?? (() => globalThis.location?.assign("/")))();
+  let landed = false;
+  const posted = () => { if (landed || disposed) return; landed = true; (props.onPosted ?? (() => globalThis.location?.assign("/")))(); };
   let resumeSubmitted = false;
   void coordinator.restore().then(async next => {
     if (!next || disposed) return;
@@ -288,32 +287,12 @@ export function VideoComposerRuntime(props: {
   /** Excerpt controls appear only after the song loads. */
   const songSheetTitle = () =>
     songSource() === "ready" && !["refused", "ineligible", "not_available", "timing_unavailable"].includes(songPlan().kind) ? "Song" : "Choose a song";
-  /** Whether the sound sheet holds something the author must act on or wait
-   * on. The server's interval preflight checks the song owner's policy before
-   * capture, and reservation checks it again before issuing upload authority. */
-  const songNeedsAttention = () => {
-    const kind = songPlan().kind;
-    return selection() === null
-      || kind === "checking" || kind === "measuring"
-      || kind === "not_available" || kind === "timing_unavailable" || kind === "refused"
-      || kind === "ineligible" || kind === "failed"
-      // A take that cannot publish with the song needs the choice below it.
-      || takeMismatch() || (takeSoundtrack() !== null && takeAlignment() === "unaligned") || clipProblem() !== undefined;
-  };
   const songLabel = () => {
     const current = selection();
     return songActive() && current ? current.title : undefined;
   };
   /** The length the clip must reach for the current excerpt. */
   const clipFit = createMemo(() => fitClipToExcerpt(clipDurationMs(), selection()?.bounds));
-  const clipProblem = createMemo(() => {
-    const fit = clipFit();
-    return fit.kind === "too_short" || fit.kind === "too_long" ? clipFitMessage(fit) : undefined;
-  });
-  const clipNote = createMemo(() => {
-    const fit = clipFit();
-    return fit.kind === "trims" ? clipFitMessage(fit) : undefined;
-  });
   /** The server's approval, but only while it names exactly what is on screen
    * now. A plan for a moved window, a different song or a stale revision is
    * not an approval to publish with; the composer invalidates it on change,
@@ -344,6 +323,11 @@ export function VideoComposerRuntime(props: {
    * take must not be published with the song: the motion would be ahead of
    * the music by the measured delay. */
   const [takeAlignment, setTakeAlignment] = createSignal<"none" | "aligned" | "unaligned">("none");
+  const clipProblem = createMemo(() => {
+    if (!takeSoundtrack() && (clipDurationMs() ?? 0) > 15_000) return "Choose a video up to 15 seconds long.";
+    const fit = clipFit();
+    return fit.kind === "too_short" || fit.kind === "too_long" ? clipFitMessage(fit) : undefined;
+  });
   // The untouched take's preview, kept beside the aligned one for review
   // when the take could not be aligned to the song.
   const [originalPreview, setOriginalPreview] = createSignal<string>();
@@ -506,13 +490,13 @@ export function VideoComposerRuntime(props: {
       guideStartExceeded = false;
       const original = originalPreview(); if (original) URL.revokeObjectURL(original);
       setOriginalPreview(undefined);
-      const accepted = props.inspectFile ? await props.inspectFile(next) : await (await import("./capture")).inspectVideoFile(next);
+      const accepted = props.inspectFile ? await props.inspectFile(next, { maxDurationSeconds: 15 }) : await (await import("./capture")).inspectVideoFile(next, { maxDurationSeconds: 15 });
       if (disposed) return;
       showFile(accepted);
       await measureClip(accepted);
     });
   }
-  /** Stops the take without the UI busy gate. A limit, a backgrounding or a
+  /** Stops the take without the UI busy gate. A limit or a
    * guide failure must be honorable while `toggleCapture` is still awaiting
    * the guide's playback start, and `run` would drop such a request. */
   async function stopCapture(reason?: string) {
@@ -559,7 +543,7 @@ export function VideoComposerRuntime(props: {
       }
       if (!disposed) { showOriginalTake(take); showFile(finalTake); await measureClip(finalTake); }
     } catch (failure) {
-      if (!disposed) setError(failure instanceof Error ? failure.message : "The recording could not be finalized");
+      if (!disposed) setError(failure instanceof Error ? failure.message : "The recording couldn’t finish. Record again.");
     } finally {
       if (!disposed) { setFinalizing(false); setStream(null); setCaptureStatus("idle"); }
     }
@@ -677,7 +661,11 @@ export function VideoComposerRuntime(props: {
       } finally {
         captureStarting = false;
       }
-        if (disposed) { await current.cancel(); return; }
+        if (disposed || document.visibilityState === "hidden") {
+          await current.cancel(); stopGuide();
+          if (!disposed) { setStream(null); setTakeSoundtrack(null); setTakeAlignment("none"); setCaptureStatus("guide_interrupted"); }
+          return;
+        }
         session = current; setStream(current.stream); setCaptureStatus("recording");
         if (!guide) return;
         if (!prepared) throw new Error("The song did not finish loading.");
@@ -700,7 +688,7 @@ export function VideoComposerRuntime(props: {
         guideStarted = true;
         if (startDelayMs > GUIDE_START_MAX_DELAY_MS) {
           guideStartExceeded = true;
-          await stopCapture("The guide song started too late to align this take, so it was ended. Record again.");
+          await stopCapture("The song started too late. Record again.");
           return;
         }
       } catch (failure) {
@@ -713,7 +701,7 @@ export function VideoComposerRuntime(props: {
   }
   // A hidden page is where browser media playback is suspended without an
   // event. The guide then can no longer keep time with the recording, so the
-  // take ends there rather than silently drifting. An unguided take is
+  // recording is discarded there rather than silently drifting. An unguided take is
   // cancelled by the capture module instead, because its picture freezes.
   const interactionBusy = () => busy() || finalizing();
   // The camera preview is held only while the page is visible.
@@ -721,7 +709,7 @@ export function VideoComposerRuntime(props: {
   const onVisibilityChange = () => {
     setPageVisible(document.visibilityState !== "hidden");
     if (document.visibilityState !== "hidden" || !session || !guideAudio) return;
-    void stopCapture("Recording stopped when you left this page.");
+    void cancelInterruptedTake();
   };
   if (typeof document !== "undefined") document.addEventListener("visibilitychange", onVisibilityChange);
 
@@ -730,16 +718,16 @@ export function VideoComposerRuntime(props: {
       const retained = coordinator.current;
       if (retained && (retained.communityId !== chosenCommunityId() || retained.personaId !== chosenPersonaId())) throw new Error("Your earlier video is still uploading for another community. Open that community to finish it.");
       if (!retained) {
-        const selected = file(); if (!selected || !chosenPersonaId() || !chosenCommunityId()) throw new Error("Choose a community, persona and compatible video");
+        const selected = file(); if (!selected || !chosenPersonaId() || !chosenCommunityId()) throw new Error("Choose a profile and a video.");
         const plan = songPlan();
         // Every video references a song. Publishing waits for a chosen song
         // and the server's acceptance of its excerpt.
         if (songChoice().kind === "none") throw new Error("Choose a song for this video.");
-        if (plan.kind === "checking") throw new Error("The excerpt is still being checked. Publish again once it has an answer.");
+        if (plan.kind === "checking") throw new Error("The song is still being checked. Try again shortly.");
         // A song switch leaves the plan without a verdict; only the excerpt
         // on screen, accepted by the server, can be published.
         const approved = approvedSelection();
-        if (approved === undefined) throw new Error("This excerpt hasn’t been accepted yet. Check it again or choose another part of the song.");
+        if (approved === undefined) throw new Error("Choose a different part of the song.");
         // A clip shorter than the excerpt cannot be rendered with it; the
         // server would refuse it after upload for a reason this surface can
         // state now, and a retry of the same bytes cannot change that.
@@ -748,10 +736,10 @@ export function VideoComposerRuntime(props: {
         // A guided take was danced to one window; publishing it against
         // another would show the author performing to a song that is not the
         // one being rendered.
-        if (takeMismatch()) throw new Error("This take was recorded to a different excerpt. Record again with the current excerpt.");
+        if (takeMismatch()) throw new Error("The song changed. Record a new video.");
         // An unaligned take would publish with its motion ahead of the music.
         if (takeSoundtrack() && takeAlignment() === "unaligned") {
-          throw new Error("This take could not be aligned to the song. Record it again.");
+          throw new Error("The video couldn’t play in time with the song. Record again.");
         }
         await coordinator.begin({
           communityId: chosenCommunityId(), personaId: chosenPersonaId(), file: selected,
@@ -765,7 +753,9 @@ export function VideoComposerRuntime(props: {
         // submission is read before the author is told anything failed.
         if (!finalizeUnconfirmed()) throw failure;
         if (await settleFinalize()) return;
-        throw new Error("Your video is uploaded, but we couldn't confirm it arrived yet. Checking again…");
+        // Keep the receipt for reconciliation; the author has finished uploading.
+        if (!disposed) posted();
+        return;
       }
       if (!disposed && await coordinator.release()) posted();
     }, publishFailureExplained);
@@ -882,23 +872,26 @@ export function VideoComposerRuntime(props: {
     const current = coordinator.current;
     return current?.rejection !== undefined || uploadExpired(current);
   };
-  const blocked = () => { const snapshot = state(); return snapshot?.status === "blocked" ? snapshot : undefined; };
-  // One plain sentence for the submitted video. Raw server states never
-  // reach the screen; while an action runs, only real upload progress shows.
-  const videoStatusText = () => {
-    const current = record(); if (!current || current.rejection) return undefined;
-    const snapshot = state();
-    if (finalizeUnconfirmed()) return busy() ? undefined : "Checking that your video arrived…";
-    if (!snapshot || (snapshot.status === "processing" && snapshot.phase === "awaiting_upload"))
-      return busy() ? undefined : "Your video hasn't finished uploading.";
-    if (snapshot.status === "processing") return "Your video is processing. This can take a few minutes.";
-    if (snapshot.status === "processing_failed") return "Video processing failed.";
-    if (snapshot.status === "blocked") return "This video can't be published.";
-    if (snapshot.status === "abandoned") return "This video was cancelled.";
-    if (snapshot.status === "published") return "Your video is posted.";
-    return undefined;
+  const otherDestination = () => record() !== null && (record()!.communityId !== chosenCommunityId() || record()!.personaId !== chosenPersonaId());
+  const profileReady = () => chosenPersonaId() !== "" && (props.personaOptions === undefined || personasForDestination().some(option => option.id === chosenPersonaId()));
+  const completedUpload = () => finalizeUnconfirmed() || (!awaiting() && state() !== undefined && !record()?.rejection);
+  const statusText = () => {
+    if (otherDestination()) return "Finish this upload in the community where you started it.";
+    if (record()?.rejection) return record()?.rejection?.reasonCode ? "This song isn’t available for videos." : "This video wasn’t accepted.";
+    if (reservationExpired()) return error() ? "Couldn’t start over. Try again." : "This upload expired.";
+    if (completedUpload()) return "Your video has uploaded.";
+    if (busy()) return progress() || "Uploading video…";
+    return "Your video couldn’t upload. Try again.";
   };
-  const songReserved = () => { const reservation = record()?.reservation; return reservation?.intent === "song_reference" ? reservation : undefined; };
+  const startOver = async () => {
+    if (record()?.rejection) await coordinator.discardRejected();
+    else {
+      if (awaiting() || failure()?.reason_code === "provider_submission_unconfirmed") await coordinator.revisionCommand("cancel");
+      await coordinator.discard();
+    }
+    setFile(null); setClipDurationMs(null); clearPreviewUrls(); setCaption(""); setRating("general");
+    setTakeSoundtrack(null); setTakeAlignment("none"); setCaptureStatus("idle"); setEnteredCapture(false); setSongSheetOpen(true);
+  };
   const openSongSheet = () => setSongSheetOpen(true);
   /** Confirming the sound: an accepted excerpt closes the sheet; anything
    * still pending puts its progress on the confirm button and closes by
@@ -913,7 +906,7 @@ export function VideoComposerRuntime(props: {
   const enterCapture = async () => {
     const approved = approvedSelection();
     const chosen = selection();
-    if (!approved || !chosen || checkingPlayback()) return;
+    if (!approved || !chosen || checkingPlayback() || !profileReady()) return;
     const revision = ++playbackCheckRevision;
     setConfirmingSound(false); setPlaybackFailed(false); setError("");
     if (mobile && !file()) {
@@ -970,6 +963,7 @@ export function VideoComposerRuntime(props: {
    * nothing here and surface only on the sound sheet's confirm action. */
   const captureNotice = () => {
     if (file()) return undefined;
+    if (busy() && progress()) return <div class="flex justify-center"><Spinner label={progress().replace(/…$/, "")} /></div>;
     if (finalizing()) return <div class="flex justify-center"><Spinner label="Finishing video" /></div>;
     if (!panelShown() && error()) return <FormNote class="rounded-[var(--radius-lg)] bg-black/70 px-3 py-2" tone="warning">{error()}</FormNote>;
     if (props.personaOptions !== undefined && personasForDestination().length === 0) {
@@ -980,8 +974,7 @@ export function VideoComposerRuntime(props: {
   };
   return <section class="grid gap-3" aria-label="Video composer">
     <input ref={element => { picker = element; }} hidden type="file" accept="video/mp4,video/quicktime,.mp4,.mov" onChange={event => { void chooseFile(event.currentTarget.files?.[0]); event.currentTarget.value = ""; }} />
-    <Show when={!editing() && !panelShown() ? error() : ""}>{message => <FormNote tone="warning">{message()}</FormNote>}</Show>
-    <Show when={busy() && progress()}><p role="status">{progress()}</p></Show>
+
     <Show when={editing()}>
       {/* After song and excerpt choice, capture carries a way to change the
           song. Posting details remain on review. */}
@@ -989,8 +982,8 @@ export function VideoComposerRuntime(props: {
       <div inert={interactionBusy()}>
         <Show when={captureStatus() === "recording"}>
           <p role="status" class="sr-only">{selection()
-            ? `Recording to ${selection()!.title}. The take ends with the excerpt.`
-            : "Recording. The take ends at the platform limit."}</p>
+            ? `Recording to ${selection()!.title}. Recording ends with the song.`
+            : "Recording."}</p>
         </Show>
         <OriginalVideoCaptureSurface channel={mobile ? "camera" : "upload"} status={captureStatus()}
           songLabel={songLabel()} onSongTap={openSongSheet}
@@ -1031,13 +1024,19 @@ export function VideoComposerRuntime(props: {
           footerClass={selection() && ["ready", "checking", "measuring"].includes(songPlan().kind) ? undefined : "hidden"}
           footer={<Show when={selection() && ["ready", "checking", "measuring"].includes(songPlan().kind)}>
             <div class="mx-auto w-full max-w-md">
-              <Button class="w-full" disabled={confirmingSound() || checkingPlayback()}
+              <Button class="w-full" disabled={confirmingSound() || checkingPlayback() || !profileReady()}
                 loading={confirmingSound() || checkingPlayback()} onClick={confirmSound} type="button">{playbackFailed() ? "Try again" : "Continue to video"}</Button>
             </div>
           </Show>}
         >
         <div class="mx-auto grid min-w-0 w-full max-w-md grid-cols-1 gap-5 p-4">
           <h1 class="sr-only">{songSheetTitle()}</h1>
+          <Show when={personasForDestination().length > 1}>
+            <OperationPersonaControl label="Posting as" onSelect={setChosenPersonaId}
+              personas={personasForDestination().map(option => ({ personaId: option.id, displayName: option.label }))}
+              placeholder="Choose a profile" selectedPersonaId={chosenPersonaId()} />
+          </Show>
+          <Show when={!profileReady()}><FormNote tone="warning">You don’t have a posting profile for this community.</FormNote></Show>
           <Show when={songSheetOpen() && error()}>{message => <FormNote tone="warning">{message()}</FormNote>}</Show>
           <fieldset class="contents" disabled={captureStatus() === "recording" || finalizing()}>
           <section aria-label="Soundtrack" class="min-w-0">
@@ -1070,7 +1069,7 @@ export function VideoComposerRuntime(props: {
       </div>
     </Show>
     <Show when={editing() && file()}>
-      <OriginalVideoReviewSurface caption={caption()} onCaptionChange={setCaption} submitting={busy()} onPublish={() => { void publish(); }}
+      <OriginalVideoReviewSurface caption={caption()} onCaptionChange={setCaption} submitting={busy()} publishDisabled={!profileReady() || approvedSelection() === undefined || measuring() || finalizing() || takeMismatch() || takeAlignment() === "unaligned" || clipProblem() !== undefined} notice={error() || clipProblem() || (takeMismatch() ? "The song changed. Record a new video." : undefined) || (takeAlignment() === "unaligned" ? "The video couldn’t play in time with the song. Record again." : undefined)} onPublish={() => { void publish(); }}
         onBack={() => { if (!busy()) { setFile(null); setClipDurationMs(null); clearPreviewUrls(); } }}
         preview={songActive() && songPlan().kind === "ready" && selection() && takeAlignment() !== "unaligned"
           ? <SongReviewPreview audioUrl={selection()!.audioUrl} bounds={selection()!.bounds} videoUrl={preview()}
@@ -1094,74 +1093,29 @@ export function VideoComposerRuntime(props: {
         <Show when={props.personaOptions !== undefined && personasForDestination().length === 0}>
           <FormNote tone="warning">Choose a posting profile for this community.</FormNote>
         </Show>
-        <Show when={error()}>{message => <FormNote tone="warning">{message()}</FormNote>}</Show>
-        <Show when={clipProblem()}>
-          {(problem) => <FormNote tone="warning">{problem()}</FormNote>}
-        </Show>
-        <Show when={clipNote()}>
-          {(note) => <FormNote tone="muted">{note()}</FormNote>}
-        </Show>
-        <Show when={measuring()}>
-          <Spinner label="Checking video length" />
-        </Show>
-        <Show when={takeMismatch()}>
-          <FormNote tone="warning">This take was recorded to a different part of the song. Record again with the current excerpt.</FormNote>
-        </Show>
-        <Show when={takeSoundtrack() && takeAlignment() === "unaligned"}>
-          <FormNote tone="warning">This take couldn’t be lined up with the song. Record it again.</FormNote>
-        </Show>
         <Show when={finalizing()}>
           <Spinner label="Preparing video" />
         </Show>
         </div>} />
     </Show>
     <Show when={record()}>
-      <Show when={videoStatusText()}>{text => <p role="status">{text()}</p>}</Show>
-      <Show when={record()?.song && !record()?.rejection && state()?.status !== "manual_review"}>
-        <p role="status">{songReserved()
-          ? `Soundtrack: this song from ${selectionSpan(record()!.song!)}.`
-          : "Adding the song to your video…"}</p>
-      </Show>
-      <Show when={record()?.rejection}>
-        <p role="alert">{songReservationRefusalText(record()?.rejection?.reasonCode)
-          ?? "This video wasn’t accepted."}</p>
-        <Show when={canDiscardRejectedVideo(record())}><Button disabled={busy()} onClick={() => { void run(async () => {
-          const rejected = await coordinator.discardRejected(); showFile(rejected.file); setCaption(rejected.caption); setRating(rejected.rating);
-        }); }}>Edit rejected video</Button></Show>
-      </Show>
-      {/* One set of actions for the state that is actually on screen. An upload
-          in progress shows only its progress and resumes by itself; a failed
-          attempt offers Try again and Cancel upload; a terminal outcome offers
-          a new video. Nothing here is a control the author must press to keep
-          a video going. */}
-      <Show when={!record()?.rejection && (state()?.status === "processing" || state() === undefined)}>
-        <Show when={!busy()}>
-          <Show when={reservationExpired()}>
-            <p role="status">This upload expired. Cancel it, then choose the video again.</p>
+      <ActionFooterShell class="bg-background text-foreground" fullViewport header={<MobilePageHeader title="Upload video" onBackClick={props.onExit} />}
+        footer={<div class="mx-auto w-full max-w-md">
+          <Show when={otherDestination()} fallback={
+            <Button class="w-full" disabled={busy()} loading={busy()} onClick={() => {
+              if (completedUpload()) posted();
+              else if (reservationExpired() || record()?.rejection) void run(startOver);
+              else void publish();
+            }}>{completedUpload() ? "Home" : reservationExpired() || record()?.rejection ? "Start over" : "Try again"}</Button>
+          }>
+            <a class={cn(buttonVariants(), "w-full")} href={`/c/${encodeURIComponent(record()!.communityId)}`}>Open community</a>
           </Show>
-          <Show when={(record()?.pending || awaiting() || !state()) && !reservationExpired()}>
-            <Button onClick={() => { void publish(); }}>Try again</Button>
-          </Show>
-          <Show when={awaiting()}>
-            <Button onClick={() => { void run(() => coordinator.revisionCommand("cancel")); }} variant="secondary">Cancel upload</Button>
-          </Show>
-        </Show>
-      </Show>
-      <Show when={!record()?.rejection && failure()}>
-        <Show when={failure()?.reason_code === "provider_submission_unconfirmed"}>
-          <p role="status">We couldn’t confirm that your video was received, and sending it again isn’t safe.</p>
-          <Button disabled={busy()} onClick={() => { void run(() => coordinator.revisionCommand("cancel")); }}>Start over</Button>
-        </Show>
-        <Show when={failure()?.reason_code === "membership_required"}><p role="status">You can’t post in this community right now. Once that’s fixed, try again.</p></Show>
-        <Show when={failure()?.retryable}><Button disabled={busy()} onClick={() => { void run(() => coordinator.revisionCommand("retry")); }}>Try again</Button></Show>
-        <Show when={!failure()?.retryable && failure()?.reason_code !== "provider_submission_unconfirmed"}>
-          <Button disabled={busy()} onClick={() => { void run(async () => { await coordinator.discard(); setFile(null); clearPreviewUrls(); setCaption(""); }); }}>Start a new video</Button>
-        </Show>
-      </Show>
-      <Show when={!record()?.rejection && (state()?.status === "blocked" || state()?.status === "abandoned")}>
-        <Show when={blocked()?.reason_code === "song_reference_invalid"}><p role="status">{songReferenceInvalidText(blocked()?.song_reason_code)}</p></Show>
-        <Button disabled={busy()} onClick={() => { void run(async () => { await coordinator.discard(); setFile(null); clearPreviewUrls(); setCaption(""); }); }}>Start a new video</Button>
-      </Show>
+        </div>}>
+        <div class="mx-auto grid w-full max-w-md gap-4 p-4">
+          <Show when={busy()}><Spinner label="Uploading video" /></Show>
+          <p role={record()?.rejection ? "alert" : "status"}>{statusText()}</p>
+        </div>
+      </ActionFooterShell>
     </Show>
   </section>;
 }

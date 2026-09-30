@@ -462,7 +462,7 @@ export function SongExcerptComposer(props: {
     if (settled) {
       setDurationMs(0);
       setAudioProblem(
-        "That audio doesn’t report a length this browser can excerpt from, so an excerpt can’t be chosen from it.",
+        "This song isn’t available for videos.",
       );
     }
   };
@@ -596,7 +596,7 @@ export function SongExcerptComposer(props: {
                   <IconMusicNote aria-hidden="true" class="size-5" />
                 </span>
                 <Type as="p" class="min-w-0 flex-1 truncate" variant="body-strong">{ready().title}</Type>
-                <Show when={!requiresAnotherSong()}><Button class="shrink-0" onClick={resetSong} size="sm" type="button" variant="secondary">Change</Button></Show>
+                <Show when={!requiresAnotherSong() && !audioProblem()}><Button class="shrink-0" onClick={resetSong} size="sm" type="button" variant="secondary">Change</Button></Show>
               </div>
               <Show when={audioProblem()}>
                 {(problem) => (
@@ -615,7 +615,7 @@ export function SongExcerptComposer(props: {
                 <Spinner label="Preparing song" />
               </Show>
               <Show when={!audioProblem() && lengthMs() > 0 && !canHoldExcerpt(lengthMs())}>
-                <Type as="p" variant="caption">That song is too short to hold a three second excerpt.</Type>
+                <Type as="p" variant="caption">Choose a song at least 3 seconds long.</Type>
               </Show>
             </div>
 
@@ -636,7 +636,7 @@ export function SongExcerptComposer(props: {
             >
               <Show when={showPlanMessage()}>
                 <Show when={plan().kind === "measuring" || plan().kind === "checking"}
-                  fallback={<Type as="p" variant="caption" role="alert">{preflight ? planText() : "This song can’t be checked here, so the video can’t be posted yet."}</Type>}>
+                  fallback={<Type as="p" variant="caption" role="alert">{preflight ? planText() : "This song isn’t available for videos."}</Type>}>
                   <Spinner label="Checking song" />
                 </Show>
                 <Show when={plan().kind === "failed" && currentPostId()}>
@@ -666,21 +666,21 @@ function excerptClock(fromSamples: number, toSamples: number): string {
 
 function planRefusalText(state: Extract<SongPlanState, { kind: "refused" }>): string {
   switch (state.reason) {
-    case "invalid_interval": return "The server couldn’t read this excerpt. Move the window and try again.";
-    case "interval_too_short": return "This song clip can’t be used.";
-    case "interval_too_long": return "This song clip can’t be used.";
+    case "invalid_interval": return "Choose a different part of the song.";
+    case "interval_too_short": return "This song isn’t available for videos.";
+    case "interval_too_long": return "This song isn’t available for videos.";
     case "canonical_song_interval_uncovered":
-      return "This excerpt runs past the end of the song’s audio. Move the window earlier.";
+      return "Choose an earlier part of the song.";
   }
 }
 
 function planIneligibleText(state: Extract<SongPlanState, { kind: "ineligible" }>): string {
   switch (state.reasonCode) {
-    case "song_not_found": return "That song isn’t available to post a video to.";
-    case "age_restricted": return "That song is age restricted for this account, so a video can’t be posted to it.";
+    case "song_not_found": return "This song isn’t available for videos.";
+    case "age_restricted": return "This song isn’t available for videos.";
     case "song_owner_policy_unavailable":
-      return "This song’s owner settings couldn’t be read, so a video can’t be posted to it yet.";
+      return "This song couldn’t load. Try again.";
     case "derivative_video_blocked": return "This song isn’t available for videos.";
-    case "derivative_video_owner_only": return "Choose another song. This one is only available to its owner.";
+    case "derivative_video_owner_only": return "This song isn’t available for videos.";
   }
 }

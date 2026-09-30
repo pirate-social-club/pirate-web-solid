@@ -121,10 +121,10 @@ describe("mounted video flow", () => {
     expect([...document.querySelectorAll("button")].some(button => button.textContent?.includes("Try again"))).toBe(false);
     // The server's own message for the refusal is not shown beside the plain sentence.
     expect(document.body.textContent).not.toContain("Request refused");
-    const edit = [...document.querySelectorAll("button")].find(button => button.textContent?.includes("Edit rejected video"))!;
+    const edit = [...document.querySelectorAll("button")].find(button => button.textContent?.includes("Start over"))!;
     await vi.waitFor(() => expect(edit.disabled).toBe(false)); edit.click();
-    await vi.waitFor(() => expect(document.querySelector("textarea")).not.toBeNull());
-    expect(document.body.textContent).toContain("Publish video");
+    await vi.waitFor(() => expect(document.querySelector("[data-song-choice-screen]")?.getAttribute("aria-hidden")).toBeNull());
+    expect(document.querySelector("textarea")).toBeNull();
     expect(fixture.commands).toHaveLength(commandCount);
     expect(fixture.published).not.toHaveBeenCalled();
   });
@@ -135,9 +135,9 @@ describe("mounted video flow", () => {
         details: { reason_code: "derivative_video_blocked", track: "video", capability: "song_reference" } } });
     setup("published", undefined, async command => { if (command.kind === "reserve") throw owner; });
     await selectAndPublish();
-    await vi.waitFor(() => expect(document.querySelector('[role="alert"]')?.textContent).toMatch(/Choose another song\./));
+    await vi.waitFor(() => expect(document.querySelector('[role="alert"]')?.textContent).toContain("This song isn’t available for videos."));
     expect(document.body.textContent).not.toContain("Owner policy rejected the derivative");
-    expect(document.body.textContent).toContain("Edit rejected video");
+    expect(document.body.textContent).toContain("Start over");
   });
 
   test("reserves, uploads and finalizes without a title, terms or client poster", async () => {
@@ -233,12 +233,12 @@ describe("a submitted upload when the composer is reopened", () => {
     expect(document.body.textContent).not.toMatch(/Resume video submission|Pause upload|Check video status|Cancel video submission/);
   });
 
-  test("after a failed attempt offers Try again and Cancel upload and nothing else", async () => {
+  test("a failed upload offers one retry action", async () => {
     const fixture = reopenedWithSubmittedUpload({ failFirstUpload: true });
-    await vi.waitFor(() => expect(document.body.textContent).toContain("Your video hasn't finished uploading."), { timeout: 5_000 });
-    expect(document.body.textContent).toContain("We couldn’t reach the upload server. Check your connection and try again.");
+    await vi.waitFor(() => expect(document.body.textContent).toContain("Your video couldn’t upload. Try again."), { timeout: 5_000 });
+    expect(controlLabels()).not.toContain("Cancel upload");
     expect(document.body.textContent).not.toMatch(/network down|Failed to fetch/);
-    expect(controlLabels()).toEqual(expect.arrayContaining(["Try again", "Cancel upload"]));
+    expect(controlLabels()).toEqual(expect.arrayContaining(["Try again"]));
     expect(document.body.textContent).not.toMatch(/Resume video submission|Pause upload|Check video status/);
     expect(fixture.posted).not.toHaveBeenCalled();
     controlLabeled("Try again")!.click();
@@ -258,33 +258,30 @@ describe("a submitted upload when the composer is reopened", () => {
     expect(fixture.posted).not.toHaveBeenCalled();
   });
 
-  test("an expired upload says so once, in plain words, and only offers Cancel upload", async () => {
+  test("an expired upload offers one Start over action", async () => {
     reopenedWithSubmittedUpload({ uploadExpiresAt: "2026-01-01T00:00:00Z" });
-    await vi.waitFor(() => expect(document.body.textContent).toContain("This upload expired. Cancel it, then choose the video again."), { timeout: 5_000 });
+    await vi.waitFor(() => expect(document.body.textContent).toContain("This upload expired."), { timeout: 5_000 });
     await new Promise(resolve => setTimeout(resolve, 50));
     // The coordinator's own message for the same fact is not shown beside it.
     expect(document.body.textContent).not.toMatch(/reservation|resolve it before starting a new attempt/i);
-    expect(controlLabels()).toContain("Cancel upload");
+    expect(controlLabels()).toContain("Start over");
     expect(controlLabels()).not.toContain("Try again");
   });
 
-  test("cancelling an expired upload still reports its own failure beside the expiry notice", async () => {
+  test("Start over failure stays actionable without stacking messages", async () => {
     reopenedWithSubmittedUpload({ uploadExpiresAt: "2026-01-01T00:00:00Z", failCancel: true });
-    await vi.waitFor(() => expect(controlLabeled("Cancel upload")).toBeDefined(), { timeout: 5_000 });
-    controlLabeled("Cancel upload")!.click();
+    await vi.waitFor(() => expect(controlLabeled("Start over")).toBeDefined(), { timeout: 5_000 });
+    controlLabeled("Start over")!.click();
     // The expiry notice explains the state; it does not explain why this action failed.
-    await vi.waitFor(() => expect(document.body.textContent).toContain("The connection dropped"), { timeout: 5_000 });
-    expect(document.body.textContent).toContain("This upload expired. Cancel it, then choose the video again.");
+    await vi.waitFor(() => expect(document.body.textContent).toContain("Couldn’t start over. Try again."), { timeout: 5_000 });
+    expect(controlLabeled("Start over")).toBeDefined();
   });
 
   test("a video that belongs to another community waits and says so plainly", async () => {
     const fixture = reopenedWithSubmittedUpload({ communityId: "another-community" });
-    await vi.waitFor(() => expect(document.body.textContent).toContain("Your video hasn't finished uploading."));
-    await new Promise(resolve => setTimeout(resolve, 50));
-    expect(fixture.fetchImpl).not.toHaveBeenCalled();
-    expect(fixture.execute).not.toHaveBeenCalled();
-    controlLabeled("Try again")!.click();
-    await vi.waitFor(() => expect(document.body.textContent).toContain("Your earlier video is still uploading for another community. Open that community to finish it."));
+    await vi.waitFor(() => expect(document.body.textContent).toContain("Finish this upload in the community where you started it."));
+    expect(document.querySelector('a[href="/c/another-community"]')?.textContent).toBe("Open community");
+    expect(controlLabeled("Try again")).toBeUndefined();
     // No identifiers and no word the author has to know.
     expect(document.body.textContent).not.toMatch(/persona|retained|original community/i);
     expect(fixture.fetchImpl).not.toHaveBeenCalled();
@@ -508,9 +505,10 @@ describe("mounted song-first video flow", () => {
     });
     use.click();
   }
-  async function publish() {
+  async function publish(allowBlocked = false) {
     const control = button("Publish video")!;
-    await vi.waitFor(() => expect(control.disabled).toBe(false)); control.click();
+    if (!allowBlocked) await vi.waitFor(() => expect(control.disabled).toBe(false));
+    control.click();
   }
 
   test("the excerpt is chosen before any clip, and the capture surface sits below it", async () => {
@@ -556,24 +554,19 @@ describe("mounted song-first video flow", () => {
     await awaitPlan("ready");
     await chooseFile();
     await vi.waitFor(() => expect(document.body.textContent).toContain("at least 3 seconds"));
-    await publish();
+    await publish(true);
     await new Promise(resolve => setTimeout(resolve, 50));
     expect(fixture.commands).toHaveLength(0);
     expect(button("Use original sound")).toBeUndefined();
   });
 
-  test("a clip slightly past the window says it will be trimmed and publishes with the song", async () => {
+  test("an uploaded 16 second video is refused even if file inspection was bypassed", async () => {
     const fixture = songSetup({ preflight: "accepted", clipDurationMs: 16_000 });
-    await loadSongMetadata();
-    await awaitPlan("ready");
-    await chooseFile();
-    await vi.waitFor(() => expect(document.body.textContent).toContain("trimmed to the excerpt"));
-    await publish();
-    await vi.waitFor(() => expect(fixture.commands.map(command => command.kind)).toEqual(["reserve", "start", "finalize"]));
-    expect(fixture.commands[0]?.input.body).toMatchObject({
-      intent: "song_reference", song_post_id: "song-post", audio_revision: 7, selected_from: { kind: "library" },
-      clip_start_samples: 0, clip_duration_samples: 15_000 * 48,
-    });
+    await loadSongMetadata(); await awaitPlan("ready"); await chooseFile();
+    await vi.waitFor(() => expect(document.body.textContent).toContain("Choose a video up to 15 seconds long."));
+    expect(button("Publish video")!.disabled).toBe(true);
+    button("Publish video")!.click();
+    expect(fixture.commands).toHaveLength(0);
   });
 
   test("an upload longer than 15 seconds is refused, never cut", async () => {
@@ -581,8 +574,8 @@ describe("mounted song-first video flow", () => {
     await loadSongMetadata();
     await awaitPlan("ready");
     await chooseFile();
-    await vi.waitFor(() => expect(document.body.textContent).toContain("Videos can be up to 15 seconds. This one lasts 0:45"));
-    await publish();
+    await vi.waitFor(() => expect(document.body.textContent).toContain("Choose a video up to 15 seconds long."));
+    await publish(true);
     await new Promise(resolve => setTimeout(resolve, 50));
     expect(fixture.commands).toHaveLength(0);
   });
@@ -628,7 +621,7 @@ describe("mounted song-first video flow", () => {
     const sheet = () => document.querySelector<HTMLElement>("[data-song-choice-screen]");
     expect(sheet()?.getAttribute("aria-hidden")).toBeNull();
     expect(document.querySelector('button[aria-label="Start recording"]')).toBeNull();
-    expect(document.body.textContent).toContain("This song clip can’t be used");
+    expect(document.body.textContent).toContain("This song isn’t available for videos");
   });
 
   test("with the capability off, the video cannot be captured or published", async () => {
@@ -649,7 +642,7 @@ describe("mounted song-first video flow", () => {
     const fixture = songSetup({ preflight: "refused" });
     await loadSongMetadata();
     await awaitPlan("refused");
-    expect(document.body.textContent).toContain("This song clip can’t be used");
+    expect(document.body.textContent).toContain("This song isn’t available for videos");
     attemptFile();
     await new Promise(resolve => setTimeout(resolve, 20));
     expect(document.querySelector("textarea")).toBeNull();
@@ -842,8 +835,9 @@ describe("mounted song-first video flow", () => {
 
   test("hiding the page ends a guided take rather than letting the sound drift", async () => {
     const guide = guideSpy();
+    let cancelled = 0;
     let stopped = 0;
-    nextSession = () => fakeSession(() => { stopped += 1; });
+    nextSession = () => ({ ...fakeSession(() => { stopped += 1; }), cancel: async () => { cancelled += 1; } });
     songSetup({ preflight: "accepted", mobile: true, createGuideAudio: () => guide.audio });
     await loadSongMetadata();
     await awaitPlan("ready");
@@ -852,11 +846,32 @@ describe("mounted song-first video flow", () => {
     Object.defineProperty(document, "visibilityState", { configurable: true, value: "hidden" });
     try {
       document.dispatchEvent(new Event("visibilitychange"));
-      await vi.waitFor(() => expect(document.body.textContent).toContain("Recording stopped when you left"));
-      await vi.waitFor(() => expect(stopped).toBe(1));
+      await vi.waitFor(() => expect(document.body.textContent).toContain("Recording interrupted"));
+      await vi.waitFor(() => expect(cancelled).toBe(1));
+      expect(stopped).toBe(0);
+      expect(document.querySelector("textarea")).toBeNull();
     } finally {
       Object.defineProperty(document, "visibilityState", { configurable: true, value: "visible" });
     }
+  });
+
+  test("hiding the page while capture opens cancels the returned session", async () => {
+    let release!: () => void;
+    const waiting = new Promise<void>(resolve => { release = resolve; });
+    let cancelled = 0;
+    startCapture.mockImplementationOnce(async () => {
+      await waiting;
+      return { ...fakeSession(() => { throw new Error("must not save a hidden recording"); }), cancel: async () => { cancelled += 1; } };
+    });
+    songSetup({ preflight: "accepted", mobile: true, createGuideAudio: () => guideSpy().audio });
+    await loadSongMetadata(); await awaitPlan("ready"); await startRecording();
+    await vi.waitFor(() => expect(startCapture).toHaveBeenCalledOnce());
+    Object.defineProperty(document, "visibilityState", { configurable: true, value: "hidden" });
+    try {
+      document.dispatchEvent(new Event("visibilitychange")); release();
+      await vi.waitFor(() => expect(cancelled).toBe(1));
+      expect(document.querySelector("textarea")).toBeNull();
+    } finally { Object.defineProperty(document, "visibilityState", { configurable: true, value: "visible" }); }
   });
 
   test("a song that cannot be read blocks capture and publishing", async () => {
@@ -873,7 +888,7 @@ describe("mounted song-first video flow", () => {
   });
 
   test("moving the window invalidates the previous approval immediately", async () => {
-    const fixture = songSetup({ preflight: "accepted", clipDurationMs: 16_000 });
+    const fixture = songSetup({ preflight: "accepted", clipDurationMs: 12_000 });
     await loadSongMetadata();
     await awaitPlan("ready");
     await chooseFile();
@@ -886,14 +901,14 @@ describe("mounted song-first video flow", () => {
     expect(document.body.textContent).not.toContain("Waiting for the song check");
     // Publishing immediately, before the debounce can re-check, must not
     // submit the window the author just moved away from.
-    await publish();
-    await vi.waitFor(() => expect(document.body.textContent).toContain("still being checked"));
+    await publish(true);
+    expect(button("Publish video")!.disabled).toBe(true);
     expect(fixture.commands).toHaveLength(0);
     await awaitPlan("ready");
-    await publish();
+    await publish(true);
     await vi.waitFor(() => expect(fixture.commands.map(command => command.kind)).toEqual(["reserve", "start", "finalize"]));
     expect(fixture.commands[0]?.input.body).toMatchObject({
-      intent: "song_reference", clip_start_samples: 2_000 * 48, clip_duration_samples: 15_000 * 48,
+      intent: "song_reference", clip_start_samples: 2_000 * 48, clip_duration_samples: Math.floor(12_000 - 1_000 / 30) * 48,
     });
   });
 
@@ -941,7 +956,7 @@ describe("mounted song-first video flow", () => {
     songSetup({ preflight: "refused", mobile: true });
     await loadSongMetadata();
     await awaitPlan("refused");
-    expect(document.body.textContent).toContain("This song clip can’t be used");
+    expect(document.body.textContent).toContain("This song isn’t available for videos");
     // The record control is present but inert: without a song nothing
     // starts, and the view says what is missing instead.
     document.querySelector<HTMLButtonElement>('button[aria-label="Start recording"]')?.click();
@@ -966,7 +981,7 @@ describe("mounted song-first video flow", () => {
     });
     await loadSongMetadata();
     await awaitPlan("ready");
-    expect(document.body.textContent).toContain("Choose a posting profile for this community.");
+    expect(document.body.textContent).toContain("You don’t have a posting profile for this community.");
     document.querySelector<HTMLButtonElement>('button[aria-label="Start recording"]')?.click();
     expect(previews).toHaveLength(0);
     expect(startCapture).not.toHaveBeenCalled();
@@ -1013,7 +1028,7 @@ describe("mounted song-first video flow", () => {
   });
 
   test("a stale preflight answer cannot approve a window that moved", async () => {
-    const fixture = songSetup({ preflight: "accepted", clipDurationMs: 16_000, deferIntervalChecks: true });
+    const fixture = songSetup({ preflight: "accepted", clipDurationMs: 12_000, deferIntervalChecks: true });
     await loadSongMetadata();
     await vi.waitFor(() => expect(fixture.pendingChecks.length).toBe(1), { timeout: 3_000 });
     // The take is staged while the current window is accepted, then the
@@ -1025,20 +1040,21 @@ describe("mounted song-first video flow", () => {
     await vi.waitFor(() => expect(fixture.pendingChecks.length).toBe(2), { timeout: 3_000 });
     fixture.pendingChecks[0]!();
     await new Promise(resolve => setTimeout(resolve, 20));
-    await publish();
-    await vi.waitFor(() => expect(document.body.textContent).toContain("still being checked"));
+    await publish(true);
+    expect(button("Publish video")!.disabled).toBe(true);
     expect(fixture.commands).toHaveLength(0);
     fixture.pendingChecks[1]!();
     await awaitPlan("ready");
-    await publish();
+    await publish(true);
     await vi.waitFor(() => expect(fixture.commands.map(command => command.kind)).toEqual(["reserve", "start", "finalize"]));
     expect(fixture.commands[0]?.input.body).toMatchObject({ clip_start_samples: 2_000 * 48 });
   });
 
   test("a stop during guide startup is honored instead of dropped by the busy gate", async () => {
     const guide = guideSpy({ manual: true });
+    let cancelled = 0;
     let stopped = 0;
-    nextSession = () => fakeSession(() => { stopped += 1; });
+    nextSession = () => ({ ...fakeSession(() => { stopped += 1; }), cancel: async () => { cancelled += 1; } });
     songSetup({ preflight: "accepted", mobile: true, createGuideAudio: () => guide.audio });
     await loadSongMetadata();
     await awaitPlan("ready");
@@ -1047,10 +1063,12 @@ describe("mounted song-first video flow", () => {
     Object.defineProperty(document, "visibilityState", { configurable: true, value: "hidden" });
     try {
       document.dispatchEvent(new Event("visibilitychange"));
-      await vi.waitFor(() => expect(stopped).toBe(1));
+      await vi.waitFor(() => expect(cancelled).toBe(1));
       guide.release();
-      await vi.waitFor(() => expect(document.body.textContent).toContain("Recording stopped when you left"));
-      await vi.waitFor(() => expect(document.querySelector("textarea")).not.toBeNull());
+      await vi.waitFor(() => expect(document.body.textContent).toContain("Recording interrupted"));
+      await vi.waitFor(() => expect(document.querySelector("textarea")).toBeNull());
+      expect(stopped).toBe(0);
+      expect(document.querySelector("textarea")).toBeNull();
     } finally {
       Object.defineProperty(document, "visibilityState", { configurable: true, value: "visible" });
     }
@@ -1124,7 +1142,7 @@ describe("mounted song-first video flow", () => {
     expect(stopped).toBe(0);
     expect(document.querySelector("textarea")).toBeNull();
     const viewfinder = document.querySelector("[data-video-viewfinder]");
-    expect(viewfinder?.textContent).toContain("The song stopped. Record a new take.");
+    expect(viewfinder?.textContent).toContain("The recording stopped. Record a new video.");
     expect(document.body.textContent).not.toContain("The guide song stalled");
     const retake = [...document.querySelectorAll("button")].find(button => button.textContent === "Record again");
     expect(retake).toBeDefined();
@@ -1160,7 +1178,7 @@ describe("mounted song-first video flow", () => {
     await loadSongMetadata();
     await awaitPlan("ready");
     await startRecording();
-    await vi.waitFor(() => expect(document.body.textContent).toContain("Loading the song"));
+    await vi.waitFor(() => expect(document.querySelector('[role="status"][aria-label="Loading the song"]')).not.toBeNull());
     await new Promise(resolve => setTimeout(resolve, 300));
     expect(startCapture).not.toHaveBeenCalled();
     expect(guide.audio.preload).toBe("auto");
@@ -1226,28 +1244,15 @@ describe("mounted song-first video flow", () => {
     expect(document.body.textContent).not.toContain("hasn't finished uploading");
   });
 
-  test("an unconfirmed finalize shows a checking state, then replays the same command", async () => {
+  test("an unconfirmed finalize goes Home and preserves its receipt without sending twice", async () => {
     let posted = 0;
-    const readFails = { value: false };
-    const fixture = songSetup({ preflight: "accepted", loseFinalize: "before_commit", readFails, onPosted: () => { posted += 1; } });
-    await loadSongMetadata();
-    await awaitPlan("ready");
-    await chooseFile();
-    readFails.value = false;
-    await publish();
-    await vi.waitFor(() => expect(document.body.textContent).toContain("couldn't confirm it arrived"));
-    readFails.value = true;
-    await vi.waitFor(() => expect(document.body.textContent).toContain("Checking that your video arrived"));
-    expect(document.body.textContent).not.toContain("hasn't finished uploading");
-    expect(posted).toBe(0);
+    const fixture = songSetup({ preflight: "accepted", loseFinalize: "before_commit", onPosted: () => { posted += 1; } });
+    await loadSongMetadata(); await awaitPlan("ready"); await chooseFile(); await publish();
+    await vi.waitFor(() => expect(posted).toBe(1));
     expect(fixture.current()?.pending?.command.kind).toBe("finalize");
-    readFails.value = false;
-    await vi.waitFor(() => expect(button("Try again")).toBeDefined());
-    button("Try again")!.click();
-    await vi.waitFor(() => expect(posted).toBe(1), { timeout: 5_000 });
-    const finalizes = fixture.commands.filter(command => command.kind === "finalize");
-    expect(finalizes).toHaveLength(2);
-    expect(finalizes[1]?.input.body.idempotency_key).toBe(finalizes[0]?.input.body.idempotency_key);
+    expect(fixture.commands.filter(command => command.kind === "finalize")).toHaveLength(1);
+    expect(button("Try again")).toBeUndefined();
+    expect(button("Cancel upload")).toBeUndefined();
   });
 
   test("the soundtrack controls are frozen while the take records", async () => {
@@ -1279,7 +1284,7 @@ describe("mounted song-first video flow", () => {
     await vi.waitFor(() => expect(document.querySelector("textarea")).not.toBeNull());
     await vi.waitFor(() => expect(document.body.textContent).toContain("A song"));
     await awaitPlan("ready");
-    expect(document.body.textContent).not.toContain("recorded to a different part of the song");
+    expect(document.body.textContent).not.toContain("The song changed");
     await publish();
     await vi.waitFor(() => expect(fixture.commands.map(command => command.kind)).toEqual(["reserve", "start", "finalize"]));
     expect(fixture.commands[0]?.input.body).toMatchObject({
@@ -1287,7 +1292,7 @@ describe("mounted song-first video flow", () => {
     });
   });
 
-  test("a take recorded to a different excerpt cannot publish with the song", async () => {
+  test("a recording bound to a different song part cannot publish with the song", async () => {
     const guide = guideSpy();
     nextSession = () => fakeSession(() => undefined);
     const fixture = songSetup({ preflight: "accepted", mobile: true, clipDurationMs: 16_000, createGuideAudio: () => guide.audio });
@@ -1299,9 +1304,9 @@ describe("mounted song-first video flow", () => {
     await vi.waitFor(() => expect(document.querySelector("textarea")).not.toBeNull());
     moveWindow(2_000);
     await awaitPlan("ready");
-    await vi.waitFor(() => expect(document.body.textContent).toContain("recorded to a different part of the song"));
-    await publish();
-    await vi.waitFor(() => expect(document.body.textContent).toContain("recorded to a different part of the song"));
+    await vi.waitFor(() => expect(document.body.textContent).toContain("The song changed"));
+    await publish(true);
+    await vi.waitFor(() => expect(document.body.textContent).toContain("The song changed"));
     expect(fixture.commands).toHaveLength(0);
     // Every video references a song: there is no way to publish without it.
     expect(button("Use original sound")).toBeUndefined();
@@ -1348,9 +1353,9 @@ describe("mounted song-first video flow", () => {
     await stopRecording();
     await vi.waitFor(() => expect(stopped).toBe(1));
     await vi.waitFor(() => expect(document.querySelector("textarea")).not.toBeNull());
-    await vi.waitFor(() => expect(document.body.textContent).toContain("couldn’t be lined up with the song"));
-    await publish();
-    await vi.waitFor(() => expect(document.body.textContent).toContain("couldn’t be lined up with the song"));
+    await vi.waitFor(() => expect(document.body.textContent).toContain("couldn’t play in time with the song"));
+    await publish(true);
+    await vi.waitFor(() => expect(document.body.textContent).toContain("couldn’t play in time with the song"));
     expect(fixture.commands).toHaveLength(0);
     // Every video references a song: there is no way to publish without it.
     expect(button("Use original sound")).toBeUndefined();
@@ -1407,9 +1412,9 @@ describe("mounted song-first video flow", () => {
     await stopRecording();
     guide.release();
     await vi.waitFor(() => expect(document.querySelector("textarea")).not.toBeNull());
-    await vi.waitFor(() => expect(document.body.textContent).toContain("couldn’t be lined up with the song"));
-    await publish();
-    await vi.waitFor(() => expect(document.body.textContent).toContain("couldn’t be lined up with the song"));
+    await vi.waitFor(() => expect(document.body.textContent).toContain("couldn’t play in time with the song"));
+    await publish(true);
+    await vi.waitFor(() => expect(document.body.textContent).toContain("couldn’t play in time with the song"));
     expect(fixture.commands).toHaveLength(0);
     // Every video references a song: there is no way to publish without it.
     expect(button("Use original sound")).toBeUndefined();

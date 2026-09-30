@@ -1,9 +1,9 @@
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 import { ApiClientError } from "@pirate/api-client";
-import { createSignal, onCleanup, onSettled, Show } from "solid-js";
-import { expect, userEvent, waitFor, within } from "storybook/test";
+import { createSignal, onCleanup, onSettled } from "solid-js";
+import { expect, fn, userEvent, waitFor, within } from "storybook/test";
 
-import { Button, FormNote, Type } from "../../../design-system";
+import { OriginalVideoReviewSurface } from "../post-composer/video-original-audio-surface";
 import { SongReviewPreview, type PreviewAudio } from "./song-review-preview";
 import { VideoComposerRuntime, type GuideAudio, type VideoPostingOption } from "./video-composer-runtime";
 import { VideoCaptureError, type OriginalVideoCaptureInput, type VideoCaptureSession } from "./capture";
@@ -167,6 +167,7 @@ function captureDouble(options: {
   readonly autoStopAfterMs?: number;
   /** The encoder or a camera source fails this long after recording starts. */
   readonly encoderFailsAfterMs?: number;
+  readonly orientationLost?: boolean;
 } = {}) {
   return async (input: OriginalVideoCaptureInput): Promise<VideoCaptureSession> => {
     if (options.fail !== undefined) {
@@ -180,7 +181,7 @@ function captureDouble(options: {
     }
     if (options.encoderFailsAfterMs !== undefined) {
       setTimeout(() => {
-        input.onFailure(new VideoCaptureError("encoder_failed", "Recording failed. Try again or upload a video."));
+        input.onFailure(new VideoCaptureError(options.orientationLost ? "orientation_lost" : "encoder_failed", "Recording stopped. Record again."));
       }, options.encoderFailsAfterMs);
     }
     return {
@@ -316,6 +317,7 @@ function Harness(props: {
    * names, so a generated video stream stands in. */
   readonly openPreview?: () => Promise<MediaStream>;
   readonly measureDuration?: (file: File) => Promise<number | null>;
+  readonly inspectFile?: (file: File) => Promise<File>;
   readonly storage?: VideoStorage;
   readonly transport?: VideoTransport;
   readonly fetchImpl?: typeof fetch;
@@ -331,6 +333,7 @@ function Harness(props: {
   /** The profiles that may author the video, and the community named on review. */
   readonly personaOptions?: readonly VideoPostingOption[];
   readonly communityName?: string;
+  readonly onPosted?: () => void;
 }) {
   let container: HTMLDivElement | undefined;
   onSettled(() => {
@@ -391,11 +394,11 @@ function Harness(props: {
         createGuideAudio={() => storyGuide({ blocked: props.guideBlocked })}
         fetchImpl={props.fetchImpl ?? storyFetch()}
         initialSong={props.noInitialSong ? undefined : { postId: "song-post" }}
-        inspectFile={async file => file}
+        inspectFile={props.inspectFile ?? (async file => file)}
         measureDuration={props.measureDuration}
         communityName={props.communityName}
         onExit={() => undefined}
-        onPosted={() => undefined}
+        onPosted={props.onPosted ?? (() => undefined)}
         onPublished={() => undefined}
         onRetainedPersona={() => undefined}
         personaId="persona"
@@ -456,13 +459,14 @@ function cancellableTransport(snapshot: VideoSnapshot): VideoTransport {
     async read(): Promise<VideoSnapshot> { return snapshot; },
     async execute(command: VideoCommand): Promise<VideoCommandResult> {
       if (command.kind !== "cancel") return snapshot;
-      return {
+      snapshot = {
         ...snapshotBase,
         status: "abandoned",
         creation_revision: snapshot.creation_revision,
         video_revision: snapshot.video_revision,
         reason_code: "author_cancelled_before_finalize",
       };
+      return snapshot;
     },
   };
 }
@@ -624,27 +628,9 @@ export const Backgrounded: Story = {
     Object.defineProperty(document, "visibilityState", { configurable: true, value: "hidden" });
     document.dispatchEvent(new Event("visibilitychange"));
     Object.defineProperty(document, "visibilityState", { configurable: true, value: "visible" });
-    await canvas.findByText("Recording stopped when you left this page.", {}, { timeout: 30_000 });
+    await canvas.findByText("Recording interrupted", {}, { timeout: 30_000 });
+    expect(canvas.queryByRole("button", { name: "Publish video" })).toBeNull();
     expect(canvas.queryByRole("checkbox")).toBeNull();
-  },
-};
-
-export const ShortUploadedClip: Story = {
-  name: "Uploaded clip shorter than the excerpt",
-  render: () => <Harness chooseFile={() => sampleVideoFile(8_000)} measureDuration={async () => 9_000} />,
-  play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement);
-    await canvas.findByText("Review video", {}, { timeout: 20_000 });
-    await canvas.findByRole("button", { name: "Publish video" });
-  },
-};
-
-export const ExplainedTrimming: Story = {
-  name: "Uploaded clip that will be trimmed",
-  render: () => <Harness chooseFile={() => sampleVideoFile(16_000)} measureDuration={async () => 16_000} />,
-  play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement);
-    await canvas.findByText(/will be trimmed to the excerpt/, {}, { timeout: 20_000 });
   },
 };
 
@@ -663,9 +649,8 @@ export const ReviewPlayback: Story = {
  * are the same ones the tests use. */
 function PreviewStage(props: { readonly mode: "stall" | "error" }) {
   const [videoUrl, setVideoUrl] = createSignal<string>();
-  let container: HTMLDivElement | undefined;
   onSettled(() => {
-    void sampleVideoFile(32_000).then(file => setVideoUrl(URL.createObjectURL(file)));
+    void sampleVideoFile(12_000).then(file => setVideoUrl(URL.createObjectURL(file)));
   });
   onCleanup(() => {
     const url = videoUrl();
@@ -690,25 +675,15 @@ function PreviewStage(props: { readonly mode: "stall" | "error" }) {
     },
   };
   return (
-    <div ref={element => { container = element; }} class="mx-auto grid max-w-md gap-3 p-4">
+    <div class="w-full">
+    <OriginalVideoReviewSurface caption="" onCaptionChange={() => undefined} onPublish={() => undefined} songLabel="Cadence" preview={<div>
       <SongReviewPreview
         audioUrl={toneWavUrl(SONG_MS)}
-        bounds={{ startMs: 31_000, endMs: 61_000 }}
+        bounds={{ startMs: 31_000, endMs: 43_000 }}
         createAudio={() => audio}
         videoUrl={videoUrl()}
       />
-      <Show when={props.mode === "stall"}>
-        <Button onClick={() => {
-          const video = container?.querySelector("video");
-          if (!video) return;
-          video.dispatchEvent(new Event("waiting", { bubbles: true }));
-          // Hold the video where it stalled, so the state stays on screen for
-          // inspection instead of clearing on the next buffered frame.
-          video.pause();
-        }} variant="secondary">
-          Stall the video
-        </Button>
-      </Show>
+    </div>} />
     </div>
   );
 }
@@ -716,11 +691,29 @@ function PreviewStage(props: { readonly mode: "stall" | "error" }) {
 export const ReviewStall: Story = {
   name: "Review preview stall",
   render: () => <PreviewStage mode="stall" />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await waitFor(() => expect(canvasElement.querySelector("video")?.getAttribute("src")).toBeTruthy());
+    await userEvent.click(await canvas.findByRole("button", { name: "Play with the song" }));
+    await canvas.findByRole("button", { name: "Pause preview" });
+    const video = canvasElement.querySelector("video")!;
+    await waitFor(() => expect(video.paused).toBe(false));
+    video.pause();
+    video.dispatchEvent(new Event("waiting"));
+    await canvas.findByText("The preview paused because the video stalled.");
+    expect(canvas.queryByText("Stall the video")).toBeNull();
+  },
 };
 
 export const ReviewError: Story = {
   name: "Review preview cannot start",
   render: () => <PreviewStage mode="error" />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await waitFor(() => expect(canvasElement.querySelector("video")?.getAttribute("src")).toBeTruthy());
+    await userEvent.click(await canvas.findByRole("button", { name: "Play with the song" }));
+    await canvas.findByText("This preview could not start. Check your sound settings and try again.");
+  },
 };
 
 export const UploadProgress: Story = {
@@ -742,20 +735,12 @@ export const UploadProgress: Story = {
   },
 };
 
+const goHome = fn();
 export const UploadFailure: Story = {
-  name: "Upload finished but not confirmed",
-  render: () => (
-    <Harness
-      autoPublish
-      chooseFile={() => sampleVideoFile(12_000)}
-      measureDuration={async () => 12_000}
-      transport={storyTransport({ finalize: "retryable_failure" })}
-    />
-  ),
-  play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement);
-    await canvas.findByText(/couldn't confirm it arrived yet/, {}, { timeout: 20_000 });
-  },
+  name: "Finished upload goes Home even if confirmation is delayed",
+  render: () => <Harness autoPublish chooseFile={() => sampleVideoFile(12_000)} measureDuration={async () => 12_000}
+    transport={storyTransport({ finalize: "retryable_failure" })} onPosted={goHome} />,
+  play: async () => { await waitFor(() => expect(goHome).toHaveBeenCalled(), { timeout: 20_000 }); },
 };
 
 /** A video the author already submitted for publication, kept because its
@@ -795,12 +780,12 @@ export const SubmittedUploadNeedsAnotherTry: Story = {
   },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await canvas.findByText("Your video hasn't finished uploading.", {}, { timeout: 20_000 });
+    await canvas.findByText("Your video couldn’t upload. Try again.", {}, { timeout: 20_000 });
     // What happened, in words the author can act on: not the browser's error.
-    await canvas.findByText("We couldn’t reach the upload server. Check your connection and try again.");
+
     expect(canvas.queryByText(/network down|Failed to fetch/)).toBeNull();
     await canvas.findByRole("button", { name: "Try again" });
-    await canvas.findByRole("button", { name: "Cancel upload" });
+    expect(canvas.queryByRole("button", { name: "Cancel upload" })).toBeNull();
     expect(canvas.queryByRole("button", { name: /Resume video submission|Pause upload|Check video status/ })).toBeNull();
   },
 };
@@ -814,15 +799,16 @@ export const SubmittedUploadExpired: Story = {
     return (
       <Harness
         storage={memoryStorage(retainedRecord(snapshot, { uploadExpiresAt: "2026-01-01T00:00:00Z" }))}
-        transport={retainedTransport(snapshot)}
+        transport={cancellableTransport(snapshot)}
       />
     );
   },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await canvas.findByText("This upload expired. Cancel it, then choose the video again.", {}, { timeout: 20_000 });
-    await canvas.findByRole("button", { name: "Cancel upload" });
-    expect(canvas.queryByRole("button", { name: "Try again" })).toBeNull();
+    await canvas.findByText("This upload expired.", {}, { timeout: 20_000 });
+    expect(canvas.queryByRole("button", { name: "Cancel upload" })).toBeNull();
+    await userEvent.click(await canvas.findByRole("button", { name: "Start over" }));
+    await canvas.findByRole("dialog", { name: "Song" });
     // The coordinator's own sentence for the same fact is not shown beside it.
     expect(canvas.queryByText(/reservation|resolve it before starting a new attempt/i)).toBeNull();
   },
@@ -830,32 +816,6 @@ export const SubmittedUploadExpired: Story = {
 
 /** Cancelling a submitted upload ends it: the video is cancelled and the only
  * way on is a new one. */
-export const SubmittedUploadCancelled: Story = {
-  name: "Submitted upload cancelled",
-  render: () => {
-    const snapshot: VideoSnapshot = { ...snapshotBase, status: "processing", phase: "awaiting_upload" };
-    return (
-      <Harness
-        fetchImpl={storyFetch({ fails: true })}
-        storage={memoryStorage(retainedRecord(snapshot))}
-        transport={cancellableTransport(snapshot)}
-      />
-    );
-  },
-  play: async ({ canvasElement }) => {
-    const canvas = within(canvasElement);
-    // The upload resumes by itself and fails; act only once that has settled,
-    // or the click lands on a control that is about to be replaced.
-    await canvas.findByText("We couldn’t reach the upload server. Check your connection and try again.", {}, { timeout: 20_000 });
-    await userEvent.click(canvas.getByRole("button", { name: "Cancel upload" }));
-    await canvas.findByText("This video was cancelled.", {}, { timeout: 20_000 });
-    await canvas.findByRole("button", { name: "Start a new video" });
-    expect(canvas.queryByRole("button", { name: /Try again|Cancel upload|Check video status/ })).toBeNull();
-  },
-};
-
-/** A submitted upload belongs to the community it was started in. Opened from
- * another one it waits, and says where to finish it. */
 export const SubmittedUploadInAnotherCommunity: Story = {
   name: "Submitted upload belongs to another community",
   render: () => {
@@ -869,9 +829,9 @@ export const SubmittedUploadInAnotherCommunity: Story = {
   },
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await canvas.findByText("Your video hasn't finished uploading.", {}, { timeout: 20_000 });
-    await userEvent.click(await canvas.findByRole("button", { name: "Try again" }));
-    await canvas.findByText("Your earlier video is still uploading for another community. Open that community to finish it.", {}, { timeout: 20_000 });
+    await canvas.findByText("Finish this upload in the community where you started it.", {}, { timeout: 20_000 });
+    expect(await canvas.findByRole("link", { name: "Open community" })).toHaveAttribute("href", "/c/another-community");
+    expect(canvas.queryByRole("button", { name: "Try again" })).toBeNull();
   },
 };
 
@@ -890,7 +850,7 @@ export const VideoNotAccepted: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await canvas.findByText("This video wasn’t accepted.", {}, { timeout: 30_000 });
-    await canvas.findByRole("button", { name: "Edit rejected video" });
+    await canvas.findByRole("button", { name: "Start over" });
     // The server's own message for the refusal is not shown beside the plain sentence.
     expect(canvas.queryByText("Request refused")).toBeNull();
   },
@@ -911,8 +871,8 @@ export const VideoNotAcceptedBySong: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     const alert = await canvas.findByRole("alert", {}, { timeout: 30_000 });
-    expect(alert).toHaveTextContent(/Choose another song\./);
-    await canvas.findByRole("button", { name: "Edit rejected video" });
+    expect(alert).toHaveTextContent("This song isn’t available for videos.");
+    await canvas.findByRole("button", { name: "Start over" });
     expect(canvas.queryByText("Request refused")).toBeNull();
   },
 };
@@ -937,7 +897,7 @@ export const ReviewPostingAs: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await canvas.findByText("Posting in Pirate Harbor", {}, { timeout: 30_000 });
-    await canvas.findByText("Posting as");
+    expect(canvas.getAllByText("Posting as").some(element => element.closest('[aria-hidden="true"]') === null)).toBe(true);
   },
 };
 
@@ -953,7 +913,7 @@ export const NoPostingProfile: Story = {
   ),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await canvas.findByText("Choose a posting profile for this community.", {}, { timeout: 30_000 });
+    await canvas.findByText("You don’t have a posting profile for this community.", {}, { timeout: 30_000 });
   },
 };
 
@@ -980,20 +940,6 @@ export const RecordingUnavailable: Story = {
   },
 };
 
-export const AuthoringNote: Story = {
-  name: "What these stories are not",
-  render: () => (
-    <div class="mx-auto max-w-md p-4">
-      <Type as="h2" variant="h4">Simulated authoring, not device evidence</Type>
-      <FormNote tone="muted">
-        Every state above is produced with generated media and injected providers. Real camera and
-        microphone permission, encoder behaviour, background audio and the alignment between what an
-        author hears and what the camera records are validated on a device, not in Storybook.
-      </FormNote>
-    </div>
-  ),
-};
-
 export const DesktopUpload: Story = {
   name: "Desktop: choose a video to upload",
   render: () => <Harness cameraCapture={false} autoContinue />,
@@ -1012,5 +958,49 @@ export const DesktopReview: Story = {
     await canvas.findByRole("button", { name: "Publish video" });
     expect(canvas.queryByRole("button", { name: "Start recording" })).toBeNull();
     expect(canvas.queryByRole("checkbox")).toBeNull();
+  },
+};
+
+export const CameraDenied: Story = {
+  name: "Camera permission denied",
+  render: () => <Harness autoStart startCapture={captureDouble({ fail: "camera_denied" })} />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await canvas.findByRole("heading", { name: "Camera unavailable" }, { timeout: 20_000 });
+    await canvas.findByRole("button", { name: "Choose a video instead" });
+  },
+};
+
+export const AgeRestrictedSong: Story = {
+  name: "Song unavailable for this account",
+  render: () => <Harness reader={async () => { throw new SongSourceError("age_restricted", "restricted", false); }} />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await canvas.findByText("This song isn’t available for videos.");
+    await userEvent.click(await canvas.findByRole("button", { name: "Change song" }));
+    await canvas.findByRole("searchbox", { name: "Search songs or paste a link" });
+    expect(canvas.queryByText(/Verify your age/)).toBeNull();
+  },
+};
+export const UploadedVideoTooLong: Story = {
+  name: "Uploaded video is longer than 15 seconds",
+  render: () => <Harness cameraCapture={false} chooseFile={() => sampleVideoFile(16_000)}
+    inspectFile={async () => { throw new VideoCaptureError("invalid_media", "That video is too long. Choose a shorter one."); }} />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await canvas.findByText("That video is too long. Choose a shorter one.", {}, { timeout: 20_000 });
+    await canvas.findByRole("button", { name: "Choose a video" });
+    expect(canvas.queryByRole("button", { name: "Publish video" })).toBeNull();
+  },
+};
+
+export const OrientationLost: Story = {
+  name: "Phone rotated while recording",
+  render: () => <Harness autoStart startCapture={captureDouble({ encoderFailsAfterMs: 600, orientationLost: true })} />,
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await canvas.findByRole("heading", { name: "Retake in one orientation" }, { timeout: 20_000 });
+    await canvas.findByRole("button", { name: "Retake video" });
+    expect(canvas.queryByRole("button", { name: "Publish video" })).toBeNull();
   },
 };

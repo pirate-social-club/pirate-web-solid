@@ -163,7 +163,7 @@ describe("telling the refusals apart", () => {
     const state = await refuse(new SongSourceError("playback_unavailable", "off", false));
     expect(state.kind).toBe("unavailable");
     if (state.kind === "unavailable") {
-      expect(state.reason).toContain("isn’t available yet");
+      expect(state.reason).toBe("This song isn’t available for videos.");
       expect(state.retryable).toBe(false);
     }
   });
@@ -171,7 +171,7 @@ describe("telling the refusals apart", () => {
   it("keeps age restriction separate, because it is about the viewer not the song", async () => {
     const state = await refuse(new SongSourceError("age_restricted", "locked", false));
     expect(state.kind).toBe("restricted");
-    if (state.kind === "restricted") expect(state.reason).toContain("age restricted");
+    if (state.kind === "restricted") expect(state.reason).toBe("This song isn’t available for videos.");
   });
 
   it("offers a retry for a rate limit and not for a final refusal", async () => {
