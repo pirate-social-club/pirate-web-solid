@@ -39,6 +39,7 @@ export interface OriginalVideoCaptureSurfaceProps {
   readonly elapsedLabel?: string;
   readonly durationLabel?: string;
   readonly onClose?: () => void;
+  readonly onBack?: () => void;
   readonly onRecordToggle?: () => void;
   readonly onUpload?: () => void;
   readonly onRetake?: () => void;
@@ -64,6 +65,7 @@ export function OriginalVideoCaptureSurface(props: OriginalVideoCaptureSurfacePr
     channel() === "camera" && (status() === "idle" || status() === "recording");
 
   return (
+    <Show when={channel() === "upload"} fallback={
     <section class="relative h-dvh overflow-hidden bg-black text-white">
       <div class="absolute inset-0 flex items-center justify-center">
         <div
@@ -72,15 +74,6 @@ export function OriginalVideoCaptureSurface(props: OriginalVideoCaptureSurfacePr
         >
           {props.preview}
           <Switch>
-            <Match when={channel() === "upload"}>
-              <CaptureMessage
-                action="Choose a video"
-                body="Choose a vertical video (MP4 or MOV) that is 3 to 15 seconds long."
-                icon={<IconUploadSimple class="size-7" />}
-                title="Upload a video"
-                onAction={props.onUpload}
-              />
-            </Match>
             <Match when={status() === "camera_denied"}>
               <CaptureMessage
                 action="Try again"
@@ -225,7 +218,30 @@ export function OriginalVideoCaptureSurface(props: OriginalVideoCaptureSurfacePr
         </div>
       </Show>
     </section>
+    }>
+      <OriginalVideoUploadSurface {...props} />
+    </Show>
   );
+}
+
+function OriginalVideoUploadSurface(props: OriginalVideoCaptureSurfaceProps) {
+  return <ActionFooterShell fullViewport class="bg-background text-foreground"
+    header={<MobilePageHeader class="relative z-10" title="Upload video"
+      backAriaLabel="Back to song" onBackClick={() => (props.onBack ?? props.onClose)?.()} />}
+    bodyClass="grid place-items-center px-4 py-8"
+    footer={<Button class="mx-auto flex w-full max-w-md" size="lg" onClick={() => props.onUpload?.()}>Choose a video</Button>}
+  >
+    <div class="mx-auto grid w-full max-w-md gap-6 text-center">
+      <IconUploadSimple aria-hidden="true" class="mx-auto size-12 text-muted-foreground" />
+      <Type as="p" variant="body" class="text-muted-foreground">MP4 or MOV, 3 to 15 seconds long.</Type>
+      <Show when={props.songLabel}>
+        <Button onClick={() => props.onSongTap?.()} type="button" variant="secondary">
+          <IconMusicNote aria-hidden="true" class="size-4" />{props.songLabel}
+        </Button>
+      </Show>
+      {props.notice}
+    </div>
+  </ActionFooterShell>;
 }
 
 function CaptureMessage(props: {
@@ -299,7 +315,7 @@ export function OriginalVideoReviewSurface(props: OriginalVideoReviewSurfaceProp
       class="bg-background text-foreground"
       footer={(
         <Button
-          class="w-full"
+          class="mx-auto flex w-full max-w-4xl"
           disabled={props.submitting}
           loading={props.submitting}
           onClick={() => props.onPublish?.()}

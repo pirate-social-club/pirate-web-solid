@@ -34,6 +34,17 @@ describe("original-audio video design surfaces", () => {
   const control = (label: string) =>
     [...document.querySelectorAll("button")].find(candidate => candidate.textContent?.trim() === label);
 
+  test("upload uses page navigation and file choice without recording controls", () => {
+    const onBack = vi.fn(); const onUpload = vi.fn();
+    render(() => <OriginalVideoCaptureSurface channel="upload" songLabel="A song" onBack={onBack} onUpload={onUpload} />);
+    expect(document.querySelector('button[aria-label="Start recording"]')).toBeNull();
+    expect(document.querySelector('[data-action-footer-shell]')).not.toBeNull();
+    document.querySelector<HTMLButtonElement>('button[aria-label="Back to song"]')!.click();
+    control("Choose a video")!.click();
+    expect(onBack).toHaveBeenCalledOnce();
+    expect(onUpload).toHaveBeenCalledOnce();
+  });
+
   test("fails unsupported recording before capture while preserving upload", () => {
     const onUpload = vi.fn();
     render(() => <OriginalVideoCaptureSurface onUpload={onUpload} status="capability_unavailable" />);

@@ -994,7 +994,7 @@ export function VideoComposerRuntime(props: {
         </Show>
         <OriginalVideoCaptureSurface channel={mobile ? "camera" : "upload"} status={captureStatus()}
           songLabel={songLabel()} onSongTap={openSongSheet}
-          onClose={props.onExit} onUpload={() => picker?.click()} onRecordToggle={() => { void toggleCapture(); }}
+          onClose={props.onExit} onBack={openSongSheet} onUpload={() => picker?.click()} onRecordToggle={() => { void toggleCapture(); }}
           onRetake={() => { setError(""); setCaptureStatus("idle"); }}
           notice={captureNotice()}
           preview={<>

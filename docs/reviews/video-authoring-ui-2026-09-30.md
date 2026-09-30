@@ -69,3 +69,10 @@ and viewport detection; no new desktop recording branch was added.
 
 The archived source-stamp Storybook on 6006 was stopped at the owner's request.
 The updated local UI review continues on 6008. No staging change occurred.
+
+Desktop inspection also found the harness constrained the production review to
+phone width while desktop media queries selected two columns. The caption became
+a narrow strip. The harness now matches the full-width production overlay.
+Upload mode uses shared page navigation and the pinned file-picker action rather
+than camera chrome. It returns to song choice with Back. Review remains shared
+and its action follows the content's maximum width.

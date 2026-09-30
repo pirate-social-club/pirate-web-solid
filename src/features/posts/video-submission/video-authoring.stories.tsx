@@ -383,7 +383,7 @@ function Harness(props: {
     return () => clearInterval(timer);
   });
   return (
-    <div ref={element => { container = element; }} class="mx-auto max-w-md">
+    <div ref={element => { container = element; }} class="w-full">
       <VideoComposerRuntime
         cameraCapture={props.cameraCapture ?? true}
         communityId="community"
