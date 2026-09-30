@@ -42,15 +42,9 @@ window.matchMedia = (query: string): MediaQueryList => ({
 
 const SONG_MS = 214_000;
 
-/** An empty live stream stands in for the camera preview: Storybook has no
- * guarantee of camera permission, and the settled story must be the state it
- * names rather than the not-supported fallback. */
+/** A generated video stream provides a playable preview without camera permission. */
 function storyPreview(): () => Promise<MediaStream> {
-  return async () => {
-    if (typeof MediaStream !== "undefined") return new MediaStream();
-    // SAFETY: The no-camera fixture needs only getTracks; it never enters an encoder.
-    return Object.assign(Object.create(null) as MediaStream, { getTracks: () => [] });
-  };
+  return async () => canvasStream();
 }
 
 function toneReader(title = "Cadence (sample tone)"): SongSourceReader {
@@ -164,8 +158,10 @@ function canvasStream(): MediaStream {
   canvas.width = 240;
   canvas.height = 426;
   const context = canvas.getContext("2d")!;
+  const stream = canvas.captureStream(12);
   let frame = 0;
   const draw = () => {
+    if (!stream.getVideoTracks().some(track => track.readyState === "live")) return;
     context.fillStyle = "#123047";
     context.fillRect(0, 0, canvas.width, canvas.height);
     context.fillStyle = "#7dd3fc";
@@ -177,7 +173,7 @@ function canvasStream(): MediaStream {
     requestAnimationFrame(draw);
   };
   draw();
-  return canvas.captureStream(12);
+  return stream;
 }
 
 function captureDouble(options: {
@@ -192,7 +188,7 @@ function captureDouble(options: {
         ? "Camera or microphone access is off."
         : "This browser can’t record video. Upload a video instead.");
     }
-    const stream = canvasStream();
+    const stream = input.stream ?? canvasStream();
     if (options.autoStopAfterMs !== undefined) {
       setTimeout(() => { void input.onLimit(); }, options.autoStopAfterMs);
     }
@@ -330,7 +326,7 @@ function Harness(props: {
   readonly startCapture?: (input: OriginalVideoCaptureInput) => Promise<VideoCaptureSession>;
   /** The live camera preview; a real getUserMedia in Storybook would fail
    * and settle the story on the not-supported state instead of the one it
-   * names, so an empty stream stands in. */
+   * names, so a generated video stream stands in. */
   readonly openPreview?: () => Promise<MediaStream>;
   readonly measureDuration?: (file: File) => Promise<number | null>;
   readonly storage?: VideoStorage;
@@ -506,11 +502,9 @@ export const SongLoading: Story = {
   render: () => <Harness reader={async () => new Promise(() => {})} />,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    // The song is already chosen while it loads, so the sheet says so.
-    await canvas.findByRole("dialog", { name: "Choose the starting point" });
-    await canvas.findByText("Loading that song…");
-    expect(canvas.getByRole("button", { name: "Continue to video" })).toBeDisabled();
-    expect(canvas.queryByText("Choose a song to continue.")).toBeNull();
+    await canvas.findByRole("dialog", { name: "Choose a song" });
+    await canvas.findByRole("status", { name: "Loading song" });
+    expect(canvas.queryByRole("button", { name: "Continue to video" })).toBeNull();
   },
 };
 
@@ -521,8 +515,7 @@ export const SongUnavailable: Story = {
     const canvas = within(canvasElement);
     await canvas.findByRole("dialog", { name: "Choose a song" });
     await canvas.findByText("That song isn’t available to play.");
-    expect(canvas.getByRole("button", { name: "Continue to video" })).toBeDisabled();
-    expect(canvas.queryByText("Choose a song to continue.")).toBeNull();
+    expect(canvas.queryByRole("button", { name: "Continue to video" })).toBeNull();
   },
 };
 
@@ -540,10 +533,9 @@ export const NoSongChosen: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await canvas.findByRole("dialog", { name: "Choose a song" });
-    await canvas.findByText("Choose a song to continue.");
-    const control = canvas.getByRole("button", { name: "Continue to video" });
-    expect(control).toBeDisabled();
-    expect(control).toHaveAccessibleDescription("Choose a song to continue.");
+    await canvas.findByRole("searchbox", { name: "Search songs or paste a link" });
+    expect(canvas.queryByText("Choose a song to continue.")).toBeNull();
+    expect(canvas.queryByRole("button", { name: "Continue to video" })).toBeNull();
   },
 };
 
@@ -553,7 +545,7 @@ export const SongForbidden: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await canvas.findByText(/owner doesn’t allow videos/);
-    expect(canvas.getByRole("button", { name: "Continue to video" })).toBeDisabled();
+    expect(canvas.queryByRole("button", { name: "Continue to video" })).toBeNull();
   },
 };
 
@@ -579,7 +571,7 @@ export const PreflightRefused: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await canvas.findByRole("alert");
-    expect(canvas.getByRole("button", { name: "Continue to video" })).toBeDisabled();
+    expect(canvas.queryByRole("button", { name: "Continue to video" })).toBeNull();
   },
 };
 
@@ -605,7 +597,7 @@ export const GuideBlocked: Story = {
   render: () => <Harness autoStart guideBlocked startCapture={captureDouble({ autoStopAfterMs: 60_000 })} />,
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await canvas.findByText(/The guide song would not play, so this recording did not start/, {}, { timeout: 20_000 });
+    await canvas.findByText(/The song couldn’t start/, {}, { timeout: 20_000 });
     expect(canvas.queryByText(/Recording to Cadence/)).toBeNull();
   },
 };
@@ -645,7 +637,8 @@ export const Backgrounded: Story = {
     const canvas = within(canvasElement);
     await canvas.findByText(/Recording to Cadence/, {}, { timeout: 20_000 });
     await userEvent.click(canvas.getByRole("button", { name: "Simulate backgrounding" }));
-    await canvas.findByText("The page was hidden, so the guide song stopped and this recording ended.", {}, { timeout: 30_000 });
+    await canvas.findByText("Recording stopped when you left this page.", {}, { timeout: 30_000 });
+    expect(canvas.queryByRole("checkbox")).toBeNull();
   },
 };
 

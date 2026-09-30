@@ -1,7 +1,7 @@
 import { ApiClientError } from "@pirate/api-client";
 import { createEffect, createSignal, onCleanup, onSettled, Show } from "solid-js";
 
-import { Button, IconMusicNote, Type } from "../../../design-system";
+import { Button, IconMusicNote, Spinner, Type } from "../../../design-system";
 import { PostComposerExcerptSelector } from "./preview-segment-selector";
 import {
   canHoldExcerpt,
@@ -549,7 +549,7 @@ export function SongExcerptComposer(props: {
       </Show>
 
       <Show when={source().kind === "loading"}>
-        <Type as="p" variant="caption">Loading that song…</Type>
+        <div class="grid min-h-48 place-items-center"><Spinner label="Loading song" /></div>
       </Show>
       <Show when={problemOf(source())}>
         {(reason) => (
@@ -606,7 +606,7 @@ export function SongExcerptComposer(props: {
                   choose from, and Continue stays disabled: say so, unless the
                   plan line below already does. */}
               <Show when={!audioProblem() && lengthMs() === 0 && plan().kind !== "measuring"}>
-                <Type as="p" variant="caption" role="status">Getting this song ready…</Type>
+                <Spinner label="Preparing song" />
               </Show>
               <Show when={!audioProblem() && lengthMs() > 0 && !canHoldExcerpt(lengthMs())}>
                 <Type as="p" variant="caption">That song is too short to hold a three second excerpt.</Type>
@@ -629,9 +629,10 @@ export function SongExcerptComposer(props: {
               data-song-plan={preflight ? plan().kind : "unchecked"}
             >
               <Show when={showPlanMessage()}>
-                <Type as="p" variant="caption" role={plan().kind === "measuring" || plan().kind === "checking" ? "status" : "alert"}>
-                  {preflight ? planText() : "This song can’t be checked here, so the video can’t be posted yet."}
-                </Type>
+                <Show when={plan().kind === "measuring" || plan().kind === "checking"}
+                  fallback={<Type as="p" variant="caption" role="alert">{preflight ? planText() : "This song can’t be checked here, so the video can’t be posted yet."}</Type>}>
+                  <Spinner label="Checking song" />
+                </Show>
                 <Show when={plan().kind === "failed" && currentPostId()}>
                   <Button onClick={() => { const id = currentPostId(); if (id) void checkPlan(id, bounds()); }} size="sm" type="button" variant="secondary">
                     Try again

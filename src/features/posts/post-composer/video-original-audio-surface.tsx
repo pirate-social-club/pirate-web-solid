@@ -5,7 +5,6 @@ import {
   ActionFooterShell,
   Button,
   FormNote,
-  IconArrowLeft,
   IconArrowsClockwise,
   IconButton,
   IconCheckCircle,
@@ -14,6 +13,7 @@ import {
   IconPlay,
   IconUploadSimple,
   IconWarningCircle,
+  MobilePageHeader,
   IconX,
   Spinner,
   StatusCard,
@@ -310,13 +310,8 @@ export function OriginalVideoReviewSurface(props: OriginalVideoReviewSurfaceProp
       )}
       fullViewport
       header={(
-        <header class="flex items-center gap-3 border-b border-border-soft px-4 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))]">
-          <IconButton aria-label="Back to capture" onClick={() => props.onBack?.()} variant="ghost">
-            <IconArrowLeft class="size-5" />
-          </IconButton>
-          <Type as="h1" variant="body-strong" class="flex-1 text-center">Review video</Type>
-          <span aria-hidden="true" class="size-10" />
-        </header>
+        <MobilePageHeader class="relative z-10" title="Review video"
+          backAriaLabel="Back to capture" onBackClick={() => props.onBack?.()} />
       )}
     >
       <div class="mx-auto grid w-full max-w-4xl gap-5 p-4 md:grid-cols-[minmax(15rem,22rem)_1fr] md:p-6">

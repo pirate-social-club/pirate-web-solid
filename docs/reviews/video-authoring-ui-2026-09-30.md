@@ -1,0 +1,48 @@
+# Video authoring UI review
+
+The workspace_owner reviewed the local source-stamp catalog at 958b281 on
+2026-09-30 and requested an audit of song choice, loading, unavailable songs,
+blocked playback, backgrounding and the adult checkbox. Browser inspection at
+390 by 844 confirmed the complaints in the production components used by those
+stories. The unavailable screen was also inspected at desktop width.
+
+The song screen built bespoke chrome despite the existing MobilePageHeader,
+Spinner and ActionFooterShell. Back appeared at the right. A disabled Continue
+remained beside loading and failure messages. No selection repeated the header
+instruction in a second hint. The action row followed content rather than
+occupying a consistent footer. The local correction reuses the existing shared
+structures, removes the redundant hint, shows accessible spinners, and offers
+Continue only when an excerpt can be confirmed.
+
+The refused guide warning was outside a capture surface that already filled
+the viewport. At phone width the additional prose pushed recording controls
+below the viewport. The correction puts capture notices inside that surface and
+review notices within the scrolling review body. Refused playback no longer
+attributes failure to sound settings without evidence.
+
+The camera recovery prompt also appeared spuriously in unrelated stories. The
+story preview was an empty MediaStream, which the real video element could not
+play. The corrected harness supplies a generated canvas video stream, reuses it
+when capture takes ownership, and stops drawing once its tracks end. The actual
+production recovery remains available and is labelled Resume camera preview.
+This fixture is not evidence of real phone camera or audio acceptance.
+
+The adult checkbox belonged to production review, not fixture controls. It is
+removed at the workspace_owner's request. Existing restored ratings and the API
+contract remain intact; new drafts still use the existing general default.
+This change does not establish how server classification is implemented.
+
+The song picker still makes selection depend on first activating preview to
+reveal Use. That remains a discovery problem. Selection and preview should be
+separate visible actions in a subsequent correction. Submitted upload, provider
+failure and rejection layouts also need visual review; this audit does not claim
+that every authoring state is visually accepted.
+
+Story interaction checks previously asserted the rejected prose and redundant
+hint. Those checks proved reachable states and retained the design. The local
+correction updates them to check accessible loading, useful actions and absence
+of the adult checkbox. Source identity and story coverage do not measure design
+quality. Continue reviewing actual rendered states at phone width.
+
+This is local UI work. It does not alter recording interruption detection,
+renderer contracts, publication holds, staging, or the Pixel acceptance result.

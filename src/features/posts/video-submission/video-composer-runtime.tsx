@@ -1,5 +1,5 @@
 import { createEffect, createMemo, createSignal, onCleanup, Show, untrack } from "solid-js";
-import { Button, cn, FormNote, Type } from "../../../design-system";
+import { ActionFooterShell, Button, cn, FormNote, MobilePageHeader, Spinner, Type } from "../../../design-system";
 import { OperationPersonaControl } from "../../identity/operation-persona-control/operation-persona-control";
 import { type ExcerptBounds, formatExcerptTime } from "../post-composer/song-excerpt";
 import { SongExcerptComposer, type SoundtrackSelection } from "../post-composer/song-excerpt-composer";
@@ -285,11 +285,9 @@ export function VideoComposerRuntime(props: {
   const songActive = () => songChoice().kind !== "none";
   /** Every video uses a song, so the camera waits until one is chosen. */
   const songChosen = () => songActive() && selection() !== null;
-  /** A song that is loading or loaded is already chosen, so the sheet is about
-   * where it starts. With none chosen, or one that failed to load, it is still
-   * about choosing one. */
+  /** Excerpt controls appear only after the song loads. */
   const songSheetTitle = () =>
-    songSource() === "loading" || songSource() === "ready" ? "Choose the starting point" : "Choose a song";
+    songSource() === "ready" ? "Choose the starting point" : "Choose a song";
   /** Whether the sound sheet holds something the author must act on or wait
    * on. The server's interval preflight checks the song owner's policy before
    * capture, and reservation checks it again before issuing upload authority. */
@@ -696,7 +694,7 @@ export function VideoComposerRuntime(props: {
         if (!started) {
           session = null; setStream(null); setCaptureStatus("idle");
           await current.cancel().catch(() => {});
-          throw new Error("The guide song would not play, so this recording did not start. Check your sound settings and try again.");
+          throw new Error("The song couldn’t start. Try recording again.");
         }
         guideStarted = true;
         if (startDelayMs > GUIDE_START_MAX_DELAY_MS) {
@@ -722,7 +720,7 @@ export function VideoComposerRuntime(props: {
   const onVisibilityChange = () => {
     setPageVisible(document.visibilityState !== "hidden");
     if (document.visibilityState !== "hidden" || !session || !guideAudio) return;
-    void stopCapture("The page was hidden, so the guide song stopped and this recording ended.");
+    void stopCapture("Recording stopped when you left this page.");
   };
   if (typeof document !== "undefined") document.addEventListener("visibilitychange", onVisibilityChange);
 
@@ -936,7 +934,8 @@ export function VideoComposerRuntime(props: {
    * nothing here and surface only on the sound sheet's confirm action. */
   const captureNotice = () => {
     if (file()) return undefined;
-    if (finalizing()) return <p class="rounded-[var(--radius-lg)] bg-black/60 px-3 py-2 text-center text-sm text-white" role="status">Finishing your video…</p>;
+    if (finalizing()) return <div class="flex justify-center"><Spinner label="Finishing video" /></div>;
+    if (!panelShown() && error()) return <FormNote tone="warning">{error()}</FormNote>;
     if (props.personaOptions !== undefined && personasForDestination().length === 0) {
       return <p class="rounded-[var(--radius-lg)] bg-black/60 px-3 py-2 text-center text-sm text-white" role="status">Choose a posting profile for this community.</p>;
     }
@@ -945,7 +944,7 @@ export function VideoComposerRuntime(props: {
   };
   return <section class="grid gap-3" aria-label="Video composer">
     <input ref={element => { picker = element; }} hidden type="file" accept="video/mp4,video/quicktime,.mp4,.mov" onChange={event => { void chooseFile(event.currentTarget.files?.[0]); event.currentTarget.value = ""; }} />
-    <Show when={panelShown() ? "" : error()}>{message => <FormNote tone="warning">{message()}</FormNote>}</Show>
+    <Show when={!editing() && !panelShown() ? error() : ""}>{message => <FormNote tone="warning">{message()}</FormNote>}</Show>
     <Show when={busy() && progress()}><p role="status">{progress()}</p></Show>
     <Show when={editing()}>
       {/* After song and excerpt choice, capture carries a way to change the
@@ -969,7 +968,7 @@ export function VideoComposerRuntime(props: {
               <button type="button" data-video-viewfinder-resume
                 class="absolute inset-x-0 top-1/2 z-10 mx-auto w-fit -translate-y-1/2 rounded-[var(--radius-lg)] bg-black/70 px-4 py-2 text-sm text-white"
                 onClick={() => { if (viewfinder) playLive(viewfinder); }}>
-                Tap to show the camera
+                Resume camera preview
               </button>
             </Show>
           </>} />
@@ -983,17 +982,26 @@ export function VideoComposerRuntime(props: {
         aria-modal="true"
         inert={!songSheetOpen()}
         class={cn(
-          "fixed inset-0 z-50 overflow-y-auto bg-background px-4 pb-[max(1.25rem,env(safe-area-inset-bottom))] pt-[max(1rem,env(safe-area-inset-top))]",
+          "fixed inset-0 z-50 overflow-hidden bg-background",
           songSheetOpen() ? "" : "pointer-events-none invisible",
         )}
         data-song-choice-screen
         role="dialog"
       >
-        <div class="mx-auto grid min-w-0 w-full max-w-md grid-cols-1 gap-5">
-          <div class="flex min-w-0 items-center justify-between gap-3">
-            <Type as="h1" class="min-w-0 flex-1" variant="h3">{songSheetTitle()}</Type>
-            <Button class="shrink-0" onClick={() => { if (enteredCapture() || file()) setSongSheetOpen(false); else props.onExit(); }} type="button" variant="ghost">Back</Button>
-          </div>
+        <ActionFooterShell
+          fullViewport
+          header={<MobilePageHeader class="relative z-10" title={songSheetTitle()}
+            onBackClick={() => { if (enteredCapture() || file()) setSongSheetOpen(false); else props.onExit(); }} />}
+          footerClass={selection() && ["ready", "checking", "measuring"].includes(songPlan().kind) ? undefined : "hidden"}
+          footer={<Show when={selection() && ["ready", "checking", "measuring"].includes(songPlan().kind)}>
+            <div class="mx-auto w-full max-w-md">
+              <Button class="w-full" disabled={confirmingSound()}
+                loading={confirmingSound()} onClick={confirmSound} type="button">Continue to video</Button>
+            </div>
+          </Show>}
+        >
+        <div class="mx-auto grid min-w-0 w-full max-w-md grid-cols-1 gap-5 p-4">
+          <h1 class="sr-only">{songSheetTitle()}</h1>
           <fieldset class="contents" disabled={captureStatus() === "recording" || finalizing()}>
           <section aria-label="Soundtrack" class="min-w-0">
             <SongExcerptComposer store={excerptStore} read={props.songReader} communityId={chosenCommunityId() || undefined}
@@ -1017,30 +1025,8 @@ export function VideoComposerRuntime(props: {
               }} />
           </section>
           </fieldset>
-          <div class="flex items-center justify-end gap-3">
-            {/* Confirming asks the server about the excerpt on screen: the
-                progress lives on this button, and the sheet closes by itself
-                once the exact excerpt is accepted. A refusal stays on the
-                sheet with its actions instead. A disabled Continue says why
-                when nothing else on the sheet does: a chosen song that is
-                loading, refused or unavailable already shows its own message
-                above, so only the state with no song needs a line here. */}
-            <Show when={!songActive()}>
-              <Type as="p" class="min-w-0 flex-1 text-muted-foreground" id="song-continue-hint" variant="caption">
-                Choose a song to continue.
-              </Type>
-            </Show>
-            <Button
-              aria-describedby={songActive() ? undefined : "song-continue-hint"}
-              disabled={confirmingSound() || !selection() || !["ready", "checking", "measuring"].includes(songPlan().kind)}
-              loading={confirmingSound()}
-              onClick={confirmSound}
-              type="button"
-            >
-              {confirmingSound() ? "Checking this song…" : "Continue to video"}
-            </Button>
-          </div>
         </div>
+        </ActionFooterShell>
       </div>
     </Show>
     <Show when={editing() && file()}>
@@ -1068,7 +1054,7 @@ export function VideoComposerRuntime(props: {
         <Show when={props.personaOptions !== undefined && personasForDestination().length === 0}>
           <FormNote tone="warning">Choose a posting profile for this community.</FormNote>
         </Show>
-        <label><input type="checkbox" checked={rating() === "adult_18"} disabled={busy()} onChange={event => setRating(event.currentTarget.checked ? "adult_18" : "general")} /> This video is for adults (18+)</label>
+        <Show when={error()}>{message => <FormNote tone="warning">{message()}</FormNote>}</Show>
         <Show when={clipProblem()}>
           {(problem) => <FormNote tone="warning">{problem()}</FormNote>}
         </Show>
@@ -1076,7 +1062,7 @@ export function VideoComposerRuntime(props: {
           {(note) => <FormNote tone="muted">{note()}</FormNote>}
         </Show>
         <Show when={measuring()}>
-          <p role="status">Measuring the clip against the excerpt…</p>
+          <Spinner label="Checking video length" />
         </Show>
         <Show when={takeMismatch()}>
           <FormNote tone="warning">This take was recorded to a different part of the song. Record again with the current excerpt.</FormNote>
@@ -1085,7 +1071,7 @@ export function VideoComposerRuntime(props: {
           <FormNote tone="warning">This take couldn’t be lined up with the song. Record it again.</FormNote>
         </Show>
         <Show when={finalizing()}>
-          <p role="status">Aligning the take with the song…</p>
+          <Spinner label="Preparing video" />
         </Show>
         </div>} />
     </Show>

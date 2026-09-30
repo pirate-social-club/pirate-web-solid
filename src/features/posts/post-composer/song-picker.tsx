@@ -9,7 +9,7 @@
 import { createEffect, createMemo, createSignal, For, onCleanup, Show } from "solid-js";
 
 import { createSessionApiClient } from "../../../api/client";
-import { Button, IconButton, IconLink, IconMagnifyingGlass, IconPause, IconPlay, IconX, Input, Type } from "../../../design-system";
+import { Button, IconButton, IconLink, IconMagnifyingGlass, IconPause, IconPlay, IconX, Input, Spinner, Type } from "../../../design-system";
 import { loadCommunityThreadPage } from "../../communities/community-page/community-thread-feed-api";
 import { looksLikeSongLink } from "./song-excerpt-link";
 
@@ -255,7 +255,7 @@ export function SongPicker(props: {
       </Show>
 
       <Show when={state() === "loading" && !isLink()}>
-        <Type as="p" variant="caption" class="px-2 text-muted-foreground" role="status">Loading songs…</Type>
+        <div class="grid min-h-48 place-items-center"><Spinner label="Loading songs" /></div>
       </Show>
       <Show when={state() === "choose_profile" && !isLink()}>
         <Type as="p" variant="caption" class="px-2 text-muted-foreground" role="status">
