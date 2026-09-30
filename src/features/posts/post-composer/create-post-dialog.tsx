@@ -30,7 +30,6 @@ import { VideoComposerRuntime } from "../video-submission/video-composer-runtime
 import type { OriginalVideoCaptureInput, VideoCaptureSession } from "../video-submission/capture";
 import type { SongIntervalPreflight } from "../video-submission/song-reference";
 import type { SongSourceReader } from "./song-excerpt-source";
-import { OperationPersonaControl } from "../../identity/operation-persona-control/operation-persona-control";
 import { PostComposerSubmission } from "./post-composer-submission";
 import { initialPostComposerState, type PostComposerState } from "./post-composer-state";
 import type { TextContentSubmissionRequestEnvelopeV1 } from "./text-submission-contract";
@@ -203,7 +202,7 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
     { ownedWrite: true },
   );
   const [textPersonaId, setTextPersonaId] = createSignal<string | undefined>(initialPersonaId, { ownedWrite: true });
-  const [videoPersonaId, setVideoPersonaId] = createSignal<string | undefined>(initialPersonaId, { ownedWrite: true });
+  const [videoPersonaId, setVideoPersonaId] = createSignal<string | undefined>(untrack(() => props.personaId?.trim() || undefined), { ownedWrite: true });
   const selectedPersonaId = () => mode() === "video" ? videoPersonaId() : mode() === "song" ? songPersonaId() : textPersonaId();
   const recipientProfiles = () => personas().map(persona => ({
     personaId: persona.personaId,

@@ -109,7 +109,7 @@ async function selectAndPublish() {
   const input = document.querySelector<HTMLInputElement>('input[type="file"]')!;
   Object.defineProperty(input, "files", { configurable: true, value: [new File(["video"], "take.mp4", { type: "video/mp4" })] });
   input.dispatchEvent(new Event("change", { bubbles: true }));
-  await vi.waitFor(() => expect(document.querySelector("textarea")).not.toBeNull());
+  await vi.waitFor(() => expect(document.querySelector("[data-video-review-frame]")).not.toBeNull());
   const publish = [...document.querySelectorAll("button")].find(button => button.textContent?.trim() === "Publish video")!;
   await vi.waitFor(() => expect(publish.disabled).toBe(false)); publish.click();
 }
@@ -124,7 +124,7 @@ describe("mounted video flow", () => {
     const edit = [...document.querySelectorAll("button")].find(button => button.textContent?.includes("Start over"))!;
     await vi.waitFor(() => expect(edit.disabled).toBe(false)); edit.click();
     await vi.waitFor(() => expect(document.querySelector("[data-song-choice-screen]")?.getAttribute("aria-hidden")).toBeNull());
-    expect(document.querySelector("textarea")).toBeNull();
+    expect(document.querySelector("[data-video-review-frame]")).toBeNull();
     expect(fixture.commands).toHaveLength(commandCount);
     expect(fixture.published).not.toHaveBeenCalled();
   });
@@ -275,7 +275,7 @@ describe("a submitted upload when the composer is reopened", () => {
     controlLabeled("Start over")!.click();
     await vi.waitFor(() => expect(fixture.retained()).toBeNull());
     expect(fixture.execute.mock.calls.map(([command]) => command.kind)).toEqual(["cancel"]);
-    expect(document.querySelector("textarea")).toBeNull();
+    expect(document.querySelector("[data-video-review-frame]")).toBeNull();
     expect(document.querySelector("[data-song-choice-screen]")?.getAttribute("aria-hidden")).toBeNull();
     expect(fixture.fetchImpl).not.toHaveBeenCalled();
   });
@@ -326,7 +326,7 @@ describe("mounted song-first video flow", () => {
 
   function songSetup(options: {
     readonly preflight: "unavailable" | "accepted" | "refused" | "pending";
-    /** The review-time profile choices, when the host offers them. */
+    /** The host’s eligible community profiles; the active profile is inherited. */
     readonly personaOptions?: readonly { readonly id: string; readonly label: string; readonly communityId?: string }[];
     readonly reserve?: "echo" | "different_excerpt";
     readonly finalSnapshot?: "published" | "song_blocked";
@@ -487,7 +487,7 @@ describe("mounted song-first video flow", () => {
     const input = document.querySelector<HTMLInputElement>('input[type="file"]')!;
     Object.defineProperty(input, "files", { configurable: true, value: [new File(["video"], "take.mp4", { type: "video/mp4" })] });
     input.dispatchEvent(new Event("change", { bubbles: true }));
-    await vi.waitFor(() => expect(document.querySelector("textarea")).not.toBeNull());
+    await vi.waitFor(() => expect(document.querySelector("[data-video-review-frame]")).not.toBeNull());
   }
   /** Stages a file through the hidden input without waiting for the review
    * screen, for asserting the capture gate refuses it. */
@@ -528,7 +528,7 @@ describe("mounted song-first video flow", () => {
     // The song loads from the entry without a paste step or a chosen file.
     await loadSongMetadata();
     await awaitPlan("ready");
-    expect(document.querySelector("textarea")).toBeNull();
+    expect(document.querySelector("[data-video-review-frame]")).toBeNull();
     expect(document.querySelector('input[aria-label="Song link or post id"]')).toBeNull();
     expect(document.body.textContent).toContain("A song");
     expect(document.querySelector("audio")?.getAttribute("src")).toBe("https://audio.example/song.mp3");
@@ -597,13 +597,13 @@ describe("mounted song-first video flow", () => {
     await loadSongMetadata();
     await awaitPlan("ready");
     await chooseFile();
-    await vi.waitFor(() => expect(button("Play with the song")).toBeDefined());
+    await vi.waitFor(() => expect(document.querySelector('button[aria-label="Play video preview"]')).toBeDefined());
     const video = document.querySelector("video")!;
     // jsdom does not reflect the media `muted` IDL property; the attribute is
     // what the browser applies on mount.
     expect(video.hasAttribute("muted")).toBe(true);
     expect(document.querySelector('button')?.textContent).toBeDefined();
-    expect(button("Play with the song")).toBeDefined();
+    expect(document.querySelector('button[aria-label="Play video preview"]')).toBeDefined();
     // Review names the song and nothing else: no source, poster or rights
     // summary competes with the caption and Publish.
     expect(document.body.textContent).toContain("A song");
@@ -644,7 +644,7 @@ describe("mounted song-first video flow", () => {
     // file is refused rather than surfacing the refusal at publish.
     attemptFile();
     await new Promise(resolve => setTimeout(resolve, 20));
-    expect(document.querySelector("textarea")).toBeNull();
+    expect(document.querySelector("[data-video-review-frame]")).toBeNull();
     expect(fixture.commands).toHaveLength(0);
     // Every video references a song: there is no way to publish without it.
     expect(button("Use original sound")).toBeUndefined();
@@ -657,7 +657,7 @@ describe("mounted song-first video flow", () => {
     expect(document.body.textContent).toContain("This song isn’t available for videos");
     attemptFile();
     await new Promise(resolve => setTimeout(resolve, 20));
-    expect(document.querySelector("textarea")).toBeNull();
+    expect(document.querySelector("[data-video-review-frame]")).toBeNull();
     expect(fixture.commands).toHaveLength(0);
   });
 
@@ -861,7 +861,7 @@ describe("mounted song-first video flow", () => {
       await vi.waitFor(() => expect(document.body.textContent).toContain("Recording interrupted"));
       await vi.waitFor(() => expect(cancelled).toBe(1));
       expect(stopped).toBe(0);
-      expect(document.querySelector("textarea")).toBeNull();
+      expect(document.querySelector("[data-video-review-frame]")).toBeNull();
     } finally {
       Object.defineProperty(document, "visibilityState", { configurable: true, value: "visible" });
     }
@@ -882,7 +882,7 @@ describe("mounted song-first video flow", () => {
     try {
       document.dispatchEvent(new Event("visibilitychange")); release();
       await vi.waitFor(() => expect(cancelled).toBe(1));
-      expect(document.querySelector("textarea")).toBeNull();
+      expect(document.querySelector("[data-video-review-frame]")).toBeNull();
     } finally { Object.defineProperty(document, "visibilityState", { configurable: true, value: "visible" }); }
   });
 
@@ -893,7 +893,7 @@ describe("mounted song-first video flow", () => {
     // accepted, so neither capture channel opens and nothing is staged.
     attemptFile();
     await new Promise(resolve => setTimeout(resolve, 20));
-    expect(document.querySelector("textarea")).toBeNull();
+    expect(document.querySelector("[data-video-review-frame]")).toBeNull();
     expect(fixture.commands).toHaveLength(0);
     // Every video references a song: there is no way to publish without it.
     expect(button("Use original sound")).toBeUndefined();
@@ -985,6 +985,47 @@ describe("mounted song-first video flow", () => {
     expect(document.body.textContent).not.toContain("Try the check again");
   });
 
+  test("an invalid active profile does not silently select another eligible profile", async () => {
+    songSetup({ preflight: "accepted", mobile: true,
+      personaOptions: [{ id: "another-profile", label: "Another profile", communityId: "community" }],
+    });
+    await loadSongMetadata();
+    await vi.waitFor(() => expect(document.body.textContent).toContain("Choose your active community profile before creating a video."));
+    expect(document.querySelector('[data-operation-persona]')).toBeNull();
+    expect(previews).toHaveLength(0);
+    expect(startCapture).not.toHaveBeenCalled();
+  });
+
+  test("upload and retry preserve the review video and publish with no text", async () => {
+    const onPosted = vi.fn();
+    const fixture = songSetup({ preflight: "accepted", clipDurationMs: 12_000, onPosted });
+    await loadSongMetadata();
+    await awaitPlan("ready");
+    await chooseFile();
+    await vi.waitFor(() => expect(document.querySelector('button[aria-label="Play video preview"]')).not.toBeNull());
+    const video = document.querySelector('[data-video-review-frame] video');
+    expect(video).not.toBeNull();
+    expect(document.querySelector("textarea")).toBeNull();
+    let failUpload!: (reason: Error) => void;
+    fixture.fetchImpl.mockImplementationOnce(() => new Promise((_resolve, reject) => { failUpload = reject; }));
+    await publish();
+    await vi.waitFor(() => expect(fixture.fetchImpl).toHaveBeenCalledOnce());
+    expect(document.querySelector('[data-video-review-frame] video')).toBe(video);
+    expect(document.querySelector('button[aria-label="Play video preview"]')?.hasAttribute("disabled")).toBe(true);
+    expect(button("Uploading video 0%")?.disabled).toBe(true);
+    failUpload(new Error("network detail must not leak"));
+    await vi.waitFor(() => expect(button("Try upload again")?.disabled).toBe(false));
+    expect(document.body.textContent).toContain("Your video couldn’t upload. Try again.");
+    expect(document.body.textContent).not.toContain("network detail must not leak");
+    expect(document.querySelector('[data-video-review-frame] video')).toBe(video);
+    button("Try upload again")!.click();
+    await vi.waitFor(() => expect(onPosted).toHaveBeenCalledOnce());
+    const start = fixture.commands.find(command => command.kind === "start");
+    expect(start?.input.body).toMatchObject({ persona_id: "persona", caption: "" });
+    expect(fixture.commands.filter(command => command.kind === "reserve")).toHaveLength(1);
+    expect(fixture.commands.filter(command => command.kind === "start")).toHaveLength(1);
+  });
+
   test("a profile bound to another community cannot start capture", async () => {
     songSetup({
       preflight: "accepted",
@@ -993,7 +1034,7 @@ describe("mounted song-first video flow", () => {
     });
     await loadSongMetadata();
     await awaitPlan("ready");
-    expect(document.body.textContent).toContain("You don’t have a posting profile for this community.");
+    expect(document.body.textContent).toContain("Choose your active community profile before creating a video.");
     document.querySelector<HTMLButtonElement>('button[aria-label="Start recording"]')?.click();
     expect(previews).toHaveLength(0);
     expect(startCapture).not.toHaveBeenCalled();
@@ -1009,7 +1050,7 @@ describe("mounted song-first video flow", () => {
     // A take in progress keeps its stop control.
     await vi.waitFor(() => expect(document.querySelector('button[aria-label="Stop recording"]')).not.toBeNull());
     await stopRecording();
-    await vi.waitFor(() => expect(document.querySelector("textarea")).not.toBeNull());
+    await vi.waitFor(() => expect(document.querySelector("[data-video-review-frame]")).not.toBeNull());
   });
 
   test("a guide prepared for a moved window never starts the take", async () => {
@@ -1078,9 +1119,9 @@ describe("mounted song-first video flow", () => {
       await vi.waitFor(() => expect(cancelled).toBe(1));
       guide.release();
       await vi.waitFor(() => expect(document.body.textContent).toContain("Recording interrupted"));
-      await vi.waitFor(() => expect(document.querySelector("textarea")).toBeNull());
+      await vi.waitFor(() => expect(document.querySelector("[data-video-review-frame]")).toBeNull());
       expect(stopped).toBe(0);
-      expect(document.querySelector("textarea")).toBeNull();
+      expect(document.querySelector("[data-video-review-frame]")).toBeNull();
     } finally {
       Object.defineProperty(document, "visibilityState", { configurable: true, value: "visible" });
     }
@@ -1152,7 +1193,7 @@ describe("mounted song-first video flow", () => {
     guide.events.get("waiting")?.();
     await vi.waitFor(() => expect(cancelled).toBe(1));
     expect(stopped).toBe(0);
-    expect(document.querySelector("textarea")).toBeNull();
+    expect(document.querySelector("[data-video-review-frame]")).toBeNull();
     const viewfinder = document.querySelector("[data-video-viewfinder]");
     expect(viewfinder?.textContent).toContain("The recording stopped. Record a new video.");
     expect(document.body.textContent).not.toContain("The guide song stalled");
@@ -1178,7 +1219,7 @@ describe("mounted song-first video flow", () => {
     guide.events.get("error")?.();
     await vi.waitFor(() => expect(cancelled).toBe(1));
     expect(stopped).toBe(0);
-    expect(document.querySelector("textarea")).toBeNull();
+    expect(document.querySelector("[data-video-review-frame]")).toBeNull();
     expect(document.querySelector("[data-video-viewfinder]")?.textContent).toContain("Record again");
   });
 
@@ -1281,7 +1322,7 @@ describe("mounted song-first video flow", () => {
     expect(slider.hasAttribute("data-disabled")).toBe(true);
     guide.release();
     await stopRecording();
-    await vi.waitFor(() => expect(document.querySelector("textarea")).not.toBeNull());
+    await vi.waitFor(() => expect(document.querySelector("[data-video-review-frame]")).not.toBeNull());
   });
 
   test("a take stopped early publishes with the song part it covers", async () => {
@@ -1293,7 +1334,7 @@ describe("mounted song-first video flow", () => {
     await startRecording();
     await vi.waitFor(() => expect(guide.calls.play).toBe(1));
     await stopRecording();
-    await vi.waitFor(() => expect(document.querySelector("textarea")).not.toBeNull());
+    await vi.waitFor(() => expect(document.querySelector("[data-video-review-frame]")).not.toBeNull());
     await vi.waitFor(() => expect(document.body.textContent).toContain("A song"));
     await awaitPlan("ready");
     expect(document.body.textContent).not.toContain("The song changed");
@@ -1313,7 +1354,7 @@ describe("mounted song-first video flow", () => {
     await startRecording();
     await vi.waitFor(() => expect(guide.calls.play).toBe(1));
     await stopRecording();
-    await vi.waitFor(() => expect(document.querySelector("textarea")).not.toBeNull());
+    await vi.waitFor(() => expect(document.querySelector("[data-video-review-frame]")).not.toBeNull());
     moveWindow(2_000);
     await awaitPlan("ready");
     await vi.waitFor(() => expect(document.body.textContent).toContain("The song changed"));
@@ -1338,7 +1379,7 @@ describe("mounted song-first video flow", () => {
     await vi.waitFor(() => expect(guide.calls.resolved).toBe(1));
     await stopRecording();
     await vi.waitFor(() => expect(stopped).toBe(1));
-    await vi.waitFor(() => expect(document.querySelector("textarea")).not.toBeNull());
+    await vi.waitFor(() => expect(document.querySelector("[data-video-review-frame]")).not.toBeNull());
     // The measured lead-in is what the take is trimmed by, so the first
     // published frame is the first frame after the guide started.
     expect(fixture.alignments).toHaveLength(1);
@@ -1364,7 +1405,7 @@ describe("mounted song-first video flow", () => {
     await vi.waitFor(() => expect(guide.calls.resolved).toBe(1));
     await stopRecording();
     await vi.waitFor(() => expect(stopped).toBe(1));
-    await vi.waitFor(() => expect(document.querySelector("textarea")).not.toBeNull());
+    await vi.waitFor(() => expect(document.querySelector("[data-video-review-frame]")).not.toBeNull());
     await vi.waitFor(() => expect(document.body.textContent).toContain("couldn’t play in time with the song"));
     await publish(true);
     await vi.waitFor(() => expect(document.body.textContent).toContain("couldn’t play in time with the song"));
@@ -1394,7 +1435,7 @@ describe("mounted song-first video flow", () => {
     await startRecording();
     await vi.waitFor(() => expect(guide.calls.resolved).toBe(1));
     await stopRecording();
-    await vi.waitFor(() => expect(document.querySelector("textarea")).not.toBeNull());
+    await vi.waitFor(() => expect(document.querySelector("[data-video-review-frame]")).not.toBeNull());
     await publish();
     await vi.waitFor(() => expect(fixture.commands.map(command => command.kind)).toEqual(["reserve", "start", "finalize"]));
     expect(fixture.commands[0]?.input.body).toMatchObject({ intent: "song_reference", expected_size_bytes: aligned.size });
@@ -1423,7 +1464,7 @@ describe("mounted song-first video flow", () => {
     // guide at startup, so it must not become publishable with the song.
     await stopRecording();
     guide.release();
-    await vi.waitFor(() => expect(document.querySelector("textarea")).not.toBeNull());
+    await vi.waitFor(() => expect(document.querySelector("[data-video-review-frame]")).not.toBeNull());
     await vi.waitFor(() => expect(document.body.textContent).toContain("couldn’t play in time with the song"));
     await publish(true);
     await vi.waitFor(() => expect(document.body.textContent).toContain("couldn’t play in time with the song"));
@@ -1686,7 +1727,7 @@ describe("mounted song-first video flow", () => {
       await vi.waitFor(() => expect(previews).toHaveLength(1));
       await startRecording();
       await stopRecording();
-      await vi.waitFor(() => expect(document.querySelector("textarea")).not.toBeNull());
+      await vi.waitFor(() => expect(document.querySelector("[data-video-review-frame]")).not.toBeNull());
       expect(previews).toHaveLength(1);
       document.querySelector<HTMLButtonElement>('button[aria-label="Back to capture"]')!.click();
       await vi.waitFor(() => expect(previews).toHaveLength(2));
@@ -1768,7 +1809,7 @@ describe("mounted song-first video flow", () => {
       expect(document.body.textContent).not.toContain("isn’t available here");
       // The panel says it; the raw message is not repeated above it.
       expect(document.body.textContent).not.toContain("Recording failed.");
-      expect(document.querySelector("textarea")).toBeNull();
+      expect(document.querySelector("[data-video-review-frame]")).toBeNull();
       button("Try again")!.click();
       await vi.waitFor(() => expect(document.querySelector('button[aria-label="Start recording"]')).not.toBeNull());
       expect(document.body.textContent).not.toContain("Recording stopped");
@@ -1795,7 +1836,7 @@ describe("mounted song-first video flow", () => {
       await stopRecording();
       await vi.waitFor(() => expect(document.querySelector('[role="status"][aria-label="Finishing video"]')).not.toBeNull());
       finish();
-      await vi.waitFor(() => expect(document.querySelector("textarea")).not.toBeNull());
+      await vi.waitFor(() => expect(document.querySelector("[data-video-review-frame]")).not.toBeNull());
       expect(document.querySelector('[role="status"][aria-label="Finishing video"]')).toBeNull();
     });
 
@@ -1834,7 +1875,7 @@ describe("mounted song-first video flow", () => {
       // no review, file or upload exists for the cancelled take.
       await vi.waitFor(() => expect(document.querySelector('button[aria-label="Start recording"]')).not.toBeNull());
       expect(document.body.textContent).not.toContain("Recording is not supported here");
-      expect(document.querySelector("textarea")).toBeNull();
+      expect(document.querySelector("[data-video-review-frame]")).toBeNull();
       expect(button("Publish video")).toBeUndefined();
       expect(stopped).toBe(0);
       await vi.waitFor(() => expect(previews).toHaveLength(2));

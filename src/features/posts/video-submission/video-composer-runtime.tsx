@@ -1,6 +1,5 @@
 import { createEffect, createMemo, createSignal, onCleanup, Show, untrack } from "solid-js";
-import { ActionFooterShell, Button, buttonVariants, cn, FormNote, MobilePageHeader, Spinner, Type } from "../../../design-system";
-import { OperationPersonaControl } from "../../identity/operation-persona-control/operation-persona-control";
+import { ActionFooterShell, Button, buttonVariants, cn, FormNote, MobilePageHeader, Spinner } from "../../../design-system";
 import { type ExcerptBounds } from "../post-composer/song-excerpt";
 import { SongExcerptComposer, type SoundtrackSelection } from "../post-composer/song-excerpt-composer";
 import { createMemoryExcerptDraftStore } from "../post-composer/song-excerpt-draft";
@@ -141,7 +140,7 @@ export function VideoComposerRuntime(props: {
 }) {
   const [record, setRecord] = createSignal<PendingVideo | null>(null);
   const [file, setFile] = createSignal<File | null>(null);
-  const [caption, setCaption] = createSignal("");
+  const [submittedFromReview, setSubmittedFromReview] = createSignal(false);
   const [rating, setRating] = createSignal<"general" | "adult_18">("general");
   const [preview, setPreview] = createSignal<string>();
   const [busy, setBusy] = createSignal(true);
@@ -185,8 +184,7 @@ export function VideoComposerRuntime(props: {
   // excerpt and server verdict survive capture, review and a later song change.
   const [songSheetOpen, setSongSheetOpen] = createSignal(true, { ownedWrite: true });
   const [enteredCapture, setEnteredCapture] = createSignal(false);
-  // The community page fixes the destination. Profiles are offered only in
-  // their bound community, with the selected one carried into review.
+  // The host fixes the community and its active profile before opening capture.
   const [chosenCommunityId, setChosenCommunityId] = createSignal(
     props.communityId?.trim() || "",
     { ownedWrite: true },
@@ -195,7 +193,7 @@ export function VideoComposerRuntime(props: {
     .filter(option => option.communityId === undefined || option.communityId === chosenCommunityId()));
   const [chosenPersonaId, setChosenPersonaId] = createSignal(
     props.personaOptions === undefined ? props.personaId?.trim() || ""
-      : personasForDestination().find(option => option.id === props.personaId?.trim())?.id || personasForDestination()[0]?.id || "",
+      : personasForDestination().find(option => option.id === props.personaId?.trim())?.id || "",
     { ownedWrite: true },
   );
   let picker: HTMLInputElement | undefined;
@@ -264,7 +262,7 @@ export function VideoComposerRuntime(props: {
     // A video whose upload already finished belongs to the server; it is never
     // shown again as a pending state here.
     if (await coordinator.release()) return;
-    showFile(next.file); setCaption(next.caption); setRating(next.rating);
+    showFile(next.file); setRating(next.rating);
     // Only a video the author already submitted for publication is ever kept.
     // One that still owes its upload picks up where it stopped, with no control
     // to press. One that belongs to another community waits for that community.
@@ -741,9 +739,10 @@ export function VideoComposerRuntime(props: {
         if (takeSoundtrack() && takeAlignment() === "unaligned") {
           throw new Error("The video couldn’t play in time with the song. Record again.");
         }
+        setSubmittedFromReview(true);
         await coordinator.begin({
           communityId: chosenCommunityId(), personaId: chosenPersonaId(), file: selected,
-          caption: caption(), rating: rating(), song: approved,
+          caption: "", rating: rating(), song: approved,
         });
       }
       if (disposed) return;
@@ -874,6 +873,7 @@ export function VideoComposerRuntime(props: {
   };
   const otherDestination = () => record() !== null && (record()!.communityId !== chosenCommunityId() || record()!.personaId !== chosenPersonaId());
   const profileReady = () => chosenPersonaId() !== "" && (props.personaOptions === undefined || personasForDestination().some(option => option.id === chosenPersonaId()));
+  const reviewVisible = () => file() !== null && (editing() || (submittedFromReview() && !record()?.rejection && !reservationExpired()));
   const completedUpload = () => finalizeUnconfirmed() || (!awaiting() && state() !== undefined && !record()?.rejection);
   const statusText = () => {
     if (otherDestination()) return "Finish this upload in the community where you started it.";
@@ -889,7 +889,7 @@ export function VideoComposerRuntime(props: {
       if (awaiting() || failure()?.reason_code === "provider_submission_unconfirmed") await coordinator.revisionCommand("cancel");
       await coordinator.discard();
     }
-    setFile(null); setClipDurationMs(null); clearPreviewUrls(); setCaption(""); setRating("general");
+    setFile(null); setClipDurationMs(null); clearPreviewUrls(); setSubmittedFromReview(false); setRating("general");
     setTakeSoundtrack(null); setTakeAlignment("none"); setCaptureStatus("idle"); setEnteredCapture(false); setSongSheetOpen(true);
   };
   const openSongSheet = () => setSongSheetOpen(true);
@@ -976,8 +976,7 @@ export function VideoComposerRuntime(props: {
     <input ref={element => { picker = element; }} hidden type="file" accept="video/mp4,video/quicktime,.mp4,.mov" onChange={event => { void chooseFile(event.currentTarget.files?.[0]); event.currentTarget.value = ""; }} />
 
     <Show when={editing()}>
-      {/* After song and excerpt choice, capture carries a way to change the
-          song. Posting details remain on review. */}
+      {/* Capture carries the chosen song and a way to change it. */}
       <Show when={!file() && !songSheetOpen()}>
       <div inert={interactionBusy()}>
         <Show when={captureStatus() === "recording"}>
@@ -1031,12 +1030,7 @@ export function VideoComposerRuntime(props: {
         >
         <div class="mx-auto grid min-w-0 w-full max-w-md grid-cols-1 gap-5 p-4">
           <h1 class="sr-only">{songSheetTitle()}</h1>
-          <Show when={personasForDestination().length > 1}>
-            <OperationPersonaControl label="Posting as" onSelect={setChosenPersonaId}
-              personas={personasForDestination().map(option => ({ personaId: option.id, displayName: option.label }))}
-              placeholder="Choose a profile" selectedPersonaId={chosenPersonaId()} />
-          </Show>
-          <Show when={!profileReady()}><FormNote tone="warning">You don’t have a posting profile for this community.</FormNote></Show>
+          <Show when={!profileReady()}><FormNote tone="warning">Choose your active community profile before creating a video.</FormNote></Show>
           <Show when={songSheetOpen() && error()}>{message => <FormNote tone="warning">{message()}</FormNote>}</Show>
           <fieldset class="contents" disabled={captureStatus() === "recording" || finalizing()}>
           <section aria-label="Soundtrack" class="min-w-0">
@@ -1068,37 +1062,21 @@ export function VideoComposerRuntime(props: {
         </ActionFooterShell>
       </div>
     </Show>
-    <Show when={editing() && file()}>
-      <OriginalVideoReviewSurface caption={caption()} onCaptionChange={setCaption} submitting={busy()} publishDisabled={!profileReady() || approvedSelection() === undefined || measuring() || finalizing() || takeMismatch() || takeAlignment() === "unaligned" || clipProblem() !== undefined} notice={error() || clipProblem() || (takeMismatch() ? "The song changed. Record a new video." : undefined) || (takeAlignment() === "unaligned" ? "The video couldn’t play in time with the song. Record again." : undefined)} onPublish={() => { void publish(); }}
-        onBack={() => { if (!busy()) { setFile(null); setClipDurationMs(null); clearPreviewUrls(); } }}
+    <Show when={reviewVisible()}>
+      <OriginalVideoReviewSurface submitting={busy()} submitLabel={busy() ? progress().replace("video…", "video") || "Uploading video" : submittedFromReview() && record() ? "Try upload again" : "Publish video"} publishDisabled={!record() && (!profileReady() || approvedSelection() === undefined || measuring() || finalizing() || takeMismatch() || takeAlignment() === "unaligned" || clipProblem() !== undefined)} notice={(error() && record() ? "Your video couldn’t upload. Try again." : error()) || clipProblem() || (takeMismatch() ? "The song changed. Record a new video." : undefined) || (takeAlignment() === "unaligned" ? "The video couldn’t play in time with the song. Record again." : undefined)} onPublish={() => { void publish(); }}
+        onBack={() => { if (record()) props.onExit(); else if (!busy()) { setFile(null); setClipDurationMs(null); clearPreviewUrls(); } }}
         preview={songActive() && songPlan().kind === "ready" && selection() && takeAlignment() !== "unaligned"
           ? <SongReviewPreview audioUrl={selection()!.audioUrl} bounds={selection()!.bounds} videoUrl={preview()}
-              createAudio={props.createGuideAudio} />
-          : <video src={originalPreview() ?? preview()} controls playsinline class="h-full w-full object-contain" />}
-        songLabel={songLabel()} onSongTap={openSongSheet}
+              createAudio={props.createGuideAudio} disabled={busy()} />
+          : <video src={originalPreview() ?? preview()} controls={!songActive()} playsinline class="h-full w-full object-contain" />}
+        songLabel={songLabel()} onSongTap={record() ? undefined : openSongSheet}
         details={<div class="grid gap-3">
-        {/* Review confirms the known community and posting profile. */}
-        <Show when={props.communityName}>
-          {name => <Type as="p" variant="caption">Posting in {name()}</Type>}
-        </Show>
-        <Show when={personasForDestination().length > 1}>
-          <OperationPersonaControl
-            label="Posting as"
-            onSelect={personaId => setChosenPersonaId(personaId)}
-            personas={personasForDestination().map(option => ({ personaId: option.id, displayName: option.label }))}
-            placeholder="Choose a profile"
-            selectedPersonaId={chosenPersonaId()}
-          />
-        </Show>
-        <Show when={props.personaOptions !== undefined && personasForDestination().length === 0}>
-          <FormNote tone="warning">Choose a posting profile for this community.</FormNote>
-        </Show>
         <Show when={finalizing()}>
           <Spinner label="Preparing video" />
         </Show>
         </div>} />
     </Show>
-    <Show when={record()}>
+    <Show when={record() && !reviewVisible()}>
       <ActionFooterShell class="bg-background text-foreground" fullViewport header={<MobilePageHeader class="relative z-10" title="Upload video" onBackClick={props.onExit} />}
         footer={<div class="mx-auto w-full max-w-md">
           <Show when={otherDestination()} fallback={

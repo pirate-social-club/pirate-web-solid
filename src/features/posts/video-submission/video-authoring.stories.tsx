@@ -376,10 +376,10 @@ function Harness(props: {
         start.click();
         return;
       }
-      if (props.autoPublish && plan && container?.querySelector("textarea") !== null) {
+      if (props.autoPublish && plan && container?.querySelector("[data-video-review-frame]") !== null) {
         const publish = [...(container?.querySelectorAll("button") ?? [])]
           .find(button => button.textContent?.trim() === "Publish video");
-        if (publish) { clearInterval(timer); publish.click(); }
+        if (publish && !publish.disabled) { clearInterval(timer); publish.click(); }
       }
     }, 100);
     // onSettled owns its cleanup through the returned function, not onCleanup.
@@ -642,6 +642,9 @@ export const ReviewPlayback: Story = {
     await canvas.findByText("Review video", {}, { timeout: 20_000 });
     await canvas.findByRole("button", { name: "Publish video" });
     expect(canvas.queryByText(/choose a shorter one/)).toBeNull();
+    const frame = canvasElement.querySelector("[data-video-review-frame]")!.getBoundingClientRect();
+    expect(frame.width / frame.height).toBeCloseTo(9 / 16, 2);
+    expect(canvas.queryByRole("textbox")).toBeNull();
   },
 };
 
@@ -676,7 +679,7 @@ function PreviewStage(props: { readonly mode: "stall" | "error" }) {
   };
   return (
     <div class="w-full">
-    <OriginalVideoReviewSurface caption="" onCaptionChange={() => undefined} onPublish={() => undefined} songLabel="Cadence" preview={<div class="h-full">
+    <OriginalVideoReviewSurface onPublish={() => undefined} songLabel="Cadence" preview={<div class="h-full">
       <SongReviewPreview
         audioUrl={toneWavUrl(SONG_MS)}
         bounds={{ startMs: 31_000, endMs: 43_000 }}
@@ -694,8 +697,8 @@ export const ReviewStall: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await waitFor(() => expect(canvasElement.querySelector("video")?.getAttribute("src")).toBeTruthy());
-    await userEvent.click(await canvas.findByRole("button", { name: "Play with the song" }));
-    await canvas.findByRole("button", { name: "Pause preview" });
+    await userEvent.click(await canvas.findByRole("button", { name: "Play video preview" }));
+    await canvas.findByRole("button", { name: "Pause video preview" });
     const video = canvasElement.querySelector("video")!;
     await waitFor(() => expect(video.paused).toBe(false));
     video.pause();
@@ -712,7 +715,7 @@ export const ReviewError: Story = {
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
     await waitFor(() => expect(canvasElement.querySelector("video")?.getAttribute("src")).toBeTruthy());
-    await userEvent.click(await canvas.findByRole("button", { name: "Play with the song" }));
+    await userEvent.click(await canvas.findByRole("button", { name: "Play video preview" }));
     const issue = await canvas.findByText("This video won’t play. Try again.");
     expect(issue.getBoundingClientRect().bottom).toBeLessThanOrEqual(canvasElement.querySelector("[data-video-review-frame]")!.getBoundingClientRect().bottom);
   },
@@ -733,7 +736,8 @@ export const UploadProgress: Story = {
     const canvas = within(canvasElement);
     // Two of three parts are sent and the third stays in flight, so the
     // story holds at partial progress instead of finishing and leaving.
-    await canvas.findByText("Uploading video… 66%", {}, { timeout: 20_000 });
+    await canvas.findByRole("button", { name: "Uploading video 66%" }, { timeout: 20_000 });
+    expect(canvasElement.querySelector("[data-video-review-frame] video")).not.toBeNull();
   },
 };
 
@@ -876,10 +880,9 @@ const PROFILES: readonly VideoPostingOption[] = [
   { id: "persona-night-shift", label: "Night Shift" },
 ];
 
-/** Two profiles may author here: review names the community and lets the
- * author choose which one posts. */
+/** Multiple profiles exist, but review inherits the host’s active profile. */
 export const ReviewPostingAs: Story = {
-  name: "Review with a choice of profile",
+  name: "Review inherits the active profile",
   render: () => (
     <Harness
       chooseFile={() => sampleVideoFile(12_000)}
@@ -890,9 +893,10 @@ export const ReviewPostingAs: Story = {
   ),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    const destination = await canvas.findByText("Posting in Pirate Harbor", {}, { timeout: 30_000 });
-    expect(destination.getBoundingClientRect().bottom).toBeLessThan(canvasElement.querySelector("[data-video-review-frame]")!.getBoundingClientRect().top);
-    expect(canvas.getAllByText("Posting as").some(element => element.closest('[aria-hidden="true"]') === null)).toBe(true);
+    await canvas.findByRole("button", { name: "Publish video" }, { timeout: 30_000 });
+    expect(canvas.queryByText("Posting in Pirate Harbor")).toBeNull();
+    expect(canvas.queryByText("Posting as")).toBeNull();
+    expect(canvas.queryByRole("textbox")).toBeNull();
   },
 };
 

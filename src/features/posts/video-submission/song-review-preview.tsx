@@ -1,6 +1,6 @@
-import { createSignal, onCleanup, Show } from "solid-js";
-import { Button, Type } from "../../../design-system";
-import { type ExcerptBounds, formatExcerptTime } from "../post-composer/song-excerpt";
+import { createEffect, createSignal, onCleanup, Show } from "solid-js";
+import { IconPlay, Type } from "../../../design-system";
+import { type ExcerptBounds } from "../post-composer/song-excerpt";
 
 /** The audio half of a local composed preview. Injected so a test can drive
  * the clock without a decoder, exactly as the guide playback is injected. */
@@ -23,8 +23,7 @@ export const PREVIEW_MAX_DRIFT_SECONDS = 0.25;
  * clock: the video is pulled back to it when it drifts, and when either player
  * stalls the other pauses rather than running on alone. This is a convenience,
  * not proof of the published result: the server renders the final master from
- * the canonical song samples, and the two can differ by a frame. The label
- * says so rather than implying this is the final video.
+ * the canonical song samples, and the two can differ by a frame.
  */
 export function SongReviewPreview(props: {
   readonly videoUrl?: string;
@@ -32,6 +31,7 @@ export function SongReviewPreview(props: {
   readonly audioUrl: string;
   readonly bounds: ExcerptBounds;
   readonly createAudio?: (url: string) => PreviewAudio;
+  readonly disabled?: boolean;
 }) {
   const [playing, setPlaying] = createSignal(false);
   const [issue, setIssue] = createSignal<string>();
@@ -61,6 +61,7 @@ export function SongReviewPreview(props: {
     detachAudio();
     stop();
   });
+  createEffect(() => props.disabled, disabled => { if (disabled) stop(); });
 
   /** The video follows the song, never the other way around: a preview that
    * ran the two clocks independently would show the drift the author is
@@ -104,7 +105,7 @@ export function SongReviewPreview(props: {
   const onVideoWaiting = () => {
     if (!playing() || starting) return;
     setIssue("The video stopped. Try again.");
-    audio?.pause();
+    stop();
   };
   const onVideoPlaying = () => {
     if (!playing() || starting || !audio) return;
@@ -114,7 +115,7 @@ export function SongReviewPreview(props: {
   const onAudioWaiting = () => {
     if (!playing() || starting) return;
     setIssue("The song stopped. Try again.");
-    video?.pause();
+    stop();
   };
   const onAudioPlaying = () => {
     if (!playing() || starting || !video) return;
@@ -124,12 +125,13 @@ export function SongReviewPreview(props: {
 
   const toggle = async () => {
     const element = video;
-    if (!element) return;
+    if (!element || props.disabled) return;
     if (playing()) {
       stop();
       return;
     }
     setIssue(undefined);
+    detachAudio();
     audio = props.createAudio ? props.createAudio(props.audioUrl) : new Audio(props.audioUrl);
     audio.addEventListener?.("waiting", onAudioWaiting);
     audio.addEventListener?.("playing", onAudioPlaying);
@@ -143,9 +145,9 @@ export function SongReviewPreview(props: {
   };
 
   return (
-    <div class="flex h-full min-h-0 flex-col gap-2">
+    <div class="relative h-full w-full">
       <video
-        class="min-h-0 w-full flex-1 object-contain"
+        class="h-full w-full object-contain"
         muted
         playsinline
         poster={props.posterUrl}
@@ -154,11 +156,13 @@ export function SongReviewPreview(props: {
         onWaiting={onVideoWaiting}
         onPlaying={onVideoPlaying}
       />
-      <Button class="shrink-0" disabled={!props.videoUrl} onClick={() => void toggle()} type="button" variant="secondary">
-        {playing() ? "Pause preview" : "Play with the song"}
-      </Button>
+      <button class="absolute inset-0 grid cursor-pointer place-items-center outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring disabled:cursor-default"
+        aria-label={playing() ? "Pause video preview" : "Play video preview"}
+        disabled={!props.videoUrl || props.disabled} onClick={() => void toggle()} type="button">
+        <Show when={!playing()}><span class="grid size-16 place-items-center rounded-full bg-black/60 text-white"><IconPlay aria-hidden="true" class="size-7" /></span></Show>
+      </button>
       <Show when={issue()}>
-        {(message) => <Type as="p" variant="caption" class="shrink-0" role="alert">{message()}</Type>}
+        {(message) => <Type as="p" variant="caption" class="pointer-events-none absolute inset-x-0 bottom-0 bg-black/75 p-3 text-white" role="alert">{message()}</Type>}
       </Show>
     </div>
   );

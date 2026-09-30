@@ -64,17 +64,17 @@ describe("the intended-soundtrack preview", () => {
     stubMediaElement();
     const spy = previewAudio();
     const container = mount(() => spy.audio);
-    [...container.querySelectorAll("button")].find(button => button.textContent === "Play with the song")!.click();
+    container.querySelector<HTMLButtonElement>('button[aria-label="Play video preview"]')!.click();
     await vi.waitFor(() => expect(spy.calls.play).toBe(1));
     expect(spy.audio.currentTime).toBe(10);
     expect(container.querySelector("video")!.currentTime).toBe(0);
   });
 
-  test("pauses the song when the video stalls and resumes it when the video plays", async () => {
+  test("stops both players when video stalls and retries with one tap", async () => {
     stubMediaElement();
     const spy = previewAudio();
     const container = mount(() => spy.audio);
-    [...container.querySelectorAll("button")].find(button => button.textContent === "Play with the song")!.click();
+    container.querySelector<HTMLButtonElement>('button[aria-label="Play video preview"]')!.click();
     await vi.waitFor(() => expect(spy.calls.play).toBe(1));
     await letStartupSettle();
     const video = container.querySelector("video")!;
@@ -82,14 +82,17 @@ describe("the intended-soundtrack preview", () => {
     await vi.waitFor(() => expect(spy.calls.pause).toBe(1));
     expect(container.textContent).toContain("The video stopped");
     video.dispatchEvent(new Event("playing"));
+    expect(spy.calls.play).toBe(1);
+    container.querySelector<HTMLButtonElement>('button[aria-label="Play video preview"]')!.click();
     await vi.waitFor(() => expect(spy.calls.play).toBe(2));
+    expect(container.textContent).not.toContain("The video stopped");
   });
 
-  test("pauses the video when the song stalls and resumes it when the song plays", async () => {
+  test("stops both players when the song stalls until an explicit retry", async () => {
     const calls = stubMediaElement();
     const spy = previewAudio();
     const container = mount(() => spy.audio);
-    [...container.querySelectorAll("button")].find(button => button.textContent === "Play with the song")!.click();
+    container.querySelector<HTMLButtonElement>('button[aria-label="Play video preview"]')!.click();
     await vi.waitFor(() => expect(spy.calls.play).toBe(1));
     await letStartupSettle();
     spy.events.get("waiting")?.();
@@ -97,14 +100,16 @@ describe("the intended-soundtrack preview", () => {
     const pauses = calls.pause;
     expect(pauses).toBeGreaterThan(0);
     spy.events.get("playing")?.();
-    await vi.waitFor(() => expect(calls.play).toBeGreaterThan(1));
+    expect(calls.play).toBe(1);
+    container.querySelector<HTMLButtonElement>('button[aria-label="Play video preview"]')!.click();
+    await vi.waitFor(() => expect(calls.play).toBe(2));
   });
 
   test("pulls the video back to the song when it drifts, and stops at the excerpt end", async () => {
     stubMediaElement();
     const spy = previewAudio();
     const container = mount(() => spy.audio);
-    [...container.querySelectorAll("button")].find(button => button.textContent === "Play with the song")!.click();
+    container.querySelector<HTMLButtonElement>('button[aria-label="Play video preview"]')!.click();
     await vi.waitFor(() => expect(spy.calls.play).toBe(1));
     const video = container.querySelector("video")!;
     // The song is at excerpt start + 2 s while the video sits at zero.
@@ -113,7 +118,7 @@ describe("the intended-soundtrack preview", () => {
     // Past the excerpt end, both stop.
     spy.audio.currentTime = 41;
     await vi.waitFor(() => expect(spy.calls.pause).toBeGreaterThan(0));
-    expect(container.textContent).toContain("Play with the song");
+    expect(container.querySelector('button[aria-label="Play video preview"]')).not.toBeNull();
   });
 
   test("initial buffering cannot pause the other player's pending play request", async () => {
@@ -145,7 +150,7 @@ describe("the intended-soundtrack preview", () => {
     resolveVideo();
     resolveAudio();
     await letStartupSettle();
-    expect(container.textContent).toContain("Pause preview");
+    expect(container.querySelector('button[aria-label="Pause video preview"]')).not.toBeNull();
     video.dispatchEvent(new Event("waiting"));
     expect(audioPause).toHaveBeenCalledTimes(1);
   });

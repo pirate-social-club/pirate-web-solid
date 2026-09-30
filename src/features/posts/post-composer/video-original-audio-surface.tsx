@@ -7,7 +7,6 @@ import {
   FormNote,
   IconArrowsClockwise,
   IconButton,
-  IconCheckCircle,
   IconImage,
   IconMusicNote,
   IconPlay,
@@ -15,9 +14,6 @@ import {
   IconWarningCircle,
   MobilePageHeader,
   IconX,
-  Spinner,
-  StatusCard,
-  Textarea,
   Type,
   cn,
 } from "../../../design-system";
@@ -294,8 +290,8 @@ function CaptureSideAction(props: {
 
 export interface OriginalVideoReviewSurfaceProps {
   readonly preview?: JSX.Element;
-  readonly caption?: string;
   readonly submitting?: boolean;
+  readonly submitLabel?: string;
   readonly publishDisabled?: boolean;
   readonly notice?: string;
   /** The song this video is posted to, when it has one. */
@@ -306,11 +302,10 @@ export interface OriginalVideoReviewSurfaceProps {
    *  setting or a problem with the take. */
   readonly details?: JSX.Element;
   readonly onBack?: () => void;
-  readonly onCaptionChange?: (value: string) => void;
   readonly onPublish?: () => void;
 }
 
-/** Review step: the take, its song, one optional caption and Publish. */
+/** Review step: the video, its song and one publication action. */
 export function OriginalVideoReviewSurface(props: OriginalVideoReviewSurfaceProps) {
   return (
     <ActionFooterShell
@@ -323,7 +318,7 @@ export function OriginalVideoReviewSurface(props: OriginalVideoReviewSurfaceProp
           onClick={() => props.onPublish?.()}
           size="lg"
         >
-          Publish video
+          {props.submitLabel ?? "Publish video"}
         </Button>
       )}
       fullViewport
@@ -334,9 +329,9 @@ export function OriginalVideoReviewSurface(props: OriginalVideoReviewSurfaceProp
     >
       <Show when={props.details}>{details => <div class="mx-auto w-full max-w-4xl px-4 pt-4 md:px-6">{details()}</div>}</Show>
       <Show when={props.notice}>{message => <FormNote tone="warning" class="mx-auto w-full max-w-4xl px-4 pt-4">{message()}</FormNote>}</Show>
-      <div class="mx-auto grid w-full max-w-4xl gap-5 p-4 md:grid-cols-[minmax(15rem,22rem)_1fr] md:p-6">
+      <div class="mx-auto grid w-full max-w-4xl gap-5 p-4 md:p-6">
         <div class="grid gap-3">
-          <div data-video-review-frame class="relative mx-auto aspect-[9/16] h-auto max-h-[58dvh] w-full max-w-sm overflow-hidden rounded-[var(--radius-2xl)] bg-gradient-to-b from-[#262a30] to-[#0d0f12]">
+          <div data-video-review-frame class="relative mx-auto aspect-[9/16] w-[min(100%,32.625dvh)] overflow-hidden rounded-[var(--radius-2xl)] bg-gradient-to-b from-[#262a30] to-[#0d0f12]">
             <Show when={props.preview} fallback={
             <IconButton
               aria-label="Play video preview"
@@ -363,19 +358,6 @@ export function OriginalVideoReviewSurface(props: OriginalVideoReviewSurfaceProp
           </Show>
         </div>
 
-        <div class="space-y-4">
-          <div class="space-y-2">
-            <label for="original-video-caption" class="text-sm font-medium">Caption <span class="text-muted-foreground">optional</span></label>
-            <Textarea
-              id="original-video-caption"
-              maxlength={2_200}
-              onInput={(event) => props.onCaptionChange?.(event.currentTarget.value)}
-              placeholder="Say something about this video"
-              rows={3}
-              value={props.caption ?? ""}
-            />
-          </div>
-        </div>
       </div>
     </ActionFooterShell>
   );

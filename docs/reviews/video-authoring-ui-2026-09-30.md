@@ -122,3 +122,28 @@ one-action expiry recovery is exercised separately by the runtime regression.
 The upload-confirmation story is removed because successful bytes go Home;
 the runtime tests prove navigation and preserved receipt identity without
 presenting a mock navigation callback as another composer screen.
+
+The later owner decisions remove video post text and inherit the host’s active
+community profile, with no profile selector or destination prose inside the
+flow. An absent or invalid active profile cannot silently choose another
+eligible profile. The host prepares identity before capture.
+
+Review now constrains its width to 58 viewport-height units multiplied by 9/16,
+so height and width stay proportional on phones and desktop. Playback is an
+accessible full-frame tap target with a play icon while paused; controls and
+recovery feedback overlay the video. A stall stops both players and exposes
+Play for a deliberate retry, rather than leaving a Pause action on stopped
+media. Uploading disables playback and changes the publication button to show
+progress while preserving the existing video element. A retry preserves that
+video and the exact reservation and start command, with a plain upload failure
+message rather than a raw transport error. Existing retained-upload recovery
+continues to use its status surface. This does not add a background upload
+owner or change the guide detector.
+
+The owner requested stopping Storybook to free resources for gaming. The owned
+6008 service is stopped. Focused checks use one worker at low priority; builds,
+full verification, TypeScript and browser geometry/interaction sweeps are
+pending for this continuation. The previously passed visual checks apply only
+to eb96fd9. A new Storybook ratio assertion will verify the portrait fix when
+the visual gate resumes. Private Dance API work and the broader shared-flow
+prototype remain with their separately registered follow-on lanes.

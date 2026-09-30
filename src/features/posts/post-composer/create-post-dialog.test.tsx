@@ -1143,7 +1143,7 @@ test.each([false, true])("retains video authority in global/contextual composer 
 });
 
 describe("community Video entry", () => {
-  test("opens full-screen song choice and profile selection before capture", async () => {
+  test("opens full-screen song choice without an in-flow profile selector", async () => {
     const disposers: (() => void)[] = [];
     try {
       const { render } = await import("@solidjs/web");
@@ -1178,8 +1178,8 @@ describe("community Video entry", () => {
       expect(overlay?.contains(songChoice)).toBe(true);
       expect(overlay?.classList.contains("fixed")).toBe(true);
       expect(overlay?.classList.contains("inset-0")).toBe(true);
-      expect(songChoice.querySelector("[data-operation-persona]")).not.toBeNull();
-      expect(songChoice.textContent).toContain("Posting as");
+      expect(songChoice.querySelector("[data-operation-persona]")).toBeNull();
+      expect(songChoice.textContent).not.toContain("Posting as");
       expect(songChoice.querySelector('input[aria-label="Search songs or paste a link"]')).not.toBeNull();
       expect(document.querySelector('button[aria-label="Start recording"]')).toBeNull();
     } finally {
