@@ -912,7 +912,7 @@ export const NoPostingProfile: Story = {
   ),
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await canvas.findByText("You don’t have a posting profile for this community.", {}, { timeout: 30_000 });
+    await canvas.findByText("Choose your active community profile before creating a video.", {}, { timeout: 30_000 });
   },
 };
 
