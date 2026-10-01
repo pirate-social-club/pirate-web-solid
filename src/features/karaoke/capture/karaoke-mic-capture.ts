@@ -77,7 +77,7 @@ export interface KaraokeMicCaptureOptions {
   deps: KaraokeMicCaptureDeps;
   chunkSamples?: number;
   halfTaps?: number;
-  /** Max ms to wait for the worklet's flush ack before resolving anyway. */
+  /** Max ms of render-clock progression to wait for the worklet's flush ack. */
   flushTimeoutMs?: number;
   now?: () => number;
   setTimer?: (callback: () => void, ms: number) => unknown;
@@ -228,13 +228,24 @@ export class KaraokeMicCapture {
 
   private awaitFlush(epoch: number): Promise<void> {
     return new Promise<void>((resolve) => {
-      const handle = this.setTimer(() => {
+      const startedAtMs = this.captureClockMs();
+      let handle: unknown;
+      const checkTimeout = () => {
         if (this.pendingFlush && this.pendingFlush.epoch === epoch) {
+          // A suspended shared context may not process the worklet command.
+          // Preserve its tail and anchor until rendering resumes, rather than
+          // reporting an interrupted output as a microphone failure.
+          const remainingMs = this.flushTimeoutMs - (this.captureClockMs() - startedAtMs);
+          if (remainingMs > 0) {
+            handle = this.setTimer(checkTimeout, Math.max(250, remainingMs));
+            return;
+          }
           this.pendingFlush = null;
           this.report(new KaraokeMicError("unknown", "capture flush ack timed out"));
         }
         resolve();
-      }, this.flushTimeoutMs);
+      };
+      handle = this.setTimer(checkTimeout, this.flushTimeoutMs);
       this.pendingFlush = {
         epoch,
         resolve: () => {

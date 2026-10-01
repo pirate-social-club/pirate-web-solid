@@ -217,10 +217,38 @@ describe("KaraokeMicCapture", () => {
     });
     await tick();
     expect(resolved).toBe(false);
-    h.timers.fire(); // fire the flush-ack timeout
+    h.context.currentTime += 1.1;
+    h.timers.fire(); // a full second of rendering elapsed without an ack
     await flush;
     expect(resolved).toBe(true);
     expect(h.errors.some((e) => e.message.includes("flush ack"))).toBe(true);
+  });
+
+  test("a frozen render clock retains the flush tail across an output interruption", async () => {
+    const h = harness();
+    await h.capture.start(); await h.capture.activate();
+    let resolved = false;
+    const flush = h.capture.deactivateAndFlush().then(() => { resolved = true; });
+    h.timers.fire(); h.timers.fire(); await tick();
+    expect(resolved).toBe(false);
+    expect(h.errors).toHaveLength(0);
+    h.context.currentTime += 0.2;
+    h.node.port.emit(chunkMsg(1, 5200));
+    h.node.port.emit({ epoch: 1, type: "flushed" });
+    await flush;
+    expect(h.chunks[0]?.capturedAtMs).toBe(5200);
+    expect(h.errors).toHaveLength(0);
+    await h.capture.stop();
+  });
+
+  test("stopping during a frozen-clock flush resolves the wait and releases the microphone", async () => {
+    const h = harness();
+    await h.capture.start(); await h.capture.activate();
+    const flush = h.capture.deactivateAndFlush();
+    h.timers.fire(); await h.capture.stop(); await flush;
+    h.timers.fire();
+    expect(h.errors).toHaveLength(0);
+    expect(h.stream.tracks[0]?.stopped).toBe(true);
   });
 
   test("stop() makes activate() a permanent no-op, tears down tracks/context, and drops later chunks", async () => {
