@@ -7,17 +7,19 @@ import { KaraokePracticeSurface } from "./karaoke-practice-surface";
 const mountUi = (ui: () => JSX.Element, host: HTMLElement) => solidRender(ui, host);
 const cleanups: Array<() => void> = [];
 afterEach(() => { cleanups.splice(0).forEach(dispose => dispose()); vi.restoreAllMocks(); document.body.replaceChildren(); });
-function mount() {
-  const [status, setStatus] = createSignal<"idle" | "connecting" | "active">("idle");
+function mount(resumePlayback = vi.fn(async () => true)) {
+  const [status, setStatus] = createSignal<"idle" | "connecting" | "active" | "ended">("idle");
+  const [interrupted, setInterrupted] = createSignal(false);
   const onPause = vi.fn();
   const onPlay = vi.fn();
   const onTimeChange = vi.fn();
   const onPlaybackElement = vi.fn();
   const host = document.createElement("div"); document.body.appendChild(host);
   const dispose = mountUi(() => <KaraokePracticeSurface title="Fixture song" lines={[]} instrumentalAudioUrl="/fixture.mp3"
+    playbackInterrupted={interrupted()} onResumePlayback={resumePlayback}
     singingStatus={status()} onStartSinging={() => setStatus("connecting")} onPause={onPause} onPlay={onPlay} onTimeChange={onTimeChange} onPlaybackElement={onPlaybackElement} />, host);
   cleanups.push(dispose);
-  return { host, setStatus, onPause, onPlay, onTimeChange, onPlaybackElement, dispose };
+  return { host, setStatus, setInterrupted, onPause, onPlay, onTimeChange, onPlaybackElement, dispose };
 }
 const button = (host: HTMLElement, name: string) => [...host.querySelectorAll("button")].find(element => element.textContent?.trim() === name);
 
@@ -30,6 +32,38 @@ test("starts the backing track once the scored microphone session becomes active
   expect(play).not.toHaveBeenCalled();
   setStatus("active");
   await vi.waitFor(() => expect(play).toHaveBeenCalledOnce());
+});
+
+test("offers gesture recovery and waits for a running context before restarting media", async () => {
+  const play = vi.spyOn(HTMLMediaElement.prototype, "play").mockResolvedValue();
+  vi.spyOn(HTMLMediaElement.prototype, "pause").mockImplementation(() => {});
+  let resolve: ((value: boolean) => void) | undefined;
+  const resume = vi.fn(() => new Promise<boolean>(r => { resolve = r; }));
+  const { host, setStatus, setInterrupted } = mount(resume);
+  setStatus("active"); setInterrupted(true);
+  await vi.waitFor(() => expect(button(host, "Tap to continue")).toBeDefined());
+  button(host, "Tap to continue")!.click();
+  expect(resume).toHaveBeenCalledOnce();
+  expect(play).not.toHaveBeenCalled();
+  await vi.waitFor(() => expect(button(host, "Tap to continue")!.disabled).toBe(true));
+  resolve?.(false);
+  await vi.waitFor(() => expect(button(host, "Tap to continue")!.disabled).toBe(false));
+  button(host, "Tap to continue")!.click();
+  await vi.waitFor(() => expect(resume).toHaveBeenCalledTimes(2));
+  resolve?.(true);
+  await vi.waitFor(() => expect(play).toHaveBeenCalledOnce());
+});
+
+test("a recovery resolving after the take ends never restarts playback", async () => {
+  const play = vi.spyOn(HTMLMediaElement.prototype, "play").mockResolvedValue();
+  vi.spyOn(HTMLMediaElement.prototype, "pause").mockImplementation(() => {});
+  let resolve: ((value: boolean) => void) | undefined;
+  const { host, setStatus, setInterrupted } = mount(vi.fn(() => new Promise<boolean>(r => { resolve = r; })));
+  setStatus("active"); setInterrupted(true);
+  await vi.waitFor(() => expect(button(host, "Tap to continue")).toBeDefined());
+  button(host, "Tap to continue")!.click(); setStatus("ended"); resolve?.(true);
+  await Promise.resolve();
+  expect(play).not.toHaveBeenCalled();
 });
 
 test("offers a direct playback retry and pauses scoring when the browser refuses the backing track", async () => {

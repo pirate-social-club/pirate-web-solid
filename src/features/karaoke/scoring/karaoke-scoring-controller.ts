@@ -368,6 +368,7 @@ export function createKaraokeScoringController(
     abort: (code) => {
       releaseCapture();
       handle?.abort(code);
+      setState({ error: { code, message: "Karaoke take aborted" }, status: "error" });
     },
     dispose: () => {
       if (disposed) return;

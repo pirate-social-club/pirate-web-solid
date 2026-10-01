@@ -158,6 +158,15 @@ function makeHarness(opts: { failStart?: Error; getPlaybackPosition?: () => { so
 }
 
 describe("createKaraokeScoringController", () => {
+  test("a local closed-context abort releases capture and retains its actionable error", async () => {
+    const h = makeHarness();
+    await h.controller.start(0); h.driver.setPhase("live"); await settle();
+    h.controller.abort("karaoke_audio_closed"); await settle();
+    expect(h.events.aborted).toEqual(["karaoke_audio_closed"]);
+    expect(h.capture.stopCalls).toBe(1);
+    expect(h.controller.getState()).toMatchObject({ status: "error", error: { code: "karaoke_audio_closed" } });
+    h.controller.dispose();
+  });
   test("start acquires the mic, then creates the session with the start position", async () => {
     const h = makeHarness();
     await h.controller.start(500);

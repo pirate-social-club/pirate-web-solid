@@ -278,6 +278,8 @@ function LoadedKaraokeSession(props: { payload: ApiSongKaraokePayload; postId: s
         onFinish={(songMs) => scoring.controls.noteFinish(songMs)}
         onPause={(songMs) => scoring.controls.notePause(songMs)}
         onPlaybackElement={scoring.controls.attachPlaybackElement}
+        playbackInterrupted={scoring.playbackInterrupted()}
+        onResumePlayback={scoring.controls.resumePlayback}
         onPlay={(songMs) => scoring.controls.notePlay(songMs)}
         onSeek={(songMs) => scoring.controls.noteSeek(songMs)}
         onStartSinging={communityId && scorableLines().length > 0 ? (songMs) => {
@@ -318,7 +320,9 @@ function LoadedKaraokeSession(props: { payload: ApiSongKaraokePayload; postId: s
               ? "No microphone is available. Connect a microphone and try again."
               : scoringState()?.micError
                 ? "Audio capture could not start. Refresh Karaoke and try again."
-                : "Scoring could not connect. Try starting your take again."}</p>
+                : scoringState()?.error?.code === "karaoke_audio_closed"
+                  ? "Audio stopped. Refresh Karaoke before starting another take."
+                  : "Scoring could not connect. Try starting your take again."}</p>
         </div>
       </Show>
       <Show when={personaMessage()}>

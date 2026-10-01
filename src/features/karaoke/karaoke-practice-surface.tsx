@@ -31,6 +31,8 @@ export interface KaraokePracticeSurfaceProps {
   onTimeChange?: (songMs: number) => void;
   /** Internal playback lifecycle notifications for scoring; no visible controls. */
   onPlaybackElement?: (element: HTMLAudioElement | null) => void;
+  playbackInterrupted?: boolean;
+  onResumePlayback?: () => Promise<boolean>;
   onPlay?: (songMs: number) => void;
   onPause?: (songMs: number) => void;
   onSeek?: (songMs: number) => void;
@@ -55,6 +57,21 @@ export function KaraokePracticeSurface(props: KaraokePracticeSurfaceProps) {
   let disposed = false;
   let playRequest = 0;
   const [playbackIssue, setPlaybackIssue] = createSignal(false);
+  const [resuming, setResuming] = createSignal(false);
+  let recoveryRequest = 0;
+  const resumeInterruptedPlayback = () => {
+    const request = ++recoveryRequest;
+    setResuming(true);
+    // Invoke synchronously from the click; awaiting first loses user activation.
+    const resume = props.onResumePlayback?.() ?? Promise.resolve(false);
+    void resume.then((running) => {
+      if (disposed || request !== recoveryRequest || props.singingStatus !== "active") return;
+      setResuming(false);
+      if (running) playBackingTrack();
+    }, () => {
+      if (!disposed && request === recoveryRequest) setResuming(false);
+    });
+  };
   const playBackingTrack = () => {
     const audio = audioRef.current;
     if (!audio) return;
@@ -87,6 +104,8 @@ export function KaraokePracticeSurface(props: KaraokePracticeSurfaceProps) {
     () => props.singingStatus,
     (singingStatus) => {
       if (singingStatus !== "active") {
+        recoveryRequest += 1;
+        setResuming(false);
         if (singingStatus === "idle" || singingStatus === "ended" || singingStatus === "error") {
           pendingPlay = false;
           playRequest += 1;
@@ -104,6 +123,12 @@ export function KaraokePracticeSurface(props: KaraokePracticeSurfaceProps) {
   createEffect(() => props.singingStatus, (status) => {
     clearInterval(clockTimer);
     clockTimer = status === "active" ? setInterval(syncTime, 50) : undefined;
+  });
+  createEffect(() => props.playbackInterrupted, (interrupted) => {
+    if (!interrupted) return;
+    playRequest += 1;
+    setPlaybackIssue(false);
+    setIsPlaying(false);
   });
   onCleanup(() => { clearInterval(clockTimer); props.onPlaybackElement?.(null); disposed = true; playRequest += 1; audioRef.current?.pause(); });
 
@@ -183,7 +208,13 @@ export function KaraokePracticeSurface(props: KaraokePracticeSurfaceProps) {
         }}
         onTimeUpdate={syncTime}
       />
-      <Show when={playbackIssue() && props.singingStatus === "active"}>
+      <Show when={props.playbackInterrupted && props.singingStatus === "active"}>
+        <footer class="border-t border-border-soft bg-background px-4 pb-[calc(env(safe-area-inset-bottom)+1.5rem)] pt-4">
+          <p role="status" class="mb-3 text-center text-sm text-muted-foreground">Audio was interrupted. Tap to continue your take.</p>
+          <Button class="h-13 w-full" disabled={resuming()} loading={resuming()} onClick={resumeInterruptedPlayback}>Tap to continue</Button>
+        </footer>
+      </Show>
+      <Show when={playbackIssue() && !props.playbackInterrupted && props.singingStatus === "active"}>
         <footer class="border-t border-border-soft bg-background px-4 pb-[calc(env(safe-area-inset-bottom)+1.5rem)] pt-4">
           <p role="status" class="mb-3 text-center text-sm text-muted-foreground">The backing track could not start. Press play to continue.</p>
           <Button class="h-13 w-full" onClick={playBackingTrack}>Start backing track</Button>

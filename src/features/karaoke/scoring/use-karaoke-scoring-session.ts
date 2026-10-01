@@ -38,6 +38,7 @@ export interface UseKaraokeScoringOptions {
 
 export interface KaraokeScoringControls {
   attachPlaybackElement?(element: HTMLAudioElement | null): void;
+  resumePlayback?(): Promise<boolean>;
   start(songMs: number): void;
   noteTime(songMs: number): void;
   notePlay(songMs: number): void;
@@ -50,6 +51,7 @@ export interface KaraokeScoringControls {
 
 export interface UseKaraokeScoringResult {
   enabled: Accessor<boolean>;
+  playbackInterrupted: Accessor<boolean>;
   state: Accessor<KaraokeScoringState | null>;
   controls: KaraokeScoringControls;
 }
@@ -59,7 +61,16 @@ export function useKaraokeScoring(
   options: UseKaraokeScoringOptions,
 ): UseKaraokeScoringResult {
   const [state, setState] = createSignal<KaraokeScoringState | null>(null);
-  const playbackGraph = new KaraokePlaybackGraph();
+  const [playbackInterrupted, setPlaybackInterrupted] = createSignal(false);
+  const playbackGraph = new KaraokePlaybackGraph(undefined, (songMs, contextState) => {
+    currentController?.notePause(songMs);
+    if (contextState === "closed") {
+      setPlaybackInterrupted(false);
+      currentController?.abort("karaoke_audio_closed");
+    } else if (["active", "reconnecting"].includes(currentController?.getState().status ?? "")) {
+      setPlaybackInterrupted(true);
+    }
+  });
   onCleanup(() => playbackGraph.dispose());
   let playbackElement: HTMLAudioElement | null = null;
   let currentController: KaraokeScoringController | null = null;
@@ -101,16 +112,21 @@ export function useKaraokeScoring(
   );
 
   const controls: KaraokeScoringControls = {
-    attachPlaybackElement: (element) => { playbackElement = element; playbackGraph.attach(element); },
-    abort: (code) => currentController?.abort(code),
-    noteFinish: (songMs) => currentController?.noteFinish(songMs),
+    attachPlaybackElement: (element) => { playbackElement = element; playbackGraph.attach(element); if (!element) setPlaybackInterrupted(false); },
+    resumePlayback: () => playbackGraph.resume(),
+    abort: (code) => { setPlaybackInterrupted(false); currentController?.abort(code); },
+    noteFinish: (songMs) => { setPlaybackInterrupted(false); currentController?.noteFinish(songMs); },
     notePause: (songMs) => currentController?.notePause(songMs),
-    notePlay: (songMs) => currentController?.notePlay(songMs),
+    notePlay: (songMs) => {
+      if (playbackInterrupted() && !playbackGraph.isRunning()) return;
+      setPlaybackInterrupted(false);
+      currentController?.notePlay(songMs);
+    },
     noteSeek: (songMs) => currentController?.noteSeek(songMs),
-    noteTime: (songMs) => currentController?.noteTime(songMs),
-    start: (songMs) => { void currentController?.start(songMs); },
-    stop: () => currentController?.stop(),
+    noteTime: (songMs) => { playbackGraph.checkState(); currentController?.noteTime(songMs); },
+    start: (songMs) => { setPlaybackInterrupted(false); void currentController?.start(songMs); },
+    stop: () => { setPlaybackInterrupted(false); currentController?.stop(); },
   };
 
-  return { controls, enabled: () => options.enabled, state };
+  return { controls, enabled: () => options.enabled, playbackInterrupted, state };
 }

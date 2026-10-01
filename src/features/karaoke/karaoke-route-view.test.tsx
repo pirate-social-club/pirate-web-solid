@@ -13,7 +13,7 @@ import type { KaraokeScoringState } from "./scoring/karaoke-scoring-controller";
 // Faithful start boundary without requesting a microphone or opening a socket.
 function createScoring(options: UseKaraokeScoringOptions): UseKaraokeScoringResult {
   return {
-    enabled: () => options.enabled, state: () => null,
+    enabled: () => options.enabled, state: () => null, playbackInterrupted: () => false,
     controls: {
       start: () => { void options.createKaraokeSession(options.communityId, options.postId, "attempt-key", new AbortController().signal); },
       noteFinish() {}, notePause() {}, notePlay() {}, noteSeek() {}, noteTime() {}, stop() {}, abort() {},
@@ -70,6 +70,7 @@ function failingScoring(code: string, microphone: boolean) {
     const [state, setState] = createSignal<KaraokeScoringState | null>(null);
     return {
       enabled: () => options.enabled,
+      playbackInterrupted: () => false,
       state,
       controls: {
         start: () => setState({
@@ -85,6 +86,13 @@ function failingScoring(code: string, microphone: boolean) {
 }
 
 describe("Karaoke startup recovery", () => {
+  test("explains a closed playback context without presenting it as a scoring connection error", async () => {
+    const { host } = mount([persona("here", "community-here")], undefined, undefined,
+      failingScoring("karaoke_audio_closed", false));
+    await start(host);
+    await vi.waitFor(() => expect(host.textContent).toContain("Audio stopped. Refresh Karaoke"));
+    expect(host.textContent).not.toContain("Scoring could not connect");
+  });
   test("offers sign-in when the cached account has lost its CSRF cookie", async () => {
     const { host, createSession } = mount([persona("here", "community-here")], undefined, undefined,
       failingScoring("csrf_required", false));
