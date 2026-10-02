@@ -124,6 +124,7 @@ export default defineConfig({
       "src/features/posts/video-submission/video-composer-runtime.test.tsx",
       "src/features/posts/video-submission/solid-actor.test.ts",
       "src/features/posts/video-submission/video-composer-machine.test.ts",
+      "src/features/posts/video-submission/video-composer-media.test.ts",
       "src/features/posts/video-submission/video-composer-coverage.test.ts",
       "src/features/posts/video-submission/buffered-guide.test.ts",
       "src/features/posts/video-submission/video-create-route.test.tsx",

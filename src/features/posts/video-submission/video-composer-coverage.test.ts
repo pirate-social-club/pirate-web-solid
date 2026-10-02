@@ -7,6 +7,7 @@ const sourcePath = (file: string) => resolve(process.cwd(), "src/features/posts/
 const storySource = readFileSync(sourcePath("video-authoring.stories.tsx"), "utf8");
 const runtimeTests = readFileSync(sourcePath("video-composer-runtime.test.tsx"), "utf8");
 const machineTests = readFileSync(sourcePath("video-composer-machine.test.ts"), "utf8");
+const mediaTests = readFileSync(sourcePath("video-composer-media.test.ts"), "utf8");
 
 // Every state has a visible story or an explicit internal-only reason, and a
 // transition test. The state key check forces this inventory to change when
@@ -43,6 +44,10 @@ const scenarios = [
   "an effect can send without a synchronous subscription write",
   "disposal drops queued sends and stops the owned actor",
   "song approval, capture, finalization and Publish have one path",
+  "two Publish events queued by the Solid bridge start only one operation",
+  "a late camera session is cancelled without being attached or keeping its guide",
+  "a late guide source is released without creating playable audio",
+  "camera permission granted after disposal stops the preview tracks",
   "an unconfirmed finalize goes Home and preserves its receipt without sending twice",
 ];
 
@@ -70,7 +75,7 @@ test("visible stories and transition tests cover every composer state", () => {
 });
 
 test("cancellation, disposal, retake, repeat Publish and ambiguous finalize have named scenarios", () => {
-  const evidence = runtimeTests + machineTests
+  const evidence = runtimeTests + machineTests + mediaTests
     + readFileSync(sourcePath("solid-actor.test.ts"), "utf8");
   for (const scenario of scenarios) expect(evidence).toContain(scenario);
 });

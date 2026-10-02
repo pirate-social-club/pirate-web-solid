@@ -1,9 +1,11 @@
 import { createActor } from "xstate";
+import { createRoot } from "solid-js";
 import { describe, expect, test, vi } from "vitest";
 import type { SoundtrackSelection } from "../post-composer/song-excerpt-composer";
 import type { VideoCaptureSession } from "./capture";
 import type { GuideAudio } from "./video-composer-runtime";
 import { createVideoComposerMachine, type ComposerOperations } from "./video-composer-machine";
+import { useOwnedActor } from "./solid-actor";
 
 // SAFETY: The machine reads these exact soundtrack fields in this fixture.
 const selection = {
@@ -52,6 +54,34 @@ function fixture(overrides: Partial<ComposerOperations> = {}) {
 }
 
 describe("composer transitions", () => {
+  test("two Publish events queued by the Solid bridge start only one operation", async () => {
+    let complete!: (value: { posted: boolean }) => void;
+    const pending = new Promise<{ posted: boolean }>(resolve => { complete = resolve; });
+    const publish = vi.fn(() => pending);
+    let dispose = () => {};
+    const { actor, wait, send } = createRoot(release => {
+      dispose = release;
+      const fixtureActor = fixture({ publish });
+      return { ...fixtureActor, send: useOwnedActor(fixtureActor.actor).send };
+    });
+    try {
+      await wait("choosingSong");
+      send({ type: "SELECTION", selection });
+      send({ type: "CONTINUE" });
+      await wait("capture.idle");
+      send({ type: "FILE", file: take });
+      await wait("review");
+      send({ type: "PUBLISH" });
+      send({ type: "PUBLISH" });
+      await wait("submitting");
+      expect(publish).toHaveBeenCalledTimes(1);
+      expect(actor.getSnapshot().can({ type: "PUBLISH" })).toBe(false);
+      complete({ posted: false });
+      await wait("retained");
+      expect(publish).toHaveBeenCalledTimes(1);
+    } finally { dispose(); }
+  });
+
   test("song approval, capture, finalization and Publish have one path", async () => {
     const { actor, wait, publish } = fixture();
     await wait("choosingSong");
