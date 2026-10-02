@@ -558,7 +558,7 @@ test("the Bob click checks the publication deadline itself, even before the pane
       onCommand={onCommand}
       onDraftRootLabelChange={() => {}}
       snapshot={snapshot}
-      wallet={{ isAvailable: () => true, publishCompleteResource, signRootOwnership: async () => "signature" }}
+      wallet={{ isAvailable: () => true, connectForPublication: async () => ({ publishCompleteResource }), signRootOwnership: async () => "signature" }}
     />
   ));
   const bob = button(container, "Publish to midnight/ with Bob Wallet");

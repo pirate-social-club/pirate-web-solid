@@ -20,20 +20,21 @@ describe("Bob community HNS wallet", () => {
       { type: "TXT" as const, txt: ["pirate-verification=fixture"] },
     ];
 
-    await expect(wallet.publishCompleteResource("dankmemes", records)).resolves.toEqual({ txid: hash.toLowerCase() });
+    await expect((await wallet.connectForPublication()).publishCompleteResource("dankmemes", records)).resolves.toEqual({ txid: hash.toLowerCase() });
     expect(sendUpdate).toHaveBeenCalledOnce();
     expect(sendUpdate).toHaveBeenCalledWith("dankmemes", records);
   });
 
   it.each([undefined, null, {}, { hash: "invalid" }, "a".repeat(64)])("treats a missing transaction hash as ambiguous", async (result) => {
     const wallet = createBobCommunityHnsWallet({ bob3: { connect: async () => ({ signWithName: vi.fn(), sendUpdate: vi.fn().mockResolvedValue(result) }) } });
-    await expect(wallet.publishCompleteResource("midnight", [])).resolves.toEqual({ txid: null });
+    await expect((await wallet.connectForPublication()).publishCompleteResource("midnight", [])).resolves.toEqual({ txid: null });
   });
 
   it("fails closed when the injected provider is missing", async () => {
     const missing = createBobCommunityHnsWallet({});
 
     expect(missing.isAvailable()).toBe(false);
+    await expect(missing.connectForPublication()).rejects.toThrow("bob_wallet_unavailable");
     await expect(missing.signRootOwnership("dankmemes", "message")).rejects.toThrow("bob_wallet_unavailable");
   });
 });

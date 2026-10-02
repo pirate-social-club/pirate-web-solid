@@ -43,7 +43,8 @@ function fixture() {
   const get = vi.fn(async () => current);
   const post = vi.fn(async () => { current = { ...current, revision: 4, publication_check_pending: true }; return current; });
   const sendUpdate = vi.fn(async (): Promise<{ hash: string } | undefined> => ({ hash: txid }));
-  vi.stubGlobal("bob3", { connect: async () => ({ sendUpdate, signWithName: vi.fn() }) });
+  const connect = vi.fn(async () => ({ sendUpdate, signWithName: vi.fn() }));
+  vi.stubGlobal("bob3", { connect });
   const mount = () => {
     const api = createCommunityNamespaceSettingsApi({
       communityId: binding.community_id, communityPath: "/c/community-1", readCsrfToken: () => "csrf-fixture",
@@ -60,8 +61,44 @@ function fixture() {
     const click = async (text: string) => { await vi.waitFor(() => expect(button(text)).toBeDefined()); button(text)!.click(); };
     return { container, dispose, button, click };
   };
-  return { mount, sendUpdate, get, post, setCurrent: (value: typeof session) => { current = value; } };
+  return { mount, connect, sendUpdate, get, post, setCurrent: (value: typeof session) => { current = value; } };
 }
+
+test.each(["dismissed", "locked", "unavailable"])("a %s connection can retry without leaving a publication intent", async (reason) => {
+  const f = fixture(); f.connect.mockRejectedValueOnce(new Error(reason));
+  const ui = f.mount(); await ui.click("with Bob Wallet");
+  await vi.waitFor(() => expect(f.connect).toHaveBeenCalledTimes(1));
+  await vi.waitFor(() => expect(ui.button("with Bob Wallet")?.disabled).toBe(false));
+  expect(readPublication(binding)).toBeNull();
+  expect(f.sendUpdate).not.toHaveBeenCalled();
+  expect(f.post).not.toHaveBeenCalled();
+  expect(ui.container.textContent).toContain("Could not connect to Bob");
+  await ui.click("with Bob Wallet");
+  await vi.waitFor(() => expect(f.post).toHaveBeenCalledTimes(1));
+  expect(f.sendUpdate).toHaveBeenCalledTimes(1);
+});
+
+test("a pending connection has no intent and disposal before it finishes cannot send", async () => {
+  const f = fixture(); let finish!: (wallet: Awaited<ReturnType<typeof f.connect>>) => void;
+  f.connect.mockImplementationOnce(() => new Promise(resolve => { finish = resolve; }));
+  const ui = f.mount(); await ui.click("with Bob Wallet");
+  await vi.waitFor(() => expect(f.connect).toHaveBeenCalledTimes(1));
+  expect(readPublication(binding)).toBeNull();
+  ui.dispose(); finish({ sendUpdate: f.sendUpdate, signWithName: vi.fn() });
+  const after = f.mount(); await vi.waitFor(() => expect(after.button("with Bob Wallet")?.disabled).toBe(false));
+  expect(readPublication(binding)).toBeNull(); expect(f.sendUpdate).not.toHaveBeenCalled();
+});
+
+test("a provider removed before connection leaves manual acknowledgement available", async () => {
+  const f = fixture(); const ui = f.mount();
+  await vi.waitFor(() => expect(ui.button("with Bob Wallet")).toBeDefined());
+  vi.stubGlobal("bob3", undefined); await ui.click("with Bob Wallet");
+  await vi.waitFor(() => expect(ui.button("I published all records manually")?.disabled).toBe(false));
+  expect(readPublication(binding)).toBeNull();
+  await ui.click("I published all records manually");
+  await vi.waitFor(() => expect(f.post).toHaveBeenCalledTimes(1));
+  expect(f.sendUpdate).not.toHaveBeenCalled();
+});
 
 test("lost acknowledgement keeps its receipt and retries the API without another wallet call", async () => {
   const f = fixture();
@@ -145,8 +182,11 @@ test.each(["write", "read", "corrupt", "locks"])("%s failure blocks Bob before t
   if (failure === "locks") Reflect.deleteProperty(navigator, "locks");
   const ui = f.mount();
   if (failure === "write" || failure === "locks") await ui.click("with Bob Wallet");
-  await vi.waitFor(() => expect(ui.container.textContent).toContain("could not be saved or read"));
+  await vi.waitFor(() => expect(ui.container.textContent).toContain("storage or locking could not be used"));
   expect(f.sendUpdate).not.toHaveBeenCalled(); expect(f.post).not.toHaveBeenCalled();
+  await ui.click("I published all records manually");
+  await vi.waitFor(() => expect(f.post).toHaveBeenCalledTimes(1));
+  expect(f.sendUpdate).not.toHaveBeenCalled();
 });
 
 test("failure to save the wallet result retains the pre-send fence across reload", async () => {
@@ -156,7 +196,7 @@ test("failure to save the wallet result retains the pre-send fence across reload
     original.call(this, key, value);
   });
   const before = f.mount(); await before.click("with Bob Wallet");
-  await vi.waitFor(() => expect(before.container.textContent).toContain("could not be saved or read"));
+  await vi.waitFor(() => expect(before.container.textContent).toContain("storage or locking could not be used"));
   expect(before.container.textContent).toContain(txid); expect(readPublication(binding)?.txid).toBeNull();
   before.dispose(); vi.restoreAllMocks(); const after = f.mount(); await after.click("Check publication status");
   await vi.waitFor(() => expect(f.post).toHaveBeenCalledTimes(1)); expect(f.sendUpdate).toHaveBeenCalledTimes(1);
@@ -166,6 +206,8 @@ test("a changed server plan after send is not acknowledged and does not reopen B
   const f = fixture(); f.get.mockResolvedValue({ ...session, publish_plan_sha256: "c".repeat(64) });
   const ui = f.mount(); await ui.click("with Bob Wallet");
   await vi.waitFor(() => expect(ui.container.textContent).toContain("record plan has changed"));
+  expect(ui.button("I published all records manually")?.disabled).toBe(true);
+  ui.button("I published all records manually")!.click();
   await ui.click("Check publication status");
   await vi.waitFor(() => expect(f.get).toHaveBeenCalledTimes(2));
   expect(f.post).not.toHaveBeenCalled(); expect(f.sendUpdate).toHaveBeenCalledTimes(1);

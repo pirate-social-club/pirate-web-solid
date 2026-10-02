@@ -16,6 +16,7 @@ export function CommunityHnsPublicationControls(props: {
   const [storageFailed, setStorageFailed] = createSignal(false);
   const [walletBusy, setWalletBusy] = createSignal(false);
   const [uncertain, setUncertain] = createSignal(false);
+  const [connectionFailed, setConnectionFailed] = createSignal(false);
   let active = true;
   const binding = () => publicationBinding(props.snapshot);
   const refresh = (current: HnsPublicationBinding | null) => {
@@ -61,25 +62,34 @@ export function CommunityHnsPublicationControls(props: {
     const intent = binding();
     const action = props.snapshot.next_action;
     const wallet = props.wallet;
-    if (!wallet?.isAvailable() || blocked() || !intent || action.kind !== "publish_resource" || action.records.some((record) => !record.wallet_record)) return;
+    if (!wallet || blocked() || !intent || action.kind !== "publish_resource" || action.records.some((record) => !record.wallet_record)) return;
     setWalletBusy(true);
     props.onBusyChange(true);
     setUncertain(false);
+    setConnectionFailed(false);
     try {
       await lockPublication(intent, async () => {
         const existing = readPublication(intent);
         if (existing) { if (active) setReceipt(existing); return; }
-        const current = binding();
-        // Recheck after waiting for another tab, before persisting or opening Bob.
-        if (!active || props.blocked || props.busy || !current || !samePublication(intent, current)) return;
-        const deadline = props.snapshot.lifecycle?.deadline;
-        if (deadline?.kind === "publication" && Date.parse(deadline.at) <= Date.now()) return;
+        const stillCurrent = () => {
+          const current = binding();
+          const deadline = props.snapshot.lifecycle?.deadline;
+          return active && !props.blocked && !props.busy && current && samePublication(intent, current)
+            && !(deadline?.kind === "publication" && Date.parse(deadline.at) <= Date.now());
+        };
+        // A rejected connection cannot have sent this UPDATE. Persist only after
+        // connecting, then recheck the session/deadline before the send boundary.
+        if (!stillCurrent()) return;
+        let connected;
+        try { connected = await wallet.connectForPublication(); }
+        catch { if (active) setConnectionFailed(true); return; }
+        if (!stillCurrent()) return;
         const pending: HnsPublicationReceipt = { ...intent, version: 1, txid: null };
         savePublication(pending);
         setReceipt(pending);
         let result;
         try {
-          result = await wallet.publishCompleteResource(intent.root_label, action.records.flatMap((record) => record.wallet_record ? [record.wallet_record] : []));
+          result = await connected.publishCompleteResource(intent.root_label, action.records.flatMap((record) => record.wallet_record ? [record.wallet_record] : []));
         } catch {
           if (active) setUncertain(true);
           return;
@@ -107,9 +117,6 @@ export function CommunityHnsPublicationControls(props: {
     <div class="space-y-3">
       <Show when={receipt() || storageFailed()} fallback={(
         <div class="flex flex-wrap gap-3">
-          <Button loading={props.busy || walletBusy()} disabled={props.blocked} onClick={() => {
-            if (!blocked()) props.onCommand({ kind: "acknowledge_complete_resource" });
-          }} variant="secondary">I published all records manually</Button>
           <Show when={props.wallet?.isAvailable() && props.snapshot.next_action.kind === "publish_resource"
             && props.snapshot.next_action.records.every((record) => record.wallet_record)}>
             <Button loading={props.busy || walletBusy()} disabled={props.blocked || binding() === null} onClick={() => void publish()}>
@@ -127,9 +134,21 @@ export function CommunityHnsPublicationControls(props: {
         <Show when={planChanged()}>
           <FormNote tone="warning">The record plan has changed. Refresh the import status to resolve the earlier wallet update.</FormNote>
         </Show>
-        <Button loading={props.busy || walletBusy()} disabled={props.blocked} onClick={reconcile} variant="secondary">Check publication status</Button>
       </Show>
-      <Show when={storageFailed()}><FormNote tone="warning">Publication progress could not be saved or read. Restore browser storage, then reload to check the existing update.</FormNote></Show>
+      <div class="flex flex-wrap gap-3">
+        <Show when={receipt() || storageFailed()}>
+          <Button loading={props.busy || walletBusy()} disabled={props.blocked} onClick={reconcile} variant="secondary">Check publication status</Button>
+        </Show>
+        <Button loading={props.busy || walletBusy()} disabled={props.blocked || planChanged()} onClick={() => {
+          if (blocked() || planChanged()) return;
+          const saved = receipt();
+          props.onCommand(saved
+            ? { kind: "acknowledge_complete_resource", publication: saved }
+            : { kind: "acknowledge_complete_resource" });
+        }} variant="secondary">I published all records manually</Button>
+      </div>
+      <Show when={connectionFailed() && !receipt() && !storageFailed()}><FormNote tone="warning">Could not connect to Bob. No update was sent. Unlock or reconnect your wallet, then try again.</FormNote></Show>
+      <Show when={storageFailed()}><FormNote tone="warning">Automatic publication is unavailable because browser storage or locking could not be used. You can acknowledge records already published manually.</FormNote></Show>
     </div>
   );
 }
