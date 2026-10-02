@@ -195,3 +195,22 @@ test("missing publication identity disables the wallet button", async () => {
   const ui = f.mount(); await vi.waitFor(() => expect(ui.button("with Bob Wallet")?.disabled).toBe(true));
   ui.button("with Bob Wallet")!.click(); expect(f.sendUpdate).not.toHaveBeenCalled();
 });
+
+
+test("a newer pre-acknowledgement read is resynchronized after the POST fails", async () => {
+  const f = fixture();
+  f.get.mockResolvedValue({ ...session, revision: 4 });
+  f.post.mockRejectedValueOnce(new Error("acknowledgement failed after newer read"));
+  const ui = f.mount(); await ui.click("with Bob Wallet");
+  await vi.waitFor(() => expect(ui.container.textContent).toContain("could not be completed"));
+  expect(f.post).toHaveBeenCalledTimes(1);
+  await ui.click("Check publication status");
+  // An old UI generation may refresh its bound session, but cannot write.
+  await vi.waitFor(() => expect(f.get).toHaveBeenCalledTimes(2));
+  expect(f.post).toHaveBeenCalledTimes(1);
+  await vi.waitFor(() => expect(ui.button("Check publication status")?.disabled).toBe(false));
+  await ui.click("Check publication status");
+  await vi.waitFor(() => expect(f.post).toHaveBeenCalledTimes(2));
+  expect(f.post.mock.calls[1]).toEqual(expect.arrayContaining([expect.objectContaining({ body: expect.objectContaining({ expected_revision: 4 }) })]));
+  expect(f.sendUpdate).toHaveBeenCalledTimes(1);
+});

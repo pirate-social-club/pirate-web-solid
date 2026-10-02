@@ -434,6 +434,13 @@ export function createCommunityNamespaceSettingsApi(
       }
 
       if (command.expected_generation !== current.generation) {
+        // A pre-acknowledgement read may have advanced the adapter before a
+        // failed POST left the UI behind. A saved publication may resync its
+        // own session here, but only a fresh command may perform a write.
+        if (command.kind === "acknowledge_complete_resource" && command.publication
+          && currentSessionId !== null && command.publication.root_import_session_id === currentSessionId) {
+          return load(currentSessionId);
+        }
         throw new CommunityNamespaceSettingsApiError("The community address changed. Refresh and try again.");
       }
       if (command.kind === "change_namespace") {
