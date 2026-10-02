@@ -2,12 +2,12 @@ import type { HnsWalletResourceRecord } from "./owner-settings-model";
 
 export interface CommunityHnsWallet {
   isAvailable: () => boolean;
-  publishCompleteResource: (rootLabel: string, records: ReadonlyArray<HnsWalletResourceRecord>) => Promise<void>;
+  publishCompleteResource: (rootLabel: string, records: ReadonlyArray<HnsWalletResourceRecord>) => Promise<Readonly<{ txid: string | null }>>;
   signRootOwnership: (rootLabel: string, message: string) => Promise<string>;
 }
 
 type BobWallet = Readonly<{
-  sendUpdate: (name: string, records: ReadonlyArray<HnsWalletResourceRecord>) => Promise<void>;
+  sendUpdate: (name: string, records: ReadonlyArray<HnsWalletResourceRecord>) => Promise<Readonly<{ hash: string }> | null | undefined>;
   signWithName: (name: string, message: string) => Promise<string>;
 }>;
 
@@ -34,7 +34,11 @@ export function createBobCommunityHnsWallet(target: BobBrowserScope = browserSco
       return signature;
     },
     publishCompleteResource: async (rootLabel, records) => {
-      await (await connect()).sendUpdate(rootLabel, records);
+      // Bob resolves sendUpdate with hsd transaction JSON after submission.
+      // An absent/malformed hash is an ambiguous completion, never permission to resend.
+      const result = await (await connect()).sendUpdate(rootLabel, records);
+      const hash = typeof result === "object" && result !== null && "hash" in result ? result.hash : null;
+      return { txid: typeof hash === "string" && /^[a-fA-F0-9]{64}$/.test(hash) ? hash.toLowerCase() : null };
     },
   };
 }

@@ -12,16 +12,22 @@ describe("Bob community HNS wallet", () => {
   });
 
   it("publishes the complete resource through one wallet update", async () => {
-    const sendUpdate = vi.fn().mockResolvedValue(undefined);
+    const hash = "B".repeat(64);
+    const sendUpdate = vi.fn().mockResolvedValue({ hash, hex: "unretained-wallet-details" });
     const wallet = createBobCommunityHnsWallet({ bob3: { connect: async () => ({ signWithName: vi.fn(), sendUpdate }) } });
     const records = [
       { type: "NS" as const, ns: "ns1.pirate." },
       { type: "TXT" as const, txt: ["pirate-verification=fixture"] },
     ];
 
-    await wallet.publishCompleteResource("dankmemes", records);
+    await expect(wallet.publishCompleteResource("dankmemes", records)).resolves.toEqual({ txid: hash.toLowerCase() });
     expect(sendUpdate).toHaveBeenCalledOnce();
     expect(sendUpdate).toHaveBeenCalledWith("dankmemes", records);
+  });
+
+  it.each([undefined, null, {}, { hash: "invalid" }, "a".repeat(64)])("treats a missing transaction hash as ambiguous", async (result) => {
+    const wallet = createBobCommunityHnsWallet({ bob3: { connect: async () => ({ signWithName: vi.fn(), sendUpdate: vi.fn().mockResolvedValue(result) }) } });
+    await expect(wallet.publishCompleteResource("midnight", [])).resolves.toEqual({ txid: null });
   });
 
   it("fails closed when the injected provider is missing", async () => {
