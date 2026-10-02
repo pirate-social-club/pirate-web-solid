@@ -194,7 +194,10 @@ export function createVideoComposerMachine(operations: ComposerOperations, initi
         entry: assign({ confirmRequested: false, playbackFailed: false, error: "" }),
         invoke: {
           src: "checkPlayback", input: ({ context }) => context.selection!,
-          onDone: { target: "capture", actions: assign({ enteredCapture: true, confirmRequested: false, playbackFailed: false, error: "" }) },
+          onDone: [
+            { guard: "canCapture", target: "capture", actions: assign({ enteredCapture: true, confirmRequested: false, playbackFailed: false, error: "" }) },
+            { target: "choosingSong" },
+          ],
           onError: { target: "choosingSong", actions: assign({ confirmRequested: false, playbackFailed: true, error: ({ event }) => message(event.error, "This song won’t play. Try again or choose another song.") }) },
         },
         on: {

@@ -55,6 +55,7 @@ const scenarios = [
   "Back during pending playback cancels the check",
   "changing the song during playback does not reuse an earlier delayed confirmation",
   "cancels pending startup",
+  "approval lost during playback keeps song choice open after late success",
   "losing song approval during recording still allows Stop but prevents Publish",
   "Stop during guide startup aborts the guide and finalizes with no confirmed alignment",
   "an unconfirmed finalize goes Home and preserves its receipt without sending twice",

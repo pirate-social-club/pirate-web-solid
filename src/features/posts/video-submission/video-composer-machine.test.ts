@@ -79,6 +79,29 @@ function deferred<T>() {
 }
 
 describe("composer transitions", () => {
+  test.each([...negativePlans, null])("approval lost during playback keeps song choice open after late success: %s", async plan => {
+    const pending = deferred<void>();
+    let eligible = true;
+    const { actor, send, wait, dispose } = ownedFixture({
+      canCapture: context => eligible && context.songPlan.kind === "ready",
+      checkPlayback: async () => pending.promise,
+    });
+    try {
+      await wait("choosingSong");
+      send({ type: "SELECTION", selection }); send({ type: "SONG_PLAN", plan: approvedPlan });
+      send({ type: "CONTINUE" }); await wait("checkingPlayback");
+      if (plan) {
+        send({ type: "SONG_PLAN", plan });
+        await vi.waitFor(() => expect(actor.getSnapshot().context.songPlan.kind).toBe(plan.kind));
+      } else eligible = false;
+      pending.resolve(); await wait("choosingSong");
+      expect(actor.getSnapshot().context.enteredCapture).toBe(false);
+      expect(actor.getSnapshot().context.confirmRequested).toBe(false);
+      expect(actor.getSnapshot().context.selection).toBe(selection);
+      if (plan) expect(actor.getSnapshot().context.songPlan).toEqual(plan);
+    } finally { pending.resolve(); dispose(); }
+  });
+
   test.each([
     ["preparingGuide", "song"], ["startingCapture", "song"],
     ["preparingGuide", "profile"], ["startingCapture", "profile"],
