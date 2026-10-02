@@ -33,6 +33,8 @@ jobs:
       - name: Install Chromium for browser probes
         run: bunx playwright install --with-deps chromium
       - run: bun run verify
+      - name: Check HNS wallet publication recovery
+        run: bun run test:e2e:hns-wallet-local
       - name: Build staging Worker artifact
         run: bun run build
         env:
