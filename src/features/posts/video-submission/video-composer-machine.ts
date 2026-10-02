@@ -133,6 +133,9 @@ export function createVideoComposerMachine(operations: ComposerOperations, initi
       canPublish: ({ context }) => operations.canPublish(context),
       shouldRefresh: ({ context }) => operations.shouldRefresh(context),
       wantsCapture: ({ context }) => context.confirmRequested && operations.canCapture(context),
+      wantsReview: ({ context }) => context.confirmRequested && context.file !== null && operations.canCapture(context),
+      canReview: ({ context }) => context.file !== null && operations.canCapture(context),
+      captureBlocked: ({ context }) => !operations.canCapture(context),
       hasFile: ({ context }) => context.file !== null,
     },
   }).createMachine({
@@ -150,7 +153,11 @@ export function createVideoComposerMachine(operations: ComposerOperations, initi
     on: {
       RECORD_CHANGED: { actions: assign({ record: ({ event }) => event.record }) },
       PROGRESS: { actions: assign({ progress: ({ event }) => event.progress }) },
-      SONG_PLAN: { actions: assign({ songPlan: ({ event }) => event.plan }) },
+      SONG_PLAN: { actions: assign({
+        songPlan: ({ event }) => event.plan,
+        confirmRequested: ({ context, event }) => ["refused", "failed", "ineligible", "not_available", "timing_unavailable"].includes(event.plan.kind)
+          ? false : context.confirmRequested,
+      }) },
       SONG_CHOICE: { actions: assign({ songChoice: ({ event }) => event.choice, playbackFailed: false, error: "" }) },
       SONG_SOURCE: { actions: assign({ songSource: ({ event }) => event.source }) },
       SELECTION: { actions: assign({ selection: ({ event }) => event.selection }) },
@@ -166,23 +173,39 @@ export function createVideoComposerMachine(operations: ComposerOperations, initi
         ], onError: { target: "choosingSong", actions: assign({ error: ({ event }) => message(event.error, "Video restore failed") }) } },
       },
       choosingSong: {
-        always: { guard: "wantsCapture", target: "checkingPlayback" },
+        always: [
+          { guard: "wantsReview", target: "review", actions: assign({ confirmRequested: false, playbackFailed: false, error: "" }) },
+          { guard: "wantsCapture", target: "checkingPlayback" },
+        ],
         on: {
-          CONTINUE: [{ guard: "canCapture", target: "checkingPlayback" }, { actions: assign({ confirmRequested: true }) }],
+          CONTINUE: [
+            { guard: "canReview", target: "review", actions: assign({ confirmRequested: false, playbackFailed: false, error: "" }) },
+            { guard: "canCapture", target: "checkingPlayback" },
+            { guard: ({ context }) => context.songPlan.kind === "checking" || context.songPlan.kind === "measuring", actions: assign({ confirmRequested: true }) },
+          ],
           BACK_FROM_SONG: [
-            { guard: "hasFile", target: "review" },
-            { guard: ({ context }) => context.enteredCapture, target: "capture" },
-            { actions: () => operations.onExit() },
+            { guard: "hasFile", target: "review", actions: assign({ confirmRequested: false }) },
+            { guard: ({ context }) => context.enteredCapture, target: "capture", actions: assign({ confirmRequested: false }) },
+            { actions: [assign({ confirmRequested: false }), () => operations.onExit()] },
           ],
         },
       },
       checkingPlayback: {
+        entry: assign({ confirmRequested: false, playbackFailed: false, error: "" }),
         invoke: {
           src: "checkPlayback", input: ({ context }) => context.selection!,
           onDone: { target: "capture", actions: assign({ enteredCapture: true, confirmRequested: false, playbackFailed: false, error: "" }) },
           onError: { target: "choosingSong", actions: assign({ confirmRequested: false, playbackFailed: true, error: ({ event }) => message(event.error, "This song won’t play. Try again or choose another song.") }) },
         },
-        on: { SELECTION: { target: "choosingSong", actions: assign({ selection: ({ event }) => event.selection }) }, SONG_CHOICE: { target: "choosingSong", actions: assign({ songChoice: ({ event }) => event.choice }) } },
+        on: {
+          SELECTION: { target: "choosingSong", actions: assign({ selection: ({ event }) => event.selection }) },
+          SONG_CHOICE: { target: "choosingSong", actions: assign({ songChoice: ({ event }) => event.choice }) },
+          BACK_FROM_SONG: [
+            { guard: "hasFile", target: "review" },
+            { guard: ({ context }) => context.enteredCapture, target: "capture" },
+            { target: "choosingSong", actions: () => operations.onExit() },
+          ],
+        },
       },
       capture: {
         initial: "idle",
@@ -207,12 +230,14 @@ export function createVideoComposerMachine(operations: ComposerOperations, initi
               onError: { target: "idle", actions: assign({ file: null, error: ({ event }) => message(event.error, "The video could not be opened"), progress: "" }) } },
           },
           preparingGuide: {
+            always: { guard: "captureBlocked", target: "idle", actions: [() => operations.discardPrepared(), assign({ prepared: null, progress: "" })] },
             invoke: { src: "prepareGuide", input: ({ context }) => context.selection!,
               onDone: { target: "startingCapture", actions: assign({ prepared: ({ event }) => event.output.audio, progress: "" }) },
               onError: { target: "idle", actions: assign({ error: ({ event }) => message(event.error, "The song didn't finish loading, so recording didn't start. Check your connection and try again."), progress: "" }) } },
             on: { SELECTION: { target: "idle", actions: [() => operations.discardPrepared(), assign({ selection: ({ event }) => event.selection, progress: "" })] }, VISIBILITY: { target: "idle", actions: [() => operations.discardPrepared(), assign({ visible: ({ event }) => event.visible, progress: "" })] } },
           },
           startingCapture: {
+            always: { guard: "captureBlocked", target: "idle", actions: [() => operations.discardPrepared(), assign({ prepared: null, progress: "" })] },
             invoke: { src: "startCapture", input: ({ context }) => ({ guide: context.selection!, audio: context.prepared! }),
               onDone: { target: "startingGuide", actions: assign({ session: ({ event }) => event.output.session, takeSoundtrack: ({ context }) => ({ songPostId: context.selection!.songPostId, bounds: context.selection!.bounds }) }) },
               onError: { target: "idle", actions: assign({ error: ({ event }) => message(event.error, "The camera could not start"), prepared: null }) } },

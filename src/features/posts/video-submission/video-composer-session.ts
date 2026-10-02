@@ -118,6 +118,7 @@ export function useVideoComposerSession(props: VideoComposerSessionProps) {
     },
   });
   const media = new VideoComposerMedia({
+    canCapture: () => operations.canCapture(actor.getSnapshot().context),
     openPreview: props.openPreview, startCapture: props.startCapture,
     createGuideAudio: props.createGuideAudio, prepareGuideSource: props.prepareGuideSource,
     alignTake: props.alignTake, inspectFile: props.inspectFile, measureDuration: props.measureDuration,

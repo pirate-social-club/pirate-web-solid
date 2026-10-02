@@ -38,6 +38,7 @@ export function excerptBuffered(audio: GuideAudio, bounds: { readonly startMs: n
 }
 
 export interface ComposerMediaOptions {
+  readonly canCapture: () => boolean;
   readonly openPreview?: () => Promise<MediaStream>;
   readonly startCapture?: (input: OriginalVideoCaptureInput) => Promise<VideoCaptureSession>;
   readonly createGuideAudio?: (url: string) => GuideAudio;
@@ -197,7 +198,7 @@ export class VideoComposerMedia {
 
   async startCapture(prepared: { guide: SoundtrackSelection; audio: GuideAudio }, signal: AbortSignal) {
     if (this.previewRequest) await this.previewRequest;
-    if (signal.aborted || this.disposed) {
+    if (signal.aborted || this.disposed || !this.options.canCapture()) {
       this.closePreview();
       this.releasePrepared(prepared.audio);
       throw aborted();
@@ -209,7 +210,7 @@ export class VideoComposerMedia {
     let session: VideoCaptureSession;
     let reported = false;
     const reportFailure = (failure: VideoCaptureError) => {
-      if (reported) return;
+      if (reported || signal.aborted || this.disposed) return;
       reported = true;
       this.session = null; this.stopGuide(); this.options.onStream(null);
       if (!this.disposed) this.options.onFailure(failure.message,
@@ -221,7 +222,9 @@ export class VideoComposerMedia {
     try {
       const input: OriginalVideoCaptureInput = {
         onFailure: reportFailure,
-        onLimit: this.options.onLimit,
+        onLimit: () => {
+          if (!reported && !signal.aborted && !this.disposed) this.options.onLimit();
+        },
         limitMs: captureStopAfterMs(prepared.guide.bounds),
         stream: handed ?? undefined,
       };

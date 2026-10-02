@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
 import type { SoundtrackSelection } from "../post-composer/song-excerpt-composer";
-import type { VideoCaptureSession } from "./capture";
+import type { OriginalVideoCaptureInput, VideoCaptureSession } from "./capture";
+import { VideoCaptureError } from "./capture-failure";
 import { VideoComposerMedia, type ComposerMediaOptions, type GuideAudio } from "./video-composer-media";
 
 const selection: SoundtrackSelection = {
@@ -25,6 +26,7 @@ function fixture(overrides: Partial<ComposerMediaOptions> = {}) {
   };
   const createGuideAudio = vi.fn(() => audio);
   const media = new VideoComposerMedia({
+    canCapture: () => true,
     createGuideAudio, prepareGuideSource: async () => ({ url: "blob:guide", release }),
     onStream, onOriginalTake: vi.fn(), onFailure: vi.fn(), onLimit: vi.fn(), onInterrupted: vi.fn(),
     ...overrides,
@@ -85,4 +87,63 @@ test("camera permission granted after disposal stops the preview tracks", async 
   permission.resolve(stream);
   await vi.waitFor(() => expect(stop).toHaveBeenCalledTimes(1));
   expect(onStream.mock.calls.filter(([value]) => value !== null)).toHaveLength(0);
+});
+
+test("approval lost while preview permission is pending prevents encoder startup", async () => {
+  const permission = deferred<MediaStream>();
+  let eligible = true;
+  const startCapture = vi.fn();
+  const { media, release } = fixture({
+    canCapture: () => eligible,
+    openPreview: () => permission.promise,
+    startCapture,
+  });
+  media.ensurePreview(() => true);
+  const controller = new AbortController();
+  const prepared = await media.prepareGuide(selection, controller.signal);
+  const pending = media.startCapture(prepared, controller.signal);
+  eligible = false;
+  const stop = vi.fn();
+  // SAFETY: Only getTracks is used to release this preview before capture starts.
+  const stream = Object.assign(Object.create(null) as MediaStream, { getTracks: () => [{ stop }] });
+  permission.resolve(stream);
+  await expect(pending).rejects.toMatchObject({ name: "AbortError" });
+  expect(stop).toHaveBeenCalledTimes(1);
+  expect(release).toHaveBeenCalledTimes(1);
+  expect(startCapture).not.toHaveBeenCalled();
+});
+
+test("a cancelled startup's failure cannot detach or forget a newer capture", async () => {
+  const first = deferred<VideoCaptureSession>();
+  const inputs: OriginalVideoCaptureInput[] = [];
+  const onFailure = vi.fn();
+  const onLimit = vi.fn();
+  const cancelSecond = vi.fn(async () => {});
+  // SAFETY: This fixture only compares streams; no stream methods are needed.
+  const stream = Object.create(null) as MediaStream;
+  const second: VideoCaptureSession = { stream, captureOriginMs: 0, stop: vi.fn(), cancel: cancelSecond };
+  const { media, onStream } = fixture({
+    onFailure, onLimit,
+    startCapture: async input => {
+      inputs.push(input);
+      return inputs.length === 1 ? first.promise : second;
+    },
+  });
+  const firstController = new AbortController();
+  const prepared = await media.prepareGuide(selection, firstController.signal);
+  const pending = media.startCapture(prepared, firstController.signal);
+  await vi.waitFor(() => expect(inputs).toHaveLength(1));
+  firstController.abort();
+  const secondController = new AbortController();
+  const secondPrepared = await media.prepareGuide(selection, secondController.signal);
+  await media.startCapture(secondPrepared, secondController.signal);
+  inputs[0]!.onFailure(new VideoCaptureError("encoder_failed", "Old startup failed"));
+  inputs[0]!.onLimit();
+  expect.soft(onFailure).not.toHaveBeenCalled();
+  expect.soft(onLimit).not.toHaveBeenCalled();
+  expect.soft(onStream.mock.lastCall?.[0]).toBe(stream);
+  await media.cancelCapture();
+  expect.soft(cancelSecond).toHaveBeenCalledTimes(1);
+  first.resolve({ stream, captureOriginMs: 0, stop: vi.fn(), cancel: vi.fn(async () => {}) });
+  await expect(pending).rejects.toMatchObject({ name: "AbortError" });
 });
