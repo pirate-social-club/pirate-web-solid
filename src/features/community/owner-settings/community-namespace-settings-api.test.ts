@@ -565,6 +565,56 @@ test("an activated import deep link checks current ownership instead of showing 
   expect(importKey.value).toBeNull();
 });
 
+test("a suspended attachment without its binding generation cannot fall back to an activated import", async () => {
+  const retained = retainedRoot();
+  const start = vi.fn();
+  const imports = vi.fn();
+  const api = recoveryApi({
+    get_communitiesCommunityIdHnsRootImports: async () => ({
+      ...retained,
+      attachment: { canonical_route: retained.attachment.canonical_route, status: "suspended" },
+    }),
+    post_communitiesCommunityIdCanonicalRouteOwnershipRecoveryStart: start,
+    post_communitiesCommunityIdHnsRootImports: imports,
+  });
+  await expect(api.read()).rejects.toThrow("Ownership verification has expired");
+  await expect(api.execute({ kind: "start_owner_recovery", expected_generation: 43, idempotency_key: "wrong-generation" })).rejects.toThrow("Refresh the community address");
+  expect(start).not.toHaveBeenCalled();
+  expect(imports).not.toHaveBeenCalled();
+});
+
+test("a discovery response for another community cannot start owner recovery", async () => {
+  const start = vi.fn();
+  const api = recoveryApi({
+    get_communitiesCommunityIdHnsRootImports: async () => ({ ...retainedRoot(), community_id: "another-community" }),
+    post_communitiesCommunityIdCanonicalRouteOwnershipRecoveryStart: start,
+  });
+  await expect(api.read()).rejects.toThrow("did not match this community");
+  expect(start).not.toHaveBeenCalled();
+});
+
+test("a lost successful poll response is recovered from current ownership after reload", async () => {
+  const key = locator();
+  const discovery = vi.fn().mockResolvedValueOnce(retainedRoot()).mockResolvedValueOnce(retainedRoot("active", 9));
+  const start = vi.fn(async () => recoveryStart);
+  const poll = vi.fn().mockRejectedValueOnce(new Error("verified response lost"));
+  const client = {
+    get_communitiesCommunityIdHnsRootImports: discovery,
+    post_communitiesCommunityIdCanonicalRouteOwnershipRecoveryStart: start,
+    post_communitiesCommunityIdCanonicalRouteOwnershipRecoveryPoll: poll,
+  };
+  const first = recoveryApi(client, key);
+  await first.read();
+  await first.execute({ kind: "start_owner_recovery", expected_generation: 8, idempotency_key: "saved-recovery" });
+  await expect(first.execute({ kind: "poll", expected_generation: 8, idempotency_key: "lost-poll" })).rejects.toThrow("verified response lost");
+  expect(key.value).toBe("saved-recovery");
+  const reloaded = recoveryApi(client, key);
+  expect((await reloaded.read()).next_action).toMatchObject({ kind: "verified", canonical_route: "https://app.harbor/" });
+  expect(key.value).toBeNull();
+  expect(start).toHaveBeenCalledOnce();
+  expect(poll).toHaveBeenCalledOnce();
+});
+
 test("recovery refuses a stale binding generation before invoking the verifier", async () => {
   const start = vi.fn();
   const api = recoveryApi({ get_communitiesCommunityIdHnsRootImports: async () => retainedRoot(),

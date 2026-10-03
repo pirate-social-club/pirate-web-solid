@@ -156,11 +156,21 @@ test("fresh controllers recover pending imports without a locator",async()=>{
  expect(discovery).toHaveBeenCalledTimes(3);
 });
 
-test.each([null,{canonical_route:{root_label_display:"midnight"},status:"suspended"}])("renders asserted attachment and absence %j",async attachment=>{
- const api=makeApi(async()=>({community_id:"community-1",attachment,session:null}));
+test("renders confirmed absence of an imported name",async()=>{
+ const api=makeApi(async()=>({community_id:"community-1",attachment:null,session:null}));
  const {container}=render(()=><CommunityNamespaceSettingsController api={api} communityId="community-1" communityPath="/c/community-1" />);
  await vi.waitFor(()=>expect(container.textContent).toContain("No import found for your account."));
- expect(container.querySelector("[data-namespace-attachment]")!==null).toBe(attachment!==null);
+ expect(container.querySelector("[data-namespace-attachment]")).toBeNull();
+});
+
+test("a suspended attachment missing its generation offers refresh instead of a new import",async()=>{
+ const post=vi.fn();
+ const api=makeApi(async()=>({community_id:"community-1",attachment:{canonical_route:{root_label_display:"midnight"},status:"suspended"},session:null}),post);
+ const {container}=render(()=><CommunityNamespaceSettingsController api={api} communityId="community-1" communityPath="/c/community-1" />);
+ await vi.waitFor(()=>expect(container.textContent).toContain("Community address settings could not be loaded."));
+ expect(container.textContent).toContain("Try again");
+ expect(container.querySelector("#community-hns-name")).toBeNull();
+ expect(post).not.toHaveBeenCalled();
 });
 
 

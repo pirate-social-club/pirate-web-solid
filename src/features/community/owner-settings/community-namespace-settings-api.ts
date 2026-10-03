@@ -444,7 +444,10 @@ export function createCommunityNamespaceSettingsApi(
       status: response.attachment.status,
       ...(response.attachment.binding_generation === undefined ? {} : { binding_generation: response.attachment.binding_generation }),
     };
-    if (attachment?.status === "suspended" && attachment.binding_generation !== undefined) {
+    if (attachment?.status === "suspended") {
+      if (attachment.binding_generation === undefined) {
+        throw new CommunityNamespaceSettingsApiError("Ownership verification has expired. Refresh the page before restoring it.");
+      }
       currentSessionId = null;
       locator.clear();
       current = recoverySnapshot("required");
