@@ -49,6 +49,7 @@ const clients = [
       "get_postsPostId",
       "get_feedHomePublic",
       "get_feedHome",
+      "post_videoOutcomesClaim",
       "get_publicCommunitiesCommunityRefFeed",
       "post_communitiesCommunityIdPostsPostIdKaraokeAttempts",
       "get_communitiesCommunityIdPostsPostIdKaraoke",

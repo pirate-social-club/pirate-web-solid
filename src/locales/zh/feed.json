@@ -14,5 +14,10 @@
   "loadingMore": "正在加载更多",
   "retry": "重试",
   "loadMore": "加载更多视频",
-  "paginationError": "无法加载更多视频。"
+  "paginationError": "无法加载更多视频。",
+  "videoOutcome": {
+    "processingFailure": "你的视频未能发布。",
+    "policyBlock": "你的视频未发布，因为它不符合我们的准则。",
+    "recordAgain": "重新录制"
+  }
 }

@@ -4,6 +4,7 @@ import { createActor } from "xstate";
 import { createMemoryExcerptDraftStore } from "../post-composer/song-excerpt-draft";
 import type { SongSourceReader } from "../post-composer/song-excerpt-source";
 import type { SongPickerSource } from "../post-composer/song-picker";
+import type { FreshVideoEntry } from "../video-outcomes/fresh-composer-entry.ts";
 import type { OriginalVideoCaptureInput, VideoCaptureSession } from "./capture";
 import { clipFitMessage, fitClipToExcerpt } from "./clip-duration";
 import { VideoCoordinator, type PendingVideo, type VideoStorage } from "./coordinator";
@@ -48,13 +49,15 @@ export interface VideoComposerSessionProps {
   readonly songPreflight?: SongIntervalPreflight;
   readonly songReader?: SongSourceReader;
   readonly songPicker?: SongPickerSource;
-  readonly initialSong?: { readonly postId: string };
+  readonly initialSong?: { readonly postId: string; readonly communityId?: string };
+  readonly freshVideo?: FreshVideoEntry;
 }
 
 /** Solid owns this actor and only local presentation state. Its statechart
  * decides the flow; the media adapter owns handles and the coordinator owns
  * durable upload receipts and server reconciliation. */
 export function useVideoComposerSession(props: VideoComposerSessionProps) {
+  const freshVideo = untrack(() => props.freshVideo);
   const mobile = props.cameraCapture
     ?? Boolean(globalThis.matchMedia?.("(pointer: coarse) and (max-width: 767px)").matches);
   const excerptStore = createMemoryExcerptDraftStore();
@@ -153,6 +156,7 @@ export function useVideoComposerSession(props: VideoComposerSessionProps) {
   let previewEligibility: boolean | undefined;
   const operations: ComposerOperations = {
     async restore(signal) {
+      if (freshVideo !== undefined) return { record: null, released: false, resume: false };
       const next = await coordinator.restore();
       if (signal.aborted || disposed || !next) return { record: null, released: false, resume: false };
       if (await coordinator.release()) return { record: null, released: true, resume: false };

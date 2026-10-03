@@ -43,6 +43,7 @@ export default defineConfig({
       "src/features/posts/song-attribution/song-attribution-chip.test.tsx",
       "src/features/posts/public-post/public-post-sitemap.test.ts",
       "src/routes/index.test.tsx",
+      "src/features/posts/video-outcomes/*.test.tsx",
       "src/routes/legal-routes.test.tsx",
       "src/features/auth/global-sign-in-host.test.tsx",
       "src/features/auth/sign-in-model.test.ts",

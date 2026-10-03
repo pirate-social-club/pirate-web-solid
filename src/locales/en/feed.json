@@ -14,5 +14,10 @@
   "loadingMore": "Loading more",
   "retry": "Retry",
   "loadMore": "Load more videos",
-  "paginationError": "More videos could not be loaded."
+  "paginationError": "More videos could not be loaded.",
+  "videoOutcome": {
+    "processingFailure": "Your video couldn't be posted.",
+    "policyBlock": "Your video wasn't posted because it didn't meet our guidelines.",
+    "recordAgain": "Record again"
+  }
 }

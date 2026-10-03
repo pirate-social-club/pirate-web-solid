@@ -344,6 +344,8 @@ describe("mounted song-first video flow", () => {
     /** The audio element's length, when the injected metadata reports one. */
     readonly elementSeconds?: number;
     readonly initialSong?: boolean;
+    readonly freshVideo?: import("../video-outcomes/fresh-composer-entry").FreshVideoEntry;
+    readonly earlierUpload?: PendingVideo;
     readonly mobile?: boolean;
     readonly playbackCheck?: GuideAudio;
     readonly createGuideAudio?: (url: string) => GuideAudio;
@@ -380,7 +382,7 @@ describe("mounted song-first video flow", () => {
         addListener: () => {}, removeListener: () => {}, dispatchEvent: () => false,
       }));
     }
-    let saved: PendingVideo | null = null;
+    let saved: PendingVideo | null = options.earlierUpload ?? null;
     const storage: VideoStorage = { async exclusive(work) { return work(); }, async load() { return saved; }, async save(record) { saved = record; }, async remove() { saved = null; } };
     // The plan must match the sealed file exactly, as the real server's does.
     const uploadFor = (sizeBytes: number) => ({ method: "MULTIPART" as const, upload_id: "upload", part_count: 1, part_size_bytes: sizeBytes, expires_at: "2099-01-01T00:00:00Z", parts: [{ part_number: 1, url: "https://upload.example/1", expires_at: "2099-01-01T00:00:00Z" }] });
@@ -448,6 +450,8 @@ describe("mounted song-first video flow", () => {
         audioUrl: "https://audio.example/song.mp3",
         title: "A song",
       });
+    const sourceReads: unknown[] = [];
+    const trackedReader: SongSourceReader = (request, signal) => { sourceReads.push(request); return songReader(request, signal); };
     let guideCreation = 0;
     const container = document.createElement("div"); document.body.appendChild(container);
     createRoot(dispose => { disposers.push(() => { dispose(); localStorage.clear(); }); render(() => <VideoComposerRuntime principalId="account" communityId="community" personaId="persona"
@@ -462,12 +466,13 @@ describe("mounted song-first video flow", () => {
       }}
       alignTake={alignTake}
       onGuideTiming={options.onGuideTiming}
-      songPreflight={preflight} songReader={songReader}
+      songPreflight={preflight} songReader={trackedReader}
       personaOptions={options.personaOptions}
-      initialSong={options.initialSong === false ? undefined : { postId: "song-post" }}
+      initialSong={options.initialSong === false ? undefined : options.freshVideo?.song ?? { postId: "song-post" }}
+      freshVideo={options.freshVideo}
       {...(options.onPosted ? { onPosted: options.onPosted } : {})}
       onExit={() => {}} onRetainedPersona={() => {}} />, container); });
-    return { commands, preflightCalls, pendingChecks, fetchImpl, alignments, inspectOptions, current: () => saved };
+    return { commands, sourceReads, preflightCalls, pendingChecks, fetchImpl, alignments, inspectOptions, current: () => saved };
   }
 
   const button = (label: string) => [...document.querySelectorAll("button")].find(candidate => candidate.textContent?.trim() === label);
@@ -530,6 +535,35 @@ describe("mounted song-first video flow", () => {
     if (!allowBlocked) await vi.waitFor(() => expect(control.disabled).toBe(false));
     control.click();
   }
+
+  test("a fresh null-song entry needs the normal song selection and approval before recording or publishing", async () => {
+    const fixture = songSetup({ preflight: "accepted", initialSong: false, mobile: true, freshVideo: { song: null } });
+    await vi.waitFor(() => expect(soundtrackPanel()).not.toBeNull());
+    expect(soundtrackPanel()?.getAttribute("aria-hidden")).not.toBe("true");
+    expect(fixture.sourceReads).toHaveLength(0);
+    attemptFile(); await new Promise(resolve => setTimeout(resolve, 30));
+    expect(startCapture).not.toHaveBeenCalled(); expect(openPreview).not.toHaveBeenCalled();
+    expect(document.querySelector("[data-video-review-frame]")).toBeNull();
+    expect(fixture.commands).toHaveLength(0);
+    expect(button("Continue to video")).toBeUndefined();
+    await pickSongByLink("/p/new-song-post"); await loadSongMetadata(); await awaitPlan("ready");
+    await chooseFile(); await publish();
+    await vi.waitFor(() => expect(fixture.commands.map(command => command.kind)).toEqual(["reserve", "start", "finalize"]));
+    expect(fixture.commands[0]?.input.body).toMatchObject({ intent: "song_reference", song_post_id: "new-song-post" });
+  });
+
+  test("fresh frozen-song preselection starts a new excerpt and never restores or overwrites an earlier take", async () => {
+    const earlier: PendingVideo = { version: "original-video-pending-v1", principalId: "account", communityId: "community", personaId: "persona", file: new File(["earlier take"], "earlier.mp4", { type: "video/mp4" }), caption: "Earlier caption", rating: "general", receipts: [], reservation: null, snapshot: null, pending: null };
+    const fixture = songSetup({ preflight: "accepted", freshVideo: { song: { postId: "frozen-post", communityId: "frozen-community" } }, earlierUpload: earlier });
+    await loadSongMetadata(); await awaitPlan("ready");
+    expect(fixture.sourceReads[0]).toEqual({ kind: "post", postId: "frozen-post", communityId: "frozen-community" });
+    expect(document.querySelector("[data-video-review-frame]")).toBeNull();
+    expect(fixture.commands).toHaveLength(0);
+    await chooseFile(); await publish();
+    await vi.waitFor(() => expect(document.body.textContent).toContain("Finish your earlier video upload before posting a new video."));
+    expect(fixture.commands).toHaveLength(0); expect(fixture.current()).toBe(earlier);
+    expect(fixture.preflightCalls).toContainEqual(expect.objectContaining({ interval: expect.objectContaining({ clip_start_samples: 0 }) }));
+  });
 
   test("the excerpt is chosen before any clip, and the capture surface sits below it", async () => {
     const fixture = songSetup({ preflight: "accepted" });

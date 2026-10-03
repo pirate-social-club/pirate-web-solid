@@ -26,6 +26,7 @@ import {
 } from "./media-composer-bridge";
 import { DEFAULT_SONG_LICENSE } from "./defaults";
 import { PostComposer } from "./post-composer";
+import type { FreshVideoEntry } from "../video-outcomes/fresh-composer-entry.ts";
 import { VideoComposerRuntime } from "../video-submission/video-composer-runtime";
 import type { OriginalVideoCaptureInput, VideoCaptureSession } from "../video-submission/capture";
 import type { SongIntervalPreflight } from "../video-submission/song-reference";
@@ -118,6 +119,7 @@ export interface CreatePostDialogProps {
   /** Entering from a song post: open on the video track with this song chosen
    * before capture. */
   readonly initialVideoSong?: { readonly postId: string };
+  readonly freshVideo?: FreshVideoEntry;
   readonly open: boolean;
   readonly onOpenChange: (open: boolean) => void;
   readonly onPublished?: (href?: string) => void;
@@ -172,7 +174,7 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
   const [textAgeGatePolicy, setTextAgeGatePolicy] = createSignal<AuthorAgeGatePolicy>("none");
   const [songAgeGatePolicy, setSongAgeGatePolicy] = createSignal<AuthorAgeGatePolicy>("none");
   const [mode, setMode] = createSignal<ComposerTab>(
-    untrack(() => (props.initialVideoSong ? "video" : "text")),
+    untrack(() => ((props.initialVideoSong || props.freshVideo) ? "video" : "text")),
   );
   const ageGatePolicy = () => mode() === "song" ? songAgeGatePolicy() : textAgeGatePolicy();
   const setAgeGatePolicy = (next: AuthorAgeGatePolicy) => {
@@ -822,6 +824,7 @@ function CreatePostDialogSession(props: CreatePostDialogProps): JSX.Element {
               label: persona.displayName ?? persona.primaryPublicHandle ?? "Profile",
             }))}
             initialSong={props.initialVideoSong}
+            freshVideo={props.freshVideo}
             storage={props.videoStorage} transport={props.videoTransport} fetchImpl={props.fetchImpl}
             songPreflight={props.videoSongPreflight}
             songReader={props.videoSongReader}
