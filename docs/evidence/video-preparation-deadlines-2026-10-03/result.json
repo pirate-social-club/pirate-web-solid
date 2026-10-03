@@ -1,0 +1,34 @@
+{
+  "base": "7cdf1838e4939c70aa381d10ee773070bbe601f1",
+  "branch": "fix/video-preparation-deadlines",
+  "duration_timeout_ms": 10000,
+  "finalization_timeout_ms": 30000,
+  "checks": {
+    "components_and_capture": {
+      "exit_code": 0,
+      "passed": 118
+    },
+    "chromium_deadline_cases": {
+      "exit_code": 0,
+      "passed": 2
+    },
+    "ssr": {
+      "exit_code": 0,
+      "passed": 34
+    },
+    "app_and_e2e_types": {
+      "exit_code": 0
+    },
+    "focused_lint": {
+      "exit_code": 0,
+      "warnings": 11,
+      "errors": 0
+    },
+    "worker_build_and_prebuild_provenance": {
+      "exit_code": 0
+    }
+  },
+  "native_take_run": false,
+  "deployed": false,
+  "diagnostic_branch_preserved": "3c630ec03cf62aca181da19e9159b68fc60ab3e5"
+}

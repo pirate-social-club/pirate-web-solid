@@ -1,3 +1,4 @@
+import { VIDEO_DURATION_TIMEOUT_MS, VIDEO_FINALIZATION_TIMEOUT_MS, VideoPreparationDeadlineError, withVideoPreparationDeadline } from "./video-preparation-deadline";
 import { createEffect, createMemo, createSignal, onCleanup, Show, untrack } from "solid-js";
 import { ActionFooterShell, Button, buttonVariants, cn, FormNote, MobilePageHeader, Spinner } from "../../../design-system";
 import { type ExcerptBounds } from "../post-composer/song-excerpt";
@@ -515,16 +516,38 @@ function VideoComposerSession(props: {
     }
   }
 
-  async function measureClip(next: File) {
+  let measurementAbort: AbortController | undefined;
+  let measurementRevision = 0;
+  let finalizationAbort: AbortController | undefined;
+  const discardUnfinishedTake = () => {
+    setFile(null); setClipDurationMs(null); clearPreviewUrls();
+    setTakeSoundtrack(null); setTakeAlignment("none");
+  };
+  async function measureClip(next: File, parent?: AbortSignal) {
     if (!selection()) { setClipDurationMs(null); return; }
+    measurementAbort?.abort();
+    const controller = new AbortController();
+    measurementAbort = controller;
+    const revision = ++measurementRevision;
+    const abort = () => controller.abort(parent?.reason);
+    parent?.addEventListener("abort", abort, { once: true });
+    if (parent?.aborted) abort();
     setMeasuring(true);
     try {
-      const duration = props.measureDuration
-        ? await props.measureDuration(next)
-        : await (await import("./capture")).measureVideoDuration(next);
-      if (!disposed) setClipDurationMs(duration);
+      const duration = await withVideoPreparationDeadline(async signal => {
+        return props.measureDuration
+          ? props.measureDuration(next)
+          : (await import("./capture")).measureVideoDuration(next, signal);
+      }, VIDEO_DURATION_TIMEOUT_MS, controller.signal);
+      if (!disposed && revision === measurementRevision && file() === next) setClipDurationMs(duration);
+    } catch (failure) {
+      if (disposed || revision !== measurementRevision) return;
+      if (file() === next && failure instanceof VideoPreparationDeadlineError) discardUnfinishedTake();
+      throw failure;
     } finally {
-      if (!disposed) setMeasuring(false);
+      parent?.removeEventListener("abort", abort);
+      if (measurementAbort === controller) measurementAbort = undefined;
+      if (!disposed && revision === measurementRevision) setMeasuring(false);
     }
   }
 
@@ -558,46 +581,61 @@ function VideoComposerSession(props: {
     session = null;
     stopGuide();
     setFinalizing(true);
+    const controller = new AbortController();
+    finalizationAbort = controller;
     try {
-      const take = await current.stop();
-      let finalTake = take;
-      if (takeSoundtrack()) {
-        if (!guideStarted || guideStartExceeded) {
-          // The take was bound to a guide that never began, or began too late
-          // to compensate. It stays reviewable with its own sound but cannot
-          // be published against the song.
-          finalTake = take;
-          if (!disposed) setTakeAlignment("unaligned");
-          props.onTakeAlignment?.({ offsetMs: guideStartDelayMs, trimmedMs: 0, aligned: false });
-        } else {
-          const alignment = await (props.alignTake ?? alignGuidedTake)(take, guideStartDelayMs);
-          let aligned = alignment.aligned;
-          let candidate = alignment.file;
-          if (aligned) {
-            // The transformed bytes go through the same admission the server
-            // probe applies. A conversion that dropped the audio track or the
-            // codecs is not publishable, whatever the conversion reported.
-            try {
-              const inspect = props.inspectFile ?? (await import("./capture")).inspectVideoFile;
-              // The aligned artifact keeps the captured audio, so its container
-              // can outlast the chosen-file bound; the guided bound applies.
-              await inspect(candidate, { maxDurationSeconds: GUIDED_TAKE_MAX_DURATION_SECONDS });
-            } catch {
-              aligned = false;
-              candidate = take;
+      await withVideoPreparationDeadline(async signal => {
+        const take = await current.stop();
+        signal.throwIfAborted();
+        let finalTake = take;
+        if (takeSoundtrack()) {
+          if (!guideStarted || guideStartExceeded) {
+            // The take was bound to a guide that never began, or began too late
+            // to compensate. It stays reviewable with its own sound but cannot
+            // be published against the song.
+            finalTake = take;
+            if (!disposed) setTakeAlignment("unaligned");
+            props.onTakeAlignment?.({ offsetMs: guideStartDelayMs, trimmedMs: 0, aligned: false });
+          } else {
+            const alignment = await (props.alignTake ?? alignGuidedTake)(take, guideStartDelayMs);
+            signal.throwIfAborted();
+            let aligned = alignment.aligned;
+            let candidate = alignment.file;
+            if (aligned) {
+              // The transformed bytes go through the same admission the server
+              // probe applies. A conversion that dropped the audio track or the
+              // codecs is not publishable, whatever the conversion reported.
+              try {
+                const inspect = props.inspectFile ?? (await import("./capture")).inspectVideoFile;
+                // The aligned artifact keeps the captured audio, so its container
+                // can outlast the chosen-file bound; the guided bound applies.
+                await inspect(candidate, { maxDurationSeconds: GUIDED_TAKE_MAX_DURATION_SECONDS });
+              } catch {
+                aligned = false;
+                candidate = take;
+              }
             }
+            signal.throwIfAborted();
+            finalTake = candidate;
+            if (!disposed) setTakeAlignment(aligned ? "aligned" : "unaligned");
+            props.onTakeAlignment?.({ offsetMs: guideStartDelayMs, trimmedMs: aligned ? alignment.trimmedMs : 0, aligned });
           }
-          finalTake = candidate;
-          if (!disposed) setTakeAlignment(aligned ? "aligned" : "unaligned");
-          props.onTakeAlignment?.({ offsetMs: guideStartDelayMs, trimmedMs: aligned ? alignment.trimmedMs : 0, aligned });
+        } else {
+          if (!disposed) setTakeAlignment("none");
         }
-      } else {
-        if (!disposed) setTakeAlignment("none");
-      }
-      if (!disposed) { showOriginalTake(take); showFile(finalTake); await measureClip(finalTake); }
+        signal.throwIfAborted();
+        if (!disposed) { showOriginalTake(take); showFile(finalTake); await measureClip(finalTake, signal); }
+      }, VIDEO_FINALIZATION_TIMEOUT_MS, controller.signal);
     } catch (failure) {
-      if (!disposed) setError(failure instanceof Error ? failure.message : "The recording couldn’t finish. Record again.");
+      if (!disposed) {
+        if (failure instanceof VideoPreparationDeadlineError) discardUnfinishedTake();
+        setError(failure instanceof Error ? failure.message : "The recording couldn’t finish. Record again.");
+      }
+      // Adapter cancellation may itself hang. Release owned camera tracks now.
+      void current.cancel().catch(() => {});
     } finally {
+      if (finalizationAbort === controller) finalizationAbort = undefined;
+      stopTracks(current.stream);
       if (!disposed) { setFinalizing(false); setStream(null); setCaptureStatus("idle"); }
     }
     // The stop is what ends the take; the reason goes up after it so the
@@ -838,7 +876,7 @@ function VideoComposerSession(props: {
     }
   }, 3_000);
   onCleanup(() => {
-    disposed = true; guidePreparation?.abort(); clearInterval(poll); coordinator.pauseUpload();
+    disposed = true; guidePreparation?.abort(); measurementAbort?.abort(); finalizationAbort?.abort(); clearInterval(poll); coordinator.pauseUpload();
     stopGuide();
     if (typeof document !== "undefined") document.removeEventListener("visibilitychange", onVisibilityChange);
     void session?.cancel(); session = null;

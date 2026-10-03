@@ -1,0 +1,463 @@
+$ node scripts/check-solid-runtime.mjs && node scripts/check-api-client-provenance.mjs && node scripts/check-api-client-runtime-tables.mjs
+{
+  "appSolid": "/media/t42/codedrive/Code/pirate-workspace/.worktrees/pirate-web-solid/solid-video-publish-stall-diagnosis/node_modules/.bun/solid-js@2.0.0-rc.0/node_modules/solid-js",
+  "appWeb": "/media/t42/codedrive/Code/pirate-workspace/.worktrees/pirate-web-solid/solid-video-publish-stall-diagnosis/node_modules/.bun/@solidjs+web@2.0.0-rc.0+6b48b9f3356e564b/node_modules/@solidjs/web",
+  "designSystemPackage": "/media/t42/codedrive/Code/pirate-workspace/.worktrees/pirate-web-solid/solid-video-publish-stall-diagnosis/packages/solid-ui/package.json",
+  "designSolid": "/media/t42/codedrive/Code/pirate-workspace/.worktrees/pirate-web-solid/solid-video-publish-stall-diagnosis/node_modules/.bun/solid-js@2.0.0-rc.0/node_modules/solid-js/dist/server.cjs",
+  "designWeb": "/media/t42/codedrive/Code/pirate-workspace/.worktrees/pirate-web-solid/solid-video-publish-stall-diagnosis/node_modules/.bun/@solidjs+web@2.0.0-rc.0+6b48b9f3356e564b/node_modules/@solidjs/web/dist/server.cjs",
+  "peerNormalized": true,
+  "kobalteVersion": "2.0.0-alpha.0",
+  "kobalteSourceCommit": "a892187065cf7e0d07e91db02310bd28a5619236",
+  "kobalteTarballSha512": "bfd5c834803476b2a528d8b7d4685383c348afd8ecc8ff6dc53ab405a8d2188a65660bdbc8063f0a09eb3cc7b9aca7790a43f1b00821d478fd456b0b3e29c898",
+  "kobaltePatchSha512": "c08545f0578ffdb1fac6fb268077557846eaca4aa182dfc80df9bc81518debadf7f7708d12d99e7e70a75c319096b04404eb1f9648573ef61a587e8464f53c30",
+  "kobaltePatch": true,
+  "dedupe": [
+    "solid-js",
+    "@solidjs/web"
+  ],
+  "note": "The internal solid-ui package is resolved from this repository and shares the app's deduped Solid runtime."
+}
+{
+  "apiClients": [
+    {
+      "dependency": "@pirate/api-client",
+      "provenance": "vendor/api-client-provenance.json"
+    }
+  ]
+}
+{
+  "operations": 95,
+  "expectedDigest": "d35b90835891769e1857711d4d1eb3b9d2ada01349e3d567e359c3e43328ac7b",
+  "clients": [
+    {
+      "path": "/media/t42/codedrive/Code/pirate-workspace/.worktrees/pirate-web-solid/solid-video-publish-stall-diagnosis/node_modules/@pirate/api-client/src/generated/client.ts",
+      "digest": "d35b90835891769e1857711d4d1eb3b9d2ada01349e3d567e359c3e43328ac7b"
+    }
+  ]
+}
+$ vite build && node scripts/prune-solid-ssr-optional-assets.mjs
+vite v8.3.1 building client environment for production...
+transforming...
+✓ 3791 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/client/.assetsignore                                             0.02 kB
+dist/client/assets/cosmos-Bs9ebOVp.png                                4.59 kB
+dist/client/assets/karaoke-capture-processor-Di3k79aW.js              5.02 kB
+dist/client/assets/thread.worker-DxxHzh46.js                          6.44 kB
+dist/client/assets/main.worker-DQ-kTHjx.js                           10.35 kB
+dist/client/assets/clip-1-CAImlZFY.mp4                               12.52 kB
+dist/client/assets/poster-1-CZOgKDDx.jpg                             14.96 kB
+dist/client/assets/logo_ghost_sm-D1_cTyok.png                        26.47 kB
+dist/client/.vite/manifest.json                                      42.79 kB │ gzip:     4.99 kB
+dist/client/assets/public-post-route-view-BjEBwSIp.css                2.75 kB │ gzip:     0.89 kB
+dist/client/assets/entry-client-1M80Vrwd.css                        115.10 kB │ gzip:    18.13 kB
+dist/client/assets/headers-CqoqVz5O.js                                0.06 kB │ gzip:     0.07 kB
+dist/client/assets/karaoke-BHlildSE.js                                0.07 kB │ gzip:     0.08 kB
+dist/client/assets/songs-BHlildSE.js                                  0.07 kB │ gzip:     0.08 kB
+dist/client/assets/study-BHlildSE.js                                  0.07 kB │ gzip:     0.08 kB
+dist/client/assets/ccip-DKSe35Lt.js                                   0.10 kB │ gzip:     0.09 kB
+dist/client/assets/privacy-CGR9FhnT.js                                0.15 kB │ gzip:     0.14 kB
+dist/client/assets/terms-Cc1LkH4_.js                                  0.15 kB │ gzip:     0.14 kB
+dist/client/assets/index-BHSTU5T3.js                                  0.16 kB │ gzip:     0.15 kB
+dist/client/assets/index-BLVkILa2.js                                  0.16 kB │ gzip:     0.15 kB
+dist/client/assets/index-CvjRmMlM.js                                  0.16 kB │ gzip:     0.15 kB
+dist/client/assets/index-FqtSYdPl.js                                  0.16 kB │ gzip:     0.15 kB
+dist/client/assets/index-qQp48d80.js                                  0.16 kB │ gzip:     0.15 kB
+dist/client/assets/leaderboard-CvjRmMlM.js                            0.16 kB │ gzip:     0.15 kB
+dist/client/assets/leaderboard-qQp48d80.js                            0.16 kB │ gzip:     0.15 kB
+dist/client/assets/settings-Cikm6S2T.js                               0.20 kB │ gzip:     0.16 kB
+dist/client/assets/application-session-DN7UHB2W.js                    0.20 kB │ gzip:     0.16 kB
+dist/client/assets/me-CtnMZEnv.js                                     0.21 kB │ gzip:     0.17 kB
+dist/client/assets/browser-CfJvH2ji.js                                0.21 kB │ gzip:     0.18 kB
+dist/client/assets/index-Bsjx-3QH.js                                  0.27 kB │ gzip:     0.21 kB
+dist/client/assets/_section_-BbEm8jlT.js                              0.43 kB │ gzip:     0.27 kB
+dist/client/assets/dist-3po1F8S8.js                                   0.44 kB │ gzip:     0.31 kB
+dist/client/assets/public-profile-preflight-D1y29hfh.js               0.53 kB │ gzip:     0.32 kB
+dist/client/assets/activity-Blo_BsxB.js                               0.57 kB │ gzip:     0.39 kB
+dist/client/assets/layout-shell-R_mki46h.js                           0.58 kB │ gzip:     0.38 kB
+dist/client/assets/reward-claim-Dt03fdC1.js                           0.75 kB │ gzip:     0.43 kB
+dist/client/assets/live-CqCfTa3n.js                                   0.78 kB │ gzip:     0.46 kB
+dist/client/assets/owner-settings-route-loader-BEV8m_dQ.js            0.87 kB │ gzip:     0.50 kB
+dist/client/assets/ui-locale-core-BA1HBKR2.js                         0.89 kB │ gzip:     0.45 kB
+dist/client/assets/community-persona-choice-C11F-Wj3.js               0.91 kB │ gzip:     0.40 kB
+dist/client/assets/action-footer-shell-CPKa05nS.js                    0.99 kB │ gzip:     0.58 kB
+dist/client/assets/community-page-origin-DAOiJ1vZ.js                  1.01 kB │ gzip:     0.54 kB
+dist/client/assets/global-sign-in-host-BRraCxcy.js                    1.11 kB │ gzip:     0.59 kB
+dist/client/assets/search-gp18IlC7.js                                 1.15 kB │ gzip:     0.65 kB
+dist/client/assets/application-personas-1R96ew55.js                   1.19 kB │ gzip:     0.65 kB
+dist/client/assets/sign-in-D2O10VP1.js                                1.20 kB │ gzip:     0.59 kB
+dist/client/assets/sign-in-return-F3rbw343.js                         1.21 kB │ gzip:     0.56 kB
+dist/client/assets/sign-in-modal-D1_8I_9Z.js                          1.21 kB │ gzip:     0.59 kB
+dist/client/assets/chains-DS9Eg5SF.js                                 1.22 kB │ gzip:     0.54 kB
+dist/client/assets/formatAbiItem-Bjq8-8gm.js                          1.25 kB │ gzip:     0.64 kB
+dist/client/assets/community-moderation-settings-api-CIH4nyRX.js      1.28 kB │ gzip:     0.59 kB
+dist/client/assets/rolldown-runtime-C0FnF6B9.js                       1.29 kB │ gzip:     0.71 kB
+dist/client/assets/document-requirement-CmHyUiIq.js                   1.42 kB │ gzip:     0.57 kB
+dist/client/assets/client-XBdF15dV.js                                 1.44 kB │ gzip:     0.75 kB
+dist/client/assets/community-avatar-DahWT4bf.js                       1.58 kB │ gzip:     0.84 kB
+dist/client/assets/account-community-memberships-_N0MaTgn.js          1.59 kB │ gzip:     0.76 kB
+dist/client/assets/community-page-preflight-Chf9b1Eh.js               1.88 kB │ gzip:     0.94 kB
+dist/client/assets/public-profile-page.model-YAzEjafA.js              2.17 kB │ gzip:     0.94 kB
+dist/client/assets/nationality-country-codes-DrJRgpwU.js              2.22 kB │ gzip:     1.42 kB
+dist/client/assets/privy-wallet-authorization-CFqzD7gU.js             2.35 kB │ gzip:     1.03 kB
+dist/client/assets/query-zyhQAAHQ.js                                  2.56 kB │ gzip:     1.34 kB
+dist/client/assets/age-access-prompt-BMNgWKMy.js                      2.57 kB │ gzip:     1.28 kB
+dist/client/assets/public-post-route-loader-BleJ4aXj.js               2.65 kB │ gzip:     1.12 kB
+dist/client/assets/session-pIMTTRwA.js                                2.77 kB │ gzip:     1.09 kB
+dist/client/assets/community-persona-choice-sheet-dUfe1dOa.js         2.77 kB │ gzip:     1.16 kB
+dist/client/assets/ccip-CF48dpct.js                                   2.92 kB │ gzip:     1.35 kB
+dist/client/assets/community-page.model-Dg8G1FyK.js                   3.03 kB │ gzip:     1.31 kB
+dist/client/assets/utils-BXiNjgTj.js                                  3.19 kB │ gzip:     1.37 kB
+dist/client/assets/public-post-route.model-F97XozHx.js                3.34 kB │ gzip:     1.24 kB
+dist/client/assets/_claim_id_-CJpyawFI.js                             3.51 kB │ gzip:     1.62 kB
+dist/client/assets/utils-oVEYY1QK.js                                  3.91 kB │ gzip:     1.57 kB
+dist/client/assets/_persona_id_-BvXcVuO0.js                           4.66 kB │ gzip:     1.82 kB
+dist/client/assets/handle-storefront-preflight-Di20PHLN.js            4.96 kB │ gzip:     1.77 kB
+dist/client/assets/zkpassport-CteY601N.js                             5.04 kB │ gzip:     2.07 kB
+dist/client/assets/persona-switcher-sheet-CU_RG8OB.js                 5.10 kB │ gzip:     2.05 kB
+dist/client/assets/checkbox-y1Vzh3Se.js                               5.86 kB │ gzip:     2.17 kB
+dist/client/assets/account-page-6rtlozOn.js                           6.25 kB │ gzip:     2.55 kB
+dist/client/assets/_handle_-Cel7WQHG.js                               6.52 kB │ gzip:     2.49 kB
+dist/client/assets/study-v2-api-BEkDaeog.js                           6.79 kB │ gzip:     2.65 kB
+dist/client/assets/zkpassport-B_HWGDKQ.js                             6.99 kB │ gzip:     2.77 kB
+dist/client/assets/your-songs-route-C6YMhXBt.js                       7.07 kB │ gzip:     2.25 kB
+dist/client/assets/document-verification-host-B6u43pQA.js             7.93 kB │ gzip:     3.43 kB
+dist/client/assets/sha2-RecSrKwr.js                                   7.95 kB │ gzip:     4.05 kB
+dist/client/assets/reward-wallet-session-CU25dw36.js                  7.99 kB │ gzip:     2.55 kB
+dist/client/assets/capture-D_J7prZl.js                                8.25 kB │ gzip:     3.30 kB
+dist/client/assets/song-video-entry-CiM65AkN.js                       8.77 kB │ gzip:     3.38 kB
+dist/client/assets/legal-document-DNDRy1nI.js                        10.50 kB │ gzip:     4.25 kB
+dist/client/assets/sign-in-session-di-6QqWC.js                       10.84 kB │ gzip:     3.90 kB
+dist/client/assets/serverForms-jTL5s6UB.js                           11.68 kB │ gzip:     4.60 kB
+dist/client/assets/index-t8wsQoPq.js                                 11.91 kB │ gzip:     4.37 kB
+dist/client/assets/esm-BeiFKs5O.js                                   11.94 kB │ gzip:     6.28 kB
+dist/client/assets/routing-B2Jay00y.js                               13.73 kB │ gzip:     5.96 kB
+dist/client/assets/owner-settings-route-model-B-aEKBrA.js            17.77 kB │ gzip:     4.19 kB
+dist/client/assets/decode-3X5v8ClT.js                                19.92 kB │ gzip:     5.87 kB
+dist/client/assets/very-B5nCTC2o.js                                  20.28 kB │ gzip:     6.82 kB
+dist/client/assets/formatUnits-yNqcrRJT.js                           20.85 kB │ gzip:     6.03 kB
+dist/client/assets/verification-config-7WYBdBia.js                   22.06 kB │ gzip:     7.96 kB
+dist/client/assets/index-BKWg1ew1.js                                 23.30 kB │ gzip:     8.38 kB
+dist/client/assets/browser-NM0WNCww.js                               23.47 kB │ gzip:     8.86 kB
+dist/client/assets/index-B9DQYivC.js                                 23.74 kB │ gzip:     8.67 kB
+dist/client/assets/locales-D1d33P38.js                               32.55 kB │ gzip:    11.33 kB
+dist/client/assets/names-uD2H6PkM.js                                 33.63 kB │ gzip:    10.05 kB
+dist/client/assets/new-CEj5qTip.js                                   41.86 kB │ gzip:    13.33 kB
+dist/client/assets/entry-client-D1jAkHlO.js                          62.25 kB │ gzip:    17.08 kB
+dist/client/assets/build-DTCgq-lx.js                                 65.33 kB │ gzip:    19.93 kB
+dist/client/assets/wallet-BlCpt9fx.js                                73.63 kB │ gzip:    30.10 kB
+dist/client/assets/SignatureErc6492-CJ4ygDNP.js                      77.11 kB │ gzip:    23.82 kB
+dist/client/assets/web-BiUx7Qkj.js                                   86.65 kB │ gzip:    31.55 kB
+dist/client/assets/browser-D7mmEkYv.js                               90.67 kB │ gzip:    22.29 kB
+dist/client/assets/community-viewer-vote-api-DPy4JcXL.js            117.17 kB │ gzip:    33.29 kB
+dist/client/assets/owner-settings-route-view-CHYfLOwc.js            128.42 kB │ gzip:    32.66 kB
+dist/client/assets/public-post-route-view-DugGze58.js               147.85 kB │ gzip:    44.15 kB
+dist/client/assets/http-Bbe3ls84.js                                 152.10 kB │ gzip:    44.68 kB
+dist/client/assets/_esm-BQWdNuwF.js                                 178.16 kB │ gzip:    51.67 kB
+dist/client/assets/create-post-dialog-DJwr2n9k.js                   291.87 kB │ gzip:    82.78 kB
+dist/client/assets/design-system-BdIGkpT_.js                        323.98 kB │ gzip:    87.91 kB
+dist/client/assets/esm-Bv3xT8QL.js                                  490.86 kB │ gzip:   114.36 kB
+dist/client/assets/clip-duration-ngxspe5Q.js                        510.92 kB │ gzip:   128.77 kB
+dist/client/assets/hls-CoWHxrnY.js                                  574.54 kB │ gzip:   178.96 kB
+dist/client/assets/esm-CyZezyo_.js                                  585.94 kB │ gzip:   173.97 kB
+dist/client/assets/origin-DAb_QZJM.js                               909.56 kB │ gzip:    60.10 kB
+dist/client/assets/barretenberg-L8rqvsU7.js                       3,641.89 kB │ gzip: 2,734.61 kB
+dist/client/assets/barretenberg-threads-DbzAWZ_O.js               3,669.27 kB │ gzip: 2,755.85 kB
+
+[plugin builtin:vite-reporter] 
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+✓ built in 5.39s
+vite v8.3.1 building ssr environment for production...
+transforming...
+✓ 3866 modules transformed.
+rendering chunks...
+Using secrets defined in process.env
+[33m▲ [43;33m[[43;30mWARNING[43;33m][0m [1mMissing required secrets: HNS_FORWARDER_V3_HMAC_KEY_REGISTRY, HNS_COMMUNITY_APP_API_ACCESS_CLIENT_ID, HNS_COMMUNITY_APP_API_ACCESS_CLIENT_SECRET, HNS_COMMUNITY_APP_AUTHORITY_ACCESS_CLIENT_ID, HNS_COMMUNITY_APP_AUTHORITY_ACCESS_CLIENT_SECRET, HNS_HANDLE_HOST_AUTHORITY_ACCESS_CLIENT_ID, HNS_HANDLE_HOST_AUTHORITY_ACCESS_CLIENT_SECRET. Add them to .dev.vars, .env, or set as environment variables.[0m
+
+
+computing gzip size...
+dist/ssr/wrangler.json                                               3.16 kB │ gzip:     1.25 kB
+dist/ssr/assets/cosmos-Bs9ebOVp.png                                  4.59 kB
+dist/ssr/assets/karaoke-capture-processor-Di3k79aW.js                5.02 kB
+dist/ssr/assets/clip-1-CAImlZFY.mp4                                 12.52 kB
+dist/ssr/assets/poster-1-CZOgKDDx.jpg                               14.96 kB
+dist/ssr/assets/logo_ghost_sm-D1_cTyok.png                          26.47 kB
+dist/ssr/.vite/manifest.json                                        46.71 kB │ gzip:     5.41 kB
+dist/ssr/assets/public-post-route-view-BjEBwSIp.css                  2.75 kB │ gzip:     0.89 kB
+dist/ssr/assets/index-1M80Vrwd.css                                 115.10 kB │ gzip:    18.13 kB
+dist/ssr/assets/ccip-BDzDyaex.js                                     0.14 kB │ gzip:     0.10 kB
+dist/ssr/assets/songs-DuNkfIVB.js                                    0.27 kB │ gzip:     0.18 kB
+dist/ssr/assets/study-BCXzFfIo.js                                    0.27 kB │ gzip:     0.18 kB
+dist/ssr/assets/karaoke-DsTRyvHH.js                                  0.28 kB │ gzip:     0.18 kB
+dist/ssr/assets/builtin_esm-external-require-util-wXRSsOu6.js        0.34 kB │ gzip:     0.23 kB
+dist/ssr/assets/terms-pOThsBC6.js                                    0.36 kB │ gzip:     0.22 kB
+dist/ssr/assets/privacy-SMl7cuEA.js                                  0.37 kB │ gzip:     0.22 kB
+dist/ssr/assets/browser-Db6Jswn0.js                                  0.40 kB │ gzip:     0.29 kB
+dist/ssr/assets/index-B_mdgBU2.js                                    0.42 kB │ gzip:     0.25 kB
+dist/ssr/assets/index-xtS5c6Bo.js                                    0.42 kB │ gzip:     0.25 kB
+dist/ssr/assets/index-Bqhoc0KX.js                                    0.42 kB │ gzip:     0.25 kB
+dist/ssr/assets/index-HTESjRNH.js                                    0.43 kB │ gzip:     0.25 kB
+dist/ssr/assets/index-zmqSAHms.js                                    0.44 kB │ gzip:     0.26 kB
+dist/ssr/assets/settings-BKL_bXAu.js                                 0.45 kB │ gzip:     0.26 kB
+dist/ssr/assets/me-BjDZUNNP.js                                       0.45 kB │ gzip:     0.27 kB
+dist/ssr/assets/leaderboard-CP15DprT.js                              0.45 kB │ gzip:     0.26 kB
+dist/ssr/assets/leaderboard-DfJ0hNkL.js                              0.48 kB │ gzip:     0.26 kB
+dist/ssr/assets/application-session-DG2T9_zR.js                      0.54 kB │ gzip:     0.27 kB
+dist/ssr/assets/sha256-BZJ0IWNX.js                                   0.61 kB │ gzip:     0.41 kB
+dist/ssr/assets/index-CwZnPVQr.js                                    0.89 kB │ gzip:     0.49 kB
+dist/ssr/assets/activity-D7HsDY5Z.js                                 0.92 kB │ gzip:     0.52 kB
+dist/ssr/assets/layout-shell-Cd2yIOrn.js                             0.96 kB │ gzip:     0.52 kB
+dist/ssr/assets/_section_-C9tXH2Vr.js                                1.01 kB │ gzip:     0.42 kB
+dist/ssr/assets/live-1rN8Zt3t.js                                     1.11 kB │ gzip:     0.57 kB
+dist/ssr/assets/dist--2-amxfY.js                                     1.15 kB │ gzip:     0.58 kB
+dist/ssr/assets/viewer-session-hint-C--nUesk.js                      1.44 kB │ gzip:     0.74 kB
+dist/ssr/assets/community-creation-avatar-authoring-Dfg8EA4k.js      1.54 kB │ gzip:     0.50 kB
+dist/ssr/assets/reward-claim-SxluXPLR.js                             1.79 kB │ gzip:     0.88 kB
+dist/ssr/assets/ui-locale-core-Bfa4tpev.js                           1.86 kB │ gzip:     0.74 kB
+dist/ssr/assets/search-DF5C8lfV.js                                   2.05 kB │ gzip:     0.95 kB
+dist/ssr/assets/owner-settings-route-loader--6OCTWmb.js              2.06 kB │ gzip:     0.79 kB
+dist/ssr/assets/chains-7aVKAV1W.js                                   2.12 kB │ gzip:     0.77 kB
+dist/ssr/assets/sign-in-Bp5NlVvT.js                                  2.13 kB │ gzip:     0.89 kB
+dist/ssr/assets/community-moderation-settings-api-B5DMBPIQ.js        2.14 kB │ gzip:     0.79 kB
+dist/ssr/assets/sign-in-modal-ByUZZQx3.js                            2.15 kB │ gzip:     0.94 kB
+dist/ssr/assets/rolldown-runtime-CEgmsyvS.js                         2.30 kB │ gzip:     1.03 kB
+dist/ssr/assets/community-page-origin-uq_VRFaA.js                    2.32 kB │ gzip:     0.95 kB
+dist/ssr/assets/community-persona-choice-Cbz8gwaS.js                 2.39 kB │ gzip:     0.86 kB
+dist/ssr/assets/document-requirement-CLcb3P12.js                     2.53 kB │ gzip:     0.76 kB
+dist/ssr/assets/sign-in-return-CR2MUcfw.js                           2.53 kB │ gzip:     0.94 kB
+dist/ssr/assets/action-footer-shell-C1AzQWXB.js                      2.60 kB │ gzip:     1.15 kB
+dist/ssr/assets/community-thread-feed-api-DXKch78a.js                2.62 kB │ gzip:     1.05 kB
+dist/ssr/assets/decode-DPtJV-HU.js                                   2.62 kB │ gzip:     1.11 kB
+dist/ssr/assets/public-profile-preflight-eQnbcGJp.js                 2.66 kB │ gzip:     1.13 kB
+dist/ssr/assets/serialization-BPJDnbWe.js                            2.78 kB │ gzip:     1.17 kB
+dist/ssr/assets/headers-DfpXh8dt.js                                  2.79 kB │ gzip:     1.16 kB
+dist/ssr/assets/application-personas-ZCahDZpG.js                     2.88 kB │ gzip:     1.05 kB
+dist/ssr/assets/community-avatar-DemVjTS7.js                         2.99 kB │ gzip:     1.22 kB
+dist/ssr/assets/nationality-country-codes-C_ELDDE5.js                3.02 kB │ gzip:     1.73 kB
+dist/ssr/assets/account-community-memberships-D9KeIrhj.js            3.07 kB │ gzip:     1.06 kB
+dist/ssr/assets/global-sign-in-host-fShI1ogO.js                      3.25 kB │ gzip:     1.32 kB
+dist/ssr/assets/formatAbiItem-Br5Eg-yZ.js                            3.64 kB │ gzip:     1.14 kB
+dist/ssr/assets/public-profile-page.model-BBN5bTm3.js                4.16 kB │ gzip:     1.41 kB
+dist/ssr/assets/privy-wallet-authorization-ClE8493t.js               4.48 kB │ gzip:     1.52 kB
+dist/ssr/assets/age-access-prompt-C3OwjI18.js                        4.74 kB │ gzip:     1.84 kB
+dist/ssr/assets/ccip-BTXWAQb4.js                                     5.16 kB │ gzip:     1.83 kB
+dist/ssr/assets/query-VLkXMuYu.js                                    5.38 kB │ gzip:     1.96 kB
+dist/ssr/assets/community-page.model-C7kpbvTF.js                     5.44 kB │ gzip:     1.77 kB
+dist/ssr/assets/community-persona-choice-sheet-C5CBaINy.js           5.82 kB │ gzip:     1.95 kB
+dist/ssr/assets/sha3-JzTy6Tt7.js                                     5.88 kB │ gzip:     2.20 kB
+dist/ssr/assets/_claim_id_-COLAZfTx.js                               6.37 kB │ gzip:     2.19 kB
+dist/ssr/assets/handle-sales-client-DvAVREdy.js                      6.81 kB │ gzip:     2.25 kB
+dist/ssr/assets/public-post-route.model-2AlQQVeL.js                  6.92 kB │ gzip:     1.92 kB
+dist/ssr/assets/utils-Bw0gt0l4.js                                    7.10 kB │ gzip:     2.63 kB
+dist/ssr/assets/session-9GhZODY5.js                                  7.27 kB │ gzip:     2.40 kB
+dist/ssr/assets/_persona_id_-CTgSqc-D.js                             7.48 kB │ gzip:     2.33 kB
+dist/ssr/assets/public-post-route-loader-COq7Ph8R.js                 7.64 kB │ gzip:     2.14 kB
+dist/ssr/assets/Value-Du509fzu.js                                    7.89 kB │ gzip:     2.25 kB
+dist/ssr/assets/serverForms-3t2Rosd0.js                              7.90 kB │ gzip:     3.01 kB
+dist/ssr/assets/zkpassport-BZjxabn8.js                               8.35 kB │ gzip:     2.58 kB
+dist/ssr/assets/utils-Bf3aeSnf.js                                    8.57 kB │ gzip:     3.15 kB
+dist/ssr/assets/persona-switcher-sheet-5lZUYlRk.js                   9.93 kB │ gzip:     3.15 kB
+dist/ssr/assets/handle-storefront-preflight-Dp4erFIa.js             10.51 kB │ gzip:     2.88 kB
+dist/ssr/assets/account-page-C2Y_v9hX.js                            10.67 kB │ gzip:     3.38 kB
+dist/ssr/assets/your-songs-route-B8da0aJR.js                        10.83 kB │ gzip:     2.78 kB
+dist/ssr/assets/wallet-network-catalog-Bve84uTg.js                  11.47 kB │ gzip:     3.25 kB
+dist/ssr/assets/_handle_-DFzzM-cA.js                                11.49 kB │ gzip:     3.28 kB
+dist/ssr/assets/legal-document-B0rxujku.js                          12.20 kB │ gzip:     4.57 kB
+dist/ssr/assets/checkbox-1JtGFB5h.js                                12.27 kB │ gzip:     3.47 kB
+dist/ssr/assets/study-v2-api-IIyx-TNq.js                            12.45 kB │ gzip:     3.99 kB
+dist/ssr/assets/zkpassport-CDpqaTH3.js                              13.37 kB │ gzip:     3.78 kB
+dist/ssr/assets/document-verification-host-0ccaZ1BU.js              14.13 kB │ gzip:     4.48 kB
+dist/ssr/assets/reward-wallet-session-Bs34oB61.js                   14.41 kB │ gzip:     3.50 kB
+dist/ssr/assets/sha2-BzNSOK23.js                                    15.23 kB │ gzip:     5.53 kB
+dist/ssr/assets/esm-BRbPkdDu.js                                     15.38 kB │ gzip:     6.80 kB
+dist/ssr/assets/capture-MfhJ353-.js                                 15.38 kB │ gzip:     4.93 kB
+dist/ssr/assets/song-video-entry-BEIUHpOP.js                        16.44 kB │ gzip:     4.93 kB
+dist/ssr/assets/chain-wEdLU7g1.js                                   22.01 kB │ gzip:     5.03 kB
+dist/ssr/assets/routing-CVZmCooG.js                                 22.27 kB │ gzip:     7.46 kB
+dist/ssr/assets/verification-config-D5iVhJj6.js                     23.14 kB │ gzip:     6.22 kB
+dist/ssr/assets/index-CmR-iykV.js                                   23.22 kB │ gzip:     6.21 kB
+dist/ssr/assets/isAddress-D9uJkOT5.js                               23.47 kB │ gzip:     5.26 kB
+dist/ssr/assets/sign-in-session-Ca0H0Sv7.js                         25.03 kB │ gzip:     7.71 kB
+dist/ssr/assets/owner-settings-route-model-CqmKnhJt.js              27.93 kB │ gzip:     5.59 kB
+dist/ssr/assets/defineChain-C9PrrNzF.js                             30.01 kB │ gzip:     5.91 kB
+dist/ssr/assets/server-D6fIoQXR.js                                  35.05 kB │ gzip:     9.73 kB
+dist/ssr/assets/formatUnits-wcq2bgex.js                             35.16 kB │ gzip:     7.91 kB
+dist/ssr/assets/very-CjiBt_3n.js                                    37.23 kB │ gzip:     8.81 kB
+dist/ssr/assets/locales-CzahwCog.js                                 39.03 kB │ gzip:    11.92 kB
+dist/ssr/assets/index-BuxutuKf.js                                   46.95 kB │ gzip:    11.43 kB
+dist/ssr/assets/index-paaeyp2B.js                                   48.05 kB │ gzip:    13.42 kB
+dist/ssr/assets/web-B1CMwjGJ.js                                     54.91 kB │ gzip:    13.69 kB
+dist/ssr/assets/names-LD2MU8AM.js                                   61.31 kB │ gzip:    13.52 kB
+dist/ssr/assets/new-Dkhfvfz9.js                                     79.51 kB │ gzip:    19.70 kB
+dist/ssr/assets/build-CVtOLH3q.js                                  102.42 kB │ gzip:    23.82 kB
+dist/ssr/assets/wallet-DilmIYFt.js                                 106.25 kB │ gzip:    33.78 kB
+dist/ssr/assets/lib-CTYKAuMJ.js                                    141.53 kB │ gzip:    31.75 kB
+dist/ssr/assets/server-DHKrpqTf.js                                 165.68 kB │ gzip:    43.34 kB
+dist/ssr/assets/browser-BaXTEqXd.js                                172.93 kB │ gzip:    32.26 kB
+dist/ssr/assets/community-viewer-vote-api-ChV_9b0X.js              206.90 kB │ gzip:    46.21 kB
+dist/ssr/assets/owner-settings-route-view-CcjTU4qH.js              215.01 kB │ gzip:    45.60 kB
+dist/ssr/assets/SignatureErc6492-vs4h1xGG.js                       221.57 kB │ gzip:    50.13 kB
+dist/ssr/index.js                                                  262.98 kB │ gzip:    53.35 kB
+dist/ssr/assets/public-post-route-view-CFDo2iO_.js                 267.52 kB │ gzip:    65.97 kB
+dist/ssr/assets/http-CBKjIY8X.js                                   314.63 kB │ gzip:    66.91 kB
+dist/ssr/assets/_esm-D_3kWoCv.js                                   420.66 kB │ gzip:    87.52 kB
+dist/ssr/assets/design-system-IUAIKTok.js                          639.93 kB │ gzip:   134.88 kB
+dist/ssr/assets/esm-o1LLRRDz.js                                    874.16 kB │ gzip:   163.61 kB
+dist/ssr/assets/esm-BCQ9kyMa.js                                  1,004.55 kB │ gzip:   246.01 kB
+dist/ssr/assets/hls-BRA2dxBw.js                                  1,152.90 kB │ gzip:   266.70 kB
+dist/ssr/assets/client-BlRNYphY.js                               1,476.90 kB │ gzip:    98.36 kB
+dist/ssr/assets/create-post-dialog-0ystEtj_.js                   1,531.88 kB │ gzip:   325.28 kB
+dist/ssr/assets/barretenberg-DGWT2Hb4.js                         3,642.09 kB │ gzip: 2,734.76 kB
+dist/ssr/assets/barretenberg-threads-f5_RuoGI.js                 3,669.47 kB │ gzip: 2,756.00 kB
+
+[33m[NAMESPACE_CONFLICT] [0mConflicting namespaces: "packages/solid-ui/src/patterns/engagement/vertical-feed/index.ts" re-exports "$$moduleUrl" from one of the modules "packages/solid-ui/src/patterns/engagement/vertical-feed/media-post.tsx", "packages/solid-ui/src/patterns/engagement/vertical-feed/media-actions.tsx" and "packages/solid-ui/src/patterns/engagement/vertical-feed/vertical-feed.tsx" (will be ignored).
+     [38;5;246m╭[0m[38;5;246m─[0m[38;5;246m[[0m packages/solid-ui/src/patterns/engagement/vertical-feed/media-post.tsx:441:14 [38;5;246m][0m
+     [38;5;246m│[0m
+ [38;5;246m441 │[0m [38;5;249me[0m[38;5;249mx[0m[38;5;249mp[0m[38;5;249mo[0m[38;5;249mr[0m[38;5;249mt[0m[38;5;249m [0m[38;5;249mc[0m[38;5;249mo[0m[38;5;249mn[0m[38;5;249ms[0m[38;5;249mt[0m[38;5;249m [0m$$moduleUrl[38;5;249m [0m[38;5;249m=[0m[38;5;249m [0m[38;5;249m"[0m[38;5;249mp[0m[38;5;249ma[0m[38;5;249mc[0m[38;5;249mk[0m[38;5;249ma[0m[38;5;249mg[0m[38;5;249me[0m[38;5;249ms[0m[38;5;249m/[0m[38;5;249ms[0m[38;5;249mo[0m[38;5;249ml[0m[38;5;249mi[0m[38;5;249md[0m[38;5;249m-[0m[38;5;249mu[0m[38;5;249mi[0m[38;5;249m/[0m[38;5;249ms[0m[38;5;249mr[0m[38;5;249mc[0m[38;5;249m/[0m[38;5;249mp[0m[38;5;249ma[0m[38;5;249mt[0m[38;5;249mt[0m[38;5;249me[0m[38;5;249mr[0m[38;5;249mn[0m[38;5;249ms[0m[38;5;249m/[0m[38;5;249me[0m[38;5;249mn[0m[38;5;249mg[0m[38;5;249ma[0m[38;5;249mg[0m[38;5;249me[0m[38;5;249mm[0m[38;5;249me[0m[38;5;249mn[0m[38;5;249mt[0m[38;5;249m/[0m[38;5;249mv[0m[38;5;249me[0m[38;5;249mr[0m[38;5;249mt[0m[38;5;249mi[0m[38;5;249mc[0m[38;5;249ma[0m[38;5;249ml[0m[38;5;249m-[0m[38;5;249mf[0m[38;5;249me[0m[38;5;249me[0m[38;5;249md[0m[38;5;249m/[0m[38;5;249mm[0m[38;5;249me[0m[38;5;249md[0m[38;5;249mi[0m[38;5;249ma[0m[38;5;249m-[0m[38;5;249mp[0m[38;5;249mo[0m[38;5;249ms[0m[38;5;249mt[0m[38;5;249m.[0m[38;5;249mt[0m[38;5;249ms[0m[38;5;249mx[0m[38;5;249m"[0m[38;5;249m;[0m
+ [38;5;240m    │[0m              ─────┬─────  
+ [38;5;240m    │[0m                   ╰─────── One matching export is here.
+     [38;5;246m│[0m
+     [38;5;246m├[0m[38;5;246m─[0m[38;5;246m[[0m packages/solid-ui/src/patterns/engagement/vertical-feed/media-actions.tsx:225:14 [38;5;246m][0m
+     [38;5;246m│[0m
+ [38;5;246m225 │[0m [38;5;249me[0m[38;5;249mx[0m[38;5;249mp[0m[38;5;249mo[0m[38;5;249mr[0m[38;5;249mt[0m[38;5;249m [0m[38;5;249mc[0m[38;5;249mo[0m[38;5;249mn[0m[38;5;249ms[0m[38;5;249mt[0m[38;5;249m [0m$$moduleUrl[38;5;249m [0m[38;5;249m=[0m[38;5;249m [0m[38;5;249m"[0m[38;5;249mp[0m[38;5;249ma[0m[38;5;249mc[0m[38;5;249mk[0m[38;5;249ma[0m[38;5;249mg[0m[38;5;249me[0m[38;5;249ms[0m[38;5;249m/[0m[38;5;249ms[0m[38;5;249mo[0m[38;5;249ml[0m[38;5;249mi[0m[38;5;249md[0m[38;5;249m-[0m[38;5;249mu[0m[38;5;249mi[0m[38;5;249m/[0m[38;5;249ms[0m[38;5;249mr[0m[38;5;249mc[0m[38;5;249m/[0m[38;5;249mp[0m[38;5;249ma[0m[38;5;249mt[0m[38;5;249mt[0m[38;5;249me[0m[38;5;249mr[0m[38;5;249mn[0m[38;5;249ms[0m[38;5;249m/[0m[38;5;249me[0m[38;5;249mn[0m[38;5;249mg[0m[38;5;249ma[0m[38;5;249mg[0m[38;5;249me[0m[38;5;249mm[0m[38;5;249me[0m[38;5;249mn[0m[38;5;249mt[0m[38;5;249m/[0m[38;5;249mv[0m[38;5;249me[0m[38;5;249mr[0m[38;5;249mt[0m[38;5;249mi[0m[38;5;249mc[0m[38;5;249ma[0m[38;5;249ml[0m[38;5;249m-[0m[38;5;249mf[0m[38;5;249me[0m[38;5;249me[0m[38;5;249md[0m[38;5;249m/[0m[38;5;249mm[0m[38;5;249me[0m[38;5;249md[0m[38;5;249mi[0m[38;5;249ma[0m[38;5;249m-[0m[38;5;249ma[0m[38;5;249mc[0m[38;5;249mt[0m[38;5;249mi[0m[38;5;249mo[0m[38;5;249mn[0m[38;5;249ms[0m[38;5;249m.[0m[38;5;249mt[0m[38;5;249ms[0m[38;5;249mx[0m[38;5;249m"[0m[38;5;249m;[0m
+ [38;5;240m    │[0m              ─────┬─────  
+ [38;5;240m    │[0m                   ╰─────── One matching export is here.
+     [38;5;246m│[0m
+     [38;5;246m├[0m[38;5;246m─[0m[38;5;246m[[0m packages/solid-ui/src/patterns/engagement/vertical-feed/vertical-feed.tsx:269:14 [38;5;246m][0m
+     [38;5;246m│[0m
+ [38;5;246m269 │[0m [38;5;249me[0m[38;5;249mx[0m[38;5;249mp[0m[38;5;249mo[0m[38;5;249mr[0m[38;5;249mt[0m[38;5;249m [0m[38;5;249mc[0m[38;5;249mo[0m[38;5;249mn[0m[38;5;249ms[0m[38;5;249mt[0m[38;5;249m [0m$$moduleUrl[38;5;249m [0m[38;5;249m=[0m[38;5;249m [0m[38;5;249m"[0m[38;5;249mp[0m[38;5;249ma[0m[38;5;249mc[0m[38;5;249mk[0m[38;5;249ma[0m[38;5;249mg[0m[38;5;249me[0m[38;5;249ms[0m[38;5;249m/[0m[38;5;249ms[0m[38;5;249mo[0m[38;5;249ml[0m[38;5;249mi[0m[38;5;249md[0m[38;5;249m-[0m[38;5;249mu[0m[38;5;249mi[0m[38;5;249m/[0m[38;5;249ms[0m[38;5;249mr[0m[38;5;249mc[0m[38;5;249m/[0m[38;5;249mp[0m[38;5;249ma[0m[38;5;249mt[0m[38;5;249mt[0m[38;5;249me[0m[38;5;249mr[0m[38;5;249mn[0m[38;5;249ms[0m[38;5;249m/[0m[38;5;249me[0m[38;5;249mn[0m[38;5;249mg[0m[38;5;249ma[0m[38;5;249mg[0m[38;5;249me[0m[38;5;249mm[0m[38;5;249me[0m[38;5;249mn[0m[38;5;249mt[0m[38;5;249m/[0m[38;5;249mv[0m[38;5;249me[0m[38;5;249mr[0m[38;5;249mt[0m[38;5;249mi[0m[38;5;249mc[0m[38;5;249ma[0m[38;5;249ml[0m[38;5;249m-[0m[38;5;249mf[0m[38;5;249me[0m[38;5;249me[0m[38;5;249md[0m[38;5;249m/[0m[38;5;249mv[0m[38;5;249me[0m[38;5;249mr[0m[38;5;249mt[0m[38;5;249mi[0m[38;5;249mc[0m[38;5;249ma[0m[38;5;249ml[0m[38;5;249m-[0m[38;5;249mf[0m[38;5;249me[0m[38;5;249me[0m[38;5;249md[0m[38;5;249m.[0m[38;5;249mt[0m[38;5;249ms[0m[38;5;249mx[0m[38;5;249m"[0m[38;5;249m;[0m
+ [38;5;240m    │[0m              ─────┬─────  
+ [38;5;240m    │[0m                   ╰─────── One matching export is here.
+[38;5;246m─────╯[0m
+
+✓ built in 4.00s
+vite v8.3.1 building client environment for production...
+transforming...
+✓ 3791 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/client/.assetsignore                                             0.02 kB
+dist/client/assets/cosmos-Bs9ebOVp.png                                4.59 kB
+dist/client/assets/karaoke-capture-processor-Di3k79aW.js              5.02 kB
+dist/client/assets/thread.worker-DxxHzh46.js                          6.44 kB
+dist/client/assets/main.worker-DQ-kTHjx.js                           10.35 kB
+dist/client/assets/clip-1-CAImlZFY.mp4                               12.52 kB
+dist/client/assets/poster-1-CZOgKDDx.jpg                             14.96 kB
+dist/client/assets/logo_ghost_sm-D1_cTyok.png                        26.47 kB
+dist/client/.vite/manifest.json                                      40.16 kB │ gzip:     4.64 kB
+dist/client/assets/public-post-route-view-BjEBwSIp.css                2.75 kB │ gzip:     0.89 kB
+dist/client/assets/entry-client-1M80Vrwd.css                        115.10 kB │ gzip:    18.13 kB
+dist/client/assets/headers-CqoqVz5O.js                                0.06 kB │ gzip:     0.07 kB
+dist/client/assets/karaoke-BlKkyoT5.js                                0.07 kB │ gzip:     0.08 kB
+dist/client/assets/songs-BlKkyoT5.js                                  0.07 kB │ gzip:     0.08 kB
+dist/client/assets/study-BlKkyoT5.js                                  0.07 kB │ gzip:     0.08 kB
+dist/client/assets/ccip-BribMNKr.js                                   0.10 kB │ gzip:     0.09 kB
+dist/client/assets/privacy-D44ZsU5H.js                                0.15 kB │ gzip:     0.14 kB
+dist/client/assets/terms-CRXUkHBn.js                                  0.15 kB │ gzip:     0.14 kB
+dist/client/assets/index-BFBz-5pX.js                                  0.16 kB │ gzip:     0.15 kB
+dist/client/assets/index-BVISpexe.js                                  0.16 kB │ gzip:     0.15 kB
+dist/client/assets/index-C4mxdUVR.js                                  0.16 kB │ gzip:     0.15 kB
+dist/client/assets/index-DF-AY21Q.js                                  0.16 kB │ gzip:     0.15 kB
+dist/client/assets/index-D_HKl0Qd.js                                  0.16 kB │ gzip:     0.15 kB
+dist/client/assets/leaderboard-BVISpexe.js                            0.16 kB │ gzip:     0.15 kB
+dist/client/assets/leaderboard-DF-AY21Q.js                            0.16 kB │ gzip:     0.15 kB
+dist/client/assets/settings-CRXX7Ymq.js                               0.20 kB │ gzip:     0.17 kB
+dist/client/assets/browser-CfJvH2ji.js                                0.21 kB │ gzip:     0.18 kB
+dist/client/assets/me-0okqa4iT.js                                     0.21 kB │ gzip:     0.18 kB
+dist/client/assets/index-Dmy9SlKl.js                                  0.27 kB │ gzip:     0.21 kB
+dist/client/assets/_section_-BDM_6iJb.js                              0.41 kB │ gzip:     0.27 kB
+dist/client/assets/dist-BWI0lx75.js                                   0.44 kB │ gzip:     0.31 kB
+dist/client/assets/activity-aXyWdbdp.js                               0.57 kB │ gzip:     0.39 kB
+dist/client/assets/layout-shell-C0vb7bkc.js                           0.58 kB │ gzip:     0.38 kB
+dist/client/assets/reward-claim-Dt03fdC1.js                           0.75 kB │ gzip:     0.43 kB
+dist/client/assets/live-DUIrHm_V.js                                   0.78 kB │ gzip:     0.46 kB
+dist/client/assets/ui-locale-core-BA1HBKR2.js                         0.89 kB │ gzip:     0.45 kB
+dist/client/assets/community-persona-choice-C11F-Wj3.js               0.91 kB │ gzip:     0.40 kB
+dist/client/assets/action-footer-shell-DWGovmmO.js                    0.99 kB │ gzip:     0.57 kB
+dist/client/assets/community-page-origin-DkUNh3KD.js                  1.01 kB │ gzip:     0.54 kB
+dist/client/assets/search-D9p93fNt.js                                 1.15 kB │ gzip:     0.66 kB
+dist/client/assets/sign-in-BCiP8nWQ.js                                1.20 kB │ gzip:     0.60 kB
+dist/client/assets/sign-in-return-F3rbw343.js                         1.21 kB │ gzip:     0.56 kB
+dist/client/assets/sign-in-modal-BEDsx3ET.js                          1.21 kB │ gzip:     0.59 kB
+dist/client/assets/preload-helper-BZ1Pz5am.js                         1.21 kB │ gzip:     0.69 kB
+dist/client/assets/chains-DS9Eg5SF.js                                 1.22 kB │ gzip:     0.54 kB
+dist/client/assets/formatAbiItem-Bjq8-8gm.js                          1.25 kB │ gzip:     0.64 kB
+dist/client/assets/community-moderation-settings-api-CIH4nyRX.js      1.28 kB │ gzip:     0.59 kB
+dist/client/assets/rolldown-runtime-C0FnF6B9.js                       1.29 kB │ gzip:     0.71 kB
+dist/client/assets/document-requirement-CmHyUiIq.js                   1.42 kB │ gzip:     0.57 kB
+dist/client/assets/client-XBdF15dV.js                                 1.44 kB │ gzip:     0.75 kB
+dist/client/assets/community-avatar-B5csSWDH.js                       1.58 kB │ gzip:     0.84 kB
+dist/client/assets/community-page-preflight-Chf9b1Eh.js               1.88 kB │ gzip:     0.94 kB
+dist/client/assets/nationality-country-codes-DiGAOEXY.js              2.22 kB │ gzip:     1.41 kB
+dist/client/assets/privy-wallet-authorization-CFqzD7gU.js             2.35 kB │ gzip:     1.03 kB
+dist/client/assets/age-access-prompt-DK2TjeTl.js                      2.51 kB │ gzip:     1.26 kB
+dist/client/assets/query-CE6uThj4.js                                  2.56 kB │ gzip:     1.34 kB
+dist/client/assets/session-pIMTTRwA.js                                2.77 kB │ gzip:     1.09 kB
+dist/client/assets/community-persona-choice-sheet-4gtgwuDY.js         2.77 kB │ gzip:     1.16 kB
+dist/client/assets/sha3-DAng0Rme.js                                   2.85 kB │ gzip:     1.33 kB
+dist/client/assets/ccip-rnDJAH8d.js                                   2.91 kB │ gzip:     1.35 kB
+dist/client/assets/community-page.model-Dg8G1FyK.js                   3.03 kB │ gzip:     1.31 kB
+dist/client/assets/utils-BXiNjgTj.js                                  3.19 kB │ gzip:     1.37 kB
+dist/client/assets/public-post-route.model-F97XozHx.js                3.34 kB │ gzip:     1.24 kB
+dist/client/assets/_claim_id_-BWO9_LbX.js                             3.50 kB │ gzip:     1.62 kB
+dist/client/assets/utils-oVEYY1QK.js                                  3.91 kB │ gzip:     1.57 kB
+dist/client/assets/_persona_id_-cvVRLJ__.js                           4.66 kB │ gzip:     1.82 kB
+dist/client/assets/zkpassport-BE0EDbG6.js                             5.09 kB │ gzip:     2.10 kB
+dist/client/assets/checkbox-CISLie1k.js                               5.85 kB │ gzip:     2.17 kB
+dist/client/assets/account-page-D9LuDNwJ.js                           6.14 kB │ gzip:     2.50 kB
+dist/client/assets/_handle_-BDTpU_Fv.js                               6.46 kB │ gzip:     2.48 kB
+dist/client/assets/study-v2-api-Dyvu6IWO.js                           6.80 kB │ gzip:     2.66 kB
+dist/client/assets/your-songs-route-BfnfVTOr.js                       6.97 kB │ gzip:     2.20 kB
+dist/client/assets/isAddress-DyuOPP_k.js                              7.95 kB │ gzip:     3.02 kB
+dist/client/assets/sha2-RecSrKwr.js                                   7.95 kB │ gzip:     4.05 kB
+dist/client/assets/reward-wallet-session-DdjRIpOL.js                  8.03 kB │ gzip:     2.56 kB
+dist/client/assets/capture-BXWIasaT.js                                8.25 kB │ gzip:     3.31 kB
+dist/client/assets/song-video-entry-DCOUt8-l.js                       8.76 kB │ gzip:     3.38 kB
+dist/client/assets/legal-document-6N_OBA9s.js                        10.51 kB │ gzip:     4.25 kB
+dist/client/assets/sign-in-session-DS0rCXbZ.js                       10.84 kB │ gzip:     3.91 kB
+dist/client/assets/verification-config-3VjRPg3U.js                   11.32 kB │ gzip:     3.99 kB
+dist/client/assets/serverForms-CR-kw5BF.js                           11.72 kB │ gzip:     4.61 kB
+dist/client/assets/index-CV0HlTIG.js                                 11.81 kB │ gzip:     4.34 kB
+dist/client/assets/esm-BeiFKs5O.js                                   11.94 kB │ gzip:     6.28 kB
+dist/client/assets/routing-DvyR9h9k.js                               13.73 kB │ gzip:     5.99 kB
+dist/client/assets/owner-settings-route-model-B-aEKBrA.js            17.77 kB │ gzip:     4.19 kB
+dist/client/assets/decode-3X5v8ClT.js                                19.92 kB │ gzip:     5.87 kB
+dist/client/assets/very-Dh6rzaus.js                                  20.32 kB │ gzip:     6.84 kB
+dist/client/assets/formatUnits-BtRvgG14.js                           20.84 kB │ gzip:     6.02 kB
+dist/client/assets/index-4wTFpgys.js                                 23.15 kB │ gzip:     8.29 kB
+dist/client/assets/browser-NM0WNCww.js                               23.47 kB │ gzip:     8.86 kB
+dist/client/assets/index-BxXVcSR3.js                                 23.69 kB │ gzip:     8.65 kB
+dist/client/assets/locales-D1d33P38.js                               32.55 kB │ gzip:    11.33 kB
+dist/client/assets/names-CuHSx0og.js                                 33.56 kB │ gzip:    10.03 kB
+dist/client/assets/new-DRBaKdvM.js                                   41.86 kB │ gzip:    13.34 kB
+dist/client/assets/build-DTCgq-lx.js                                 65.33 kB │ gzip:    19.93 kB
+dist/client/assets/wallet-YnyOBzVP.js                                73.56 kB │ gzip:    30.06 kB
+dist/client/assets/SignatureErc6492-CvCA0wj1.js                      77.09 kB │ gzip:    23.80 kB
+dist/client/assets/web-CqtTZTqN.js                                   85.49 kB │ gzip:    31.07 kB
+dist/client/assets/browser-BEuojtN7.js                               90.68 kB │ gzip:    22.29 kB
+dist/client/assets/entry-client-BpcZumLd.js                          94.34 kB │ gzip:    27.37 kB
+dist/client/assets/community-viewer-vote-api-CnlcLC-y.js            117.17 kB │ gzip:    33.23 kB
+dist/client/assets/owner-settings-route-view-D_ADvUHY.js            128.37 kB │ gzip:    32.53 kB
+dist/client/assets/public-post-route-view-KCBWZk4y.js               147.78 kB │ gzip:    44.01 kB
+dist/client/assets/http-DfZNf_7q.js                                 151.98 kB │ gzip:    44.61 kB
+dist/client/assets/_esm-BpoDbpaP.js                                 178.00 kB │ gzip:    51.60 kB
+dist/client/assets/design-system-qirU9AQ3.js                        323.99 kB │ gzip:    87.99 kB
+dist/client/assets/esm-DXyWJ2CE.js                                  490.85 kB │ gzip:   114.36 kB
+dist/client/assets/hls-CoWHxrnY.js                                  574.54 kB │ gzip:   178.96 kB
+dist/client/assets/esm-sIORKeoU.js                                  585.84 kB │ gzip:   173.91 kB
+dist/client/assets/create-post-dialog-BfpAH3RF.js                   802.84 kB │ gzip:   209.93 kB
+dist/client/assets/origin-DAb_QZJM.js                               909.56 kB │ gzip:    60.10 kB
+dist/client/assets/barretenberg-L8rqvsU7.js                       3,641.89 kB │ gzip: 2,734.61 kB
+dist/client/assets/barretenberg-threads-DbzAWZ_O.js               3,669.27 kB │ gzip: 2,755.85 kB
+
+[plugin builtin:vite-reporter] 
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+✓ built in 3.30s
+Removed 5 browser-only SSR asset(s): assets/barretenberg-DGWT2Hb4.js, assets/barretenberg-threads-f5_RuoGI.js, assets/browser-BaXTEqXd.js, assets/esm-BCQ9kyMa.js, assets/lib-CTYKAuMJ.js

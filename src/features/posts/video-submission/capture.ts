@@ -24,8 +24,11 @@ const audioQuality = new Quality({ bitrate: 128_000 });
  * longer than the video, and a container that lasts longer than the excerpt
  * says nothing about whether the video itself covers it. The local duration
  * guard uses the video track; the sealed server probe remains authoritative. */
-export async function measureVideoDuration(file: File): Promise<number | null> {
+export async function measureVideoDuration(file: File, signal?: AbortSignal): Promise<number | null> {
+  signal?.throwIfAborted();
   const input = new Input({ source: new BlobSource(file), formats: ALL_FORMATS });
+  const abort = () => input.dispose();
+  signal?.addEventListener("abort", abort, { once: true });
   try {
     const video = await input.getPrimaryVideoTrack();
     const duration = video === null ? await input.computeDuration() : await video.computeDuration();
@@ -33,6 +36,7 @@ export async function measureVideoDuration(file: File): Promise<number | null> {
   } catch {
     return null;
   } finally {
+    signal?.removeEventListener("abort", abort);
     input.dispose();
   }
 }
@@ -286,7 +290,7 @@ export async function startOriginalVideoCapture(input: OriginalVideoCaptureInput
           });
         } finally { release(); }
       },
-      async cancel() { if (ended) return; ended = true; try { await output.cancel(); } finally { release(); } },
+      async cancel() { if (ended) { release(); return; } ended = true; try { await output.cancel(); } finally { release(); } },
     };
   } catch (error) {
     ended = true; release(); await output.cancel().catch(() => {});

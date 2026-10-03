@@ -14,6 +14,7 @@ import type { SongSourceReader } from "../post-composer/song-excerpt-source";
 import type { GuideSourcePreparation } from "./buffered-guide";
 import type { GuidedTakeAlignment } from "./guided-take-alignment";
 import { GUIDED_TAKE_MAX_DURATION_SECONDS } from "./clip-duration";
+import { VIDEO_DURATION_TIMEOUT_MS, VIDEO_FINALIZATION_TIMEOUT_MS, VIDEO_PREPARATION_TIMEOUT_NOTICE } from "./video-preparation-deadline";
 
 const disposers: (() => void)[] = [];
 /** The injected capture entry point: tests place the next session here. */
@@ -36,7 +37,7 @@ const openPreview = vi.fn(async (): Promise<MediaStream> => {
   previews.push({ stream, stopped: () => stops > 0 });
   return stream;
 });
-afterEach(() => { for (const dispose of disposers.splice(0)) dispose(); document.body.replaceChildren(); nextSession = undefined; startCapture.mockClear(); openPreview.mockClear(); previews.length = 0; previewFailure = undefined; vi.unstubAllGlobals(); });
+afterEach(() => { for (const dispose of disposers.splice(0)) dispose(); document.body.replaceChildren(); nextSession = undefined; startCapture.mockClear(); openPreview.mockClear(); previews.length = 0; previewFailure = undefined; vi.unstubAllGlobals(); vi.useRealTimers(); });
 function setup(final: "published" | "manual_review" | "provider_submission_unconfirmed" | "membership_required" | "transform_failed", rejectKind?: "reserve" | "start", beforeExecute?: (command: VideoCommand) => Promise<void>) {
   vi.stubGlobal("crypto", webcrypto);
   const urlApi = class extends URL { static createObjectURL() { return "blob:https://example.test/video"; } static revokeObjectURL() {} };
@@ -338,6 +339,8 @@ describe("mounted song-first video flow", () => {
     readonly reader?: "ready" | "failed" | "pending";
     /** What the injected duration measurement answers for the chosen file. */
     readonly clipDurationMs?: number | null;
+    readonly measureDuration?: (file: File) => Promise<number | null>;
+    readonly inspectFile?: (file: File) => Promise<File>;
     /** The audio element's length, when the injected metadata reports one. */
     readonly elementSeconds?: number;
     readonly initialSong?: boolean;
@@ -448,8 +451,8 @@ describe("mounted song-first video flow", () => {
     let guideCreation = 0;
     const container = document.createElement("div"); document.body.appendChild(container);
     createRoot(dispose => { disposers.push(() => { dispose(); localStorage.clear(); }); render(() => <VideoComposerRuntime principalId="account" communityId="community" personaId="persona"
-      storage={storage} transport={transport} inspectFile={async (file, options) => { inspectOptions.push(options); return file; }} fetchImpl={fetchImpl}
-      measureDuration={async () => options.clipDurationMs ?? null}
+      storage={storage} transport={transport} inspectFile={async (file, constraints) => { inspectOptions.push(constraints); return options.inspectFile ? options.inspectFile(file) : file; }} fetchImpl={fetchImpl}
+      measureDuration={options.measureDuration ?? (async () => options.clipDurationMs ?? null)}
       startCapture={startCapture}
       openPreview={openPreview}
       prepareGuideSource={options.prepareGuideSource ?? (async () => ({url: "blob:https://example.test/guide", release() {}}))}
@@ -720,7 +723,7 @@ describe("mounted song-first video flow", () => {
     return {
       // SAFETY: the viewfinder preview is not what these tests drive, and
       // jsdom has no MediaStream to give it; the runtime only assigns it.
-      stream: Object.create(null) as MediaStream,
+      stream: Object.assign(Object.create(null) as MediaStream, { getTracks: () => [] }),
       captureOriginMs: options.captureOriginMs ?? performance.now(),
       stop: async () => { stopped(); return new File(["take"], "take.mp4", { type: "video/mp4" }); },
       cancel: async () => {},
@@ -744,6 +747,94 @@ describe("mounted song-first video flow", () => {
     }
     expect(slider.getAttribute("aria-valuenow")).toBe(String(startMs));
   }
+
+  test.each(["stop", "alignment", "inspection", "measurement", "measurement-total"] as const)(
+    "a hung %s ends visibly, rejects late state and permits a fresh published take", async stage => {
+      let settleStop!: (file: File) => void;
+      let settleAlignment!: (result: GuidedTakeAlignment) => void;
+      let settleMeasurement!: (duration: number) => void;
+      let settleInspection!: (file: File) => void;
+      const oldTake = new File(["old"], "old.mp4", { type: "video/mp4" });
+      const freshTake = new File(["fresh"], "fresh.mp4", { type: "video/mp4" });
+      const stopTrack = vi.fn(); const cancel = vi.fn(async () => { if (stage === "stop") await new Promise<void>(() => {}); });
+      let firstInspection = true;
+      let firstStop = true; let firstAlignment = true; let firstMeasure = true;
+      // SAFETY: this injected stream is only read through getTracks for cleanup.
+      nextSession = () => ({
+        ...fakeSession(() => {}),
+        stream: Object.assign(Object.create(null) as MediaStream, { getTracks: () => [{ stop: stopTrack }] }),
+        stop: async () => {
+          if (firstStop) {
+            firstStop = false;
+            if (stage === "stop") return new Promise(resolve => { settleStop = resolve; });
+            if (stage === "measurement-total") await new Promise(resolve => setTimeout(resolve, 25_000));
+            return oldTake;
+          }
+          return freshTake;
+        }, cancel,
+      });
+      const fixture = songSetup({ preflight: "accepted", mobile: true,
+        alignTake: async file => {
+          if (firstAlignment) { firstAlignment = false; if (stage === "alignment") return new Promise(resolve => { settleAlignment = resolve; }); }
+          return { file, aligned: true, requestedMs: 0, trimmedMs: 0 };
+        },
+        inspectFile: async file => {
+          if (firstInspection) { firstInspection = false; if (stage === "inspection") return new Promise(resolve => { settleInspection = resolve; }); }
+          return file;
+        },
+        measureDuration: async () => {
+          if (firstMeasure) { firstMeasure = false; if (stage === "measurement" || stage === "measurement-total") return new Promise(resolve => { settleMeasurement = resolve; }); }
+          return 16_300;
+        },
+      });
+      await loadSongMetadata(); await awaitPlan("ready"); await startRecording();
+      await vi.waitFor(() => expect(document.body.textContent).toContain("Recording to A song"));
+      vi.useFakeTimers(); await stopRecording();
+      await vi.advanceTimersByTimeAsync(stage === "measurement" ? VIDEO_DURATION_TIMEOUT_MS : VIDEO_FINALIZATION_TIMEOUT_MS);
+      flush();
+      expect(document.body.textContent).toContain(VIDEO_PREPARATION_TIMEOUT_NOTICE);
+      expect(document.querySelector("[data-video-review-frame]")).toBeNull();
+      expect(document.body.textContent).not.toContain("Finishing video");
+      expect(stopTrack).toHaveBeenCalled(); expect(cancel).toHaveBeenCalledOnce();
+      expect(fixture.commands).toEqual([]);
+
+      await startRecording();
+      await vi.waitFor(() => expect(document.body.textContent).toContain("Recording to A song"));
+      await stopRecording(); await vi.advanceTimersByTimeAsync(1_000); flush();
+      const publish = button("Publish video")!;
+      expect(publish.disabled).toBe(false);
+      if (stage === "stop") settleStop(oldTake);
+      if (stage === "alignment") settleAlignment({ file: oldTake, aligned: false, requestedMs: 0, trimmedMs: 0 });
+      if (stage === "inspection") settleInspection(oldTake);
+      if (stage === "measurement" || stage === "measurement-total") settleMeasurement(1_000);
+      await vi.advanceTimersByTimeAsync(1_000); flush();
+      expect(button("Publish video")!.disabled).toBe(false);
+      expect(document.body.textContent).not.toContain(VIDEO_PREPARATION_TIMEOUT_NOTICE);
+      vi.useRealTimers(); publish.click();
+      await vi.waitFor(() => expect(fixture.commands.map(command => command.kind)).toEqual(["reserve", "start", "finalize"]));
+    },
+  );
+
+  test("disposing hung finalization cancels its deadline and ignores the late take", async () => {
+    let settle!: (file: File) => void;
+    const stopTrack = vi.fn(); const cancel = vi.fn(async () => {});
+    // SAFETY: this injected stream is only read through getTracks for cleanup.
+    nextSession = () => ({ ...fakeSession(() => {}),
+      stream: Object.assign(Object.create(null) as MediaStream, { getTracks: () => [{ stop: stopTrack }] }),
+      stop: () => new Promise(resolve => { settle = resolve; }), cancel,
+    });
+    const fixture = songSetup({ preflight: "accepted", mobile: true });
+    await loadSongMetadata(); await awaitPlan("ready"); await startRecording();
+    await vi.waitFor(() => expect(document.body.textContent).toContain("Recording to A song"));
+    vi.useFakeTimers(); await stopRecording(); await vi.advanceTimersByTimeAsync(0);
+    disposers.at(-1)!(); await vi.advanceTimersByTimeAsync(0);
+    expect(stopTrack).toHaveBeenCalled(); expect(cancel).toHaveBeenCalledOnce();
+    expect(vi.getTimerCount()).toBe(0);
+    settle(new File(["late"], "late.mp4", { type: "video/mp4" }));
+    await vi.advanceTimersByTimeAsync(VIDEO_FINALIZATION_TIMEOUT_MS);
+    expect(fixture.commands).toEqual([]);
+    expect(document.querySelector("[data-video-review-frame]")).toBeNull();
+  });
 
   test("recording plays the guide and stops at the excerpt plus its tail guard", async () => {
     const guide = guideSpy();
@@ -1156,7 +1247,7 @@ describe("mounted song-first video flow", () => {
     let cancelled = 0;
     nextSession = () => ({
       // SAFETY: the viewfinder preview is not exercised; jsdom has no MediaStream.
-      stream: Object.create(null) as MediaStream,
+      stream: Object.assign(Object.create(null) as MediaStream, { getTracks: () => [] }),
       captureOriginMs: performance.now(),
       stop: async () => new File(["take"], "take.mp4", { type: "video/mp4" }),
       cancel: async () => { cancelled += 1; },
@@ -1428,7 +1519,7 @@ describe("mounted song-first video flow", () => {
     const guide = guideSpy();
     nextSession = () => ({
       // SAFETY: the viewfinder preview is not exercised; jsdom has no MediaStream.
-      stream: Object.create(null) as MediaStream,
+      stream: Object.assign(Object.create(null) as MediaStream, { getTracks: () => [] }),
       captureOriginMs: performance.now(),
       stop: async () => original,
       cancel: async () => {},
@@ -1455,7 +1546,7 @@ describe("mounted song-first video flow", () => {
     const original = new File(["original-take"], "take.mp4", { type: "video/mp4" });
     nextSession = () => ({
       // SAFETY: the viewfinder preview is not exercised; jsdom has no MediaStream.
-      stream: Object.create(null) as MediaStream,
+      stream: Object.assign(Object.create(null) as MediaStream, { getTracks: () => [] }),
       captureOriginMs: performance.now(),
       stop: async () => original,
       cancel: async () => {},

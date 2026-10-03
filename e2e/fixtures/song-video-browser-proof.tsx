@@ -139,7 +139,15 @@ const preflight: SongIntervalPreflight = async (input) => {
 /** The chosen file's name decides the simulated measurement; "take.mp4" comes
  * from the fixture capture and is left unmeasured, as a real take is until the
  * server probe. */
+let hungOnce = false;
+function hangPreparation(stage: string): boolean {
+  if (hungOnce || new URL(location.href).searchParams.get("prepareHang") !== stage) return false;
+  hungOnce = true;
+  record(`preparation:hung=${stage}`);
+  return true;
+}
 async function measureDuration(file: File): Promise<number | null> {
+  if (hangPreparation("measurement")) return new Promise(() => {});
   if (file.name === "short.mp4") return 3_000;
   if (file.name === "long.mp4") return 45_000;
   if (file.name === "fits.mp4") return 10_000;
@@ -169,6 +177,10 @@ function createGuide(url: string): FixtureGuide {
   element.addEventListener("playing", () => emit("playing"));
   element.addEventListener("error", () => emit("error"));
   const guide: FixtureGuide = {
+    get readyState() { return element.readyState; },
+    get buffered() { return element.buffered; },
+    get preload() { return element.preload; },
+    set preload(value: string) { element.preload = value; },
     get currentTime() { return element.currentTime; },
     set currentTime(value: number) { element.currentTime = value; },
     play: async () => {
@@ -189,7 +201,10 @@ function createGuide(url: string): FixtureGuide {
         state.guideNudgeMs = 0; write(state);
         await new Promise(resolve => setTimeout(resolve, nudge));
       }
-      await element.play();
+      // Deadline cases exercise preparation and retaking, with playback
+      // doubled so audio-device startup cannot become a second fault.
+      if (new URL(location.href).searchParams.has("prepareHang")) emit("playing");
+      else await element.play();
     },
     pause: () => {
       const state = ledger();
@@ -381,6 +396,7 @@ createRoot(() => {
         current.stopped += 1;
         write(current);
         record("capture:stopped");
+        if (hangPreparation("stop")) return new Promise(() => {});
         const take = await loadSampleTake();
         const withSize = ledger();
         withSize.originalTakeBytes = take.size;
@@ -427,6 +443,8 @@ createRoot(() => {
             <VideoComposerRuntime
               communityId="community-fixture"
               createGuideAudio={url => createGuide(url)}
+              // Complete generated Blob; the grant provider remains doubled.
+              prepareGuideSource={async () => ({ url: audioUrl, release: () => {} })}
               fetchImpl={async () => new Response(null, { headers: { etag: "receipt" } })}
               initialSong={song()}
               inspectFile={async file => file}
@@ -446,6 +464,7 @@ createRoot(() => {
                 const state = ledger(); state.guideDelayMs = timing.startDelayMs; write(state); notify();
               }}
               onPublished={() => undefined}
+              onPosted={() => record("posted")}
               onRetainedPersona={() => undefined}
               personaId="persona-fixture"
               principalId="account-fixture"

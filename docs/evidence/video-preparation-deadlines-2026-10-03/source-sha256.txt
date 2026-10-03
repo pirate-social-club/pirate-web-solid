@@ -1,0 +1,7 @@
+ec1937c374b99a816ec588165df0d1082c5f159401bc0fd9fe04f6a8707642da  src/features/posts/video-submission/video-preparation-deadline.ts
+02e4649d6f6b1e991023d384235781bc699583d602ec355297c52bdbee1e2138  src/features/posts/video-submission/video-composer-runtime.tsx
+13de99778621e89a4c181379647d21a3ac16ae5ab418b8e1f5d2820864a21bea  src/features/posts/video-submission/video-composer-runtime.test.tsx
+d71b66b82bce63582903639295f2eaa2d0aed8d87e04ca603729f60b0db031a5  src/features/posts/video-submission/capture.ts
+270bb8ccc8a11a1d8963d6620a2de4037f78aec123283fb6797d31b9af8fa419  src/features/posts/video-submission/capture.test.ts
+588396d8069ed59779781879ede38a0e56fd5e149a8359591d487cf174dadde1  e2e/fixtures/song-video-browser-proof.tsx
+4b81ec8f7ae62d11247a419987576c7abf62bb374f88f217d42e1f359f9e71d5  e2e/song-video-local.spec.ts

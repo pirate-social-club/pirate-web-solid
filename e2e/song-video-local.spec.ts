@@ -365,3 +365,35 @@ test("an unresolved moderation result survives reload and must be abandoned befo
     await rm(userDataDir, { recursive: true, force: true });
   }
 });
+
+for (const stage of ["measurement", "stop"] as const) {
+  test(`a hung ${stage} shows Record again and a fresh take publishes`, async () => {
+    test.setTimeout(90_000);
+    const userDataDir = await mkdtemp(join(tmpdir(), "pirate-video-deadline-"));
+    let context: BrowserContext | undefined;
+    try {
+      context = await open(userDataDir, `${proofPath}?compose=video&song=song-fixture&prepareHang=${stage}`);
+      const page = context.pages()[0] ?? await context.newPage();
+      await page.getByRole("button", { name: "Continue to video", exact: true }).click();
+      await page.getByRole("button", { name: "Start recording", exact: true }).click();
+      await expect(page.getByText("The recording couldn’t finish. Record again.", { exact: true }))
+        .toBeVisible({ timeout: 45_000 });
+      await expect(page.locator("textarea")).toHaveCount(0);
+      const timedOut = await readLedger(page);
+      expect(timedOut.calls).toContain(`preparation:hung=${stage}`);
+      expect(timedOut.calls).toContain("capture:cancelled");
+      expect(timedOut.calls.some(call => call.startsWith("command:"))).toBe(false);
+      await page.getByRole("button", { name: "Start recording", exact: true }).click();
+      const publish = page.getByRole("button", { name: "Publish video", exact: true });
+      await expect(publish).toBeEnabled({ timeout: 20_000 });
+      await publish.click();
+      await expect.poll(async () => (await readLedger(page)).calls).toContain("posted");
+      const finished = await readLedger(page);
+      expect(finished.calls.filter(call => call.startsWith("command:")))
+        .toEqual(["command:reserve", "command:start", "command:finalize"]);
+    } finally {
+      await context?.close();
+      await rm(userDataDir, { recursive: true, force: true });
+    }
+  });
+}

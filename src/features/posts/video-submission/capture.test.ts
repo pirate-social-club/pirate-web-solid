@@ -69,3 +69,20 @@ describe("saying what is wrong with a video", () => {
     }
   });
 });
+
+
+test("aborting duration measurement disposes its decoder input", async () => {
+  const { Input } = await import("mediabunny");
+  const { measureVideoDuration } = await import("./capture");
+  let finish!: (track: null) => void;
+  const track = vi.spyOn(Input.prototype, "getPrimaryVideoTrack").mockImplementation(() => new Promise(resolve => { finish = resolve; }));
+  const dispose = vi.spyOn(Input.prototype, "dispose");
+  const controller = new AbortController();
+  try {
+    const measured = measureVideoDuration(new File(["take"], "take.mp4", { type: "video/mp4" }), controller.signal);
+    controller.abort();
+    expect(dispose).toHaveBeenCalled();
+    finish(null);
+    expect(await measured).toBeNull();
+  } finally { track.mockRestore(); dispose.mockRestore(); }
+});

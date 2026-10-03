@@ -1,0 +1,9 @@
+
+ RUN  v4.1.11 /media/t42/codedrive/Code/pirate-workspace/.worktrees/pirate-web-solid/solid-video-publish-stall-diagnosis
+
+
+ Test Files  8 passed (8)
+      Tests  34 passed (34)
+   Start at  17:49:42
+   Duration  10.07s (transform 3.91s, setup 0ms, import 8.68s, tests 343ms, environment 1ms)
+
