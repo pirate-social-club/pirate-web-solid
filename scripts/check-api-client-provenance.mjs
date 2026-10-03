@@ -66,6 +66,8 @@ const clients = [
       "post_communitiesCommunityIdHnsRootImports",
       "get_communitiesCommunityIdHnsRootImports",
       "get_communitiesCommunityIdHnsRootImportsSessionId",
+      "post_communitiesCommunityIdCanonicalRouteOwnershipRecoveryStart",
+      "post_communitiesCommunityIdCanonicalRouteOwnershipRecoveryPoll",
       "post_communitiesCommunityIdHnsRootImportsSessionIdPoll",
       "post_communitiesCommunityIdHnsRootImportsSessionIdActivate",
       "post_communitiesCommunityIdHnsTxtAttachments",

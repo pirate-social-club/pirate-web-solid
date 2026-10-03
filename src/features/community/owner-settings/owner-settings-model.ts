@@ -233,9 +233,21 @@ export type NamespaceNextAction =
       kind: "verified";
     }>
   | Readonly<{ kind: "failed"; reason_code: NamespaceFailureReasonCode; retryable: boolean }>
-  | Readonly<{ kind: "expired" }>;
+  | Readonly<{ kind: "expired" }>
+  | Readonly<{
+      kind: "owner_recovery";
+      status: "required" | "pending" | "unavailable" | "expired" | "rejected";
+      resume?: boolean;
+      challenge?: Readonly<{
+        ownership_source: "hns_parent_chain_txt" | "owner_authoritative_dns_txt";
+        challenge_name: string;
+        challenge_value: string;
+        expires_at: string;
+      }>;
+    }>;
 
 export type NamespaceAttachment = Readonly<{
+  binding_generation?: number;
   root_label: string;
   status: "active" | "suspended";
 }>;
@@ -264,6 +276,7 @@ type NamespaceCommandFence = Readonly<{
 export type NamespaceSettingsCommandInput =
   | Readonly<{ family: NamespaceFamily; kind: "select_namespace"; root_label: string }>
   | Readonly<{ kind: "start_verification" }>
+  | Readonly<{ kind: "start_owner_recovery" }>
   | Readonly<{ kind: "submit_name_signature"; signature: string }>
   | Readonly<{ kind: "acknowledge_complete_resource" }>
   | Readonly<{ kind: "poll" }>

@@ -316,3 +316,46 @@ test.each(["provisioning", "observing", "ready", "awaiting_ownership"])("a suspe
   expect(container.textContent).toContain("Verification expired");
   expect(post).not.toHaveBeenCalled();
 });
+
+test("an expired retained root recovers through the actual settings controls and survives reload", async () => {
+  let key: string | null = null;
+  const recoveryLocator = { read: () => key, write: (value: string) => { key = value; }, clear: () => { key = null; } };
+  let status = "suspended";
+  const challenge = { ownership_source: "hns_parent_chain_txt", challenge_name: "harbor", challenge_value: "pirate-verification=retained-root", expires_at: "2099-10-03T12:00:00.000Z" };
+  const started = { route_recovery_id: "recovery-1", session_id: "owner-session-1", generation: 8, channel: "poll_result", status: "pending", expires_at: challenge.expires_at, challenge, replayed: false };
+  const start = vi.fn(async (_request: unknown) => started);
+  const imported = vi.fn();
+  const poll = vi.fn(async () => {
+    status = "active";
+    return { route_recovery_id: "recovery-1", session_id: "owner-session-1", generation: 9, status: "verified", replayed: false, retry_after_seconds: null, result_hash: "a".repeat(64), canonical_route: { root_label_display: "harbor" } };
+  });
+  const makeRecoveryApi = () => createCommunityNamespaceSettingsApi({
+    // SAFETY: These fakes implement the generated discovery/start/poll methods exercised through the controller.
+    client: { get_communitiesCommunityIdHnsRootImports: async () => ({
+      community_id: "community-1", attachment: { status, binding_generation: status === "active" ? 9 : 8, canonical_route: { root_label_display: "harbor" } },
+      session: { ...session, root_label: "harbor", status: "activated", revision: 43 },
+    }), post_communitiesCommunityIdHnsRootImports: imported,
+      post_communitiesCommunityIdCanonicalRouteOwnershipRecoveryStart: start,
+      post_communitiesCommunityIdCanonicalRouteOwnershipRecoveryPoll: poll } as never,
+    communityId: "community-1", communityPath: "/c/harbor", readCsrfToken: () => "csrf-1", recoveryLocator,
+    locator: { read: () => null, write: () => {}, clear: () => {} },
+  });
+  const findButton = (container: HTMLElement, text: string) => [...container.querySelectorAll<HTMLButtonElement>("button")].find((button) => button.textContent === text)!;
+  const first = render(() => <CommunityNamespaceSettingsController api={makeRecoveryApi()} communityId="community-1" communityPath="/c/harbor" />);
+  await vi.waitFor(() => expect(first.container.textContent).toContain("Restore ownership verification"));
+  expect(first.container.querySelector("#community-hns-name")).toBeNull();
+  findButton(first.container, "Verify ownership again").click();
+  await vi.waitFor(() => expect(first.container.textContent).toContain("pirate-verification=retained-root"));
+  expect(first.container.textContent).toContain("Keep the existing NS, DS and other records");
+  first.cleanup();
+  const second = render(() => <CommunityNamespaceSettingsController api={makeRecoveryApi()} communityId="community-1" communityPath="/c/harbor" />);
+  await vi.waitFor(() => expect(second.container.textContent).toContain("Resume verification"));
+  findButton(second.container, "Resume verification").click();
+  await vi.waitFor(() => expect(second.container.textContent).toContain("Check verification"));
+  expect(start.mock.calls[0]?.[0]).toEqual(start.mock.calls[1]?.[0]);
+  findButton(second.container, "Check verification").click();
+  await vi.waitFor(() => expect(second.container.querySelector('a[href="https://app.harbor/"]')).not.toBeNull());
+  expect(second.container.querySelector("[data-namespace-owner-recovery]")).toBeNull();
+  expect(imported).not.toHaveBeenCalled();
+  expect(key).toBeNull();
+});

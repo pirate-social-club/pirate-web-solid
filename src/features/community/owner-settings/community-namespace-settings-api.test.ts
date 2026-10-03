@@ -1,4 +1,5 @@
 import { describe, expect, test, vi } from "vitest";
+import type { PostCommunitiesCommunityIdCanonicalRouteOwnershipRecoveryPollResponse } from "@pirate/api-client";
 
 import { createApiClient } from "../../../api/client";
 import { createCommunityNamespaceSettingsApi, type HnsSessionLocator } from "./community-namespace-settings-api";
@@ -465,4 +466,131 @@ test("the vendored client decodes a lifecycle-bearing HNS session response", asy
   });
   expect(decoded.session?.lifecycle?.phase).toBe("checking_authority");
   expect(decoded.session?.lifecycle?.permitted_actions).toContain("poll");
+});
+
+const recoveryChallenge = {
+  ownership_source: "hns_parent_chain_txt",
+  challenge_name: "harbor",
+  challenge_value: "pirate-verification=recovery-fixture",
+  expires_at: "2099-10-03T12:00:00.000Z",
+} as const;
+const recoveryStart = {
+  route_recovery_id: "recovery-1", session_id: "recovery-session-1", generation: 8,
+  channel: "poll_result", status: "pending", expires_at: recoveryChallenge.expires_at,
+  challenge: recoveryChallenge, replayed: false,
+} as const;
+const recoveryRoute = {
+  family: "hns", root_label: "harbor", root_label_display: "harbor", path_segment: "harbor", href: "/c/harbor", app_host: null,
+} as const;
+function retainedRoot(status = "suspended", generation: number | undefined = 8) {
+  return {
+    community_id: common.community_id,
+    attachment: {
+      canonical_route: { root_label_display: "harbor" }, status,
+      ...(generation === undefined ? {} : { binding_generation: generation }),
+    },
+    session: { ...common, root_label: "harbor", revision: 43, status: "activated", publish_plan: null, publish_plan_sha256: null, readiness_result_sha256: null, retry_after_seconds: null },
+  };
+}
+function recoveryApi(client: unknown, recoveryLocator = locator(), importLocator = locator()) {
+  return createCommunityNamespaceSettingsApi({
+    // SAFETY: Each fake supplies the generated methods used in its scenario.
+    client: client as never, communityId: common.community_id, communityPath: "/c/harbor",
+    readCsrfToken: () => "csrf-fixture", locator: importLocator, recoveryLocator,
+  });
+}
+
+test("restores a retained root through owner recovery using binding generation, never import revision", async () => {
+  const discovery = vi.fn().mockResolvedValueOnce(retainedRoot()).mockResolvedValueOnce(retainedRoot("active", 9));
+  const start = vi.fn(async (_request: { body: { idempotency_key: string; expected_generation: number } }) => recoveryStart);
+  const poll = vi.fn<(_request: unknown) => Promise<PostCommunitiesCommunityIdCanonicalRouteOwnershipRecoveryPollResponse>>()
+    .mockResolvedValueOnce({ route_recovery_id: "recovery-1", session_id: "recovery-session-1", generation: 8, replayed: false, status: "pending", retry_after_seconds: 30, result_hash: null })
+    .mockResolvedValueOnce({ route_recovery_id: "recovery-1", session_id: "recovery-session-1", generation: 9, replayed: false, status: "verified", retry_after_seconds: null, result_hash: "a".repeat(64), canonical_route: recoveryRoute });
+  const imports = vi.fn();
+  const recoveryKey = locator();
+  const api = recoveryApi({ get_communitiesCommunityIdHnsRootImports: discovery,
+    post_communitiesCommunityIdCanonicalRouteOwnershipRecoveryStart: start,
+    post_communitiesCommunityIdCanonicalRouteOwnershipRecoveryPoll: poll,
+    post_communitiesCommunityIdHnsRootImports: imports }, recoveryKey);
+  let state = await api.read();
+  expect(state.generation).toBe(8);
+  expect(state.next_action.kind).toBe("owner_recovery");
+  state = await api.execute({ kind: "start_owner_recovery", expected_generation: 8, idempotency_key: "recover-key" });
+  expect(state.next_action).toMatchObject({ kind: "owner_recovery", status: "pending", challenge: recoveryChallenge });
+  expect(start.mock.calls[0]).toEqual([{ path: { communityId: common.community_id }, body: { expected_generation: 8, idempotency_key: "recover-key" } }, expect.objectContaining({ credentials: "same-origin" })]);
+  state = await api.execute({ kind: "poll", expected_generation: 8, idempotency_key: "check-1" });
+  expect(state.next_action).toMatchObject({ status: "pending", challenge: recoveryChallenge });
+  state = await api.execute({ kind: "poll", expected_generation: 8, idempotency_key: "check-2" });
+  expect(state.attachment).toMatchObject({ status: "active", binding_generation: 9 });
+  expect(state.next_action).toMatchObject({ kind: "verified", canonical_route: "https://app.harbor/" });
+  expect(recoveryKey.value).toBeNull();
+  expect(imports).not.toHaveBeenCalled();
+  expect(poll.mock.calls[0]?.[0]).toMatchObject({ body: { route_recovery_id: "recovery-1", session_id: "recovery-session-1", expected_generation: 8, channel: "poll_result" } });
+});
+
+test("a lost start response and reload resume the same challenge without another admission key", async () => {
+  const key = locator();
+  const start = vi.fn<(_request: { body: { idempotency_key: string; expected_generation: number } }) => Promise<Omit<typeof recoveryStart, "replayed"> & { replayed: boolean }>>().mockRejectedValueOnce(new Error("response lost"))
+    .mockResolvedValueOnce({ ...recoveryStart, replayed: true });
+  const client = { get_communitiesCommunityIdHnsRootImports: async () => retainedRoot(),
+    post_communitiesCommunityIdCanonicalRouteOwnershipRecoveryStart: start };
+  const first = recoveryApi(client, key);
+  await first.read();
+  await expect(first.execute({ kind: "start_owner_recovery", expected_generation: 8, idempotency_key: "first-key" })).rejects.toThrow("response lost");
+  expect(key.value).toBe("first-key");
+  const reloaded = recoveryApi(client, key);
+  expect((await reloaded.read()).next_action).toMatchObject({ status: "required", resume: true });
+  const state = await reloaded.execute({ kind: "start_owner_recovery", expected_generation: 8, idempotency_key: "new-page-key" });
+  expect(state.next_action).toMatchObject({ challenge: recoveryChallenge });
+  expect(start.mock.calls.map(([request]) => request.body.idempotency_key)).toEqual(["first-key", "first-key"]);
+});
+
+test("an expired recovery requests a fresh challenge explicitly, without restarting the root import", async () => {
+  const start = vi.fn(async (_request: { body: { idempotency_key: string; expected_generation: number } }) => recoveryStart);
+  const api = recoveryApi({ get_communitiesCommunityIdHnsRootImports: async () => retainedRoot(),
+    post_communitiesCommunityIdCanonicalRouteOwnershipRecoveryStart: start,
+    post_communitiesCommunityIdCanonicalRouteOwnershipRecoveryPoll: async () => ({ ...recoveryStart, status: "expired", retry_after_seconds: null, result_hash: "a".repeat(64) }) });
+  await api.read();
+  await api.execute({ kind: "start_owner_recovery", expected_generation: 8, idempotency_key: "first-key" });
+  expect((await api.execute({ kind: "poll", expected_generation: 8, idempotency_key: "poll-key" })).next_action).toMatchObject({ status: "expired" });
+  await api.execute({ kind: "start_owner_recovery", expected_generation: 8, idempotency_key: "fresh-key" });
+  expect(start.mock.calls.map(([request]) => request.body.idempotency_key)).toEqual(["first-key", "fresh-key"]);
+});
+
+test("an activated import deep link checks current ownership instead of showing expired evidence as verified", async () => {
+  const importKey = locator(); importKey.value = "session-1";
+  const api = recoveryApi({ get_communitiesCommunityIdHnsRootImports: async () => retainedRoot(),
+    get_communitiesCommunityIdHnsRootImportsSessionId: async () => retainedRoot().session }, locator(), importKey);
+  expect((await api.read()).next_action).toMatchObject({ kind: "owner_recovery", status: "required" });
+  expect(importKey.value).toBeNull();
+});
+
+test("recovery refuses a stale binding generation before invoking the verifier", async () => {
+  const start = vi.fn();
+  const api = recoveryApi({ get_communitiesCommunityIdHnsRootImports: async () => retainedRoot(),
+    post_communitiesCommunityIdCanonicalRouteOwnershipRecoveryStart: start });
+  await api.read();
+  await expect(api.execute({ kind: "start_owner_recovery", expected_generation: 43, idempotency_key: "wrong-clock" })).rejects.toThrow("address changed");
+  expect(start).not.toHaveBeenCalled();
+});
+
+test("the pinned generated client carries binding generation and cookie/CSRF recovery requests, including pending 503", async () => {
+  const requests: Request[] = [];
+  const route = { family: "hns", root_label: "harbor", root_label_display: "harbor", path_segment: "harbor", href: "/c/harbor", app_host: null };
+  const fetchImpl = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+    const request = new Request(input, init);
+    requests.push(request);
+    const path = new URL(request.url).pathname;
+    if (path.endsWith("/start")) return Response.json(recoveryStart, { status: 201 });
+    if (path.endsWith("/poll")) return Response.json({ route_recovery_id: "recovery-1", session_id: "recovery-session-1", generation: 8, status: "unavailable", replayed: false, retry_after_seconds: 30, result_hash: null }, { status: 503 });
+    return Response.json({ community_id: common.community_id, attachment: { canonical_route: route, status: "suspended", binding_generation: 8 }, session: null });
+  });
+  const api = createCommunityNamespaceSettingsApi({ communityId: common.community_id, communityPath: "/c/harbor", origin: "https://pirate.example", fetchImpl, readCsrfToken: () => "csrf-fixture", locator: locator(), recoveryLocator: locator() });
+  expect((await api.read()).generation).toBe(8);
+  await api.execute({ kind: "start_owner_recovery", expected_generation: 8, idempotency_key: "recovery-key" });
+  expect((await api.execute({ kind: "poll", expected_generation: 8, idempotency_key: "poll-key" })).next_action).toMatchObject({ status: "unavailable", challenge: recoveryChallenge });
+  expect(requests.map((request) => request.credentials)).toEqual(["same-origin", "same-origin", "same-origin"]);
+  expect(requests.slice(1).map((request) => request.headers.get("x-csrf-token"))).toEqual(["csrf-fixture", "csrf-fixture"]);
+  expect(await requests[1]?.json()).toEqual({ expected_generation: 8, idempotency_key: "recovery-key" });
+  expect(new URL(requests[1]!.url).pathname).toBe("/api/communities/community-1/canonical-route/ownership-recovery/start");
 });

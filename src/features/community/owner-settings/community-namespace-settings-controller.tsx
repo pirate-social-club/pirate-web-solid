@@ -33,7 +33,7 @@ const PREPARATION_RETRY_STORAGE_PREFIX = "pirate:hns-preparation-retry:";
 
 /** Actions before the server has exposed a plan to the owner. */
 const PRE_EXPOSURE_ACTIONS: ReadonlySet<NamespaceNextAction["kind"]> = new Set(["start_verification", "sign_ownership"]);
-const TERMINAL_ACTIONS: ReadonlySet<NamespaceNextAction["kind"]> = new Set(["verified", "expired", "failed", "recovery_required"]);
+const TERMINAL_ACTIONS: ReadonlySet<NamespaceNextAction["kind"]> = new Set(["verified", "expired", "failed", "recovery_required", "owner_recovery"]);
 
 function storedPreparationRetryAt(userId: string): number | undefined {
   if (typeof sessionStorage === "undefined") return undefined;
