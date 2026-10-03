@@ -590,6 +590,41 @@ export function CommunityNamespaceSettingsPanel(props: CommunityNamespaceSetting
           </Card>
         )}
       </Show>
+      <Show when={props.snapshot.next_action.kind === "owner_recovery" && props.snapshot.next_action}>
+        {(recovery) => (
+          <Card class="space-y-5 border-warning/50 p-5 md:p-6" data-namespace-owner-recovery>
+            <Type as="h2" variant="h2">Restore ownership verification</Type>
+            <FormNote>The verification for .{props.snapshot.root_label} has expired. Verify ownership again to restore the community address and its member names. Existing claims are kept.</FormNote>
+            <Show when={recovery().challenge}>
+              {(challenge) => (
+                <div class="space-y-4">
+                  <FormNote>
+                    {challenge().ownership_source === "hns_parent_chain_txt"
+                      ? "In Bob, update the verification TXT record on this name. Keep the existing NS, DS and other records."
+                      : "Add this TXT record at the name below in your authoritative DNS zone. Keep the existing delegation and other records."}
+                  </FormNote>
+                  <CopyField copyLabel="Verification record name" value={challenge().challenge_name} wrap />
+                  <CopyField copyLabel="Verification TXT value" value={challenge().challenge_value} wrap />
+                  <Type as="p" variant="caption">Verify before <time datetime={challenge().expires_at}>{localTimestamp(challenge().expires_at)}</time>.</Type>
+                  <Show when={recovery().status === "pending" || recovery().status === "unavailable"}>
+                    <FormNote>{recovery().status === "unavailable" ? "Verification is temporarily unavailable. Your challenge is saved; retry the check." : "Publish once, then check verification. Pending checks do not publish another update."}</FormNote>
+                    <Button loading={props.busy} disabled={props.busy} onClick={() => props.onCommand(command(props.idempotencyKeys, props.snapshot, { kind: "poll" }))}>Check verification</Button>
+                  </Show>
+                </div>
+              )}
+            </Show>
+            <Show when={recovery().status === "required" || recovery().status === "expired" || recovery().status === "rejected"}>
+              <Show when={recovery().status === "expired" || recovery().status === "rejected"}>
+                <FormNote tone="warning">This verification did not complete. Get a fresh challenge and update the verification TXT record.</FormNote>
+              </Show>
+              <Button loading={props.busy} disabled={props.busy} onClick={() => props.onCommand(command(props.idempotencyKeys, props.snapshot, { kind: "start_owner_recovery" }))}>
+                {recovery().status === "required" ? (recovery().resume ? "Resume verification" : "Verify ownership again") : "Get a new verification challenge"}
+              </Button>
+            </Show>
+          </Card>
+        )}
+      </Show>
+      <Show when={props.snapshot.next_action.kind !== "owner_recovery"}>
       <Show when={props.snapshot.next_action.kind === "choose_namespace"} fallback={<ServerDirectedAction busy={props.busy} preparationDisabled={props.preparationDisabled} publicationBlocked={props.publicationBlocked} idempotencyKeys={props.idempotencyKeys} onCommand={props.onCommand} showHeading={props.showHeading} snapshot={props.snapshot} wallet={props.wallet} />}>
         <div class="space-y-6">
           <Show when={props.snapshot.next_action.kind === "choose_namespace" && props.snapshot.next_action.no_account_import}>
@@ -614,6 +649,7 @@ export function CommunityNamespaceSettingsPanel(props: CommunityNamespaceSetting
             <Button disabled={props.draftRootLabel.trim().length === 0} loading={props.busy} onClick={submitNamespace}>Continue</Button>
           </Card>
         </div>
+      </Show>
       </Show>
     </section>
   );

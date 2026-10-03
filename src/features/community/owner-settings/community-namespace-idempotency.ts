@@ -9,6 +9,7 @@ export function namespaceIdempotencyKeys(operationId: string): NamespaceCommandI
     restart: `${operationId}-restart`,
     select_namespace: `${operationId}-select-namespace`,
     start_verification: `${operationId}-start-verification`,
+    start_owner_recovery: `${operationId}-start-owner-recovery`,
     submit_name_signature: `${operationId}-submit-name-signature`,
   };
 }

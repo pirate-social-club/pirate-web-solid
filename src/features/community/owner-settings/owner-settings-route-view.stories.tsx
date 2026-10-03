@@ -268,3 +268,22 @@ export const SectionReadUnavailable: Story = {
     expect(canvas.getByRole("button", { name: "Try again" })).toBeInTheDocument();
   },
 };
+
+export const ExpiredNameOwnership: Story = {
+  args: {
+    state: successState(), requestedSection: "namespace", namespaceApi: {
+      read: async () => ({
+        community_id: "community-harbor", family: "hns", generation: 8, root_label: "harbor",
+        attachment: { root_label: "harbor", status: "suspended", binding_generation: 8 },
+        next_action: { kind: "owner_recovery", status: "required" },
+      }),
+      execute: async () => { throw new Error("Story action is not connected"); },
+    },
+  },
+  play: async ({ canvasElement }) => {
+    const canvas = within(canvasElement);
+    await waitFor(() => expect(canvas.getByRole("heading", { name: "Restore ownership verification" })).toBeInTheDocument());
+    await expect(canvas.getByRole("button", { name: "Verify ownership again" })).toBeInTheDocument();
+    await expect(canvas.queryByLabelText("Handshake root")).not.toBeInTheDocument();
+  },
+};

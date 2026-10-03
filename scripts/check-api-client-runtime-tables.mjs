@@ -8,9 +8,10 @@ const currentClient = resolve(
   appRoot,
   "node_modules/@pirate/api-client/src/generated/client.ts",
 );
-// Client 0.102.0 declares expired_unfunded and the deliberate pause response.
-// Reviewed drift is limited to reward funding enums and 503 rewards_paused.
-const expectedDigest = "d35b90835891769e1857711d4d1eb3b9d2ada01349e3d567e359c3e43328ac7b";
+// Client 0.107.0 adds the optional canonical binding generation to the
+// authenticated HNS import read. Comparison with 0.102.0 found no other
+// response, success-status or error-definition drift in these operations.
+const expectedDigest = "7e02fb0f37af8987cf9c551a2afa90642eb0eafeeb3af50a1580e3f1ed429773";
 
 const operations = [
   "post_communitiesCommunityIdSpacesOwnershipStart",
