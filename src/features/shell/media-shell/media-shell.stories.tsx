@@ -4,7 +4,7 @@ import { expect, userEvent, waitFor, within } from "storybook/test";
 import type { Meta, StoryObj } from "storybook-solidjs-vite";
 
 import { ActivePersonaProvider, useActivePersonaStore } from "../../identity/active-persona-store.tsx";
-import { ShellStory, creatorNavigation, manyJoinedNavigation, popularNavigation, memberNavigation, personas, reviewViewports } from "./media-shell-story-fixtures.tsx";
+import { ShellStory, communityAppScope, communityModeratorScope, creatorNavigation, manyJoinedNavigation, popularNavigation, memberNavigation, personas, reviewViewports } from "./media-shell-story-fixtures.tsx";
 
 const meta = {
   title: "Screens/Shell/MediaShell",
@@ -158,7 +158,7 @@ export const CommunitiesError: Story = {
   },
 };
 export const ManyJoinedCommunities: Story = { render: () => <ShellStory communityNavigation={{ kind: "ready", data: manyJoinedNavigation }} /> };
-export const EmptyCommunities: Story = { render: () => <ShellStory communityNavigation={{ kind: "ready", data: { joined: [], popular: [], created: [] } }} /> };
+export const EmptyCommunities: Story = { render: () => <ShellStory communityNavigation={{ kind: "ready", data: { joined: [], popular: [], moderated: [] } }} /> };
 export const DesktopNavigation: Story = {
   render: () => <ShellStory communityNavigation={{ kind: "ready", data: creatorNavigation }} />,
   play: async ({ canvasElement }) => {
@@ -189,11 +189,55 @@ export const AnonymousDrawerNavigation: Story = {
     await userEvent.click(await canvas.findByRole("button", { name: "Open navigation" }));
     const drawer = within(await page.findByRole("dialog", { name: "Navigation" }));
     await expect(drawer.getByRole("link", { name: "World of Sound" })).toBeInTheDocument();
-    await expect(drawer.queryByRole("heading", { name: "COMMUNITIES YOU CREATED" })).not.toBeInTheDocument();
+    await expect(drawer.queryByRole("heading", { name: "MODERATOR" })).not.toBeInTheDocument();
     await expect(drawer.queryByRole("button", { name: "Settings" })).not.toBeInTheDocument();
-    await expect(drawer.getByRole("link", { name: "Terms" })).toHaveAttribute("href", "/terms");
+    await expect(drawer.queryByRole("link", { name: "Terms" })).not.toBeInTheDocument();
+    await expect(drawer.queryByRole("link", { name: "Privacy" })).not.toBeInTheDocument();
     await userEvent.click(drawer.getByRole("link", { name: "World of Sound" }));
     await waitFor(() => expect(canvas.getByRole("status")).toHaveTextContent("Destination: /c/world-of-sound"));
     await waitFor(() => expect(page.queryByRole("dialog")).not.toBeInTheDocument());
+  },
+};
+
+async function checkCommunityScope(navigation: ReturnType<typeof within>, moderator: boolean) {
+  await expect(navigation.queryByRole("link", { name: "Explore" })).not.toBeInTheDocument();
+  await expect(navigation.queryByRole("button", { name: "Create community" })).not.toBeInTheDocument();
+  await expect(navigation.queryByRole("link", { name: "World of Sound" })).not.toBeInTheDocument();
+  await expect(navigation.queryByRole("link", { name: "Night Shift Radio" })).not.toBeInTheDocument();
+  await expect(navigation.queryByRole("link", { name: "Terms" })).not.toBeInTheDocument();
+  await expect(navigation.queryByRole("link", { name: "Privacy" })).not.toBeInTheDocument();
+  await expect(navigation.getByRole("link", { name: "For You" })).toHaveAttribute("href", "/c/harbor");
+  if (moderator) {
+    await expect(navigation.getByRole("link", { name: "Moderation" })).toHaveAttribute("href", "/c/harbor/settings/moderation_queue");
+  } else {
+    await expect(navigation.queryByRole("link", { name: "Moderation" })).not.toBeInTheDocument();
+  }
+}
+export const CommunityAppDesktop: Story = {
+  render: () => <ShellStory navigationScope={communityAppScope} communityNavigation={{ kind: "ready", data: creatorNavigation }} />,
+  play: async ({ canvasElement }) => checkCommunityScope(within(within(canvasElement).getByRole("navigation", { name: "Main navigation" })), false),
+};
+export const CommunityAppModeratorDesktop: Story = {
+  render: () => <ShellStory navigationScope={communityModeratorScope} communityNavigation={{ kind: "ready", data: creatorNavigation }} />,
+  play: async ({ canvasElement }) => checkCommunityScope(within(within(canvasElement).getByRole("navigation", { name: "Main navigation" })), true),
+};
+export const CommunityAppAnonymousDesktop: Story = {
+  render: () => <ShellStory signedIn={false} navigationScope={communityModeratorScope} communityNavigation={{ kind: "ready", data: creatorNavigation }} />,
+  play: async ({ canvasElement }) => checkCommunityScope(within(within(canvasElement).getByRole("navigation", { name: "Main navigation" })), false),
+};
+export const CommunityAppDrawer: Story = {
+  globals: phone,
+  render: () => <ShellStory navigationScope={communityAppScope} communityNavigation={{ kind: "ready", data: creatorNavigation }} />,
+  play: async ({ canvasElement }) => {
+    await userEvent.click(await within(canvasElement).findByRole("button", { name: "Open navigation" }, { timeout: 10000 }));
+    await checkCommunityScope(within(await within(canvasElement.ownerDocument.body).findByRole("dialog", { name: "Navigation" })), false);
+  },
+};
+export const CommunityAppModeratorDrawer: Story = {
+  globals: phone,
+  render: () => <ShellStory navigationScope={communityModeratorScope} communityNavigation={{ kind: "ready", data: creatorNavigation }} />,
+  play: async ({ canvasElement }) => {
+    await userEvent.click(await within(canvasElement).findByRole("button", { name: "Open navigation" }, { timeout: 10000 }));
+    await checkCommunityScope(within(await within(canvasElement.ownerDocument.body).findByRole("dialog", { name: "Navigation" })), true);
   },
 };

@@ -1,6 +1,6 @@
 import { describe, expect, test } from "vitest";
 
-import { communityNavigationSections, profilePath, profileSwitch } from "./navigation-model.ts";
+import { communityNavigationSections, scopedPrimaryNavigation, navigationHomePath, profilePath, profileSwitch } from "./navigation-model.ts";
 
 describe("navigation model", () => {
   test("links a profile by handle when it has one, else by id", () => {
@@ -22,25 +22,35 @@ describe("navigation model", () => {
 const community = (communityId: string) => ({ communityId, displayName: communityId, href: `/c/${communityId}` });
 
 describe("community navigation projection", () => {
-  test("joins first, keeps creators separate, and deduplicates both sections", () => {
+  test("joins first, keeps moderation destinations separate, and deduplicates both sections", () => {
     const sections = communityNavigationSections({
       joined: [community("joined"), community("created"), community("joined")],
       popular: [community("popular"), community("joined"), community("created"), community("popular")],
-      created: [community("created"), community("created")],
+      moderated: [community("created"), community("created")],
     });
     expect(sections.communities.map(item => item.communityId)).toEqual(["joined", "popular"]);
-    expect(sections.created.map(item => item.communityId)).toEqual(["created"]);
+    expect(sections.moderated.map(item => item.communityId)).toEqual(["created"]);
     expect(sections.seeAllJoined).toBe(true);
   });
   test("caps heavy membership while keeping a way to the full list", () => {
-    const sections = communityNavigationSections({ joined: Array.from({ length: 8 }, (_, index) => community(`joined-${index}`)), popular: [community("popular")], created: [] });
+    const sections = communityNavigationSections({ joined: Array.from({ length: 8 }, (_, index) => community(`joined-${index}`)), popular: [community("popular")], moderated: [] });
     expect(sections.communities.map(item => item.communityId)).toEqual(["joined-0", "joined-1", "joined-2", "joined-3", "joined-4"]);
     expect(sections.seeAllJoined).toBe(true);
-    expect(sections.created).toEqual([]);
+    expect(sections.moderated).toEqual([]);
   });
   test("anonymous discovery preserves server ranking without a membership link", () => {
-    const sections = communityNavigationSections({ joined: [], popular: [community("ranked-first"), community("ranked-second")], created: [] });
+    const sections = communityNavigationSections({ joined: [], popular: [community("ranked-first"), community("ranked-second")], moderated: [] });
     expect(sections.communities.map(item => item.communityId)).toEqual(["ranked-first", "ranked-second"]);
     expect(sections.seeAllJoined).toBe(false);
+  });
+});
+
+describe("community application scope", () => {
+  test("keeps the home destination local and omits platform discovery", () => {
+    const scope = { kind: "community" as const, community: community("harbor") };
+    expect(navigationHomePath(scope)).toBe("/c/harbor");
+    expect(scopedPrimaryNavigation(scope).map(item => item.id)).toEqual(["home", "songs", "wallet", "profile"]);
+    expect(scopedPrimaryNavigation(scope)[0]?.href).toBe("/c/harbor");
+    expect(scopedPrimaryNavigation({ kind: "platform" }).some(item => item.id === "explore")).toBe(true);
   });
 });

@@ -5,7 +5,7 @@ import { Type } from "../../../design-system";
 import { CommunityPageShell } from "../../community/page-shell/page-shell.tsx";
 import type { SwitchablePersona } from "../../identity/persona-switcher-sheet/persona-switcher-sheet.tsx";
 import { resolveApplicationChrome } from "../application-chrome-model.ts";
-import { profilePath, type CommunityNavigationData } from "../navigation-model.ts";
+import { profilePath, type ApplicationNavigationScope, type CommunityNavigationData } from "../navigation-model.ts";
 import type { DrawerCommunity } from "../navigation-drawer.tsx";
 import { MediaShell, type MediaShellProps } from "./media-shell";
 
@@ -16,7 +16,7 @@ const communities: readonly DrawerCommunity[] = [
 
 // Review fixtures only; popularity order represents descending member count.
 export const popularNavigation: CommunityNavigationData = {
-  joined: [], created: [], popular: [
+  joined: [], moderated: [], popular: [
     { communityId: "community_sounds", displayName: "World of Sound", href: "/c/world-of-sound" },
     { communityId: "community_lofi", displayName: "Late Night Lo-Fi", href: "/c/late-night" },
     { communityId: "community_songwriters", displayName: "Songwriters Circle", href: "/c/songwriters" },
@@ -26,7 +26,7 @@ export const popularNavigation: CommunityNavigationData = {
 export const memberNavigation: CommunityNavigationData = { ...popularNavigation, joined: communities };
 export const creatorNavigation: CommunityNavigationData = {
   ...memberNavigation,
-  created: [{ communityId: "community_harbor", displayName: "Harbor Collective", href: "/c/harbor" }],
+  moderated: [{ communityId: "community_harbor", displayName: "Harbor Collective", href: "/c/harbor" }],
 };
 export const manyJoinedNavigation: CommunityNavigationData = {
   ...memberNavigation,
@@ -98,3 +98,11 @@ export const reviewViewports = {
   mobile1: { name: "Phone", styles: { width: "390px", height: "844px" }, type: "mobile" },
   desktopReview: { name: "Desktop", styles: { width: "1280px", height: "900px" }, type: "desktop" },
 } as const;
+
+export const communityAppScope: ApplicationNavigationScope = {
+  kind: "community",
+  community: { communityId: "community_harbor", displayName: "Harbor Collective", href: "/c/harbor" },
+};
+export const communityModeratorScope: ApplicationNavigationScope = {
+  ...communityAppScope, moderationHref: "/c/harbor/settings/moderation_queue",
+};

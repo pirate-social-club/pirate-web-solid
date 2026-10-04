@@ -222,3 +222,16 @@ describe("Application navigation", () => {
     expect(container.querySelector("[data-application-chrome]")).toBeNull();
   });
 });
+
+describe("community application navigation", () => {
+  test("suppresses global discovery reads and anonymous moderation", async () => {
+    const loadCommunityNavigation = vi.fn();
+    const container = render(() => <ApplicationChrome signedIn={false} navigationScope={{ kind: "community", community: { communityId: "harbor", displayName: "Harbor", href: "/c/harbor" }, moderationHref: "/c/harbor/settings/moderation_queue" }} loadCommunityNavigation={loadCommunityNavigation}>Feed</ApplicationChrome>);
+    await Promise.resolve();
+    expect(loadCommunityNavigation).not.toHaveBeenCalled();
+    const navigation = container.querySelector('nav[aria-label="Main navigation"]')!;
+    expect(navigation.querySelector('a[href="/explore"]')).toBeNull();
+    expect(navigation.querySelector('a[href="/c/harbor/settings/moderation_queue"]')).toBeNull();
+    expect(navigation.querySelector('a[href="/c/harbor"]')?.textContent).toContain("For You");
+  });
+});

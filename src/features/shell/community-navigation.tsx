@@ -1,10 +1,11 @@
 /** @jsxImportSource @solidjs/web */
 import { For, Show, createUniqueId } from "solid-js";
 import { Avatar, Button, IconButton, IconPlus, Type, cn } from "../../design-system";
-import { communityNavigationSections, type CommunityNavigationState, type NavigationCommunity } from "./navigation-model.ts";
+import { communityNavigationSections, type CommunityNavigationState, type NavigationCommunity, type ApplicationNavigationScope } from "./navigation-model.ts";
 
 export interface CommunityNavigationProps {
   readonly state: CommunityNavigationState;
+  readonly scope?: ApplicationNavigationScope;
   readonly currentPath?: string;
   readonly onNavigate: (href: string) => void;
   readonly onRetry: () => void;
@@ -23,7 +24,7 @@ function CommunityLink(props: { community: NavigationCommunity; currentPath?: st
 }
 
 /** The same section markup and ordering in both sidebar presentations. */
-export function CommunityNavigation(props: CommunityNavigationProps) {
+function PlatformCommunityNavigation(props: CommunityNavigationProps) {
   const id = createUniqueId();
   const sections = () => props.state.kind === "ready" ? communityNavigationSections(props.state.data) : undefined;
   return <div class="flex flex-col gap-6">
@@ -44,9 +45,21 @@ export function CommunityNavigation(props: CommunityNavigationProps) {
         }}>See all</a></Show>
       </>}</Show>
     </section>
-    <Show when={sections()?.created.length}>{_ => <section aria-labelledby={`${id}-created`}>
-      <Type as="h2" id={`${id}-created`} variant="overline" class="px-3 pb-2 text-xs tracking-wide text-sidebar-foreground">Communities you created</Type>
-      <ul class="flex flex-col gap-1"><For each={sections()?.created}>{community => <CommunityLink community={community} currentPath={props.currentPath} onNavigate={props.onNavigate} />}</For></ul>
+    <Show when={sections()?.moderated.length}>{_ => <section aria-labelledby={`${id}-moderator`}>
+      <Type as="h2" id={`${id}-moderator`} variant="overline" class="px-3 pb-2 text-xs tracking-wide text-sidebar-foreground">Moderator</Type>
+      <ul class="flex flex-col gap-1"><For each={sections()?.moderated}>{community => <CommunityLink community={community} currentPath={props.currentPath} onNavigate={props.onNavigate} />}</For></ul>
     </section>}</Show>
   </div>;
+}
+
+
+/** Community apps never render cross-community discovery or creation. */
+export function CommunityNavigation(props: CommunityNavigationProps) {
+  const id = createUniqueId();
+  return <Show when={props.scope?.kind === "community" ? props.scope : undefined} fallback={<PlatformCommunityNavigation {...props} />}>
+    {scope => <Show when={scope().moderationHref}>{href => <section aria-labelledby={`${id}-moderator`}>
+      <Type as="h2" id={`${id}-moderator`} variant="overline" class="px-3 pb-2 text-xs tracking-wide text-sidebar-foreground">Moderator</Type>
+      <ul><CommunityLink community={{ ...scope().community, displayName: "Moderation", href: href() }} currentPath={props.currentPath} onNavigate={props.onNavigate} /></ul>
+    </section>}</Show>}
+  </Show>;
 }

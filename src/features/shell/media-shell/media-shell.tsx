@@ -28,7 +28,7 @@ import { PersonaSwitcherSheet, type SwitchablePersona } from "../../identity/per
 import type { ApplicationChromeMode, ApplicationChromeRoute } from "../application-chrome-model.ts";
 import { AppHeader, MobileFooterNav } from "../app-shell-chrome/app-shell-chrome";
 import { AppSidebar, SidebarContent, type SidebarItem } from "../app-sidebar/app-sidebar";
-import { navigationPath, profilePath, profileSwitch, primaryNavigation, primaryNavigationLabel, type CommunityNavigationState, type CommunityNavigationData } from "../navigation-model.ts";
+import { navigationPath, profilePath, profileSwitch, scopedPrimaryNavigation, primaryNavigationLabel, platformNavigationScope, navigationHomePath, type ApplicationNavigationScope, type CommunityNavigationState, type CommunityNavigationData } from "../navigation-model.ts";
 import { loadDrawerCommunities, NavigationDrawer, type DrawerCommunity } from "../navigation-drawer.tsx";
 import { CommunityNavigation } from "../community-navigation.tsx";
 import type { ShellNavItem } from "../shell-model.ts";
@@ -39,7 +39,9 @@ export interface MediaShellProps {
   readonly children: JSX.Element;
   readonly activeItemId?: MediaShellRoute;
   readonly currentPath?: string;
-  /** Reviewed navigation data; public discovery and created-by-me API binding follows. */
+  /** Resolve host scope before mounting, including server render and hydration. */
+  readonly navigationScope?: ApplicationNavigationScope;
+  /** Reviewed navigation data; public discovery and moderation-access API binding follows. */
   readonly communityNavigation?: CommunityNavigationState;
   readonly loadCommunityNavigation?: (signedIn: boolean) => Promise<CommunityNavigationData>;
   readonly mobileActiveItem?: ShellNavItem | "none";
@@ -74,6 +76,14 @@ export function ApplicationChrome(props: MediaShellProps) {
   let menuTrigger: HTMLButtonElement | undefined;
   let pendingNavigation: string | undefined;
   const signedIn = () => props.signedIn === true;
+  const scope = (): ApplicationNavigationScope => {
+    const current = props.navigationScope ?? platformNavigationScope;
+    return current.kind === "community" && !signedIn()
+      ? { kind: "community", community: current.community }
+      : current;
+  };
+  const communityScope = () => { const current = scope(); return current.kind === "community" ? current : undefined; };
+  const homePath = () => navigationHomePath(scope());
   const activeItem = () => props.activeItemId ?? "home";
   const mode = () => props.mode ?? (props.immersive ? "immersive" : "standard");
   const immersive = () => mode() === "immersive";
@@ -133,7 +143,7 @@ export function ApplicationChrome(props: MediaShellProps) {
   };
   const navigateById = (id: string) => {
     if (id === "profile") { openOwnProfile(); return; }
-    const href = navigationPath(id);
+    const href = id === "home" ? homePath() : navigationPath(id);
     if (href) go(href);
   };
 
@@ -188,23 +198,24 @@ export function ApplicationChrome(props: MediaShellProps) {
   let communityRequest = 0;
   const loadCommunities = () => {
     const request = ++communityRequest;
+    if (scope().kind === "community") return;
     setCommunities({ kind: "loading" });
     // No fabricated public discovery or ownership projection: until the new
     // API reads land, the existing loader supplies memberships only.
     const loading = props.loadCommunityNavigation
       ? props.loadCommunityNavigation(signedIn())
       : signedIn()
-        ? (props.loadCommunities ?? loadDrawerCommunities)().then(joined => ({ joined, popular: [], created: [] }))
+        ? (props.loadCommunities ?? loadDrawerCommunities)().then(joined => ({ joined, popular: [], moderated: [] }))
         : Promise.reject(new Error("community_discovery_unavailable"));
     void loading
       .then(data => { if (request === communityRequest) setCommunities({ kind: "ready", data }); })
       .catch(() => { if (request === communityRequest) setCommunities({ kind: "error" }); });
   };
   onCleanup(() => { communityRequest++; });
-  createEffect(() => [signedIn(), props.sessionResolving, props.communityNavigation] as const, ([, resolving, supplied]) => {
+  createEffect(() => [signedIn(), props.sessionResolving, props.communityNavigation, scope().kind] as const, ([, resolving, supplied, scopeKind]) => {
     const request = ++communityRequest;
     queueMicrotask(() => {
-      if (request !== communityRequest || supplied) return;
+      if (request !== communityRequest || supplied || scopeKind === "community") return;
       if (resolving) { setCommunities({ kind: "loading" }); return; }
       loadCommunities();
     });
@@ -213,7 +224,7 @@ export function ApplicationChrome(props: MediaShellProps) {
 
   createEffect(() => props.activeItemId, (_, previous) => { if (previous !== undefined) setMenuOpen(false); });
   createEffect(desktop, (wide, previous) => { if (wide && previous === false) setMenuOpen(false); });
-  const primaryItems = (): readonly SidebarItem[] => primaryNavigation.map(item => ({
+  const primaryItems = (): readonly SidebarItem[] => scopedPrimaryNavigation(scope()).map(item => ({
     ...item,
     href: item.id === "profile" && selected() ? profilePath(selected()!) : item.href,
     icon: item.id === "profile"
@@ -234,8 +245,8 @@ export function ApplicationChrome(props: MediaShellProps) {
     // Create one set per render: repeated prop reads must not recreate JSX
     // during SSR/hydration.
     const items = primaryItems();
-    const footer = <div class="flex flex-col gap-3">{accountAction()}<div class="flex gap-4 px-3 text-xs"><a href="/terms">Terms</a><a href="/privacy">Privacy</a></div></div>;
-    return <AppSidebar activeItemId={activeItem()} class="sticky top-0 hidden h-dvh md:flex" footer={footer} homeAriaLabel="Go home" onHomeClick={() => go("/")} onNavigate={navigateById} primaryItems={items} communityContent={<CommunityNavigation state={navigationState()} currentPath={props.currentPath} onNavigate={go} onRetry={loadCommunities} />} />;
+    const footer = accountAction();
+    return <AppSidebar activeItemId={activeItem()} class="sticky top-0 hidden h-dvh md:flex" footer={footer} homeAriaLabel="Go home" brandLabel={communityScope()?.community.displayName} onHomeClick={() => go(homePath())} onNavigate={navigateById} primaryItems={items} communityContent={<CommunityNavigation state={navigationState()} scope={scope()} currentPath={props.currentPath} onNavigate={go} onRetry={loadCommunities} />} />;
   }
 
   return <Show when={mode() !== "bare"} fallback={props.children}><div data-application-chrome data-media-shell data-shell-mode={mode()} data-shell-auth={props.sessionResolving ? "resolving" : props.sessionUnavailable ? "unavailable" : signedIn() ? "authenticated" : "anonymous"} class={`min-h-screen bg-background text-foreground ${props.class ?? ""}`}>
@@ -244,7 +255,7 @@ export function ApplicationChrome(props: MediaShellProps) {
       <Sheet open={menuOpen()} onOpenChange={setMenuOpen}>
         <SheetContent side="left" onCloseAutoFocus={afterMenuClose} class="flex h-dvh w-80 max-w-[85vw] flex-col gap-0 bg-sidebar p-0 text-sidebar-foreground md:hidden" aria-label="Navigation">
           <SheetHeader class="sr-only"><SheetTitle>Navigation</SheetTitle></SheetHeader>
-          <NavigationDrawer state={navigationState()} currentPath={props.currentPath} onNavigate={go} onRetry={loadCommunities} />
+          <NavigationDrawer state={navigationState()} scope={scope()} currentPath={props.currentPath} onNavigate={go} onRetry={loadCommunities} />
         </SheetContent>
       </Sheet>
       <SidebarContent class={immersive() ? "h-[100dvh] overflow-hidden bg-black md:h-screen" : "min-h-[100dvh] bg-background pb-20 md:min-h-screen md:pb-0"}>
@@ -255,7 +266,7 @@ export function ApplicationChrome(props: MediaShellProps) {
             mobileLeadingContent={<IconButton ref={(element: HTMLButtonElement) => { menuTrigger = element; }} aria-label="Open navigation" aria-expanded={menuOpen() ? "true" : "false"} aria-haspopup="dialog" onClick={() => setMenuOpen(true)} variant="ghost" class={immersive() ? "text-white hover:bg-white/10" : undefined}><IconList class="size-6" /></IconButton>}
             mobileTrailingContent={
               <div class="flex items-center gap-1">
-                <Show when={immersive()}>
+                <Show when={immersive() && scope().kind === "platform"}>
                   <Button aria-label="Choose a community to post in" onClick={() => go("/communities")} class="text-white" size="sm" variant="ghost">Post</Button>
                 </Show>
                 <Show when={!signedIn() && !props.sessionResolving && !props.sessionUnavailable}>
@@ -282,7 +293,7 @@ export function ApplicationChrome(props: MediaShellProps) {
             // sheet while the account check is pending or failed, or sign-in.
             profileAriaLabel: selected() ? `Profile, ${selected()!.displayName}` : signedIn() || accountPending() ? "Your profiles" : "Sign in",
           }}
-          onHomeClick={() => go("/")}
+          onHomeClick={() => go(homePath())}
           onSongsClick={() => go("/songs")}
           onWalletClick={() => go("/wallet")}
           onProfileClick={openOwnProfile}
