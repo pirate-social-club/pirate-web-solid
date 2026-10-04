@@ -1,3 +1,4 @@
+import { VIDEO_DURATION_TIMEOUT_MS, withVideoPreparationDeadline } from "./video-preparation-deadline";
 import type { SoundtrackSelection } from "../post-composer/song-excerpt-composer";
 import { isServer } from "@solidjs/web";
 import type { OriginalVideoCaptureInput, VideoCaptureSession } from "./capture";
@@ -274,36 +275,60 @@ export class VideoComposerMedia {
     this.session = null;
     this.stopGuide();
     if (!current) throw new Error("The recording couldn’t finish. Record again.");
-    const take = await current.stop();
-    if (signal.aborted || this.disposed) throw aborted();
-    let finalTake = take;
-    let alignment: TakeAlignment = "none";
-    if (context.takeSoundtrack) {
-      if (!context.guideStarted || context.guideStartDelayMs > GUIDE_START_MAX_DELAY_MS) {
-        alignment = "unaligned";
-        this.options.onTakeAlignment?.({ offsetMs: context.guideStartDelayMs, trimmedMs: 0, aligned: false });
-      } else {
-        const result = await (this.options.alignTake ?? alignGuidedTake)(take, context.guideStartDelayMs);
-        let aligned = result.aligned;
-        let candidate = result.file;
-        if (aligned) {
-          try {
-            const inspect = this.options.inspectFile ?? (await import("./capture")).inspectVideoFile;
-            await inspect(candidate, { maxDurationSeconds: GUIDED_TAKE_MAX_DURATION_SECONDS });
-          } catch { aligned = false; candidate = take; }
+    let cancelled = false;
+    const cancel = () => {
+      if (cancelled) return;
+      cancelled = true;
+      stopTracks(current.stream);
+      void current.cancel().catch(() => {});
+      if (!this.disposed && this.session === null) this.options.onStream(null);
+    };
+    signal.addEventListener("abort", cancel, { once: true });
+    try {
+      signal.throwIfAborted();
+      const take = await current.stop();
+      if (signal.aborted || this.disposed) throw aborted();
+      let finalTake = take;
+      let alignment: TakeAlignment = "none";
+      if (context.takeSoundtrack) {
+        if (!context.guideStarted || context.guideStartDelayMs > GUIDE_START_MAX_DELAY_MS) {
+          alignment = "unaligned";
+          this.options.onTakeAlignment?.({ offsetMs: context.guideStartDelayMs, trimmedMs: 0, aligned: false });
+        } else {
+          const result = await (this.options.alignTake ?? alignGuidedTake)(take, context.guideStartDelayMs);
+          if (signal.aborted || this.disposed) throw aborted();
+          let aligned = result.aligned;
+          let candidate = result.file;
+          if (aligned) {
+            try {
+              const inspect = this.options.inspectFile ?? (await import("./capture")).inspectVideoFile;
+              await inspect(candidate, { maxDurationSeconds: GUIDED_TAKE_MAX_DURATION_SECONDS });
+            } catch { aligned = false; candidate = take; }
+          }
+          if (signal.aborted || this.disposed) throw aborted();
+          finalTake = candidate;
+          alignment = aligned ? "aligned" : "unaligned";
+          this.options.onTakeAlignment?.({ offsetMs: context.guideStartDelayMs, trimmedMs: aligned ? result.trimmedMs : 0, aligned });
         }
-        finalTake = candidate;
-        alignment = aligned ? "aligned" : "unaligned";
-        this.options.onTakeAlignment?.({ offsetMs: context.guideStartDelayMs, trimmedMs: aligned ? result.trimmedMs : 0, aligned });
       }
+      if (signal.aborted || this.disposed) throw aborted();
+      const durationMs = await this.measureDuration(finalTake, signal);
+      if (signal.aborted || this.disposed) throw aborted();
+      this.options.onOriginalTake(take);
+      return { file: finalTake, durationMs, alignment };
+    } catch (failure) {
+      cancel();
+      throw failure;
+    } finally {
+      signal.removeEventListener("abort", cancel);
+      stopTracks(current.stream);
     }
-    if (signal.aborted || this.disposed) throw aborted();
-    this.options.onOriginalTake(take);
-    const durationMs = this.options.measureDuration
-      ? await this.options.measureDuration(finalTake)
-      : await (await import("./capture")).measureVideoDuration(finalTake);
-    if (signal.aborted || this.disposed) throw aborted();
-    return { file: finalTake, durationMs, alignment };
+  }
+
+  private measureDuration(file: File, parent: AbortSignal) {
+    return withVideoPreparationDeadline(async signal => this.options.measureDuration
+      ? this.options.measureDuration(file)
+      : (await import("./capture")).measureVideoDuration(file, signal), VIDEO_DURATION_TIMEOUT_MS, parent);
   }
 
   async inspectFile(file: File, signal: AbortSignal) {
@@ -312,9 +337,7 @@ export class VideoComposerMedia {
     const inspect = this.options.inspectFile ?? (await import("./capture")).inspectVideoFile;
     const accepted = await inspect(file, { maxDurationSeconds: 15 });
     if (signal.aborted || this.disposed) throw aborted();
-    const durationMs = this.options.measureDuration
-      ? await this.options.measureDuration(accepted)
-      : await (await import("./capture")).measureVideoDuration(accepted);
+    const durationMs = await this.measureDuration(accepted, signal);
     if (signal.aborted || this.disposed) throw aborted();
     return { file: accepted, durationMs, alignment: "none" as const };
   }

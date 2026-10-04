@@ -1,4 +1,5 @@
 import { assign, fromCallback, fromPromise, sendTo, setup } from "xstate";
+import { VIDEO_FINALIZATION_TIMEOUT_MS, VIDEO_PREPARATION_TIMEOUT_NOTICE } from "./video-preparation-deadline";
 import type { ExcerptBounds } from "../post-composer/song-excerpt";
 import type { SoundtrackSelection } from "../post-composer/song-excerpt-composer";
 import type { SongSourceState } from "../post-composer/song-excerpt-source";
@@ -266,9 +267,15 @@ export function createVideoComposerMachine(operations: ComposerOperations, initi
             ], onError: { target: "idle", actions: assign({ session: null, prepared: null, issue: "guide_interrupted" }) } },
           },
           finalizing: {
+            // One budget covers stop, alignment, inspection and measurement.
+            // Leaving this state aborts the invoked media operation immediately.
+            after: { [VIDEO_FINALIZATION_TIMEOUT_MS]: { target: "idle", actions: assign({
+              error: VIDEO_PREPARATION_TIMEOUT_NOTICE, file: null, clipDurationMs: null,
+              session: null, prepared: null, takeSoundtrack: null, takeAlignment: "none", progress: "",
+            }) } },
             invoke: { src: "finishCapture", input: ({ context }) => context,
               onDone: { target: "#videoComposer.review", actions: assign({ file: ({ event }) => event.output.file, clipDurationMs: ({ event }) => event.output.durationMs, takeAlignment: ({ event }) => event.output.alignment, session: null, prepared: null, issue: null }) },
-              onError: { target: "idle", actions: assign({ error: ({ event }) => message(event.error, "The recording couldn’t finish. Record again."), session: null, prepared: null }) } },
+              onError: { target: "idle", actions: assign({ error: ({ event }) => message(event.error, "The recording couldn’t finish. Record again."), file: null, clipDurationMs: null, takeSoundtrack: null, takeAlignment: "none", session: null, prepared: null }) } },
           },
         },
       },

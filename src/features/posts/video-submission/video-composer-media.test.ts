@@ -147,3 +147,24 @@ test("a cancelled startup's failure cannot detach or forget a newer capture", as
   first.resolve({ stream, captureOriginMs: 0, stop: vi.fn(), cancel: vi.fn(async () => {}) });
   await expect(pending).rejects.toMatchObject({ name: "AbortError" });
 });
+
+
+test("a chosen file's hung measurement expires and a later measurement succeeds", async () => {
+  vi.useFakeTimers();
+  const duration = deferred<number>();
+  let first = true;
+  const file = new File(["video"], "video.mp4");
+  const { media } = fixture({ inspectFile: async chosen => chosen,
+    measureDuration: async () => { if (first) { first = false; return duration.promise; } return 10_000; },
+  });
+  try {
+    const result = media.inspectFile(file, new AbortController().signal);
+    const rejected = expect(result).rejects.toThrow("The recording couldn’t finish. Record again.");
+    await vi.advanceTimersByTimeAsync(10_000); await rejected;
+    const next = new File(["new"], "new.mp4");
+    expect(await media.inspectFile(next, new AbortController().signal)).toMatchObject({ file: next, durationMs: 10_000 });
+    duration.resolve(1);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(vi.getTimerCount()).toBe(0);
+  } finally { vi.useRealTimers(); }
+});

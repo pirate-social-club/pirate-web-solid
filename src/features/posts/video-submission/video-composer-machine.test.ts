@@ -1,4 +1,4 @@
-import { createActor } from "xstate";
+import { createActor, SimulatedClock } from "xstate";
 import { createRoot } from "solid-js";
 import { describe, expect, test, vi } from "vitest";
 import type { SoundtrackSelection } from "../post-composer/song-excerpt-composer";
@@ -33,7 +33,7 @@ const negativePlans = [
   { kind: "timing_unavailable" },
 ] satisfies readonly SongPlanState[];
 
-function fixture(overrides: Partial<ComposerOperations> = {}) {
+function fixture(overrides: Partial<ComposerOperations> = {}, clock?: SimulatedClock) {
   const publish = vi.fn(async () => ({ posted: false }));
   const cancelCapture = vi.fn(async () => {});
   const operations: ComposerOperations = {
@@ -55,7 +55,7 @@ function fixture(overrides: Partial<ComposerOperations> = {}) {
     syncPreview() {}, closePreview() {}, discardPrepared() {},
     ...overrides,
   };
-  const actor = createActor(createVideoComposerMachine(operations, true)).start();
+  const actor = createActor(createVideoComposerMachine(operations, true), { clock }).start();
   const inState = (state: string) => {
     const [parent, child] = state.split(".");
     const value = actor.getSnapshot().value;
@@ -381,4 +381,39 @@ describe("composer transitions", () => {
     expect(actor.getSnapshot().context.error).toBe("Invalid video");
     actor.stop();
   });
+});
+
+
+test("finalization deadline aborts the whole invocation and ignores an old take after retaking", async () => {
+  const clock = new SimulatedClock();
+  const pending = deferred<{ file: File; durationMs: number; alignment: "aligned" }>();
+  let signal: AbortSignal | undefined;
+  let first = true;
+  const flow = fixture({ finishCapture: async (_context, inputSignal) => {
+    if (first) { first = false; signal = inputSignal; return pending.promise; }
+    return { file: take, durationMs: 10_000, alignment: "aligned" };
+  } }, clock);
+  try {
+    await flow.wait("choosingSong");
+    flow.actor.send({ type: "SELECTION", selection });
+    flow.actor.send({ type: "CONTINUE" }); await flow.wait("capture.idle");
+    flow.actor.send({ type: "RECORD" }); await flow.wait("capture.recording");
+    flow.actor.send({ type: "STOP" }); await flow.wait("capture.finalizing");
+    clock.increment(29_999); expect(signal?.aborted).toBe(false);
+    clock.increment(1);
+    expect(flow.actor.getSnapshot().matches({ capture: "idle" })).toBe(true);
+    expect(signal?.aborted).toBe(true);
+    expect(flow.actor.getSnapshot().context.file).toBeNull();
+    expect(flow.actor.getSnapshot().context.error).toBe("The recording couldn’t finish. Record again.");
+    flow.actor.send({ type: "PUBLISH" }); expect(flow.publish).not.toHaveBeenCalled();
+    flow.actor.send({ type: "RECORD" }); await flow.wait("capture.recording");
+    flow.actor.send({ type: "STOP" }); await flow.wait("review");
+    pending.resolve({ file: new File(["old"], "old.mp4"), durationMs: 1, alignment: "aligned" });
+    await Promise.resolve(); await Promise.resolve();
+    clock.increment(30_000);
+    expect(flow.actor.getSnapshot().context.file).toBe(take);
+    expect(flow.actor.getSnapshot().value).toBe("review");
+    flow.actor.send({ type: "PUBLISH" }); await flow.wait("retained");
+    expect(flow.publish).toHaveBeenCalledTimes(1);
+  } finally { flow.actor.stop(); }
 });
