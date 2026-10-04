@@ -353,7 +353,7 @@ describe("community import discovery", () => {
 
   test("discards a discovered expired session while preserving the current attachment", async () => {
     const sessionLocator = locator();
-    const attachment = { canonical_route: { root_label_display: "current-name" }, status: "active" };
+    const attachment = { canonical_route: { family: "hns", root_label_display: "current-name" }, status: "active" };
     // SAFETY: This fake exposes exactly the generated discovery read used by the adapter.
     const api = createCommunityNamespaceSettingsApi({
       client: {
@@ -378,7 +378,7 @@ describe("community import discovery", () => {
     expect(sessionLocator.value).toBeNull();
   });
 
-  test.each([null, { canonical_route: { root_label_display: "midnight" }, status: "active" }])(
+  test.each([null, { canonical_route: { family: "hns", root_label_display: "midnight" }, status: "active" }])(
     "reports account-scoped absence independently of attachment %j", async (attachment) => {
       const api = createCommunityNamespaceSettingsApi({
         // SAFETY: Only the generated discovery fields consumed by this adapter are returned.
@@ -486,7 +486,7 @@ function retainedRoot(status = "suspended", generation: number | undefined = 8) 
   return {
     community_id: common.community_id,
     attachment: {
-      canonical_route: { root_label_display: "harbor" }, status, can_recover_ownership: true,
+      canonical_route: { family: "hns", root_label_display: "harbor" }, status, can_recover_ownership: true,
       ...(generation === undefined ? {} : { binding_generation: generation }),
     },
     session: { ...common, root_label: "harbor", revision: 43, status: "activated", publish_plan: null, publish_plan_sha256: null, readiness_result_sha256: null, retry_after_seconds: null },
@@ -679,4 +679,26 @@ test("route management permission does not imply creator recovery permission", a
   expect((await api.read()).next_action).toMatchObject({kind:"owner_recovery",status:"denied"});
   await expect(api.execute({kind:"start_owner_recovery",expected_generation:8,idempotency_key:"non-creator"})).rejects.toThrow("Only the community creator");
   expect(start).not.toHaveBeenCalled();
+});
+
+
+test.each([{generation:9,allowed:true,status:"required"},{generation:8,allowed:false,status:"denied"}])("recovery presentation drops a cached challenge when current authority changes ($generation/$allowed)",async({generation,allowed,status})=>{
+  const changed=retainedRoot("suspended",generation);
+  const discovery=vi.fn().mockResolvedValueOnce(retainedRoot()).mockResolvedValueOnce({...changed,attachment:{...changed.attachment,can_recover_ownership:allowed}});
+  const api=recoveryApi({get_communitiesCommunityIdHnsRootImports:discovery,post_communitiesCommunityIdCanonicalRouteOwnershipRecoveryStart:async()=>recoveryStart});
+  await api.read();
+  expect((await api.execute({kind:"start_owner_recovery",expected_generation:8,idempotency_key:"start"})).next_action).toMatchObject({challenge:recoveryChallenge});
+  const current=await api.read();
+  expect(current.generation).toBe(generation);
+  expect(current.next_action).toMatchObject({kind:"owner_recovery",status});
+  expect(current.next_action).not.toHaveProperty("challenge");
+});
+
+
+test.each(["active","suspended"])("HNS recovery does not project a Spaces attachment as an HNS host (%s)",async(status)=>{
+  const root=retainedRoot(status);
+  const api=recoveryApi({get_communitiesCommunityIdHnsRootImports:async()=>({...root,session:null,attachment:{...root.attachment,canonical_route:{family:"spaces",root_label_display:"harbor"}}})});
+  const current=await api.read();
+  expect(current.next_action.kind).toBe("choose_namespace");
+  expect(JSON.stringify(current.next_action)).not.toContain("app.harbor");
 });

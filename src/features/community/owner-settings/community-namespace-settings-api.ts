@@ -445,7 +445,8 @@ export function createCommunityNamespaceSettingsApi(
       ...(response.attachment.binding_generation === undefined ? {} : { binding_generation: response.attachment.binding_generation }),
       can_recover_ownership: response.attachment.can_recover_ownership === true,
     };
-    if (attachment?.status === "suspended") {
+    if (recovery !== null && (recovery.generation !== attachment?.binding_generation || attachment?.can_recover_ownership !== true)) recovery = null;
+    if (attachment?.status === "suspended" && response.attachment?.canonical_route.family === "hns") {
       if (attachment.binding_generation === undefined) {
         throw new CommunityNamespaceSettingsApiError("Ownership verification has expired. Refresh the page before restoring it.");
       }
@@ -456,7 +457,7 @@ export function createCommunityNamespaceSettingsApi(
     }
     recovery = null;
     currentSessionId = response.session?.root_import_session_id ?? null;
-    if (attachment?.status === "active" && (response.session === null || response.session.status === "activated" || response.session.status === "expired")) {
+    if (attachment?.status === "active" && response.attachment?.canonical_route.family === "hns" && (response.session === null || response.session.status === "activated" || response.session.status === "expired")) {
       locator.clear();
       current = { attachment, community_id: options.communityId, family: "hns", generation: attachment.binding_generation ?? 1, root_label: attachment.root_label,
         next_action: {kind:"verified",canonical_route: `https://app.${attachment.root_label}/`,canonical_route_label:`app.${attachment.root_label}`,fallback_route:`/c/${options.communityId}`,fallback_route_label:"Community page"} };

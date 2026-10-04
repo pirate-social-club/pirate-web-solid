@@ -45,7 +45,7 @@ const session = {
 };
 type DiscoveryFixture = {
   community_id: string;
-  attachment: null | { canonical_route: { root_label_display: string }; status: string };
+  attachment: null | { canonical_route: { family: "hns", root_label_display: string }; status: string };
   session: typeof session | null;
 };
 function makeApi(read: () => Promise<DiscoveryFixture>, poll = vi.fn(async () => ({ ...session, publication_check_pending: true })), get = vi.fn(async () => ({...session,publication_check_pending:true}))) {
@@ -165,7 +165,7 @@ test("renders confirmed absence of an imported name",async()=>{
 
 test("a suspended attachment missing its generation offers refresh instead of a new import",async()=>{
  const post=vi.fn();
- const api=makeApi(async()=>({community_id:"community-1",attachment:{canonical_route:{root_label_display:"midnight"},status:"suspended"},session:null}),post);
+ const api=makeApi(async()=>({community_id:"community-1",attachment:{canonical_route:{ family: "hns",root_label_display:"midnight"},status:"suspended"},session:null}),post);
  const {container}=render(()=><CommunityNamespaceSettingsController api={api} communityId="community-1" communityPath="/c/community-1" />);
  await vi.waitFor(()=>expect(container.textContent).toContain("Community address settings could not be loaded."));
  expect(container.textContent).toContain("Try again");
@@ -335,12 +335,12 @@ test("an expired retained root recovers through the actual settings controls and
   const imported = vi.fn();
   const poll = vi.fn(async () => {
     status = "active";
-    return { route_recovery_id: "recovery-1", session_id: "owner-session-1", generation: 9, status: "verified", replayed: false, retry_after_seconds: null, result_hash: "a".repeat(64), canonical_route: { root_label_display: "harbor" } };
+    return { route_recovery_id: "recovery-1", session_id: "owner-session-1", generation: 9, status: "verified", replayed: false, retry_after_seconds: null, result_hash: "a".repeat(64), canonical_route: { family: "hns", root_label_display: "harbor" } };
   });
   const makeRecoveryApi = () => createCommunityNamespaceSettingsApi({
     // SAFETY: These fakes implement the generated discovery/start/poll methods exercised through the controller.
     client: { get_communitiesCommunityIdHnsRootImports: async () => ({
-      community_id: "community-1", attachment: { status, can_recover_ownership: true, binding_generation: status === "active" ? 9 : 8, canonical_route: { root_label_display: "harbor" } },
+      community_id: "community-1", attachment: { status, can_recover_ownership: true, binding_generation: status === "active" ? 9 : 8, canonical_route: { family: "hns", root_label_display: "harbor" } },
       session: { ...session, root_label: "harbor", status: "activated", revision: 43 },
     }), post_communitiesCommunityIdHnsRootImports: imported,
       post_communitiesCommunityIdCanonicalRouteOwnershipRecoveryStart: start,
@@ -374,7 +374,7 @@ test("a recovery challenge crossing its deadline hides publication instructions 
   const poll = vi.fn(async () => ({ route_recovery_id: "recovery-1", session_id: "owner-session-1", generation: 9, status: "expired", replayed: false, retry_after_seconds: null }));
   const api = createCommunityNamespaceSettingsApi({
     // SAFETY: This fake implements only discovery/start/poll responses exercised by this controller regression.
-    client: { get_communitiesCommunityIdHnsRootImports: async () => ({ community_id: "community-1", attachment: { status: "suspended", can_recover_ownership: true, binding_generation: 8, canonical_route: { root_label_display: "harbor" } }, session: null }),
+    client: { get_communitiesCommunityIdHnsRootImports: async () => ({ community_id: "community-1", attachment: { status: "suspended", can_recover_ownership: true, binding_generation: 8, canonical_route: { family: "hns", root_label_display: "harbor" } }, session: null }),
       post_communitiesCommunityIdCanonicalRouteOwnershipRecoveryStart: async () => ({ route_recovery_id: "recovery-1", session_id: "owner-session-1", generation: 8, channel: "poll_result", status: "pending", expires_at: expiresAt, challenge, replayed: false }),
       post_communitiesCommunityIdCanonicalRouteOwnershipRecoveryPoll: poll } as never,
     communityId: "community-1", communityPath: "/c/harbor", readCsrfToken: () => "csrf-1",
