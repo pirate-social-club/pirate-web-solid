@@ -138,3 +138,35 @@ integration or a runtime release. A later staging release consuming client
 0.108.0 must use matching API contracts; the Telegram practice release also
 requires its reviewed API/jobs/schema-through-0239 pair and permission guard.
 Gateway manifest and binding references remain those of the published base.
+
+
+The owner-settings mount repair follows combined candidate bd9e4ba. Before
+changing the controller, its new tests ran against the installed Solid
+2.0.0-rc.0 browser runtime in jsdom. The initial mount logged
+[REACTIVE_WRITE_IN_OWNED_SCOPE] at the synchronous reset on controller line 66
+and [REACTIVITY_HALTED]. Three of four initial tests failed; the disposal case
+passed. This is runtime reproduction, not an inference from the source alone.
+
+The repair defers the six existing resets into the queued microtask. The effect
+invalidates the previous request generation immediately, and the microtask
+checks disposal, generation and community identity before resetting or loading.
+Only this pattern was adapted from parked hardening source 22209dca; none of
+its activity pagination, command replay, assistant-edit or client changes were
+imported. The regression suite is explicitly registered in the app test runner.
+
+After repair, the combined controller, linking and owner-route run passes 41
+tests. A fifth controller case was then added for obsolete queued resets; all
+five controller cases pass, covering Telegram and assistant mounts, stale
+community responses, disposal and obsolete queued work. Type checking, lint
+with warnings, test-discovery ownership, the SSR test covering all three linking
+views and the resource-bounded Worker build with chunk-size warnings pass.
+The build also rechecks client provenance and runtime tables. Frozen dependency
+installation changes no lockfile. No broad app suite or phone acceptance was
+repeated for this bounded repair.
+
+The staging browser attempt used an isolated anonymous session. The provisional
+/c/music/settings/telegram route returned Community not found, and no managed
+owner test credentials were available in this session. The controller did not
+mount there, so no live rendering result is claimed. The browser session was
+closed. Acceptance still needs an actual staging community and owner session;
+this source repair has not been deployed or activated.

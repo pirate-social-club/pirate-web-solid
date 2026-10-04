@@ -62,9 +62,14 @@ export function CommunityTelegramSettingsController(props: { communityId: string
     }
     finally { if (active && request === generation) setLoading(false); }
   }
-  createEffect(() => props.communityId, () => {
-    setSettings(undefined); setSetup(undefined); setModels([]); setVoices([]); setDeliveries([]); setAuthRequired(false);
-    queueMicrotask(() => { if (active) void load(); });
+  createEffect(() => props.communityId, (communityId) => {
+    const request = ++generation;
+    // Solid 2 forbids signal writes inside the owned effect callback.
+    queueMicrotask(() => {
+      if (!active || request !== generation || communityId !== props.communityId) return;
+      setSettings(undefined); setSetup(undefined); setModels([]); setVoices([]); setDeliveries([]); setAuthRequired(false);
+      void load();
+    });
   });
 
   async function execute(action: (current: CommunityTelegramSettings, commandKey: string) => Promise<CommunityTelegramSettings | void>) {
