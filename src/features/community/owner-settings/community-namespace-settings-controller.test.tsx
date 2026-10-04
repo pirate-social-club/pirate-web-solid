@@ -328,8 +328,6 @@ test.each(["provisioning", "observing", "ready", "awaiting_ownership"])("a suspe
 });
 
 test("an expired retained root recovers through the actual settings controls and survives reload", async () => {
-  let key: string | null = null;
-  const recoveryLocator = { read: () => key, write: (value: string) => { key = value; }, clear: () => { key = null; } };
   let status = "suspended";
   const challenge = { ownership_source: "hns_parent_chain_txt", challenge_name: "harbor", challenge_value: "pirate-verification=retained-root", expires_at: "2099-10-03T12:00:00.000Z" };
   const started = { route_recovery_id: "recovery-1", session_id: "owner-session-1", generation: 8, channel: "poll_result", status: "pending", expires_at: challenge.expires_at, challenge, replayed: false };
@@ -342,12 +340,12 @@ test("an expired retained root recovers through the actual settings controls and
   const makeRecoveryApi = () => createCommunityNamespaceSettingsApi({
     // SAFETY: These fakes implement the generated discovery/start/poll methods exercised through the controller.
     client: { get_communitiesCommunityIdHnsRootImports: async () => ({
-      community_id: "community-1", attachment: { status, binding_generation: status === "active" ? 9 : 8, canonical_route: { root_label_display: "harbor" } },
+      community_id: "community-1", attachment: { status, can_recover_ownership: true, binding_generation: status === "active" ? 9 : 8, canonical_route: { root_label_display: "harbor" } },
       session: { ...session, root_label: "harbor", status: "activated", revision: 43 },
     }), post_communitiesCommunityIdHnsRootImports: imported,
       post_communitiesCommunityIdCanonicalRouteOwnershipRecoveryStart: start,
       post_communitiesCommunityIdCanonicalRouteOwnershipRecoveryPoll: poll } as never,
-    communityId: "community-1", communityPath: "/c/harbor", readCsrfToken: () => "csrf-1", recoveryLocator,
+    communityId: "community-1", communityPath: "/c/harbor", readCsrfToken: () => "csrf-1",
     locator: { read: () => null, write: () => {}, clear: () => {} },
   });
   const findButton = (container: HTMLElement, text: string) => [...container.querySelectorAll<HTMLButtonElement>("button")].find((button) => button.textContent === text)!;
@@ -359,13 +357,84 @@ test("an expired retained root recovers through the actual settings controls and
   expect(first.container.textContent).toContain("Keep the existing NS, DS and other records");
   first.cleanup();
   const second = render(() => <CommunityNamespaceSettingsController api={makeRecoveryApi()} communityId="community-1" communityPath="/c/harbor" />);
-  await vi.waitFor(() => expect(second.container.textContent).toContain("Resume verification"));
-  findButton(second.container, "Resume verification").click();
+  await vi.waitFor(() => expect(second.container.textContent).toContain("Verify ownership again"));
+  findButton(second.container, "Verify ownership again").click();
   await vi.waitFor(() => expect(second.container.textContent).toContain("Check verification"));
   expect(start.mock.calls[0]?.[0]).toEqual(start.mock.calls[1]?.[0]);
   findButton(second.container, "Check verification").click();
   await vi.waitFor(() => expect(second.container.querySelector('a[href="https://app.harbor/"]')).not.toBeNull());
   expect(second.container.querySelector("[data-namespace-owner-recovery]")).toBeNull();
   expect(imported).not.toHaveBeenCalled();
-  expect(key).toBeNull();
 });
+
+test("a recovery challenge crossing its deadline hides publication instructions and reconciles before replacement", async () => {
+  vi.useFakeTimers();
+  const expiresAt = new Date(Date.now() + 1_000).toISOString();
+  const challenge = { ownership_source: "hns_parent_chain_txt", challenge_name: "harbor", challenge_value: "pirate-verification=old-challenge", expires_at: expiresAt };
+  const poll = vi.fn(async () => ({ route_recovery_id: "recovery-1", session_id: "owner-session-1", generation: 9, status: "expired", replayed: false, retry_after_seconds: null }));
+  const api = createCommunityNamespaceSettingsApi({
+    // SAFETY: This fake implements only discovery/start/poll responses exercised by this controller regression.
+    client: { get_communitiesCommunityIdHnsRootImports: async () => ({ community_id: "community-1", attachment: { status: "suspended", can_recover_ownership: true, binding_generation: 8, canonical_route: { root_label_display: "harbor" } }, session: null }),
+      post_communitiesCommunityIdCanonicalRouteOwnershipRecoveryStart: async () => ({ route_recovery_id: "recovery-1", session_id: "owner-session-1", generation: 8, channel: "poll_result", status: "pending", expires_at: expiresAt, challenge, replayed: false }),
+      post_communitiesCommunityIdCanonicalRouteOwnershipRecoveryPoll: poll } as never,
+    communityId: "community-1", communityPath: "/c/harbor", readCsrfToken: () => "csrf-1",
+    locator: { read: () => null, write: () => {}, clear: () => {} },
+  });
+  const {container} = render(() => <CommunityNamespaceSettingsController api={api} communityId="community-1" communityPath="/c/harbor" />);
+  const button = (label: string) => [...container.querySelectorAll<HTMLButtonElement>("button")].find(button => button.textContent === label)!;
+  await vi.advanceTimersByTimeAsync(0);
+  button("Verify ownership again").click();
+  await vi.advanceTimersByTimeAsync(0);
+  expect(container.textContent).toContain(challenge.challenge_value);
+  await vi.advanceTimersByTimeAsync(1_000);
+  expect(container.textContent).not.toContain(challenge.challenge_value);
+  expect(container.textContent).toContain("This challenge expired");
+  expect(button("Get a new verification challenge")).toBeUndefined();
+  button("Check verification").click();
+  await vi.advanceTimersByTimeAsync(0);
+  expect(poll).toHaveBeenCalledTimes(1);
+  expect(button("Get a new verification challenge")).toBeDefined();
+});
+
+const realFixture = process.env.HNS_RECOVERY_UI_FIXTURE;
+test.skipIf(!realFixture)("ordinary recovery through the real API and regtest survives a pending check, a second device and reload", async () => {
+  const origin = realFixture!;
+  expect(new URL(origin).hostname).toBe("127.0.0.1");
+  // SAFETY: The owned loopback fixture returns the id of its real imported community.
+  const {community_id: communityId} = await (await fetch(`${origin}/__hns-fixture`)).json() as {community_id:string};
+  const api = () => createCommunityNamespaceSettingsApi({
+    communityId, communityPath:`/c/${communityId}`,origin,
+    readCsrfToken:()=>"test-csrf",
+    locator:{read:()=>null,write:()=>{},clear:()=>{}},
+  });
+  const mount = () => render(() => <CommunityNamespaceSettingsController api={api()} communityId={communityId} communityPath={`/c/${communityId}`} />);
+  const button=(root:HTMLElement,label:string)=>[...root.querySelectorAll<HTMLButtonElement>("button")].find(button=>button.textContent===label)!;
+  const first=mount();
+  await vi.waitFor(()=>expect(first.container.textContent).toContain("Verify ownership again"));
+  button(first.container,"Verify ownership again").click();
+  await vi.waitFor(()=>expect(first.container.textContent).toContain("Check verification"));
+  const challenge = first.container.textContent?.match(/pirate-verification=[a-zA-Z0-9_-]+/)?.[0];
+  expect(challenge).toBeTruthy();
+  button(first.container,"Check verification").click();
+  await vi.waitFor(async()=>expect(await (await fetch(`${origin}/__hns-fixture/polls`)).json()).toEqual(["pending"]));
+  await vi.waitFor(()=>expect(button(first.container,"Check verification").disabled).toBe(false));
+  expect(first.container.textContent).not.toContain("Could not refresh");
+  const second=mount();
+  await vi.waitFor(()=>expect(second.container.textContent).toContain("Verify ownership again"));
+  button(second.container,"Verify ownership again").click();
+  await vi.waitFor(()=>expect(second.container.textContent).toContain(challenge!));
+  button(second.container,"Check verification").click();
+  await vi.waitFor(async()=>expect(await (await fetch(`${origin}/__hns-fixture/polls`)).json()).toEqual(["pending","pending"]));
+  await vi.waitFor(()=>expect(button(second.container,"Check verification").disabled).toBe(false));
+  expect(second.container.textContent).not.toContain("Could not refresh");
+  first.cleanup();second.cleanup();
+  const reloaded=mount();
+  await vi.waitFor(()=>expect(reloaded.container.textContent).toContain("Verify ownership again"));
+  button(reloaded.container,"Verify ownership again").click();
+  await vi.waitFor(()=>expect(reloaded.container.textContent).toContain(challenge!));
+  expect((await fetch(`${origin}/__hns-fixture/publish`,{method:"POST"})).status).toBe(200);
+  button(reloaded.container,"Check verification").click();
+  await vi.waitFor(()=>expect(reloaded.container.querySelector('a[href="https://app.harbor/"]')).not.toBeNull(),{timeout:15000});
+  expect(reloaded.container.querySelector("[data-namespace-owner-recovery]")).toBeNull();
+  reloaded.cleanup();
+},60000);

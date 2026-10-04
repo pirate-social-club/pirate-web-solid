@@ -47,12 +47,16 @@ export interface CommunityNamespaceSettingsApiOptions {
   communityPath: string;
   fetchImpl?: ApiFetch;
   locator?: HnsSessionLocator;
-  recoveryLocator?: HnsSessionLocator;
   origin?: string | URL;
   readCsrfToken?: () => string | undefined;
 }
 
 const SESSION_QUERY = "hns_import_session";
+
+async function recoveryKey(kind: "start" | "poll", ...identity: ReadonlyArray<string | number>): Promise<string> {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(JSON.stringify(identity)));
+  return `hns-recovery:${kind}:${Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("")}`;
+}
 
 function browserSessionLocator(query = SESSION_QUERY): HnsSessionLocator {
   return {
@@ -370,10 +374,6 @@ export function createCommunityNamespaceSettingsApi(
     return generatedClient;
   };
   const locator = options.locator ?? browserSessionLocator();
-  // This is an opaque request key, not an authentication credential. Saving
-  // it before start lets a reload recover the same server-issued challenge
-  // after a lost response, without issuing a second challenge.
-  const recoveryLocator = options.recoveryLocator ?? browserSessionLocator("hns_owner_recovery");
   const csrfToken = options.readCsrfToken ?? readCsrfCookie;
   let current = chooseSnapshot(options.communityId);
   let attachment: NamespaceAttachment | null = null;
@@ -394,7 +394,7 @@ export function createCommunityNamespaceSettingsApi(
       root_label: attachment.root_label,
       next_action: {
         kind: "owner_recovery", status,
-        ...(recovery === null ? { resume: recoveryLocator.read() !== null } : { challenge: recovery.challenge }),
+        ...(recovery === null ? {} : { challenge: recovery.challenge }),
       },
     };
   };
@@ -443,6 +443,7 @@ export function createCommunityNamespaceSettingsApi(
       root_label: response.attachment.canonical_route.root_label_display,
       status: response.attachment.status,
       ...(response.attachment.binding_generation === undefined ? {} : { binding_generation: response.attachment.binding_generation }),
+      can_recover_ownership: response.attachment.can_recover_ownership === true,
     };
     if (attachment?.status === "suspended") {
       if (attachment.binding_generation === undefined) {
@@ -450,12 +451,17 @@ export function createCommunityNamespaceSettingsApi(
       }
       currentSessionId = null;
       locator.clear();
-      current = recoverySnapshot("required");
+      current = recoverySnapshot(attachment.can_recover_ownership ? "required" : "denied");
       return current;
     }
     recovery = null;
-    recoveryLocator.clear();
     currentSessionId = response.session?.root_import_session_id ?? null;
+    if (attachment?.status === "active" && (response.session === null || response.session.status === "activated" || response.session.status === "expired")) {
+      locator.clear();
+      current = { attachment, community_id: options.communityId, family: "hns", generation: attachment.binding_generation ?? 1, root_label: attachment.root_label,
+        next_action: {kind:"verified",canonical_route: `https://app.${attachment.root_label}/`,canonical_route_label:`app.${attachment.root_label}`,fallback_route:`/c/${options.communityId}`,fallback_route_label:"Community page"} };
+      return current;
+    }
     current = response.session !== null ? acceptSession(response.session) : {
       ...chooseSnapshot(options.communityId), attachment,
       next_action: { kind: "choose_namespace", no_account_import: true },
@@ -463,9 +469,43 @@ export function createCommunityNamespaceSettingsApi(
     return current;
   };
 
+  const pollRecovery = async (): Promise<NamespaceSettingsSnapshot> => {
+    if (recovery === null || attachment === null) throw new CommunityNamespaceSettingsApiError("Refresh ownership verification before checking it.");
+    const response = await client().post_communitiesCommunityIdCanonicalRouteOwnershipRecoveryPoll({
+      path: { communityId: options.communityId },
+      body: {
+        route_recovery_id: recovery.route_recovery_id,
+        session_id: recovery.session_id,
+        expected_generation: recovery.generation,
+        idempotency_key: await recoveryKey("poll", options.communityId, recovery.generation, recovery.route_recovery_id, recovery.session_id),
+        channel: "poll_result",
+      },
+    }, writeOptions());
+    if (response.route_recovery_id !== recovery.route_recovery_id || response.session_id !== recovery.session_id) {
+      throw new CommunityNamespaceSettingsApiError("The recovery response did not match this verification.");
+    }
+    if (response.status === "verified") {
+      if (response.generation !== recovery.generation + 1 || response.canonical_route.root_label_display !== attachment.root_label) {
+        throw new CommunityNamespaceSettingsApiError("The recovery response did not match this community address.");
+      }
+      return discover();
+    }
+    const terminal = response.status === "expired" || response.status === "rejected";
+    if (response.generation !== recovery.generation + (terminal ? 1 : 0)) {
+      throw new CommunityNamespaceSettingsApiError("The recovery response did not match this community address.");
+    }
+    if (terminal) {
+      attachment = { ...attachment, binding_generation: response.generation };
+      recovery = null;
+    }
+    current = recoverySnapshot(response.status);
+    if (response.status === "rejected") current = { ...current, next_action: { ...current.next_action, kind: "owner_recovery", status: "rejected", reason_code: response.reason_code } };
+    return current;
+  };
+
   return {
     read: async () => {
-      if (current.next_action.kind === "owner_recovery" || recoveryLocator.read() !== null) return discover();
+      if (current.next_action.kind === "owner_recovery") return discover();
       const sessionId = currentSessionId ?? locator.read();
       if (sessionId !== null) return load(sessionId);
       return discover();
@@ -476,10 +516,9 @@ export function createCommunityNamespaceSettingsApi(
           throw new CommunityNamespaceSettingsApiError("The community address changed. Refresh and try again.");
         }
         if (command.kind === "start_owner_recovery") {
+          if (!attachment.can_recover_ownership) throw new CommunityNamespaceSettingsApiError("Only the community creator can restore ownership verification.");
           const requestOptions = writeOptions();
-          const previousEnded = current.next_action.status === "expired" || current.next_action.status === "rejected";
-          const key = previousEnded ? command.idempotency_key : recoveryLocator.read() ?? command.idempotency_key;
-          recoveryLocator.write(key);
+          const key = await recoveryKey("start", options.communityId, attachment.binding_generation);
           const response = await client().post_communitiesCommunityIdCanonicalRouteOwnershipRecoveryStart({
             path: { communityId: options.communityId },
             body: { expected_generation: attachment.binding_generation, idempotency_key: key },
@@ -488,34 +527,12 @@ export function createCommunityNamespaceSettingsApi(
             throw new CommunityNamespaceSettingsApiError("The recovery response did not match this community address.");
           }
           recovery = response;
+          if (Date.parse(response.challenge.expires_at) <= Date.now()) return pollRecovery();
           current = recoverySnapshot("pending");
           return current;
         }
         if (command.kind === "poll" && recovery !== null) {
-          const response = await client().post_communitiesCommunityIdCanonicalRouteOwnershipRecoveryPoll({
-            path: { communityId: options.communityId },
-            body: {
-              route_recovery_id: recovery.route_recovery_id,
-              session_id: recovery.session_id,
-              expected_generation: recovery.generation,
-              idempotency_key: command.idempotency_key,
-              channel: "poll_result",
-            },
-          }, writeOptions());
-          if (response.route_recovery_id !== recovery.route_recovery_id || response.session_id !== recovery.session_id) {
-            throw new CommunityNamespaceSettingsApiError("The recovery response did not match this verification.");
-          }
-          if (response.status === "verified") {
-            if (response.generation !== recovery.generation + 1 || response.canonical_route.root_label_display !== attachment.root_label) {
-              throw new CommunityNamespaceSettingsApiError("The recovery response did not match this community address.");
-            }
-            return discover();
-          }
-          if (response.generation !== recovery.generation) {
-            throw new CommunityNamespaceSettingsApiError("The recovery response did not match this community address.");
-          }
-          current = recoverySnapshot(response.status);
-          return current;
+          return pollRecovery();
         }
         throw new CommunityNamespaceSettingsApiError("Restore ownership verification for the attached name before changing its setup.");
       }

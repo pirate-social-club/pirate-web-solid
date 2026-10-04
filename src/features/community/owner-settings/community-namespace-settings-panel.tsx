@@ -1,4 +1,4 @@
-import { createSignal, For, Show } from "solid-js";
+import { createEffect, createSignal, onCleanup, For, Show } from "solid-js";
 
 import {
   Button,
@@ -573,6 +573,19 @@ function ServerDirectedAction(props: Pick<CommunityNamespaceSettingsPanelProps, 
 }
 
 export function CommunityNamespaceSettingsPanel(props: CommunityNamespaceSettingsPanelProps) {
+  const [recoveryChallengeExpired, setRecoveryChallengeExpired] = createSignal(false);
+  createEffect(
+    () => props.snapshot.next_action.kind === "owner_recovery" ? props.snapshot.next_action.challenge?.expires_at : undefined,
+    (expiresAt) => {
+      let active = true;
+      const delay = expiresAt === undefined ? undefined : Date.parse(expiresAt) - Date.now();
+      queueMicrotask(() => { if (active) setRecoveryChallengeExpired(delay !== undefined && delay <= 0); });
+      const timer = delay !== undefined && delay > 0 && delay <= 2_147_483_647
+        ? setTimeout(() => setRecoveryChallengeExpired(true), delay) : undefined;
+      onCleanup(() => { active = false; if (timer !== undefined) clearTimeout(timer); });
+    },
+  );
+
   const submitNamespace = () => props.onCommand(command(props.idempotencyKeys, props.snapshot, {
     family: "hns",
     kind: "select_namespace",
@@ -595,7 +608,8 @@ export function CommunityNamespaceSettingsPanel(props: CommunityNamespaceSetting
           <Card class="space-y-5 border-warning/50 p-5 md:p-6" data-namespace-owner-recovery>
             <Type as="h2" variant="h2">Restore ownership verification</Type>
             <FormNote>The verification for .{props.snapshot.root_label} has expired. Verify ownership again to restore the community address and its member names. Existing claims are kept.</FormNote>
-            <Show when={recovery().challenge}>
+            <Show when={recovery().status === "denied"}><FormNote>Only the community creator can restore ownership verification. Sign in with that account or contact the creator.</FormNote></Show>
+            <Show when={!recoveryChallengeExpired() && recovery().challenge}>
               {(challenge) => (
                 <div class="space-y-4">
                   <FormNote>
@@ -606,19 +620,20 @@ export function CommunityNamespaceSettingsPanel(props: CommunityNamespaceSetting
                   <CopyField copyLabel="Verification record name" value={challenge().challenge_name} wrap />
                   <CopyField copyLabel="Verification TXT value" value={challenge().challenge_value} wrap />
                   <Type as="p" variant="caption">Verify before <time datetime={challenge().expires_at}>{localTimestamp(challenge().expires_at)}</time>.</Type>
-                  <Show when={recovery().status === "pending" || recovery().status === "unavailable"}>
-                    <FormNote>{recovery().status === "unavailable" ? "Verification is temporarily unavailable. Your challenge is saved; retry the check." : "Publish once, then check verification. Pending checks do not publish another update."}</FormNote>
-                    <Button loading={props.busy} disabled={props.busy} onClick={() => props.onCommand(command(props.idempotencyKeys, props.snapshot, { kind: "poll" }))}>Check verification</Button>
-                  </Show>
+
                 </div>
               )}
             </Show>
+            <Show when={recovery().status === "pending" || recovery().status === "unavailable"}>
+              <FormNote>{recoveryChallengeExpired() ? "This challenge expired. Check verification to get its current status before requesting another." : recovery().status === "unavailable" ? "Verification is temporarily unavailable. Retry the check." : "Publish once, then check verification. Pending checks do not publish another update."}</FormNote>
+              <Button loading={props.busy} disabled={props.busy} onClick={() => props.onCommand(command(props.idempotencyKeys, props.snapshot, { kind: "poll" }))}>Check verification</Button>
+            </Show>
             <Show when={recovery().status === "required" || recovery().status === "expired" || recovery().status === "rejected"}>
               <Show when={recovery().status === "expired" || recovery().status === "rejected"}>
-                <FormNote tone="warning">This verification did not complete. Get a fresh challenge and update the verification TXT record.</FormNote>
+                <FormNote tone="warning">{recovery().status === "expired" ? "This verification challenge expired." : `Verification was refused${recovery().reason_code ? ` (${recovery().reason_code})` : ""}.`} Get a fresh challenge and update the verification TXT record.</FormNote>
               </Show>
               <Button loading={props.busy} disabled={props.busy} onClick={() => props.onCommand(command(props.idempotencyKeys, props.snapshot, { kind: "start_owner_recovery" }))}>
-                {recovery().status === "required" ? (recovery().resume ? "Resume verification" : "Verify ownership again") : "Get a new verification challenge"}
+                {recovery().status === "required" ? "Verify ownership again" : "Get a new verification challenge"}
               </Button>
             </Show>
           </Card>

@@ -236,8 +236,8 @@ export type NamespaceNextAction =
   | Readonly<{ kind: "expired" }>
   | Readonly<{
       kind: "owner_recovery";
-      status: "required" | "pending" | "unavailable" | "expired" | "rejected";
-      resume?: boolean;
+      status: "required" | "pending" | "unavailable" | "expired" | "rejected" | "denied";
+      reason_code?: string;
       challenge?: Readonly<{
         ownership_source: "hns_parent_chain_txt" | "owner_authoritative_dns_txt";
         challenge_name: string;
@@ -247,6 +247,7 @@ export type NamespaceNextAction =
     }>;
 
 export type NamespaceAttachment = Readonly<{
+  can_recover_ownership?: boolean;
   binding_generation?: number;
   root_label: string;
   status: "active" | "suspended";

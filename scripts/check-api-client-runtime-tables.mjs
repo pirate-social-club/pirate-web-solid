@@ -8,10 +8,10 @@ const currentClient = resolve(
   appRoot,
   "node_modules/@pirate/api-client/src/generated/client.ts",
 );
-// Client 0.107.0 adds the optional canonical binding generation to the
-// authenticated HNS import read. Comparison with 0.102.0 found no other
-// response, success-status or error-definition drift in these operations.
-const expectedDigest = "7e02fb0f37af8987cf9c551a2afa90642eb0eafeeb3af50a1580e3f1ed429773";
+// Client 0.109.0 adds the optional authenticated creator recovery capability.
+// Comparison with 0.108.0 found only that discovery response addition;
+// success statuses and error definitions are unchanged.
+const expectedDigest = "40934757fe43d2b84343246590158775a115b1c278f08bf67f4124addec3c812";
 
 const operations = [
   "post_communitiesCommunityIdSpacesOwnershipStart",
