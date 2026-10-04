@@ -112,3 +112,29 @@ successful reads; errors from the actual linking operation remain handled.
 The focused suite passes 33 tests after this correction. Final type checking,
 focused changed-file lint with warnings, the SSR test covering all three views
 and the resource-bounded Worker build pass. No browser or operator acceptance is implied.
+
+
+The October 4 combined-source checkpoint is merge
+5096dd0e58bfa38dc68a7ac0330f1a1b42061ecc. It preserves reviewed Telegram
+4d50a37205fd4ab26ba672570e71502ad4b23768 and published staging gateway
+95794d2d2f0d7d562fe3e4b03a4a4676ae78c437 as ancestors. Against the reviewed
+Telegram tip, only wrangler.jsonc, worker-configuration.d.ts and the production
+configuration test differ; each is byte-identical to the published gateway base.
+The learner flow and immutable API client 0.108.0 artifact are unchanged.
+
+Fresh combined-source verification passes all 33 focused Telegram tests, the
+SSR test covering three views, generated Worker types without tracked drift,
+production configuration, 25 HNS graph and identity tests, application type
+checking, lint with warnings, client provenance and runtime-table checks, and
+the resource-bounded Worker build with chunk-size warnings. Frozen dependency
+installation leaves the lockfile unchanged. The prior broad application,
+Storybook and browser evidence above was not repeated for this configuration
+merge. Radicle CI remains unavailable while the shared broker is paused.
+No phone acceptance, staging activation or live login is implied.
+
+The video release executor retains shared main/publication and staging custody
+until explicit handback. This is an isolated branch checkpoint, not canonical
+integration or a runtime release. A later staging release consuming client
+0.108.0 must use matching API contracts; the Telegram practice release also
+requires its reviewed API/jobs/schema-through-0239 pair and permission guard.
+Gateway manifest and binding references remain those of the published base.
